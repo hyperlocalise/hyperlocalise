@@ -49,6 +49,7 @@ func legacyMarkdownContextSensitiveLockTaskHashCandidates(task Task) []string {
 	for _, context := range contexts {
 		candidate := task
 		candidate.SourceContext = context
+		candidate.sourceContextFingerprint = ""
 		candidates = append(
 			candidates,
 			legacyContextSensitiveLockTaskHash(candidate),
@@ -117,6 +118,9 @@ func dedupeStrings(values []string) []string {
 
 func precomputeStableTaskCacheFields(task *Task) {
 	if task == nil {
+		return
+	}
+	if task.sourceTextHash != "" && task.sourceContextFingerprint != "" {
 		return
 	}
 

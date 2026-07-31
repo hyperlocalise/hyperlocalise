@@ -485,6 +485,9 @@ func (s *Service) planTasks(cfg *config.I18NConfig, onlyBucket, onlyGroup string
 						if strings.ToLower(strings.TrimSpace(profile.Provider)) != translator.ProviderOpenAI {
 							return nil, nil, fmt.Errorf("planning tasks: image source %q uses profile %q with provider %q; image localization is only supported with provider %q", sourcePath, profileName, profile.Provider, translator.ProviderOpenAI)
 						}
+						if cap(tasks)-len(tasks) < len(targets) {
+							tasks = slices.Grow(tasks, len(targets))
+						}
 						for _, target := range targets {
 							resolvedTargetPattern := pathresolver.ResolveTargetPath(file.To, cfg.Locales.Source, target)
 							targetPath, err := resolveTargetPath(sourcePattern, resolvedTargetPattern, sourcePath)
@@ -535,11 +538,20 @@ func (s *Service) planTasks(cfg *config.I18NConfig, onlyBucket, onlyGroup string
 						}
 						continue
 					}
-					sourceEntries, sourceContextByKey, parserMode, err := s.loadSourceEntriesCached(parser, sourceCache, sourcePath)
+					snapshot, err := s.loadSourceEntriesCached(parser, sourceCache, sourcePath)
 					if err != nil {
 						return nil, nil, err
 					}
+					sourceEntries := snapshot.entries
+					sourceContextByKey := snapshot.entryContext
+					parserMode := snapshot.parserMode
 					keys := sortedEntryKeys(sourceEntries)
+
+					expectedNewTasks := len(keys) * len(targets)
+					if cap(tasks)-len(tasks) < expectedNewTasks {
+						tasks = slices.Grow(tasks, expectedNewTasks)
+					}
+
 					for _, target := range targets {
 						resolvedTargetPattern := pathresolver.ResolveTargetPath(file.To, cfg.Locales.Source, target)
 						targetPath, err := resolveTargetPath(sourcePattern, resolvedTargetPattern, sourcePath)
@@ -554,26 +566,28 @@ func (s *Service) planTasks(cfg *config.I18NConfig, onlyBucket, onlyGroup string
 							legacyRendered := renderPrompt(profile.Prompt, cfg.Locales.Source, target, sourceText)
 							legacyPromptUsed := strings.TrimSpace(legacyRendered) != "" && strings.TrimSpace(profile.SystemPrompt) == "" && strings.TrimSpace(profile.UserPrompt) == ""
 							task := Task{
-								SourceLocale:         cfg.Locales.Source,
-								TargetLocale:         target,
-								SourcePath:           sourcePath,
-								TargetPath:           targetPath,
-								EntryKey:             key,
-								SourceText:           sourceText,
-								ProfileName:          profileName,
-								Provider:             profile.Provider,
-								Model:                profile.Model,
-								LegacyPrompt:         legacyPromptUsed,
-								PromptLegacyTemplate: profile.Prompt,
-								PromptSystemTemplate: profile.SystemPrompt,
-								PromptUserTemplate:   profile.UserPrompt,
-								SourceContext:        sourceContextByKey[key],
-								ContextProvider:      contextProvider,
-								ContextModel:         contextModel,
-								GroupName:            groupName,
-								BucketName:           bucketName,
-								ParserMode:           parserMode,
-								PromptVersion:        promptVersion,
+								SourceLocale:             cfg.Locales.Source,
+								TargetLocale:             target,
+								SourcePath:               sourcePath,
+								TargetPath:               targetPath,
+								EntryKey:                 key,
+								SourceText:               sourceText,
+								ProfileName:              profileName,
+								Provider:                 profile.Provider,
+								Model:                    profile.Model,
+								LegacyPrompt:             legacyPromptUsed,
+								PromptLegacyTemplate:     profile.Prompt,
+								PromptSystemTemplate:     profile.SystemPrompt,
+								PromptUserTemplate:       profile.UserPrompt,
+								SourceContext:            sourceContextByKey[key],
+								ContextProvider:          contextProvider,
+								ContextModel:             contextModel,
+								GroupName:                groupName,
+								BucketName:               bucketName,
+								ParserMode:               parserMode,
+								PromptVersion:            promptVersion,
+								sourceTextHash:           snapshot.sourceTextHashes[key],
+								sourceContextFingerprint: snapshot.sourceContextFingerprints[key],
 							}
 							precomputeStableTaskCacheFields(&task)
 							if filterFixes {
@@ -662,9 +676,11 @@ func (s *Service) planTasks(cfg *config.I18NConfig, onlyBucket, onlyGroup string
 }
 
 type plannedSourceSnapshot struct {
-	entries      map[string]string
-	entryContext map[string]string
-	parserMode   string
+	entries                   map[string]string
+	entryContext              map[string]string
+	parserMode                string
+	sourceTextHashes          map[string]string
+	sourceContextFingerprints map[string]string
 }
 
 func normalizeTargetLocales(locales []string) ([]string, error) {
@@ -750,21 +766,37 @@ func (s *Service) loadSourceEntries(parser *translationfileparser.Strategy, sour
 	return entries, entryContext, parserModeForSource(sourcePath, content), nil
 }
 
-func (s *Service) loadSourceEntriesCached(parser *translationfileparser.Strategy, sourceCache map[string]plannedSourceSnapshot, sourcePath string) (map[string]string, map[string]string, string, error) {
+func (s *Service) loadSourceEntriesCached(parser *translationfileparser.Strategy, sourceCache map[string]plannedSourceSnapshot, sourcePath string) (plannedSourceSnapshot, error) {
 	if cached, ok := sourceCache[sourcePath]; ok {
-		return cached.entries, cached.entryContext, cached.parserMode, nil
+		return cached, nil
 	}
 
 	entries, entryContext, parserMode, err := s.loadSourceEntries(parser, sourcePath)
 	if err != nil {
-		return nil, nil, "", err
+		return plannedSourceSnapshot{}, err
 	}
-	sourceCache[sourcePath] = plannedSourceSnapshot{
-		entries:      entries,
-		entryContext: entryContext,
-		parserMode:   parserMode,
+
+	sourceTextHashes := make(map[string]string, len(entries))
+	sourceContextFingerprints := make(map[string]string, len(entries))
+	for key, text := range entries {
+		sourceTextHashes[key] = hashSourceText(normalizeSourceForCache(text))
+
+		ctxVal := entryContext[key]
+		effectiveContext := sanitizePromptContext(ctxVal, maxSourceContextLen)
+		sourceContextFingerprints[key] = hashSourceText(strings.Join([]string{
+			"source_context=" + normalizeSourceForCache(effectiveContext),
+		}, "\n"))
 	}
-	return entries, entryContext, parserMode, nil
+
+	snapshot := plannedSourceSnapshot{
+		entries:                   entries,
+		entryContext:              entryContext,
+		parserMode:                parserMode,
+		sourceTextHashes:          sourceTextHashes,
+		sourceContextFingerprints: sourceContextFingerprints,
+	}
+	sourceCache[sourcePath] = snapshot
+	return snapshot, nil
 }
 
 type eventEmitter struct {
