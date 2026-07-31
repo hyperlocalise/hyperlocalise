@@ -54,6 +54,7 @@ import {
   listOrganizationJobs,
   listOrganizationProjectJobs,
 } from "@/lib/projects/jobs/organization-job-query-service";
+import { mergeNativeFileTranslationJobMetadata } from "@/lib/projects/jobs/enqueue-file-translation-job";
 import type {
   JobQueue,
   ProviderAgentCommentQueue,
@@ -397,7 +398,7 @@ export function createJobRoutes(options: CreateJobRoutesOptions) {
       }
 
       const inputPayload = payload.type === "string" ? payload.stringInput : payload.fileInput;
-      const enrichedInputPayload =
+      let enrichedInputPayload =
         payload.title && payload.title.trim().length > 0
           ? {
               ...inputPayload,
@@ -476,6 +477,14 @@ export function createJobRoutes(options: CreateJobRoutesOptions) {
             400,
           );
         }
+
+        enrichedInputPayload = {
+          ...enrichedInputPayload,
+          metadata: mergeNativeFileTranslationJobMetadata(
+            sourceFile.filename,
+            enrichedInputPayload.metadata,
+          ),
+        };
       }
 
       const jobId = `job_${randomUUID()}`;

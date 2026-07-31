@@ -32,6 +32,7 @@ resolution to the same order:
 
 ## Scope
 
-- `createFileTranslationJob` (covers UI Translate with agent, automations, and
-  other callers)
+- `createFileTranslationJob` (automations and other helper callers)
+- Project jobs create route (`job.route.ts`) used by Translate with agent UI
+- Shared `mergeNativeFileTranslationJobMetadata` helper for both paths
 - Job detail layout title resolution

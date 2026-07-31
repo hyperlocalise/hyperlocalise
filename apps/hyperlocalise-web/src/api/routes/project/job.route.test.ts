@@ -14,18 +14,21 @@ import "dotenv/config";
 
 import { randomUUID } from "node:crypto";
 
+import { eq } from "drizzle-orm";
 import { testClient } from "hono/testing";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 
-import { app } from "@/api/app";
+import { app, createApp } from "@/api/app";
 import { db, schema } from "@/lib/database";
 import { upsertExternalTmsJobRecords } from "@/lib/projects/external-tms/external-tms-sync-service";
 import * as tmsProviderAssigneeCandidates from "@/lib/providers/jobs/tms-provider-assignee-candidates";
 import { encodeProviderProjectId } from "@/lib/providers/jobs/tms-provider-resource-id";
 import { ensureDefaultWorkspaceTeam } from "@/lib/teams/default-workspace-team";
+import type { TranslationJobEventData } from "@/lib/workflow/types";
 
 import { createProjectTestFixture } from "./project.fixture";
 import { createTeamTestFixture } from "../team/team.fixture";
+import { insertStoredSourceFile } from "../public-jobs/public-jobs.fixture";
 import type { ProjectResponse } from "./project.schema";
 import type { TeamResponse } from "../team/team.schema";
 import type { WorkspaceJobsResponse } from "./job.schema";
@@ -394,5 +397,125 @@ describe("workspace job list", () => {
 
     expect(createdProjectIds).toEqual([alphaProjectBody.project.id]);
     expect(createdProjectIds).not.toContain(betaProjectBody.project.id);
+  });
+});
+
+describe("project job create", () => {
+  const enqueueJob = vi.fn(async (event: TranslationJobEventData) => ({
+    ids: [event.jobId],
+  }));
+  const createClient = testClient(
+    createApp({
+      jobQueue: {
+        enqueue: enqueueJob,
+      },
+    }),
+  );
+  const createFixture = createProjectTestFixture(createClient);
+
+  afterEach(async () => {
+    vi.clearAllMocks();
+    await createFixture.cleanup();
+  });
+
+  it("defaults file job metadata.title from filename and UTC time", async () => {
+    const { identity, organization, project } = await createFixture.createStoredProjectFixture();
+    const headers = await createFixture.authHeadersFor(identity);
+    const sourceFile = await insertStoredSourceFile({
+      organizationId: organization.id,
+      projectId: project.id,
+      filename: "messages.json",
+      contentType: "application/json",
+    });
+
+    const response = await createClient.api.orgs[":organizationSlug"].projects[
+      ":projectId"
+    ].jobs.$post(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          projectId: project.id,
+        },
+        json: {
+          type: "file",
+          fileInput: {
+            sourceFileId: sourceFile.id,
+            fileFormat: "json",
+            sourceLocale: "en-US",
+            targetLocales: ["fr-FR"],
+          },
+        },
+      },
+      { headers },
+    );
+
+    expect(response.status).toBe(201);
+    const body = (await response.json()) as { job: { id: string } };
+    const [job] = await db
+      .select({ inputPayload: schema.jobs.inputPayload })
+      .from(schema.jobs)
+      .where(eq(schema.jobs.id, body.job.id))
+      .limit(1);
+
+    expect(job?.inputPayload).toMatchObject({
+      sourceFileId: sourceFile.id,
+    });
+    expect(
+      (job?.inputPayload as { metadata?: { title?: string } } | undefined)?.metadata?.title,
+    ).toMatch(/^messages\.json · \d{4}-\d{2}-\d{2} \d{2}:\d{2}$/);
+    expect(enqueueJob).toHaveBeenCalledWith(
+      expect.objectContaining({
+        kind: "translation",
+        type: "file",
+        jobId: body.job.id,
+      }),
+    );
+  });
+
+  it("keeps an explicit job title over the generated default", async () => {
+    const { identity, organization, project } = await createFixture.createStoredProjectFixture();
+    const headers = await createFixture.authHeadersFor(identity);
+    const sourceFile = await insertStoredSourceFile({
+      organizationId: organization.id,
+      projectId: project.id,
+      filename: "messages.json",
+      contentType: "application/json",
+    });
+
+    const response = await createClient.api.orgs[":organizationSlug"].projects[
+      ":projectId"
+    ].jobs.$post(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          projectId: project.id,
+        },
+        json: {
+          type: "file",
+          title: "Release notes · JP + KO",
+          fileInput: {
+            sourceFileId: sourceFile.id,
+            fileFormat: "json",
+            sourceLocale: "en-US",
+            targetLocales: ["fr-FR"],
+          },
+        },
+      },
+      { headers },
+    );
+
+    expect(response.status).toBe(201);
+    const body = (await response.json()) as { job: { id: string } };
+    const [job] = await db
+      .select({ inputPayload: schema.jobs.inputPayload })
+      .from(schema.jobs)
+      .where(eq(schema.jobs.id, body.job.id))
+      .limit(1);
+
+    expect(job?.inputPayload).toMatchObject({
+      metadata: {
+        title: "Release notes · JP + KO",
+      },
+    });
   });
 });

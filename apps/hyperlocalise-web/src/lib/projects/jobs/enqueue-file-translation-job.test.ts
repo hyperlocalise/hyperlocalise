@@ -116,6 +116,7 @@ import {
   createFileTranslationJob,
   enqueueExistingFileTranslationJob,
   enqueueFileTranslationJob,
+  mergeNativeFileTranslationJobMetadata,
 } from "./enqueue-file-translation-job";
 
 describe("buildNativeFileTranslationJobTitle", () => {
@@ -129,6 +130,33 @@ describe("buildNativeFileTranslationJobTitle", () => {
     expect(buildNativeFileTranslationJobTitle("   ", new Date("2026-01-02T03:04:00.000Z"))).toBe(
       "file · 2026-01-02 03:04",
     );
+  });
+});
+
+describe("mergeNativeFileTranslationJobMetadata", () => {
+  it("defaults title from filename and keeps caller fields", () => {
+    expect(
+      mergeNativeFileTranslationJobMetadata(
+        "messages.json",
+        { instructions: "Keep brand names" },
+        new Date("2026-07-31T22:11:45.000Z"),
+      ),
+    ).toEqual({
+      title: "messages.json · 2026-07-31 22:11",
+      instructions: "Keep brand names",
+    });
+  });
+
+  it("keeps a caller-supplied title", () => {
+    expect(
+      mergeNativeFileTranslationJobMetadata(
+        "messages.json",
+        { title: "Release notes · JP + KO" },
+        new Date("2026-07-31T22:11:45.000Z"),
+      ),
+    ).toEqual({
+      title: "Release notes · JP + KO",
+    });
   });
 });
 

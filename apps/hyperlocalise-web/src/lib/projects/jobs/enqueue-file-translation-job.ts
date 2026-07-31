@@ -90,6 +90,18 @@ export function buildNativeFileTranslationJobTitle(
   return `${trimmed} · ${year}-${month}-${day} ${hours}:${minutes}`;
 }
 
+/** Default `metadata.title` from filename/time; caller-supplied title still wins. */
+export function mergeNativeFileTranslationJobMetadata(
+  filename: string,
+  metadata?: Record<string, string>,
+  at: Date = new Date(),
+): Record<string, string> {
+  return {
+    title: buildNativeFileTranslationJobTitle(filename, at),
+    ...metadata,
+  };
+}
+
 async function markFileTranslationJobEnqueueFailed(input: {
   organizationId: string;
   jobId: string;
@@ -210,18 +222,12 @@ export async function createFileTranslationJob(
     };
   }
 
-  const defaultTitle = buildNativeFileTranslationJobTitle(sourceFile.filename);
-  const metadata = {
-    title: defaultTitle,
-    ...input.metadata,
-  };
-
   const inputPayload = {
     sourceFileId: input.sourceFileId,
     fileFormat,
     sourceLocale: input.sourceLocale,
     targetLocales: input.targetLocales,
-    metadata,
+    metadata: mergeNativeFileTranslationJobMetadata(sourceFile.filename, input.metadata),
   };
 
   const jobId = `job_${randomUUID()}`;
