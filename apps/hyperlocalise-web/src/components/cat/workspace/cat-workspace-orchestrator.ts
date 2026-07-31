@@ -198,6 +198,11 @@ export class CatWorkspaceOrchestrator {
    * ignored. Any other mismatch (e.g. server-normalized text) clears the guard.
    */
   private preSaveTargetTexts = new Map<string, string>();
+  /**
+   * Session-local status overrides (e.g. skip) that are not persisted to the provider.
+   * Survives queue hydration so skipped rows do not reappear under Needs Review.
+   */
+  localStatusOverrides = new Map<string, CatSegmentStatus>();
 
   validationSequence = 0;
   reviewSequence = 0;
@@ -532,7 +537,18 @@ export class CatWorkspaceOrchestrator {
 
   getFilteredQueueSegments(filter: CatQueueFilter, usesServerQueueFilter: boolean) {
     if (usesServerQueueFilter && isServerQueueFilter(filter)) {
-      return this.queueSegments;
+      if (this.localStatusOverrides.size === 0) {
+        return this.queueSegments;
+      }
+
+      // Trust the server page, but hide rows whose session-local status no longer
+      // matches (skip is not persisted; approve may race ahead of refetch).
+      return this.queueSegments.filter((meta) => {
+        if (!this.localStatusOverrides.has(meta.id)) {
+          return true;
+        }
+        return this.matchesQueueFilter(meta.id, filter);
+      });
     }
 
     if (filter === "all") {
@@ -621,6 +637,7 @@ export class CatWorkspaceOrchestrator {
     this.hydratedTargetSegmentIds = new Set();
     this.locallyCommittedTargetTexts = new Map();
     this.preSaveTargetTexts = new Map();
+    this.localStatusOverrides = new Map();
     this.ingestQueue(initialState, initialSegmentKeyOrId);
   }
 
@@ -722,10 +739,11 @@ export class CatWorkspaceOrchestrator {
     }
 
     const targetText = target?.text ?? "";
-    const status = segmentStatusFromTarget(
+    const serverStatus = segmentStatusFromTarget(
       { hasOpenIssues: this.segmentHasOpenIssues(segmentId) },
       target,
     );
+    const status = this.localStatusOverrides.get(segmentId) ?? serverStatus;
     const existingMeta = this.segmentMeta.get(segmentId);
     if (existingMeta) {
       const nextContentKind = target?.contentKind ?? existingMeta.contentKind;
@@ -799,7 +817,12 @@ export class CatWorkspaceOrchestrator {
       (comment) => comment.type === "issue" && isOpenIssueStatus(comment.status),
     );
     const draft = this.drafts.get(segmentId);
-    if (draft && hasOpenIssues && draft.status !== "reviewed") {
+    if (
+      draft &&
+      hasOpenIssues &&
+      draft.status !== "reviewed" &&
+      this.localStatusOverrides.get(segmentId) !== "skipped"
+    ) {
       draft.applyServerStatus("needs_review");
     }
   }
@@ -871,13 +894,26 @@ export class CatWorkspaceOrchestrator {
   private mergeQueueMetaFromSnapshot(nextInitialState: CatWorkspaceState) {
     for (const meta of nextInitialState.queueSegments) {
       this.segmentMeta.set(meta.id, meta);
+      const override = this.localStatusOverrides.get(meta.id);
+      if (!override) {
+        continue;
+      }
+
+      const draft = this.drafts.get(meta.id);
+      if (draft) {
+        draft.applyServerStatus(override);
+      } else {
+        this.drafts.set(meta.id, new CatSegmentDraft(meta.id, "", override));
+      }
     }
 
     const nextSegmentIds = new Set(nextInitialState.queueSegments.map((meta) => meta.id));
     for (const segmentId of this.segmentMeta.keys()) {
       if (!nextSegmentIds.has(segmentId)) {
         const draft = this.drafts.get(segmentId);
-        if (!draft?.isDirty) {
+        const hasLocalOverride = this.localStatusOverrides.has(segmentId);
+        // Keep session-local skipped rows so the Skipped filter can still show them.
+        if (!draft?.isDirty && !hasLocalOverride) {
           this.drafts.delete(segmentId);
           this.segmentMeta.delete(segmentId);
           this.segmentComments.delete(segmentId);
@@ -948,6 +984,10 @@ export class CatWorkspaceOrchestrator {
 
   setSegmentStatus(segmentId: string, status: CatSegmentStatus) {
     this.segments.setStatus(segmentId, status, this.segmentMeta.has(segmentId));
+  }
+
+  rememberLocalStatusOverride(segmentId: string, status: CatSegmentStatus) {
+    this.localStatusOverrides.set(segmentId, status);
   }
 
   markSegmentSaved(segmentId: string, targetText: string, status?: CatSegmentStatus) {

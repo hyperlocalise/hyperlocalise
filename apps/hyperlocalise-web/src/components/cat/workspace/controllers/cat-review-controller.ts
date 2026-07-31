@@ -470,22 +470,19 @@ export class CatReviewController {
     const currentIndex = visibleBeforeSkip.findIndex((segment) => segment.id === segmentId);
     const nextSegmentId = currentIndex >= 0 ? visibleBeforeSkip[currentIndex + 1]?.id : undefined;
 
+    // Skip is session-local (no provider persistence). Keep a status override so
+    // hydration cannot resurrect the row under Needs Review / other filters.
     this.workspace.setSegmentStatus(segmentId, "skipped");
+    this.workspace.rememberLocalStatusOverride(segmentId, "skipped");
     this.ports.review?.onSkip?.(segmentId);
 
-    if (
-      this.ports.queueFilter !== "all" &&
-      !this.workspace.matchesQueueFilter(segmentId, this.ports.queueFilter)
-    ) {
-      this.workspace.removeQueueSegmentIfClean(segmentId);
-    }
-
     if (this.workspace.selectedSegmentId === segmentId) {
+      const remaining = this.workspace.getFilteredQueueSegments(
+        this.ports.queueFilter,
+        this.ports.usesServerQueueFilter,
+      );
       this.workspace.setSelectedSegmentId(
-        nextSegmentId ??
-          (this.workspace.segmentMeta.has(segmentId)
-            ? segmentId
-            : (this.workspace.queueSegments[0]?.id ?? "")),
+        nextSegmentId ?? remaining[0]?.id ?? this.workspace.selectedSegmentId,
       );
     }
   }

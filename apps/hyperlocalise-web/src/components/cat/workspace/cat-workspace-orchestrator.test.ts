@@ -716,7 +716,7 @@ describe("CatWorkspaceOrchestrator hydration", () => {
     ]);
   });
 
-  it("removes clean queue segments that no longer belong after a local status change", () => {
+  it("preserves session-local skipped status across queue hydration and target sync", () => {
     const store = createCatWorkspace(
       createCatWorkspaceState({
         selectedSegmentId: "seg-02",
@@ -745,44 +745,31 @@ describe("CatWorkspaceOrchestrator hydration", () => {
       }),
     );
 
-    store.markSegmentSaved("seg-02", "Deuxième", "reviewed");
-    expect(store.removeQueueSegmentIfClean("seg-02")).toBe(true);
-    expect(store.queueSegments.map((segment) => segment.id)).toEqual(["seg-01"]);
-    expect(store.getSegmentView("seg-02")).toBeUndefined();
-  });
+    store.setSegmentStatus("seg-02", "skipped");
+    store.rememberLocalStatusOverride("seg-02", "skipped");
 
-  it("keeps dirty drafts when asking to remove a filtered-out queue segment", () => {
-    const store = createCatWorkspace(
+    store.hydrateFromServerSnapshot(
       createCatWorkspaceState({
-        selectedSegmentId: "seg-02",
-        segments: [
-          {
-            id: "seg-01",
-            index: 1,
-            key: "first",
-            sourceText: "First",
-            targetText: "Premier",
-            sourceLocale: "en-US",
-            targetLocale: "fr",
-            status: "needs_review",
-          },
-          {
-            id: "seg-02",
-            index: 2,
-            key: "second",
-            sourceText: "Second",
-            targetText: "Deuxième",
-            sourceLocale: "en-US",
-            targetLocale: "fr",
-            status: "needs_review",
-          },
+        selectedSegmentId: "seg-01",
+        queueSegments: [
+          { id: "seg-01", index: 1, key: "first", sourceText: "First" },
+          { id: "seg-02", index: 2, key: "second", sourceText: "Second" },
         ],
       }),
     );
+    store.applySegmentTarget("seg-02", {
+      text: "Deuxième",
+      externalTranslationId: "translation-2",
+      isApproved: false,
+    });
 
-    store.setTargetText("seg-02", "Unsaved");
-    expect(store.removeQueueSegmentIfClean("seg-02")).toBe(false);
-    expect(store.getSegmentView("seg-02")?.targetText).toBe("Unsaved");
+    expect(store.getSegmentView("seg-02")?.status).toBe("skipped");
+    expect(
+      store.getFilteredQueueSegments("needs_review", true).map((segment) => segment.id),
+    ).toEqual(["seg-01"]);
+    expect(store.getFilteredQueueSegments("skipped", false).map((segment) => segment.id)).toEqual([
+      "seg-02",
+    ]);
   });
 
   it("returns composed target text for side-by-side queue rows", () => {
