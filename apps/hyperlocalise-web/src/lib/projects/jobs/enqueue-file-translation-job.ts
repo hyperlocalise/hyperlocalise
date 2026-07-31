@@ -76,6 +76,20 @@ export type EnqueueExistingFileTranslationJobResult =
   | { ok: true; jobId: string; projectId: string }
   | { ok: false; code: string; message: string };
 
+/** Human-readable native file job title: `{filename} · {YYYY-MM-DD HH:mm}` (UTC). */
+export function buildNativeFileTranslationJobTitle(
+  filename: string,
+  at: Date = new Date(),
+): string {
+  const trimmed = filename.trim() || "file";
+  const year = at.getUTCFullYear();
+  const month = String(at.getUTCMonth() + 1).padStart(2, "0");
+  const day = String(at.getUTCDate()).padStart(2, "0");
+  const hours = String(at.getUTCHours()).padStart(2, "0");
+  const minutes = String(at.getUTCMinutes()).padStart(2, "0");
+  return `${trimmed} · ${year}-${month}-${day} ${hours}:${minutes}`;
+}
+
 async function markFileTranslationJobEnqueueFailed(input: {
   organizationId: string;
   jobId: string;
@@ -196,12 +210,18 @@ export async function createFileTranslationJob(
     };
   }
 
+  const defaultTitle = buildNativeFileTranslationJobTitle(sourceFile.filename);
+  const metadata = {
+    title: defaultTitle,
+    ...input.metadata,
+  };
+
   const inputPayload = {
     sourceFileId: input.sourceFileId,
     fileFormat,
     sourceLocale: input.sourceLocale,
     targetLocales: input.targetLocales,
-    ...(input.metadata ? { metadata: input.metadata } : {}),
+    metadata,
   };
 
   const jobId = `job_${randomUUID()}`;

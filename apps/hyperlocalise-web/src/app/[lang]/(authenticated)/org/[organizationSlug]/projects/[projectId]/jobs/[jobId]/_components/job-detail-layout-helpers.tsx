@@ -108,6 +108,24 @@ function getInputPayloadString(job: JobDetailRecord, key: string) {
   return typeof value === "string" && value.length > 0 ? value : null;
 }
 
+function getInputPayloadMetadataTitle(job: JobDetailRecord) {
+  if (
+    typeof job.inputPayload !== "object" ||
+    !job.inputPayload ||
+    !("metadata" in job.inputPayload)
+  ) {
+    return null;
+  }
+
+  const metadata = (job.inputPayload as { metadata?: unknown }).metadata;
+  if (typeof metadata !== "object" || !metadata || !("title" in metadata)) {
+    return null;
+  }
+
+  const title = (metadata as { title?: unknown }).title;
+  return typeof title === "string" && title.length > 0 ? title : null;
+}
+
 export function jobDetailTaskTitle(input: JobDetailTaskLayoutInput) {
   return input.title ?? input.id;
 }
@@ -265,9 +283,10 @@ export function jobDetailTaskLayoutFromRecord(
   title: string;
 } {
   const sourcePath = getInputPayloadString(job, "sourceFileId");
+  const metadataTitle = getInputPayloadMetadataTitle(job);
   const input: JobDetailTaskLayoutInput = {
     id: job.id,
-    title: job.externalTitle ?? sourcePath ?? job.id,
+    title: job.externalTitle ?? metadataTitle ?? sourcePath ?? job.id,
     status: job.status,
     updatedAt: job.updatedAt,
     externalProviderKind: job.externalProviderKind,

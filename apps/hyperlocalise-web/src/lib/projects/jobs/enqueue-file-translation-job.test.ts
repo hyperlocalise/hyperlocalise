@@ -112,13 +112,32 @@ vi.mock("@/lib/database", () => {
 });
 
 import {
+  buildNativeFileTranslationJobTitle,
+  createFileTranslationJob,
   enqueueExistingFileTranslationJob,
   enqueueFileTranslationJob,
 } from "./enqueue-file-translation-job";
 
+describe("buildNativeFileTranslationJobTitle", () => {
+  it("formats filename with a UTC timestamp", () => {
+    expect(
+      buildNativeFileTranslationJobTitle("messages.json", new Date("2026-07-31T22:11:45.000Z")),
+    ).toBe("messages.json · 2026-07-31 22:11");
+  });
+
+  it("falls back when filename is blank", () => {
+    expect(buildNativeFileTranslationJobTitle("   ", new Date("2026-01-02T03:04:00.000Z"))).toBe(
+      "file · 2026-01-02 03:04",
+    );
+  });
+});
+
 describe("enqueueFileTranslationJob", () => {
+  let capturedJobValues: Record<string, unknown> | null;
+
   beforeEach(() => {
     vi.clearAllMocks();
+    capturedJobValues = null;
     validateJobLocalesAgainstProjectMock.mockReturnValue(ok(undefined));
     assertOrganizationCanEnqueueTranslationJobInTransactionMock.mockResolvedValue(ok(undefined));
     reserveUsageEventMock.mockResolvedValue(ok(undefined));
@@ -134,18 +153,15 @@ describe("enqueueFileTranslationJob", () => {
     ]);
     transactionMock.mockImplementation(async (fn: (tx: unknown) => Promise<unknown>) => {
       const tx = {
-        insert: vi.fn(() => ({
-          values: vi.fn(() => ({
-            returning: vi.fn().mockResolvedValue([{ id: "job_test", projectId: "project_1" }]),
-          })),
-        })),
+        insert: vi.fn(),
       };
       // First insert returns the job; second insert is translationJobDetails (no returning).
       let insertCount = 0;
       tx.insert = vi.fn(() => ({
-        values: vi.fn(() => {
+        values: vi.fn((values: Record<string, unknown>) => {
           insertCount += 1;
           if (insertCount === 1) {
+            capturedJobValues = values;
             return {
               returning: vi.fn().mockResolvedValue([{ id: "job_test", projectId: "project_1" }]),
             };
@@ -183,6 +199,66 @@ describe("enqueueFileTranslationJob", () => {
         jobId: "job_test",
       }),
     );
+  });
+
+  it("sets a human-readable metadata title from filename and UTC time", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-07-31T22:11:45.000Z"));
+    getStoredFileForJobScopeMock.mockResolvedValue({
+      id: "file_json",
+      filename: "messages.json",
+    });
+
+    try {
+      const result = await createFileTranslationJob({
+        organizationId: "org_1",
+        projectId: "project_1",
+        sourceFileId: "file_json",
+        sourceLocale: "en-US",
+        targetLocales: ["fr-FR"],
+        fileFormat: "json",
+      });
+
+      expect(result).toEqual({
+        ok: true,
+        jobId: "job_test",
+        projectId: "project_1",
+        sourceFileVersionId: "version_1",
+      });
+      expect(capturedJobValues?.inputPayload).toEqual({
+        sourceFileId: "file_json",
+        fileFormat: "json",
+        sourceLocale: "en-US",
+        targetLocales: ["fr-FR"],
+        metadata: {
+          title: "messages.json · 2026-07-31 22:11",
+        },
+      });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("keeps a caller-supplied metadata title", async () => {
+    getStoredFileForJobScopeMock.mockResolvedValue({
+      id: "file_json",
+      filename: "messages.json",
+    });
+
+    const result = await createFileTranslationJob({
+      organizationId: "org_1",
+      projectId: "project_1",
+      sourceFileId: "file_json",
+      sourceLocale: "en-US",
+      targetLocales: ["fr-FR"],
+      fileFormat: "json",
+      metadata: { title: "Release notes · JP + KO" },
+    });
+
+    expect(result).toMatchObject({ ok: true });
+    expect(capturedJobValues?.inputPayload).toMatchObject({
+      metadata: { title: "Release notes · JP + KO" },
+    });
   });
 
   it("rejects unsupported source file formats", async () => {
