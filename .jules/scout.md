@@ -187,3 +187,7 @@
 ## 2026-10-25 - [Forbidden Term Score Edge Cases]
 **Learning:** In the translation scoring evaluator, the `forbidden:term` tag-based filtering uses case-insensitive comparison, substring matching, and auto-trims whitespace. Empty tags like "forbidden:" or whitespace-only tags are safely ignored to avoid corrupting aggregate scores with false-positive penalties.
 **Action:** When testing or extending evaluator filters, explicitly verify whitespace padding, case variations, substring/overlap matches, and malformed tags to protect translation safety constraints.
+
+## 2026-11-05 - [YAML Pruning Validation and Sequence Stability]
+**Learning:** When testing YAML pruning/round-tripping behavior using `MarshalYAMLWithPrune`, mapping nodes are selectively pruned according to prune keys, but sequence/array nodes are kept intact to prevent shift-index instability. Comprehensive testing must verify both the pruning of unwanted mapping leaf strings and the complete preservation of array elements and block/line comments.
+**Action:** Use table-driven tests or multi-layered assertions that round-trip through both the marshaler and parser to ensure that template structures, comments, and array stable indices are verified end-to-end.
