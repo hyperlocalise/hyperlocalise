@@ -164,6 +164,47 @@ func TestLockTaskHashStillIncludesNonMarkdownSourceContext(t *testing.T) {
 	}
 }
 
+func TestLockTaskHashReusesCachedNonMarkdownContextFingerprint(t *testing.T) {
+	task := baseLockTask()
+	task.TargetPath = "/tmp/out.json"
+	task.SourcePath = "/tmp/source.json"
+	task.EntryKey = "hello"
+	task.SourceContext = "Description: short greeting"
+	precomputeStableTaskCacheFields(&task)
+
+	got := lockTaskHash(task)
+	want := lockTaskHashWithContextFingerprint(task, task.sourceContextFingerprint, false)
+	if got != want {
+		t.Fatalf("expected non-markdown lock hash to reuse cached context fingerprint")
+	}
+	if got != lockTaskHashWithContextFingerprint(task, lockSourceContextFingerprint(task), false) {
+		t.Fatalf("expected lockSourceContextFingerprint to match cached non-markdown fingerprint")
+	}
+}
+
+func TestLockTaskHashKeepsMarkdownLockContextOverCachedFingerprint(t *testing.T) {
+	task := baseLockTask()
+	task.TargetPath = "/tmp/out.md"
+	task.SourcePath = "/tmp/source.md"
+	task.EntryKey = "md.0123456789abcdef"
+	task.SourceText = "Keep this translated."
+	task.ParserMode = "other"
+	task.SourceContext = strings.Join([]string{
+		"Markdown translatable segment.",
+		"Structural path: Paragraph[2]/line[0]",
+	}, "\n")
+	precomputeStableTaskCacheFields(&task)
+
+	got := lockTaskHash(task)
+	if got == lockTaskHashWithContextFingerprint(task, task.sourceContextFingerprint, false) {
+		t.Fatalf("expected markdown lock hash to ignore cached prompt context fingerprint")
+	}
+	want := lockTaskHashWithContextFingerprint(task, sourceContextFingerprintForLock(task), false)
+	if got != want {
+		t.Fatalf("expected markdown lock hash to use lock-specific context fingerprint")
+	}
+}
+
 func TestApplyLockFilterMigratesLegacyMarkdownContextSensitiveTaskHash(t *testing.T) {
 	task := baseLockTask()
 	task.TargetPath = "/tmp/out.md"

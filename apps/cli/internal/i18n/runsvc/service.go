@@ -485,7 +485,7 @@ func (s *Service) planTasks(cfg *config.I18NConfig, onlyBucket, onlyGroup string
 						if strings.ToLower(strings.TrimSpace(profile.Provider)) != translator.ProviderOpenAI {
 							return nil, nil, fmt.Errorf("planning tasks: image source %q uses profile %q with provider %q; image localization is only supported with provider %q", sourcePath, profileName, profile.Provider, translator.ProviderOpenAI)
 						}
-						if cap(tasks)-len(tasks) < len(targets) {
+						if !filterFixes && cap(tasks)-len(tasks) < len(targets) {
 							tasks = slices.Grow(tasks, len(targets))
 						}
 						for _, target := range targets {
@@ -547,9 +547,13 @@ func (s *Service) planTasks(cfg *config.I18NConfig, onlyBucket, onlyGroup string
 					parserMode := snapshot.parserMode
 					keys := sortedEntryKeys(sourceEntries)
 
-					expectedNewTasks := len(keys) * len(targets)
-					if cap(tasks)-len(tasks) < expectedNewTasks {
-						tasks = slices.Grow(tasks, expectedNewTasks)
+					// Fix runs keep only a small matching subset after filterFixes;
+					// skip bulk reservation so large catalogs do not OOM.
+					if !filterFixes {
+						expectedNewTasks := len(keys) * len(targets)
+						if cap(tasks)-len(tasks) < expectedNewTasks {
+							tasks = slices.Grow(tasks, expectedNewTasks)
+						}
 					}
 
 					for _, target := range targets {
