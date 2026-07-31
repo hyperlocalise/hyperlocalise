@@ -959,6 +959,29 @@ export class CatWorkspaceOrchestrator {
     this.locallyCommittedTargetTexts.set(segmentId, targetText);
   }
 
+  /**
+   * Drop a segment from the local queue after a status change that no longer matches
+   * the active filter (e.g. approve while filtered to Needs Review). Keeps dirty drafts.
+   */
+  removeQueueSegmentIfClean(segmentId: string) {
+    if (!this.segmentMeta.has(segmentId)) {
+      return false;
+    }
+
+    const draft = this.drafts.get(segmentId);
+    if (draft?.isDirty) {
+      return false;
+    }
+
+    this.queue.remove(segmentId);
+    this.drafts.delete(segmentId);
+    this.segmentComments.delete(segmentId);
+    this.hydratedTargetSegmentIds.delete(segmentId);
+    this.locallyCommittedTargetTexts.delete(segmentId);
+    this.preSaveTargetTexts.delete(segmentId);
+    return true;
+  }
+
   setFormatChecks(segmentId: string, checks: CatFormatCheck[], isSelected: boolean) {
     this.intelligenceState.setChecks(segmentId, checks, isSelected);
   }

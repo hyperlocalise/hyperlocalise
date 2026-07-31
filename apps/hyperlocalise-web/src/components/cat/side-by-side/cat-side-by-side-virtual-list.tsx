@@ -142,11 +142,17 @@ export function CatSideBySideVirtualList({
     [onVisibleSegmentIdsChange, segments],
   );
 
+  const getItemKey = useCallback(
+    (index: number) => segments[index]?.id ?? index,
+    [segments],
+  );
+
   const virtualizer = useVirtualizer({
     count: segments.length,
     getScrollElement: () => parentRef.current,
     estimateSize: () => ESTIMATED_ROW_HEIGHT,
     overscan: 6,
+    getItemKey,
     onChange: (instance) => {
       const virtualItems = instance.getVirtualItems();
       checkForNearEnd(virtualItems);
@@ -184,7 +190,7 @@ export function CatSideBySideVirtualList({
 
           return (
             <div
-              key={segment.id}
+              key={virtualRow.key}
               ref={virtualizer.measureElement}
               data-index={virtualRow.index}
               className="absolute top-0 left-0 w-full"

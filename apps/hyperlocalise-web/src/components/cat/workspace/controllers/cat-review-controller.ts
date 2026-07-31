@@ -356,17 +356,33 @@ export class CatReviewController {
   async approve(segmentId: string, targetText: string) {
     this.workspace.isApproving = true;
     try {
-      const nextStatus =
-        (await this.ports.review?.onApprove?.(segmentId, targetText)) ?? "reviewed";
-      this.workspace.markSegmentSaved(segmentId, targetText, nextStatus as CatSegmentStatus);
-      const visibleSegments = this.workspace.getFilteredQueueSegments(
+      // Resolve the next row before the status change so Needs Review (and other
+      // filters) can drop the approved segment without losing navigation.
+      const visibleBeforeApprove = this.workspace.getFilteredQueueSegments(
         this.ports.queueFilter,
         this.ports.usesServerQueueFilter,
       );
-      const currentIndex = visibleSegments.findIndex((segment) => segment.id === segmentId);
+      const currentIndex = visibleBeforeApprove.findIndex((segment) => segment.id === segmentId);
+      const nextSegmentId =
+        currentIndex >= 0 ? visibleBeforeApprove[currentIndex + 1]?.id : undefined;
+
+      const nextStatus =
+        (await this.ports.review?.onApprove?.(segmentId, targetText)) ?? "reviewed";
+      this.workspace.markSegmentSaved(segmentId, targetText, nextStatus as CatSegmentStatus);
+
+      if (
+        this.ports.queueFilter !== "all" &&
+        !this.workspace.matchesQueueFilter(segmentId, this.ports.queueFilter)
+      ) {
+        this.workspace.removeQueueSegmentIfClean(segmentId);
+      }
+
       if (this.workspace.selectedSegmentId === segmentId) {
         this.workspace.setSelectedSegmentId(
-          visibleSegments[currentIndex + 1]?.id ?? this.workspace.selectedSegmentId,
+          nextSegmentId ??
+            (this.workspace.segmentMeta.has(segmentId)
+              ? segmentId
+              : (this.workspace.queueSegments[0]?.id ?? "")),
         );
       }
     } catch (error) {
@@ -447,8 +463,32 @@ export class CatReviewController {
   }
 
   skip(segmentId: string) {
+    const visibleBeforeSkip = this.workspace.getFilteredQueueSegments(
+      this.ports.queueFilter,
+      this.ports.usesServerQueueFilter,
+    );
+    const currentIndex = visibleBeforeSkip.findIndex((segment) => segment.id === segmentId);
+    const nextSegmentId =
+      currentIndex >= 0 ? visibleBeforeSkip[currentIndex + 1]?.id : undefined;
+
     this.workspace.setSegmentStatus(segmentId, "skipped");
     this.ports.review?.onSkip?.(segmentId);
+
+    if (
+      this.ports.queueFilter !== "all" &&
+      !this.workspace.matchesQueueFilter(segmentId, this.ports.queueFilter)
+    ) {
+      this.workspace.removeQueueSegmentIfClean(segmentId);
+    }
+
+    if (this.workspace.selectedSegmentId === segmentId) {
+      this.workspace.setSelectedSegmentId(
+        nextSegmentId ??
+          (this.workspace.segmentMeta.has(segmentId)
+            ? segmentId
+            : (this.workspace.queueSegments[0]?.id ?? "")),
+      );
+    }
   }
 
   async bulkApprove() {
