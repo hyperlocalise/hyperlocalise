@@ -1609,9 +1609,9 @@ func TestManagersService_Get(t *testing.T) {
 	client, mux, teardown := setupClient()
 	defer teardown()
 
-	mux.HandleFunc("/api/v2/groups/1/managers/27", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/api/v2/groups/1/managers/12", func(w http.ResponseWriter, r *http.Request) {
 		testMethod(t, r, http.MethodGet)
-		testURL(t, r, "/api/v2/groups/1/managers/27")
+		testURL(t, r, "/api/v2/groups/1/managers/12")
 		fmt.Fprint(w, `{
 				"data": {
 				  "id": 27,
@@ -1649,7 +1649,7 @@ func TestManagersService_Get(t *testing.T) {
 		  }`)
 	})
 
-	managers, _, err := client.Users.GetManagers(context.Background(), 1, 27)
+	managers, _, err := client.Users.GetManagers(context.Background(), 1, 12)
 	if err != nil {
 		t.Errorf("Managers.Get returned error: %v", err)
 	}
