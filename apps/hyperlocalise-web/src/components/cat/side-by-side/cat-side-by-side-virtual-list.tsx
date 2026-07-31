@@ -142,10 +142,7 @@ export function CatSideBySideVirtualList({
     [onVisibleSegmentIdsChange, segments],
   );
 
-  const getItemKey = useCallback(
-    (index: number) => segments[index]?.id ?? index,
-    [segments],
-  );
+  const getItemKey = useCallback((index: number) => segments[index]?.id ?? index, [segments]);
 
   const virtualizer = useVirtualizer({
     count: segments.length,

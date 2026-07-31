@@ -468,8 +468,7 @@ export class CatReviewController {
       this.ports.usesServerQueueFilter,
     );
     const currentIndex = visibleBeforeSkip.findIndex((segment) => segment.id === segmentId);
-    const nextSegmentId =
-      currentIndex >= 0 ? visibleBeforeSkip[currentIndex + 1]?.id : undefined;
+    const nextSegmentId = currentIndex >= 0 ? visibleBeforeSkip[currentIndex + 1]?.id : undefined;
 
     this.workspace.setSegmentStatus(segmentId, "skipped");
     this.ports.review?.onSkip?.(segmentId);

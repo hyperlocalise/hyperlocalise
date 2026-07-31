@@ -72,10 +72,7 @@ export function CatQueueVirtualList({
     },
     [hasMore, isLoadingMore, onNearEnd, segments.length],
   );
-  const getItemKey = useCallback(
-    (index: number) => segments[index]?.id ?? index,
-    [segments],
-  );
+  const getItemKey = useCallback((index: number) => segments[index]?.id ?? index, [segments]);
   const virtualizer = useVirtualizer({
     count: segments.length,
     getScrollElement: () => parentRef.current,
