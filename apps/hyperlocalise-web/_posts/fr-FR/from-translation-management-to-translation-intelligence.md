@@ -192,7 +192,7 @@ Cela crée un modèle human-in-the-loop plus efficace.
 
 Les linguistes et les experts du marché consacrent moins de temps à vérifier des contenus prévisibles et davantage de temps aux décisions qui exigent un jugement culturel, une interprétation stratégique ou une responsabilité.
 
-C’est aussi la direction de l’expérience CAT de nouvelle génération](/product/next-gen-cat-tool) : ne pas supprimer les humains de la localisation, mais leur offrir un meilleur contexte, des recommandations plus pertinentes et une vue plus claire des domaines où leur expertise compte.
+C’est aussi la direction de l’[expérience CAT de nouvelle génération](/product/next-gen-cat-tool) : ne pas supprimer les humains de la localisation, mais leur offrir un meilleur contexte, des recommandations plus pertinentes et une vue plus claire des domaines où leur expertise compte.
 
 ## De l'assurance qualité à l'évaluation continue
 
@@ -292,4 +292,4 @@ Cela rendra l’organisation plus intelligente quant à la manière dont elle co
 - [Hyperlocalise](/)
 - [Vue d’ensemble de la gestion des traductions — RWS](https://www.rws.com/glossary/translation-management/)
 - [Recherche en traduction automatique contextuelle — ScienceDirect](https://www.sciencedirect.com/science/article/pii/S2589004224021035)
-- L'évaluation humaine et le contexte au niveau du document dans la traduction automatique — arXiv](https://arxiv.org/abs/2104.14478)
+- [L'évaluation humaine et le contexte au niveau du document dans la traduction automatique — arXiv](https://arxiv.org/abs/2104.14478)

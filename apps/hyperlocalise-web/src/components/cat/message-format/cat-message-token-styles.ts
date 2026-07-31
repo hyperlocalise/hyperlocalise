@@ -10,7 +10,13 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-export type CatMessageTokenVisualKind = "icu" | "placeholder" | "pound" | "tag" | "error";
+export type CatMessageTokenVisualKind =
+  | "icu"
+  | "placeholder"
+  | "pound"
+  | "tag"
+  | "markup"
+  | "error";
 
 export function catMessageTokenToneClass(kind: CatMessageTokenVisualKind) {
   switch (kind) {
@@ -22,6 +28,8 @@ export function catMessageTokenToneClass(kind: CatMessageTokenVisualKind) {
       return "border-grove-500/25 bg-grove-500/10 text-grove-900 dark:text-grove-300";
     case "tag":
       return "border-border bg-skeleton text-foreground";
+    case "markup":
+      return "border-flame-500/25 bg-flame-500/10 text-flame-900 dark:text-flame-200";
     case "error":
       return "rounded-md bg-flame-700/20 text-flame-900 dark:text-flame-100";
   }

@@ -122,7 +122,7 @@ L’IA peut traduire des mots.
 
 La localisation contextuelle aide les équipes à traduire la signification du produit, l’intention de la marque et l’expérience client.
 
-Chez Hyperlocalise, nous développons un outil TAO de nouvelle génération](/product/next-gen-cat-tool) conçu autour de cette idée : l’assistance de l’IA, le contexte produit, les connaissances réutilisables et la révision humaine travaillant ensemble dans un même flux de travail de localisation.
+Chez Hyperlocalise, nous développons un [outil TAO de nouvelle génération](/product/next-gen-cat-tool) conçu autour de cette idée : l’assistance de l’IA, le contexte produit, les connaissances réutilisables et la révision humaine travaillant ensemble dans un même flux de travail de localisation.
 
 [Découvrez notre outil CAT nouvelle génération](/product/next-gen-cat-tool) et voyez comment la localisation IA contextuelle peut aider votre équipe à traduire avec plus de précision, de cohérence et d’assurance.
 

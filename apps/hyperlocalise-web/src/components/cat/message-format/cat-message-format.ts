@@ -26,7 +26,17 @@ import {
   type SelectElement,
 } from "@formatjs/icu-messageformat-parser";
 
-export type CatMessageTokenKind = "argument" | "icu" | "number" | "date" | "time" | "pound" | "tag";
+import { extractInternalMarkupSpans } from "./cat-internal-markup";
+
+export type CatMessageTokenKind =
+  | "argument"
+  | "icu"
+  | "number"
+  | "date"
+  | "time"
+  | "pound"
+  | "tag"
+  | "markup";
 
 export interface CatMessageToken {
   id: string;
@@ -37,6 +47,8 @@ export interface CatMessageToken {
   end: number;
   options?: string[];
   type?: "plural" | "select" | "selectordinal";
+  /** Short chip label for internal markup sentinels (e.g. MD#0). */
+  displayLabel?: string;
 }
 
 export interface CatIcuBlockSummary {
@@ -176,32 +188,57 @@ function walkElements(
   });
 }
 
+function markupTokensFromMessage(message: string): CatMessageToken[] {
+  return extractInternalMarkupSpans(message).map((span, index) => ({
+    id: `markup-${span.family}-${span.index}-${span.start}-${index}`,
+    kind: "markup" as const,
+    name: span.label,
+    literal: span.literal,
+    start: span.start,
+    end: span.end,
+    displayLabel: span.label,
+  }));
+}
+
+function mergeMessageTokens(markupTokens: CatMessageToken[], icuTokens: CatMessageToken[]) {
+  return [...markupTokens, ...icuTokens].toSorted((first, second) => first.start - second.start);
+}
+
+function placeholderTokens(tokens: CatMessageToken[]) {
+  return tokens.filter((token) =>
+    ["argument", "number", "date", "time", "tag", "markup"].includes(token.kind),
+  );
+}
+
+function icuBlockSummaries(tokens: CatMessageToken[]): CatIcuBlockSummary[] {
+  return tokens
+    .filter((token) => token.kind === "icu" && token.type)
+    .map((token) => ({
+      id: token.id,
+      arg: token.name,
+      type: token.type!,
+      options: token.options ?? [],
+    }));
+}
+
 export function analyzeCatMessageFormat(message: string): CatMessageAnalysis {
+  const markupTokens = markupTokensFromMessage(message);
+
   try {
     const ast = parse(message, {
       captureLocation: true,
       ignoreTag: false,
       requiresOtherClause: true,
     });
-    const tokens: CatMessageToken[] = [];
-    walkElements(ast, message, tokens);
-    const placeholders = tokens.filter((token) =>
-      ["argument", "number", "date", "time", "tag"].includes(token.kind),
-    );
-    const icuBlocks = tokens
-      .filter((token) => token.kind === "icu" && token.type)
-      .map((token) => ({
-        id: token.id,
-        arg: token.name,
-        type: token.type!,
-        options: token.options ?? [],
-      }));
+    const icuTokens: CatMessageToken[] = [];
+    walkElements(ast, message, icuTokens);
+    const tokens = mergeMessageTokens(markupTokens, icuTokens);
 
     return {
       message,
       tokens,
-      placeholders,
-      icuBlocks,
+      placeholders: placeholderTokens(tokens),
+      icuBlocks: icuBlockSummaries(tokens),
     };
   } catch (error) {
     const parserError = error as {
@@ -212,8 +249,8 @@ export function analyzeCatMessageFormat(message: string): CatMessageAnalysis {
 
     return {
       message,
-      tokens: [],
-      placeholders: [],
+      tokens: markupTokens,
+      placeholders: placeholderTokens(markupTokens),
       icuBlocks: [],
       parseError: {
         message: parserError.message ?? "",
@@ -229,6 +266,11 @@ function tokenSignature(token: CatMessageToken) {
     return `${token.kind}:${token.name}:${token.type}`;
   }
 
+  if (token.kind === "markup") {
+    // Exact sentinel bytes must round-trip; label alone is not unique across hashes.
+    return `${token.kind}:${token.literal}`;
+  }
+
   return `${token.kind}:${token.name}`;
 }
 
@@ -239,6 +281,10 @@ function tokenDisplayName(token: CatMessageToken) {
 
   if (token.kind === "tag") {
     return `<${token.name}>`;
+  }
+
+  if (token.kind === "markup") {
+    return token.displayLabel ?? token.name;
   }
 
   return `{${token.name}}`;
@@ -254,8 +300,13 @@ export function compareCatMessageFormats(
   target: CatMessageAnalysis,
 ): CatMessageParityIssue[] {
   const issues: CatMessageParityIssue[] = [];
+  const sourceHasMarkup = source.tokens.some((token) => token.kind === "markup");
+  const targetHasMarkup = target.tokens.some((token) => token.kind === "markup");
+  const hasMarkup = sourceHasMarkup || targetHasMarkup;
 
-  if (source.parseError) {
+  // Internal HL*PH sentinels are compared as markup tokens. Pure ICU parse failures
+  // without markup still short-circuit like before.
+  if (source.parseError && !hasMarkup) {
     issues.push({
       kind: "parse-error",
       parseTarget: "source",
@@ -271,7 +322,7 @@ export function compareCatMessageFormats(
     return issues;
   }
 
-  if (target.parseError) {
+  if (target.parseError && !hasMarkup) {
     issues.push({
       kind: "parse-error",
       parseTarget: "target",
@@ -298,16 +349,18 @@ export function compareCatMessageFormats(
     });
   }
 
-  const missingIcuBlocks = findMissingTokens(
-    source.tokens.filter((token) => token.kind === "icu"),
-    target.tokens.filter((token) => token.kind === "icu"),
-  );
-  if (missingIcuBlocks.length > 0) {
-    const labels = uniqueSorted(missingIcuBlocks.map(tokenDisplayName));
-    issues.push({
-      kind: "icu-mismatch",
-      tokens: labels,
-    });
+  if (!source.parseError && !target.parseError) {
+    const missingIcuBlocks = findMissingTokens(
+      source.tokens.filter((token) => token.kind === "icu"),
+      target.tokens.filter((token) => token.kind === "icu"),
+    );
+    if (missingIcuBlocks.length > 0) {
+      const labels = uniqueSorted(missingIcuBlocks.map(tokenDisplayName));
+      issues.push({
+        kind: "icu-mismatch",
+        tokens: labels,
+      });
+    }
   }
 
   return issues;

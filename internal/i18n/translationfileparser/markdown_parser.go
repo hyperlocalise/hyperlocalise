@@ -801,7 +801,90 @@ func renderMarkdownPartWithDiagnostics(part markdownPart, translated string, dia
 		}
 		return expandMarkdownPlaceholders(part.source, part.placeholders)
 	}
+	// Trusted target-fallback text is already expanded, so placeholder multiset checks
+	// above are skipped. Still reject orphan link/image closers such as
+	// `label](/url)` (missing `[` / `![`) that pre-fix translations can leave behind.
+	if markdownHasOrphanLinkClosers(rendered) {
+		if diags != nil && part.key != "" {
+			diags.SourceFallbackKeys = append(diags.SourceFallbackKeys, part.key)
+		}
+		return expandMarkdownPlaceholders(part.source, part.placeholders)
+	}
 	return rendered
+}
+
+// markdownHasOrphanLinkClosers reports whether s contains a `](` / `][` closer
+// without a matching `[` / `![` opener. Inline code spans and escapes are skipped.
+func markdownHasOrphanLinkClosers(s string) bool {
+	openerDepth := 0
+	for idx := 0; idx < len(s); {
+		if s[idx] == '\\' && idx+1 < len(s) {
+			idx += 2
+			continue
+		}
+		if s[idx] == '`' {
+			run := 0
+			for idx+run < len(s) && s[idx+run] == '`' {
+				run++
+			}
+			closing := strings.Repeat("`", run)
+			end := idx + run
+			found := false
+			for end <= len(s)-run {
+				if s[end:end+run] == closing {
+					end += run
+					found = true
+					break
+				}
+				end++
+			}
+			if !found {
+				idx += run
+				continue
+			}
+			idx = end
+			continue
+		}
+		if s[idx] == '!' && idx+1 < len(s) && s[idx+1] == '[' {
+			openerDepth++
+			idx += 2
+			continue
+		}
+		if s[idx] == '[' {
+			openerDepth++
+			idx++
+			continue
+		}
+		if strings.HasPrefix(s[idx:], "](") {
+			if openerDepth == 0 {
+				return true
+			}
+			openerDepth--
+			idx = findMarkdownLinkDestinationEnd(s, idx+2)
+			continue
+		}
+		if strings.HasPrefix(s[idx:], "][") {
+			if openerDepth == 0 {
+				return true
+			}
+			closeIdx := strings.IndexByte(s[idx+2:], ']')
+			if closeIdx < 0 {
+				return true
+			}
+			openerDepth--
+			idx = idx + 2 + closeIdx + 1
+			continue
+		}
+		if s[idx] == ']' {
+			if openerDepth > 0 {
+				openerDepth--
+			}
+			idx++
+			continue
+		}
+		idx++
+	}
+	return false
 }
 
 func markdownLinkPlaceholderOrderValid(source, rendered string, placeholders map[string]string) bool {

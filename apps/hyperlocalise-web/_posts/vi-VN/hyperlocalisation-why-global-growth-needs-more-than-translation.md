@@ -117,7 +117,7 @@ Hyperlocalise đang xây dựng cho một tương lai nơi các quy trình bản
 
 Điều đó có nghĩa là trải nghiệm dịch thuật nên hiểu sản phẩm. Nó nên hiểu thương hiệu. Nó nên hiểu thị trường. Nó nên hiểu các quyết định trước đây. Và nó nên được cải thiện khi đội ngũ tiếp tục làm việc.
 
-Công cụ CAT thế hệ mới của chúng tôi ](/product/next-gen-cat-tool) đưa ngữ cảnh sản phẩm, quy tắc bảng thuật ngữ, ảnh chụp màn hình và phản hồi của người duyệt vào chính trải nghiệm dịch thuật — để các quyết định siêu bản địa hóa diễn ra ngay tại nơi công việc thực sự được thực hiện.
+[Công cụ CAT thế hệ mới của chúng tôi](/product/next-gen-cat-tool) đưa ngữ cảnh sản phẩm, quy tắc bảng thuật ngữ, ảnh chụp màn hình và phản hồi của người duyệt vào chính trải nghiệm dịch thuật — để các quyết định siêu bản địa hóa diễn ra ngay tại nơi công việc thực sự được thực hiện.
 
 ## Tầm nhìn của chúng tôi: trí tuệ bản địa hóa tự tiến hóa
 

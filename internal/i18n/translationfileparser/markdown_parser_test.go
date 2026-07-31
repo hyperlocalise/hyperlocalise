@@ -315,6 +315,123 @@ func TestMarshalMarkdownFallsBackWhenImageOpenerPlaceholderIsDropped(t *testing.
 	}
 }
 
+func TestMarkdownHasOrphanLinkClosers(t *testing.T) {
+	cases := []struct {
+		name string
+		in   string
+		want bool
+	}{
+		{name: "balanced_inline_link", in: "See [docs](/docs) now.", want: false},
+		{name: "balanced_image", in: "View ![diagram](/d.png) now.", want: false},
+		{name: "balanced_reference_link", in: "See [docs][ref] now.", want: false},
+		{name: "missing_link_opener", in: "See docs](/docs) now.", want: true},
+		{name: "missing_image_opener", in: "View diagram](/d.png) now.", want: true},
+		{name: "missing_reference_opener", in: "See docs][ref] now.", want: true},
+		{name: "code_span_false_positive", in: "Use `label](/url)` literally.", want: false},
+		{name: "escaped_brackets", in: `Keep \[literal](/not-a-link) text.`, want: true},
+		{name: "multiple_links_one_orphan", in: "Good [one](/a) and bad two](/b).", want: true},
+		{name: "blog_style_vietnamese", in: "cần một công cụ CAT thế hệ mới](/product/next-gen-cat-tool) đưa", want: true},
+		{name: "empty", in: "", want: false},
+		{name: "no_links", in: "Plain prose without markup.", want: false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := markdownHasOrphanLinkClosers(tc.in); got != tc.want {
+				t.Fatalf("markdownHasOrphanLinkClosers(%q) = %v, want %v", tc.in, got, tc.want)
+			}
+		})
+	}
+}
+
+func TestMarshalMarkdownWithTargetFallbackRejectsMissingLinkOpener(t *testing.T) {
+	source := []byte("Global teams need a [next-generation CAT tool](/product/next-gen-cat-tool) that brings context.\n")
+	broken := []byte("Các nhóm toàn cầu cần một công cụ CAT thế hệ mới](/product/next-gen-cat-tool) đưa ngữ cảnh.\n")
+	good := []byte("Các nhóm toàn cầu cần một [công cụ CAT thế hệ mới](/product/next-gen-cat-tool) đưa ngữ cảnh.\n")
+
+	brokenOut, brokenDiags := MarshalMarkdownWithTargetFallbackDiagnostics(source, broken, map[string]string{}, false)
+	if strings.Contains(string(brokenOut), "thế hệ mới](/product") {
+		t.Fatalf("expected orphan closer rejected, got %q", brokenOut)
+	}
+	if !strings.Contains(string(brokenOut), "[next-generation CAT tool](/product/next-gen-cat-tool)") {
+		t.Fatalf("expected source fallback with valid link, got %q", brokenOut)
+	}
+	if len(brokenDiags.SourceFallbackKeys) == 0 {
+		t.Fatalf("expected source fallback diagnostic for orphan closer, got %+v", brokenDiags)
+	}
+
+	goodOut, goodDiags := MarshalMarkdownWithTargetFallbackDiagnostics(source, good, map[string]string{}, false)
+	if !strings.Contains(string(goodOut), "[công cụ CAT thế hệ mới](/product/next-gen-cat-tool)") {
+		t.Fatalf("expected valid translated link preserved, got %q", goodOut)
+	}
+	if len(goodDiags.SourceFallbackKeys) != 0 {
+		t.Fatalf("expected no source fallback for valid target, got %+v", goodDiags)
+	}
+}
+
+func TestMarshalMarkdownWithTargetFallbackRejectsMissingImageOpener(t *testing.T) {
+	source := []byte("See ![architecture](/images/arch.png) for details.\n")
+	broken := []byte("Xem architecture](/images/arch.png) để biết chi tiết.\n")
+
+	out, diags := MarshalMarkdownWithTargetFallbackDiagnostics(source, broken, map[string]string{}, false)
+	if strings.Contains(string(out), "Xem architecture](/images/arch.png)") {
+		t.Fatalf("expected orphan image closer rejected, got %q", out)
+	}
+	if !strings.Contains(string(out), "![architecture](/images/arch.png)") {
+		t.Fatalf("expected source image fallback, got %q", out)
+	}
+	if len(diags.SourceFallbackKeys) == 0 {
+		t.Fatalf("expected source fallback diagnostic, got %+v", diags)
+	}
+}
+
+func TestMarshalMarkdownWithTargetFallbackRejectsMissingReferenceLinkOpener(t *testing.T) {
+	source := []byte("Read [the docs][docs-ref] first.\n\n[docs-ref]: https://example.com/docs\n")
+	broken := []byte("Đọc the docs][docs-ref] trước.\n\n[docs-ref]: https://example.com/docs\n")
+
+	out, diags := MarshalMarkdownWithTargetFallbackDiagnostics(source, broken, map[string]string{}, false)
+	if strings.Contains(string(out), "Đọc the docs][docs-ref]") {
+		t.Fatalf("expected orphan reference closer rejected, got %q", out)
+	}
+	if !strings.Contains(string(out), "[the docs][docs-ref]") {
+		t.Fatalf("expected source reference link fallback, got %q", out)
+	}
+	if len(diags.SourceFallbackKeys) == 0 {
+		t.Fatalf("expected source fallback diagnostic, got %+v", diags)
+	}
+}
+
+func TestMarshalMarkdownWithTargetFallbackPreservesLinksInsideCodeSpans(t *testing.T) {
+	source := []byte("Use `[label](/url)` as an example.\n")
+	target := []byte("Dùng `[label](/url)` làm ví dụ.\n")
+
+	out, diags := MarshalMarkdownWithTargetFallbackDiagnostics(source, target, map[string]string{}, false)
+	if !strings.Contains(string(out), "`[label](/url)`") {
+		t.Fatalf("expected code-span example preserved, got %q", out)
+	}
+	if len(diags.SourceFallbackKeys) != 0 {
+		t.Fatalf("expected no source fallback for code-span content, got %+v", diags)
+	}
+}
+
+func TestMarshalMarkdownWithTargetFallbackMixedSegmentsFallsBackOnlyBrokenOnes(t *testing.T) {
+	source := []byte("Intro [one](/a).\n\nOther [two](/b).\n")
+	target := []byte("Intro traduit [un](/a).\n\nAutre two](/b).\n")
+
+	out, diags := MarshalMarkdownWithTargetFallbackDiagnostics(source, target, map[string]string{}, false)
+	if !strings.Contains(string(out), "[un](/a)") {
+		t.Fatalf("expected valid translated segment kept, got %q", out)
+	}
+	if !strings.Contains(string(out), "[two](/b)") {
+		t.Fatalf("expected broken segment to fall back to source, got %q", out)
+	}
+	if strings.Contains(string(out), "Autre two](/b)") || strings.Contains(string(out), "Autre [two]") {
+		t.Fatalf("expected broken translated segment not preserved, got %q", out)
+	}
+	if len(diags.SourceFallbackKeys) != 1 {
+		t.Fatalf("expected exactly one source fallback key, got %+v", diags)
+	}
+}
+
 func TestMarshalMarkdownFallsBackWhenLinkPlaceholdersAreInvalid(t *testing.T) {
 	template := []byte("Read [the docs](/docs) now.\n")
 	entries, err := (MarkdownParser{}).Parse(template)

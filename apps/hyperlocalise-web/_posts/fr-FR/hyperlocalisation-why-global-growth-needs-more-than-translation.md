@@ -129,7 +129,7 @@ Nous pensons que le savoir doit devenir réutilisable.
 
 Un système de localisation doit apprendre de la manière dont une entreprise communique. Il doit se souvenir de la façon dont les termes sont utilisés dans l’ensemble des produits. Il doit comprendre comment les relecteurs prennent leurs décisions. Il doit reconnaître les tendances dans les retours du marché. Il doit aider les équipes à appliquer les bonnes règles et le bon contexte sans exiger la même configuration manuelle à chaque fois.
 
-C’est ce que nous entendons par intelligence de localisation auto-évolutive](/product/self-evolving-knowledge).
+C’est ce que nous entendons par [intelligence de localisation auto-évolutive](/product/self-evolving-knowledge).
 
 Le système devrait devenir plus utile à chaque projet. Il devrait réduire les questions répétées, améliorer la cohérence et aider les équipes à prendre de meilleures décisions au fil du temps. Plus une entreprise localise, plus son intelligence de localisation devrait se renforcer.
 

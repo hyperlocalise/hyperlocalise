@@ -83,4 +83,90 @@ describe("cat message format utilities", () => {
       }),
     );
   });
+
+  it("extracts markdown HLMDPH boundary tokens as markup chips", () => {
+    const md0 = "\u001eHLMDPH_8E6DFE8F53EA_0\u001f";
+    const md1 = "\u001eHLMDPH_0EB5FD589564_1\u001f";
+    const analysis = analyzeCatMessageFormat(`${md0}next-generation CAT tool${md1}`);
+
+    expect(analysis.tokens).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          kind: "markup",
+          name: "MD#0",
+          displayLabel: "MD#0",
+          literal: md0,
+        }),
+        expect.objectContaining({
+          kind: "markup",
+          name: "MD#1",
+          displayLabel: "MD#1",
+          literal: md1,
+        }),
+      ]),
+    );
+    expect(analysis.placeholders).toHaveLength(2);
+    expect(analysis.parseError).toBeUndefined();
+  });
+
+  it("reports missing markdown boundary tokens with short labels", () => {
+    const md0 = "\u001eHLMDPH_8E6DFE8F53EA_0\u001f";
+    const md1 = "\u001eHLMDPH_0EB5FD589564_1\u001f";
+    const issues = compare(
+      `${md0}next-generation CAT tool${md1}`,
+      `outil CAT nouvelle génération${md1}`,
+    );
+
+    expect(issues).toContainEqual(
+      expect.objectContaining({
+        kind: "missing-token",
+        tokens: ["MD#0"],
+      }),
+    );
+  });
+
+  it("reports extra markdown boundary tokens", () => {
+    const md0 = "\u001eHLMDPH_8E6DFE8F53EA_0\u001f";
+    const md1 = "\u001eHLMDPH_0EB5FD589564_1\u001f";
+    const issues = compare(`plain ${md1}`, `${md0}plain ${md1}`);
+
+    expect(issues).toContainEqual(
+      expect.objectContaining({
+        kind: "extra-token",
+        tokens: ["MD#0"],
+      }),
+    );
+  });
+
+  it("accepts matching markdown boundary tokens", () => {
+    const md0 = "\u001eHLMDPH_8E6DFE8F53EA_0\u001f";
+    const md1 = "\u001eHLMDPH_0EB5FD589564_1\u001f";
+    const issues = compare(
+      `${md0}next-generation CAT tool${md1}`,
+      `${md0}outil CAT de nouvelle génération${md1}`,
+    );
+
+    expect(issues).toEqual([]);
+  });
+
+  it("treats differently hashed sentinels with the same index as a mismatch", () => {
+    const sourceToken = "\u001eHLMDPH_AAAAAAAAAAAA_0\u001f";
+    const targetToken = "\u001eHLMDPH_BBBBBBBBBBBB_0\u001f";
+    const issues = compare(`${sourceToken}label`, `${targetToken}libellé`);
+
+    expect(issues).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ kind: "missing-token", tokens: ["MD#0"] }),
+        expect.objectContaining({ kind: "extra-token", tokens: ["MD#0"] }),
+      ]),
+    );
+  });
+
+  it("coexists ICU placeholders with HTML markup sentinels", () => {
+    const ht0 = "\u001eHLHTPH_AABBCCDDEEFF_0\u001f";
+    const analysis = analyzeCatMessageFormat(`Hello {name}${ht0}`);
+
+    expect(analysis.tokens.map((token) => token.kind).toSorted()).toEqual(["argument", "markup"]);
+    expect(analysis.placeholders).toHaveLength(2);
+  });
 });

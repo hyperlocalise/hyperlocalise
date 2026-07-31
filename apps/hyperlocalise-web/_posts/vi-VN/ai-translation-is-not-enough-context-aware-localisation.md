@@ -92,7 +92,7 @@ Các nhóm sản phẩm triển khai liên tục. Các nhóm marketing ra mắt 
 
 Một giao diện dịch thuật chỉ hiển thị văn bản nguồn và văn bản đích thì không còn đủ nữa.
 
-Các nhóm toàn cầu cần một công cụ CAT thế hệ mới](/product/next-gen-cat-tool) đưa ngữ cảnh vào chính trải nghiệm dịch. Không phải là điều được nghĩ đến sau cùng. Không phải là một tài liệu riêng biệt. Không phải là một chuỗi Slack mà ai đó phải tìm kiếm. Mà là một phần của quy trình làm việc, nơi dịch thuật và rà soát thực sự diễn ra.
+Các nhóm toàn cầu cần một [công cụ CAT thế hệ mới](/product/next-gen-cat-tool) đưa ngữ cảnh vào chính trải nghiệm dịch. Không phải là điều được nghĩ đến sau cùng. Không phải là một tài liệu riêng biệt. Không phải là một chuỗi Slack mà ai đó phải tìm kiếm. Mà là một phần của quy trình làm việc, nơi dịch thuật và rà soát thực sự diễn ra.
 
 Đó là hướng mà chúng tôi đang xây dựng tại Hyperlocalise.
 

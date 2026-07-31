@@ -23,6 +23,7 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import { CheckIcon, CopyIcon } from "lucide-react";
 import { FormattedMessage, useIntl } from "react-intl";
 
+import { formatInternalMarkupForDisplay } from "@/components/cat/message-format/cat-internal-markup";
 import { MarkdownContent } from "@/components/markdown-editor/markdown-editor";
 import {
   AlertDialog,
@@ -248,9 +249,11 @@ function TranslationMemoryRow({
       </div>
       <div className="space-y-1">
         <p className="text-pretty text-xs leading-relaxed text-muted-foreground">
-          {match.sourceText}
+          {formatInternalMarkupForDisplay(match.sourceText)}
         </p>
-        <p className="text-pretty text-sm leading-relaxed text-foreground">{match.targetText}</p>
+        <p className="text-pretty text-sm leading-relaxed text-foreground">
+          {formatInternalMarkupForDisplay(match.targetText)}
+        </p>
       </div>
     </li>
   );
