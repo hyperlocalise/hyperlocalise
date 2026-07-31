@@ -22,11 +22,12 @@ home:
 	// We want to keep 'hello', 'home.title', and 'home.steps' (and its entries)
 	// We want to prune 'home.cta'
 	// We also want to rewrite 'hello' to 'Bonjour' and 'home.title' to 'Accueil'
+	// Intentionally omit home.steps[1] from pruneKeys: sequence entries must
+	// remain intact regardless of pruning so indexes stay stable.
 	pruneKeys := map[string]struct{}{
 		"hello":         {},
 		"home.title":    {},
 		"home.steps[0]": {},
-		"home.steps[1]": {},
 	}
 
 	values := map[string]string{
