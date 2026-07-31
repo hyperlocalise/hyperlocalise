@@ -15,7 +15,18 @@ import { afterAll, beforeAll } from "vite-plus/test";
 
 import { E2E_SETUP_TOKEN_HEADER } from "../../lib/e2e/config";
 
-import { E2E_BASE_URL } from "../constants";
+import { E2E_BASE_URL, organizationDashboardPath } from "../constants";
+
+const ONBOARDING_PATH = "/auth/onboarding";
+
+type FixtureSessionResponse = {
+  session: {
+    email: string;
+    organizationSlug?: string;
+    workosOrganizationId?: string;
+    workosUserId: string;
+  };
+};
 
 function requireE2eSetupToken() {
   const token = process.env.E2E_AUTH_SECRET?.trim();
@@ -42,6 +53,14 @@ async function createFixtureSession(page: Page, body: Record<string, string>) {
   }
 
   await trackFixtureSession(page);
+
+  return (await response.json()) as FixtureSessionResponse;
+}
+
+async function gotoAfterLogin(page: Page, path: string) {
+  await page.goto(new URL(path, E2E_BASE_URL).toString(), {
+    waitUntil: "domcontentloaded",
+  });
 }
 
 type E2eBrowserContext = {
@@ -108,8 +127,15 @@ export function getE2ePage() {
 
 export async function loginForOnboarding(page: Page) {
   await createFixtureSession(page, { mode: "onboarding" });
+  await gotoAfterLogin(page, ONBOARDING_PATH);
 }
 
 export async function loginAsAdmin(page: Page) {
-  await createFixtureSession(page, { role: "admin" });
+  const { session } = await createFixtureSession(page, { role: "admin" });
+  const organizationSlug = session.organizationSlug?.trim();
+  if (!organizationSlug) {
+    throw new Error("E2E fixture login did not return an organization slug");
+  }
+
+  await gotoAfterLogin(page, organizationDashboardPath(organizationSlug));
 }
