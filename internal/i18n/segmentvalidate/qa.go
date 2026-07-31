@@ -38,11 +38,23 @@ func qaChecks(req Request) []Check {
 		}
 	}
 
-	if !hasNotLocalized && !hasWhitespaceOnly && !hasSameAsSource {
+	enabled := 0
+	if hasNotLocalized {
+		enabled++
+	}
+	if hasWhitespaceOnly {
+		enabled++
+	}
+	if hasSameAsSource {
+		enabled++
+	}
+	if enabled == 0 {
 		return nil
 	}
 
-	checks := make([]Check, 0, 3)
+	// Size capacity to the enabled mode count so single-mode requests do not
+	// over-allocate the result slice (fixed cap of 3 increased heap bytes).
+	checks := make([]Check, 0, enabled)
 	if hasNotLocalized {
 		if check, include := notLocalizedCheck(req.SourceText, req.TargetText); include {
 			checks = append(checks, check)
