@@ -77,7 +77,8 @@ export function parseIssueListSearchParams(
   const view = readAllowedValue(searchParams, "view", ISSUE_LIST_VIEWS) ?? DEFAULT_STATE.view;
   const sort = readAllowedValue(searchParams, "sort", ISSUE_LIST_SORT_FIELDS) ?? DEFAULT_STATE.sort;
   const sortDir =
-    readAllowedValue(searchParams, "sortDir", ISSUE_LIST_SORT_DIRECTIONS) ?? DEFAULT_STATE.sortDir;
+    readAllowedValue(searchParams, "sortDir", ISSUE_LIST_SORT_DIRECTIONS) ??
+    defaultSortDirForField(sort);
   const status = readAllowedValue(searchParams, "status", ISSUE_STATUS_FILTERS);
   const issueType = readAllowedValue(searchParams, "issueType", ISSUE_TYPE_FILTERS);
   const priority = readAllowedValue(searchParams, "priority", ISSUE_PRIORITIES);

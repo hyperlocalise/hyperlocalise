@@ -41,4 +41,15 @@ describe("groupIssuesByStatus", () => {
 
     expect(groups).toEqual([{ status: "open", issues: [], count: 0 }]);
   });
+
+  it("keeps summary-backed groups before their rows are loaded", () => {
+    const groups = groupIssuesByStatus([{ id: "1", status: "open" }], {
+      summary: { open: 40, inProgress: 3, resolved: 0, wontFix: 0 },
+    });
+
+    expect(groups.map((group) => [group.status, group.count, group.issues.length])).toEqual([
+      ["open", 40, 1],
+      ["in_progress", 3, 0],
+    ]);
+  });
 });

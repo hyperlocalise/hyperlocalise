@@ -52,6 +52,22 @@ describe("issue-list-url-state", () => {
     );
   });
 
+  it("defaults missing sortDir from the sort field", () => {
+    expect(parseIssueListSearchParams(new URLSearchParams({ sort: "updated_at" })).sortDir).toBe(
+      "desc",
+    );
+    expect(parseIssueListSearchParams(new URLSearchParams({ sort: "created_at" })).sortDir).toBe(
+      "desc",
+    );
+    expect(parseIssueListSearchParams(new URLSearchParams({ sort: "priority" })).sortDir).toBe(
+      "asc",
+    );
+    expect(
+      parseIssueListSearchParams(new URLSearchParams({ sort: "updated_at", sortDir: "asc" }))
+        .sortDir,
+    ).toBe("asc");
+  });
+
   it("builds permanent issue detail hrefs", () => {
     expect(
       buildIssueDetailHref({

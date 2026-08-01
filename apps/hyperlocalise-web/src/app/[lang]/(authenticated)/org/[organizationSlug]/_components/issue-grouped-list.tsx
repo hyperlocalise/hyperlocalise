@@ -202,7 +202,9 @@ export function IssueGroupedList<T extends IssueGroupedListItem>({
   const intl = useIntl();
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
   const groups = groupIssuesByStatus(issues, { activeStatus, summary });
-  const hideHeaders = Boolean(activeStatus) || groups.length <= 1;
+  // Only a single-status filter hides headers. Do not use groups.length —
+  // pagination may have loaded only one status so far while summary spans more.
+  const hideHeaders = Boolean(activeStatus);
 
   const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>, issue: T) => {
     if (event.key === "Enter" || event.key === " ") {

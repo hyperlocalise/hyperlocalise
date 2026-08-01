@@ -74,10 +74,9 @@ export function groupIssuesByStatus<T extends { status: string }>(
     const groupIssues = grouped.get(status) ?? [];
     const summaryCount = summaryCountForStatus(status, options?.summary);
     const count = summaryCount ?? groupIssues.length;
+    // Keep summary-backed groups even when their rows are not loaded yet
+    // (global offset pagination loads status blocks page by page).
     if (!activeStatus && groupIssues.length === 0 && count === 0) {
-      return [];
-    }
-    if (!activeStatus && groupIssues.length === 0) {
       return [];
     }
     return [{ status, issues: groupIssues, count }];
