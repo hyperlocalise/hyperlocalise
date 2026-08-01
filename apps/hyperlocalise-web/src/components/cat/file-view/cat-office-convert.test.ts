@@ -12,9 +12,20 @@
  */
 import { describe, expect, it } from "vite-plus/test";
 
-import { emptyOfficeSnapshot, exportOfficeSnapshotToFile } from "./cat-office-convert";
+import {
+  decodeXmlTextEntities,
+  emptyOfficeSnapshot,
+  exportOfficeSnapshotToFile,
+} from "./cat-office-convert";
 
 describe("cat-office-convert", () => {
+  it("decodes XML text entities without double-unescaping", () => {
+    expect(decodeXmlTextEntities("A &amp; B")).toBe("A & B");
+    expect(decodeXmlTextEntities("&lt;tag&gt;")).toBe("<tag>");
+    expect(decodeXmlTextEntities("&amp;lt;")).toBe("&lt;");
+    expect(decodeXmlTextEntities("&quot;hi&#39;")).toBe("\"hi'");
+  });
+
   it("builds empty snapshots for each office kind", () => {
     expect(emptyOfficeSnapshot("docx", "brief.docx").kind).toBe("docx");
     expect(emptyOfficeSnapshot("xlsx", "rates.xlsx").kind).toBe("xlsx");

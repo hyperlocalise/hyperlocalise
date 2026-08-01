@@ -33,6 +33,16 @@ function randomId(prefix: string) {
   return `${prefix}-${Math.random().toString(36).slice(2, 10)}`;
 }
 
+/** Decode common XML text entities. `&amp;` must be last to avoid double-unescaping. */
+export function decodeXmlTextEntities(value: string): string {
+  return value
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&amp;/g, "&");
+}
+
 function toUint8Array(value: ArrayBuffer | ArrayBufferView | Iterable<number>): Uint8Array {
   if (value instanceof ArrayBuffer) {
     return new Uint8Array(value);
@@ -211,15 +221,7 @@ async function importPptxFile(file: File, title: string): Promise<ISlideData> {
     }
     const matches = [...xml.matchAll(/<a:t[^>]*>([\s\S]*?)<\/a:t>/g)];
     const text = matches
-      .map((match) =>
-        match[1]
-          .replace(/&amp;/g, "&")
-          .replace(/&lt;/g, "<")
-          .replace(/&gt;/g, ">")
-          .replace(/&quot;/g, '"')
-          .replace(/&#39;/g, "'")
-          .trim(),
-      )
+      .map((match) => decodeXmlTextEntities(match[1]).trim())
       .filter(Boolean)
       .join("\n");
     slideTexts.push(text || `Slide ${slideTexts.length + 1}`);
