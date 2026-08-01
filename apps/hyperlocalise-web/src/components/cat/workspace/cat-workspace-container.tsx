@@ -127,6 +127,8 @@ const CatWorkspaceContainerObserver = observer(function CatWorkspaceContainerObs
     onQueueFilterChange,
     buildSegmentShareUrl,
     canLookupFreshContext,
+    hasMoreQueue,
+    onLoadMoreQueue,
   });
 
   return (

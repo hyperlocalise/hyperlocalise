@@ -12,7 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { useCallback, useEffect, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import { useIntl } from "react-intl";
 
 import {
@@ -75,6 +75,9 @@ export interface UseCatWorkspaceRuntimeInput {
   onQueueFilterChange?: (filter: CatQueueFilter) => void;
   buildSegmentShareUrl?: (segment: CatSegment) => string | null;
   canLookupFreshContext?: boolean;
+  /** When true, Next at the loaded-page boundary should fetch more queue rows. */
+  hasMoreQueue?: boolean;
+  onLoadMoreQueue?: () => void;
 }
 
 export function useCatWorkspaceRuntime({
@@ -88,10 +91,13 @@ export function useCatWorkspaceRuntime({
   onQueueFilterChange,
   buildSegmentShareUrl,
   canLookupFreshContext = true,
+  hasMoreQueue = false,
+  onLoadMoreQueue,
 }: UseCatWorkspaceRuntimeInput) {
   const intl = useIntl();
   const queueFilter = queueFilterProp ?? store.queueFilter;
   const usesServerQueueFilter = Boolean(onQueueFilterChange);
+  const pendingAdvanceFromSegmentIdRef = useRef<string | null>(null);
 
   const validateFormat = serviceOverrides?.validateFormat;
   const runQaChecks = serviceOverrides?.runQaChecks;
@@ -163,6 +169,30 @@ export function useCatWorkspaceRuntime({
     [intelligenceController],
   );
 
+  useEffect(() => {
+    const fromId = pendingAdvanceFromSegmentIdRef.current;
+    if (!fromId) {
+      return;
+    }
+
+    const visibleSegments = store.getFilteredQueueSegments(queueFilter, usesServerQueueFilter);
+    const nextId = getAdjacentSegmentId(visibleSegments, fromId, 1);
+    if (nextId) {
+      pendingAdvanceFromSegmentIdRef.current = null;
+      const currentId =
+        store.findSegmentIdByKeyOrId(store.selectedSegmentId) ?? store.selectedSegmentId;
+      const resolvedFromId = store.findSegmentIdByKeyOrId(fromId) ?? fromId;
+      if (currentId === resolvedFromId) {
+        store.setSelectedSegmentId(nextId);
+      }
+      return;
+    }
+
+    if (!hasMoreQueue) {
+      pendingAdvanceFromSegmentIdRef.current = null;
+    }
+  }, [hasMoreQueue, queueFilter, queuePanelSegments, store, usesServerQueueFilter]);
+
   const dependencies = useMemo<CatWorkspaceDependencies>(() => {
     const editing: CatWorkspaceEditing = {
       onTargetChange: (segmentId: string, value: string) => {
@@ -202,10 +232,12 @@ export function useCatWorkspaceRuntime({
           return;
         }
 
+        pendingAdvanceFromSegmentIdRef.current = null;
         store.setSelectedSegmentId(selectedSegmentId);
         onSelectSegment?.(segmentId);
       },
       onPreviousSegment: () => {
+        pendingAdvanceFromSegmentIdRef.current = null;
         const visibleSegments = store.getFilteredQueueSegments(queueFilter, usesServerQueueFilter);
         const previousId = getAdjacentSegmentId(visibleSegments, store.selectedSegmentId, -1);
         if (previousId) {
@@ -215,9 +247,29 @@ export function useCatWorkspaceRuntime({
       },
       onNextSegment: () => {
         const visibleSegments = store.getFilteredQueueSegments(queueFilter, usesServerQueueFilter);
-        const nextId = getAdjacentSegmentId(visibleSegments, store.selectedSegmentId, 1);
+        const currentId = store.selectedSegmentId;
+        const nextId = getAdjacentSegmentId(visibleSegments, currentId, 1);
         if (nextId) {
+          pendingAdvanceFromSegmentIdRef.current = null;
           store.setSelectedSegmentId(nextId);
+          onNextSegment?.();
+          return;
+        }
+
+        if (hasMoreQueue && onLoadMoreQueue) {
+          pendingAdvanceFromSegmentIdRef.current = currentId;
+          onLoadMoreQueue();
+          // Sync loaders (tests / already-buffered pages) can populate the store
+          // before the pending-advance effect runs.
+          const refreshedSegments = store.getFilteredQueueSegments(
+            queueFilter,
+            usesServerQueueFilter,
+          );
+          const loadedNextId = getAdjacentSegmentId(refreshedSegments, currentId, 1);
+          if (loadedNextId) {
+            pendingAdvanceFromSegmentIdRef.current = null;
+            store.setSelectedSegmentId(loadedNextId);
+          }
         }
         onNextSegment?.();
       },
@@ -260,9 +312,14 @@ export function useCatWorkspaceRuntime({
       },
     };
   }, [
+    editingOverrides?.onRegenerateImage,
+    editingOverrides?.onTreatAsImage,
+    editingOverrides?.onUploadImage,
     generateAiRecommendation,
+    hasMoreQueue,
     intelligenceController,
     onAskQuestion,
+    onLoadMoreQueue,
     onNextSegment,
     onPreviousSegment,
     onReviewInSequence,
@@ -280,6 +337,7 @@ export function useCatWorkspaceRuntime({
 
   const handleQueueFilterChange = useCallback(
     (filter: CatQueueFilter) => {
+      pendingAdvanceFromSegmentIdRef.current = null;
       if (onQueueFilterChange) {
         onQueueFilterChange(filter);
         return;

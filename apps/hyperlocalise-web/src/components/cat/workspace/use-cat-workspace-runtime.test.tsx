@@ -708,6 +708,107 @@ describe("useCatWorkspaceRuntime", () => {
     expect(store.dirtySegmentIds.has("seg-02")).toBe(true);
   });
 
+  it("loads the next queue page when Next is pressed at the loaded boundary", () => {
+    const firstPage = createCatWorkspaceState({
+      selectedSegmentId: "seg-02",
+      segments: [
+        {
+          id: "seg-01",
+          index: 1,
+          key: "first",
+          sourceText: "First",
+          targetText: "Premier",
+          sourceLocale: "en-US",
+          targetLocale: "vi",
+          status: "reviewed",
+        },
+        {
+          id: "seg-02",
+          index: 2,
+          key: "second",
+          sourceText: "Second",
+          targetText: "",
+          sourceLocale: "en-US",
+          targetLocale: "vi",
+          status: "pending",
+        },
+      ],
+    });
+    const store = createCatWorkspace(firstPage);
+    const onLoadMoreQueue = vi.fn(() => {
+      store.ingestQueue(
+        createCatWorkspaceState({
+          selectedSegmentId: "seg-02",
+          segments: [
+            {
+              id: "seg-01",
+              index: 1,
+              key: "first",
+              sourceText: "First",
+              targetText: "Premier",
+              sourceLocale: "en-US",
+              targetLocale: "vi",
+              status: "reviewed",
+            },
+            {
+              id: "seg-02",
+              index: 2,
+              key: "second",
+              sourceText: "Second",
+              targetText: "",
+              sourceLocale: "en-US",
+              targetLocale: "vi",
+              status: "pending",
+            },
+            {
+              id: "seg-03",
+              index: 3,
+              key: "third",
+              sourceText: "Third",
+              targetText: "Troisième",
+              sourceLocale: "en-US",
+              targetLocale: "vi",
+              status: "pending",
+            },
+          ],
+        }),
+      );
+    });
+
+    const { result } = renderHook(
+      () =>
+        useCatWorkspaceRuntime({
+          store,
+          services: { validateFormat: mockValidateFormat },
+          hasMoreQueue: true,
+          onLoadMoreQueue,
+        }),
+      { wrapper: CatTestProviders },
+    );
+
+    act(() => {
+      result.current.dependencies.navigation.onNextSegment();
+    });
+
+    expect(onLoadMoreQueue).toHaveBeenCalledTimes(1);
+    expect(store.selectedSegmentId).toBe("seg-03");
+  });
+
+  it("does not call load-more when a next loaded segment already exists", () => {
+    const onLoadMoreQueue = vi.fn();
+    const { result, store } = renderController(undefined, {
+      hasMoreQueue: true,
+      onLoadMoreQueue,
+    });
+
+    act(() => {
+      result.current.dependencies.navigation.onNextSegment();
+    });
+
+    expect(onLoadMoreQueue).not.toHaveBeenCalled();
+    expect(store.selectedSegmentId).toBe("seg-03");
+  });
+
   it("does not re-select when focusing the current dirty segment", () => {
     const onSelectSegment = vi.fn();
     const { result, store } = renderController(undefined, {
