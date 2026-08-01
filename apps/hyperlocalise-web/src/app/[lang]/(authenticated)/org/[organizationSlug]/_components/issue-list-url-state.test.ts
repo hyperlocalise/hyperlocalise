@@ -41,8 +41,8 @@ describe("issue-list-url-state", () => {
       view: "qa_triage",
       status: "open",
       search: "checkout",
-      sort: "updated_at",
-      sortDir: "desc",
+      sort: "status",
+      sortDir: "asc",
     });
 
     expect(state.search).toBe("");

@@ -170,21 +170,25 @@ export function buildIssueListFilterConditions(input: {
 }
 
 export function buildIssueListOrderBy(query: Pick<IssueListFilterQuery, "sort" | "sortDir">) {
-  const sort = query.sort ?? "updated_at";
+  const sort = query.sort ?? "status";
   const direction = query.sortDir ?? (sort === "priority" || sort === "status" ? "asc" : "desc");
   const ordered = direction === "asc" ? asc : desc;
   const idTieBreaker = asc(schema.issueSheetIssues.id);
+  const statusPrimary = asc(statusRankExpression);
+  const withinGroupUpdated = desc(schema.issueSheetIssues.updatedAt);
 
+  // Keep status groups contiguous for the grouped list UI. The selected sort
+  // field applies within each status (except when sorting by status itself).
+  if (sort === "status") {
+    return [ordered(statusRankExpression), withinGroupUpdated, idTieBreaker];
+  }
   if (sort === "created_at") {
-    return [ordered(schema.issueSheetIssues.createdAt), idTieBreaker];
+    return [statusPrimary, ordered(schema.issueSheetIssues.createdAt), idTieBreaker];
   }
   if (sort === "priority") {
-    return [ordered(priorityRankExpression), idTieBreaker];
+    return [statusPrimary, ordered(priorityRankExpression), idTieBreaker];
   }
-  if (sort === "status") {
-    return [ordered(statusRankExpression), idTieBreaker];
-  }
-  return [ordered(schema.issueSheetIssues.updatedAt), idTieBreaker];
+  return [statusPrimary, ordered(schema.issueSheetIssues.updatedAt), idTieBreaker];
 }
 
 export function issueListNeedsPriorityJoin(query: Pick<IssueListFilterQuery, "priority" | "sort">) {

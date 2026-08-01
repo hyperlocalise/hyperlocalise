@@ -11,14 +11,13 @@
  * Version 2.0 or later.
  */
 "use client";
-import { useMemo, useState, type FormEvent, type KeyboardEvent } from "react";
+import { useMemo, useState, type FormEvent } from "react";
 import { ClipboardListIcon, PlusSignIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { FormattedMessage, useIntl, type IntlShape } from "react-intl";
 import { toast } from "sonner";
 
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -36,22 +35,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
 import { TypographyP } from "@/components/ui/typography";
 import { readApiResponseError } from "@/lib/api-error";
 
-import { IssueAssigneeTableCell } from "../../../../_components/issue-detail/issue-assignee-table-cell";
-import { IssuePriorityIcon } from "../../../../_components/issue-detail/issue-priority-icon";
-import { IssueStatusIcon } from "../../../../_components/issue-detail/issue-status-icon";
-import {
-  buildIssueDetailHref,
-  isExternalHttpUrl,
-  isHttpOrHttpsUrl,
-} from "../../../../_components/issue-detail/issue-detail-utils";
-import { IssueListFiltersBar } from "../../../../_components/issue-list-filters-bar";
+import { buildIssueDetailHref } from "../../../../_components/issue-detail/issue-detail-utils";
+import { IssueGroupedList } from "../../../../_components/issue-grouped-list";
+import { IssueListToolbar } from "../../../../_components/issue-list-toolbar";
 import { issueListStateToApiQuery } from "../../../../_components/issue-list-url-state";
 import { useIssueListUrlState } from "../../../../_components/use-issue-list-url-state";
-import { issueTypeValues, type IssueTypeValue } from "./issue-sheet-constants";
 import { issueSheetPageContentMessages as messages } from "./issue-sheet-page-content.messages";
 import { issueSheetSharedMessages as sharedMessages } from "./issue-sheet-shared.messages";
 
@@ -60,7 +51,6 @@ import { useProjectPageQuery } from "../../_components/project-page-shell";
 import { IssueSheetCreateIssueDialog } from "./issue-sheet-create-issue-dialog";
 import { IssueSheetImportDialog } from "./issue-sheet-import-dialog";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 
 type IssueSheetColumn = {
   id: string;
@@ -108,9 +98,6 @@ type IssueSheetResponse = {
   };
 };
 
-const statusValues = ["open", "in_progress", "resolved", "wont_fix"] as const;
-type StatusValue = (typeof statusValues)[number];
-
 const columnTypeValues = ["text", "long_text", "select", "user"] as const;
 type ColumnTypeValue = (typeof columnTypeValues)[number];
 
@@ -144,44 +131,6 @@ function cellString(value: unknown) {
   return JSON.stringify(value) ?? "";
 }
 
-function formatUnknownLabel(value: string) {
-  return value.replace(/_/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
-}
-
-function statusLabel(intl: IntlShape, status: string) {
-  switch (status as StatusValue) {
-    case "open":
-      return intl.formatMessage(sharedMessages.statusOpen);
-    case "in_progress":
-      return intl.formatMessage(sharedMessages.statusInProgress);
-    case "resolved":
-      return intl.formatMessage(sharedMessages.statusResolved);
-    case "wont_fix":
-      return intl.formatMessage(sharedMessages.statusWontFix);
-    default:
-      return formatUnknownLabel(status);
-  }
-}
-
-function issueTypeLabel(intl: IntlShape, value: string) {
-  switch (value as IssueTypeValue) {
-    case "general_question":
-      return intl.formatMessage(sharedMessages.issueTypeGeneralQuestion);
-    case "translation_mistake":
-      return intl.formatMessage(sharedMessages.issueTypeTranslationMistake);
-    case "context_request":
-      return intl.formatMessage(sharedMessages.issueTypeContextRequest);
-    case "source_mistake":
-      return intl.formatMessage(sharedMessages.issueTypeSourceMistake);
-    case "glossary_violation":
-      return intl.formatMessage(sharedMessages.issueTypeGlossaryViolation);
-    case "qa_failure":
-      return intl.formatMessage(sharedMessages.issueTypeQaFailure);
-    default:
-      return formatUnknownLabel(value);
-  }
-}
-
 function columnTypeLabel(intl: IntlShape, value: ColumnTypeValue) {
   switch (value) {
     case "text":
@@ -193,20 +142,6 @@ function columnTypeLabel(intl: IntlShape, value: ColumnTypeValue) {
     case "user":
       return intl.formatMessage(sharedMessages.columnTypeUserId);
   }
-}
-
-function buildCatHref(organizationSlug: string, projectId: string, issue: IssueSheetIssue) {
-  if (!issue.sourcePath || !issue.targetLocale) {
-    return null;
-  }
-  const params = new URLSearchParams({
-    sourcePath: issue.sourcePath,
-    locale: issue.targetLocale,
-  });
-  if (issue.segmentId) {
-    params.set("segment", issue.segmentId);
-  }
-  return `/org/${organizationSlug}/projects/${encodeURIComponent(projectId)}/files/cat?${params.toString()}`;
 }
 
 export function IssueSheetPageContent({
@@ -225,19 +160,7 @@ export function IssueSheetPageContent({
   const [columnDialogOpen, setColumnDialogOpen] = useState(false);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
 
-  const emptyValue = intl.formatMessage(sharedMessages.emptyValue);
   const requestFailed = intl.formatMessage(messages.requestFailed);
-
-  const statusItems = statusValues.map((value) => ({
-    value,
-    label: statusLabel(intl, value),
-  }));
-
-  const issueTypeItems = issueTypeValues.map((value) => ({
-    value,
-    label: issueTypeLabel(intl, value),
-  }));
-
   const apiQuery = issueListStateToApiQuery(state);
   const queryKey = ["issue-sheet", organizationSlug, projectId, apiQuery];
   const issueSheetQuery = useQuery({
@@ -255,87 +178,22 @@ export function IssueSheetPageContent({
     });
   };
 
-  const updateIssue = useMutation({
-    mutationFn: async ({ issueId, body }: { issueId: string; body: Record<string, unknown> }) => {
-      const response = await fetch(`${issueSheetPath(organizationSlug, projectId)}/${issueId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
-      return readJsonOrThrow<{ issue: IssueSheetIssue }>(response, requestFailed);
-    },
-    onSuccess: async () => {
-      await Promise.all([
-        queryClient.invalidateQueries({
-          queryKey: ["issue-sheet", organizationSlug, projectId],
-        }),
-        queryClient.invalidateQueries({
-          queryKey: ["organization-issues", organizationSlug],
-        }),
-      ]);
-    },
-    onError: (error) =>
-      toast.error(
-        error instanceof Error ? error.message : intl.formatMessage(messages.updateFailed),
-      ),
-  });
-
-  const setValue = useMutation({
-    mutationFn: async ({
-      issueId,
-      columnKey,
-      value,
-    }: {
-      issueId: string;
-      columnKey: string;
-      value: unknown;
-    }) => {
-      const response = await fetch(
-        `${issueSheetPath(organizationSlug, projectId)}/${issueId}/values`,
-        {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ columnKey, value }),
-        },
-      );
-      return readJsonOrThrow<{ value: unknown }>(response, requestFailed);
-    },
-    onSuccess: refresh,
-    onError: (error) =>
-      toast.error(
-        error instanceof Error ? error.message : intl.formatMessage(messages.cellUpdateFailed),
-      ),
-  });
-
   const data = issueSheetQuery.data;
-  const editableColumns = useMemo(
+  const listIssues = useMemo(
     () =>
-      (data?.columns ?? []).filter(
-        (column) =>
-          column.layer !== "system" && column.key !== "owner_note" && column.key !== "priority",
-      ),
-    [data?.columns],
+      (data?.issues ?? []).map((issue) => ({
+        id: issue.id,
+        projectId,
+        title: issue.title,
+        status: issue.status,
+        targetLocale: issue.targetLocale,
+        assignee: issue.assignee,
+        assigneeUserId: issue.assigneeUserId,
+        updatedAt: issue.updatedAt,
+        priority: cellString(issue.values.priority) || null,
+      })),
+    [data?.issues, projectId],
   );
-
-  const priorityColumn = useMemo(
-    () => (data?.columns ?? []).find((column) => column.key === "priority") ?? null,
-    [data?.columns],
-  );
-
-  const openIssueRow = (issueId: string) => {
-    router.push(buildIssueDetailHref({ organizationSlug, projectId, issueId }));
-  };
-
-  const handleIssueRowKeyDown = (event: KeyboardEvent<HTMLTableRowElement>, issueId: string) => {
-    if (event.key === "Enter" || event.key === " ") {
-      event.preventDefault();
-      openIssueRow(issueId);
-    }
-  };
-
-  const stopRowActivation = (event: { stopPropagation: () => void }) => {
-    event.stopPropagation();
-  };
 
   return (
     <ProjectPageShell>
@@ -346,14 +204,14 @@ export function IssueSheetPageContent({
           description={intl.formatMessage(messages.sectionDescription)}
           actions={
             <div className="flex flex-wrap gap-2">
-              <Button variant="outline" onClick={() => setImportDialogOpen(true)}>
+              <Button variant="ghost" size="sm" onClick={() => setImportDialogOpen(true)}>
                 <FormattedMessage {...messages.importCsv} />
               </Button>
-              <Button variant="outline" onClick={() => setColumnDialogOpen(true)}>
+              <Button variant="ghost" size="sm" onClick={() => setColumnDialogOpen(true)}>
                 <HugeiconsIcon icon={PlusSignIcon} strokeWidth={2} data-icon="inline-start" />
                 <FormattedMessage {...messages.column} />
               </Button>
-              <Button onClick={() => setCreateDialogOpen(true)}>
+              <Button size="sm" onClick={() => setCreateDialogOpen(true)}>
                 <HugeiconsIcon icon={PlusSignIcon} strokeWidth={2} data-icon="inline-start" />
                 <FormattedMessage {...messages.issue} />
               </Button>
@@ -361,7 +219,7 @@ export function IssueSheetPageContent({
           }
         />
 
-        <IssueListFiltersBar
+        <IssueListToolbar
           state={state}
           searchDraft={searchDraft}
           onSearchDraftChange={setSearchDraft}
@@ -369,261 +227,34 @@ export function IssueSheetPageContent({
           onClearFilters={clearFilters}
         />
 
-        {data ? (
-          <div className="flex flex-wrap gap-2">
-            <Badge variant="secondary">
-              <FormattedMessage {...messages.summaryTotal} values={{ count: data.summary.total }} />
-            </Badge>
-            <Badge variant="secondary">
-              <FormattedMessage {...messages.summaryOpen} values={{ count: data.summary.open }} />
-            </Badge>
-            <Badge variant="warning">
-              <FormattedMessage
-                {...messages.summaryInProgress}
-                values={{ count: data.summary.inProgress }}
-              />
-            </Badge>
-            <Badge variant="success">
-              <FormattedMessage
-                {...messages.summaryResolved}
-                values={{ count: data.summary.resolved }}
-              />
-            </Badge>
-            <Badge variant="outline">
-              <FormattedMessage {...messages.summaryMatching} values={{ count: data.total }} />
-            </Badge>
-          </div>
-        ) : null}
-
-        <div className="overflow-x-auto rounded-2xl border bg-card">
-          <table className="min-w-full text-sm">
-            <thead className="bg-muted/50 text-left text-xs text-muted-foreground">
-              <tr>
-                <th className="w-[28rem] px-4 py-3 font-medium">
-                  <FormattedMessage {...messages.columnIssue} />
-                </th>
-                <th className="px-4 py-3 font-medium">
-                  <FormattedMessage {...messages.columnStatus} />
-                </th>
-                <th className="px-4 py-3 font-medium">
-                  <FormattedMessage {...messages.columnType} />
-                </th>
-                <th className="px-4 py-3 font-medium">
-                  <FormattedMessage {...messages.columnAssignee} />
-                </th>
-                <th className="px-4 py-3 font-medium">
-                  <FormattedMessage {...messages.columnLocale} />
-                </th>
-                <th className="px-4 py-3 font-medium">
-                  <FormattedMessage {...messages.columnLink} />
-                </th>
-                {editableColumns.map((column) => (
-                  <th key={column.id} className="min-w-40 px-4 py-3 font-medium">
-                    {column.label}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody className="divide-y">
-              {issueSheetQuery.isLoading ? (
-                <tr>
-                  <td
-                    colSpan={6 + editableColumns.length}
-                    className="px-4 py-10 text-center text-muted-foreground"
-                  >
-                    <FormattedMessage {...messages.loadingIssues} />
-                  </td>
-                </tr>
-              ) : issueSheetQuery.isError ? (
-                <tr>
-                  <td
-                    colSpan={6 + editableColumns.length}
-                    className="px-4 py-10 text-center text-muted-foreground"
-                  >
-                    <FormattedMessage {...messages.loadIssuesError} />
-                  </td>
-                </tr>
-              ) : data?.issues.length ? (
-                data.issues.map((issue) => (
-                  <tr
-                    key={issue.id}
-                    tabIndex={0}
-                    className="align-middle cursor-pointer hover:bg-muted/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                    onClick={() => openIssueRow(issue.id)}
-                    onKeyDown={(event) => handleIssueRowKeyDown(event, issue.id)}
-                  >
-                    <td className="max-w-[40rem] px-4 py-3">
-                      <div className="flex min-w-0 items-center gap-2">
-                        {priorityColumn ? (
-                          <div
-                            className="shrink-0"
-                            onClick={stopRowActivation}
-                            onKeyDown={stopRowActivation}
-                          >
-                            <PriorityPrefix
-                              column={priorityColumn}
-                              value={issue.values.priority}
-                              onChange={(value) =>
-                                setValue.mutate({
-                                  issueId: issue.id,
-                                  columnKey: "priority",
-                                  value,
-                                })
-                              }
-                            />
-                          </div>
-                        ) : null}
-                        <Link
-                          href={buildIssueDetailHref({
-                            organizationSlug,
-                            projectId,
-                            issueId: issue.id,
-                          })}
-                          className="min-w-0 flex-1 line-clamp-1 font-medium text-foreground hover:underline"
-                          onClick={(event) => event.stopPropagation()}
-                        >
-                          {issue.title}
-                        </Link>
-                      </div>
-                    </td>
-                    <td
-                      className="px-4 py-3"
-                      onClick={stopRowActivation}
-                      onKeyDown={stopRowActivation}
-                    >
-                      <Select
-                        value={issue.status}
-                        items={statusItems}
-                        onValueChange={(value) =>
-                          updateIssue.mutate({
-                            issueId: issue.id,
-                            body: { status: value },
-                          })
-                        }
-                      >
-                        <SelectTrigger
-                          size="sm"
-                          aria-label={statusLabel(intl, issue.status)}
-                          className="size-7 justify-center rounded-md border-0 bg-transparent p-0 shadow-none hover:bg-muted aria-expanded:bg-muted dark:hover:bg-muted [&>*:last-child]:hidden"
-                        >
-                          <IssueStatusIcon status={issue.status} />
-                        </SelectTrigger>
-                        <SelectContent className="min-w-44 p-1.5">
-                          {statusItems.map((status) => (
-                            <SelectItem
-                              key={status.value}
-                              value={status.value}
-                              label={status.label}
-                              className="rounded-lg px-2 py-1.5 focus:bg-muted! focus:text-foreground! data-highlighted:bg-muted! data-highlighted:text-foreground!"
-                            >
-                              <span className="flex items-center gap-2">
-                                <IssueStatusIcon status={status.value} />
-                                {status.label}
-                              </span>
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </td>
-                    <td
-                      className="px-4 py-3"
-                      onClick={stopRowActivation}
-                      onKeyDown={stopRowActivation}
-                    >
-                      <Select
-                        value={issue.issueType}
-                        items={issueTypeItems}
-                        onValueChange={(value) =>
-                          updateIssue.mutate({
-                            issueId: issue.id,
-                            body: { issueType: value },
-                          })
-                        }
-                      >
-                        <SelectTrigger
-                          size="sm"
-                          aria-label={issueTypeLabel(intl, issue.issueType)}
-                          className="h-8 w-fit max-w-56 border-0 bg-transparent px-2 shadow-none hover:bg-muted/50 dark:hover:bg-muted/50"
-                        >
-                          <Badge variant="outline" className="rounded-full">
-                            {issueTypeLabel(intl, issue.issueType)}
-                          </Badge>
-                        </SelectTrigger>
-                        <SelectContent>
-                          {issueTypeItems.map((type) => (
-                            <SelectItem key={type.value} value={type.value} label={type.label}>
-                              {type.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </td>
-                    <td
-                      className="px-4 py-3"
-                      onClick={stopRowActivation}
-                      onKeyDown={stopRowActivation}
-                    >
-                      <IssueAssigneeTableCell
-                        organizationSlug={organizationSlug}
-                        projectId={projectId}
-                        issueId={issue.id}
-                        assigneeUserId={issue.assigneeUserId}
-                        assigneeLabel={issue.assignee}
-                      />
-                    </td>
-                    <td className="px-4 py-3 text-muted-foreground">
-                      {issue.targetLocale ?? emptyValue}
-                    </td>
-                    <td
-                      className="px-4 py-3"
-                      onClick={stopRowActivation}
-                      onKeyDown={stopRowActivation}
-                    >
-                      <IssueLink
-                        organizationSlug={organizationSlug}
-                        projectId={projectId}
-                        issue={issue}
-                        emptyValue={emptyValue}
-                      />
-                    </td>
-                    {editableColumns.map((column) => (
-                      <td
-                        key={column.id}
-                        className="px-4 py-3"
-                        onClick={stopRowActivation}
-                        onKeyDown={stopRowActivation}
-                      >
-                        <CustomCell
-                          column={column}
-                          value={issue.values[column.key]}
-                          emptyValue={emptyValue}
-                          onChange={(value) =>
-                            setValue.mutate({
-                              issueId: issue.id,
-                              columnKey: column.key,
-                              value,
-                            })
-                          }
-                        />
-                      </td>
-                    ))}
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan={6 + editableColumns.length} className="px-4 py-12 text-center">
-                    <TypographyP className="text-sm font-medium">
-                      <FormattedMessage {...messages.emptyTitle} />
-                    </TypographyP>
-                    <TypographyP className="mt-1 text-sm text-muted-foreground">
-                      <FormattedMessage {...messages.emptyDescription} />
-                    </TypographyP>
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+        <IssueGroupedList
+          organizationSlug={organizationSlug}
+          issues={listIssues}
+          summary={data?.summary}
+          activeStatus={state.status}
+          isLoading={issueSheetQuery.isLoading}
+          isError={issueSheetQuery.isError}
+          onIssueActivate={(issue) => {
+            router.push(
+              buildIssueDetailHref({
+                organizationSlug,
+                projectId,
+                issueId: issue.id,
+              }),
+            );
+          }}
+          empty={
+            <div>
+              <TypographyP className="text-sm font-medium">
+                <FormattedMessage {...messages.emptyTitle} />
+              </TypographyP>
+              <TypographyP className="mt-1 text-sm text-muted-foreground">
+                <FormattedMessage {...messages.emptyDescription} />
+              </TypographyP>
+            </div>
+          }
+          error={<FormattedMessage {...messages.loadIssuesError} />}
+        />
       </div>
 
       <IssueSheetCreateIssueDialog
@@ -649,160 +280,6 @@ export function IssueSheetPageContent({
         onImported={refresh}
       />
     </ProjectPageShell>
-  );
-}
-
-function IssueLink({
-  organizationSlug,
-  projectId,
-  issue,
-  emptyValue,
-}: {
-  organizationSlug: string;
-  projectId: string;
-  issue: IssueSheetIssue;
-  emptyValue: string;
-}) {
-  const intl = useIntl();
-  const catHref = buildCatHref(organizationSlug, projectId, issue);
-  const safeLinkUrl =
-    issue.linkUrl != null && isHttpOrHttpsUrl(issue.linkUrl) ? issue.linkUrl : null;
-  const href = safeLinkUrl || catHref;
-  if (!href) {
-    return <span className="text-muted-foreground">{emptyValue}</span>;
-  }
-  const openExternalLinkInNewTab = safeLinkUrl != null && isExternalHttpUrl(safeLinkUrl);
-  return (
-    <Button
-      variant="link"
-      className="h-auto p-0"
-      render={
-        <a
-          href={href}
-          {...(openExternalLinkInNewTab ? { target: "_blank", rel: "noopener noreferrer" } : {})}
-        />
-      }
-    >
-      {issue.linkLabel ||
-        (catHref ? intl.formatMessage(messages.openInCat) : intl.formatMessage(messages.openLink))}
-    </Button>
-  );
-}
-
-function PriorityPrefix({
-  column,
-  value,
-  onChange,
-}: {
-  column: IssueSheetColumn;
-  value: unknown;
-  onChange: (value: unknown) => void;
-}) {
-  const current = cellString(value);
-  const options = column.config.options ?? [];
-  const selectItems = options.map((option) => ({
-    value: option.id,
-    label: option.label,
-  }));
-
-  return (
-    <Select
-      value={current || undefined}
-      items={selectItems}
-      onValueChange={(next) => {
-        onChange(next ?? "");
-      }}
-    >
-      <SelectTrigger
-        size="sm"
-        aria-label={current ? `Priority: ${current}` : "Priority: unset"}
-        title={current || "Unset"}
-        className="h-8 w-8 justify-center border-0 bg-transparent p-0 shadow-none hover:bg-muted/50 dark:hover:bg-muted/50 [&>*:last-child]:hidden"
-      >
-        <IssuePriorityIcon priority={current || null} />
-      </SelectTrigger>
-      <SelectContent>
-        {options.map((option) => (
-          <SelectItem key={option.id} value={option.id} label={option.label}>
-            <span className="flex items-center gap-2">
-              <IssuePriorityIcon priority={option.id} />
-              <span>{option.label}</span>
-            </span>
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
-  );
-}
-
-function CustomCell({
-  column,
-  value,
-  emptyValue,
-  onChange,
-}: {
-  column: IssueSheetColumn;
-  value: unknown;
-  emptyValue: string;
-  onChange: (value: unknown) => void;
-}) {
-  const intl = useIntl();
-  const [draft, setDraft] = useState(cellString(value));
-
-  if (column.type === "select") {
-    const options = column.config.options ?? [];
-    const selectItems = options.map((option) => ({
-      value: option.id,
-      label: option.label,
-    }));
-    return (
-      <Select
-        value={draft || undefined}
-        items={selectItems}
-        onValueChange={(next) => {
-          const nextValue = next ?? "";
-          setDraft(nextValue);
-          onChange(nextValue);
-        }}
-      >
-        <SelectTrigger className="w-32">
-          <SelectValue placeholder={emptyValue} />
-        </SelectTrigger>
-        <SelectContent>
-          {options.map((option) => (
-            <SelectItem key={option.id} value={option.id} label={option.label}>
-              {option.label}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-    );
-  }
-
-  if (column.type === "long_text" || column.type === "enrichment") {
-    return (
-      <Textarea
-        value={draft}
-        onChange={(event) => setDraft(event.currentTarget.value)}
-        onBlur={() => onChange(draft)}
-        placeholder={
-          column.type === "enrichment"
-            ? intl.formatMessage(messages.enrichmentPlaceholder)
-            : intl.formatMessage(messages.addNotePlaceholder)
-        }
-        className="min-h-20 w-64"
-      />
-    );
-  }
-
-  return (
-    <Input
-      value={draft}
-      onChange={(event) => setDraft(event.currentTarget.value)}
-      onBlur={() => onChange(draft)}
-      placeholder={emptyValue}
-      className="w-44"
-    />
   );
 }
 

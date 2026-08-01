@@ -48,12 +48,17 @@ export const Default: Story = {
       handlers: issueSheetMswHandlers,
     },
   },
-  play: async ({ canvas }) => {
+  play: async ({ canvas, canvasElement }) => {
     await expect(canvas.getByText("Issues")).toBeInTheDocument();
     await expect(canvas.getByText("Source string needs context")).toBeInTheDocument();
-    await expect(canvas.getByText("3 total")).toBeInTheDocument();
+    await expect(canvas.getByText("Open")).toBeInTheDocument();
     await expect(canvas.getByRole("button", { name: "Issue" })).toBeInTheDocument();
     await expect(canvas.getByRole("button", { name: "Column" })).toBeInTheDocument();
+    await expect(canvas.getByRole("button", { name: "Import CSV" })).toBeInTheDocument();
+    await expect(canvasElement.querySelector("table")).toBeNull();
+    await expect(canvas.queryByText("3 total")).not.toBeInTheDocument();
+    await expect(canvas.queryByText("Owner note")).not.toBeInTheDocument();
+    await expect(canvas.queryByText("Context")).not.toBeInTheDocument();
   },
 };
 
@@ -63,9 +68,11 @@ export const Loading: Story = {
       handlers: issueSheetLoadingMswHandlers,
     },
   },
-  play: async ({ canvas }) => {
+  play: async ({ canvas, canvasElement }) => {
     await expect(canvas.getByText("Issues")).toBeInTheDocument();
-    await expect(canvas.getByText("Loading issues…")).toBeInTheDocument();
+    await expect(canvasElement.querySelectorAll('[data-slot="skeleton"]').length).toBeGreaterThan(
+      0,
+    );
   },
 };
 

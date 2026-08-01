@@ -33,7 +33,7 @@ export const organizationIssuesQuerySchema = z.object({
   assignee: z.string().uuid().or(z.literal("me")).or(z.literal("unassigned")).optional(),
   projectId: z.string().trim().min(1).max(128).optional(),
   search: z.string().trim().max(200).optional(),
-  sort: issueSheetSortSchema.default("updated_at"),
+  sort: issueSheetSortSchema.default("status"),
   sortDir: issueSheetSortDirSchema.optional(),
   limit: z.coerce.number().int().min(1).max(100).default(50),
   offset: z.coerce.number().int().min(0).default(0),

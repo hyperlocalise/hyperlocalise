@@ -15,65 +15,10 @@
 import { defineMessages } from "react-intl";
 
 export const issuesPageViewMessages = defineMessages({
-  summaryTotal: {
-    defaultMessage: "{count} total",
-    id: "57OPGCpQ8o",
-    description: "Badge showing total issue count on the workspace issues page",
-  },
-  summaryOpen: {
-    defaultMessage: "{count} open",
-    id: "5wkpaoahQN",
-    description: "Badge showing open issue count on the workspace issues page",
-  },
-  summaryInProgress: {
-    defaultMessage: "{count} in progress",
-    id: "sK6Zq81Q7Q",
-    description: "Badge showing in-progress issue count on the workspace issues page",
-  },
-  summaryResolved: {
-    defaultMessage: "{count} resolved",
-    id: "qJxW5aeiQX",
-    description: "Badge showing resolved issue count on the workspace issues page",
-  },
-  loadingSummaryAria: {
-    defaultMessage: "Loading issue summary",
-    id: "msTgVSwxwv",
-    description: "Accessible label while workspace issue summary badges are loading",
-  },
-  columnIssue: {
-    defaultMessage: "Issue",
-    id: "eKSgKws5Qq",
-    description: "Table column header for the issue title and details",
-  },
-  columnStatus: {
-    defaultMessage: "Status",
-    id: "FZR01zQdR+",
-    description: "Table column header for issue status",
-  },
-  columnType: {
-    defaultMessage: "Type",
-    id: "mG1/3d7d9k",
-    description: "Table column header for issue type",
-  },
-  columnProject: {
-    defaultMessage: "Project",
-    id: "xI2rMhHb7n",
-    description: "Table column header for the project name",
-  },
-  columnLocale: {
-    defaultMessage: "Locale",
-    id: "ou63JKkZ6w",
-    description: "Table column header for target locale",
-  },
-  columnAssignee: {
-    defaultMessage: "Assignee",
-    id: "paJg6jTRIA",
-    description: "Table column header for issue assignee on workspace issues",
-  },
-  columnUpdated: {
-    defaultMessage: "Updated",
-    id: "rWXo8jdqPU",
-    description: "Table column header for last updated time",
+  pageDescription: {
+    defaultMessage: "Triage open work across this workspace.",
+    id: "yxiPYrA89Z",
+    description: "Short description under the workspace Issues page title",
   },
   loadError: {
     defaultMessage: "Issues could not be loaded.",
@@ -84,11 +29,6 @@ export const issuesPageViewMessages = defineMessages({
     defaultMessage: "No issues match this view.",
     id: "rWc6Iosb8n",
     description: "Empty state when the filtered workspace issues list has no rows",
-  },
-  emptyValue: {
-    defaultMessage: "—",
-    id: "pwC137Rvv4",
-    description: "Placeholder shown when an issue has no target locale",
   },
   loadingMore: {
     defaultMessage: "Loading...",

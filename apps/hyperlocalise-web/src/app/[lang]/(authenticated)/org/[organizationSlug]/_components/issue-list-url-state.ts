@@ -54,8 +54,8 @@ export type IssueListUrlState = {
 const DEFAULT_STATE: IssueListUrlState = {
   view: "all_open",
   search: "",
-  sort: "updated_at",
-  sortDir: "desc",
+  sort: "status",
+  sortDir: "asc",
 };
 
 function readAllowedValue<T extends string>(

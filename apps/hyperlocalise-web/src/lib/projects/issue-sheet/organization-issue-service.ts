@@ -22,7 +22,6 @@ import {
   buildIssueListFilterConditions,
   buildIssueListOrderBy,
   issueListNeedsCountPriorityJoin,
-  issueListNeedsPriorityJoin,
   priorityColumnJoin,
   priorityColumns,
   priorityValueJoin,
@@ -51,6 +50,7 @@ export type OrganizationIssueListItem = {
   assigneeUserId: string | null;
   key: string | null;
   sourceText: string | null;
+  priority: string | null;
   createdAt: string;
   updatedAt: string;
   resolvedAt: string | null;
@@ -162,7 +162,6 @@ export class OrganizationIssueService {
       ...filterConditions,
     ];
     const where = and(...conditions, issueProjectJoin);
-    const needsPriorityJoin = issueListNeedsPriorityJoin(query);
     const needsCountPriorityJoin = issueListNeedsCountPriorityJoin(query);
     const orderBy = buildIssueListOrderBy(query);
 
@@ -190,6 +189,7 @@ export class OrganizationIssueService {
         assigneeEmail: assigneeUsers.email,
         key: schema.projectTranslationKeys.key,
         sourceText: schema.projectTranslationKeys.sourceText,
+        priority: sql<string | null>`${priorityValues.value} #>> '{}'`,
         createdAt: schema.issueSheetIssues.createdAt,
         updatedAt: schema.issueSheetIssues.updatedAt,
         resolvedAt: schema.issueSheetIssues.resolvedAt,
@@ -202,6 +202,8 @@ export class OrganizationIssueService {
         schema.projectTranslationKeys,
         eq(schema.issueSheetIssues.translationKeyId, schema.projectTranslationKeys.id),
       )
+      .leftJoin(priorityColumns, priorityColumnJoin)
+      .leftJoin(priorityValues, priorityValueJoin)
       .$dynamic();
 
     let countQuery = this.database
@@ -210,11 +212,6 @@ export class OrganizationIssueService {
       .innerJoin(schema.projects, issueProjectJoin)
       .$dynamic();
 
-    if (needsPriorityJoin) {
-      listQuery = listQuery
-        .leftJoin(priorityColumns, priorityColumnJoin)
-        .leftJoin(priorityValues, priorityValueJoin);
-    }
     if (needsCountPriorityJoin) {
       countQuery = countQuery
         .leftJoin(priorityColumns, priorityColumnJoin)
@@ -259,6 +256,7 @@ export class OrganizationIssueService {
         }),
         key: row.key,
         sourceText: row.sourceText,
+        priority: row.priority || null,
         createdAt: row.createdAt.toISOString(),
         updatedAt: row.updatedAt.toISOString(),
         resolvedAt: row.resolvedAt?.toISOString() ?? null,

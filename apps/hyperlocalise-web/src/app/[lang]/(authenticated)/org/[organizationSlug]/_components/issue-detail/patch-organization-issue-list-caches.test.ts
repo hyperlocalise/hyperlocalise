@@ -31,7 +31,7 @@ describe("patchOrganizationIssueListCaches", () => {
     const queryKey = [
       "organization-issues",
       organizationSlug,
-      { view: "my_work", sort: "updated_at", sortDir: "desc", limit: "50", offset: "0" },
+      { view: "my_work", sort: "status", sortDir: "asc", limit: "50", offset: "0" },
     ] as const;
 
     queryClient.setQueryData(queryKey, {
@@ -69,7 +69,7 @@ describe("patchOrganizationIssueListCaches", () => {
     const queryKey = [
       "organization-issues",
       organizationSlug,
-      { view: "all_open", sort: "updated_at", sortDir: "desc", limit: "50", offset: "0" },
+      { view: "all_open", sort: "status", sortDir: "asc", limit: "50", offset: "0" },
     ] as const;
 
     queryClient.setQueryData(queryKey, {

@@ -38,8 +38,6 @@ const meta = {
     filterBar: <div data-testid="issue-filters">Filters</div>,
     onLoadMore: fn(),
     onIssueRowClick: fn(),
-    onIssueRowKeyDown: fn(),
-    onStopRowActivation: fn(),
   },
 } satisfies Meta<typeof IssuesPageView>;
 
@@ -47,11 +45,14 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 export const Default: Story = {
-  play: async ({ canvas }) => {
+  play: async ({ canvas, canvasElement }) => {
     await expect(canvas.getByRole("heading", { name: "Issues" })).toBeInTheDocument();
     await expect(canvas.getByText("Source string needs context")).toBeInTheDocument();
     await expect(canvas.getByText("Website localization")).toBeInTheDocument();
-    await expect(canvas.getByText("4 total")).toBeInTheDocument();
+    await expect(canvas.getByText("Open")).toBeInTheDocument();
+    await expect(canvas.getByText("In progress")).toBeInTheDocument();
+    await expect(canvasElement.querySelector("table")).toBeNull();
+    await expect(canvas.queryByText("4 total")).not.toBeInTheDocument();
   },
 };
 

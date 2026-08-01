@@ -11,18 +11,18 @@
  * Version 2.0 or later.
  */
 "use client";
-import { useMemo, type KeyboardEvent } from "react";
+import { useMemo } from "react";
 import { useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useRouter } from "next/navigation";
 
 import { readApiResponseError } from "@/lib/api-error";
 
 import { buildIssueDetailHref } from "../../_components/issue-detail/issue-detail-utils";
-import { IssueListFiltersBar } from "../../_components/issue-list-filters-bar";
+import { IssueListToolbar } from "../../_components/issue-list-toolbar";
 import { issueListStateToApiQuery } from "../../_components/issue-list-url-state";
 import { useIssueListUrlState } from "../../_components/use-issue-list-url-state";
 import { IssuesActions } from "./issues-actions";
 import { ISSUES_PAGE_SIZE, IssuesPageView, type OrganizationIssue } from "./issues-page-view";
-import { useRouter } from "next/navigation";
 
 const issuesQueryKey = (organizationSlug: string, query: Record<string, string>) =>
   ["organization-issues", organizationSlug, query] as const;
@@ -124,20 +124,6 @@ export function IssuesPageContent({ organizationSlug }: { organizationSlug: stri
     );
   };
 
-  const handleIssueRowKeyDown = (
-    event: KeyboardEvent<HTMLTableRowElement>,
-    issue: OrganizationIssue,
-  ) => {
-    if (event.key === "Enter" || event.key === " ") {
-      event.preventDefault();
-      openIssueRow(issue);
-    }
-  };
-
-  const stopRowActivation = (event: { stopPropagation: () => void }) => {
-    event.stopPropagation();
-  };
-
   return (
     <IssuesPageView
       organizationSlug={organizationSlug}
@@ -147,11 +133,10 @@ export function IssuesPageContent({ organizationSlug }: { organizationSlug: stri
       isError={issuesQuery.isError}
       isFetchingMore={issuesQuery.isFetchingNextPage}
       hasMore={hasMore}
+      activeStatus={state.status}
       onIssueRowClick={openIssueRow}
-      onIssueRowKeyDown={handleIssueRowKeyDown}
-      onStopRowActivation={stopRowActivation}
       filterBar={
-        <IssueListFiltersBar
+        <IssueListToolbar
           state={state}
           searchDraft={searchDraft}
           onSearchDraftChange={setSearchDraft}
