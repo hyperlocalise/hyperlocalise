@@ -25,6 +25,7 @@ import { cn } from "@/lib/primitives/cn";
 
 import {
   analyzeCatMessageFormat,
+  catMessageTokenSignature,
   compareCatMessageFormats,
   missingCatMessageTokens,
   type CatIcuBlockSummary,
@@ -197,17 +198,7 @@ function tokenLabel(token: CatMessageToken) {
 }
 
 function presentTokenSignatures(analysis: CatMessageAnalysis) {
-  return new Set(
-    analysis.tokens.map((token) => {
-      if (token.kind === "icu") {
-        return `${token.kind}:${token.name}:${token.type}`;
-      }
-      if (token.kind === "markup") {
-        return `${token.kind}:${token.literal}`;
-      }
-      return `${token.kind}:${token.name}`;
-    }),
-  );
+  return new Set(analysis.tokens.map((token) => catMessageTokenSignature(token)));
 }
 
 export function CatMessagePreview({ message, className }: { message: string; className?: string }) {
@@ -488,11 +479,7 @@ export function CatTargetEditor({
           </span>
           {sourceTokens.map((token) => {
             const isMissing = missingTokens.some((missingToken) => missingToken.id === token.id);
-            const isPresent = targetSignatures.has(
-              token.kind === "icu"
-                ? `${token.kind}:${token.name}:${token.type}`
-                : `${token.kind}:${token.name}`,
-            );
+            const isPresent = targetSignatures.has(catMessageTokenSignature(token));
 
             return (
               <Button

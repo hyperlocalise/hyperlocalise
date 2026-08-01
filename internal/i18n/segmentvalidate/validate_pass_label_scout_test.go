@@ -158,6 +158,7 @@ func TestValidateSegmentPassLabelReflectsTokenPresence(t *testing.T) {
 			}
 			if formatCheck == nil {
 				t.Fatalf("expected format-parity check, got %+v", checks)
+				return
 			}
 			if formatCheck.Status != StatusPass {
 				t.Fatalf("expected StatusPass, got %+v", formatCheck)

@@ -815,10 +815,16 @@ func renderMarkdownPartWithDiagnostics(part markdownPart, translated string, dia
 
 // markdownHasOrphanLinkClosers reports whether s contains a `](` / `][` closer
 // without a matching `[` / `![` opener. Inline code spans and escapes are skipped.
+// Escaped link-like constructs such as `\[label](/url)` are skipped entirely so
+// intentional literal bracket syntax is not treated as an orphan closer.
 func markdownHasOrphanLinkClosers(s string) bool {
 	openerDepth := 0
 	for idx := 0; idx < len(s); {
 		if s[idx] == '\\' && idx+1 < len(s) {
+			if s[idx+1] == '[' {
+				idx = skipEscapedMarkdownBracketConstruct(s, idx)
+				continue
+			}
 			idx += 2
 			continue
 		}
@@ -885,6 +891,58 @@ func markdownHasOrphanLinkClosers(s string) bool {
 		idx++
 	}
 	return false
+}
+
+// skipEscapedMarkdownBracketConstruct advances past `\[…](…)`, `\[…][…]`, or a
+// bare `\[…]` so orphan-closer detection ignores escaped literal link syntax.
+// idx must point at the backslash of `\[`.
+func skipEscapedMarkdownBracketConstruct(s string, idx int) int {
+	idx += 2 // skip \[
+	for idx < len(s) {
+		if s[idx] == '\\' && idx+1 < len(s) {
+			idx += 2
+			continue
+		}
+		if s[idx] == '`' {
+			run := 0
+			for idx+run < len(s) && s[idx+run] == '`' {
+				run++
+			}
+			closing := strings.Repeat("`", run)
+			end := idx + run
+			found := false
+			for end <= len(s)-run {
+				if s[end:end+run] == closing {
+					end += run
+					found = true
+					break
+				}
+				end++
+			}
+			if !found {
+				return idx + run
+			}
+			idx = end
+			continue
+		}
+		if s[idx] != ']' {
+			idx++
+			continue
+		}
+		idx++ // past ]
+		if strings.HasPrefix(s[idx:], "(") {
+			return findMarkdownLinkDestinationEnd(s, idx+1)
+		}
+		if strings.HasPrefix(s[idx:], "[") {
+			closeIdx := strings.IndexByte(s[idx+1:], ']')
+			if closeIdx < 0 {
+				return idx
+			}
+			return idx + 1 + closeIdx + 1
+		}
+		return idx
+	}
+	return idx
 }
 
 func markdownLinkPlaceholderOrderValid(source, rendered string, placeholders map[string]string) bool {

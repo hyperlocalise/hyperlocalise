@@ -100,6 +100,25 @@ export function localizeCatMessageParityIssue(
         ),
       };
     }
+    case "token-order": {
+      const tokens = issue.tokens?.join(", ") ?? "";
+      return {
+        label: intl.formatMessage({
+          defaultMessage: "Markup order",
+          id: "UL3odPVruI",
+          description: "CAT format check label when markup sentinel order does not match source",
+        }),
+        message: intl.formatMessage(
+          {
+            defaultMessage:
+              "Target must keep source order for markup tokens {tokens}. Swapped openers and closers break export.",
+            id: "xrvyWAPhPg",
+            description: "CAT format check message when markup sentinel nesting/order is wrong",
+          },
+          { tokens },
+        ),
+      };
+    }
     default:
       return {
         label: issue.kind,

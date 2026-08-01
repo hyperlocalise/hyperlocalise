@@ -71,7 +71,7 @@ export interface CatMessageAnalysis {
 }
 
 export interface CatMessageParityIssue {
-  kind: "missing-token" | "extra-token" | "icu-mismatch" | "parse-error";
+  kind: "missing-token" | "extra-token" | "icu-mismatch" | "token-order" | "parse-error";
   tokens?: string[];
   parseErrorMessage?: string;
   parseTarget?: "source" | "target";
@@ -261,7 +261,8 @@ export function analyzeCatMessageFormat(message: string): CatMessageAnalysis {
   }
 }
 
-function tokenSignature(token: CatMessageToken) {
+/** Stable signature for placeholder parity and required-token UI lookup. */
+export function catMessageTokenSignature(token: CatMessageToken) {
   if (token.kind === "icu") {
     return `${token.kind}:${token.name}:${token.type}`;
   }
@@ -293,7 +294,7 @@ function tokenDisplayName(token: CatMessageToken) {
 function signatureCounts(tokens: CatMessageToken[]) {
   const counts = new Map<string, { count: number; sample: CatMessageToken }>();
   for (const token of tokens) {
-    const signature = tokenSignature(token);
+    const signature = catMessageTokenSignature(token);
     const entry = counts.get(signature);
     if (entry) {
       entry.count += 1;
@@ -308,7 +309,7 @@ function signatureCounts(tokens: CatMessageToken[]) {
 function findMissingTokens(leftTokens: CatMessageToken[], rightTokens: CatMessageToken[]) {
   const rightCounts = new Map<string, number>();
   for (const token of rightTokens) {
-    const signature = tokenSignature(token);
+    const signature = catMessageTokenSignature(token);
     rightCounts.set(signature, (rightCounts.get(signature) ?? 0) + 1);
   }
 
@@ -320,6 +321,29 @@ function findMissingTokens(leftTokens: CatMessageToken[], rightTokens: CatMessag
     }
   }
   return missing;
+}
+
+function markupTokensInOrder(tokens: CatMessageToken[]) {
+  return tokens.filter((token) => token.kind === "markup");
+}
+
+/** True when both sides have the same markup multiset but a different order/nesting. */
+function markupOrderMismatch(source: CatMessageAnalysis, target: CatMessageAnalysis) {
+  const sourceMarkup = markupTokensInOrder(source.tokens);
+  const targetMarkup = markupTokensInOrder(target.tokens);
+  if (sourceMarkup.length < 2 || sourceMarkup.length !== targetMarkup.length) {
+    return false;
+  }
+  if (findMissingTokens(sourceMarkup, targetMarkup).length > 0) {
+    return false;
+  }
+  if (findMissingTokens(targetMarkup, sourceMarkup).length > 0) {
+    return false;
+  }
+  return sourceMarkup.some(
+    (token, index) =>
+      catMessageTokenSignature(token) !== catMessageTokenSignature(targetMarkup[index]!),
+  );
 }
 
 function analysisHasMarkup(analysis: CatMessageAnalysis) {
@@ -367,6 +391,14 @@ export function compareCatMessageFormats(
     const labels = uniqueSorted(extraPlaceholders.map(tokenDisplayName));
     issues.push({
       kind: "extra-token",
+      tokens: labels,
+    });
+  }
+
+  if (markupOrderMismatch(source, target)) {
+    const labels = uniqueSorted(markupTokensInOrder(source.tokens).map(tokenDisplayName));
+    issues.push({
+      kind: "token-order",
       tokens: labels,
     });
   }

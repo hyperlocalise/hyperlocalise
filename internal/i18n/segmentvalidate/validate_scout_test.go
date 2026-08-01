@@ -62,6 +62,7 @@ func TestValidateSegmentRelatedTokensWithSpaces(t *testing.T) {
 
 			if formatCheck == nil {
 				t.Fatalf("expected %s check, but none found in %+v", tt.wantID, checks)
+				return
 			}
 
 			if !reflect.DeepEqual(formatCheck.RelatedTokens, tt.wantTokens) {

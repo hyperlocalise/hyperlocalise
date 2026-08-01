@@ -328,7 +328,11 @@ func TestMarkdownHasOrphanLinkClosers(t *testing.T) {
 		{name: "missing_image_opener", in: "View diagram](/d.png) now.", want: true},
 		{name: "missing_reference_opener", in: "See docs][ref] now.", want: true},
 		{name: "code_span_false_positive", in: "Use `label](/url)` literally.", want: false},
-		{name: "escaped_brackets", in: `Keep \[literal](/not-a-link) text.`, want: true},
+		{name: "escaped_brackets", in: `Keep \[literal](/not-a-link) text.`, want: false},
+		{name: "escaped_reference", in: `Keep \[literal][ref] text.`, want: false},
+		{name: "escaped_bare_bracket", in: `Keep \[literal] text.`, want: false},
+		{name: "escaped_then_real_orphan", in: `Keep \[ok](/a) and bad two](/b).`, want: true},
+		{name: "double_escape_real_link", in: `Keep \\[literal](/is-a-link) text.`, want: false},
 		{name: "multiple_links_one_orphan", in: "Good [one](/a) and bad two](/b).", want: true},
 		{name: "blog_style_vietnamese", in: "cần một công cụ CAT thế hệ mới](/product/next-gen-cat-tool) đưa", want: true},
 		{name: "empty", in: "", want: false},
@@ -340,6 +344,19 @@ func TestMarkdownHasOrphanLinkClosers(t *testing.T) {
 				t.Fatalf("markdownHasOrphanLinkClosers(%q) = %v, want %v", tc.in, got, tc.want)
 			}
 		})
+	}
+}
+
+func TestMarshalMarkdownWithTargetFallbackPreservesEscapedLiteralLinks(t *testing.T) {
+	source := []byte("Type \\[label](/url) to show a literal link.\n")
+	translated := []byte("Gõ \\[label](/url) để hiện liên kết chữ.\n")
+
+	out, diags := MarshalMarkdownWithTargetFallbackDiagnostics(source, translated, map[string]string{}, false)
+	if !strings.Contains(string(out), `Gõ \[label](/url)`) {
+		t.Fatalf("expected escaped literal link translation preserved, got %q", out)
+	}
+	if len(diags.SourceFallbackKeys) != 0 {
+		t.Fatalf("expected no source fallback for escaped literal link, got %+v", diags)
 	}
 }
 

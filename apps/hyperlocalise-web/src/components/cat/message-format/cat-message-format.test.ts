@@ -230,4 +230,39 @@ describe("cat message format utilities", () => {
       ]),
     );
   });
+
+  it("reports swapped markup sentinel order when the multiset still matches", () => {
+    const md0 = "\u001eHLMDPH_8E6DFE8F53EA_0\u001f";
+    const md1 = "\u001eHLMDPH_0EB5FD589564_1\u001f";
+    const issues = compare(
+      `${md0}next-generation CAT tool${md1}`,
+      `${md1}outil CAT de nouvelle génération${md0}`,
+    );
+
+    expect(issues).toContainEqual(
+      expect.objectContaining({
+        kind: "token-order",
+        tokens: ["MD#0", "MD#1"],
+      }),
+    );
+    expect(issues.filter((issue) => issue.kind === "missing-token")).toHaveLength(0);
+    expect(issues.filter((issue) => issue.kind === "extra-token")).toHaveLength(0);
+  });
+
+  it("reports crossed HTML markup nesting as a token-order issue", () => {
+    const ht0 = "\u001eHLHTPH_AABBCCDDEEFF_0\u001f";
+    const ht1 = "\u001eHLHTPH_112233445566_1\u001f";
+    const ht2 = "\u001eHLHTPH_77889900AABB_2\u001f";
+    const ht3 = "\u001eHLHTPH_CCDDEEFF0011_3\u001f";
+    const issues = compare(
+      `Click ${ht0}${ht1}here${ht2}${ht3}`,
+      `Cliquez ${ht0}${ht1}ici${ht3}${ht2}`,
+    );
+
+    expect(issues).toContainEqual(
+      expect.objectContaining({
+        kind: "token-order",
+      }),
+    );
+  });
 });
