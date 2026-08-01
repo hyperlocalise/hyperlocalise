@@ -25,8 +25,15 @@ export type CatFileViewCapabilities = {
   viewerId: CatFileViewerId | null;
 };
 
-const SEGMENT_VIEWS = ["comfortable", "side-by-side"] as const satisfies readonly CatWorkspaceViewMode[];
-const IMAGE_VIEWS = ["file", "comfortable", "side-by-side"] as const satisfies readonly CatWorkspaceViewMode[];
+const SEGMENT_VIEWS = [
+  "comfortable",
+  "side-by-side",
+] as const satisfies readonly CatWorkspaceViewMode[];
+const IMAGE_VIEWS = [
+  "file",
+  "comfortable",
+  "side-by-side",
+] as const satisfies readonly CatWorkspaceViewMode[];
 const OFFICE_VIEWS = ["file"] as const satisfies readonly CatWorkspaceViewMode[];
 
 const OFFICE_EXTENSIONS = new Set([".docx", ".xlsx", ".xls", ".pptx"]);

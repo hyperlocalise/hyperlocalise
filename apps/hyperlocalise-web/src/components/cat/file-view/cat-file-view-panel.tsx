@@ -25,10 +25,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { cn } from "@/lib/primitives/cn";
 
 import { catFileViewMessages } from "./cat-file-view.messages";
-import {
-  CAT_IMAGE_FILE_UPLOAD_ACCEPT,
-  CatImageFileViewerPane,
-} from "./cat-image-file-viewer";
+import { CAT_IMAGE_FILE_UPLOAD_ACCEPT, CatImageFileViewerPane } from "./cat-image-file-viewer";
 
 export function CatFileViewPanel({
   segment,
@@ -66,10 +63,7 @@ export function CatFileViewPanel({
   const canTriggerApprove = Boolean(canApprove && hasTarget && !isApproving && !isImageBusy);
   const uploadAccept = viewerId === "image" ? CAT_IMAGE_FILE_UPLOAD_ACCEPT : undefined;
 
-  const sourceSrc =
-    viewerId === "image"
-      ? (segment.sourceAssetUrl ?? null)
-      : null;
+  const sourceSrc = viewerId === "image" ? (segment.sourceAssetUrl ?? null) : null;
   const targetSrc =
     viewerId === "image"
       ? (segment.targetAssetUrl ??
@@ -93,12 +87,7 @@ export function CatFileViewPanel({
         <div className="flex flex-wrap items-center gap-2">
           <CatWorkspaceViewSwitcherConnected />
           {onApprove ? (
-            <Button
-              variant="default"
-              size="sm"
-              disabled={!canTriggerApprove}
-              onClick={onApprove}
-            >
+            <Button variant="default" size="sm" disabled={!canTriggerApprove} onClick={onApprove}>
               {isApproving ? <Spinner className="size-4 text-primary-foreground" /> : null}
               {resolvedPrimaryActionLabel}
             </Button>

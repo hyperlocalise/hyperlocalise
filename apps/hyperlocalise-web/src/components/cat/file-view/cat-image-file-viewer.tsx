@@ -47,12 +47,5 @@ export function CatImageFileViewerPane({
     );
   }
 
-  return (
-    <CatImagePreview
-      src={src}
-      alt={alt}
-      emptyLabel={emptyLabel}
-      className="min-h-56"
-    />
-  );
+  return <CatImagePreview src={src} alt={alt} emptyLabel={emptyLabel} className="min-h-56" />;
 }

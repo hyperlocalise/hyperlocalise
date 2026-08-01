@@ -18,7 +18,9 @@ export const CAT_COMFORTABLE_PAGE_LIMIT = 50;
 export const CAT_SIDE_BY_SIDE_PAGE_LIMIT = 20;
 export const CAT_FILE_VIEW_PAGE_LIMIT = 1;
 
-export function isCatWorkspaceViewMode(value: string | null | undefined): value is CatWorkspaceViewMode {
+export function isCatWorkspaceViewMode(
+  value: string | null | undefined,
+): value is CatWorkspaceViewMode {
   return value === "comfortable" || value === "side-by-side" || value === "file";
 }
 

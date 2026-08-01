@@ -879,7 +879,7 @@ export const catWorkspaceViewModeMessages = defineMessages({
   },
   fileView: {
     defaultMessage: "File view",
-    id: "y2BnJk8vTq",
+    id: "aHtGik8gUy",
     description: "CAT workspace view mode that previews source and translated files side by side",
   },
 });

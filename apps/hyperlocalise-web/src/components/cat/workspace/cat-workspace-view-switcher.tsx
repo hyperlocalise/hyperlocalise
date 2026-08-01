@@ -30,7 +30,10 @@ import { catWorkspaceViewModeMessages } from "@/components/cat/shared/cat.messag
 import type { CatWorkspaceViewMode } from "@/components/cat/workspace/cat-workspace-view-mode";
 import { isCatWorkspaceViewMode } from "@/components/cat/workspace/cat-workspace-view-mode";
 
-const DEFAULT_AVAILABLE_VIEWS = ["comfortable", "side-by-side"] as const satisfies readonly CatWorkspaceViewMode[];
+const DEFAULT_AVAILABLE_VIEWS = [
+  "comfortable",
+  "side-by-side",
+] as const satisfies readonly CatWorkspaceViewMode[];
 
 function viewModeIcon(mode: CatWorkspaceViewMode) {
   if (mode === "file") {

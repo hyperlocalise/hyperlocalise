@@ -43,11 +43,7 @@ describe("CatFileViewPanel", () => {
   it("renders translated pane before source pane", () => {
     render(
       <CatTestProviders>
-        <CatFileViewPanel
-          segment={imageSegment()}
-          viewerId="image"
-          filename="hero.png"
-        />
+        <CatFileViewPanel segment={imageSegment()} viewerId="image" filename="hero.png" />
       </CatTestProviders>,
     );
 
