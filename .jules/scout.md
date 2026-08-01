@@ -191,3 +191,7 @@
 ## 2026-11-05 - [YAML Pruning Validation and Sequence Stability]
 **Learning:** When testing YAML pruning/round-tripping behavior using `MarshalYAMLWithPrune`, mapping nodes are selectively pruned according to prune keys, but sequence/array nodes are kept intact to prevent shift-index instability. Comprehensive testing must verify both the pruning of unwanted mapping leaf strings and the complete preservation of array elements and block/line comments.
 **Action:** Use table-driven tests or multi-layered assertions that round-trip through both the marshaler and parser to ensure that template structures, comments, and array stable indices are verified end-to-end.
+
+## 2026-11-10 - [API Base URL Security Validation Boundaries]
+**Learning:** `ValidateAPIBaseURL` enforces strict security validations (preventing SSRF, open redirects, or credential leaks) by requiring public unicast IPs under HTTPS on production domains, while allowing localhost/loopback over HTTP or HTTPS. Testing this logic requires table-driven test cases covering URL query/fragments, user credentials, DNS trickery/suffix domains, bracketed IPv6 loopback structures, and RFC1918 private space IPs.
+**Action:** When testing host, URL, or API endpoints, design comprehensive test matrices covering parsing anomalies (percent encoding errors), protocol/scheme requirements, and address routing properties (loopback vs public vs multicast/private unicast).
