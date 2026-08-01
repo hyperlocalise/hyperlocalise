@@ -62,7 +62,8 @@ describe("cat-workspace-view-mode", () => {
   it("maps view mode to page limits", () => {
     expect(catPageLimitForViewMode("comfortable")).toBe(50);
     expect(catPageLimitForViewMode("side-by-side")).toBe(20);
-    expect(catPageLimitForViewMode("file")).toBe(1);
+    // File view keeps Comfortable page size so aggregate queue selections survive.
+    expect(catPageLimitForViewMode("file")).toBe(50);
   });
 
   it("recognizes valid view modes", () => {

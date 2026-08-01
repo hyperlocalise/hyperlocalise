@@ -407,6 +407,10 @@ export const CatWorkspaceView = observer(function CatWorkspaceView({
           isImageBusy={isImageBusy}
           isSegmentTargetLoading={isSegmentTargetLoading}
           primaryActionLabel={shell.primaryActionLabel}
+          hasPreviousSegment={hasPreviousSegment}
+          hasNextSegment={hasNextSegment}
+          onPrevious={navigation.onPreviousSegment}
+          onNext={navigation.onNextSegment}
           onApprove={() => void review.onApprove(editorSegment.id, editorSegment.targetText)}
           onUpload={
             editing.onUploadImage

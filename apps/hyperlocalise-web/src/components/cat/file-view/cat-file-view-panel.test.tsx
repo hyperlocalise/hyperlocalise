@@ -98,4 +98,44 @@ describe("CatFileViewPanel", () => {
       screen.getAllByText("Preview is not available for this file type yet.").length,
     ).toBeGreaterThan(0);
   });
+
+  it("prefers the segment source path over an aggregate filename", () => {
+    render(
+      <CatTestProviders>
+        <CatFileViewPanel
+          segment={imageSegment({ sourcePath: "marketing/hero.png" })}
+          viewerId="image"
+          filename="All Files"
+        />
+      </CatTestProviders>,
+    );
+
+    expect(screen.getByText("marketing/hero.png")).toBeInTheDocument();
+    expect(screen.queryByText("All Files")).not.toBeInTheDocument();
+  });
+
+  it("navigates previous and next files", async () => {
+    const user = userEvent.setup();
+    const onPrevious = vi.fn();
+    const onNext = vi.fn();
+
+    render(
+      <CatTestProviders>
+        <CatFileViewPanel
+          segment={imageSegment()}
+          viewerId="image"
+          hasPreviousSegment
+          hasNextSegment
+          onPrevious={onPrevious}
+          onNext={onNext}
+        />
+      </CatTestProviders>,
+    );
+
+    await user.click(screen.getByRole("button", { name: /Previous file/i }));
+    await user.click(screen.getByRole("button", { name: /Next file/i }));
+
+    expect(onPrevious).toHaveBeenCalledTimes(1);
+    expect(onNext).toHaveBeenCalledTimes(1);
+  });
 });

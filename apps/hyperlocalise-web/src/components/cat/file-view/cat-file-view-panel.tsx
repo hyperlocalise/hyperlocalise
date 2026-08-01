@@ -13,6 +13,8 @@
  * Version 2.0 or later.
  */
 import type { ReactNode } from "react";
+import { ArrowLeft01Icon, ArrowRight01Icon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import { Loader2, RefreshCw, Upload } from "lucide-react";
 import { FormattedMessage, useIntl } from "react-intl";
 
@@ -37,6 +39,10 @@ export function CatFileViewPanel({
   isImageBusy = false,
   isSegmentTargetLoading = false,
   primaryActionLabel,
+  hasPreviousSegment = false,
+  hasNextSegment = false,
+  onPrevious,
+  onNext,
   onApprove,
   onUpload,
   onRegenerate,
@@ -51,6 +57,10 @@ export function CatFileViewPanel({
   isImageBusy?: boolean;
   isSegmentTargetLoading?: boolean;
   primaryActionLabel?: string;
+  hasPreviousSegment?: boolean;
+  hasNextSegment?: boolean;
+  onPrevious?: () => void;
+  onNext?: () => void;
   onApprove?: () => void;
   onUpload?: (file: File) => void;
   onRegenerate?: () => void;
@@ -62,6 +72,7 @@ export function CatFileViewPanel({
   const hasTarget = Boolean(segment.targetAssetUrl || segment.targetText.trim());
   const canTriggerApprove = Boolean(canApprove && hasTarget && !isApproving && !isImageBusy);
   const uploadAccept = viewerId === "image" ? CAT_IMAGE_FILE_UPLOAD_ACCEPT : undefined;
+  const displayName = segment.sourcePath || filename || segment.key;
 
   const sourceSrc = viewerId === "image" ? (segment.sourceAssetUrl ?? null) : null;
   const targetSrc =
@@ -76,15 +87,35 @@ export function CatFileViewPanel({
         <div className="min-w-0 space-y-1">
           <div className="flex flex-wrap items-center gap-2">
             <SegmentStatusBadge status={segment.status} />
-            <p className="truncate font-mono text-xs text-muted-foreground">
-              {filename || segment.sourcePath || segment.key}
-            </p>
+            <p className="truncate font-mono text-xs text-muted-foreground">{displayName}</p>
           </div>
           <p className="text-sm text-muted-foreground">
             {segment.sourceLocale} → {segment.targetLocale}
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          {onPrevious || onNext ? (
+            <div className="flex items-center gap-1">
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                onClick={onPrevious}
+                disabled={!hasPreviousSegment || !onPrevious}
+                aria-label={intl.formatMessage(catFileViewMessages.previousFileAria)}
+              >
+                <HugeiconsIcon icon={ArrowLeft01Icon} className="size-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                onClick={onNext}
+                disabled={!hasNextSegment || !onNext}
+                aria-label={intl.formatMessage(catFileViewMessages.nextFileAria)}
+              >
+                <HugeiconsIcon icon={ArrowRight01Icon} className="size-4" />
+              </Button>
+            </div>
+          ) : null}
           <CatWorkspaceViewSwitcherConnected />
           {onApprove ? (
             <Button variant="default" size="sm" disabled={!canTriggerApprove} onClick={onApprove}>

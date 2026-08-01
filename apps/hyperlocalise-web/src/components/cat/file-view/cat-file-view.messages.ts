@@ -65,4 +65,14 @@ export const catFileViewMessages = defineMessages({
     id: "GWzwxQbAhe",
     description: "Alt text for the translated image in CAT File view",
   },
+  previousFileAria: {
+    defaultMessage: "Previous file",
+    id: "tUQYErY0nj",
+    description: "Accessible label for previous-file navigation in CAT File view",
+  },
+  nextFileAria: {
+    defaultMessage: "Next file",
+    id: "ShnGyATeRG",
+    description: "Accessible label for next-file navigation in CAT File view",
+  },
 });

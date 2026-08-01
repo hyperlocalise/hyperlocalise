@@ -16,7 +16,9 @@ export const CAT_WORKSPACE_VIEW_MODE_STORAGE_KEY = "cat-workspace-view-mode:v1";
 
 export const CAT_COMFORTABLE_PAGE_LIMIT = 50;
 export const CAT_SIDE_BY_SIDE_PAGE_LIMIT = 20;
-export const CAT_FILE_VIEW_PAGE_LIMIT = 1;
+/** File view is presentation-only; keep Comfortable queue page size so aggregate
+ * selections (e.g. All Files) are not dropped when the query refetches. */
+export const CAT_FILE_VIEW_PAGE_LIMIT = CAT_COMFORTABLE_PAGE_LIMIT;
 
 export function isCatWorkspaceViewMode(
   value: string | null | undefined,
@@ -57,6 +59,7 @@ export function catPageLimitForViewMode(mode: CatWorkspaceViewMode) {
   if (mode === "side-by-side") {
     return CAT_SIDE_BY_SIDE_PAGE_LIMIT;
   }
+  // File view renders one selected unit but must not shrink the queue query.
   if (mode === "file") {
     return CAT_FILE_VIEW_PAGE_LIMIT;
   }

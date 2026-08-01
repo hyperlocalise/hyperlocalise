@@ -50,10 +50,14 @@ only render previews and declare capabilities.
 
 File view shell:
 
-- Header: filename, locales, status, approve
+- Header: filename, locales, status, prev/next, approve
 - Two panes: **translated (target) on the left**, **source on the right**
 - Toolbar on the target pane: upload, regenerate when supported
 - Compact layouts stack target above source
+
+File view is presentation-only for the selected unit. Queue page size stays at
+the Comfortable limit (`50`) so aggregate workspaces (for example All Files)
+do not refetch with `limit=1` and drop the selected image.
 
 For image files, reuse `CatImagePreview` and existing upload / regenerate /
 approve APIs. URL-backed `image_url` keys stay in segment views; File view is

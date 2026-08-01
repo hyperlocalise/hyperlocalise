@@ -274,7 +274,7 @@ describe("CatWorkspaceUiStore", () => {
     ui.setViewMode("file");
 
     expect(ui.isFileView).toBe(true);
-    expect(ui.pageLimit).toBe(1);
+    expect(ui.pageLimit).toBe(50);
   });
 
   it("honors an explicit initial view mode without reading storage", () => {
