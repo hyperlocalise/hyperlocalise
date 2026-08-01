@@ -205,6 +205,9 @@ export const env = createEnv({
 
     /** Crowdin Apps iframe helper script CDN URL. */
     NEXT_PUBLIC_CROWDIN_IFRAME_SRC: z.url().optional(),
+
+    /** Public Sentry DSN for client/server/edge error reporting. Optional in local development. */
+    NEXT_PUBLIC_SENTRY_DSN: z.url().optional(),
   },
   runtimeEnv: {
     NODE_ENV: process.env.NODE_ENV,
@@ -300,5 +303,6 @@ export const env = createEnv({
     NEXT_PUBLIC_CROWDIN_IFRAME_SRC:
       process.env.NEXT_PUBLIC_CROWDIN_IFRAME_SRC ??
       (isTestEnv ? "https://cdn.crowdin.com/apps/dist/iframe.js" : undefined),
+    NEXT_PUBLIC_SENTRY_DSN: process.env.NEXT_PUBLIC_SENTRY_DSN,
   },
 });

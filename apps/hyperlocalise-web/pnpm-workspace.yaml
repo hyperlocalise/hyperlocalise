@@ -1,6 +1,7 @@
 allowBuilds:
   '@mongodb-js/zstd': false
   '@nestjs/core': false
+  '@sentry/cli': true
   '@swc/core': false
   bun: true
   cbor-extract: false

@@ -12,6 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import * as Sentry from "@sentry/nextjs";
 import { useEffect } from "react";
 
 import { ErrorRecovery } from "@/components/error-recovery/error-recovery";
@@ -27,7 +28,7 @@ type GlobalErrorProps = {
 
 export default function GlobalError({ error, unstable_retry }: GlobalErrorProps) {
   useEffect(() => {
-    console.error(error);
+    Sentry.captureException(error);
   }, [error]);
 
   return (
