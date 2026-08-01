@@ -10,8 +10,6 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import type { ProjectFileRecord } from "@/api/routes/project/project.schema";
-
 import type { ApiJob } from "../../../jobs/_components/jobs-page-view";
 import type { ProjectListRow } from "../../_components/project-list";
 
@@ -25,23 +23,39 @@ export const projectOverviewFixture: ProjectListRow = {
   translationContextValue: "Friendly, concise marketing tone",
   created: "Jan 12, 2026, 9:30 AM",
   updated: "Mar 18, 2026, 2:15 PM",
-  source: "external_tms",
-  externalProviderKind: "crowdin",
-  externalProjectId: "42",
+  source: "native",
+  externalProviderKind: null,
+  externalProjectId: null,
   sourceLocale: "en-US",
   targetLocales: ["fr-FR", "de-DE", "es-ES"],
-  externalProjectUrl: "https://crowdin.com/project/website",
+  externalProjectUrl: null,
   isActive: true,
   logoUrl: null,
   lastActivityAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-  lastSyncedAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
+  lastSyncedAt: "Mar 18, 2026, 1:00 PM",
   lastSyncErrorAt: null,
   lastSyncErrorMessage: null,
   openJobCount: 2,
 };
 
+export const projectOverviewTmsFixture: ProjectListRow = {
+  ...projectOverviewFixture,
+  source: "external_tms",
+  externalProviderKind: "crowdin",
+  externalProjectId: "42",
+  externalProjectUrl: "https://crowdin.com/project/website",
+  lastSyncedAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
+};
+
 export const projectOverviewCaughtUpFixture: ProjectListRow = {
   ...projectOverviewFixture,
+  openJobCount: 0,
+};
+
+export const projectOverviewMissingGuidanceFixture: ProjectListRow = {
+  ...projectOverviewFixture,
+  translationContext: "No translation context",
+  translationContextValue: "",
   openJobCount: 0,
 };
 
@@ -58,7 +72,7 @@ export const projectOverviewJobsFixture: ApiJob[] = [
     completedAt: null,
     workflowRunId: null,
     lastError: null,
-    inputPayload: { sourceFileId: "marketing/home.json" },
+    inputPayload: { sourceFileId: "marketing/home.json", metadata: { title: "Home page" } },
     outcomeKind: null,
     outcomePayload: null,
     reviewCriteria: null,
@@ -105,52 +119,5 @@ export const projectOverviewJobsFixture: ApiJob[] = [
     externalTargetLocales: null,
     externalAssignedUsers: null,
     externalSyncState: null,
-  },
-];
-
-export const projectOverviewFilesFixture: ProjectFileRecord[] = [
-  {
-    origin: "provider",
-    sourcePath: "marketing/home.json",
-    sourceHash: null,
-    commitSha: null,
-    workflowRunId: null,
-    uploadedAt: new Date().toISOString(),
-    storedFileId: null,
-    metadata: {},
-    filename: "home.json",
-    byteSize: 2048,
-    provider: {
-      kind: "crowdin",
-      resourceType: "file",
-      externalProjectId: "42",
-      externalResourceId: "101",
-      externalUrl: null,
-      syncState: "changed",
-      sourceLocale: "en-US",
-      targetLocales: ["fr-FR", "de-DE"],
-      localeReadiness: {
-        "fr-FR": "missing",
-        "de-DE": "ready",
-      },
-      revision: null,
-      format: "json",
-      lastSyncedAt: new Date().toISOString(),
-    },
-    latestJob: null,
-  },
-  {
-    origin: "repository",
-    sourcePath: "marketing/pricing.json",
-    sourceHash: "abc123",
-    commitSha: "deadbeef",
-    workflowRunId: null,
-    uploadedAt: new Date().toISOString(),
-    storedFileId: "file_1",
-    metadata: {},
-    filename: "pricing.json",
-    byteSize: 1024,
-    provider: null,
-    latestJob: null,
   },
 ];

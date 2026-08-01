@@ -15,9 +15,10 @@ import { expect } from "storybook/test";
 
 import {
   projectOverviewCaughtUpFixture,
-  projectOverviewFilesFixture,
   projectOverviewFixture,
   projectOverviewJobsFixture,
+  projectOverviewMissingGuidanceFixture,
+  projectOverviewTmsFixture,
 } from "./project-overview.fixture";
 import { ProjectOverviewPageContentView } from "./project-overview-page-content";
 
@@ -33,15 +34,9 @@ const meta = {
     project: projectOverviewFixture,
     isProjectLoading: false,
     isProjectError: false,
-    openJobCount: projectOverviewFixture.openJobCount,
-    isOpenJobCountLoading: false,
-    isOpenJobCountError: false,
     jobs: projectOverviewJobsFixture,
     isJobsLoading: false,
     isJobsError: false,
-    files: projectOverviewFilesFixture,
-    isFilesLoading: false,
-    isFilesError: false,
   },
 } satisfies Meta<typeof ProjectOverviewPageContentView>;
 
@@ -52,26 +47,51 @@ export const Default: Story = {
   play: async ({ canvas }) => {
     await expect(canvas.getByRole("heading", { name: "Website localization" })).toBeInTheDocument();
     await expect(canvas.getByRole("button", { name: "Create job" })).toBeInTheDocument();
-    await expect(canvas.getByRole("link", { name: "View strings" })).toHaveAttribute(
-      "href",
-      "/org/acme/projects/project_website/strings",
-    );
-    await expect(canvas.getByText("A few things need your attention")).toBeInTheDocument();
-    await expect(canvas.getByText("Ongoing")).toBeInTheDocument();
-    await expect(canvas.getByText("home.json")).toBeInTheDocument();
+    await expect(canvas.getByText("Needs you now")).toBeInTheDocument();
+    await expect(canvas.getByText("Waiting for review")).toBeInTheDocument();
+    await expect(canvas.getByText("Translation guidance")).toBeInTheDocument();
+    await expect(canvas.getByText("Sync")).toBeInTheDocument();
+    await expect(canvas.queryByText("Locale health")).toBeNull();
   },
 };
 
 export const CaughtUp: Story = {
   args: {
     project: projectOverviewCaughtUpFixture,
-    openJobCount: projectOverviewCaughtUpFixture.openJobCount,
     jobs: [],
-    files: [projectOverviewFilesFixture[1]!],
   },
   play: async ({ canvas }) => {
-    await expect(canvas.getByText("You’re all caught up")).toBeInTheDocument();
-    await expect(canvas.getByText("Browse files")).toBeInTheDocument();
+    await expect(canvas.getByText("No reviews waiting")).toBeInTheDocument();
+    await expect(
+      canvas.getByText("Open Files for coverage, or create a job when you are ready."),
+    ).toBeInTheDocument();
+  },
+};
+
+export const MissingGuidance: Story = {
+  args: {
+    project: projectOverviewMissingGuidanceFixture,
+    jobs: [],
+  },
+  play: async ({ canvas }) => {
+    await expect(canvas.getByText("Add translation guidance")).toBeInTheDocument();
+    await expect(canvas.getByText("Add guidance")).toBeInTheDocument();
+  },
+};
+
+export const TmsProject: Story = {
+  args: {
+    project: projectOverviewTmsFixture,
+    projectId: "ext:crowdin:42",
+  },
+  play: async ({ canvas }) => {
+    await expect(canvas.getByRole("link", { name: "View strings" })).toHaveAttribute(
+      "href",
+      "/org/acme/projects/ext%3Acrowdin%3A42/strings",
+    );
+    await expect(canvas.queryByText("Sync")).toBeNull();
+    await expect(canvas.queryByText("Translation guidance")).toBeNull();
+    await expect(canvas.getByText("Locales")).toBeInTheDocument();
   },
 };
 
@@ -79,24 +99,11 @@ export const Loading: Story = {
   args: {
     project: null,
     isProjectLoading: true,
-    isOpenJobCountLoading: true,
     isJobsLoading: true,
-    isFilesLoading: true,
-    openJobCount: 0,
     jobs: [],
-    files: [],
   },
   play: async ({ canvas }) => {
     await expect(canvas.queryByRole("button", { name: "Create job" })).toBeNull();
     await expect(canvas.queryByRole("link", { name: "View strings" })).toBeNull();
-  },
-};
-
-export const EmptyOngoing: Story = {
-  args: {
-    project: projectOverviewCaughtUpFixture,
-    openJobCount: projectOverviewCaughtUpFixture.openJobCount,
-    jobs: [],
-    files: [projectOverviewFilesFixture[1]!],
   },
 };

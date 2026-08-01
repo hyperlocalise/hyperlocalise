@@ -41,187 +41,148 @@ export const projectOverviewPageContentMessages = defineMessages({
     description: "Error message when project overview details fail to load",
   },
   defaultProjectDescription: {
-    defaultMessage: "Project hub for localization work.",
-    id: "fbtbMSQ/2I",
+    defaultMessage: "Today’s queue for this project.",
+    id: "6lH73749rG",
     description: "Fallback project description on the project overview page",
   },
-  caughtUpHeroTitle: {
-    defaultMessage: "You’re all caught up",
-    id: "esZVdLzFOW",
-    description: "Project overview hero title when there are no pending actions",
+  needsYouNowTitle: {
+    defaultMessage: "Needs you now",
+    id: "dGhvlRGto0",
+    description: "Heading for the project overview triage band",
   },
-  caughtUpHeroDescription: {
-    defaultMessage:
-      "No pending actions right now. Upload source files or review completed jobs when you’re ready to continue.",
-    id: "VZSf2k42GF",
-    description: "Project overview hero description when there are no pending actions",
+  needsYouNowCount: {
+    defaultMessage: "{count, plural, one {# item} other {# items}}",
+    id: "obkqu+QKmi",
+    description: "Count badge for triage items on project overview",
   },
-  browseFilesCta: {
-    defaultMessage: "Browse files",
-    id: "Q3hdQblIYe",
-    description: "Project overview hero call-to-action when the project is caught up",
+  triageEmptyTitle: {
+    defaultMessage: "No reviews waiting",
+    id: "TVxvj2B1bk",
+    description: "Title when the triage band has no urgent items",
   },
-  attentionHeroTitle: {
-    defaultMessage: "A few things need your attention",
-    id: "3XNlGxtFuq",
-    description: "Project overview hero title when pending actions need review",
+  triageEmptyDescription: {
+    defaultMessage: "Open Files for coverage, or create a job when you are ready.",
+    id: "85veKzf/Q7",
+    description: "Description when the triage band has no urgent items",
   },
-  attentionHeroDescription: {
-    defaultMessage: "Pick up where you left off — {details}.",
-    id: "hx+ozGK2uu",
-    description: "Project overview hero description listing open jobs and files needing attention",
+  reviewCta: {
+    defaultMessage: "Review",
+    id: "v0Xmk6UQW5",
+    description: "CTA for a job waiting for review on project overview",
   },
-  openJobsDetail: {
-    defaultMessage: "{count, plural, one {# open job} other {# open jobs}}",
-    id: "SyMDAHRe17",
-    description: "Fragment listing open job count in the project overview hero",
+  openJobCta: {
+    defaultMessage: "Open job",
+    id: "wdhrNg8UHz",
+    description: "CTA for a failed or active job on project overview",
   },
-  filesNeedingAttentionDetail: {
-    defaultMessage:
-      "{count, plural, one {# file needing attention} other {# files needing attention}}",
-    id: "e3B7xw2yS4",
-    description: "Fragment listing files needing attention in the project overview hero",
+  addGuidanceCta: {
+    defaultMessage: "Add guidance",
+    id: "U+ZJP/RMin",
+    description: "CTA when translation guidance is missing on project overview",
   },
-  pickUpWhereYouLeftOffCta: {
-    defaultMessage: "Pick up where you left off",
-    id: "2P3llDCJQ9",
-    description: "Project overview hero call-to-action when work needs attention",
+  triageReviewTitle: {
+    defaultMessage: "Waiting for review",
+    id: "t4mhc63bGr",
+    description: "Status label for review triage items",
   },
-  snapshotTitle: {
-    defaultMessage: "Project snapshot",
-    id: "tQnsj9c8zW",
-    description: "Title of the project snapshot card on project overview",
+  triageFailedTitle: {
+    defaultMessage: "Job failed",
+    id: "piWs1xE1NT",
+    description: "Status label for failed job triage items",
   },
-  snapshotLocales: {
+  triageGuidanceTitle: {
+    defaultMessage: "Add translation guidance",
+    id: "DGx/LlMkDv",
+    description: "Title when native translation guidance is missing",
+  },
+  triageGuidanceDescription: {
+    defaultMessage: "Shared tone and terminology so agents stay consistent.",
+    id: "+y5oYiRfPw",
+    description: "Description when native translation guidance is missing",
+  },
+  triageJobRunning: {
+    defaultMessage: "In progress",
+    id: "KYKSoue+Dr",
+    description: "Status label for queued or running jobs in triage",
+  },
+  viewAllJobs: {
+    defaultMessage: "View all jobs",
+    id: "QaBpv8qa4h",
+    description: "Link from triage band to the project jobs page",
+  },
+  signalsTitle: {
+    defaultMessage: "Project",
+    id: "RZNls0g+WM",
+    description: "Section heading for lightweight project signals on overview",
+  },
+  signalsLocales: {
     defaultMessage: "Locales",
-    id: "0pVEMuUCAh",
-    description: "Project snapshot row label for source and target locales",
+    id: "wQOKFwmzrC",
+    description: "Label for locale route on project overview signals",
   },
-  snapshotSource: {
-    defaultMessage: "Source",
-    id: "R1inHgae6i",
-    description: "Project snapshot row label for project source type",
+  signalsNoLocales: {
+    defaultMessage: "No target locales yet",
+    id: "Pw5huaM2vN",
+    description: "Shown when the project has no target locales configured",
   },
-  snapshotOpenJobs: {
-    defaultMessage: "Open jobs",
-    id: "qoKaksFa9x",
-    description: "Project snapshot row label for open job count",
+  guidanceTitle: {
+    defaultMessage: "Translation guidance",
+    id: "6KrEdJWOHm",
+    description: "Section heading for translation guidance preview on project overview",
   },
-  nativeProjectSource: {
-    defaultMessage: "Native project",
-    id: "kpZpdwbYk2",
-    description: "Project snapshot source value for Hyperlocalise-native projects",
+  guidanceEdit: {
+    defaultMessage: "Edit",
+    id: "Hvpl2DhEOB",
+    description: "Link to edit translation guidance in project settings",
   },
-  openJobsUnavailable: {
-    defaultMessage: "Unavailable",
-    id: "Z9kckxHp8S",
-    description: "Shown in project snapshot when open job count fails to load",
+  shipTitle: {
+    defaultMessage: "Sync",
+    id: "cE0bfQDgYq",
+    description: "Section heading for native sync status on project overview",
+  },
+  shipLastSynced: {
+    defaultMessage: "Last synced {when}",
+    id: "I28Vekk8WA",
+    description: "Last sync timestamp on project overview ship section",
+  },
+  shipNeverSynced: {
+    defaultMessage: "Not synced yet",
+    id: "wk5x4r43TH",
+    description: "Shown when a native project has never synced",
+  },
+  shipCliHint: {
+    defaultMessage: "Download translations from Files or run <code>sync pull</code>.",
+    id: "1x7rivVz4j",
+    description: "CLI hint in the sync section on project overview",
+  },
+  shipConnectCli: {
+    defaultMessage: "Connect CLI & CI",
+    id: "NQq3ItGutD",
+    description: "Link to project settings for CLI and CI setup",
   },
   viewSettings: {
     defaultMessage: "View settings",
-    id: "zIinCypcXs",
-    description: "Call-to-action on the project snapshot card linking to project settings",
+    id: "PpiEEboJdd",
+    description: "Call-to-action linking to project settings",
   },
-  ongoingSection: {
-    defaultMessage: "Ongoing",
-    id: "AUY6LRuqkn",
-    description: "Section heading for ongoing jobs and files on project overview",
+  viewFiles: {
+    defaultMessage: "View files",
+    id: "9GZvF1K90w",
+    description: "Button linking to the project files page",
   },
-  categoryJob: {
-    defaultMessage: "Job",
-    id: "zliOrjr0oj",
-    description: "Category badge for a job card on project overview",
-  },
-  categoryFile: {
-    defaultMessage: "File",
-    id: "XlCqTK9P8L",
-    description: "Category badge for a file card on project overview",
-  },
-  jobStatusUpdated: {
-    defaultMessage: "{status} · updated {updated}",
-    id: "intwkVhq+i",
-    description: "Status line for an ongoing job card showing status and relative update time",
-  },
-  needsAttention: {
-    defaultMessage: "Needs attention",
-    id: "Jwoqn7hfPq",
-    description: "Fallback status line when a file needs attention but has no readiness summary",
+  viewJobs: {
+    defaultMessage: "View jobs",
+    id: "2c+GvUZLgD",
+    description: "Button linking to the project jobs page",
   },
   jobsUnavailable: {
     defaultMessage: "Jobs unavailable",
     id: "M4sYVolrI+",
     description: "Empty-state title when project jobs fail to load",
   },
-  noActiveJobs: {
-    defaultMessage: "No active jobs",
-    id: "qsiC3fEv6E",
-    description: "Empty-state title when the project has no active jobs",
-  },
   jobsUnavailableDescription: {
     defaultMessage: "We could not load jobs for this project.",
     id: "CvYNnC7KYY",
     description: "Empty-state description when project jobs fail to load",
-  },
-  noActiveJobsDescription: {
-    defaultMessage: "Queued, running, and review jobs will appear here.",
-    id: "VreTPRoxTI",
-    description: "Empty-state description when the project has no active jobs",
-  },
-  viewJobs: {
-    defaultMessage: "View jobs",
-    id: "ah1fHcY0dZ",
-    description: "Button linking to the project jobs page from the empty jobs card",
-  },
-  filesUnavailable: {
-    defaultMessage: "Files unavailable",
-    id: "lnENdnqB3K",
-    description: "Empty-state title when project files fail to load",
-  },
-  noFilesNeedAttention: {
-    defaultMessage: "No files need attention",
-    id: "ng2kCyPWWf",
-    description: "Empty-state title when no project files need attention",
-  },
-  filesUnavailableDescription: {
-    defaultMessage: "We could not load project files.",
-    id: "MtSPbgepa5",
-    description: "Empty-state description when project files fail to load",
-  },
-  noFilesNeedAttentionDescription: {
-    defaultMessage: "Files with missing or changed translations will appear here.",
-    id: "Pu5h/suwW5",
-    description: "Empty-state description when no project files need attention",
-  },
-  viewFiles: {
-    defaultMessage: "View files",
-    id: "3KtrgP1VL6",
-    description: "Button linking to the project files page from the empty files card",
-  },
-  readyToPullTitle: {
-    defaultMessage: "Ready to pull",
-    id: "PMhWQU9+xq",
-    description: "Title of the ready-to-pull callout on project overview",
-  },
-  readyToPullDescription: {
-    defaultMessage:
-      "{count, plural, one {# file has} other {# files have}} completed translations you can download or sync with <code>sync pull</code>.",
-    id: "iczDvJ3VLc",
-    description:
-      "Description of files ready to pull, with the sync pull command highlighted in monospace",
-  },
-  openFiles: {
-    defaultMessage: "Open files",
-    id: "/L2n1hwt0/",
-    description: "Button linking to project files from the ready-to-pull callout",
-  },
-  loadProjectFilesFailed: {
-    defaultMessage: "Failed to load project files",
-    id: "fIXR+y8rly",
-    description: "Error when the project overview files query fails",
-  },
-  invalidProjectFilesResponse: {
-    defaultMessage: "Invalid project files response",
-    id: "kgAiiSB4O6",
-    description: "Error when the project overview files API returns an unexpected payload",
   },
 });
