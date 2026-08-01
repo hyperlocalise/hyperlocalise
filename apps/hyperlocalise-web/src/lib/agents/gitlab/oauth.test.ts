@@ -113,4 +113,25 @@ describe("gitlab oauth helpers", () => {
       expect(result.value.refreshToken).toBe("refresh-keep");
     }
   });
+
+  it("returns a Result when fetch rejects", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => {
+        throw new Error("getaddrinfo ENOTFOUND gitlab.com");
+      }),
+    );
+
+    const result = await exchangeGitlabAuthorizationCode({
+      code: "auth-code",
+      redirectUri: "http://localhost:3000/api/auth/gitlab/callback",
+    });
+
+    expect(isErr(result)).toBe(true);
+    if (isErr(result) && result.error.code === "gitlab_token_exchange_failed") {
+      expect(result.error.message).toContain("ENOTFOUND");
+    } else {
+      expect.fail("expected gitlab_token_exchange_failed");
+    }
+  });
 });

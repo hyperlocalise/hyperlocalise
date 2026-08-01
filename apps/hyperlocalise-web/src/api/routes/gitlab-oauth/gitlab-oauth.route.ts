@@ -31,6 +31,8 @@ import { isErr } from "@/lib/primitives/result/results";
 
 const logger = createLogger("gitlab-oauth");
 
+const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
 function integrationsRedirect(slug: string, params: Record<string, string>) {
   const url = new URL(`/org/${slug}/integrations`, "http://localhost");
   for (const [key, value] of Object.entries(params)) {
@@ -50,6 +52,25 @@ function isUniqueViolation(error: unknown) {
 
   const cause = "cause" in error ? error.cause : undefined;
   return typeof cause === "object" && cause !== null && "code" in cause && cause.code === "23505";
+}
+
+async function resolveOrganizationFromState(verified: { slug: string }) {
+  let [org] = await db
+    .select()
+    .from(schema.organizations)
+    .where(eq(schema.organizations.slug, verified.slug))
+    .limit(1);
+
+  // install-url falls back to localOrganizationId when slug is missing.
+  if (!org && uuidRegex.test(verified.slug)) {
+    [org] = await db
+      .select()
+      .from(schema.organizations)
+      .where(eq(schema.organizations.id, verified.slug))
+      .limit(1);
+  }
+
+  return org ?? null;
 }
 
 export function createGitlabOAuthRoutes() {
@@ -84,12 +105,7 @@ export function createGitlabOAuthRoutes() {
       return c.redirect(integrationsRedirect(verified.slug, { error: "missing_gitlab_code" }));
     }
 
-    const [org] = await db
-      .select()
-      .from(schema.organizations)
-      .where(eq(schema.organizations.slug, verified.slug))
-      .limit(1);
-
+    const org = await resolveOrganizationFromState(verified);
     if (!org) {
       return c.redirect("/dashboard?error=organization_not_found");
     }
@@ -244,14 +260,13 @@ export function createGitlabOAuthRoutes() {
       return c.redirect(integrationsRedirect(orgSlug, { error: "gitlab_oauth_failed" }));
     }
 
-    try {
-      await syncGitlabConnectionProjects({
-        organizationId: org.id,
-        gitlabConnectionId: connectionId,
-      });
-    } catch (error) {
+    const syncResult = await syncGitlabConnectionProjects({
+      organizationId: org.id,
+      gitlabConnectionId: connectionId,
+    });
+    if (isErr(syncResult)) {
       logger.warn(
-        { err: error, organizationId: org.id },
+        { organizationId: org.id, error: syncResult.error },
         "gitlab project sync after connect failed",
       );
     }

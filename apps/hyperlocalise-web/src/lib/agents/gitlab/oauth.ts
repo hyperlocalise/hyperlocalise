@@ -90,16 +90,33 @@ async function postGitlabToken(
   baseUrl: string,
   body: URLSearchParams,
 ): Promise<Result<GitlabTokenResponse, { status: number; message: string }>> {
-  const response = await fetch(`${normalizeGitlabBaseUrl(baseUrl)}/oauth/token`, {
-    method: "POST",
-    headers: {
-      Accept: "application/json",
-      "Content-Type": "application/x-www-form-urlencoded",
-    },
-    body,
-  });
+  let response: Response;
+  try {
+    response = await fetch(`${normalizeGitlabBaseUrl(baseUrl)}/oauth/token`, {
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      body,
+    });
+  } catch (error) {
+    return err({
+      status: 0,
+      message: error instanceof Error ? error.message.slice(0, 200) : "network_error",
+    });
+  }
 
-  const text = await response.text();
+  let text: string;
+  try {
+    text = await response.text();
+  } catch (error) {
+    return err({
+      status: response.status,
+      message: error instanceof Error ? error.message.slice(0, 200) : "response_read_failed",
+    });
+  }
+
   let json: unknown;
   try {
     json = text ? JSON.parse(text) : null;

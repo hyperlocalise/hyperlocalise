@@ -251,7 +251,9 @@ describe("gitlabConnectionRoutes", () => {
       organizationId: auth.organization.localOrganizationId,
       gitlabConnectionId: connection.id,
     });
-    await expect(response.json()).resolves.toMatchObject({ syncedProjectCount: 1 });
+    await expect(response.json()).resolves.toMatchObject({
+      sync: { syncedProjectCount: 1 },
+    });
   });
 
   it("disconnects a connection", async () => {

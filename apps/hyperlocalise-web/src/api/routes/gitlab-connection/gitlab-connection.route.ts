@@ -251,7 +251,7 @@ export function createGitlabConnectionRoutes() {
         return c.json({ error: synced.error.code }, 502);
       }
 
-      return c.json({ syncedProjectCount: synced.value.length }, 200);
+      return c.json({ sync: { syncedProjectCount: synced.value.length } }, 200);
     })
     .delete("/", async (c) => {
       if (!isWorkspaceOperatorRole(c.var.auth.membership.role)) {

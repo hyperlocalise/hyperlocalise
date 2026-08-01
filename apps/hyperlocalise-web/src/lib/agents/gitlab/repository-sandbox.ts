@@ -45,9 +45,8 @@ export async function createGitlabRepositorySandbox(
 ): Promise<string> {
   const log = logger.child({
     organizationId: gitlabContext.organizationId,
-    pathWithNamespace: gitlabContext.pathWithNamespace,
-    branch: gitlabContext.branch ?? null,
-    commitSha: gitlabContext.commitSha ?? null,
+    connectionId: gitlabContext.connectionId,
+    projectId: gitlabContext.projectId,
   });
 
   log.info("resolving gitlab access token for repository sandbox");
@@ -67,7 +66,7 @@ export async function createGitlabRepositorySandbox(
     pathWithNamespace: gitlabContext.pathWithNamespace,
   });
 
-  log.info({ revision }, "creating vercel repository sandbox from gitlab git source");
+  log.info("creating vercel repository sandbox from gitlab git source");
   let workspace;
   try {
     workspace = await createVercelSandboxWorkspace({

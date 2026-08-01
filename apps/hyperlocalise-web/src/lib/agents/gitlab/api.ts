@@ -53,14 +53,33 @@ async function gitlabFetch(input: {
     }
   }
 
-  const response = await fetch(url, {
-    headers: {
-      Accept: "application/json",
-      Authorization: `Bearer ${input.accessToken}`,
-    },
-  });
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      headers: {
+        Accept: "application/json",
+        Authorization: `Bearer ${input.accessToken}`,
+      },
+    });
+  } catch (error) {
+    return err({
+      code: "gitlab_api_request_failed",
+      status: 0,
+      message: error instanceof Error ? error.message.slice(0, 200) : "network_error",
+    });
+  }
 
-  const text = await response.text();
+  let text: string;
+  try {
+    text = await response.text();
+  } catch (error) {
+    return err({
+      code: "gitlab_api_request_failed",
+      status: response.status,
+      message: error instanceof Error ? error.message.slice(0, 200) : "response_read_failed",
+    });
+  }
+
   let json: unknown = null;
   if (text) {
     try {
@@ -141,15 +160,34 @@ export async function listGitlabMembershipProjects(input: {
       return err({ code: "gitlab_api_request_failed", status: 499, message: "aborted" });
     }
 
-    const response = await fetch(nextUrl, {
-      headers: {
-        Accept: "application/json",
-        Authorization: `Bearer ${input.accessToken}`,
-      },
-      signal: input.signal,
-    });
+    let response: Response;
+    try {
+      response = await fetch(nextUrl, {
+        headers: {
+          Accept: "application/json",
+          Authorization: `Bearer ${input.accessToken}`,
+        },
+        signal: input.signal,
+      });
+    } catch (error) {
+      return err({
+        code: "gitlab_api_request_failed",
+        status: 0,
+        message: error instanceof Error ? error.message.slice(0, 200) : "network_error",
+      });
+    }
 
-    const text = await response.text();
+    let text: string;
+    try {
+      text = await response.text();
+    } catch (error) {
+      return err({
+        code: "gitlab_api_request_failed",
+        status: response.status,
+        message: error instanceof Error ? error.message.slice(0, 200) : "response_read_failed",
+      });
+    }
+
     let json: unknown = null;
     if (text) {
       try {
