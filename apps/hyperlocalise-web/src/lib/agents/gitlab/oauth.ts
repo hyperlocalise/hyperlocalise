@@ -157,10 +157,6 @@ export async function exchangeGitlabAuthorizationCode(input: {
     });
   }
 
-  if (result.value.access_token && !result.value.refresh_token) {
-    // GitLab usually returns refresh_token; require it for durable connections.
-  }
-
   const parsed = result.value;
   if (!parsed.refresh_token) {
     return err({
