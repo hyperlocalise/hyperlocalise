@@ -871,6 +871,10 @@
     "defaultMessage": "Contact us",
     "description": "Contact link label in the FAQ section"
   },
+  "1c3qg2u74K": {
+    "defaultMessage": "Source file unavailable",
+    "description": "Empty state when the CAT File view source preview cannot be shown"
+  },
   "1c7WoNl9cJ": {
     "defaultMessage": "Subscription",
     "description": "Subscription card title on billing settings"
@@ -1470,6 +1474,10 @@
   "3w6PJBQOmr": {
     "defaultMessage": "Target locale",
     "description": "Label above the target locale selector in the project file CAT workspace"
+  },
+  "3wxYCVb3wu": {
+    "defaultMessage": "No translated file yet",
+    "description": "Empty state when the CAT File view target preview has no file"
   },
   "3xhOvPA3lu": {
     "defaultMessage": "Source upload · {project}",
@@ -2434,6 +2442,10 @@
   "81SMUge/HF": {
     "defaultMessage": "AI drafts miss UI constraints, glossary rules, and what actually changed in the pull request.",
     "description": "Problem pain point 2 for the product-localisation use case"
+  },
+  "86pJK6MuXF": {
+    "defaultMessage": "Source image",
+    "description": "Alt text for the source image in CAT File view"
   },
   "87YejAyMlf": {
     "defaultMessage": "Loading issue…",
@@ -4487,6 +4499,10 @@
     "defaultMessage": "GB",
     "description": "Gigabyte size unit abbreviation"
   },
+  "GWzwxQbAhe": {
+    "defaultMessage": "Translated image",
+    "description": "Alt text for the translated image in CAT File view"
+  },
   "GZgOkkX0hj": {
     "defaultMessage": "Japanese (Japan)",
     "description": "Display name for BCP-47 locale ja-JP"
@@ -4558,6 +4574,10 @@
   "GpQTuQOUij": {
     "defaultMessage": "Loading {title}",
     "description": "Accessible label while a dashboard panel is loading"
+  },
+  "GpqbnnE7vn": {
+    "defaultMessage": "Use Add files above to upload JSON, YAML, XLIFF, PO, images, Office files, and other supported formats.",
+    "description": "Empty-state description for native projects with no uploaded files"
   },
   "GpsLS8ojw/": {
     "defaultMessage": "—",
@@ -5575,6 +5595,10 @@
     "defaultMessage": "Restore subscription",
     "description": "Button to restore a subscription scheduled for cancellation"
   },
+  "LZCFkSSHP6": {
+    "defaultMessage": "Source ({locale})",
+    "description": "Heading for the source file pane in CAT File view"
+  },
   "LeSdkdB/lW": {
     "defaultMessage": "Previous slide",
     "description": "Accessible label for the carousel previous-slide control"
@@ -5967,6 +5991,10 @@
     "defaultMessage": "Created {date}",
     "description": "API key row showing creation timestamp"
   },
+  "NXryL5pUgk": {
+    "defaultMessage": "Approve",
+    "description": "Primary action to approve the translated file in CAT File view"
+  },
   "NYa08Ow2+o": {
     "defaultMessage": "Check type",
     "description": "Placeholder for the check type filter select"
@@ -6002,6 +6030,10 @@
   "NfnpZsFAE9": {
     "defaultMessage": "Could not load this issue.",
     "description": "Error state when single issue fetch fails"
+  },
+  "NglzlEjVxr": {
+    "defaultMessage": "Upload translated file",
+    "description": "Button to upload a replacement translated file in CAT File view"
   },
   "NhoTfXzaHI": {
     "defaultMessage": "Project",
@@ -7199,6 +7231,10 @@
     "defaultMessage": "Failed to save translation",
     "description": "Fallback error when saving a CAT translation fails"
   },
+  "ShnGyATeRG": {
+    "defaultMessage": "Next file",
+    "description": "Accessible label for next-file navigation in CAT File view"
+  },
   "SlPmp40QPZ": {
     "defaultMessage": "Every hour · {timezone}",
     "description": "Summary for a scheduled automation that runs every hour"
@@ -7567,6 +7603,10 @@
     "defaultMessage": "Send",
     "description": "Visible label on the inbox reply composer send button"
   },
+  "UL3odPVruI": {
+    "defaultMessage": "Markup order",
+    "description": "CAT format check label when markup sentinel order does not match source"
+  },
   "ULAiYLTSMp": {
     "defaultMessage": "Archived repositories cannot use translation automation.",
     "description": "API error when configuring automation on an archived repository"
@@ -7894,6 +7934,10 @@
   "VkNsZOH7xT": {
     "defaultMessage": "Choose an organization",
     "description": "Page title for selecting which organization workspace to open"
+  },
+  "VkWvhhKis5": {
+    "defaultMessage": "Translated ({locale})",
+    "description": "Heading for the translated file pane in CAT File view"
   },
   "VpKHsNzJ6d": {
     "defaultMessage": "Enable {repositoryFullName}",
@@ -9042,6 +9086,10 @@
   "aGyTnZ8Dnd": {
     "defaultMessage": "Can I create an account today?",
     "description": "Pricing FAQ question about account creation availability"
+  },
+  "aHtGik8gUy": {
+    "defaultMessage": "File view",
+    "description": "CAT workspace view mode that previews source and translated files side by side"
   },
   "aI9OdzlmW1": {
     "defaultMessage": "Delete",
@@ -10486,6 +10534,10 @@
   "gWx5l7VSDf": {
     "defaultMessage": "{source} · {memoryName} · {matchScore}%",
     "description": "Badge label for a TM match that includes a match score"
+  },
+  "gXL7Y0+DUP": {
+    "defaultMessage": "Save edits",
+    "description": "Button to export Univer edits and upload the translated office file"
   },
   "gXZ1TC7mZA": {
     "defaultMessage": "Hour",
@@ -12255,10 +12307,6 @@
     "defaultMessage": "Early design partner",
     "description": "Marketing homepage testimonial company label"
   },
-  "nZi7NhrmPT": {
-    "defaultMessage": "Use Add files above to upload JSON, YAML, XLIFF, PO, images, Office files, and other supported formats.",
-    "description": "Empty-state description for native projects with no uploaded files"
-  },
   "naWIsHiFkQ": {
     "defaultMessage": "Copied OAuth callback URL",
     "description": "Aria label after copying the OAuth callback URL"
@@ -13591,6 +13639,10 @@
     "defaultMessage": "Open in TMS",
     "description": "Link to open a finding or thread in the TMS"
   },
+  "tUQYErY0nj": {
+    "defaultMessage": "Previous file",
+    "description": "Accessible label for previous-file navigation in CAT File view"
+  },
   "tUtjQfuwWO": {
     "defaultMessage": "Members",
     "description": "Workspace members link in the user menu"
@@ -14515,6 +14567,10 @@
     "defaultMessage": "Queued",
     "description": "Automation run status badge for queued"
   },
+  "x8Rt8oWLMk": {
+    "defaultMessage": "Preview is not available for this file type yet.",
+    "description": "Empty state when CAT File view has no registered preview adapter"
+  },
   "x9bd7qMA5t": {
     "defaultMessage": "Team slug is required.",
     "description": "Validation error when the team slug is empty"
@@ -14606,6 +14662,10 @@
   "xTpbtPORei": {
     "defaultMessage": "Link this Crowdin project",
     "description": "Title when Crowdin project is not linked in Hyperlocalise"
+  },
+  "xVvlWpH5FH": {
+    "defaultMessage": "Regenerate",
+    "description": "Button to regenerate the translated file with the agent in CAT File view"
   },
   "xX2Nm+qioI": {
     "defaultMessage": "We created the workspace, but could not prepare its URL. Please retry.",
@@ -14706,6 +14766,10 @@
   "xqxlUUUa9e": {
     "defaultMessage": "Hyperlocalise",
     "description": "Hyperlocalise Slack agent display name"
+  },
+  "xrvyWAPhPg": {
+    "defaultMessage": "Target must keep source order for markup tokens {tokens}. Swapped openers and closers break export.",
+    "description": "CAT format check message when markup sentinel nesting/order is wrong"
   },
   "xs2JNm6T2w": {
     "defaultMessage": "Failed to delete Semrush connection.",

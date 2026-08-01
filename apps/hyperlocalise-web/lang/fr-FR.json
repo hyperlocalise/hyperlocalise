@@ -704,6 +704,9 @@
   "1Z393O2F5g": {
     "defaultMessage": "Contactez-nous"
   },
+  "1c3qg2u74K": {
+    "defaultMessage": "Source file unavailable"
+  },
   "1c7WoNl9cJ": {
     "defaultMessage": "Subscription"
   },
@@ -1186,6 +1189,9 @@
   },
   "3w6PJBQOmr": {
     "defaultMessage": "Paramètres régionaux cibles"
+  },
+  "3wxYCVb3wu": {
+    "defaultMessage": "No translated file yet"
   },
   "3xhOvPA3lu": {
     "defaultMessage": "Téléversement de la source · {project}"
@@ -1957,6 +1963,9 @@
   },
   "81SMUge/HF": {
     "defaultMessage": "Les brouillons d’IA passent à côté des contraintes de l’interface utilisateur, des règles du glossaire et de ce qui a réellement changé dans la pull request."
+  },
+  "86pJK6MuXF": {
+    "defaultMessage": "Source image"
   },
   "87YejAyMlf": {
     "defaultMessage": "Loading issue…"
@@ -3425,6 +3434,9 @@
   "FPj5rPYXJV": {
     "defaultMessage": "Unassigned"
   },
+  "FRn2vWc0wk": {
+    "defaultMessage": "Fiche d’incident"
+  },
   "FRwUYE4HKC": {
     "defaultMessage": "finnois (Finlande)"
   },
@@ -3593,6 +3605,9 @@
   "GWSh8gMiHL": {
     "defaultMessage": "Go"
   },
+  "GWzwxQbAhe": {
+    "defaultMessage": "Translated image"
+  },
   "GZgOkkX0hj": {
     "defaultMessage": "Japonais (Japon)"
   },
@@ -3649,6 +3664,9 @@
   },
   "GpQTuQOUij": {
     "defaultMessage": "Chargement de {title}"
+  },
+  "GpqbnnE7vn": {
+    "defaultMessage": "Use Add files above to upload JSON, YAML, XLIFF, PO, images, Office files, and other supported formats."
   },
   "GpsLS8ojw/": {
     "defaultMessage": "—"
@@ -4454,6 +4472,9 @@
   "LX+MrzNv6y": {
     "defaultMessage": "Restaurer l’abonnement"
   },
+  "LZCFkSSHP6": {
+    "defaultMessage": "Source ({locale})"
+  },
   "LeSdkdB/lW": {
     "defaultMessage": "Previous slide"
   },
@@ -4766,6 +4787,9 @@
   "NX9i6pdgvw": {
     "defaultMessage": "Created {date}"
   },
+  "NXryL5pUgk": {
+    "defaultMessage": "Approve"
+  },
   "NYa08Ow2+o": {
     "defaultMessage": "Check type"
   },
@@ -4795,6 +4819,9 @@
   },
   "NfnpZsFAE9": {
     "defaultMessage": "Could not load this issue."
+  },
+  "NglzlEjVxr": {
+    "defaultMessage": "Upload translated file"
   },
   "NhoTfXzaHI": {
     "defaultMessage": "Projet"
@@ -5741,6 +5768,9 @@
   "Shd5zCFQ4K": {
     "defaultMessage": "Échec de l’enregistrement de la traduction"
   },
+  "ShnGyATeRG": {
+    "defaultMessage": "Next file"
+  },
   "SiPCg9X6AE": {
     "defaultMessage": "Preview"
   },
@@ -6035,6 +6065,9 @@
   "UFI0ojyOjH": {
     "defaultMessage": "Envoyer"
   },
+  "UL3odPVruI": {
+    "defaultMessage": "Markup order"
+  },
   "ULAiYLTSMp": {
     "defaultMessage": "Les dépôts archivés ne peuvent pas utiliser l’automatisation de la traduction."
   },
@@ -6292,6 +6325,9 @@
   },
   "VkNsZOH7xT": {
     "defaultMessage": "Choose an organization"
+  },
+  "VkWvhhKis5": {
+    "defaultMessage": "Translated ({locale})"
   },
   "VpKHsNzJ6d": {
     "defaultMessage": "Activer {repositoryFullName}"
@@ -7219,6 +7255,9 @@
   },
   "aGyTnZ8Dnd": {
     "defaultMessage": "Puis-je créer un compte aujourd’hui ?"
+  },
+  "aHtGik8gUy": {
+    "defaultMessage": "File view"
   },
   "aI9OdzlmW1": {
     "defaultMessage": "Delete"
@@ -8353,6 +8392,9 @@
   },
   "gWx5l7VSDf": {
     "defaultMessage": "{source} · {memoryName} · {matchScore}%"
+  },
+  "gXL7Y0+DUP": {
+    "defaultMessage": "Save edits"
   },
   "gXZ1TC7mZA": {
     "defaultMessage": "Hour"
@@ -10439,6 +10481,9 @@
   "rDFwnPnMxA": {
     "defaultMessage": "Posez des questions sur n’importe quelle chaîne"
   },
+  "rDacSGpJfq": {
+    "defaultMessage": "Fiche des problèmes"
+  },
   "rDkQbK1OIB": {
     "defaultMessage": "Skipped"
   },
@@ -10858,6 +10903,9 @@
   },
   "tToS3qyu6G": {
     "defaultMessage": "Contexte de {key}"
+  },
+  "tUQYErY0nj": {
+    "defaultMessage": "Previous file"
   },
   "tUtjQfuwWO": {
     "defaultMessage": "Membres"
@@ -11417,6 +11465,9 @@
   "wAW00AgfLK": {
     "defaultMessage": "Échec de la publication du commentaire. Réessayez."
   },
+  "wAvI6goI3/": {
+    "defaultMessage": "Issue Sheet"
+  },
   "wB36ZpuzG3": {
     "defaultMessage": "3 strings changed, 1 translation issue called out before merge"
   },
@@ -11591,6 +11642,9 @@
   "x8HYMdg8Zs": {
     "defaultMessage": "Queued"
   },
+  "x8Rt8oWLMk": {
+    "defaultMessage": "Preview is not available for this file type yet."
+  },
   "x9bd7qMA5t": {
     "defaultMessage": "Team slug is required."
   },
@@ -11662,6 +11716,9 @@
   },
   "xTpbtPORei": {
     "defaultMessage": "Link this Crowdin project"
+  },
+  "xVvlWpH5FH": {
+    "defaultMessage": "Regenerate"
   },
   "xX2Nm+qioI": {
     "defaultMessage": "Nous avons créé l’espace de travail, mais nous n’avons pas pu préparer son URL. Veuillez réessayer."
@@ -11737,6 +11794,9 @@
   },
   "xqxlUUUa9e": {
     "defaultMessage": "Hyperlocalise"
+  },
+  "xrvyWAPhPg": {
+    "defaultMessage": "Target must keep source order for markup tokens {tokens}. Swapped openers and closers break export."
   },
   "xs2JNm6T2w": {
     "defaultMessage": "Failed to delete Semrush connection."
