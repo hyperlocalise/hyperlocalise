@@ -211,13 +211,13 @@ function ProjectFilesTreeView({
   contextMenuHandlersRef.current = {
     onOpen: (itemPath, context) => {
       if (!latestStateRef.current.fileActions) {
-        setActiveFileContextMenu(null);
+        context.close({ restoreFocus: false });
         return;
       }
 
       const file = latestStateRef.current.fileByPath.get(itemPath);
       if (!file) {
-        setActiveFileContextMenu(null);
+        context.close({ restoreFocus: false });
         return;
       }
 
@@ -229,13 +229,12 @@ function ProjectFilesTreeView({
   };
 
   useEffect(() => {
-    if (!fileActions) {
-      setActiveFileContextMenu(null);
+    if (!activeFileContextMenu) {
       return;
     }
 
-    if (activeFileContextMenu && !fileByPath.has(activeFileContextMenu.file.sourcePath)) {
-      setActiveFileContextMenu(null);
+    if (!fileActions || !fileByPath.has(activeFileContextMenu.file.sourcePath)) {
+      activeFileContextMenu.context.close({ restoreFocus: false });
     }
   }, [activeFileContextMenu, fileActions, fileByPath]);
 
@@ -293,7 +292,7 @@ function ProjectFilesTreeView({
             buttonVisibility: "when-needed",
             onOpen: (item, context) => {
               if (item.kind !== "file") {
-                contextMenuHandlersRef.current.onClose();
+                context.close({ restoreFocus: false });
                 return;
               }
               contextMenuHandlersRef.current.onOpen(item.path, context);
@@ -357,12 +356,15 @@ function ProjectFilesTreeView({
     return null;
   }
 
+  const activeMenuFile = activeFileContextMenu
+    ? (fileByPath.get(activeFileContextMenu.file.sourcePath) ?? null)
+    : null;
   const activeMenuCapabilities =
-    activeFileContextMenu && fileActions
+    activeMenuFile && fileActions
       ? buildProjectFileActionCapabilities({
           organizationSlug: fileActions.organizationSlug,
           projectId: fileActions.projectId,
-          file: activeFileContextMenu.file,
+          file: activeMenuFile,
           highlightLocale: fileActions.highlightLocale,
           projectTargetLocales: fileActions.projectTargetLocales,
           branch: fileActions.branch,
@@ -385,9 +387,9 @@ function ProjectFilesTreeView({
         preloadedData={preloadedData ?? undefined}
         style={treeStyle}
       />
-      {activeFileContextMenu && fileActions && activeMenuCapabilities ? (
+      {activeFileContextMenu && activeMenuFile && fileActions && activeMenuCapabilities ? (
         <ProjectFileTreeContextMenu
-          file={activeFileContextMenu.file}
+          file={activeMenuFile}
           context={activeFileContextMenu.context}
           fileActions={fileActions}
           capabilities={activeMenuCapabilities}
