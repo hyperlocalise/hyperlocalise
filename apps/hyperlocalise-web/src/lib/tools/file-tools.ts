@@ -18,9 +18,23 @@ import { and, eq } from "drizzle-orm";
 import { schema } from "@/lib/database";
 import { getFileStorageAdapter } from "@/lib/file-storage";
 import { bufferFromStream } from "@/lib/primitives/streams";
+import { inferSupportedBinaryTranslationFileFormat } from "@/lib/translation/file-formats";
 
 import { toolCanAccessStoredFileProject } from "@/lib/tools/tool-access";
 import type { ToolContext } from "@/lib/tools/types";
+
+const ARCHIVE_OR_OPAQUE_FILENAME_PATTERN = /\.(pdf|zip|tar|gz|rar|7z)$/i;
+
+function isStoredFileBinary(file: { contentType: string; filename: string }) {
+  return (
+    file.contentType.startsWith("image/") ||
+    file.contentType === "application/octet-stream" ||
+    file.contentType.includes("officedocument") ||
+    file.contentType === "application/vnd.ms-excel" ||
+    Boolean(inferSupportedBinaryTranslationFileFormat(file.filename)) ||
+    ARCHIVE_OR_OPAQUE_FILENAME_PATTERN.test(file.filename)
+  );
+}
 
 /**
  * Read the contents of a stored file.
@@ -92,12 +106,7 @@ export function createReadStoredFileTool(ctx: ToolContext) {
       try {
         const buffer = await bufferFromStream(storedObject.body);
 
-        const isBinary =
-          file.contentType.startsWith("image/") ||
-          file.contentType === "application/octet-stream" ||
-          file.filename.match(/\.(png|jpg|jpeg|webp|gif|bmp|ico|pdf|zip|tar|gz|rar|7z)$/i);
-
-        if (isBinary) {
+        if (isStoredFileBinary(file)) {
           return {
             success: false,
             error:
