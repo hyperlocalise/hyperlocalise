@@ -112,7 +112,7 @@ async function createSheetsHost(
 async function createSlidesHost(
   container: HTMLElement,
   data: ISlideData,
-  _readOnly: boolean,
+  readOnly: boolean,
 ): Promise<CatUniverHostHandle> {
   const { LocaleType, Univer, UniverInstanceType, mergeLocales } = await import("@univerjs/core");
   const { UniverRenderEnginePlugin } = await import("@univerjs/engine-render");
@@ -144,7 +144,7 @@ async function createSlidesHost(
   univer.registerPlugin(UniverFormulaEnginePlugin);
   univer.registerPlugin(UniverUIPlugin, {
     container,
-    toolbar: false,
+    toolbar: !readOnly,
   });
   univer.registerPlugin(UniverDocsPlugin);
   univer.registerPlugin(UniverDocsUIPlugin);
