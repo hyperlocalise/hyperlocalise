@@ -14,6 +14,7 @@ import { getWorkflowMetadata } from "workflow";
 
 import type {
   RepositoryAgentGitHubContext,
+  RepositoryAgentGitLabContext,
   RepositoryAgentTask,
 } from "@/lib/agents/repository-agent-task";
 
@@ -30,6 +31,7 @@ const readOnlyRepoInstructions =
   "This workflow is read-only. Gather repository context, but do not modify files, upload sources, commit, push, or create external effects.";
 
 type ResolvedRepositoryGitHubContext = Extract<RepositoryAgentGitHubContext, { resolved: true }>;
+type ResolvedRepositoryGitLabContext = Extract<RepositoryAgentGitLabContext, { resolved: true }>;
 
 async function createRepositorySandboxStep(
   githubContext: ResolvedRepositoryGitHubContext,
@@ -38,6 +40,14 @@ async function createRepositorySandboxStep(
   const { createRepositorySandbox } =
     await import("@/lib/agent-runtime/workspaces/repository-sandbox");
   return createRepositorySandbox(githubContext);
+}
+
+async function createGitlabRepositorySandboxStep(
+  gitlabContext: ResolvedRepositoryGitLabContext,
+): Promise<string> {
+  "use step";
+  const { createGitlabRepositorySandbox } = await import("@/lib/agents/gitlab/repository-sandbox");
+  return createGitlabRepositorySandbox(gitlabContext);
 }
 
 async function stopRepositorySandboxStep(sandboxId: string): Promise<void> {
@@ -61,6 +71,8 @@ async function runRepositoryAgentStep(input: {
   const { WORKFLOW_AGENT_TIMEOUT } = await import("@/lib/agent-runtime/subagents/constants");
   const { buildRepositoryGitHubContextInstructions } =
     await import("@/lib/agents/repository-context");
+  const { buildRepositoryGitLabContextInstructions } =
+    await import("@/lib/agents/gitlab/repository-context");
   const { filterToolSetByNames, repositoryWorkspaceToolNames } =
     await import("@/lib/agent-runtime/tools/manifest");
   const { buildTools } = await import("@/lib/agent-runtime/tools/registry");
@@ -104,6 +116,9 @@ async function runRepositoryAgentStep(input: {
         task.githubContext?.resolved
           ? buildRepositoryGitHubContextInstructions(task.githubContext)
           : null,
+        task.gitlabContext?.resolved
+          ? buildRepositoryGitLabContextInstructions(task.gitlabContext)
+          : null,
         sandboxId
           ? "Use glob to find candidate files, grep to locate literal strings, and read to inspect surrounding lines. Use todoWrite for multi-step investigations."
           : null,
@@ -146,6 +161,8 @@ export async function repositoryAgentWorkflow(
   try {
     if (task.githubContext?.resolved) {
       sandboxId = await createRepositorySandboxStep(task.githubContext);
+    } else if (task.gitlabContext?.resolved) {
+      sandboxId = await createGitlabRepositorySandboxStep(task.gitlabContext);
     }
 
     const summary = await runRepositoryAgentStep({

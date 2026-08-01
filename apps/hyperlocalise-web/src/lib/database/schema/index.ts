@@ -17,6 +17,7 @@ export * from "./providers";
 export * from "./projects";
 export * from "./translation-memory";
 export * from "./github";
+export * from "./gitlab";
 export * from "./integrations";
 export * from "./contentful";
 export * from "./mcp-server-connections";

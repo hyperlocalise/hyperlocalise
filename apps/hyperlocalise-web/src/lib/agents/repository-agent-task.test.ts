@@ -98,6 +98,35 @@ describe("repositoryAgentTaskSchema", () => {
     expect(parsed.githubContext).toEqual(task.githubContext);
   });
 
+  it("accepts a task with resolved GitLab context", () => {
+    const task = {
+      id: "task_gitlab_001",
+      source: "chat_ui" as const,
+      sourceThreadId: "thread_gitlab",
+      actor: {
+        sourceUserId: "user_gitlab",
+      },
+      organizationId: "org_gitlab",
+      projectId: null,
+      workMode: "read_only" as const,
+      instructions: "Inspect localization files in the GitLab project",
+      gitlabContext: {
+        resolved: true as const,
+        organizationId: "org_gitlab",
+        connectionId: "conn_1",
+        projectId: "101",
+        pathWithNamespace: "acme/app",
+        httpUrlToRepo: "https://gitlab.com/acme/app.git",
+        branch: "main",
+      },
+      createdAt: "2026-08-01T12:00:00.000Z",
+      idempotencyKey: "key_gitlab_001",
+    };
+
+    const parsed = repositoryAgentTaskSchema.parse(task);
+    expect(parsed.gitlabContext).toEqual(task.gitlabContext);
+  });
+
   it("rejects a task with an invalid work mode", () => {
     const task = {
       id: "task_004",

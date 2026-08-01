@@ -48,6 +48,21 @@ export const env = createEnv({
     /** Server-generated secret for signing OAuth `state` parameters during GitHub App installation. */
     GITHUB_OAUTH_STATE_SECRET: z.string().min(1).optional(),
 
+    /** GitLab OAuth Application client ID. Required for GitLab integration. */
+    GITLAB_CLIENT_ID: z.string().min(1).optional(),
+
+    /** GitLab OAuth Application client secret. Required for GitLab integration. */
+    GITLAB_CLIENT_SECRET: z.string().min(1).optional(),
+
+    /** Secret used to sign GitLab OAuth state parameters. Required for GitLab connection. */
+    GITLAB_OAUTH_STATE_SECRET: z.string().min(1).optional(),
+
+    /** Redirect URI registered in the GitLab OAuth Application. Optional — defaults to `{origin}/api/auth/gitlab/callback`. */
+    GITLAB_REDIRECT_URI: z.url().optional(),
+
+    /** GitLab instance base URL for the OAuth Application (default https://gitlab.com). */
+    GITLAB_BASE_URL: z.url().optional(),
+
     /** Postgres URL dedicated to chat state persistence. Optional — falls back to in-memory adapters. */
     CHAT_STATE_DATABASE_URL: z.string().min(1).optional(),
 
@@ -238,6 +253,15 @@ export const env = createEnv({
     GITHUB_OAUTH_STATE_SECRET:
       process.env.GITHUB_OAUTH_STATE_SECRET ??
       (isTestEnv ? "test-github-oauth-state-secret" : undefined),
+    GITLAB_CLIENT_ID:
+      process.env.GITLAB_CLIENT_ID ?? (isTestEnv ? "test-gitlab-client-id" : undefined),
+    GITLAB_CLIENT_SECRET:
+      process.env.GITLAB_CLIENT_SECRET ?? (isTestEnv ? "test-gitlab-client-secret" : undefined),
+    GITLAB_OAUTH_STATE_SECRET:
+      process.env.GITLAB_OAUTH_STATE_SECRET ??
+      (isTestEnv ? "test-gitlab-oauth-state-secret" : undefined),
+    GITLAB_REDIRECT_URI: process.env.GITLAB_REDIRECT_URI,
+    GITLAB_BASE_URL: process.env.GITLAB_BASE_URL,
     CHAT_STATE_DATABASE_URL: process.env.CHAT_STATE_DATABASE_URL,
     WORKOS_API_KEY: process.env.WORKOS_API_KEY ?? (isTestEnv ? "test-workos-api-key" : undefined),
     WORKOS_CLIENT_ID: process.env.WORKOS_CLIENT_ID ?? (isTestEnv ? "client_test" : undefined),

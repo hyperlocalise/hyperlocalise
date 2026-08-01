@@ -15,12 +15,13 @@
 import { MicrosoftIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import type { SimpleIcon } from "simple-icons";
-import { siGitlab, siLinear } from "simple-icons";
+import { siLinear } from "simple-icons";
 import { FormattedMessage, useIntl, type MessageDescriptor } from "react-intl";
 
 import { agentIntegrationsSectionMessages } from "./agent-integrations-section.messages";
 import { EmailIntegrationRow } from "./email-integration-row";
 import { GitHubIntegrationRow } from "./github-integration-row";
+import { GitLabIntegrationRow } from "./gitlab-integration-row";
 import {
   IntegrationCategoryCard,
   IntegrationCategoryLabel,
@@ -98,10 +99,9 @@ export function SourceControlIntegrationsSection({
       </IntegrationCategoryLabel>
       <IntegrationCategoryCard>
         <GitHubIntegrationRow organizationSlug={organizationSlug} userCanManage={userCanManage} />
-        <ComingSoonIntegrationRow
-          nameMessage={agentIntegrationsSectionMessages.gitlabName}
-          descriptionMessage={agentIntegrationsSectionMessages.gitlabDescription}
-          icon={siGitlab}
+        <GitLabIntegrationRow
+          organizationSlug={organizationSlug}
+          userCanManage={userCanManage}
           isLast
         />
       </IntegrationCategoryCard>
