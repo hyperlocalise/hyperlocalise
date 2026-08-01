@@ -45,6 +45,14 @@ export function sourceContentType(path: string) {
       return "image/jpeg";
     case "webp":
       return "image/webp";
+    case "docx":
+      return "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+    case "xlsx":
+      return "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+    case "xls":
+      return "application/vnd.ms-excel";
+    case "pptx":
+      return "application/vnd.openxmlformats-officedocument.presentationml.presentation";
     default:
       return "application/octet-stream";
   }

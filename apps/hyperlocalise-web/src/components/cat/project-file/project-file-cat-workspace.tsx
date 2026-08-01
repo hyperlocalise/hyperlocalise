@@ -264,7 +264,7 @@ export function ProjectFileCatWorkspace({
       }
 
       const segment = catFile.segments.find((entry) => entry.externalStringId === segmentId);
-      if (segment?.contentKind === "image_file") {
+      if (segment?.contentKind === "image_file" || segment?.contentKind === "office_file") {
         const response = await apiClient.api.orgs[":organizationSlug"].projects[
           ":projectId"
         ].files.detail.cat.images.status.$patch({

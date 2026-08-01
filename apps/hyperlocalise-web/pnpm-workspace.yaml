@@ -7,6 +7,7 @@ allowBuilds:
   esbuild: false
   msw: false
   node-liblzma: false
+  protobufjs: false
   sharp: false
 catalog:
   vite: npm:@voidzero-dev/vite-plus-core@latest

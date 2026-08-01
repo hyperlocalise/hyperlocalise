@@ -592,7 +592,12 @@ export const projectFileCatCommentResolveResponseSchema = z.object({
   comment: projectFileCatCommentSchema,
 });
 
-export const projectFileCatContentKindSchema = z.enum(["text", "image_file", "image_url"]);
+export const projectFileCatContentKindSchema = z.enum([
+  "text",
+  "image_file",
+  "image_url",
+  "office_file",
+]);
 
 export const projectFileCatTranslationSchema = z.object({
   text: z.string(),

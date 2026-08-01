@@ -187,6 +187,7 @@ import {
 } from "@/lib/translation/cat";
 import {
   inferSupportedFileTranslationFileFormat,
+  inferSupportedBinaryTranslationFileFormat,
   inferSupportedImageTranslationFileFormat,
   inferSupportedSourceUploadFormat,
   looksLikeImageUrl,
@@ -1676,7 +1677,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
           return projectNotFoundResponse(c);
         }
 
-        if (inferSupportedImageTranslationFileFormat(sourcePath)) {
+        if (inferSupportedBinaryTranslationFileFormat(sourcePath)) {
           const sourceFile = await getRepositorySourceFileByPath({
             organizationId,
             projectId: params.projectId,
@@ -1704,7 +1705,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
           });
 
           if (!result.ok) {
-            return badRequestResponse(c, result.error.code, "Image upload failed");
+            return badRequestResponse(c, result.error.code, "File upload failed");
           }
 
           const targetAssetUrl = result.value.storedFileId
@@ -1799,7 +1800,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
         const organizationSlug =
           c.var.auth.organization.slug ?? c.var.auth.organization.localOrganizationId;
 
-        if (inferSupportedImageTranslationFileFormat(body.sourcePath)) {
+        if (inferSupportedBinaryTranslationFileFormat(body.sourcePath)) {
           const result = await updateImageVariantStatus({
             organizationId,
             projectId: params.projectId,
@@ -1810,7 +1811,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
           });
 
           if (!result.ok) {
-            return badRequestResponse(c, result.error.code, "Image variant not found");
+            return badRequestResponse(c, result.error.code, "File variant not found");
           }
 
           const targetAssetUrl = result.value.storedFileId

@@ -418,7 +418,7 @@ export const CatWorkspaceView = observer(function CatWorkspaceView({
               : undefined
           }
           onRegenerate={
-            editing.onRegenerateImage
+            capabilities.viewerId === "image" && editing.onRegenerateImage
               ? () => void editing.onRegenerateImage?.(editorSegment.id)
               : undefined
           }

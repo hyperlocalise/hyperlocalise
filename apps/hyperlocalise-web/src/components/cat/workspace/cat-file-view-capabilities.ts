@@ -10,13 +10,16 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { inferSupportedImageTranslationFileFormat } from "@/lib/translation/file-formats";
+import {
+  inferSupportedImageTranslationFileFormat,
+  inferSupportedOfficeTranslationFileFormat,
+} from "@/lib/translation/file-formats";
 
 import type { CatWorkspaceViewMode } from "./cat-workspace-view-mode";
 
 export type CatFileViewFamily = "image" | "text" | "office";
 
-export type CatFileViewerId = "image";
+export type CatFileViewerId = "image" | "docx" | "xlsx" | "pptx";
 
 export type CatFileViewCapabilities = {
   family: CatFileViewFamily;
@@ -36,8 +39,6 @@ const IMAGE_VIEWS = [
 ] as const satisfies readonly CatWorkspaceViewMode[];
 const OFFICE_VIEWS = ["file"] as const satisfies readonly CatWorkspaceViewMode[];
 
-const OFFICE_EXTENSIONS = new Set([".docx", ".xlsx", ".xls", ".pptx"]);
-
 function extensionOf(sourcePath: string): string | null {
   const basename = sourcePath.split(/[\\/]/).pop() ?? sourcePath;
   const dotIndex = basename.lastIndexOf(".");
@@ -47,9 +48,23 @@ function extensionOf(sourcePath: string): string | null {
   return basename.slice(dotIndex).toLowerCase();
 }
 
+function officeViewerIdForExtension(extension: string | null): CatFileViewerId | null {
+  switch (extension) {
+    case ".docx":
+      return "docx";
+    case ".xlsx":
+    case ".xls":
+      return "xlsx";
+    case ".pptx":
+      return "pptx";
+    default:
+      return null;
+  }
+}
+
 export function resolveCatFileViewCapabilities(input: {
   sourcePath?: string | null;
-  contentKind?: "text" | "image_file" | "image_url" | null;
+  contentKind?: "text" | "image_file" | "image_url" | "office_file" | null;
 }): CatFileViewCapabilities {
   const sourcePath = input.sourcePath?.trim() ?? "";
   const contentKind = input.contentKind ?? null;
@@ -64,13 +79,14 @@ export function resolveCatFileViewCapabilities(input: {
   }
 
   const extension = extensionOf(sourcePath);
-  if (extension && OFFICE_EXTENSIONS.has(extension)) {
+  const officeFormat =
+    contentKind === "office_file" || inferSupportedOfficeTranslationFileFormat(sourcePath);
+  if (officeFormat) {
     return {
       family: "office",
       availableViews: OFFICE_VIEWS,
       defaultView: "file",
-      // Office adapters are not registered yet; shell shows empty panes.
-      viewerId: null,
+      viewerId: officeViewerIdForExtension(extension) ?? "docx",
     };
   }
 

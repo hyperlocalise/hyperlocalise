@@ -16,9 +16,12 @@ import {
   getLocaleScanExtensions,
   inferSupportedFileTranslationFileFormat,
   inferSupportedImageTranslationFileFormat,
+  inferSupportedOfficeTranslationFileFormat,
   inferSupportedSourceUploadFormat,
   inferSupportedTranslationFileFormat,
+  isBinaryTranslationFileFormat,
   isImageTranslationFileFormat,
+  isOfficeTranslationFileFormat,
   isSupportedSourceUploadFormat,
   looksLikeImageUrl,
 } from "./file-formats";
@@ -66,9 +69,21 @@ describe("translation file formats", () => {
     expect(looksLikeImageUrl("not-a-url")).toBe(false);
   });
 
+  it("infers office formats as binary translation sources", () => {
+    expect(inferSupportedTranslationFileFormat("brief.docx")).toBe("docx");
+    expect(inferSupportedTranslationFileFormat("spreadsheet.xlsx")).toBe("xlsx");
+    expect(inferSupportedTranslationFileFormat("legacy.xls")).toBe("xls");
+    expect(inferSupportedTranslationFileFormat("deck.pptx")).toBe("pptx");
+    expect(inferSupportedOfficeTranslationFileFormat("deck.pptx")).toBe("pptx");
+    expect(inferSupportedFileTranslationFileFormat("brief.docx")).toBeNull();
+    expect(isOfficeTranslationFileFormat("docx")).toBe(true);
+    expect(isBinaryTranslationFileFormat("xlsx")).toBe(true);
+    expect(isBinaryTranslationFileFormat("png")).toBe(true);
+    expect(isBinaryTranslationFileFormat("json")).toBe(false);
+  });
+
   it("rejects unsupported file extensions", () => {
     expect(inferSupportedTranslationFileFormat("brief.pdf")).toBeNull();
-    expect(inferSupportedTranslationFileFormat("spreadsheet.xlsx")).toBeNull();
     expect(inferSupportedTranslationFileFormat("no-extension")).toBeNull();
   });
 

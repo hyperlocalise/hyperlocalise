@@ -58,14 +58,25 @@ describe("cat-file-view-capabilities", () => {
     expect(isCatFileViewAvailable(capabilities)).toBe(false);
   });
 
-  it("reserves file-only views for office paths", () => {
-    const capabilities = resolveCatFileViewCapabilities({
-      sourcePath: "docs/brief.docx",
+  it("registers Univer viewers for office paths", () => {
+    expect(resolveCatFileViewCapabilities({ sourcePath: "docs/brief.docx" })).toEqual({
+      family: "office",
+      availableViews: ["file"],
+      defaultView: "file",
+      viewerId: "docx",
     });
-
-    expect(capabilities.family).toBe("office");
-    expect(capabilities.availableViews).toEqual(["file"]);
-    expect(capabilities.viewerId).toBeNull();
+    expect(resolveCatFileViewCapabilities({ sourcePath: "sheets/rates.xlsx" }).viewerId).toBe(
+      "xlsx",
+    );
+    expect(resolveCatFileViewCapabilities({ sourcePath: "decks/pitch.pptx" }).viewerId).toBe(
+      "pptx",
+    );
+    expect(
+      resolveCatFileViewCapabilities({
+        sourcePath: "CAT_ALL_FILES",
+        contentKind: "office_file",
+      }).family,
+    ).toBe("office");
   });
 
   it("clamps disallowed modes to the family default", () => {

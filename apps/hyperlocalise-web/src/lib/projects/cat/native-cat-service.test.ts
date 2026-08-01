@@ -223,6 +223,38 @@ describe("NativeCatService.getCatFile", () => {
     });
   });
 
+  it("returns a synthetic office_file segment for docx sources", async () => {
+    getLatestRepositorySourceFileVersion.mockResolvedValue({
+      storedFileId: "stored_source_docx",
+    });
+    getImageVariant.mockResolvedValue({
+      id: "variant_docx",
+      storedFileId: "stored_target_docx",
+      status: "draft",
+    });
+
+    const result = await service.getCatFile({
+      organizationId: "org_1",
+      projectId: "project_1",
+      sourcePath: "docs/brief.docx",
+      targetLocale: "fr",
+      canEditTranslations: true,
+      organizationSlug: "acme",
+    });
+
+    expect(listKeysForFile).not.toHaveBeenCalled();
+    expect(result?.segments).toHaveLength(1);
+    expect(result?.segments[0]).toMatchObject({
+      externalStringId: "file_1",
+      key: "docs/brief.docx",
+      sourceText: "docs/brief.docx",
+      contentKind: "office_file",
+      sourceAssetUrl: "/api/orgs/acme/projects/project_1/assets/stored_source_docx",
+      targetAssetUrl: "/api/orgs/acme/projects/project_1/assets/stored_target_docx",
+      imageVariantId: "variant_docx",
+    });
+  });
+
   it("marks image URL keys with contentKind and looksLikeImageUrl", async () => {
     listKeysForFile.mockResolvedValue([
       {

@@ -35,6 +35,11 @@ export const catFileViewMessages = defineMessages({
     id: "xVvlWpH5FH",
     description: "Button to regenerate the translated file with the agent in CAT File view",
   },
+  saveEdits: {
+    defaultMessage: "Save edits",
+    id: "gXL7Y0+DUP",
+    description: "Button to export Univer edits and upload the translated office file",
+  },
   approve: {
     defaultMessage: "Approve",
     id: "NXryL5pUgk",

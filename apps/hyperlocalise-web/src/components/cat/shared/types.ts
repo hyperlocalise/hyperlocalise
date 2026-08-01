@@ -50,7 +50,7 @@ export interface CatQueueSegment {
   index: number;
   key: string;
   sourceText: string;
-  contentKind?: "text" | "image_file" | "image_url";
+  contentKind?: "text" | "image_file" | "image_url" | "office_file";
   sourceAssetUrl?: string | null;
   targetAssetUrl?: string | null;
   imageVariantId?: string | null;
@@ -89,7 +89,7 @@ export interface CatSegment {
   tags?: string[];
   maxLength?: number;
   comments?: CatSegmentComment[];
-  contentKind?: "text" | "image_file" | "image_url";
+  contentKind?: "text" | "image_file" | "image_url" | "office_file";
   sourceAssetUrl?: string | null;
   targetAssetUrl?: string | null;
   imageVariantId?: string | null;

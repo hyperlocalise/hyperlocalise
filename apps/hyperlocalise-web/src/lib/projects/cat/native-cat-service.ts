@@ -39,7 +39,9 @@ import {
 import { ProjectServiceBase } from "@/lib/projects/project-service-base";
 import { ProjectTranslationService } from "@/lib/projects/translations/project-translation-service";
 import {
+  inferSupportedBinaryTranslationFileFormat,
   inferSupportedImageTranslationFileFormat,
+  inferSupportedOfficeTranslationFileFormat,
   looksLikeImageUrl,
 } from "@/lib/translation/file-formats";
 
@@ -47,8 +49,16 @@ function filenameFromSourcePath(sourcePath: string) {
   return sourcePath.split("/").at(-1) ?? sourcePath;
 }
 
+function binaryFileExternalStringId(sourceFileId: string, sourcePath: string) {
+  return sourceFileId || `binary:${sourcePath}`;
+}
+
 function imageFileExternalStringId(sourceFileId: string, sourcePath: string) {
-  return sourceFileId || `image:${sourcePath}`;
+  return binaryFileExternalStringId(sourceFileId, sourcePath);
+}
+
+function officeFileExternalStringId(sourceFileId: string, sourcePath: string) {
+  return binaryFileExternalStringId(sourceFileId, sourcePath);
 }
 
 function toCatTranslation(row: {
@@ -142,6 +152,13 @@ export class NativeCatService extends ProjectServiceBase {
 
     if (inferSupportedImageTranslationFileFormat(input.sourcePath)) {
       return this.buildImageCatFileResponse({
+        input,
+        sourceFileId: sourceFile.id,
+      });
+    }
+
+    if (inferSupportedOfficeTranslationFileFormat(input.sourcePath)) {
+      return this.buildOfficeCatFileResponse({
         input,
         sourceFileId: sourceFile.id,
       });
@@ -269,6 +286,73 @@ export class NativeCatService extends ProjectServiceBase {
           context: null,
           type: null,
           contentKind: "image_file",
+          sourceAssetUrl,
+          targetAssetUrl,
+          imageVariantId: variant?.id ?? null,
+        },
+      ],
+    };
+  }
+
+  private async buildOfficeCatFileResponse(input: {
+    input: {
+      organizationId: string;
+      projectId: string;
+      sourcePath: string;
+      targetLocale: string;
+      canEditTranslations: boolean;
+      organizationSlug: string;
+    };
+    sourceFileId: string;
+  }): Promise<ProjectFileCatQueueFile> {
+    const [latestVersion, variant] = await Promise.all([
+      getLatestRepositorySourceFileVersion({
+        organizationId: input.input.organizationId,
+        projectId: input.input.projectId,
+        sourcePath: input.input.sourcePath,
+        db: this.database,
+      }),
+      getImageVariant({
+        organizationId: input.input.organizationId,
+        projectId: input.input.projectId,
+        sourcePath: input.input.sourcePath,
+        targetLocale: input.input.targetLocale,
+        db: this.database,
+      }),
+    ]);
+
+    const sourceStoredFileId = latestVersion?.storedFileId ?? null;
+    const targetStoredFileId = variant?.storedFileId ?? null;
+    const sourceAssetUrl = sourceStoredFileId
+      ? projectImageAssetPath({
+          organizationSlug: input.input.organizationSlug,
+          projectId: input.input.projectId,
+          fileId: sourceStoredFileId,
+        })
+      : null;
+    const targetAssetUrl = targetStoredFileId
+      ? projectImageAssetPath({
+          organizationSlug: input.input.organizationSlug,
+          projectId: input.input.projectId,
+          fileId: targetStoredFileId,
+        })
+      : null;
+
+    return {
+      sourcePath: input.input.sourcePath,
+      filename: filenameFromSourcePath(input.input.sourcePath),
+      provider: null,
+      targetLocale: input.input.targetLocale,
+      canEditTranslations: input.input.canEditTranslations,
+      truncated: false,
+      segments: [
+        {
+          externalStringId: officeFileExternalStringId(input.sourceFileId, input.input.sourcePath),
+          key: input.input.sourcePath,
+          sourceText: input.input.sourcePath,
+          context: null,
+          type: null,
+          contentKind: "office_file",
           sourceAssetUrl,
           targetAssetUrl,
           imageVariantId: variant?.id ?? null,
@@ -594,7 +678,7 @@ export class NativeCatService extends ProjectServiceBase {
   }): Promise<ProjectFileCatTranslation | null | "not_found"> {
     if (
       !isCatAllFilesSourcePath(input.sourcePath) &&
-      inferSupportedImageTranslationFileFormat(input.sourcePath)
+      inferSupportedBinaryTranslationFileFormat(input.sourcePath)
     ) {
       const sourceFile = await this.translations.getRepositorySourceFileByPath({
         organizationId: input.organizationId,
@@ -606,11 +690,15 @@ export class NativeCatService extends ProjectServiceBase {
         return "not_found";
       }
 
-      const expectedId = imageFileExternalStringId(sourceFile.id, input.sourcePath);
+      const contentKind = inferSupportedOfficeTranslationFileFormat(input.sourcePath)
+        ? ("office_file" as const)
+        : ("image_file" as const);
+      const expectedId = binaryFileExternalStringId(sourceFile.id, input.sourcePath);
       if (
         input.externalStringId !== expectedId &&
         input.externalStringId !== sourceFile.id &&
-        input.externalStringId !== `image:${input.sourcePath}`
+        input.externalStringId !== `image:${input.sourcePath}` &&
+        input.externalStringId !== `binary:${input.sourcePath}`
       ) {
         return "not_found";
       }
@@ -636,7 +724,7 @@ export class NativeCatService extends ProjectServiceBase {
           text: "",
           externalTranslationId: null,
           isApproved: false,
-          contentKind: "image_file",
+          contentKind,
           targetAssetUrl: null,
           imageVariantId: null,
           status: "draft",
@@ -647,7 +735,7 @@ export class NativeCatService extends ProjectServiceBase {
         id: variant.id,
         text: targetAssetUrl ?? "",
         status: variant.status,
-        contentKind: "image_file",
+        contentKind,
         targetAssetUrl,
         imageVariantId: variant.id,
       });
@@ -699,7 +787,7 @@ export class NativeCatService extends ProjectServiceBase {
   }): Promise<ProjectFileCatComment[]> {
     if (
       !isCatAllFilesSourcePath(input.sourcePath) &&
-      inferSupportedImageTranslationFileFormat(input.sourcePath)
+      inferSupportedBinaryTranslationFileFormat(input.sourcePath)
     ) {
       return [];
     }

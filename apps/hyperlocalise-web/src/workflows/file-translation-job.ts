@@ -19,6 +19,7 @@ import {
 import {
   inferSupportedFileTranslationFileFormat,
   isImageTranslationFileFormat,
+  isOfficeTranslationFileFormat,
   isSupportedFileTranslationFileFormat,
   type SupportedTranslationFileFormat,
 } from "@/lib/translation/file-formats";
@@ -576,6 +577,18 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
       message: `project ${claim.job.projectId} not found`,
     });
     throw new Error("project not found");
+  }
+
+  if (isOfficeTranslationFileFormat(parsedInput.fileFormat as SupportedTranslationFileFormat)) {
+    await failTranslationJobStep({
+      jobId: claim.job.id,
+      projectId: claim.job.projectId,
+      workflowRunId: claim.job.workflowRunId,
+      code: "office_file_manual_cat",
+      message:
+        "Office files are localized in CAT File view. Upload or edit the translated file there.",
+    });
+    return { status: "failed" as const, reason: "office_file_manual_cat" };
   }
 
   if (isImageTranslationFileFormat(parsedInput.fileFormat as SupportedTranslationFileFormat)) {

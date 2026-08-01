@@ -13,6 +13,7 @@
  * Version 2.0 or later.
  */
 import type { ReactNode } from "react";
+import dynamic from "next/dynamic";
 import { ArrowLeft01Icon, ArrowRight01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { Loader2, RefreshCw, Upload } from "lucide-react";
@@ -28,6 +29,27 @@ import { cn } from "@/lib/primitives/cn";
 
 import { catFileViewMessages } from "./cat-file-view.messages";
 import { CAT_IMAGE_FILE_UPLOAD_ACCEPT, CatImageFileViewerPane } from "./cat-image-file-viewer";
+import { catOfficeUploadAccept } from "./cat-office-mime";
+import type { CatOfficeKind } from "./cat-office-convert";
+
+const CatOfficeFileViewerPane = dynamic(
+  () =>
+    import("./cat-office-file-viewer").then((module) => ({
+      default: module.CatOfficeFileViewerPane,
+    })),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex min-h-56 items-center justify-center border border-dashed border-border text-sm text-muted-foreground">
+        <span className="size-5 animate-spin rounded-full border-2 border-muted-foreground/30 border-t-muted-foreground" />
+      </div>
+    ),
+  },
+);
+
+function isOfficeViewerId(viewerId: CatFileViewerId | null): viewerId is CatOfficeKind {
+  return viewerId === "docx" || viewerId === "xlsx" || viewerId === "pptx";
+}
 
 export function CatFileViewPanel({
   segment,
@@ -71,12 +93,14 @@ export function CatFileViewPanel({
     primaryActionLabel ?? intl.formatMessage(catFileViewMessages.approve);
   const hasTarget = Boolean(segment.targetAssetUrl || segment.targetText.trim());
   const canTriggerApprove = Boolean(canApprove && hasTarget && !isApproving && !isImageBusy);
-  const uploadAccept = viewerId === "image" ? CAT_IMAGE_FILE_UPLOAD_ACCEPT : undefined;
+  const uploadAccept =
+    viewerId === "image" ? CAT_IMAGE_FILE_UPLOAD_ACCEPT : catOfficeUploadAccept(viewerId);
   const displayName = segment.sourcePath || filename || segment.key;
+  const officeKind = isOfficeViewerId(viewerId) ? viewerId : null;
 
-  const sourceSrc = viewerId === "image" ? (segment.sourceAssetUrl ?? null) : null;
+  const sourceSrc = viewerId === "image" || officeKind ? (segment.sourceAssetUrl ?? null) : null;
   const targetSrc =
-    viewerId === "image"
+    viewerId === "image" || officeKind
       ? (segment.targetAssetUrl ??
         (/^https?:\/\//i.test(segment.targetText) ? segment.targetText : null))
       : null;
@@ -186,6 +210,17 @@ export function CatFileViewPanel({
                 src={targetSrc}
                 isLoading={isSegmentTargetLoading}
               />
+            ) : officeKind ? (
+              <CatOfficeFileViewerPane
+                kind={officeKind}
+                role="target"
+                src={targetSrc}
+                filename={displayName}
+                isLoading={isSegmentTargetLoading}
+                canEdit={canEdit}
+                isBusy={isImageBusy}
+                onSave={onUpload}
+              />
             ) : (
               <UnsupportedPreview />
             )}
@@ -201,6 +236,14 @@ export function CatFileViewPanel({
           >
             {viewerId === "image" ? (
               <CatImageFileViewerPane role="source" src={sourceSrc} />
+            ) : officeKind ? (
+              <CatOfficeFileViewerPane
+                kind={officeKind}
+                role="source"
+                src={sourceSrc}
+                filename={displayName}
+                canEdit={false}
+              />
             ) : (
               <UnsupportedPreview />
             )}
