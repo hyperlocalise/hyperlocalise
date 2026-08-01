@@ -34,6 +34,11 @@ func TestNormalizeTextScout(t *testing.T) {
 			want: "pay $500 now",
 		},
 		{
+			name: "strips ampersand",
+			in:   "A & B",
+			want: "a b",
+		},
+		{
 			name: "leading and trailing punctuation only",
 			in:   "!!!",
 			want: "",
