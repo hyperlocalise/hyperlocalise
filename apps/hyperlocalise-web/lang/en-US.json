@@ -3323,6 +3323,10 @@
     "defaultMessage": "Alert on post-publish drift",
     "description": "Capability 6 title for the localisation-quality-monitoring use case"
   },
+  "BeXUx2ytXa": {
+    "defaultMessage": "Issues",
+    "description": "Section title for the project Issue Sheet page"
+  },
   "Bfwle3X1Yy": {
     "defaultMessage": "Connect {provider} to view provider {resource}.",
     "description": "Error heading when TMS provider data cannot load because the user has not connected their account"
@@ -4274,10 +4278,6 @@
   "FPj5rPYXJV": {
     "defaultMessage": "Unassigned",
     "description": "Issue list assignee filter option for issues with no assignee"
-  },
-  "FRn2vWc0wk": {
-    "defaultMessage": "Issues",
-    "description": "App shell breadcrumb title for the issue sheet page"
   },
   "FRwUYE4HKC": {
     "defaultMessage": "Finnish (Finland)",
@@ -10047,6 +10047,10 @@
     "defaultMessage": "No target locale is available for this task.",
     "description": "Empty state when all-files CAT mode has no selectable target locale"
   },
+  "enrIL8oTbj": {
+    "defaultMessage": "Issues",
+    "description": "Project sidebar navigation item for the project issue sheet"
+  },
   "eogv8qHzO7": {
     "defaultMessage": "Direct and familiar French SaaS CTA phrasing.",
     "description": "AI reasoning for the CTA segment in the hero CAT mock"
@@ -11346,6 +11350,10 @@
   "jletyEWDwl": {
     "defaultMessage": "Actions for {email}",
     "description": "Accessible label for a team member row actions menu"
+  },
+  "jmazd5AXy4": {
+    "defaultMessage": "Issues",
+    "description": "App shell breadcrumb title for the issue sheet page"
   },
   "joOR4TGsxW": {
     "defaultMessage": "No posts yet. Check back soon.",
@@ -13047,10 +13055,6 @@
     "defaultMessage": "Ask about any string",
     "description": "AI feature capability title: ask about strings"
   },
-  "rDacSGpJfq": {
-    "defaultMessage": "Issues",
-    "description": "Project sidebar navigation item for the project issue sheet"
-  },
   "rDkQbK1OIB": {
     "defaultMessage": "Skipped",
     "description": "Automation run status badge for skipped"
@@ -14286,10 +14290,6 @@
   "wAW00AgfLK": {
     "defaultMessage": "Failed to post comment. Try again.",
     "description": "Error message when posting a segment comment to the TMS fails"
-  },
-  "wAvI6goI3/": {
-    "defaultMessage": "Issues",
-    "description": "Section title for the project Issue Sheet page"
   },
   "wB36ZpuzG3": {
     "defaultMessage": "3 strings changed, 1 translation issue called out before merge",

@@ -2660,6 +2660,9 @@
   "BeBJ6Gf6JS": {
     "defaultMessage": "Cảnh báo khi có sự sai lệch sau khi xuất bản"
   },
+  "BeXUx2ytXa": {
+    "defaultMessage": "Vấn đề"
+  },
   "Bfwle3X1Yy": {
     "defaultMessage": "Connect {provider} to view provider {resource}."
   },
@@ -3421,9 +3424,6 @@
   },
   "FPj5rPYXJV": {
     "defaultMessage": "Unassigned"
-  },
-  "FRn2vWc0wk": {
-    "defaultMessage": "Vấn đề"
   },
   "FRwUYE4HKC": {
     "defaultMessage": "Tiếng Phần Lan (Phần Lan)"
@@ -8009,6 +8009,9 @@
   "enjVtZumks": {
     "defaultMessage": "No target locale is available for this task."
   },
+  "enrIL8oTbj": {
+    "defaultMessage": "Vấn đề"
+  },
   "eogv8qHzO7": {
     "defaultMessage": "Direct and familiar French SaaS CTA phrasing."
   },
@@ -9055,6 +9058,9 @@
   },
   "jletyEWDwl": {
     "defaultMessage": "Actions for {email}"
+  },
+  "jmazd5AXy4": {
+    "defaultMessage": "Vấn đề"
   },
   "joOR4TGsxW": {
     "defaultMessage": "Chưa có bài viết nào. Hãy quay lại sau."
@@ -10433,9 +10439,6 @@
   "rDFwnPnMxA": {
     "defaultMessage": "Hỏi về bất kỳ chuỗi nào"
   },
-  "rDacSGpJfq": {
-    "defaultMessage": "Vấn đề"
-  },
   "rDkQbK1OIB": {
     "defaultMessage": "Skipped"
   },
@@ -11413,9 +11416,6 @@
   },
   "wAW00AgfLK": {
     "defaultMessage": "Không thể đăng bình luận. Hãy thử lại."
-  },
-  "wAvI6goI3/": {
-    "defaultMessage": "Vấn đề"
   },
   "wB36ZpuzG3": {
     "defaultMessage": "3 strings changed, 1 translation issue called out before merge"

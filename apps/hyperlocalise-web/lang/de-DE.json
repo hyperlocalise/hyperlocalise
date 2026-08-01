@@ -2660,6 +2660,9 @@
   "BeBJ6Gf6JS": {
     "defaultMessage": "Warnung bei Abweichungen nach der Veröffentlichung"
   },
+  "BeXUx2ytXa": {
+    "defaultMessage": "Probleme"
+  },
   "Bfwle3X1Yy": {
     "defaultMessage": "Verbinde {provider}, um die Ressource {resource} des Anbieters anzuzeigen."
   },
@@ -3421,9 +3424,6 @@
   },
   "FPj5rPYXJV": {
     "defaultMessage": "Nicht zugewiesen"
-  },
-  "FRn2vWc0wk": {
-    "defaultMessage": "Probleme"
   },
   "FRwUYE4HKC": {
     "defaultMessage": "Finnisch (Finnland)"
@@ -8009,6 +8009,9 @@
   "enjVtZumks": {
     "defaultMessage": "Für diese Aufgabe ist kein Zielgebietsschema verfügbar."
   },
+  "enrIL8oTbj": {
+    "defaultMessage": "Probleme"
+  },
   "eogv8qHzO7": {
     "defaultMessage": "Direkte und vertraute französische SaaS-CTA-Formulierung."
   },
@@ -9055,6 +9058,9 @@
   },
   "jletyEWDwl": {
     "defaultMessage": "Actions for {email}"
+  },
+  "jmazd5AXy4": {
+    "defaultMessage": "Probleme"
   },
   "joOR4TGsxW": {
     "defaultMessage": "Noch keine Beiträge. Schau bald wieder vorbei."
@@ -10433,9 +10439,6 @@
   "rDFwnPnMxA": {
     "defaultMessage": "Fragen Sie nach beliebigen Strings"
   },
-  "rDacSGpJfq": {
-    "defaultMessage": "Probleme"
-  },
   "rDkQbK1OIB": {
     "defaultMessage": "Übersprungen"
   },
@@ -11413,9 +11416,6 @@
   },
   "wAW00AgfLK": {
     "defaultMessage": "Kommentar konnte nicht veröffentlicht werden. Bitte erneut versuchen."
-  },
-  "wAvI6goI3/": {
-    "defaultMessage": "Probleme"
   },
   "wB36ZpuzG3": {
     "defaultMessage": "3 Zeichenfolgen geändert, 1 Übersetzungsproblem vor dem Zusammenführen angesprochen"
