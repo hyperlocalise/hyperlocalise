@@ -34,9 +34,9 @@ function toolContext(sandboxId?: string) {
 describe("getConversationActiveTools", () => {
   it("exposes file translation tools only when attachments are present", () => {
     expect(getConversationActiveTools(toolContext())).toEqual([]);
-    expect(
-      getConversationActiveTools(toolContext(), { hasFileAttachments: true }),
-    ).toEqual([...conversationFileTranslationToolNames]);
+    expect(getConversationActiveTools(toolContext(), { hasFileAttachments: true })).toEqual([
+      ...conversationFileTranslationToolNames,
+    ]);
   });
 
   it("gates repository tools on sandbox availability in translation mode", () => {
@@ -52,10 +52,7 @@ describe("getConversationActiveTools", () => {
         mode: "translation",
         hasFileAttachments: true,
       }),
-    ).toEqual([
-      ...conversationFileTranslationToolNames,
-      ...repositoryWorkspaceToolNames,
-    ]);
+    ).toEqual([...conversationFileTranslationToolNames, ...repositoryWorkspaceToolNames]);
   });
 
   it("limits repository mode to sandbox-backed repo tools", () => {

@@ -49,12 +49,11 @@ vi.mock("@/lib/database", () => ({
 }));
 
 vi.mock("@/lib/file-storage", () => ({
-  getFileStorageAdapter: (...args: unknown[]) => getFileStorageAdapterMock(...args),
+  getFileStorageAdapter: getFileStorageAdapterMock,
 }));
 
 vi.mock("@/lib/tools/tool-access", () => ({
-  toolCanAccessStoredFileProject: (...args: unknown[]) =>
-    toolCanAccessStoredFileProjectMock(...args),
+  toolCanAccessStoredFileProject: toolCanAccessStoredFileProjectMock,
 }));
 
 import { createReadStoredFileTool } from "./file-tools";

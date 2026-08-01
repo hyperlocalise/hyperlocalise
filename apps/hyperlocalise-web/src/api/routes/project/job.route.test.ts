@@ -560,7 +560,7 @@ describe("project job list triage", () => {
           projectId: project.id,
         },
         query: {
-          triage: "true",
+          triage: true,
           limit: "10",
         },
       },
@@ -569,17 +569,8 @@ describe("project job list triage", () => {
 
     expect(response.status).toBe(200);
     const body = (await response.json()) as { jobs: Array<{ id: string; status: string }> };
-    expect(body.jobs.map((job) => job.id)).toEqual([
-      reviewJob.id,
-      failedJob.id,
-      queuedJob.id,
-    ]);
-    expect(body.jobs.map((job) => job.status)).toEqual([
-      "waiting_for_review",
-      "failed",
-      "queued",
-    ]);
+    expect(body.jobs.map((job) => job.id)).toEqual([reviewJob.id, failedJob.id, queuedJob.id]);
+    expect(body.jobs.map((job) => job.status)).toEqual(["waiting_for_review", "failed", "queued"]);
     expect(body.jobs.some((job) => job.id === succeededJob.id)).toBe(false);
   });
 });
-
