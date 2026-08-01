@@ -240,25 +240,7 @@ export function ProjectOverviewPageContentView({
               ) : null}
             </div>
 
-            {isJobsError ? (
-              <div className="rounded-xl border border-dashed border-border bg-background/60 px-4 py-4">
-                <TypographyP className="text-sm font-medium text-foreground">
-                  <FormattedMessage {...messages.jobsUnavailable} />
-                </TypographyP>
-                <TypographyP className="mt-1 text-sm text-muted-foreground">
-                  <FormattedMessage {...messages.jobsUnavailableDescription} />
-                </TypographyP>
-                <Button
-                  nativeButton={false}
-                  render={<Link href={jobsHref} />}
-                  variant="outline"
-                  size="sm"
-                  className="mt-3 w-fit"
-                >
-                  <FormattedMessage {...messages.viewJobs} />
-                </Button>
-              </div>
-            ) : triageItems.length > 0 ? (
+            {triageItems.length > 0 ? (
               <div className="flex flex-col gap-2">
                 {triageItems.map((item) => {
                   const copy = resolveTriageCopy(item, intl);
@@ -291,6 +273,24 @@ export function ProjectOverviewPageContentView({
                     <HugeiconsIcon icon={ArrowRight01Icon} strokeWidth={1.8} />
                   </Button>
                 </div>
+              </div>
+            ) : isJobsError ? (
+              <div className="rounded-xl border border-dashed border-border bg-background/60 px-4 py-4">
+                <TypographyP className="text-sm font-medium text-foreground">
+                  <FormattedMessage {...messages.jobsUnavailable} />
+                </TypographyP>
+                <TypographyP className="mt-1 text-sm text-muted-foreground">
+                  <FormattedMessage {...messages.jobsUnavailableDescription} />
+                </TypographyP>
+                <Button
+                  nativeButton={false}
+                  render={<Link href={jobsHref} />}
+                  variant="outline"
+                  size="sm"
+                  className="mt-3 w-fit"
+                >
+                  <FormattedMessage {...messages.viewJobs} />
+                </Button>
               </div>
             ) : (
               <div className="space-y-2">
