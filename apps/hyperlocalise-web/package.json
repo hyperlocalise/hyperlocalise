@@ -144,6 +144,7 @@
     "use-stick-to-bottom": "^1.1.4",
     "workflow": "4.6.2",
     "workos": "0.19.0",
+    "xlsx": "^0.18.5",
     "yaml": "^2.9.0",
     "zod": "4.4.3"
   },
