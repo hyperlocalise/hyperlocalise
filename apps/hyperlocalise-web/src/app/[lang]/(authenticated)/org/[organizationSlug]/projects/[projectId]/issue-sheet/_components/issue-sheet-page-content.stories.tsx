@@ -49,7 +49,7 @@ export const Default: Story = {
     },
   },
   play: async ({ canvas }) => {
-    await expect(canvas.getByText("Issue Sheet")).toBeInTheDocument();
+    await expect(canvas.getByText("Issues")).toBeInTheDocument();
     await expect(canvas.getByText("Source string needs context")).toBeInTheDocument();
     await expect(canvas.getByText("3 total")).toBeInTheDocument();
     await expect(canvas.getByRole("button", { name: "Issue" })).toBeInTheDocument();
@@ -64,7 +64,7 @@ export const Loading: Story = {
     },
   },
   play: async ({ canvas }) => {
-    await expect(canvas.getByText("Issue Sheet")).toBeInTheDocument();
+    await expect(canvas.getByText("Issues")).toBeInTheDocument();
     await expect(canvas.getByText("Loading issues…")).toBeInTheDocument();
   },
 };
@@ -90,7 +90,7 @@ export const Error: Story = {
     },
   },
   play: async ({ canvas }) => {
-    await expect(canvas.getByText("Issue Sheet")).toBeInTheDocument();
+    await expect(canvas.getByText("Issues")).toBeInTheDocument();
     await expect(canvas.getByText("Issues could not be loaded.")).toBeInTheDocument();
     await expect(canvas.queryByText("No issues in this view.")).not.toBeInTheDocument();
   },

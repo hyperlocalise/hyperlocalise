@@ -203,7 +203,7 @@ function formatRouteTitle(intl: IntlShape, key: RouteTitleKey): string {
       });
     case "issue-sheet":
       return intl.formatMessage({
-        defaultMessage: "Issue Sheet",
+        defaultMessage: "Issues",
         id: "FRn2vWc0wk",
         description: "App shell breadcrumb title for the issue sheet page",
       });

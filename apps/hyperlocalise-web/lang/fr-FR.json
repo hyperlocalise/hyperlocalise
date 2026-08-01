@@ -3423,7 +3423,7 @@
     "defaultMessage": "Unassigned"
   },
   "FRn2vWc0wk": {
-    "defaultMessage": "Fiche d’incident"
+    "defaultMessage": "Problèmes"
   },
   "FRwUYE4HKC": {
     "defaultMessage": "finnois (Finlande)"
@@ -10434,7 +10434,7 @@
     "defaultMessage": "Posez des questions sur n’importe quelle chaîne"
   },
   "rDacSGpJfq": {
-    "defaultMessage": "Fiche des problèmes"
+    "defaultMessage": "Problèmes"
   },
   "rDkQbK1OIB": {
     "defaultMessage": "Skipped"
@@ -11415,7 +11415,7 @@
     "defaultMessage": "Échec de la publication du commentaire. Réessayez."
   },
   "wAvI6goI3/": {
-    "defaultMessage": "Issue Sheet"
+    "defaultMessage": "Problèmes"
   },
   "wB36ZpuzG3": {
     "defaultMessage": "3 strings changed, 1 translation issue called out before merge"

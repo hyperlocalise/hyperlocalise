@@ -16,7 +16,7 @@ import { defineMessages } from "react-intl";
 
 export const issueSheetPageContentMessages = defineMessages({
   sectionTitle: {
-    defaultMessage: "Issue Sheet",
+    defaultMessage: "Issues",
     id: "wAvI6goI3/",
     description: "Section title for the project Issue Sheet page",
   },

@@ -4276,7 +4276,7 @@
     "description": "Issue list assignee filter option for issues with no assignee"
   },
   "FRn2vWc0wk": {
-    "defaultMessage": "Issue Sheet",
+    "defaultMessage": "Issues",
     "description": "App shell breadcrumb title for the issue sheet page"
   },
   "FRwUYE4HKC": {
@@ -13048,7 +13048,7 @@
     "description": "AI feature capability title: ask about strings"
   },
   "rDacSGpJfq": {
-    "defaultMessage": "Issue Sheet",
+    "defaultMessage": "Issues",
     "description": "Project sidebar navigation item for the project issue sheet"
   },
   "rDkQbK1OIB": {
@@ -14288,7 +14288,7 @@
     "description": "Error message when posting a segment comment to the TMS fails"
   },
   "wAvI6goI3/": {
-    "defaultMessage": "Issue Sheet",
+    "defaultMessage": "Issues",
     "description": "Section title for the project Issue Sheet page"
   },
   "wB36ZpuzG3": {

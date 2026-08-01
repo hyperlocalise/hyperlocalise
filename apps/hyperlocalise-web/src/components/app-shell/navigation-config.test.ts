@@ -188,10 +188,10 @@ describe("path builders", () => {
       ["Files", "/org/acme/projects/proj_1/files"],
       ["Strings", "/org/acme/projects/proj_1/strings"],
       ["Jobs", "/org/acme/projects/proj_1/jobs"],
-      ["Issue Sheet", "/org/acme/projects/proj_1/issue-sheet"],
+      ["Issues", "/org/acme/projects/proj_1/issue-sheet"],
       ["Settings", "/org/acme/projects/proj_1/settings"],
     ]);
-    expect(items.find((item) => item.label === "Issue Sheet")?.featureFlagKey).toBe(
+    expect(items.find((item) => item.label === "Issues")?.featureFlagKey).toBe(
       WORKSPACE_ISSUES_FLAG,
     );
   });

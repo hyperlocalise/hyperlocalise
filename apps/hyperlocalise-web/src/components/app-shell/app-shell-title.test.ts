@@ -27,7 +27,7 @@ describe("getAppShellTitle", () => {
     ["/org/acme/projects/proj_1", "proj_1"],
     ["/org/acme/projects/proj_1/files", "Files"],
     ["/org/acme/projects/proj_1/jobs", "Jobs"],
-    ["/org/acme/projects/proj_1/issue-sheet", "Issue Sheet"],
+    ["/org/acme/projects/proj_1/issue-sheet", "Issues"],
     ["/org/acme/projects/proj_1/agent-runs", "Agent Runs"],
     ["/org/acme/projects/proj_1/activity", "Activity"],
     ["/org/acme/projects/proj_1/context", "Context"],
@@ -124,11 +124,11 @@ describe("getAppShellBreadcrumbs", () => {
     ).toEqual([
       { label: "Projects", href: "/org/acme/projects" },
       { label: "Checkout", href: "/org/acme/projects/proj_1" },
-      { label: "Issue Sheet" },
+      { label: "Issues" },
     ]);
   });
 
-  it("links Issue Sheet when viewing a permanent issue detail URL", () => {
+  it("links Issues when viewing a permanent issue detail URL", () => {
     expect(
       getAppShellBreadcrumbs(
         "/org/acme/projects/proj_1/issue-sheet/11111111-1111-4111-8111-111111111111",
@@ -138,7 +138,7 @@ describe("getAppShellBreadcrumbs", () => {
     ).toEqual([
       { label: "Projects", href: "/org/acme/projects" },
       { label: "Checkout", href: "/org/acme/projects/proj_1" },
-      { label: "Issue Sheet", href: "/org/acme/projects/proj_1/issue-sheet" },
+      { label: "Issues", href: "/org/acme/projects/proj_1/issue-sheet" },
     ]);
   });
 
