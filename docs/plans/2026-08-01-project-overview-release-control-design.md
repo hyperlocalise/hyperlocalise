@@ -24,9 +24,13 @@ Coverage stays on **Files**. Workspace Overview stays unchanged.
 | Source | Used for |
 |--------|----------|
 | Project record | Name, description, locales, guidance, last sync |
-| Open jobs (capped ~5) | Triage queue |
+| Triage jobs (capped ~5) | Review / failed / in-progress queue |
 
 No files query. No open-job-count query (derive attention from the jobs list).
+
+Native Overview loads jobs with `triage=true` so the API includes `failed` and
+orders review → failed → queued/running before applying the cap. TMS lists are
+filtered and ranked the same way on the client.
 
 ## Triage priority
 
@@ -35,7 +39,7 @@ No files query. No open-job-count query (derive attention from the jobs list).
 3. Missing translation guidance (native only)
 4. Other open jobs (`queued` / `running`)
 
-Cap ~5. Link to Jobs for the rest.
+Cap ~5 after priority selection. Link to Jobs for the rest.
 
 ## Native vs TMS
 

@@ -10,15 +10,25 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { and, desc, eq, inArray, isNull, ne, or } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNull, ne, or, sql } from "drizzle-orm";
 
 import type { ApiAuthContext } from "@/api/auth/workos";
-import { openJobStatusValues } from "@/api/routes/project/job.schema";
+import {
+  openJobStatusValues,
+  overviewTriageJobStatusValues,
+} from "@/api/routes/project/job.schema";
 import { buildAccessibleJobsWhere, buildOrganizationJobsListWhere } from "@/api/auth/team-access";
 import { db, schema } from "@/lib/database";
 import { getCurrentUserProviderAssigneeCandidates } from "@/lib/providers/jobs/tms-provider-assignee-candidates";
 import { providerAssignedUsersMatch } from "@/lib/providers/jobs/tms-provider-assignee-match";
 import { ProjectServiceBase } from "@/lib/projects/project-service-base";
+
+/** Review first, then failed, then other triage-eligible statuses. */
+const overviewTriageStatusOrder = sql`CASE ${schema.jobs.status}
+  WHEN 'waiting_for_review' THEN 0
+  WHEN 'failed' THEN 1
+  ELSE 2
+END`;
 
 const jobWithProjectSelect = {
   id: schema.jobs.id,
@@ -68,6 +78,7 @@ type JobListQuery = {
   type?: "string" | "file";
   status?: "queued" | "running" | "succeeded" | "failed" | "waiting_for_review" | "cancelled";
   open?: boolean;
+  triage?: boolean;
   relationship?: "assigned" | "created";
   limit: number;
 };
@@ -77,6 +88,7 @@ function jobListFilters(input: {
   type?: JobListQuery["type"];
   status?: JobListQuery["status"];
   open?: JobListQuery["open"];
+  triage?: JobListQuery["triage"];
   relationship?: JobListQuery["relationship"];
   userId?: string;
   providerAssigneeCandidates?: string[];
@@ -91,7 +103,9 @@ function jobListFilters(input: {
     filters.push(eq(schema.translationJobDetails.type, input.type));
   }
 
-  if (input.open) {
+  if (input.triage) {
+    filters.push(inArray(schema.jobs.status, [...overviewTriageJobStatusValues]));
+  } else if (input.open) {
     filters.push(inArray(schema.jobs.status, [...openJobStatusValues]));
   } else if (input.status) {
     filters.push(eq(schema.jobs.status, input.status));
@@ -170,10 +184,15 @@ export class OrganizationJobQueryService extends ProjectServiceBase {
             type: query.type,
             status: query.status,
             open: query.open,
+            triage: query.triage,
           }),
         ),
       )
-      .orderBy(desc(schema.jobs.updatedAt))
+      .orderBy(
+        ...(query.triage
+          ? [asc(overviewTriageStatusOrder), desc(schema.jobs.updatedAt)]
+          : [desc(schema.jobs.updatedAt)]),
+      )
       .limit(query.limit);
 
     this.log.debug(
@@ -225,13 +244,18 @@ export class OrganizationJobQueryService extends ProjectServiceBase {
             type: query.type,
             status: query.status,
             open: query.open,
+            triage: query.triage,
             relationship: query.relationship,
             userId: auth.user.localUserId,
             providerAssigneeCandidates,
           }),
         ),
       )
-      .orderBy(desc(schema.jobs.updatedAt))
+      .orderBy(
+        ...(query.triage
+          ? [asc(overviewTriageStatusOrder), desc(schema.jobs.updatedAt)]
+          : [desc(schema.jobs.updatedAt)]),
+      )
       .limit(query.limit);
 
     this.log.debug(

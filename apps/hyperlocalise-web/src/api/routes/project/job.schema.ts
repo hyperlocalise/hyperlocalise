@@ -72,14 +72,27 @@ export const createJobBodySchema = z.discriminatedUnion("type", [
   }),
 ]);
 
-/** Statuses counted by project `openJobCount` and surfaced on overview pages. */
+/** Statuses counted by project `openJobCount` and listed by `open=true`. */
 export const openJobStatusValues = ["queued", "running", "waiting_for_review"] as const;
+
+/**
+ * Statuses eligible for the project Overview Today queue.
+ * Includes failed jobs (actionable) in addition to open statuses.
+ */
+export const overviewTriageJobStatusValues = [
+  "waiting_for_review",
+  "failed",
+  "queued",
+  "running",
+] as const;
 
 export const jobListQuerySchema = z.object({
   kind: z.enum(schema.jobKindEnum.enumValues).optional(),
   type: z.enum(schema.translationJobTypeEnum.enumValues).optional(),
   status: z.enum(schema.jobStatusEnum.enumValues).optional(),
   open: z.coerce.boolean().optional(),
+  /** Prefer review/failed before other open jobs, then apply `limit`. */
+  triage: z.coerce.boolean().optional(),
   relationship: z.enum(["assigned", "created"]).optional(),
   limit: z.coerce.number().int().min(1).max(100).default(50),
 });

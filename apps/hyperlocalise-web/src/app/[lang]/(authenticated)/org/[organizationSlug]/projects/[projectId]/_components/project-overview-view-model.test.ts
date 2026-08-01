@@ -94,6 +94,59 @@ describe("buildProjectOverviewTriageItems", () => {
 
     expect(items.every((item) => item.kind !== ("file" as string))).toBe(true);
   });
+
+  it("keeps older review jobs ahead of newer in-progress work when capping", () => {
+    const items = buildProjectOverviewTriageItems({
+      jobs: [
+        job({
+          id: "running-new",
+          status: "running",
+          updatedAt: "2026-07-02T00:00:10.000Z",
+        }),
+        job({
+          id: "queued-new",
+          status: "queued",
+          updatedAt: "2026-07-02T00:00:09.000Z",
+        }),
+        job({
+          id: "running-2",
+          status: "running",
+          updatedAt: "2026-07-02T00:00:08.000Z",
+        }),
+        job({
+          id: "queued-2",
+          status: "queued",
+          updatedAt: "2026-07-02T00:00:07.000Z",
+        }),
+        job({
+          id: "running-3",
+          status: "running",
+          updatedAt: "2026-07-02T00:00:06.000Z",
+        }),
+        job({
+          id: "review-old",
+          status: "waiting_for_review",
+          updatedAt: "2026-07-01T00:00:00.000Z",
+        }),
+        job({
+          id: "failed-old",
+          status: "failed",
+          updatedAt: "2026-07-01T00:00:01.000Z",
+        }),
+      ],
+      isNative: true,
+      hasTranslationGuidance: true,
+      limit: 5,
+    });
+
+    expect(items.map((item) => item.job?.id)).toEqual([
+      "review-old",
+      "failed-old",
+      "running-new",
+      "queued-new",
+      "running-2",
+    ]);
+  });
 });
 
 describe("formatProjectLocaleRoute", () => {

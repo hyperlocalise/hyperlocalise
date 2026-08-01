@@ -17,11 +17,13 @@ import { useQuery } from "@tanstack/react-query";
 import {
   fetchNativeProjectJobs,
   fetchTmsProjectJobs,
-  filterOpenProjectJobs,
+  selectOverviewTriageProjectJobs,
 } from "@/lib/projects/jobs/fetch-project-jobs";
 import { parseProviderProjectId } from "@/lib/providers/jobs/tms-provider-resource-id";
 
 import type { ApiJob } from "../../../jobs/_components/jobs-page-view";
+
+import { PROJECT_OVERVIEW_TRIAGE_LIMIT } from "./project-overview-view-model";
 
 export function useProjectOverviewJobsQuery(
   organizationSlug: string,
@@ -44,12 +46,14 @@ export function useProjectOverviewJobsQuery(
           organizationSlug,
           parsedProviderProject.externalProjectId,
         );
-        return filterOpenProjectJobs(jobs).slice(0, 5) as ApiJob[];
+        return selectOverviewTriageProjectJobs(jobs, PROJECT_OVERVIEW_TRIAGE_LIMIT) as ApiJob[];
       }
 
+      // Server orders by triage priority before applying the cap so older
+      // waiting_for_review / failed jobs are not displaced by newer queued work.
       return (await fetchNativeProjectJobs(organizationSlug, projectId, {
-        open: true,
-        limit: 5,
+        triage: true,
+        limit: PROJECT_OVERVIEW_TRIAGE_LIMIT,
       })) as ApiJob[];
     },
   });

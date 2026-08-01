@@ -50,6 +50,8 @@ import {
   fetchNativeProjectJobs,
   fetchTmsProjectJobs,
   filterOpenProjectJobs,
+  filterOverviewTriageProjectJobs,
+  selectOverviewTriageProjectJobs,
 } from "./fetch-project-jobs";
 
 function jsonResponse(body: unknown, status = 200) {
@@ -126,6 +128,23 @@ describe("fetchProjectJobs", () => {
     });
   });
 
+  it("loads native project jobs with the triage filter and limit", async () => {
+    const jobs = [
+      createJob({ id: "job_review", status: "waiting_for_review" }),
+      createJob({ id: "job_failed", status: "failed" }),
+    ];
+    nativeJobsGetMock.mockResolvedValue(jsonResponse({ jobs }));
+
+    await expect(
+      fetchNativeProjectJobs("acme", "project_1", { triage: true, limit: 5 }),
+    ).resolves.toEqual(jobs);
+
+    expect(nativeJobsGetMock).toHaveBeenCalledWith({
+      param: { organizationSlug: "acme", projectId: "project_1" },
+      query: { limit: "5", triage: true },
+    });
+  });
+
   it("loads TMS project jobs using the external project id and mine query", async () => {
     const jobs = [
       {
@@ -160,6 +179,49 @@ describe("fetchProjectJobs", () => {
       "queued",
       "running",
       "waiting",
+    ]);
+  });
+
+  it("keeps failed jobs in the Overview triage candidate set", () => {
+    const jobs = [
+      { id: "queued", status: "queued", updatedAt: "2026-07-02T00:00:00.000Z" },
+      { id: "failed", status: "failed", updatedAt: "2026-07-02T00:00:04.000Z" },
+      { id: "succeeded", status: "succeeded", updatedAt: "2026-07-02T00:00:05.000Z" },
+      {
+        id: "waiting",
+        status: "waiting_for_review",
+        updatedAt: "2026-07-02T00:00:02.000Z",
+      },
+    ];
+
+    expect(filterOverviewTriageProjectJobs(jobs).map((job) => job.id)).toEqual([
+      "queued",
+      "failed",
+      "waiting",
+    ]);
+  });
+
+  it("applies the triage cap after review-priority selection", () => {
+    const jobs = [
+      { id: "running-new", status: "running", updatedAt: "2026-07-02T00:00:10.000Z" },
+      { id: "queued-new", status: "queued", updatedAt: "2026-07-02T00:00:09.000Z" },
+      { id: "running-2", status: "running", updatedAt: "2026-07-02T00:00:08.000Z" },
+      { id: "queued-2", status: "queued", updatedAt: "2026-07-02T00:00:07.000Z" },
+      { id: "running-3", status: "running", updatedAt: "2026-07-02T00:00:06.000Z" },
+      {
+        id: "review-old",
+        status: "waiting_for_review",
+        updatedAt: "2026-07-01T00:00:00.000Z",
+      },
+      { id: "failed-old", status: "failed", updatedAt: "2026-07-01T00:00:01.000Z" },
+    ];
+
+    expect(selectOverviewTriageProjectJobs(jobs, 5).map((job) => job.id)).toEqual([
+      "review-old",
+      "failed-old",
+      "running-new",
+      "queued-new",
+      "running-2",
     ]);
   });
 });
