@@ -130,7 +130,8 @@ export function IssueListRow({
           issueId: issue.id,
         })}
         className="min-w-0 flex-1 truncate font-medium text-foreground hover:underline"
-        onClick={(event) => event.stopPropagation()}
+        onClick={stopPropagation}
+        onKeyDown={stopPropagation}
       >
         {issue.title}
       </Link>
@@ -138,7 +139,8 @@ export function IssueListRow({
         <Link
           href={`/org/${organizationSlug}/projects/${encodeURIComponent(issue.projectId)}`}
           className="hidden max-w-[10rem] truncate text-muted-foreground hover:text-foreground hover:underline md:inline"
-          onClick={(event) => event.stopPropagation()}
+          onClick={stopPropagation}
+          onKeyDown={stopPropagation}
         >
           {issue.projectName}
         </Link>
@@ -252,7 +254,9 @@ export function IssueGroupedList<T extends IssueGroupedListItem>({
     <div className={cn("space-y-4", className)}>
       <div className="overflow-hidden rounded-xl border bg-card">
         {groups.map((group, groupIndex) => {
-          const isCollapsed = collapsed[group.status] ?? false;
+          // When headers are hidden there is no expand control, so never keep
+          // a previously collapsed section empty.
+          const isCollapsed = hideHeaders ? false : (collapsed[group.status] ?? false);
           return (
             <section
               key={group.status}

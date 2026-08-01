@@ -78,6 +78,26 @@ export const SingleStatus: Story = {
   },
 };
 
+export const CollapsedThenSingleStatus: Story = {
+  args: {
+    activeStatus: "open",
+    issues: organizationIssuesFixture.filter((issue) => issue.status === "open"),
+    summary: {
+      open: 2,
+      inProgress: 0,
+      resolved: 0,
+      wontFix: 0,
+    },
+  },
+  play: async ({ canvas }) => {
+    // Headers are hidden for a single-status filter, so a previously collapsed
+    // Open group must still show its rows.
+    await expect(canvas.getByText("Source string needs context")).toBeInTheDocument();
+    await expect(canvas.getByText("Glossary violation in onboarding")).toBeInTheDocument();
+    await expect(canvas.queryByRole("button", { name: /Collapse/i })).not.toBeInTheDocument();
+  },
+};
+
 export const Empty: Story = {
   args: {
     issues: [],
