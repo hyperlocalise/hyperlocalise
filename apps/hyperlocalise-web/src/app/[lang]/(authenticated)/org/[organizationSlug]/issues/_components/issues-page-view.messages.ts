@@ -17,7 +17,7 @@ import { defineMessages } from "react-intl";
 export const issuesPageViewMessages = defineMessages({
   pageDescription: {
     defaultMessage: "Triage open work across this workspace.",
-    id: "yxiPYrA89Z",
+    id: "zi+sjAi385",
     description: "Short description under the workspace Issues page title",
   },
   loadError: {

@@ -11,12 +11,7 @@
  * Version 2.0 or later.
  */
 
-export const ISSUE_LIST_STATUS_ORDER = [
-  "open",
-  "in_progress",
-  "resolved",
-  "wont_fix",
-] as const;
+export const ISSUE_LIST_STATUS_ORDER = ["open", "in_progress", "resolved", "wont_fix"] as const;
 
 export type IssueListStatus = (typeof ISSUE_LIST_STATUS_ORDER)[number];
 

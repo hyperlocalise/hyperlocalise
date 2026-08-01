@@ -17,27 +17,22 @@ import { defineMessages } from "react-intl";
 export const issueGroupedListMessages = defineMessages({
   collapseGroupAria: {
     defaultMessage: "Collapse {status}",
-    id: "r0nRyWm8P2",
+    id: "NRH7Cv54cL",
     description: "Accessible label to collapse an issue status group",
   },
   expandGroupAria: {
     defaultMessage: "Expand {status}",
-    id: "XJ2TnPULLw",
+    id: "BdS7ZiKy6/",
     description: "Accessible label to expand an issue status group",
-  },
-  groupCount: {
-    defaultMessage: "{count}",
-    id: "mnVXdjX04g",
-    description: "Issue count shown on a status group header",
   },
   emptyValue: {
     defaultMessage: "—",
-    id: "pBNUlB/NOC",
+    id: "MgM7OBu7rL",
     description: "Placeholder when an issue list cell has no value",
   },
   loadingAria: {
     defaultMessage: "Loading issues",
-    id: "AUIhlLFYDp",
+    id: "YGfWnIp6A9",
     description: "Accessible label while the grouped issue list is loading",
   },
 });

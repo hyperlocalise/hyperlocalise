@@ -66,7 +66,6 @@ export const SingleStatus: Story = {
     activeStatus: "resolved",
     issues: organizationIssuesFixture.filter((issue) => issue.status === "resolved"),
     summary: {
-      total: 1,
       open: 0,
       inProgress: 0,
       resolved: 1,
@@ -83,7 +82,6 @@ export const Empty: Story = {
   args: {
     issues: [],
     summary: {
-      total: 0,
       open: 0,
       inProgress: 0,
       resolved: 0,

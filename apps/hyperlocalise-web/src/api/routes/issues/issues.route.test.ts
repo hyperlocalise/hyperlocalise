@@ -250,9 +250,10 @@ describe("Organization issues routes", () => {
       },
     });
     const sortedBody = (await sorted.json()) as ListBody;
+    // Status stays primary for grouped list pagination; priority sorts within status.
     expect(sortedBody.issues.map((issue) => issue.title)).toEqual([
       "QA unassigned open",
-      "Source context open",
+      "My assigned open",
     ]);
 
     const pageTwo = await requestJson(organizationIssuesUrl(organizationSlug), {
@@ -265,7 +266,7 @@ describe("Organization issues routes", () => {
       },
     });
     const pageTwoBody = (await pageTwo.json()) as ListBody;
-    expect(pageTwoBody.issues.map((issue) => issue.title)).toEqual(["My assigned open"]);
+    expect(pageTwoBody.issues.map((issue) => issue.title)).toEqual(["Source context open"]);
     expect(
       new Set([...sortedBody.issues, ...pageTwoBody.issues].map((issue) => issue.id)).size,
     ).toBe(3);

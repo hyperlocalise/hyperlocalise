@@ -19,7 +19,13 @@ import { FormattedMessage, useIntl } from "react-intl";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Popover, PopoverContent, PopoverHeader, PopoverTitle, PopoverTrigger } from "@/components/ui/popover";
+import {
+  Popover,
+  PopoverContent,
+  PopoverHeader,
+  PopoverTitle,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import {
   Select,
   SelectContent,
@@ -139,9 +145,7 @@ export function IssueListToolbar({
 
         <Popover>
           <PopoverTrigger
-            render={
-              <Button type="button" variant="outline" size="sm" className="gap-1.5" />
-            }
+            render={<Button type="button" variant="outline" size="sm" className="gap-1.5" />}
           >
             <HugeiconsIcon icon={FilterIcon} strokeWidth={2} className="size-3.5" />
             {filterChipCount > 0 ? (

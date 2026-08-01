@@ -16,7 +16,7 @@ import { useState, type KeyboardEvent, type ReactNode } from "react";
 import Link from "next/link";
 import { ArrowDown01Icon, ArrowRight01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { FormattedMessage, useIntl } from "react-intl";
+import { useIntl } from "react-intl";
 
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -79,17 +79,18 @@ function StatusGroupHeader({
       type="button"
       className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm font-medium text-foreground hover:bg-muted/40"
       aria-expanded={!collapsed}
-      aria-label={intl.formatMessage(collapsed ? messages.expandGroupAria : messages.collapseGroupAria, {
-        status: label,
-      })}
+      aria-label={intl.formatMessage(
+        collapsed ? messages.expandGroupAria : messages.collapseGroupAria,
+        {
+          status: label,
+        },
+      )}
       onClick={onToggle}
     >
       <HugeiconsIcon icon={chevron} strokeWidth={2} className="size-3.5 text-muted-foreground" />
       <IssueStatusIcon status={status} />
       <span>{label}</span>
-      <span className="text-muted-foreground tabular-nums">
-        <FormattedMessage {...messages.groupCount} values={{ count }} />
-      </span>
+      <span className="text-muted-foreground tabular-nums">{count}</span>
     </button>
   );
 }
@@ -228,7 +229,12 @@ export function IssueGroupedList<T extends IssueGroupedListItem>({
 
   if (isError) {
     return (
-      <div className={cn("rounded-xl border bg-card px-4 py-10 text-center text-muted-foreground", className)}>
+      <div
+        className={cn(
+          "rounded-xl border bg-card px-4 py-10 text-center text-muted-foreground",
+          className,
+        )}
+      >
         {error}
       </div>
     );
@@ -236,7 +242,9 @@ export function IssueGroupedList<T extends IssueGroupedListItem>({
 
   if (issues.length === 0) {
     return (
-      <div className={cn("rounded-xl border bg-card px-4 py-12 text-center", className)}>{empty}</div>
+      <div className={cn("rounded-xl border bg-card px-4 py-12 text-center", className)}>
+        {empty}
+      </div>
     );
   }
 
@@ -282,9 +290,7 @@ export function IssueGroupedList<T extends IssueGroupedListItem>({
           );
         })}
         {isFetchingMore
-          ? Array.from({ length: 3 }).map((_, index) => (
-              <IssueRowSkeleton key={`more-${index}`} />
-            ))
+          ? Array.from({ length: 3 }).map((_, index) => <IssueRowSkeleton key={`more-${index}`} />)
           : null}
       </div>
 

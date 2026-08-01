@@ -22,7 +22,7 @@ export const issueSheetPageContentMessages = defineMessages({
   },
   sectionDescription: {
     defaultMessage: "Triage localization issues for this project.",
-    id: "cMXtMeMOWZ",
+    id: "4UoHK4nCgZ",
     description: "Short section description for the project Issue Sheet page",
   },
   importCsv: {
