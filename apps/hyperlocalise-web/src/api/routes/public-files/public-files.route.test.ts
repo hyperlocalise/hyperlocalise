@@ -297,4 +297,26 @@ describe("publicFileRoutes", () => {
       },
     });
   });
+
+  it("uploads office source files with an API key", async () => {
+    const { apiKey, project } = await createPublicApiFixture();
+
+    const response = await client.api.v1.files.$post(
+      {
+        form: {
+          projectId: project.id,
+          sourcePath: "docs/en/brief.docx",
+          sourceHash: "sha256:office123",
+          file: new File(["PK\u0003\u0004docx"], "brief.docx", {
+            type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+          }),
+        },
+      },
+      { headers: { "x-api-key": apiKey } },
+    );
+
+    expect(response.status).toBe(201);
+    const body = (await response.json()) as { file: { id: string } };
+    expect(body.file.id).toMatch(/^file_/);
+  });
 });

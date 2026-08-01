@@ -34,6 +34,7 @@ import {
   canOpenProjectFileCat,
   resolveProjectFileCatTargetLocaleResolution,
 } from "@/lib/projects/project-file-cat-routing";
+import { getSupportedSourceUploadAccept } from "@/lib/translation/file-formats";
 
 import {
   ProjectPageShell,
@@ -54,8 +55,7 @@ import { formatBytes } from "./project-files-shared";
 import { projectFilesPageContentMessages as messages } from "./project-files-page-content.messages";
 import { useProjectFileActions } from "./use-project-file-actions";
 
-const FILE_ACCEPT =
-  ".json,.jsonc,.yaml,.yml,.arb,.xlf,.xlif,.xliff,.po,.html,.md,.mdx,.strings,.stringsdict,.xcstrings,.csv";
+const FILE_ACCEPT = getSupportedSourceUploadAccept();
 const MAX_UPLOAD_FILES = 10;
 
 type PendingFileDialogAction = "translate" | "import" | "download";

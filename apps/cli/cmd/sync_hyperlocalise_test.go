@@ -121,6 +121,79 @@ func TestHyperlocalisePullWritesImageVariantsDirectly(t *testing.T) {
 	}
 }
 
+func TestHyperlocalisePullWritesOfficeVariantsDirectly(t *testing.T) {
+	dir := t.TempDir()
+	wd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("getwd: %v", err)
+	}
+	t.Cleanup(func() {
+		_ = os.Chdir(wd)
+	})
+	if err := os.Chdir(dir); err != nil {
+		t.Fatalf("chdir: %v", err)
+	}
+
+	sourcePath := "docs/en/brief.docx"
+	targetPath := "docs/fr/brief.docx"
+	writePullSourceFile(t, filepath.FromSlash(sourcePath), "source-docx-bytes")
+	officeBytes := []byte("localized-docx-bytes")
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if !strings.HasPrefix(r.URL.Path, "/v1/projects/project-1/images/download") {
+			t.Fatalf("unexpected path: %s", r.URL.Path)
+		}
+		if got := r.URL.Query().Get("sourcePath"); got != sourcePath {
+			t.Fatalf("sourcePath = %q, want %q", got, sourcePath)
+		}
+		if got := r.URL.Query().Get("locale"); got != "fr" {
+			t.Fatalf("locale = %q, want fr", got)
+		}
+		_, _ = w.Write(officeBytes)
+	}))
+	t.Cleanup(server.Close)
+
+	rt := &hyperlocaliseSyncRuntime{
+		cfg: &config.I18NConfig{
+			Locales: config.LocaleConfig{
+				Source:  "en",
+				Targets: []string{"fr"},
+			},
+			Buckets: map[string]config.BucketConfig{
+				"docs": {
+					Files: []config.BucketFileMapping{{
+						From: "docs/en/**/*.docx",
+						To:   "docs/{{target}}/**/*.docx",
+					}},
+				},
+			},
+		},
+		configRoot: dir,
+		projectID:  "project-1",
+		client: &hyperlocaliseAPIClient{
+			baseURL:    server.URL,
+			apiKey:     "test-key",
+			httpClient: server.Client(),
+		},
+	}
+
+	report, err := runHyperlocalisePull(context.Background(), rt, syncCommonOptions{})
+	if err != nil {
+		t.Fatalf("pull office variant: %v", err)
+	}
+	if report.Downloaded != 1 {
+		t.Fatalf("report = %#v, want one downloaded office file", report)
+	}
+
+	got, err := os.ReadFile(filepath.FromSlash(targetPath))
+	if err != nil {
+		t.Fatalf("read target office file: %v", err)
+	}
+	if string(got) != string(officeBytes) {
+		t.Fatalf("target content = %q, want %q", string(got), string(officeBytes))
+	}
+}
+
 func TestHyperlocalisePushUploadsSourceFileMultipart(t *testing.T) {
 	dir := t.TempDir()
 	t.Chdir(dir)
@@ -305,6 +378,56 @@ func TestPlanHyperlocaliseFilesExpandsBlogMarkdownGlob(t *testing.T) {
 	}
 	if got := filepath.ToSlash(second.TargetPaths["zh-CN"]); got != "_posts/zh-CN/what-is-translation-intelligence.md" {
 		t.Fatalf("zh-CN target = %q, want _posts/zh-CN/what-is-translation-intelligence.md", got)
+	}
+}
+
+func TestHyperlocalisePushDryRunPlansOfficeSourcePaths(t *testing.T) {
+	dir := t.TempDir()
+	t.Chdir(dir)
+	writePushSourceFile(t, "docs/en/brief.docx", "docx-bytes")
+	writePushSourceFile(t, "sheets/en/rates.xlsx", "xlsx-bytes")
+	writePushSourceFile(t, "decks/en/pitch.pptx", "pptx-bytes")
+
+	var requestCount atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requestCount.Add(1)
+		t.Fail()
+	}))
+	t.Cleanup(server.Close)
+
+	rt := &hyperlocaliseSyncRuntime{
+		cfg: &config.I18NConfig{
+			Locales: config.LocaleConfig{
+				Source:  "en",
+				Targets: []string{"fr"},
+			},
+			Buckets: map[string]config.BucketConfig{
+				"office": {
+					Files: []config.BucketFileMapping{
+						{From: "docs/en/**/*.docx", To: "docs/{{target}}/**/*.docx"},
+						{From: "sheets/en/**/*.xlsx", To: "sheets/{{target}}/**/*.xlsx"},
+						{From: "decks/en/**/*.pptx", To: "decks/{{target}}/**/*.pptx"},
+					},
+				},
+			},
+		},
+		projectID: "project-1",
+		client: &hyperlocaliseAPIClient{
+			baseURL:    server.URL,
+			apiKey:     "test-key",
+			httpClient: server.Client(),
+		},
+	}
+
+	report, err := runHyperlocalisePush(context.Background(), rt, syncCommonOptions{dryRun: true})
+	if err != nil {
+		t.Fatalf("dry-run push office sources: %v", err)
+	}
+	if requestCount.Load() != 0 {
+		t.Fatalf("requestCount = %d, want no upload requests", requestCount.Load())
+	}
+	if !report.Complete || !report.DryRun || report.PlannedFiles != 3 || report.UploadedFiles != 3 {
+		t.Fatalf("report = %#v, want three complete dry-run office plans", report)
 	}
 }
 

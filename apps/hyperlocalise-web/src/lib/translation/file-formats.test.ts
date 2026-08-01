@@ -14,6 +14,7 @@ import { describe, expect, it } from "vite-plus/test";
 
 import {
   getLocaleScanExtensions,
+  getSupportedSourceUploadAccept,
   inferSupportedFileTranslationFileFormat,
   inferSupportedImageTranslationFileFormat,
   inferSupportedOfficeTranslationFileFormat,
@@ -75,11 +76,20 @@ describe("translation file formats", () => {
     expect(inferSupportedTranslationFileFormat("legacy.xls")).toBe("xls");
     expect(inferSupportedTranslationFileFormat("deck.pptx")).toBe("pptx");
     expect(inferSupportedOfficeTranslationFileFormat("deck.pptx")).toBe("pptx");
+    expect(inferSupportedSourceUploadFormat("brief.docx")).toBe("docx");
+    expect(isSupportedSourceUploadFormat("deck.pptx")).toBe(true);
     expect(inferSupportedFileTranslationFileFormat("brief.docx")).toBeNull();
     expect(isOfficeTranslationFileFormat("docx")).toBe(true);
     expect(isBinaryTranslationFileFormat("xlsx")).toBe(true);
     expect(isBinaryTranslationFileFormat("png")).toBe(true);
     expect(isBinaryTranslationFileFormat("json")).toBe(false);
+  });
+
+  it("builds a source-upload accept list including office and images", () => {
+    const accept = getSupportedSourceUploadAccept();
+    expect(accept.split(",")).toEqual(
+      expect.arrayContaining([".json", ".png", ".docx", ".xlsx", ".xls", ".pptx", ".webp"]),
+    );
   });
 
   it("rejects unsupported file extensions", () => {

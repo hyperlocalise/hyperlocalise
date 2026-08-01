@@ -218,3 +218,8 @@ export function getLocaleScanExtensions(): string[] {
 
   return [...extensions].toSorted();
 }
+
+/** Comma-separated `accept` value for project source upload file pickers. */
+export function getSupportedSourceUploadAccept(): string {
+  return Object.keys(formatsByExtension).toSorted().join(",");
+}

@@ -212,7 +212,7 @@ func runHyperlocalisePull(ctx context.Context, rt *hyperlocaliseSyncRuntime, o s
 			}
 
 			var content []byte
-			if isHyperlocaliseImageFileFormat(plan.FileFormat) {
+			if isHyperlocaliseBinaryFileFormat(plan.FileFormat) {
 				content, err = rt.client.downloadImageVariant(ctx, rt.projectID, plan.SourcePath, locale)
 				if err != nil {
 					if isHyperlocaliseNotFound(err) {
@@ -220,7 +220,7 @@ func runHyperlocalisePull(ctx context.Context, rt *hyperlocaliseSyncRuntime, o s
 						continue
 					}
 					report.Complete = false
-					return report, fmt.Errorf("download image variant for source %q locale %q: %w", plan.SourcePath, locale, err)
+					return report, fmt.Errorf("download binary variant for source %q locale %q: %w", plan.SourcePath, locale, err)
 				}
 				if err := writeFileAtomic(resolvedTargetPath, content); err != nil {
 					report.Complete = false
@@ -433,6 +433,8 @@ func inferHyperlocaliseFileFormat(path string) string {
 		return "json"
 	case ".jsonc":
 		return "jsonc"
+	case ".yaml", ".yml":
+		return "yaml"
 	case ".arb":
 		return "arb"
 	case ".xlf", ".xlif", ".xliff":
@@ -463,6 +465,14 @@ func inferHyperlocaliseFileFormat(path string) string {
 		return "jpeg"
 	case ".webp":
 		return "webp"
+	case ".docx":
+		return "docx"
+	case ".xlsx":
+		return "xlsx"
+	case ".xls":
+		return "xls"
+	case ".pptx":
+		return "pptx"
 	default:
 		return ""
 	}
@@ -475,6 +485,19 @@ func isHyperlocaliseImageFileFormat(format string) bool {
 	default:
 		return false
 	}
+}
+
+func isHyperlocaliseOfficeFileFormat(format string) bool {
+	switch format {
+	case "docx", "xlsx", "xls", "pptx":
+		return true
+	default:
+		return false
+	}
+}
+
+func isHyperlocaliseBinaryFileFormat(format string) bool {
+	return isHyperlocaliseImageFileFormat(format) || isHyperlocaliseOfficeFileFormat(format)
 }
 
 func sha256File(path string) (string, error) {

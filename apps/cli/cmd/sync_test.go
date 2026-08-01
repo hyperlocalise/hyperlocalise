@@ -93,9 +93,44 @@ func TestHyperlocaliseSyncRecognizesImageFiles(t *testing.T) {
 		if !isHyperlocaliseImageFileFormat(tc.format) {
 			t.Fatalf("isHyperlocaliseImageFileFormat(%q) = false, want true", tc.format)
 		}
+		if !isHyperlocaliseBinaryFileFormat(tc.format) {
+			t.Fatalf("isHyperlocaliseBinaryFileFormat(%q) = false, want true", tc.format)
+		}
 	}
 	if isHyperlocaliseImageFileFormat("json") {
 		t.Fatalf("isHyperlocaliseImageFileFormat(json) = true, want false")
+	}
+}
+
+func TestHyperlocaliseSyncRecognizesOfficeFiles(t *testing.T) {
+	cases := []struct {
+		path   string
+		format string
+	}{
+		{path: "docs/brief.docx", format: "docx"},
+		{path: "sheets/rates.xlsx", format: "xlsx"},
+		{path: "sheets/legacy.xls", format: "xls"},
+		{path: "decks/pitch.pptx", format: "pptx"},
+	}
+	for _, tc := range cases {
+		if got := inferHyperlocaliseFileFormat(tc.path); got != tc.format {
+			t.Fatalf("inferHyperlocaliseFileFormat(%q) = %q, want %q", tc.path, got, tc.format)
+		}
+		if !isHyperlocaliseOfficeFileFormat(tc.format) {
+			t.Fatalf("isHyperlocaliseOfficeFileFormat(%q) = false, want true", tc.format)
+		}
+		if !isHyperlocaliseBinaryFileFormat(tc.format) {
+			t.Fatalf("isHyperlocaliseBinaryFileFormat(%q) = false, want true", tc.format)
+		}
+		if isHyperlocaliseImageFileFormat(tc.format) {
+			t.Fatalf("isHyperlocaliseImageFileFormat(%q) = true, want false", tc.format)
+		}
+	}
+	if isHyperlocaliseOfficeFileFormat("json") {
+		t.Fatalf("isHyperlocaliseOfficeFileFormat(json) = true, want false")
+	}
+	if isHyperlocaliseBinaryFileFormat("json") {
+		t.Fatalf("isHyperlocaliseBinaryFileFormat(json) = true, want false")
 	}
 }
 
