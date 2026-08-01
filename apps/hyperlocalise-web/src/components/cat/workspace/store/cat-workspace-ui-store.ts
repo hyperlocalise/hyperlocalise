@@ -44,6 +44,10 @@ export class CatWorkspaceUiStore {
     return this.viewMode === "side-by-side";
   }
 
+  get isFileView() {
+    return this.viewMode === "file";
+  }
+
   setViewMode(mode: CatWorkspaceViewMode) {
     this.viewMode = mode;
     if (this.#persistViewMode) {

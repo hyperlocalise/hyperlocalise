@@ -10,12 +10,17 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-export type CatWorkspaceViewMode = "comfortable" | "side-by-side";
+export type CatWorkspaceViewMode = "comfortable" | "side-by-side" | "file";
 
 export const CAT_WORKSPACE_VIEW_MODE_STORAGE_KEY = "cat-workspace-view-mode:v1";
 
 export const CAT_COMFORTABLE_PAGE_LIMIT = 50;
 export const CAT_SIDE_BY_SIDE_PAGE_LIMIT = 20;
+export const CAT_FILE_VIEW_PAGE_LIMIT = 1;
+
+export function isCatWorkspaceViewMode(value: string | null | undefined): value is CatWorkspaceViewMode {
+  return value === "comfortable" || value === "side-by-side" || value === "file";
+}
 
 export function readCatWorkspaceViewMode(): CatWorkspaceViewMode {
   if (typeof window === "undefined") {
@@ -24,7 +29,7 @@ export function readCatWorkspaceViewMode(): CatWorkspaceViewMode {
 
   try {
     const stored = window.localStorage.getItem(CAT_WORKSPACE_VIEW_MODE_STORAGE_KEY);
-    if (stored === "comfortable" || stored === "side-by-side") {
+    if (isCatWorkspaceViewMode(stored)) {
       return stored;
     }
   } catch {
@@ -47,5 +52,11 @@ export function writeCatWorkspaceViewMode(mode: CatWorkspaceViewMode) {
 }
 
 export function catPageLimitForViewMode(mode: CatWorkspaceViewMode) {
-  return mode === "side-by-side" ? CAT_SIDE_BY_SIDE_PAGE_LIMIT : CAT_COMFORTABLE_PAGE_LIMIT;
+  if (mode === "side-by-side") {
+    return CAT_SIDE_BY_SIDE_PAGE_LIMIT;
+  }
+  if (mode === "file") {
+    return CAT_FILE_VIEW_PAGE_LIMIT;
+  }
+  return CAT_COMFORTABLE_PAGE_LIMIT;
 }

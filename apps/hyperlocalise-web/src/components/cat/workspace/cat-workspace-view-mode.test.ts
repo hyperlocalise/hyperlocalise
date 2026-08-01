@@ -15,6 +15,7 @@ import { describe, expect, it, vi } from "vite-plus/test";
 import {
   CAT_WORKSPACE_VIEW_MODE_STORAGE_KEY,
   catPageLimitForViewMode,
+  isCatWorkspaceViewMode,
   readCatWorkspaceViewMode,
   writeCatWorkspaceViewMode,
 } from "./cat-workspace-view-mode";
@@ -38,6 +39,15 @@ describe("cat-workspace-view-mode", () => {
     expect(readCatWorkspaceViewMode()).toBe("side-by-side");
   });
 
+  it("reads stored file view mode", () => {
+    const getItem = vi.fn().mockReturnValue("file");
+    vi.stubGlobal("window", {
+      localStorage: { getItem, setItem: vi.fn() },
+    });
+
+    expect(readCatWorkspaceViewMode()).toBe("file");
+  });
+
   it("writes view mode to storage", () => {
     const setItem = vi.fn();
     vi.stubGlobal("window", {
@@ -52,5 +62,11 @@ describe("cat-workspace-view-mode", () => {
   it("maps view mode to page limits", () => {
     expect(catPageLimitForViewMode("comfortable")).toBe(50);
     expect(catPageLimitForViewMode("side-by-side")).toBe(20);
+    expect(catPageLimitForViewMode("file")).toBe(1);
+  });
+
+  it("recognizes valid view modes", () => {
+    expect(isCatWorkspaceViewMode("file")).toBe(true);
+    expect(isCatWorkspaceViewMode("grid")).toBe(false);
   });
 });

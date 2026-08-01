@@ -20,6 +20,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/primitives/cn";
 
 import { CatEditorPanel } from "@/components/cat/editor/cat-editor-panel";
+import { CatFileViewPanel } from "@/components/cat/file-view/cat-file-view-panel";
 import { CatIntelligencePanel } from "@/components/cat/intelligence/cat-intelligence-panel";
 import { CatQueuePanel } from "@/components/cat/queue/cat-queue-panel";
 import { CatSegmentKeyMeta } from "@/components/cat/segment/cat-segment-key-meta";
@@ -27,6 +28,7 @@ import { CatSideBySidePanel } from "@/components/cat/side-by-side/cat-side-by-si
 import type { CatWorkspaceViewProps } from "@/components/cat/shared/dependencies";
 import { catWorkspaceMessages } from "@/components/cat/shared/cat.messages";
 
+import { resolveCatFileViewCapabilities } from "./cat-file-view-capabilities";
 import { CatPanelErrorBoundary } from "./cat-panel-error-boundary";
 import { useCatWorkspace } from "./cat-workspace-context";
 import { catWorkspaceViewMessages } from "./cat-workspace.messages";
@@ -119,6 +121,7 @@ export const CatWorkspaceView = observer(function CatWorkspaceView({
   const isCompact = useIsCompactWorkspace();
   const [activePanel, setActivePanel] = useState<CatWorkspacePanel>("edit");
   const isSideBySideDesktop = viewMode === "side-by-side" && !isCompact;
+  const isFileView = viewMode === "file";
   const selectedSegmentIdForIntelligence = intelligenceSegmentId;
   const isIntelligencePanelVisible = Boolean(
     selectedSegmentIdForIntelligence &&
@@ -386,7 +389,45 @@ export const CatWorkspaceView = observer(function CatWorkspaceView({
     );
   }
 
+  function renderFileViewPanel() {
+    const capabilities = resolveCatFileViewCapabilities({
+      sourcePath: editorSegment.sourcePath ?? shell.fileContext.sourcePath,
+      contentKind: editorSegment.contentKind,
+    });
+
+    return (
+      <CatPanelErrorBoundary scope="editor" resetKeys={[viewMode, editorSegment.id]}>
+        <CatFileViewPanel
+          segment={editorSegment}
+          viewerId={capabilities.viewerId}
+          filename={shell.fileContext.filename}
+          canEdit={canApprove}
+          canApprove={canApprove}
+          isApproving={isApproving}
+          isImageBusy={isImageBusy}
+          isSegmentTargetLoading={isSegmentTargetLoading}
+          primaryActionLabel={shell.primaryActionLabel}
+          onApprove={() => void review.onApprove(editorSegment.id, editorSegment.targetText)}
+          onUpload={
+            editing.onUploadImage
+              ? (file) => void editing.onUploadImage?.(editorSegment.id, file)
+              : undefined
+          }
+          onRegenerate={
+            editing.onRegenerateImage
+              ? () => void editing.onRegenerateImage?.(editorSegment.id)
+              : undefined
+          }
+        />
+      </CatPanelErrorBoundary>
+    );
+  }
+
   function renderEditorPanel() {
+    if (isFileView) {
+      return renderFileViewPanel();
+    }
+
     return (
       <CatPanelErrorBoundary scope="editor" resetKeys={[editorSegment.id]}>
         <CatEditorPanel
@@ -541,71 +582,77 @@ export const CatWorkspaceView = observer(function CatWorkspaceView({
       )}
     >
       {isCompact ? (
-        <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-          <div className="shrink-0 border-b border-border px-4 py-3">
-            <div className="min-w-0 space-y-1">
-              <p className="font-mono text-xs text-muted-foreground tabular-nums">
-                {totalSegments != null ? (
-                  <FormattedMessage
-                    {...catWorkspaceViewMessages.segmentPosition}
-                    values={{
-                      position: String(segmentPosition).padStart(2, "0"),
-                      total: String(totalSegments).padStart(2, "0"),
-                    }}
-                  />
-                ) : (
-                  <FormattedMessage
-                    {...catWorkspaceViewMessages.segmentPositionOpenEnded}
-                    values={{
-                      position: String(segmentPosition).padStart(2, "0"),
-                    }}
-                  />
-                )}
-              </p>
-              <CatSegmentKeyMeta
-                segmentKey={editorSegment.key}
-                sourcePath={editorSegment.sourcePath}
-                keyClassName="text-sm font-medium text-foreground"
-              />
+        isFileView ? (
+          renderFileViewPanel()
+        ) : (
+          <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+            <div className="shrink-0 border-b border-border px-4 py-3">
+              <div className="min-w-0 space-y-1">
+                <p className="font-mono text-xs text-muted-foreground tabular-nums">
+                  {totalSegments != null ? (
+                    <FormattedMessage
+                      {...catWorkspaceViewMessages.segmentPosition}
+                      values={{
+                        position: String(segmentPosition).padStart(2, "0"),
+                        total: String(totalSegments).padStart(2, "0"),
+                      }}
+                    />
+                  ) : (
+                    <FormattedMessage
+                      {...catWorkspaceViewMessages.segmentPositionOpenEnded}
+                      values={{
+                        position: String(segmentPosition).padStart(2, "0"),
+                      }}
+                    />
+                  )}
+                </p>
+                <CatSegmentKeyMeta
+                  segmentKey={editorSegment.key}
+                  sourcePath={editorSegment.sourcePath}
+                  keyClassName="text-sm font-medium text-foreground"
+                />
+              </div>
             </div>
-          </div>
 
-          <Tabs
-            value={activePanel}
-            onValueChange={(value) => setActivePanel(value as CatWorkspacePanel)}
-            className="min-h-0 flex-1 gap-0 overflow-hidden"
-          >
-            <TabsList className="mx-4 mt-3 grid h-10 w-auto grid-cols-3">
-              <TabsTrigger value="edit">
-                <FormattedMessage {...catWorkspaceMessages.tabEdit} />
-              </TabsTrigger>
-              <TabsTrigger value="queue">
-                <FormattedMessage {...catWorkspaceMessages.tabQueue} />
-              </TabsTrigger>
-              <TabsTrigger value="ai">
-                <FormattedMessage {...catWorkspaceMessages.tabAi} />
-              </TabsTrigger>
-            </TabsList>
-            <TabsContent
-              value="edit"
-              className="mt-3 min-h-0 flex-1 overflow-hidden data-[state=active]:flex data-[state=active]:flex-col"
+            <Tabs
+              value={activePanel}
+              onValueChange={(value) => setActivePanel(value as CatWorkspacePanel)}
+              className="min-h-0 flex-1 gap-0 overflow-hidden"
             >
-              {renderEditorPanel()}
-            </TabsContent>
-            <TabsContent
-              value="queue"
-              className="mt-3 min-h-0 flex-1 overflow-hidden data-[state=active]:flex data-[state=active]:flex-col"
-            >
-              {renderQueuePanel()}
-            </TabsContent>
-            <TabsContent
-              value="ai"
-              className="mt-3 min-h-0 flex-1 overflow-hidden data-[state=active]:flex data-[state=active]:flex-col"
-            >
-              {activePanel === "ai" ? renderIntelligencePanel() : null}
-            </TabsContent>
-          </Tabs>
-        </div>
+              <TabsList className="mx-4 mt-3 grid h-10 w-auto grid-cols-3">
+                <TabsTrigger value="edit">
+                  <FormattedMessage {...catWorkspaceMessages.tabEdit} />
+                </TabsTrigger>
+                <TabsTrigger value="queue">
+                  <FormattedMessage {...catWorkspaceMessages.tabQueue} />
+                </TabsTrigger>
+                <TabsTrigger value="ai">
+                  <FormattedMessage {...catWorkspaceMessages.tabAi} />
+                </TabsTrigger>
+              </TabsList>
+              <TabsContent
+                value="edit"
+                className="mt-3 min-h-0 flex-1 overflow-hidden data-[state=active]:flex data-[state=active]:flex-col"
+              >
+                {renderEditorPanel()}
+              </TabsContent>
+              <TabsContent
+                value="queue"
+                className="mt-3 min-h-0 flex-1 overflow-hidden data-[state=active]:flex data-[state=active]:flex-col"
+              >
+                {renderQueuePanel()}
+              </TabsContent>
+              <TabsContent
+                value="ai"
+                className="mt-3 min-h-0 flex-1 overflow-hidden data-[state=active]:flex data-[state=active]:flex-col"
+              >
+                {activePanel === "ai" ? renderIntelligencePanel() : null}
+              </TabsContent>
+            </Tabs>
+          </div>
+        )
+      ) : isFileView ? (
+        renderFileViewPanel()
       ) : isSideBySideDesktop ? (
         renderSideBySidePanel()
       ) : (

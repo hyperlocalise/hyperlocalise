@@ -269,6 +269,12 @@ describe("CatWorkspaceUiStore", () => {
     expect(ui.viewMode).toBe("side-by-side");
     expect(ui.pageLimit).toBe(20);
     expect(ui.isSideBySideView).toBe(true);
+    expect(ui.isFileView).toBe(false);
+
+    ui.setViewMode("file");
+
+    expect(ui.isFileView).toBe(true);
+    expect(ui.pageLimit).toBe(1);
   });
 
   it("honors an explicit initial view mode without reading storage", () => {
