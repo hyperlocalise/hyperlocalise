@@ -10,9 +10,11 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { describe, expect, it, vi } from "vite-plus/test";
+// @vitest-environment happy-dom
+
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { describe, expect, it, vi } from "vite-plus/test";
 
 import { CatTestProviders } from "@/components/cat/shared/cat-test-utils";
 import type { CatSegment } from "@/components/cat/shared/types";
