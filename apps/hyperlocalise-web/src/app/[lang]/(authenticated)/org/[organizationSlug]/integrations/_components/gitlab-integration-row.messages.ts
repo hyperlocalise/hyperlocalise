@@ -213,6 +213,12 @@ export const gitlabIntegrationRowMessages = defineMessages({
     id: "eyjXCrIP8+",
     description: "GitLab connect error when workspace integration limit is reached",
   },
+  gitlabProjectSyncFailed: {
+    defaultMessage:
+      "GitLab was connected, but the project list could not be refreshed. Try refreshing the project list.",
+    id: "+D5jicWbYL",
+    description: "GitLab connect error when OAuth succeeded but the initial project sync failed",
+  },
   forbidden: {
     defaultMessage: "You do not have permission to connect GitLab for this organization.",
     id: "Nt5/wQGA4/",
@@ -230,6 +236,7 @@ const GITLAB_CONNECT_ERROR_MESSAGES: Record<string, MessageDescriptor> = {
   gitlab_account_already_connected: gitlabIntegrationRowMessages.gitlabAccountAlreadyConnected,
   gitlab_workspace_resource_limit_reached:
     gitlabIntegrationRowMessages.workspaceResourceLimitReached,
+  gitlab_project_sync_failed: gitlabIntegrationRowMessages.gitlabProjectSyncFailed,
   gitlab_forbidden: gitlabIntegrationRowMessages.forbidden,
 };
 

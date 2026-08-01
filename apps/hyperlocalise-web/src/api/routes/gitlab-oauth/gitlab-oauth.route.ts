@@ -282,6 +282,7 @@ export function createGitlabOAuthRoutes() {
         { organizationId: org.id, error: syncResult.error },
         "gitlab project sync after connect failed",
       );
+      return c.redirect(integrationsRedirectForOrg(org, { error: "gitlab_project_sync_failed" }));
     }
 
     return c.redirect(integrationsRedirectForOrg(org, { gitlab_connected: "1" }));
