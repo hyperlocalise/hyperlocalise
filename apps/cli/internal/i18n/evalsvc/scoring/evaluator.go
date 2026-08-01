@@ -113,7 +113,6 @@ func (e *Evaluator) Evaluate(source, translated, reference, targetLocale string,
 	if result.PlaceholderIntegrity < 1 {
 		if !hasPlaceholderDrop {
 			hardFails = append(hardFails, HardFailPlaceholderDrop)
-			hasPlaceholderDrop = true
 		}
 	}
 	if result.TagIntegrity < 1 {
