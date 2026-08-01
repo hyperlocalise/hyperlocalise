@@ -224,9 +224,13 @@ export async function listGitlabMembershipProjects(input: {
 
     for (const item of json) {
       const parsed = gitlabProjectSchema.safeParse(item);
-      if (parsed.success) {
-        projects.push(parsed.data);
+      if (!parsed.success) {
+        return err({
+          code: "gitlab_api_response_invalid",
+          message: "invalid_project_payload",
+        });
       }
+      projects.push(parsed.data);
     }
 
     nextUrl = nextPageUrl(response.headers.get("link"));

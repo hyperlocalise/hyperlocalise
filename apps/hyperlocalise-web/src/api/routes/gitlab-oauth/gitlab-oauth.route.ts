@@ -33,12 +33,26 @@ const logger = createLogger("gitlab-oauth");
 
 const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
-function integrationsRedirect(slug: string, params: Record<string, string>) {
-  const url = new URL(`/org/${slug}/integrations`, "http://localhost");
+type OrganizationRow = typeof schema.organizations.$inferSelect;
+
+function withQuery(path: string, params: Record<string, string>) {
+  const url = new URL(path, "http://localhost");
   for (const [key, value] of Object.entries(params)) {
     url.searchParams.set(key, value);
   }
   return `${url.pathname}${url.search}`;
+}
+
+/**
+ * Prefer the org integrations page when a slug exists; otherwise fall back to
+ * dashboard so slugless orgs never redirect to `/org/<uuid>/integrations`.
+ */
+function integrationsRedirectForOrg(org: OrganizationRow, params: Record<string, string>) {
+  if (org.slug) {
+    return withQuery(`/org/${org.slug}/integrations`, params);
+  }
+
+  return withQuery("/dashboard", params);
 }
 
 function isUniqueViolation(error: unknown) {
@@ -91,10 +105,15 @@ export function createGitlabOAuthRoutes() {
       return c.redirect("/dashboard?error=invalid_gitlab_state");
     }
 
+    const org = await resolveOrganizationFromState(verified);
+    if (!org) {
+      return c.redirect("/dashboard?error=organization_not_found");
+    }
+
     const errorParam = c.req.query("error");
     if (errorParam) {
       return c.redirect(
-        integrationsRedirect(verified.slug, {
+        integrationsRedirectForOrg(org, {
           error: errorParam === "access_denied" ? "gitlab_access_denied" : "gitlab_oauth_failed",
         }),
       );
@@ -102,15 +121,9 @@ export function createGitlabOAuthRoutes() {
 
     const code = c.req.query("code");
     if (!code) {
-      return c.redirect(integrationsRedirect(verified.slug, { error: "missing_gitlab_code" }));
+      return c.redirect(integrationsRedirectForOrg(org, { error: "missing_gitlab_code" }));
     }
 
-    const org = await resolveOrganizationFromState(verified);
-    if (!org) {
-      return c.redirect("/dashboard?error=organization_not_found");
-    }
-
-    const orgSlug = org.slug ?? org.id;
     const auth = await resolveApiAuthContextFromSession({
       cookie: c.req.header("cookie"),
       organizationSlug: org.slug ?? undefined,
@@ -123,7 +136,7 @@ export function createGitlabOAuthRoutes() {
     }
 
     if (!isWorkspaceOperatorRole(authOrganization.membership.role)) {
-      return c.redirect(integrationsRedirect(orgSlug, { error: "gitlab_forbidden" }));
+      return c.redirect(integrationsRedirectForOrg(org, { error: "gitlab_forbidden" }));
     }
 
     const now = new Date();
@@ -142,7 +155,7 @@ export function createGitlabOAuthRoutes() {
       .returning({ id: schema.gitlabConnectionStates.id });
 
     if (consumedStates.length === 0) {
-      return c.redirect(integrationsRedirect(orgSlug, { error: "invalid_gitlab_state" }));
+      return c.redirect(integrationsRedirectForOrg(org, { error: "invalid_gitlab_state" }));
     }
 
     const redirectUri = getGitlabRedirectUri(c.req.url);
@@ -154,7 +167,7 @@ export function createGitlabOAuthRoutes() {
     });
     if (isErr(tokenResult)) {
       logger.warn({ error: tokenResult.error }, "gitlab oauth token exchange failed");
-      return c.redirect(integrationsRedirect(orgSlug, { error: "gitlab_oauth_failed" }));
+      return c.redirect(integrationsRedirectForOrg(org, { error: "gitlab_oauth_failed" }));
     }
 
     const userResult = await fetchGitlabCurrentUser({
@@ -163,7 +176,7 @@ export function createGitlabOAuthRoutes() {
     });
     if (isErr(userResult)) {
       logger.warn({ error: userResult.error }, "gitlab oauth user fetch failed");
-      return c.redirect(integrationsRedirect(orgSlug, { error: "gitlab_oauth_failed" }));
+      return c.redirect(integrationsRedirectForOrg(org, { error: "gitlab_oauth_failed" }));
     }
 
     const encryptedFields = buildEncryptedGitlabTokenFields(tokenResult.value);
@@ -191,7 +204,7 @@ export function createGitlabOAuthRoutes() {
 
     if (conflictingUser && conflictingUser.organizationId !== org.id) {
       return c.redirect(
-        integrationsRedirect(orgSlug, { error: "gitlab_account_already_connected" }),
+        integrationsRedirectForOrg(org, { error: "gitlab_account_already_connected" }),
       );
     }
 
@@ -245,7 +258,7 @@ export function createGitlabOAuthRoutes() {
         );
         if (isErr(limitResult)) {
           return c.redirect(
-            integrationsRedirect(orgSlug, { error: "gitlab_workspace_resource_limit_reached" }),
+            integrationsRedirectForOrg(org, { error: "gitlab_workspace_resource_limit_reached" }),
           );
         }
         connectionId = limitResult.value;
@@ -253,11 +266,11 @@ export function createGitlabOAuthRoutes() {
     } catch (error) {
       if (isUniqueViolation(error)) {
         return c.redirect(
-          integrationsRedirect(orgSlug, { error: "gitlab_account_already_connected" }),
+          integrationsRedirectForOrg(org, { error: "gitlab_account_already_connected" }),
         );
       }
       logger.error({ err: error }, "gitlab connection upsert failed");
-      return c.redirect(integrationsRedirect(orgSlug, { error: "gitlab_oauth_failed" }));
+      return c.redirect(integrationsRedirectForOrg(org, { error: "gitlab_oauth_failed" }));
     }
 
     const syncResult = await syncGitlabConnectionProjects({
@@ -271,7 +284,7 @@ export function createGitlabOAuthRoutes() {
       );
     }
 
-    return c.redirect(integrationsRedirect(orgSlug, { gitlab_connected: "1" }));
+    return c.redirect(integrationsRedirectForOrg(org, { gitlab_connected: "1" }));
   });
 }
 
