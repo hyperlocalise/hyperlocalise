@@ -215,7 +215,10 @@ describe("Agent Tools RBAC", () => {
     return tool.execute(input, toolCallInfo);
   }
 
-  function dbSpy(ctx: ToolContext, method: "insert" | "select" | "update" | "delete" | "transaction") {
+  function dbSpy(
+    ctx: ToolContext,
+    method: "insert" | "select" | "update" | "delete" | "transaction",
+  ) {
     return ctx.db[method] as ReturnType<typeof vi.fn>;
   }
 
