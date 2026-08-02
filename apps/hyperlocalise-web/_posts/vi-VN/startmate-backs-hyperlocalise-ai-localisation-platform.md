@@ -1,8 +1,8 @@
 ---
-title: "Startmate Backs Hyperlocalise’s AI Localisation Platform"
+title: "Startmate Hỗ trợ Nền tảng Bản địa hóa AI của Hyperlocalise"
 date: 2026-07-31T00:00:00.000Z
-excerpt: Sydney startup joins Startmate’s Winter ’26 Accelerator to build the intelligence and execution layer for global growth — with AUD $120,000 in pre-seed funding.
-category: Company
+excerpt: Startup Sydney tham gia chương trình Tăng tốc Mùa đông ’26 của Startmate để xây dựng lớp trí tuệ và thực thi cho tăng trưởng toàn cầu — cùng khoản vốn tiền hạt giống trị giá 120.000 AUD.
+category: Công ty
 tags:
   - Startmate
   - Winter ’26
@@ -17,49 +17,49 @@ tags:
   - global growth
 ---
 
-**SYDNEY, Australia — 31 July 2026** — Hyperlocalise, the agentic localisation platform helping product teams launch successfully in every market, today announced it has secured AUD $120,000 in pre-seed funding from Startmate after being selected for its Winter ’26 Accelerator cohort.
+**SYDNEY, Úc — 31 tháng 7 năm 2026** — Hyperlocalise, nền tảng bản địa hóa ứng dụng AI agent giúp các đội ngũ sản phẩm ra mắt thành công tại mọi thị trường, hôm nay công bố đã huy động được 120.000 AUD vốn tiền hạt giống từ Startmate sau khi được chọn tham gia khóa Winter ’26 Accelerator.
 
 Hyperlocalise was chosen as one of 17 companies joining the highly selective program, which brings together ambitious founders from Australia and New Zealand building globally significant businesses. Coverage of the cohort announcement is available from [Startmate](https://www.startmate.com/writing/meet-our-winter-26-accelerator-cohort) and [Startup Daily](https://www.startupdaily.net/topic/accelerator/startmate-backs-17-startups-for-its-winter-intake/).
 
-## An AI workforce for localisation teams
+## Một đội ngũ AI dành cho các nhóm bản địa hóa
 
-The company is building an AI workforce for localisation teams. Its agents gather product context, preserve organisational knowledge, automate repetitive localisation work, and help teams translate and adapt every customer touchpoint with greater speed and market nuance.
+Công ty đang xây dựng một lực lượng lao động AI dành cho các nhóm bản địa hoá. Các tác nhân AI của công ty thu thập bối cảnh sản phẩm, bảo tồn kiến thức tổ chức, tự động hoá các công việc bản địa hoá lặp đi lặp lại, đồng thời giúp các nhóm dịch và điều chỉnh mọi điểm tiếp xúc với khách hàng nhanh hơn và phù hợp hơn với sắc thái của từng thị trường.
 
-Unlike tools that require companies to replace their existing localisation systems, Hyperlocalise is designed to work alongside the technology and workflows teams already use, while keeping human reviewers firmly in control.
+Không giống như các công cụ yêu cầu doanh nghiệp thay thế hệ thống bản địa hóa hiện có, Hyperlocalise được thiết kế để hoạt động song song với công nghệ và quy trình mà các nhóm đang sử dụng, đồng thời vẫn đảm bảo quyền kiểm soát chặt chẽ cho các chuyên gia đánh giá.
 
-“Companies do not struggle to go global because they lack translation tools. They struggle because the knowledge needed to make good localisation decisions is scattered across people, products and platforms,” said Minh Cung, co-founder of Hyperlocalise.
+“Các công ty không gặp khó khăn khi vươn ra toàn cầu vì họ thiếu công cụ dịch thuật. Họ gặp khó khăn vì kiến thức cần thiết để đưa ra các quyết định bản địa hóa đúng đắn bị phân tán giữa con người, sản phẩm và nền tảng,” Minh Cung, đồng sáng lập Hyperlocalise, cho biết.
 
-“We are building Hyperlocalise so localisation teams can scale at the same speed as product development. Our goal is not to replace the people who understand customers and cultures. It is to give them an AI workforce that learns alongside them, carries context between projects and removes the repetitive work standing between a product and its global customers.”
+“Chúng tôi xây dựng Hyperlocalise để các đội ngũ bản địa hoá có thể mở rộng quy mô với tốc độ ngang bằng tốc độ phát triển sản phẩm. Mục tiêu của chúng tôi không phải là thay thế những người hiểu khách hàng và các nền văn hoá, mà là cung cấp cho họ một lực lượng lao động AI học hỏi cùng họ, duy trì ngữ cảnh giữa các dự án và loại bỏ những công việc lặp đi lặp lại đang cản trở sản phẩm tiếp cận khách hàng trên toàn cầu.”
 
-## Closing the gap between product and every market
+## Thu hẹp khoảng cách giữa sản phẩm và mọi thị trường
 
-Localisation remains a fragmented and heavily manual process for many companies. Product context is often spread across design files, tickets, documentation, messaging platforms and the knowledge of individual employees. Translators and market reviewers must repeatedly search for information, clarify intent and coordinate feedback across time zones.
+Đối với nhiều công ty, bản địa hóa vẫn là một quy trình phân mảnh và phụ thuộc nhiều vào thao tác thủ công. Ngữ cảnh sản phẩm thường được phân tán trong các tệp thiết kế, ticket, tài liệu, nền tảng nhắn tin và kiến thức của từng nhân viên. Biên dịch viên và người đánh giá tại thị trường phải liên tục tìm kiếm thông tin, làm rõ ý định và phối hợp phản hồi giữa các múi giờ.
 
-As product release cycles accelerate, these operational bottlenecks can delay international launches by weeks or months. Hyperlocalise brings the workflow into an agentic system that can support translation, transcreation, visual context, asset localisation and human review while maintaining brand voice and local market requirements.
+Khi chu kỳ phát hành sản phẩm ngày càng được rút ngắn, những điểm nghẽn vận hành này có thể khiến việc ra mắt quốc tế bị trì hoãn hàng tuần hoặc hàng tháng. Hyperlocalise đưa quy trình này vào một hệ thống tác tử có thể hỗ trợ dịch thuật, chuyển ngữ sáng tạo, ngữ cảnh trực quan, bản địa hóa nội dung và đánh giá của con người, đồng thời duy trì tiếng nói thương hiệu và các yêu cầu của thị trường địa phương.
 
-The Startmate funding will support the continued development of Hyperlocalise’s agent automation, self-evolving knowledge system and next-generation computer-assisted translation workspace. The company will also expand its pilot partnerships and integrations with existing localisation technology stacks.
+Nguồn vốn từ Startmate sẽ hỗ trợ việc tiếp tục phát triển tính năng tự động hóa tác tử, hệ thống tri thức tự tiến hóa và không gian làm việc dịch thuật có máy tính hỗ trợ thế hệ mới của Hyperlocalise. Công ty cũng sẽ mở rộng các mối quan hệ hợp tác thí điểm và tích hợp với các nền tảng công nghệ bản địa hóa hiện có.
 
-## Founded for global growth
+## Được thành lập để phát triển toàn cầu
 
-Hyperlocalise was founded by Minh Cung and Hans Bui, who bring experience across localisation engineering, global product development, payments and international launches.
+Hyperlocalise được thành lập bởi Minh Cung và Hans Bui, những người có kinh nghiệm trong lĩnh vực kỹ thuật bản địa hóa, phát triển sản phẩm toàn cầu, thanh toán và ra mắt sản phẩm trên thị trường quốc tế.
 
-Cung previously spent four years building global localisation infrastructure at Canva, including contributing to Magic Translate, before leading localisation engineering at Heidi Health. Bui brings product and commercial experience from Samsung, where he worked across payment solutions, partnerships and global flagship launches, as well as Tyro Payments.
+Cung trước đây đã dành bốn năm xây dựng cơ sở hạ tầng bản địa hóa toàn cầu tại Canva, trong đó có việc đóng góp cho Magic Translate, trước khi dẫn dắt mảng kỹ thuật bản địa hóa tại Heidi Health. Bui có kinh nghiệm về sản phẩm và thương mại từ Samsung, nơi anh làm việc trong các lĩnh vực giải pháp thanh toán, quan hệ đối tác và các đợt ra mắt sản phẩm chủ lực trên toàn cầu, cũng như tại Tyro Payments.
 
-“At Canva, I saw that localisation could be one of the highest-leverage growth investments a company makes,” Cung said. “Every language can unlock new customers, stronger engagement and deeper trust. We started Hyperlocalise because we want more companies to access that opportunity without localisation becoming the bottleneck.”
+“Tại Canva, tôi nhận thấy bản địa hóa có thể là một trong những khoản đầu tư thúc đẩy tăng trưởng hiệu quả nhất mà một công ty có thể thực hiện,” Cung chia sẻ. “Mỗi ngôn ngữ đều có thể mở ra cơ hội tiếp cận khách hàng mới, tăng cường mức độ tương tác và xây dựng niềm tin sâu sắc hơn. Chúng tôi thành lập Hyperlocalise vì muốn nhiều công ty hơn có thể nắm bắt cơ hội đó mà không để việc bản địa hóa trở thành điểm nghẽn.”
 
-During Startmate’s 12-week Accelerator, Hyperlocalise will work with experienced founders, operators, mentors and investors from across Australia and New Zealand. The program will culminate in Demo Day on 20 October 2026, followed by a week in San Francisco connecting participating companies with the US startup and investment ecosystem.
+Trong suốt chương trình Accelerator kéo dài 12 tuần của Startmate, Hyperlocalise sẽ làm việc với các nhà sáng lập, nhà điều hành, cố vấn và nhà đầu tư giàu kinh nghiệm đến từ khắp Australia và New Zealand. Chương trình sẽ kết thúc bằng Demo Day vào ngày 20 tháng 10 năm 2026, sau đó là một tuần tại San Francisco để kết nối các công ty tham gia với hệ sinh thái startup và đầu tư của Hoa Kỳ.
 
-Hyperlocalise’s long-term vision is to become the intelligence and execution layer for global growth: the platform companies use not simply to translate their products, but to make them feel genuinely local in every market.
+Tầm nhìn dài hạn của Hyperlocalise là trở thành lớp trí tuệ và thực thi cho tăng trưởng toàn cầu: nền tảng mà các công ty sử dụng không chỉ để dịch sản phẩm của họ, mà còn để khiến sản phẩm thực sự mang đậm bản sắc địa phương tại mọi thị trường.
 
-## Press coverage
+## Đưa tin từ báo chí
 
 - [Meet our Winter ’26 Accelerator Cohort](https://www.startmate.com/writing/meet-our-winter-26-accelerator-cohort) — Startmate
 - [Startmate backs 17 startups for its winter intake](https://www.startupdaily.net/topic/accelerator/startmate-backs-17-startups-for-its-winter-intake/) — Startup Daily
 
-## About Hyperlocalise
+## Giới thiệu về Hyperlocalise
 
-Hyperlocalise is an agentic localisation platform that helps product and localisation teams launch globally in days. Its AI workforce brings product, brand and market context into every localisation decision, automates repetitive workflows and enables first-class human review without forcing teams to replace their existing tools.
+Hyperlocalise là một nền tảng bản địa hóa tác vụ giúp các đội ngũ sản phẩm và bản địa hóa ra mắt sản phẩm trên toàn cầu chỉ trong vài ngày. Đội ngũ AI của nền tảng đưa bối cảnh về sản phẩm, thương hiệu và thị trường vào mọi quyết định bản địa hóa, tự động hóa các quy trình lặp đi lặp lại và cho phép con người đánh giá ở cấp độ chuyên sâu mà không buộc các đội ngũ phải thay thế những công cụ hiện có.
 
-Hyperlocalise was founded in Sydney, Australia, by Minh Cung and Hans Bui.
+Hyperlocalise được Minh Cung và Hans Bui thành lập tại Sydney, Úc.
 
 For more information, visit [hyperlocalise.com](/), or [read more about translation intelligence](/blog/what-is-translation-intelligence).
