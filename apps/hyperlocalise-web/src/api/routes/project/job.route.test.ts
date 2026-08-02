@@ -574,3 +574,67 @@ describe("project job list triage", () => {
     expect(body.jobs.some((job) => job.id === succeededJob.id)).toBe(false);
   });
 });
+
+describe("workspace job list triage", () => {
+  it("ranks organization triage jobs review before failed before in-progress", async () => {
+    const { identity, organization, project, user } =
+      await projectFixture.createStoredProjectFixture();
+    const headers = await projectFixture.authHeadersFor(identity);
+
+    const [queuedJob] = await insertNativeJob({
+      organizationId: organization.id,
+      projectId: project.id,
+      ownerUserId: user.id,
+      status: "queued",
+      updatedAt: new Date("2026-08-01T12:00:00.000Z"),
+    });
+    const [failedJob] = await insertNativeJob({
+      organizationId: organization.id,
+      projectId: project.id,
+      ownerUserId: user.id,
+      status: "failed",
+      updatedAt: new Date("2026-08-01T11:00:00.000Z"),
+    });
+    const [reviewJob] = await insertNativeJob({
+      organizationId: organization.id,
+      projectId: project.id,
+      ownerUserId: user.id,
+      status: "waiting_for_review",
+      updatedAt: new Date("2026-08-01T10:00:00.000Z"),
+    });
+    const [succeededJob] = await insertNativeJob({
+      organizationId: organization.id,
+      projectId: project.id,
+      ownerUserId: user.id,
+      status: "succeeded",
+      updatedAt: new Date("2026-08-01T13:00:00.000Z"),
+    });
+    const [unownedReviewJob] = await insertNativeJob({
+      organizationId: organization.id,
+      projectId: project.id,
+      status: "waiting_for_review",
+      updatedAt: new Date("2026-08-01T14:00:00.000Z"),
+    });
+
+    const response = await client.api.orgs[":organizationSlug"].jobs.$get(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+        },
+        query: {
+          triage: true,
+          relationship: "assigned",
+          limit: "10",
+        },
+      },
+      { headers },
+    );
+
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as { jobs: Array<{ id: string; status: string }> };
+    expect(body.jobs.map((job) => job.id)).toEqual([reviewJob.id, failedJob.id, queuedJob.id]);
+    expect(body.jobs.map((job) => job.status)).toEqual(["waiting_for_review", "failed", "queued"]);
+    expect(body.jobs.some((job) => job.id === succeededJob.id)).toBe(false);
+    expect(body.jobs.some((job) => job.id === unownedReviewJob.id)).toBe(false);
+  });
+});
