@@ -515,17 +515,19 @@ func tokenF1Normalized(reference, candidate string) float64 {
 	if len(r) == 0 || len(c) == 0 {
 		return 0
 	}
-	rCount := map[string]int{}
+	// BOLT OPTIMIZATION: Avoid allocating two maps. We only need one map to count
+	// tokens in the reference string, and then we can decrement counts as we find
+	// matching tokens in the candidate string. Pre-allocate map capacity based on r's length.
+	rCount := make(map[string]int, len(r))
 	for _, tok := range r {
 		rCount[tok]++
 	}
-	cCount := map[string]int{}
-	for _, tok := range c {
-		cCount[tok]++
-	}
 	matches := 0
-	for tok, cnt := range rCount {
-		matches += min(cnt, cCount[tok])
+	for _, tok := range c {
+		if count := rCount[tok]; count > 0 {
+			matches++
+			rCount[tok] = count - 1
+		}
 	}
 	precision := float64(matches) / float64(len(c))
 	recall := float64(matches) / float64(len(r))

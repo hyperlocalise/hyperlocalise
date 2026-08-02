@@ -132,3 +132,64 @@ func TestEvaluatorDetectsInvalidCyrillicLocaleScript(t *testing.T) {
 		t.Fatalf("expected locale script hard fail for non-Cyrillic text, got %+v", got.HardFails)
 	}
 }
+
+func TestTokenF1_EdgeCases(t *testing.T) {
+	tests := []struct {
+		name      string
+		reference string
+		candidate string
+		expected  float64
+	}{
+		{
+			name:      "exact match",
+			reference: "hello world",
+			candidate: "hello world",
+			expected:  1.0,
+		},
+		{
+			name:      "empty strings",
+			reference: "",
+			candidate: "",
+			expected:  1.0,
+		},
+		{
+			name:      "one empty string",
+			reference: "hello",
+			candidate: "",
+			expected:  0.0,
+		},
+		{
+			name:      "no common tokens",
+			reference: "hello world",
+			candidate: "foo bar",
+			expected:  0.0,
+		},
+		{
+			name:      "partial match with duplicates in reference",
+			reference: "apple apple banana",
+			candidate: "apple banana",
+			expected:  0.8, // precision = 2/2 = 1.0, recall = 2/3 = 0.666..., F1 = 2 * 1 * 0.666 / (1 + 0.666) = 0.8
+		},
+		{
+			name:      "partial match with duplicates in candidate",
+			reference: "apple banana",
+			candidate: "apple apple banana",
+			expected:  0.8, // precision = 2/3 = 0.666..., recall = 2/2 = 1.0, F1 = 0.8
+		},
+		{
+			name:      "case-insensitivity and punctuation normalization in tokenF1",
+			reference: "Hello, World!",
+			candidate: "hello world",
+			expected:  1.0,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got := tokenF1(tc.reference, tc.candidate)
+			if got != tc.expected {
+				t.Errorf("expected F1 score %v, got %v", tc.expected, got)
+			}
+		})
+	}
+}
