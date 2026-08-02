@@ -1,5 +1,11 @@
 # Crowdin Steward's Journal
 
+## 2026-12-22 - Embed ListOptions in DictionariesListOptions
+
+**Learning:** In Crowdin API v2, the List Dictionaries endpoint (`GET /api/v2/projects/{projectId}/dictionaries`) supports standard pagination parameters (`limit` and `offset`). However, `DictionariesListOptions` did not embed `ListOptions` or include standard pagination parameters in its `Values()` query string serialization. This caused queries with explicit limits/offsets to be ignored under actual workflows.
+
+**Action:** Updated `DictionariesListOptions` in `model/dictionaries.go` to embed `ListOptions` and updated its `Values()` method to delegate to `o.ListOptions.Values()`. Added comprehensive unit tests validating correct pagination parameter serialization in `model/dictionaries_test.go` and `dictionaries_test.go`.
+
 ## 2026-12-21 - Fix GetManagers endpoint path and signature parity
 
 **Learning:** In Crowdin Enterprise API v2, retrieving a single manager requires specifying both the `groupId` and the `userId` in the path `/api/v2/groups/{groupId}/managers/{userId}`. The SDK previously only accepted `groupID` and requested the listing endpoint `/api/v2/groups/{groupId}/managers` while trying to unmarshal it as a single `ManagerGetResponse` struct. Under real workloads, this led to immediate JSON unmarshaling errors due to array-to-object type mismatch.

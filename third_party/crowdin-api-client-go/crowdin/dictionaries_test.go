@@ -32,6 +32,11 @@ func TestDictionariesService_List(t *testing.T) {
 			opts:          &model.DictionariesListOptions{LanguageIDs: []string{"en", "uk"}},
 			expectedQuery: "?languageIds=en%2Cuk",
 		},
+		{
+			name:          "with options, limit and offset",
+			opts:          &model.DictionariesListOptions{LanguageIDs: []string{"en", "uk"}, ListOptions: model.ListOptions{Limit: 10, Offset: 20}},
+			expectedQuery: "?languageIds=en%2Cuk&limit=10&offset=20",
+		},
 	}
 
 	client, mux, teardown := setupClient()

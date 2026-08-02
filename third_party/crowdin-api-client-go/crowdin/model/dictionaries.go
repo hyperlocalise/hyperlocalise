@@ -26,6 +26,8 @@ type DictionariesListResponse struct {
 type DictionariesListOptions struct {
 	// Filter progress by language identifiers.
 	LanguageIDs []string `json:"languageIds,omitempty"`
+
+	ListOptions
 }
 
 // Values returns the url.Values representation of the DictionariesListOptions.
@@ -35,7 +37,7 @@ func (o *DictionariesListOptions) Values() (url.Values, bool) {
 		return nil, false
 	}
 
-	v := url.Values{}
+	v, _ := o.ListOptions.Values()
 	if len(o.LanguageIDs) > 0 {
 		v.Add("languageIds", JoinSlice(o.LanguageIDs))
 	}
