@@ -37,6 +37,7 @@ export type JobDetailViewMetric = {
 };
 
 export type JobDetailViewProperty = {
+  id?: string;
   label: string;
   value: ReactNode;
 };
@@ -155,7 +156,7 @@ export function JobDetailView({
   renderError?: JobDetailErrorRenderer;
   renderMain?: () => ReactNode;
   secondaryProperties?: JobDetailViewProperty[];
-  title?: string;
+  title?: ReactNode;
 }) {
   const jobsListHref = buildJobsListHrefProp(organizationSlug, projectId);
   const intl = useIntl();
@@ -172,7 +173,11 @@ export function JobDetailView({
             href: jobsListHref,
             children: intl.formatMessage(messages.jobsBackLink),
           })}
-          <TypographyH1>{title ?? jobId}</TypographyH1>
+          {typeof title === "string" || title == null ? (
+            <TypographyH1>{title ?? jobId}</TypographyH1>
+          ) : (
+            title
+          )}
           {metrics.length > 0 ? (
             <div className="mt-4 flex flex-wrap items-center gap-x-6 gap-y-2">
               {metrics.map((metric) => (

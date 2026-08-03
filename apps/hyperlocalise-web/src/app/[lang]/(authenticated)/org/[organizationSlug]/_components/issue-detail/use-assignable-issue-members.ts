@@ -20,6 +20,7 @@ import { issueSheetApiPath } from "./issue-detail-utils";
 
 export type AssignableIssueMember = {
   userId: string;
+  workosUserId: string;
   email: string;
   firstName: string | null;
   lastName: string | null;

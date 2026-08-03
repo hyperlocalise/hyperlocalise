@@ -108,7 +108,7 @@ function getInputPayloadString(job: JobDetailRecord, key: string) {
   return typeof value === "string" && value.length > 0 ? value : null;
 }
 
-function getInputPayloadMetadataTitle(job: JobDetailRecord) {
+function getInputPayloadMetadataString(job: JobDetailRecord, key: string) {
   if (
     typeof job.inputPayload !== "object" ||
     !job.inputPayload ||
@@ -118,12 +118,20 @@ function getInputPayloadMetadataTitle(job: JobDetailRecord) {
   }
 
   const metadata = (job.inputPayload as { metadata?: unknown }).metadata;
-  if (typeof metadata !== "object" || !metadata || !("title" in metadata)) {
+  if (typeof metadata !== "object" || !metadata || !(key in metadata)) {
     return null;
   }
 
-  const title = (metadata as { title?: unknown }).title;
-  return typeof title === "string" && title.length > 0 ? title : null;
+  const value = (metadata as Record<string, unknown>)[key];
+  return typeof value === "string" && value.length > 0 ? value : null;
+}
+
+function getInputPayloadMetadataTitle(job: JobDetailRecord) {
+  return getInputPayloadMetadataString(job, "title");
+}
+
+export function getInputPayloadMetadataDescription(job: JobDetailRecord) {
+  return getInputPayloadMetadataString(job, "description") ?? "";
 }
 
 export function jobDetailTaskTitle(input: JobDetailTaskLayoutInput) {
@@ -231,6 +239,7 @@ export function jobDetailTaskProperties(
     { label: intl.formatMessage(messages.labelTaskType), value: taskType },
     { label: intl.formatMessage(messages.labelTargetLocales), value: targetLocales },
     {
+      id: "assignees",
       label: intl.formatMessage(messages.labelAssignees),
       value:
         input.externalAssignedUsers && input.externalAssignedUsers.length > 0

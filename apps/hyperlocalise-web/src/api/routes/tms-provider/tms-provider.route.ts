@@ -207,9 +207,8 @@ const validateCreateTmsProviderJobsBody = validator("json", (value, c) => {
   return parsed.data;
 });
 
-function canEditTmsProviderJobDescription(auth: AuthVariables["auth"]) {
-  const role = auth.membership.role;
-  return role === "admin" || (role === "localization_manager" && hasCapability(role, "jobs:write"));
+function canEditTmsProviderJobFields(auth: AuthVariables["auth"]) {
+  return isJobMutationAllowed(auth.membership.role);
 }
 
 type CreateTmsProviderRoutesOptions = {
@@ -507,7 +506,7 @@ export function createTmsProviderRoutes(options: CreateTmsProviderRoutesOptions 
       }
     })
     .patch("/jobs/:encodedJobId", validateUpdateTmsProviderJobBody, async (c) => {
-      if (!canEditTmsProviderJobDescription(c.var.auth)) {
+      if (!canEditTmsProviderJobFields(c.var.auth)) {
         return c.json({ error: "forbidden" }, 403);
       }
 
@@ -530,7 +529,7 @@ export function createTmsProviderRoutes(options: CreateTmsProviderRoutesOptions 
       }
     })
     .patch("/jobs/:encodedJobId/description", validateUpdateJobDescriptionBody, async (c) => {
-      if (!canEditTmsProviderJobDescription(c.var.auth)) {
+      if (!canEditTmsProviderJobFields(c.var.auth)) {
         return c.json({ error: "forbidden" }, 403);
       }
 

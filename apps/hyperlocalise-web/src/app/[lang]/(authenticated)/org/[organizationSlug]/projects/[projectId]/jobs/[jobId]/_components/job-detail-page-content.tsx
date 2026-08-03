@@ -32,12 +32,12 @@ export function JobDetailPageContent({
   jobId,
   organizationSlug,
   projectId,
-  canEditProviderJobDescription,
+  canEditJobFields,
 }: {
   jobId: string;
   organizationSlug: string;
   projectId: string;
-  canEditProviderJobDescription: boolean;
+  canEditJobFields: boolean;
 }) {
   const activeTmsProviderQuery = useActiveTmsProvider(organizationSlug);
   const encodedProviderJobFromRoute = parseProviderJobId(jobId);
@@ -91,7 +91,7 @@ export function JobDetailPageContent({
         jobId={encodedProviderJobId}
         organizationSlug={organizationSlug}
         projectId={projectId}
-        canEditProviderJobDescription={canEditProviderJobDescription}
+        canEditJobFields={canEditJobFields}
       />
     );
   }
@@ -101,6 +101,7 @@ export function JobDetailPageContent({
       jobId={jobId}
       organizationSlug={organizationSlug}
       projectId={projectId}
+      canEditJobFields={canEditJobFields}
     />
   );
 }

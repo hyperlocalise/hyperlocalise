@@ -14,17 +14,23 @@
  */
 import Link from "next/link";
 import { type ReactNode } from "react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { LinkSquare02Icon, RefreshIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { ListIcon } from "lucide-react";
 import { FormattedMessage, useIntl } from "react-intl";
+import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import { apiClient } from "@/lib/api-client-instance";
 import { buildJobCatHref, canOpenJobCat } from "@/lib/projects/job-cat-routing";
 import type { TmsProviderLiveJobDetail } from "@/lib/providers/jobs/tms-provider-live";
+import { parseProviderJobId } from "@/lib/providers/jobs/tms-provider-resource-id";
 
 import { getProviderPayloadString } from "../../../../../jobs/_components/provider-crowdin-job-display";
 
+import { CrowdinJobAssigneesField } from "./job-detail-assignee-field";
+import { JobDetailEditableTitle } from "./job-detail-editable-title";
 import {
   defaultRenderBackLink,
   defaultRenderError,
@@ -40,6 +46,14 @@ import { buildJobsListHref } from "./job-detail-types";
 import { jobDetailTaskLayoutFromLiveJob } from "./job-detail-layout-helpers";
 import { providerLiveJobDetailViewMessages as messages } from "./provider-live-job-detail-view.messages";
 
+function readAssigneeExternalUserIds(payload: Record<string, unknown> | null | undefined) {
+  const value = payload?.assigneeExternalUserIds;
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value.filter((item): item is string => typeof item === "string" && item.trim().length > 0);
+}
+
 export type ProviderLiveDescriptionFieldRenderer = JobDetailTaskDescriptionRenderer;
 
 export type ProviderLiveFilesSectionRenderer = (props: {
@@ -51,7 +65,7 @@ export type ProviderLiveFilesSectionRenderer = (props: {
 
 export function ProviderLiveJobDetailView({
   buildJobsListHref: buildJobsListHrefProp = buildJobsListHref,
-  canEditProviderJobDescription = false,
+  canEditJobFields = false,
   error,
   isLoading,
   isRefreshing = false,
@@ -72,7 +86,7 @@ export function ProviderLiveJobDetailView({
   showComments = false,
 }: {
   buildJobsListHref?: typeof buildJobsListHref;
-  canEditProviderJobDescription?: boolean;
+  canEditJobFields?: boolean;
   error?: unknown;
   isLoading: boolean;
   isRefreshing?: boolean;
@@ -93,11 +107,20 @@ export function ProviderLiveJobDetailView({
   showComments?: boolean;
 }) {
   const intl = useIntl();
+  const queryClient = useQueryClient();
+  const jobQueryKey = ["tms-provider-job", organizationSlug, jobId] as const;
+  const parsedJobId = parseProviderJobId(jobId);
   const providerDescription = job
     ? (getProviderPayloadString(job.externalProviderPayload, "description") ?? "")
     : "";
-  const canEditProviderDescription = Boolean(
-    job && canEditProviderJobDescription && job.id.startsWith("ext:"),
+  const canEditProviderFields = Boolean(
+    job &&
+    canEditJobFields &&
+    job.id.startsWith("ext:") &&
+    (job.externalProviderKind === "crowdin" || job.externalProviderKind === "smartling"),
+  );
+  const canEditAssignees = Boolean(
+    canEditProviderFields && job?.externalProviderKind === "crowdin" && parsedJobId,
   );
   const catHref = job ? buildJobCatHref(organizationSlug, projectId, job) : null;
   const showViewStrings = job ? canOpenJobCat(job) && Boolean(catHref) : false;
@@ -107,6 +130,53 @@ export function ProviderLiveJobDetailView({
         localeReadinessOverride,
       })
     : null;
+
+  const saveTitle = useMutation({
+    mutationFn: async (nextTitle: string) => {
+      const response = await apiClient.api.orgs[":organizationSlug"]["tms-provider"].jobs[
+        ":encodedJobId"
+      ].$patch({
+        param: { organizationSlug, encodedJobId: jobId },
+        json: { title: nextTitle },
+      });
+      if (!response.ok) {
+        const body = (await response.json().catch(() => null)) as {
+          error?: string;
+          message?: string;
+        } | null;
+        throw new Error(body?.message ?? body?.error ?? `Save failed (${response.status})`);
+      }
+      const body = (await response.json()) as { job: TmsProviderLiveJobDetail };
+      return body.job;
+    },
+    onSuccess: async (updatedJob) => {
+      queryClient.setQueryData(jobQueryKey, updatedJob);
+      await queryClient.invalidateQueries({ queryKey: ["jobs", organizationSlug] });
+    },
+    onError: (saveError) => {
+      toast.error(saveError instanceof Error ? saveError.message : "Couldn't save title");
+    },
+  });
+
+  const properties = (layout?.properties ?? []).map((property) => {
+    if (property.id !== "assignees" || !canEditAssignees || !job || !parsedJobId) {
+      return property;
+    }
+    return {
+      ...property,
+      value: (
+        <CrowdinJobAssigneesField
+          organizationSlug={organizationSlug}
+          encodedJobId={jobId}
+          externalProjectId={parsedJobId.externalProjectId}
+          selectedExternalUserIds={readAssigneeExternalUserIds(job.externalProviderPayload)}
+          fallbackLabels={job.externalAssignedUsers ?? []}
+          queryKey={jobQueryKey}
+          disabled={isRefreshing || isDeleting}
+        />
+      ),
+    };
+  });
 
   const headerActions = job ? (
     <>
@@ -189,9 +259,18 @@ export function ProviderLiveJobDetailView({
       jobId={jobId}
       organizationSlug={organizationSlug}
       projectId={projectId}
-      title={layout?.title}
+      title={
+        <JobDetailEditableTitle
+          title={layout?.title ?? jobId}
+          editable={canEditProviderFields}
+          disabled={isRefreshing || isDeleting || saveTitle.isPending}
+          onSave={async (nextTitle) => {
+            await saveTitle.mutateAsync(nextTitle);
+          }}
+        />
+      }
       metrics={layout?.metrics ?? []}
-      properties={layout?.properties ?? []}
+      properties={properties}
       secondaryProperties={layout?.secondaryProperties ?? []}
       headerActions={headerActions}
       isLoading={isLoading}
@@ -199,7 +278,7 @@ export function ProviderLiveJobDetailView({
       renderBackLink={renderBackLink}
       renderError={renderError}
       description={providerDescription}
-      canEditDescription={canEditProviderDescription}
+      canEditDescription={canEditProviderFields}
       renderDescriptionField={renderDescriptionField}
       renderFilesSection={filesRenderer}
       showComments={showComments}

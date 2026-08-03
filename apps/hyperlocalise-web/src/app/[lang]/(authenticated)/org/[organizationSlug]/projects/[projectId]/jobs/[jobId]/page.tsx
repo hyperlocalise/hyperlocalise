@@ -24,14 +24,14 @@ export default async function ProjectJobDetailPage({
   const { organizationSlug, projectId: rawProjectId, jobId } = await params;
   const projectId = normalizeProjectId(rawProjectId);
   const auth = await requireAppAuthContext({ organizationSlug });
-  const canEditProviderJobDescription = hasCapability(auth.membership.role, "jobs:write");
+  const canEditJobFields = hasCapability(auth.membership.role, "jobs:write");
 
   return (
     <JobDetailPageContent
       jobId={jobId}
       organizationSlug={organizationSlug}
       projectId={projectId}
-      canEditProviderJobDescription={canEditProviderJobDescription}
+      canEditJobFields={canEditJobFields}
     />
   );
 }

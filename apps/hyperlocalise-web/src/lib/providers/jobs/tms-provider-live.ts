@@ -3801,12 +3801,7 @@ export async function updateTmsProviderLiveJobDescription(
   description: string,
   actorUserId: string,
 ): Promise<TmsProviderLiveJobDetail | null> {
-  return updateTmsProviderLiveJobFields(
-    organizationId,
-    encodedJobId,
-    { description },
-    actorUserId,
-  );
+  return updateTmsProviderLiveJobFields(organizationId, encodedJobId, { description }, actorUserId);
 }
 
 function dedupeGlossaries(items: TmsProviderLiveGlossary[]) {

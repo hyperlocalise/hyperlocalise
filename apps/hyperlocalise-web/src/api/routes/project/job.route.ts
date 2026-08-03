@@ -1478,11 +1478,7 @@ export function createWorkspaceJobRoutes(options: CreateWorkspaceJobRoutesOption
           case "job_not_found":
             return notFoundResponse(c, "job_not_found", "Job not found");
           case "provider_job_not_updatable":
-            return conflictResponse(
-              c,
-              result.error.code,
-              result.error.message,
-            );
+            return conflictResponse(c, result.error.code, result.error.message);
           case "owner_not_found":
           case "assignee_not_assignable":
           case "project_required":

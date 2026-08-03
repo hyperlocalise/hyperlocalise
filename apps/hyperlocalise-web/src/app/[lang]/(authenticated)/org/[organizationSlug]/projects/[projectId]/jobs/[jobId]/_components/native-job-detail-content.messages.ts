@@ -20,6 +20,11 @@ export const nativeJobDetailContentMessages = defineMessages({
     id: "VCIZRHU93Q",
     description: "Error when the native job detail request fails",
   },
+  failedToUpdateJob: {
+    defaultMessage: "Failed to update job",
+    id: "pF/btP7bSZ",
+    description: "Error when a native job title, description, or owner update fails",
+  },
   jobWrongProject: {
     defaultMessage: "Job does not belong to this project",
     id: "w1oESvG6DH",
