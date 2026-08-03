@@ -31,6 +31,7 @@ import {
   createRepositorySandbox,
   stopRepositorySandbox,
 } from "@/lib/agent-runtime/workspaces/repository-sandbox";
+import { parseProviderProjectId } from "@/lib/providers/jobs/tms-provider-resource-id";
 import { supportedFileTranslationFileFormats } from "@/lib/translation/file-formats";
 import { createLogger, serializeErrorForLog } from "@/lib/log";
 
@@ -60,6 +61,25 @@ export function buildFileTranslationInstructions() {
   return `When a message includes stored source file IDs, create file translation jobs with type "file", the provided sourceFileId and fileFormat, targetLocales, and sourceLocale. Use sourceLocale "auto" if the user did not specify a source locale. Supported file job formats: ${supportedFileTranslationFileFormats.join(", ")}.`;
 }
 
+/**
+ * Build attached-project context when there is no local `projects` row.
+ * Live CAT / TMS ids (`ext:crowdin:42`) encode the provider kind in the id.
+ */
+export function resolveVirtualAttachedProjectContext(
+  projectId: string,
+): HyperlocaliseAttachedProjectContext {
+  const encodedProject = parseProviderProjectId(projectId);
+  if (!encodedProject) {
+    return { projectId };
+  }
+
+  return {
+    projectId,
+    projectSource: "external_tms",
+    externalProviderKind: encodedProject.providerKind,
+  };
+}
+
 async function loadAttachedProjectContext(input: {
   db: ToolContext["db"];
   organizationId: string;
@@ -86,9 +106,7 @@ async function loadAttachedProjectContext(input: {
     .limit(1);
 
   if (!project) {
-    return {
-      projectId: input.projectId,
-    };
+    return resolveVirtualAttachedProjectContext(input.projectId);
   }
 
   return {

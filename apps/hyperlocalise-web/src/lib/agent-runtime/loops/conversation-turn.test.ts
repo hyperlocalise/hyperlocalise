@@ -102,6 +102,7 @@ import {
   prepareConversationAgentTurn,
   REPOSITORY_ACCESS_CONTENTION_FOLLOW_UP,
   resolveConversationRepositoryContext,
+  resolveVirtualAttachedProjectContext,
 } from "./conversation-turn";
 
 const baseClassification = {
@@ -112,6 +113,22 @@ const baseClassification = {
   currentMessageSpecifiesRepository: false,
   confidence: 0.9,
 };
+
+describe("resolveVirtualAttachedProjectContext", () => {
+  it("recovers Crowdin provider metadata from live encoded project ids", () => {
+    expect(resolveVirtualAttachedProjectContext("ext:crowdin:42")).toEqual({
+      projectId: "ext:crowdin:42",
+      projectSource: "external_tms",
+      externalProviderKind: "crowdin",
+    });
+  });
+
+  it("returns projectId only for unknown non-database ids", () => {
+    expect(resolveVirtualAttachedProjectContext("missing-project")).toEqual({
+      projectId: "missing-project",
+    });
+  });
+});
 
 describe("conversation turn preparation", () => {
   beforeEach(() => {

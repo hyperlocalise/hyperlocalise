@@ -263,9 +263,12 @@ export async function buildAccessibleInteractionsWhere(auth: ApiAuthContext): Pr
   }
 
   const accessibleProjectIds = await getAccessibleProjectIds(auth);
+  // Personal chat_ui threads stay visible to their author when unscoped or when
+  // attached to a live provider project id (`ext:…`). Those ids are not in the
+  // local projects table, so team-scoped `inArray` alone would hide them.
   const ownedWorkspaceChatFilter = and(
-    isNull(schema.interactions.projectId),
     eq(schema.interactions.source, "chat_ui"),
+    or(isNull(schema.interactions.projectId), sql`${schema.interactions.projectId} like 'ext:%'`),
     exists(
       db
         .select({ id: schema.interactionMessages.id })

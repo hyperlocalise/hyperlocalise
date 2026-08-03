@@ -47,4 +47,19 @@ describe("buildHyperlocaliseDynamicSections", () => {
     expect(sections.join("\n")).toContain("search_native_glossary");
     expect(sections.join("\n")).not.toContain("search_crowdin_glossary");
   });
+
+  it("routes live Crowdin project ids without a local projects row", () => {
+    const sections = buildHyperlocaliseDynamicSections({
+      surface: "web",
+      projectId: "ext:crowdin:42",
+      attachedProject: {
+        projectId: "ext:crowdin:42",
+        projectSource: "external_tms",
+        externalProviderKind: "crowdin",
+      },
+    });
+
+    expect(sections.join("\n")).toContain("ext:crowdin:42");
+    expect(sections.join("\n")).toContain("search_crowdin_glossary");
+  });
 });

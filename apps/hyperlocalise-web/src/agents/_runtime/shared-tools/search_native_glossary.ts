@@ -22,11 +22,13 @@ import { toolCanAccessProject, toolProjectLinkedGlossaryWhere } from "@/lib/tool
  * Build a prefix-ready tsquery string from free-form user input.
  *
  * Strips characters that have special meaning in Postgres tsquery syntax
- * so that untrusted input cannot break the query.
+ * so that untrusted input cannot break the query. Matches
+ * `buildGlossaryTsQuery` in lib/translation/concordance.ts (including quotes
+ * and hyphens common in UI copy such as "What's new").
  */
-function buildTsQuery(input: string): string {
+export function buildNativeGlossaryTsQuery(input: string): string {
   return input
-    .replace(/[&|!():*<>]/g, " ")
+    .replace(/[&|!():*<>'"-]/g, " ")
     .trim()
     .split(/\s+/)
     .filter(Boolean)
@@ -81,7 +83,7 @@ export function createSearchNativeGlossaryTool(ctx: ToolContext) {
     outputSchema: searchNativeGlossaryOutputSchema,
     execute: async (input) => {
       const projectId = input.projectId ?? ctx.projectId ?? undefined;
-      const tsQuery = buildTsQuery(input.sourceText);
+      const tsQuery = buildNativeGlossaryTsQuery(input.sourceText);
       if (!tsQuery) {
         return { success: true, terms: [] };
       }
