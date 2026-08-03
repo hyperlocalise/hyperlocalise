@@ -247,6 +247,10 @@
     "defaultMessage": "Monitor terminology consistency, locale coverage, and translation quality across product, marketing, and support content — with gates that block bad syncs before they go live.",
     "description": "Hero subheadline for the localisation-quality-monitoring use case"
   },
+  "/140Sd9x8r": {
+    "defaultMessage": "{count, plural, =0 {No assignees} one {# assignee} other {# assignees}}",
+    "description": "Crowdin assignee picker trigger label with selection count"
+  },
   "/14v/WK67D": {
     "defaultMessage": "Back to site",
     "description": "Button to return to the marketing site from the access denied page"
@@ -1807,6 +1811,10 @@
     "defaultMessage": "CAT workspace / Review queue",
     "description": "Location breadcrumb for the QA banner segment in the hero CAT mock"
   },
+  "5PG+VBWgIw": {
+    "defaultMessage": "Couldn't load assignable members",
+    "description": "Error when job assignee member list fails to load"
+  },
   "5PgTvcChVL": {
     "defaultMessage": "Open",
     "description": "Issue status filter option when an issue is open"
@@ -3123,6 +3131,10 @@
     "defaultMessage": "Stop Chasing Localisation Work Across Tools | Hyperlocalise",
     "description": "Page title for the agents automation product page"
   },
+  "AXYQB+ayG/": {
+    "defaultMessage": "Job title",
+    "description": "Accessible label for the editable job title field"
+  },
   "AXYd5YvGYL": {
     "defaultMessage": "Tourfinder",
     "description": "Alt text for the Tourfinder logo in the case study section"
@@ -4374,6 +4386,10 @@
   "Fkgfxe1y6x": {
     "defaultMessage": "translation",
     "description": "Job kind label for translation jobs"
+  },
+  "FlKUTB/6A0": {
+    "defaultMessage": "Unassigned",
+    "description": "Label when a native job has no owner"
   },
   "FlXBmFercA": {
     "defaultMessage": "Remove GitHub sync workflows",
@@ -5723,6 +5739,10 @@
     "defaultMessage": "Collapse panel",
     "description": "Decorative collapse control label in the chat dock mock"
   },
+  "M30SNTxWXn": {
+    "defaultMessage": "Title is required",
+    "description": "Toast when saving a job with an empty title"
+  },
   "M3bbV5wmi2": {
     "defaultMessage": "Manage access on GitHub",
     "description": "Button label to open GitHub installation settings"
@@ -6898,6 +6918,10 @@
   "R68TUJrkVn": {
     "defaultMessage": "Add column",
     "description": "Title of the dialog to add a custom Issue Sheet column"
+  },
+  "R6n/KCAp4a": {
+    "defaultMessage": "Couldn't update assignees",
+    "description": "Toast when job assignee save fails"
   },
   "R7vhxRuwOx": {
     "defaultMessage": "Scheduled",
@@ -9315,6 +9339,10 @@
     "defaultMessage": "Surface quality issues in pull requests",
     "description": "Capability 5 title for the localisation-quality-monitoring use case"
   },
+  "bFbk34uFYE": {
+    "defaultMessage": "Loading…",
+    "description": "Loading state in the Crowdin assignee picker"
+  },
   "bHnFWGWqed": {
     "defaultMessage": "No files are linked to this task.",
     "description": "Empty state when a live TMS job has no linked files"
@@ -9662,6 +9690,10 @@
   "d8Vs3k3UER": {
     "defaultMessage": "This conversation is no longer available.",
     "description": "Toast when a docked conversation returns 404"
+  },
+  "dAeEJyCLaY": {
+    "defaultMessage": "Clear all",
+    "description": "Action to clear all Crowdin assignees"
   },
   "dBWJx9vBQt": {
     "defaultMessage": "Starter",
@@ -10234,6 +10266,10 @@
   "fJ0e9/fLRw": {
     "defaultMessage": "Startups",
     "description": "Marketing navbar link to the startups program page"
+  },
+  "fM2wynVWWB": {
+    "defaultMessage": "Search members…",
+    "description": "Placeholder in the Crowdin assignee picker search field"
   },
   "fMyeM5BW3s": {
     "defaultMessage": "Custom",
@@ -11555,6 +11591,10 @@
     "defaultMessage": "Billing request failed. Try again in a moment.",
     "description": "Generic fallback error for billing requests"
   },
+  "kO32zaHAd6": {
+    "defaultMessage": "Couldn't save title",
+    "description": "Toast when job title save fails"
+  },
   "kOJgaHjhFH": {
     "defaultMessage": "Renews on {date}",
     "description": "Renewal copy for an active plan that renews on a date"
@@ -12610,6 +12650,10 @@
   "pCwlsos9AL": {
     "defaultMessage": "Choose a day of the week for weekly schedules.",
     "description": "API error when weekly schedule has an invalid day of week"
+  },
+  "pF/btP7bSZ": {
+    "defaultMessage": "Failed to update job",
+    "description": "Error when a native job title, description, or owner update fails"
   },
   "pFVKHpG8Q4": {
     "defaultMessage": "Target text",
@@ -13775,6 +13819,10 @@
     "defaultMessage": "Job source files",
     "description": "Accessible label for the job source files tree"
   },
+  "uHbVM9Pw9Y": {
+    "defaultMessage": "Assignees updated",
+    "description": "Toast when job assignees are saved"
+  },
   "uIj8uezhZ9": {
     "defaultMessage": "Earth from space",
     "description": "Alt text for the full-bleed NASA image at the bottom of the marketing footer"
@@ -14643,6 +14691,10 @@
     "defaultMessage": "Regenerate",
     "description": "Button to regenerate the translated file with the agent in CAT File view"
   },
+  "xVxao1E4rb": {
+    "defaultMessage": "Assignees",
+    "description": "Accessible label for the Crowdin multi-assignee picker trigger"
+  },
   "xX2Nm+qioI": {
     "defaultMessage": "We created the workspace, but could not prepare its URL. Please retry.",
     "description": "Error when workspace was created without a usable slug"
@@ -15118,6 +15170,10 @@
   "zMY6O3OGwK": {
     "defaultMessage": "Open account menu for {name}",
     "description": "Screen-reader label for the account menu trigger button"
+  },
+  "zPUQ6rTETA": {
+    "defaultMessage": "No members found",
+    "description": "Empty state in the Crowdin assignee picker"
   },
   "zQR9HH34IW": {
     "defaultMessage": "No translation memories yet",
