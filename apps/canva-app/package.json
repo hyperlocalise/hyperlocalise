@@ -42,7 +42,7 @@
     "cssnano": "8.0.2",
     "dotenv": "17.4.2",
     "esbuild-register": "3.6.0",
-    "jsdom": "^29.1.1",
+    "jsdom": "^30.0.0",
     "mini-css-extract-plugin": "2.10.2",
     "node-forge": "1.4.0",
     "nodemon": "3.1.14",
