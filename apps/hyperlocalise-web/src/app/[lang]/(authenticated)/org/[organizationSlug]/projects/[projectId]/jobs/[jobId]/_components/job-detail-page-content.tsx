@@ -90,9 +90,7 @@ export function JobDetailPageContent({
   if (useLiveProviderJob && encodedProviderJobId) {
     const providerKind = parseProviderJobId(encodedProviderJobId)?.providerKind;
     const canEditProviderJobFields =
-      providerKind === "smartling"
-        ? canEditSharedCredentialProviderJobFields
-        : canEditJobFields;
+      providerKind === "smartling" ? canEditSharedCredentialProviderJobFields : canEditJobFields;
 
     return (
       <ProviderLiveJobDetailContent

@@ -1313,15 +1313,15 @@ describe("CrowdinApiClient", () => {
     }) as unknown as typeof fetch;
     const client = createClient(fetchMock);
 
-    await expect(
-      client.editTaskFields(1, 9, { assigneeExternalUserIds: ["abc"] }),
-    ).rejects.toThrow("invalid_crowdin_assignee_id");
-    await expect(
-      client.editTaskFields(1, 9, { assigneeExternalUserIds: ["01"] }),
-    ).rejects.toThrow("invalid_crowdin_assignee_id");
-    await expect(
-      client.editTaskFields(1, 9, { assigneeExternalUserIds: ["0"] }),
-    ).rejects.toThrow("invalid_crowdin_assignee_id");
+    await expect(client.editTaskFields(1, 9, { assigneeExternalUserIds: ["abc"] })).rejects.toThrow(
+      "invalid_crowdin_assignee_id",
+    );
+    await expect(client.editTaskFields(1, 9, { assigneeExternalUserIds: ["01"] })).rejects.toThrow(
+      "invalid_crowdin_assignee_id",
+    );
+    await expect(client.editTaskFields(1, 9, { assigneeExternalUserIds: ["0"] })).rejects.toThrow(
+      "invalid_crowdin_assignee_id",
+    );
     expect(fetchMock).not.toHaveBeenCalled();
   });
 

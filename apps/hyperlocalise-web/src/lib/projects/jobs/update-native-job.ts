@@ -99,7 +99,7 @@ export async function updateNativeJob(input: {
       .leftJoin(schema.externalJobDetails, eq(schema.externalJobDetails.jobId, schema.jobs.id))
       .where(and(eq(schema.jobs.id, input.jobId), input.accessWhere))
       .limit(1)
-      .for("update");
+      .for("update", { of: schema.jobs });
 
     if (!existing) {
       return err({ code: "job_not_found" as const });

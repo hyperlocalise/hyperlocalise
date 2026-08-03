@@ -1013,8 +1013,9 @@ describe("tmsProviderRoutes", () => {
   it("allows Crowdin job field updates for jobs:write roles", async () => {
     const identity = fixture.createWorkosIdentityWithRole("translator");
     const headers = await fixture.authHeadersFor(identity);
-    const updateFields = vi.spyOn(tmsProviderLive, "updateTmsProviderLiveJobFields").mockResolvedValue(
-      {
+    const updateFields = vi
+      .spyOn(tmsProviderLive, "updateTmsProviderLiveJobFields")
+      .mockResolvedValue({
         ...createLiveProviderJob({
           id: "ext:crowdin:902807:5001",
           externalTitle: "Updated Crowdin task",
@@ -1022,8 +1023,7 @@ describe("tmsProviderRoutes", () => {
         externalJobId: "5001",
         externalUrl: null,
         externalProviderPayload: {},
-      },
-    );
+      });
 
     const response = await client.api.orgs[":organizationSlug"]["tms-provider"].jobs[
       ":encodedJobId"
