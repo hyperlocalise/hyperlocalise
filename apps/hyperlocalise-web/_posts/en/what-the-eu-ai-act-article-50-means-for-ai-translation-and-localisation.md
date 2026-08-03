@@ -75,13 +75,13 @@ These workflows may no longer fall within the same exception as faithful transla
 
 In practice, it helps to think about localisation work in three categories:
 
-| Workflow | Typical classification |
-| --- | --- |
-| UI translation | Translation |
-| Help centre localisation | Translation |
-| Product documentation | Translation |
-| Marketing adaptation | Transcreation |
-| New campaign copy | AI content generation |
+| Workflow                 | Typical classification |
+| ------------------------ | ---------------------- |
+| UI translation           | Translation            |
+| Help centre localisation | Translation            |
+| Product documentation    | Translation            |
+| Marketing adaptation     | Transcreation          |
+| New campaign copy        | AI content generation  |
 
 As AI becomes more capable, distinguishing between translation and content generation will become increasingly important.
 
