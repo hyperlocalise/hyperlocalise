@@ -348,10 +348,7 @@ describe("Agent Tools RBAC", () => {
       }));
 
       const ctx = mockCtx("translator");
-      ctx.db = {
-        ...ctx.db,
-        select: selectMock,
-      } as any;
+      (ctx.db as any).select = selectMock;
 
       const tool = createGetJobStatusTool(ctx);
       const result = await executeTool(tool, { jobId: "job_hidden" });
