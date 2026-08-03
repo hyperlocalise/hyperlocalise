@@ -67,18 +67,19 @@ export type SearchCrowdinGlossaryToolInput = z.infer<typeof searchCrowdinGlossar
 export type SearchCrowdinGlossaryToolOutput = z.infer<typeof searchCrowdinGlossaryOutputSchema>;
 
 export function createSearchCrowdinGlossaryTool(
-  ctx: Pick<ToolContext, "organizationId" | "localUserId">,
+  ctx: Pick<ToolContext, "organizationId" | "localUserId" | "projectId">,
 ) {
   return defineAgentTool({
     description:
-      "Search Crowdin glossaries for preferred or forbidden terminology. Defaults to organization-wide concordance; pass projectId for a Crowdin-linked Hyperlocalise project.",
+      "Search Crowdin glossaries for preferred or forbidden terminology. Uses the conversation project when set; pass projectId to override, or omit both for organization glossaries.",
     inputSchema: searchCrowdinGlossaryInputSchema,
     outputSchema: searchCrowdinGlossaryOutputSchema,
     execute: async (input) => {
+      const projectId = input.projectId ?? ctx.projectId ?? undefined;
       const result = await crowdinTmsProvider.searchGlossaryForAgent({
         organizationId: ctx.organizationId,
         actorUserId: ctx.localUserId,
-        projectId: input.projectId,
+        projectId,
         sourceLocale: input.sourceLocale,
         targetLocale: input.targetLocale,
         expressions: input.expressions,

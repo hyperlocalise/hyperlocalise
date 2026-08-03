@@ -11,6 +11,9 @@
  * Version 2.0 or later.
  */
 
+/** Matches `maxContextSearchTerms` in lib/translation/concordance.ts. */
+const MAX_NATIVE_GLOSSARY_SEARCH_TERMS = 50;
+
 /**
  * Build a prefix-ready tsquery string from free-form user input.
  *
@@ -25,6 +28,7 @@ export function buildNativeGlossaryTsQuery(input: string): string {
     .trim()
     .split(/\s+/)
     .filter(Boolean)
+    .slice(0, MAX_NATIVE_GLOSSARY_SEARCH_TERMS)
     .map((word) => `${word}:*`)
     .join(" & ");
 }

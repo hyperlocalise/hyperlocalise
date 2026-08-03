@@ -27,13 +27,14 @@ vi.mock("@/lib/providers/adapters/crowdin/crowdin-provider", () => ({
 }));
 
 describe("createSearchCrowdinGlossaryTool", () => {
-  it("keeps search organization-scoped unless projectId is explicit", async () => {
+  it("keeps search organization-scoped when neither input nor context has projectId", async () => {
     searchGlossaryForAgentMock.mockResolvedValue(
       ok({ scope: "organization", crowdinProjectId: null, matches: [] }),
     );
     const tool = createSearchCrowdinGlossaryTool({
       organizationId: "org-1",
       localUserId: "user-1",
+      projectId: null,
     });
 
     await tool.execute?.(
@@ -50,6 +51,34 @@ describe("createSearchCrowdinGlossaryTool", () => {
       expect.objectContaining({
         organizationId: "org-1",
         projectId: undefined,
+      }),
+    );
+  });
+
+  it("falls back to conversation projectId when input omits it", async () => {
+    searchGlossaryForAgentMock.mockResolvedValue(
+      ok({ scope: "project", crowdinProjectId: 42, matches: [] }),
+    );
+    const tool = createSearchCrowdinGlossaryTool({
+      organizationId: "org-1",
+      localUserId: "user-1",
+      projectId: "project-1",
+    });
+
+    await tool.execute?.(
+      {
+        expressions: ["Talk to Heidi"],
+        sourceLocale: "en",
+        targetLocale: "vi",
+        limit: 20,
+      },
+      {} as never,
+    );
+
+    expect(searchGlossaryForAgentMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        organizationId: "org-1",
+        projectId: "project-1",
       }),
     );
   });

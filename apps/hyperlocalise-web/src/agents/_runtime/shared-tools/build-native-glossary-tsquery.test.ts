@@ -25,4 +25,12 @@ describe("buildNativeGlossaryTsQuery", () => {
     expect(buildNativeGlossaryTsQuery("!!!")).toBe("");
     expect(buildNativeGlossaryTsQuery("'-\"")).toBe("");
   });
+
+  it("caps terms at 50 to match concordance search", () => {
+    const words = Array.from({ length: 60 }, (_, index) => `term${index}`);
+    const tsQuery = buildNativeGlossaryTsQuery(words.join(" "));
+    expect(tsQuery.split(" & ")).toHaveLength(50);
+    expect(tsQuery.startsWith("term0:*")).toBe(true);
+    expect(tsQuery.endsWith("term49:*")).toBe(true);
+  });
 });

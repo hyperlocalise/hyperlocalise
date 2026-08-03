@@ -58,6 +58,13 @@ describe("ChatDockStore", () => {
       resolveChatDockMessageProjectId({
         pageContext,
         isPending: false,
+        conversationProjectId: undefined,
+      }),
+    ).toBe("cat-project");
+    expect(
+      resolveChatDockMessageProjectId({
+        pageContext,
+        isPending: false,
         conversationProjectId: "existing-project",
       }),
     ).toBeUndefined();

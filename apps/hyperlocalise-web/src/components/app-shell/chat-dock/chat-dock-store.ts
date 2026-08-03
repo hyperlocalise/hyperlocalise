@@ -68,7 +68,9 @@ export function resolveChatDockMessageProjectId(input: {
     return input.explicitProjectId;
   }
 
-  if (!input.isPending && input.conversationProjectId !== null) {
+  // Only skip CAT attach when the conversation is known to already have a project.
+  // `undefined` means the conversation row is not loaded yet; treat like unscoped.
+  if (!input.isPending && input.conversationProjectId != null) {
     return undefined;
   }
 
