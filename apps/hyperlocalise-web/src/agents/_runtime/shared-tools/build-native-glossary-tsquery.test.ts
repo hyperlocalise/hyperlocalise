@@ -12,7 +12,7 @@
  */
 import { describe, expect, it } from "vite-plus/test";
 
-import { buildNativeGlossaryTsQuery } from "./search_native_glossary";
+import { buildNativeGlossaryTsQuery } from "./build-native-glossary-tsquery";
 
 describe("buildNativeGlossaryTsQuery", () => {
   it("strips apostrophes, quotes, and hyphens before building prefix terms", () => {

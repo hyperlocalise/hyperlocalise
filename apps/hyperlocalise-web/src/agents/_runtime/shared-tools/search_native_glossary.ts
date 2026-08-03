@@ -18,23 +18,7 @@ import type { ToolContext } from "@/lib/agent-contracts/tool-context";
 import { schema } from "@/lib/database";
 import { toolCanAccessProject, toolProjectLinkedGlossaryWhere } from "@/lib/tools/tool-access";
 
-/**
- * Build a prefix-ready tsquery string from free-form user input.
- *
- * Strips characters that have special meaning in Postgres tsquery syntax
- * so that untrusted input cannot break the query. Matches
- * `buildGlossaryTsQuery` in lib/translation/concordance.ts (including quotes
- * and hyphens common in UI copy such as "What's new").
- */
-export function buildNativeGlossaryTsQuery(input: string): string {
-  return input
-    .replace(/[&|!():*<>'"-]/g, " ")
-    .trim()
-    .split(/\s+/)
-    .filter(Boolean)
-    .map((word) => `${word}:*`)
-    .join(" & ");
-}
+import { buildNativeGlossaryTsQuery } from "./build-native-glossary-tsquery";
 
 const searchNativeGlossaryInputSchema = z.object({
   sourceText: z
