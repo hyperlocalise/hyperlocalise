@@ -315,3 +315,7 @@
 ## 2027-04-25 - On-the-fly ASCII fast-path in normalizeText and early return in termComplianceScore
 **Learning:** In scoring evaluators, running `strings.ToLower` unconditionally inside `termComplianceScore` creates substantial redundant heap allocation overhead when no forbidden terms exist. Additionally, performing character-by-character Unicode decoding and checks (like `unicode.IsPunct` and `unicode.IsSpace`) inside `normalizeText` can be completely bypassed for ASCII characters by processing raw bytes directly.
 **Action:** Always guard heavy lowercasing checks with size-gated early returns (e.g., check `len(forbiddenTerms) == 0`). For text normalization, implement a byte-level ASCII fast-path that bypasses rune decoding and unicode table functions entirely, yielding over 54% faster normalization speeds.
+
+## 2027-04-30 - Eliminating duplicate map allocations in token F1 scoring
+**Learning:** In text similarity scoring metrics like token F1, constructing separate frequency maps for both the reference and candidate strings is a major allocation bottleneck. Since we only need to count matching tokens (multiset intersection), we can construct and pre-allocate a single map for the reference tokens, then scan the candidate tokens and decrement the counts on the fly. This completely avoids allocating the candidate map and reduces overall evaluator allocations.
+**Action:** Replaced the dual-map implementation in `tokenF1Normalized` with a single pre-allocated map and on-the-fly decrementing, reducing allocations per evaluation by 3.

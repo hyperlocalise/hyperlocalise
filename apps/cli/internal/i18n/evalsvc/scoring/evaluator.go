@@ -506,6 +506,12 @@ func tokenF1(reference, candidate string) float64 {
 	return tokenF1Normalized(normalizeText(reference), normalizeText(candidate))
 }
 
+// BOLT OPTIMIZATION: tokenF1Normalized was optimized by replacing the two independent
+// token-count maps with a single map (rCount) pre-allocated with a capacity hint based
+// on the length of reference tokens r. Matching tokens from the candidate string
+// decrement counts in rCount on the fly. This reduces allocations and avoids second
+// map construction entirely, reducing BenchmarkTokenF1 execution time and decreasing
+// allocations in BenchmarkEvaluatorEvaluate.
 func tokenF1Normalized(reference, candidate string) float64 {
 	r := tokenizeNormalized(reference)
 	c := tokenizeNormalized(candidate)
@@ -515,17 +521,16 @@ func tokenF1Normalized(reference, candidate string) float64 {
 	if len(r) == 0 || len(c) == 0 {
 		return 0
 	}
-	rCount := map[string]int{}
+	rCount := make(map[string]int, len(r))
 	for _, tok := range r {
 		rCount[tok]++
 	}
-	cCount := map[string]int{}
-	for _, tok := range c {
-		cCount[tok]++
-	}
 	matches := 0
-	for tok, cnt := range rCount {
-		matches += min(cnt, cCount[tok])
+	for _, tok := range c {
+		if count, ok := rCount[tok]; ok && count > 0 {
+			matches++
+			rCount[tok]--
+		}
 	}
 	precision := float64(matches) / float64(len(c))
 	recall := float64(matches) / float64(len(r))
