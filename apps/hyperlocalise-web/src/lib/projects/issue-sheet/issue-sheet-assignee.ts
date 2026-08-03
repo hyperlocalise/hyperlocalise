@@ -26,6 +26,7 @@ export type IssueAssigneeNotAssignableError = {
 
 export type AssignableIssueMember = {
   userId: string;
+  workosUserId: string;
   email: string;
   firstName: string | null;
   lastName: string | null;
@@ -174,6 +175,7 @@ export async function listAssignableIssueMembers(input: {
   const memberships = await database
     .select({
       userId: schema.users.id,
+      workosUserId: schema.users.workosUserId,
       email: schema.users.email,
       firstName: schema.users.firstName,
       lastName: schema.users.lastName,
@@ -227,6 +229,7 @@ export async function listAssignableIssueMembers(input: {
     )
     .map((row) => ({
       userId: row.userId,
+      workosUserId: row.workosUserId,
       email: row.email,
       firstName: row.firstName,
       lastName: row.lastName,

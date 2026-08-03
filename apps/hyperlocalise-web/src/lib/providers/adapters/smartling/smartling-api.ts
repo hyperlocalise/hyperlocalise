@@ -846,18 +846,36 @@ export class SmartlingApiClient {
     return normalizeSmartlingJobSummary(data);
   }
 
+  async updateJob(
+    projectId: string,
+    translationJobUid: string,
+    fields: {
+      jobName?: string;
+      description?: string | null;
+    },
+  ): Promise<SmartlingJobDetails> {
+    const token = await this.getAccessToken();
+    const body: Record<string, string> = {};
+    if (fields.jobName !== undefined) {
+      body.jobName = fields.jobName;
+    }
+    if (fields.description !== undefined) {
+      body.description = fields.description ?? "";
+    }
+    const data = await this.put<SmartlingJobDetails>(
+      `${this.jobsBaseUrl}/projects/${encodeURIComponent(projectId)}/jobs/${encodeURIComponent(translationJobUid)}`,
+      token,
+      body,
+    );
+    return normalizeSmartlingJobSummary(data);
+  }
+
   async updateJobDescription(
     projectId: string,
     translationJobUid: string,
     description: string,
   ): Promise<SmartlingJobDetails> {
-    const token = await this.getAccessToken();
-    const data = await this.put<SmartlingJobDetails>(
-      `${this.jobsBaseUrl}/projects/${encodeURIComponent(projectId)}/jobs/${encodeURIComponent(translationJobUid)}`,
-      token,
-      { description },
-    );
-    return normalizeSmartlingJobSummary(data);
+    return this.updateJob(projectId, translationJobUid, { description });
   }
 
   async listContextBindings(

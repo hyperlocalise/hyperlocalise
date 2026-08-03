@@ -72,6 +72,20 @@ export const createJobBodySchema = z.discriminatedUnion("type", [
   }),
 ]);
 
+export const updateJobBodySchema = z
+  .object({
+    title: z.string().trim().min(1).max(256).optional(),
+    description: z.string().trim().max(2_048).nullable().optional(),
+    ownerWorkosUserId: z.string().trim().min(1).max(256).nullable().optional(),
+  })
+  .refine(
+    (body) =>
+      body.title !== undefined ||
+      body.description !== undefined ||
+      body.ownerWorkosUserId !== undefined,
+    { message: "At least one of title, description, or ownerWorkosUserId is required" },
+  );
+
 /** Statuses counted by project `openJobCount` and listed by `open=true`. */
 export const openJobStatusValues = ["queued", "running", "waiting_for_review"] as const;
 

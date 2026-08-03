@@ -47,6 +47,7 @@ import {
   getTmsProviderLiveJobDetail,
   getTmsProviderLiveProjectLocaleReadiness,
   updateTmsProviderLiveJobDescription,
+  updateTmsProviderLiveJobFields,
   getTmsProviderLiveProject,
   listTmsProviderLiveFilesForProject,
   listTmsProviderLiveGlossaries,
@@ -82,6 +83,20 @@ const localeReadinessQuerySchema = z.object({
 const updateJobDescriptionBodySchema = z.object({
   description: z.string().max(2_048),
 });
+
+const updateTmsProviderJobBodySchema = z
+  .object({
+    title: z.string().trim().min(1).max(256).optional(),
+    description: z.string().trim().max(2_048).nullable().optional(),
+    assigneeExternalUserIds: z.array(z.string().trim().min(1).max(128)).max(50).optional(),
+  })
+  .refine(
+    (body) =>
+      body.title !== undefined ||
+      body.description !== undefined ||
+      body.assigneeExternalUserIds !== undefined,
+    { message: "At least one of title, description, or assigneeExternalUserIds is required" },
+  );
 
 const createTmsProviderJobAgentRunBodySchema = z.object({
   projectId: projectIdSchema,
@@ -160,6 +175,15 @@ const validateUpdateJobDescriptionBody = validator("json", (value, c) => {
   const parsed = updateJobDescriptionBodySchema.safeParse(value);
   if (!parsed.success) {
     return c.json({ error: "invalid_request_body" }, 400);
+  }
+
+  return parsed.data;
+});
+
+const validateUpdateTmsProviderJobBody = validator("json", (value, c) => {
+  const parsed = updateTmsProviderJobBodySchema.safeParse(value);
+  if (!parsed.success) {
+    return badRequestResponse(c, "invalid_job_update", "Invalid provider job update payload");
   }
 
   return parsed.data;
@@ -478,6 +502,29 @@ export function createTmsProviderRoutes(options: CreateTmsProviderRoutesOptions 
         }
 
         return c.body(null, 204);
+      } catch (error) {
+        return tmsProviderLiveErrorResponse(c, error);
+      }
+    })
+    .patch("/jobs/:encodedJobId", validateUpdateTmsProviderJobBody, async (c) => {
+      if (!canEditTmsProviderJobDescription(c.var.auth)) {
+        return c.json({ error: "forbidden" }, 403);
+      }
+
+      const body = c.req.valid("json");
+
+      try {
+        const job = await updateTmsProviderLiveJobFields(
+          c.var.auth.organization.localOrganizationId,
+          c.req.param("encodedJobId"),
+          body,
+          c.var.auth.user.localUserId,
+        );
+        if (!job) {
+          return c.json({ error: "job_not_found" }, 404);
+        }
+
+        return c.json({ job }, 200);
       } catch (error) {
         return tmsProviderLiveErrorResponse(c, error);
       }

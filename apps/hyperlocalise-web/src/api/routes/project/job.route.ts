@@ -108,8 +108,10 @@ import {
   jobListQuerySchema,
   jobParamsSchema,
   jobProjectParamsSchema,
+  updateJobBodySchema,
   workspaceJobParamsSchema,
 } from "./job.schema";
+import { updateNativeJob } from "@/lib/projects/jobs/update-native-job";
 
 type CreateJobRoutesOptions = {
   jobQueue: JobQueue<TranslationJobEventData>;
@@ -224,6 +226,19 @@ const validateJobParams = validator("param", (value, c) => {
     return notFoundResponse(c, "job_not_found", "Job not found");
   }
 
+  return parsed.data;
+});
+
+const validateUpdateJobBody = validator("json", (value, c) => {
+  const parsed = updateJobBodySchema.safeParse(value);
+  if (!parsed.success) {
+    return validationErrorResponse(
+      c,
+      "invalid_job_update",
+      "Invalid job update payload",
+      parsed.error.issues,
+    );
+  }
   return parsed.data;
 });
 
@@ -1441,6 +1456,69 @@ export function createWorkspaceJobRoutes(options: CreateWorkspaceJobRoutesOption
         )
         .where(and(eq(schema.jobs.id, params.jobId), await buildAccessibleJobsWhere(c.var.auth)))
         .limit(1);
+
+      return c.json({ job }, 200);
+    })
+    .patch("/:jobId", validateWorkspaceJobParams, validateUpdateJobBody, async (c) => {
+      if (!isJobMutationAllowed(c.var.auth.membership.role)) {
+        return projectForbiddenResponse(c);
+      }
+
+      const params = c.req.valid("param");
+      const body = c.req.valid("json");
+      const result = await updateNativeJob({
+        organizationId: c.var.auth.organization.localOrganizationId,
+        jobId: params.jobId,
+        body,
+        accessWhere: await buildAccessibleJobsWhere(c.var.auth),
+      });
+
+      if (isErr(result)) {
+        switch (result.error.code) {
+          case "job_not_found":
+            return notFoundResponse(c, "job_not_found", "Job not found");
+          case "provider_job_not_updatable":
+            return conflictResponse(
+              c,
+              result.error.code,
+              result.error.message,
+            );
+          case "owner_not_found":
+          case "assignee_not_assignable":
+          case "project_required":
+            return badRequestResponse(c, result.error.code, result.error.message);
+          default:
+            return internalErrorResponse(c);
+        }
+      }
+
+      const [job] = await db
+        .select(jobWithProjectSelect)
+        .from(schema.jobs)
+        .leftJoin(
+          schema.translationJobDetails,
+          eq(schema.translationJobDetails.jobId, schema.jobs.id),
+        )
+        .leftJoin(schema.reviewJobDetails, eq(schema.reviewJobDetails.jobId, schema.jobs.id))
+        .leftJoin(schema.syncJobDetails, eq(schema.syncJobDetails.jobId, schema.jobs.id))
+        .leftJoin(
+          schema.assetManagementJobDetails,
+          eq(schema.assetManagementJobDetails.jobId, schema.jobs.id),
+        )
+        .leftJoin(schema.externalJobDetails, eq(schema.externalJobDetails.jobId, schema.jobs.id))
+        .leftJoin(
+          schema.projects,
+          and(
+            eq(schema.projects.id, schema.jobs.projectId),
+            eq(schema.projects.organizationId, schema.jobs.organizationId),
+          ),
+        )
+        .where(and(eq(schema.jobs.id, params.jobId), await buildAccessibleJobsWhere(c.var.auth)))
+        .limit(1);
+
+      if (!job) {
+        return notFoundResponse(c, "job_not_found", "Job not found");
+      }
 
       return c.json({ job }, 200);
     })
