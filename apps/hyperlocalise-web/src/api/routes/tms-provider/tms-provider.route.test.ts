@@ -1009,4 +1009,92 @@ describe("tmsProviderRoutes", () => {
       expect.objectContaining({ languageId: "fr" }),
     );
   });
+
+  it("allows Crowdin job field updates for jobs:write roles", async () => {
+    const identity = fixture.createWorkosIdentityWithRole("translator");
+    const headers = await fixture.authHeadersFor(identity);
+    const updateFields = vi.spyOn(tmsProviderLive, "updateTmsProviderLiveJobFields").mockResolvedValue(
+      {
+        ...createLiveProviderJob({
+          id: "ext:crowdin:902807:5001",
+          externalTitle: "Updated Crowdin task",
+        }),
+        externalJobId: "5001",
+        externalUrl: null,
+        externalProviderPayload: {},
+      },
+    );
+
+    const response = await client.api.orgs[":organizationSlug"]["tms-provider"].jobs[
+      ":encodedJobId"
+    ].$patch(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing",
+          encodedJobId: "ext:crowdin:902807:5001",
+        },
+        json: { title: "Updated Crowdin task" },
+      },
+      { headers },
+    );
+
+    expect(response.status).toBe(200);
+    expect(updateFields).toHaveBeenCalledTimes(1);
+  });
+
+  it("forbids Smartling job field updates for non-operator roles", async () => {
+    const identity = fixture.createWorkosIdentityWithRole("translator");
+    const headers = await fixture.authHeadersFor(identity);
+    const updateFields = vi.spyOn(tmsProviderLive, "updateTmsProviderLiveJobFields");
+
+    const response = await client.api.orgs[":organizationSlug"]["tms-provider"].jobs[
+      ":encodedJobId"
+    ].$patch(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing",
+          encodedJobId: "ext:smartling:project-a:job-1",
+        },
+        json: { title: "Updated Smartling job" },
+      },
+      { headers },
+    );
+
+    expect(response.status).toBe(403);
+    await expect(response.json()).resolves.toEqual({ error: "forbidden" });
+    expect(updateFields).not.toHaveBeenCalled();
+  });
+
+  it("allows Smartling job field updates for workspace operators", async () => {
+    const identity = fixture.createWorkosIdentityWithRole("localization_manager");
+    const headers = await fixture.authHeadersFor(identity);
+    const updateFields = vi
+      .spyOn(tmsProviderLive, "updateTmsProviderLiveJobFields")
+      .mockResolvedValue({
+        ...createLiveProviderJob({
+          id: "ext:smartling:project-a:job-1",
+          externalProviderKind: "smartling",
+          externalTitle: "Updated Smartling job",
+        }),
+        externalJobId: "job-1",
+        externalUrl: null,
+        externalProviderPayload: {},
+      });
+
+    const response = await client.api.orgs[":organizationSlug"]["tms-provider"].jobs[
+      ":encodedJobId"
+    ].$patch(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing",
+          encodedJobId: "ext:smartling:project-a:job-1",
+        },
+        json: { title: "Updated Smartling job" },
+      },
+      { headers },
+    );
+
+    expect(response.status).toBe(200);
+    expect(updateFields).toHaveBeenCalledTimes(1);
+  });
 });

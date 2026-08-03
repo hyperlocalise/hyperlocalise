@@ -3766,6 +3766,12 @@ export async function updateTmsProviderLiveJobFields(
       ...(hasAssignees ? { assigneeExternalUserIds: fields.assigneeExternalUserIds } : {}),
     });
   } catch (error) {
+    if (error instanceof Error && error.message === "invalid_crowdin_assignee_id") {
+      throw new TmsProviderLiveError(
+        "invalid_crowdin_assignee_id",
+        "Assignee ids must be canonical positive Crowdin member ids.",
+      );
+    }
     if (error instanceof CrowdinApiError && error.status === 401) {
       throw new TmsProviderLiveError(
         "crowdin_user_auth_invalid",

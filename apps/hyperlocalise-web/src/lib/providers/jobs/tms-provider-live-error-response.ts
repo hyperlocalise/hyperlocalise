@@ -59,6 +59,7 @@ export function getTmsProviderLiveErrorStatus(code: string): TmsProviderLiveErro
     case "phrase_target_locale_not_found":
     case "invalid_job_update":
     case "unsupported_job_field_update":
+    case "invalid_crowdin_assignee_id":
       return 400;
     case "provider_fetcher_unavailable":
     case "provider_description_edit_unsupported":

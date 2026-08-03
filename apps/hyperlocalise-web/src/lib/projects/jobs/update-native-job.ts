@@ -82,111 +82,117 @@ export async function updateNativeJob(input: {
   database?: DatabaseClient;
 }): Promise<Result<{ id: string }, UpdateNativeJobError>> {
   const database = input.database ?? db;
+  const ownerChanging = Object.hasOwn(input.body, "ownerWorkosUserId");
+  const titleChanging = input.body.title !== undefined;
+  const descriptionChanging = Object.hasOwn(input.body, "description");
 
-  const [existing] = await database
-    .select({
-      id: schema.jobs.id,
-      projectId: schema.jobs.projectId,
-      inputPayload: schema.jobs.inputPayload,
-      ownerUserId: schema.jobs.ownerUserId,
-      externalProviderKind: schema.externalJobDetails.providerKind,
-    })
-    .from(schema.jobs)
-    .leftJoin(schema.externalJobDetails, eq(schema.externalJobDetails.jobId, schema.jobs.id))
-    .where(and(eq(schema.jobs.id, input.jobId), input.accessWhere))
-    .limit(1);
+  return database.transaction(async (tx) => {
+    const [existing] = await tx
+      .select({
+        id: schema.jobs.id,
+        projectId: schema.jobs.projectId,
+        inputPayload: schema.jobs.inputPayload,
+        ownerUserId: schema.jobs.ownerUserId,
+        externalProviderKind: schema.externalJobDetails.providerKind,
+      })
+      .from(schema.jobs)
+      .leftJoin(schema.externalJobDetails, eq(schema.externalJobDetails.jobId, schema.jobs.id))
+      .where(and(eq(schema.jobs.id, input.jobId), input.accessWhere))
+      .limit(1)
+      .for("update");
 
-  if (!existing) {
-    return err({ code: "job_not_found" });
-  }
+    if (!existing) {
+      return err({ code: "job_not_found" as const });
+    }
 
-  if (existing.externalProviderKind) {
-    return err({
-      code: "provider_job_not_updatable",
-      message: "Use the TMS provider job update endpoint for provider-backed jobs",
-    });
-  }
-
-  if (!existing.projectId) {
-    return err({
-      code: "project_required",
-      message: "Job must belong to a project to update owner or metadata",
-    });
-  }
-
-  let nextOwnerUserId = existing.ownerUserId;
-  if (Object.hasOwn(input.body, "ownerWorkosUserId")) {
-    if (input.body.ownerWorkosUserId == null) {
-      nextOwnerUserId = null;
-    } else {
-      const resolvedOwnerId = await resolveOwnerUserId({
-        organizationId: input.organizationId,
-        workosUserId: input.body.ownerWorkosUserId,
-        database,
+    if (existing.externalProviderKind) {
+      return err({
+        code: "provider_job_not_updatable" as const,
+        message: "Use the TMS provider job update endpoint for provider-backed jobs",
       });
-      if (!resolvedOwnerId) {
-        return err({
-          code: "owner_not_found",
-          message: "Assigned owner must be an organization member",
+    }
+
+    if (!existing.projectId) {
+      return err({
+        code: "project_required" as const,
+        message: "Job must belong to a project to update owner or metadata",
+      });
+    }
+
+    const updates: {
+      ownerUserId?: string | null;
+      inputPayload?: Record<string, unknown>;
+      updatedAt: Date;
+    } = {
+      updatedAt: new Date(),
+    };
+
+    if (ownerChanging) {
+      if (input.body.ownerWorkosUserId == null) {
+        updates.ownerUserId = null;
+      } else {
+        const resolvedOwnerId = await resolveOwnerUserId({
+          organizationId: input.organizationId,
+          workosUserId: input.body.ownerWorkosUserId,
+          database: tx,
         });
+        if (!resolvedOwnerId) {
+          return err({
+            code: "owner_not_found" as const,
+            message: "Assigned owner must be an organization member",
+          });
+        }
+
+        const assignable = await assertAssignableIssueAssignee({
+          organizationId: input.organizationId,
+          projectId: existing.projectId,
+          assigneeUserId: resolvedOwnerId,
+          database: tx,
+        });
+        if (isErr(assignable)) {
+          return err({
+            code: "assignee_not_assignable" as const,
+            message: "Assigned owner must be an active member with project access",
+          });
+        }
+        updates.ownerUserId = resolvedOwnerId;
+      }
+    }
+
+    if (titleChanging || descriptionChanging) {
+      const currentPayload = isPlainRecord(existing.inputPayload) ? existing.inputPayload : {};
+      const metadata = readMetadata(existing.inputPayload);
+
+      if (titleChanging) {
+        metadata.title = input.body.title!;
       }
 
-      const assignable = await assertAssignableIssueAssignee({
-        organizationId: input.organizationId,
-        projectId: existing.projectId,
-        assigneeUserId: resolvedOwnerId,
-        database,
-      });
-      if (isErr(assignable)) {
-        return err({
-          code: "assignee_not_assignable",
-          message: "Assigned owner must be an active member with project access",
-        });
+      if (descriptionChanging) {
+        if (input.body.description == null || input.body.description.trim().length === 0) {
+          delete metadata.description;
+        } else {
+          metadata.description = input.body.description.trim();
+        }
       }
-      nextOwnerUserId = resolvedOwnerId;
-    }
-  }
 
-  const currentPayload = isPlainRecord(existing.inputPayload) ? existing.inputPayload : {};
-  const metadata = readMetadata(existing.inputPayload);
-  let metadataChanged = false;
-
-  if (input.body.title !== undefined) {
-    metadata.title = input.body.title;
-    metadataChanged = true;
-  }
-
-  if (Object.hasOwn(input.body, "description")) {
-    if (input.body.description == null || input.body.description.trim().length === 0) {
-      delete metadata.description;
-    } else {
-      metadata.description = input.body.description.trim();
-    }
-    metadataChanged = true;
-  }
-
-  const nextPayload = metadataChanged
-    ? {
+      updates.inputPayload = {
         ...currentPayload,
         metadata,
-      }
-    : currentPayload;
+      };
+    }
 
-  const [updated] = await database
-    .update(schema.jobs)
-    .set({
-      ownerUserId: nextOwnerUserId,
-      ...(metadataChanged ? { inputPayload: nextPayload } : {}),
-      updatedAt: new Date(),
-    })
-    .where(
-      and(eq(schema.jobs.id, input.jobId), eq(schema.jobs.organizationId, input.organizationId)),
-    )
-    .returning({ id: schema.jobs.id });
+    const [updated] = await tx
+      .update(schema.jobs)
+      .set(updates)
+      .where(
+        and(eq(schema.jobs.id, input.jobId), eq(schema.jobs.organizationId, input.organizationId)),
+      )
+      .returning({ id: schema.jobs.id });
 
-  if (!updated) {
-    return err({ code: "job_not_found" });
-  }
+    if (!updated) {
+      return err({ code: "job_not_found" as const });
+    }
 
-  return ok(updated);
+    return ok(updated);
+  });
 }

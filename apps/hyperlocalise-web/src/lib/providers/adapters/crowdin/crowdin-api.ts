@@ -1184,10 +1184,18 @@ export class CrowdinApiClient {
       });
     }
     if (fields.assigneeExternalUserIds !== undefined) {
-      const assignees = fields.assigneeExternalUserIds
-        .map((externalUserId) => Number(externalUserId))
-        .filter((id) => Number.isFinite(id) && id > 0)
-        .map((id) => ({ id }));
+      const assignees: Array<{ id: number }> = [];
+      for (const externalUserId of fields.assigneeExternalUserIds) {
+        const trimmed = externalUserId.trim();
+        if (!/^[1-9]\d*$/.test(trimmed)) {
+          throw new Error("invalid_crowdin_assignee_id");
+        }
+        const id = Number(trimmed);
+        if (!Number.isSafeInteger(id) || String(id) !== trimmed) {
+          throw new Error("invalid_crowdin_assignee_id");
+        }
+        assignees.push({ id });
+      }
       patches.push({ op: "replace", path: "/assignees", value: assignees });
     }
 
