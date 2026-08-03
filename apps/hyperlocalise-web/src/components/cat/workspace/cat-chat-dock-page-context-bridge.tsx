@@ -20,28 +20,44 @@ import { useOptionalAppShellStore } from "@/components/app-shell/store/app-shell
 
 import { useCatWorkspace } from "./cat-workspace-context";
 
-function toChatDockPageContext(
-  segmentId: string,
-  key: string,
-  sourceText: string,
-  contextLabel: string | undefined,
-  sourcePath: string | undefined,
-): ChatDockPageContext {
+function resolveProjectSource(providerKind: string | null | undefined): "native" | "external_tms" {
+  return providerKind ? "external_tms" : "native";
+}
+
+function toChatDockPageContext(input: {
+  segmentId: string;
+  key: string;
+  sourceText: string;
+  contextLabel: string | undefined;
+  sourcePath: string | undefined;
+  sourceLocale: string;
+  targetLocale: string;
+  providerKind: string | null;
+  projectId?: string;
+  projectName?: string;
+}): ChatDockPageContext {
   return {
     kind: "cat-segment",
-    segmentId,
-    key,
-    sourceText,
-    contextLabel,
-    sourcePath,
+    segmentId: input.segmentId,
+    key: input.key,
+    sourceText: input.sourceText,
+    contextLabel: input.contextLabel,
+    sourcePath: input.sourcePath,
+    sourceLocale: input.sourceLocale,
+    targetLocale: input.targetLocale,
+    projectId: input.projectId,
+    projectName: input.projectName,
+    projectSource: resolveProjectSource(input.providerKind),
+    externalProviderKind: input.providerKind,
   };
 }
 
 /**
  * Mirrors the selected CAT segment into ChatDockStore.pageContext so suggestion
- * pills can reference the current string. Chat dock sits outside CatWorkspaceProvider.
+ * pills and the chat agent can reference the current string and project/TMS kind.
+ * Chat dock sits outside CatWorkspaceProvider.
  */
-export function CatChatDockPageContextBridge() {
+export function CatChatDockPageContextBridge({ projectId }: { projectId?: string }) {
   const workspace = useCatWorkspace();
   const appShell = useOptionalAppShellStore();
 
@@ -58,20 +74,24 @@ export function CatChatDockPageContextBridge() {
           return null;
         }
 
-        return toChatDockPageContext(
-          segment.id,
-          segment.key,
-          segment.sourceText,
-          segment.contextLabel,
-          workspace.fileContext.sourcePath,
-        );
+        return toChatDockPageContext({
+          segmentId: segment.id,
+          key: segment.key,
+          sourceText: segment.sourceText,
+          contextLabel: segment.contextLabel,
+          sourcePath: workspace.fileContext.sourcePath,
+          sourceLocale: workspace.fileContext.sourceLocale,
+          targetLocale: workspace.fileContext.targetLocale,
+          providerKind: workspace.fileContext.providerKind,
+          projectId,
+        });
       },
       (context) => {
         chatDock.setPageContext(context);
       },
       { fireImmediately: true },
     );
-  }, [appShell, workspace]);
+  }, [appShell, projectId, workspace]);
 
   useEffect(() => {
     const chatDock = appShell?.chatDock;

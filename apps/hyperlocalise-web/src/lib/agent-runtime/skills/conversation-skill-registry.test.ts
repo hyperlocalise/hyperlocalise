@@ -39,6 +39,7 @@ describe("conversation skill registry", () => {
       expect.arrayContaining([
         "conversation",
         "find-context",
+        "glossary-tools",
         "knowledge-memory",
         "repo-tools",
         "tms-tools",
@@ -53,10 +54,16 @@ describe("conversation skill registry", () => {
       tools: ["list_projects", "get_project_context", "update_interaction_project"],
     });
 
+    const glossarySkill = skills.find((skill) => skill.id === "glossary-tools");
+    expect(glossarySkill).toMatchObject({
+      always: true,
+      tools: ["search_native_glossary"],
+    });
+
     const tmsSkill = skills.find((skill) => skill.id === "tms-tools");
     expect(tmsSkill).toMatchObject({
       requiresTmsIntegration: true,
-      tools: ["check_crowdin_progress"],
+      tools: ["check_crowdin_progress", "search_crowdin_glossary"],
       sharedSkills: ["crowdin"],
     });
 
@@ -379,7 +386,10 @@ describe("conversation skill registry", () => {
       expect.arrayContaining(["conversation", "translation-tools"]),
     );
     expect(plan.instructionSkillIds).not.toContain("tms-tools");
-    expect(plan.toolNames).toEqual(expect.arrayContaining(["list_projects", "translate_string"]));
+    expect(plan.instructionSkillIds).toEqual(expect.arrayContaining(["glossary-tools"]));
+    expect(plan.toolNames).toEqual(
+      expect.arrayContaining(["list_projects", "search_native_glossary", "translate_string"]),
+    );
     expect(plan.toolNames).not.toContain("check_crowdin_progress");
   });
 

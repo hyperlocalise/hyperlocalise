@@ -13,7 +13,7 @@
 import { describe, expect, it } from "vite-plus/test";
 
 import { CHAT_DOCK_MAX_CONCURRENT_STREAMS } from "./chat-dock-persistence";
-import { ChatDockStore } from "./chat-dock-store";
+import { ChatDockStore, resolveChatDockMessageProjectId } from "./chat-dock-store";
 
 function createMemoryStorage() {
   const data: Record<string, string> = {};
@@ -31,6 +31,46 @@ function createMemoryStorage() {
 }
 
 describe("ChatDockStore", () => {
+  it("only applies CAT project context to new or unscoped conversations", () => {
+    const pageContext = {
+      kind: "cat-segment" as const,
+      segmentId: "segment-1",
+      key: "checkout.submit",
+      sourceText: "Submit",
+      projectId: "cat-project",
+    };
+
+    expect(
+      resolveChatDockMessageProjectId({
+        pageContext,
+        isPending: true,
+        conversationProjectId: undefined,
+      }),
+    ).toBe("cat-project");
+    expect(
+      resolveChatDockMessageProjectId({
+        pageContext,
+        isPending: false,
+        conversationProjectId: null,
+      }),
+    ).toBe("cat-project");
+    expect(
+      resolveChatDockMessageProjectId({
+        pageContext,
+        isPending: false,
+        conversationProjectId: "existing-project",
+      }),
+    ).toBeUndefined();
+    expect(
+      resolveChatDockMessageProjectId({
+        explicitProjectId: "selected-project",
+        pageContext,
+        isPending: false,
+        conversationProjectId: "existing-project",
+      }),
+    ).toBe("selected-project");
+  });
+
   it("opens, selects, and closes tabs", () => {
     const store = new ChatDockStore(createMemoryStorage());
     store.setOrganizationSlug("acme");

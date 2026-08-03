@@ -10,6 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import type { HyperlocaliseAttachedProjectContext } from "@/agents/hyperlocalise/agent/agent";
 import type { HyperlocaliseAgentSurface } from "@/lib/agent-runtime/loops/hyperlocalise-agent";
 import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
 import type { ToolContext } from "@/lib/agent-contracts/tool-context";
@@ -23,6 +24,7 @@ export type HyperlocaliseAgentRuntimeContext = {
   hasFileAttachments: boolean;
   hasTmsIntegration: boolean;
   hasVisualMockSkill?: boolean;
+  attachedProject?: HyperlocaliseAttachedProjectContext | null;
   additionalInstructions?: string;
 };
 
@@ -59,6 +61,7 @@ export function resolveAgentRuntimeContext(
     hasFileAttachments: context.hasFileAttachments ?? false,
     hasTmsIntegration: context.hasTmsIntegration ?? false,
     hasVisualMockSkill: context.hasVisualMockSkill ?? false,
+    attachedProject: context.attachedProject ?? null,
     additionalInstructions: context.additionalInstructions,
   });
 }

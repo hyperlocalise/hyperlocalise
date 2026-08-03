@@ -50,7 +50,30 @@ export type ChatDockPageContext = {
   sourceText: string;
   contextLabel?: string;
   sourcePath?: string;
+  sourceLocale?: string;
+  targetLocale?: string;
+  projectId?: string;
+  projectName?: string;
+  projectSource?: "native" | "external_tms";
+  externalProviderKind?: string | null;
 };
+
+export function resolveChatDockMessageProjectId(input: {
+  explicitProjectId?: string;
+  pageContext: ChatDockPageContext | null;
+  isPending: boolean;
+  conversationProjectId: string | null | undefined;
+}) {
+  if (input.explicitProjectId) {
+    return input.explicitProjectId;
+  }
+
+  if (!input.isPending && input.conversationProjectId !== null) {
+    return undefined;
+  }
+
+  return input.pageContext?.projectId;
+}
 
 const STREAM_ERROR_MESSAGE = "Sorry, I encountered an error while generating a response.";
 

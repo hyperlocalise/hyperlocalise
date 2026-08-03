@@ -559,6 +559,8 @@ export interface CrowdinGlossaryConcordanceSearchRequest {
   sourceLanguageId: string;
   targetLanguageId: string;
   expressions: string[];
+  /** Owner whose glossaries to search for org-level concordance. Defaults to the authenticated account. */
+  userId?: number | null;
 }
 
 export interface CrowdinGlossaryConcordanceTerm {
@@ -1294,7 +1296,7 @@ export class CrowdinApiClient {
   }
 
   /**
-   * Search glossary concordance for source expressions.
+   * Search glossary concordance for source expressions within a Crowdin project.
    */
   async glossaryConcordanceSearch(
     projectId: number,
@@ -1306,6 +1308,27 @@ export class CrowdinApiClient {
         sourceLanguageId: input.sourceLanguageId,
         targetLanguageId: input.targetLanguageId,
         expressions: input.expressions,
+      },
+    );
+
+    return response.data.map((item) => item.data);
+  }
+
+  /**
+   * Search glossary concordance across organization glossaries (not project-scoped).
+   *
+   * @see https://support.crowdin.com/developer/api/v2/#operation/api.glossaries.concordance.post
+   */
+  async organizationGlossaryConcordanceSearch(
+    input: CrowdinGlossaryConcordanceSearchRequest,
+  ): Promise<CrowdinGlossaryConcordanceSearchResult[]> {
+    const response = await this.post<CrowdinListResponse<CrowdinGlossaryConcordanceSearchResult>>(
+      `/glossaries/concordance`,
+      {
+        sourceLanguageId: input.sourceLanguageId,
+        targetLanguageId: input.targetLanguageId,
+        expressions: input.expressions,
+        ...(input.userId !== undefined ? { userId: input.userId } : {}),
       },
     );
 

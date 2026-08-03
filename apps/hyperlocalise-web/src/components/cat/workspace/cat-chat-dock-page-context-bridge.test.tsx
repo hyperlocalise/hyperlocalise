@@ -39,7 +39,7 @@ function createWrapper(initialSegmentId = "seg-02") {
     return (
       <AppShellStoreProvider defaultNavigationGroups={[]}>
         <CatWorkspaceProvider initialState={initialState}>
-          <CatChatDockPageContextBridge />
+          <CatChatDockPageContextBridge projectId="proj_1" />
           {children}
         </CatWorkspaceProvider>
       </AppShellStoreProvider>
@@ -61,6 +61,7 @@ describe("CatChatDockPageContextBridge", () => {
       expect(result.current.chatDock.pageContext).toMatchObject({
         kind: "cat-segment",
         segmentId: "seg-02",
+        projectId: "proj_1",
       });
     });
 
@@ -72,6 +73,10 @@ describe("CatChatDockPageContextBridge", () => {
 
     expect(context.key).toBeTruthy();
     expect(context.sourceText).toBeTruthy();
+    expect(context.projectSource).toBe("native");
+    expect(context.externalProviderKind).toBeNull();
+    expect(context.sourceLocale).toBeTruthy();
+    expect(context.targetLocale).toBeTruthy();
 
     result.current.workspace.setSelectedSegmentId("seg-01");
 

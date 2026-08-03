@@ -16,6 +16,8 @@ import type { ToolSet } from "ai";
 import { hasCapability } from "@/api/auth/policy";
 import { getAgentManifest, type AgentSkillDocument } from "@/agents/_runtime/loader";
 import { createCheckCrowdinProgressTool } from "@/agents/_runtime/shared-tools/check_crowdin_progress";
+import { createSearchCrowdinGlossaryTool } from "@/agents/_runtime/shared-tools/search_crowdin_glossary";
+import { createSearchNativeGlossaryTool } from "@/agents/_runtime/shared-tools/search_native_glossary";
 import { createTranslateStringTool } from "@/agents/_runtime/shared-tools/translate_string";
 import type { HyperlocaliseAgentRuntimeContext } from "@/lib/agent-runtime/context";
 import { repositoryWorkspaceToolNames } from "@/lib/agent-contracts/repository-workspace-tools";
@@ -87,6 +89,8 @@ const conversationSkillToolFactories: Record<string, ConversationSkillToolFactor
   get_project_context: (toolContext) => createGetProjectContextTool(toolContext),
   update_interaction_project: (toolContext) => createUpdateInteractionProjectTool(toolContext),
   check_crowdin_progress: (toolContext) => createCheckCrowdinProgressTool(toolContext),
+  search_crowdin_glossary: (toolContext) => createSearchCrowdinGlossaryTool(toolContext),
+  search_native_glossary: (toolContext) => createSearchNativeGlossaryTool(toolContext),
   get_knowledge_memory: (toolContext) => createGetKnowledgeMemoryTool(toolContext),
   update_knowledge_memory: (toolContext) => createUpdateKnowledgeMemoryTool(toolContext),
 };

@@ -12,11 +12,16 @@
  */
 import type { ModelMessage } from "ai";
 
-import type { HyperlocaliseAgentSurface } from "@/agents/hyperlocalise/agent/agent";
+import type {
+  HyperlocaliseAgentSurface,
+  HyperlocaliseAttachedProjectContext,
+} from "@/agents/hyperlocalise/agent/agent";
 import type { RepositoryAgentGitHubContext } from "@/lib/agent-contracts/repository-task";
 import type { RepositoryAgentTaskSource } from "@/lib/agent-contracts/repository-task";
 import type { ToolContext } from "@/lib/agent-contracts/tool-context";
+import { schema } from "@/lib/database";
 import type { OrganizationMembershipRole } from "@/lib/database/types";
+import { and, eq } from "drizzle-orm";
 import {
   buildRepositoryGitHubContextInstructions,
   getOrganizationRepositoryConnectorConfig,
@@ -53,6 +58,45 @@ export const REPOSITORY_ACCESS_CONTENTION_FOLLOW_UP =
 
 export function buildFileTranslationInstructions() {
   return `When a message includes stored source file IDs, create file translation jobs with type "file", the provided sourceFileId and fileFormat, targetLocales, and sourceLocale. Use sourceLocale "auto" if the user did not specify a source locale. Supported file job formats: ${supportedFileTranslationFileFormats.join(", ")}.`;
+}
+
+async function loadAttachedProjectContext(input: {
+  db: ToolContext["db"];
+  organizationId: string;
+  projectId: string | null;
+}): Promise<HyperlocaliseAttachedProjectContext | null> {
+  if (!input.projectId) {
+    return null;
+  }
+
+  const [project] = await input.db
+    .select({
+      id: schema.projects.id,
+      name: schema.projects.name,
+      source: schema.projects.source,
+      externalProviderKind: schema.projects.externalProviderKind,
+    })
+    .from(schema.projects)
+    .where(
+      and(
+        eq(schema.projects.id, input.projectId),
+        eq(schema.projects.organizationId, input.organizationId),
+      ),
+    )
+    .limit(1);
+
+  if (!project) {
+    return {
+      projectId: input.projectId,
+    };
+  }
+
+  return {
+    projectId: project.id,
+    projectName: project.name,
+    projectSource: project.source,
+    externalProviderKind: project.externalProviderKind,
+  };
 }
 
 export function buildMissingRepositoryContextInstructions(followUp: string) {
@@ -365,12 +409,17 @@ export async function prepareConversationAgentTurn(
     }
   }
 
-  const [hasTmsIntegration, hasVisualMockSkill] = await Promise.all([
+  const [hasTmsIntegration, hasVisualMockSkill, attachedProject] = await Promise.all([
     resolveOrganizationHasTmsIntegration(input.organizationId),
     resolveWorkspaceVisualMockFlag({
       organizationId: input.organizationId,
       localUserId: input.localUserId,
       dbClient: input.db,
+    }),
+    loadAttachedProjectContext({
+      db: input.db,
+      organizationId: input.organizationId,
+      projectId: input.projectId,
     }),
   ]);
 
@@ -400,6 +449,7 @@ export async function prepareConversationAgentTurn(
     hasFileAttachments: input.hasTranslationAttachments,
     hasTmsIntegration,
     hasVisualMockSkill,
+    attachedProject,
     additionalInstructions: [buildFileTranslationInstructions(), repositoryInstructions]
       .filter((instruction): instruction is string => instruction !== null)
       .join("\n\n"),

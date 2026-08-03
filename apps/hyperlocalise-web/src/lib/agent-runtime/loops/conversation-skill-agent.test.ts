@@ -74,10 +74,12 @@ describe("conversation skill agent", () => {
           "list_projects",
           "get_project_context",
           "update_interaction_project",
+          "search_native_glossary",
           "translate_string",
         ]),
         tools: expect.objectContaining({
           list_projects: expect.any(Object),
+          search_native_glossary: expect.any(Object),
           translate_string: expect.any(Object),
         }),
         providerOptions: {
