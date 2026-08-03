@@ -14,6 +14,7 @@ import { and, desc, eq, lt } from "drizzle-orm";
 
 import { db, schema } from "@/lib/database";
 import { err, type Result } from "@/lib/primitives/result/results";
+import { mergeVersionedDocumentRevisionPage } from "@/lib/versioned-document/merge-versioned-document-revision-page";
 import { commitKnowledgeMemoryForOrganization } from "./knowledge-memory";
 import type {
   KnowledgeMemoryCommitResult,
@@ -98,18 +99,11 @@ export async function listKnowledgeMemoryRevisions(input: {
     isCurrent: false,
   }));
 
-  // A revision can move to the archive between these reads; current metadata wins.
-  const revisions = [
-    ...new Map(
-      [...archivedRevisions, ...currentRevisions].map(
-        (revision) => [revision.revisionId, revision] as const,
-      ),
-    ).values(),
-  ].sort((left, right) => right.version - left.version);
-
-  const knowledgeMemoryRevisions = revisions.slice(0, input.limit);
-  const nextCursor =
-    revisions.length > input.limit ? (knowledgeMemoryRevisions.at(-1)?.version ?? null) : null;
+  const { revisions: knowledgeMemoryRevisions, nextCursor } = mergeVersionedDocumentRevisionPage({
+    currentRevisions,
+    archivedRevisions,
+    limit: input.limit,
+  });
 
   return { knowledgeMemoryRevisions, nextCursor };
 }

@@ -1307,6 +1307,47 @@ describe("CrowdinApiClient", () => {
     expect(progress[0]?.translationProgress).toBe(50);
   });
 
+  it("editTaskFields rejects non-canonical Crowdin assignee ids", async () => {
+    const fetchMock = vi.fn(async () => {
+      return new Response(JSON.stringify(createTaskPayload(9)), { status: 200 });
+    }) as unknown as typeof fetch;
+    const client = createClient(fetchMock);
+
+    await expect(client.editTaskFields(1, 9, { assigneeExternalUserIds: ["abc"] })).rejects.toThrow(
+      "invalid_crowdin_assignee_id",
+    );
+    await expect(client.editTaskFields(1, 9, { assigneeExternalUserIds: ["01"] })).rejects.toThrow(
+      "invalid_crowdin_assignee_id",
+    );
+    await expect(client.editTaskFields(1, 9, { assigneeExternalUserIds: ["0"] })).rejects.toThrow(
+      "invalid_crowdin_assignee_id",
+    );
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("editTaskFields patches canonical Crowdin assignee ids", async () => {
+    const fetchMock = vi.fn(async () => {
+      return new Response(JSON.stringify(createTaskPayload(9)), { status: 200 });
+    }) as unknown as typeof fetch;
+    const client = createClient(fetchMock);
+
+    await client.editTaskFields(1, 9, { assigneeExternalUserIds: ["12", "34"] });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://api.crowdin.test/api/v2/projects/1/tasks/9",
+      expect.objectContaining({
+        method: "PATCH",
+        body: JSON.stringify([
+          {
+            op: "replace",
+            path: "/assignees",
+            value: [{ id: 12 }, { id: 34 }],
+          },
+        ]),
+      }),
+    );
+  });
+
   it("logs each API request with method and endpoint", async () => {
     const fetchMock = vi.fn(async () => {
       return new Response(

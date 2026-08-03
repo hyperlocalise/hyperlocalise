@@ -169,7 +169,7 @@ export function ProviderJobDescriptionField({
     mutationFn: async (nextDraft: string) => {
       const response = await apiClient.api.orgs[":organizationSlug"]["tms-provider"].jobs[
         ":encodedJobId"
-      ].description.$patch({
+      ].$patch({
         param: { organizationSlug, encodedJobId },
         json: { description: nextDraft },
       });

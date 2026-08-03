@@ -22,17 +22,17 @@ minimumReleaseAgeExclude:
   - '@ai-sdk/react@4.0.40'
   - ai@7.0.37
 overrides:
-  vite: "8.1.5"
+  vite: "8.2.0"
   # Pin each undici major independently (transitive deps use 6/7/8).
   "undici@^6.0.0": "6.28.0"
   "undici@^7.0.0": "7.29.0"
   "undici@^8.0.0": "8.9.0"
-  devalue: "5.8.2"
+  devalue: "5.9.0"
   qs: "6.15.3"
   "@anthropic-ai/sdk": "0.115.0"
-  postcss: "8.5.24"
+  postcss: "8.5.25"
   esbuild: "0.28.1"
-  "ip-address": "10.3.1"
+  "ip-address": "10.4.0"
   hono: "4.12.32"
   form-data: "4.0.6"
   dompurify: "3.4.12"

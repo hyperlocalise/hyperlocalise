@@ -45,12 +45,12 @@ export function ProviderLiveJobDetailContent({
   jobId,
   organizationSlug,
   projectId,
-  canEditProviderJobDescription,
+  canEditJobFields,
 }: {
   jobId: string;
   organizationSlug: string;
   projectId: string;
-  canEditProviderJobDescription: boolean;
+  canEditJobFields: boolean;
 }) {
   const router = useRouter();
   const intl = useIntl();
@@ -128,7 +128,7 @@ export function ProviderLiveJobDetailContent({
         jobId={jobId}
         organizationSlug={organizationSlug}
         projectId={projectId}
-        canEditProviderJobDescription={canEditProviderJobDescription}
+        canEditJobFields={canEditJobFields}
         job={jobQuery.data}
         isLoading={jobQuery.isLoading}
         error={jobQuery.isError ? jobQuery.error : undefined}

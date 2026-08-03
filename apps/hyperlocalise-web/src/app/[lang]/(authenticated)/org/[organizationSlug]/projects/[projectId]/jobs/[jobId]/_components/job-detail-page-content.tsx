@@ -32,12 +32,14 @@ export function JobDetailPageContent({
   jobId,
   organizationSlug,
   projectId,
-  canEditProviderJobDescription,
+  canEditJobFields,
+  canEditSharedCredentialProviderJobFields = false,
 }: {
   jobId: string;
   organizationSlug: string;
   projectId: string;
-  canEditProviderJobDescription: boolean;
+  canEditJobFields: boolean;
+  canEditSharedCredentialProviderJobFields?: boolean;
 }) {
   const activeTmsProviderQuery = useActiveTmsProvider(organizationSlug);
   const encodedProviderJobFromRoute = parseProviderJobId(jobId);
@@ -86,12 +88,16 @@ export function JobDetailPageContent({
   }
 
   if (useLiveProviderJob && encodedProviderJobId) {
+    const providerKind = parseProviderJobId(encodedProviderJobId)?.providerKind;
+    const canEditProviderJobFields =
+      providerKind === "smartling" ? canEditSharedCredentialProviderJobFields : canEditJobFields;
+
     return (
       <ProviderLiveJobDetailContent
         jobId={encodedProviderJobId}
         organizationSlug={organizationSlug}
         projectId={projectId}
-        canEditProviderJobDescription={canEditProviderJobDescription}
+        canEditJobFields={canEditProviderJobFields}
       />
     );
   }
@@ -101,6 +107,7 @@ export function JobDetailPageContent({
       jobId={jobId}
       organizationSlug={organizationSlug}
       projectId={projectId}
+      canEditJobFields={canEditJobFields}
     />
   );
 }

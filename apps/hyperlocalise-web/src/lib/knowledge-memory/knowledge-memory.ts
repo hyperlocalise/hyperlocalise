@@ -10,11 +10,12 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { randomUUID } from "node:crypto";
 import { and, eq } from "drizzle-orm";
 
-import { db, schema, type DatabaseClient } from "@/lib/database";
-import { err, ok, type Result } from "@/lib/primitives/result/results";
+import { db, schema, type DatabaseClient, type DatabaseTransaction } from "@/lib/database";
+import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
+import { commitVersionedDocument } from "@/lib/versioned-document/commit-versioned-document";
+import type { VersionedDocumentCurrentRow } from "@/lib/versioned-document/versioned-document.types";
 import { normalizeKnowledgeMemoryContent } from "./knowledge-memory.shared";
 import type {
   CurrentKnowledgeMemoryRow,
@@ -49,10 +50,6 @@ function toKnowledgeMemoryRecord(
   };
 }
 
-function normalizeSummary(summary: string | undefined, fallback: string) {
-  return summary?.trim() || fallback;
-}
-
 async function getCurrentKnowledgeMemoryRow(
   database: DatabaseClient,
   organizationId: string,
@@ -79,6 +76,20 @@ export async function getKnowledgeMemoryForOrganization(
   return toKnowledgeMemoryRecord(await getCurrentKnowledgeMemoryRow(db, organizationId));
 }
 
+// A function, not a module-level constant: accessing schema.knowledgeMemories.* at import time
+// breaks any test that mocks @/lib/database without a full knowledgeMemories shape, even
+// transitively (vi.mock hoisting runs before this module's top-level code either way).
+function knowledgeMemoryHeadColumns() {
+  return {
+    revisionId: schema.knowledgeMemories.revisionId,
+    version: schema.knowledgeMemories.version,
+    content: schema.knowledgeMemories.content,
+    summary: schema.knowledgeMemories.summary,
+    updatedAt: schema.knowledgeMemories.updatedAt,
+    updatedByUserId: schema.knowledgeMemories.updatedByUserId,
+  };
+}
+
 export async function commitKnowledgeMemoryForOrganization(input: {
   organizationId: string;
   content: string;
@@ -87,100 +98,79 @@ export async function commitKnowledgeMemoryForOrganization(input: {
   expectedRevisionId: string | null;
   forceNewRevision?: boolean;
 }): Promise<Result<KnowledgeMemoryCommitResult, KnowledgeMemoryCommitError>> {
-  const content = normalizeKnowledgeMemoryContent(input.content);
-
-  return db.transaction(async (tx) => {
-    const current = await getCurrentKnowledgeMemoryRow(tx, input.organizationId);
-
-    if (!current) {
-      if (input.expectedRevisionId !== null) {
-        return err({ code: "precondition_failed", current: emptyKnowledgeMemory });
-      }
-
-      if (content === "") {
-        return ok({ knowledgeMemory: emptyKnowledgeMemory, changed: false });
-      }
-
-      const now = new Date();
+  const result = await commitVersionedDocument({
+    db,
+    content: input.content,
+    normalizeContent: normalizeKnowledgeMemoryContent,
+    summary: input.summary,
+    initialSummaryFallback: "Initial version",
+    updatedSummaryFallback: "Updated memory",
+    updatedByUserId: input.updatedByUserId,
+    expectedRevisionId: input.expectedRevisionId,
+    forceNewRevision: input.forceNewRevision,
+    emptyRecord: emptyKnowledgeMemory,
+    readCurrent: (tx: DatabaseTransaction) =>
+      getCurrentKnowledgeMemoryRow(tx, input.organizationId),
+    insertHead: async (
+      tx: DatabaseTransaction,
+      values,
+    ): Promise<VersionedDocumentCurrentRow | undefined> => {
       const [inserted] = await tx
         .insert(schema.knowledgeMemories)
         .values({
           organizationId: input.organizationId,
-          revisionId: randomUUID(),
-          version: 1,
-          content,
-          summary: normalizeSummary(input.summary, "Initial version"),
-          updatedByUserId: input.updatedByUserId,
-          createdAt: now,
-          updatedAt: now,
+          revisionId: values.revisionId,
+          version: values.version,
+          content: values.content,
+          summary: values.summary,
+          updatedByUserId: values.updatedByUserId,
+          createdAt: values.now,
+          updatedAt: values.now,
         })
         .onConflictDoNothing({ target: schema.knowledgeMemories.organizationId })
-        .returning({
-          revisionId: schema.knowledgeMemories.revisionId,
-          version: schema.knowledgeMemories.version,
-          content: schema.knowledgeMemories.content,
-          summary: schema.knowledgeMemories.summary,
-          updatedAt: schema.knowledgeMemories.updatedAt,
-          updatedByUserId: schema.knowledgeMemories.updatedByUserId,
-        });
-
-      if (!inserted) {
-        const latest = await getCurrentKnowledgeMemoryRow(tx, input.organizationId);
-        return err({ code: "precondition_failed", current: toKnowledgeMemoryRecord(latest) });
-      }
-
-      return ok({ knowledgeMemory: toKnowledgeMemoryRecord(inserted), changed: true });
-    }
-
-    if (current.revisionId !== input.expectedRevisionId) {
-      return err({ code: "precondition_failed", current: toKnowledgeMemoryRecord(current) });
-    }
-
-    if (current.content === content && input.forceNewRevision !== true) {
-      return ok({ knowledgeMemory: toKnowledgeMemoryRecord(current), changed: false });
-    }
-
-    const now = new Date();
-    const [updated] = await tx
-      .update(schema.knowledgeMemories)
-      .set({
-        revisionId: randomUUID(),
-        version: current.version + 1,
-        content,
-        summary: normalizeSummary(input.summary, "Updated memory"),
-        updatedByUserId: input.updatedByUserId,
-        updatedAt: now,
-      })
-      .where(
-        and(
-          eq(schema.knowledgeMemories.organizationId, input.organizationId),
-          eq(schema.knowledgeMemories.revisionId, input.expectedRevisionId),
-        ),
-      )
-      .returning({
-        revisionId: schema.knowledgeMemories.revisionId,
-        version: schema.knowledgeMemories.version,
-        content: schema.knowledgeMemories.content,
-        summary: schema.knowledgeMemories.summary,
-        updatedAt: schema.knowledgeMemories.updatedAt,
-        updatedByUserId: schema.knowledgeMemories.updatedByUserId,
+        .returning(knowledgeMemoryHeadColumns());
+      return inserted;
+    },
+    updateHead: async (
+      tx: DatabaseTransaction,
+      expectedRevisionId,
+      values,
+    ): Promise<VersionedDocumentCurrentRow | undefined> => {
+      const [updated] = await tx
+        .update(schema.knowledgeMemories)
+        .set({
+          revisionId: values.revisionId,
+          version: values.version,
+          content: values.content,
+          summary: values.summary,
+          updatedByUserId: values.updatedByUserId,
+          updatedAt: values.now,
+        })
+        .where(
+          and(
+            eq(schema.knowledgeMemories.organizationId, input.organizationId),
+            eq(schema.knowledgeMemories.revisionId, expectedRevisionId),
+          ),
+        )
+        .returning(knowledgeMemoryHeadColumns());
+      return updated;
+    },
+    archivePrevious: async (tx: DatabaseTransaction, previous) => {
+      await tx.insert(schema.knowledgeMemoryRevisions).values({
+        id: previous.revisionId,
+        organizationId: input.organizationId,
+        version: previous.version,
+        content: previous.content,
+        summary: previous.summary,
+        createdByUserId: previous.updatedByUserId,
+        createdAt: previous.updatedAt,
       });
-
-    if (!updated) {
-      const latest = await getCurrentKnowledgeMemoryRow(tx, input.organizationId);
-      return err({ code: "precondition_failed", current: toKnowledgeMemoryRecord(latest) });
-    }
-
-    await tx.insert(schema.knowledgeMemoryRevisions).values({
-      id: current.revisionId,
-      organizationId: input.organizationId,
-      version: current.version,
-      content: current.content,
-      summary: current.summary,
-      createdByUserId: current.updatedByUserId,
-      createdAt: current.updatedAt,
-    });
-
-    return ok({ knowledgeMemory: toKnowledgeMemoryRecord(updated), changed: true });
+    },
   });
+
+  if (isErr(result)) {
+    return err(result.error);
+  }
+
+  return ok({ knowledgeMemory: result.value.record, changed: result.value.changed });
 }

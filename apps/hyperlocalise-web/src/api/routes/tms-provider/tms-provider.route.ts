@@ -20,7 +20,7 @@ import {
   isJobMutationAllowed,
   isJobProviderActionAllowed,
 } from "@/api/auth/capability-guards";
-import { hasCapability } from "@/api/auth/policy";
+import { hasCapability, isWorkspaceOperatorRole } from "@/api/auth/policy";
 import { canAccessProject } from "@/api/auth/team-access";
 import { workosAuthMiddleware, type AuthVariables } from "@/api/auth/workos";
 import {
@@ -47,6 +47,7 @@ import {
   getTmsProviderLiveJobDetail,
   getTmsProviderLiveProjectLocaleReadiness,
   updateTmsProviderLiveJobDescription,
+  updateTmsProviderLiveJobFields,
   getTmsProviderLiveProject,
   listTmsProviderLiveFilesForProject,
   listTmsProviderLiveGlossaries,
@@ -82,6 +83,20 @@ const localeReadinessQuerySchema = z.object({
 const updateJobDescriptionBodySchema = z.object({
   description: z.string().max(2_048),
 });
+
+const updateTmsProviderJobBodySchema = z
+  .object({
+    title: z.string().trim().min(1).max(256).optional(),
+    description: z.string().trim().max(2_048).nullable().optional(),
+    assigneeExternalUserIds: z.array(z.string().trim().min(1).max(128)).max(50).optional(),
+  })
+  .refine(
+    (body) =>
+      body.title !== undefined ||
+      body.description !== undefined ||
+      body.assigneeExternalUserIds !== undefined,
+    { message: "At least one of title, description, or assigneeExternalUserIds is required" },
+  );
 
 const createTmsProviderJobAgentRunBodySchema = z.object({
   projectId: projectIdSchema,
@@ -165,6 +180,15 @@ const validateUpdateJobDescriptionBody = validator("json", (value, c) => {
   return parsed.data;
 });
 
+const validateUpdateTmsProviderJobBody = validator("json", (value, c) => {
+  const parsed = updateTmsProviderJobBodySchema.safeParse(value);
+  if (!parsed.success) {
+    return badRequestResponse(c, "invalid_job_update", "Invalid provider job update payload");
+  }
+
+  return parsed.data;
+});
+
 const validateCreateTmsProviderJobAgentRunBody = validator("json", (value, c) => {
   const parsed = createTmsProviderJobAgentRunBodySchema.safeParse(value);
   if (!parsed.success) {
@@ -183,9 +207,18 @@ const validateCreateTmsProviderJobsBody = validator("json", (value, c) => {
   return parsed.data;
 });
 
-function canEditTmsProviderJobDescription(auth: AuthVariables["auth"]) {
-  const role = auth.membership.role;
-  return role === "admin" || (role === "localization_manager" && hasCapability(role, "jobs:write"));
+/**
+ * Crowdin uses per-user OAuth, so `jobs:write` is enough (provider enforces project access).
+ * Smartling uses shared org credentials — restrict field edits to workspace operators.
+ */
+function canEditTmsProviderJobFields(
+  auth: AuthVariables["auth"],
+  providerKind: string | null | undefined,
+) {
+  if (providerKind === "smartling") {
+    return isWorkspaceOperatorRole(auth.membership.role);
+  }
+  return isJobMutationAllowed(auth.membership.role);
 }
 
 type CreateTmsProviderRoutesOptions = {
@@ -482,8 +515,35 @@ export function createTmsProviderRoutes(options: CreateTmsProviderRoutesOptions 
         return tmsProviderLiveErrorResponse(c, error);
       }
     })
+    .patch("/jobs/:encodedJobId", validateUpdateTmsProviderJobBody, async (c) => {
+      const encodedJobId = c.req.param("encodedJobId");
+      const parsedJobId = parseProviderJobId(encodedJobId);
+      if (!canEditTmsProviderJobFields(c.var.auth, parsedJobId?.providerKind)) {
+        return c.json({ error: "forbidden" }, 403);
+      }
+
+      const body = c.req.valid("json");
+
+      try {
+        const job = await updateTmsProviderLiveJobFields(
+          c.var.auth.organization.localOrganizationId,
+          encodedJobId,
+          body,
+          c.var.auth.user.localUserId,
+        );
+        if (!job) {
+          return c.json({ error: "job_not_found" }, 404);
+        }
+
+        return c.json({ job }, 200);
+      } catch (error) {
+        return tmsProviderLiveErrorResponse(c, error);
+      }
+    })
     .patch("/jobs/:encodedJobId/description", validateUpdateJobDescriptionBody, async (c) => {
-      if (!canEditTmsProviderJobDescription(c.var.auth)) {
+      const encodedJobId = c.req.param("encodedJobId");
+      const parsedJobId = parseProviderJobId(encodedJobId);
+      if (!canEditTmsProviderJobFields(c.var.auth, parsedJobId?.providerKind)) {
         return c.json({ error: "forbidden" }, 403);
       }
 
@@ -492,7 +552,7 @@ export function createTmsProviderRoutes(options: CreateTmsProviderRoutesOptions 
       try {
         const job = await updateTmsProviderLiveJobDescription(
           c.var.auth.organization.localOrganizationId,
-          c.req.param("encodedJobId"),
+          encodedJobId,
           body.description,
           c.var.auth.user.localUserId,
         );

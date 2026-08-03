@@ -21,7 +21,6 @@ import { ListIcon } from "lucide-react";
 import { FormattedMessage, useIntl } from "react-intl";
 import { toast } from "sonner";
 
-import { MarkdownPreview } from "@/components/markdown-editor/markdown-editor";
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -32,16 +31,23 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
+import { MarkdownPreview } from "@/components/markdown-editor/markdown-editor";
 import { useAppShellBreadcrumbAppend } from "@/components/app-shell/store/use-app-shell-breadcrumb";
 import { apiClient } from "@/lib/api-client-instance";
 import { buildJobCatHref, canOpenJobCat } from "@/lib/projects/job-cat-routing";
 
 import { getProviderPayloadString } from "../../../../../jobs/_components/provider-crowdin-job-display";
 
-import { jobDetailTaskLayoutFromRecord } from "./job-detail-layout-helpers";
+import { NativeJobOwnerField } from "./job-detail-assignee-field";
+import { JobDetailEditableTitle } from "./job-detail-editable-title";
+import {
+  getInputPayloadMetadataDescription,
+  jobDetailTaskLayoutFromRecord,
+} from "./job-detail-layout-helpers";
 import { JobDetailTaskView } from "./job-detail-task-view";
 import type { JobDetailRecord } from "./job-detail-types";
 import { JobProviderDetailSection } from "./job-provider-detail-section";
+import { NativeJobDescriptionField } from "./native-job-description-field";
 import {
   isNativeFileTranslationJob,
   NativeJobSourceFilesSection,
@@ -71,10 +77,12 @@ export function NativeJobDetailContent({
   jobId,
   organizationSlug,
   projectId,
+  canEditJobFields = false,
 }: {
   jobId: string;
   organizationSlug: string;
   projectId: string;
+  canEditJobFields?: boolean;
 }) {
   const [markFailedDialogOpen, setMarkFailedDialogOpen] = useState(false);
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
@@ -190,10 +198,58 @@ export function NativeJobDetailContent({
   const layout = job ? jobDetailTaskLayoutFromRecord(job, intl) : null;
   const catHref = job ? buildJobCatHref(organizationSlug, projectId, job) : null;
   const showCatAction = job ? canOpenJobCat(job) : false;
-  const providerDescription =
-    job && isProviderBackedJob(job)
+  const isProviderBacked = Boolean(job && isProviderBackedJob(job));
+  const isNativeEditable = Boolean(job && canEditJobFields && !isProviderBacked);
+  const description = job
+    ? isProviderBacked
       ? (getProviderPayloadString(job.externalProviderPayload, "description") ?? "")
-      : "";
+      : getInputPayloadMetadataDescription(job)
+    : "";
+
+  const saveTitle = useMutation({
+    mutationFn: async (nextTitle: string) => {
+      const response = await apiClient.api.orgs[":organizationSlug"].jobs[":jobId"].$patch({
+        param: { organizationSlug, jobId },
+        json: { title: nextTitle },
+      });
+      if (!response.ok) {
+        throw new Error(
+          await parseActionError(response, intl.formatMessage(messages.failedToUpdateJob)),
+        );
+      }
+      const body = (await response.json()) as { job: JobDetailRecord };
+      return body.job;
+    },
+    onSuccess: async (updatedJob) => {
+      queryClient.setQueryData(jobQueryKey, updatedJob);
+      await queryClient.invalidateQueries({ queryKey: ["jobs", organizationSlug] });
+    },
+  });
+
+  const properties = (layout?.properties ?? []).map((property) => {
+    if (property.id !== "assignees" || !isNativeEditable || !job) {
+      return property;
+    }
+    return {
+      ...property,
+      value: (
+        <NativeJobOwnerField
+          organizationSlug={organizationSlug}
+          projectId={projectId}
+          jobId={jobId}
+          ownerUserId={job.ownerUserId}
+          queryKey={jobQueryKey}
+          disabled={
+            retryJob.isPending ||
+            markJobFailed.isPending ||
+            cancelJob.isPending ||
+            saveTitle.isPending
+          }
+        />
+      ),
+    };
+  });
+
   useAppShellBreadcrumbAppend({
     id: "job-detail",
     label: layout?.title,
@@ -268,20 +324,45 @@ export function NativeJobDetailContent({
         jobId={jobId}
         organizationSlug={organizationSlug}
         projectId={projectId}
-        title={layout?.title}
+        title={
+          <JobDetailEditableTitle
+            title={layout?.title ?? jobId}
+            editable={isNativeEditable}
+            disabled={
+              retryJob.isPending ||
+              markJobFailed.isPending ||
+              cancelJob.isPending ||
+              saveTitle.isPending
+            }
+            onSave={async (nextTitle) => {
+              await saveTitle.mutateAsync(nextTitle);
+            }}
+          />
+        }
         metrics={layout?.metrics ?? []}
-        properties={layout?.properties ?? []}
+        properties={properties}
         secondaryProperties={layout?.secondaryProperties ?? []}
         headerActions={headerActions}
         isLoading={jobQuery.isLoading}
         error={jobQuery.isError ? jobQuery.error : undefined}
-        description={providerDescription}
+        description={description}
+        canEditDescription={isNativeEditable}
         renderDescriptionField={
-          providerDescription.trim().length > 0
-            ? ({ description }) => (
-                <MarkdownPreview value={description} className="border-border bg-card" />
+          isNativeEditable
+            ? ({ description: fieldDescription, editable }) => (
+                <NativeJobDescriptionField
+                  organizationSlug={organizationSlug}
+                  jobId={jobId}
+                  description={fieldDescription}
+                  editable={editable}
+                  queryKey={jobQueryKey}
+                />
               )
-            : undefined
+            : description.trim().length > 0
+              ? ({ description: fieldDescription }) => (
+                  <MarkdownPreview value={fieldDescription} className="border-border bg-card" />
+                )
+              : undefined
         }
         renderFilesSection={
           job && isNativeFileTranslationJob(job)

@@ -1140,16 +1140,70 @@ export class CrowdinApiClient {
     return this.listPaginated<CrowdinProjectMember>(`/projects/${projectId}/members`);
   }
 
+  async editTask(
+    projectId: number,
+    taskId: number,
+    patches: Array<{ op: "replace" | "add" | "remove"; path: string; value?: unknown }>,
+  ): Promise<CrowdinTaskDetails> {
+    const response = await this.patch<CrowdinGetResponse<CrowdinTaskDetails>>(
+      `/projects/${projectId}/tasks/${taskId}`,
+      patches,
+    );
+    return response.data;
+  }
+
   async editTaskDescription(
     projectId: number,
     taskId: number,
     description: string,
   ): Promise<CrowdinTaskDetails> {
-    const response = await this.patch<CrowdinGetResponse<CrowdinTaskDetails>>(
-      `/projects/${projectId}/tasks/${taskId}`,
-      [{ op: "replace", path: "/description", value: description }],
-    );
-    return response.data;
+    return this.editTask(projectId, taskId, [
+      { op: "replace", path: "/description", value: description },
+    ]);
+  }
+
+  async editTaskFields(
+    projectId: number,
+    taskId: number,
+    fields: {
+      title?: string;
+      description?: string | null;
+      assigneeExternalUserIds?: string[];
+    },
+  ): Promise<CrowdinTaskDetails> {
+    const patches: Array<{ op: "replace"; path: string; value: unknown }> = [];
+
+    if (fields.title !== undefined) {
+      patches.push({ op: "replace", path: "/title", value: fields.title });
+    }
+    if (fields.description !== undefined) {
+      patches.push({
+        op: "replace",
+        path: "/description",
+        value: fields.description ?? "",
+      });
+    }
+    if (fields.assigneeExternalUserIds !== undefined) {
+      const assignees: Array<{ id: number }> = [];
+      for (const externalUserId of fields.assigneeExternalUserIds) {
+        const trimmed = externalUserId.trim();
+        if (!/^[1-9]\d*$/.test(trimmed)) {
+          throw new Error("invalid_crowdin_assignee_id");
+        }
+        const id = Number(trimmed);
+        if (!Number.isSafeInteger(id) || String(id) !== trimmed) {
+          throw new Error("invalid_crowdin_assignee_id");
+        }
+        assignees.push({ id });
+      }
+      patches.push({ op: "replace", path: "/assignees", value: assignees });
+    }
+
+    if (patches.length === 0) {
+      return this.getTask(projectId, taskId);
+    }
+
+    return this.editTask(projectId, taskId, patches);
   }
 
   async listTaskComments(projectId: number, taskId: number): Promise<CrowdinTaskComment[]> {

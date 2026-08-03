@@ -3606,15 +3606,31 @@ export async function listTmsProviderLiveProjectMembers(
   }
 }
 
-export async function updateTmsProviderLiveJobDescription(
+export type UpdateTmsProviderLiveJobFields = {
+  title?: string;
+  description?: string | null;
+  assigneeExternalUserIds?: string[];
+};
+
+export async function updateTmsProviderLiveJobFields(
   organizationId: string,
   encodedJobId: string,
-  description: string,
+  fields: UpdateTmsProviderLiveJobFields,
   actorUserId: string,
 ): Promise<TmsProviderLiveJobDetail | null> {
   const parsed = parseProviderJobId(encodedJobId);
   if (!parsed) {
     throw new TmsProviderLiveError("invalid_encoded_job_id", "Job id is not a provider job id.");
+  }
+
+  const hasTitle = fields.title !== undefined;
+  const hasDescription = fields.description !== undefined;
+  const hasAssignees = fields.assigneeExternalUserIds !== undefined;
+  if (!hasTitle && !hasDescription && !hasAssignees) {
+    throw new TmsProviderLiveError(
+      "invalid_job_update",
+      "At least one of title, description, or assigneeExternalUserIds is required.",
+    );
   }
 
   const context = await loadActiveTmsProviderContext(organizationId, { actorUserId });
@@ -3624,12 +3640,19 @@ export async function updateTmsProviderLiveJobDescription(
 
   if (context.providerKind !== "crowdin" && context.providerKind !== "smartling") {
     throw new TmsProviderLiveError(
-      "provider_description_edit_unsupported",
-      `Description edits are not supported for ${context.providerKind}.`,
+      "unsupported_job_field_update",
+      `Job field edits are not supported for ${context.providerKind}.`,
     );
   }
 
   if (context.providerKind === "smartling") {
+    if (hasAssignees) {
+      throw new TmsProviderLiveError(
+        "unsupported_job_field_update",
+        "Assignee updates are not supported for Smartling jobs.",
+      );
+    }
+
     const projectId = parsed.externalProjectId.trim();
     const jobUid = parsed.externalJobId.trim();
     if (!projectId || !jobUid) {
@@ -3652,7 +3675,10 @@ export async function updateTmsProviderLiveJobDescription(
     let projectDetails: Awaited<ReturnType<typeof client.getProjectDetails>>;
     try {
       [updatedJob, projectDetails] = await Promise.all([
-        client.updateJobDescription(projectId, jobUid, description),
+        client.updateJob(projectId, jobUid, {
+          ...(hasTitle ? { jobName: fields.title } : {}),
+          ...(hasDescription ? { description: fields.description } : {}),
+        }),
         client.getProjectDetails(projectId),
       ]);
     } catch (error) {
@@ -3732,10 +3758,20 @@ export async function updateTmsProviderLiveJobDescription(
     baseUrl: context.credential.baseUrl ?? undefined,
   });
 
-  let updatedTask: Awaited<ReturnType<typeof client.editTaskDescription>>;
+  let updatedTask: Awaited<ReturnType<typeof client.editTaskFields>>;
   try {
-    updatedTask = await client.editTaskDescription(projectId, taskId, description);
+    updatedTask = await client.editTaskFields(projectId, taskId, {
+      ...(hasTitle ? { title: fields.title } : {}),
+      ...(hasDescription ? { description: fields.description } : {}),
+      ...(hasAssignees ? { assigneeExternalUserIds: fields.assigneeExternalUserIds } : {}),
+    });
   } catch (error) {
+    if (error instanceof Error && error.message === "invalid_crowdin_assignee_id") {
+      throw new TmsProviderLiveError(
+        "invalid_crowdin_assignee_id",
+        "Assignee ids must be canonical positive Crowdin member ids.",
+      );
+    }
     if (error instanceof CrowdinApiError && error.status === 401) {
       throw new TmsProviderLiveError(
         "crowdin_user_auth_invalid",
@@ -3763,6 +3799,15 @@ export async function updateTmsProviderLiveJobDescription(
       providerPayload,
     },
   });
+}
+
+export async function updateTmsProviderLiveJobDescription(
+  organizationId: string,
+  encodedJobId: string,
+  description: string,
+  actorUserId: string,
+): Promise<TmsProviderLiveJobDetail | null> {
+  return updateTmsProviderLiveJobFields(organizationId, encodedJobId, { description }, actorUserId);
 }
 
 function dedupeGlossaries(items: TmsProviderLiveGlossary[]) {

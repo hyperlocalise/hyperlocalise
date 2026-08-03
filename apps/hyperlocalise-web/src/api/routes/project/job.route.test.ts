@@ -638,3 +638,105 @@ describe("workspace job list triage", () => {
     expect(body.jobs.some((job) => job.id === unownedReviewJob.id)).toBe(false);
   });
 });
+
+describe("workspace job update", () => {
+  it("updates native job title, description, and owner", async () => {
+    const { identity, organization, project, user } =
+      await projectFixture.createStoredProjectFixture();
+    const headers = await projectFixture.authHeadersFor(identity);
+    const [job] = await insertNativeJob({
+      organizationId: organization.id,
+      projectId: project.id,
+      createdByUserId: user.id,
+    });
+
+    const response = await client.api.orgs[":organizationSlug"].jobs[":jobId"].$patch(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          jobId: job.id,
+        },
+        json: {
+          title: "Updated launch copy",
+          description: "Please prioritize EU locales",
+          ownerWorkosUserId: identity.user.workosUserId,
+        },
+      },
+      { headers },
+    );
+
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as {
+      job: {
+        ownerUserId: string | null;
+        inputPayload: { metadata?: { title?: string; description?: string } };
+      };
+    };
+    expect(body.job.ownerUserId).toBe(user.id);
+    expect(body.job.inputPayload.metadata).toMatchObject({
+      title: "Updated launch copy",
+      description: "Please prioritize EU locales",
+    });
+  });
+
+  it("unassigns a native job owner", async () => {
+    const { identity, organization, project, user } =
+      await projectFixture.createStoredProjectFixture();
+    const headers = await projectFixture.authHeadersFor(identity);
+    const [job] = await insertNativeJob({
+      organizationId: organization.id,
+      projectId: project.id,
+      createdByUserId: user.id,
+      ownerUserId: user.id,
+    });
+
+    const response = await client.api.orgs[":organizationSlug"].jobs[":jobId"].$patch(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          jobId: job.id,
+        },
+        json: {
+          ownerWorkosUserId: null,
+        },
+      },
+      { headers },
+    );
+
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as { job: { ownerUserId: string | null } };
+    expect(body.job.ownerUserId).toBeNull();
+  });
+
+  it("rejects assignee updates for users without project access", async () => {
+    const { identity, organization, project } = await projectFixture.createStoredProjectFixture();
+    const headers = await projectFixture.authHeadersFor(identity);
+    const outsider = projectFixture.createWorkosIdentityForOrganization(
+      identity.organization,
+      "translator",
+    );
+    await projectFixture.authHeadersFor(outsider);
+    const [job] = await insertNativeJob({
+      organizationId: organization.id,
+      projectId: project.id,
+    });
+
+    const response = await client.api.orgs[":organizationSlug"].jobs[":jobId"].$patch(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          jobId: job.id,
+        },
+        json: {
+          ownerWorkosUserId: outsider.user.workosUserId,
+        },
+      },
+      { headers },
+    );
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toMatchObject({
+      error: "assignee_not_assignable",
+    });
+  });
+});

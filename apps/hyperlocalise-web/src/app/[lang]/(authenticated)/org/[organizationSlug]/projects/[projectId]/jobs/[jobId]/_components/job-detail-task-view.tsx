@@ -93,7 +93,7 @@ export function JobDetailTaskView({
   renderCommentsSection?: JobDetailTaskCommentsRenderer;
   secondaryProperties?: JobDetailViewProperty[];
   showComments?: boolean;
-  title?: string;
+  title?: ReactNode;
 }) {
   const [activeTab, setActiveTab] = useState<JobDetailTaskTab>("overview");
 

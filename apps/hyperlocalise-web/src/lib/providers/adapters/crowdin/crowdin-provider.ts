@@ -1470,6 +1470,8 @@ export class CrowdinTmsProvider extends TmsProvider {
         sourceLanguageId,
         targetLanguageId: task.targetLanguageId ?? null,
         targetLanguageIds: targetLocales,
+        assigneeExternalUserIds:
+          task.assignees?.map((assignee) => String(assignee.id)).filter(Boolean) ?? [],
         localeReadiness: localeReadinessKey
           ? (localeReadinessByLanguage[localeReadinessKey] ?? null)
           : localeReadinessByLanguage,

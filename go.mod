@@ -16,13 +16,13 @@ require (
 	github.com/invopop/jsonschema v0.14.0
 	github.com/lokalise/go-lokalise-api/v5 v5.1.0
 	github.com/mattn/go-isatty v0.0.24
-	github.com/openai/openai-go/v3 v3.47.0
+	github.com/openai/openai-go/v3 v3.48.0
 	github.com/phrase/phrase-go/v4 v4.29.1
 	github.com/spf13/cobra v1.10.2
 	github.com/stretchr/testify v1.11.1
 	github.com/subosito/gotenv v1.6.0
 	github.com/tidwall/jsonc v0.3.3
-	github.com/workos/workos-go/v10 v10.0.0
+	github.com/workos/workos-go/v10 v10.1.0
 	github.com/workos/workos-go/v9 v9.6.0
 	github.com/yuin/goldmark v1.8.5
 	go.opentelemetry.io/otel v1.44.0
