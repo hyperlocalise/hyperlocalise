@@ -93,13 +93,19 @@ vi.mock("@/lib/agent-runtime/tools/tool-access", () => ({
 
 import {
   createAssetManagementJobTool,
+  createGetJobStatusTool,
+  createListJobsTool,
   createResearchJobTool,
   createReviewJobTool,
   createSyncJobTool,
   createTranslationJobTool,
 } from "@/lib/agent-runtime/tools/translation-tools";
 import { getStoredFileForJobScope } from "@/lib/file-storage/records";
-import { toolCanAccessStoredFileProject } from "@/lib/agent-runtime/tools/tool-access";
+import {
+  toolAccessibleJobsWhere,
+  toolCanAccessProject,
+  toolCanAccessStoredFileProject,
+} from "@/lib/agent-runtime/tools/tool-access";
 import type { OrganizationMembershipRole } from "@/lib/database/types";
 import {
   createCreateGlossaryTool,
@@ -302,6 +308,65 @@ describe("Agent Tools RBAC", () => {
       );
       expect(result.success).toBe(false);
       expect(result.error).toContain("Source file was not found");
+    });
+  });
+
+  describe("List / Get Job Tools access filtering", () => {
+    it("returns no jobs when list_jobs projectId is outside tool access", async () => {
+      vi.mocked(toolCanAccessProject).mockResolvedValueOnce(null as never);
+
+      const ctx = mockCtx("translator");
+      const tool = createListJobsTool(ctx);
+      const result = await executeTool(tool, {
+        projectId: "project_outside_access",
+        limit: 20,
+      });
+
+      expect(toolCanAccessProject).toHaveBeenCalledWith(
+        expect.objectContaining({
+          organizationId: "org_123",
+          localUserId: "user_123",
+        }),
+        "project_outside_access",
+      );
+      expect(result).toEqual({ jobs: [] });
+      expect(dbSpy(ctx, "select")).not.toHaveBeenCalled();
+    });
+
+    it("hides get_job_status details when the job is outside accessible jobs", async () => {
+      const limitMock = vi.fn(async () => []);
+      const whereMock = vi.fn(() => ({ limit: limitMock }));
+      const leftJoinMock = vi.fn(() => ({
+        leftJoin: leftJoinMock,
+        where: whereMock,
+      }));
+      const fromMock = vi.fn(() => ({
+        leftJoin: leftJoinMock,
+      }));
+      const selectMock = vi.fn(() => ({
+        from: fromMock,
+      }));
+
+      const ctx = mockCtx("translator");
+      ctx.db = {
+        ...ctx.db,
+        select: selectMock,
+      } as any;
+
+      const tool = createGetJobStatusTool(ctx);
+      const result = await executeTool(tool, { jobId: "job_hidden" });
+
+      expect(toolAccessibleJobsWhere).toHaveBeenCalledWith(
+        expect.objectContaining({
+          organizationId: "org_123",
+          localUserId: "user_123",
+        }),
+      );
+      expect(result).toEqual({
+        job: null,
+        error: "Job job_hidden not found.",
+      });
+      expect(limitMock).toHaveBeenCalledWith(1);
     });
   });
 

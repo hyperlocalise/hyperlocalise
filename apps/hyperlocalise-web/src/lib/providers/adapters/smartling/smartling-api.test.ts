@@ -398,6 +398,117 @@ describe("SmartlingApiClient", () => {
       jobStatus: "AWAITING_AUTHORIZATION",
     });
   });
+
+  it("updateJob sends only provided title and description fields", async () => {
+    const fetchMock = vi.fn(async (url, init) => {
+      if (String(url).endsWith("/authenticate")) {
+        return new Response(
+          JSON.stringify({
+            response: {
+              code: "SUCCESS",
+              data: { accessToken: "access-token", expiresIn: 3600 },
+            },
+          }),
+          { status: 200 },
+        );
+      }
+
+      if (
+        String(url).endsWith("/jobs-api/v3/projects/proj-1/jobs/job-1") &&
+        init?.method === "PUT"
+      ) {
+        return new Response(
+          JSON.stringify({
+            response: {
+              code: "SUCCESS",
+              data: {
+                translationJobUid: "job-1",
+                jobName: "Updated launch",
+                jobStatus: "IN_PROGRESS",
+                description: "Prioritize EU locales",
+                targetLocaleIds: ["fr-FR"],
+              },
+            },
+          }),
+          { status: 200 },
+        );
+      }
+
+      return new Response("Not Found", { status: 404 });
+    }) as unknown as typeof fetch;
+
+    const client = createClient(fetchMock);
+    const updated = await client.updateJob("proj-1", "job-1", {
+      jobName: "Updated launch",
+      description: "Prioritize EU locales",
+    });
+
+    expect(updated).toMatchObject({
+      translationJobUid: "job-1",
+      jobName: "Updated launch",
+      description: "Prioritize EU locales",
+    });
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://api.smartling.test/jobs-api/v3/projects/proj-1/jobs/job-1",
+      expect.objectContaining({
+        method: "PUT",
+        body: JSON.stringify({
+          jobName: "Updated launch",
+          description: "Prioritize EU locales",
+        }),
+      }),
+    );
+  });
+
+  it("updateJob clears description with an empty string and omits unset fields", async () => {
+    const fetchMock = vi.fn(async (url, init) => {
+      if (String(url).endsWith("/authenticate")) {
+        return new Response(
+          JSON.stringify({
+            response: {
+              code: "SUCCESS",
+              data: { accessToken: "access-token", expiresIn: 3600 },
+            },
+          }),
+          { status: 200 },
+        );
+      }
+
+      if (
+        String(url).endsWith("/jobs-api/v3/projects/proj-1/jobs/job-1") &&
+        init?.method === "PUT"
+      ) {
+        return new Response(
+          JSON.stringify({
+            response: {
+              code: "SUCCESS",
+              data: {
+                translationJobUid: "job-1",
+                jobName: "Launch",
+                jobStatus: "IN_PROGRESS",
+                description: null,
+                targetLocaleIds: ["fr-FR"],
+              },
+            },
+          }),
+          { status: 200 },
+        );
+      }
+
+      return new Response("Not Found", { status: 404 });
+    }) as unknown as typeof fetch;
+
+    const client = createClient(fetchMock);
+    await client.updateJob("proj-1", "job-1", { description: null });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://api.smartling.test/jobs-api/v3/projects/proj-1/jobs/job-1",
+      expect.objectContaining({
+        method: "PUT",
+        body: JSON.stringify({ description: "" }),
+      }),
+    );
+  });
 });
 
 describe("deriveServiceBaseUrl", () => {

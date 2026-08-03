@@ -14,7 +14,7 @@ import "dotenv/config";
 
 import { randomUUID } from "node:crypto";
 
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { testClient } from "hono/testing";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 
@@ -65,24 +65,25 @@ afterEach(async () => {
 
 async function insertNativeJob(input: {
   organizationId: string;
-  projectId: string;
+  projectId?: string | null;
   createdByUserId?: string | null;
   ownerUserId?: string | null;
   status?: (typeof schema.jobs.$inferInsert)["status"];
   updatedAt?: Date;
+  inputPayload?: (typeof schema.jobs.$inferInsert)["inputPayload"];
 }) {
   return db
     .insert(schema.jobs)
     .values({
       id: `job_${randomUUID()}`,
       organizationId: input.organizationId,
-      projectId: input.projectId,
+      projectId: input.projectId ?? null,
       createdByUserId: input.createdByUserId ?? null,
       ownerUserId: input.ownerUserId ?? null,
       kind: "translation",
       status: input.status ?? "queued",
       updatedAt: input.updatedAt,
-      inputPayload: {
+      inputPayload: input.inputPayload ?? {
         sourceText: "Hello",
         sourceLocale: "en-US",
         targetLocales: ["fr-FR"],
@@ -737,6 +738,145 @@ describe("workspace job update", () => {
     expect(response.status).toBe(400);
     await expect(response.json()).resolves.toMatchObject({
       error: "assignee_not_assignable",
+    });
+  });
+
+  it("rejects native updates for provider-backed jobs", async () => {
+    const { identity, organization, project } = await projectFixture.createStoredProjectFixture();
+    const headers = await projectFixture.authHeadersFor(identity);
+
+    await upsertExternalTmsJobRecords({
+      organizationId: organization.id,
+      projectId: project.id,
+      providerKind: "crowdin",
+      externalProjectId: "crowdin-project",
+      tasks: [
+        {
+          externalJobId: "provider-job-1",
+          externalStatus: "todo",
+          title: "Provider task",
+          assignedUsers: [],
+        },
+      ],
+    });
+
+    const [providerJob] = await db
+      .select({ id: schema.jobs.id })
+      .from(schema.jobs)
+      .innerJoin(schema.externalJobDetails, eq(schema.externalJobDetails.jobId, schema.jobs.id))
+      .where(
+        and(
+          eq(schema.jobs.organizationId, organization.id),
+          eq(schema.externalJobDetails.externalJobId, "provider-job-1"),
+        ),
+      )
+      .limit(1);
+
+    const response = await client.api.orgs[":organizationSlug"].jobs[":jobId"].$patch(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          jobId: providerJob!.id,
+        },
+        json: { title: "Should not apply" },
+      },
+      { headers },
+    );
+
+    expect(response.status).toBe(409);
+    await expect(response.json()).resolves.toMatchObject({
+      error: "provider_job_not_updatable",
+    });
+  });
+
+  it("clears blank descriptions and preserves unrelated metadata on partial updates", async () => {
+    const { identity, organization, project, user } =
+      await projectFixture.createStoredProjectFixture();
+    const headers = await projectFixture.authHeadersFor(identity);
+    const [job] = await insertNativeJob({
+      organizationId: organization.id,
+      projectId: project.id,
+      createdByUserId: user.id,
+      inputPayload: {
+        sourceText: "Hello",
+        sourceLocale: "en-US",
+        targetLocales: ["fr-FR"],
+        metadata: {
+          title: "Original title",
+          description: "Keep until cleared",
+          note: "retain-me",
+        },
+      },
+    });
+
+    const clearDescription = await client.api.orgs[":organizationSlug"].jobs[":jobId"].$patch(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          jobId: job.id,
+        },
+        json: { description: "   " },
+      },
+      { headers },
+    );
+
+    expect(clearDescription.status).toBe(200);
+    const clearedBody = (await clearDescription.json()) as {
+      job: {
+        inputPayload: { metadata?: Record<string, string> };
+      };
+    };
+    expect(clearedBody.job.inputPayload.metadata).toEqual({
+      title: "Original title",
+      note: "retain-me",
+    });
+
+    const titleOnly = await client.api.orgs[":organizationSlug"].jobs[":jobId"].$patch(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          jobId: job.id,
+        },
+        json: { title: "Retitled job" },
+      },
+      { headers },
+    );
+
+    expect(titleOnly.status).toBe(200);
+    const titledBody = (await titleOnly.json()) as {
+      job: {
+        inputPayload: { metadata?: Record<string, string> };
+      };
+    };
+    expect(titledBody.job.inputPayload.metadata).toEqual({
+      title: "Retitled job",
+      note: "retain-me",
+    });
+  });
+
+  it("rejects owner updates when the job has no project", async () => {
+    const { identity, organization, user } = await projectFixture.createStoredProjectFixture();
+    const headers = await projectFixture.authHeadersFor(identity);
+    const [job] = await insertNativeJob({
+      organizationId: organization.id,
+      projectId: null,
+      createdByUserId: user.id,
+    });
+
+    const response = await client.api.orgs[":organizationSlug"].jobs[":jobId"].$patch(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          jobId: job.id,
+        },
+        json: { ownerWorkosUserId: identity.user.workosUserId },
+      },
+      { headers },
+    );
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toMatchObject({
+      error: "project_required",
     });
   });
 });
