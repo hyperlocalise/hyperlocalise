@@ -12,7 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowDown01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
@@ -162,6 +162,12 @@ export function CrowdinJobAssigneesField({
   const intl = useIntl();
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
+  const [draftSelectedIds, setDraftSelectedIds] = useState(selectedExternalUserIds);
+  const draftSelectedIdsRef = useRef(selectedExternalUserIds);
+  const selectedExternalUserIdsRef = useRef(selectedExternalUserIds);
+  const saveInFlightRef = useRef(false);
+  const queuedSelectedIdsRef = useRef<string[] | null>(null);
+  selectedExternalUserIdsRef.current = selectedExternalUserIds;
 
   const membersQuery = useQuery({
     queryKey: ["tms-project-members", organizationSlug, externalProjectId, "job-detail"],
@@ -224,8 +230,40 @@ export function CrowdinJobAssigneesField({
     },
   });
 
+  useEffect(() => {
+    if (!saveInFlightRef.current && queuedSelectedIdsRef.current == null) {
+      draftSelectedIdsRef.current = selectedExternalUserIds;
+      setDraftSelectedIds(selectedExternalUserIds);
+    }
+  }, [selectedExternalUserIds]);
+
+  const persistAssignees = (next: string[]) => {
+    draftSelectedIdsRef.current = next;
+    setDraftSelectedIds(next);
+    if (saveInFlightRef.current) {
+      queuedSelectedIdsRef.current = next;
+      return;
+    }
+    saveInFlightRef.current = true;
+    saveAssignees.mutate(next, {
+      onSettled: (_data, error) => {
+        saveInFlightRef.current = false;
+        const queued = queuedSelectedIdsRef.current;
+        queuedSelectedIdsRef.current = null;
+        if (queued) {
+          persistAssignees(queued);
+          return;
+        }
+        if (error) {
+          draftSelectedIdsRef.current = selectedExternalUserIdsRef.current;
+          setDraftSelectedIds(selectedExternalUserIdsRef.current);
+        }
+      },
+    });
+  };
+
   const members = membersQuery.data ?? [];
-  const selectedSet = useMemo(() => new Set(selectedExternalUserIds), [selectedExternalUserIds]);
+  const selectedSet = useMemo(() => new Set(draftSelectedIds), [draftSelectedIds]);
   const selectedLabels = useMemo(() => {
     const fromMembers = members
       .filter((member) => selectedSet.has(member.externalUserId))
@@ -277,7 +315,7 @@ export function CrowdinJobAssigneesField({
               <CommandItem
                 value="clear-all"
                 onSelect={() => {
-                  saveAssignees.mutate([]);
+                  persistAssignees([]);
                   setOpen(false);
                 }}
               >
@@ -295,8 +333,8 @@ export function CrowdinJobAssigneesField({
                     value={`${member.externalUserId} ${label} ${member.username}`}
                     data-checked={checked || undefined}
                     onSelect={() => {
-                      const next = toggleValue(selectedExternalUserIds, member.externalUserId);
-                      saveAssignees.mutate(next);
+                      const next = toggleValue(draftSelectedIdsRef.current, member.externalUserId);
+                      persistAssignees(next);
                     }}
                   >
                     <span

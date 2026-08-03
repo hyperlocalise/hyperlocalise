@@ -31,9 +31,12 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
+import { MarkdownPreview } from "@/components/markdown-editor/markdown-editor";
 import { useAppShellBreadcrumbAppend } from "@/components/app-shell/store/use-app-shell-breadcrumb";
 import { apiClient } from "@/lib/api-client-instance";
 import { buildJobCatHref, canOpenJobCat } from "@/lib/projects/job-cat-routing";
+
+import { getProviderPayloadString } from "../../../../../jobs/_components/provider-crowdin-job-display";
 
 import { NativeJobOwnerField } from "./job-detail-assignee-field";
 import { JobDetailEditableTitle } from "./job-detail-editable-title";
@@ -195,9 +198,13 @@ export function NativeJobDetailContent({
   const layout = job ? jobDetailTaskLayoutFromRecord(job, intl) : null;
   const catHref = job ? buildJobCatHref(organizationSlug, projectId, job) : null;
   const showCatAction = job ? canOpenJobCat(job) : false;
-  const isNativeEditable = Boolean(job && canEditJobFields && !isProviderBackedJob(job));
-  const nativeDescription =
-    job && !isProviderBackedJob(job) ? getInputPayloadMetadataDescription(job) : "";
+  const isProviderBacked = Boolean(job && isProviderBackedJob(job));
+  const isNativeEditable = Boolean(job && canEditJobFields && !isProviderBacked);
+  const description = job
+    ? isProviderBacked
+      ? (getProviderPayloadString(job.externalProviderPayload, "description") ?? "")
+      : getInputPayloadMetadataDescription(job)
+    : "";
 
   const saveTitle = useMutation({
     mutationFn: async (nextTitle: string) => {
@@ -338,20 +345,24 @@ export function NativeJobDetailContent({
         headerActions={headerActions}
         isLoading={jobQuery.isLoading}
         error={jobQuery.isError ? jobQuery.error : undefined}
-        description={nativeDescription}
+        description={description}
         canEditDescription={isNativeEditable}
         renderDescriptionField={
           isNativeEditable
-            ? ({ description, editable }) => (
+            ? ({ description: fieldDescription, editable }) => (
                 <NativeJobDescriptionField
                   organizationSlug={organizationSlug}
                   jobId={jobId}
-                  description={description}
+                  description={fieldDescription}
                   editable={editable}
                   queryKey={jobQueryKey}
                 />
               )
-            : undefined
+            : description.trim().length > 0
+              ? ({ description: fieldDescription }) => (
+                  <MarkdownPreview value={fieldDescription} className="border-border bg-card" />
+                )
+              : undefined
         }
         renderFilesSection={
           job && isNativeFileTranslationJob(job)
