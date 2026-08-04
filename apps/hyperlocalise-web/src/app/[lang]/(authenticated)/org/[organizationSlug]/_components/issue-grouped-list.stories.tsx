@@ -14,10 +14,12 @@ import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { expect, fn, userEvent } from "storybook/test";
 
 import {
+  createOrganizationIssue,
   issuesOrganizationSlug,
   issuesSummaryFixture,
   organizationIssuesFixture,
 } from "../issues/_components/issues.fixture";
+import { issueSheetMswHandlers } from "../projects/[projectId]/issue-sheet/_components/issue-sheet-msw-handlers";
 import { IssueGroupedList } from "./issue-grouped-list";
 
 const meta = {
@@ -25,6 +27,9 @@ const meta = {
   component: IssueGroupedList,
   parameters: {
     layout: "padded",
+    msw: {
+      handlers: issueSheetMswHandlers,
+    },
   },
   args: {
     organizationSlug: issuesOrganizationSlug,
@@ -110,5 +115,58 @@ export const Empty: Story = {
   },
   play: async ({ canvas }) => {
     await expect(canvas.getByText("No issues")).toBeInTheDocument();
+  },
+};
+
+export const Loading: Story = {
+  args: {
+    issues: [],
+    summary: undefined,
+    isLoading: true,
+  },
+  play: async ({ canvasElement }) => {
+    await expect(canvasElement.querySelectorAll('[data-slot="skeleton"]').length).toBeGreaterThan(
+      0,
+    );
+  },
+};
+
+export const Error: Story = {
+  args: {
+    issues: [],
+    summary: undefined,
+    isError: true,
+  },
+  play: async ({ canvas }) => {
+    await expect(canvas.getByText("Failed to load")).toBeInTheDocument();
+  },
+};
+
+export const NarrowRow: Story = {
+  decorators: [
+    (Story) => (
+      <div className="max-w-sm">
+        <Story />
+      </div>
+    ),
+  ],
+  args: {
+    issues: [
+      createOrganizationIssue({
+        updatedAt: new Date(Date.now() - 30 * 60 * 1000).toISOString(),
+      }),
+    ],
+    summary: {
+      open: 1,
+      inProgress: 0,
+      resolved: 0,
+      wontFix: 0,
+    },
+  },
+  play: async ({ canvas }) => {
+    const date = canvas.getByText("30m");
+    await expect(date).toBeVisible();
+    await expect(date.scrollWidth).toBeLessThanOrEqual(date.clientWidth);
+    await expect(date.getAttribute("title")).toMatch(/30 minutes ago/i);
   },
 };
