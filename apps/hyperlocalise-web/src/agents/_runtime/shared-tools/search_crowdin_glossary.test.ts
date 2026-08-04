@@ -34,7 +34,11 @@ describe("createSearchCrowdinGlossaryTool", () => {
     const tool = createSearchCrowdinGlossaryTool({
       organizationId: "org-1",
       localUserId: "user-1",
+<<<<<<< HEAD
       projectId: null,
+=======
+      glossarySearchEnabled: true,
+>>>>>>> c1e00152 (feat(agent): gate glossary search behind workspace flag)
     });
 
     await tool.execute?.(
@@ -55,6 +59,7 @@ describe("createSearchCrowdinGlossaryTool", () => {
     );
   });
 
+<<<<<<< HEAD
   it("falls back to conversation projectId when input omits it", async () => {
     searchGlossaryForAgentMock.mockResolvedValue(
       ok({ scope: "project", crowdinProjectId: 42, matches: [] }),
@@ -81,5 +86,29 @@ describe("createSearchCrowdinGlossaryTool", () => {
         projectId: "project-1",
       }),
     );
+=======
+  it("fails closed when glossary search is disabled", async () => {
+    const tool = createSearchCrowdinGlossaryTool({
+      organizationId: "org-1",
+      localUserId: "user-1",
+      glossarySearchEnabled: false,
+    });
+
+    await expect(
+      tool.execute?.(
+        {
+          expressions: ["Talk to Heidi"],
+          sourceLocale: "en",
+          targetLocale: "vi",
+          limit: 20,
+        },
+        {} as never,
+      ),
+    ).resolves.toEqual({
+      success: false,
+      error: "Glossary search is not enabled for this workspace.",
+    });
+    expect(searchGlossaryForAgentMock).not.toHaveBeenCalled();
+>>>>>>> c1e00152 (feat(agent): gate glossary search behind workspace flag)
   });
 });

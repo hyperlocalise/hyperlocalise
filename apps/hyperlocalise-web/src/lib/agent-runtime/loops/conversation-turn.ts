@@ -339,6 +339,7 @@ export type PrepareConversationAgentTurnInput = {
   messageText: string;
   hasTranslationAttachments: boolean;
   knowledgeMemoryEnabled?: boolean;
+  glossarySearchEnabled?: boolean;
   repositorySession?: ConversationRepositorySession | null;
   connectorConfig?: Record<string, unknown> | null;
   channelId?: string | null;
@@ -454,6 +455,7 @@ export async function prepareConversationAgentTurn(
       db: input.db,
       reportToolProgress: input.reportToolProgress,
       knowledgeMemoryEnabled: input.knowledgeMemoryEnabled === true,
+      glossarySearchEnabled: input.glossarySearchEnabled === true,
       ...(sandboxId
         ? {
             sandboxId,

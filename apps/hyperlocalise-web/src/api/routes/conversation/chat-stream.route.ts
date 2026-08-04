@@ -23,6 +23,7 @@ import { createWebChatAgentUIStreamResponse } from "@/agents/hyperlocalise/agent
 import { db, schema } from "@/lib/database";
 import { interactionHasTranslationAttachments } from "@/lib/conversations/interactions";
 
+import { resolveChatGlossarySearchCapability } from "./chat-glossary-search-capability";
 import { resolveChatKnowledgeMemoryCapability } from "./chat-knowledge-memory-capability";
 import { conversationIdParamsSchema } from "./conversation.schema";
 import { extractLastUserMessage } from "./chat-stream-message";
@@ -113,10 +114,12 @@ export function createChatStreamRoutes() {
         return c.json({ error: "stale_user_message" }, 409);
       }
 
-      const [hasTranslationAttachments, knowledgeMemoryEnabled] = await Promise.all([
-        interactionHasTranslationAttachments(conversationId),
-        resolveChatKnowledgeMemoryCapability(c.var.auth),
-      ]);
+      const [hasTranslationAttachments, knowledgeMemoryEnabled, glossarySearchEnabled] =
+        await Promise.all([
+          interactionHasTranslationAttachments(conversationId),
+          resolveChatKnowledgeMemoryCapability(c.var.auth),
+          resolveChatGlossarySearchCapability(c.var.auth),
+        ]);
 
       return createWebChatAgentUIStreamResponse({
         conversationId,
@@ -129,6 +132,7 @@ export function createChatStreamRoutes() {
           projectId: conversation.projectId ?? null,
           db,
           knowledgeMemoryEnabled,
+          glossarySearchEnabled,
         },
         hasTranslationAttachments,
         usageOperationKey: `chat-agent-turn:${targetUserMessage.id}:agent_runs`,

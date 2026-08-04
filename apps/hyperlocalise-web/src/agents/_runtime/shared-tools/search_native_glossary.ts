@@ -66,6 +66,13 @@ export function createSearchNativeGlossaryTool(ctx: ToolContext) {
     inputSchema: searchNativeGlossaryInputSchema,
     outputSchema: searchNativeGlossaryOutputSchema,
     execute: async (input) => {
+      if (ctx.glossarySearchEnabled !== true) {
+        return {
+          success: false,
+          error: "Glossary search is not enabled for this workspace.",
+        };
+      }
+
       const projectId = input.projectId ?? ctx.projectId ?? undefined;
       const tsQuery = buildNativeGlossaryTsQuery(input.sourceText);
       if (!tsQuery) {

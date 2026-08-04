@@ -56,7 +56,7 @@ describe("conversation skill registry", () => {
 
     const glossarySkill = skills.find((skill) => skill.id === "glossary-tools");
     expect(glossarySkill).toMatchObject({
-      always: true,
+      requiresGlossarySearch: true,
       tools: ["search_native_glossary"],
     });
 
@@ -379,6 +379,7 @@ describe("conversation skill registry", () => {
         membershipRole: "member",
         projectId: null,
         db: {} as never,
+        glossarySearchEnabled: true,
       },
     });
 
@@ -391,6 +392,50 @@ describe("conversation skill registry", () => {
       expect.arrayContaining(["list_projects", "search_native_glossary", "translate_string"]),
     );
     expect(plan.toolNames).not.toContain("check_crowdin_progress");
+  });
+
+  it("activates glossary-tools only when glossary search is enabled", () => {
+    const glossarySkill = listConversationSkills().find((skill) => skill.id === "glossary-tools");
+    expect(glossarySkill).toBeDefined();
+
+    const activationContext = (glossarySearchEnabled?: boolean) =>
+      toConversationSkillActivationContext({
+        hasFileAttachments: false,
+        hasTmsIntegration: false,
+        toolContext: {
+          conversationId: "conv_1",
+          organizationId: "org_1",
+          localUserId: "user_1",
+          membershipRole: "member",
+          projectId: null,
+          db: {} as never,
+          glossarySearchEnabled,
+        },
+      });
+
+    expect(isConversationSkillActivated(glossarySkill!, activationContext(true))).toBe(true);
+    expect(isConversationSkillActivated(glossarySkill!, activationContext(false))).toBe(false);
+    expect(isConversationSkillActivated(glossarySkill!, activationContext())).toBe(false);
+  });
+
+  it("filters Crowdin glossary search when the feature flag is off", () => {
+    const toolNames = filterAvailableConversationToolNames(
+      ["check_crowdin_progress", "search_crowdin_glossary", "search_native_glossary"],
+      {
+        hasFileAttachments: false,
+        toolContext: {
+          conversationId: "conv_1",
+          organizationId: "org_1",
+          localUserId: "user_1",
+          membershipRole: "member",
+          projectId: null,
+          db: {} as never,
+          glossarySearchEnabled: false,
+        },
+      },
+    );
+
+    expect(toolNames).toEqual(["check_crowdin_progress"]);
   });
 
   it("exposes translate_string without a project but gates file jobs", () => {

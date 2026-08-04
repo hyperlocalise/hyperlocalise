@@ -25,6 +25,7 @@ export function buildConversationSkillInstructions(input: {
   projectId: string | null;
   skillPlan: ConversationSkillPlan;
   attachedProject?: HyperlocaliseAttachedProjectContext | null;
+  glossarySearchEnabled?: boolean;
   additionalInstructions?: string;
 }) {
   return composeInstructions({

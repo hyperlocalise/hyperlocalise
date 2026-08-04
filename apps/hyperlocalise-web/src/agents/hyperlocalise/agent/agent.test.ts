@@ -15,10 +15,11 @@ import { describe, expect, it } from "vite-plus/test";
 import { buildHyperlocaliseDynamicSections } from "./agent";
 
 describe("buildHyperlocaliseDynamicSections", () => {
-  it("routes Crowdin-linked projects to Crowdin glossary search", () => {
+  it("routes Crowdin-linked projects to Crowdin glossary search when enabled", () => {
     const sections = buildHyperlocaliseDynamicSections({
       surface: "web",
       projectId: "project-1",
+      glossarySearchEnabled: true,
       attachedProject: {
         projectId: "project-1",
         projectName: "Heidi",
@@ -32,10 +33,11 @@ describe("buildHyperlocaliseDynamicSections", () => {
     expect(sections.join("\n")).not.toContain("search_native_glossary");
   });
 
-  it("routes native projects to native glossary search", () => {
+  it("routes native projects to native glossary search when enabled", () => {
     const sections = buildHyperlocaliseDynamicSections({
       surface: "web",
       projectId: "project-2",
+      glossarySearchEnabled: true,
       attachedProject: {
         projectId: "project-2",
         projectName: "Native app",
@@ -48,10 +50,29 @@ describe("buildHyperlocaliseDynamicSections", () => {
     expect(sections.join("\n")).not.toContain("search_crowdin_glossary");
   });
 
+  it("omits glossary tool routing when the feature flag is off", () => {
+    const sections = buildHyperlocaliseDynamicSections({
+      surface: "web",
+      projectId: "project-2",
+      glossarySearchEnabled: false,
+      attachedProject: {
+        projectId: "project-2",
+        projectName: "Native app",
+        projectSource: "native",
+        externalProviderKind: null,
+      },
+    });
+
+    expect(sections.join("\n")).toContain("Native app (project-2)");
+    expect(sections.join("\n")).not.toContain("search_native_glossary");
+    expect(sections.join("\n")).not.toContain("search_crowdin_glossary");
+  });
+
   it("routes live Crowdin project ids without a local projects row", () => {
     const sections = buildHyperlocaliseDynamicSections({
       surface: "web",
       projectId: "ext:crowdin:42",
+      glossarySearchEnabled: true,
       attachedProject: {
         projectId: "ext:crowdin:42",
         projectSource: "external_tms",

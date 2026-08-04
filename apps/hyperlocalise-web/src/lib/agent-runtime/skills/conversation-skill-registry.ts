@@ -63,6 +63,7 @@ export type ConversationSkillMetadata = {
   requiresProjectOrAttachments: boolean;
   requiresVisualMockSkill: boolean;
   requiresKnowledgeMemory: boolean;
+  requiresGlossarySearch: boolean;
   tools: string[];
   sharedSkills: string[];
 };
@@ -80,6 +81,7 @@ export type ConversationSkillActivationContext = {
   hasTmsIntegration: boolean;
   hasVisualMockSkill: boolean;
   knowledgeMemoryEnabled: boolean;
+  glossarySearchEnabled: boolean;
 };
 
 type ConversationSkillToolFactory = (toolContext: ToolContext) => ToolSet[string];
@@ -133,6 +135,7 @@ export function parseConversationSkillMetadata(
     requiresProjectOrAttachments: frontmatter.requiresProjectOrAttachments === "true",
     requiresVisualMockSkill: frontmatter.requiresVisualMockSkill === "true",
     requiresKnowledgeMemory: frontmatter.requiresKnowledgeMemory === "true",
+    requiresGlossarySearch: frontmatter.requiresGlossarySearch === "true",
     tools: parseCommaSeparated(frontmatter.tools),
     sharedSkills: parseCommaSeparated(frontmatter.sharedSkills),
   };
@@ -156,6 +159,7 @@ export function toConversationSkillActivationContext(
     hasTmsIntegration: runtime.hasTmsIntegration,
     hasVisualMockSkill: runtime.hasVisualMockSkill ?? false,
     knowledgeMemoryEnabled: runtime.toolContext.knowledgeMemoryEnabled === true,
+    glossarySearchEnabled: runtime.toolContext.glossarySearchEnabled === true,
   };
 }
 
@@ -199,6 +203,10 @@ export function isConversationSkillActivated(
     return false;
   }
 
+  if (skill.requiresGlossarySearch && !context.glossarySearchEnabled) {
+    return false;
+  }
+
   const hasActivationRule =
     skill.requiresSandbox ||
     skill.requiresTmsIntegration ||
@@ -206,7 +214,8 @@ export function isConversationSkillActivated(
     skill.requiresFileAttachments !== undefined ||
     skill.requiresProjectOrAttachments ||
     skill.requiresVisualMockSkill ||
-    skill.requiresKnowledgeMemory;
+    skill.requiresKnowledgeMemory ||
+    skill.requiresGlossarySearch;
 
   return hasActivationRule;
 }
@@ -244,6 +253,13 @@ export function filterAvailableConversationToolNames(
     if (
       toolName === "update_knowledge_memory" &&
       !hasCapability(runtime.toolContext.membershipRole, "workspace:update")
+    ) {
+      return false;
+    }
+
+    if (
+      (toolName === "search_native_glossary" || toolName === "search_crowdin_glossary") &&
+      runtime.toolContext.glossarySearchEnabled !== true
     ) {
       return false;
     }

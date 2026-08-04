@@ -172,6 +172,7 @@ describe("conversation turn preparation", () => {
         toolContext: expect.objectContaining({
           reportToolProgress,
           knowledgeMemoryEnabled: true,
+          glossarySearchEnabled: false,
         }),
       }),
     );

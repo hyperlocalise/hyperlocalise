@@ -25,12 +25,20 @@ Today the conversational agent has Crowdin progress tools but no glossary search
 3. If a term is missing, translate for native-like UX and explicitly flag that it is not in the glossary.
 4. Do not invent a "keep official names in English" default unless glossary or project context says so.
 
+### Feature flag
+
+Roll out behind WorkOS workspace flag `workspace-glossary-search` (default off). When disabled:
+
+- `glossary-tools` does not activate
+- `search_crowdin_glossary` is filtered out of `tms-tools`
+- project dynamic instructions omit glossary tool routing
+
 ### Tools and skills
 
 | Tool | Skill | Behavior |
 |------|-------|----------|
-| `search_crowdin_glossary` | `tms-tools` + shared `crowdin` | Default: org-level `POST /glossaries/concordance`. Optional Hyperlocalise `projectId` → project concordance. |
-| `search_native_glossary` | `glossary-tools` (always on) | Postgres FTS over native (`source = native`) glossaries; prefer project-attached when `projectId` is set. |
+| `search_crowdin_glossary` | `tms-tools` + shared `crowdin` | Default: org-level `POST /glossaries/concordance`. Optional Hyperlocalise `projectId` → project concordance. Gated by `workspace-glossary-search`. |
+| `search_native_glossary` | `glossary-tools` (`requiresGlossarySearch`) | Postgres FTS over native (`source = native`) glossaries; prefer project-attached when `projectId` is set. |
 
 ### CAT → chat context
 

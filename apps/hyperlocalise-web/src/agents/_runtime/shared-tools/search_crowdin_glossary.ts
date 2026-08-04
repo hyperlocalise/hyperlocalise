@@ -67,7 +67,11 @@ export type SearchCrowdinGlossaryToolInput = z.infer<typeof searchCrowdinGlossar
 export type SearchCrowdinGlossaryToolOutput = z.infer<typeof searchCrowdinGlossaryOutputSchema>;
 
 export function createSearchCrowdinGlossaryTool(
+<<<<<<< HEAD
   ctx: Pick<ToolContext, "organizationId" | "localUserId" | "projectId">,
+=======
+  ctx: Pick<ToolContext, "organizationId" | "localUserId" | "glossarySearchEnabled">,
+>>>>>>> c1e00152 (feat(agent): gate glossary search behind workspace flag)
 ) {
   return defineAgentTool({
     description:
@@ -75,7 +79,17 @@ export function createSearchCrowdinGlossaryTool(
     inputSchema: searchCrowdinGlossaryInputSchema,
     outputSchema: searchCrowdinGlossaryOutputSchema,
     execute: async (input) => {
+<<<<<<< HEAD
       const projectId = input.projectId ?? ctx.projectId ?? undefined;
+=======
+      if (ctx.glossarySearchEnabled !== true) {
+        return {
+          success: false,
+          error: "Glossary search is not enabled for this workspace.",
+        };
+      }
+
+>>>>>>> c1e00152 (feat(agent): gate glossary search behind workspace flag)
       const result = await crowdinTmsProvider.searchGlossaryForAgent({
         organizationId: ctx.organizationId,
         actorUserId: ctx.localUserId,

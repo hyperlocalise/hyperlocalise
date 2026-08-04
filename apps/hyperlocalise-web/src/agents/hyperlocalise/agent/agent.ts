@@ -33,9 +33,11 @@ export function buildHyperlocaliseDynamicSections(input: {
   surface: HyperlocaliseAgentSurface;
   projectId: string | null;
   attachedProject?: HyperlocaliseAttachedProjectContext | null;
+  glossarySearchEnabled?: boolean;
   additionalInstructions?: string;
 }): string[] {
   const dynamicSections: string[] = [];
+  const glossarySearchEnabled = input.glossarySearchEnabled === true;
 
   if (input.surface === "slack") {
     dynamicSections.push(
@@ -61,16 +63,18 @@ export function buildHyperlocaliseDynamicSections(input: {
     if (attachedProject?.projectSource === "external_tms") {
       const provider = attachedProject.externalProviderKind?.trim() || "external TMS";
       projectLines.push(`- Project source: external TMS (${provider}).`);
-      if (attachedProject.externalProviderKind === "crowdin") {
+      if (glossarySearchEnabled && attachedProject.externalProviderKind === "crowdin") {
         projectLines.push(
           "- For terminology, prefer `search_crowdin_glossary` with this projectId before advising on product or feature names.",
         );
       }
     } else if (attachedProject?.projectSource === "native") {
       projectLines.push("- Project source: native Hyperlocalise.");
-      projectLines.push(
-        "- For terminology, prefer `search_native_glossary` with this projectId before advising on product or feature names.",
-      );
+      if (glossarySearchEnabled) {
+        projectLines.push(
+          "- For terminology, prefer `search_native_glossary` with this projectId before advising on product or feature names.",
+        );
+      }
     }
 
     dynamicSections.push(...projectLines);

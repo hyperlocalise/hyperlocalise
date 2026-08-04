@@ -1,6 +1,6 @@
 ---
 id: glossary-tools
-always: true
+requiresGlossarySearch: true
 tools: search_native_glossary
 ---
 
