@@ -274,3 +274,72 @@ export const issueSheetActivities = pgTable(
     ),
   ],
 );
+
+export type IssueNotificationType =
+  | "assigned"
+  | "mentioned"
+  | "comment"
+  | "status_changed"
+  | "assignee_changed";
+
+export type IssueNotificationPayload = {
+  issueTitle: string;
+  projectId: string;
+  commentId?: string;
+  commentExcerpt?: string;
+  previousStatus?: string;
+  nextStatus?: string;
+  previousAssigneeUserId?: string | null;
+  nextAssigneeUserId?: string | null;
+};
+
+/**
+ * In-app inbox notifications for Issue Sheet activity (assignment, mentions,
+ * comments, and relevant changes for implicit watchers).
+ */
+export const issueNotifications = pgTable(
+  "issue_notifications",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    projectId: text("project_id")
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
+    recipientUserId: uuid("recipient_user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    actorUserId: uuid("actor_user_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    issueId: uuid("issue_id")
+      .notNull()
+      .references(() => issueSheetIssues.id, { onDelete: "cascade" }),
+    type: text("type").$type<IssueNotificationType>().notNull(),
+    dedupeKey: text("dedupe_key").notNull(),
+    payload: jsonb("payload")
+      .$type<IssueNotificationPayload>()
+      .notNull()
+      .default(sql`'{}'::jsonb`),
+    readAt: timestamp("read_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("issue_notifications_recipient_dedupe_key").on(
+      table.recipientUserId,
+      table.dedupeKey,
+    ),
+    index("idx_issue_notifications_recipient_org_created").on(
+      table.recipientUserId,
+      table.organizationId,
+      table.createdAt,
+    ),
+    index("idx_issue_notifications_recipient_org_unread").on(
+      table.recipientUserId,
+      table.organizationId,
+      table.readAt,
+    ),
+    index("idx_issue_notifications_issue").on(table.issueId),
+  ],
+);

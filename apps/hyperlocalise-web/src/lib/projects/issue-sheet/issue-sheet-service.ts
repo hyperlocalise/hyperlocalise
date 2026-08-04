@@ -50,6 +50,7 @@ import {
   priorityValueJoin,
   priorityValues,
 } from "./issue-list-query";
+import { issueNotificationService } from "./issue-notification-service";
 
 export const ISSUE_SHEET_ACTIVITY_ASSIGNEE_CHANGED = "assignee_changed" as const;
 export const ISSUE_SHEET_ACTIVITY_ISSUE_CREATED = "issue_created" as const;
@@ -912,6 +913,18 @@ export class IssueSheetService {
       });
     }
 
+    if (assigneeUserId) {
+      await issueNotificationService.safeFanOut("assigned_on_create", () =>
+        issueNotificationService.notifyAssigned({
+          organizationId: input.organizationId,
+          projectId: input.projectId,
+          issueId,
+          actorUserId: input.actorUserId,
+          assigneeUserId,
+        }),
+      );
+    }
+
     const created = await this.getIssueById({
       organizationId: input.organizationId,
       projectId: input.projectId,
@@ -973,7 +986,7 @@ export class IssueSheetService {
         .for("update");
 
       if (!current) {
-        return false;
+        return null;
       }
 
       const nextAssigneeUserId = assigneeChanging
@@ -984,6 +997,8 @@ export class IssueSheetService {
         input.body.status != null &&
         input.body.status !== current.status;
       const nextStatusValue = statusChanging ? input.body.status! : current.status;
+      const assigneeActuallyChanged =
+        assigneeChanging && current.assigneeUserId !== nextAssigneeUserId;
 
       await tx
         .update(schema.issueSheetIssues)
@@ -1021,7 +1036,7 @@ export class IssueSheetService {
         });
       }
 
-      if (assigneeChanging && current.assigneeUserId !== nextAssigneeUserId) {
+      if (assigneeActuallyChanged) {
         await this.insertAssigneeChangedActivity({
           database: tx,
           organizationId: input.organizationId,
@@ -1033,11 +1048,44 @@ export class IssueSheetService {
         });
       }
 
-      return true;
+      return {
+        statusChanging,
+        previousStatus: current.status,
+        nextStatus: nextStatusValue,
+        assigneeActuallyChanged,
+        previousAssigneeUserId: current.assigneeUserId,
+        nextAssigneeUserId,
+      };
     });
 
     if (!found) {
       return null;
+    }
+
+    if (found.statusChanging) {
+      await issueNotificationService.safeFanOut("status_changed", () =>
+        issueNotificationService.notifyStatusChanged({
+          organizationId: input.organizationId,
+          projectId: input.projectId,
+          issueId: input.issueId,
+          actorUserId: input.actorUserId,
+          previousStatus: found.previousStatus,
+          nextStatus: found.nextStatus,
+        }),
+      );
+    }
+
+    if (found.assigneeActuallyChanged) {
+      await issueNotificationService.safeFanOut("assignee_changed", () =>
+        issueNotificationService.notifyAssigneeChanged({
+          organizationId: input.organizationId,
+          projectId: input.projectId,
+          issueId: input.issueId,
+          actorUserId: input.actorUserId,
+          previousAssigneeUserId: found.previousAssigneeUserId,
+          nextAssigneeUserId: found.nextAssigneeUserId,
+        }),
+      );
     }
 
     return this.getIssueById(input);

@@ -27,6 +27,14 @@ describe("stripMarkdown", () => {
     );
   });
 
+  it("keeps mention labels without mention hrefs", () => {
+    expect(
+      stripMarkdown(
+        "Hello [@Vi Nguyen](mention:user:962fec59-8275-4000-8000-000000000001)",
+      ),
+    ).toBe("Hello @Vi Nguyen");
+  });
+
   it("handles nested parentheses and empty link labels", () => {
     expect(
       stripMarkdown(

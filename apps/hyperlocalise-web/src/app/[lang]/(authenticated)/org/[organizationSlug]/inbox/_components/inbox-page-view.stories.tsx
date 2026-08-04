@@ -35,18 +35,25 @@ const meta = {
     conversations: conversationsFixture,
     conversationsIsLoading: false,
     conversationsIsError: false,
-    selectedConversationId: conversationsFixture[0].id,
     selectedConversation: conversationsFixture[0],
+    selectedNotification: undefined,
+    selection: { kind: "conversation", id: conversationsFixture[0].id },
     messages: messagesFixture,
     messagesIsLoading: false,
     jobs: linkedJobsFixture,
     jobsIsLoading: false,
+    notifications: [],
+    notificationsIsLoading: false,
+    notificationsIsError: false,
     isSending: false,
     isStreaming: false,
     isSparseInbox: false,
     streamedAssistant: null,
+    onMarkAllRead: fn(),
     onSelectConversation: fn(),
+    onSelectNotification: fn(),
     onSendMessage: fn(),
+    unreadNotificationCount: 0,
   },
 } satisfies Meta<typeof InboxPageView>;
 
@@ -65,11 +72,12 @@ export const Default: Story = {
 export const LoadingConversations: Story = {
   args: {
     conversations: [],
-    selectedConversationId: "",
     selectedConversation: undefined,
+    selection: null,
     messages: [],
     jobs: [],
     conversationsIsLoading: true,
+    notificationsIsLoading: true,
     messagesIsLoading: true,
     jobsIsLoading: true,
   },
@@ -78,14 +86,14 @@ export const LoadingConversations: Story = {
 export const EmptyInbox: Story = {
   args: {
     conversations: [],
-    selectedConversationId: "",
     selectedConversation: undefined,
+    selection: null,
     messages: [],
     jobs: [],
     isSparseInbox: true,
   },
   play: async ({ canvas }) => {
-    await expect(canvas.getByText("No conversations yet.")).toBeInTheDocument();
+    await expect(canvas.getByText("No conversations or notifications yet.")).toBeInTheDocument();
     await expect(canvas.getByText("Select a conversation to view details")).toBeInTheDocument();
   },
 };
@@ -93,14 +101,14 @@ export const EmptyInbox: Story = {
 export const ConversationsLoadError: Story = {
   args: {
     conversations: [],
-    selectedConversationId: "",
     selectedConversation: undefined,
+    selection: null,
     messages: [],
     jobs: [],
     conversationsIsError: true,
   },
   play: async ({ canvas }) => {
-    await expect(canvas.getByText("Unable to load conversations.")).toBeInTheDocument();
+    await expect(canvas.getByText("Unable to load inbox.")).toBeInTheDocument();
   },
 };
 
@@ -120,7 +128,7 @@ export const StreamingResponse: Story = {
 
 export const EmailConversation: Story = {
   args: {
-    selectedConversationId: conversationsFixture[1].id,
+    selection: { kind: "conversation", id: conversationsFixture[1].id },
     selectedConversation: conversationsFixture[1],
     messages: [],
     jobs: [],
@@ -133,7 +141,7 @@ export const EmailConversation: Story = {
 
 export const ArchivedConversation: Story = {
   args: {
-    selectedConversationId: conversationsFixture[2].id,
+    selection: { kind: "conversation", id: conversationsFixture[2].id },
     selectedConversation: conversationsFixture[2],
     messages: [
       {

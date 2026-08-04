@@ -15,8 +15,10 @@
 import { cn } from "@/lib/primitives/cn";
 
 import { ConversationPanel } from "./conversation-panel";
-import { InboxList } from "./inbox-list";
+import { InboxIssuePanel } from "./inbox-issue-panel";
+import { InboxList, type InboxSelection } from "./inbox-list";
 import { InboxPanelErrorBoundary } from "./inbox-panel-error-boundary";
+import type { InboxIssueNotification } from "./inbox-notifications-api";
 import type {
   Conversation,
   ConversationMessage,
@@ -37,12 +39,19 @@ export function InboxPageView({
   jobsIsLoading,
   messages,
   messagesIsLoading,
+  notifications,
+  notificationsIsError,
+  notificationsIsLoading,
+  onMarkAllRead,
   onSelectConversation,
+  onSelectNotification,
   onSendMessage,
   organizationSlug,
   selectedConversation,
-  selectedConversationId,
+  selectedNotification,
+  selection,
   streamedAssistant,
+  unreadNotificationCount,
 }: {
   conversations: Conversation[];
   conversationsIsError: boolean;
@@ -55,7 +64,12 @@ export function InboxPageView({
   jobsIsLoading: boolean;
   messages: ConversationMessage[];
   messagesIsLoading: boolean;
+  notifications: InboxIssueNotification[];
+  notificationsIsError: boolean;
+  notificationsIsLoading: boolean;
+  onMarkAllRead: () => void;
   onSelectConversation: (conversationId: string) => void;
+  onSelectNotification: (notificationId: string) => void;
   onSendMessage: (
     text: string,
     files: File[],
@@ -63,9 +77,20 @@ export function InboxPageView({
   ) => void | Promise<void>;
   organizationSlug: string;
   selectedConversation: Conversation | undefined;
-  selectedConversationId: string;
+  selectedNotification: InboxIssueNotification | undefined;
+  selection: InboxSelection;
   streamedAssistant: StreamedAssistantMessage | null;
+  unreadNotificationCount: number;
 }) {
+  const listIsLoading = conversationsIsLoading || notificationsIsLoading;
+  const listIsError = conversationsIsError || notificationsIsError;
+  const selectionKey =
+    selection?.kind === "conversation"
+      ? `conversation:${selection.id}`
+      : selection?.kind === "notification"
+        ? `notification:${selection.id}`
+        : "none";
+
   return (
     <main
       data-organization={organizationSlug}
@@ -82,31 +107,49 @@ export function InboxPageView({
         <InboxPanelErrorBoundary
           scope="list"
           className="max-h-[40svh] min-h-0 shrink-0 lg:h-full lg:max-h-none lg:shrink"
-          resetKeys={[selectedConversationId, conversations.length, conversationsIsLoading]}
+          resetKeys={[
+            selectionKey,
+            conversations.length,
+            notifications.length,
+            conversationsIsLoading,
+            notificationsIsLoading,
+          ]}
         >
           <InboxList
             conversations={conversations}
             currentUser={currentUser}
-            isError={conversationsIsError}
-            isLoading={conversationsIsLoading}
+            isError={listIsError}
+            isLoading={listIsLoading}
+            notifications={notifications}
+            onMarkAllRead={onMarkAllRead}
             onSelectConversation={onSelectConversation}
-            selectedConversationId={selectedConversationId}
+            onSelectNotification={onSelectNotification}
+            selection={selection}
+            unreadNotificationCount={unreadNotificationCount}
           />
         </InboxPanelErrorBoundary>
 
-        <ConversationPanel
-          conversation={selectedConversation}
-          currentUser={currentUser}
-          isSending={isSending}
-          isStreaming={isStreaming}
-          jobs={jobs}
-          jobsIsLoading={jobsIsLoading}
-          messages={messages}
-          messagesIsLoading={messagesIsLoading}
-          onSendMessage={onSendMessage}
-          organizationSlug={organizationSlug}
-          streamedAssistant={streamedAssistant}
-        />
+        {selectedNotification ? (
+          <InboxIssuePanel
+            organizationSlug={organizationSlug}
+            projectId={selectedNotification.projectId}
+            issueId={selectedNotification.issueId}
+          />
+        ) : (
+          <ConversationPanel
+            conversation={selectedConversation}
+            currentUser={currentUser}
+            isSending={isSending}
+            isStreaming={isStreaming}
+            jobs={jobs}
+            jobsIsLoading={jobsIsLoading}
+            messages={messages}
+            messagesIsLoading={messagesIsLoading}
+            onSendMessage={onSendMessage}
+            organizationSlug={organizationSlug}
+            streamedAssistant={streamedAssistant}
+          />
+        )}
       </div>
     </main>
   );
