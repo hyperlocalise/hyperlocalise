@@ -47,13 +47,13 @@ function notification(
 }
 
 describe("notificationSecondaryText", () => {
-  it("strips mention markdown from comment excerpts", () => {
+  it("strips user and issue mention markdown from comment excerpts", () => {
     expect(
       notificationSecondaryText(
-        "Hello [@Vi Nguyen](mention:user:962fec59-8275-4000-8000-000000000001)",
+        "Hello [@Vi Nguyen](mention:user:962fec59-8275-4000-8000-000000000001) re [@HL-12](mention:issue:22222222-2222-4222-8222-222222222222:project_website)",
         "Someone mentioned you",
       ),
-    ).toBe("Hello @Vi Nguyen");
+    ).toBe("Hello @Vi Nguyen re @HL-12");
   });
 
   it("falls back to the preview when the excerpt is empty", () => {
