@@ -428,14 +428,14 @@ describe("CatSideBySideRow", () => {
     expect(screen.getByText(/ICU structure/i)).toBeInTheDocument();
   });
 
-  it("shows add to issue sheet when provided for focused text rows", async () => {
+  it("shows issues action when provided for focused text rows", async () => {
     const user = userEvent.setup();
     const onAddToIssueSheet = vi.fn();
 
     renderRow({ isDirty: false, onAddToIssueSheet });
 
     expect(screen.getByRole("button", { name: /Approve/i })).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: /Add to issue sheet/i }));
+    await user.click(screen.getByRole("button", { name: /^Issues$/i }));
     expect(onAddToIssueSheet).toHaveBeenCalledTimes(1);
   });
 

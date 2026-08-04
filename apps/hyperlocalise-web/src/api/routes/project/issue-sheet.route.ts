@@ -300,6 +300,13 @@ export function createIssueSheetRoutes() {
             "Assignee must be an active workspace member with project access",
           );
         }
+        if (error instanceof Error && error.message === "translation_key_not_found") {
+          return badRequestResponse(
+            c,
+            "translation_key_not_found",
+            "Translation key not found in this project",
+          );
+        }
         if (error instanceof Error && error.message === "invalid_issue_sheet_select_value") {
           return badRequestResponse(c, "invalid_issue_sheet_select_value", "Invalid select value");
         }
@@ -337,6 +344,13 @@ export function createIssueSheetRoutes() {
             c,
             "assignee_not_assignable",
             "Assignee must be an active workspace member with project access",
+          );
+        }
+        if (error instanceof Error && error.message === "translation_key_not_found") {
+          return badRequestResponse(
+            c,
+            "translation_key_not_found",
+            "Translation key not found in this project",
           );
         }
         throw error;

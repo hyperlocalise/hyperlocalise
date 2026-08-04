@@ -50,6 +50,7 @@ export type IssueListFilterQuery = {
   locale?: string;
   assignee?: string;
   projectId?: string;
+  translationKeyId?: string;
   search?: string;
   sort?: IssueListSortField;
   sortDir?: IssueListSortDirection;
@@ -150,6 +151,9 @@ export function buildIssueListFilterConditions(input: {
   }
   if (query.projectId) {
     conditions.push(eq(schema.issueSheetIssues.projectId, query.projectId));
+  }
+  if (query.translationKeyId) {
+    conditions.push(eq(schema.issueSheetIssues.translationKeyId, query.translationKeyId));
   }
   if (query.search) {
     const search = `%${query.search}%`;

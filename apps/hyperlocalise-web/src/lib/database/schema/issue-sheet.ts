@@ -91,6 +91,7 @@ export const issueSheetIssues = pgTable(
     ),
     index("idx_issue_sheet_issues_project_locale").on(table.projectId, table.targetLocale),
     index("idx_issue_sheet_issues_linked_comment").on(table.linkedCommentId),
+    index("idx_issue_sheet_issues_translation_key").on(table.translationKeyId),
     uniqueIndex("issue_sheet_issues_project_external_ref_key")
       .on(table.projectId, table.externalRef)
       .where(sql`${table.externalRef} IS NOT NULL`),

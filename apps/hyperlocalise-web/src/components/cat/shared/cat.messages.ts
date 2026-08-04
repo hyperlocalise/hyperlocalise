@@ -613,9 +613,9 @@ export const catEditorPanelMessages = defineMessages({
     description: "Button to look up repository context for the current string",
   },
   addToIssueSheet: {
-    defaultMessage: "Add to Issue Sheet",
-    id: "0iCvVxZ/5M",
-    description: "Button to add the current CAT segment as an Issue Sheet row",
+    defaultMessage: "Issues",
+    id: "IA5Kmwt4uK",
+    description: "Button to open linked Issues for the current CAT segment",
   },
   refreshContextTitle: {
     defaultMessage: "Re-run repository context lookup for this string",

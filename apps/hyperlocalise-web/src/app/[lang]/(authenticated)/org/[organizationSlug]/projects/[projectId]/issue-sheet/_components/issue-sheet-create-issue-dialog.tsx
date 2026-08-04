@@ -115,12 +115,24 @@ function Field({
   );
 }
 
+export type IssueSheetCreateStringLink = {
+  translationKeyId?: string;
+  segmentId: string;
+  sourcePath: string;
+  targetLocale: string;
+  defaultTitle?: string;
+  defaultDescription?: string;
+  linkUrl?: string;
+  linkLabel?: string;
+};
+
 export function IssueSheetCreateIssueDialog({
   open,
   onOpenChange,
   organizationSlug,
   projectId,
   projects,
+  stringLink,
   onCreated,
 }: {
   open: boolean;
@@ -128,6 +140,7 @@ export function IssueSheetCreateIssueDialog({
   organizationSlug: string;
   projectId?: string;
   projects?: { id: string; name: string }[];
+  stringLink?: IssueSheetCreateStringLink;
   onCreated: () => Promise<void>;
 }) {
   const intl = useIntl();
@@ -156,6 +169,16 @@ export function IssueSheetCreateIssueDialog({
       setAssigneeUserId(null);
       return;
     }
+    if (stringLink) {
+      setTitle(stringLink.defaultTitle ?? "");
+      setDescription(stringLink.defaultDescription ?? "");
+      setIssueType("context_request");
+      setPriority("P2");
+      setTargetLocale(stringLink.targetLocale);
+      setSourcePath(stringLink.sourcePath);
+      setLinkLabel(stringLink.linkLabel ?? "");
+      setLinkUrl(stringLink.linkUrl ?? "");
+    }
     if (projectId) {
       setSelectedProjectId(projectId);
       return;
@@ -163,7 +186,7 @@ export function IssueSheetCreateIssueDialog({
     if (projects?.length === 1) {
       setSelectedProjectId(projects[0].id);
     }
-  }, [open, projectId, projects]);
+  }, [open, projectId, projects, stringLink]);
 
   const resolvedProjectId = projectId ?? selectedProjectId;
 
@@ -195,18 +218,35 @@ export function IssueSheetCreateIssueDialog({
       const response = await fetch(issueSheetPath(organizationSlug, resolvedProjectId), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title: trimmedTitle,
-          description,
-          issueType,
-          targetLocale: targetLocale.trim() || undefined,
-          sourcePath: sourcePath.trim() || undefined,
-          linkKind: linkUrl.trim() ? "url" : "manual",
-          linkLabel: linkLabel.trim() || undefined,
-          linkUrl: linkUrl.trim() || undefined,
-          priority,
-          ...(assigneeUserId ? { assigneeUserId } : {}),
-        }),
+        body: JSON.stringify(
+          stringLink
+            ? {
+                title: trimmedTitle,
+                description,
+                issueType,
+                targetLocale: stringLink.targetLocale,
+                sourcePath: stringLink.sourcePath,
+                segmentId: stringLink.segmentId,
+                translationKeyId: stringLink.translationKeyId,
+                linkKind: "cat_segment",
+                linkLabel: linkLabel.trim() || stringLink.linkLabel || undefined,
+                linkUrl: linkUrl.trim() || stringLink.linkUrl || undefined,
+                priority,
+                ...(assigneeUserId ? { assigneeUserId } : {}),
+              }
+            : {
+                title: trimmedTitle,
+                description,
+                issueType,
+                targetLocale: targetLocale.trim() || undefined,
+                sourcePath: sourcePath.trim() || undefined,
+                linkKind: linkUrl.trim() ? "url" : "manual",
+                linkLabel: linkLabel.trim() || undefined,
+                linkUrl: linkUrl.trim() || undefined,
+                priority,
+                ...(assigneeUserId ? { assigneeUserId } : {}),
+              },
+        ),
       });
       return readJsonOrThrow<{ issue: { id: string } }>(
         response,
