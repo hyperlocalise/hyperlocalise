@@ -771,10 +771,6 @@
     "defaultMessage": "Capture the context and corrections your team already creates, then make them available when the next launch starts.",
     "description": "Bottom CTA description for the self-evolving knowledge product page"
   },
-  "1AN+Q/JkbE": {
-    "defaultMessage": "Queue translation jobs for uploaded source files in the project selected above.",
-    "description": "Description for the translate tool"
-  },
   "1Ax42ak5yi": {
     "defaultMessage": "This file can’t be opened in the CAT workspace.",
     "description": "Error when a selected source file cannot be opened in CAT"
@@ -2970,6 +2966,10 @@
   "9pmdbGAxZ4": {
     "defaultMessage": "Failed to generate GitHub install URL",
     "description": "Toast when GitHub App install URL generation fails"
+  },
+  "9u6IERsgZA": {
+    "defaultMessage": "Remove Translate with agent",
+    "description": "Accessible label to remove the Translate with agent tool"
   },
   "9u8Sq8abiS": {
     "defaultMessage": "Delete project?",
@@ -8699,6 +8699,10 @@
     "defaultMessage": "External job ID",
     "description": "Detail row label for the provider job identifier"
   },
+  "YZ2plskMsH": {
+    "defaultMessage": "Assign the created job to Translate with agent and start localisation.",
+    "description": "Description for the Translate with agent automation tool"
+  },
   "Ya0t4KyDVG": {
     "defaultMessage": "Copy failed",
     "description": "Button label when copying a glossary target term fails"
@@ -9899,6 +9903,10 @@
     "defaultMessage": "{provider} connected",
     "description": "Toast success after connecting a Crowdin account with a personal access token"
   },
+  "dg15k+jhq4": {
+    "defaultMessage": "Translate with agent",
+    "description": "Menu item and tool title for assigning Translate with agent"
+  },
   "dgJxXLu6Bs": {
     "defaultMessage": "Search: {value}",
     "description": "Active issue filter chip showing the current search query"
@@ -9922,10 +9930,6 @@
   "dmWGvUNewd": {
     "defaultMessage": "Choose push or scheduled triggers when workflows are enabled.",
     "description": "Validation error when workflows are enabled but no trigger mode is selected"
-  },
-  "dn9Ff93vY2": {
-    "defaultMessage": "Choose a project above to pick target locales.",
-    "description": "Empty state when translation target locales need a project first"
   },
   "do0p3JfCkF": {
     "defaultMessage": "View all workspaces",
@@ -11091,6 +11095,10 @@
     "defaultMessage": "Saving",
     "description": "Commit button label while knowledge memory is saving"
   },
+  "iN2TlQe/rc": {
+    "defaultMessage": "Create job",
+    "description": "Menu item and tool title for creating a native TMS job"
+  },
   "iNt/60shfS": {
     "defaultMessage": "Make missed localisation work harder to miss.",
     "description": "Bottom CTA headline for the agents automation product page"
@@ -12235,6 +12243,10 @@
     "defaultMessage": "Agent assignment",
     "description": "Workflow step 3 label for the localisation-operations use case"
   },
+  "mzBTNMYPpo": {
+    "defaultMessage": "Choose a project above to pick target locales.",
+    "description": "Empty state when Create job target locales need a project first"
+  },
   "n+YVQESgnK": {
     "defaultMessage": "Update the team name or slug used across the workspace.",
     "description": "Description of the edit team dialog on the teams list page"
@@ -12354,30 +12366,6 @@
   "nSqpG2XwMB": {
     "defaultMessage": "Search by name...",
     "description": "Placeholder for the projects search field"
-  },
-  "nTmsAssignAgent": {
-    "defaultMessage": "Translate with agent",
-    "description": "Menu item and tool title for assigning Translate with agent"
-  },
-  "nTmsAssignAgentDesc": {
-    "defaultMessage": "Assign the created job to Translate with agent and start localisation.",
-    "description": "Description for the Translate with agent automation tool"
-  },
-  "nTmsCreateJob": {
-    "defaultMessage": "Create job",
-    "description": "Menu item and tool title for creating a native TMS job"
-  },
-  "nTmsCreateJobDesc": {
-    "defaultMessage": "Create a native TMS translation job for uploaded source files in the project selected above.",
-    "description": "Description for the Create job automation tool"
-  },
-  "nTmsRemoveAssignAgent": {
-    "defaultMessage": "Remove Translate with agent",
-    "description": "Accessible label to remove the Translate with agent tool"
-  },
-  "nTmsRemoveCreateJob": {
-    "defaultMessage": "Remove Create job",
-    "description": "Accessible label to remove the Create job tool"
   },
   "nULuPBbLbZ": {
     "defaultMessage": "Localise Pricing Messages",
@@ -12895,6 +12883,10 @@
     "defaultMessage": "Live projects fetched from your connected TMS provider, ordered by recent activity.",
     "description": "Section description for live TMS provider projects"
   },
+  "pryVUr/AGB": {
+    "defaultMessage": "Create a native TMS translation job for uploaded source files in the project selected above.",
+    "description": "Description for the Create job automation tool"
+  },
   "puXgWXUT2y": {
     "defaultMessage": "Deleting…",
     "description": "Button label while deleting a live provider task"
@@ -13258,10 +13250,6 @@
   "rUPw7LyUVG": {
     "defaultMessage": "Strikethrough",
     "description": "Bubble menu button to toggle strikethrough text"
-  },
-  "rVbcl0T6/F": {
-    "defaultMessage": "Translate",
-    "description": "Menu item and tool title for translation jobs"
   },
   "rW0O4vxb9w": {
     "defaultMessage": "Activity",
@@ -14387,6 +14375,10 @@
     "defaultMessage": "Job does not belong to this project",
     "description": "Error when a loaded job belongs to a different project"
   },
+  "w29ko2pN3n": {
+    "defaultMessage": "Remove Create job",
+    "description": "Accessible label to remove the Create job tool"
+  },
   "w2b0cdIV3S": {
     "defaultMessage": "Ask about strings, context, or anything else",
     "description": "Empty state subtitle describing chat capabilities"
@@ -14726,10 +14718,6 @@
   "xFn0NDIq1p": {
     "defaultMessage": "Provider",
     "description": "Job property row label for TMS provider name"
-  },
-  "xKI0yR66AU": {
-    "defaultMessage": "Remove Translate",
-    "description": "Accessible label to remove the translate tool"
   },
   "xMon4OObQB": {
     "defaultMessage": "Cannot save translation because the provider file identifier is missing.",
