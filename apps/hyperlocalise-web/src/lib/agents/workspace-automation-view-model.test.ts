@@ -247,6 +247,37 @@ describe("workspace automation view model", () => {
     expect(payload.toolConfig.translation).not.toHaveProperty("projectId");
   });
 
+  it("prefills and maps the translate-on-source-upload template", () => {
+    const form = createWorkspaceAutomationFormStateFromTemplate(
+      "translate-on-source-upload",
+      mergedTemplates,
+    );
+    expect(form).toMatchObject({
+      name: "Translate on source upload",
+      triggerMode: "source_upload",
+      translationEnabled: true,
+      translationUseProjectTargetLocales: true,
+    });
+    expect(form?.instructions).toContain("Translate with agent");
+
+    const readyForm = {
+      ...form!,
+      projectId: "project-1",
+    };
+    expect(validateWorkspaceAutomationFormState(readyForm)).toEqual({});
+    expect(formStateToWorkspaceAutomationPayload(readyForm)).toMatchObject({
+      projectId: "project-1",
+      triggerConfig: { mode: "source_upload" },
+      toolConfig: {
+        translation: {
+          enabled: true,
+          useProjectTargetLocales: true,
+          targetLocales: [],
+        },
+      },
+    });
+  });
+
   it("requires translation tool when source upload trigger is selected", () => {
     const form = {
       ...createDefaultWorkspaceAutomationFormState(),
