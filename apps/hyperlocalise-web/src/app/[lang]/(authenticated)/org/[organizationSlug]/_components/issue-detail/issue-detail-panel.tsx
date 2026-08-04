@@ -52,6 +52,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { TypographyP } from "@/components/ui/typography";
 import { cn } from "@/lib/primitives/cn";
 
+import { IssueCustomColumnField } from "./issue-custom-column-field";
 import { IssueMarkdownField } from "./issue-markdown-field";
 import { issueMarkdownFieldMessages as markdownFieldMessages } from "./issue-markdown-field.messages";
 import { IssueAssigneePicker } from "./issue-assignee-picker";
@@ -70,9 +71,15 @@ import {
 } from "./issue-detail-utils";
 import { IssuePriorityIcon } from "./issue-priority-icon";
 import { IssueStatusIcon } from "./issue-status-icon";
+import {
+  isMainContentCustomColumn,
+  isSidebarCustomColumn,
+  listDetailPanelColumns,
+} from "./issue-sheet-column-utils";
 import { useAssignableIssueMembersQuery } from "./use-assignable-issue-members";
 import { useIssueDetailMutations } from "./use-issue-detail-mutations";
 import { useIssueDetailQuery } from "./use-issue-detail-query";
+import { useIssueSheetColumnsQuery } from "./use-issue-sheet-columns-query";
 import { issueDetailPanelMessages as messages } from "./issue-detail-panel.messages";
 import { issueSheetSharedMessages as sharedMessages } from "../../projects/[projectId]/issue-sheet/_components/issue-sheet-shared.messages";
 import { formatRelativeTimestamp } from "../workspace-files-shared";
@@ -189,6 +196,10 @@ export const IssueDetailPanel = forwardRef<
     organizationSlug,
     projectId,
     issueId,
+  });
+  const columnsQuery = useIssueSheetColumnsQuery({
+    organizationSlug,
+    projectId,
   });
   const assignableMembersQuery = useAssignableIssueMembersQuery({
     organizationSlug,
@@ -350,6 +361,26 @@ export const IssueDetailPanel = forwardRef<
     [],
   );
 
+  const detailColumns = useMemo(
+    () => listDetailPanelColumns(columnsQuery.data ?? []),
+    [columnsQuery.data],
+  );
+  const sidebarCustomColumns = useMemo(
+    () => detailColumns.filter(isSidebarCustomColumn),
+    [detailColumns],
+  );
+  const mainCustomColumns = useMemo(
+    () => detailColumns.filter(isMainContentCustomColumn),
+    [detailColumns],
+  );
+
+  const saveCustomColumnValue = (columnKey: string, value: unknown) => {
+    if (suppressAutoSaveRef.current) {
+      return;
+    }
+    setValue.mutate({ columnKey, value });
+  };
+
   if (issueQuery.isLoading) {
     return (
       <div aria-busy="true" aria-live="polite" className="flex min-h-0 flex-1 flex-col">
@@ -464,6 +495,24 @@ export const IssueDetailPanel = forwardRef<
             ariaLabel={intl.formatMessage(messages.fieldOwnerNote)}
           />
         </section>
+
+        {mainCustomColumns.map((column) => (
+          <section key={column.id} className="mt-2 grid gap-2 border-t border-border pt-4">
+            <TypographyP className="text-sm font-medium text-foreground">
+              {column.label}
+            </TypographyP>
+            <IssueCustomColumnField
+              column={column}
+              value={issue.values[column.key]}
+              emptyValue={emptyValue}
+              disabled={isSaving}
+              variant="main"
+              members={assignableMembersQuery.data?.members ?? []}
+              membersLoading={assignableMembersQuery.isLoading}
+              onChange={(value) => saveCustomColumnValue(column.key, value)}
+            />
+          </section>
+        ))}
 
         {hasLinkedContext ? (
           <section className="mt-2 grid gap-3 border-t border-border pt-4">
@@ -704,6 +753,21 @@ export const IssueDetailPanel = forwardRef<
               />
             </PropertyRow>
           ) : null}
+
+          {sidebarCustomColumns.map((column) => (
+            <PropertyRow key={column.id} icon={Tag01Icon} label={column.label}>
+              <IssueCustomColumnField
+                column={column}
+                value={issue.values[column.key]}
+                emptyValue={emptyValue}
+                disabled={isSaving}
+                variant="sidebar"
+                members={assignableMembersQuery.data?.members ?? []}
+                membersLoading={assignableMembersQuery.isLoading}
+                onChange={(value) => saveCustomColumnValue(column.key, value)}
+              />
+            </PropertyRow>
+          ))}
         </dl>
       </aside>
     </div>
