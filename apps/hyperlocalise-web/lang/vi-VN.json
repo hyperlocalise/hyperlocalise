@@ -197,6 +197,9 @@
   "/0c8E1m0u/": {
     "defaultMessage": "Theo dõi tính nhất quán của thuật ngữ, phạm vi phủ ngữ và chất lượng bản dịch trên nội dung sản phẩm, tiếp thị và hỗ trợ — với các cổng kiểm tra chặn các lần đồng bộ kém trước khi chúng được triển khai."
   },
+  "/140Sd9x8r": {
+    "defaultMessage": "{count, plural, =0 {No assignees} one {# assignee} other {# assignees}}"
+  },
   "/14v/WK67D": {
     "defaultMessage": "Quay lại trang web"
   },
@@ -1478,6 +1481,9 @@
   "5P6X7lQjQL": {
     "defaultMessage": "CAT workspace / Review queue"
   },
+  "5PG+VBWgIw": {
+    "defaultMessage": "Couldn't load assignable members"
+  },
   "5PgTvcChVL": {
     "defaultMessage": "Open"
   },
@@ -2534,6 +2540,9 @@
   "AWZymO5ooC": {
     "defaultMessage": "Ngừng đuổi theo công việc bản địa hóa trên khắp các công cụ | Hyperlocalise"
   },
+  "AXYQB+ayG/": {
+    "defaultMessage": "Job title"
+  },
   "AXYd5YvGYL": {
     "defaultMessage": "Tourfinder"
   },
@@ -3523,6 +3532,9 @@
   },
   "Fkgfxe1y6x": {
     "defaultMessage": "translation"
+  },
+  "FlKUTB/6A0": {
+    "defaultMessage": "Unassigned"
   },
   "FlXBmFercA": {
     "defaultMessage": "Remove GitHub sync workflows"
@@ -4595,6 +4607,9 @@
   "M2ZOmyFhbv": {
     "defaultMessage": "Collapse panel"
   },
+  "M30SNTxWXn": {
+    "defaultMessage": "Title is required"
+  },
   "M3bbV5wmi2": {
     "defaultMessage": "Quản lý quyền truy cập trên GitHub"
   },
@@ -5548,6 +5563,9 @@
   },
   "R68TUJrkVn": {
     "defaultMessage": "Add column"
+  },
+  "R6n/KCAp4a": {
+    "defaultMessage": "Couldn't update assignees"
   },
   "R7vhxRuwOx": {
     "defaultMessage": "Scheduled"
@@ -7496,6 +7514,9 @@
   "bDyj3Jswbl": {
     "defaultMessage": "Hiển thị các vấn đề về chất lượng trong các pull request"
   },
+  "bFbk34uFYE": {
+    "defaultMessage": "Loading…"
+  },
   "bHnFWGWqed": {
     "defaultMessage": "No files are linked to this task."
   },
@@ -7777,6 +7798,9 @@
   },
   "d8Vs3k3UER": {
     "defaultMessage": "Cuộc trò chuyện này không còn khả dụng."
+  },
+  "dAeEJyCLaY": {
+    "defaultMessage": "Clear all"
   },
   "dBWJx9vBQt": {
     "defaultMessage": "Khởi đầu"
@@ -8230,6 +8254,9 @@
   },
   "fK68dbaITk": {
     "defaultMessage": "A localization operating system in AI era. <muted>Built for modern teams with translation, review, sync, and quality control in one workflow.</muted>"
+  },
+  "fM2wynVWWB": {
+    "defaultMessage": "Search members…"
   },
   "fMyeM5BW3s": {
     "defaultMessage": "Tùy chỉnh"
@@ -9320,6 +9347,9 @@
   "kJE4wAhywD": {
     "defaultMessage": "Billing request failed. Try again in a moment."
   },
+  "kO32zaHAd6": {
+    "defaultMessage": "Couldn't save title"
+  },
   "kOJgaHjhFH": {
     "defaultMessage": "Renews on {date}"
   },
@@ -10186,6 +10216,9 @@
   },
   "pCwlsos9AL": {
     "defaultMessage": "Chọn một ngày trong tuần cho lịch hàng tuần."
+  },
+  "pF/btP7bSZ": {
+    "defaultMessage": "Failed to update job"
   },
   "pFVKHpG8Q4": {
     "defaultMessage": "Target text"
@@ -11135,6 +11168,9 @@
   "uHYVTMAjs/": {
     "defaultMessage": "Job source files"
   },
+  "uHbVM9Pw9Y": {
+    "defaultMessage": "Assignees updated"
+  },
   "uIj8uezhZ9": {
     "defaultMessage": "Trái Đất nhìn từ không gian"
   },
@@ -11828,6 +11864,9 @@
   "xVvlWpH5FH": {
     "defaultMessage": "Tạo lại"
   },
+  "xVxao1E4rb": {
+    "defaultMessage": "Assignees"
+  },
   "xX2Nm+qioI": {
     "defaultMessage": "Chúng tôi đã tạo không gian làm việc, nhưng không thể chuẩn bị URL của nó. Vui lòng thử lại."
   },
@@ -12208,6 +12247,9 @@
   },
   "zMY6O3OGwK": {
     "defaultMessage": "Mở menu tài khoản của {name}"
+  },
+  "zPUQ6rTETA": {
+    "defaultMessage": "No members found"
   },
   "zQIP2wjI8l": {
     "defaultMessage": "Blocked"

@@ -1747,6 +1747,10 @@
     "defaultMessage": "Engineering and localisation rely on manual spot checks before release instead of structured gates.",
     "description": "Problem pain point 4 for the product-localisation use case"
   },
+  "517eSE0isf": {
+    "defaultMessage": "{actor} assigned you to {issueTitle}",
+    "description": "Inbox notification preview for issue assignment"
+  },
   "54uRAqIrYn": {
     "defaultMessage": "Context-aware from GitHub and product briefs",
     "description": "Differentiator point 4 for the product-localisation use case"
@@ -2023,6 +2027,10 @@
     "defaultMessage": "{count} resolved",
     "description": "Badge showing resolved issue count on the Issue Sheet page"
   },
+  "6N3tTQGcSO": {
+    "defaultMessage": "Someone",
+    "description": "Fallback actor name when notification actor is missing"
+  },
   "6PFnjoc6zP": {
     "defaultMessage": "Editor panel failed to load",
     "description": "Error boundary title when the CAT editor panel crashes"
@@ -2258,6 +2266,10 @@
   "7L1IE082cR": {
     "defaultMessage": "Approve with confidence",
     "description": "Proof point 3 title for the next-gen CAT tool product page"
+  },
+  "7M/8dl8Baw": {
+    "defaultMessage": "This issue is unavailable.",
+    "description": "Shown when a selected notification issue cannot be loaded"
   },
   "7MZqOWE2cs": {
     "defaultMessage": "Failed to load provider job ({status})",
@@ -3743,6 +3755,10 @@
     "defaultMessage": "Leave a reply…",
     "description": "Placeholder for the inline reply row on a root comment card"
   },
+  "D622LHuyX8": {
+    "defaultMessage": "Mark all as read",
+    "description": "Button to mark all issue notifications as read in the inbox list"
+  },
   "D6N0QoCpN1": {
     "defaultMessage": "Reasoning failed to render",
     "description": "Error boundary title when reasoning UI crashes"
@@ -4066,6 +4082,10 @@
   "EO0pk2ty3D": {
     "defaultMessage": "{projectName} · {kindLabel} · updated {updatedAt}",
     "description": "Secondary metadata line for a job row on the dashboard"
+  },
+  "EOpyg02xLN": {
+    "defaultMessage": "Loading issue",
+    "description": "Aria label while issue detail loads in the inbox panel"
   },
   "EQ3mwHZJMl": {
     "defaultMessage": "{count} replies",
@@ -4675,6 +4695,10 @@
     "defaultMessage": "New article",
     "description": "Workflow step 1 label for the help-center-localisation use case"
   },
+  "H/zIVmChfF": {
+    "defaultMessage": "{actor} changed assignee on {issueTitle}",
+    "description": "Inbox notification preview for an assignee change"
+  },
   "H02egE79hp": {
     "defaultMessage": "Pricing",
     "description": "Marketing navbar link to the pricing page"
@@ -5134,6 +5158,10 @@
   "J9N0QX7lou": {
     "defaultMessage": "{value} {unit}",
     "description": "Formatted file size with a unit abbreviation"
+  },
+  "J9Nh4r/Fsj": {
+    "defaultMessage": "Load more",
+    "description": "Button to load older issue notifications in the inbox list"
   },
   "J9zjZFCoFh": {
     "defaultMessage": "How it works",
@@ -5979,6 +6007,10 @@
     "defaultMessage": "Save provider",
     "description": "Button label to save a BYOK provider credential"
   },
+  "NBzsgyShMP": {
+    "defaultMessage": "{actor} mentioned you on {issueTitle}",
+    "description": "Inbox notification preview for a mention"
+  },
   "NEC/JxS1Sr": {
     "defaultMessage": "Words to do",
     "description": "Job property row label for remaining words"
@@ -6522,6 +6554,10 @@
   "PVXHS+qpRe": {
     "defaultMessage": "Founders",
     "description": "Heading above founder cards on the company page"
+  },
+  "PVpHHcgxIZ": {
+    "defaultMessage": "{actor} changed status of {issueTitle}",
+    "description": "Inbox notification preview for an issue status change"
   },
   "PXc6nRCKjm": {
     "defaultMessage": "Prefer market-specific idioms for onboarding CTAs, but keep product terms literal.",
@@ -7995,6 +8031,10 @@
     "defaultMessage": "Translated ({locale})",
     "description": "Heading for the translated file pane in CAT File view"
   },
+  "Vm1k8EkL8L": {
+    "defaultMessage": "Issue",
+    "description": "Source label for issue notification rows in the inbox list"
+  },
   "VpKHsNzJ6d": {
     "defaultMessage": "Enable {repositoryFullName}",
     "description": "Aria label for a repository enable checkbox"
@@ -8778,6 +8818,10 @@
   "YxQp9bMkby": {
     "defaultMessage": "Not yet. Self-serve signup is coming soon. Request a demo if you want early access or need Enterprise.",
     "description": "Pricing FAQ answer about account creation availability"
+  },
+  "YxgRjdqpTS": {
+    "defaultMessage": "{actor} commented on {issueTitle}",
+    "description": "Inbox notification preview for a comment on a watched issue"
   },
   "Yy3NR/q4ik": {
     "defaultMessage": "Delete team",
@@ -13083,6 +13127,10 @@
     "defaultMessage": "Connect",
     "description": "Primary button to submit the Crowdin personal access token"
   },
+  "r0gMCcsbGC": {
+    "defaultMessage": "No conversations or notifications yet.",
+    "description": "Empty state when the inbox has neither conversations nor notifications"
+  },
   "r1aEK84u1V": {
     "defaultMessage": "Part of speech",
     "description": "Label for the part of speech field on a glossary term form"
@@ -14418,6 +14466,10 @@
   "wUnHS3QtO/": {
     "defaultMessage": "Hyperlocalise logo",
     "description": "Alt text for the Hyperlocalise logo in the marketing footer"
+  },
+  "wYA642IjdA": {
+    "defaultMessage": "Unable to load inbox.",
+    "description": "Error when the unified inbox list fails to load"
   },
   "wYUzxhVyTO": {
     "defaultMessage": "e.g. Crowdin Production",

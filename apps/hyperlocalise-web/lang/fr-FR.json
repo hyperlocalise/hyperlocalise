@@ -197,6 +197,9 @@
   "/0c8E1m0u/": {
     "defaultMessage": "Surveillez la cohérence terminologique, la couverture des locales et la qualité des traductions dans le contenu produit, marketing et support — avec des garde-fous qui bloquent les mauvaises synchronisations avant leur mise en ligne."
   },
+  "/140Sd9x8r": {
+    "defaultMessage": "{count, plural, =0 {No assignees} one {# assignee} other {# assignees}}"
+  },
   "/14v/WK67D": {
     "defaultMessage": "Retour au site"
   },
@@ -1478,6 +1481,9 @@
   "5P6X7lQjQL": {
     "defaultMessage": "CAT workspace / Review queue"
   },
+  "5PG+VBWgIw": {
+    "defaultMessage": "Couldn't load assignable members"
+  },
   "5PgTvcChVL": {
     "defaultMessage": "Open"
   },
@@ -2534,6 +2540,9 @@
   "AWZymO5ooC": {
     "defaultMessage": "Arrêtez de courir après les tâches de localisation à travers les outils | Hyperlocalise"
   },
+  "AXYQB+ayG/": {
+    "defaultMessage": "Job title"
+  },
   "AXYd5YvGYL": {
     "defaultMessage": "Tourfinder"
   },
@@ -3523,6 +3532,9 @@
   },
   "Fkgfxe1y6x": {
     "defaultMessage": "translation"
+  },
+  "FlKUTB/6A0": {
+    "defaultMessage": "Unassigned"
   },
   "FlXBmFercA": {
     "defaultMessage": "Supprimer les workflows de synchronisation GitHub"
@@ -4595,6 +4607,9 @@
   "M2ZOmyFhbv": {
     "defaultMessage": "Réduire le panneau"
   },
+  "M30SNTxWXn": {
+    "defaultMessage": "Title is required"
+  },
   "M3bbV5wmi2": {
     "defaultMessage": "Gérer l’accès sur GitHub"
   },
@@ -5548,6 +5563,9 @@
   },
   "R68TUJrkVn": {
     "defaultMessage": "Ajouter une colonne"
+  },
+  "R6n/KCAp4a": {
+    "defaultMessage": "Couldn't update assignees"
   },
   "R7vhxRuwOx": {
     "defaultMessage": "Planifié"
@@ -7496,6 +7514,9 @@
   "bDyj3Jswbl": {
     "defaultMessage": "Détecter les problèmes de qualité dans les pull requests"
   },
+  "bFbk34uFYE": {
+    "defaultMessage": "Loading…"
+  },
   "bHnFWGWqed": {
     "defaultMessage": "No files are linked to this task."
   },
@@ -7777,6 +7798,9 @@
   },
   "d8Vs3k3UER": {
     "defaultMessage": "Cette conversation n’est plus disponible."
+  },
+  "dAeEJyCLaY": {
+    "defaultMessage": "Clear all"
   },
   "dBWJx9vBQt": {
     "defaultMessage": "Starter"
@@ -8230,6 +8254,9 @@
   },
   "fK68dbaITk": {
     "defaultMessage": "A localization operating system in AI era. <muted>Built for modern teams with translation, review, sync, and quality control in one workflow.</muted>"
+  },
+  "fM2wynVWWB": {
+    "defaultMessage": "Search members…"
   },
   "fMyeM5BW3s": {
     "defaultMessage": "Personnalisé"
@@ -9320,6 +9347,9 @@
   "kJE4wAhywD": {
     "defaultMessage": "La demande de facturation a échoué. Réessayez dans un instant."
   },
+  "kO32zaHAd6": {
+    "defaultMessage": "Couldn't save title"
+  },
   "kOJgaHjhFH": {
     "defaultMessage": "Renews on {date}"
   },
@@ -10186,6 +10216,9 @@
   },
   "pCwlsos9AL": {
     "defaultMessage": "Choisissez un jour de la semaine pour les plannings hebdomadaires."
+  },
+  "pF/btP7bSZ": {
+    "defaultMessage": "Failed to update job"
   },
   "pFVKHpG8Q4": {
     "defaultMessage": "Target text"
@@ -11135,6 +11168,9 @@
   "uHYVTMAjs/": {
     "defaultMessage": "Job source files"
   },
+  "uHbVM9Pw9Y": {
+    "defaultMessage": "Assignees updated"
+  },
   "uIj8uezhZ9": {
     "defaultMessage": "La Terre vue de l’espace"
   },
@@ -11828,6 +11864,9 @@
   "xVvlWpH5FH": {
     "defaultMessage": "Régénérer"
   },
+  "xVxao1E4rb": {
+    "defaultMessage": "Assignees"
+  },
   "xX2Nm+qioI": {
     "defaultMessage": "Nous avons créé l’espace de travail, mais nous n’avons pas pu préparer son URL. Veuillez réessayer."
   },
@@ -12208,6 +12247,9 @@
   },
   "zMY6O3OGwK": {
     "defaultMessage": "Ouvrir le menu du compte de {name}"
+  },
+  "zPUQ6rTETA": {
+    "defaultMessage": "No members found"
   },
   "zQIP2wjI8l": {
     "defaultMessage": "Blocked"

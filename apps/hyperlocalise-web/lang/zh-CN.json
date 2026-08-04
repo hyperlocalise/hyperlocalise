@@ -197,6 +197,9 @@
   "/0c8E1m0u/": {
     "defaultMessage": "监控产品、营销和支持内容中的术语一致性、语言环境覆盖范围和翻译质量——通过在不良同步上线前阻止它们的门控机制。"
   },
+  "/140Sd9x8r": {
+    "defaultMessage": "{count, plural, =0 {No assignees} one {# assignee} other {# assignees}}"
+  },
   "/14v/WK67D": {
     "defaultMessage": "返回网站"
   },
@@ -1478,6 +1481,9 @@
   "5P6X7lQjQL": {
     "defaultMessage": "CAT workspace / Review queue"
   },
+  "5PG+VBWgIw": {
+    "defaultMessage": "Couldn't load assignable members"
+  },
   "5PgTvcChVL": {
     "defaultMessage": "Open"
   },
@@ -2534,6 +2540,9 @@
   "AWZymO5ooC": {
     "defaultMessage": "停止在各个工具之间追着做本地化工作 | Hyperlocalise"
   },
+  "AXYQB+ayG/": {
+    "defaultMessage": "Job title"
+  },
   "AXYd5YvGYL": {
     "defaultMessage": "Tourfinder"
   },
@@ -3523,6 +3532,9 @@
   },
   "Fkgfxe1y6x": {
     "defaultMessage": "translation"
+  },
+  "FlKUTB/6A0": {
+    "defaultMessage": "Unassigned"
   },
   "FlXBmFercA": {
     "defaultMessage": "Remove GitHub sync workflows"
@@ -4595,6 +4607,9 @@
   "M2ZOmyFhbv": {
     "defaultMessage": "Collapse panel"
   },
+  "M30SNTxWXn": {
+    "defaultMessage": "Title is required"
+  },
   "M3bbV5wmi2": {
     "defaultMessage": "在 GitHub 上管理访问权限"
   },
@@ -5548,6 +5563,9 @@
   },
   "R68TUJrkVn": {
     "defaultMessage": "Add column"
+  },
+  "R6n/KCAp4a": {
+    "defaultMessage": "Couldn't update assignees"
   },
   "R7vhxRuwOx": {
     "defaultMessage": "Scheduled"
@@ -7496,6 +7514,9 @@
   "bDyj3Jswbl": {
     "defaultMessage": "在拉取请求中发现质量问题"
   },
+  "bFbk34uFYE": {
+    "defaultMessage": "Loading…"
+  },
   "bHnFWGWqed": {
     "defaultMessage": "No files are linked to this task."
   },
@@ -7777,6 +7798,9 @@
   },
   "d8Vs3k3UER": {
     "defaultMessage": "此对话已不再可用。"
+  },
+  "dAeEJyCLaY": {
+    "defaultMessage": "Clear all"
   },
   "dBWJx9vBQt": {
     "defaultMessage": "入门版"
@@ -8230,6 +8254,9 @@
   },
   "fK68dbaITk": {
     "defaultMessage": "A localization operating system in AI era. <muted>Built for modern teams with translation, review, sync, and quality control in one workflow.</muted>"
+  },
+  "fM2wynVWWB": {
+    "defaultMessage": "Search members…"
   },
   "fMyeM5BW3s": {
     "defaultMessage": "自定义"
@@ -9320,6 +9347,9 @@
   "kJE4wAhywD": {
     "defaultMessage": "Billing request failed. Try again in a moment."
   },
+  "kO32zaHAd6": {
+    "defaultMessage": "Couldn't save title"
+  },
   "kOJgaHjhFH": {
     "defaultMessage": "Renews on {date}"
   },
@@ -10186,6 +10216,9 @@
   },
   "pCwlsos9AL": {
     "defaultMessage": "为每周计划选择一个星期几。"
+  },
+  "pF/btP7bSZ": {
+    "defaultMessage": "Failed to update job"
   },
   "pFVKHpG8Q4": {
     "defaultMessage": "Target text"
@@ -11135,6 +11168,9 @@
   "uHYVTMAjs/": {
     "defaultMessage": "Job source files"
   },
+  "uHbVM9Pw9Y": {
+    "defaultMessage": "Assignees updated"
+  },
   "uIj8uezhZ9": {
     "defaultMessage": "从太空看地球"
   },
@@ -11828,6 +11864,9 @@
   "xVvlWpH5FH": {
     "defaultMessage": "重新生成"
   },
+  "xVxao1E4rb": {
+    "defaultMessage": "Assignees"
+  },
   "xX2Nm+qioI": {
     "defaultMessage": "已创建工作区，但无法准备其 URL。请重试。"
   },
@@ -12208,6 +12247,9 @@
   },
   "zMY6O3OGwK": {
     "defaultMessage": "打开{name}的账户菜单"
+  },
+  "zPUQ6rTETA": {
+    "defaultMessage": "No members found"
   },
   "zQIP2wjI8l": {
     "defaultMessage": "Blocked"

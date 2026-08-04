@@ -197,6 +197,9 @@
   "/0c8E1m0u/": {
     "defaultMessage": "Überwachen Sie die Konsistenz der Terminologie, die Locale-Abdeckung und die Übersetzungsqualität über Produkt-, Marketing- und Support-Inhalte hinweg — mit Gates, die fehlerhafte Synchronisierungen blockieren, bevor sie live gehen."
   },
+  "/140Sd9x8r": {
+    "defaultMessage": "{count, plural, =0 {No assignees} one {# assignee} other {# assignees}}"
+  },
   "/14v/WK67D": {
     "defaultMessage": "Zurück zur Website"
   },
@@ -1478,6 +1481,9 @@
   "5P6X7lQjQL": {
     "defaultMessage": "CAT-Arbeitsbereich / Prüfwarteschlange"
   },
+  "5PG+VBWgIw": {
+    "defaultMessage": "Couldn't load assignable members"
+  },
   "5PgTvcChVL": {
     "defaultMessage": "Offen"
   },
@@ -2534,6 +2540,9 @@
   "AWZymO5ooC": {
     "defaultMessage": "Schluss mit dem Hinterherjagen von Lokalisierungsarbeit über verschiedene Tools hinweg | Hyperlocalise"
   },
+  "AXYQB+ayG/": {
+    "defaultMessage": "Job title"
+  },
   "AXYd5YvGYL": {
     "defaultMessage": "Tourfinder"
   },
@@ -3523,6 +3532,9 @@
   },
   "Fkgfxe1y6x": {
     "defaultMessage": "Übersetzung"
+  },
+  "FlKUTB/6A0": {
+    "defaultMessage": "Unassigned"
   },
   "FlXBmFercA": {
     "defaultMessage": "GitHub-Synchronisierungsworkflows entfernen"
@@ -4595,6 +4607,9 @@
   "M2ZOmyFhbv": {
     "defaultMessage": "Panel einklappen"
   },
+  "M30SNTxWXn": {
+    "defaultMessage": "Title is required"
+  },
   "M3bbV5wmi2": {
     "defaultMessage": "Zugriff auf GitHub verwalten"
   },
@@ -5548,6 +5563,9 @@
   },
   "R68TUJrkVn": {
     "defaultMessage": "Spalte hinzufügen"
+  },
+  "R6n/KCAp4a": {
+    "defaultMessage": "Couldn't update assignees"
   },
   "R7vhxRuwOx": {
     "defaultMessage": "Geplant"
@@ -7496,6 +7514,9 @@
   "bDyj3Jswbl": {
     "defaultMessage": "Oberflächenqualitätsprobleme in Pull Requests"
   },
+  "bFbk34uFYE": {
+    "defaultMessage": "Loading…"
+  },
   "bHnFWGWqed": {
     "defaultMessage": "Keine Dateien sind mit dieser Aufgabe verknüpft."
   },
@@ -7777,6 +7798,9 @@
   },
   "d8Vs3k3UER": {
     "defaultMessage": "This conversation is no longer available."
+  },
+  "dAeEJyCLaY": {
+    "defaultMessage": "Clear all"
   },
   "dBWJx9vBQt": {
     "defaultMessage": "Starter"
@@ -8230,6 +8254,9 @@
   },
   "fK68dbaITk": {
     "defaultMessage": "Ein Lokalisierungsbetriebssystem für das KI-Zeitalter. <muted>Für moderne Teams entwickelt – mit Übersetzung, Prüfung, Synchronisierung und Qualitätskontrolle in einem Workflow.</muted>"
+  },
+  "fM2wynVWWB": {
+    "defaultMessage": "Search members…"
   },
   "fMyeM5BW3s": {
     "defaultMessage": "Benutzerdefiniert"
@@ -9320,6 +9347,9 @@
   "kJE4wAhywD": {
     "defaultMessage": "Abrechnungsanfrage fehlgeschlagen. Bitte versuchen Sie es gleich noch einmal."
   },
+  "kO32zaHAd6": {
+    "defaultMessage": "Couldn't save title"
+  },
   "kOJgaHjhFH": {
     "defaultMessage": "Verlängert sich am {date}"
   },
@@ -10186,6 +10216,9 @@
   },
   "pCwlsos9AL": {
     "defaultMessage": "Wähle einen Wochentag für wöchentliche Zeitpläne."
+  },
+  "pF/btP7bSZ": {
+    "defaultMessage": "Failed to update job"
   },
   "pFVKHpG8Q4": {
     "defaultMessage": "Zieltext"
@@ -11135,6 +11168,9 @@
   "uHYVTMAjs/": {
     "defaultMessage": "Auftragsquelldateien"
   },
+  "uHbVM9Pw9Y": {
+    "defaultMessage": "Assignees updated"
+  },
   "uIj8uezhZ9": {
     "defaultMessage": "Erde aus dem All"
   },
@@ -11828,6 +11864,9 @@
   "xVvlWpH5FH": {
     "defaultMessage": "Neu generieren"
   },
+  "xVxao1E4rb": {
+    "defaultMessage": "Assignees"
+  },
   "xX2Nm+qioI": {
     "defaultMessage": "Wir haben den Workspace erstellt, konnten aber seine URL nicht vorbereiten. Bitte versuchen Sie es erneut."
   },
@@ -12208,6 +12247,9 @@
   },
   "zMY6O3OGwK": {
     "defaultMessage": "Kontomenü für {name} öffnen"
+  },
+  "zPUQ6rTETA": {
+    "defaultMessage": "No members found"
   },
   "zQIP2wjI8l": {
     "defaultMessage": "Blockiert"
