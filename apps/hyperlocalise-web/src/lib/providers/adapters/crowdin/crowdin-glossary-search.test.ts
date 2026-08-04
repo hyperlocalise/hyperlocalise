@@ -101,9 +101,7 @@ describe("crowdinTmsProvider.searchGlossaryForAgent", () => {
             {
               data: {
                 glossary: { id: 9, name: "Product glossary" },
-                sourceTerms: [
-                  { id: 1, languageId: "en", text: "Home", status: "preferred" },
-                ],
+                sourceTerms: [{ id: 1, languageId: "en", text: "Home", status: "preferred" }],
                 targetTerms: [
                   {
                     id: 2,
