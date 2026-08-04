@@ -16,6 +16,7 @@ import { defineAgentTool } from "@/agents/_runtime/define-agent-tool";
 import type { ToolContext } from "@/lib/agent-contracts/tool-context";
 import { crowdinTmsProvider } from "@/lib/providers/adapters/crowdin/crowdin-provider";
 import { isErr } from "@/lib/primitives/result/results";
+import { toolCanAccessProject } from "@/lib/tools/tool-access";
 
 const searchCrowdinGlossaryInputSchema = z.object({
   expressions: z
@@ -66,9 +67,7 @@ const searchCrowdinGlossaryOutputSchema = z.object({
 export type SearchCrowdinGlossaryToolInput = z.infer<typeof searchCrowdinGlossaryInputSchema>;
 export type SearchCrowdinGlossaryToolOutput = z.infer<typeof searchCrowdinGlossaryOutputSchema>;
 
-export function createSearchCrowdinGlossaryTool(
-  ctx: Pick<ToolContext, "organizationId" | "localUserId" | "projectId" | "glossarySearchEnabled">,
-) {
+export function createSearchCrowdinGlossaryTool(ctx: ToolContext) {
   return defineAgentTool({
     description:
       "Search Crowdin glossaries for preferred or forbidden terminology. Uses the conversation project when set; pass projectId to override, or omit both for organization glossaries.",
@@ -83,6 +82,16 @@ export function createSearchCrowdinGlossaryTool(
       }
 
       const projectId = input.projectId ?? ctx.projectId ?? undefined;
+      if (projectId) {
+        const accessibleProject = await toolCanAccessProject(ctx, projectId);
+        if (!accessibleProject) {
+          return {
+            success: false,
+            error: "Project not found or not accessible.",
+          };
+        }
+      }
+
       const result = await crowdinTmsProvider.searchGlossaryForAgent({
         organizationId: ctx.organizationId,
         actorUserId: ctx.localUserId,

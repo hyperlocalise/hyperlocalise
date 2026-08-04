@@ -60,7 +60,7 @@ describe("ChatDockStore", () => {
         isPending: false,
         conversationProjectId: undefined,
       }),
-    ).toBe("cat-project");
+    ).toBeUndefined();
     expect(
       resolveChatDockMessageProjectId({
         pageContext,

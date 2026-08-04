@@ -16,6 +16,7 @@ import { z } from "zod";
 import { defineAgentTool } from "@/agents/_runtime/define-agent-tool";
 import type { ToolContext } from "@/lib/agent-contracts/tool-context";
 import { schema } from "@/lib/database";
+import { sourceContainsTerm } from "@/lib/glossary/validate-glossary-terms-in-translation";
 import { toolCanAccessProject, toolProjectLinkedGlossaryWhere } from "@/lib/tools/tool-access";
 
 import { buildNativeGlossaryTsQuery } from "./build-native-glossary-tsquery";
@@ -130,6 +131,7 @@ export function createSearchNativeGlossaryTool(ctx: ToolContext) {
           targetTerm: schema.glossaryTerms.targetTerm,
           description: schema.glossaryTerms.description,
           forbidden: schema.glossaryTerms.forbidden,
+          caseSensitive: schema.glossaryTerms.caseSensitive,
           glossaryId: schema.glossaryTerms.glossaryId,
           glossaryName: schema.glossaries.name,
           rank: sql<number>`ts_rank(${schema.glossaryTerms.searchVector}, to_tsquery('simple', ${tsQuery}))`.as(
@@ -142,9 +144,18 @@ export function createSearchNativeGlossaryTool(ctx: ToolContext) {
         .orderBy(desc(sql`rank`))
         .limit(input.limit);
 
+      // FTS also matches target/description; keep only entries whose source term
+      // appears in the query text (same post-filter as concordance search).
+      const sourceMatchedTerms = terms.filter((term) =>
+        sourceContainsTerm(input.sourceText, {
+          sourceTerm: term.sourceTerm,
+          caseSensitive: term.caseSensitive ?? false,
+        }),
+      );
+
       return {
         success: true,
-        terms: terms.map((term) => ({
+        terms: sourceMatchedTerms.map((term) => ({
           id: term.id,
           sourceTerm: term.sourceTerm,
           targetTerm: term.targetTerm,

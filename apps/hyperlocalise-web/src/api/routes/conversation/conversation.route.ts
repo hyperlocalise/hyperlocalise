@@ -34,6 +34,7 @@ import {
   setWebConversationRepositorySession,
 } from "@/lib/agent-runtime/loops/conversation-repository-session";
 import { resolveWebProjectRepositoryGitHubContext } from "@/lib/agents/repository-context";
+import { isEncodedProviderProjectId } from "@/lib/providers/jobs/tms-provider-resource-id";
 
 import { createChatStreamRoutes } from "./chat-stream.route";
 import {
@@ -48,6 +49,18 @@ import {
 
 const maxMessageUploadBytes = 25 * 1024 * 1024;
 const maxMessageUploadFiles = 5;
+
+/**
+ * `stored_files.project_id` FKs to local `projects.id`. Live provider IDs
+ * (`ext:…`) are valid conversation scope but must not be written onto files.
+ */
+function resolveStoredFileProjectId(projectId: string | null | undefined): string | null {
+  if (!projectId || isEncodedProviderProjectId(projectId)) {
+    return null;
+  }
+
+  return projectId;
+}
 
 const messageUploadBodyLimit = createMiddleware(async (c, next) => {
   const rawRequest = c.req.raw;
@@ -409,11 +422,12 @@ export function createConversationRoutes(options: CreateConversationRoutesOption
       const adapter = options.fileStorageAdapter ?? getFileStorageAdapter();
       const organizationSlug = c.var.auth.activeOrganization.slug ?? "";
 
+      const storedFileProjectId = resolveStoredFileProjectId(projectId);
       const uploadResults = await Promise.allSettled(
         files.map(async (file) =>
           createStoredFile({
             organizationId: orgId,
-            projectId,
+            projectId: storedFileProjectId,
             createdByUserId: c.var.auth.user.localUserId,
             role: "source",
             sourceKind: "chat_upload",
@@ -611,11 +625,12 @@ export function createConversationRoutes(options: CreateConversationRoutesOption
         const adapter = options.fileStorageAdapter ?? getFileStorageAdapter();
         const organizationSlug = c.var.auth.activeOrganization.slug ?? "";
 
+        const storedFileProjectId = resolveStoredFileProjectId(conversation.projectId);
         const uploadResults = await Promise.allSettled(
           files.map(async (file) =>
             createStoredFile({
               organizationId: orgId,
-              projectId: conversation.projectId,
+              projectId: storedFileProjectId,
               createdByUserId: c.var.auth.user.localUserId,
               role: "source",
               sourceKind: "chat_upload",
