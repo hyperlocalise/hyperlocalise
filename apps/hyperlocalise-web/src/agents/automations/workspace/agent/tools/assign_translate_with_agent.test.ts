@@ -56,10 +56,13 @@ function session(
     triggerConfig: { mode: "source_upload" },
     repositoryTarget: { kind: "none" },
     toolConfig: {
-      translation: {
+      createNativeTmsJob: {
         enabled: true,
         useProjectTargetLocales: true,
         targetLocales: [],
+      },
+      assignTranslateWithAgent: {
+        enabled: true,
       },
     },
     configVersion: 1,

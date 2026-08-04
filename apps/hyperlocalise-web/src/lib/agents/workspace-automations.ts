@@ -129,13 +129,19 @@ const contentfulToolConfigSchema = z
     writeDrafts: true,
   });
 
-const translationToolConfigSchema = z
+const createNativeTmsJobToolConfigSchema = z
   .object({
     enabled: z.boolean().default(false),
     useProjectTargetLocales: z.boolean().default(true),
     targetLocales: z.array(z.string().trim().min(1).max(32)).max(20).default([]),
   })
   .default({ enabled: false, useProjectTargetLocales: true, targetLocales: [] });
+
+const assignTranslateWithAgentToolConfigSchema = z
+  .object({
+    enabled: z.boolean().default(false),
+  })
+  .default({ enabled: false });
 
 const knowledgeToolConfigSchema = z
   .object({
@@ -164,19 +170,70 @@ const ahrefsToolConfigSchema = z
   })
   .default({ enabled: false });
 
-const toolConfigSchema = z
+function migrateLegacyTranslationToolConfig(
+  value: Record<string, unknown>,
+): Record<string, unknown> {
+  const { translation: legacyTranslation, ...rest } = value;
+  if (!legacyTranslation || typeof legacyTranslation !== "object") {
+    return rest;
+  }
+
+  const legacy = legacyTranslation as {
+    enabled?: unknown;
+    useProjectTargetLocales?: unknown;
+    targetLocales?: unknown;
+  };
+  if (!legacy.enabled) {
+    return rest;
+  }
+
+  const hasCreateNativeTmsJob =
+    rest.createNativeTmsJob && typeof rest.createNativeTmsJob === "object";
+  const hasAssignTranslateWithAgent =
+    rest.assignTranslateWithAgent && typeof rest.assignTranslateWithAgent === "object";
+
+  return {
+    ...rest,
+    ...(hasCreateNativeTmsJob
+      ? {}
+      : {
+          createNativeTmsJob: {
+            enabled: true,
+            useProjectTargetLocales: legacy.useProjectTargetLocales ?? true,
+            targetLocales: Array.isArray(legacy.targetLocales) ? legacy.targetLocales : [],
+          },
+        }),
+    ...(hasAssignTranslateWithAgent
+      ? {}
+      : {
+          assignTranslateWithAgent: {
+            enabled: true,
+          },
+        }),
+  };
+}
+
+const toolConfigObjectSchema = z
   .object({
     github: githubToolConfigSchema.optional(),
     slack: slackToolConfigSchema.optional(),
     email: emailToolConfigSchema.optional(),
     contentful: contentfulToolConfigSchema.optional(),
-    translation: translationToolConfigSchema.optional(),
+    createNativeTmsJob: createNativeTmsJobToolConfigSchema.optional(),
+    assignTranslateWithAgent: assignTranslateWithAgentToolConfigSchema.optional(),
     knowledge: knowledgeToolConfigSchema.optional(),
     mcp: mcpToolConfigSchema.optional(),
     semrush: semrushToolConfigSchema.optional(),
     ahrefs: ahrefsToolConfigSchema.optional(),
   })
   .default({});
+
+const toolConfigSchema = z.preprocess((value) => {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return {};
+  }
+  return migrateLegacyTranslationToolConfig(value as Record<string, unknown>);
+}, toolConfigObjectSchema);
 
 export const workspaceAutomationConfigSchema = z.object({
   projectId: optionalProjectIdSchema,
@@ -195,11 +252,17 @@ export type WorkspaceAutomationRepositoryTarget = z.infer<typeof repositoryTarge
 export type WorkspaceAutomationSlackToolConfig = z.infer<typeof slackToolConfigSchema>;
 export type WorkspaceAutomationEmailToolConfig = z.infer<typeof emailToolConfigSchema>;
 export type WorkspaceAutomationContentfulToolConfig = z.infer<typeof contentfulToolConfigSchema>;
+export type WorkspaceAutomationCreateNativeTmsJobToolConfig = z.infer<
+  typeof createNativeTmsJobToolConfigSchema
+>;
+export type WorkspaceAutomationAssignTranslateWithAgentToolConfig = z.infer<
+  typeof assignTranslateWithAgentToolConfigSchema
+>;
 export type WorkspaceAutomationKnowledgeToolConfig = z.infer<typeof knowledgeToolConfigSchema>;
 export type WorkspaceAutomationMcpToolConfig = z.infer<typeof mcpToolConfigSchema>;
 export type WorkspaceAutomationSemrushToolConfig = z.infer<typeof semrushToolConfigSchema>;
 export type WorkspaceAutomationAhrefsToolConfig = z.infer<typeof ahrefsToolConfigSchema>;
-export type WorkspaceAutomationToolConfig = z.infer<typeof toolConfigSchema>;
+export type WorkspaceAutomationToolConfig = z.infer<typeof toolConfigObjectSchema>;
 
 export type WorkspaceAutomationConfigValidationError =
   | {
@@ -255,12 +318,16 @@ export type WorkspaceAutomationConfigValidationError =
       message: "Add at least one email recipient for automation notifications.";
     }
   | {
-      code: "translation_target_locales_required";
-      message: "Enabled translation tools require at least one target locale.";
+      code: "create_native_tms_job_target_locales_required";
+      message: "Create job requires at least one target locale.";
+    }
+  | {
+      code: "assign_translate_with_agent_requires_create_job";
+      message: "Translate with agent requires Create job to be enabled.";
     }
   | {
       code: "source_upload_workflow_required";
-      message: "Source upload triggers require translation jobs to be enabled.";
+      message: "Source upload triggers require Create job to be enabled.";
     }
   | {
       code: "mcp_connection_required";
@@ -308,10 +375,16 @@ export function hasWorkspaceAutomationContentfulWorkflow(
   return Boolean(toolConfig.contentful?.enabled);
 }
 
-export function hasWorkspaceAutomationTranslationWorkflow(
+export function hasWorkspaceAutomationCreateNativeTmsJobTool(
   toolConfig: WorkspaceAutomationToolConfig,
 ) {
-  return Boolean(toolConfig.translation?.enabled);
+  return Boolean(toolConfig.createNativeTmsJob?.enabled);
+}
+
+export function hasWorkspaceAutomationAssignTranslateWithAgentTool(
+  toolConfig: WorkspaceAutomationToolConfig,
+) {
+  return Boolean(toolConfig.assignTranslateWithAgent?.enabled);
 }
 
 export function hasWorkspaceAutomationKnowledgeTool(toolConfig: WorkspaceAutomationToolConfig) {
@@ -358,17 +431,18 @@ function readOptionalProjectId(value: unknown): string | null {
 export function hoistLegacyWorkspaceAutomationProjectId(
   toolConfig: Record<string, unknown> | WorkspaceAutomationToolConfig,
 ): string | null {
+  const rawToolConfig = toolConfig as Record<string, unknown>;
   const contentful =
-    toolConfig.contentful && typeof toolConfig.contentful === "object"
-      ? (toolConfig.contentful as { projectId?: unknown }).projectId
+    rawToolConfig.contentful && typeof rawToolConfig.contentful === "object"
+      ? (rawToolConfig.contentful as { projectId?: unknown }).projectId
       : undefined;
   const translation =
-    toolConfig.translation && typeof toolConfig.translation === "object"
-      ? (toolConfig.translation as { projectId?: unknown }).projectId
+    rawToolConfig.translation && typeof rawToolConfig.translation === "object"
+      ? (rawToolConfig.translation as { projectId?: unknown }).projectId
       : undefined;
   const github =
-    toolConfig.github && typeof toolConfig.github === "object"
-      ? (toolConfig.github as { projectId?: unknown }).projectId
+    rawToolConfig.github && typeof rawToolConfig.github === "object"
+      ? (rawToolConfig.github as { projectId?: unknown }).projectId
       : undefined;
 
   // Only hoist when every non-empty legacy tool projectId agrees. The pre-header
@@ -394,7 +468,10 @@ export function workspaceAutomationNeedsProject(input: {
   if (hasWorkspaceAutomationContentfulWorkflow(input.toolConfig)) {
     return true;
   }
-  if (hasWorkspaceAutomationTranslationWorkflow(input.toolConfig)) {
+  if (
+    hasWorkspaceAutomationCreateNativeTmsJobTool(input.toolConfig) ||
+    hasWorkspaceAutomationAssignTranslateWithAgentTool(input.toolConfig)
+  ) {
     return true;
   }
   return hasWorkspaceAutomationGithubWorkflow(input.toolConfig);
@@ -533,23 +610,36 @@ function validateWorkspaceAutomationConfig(input: {
     });
   }
 
-  const translationTools = input.toolConfig.translation;
-  if (translationTools?.enabled) {
-    if (!translationTools.useProjectTargetLocales && translationTools.targetLocales.length === 0) {
+  const createNativeTmsJob = input.toolConfig.createNativeTmsJob;
+  if (createNativeTmsJob?.enabled) {
+    if (
+      !createNativeTmsJob.useProjectTargetLocales &&
+      createNativeTmsJob.targetLocales.length === 0
+    ) {
       return err({
-        code: "translation_target_locales_required",
-        message: "Enabled translation tools require at least one target locale.",
+        code: "create_native_tms_job_target_locales_required",
+        message: "Create job requires at least one target locale.",
       });
     }
   }
 
   if (
+    hasWorkspaceAutomationAssignTranslateWithAgentTool(input.toolConfig) &&
+    !hasWorkspaceAutomationCreateNativeTmsJobTool(input.toolConfig)
+  ) {
+    return err({
+      code: "assign_translate_with_agent_requires_create_job",
+      message: "Translate with agent requires Create job to be enabled.",
+    });
+  }
+
+  if (
     input.triggerConfig.mode === "source_upload" &&
-    !hasWorkspaceAutomationTranslationWorkflow(input.toolConfig)
+    !hasWorkspaceAutomationCreateNativeTmsJobTool(input.toolConfig)
   ) {
     return err({
       code: "source_upload_workflow_required",
-      message: "Source upload triggers require translation jobs to be enabled.",
+      message: "Source upload triggers require Create job to be enabled.",
     });
   }
 
@@ -1201,12 +1291,18 @@ export async function listSourceUploadWorkspaceAutomations(input: {
         eq(schema.workspaceAutomations.organizationId, input.organizationId),
         eq(schema.workspaceAutomations.status, "active"),
         sql`${schema.workspaceAutomations.triggerConfig}->>'mode' = 'source_upload'`,
-        sql`${schema.workspaceAutomations.toolConfig}->'translation'->>'enabled' = 'true'`,
+        sql`(
+          ${schema.workspaceAutomations.toolConfig}->'createNativeTmsJob'->>'enabled' = 'true'
+          OR ${schema.workspaceAutomations.toolConfig}->'translation'->>'enabled' = 'true'
+        )`,
         or(
           eq(schema.workspaceAutomations.projectId, input.projectId),
           and(
             isNull(schema.workspaceAutomations.projectId),
-            sql`${schema.workspaceAutomations.toolConfig}->'translation'->>'projectId' = ${input.projectId}`,
+            sql`(
+              ${schema.workspaceAutomations.toolConfig}->'createNativeTmsJob'->>'projectId' = ${input.projectId}
+              OR ${schema.workspaceAutomations.toolConfig}->'translation'->>'projectId' = ${input.projectId}
+            )`,
           ),
         ),
       ),

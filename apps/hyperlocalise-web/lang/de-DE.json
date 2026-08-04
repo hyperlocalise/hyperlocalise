@@ -9941,6 +9941,30 @@
   "nSqpG2XwMB": {
     "defaultMessage": "Nach Namen suchen ..."
   },
+  "nTmsAssignAgent": {
+    "defaultMessage": "Translate with agent",
+    "description": "Menu item and tool title for assigning Translate with agent"
+  },
+  "nTmsAssignAgentDesc": {
+    "defaultMessage": "Assign the created job to Translate with agent and start localisation.",
+    "description": "Description for the Translate with agent automation tool"
+  },
+  "nTmsCreateJob": {
+    "defaultMessage": "Create job",
+    "description": "Menu item and tool title for creating a native TMS job"
+  },
+  "nTmsCreateJobDesc": {
+    "defaultMessage": "Create a native TMS translation job for uploaded source files in the project selected above.",
+    "description": "Description for the Create job automation tool"
+  },
+  "nTmsRemoveAssignAgent": {
+    "defaultMessage": "Remove Translate with agent",
+    "description": "Accessible label to remove the Translate with agent tool"
+  },
+  "nTmsRemoveCreateJob": {
+    "defaultMessage": "Remove Create job",
+    "description": "Accessible label to remove the Create job tool"
+  },
   "nULuPBbLbZ": {
     "defaultMessage": "Preismeldungen lokalisieren"
   },

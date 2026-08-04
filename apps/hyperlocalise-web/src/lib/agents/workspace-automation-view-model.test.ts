@@ -224,27 +224,31 @@ describe("workspace automation view model", () => {
     });
   });
 
-  it("maps source upload translation settings to API payload", () => {
+  it("maps source upload create job and translate-with-agent tools to API payload", () => {
     const form = {
       ...createDefaultWorkspaceAutomationFormState(),
       name: "Translate uploads",
       instructions: "Queue jobs after each upload.",
       triggerMode: "source_upload" as const,
       projectId: "project-1",
-      translationEnabled: true,
-      translationUseProjectTargetLocales: true,
+      createNativeTmsJobEnabled: true,
+      createNativeTmsJobUseProjectTargetLocales: true,
+      assignTranslateWithAgentEnabled: true,
     };
 
     expect(validateWorkspaceAutomationFormState(form)).toEqual({});
     const payload = formStateToWorkspaceAutomationPayload(form);
     expect(payload.projectId).toBe("project-1");
     expect(payload.triggerConfig).toEqual({ mode: "source_upload" });
-    expect(payload.toolConfig.translation).toEqual({
+    expect(payload.toolConfig.createNativeTmsJob).toEqual({
       enabled: true,
       useProjectTargetLocales: true,
       targetLocales: [],
     });
-    expect(payload.toolConfig.translation).not.toHaveProperty("projectId");
+    expect(payload.toolConfig.assignTranslateWithAgent).toEqual({
+      enabled: true,
+    });
+    expect(payload.toolConfig.createNativeTmsJob).not.toHaveProperty("projectId");
   });
 
   it("prefills and maps the translate-on-source-upload template", () => {
@@ -255,8 +259,9 @@ describe("workspace automation view model", () => {
     expect(form).toMatchObject({
       name: "Translate on source upload",
       triggerMode: "source_upload",
-      translationEnabled: true,
-      translationUseProjectTargetLocales: true,
+      createNativeTmsJobEnabled: true,
+      createNativeTmsJobUseProjectTargetLocales: true,
+      assignTranslateWithAgentEnabled: true,
     });
     expect(form?.instructions).toContain("Translate with agent");
 
@@ -269,23 +274,37 @@ describe("workspace automation view model", () => {
       projectId: "project-1",
       triggerConfig: { mode: "source_upload" },
       toolConfig: {
-        translation: {
+        createNativeTmsJob: {
           enabled: true,
           useProjectTargetLocales: true,
           targetLocales: [],
+        },
+        assignTranslateWithAgent: {
+          enabled: true,
         },
       },
     });
   });
 
-  it("requires translation tool when source upload trigger is selected", () => {
+  it("requires Create job when source upload trigger is selected", () => {
     const form = {
       ...createDefaultWorkspaceAutomationFormState(),
       triggerMode: "source_upload" as const,
     };
 
     expect(validateWorkspaceAutomationFormState(form)).toMatchObject({
-      trigger: "Source upload triggers require translation jobs to be enabled.",
+      trigger: "Source upload triggers require Create job to be enabled.",
+    });
+  });
+
+  it("requires Create job when Translate with agent is enabled alone", () => {
+    const form = {
+      ...createDefaultWorkspaceAutomationFormState(),
+      assignTranslateWithAgentEnabled: true,
+    };
+
+    expect(validateWorkspaceAutomationFormState(form)).toMatchObject({
+      form: "Translate with agent requires Create job to be enabled.",
     });
   });
 

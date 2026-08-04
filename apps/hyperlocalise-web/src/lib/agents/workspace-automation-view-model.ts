@@ -61,9 +61,10 @@ export type WorkspaceAutomationFormState = {
   contentfulOverwriteDraftLocales: boolean;
   contentfulRunQa: boolean;
   contentfulWriteDrafts: boolean;
-  translationEnabled: boolean;
-  translationUseProjectTargetLocales: boolean;
-  translationTargetLocales: string[];
+  createNativeTmsJobEnabled: boolean;
+  createNativeTmsJobUseProjectTargetLocales: boolean;
+  createNativeTmsJobTargetLocales: string[];
+  assignTranslateWithAgentEnabled: boolean;
   knowledgeEnabled: boolean;
   mcpEnabled: boolean;
   mcpConnectionId: string;
@@ -80,7 +81,7 @@ function workspaceAutomationFormNeedsProject(form: WorkspaceAutomationFormState)
   if (form.contentfulEnabled) {
     return true;
   }
-  if (form.translationEnabled) {
+  if (form.createNativeTmsJobEnabled || form.assignTranslateWithAgentEnabled) {
     return true;
   }
   return form.githubEnabled && form.githubMode === "sync";
@@ -99,7 +100,7 @@ export type WorkspaceAutomationFieldErrors = Partial<
     | "contentfulConnectionId"
     | "contentfulTargetLocales"
     | "contentfulEntryId"
-    | "translationTargetLocales"
+    | "createNativeTmsJobTargetLocales"
     | "mcpConnectionId"
     | "semrushConnectionId"
     | "ahrefsConnectionId"
@@ -127,8 +128,10 @@ export const WORKSPACE_AUTOMATION_API_ERROR_MESSAGES: Record<string, string> = {
   contentful_connection_required: "Choose a Contentful connection.",
   contentful_target_locales_required: "Add at least one target locale for Contentful translation.",
   contentful_entry_id_required: "Scheduled Contentful automations need an entry ID.",
-  translation_target_locales_required: "Add at least one target locale for translation jobs.",
-  source_upload_workflow_required: "Source upload triggers require translation jobs to be enabled.",
+  create_native_tms_job_target_locales_required: "Add at least one target locale for Create job.",
+  assign_translate_with_agent_requires_create_job:
+    "Translate with agent requires Create job to be enabled.",
+  source_upload_workflow_required: "Source upload triggers require Create job to be enabled.",
   mcp_connection_required: "Choose an MCP server connection.",
   mcp_connection_not_found:
     "The selected MCP server connection was not found. Choose another connection.",
@@ -179,9 +182,10 @@ export function createDefaultWorkspaceAutomationFormState(): WorkspaceAutomation
     contentfulOverwriteDraftLocales: false,
     contentfulRunQa: true,
     contentfulWriteDrafts: true,
-    translationEnabled: false,
-    translationUseProjectTargetLocales: true,
-    translationTargetLocales: [],
+    createNativeTmsJobEnabled: false,
+    createNativeTmsJobUseProjectTargetLocales: true,
+    createNativeTmsJobTargetLocales: [],
+    assignTranslateWithAgentEnabled: false,
     knowledgeEnabled: false,
     mcpEnabled: false,
     mcpConnectionId: "",
@@ -199,7 +203,8 @@ export function createWorkspaceAutomationFormStateFromRecord(
   const slack = automation.toolConfig.slack;
   const email = automation.toolConfig.email;
   const contentful = automation.toolConfig.contentful;
-  const translation = automation.toolConfig.translation;
+  const createNativeTmsJob = automation.toolConfig.createNativeTmsJob;
+  const assignTranslateWithAgent = automation.toolConfig.assignTranslateWithAgent;
   const knowledge = automation.toolConfig.knowledge;
   const mcp = automation.toolConfig.mcp;
   const semrush = automation.toolConfig.semrush;
@@ -253,9 +258,12 @@ export function createWorkspaceAutomationFormStateFromRecord(
     contentfulOverwriteDraftLocales: Boolean(contentful?.overwriteDraftLocales),
     contentfulRunQa: contentful?.runQa ?? true,
     contentfulWriteDrafts: contentful?.writeDrafts ?? true,
-    translationEnabled: Boolean(translation?.enabled),
-    translationUseProjectTargetLocales: translation?.useProjectTargetLocales ?? true,
-    translationTargetLocales: translation?.targetLocales ? [...translation.targetLocales] : [],
+    createNativeTmsJobEnabled: Boolean(createNativeTmsJob?.enabled),
+    createNativeTmsJobUseProjectTargetLocales: createNativeTmsJob?.useProjectTargetLocales ?? true,
+    createNativeTmsJobTargetLocales: createNativeTmsJob?.targetLocales
+      ? [...createNativeTmsJob.targetLocales]
+      : [],
+    assignTranslateWithAgentEnabled: Boolean(assignTranslateWithAgent?.enabled),
     knowledgeEnabled: Boolean(knowledge?.enabled),
     mcpEnabled: Boolean(mcp?.enabled),
     mcpConnectionId: mcp?.connectionId ?? "",
@@ -403,14 +411,21 @@ export function formStateToWorkspaceAutomationPayload(form: WorkspaceAutomationF
           },
         }
       : {}),
-    ...(form.translationEnabled
+    ...(form.createNativeTmsJobEnabled
       ? {
-          translation: {
+          createNativeTmsJob: {
             enabled: true,
-            useProjectTargetLocales: form.translationUseProjectTargetLocales,
-            targetLocales: form.translationUseProjectTargetLocales
+            useProjectTargetLocales: form.createNativeTmsJobUseProjectTargetLocales,
+            targetLocales: form.createNativeTmsJobUseProjectTargetLocales
               ? []
-              : form.translationTargetLocales,
+              : form.createNativeTmsJobTargetLocales,
+          },
+        }
+      : {}),
+    ...(form.assignTranslateWithAgentEnabled
+      ? {
+          assignTranslateWithAgent: {
+            enabled: true,
           },
         }
       : {}),
@@ -518,14 +533,21 @@ export function validateWorkspaceAutomationFormState(
     }
   }
 
-  if (form.translationEnabled) {
-    if (!form.translationUseProjectTargetLocales && form.translationTargetLocales.length === 0) {
-      errors.translationTargetLocales = "Add at least one target locale.";
+  if (form.createNativeTmsJobEnabled) {
+    if (
+      !form.createNativeTmsJobUseProjectTargetLocales &&
+      form.createNativeTmsJobTargetLocales.length === 0
+    ) {
+      errors.createNativeTmsJobTargetLocales = "Add at least one target locale.";
     }
   }
 
-  if (form.triggerMode === "source_upload" && !form.translationEnabled) {
-    errors.trigger = "Source upload triggers require translation jobs to be enabled.";
+  if (form.assignTranslateWithAgentEnabled && !form.createNativeTmsJobEnabled) {
+    errors.form = "Translate with agent requires Create job to be enabled.";
+  }
+
+  if (form.triggerMode === "source_upload" && !form.createNativeTmsJobEnabled) {
+    errors.trigger = "Source upload triggers require Create job to be enabled.";
   }
 
   if (form.mcpEnabled && !form.mcpConnectionId) {
@@ -581,8 +603,10 @@ export function mapWorkspaceAutomationApiErrorToFieldErrors(
       return { contentfulTargetLocales: message };
     case "contentful_entry_id_required":
       return { contentfulEntryId: message };
-    case "translation_target_locales_required":
-      return { translationTargetLocales: message };
+    case "create_native_tms_job_target_locales_required":
+      return { createNativeTmsJobTargetLocales: message };
+    case "assign_translate_with_agent_requires_create_job":
+      return { form: message };
     case "mcp_connection_required":
     case "mcp_connection_not_found":
     case "mcp_not_connected":
@@ -606,7 +630,8 @@ export function workspaceAutomationFormCanActivate(form: WorkspaceAutomationForm
     form.slackEnabled ||
     form.emailEnabled ||
     form.contentfulEnabled ||
-    form.translationEnabled ||
+    form.createNativeTmsJobEnabled ||
+    form.assignTranslateWithAgentEnabled ||
     form.mcpEnabled ||
     form.semrushEnabled ||
     form.ahrefsEnabled

@@ -15,8 +15,9 @@ import {
   hasWorkspaceAutomationGithubWorkflow,
 } from "@/lib/agents/workspace-automation-github-mapping";
 import {
+  hasWorkspaceAutomationAssignTranslateWithAgentTool,
   hasWorkspaceAutomationContentfulWorkflow,
-  hasWorkspaceAutomationTranslationWorkflow,
+  hasWorkspaceAutomationCreateNativeTmsJobTool,
   type WorkspaceAutomationRecord,
   type WorkspaceAutomationToolConfig,
 } from "@/lib/agents/workspace-automations";
@@ -69,8 +70,9 @@ function workflowToolEnabled(
     case "run_contentful_translation":
       return hasWorkspaceAutomationContentfulWorkflow(toolConfig);
     case "create_native_tms_job":
+      return hasWorkspaceAutomationCreateNativeTmsJobTool(toolConfig);
     case "assign_translate_with_agent":
-      return hasWorkspaceAutomationTranslationWorkflow(toolConfig);
+      return hasWorkspaceAutomationAssignTranslateWithAgentTool(toolConfig);
     case "use_semrush":
       return Boolean(toolConfig.semrush?.enabled && toolConfig.semrush.connectionId);
     case "use_ahrefs":

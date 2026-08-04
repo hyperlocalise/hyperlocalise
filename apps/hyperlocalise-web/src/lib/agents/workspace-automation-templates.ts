@@ -63,8 +63,9 @@ export const WORKSPACE_AUTOMATION_TEMPLATES_BASE: WorkspaceAutomationTemplate[] 
     defaultForm: {
       name: "Translate on source upload",
       triggerMode: "source_upload",
-      translationEnabled: true,
-      translationUseProjectTargetLocales: true,
+      createNativeTmsJobEnabled: true,
+      createNativeTmsJobUseProjectTargetLocales: true,
+      assignTranslateWithAgentEnabled: true,
     },
   },
   {
@@ -747,8 +748,10 @@ export function getWorkspaceAutomationTemplateFlow(
     }
   }
 
-  if (form.translationEnabled) {
+  if (form.createNativeTmsJobEnabled) {
     tools.push({ id: "create-job", label: "Create job" });
+  }
+  if (form.assignTranslateWithAgentEnabled) {
     tools.push({ id: "translate-with-agent", label: "Translate with agent" });
   }
 

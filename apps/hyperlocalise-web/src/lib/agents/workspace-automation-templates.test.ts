@@ -31,8 +31,9 @@ describe("workspace automation templates", () => {
       activatable: true,
       defaultForm: {
         triggerMode: "source_upload",
-        translationEnabled: true,
-        translationUseProjectTargetLocales: true,
+        createNativeTmsJobEnabled: true,
+        createNativeTmsJobUseProjectTargetLocales: true,
+        assignTranslateWithAgentEnabled: true,
       },
     });
   });

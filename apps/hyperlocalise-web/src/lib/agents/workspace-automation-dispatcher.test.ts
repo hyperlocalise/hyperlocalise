@@ -824,10 +824,13 @@ describe("workspace automation dispatcher", () => {
         triggerConfig: { mode: "source_upload" },
         repositoryTarget: { kind: "none" },
         toolConfig: {
-          translation: {
+          createNativeTmsJob: {
             enabled: true,
             useProjectTargetLocales: true,
             targetLocales: [],
+          },
+          assignTranslateWithAgent: {
+            enabled: true,
           },
         },
       }),
@@ -842,10 +845,13 @@ describe("workspace automation dispatcher", () => {
         triggerConfig: { mode: "source_upload" },
         repositoryTarget: { kind: "none" },
         toolConfig: {
-          translation: {
+          createNativeTmsJob: {
             enabled: true,
             useProjectTargetLocales: true,
             targetLocales: [],
+          },
+          assignTranslateWithAgent: {
+            enabled: true,
           },
         },
       }),

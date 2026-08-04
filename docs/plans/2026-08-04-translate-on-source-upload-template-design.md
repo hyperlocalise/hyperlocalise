@@ -47,8 +47,9 @@ source upload
 Activating the template opens the automation form with:
 
 - `triggerMode: source_upload`
-- `translationEnabled: true`
-- `translationUseProjectTargetLocales: true`
+- `createNativeTmsJobEnabled: true`
+- `createNativeTmsJobUseProjectTargetLocales: true`
+- `assignTranslateWithAgentEnabled: true`
 
 The user chooses a project, then saves. After ingest of a new source version,
 matching active automations dispatch as today.

@@ -30,7 +30,7 @@ import {
   createWorkspaceAutomationRun,
   getWorkspaceAutomationRunByIdempotencyKey,
   hasWorkspaceAutomationContentfulWorkflow,
-  hasWorkspaceAutomationTranslationWorkflow,
+  hasWorkspaceAutomationCreateNativeTmsJobTool,
   listDueContentfulWorkspaceAutomations,
   listSourceUploadWorkspaceAutomations,
   listWorkspaceAutomations,
@@ -566,7 +566,7 @@ export async function dispatchWorkspaceAutomationsForSourceUpload(input: {
   const results: WorkspaceAutomationDispatchResult[] = [];
 
   for (const automation of automations) {
-    if (!hasWorkspaceAutomationTranslationWorkflow(automation.toolConfig)) {
+    if (!hasWorkspaceAutomationCreateNativeTmsJobTool(automation.toolConfig)) {
       continue;
     }
 

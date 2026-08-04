@@ -48,8 +48,9 @@ describe("workspace template manifest", () => {
       activatable: true,
       defaultForm: {
         triggerMode: "source_upload",
-        translationEnabled: true,
-        translationUseProjectTargetLocales: true,
+        createNativeTmsJobEnabled: true,
+        createNativeTmsJobUseProjectTargetLocales: true,
+        assignTranslateWithAgentEnabled: true,
       },
     });
     expect(template?.description).toContain("native translation job");
