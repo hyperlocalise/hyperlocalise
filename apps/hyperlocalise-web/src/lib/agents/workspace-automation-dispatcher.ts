@@ -28,13 +28,13 @@ import {
 import {
   advanceWorkspaceAutomationNextRun,
   createWorkspaceAutomationRun,
+  enqueueWorkspaceAutomationRunOnce,
   getWorkspaceAutomationRunByIdempotencyKey,
   hasWorkspaceAutomationContentfulWorkflow,
   hasWorkspaceAutomationCreateNativeTmsJobTool,
   listDueContentfulWorkspaceAutomations,
   listSourceUploadWorkspaceAutomations,
   listWorkspaceAutomations,
-  updateWorkspaceAutomationRun,
   type WorkspaceAutomationRecord,
   type WorkspaceAutomationRunTriggerSource,
 } from "./workspace-automations";
@@ -189,24 +189,21 @@ async function dispatchWorkspaceAutomationViaOrchestrator(input: {
     };
   }
 
-  await orchestratorQueue(input.queue).enqueue({
-    workspaceAutomationRunId: run.id,
-    organizationId: input.organizationId,
-  });
-
-  await updateWorkspaceAutomationRun({
+  const enqueued = await enqueueWorkspaceAutomationRunOnce({
     runId: run.id,
     organizationId: input.organizationId,
-    outputSummary: {
-      ...run.outputSummary,
-      orchestratorEnqueuedAt: new Date().toISOString(),
+    enqueue: async () => {
+      await orchestratorQueue(input.queue).enqueue({
+        workspaceAutomationRunId: run.id,
+        organizationId: input.organizationId,
+      });
     },
   });
 
   return {
     outcome: "enqueued",
     runId: run.id,
-    inserted,
+    inserted: enqueued ? inserted : false,
   };
 }
 

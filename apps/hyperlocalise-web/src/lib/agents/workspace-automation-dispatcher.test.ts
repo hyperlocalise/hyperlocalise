@@ -972,4 +972,66 @@ describe("workspace automation dispatcher", () => {
     });
     expect(runs).toHaveLength(2);
   });
+
+  it("deduplicates concurrent identical source content dispatches", async () => {
+    const scope = await seedDispatchScope();
+    const automation = expectOk(
+      await createWorkspaceAutomation({
+        organizationId: scope.organizationId,
+        authorUserId: scope.userId,
+        name: "Translate concurrent uploads once",
+        instructions: "Translate each changed source file once.",
+        projectId: scope.projectId,
+        triggerConfig: { mode: "source_upload" },
+        repositoryTarget: { kind: "none" },
+        toolConfig: {
+          createNativeTmsJob: {
+            enabled: true,
+            useProjectTargetLocales: true,
+            targetLocales: [],
+          },
+          assignTranslateWithAgent: {
+            enabled: true,
+          },
+        },
+      }),
+    );
+    const enqueued: Array<{ workspaceAutomationRunId: string; organizationId: string }> = [];
+    const queue = {
+      async enqueue(event: { workspaceAutomationRunId: string; organizationId: string }) {
+        enqueued.push(event);
+        return { ids: [`workflow-${enqueued.length}`] };
+      },
+    };
+    const baseUpload = {
+      organizationId: scope.organizationId,
+      projectId: scope.projectId,
+      sourcePath: "locales/en.json",
+      sourceHash: "same-concurrent-content-hash",
+      queue,
+    };
+
+    const results = await Promise.all([
+      dispatchWorkspaceAutomationsForSourceUpload({
+        ...baseUpload,
+        sourceFileId: "file-1",
+        sourceFileVersionId: "version-1",
+      }),
+      dispatchWorkspaceAutomationsForSourceUpload({
+        ...baseUpload,
+        sourceFileId: "file-2",
+        sourceFileVersionId: "version-2",
+      }),
+    ]);
+
+    const runs = await listWorkspaceAutomationRuns({
+      automationId: automation.id,
+      organizationId: scope.organizationId,
+    });
+
+    expect(results.flat()).toHaveLength(2);
+    expect(new Set(results.flat().map((result) => result.runId)).size).toBe(1);
+    expect(runs).toHaveLength(1);
+    expect(enqueued).toHaveLength(1);
+  });
 });
