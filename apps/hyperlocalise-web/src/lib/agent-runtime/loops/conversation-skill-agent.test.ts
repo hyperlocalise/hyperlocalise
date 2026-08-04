@@ -207,7 +207,10 @@ describe("conversation skill agent", () => {
     expect(settings.activeTools).toContain("check_crowdin_progress");
     expect(settings.activeTools).not.toContain("search_native_glossary");
     expect(settings.activeTools).not.toContain("search_crowdin_glossary");
-    expect(settings.instructions).not.toContain("search_crowdin_glossary");
+    expect(settings.instructions).not.toContain("## Crowdin glossary tools");
+    expect(settings.instructions).not.toContain(
+      "Before advising on product names, feature names, or UI terms, call `search_crowdin_glossary`.",
+    );
   });
 
   it("adds repo and file job tools when runtime context allows them", () => {
