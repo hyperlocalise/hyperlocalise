@@ -871,6 +871,7 @@ describe("workspace automation dispatcher", () => {
       sourceFileId: "file-1",
       sourceFileVersionId: "version-1",
       sourcePath: "locales/en.json",
+      sourceHash: "hash-1",
       queue,
     });
 
@@ -893,6 +894,82 @@ describe("workspace automation dispatcher", () => {
       sourceFileId: "file-1",
       sourceFileVersionId: "version-1",
       sourcePath: "locales/en.json",
+      sourceHash: "hash-1",
     });
+  });
+
+  it("deduplicates identical source content across upload versions", async () => {
+    const scope = await seedDispatchScope();
+    const automation = expectOk(
+      await createWorkspaceAutomation({
+        organizationId: scope.organizationId,
+        authorUserId: scope.userId,
+        name: "Translate uploads once",
+        instructions: "Translate each changed source file once.",
+        projectId: scope.projectId,
+        triggerConfig: { mode: "source_upload" },
+        repositoryTarget: { kind: "none" },
+        toolConfig: {
+          createNativeTmsJob: {
+            enabled: true,
+            useProjectTargetLocales: true,
+            targetLocales: [],
+          },
+          assignTranslateWithAgent: {
+            enabled: true,
+          },
+        },
+      }),
+    );
+    const enqueued: Array<{ workspaceAutomationRunId: string; organizationId: string }> = [];
+    const queue = {
+      async enqueue(event: { workspaceAutomationRunId: string; organizationId: string }) {
+        enqueued.push(event);
+        return { ids: [`workflow-${enqueued.length}`] };
+      },
+    };
+    const baseUpload = {
+      organizationId: scope.organizationId,
+      projectId: scope.projectId,
+      sourceFileId: "file-1",
+      sourcePath: "locales/en.json",
+      sourceHash: "same-content-hash",
+      queue,
+    };
+
+    const [first] = await dispatchWorkspaceAutomationsForSourceUpload({
+      ...baseUpload,
+      sourceFileVersionId: "version-1",
+    });
+    const [duplicate] = await dispatchWorkspaceAutomationsForSourceUpload({
+      ...baseUpload,
+      sourceFileId: "file-2",
+      sourceFileVersionId: "version-2",
+    });
+
+    expect(first?.inserted).toBe(true);
+    expect(duplicate).toMatchObject({
+      outcome: "enqueued",
+      runId: first?.runId,
+      inserted: false,
+    });
+    expect(enqueued).toHaveLength(1);
+
+    const [changed] = await dispatchWorkspaceAutomationsForSourceUpload({
+      ...baseUpload,
+      sourceFileId: "file-3",
+      sourceFileVersionId: "version-3",
+      sourceHash: "changed-content-hash",
+    });
+
+    expect(changed?.inserted).toBe(true);
+    expect(changed?.runId).not.toBe(first?.runId);
+    expect(enqueued).toHaveLength(2);
+
+    const runs = await listWorkspaceAutomationRuns({
+      automationId: automation.id,
+      organizationId: scope.organizationId,
+    });
+    expect(runs).toHaveLength(2);
   });
 });

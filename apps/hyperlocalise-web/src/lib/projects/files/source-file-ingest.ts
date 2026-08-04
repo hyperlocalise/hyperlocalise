@@ -149,6 +149,7 @@ export async function dispatchSourceUploadAutomations(input: {
   sourceFileId: string;
   sourceFileVersionId: string;
   sourcePath: string;
+  sourceHash?: string | null;
 }) {
   await dispatchWorkspaceAutomationsForSourceUpload({
     organizationId: input.organizationId,
@@ -156,6 +157,7 @@ export async function dispatchSourceUploadAutomations(input: {
     sourceFileId: input.sourceFileId,
     sourceFileVersionId: input.sourceFileVersionId,
     sourcePath: input.sourcePath,
+    sourceHash: input.sourceHash,
   });
 }
 
@@ -196,6 +198,7 @@ export async function enqueueSourceFileIngestAfterUpload(
       sourceFileId: input.storedFileId,
       sourceFileVersionId: input.sourceFileVersionId,
       sourcePath: input.sourcePath,
+      sourceHash: input.sourceHash,
     }).catch((error) => {
       logger.warn(
         {

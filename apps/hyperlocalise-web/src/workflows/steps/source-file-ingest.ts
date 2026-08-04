@@ -130,6 +130,7 @@ export async function dispatchSourceUploadAutomationsStep(input: {
   sourceFileId: string;
   sourceFileVersionId: string;
   sourcePath: string;
+  sourceHash?: string | null;
 }) {
   "use step";
   const { dispatchSourceUploadAutomations } =

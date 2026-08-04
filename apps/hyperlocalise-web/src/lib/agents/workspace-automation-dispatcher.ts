@@ -546,6 +546,7 @@ export async function dispatchWorkspaceAutomationsForSourceUpload(input: {
   sourceFileId: string;
   sourceFileVersionId: string;
   sourcePath: string;
+  sourceHash?: string | null;
   queue?: WorkspaceAutomationExecutionQueue;
 }): Promise<WorkspaceAutomationDispatchResult[]> {
   const automations = await listSourceUploadWorkspaceAutomations({
@@ -578,6 +579,9 @@ export async function dispatchWorkspaceAutomationsForSourceUpload(input: {
         idempotencyKey: buildWorkspaceSourceUploadAutomationIdempotencyKey({
           automationId: automation.id,
           configVersion: automation.configVersion,
+          projectId: input.projectId,
+          sourcePath: input.sourcePath,
+          sourceHash: input.sourceHash,
           sourceFileVersionId: input.sourceFileVersionId,
         }),
         inputSnapshot: {
@@ -585,6 +589,7 @@ export async function dispatchWorkspaceAutomationsForSourceUpload(input: {
           sourceFileId: input.sourceFileId,
           sourceFileVersionId: input.sourceFileVersionId,
           sourcePath: input.sourcePath,
+          sourceHash: input.sourceHash ?? undefined,
         },
         queue: input.queue,
       });
