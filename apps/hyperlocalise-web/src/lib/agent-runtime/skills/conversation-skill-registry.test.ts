@@ -12,6 +12,11 @@
  */
 import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
+vi.hoisted(() => {
+  process.env.DATABASE_URL ??= "postgres://test:test@localhost:5432/hyperlocalise_test";
+  process.env.PROVIDER_CREDENTIALS_MASTER_KEY ??= "MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=";
+});
+
 vi.mock("@/lib/agent-runtime/tools/knowledge-memory-tools", () => ({
   createGetKnowledgeMemoryTool: vi.fn(() => ({ description: "get Knowledge Memory" })),
   createUpdateKnowledgeMemoryTool: vi.fn(() => ({ description: "update Knowledge Memory" })),

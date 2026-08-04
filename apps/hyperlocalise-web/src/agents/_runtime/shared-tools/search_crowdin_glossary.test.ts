@@ -10,7 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { describe, expect, it, vi } from "vite-plus/test";
+import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
 import { ok } from "@/lib/primitives/result/results";
 
@@ -27,6 +27,10 @@ vi.mock("@/lib/providers/adapters/crowdin/crowdin-provider", () => ({
 }));
 
 describe("createSearchCrowdinGlossaryTool", () => {
+  beforeEach(() => {
+    searchGlossaryForAgentMock.mockReset();
+  });
+
   it("keeps search organization-scoped when neither input nor context has projectId", async () => {
     searchGlossaryForAgentMock.mockResolvedValue(
       ok({ scope: "organization", crowdinProjectId: null, matches: [] }),
@@ -34,11 +38,8 @@ describe("createSearchCrowdinGlossaryTool", () => {
     const tool = createSearchCrowdinGlossaryTool({
       organizationId: "org-1",
       localUserId: "user-1",
-<<<<<<< HEAD
       projectId: null,
-=======
       glossarySearchEnabled: true,
->>>>>>> c1e00152 (feat(agent): gate glossary search behind workspace flag)
     });
 
     await tool.execute?.(
@@ -59,7 +60,6 @@ describe("createSearchCrowdinGlossaryTool", () => {
     );
   });
 
-<<<<<<< HEAD
   it("falls back to conversation projectId when input omits it", async () => {
     searchGlossaryForAgentMock.mockResolvedValue(
       ok({ scope: "project", crowdinProjectId: 42, matches: [] }),
@@ -68,6 +68,7 @@ describe("createSearchCrowdinGlossaryTool", () => {
       organizationId: "org-1",
       localUserId: "user-1",
       projectId: "project-1",
+      glossarySearchEnabled: true,
     });
 
     await tool.execute?.(
@@ -86,11 +87,13 @@ describe("createSearchCrowdinGlossaryTool", () => {
         projectId: "project-1",
       }),
     );
-=======
+  });
+
   it("fails closed when glossary search is disabled", async () => {
     const tool = createSearchCrowdinGlossaryTool({
       organizationId: "org-1",
       localUserId: "user-1",
+      projectId: null,
       glossarySearchEnabled: false,
     });
 
@@ -109,6 +112,5 @@ describe("createSearchCrowdinGlossaryTool", () => {
       error: "Glossary search is not enabled for this workspace.",
     });
     expect(searchGlossaryForAgentMock).not.toHaveBeenCalled();
->>>>>>> c1e00152 (feat(agent): gate glossary search behind workspace flag)
   });
 });
