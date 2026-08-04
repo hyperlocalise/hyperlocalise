@@ -24,7 +24,7 @@ minimumReleaseAgeExclude:
 overrides:
   vite: "8.2.0"
   # Pin each undici major independently (transitive deps use 6/7/8).
-  "undici@^6.0.0": "6.28.0"
+  "undici@^6.0.0": "8.9.0"
   "undici@^7.0.0": "7.29.0"
   "undici@^8.0.0": "8.9.0"
   devalue: "5.9.0"
