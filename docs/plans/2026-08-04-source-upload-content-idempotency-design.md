@@ -27,6 +27,17 @@ claimed workflow record into automation dispatch. Build a collision-safe key
 from the content identity and include the automation config version so an
 intentional configuration change can process the content again.
 
+## Retries after a failed run
+
+Content identity outlives a single run, so a run that ended in `failed` or
+`cancelled` would otherwise pin every later dispatch of the same bytes to that
+dead run. Source-upload dispatch therefore walks a bounded chain of
+attempt-suffixed keys (`<content key>`, `<content key>:retry:1`, and so on) and
+starts a new run at the first key that is free or holds a non-failed run.
+Re-uploading unchanged content after a failure retries the automation, and
+concurrent retries still resolve to one key, so they collapse into a single run.
+Runs that succeeded or were intentionally skipped keep deduplicating.
+
 ## Validation
 
 - Different source-version IDs with the same project, path, and hash enqueue one
@@ -34,5 +45,7 @@ intentional configuration change can process the content again.
 - Changing the project, path, hash, or automation config version creates a new
   key.
 - Missing hashes retain version-based idempotency.
+- Re-uploading identical content after a failed or cancelled run enqueues a new
+  run, and concurrent retries create only one.
 - Existing source-ingest, automation dispatcher, full web test, and static
   checks pass.

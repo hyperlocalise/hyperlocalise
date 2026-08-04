@@ -20,7 +20,11 @@ import { type Result } from "@/lib/primitives/result/results";
 
 import { createContentfulConnection } from "@/lib/contentful/connections";
 
-import { createWorkspaceAutomation, listWorkspaceAutomationRuns } from "./workspace-automations";
+import {
+  createWorkspaceAutomation,
+  listWorkspaceAutomationRuns,
+  updateWorkspaceAutomationRun,
+} from "./workspace-automations";
 
 function expectOk<T, E>(result: Result<T, E>): T {
   if (!result.ok) {
@@ -36,7 +40,10 @@ import {
   dispatchWorkspaceAutomationsForGithubPush,
   dispatchWorkspaceAutomationsForSourceUpload,
 } from "./workspace-automation-dispatcher";
-import { buildWorkspaceGithubPushAutomationIdempotencyKey } from "./workspace-automation-idempotency";
+import {
+  buildWorkspaceGithubPushAutomationIdempotencyKey,
+  buildWorkspaceSourceUploadAutomationIdempotencyKey,
+} from "./workspace-automation-idempotency";
 
 const organizationIds: string[] = [];
 
@@ -109,6 +116,35 @@ async function seedDispatchScope() {
     githubInstallationId,
     githubRepositoryId,
   };
+}
+
+async function seedSourceUploadAutomation(input: {
+  organizationId: string;
+  userId: string;
+  projectId: string;
+  name: string;
+}) {
+  return expectOk(
+    await createWorkspaceAutomation({
+      organizationId: input.organizationId,
+      authorUserId: input.userId,
+      name: input.name,
+      instructions: "Translate each changed source file once.",
+      projectId: input.projectId,
+      triggerConfig: { mode: "source_upload" },
+      repositoryTarget: { kind: "none" },
+      toolConfig: {
+        createNativeTmsJob: {
+          enabled: true,
+          useProjectTargetLocales: true,
+          targetLocales: [],
+        },
+        assignTranslateWithAgent: {
+          enabled: true,
+        },
+      },
+    }),
+  );
 }
 
 describe("workspace automation dispatcher", () => {
@@ -1033,5 +1069,163 @@ describe("workspace automation dispatcher", () => {
     expect(new Set(results.flat().map((result) => result.runId)).size).toBe(1);
     expect(runs).toHaveLength(1);
     expect(enqueued).toHaveLength(1);
+  });
+
+  it("retries identical source content after the previous run failed", async () => {
+    const scope = await seedDispatchScope();
+    const automation = await seedSourceUploadAutomation({
+      organizationId: scope.organizationId,
+      userId: scope.userId,
+      projectId: scope.projectId,
+      name: "Retry failed uploads",
+    });
+    const enqueued: Array<{ workspaceAutomationRunId: string; organizationId: string }> = [];
+    const queue = {
+      async enqueue(event: { workspaceAutomationRunId: string; organizationId: string }) {
+        enqueued.push(event);
+        return { ids: [`workflow-${enqueued.length}`] };
+      },
+    };
+    const baseUpload = {
+      organizationId: scope.organizationId,
+      projectId: scope.projectId,
+      sourcePath: "locales/en.json",
+      sourceHash: "retried-content-hash",
+      queue,
+    };
+
+    const [first] = await dispatchWorkspaceAutomationsForSourceUpload({
+      ...baseUpload,
+      sourceFileId: "file-1",
+      sourceFileVersionId: "version-1",
+    });
+    if (!first) {
+      throw new Error("expected the first upload to dispatch a run");
+    }
+    expect(first.inserted).toBe(true);
+
+    await updateWorkspaceAutomationRun({
+      runId: first.runId,
+      organizationId: scope.organizationId,
+      status: "failed",
+      completedAt: new Date(),
+    });
+
+    const [retried] = await dispatchWorkspaceAutomationsForSourceUpload({
+      ...baseUpload,
+      sourceFileId: "file-2",
+      sourceFileVersionId: "version-2",
+    });
+    if (!retried) {
+      throw new Error("expected the re-upload to dispatch a run");
+    }
+
+    expect(retried.inserted).toBe(true);
+    expect(retried.runId).not.toBe(first.runId);
+    expect(enqueued).toHaveLength(2);
+
+    const contentKey = buildWorkspaceSourceUploadAutomationIdempotencyKey({
+      automationId: automation.id,
+      configVersion: automation.configVersion,
+      projectId: scope.projectId,
+      sourcePath: baseUpload.sourcePath,
+      sourceHash: baseUpload.sourceHash,
+      sourceFileVersionId: "version-1",
+    });
+    const runs = await listWorkspaceAutomationRuns({
+      automationId: automation.id,
+      organizationId: scope.organizationId,
+    });
+    const runIdempotencyKeys = runs.map((run) => run.idempotencyKey);
+    expect(runs).toHaveLength(2);
+    expect(runIdempotencyKeys).toContain(contentKey);
+    expect(runIdempotencyKeys).toContain(`${contentKey}:retry:1`);
+
+    await updateWorkspaceAutomationRun({
+      runId: retried.runId,
+      organizationId: scope.organizationId,
+      status: "succeeded",
+      completedAt: new Date(),
+    });
+
+    const [duplicate] = await dispatchWorkspaceAutomationsForSourceUpload({
+      ...baseUpload,
+      sourceFileId: "file-3",
+      sourceFileVersionId: "version-3",
+    });
+
+    expect(duplicate).toMatchObject({
+      outcome: "enqueued",
+      runId: retried.runId,
+      inserted: false,
+    });
+    expect(enqueued).toHaveLength(2);
+  });
+
+  it("collapses concurrent retries of identical source content into one run", async () => {
+    const scope = await seedDispatchScope();
+    const automation = await seedSourceUploadAutomation({
+      organizationId: scope.organizationId,
+      userId: scope.userId,
+      projectId: scope.projectId,
+      name: "Retry concurrent failed uploads",
+    });
+    const enqueued: Array<{ workspaceAutomationRunId: string; organizationId: string }> = [];
+    const queue = {
+      async enqueue(event: { workspaceAutomationRunId: string; organizationId: string }) {
+        enqueued.push(event);
+        return { ids: [`workflow-${enqueued.length}`] };
+      },
+    };
+    const baseUpload = {
+      organizationId: scope.organizationId,
+      projectId: scope.projectId,
+      sourcePath: "locales/en.json",
+      sourceHash: "concurrent-retry-content-hash",
+      queue,
+    };
+
+    const [first] = await dispatchWorkspaceAutomationsForSourceUpload({
+      ...baseUpload,
+      sourceFileId: "file-1",
+      sourceFileVersionId: "version-1",
+    });
+    if (!first) {
+      throw new Error("expected the first upload to dispatch a run");
+    }
+
+    await updateWorkspaceAutomationRun({
+      runId: first.runId,
+      organizationId: scope.organizationId,
+      status: "cancelled",
+      completedAt: new Date(),
+    });
+
+    const results = (
+      await Promise.all([
+        dispatchWorkspaceAutomationsForSourceUpload({
+          ...baseUpload,
+          sourceFileId: "file-2",
+          sourceFileVersionId: "version-2",
+        }),
+        dispatchWorkspaceAutomationsForSourceUpload({
+          ...baseUpload,
+          sourceFileId: "file-3",
+          sourceFileVersionId: "version-3",
+        }),
+      ])
+    ).flat();
+
+    const retriedRunIds = new Set(results.map((result) => result.runId));
+    expect(results).toHaveLength(2);
+    expect(retriedRunIds.size).toBe(1);
+    expect(retriedRunIds.has(first.runId)).toBe(false);
+    expect(enqueued).toHaveLength(2);
+
+    const runs = await listWorkspaceAutomationRuns({
+      automationId: automation.id,
+      organizationId: scope.organizationId,
+    });
+    expect(runs).toHaveLength(2);
   });
 });
