@@ -43,6 +43,7 @@ describe("conversation skill registry", () => {
     expect(skills.map((skill) => skill.id).sort()).toEqual(
       expect.arrayContaining([
         "conversation",
+        "crowdin-glossary-tools",
         "find-context",
         "glossary-tools",
         "knowledge-memory",
@@ -68,8 +69,15 @@ describe("conversation skill registry", () => {
     const tmsSkill = skills.find((skill) => skill.id === "tms-tools");
     expect(tmsSkill).toMatchObject({
       requiresTmsIntegration: true,
-      tools: ["check_crowdin_progress", "search_crowdin_glossary"],
+      tools: ["check_crowdin_progress"],
       sharedSkills: ["crowdin"],
+    });
+
+    const crowdinGlossarySkill = skills.find((skill) => skill.id === "crowdin-glossary-tools");
+    expect(crowdinGlossarySkill).toMatchObject({
+      requiresTmsIntegration: true,
+      requiresGlossarySearch: true,
+      tools: ["search_crowdin_glossary"],
     });
 
     const translationSkill = skills.find((skill) => skill.id === "translation-tools");
@@ -421,6 +429,30 @@ describe("conversation skill registry", () => {
     expect(isConversationSkillActivated(glossarySkill!, activationContext(true))).toBe(true);
     expect(isConversationSkillActivated(glossarySkill!, activationContext(false))).toBe(false);
     expect(isConversationSkillActivated(glossarySkill!, activationContext())).toBe(false);
+  });
+
+  it("activates Crowdin glossary tools only when both capabilities are enabled", () => {
+    const skill = listConversationSkills().find((item) => item.id === "crowdin-glossary-tools");
+    expect(skill).toBeDefined();
+
+    const activationContext = (hasTmsIntegration: boolean, glossarySearchEnabled: boolean) =>
+      toConversationSkillActivationContext({
+        hasFileAttachments: false,
+        hasTmsIntegration,
+        toolContext: {
+          conversationId: "conv_1",
+          organizationId: "org_1",
+          localUserId: "user_1",
+          membershipRole: "member",
+          projectId: null,
+          db: {} as never,
+          glossarySearchEnabled,
+        },
+      });
+
+    expect(isConversationSkillActivated(skill!, activationContext(true, true))).toBe(true);
+    expect(isConversationSkillActivated(skill!, activationContext(true, false))).toBe(false);
+    expect(isConversationSkillActivated(skill!, activationContext(false, true))).toBe(false);
   });
 
   it("filters Crowdin glossary search when the feature flag is off", () => {

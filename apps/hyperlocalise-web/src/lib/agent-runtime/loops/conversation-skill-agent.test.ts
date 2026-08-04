@@ -186,6 +186,9 @@ describe("conversation skill agent", () => {
 
     expect(settings.instructions).toContain("TMS tools");
     expect(settings.instructions).toContain("Crowdin TMS");
+    expect(settings.instructions).toContain(
+      "Before advising on product names, feature names, or UI terms, call `search_crowdin_glossary`.",
+    );
   });
 
   it("omits glossary search tools when the feature flag is off", () => {
@@ -197,12 +200,14 @@ describe("conversation skill agent", () => {
     });
 
     const settings = toolLoopAgentMock.mock.calls.at(-1)?.[0] as {
+      instructions: string;
       activeTools: string[];
     };
 
     expect(settings.activeTools).toContain("check_crowdin_progress");
     expect(settings.activeTools).not.toContain("search_native_glossary");
     expect(settings.activeTools).not.toContain("search_crowdin_glossary");
+    expect(settings.instructions).not.toContain("search_crowdin_glossary");
   });
 
   it("adds repo and file job tools when runtime context allows them", () => {
