@@ -95,7 +95,7 @@
     "evlog": "^2.19.2",
     "flags": "^4.2.0",
     "gray-matter": "^4.0.3",
-    "hono": "4.12.32",
+    "hono": "4.12.34",
     "htmlparser2": "^12.0.0",
     "jsonwebtoken": "^9.0.3",
     "jszip": "^3.10.1",
