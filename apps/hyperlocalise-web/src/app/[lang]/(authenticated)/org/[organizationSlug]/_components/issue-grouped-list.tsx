@@ -32,10 +32,7 @@ import {
   type IssueListStatus,
 } from "./issue-list-group";
 import { issueGroupedListMessages as messages } from "./issue-grouped-list.messages";
-import {
-  formatCompactRelativeTimestamp,
-  formatRelativeTimestamp,
-} from "./workspace-files-shared";
+import { formatCompactRelativeTimestamp, formatRelativeTimestamp } from "./workspace-files-shared";
 
 export type IssueGroupedListItem = {
   id: string;
