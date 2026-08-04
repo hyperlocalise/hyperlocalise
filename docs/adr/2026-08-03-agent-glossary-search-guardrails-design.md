@@ -53,6 +53,11 @@ Extend chat-dock `cat-segment` page context with project id/name, `projectSource
 | Native project | `search_native_glossary` |
 | Unclear | Search both when available; prefer hits over guesses |
 
+### Search result completeness
+
+- Build native FTS candidates with token alternatives so a glossary term can match within a longer source sentence. Require the stored source term to occur in the input, with the term's case-sensitivity setting, before applying the result limit.
+- Preserve every Crowdin source and target term for the requested locales. Return each source-target combination with the target term's status and description, falling back to source metadata when needed.
+
 ## Consequences
 
 - Chat advice about terminology becomes glossary-backed instead of model heuristics.

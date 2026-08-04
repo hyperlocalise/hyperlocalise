@@ -16,9 +16,15 @@ import { buildNativeGlossaryTsQuery } from "./build-native-glossary-tsquery";
 
 describe("buildNativeGlossaryTsQuery", () => {
   it("strips apostrophes, quotes, and hyphens before building prefix terms", () => {
-    expect(buildNativeGlossaryTsQuery("What's new")).toBe("What:* & s:* & new:*");
-    expect(buildNativeGlossaryTsQuery(`"Talk to Heidi"`)).toBe("Talk:* & to:* & Heidi:*");
-    expect(buildNativeGlossaryTsQuery("multi-word term")).toBe("multi:* & word:* & term:*");
+    expect(buildNativeGlossaryTsQuery("What's new")).toBe("What:* | s:* | new:*");
+    expect(buildNativeGlossaryTsQuery(`"Talk to Heidi"`)).toBe("Talk:* | to:* | Heidi:*");
+    expect(buildNativeGlossaryTsQuery("multi-word term")).toBe("multi:* | word:* | term:*");
+  });
+
+  it("matches individual glossary terms within a source sentence", () => {
+    expect(buildNativeGlossaryTsQuery("Click Home to continue")).toBe(
+      "Click:* | Home:* | to:* | continue:*",
+    );
   });
 
   it("returns an empty string when input is only punctuation", () => {
@@ -29,7 +35,7 @@ describe("buildNativeGlossaryTsQuery", () => {
   it("caps terms at 50 to match concordance search", () => {
     const words = Array.from({ length: 60 }, (_, index) => `term${index}`);
     const tsQuery = buildNativeGlossaryTsQuery(words.join(" "));
-    expect(tsQuery.split(" & ")).toHaveLength(50);
+    expect(tsQuery.split(" | ")).toHaveLength(50);
     expect(tsQuery.startsWith("term0:*")).toBe(true);
     expect(tsQuery.endsWith("term49:*")).toBe(true);
   });

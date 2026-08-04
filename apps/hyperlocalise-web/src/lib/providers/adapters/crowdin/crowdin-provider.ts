@@ -1764,32 +1764,35 @@ export class CrowdinTmsProvider extends TmsProvider {
           });
 
       const matches: CrowdinAgentGlossaryMatch[] = [];
-      for (const result of results) {
-        const sourceTerm = this.pickTermText(result.sourceTerms, input.sourceLocale);
-        const targetTerm = this.pickTermText(result.targetTerms, input.targetLocale);
-        if (!sourceTerm || !targetTerm) {
+      resultsLoop: for (const result of results) {
+        const sourceTerms = result.sourceTerms
+          .filter((term) => term.languageId === input.sourceLocale)
+          .map((term) => ({ ...term, text: term.text.trim() }))
+          .filter((term) => term.text);
+        const targetTerms = result.targetTerms
+          .filter((term) => term.languageId === input.targetLocale)
+          .map((term) => ({ ...term, text: term.text.trim() }))
+          .filter((term) => term.text);
+        if (sourceTerms.length === 0 || targetTerms.length === 0) {
           continue;
         }
 
-        const status =
-          this.pickTermStatus(result.targetTerms, input.targetLocale) ??
-          this.pickTermStatus(result.sourceTerms, input.sourceLocale);
-        const description =
-          result.targetTerms.find((term) => term.languageId === input.targetLocale)?.description ??
-          result.sourceTerms.find((term) => term.languageId === input.sourceLocale)?.description ??
-          null;
+        for (const sourceTerm of sourceTerms) {
+          for (const targetTerm of targetTerms) {
+            const description = targetTerm.description ?? sourceTerm.description ?? null;
+            matches.push({
+              glossaryId: result.glossary.id,
+              glossaryName: result.glossary.name,
+              sourceTerm: sourceTerm.text,
+              targetTerm: targetTerm.text,
+              status: targetTerm.status ?? sourceTerm.status ?? null,
+              description: description?.trim() ? description.trim() : null,
+            });
 
-        matches.push({
-          glossaryId: result.glossary.id,
-          glossaryName: result.glossary.name,
-          sourceTerm,
-          targetTerm,
-          status,
-          description: description?.trim() ? description.trim() : null,
-        });
-
-        if (matches.length >= limit) {
-          break;
+            if (matches.length >= limit) {
+              break resultsLoop;
+            }
+          }
         }
       }
 

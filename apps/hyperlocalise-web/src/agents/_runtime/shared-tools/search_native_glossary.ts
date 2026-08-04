@@ -112,6 +112,11 @@ export function createSearchNativeGlossaryTool(ctx: ToolContext) {
 
       const conditions = [
         sql`${schema.glossaryTerms.searchVector} @@ to_tsquery('simple', ${tsQuery})`,
+        sql`case
+          when coalesce(${schema.glossaryTerms.caseSensitive}, false)
+            then position(${schema.glossaryTerms.sourceTerm} in ${input.sourceText}) > 0
+          else position(lower(${schema.glossaryTerms.sourceTerm}) in lower(${input.sourceText})) > 0
+        end`,
         await toolProjectLinkedGlossaryWhere(ctx),
         eq(schema.glossaries.source, "native"),
         eq(schema.glossaries.sourceLocale, input.sourceLocale),
@@ -144,8 +149,8 @@ export function createSearchNativeGlossaryTool(ctx: ToolContext) {
         .orderBy(desc(sql`rank`))
         .limit(input.limit);
 
-      // FTS also matches target/description; keep only entries whose source term
-      // appears in the query text (same post-filter as concordance search).
+      // Keep the shared application-level check as a defense against database
+      // and JavaScript containment semantics drifting apart.
       const sourceMatchedTerms = terms.filter((term) =>
         sourceContainsTerm(input.sourceText, {
           sourceTerm: term.sourceTerm,

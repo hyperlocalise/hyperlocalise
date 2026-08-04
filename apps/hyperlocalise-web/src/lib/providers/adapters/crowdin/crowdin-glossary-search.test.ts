@@ -92,6 +92,76 @@ describe("crowdinTmsProvider.searchGlossaryForAgent", () => {
     expect(String(fetchMock.mock.calls[0]?.[0])).not.toContain("/projects/");
   });
 
+  it("preserves every same-locale target term and its status", async () => {
+    loadOrganizationCredentialMock.mockResolvedValue(baseCredential);
+    fetchMock.mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          data: [
+            {
+              data: {
+                glossary: { id: 9, name: "Product glossary" },
+                sourceTerms: [
+                  { id: 1, languageId: "en", text: "Home", status: "preferred" },
+                ],
+                targetTerms: [
+                  {
+                    id: 2,
+                    languageId: "vi",
+                    text: "Trang chủ",
+                    status: "preferred",
+                    description: "Use this term",
+                  },
+                  {
+                    id: 3,
+                    languageId: "vi",
+                    text: "Nhà",
+                    status: "forbidden",
+                    description: "Do not use",
+                  },
+                  { id: 4, languageId: "fr", text: "Accueil", status: "preferred" },
+                ],
+              },
+            },
+          ],
+        }),
+        { status: 200 },
+      ),
+    );
+
+    const result = await crowdinTmsProvider.searchGlossaryForAgent({
+      organizationId: "org-1",
+      actorUserId: "user-1",
+      sourceLocale: "en",
+      targetLocale: "vi",
+      expressions: ["Home"],
+    });
+
+    expect(isOk(result)).toBe(true);
+    if (!isOk(result)) {
+      return;
+    }
+
+    expect(result.value.matches).toEqual([
+      {
+        glossaryId: 9,
+        glossaryName: "Product glossary",
+        sourceTerm: "Home",
+        targetTerm: "Trang chủ",
+        status: "preferred",
+        description: "Use this term",
+      },
+      {
+        glossaryId: 9,
+        glossaryName: "Product glossary",
+        sourceTerm: "Home",
+        targetTerm: "Nhà",
+        status: "forbidden",
+        description: "Do not use",
+      },
+    ]);
+  });
+
   it("uses project concordance when a Crowdin-linked project is provided", async () => {
     loadProjectCredentialMock.mockResolvedValue({
       externalProjectId: "42",
