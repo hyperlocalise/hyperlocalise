@@ -45,7 +45,10 @@ export type InboxNotificationsApi = {
     options?: { unreadOnly?: boolean; limit?: number; offset?: number },
   ): Promise<{ notifications: InboxIssueNotification[]; total: number }>;
   unreadCount(organizationSlug: string): Promise<number>;
-  markRead(organizationSlug: string, notificationId: string): Promise<void>;
+  markRead(
+    organizationSlug: string,
+    notificationId: string,
+  ): Promise<{ id: string; readAt: string | null }>;
   markAllRead(organizationSlug: string): Promise<number>;
   getById(organizationSlug: string, notificationId: string): Promise<InboxIssueNotification>;
 };
@@ -91,6 +94,10 @@ export function createInboxNotificationsApi(): InboxNotificationsApi {
       if (!response.ok) {
         throw await readApiResponseError(response, "Failed to mark notification as read");
       }
+      const body = (await response.json()) as {
+        notification: { id: string; readAt: string | null };
+      };
+      return body.notification;
     },
 
     async markAllRead(organizationSlug) {

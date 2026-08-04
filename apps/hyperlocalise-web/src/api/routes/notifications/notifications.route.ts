@@ -95,6 +95,19 @@ export function createIssueNotificationsRoutes() {
         return notFoundResponse(c, "notification_not_found");
       }
 
-      return c.json({ ok: true }, 200);
+      const notification = await issueNotificationService.getById(c.var.auth, notificationId);
+      if (!notification) {
+        return notFoundResponse(c, "notification_not_found");
+      }
+
+      return c.json(
+        {
+          notification: {
+            id: notification.id,
+            readAt: notification.readAt,
+          },
+        },
+        200,
+      );
     });
 }

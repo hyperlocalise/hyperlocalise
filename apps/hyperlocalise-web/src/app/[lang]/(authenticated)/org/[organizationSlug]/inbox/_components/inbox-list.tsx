@@ -96,9 +96,12 @@ function notificationPreviewMessage(type: InboxIssueNotification["type"]): Messa
 export const InboxList = memo(function InboxList({
   conversations,
   currentUser,
+  hasMoreNotifications,
   isError,
   isLoading,
+  isLoadingMoreNotifications,
   notifications,
+  onLoadMoreNotifications,
   onMarkAllRead,
   onSelectConversation,
   onSelectNotification,
@@ -107,9 +110,12 @@ export const InboxList = memo(function InboxList({
 }: {
   conversations: Conversation[];
   currentUser: InboxCurrentUser;
+  hasMoreNotifications: boolean;
   isError: boolean;
   isLoading: boolean;
+  isLoadingMoreNotifications: boolean;
   notifications: InboxIssueNotification[];
+  onLoadMoreNotifications: () => void;
   onMarkAllRead?: () => void;
   onSelectConversation: (conversationId: string) => void;
   onSelectNotification: (notificationId: string) => void;
@@ -165,6 +171,20 @@ export const InboxList = memo(function InboxList({
                 />
               ),
             )}
+            {hasMoreNotifications ? (
+              <div className="px-2 py-1">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="w-full"
+                  disabled={isLoadingMoreNotifications}
+                  onClick={onLoadMoreNotifications}
+                >
+                  <FormattedMessage {...inboxNotificationsMessages.loadMore} />
+                </Button>
+              </div>
+            ) : null}
           </div>
         )}
       </div>

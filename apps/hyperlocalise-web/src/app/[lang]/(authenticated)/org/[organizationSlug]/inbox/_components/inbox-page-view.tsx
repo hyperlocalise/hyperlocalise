@@ -12,6 +12,8 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { FormattedMessage } from "react-intl";
+
 import { cn } from "@/lib/primitives/cn";
 
 import { ConversationPanel } from "./conversation-panel";
@@ -19,6 +21,7 @@ import { InboxIssuePanel } from "./inbox-issue-panel";
 import { InboxList, type InboxSelection } from "./inbox-list";
 import { InboxPanelErrorBoundary } from "./inbox-panel-error-boundary";
 import type { InboxIssueNotification } from "./inbox-notifications-api";
+import { inboxNotificationsMessages } from "./inbox-notifications.messages";
 import type {
   Conversation,
   ConversationMessage,
@@ -32,6 +35,8 @@ export function InboxPageView({
   conversationsIsError,
   conversationsIsLoading,
   currentUser,
+  hasMoreNotifications,
+  isLoadingMoreNotifications,
   isSending,
   isSparseInbox,
   isStreaming,
@@ -42,6 +47,7 @@ export function InboxPageView({
   notifications,
   notificationsIsError,
   notificationsIsLoading,
+  onLoadMoreNotifications,
   onMarkAllRead,
   onSelectConversation,
   onSelectNotification,
@@ -49,6 +55,7 @@ export function InboxPageView({
   organizationSlug,
   selectedConversation,
   selectedNotification,
+  selectedNotificationIsLoading,
   selection,
   streamedAssistant,
   unreadNotificationCount,
@@ -57,6 +64,8 @@ export function InboxPageView({
   conversationsIsError: boolean;
   conversationsIsLoading: boolean;
   currentUser: InboxCurrentUser;
+  hasMoreNotifications: boolean;
+  isLoadingMoreNotifications: boolean;
   isSending: boolean;
   isSparseInbox: boolean;
   isStreaming: boolean;
@@ -67,6 +76,7 @@ export function InboxPageView({
   notifications: InboxIssueNotification[];
   notificationsIsError: boolean;
   notificationsIsLoading: boolean;
+  onLoadMoreNotifications: () => void;
   onMarkAllRead: () => void;
   onSelectConversation: (conversationId: string) => void;
   onSelectNotification: (notificationId: string) => void;
@@ -78,6 +88,7 @@ export function InboxPageView({
   organizationSlug: string;
   selectedConversation: Conversation | undefined;
   selectedNotification: InboxIssueNotification | undefined;
+  selectedNotificationIsLoading: boolean;
   selection: InboxSelection;
   streamedAssistant: StreamedAssistantMessage | null;
   unreadNotificationCount: number;
@@ -118,9 +129,12 @@ export function InboxPageView({
           <InboxList
             conversations={conversations}
             currentUser={currentUser}
+            hasMoreNotifications={hasMoreNotifications}
             isError={listIsError}
             isLoading={listIsLoading}
+            isLoadingMoreNotifications={isLoadingMoreNotifications}
             notifications={notifications}
+            onLoadMoreNotifications={onLoadMoreNotifications}
             onMarkAllRead={onMarkAllRead}
             onSelectConversation={onSelectConversation}
             onSelectNotification={onSelectNotification}
@@ -129,12 +143,24 @@ export function InboxPageView({
           />
         </InboxPanelErrorBoundary>
 
-        {selectedNotification ? (
-          <InboxIssuePanel
-            organizationSlug={organizationSlug}
-            projectId={selectedNotification.projectId}
-            issueId={selectedNotification.issueId}
-          />
+        {selection?.kind === "notification" ? (
+          selectedNotification ? (
+            <InboxIssuePanel
+              organizationSlug={organizationSlug}
+              projectId={selectedNotification.projectId}
+              issueId={selectedNotification.issueId}
+            />
+          ) : selectedNotificationIsLoading ? (
+            <section
+              className="flex min-h-0 flex-1 items-center justify-center p-6"
+              aria-busy="true"
+              aria-label="Loading notification"
+            >
+              <span className="text-sm text-muted-foreground">
+                <FormattedMessage {...inboxNotificationsMessages.issuePanelLoading} />
+              </span>
+            </section>
+          ) : null
         ) : (
           <ConversationPanel
             conversation={selectedConversation}

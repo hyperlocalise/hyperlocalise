@@ -75,4 +75,9 @@ export const inboxNotificationsMessages = defineMessages({
     id: "7M/8dl8Baw",
     description: "Shown when a selected notification issue cannot be loaded",
   },
+  loadMore: {
+    defaultMessage: "Load more",
+    id: "J9Nh4r/Fsj",
+    description: "Button to load older issue notifications in the inbox list",
+  },
 });

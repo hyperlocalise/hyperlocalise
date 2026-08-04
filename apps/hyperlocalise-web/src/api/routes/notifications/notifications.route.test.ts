@@ -155,6 +155,11 @@ describe("Issue notifications routes", () => {
       { method: "POST", headers },
     );
     expect(markOneResponse.status).toBe(200);
+    const markOneBody = (await markOneResponse.json()) as {
+      notification: { id: string; readAt: string | null };
+    };
+    expect(markOneBody.notification.id).toBe(notificationId);
+    expect(markOneBody.notification.readAt).toEqual(expect.any(String));
 
     const countAfterOne = await requestJson(notificationsUrl(organizationSlug, "/unread-count"), {
       headers,

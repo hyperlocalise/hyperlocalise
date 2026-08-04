@@ -14,7 +14,7 @@
  */
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query";
 import { observer } from "mobx-react-lite";
 
 import { useAppShellStore } from "@/components/app-shell/store/app-shell-store-context";
@@ -35,6 +35,8 @@ import type { InboxCurrentUser, StreamedAssistantMessage } from "./inbox-types";
 const inboxApi = createInboxApi(apiClient);
 const notificationsApi = createInboxNotificationsApi();
 
+const NOTIFICATIONS_PAGE_SIZE = 50;
+
 function conversationsQueryKey(organizationSlug: string) {
   return ["conversations", organizationSlug] as const;
 }
@@ -45,6 +47,10 @@ function messagesQueryKey(conversationId: string) {
 
 function jobsQueryKey(conversationId: string) {
   return ["conversation-jobs", conversationId] as const;
+}
+
+function notificationDetailQueryKey(organizationSlug: string, notificationId: string) {
+  return ["issue-notification", organizationSlug, notificationId] as const;
 }
 
 export const InboxPageContent = observer(function InboxPageContent({
@@ -63,7 +69,8 @@ export const InboxPageContent = observer(function InboxPageContent({
   const queryClient = useQueryClient();
   const urlConversationId = params?.conversationId as string | undefined;
   const urlNotificationId = params?.notificationId as string | undefined;
-  const { chatDock } = useAppShellStore();
+  const { chatDock, workspaceFeatureFlags } = useAppShellStore();
+  const issuesEnabled = workspaceFeatureFlags.issues;
   const streamManager = getChatStreamManager(organizationSlug, chatDock);
 
   const conversationsQuery = useQuery({
@@ -71,22 +78,36 @@ export const InboxPageContent = observer(function InboxPageContent({
     queryFn: () => injectedInboxApi.listConversations(organizationSlug),
   });
 
-  const notificationsQuery = useQuery({
+  const notificationsQuery = useInfiniteQuery({
     queryKey: notificationsQueryKey(organizationSlug),
-    queryFn: async () => {
-      const result = await injectedNotificationsApi.list(organizationSlug, { limit: 50 });
-      return result.notifications;
+    enabled: issuesEnabled,
+    initialPageParam: 0,
+    queryFn: async ({ pageParam }) => {
+      const result = await injectedNotificationsApi.list(organizationSlug, {
+        limit: NOTIFICATIONS_PAGE_SIZE,
+        offset: pageParam,
+      });
+      return result;
+    },
+    getNextPageParam: (lastPage, pages) => {
+      const loaded = pages.reduce((sum, page) => sum + page.notifications.length, 0);
+      return loaded < lastPage.total ? loaded : undefined;
     },
   });
 
   const unreadCountQuery = useQuery({
     queryKey: notificationsUnreadCountQueryKey(organizationSlug),
     queryFn: () => injectedNotificationsApi.unreadCount(organizationSlug),
+    enabled: issuesEnabled,
     refetchInterval: 45_000,
   });
 
   const conversations = conversationsQuery.data ?? [];
-  const notifications = notificationsQuery.data ?? [];
+  const notifications = useMemo(
+    () => notificationsQuery.data?.pages.flatMap((page) => page.notifications) ?? [],
+    [notificationsQuery.data?.pages],
+  );
+  const notificationsTotal = notificationsQuery.data?.pages[0]?.total ?? notifications.length;
 
   const selection: InboxSelection = useMemo(() => {
     if (urlNotificationId) {
@@ -111,10 +132,20 @@ export const InboxPageContent = observer(function InboxPageContent({
     () => conversations.find((conversation) => conversation.id === selectedConversationId),
     [conversations, selectedConversationId],
   );
-  const selectedNotification = useMemo(
+  const selectedNotificationFromList = useMemo(
     () => notifications.find((notification) => notification.id === selectedNotificationId),
     [notifications, selectedNotificationId],
   );
+  const selectedNotificationQuery = useQuery({
+    queryKey: notificationDetailQueryKey(organizationSlug, selectedNotificationId),
+    queryFn: () => injectedNotificationsApi.getById(organizationSlug, selectedNotificationId),
+    enabled:
+      issuesEnabled &&
+      selection?.kind === "notification" &&
+      !!selectedNotificationId &&
+      !selectedNotificationFromList,
+  });
+  const selectedNotification = selectedNotificationFromList ?? selectedNotificationQuery.data;
 
   const messagesQuery = useQuery({
     queryKey: messagesQueryKey(selectedConversationId),
@@ -168,6 +199,9 @@ export const InboxPageContent = observer(function InboxPageContent({
         queryClient.invalidateQueries({
           queryKey: notificationsUnreadCountQueryKey(organizationSlug),
         }),
+        queryClient.invalidateQueries({
+          queryKey: ["issue-notification", organizationSlug],
+        }),
       ]);
     },
   });
@@ -179,6 +213,9 @@ export const InboxPageContent = observer(function InboxPageContent({
         queryClient.invalidateQueries({ queryKey: notificationsQueryKey(organizationSlug) }),
         queryClient.invalidateQueries({
           queryKey: notificationsUnreadCountQueryKey(organizationSlug),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ["issue-notification", organizationSlug],
         }),
       ]);
     },
@@ -218,6 +255,10 @@ export const InboxPageContent = observer(function InboxPageContent({
     markAllReadMutation.mutate();
   }, [markAllReadMutation]);
 
+  const onLoadMoreNotifications = useCallback(() => {
+    void notificationsQuery.fetchNextPage();
+  }, [notificationsQuery]);
+
   const messages = messagesQuery.data ?? [];
   const jobs = jobsQuery.data ?? [];
   const lastMessage = messages.at(-1);
@@ -225,6 +266,8 @@ export const InboxPageContent = observer(function InboxPageContent({
     !conversationsQuery.isLoading &&
     !notificationsQuery.isLoading &&
     conversations.length + notifications.length <= 1;
+  const hasMoreNotifications =
+    issuesEnabled && notifications.length < notificationsTotal && notificationsQuery.hasNextPage;
 
   useEffect(() => {
     if (
@@ -269,6 +312,8 @@ export const InboxPageContent = observer(function InboxPageContent({
       conversationsIsError={conversationsQuery.isError}
       conversationsIsLoading={conversationsQuery.isLoading}
       currentUser={currentUser}
+      hasMoreNotifications={hasMoreNotifications}
+      isLoadingMoreNotifications={notificationsQuery.isFetchingNextPage}
       isSending={sendMessageMutation.isPending}
       isSparseInbox={isSparseInbox}
       isStreaming={isStreaming}
@@ -277,8 +322,9 @@ export const InboxPageContent = observer(function InboxPageContent({
       messages={messages}
       messagesIsLoading={messagesQuery.isLoading}
       notifications={notifications}
-      notificationsIsError={notificationsQuery.isError}
-      notificationsIsLoading={notificationsQuery.isLoading}
+      notificationsIsError={issuesEnabled && notificationsQuery.isError}
+      notificationsIsLoading={issuesEnabled && notificationsQuery.isLoading}
+      onLoadMoreNotifications={onLoadMoreNotifications}
       onMarkAllRead={onMarkAllRead}
       onSelectConversation={onSelectConversation}
       onSelectNotification={onSelectNotification}
@@ -286,6 +332,11 @@ export const InboxPageContent = observer(function InboxPageContent({
       organizationSlug={organizationSlug}
       selectedConversation={selectedConversation}
       selectedNotification={selectedNotification}
+      selectedNotificationIsLoading={
+        selection?.kind === "notification" &&
+        !selectedNotification &&
+        (selectedNotificationQuery.isLoading || selectedNotificationQuery.isFetching)
+      }
       selection={selection}
       streamedAssistant={streamedAssistant}
       unreadNotificationCount={unreadCountQuery.data ?? 0}
