@@ -323,6 +323,68 @@ func TestHasJSTSKeywordAtUsesUTF8IdentifierBoundaries(t *testing.T) {
 	}
 }
 
+func TestJSTSLocaleModuleParserParsesEmptyDefaultExport(t *testing.T) {
+	got, err := (JSTSLocaleModuleParser{}).Parse([]byte(`export default {};`))
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	if len(got) != 0 {
+		t.Fatalf("expected empty map, got %#v", got)
+	}
+}
+
+func TestJSTSLocaleModuleParserParsesNestedArrayOfObjects(t *testing.T) {
+	content := []byte(`export default {
+  items: [
+    { a: "1", b: "x" },
+    { a: "2" },
+  ],
+  checklist: ["One", "Two"],
+};`)
+
+	got, err := (JSTSLocaleModuleParser{}).Parse(content)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+
+	want := map[string]string{
+		"items[0].a":   "1",
+		"items[0].b":   "x",
+		"items[1].a":   "2",
+		"checklist[0]": "One",
+		"checklist[1]": "Two",
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("entries mismatch:\ngot  %#v\nwant %#v", got, want)
+	}
+}
+
+func TestJSTSLocaleModuleParserAllowsBlockCommentsBetweenRootProperties(t *testing.T) {
+	content := []byte(`export default {
+  /* keep root keys after comments */
+  home: {
+    title: "Welcome",
+  },
+  // trailing note
+  cart: {
+    cta: "Buy",
+  },
+};`)
+
+	got, err := (JSTSLocaleModuleParser{}).Parse(content)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+
+	want := map[string]string{
+		"home.title": "Welcome",
+		"cart.cta":   "Buy",
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("entries mismatch:\ngot  %#v\nwant %#v", got, want)
+	}
+}
+
 func TestJSTSLocaleModuleParserRejectsUnsupportedPatterns(t *testing.T) {
 	tests := []struct {
 		name    string

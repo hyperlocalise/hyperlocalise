@@ -261,4 +261,131 @@ describe("IssueNotificationService", () => {
     expect(watchers.has(actor.id)).toBe(true);
     expect(watchers.has(assigneeUserId)).toBe(true);
   });
+
+  it("notifies the new assignee and previous assignee watchers on reassignment", async () => {
+    const { actor, assigneeUserId, organization, project, actorIdentity } =
+      await createProjectWithAssignee();
+
+    const nextIdentity = authFixture.createWorkosIdentityForOrganization(
+      actorIdentity.organization,
+      "member",
+    );
+    await authFixture.authHeadersFor(nextIdentity);
+    const nextAssigneeUserId = await authFixture.getLocalUserId(nextIdentity.user.workosUserId);
+    const team = await ensureDefaultWorkspaceTeam(organization.id);
+    await db
+      .insert(schema.teamMemberships)
+      .values({
+        teamId: team.id,
+        userId: nextAssigneeUserId,
+        role: "member",
+      })
+      .onConflictDoNothing();
+    await authFixture.authHeadersFor(actorIdentity);
+
+    const issue = await issueSheetService.createIssue({
+      organizationId: organization.id,
+      projectId: project.id,
+      actorUserId: actor.id,
+      body: {
+        title: "Reassign me",
+        assigneeUserId,
+      },
+    });
+
+    await db
+      .delete(schema.issueNotifications)
+      .where(eq(schema.issueNotifications.issueId, issue.id));
+
+    await issueSheetService.updateIssue({
+      organizationId: organization.id,
+      projectId: project.id,
+      issueId: issue.id,
+      actorUserId: actor.id,
+      body: { assigneeUserId: nextAssigneeUserId },
+    });
+
+    const rows = await db
+      .select()
+      .from(schema.issueNotifications)
+      .where(eq(schema.issueNotifications.issueId, issue.id));
+
+    expect(
+      rows.some(
+        (row) => row.type === "assigned" && row.recipientUserId === nextAssigneeUserId,
+      ),
+    ).toBe(true);
+    expect(
+      rows.some(
+        (row) =>
+          row.type === "assignee_changed" && row.recipientUserId === assigneeUserId,
+      ),
+    ).toBe(true);
+    expect(
+      rows.some(
+        (row) =>
+          row.type === "assignee_changed" && row.recipientUserId === nextAssigneeUserId,
+      ),
+    ).toBe(false);
+    expect(rows.every((row) => row.recipientUserId !== actor.id)).toBe(true);
+  });
+
+  it("notifies the previous assignee on unassign without creating an assigned notification", async () => {
+    const { actor, assigneeUserId, organization, project } = await createProjectWithAssignee();
+    const issue = await issueSheetService.createIssue({
+      organizationId: organization.id,
+      projectId: project.id,
+      actorUserId: actor.id,
+      body: {
+        title: "Unassign me",
+        assigneeUserId,
+      },
+    });
+
+    await db
+      .delete(schema.issueNotifications)
+      .where(eq(schema.issueNotifications.issueId, issue.id));
+
+    await issueSheetService.updateIssue({
+      organizationId: organization.id,
+      projectId: project.id,
+      issueId: issue.id,
+      actorUserId: actor.id,
+      body: { assigneeUserId: null },
+    });
+
+    const rows = await db
+      .select()
+      .from(schema.issueNotifications)
+      .where(eq(schema.issueNotifications.issueId, issue.id));
+
+    expect(rows.some((row) => row.type === "assigned")).toBe(false);
+    expect(
+      rows.some(
+        (row) =>
+          row.type === "assignee_changed" && row.recipientUserId === assigneeUserId,
+      ),
+    ).toBe(true);
+    expect(rows.every((row) => row.recipientUserId !== actor.id)).toBe(true);
+  });
+
+  it("no-ops assignee-changed fan-out when the issue row is missing", async () => {
+    const { actor, assigneeUserId, organization, project } = await createProjectWithAssignee();
+
+    await notificationService.notifyAssigneeChanged({
+      organizationId: organization.id,
+      projectId: project.id,
+      issueId: randomUUID(),
+      actorUserId: actor.id,
+      previousAssigneeUserId: assigneeUserId,
+      nextAssigneeUserId: null,
+    });
+
+    const rows = await db
+      .select()
+      .from(schema.issueNotifications)
+      .where(eq(schema.issueNotifications.organizationId, organization.id));
+
+    expect(rows).toHaveLength(0);
+  });
 });
