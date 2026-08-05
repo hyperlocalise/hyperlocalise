@@ -14,14 +14,19 @@
 /** Default WorkOS API host used when WORKOS_API_HOSTNAME is unset. */
 export const WORKOS_PRODUCTION_API_HOSTNAME = "api.workos.com";
 
+/** Hostnames allowed for local `next start` e2e (`NODE_ENV=production` without a Vercel deploy). */
+const LOCAL_EMULATOR_HOSTNAMES = new Set(["localhost", "127.0.0.1"]);
+
 function readEnv(name: string) {
   // Bracket access avoids Next.js build-time inlining.
   return process.env[name];
 }
 
 /**
- * Refuse to boot in production when WORKOS_API_HOSTNAME points away from WorkOS.
- * The emulator (and any other override) is for local/CI e2e only.
+ * Refuse to boot in a real production deployment when WORKOS_API_HOSTNAME points away from WorkOS.
+ *
+ * `VERCEL_ENV=production` always rejects overrides. `NODE_ENV=production` alone (as set by
+ * `next start` for local e2e) allows only loopback emulator hosts.
  */
 export function assertWorkosApiHostnameSafe() {
   const hostname = readEnv("WORKOS_API_HOSTNAME")?.trim();
@@ -29,12 +34,14 @@ export function assertWorkosApiHostnameSafe() {
     return;
   }
 
-  const nodeEnv = readEnv("NODE_ENV");
   const vercelEnv = readEnv("VERCEL_ENV");
-  if (nodeEnv === "production" || vercelEnv === "production") {
-    throw new Error(
-      `WORKOS_API_HOSTNAME=${hostname} is not allowed when NODE_ENV or VERCEL_ENV is production`,
-    );
+  if (vercelEnv === "production") {
+    throw new Error(`WORKOS_API_HOSTNAME=${hostname} is not allowed when VERCEL_ENV is production`);
+  }
+
+  const nodeEnv = readEnv("NODE_ENV");
+  if (nodeEnv === "production" && !LOCAL_EMULATOR_HOSTNAMES.has(hostname)) {
+    throw new Error(`WORKOS_API_HOSTNAME=${hostname} is not allowed when NODE_ENV is production`);
   }
 }
 

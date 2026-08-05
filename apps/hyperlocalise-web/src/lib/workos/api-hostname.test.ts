@@ -47,9 +47,21 @@ describe("assertWorkosApiHostnameSafe", () => {
     expect(() => assertWorkosApiHostnameSafe()).not.toThrow();
   });
 
-  it("rejects a non-production hostname when NODE_ENV is production", () => {
+  it("allows localhost when NODE_ENV is production without VERCEL_ENV (local next start)", () => {
     vi.stubEnv("NODE_ENV", "production");
     vi.stubEnv("WORKOS_API_HOSTNAME", "localhost");
+    expect(() => assertWorkosApiHostnameSafe()).not.toThrow();
+  });
+
+  it("allows 127.0.0.1 when NODE_ENV is production without VERCEL_ENV", () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("WORKOS_API_HOSTNAME", "127.0.0.1");
+    expect(() => assertWorkosApiHostnameSafe()).not.toThrow();
+  });
+
+  it("rejects a non-loopback hostname when NODE_ENV is production", () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("WORKOS_API_HOSTNAME", "workos.internal.example");
     expect(() => assertWorkosApiHostnameSafe()).toThrow(/not allowed/);
   });
 

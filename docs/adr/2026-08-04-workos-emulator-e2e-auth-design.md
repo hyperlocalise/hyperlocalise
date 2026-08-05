@@ -114,7 +114,7 @@ Pin the emulator version explicitly (`WORKOS_EMULATE_VERSION` / the start script
 
 ## Safety and failure handling
 
-Removing the bypass removes its production risk, and introduces a smaller one: a deployment could in principle be configured to talk to something other than WorkOS. Treat `WORKOS_API_HOSTNAME` as the new sensitive switch and fail fast rather than silently. Add a startup assertion that refuses to boot when `WORKOS_API_HOSTNAME` is set to anything other than `api.workos.com` while `NODE_ENV` or `VERCEL_ENV` is `production`. This is strictly stronger than today's posture, where the equivalent misconfiguration mints sessions instead of refusing to start.
+Removing the bypass removes its production risk, and introduces a smaller one: a deployment could in principle be configured to talk to something other than WorkOS. Treat `WORKOS_API_HOSTNAME` as the new sensitive switch and fail fast rather than silently. Refuse non-`api.workos.com` hosts when `VERCEL_ENV` is `production`. When only `NODE_ENV` is `production` (as with local `next start` for e2e), allow loopback emulator hosts (`localhost`, `127.0.0.1`) and reject anything else. This is strictly stronger than today's posture, where the equivalent misconfiguration mints sessions instead of refusing to start.
 
 Three further points are worth stating. The checked-in signing key is a test fixture and must never be a key any real environment trusts; the emulator README makes the same point. The emulator binds to `localhost` by default and its `/_emulate/hooks` endpoints are unauthenticated, so it must not be exposed beyond the test host. And the emulator's refusal of non-local `redirect_uri` values means a misconfigured callback fails visibly rather than leaking a code off-host.
 

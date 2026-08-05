@@ -15,10 +15,13 @@ import { afterAll, beforeAll } from "vite-plus/test";
 
 import { E2E_BASE_URL, organizationDashboardPath } from "../constants";
 import {
+  captureOnboardingWorkspace,
   cleanupEmulatorIdentity,
   provisionEmulatorIdentity,
   type EmulatorIdentity,
 } from "../helpers/emulator-identity";
+
+export { captureOnboardingWorkspace };
 
 const ONBOARDING_PATH = "/auth/onboarding";
 const SIGN_IN_PATH = "/auth/sign-in";

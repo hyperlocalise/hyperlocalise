@@ -119,6 +119,45 @@ export async function provisionEmulatorIdentity(input: {
   };
 }
 
+/**
+ * After onboarding creates a workspace in WorkOS + Postgres, update the tracked
+ * identity so suite teardown can delete the org/membership/local rows.
+ */
+export async function captureOnboardingWorkspace(identity: EmulatorIdentity) {
+  if (!identity.workosUserId || identity.workosOrganizationId) {
+    return identity;
+  }
+
+  const workos = createEmulatorWorkosClient();
+  const page = await workos.userManagement.listOrganizationMemberships({
+    userId: identity.workosUserId,
+  });
+  const memberships = await page.autoPagination();
+  const membership = memberships[0];
+  if (!membership) {
+    return identity;
+  }
+
+  identity.workosOrganizationId = membership.organizationId;
+  identity.workosMembershipId = membership.id;
+
+  const [organization] = await db
+    .select({
+      name: schema.organizations.name,
+      slug: schema.organizations.slug,
+    })
+    .from(schema.organizations)
+    .where(eq(schema.organizations.workosOrganizationId, membership.organizationId))
+    .limit(1);
+
+  if (organization) {
+    identity.organizationName = organization.name;
+    identity.organizationSlug = organization.slug ?? "";
+  }
+
+  return identity;
+}
+
 export async function cleanupEmulatorIdentity(identity: EmulatorIdentity) {
   const workosOrganizationIds = identity.workosOrganizationId
     ? [identity.workosOrganizationId]
