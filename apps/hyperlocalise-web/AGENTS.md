@@ -56,9 +56,9 @@ Follow the official Hono best-practices guide for this app: [Best Practices](htt
 - Use Hono's `testClient` for route tests.
 - Test the real API app exported from [`src/api/app.ts`](src/api/app.ts) when possible, rather than rebuilding a parallel test-only app structure.
 
-## Browser E2E (workos-emulate)
+## Browser E2E (local only, workos-emulate)
 
-Browser flows live under [`src/e2e/`](src/e2e/) and talk to a local [WorkOS emulator](https://github.com/workos/emulate). They exercise the real AuthKit authorize → callback → sealed session → membership reconcile path. They are **not** part of `vp test`.
+Browser flows live under [`src/e2e/`](src/e2e/) and talk to a local [WorkOS emulator](https://github.com/workos/emulate). They exercise the real AuthKit authorize → callback → sealed session → membership reconcile path. They are **not** part of `vp test` and are **not** wired into CI yet.
 
 See [`docs/adr/2026-08-04-workos-emulator-e2e-auth-design.md`](../../docs/adr/2026-08-04-workos-emulator-e2e-auth-design.md).
 

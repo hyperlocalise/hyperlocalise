@@ -96,9 +96,9 @@ Cleanup keeps the shape it has now — delete by exact id, never by name or pref
 
 Locally, the emulator runs as a background process alongside Postgres, started from a checked-in `workos-emulate.config.yaml`, a checked-in test signing key, and `--interactive`. A `vp run e2e:emulator` script and a short section in [`apps/hyperlocalise-web/AGENTS.md`](../../apps/hyperlocalise-web/AGENTS.md) cover the local workflow.
 
-CI is where this pays off most, because browser e2e is not run in CI today — `.github/workflows/web.yml` runs `vp check`, `vp test`, and `vp run build`, and there is no `test:e2e` job. The emulator makes one practical: a job with the existing Postgres service plus a step that downloads the `workos-emulate-linux-x64` binary, starts it with the seed and pinned key, waits on `GET /health`, then builds and serves the app with the emulator environment and runs `vp run test:e2e`. No WorkOS credentials or network egress to `api.workos.com` are required, which is why this was not previously worth doing.
+Browser e2e stays local for now — `.github/workflows/web.yml` continues to run `vp check`, `vp test`, and `vp run build` only. When we are ready for CI, the emulator makes a job practical: Postgres plus a pinned `workos-emulate` binary, seed and signing key, `GET /health`, then build/serve the app with the emulator environment and `vp run test:e2e`. No WorkOS credentials or egress to `api.workos.com` are required.
 
-Pin the emulator version explicitly and verify the release checksum rather than tracking `latest`, so a CI run cannot change behaviour without a commit.
+Pin the emulator version explicitly (`WORKOS_EMULATE_VERSION` / the start script default) rather than tracking `latest`.
 
 ## Delivery phases
 
@@ -110,7 +110,7 @@ Pin the emulator version explicitly and verify the release checksum rather than 
 
 **Phase 4 — delete the bypass.** Remove `src/lib/e2e/config.ts`, `src/lib/e2e/fixture-auth.ts`, `src/api/routes/e2e/`, and their tests; remove the `/e2e` mount from `src/api/app.ts`; remove the fixture branches from `src/lib/workos/server-auth.ts`, `src/api/auth/workos-session.ts`, `src/proxy.ts`, `src/lib/workos/provision-workspace-in-workos.ts`, and `src/app/auth/onboarding/actions.ts`; drop `fixture` from the `E2E_AUTH_MODE` enum. Unit and route tests are unaffected — they authenticate through `src/api/test-auth.fixture.ts`, which is a separate mechanism and stays as it is.
 
-**Phase 5 — CI and new coverage.** Add the e2e workflow job, then add the tests the bypass made impossible: membership revoked in WorkOS loses access on reconcile, `organization_selection_required` drives the organization picker, session refresh after access-token expiry, provisioning failure via an error hook, and webhook-driven membership updates.
+**Phase 5 — Local coverage first; CI later.** Run browser e2e locally against the emulator. Defer wiring `test:e2e` into `.github/workflows/web.yml` until the suite is stable. Then add the tests the bypass made impossible: membership revoked in WorkOS loses access on reconcile, `organization_selection_required` drives the organization picker, session refresh after access-token expiry, provisioning failure via an error hook, and webhook-driven membership updates.
 
 ## Safety and failure handling
 
@@ -142,4 +142,4 @@ Ongoing verification follows the phases. Phase 1 is covered by `vp test` and `vp
 
 Whether to contribute the `/sdk/feature-flags` route and the webhook timestamp fix upstream, or to carry local workarounds. Upstream is preferable for both — they are small and neither is specific to us.
 
-Whether Phase 5's e2e job blocks merges or runs advisory-only at first. Given that browser e2e is not gating today, starting advisory and promoting once it has proven stable avoids trading a coverage gap for a flakiness problem.
+When CI is added later, whether the e2e job blocks merges or runs advisory-only at first. Keep it local until the suite is stable.
