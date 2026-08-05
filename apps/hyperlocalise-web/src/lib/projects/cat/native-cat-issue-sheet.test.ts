@@ -140,8 +140,10 @@ describe("maybeCreateIssueSheetFromNativeCatIssueComment", () => {
     expect(body.linkUrl).toContain(
       `/org/acme/projects/${encodeURIComponent("project/with/slashes")}/files/cat?`,
     );
-    expect(body.linkUrl).toContain(`sourcePath=${encodeURIComponent(sourcePath)}`);
-    expect(body.linkUrl).toContain(`segment=${encodeURIComponent(segmentId)}`);
+    const linkUrl = new URL(body.linkUrl, "https://example.test");
+    expect(linkUrl.searchParams.get("sourcePath")).toBe(sourcePath);
+    expect(linkUrl.searchParams.get("segment")).toBe(segmentId);
+    expect(linkUrl.searchParams.get("locale")).toBe("fr-FR");
     expect(body.linkedCommentId).toBe("comment-1");
   });
 
@@ -224,47 +226,50 @@ describe("maybeResolveIssueSheetFromNativeCatIssueComment", () => {
     });
     expect(posted).not.toBeNull();
 
-    const issueSheetService = new IssueSheetService();
-    const openIssue = await issueSheetService.createIssue({
-      organizationId: organization.id,
-      projectId: project.id,
-      actorUserId: actor.id,
-      body: {
-        title: "Open linked",
-        linkedCommentId: posted!.externalCommentId,
-        status: "open",
-      },
-    });
-    const inProgressIssue = await issueSheetService.createIssue({
-      organizationId: organization.id,
-      projectId: project.id,
-      actorUserId: actor.id,
-      body: {
-        title: "In progress linked",
-        linkedCommentId: posted!.externalCommentId,
-        status: "in_progress",
-      },
-    });
-    const resolvedIssue = await issueSheetService.createIssue({
-      organizationId: organization.id,
-      projectId: project.id,
-      actorUserId: actor.id,
-      body: {
-        title: "Already resolved",
-        linkedCommentId: posted!.externalCommentId,
-        status: "resolved",
-      },
-    });
-    const wontFixIssue = await issueSheetService.createIssue({
-      organizationId: organization.id,
-      projectId: project.id,
-      actorUserId: actor.id,
-      body: {
-        title: "Wont fix",
-        linkedCommentId: posted!.externalCommentId,
-        status: "wont_fix",
-      },
-    });
+    // Insert directly so createIssue's linked-comment dedupe cannot collapse rows.
+    const [openIssue, inProgressIssue, resolvedIssue, wontFixIssue] = await db
+      .insert(schema.issueSheetIssues)
+      .values([
+        {
+          organizationId: organization.id,
+          projectId: project.id,
+          title: "Open linked",
+          description: "",
+          status: "open",
+          linkedCommentId: posted!.externalCommentId,
+          reporterUserId: actor.id,
+        },
+        {
+          organizationId: organization.id,
+          projectId: project.id,
+          title: "In progress linked",
+          description: "",
+          status: "in_progress",
+          linkedCommentId: posted!.externalCommentId,
+          reporterUserId: actor.id,
+        },
+        {
+          organizationId: organization.id,
+          projectId: project.id,
+          title: "Already resolved",
+          description: "",
+          status: "resolved",
+          linkedCommentId: posted!.externalCommentId,
+          reporterUserId: actor.id,
+          resolvedAt: new Date(),
+        },
+        {
+          organizationId: organization.id,
+          projectId: project.id,
+          title: "Wont fix",
+          description: "",
+          status: "wont_fix",
+          linkedCommentId: posted!.externalCommentId,
+          reporterUserId: actor.id,
+          resolvedAt: new Date(),
+        },
+      ])
+      .returning({ id: schema.issueSheetIssues.id });
 
     await maybeResolveIssueSheetFromNativeCatIssueComment({
       organizationId: organization.id,
@@ -337,26 +342,29 @@ describe("maybeResolveIssueSheetFromNativeCatIssueComment", () => {
       actorUserId: actor.id,
     });
 
-    const first = await new IssueSheetService().createIssue({
-      organizationId: organization.id,
-      projectId: project.id,
-      actorUserId: actor.id,
-      body: {
-        title: "First",
-        linkedCommentId: posted!.externalCommentId,
-        status: "open",
-      },
-    });
-    const second = await new IssueSheetService().createIssue({
-      organizationId: organization.id,
-      projectId: project.id,
-      actorUserId: actor.id,
-      body: {
-        title: "Second",
-        linkedCommentId: posted!.externalCommentId,
-        status: "open",
-      },
-    });
+    const [first, second] = await db
+      .insert(schema.issueSheetIssues)
+      .values([
+        {
+          organizationId: organization.id,
+          projectId: project.id,
+          title: "First",
+          description: "",
+          status: "open",
+          linkedCommentId: posted!.externalCommentId,
+          reporterUserId: actor.id,
+        },
+        {
+          organizationId: organization.id,
+          projectId: project.id,
+          title: "Second",
+          description: "",
+          status: "open",
+          linkedCommentId: posted!.externalCommentId,
+          reporterUserId: actor.id,
+        },
+      ])
+      .returning({ id: schema.issueSheetIssues.id });
 
     const updateIssue = vi
       .fn()
@@ -375,8 +383,8 @@ describe("maybeResolveIssueSheetFromNativeCatIssueComment", () => {
     ).resolves.toBeUndefined();
 
     expect(updateIssue).toHaveBeenCalledTimes(2);
-    expect(updateIssue.mock.calls.map((call) => call[0].issueId).sort()).toEqual(
-      [first.id, second.id].sort(),
-    );
+    expect(
+      updateIssue.mock.calls.map((call) => call[0].issueId).toSorted((a, b) => a.localeCompare(b)),
+    ).toEqual([first.id, second.id].toSorted((a, b) => a.localeCompare(b)));
   });
 });

@@ -311,20 +311,14 @@ describe("IssueNotificationService", () => {
       .where(eq(schema.issueNotifications.issueId, issue.id));
 
     expect(
-      rows.some(
-        (row) => row.type === "assigned" && row.recipientUserId === nextAssigneeUserId,
-      ),
+      rows.some((row) => row.type === "assigned" && row.recipientUserId === nextAssigneeUserId),
+    ).toBe(true);
+    expect(
+      rows.some((row) => row.type === "assignee_changed" && row.recipientUserId === assigneeUserId),
     ).toBe(true);
     expect(
       rows.some(
-        (row) =>
-          row.type === "assignee_changed" && row.recipientUserId === assigneeUserId,
-      ),
-    ).toBe(true);
-    expect(
-      rows.some(
-        (row) =>
-          row.type === "assignee_changed" && row.recipientUserId === nextAssigneeUserId,
+        (row) => row.type === "assignee_changed" && row.recipientUserId === nextAssigneeUserId,
       ),
     ).toBe(false);
     expect(rows.every((row) => row.recipientUserId !== actor.id)).toBe(true);
@@ -361,10 +355,7 @@ describe("IssueNotificationService", () => {
 
     expect(rows.some((row) => row.type === "assigned")).toBe(false);
     expect(
-      rows.some(
-        (row) =>
-          row.type === "assignee_changed" && row.recipientUserId === assigneeUserId,
-      ),
+      rows.some((row) => row.type === "assignee_changed" && row.recipientUserId === assigneeUserId),
     ).toBe(true);
     expect(rows.every((row) => row.recipientUserId !== actor.id)).toBe(true);
   });
