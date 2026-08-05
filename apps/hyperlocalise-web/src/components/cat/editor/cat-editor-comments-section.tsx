@@ -15,15 +15,12 @@
 import { useState } from "react";
 import { FormattedMessage, useIntl, type IntlShape } from "react-intl";
 
+import {
+  IssueTypePicker,
+  type IssueTypeValue,
+} from "@/app/[lang]/(authenticated)/org/[organizationSlug]/_components/issue-detail/issue-type-picker";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -36,7 +33,6 @@ import type {
   CatSegmentComment,
   CatSegmentCommentInput,
   CatSegmentCommentType,
-  CrowdinIssueType,
 } from "@/components/cat/shared/types";
 
 function formatCommentTimestamp(intl: IntlShape, createdAt: string) {
@@ -53,16 +49,6 @@ function formatCommentTimestamp(intl: IntlShape, createdAt: string) {
     minute: "2-digit",
   });
 }
-
-const crowdinIssueTypeOptions: Array<{
-  value: CrowdinIssueType;
-  message: (typeof catEditorPanelMessages)[keyof typeof catEditorPanelMessages];
-}> = [
-  { value: "general_question", message: catEditorPanelMessages.issueTypeGeneralQuestion },
-  { value: "translation_mistake", message: catEditorPanelMessages.issueTypeTranslationMistake },
-  { value: "context_request", message: catEditorPanelMessages.issueTypeContextRequest },
-  { value: "source_mistake", message: catEditorPanelMessages.issueTypeSourceMistake },
-];
 
 function CatEditorCommentItem({
   comment,
@@ -209,7 +195,7 @@ export function CatEditorCommentsSection({
   const [commentInputTypes, setCommentInputTypes] = useState<Record<string, CatSegmentCommentType>>(
     {},
   );
-  const [issueTypes, setIssueTypes] = useState<Record<string, CrowdinIssueType>>({});
+  const [issueTypes, setIssueTypes] = useState<Record<string, IssueTypeValue>>({});
 
   const commentDraft = commentDrafts[segment.id] ?? "";
   const commentInputType = commentInputTypes[segment.id] ?? "comment";
@@ -244,16 +230,7 @@ export function CatEditorCommentsSection({
     setCommentInputTypes((current) => ({ ...current, [segment.id]: value }));
   }
 
-  function handleIssueTypeChange(value: CrowdinIssueType | null) {
-    if (
-      value !== "general_question" &&
-      value !== "translation_mistake" &&
-      value !== "context_request" &&
-      value !== "source_mistake"
-    ) {
-      return;
-    }
-
+  function handleIssueTypeChange(value: IssueTypeValue) {
     setIssueTypes((current) => ({ ...current, [segment.id]: value }));
   }
 
@@ -305,18 +282,13 @@ export function CatEditorCommentsSection({
               <span className="text-xs text-muted-foreground">
                 <FormattedMessage {...catEditorPanelMessages.issueTypeLabel} />
               </span>
-              <Select value={issueType} onValueChange={handleIssueTypeChange}>
-                <SelectTrigger className="h-8 flex-1 text-xs">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {crowdinIssueTypeOptions.map((option) => (
-                    <SelectItem key={option.value} value={option.value}>
-                      <FormattedMessage {...option.message} />
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <IssueTypePicker
+                value={issueType}
+                onValueChange={handleIssueTypeChange}
+                disabled={!canAddComment || isPostingComment || isResolvingComment}
+                aria-label={intl.formatMessage(catEditorPanelMessages.issueTypeLabel)}
+                triggerClassName="h-8 border-border bg-background"
+              />
             </div>
           ) : null}
         </div>

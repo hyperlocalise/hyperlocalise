@@ -206,3 +206,4 @@ export function issueSheetApiPath(organizationSlug: string, projectId: string) {
 }
 
 export { issueTypeValues };
+export type { IssueTypeValue };

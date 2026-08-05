@@ -38,7 +38,6 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import { FormattedMessage, useIntl } from "react-intl";
 import { toast } from "sonner";
 
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -63,13 +62,12 @@ import {
   issuePriorityValues,
   issueStatusLabel,
   issueStatusValues,
-  issueTypeLabel,
-  issueTypeValues,
   linkKindLabel,
   type IssueDetailIssue,
 } from "./issue-detail-utils";
 import { IssuePriorityIcon } from "./issue-priority-icon";
 import { IssueStatusIcon } from "./issue-status-icon";
+import { IssueTypePicker, type IssueTypeValue } from "./issue-type-picker";
 import { useAssignableIssueMembersQuery } from "./use-assignable-issue-members";
 import { useIssueDetailMutations } from "./use-issue-detail-mutations";
 import { useIssueDetailQuery } from "./use-issue-detail-query";
@@ -332,15 +330,6 @@ export const IssueDetailPanel = forwardRef<
       issueStatusValues.map((value) => ({
         value,
         label: issueStatusLabel(intl, value),
-      })),
-    [intl],
-  );
-
-  const issueTypeItems = useMemo(
-    () =>
-      issueTypeValues.map((value) => ({
-        value,
-        label: issueTypeLabel(intl, value),
       })),
     [intl],
   );
@@ -621,29 +610,14 @@ export const IssueDetailPanel = forwardRef<
           </PropertyRow>
 
           <PropertyRow icon={Tag01Icon} label={<FormattedMessage {...messages.fieldType} />}>
-            <Select
-              value={issue.issueType}
-              items={issueTypeItems}
+            <IssueTypePicker
+              value={issue.issueType as IssueTypeValue}
               onValueChange={(value) => {
-                if (value) {
-                  updateIssue.mutate({ issueType: value });
-                }
+                updateIssue.mutate({ issueType: value });
               }}
               disabled={isSaving}
-            >
-              <SelectTrigger className={ghostSelectTriggerClassName}>
-                <Badge variant="outline" className="rounded-full">
-                  {issueTypeLabel(intl, issue.issueType)}
-                </Badge>
-              </SelectTrigger>
-              <SelectContent>
-                {issueTypeItems.map((type) => (
-                  <SelectItem key={type.value} value={type.value} label={type.label}>
-                    {type.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+              triggerClassName={ghostSelectTriggerClassName}
+            />
           </PropertyRow>
 
           <PropertyRow icon={Flag01Icon} label={<FormattedMessage {...messages.fieldPriority} />}>

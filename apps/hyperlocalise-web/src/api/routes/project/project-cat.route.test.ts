@@ -50,6 +50,7 @@ const {
   createStoredFileMock,
   deleteStoredFileMock,
   isReleaseCatAllFilesEnabledMock,
+  workspaceIssuesFlagRunMock,
 } = vi.hoisted(() => ({
   getTmsProviderConnectionMock: vi.fn(),
   getTmsProviderLiveCatFileMock: vi.fn(),
@@ -64,11 +65,16 @@ const {
   createStoredFileMock: vi.fn(),
   deleteStoredFileMock: vi.fn(),
   isReleaseCatAllFilesEnabledMock: vi.fn(async () => false),
+  workspaceIssuesFlagRunMock: vi.fn(async () => true),
 }));
 
 vi.mock("@/lib/flags/release-flags", () => ({
   isReleaseCatAllFilesEnabled: isReleaseCatAllFilesEnabledMock,
   RELEASE_CAT_ALL_FILES_FLAG: "release-cat-all-files",
+}));
+
+vi.mock("@/lib/flags/workspace-flags", () => ({
+  workspaceIssuesFlag: { run: workspaceIssuesFlagRunMock },
 }));
 
 vi.mock("@/lib/translation/cat", () => ({
@@ -135,6 +141,7 @@ beforeAll(async () => {
 afterEach(async () => {
   vi.clearAllMocks();
   isReleaseCatAllFilesEnabledMock.mockResolvedValue(false);
+  workspaceIssuesFlagRunMock.mockResolvedValue(true);
   await projectFixture.cleanup();
 });
 
@@ -1159,6 +1166,33 @@ describe("project file CAT routes", () => {
       text: "Wrong tone.",
     });
 
+    const linkedIssues = await db
+      .select({
+        title: schema.issueSheetIssues.title,
+        issueType: schema.issueSheetIssues.issueType,
+        translationKeyId: schema.issueSheetIssues.translationKeyId,
+        linkedCommentId: schema.issueSheetIssues.linkedCommentId,
+        linkKind: schema.issueSheetIssues.linkKind,
+        segmentId: schema.issueSheetIssues.segmentId,
+        targetLocale: schema.issueSheetIssues.targetLocale,
+        sourcePath: schema.issueSheetIssues.sourcePath,
+      })
+      .from(schema.issueSheetIssues)
+      .where(eq(schema.issueSheetIssues.projectId, project.id));
+
+    expect(linkedIssues).toEqual([
+      expect.objectContaining({
+        title: "Wrong tone.",
+        issueType: "translation_mistake",
+        translationKeyId,
+        linkedCommentId: posted.comment.externalCommentId,
+        linkKind: "cat_segment",
+        segmentId: translationKeyId,
+        targetLocale: "fr-FR",
+        sourcePath,
+      }),
+    ]);
+
     const resolveResponse = await client.api.orgs[":organizationSlug"].projects[
       ":projectId"
     ].files.detail.cat.comments[":commentId"].resolve.$patch(
@@ -1181,6 +1215,61 @@ describe("project file CAT routes", () => {
       },
     });
     expect(resolveTmsProviderLiveCatCommentMock).not.toHaveBeenCalled();
+  });
+
+  it("does not create an Issues row from CAT raise-issue when the workspace flag is off", async () => {
+    workspaceIssuesFlagRunMock.mockResolvedValue(false);
+    const { identity, project, organization } = await projectFixture.createStoredProjectFixture();
+    const headers = await projectFixture.authHeadersFor(identity);
+    const sourcePath = "locales/en.json";
+    const sourceFile = await ensureRepositorySourceFile({
+      organizationId: organization.id,
+      projectId: project.id,
+      sourcePath,
+    });
+
+    await upsertProjectTranslationKeysFromEntries({
+      organizationId: organization.id,
+      projectId: project.id,
+      repositorySourceFileId: sourceFile.id,
+      entries: [{ key: "greeting", text: "Hello", context: null }],
+    });
+
+    const keys = await db
+      .select({ id: schema.projectTranslationKeys.id })
+      .from(schema.projectTranslationKeys)
+      .where(eq(schema.projectTranslationKeys.repositorySourceFileId, sourceFile.id))
+      .limit(1);
+    const translationKeyId = keys[0]!.id;
+
+    const postResponse = await client.api.orgs[":organizationSlug"].projects[
+      ":projectId"
+    ].files.detail.cat.comments.$post(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          projectId: project.id,
+        },
+        json: {
+          sourcePath,
+          targetLocale: "fr-FR",
+          externalStringId: translationKeyId,
+          text: "Still wrong tone.",
+          type: "issue",
+          issueType: "translation_mistake",
+        },
+      },
+      { headers },
+    );
+
+    expect(postResponse.status).toBe(200);
+
+    const linkedIssues = await db
+      .select({ id: schema.issueSheetIssues.id })
+      .from(schema.issueSheetIssues)
+      .where(eq(schema.issueSheetIssues.projectId, project.id));
+
+    expect(linkedIssues).toEqual([]);
   });
 
   it("returns Crowdin CAT content for an encoded provider project", async () => {

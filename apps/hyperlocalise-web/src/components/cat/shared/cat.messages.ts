@@ -742,26 +742,6 @@ export const catEditorPanelMessages = defineMessages({
     id: "E8rEmEqTpX",
     description: "Button label while a Crowdin issue is being resolved",
   },
-  issueTypeGeneralQuestion: {
-    defaultMessage: "General question",
-    id: "2oU/YE7MsU",
-    description: "Crowdin issue type for general questions",
-  },
-  issueTypeTranslationMistake: {
-    defaultMessage: "Translation mistake",
-    id: "p83H7uOHst",
-    description: "Crowdin issue type for translation mistakes",
-  },
-  issueTypeContextRequest: {
-    defaultMessage: "Context request",
-    id: "YNB1czGowu",
-    description: "Crowdin issue type for context requests",
-  },
-  issueTypeSourceMistake: {
-    defaultMessage: "Source mistake",
-    id: "LMW/LqnbFb",
-    description: "Crowdin issue type for source mistakes",
-  },
   issueTypeLabel: {
     defaultMessage: "Issue type",
     id: "t/OSX7F5nd",

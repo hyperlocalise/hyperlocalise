@@ -26,6 +26,7 @@ import {
   notFoundResponse,
   serviceUnavailableResponse,
 } from "@/api/errors";
+import { isWorkspaceFeatureFlagEnabled } from "@/api/middleware/workspace-feature-flag";
 import { translationsNotFoundResponse } from "@/api/routes/public-translations/public-translations.shared";
 import {
   withWorkspaceResourceLimit,
@@ -37,6 +38,7 @@ import { db, schema, type DatabaseClient } from "@/lib/database";
 import type { Project } from "@/lib/database/types";
 import { getFileStorageAdapter, type FileStorageAdapter } from "@/lib/file-storage";
 import { isReleaseCatAllFilesEnabled } from "@/lib/flags/release-flags";
+import { workspaceIssuesFlag } from "@/lib/flags/workspace-flags";
 import { createLogger } from "@/lib/log";
 import {
   createRepositorySourceFileVersion,
@@ -70,6 +72,7 @@ import {
   saveNativeProjectCatTranslation,
   updateNativeProjectTranslationStatus,
 } from "@/lib/projects/cat/native-cat-service";
+import { maybeCreateIssueSheetFromNativeCatIssueComment } from "@/lib/projects/cat/native-cat-issue-sheet";
 import {
   enrichExternalCatFileImageFields,
   enrichExternalCatTranslationImageFields,
@@ -1124,6 +1127,26 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
               "translation_key_not_found",
               "Translation key not found for the given file.",
             );
+          }
+
+          if (body.type === "issue") {
+            const issuesEnabled = await isWorkspaceFeatureFlagEnabled(
+              workspaceIssuesFlag,
+              c.var.auth,
+            );
+            await maybeCreateIssueSheetFromNativeCatIssueComment({
+              organizationId: c.var.auth.organization.localOrganizationId,
+              organizationSlug:
+                c.var.auth.organization.slug ?? c.var.auth.organization.localOrganizationId,
+              projectId: params.projectId,
+              actorUserId: c.var.auth.user.localUserId,
+              sourcePath: body.sourcePath,
+              targetLocale: body.targetLocale,
+              translationKeyId: body.externalStringId,
+              issueType: body.issueType,
+              comment,
+              issuesEnabled,
+            });
           }
 
           return c.json({ comment }, 200);
