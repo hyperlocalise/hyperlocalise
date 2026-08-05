@@ -58,7 +58,6 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { path: "/startups", changeFrequency: "monthly" as const, priority: 0.8 },
     { path: "/terms", changeFrequency: "monthly" as const, priority: 0.5 },
     { path: "/privacy", changeFrequency: "monthly" as const, priority: 0.5 },
-    { path: "/trust-center", changeFrequency: "monthly" as const, priority: 0.5 },
   ];
 
   const localizedStaticEntries: MetadataRoute.Sitemap = SUPPORTED_APP_LOCALES.flatMap((locale) =>

@@ -103,7 +103,7 @@ ${formatLinks(useCaseLinks)}
 
 - [Homepage](${SITE_URL}/en): Marketing homepage for the agentic localisation platform.
 - [Blog](${SITE_URL}/en/blog): Product updates and writing on localisation operations.
-- [Trust Center](${SITE_URL}/en/trust-center): Security, privacy, and subprocessors.
+- [Trust Center](https://app.aus.vanta.com/hyperlocalise.com/trust/su9x7fcjfa8q700wu9pt2u): Security, privacy, and subprocessors.
 - [Privacy](${SITE_URL}/en/privacy): Privacy policy.
 - [Terms](${SITE_URL}/en/terms): Terms of service.
 - [Contact](mailto:minh@hyperlocalise.com): Email Hyperlocalise.

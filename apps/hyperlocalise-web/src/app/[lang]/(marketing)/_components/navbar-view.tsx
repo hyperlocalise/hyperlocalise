@@ -37,6 +37,7 @@ import {
   docsUrl,
   githubActionUrl,
   githubRepoUrl,
+  trustCenterUrl,
 } from "@/components/marketing/marketing-page-content";
 import { productFooterLinks } from "@/components/marketing/product/product-page-content";
 import { productPageMessages } from "@/components/marketing/product/product-page-content.messages";
@@ -120,7 +121,7 @@ const resourceLinks: NavLink[] = [
 
 const legalLinks: NavLink[] = [
   { href: contactUrl, kind: "navbar", labelKey: "navContact" },
-  { href: "/trust-center", kind: "navbar", labelKey: "navTrustCenter" },
+  { href: trustCenterUrl, kind: "navbar", labelKey: "navTrustCenter", external: true },
   { href: "/privacy", kind: "navbar", labelKey: "navPrivacy" },
   { href: "/terms", kind: "navbar", labelKey: "navTerms" },
 ];

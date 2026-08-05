@@ -21,6 +21,8 @@ export const cliDocsUrl = "https://hyperlocalise.dev/commands/overview";
 export const contactUrl = "mailto:minh@hyperlocalise.com";
 export const statusUrl = "https://status.hyperlocalise.com/";
 export const linkedInCompanyUrl = "https://www.linkedin.com/company/hyperlocalise/";
+export const trustCenterUrl =
+  "https://app.aus.vanta.com/hyperlocalise.com/trust/su9x7fcjfa8q700wu9pt2u";
 
 export type MarketingFooterLink = {
   labelKey?: string;
@@ -89,7 +91,7 @@ export const footerColumns: MarketingFooterColumn[] = [
     links: [
       { label: "Terms", href: "/en/terms" },
       { label: "Privacy", href: "/en/privacy" },
-      { label: "Trust Center", href: "/en/trust-center" },
+      { label: "Trust Center", href: trustCenterUrl },
     ],
     nested: {
       title: "Social",
