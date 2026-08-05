@@ -15,7 +15,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AlertCircleIcon } from "lucide-react";
 import { FormattedMessage, useIntl } from "react-intl";
-import { toast } from "sonner";
 
 import type {
   ProjectFileCatConcordanceResponse,
@@ -64,6 +63,12 @@ import {
 } from "@/components/cat/workspace/cat-workspace-view-mode";
 
 import { useOptionalAppShellStore } from "@/components/app-shell/store/app-shell-store-context";
+import { resolveCatLinkedIssueTranslationKeyId } from "@/components/cat/issues/cat-linked-issue-translation-key";
+import {
+  CatLinkedIssuesDialog,
+  type CatLinkedIssueSegmentContext,
+} from "@/components/cat/issues/cat-linked-issues-dialog";
+import { catLinkedIssuesDialogMessages } from "@/components/cat/issues/cat-linked-issues-dialog.messages";
 
 import { projectFileCatToWorkspaceState } from "./project-file-cat-mapper";
 import { projectFileCatWorkspaceMessages } from "./project-file-cat-workspace.messages";
@@ -119,6 +124,9 @@ export function ProjectFileCatWorkspace({
   const intl = useIntl();
   const appShellStore = useOptionalAppShellStore();
   const issuesEnabled = appShellStore?.workspaceFeatureFlags.issues ?? false;
+  const [linkedIssuesOpen, setLinkedIssuesOpen] = useState(false);
+  const [linkedIssuesSegment, setLinkedIssuesSegment] =
+    useState<CatLinkedIssueSegmentContext | null>(null);
   const internalPageNavigationGuardRef = useRef<CatPageNavigationGuard | null>(null);
   const resolvedPageNavigationGuardRef = pageNavigationGuardRef ?? internalPageNavigationGuardRef;
   const [pageLimit, setPageLimit] = useState(() =>
@@ -367,51 +375,24 @@ export function ProjectFileCatWorkspace({
               segmentKey: segment.key,
             });
 
-      const response = await fetch(
-        `/api/orgs/${encodeURIComponent(organizationSlug)}/projects/${encodeURIComponent(projectId)}/issue-sheet`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            title: intl.formatMessage(projectFileCatWorkspaceMessages.contextNeededIssueTitle, {
-              key: segment.key,
-            }),
-            description: segment.sourceText,
-            issueType: "context_request",
-            targetLocale,
-            sourcePath,
-            segmentId,
-            linkKind: "cat_segment",
-            linkLabel: intl.formatMessage(projectFileCatWorkspaceMessages.openInCatLinkLabel),
-            linkUrl: linkUrl ?? undefined,
-            externalRef: `cat:${projectId}:${sourcePath}:${targetLocale}:${segmentId}`,
-            priority: "P2",
-          }),
-        },
-      );
-
-      if (!response.ok) {
-        throw new Error(
-          await readApiError(
-            response,
-            intl.formatMessage(projectFileCatWorkspaceMessages.failedToAddToIssueSheet),
-          ),
-        );
-      }
-
-      const body = (await response.json()) as { issue: { id: string } };
-      const issueDetailUrl = `/org/${organizationSlug}/projects/${encodeURIComponent(projectId)}/issue-sheet/${encodeURIComponent(body.issue.id)}`;
-
-      toast.success(intl.formatMessage(projectFileCatWorkspaceMessages.addedToIssueSheet), {
-        action: {
-          label: intl.formatMessage(projectFileCatWorkspaceMessages.viewIssueSheetRow),
-          onClick: () => {
-            window.location.href = issueDetailUrl;
-          },
-        },
+      const translationKeyId = resolveCatLinkedIssueTranslationKeyId({
+        isNativeProject,
+        segmentId,
+        contentKind: segment.contentKind,
       });
+      setLinkedIssuesSegment({
+        segmentId,
+        segmentKey: segment.key,
+        sourceText: segment.sourceText,
+        translationKeyId,
+        targetLocale,
+        sourcePath,
+        linkUrl,
+        linkLabel: intl.formatMessage(catLinkedIssuesDialogMessages.openInCatLinkLabel),
+      });
+      setLinkedIssuesOpen(true);
     },
-    [catFile?.segments, intl, organizationSlug, projectId, sourcePath, targetLocale],
+    [catFile?.segments, intl, isNativeProject, sourcePath, targetLocale],
   );
 
   const buildSegmentShareUrl = useCallback((segment: CatSegment) => {
@@ -734,6 +715,15 @@ export function ProjectFileCatWorkspace({
         canLookupFreshContext={canLookupFreshContext}
         onPageLimitChange={setPageLimit}
       />
+      {issuesEnabled ? (
+        <CatLinkedIssuesDialog
+          open={linkedIssuesOpen}
+          onOpenChange={setLinkedIssuesOpen}
+          organizationSlug={organizationSlug}
+          projectId={projectId}
+          segment={linkedIssuesSegment}
+        />
+      ) : null}
     </div>
   );
 }

@@ -817,6 +817,13 @@ export class IssueSheetService {
     body: IssueSheetCreateIssueBody;
   }): Promise<IssueSheetIssue> {
     await this.ensureStarterColumns(input);
+    if (input.body.translationKeyId) {
+      await this.assertTranslationKeyInProject({
+        organizationId: input.organizationId,
+        projectId: input.projectId,
+        translationKeyId: input.body.translationKeyId,
+      });
+    }
     const existing = await this.findExistingLinkedIssue(input);
     if (existing) {
       return existing;
@@ -967,6 +974,15 @@ export class IssueSheetService {
       }
     }
 
+    const translationKeyChanging = Object.hasOwn(input.body, "translationKeyId");
+    if (translationKeyChanging && input.body.translationKeyId) {
+      await this.assertTranslationKeyInProject({
+        organizationId: input.organizationId,
+        projectId: input.projectId,
+        translationKeyId: input.body.translationKeyId,
+      });
+    }
+
     const found = await this.database.transaction(async (tx) => {
       const [current] = await tx
         .select({
@@ -1010,6 +1026,9 @@ export class IssueSheetService {
           targetLocale: input.body.targetLocale,
           sourcePath: input.body.sourcePath,
           segmentId: input.body.segmentId,
+          ...(translationKeyChanging
+            ? { translationKeyId: input.body.translationKeyId ?? null }
+            : {}),
           linkKind: input.body.linkKind,
           linkLabel: input.body.linkLabel,
           linkUrl: input.body.linkUrl,
@@ -1259,6 +1278,28 @@ export class IssueSheetService {
     });
   }
 
+  private async assertTranslationKeyInProject(input: {
+    organizationId: string;
+    projectId: string;
+    translationKeyId: string;
+  }) {
+    const [key] = await this.database
+      .select({ id: schema.projectTranslationKeys.id })
+      .from(schema.projectTranslationKeys)
+      .where(
+        and(
+          eq(schema.projectTranslationKeys.id, input.translationKeyId),
+          eq(schema.projectTranslationKeys.organizationId, input.organizationId),
+          eq(schema.projectTranslationKeys.projectId, input.projectId),
+        ),
+      )
+      .limit(1);
+
+    if (!key) {
+      throw new Error("translation_key_not_found");
+    }
+  }
+
   private async findExistingLinkedIssue(input: {
     organizationId: string;
     projectId: string;
@@ -1284,7 +1325,14 @@ export class IssueSheetService {
     if (input.body.linkedCommentId) {
       linkConditions.push(eq(schema.issueSheetIssues.linkedCommentId, input.body.linkedCommentId));
     }
-    if (input.body.segmentId && input.body.targetLocale) {
+    // String-linked / CAT creates may have many open issues per segment.
+    // Keep segment+locale dedupe for other link kinds without an explicit translation key.
+    if (
+      !input.body.translationKeyId &&
+      input.body.linkKind !== "cat_segment" &&
+      input.body.segmentId &&
+      input.body.targetLocale
+    ) {
       linkConditions.push(
         and(
           eq(schema.issueSheetIssues.segmentId, input.body.segmentId),

@@ -112,6 +112,7 @@ export async function sourceFileIngestWorkflow(event: SourceFileIngestEventData)
         sourceFileId: event.storedFileId,
         sourceFileVersionId: event.sourceFileVersionId,
         sourcePath: event.sourcePath,
+        sourceHash: claim.sourceHash,
       });
 
       return {
@@ -158,6 +159,7 @@ export async function sourceFileIngestWorkflow(event: SourceFileIngestEventData)
       sourceFileId: event.storedFileId,
       sourceFileVersionId: event.sourceFileVersionId,
       sourcePath: event.sourcePath,
+      sourceHash: claim.sourceHash,
     });
 
     return {

@@ -115,12 +115,24 @@ function Field({
   );
 }
 
+export type IssueSheetCreateStringLink = {
+  translationKeyId?: string;
+  segmentId: string;
+  sourcePath: string;
+  targetLocale: string;
+  defaultTitle?: string;
+  defaultDescription?: string;
+  linkUrl?: string;
+  linkLabel?: string;
+};
+
 export function IssueSheetCreateIssueDialog({
   open,
   onOpenChange,
   organizationSlug,
   projectId,
   projects,
+  stringLink,
   onCreated,
 }: {
   open: boolean;
@@ -128,6 +140,7 @@ export function IssueSheetCreateIssueDialog({
   organizationSlug: string;
   projectId?: string;
   projects?: { id: string; name: string }[];
+  stringLink?: IssueSheetCreateStringLink;
   onCreated: () => Promise<void>;
 }) {
   const intl = useIntl();
@@ -141,6 +154,19 @@ export function IssueSheetCreateIssueDialog({
   const [linkLabel, setLinkLabel] = useState("");
   const [linkUrl, setLinkUrl] = useState("");
   const [assigneeUserId, setAssigneeUserId] = useState<string | null>(null);
+
+  // Depend on primitives instead of the `stringLink` / `projects` object identities
+  // so rerenders of the caller never discard in-progress edits.
+  const {
+    segmentId: linkSegmentId = null,
+    sourcePath: linkSourcePath = null,
+    targetLocale: linkTargetLocale = null,
+    defaultTitle: linkDefaultTitle = null,
+    defaultDescription: linkDefaultDescription = null,
+    linkLabel: linkDefaultLinkLabel = null,
+    linkUrl: linkDefaultLinkUrl = null,
+  } = stringLink ?? {};
+  const onlyProjectId = projects?.length === 1 ? projects[0].id : null;
 
   useEffect(() => {
     if (!open) {
@@ -156,14 +182,35 @@ export function IssueSheetCreateIssueDialog({
       setAssigneeUserId(null);
       return;
     }
+    if (linkSegmentId) {
+      setTitle(linkDefaultTitle ?? "");
+      setDescription(linkDefaultDescription ?? "");
+      setIssueType("context_request");
+      setPriority("P2");
+      setTargetLocale(linkTargetLocale ?? "");
+      setSourcePath(linkSourcePath ?? "");
+      setLinkLabel(linkDefaultLinkLabel ?? "");
+      setLinkUrl(linkDefaultLinkUrl ?? "");
+    }
     if (projectId) {
       setSelectedProjectId(projectId);
       return;
     }
-    if (projects?.length === 1) {
-      setSelectedProjectId(projects[0].id);
+    if (onlyProjectId) {
+      setSelectedProjectId(onlyProjectId);
     }
-  }, [open, projectId, projects]);
+  }, [
+    linkDefaultDescription,
+    linkDefaultLinkLabel,
+    linkDefaultLinkUrl,
+    linkDefaultTitle,
+    linkSegmentId,
+    linkSourcePath,
+    linkTargetLocale,
+    onlyProjectId,
+    open,
+    projectId,
+  ]);
 
   const resolvedProjectId = projectId ?? selectedProjectId;
 
@@ -195,18 +242,35 @@ export function IssueSheetCreateIssueDialog({
       const response = await fetch(issueSheetPath(organizationSlug, resolvedProjectId), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title: trimmedTitle,
-          description,
-          issueType,
-          targetLocale: targetLocale.trim() || undefined,
-          sourcePath: sourcePath.trim() || undefined,
-          linkKind: linkUrl.trim() ? "url" : "manual",
-          linkLabel: linkLabel.trim() || undefined,
-          linkUrl: linkUrl.trim() || undefined,
-          priority,
-          ...(assigneeUserId ? { assigneeUserId } : {}),
-        }),
+        body: JSON.stringify(
+          stringLink
+            ? {
+                title: trimmedTitle,
+                description,
+                issueType,
+                targetLocale: stringLink.targetLocale,
+                sourcePath: stringLink.sourcePath,
+                segmentId: stringLink.segmentId,
+                translationKeyId: stringLink.translationKeyId,
+                linkKind: "cat_segment",
+                linkLabel: linkLabel.trim() || stringLink.linkLabel || undefined,
+                linkUrl: linkUrl.trim() || stringLink.linkUrl || undefined,
+                priority,
+                ...(assigneeUserId ? { assigneeUserId } : {}),
+              }
+            : {
+                title: trimmedTitle,
+                description,
+                issueType,
+                targetLocale: targetLocale.trim() || undefined,
+                sourcePath: sourcePath.trim() || undefined,
+                linkKind: linkUrl.trim() ? "url" : "manual",
+                linkLabel: linkLabel.trim() || undefined,
+                linkUrl: linkUrl.trim() || undefined,
+                priority,
+                ...(assigneeUserId ? { assigneeUserId } : {}),
+              },
+        ),
       });
       return readJsonOrThrow<{ issue: { id: string } }>(
         response,

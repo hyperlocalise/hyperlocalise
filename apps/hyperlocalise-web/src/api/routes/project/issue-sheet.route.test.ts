@@ -55,12 +55,22 @@ type IssueResponse = {
     issueType: string;
     status: string;
     targetLocale: string | null;
+    translationKeyId: string | null;
+    linkKind: string | null;
+    key: string | null;
+    sourceText: string | null;
     values: Record<string, unknown>;
   };
 };
 
 type IssueSheetListResponse = {
-  issues: { id: string; title?: string; issueType?: string; status?: string }[];
+  issues: {
+    id: string;
+    title?: string;
+    issueType?: string;
+    status?: string;
+    translationKeyId?: string | null;
+  }[];
   columns: { key: string }[];
   total: number;
   summary: { open: number };
@@ -966,5 +976,239 @@ Second import issue,Done,EXT-2,P2`;
       activity: { type: "status_changed" },
     });
     expect(pageTwoBody.nextCursor).toBeNull();
+  });
+
+  it("creates multiple issues linked to the same translation key", async () => {
+    const { identity, organization, project } = await projectFixture.createStoredProjectFixture();
+    const headers = await projectFixture.authHeadersFor(identity);
+    const organizationSlug = identity.organization.slug ?? "missing-slug";
+
+    const [translationKey] = await db
+      .insert(schema.projectTranslationKeys)
+      .values({
+        organizationId: organization.id,
+        projectId: project.id,
+        key: "home.cta",
+        sourceText: "Save changes",
+        normalizedSourceText: "Save changes",
+      })
+      .returning();
+
+    const payload = {
+      title: "Context needed: home.cta",
+      issueType: "context_request",
+      targetLocale: "fr-FR",
+      sourcePath: "messages/home.json",
+      segmentId: translationKey.id,
+      translationKeyId: translationKey.id,
+      linkKind: "cat_segment",
+    };
+
+    const first = await requestJson(issueSheetUrl(organizationSlug, project.id), {
+      method: "POST",
+      headers,
+      body: payload,
+    });
+    const second = await requestJson(issueSheetUrl(organizationSlug, project.id), {
+      method: "POST",
+      headers,
+      body: { ...payload, title: "Second context request" },
+    });
+
+    expect(first.status).toBe(201);
+    expect(second.status).toBe(201);
+    const firstBody = (await first.json()) as IssueResponse;
+    const secondBody = (await second.json()) as IssueResponse;
+    expect(firstBody.issue.translationKeyId).toBe(translationKey.id);
+    expect(firstBody.issue.key).toBe("home.cta");
+    expect(firstBody.issue.sourceText).toBe("Save changes");
+    expect(secondBody.issue.id).not.toBe(firstBody.issue.id);
+    expect(secondBody.issue.translationKeyId).toBe(translationKey.id);
+
+    const listResponse = await requestJson(issueSheetUrl(organizationSlug, project.id), {
+      headers,
+      query: { translationKeyId: translationKey.id, status: "all" },
+    });
+    expect(listResponse.status).toBe(200);
+    const listBody = (await listResponse.json()) as IssueSheetListResponse;
+    expect(listBody.total).toBe(2);
+    expect(listBody.issues.map((issue) => issue.id).sort()).toEqual(
+      [firstBody.issue.id, secondBody.issue.id].sort(),
+    );
+  });
+
+  it("links and unlinks an existing issue to a translation key", async () => {
+    const { identity, organization, project } = await projectFixture.createStoredProjectFixture();
+    const headers = await projectFixture.authHeadersFor(identity);
+    const organizationSlug = identity.organization.slug ?? "missing-slug";
+
+    const [translationKey] = await db
+      .insert(schema.projectTranslationKeys)
+      .values({
+        organizationId: organization.id,
+        projectId: project.id,
+        key: "nav.home",
+        sourceText: "Home",
+        normalizedSourceText: "Home",
+      })
+      .returning();
+
+    const createResponse = await requestJson(issueSheetUrl(organizationSlug, project.id), {
+      method: "POST",
+      headers,
+      body: {
+        title: "Standalone issue",
+        issueType: "general_question",
+      },
+    });
+    expect(createResponse.status).toBe(201);
+    const created = (await createResponse.json()) as IssueResponse;
+    expect(created.issue.translationKeyId).toBeNull();
+
+    const linkResponse = await requestJson(
+      issueSheetUrl(organizationSlug, project.id, `/${created.issue.id}`),
+      {
+        method: "PATCH",
+        headers,
+        body: {
+          translationKeyId: translationKey.id,
+          segmentId: translationKey.id,
+          sourcePath: "messages/nav.json",
+          targetLocale: "de-DE",
+          linkKind: "cat_segment",
+        },
+      },
+    );
+    expect(linkResponse.status).toBe(200);
+    const linked = (await linkResponse.json()) as IssueResponse;
+    expect(linked.issue.translationKeyId).toBe(translationKey.id);
+    expect(linked.issue.key).toBe("nav.home");
+
+    const unlinkResponse = await requestJson(
+      issueSheetUrl(organizationSlug, project.id, `/${created.issue.id}`),
+      {
+        method: "PATCH",
+        headers,
+        body: { translationKeyId: null },
+      },
+    );
+    expect(unlinkResponse.status).toBe(200);
+    const unlinked = (await unlinkResponse.json()) as IssueResponse;
+    expect(unlinked.issue.translationKeyId).toBeNull();
+    expect(unlinked.issue.key).toBeNull();
+  });
+
+  it("rejects linking to a missing translation key and forbids member writes", async () => {
+    const { identity, project } = await projectFixture.createStoredProjectFixture();
+    const ownerHeaders = await projectFixture.authHeadersFor(identity);
+    const organizationSlug = identity.organization.slug ?? "missing-slug";
+
+    const missingKeyResponse = await requestJson(issueSheetUrl(organizationSlug, project.id), {
+      method: "POST",
+      headers: ownerHeaders,
+      body: {
+        title: "Missing key",
+        translationKeyId: crypto.randomUUID(),
+      },
+    });
+    expect(missingKeyResponse.status).toBe(400);
+    await expect(missingKeyResponse.json()).resolves.toMatchObject({
+      error: "translation_key_not_found",
+    });
+
+    const member = projectFixture.createWorkosIdentityForOrganization(
+      identity.organization,
+      "member",
+    );
+    const memberHeaders = await projectFixture.authHeadersFor(member);
+    await db.insert(schema.teamMemberships).values({
+      teamId: project.teamId!,
+      userId: await projectFixture.getLocalUserId(member.user.workosUserId),
+      role: "member",
+    });
+
+    const forbiddenCreate = await requestJson(issueSheetUrl(organizationSlug, project.id), {
+      method: "POST",
+      headers: memberHeaders,
+      body: { title: "Member cannot create" },
+    });
+    expect(forbiddenCreate.status).toBe(403);
+
+    const allowedList = await requestJson(issueSheetUrl(organizationSlug, project.id), {
+      headers: memberHeaders,
+      query: { status: "all" },
+    });
+    expect(allowedList.status).toBe(200);
+  });
+
+  it("creates a cat_segment issue for a file-backed segment without a translation key", async () => {
+    const { identity, project } = await projectFixture.createStoredProjectFixture();
+    const headers = await projectFixture.authHeadersFor(identity);
+    const organizationSlug = identity.organization.slug ?? "missing-slug";
+
+    // Image and office file segments carry a source file id, not a translation key id.
+    const response = await requestJson(issueSheetUrl(organizationSlug, project.id), {
+      method: "POST",
+      headers,
+      body: {
+        title: "Banner needs localized artwork",
+        issueType: "context_request",
+        targetLocale: "fr-FR",
+        sourcePath: "assets/banner.png",
+        segmentId: crypto.randomUUID(),
+        linkKind: "cat_segment",
+      },
+    });
+
+    expect(response.status).toBe(201);
+    const body = (await response.json()) as IssueResponse;
+    expect(body.issue.translationKeyId).toBeNull();
+    expect(body.issue.linkKind).toBe("cat_segment");
+  });
+
+  it("keeps the issue when the linked translation key is deleted", async () => {
+    const { identity, organization, project } = await projectFixture.createStoredProjectFixture();
+    const headers = await projectFixture.authHeadersFor(identity);
+    const organizationSlug = identity.organization.slug ?? "missing-slug";
+
+    const [translationKey] = await db
+      .insert(schema.projectTranslationKeys)
+      .values({
+        organizationId: organization.id,
+        projectId: project.id,
+        key: "footer.legal",
+        sourceText: "Legal",
+        normalizedSourceText: "Legal",
+      })
+      .returning();
+
+    const createResponse = await requestJson(issueSheetUrl(organizationSlug, project.id), {
+      method: "POST",
+      headers,
+      body: {
+        title: "Legal copy issue",
+        translationKeyId: translationKey.id,
+        segmentId: translationKey.id,
+        linkKind: "cat_segment",
+        targetLocale: "fr-FR",
+        sourcePath: "messages/footer.json",
+      },
+    });
+    expect(createResponse.status).toBe(201);
+    const created = (await createResponse.json()) as IssueResponse;
+
+    await db
+      .delete(schema.projectTranslationKeys)
+      .where(eq(schema.projectTranslationKeys.id, translationKey.id));
+
+    const getResponse = await requestJson(
+      issueSheetUrl(organizationSlug, project.id, `/${created.issue.id}`),
+      { headers },
+    );
+    expect(getResponse.status).toBe(200);
+    const body = (await getResponse.json()) as IssueResponse;
+    expect(body.issue.id).toBe(created.issue.id);
+    expect(body.issue.translationKeyId).toBeNull();
+    expect(body.issue.key).toBeNull();
   });
 });

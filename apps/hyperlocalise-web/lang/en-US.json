@@ -656,8 +656,8 @@
     "description": "Dashboard page description under the heading"
   },
   "0iCvVxZ/5M": {
-    "defaultMessage": "Add to Issue Sheet",
-    "description": "Button to add the current CAT segment as an Issue Sheet row"
+    "defaultMessage": "Issues",
+    "description": "Button to open linked Issues for the current CAT segment"
   },
   "0jS/dbW8Df": {
     "defaultMessage": "Detect added, changed, and removed strings",
@@ -8120,8 +8120,8 @@
     "description": "Toast title when an existing Contentful webhook is updated"
   },
   "W3V5ERIIW9": {
-    "defaultMessage": "Linked context",
-    "description": "Section heading for linked issue context"
+    "defaultMessage": "Linked string",
+    "description": "Section heading for the translation string linked to an issue"
   },
   "W3mkNKamaw": {
     "defaultMessage": "Not connected",
@@ -9630,6 +9630,78 @@
   "cZBJLZRh+f": {
     "defaultMessage": "The job will move to cancelled and stop running. You can create a new job if you need the work again.",
     "description": "Description in the cancel job confirmation dialog"
+  },
+  "catLinkedIssues.createIssue": {
+    "defaultMessage": "Create issue",
+    "description": "Button to create a new issue from the current string"
+  },
+  "catLinkedIssues.defaultTitle": {
+    "defaultMessage": "Context needed: {key}",
+    "description": "Default title when creating an issue from a CAT string"
+  },
+  "catLinkedIssues.description": {
+    "defaultMessage": "Create or link Issues for this string. Navigate to an issue to collaborate.",
+    "description": "Dialog description for managing issues linked to a CAT string"
+  },
+  "catLinkedIssues.emptyLinked": {
+    "defaultMessage": "No issues linked to this string yet.",
+    "description": "Empty state when the string has no linked issues"
+  },
+  "catLinkedIssues.linkExisting": {
+    "defaultMessage": "Link existing",
+    "description": "Button to open the picker for linking an existing issue"
+  },
+  "catLinkedIssues.linkFailed": {
+    "defaultMessage": "Issue could not be linked.",
+    "description": "Toast when linking an existing issue fails"
+  },
+  "catLinkedIssues.linked": {
+    "defaultMessage": "Issue linked",
+    "description": "Toast when an existing issue is linked to the string"
+  },
+  "catLinkedIssues.linkingUnavailable": {
+    "defaultMessage": "Linking requires a native project string.",
+    "description": "Shown when translation key linking is unavailable for external CAT"
+  },
+  "catLinkedIssues.loadError": {
+    "defaultMessage": "Linked issues could not be loaded.",
+    "description": "Error when fetching issues linked to a string fails"
+  },
+  "catLinkedIssues.noMatches": {
+    "defaultMessage": "No matching issues.",
+    "description": "Empty state when issue search returns no results"
+  },
+  "catLinkedIssues.openInCatLinkLabel": {
+    "defaultMessage": "Open in CAT",
+    "description": "Link label stored on issues created from CAT"
+  },
+  "catLinkedIssues.openIssue": {
+    "defaultMessage": "Open",
+    "description": "Button to open a linked issue detail page"
+  },
+  "catLinkedIssues.requestFailed": {
+    "defaultMessage": "Request failed",
+    "description": "Fallback error when an Issues API request fails"
+  },
+  "catLinkedIssues.searchIssues": {
+    "defaultMessage": "Search issues…",
+    "description": "Placeholder for searching project issues to link"
+  },
+  "catLinkedIssues.title": {
+    "defaultMessage": "Linked issues",
+    "description": "Dialog title for issues linked to a CAT translation string"
+  },
+  "catLinkedIssues.unlink": {
+    "defaultMessage": "Unlink",
+    "description": "Button to unlink an issue from the string"
+  },
+  "catLinkedIssues.unlinkFailed": {
+    "defaultMessage": "Issue could not be unlinked.",
+    "description": "Toast when unlinking an issue fails"
+  },
+  "catLinkedIssues.unlinked": {
+    "defaultMessage": "Issue unlinked",
+    "description": "Toast when an issue is unlinked from the string"
   },
   "cbNqGo9VKV": {
     "defaultMessage": "Try again",
@@ -11234,6 +11306,14 @@
   "ismdmCNJ+n": {
     "defaultMessage": "Treat as text",
     "description": "Button to stop treating a URL source string as an image"
+  },
+  "issueDetail.stringUnlinked": {
+    "defaultMessage": "String unlinked",
+    "description": "Toast when a translation string is unlinked from an issue"
+  },
+  "issueDetail.unlinkString": {
+    "defaultMessage": "Unlink string",
+    "description": "Button to unlink the translation string from an issue"
   },
   "iswoFpqCGE": {
     "defaultMessage": "GitHub PR",

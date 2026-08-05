@@ -384,7 +384,7 @@ export const IssueDetailPanel = forwardRef<
   const catHref = buildIssueCatHref(organizationSlug, projectId, issue);
   const priority = typeof issue.values.priority === "string" ? issue.values.priority : "";
   const hasLinkedContext = Boolean(
-    issue.key || issue.sourceText || issue.segmentId || issue.linkKind,
+    issue.translationKeyId || issue.key || issue.sourceText || issue.segmentId || issue.linkKind,
   );
 
   const saveTitle = () => {
@@ -467,14 +467,36 @@ export const IssueDetailPanel = forwardRef<
 
         {hasLinkedContext ? (
           <section className="mt-2 grid gap-3 border-t border-border pt-4">
-            <TypographyP className="inline-flex items-center gap-1.5 text-sm font-medium text-foreground">
-              <HugeiconsIcon
-                icon={LinkSquare02Icon}
-                strokeWidth={1.8}
-                className="size-3.5 text-muted-foreground"
-              />
-              <FormattedMessage {...messages.linkedContext} />
-            </TypographyP>
+            <div className="flex items-center justify-between gap-2">
+              <TypographyP className="inline-flex items-center gap-1.5 text-sm font-medium text-foreground">
+                <HugeiconsIcon
+                  icon={LinkSquare02Icon}
+                  strokeWidth={1.8}
+                  className="size-3.5 text-muted-foreground"
+                />
+                <FormattedMessage {...messages.linkedContext} />
+              </TypographyP>
+              {issue.translationKeyId ? (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  disabled={isSaving}
+                  onClick={() => {
+                    updateIssue.mutate(
+                      { translationKeyId: null },
+                      {
+                        onSuccess: () => {
+                          toast.success(intl.formatMessage(messages.stringUnlinked));
+                        },
+                      },
+                    );
+                  }}
+                >
+                  <FormattedMessage {...messages.unlinkString} />
+                </Button>
+              ) : null}
+            </div>
             <div className="grid gap-3">
               {issue.key ? (
                 <LinkedContextRow label={<FormattedMessage {...messages.fieldKey} />}>

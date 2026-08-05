@@ -1497,6 +1497,59 @@ export async function createWorkspaceAutomationRun(input: {
   return serializeAutomationRun(row);
 }
 
+export async function enqueueWorkspaceAutomationRunOnce(input: {
+  runId: string;
+  organizationId: string;
+  enqueue: () => Promise<void>;
+}): Promise<boolean> {
+  return db.transaction(async (tx) => {
+    const [run] = await tx
+      .select({
+        outputSummary: schema.workspaceAutomationRuns.outputSummary,
+      })
+      .from(schema.workspaceAutomationRuns)
+      .where(
+        and(
+          eq(schema.workspaceAutomationRuns.id, input.runId),
+          eq(schema.workspaceAutomationRuns.organizationId, input.organizationId),
+        ),
+      )
+      .limit(1)
+      .for("update");
+
+    if (!run) {
+      throw new Error("workspace_automation_run_not_found");
+    }
+
+    if (
+      typeof run.outputSummary.orchestratorEnqueuedAt === "string" &&
+      run.outputSummary.orchestratorEnqueuedAt.length > 0
+    ) {
+      return false;
+    }
+
+    await input.enqueue();
+
+    await tx
+      .update(schema.workspaceAutomationRuns)
+      .set({
+        outputSummary: {
+          ...run.outputSummary,
+          orchestratorEnqueuedAt: new Date().toISOString(),
+        },
+        updatedAt: new Date(),
+      })
+      .where(
+        and(
+          eq(schema.workspaceAutomationRuns.id, input.runId),
+          eq(schema.workspaceAutomationRuns.organizationId, input.organizationId),
+        ),
+      );
+
+    return true;
+  });
+}
+
 export async function updateWorkspaceAutomationRun(input: {
   runId: string;
   organizationId: string;
