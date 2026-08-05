@@ -13,6 +13,9 @@
 import type { ProjectFileCatComment } from "@/api/routes/project/project.schema";
 import type { IssueSheetCreateIssueBody } from "@/api/routes/project/issue-sheet.schema";
 import { issueSheetIssueTypeSchema } from "@/api/routes/project/issue-sheet.schema";
+import { and, eq, inArray } from "drizzle-orm";
+
+import { db, schema } from "@/lib/database";
 import { createLogger } from "@/lib/log";
 import { IssueSheetService } from "@/lib/projects/issue-sheet/issue-sheet-service";
 
@@ -109,5 +112,68 @@ export async function maybeCreateIssueSheetFromNativeCatIssueComment(input: {
       },
       "failed to create Issues row from native CAT raise-issue comment",
     );
+  }
+}
+
+/**
+ * After a native CAT issue comment is resolved, close any mirrored Issues rows
+ * linked by `linkedCommentId` so the sheet does not stay open.
+ */
+export async function maybeResolveIssueSheetFromNativeCatIssueComment(input: {
+  organizationId: string;
+  projectId: string;
+  actorUserId: string;
+  linkedCommentId: string;
+  issueSheetService?: IssueSheetService;
+}): Promise<void> {
+  const service = input.issueSheetService ?? new IssueSheetService();
+
+  let openIssues: Array<{ id: string }> = [];
+  try {
+    openIssues = await db
+      .select({ id: schema.issueSheetIssues.id })
+      .from(schema.issueSheetIssues)
+      .where(
+        and(
+          eq(schema.issueSheetIssues.organizationId, input.organizationId),
+          eq(schema.issueSheetIssues.projectId, input.projectId),
+          eq(schema.issueSheetIssues.linkedCommentId, input.linkedCommentId),
+          inArray(schema.issueSheetIssues.status, ["open", "in_progress"]),
+        ),
+      );
+  } catch (error) {
+    log.error(
+      {
+        err: error,
+        organizationId: input.organizationId,
+        projectId: input.projectId,
+        linkedCommentId: input.linkedCommentId,
+      },
+      "failed to look up Issues rows for native CAT resolve",
+    );
+    return;
+  }
+
+  for (const issue of openIssues) {
+    try {
+      await service.updateIssue({
+        organizationId: input.organizationId,
+        projectId: input.projectId,
+        issueId: issue.id,
+        actorUserId: input.actorUserId,
+        body: { status: "resolved" },
+      });
+    } catch (error) {
+      log.error(
+        {
+          err: error,
+          organizationId: input.organizationId,
+          projectId: input.projectId,
+          issueId: issue.id,
+          linkedCommentId: input.linkedCommentId,
+        },
+        "failed to resolve Issues row from native CAT comment resolve",
+      );
+    }
   }
 }

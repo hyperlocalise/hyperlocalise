@@ -72,7 +72,10 @@ import {
   saveNativeProjectCatTranslation,
   updateNativeProjectTranslationStatus,
 } from "@/lib/projects/cat/native-cat-service";
-import { maybeCreateIssueSheetFromNativeCatIssueComment } from "@/lib/projects/cat/native-cat-issue-sheet";
+import {
+  maybeCreateIssueSheetFromNativeCatIssueComment,
+  maybeResolveIssueSheetFromNativeCatIssueComment,
+} from "@/lib/projects/cat/native-cat-issue-sheet";
 import {
   enrichExternalCatFileImageFields,
   enrichExternalCatTranslationImageFields,
@@ -1214,6 +1217,13 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
               "Comment not found or not resolvable.",
             );
           }
+
+          await maybeResolveIssueSheetFromNativeCatIssueComment({
+            organizationId: c.var.auth.organization.localOrganizationId,
+            projectId: params.projectId,
+            actorUserId: c.var.auth.user.localUserId,
+            linkedCommentId: comment.externalCommentId,
+          });
 
           return c.json({ comment }, 200);
         }

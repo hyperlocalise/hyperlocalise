@@ -1214,6 +1214,21 @@ describe("project file CAT routes", () => {
         status: "resolved",
       },
     });
+
+    const resolvedIssues = await db
+      .select({
+        status: schema.issueSheetIssues.status,
+        linkedCommentId: schema.issueSheetIssues.linkedCommentId,
+      })
+      .from(schema.issueSheetIssues)
+      .where(eq(schema.issueSheetIssues.projectId, project.id));
+
+    expect(resolvedIssues).toEqual([
+      expect.objectContaining({
+        status: "resolved",
+        linkedCommentId: posted.comment.externalCommentId,
+      }),
+    ]);
     expect(resolveTmsProviderLiveCatCommentMock).not.toHaveBeenCalled();
   });
 
