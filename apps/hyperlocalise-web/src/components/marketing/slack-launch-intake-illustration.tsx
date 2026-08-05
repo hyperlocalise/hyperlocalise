@@ -292,10 +292,10 @@ export function SlackLaunchIntakeIllustration({
   );
 
   useEffect(() => {
-    if (threadRef.current) {
+    if (threadRef.current && threadOpen) {
       threadRef.current.scrollTop = threadRef.current.scrollHeight;
     }
-  }, [phase]);
+  }, [phase, threadOpen]);
 
   const step1 = CONVO_STEPS[0]!;
   const step2 = CONVO_STEPS[1]!;
