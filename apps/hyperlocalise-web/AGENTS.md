@@ -56,14 +56,20 @@ Follow the official Hono best-practices guide for this app: [Best Practices](htt
 - Use Hono's `testClient` for route tests.
 - Test the real API app exported from [`src/api/app.ts`](src/api/app.ts) when possible, rather than rebuilding a parallel test-only app structure.
 
-## Browser E2E (local only, not run in CI)
+## Browser E2E (workos-emulate)
 
-Fixture-auth infrastructure and baseline Playwright specs live under [`src/e2e/`](src/e2e/) and [`src/lib/e2e/`](src/lib/e2e/). They are **not** wired into `vp test` — run unit tests with `vp test` as usual.
+Browser flows live under [`src/e2e/`](src/e2e/) and talk to a local [WorkOS emulator](https://github.com/workos/emulate). They exercise the real AuthKit authorize → callback → sealed session → membership reconcile path. They are **not** part of `vp test`.
 
-- **Fixture auth**: set `E2E_AUTH_MODE=fixture` and a 32+ character `E2E_AUTH_SECRET` in `.env` (see [`.env.e2e.example`](.env.e2e.example)). Programmatic login: `POST /api/e2e/auth/session` with `X-E2E-Setup-Token`. Browser helpers in [`src/e2e/fixtures/browser.ts`](src/e2e/fixtures/browser.ts) use that API route. Disabled when `NODE_ENV=production` or `VERCEL_ENV=production`.
-- **Baseline specs**: [`src/e2e/flows/*.e2e.ts`](src/e2e/flows/) use Playwright from Node. Flows include fixture auth login, dashboard overview, project creation, and onboarding workspace creation. To run them manually, start Postgres, migrate, build, and serve the app with fixture auth, then invoke Vitest against those files directly if needed.
-- **Commands**: run `vp run e2e:install` once to install Chromium and OS libraries (`playwright install --with-deps chromium`), then run `vp run test:e2e` while the fixture-auth app is available. Set `E2E_BASE_URL` when the app is not running at `http://localhost:3000`.
-- Vitest Browser Mode is not used for route-level e2e (it cannot `page.goto` external origins).
+See [`docs/adr/2026-08-04-workos-emulator-e2e-auth-design.md`](../../docs/adr/2026-08-04-workos-emulator-e2e-auth-design.md).
+
+1. Start Postgres and migrate (`vp run db:migrate`).
+2. Start the emulator: `vp run e2e:emulator` (pinned binary under `.cache/`, seed in [`e2e/workos-emulate.config.yaml`](e2e/workos-emulate.config.yaml)).
+3. Copy [`.env.e2e.example`](.env.e2e.example) into `.env` (or merge the WorkOS emulator vars). Key settings: `WORKOS_API_HOSTNAME=localhost`, `WORKOS_API_HTTPS=false`, `WORKOS_API_PORT=4100`, `WORKOS_API_KEY=sk_test_default`.
+4. Serve the app with those env vars (`vp run dev` or `vp run build && vp run start`).
+5. Install Chromium once: `vp run e2e:install`.
+6. Run `vp run test:e2e`. Set `E2E_BASE_URL` when the app is not at `http://localhost:3000`.
+
+Helpers in [`src/e2e/fixtures/browser.ts`](src/e2e/fixtures/browser.ts) provision identities in the emulator, drive the interactive login page, and clean up WorkOS + local rows by exact id afterwards. Vitest Browser Mode is not used (it cannot `page.goto` external origins).
 
 <!-- END:hono-agent-rules -->
 

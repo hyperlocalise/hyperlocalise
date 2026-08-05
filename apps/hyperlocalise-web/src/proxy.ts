@@ -19,8 +19,6 @@ import {
   getAppLocaleFromRequest,
   normalizeAppLocale,
 } from "@/lib/app-i18n/locales";
-import { isFixtureAuthEnabled } from "@/lib/e2e/config";
-import { hasFixtureSessionCookie } from "@/lib/e2e/fixture-auth";
 import { buildCrowdinAppFrameAncestorsCsp } from "@/lib/crowdin-app/frame-ancestors";
 import { REQUEST_URL_HEADER } from "@/lib/workos/request-url-header";
 
@@ -38,20 +36,6 @@ function applyCrowdinAppFrameAncestors(response: NextResponse): NextResponse {
   return response;
 }
 
-function shouldBypassWorkosProxy(request: NextRequest) {
-  const { pathname } = request.nextUrl;
-
-  if (!isFixtureAuthEnabled()) {
-    return false;
-  }
-
-  if (pathname.startsWith("/api/e2e/")) {
-    return true;
-  }
-
-  return hasFixtureSessionCookie(request.headers.get("cookie") ?? undefined);
-}
-
 function nextWithRequestUrl(request: NextRequest): NextResponse {
   const requestHeaders = new Headers(request.headers);
   requestHeaders.set(REQUEST_URL_HEADER, request.url);
@@ -65,7 +49,7 @@ function nextWithRequestUrl(request: NextRequest): NextResponse {
 /**
  * Guarantee `x-url` is forwarded as a request header so Server Components can
  * recover the original path for post-login returnTo. AuthKit usually sets this;
- * fixture-auth bypass and other bare `NextResponse.next()` paths do not.
+ * bare `NextResponse.next()` paths do not.
  */
 export function ensureRequestUrlHeader(request: NextRequest, response: NextResponse): NextResponse {
   if (response.headers.has("location")) {
@@ -104,10 +88,6 @@ export function ensureRequestUrlHeader(request: NextRequest, response: NextRespo
 }
 
 async function maybeWorkosProxy(request: NextRequest, event: NextFetchEvent) {
-  if (shouldBypassWorkosProxy(request)) {
-    return nextWithRequestUrl(request);
-  }
-
   const response = await workosProxy(request, event);
   if (!(response instanceof NextResponse)) {
     return response;

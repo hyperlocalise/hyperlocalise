@@ -10,12 +10,35 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+import { config as loadDotenv } from "dotenv";
 import { defineConfig } from "vite-plus";
+
+const rootDir = path.dirname(fileURLToPath(import.meta.url));
+
+loadDotenv({ path: path.join(rootDir, ".env") });
 
 export default defineConfig({
   test: {
     environment: "node",
     include: ["src/e2e/**/*.e2e.ts"],
-    testTimeout: 30_000,
+    testTimeout: 60_000,
+    hookTimeout: 60_000,
+    server: {
+      deps: {
+        inline: ["@workos-inc/authkit-nextjs", "@workos-inc/node"],
+      },
+    },
+  },
+  resolve: {
+    alias: {
+      "@": path.resolve(rootDir, "src"),
+      "next/cache": path.resolve(rootDir, "node_modules/next/cache.js"),
+      "next/headers": path.resolve(rootDir, "node_modules/next/headers.js"),
+      "next/navigation": path.resolve(rootDir, "node_modules/next/navigation.js"),
+      "server-only": path.resolve(rootDir, "src/test/mocks/server-only.ts"),
+    },
   },
 });

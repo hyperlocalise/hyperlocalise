@@ -11,12 +11,16 @@
  * Version 2.0 or later.
  */
 import { env } from "@/lib/env";
+import { resolveWorkosApiHostnameOptions } from "@/lib/workos/api-hostname";
 
 export type WorkosAuthKitConfig = {
   clientId: string;
   apiKey: string;
   redirectUri: string;
   cookiePassword: string;
+  apiHostname?: string;
+  https?: boolean;
+  port?: number;
 };
 
 export function getWorkosAuthKitConfig(): WorkosAuthKitConfig | null {
@@ -26,10 +30,13 @@ export function getWorkosAuthKitConfig(): WorkosAuthKitConfig | null {
     return null;
   }
 
+  const hostOptions = resolveWorkosApiHostnameOptions();
+
   return {
     clientId: env.WORKOS_CLIENT_ID,
     apiKey: env.WORKOS_API_KEY,
     redirectUri,
     cookiePassword: env.WORKOS_COOKIE_PASSWORD,
+    ...hostOptions,
   };
 }

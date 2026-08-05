@@ -132,3 +132,99 @@ jobs:
 
       - name: Build hyperlocalise-web
         run: vp run build
+
+  # Advisory: browser e2e against workos-emulate. Does not block merges yet.
+  web-e2e:
+    name: Hyperlocalise Web E2E (advisory)
+    if: github.event_name == 'push' || github.event.pull_request.draft == false
+    continue-on-error: true
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_DB: hyperlocalise
+          POSTGRES_USER: hyperlocalise
+          POSTGRES_PASSWORD: hyperlocalise
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U hyperlocalise -d hyperlocalise"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      DATABASE_URL: postgres://hyperlocalise:hyperlocalise@127.0.0.1:5432/hyperlocalise?sslmode=disable
+      OPENAI_API_KEY: test-openai-api-key
+      NEXT_PUBLIC_WAITLIST_URL: https://example.com/waitlist
+      NEXT_PUBLIC_WORKOS_REDIRECT_URI: http://localhost:3000/auth/callback
+      WORKOS_API_KEY: sk_test_default
+      WORKOS_CLIENT_ID: client_emulator_e2e
+      WORKOS_API_HOSTNAME: localhost
+      WORKOS_API_HTTPS: "false"
+      WORKOS_API_PORT: "4100"
+      WORKOS_REDIRECT_URI: http://localhost:3000/auth/callback
+      WORKOS_COOKIE_PASSWORD: replace-with-a-random-32-character-secret
+      WORKOS_WEBHOOK_SECRET: whsec_e2e_ci
+      PROVIDER_CREDENTIALS_MASTER_KEY: MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=
+      E2E_BASE_URL: http://localhost:3000
+      MCP_AUTH_ENABLED: "true"
+      MCP_TOKEN_LIFETIME_MINUTES: "60"
+      MCP_REFRESH_TOKEN_LIFETIME_DAYS: "30"
+      MCP_ENCRYPTION_KEY: base64-encoded-32-byte-key
+      AUTUMN_API_KEY: am_sk_test_placeholder
+    defaults:
+      run:
+        working-directory: apps/hyperlocalise-web
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Setup Vite+
+        uses: voidzero-dev/setup-vp@250f29ce396baf5e8f24498e17c0dfdebabc26eb # v1
+        with:
+          cache: true
+
+      - name: Install hyperlocalise-web dependencies
+        run: vp install --frozen-lockfile
+
+      - name: Migrate hyperlocalise-web database
+        run: vp run db:migrate
+
+      - name: Install Playwright Chromium
+        run: vp run e2e:install
+
+      - name: Start workos-emulate
+        run: |
+          set -euo pipefail
+          vp run e2e:emulator > /tmp/workos-emulate.log 2>&1 &
+          for i in $(seq 1 60); do
+            if curl -fsS http://127.0.0.1:4100/health >/dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "workos-emulate failed to become healthy" >&2
+          cat /tmp/workos-emulate.log >&2 || true
+          exit 1
+
+      - name: Build hyperlocalise-web
+        run: vp run build
+
+      - name: Start app server
+        run: |
+          set -euo pipefail
+          vp run start > /tmp/next-start.log 2>&1 &
+          for i in $(seq 1 90); do
+            if curl -fsS http://127.0.0.1:3000/api/health >/dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "Next.js server failed to become healthy" >&2
+          cat /tmp/next-start.log >&2 || true
+          exit 1
+
+      - name: Run browser e2e
+        run: vp run test:e2e

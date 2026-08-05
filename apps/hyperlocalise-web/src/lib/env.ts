@@ -13,6 +13,8 @@
 import { createEnv } from "@t3-oss/env-nextjs";
 import { z } from "zod";
 
+import { assertWorkosApiHostnameSafe } from "@/lib/workos/api-hostname";
+
 const isTestEnv = process.env.VITEST === "true" || process.env.NODE_ENV === "test";
 const isCI = process.env.CI === "true";
 
@@ -70,6 +72,21 @@ export const env = createEnv({
 
     /** Secret used by WorkOS to sign webhook payloads. Required for secure WorkOS webhook handling. */
     WORKOS_WEBHOOK_SECRET: z.string().min(1).optional(),
+
+    /**
+     * Optional WorkOS API hostname override (e.g. `localhost` for workos-emulate).
+     * AuthKit and `getWorkosServerClient` both honor this. Rejected in production.
+     */
+    WORKOS_API_HOSTNAME: z.string().min(1).optional(),
+
+    /**
+     * Whether the WorkOS API uses HTTPS. Set to `false` for workos-emulate.
+     * Defaults to HTTPS when unset (AuthKit/SDK default).
+     */
+    WORKOS_API_HTTPS: z.enum(["true", "false"]).optional(),
+
+    /** Optional WorkOS API port override (e.g. `4100` for workos-emulate). */
+    WORKOS_API_PORT: z.coerce.number().int().positive().optional(),
 
     /** Secret used by Flags SDK for toolbar overrides and encrypted flag values. */
     FLAGS_SECRET: z.string().min(32).optional(),
@@ -184,12 +201,6 @@ export const env = createEnv({
      */
     CROWDIN_APP_FRAME_ANCESTORS: z.string().min(1).optional(),
 
-    /** Enables fixture auth routes and session bypass for browser e2e tests. */
-    E2E_AUTH_MODE: z.enum(["fixture", "workos"]).optional(),
-
-    /** Shared secret required to mint fixture auth sessions. Minimum 32 characters. */
-    E2E_AUTH_SECRET: z.string().min(32).optional(),
-
     /** Base URL for browser e2e tests. Defaults to http://localhost:3000. */
     E2E_BASE_URL: z.url().optional(),
   },
@@ -235,6 +246,9 @@ export const env = createEnv({
     WORKOS_NATIVE_REDIRECT_URIS: process.env.WORKOS_NATIVE_REDIRECT_URIS,
     WORKOS_WEBHOOK_SECRET:
       process.env.WORKOS_WEBHOOK_SECRET ?? (isTestEnv ? "test-workos-webhook-secret" : undefined),
+    WORKOS_API_HOSTNAME: process.env.WORKOS_API_HOSTNAME,
+    WORKOS_API_HTTPS: process.env.WORKOS_API_HTTPS as "true" | "false" | undefined,
+    WORKOS_API_PORT: process.env.WORKOS_API_PORT,
     FLAGS_SECRET:
       process.env.FLAGS_SECRET ??
       (isTestEnv ? "test-flags-secret-at-least-32-characters-long" : undefined),
@@ -287,8 +301,6 @@ export const env = createEnv({
       process.env.CROWDIN_APP_EMBED_SESSION_SECRET ??
       (isTestEnv ? "test-crowdin-embed-session-secret-32chars" : undefined),
     CROWDIN_APP_FRAME_ANCESTORS: process.env.CROWDIN_APP_FRAME_ANCESTORS,
-    E2E_AUTH_MODE: process.env.E2E_AUTH_MODE,
-    E2E_AUTH_SECRET: process.env.E2E_AUTH_SECRET,
     E2E_BASE_URL: process.env.E2E_BASE_URL,
     NEXT_PUBLIC_WAITLIST_URL:
       process.env.NEXT_PUBLIC_WAITLIST_URL ??
@@ -302,3 +314,6 @@ export const env = createEnv({
       (isTestEnv ? "https://cdn.crowdin.com/apps/dist/iframe.js" : undefined),
   },
 });
+
+// Fail fast if a production deployment points AuthKit at a non-WorkOS host.
+assertWorkosApiHostnameSafe();

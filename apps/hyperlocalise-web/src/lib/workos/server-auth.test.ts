@@ -14,23 +14,16 @@ import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
 import { REQUEST_URL_HEADER } from "@/lib/workos/request-url-header";
 
-const { workosWithAuthMock, resolveFixtureAuthSessionMock, headersMock, redirectMock } = vi.hoisted(
-  () => ({
-    workosWithAuthMock: vi.fn(),
-    resolveFixtureAuthSessionMock: vi.fn(),
-    headersMock: vi.fn(),
-    redirectMock: vi.fn((url: string) => {
-      throw new Error(`redirect:${url}`);
-    }),
+const { workosWithAuthMock, headersMock, redirectMock } = vi.hoisted(() => ({
+  workosWithAuthMock: vi.fn(),
+  headersMock: vi.fn(),
+  redirectMock: vi.fn((url: string) => {
+    throw new Error(`redirect:${url}`);
   }),
-);
+}));
 
 vi.mock("@workos-inc/authkit-nextjs", () => ({
   withAuth: workosWithAuthMock,
-}));
-
-vi.mock("@/lib/e2e/fixture-auth", () => ({
-  resolveFixtureAuthSession: resolveFixtureAuthSessionMock,
 }));
 
 vi.mock("next/headers", () => ({
@@ -44,10 +37,8 @@ vi.mock("next/navigation", () => ({
 describe("withAuth", () => {
   beforeEach(() => {
     workosWithAuthMock.mockReset();
-    resolveFixtureAuthSessionMock.mockReset();
     headersMock.mockReset();
     redirectMock.mockClear();
-    resolveFixtureAuthSessionMock.mockResolvedValue(null);
     headersMock.mockResolvedValue(
       new Headers({
         [REQUEST_URL_HEADER]: "http://localhost:3000/en-US/org/acme/projects/proj_1",
