@@ -199,3 +199,7 @@
 ## 2026-11-15 - [I18N Config Hyperlocalise & Struct Validation Boundaries]
 **Learning:** `I18NConfig` includes robust structural validation for map keys (buckets/groups), target locales, file mappings, and `HyperlocaliseConfig` credentials/API base URLs. Since `Load()` automatically overlays default values for empty string inputs before running `Validate()`, some validation constraints (like empty/whitespace `APIBaseURL` or `APIKeyEnv`) are unreachable via configuration file parsing.
 **Action:** When testing configuration rules that can be overwritten by standard defaults, construct the `I18NConfig` struct manually in tests and run the public `.Validate()` method directly to comprehensively check contract enforcement.
+
+## 2026-11-16 - [PHP Array Parser Syntax Error Boundaries]
+**Learning:** PHPArrayParser syntax verification handles precise boundary error structures. Triggering "missing value" errors requires EOF to occur immediately following the array assignment operator (`=>`), whereas a following closing brace (`]`) yields an "unsupported value" error. Similarly, "unterminated array literal" errors trigger when the parser hits EOF during element loops, but expects a comma or close bracket at the current position.
+**Action:** When validating PHP array literal parsing, assert on precise error substring expectations across varying trailing whitespace and closing punctuation bounds.
