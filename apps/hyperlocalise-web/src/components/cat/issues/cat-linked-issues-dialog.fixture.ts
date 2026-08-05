@@ -23,8 +23,9 @@ export const catLinkedIssuesSegmentFixture: CatLinkedIssueSegmentContext = {
   translationKeyId: catLinkedIssuesTranslationKeyId,
   targetLocale: "de-DE",
   sourcePath: "messages/home.json",
+  // Absolute, like buildCatSegmentShareUrl() produces from window.location.href.
   linkUrl:
-    "/org/acme/projects/project_website/files/cat?sourcePath=messages%2Fhome.json&locale=de-DE&segment=11111111-1111-4111-8111-111111111111",
+    "https://app.hyperlocalise.test/org/acme/projects/project_website/files/cat?sourcePath=messages%2Fhome.json&locale=de-DE&segment=home.cta.save",
   linkLabel: "Open in CAT",
 };
 

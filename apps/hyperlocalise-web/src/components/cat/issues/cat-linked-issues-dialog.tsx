@@ -17,7 +17,10 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { FormattedMessage, useIntl } from "react-intl";
 import { toast } from "sonner";
 
-import { IssueSheetCreateIssueDialog } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/projects/[projectId]/issue-sheet/_components/issue-sheet-create-issue-dialog";
+import {
+  IssueSheetCreateIssueDialog,
+  type IssueSheetCreateStringLink,
+} from "@/app/[lang]/(authenticated)/org/[organizationSlug]/projects/[projectId]/issue-sheet/_components/issue-sheet-create-issue-dialog";
 import { Button } from "@/components/ui/button";
 import {
   Command,
@@ -213,6 +216,25 @@ export function CatLinkedIssuesDialog({
     (issue) => !linkedIds.has(issue.id) && issue.translationKeyId !== translationKeyId,
   );
 
+  // Keep a stable identity so the create form does not reinitialize (and discard
+  // in-progress edits) whenever this dialog rerenders.
+  const createStringLink = useMemo<IssueSheetCreateStringLink | null>(() => {
+    if (!segment) {
+      return null;
+    }
+
+    return {
+      translationKeyId: segment.translationKeyId ?? undefined,
+      segmentId: segment.segmentId,
+      sourcePath: segment.sourcePath,
+      targetLocale: segment.targetLocale,
+      defaultTitle: intl.formatMessage(messages.defaultTitle, { key: segment.segmentKey }),
+      defaultDescription: segment.sourceText,
+      linkUrl: segment.linkUrl ?? undefined,
+      linkLabel: segment.linkLabel,
+    };
+  }, [intl, segment]);
+
   const issueDetailHref = (issueId: string) =>
     `/org/${organizationSlug}/projects/${encodeURIComponent(projectId)}/issue-sheet/${encodeURIComponent(issueId)}`;
 
@@ -335,24 +357,13 @@ export function CatLinkedIssuesDialog({
         </DialogContent>
       </Dialog>
 
-      {segment ? (
+      {createStringLink ? (
         <IssueSheetCreateIssueDialog
           open={createOpen}
           onOpenChange={setCreateOpen}
           organizationSlug={organizationSlug}
           projectId={projectId}
-          stringLink={{
-            translationKeyId: segment.translationKeyId ?? undefined,
-            segmentId: segment.segmentId,
-            sourcePath: segment.sourcePath,
-            targetLocale: segment.targetLocale,
-            defaultTitle: intl.formatMessage(messages.defaultTitle, {
-              key: segment.segmentKey,
-            }),
-            defaultDescription: segment.sourceText,
-            linkUrl: segment.linkUrl ?? undefined,
-            linkLabel: segment.linkLabel,
-          }}
+          stringLink={createStringLink}
           onCreated={async () => {
             await invalidateLinked();
           }}

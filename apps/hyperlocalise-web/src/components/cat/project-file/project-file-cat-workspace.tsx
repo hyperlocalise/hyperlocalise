@@ -63,6 +63,7 @@ import {
 } from "@/components/cat/workspace/cat-workspace-view-mode";
 
 import { useOptionalAppShellStore } from "@/components/app-shell/store/app-shell-store-context";
+import { resolveCatLinkedIssueTranslationKeyId } from "@/components/cat/issues/cat-linked-issue-translation-key";
 import {
   CatLinkedIssuesDialog,
   type CatLinkedIssueSegmentContext,
@@ -374,7 +375,11 @@ export function ProjectFileCatWorkspace({
               segmentKey: segment.key,
             });
 
-      const translationKeyId = isNativeProject ? segmentId : null;
+      const translationKeyId = resolveCatLinkedIssueTranslationKeyId({
+        isNativeProject,
+        segmentId,
+        contentKind: segment.contentKind,
+      });
       setLinkedIssuesSegment({
         segmentId,
         segmentKey: segment.key,

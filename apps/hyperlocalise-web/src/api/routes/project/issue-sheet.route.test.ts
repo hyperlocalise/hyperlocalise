@@ -56,6 +56,7 @@ type IssueResponse = {
     status: string;
     targetLocale: string | null;
     translationKeyId: string | null;
+    linkKind: string | null;
     key: string | null;
     sourceText: string | null;
     values: Record<string, unknown>;
@@ -1138,6 +1139,31 @@ Second import issue,Done,EXT-2,P2`;
       query: { status: "all" },
     });
     expect(allowedList.status).toBe(200);
+  });
+
+  it("creates a cat_segment issue for a file-backed segment without a translation key", async () => {
+    const { identity, project } = await projectFixture.createStoredProjectFixture();
+    const headers = await projectFixture.authHeadersFor(identity);
+    const organizationSlug = identity.organization.slug ?? "missing-slug";
+
+    // Image and office file segments carry a source file id, not a translation key id.
+    const response = await requestJson(issueSheetUrl(organizationSlug, project.id), {
+      method: "POST",
+      headers,
+      body: {
+        title: "Banner needs localized artwork",
+        issueType: "context_request",
+        targetLocale: "fr-FR",
+        sourcePath: "assets/banner.png",
+        segmentId: crypto.randomUUID(),
+        linkKind: "cat_segment",
+      },
+    });
+
+    expect(response.status).toBe(201);
+    const body = (await response.json()) as IssueResponse;
+    expect(body.issue.translationKeyId).toBeNull();
+    expect(body.issue.linkKind).toBe("cat_segment");
   });
 
   it("keeps the issue when the linked translation key is deleted", async () => {

@@ -12,7 +12,6 @@
  */
 import { and, eq, inArray, isNotNull, ne } from "drizzle-orm";
 import { withAuth } from "@/lib/workos/server-auth";
-import { resolveFixtureApiAuthContext } from "@/lib/e2e/fixture-auth";
 
 import { getVisibleTeamIds, hasOrganizationWideProjectAccess } from "@/api/auth/team-access";
 import { enrichAuthContextWithCapabilities } from "@/api/auth/policy";
@@ -245,15 +244,6 @@ async function resolveActiveTeamMembership(
 export async function resolveApiAuthContextFromSession(
   options: ResolveApiAuthContextOptions = {},
 ): Promise<ApiAuthContext | null> {
-  const fixtureAuth = await resolveFixtureApiAuthContext({
-    cookie: options.cookie,
-    organizationSlug: options.organizationSlug,
-  });
-
-  if (fixtureAuth) {
-    return fixtureAuth;
-  }
-
   const session = options.session ?? (await withAuth());
 
   if (!session.user) {

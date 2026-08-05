@@ -18,7 +18,6 @@ import {
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
-import { resolveFixtureAuthSession } from "@/lib/e2e/fixture-auth";
 import { REQUEST_URL_HEADER } from "@/lib/workos/request-url-header";
 import { sanitizeReturnTo } from "@/lib/workos/return-to";
 
@@ -57,16 +56,6 @@ async function redirectToAppSignIn(): Promise<never> {
 }
 
 export async function withAuth(options?: WithAuthOptions): Promise<UserInfo | NoUserInfo> {
-  const fixtureSession = await resolveFixtureAuthSession();
-
-  if (fixtureSession) {
-    if (options?.ensureSignedIn && !fixtureSession.user) {
-      await redirectToAppSignIn();
-    }
-
-    return fixtureSession;
-  }
-
   // Never forward ensureSignedIn to WorkOS — handle it via the sign-in route instead.
   const session = await workosWithAuth();
 

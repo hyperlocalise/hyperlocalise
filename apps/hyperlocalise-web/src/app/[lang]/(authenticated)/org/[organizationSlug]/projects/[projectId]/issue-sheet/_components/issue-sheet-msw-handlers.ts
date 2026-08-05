@@ -25,6 +25,22 @@ export const issueSheetMswHandlers = [
     HttpResponse.json({ project: issueSheetProjectFixture }),
   ),
   http.get(issueSheetBasePath, () => HttpResponse.json(issueSheetResponseFixture)),
+  http.get(`${issueSheetBasePath}/assignable-members`, () =>
+    HttpResponse.json({
+      members: [
+        {
+          userId: "user_otto",
+          workosUserId: "workos_otto",
+          email: "otto@example.com",
+          firstName: "Otto",
+          lastName: "Klein",
+          displayName: "Otto Klein",
+          avatarUrl: null,
+          isCurrentUser: true,
+        },
+      ],
+    }),
+  ),
   http.get(`${issueSheetBasePath}/:issueId`, ({ params }) => {
     const issue = issueSheetIssuesFixture.find((row) => row.id === params.issueId);
     if (!issue) {
@@ -32,6 +48,13 @@ export const issueSheetMswHandlers = [
     }
     return HttpResponse.json({ issue });
   }),
+  http.get(`${issueSheetBasePath}/:issueId/feed`, () =>
+    HttpResponse.json({
+      items: [],
+      total: 0,
+      nextCursor: null,
+    }),
+  ),
   http.patch(`${issueSheetBasePath}/:issueId`, async ({ params, request }) => {
     const body = (await request.json()) as Record<string, unknown>;
     const issue = issueSheetIssuesFixture.find((row) => row.id === params.issueId);
@@ -132,5 +155,18 @@ export const issueSheetErrorMswHandlers = [
   ),
   http.get(issueSheetBasePath, () =>
     HttpResponse.json({ error: "issue_sheet_load_failed" }, { status: 500 }),
+  ),
+];
+
+export const issueDetailLoadingMswHandlers = [
+  http.get(`${issueSheetBasePath}/:issueId`, async () => {
+    await delay("infinite");
+    return HttpResponse.json({ issue: issueSheetIssuesFixture[0] });
+  }),
+];
+
+export const issueDetailUnavailableMswHandlers = [
+  http.get(`${issueSheetBasePath}/:issueId`, () =>
+    HttpResponse.json({ error: "issue_not_found" }, { status: 404 }),
   ),
 ];

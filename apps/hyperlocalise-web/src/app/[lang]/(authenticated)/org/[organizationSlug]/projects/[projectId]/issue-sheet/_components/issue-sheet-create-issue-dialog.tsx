@@ -155,6 +155,19 @@ export function IssueSheetCreateIssueDialog({
   const [linkUrl, setLinkUrl] = useState("");
   const [assigneeUserId, setAssigneeUserId] = useState<string | null>(null);
 
+  // Depend on primitives instead of the `stringLink` / `projects` object identities
+  // so rerenders of the caller never discard in-progress edits.
+  const {
+    segmentId: linkSegmentId = null,
+    sourcePath: linkSourcePath = null,
+    targetLocale: linkTargetLocale = null,
+    defaultTitle: linkDefaultTitle = null,
+    defaultDescription: linkDefaultDescription = null,
+    linkLabel: linkDefaultLinkLabel = null,
+    linkUrl: linkDefaultLinkUrl = null,
+  } = stringLink ?? {};
+  const onlyProjectId = projects?.length === 1 ? projects[0].id : null;
+
   useEffect(() => {
     if (!open) {
       setSelectedProjectId("");
@@ -169,24 +182,35 @@ export function IssueSheetCreateIssueDialog({
       setAssigneeUserId(null);
       return;
     }
-    if (stringLink) {
-      setTitle(stringLink.defaultTitle ?? "");
-      setDescription(stringLink.defaultDescription ?? "");
+    if (linkSegmentId) {
+      setTitle(linkDefaultTitle ?? "");
+      setDescription(linkDefaultDescription ?? "");
       setIssueType("context_request");
       setPriority("P2");
-      setTargetLocale(stringLink.targetLocale);
-      setSourcePath(stringLink.sourcePath);
-      setLinkLabel(stringLink.linkLabel ?? "");
-      setLinkUrl(stringLink.linkUrl ?? "");
+      setTargetLocale(linkTargetLocale ?? "");
+      setSourcePath(linkSourcePath ?? "");
+      setLinkLabel(linkDefaultLinkLabel ?? "");
+      setLinkUrl(linkDefaultLinkUrl ?? "");
     }
     if (projectId) {
       setSelectedProjectId(projectId);
       return;
     }
-    if (projects?.length === 1) {
-      setSelectedProjectId(projects[0].id);
+    if (onlyProjectId) {
+      setSelectedProjectId(onlyProjectId);
     }
-  }, [open, projectId, projects, stringLink]);
+  }, [
+    linkDefaultDescription,
+    linkDefaultLinkLabel,
+    linkDefaultLinkUrl,
+    linkDefaultTitle,
+    linkSegmentId,
+    linkSourcePath,
+    linkTargetLocale,
+    onlyProjectId,
+    open,
+    projectId,
+  ]);
 
   const resolvedProjectId = projectId ?? selectedProjectId;
 
