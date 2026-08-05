@@ -10,7 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { afterEach, describe, expect, it, vi } from "vite-plus/test";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
 import {
   assertWorkosApiHostnameSafe,
@@ -18,7 +18,19 @@ import {
   WORKOS_PRODUCTION_API_HOSTNAME,
 } from "./api-hostname";
 
+function clearWorkosHostnameEnv() {
+  vi.stubEnv("WORKOS_API_HOSTNAME", "");
+  vi.stubEnv("WORKOS_API_HTTPS", "");
+  vi.stubEnv("WORKOS_API_PORT", "");
+  vi.stubEnv("NODE_ENV", "test");
+  vi.stubEnv("VERCEL_ENV", "");
+}
+
 describe("assertWorkosApiHostnameSafe", () => {
+  beforeEach(() => {
+    clearWorkosHostnameEnv();
+  });
+
   afterEach(() => {
     vi.unstubAllEnvs();
   });
@@ -57,6 +69,10 @@ describe("assertWorkosApiHostnameSafe", () => {
 });
 
 describe("resolveWorkosApiHostnameOptions", () => {
+  beforeEach(() => {
+    clearWorkosHostnameEnv();
+  });
+
   afterEach(() => {
     vi.unstubAllEnvs();
   });

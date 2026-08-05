@@ -18,7 +18,9 @@ import { defineConfig } from "vite-plus";
 
 const rootDir = path.dirname(fileURLToPath(import.meta.url));
 
+// Prefer .env.e2e so unit-test placeholder WorkOS keys in .env are not used.
 loadDotenv({ path: path.join(rootDir, ".env") });
+loadDotenv({ path: path.join(rootDir, ".env.e2e"), override: true });
 
 export default defineConfig({
   test: {

@@ -64,10 +64,10 @@ See [`docs/adr/2026-08-04-workos-emulator-e2e-auth-design.md`](../../docs/adr/20
 
 1. Start Postgres and migrate (`vp run db:migrate`).
 2. Start the emulator: `vp run e2e:emulator` (pinned binary under `.cache/`, seed in [`e2e/workos-emulate.config.yaml`](e2e/workos-emulate.config.yaml)).
-3. Copy [`.env.e2e.example`](.env.e2e.example) into `.env` (or merge the WorkOS emulator vars). Key settings: `WORKOS_API_HOSTNAME=localhost`, `WORKOS_API_HTTPS=false`, `WORKOS_API_PORT=4100`, `WORKOS_API_KEY=sk_test_default`.
-4. Serve the app with those env vars (`vp run dev` or `vp run build && vp run start`).
+3. Copy [`.env.e2e.example`](.env.e2e.example) to `.env.e2e`. Keep regular `.env` on placeholder WorkOS keys for `vp test` — do not put `sk_test_default` / `WORKOS_API_HOSTNAME` in `.env` or unit tests will treat the emulator as a live WorkOS and revoke fixture memberships.
+4. Serve the app with the e2e env, for example `set -a && source .env.e2e && set +a && vp run dev` (or the same with `vp run build && vp run start`).
 5. Install Chromium once: `vp run e2e:install`.
-6. Run `vp run test:e2e`. Set `E2E_BASE_URL` when the app is not at `http://localhost:3000`.
+6. Run `vp run test:e2e` (loads `.env` then overrides with `.env.e2e`). Set `E2E_BASE_URL` when the app is not at `http://localhost:3000`.
 
 Helpers in [`src/e2e/fixtures/browser.ts`](src/e2e/fixtures/browser.ts) provision identities in the emulator, drive the interactive login page, and clean up WorkOS + local rows by exact id afterwards. Vitest Browser Mode is not used (it cannot `page.goto` external origins).
 
