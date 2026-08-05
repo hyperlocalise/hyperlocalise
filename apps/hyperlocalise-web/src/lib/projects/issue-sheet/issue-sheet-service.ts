@@ -350,6 +350,7 @@ export class IssueSheetService {
     projectId: string;
     actorUserId?: string;
   }): Promise<IssueSheetColumn[]> {
+    await this.ensureStarterColumns(input);
     const rows = await this.database
       .select({
         id: schema.issueSheetColumns.id,
