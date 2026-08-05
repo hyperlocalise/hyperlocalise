@@ -13,7 +13,10 @@
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { expect, fn, userEvent } from "storybook/test";
 
-import { createKnowledgeEditorViewFixture } from "./knowledge.fixture";
+import {
+  createKnowledgeEditorViewFixture,
+  japanMarketPlaybookMemoryFixture,
+} from "./knowledge.fixture";
 import { KnowledgePageView } from "./knowledge-page-view";
 
 const meta = {
@@ -66,6 +69,35 @@ export const WithMemory: Story = {
     await expect(canvas.getByText("Unsaved changes")).toBeInTheDocument();
     await expect(canvas.queryByText("Retrieval preview")).not.toBeInTheDocument();
     await expect(canvas.queryByRole("dialog")).not.toBeInTheDocument();
+
+    await expect(
+      await canvas.findByRole("heading", { name: "Japanese voice" }),
+    ).toBeInTheDocument();
+    await expect(await canvas.findByText(/です・ます調/)).toBeInTheDocument();
+    await expect(await canvas.findByText(/ワークスペース/)).toBeInTheDocument();
+  },
+};
+
+export const JapanMarketPlaybook: Story = {
+  args: {
+    mode: "editor",
+    editor: createKnowledgeEditorViewFixture({
+      savedKnowledgeMemory: japanMarketPlaybookMemoryFixture,
+    }),
+  },
+  play: async ({ canvas }) => {
+    await expect(canvas.getByRole("heading", { name: "Global guidance" })).toBeInTheDocument();
+    await expect(canvas.getByText("Version 4")).toBeInTheDocument();
+    await expect(canvas.getByText("All changes saved")).toBeInTheDocument();
+
+    await expect(
+      await canvas.findByRole("heading", { name: "Japan market playbook" }),
+    ).toBeInTheDocument();
+    await expect(
+      await canvas.findByRole("heading", { name: "Japan launch calendar" }),
+    ).toBeInTheDocument();
+    await expect(await canvas.findByText(/税込/)).toBeInTheDocument();
+    await expect(await canvas.findByText(/ゴールデンウィーク/)).toBeInTheDocument();
   },
 };
 
