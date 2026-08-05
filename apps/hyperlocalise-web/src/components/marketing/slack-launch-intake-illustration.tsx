@@ -15,7 +15,17 @@
 import type { ReactNode } from "react";
 import { useEffect, useRef, useState } from "react";
 
-import { Cancel01Icon, RefreshIcon, SearchIcon, SentIcon } from "@hugeicons/core-free-icons";
+import {
+  Cancel01Icon,
+  Home06Icon,
+  BubbleChatIcon,
+  RefreshIcon,
+  SearchIcon,
+  SentIcon,
+  Notification01Icon,
+  File01Icon,
+  MoreHorizontalIcon,
+} from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import Image from "next/image";
@@ -25,11 +35,7 @@ import { TypographyMuted, TypographyP, TypographySmall } from "@/components/ui/t
 import { cn } from "@/lib/primitives/cn";
 
 import { LAVENDER_MESH_GRADIENT_SRC } from "./hero-frame-mesh-stage";
-import {
-  CONVO_STEPS,
-  FOLLOW_UP_PROMPT,
-  INITIAL_PROMPT,
-} from "./slack-launch-intake-illustration.data";
+import { CONVO_STEPS } from "./slack-launch-intake-illustration.data";
 import { slackLaunchIntakeIllustrationMessages } from "./slack-launch-intake-illustration.messages";
 
 const EASE_OUT = [0.19, 1, 0.22, 1] as const;
@@ -170,11 +176,13 @@ function ThreadComposer({
   onFollowUp,
   isDone,
   onReset,
+  followUpPrompt,
 }: {
   phase: Phase;
   onFollowUp: () => void;
   isDone: boolean;
   onReset: () => void;
+  followUpPrompt: string;
 }) {
   return (
     <div
@@ -199,7 +207,7 @@ function ThreadComposer({
           onClick={onFollowUp}
           className="flex w-full items-center gap-2 rounded-lg border border-border bg-muted/30 px-3 py-2 text-left text-[0.75rem] text-foreground transition-colors hover:bg-muted/60"
         >
-          <span className="flex-1">{FOLLOW_UP_PROMPT}</span>
+          <span className="flex-1">{followUpPrompt}</span>
           <HugeiconsIcon
             icon={SentIcon}
             strokeWidth={1.8}
@@ -228,6 +236,13 @@ export function SlackLaunchIntakeIllustration({
   const shouldReduceMotion = useReducedMotion();
   const agentName = intl.formatMessage(slackLaunchIntakeIllustrationMessages.agentName);
   const userName = intl.formatMessage(slackLaunchIntakeIllustrationMessages.userName);
+  const initialPrompt = intl.formatMessage(slackLaunchIntakeIllustrationMessages.channelPrompt, {
+    mention: `@${agentName}`,
+  });
+  const followUpPrompt = intl.formatMessage(
+    slackLaunchIntakeIllustrationMessages.agentSummaryOutro,
+  );
+  const mayaFollowUp = intl.formatMessage(slackLaunchIntakeIllustrationMessages.userFollowUp);
   const threadRef = useRef<HTMLDivElement>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -355,7 +370,7 @@ export function SlackLaunchIntakeIllustration({
             onClick={handleInitialPrompt}
             className="flex w-full items-center gap-2 rounded-lg border border-border bg-muted/30 px-3 py-2 text-left text-[0.75rem] text-foreground transition-colors hover:bg-muted/60"
           >
-            <span className="flex-1">{INITIAL_PROMPT}</span>
+            <span className="flex-1">{initialPrompt}</span>
             <HugeiconsIcon
               icon={SentIcon}
               strokeWidth={1.8}
@@ -479,7 +494,7 @@ export function SlackLaunchIntakeIllustration({
                   transition={{ duration: 0.25, ease: EASE_OUT }}
                 >
                   <ChannelMessage avatarSrc={USER_AVATAR} avatarAlt={userName} name={userName}>
-                    {step2.userMessage}
+                    {mayaFollowUp}
                   </ChannelMessage>
                 </motion.div>
               )}
@@ -521,6 +536,7 @@ export function SlackLaunchIntakeIllustration({
             onFollowUp={handleFollowUpPrompt}
             isDone={isDone}
             onReset={handleReset}
+            followUpPrompt={followUpPrompt}
           />
         </motion.aside>
       )}
@@ -553,8 +569,33 @@ export function SlackLaunchIntakeIllustration({
           >
             <SlackMark className="size-4 gap-0.5" />
           </div>
-          <div className="mt-1 size-9 rounded-xl bg-white/10 ring-2 ring-white/70" />
-          <div className="size-9 rounded-xl bg-white/8" />
+          <div className="mt-1 flex size-9 items-center justify-center rounded-xl bg-white/10 ring-2 ring-white/70">
+            <HugeiconsIcon icon={Home06Icon} strokeWidth={1.8} className="size-5 text-white" />
+          </div>
+          <div className="flex size-9 items-center justify-center rounded-xl bg-white/8">
+            <HugeiconsIcon
+              icon={BubbleChatIcon}
+              strokeWidth={1.8}
+              className="size-5 text-white/60"
+            />
+          </div>
+          <div className="flex size-9 items-center justify-center rounded-xl bg-white/8">
+            <HugeiconsIcon
+              icon={Notification01Icon}
+              strokeWidth={1.8}
+              className="size-5 text-white/60"
+            />
+          </div>
+          <div className="flex size-9 items-center justify-center rounded-xl bg-white/8">
+            <HugeiconsIcon icon={File01Icon} strokeWidth={1.8} className="size-5 text-white/60" />
+          </div>
+          <div className="flex size-9 items-center justify-center rounded-xl bg-white/8">
+            <HugeiconsIcon
+              icon={MoreHorizontalIcon}
+              strokeWidth={1.8}
+              className="size-5 text-white/60"
+            />
+          </div>
         </div>
 
         {channelPanel}

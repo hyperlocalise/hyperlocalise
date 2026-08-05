@@ -25,9 +25,7 @@ const SLACK_COLORS = {
 
 export type ConvoStep = {
   id: string;
-  userMessage: string;
   agentReply: ReactNode;
-  replyCount: number;
 };
 
 function BulletList({ items }: { items: { color: string; text: ReactNode }[] }) {
@@ -54,13 +52,9 @@ const intakeItems = [
   slackLaunchIntakeIllustrationMessages.intakeItemReview,
 ] as const;
 
-export const INITIAL_PROMPT =
-  "Hey @Hyperlocalise can we localize the Canva spring campaign board for FR, DE, and JA by Friday?";
-
 export const CONVO_STEPS: ConvoStep[] = [
   {
     id: "step-2",
-    userMessage: INITIAL_PROMPT,
     agentReply: (
       <div>
         <p>
@@ -79,18 +73,13 @@ export const CONVO_STEPS: ConvoStep[] = [
         </p>
       </div>
     ),
-    replyCount: 1,
   },
   {
     id: "step-3",
-    userMessage: "Yes - keep voice notes from the brief on every locale.",
     agentReply: (
       <p>
         <FormattedMessage {...slackLaunchIntakeIllustrationMessages.agentConfirmation} />
       </p>
     ),
-    replyCount: 3,
   },
 ];
-
-export const FOLLOW_UP_PROMPT = "Yes, keep voice notes from the brief on every locale";
