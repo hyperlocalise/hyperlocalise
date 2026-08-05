@@ -20,11 +20,7 @@ import { db, schema } from "@/lib/database";
 import type { OrganizationMembershipRole } from "@/lib/database/types";
 import { slugifyOrganizationName } from "@/lib/onboarding/slugify-organization-name";
 
-import {
-  assertEmulatorReady,
-  createEmulatorWorkosClient,
-  roleSlugForE2e,
-} from "./emulator-client";
+import { assertEmulatorReady, createEmulatorWorkosClient, roleSlugForE2e } from "./emulator-client";
 
 export type EmulatorIdentity = {
   email: string;
