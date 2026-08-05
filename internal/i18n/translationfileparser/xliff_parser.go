@@ -248,20 +248,7 @@ func marshalXLIFFUnit(encoder *xml.Encoder, decoder *xml.Decoder, template []byt
 		return nil
 	}
 
-	offset := int(decoder.InputOffset())
-	unitStart := bytes.LastIndex(template[:offset], []byte("<"+start.Name.Local))
-	if unitStart < 0 {
-		return fmt.Errorf("could not find start of %s", start.Name.Local)
-	}
-	closeTag := []byte("</" + start.Name.Local + ">")
-	idx := bytes.Index(template[offset:], closeTag)
-	if idx < 0 {
-		return fmt.Errorf("could not find closing tag %s", closeTag)
-	}
-	unitEnd := offset + idx + len(closeTag)
-	unitBytes := template[unitStart:unitEnd]
-
-	hasTarget := hasXLIFFTargetElement(unitBytes)
+	hasTarget := hasXLIFFTargetElement(template[decoder.InputOffset():])
 
 	// Stream and replace on the fly
 	if err := encoder.EncodeToken(start); err != nil {
@@ -300,9 +287,12 @@ func marshalXLIFFUnit(encoder *xml.Encoder, decoder *xml.Decoder, template []byt
 			depth--
 			if skipTagName != "" {
 				if t.Name.Local == skipTagName && skipDepth == 0 {
-					// Encode the replacement fragment
-					if err := encodeXLIFFFragment(encoder, replacement); err != nil {
-						return err
+					// Encode the replacement fragment, leaving the element empty when the
+					// replacement carries no text.
+					if strings.TrimSpace(replacement) != "" {
+						if err := encodeXLIFFFragment(encoder, replacement); err != nil {
+							return err
+						}
 					}
 					if err := encoder.EncodeToken(t); err != nil {
 						return fmt.Errorf("xml encode end: %w", err)
@@ -331,43 +321,34 @@ func marshalXLIFFUnit(encoder *xml.Encoder, decoder *xml.Decoder, template []byt
 	return nil
 }
 
-func hasXLIFFTargetElement(unitBytes []byte) bool {
-	for i := 0; i < len(unitBytes); {
-		idx := bytes.IndexByte(unitBytes[i:], '<')
-		if idx < 0 {
-			break
+// hasXLIFFTargetElement reports whether the unit whose children begin at the start of
+// content holds a <target> element. Tokenizing rather than scanning bytes keeps the answer
+// aligned with the elements the caller's decoder reports, including prefixed names such as
+// <x:target> and literal "<target>" text inside CDATA or comments. The scan stops at the
+// unit's own end element, whose matching start element is not part of content.
+func hasXLIFFTargetElement(content []byte) bool {
+	decoder := xml.NewDecoder(bytes.NewReader(content))
+	depth := 0
+	for {
+		// RawToken skips namespace resolution and nesting checks, so the unmatched end
+		// element that closes the unit is reported instead of failing the scan.
+		tok, err := decoder.RawToken()
+		if err != nil {
+			return false
 		}
-		pos := i + idx
-		i = pos + 1
-
-		if bytes.HasPrefix(unitBytes[pos:], []byte("<!--")) {
-			endComment := bytes.Index(unitBytes[pos:], []byte("-->"))
-			if endComment >= 0 {
-				i = pos + endComment + 3
-			}
-			continue
-		}
-		if bytes.HasPrefix(unitBytes[pos:], []byte("<![CDATA[")) {
-			endCDATA := bytes.Index(unitBytes[pos:], []byte("]]>"))
-			if endCDATA >= 0 {
-				i = pos + endCDATA + 3
-			}
-			continue
-		}
-
-		if len(unitBytes)-i >= 6 && string(unitBytes[i:i+6]) == "target" {
-			nextCharPos := i + 6
-			if nextCharPos < len(unitBytes) {
-				ch := unitBytes[nextCharPos]
-				if ch == '>' || ch == '/' || ch == ' ' || ch == '\t' || ch == '\r' || ch == '\n' {
-					return true
-				}
-			} else {
+		switch t := tok.(type) {
+		case xml.StartElement:
+			if t.Name.Local == "target" {
 				return true
 			}
+			depth++
+		case xml.EndElement:
+			if depth == 0 {
+				return false
+			}
+			depth--
 		}
 	}
-	return false
 }
 
 func encodeXLIFFFragment(encoder *xml.Encoder, value string) error {
