@@ -159,6 +159,14 @@ export async function captureOnboardingWorkspace(identity: EmulatorIdentity) {
 }
 
 export async function cleanupEmulatorIdentity(identity: EmulatorIdentity) {
+  // Onboarding identities only learn their workspace ids once the workspace exists,
+  // so resolve them here too — a spec that fails after creation never captures them.
+  try {
+    await captureOnboardingWorkspace(identity);
+  } catch {
+    // Best-effort; fall back to whatever ids the identity already carries.
+  }
+
   const workosOrganizationIds = identity.workosOrganizationId
     ? [identity.workosOrganizationId]
     : [];
