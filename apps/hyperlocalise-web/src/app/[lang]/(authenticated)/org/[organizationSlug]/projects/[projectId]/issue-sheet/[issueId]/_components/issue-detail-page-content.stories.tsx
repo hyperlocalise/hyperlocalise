@@ -13,6 +13,8 @@
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { expect } from "storybook/test";
 
+import { AppShellStoreProvider } from "@/components/app-shell/store/app-shell-store-context";
+
 import {
   issueDetailColumnsErrorMswHandlers,
   issueDetailLoadingMswHandlers,
@@ -31,9 +33,19 @@ const issueId = issueSheetIssuesFixture[0]?.id ?? "issue_001";
 const meta = {
   title: "App/Project/Issue Sheet/Detail",
   component: IssueDetailPageContent,
+  decorators: [
+    (Story) => (
+      <AppShellStoreProvider defaultNavigationGroups={[]}>
+        <div className="flex h-dvh flex-col">
+          <Story />
+        </div>
+      </AppShellStoreProvider>
+    ),
+  ],
   parameters: {
     layout: "fullscreen",
     nextjs: {
+      appDirectory: true,
       navigation: {
         pathname: `/org/${issueSheetOrganizationSlug}/projects/${issueSheetProjectId}/issue-sheet/${issueId}`,
       },
