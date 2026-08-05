@@ -96,7 +96,10 @@ export const JapanMarketPlaybook: Story = {
     await expect(
       await canvas.findByRole("heading", { name: "Japan launch calendar" }),
     ).toBeInTheDocument();
-    await expect(await canvas.findByText(/税込/)).toBeInTheDocument();
+    await expect(
+      await canvas.findByRole("heading", { name: "Japan support expectations" }),
+    ).toBeInTheDocument();
+    await expect(await canvas.findByText(/銀行振込/)).toBeInTheDocument();
     await expect(await canvas.findByText(/ゴールデンウィーク/)).toBeInTheDocument();
   },
 };
