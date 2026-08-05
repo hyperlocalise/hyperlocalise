@@ -11,6 +11,7 @@
  * Version 2.0 or later.
  */
 import { DETAIL_EXCLUDED_COLUMN_KEYS, type IssueSheetColumn } from "./issue-sheet-column-types";
+import type { IssueDetailIssue } from "./issue-detail-utils";
 
 export function issueSheetColumnValueString(value: unknown) {
   if (value == null) {
@@ -41,4 +42,33 @@ export function isMainContentCustomColumn(column: IssueSheetColumn) {
 
 export function isSidebarCustomColumn(column: IssueSheetColumn) {
   return !isMainContentCustomColumn(column);
+}
+
+export function isDraftableCustomColumn(column: IssueSheetColumn) {
+  return column.type === "text" || column.type === "long_text" || column.type === "enrichment";
+}
+
+export function customColumnValueFromIssue(issue: IssueDetailIssue, columnKey: string) {
+  return issueSheetColumnValueString(issue.values[columnKey]);
+}
+
+export function areCustomColumnDraftsDirty(
+  issue: IssueDetailIssue,
+  columns: IssueSheetColumn[],
+  drafts: Record<string, string>,
+) {
+  return columns
+    .filter(isDraftableCustomColumn)
+    .some((column) => drafts[column.key] !== customColumnValueFromIssue(issue, column.key));
+}
+
+export function buildCustomColumnDrafts(
+  issue: IssueDetailIssue,
+  columns: IssueSheetColumn[],
+): Record<string, string> {
+  const drafts: Record<string, string> = {};
+  for (const column of columns.filter(isDraftableCustomColumn)) {
+    drafts[column.key] = customColumnValueFromIssue(issue, column.key);
+  }
+  return drafts;
 }

@@ -12,7 +12,6 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { useEffect, useState } from "react";
 import { useIntl } from "react-intl";
 
 import { Input } from "@/components/ui/input";
@@ -39,29 +38,30 @@ const ghostSelectTriggerClassName =
 export function IssueCustomColumnField({
   column,
   value,
+  draft,
   emptyValue,
   disabled = false,
   variant,
   members = [],
   membersLoading = false,
+  onDraftChange,
+  onCommit,
   onChange,
 }: {
   column: IssueSheetColumn;
   value: unknown;
+  draft: string;
   emptyValue: string;
   disabled?: boolean;
   variant: "sidebar" | "main";
   members?: AssignableIssueMember[];
   membersLoading?: boolean;
+  onDraftChange: (value: string) => void;
+  onCommit: () => void;
   onChange: (value: unknown) => void;
 }) {
   const intl = useIntl();
   const currentValue = issueSheetColumnValueString(value);
-  const [draft, setDraft] = useState(currentValue);
-
-  useEffect(() => {
-    setDraft(currentValue);
-  }, [column.id, currentValue]);
 
   if (column.type === "select") {
     const options = column.config.options ?? [];
@@ -123,12 +123,8 @@ export function IssueCustomColumnField({
       return (
         <IssueMarkdownField
           value={draft}
-          onChange={setDraft}
-          onCommit={() => {
-            if (draft !== currentValue) {
-              onChange(draft);
-            }
-          }}
+          onChange={onDraftChange}
+          onCommit={onCommit}
           disabled={disabled}
           placeholder={placeholder}
           emptyMessage={intl.formatMessage(messages.emptyLongText)}
@@ -140,12 +136,8 @@ export function IssueCustomColumnField({
     return (
       <Textarea
         value={draft}
-        onChange={(event) => setDraft(event.currentTarget.value)}
-        onBlur={() => {
-          if (draft !== currentValue) {
-            onChange(draft);
-          }
-        }}
+        onChange={(event) => onDraftChange(event.currentTarget.value)}
+        onBlur={onCommit}
         disabled={disabled}
         placeholder={placeholder}
         rows={3}
@@ -157,12 +149,8 @@ export function IssueCustomColumnField({
   return (
     <Input
       value={draft}
-      onChange={(event) => setDraft(event.currentTarget.value)}
-      onBlur={() => {
-        if (draft !== currentValue) {
-          onChange(draft);
-        }
-      }}
+      onChange={(event) => onDraftChange(event.currentTarget.value)}
+      onBlur={onCommit}
       disabled={disabled}
       placeholder={emptyValue}
       className={cn(

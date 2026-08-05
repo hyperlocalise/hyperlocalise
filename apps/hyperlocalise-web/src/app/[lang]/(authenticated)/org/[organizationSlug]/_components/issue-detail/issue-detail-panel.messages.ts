@@ -191,4 +191,14 @@ export const issueDetailPanelMessages = defineMessages({
     id: "uNxjflTYdv",
     description: "Cancel close and keep editing button on unsaved changes dialog",
   },
+  loadColumnsError: {
+    defaultMessage: "Custom fields could not be loaded.",
+    id: "ppqLcxUWCQ",
+    description: "Error when issue sheet columns fail to load on issue detail",
+  },
+  retryColumns: {
+    defaultMessage: "Retry",
+    id: "FtQgWtXBLP",
+    description: "Retry button when issue sheet columns fail to load",
+  },
 });

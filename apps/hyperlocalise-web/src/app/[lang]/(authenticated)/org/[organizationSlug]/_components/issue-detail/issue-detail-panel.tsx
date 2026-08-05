@@ -72,6 +72,10 @@ import {
 import { IssuePriorityIcon } from "./issue-priority-icon";
 import { IssueStatusIcon } from "./issue-status-icon";
 import {
+  areCustomColumnDraftsDirty,
+  buildCustomColumnDrafts,
+  customColumnValueFromIssue,
+  isDraftableCustomColumn,
   isMainContentCustomColumn,
   isSidebarCustomColumn,
   listDetailPanelColumns,
@@ -103,11 +107,14 @@ function isIssueDraftDirty(
   titleDraft: string,
   descriptionDraft: string,
   ownerNoteDraft: string,
+  customColumnDrafts: Record<string, string>,
+  detailColumns: ReturnType<typeof listDetailPanelColumns>,
 ) {
   return (
     titleDraft.trim() !== issue.title ||
     descriptionDraft !== issue.description ||
-    ownerNoteDraft !== ownerNoteFromIssue(issue)
+    ownerNoteDraft !== ownerNoteFromIssue(issue) ||
+    areCustomColumnDraftsDirty(issue, detailColumns, customColumnDrafts)
   );
 }
 
@@ -221,12 +228,15 @@ export const IssueDetailPanel = forwardRef<
   const [titleDraft, setTitleDraft] = useState("");
   const [descriptionDraft, setDescriptionDraft] = useState("");
   const [ownerNoteDraft, setOwnerNoteDraft] = useState("");
+  const [customColumnDrafts, setCustomColumnDrafts] = useState<Record<string, string>>({});
   const isSaving = updateIssue.isPending || setValue.isPending;
 
   const titleDraftRef = useRef(titleDraft);
   const descriptionDraftRef = useRef(descriptionDraft);
   const ownerNoteDraftRef = useRef(ownerNoteDraft);
+  const customColumnDraftsRef = useRef(customColumnDrafts);
   const issueRef = useRef(issue);
+  const detailColumnsRef = useRef<ReturnType<typeof listDetailPanelColumns>>([]);
   const suppressAutoSaveRef = useRef(false);
   const draftBaselineRef = useRef<{
     issueId: string;
@@ -234,10 +244,21 @@ export const IssueDetailPanel = forwardRef<
     description: string;
     ownerNote: string;
   } | null>(null);
+  const customColumnBaselineRef = useRef<{
+    issueId: string;
+    drafts: Record<string, string>;
+  } | null>(null);
   titleDraftRef.current = titleDraft;
   descriptionDraftRef.current = descriptionDraft;
   ownerNoteDraftRef.current = ownerNoteDraft;
+  customColumnDraftsRef.current = customColumnDrafts;
   issueRef.current = issue;
+
+  const detailColumns = useMemo(
+    () => listDetailPanelColumns(columnsQuery.data ?? []),
+    [columnsQuery.data],
+  );
+  detailColumnsRef.current = detailColumns;
 
   useEffect(() => {
     if (!issue) {
@@ -272,6 +293,49 @@ export const IssueDetailPanel = forwardRef<
   }, [issue]);
 
   useEffect(() => {
+    if (!issue) {
+      setCustomColumnDrafts({});
+      customColumnBaselineRef.current = null;
+      return;
+    }
+
+    const draftableColumns = detailColumns.filter(isDraftableCustomColumn);
+    const baseline = customColumnBaselineRef.current;
+
+    if (!baseline || baseline.issueId !== issue.id) {
+      const drafts = buildCustomColumnDrafts(issue, draftableColumns);
+      customColumnBaselineRef.current = { issueId: issue.id, drafts };
+      setCustomColumnDrafts(drafts);
+      return;
+    }
+
+    setCustomColumnDrafts((current) => {
+      const next = { ...current };
+      let changed = false;
+      for (const column of draftableColumns) {
+        const saved = customColumnValueFromIssue(issue, column.key);
+        const baselineDraft = baseline.drafts[column.key];
+        if (!(column.key in next)) {
+          next[column.key] = saved;
+          changed = true;
+          continue;
+        }
+        if (next[column.key] === baselineDraft) {
+          next[column.key] = saved;
+          changed = true;
+        }
+      }
+      if (changed) {
+        customColumnBaselineRef.current = {
+          issueId: issue.id,
+          drafts: buildCustomColumnDrafts(issue, draftableColumns),
+        };
+      }
+      return changed ? next : current;
+    });
+  }, [issue, detailColumns]);
+
+  useEffect(() => {
     if (!onDirtyChange) {
       return;
     }
@@ -279,8 +343,25 @@ export const IssueDetailPanel = forwardRef<
       onDirtyChange(false);
       return;
     }
-    onDirtyChange(isIssueDraftDirty(issue, titleDraft, descriptionDraft, ownerNoteDraft));
-  }, [issue, titleDraft, descriptionDraft, ownerNoteDraft, onDirtyChange]);
+    onDirtyChange(
+      isIssueDraftDirty(
+        issue,
+        titleDraft,
+        descriptionDraft,
+        ownerNoteDraft,
+        customColumnDrafts,
+        detailColumns,
+      ),
+    );
+  }, [
+    issue,
+    titleDraft,
+    descriptionDraft,
+    ownerNoteDraft,
+    customColumnDrafts,
+    detailColumns,
+    onDirtyChange,
+  ]);
 
   useImperativeHandle(ref, () => ({
     isDirty: () => {
@@ -293,6 +374,8 @@ export const IssueDetailPanel = forwardRef<
         titleDraftRef.current,
         descriptionDraftRef.current,
         ownerNoteDraftRef.current,
+        customColumnDraftsRef.current,
+        detailColumnsRef.current,
       );
     },
     beginCloseConfirm: () => {
@@ -304,6 +387,12 @@ export const IssueDetailPanel = forwardRef<
     discardPending: () => {
       suppressAutoSaveRef.current = true;
       cancelPending();
+      const current = issueRef.current;
+      if (current) {
+        const drafts = buildCustomColumnDrafts(current, detailColumnsRef.current);
+        customColumnBaselineRef.current = { issueId: current.id, drafts };
+        setCustomColumnDrafts(drafts);
+      }
     },
     savePending: async () => {
       const current = issueRef.current;
@@ -335,6 +424,20 @@ export const IssueDetailPanel = forwardRef<
           value: nextOwnerNote,
         });
       }
+
+      for (const column of detailColumnsRef.current.filter(isDraftableCustomColumn)) {
+        const draft = customColumnDraftsRef.current[column.key];
+        if (draft === undefined) {
+          continue;
+        }
+        if (draft === customColumnValueFromIssue(current, column.key)) {
+          continue;
+        }
+        await setValue.mutateAsync({
+          columnKey: column.key,
+          value: draft,
+        });
+      }
     },
   }));
 
@@ -361,10 +464,6 @@ export const IssueDetailPanel = forwardRef<
     [],
   );
 
-  const detailColumns = useMemo(
-    () => listDetailPanelColumns(columnsQuery.data ?? []),
-    [columnsQuery.data],
-  );
   const sidebarCustomColumns = useMemo(
     () => detailColumns.filter(isSidebarCustomColumn),
     [detailColumns],
@@ -380,6 +479,33 @@ export const IssueDetailPanel = forwardRef<
     }
     setValue.mutate({ columnKey, value });
   };
+
+  const saveCustomColumnDraft = (columnKey: string) => {
+    if (suppressAutoSaveRef.current) {
+      return;
+    }
+    const current = issueRef.current;
+    if (!current) {
+      return;
+    }
+    const draft = customColumnDraftsRef.current[columnKey];
+    if (draft === undefined) {
+      return;
+    }
+    if (draft === customColumnValueFromIssue(current, columnKey)) {
+      return;
+    }
+    setValue.mutate({ columnKey, value: draft });
+  };
+
+  const updateCustomColumnDraft = (columnKey: string, value: string) => {
+    setCustomColumnDrafts((current) => ({
+      ...current,
+      [columnKey]: value,
+    }));
+  };
+
+  const showCustomColumns = columnsQuery.isSuccess;
 
   if (issueQuery.isLoading) {
     return (
@@ -496,23 +622,28 @@ export const IssueDetailPanel = forwardRef<
           />
         </section>
 
-        {mainCustomColumns.map((column) => (
-          <section key={column.id} className="mt-2 grid gap-2 border-t border-border pt-4">
-            <TypographyP className="text-sm font-medium text-foreground">
-              {column.label}
-            </TypographyP>
-            <IssueCustomColumnField
-              column={column}
-              value={issue.values[column.key]}
-              emptyValue={emptyValue}
-              disabled={isSaving}
-              variant="main"
-              members={assignableMembersQuery.data?.members ?? []}
-              membersLoading={assignableMembersQuery.isLoading}
-              onChange={(value) => saveCustomColumnValue(column.key, value)}
-            />
-          </section>
-        ))}
+        {showCustomColumns
+          ? mainCustomColumns.map((column) => (
+              <section key={column.id} className="mt-2 grid gap-2 border-t border-border pt-4">
+                <TypographyP className="text-sm font-medium text-foreground">
+                  {column.label}
+                </TypographyP>
+                <IssueCustomColumnField
+                  column={column}
+                  value={issue.values[column.key]}
+                  draft={customColumnDrafts[column.key] ?? ""}
+                  emptyValue={emptyValue}
+                  disabled={isSaving}
+                  variant="main"
+                  members={assignableMembersQuery.data?.members ?? []}
+                  membersLoading={assignableMembersQuery.isLoading}
+                  onDraftChange={(value) => updateCustomColumnDraft(column.key, value)}
+                  onCommit={() => saveCustomColumnDraft(column.key)}
+                  onChange={(value) => saveCustomColumnValue(column.key, value)}
+                />
+              </section>
+            ))
+          : null}
 
         {hasLinkedContext ? (
           <section className="mt-2 grid gap-3 border-t border-border pt-4">
@@ -592,6 +723,23 @@ export const IssueDetailPanel = forwardRef<
             </Button>
           ) : null}
         </div>
+
+        {columnsQuery.isError ? (
+          <div className="mb-3 space-y-2 rounded-lg border border-destructive/30 bg-destructive/5 p-3">
+            <TypographyP className="text-xs text-destructive">
+              <FormattedMessage {...messages.loadColumnsError} />
+            </TypographyP>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={columnsQuery.isFetching}
+              onClick={() => void columnsQuery.refetch()}
+            >
+              <FormattedMessage {...messages.retryColumns} />
+            </Button>
+          </div>
+        ) : null}
 
         <dl className="flex flex-col">
           <PropertyRow icon={User02Icon} label={<FormattedMessage {...messages.fieldAssignee} />}>
@@ -754,20 +902,25 @@ export const IssueDetailPanel = forwardRef<
             </PropertyRow>
           ) : null}
 
-          {sidebarCustomColumns.map((column) => (
-            <PropertyRow key={column.id} icon={Tag01Icon} label={column.label}>
-              <IssueCustomColumnField
-                column={column}
-                value={issue.values[column.key]}
-                emptyValue={emptyValue}
-                disabled={isSaving}
-                variant="sidebar"
-                members={assignableMembersQuery.data?.members ?? []}
-                membersLoading={assignableMembersQuery.isLoading}
-                onChange={(value) => saveCustomColumnValue(column.key, value)}
-              />
-            </PropertyRow>
-          ))}
+          {showCustomColumns
+            ? sidebarCustomColumns.map((column) => (
+                <PropertyRow key={column.id} icon={Tag01Icon} label={column.label}>
+                  <IssueCustomColumnField
+                    column={column}
+                    value={issue.values[column.key]}
+                    draft={customColumnDrafts[column.key] ?? ""}
+                    emptyValue={emptyValue}
+                    disabled={isSaving}
+                    variant="sidebar"
+                    members={assignableMembersQuery.data?.members ?? []}
+                    membersLoading={assignableMembersQuery.isLoading}
+                    onDraftChange={(value) => updateCustomColumnDraft(column.key, value)}
+                    onCommit={() => saveCustomColumnDraft(column.key)}
+                    onChange={(value) => saveCustomColumnValue(column.key, value)}
+                  />
+                </PropertyRow>
+              ))
+            : null}
         </dl>
       </aside>
     </div>

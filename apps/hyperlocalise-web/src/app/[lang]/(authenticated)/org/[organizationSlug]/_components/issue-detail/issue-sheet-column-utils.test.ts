@@ -13,7 +13,10 @@
 import { describe, expect, it } from "vite-plus/test";
 
 import type { IssueSheetColumn } from "./issue-sheet-column-types";
+import type { IssueDetailIssue } from "./issue-detail-utils";
 import {
+  areCustomColumnDraftsDirty,
+  buildCustomColumnDrafts,
   isMainContentCustomColumn,
   isSidebarCustomColumn,
   issueSheetColumnValueString,
@@ -57,5 +60,48 @@ describe("issue-sheet-column-utils", () => {
     expect(isMainContentCustomColumn(column({ type: "enrichment" }))).toBe(true);
     expect(isSidebarCustomColumn(column({ type: "select" }))).toBe(true);
     expect(isSidebarCustomColumn(column({ type: "long_text" }))).toBe(false);
+  });
+
+  it("detects unsaved custom column drafts", () => {
+    const issue = {
+      id: "issue_1",
+      title: "Issue",
+      description: "",
+      issueType: "general_question",
+      status: "open",
+      targetLocale: null,
+      sourcePath: null,
+      segmentId: null,
+      translationKeyId: null,
+      linkedCommentId: null,
+      linkedAgentRunId: null,
+      linkKind: null,
+      linkLabel: null,
+      linkUrl: null,
+      assigneeUserId: null,
+      reporter: null,
+      assignee: null,
+      key: null,
+      sourceText: null,
+      createdAt: "2026-07-21T00:00:00.000Z",
+      updatedAt: "2026-07-21T00:00:00.000Z",
+      resolvedAt: null,
+      values: { sprint: "S24", context: "Saved context" },
+    } satisfies IssueDetailIssue;
+    const columns = [
+      column({ key: "sprint", type: "select" }),
+      column({ key: "notes", type: "text" }),
+      column({ key: "context", type: "enrichment" }),
+    ];
+
+    expect(
+      areCustomColumnDraftsDirty(issue, columns, {
+        notes: "Updated note",
+        context: "Saved context",
+      }),
+    ).toBe(true);
+    expect(
+      areCustomColumnDraftsDirty(issue, columns, buildCustomColumnDrafts(issue, columns)),
+    ).toBe(false);
   });
 });
