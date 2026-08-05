@@ -127,7 +127,9 @@ function TriageRow({
         <TypographyP className="truncate text-sm font-medium text-foreground">{title}</TypographyP>
         <TypographyP className="mt-0.5 text-xs text-muted-foreground">{description}</TypographyP>
         {meta ? (
-          <TypographyP className="mt-0.5 truncate text-xs text-muted-foreground">{meta}</TypographyP>
+          <TypographyP className="mt-0.5 truncate text-xs text-muted-foreground">
+            {meta}
+          </TypographyP>
         ) : null}
       </div>
       <span className="inline-flex shrink-0 items-center gap-1 text-sm font-medium text-foreground">
