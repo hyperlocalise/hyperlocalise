@@ -10,7 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { makeAutoObservable, observable } from "mobx";
+import { makeAutoObservable, observableRef, observableShallow } from "mobx";
 import type { UIMessage } from "ai";
 
 import {
@@ -170,9 +170,9 @@ export class ChatDockStore {
     makeAutoObservable(
       this,
       {
-        tabs: observable.shallow,
-        pageContext: observable.ref,
-        streamsByConversationId: observable.ref,
+        tabs: observableShallow,
+        pageContext: observableRef,
+        streamsByConversationId: observableRef,
       },
       { autoBind: true },
     );
