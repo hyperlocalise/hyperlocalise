@@ -200,7 +200,11 @@ function ThreadComposer({
           className="flex w-full items-center gap-2 rounded-lg border border-border bg-muted/30 px-3 py-2 text-left text-[0.75rem] text-foreground transition-colors hover:bg-muted/60"
         >
           <span className="flex-1">{FOLLOW_UP_PROMPT}</span>
-          <HugeiconsIcon icon={SentIcon} strokeWidth={1.8} className="size-4 shrink-0 opacity-50 text-muted-foreground" />
+          <HugeiconsIcon
+            icon={SentIcon}
+            strokeWidth={1.8}
+            className="size-4 shrink-0 opacity-50 text-muted-foreground"
+          />
         </button>
       ) : (
         <div className="flex items-center gap-2 rounded-lg border border-border bg-muted/40 px-3 py-2.5 text-sm text-muted-foreground">
@@ -231,11 +235,15 @@ export function SlackLaunchIntakeIllustration({
   const [threadOpen, setThreadOpen] = useState(false);
 
   const replyCount =
-    phase === "idle" ? 0
-    : phase === "typing-1" ? 0
-    : phase === "replied-1" ? 1
-    : phase === "typing-2" ? 2
-    : 3;
+    phase === "idle"
+      ? 0
+      : phase === "typing-1"
+        ? 0
+        : phase === "replied-1"
+          ? 1
+          : phase === "typing-2"
+            ? 2
+            : 3;
 
   const showMayaInChannel = phase !== "idle";
   const isDone = phase === "replied-2";
@@ -261,9 +269,12 @@ export function SlackLaunchIntakeIllustration({
     setThreadOpen(false);
   };
 
-  useEffect(() => () => {
-    if (timerRef.current) clearTimeout(timerRef.current);
-  }, []);
+  useEffect(
+    () => () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+    },
+    [],
+  );
 
   useEffect(() => {
     if (threadRef.current) {
@@ -275,10 +286,12 @@ export function SlackLaunchIntakeIllustration({
   const step2 = CONVO_STEPS[1]!;
 
   const channelPanel = (
-    <div className={cn(
-      "flex min-h-0 flex-col border-r border-border",
-      threadOpen ? "hidden lg:flex" : "flex",
-    )}>
+    <div
+      className={cn(
+        "flex min-h-0 flex-col border-r border-border",
+        threadOpen ? "hidden lg:flex" : "flex",
+      )}
+    >
       <header className="flex h-12 shrink-0 items-center gap-2.5 border-b border-border px-4">
         <div
           className="flex size-7 items-center justify-center rounded-md lg:hidden"
@@ -326,8 +339,8 @@ export function SlackLaunchIntakeIllustration({
                 name={userName}
                 className="mt-1"
               >
-                Hey <AgentMention name={agentName} />{" "}
-                can we localize the Canva spring campaign board for FR, DE, and JA by Friday?
+                Hey <AgentMention name={agentName} /> can we localize the Canva spring campaign
+                board for FR, DE, and JA by Friday?
                 <RepliesLink count={replyCount} onClick={() => setThreadOpen(true)} />
               </ChannelMessage>
             </motion.div>
@@ -343,7 +356,11 @@ export function SlackLaunchIntakeIllustration({
             className="flex w-full items-center gap-2 rounded-lg border border-border bg-muted/30 px-3 py-2 text-left text-[0.75rem] text-foreground transition-colors hover:bg-muted/60"
           >
             <span className="flex-1">{INITIAL_PROMPT}</span>
-            <HugeiconsIcon icon={SentIcon} strokeWidth={1.8} className="size-4 shrink-0 opacity-50 text-muted-foreground" />
+            <HugeiconsIcon
+              icon={SentIcon}
+              strokeWidth={1.8}
+              className="size-4 shrink-0 opacity-50 text-muted-foreground"
+            />
           </button>
         ) : (
           <div className="space-y-2">
@@ -363,7 +380,11 @@ export function SlackLaunchIntakeIllustration({
               <span className="flex-1">
                 <FormattedMessage {...slackLaunchIntakeIllustrationMessages.composerPlaceholder} />
               </span>
-              <HugeiconsIcon icon={SentIcon} strokeWidth={1.8} className="size-4 shrink-0 opacity-50" />
+              <HugeiconsIcon
+                icon={SentIcon}
+                strokeWidth={1.8}
+                className="size-4 shrink-0 opacity-50"
+              />
             </div>
           </div>
         )}
@@ -408,8 +429,8 @@ export function SlackLaunchIntakeIllustration({
             className="min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain px-4 py-4"
           >
             <ChannelMessage avatarSrc={USER_AVATAR} avatarAlt={userName} name={userName}>
-              Hey <AgentMention name={agentName} />{" "}
-              can we localize the Canva spring campaign board for FR, DE, and JA by Friday?
+              Hey <AgentMention name={agentName} /> can we localize the Canva spring campaign board
+              for FR, DE, and JA by Friday?
             </ChannelMessage>
 
             <div className="flex items-center gap-2 py-1">
@@ -421,7 +442,12 @@ export function SlackLaunchIntakeIllustration({
 
             <AnimatePresence mode="wait">
               {phase === "typing-1" && (
-                <motion.div key="typing-1" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+                <motion.div
+                  key="typing-1"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                >
                   <TypingIndicator agentName={agentName} />
                 </motion.div>
               )}
@@ -432,7 +458,12 @@ export function SlackLaunchIntakeIllustration({
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.3, ease: EASE_OUT }}
                 >
-                  <ChannelMessage avatarSrc={AGENT_AVATAR} avatarAlt={agentName} name={agentName} isAgent>
+                  <ChannelMessage
+                    avatarSrc={AGENT_AVATAR}
+                    avatarAlt={agentName}
+                    name={agentName}
+                    isAgent
+                  >
                     {step1.agentReply}
                   </ChannelMessage>
                 </motion.div>
@@ -456,7 +487,12 @@ export function SlackLaunchIntakeIllustration({
 
             <AnimatePresence mode="wait">
               {phase === "typing-2" && (
-                <motion.div key="typing-2" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+                <motion.div
+                  key="typing-2"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                >
                   <TypingIndicator agentName={agentName} />
                 </motion.div>
               )}
@@ -467,7 +503,12 @@ export function SlackLaunchIntakeIllustration({
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.3, ease: EASE_OUT }}
                 >
-                  <ChannelMessage avatarSrc={AGENT_AVATAR} avatarAlt={agentName} name={agentName} isAgent>
+                  <ChannelMessage
+                    avatarSrc={AGENT_AVATAR}
+                    avatarAlt={agentName}
+                    name={agentName}
+                    isAgent
+                  >
                     {step2.agentReply}
                   </ChannelMessage>
                 </motion.div>

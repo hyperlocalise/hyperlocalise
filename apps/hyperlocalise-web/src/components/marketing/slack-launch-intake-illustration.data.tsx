@@ -93,5 +93,4 @@ export const CONVO_STEPS: ConvoStep[] = [
   },
 ];
 
-export const FOLLOW_UP_PROMPT =
-  "Yes, keep voice notes from the brief on every locale";
+export const FOLLOW_UP_PROMPT = "Yes, keep voice notes from the brief on every locale";
