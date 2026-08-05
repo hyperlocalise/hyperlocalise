@@ -260,7 +260,7 @@ export function CatEditorCommentsSection({
       <Textarea
         value={commentDraft}
         onChange={(event) => handleCommentDraftChange(event.currentTarget.value)}
-        className="min-h-20 resize-y rounded-xl border-border bg-background px-3 py-3 text-sm leading-relaxed"
+        className="min-h-20 resize-y rounded-xl border-border bg-muted px-3 py-3 text-sm leading-relaxed"
         placeholder={intl.formatMessage(catEditorPanelMessages.commentPlaceholder)}
         disabled={!canAddComment || isPostingComment || isResolvingComment}
         data-cat-comment-input="true"
@@ -287,7 +287,7 @@ export function CatEditorCommentsSection({
                 onValueChange={handleIssueTypeChange}
                 disabled={!canAddComment || isPostingComment || isResolvingComment}
                 aria-label={intl.formatMessage(catEditorPanelMessages.issueTypeLabel)}
-                triggerClassName="h-8 border-border bg-background"
+                triggerClassName="h-8 border-border bg-muted"
               />
             </div>
           ) : null}
