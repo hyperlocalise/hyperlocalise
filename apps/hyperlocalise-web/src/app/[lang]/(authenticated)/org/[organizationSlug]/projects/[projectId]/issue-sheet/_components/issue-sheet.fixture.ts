@@ -91,10 +91,24 @@ export const issueSheetColumnsFixture: IssueSheetColumnFixture[] = [
     id: "col_context",
     key: "context",
     label: "Context",
-    layer: "custom",
+    layer: "enrichment",
     type: "enrichment",
     config: {},
-    sortOrder: 2,
+    sortOrder: 30,
+  },
+  {
+    id: "col_sprint",
+    key: "sprint",
+    label: "Sprint",
+    layer: "custom",
+    type: "select",
+    config: {
+      options: [
+        { id: "S24", label: "Sprint 24" },
+        { id: "S25", label: "Sprint 25" },
+      ],
+    },
+    sortOrder: 40,
   },
 ];
 
@@ -125,6 +139,7 @@ export function createIssueSheetIssue(
       priority: "P1",
       owner_note: "Waiting on product copy review.",
       context: "",
+      sprint: "S24",
     },
     ...overrides,
   };
@@ -179,6 +194,29 @@ export const issueSheetResponseFixture = {
   total: issueSheetIssuesFixture.length,
   summary: issueSheetSummaryFixture,
 };
+
+export const issueSheetAssignableMembersFixture = [
+  {
+    userId: "user_mina",
+    workosUserId: "workos_mina",
+    email: "mina@example.com",
+    firstName: "Mina",
+    lastName: "Chen",
+    displayName: "Mina Chen",
+    avatarUrl: null,
+    isCurrentUser: true,
+  },
+  {
+    userId: "user_otto",
+    workosUserId: "workos_otto",
+    email: "otto@example.com",
+    firstName: "Otto",
+    lastName: "Klein",
+    displayName: "Otto Klein",
+    avatarUrl: null,
+    isCurrentUser: false,
+  },
+];
 
 export const issueSheetProjectFixture: ProjectRecord = {
   id: issueSheetProjectId,

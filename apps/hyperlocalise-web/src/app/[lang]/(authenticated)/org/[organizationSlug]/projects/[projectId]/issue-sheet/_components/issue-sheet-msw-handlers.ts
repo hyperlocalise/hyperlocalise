@@ -13,6 +13,7 @@
 import { delay, http, HttpResponse } from "msw";
 
 import {
+  issueSheetAssignableMembersFixture,
   issueSheetIssuesFixture,
   issueSheetProjectFixture,
   issueSheetResponseFixture,
@@ -25,6 +26,15 @@ export const issueSheetMswHandlers = [
     HttpResponse.json({ project: issueSheetProjectFixture }),
   ),
   http.get(issueSheetBasePath, () => HttpResponse.json(issueSheetResponseFixture)),
+  http.get(`${issueSheetBasePath}/columns`, () =>
+    HttpResponse.json({ columns: issueSheetResponseFixture.columns }),
+  ),
+  http.get(`${issueSheetBasePath}/assignable-members`, () =>
+    HttpResponse.json({ members: issueSheetAssignableMembersFixture }),
+  ),
+  http.get(`${issueSheetBasePath}/:issueId/feed`, () =>
+    HttpResponse.json({ items: [], total: 0, nextCursor: null }),
+  ),
   http.get(`${issueSheetBasePath}/:issueId`, ({ params }) => {
     const issue = issueSheetIssuesFixture.find((row) => row.id === params.issueId);
     if (!issue) {
@@ -132,5 +142,65 @@ export const issueSheetErrorMswHandlers = [
   ),
   http.get(issueSheetBasePath, () =>
     HttpResponse.json({ error: "issue_sheet_load_failed" }, { status: 500 }),
+  ),
+];
+
+export const issueDetailColumnsErrorMswHandlers = [
+  http.get("/api/orgs/:organizationSlug/projects/:projectId", () =>
+    HttpResponse.json({ project: issueSheetProjectFixture }),
+  ),
+  http.get(`${issueSheetBasePath}/columns`, () =>
+    HttpResponse.json({ error: "issue_sheet_columns_load_failed" }, { status: 500 }),
+  ),
+  http.get(`${issueSheetBasePath}/assignable-members`, () =>
+    HttpResponse.json({ members: issueSheetAssignableMembersFixture }),
+  ),
+  http.get(`${issueSheetBasePath}/:issueId/feed`, () =>
+    HttpResponse.json({ items: [], total: 0, nextCursor: null }),
+  ),
+  http.get(`${issueSheetBasePath}/:issueId`, ({ params }) => {
+    const issue = issueSheetIssuesFixture.find((row) => row.id === params.issueId);
+    if (!issue) {
+      return HttpResponse.json({ error: "issue_not_found" }, { status: 404 });
+    }
+    return HttpResponse.json({ issue });
+  }),
+];
+
+export const issueDetailLoadingMswHandlers = [
+  http.get("/api/orgs/:organizationSlug/projects/:projectId", async () => {
+    await delay("infinite");
+    return HttpResponse.json({ project: issueSheetProjectFixture });
+  }),
+  http.get(`${issueSheetBasePath}/columns`, async () => {
+    await delay("infinite");
+    return HttpResponse.json({ columns: issueSheetResponseFixture.columns });
+  }),
+  http.get(`${issueSheetBasePath}/:issueId`, async () => {
+    await delay("infinite");
+    return HttpResponse.json({ issue: issueSheetIssuesFixture[0] });
+  }),
+  http.get(`${issueSheetBasePath}/assignable-members`, async () => {
+    await delay("infinite");
+    return HttpResponse.json({ members: issueSheetAssignableMembersFixture });
+  }),
+  http.get(`${issueSheetBasePath}/:issueId/feed`, async () => {
+    await delay("infinite");
+    return HttpResponse.json({ items: [], total: 0, nextCursor: null });
+  }),
+];
+
+export const issueDetailNotFoundMswHandlers = [
+  http.get("/api/orgs/:organizationSlug/projects/:projectId", () =>
+    HttpResponse.json({ project: issueSheetProjectFixture }),
+  ),
+  http.get(`${issueSheetBasePath}/columns`, () =>
+    HttpResponse.json({ columns: issueSheetResponseFixture.columns }),
+  ),
+  http.get(`${issueSheetBasePath}/assignable-members`, () =>
+    HttpResponse.json({ members: issueSheetAssignableMembersFixture }),
+  ),
+  http.get(`${issueSheetBasePath}/:issueId`, () =>
+    HttpResponse.json({ error: "issue_not_found" }, { status: 404 }),
   ),
 ];

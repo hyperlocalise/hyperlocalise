@@ -234,6 +234,110 @@ describe("Issue Sheet routes", () => {
     expect(valueResponse.status).toBe(200);
   });
 
+  it("lists starter columns and created custom columns via GET /columns", async () => {
+    const { identity, project } = await projectFixture.createStoredProjectFixture();
+    const headers = await projectFixture.authHeadersFor(identity);
+    const organizationSlug = identity.organization.slug ?? "missing-slug";
+
+    const columnsResponse = await requestJson(
+      issueSheetUrl(organizationSlug, project.id, "/columns"),
+      { headers },
+    );
+
+    expect(columnsResponse.status).toBe(200);
+    const columnsBody = (await columnsResponse.json()) as {
+      columns: Array<{ key: string; label: string; type: string }>;
+    };
+    expect(columnsBody.columns.map((column) => column.key)).toEqual([
+      "priority",
+      "owner_note",
+      "context",
+    ]);
+    expect(columnsBody.columns.find((column) => column.key === "context")).toMatchObject({
+      type: "enrichment",
+      label: "Context",
+    });
+
+    const createColumnResponse = await requestJson(
+      issueSheetUrl(organizationSlug, project.id, "/columns"),
+      {
+        method: "POST",
+        headers,
+        body: {
+          key: "component",
+          label: "Component",
+          type: "text",
+          config: {},
+        },
+      },
+    );
+    expect(createColumnResponse.status).toBe(201);
+
+    const columnsAfterResponse = await requestJson(
+      issueSheetUrl(organizationSlug, project.id, "/columns"),
+      { headers },
+    );
+    expect(columnsAfterResponse.status).toBe(200);
+    const columnsAfterBody = (await columnsAfterResponse.json()) as {
+      columns: Array<{ key: string }>;
+    };
+    expect(columnsAfterBody.columns.map((column) => column.key)).toEqual([
+      "priority",
+      "owner_note",
+      "context",
+      "component",
+    ]);
+  });
+
+  it("returns custom column values on GET issue", async () => {
+    const { identity, project } = await projectFixture.createStoredProjectFixture();
+    const headers = await projectFixture.authHeadersFor(identity);
+    const organizationSlug = identity.organization.slug ?? "missing-slug";
+
+    const createResponse = await requestJson(issueSheetUrl(organizationSlug, project.id), {
+      method: "POST",
+      headers,
+      body: {
+        title: "Issue with custom fields",
+        issueType: "general_question",
+      },
+    });
+    expect(createResponse.status).toBe(201);
+    const createdBody = (await createResponse.json()) as IssueResponse;
+    const issueId = createdBody.issue.id;
+
+    await requestJson(issueSheetUrl(organizationSlug, project.id, "/columns"), {
+      method: "POST",
+      headers,
+      body: {
+        key: "sprint",
+        label: "Sprint",
+        type: "select",
+        config: { options: [{ id: "S24", label: "S24" }] },
+      },
+    });
+
+    const valueResponse = await requestJson(
+      issueSheetUrl(organizationSlug, project.id, `/${issueId}/values`),
+      {
+        method: "PATCH",
+        headers,
+        body: { columnKey: "sprint", value: "S24" },
+      },
+    );
+    expect(valueResponse.status).toBe(200);
+
+    const getIssueResponse = await requestJson(
+      issueSheetUrl(organizationSlug, project.id, `/${issueId}`),
+      { headers },
+    );
+    expect(getIssueResponse.status).toBe(200);
+    const getIssueBody = (await getIssueResponse.json()) as IssueResponse;
+    expect(getIssueBody.issue.values).toMatchObject({
+      sprint: "S24",
+    });
+  });
+
   it("deduplicates open rows for the same external reference", async () => {
     const { identity, project } = await projectFixture.createStoredProjectFixture();
     const headers = await projectFixture.authHeadersFor(identity);
