@@ -49,6 +49,15 @@ export const Default: Story = {
     await expect(canvas.getByRole("button", { name: "Create job" })).toBeInTheDocument();
     await expect(canvas.getByText("Needs you now")).toBeInTheDocument();
     await expect(canvas.getByText("Waiting for review")).toBeInTheDocument();
+    await expect(
+      canvas.getByText((content) => content.includes("fr-FR") && content.includes("Otto")),
+    ).toBeInTheDocument();
+    await expect(
+      canvas.getByText(
+        (content) =>
+          content.includes("de-DE") && content.includes("es-ES") && content.includes("Mina"),
+      ),
+    ).toBeInTheDocument();
     await expect(canvas.getByText("Translation guidance")).toBeInTheDocument();
     await expect(canvas.getByText("Sync")).toBeInTheDocument();
     await expect(canvas.queryByText("Locale health")).toBeNull();

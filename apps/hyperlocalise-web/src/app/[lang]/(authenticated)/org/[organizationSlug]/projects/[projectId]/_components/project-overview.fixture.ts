@@ -86,8 +86,8 @@ export const projectOverviewJobsFixture: ApiJob[] = [
     externalStatus: null,
     externalTitle: null,
     externalDueDate: null,
-    externalTargetLocales: null,
-    externalAssignedUsers: null,
+    externalTargetLocales: ["de-DE", "es-ES"],
+    externalAssignedUsers: ["Mina"],
     externalSyncState: null,
   },
   {
@@ -117,7 +117,7 @@ export const projectOverviewJobsFixture: ApiJob[] = [
     externalTitle: null,
     externalDueDate: null,
     externalTargetLocales: null,
-    externalAssignedUsers: null,
+    externalAssignedUsers: ["Otto"],
     externalSyncState: null,
   },
 ];

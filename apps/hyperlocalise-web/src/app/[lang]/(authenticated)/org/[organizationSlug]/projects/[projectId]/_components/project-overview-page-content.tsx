@@ -27,7 +27,11 @@ import { parseProviderProjectId } from "@/lib/providers/jobs/tms-provider-resour
 
 import { OverviewSectionHeader } from "../../../_components/overview/overview-section-header";
 import { CreateJobDialog } from "../../../jobs/_components/create-job-dialog";
-import { getJobName, type ApiJob } from "../../../jobs/_components/jobs-page-view";
+import {
+  getJobName,
+  taskDetailSummary,
+  type ApiJob,
+} from "../../../jobs/_components/jobs-page-view";
 import type { ProjectListRow } from "../../_components/project-list";
 import { ProjectOverviewMeshStage } from "./project-overview-mesh-stage";
 import { projectOverviewPageContentMessages as messages } from "./project-overview-page-content.messages";
@@ -44,33 +48,54 @@ function buildProjectJobHref(organizationSlug: string, projectId: string, jobId:
   return `/org/${organizationSlug}/projects/${encodeURIComponent(projectId)}/jobs/${encodeURIComponent(jobId)}`;
 }
 
+function resolveTriageJobMeta(
+  job: ApiJob | undefined,
+  intl: ReturnType<typeof useIntl>,
+): string | null {
+  if (!job) {
+    return null;
+  }
+
+  const hasLocales = Boolean(job.externalTargetLocales?.length || job.reviewTargetLocale);
+  const hasAssignees = Boolean(job.externalAssignedUsers?.length);
+  if (!hasLocales && !hasAssignees) {
+    return null;
+  }
+
+  return taskDetailSummary(job, intl);
+}
+
 function resolveTriageCopy(
   item: ProjectOverviewTriageItem,
   intl: ReturnType<typeof useIntl>,
-): { title: string; description: string; cta: string } {
+): { title: string; description: string; meta: string | null; cta: string } {
   switch (item.kind) {
     case "review":
       return {
         title: getJobName(item.job!, intl),
         description: intl.formatMessage(messages.triageReviewTitle),
+        meta: resolveTriageJobMeta(item.job, intl),
         cta: intl.formatMessage(messages.reviewCta),
       };
     case "failed":
       return {
         title: getJobName(item.job!, intl),
         description: intl.formatMessage(messages.triageFailedTitle),
+        meta: resolveTriageJobMeta(item.job, intl),
         cta: intl.formatMessage(messages.openJobCta),
       };
     case "job":
       return {
         title: getJobName(item.job!, intl),
         description: intl.formatMessage(messages.triageJobRunning),
+        meta: resolveTriageJobMeta(item.job, intl),
         cta: intl.formatMessage(messages.openJobCta),
       };
     case "guidance":
       return {
         title: intl.formatMessage(messages.triageGuidanceTitle),
         description: intl.formatMessage(messages.triageGuidanceDescription),
+        meta: null,
         cta: intl.formatMessage(messages.addGuidanceCta),
       };
     default: {
@@ -84,11 +109,13 @@ function TriageRow({
   href,
   title,
   description,
+  meta,
   cta,
 }: {
   href: string;
   title: string;
   description: string;
+  meta: string | null;
   cta: string;
 }) {
   return (
@@ -99,6 +126,9 @@ function TriageRow({
       <div className="min-w-0">
         <TypographyP className="truncate text-sm font-medium text-foreground">{title}</TypographyP>
         <TypographyP className="mt-0.5 text-xs text-muted-foreground">{description}</TypographyP>
+        {meta ? (
+          <TypographyP className="mt-0.5 truncate text-xs text-muted-foreground">{meta}</TypographyP>
+        ) : null}
       </div>
       <span className="inline-flex shrink-0 items-center gap-1 text-sm font-medium text-foreground">
         {cta}
@@ -257,6 +287,7 @@ export function ProjectOverviewPageContentView({
                       href={href}
                       title={copy.title}
                       description={copy.description}
+                      meta={copy.meta}
                       cta={copy.cta}
                     />
                   );
