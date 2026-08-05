@@ -247,6 +247,7 @@ export function CatEditorPanel({
             resolvingCommentId={resolvingCommentId}
             commentPostError={commentPostError}
             onAddComment={onAddComment}
+            onOpenIssueSheet={onAddToIssueSheet}
             onResolveComment={onResolveComment}
           />
         </div>

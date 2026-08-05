@@ -61,6 +61,7 @@ export function CatSideBySideIntelligencePanel({
   onRefreshContext,
   onUseTmMatch,
   onAddComment,
+  onOpenIssueSheet,
   onResolveComment,
   placement = "bottom",
   className,
@@ -89,6 +90,7 @@ export function CatSideBySideIntelligencePanel({
   onRefreshContext?: () => void;
   onUseTmMatch?: (match: CatTranslationMemoryMatch) => void;
   onAddComment?: (input: CatSegmentCommentInput) => void | Promise<void>;
+  onOpenIssueSheet?: () => void;
   onResolveComment?: (commentId: string) => void | Promise<void>;
   placement?: "bottom" | "right";
   className?: string;
@@ -160,6 +162,7 @@ export function CatSideBySideIntelligencePanel({
       canAddComment={canAddComment}
       supportsIssueComments={supportsIssueComments}
       onAddComment={onAddComment}
+      onOpenIssueSheet={onOpenIssueSheet}
       onResolveComment={onResolveComment}
     />
   );

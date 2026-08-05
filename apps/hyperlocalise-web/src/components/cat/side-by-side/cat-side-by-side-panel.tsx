@@ -428,6 +428,11 @@ export const CatSideBySidePanel = observer(function CatSideBySidePanel({
               ? (commentId) => onResolveComment(intelligenceSegmentId, commentId)
               : undefined
           }
+          onOpenIssueSheet={
+            onAddToIssueSheet && intelligenceSegment
+              ? () => onAddToIssueSheet(intelligenceSegmentId)
+              : undefined
+          }
           placement="right"
           className="h-full"
         />

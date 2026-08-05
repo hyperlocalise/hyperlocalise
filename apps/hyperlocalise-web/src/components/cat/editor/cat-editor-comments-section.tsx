@@ -176,6 +176,7 @@ export function CatEditorCommentsSection({
   resolvingCommentId,
   commentPostError,
   onAddComment,
+  onOpenIssueSheet,
   onResolveComment,
 }: {
   segment: CatSegment;
@@ -187,6 +188,7 @@ export function CatEditorCommentsSection({
   resolvingCommentId: string | null;
   commentPostError?: string;
   onAddComment?: (input: CatSegmentCommentInput) => void | Promise<void>;
+  onOpenIssueSheet?: () => void;
   onResolveComment?: (commentId: string) => void | Promise<void>;
 }) {
   const intl = useIntl();
@@ -201,6 +203,11 @@ export function CatEditorCommentsSection({
   const commentInputType = commentInputTypes[segment.id] ?? "comment";
   const issueType = issueTypes[segment.id] ?? "general_question";
   const trimmedCommentDraft = commentDraft.trim();
+  const hasIssueComments = segmentComments.some((comment) => comment.type === "issue");
+  const showIssueSheetCta =
+    Boolean(onOpenIssueSheet) &&
+    supportsIssueComments &&
+    (commentInputType === "issue" || hasIssueComments);
 
   function handleCommentDraftChange(value: string) {
     setCommentDrafts((current) => ({ ...current, [segment.id]: value }));
@@ -294,7 +301,19 @@ export function CatEditorCommentsSection({
         </div>
       ) : null}
       {commentPostError ? <p className="text-sm text-flame-100">{commentPostError}</p> : null}
-      <div className="flex justify-end">
+      <div className="flex items-center justify-between gap-2">
+        {showIssueSheetCta ? (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onOpenIssueSheet}
+            disabled={isPostingComment || isResolvingComment}
+          >
+            <FormattedMessage {...catEditorPanelMessages.addToIssueSheet} />
+          </Button>
+        ) : (
+          <span />
+        )}
         <Button
           variant="ghost"
           size="sm"
