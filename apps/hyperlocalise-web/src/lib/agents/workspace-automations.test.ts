@@ -32,6 +32,7 @@ import {
   pauseWorkspaceAutomation,
   updateWorkspaceAutomation,
   updateWorkspaceAutomationRun,
+  workspaceAutomationConfigSchema,
 } from "./workspace-automations";
 
 const organizationIds: string[] = [];
@@ -112,6 +113,34 @@ async function seedWorkspaceAutomationScope() {
     githubInstallationRepositoryId: repository.id,
   };
 }
+
+describe("workspaceAutomationConfigSchema native TMS tools", () => {
+  it("migrates legacy translation toolConfig into create and assign tools", () => {
+    const config = workspaceAutomationConfigSchema.parse({
+      triggerConfig: { mode: "source_upload" },
+      repositoryTarget: { kind: "none" },
+      toolConfig: {
+        translation: {
+          enabled: true,
+          useProjectTargetLocales: false,
+          targetLocales: ["ja-JP"],
+        },
+      },
+    });
+
+    expect(config.toolConfig).toMatchObject({
+      createNativeTmsJob: {
+        enabled: true,
+        useProjectTargetLocales: false,
+        targetLocales: ["ja-JP"],
+      },
+      assignTranslateWithAgent: {
+        enabled: true,
+      },
+    });
+    expect(config.toolConfig).not.toHaveProperty("translation");
+  });
+});
 
 describe("hoistLegacyWorkspaceAutomationProjectId", () => {
   it("hoists when every legacy tool projectId agrees", () => {

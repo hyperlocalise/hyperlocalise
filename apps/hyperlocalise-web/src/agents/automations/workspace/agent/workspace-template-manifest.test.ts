@@ -37,10 +37,32 @@ describe("workspace template manifest", () => {
     expect(validateTemplate?.instructions).toContain("protected branches");
   });
 
+  it("merges translate-on-source-upload skill onto the gallery template", () => {
+    const [template] = mergeWorkspaceTemplateSkills(WORKSPACE_AUTOMATION_TEMPLATES_BASE).filter(
+      (entry) => entry.id === "translate-on-source-upload",
+    );
+
+    expect(template).toMatchObject({
+      name: "Translate on source upload",
+      category: "popular",
+      activatable: true,
+      defaultForm: {
+        triggerMode: "source_upload",
+        createNativeTmsJobEnabled: true,
+        createNativeTmsJobUseProjectTargetLocales: true,
+        assignTranslateWithAgentEnabled: true,
+      },
+    });
+    expect(template?.description).toContain("native translation job");
+    expect(template?.instructions).toContain("Translate with agent");
+  });
+
   it("reads executor agent and category from skill frontmatter", () => {
     expect(getTemplateExecutorAgent("translate-contentful-article")).toBe("contentful");
     expect(getTemplateExecutorAgent("validate-localisation-on-push")).toBe("github-repository");
+    expect(getTemplateExecutorAgent("translate-on-source-upload")).toBeNull();
     expect(getTemplateCategoryFromSkill("validate-localisation-on-push")).toBe("quality");
+    expect(getTemplateCategoryFromSkill("translate-on-source-upload")).toBe("popular");
   });
 
   it("keeps summarize changes daily template content from base definition", () => {

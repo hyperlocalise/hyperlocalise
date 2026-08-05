@@ -261,12 +261,25 @@ const CrowdinAppInboxReady = observer(function CrowdinAppInboxReady({
           jobsIsLoading={jobsQuery.isLoading}
           messages={messages}
           messagesIsLoading={messagesQuery.isLoading}
+          notifications={[]}
+          notificationsIsError={false}
+          notificationsIsLoading={false}
+          hasMoreNotifications={false}
+          isLoadingMoreNotifications={false}
+          onLoadMoreNotifications={() => undefined}
+          onMarkAllRead={() => undefined}
           onSelectConversation={setSelectedConversationId}
+          onSelectNotification={() => undefined}
           onSendMessage={onSendMessage}
           organizationSlug={session.organizationSlug}
           selectedConversation={selectedConversation}
-          selectedConversationId={effectiveConversationId}
+          selectedNotification={undefined}
+          selectedNotificationIsLoading={false}
+          selection={
+            effectiveConversationId ? { kind: "conversation", id: effectiveConversationId } : null
+          }
           streamedAssistant={streamedAssistant}
+          unreadNotificationCount={0}
         />
       </div>
     </div>

@@ -133,7 +133,7 @@ const CatWorkspaceContainerObserver = observer(function CatWorkspaceContainerObs
 
   return (
     <>
-      <CatChatDockPageContextBridge />
+      <CatChatDockPageContextBridge projectId={lazySegment?.projectId} />
       {onPageLimitChange ? (
         <CatWorkspaceViewModeSync onPageLimitChange={onPageLimitChange} />
       ) : null}

@@ -14,6 +14,7 @@ import type { NavigationGroup, NavigationItem } from "@/components/app-shell/nav
 
 import {
   WORKSPACE_AUTOMATIONS_FLAG,
+  WORKSPACE_GLOSSARY_SEARCH_FLAG,
   WORKSPACE_ISSUES_FLAG,
   WORKSPACE_KNOWLEDGE_FLAG,
   WORKSPACE_VISUAL_MOCK_FLAG,
@@ -26,6 +27,7 @@ function workspaceFlagEnabledByKey(flags: WorkspaceFeatureFlagState): Record<str
     [WORKSPACE_KNOWLEDGE_FLAG]: flags.knowledge,
     [WORKSPACE_VISUAL_MOCK_FLAG]: flags.visualMock,
     [WORKSPACE_ISSUES_FLAG]: flags.issues,
+    [WORKSPACE_GLOSSARY_SEARCH_FLAG]: flags.glossarySearch,
   };
 }
 

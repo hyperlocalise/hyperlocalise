@@ -17,7 +17,7 @@ import type { AuthVariables } from "@/api/auth/workos";
 import { forbiddenResponse } from "@/api/response.schema";
 import type { WorkosFlagEntities } from "@/lib/flags/workos-flag-entities";
 
-async function isWorkspaceFeatureFlagEnabled(
+export async function isWorkspaceFeatureFlagEnabled(
   workspaceFlag: Flag<boolean, WorkosFlagEntities>,
   auth: AuthVariables["auth"],
 ) {

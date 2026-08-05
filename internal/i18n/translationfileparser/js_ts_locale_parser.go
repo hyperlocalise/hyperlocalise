@@ -425,8 +425,13 @@ func parseJSTSLocaleEntries(src string, objectStart, objectEnd int) ([]jstsLocal
 		capacity = 4
 	}
 	entries := make([]jstsLocaleEntry, 0, capacity)
-	if err := flattenJSTSLocaleValue(src, "", objectStart, objectEnd, &entries); err != nil {
-		return nil, nil, err
+	// BOLT OPTIMIZATION: Instead of re-parsing the root object's properties from scratch
+	// using flattenJSTSLocaleValue on the entire object, iterate over the already-parsed props
+	// and flatten each property. This avoids a redundant parse pass of the root object properties.
+	for _, prop := range props {
+		if err := flattenJSTSLocaleValue(src, prop.key, prop.valueStart, prop.valueEnd, &entries); err != nil {
+			return nil, nil, err
+		}
 	}
 	return entries, nil, nil
 }

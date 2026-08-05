@@ -438,6 +438,24 @@ export class CrowdinAuth {
     });
   }
 
+  /** Loads the organization Crowdin TMS credential without requiring a linked project. */
+  async loadOrganizationCredential(
+    organizationId: string,
+  ): Promise<CrowdinProjectCredential["credential"] | null> {
+    const [credential] = await db
+      .select()
+      .from(schema.organizationExternalTmsProviderCredentials)
+      .where(
+        and(
+          eq(schema.organizationExternalTmsProviderCredentials.organizationId, organizationId),
+          eq(schema.organizationExternalTmsProviderCredentials.providerKind, "crowdin"),
+        ),
+      )
+      .limit(1);
+
+    return credential ?? null;
+  }
+
   async loadProjectCredential(input: {
     organizationId: string;
     projectId: string;

@@ -12,6 +12,11 @@
  */
 import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
+vi.hoisted(() => {
+  process.env.DATABASE_URL ??= "postgres://test:test@localhost:5432/hyperlocalise_test";
+  process.env.PROVIDER_CREDENTIALS_MASTER_KEY ??= "MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=";
+});
+
 vi.mock("@/lib/agent-runtime/tools/knowledge-memory-tools", () => ({
   createGetKnowledgeMemoryTool: vi.fn(() => ({ description: "get Knowledge Memory" })),
   createUpdateKnowledgeMemoryTool: vi.fn(() => ({ description: "update Knowledge Memory" })),
@@ -38,7 +43,9 @@ describe("conversation skill registry", () => {
     expect(skills.map((skill) => skill.id).sort()).toEqual(
       expect.arrayContaining([
         "conversation",
+        "crowdin-glossary-tools",
         "find-context",
+        "glossary-tools",
         "knowledge-memory",
         "repo-tools",
         "tms-tools",
@@ -53,11 +60,24 @@ describe("conversation skill registry", () => {
       tools: ["list_projects", "get_project_context", "update_interaction_project"],
     });
 
+    const glossarySkill = skills.find((skill) => skill.id === "glossary-tools");
+    expect(glossarySkill).toMatchObject({
+      requiresGlossarySearch: true,
+      tools: ["search_native_glossary"],
+    });
+
     const tmsSkill = skills.find((skill) => skill.id === "tms-tools");
     expect(tmsSkill).toMatchObject({
       requiresTmsIntegration: true,
       tools: ["check_crowdin_progress"],
       sharedSkills: ["crowdin"],
+    });
+
+    const crowdinGlossarySkill = skills.find((skill) => skill.id === "crowdin-glossary-tools");
+    expect(crowdinGlossarySkill).toMatchObject({
+      requiresTmsIntegration: true,
+      requiresGlossarySearch: true,
+      tools: ["search_crowdin_glossary"],
     });
 
     const translationSkill = skills.find((skill) => skill.id === "translation-tools");
@@ -372,6 +392,7 @@ describe("conversation skill registry", () => {
         membershipRole: "member",
         projectId: null,
         db: {} as never,
+        glossarySearchEnabled: true,
       },
     });
 
@@ -379,8 +400,79 @@ describe("conversation skill registry", () => {
       expect.arrayContaining(["conversation", "translation-tools"]),
     );
     expect(plan.instructionSkillIds).not.toContain("tms-tools");
-    expect(plan.toolNames).toEqual(expect.arrayContaining(["list_projects", "translate_string"]));
+    expect(plan.instructionSkillIds).toEqual(expect.arrayContaining(["glossary-tools"]));
+    expect(plan.toolNames).toEqual(
+      expect.arrayContaining(["list_projects", "search_native_glossary", "translate_string"]),
+    );
     expect(plan.toolNames).not.toContain("check_crowdin_progress");
+  });
+
+  it("activates glossary-tools only when glossary search is enabled", () => {
+    const glossarySkill = listConversationSkills().find((skill) => skill.id === "glossary-tools");
+    expect(glossarySkill).toBeDefined();
+
+    const activationContext = (glossarySearchEnabled?: boolean) =>
+      toConversationSkillActivationContext({
+        hasFileAttachments: false,
+        hasTmsIntegration: false,
+        toolContext: {
+          conversationId: "conv_1",
+          organizationId: "org_1",
+          localUserId: "user_1",
+          membershipRole: "member",
+          projectId: null,
+          db: {} as never,
+          glossarySearchEnabled,
+        },
+      });
+
+    expect(isConversationSkillActivated(glossarySkill!, activationContext(true))).toBe(true);
+    expect(isConversationSkillActivated(glossarySkill!, activationContext(false))).toBe(false);
+    expect(isConversationSkillActivated(glossarySkill!, activationContext())).toBe(false);
+  });
+
+  it("activates Crowdin glossary tools only when both capabilities are enabled", () => {
+    const skill = listConversationSkills().find((item) => item.id === "crowdin-glossary-tools");
+    expect(skill).toBeDefined();
+
+    const activationContext = (hasTmsIntegration: boolean, glossarySearchEnabled: boolean) =>
+      toConversationSkillActivationContext({
+        hasFileAttachments: false,
+        hasTmsIntegration,
+        toolContext: {
+          conversationId: "conv_1",
+          organizationId: "org_1",
+          localUserId: "user_1",
+          membershipRole: "member",
+          projectId: null,
+          db: {} as never,
+          glossarySearchEnabled,
+        },
+      });
+
+    expect(isConversationSkillActivated(skill!, activationContext(true, true))).toBe(true);
+    expect(isConversationSkillActivated(skill!, activationContext(true, false))).toBe(false);
+    expect(isConversationSkillActivated(skill!, activationContext(false, true))).toBe(false);
+  });
+
+  it("filters Crowdin glossary search when the feature flag is off", () => {
+    const toolNames = filterAvailableConversationToolNames(
+      ["check_crowdin_progress", "search_crowdin_glossary", "search_native_glossary"],
+      {
+        hasFileAttachments: false,
+        toolContext: {
+          conversationId: "conv_1",
+          organizationId: "org_1",
+          localUserId: "user_1",
+          membershipRole: "member",
+          projectId: null,
+          db: {} as never,
+          glossarySearchEnabled: false,
+        },
+      },
+    );
+
+    expect(toolNames).toEqual(["check_crowdin_progress"]);
   });
 
   it("exposes translate_string without a project but gates file jobs", () => {

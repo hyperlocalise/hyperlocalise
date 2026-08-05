@@ -22,6 +22,7 @@ import { workosAdapter } from "./workos-adapter";
 import {
   WORKSPACE_AUTOMATIONS_FLAG,
   WORKSPACE_FEATURE_UNAVAILABLE_REASON,
+  WORKSPACE_GLOSSARY_SEARCH_FLAG,
   WORKSPACE_ISSUES_FLAG,
   WORKSPACE_KNOWLEDGE_FLAG,
   WORKSPACE_VISUAL_MOCK_FLAG,
@@ -62,19 +63,28 @@ export const workspaceIssuesFlag = flag<boolean, WorkosFlagEntities>({
   adapter: workosAdapter(),
 });
 
+export const workspaceGlossarySearchFlag = flag<boolean, WorkosFlagEntities>({
+  key: WORKSPACE_GLOSSARY_SEARCH_FLAG,
+  defaultValue: false,
+  description:
+    "Conversational agent glossary search (native and Crowdin) for terminology-safe advice.",
+  adapter: workosAdapter(),
+});
+
 export async function evaluateWorkspaceFeatureFlags(
   auth: Pick<AppAuthContext, "activeOrganization" | "user">,
 ): Promise<WorkspaceFeatureFlagState> {
   const identify = () => createWorkosIdentify(auth);
 
-  const [automations, knowledge, visualMock, issues] = await Promise.all([
+  const [automations, knowledge, visualMock, issues, glossarySearch] = await Promise.all([
     workspaceAutomationsFlag.run({ identify }),
     workspaceKnowledgeFlag.run({ identify }),
     workspaceVisualMockFlag.run({ identify }),
     workspaceIssuesFlag.run({ identify }),
+    workspaceGlossarySearchFlag.run({ identify }),
   ]);
 
-  return { automations, knowledge, visualMock, issues };
+  return { automations, knowledge, visualMock, issues, glossarySearch };
 }
 
 export async function resolveWorkspaceVisualMockFlag(input: {

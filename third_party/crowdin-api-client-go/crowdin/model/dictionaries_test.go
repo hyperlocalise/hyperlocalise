@@ -25,6 +25,21 @@ func TestDictionariesListOptionsValues(t *testing.T) {
 			opts: &DictionariesListOptions{LanguageIDs: []string{"en", "fr"}},
 			out:  "languageIds=en%2Cfr",
 		},
+		{
+			name: "with limit and offset",
+			opts: &DictionariesListOptions{
+				ListOptions: ListOptions{Limit: 10, Offset: 20},
+			},
+			out: "limit=10&offset=20",
+		},
+		{
+			name: "with language IDs, limit and offset",
+			opts: &DictionariesListOptions{
+				LanguageIDs: []string{"en", "fr"},
+				ListOptions: ListOptions{Limit: 10, Offset: 20},
+			},
+			out: "languageIds=en%2Cfr&limit=10&offset=20",
+		},
 	}
 
 	for _, tt := range tests {

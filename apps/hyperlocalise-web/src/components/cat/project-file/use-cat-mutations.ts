@@ -23,7 +23,7 @@ import type {
 import { readApiError } from "@/lib/api-error";
 import { apiClient } from "@/lib/api-client-instance";
 
-import type { CrowdinIssueType } from "@/components/cat/shared/types";
+import type { CatIssueType } from "@/components/cat/shared/types";
 
 import { requireProviderExternalResourceId } from "./project-file-cat-mapper";
 import { isCatAllFilesSourcePath } from "@/lib/projects/cat-all-files";
@@ -152,7 +152,7 @@ export function useCatMutations(input: {
       externalStringId: string;
       text: string;
       type?: "comment" | "issue";
-      issueType?: CrowdinIssueType;
+      issueType?: CatIssueType;
     }) => {
       const { sourcePath, externalResourceId } = resolveCatMutationFileIdentity(
         input,

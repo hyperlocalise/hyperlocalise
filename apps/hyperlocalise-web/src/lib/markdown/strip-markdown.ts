@@ -13,6 +13,7 @@
 /**
  * Converts markdown to a single-line plain-text preview.
  * Strips common syntax (emphasis, code, links, headings, lists) without a full parser.
+ * Mention links keep their labels (`[@Name](mention:user:…)` → `@Name`, `[@HL-1](mention:issue:…)` → `@HL-1`).
  */
 export function stripMarkdown(markdown: string): string {
   return (

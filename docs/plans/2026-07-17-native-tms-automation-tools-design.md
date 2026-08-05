@@ -20,7 +20,9 @@ Replace `create_translation_jobs` with two workspace orchestrator tools:
 
 - Workspace automation orchestrator only
 - Reuse the native file-translation workflow queue
-- Keep `toolConfig.translation` as the enablement gate
+- Enablement is split across `toolConfig.createNativeTmsJob` and
+  `toolConfig.assignTranslateWithAgent` (see
+  `2026-08-04-native-tms-automation-two-tools-design.md`)
 
 ## Out of scope
 

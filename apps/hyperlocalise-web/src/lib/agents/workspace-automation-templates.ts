@@ -44,6 +44,31 @@ export const WORKSPACE_AUTOMATION_TEMPLATE_CATEGORIES: Array<{
 
 export const WORKSPACE_AUTOMATION_TEMPLATES_BASE: WorkspaceAutomationTemplate[] = [
   {
+    id: "translate-on-source-upload",
+    category: "popular",
+    name: "Translate on source upload",
+    description:
+      "When a source file is uploaded, create a native translation job and translate it with the Hyperlocalise agent.",
+    instructions: [
+      "Create a native translation job when a source file is uploaded, then translate it with the Hyperlocalise agent.",
+      "",
+      "Workflow:",
+      "- Read the uploaded source file and version from the source-upload trigger.",
+      "- Create a native TMS translation job for the project target locales.",
+      "- Assign the job to Translate with agent so localisation starts immediately.",
+      "- Preserve keys, placeholders, ICU syntax, glossary terms, and file structure.",
+      "- Summarize the job created and locales started for translation.",
+    ].join("\n"),
+    activatable: true,
+    defaultForm: {
+      name: "Translate on source upload",
+      triggerMode: "source_upload",
+      createNativeTmsJobEnabled: true,
+      createNativeTmsJobUseProjectTargetLocales: true,
+      assignTranslateWithAgentEnabled: true,
+    },
+  },
+  {
     id: "translate-contentful-article",
     category: "popular",
     name: "Translate Contentful article",
@@ -56,7 +81,7 @@ export const WORKSPACE_AUTOMATION_TEMPLATES_BASE: WorkspaceAutomationTemplate[] 
       "- Read the updated entry and metadata from Contentful.",
       "- Detect translatable title, body, SEO, tags, CTA fields, and localized image assets.",
       "- Localize embedded or linked images when the entry contains image content.",
-      "- Preserve placeholders, links, product terms, glossary terms, tone, and rich text structure.",
+      "- Preserve placeholders, links, product terms, glossary terms, and file structure.",
       "- Run QA checks before writeback.",
       "- Write localized fields back as Contentful drafts for review. Do not publish.",
     ].join("\n"),
@@ -700,9 +725,11 @@ export function getWorkspaceAutomationTemplateFlow(
       ? { id: "github-push", label: "GitHub push" }
       : triggerMode === "contentful"
         ? { id: "contentful-webhook", label: "Contentful webhook" }
-        : triggerMode === "scheduled"
-          ? { id: "scheduled", label: scheduledTriggerLabel(form) }
-          : { id: "manual", label: "Manual" };
+        : triggerMode === "source_upload"
+          ? { id: "source-upload", label: "Source upload" }
+          : triggerMode === "scheduled"
+            ? { id: "scheduled", label: scheduledTriggerLabel(form) }
+            : { id: "manual", label: "Manual" };
 
   const tools: WorkspaceAutomationTemplateFlowNode[] = [];
 
@@ -719,6 +746,13 @@ export function getWorkspaceAutomationTemplateFlow(
     if (!form.pushSourceEnabled && !form.pullTranslationsEnabled && !form.validationEnabled) {
       tools.push({ id: "github", label: "GitHub" });
     }
+  }
+
+  if (form.createNativeTmsJobEnabled) {
+    tools.push({ id: "create-job", label: "Create job" });
+  }
+  if (form.assignTranslateWithAgentEnabled) {
+    tools.push({ id: "translate-with-agent", label: "Translate with agent" });
   }
 
   if (form.slackEnabled) {

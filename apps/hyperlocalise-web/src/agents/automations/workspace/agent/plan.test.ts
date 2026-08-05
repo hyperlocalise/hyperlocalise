@@ -93,13 +93,34 @@ describe("buildWorkspaceOrchestratorPlan", () => {
     expect(plan.tools).toEqual([]);
   });
 
-  it("plans native TMS create then assign when translation workflow is enabled", () => {
+  it("plans native TMS create then assign when both tools are enabled", () => {
     const plan = buildWorkspaceOrchestratorPlan(
       automation({
         projectId: "project-1",
         triggerConfig: { mode: "source_upload" },
         toolConfig: {
-          translation: {
+          createNativeTmsJob: {
+            enabled: true,
+            useProjectTargetLocales: true,
+            targetLocales: [],
+          },
+          assignTranslateWithAgent: {
+            enabled: true,
+          },
+        },
+      }),
+    );
+
+    expect(plan.tools).toEqual(["create_native_tms_job", "assign_translate_with_agent"]);
+  });
+
+  it("plans create job only when Translate with agent is disabled", () => {
+    const plan = buildWorkspaceOrchestratorPlan(
+      automation({
+        projectId: "project-1",
+        triggerConfig: { mode: "source_upload" },
+        toolConfig: {
+          createNativeTmsJob: {
             enabled: true,
             useProjectTargetLocales: true,
             targetLocales: [],
@@ -108,7 +129,7 @@ describe("buildWorkspaceOrchestratorPlan", () => {
       }),
     );
 
-    expect(plan.tools).toEqual(["create_native_tms_job", "assign_translate_with_agent"]);
+    expect(plan.tools).toEqual(["create_native_tms_job"]);
   });
 
   it("includes use_semrush when a Semrush connection is enabled", () => {

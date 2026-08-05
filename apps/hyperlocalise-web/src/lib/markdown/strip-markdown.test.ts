@@ -27,6 +27,14 @@ describe("stripMarkdown", () => {
     );
   });
 
+  it("keeps user and issue mention labels without mention hrefs", () => {
+    expect(
+      stripMarkdown(
+        "Hello [@Vi Nguyen](mention:user:962fec59-8275-4000-8000-000000000001) see [@HL-12](mention:issue:22222222-2222-4222-8222-222222222222:project_website)",
+      ),
+    ).toBe("Hello @Vi Nguyen see @HL-12");
+  });
+
   it("handles nested parentheses and empty link labels", () => {
     expect(
       stripMarkdown(

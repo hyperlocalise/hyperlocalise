@@ -1,0 +1,1 @@
+CREATE INDEX "idx_issue_sheet_issues_translation_key" ON "issue_sheet_issues" USING btree ("translation_key_id");

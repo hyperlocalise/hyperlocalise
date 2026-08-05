@@ -22,12 +22,22 @@ export type HyperlocaliseAgentSurface = "web" | "slack" | "github";
 export const hyperlocaliseAgentStepLimit = 16;
 export const hyperlocaliseAgentMaxOutputTokens = 4_000;
 
+export type HyperlocaliseAttachedProjectContext = {
+  projectId: string;
+  projectName?: string | null;
+  projectSource?: "native" | "external_tms" | null;
+  externalProviderKind?: string | null;
+};
+
 export function buildHyperlocaliseDynamicSections(input: {
   surface: HyperlocaliseAgentSurface;
   projectId: string | null;
+  attachedProject?: HyperlocaliseAttachedProjectContext | null;
+  glossarySearchEnabled?: boolean;
   additionalInstructions?: string;
 }): string[] {
   const dynamicSections: string[] = [];
+  const glossarySearchEnabled = input.glossarySearchEnabled === true;
 
   if (input.surface === "slack") {
     dynamicSections.push(
@@ -39,11 +49,35 @@ export function buildHyperlocaliseDynamicSections(input: {
     );
   }
 
-  if (input.projectId) {
-    dynamicSections.push(
+  const attachedProject = input.attachedProject;
+  const projectId = attachedProject?.projectId ?? input.projectId;
+  if (projectId) {
+    const projectLabel = attachedProject?.projectName?.trim()
+      ? `${attachedProject.projectName} (${projectId})`
+      : projectId;
+    const projectLines = [
       "Project context:",
-      `- This conversation is attached to project ${input.projectId}.`,
-    );
+      `- This conversation is attached to project ${projectLabel}.`,
+    ];
+
+    if (attachedProject?.projectSource === "external_tms") {
+      const provider = attachedProject.externalProviderKind?.trim() || "external TMS";
+      projectLines.push(`- Project source: external TMS (${provider}).`);
+      if (glossarySearchEnabled && attachedProject.externalProviderKind === "crowdin") {
+        projectLines.push(
+          "- For terminology, prefer `search_crowdin_glossary` with this projectId before advising on product or feature names.",
+        );
+      }
+    } else if (attachedProject?.projectSource === "native") {
+      projectLines.push("- Project source: native Hyperlocalise.");
+      if (glossarySearchEnabled) {
+        projectLines.push(
+          "- For terminology, prefer `search_native_glossary` with this projectId before advising on product or feature names.",
+        );
+      }
+    }
+
+    dynamicSections.push(...projectLines);
   }
 
   if (input.additionalInstructions?.trim()) {

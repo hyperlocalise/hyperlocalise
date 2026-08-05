@@ -60,6 +60,8 @@ export type ToolContext = {
   db: typeof db;
   /** Resolved at the web API boundary; omitted and false both disable Knowledge Memory tools. */
   knowledgeMemoryEnabled?: boolean;
+  /** Resolved at the web API boundary; omitted and false both disable glossary search tools. */
+  glossarySearchEnabled?: boolean;
   /** Repository agent context (optional, populated for repository workflows). */
   workMode?: RepositoryAgentWorkMode;
   repositorySource?: RepositoryAgentTaskSource;

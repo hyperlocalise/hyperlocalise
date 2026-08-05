@@ -569,6 +569,8 @@ export const crowdinIssueTypes = [
   "source_mistake",
 ] as const;
 
+export const catIssueTypes = [...crowdinIssueTypes, "glossary_violation", "qa_failure"] as const;
+
 export const projectFileCatCommentBodySchema = z.object({
   sourcePath: z.string().trim().min(1).max(2048),
   targetLocale: z.string().trim().min(1).max(32),
@@ -576,7 +578,7 @@ export const projectFileCatCommentBodySchema = z.object({
   externalResourceId: z.string().trim().min(1).max(128).optional(),
   text: z.string().trim().min(1).max(16_384),
   type: z.enum(["comment", "issue"]).optional(),
-  issueType: z.enum(crowdinIssueTypes).optional(),
+  issueType: z.enum(catIssueTypes).optional(),
 });
 
 export const projectFileCatCommentResponseSchema = z.object({

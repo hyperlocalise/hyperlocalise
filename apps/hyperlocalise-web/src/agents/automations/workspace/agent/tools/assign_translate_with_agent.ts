@@ -43,9 +43,9 @@ export function createAssignTranslateWithAgentTool(session: WorkspaceOrchestrato
         .describe("Optional operator note to include in the run record."),
     }),
     execute: async ({ jobId, summary }) => {
-      const translationConfig = session.automation.toolConfig.translation;
-      if (!translationConfig?.enabled || !session.automation.projectId?.trim()) {
-        throw new Error("translation_workflow_not_configured");
+      const assignConfig = session.automation.toolConfig.assignTranslateWithAgent;
+      if (!assignConfig?.enabled || !session.automation.projectId?.trim()) {
+        throw new Error("assign_translate_with_agent_not_configured");
       }
 
       const existingOutput = readAssignTranslateWithAgent(

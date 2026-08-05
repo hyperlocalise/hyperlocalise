@@ -151,6 +151,29 @@ export function formatRelativeTimestamp(value: string | null) {
   return date.toLocaleDateString();
 }
 
+/**
+ * Compact relative age for dense table columns (Linear-style): `now`, `1m`, `8h`, `3d`, `1w`.
+ * Older than ~8 weeks falls back to a locale date.
+ */
+export function formatCompactRelativeTimestamp(value: string | null, now = Date.now()) {
+  if (!value) return "—";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+
+  const diffMs = Math.max(0, now - date.getTime());
+  const diffMin = Math.floor(diffMs / 60_000);
+  const diffHour = Math.floor(diffMin / 60);
+  const diffDay = Math.floor(diffHour / 24);
+  const diffWeek = Math.floor(diffDay / 7);
+
+  if (diffMin < 1) return "now";
+  if (diffMin < 60) return `${diffMin}m`;
+  if (diffHour < 24) return `${diffHour}h`;
+  if (diffDay < 7) return `${diffDay}d`;
+  if (diffWeek < 8) return `${diffWeek}w`;
+  return date.toLocaleDateString();
+}
+
 export function providerLabel(kind: string) {
   return PROVIDER_LABELS[kind] ?? kind;
 }

@@ -71,7 +71,7 @@ function session(
     triggerConfig: { mode: "source_upload" },
     repositoryTarget: { kind: "none" },
     toolConfig: {
-      translation: {
+      createNativeTmsJob: {
         enabled: true,
         useProjectTargetLocales: true,
         targetLocales: [],
@@ -213,7 +213,7 @@ describe("createNativeTmsJobTool", () => {
 
   it("uses configured target locales when project locales are not selected", async () => {
     const currentSession = session();
-    currentSession.automation.toolConfig.translation = {
+    currentSession.automation.toolConfig.createNativeTmsJob = {
       enabled: true,
       useProjectTargetLocales: false,
       targetLocales: ["ja-JP"],
@@ -242,7 +242,7 @@ describe("createNativeTmsJobTool", () => {
 
   it("rejects empty configured target locales", async () => {
     const currentSession = session();
-    currentSession.automation.toolConfig.translation = {
+    currentSession.automation.toolConfig.createNativeTmsJob = {
       enabled: true,
       useProjectTargetLocales: false,
       targetLocales: [],

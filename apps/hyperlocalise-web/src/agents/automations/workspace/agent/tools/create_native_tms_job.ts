@@ -35,10 +35,10 @@ export function createNativeTmsJobTool(session: WorkspaceOrchestratorSession) {
         .describe("Optional operator note to include in the run record."),
     }),
     execute: async ({ summary }) => {
-      const translationConfig = session.automation.toolConfig.translation;
+      const createNativeTmsJobConfig = session.automation.toolConfig.createNativeTmsJob;
       const automationProjectId = session.automation.projectId?.trim() || null;
-      if (!translationConfig?.enabled || !automationProjectId) {
-        throw new Error("translation_workflow_not_configured");
+      if (!createNativeTmsJobConfig?.enabled || !automationProjectId) {
+        throw new Error("create_native_tms_job_not_configured");
       }
 
       const existingOutput = readCreateNativeTmsJob(session.run.outputSummary, session.stepResults);
@@ -71,11 +71,11 @@ export function createNativeTmsJobTool(session: WorkspaceOrchestratorSession) {
         throw new Error("translation_project_not_found");
       }
 
-      const configuredLocales = translationConfig.useProjectTargetLocales
+      const configuredLocales = createNativeTmsJobConfig.useProjectTargetLocales
         ? Array.isArray(project.targetLocales)
           ? project.targetLocales.filter((locale): locale is string => typeof locale === "string")
           : []
-        : translationConfig.targetLocales;
+        : createNativeTmsJobConfig.targetLocales;
 
       if (configuredLocales.length === 0) {
         throw new Error("translation_target_locales_missing");

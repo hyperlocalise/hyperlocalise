@@ -32,9 +32,6 @@ export const issueSheetMswHandlers = [
   http.get(`${issueSheetBasePath}/assignable-members`, () =>
     HttpResponse.json({ members: issueSheetAssignableMembersFixture }),
   ),
-  http.get(`${issueSheetBasePath}/:issueId/feed`, () =>
-    HttpResponse.json({ items: [], total: 0, nextCursor: null }),
-  ),
   http.get(`${issueSheetBasePath}/:issueId`, ({ params }) => {
     const issue = issueSheetIssuesFixture.find((row) => row.id === params.issueId);
     if (!issue) {
@@ -42,6 +39,13 @@ export const issueSheetMswHandlers = [
     }
     return HttpResponse.json({ issue });
   }),
+  http.get(`${issueSheetBasePath}/:issueId/feed`, () =>
+    HttpResponse.json({
+      items: [],
+      total: 0,
+      nextCursor: null,
+    }),
+  ),
   http.patch(`${issueSheetBasePath}/:issueId`, async ({ params, request }) => {
     const body = (await request.json()) as Record<string, unknown>;
     const issue = issueSheetIssuesFixture.find((row) => row.id === params.issueId);
@@ -200,6 +204,12 @@ export const issueDetailNotFoundMswHandlers = [
   http.get(`${issueSheetBasePath}/assignable-members`, () =>
     HttpResponse.json({ members: issueSheetAssignableMembersFixture }),
   ),
+  http.get(`${issueSheetBasePath}/:issueId`, () =>
+    HttpResponse.json({ error: "issue_not_found" }, { status: 404 }),
+  ),
+];
+
+export const issueDetailUnavailableMswHandlers = [
   http.get(`${issueSheetBasePath}/:issueId`, () =>
     HttpResponse.json({ error: "issue_not_found" }, { status: 404 }),
   ),

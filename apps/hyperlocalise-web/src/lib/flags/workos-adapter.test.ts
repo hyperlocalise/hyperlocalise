@@ -158,6 +158,7 @@ describe("filterNavigationByWorkspaceFlags", () => {
       knowledge: false,
       visualMock: false,
       issues: false,
+      glossarySearch: false,
     });
 
     const itemLabels = filtered.flatMap((group) => group.items.map((item) => item.label));
@@ -175,6 +176,7 @@ describe("filterNavigationByWorkspaceFlags", () => {
       knowledge: true,
       visualMock: true,
       issues: true,
+      glossarySearch: true,
     });
 
     const itemLabels = filtered.flatMap((group) => group.items.map((item) => item.label));

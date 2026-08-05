@@ -12,15 +12,12 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 
 import { updateProviderCredentialBodySchema } from "@/api/routes/provider-credential/provider-credential.schema";
 import { getIntlShape } from "@/lib/app-i18n/intl";
 import { getAppLocale } from "@/lib/app-i18n/server-locale";
-import { isFixtureAuthEnabled } from "@/lib/e2e/config";
-import { attachOrganizationToFixtureSession } from "@/lib/e2e/fixture-auth";
 import { createWorkspaceForSessionUser } from "@/lib/onboarding/workspace";
 import { loadOnboardingContext } from "@/lib/onboarding/context";
 import {
@@ -103,16 +100,12 @@ export async function createWorkspaceAction(
   }
 
   let organization;
-  let user;
-  let workosMembershipId: string;
-  let workosOrganizationId: string;
 
   try {
-    ({ organization, user, workosMembershipId, workosOrganizationId } =
-      await createWorkspaceForSessionUser({
-        sessionUser: session.user,
-        organizationName: parsed.data.organizationName,
-      }));
+    ({ organization } = await createWorkspaceForSessionUser({
+      sessionUser: session.user,
+      organizationName: parsed.data.organizationName,
+    }));
   } catch (error) {
     if (error instanceof Error && error.message === "workspace_slug_conflict") {
       return {
@@ -146,27 +139,6 @@ export async function createWorkspaceAction(
         description: "Error when workspace was created without a usable slug",
       }),
     };
-  }
-
-  if (isFixtureAuthEnabled()) {
-    const sessionToken = (await cookies()).get("wos-session")?.value;
-    if (sessionToken) {
-      await attachOrganizationToFixtureSession({
-        organization: {
-          id: organization.id,
-          name: organization.name,
-          slug: organization.slug,
-          workosOrganizationId,
-        },
-        sessionToken,
-        user: {
-          email: user.email,
-          id: user.id,
-          workosUserId: user.workosUserId,
-        },
-        workosMembershipId,
-      });
-    }
   }
 
   await setStoredActiveOrganizationSlug(organization.slug);

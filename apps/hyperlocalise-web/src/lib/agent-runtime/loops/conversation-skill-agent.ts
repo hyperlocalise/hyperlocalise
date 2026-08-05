@@ -44,6 +44,8 @@ export function createConversationSkillAgent(
       surface: runtime.surface,
       projectId: runtime.toolContext.projectId,
       skillPlan,
+      attachedProject: runtime.attachedProject,
+      glossarySearchEnabled: runtime.toolContext.glossarySearchEnabled === true,
       additionalInstructions: runtime.additionalInstructions,
     }),
     tools,

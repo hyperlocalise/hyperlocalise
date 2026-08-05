@@ -333,7 +333,8 @@ function toolCount(form: WorkspaceAutomationFormState) {
     Number(form.slackEnabled) +
     Number(form.emailEnabled) +
     Number(form.contentfulEnabled) +
-    Number(form.translationEnabled) +
+    Number(form.createNativeTmsJobEnabled) +
+    Number(form.assignTranslateWithAgentEnabled) +
     Number(form.knowledgeEnabled) +
     Number(form.mcpEnabled) +
     Number(form.semrushEnabled) +
@@ -490,7 +491,8 @@ function HeaderProjectSelector({
   const intl = useIntl();
   const usesTranslationProject =
     form.triggerMode === "source_upload" ||
-    (form.translationEnabled && (form.triggerMode !== "github" || !form.githubEnabled));
+    ((form.createNativeTmsJobEnabled || form.assignTranslateWithAgentEnabled) &&
+      (form.triggerMode !== "github" || !form.githubEnabled));
   const selectableProjects = usesTranslationProject
     ? projects.filter((project) => project.source !== "external_tms")
     : projects;
@@ -827,8 +829,9 @@ function AddTriggerMenu({
                 onChange({
                   ...form,
                   triggerMode: "source_upload",
-                  translationEnabled: true,
-                  translationUseProjectTargetLocales: true,
+                  createNativeTmsJobEnabled: true,
+                  createNativeTmsJobUseProjectTargetLocales: true,
+                  assignTranslateWithAgentEnabled: true,
                 })
               }
             >
@@ -1271,19 +1274,41 @@ function AddToolMenu({
               ) : null}
             </DropdownMenuItem>
             <DropdownMenuItem
-              disabled={form.translationEnabled}
+              disabled={form.createNativeTmsJobEnabled}
               onClick={() =>
                 onChange({
                   ...form,
-                  translationEnabled: true,
-                  translationUseProjectTargetLocales: true,
+                  createNativeTmsJobEnabled: true,
+                  createNativeTmsJobUseProjectTargetLocales: true,
                   triggerMode: form.triggerMode === "manual" ? "source_upload" : form.triggerMode,
                 })
               }
             >
               <HugeiconsIcon icon={Upload01Icon} strokeWidth={1.8} className="size-4" />
-              <FormattedMessage {...workspaceAutomationFormMessages.translate} />
-              {form.translationEnabled ? (
+              <FormattedMessage {...workspaceAutomationFormMessages.createJob} />
+              {form.createNativeTmsJobEnabled ? (
+                <DropdownMenuShortcut>
+                  <FormattedMessage {...workspaceAutomationFormMessages.addedShortcut} />
+                </DropdownMenuShortcut>
+              ) : null}
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              disabled={form.assignTranslateWithAgentEnabled}
+              onClick={() =>
+                onChange({
+                  ...form,
+                  createNativeTmsJobEnabled: true,
+                  createNativeTmsJobUseProjectTargetLocales: form.createNativeTmsJobEnabled
+                    ? form.createNativeTmsJobUseProjectTargetLocales
+                    : true,
+                  assignTranslateWithAgentEnabled: true,
+                  triggerMode: form.triggerMode === "manual" ? "source_upload" : form.triggerMode,
+                })
+              }
+            >
+              <HugeiconsIcon icon={BrainCircuitIcon} strokeWidth={1.8} className="size-4" />
+              <FormattedMessage {...workspaceAutomationFormMessages.translateWithAgent} />
+              {form.assignTranslateWithAgentEnabled ? (
                 <DropdownMenuShortcut>
                   <FormattedMessage {...workspaceAutomationFormMessages.addedShortcut} />
                 </DropdownMenuShortcut>
@@ -1497,8 +1522,8 @@ function ToolsSettings({
   const selectedProject = projects.find((project) => project.id === form.projectId);
   const contentfulAvailableTargetLocales = selectedProject?.targetLocales ?? [];
   const showContentfulEntryId = form.triggerMode === "scheduled";
-  const translationAvailableTargetLocales = selectedProject?.targetLocales ?? [];
-  const translationTargetLocalesFieldId = "translation-target-locales";
+  const createNativeTmsJobAvailableTargetLocales = selectedProject?.targetLocales ?? [];
+  const createNativeTmsJobTargetLocalesFieldId = "create-native-tms-job-target-locales";
   const intl = useIntl();
   const [memoriesOpen, setMemoriesOpen] = useState(false);
 
@@ -1956,23 +1981,27 @@ function ToolsSettings({
           </EditorRow>
         ) : null}
 
-        {form.translationEnabled ? (
+        {form.createNativeTmsJobEnabled ? (
           <EditorRow
             icon={<HugeiconsIcon icon={Upload01Icon} strokeWidth={1.8} className="size-4" />}
-            title={<FormattedMessage {...workspaceAutomationFormMessages.translate} />}
+            title={<FormattedMessage {...workspaceAutomationFormMessages.createJob} />}
             description={
-              <FormattedMessage {...workspaceAutomationFormMessages.translateDescription} />
+              <FormattedMessage {...workspaceAutomationFormMessages.createJobDescription} />
             }
             action={
               <DeleteToolButton
                 disabled={disabled}
-                label={intl.formatMessage(workspaceAutomationFormMessages.removeTranslate)}
+                label={intl.formatMessage(workspaceAutomationFormMessages.removeCreateJob)}
                 onClick={() =>
                   onChange({
                     ...form,
-                    translationEnabled: false,
-                    translationTargetLocales: [],
-                    triggerMode: form.triggerMode === "source_upload" ? "manual" : form.triggerMode,
+                    createNativeTmsJobEnabled: false,
+                    createNativeTmsJobTargetLocales: [],
+                    assignTranslateWithAgentEnabled: false,
+                    triggerMode:
+                      form.triggerMode === "source_upload" && !form.contentfulEnabled
+                        ? "manual"
+                        : form.triggerMode,
                   })
                 }
               />
@@ -1985,42 +2014,68 @@ function ToolsSettings({
                 </span>
                 <Switch
                   size="sm"
-                  checked={form.translationUseProjectTargetLocales}
+                  checked={form.createNativeTmsJobUseProjectTargetLocales}
                   disabled={disabled}
                   onCheckedChange={(checked) =>
                     onChange({
                       ...form,
-                      translationUseProjectTargetLocales: checked,
-                      translationTargetLocales: checked ? [] : form.translationTargetLocales,
+                      createNativeTmsJobUseProjectTargetLocales: checked,
+                      createNativeTmsJobTargetLocales: checked
+                        ? []
+                        : form.createNativeTmsJobTargetLocales,
                     })
                   }
                 />
               </label>
-              {!form.translationUseProjectTargetLocales ? (
+              {!form.createNativeTmsJobUseProjectTargetLocales ? (
                 <div className="grid gap-1.5">
                   <Label
-                    id={translationTargetLocalesFieldId}
+                    id={createNativeTmsJobTargetLocalesFieldId}
                     className="text-xs text-muted-foreground"
                   >
                     <FormattedMessage {...workspaceAutomationFormMessages.targetLocalesLabel} />
                   </Label>
                   <ContentfulTargetLocalesPicker
-                    availableLocales={translationAvailableTargetLocales}
+                    availableLocales={createNativeTmsJobAvailableTargetLocales}
                     disabled={disabled}
                     emptyMessage={intl.formatMessage(
                       workspaceAutomationFormMessages.chooseProjectForTargetLocales,
                     )}
-                    error={errors.translationTargetLocales}
-                    labelledBy={translationTargetLocalesFieldId}
-                    selectedLocales={form.translationTargetLocales}
-                    onChange={(translationTargetLocales) =>
-                      onChange({ ...form, translationTargetLocales })
+                    error={errors.createNativeTmsJobTargetLocales}
+                    labelledBy={createNativeTmsJobTargetLocalesFieldId}
+                    selectedLocales={form.createNativeTmsJobTargetLocales}
+                    onChange={(createNativeTmsJobTargetLocales) =>
+                      onChange({ ...form, createNativeTmsJobTargetLocales })
                     }
                   />
                 </div>
               ) : null}
             </div>
           </EditorRow>
+        ) : null}
+
+        {form.assignTranslateWithAgentEnabled ? (
+          <EditorRow
+            icon={<HugeiconsIcon icon={BrainCircuitIcon} strokeWidth={1.8} className="size-4" />}
+            title={<FormattedMessage {...workspaceAutomationFormMessages.translateWithAgent} />}
+            description={
+              <FormattedMessage
+                {...workspaceAutomationFormMessages.translateWithAgentDescription}
+              />
+            }
+            action={
+              <DeleteToolButton
+                disabled={disabled}
+                label={intl.formatMessage(workspaceAutomationFormMessages.removeTranslateWithAgent)}
+                onClick={() =>
+                  onChange({
+                    ...form,
+                    assignTranslateWithAgentEnabled: false,
+                  })
+                }
+              />
+            }
+          />
         ) : null}
 
         {form.mcpEnabled ? (
@@ -2560,7 +2615,8 @@ export function WorkspaceAutomationEditor({
               )}
             </span>
           </label>
-          {form.translationEnabled ||
+          {form.createNativeTmsJobEnabled ||
+          form.assignTranslateWithAgentEnabled ||
           form.contentfulEnabled ||
           (form.githubEnabled && form.githubMode === "sync") ||
           form.triggerMode === "source_upload" ? (

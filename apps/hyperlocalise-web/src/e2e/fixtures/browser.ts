@@ -13,81 +13,43 @@
 import { chromium, type Browser, type Page } from "playwright";
 import { afterAll, beforeAll } from "vite-plus/test";
 
-import { E2E_SETUP_TOKEN_HEADER } from "../../lib/e2e/config";
-
 import { E2E_BASE_URL, organizationDashboardPath } from "../constants";
+import {
+  captureOnboardingWorkspace,
+  cleanupEmulatorIdentity,
+  provisionEmulatorIdentity,
+  type EmulatorIdentity,
+} from "../helpers/emulator-identity";
+
+export { captureOnboardingWorkspace };
 
 const ONBOARDING_PATH = "/auth/onboarding";
-
-type FixtureSessionResponse = {
-  session: {
-    email: string;
-    organizationSlug?: string;
-    workosOrganizationId?: string;
-    workosUserId: string;
-  };
-};
-
-function requireE2eSetupToken() {
-  const token = process.env.E2E_AUTH_SECRET?.trim();
-  if (!token) {
-    throw new Error("E2E_AUTH_SECRET must be set for fixture auth browser tests");
-  }
-
-  return token;
-}
-
-async function createFixtureSession(page: Page, body: Record<string, string>) {
-  const response = await page.request.post(
-    new URL("/api/e2e/auth/session", E2E_BASE_URL).toString(),
-    {
-      headers: {
-        [E2E_SETUP_TOKEN_HEADER]: requireE2eSetupToken(),
-      },
-      data: body,
-    },
-  );
-
-  if (!response.ok()) {
-    throw new Error(`E2E fixture login failed with status ${response.status()}`);
-  }
-
-  await trackFixtureSession(page);
-
-  return (await response.json()) as FixtureSessionResponse;
-}
-
-async function gotoAfterLogin(page: Page, path: string) {
-  await page.goto(new URL(path, E2E_BASE_URL).toString(), {
-    waitUntil: "domcontentloaded",
-  });
-}
+const SIGN_IN_PATH = "/auth/sign-in";
 
 type E2eBrowserContext = {
   browser: Browser;
   page: Page;
-  sessionTokens: Set<string>;
+  identities: EmulatorIdentity[];
 };
 
 let sharedContext: E2eBrowserContext | null = null;
 
-async function trackFixtureSession(page: Page) {
-  if (!sharedContext) {
-    return;
-  }
+async function completeEmulatorLogin(page: Page, email: string) {
+  await page.goto(new URL(SIGN_IN_PATH, E2E_BASE_URL).toString(), {
+    waitUntil: "domcontentloaded",
+  });
 
-  const cookies = await page.context().cookies(E2E_BASE_URL);
-  const token = cookies.find((cookie) => cookie.name === "wos-session")?.value;
-  if (token) {
-    sharedContext.sessionTokens.add(token);
-  }
+  // AuthKit redirects to workos-emulate's interactive login page.
+  await page.locator('input[name="email"]').waitFor({ state: "visible", timeout: 30_000 });
+  await page.locator('input[name="email"]').fill(email);
+  await page.locator('button[type="submit"]').click();
 }
 
 export function useE2eBrowser() {
   beforeAll(async () => {
     const browser = await chromium.launch({ headless: true });
     const page = await browser.newPage();
-    sharedContext = { browser, page, sessionTokens: new Set() };
+    sharedContext = { browser, page, identities: [] };
   });
 
   afterAll(async () => {
@@ -99,17 +61,8 @@ export function useE2eBrowser() {
     }
 
     try {
-      const cleanupUrl = new URL("/api/e2e/auth/session", E2E_BASE_URL).toString();
-      for (const token of context.sessionTokens) {
-        const response = await context.page.request.delete(cleanupUrl, {
-          headers: {
-            Cookie: `wos-session=${token}`,
-            [E2E_SETUP_TOKEN_HEADER]: requireE2eSetupToken(),
-          },
-        });
-        if (response.status() !== 204) {
-          throw new Error(`E2E fixture cleanup failed with status ${response.status()}`);
-        }
+      for (const identity of context.identities) {
+        await cleanupEmulatorIdentity(identity);
       }
     } finally {
       await context.browser.close();
@@ -125,17 +78,49 @@ export function getE2ePage() {
   return sharedContext.page;
 }
 
+function trackIdentity(identity: EmulatorIdentity) {
+  if (!sharedContext) {
+    return;
+  }
+
+  sharedContext.identities.push(identity);
+}
+
 export async function loginForOnboarding(page: Page) {
-  await createFixtureSession(page, { mode: "onboarding" });
-  await gotoAfterLogin(page, ONBOARDING_PATH);
+  const identity = await provisionEmulatorIdentity({ mode: "onboarding" });
+  trackIdentity(identity);
+
+  await completeEmulatorLogin(page, identity.email);
+  await page.waitForURL((url) => url.pathname.includes("/auth/onboarding"), {
+    timeout: 30_000,
+  });
+  await page.goto(new URL(ONBOARDING_PATH, E2E_BASE_URL).toString(), {
+    waitUntil: "domcontentloaded",
+  });
+
+  return identity;
 }
 
 export async function loginAsAdmin(page: Page) {
-  const { session } = await createFixtureSession(page, { role: "admin" });
-  const organizationSlug = session.organizationSlug?.trim();
-  if (!organizationSlug) {
-    throw new Error("E2E fixture login did not return an organization slug");
+  const identity = await provisionEmulatorIdentity({ mode: "admin", role: "admin" });
+  trackIdentity(identity);
+
+  await completeEmulatorLogin(page, identity.email);
+
+  const dashboardPath = organizationDashboardPath(identity.organizationSlug);
+  await page.waitForURL(
+    (url) =>
+      url.pathname.includes(`/org/${identity.organizationSlug}/`) ||
+      url.pathname.endsWith("/dashboard") ||
+      url.pathname.includes("/dashboard"),
+    { timeout: 30_000 },
+  );
+
+  if (!page.url().includes(`/org/${identity.organizationSlug}/`)) {
+    await page.goto(new URL(dashboardPath, E2E_BASE_URL).toString(), {
+      waitUntil: "domcontentloaded",
+    });
   }
 
-  await gotoAfterLogin(page, organizationDashboardPath(organizationSlug));
+  return identity;
 }

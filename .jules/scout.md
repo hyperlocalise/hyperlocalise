@@ -195,3 +195,7 @@
 ## 2026-11-10 - [API Base URL Security Validation Boundaries]
 **Learning:** `ValidateAPIBaseURL` enforces strict security validations (preventing SSRF, open redirects, or credential leaks) by requiring public unicast IPs under HTTPS on production domains, while allowing localhost/loopback over HTTP or HTTPS. Testing this logic requires table-driven test cases covering URL query/fragments, user credentials, DNS trickery/suffix domains, bracketed IPv6 loopback structures, and RFC1918 private space IPs.
 **Action:** When testing host, URL, or API endpoints, design comprehensive test matrices covering parsing anomalies (percent encoding errors), protocol/scheme requirements, and address routing properties (loopback vs public vs multicast/private unicast).
+
+## 2026-11-15 - [I18N Config Hyperlocalise & Struct Validation Boundaries]
+**Learning:** `I18NConfig` includes robust structural validation for map keys (buckets/groups), target locales, file mappings, and `HyperlocaliseConfig` credentials/API base URLs. Since `Load()` automatically overlays default values for empty string inputs before running `Validate()`, some validation constraints (like empty/whitespace `APIBaseURL` or `APIKeyEnv`) are unreachable via configuration file parsing.
+**Action:** When testing configuration rules that can be overwritten by standard defaults, construct the `I18NConfig` struct manually in tests and run the public `.Validate()` method directly to comprehensively check contract enforcement.

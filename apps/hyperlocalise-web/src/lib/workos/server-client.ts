@@ -27,6 +27,16 @@ export function getWorkosServerClient(): WorkOS | null {
     return workosClient;
   }
 
-  workosClient = new WorkOS(config.apiKey);
+  workosClient = new WorkOS(config.apiKey, {
+    clientId: config.clientId,
+    apiHostname: config.apiHostname,
+    https: config.https,
+    port: config.port,
+  });
   return workosClient;
+}
+
+/** Test-only: clear the cached SDK client after mutating WORKOS_* env vars. */
+export function resetWorkosServerClientForTests() {
+  workosClient = undefined;
 }

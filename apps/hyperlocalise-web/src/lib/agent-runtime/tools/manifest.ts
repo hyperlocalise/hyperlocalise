@@ -43,6 +43,8 @@ export const toolManifests = [
   { name: "createTranslationJob", domain: "translation", sideEffect: "external_write" },
   { name: "translate_string", domain: "translation", sideEffect: "none" },
   { name: "check_crowdin_progress", domain: "tms", sideEffect: "none" },
+  { name: "search_crowdin_glossary", domain: "tms", sideEffect: "none" },
+  { name: "search_native_glossary", domain: "project", sideEffect: "none" },
   { name: "list_projects", domain: "project", sideEffect: "none" },
   { name: "get_project_context", domain: "project", sideEffect: "none" },
   { name: "update_interaction_project", domain: "project", sideEffect: "workspace_write" },

@@ -22,16 +22,24 @@ export type CatFormatCheckStatus = "pass" | "warn" | "fail";
 
 export type CatSegmentCommentType = "comment" | "issue";
 
-export type CrowdinIssueType =
+export type CatIssueType =
   | "general_question"
   | "translation_mistake"
   | "context_request"
-  | "source_mistake";
+  | "source_mistake"
+  | "glossary_violation"
+  | "qa_failure";
+
+/** @deprecated Prefer CatIssueType — kept for Crowdin comment payloads. */
+export type CrowdinIssueType = Extract<
+  CatIssueType,
+  "general_question" | "translation_mistake" | "context_request" | "source_mistake"
+>;
 
 export interface CatSegmentCommentInput {
   text: string;
   type?: CatSegmentCommentType;
-  issueType?: CrowdinIssueType;
+  issueType?: CatIssueType;
 }
 
 export interface CatSegmentComment {

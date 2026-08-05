@@ -613,9 +613,9 @@ export const catEditorPanelMessages = defineMessages({
     description: "Button to look up repository context for the current string",
   },
   addToIssueSheet: {
-    defaultMessage: "Add to Issue Sheet",
-    id: "0iCvVxZ/5M",
-    description: "Button to add the current CAT segment as an Issue Sheet row",
+    defaultMessage: "Issues",
+    id: "IA5Kmwt4uK",
+    description: "Button to open linked Issues for the current CAT segment",
   },
   refreshContextTitle: {
     defaultMessage: "Re-run repository context lookup for this string",
@@ -741,26 +741,6 @@ export const catEditorPanelMessages = defineMessages({
     defaultMessage: "Resolving…",
     id: "E8rEmEqTpX",
     description: "Button label while a Crowdin issue is being resolved",
-  },
-  issueTypeGeneralQuestion: {
-    defaultMessage: "General question",
-    id: "2oU/YE7MsU",
-    description: "Crowdin issue type for general questions",
-  },
-  issueTypeTranslationMistake: {
-    defaultMessage: "Translation mistake",
-    id: "p83H7uOHst",
-    description: "Crowdin issue type for translation mistakes",
-  },
-  issueTypeContextRequest: {
-    defaultMessage: "Context request",
-    id: "YNB1czGowu",
-    description: "Crowdin issue type for context requests",
-  },
-  issueTypeSourceMistake: {
-    defaultMessage: "Source mistake",
-    id: "LMW/LqnbFb",
-    description: "Crowdin issue type for source mistakes",
   },
   issueTypeLabel: {
     defaultMessage: "Issue type",

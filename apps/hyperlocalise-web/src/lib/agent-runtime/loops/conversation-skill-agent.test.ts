@@ -65,7 +65,10 @@ describe("conversation skill agent", () => {
       surface: "slack",
       hasFileAttachments: false,
       hasTmsIntegration: false,
-      toolContext: baseToolContext,
+      toolContext: {
+        ...baseToolContext,
+        glossarySearchEnabled: true,
+      },
     });
 
     expect(toolLoopAgentMock).toHaveBeenCalledWith(
@@ -74,10 +77,12 @@ describe("conversation skill agent", () => {
           "list_projects",
           "get_project_context",
           "update_interaction_project",
+          "search_native_glossary",
           "translate_string",
         ]),
         tools: expect.objectContaining({
           list_projects: expect.any(Object),
+          search_native_glossary: expect.any(Object),
           translate_string: expect.any(Object),
         }),
         providerOptions: {
@@ -158,24 +163,54 @@ describe("conversation skill agent", () => {
       surface: "slack",
       hasFileAttachments: false,
       hasTmsIntegration: true,
-      toolContext: baseToolContext,
+      toolContext: {
+        ...baseToolContext,
+        glossarySearchEnabled: true,
+      },
     });
 
     expect(toolLoopAgentMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        activeTools: expect.arrayContaining(["check_crowdin_progress"]),
+        activeTools: expect.arrayContaining(["check_crowdin_progress", "search_crowdin_glossary"]),
         tools: expect.objectContaining({
           check_crowdin_progress: expect.any(Object),
+          search_crowdin_glossary: expect.any(Object),
         }),
       }),
     );
 
     const settings = toolLoopAgentMock.mock.calls.at(-1)?.[0] as {
       instructions: string;
+      activeTools: string[];
     };
 
     expect(settings.instructions).toContain("TMS tools");
     expect(settings.instructions).toContain("Crowdin TMS");
+    expect(settings.instructions).toContain(
+      "Before advising on product names, feature names, or UI terms, call `search_crowdin_glossary`.",
+    );
+  });
+
+  it("omits glossary search tools when the feature flag is off", () => {
+    createConversationSkillAgent({
+      surface: "web",
+      hasFileAttachments: false,
+      hasTmsIntegration: true,
+      toolContext: baseToolContext,
+    });
+
+    const settings = toolLoopAgentMock.mock.calls.at(-1)?.[0] as {
+      instructions: string;
+      activeTools: string[];
+    };
+
+    expect(settings.activeTools).toContain("check_crowdin_progress");
+    expect(settings.activeTools).not.toContain("search_native_glossary");
+    expect(settings.activeTools).not.toContain("search_crowdin_glossary");
+    expect(settings.instructions).not.toContain("## Crowdin glossary tools");
+    expect(settings.instructions).not.toContain(
+      "Before advising on product names, feature names, or UI terms, call `search_crowdin_glossary`.",
+    );
   });
 
   it("adds repo and file job tools when runtime context allows them", () => {

@@ -12,11 +12,16 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { FormattedMessage } from "react-intl";
+
 import { cn } from "@/lib/primitives/cn";
 
 import { ConversationPanel } from "./conversation-panel";
-import { InboxList } from "./inbox-list";
+import { InboxIssuePanel } from "./inbox-issue-panel";
+import { InboxList, type InboxSelection } from "./inbox-list";
 import { InboxPanelErrorBoundary } from "./inbox-panel-error-boundary";
+import type { InboxIssueNotification } from "./inbox-notifications-api";
+import { inboxNotificationsMessages } from "./inbox-notifications.messages";
 import type {
   Conversation,
   ConversationMessage,
@@ -30,6 +35,8 @@ export function InboxPageView({
   conversationsIsError,
   conversationsIsLoading,
   currentUser,
+  hasMoreNotifications,
+  isLoadingMoreNotifications,
   isSending,
   isSparseInbox,
   isStreaming,
@@ -37,17 +44,28 @@ export function InboxPageView({
   jobsIsLoading,
   messages,
   messagesIsLoading,
+  notifications,
+  notificationsIsError,
+  notificationsIsLoading,
+  onLoadMoreNotifications,
+  onMarkAllRead,
   onSelectConversation,
+  onSelectNotification,
   onSendMessage,
   organizationSlug,
   selectedConversation,
-  selectedConversationId,
+  selectedNotification,
+  selectedNotificationIsLoading,
+  selection,
   streamedAssistant,
+  unreadNotificationCount,
 }: {
   conversations: Conversation[];
   conversationsIsError: boolean;
   conversationsIsLoading: boolean;
   currentUser: InboxCurrentUser;
+  hasMoreNotifications: boolean;
+  isLoadingMoreNotifications: boolean;
   isSending: boolean;
   isSparseInbox: boolean;
   isStreaming: boolean;
@@ -55,7 +73,13 @@ export function InboxPageView({
   jobsIsLoading: boolean;
   messages: ConversationMessage[];
   messagesIsLoading: boolean;
+  notifications: InboxIssueNotification[];
+  notificationsIsError: boolean;
+  notificationsIsLoading: boolean;
+  onLoadMoreNotifications: () => void;
+  onMarkAllRead: () => void;
   onSelectConversation: (conversationId: string) => void;
+  onSelectNotification: (notificationId: string) => void;
   onSendMessage: (
     text: string,
     files: File[],
@@ -63,9 +87,21 @@ export function InboxPageView({
   ) => void | Promise<void>;
   organizationSlug: string;
   selectedConversation: Conversation | undefined;
-  selectedConversationId: string;
+  selectedNotification: InboxIssueNotification | undefined;
+  selectedNotificationIsLoading: boolean;
+  selection: InboxSelection;
   streamedAssistant: StreamedAssistantMessage | null;
+  unreadNotificationCount: number;
 }) {
+  const listIsLoading = conversationsIsLoading || notificationsIsLoading;
+  const listIsError = conversationsIsError || notificationsIsError;
+  const selectionKey =
+    selection?.kind === "conversation"
+      ? `conversation:${selection.id}`
+      : selection?.kind === "notification"
+        ? `notification:${selection.id}`
+        : "none";
+
   return (
     <main
       data-organization={organizationSlug}
@@ -82,31 +118,64 @@ export function InboxPageView({
         <InboxPanelErrorBoundary
           scope="list"
           className="max-h-[40svh] min-h-0 shrink-0 lg:h-full lg:max-h-none lg:shrink"
-          resetKeys={[selectedConversationId, conversations.length, conversationsIsLoading]}
+          resetKeys={[
+            selectionKey,
+            conversations.length,
+            notifications.length,
+            conversationsIsLoading,
+            notificationsIsLoading,
+          ]}
         >
           <InboxList
             conversations={conversations}
             currentUser={currentUser}
-            isError={conversationsIsError}
-            isLoading={conversationsIsLoading}
+            hasMoreNotifications={hasMoreNotifications}
+            isError={listIsError}
+            isLoading={listIsLoading}
+            isLoadingMoreNotifications={isLoadingMoreNotifications}
+            notifications={notifications}
+            onLoadMoreNotifications={onLoadMoreNotifications}
+            onMarkAllRead={onMarkAllRead}
             onSelectConversation={onSelectConversation}
-            selectedConversationId={selectedConversationId}
+            onSelectNotification={onSelectNotification}
+            selection={selection}
+            unreadNotificationCount={unreadNotificationCount}
           />
         </InboxPanelErrorBoundary>
 
-        <ConversationPanel
-          conversation={selectedConversation}
-          currentUser={currentUser}
-          isSending={isSending}
-          isStreaming={isStreaming}
-          jobs={jobs}
-          jobsIsLoading={jobsIsLoading}
-          messages={messages}
-          messagesIsLoading={messagesIsLoading}
-          onSendMessage={onSendMessage}
-          organizationSlug={organizationSlug}
-          streamedAssistant={streamedAssistant}
-        />
+        {selection?.kind === "notification" ? (
+          selectedNotification ? (
+            <InboxIssuePanel
+              organizationSlug={organizationSlug}
+              projectId={selectedNotification.projectId}
+              issueId={selectedNotification.issueId}
+            />
+          ) : selectedNotificationIsLoading ? (
+            <section
+              className="flex min-h-0 flex-1 items-center justify-center p-6"
+              aria-busy="true"
+              aria-label="Loading notification"
+            >
+              <span className="text-sm text-muted-foreground">
+                <FormattedMessage {...inboxNotificationsMessages.issuePanelLoading} />
+              </span>
+            </section>
+          ) : null
+        ) : (
+          <ConversationPanel
+            conversation={selectedConversation}
+            currentUser={currentUser}
+            isSending={isSending}
+            isStreaming={isStreaming}
+            jobs={jobs}
+            jobsIsLoading={jobsIsLoading}
+            messages={messages}
+            messagesIsLoading={messagesIsLoading}
+            onSendMessage={onSendMessage}
+            organizationSlug={organizationSlug}
+            streamedAssistant={streamedAssistant}
+          />
+        )}
       </div>
     </main>
   );

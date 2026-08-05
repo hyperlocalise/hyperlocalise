@@ -26,12 +26,17 @@ import {
   SidebarGroupContent,
   SidebarGroupLabel,
   SidebarMenu,
+  SidebarMenuBadge,
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { apiClient } from "@/lib/api-client-instance";
 import { cn } from "@/lib/primitives/cn";
+import {
+  createInboxNotificationsApi,
+  notificationsUnreadCountQueryKey,
+} from "@/app/[lang]/(authenticated)/org/[organizationSlug]/inbox/_components/inbox-notifications-api";
 
 import { appShellNavigationMessages } from "./app-shell-navigation.messages";
 import { filterNavigationItemsByWorkspaceFlags } from "@/lib/flags/workspace-flag-navigation";
@@ -45,6 +50,8 @@ import {
   type NavigationItem,
 } from "./navigation-config";
 import { useAppShellStore } from "./store/app-shell-store-context";
+
+const inboxNotificationsApi = createInboxNotificationsApi();
 
 type AppShellNavigationProps = {
   organizationSlug: string;
@@ -246,7 +253,17 @@ function NavigationGroupItems({
   projectId?: string;
 }) {
   const intl = useIntl();
-  const { chatDock } = useAppShellStore();
+  const { chatDock, workspaceFeatureFlags } = useAppShellStore();
+  const inboxHref = buildOrganizationPath(organizationSlug, "inbox");
+  const issuesEnabled = workspaceFeatureFlags.issues;
+  const unreadCountQuery = useQuery({
+    queryKey: notificationsUnreadCountQueryKey(organizationSlug),
+    queryFn: () => inboxNotificationsApi.unreadCount(organizationSlug),
+    enabled: Boolean(organizationSlug) && issuesEnabled,
+    refetchInterval: 45_000,
+  });
+  const unreadCount = unreadCountQuery.data ?? 0;
+  const unreadBadgeLabel = unreadCount > 99 ? "99+" : unreadCount > 0 ? String(unreadCount) : null;
 
   return (
     <SidebarGroupContent>
@@ -259,10 +276,13 @@ function NavigationGroupItems({
                 projectId,
                 organizationSlug,
               });
-          const tooltip = item.badge
+          const isInboxItem = item.href === inboxHref;
+          const dynamicBadge = isInboxItem ? unreadBadgeLabel : null;
+          const badge = dynamicBadge ?? item.badge;
+          const tooltip = badge
             ? intl.formatMessage(appShellNavigationMessages.badgeSeparator, {
                 label: item.label,
-                badge: item.badge,
+                badge,
               })
             : item.label;
 
@@ -277,12 +297,17 @@ function NavigationGroupItems({
               >
                 <HugeiconsIcon icon={item.icon} strokeWidth={2} className="size-4" />
                 <span className="min-w-0 flex-1 truncate">{item.label}</span>
-                {item.badge ? (
+                {item.badge && !dynamicBadge ? (
                   <span className="ms-auto inline-flex shrink-0 items-center rounded-full border border-sidebar-border bg-sidebar px-1.5 py-0.5 text-[0.625rem] leading-none font-medium tracking-normal text-muted-foreground group-data-[collapsible=icon]:hidden">
                     {item.badge}
                   </span>
                 ) : null}
               </SidebarMenuButton>
+              {dynamicBadge ? (
+                <SidebarMenuBadge className="pointer-events-none peer-hover/menu-button:text-sidebar-accent-foreground">
+                  {dynamicBadge}
+                </SidebarMenuBadge>
+              ) : null}
             </SidebarMenuItem>
           );
         })}

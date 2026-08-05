@@ -106,9 +106,9 @@ export const issueDetailPanelMessages = defineMessages({
     description: "Label for issue resolved timestamp",
   },
   linkedContext: {
-    defaultMessage: "Linked context",
-    id: "W3V5ERIIW9",
-    description: "Section heading for linked issue context",
+    defaultMessage: "Linked string",
+    id: "CPX3MSYhG+",
+    description: "Section heading for the translation string linked to an issue",
   },
   fieldKey: {
     defaultMessage: "Key",
@@ -129,6 +129,16 @@ export const issueDetailPanelMessages = defineMessages({
     defaultMessage: "Link kind",
     id: "RBrBoi9ilw",
     description: "Label for issue link kind",
+  },
+  unlinkString: {
+    defaultMessage: "Unlink string",
+    id: "2J9DBNioHN",
+    description: "Button to unlink the translation string from an issue",
+  },
+  stringUnlinked: {
+    defaultMessage: "String unlinked",
+    id: "lKE9esALm9",
+    description: "Toast when a translation string is unlinked from an issue",
   },
   fieldOwnerNote: {
     defaultMessage: "Owner note",

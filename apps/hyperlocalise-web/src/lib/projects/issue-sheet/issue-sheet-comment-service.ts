@@ -19,6 +19,8 @@ import { db, schema } from "@/lib/database";
 import type { OrganizationMembershipRole } from "@/lib/database/types";
 import { ProjectServiceBase } from "@/lib/projects/project-service-base";
 
+import { issueNotificationService } from "./issue-notification-service";
+
 export type IssueSheetCommentAuthor = {
   userId: string;
   displayName: string;
@@ -351,6 +353,18 @@ export class IssueSheetCommentService extends ProjectServiceBase {
         depth: comment.depth,
       },
       "created issue sheet comment",
+    );
+
+    await issueNotificationService.safeFanOut("comment_created", () =>
+      issueNotificationService.notifyCommentCreated({
+        organizationId: input.organizationId,
+        projectId: input.projectId,
+        issueId: input.issueId,
+        actorUserId: input.actorUserId,
+        commentId: comment.id,
+        commentBody: input.body.body,
+        mentionedUserIds,
+      }),
     );
 
     return {

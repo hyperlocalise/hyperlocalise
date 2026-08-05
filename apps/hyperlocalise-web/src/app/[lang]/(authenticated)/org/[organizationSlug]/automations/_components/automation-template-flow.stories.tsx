@@ -70,6 +70,15 @@ export const ContentfulTranslation: Story = {
   },
 };
 
+export const SourceUploadTranslation: Story = {
+  ...templateStory("translate-on-source-upload"),
+  play: async ({ canvas }) => {
+    await expect(
+      canvas.getByLabelText("Source upload → Create job → Translate with agent"),
+    ).toBeInTheDocument();
+  },
+};
+
 export const ScheduledSummary: Story = {
   ...templateStory("summarize-changes-daily"),
   play: async ({ canvas }) => {

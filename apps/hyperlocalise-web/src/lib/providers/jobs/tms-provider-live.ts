@@ -1336,6 +1336,20 @@ function mapCrowdinStringComment(comment: CrowdinStringComment): ProjectFileCatC
   };
 }
 
+const CROWDIN_ISSUE_TYPES = new Set([
+  "general_question",
+  "translation_mistake",
+  "context_request",
+  "source_mistake",
+]);
+
+function toCrowdinIssueType(issueType: string | undefined) {
+  if (issueType && CROWDIN_ISSUE_TYPES.has(issueType)) {
+    return issueType;
+  }
+  return "general_question";
+}
+
 async function saveCrowdinLiveCatComment(input: {
   context: ActiveTmsProviderContext;
   file: TmsProviderLiveFile;
@@ -1367,7 +1381,7 @@ async function saveCrowdinLiveCatComment(input: {
       stringId,
       targetLanguageId: input.targetLocale,
       type: commentType,
-      ...(commentType === "issue" ? { issueType: input.issueType ?? "general_question" } : {}),
+      ...(commentType === "issue" ? { issueType: toCrowdinIssueType(input.issueType) } : {}),
     });
 
     return mapCrowdinStringComment(created);

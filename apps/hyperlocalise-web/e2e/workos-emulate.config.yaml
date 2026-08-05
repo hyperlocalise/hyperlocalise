@@ -1,0 +1,21 @@
+# Seed data for local/CI browser e2e against workos-emulate.
+# Roles match WORKOS_LOCALIZATION_ROLE_SLUGS so membership reconcile can map them.
+roles:
+  - slug: admin
+    name: Admin
+    permissions: []
+  - slug: localization_manager
+    name: Localization manager
+    permissions: []
+  - slug: developer
+    name: Developer
+    permissions: []
+  - slug: reviewer
+    name: Reviewer
+    permissions: []
+  - slug: translator
+    name: Translator
+    permissions: []
+  - slug: member
+    name: Member
+    permissions: []

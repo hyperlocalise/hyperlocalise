@@ -33,6 +33,7 @@ import {
   hyperlocaliseAgentMaxOutputTokens,
   hyperlocaliseAgentStepLimit,
   type HyperlocaliseAgentSurface,
+  type HyperlocaliseAttachedProjectContext,
 } from "@/agents/hyperlocalise/agent/agent";
 import {
   createConversationSkillAgent,
@@ -71,6 +72,7 @@ type CreateHyperlocaliseAgentInput<TOOLS extends ToolSet> = {
 type CreateConversationAgentInput = {
   surface: HyperlocaliseAgentSurface;
   toolContext: ToolContext;
+  attachedProject?: HyperlocaliseAttachedProjectContext | null;
   additionalInstructions?: string;
   onEnd?: ConversationSkillAgentOnFinish;
 };
@@ -174,6 +176,7 @@ export {
 export function createConversationToolLoopAgent({
   surface,
   toolContext,
+  attachedProject = null,
   additionalInstructions,
   onEnd,
   hasFileAttachments = false,
@@ -190,6 +193,7 @@ export function createConversationToolLoopAgent({
     hasFileAttachments,
     hasTmsIntegration,
     hasVisualMockSkill,
+    attachedProject,
     additionalInstructions: additionalInstructions?.trim() || undefined,
   };
 

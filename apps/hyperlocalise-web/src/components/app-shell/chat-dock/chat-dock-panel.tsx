@@ -38,7 +38,7 @@ import { readApiResponseError } from "@/lib/api-error";
 import { ChatDockEmptyState } from "./chat-dock-empty-state";
 import { chatDockMessages } from "./chat-dock.messages";
 import { CHAT_DOCK_MAX_CONCURRENT_STREAMS } from "./chat-dock-persistence";
-import type { ChatDockStore } from "./chat-dock-store";
+import { resolveChatDockMessageProjectId, type ChatDockStore } from "./chat-dock-store";
 import { getChatStreamManager } from "./chat-stream-manager";
 
 const COLLAPSE_GLYPH = "−";
@@ -116,9 +116,11 @@ export const ChatDockPanel = observer(function ChatDockPanel({
     }
   }, [intl, messagesQuery.error, messagesQuery.isError, store, tab]);
 
+  const persistedConversation = conversationsQuery.data?.find(
+    (entry) => entry.id === conversationId,
+  );
   const conversation =
-    conversationsQuery.data?.find((entry) => entry.id === conversationId) ??
-    (tab ? buildPlaceholderConversation(tab) : undefined);
+    persistedConversation ?? (tab ? buildPlaceholderConversation(tab) : undefined);
 
   useEffect(() => {
     if (conversation && tab && !tab.isPending && conversation.title !== tab.title) {
@@ -169,9 +171,17 @@ export const ChatDockPanel = observer(function ChatDockPanel({
   ]);
 
   const createConversationMutation = useMutation({
-    mutationFn: async (input: { text: string; files: File[]; repositoryFullName?: string }) => {
+    mutationFn: async (input: {
+      text: string;
+      files: File[];
+      projectId?: string;
+      repositoryFullName?: string;
+    }) => {
       const formData = new FormData();
       formData.set("text", input.text.trim() || "Please translate the attached source file.");
+      if (input.projectId) {
+        formData.set("projectId", input.projectId);
+      }
       if (input.repositoryFullName) {
         formData.set("repositoryFullName", input.repositoryFullName);
       }
@@ -216,6 +226,13 @@ export const ChatDockPanel = observer(function ChatDockPanel({
         return;
       }
 
+      const projectId = resolveChatDockMessageProjectId({
+        explicitProjectId: options?.projectId,
+        pageContext: store.pageContext,
+        isPending: tab.isPending,
+        conversationProjectId: persistedConversation?.projectId,
+      });
+
       if (tab.isPending) {
         const pendingId = tab.id;
         try {
@@ -223,6 +240,7 @@ export const ChatDockPanel = observer(function ChatDockPanel({
           const result = await createConversationMutation.mutateAsync({
             text,
             files,
+            projectId,
             repositoryFullName: options?.repositoryFullName,
           });
           store.setDraft(pendingId, "");
@@ -245,7 +263,12 @@ export const ChatDockPanel = observer(function ChatDockPanel({
 
       try {
         store.setLastError(tab.id, null);
-        await sendMessageMutation.mutateAsync({ text, files, ...options });
+        await sendMessageMutation.mutateAsync({
+          text,
+          files,
+          projectId,
+          repositoryFullName: options?.repositoryFullName,
+        });
         store.setDraft(tab.id, "");
         await queryClient.invalidateQueries({ queryKey: messagesQueryKey(tab.id) });
         await queryClient.invalidateQueries({
@@ -266,6 +289,7 @@ export const ChatDockPanel = observer(function ChatDockPanel({
       sendMessageMutation,
       store,
       tab,
+      persistedConversation?.projectId,
     ],
   );
 

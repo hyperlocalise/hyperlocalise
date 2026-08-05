@@ -34,8 +34,15 @@ const meta = {
     currentUser: currentUserFixture,
     isLoading: false,
     isError: false,
-    selectedConversationId: conversationsFixture[0].id,
+    hasMoreNotifications: false,
+    isLoadingMoreNotifications: false,
+    notifications: [],
+    onLoadMoreNotifications: fn(),
+    onMarkAllRead: fn(),
     onSelectConversation: fn(),
+    onSelectNotification: fn(),
+    selection: { kind: "conversation", id: conversationsFixture[0].id },
+    unreadNotificationCount: 0,
   },
 } satisfies Meta<typeof InboxList>;
 
@@ -59,9 +66,10 @@ export const Loading: Story = {
 export const Empty: Story = {
   args: {
     conversations: [],
+    selection: null,
   },
   play: async ({ canvas }) => {
-    await expect(canvas.getByText("No conversations yet.")).toBeInTheDocument();
+    await expect(canvas.getByText("No conversations or notifications yet.")).toBeInTheDocument();
   },
 };
 
@@ -69,8 +77,9 @@ export const Error: Story = {
   args: {
     conversations: [],
     isError: true,
+    selection: null,
   },
   play: async ({ canvas }) => {
-    await expect(canvas.getByText("Unable to load conversations.")).toBeInTheDocument();
+    await expect(canvas.getByText("Unable to load inbox.")).toBeInTheDocument();
   },
 };

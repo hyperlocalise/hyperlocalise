@@ -16,6 +16,8 @@ import type { ToolSet } from "ai";
 import { hasCapability } from "@/api/auth/policy";
 import { getAgentManifest, type AgentSkillDocument } from "@/agents/_runtime/loader";
 import { createCheckCrowdinProgressTool } from "@/agents/_runtime/shared-tools/check_crowdin_progress";
+import { createSearchCrowdinGlossaryTool } from "@/agents/_runtime/shared-tools/search_crowdin_glossary";
+import { createSearchNativeGlossaryTool } from "@/agents/_runtime/shared-tools/search_native_glossary";
 import { createTranslateStringTool } from "@/agents/_runtime/shared-tools/translate_string";
 import type { HyperlocaliseAgentRuntimeContext } from "@/lib/agent-runtime/context";
 import { repositoryWorkspaceToolNames } from "@/lib/agent-contracts/repository-workspace-tools";
@@ -61,6 +63,7 @@ export type ConversationSkillMetadata = {
   requiresProjectOrAttachments: boolean;
   requiresVisualMockSkill: boolean;
   requiresKnowledgeMemory: boolean;
+  requiresGlossarySearch: boolean;
   tools: string[];
   sharedSkills: string[];
 };
@@ -78,6 +81,7 @@ export type ConversationSkillActivationContext = {
   hasTmsIntegration: boolean;
   hasVisualMockSkill: boolean;
   knowledgeMemoryEnabled: boolean;
+  glossarySearchEnabled: boolean;
 };
 
 type ConversationSkillToolFactory = (toolContext: ToolContext) => ToolSet[string];
@@ -87,6 +91,8 @@ const conversationSkillToolFactories: Record<string, ConversationSkillToolFactor
   get_project_context: (toolContext) => createGetProjectContextTool(toolContext),
   update_interaction_project: (toolContext) => createUpdateInteractionProjectTool(toolContext),
   check_crowdin_progress: (toolContext) => createCheckCrowdinProgressTool(toolContext),
+  search_crowdin_glossary: (toolContext) => createSearchCrowdinGlossaryTool(toolContext),
+  search_native_glossary: (toolContext) => createSearchNativeGlossaryTool(toolContext),
   get_knowledge_memory: (toolContext) => createGetKnowledgeMemoryTool(toolContext),
   update_knowledge_memory: (toolContext) => createUpdateKnowledgeMemoryTool(toolContext),
 };
@@ -129,6 +135,7 @@ export function parseConversationSkillMetadata(
     requiresProjectOrAttachments: frontmatter.requiresProjectOrAttachments === "true",
     requiresVisualMockSkill: frontmatter.requiresVisualMockSkill === "true",
     requiresKnowledgeMemory: frontmatter.requiresKnowledgeMemory === "true",
+    requiresGlossarySearch: frontmatter.requiresGlossarySearch === "true",
     tools: parseCommaSeparated(frontmatter.tools),
     sharedSkills: parseCommaSeparated(frontmatter.sharedSkills),
   };
@@ -152,6 +159,7 @@ export function toConversationSkillActivationContext(
     hasTmsIntegration: runtime.hasTmsIntegration,
     hasVisualMockSkill: runtime.hasVisualMockSkill ?? false,
     knowledgeMemoryEnabled: runtime.toolContext.knowledgeMemoryEnabled === true,
+    glossarySearchEnabled: runtime.toolContext.glossarySearchEnabled === true,
   };
 }
 
@@ -195,6 +203,10 @@ export function isConversationSkillActivated(
     return false;
   }
 
+  if (skill.requiresGlossarySearch && !context.glossarySearchEnabled) {
+    return false;
+  }
+
   const hasActivationRule =
     skill.requiresSandbox ||
     skill.requiresTmsIntegration ||
@@ -202,7 +214,8 @@ export function isConversationSkillActivated(
     skill.requiresFileAttachments !== undefined ||
     skill.requiresProjectOrAttachments ||
     skill.requiresVisualMockSkill ||
-    skill.requiresKnowledgeMemory;
+    skill.requiresKnowledgeMemory ||
+    skill.requiresGlossarySearch;
 
   return hasActivationRule;
 }
@@ -240,6 +253,13 @@ export function filterAvailableConversationToolNames(
     if (
       toolName === "update_knowledge_memory" &&
       !hasCapability(runtime.toolContext.membershipRole, "workspace:update")
+    ) {
+      return false;
+    }
+
+    if (
+      (toolName === "search_native_glossary" || toolName === "search_crowdin_glossary") &&
+      runtime.toolContext.glossarySearchEnabled !== true
     ) {
       return false;
     }

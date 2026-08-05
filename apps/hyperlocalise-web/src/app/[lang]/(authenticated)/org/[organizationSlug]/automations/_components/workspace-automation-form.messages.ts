@@ -346,10 +346,15 @@ export const workspaceAutomationFormMessages = defineMessages({
     id: "ywFNKJfKqp",
     description: "Menu item and tool title for Contentful translation",
   },
-  translate: {
-    defaultMessage: "Translate",
-    id: "rVbcl0T6/F",
-    description: "Menu item and tool title for translation jobs",
+  createJob: {
+    defaultMessage: "Create job",
+    id: "iN2TlQe/rc",
+    description: "Menu item and tool title for creating a native TMS job",
+  },
+  translateWithAgent: {
+    defaultMessage: "Translate with agent",
+    id: "dg15k+jhq4",
+    description: "Menu item and tool title for assigning Translate with agent",
   },
   mcpServer: {
     defaultMessage: "MCP Server",
@@ -589,16 +594,26 @@ export const workspaceAutomationFormMessages = defineMessages({
     id: "GuEU+qQCHt",
     description: "Toggle label for overwriting Contentful target locales",
   },
-  translateDescription: {
+  createJobDescription: {
     defaultMessage:
-      "Queue translation jobs for uploaded source files in the project selected above.",
-    id: "1AN+Q/JkbE",
-    description: "Description for the translate tool",
+      "Create a native TMS translation job for uploaded source files in the project selected above.",
+    id: "pryVUr/AGB",
+    description: "Description for the Create job automation tool",
   },
-  removeTranslate: {
-    defaultMessage: "Remove Translate",
-    id: "xKI0yR66AU",
-    description: "Accessible label to remove the translate tool",
+  translateWithAgentDescription: {
+    defaultMessage: "Assign the created job to Translate with agent and start localisation.",
+    id: "YZ2plskMsH",
+    description: "Description for the Translate with agent automation tool",
+  },
+  removeCreateJob: {
+    defaultMessage: "Remove Create job",
+    id: "w29ko2pN3n",
+    description: "Accessible label to remove the Create job tool",
+  },
+  removeTranslateWithAgent: {
+    defaultMessage: "Remove Translate with agent",
+    id: "9u6IERsgZA",
+    description: "Accessible label to remove the Translate with agent tool",
   },
   useProjectTargetLocales: {
     defaultMessage: "Use project target locales",
@@ -607,8 +622,8 @@ export const workspaceAutomationFormMessages = defineMessages({
   },
   chooseProjectForTargetLocales: {
     defaultMessage: "Choose a project above to pick target locales.",
-    id: "dn9Ff93vY2",
-    description: "Empty state when translation target locales need a project first",
+    id: "mzBTNMYPpo",
+    description: "Empty state when Create job target locales need a project first",
   },
   noRunsYet: {
     defaultMessage: "No runs yet.",

@@ -32,7 +32,7 @@ import {
   type IssueListStatus,
 } from "./issue-list-group";
 import { issueGroupedListMessages as messages } from "./issue-grouped-list.messages";
-import { formatRelativeTimestamp } from "./workspace-files-shared";
+import { formatCompactRelativeTimestamp, formatRelativeTimestamp } from "./workspace-files-shared";
 
 export type IssueGroupedListItem = {
   id: string;
@@ -54,7 +54,7 @@ function IssueRowSkeleton() {
       <Skeleton className="h-4 w-64 max-w-[50%]" />
       <Skeleton className="ms-auto h-4 w-16" />
       <Skeleton className="size-6 rounded-full" />
-      <Skeleton className="h-4 w-12" />
+      <Skeleton className="h-4 w-10" />
     </div>
   );
 }
@@ -157,8 +157,11 @@ export function IssueListRow({
           assigneeLabel={issue.assignee}
         />
       </div>
-      <span className="w-14 shrink-0 text-end text-muted-foreground tabular-nums">
-        {formatRelativeTimestamp(issue.updatedAt)}
+      <span
+        className="w-10 shrink-0 text-end text-muted-foreground tabular-nums"
+        title={formatRelativeTimestamp(issue.updatedAt)}
+      >
+        {formatCompactRelativeTimestamp(issue.updatedAt)}
       </span>
     </div>
   );

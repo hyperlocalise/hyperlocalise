@@ -38,7 +38,6 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import { FormattedMessage, useIntl } from "react-intl";
 import { toast } from "sonner";
 
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -64,8 +63,6 @@ import {
   issuePriorityValues,
   issueStatusLabel,
   issueStatusValues,
-  issueTypeLabel,
-  issueTypeValues,
   linkKindLabel,
   type IssueDetailIssue,
 } from "./issue-detail-utils";
@@ -80,6 +77,7 @@ import {
   isSidebarCustomColumn,
   listDetailPanelColumns,
 } from "./issue-sheet-column-utils";
+import { IssueTypePicker, type IssueTypeValue } from "./issue-type-picker";
 import { useAssignableIssueMembersQuery } from "./use-assignable-issue-members";
 import { useIssueDetailMutations } from "./use-issue-detail-mutations";
 import { useIssueDetailQuery } from "./use-issue-detail-query";
@@ -450,15 +448,6 @@ export const IssueDetailPanel = forwardRef<
     [intl],
   );
 
-  const issueTypeItems = useMemo(
-    () =>
-      issueTypeValues.map((value) => ({
-        value,
-        label: issueTypeLabel(intl, value),
-      })),
-    [intl],
-  );
-
   const priorityItems = useMemo(
     () => issuePriorityValues.map((value) => ({ value, label: value })),
     [],
@@ -541,7 +530,7 @@ export const IssueDetailPanel = forwardRef<
   const catHref = buildIssueCatHref(organizationSlug, projectId, issue);
   const priority = typeof issue.values.priority === "string" ? issue.values.priority : "";
   const hasLinkedContext = Boolean(
-    issue.key || issue.sourceText || issue.segmentId || issue.linkKind,
+    issue.translationKeyId || issue.key || issue.sourceText || issue.segmentId || issue.linkKind,
   );
 
   const saveTitle = () => {
@@ -647,14 +636,36 @@ export const IssueDetailPanel = forwardRef<
 
         {hasLinkedContext ? (
           <section className="mt-2 grid gap-3 border-t border-border pt-4">
-            <TypographyP className="inline-flex items-center gap-1.5 text-sm font-medium text-foreground">
-              <HugeiconsIcon
-                icon={LinkSquare02Icon}
-                strokeWidth={1.8}
-                className="size-3.5 text-muted-foreground"
-              />
-              <FormattedMessage {...messages.linkedContext} />
-            </TypographyP>
+            <div className="flex items-center justify-between gap-2">
+              <TypographyP className="inline-flex items-center gap-1.5 text-sm font-medium text-foreground">
+                <HugeiconsIcon
+                  icon={LinkSquare02Icon}
+                  strokeWidth={1.8}
+                  className="size-3.5 text-muted-foreground"
+                />
+                <FormattedMessage {...messages.linkedContext} />
+              </TypographyP>
+              {issue.translationKeyId ? (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  disabled={isSaving}
+                  onClick={() => {
+                    updateIssue.mutate(
+                      { translationKeyId: null },
+                      {
+                        onSuccess: () => {
+                          toast.success(intl.formatMessage(messages.stringUnlinked));
+                        },
+                      },
+                    );
+                  }}
+                >
+                  <FormattedMessage {...messages.unlinkString} />
+                </Button>
+              ) : null}
+            </div>
             <div className="grid gap-3">
               {issue.key ? (
                 <LinkedContextRow label={<FormattedMessage {...messages.fieldKey} />}>
@@ -796,29 +807,14 @@ export const IssueDetailPanel = forwardRef<
           </PropertyRow>
 
           <PropertyRow icon={Tag01Icon} label={<FormattedMessage {...messages.fieldType} />}>
-            <Select
-              value={issue.issueType}
-              items={issueTypeItems}
+            <IssueTypePicker
+              value={issue.issueType as IssueTypeValue}
               onValueChange={(value) => {
-                if (value) {
-                  updateIssue.mutate({ issueType: value });
-                }
+                updateIssue.mutate({ issueType: value });
               }}
               disabled={isSaving}
-            >
-              <SelectTrigger className={ghostSelectTriggerClassName}>
-                <Badge variant="outline" className="rounded-full">
-                  {issueTypeLabel(intl, issue.issueType)}
-                </Badge>
-              </SelectTrigger>
-              <SelectContent>
-                {issueTypeItems.map((type) => (
-                  <SelectItem key={type.value} value={type.value} label={type.label}>
-                    {type.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+              triggerClassName={ghostSelectTriggerClassName}
+            />
           </PropertyRow>
 
           <PropertyRow icon={Flag01Icon} label={<FormattedMessage {...messages.fieldPriority} />}>
