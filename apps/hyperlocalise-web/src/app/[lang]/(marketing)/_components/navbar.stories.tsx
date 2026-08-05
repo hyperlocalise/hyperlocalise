@@ -109,6 +109,11 @@ export const ResourcesMenuOpen: Story = {
 
     await expect(body.getByText("Documentation")).toBeInTheDocument();
     await expect(body.getByRole("link", { name: /Blog/i })).toBeInTheDocument();
-    await expect(body.getByRole("link", { name: "Trust Center" })).toBeInTheDocument();
+    const trustCenterLink = body.getByRole("link", { name: /Trust Center/i });
+    await expect(trustCenterLink).toBeInTheDocument();
+    await expect(trustCenterLink).toHaveAttribute(
+      "href",
+      "https://app.aus.vanta.com/hyperlocalise.com/trust/su9x7fcjfa8q700wu9pt2u",
+    );
   },
 };
