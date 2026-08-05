@@ -12,7 +12,7 @@
  */
 // @vitest-environment happy-dom
 
-import { screen } from "@testing-library/react";
+import { screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vite-plus/test";
 
@@ -101,6 +101,40 @@ describe("CatEditorPanel UI", () => {
     });
 
     expect(screen.getByText("Failed to post comment.")).toBeInTheDocument();
+  });
+
+  it("opens the linked Issue Sheet from the comments section", async () => {
+    const user = userEvent.setup();
+    const onAddToIssueSheet = vi.fn();
+
+    renderEditorPanel({
+      canAddComment: true,
+      providerKind: null,
+      onAddToIssueSheet,
+      segment: {
+        ...createCatWorkspaceState({ selectedSegmentId: "seg-02" }).segments!.find(
+          (item) => item.id === "seg-02",
+        )!,
+        comments: [
+          {
+            id: "issue-open-1",
+            type: "issue",
+            status: "unresolved",
+            text: "Needs clarification.",
+            createdAt: "2026-06-11T14:30:00.000Z",
+            locale: "ja-JP",
+            author: "Reviewer",
+          },
+        ],
+      },
+    });
+
+    const commentsSection = screen.getByText("Comments").closest("section");
+    expect(commentsSection).not.toBeNull();
+
+    await user.click(within(commentsSection!).getByRole("button", { name: "Issues" }));
+
+    expect(onAddToIssueSheet).toHaveBeenCalledTimes(1);
   });
 
   it("invokes navigation handlers from the action bar", async () => {

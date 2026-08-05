@@ -219,6 +219,77 @@ export const CommentOnly: Story = {
     const canvas = within(canvasElement);
     await expect(canvas.queryByRole("tab", { name: "Issue" })).not.toBeInTheDocument();
     await expect(canvas.getByRole("button", { name: "Add comment" })).toBeInTheDocument();
+    await expect(canvas.queryByRole("button", { name: "Issues" })).not.toBeInTheDocument();
+  },
+};
+
+export const IssueSheetCtaWithExistingIssues: Story = {
+  args: {
+    initialSegment: createCatEditorCommentsSegment({
+      comments: catEditorCommentsFixture,
+    }),
+    onOpenIssueSheet: fn(),
+  },
+  play: async ({ canvasElement, args }) => {
+    const canvas = within(canvasElement);
+    const issueSheetButton = canvas.getByRole("button", { name: "Issues" });
+
+    await expect(issueSheetButton).toBeInTheDocument();
+    await expect(issueSheetButton).toBeEnabled();
+
+    await userEvent.click(issueSheetButton);
+    await expect(args.onOpenIssueSheet).toHaveBeenCalledTimes(1);
+  },
+};
+
+export const IssueSheetCtaOnIssueTab: Story = {
+  args: {
+    initialSegment: createCatEditorCommentsSegment({ comments: [] }),
+    onOpenIssueSheet: fn(),
+  },
+  play: async ({ canvasElement, args }) => {
+    const canvas = within(canvasElement);
+
+    await expect(canvas.queryByRole("button", { name: "Issues" })).not.toBeInTheDocument();
+
+    await userEvent.click(canvas.getByRole("tab", { name: "Issue" }));
+    await waitFor(() => expect(canvas.getByRole("button", { name: "Issues" })).toBeInTheDocument());
+
+    await userEvent.click(canvas.getByRole("button", { name: "Issues" }));
+    await expect(args.onOpenIssueSheet).toHaveBeenCalledTimes(1);
+  },
+};
+
+export const IssueSheetCtaHiddenOnCommentTab: Story = {
+  args: {
+    initialSegment: createCatEditorCommentsSegment({
+      comments: [catEditorCommentsFixture[0]!],
+    }),
+    onOpenIssueSheet: fn(),
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+
+    await expect(canvas.getByRole("tab", { name: "Comment" })).toHaveAttribute(
+      "data-state",
+      "active",
+    );
+    await expect(canvas.queryByRole("button", { name: "Issues" })).not.toBeInTheDocument();
+  },
+};
+
+export const IssueSheetCtaDisabledWhilePosting: Story = {
+  args: {
+    initialSegment: createCatEditorCommentsSegment({
+      comments: catEditorCommentsFixture,
+    }),
+    isPostingComment: true,
+    onOpenIssueSheet: fn(),
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+
+    await expect(canvas.getByRole("button", { name: "Issues" })).toBeDisabled();
   },
 };
 
