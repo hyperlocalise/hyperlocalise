@@ -39,7 +39,8 @@ export default defineConfig({
     ignorePatterns: ["drizzle/**", "pnpm-*.yaml", ...translatedIgnorePatterns],
   },
   lint: {
-    ignorePatterns: ["drizzle/**", "pnpm-*.yaml", ...translatedIgnorePatterns],
+    // Match tsconfig exclude: browser e2e is local-only (vite.e2e.config.ts).
+    ignorePatterns: ["drizzle/**", "pnpm-*.yaml", "src/e2e/**", ...translatedIgnorePatterns],
     options: { typeAware: true, typeCheck: true },
     jsPlugins: ["eslint-plugin-formatjs"],
     rules: {
