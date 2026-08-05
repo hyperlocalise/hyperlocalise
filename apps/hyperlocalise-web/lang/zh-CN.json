@@ -869,6 +869,9 @@
   "2IX5Zk4LCM": {
     "defaultMessage": "显示密钥"
   },
+  "2J9DBNioHN": {
+    "defaultMessage": "取消关联字符串"
+  },
   "2JWP4PXKxL": {
     "defaultMessage": "Slack"
   },
@@ -1090,6 +1093,9 @@
   },
   "3K/+e2NRMM": {
     "defaultMessage": "Hyperlocalise 是一支 AI 劳动力团队，帮助团队在几天内将业务推向全球——兼具市场本土化洞察、翻译能力和一流的人工审核。"
+  },
+  "3Kr+riOCmU": {
+    "defaultMessage": "无法取消关联问题。"
   },
   "3KtrgP1VL6": {
     "defaultMessage": "View files"
@@ -1654,6 +1660,9 @@
   },
   "6N3tTQGcSO": {
     "defaultMessage": "某人"
+  },
+  "6OBycEw5vD": {
+    "defaultMessage": "请求失败"
   },
   "6PFnjoc6zP": {
     "defaultMessage": "编辑面板加载失败"
@@ -2270,6 +2279,9 @@
   "9EV17CGa2+": {
     "defaultMessage": "Hyperlocalise | 最佳智能本地化平台"
   },
+  "9FhGZjmVTF": {
+    "defaultMessage": "无法关联问题。"
+  },
   "9GZvF1K90w": {
     "defaultMessage": "查看文件"
   },
@@ -2882,6 +2894,9 @@
   "CP+VovcJDY": {
     "defaultMessage": "取消"
   },
+  "CPX3MSYhG+": {
+    "defaultMessage": "关联字符串"
+  },
   "CPfzUKHSJO": {
     "defaultMessage": "Synced"
   },
@@ -3158,6 +3173,9 @@
   "DZx5zjElsr": {
     "defaultMessage": "Ask any string. Get repo-backed context."
   },
+  "Db5EVZd7B1": {
+    "defaultMessage": "无法加载关联的问题。"
+  },
   "Dcqju+Z+Wb": {
     "defaultMessage": "No conversations yet."
   },
@@ -3202,6 +3220,9 @@
   },
   "Dwu72TwwL/": {
     "defaultMessage": "Loading jobs…"
+  },
+  "Dx55FkCrgu": {
+    "defaultMessage": "关联现有问题"
   },
   "DxQL85kivW": {
     "defaultMessage": "将发布简报、活动素材和区域信息转化为经过审核、符合当地文化的文案——内置审批流程和术语表控制。"
@@ -3965,6 +3986,9 @@
   "I28Vekk8WA": {
     "defaultMessage": "上次同步于 {when}"
   },
+  "I3HI2ZtzmX": {
+    "defaultMessage": "链接需要一个原生项目字符串。"
+  },
   "I3W7KYKnta": {
     "defaultMessage": "Failed to generate AI recommendation"
   },
@@ -3982,6 +4006,9 @@
   },
   "I9aLSBsZbT": {
     "defaultMessage": "如果这种情况持续出现，请从您的账户中选择一个组织，或联系支持。"
+  },
+  "IA5Kmwt4uK": {
+    "defaultMessage": "问题"
   },
   "IC06cS9nUd": {
     "defaultMessage": "Agent fixing"
@@ -4453,6 +4480,9 @@
   },
   "Kyj/6Mb2oy": {
     "defaultMessage": "Test what saved Memory.md guidance would be loaded for a translation query."
+  },
+  "L0g+No60zf": {
+    "defaultMessage": "需要上下文：{key}"
   },
   "L0gachMRlZ": {
     "defaultMessage": "Term base"
@@ -5134,6 +5164,9 @@
   },
   "OpaDn2OQOK": {
     "defaultMessage": "Deleting…"
+  },
+  "OsfTn/OWg9": {
+    "defaultMessage": "此字符串尚未关联任何问题。"
   },
   "OtoAcs/psJ": {
     "defaultMessage": "SSO / SAML"
@@ -6776,6 +6809,9 @@
   "XJe/aHS1LC": {
     "defaultMessage": "Failed to load members"
   },
+  "XLWvL1I9Sv": {
+    "defaultMessage": "搜索问题…"
+  },
   "XLbc3ZzNpD": {
     "defaultMessage": "All sources"
   },
@@ -8312,6 +8348,9 @@
   "fNsrVmOrc3": {
     "defaultMessage": "早期初创企业在前 12 个月内或符合资格期间，可享受 Growth 方案最高 8 折优惠。我们将在演示中确认是否符合条件及具体价格。"
   },
+  "fO8mdMfpdf": {
+    "defaultMessage": "在 CAT 中打开"
+  },
   "fOd0uv4R/b": {
     "defaultMessage": "Failed to cancel job"
   },
@@ -9413,6 +9452,9 @@
   "kUmtRmvwMN": {
     "defaultMessage": "在合并前审核 PR 和翻译回归问题"
   },
+  "kUu0YJ4PK9": {
+    "defaultMessage": "问题已关联"
+  },
   "kWeceyqgt+": {
     "defaultMessage": "与 LLM 无关"
   },
@@ -9610,6 +9652,9 @@
   },
   "lIM6KQzx0j": {
     "defaultMessage": "{sourceTerm} → {targetTerm} ({targetLocale})"
+  },
+  "lKE9esALm9": {
+    "defaultMessage": "字符串已取消关联"
   },
   "lMGKaGDLx4": {
     "defaultMessage": "一项产品发布活动在六个市场上线"
@@ -10114,6 +10159,9 @@
   },
   "o6mkuN62Fv": {
     "defaultMessage": "{remaining} remaining"
+  },
+  "o7Q2VF9914": {
+    "defaultMessage": "取消关联"
   },
   "o9256BhMtE": {
     "defaultMessage": "Failed to save Semrush connection."
@@ -10640,6 +10688,9 @@
   "qyAeUOVpZe": {
     "defaultMessage": "捷克语（捷克）"
   },
+  "qyJpxYtcpE": {
+    "defaultMessage": "为此字符串创建或关联问题。导航至某个问题以进行协作。"
+  },
   "qySc0NPK9C": {
     "defaultMessage": "连接"
   },
@@ -11020,6 +11071,9 @@
   },
   "t3RhAFC8NZ": {
     "defaultMessage": "No TMS jobs assigned to you were returned from the live provider API."
+  },
+  "t3xDK2/UrI": {
+    "defaultMessage": "创建问题"
   },
   "t4mhc63bGr": {
     "defaultMessage": "等待审核"
@@ -11591,6 +11645,9 @@
   "vrxnOkVw+Z": {
     "defaultMessage": "Manage membership and roles for the {slug} team."
   },
+  "vtr+j44k6z": {
+    "defaultMessage": "问题已取消关联"
+  },
   "vuJalRUhn9": {
     "defaultMessage": "Chat conversations"
   },
@@ -11933,6 +11990,9 @@
   "xTFJa5ogoK": {
     "defaultMessage": "Usage meter"
   },
+  "xTMvZyc/zN": {
+    "defaultMessage": "没有匹配的议题。"
+  },
   "xTYiHfPy3g": {
     "defaultMessage": "Workspace"
   },
@@ -11983,6 +12043,9 @@
   },
   "xi4ZQRm848": {
     "defaultMessage": "Resources"
+  },
+  "xixmTqHWvz": {
+    "defaultMessage": "打开"
   },
   "xjcfJrUODP": {
     "defaultMessage": "e.g. de-DE"
@@ -12415,6 +12478,9 @@
   },
   "zl55Vhhf0L": {
     "defaultMessage": "Workspace members"
+  },
+  "zlTXMaTZ76": {
+    "defaultMessage": "关联的问题"
   },
   "zliOrjr0oj": {
     "defaultMessage": "Job"

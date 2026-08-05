@@ -1,8 +1,8 @@
 ---
-title: What the EU AI Act Article 50 Means for AI Translation and Localisation
+title: Was Artikel 50 des EU-KI-Gesetzes für KI-Übersetzung und Lokalisierung bedeutet
 date: 2026-08-03T00:00:00.000Z
-excerpt: Article 50 of the EU AI Act begins applying from August 2026. For most AI translation workflows, labelling is not required — but transparency still matters for agents, transcreation, and responsible localisation.
-category: Product
+excerpt: Artikel 50 der EU-KI-Verordnung findet ab August 2026 Anwendung. Für die meisten KI-Übersetzungs-Workflows ist keine Kennzeichnung erforderlich – Transparenz bleibt jedoch für Agenten, Transkreation und verantwortungsvolle Lokalisierung wichtig.
+category: Produkt
 tags:
   - EU AI Act
   - Article 50
@@ -18,179 +18,179 @@ tags:
   - responsible AI
 ---
 
-The European Union's AI Act is the world's first comprehensive legal framework for artificial intelligence. As Article 50 begins applying from August 2026, many product teams and localisation leaders are asking the same question:
+Das KI-Gesetz der Europäischen Union ist der weltweit erste umfassende Rechtsrahmen für künstliche Intelligenz. Da Artikel 50 ab August 2026 Anwendung findet, stellen sich viele Produktteams und Verantwortliche für die Lokalisierung dieselbe Frage:
 
-> **Does the EU AI Act mean AI-generated translations need to be labelled?**
+> **Müssen KI-generierte Übersetzungen gemäß dem EU-KI-Gesetz gekennzeichnet werden?**
 
-The short answer is **generally no**.
+Die kurze Antwort lautet **im Allgemeinen nein**.
 
-For most translation workflows, Article 50 is less disruptive than many expected. However, it introduces important transparency requirements that every company using AI for localisation should understand.
+Für die meisten Übersetzungs-Workflows ist Artikel 50 weniger einschneidend als von vielen erwartet. Er führt jedoch wichtige Transparenzanforderungen ein, die jedes Unternehmen verstehen sollte, das KI für die Lokalisierung einsetzt.
 
-In this article, we'll explain what Article 50 covers, how it applies to AI translation, and what it means for modern localisation platforms.
+In diesem Artikel erklären wir, was Artikel 50 umfasst, wie er auf KI-Übersetzungen angewendet wird und was er für moderne Lokalisierungsplattformen bedeutet.
 
-## What is Article 50?
+## Was ist Artikel 50?
 
-Article 50 of the EU AI Act focuses on **transparency**.
+Artikel 50 des EU-KI-Gesetzes konzentriert sich auf **Transparenz**.
 
-Rather than restricting the use of AI, it requires organisations to be transparent when AI is interacting with people or generating certain types of content.
+Anstatt die Nutzung von KI einzuschränken, verlangt es von Organisationen, transparent zu sein, wenn KI mit Menschen interagiert oder bestimmte Arten von Inhalten generiert.
 
-Depending on the use case, providers may need to:
+Je nach Anwendungsfall müssen Anbieter möglicherweise:
 
-- Inform users that they are interacting with an AI system.
-- Disclose certain AI-generated or manipulated content.
-- Apply machine-readable markings to some AI-generated outputs where required.
-- Provide additional transparency for AI-generated public-interest content.
+- Informieren Sie die Nutzer darüber, dass sie mit einem KI-System interagieren.
+- Bestimmte KI-generierte oder manipulierte Inhalte offenlegen.
+- Wenden Sie maschinenlesbare Kennzeichnungen auf einige KI-generierte Ausgaben an, sofern erforderlich.
+- Sorgen Sie für zusätzliche Transparenz bei KI-generierten Inhalten von öffentlichem Interesse.
 
-The objective is straightforward: people should understand when AI is involved, while allowing organisations to continue benefiting from AI responsibly.
+Das Ziel ist klar: Menschen sollen verstehen, wann KI zum Einsatz kommt, während Organisationen weiterhin verantwortungsvoll von KI profitieren können.
 
-## Does AI translation need to be labelled?
+## Muss KI-Übersetzung gekennzeichnet werden?
 
-For **most AI translation workflows, the answer is no**.
+Für die **meisten KI-Übersetzungs-Workflows lautet die Antwort nein**.
 
-The European Commission's guidance recognises that translation is fundamentally different from generating entirely new content.
+Die Leitlinien der Europäischen Kommission erkennen an, dass sich Übersetzen grundlegend von der Erstellung völlig neuer Inhalte unterscheidet.
 
-A faithful translation preserves the meaning of the original text. It transforms existing content into another language rather than creating new information. Because of this, AI-assisted translation generally falls within the exception for systems performing standard editing or transformation without materially changing the meaning.
+Eine getreue Übersetzung bewahrt die Bedeutung des Originals. Sie überträgt den bestehenden Inhalt in eine andere Sprache, anstatt neue Informationen zu schaffen. Daher fällt die KI-gestützte Übersetzung im Allgemeinen unter die Ausnahme für Systeme, die standardmäßige Bearbeitungen oder Transformationen durchführen, ohne die Bedeutung wesentlich zu verändern.
 
-For localisation teams, this is reassuring.
+Für Lokalisierungsteams ist das beruhigend.
 
-It means organisations can continue using AI to translate user interfaces, documentation, support content and product experiences without automatically treating every translated string as AI-generated content requiring additional labelling.
+Das bedeutet, dass Organisationen KI weiterhin zur Übersetzung von Benutzeroberflächen, Dokumentation, Supportinhalten und Produkterlebnissen nutzen können, ohne automatisch jede übersetzte Zeichenfolge als von KI generierten Inhalt zu behandeln, der eine zusätzliche Kennzeichnung erfordert.
 
-## Translation is not the same as transcreation
+## Übersetzung ist nicht dasselbe wie Transkreation
 
-Where organisations should pay closer attention is **transcreation**.
+Worauf Organisationen genauer achten sollten, ist **Transkreation**.
 
-Translation aims to preserve meaning.
+Die Übersetzung zielt darauf ab, die Bedeutung zu bewahren.
 
-Transcreation intentionally adapts messaging for another culture or market, often introducing new wording, creative expression or marketing intent.
+Transkreation passt die Botschaft gezielt an eine andere Kultur oder einen anderen Markt an und verwendet dabei oft neue Formulierungen, kreative Ausdrucksweisen oder eine angepasste Marketingintention.
 
-Examples include:
+Beispiele umfassen:
 
-- Adapting marketing campaigns for local audiences
-- Rewriting product messaging
-- Creating market-specific slogans
-- Generating new landing page copy
+- Marketingkampagnen für lokale Zielgruppen anpassen
+- Produktbotschaften neu formulieren
+- Marktspezifische Slogans erstellen
+- Neue Texte für die Landingpage erstellen
 - Producing social media campaigns
 
-These workflows may no longer fall within the same exception as faithful translation.
+Diese Workflows fallen möglicherweise nicht mehr unter dieselbe Ausnahme wie eine originalgetreue Übersetzung.
 
-In practice, it helps to think about localisation work in three categories:
+In der Praxis hilft es, Lokalisierungsarbeit in drei Kategorien zu unterteilen:
 
-| Workflow                 | Typical classification |
+| Workflow                 | Typische Klassifizierung |
 | ------------------------ | ---------------------- |
-| UI translation           | Translation            |
-| Help centre localisation | Translation            |
-| Product documentation    | Translation            |
-| Marketing adaptation     | Transcreation          |
-| New campaign copy        | AI content generation  |
+| UI-Übersetzung           | Übersetzung            |
+| Lokalisierung des Hilfezentrums | Übersetzung            |
+| Produktdokumentation    | Übersetzung            |
+| Marketinganpassung     | Transkreation          |
+| Neuer Kampagnentext        | KI-Inhaltserstellung  |
 
-As AI becomes more capable, distinguishing between translation and content generation will become increasingly important.
+Je leistungsfähiger KI wird, desto wichtiger wird es, zwischen Übersetzung und Inhaltserstellung zu unterscheiden.
 
-## What about AI localisation agents?
+## Was ist mit KI-Lokalisierungsagenten?
 
-Many modern localisation platforms now include AI agents that retrieve context, answer questions and automate repetitive work.
+Viele moderne Lokalisierungsplattformen verfügen inzwischen über KI-Agenten, die Kontext abrufen, Fragen beantworten und sich wiederholende Aufgaben automatisieren.
 
-Article 50 also applies to interactions between users and AI systems.
+Artikel 50 gilt auch für Interaktionen zwischen Nutzern und KI-Systemen.
 
-If someone is interacting directly with an AI assistant, they should be informed that they are communicating with AI unless it is already obvious.
+Wenn jemand direkt mit einem KI-Assistenten interagiert, sollte die Person darüber informiert werden, dass sie mit einer KI kommuniziert, es sei denn, dies ist bereits offensichtlich.
 
-For most products, this is a straightforward design consideration.
+Für die meisten Produkte ist dies eine unkomplizierte Designüberlegung.
 
-Simple interface elements such as:
+Einfache Benutzeroberflächenelemente wie:
 
-- "Hyperlocalise AI Agent"
-- "Ask our AI localisation assistant"
+- "Hyperlocalise AI-Agent"
+- „Fragen Sie unseren KI-Lokalisierungsassistenten“
 
-are generally sufficient to make the interaction transparent.
+reichen im Allgemeinen aus, um die Interaktion transparent zu machen.
 
-This requirement should have little impact on the user experience while helping build trust with customers.
+Diese Anforderung sollte nur geringe Auswirkungen auf die Benutzererfahrung haben und gleichzeitig dazu beitragen, Vertrauen bei den Kunden aufzubauen.
 
-## Why Article 50 is actually good news for localisation
+## Warum Artikel 50 tatsächlich gute Nachrichten für die Lokalisierung sind
 
-At first glance, new AI regulation can sound intimidating.
+Auf den ersten Blick können neue KI-Vorschriften einschüchternd wirken.
 
-In reality, Article 50 reinforces many of the best practices that localisation teams have followed for years.
+In Wirklichkeit bekräftigt Artikel 50 viele der bewährten Verfahren, die Lokalisierungsteams seit Jahren befolgen.
 
-Successful localisation has never been just about translating text.
+Erfolgreiche Lokalisierung hat sich noch nie nur auf die Übersetzung von Text beschränkt.
 
-It relies on:
+Es basiert auf:
 
-- Human review
-- Context
-- Quality assurance
-- Editorial ownership
-- Audit history
-- Collaboration
-- Clear approval workflows
+- Menschliche Überprüfung
+- Kontext
+- Qualitätssicherung
+- Redaktionelle Zuständigkeit
+- Überwachungsverlauf
+- Zusammenarbeit
+- Klare Genehmigungs-Workflows
 
-As AI becomes a larger part of the localisation process, these capabilities become even more valuable.
+Da KI einen immer größeren Teil des Lokalisierungsprozesses übernimmt, werden diese Funktionen noch wertvoller.
 
-The organisations that succeed won't simply use more AI.
+Die Organisationen, die erfolgreich sind, werden nicht einfach mehr KI nutzen.
 
-They'll use AI with better governance.
+Sie werden KI mit besserer Governance nutzen.
 
-## How Hyperlocalise approaches AI transparency
+## Wie Hyperlocalise mit KI-Transparenz umgeht
 
-At Hyperlocalise, we've always believed AI should empower localisation teams, not replace them.
+Bei Hyperlocalise waren wir schon immer davon überzeugt, dass KI Lokalisierungsteams unterstützen und nicht ersetzen sollte.
 
-Our AI workforce is designed to:
+Unsere KI-Belegschaft ist darauf ausgelegt, Folgendes zu tun:
 
-- Gather context before making localisation decisions
-- Reduce repetitive manual work
-- Help translators and reviewers move faster
-- Keep humans in control of publishing decisions
-- Work alongside existing localisation tools and workflows
+- Sammeln Sie Kontext, bevor Sie Lokalisierungsentscheidungen treffen.
+- Reduziere repetitive manuelle Arbeit
+- Hilf Übersetzern und Reviewern, schneller voranzukommen
+- Menschen behalten die Kontrolle über Veröffentlichungsentscheidungen
+- Arbeiten Sie mit vorhandenen Lokalisierungstools und -workflows zusammen
 
-We believe the future of localisation isn't fully autonomous AI.
+Wir glauben, dass die Zukunft der Lokalisierung nicht in vollständig autonomer KI liegt.
 
-It's AI working alongside localisation professionals to help global teams launch faster with greater confidence, while maintaining the quality and accountability that customers expect.
+Es handelt sich um KI, die gemeinsam mit Lokalisierungsprofis arbeitet, um globalen Teams zu helfen, schneller und mit größerer Zuversicht zu starten und dabei die Qualität und Verantwortlichkeit zu wahren, die Kunden erwarten.
 
-## What product teams should do now
+## Was Produktteams jetzt tun sollten
 
-If your organisation uses AI for localisation, Article 50 is an opportunity to strengthen your localisation workflow rather than something to fear.
+Wenn Ihre Organisation KI für die Lokalisierung einsetzt, bietet Artikel 50 die Gelegenheit, Ihren Lokalisierungsworkflow zu stärken, anstatt etwas zu sein, wovor Sie sich fürchten müssen.
 
-A few practical recommendations include:
+Einige praktische Empfehlungen umfassen:
 
-- Clearly identify AI assistants within your product.
-- Maintain human review for important customer-facing content.
-- Distinguish translation from transcreation workflows.
-- Keep approval history and audit trails.
-- Preserve context and source information throughout the localisation process.
-- Ensure editorial responsibility remains clear before publishing content.
+- Kennzeichnen Sie KI-Assistenten in Ihrem Produkt eindeutig.
+- Wichtige kundenorientierte Inhalte müssen von Menschen überprüft werden.
+- Unterscheiden Sie zwischen Übersetzungs- und Transkreations-Workflows.
+- Bewahren Sie Genehmigungsverläufe und Prüfpfade auf.
+- Bewahren Sie während des gesamten Lokalisierungsprozesses den Kontext und die Quellinformationen.
+- Stellen Sie sicher, dass die redaktionelle Verantwortung vor der Veröffentlichung von Inhalten eindeutig geklärt ist.
 
-These practices not only support compliance but also improve translation quality and customer trust.
+Diese Praktiken unterstützen nicht nur die Compliance, sondern verbessern auch die Übersetzungsqualität und das Vertrauen der Kunden.
 
-## Looking ahead
+## Blick nach vorn
 
-The EU AI Act marks an important step towards trustworthy AI adoption.
+Der EU-KI-Rechtsakt stellt einen wichtigen Schritt hin zur vertrauenswürdigen Einführung von KI dar.
 
-For product and localisation teams, the key takeaway is reassuring:
+Für Produkt- und Lokalisierungsteams ist die wichtigste Erkenntnis beruhigend:
 
-AI-assisted translation remains a practical, valuable and compliant way to launch products globally.
+KI-gestützte Übersetzung bleibt eine praktische, wertvolle und regelkonforme Möglichkeit, Produkte weltweit auf den Markt zu bringen.
 
-Rather than slowing innovation, Article 50 encourages organisations to build AI workflows that are transparent, accountable and human-centred.
+Anstatt Innovationen zu bremsen, ermutigt Artikel 50 Organisationen, KI-Workflows zu entwickeln, die transparent, rechenschaftspflichtig und menschenzentriert sind.
 
-At Hyperlocalise, we believe these principles lead to better localisation—not just better compliance.
+Bei Hyperlocalise sind wir überzeugt, dass diese Prinzipien zu einer besseren Lokalisierung führen – und nicht nur zu besserer Compliance.
 
-As AI continues to reshape global product development, the companies that combine automation with human expertise will be the ones that deliver exceptional experiences in every language.
+Da KI die globale Produktentwicklung weiterhin verändert, werden die Unternehmen, die Automatisierung mit menschlicher Expertise verbinden, diejenigen sein, die in jeder Sprache außergewöhnliche Nutzererlebnisse schaffen.
 
-## Frequently asked questions
+## Häufig gestellte Fragen
 
-### Does every AI translation need to be labelled?
+### Muss jede KI-Übersetzung gekennzeichnet werden?
 
-Generally no. Faithful translations are typically treated differently from AI-generated original content because they preserve the meaning of the source material.
+Im Allgemeinen nicht. Getreue Übersetzungen werden typischerweise anders behandelt als von KI generierte Originalinhalte, da sie die Bedeutung des Ausgangsmaterials bewahren.
 
-### Does Article 50 ban AI translation?
+### Verbietet Artikel 50 die KI-Übersetzung?
 
-No. Article 50 introduces transparency requirements rather than restricting the use of AI for translation.
+Nein. Artikel 50 führt Transparenzanforderungen ein, anstatt die Nutzung von KI für Übersetzungen einzuschränken.
 
-### Is transcreation treated the same as translation?
+### Wird Transkreation genauso behandelt wie Übersetzung?
 
-Not necessarily. AI-generated marketing content, creative rewriting and original copy may be subject to different transparency considerations than faithful translations.
+Nicht unbedingt. Von KI generierte Marketinginhalte, kreative Überarbeitungen und originäre Texte können anderen Transparenzanforderungen unterliegen als originalgetreue Übersetzungen.
 
-### Does this only apply to companies based in Europe?
+### Gilt dies nur für Unternehmen mit Sitz in Europa?
 
-No. The EU AI Act can also apply to organisations outside the European Union if their AI systems or outputs are placed on the EU market or used within the EU.
+Nein. Der EU-KI-Rechtsakt kann auch für Organisationen außerhalb der Europäischen Union gelten, wenn ihre KI-Systeme oder deren Ergebnisse auf dem EU-Markt angeboten oder innerhalb der EU genutzt werden.
 
-### How does Hyperlocalise support responsible AI localisation?
+### Wie unterstützt Hyperlocalise eine verantwortungsvolle KI-Lokalisierung?
 
-Hyperlocalise combines AI agents with human review, contextual understanding and existing localisation workflows to help teams launch globally with greater speed, quality and confidence while maintaining transparency throughout the process.
+Hyperlocalise kombiniert KI-Agenten mit menschlicher Überprüfung, kontextuellem Verständnis und bestehenden Lokalisierungs-Workflows, um Teams dabei zu unterstützen, schneller, qualitativ hochwertiger und sicherer weltweit zu starten und dabei während des gesamten Prozesses Transparenz zu gewährleisten.

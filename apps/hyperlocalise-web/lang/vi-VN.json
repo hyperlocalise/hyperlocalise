@@ -869,6 +869,9 @@
   "2IX5Zk4LCM": {
     "defaultMessage": "Hiển thị bí mật"
   },
+  "2J9DBNioHN": {
+    "defaultMessage": "Bỏ liên kết chuỗi"
+  },
   "2JWP4PXKxL": {
     "defaultMessage": "Slack"
   },
@@ -1090,6 +1093,9 @@
   },
   "3K/+e2NRMM": {
     "defaultMessage": "Hyperlocalise là một đội ngũ nhân sự AI giúp các nhóm triển khai trên toàn cầu chỉ trong vài ngày — với sự am hiểu sắc thái thị trường, dịch thuật và quy trình đánh giá chuyên nghiệp bởi con người."
+  },
+  "3Kr+riOCmU": {
+    "defaultMessage": "Không thể hủy liên kết với issue."
   },
   "3KtrgP1VL6": {
     "defaultMessage": "View files"
@@ -1654,6 +1660,9 @@
   },
   "6N3tTQGcSO": {
     "defaultMessage": "Ai đó"
+  },
+  "6OBycEw5vD": {
+    "defaultMessage": "Yêu cầu không thành công"
   },
   "6PFnjoc6zP": {
     "defaultMessage": "Không tải được bảng điều khiển trình chỉnh sửa"
@@ -2270,6 +2279,9 @@
   "9EV17CGa2+": {
     "defaultMessage": "Hyperlocalise | Nền tảng bản địa hóa tác nhân tốt nhất"
   },
+  "9FhGZjmVTF": {
+    "defaultMessage": "Không thể liên kết issue."
+  },
   "9GZvF1K90w": {
     "defaultMessage": "Xem tệp"
   },
@@ -2882,6 +2894,9 @@
   "CP+VovcJDY": {
     "defaultMessage": "Hủy"
   },
+  "CPX3MSYhG+": {
+    "defaultMessage": "Chuỗi được liên kết"
+  },
   "CPfzUKHSJO": {
     "defaultMessage": "Synced"
   },
@@ -3158,6 +3173,9 @@
   "DZx5zjElsr": {
     "defaultMessage": "Ask any string. Get repo-backed context."
   },
+  "Db5EVZd7B1": {
+    "defaultMessage": "Không thể tải các vấn đề được liên kết."
+  },
   "Dcqju+Z+Wb": {
     "defaultMessage": "No conversations yet."
   },
@@ -3202,6 +3220,9 @@
   },
   "Dwu72TwwL/": {
     "defaultMessage": "Loading jobs…"
+  },
+  "Dx55FkCrgu": {
+    "defaultMessage": "Liên kết hiện có"
   },
   "DxQL85kivW": {
     "defaultMessage": "Biến các bản tóm tắt ra mắt, tài sản chiến dịch và thông điệp theo khu vực thành nội dung đã được rà soát, phù hợp với văn hóa địa phương — với quy trình phê duyệt và kiểm soát bảng thuật ngữ được tích hợp sẵn."
@@ -3965,6 +3986,9 @@
   "I28Vekk8WA": {
     "defaultMessage": "Đã đồng bộ lần cuối {when}"
   },
+  "I3HI2ZtzmX": {
+    "defaultMessage": "Việc liên kết yêu cầu một chuỗi dự án gốc."
+  },
   "I3W7KYKnta": {
     "defaultMessage": "Failed to generate AI recommendation"
   },
@@ -3982,6 +4006,9 @@
   },
   "I9aLSBsZbT": {
     "defaultMessage": "Chọn một tổ chức từ tài khoản của bạn hoặc liên hệ bộ phận hỗ trợ nếu tình trạng này vẫn tiếp diễn."
+  },
+  "IA5Kmwt4uK": {
+    "defaultMessage": "Vấn đề"
   },
   "IC06cS9nUd": {
     "defaultMessage": "Agent fixing"
@@ -4453,6 +4480,9 @@
   },
   "Kyj/6Mb2oy": {
     "defaultMessage": "Test what saved Memory.md guidance would be loaded for a translation query."
+  },
+  "L0g+No60zf": {
+    "defaultMessage": "{key}"
   },
   "L0gachMRlZ": {
     "defaultMessage": "Term base"
@@ -5134,6 +5164,9 @@
   },
   "OpaDn2OQOK": {
     "defaultMessage": "Deleting…"
+  },
+  "OsfTn/OWg9": {
+    "defaultMessage": "Chưa có vấn đề nào được liên kết với chuỗi này."
   },
   "OtoAcs/psJ": {
     "defaultMessage": "SSO / SAML"
@@ -6776,6 +6809,9 @@
   "XJe/aHS1LC": {
     "defaultMessage": "Failed to load members"
   },
+  "XLWvL1I9Sv": {
+    "defaultMessage": "Tìm kiếm vấn đề…"
+  },
   "XLbc3ZzNpD": {
     "defaultMessage": "All sources"
   },
@@ -8312,6 +8348,9 @@
   "fNsrVmOrc3": {
     "defaultMessage": "Các startup giai đoạn đầu có thể được giảm tới 80% giá gói Growth trong 12 tháng đầu tiên hoặc trong thời gian bạn đủ điều kiện. Chúng tôi sẽ xác nhận mức độ phù hợp và giá cả trong buổi demo."
   },
+  "fO8mdMfpdf": {
+    "defaultMessage": "Mở trong CAT"
+  },
   "fOd0uv4R/b": {
     "defaultMessage": "Failed to cancel job"
   },
@@ -9413,6 +9452,9 @@
   "kUmtRmvwMN": {
     "defaultMessage": "Xem xét PR và các hồi quy dịch thuật trước khi hợp nhất"
   },
+  "kUu0YJ4PK9": {
+    "defaultMessage": "Đã liên kết vấn đề"
+  },
   "kWeceyqgt+": {
     "defaultMessage": "Không phụ thuộc LLM"
   },
@@ -9610,6 +9652,9 @@
   },
   "lIM6KQzx0j": {
     "defaultMessage": "{sourceTerm} → {targetTerm} ({targetLocale})"
+  },
+  "lKE9esALm9": {
+    "defaultMessage": "Chuỗi đã được hủy liên kết"
   },
   "lMGKaGDLx4": {
     "defaultMessage": "Một chiến dịch ra mắt sản phẩm được triển khai tại sáu thị trường"
@@ -10114,6 +10159,9 @@
   },
   "o6mkuN62Fv": {
     "defaultMessage": "{remaining} remaining"
+  },
+  "o7Q2VF9914": {
+    "defaultMessage": "Hủy liên kết"
   },
   "o9256BhMtE": {
     "defaultMessage": "Failed to save Semrush connection."
@@ -10640,6 +10688,9 @@
   "qyAeUOVpZe": {
     "defaultMessage": "Tiếng Séc (Séc)"
   },
+  "qyJpxYtcpE": {
+    "defaultMessage": "Tạo hoặc liên kết các vấn đề cho chuỗi này. Điều hướng đến một vấn đề để cộng tác."
+  },
   "qySc0NPK9C": {
     "defaultMessage": "Kết nối"
   },
@@ -11020,6 +11071,9 @@
   },
   "t3RhAFC8NZ": {
     "defaultMessage": "No TMS jobs assigned to you were returned from the live provider API."
+  },
+  "t3xDK2/UrI": {
+    "defaultMessage": "Tạo vấn đề"
   },
   "t4mhc63bGr": {
     "defaultMessage": "Đang chờ xem xét"
@@ -11591,6 +11645,9 @@
   "vrxnOkVw+Z": {
     "defaultMessage": "Manage membership and roles for the {slug} team."
   },
+  "vtr+j44k6z": {
+    "defaultMessage": "Đã hủy liên kết vấn đề"
+  },
   "vuJalRUhn9": {
     "defaultMessage": "Chat conversations"
   },
@@ -11933,6 +11990,9 @@
   "xTFJa5ogoK": {
     "defaultMessage": "Usage meter"
   },
+  "xTMvZyc/zN": {
+    "defaultMessage": "Không có issue nào phù hợp."
+  },
   "xTYiHfPy3g": {
     "defaultMessage": "Workspace"
   },
@@ -11983,6 +12043,9 @@
   },
   "xi4ZQRm848": {
     "defaultMessage": "Resources"
+  },
+  "xixmTqHWvz": {
+    "defaultMessage": "Mở"
   },
   "xjcfJrUODP": {
     "defaultMessage": "e.g. de-DE"
@@ -12415,6 +12478,9 @@
   },
   "zl55Vhhf0L": {
     "defaultMessage": "Workspace members"
+  },
+  "zlTXMaTZ76": {
+    "defaultMessage": "Các vấn đề được liên kết"
   },
   "zliOrjr0oj": {
     "defaultMessage": "Job"

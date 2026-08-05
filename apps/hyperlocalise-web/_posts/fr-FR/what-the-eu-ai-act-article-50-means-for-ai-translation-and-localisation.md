@@ -1,8 +1,8 @@
 ---
-title: What the EU AI Act Article 50 Means for AI Translation and Localisation
+title: Ce que l’article 50 de la loi européenne sur l’IA signifie pour la traduction et la localisation par IA
 date: 2026-08-03T00:00:00.000Z
-excerpt: Article 50 of the EU AI Act begins applying from August 2026. For most AI translation workflows, labelling is not required — but transparency still matters for agents, transcreation, and responsible localisation.
-category: Product
+excerpt: L’article 50 du règlement européen sur l’IA commencera à s’appliquer en août 2026. Pour la plupart des flux de traduction par IA, l’étiquetage n’est pas requis — mais la transparence reste importante pour les agents, la transcréation et une localisation responsable.
+category: Produit
 tags:
   - EU AI Act
   - Article 50
@@ -18,179 +18,179 @@ tags:
   - responsible AI
 ---
 
-The European Union's AI Act is the world's first comprehensive legal framework for artificial intelligence. As Article 50 begins applying from August 2026, many product teams and localisation leaders are asking the same question:
+Le règlement européen sur l’IA est le premier cadre juridique complet au monde pour l’intelligence artificielle. Alors que l’article 50 commence à s’appliquer à partir d’août 2026, de nombreuses équipes produit et responsables de la localisation se posent la même question :
 
-> **Does the EU AI Act mean AI-generated translations need to be labelled?**
+> **La loi européenne sur l’IA signifie-t-elle que les traductions générées par l’IA doivent être signalées ?**
 
-The short answer is **generally no**.
+La réponse courte est **généralement non**.
 
-For most translation workflows, Article 50 is less disruptive than many expected. However, it introduces important transparency requirements that every company using AI for localisation should understand.
+Pour la plupart des processus de traduction, l’article 50 est moins perturbateur que beaucoup ne l’avaient prévu. Cependant, il introduit d’importantes exigences de transparence que toute entreprise utilisant l’IA pour la localisation devrait comprendre.
 
-In this article, we'll explain what Article 50 covers, how it applies to AI translation, and what it means for modern localisation platforms.
+Dans cet article, nous expliquerons ce que couvre l’article 50, comment il s’applique à la traduction par IA et ce qu’il signifie pour les plateformes de localisation modernes.
 
-## What is Article 50?
+## Qu’est-ce que l’article 50 ?
 
-Article 50 of the EU AI Act focuses on **transparency**.
+L’article 50 de la loi européenne sur l’IA met l’accent sur la **transparence**.
 
-Rather than restricting the use of AI, it requires organisations to be transparent when AI is interacting with people or generating certain types of content.
+Plutôt que de restreindre l’utilisation de l’IA, elle oblige les organisations à faire preuve de transparence lorsque l’IA interagit avec des personnes ou génère certains types de contenu.
 
-Depending on the use case, providers may need to:
+Selon le cas d’utilisation, les fournisseurs peuvent devoir :
 
-- Inform users that they are interacting with an AI system.
-- Disclose certain AI-generated or manipulated content.
-- Apply machine-readable markings to some AI-generated outputs where required.
-- Provide additional transparency for AI-generated public-interest content.
+- Informez les utilisateurs qu’ils interagissent avec un système d’IA.
+- Divulguer certains contenus générés ou manipulés par l’IA.
+- Appliquer des marquages lisibles par machine à certaines productions générées par l’IA lorsque cela est requis.
+- Fournissez davantage de transparence concernant les contenus d’intérêt public générés par l’IA.
 
-The objective is straightforward: people should understand when AI is involved, while allowing organisations to continue benefiting from AI responsibly.
+L’objectif est simple : les personnes doivent comprendre quand l’IA est impliquée, tout en permettant aux organisations de continuer à tirer parti de l’IA de manière responsable.
 
-## Does AI translation need to be labelled?
+## La traduction par IA doit-elle être signalée ?
 
-For **most AI translation workflows, the answer is no**.
+Pour **la plupart des workflows de traduction par IA, la réponse est non**.
 
-The European Commission's guidance recognises that translation is fundamentally different from generating entirely new content.
+Les orientations de la Commission européenne reconnaissent que la traduction est fondamentalement différente de la création de contenu entièrement nouveau.
 
-A faithful translation preserves the meaning of the original text. It transforms existing content into another language rather than creating new information. Because of this, AI-assisted translation generally falls within the exception for systems performing standard editing or transformation without materially changing the meaning.
+Une traduction fidèle préserve le sens du texte original. Elle transforme le contenu existant dans une autre langue plutôt que de créer de nouvelles informations. De ce fait, la traduction assistée par IA relève généralement de l’exception applicable aux systèmes effectuant une édition ou une transformation standard sans modifier sensiblement le sens.
 
-For localisation teams, this is reassuring.
+Pour les équipes de localisation, c’est rassurant.
 
-It means organisations can continue using AI to translate user interfaces, documentation, support content and product experiences without automatically treating every translated string as AI-generated content requiring additional labelling.
+Cela signifie que les organisations peuvent continuer à utiliser l’IA pour traduire les interfaces utilisateur, la documentation, le contenu d’assistance et les expériences produit sans considérer automatiquement chaque chaîne traduite comme du contenu généré par l’IA nécessitant un étiquetage supplémentaire.
 
-## Translation is not the same as transcreation
+## La traduction n’est pas la même chose que la transcréation
 
-Where organisations should pay closer attention is **transcreation**.
+Là où les organisations devraient être plus attentives, c’est à la **transcréation**.
 
-Translation aims to preserve meaning.
+La traduction vise à préserver le sens.
 
-Transcreation intentionally adapts messaging for another culture or market, often introducing new wording, creative expression or marketing intent.
+La transcréation adapte intentionnellement le message à une autre culture ou à un autre marché, en introduisant souvent une nouvelle formulation, une expression créative ou une intention marketing.
 
-Examples include:
+Les exemples incluent :
 
-- Adapting marketing campaigns for local audiences
-- Rewriting product messaging
-- Creating market-specific slogans
-- Generating new landing page copy
-- Producing social media campaigns
+- Adapter les campagnes marketing aux publics locaux
+- Réécriture du message produit
+- Création de slogans adaptés à chaque marché
+- Génération du contenu d’une nouvelle page d’accueil
+- Produire des campagnes sur les réseaux sociaux
 
-These workflows may no longer fall within the same exception as faithful translation.
+Ces flux de travail peuvent ne plus relever de la même exception que la traduction fidèle.
 
-In practice, it helps to think about localisation work in three categories:
+En pratique, il est utile de considérer le travail de localisation selon trois catégories :
 
-| Workflow                 | Typical classification |
+| Flux de travail                 | Classification typique |
 | ------------------------ | ---------------------- |
-| UI translation           | Translation            |
-| Help centre localisation | Translation            |
-| Product documentation    | Translation            |
-| Marketing adaptation     | Transcreation          |
-| New campaign copy        | AI content generation  |
+| UI translation           | Traduction            |
+| Localisation du centre d’aide | Traduction            |
+| Documentation produit    | Traduction            |
+| Adaptation marketing     | Transcréation          |
+| Nouveau texte de campagne | Génération de contenu par IA |
 
-As AI becomes more capable, distinguishing between translation and content generation will become increasingly important.
+À mesure que l’IA devient plus performante, il deviendra de plus en plus important de distinguer la traduction de la génération de contenu.
 
-## What about AI localisation agents?
+## Et les agents d’IA pour la localisation ?
 
-Many modern localisation platforms now include AI agents that retrieve context, answer questions and automate repetitive work.
+De nombreuses plateformes modernes de localisation intègrent désormais des agents d’IA qui récupèrent le contexte, répondent aux questions et automatisent les tâches répétitives.
 
-Article 50 also applies to interactions between users and AI systems.
+L’article 50 s’applique également aux interactions entre les utilisateurs et les systèmes d’IA.
 
-If someone is interacting directly with an AI assistant, they should be informed that they are communicating with AI unless it is already obvious.
+Si quelqu’un interagit directement avec un assistant IA, il doit être informé qu’il communique avec une IA, à moins que cela ne soit déjà évident.
 
-For most products, this is a straightforward design consideration.
+Pour la plupart des produits, il s’agit d’une considération de conception simple.
 
-Simple interface elements such as:
+Éléments d’interface simples tels que :
 
-- "Hyperlocalise AI Agent"
-- "Ask our AI localisation assistant"
+- « Agent IA Hyperlocalise »
+- Demandez à notre assistant IA de localisation
 
-are generally sufficient to make the interaction transparent.
+sont généralement suffisantes pour rendre l’interaction transparente.
 
-This requirement should have little impact on the user experience while helping build trust with customers.
+Cette exigence devrait avoir peu d’impact sur l’expérience utilisateur tout en contribuant à instaurer un climat de confiance avec les clients.
 
-## Why Article 50 is actually good news for localisation
+## Pourquoi l’article 50 est en fait une bonne nouvelle pour la localisation
 
-At first glance, new AI regulation can sound intimidating.
+À première vue, une nouvelle réglementation sur l’IA peut sembler intimidante.
 
-In reality, Article 50 reinforces many of the best practices that localisation teams have followed for years.
+En réalité, l’article 50 renforce bon nombre des meilleures pratiques que les équipes de localisation suivent depuis des années.
 
-Successful localisation has never been just about translating text.
+La localisation réussie ne s’est jamais limitée à traduire du texte.
 
-It relies on:
+Cela repose sur :
 
-- Human review
-- Context
-- Quality assurance
-- Editorial ownership
-- Audit history
+- Révision humaine
+- Contexte
+- Assurance qualité
+- Responsabilité éditoriale
+- Historique des audits
 - Collaboration
-- Clear approval workflows
+- Effacez les workflows d’approbation
 
-As AI becomes a larger part of the localisation process, these capabilities become even more valuable.
+À mesure que l’IA prend une place de plus en plus importante dans le processus de localisation, ces fonctionnalités deviennent encore plus précieuses.
 
-The organisations that succeed won't simply use more AI.
+Les organisations qui réussissent ne se contenteront pas d’utiliser davantage l’IA.
 
-They'll use AI with better governance.
+Ils utiliseront l’IA avec une meilleure gouvernance.
 
-## How Hyperlocalise approaches AI transparency
+## Comment Hyperlocalise aborde la transparence de l’IA
 
-At Hyperlocalise, we've always believed AI should empower localisation teams, not replace them.
+Chez Hyperlocalise, nous avons toujours pensé que l’IA devait donner aux équipes de localisation les moyens d’agir, et non les remplacer.
 
-Our AI workforce is designed to:
+Notre personnel IA est conçu pour :
 
-- Gather context before making localisation decisions
-- Reduce repetitive manual work
-- Help translators and reviewers move faster
-- Keep humans in control of publishing decisions
-- Work alongside existing localisation tools and workflows
+- Rassemblez le contexte avant de prendre des décisions de localisation.
+- Réduisez le travail manuel répétitif
+- Aidez les traducteurs et les réviseurs à avancer plus rapidement
+- Gardez les décisions de publication sous le contrôle des humains
+- Travaillez avec les outils et processus de localisation existants
 
-We believe the future of localisation isn't fully autonomous AI.
+Nous pensons que l’avenir de la localisation ne réside pas dans une IA entièrement autonome.
 
-It's AI working alongside localisation professionals to help global teams launch faster with greater confidence, while maintaining the quality and accountability that customers expect.
+C’est une IA qui travaille aux côtés de professionnels de la localisation pour aider les équipes internationales à lancer leurs projets plus rapidement et avec une plus grande confiance, tout en maintenant la qualité et la responsabilité que les clients attendent.
 
-## What product teams should do now
+## Ce que les équipes produit devraient faire maintenant
 
-If your organisation uses AI for localisation, Article 50 is an opportunity to strengthen your localisation workflow rather than something to fear.
+Si votre organisation utilise l’IA pour la localisation, l’article 50 est une occasion de renforcer votre processus de localisation plutôt qu’une source d’inquiétude.
 
-A few practical recommendations include:
+Quelques recommandations pratiques comprennent :
 
-- Clearly identify AI assistants within your product.
-- Maintain human review for important customer-facing content.
-- Distinguish translation from transcreation workflows.
-- Keep approval history and audit trails.
-- Preserve context and source information throughout the localisation process.
-- Ensure editorial responsibility remains clear before publishing content.
+- Identifiez clairement les assistants IA au sein de votre produit.
+- Maintenez une validation humaine pour les contenus importants destinés aux clients.
+- Distinguez les processus de traduction des processus de transcréation.
+- Conservez l’historique des approbations et les pistes d’audit.
+- Préservez le contexte et les informations sources tout au long du processus de localisation.
+- Assurez-vous que la responsabilité éditoriale reste clairement définie avant de publier le contenu.
 
-These practices not only support compliance but also improve translation quality and customer trust.
+Ces pratiques favorisent non seulement la conformité, mais améliorent également la qualité des traductions et la confiance des clients.
 
-## Looking ahead
+## Perspectives d’avenir
 
-The EU AI Act marks an important step towards trustworthy AI adoption.
+La loi européenne sur l’IA marque une étape importante vers l’adoption d’une IA digne de confiance.
 
-For product and localisation teams, the key takeaway is reassuring:
+Pour les équipes produit et de localisation, le principal enseignement est rassurant :
 
-AI-assisted translation remains a practical, valuable and compliant way to launch products globally.
+La traduction assistée par IA reste un moyen pratique, précieux et conforme de lancer des produits à l’échelle mondiale.
 
-Rather than slowing innovation, Article 50 encourages organisations to build AI workflows that are transparent, accountable and human-centred.
+Plutôt que de ralentir l’innovation, l’article 50 encourage les organisations à mettre en place des flux de travail liés à l’IA qui soient transparents, responsables et centrés sur l’humain.
 
-At Hyperlocalise, we believe these principles lead to better localisation—not just better compliance.
+Chez Hyperlocalise, nous pensons que ces principes mènent à une meilleure localisation, et pas seulement à une meilleure conformité.
 
-As AI continues to reshape global product development, the companies that combine automation with human expertise will be the ones that deliver exceptional experiences in every language.
+Alors que l’IA continue de transformer le développement de produits à l’échelle mondiale, les entreprises qui associent l’automatisation à l’expertise humaine seront celles qui offriront des expériences exceptionnelles dans toutes les langues.
 
-## Frequently asked questions
+## Foire aux questions
 
-### Does every AI translation need to be labelled?
+### Chaque traduction générée par l’IA doit-elle être étiquetée ?
 
-Generally no. Faithful translations are typically treated differently from AI-generated original content because they preserve the meaning of the source material.
+En général, non. Les traductions fidèles sont généralement traitées différemment du contenu original généré par l’IA, car elles préservent le sens du contenu source.
 
-### Does Article 50 ban AI translation?
+### L’article 50 interdit-il la traduction par IA ?
 
-No. Article 50 introduces transparency requirements rather than restricting the use of AI for translation.
+Non. L’article 50 instaure des exigences de transparence plutôt que de restreindre l’utilisation de l’IA pour la traduction.
 
-### Is transcreation treated the same as translation?
+### La transcréation est-elle traitée de la même manière que la traduction ?
 
-Not necessarily. AI-generated marketing content, creative rewriting and original copy may be subject to different transparency considerations than faithful translations.
+Pas nécessairement. Le contenu marketing généré par l’IA, la réécriture créative et les textes originaux peuvent être soumis à des considérations différentes en matière de transparence par rapport aux traductions fidèles.
 
-### Does this only apply to companies based in Europe?
+### Cela s’applique-t-il uniquement aux entreprises basées en Europe ?
 
-No. The EU AI Act can also apply to organisations outside the European Union if their AI systems or outputs are placed on the EU market or used within the EU.
+Non. L’AI Act de l’UE peut également s’appliquer aux organisations situées en dehors de l’Union européenne si leurs systèmes d’IA ou leurs résultats sont mis sur le marché de l’UE ou utilisés au sein de l’UE.
 
-### How does Hyperlocalise support responsible AI localisation?
+### Comment Hyperlocalise soutient-il la localisation responsable de l’IA ?
 
-Hyperlocalise combines AI agents with human review, contextual understanding and existing localisation workflows to help teams launch globally with greater speed, quality and confidence while maintaining transparency throughout the process.
+Hyperlocalise combine des agents d’IA avec une révision humaine, une compréhension contextuelle et des flux de localisation existants pour aider les équipes à se déployer à l’échelle mondiale avec davantage de rapidité, de qualité et de confiance, tout en garantissant la transparence tout au long du processus.

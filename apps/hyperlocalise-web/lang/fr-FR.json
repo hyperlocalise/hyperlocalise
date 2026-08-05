@@ -869,6 +869,9 @@
   "2IX5Zk4LCM": {
     "defaultMessage": "Afficher le secret"
   },
+  "2J9DBNioHN": {
+    "defaultMessage": "Dissocier la chaîne"
+  },
   "2JWP4PXKxL": {
     "defaultMessage": "Slack"
   },
@@ -1090,6 +1093,9 @@
   },
   "3K/+e2NRMM": {
     "defaultMessage": "Hyperlocalise est une main-d’œuvre IA qui aide les équipes à se lancer à l’échelle mondiale en quelques jours, avec une adaptation aux spécificités de chaque marché, de la traduction et une révision humaine de premier ordre."
+  },
+  "3Kr+riOCmU": {
+    "defaultMessage": "Impossible de dissocier le problème."
   },
   "3KtrgP1VL6": {
     "defaultMessage": "Voir les fichiers"
@@ -1654,6 +1660,9 @@
   },
   "6N3tTQGcSO": {
     "defaultMessage": "Quelqu’un"
+  },
+  "6OBycEw5vD": {
+    "defaultMessage": "Échec de la requête"
   },
   "6PFnjoc6zP": {
     "defaultMessage": "Le panneau de l’éditeur n’a pas pu se charger"
@@ -2270,6 +2279,9 @@
   "9EV17CGa2+": {
     "defaultMessage": "Hyperlocalise | La meilleure plateforme de localisation agentique"
   },
+  "9FhGZjmVTF": {
+    "defaultMessage": "Impossible de lier le ticket."
+  },
   "9GZvF1K90w": {
     "defaultMessage": "Voir les fichiers"
   },
@@ -2882,6 +2894,9 @@
   "CP+VovcJDY": {
     "defaultMessage": "Annuler"
   },
+  "CPX3MSYhG+": {
+    "defaultMessage": "Chaîne liée"
+  },
   "CPfzUKHSJO": {
     "defaultMessage": "Synced"
   },
@@ -3158,6 +3173,9 @@
   "DZx5zjElsr": {
     "defaultMessage": "Posez n’importe quelle question. Obtenez un contexte issu du dépôt."
   },
+  "Db5EVZd7B1": {
+    "defaultMessage": "Les problèmes liés n’ont pas pu être chargés."
+  },
   "Dcqju+Z+Wb": {
     "defaultMessage": "No conversations yet."
   },
@@ -3202,6 +3220,9 @@
   },
   "Dwu72TwwL/": {
     "defaultMessage": "Chargement des offres…"
+  },
+  "Dx55FkCrgu": {
+    "defaultMessage": "Lier un élément existant"
   },
   "DxQL85kivW": {
     "defaultMessage": "Transformez les briefs de lancement, les ressources de campagne et les messages régionaux en contenu relu et adapté culturellement — avec des flux de validation et un contrôle du glossaire intégrés."
@@ -3965,6 +3986,9 @@
   "I28Vekk8WA": {
     "defaultMessage": "Dernière synchronisation le {when}"
   },
+  "I3HI2ZtzmX": {
+    "defaultMessage": "La liaison nécessite une chaîne de caractères native du projet."
+  },
   "I3W7KYKnta": {
     "defaultMessage": "Échec de la génération de la recommandation par l’IA"
   },
@@ -3982,6 +4006,9 @@
   },
   "I9aLSBsZbT": {
     "defaultMessage": "Choisissez une organisation dans votre compte ou contactez le support si cela continue."
+  },
+  "IA5Kmwt4uK": {
+    "defaultMessage": "Problèmes"
   },
   "IC06cS9nUd": {
     "defaultMessage": "Agent fixing"
@@ -4453,6 +4480,9 @@
   },
   "Kyj/6Mb2oy": {
     "defaultMessage": "Test what saved Memory.md guidance would be loaded for a translation query."
+  },
+  "L0g+No60zf": {
+    "defaultMessage": "Contexte requis : {key}"
   },
   "L0gachMRlZ": {
     "defaultMessage": "Term base"
@@ -5134,6 +5164,9 @@
   },
   "OpaDn2OQOK": {
     "defaultMessage": "Deleting…"
+  },
+  "OsfTn/OWg9": {
+    "defaultMessage": "Aucun problème n’est encore associé à cette chaîne."
   },
   "OtoAcs/psJ": {
     "defaultMessage": "SSO / SAML"
@@ -6776,6 +6809,9 @@
   "XJe/aHS1LC": {
     "defaultMessage": "Failed to load members"
   },
+  "XLWvL1I9Sv": {
+    "defaultMessage": "Rechercher des problèmes…"
+  },
   "XLbc3ZzNpD": {
     "defaultMessage": "All sources"
   },
@@ -8312,6 +8348,9 @@
   "fNsrVmOrc3": {
     "defaultMessage": "Les startups en phase de démarrage peuvent bénéficier d’une remise allant jusqu’à 80 % sur le forfait Growth pendant les 12 premiers mois, ou tant qu’elles remplissent les critères d’éligibilité. Nous confirmons l’éligibilité et le tarif lors de la démonstration."
   },
+  "fO8mdMfpdf": {
+    "defaultMessage": "Ouvrir dans CAT"
+  },
   "fOd0uv4R/b": {
     "defaultMessage": "Failed to cancel job"
   },
@@ -9413,6 +9452,9 @@
   "kUmtRmvwMN": {
     "defaultMessage": "Examiner les PR et les régressions de traduction avant la fusion"
   },
+  "kUu0YJ4PK9": {
+    "defaultMessage": "Problème lié"
+  },
   "kWeceyqgt+": {
     "defaultMessage": "Agnostique au LLM"
   },
@@ -9610,6 +9652,9 @@
   },
   "lIM6KQzx0j": {
     "defaultMessage": "{sourceTerm} → {targetTerm} ({targetLocale})"
+  },
+  "lKE9esALm9": {
+    "defaultMessage": "Chaîne dissociée"
   },
   "lMGKaGDLx4": {
     "defaultMessage": "Une campagne de lancement de produit est mise en ligne sur six marchés"
@@ -10114,6 +10159,9 @@
   },
   "o6mkuN62Fv": {
     "defaultMessage": "{remaining} restant"
+  },
+  "o7Q2VF9914": {
+    "defaultMessage": "Dissocier"
   },
   "o9256BhMtE": {
     "defaultMessage": "Failed to save Semrush connection."
@@ -10640,6 +10688,9 @@
   "qyAeUOVpZe": {
     "defaultMessage": "tchèque (Tchéquie)"
   },
+  "qyJpxYtcpE": {
+    "defaultMessage": "Créez ou associez des problèmes à cette chaîne. Accédez à un problème pour collaborer."
+  },
   "qySc0NPK9C": {
     "defaultMessage": "Se connecter"
   },
@@ -11020,6 +11071,9 @@
   },
   "t3RhAFC8NZ": {
     "defaultMessage": "No TMS jobs assigned to you were returned from the live provider API."
+  },
+  "t3xDK2/UrI": {
+    "defaultMessage": "Créer un problème"
   },
   "t4mhc63bGr": {
     "defaultMessage": "En attente de révision"
@@ -11591,6 +11645,9 @@
   "vrxnOkVw+Z": {
     "defaultMessage": "Manage membership and roles for the {slug} team."
   },
+  "vtr+j44k6z": {
+    "defaultMessage": "Problème dissocié"
+  },
   "vuJalRUhn9": {
     "defaultMessage": "Chat conversations"
   },
@@ -11933,6 +11990,9 @@
   "xTFJa5ogoK": {
     "defaultMessage": "Usage meter"
   },
+  "xTMvZyc/zN": {
+    "defaultMessage": "Aucun problème correspondant."
+  },
   "xTYiHfPy3g": {
     "defaultMessage": "Workspace"
   },
@@ -11983,6 +12043,9 @@
   },
   "xi4ZQRm848": {
     "defaultMessage": "Resources"
+  },
+  "xixmTqHWvz": {
+    "defaultMessage": "Ouvrir"
   },
   "xjcfJrUODP": {
     "defaultMessage": "e.g. de-DE"
@@ -12415,6 +12478,9 @@
   },
   "zl55Vhhf0L": {
     "defaultMessage": "Workspace members"
+  },
+  "zlTXMaTZ76": {
+    "defaultMessage": "Problèmes liés"
   },
   "zliOrjr0oj": {
     "defaultMessage": "Job"

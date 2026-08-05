@@ -655,10 +655,6 @@
     "defaultMessage": "Your workspace at a glance — assigned work, latest activity, and recent projects.",
     "description": "Dashboard page description under the heading"
   },
-  "0iCvVxZ/5M": {
-    "defaultMessage": "Issues",
-    "description": "Button to open linked Issues for the current CAT segment"
-  },
   "0jS/dbW8Df": {
     "defaultMessage": "Detect added, changed, and removed strings",
     "description": "Workflow step 1 description for the github-release-localisation use case"
@@ -1063,6 +1059,10 @@
     "defaultMessage": "Show secret",
     "description": "Aria label for revealing a credential secret field"
   },
+  "2J9DBNioHN": {
+    "defaultMessage": "Unlink string",
+    "description": "Button to unlink the translation string from an issue"
+  },
   "2JWP4PXKxL": {
     "defaultMessage": "Slack",
     "description": "Slack integration label on the dashboard"
@@ -1199,10 +1199,6 @@
     "defaultMessage": "Does Hyperlocalise work with GitHub?",
     "description": "Homepage FAQ question about GitHub integration"
   },
-  "2oU/YE7MsU": {
-    "defaultMessage": "General question",
-    "description": "Crowdin issue type for general questions"
-  },
   "2p0kb15yT7": {
     "defaultMessage": "Failed to delete job ({status})",
     "description": "Error when deleting a Crowdin task fails with a status code"
@@ -1334,6 +1330,10 @@
   "3K/+e2NRMM": {
     "defaultMessage": "Hyperlocalise is an AI workforce that helps teams launch globally in days — with market nuance, translation, and first-class human review.",
     "description": "Meta description for the marketing homepage"
+  },
+  "3Kr+riOCmU": {
+    "defaultMessage": "Issue could not be unlinked.",
+    "description": "Toast when unlinking an issue fails"
   },
   "3M+guxg4Ll": {
     "defaultMessage": "Unable to load GitHub installation status right now.",
@@ -2026,6 +2026,10 @@
   "6N3tTQGcSO": {
     "defaultMessage": "Someone",
     "description": "Fallback actor name when notification actor is missing"
+  },
+  "6OBycEw5vD": {
+    "defaultMessage": "Request failed",
+    "description": "Fallback error when an Issues API request fails"
   },
   "6PFnjoc6zP": {
     "defaultMessage": "Editor panel failed to load",
@@ -2786,6 +2790,10 @@
   "9EV17CGa2+": {
     "defaultMessage": "Hyperlocalise | The Best Agentic Localisation Platform",
     "description": "Page title for the marketing homepage"
+  },
+  "9FhGZjmVTF": {
+    "defaultMessage": "Issue could not be linked.",
+    "description": "Toast when linking an existing issue fails"
   },
   "9GZvF1K90w": {
     "defaultMessage": "View files",
@@ -3571,6 +3579,10 @@
     "defaultMessage": "Cancel",
     "description": "Button that closes the global guidance save dialog"
   },
+  "CPX3MSYhG+": {
+    "defaultMessage": "Linked string",
+    "description": "Section heading for the translation string linked to an issue"
+  },
   "CPfzUKHSJO": {
     "defaultMessage": "Synced",
     "description": "Sync filter option for synced glossaries"
@@ -3923,6 +3935,10 @@
     "defaultMessage": "Ask any string. Get repo-backed context.",
     "description": "Title for the marketing chat dock mock section"
   },
+  "Db5EVZd7B1": {
+    "defaultMessage": "Linked issues could not be loaded.",
+    "description": "Error when fetching issues linked to a string fails"
+  },
   "Dcqju+Z+Wb": {
     "defaultMessage": "No conversations yet.",
     "description": "Empty state when the organization has no inbox conversations"
@@ -3974,6 +3990,10 @@
   "Dwu72TwwL/": {
     "defaultMessage": "Loading jobs…",
     "description": "Loading state while the jobs list is fetching"
+  },
+  "Dx55FkCrgu": {
+    "defaultMessage": "Link existing",
+    "description": "Button to open the picker for linking an existing issue"
   },
   "DxQL85kivW": {
     "defaultMessage": "Turn launch briefs, campaign assets, and regional messaging into reviewed, culturally adapted copy — with approval flows and glossary control built in.",
@@ -4438,6 +4458,10 @@
   "FrF4P2cRG5": {
     "defaultMessage": "Loading members…",
     "description": "Loading state for assignee picker members"
+  },
+  "FtQgWtXBLP": {
+    "defaultMessage": "Retry",
+    "description": "Retry button when issue sheet columns fail to load"
   },
   "FtS1qUeQJM": {
     "defaultMessage": "{progress}% translated",
@@ -4923,6 +4947,10 @@
     "defaultMessage": "Last synced {when}",
     "description": "Last sync timestamp on project overview ship section"
   },
+  "I3HI2ZtzmX": {
+    "defaultMessage": "Linking requires a native project string.",
+    "description": "Shown when translation key linking is unavailable for external CAT"
+  },
   "I3W7KYKnta": {
     "defaultMessage": "Failed to generate AI recommendation",
     "description": "Fallback error when AI translation recommendation generation fails"
@@ -4946,6 +4974,10 @@
   "I9aLSBsZbT": {
     "defaultMessage": "Choose an organization from your account or contact support if this continues.",
     "description": "Access denied page guidance when the organization slug is missing"
+  },
+  "IA5Kmwt4uK": {
+    "defaultMessage": "Issues",
+    "description": "Button to open linked Issues for the current CAT segment"
   },
   "IC06cS9nUd": {
     "defaultMessage": "Agent fixing",
@@ -5539,6 +5571,10 @@
     "defaultMessage": "Usage",
     "description": "Pricing matrix section title for usage quotas"
   },
+  "L0g+No60zf": {
+    "defaultMessage": "Context needed: {key}",
+    "description": "Default title when creating an issue from a CAT string"
+  },
   "L0gachMRlZ": {
     "defaultMessage": "Term base",
     "description": "Resource type filter option for term base resources"
@@ -5630,10 +5666,6 @@
   "LMGo1sN8VQ": {
     "defaultMessage": "This glossary is used only by the projects listed here.",
     "description": "Section description for projects assigned to a glossary"
-  },
-  "LMW/LqnbFb": {
-    "defaultMessage": "Source mistake",
-    "description": "Crowdin issue type for source mistakes"
   },
   "LOKE6DdX5z": {
     "defaultMessage": "Just now",
@@ -6403,6 +6435,10 @@
     "defaultMessage": "Deleting…",
     "description": "Confirm button label while deleting a Crowdin task"
   },
+  "OsfTn/OWg9": {
+    "defaultMessage": "No issues linked to this string yet.",
+    "description": "Empty state when the string has no linked issues"
+  },
   "OtoAcs/psJ": {
     "defaultMessage": "SSO / SAML",
     "description": "Enterprise plan feature: SSO"
@@ -6918,6 +6954,10 @@
   "Qr6HIhIqfm": {
     "defaultMessage": "Sync only",
     "description": "Shortcut hint when GitHub push is unavailable because agent mode is enabled"
+  },
+  "QrUlBs3ARV": {
+    "defaultMessage": "No value",
+    "description": "Empty state when a long-text custom column has no value"
   },
   "QsCILqwet/": {
     "defaultMessage": "Ask Hyperlocalise…",
@@ -8119,10 +8159,6 @@
     "defaultMessage": "Contentful webhook synced",
     "description": "Toast title when an existing Contentful webhook is updated"
   },
-  "W3V5ERIIW9": {
-    "defaultMessage": "Linked string",
-    "description": "Section heading for the translation string linked to an issue"
-  },
   "W3mkNKamaw": {
     "defaultMessage": "Not connected",
     "description": "Slack agent status title when no workspace is linked"
@@ -8423,6 +8459,10 @@
     "defaultMessage": "Failed to load members",
     "description": "Error when the workspace members list request fails"
   },
+  "XLWvL1I9Sv": {
+    "defaultMessage": "Search issues…",
+    "description": "Placeholder for searching project issues to link"
+  },
   "XLbc3ZzNpD": {
     "defaultMessage": "All sources",
     "description": "Workspace files source filter option to show every origin"
@@ -8658,10 +8698,6 @@
   "YM9k2kDsM2": {
     "defaultMessage": "Ask the localization agent",
     "description": "Dashboard quick-start card title"
-  },
-  "YNB1czGowu": {
-    "defaultMessage": "Context request",
-    "description": "Crowdin issue type for context requests"
   },
   "YNbxvilhkH": {
     "defaultMessage": "Catch what changed",
@@ -9631,78 +9667,6 @@
     "defaultMessage": "The job will move to cancelled and stop running. You can create a new job if you need the work again.",
     "description": "Description in the cancel job confirmation dialog"
   },
-  "catLinkedIssues.createIssue": {
-    "defaultMessage": "Create issue",
-    "description": "Button to create a new issue from the current string"
-  },
-  "catLinkedIssues.defaultTitle": {
-    "defaultMessage": "Context needed: {key}",
-    "description": "Default title when creating an issue from a CAT string"
-  },
-  "catLinkedIssues.description": {
-    "defaultMessage": "Create or link Issues for this string. Navigate to an issue to collaborate.",
-    "description": "Dialog description for managing issues linked to a CAT string"
-  },
-  "catLinkedIssues.emptyLinked": {
-    "defaultMessage": "No issues linked to this string yet.",
-    "description": "Empty state when the string has no linked issues"
-  },
-  "catLinkedIssues.linkExisting": {
-    "defaultMessage": "Link existing",
-    "description": "Button to open the picker for linking an existing issue"
-  },
-  "catLinkedIssues.linkFailed": {
-    "defaultMessage": "Issue could not be linked.",
-    "description": "Toast when linking an existing issue fails"
-  },
-  "catLinkedIssues.linked": {
-    "defaultMessage": "Issue linked",
-    "description": "Toast when an existing issue is linked to the string"
-  },
-  "catLinkedIssues.linkingUnavailable": {
-    "defaultMessage": "Linking requires a native project string.",
-    "description": "Shown when translation key linking is unavailable for external CAT"
-  },
-  "catLinkedIssues.loadError": {
-    "defaultMessage": "Linked issues could not be loaded.",
-    "description": "Error when fetching issues linked to a string fails"
-  },
-  "catLinkedIssues.noMatches": {
-    "defaultMessage": "No matching issues.",
-    "description": "Empty state when issue search returns no results"
-  },
-  "catLinkedIssues.openInCatLinkLabel": {
-    "defaultMessage": "Open in CAT",
-    "description": "Link label stored on issues created from CAT"
-  },
-  "catLinkedIssues.openIssue": {
-    "defaultMessage": "Open",
-    "description": "Button to open a linked issue detail page"
-  },
-  "catLinkedIssues.requestFailed": {
-    "defaultMessage": "Request failed",
-    "description": "Fallback error when an Issues API request fails"
-  },
-  "catLinkedIssues.searchIssues": {
-    "defaultMessage": "Search issues…",
-    "description": "Placeholder for searching project issues to link"
-  },
-  "catLinkedIssues.title": {
-    "defaultMessage": "Linked issues",
-    "description": "Dialog title for issues linked to a CAT translation string"
-  },
-  "catLinkedIssues.unlink": {
-    "defaultMessage": "Unlink",
-    "description": "Button to unlink an issue from the string"
-  },
-  "catLinkedIssues.unlinkFailed": {
-    "defaultMessage": "Issue could not be unlinked.",
-    "description": "Toast when unlinking an issue fails"
-  },
-  "catLinkedIssues.unlinked": {
-    "defaultMessage": "Issue unlinked",
-    "description": "Toast when an issue is unlinked from the string"
-  },
   "cbNqGo9VKV": {
     "defaultMessage": "Try again",
     "description": "Button label to retry rendering a crashed inbox panel"
@@ -10406,6 +10370,10 @@
   "fNsrVmOrc3": {
     "defaultMessage": "Early-stage startups can get up to 80% off the Growth plan for the first 12 months, or while you qualify. We confirm fit and pricing on the demo.",
     "description": "Supporting copy for the startup program eligibility section"
+  },
+  "fO8mdMfpdf": {
+    "defaultMessage": "Open in CAT",
+    "description": "Link label stored on issues created from CAT"
   },
   "fOd0uv4R/b": {
     "defaultMessage": "Failed to cancel job",
@@ -11307,14 +11275,6 @@
     "defaultMessage": "Treat as text",
     "description": "Button to stop treating a URL source string as an image"
   },
-  "issueDetail.stringUnlinked": {
-    "defaultMessage": "String unlinked",
-    "description": "Toast when a translation string is unlinked from an issue"
-  },
-  "issueDetail.unlinkString": {
-    "defaultMessage": "Unlink string",
-    "description": "Button to unlink the translation string from an issue"
-  },
   "iswoFpqCGE": {
     "defaultMessage": "GitHub PR",
     "description": "Workflow step 1 label for the product-localisation use case"
@@ -11747,6 +11707,10 @@
     "defaultMessage": "Who is Hyperlocalise built for?",
     "description": "Homepage FAQ question about the target audience"
   },
+  "kUu0YJ4PK9": {
+    "defaultMessage": "Issue linked",
+    "description": "Toast when an existing issue is linked to the string"
+  },
   "kWeceyqgt+": {
     "defaultMessage": "LLM agnostic",
     "description": "Differentiator point 2 for the github-release-localisation use case"
@@ -11986,6 +11950,10 @@
   "lIM6KQzx0j": {
     "defaultMessage": "{sourceTerm} → {targetTerm} ({targetLocale})",
     "description": "Source and target term pair for a glossary match detail row"
+  },
+  "lKE9esALm9": {
+    "defaultMessage": "String unlinked",
+    "description": "Toast when a translation string is unlinked from an issue"
   },
   "lMGKaGDLx4": {
     "defaultMessage": "A product launch campaign goes live in six markets",
@@ -12575,6 +12543,10 @@
     "defaultMessage": "{remaining} remaining",
     "description": "Usage row showing remaining allowance"
   },
+  "o7Q2VF9914": {
+    "defaultMessage": "Unlink",
+    "description": "Button to unlink an issue from the string"
+  },
   "o9256BhMtE": {
     "defaultMessage": "Failed to save Semrush connection.",
     "description": "Error when Semrush connection save fails"
@@ -12767,10 +12739,6 @@
     "defaultMessage": "Call tools from a connected remote MCP server during this automation.",
     "description": "Description for the MCP Server automation tool when a connection exists"
   },
-  "p83H7uOHst": {
-    "defaultMessage": "Translation mistake",
-    "description": "Crowdin issue type for translation mistakes"
-  },
   "p8Xes8vaYS": {
     "defaultMessage": "Source & context",
     "description": "Issue list view preset for source and context issues"
@@ -12958,6 +12926,10 @@
   "ppXDMSLgyj": {
     "defaultMessage": "Queue panel failed to load",
     "description": "Error boundary title when the CAT queue panel crashes"
+  },
+  "ppqLcxUWCQ": {
+    "defaultMessage": "Custom fields could not be loaded.",
+    "description": "Error when issue sheet columns fail to load on issue detail"
   },
   "prJEYrujJH": {
     "defaultMessage": "Live projects fetched from your connected TMS provider, ordered by recent activity.",
@@ -13218,6 +13190,10 @@
   "qyAeUOVpZe": {
     "defaultMessage": "Czech (Czechia)",
     "description": "Display name for BCP-47 locale cs-CZ"
+  },
+  "qyJpxYtcpE": {
+    "defaultMessage": "Create or link Issues for this string. Navigate to an issue to collaborate.",
+    "description": "Dialog description for managing issues linked to a CAT string"
   },
   "qySc0NPK9C": {
     "defaultMessage": "Connect",
@@ -13686,6 +13662,10 @@
   "t3RhAFC8NZ": {
     "defaultMessage": "No TMS jobs assigned to you were returned from the live provider API.",
     "description": "Empty state for TMS jobs in personal workspace scope"
+  },
+  "t3xDK2/UrI": {
+    "defaultMessage": "Create issue",
+    "description": "Button to create a new issue from the current string"
   },
   "t4mhc63bGr": {
     "defaultMessage": "Waiting for review",
@@ -14407,6 +14387,10 @@
     "defaultMessage": "Manage membership and roles for the {slug} team.",
     "description": "Team detail page description when the team slug is known"
   },
+  "vtr+j44k6z": {
+    "defaultMessage": "Issue unlinked",
+    "description": "Toast when an issue is unlinked from the string"
+  },
   "vuJalRUhn9": {
     "defaultMessage": "Chat conversations",
     "description": "Accessible label for the chat dock tab list"
@@ -14823,6 +14807,10 @@
     "defaultMessage": "Usage meter",
     "description": "Segment context label for the usage meter in the CAT mock"
   },
+  "xTMvZyc/zN": {
+    "defaultMessage": "No matching issues.",
+    "description": "Empty state when issue search returns no results"
+  },
   "xTYiHfPy3g": {
     "defaultMessage": "Workspace",
     "description": "Breadcrumb-style label above the members page title"
@@ -14890,6 +14878,10 @@
   "xi4ZQRm848": {
     "defaultMessage": "Resources",
     "description": "Marketing navbar trigger for the resources mega-menu"
+  },
+  "xixmTqHWvz": {
+    "defaultMessage": "Open",
+    "description": "Button to open a linked issue detail page"
   },
   "xjcfJrUODP": {
     "defaultMessage": "e.g. de-DE",
@@ -15430,6 +15422,10 @@
   "zl55Vhhf0L": {
     "defaultMessage": "Workspace members",
     "description": "Accessible label for the workspace members list section"
+  },
+  "zlTXMaTZ76": {
+    "defaultMessage": "Linked issues",
+    "description": "Dialog title for issues linked to a CAT translation string"
   },
   "znjMm102W+": {
     "defaultMessage": "API key",

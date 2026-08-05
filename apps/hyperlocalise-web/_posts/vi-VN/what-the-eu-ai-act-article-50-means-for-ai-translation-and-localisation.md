@@ -1,8 +1,8 @@
 ---
-title: What the EU AI Act Article 50 Means for AI Translation and Localisation
+title: Điều 50 của Đạo luật AI của EU có ý nghĩa gì đối với hoạt động dịch thuật và bản địa hóa bằng AI
 date: 2026-08-03T00:00:00.000Z
-excerpt: Article 50 of the EU AI Act begins applying from August 2026. For most AI translation workflows, labelling is not required — but transparency still matters for agents, transcreation, and responsible localisation.
-category: Product
+excerpt: Điều 50 của Đạo luật AI của EU bắt đầu được áp dụng từ tháng 8 năm 2026. Đối với hầu hết quy trình dịch thuật bằng AI, không bắt buộc gắn nhãn — nhưng tính minh bạch vẫn quan trọng đối với các tác nhân, chuyển ngữ sáng tạo và bản địa hóa có trách nhiệm.
+category: Sản phẩm
 tags:
   - EU AI Act
   - Article 50
@@ -18,179 +18,179 @@ tags:
   - responsible AI
 ---
 
-The European Union's AI Act is the world's first comprehensive legal framework for artificial intelligence. As Article 50 begins applying from August 2026, many product teams and localisation leaders are asking the same question:
+Đạo luật AI của Liên minh châu Âu là khung pháp lý toàn diện đầu tiên trên thế giới dành cho trí tuệ nhân tạo. Khi Điều 50 bắt đầu được áp dụng từ tháng 8 năm 2026, nhiều nhóm sản phẩm và lãnh đạo mảng bản địa hóa đang đặt ra cùng một câu hỏi:
 
-> **Does the EU AI Act mean AI-generated translations need to be labelled?**
+> **Đạo luật AI của EU có nghĩa là các bản dịch do AI tạo ra cần phải được gắn nhãn không?**
 
-The short answer is **generally no**.
+Câu trả lời ngắn gọn là **thường là không**.
 
-For most translation workflows, Article 50 is less disruptive than many expected. However, it introduces important transparency requirements that every company using AI for localisation should understand.
+Đối với hầu hết quy trình dịch thuật, Điều 50 ít gây gián đoạn hơn nhiều người dự đoán. Tuy nhiên, điều này đưa ra các yêu cầu quan trọng về tính minh bạch mà mọi công ty sử dụng AI cho hoạt động bản địa hóa cần hiểu rõ.
 
-In this article, we'll explain what Article 50 covers, how it applies to AI translation, and what it means for modern localisation platforms.
+Trong bài viết này, chúng tôi sẽ giải thích Điều 50 quy định những gì, điều khoản này áp dụng như thế nào đối với dịch thuật bằng AI và điều này có ý nghĩa gì đối với các nền tảng bản địa hóa hiện đại.
 
-## What is Article 50?
+## Điều 50 là gì?
 
-Article 50 of the EU AI Act focuses on **transparency**.
+Điều 50 của Đạo luật AI của EU tập trung vào **tính minh bạch**.
 
-Rather than restricting the use of AI, it requires organisations to be transparent when AI is interacting with people or generating certain types of content.
+Thay vì hạn chế việc sử dụng AI, quy định này yêu cầu các tổ chức phải minh bạch khi AI tương tác với con người hoặc tạo ra một số loại nội dung nhất định.
 
-Depending on the use case, providers may need to:
+Tùy thuộc vào trường hợp sử dụng, các nhà cung cấp có thể cần phải:
 
-- Inform users that they are interacting with an AI system.
-- Disclose certain AI-generated or manipulated content.
-- Apply machine-readable markings to some AI-generated outputs where required.
-- Provide additional transparency for AI-generated public-interest content.
+- Thông báo cho người dùng rằng họ đang tương tác với một hệ thống AI.
+- Tiết lộ nội dung nhất định do AI tạo ra hoặc bị thao túng.
+- Áp dụng các dấu hiệu có thể đọc bằng máy cho một số đầu ra do AI tạo ra khi được yêu cầu.
+- Cung cấp tính minh bạch bổ sung cho nội dung vì lợi ích công chúng do AI tạo ra.
 
-The objective is straightforward: people should understand when AI is involved, while allowing organisations to continue benefiting from AI responsibly.
+Mục tiêu rất rõ ràng: mọi người cần hiểu khi nào AI được sử dụng, đồng thời cho phép các tổ chức tiếp tục hưởng lợi từ AI một cách có trách nhiệm.
 
-## Does AI translation need to be labelled?
+## Bản dịch AI có cần được gắn nhãn không?
 
-For **most AI translation workflows, the answer is no**.
+Đối với **hầu hết các quy trình dịch bằng AI, câu trả lời là không**.
 
-The European Commission's guidance recognises that translation is fundamentally different from generating entirely new content.
+Hướng dẫn của Ủy ban Châu Âu công nhận rằng việc dịch thuật về cơ bản khác với việc tạo ra nội dung hoàn toàn mới.
 
-A faithful translation preserves the meaning of the original text. It transforms existing content into another language rather than creating new information. Because of this, AI-assisted translation generally falls within the exception for systems performing standard editing or transformation without materially changing the meaning.
+Một bản dịch trung thành sẽ giữ nguyên ý nghĩa của văn bản gốc. Bản dịch chuyển đổi nội dung hiện có sang một ngôn ngữ khác thay vì tạo ra thông tin mới. Vì vậy, bản dịch có sự hỗ trợ của AI nhìn chung thuộc trường hợp ngoại lệ dành cho các hệ thống thực hiện việc chỉnh sửa hoặc chuyển đổi tiêu chuẩn mà không làm thay đổi đáng kể ý nghĩa.
 
-For localisation teams, this is reassuring.
+Đối với các nhóm bản địa hóa, điều này mang lại sự yên tâm.
 
-It means organisations can continue using AI to translate user interfaces, documentation, support content and product experiences without automatically treating every translated string as AI-generated content requiring additional labelling.
+Điều đó có nghĩa là các tổ chức có thể tiếp tục sử dụng AI để dịch giao diện người dùng, tài liệu, nội dung hỗ trợ và trải nghiệm sản phẩm mà không mặc nhiên coi mọi chuỗi đã dịch là nội dung do AI tạo ra cần được gắn nhãn bổ sung.
 
-## Translation is not the same as transcreation
+## Bản dịch không giống như chuyển thể sáng tạo
 
-Where organisations should pay closer attention is **transcreation**.
+Điều mà các tổ chức nên chú ý hơn là **biên dịch sáng tạo**.
 
-Translation aims to preserve meaning.
+Bản dịch nhằm bảo toàn ý nghĩa.
 
-Transcreation intentionally adapts messaging for another culture or market, often introducing new wording, creative expression or marketing intent.
+Transcreation cố ý điều chỉnh thông điệp cho phù hợp với một nền văn hóa hoặc thị trường khác, thường sử dụng cách diễn đạt mới, sáng tạo hoặc mang định hướng tiếp thị.
 
-Examples include:
+Ví dụ bao gồm:
 
-- Adapting marketing campaigns for local audiences
-- Rewriting product messaging
-- Creating market-specific slogans
-- Generating new landing page copy
-- Producing social media campaigns
+- Điều chỉnh các chiến dịch tiếp thị cho phù hợp với khán giả địa phương
+- Viết lại thông điệp sản phẩm
+- Tạo khẩu hiệu phù hợp với từng thị trường
+- Đang tạo nội dung mới cho trang đích
+- Tạo các chiến dịch truyền thông xã hội
 
-These workflows may no longer fall within the same exception as faithful translation.
+Các quy trình này có thể không còn thuộc cùng một ngoại lệ như bản dịch trung thành.
 
-In practice, it helps to think about localisation work in three categories:
+Trên thực tế, việc phân loại công việc bản địa hóa thành ba nhóm sẽ rất hữu ích:
 
-| Workflow                 | Typical classification |
+| Quy trình                 | Phân loại điển hình |
 | ------------------------ | ---------------------- |
-| UI translation           | Translation            |
-| Help centre localisation | Translation            |
-| Product documentation    | Translation            |
-| Marketing adaptation     | Transcreation          |
-| New campaign copy        | AI content generation  |
+| Bản dịch giao diện người dùng | Bản dịch |
+| Bản địa hóa trung tâm trợ giúp | Bản dịch            |
+| Tài liệu sản phẩm    | Bản dịch            |
+| Điều chỉnh tiếp thị     | Phóng tác          |
+| Nội dung chiến dịch mới        | Tạo nội dung bằng AI  |
 
-As AI becomes more capable, distinguishing between translation and content generation will become increasingly important.
+Khi AI ngày càng trở nên mạnh mẽ hơn, việc phân biệt giữa dịch thuật và tạo nội dung sẽ ngày càng trở nên quan trọng.
 
-## What about AI localisation agents?
+## Còn các tác nhân bản địa hóa AI thì sao?
 
-Many modern localisation platforms now include AI agents that retrieve context, answer questions and automate repetitive work.
+Nhiều nền tảng bản địa hóa hiện đại hiện đã tích hợp các tác nhân AI có khả năng truy xuất ngữ cảnh, trả lời câu hỏi và tự động hóa các công việc lặp đi lặp lại.
 
-Article 50 also applies to interactions between users and AI systems.
+Điều 50 cũng áp dụng cho các tương tác giữa người dùng và hệ thống AI.
 
-If someone is interacting directly with an AI assistant, they should be informed that they are communicating with AI unless it is already obvious.
+Nếu ai đó đang tương tác trực tiếp với trợ lý AI, họ nên được thông báo rằng họ đang giao tiếp với AI, trừ khi điều đó đã quá rõ ràng.
 
-For most products, this is a straightforward design consideration.
+Đối với hầu hết các sản phẩm, đây là một yếu tố thiết kế đơn giản.
 
-Simple interface elements such as:
+Các thành phần giao diện đơn giản như:
 
-- "Hyperlocalise AI Agent"
-- "Ask our AI localisation assistant"
+- "Đặc vụ AI Hyperlocalise"
+- "Hỏi trợ lý bản địa hóa AI của chúng tôi"
 
-are generally sufficient to make the interaction transparent.
+thường là đủ để làm cho tương tác trở nên minh bạch.
 
-This requirement should have little impact on the user experience while helping build trust with customers.
+Yêu cầu này sẽ ít ảnh hưởng đến trải nghiệm người dùng, đồng thời giúp xây dựng lòng tin với khách hàng.
 
-## Why Article 50 is actually good news for localisation
+## Tại sao Điều 50 thực ra lại là tin tốt cho việc bản địa hóa
 
-At first glance, new AI regulation can sound intimidating.
+Thoạt nhìn, các quy định mới về AI có thể khiến người ta e ngại.
 
-In reality, Article 50 reinforces many of the best practices that localisation teams have followed for years.
+Trên thực tế, Điều 50 củng cố nhiều thông lệ tốt nhất mà các nhóm bản địa hóa đã tuân theo trong nhiều năm.
 
-Successful localisation has never been just about translating text.
+Bản địa hóa thành công chưa bao giờ chỉ là việc dịch văn bản.
 
-It relies on:
+Nó dựa vào:
 
-- Human review
-- Context
-- Quality assurance
-- Editorial ownership
-- Audit history
-- Collaboration
-- Clear approval workflows
+- Đánh giá thủ công
+- Bối cảnh
+- Đảm bảo chất lượng
+- Quyền sở hữu biên tập
+- Lịch sử kiểm tra-audit
+- Cộng tác
+- Xóa các quy trình phê duyệt
 
-As AI becomes a larger part of the localisation process, these capabilities become even more valuable.
+Khi AI ngày càng đóng vai trò lớn hơn trong quy trình bản địa hóa, những khả năng này càng trở nên hữu ích hơn.
 
-The organisations that succeed won't simply use more AI.
+Các tổ chức thành công sẽ không chỉ đơn giản là sử dụng nhiều AI hơn.
 
-They'll use AI with better governance.
+Họ sẽ sử dụng AI với cơ chế quản trị tốt hơn.
 
-## How Hyperlocalise approaches AI transparency
+## Cách Hyperlocalise tiếp cận tính minh bạch của AI
 
-At Hyperlocalise, we've always believed AI should empower localisation teams, not replace them.
+Tại Hyperlocalise, chúng tôi luôn tin rằng AI nên hỗ trợ các đội ngũ bản địa hóa, chứ không thay thế họ.
 
-Our AI workforce is designed to:
+Lực lượng lao động AI của chúng tôi được thiết kế để:
 
-- Gather context before making localisation decisions
-- Reduce repetitive manual work
-- Help translators and reviewers move faster
-- Keep humans in control of publishing decisions
-- Work alongside existing localisation tools and workflows
+- Thu thập ngữ cảnh trước khi đưa ra quyết định bản địa hóa.
+- Giảm công việc thủ công lặp đi lặp lại
+- Giúp các dịch giả và người kiểm duyệt làm việc nhanh hơn
+- Giữ quyền kiểm soát các quyết định xuất bản trong tay con người
+- Làm việc cùng với các công cụ và quy trình bản địa hóa hiện có
 
-We believe the future of localisation isn't fully autonomous AI.
+Chúng tôi tin rằng tương lai của bản địa hóa không phải là AI hoàn toàn tự chủ.
 
-It's AI working alongside localisation professionals to help global teams launch faster with greater confidence, while maintaining the quality and accountability that customers expect.
+Đó là AI hoạt động cùng các chuyên gia bản địa hóa để giúp các nhóm toàn cầu ra mắt nhanh hơn với sự tự tin cao hơn, đồng thời duy trì chất lượng và trách nhiệm giải trình mà khách hàng mong đợi.
 
-## What product teams should do now
+## Các nhóm sản phẩm nên làm gì ngay bây giờ
 
-If your organisation uses AI for localisation, Article 50 is an opportunity to strengthen your localisation workflow rather than something to fear.
+Nếu tổ chức của bạn sử dụng AI để bản địa hóa, Điều 50 là cơ hội để củng cố quy trình bản địa hóa của bạn thay vì điều gì đó đáng sợ.
 
-A few practical recommendations include:
+Một vài khuyến nghị thiết thực bao gồm:
 
-- Clearly identify AI assistants within your product.
-- Maintain human review for important customer-facing content.
-- Distinguish translation from transcreation workflows.
-- Keep approval history and audit trails.
-- Preserve context and source information throughout the localisation process.
-- Ensure editorial responsibility remains clear before publishing content.
+- Xác định rõ các trợ lý AI trong sản phẩm của bạn.
+- Duy trì việc đánh giá của con người đối với nội dung quan trọng dành cho khách hàng.
+- Phân biệt quy trình dịch thuật với quy trình chuyển thể sáng tạo.
+- Duy trì lịch sử phê duyệt và nhật ký kiểm toán.
+- Bảo toàn ngữ cảnh và thông tin nguồn trong suốt quá trình bản địa hóa.
+- Đảm bảo trách nhiệm biên tập vẫn rõ ràng trước khi xuất bản nội dung.
 
-These practices not only support compliance but also improve translation quality and customer trust.
+Những thực hành này không chỉ hỗ trợ việc tuân thủ mà còn cải thiện chất lượng bản dịch và niềm tin của khách hàng.
 
-## Looking ahead
+## Nhìn về phía trước
 
-The EU AI Act marks an important step towards trustworthy AI adoption.
+Đạo luật AI của EU đánh dấu một bước tiến quan trọng hướng tới việc áp dụng AI đáng tin cậy.
 
-For product and localisation teams, the key takeaway is reassuring:
+Đối với các nhóm sản phẩm và bản địa hóa, điểm mấu chốt đáng khích lệ là:
 
-AI-assisted translation remains a practical, valuable and compliant way to launch products globally.
+Dịch thuật có sự hỗ trợ của AI vẫn là một phương thức thiết thực, hữu ích và tuân thủ quy định để ra mắt sản phẩm trên toàn cầu.
 
-Rather than slowing innovation, Article 50 encourages organisations to build AI workflows that are transparent, accountable and human-centred.
+Thay vì làm chậm đổi mới, Điều 50 khuyến khích các tổ chức xây dựng quy trình làm việc với AI minh bạch, có trách nhiệm giải trình và lấy con người làm trung tâm.
 
-At Hyperlocalise, we believe these principles lead to better localisation—not just better compliance.
+Tại Hyperlocalise, chúng tôi tin rằng những nguyên tắc này mang lại hoạt động bản địa hóa tốt hơn—not chỉ là tuân thủ tốt hơn.
 
-As AI continues to reshape global product development, the companies that combine automation with human expertise will be the ones that deliver exceptional experiences in every language.
+Khi AI tiếp tục định hình lại hoạt động phát triển sản phẩm trên toàn cầu, những công ty kết hợp tự động hóa với chuyên môn của con người sẽ là những công ty mang đến trải nghiệm vượt trội bằng mọi ngôn ngữ.
 
-## Frequently asked questions
+## Các câu hỏi thường gặp
 
-### Does every AI translation need to be labelled?
+### Mọi bản dịch bằng AI có cần được gắn nhãn không?
 
-Generally no. Faithful translations are typically treated differently from AI-generated original content because they preserve the meaning of the source material.
+Thường là không. Các bản dịch trung thành thường được xử lý khác với nội dung nguyên bản do AI tạo ra vì chúng bảo toàn ý nghĩa của tài liệu nguồn.
 
-### Does Article 50 ban AI translation?
+### Điều 50 có cấm dịch thuật bằng AI không?
 
-No. Article 50 introduces transparency requirements rather than restricting the use of AI for translation.
+Không. Điều 50 đưa ra các yêu cầu về tính minh bạch thay vì hạn chế việc sử dụng AI cho hoạt động dịch thuật.
 
-### Is transcreation treated the same as translation?
+### Transcreation có được xem là giống như dịch thuật không?
 
-Not necessarily. AI-generated marketing content, creative rewriting and original copy may be subject to different transparency considerations than faithful translations.
+Không nhất thiết. Nội dung tiếp thị do AI tạo ra, việc viết lại sáng tạo và nội dung nguyên bản có thể phải tuân theo các cân nhắc khác nhau về tính minh bạch so với bản dịch trung thành.
 
-### Does this only apply to companies based in Europe?
+### Điều này chỉ áp dụng cho các công ty có trụ sở tại châu Âu thôi sao?
 
-No. The EU AI Act can also apply to organisations outside the European Union if their AI systems or outputs are placed on the EU market or used within the EU.
+Không. Đạo luật AI của EU cũng có thể áp dụng cho các tổ chức bên ngoài Liên minh Châu Âu nếu hệ thống AI hoặc đầu ra của họ được đưa ra thị trường EU hoặc được sử dụng trong EU.
 
-### How does Hyperlocalise support responsible AI localisation?
+### Hyperlocalise hỗ trợ bản địa hóa AI có trách nhiệm như thế nào?
 
-Hyperlocalise combines AI agents with human review, contextual understanding and existing localisation workflows to help teams launch globally with greater speed, quality and confidence while maintaining transparency throughout the process.
+Hyperlocalise kết hợp các tác nhân AI với khâu đánh giá của con người, khả năng hiểu ngữ cảnh và các quy trình bản địa hóa hiện có để giúp các nhóm triển khai trên toàn cầu nhanh hơn, chất lượng cao hơn và tự tin hơn, đồng thời duy trì tính minh bạch trong suốt quá trình.

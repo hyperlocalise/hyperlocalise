@@ -869,6 +869,9 @@
   "2IX5Zk4LCM": {
     "defaultMessage": "Geheimnis anzeigen"
   },
+  "2J9DBNioHN": {
+    "defaultMessage": "String-Verknüpfung aufheben"
+  },
   "2JWP4PXKxL": {
     "defaultMessage": "Slack"
   },
@@ -1090,6 +1093,9 @@
   },
   "3K/+e2NRMM": {
     "defaultMessage": "Hyperlocalise ist eine KI-gestützte Belegschaft, die Teams dabei unterstützt, innerhalb weniger Tage weltweit zu starten – mit Marktkenntnis, Übersetzungen und erstklassiger menschlicher Prüfung."
+  },
+  "3Kr+riOCmU": {
+    "defaultMessage": "Verknüpfung mit dem Issue konnte nicht aufgehoben werden."
   },
   "3KtrgP1VL6": {
     "defaultMessage": "Dateien anzeigen"
@@ -1654,6 +1660,9 @@
   },
   "6N3tTQGcSO": {
     "defaultMessage": "Jemand"
+  },
+  "6OBycEw5vD": {
+    "defaultMessage": "Anfrage fehlgeschlagen"
   },
   "6PFnjoc6zP": {
     "defaultMessage": "Editorbereich konnte nicht geladen werden"
@@ -2270,6 +2279,9 @@
   "9EV17CGa2+": {
     "defaultMessage": "Hyperlocalise | Die beste agentische Lokalisierungsplattform"
   },
+  "9FhGZjmVTF": {
+    "defaultMessage": "Issue konnte nicht verknüpft werden."
+  },
   "9GZvF1K90w": {
     "defaultMessage": "Dateien anzeigen"
   },
@@ -2882,6 +2894,9 @@
   "CP+VovcJDY": {
     "defaultMessage": "Abbrechen"
   },
+  "CPX3MSYhG+": {
+    "defaultMessage": "Verknüpfte Zeichenfolge"
+  },
   "CPfzUKHSJO": {
     "defaultMessage": "Synchronisiert"
   },
@@ -3158,6 +3173,9 @@
   "DZx5zjElsr": {
     "defaultMessage": "Frage nach einem beliebigen String. Erhalte Kontext aus dem Repository."
   },
+  "Db5EVZd7B1": {
+    "defaultMessage": "Verknüpfte Issues konnten nicht geladen werden."
+  },
   "Dcqju+Z+Wb": {
     "defaultMessage": "Noch keine Unterhaltungen."
   },
@@ -3202,6 +3220,9 @@
   },
   "Dwu72TwwL/": {
     "defaultMessage": "Jobs werden geladen …"
+  },
+  "Dx55FkCrgu": {
+    "defaultMessage": "Vorhandenes verknüpfen"
   },
   "DxQL85kivW": {
     "defaultMessage": "Verwandeln Sie Launch-Briefings, Kampagnen-Assets und regionale Botschaften in geprüfte, kulturell angepasste Texte — mit integrierten Freigabeprozessen und Glossarsteuerung."
@@ -3965,6 +3986,9 @@
   "I28Vekk8WA": {
     "defaultMessage": "Zuletzt synchronisiert: {when}"
   },
+  "I3HI2ZtzmX": {
+    "defaultMessage": "Für die Verknüpfung ist ein nativer Projekt-String erforderlich."
+  },
   "I3W7KYKnta": {
     "defaultMessage": "KI-Empfehlung konnte nicht generiert werden"
   },
@@ -3982,6 +4006,9 @@
   },
   "I9aLSBsZbT": {
     "defaultMessage": "Wählen Sie eine Organisation aus Ihrem Konto oder wenden Sie sich an den Support, wenn dies weiterhin auftritt."
+  },
+  "IA5Kmwt4uK": {
+    "defaultMessage": "Probleme"
   },
   "IC06cS9nUd": {
     "defaultMessage": "Agent behebt den Fehler"
@@ -4453,6 +4480,9 @@
   },
   "Kyj/6Mb2oy": {
     "defaultMessage": "Teste, welche gespeicherten Memory.md-Richtlinien für eine Übersetzungsanfrage geladen würden."
+  },
+  "L0g+No60zf": {
+    "defaultMessage": "Kontext erforderlich: {key}"
   },
   "L0gachMRlZ": {
     "defaultMessage": "Terminologiedatenbank"
@@ -5134,6 +5164,9 @@
   },
   "OpaDn2OQOK": {
     "defaultMessage": "Löschen …"
+  },
+  "OsfTn/OWg9": {
+    "defaultMessage": "Noch keine Issues mit diesem String verknüpft."
   },
   "OtoAcs/psJ": {
     "defaultMessage": "SSO / SAML"
@@ -6776,6 +6809,9 @@
   "XJe/aHS1LC": {
     "defaultMessage": "Mitglieder konnten nicht geladen werden"
   },
+  "XLWvL1I9Sv": {
+    "defaultMessage": "Issues durchsuchen…"
+  },
   "XLbc3ZzNpD": {
     "defaultMessage": "Alle Quellen"
   },
@@ -8312,6 +8348,9 @@
   "fNsrVmOrc3": {
     "defaultMessage": "Startups in der Frühphase erhalten in den ersten 12 Monaten oder solange sie die Voraussetzungen erfüllen bis zu 80 % Rabatt auf den Growth-Tarif. Wir klären die Eignung und den Preis im Demo-Termin."
   },
+  "fO8mdMfpdf": {
+    "defaultMessage": "In CAT öffnen"
+  },
   "fOd0uv4R/b": {
     "defaultMessage": "Job konnte nicht abgebrochen werden"
   },
@@ -9413,6 +9452,9 @@
   "kUmtRmvwMN": {
     "defaultMessage": "PRs und Übersetzungsregressionen vor dem Merge überprüfen"
   },
+  "kUu0YJ4PK9": {
+    "defaultMessage": "Problem verknüpft"
+  },
   "kWeceyqgt+": {
     "defaultMessage": "LLM-agnostisch"
   },
@@ -9610,6 +9652,9 @@
   },
   "lIM6KQzx0j": {
     "defaultMessage": "{sourceTerm} → {targetTerm} ({targetLocale})"
+  },
+  "lKE9esALm9": {
+    "defaultMessage": "Zeichenfolge nicht verknüpft"
   },
   "lMGKaGDLx4": {
     "defaultMessage": "Eine Produktlaunch-Kampagne startet in sechs Märkten"
@@ -10114,6 +10159,9 @@
   },
   "o6mkuN62Fv": {
     "defaultMessage": "{remaining} remaining"
+  },
+  "o7Q2VF9914": {
+    "defaultMessage": "Verknüpfung aufheben"
   },
   "o9256BhMtE": {
     "defaultMessage": "Semrush-Verbindung konnte nicht gespeichert werden."
@@ -10640,6 +10688,9 @@
   "qyAeUOVpZe": {
     "defaultMessage": "Tschechisch (Tschechien)"
   },
+  "qyJpxYtcpE": {
+    "defaultMessage": "Erstellen oder verknüpfen Sie Issues für diesen String. Navigieren Sie zu einem Issue, um zusammenzuarbeiten."
+  },
   "qySc0NPK9C": {
     "defaultMessage": "Verbinden"
   },
@@ -11020,6 +11071,9 @@
   },
   "t3RhAFC8NZ": {
     "defaultMessage": "No TMS jobs assigned to you were returned from the live provider API."
+  },
+  "t3xDK2/UrI": {
+    "defaultMessage": "Issue erstellen"
   },
   "t4mhc63bGr": {
     "defaultMessage": "Warten auf Überprüfung"
@@ -11591,6 +11645,9 @@
   "vrxnOkVw+Z": {
     "defaultMessage": "Mitgliedschaften und Rollen für das Team {slug} verwalten."
   },
+  "vtr+j44k6z": {
+    "defaultMessage": "Issue-Verknüpfung aufgehoben"
+  },
   "vuJalRUhn9": {
     "defaultMessage": "Chat-Unterhaltungen"
   },
@@ -11933,6 +11990,9 @@
   "xTFJa5ogoK": {
     "defaultMessage": "Nutzungsanzeige"
   },
+  "xTMvZyc/zN": {
+    "defaultMessage": "Keine passenden Issues."
+  },
   "xTYiHfPy3g": {
     "defaultMessage": "Arbeitsbereich"
   },
@@ -11983,6 +12043,9 @@
   },
   "xi4ZQRm848": {
     "defaultMessage": "Ressourcen"
+  },
+  "xixmTqHWvz": {
+    "defaultMessage": "Öffnen"
   },
   "xjcfJrUODP": {
     "defaultMessage": "z. B. de-DE"
@@ -12415,6 +12478,9 @@
   },
   "zl55Vhhf0L": {
     "defaultMessage": "Arbeitsbereichsmitglieder"
+  },
+  "zlTXMaTZ76": {
+    "defaultMessage": "Verknüpfte Probleme"
   },
   "zliOrjr0oj": {
     "defaultMessage": "Job"

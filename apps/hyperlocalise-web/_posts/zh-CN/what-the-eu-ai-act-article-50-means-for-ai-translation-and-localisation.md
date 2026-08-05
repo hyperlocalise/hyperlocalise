@@ -1,8 +1,8 @@
 ---
-title: What the EU AI Act Article 50 Means for AI Translation and Localisation
+title: 欧盟《人工智能法案》第 50 条对 AI 翻译和本地化意味着什么
 date: 2026-08-03T00:00:00.000Z
-excerpt: Article 50 of the EU AI Act begins applying from August 2026. For most AI translation workflows, labelling is not required — but transparency still matters for agents, transcreation, and responsible localisation.
-category: Product
+excerpt: 欧盟《人工智能法案》第50条将于2026年8月开始适用。对于大多数AI翻译工作流程而言，无需进行标注——但对于代理、创译和负责任的本地化，透明度仍然至关重要。
+category: 产品
 tags:
   - EU AI Act
   - Article 50
@@ -18,179 +18,179 @@ tags:
   - responsible AI
 ---
 
-The European Union's AI Act is the world's first comprehensive legal framework for artificial intelligence. As Article 50 begins applying from August 2026, many product teams and localisation leaders are asking the same question:
+欧盟《人工智能法案》是全球首部针对人工智能的综合性法律框架。随着第 50 条自 2026 年 8 月起开始适用，许多产品团队和本地化负责人都在问同一个问题：
 
-> **Does the EU AI Act mean AI-generated translations need to be labelled?**
+> **欧盟《人工智能法案》是否意味着需要对 AI 生成的翻译进行标注？**
 
-The short answer is **generally no**.
+简短的回答通常是**不**。
 
-For most translation workflows, Article 50 is less disruptive than many expected. However, it introduces important transparency requirements that every company using AI for localisation should understand.
+对于大多数翻译工作流程而言，第50条的影响并不像许多人预期的那么大。不过，它引入了重要的透明度要求，所有使用人工智能进行本地化的公司都应了解这些要求。
 
-In this article, we'll explain what Article 50 covers, how it applies to AI translation, and what it means for modern localisation platforms.
+在本文中，我们将解释第 50 条涵盖的内容、它如何适用于 AI 翻译，以及它对现代本地化平台意味着什么。
 
-## What is Article 50?
+## 第五十条是什么？
 
-Article 50 of the EU AI Act focuses on **transparency**.
+欧盟《人工智能法案》第50条重点关注**透明度**。
 
-Rather than restricting the use of AI, it requires organisations to be transparent when AI is interacting with people or generating certain types of content.
+它并非限制人工智能的使用，而是要求各组织在人工智能与人互动或生成某些类型的内容时保持透明。
 
-Depending on the use case, providers may need to:
+根据使用场景，提供商可能需要：
 
-- Inform users that they are interacting with an AI system.
-- Disclose certain AI-generated or manipulated content.
-- Apply machine-readable markings to some AI-generated outputs where required.
-- Provide additional transparency for AI-generated public-interest content.
+- 告知用户他们正在与人工智能系统进行交互。
+- 披露某些由 AI 生成或操纵的内容。
+- 在需要时，对部分 AI 生成的输出应用机器可读标记。
+- 为人工智能生成的公益内容提供更多透明度。
 
-The objective is straightforward: people should understand when AI is involved, while allowing organisations to continue benefiting from AI responsibly.
+目标很明确：人们应当了解何时涉及 AI，同时让各组织能够继续负责任地从 AI 中受益。
 
-## Does AI translation need to be labelled?
+## AI 翻译需要标注吗？
 
-For **most AI translation workflows, the answer is no**.
+对于大多数 AI 翻译工作流来说，答案是否定的。
 
-The European Commission's guidance recognises that translation is fundamentally different from generating entirely new content.
+欧盟委员会的指导意见认识到，翻译从根本上不同于生成全新的内容。
 
-A faithful translation preserves the meaning of the original text. It transforms existing content into another language rather than creating new information. Because of this, AI-assisted translation generally falls within the exception for systems performing standard editing or transformation without materially changing the meaning.
+忠实的翻译应保留原文的含义。它是将现有内容转换为另一种语言，而不是创造新信息。因此，AI 辅助翻译通常属于以下例外范围：执行标准编辑或转换，且不会实质性改变原意。
 
-For localisation teams, this is reassuring.
+对于本地化团队来说，这令人安心。
 
-It means organisations can continue using AI to translate user interfaces, documentation, support content and product experiences without automatically treating every translated string as AI-generated content requiring additional labelling.
+这意味着，各组织可以继续使用 AI 翻译用户界面、文档、支持内容和产品体验，而不必自动将每条翻译字符串都视为 AI 生成的内容并要求额外标注。
 
-## Translation is not the same as transcreation
+## 翻译不等同于创译
 
-Where organisations should pay closer attention is **transcreation**.
+各组织应更加关注的是**创译**。
 
-Translation aims to preserve meaning.
+翻译旨在保留原意。
 
-Transcreation intentionally adapts messaging for another culture or market, often introducing new wording, creative expression or marketing intent.
+跨文化改写旨在针对另一种文化或市场调整信息传达方式，通常会采用新的措辞、富有创意的表达或营销意图。
 
-Examples include:
+示例包括：
 
-- Adapting marketing campaigns for local audiences
-- Rewriting product messaging
-- Creating market-specific slogans
-- Generating new landing page copy
-- Producing social media campaigns
+- 为本地受众调整营销活动
+- 重写产品信息
+- 创建针对特定市场的标语
+- 生成新的落地页文案
+- 制作社交媒体营销活动
 
-These workflows may no longer fall within the same exception as faithful translation.
+这些工作流可能不再属于与忠实翻译相同的例外范围。
 
-In practice, it helps to think about localisation work in three categories:
+实际上，将本地化工作分为以下三类来考虑会有所帮助：
 
-| Workflow                 | Typical classification |
+| 工作流                     | 典型分类 |
 | ------------------------ | ---------------------- |
-| UI translation           | Translation            |
-| Help centre localisation | Translation            |
-| Product documentation    | Translation            |
-| Marketing adaptation     | Transcreation          |
-| New campaign copy        | AI content generation  |
+| UI 翻译           | 翻译            |
+| 帮助中心本地化 | 翻译            |
+| 产品文档    | 翻译            |
+| 营销改编     | 创意翻译          |
+| 新活动文案        | AI 内容生成  |
 
-As AI becomes more capable, distinguishing between translation and content generation will become increasingly important.
+随着 AI 能力不断提升，区分翻译与内容生成将变得越来越重要。
 
-## What about AI localisation agents?
+## AI 本地化代理呢？
 
-Many modern localisation platforms now include AI agents that retrieve context, answer questions and automate repetitive work.
+如今，许多现代本地化平台都已集成 AI 代理，可检索上下文、回答问题并自动执行重复性工作。
 
-Article 50 also applies to interactions between users and AI systems.
+第50条同样适用于用户与人工智能系统之间的交互。
 
-If someone is interacting directly with an AI assistant, they should be informed that they are communicating with AI unless it is already obvious.
+如果有人正在直接与 AI 助手互动，应告知他们正在与 AI 交流，除非这一点已经显而易见。
 
-For most products, this is a straightforward design consideration.
+对于大多数产品而言，这是一个简单明了的设计考量。
 
-Simple interface elements such as:
+简单的界面元素，例如：
 
-- "Hyperlocalise AI Agent"
-- "Ask our AI localisation assistant"
+- “Hyperlocalise AI Agent”
+- “询问我们的 AI 本地化助手”
 
-are generally sufficient to make the interaction transparent.
+通常足以使交互过程透明。
 
-This requirement should have little impact on the user experience while helping build trust with customers.
+此要求应能在帮助与客户建立信任的同时，对用户体验产生较小影响。
 
-## Why Article 50 is actually good news for localisation
+## 为什么第50条实际上是本地化的好消息
 
-At first glance, new AI regulation can sound intimidating.
+乍一看，新的 AI 监管规定可能听起来令人望而生畏。
 
-In reality, Article 50 reinforces many of the best practices that localisation teams have followed for years.
+实际上，第 50 条强化了本地化团队多年来一直遵循的许多最佳实践。
 
-Successful localisation has never been just about translating text.
+成功的本地化从来不只是翻译文字。
 
-It relies on:
+它依赖于：
 
-- Human review
-- Context
-- Quality assurance
-- Editorial ownership
-- Audit history
-- Collaboration
-- Clear approval workflows
+- 人工审核
+- 上下文
+- 质量保证
+- 编辑归属
+- 审计历史
+- 协作
+- 清晰的审批流程
 
-As AI becomes a larger part of the localisation process, these capabilities become even more valuable.
+随着 AI 在本地化流程中所占的比重越来越大，这些功能也变得更加有价值。
 
-The organisations that succeed won't simply use more AI.
+成功的组织不会仅仅使用更多 AI。
 
-They'll use AI with better governance.
+他们将使用治理更完善的 AI。
 
-## How Hyperlocalise approaches AI transparency
+## Hyperlocalise 如何实现 AI 透明度
 
-At Hyperlocalise, we've always believed AI should empower localisation teams, not replace them.
+在 Hyperlocalise，我们始终相信，AI 应该赋能本地化团队，而不是取代他们。
 
-Our AI workforce is designed to:
+我们的 AI 劳动力旨在：
 
-- Gather context before making localisation decisions
-- Reduce repetitive manual work
-- Help translators and reviewers move faster
-- Keep humans in control of publishing decisions
-- Work alongside existing localisation tools and workflows
+- 在做出本地化决策之前收集上下文
+- 减少重复性的手动工作
+- 帮助翻译人员和审核人员更高效地工作
+- 让人类掌控发布决策
+- 与现有的本地化工具和工作流程协同工作
 
-We believe the future of localisation isn't fully autonomous AI.
+我们相信，本地化的未来并非完全自主的 AI。
 
-It's AI working alongside localisation professionals to help global teams launch faster with greater confidence, while maintaining the quality and accountability that customers expect.
+这是 AI 与本地化专业人士协同工作，帮助全球团队更快、更有信心地发布，同时保持客户所期望的质量和责任担当。
 
-## What product teams should do now
+## 产品团队现在应该做什么
 
-If your organisation uses AI for localisation, Article 50 is an opportunity to strengthen your localisation workflow rather than something to fear.
+如果您的组织使用 AI 进行本地化，​​第 50 条是一个加强本地化工作流程的机会，而不是需要担心的事情。
 
-A few practical recommendations include:
+一些实用建议包括：
 
-- Clearly identify AI assistants within your product.
-- Maintain human review for important customer-facing content.
-- Distinguish translation from transcreation workflows.
-- Keep approval history and audit trails.
-- Preserve context and source information throughout the localisation process.
-- Ensure editorial responsibility remains clear before publishing content.
+- 在您的产品中清晰标识 AI 助手。
+- 确保重要的面向客户的内容经过人工审核。
+- 区分翻译与创译流程。
+- 保留审批历史记录和审计跟踪。
+- 在本地化过程中保留上下文和源信息。
+- 在发布内容前，确保编辑责任清晰明确。
 
-These practices not only support compliance but also improve translation quality and customer trust.
+这些做法不仅有助于确保合规，还能提高翻译质量并增强客户信任。
 
-## Looking ahead
+## 展望未来
 
-The EU AI Act marks an important step towards trustworthy AI adoption.
+欧盟《人工智能法案》标志着朝着可信赖的人工智能应用迈出了重要一步。
 
-For product and localisation teams, the key takeaway is reassuring:
+对于产品和本地化团队来说，关键结论令人安心：
 
-AI-assisted translation remains a practical, valuable and compliant way to launch products globally.
+借助 AI 的翻译仍然是以合规方式在全球推出产品的一种实用且有价值的方法。
 
-Rather than slowing innovation, Article 50 encourages organisations to build AI workflows that are transparent, accountable and human-centred.
+与减缓创新相反，第50条鼓励各组织构建透明、负责任且以人为本的AI工作流程。
 
-At Hyperlocalise, we believe these principles lead to better localisation—not just better compliance.
+在 Hyperlocalise，我们相信这些原则带来的是更好的本地化，而不仅仅是更好的合规性。
 
-As AI continues to reshape global product development, the companies that combine automation with human expertise will be the ones that deliver exceptional experiences in every language.
+随着人工智能持续重塑全球产品开发，将自动化与人类专业知识相结合的公司，将能够以每种语言提供卓越的体验。
 
-## Frequently asked questions
+## 常见问题
 
-### Does every AI translation need to be labelled?
+### 每个 AI 翻译都需要标注吗？
 
-Generally no. Faithful translations are typically treated differently from AI-generated original content because they preserve the meaning of the source material.
+通常不会。忠实的翻译通常会被区别对待，因为它们保留了源材料的含义。
 
-### Does Article 50 ban AI translation?
+### 第 50 条是否禁止 AI 翻译？
 
-No. Article 50 introduces transparency requirements rather than restricting the use of AI for translation.
+不。第50条引入的是透明度要求，而不是限制将AI用于翻译。
 
-### Is transcreation treated the same as translation?
+### 创译是否被视为与翻译相同？
 
-Not necessarily. AI-generated marketing content, creative rewriting and original copy may be subject to different transparency considerations than faithful translations.
+不一定。AI 生成的营销内容、创意改写和原创文案，可能与忠实翻译受到不同的透明度考量。
 
-### Does this only apply to companies based in Europe?
+### 这是否仅适用于总部位于欧洲的公司？
 
-No. The EU AI Act can also apply to organisations outside the European Union if their AI systems or outputs are placed on the EU market or used within the EU.
+不是。欧盟《人工智能法案》也可能适用于欧盟以外的组织，如果其人工智能系统或输出在欧盟市场投放或在欧盟境内使用。
 
-### How does Hyperlocalise support responsible AI localisation?
+### Hyperlocalise 如何支持负责任的 AI 本地化？
 
-Hyperlocalise combines AI agents with human review, contextual understanding and existing localisation workflows to help teams launch globally with greater speed, quality and confidence while maintaining transparency throughout the process.
+Hyperlocalise 将 AI 代理与人工审核、上下文理解和现有本地化工作流程相结合，帮助团队以更快的速度、更高的质量和更强的信心在全球范围内发布，同时确保整个过程透明。
