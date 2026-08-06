@@ -10,13 +10,97 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { eq, inArray, isNull } from "drizzle-orm";
 import { describe, expect, it } from "vite-plus/test";
 
+import { schema } from "@/lib/database";
+
 import {
+  buildIssueListFilterConditions,
   buildIssueListOrderBy,
   issueListNeedsCountPriorityJoin,
   issueListNeedsPriorityJoin,
 } from "./issue-list-query";
+
+const actorUserId = "user_actor";
+
+describe("buildIssueListFilterConditions", () => {
+  it("filters by translationKeyId for CAT linked-issue lists", () => {
+    const translationKeyId = "11111111-1111-4111-8111-111111111111";
+    expect(
+      buildIssueListFilterConditions({
+        actorUserId,
+        query: { translationKeyId, status: "all" },
+      }),
+    ).toEqual([eq(schema.issueSheetIssues.translationKeyId, translationKeyId)]);
+  });
+
+  it("applies view defaults and lets explicit filters override them", () => {
+    expect(
+      buildIssueListFilterConditions({
+        actorUserId,
+        query: { view: "my_work" },
+      }),
+    ).toEqual([
+      eq(schema.issueSheetIssues.assigneeUserId, actorUserId),
+      inArray(schema.issueSheetIssues.status, ["open", "in_progress"]),
+    ]);
+
+    expect(
+      buildIssueListFilterConditions({
+        actorUserId,
+        query: { view: "qa_triage", status: "resolved", issueType: "glossary_violation" },
+      }),
+    ).toEqual([
+      isNull(schema.issueSheetIssues.assigneeUserId),
+      eq(schema.issueSheetIssues.status, "resolved"),
+      eq(schema.issueSheetIssues.issueType, "glossary_violation"),
+    ]);
+
+    expect(
+      buildIssueListFilterConditions({
+        actorUserId,
+        query: { view: "source_context" },
+      }),
+    ).toEqual([
+      inArray(schema.issueSheetIssues.issueType, [
+        "source_mistake",
+        "context_request",
+        "general_question",
+      ]),
+      inArray(schema.issueSheetIssues.status, ["open", "in_progress"]),
+    ]);
+
+    expect(
+      buildIssueListFilterConditions({
+        actorUserId,
+        query: { view: "all_open" },
+      }),
+    ).toEqual([inArray(schema.issueSheetIssues.status, ["open", "in_progress"])]);
+  });
+
+  it("combines project, locale, and assignee filters with translationKeyId", () => {
+    const projectId = "project_docs";
+    const translationKeyId = "22222222-2222-4222-8222-222222222222";
+    expect(
+      buildIssueListFilterConditions({
+        actorUserId,
+        query: {
+          projectId,
+          locale: "fr-FR",
+          assignee: "unassigned",
+          translationKeyId,
+          status: "all",
+        },
+      }),
+    ).toEqual([
+      eq(schema.issueSheetIssues.targetLocale, "fr-FR"),
+      isNull(schema.issueSheetIssues.assigneeUserId),
+      eq(schema.issueSheetIssues.projectId, projectId),
+      eq(schema.issueSheetIssues.translationKeyId, translationKeyId),
+    ]);
+  });
+});
 
 describe("buildIssueListOrderBy", () => {
   it("defaults to status sorting for the grouped Issues list", () => {

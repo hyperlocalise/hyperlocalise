@@ -1245,6 +1245,80 @@ Second import issue,Done,EXT-2,P2`;
     expect(allowedList.status).toBe(200);
   });
 
+  it("rejects create and link when the translation key belongs to another project", async () => {
+    const { identity, organization, user, project } =
+      await projectFixture.createStoredProjectFixture();
+    const headers = await projectFixture.authHeadersFor(identity);
+    const organizationSlug = identity.organization.slug ?? "missing-slug";
+
+    const [otherProject] = await db
+      .insert(schema.projects)
+      .values({
+        id: `project_${crypto.randomUUID()}`,
+        organizationId: organization.id,
+        teamId: project.teamId,
+        createdByUserId: user.id,
+        name: "Sibling Project",
+        description: "",
+        translationContext: "",
+        sourceLocale: "en-US",
+        targetLocales: ["fr-FR"],
+      })
+      .returning();
+
+    const [foreignKey] = await db
+      .insert(schema.projectTranslationKeys)
+      .values({
+        organizationId: organization.id,
+        projectId: otherProject.id,
+        key: "foreign.key",
+        sourceText: "Foreign",
+        normalizedSourceText: "Foreign",
+      })
+      .returning();
+
+    const createResponse = await requestJson(issueSheetUrl(organizationSlug, project.id), {
+      method: "POST",
+      headers,
+      body: {
+        title: "Cross-project key create",
+        translationKeyId: foreignKey.id,
+      },
+    });
+    expect(createResponse.status).toBe(400);
+    await expect(createResponse.json()).resolves.toMatchObject({
+      error: "translation_key_not_found",
+    });
+
+    const standalone = await requestJson(issueSheetUrl(organizationSlug, project.id), {
+      method: "POST",
+      headers,
+      body: {
+        title: "Standalone before bad link",
+        issueType: "general_question",
+      },
+    });
+    expect(standalone.status).toBe(201);
+    const created = (await standalone.json()) as IssueResponse;
+
+    const linkResponse = await requestJson(
+      issueSheetUrl(organizationSlug, project.id, `/${created.issue.id}`),
+      {
+        method: "PATCH",
+        headers,
+        body: {
+          translationKeyId: foreignKey.id,
+          segmentId: foreignKey.id,
+          linkKind: "cat_segment",
+        },
+      },
+    );
+    expect(linkResponse.status).toBe(400);
+    await expect(linkResponse.json()).resolves.toMatchObject({
+      error: "translation_key_not_found",
+    });
+  });
+
   it("creates a cat_segment issue for a file-backed segment without a translation key", async () => {
     const { identity, project } = await projectFixture.createStoredProjectFixture();
     const headers = await projectFixture.authHeadersFor(identity);
