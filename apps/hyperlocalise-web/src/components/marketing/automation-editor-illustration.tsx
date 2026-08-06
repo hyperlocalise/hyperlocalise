@@ -26,7 +26,6 @@ import { FormattedMessage } from "react-intl";
 import { cn } from "@/lib/primitives/cn";
 
 import { automationEditorIllustrationMessages } from "./automation-editor-illustration.messages";
-import Image from "next/image";
 
 function MockSection({ title, children }: { title: ReactNode; children: ReactNode }) {
   return (
@@ -162,13 +161,7 @@ export function AutomationEditorIllustration({ className }: { className?: string
                   className="flex size-4 items-center justify-center rounded-[0.2rem] bg-[#4a154b] text-[0.55rem] font-bold text-white"
                   aria-hidden
                 >
-                  <Image
-                    src="/images/slack-logo.svg"
-                    alt="Slack"
-                    width={16}
-                    height={16}
-                    className="size-4"
-                  />
+                  #
                 </span>
               }
               title={<FormattedMessage {...automationEditorIllustrationMessages.toolSlack} />}
