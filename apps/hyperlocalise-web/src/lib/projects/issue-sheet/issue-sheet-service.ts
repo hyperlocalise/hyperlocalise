@@ -51,6 +51,7 @@ import {
   priorityValues,
 } from "./issue-list-query";
 import { issueNotificationService } from "./issue-notification-service";
+import { issueSubscriptionService } from "./issue-subscription-service";
 
 export const ISSUE_SHEET_ACTIVITY_ASSIGNEE_CHANGED = "assignee_changed" as const;
 export const ISSUE_SHEET_ACTIVITY_ISSUE_CREATED = "issue_created" as const;
@@ -190,6 +191,7 @@ export type IssueSheetIssue = {
   updatedAt: string;
   resolvedAt: string | null;
   values: Record<string, unknown>;
+  isWatching: boolean;
 };
 
 export type IssueSheetListResult = {
@@ -282,7 +284,11 @@ function formatUser(row: {
   return name || row.email;
 }
 
-function mapIssueRow(row: IssueRow, values: Record<string, unknown>): IssueSheetIssue {
+function mapIssueRow(
+  row: IssueRow,
+  values: Record<string, unknown>,
+  isWatching = false,
+): IssueSheetIssue {
   return {
     id: row.id,
     title: row.title,
@@ -316,6 +322,7 @@ function mapIssueRow(row: IssueRow, values: Record<string, unknown>): IssueSheet
     updatedAt: row.updatedAt.toISOString(),
     resolvedAt: row.resolvedAt?.toISOString() ?? null,
     values,
+    isWatching,
   };
 }
 
@@ -901,6 +908,14 @@ export class IssueSheetService {
         });
       }
 
+      await issueSubscriptionService.subscribeMany({
+        organizationId: input.organizationId,
+        projectId: input.projectId,
+        issueId: issue.id,
+        userIds: [input.actorUserId, ...(assigneeUserId ? [assigneeUserId] : [])],
+        database: tx,
+      });
+
       return issue.id;
     });
 
@@ -1080,6 +1095,15 @@ export class IssueSheetService {
 
     if (!found) {
       return null;
+    }
+
+    if (found.assigneeActuallyChanged && found.nextAssigneeUserId) {
+      await issueSubscriptionService.subscribe({
+        organizationId: input.organizationId,
+        projectId: input.projectId,
+        issueId: input.issueId,
+        userId: found.nextAssigneeUserId,
+      });
     }
 
     if (found.statusChanging) {
@@ -1389,6 +1413,53 @@ export class IssueSheetService {
     return this.getIssueById(input);
   }
 
+  async watchIssue(input: {
+    organizationId: string;
+    projectId: string;
+    issueId: string;
+    actorUserId: string;
+  }) {
+    const issue = await this.getIssueById(input);
+    if (!issue) {
+      return null;
+    }
+
+    await issueSubscriptionService.subscribe({
+      organizationId: input.organizationId,
+      projectId: input.projectId,
+      issueId: input.issueId,
+      userId: input.actorUserId,
+    });
+
+    return issueSubscriptionService.getSubscription({
+      organizationId: input.organizationId,
+      projectId: input.projectId,
+      issueId: input.issueId,
+      userId: input.actorUserId,
+    });
+  }
+
+  async unwatchIssue(input: {
+    organizationId: string;
+    projectId: string;
+    issueId: string;
+    actorUserId: string;
+  }): Promise<boolean> {
+    const issue = await this.getIssueById(input);
+    if (!issue) {
+      return false;
+    }
+
+    await issueSubscriptionService.unsubscribe({
+      organizationId: input.organizationId,
+      projectId: input.projectId,
+      issueId: input.issueId,
+      userId: input.actorUserId,
+    });
+
+    return true;
+  }
+
   private async getIssueById(input: {
     organizationId: string;
     projectId: string;
@@ -1424,7 +1495,12 @@ export class IssueSheetService {
       columns,
     });
 
-    return mapIssueRow(row, valuesByIssueId.get(row.id) ?? {});
+    const isWatching = await issueSubscriptionService.isSubscribed({
+      issueId: row.id,
+      userId: input.actorUserId,
+    });
+
+    return mapIssueRow(row, valuesByIssueId.get(row.id) ?? {}, isWatching);
   }
 
   private async countIssueRows(conditions: SQL[], query: IssueSheetQuery): Promise<number> {

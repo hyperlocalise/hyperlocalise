@@ -60,6 +60,7 @@ type IssueResponse = {
     key: string | null;
     sourceText: string | null;
     values: Record<string, unknown>;
+    isWatching: boolean;
   };
 };
 
@@ -1314,5 +1315,69 @@ Second import issue,Done,EXT-2,P2`;
     expect(body.issue.id).toBe(created.issue.id);
     expect(body.issue.translationKeyId).toBeNull();
     expect(body.issue.key).toBeNull();
+  });
+
+  it("watches and unwatches an issue and reports isWatching on GET", async () => {
+    const { identity, project } = await projectFixture.createStoredProjectFixture();
+    const headers = await projectFixture.authHeadersFor(identity);
+    const organizationSlug = identity.organization.slug ?? "missing-slug";
+
+    const createResponse = await requestJson(issueSheetUrl(organizationSlug, project.id), {
+      method: "POST",
+      headers,
+      body: {
+        title: "Watch me",
+        issueType: "general_question",
+      },
+    });
+    expect(createResponse.status).toBe(201);
+    const created = (await createResponse.json()) as IssueResponse;
+    const issueId = created.issue.id;
+
+    const initialGet = await requestJson(
+      issueSheetUrl(organizationSlug, project.id, `/${issueId}`),
+      { headers },
+    );
+    expect(initialGet.status).toBe(200);
+    const initialBody = (await initialGet.json()) as IssueResponse;
+    expect(initialBody.issue.isWatching).toBe(true);
+
+    const unwatchResponse = await requestJson(
+      issueSheetUrl(organizationSlug, project.id, `/${issueId}/subscription`),
+      { method: "DELETE", headers },
+    );
+    expect(unwatchResponse.status).toBe(204);
+
+    const unwatchedGet = await requestJson(
+      issueSheetUrl(organizationSlug, project.id, `/${issueId}`),
+      { headers },
+    );
+    const unwatchedBody = (await unwatchedGet.json()) as IssueResponse;
+    expect(unwatchedBody.issue.isWatching).toBe(false);
+
+    const watchResponse = await requestJson(
+      issueSheetUrl(organizationSlug, project.id, `/${issueId}/subscription`),
+      { method: "POST", headers },
+    );
+    expect(watchResponse.status).toBe(201);
+    await expect(watchResponse.json()).resolves.toMatchObject({
+      subscription: {
+        issueId,
+        userId: expect.any(String),
+      },
+    });
+
+    const watchedGet = await requestJson(
+      issueSheetUrl(organizationSlug, project.id, `/${issueId}`),
+      { headers },
+    );
+    const watchedBody = (await watchedGet.json()) as IssueResponse;
+    expect(watchedBody.issue.isWatching).toBe(true);
+
+    const duplicateWatch = await requestJson(
+      issueSheetUrl(organizationSlug, project.id, `/${issueId}/subscription`),
+      { method: "POST", headers },
+    );
+    expect(duplicateWatch.status).toBe(201);
   });
 });

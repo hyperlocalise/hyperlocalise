@@ -231,7 +231,7 @@ describe("IssueNotificationService", () => {
     expect(rows.some((row) => row.recipientUserId === assigneeUserId)).toBe(true);
   });
 
-  it("resolves implicit watchers from assignee, reporter, and mentions", async () => {
+  it("resolves watchers from persisted subscriptions", async () => {
     const { actor, assigneeUserId, organization, project } = await createProjectWithAssignee();
     const issue = await issueSheetService.createIssue({
       organizationId: organization.id,
@@ -257,7 +257,7 @@ describe("IssueNotificationService", () => {
       },
     });
 
-    const watchers = await notificationService.resolveImplicitWatchers(issue.id);
+    const watchers = await notificationService.resolveWatchers(issue.id);
     expect(watchers.has(actor.id)).toBe(true);
     expect(watchers.has(assigneeUserId)).toBe(true);
   });

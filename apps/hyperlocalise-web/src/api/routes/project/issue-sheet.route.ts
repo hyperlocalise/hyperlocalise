@@ -274,6 +274,42 @@ export function createIssueSheetRoutes() {
       }
       return c.json({ issue }, 200);
     })
+    .post("/:issueId/subscription", validateIssueSheetIssueParams, async (c) => {
+      const params = c.req.valid("param");
+      const project = await requireProject(c, params.projectId);
+      if (!project) {
+        return projectNotFoundResponse(c);
+      }
+
+      const subscription = await service.watchIssue({
+        organizationId: c.var.auth.organization.localOrganizationId,
+        projectId: project.id,
+        issueId: params.issueId,
+        actorUserId: c.var.auth.user.localUserId,
+      });
+      if (!subscription) {
+        return notFoundResponse(c, "issue_not_found", "Issue not found");
+      }
+      return c.json({ subscription }, 201);
+    })
+    .delete("/:issueId/subscription", validateIssueSheetIssueParams, async (c) => {
+      const params = c.req.valid("param");
+      const project = await requireProject(c, params.projectId);
+      if (!project) {
+        return projectNotFoundResponse(c);
+      }
+
+      const removed = await service.unwatchIssue({
+        organizationId: c.var.auth.organization.localOrganizationId,
+        projectId: project.id,
+        issueId: params.issueId,
+        actorUserId: c.var.auth.user.localUserId,
+      });
+      if (!removed) {
+        return notFoundResponse(c, "issue_not_found", "Issue not found");
+      }
+      return c.body(null, 204);
+    })
     .post("/", validateIssueSheetParams, validateCreateIssueBody, async (c) => {
       if (!isWriteBackTranslationAllowed(c.var.auth.membership.role)) {
         return projectForbiddenResponse(c);

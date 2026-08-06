@@ -29,6 +29,7 @@ import {
   Flag01Icon,
   LanguageCircleIcon,
   LinkSquare02Icon,
+  Notification01Icon,
   Tag01Icon,
   TranslateIcon,
   User02Icon,
@@ -78,6 +79,8 @@ import {
   listDetailPanelColumns,
 } from "./issue-sheet-column-utils";
 import { IssueTypePicker, type IssueTypeValue } from "./issue-type-picker";
+import { IssueWatchControl } from "./issue-watch-control";
+import { issueWatchControlMessages as watchMessages } from "./issue-watch-control.messages";
 import { useAssignableIssueMembersQuery } from "./use-assignable-issue-members";
 import { useIssueDetailMutations } from "./use-issue-detail-mutations";
 import { useIssueDetailQuery } from "./use-issue-detail-query";
@@ -765,6 +768,19 @@ export const IssueDetailPanel = forwardRef<
               onChange={(assigneeUserId) => {
                 updateIssue.mutate({ assigneeUserId });
               }}
+            />
+          </PropertyRow>
+
+          <PropertyRow
+            icon={Notification01Icon}
+            label={<FormattedMessage {...watchMessages.fieldWatch} />}
+          >
+            <IssueWatchControl
+              organizationSlug={organizationSlug}
+              projectId={projectId}
+              issueId={issue.id}
+              isWatching={issue.isWatching}
+              disabled={isSaving}
             />
           </PropertyRow>
 

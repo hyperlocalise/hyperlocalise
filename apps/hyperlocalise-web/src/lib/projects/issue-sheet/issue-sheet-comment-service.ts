@@ -20,6 +20,7 @@ import type { OrganizationMembershipRole } from "@/lib/database/types";
 import { ProjectServiceBase } from "@/lib/projects/project-service-base";
 
 import { issueNotificationService } from "./issue-notification-service";
+import { issueSubscriptionService } from "./issue-subscription-service";
 
 export type IssueSheetCommentAuthor = {
   userId: string;
@@ -336,6 +337,22 @@ export class IssueSheetCommentService extends ProjectServiceBase {
         .leftJoin(schema.users, eq(schema.issueSheetComments.authorUserId, schema.users.id))
         .where(eq(schema.issueSheetComments.id, inserted.id))
         .limit(1);
+
+      await issueSubscriptionService.subscribe({
+        organizationId: input.organizationId,
+        projectId: input.projectId,
+        issueId: input.issueId,
+        userId: input.actorUserId,
+        database: tx,
+      });
+      await issueSubscriptionService.subscribeMany({
+        organizationId: input.organizationId,
+        projectId: input.projectId,
+        issueId: input.issueId,
+        userIds: mentionedUserIds,
+        requireProjectAccess: true,
+        database: tx,
+      });
 
       return row;
     });
