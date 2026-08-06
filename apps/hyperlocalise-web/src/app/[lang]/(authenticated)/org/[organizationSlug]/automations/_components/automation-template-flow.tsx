@@ -12,8 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { SlackIcon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+
 import { ClockIcon, MailIcon } from "lucide-react";
 import { siContentful, siGithub } from "simple-icons";
 import Image from "next/image";
@@ -55,7 +54,9 @@ function FlowIcon({ bucket }: { bucket: IconBucket }) {
     case "github":
       return <SimpleBrandIcon icon={siGithub} colored className="size-4" />;
     case "slack":
-      return <Image src="/images/slack-logo.svg" alt="Slack" width={16} height={16} className="size-4" />;
+      return (
+        <Image src="/images/slack-logo.svg" alt="Slack" width={16} height={16} className="size-4" />
+      );
     case "email":
       return <MailIcon className="size-4" />;
     case "contentful":
