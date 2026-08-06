@@ -15,10 +15,6 @@
 import { useControllableState } from "@radix-ui/react-use-controllable-state";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { cn } from "@/lib/primitives/cn";
-import { cjk } from "@streamdown/cjk";
-import { code } from "@streamdown/code";
-import { math } from "@streamdown/math";
-import { mermaid } from "@streamdown/mermaid";
 import { BrainIcon, ChevronDownIcon } from "lucide-react";
 import type { ComponentProps, ReactNode } from "react";
 import {
@@ -36,6 +32,7 @@ import { useIntl } from "react-intl";
 
 import { reasoningMessages } from "./reasoning.messages";
 import { Shimmer } from "./shimmer";
+import { streamdownPlugins } from "./streamdown-plugins";
 import { TypographyP } from "@/components/ui/typography";
 
 interface ReasoningContextValue {
@@ -206,8 +203,6 @@ export const ReasoningTrigger = memo(
 export type ReasoningContentProps = ComponentProps<typeof CollapsibleContent> & {
   children: string;
 };
-
-const streamdownPlugins = { cjk, code, math, mermaid };
 
 export const ReasoningContent = memo(({ className, children, ...props }: ReasoningContentProps) => (
   <CollapsibleContent
