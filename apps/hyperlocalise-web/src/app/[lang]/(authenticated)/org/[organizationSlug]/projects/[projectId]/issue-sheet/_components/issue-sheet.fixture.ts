@@ -60,6 +60,7 @@ export type IssueSheetIssueFixture = {
   updatedAt: string;
   resolvedAt: string | null;
   values: Record<string, unknown>;
+  isWatching: boolean;
 };
 
 export const issueSheetColumnsFixture: IssueSheetColumnFixture[] = [
@@ -141,6 +142,7 @@ export function createIssueSheetIssue(
       context: "",
       sprint: "S24",
     },
+    isWatching: true,
     ...overrides,
   };
 }

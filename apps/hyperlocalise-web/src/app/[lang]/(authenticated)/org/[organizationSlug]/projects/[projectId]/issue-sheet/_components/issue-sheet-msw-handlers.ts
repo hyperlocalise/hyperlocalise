@@ -21,6 +21,37 @@ import {
 
 const issueSheetBasePath = "/api/orgs/:organizationSlug/projects/:projectId/issue-sheet";
 
+const watchedIssueIds = new Set(
+  issueSheetIssuesFixture.filter((issue) => issue.isWatching).map((issue) => issue.id),
+);
+
+function issueWithWatchState(issue: (typeof issueSheetIssuesFixture)[number]) {
+  return {
+    ...issue,
+    isWatching: watchedIssueIds.has(issue.id),
+  };
+}
+
+const issueSubscriptionHandlers = [
+  http.post(`${issueSheetBasePath}/:issueId/subscription`, ({ params }) => {
+    watchedIssueIds.add(String(params.issueId));
+    return HttpResponse.json(
+      {
+        subscription: {
+          issueId: params.issueId,
+          userId: "user_storybook",
+          createdAt: new Date().toISOString(),
+        },
+      },
+      { status: 201 },
+    );
+  }),
+  http.delete(`${issueSheetBasePath}/:issueId/subscription`, ({ params }) => {
+    watchedIssueIds.delete(String(params.issueId));
+    return new HttpResponse(null, { status: 204 });
+  }),
+];
+
 export const issueSheetMswHandlers = [
   http.get("/api/orgs/:organizationSlug/projects/:projectId", () =>
     HttpResponse.json({ project: issueSheetProjectFixture }),
@@ -37,7 +68,7 @@ export const issueSheetMswHandlers = [
     if (!issue) {
       return HttpResponse.json({ error: "issue_not_found" }, { status: 404 });
     }
-    return HttpResponse.json({ issue });
+    return HttpResponse.json({ issue: issueWithWatchState(issue) });
   }),
   http.get(`${issueSheetBasePath}/:issueId/feed`, () =>
     HttpResponse.json({
@@ -54,7 +85,7 @@ export const issueSheetMswHandlers = [
     }
     return HttpResponse.json({
       issue: {
-        ...issue,
+        ...issueWithWatchState(issue),
         ...body,
         updatedAt: new Date().toISOString(),
       },
@@ -107,6 +138,7 @@ export const issueSheetMswHandlers = [
       { status: 201 },
     );
   }),
+  ...issueSubscriptionHandlers,
 ];
 
 export const issueSheetEmptyMswHandlers = [
@@ -167,8 +199,9 @@ export const issueDetailColumnsErrorMswHandlers = [
     if (!issue) {
       return HttpResponse.json({ error: "issue_not_found" }, { status: 404 });
     }
-    return HttpResponse.json({ issue });
+    return HttpResponse.json({ issue: issueWithWatchState(issue) });
   }),
+  ...issueSubscriptionHandlers,
 ];
 
 export const issueDetailLoadingMswHandlers = [
