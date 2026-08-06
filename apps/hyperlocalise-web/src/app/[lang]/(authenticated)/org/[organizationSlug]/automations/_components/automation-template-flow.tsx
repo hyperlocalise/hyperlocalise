@@ -60,7 +60,15 @@ function FlowIcon({ bucket }: { bucket: IconBucket }) {
     case "email":
       return <MailIcon className="size-4" />;
     case "contentful":
-      return <Image src="/images/contentful-logo.svg" alt="Contentful" width={16} height={16} className="size-4" />;
+      return (
+        <Image
+          src="/images/contentful-logo.svg"
+          alt="Contentful"
+          width={16}
+          height={16}
+          className="size-4"
+        />
+      );
     case "schedule":
       return <ClockIcon className="size-4" strokeWidth={1.8} />;
   }
