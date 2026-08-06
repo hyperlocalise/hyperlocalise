@@ -14,7 +14,7 @@
  */
 
 import { ClockIcon, MailIcon } from "lucide-react";
-import { siContentful, siGithub } from "simple-icons";
+import { siGithub } from "simple-icons";
 import Image from "next/image";
 
 import {
@@ -60,7 +60,7 @@ function FlowIcon({ bucket }: { bucket: IconBucket }) {
     case "email":
       return <MailIcon className="size-4" />;
     case "contentful":
-      return <SimpleBrandIcon icon={siContentful} colored className="size-4" />;
+      return <Image src="/images/contentful-logo.svg" alt="Contentful" width={16} height={16} className="size-4" />;
     case "schedule":
       return <ClockIcon className="size-4" strokeWidth={1.8} />;
   }
