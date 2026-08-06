@@ -159,7 +159,7 @@ export function AutomationEditorIllustration({ className }: { className?: string
             <MockRow
               icon={
                 <span
-                  className="flex size-4 items-center justify-center rounded-[0.2rem] bg-[#4a154b] text-[0.55rem] font-bold text-white"
+                  className="flex size-4 items-center justify-center rounded-[0.2rem] text-[0.55rem] font-bold text-white"
                   aria-hidden
                 >
                   <Image
