@@ -173,6 +173,9 @@ export const env = createEnv({
     /** Maximum sandboxes deleted per sandbox cleanup cron tick. */
     SANDBOX_CLEANUP_MAX_PER_TICK: z.coerce.number().int().positive().default(100),
 
+    /** Maximum snapshots deleted per snapshot cleanup cron tick. */
+    SNAPSHOT_CLEANUP_MAX_PER_TICK: z.coerce.number().int().positive().default(100),
+
     /** Canva app ID used to verify Canva JWTs for the integration API. */
     CANVA_APP_ID: z.string().min(1).optional(),
 
@@ -289,6 +292,7 @@ export const env = createEnv({
     GITHUB_REPOSITORY_AUTOMATION_DISPATCH_MAX_REPOS_PER_TICK:
       process.env.GITHUB_REPOSITORY_AUTOMATION_DISPATCH_MAX_REPOS_PER_TICK,
     SANDBOX_CLEANUP_MAX_PER_TICK: process.env.SANDBOX_CLEANUP_MAX_PER_TICK,
+    SNAPSHOT_CLEANUP_MAX_PER_TICK: process.env.SNAPSHOT_CLEANUP_MAX_PER_TICK,
     CANVA_APP_ID: process.env.CANVA_APP_ID ?? (isTestEnv ? "test-canva-app-id" : undefined),
     CANVA_CORS_ORIGINS: process.env.CANVA_CORS_ORIGINS,
     CANVA_APP_ORIGIN: process.env.CANVA_APP_ORIGIN,

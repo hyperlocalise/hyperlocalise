@@ -10,14 +10,28 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { describe, expect, it } from "vite-plus/test";
+import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
+
+const sandboxMocks = vi.hoisted(() => ({
+  create: vi.fn(),
+  runCommand: vi.fn(),
+}));
+
+vi.mock("@vercel/sandbox", () => ({
+  Sandbox: {
+    create: sandboxMocks.create,
+  },
+}));
 
 import {
+  createConfiguredVercelSandbox,
   installRequiredSandboxToolsCommand,
   sandboxChromiumDnfPackages,
   sandboxHyperlocaliseReleaseVersion,
   sandboxPlaywrightVersion,
   sandboxRipgrepReleaseVersion,
+  sandboxSnapshotExpirationMs,
+  sandboxSnapshotRetentionCount,
 } from "@/lib/vercel-sandbox-config";
 
 describe("installRequiredSandboxToolsCommand", () => {
@@ -89,5 +103,41 @@ describe("installRequiredSandboxToolsCommand", () => {
       'https://github.com/hyperlocalise/hyperlocalise/releases/download/${HL_VERSION}/${ARCHIVE}" || return 1',
     );
     expect(installRequiredSandboxToolsCommand).toContain("command -v hl >/dev/null 2>&1");
+  });
+});
+
+describe("createConfiguredVercelSandbox", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    sandboxMocks.runCommand.mockResolvedValue({ exitCode: 0, output: vi.fn() });
+    sandboxMocks.create.mockResolvedValue({
+      name: "sandbox_123",
+      runCommand: sandboxMocks.runCommand,
+    });
+  });
+
+  it("bounds snapshot growth with an expiration and retention policy", async () => {
+    await createConfiguredVercelSandbox();
+
+    expect(sandboxMocks.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        snapshotExpiration: sandboxSnapshotExpirationMs,
+        keepLastSnapshots: { count: sandboxSnapshotRetentionCount, deleteEvicted: true },
+      }),
+    );
+  });
+
+  it("keeps caller-supplied snapshot settings", async () => {
+    await createConfiguredVercelSandbox({
+      snapshotExpiration: 0,
+      keepLastSnapshots: { count: 1 },
+    });
+
+    expect(sandboxMocks.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        snapshotExpiration: 0,
+        keepLastSnapshots: { count: 1 },
+      }),
+    );
   });
 });

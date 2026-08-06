@@ -17,7 +17,7 @@ import { createLogger } from "@/lib/log";
 const logger = createLogger("sandbox-cleanup");
 
 /** Sandboxes older than this are eligible for permanent deletion. */
-export const SANDBOX_CLEANUP_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
+export const SANDBOX_CLEANUP_MAX_AGE_MS = 3 * 24 * 60 * 60 * 1000;
 
 /** Default max deletes per cron tick to stay within serverless time limits. */
 export const SANDBOX_CLEANUP_DEFAULT_LIMIT = 100;

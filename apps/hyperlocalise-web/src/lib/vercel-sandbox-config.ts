@@ -58,6 +58,17 @@ type VercelSandboxCreateOptions = Parameters<typeof Sandbox.create>[0];
 
 export const defaultVercelSandboxRuntime = "node26";
 
+/**
+ * Sandboxes are persistent by default, so every `stop()` (including the
+ * stop/resume recovery path) can mint a snapshot. Expire them on the same
+ * horizon the snapshot cleanup cron sweeps so storage stays bounded even if the
+ * cron is paused.
+ */
+export const sandboxSnapshotExpirationMs = 3 * 24 * 60 * 60 * 1000;
+
+/** Snapshots retained per sandbox; older ones are evicted as new ones are created. Vercel allows 1-10. */
+export const sandboxSnapshotRetentionCount = 3;
+
 const installRipgrepFromGithubRelease = [
   "install_ripgrep_from_github_release() {",
   `  RG_VERSION="${sandboxRipgrepReleaseVersion}"`,
@@ -173,12 +184,19 @@ export async function createConfiguredVercelSandbox(
 ): Promise<Sandbox> {
   const shouldUseDefaultRuntime =
     !("runtime" in options) && !("image" in options) && options.source?.type !== "snapshot";
-  const createOptions: VercelSandboxCreateOptions = shouldUseDefaultRuntime
-    ? ({
-        ...options,
-        runtime: defaultVercelSandboxRuntime,
-      } as VercelSandboxCreateOptions)
-    : options;
+  const createOptions = {
+    ...options,
+    ...(shouldUseDefaultRuntime ? { runtime: defaultVercelSandboxRuntime } : {}),
+    ...("snapshotExpiration" in options ? {} : { snapshotExpiration: sandboxSnapshotExpirationMs }),
+    ...("keepLastSnapshots" in options
+      ? {}
+      : {
+          keepLastSnapshots: {
+            count: sandboxSnapshotRetentionCount,
+            deleteEvicted: true,
+          },
+        }),
+  } as VercelSandboxCreateOptions;
 
   const sandbox = await Sandbox.create(createOptions);
 

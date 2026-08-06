@@ -17,15 +17,15 @@ import { runSandboxCleanup, SANDBOX_CLEANUP_MAX_AGE_MS } from "./sandbox-cleanup
 describe("runSandboxCleanup", () => {
   const now = new Date("2026-07-18T12:00:00.000Z");
 
-  it("deletes sandboxes older than seven days and stops at the first young sandbox", async () => {
-    const eightDaysAgo = now.getTime() - 8 * 24 * 60 * 60 * 1000;
-    const nineDaysAgo = now.getTime() - 9 * 24 * 60 * 60 * 1000;
+  it("deletes sandboxes older than three days and stops at the first young sandbox", async () => {
+    const fourDaysAgo = now.getTime() - 4 * 24 * 60 * 60 * 1000;
+    const fiveDaysAgo = now.getTime() - 5 * 24 * 60 * 60 * 1000;
     const oneDayAgo = now.getTime() - 1 * 24 * 60 * 60 * 1000;
 
     const deleteSandbox = vi.fn(async () => undefined);
     const listed = [
-      { name: "old-a", createdAt: nineDaysAgo, status: "stopped" },
-      { name: "old-b", createdAt: eightDaysAgo, status: "stopped" },
+      { name: "old-a", createdAt: fiveDaysAgo, status: "stopped" },
+      { name: "old-b", createdAt: fourDaysAgo, status: "stopped" },
       { name: "young-c", createdAt: oneDayAgo, status: "stopped" },
       { name: "young-d", createdAt: oneDayAgo, status: "running" },
     ];

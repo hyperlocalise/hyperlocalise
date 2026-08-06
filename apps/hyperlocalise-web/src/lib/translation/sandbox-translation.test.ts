@@ -86,6 +86,8 @@ describe("sandbox command runner", () => {
     expect(sandboxMocks.create).toHaveBeenCalledWith({
       runtime: "node26",
       timeout: 600_000,
+      snapshotExpiration: 3 * 24 * 60 * 60 * 1000,
+      keepLastSnapshots: { count: 3, deleteEvicted: true },
     });
     expect(sandboxMocks.runCommand).toHaveBeenCalledWith({
       cmd: "sh",

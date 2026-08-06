@@ -79,6 +79,7 @@ import { createBillingRoutes } from "./routes/billing/billing.route";
 import { createBlogOgImageRoutes } from "./routes/blog-og-image/blog-og-image.route";
 import { createGithubRepositoryAutomationDispatchRoutes } from "./routes/cron/github-repository-automation-dispatch.route";
 import { createSandboxCleanupRoutes } from "./routes/cron/sandbox-cleanup.route";
+import { createSnapshotCleanupRoutes } from "./routes/cron/snapshot-cleanup.route";
 import {
   createProviderAgentCommentQueue,
   createProviderAgentQaQueue,
@@ -151,7 +152,8 @@ function createInternalRoutes() {
       "/cron/github-repository-automation-dispatch",
       createGithubRepositoryAutomationDispatchRoutes(),
     )
-    .route("/cron/sandbox-cleanup", createSandboxCleanupRoutes());
+    .route("/cron/sandbox-cleanup", createSandboxCleanupRoutes())
+    .route("/cron/snapshot-cleanup", createSnapshotCleanupRoutes());
 }
 
 function createAuthRoutes() {
