@@ -26,7 +26,7 @@ func TestPathResolver_ScoutEdgeCases(t *testing.T) {
 			want:         "content/en/en.json",
 		},
 		{
-			name: "ResolveTargetPath collapses multiple sequential slashes",
+			name:         "ResolveTargetPath collapses multiple sequential slashes",
 			fn:           ResolveTargetPath,
 			pattern:      "dist////{{localeDir}}///{{target}}//[locale].json",
 			sourceLocale: "en",
