@@ -10,11 +10,13 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { Sandbox } from "@vercel/sandbox";
+
+import type { RepositoryAgentGitHubContext } from "@/lib/agent-contracts/repository-task";
 import {
   createVercelSandboxWorkspace,
   stopWorkspace,
 } from "@/lib/agent-runtime/workspaces/vercel-sandbox-runtime";
-import type { RepositoryAgentGitHubContext } from "@/lib/agent-contracts/repository-task";
 import { createLogger, serializeErrorForLog } from "@/lib/log";
 
 type ResolvedRepositoryGitHubContext = Extract<RepositoryAgentGitHubContext, { resolved: true }>;
@@ -57,6 +59,15 @@ export async function createRepositorySandbox(
   }
   log.info({ sandboxId: workspace.id }, "vercel repository sandbox created");
   return workspace.id;
+}
+
+export async function isRepositorySandboxAvailable(sandboxId: string): Promise<boolean> {
+  try {
+    await Sandbox.get({ name: sandboxId, resume: false });
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 export async function stopRepositorySandbox(sandboxId: string): Promise<void> {

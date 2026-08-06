@@ -153,6 +153,7 @@ vi.mock("@/lib/agents/image-generation", () => ({
 
 vi.mock("@/lib/agent-runtime/workspaces/repository-sandbox", () => ({
   createRepositorySandbox: vi.fn(async () => "sbx_test"),
+  isRepositorySandboxAvailable: vi.fn(async () => true),
   stopRepositorySandbox: vi.fn(async () => undefined),
 }));
 

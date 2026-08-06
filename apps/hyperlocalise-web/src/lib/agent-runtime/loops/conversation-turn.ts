@@ -29,6 +29,7 @@ import {
 } from "@/lib/agents/repository-context";
 import {
   createRepositorySandbox,
+  isRepositorySandboxAvailable,
   stopRepositorySandbox,
 } from "@/lib/agent-runtime/workspaces/repository-sandbox";
 import { parseProviderProjectId } from "@/lib/providers/jobs/tms-provider-resource-id";
@@ -266,7 +267,10 @@ export async function getOrCreateConversationRepositorySandbox(input: {
   const sandboxSession = input.repositorySession?.repositorySandboxSession;
   const now = new Date().toISOString();
 
-  if (sandboxSession?.repositoryContextKey === repositoryContextKey) {
+  if (
+    sandboxSession?.repositoryContextKey === repositoryContextKey &&
+    (await isRepositorySandboxAvailable(sandboxSession.sandboxId))
+  ) {
     log.info(
       { sandboxId: sandboxSession.sandboxId },
       "reusing stored repository sandbox for conversation agent",
