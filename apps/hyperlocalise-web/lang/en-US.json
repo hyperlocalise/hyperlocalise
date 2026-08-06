@@ -451,10 +451,6 @@
     "defaultMessage": "Add terminology, market insights, compliance requirements, launch guidance, and things to avoid…",
     "description": "Placeholder for the global guidance TipTap editor"
   },
-  "/z2t2MxSK2": {
-    "defaultMessage": "Source strings, translations, context, prompts, model outputs, and provider metadata may be processed when those workflows are enabled by the customer.",
-    "description": "First data-handling paragraph on the Trust Center page"
-  },
   "/zPj/3x/+q": {
     "defaultMessage": "Slack agent enabled",
     "description": "Toast after enabling the Slack agent"
@@ -2307,10 +2303,6 @@
     "defaultMessage": "Thinking...",
     "description": "Label shown while the model is actively reasoning"
   },
-  "7VKhjntXa1": {
-    "defaultMessage": "Primary processing location",
-    "description": "Subprocessors table column header for processing location"
-  },
   "7VRqQJwWUI": {
     "defaultMessage": "My Jobs",
     "description": "Sidebar navigation item for the current user’s jobs"
@@ -3454,10 +3446,6 @@
   "BsQAY8Fc69": {
     "defaultMessage": "Hyperlocalise gives localisation operations a single control plane across sources, models, reviewers, and sync targets.",
     "description": "Workflow section description for the localisation-operations use case"
-  },
-  "Bu38XaIdLK": {
-    "defaultMessage": "Trust Center",
-    "description": "Trust Center page heading"
   },
   "BuGVGob/k5": {
     "defaultMessage": "Read workspace, project, team, glossary, memory, and job surfaces.",
@@ -4686,10 +4674,6 @@
   "GwX/prLtJh": {
     "defaultMessage": "Connect Semrush with an API key in Integrations before using this tool.",
     "description": "Description when no Semrush connection is available"
-  },
-  "GwjIMiu8Y+": {
-    "defaultMessage": "Hyperlocalise is operated by Hyperlocalise Pty Ltd, ACN 698 557 667, ABN 87698557667.",
-    "description": "Legal operator line on the Trust Center page"
   },
   "Gz/Ip82h05": {
     "defaultMessage": "Source path",
@@ -6027,10 +6011,6 @@
     "defaultMessage": "now",
     "description": "Relative timestamp when an inbox event happened less than a minute ago"
   },
-  "N8kCP/hYym": {
-    "defaultMessage": "A practical view of how Hyperlocalise handles security, subprocessors, and certification work while the formal trust program matures.",
-    "description": "Lead paragraph under the Trust Center page heading"
-  },
   "N9BYBbfFW0": {
     "defaultMessage": "Succeeded",
     "description": "Automation run status badge for succeeded"
@@ -6270,10 +6250,6 @@
   "O4mWh8yd0e": {
     "defaultMessage": "Sync progress",
     "description": "Segment context label for sync progress strings in the CAT mock"
-  },
-  "O5xNL1bDk3": {
-    "defaultMessage": "Subprocessor",
-    "description": "Subprocessors table column header for vendor name"
   },
   "O7tg9OZcEc": {
     "defaultMessage": "Detect string changes, gather PR context, draft translations, and gate releases — so engineering teams catch localisation issues before merge, not after launch.",
@@ -7931,10 +7907,6 @@
     "defaultMessage": "Slug",
     "description": "Label for the team slug field"
   },
-  "VBPz2AKNYS": {
-    "defaultMessage": "Security, subprocessor, privacy, and certification status information for Hyperlocalise.",
-    "description": "Open Graph description for the Trust Center page"
-  },
   "VCIZRHU93Q": {
     "defaultMessage": "Failed to load job ({status})",
     "description": "Error when the native job detail request fails"
@@ -9347,10 +9319,6 @@
     "defaultMessage": "Remove memories tool",
     "description": "Accessible label to remove the knowledge memories tool"
   },
-  "ay4rw6IQUl": {
-    "defaultMessage": "Contact us",
-    "description": "Contact button label on the Trust Center page"
-  },
   "ayMjHyvmox": {
     "defaultMessage": "Built-in TMS for projects, jobs, files, and translation memories. No external provider required.",
     "description": "Built-in TMS integration description on the integrations page"
@@ -10379,10 +10347,6 @@
     "defaultMessage": "Failed to cancel job",
     "description": "Toast and error fallback when cancelling a job fails"
   },
-  "fPUMESAd94": {
-    "defaultMessage": "For data processing agreement requests, contact: {email}",
-    "description": "Contact line for data processing agreement requests on the Trust Center page"
-  },
   "fT5jl51yo3": {
     "defaultMessage": "{percent}%",
     "description": "Percentage of tests passed in the test results summary"
@@ -10502,10 +10466,6 @@
   "g/SyG0phTI": {
     "defaultMessage": "Status",
     "description": "Automations list column header for status"
-  },
-  "g0n4i124EY": {
-    "defaultMessage": "AI providers, translation management systems, repositories, and chat platforms are not treated as default platform subprocessors here because customers choose whether to connect them and which accounts or projects are in scope.",
-    "description": "Second data-handling paragraph on the Trust Center page"
   },
   "g1PbE9rfHL": {
     "defaultMessage": "Cancel",
@@ -11446,14 +11406,6 @@
   "jSY7h//Jq9": {
     "defaultMessage": "Compare against approved baselines",
     "description": "Workflow step 3 description for the localisation-quality-monitoring use case"
-  },
-  "jUEW9KB993": {
-    "defaultMessage": "Need security details for a review?",
-    "description": "Call-to-action heading at the bottom of the Trust Center page"
-  },
-  "jUpgPN4uQt": {
-    "defaultMessage": "Work in progress",
-    "description": "Badge above the Trust Center page heading"
   },
   "jW4nG0Rt7y": {
     "defaultMessage": "Failed to upload {sourcePath}",
@@ -12603,10 +12555,6 @@
     "defaultMessage": "Connect a TMS provider to browse live provider projects here.",
     "description": "Section description prompting the user to connect a TMS provider"
   },
-  "oX8prUs9FO": {
-    "defaultMessage": "Current posture",
-    "description": "Aside heading for current certification posture on the Trust Center page"
-  },
   "oY/dfpDvR7": {
     "defaultMessage": "No segments match this filter.",
     "description": "Empty state when CAT queue status filter returns no segments"
@@ -12979,10 +12927,6 @@
     "defaultMessage": "Uploading…",
     "description": "Upload button label while files are uploading"
   },
-  "q4SZlpG/03": {
-    "defaultMessage": "Purpose",
-    "description": "Subprocessors table column header for vendor purpose"
-  },
   "q4WpE1QriH": {
     "defaultMessage": "URL",
     "description": "Issue Sheet link kind for an external URL"
@@ -13114,10 +13058,6 @@
   "qcbg+R1kQS": {
     "defaultMessage": "Failed to load jobs.",
     "description": "Fallback error description when no API message is available"
-  },
-  "qd3kyaecwA": {
-    "defaultMessage": "Data processed",
-    "description": "Subprocessors table column header for data categories"
   },
   "qd8sDGeNiM": {
     "defaultMessage": "Failed to load in-context preview from the provider.",
@@ -14367,10 +14307,6 @@
     "defaultMessage": "Starting…",
     "description": "Button label while attaching a subscription plan"
   },
-  "vny7NGboKv": {
-    "defaultMessage": "View subprocessors",
-    "description": "Button that scrolls to the subprocessors section on the Trust Center page"
-  },
   "vp6YtfmYlV": {
     "defaultMessage": "Format & QA warning ({count, plural, one {# issue} other {# issues}})",
     "description": "Accessible label for side-by-side format check warning icon"
@@ -14418,10 +14354,6 @@
   "vytBTgUTFc": {
     "defaultMessage": "Add",
     "description": "Button to add a custom target locale"
-  },
-  "w+fJWojETe": {
-    "defaultMessage": "Contact us for current security information, vendor review questions, or certification roadmap details, including data processing agreement requests.",
-    "description": "Call-to-action description at the bottom of the Trust Center page"
   },
   "w+rjynq1UP": {
     "defaultMessage": "Connect Crowdin, Phrase, Smartling, or Lokalise from Integrations to sync translation memories into this workspace.",
@@ -15334,10 +15266,6 @@
   "zVJ4tC5vy1": {
     "defaultMessage": "Add connection",
     "description": "Button to add a new Ahrefs connection"
-  },
-  "zVPPsHIMWR": {
-    "defaultMessage": "Trust Center",
-    "description": "Open Graph heading for the Trust Center page"
   },
   "zVPm5FkS3L": {
     "defaultMessage": "Switch LLM providers without workflow redesign",

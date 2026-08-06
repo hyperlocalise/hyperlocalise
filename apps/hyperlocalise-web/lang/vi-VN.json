@@ -186,7 +186,7 @@
     "defaultMessage": "ICU"
   },
   "/01Ugx/idi": {
-    "defaultMessage": "Member"
+    "defaultMessage": "Thành viên"
   },
   "/0FWG2SoFG": {
     "defaultMessage": "{displayName} đã được lưu. Kết nối token Crowdin của bạn để tiếp tục."
@@ -393,7 +393,7 @@
     "defaultMessage": "Tăng trưởng"
   },
   "01h5d0m29X": {
-    "defaultMessage": "Context of {source}"
+    "defaultMessage": "Ngữ cảnh của {source}"
   },
   "04TH5FBW4Q": {
     "defaultMessage": "Connect CLI & CI"
@@ -402,7 +402,7 @@
     "defaultMessage": "Hình ảnh sản phẩm thay thế"
   },
   "07NPIW0cJ3": {
-    "defaultMessage": "Clear filters"
+    "defaultMessage": "Xóa bộ lọc"
   },
   "07pTu6Ro98": {
     "defaultMessage": "Không giới hạn"
