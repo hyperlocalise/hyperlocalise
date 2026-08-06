@@ -298,7 +298,7 @@
 
 ## 2027-03-28 - Optimizing scoring evaluation text normalization and token counting
 **Learning:** In text scoring evaluators, high-volume string normalization and token counting often suffer from redundant allocation overhead (like chaining `strings.ToLower` and `strings.TrimSpace` on large volumes of segments) and regular expression parsing on strings without any placeholders/markup. Re-implementing normalization as a single-pass character loop, and shielding regular expressions behind simple signal-character checks (`Contains` and `ContainsAny`), yields massive performance boosts while preserving 100% functional equivalence.
-**Action:** Always combine normalization steps (lowercase, trim, punctuation removal) into single-pass loops with pre-allocated builders, and guard regular expressions behind cheap signal character checks in high-frequency evaluation contexts.
+**Action:** Always combine normalization steps (lowercase, trim, punctuation removal) or guard regular expressions behind cheap signal character checks in high-frequency evaluation contexts.
 
 ## 2027-04-05 - Zero-allocation XML fragment scanning for Android XML marshaling
 **Learning:** Initializing an `xml.Decoder` and allocating buffers to check XML well-formedness of translatable fragments (e.g. `<b>`, `<xliff:g ...>`) is highly CPU and allocation-intensive in sequential marshalers. Implementing a zero-allocation, single-pass fast-path scan using a small stack-allocated array (for tracking element index spans) allows verifying typical fragments instantly with zero allocations. If any complex syntax, unknown namespace, or malformed pattern is detected, it is completely safe to gracefully fall back to the slow, fully compliant `xml.Decoder`.
@@ -327,3 +327,7 @@
 ## 2027-05-02 - Eliminating redundant parsing of root object properties in JS/TS locale module parser
 **Learning:** In recursive nested structure flattening/extraction, parsing the entire root object start-to-end to extract properties can lead to a redundant secondary parsing pass when those properties are immediately flattened from scratch. Directly iterating over the already-parsed root properties list and flattening each element's value completely avoids this duplicate work, resulting in significant parsing and memory efficiency gains.
 **Action:** Updated `parseJSTSLocaleEntries` in `internal/i18n/translationfileparser/js_ts_locale_parser.go` to iterate over the parsed properties slice directly instead of invoking `flattenJSTSLocaleValue` on the entire object range. This reduced allocations by 104 per parse operation and achieved ~10.7% faster parsing.
+
+## 2027-05-10 - Optimizing brace placeholder scanning and pre-allocating scoring maps
+**Learning:** In scoring evaluators, running regular expressions like `bracePlaceholderPattern` repeatedly creates substantial CPU and memory allocation overhead. Replacing the regex with an optimized manual byte-scanning loop completely avoids regexp execution and allocation overhead for brace placeholders. Additionally, pre-allocating map capacities for `tokens` and `Details` based on signal characters or fixed sizes reduces resizing overhead.
+**Action:** Use manual byte-scanning loops to replace simple regex extraction in hot paths, and always pre-allocate maps when their lower bounds or capacities can be estimated.

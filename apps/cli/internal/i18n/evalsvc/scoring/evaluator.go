@@ -67,7 +67,8 @@ func NewEvaluator() *Evaluator {
 }
 
 func (e *Evaluator) Evaluate(source, translated, reference, targetLocale string, tags []string) Result {
-	result := Result{Details: map[string]float64{}}
+	// BOLT OPTIMIZATION: Pre-allocate Details map to prevent multiple map allocations.
+	result := Result{Details: make(map[string]float64, 8)}
 
 	srcTrimmed := strings.TrimSpace(source)
 	translatedTrimmed := strings.TrimSpace(translated)
@@ -336,7 +337,13 @@ func tagTokenCounts(s string) (map[string]int, int) {
 		return nil, 0
 	}
 
-	tokens := make(map[string]int)
+	// BOLT OPTIMIZATION: Precompute map capacity hint to prevent resizing/re-allocations.
+	capHint := strings.Count(s, "<") + strings.Count(s, "*") + strings.Count(s, "_") + strings.Count(s, "`")
+	if capHint < 4 {
+		capHint = 4
+	}
+
+	tokens := make(map[string]int, capHint)
 	total := 0
 	if strings.Contains(s, "<") {
 		for _, match := range htmlTagPattern.FindAllString(s, -1) {
@@ -484,9 +491,53 @@ func placeholderTokenCounts(s string, inv icuparser.Invariant, err error) (map[s
 	}
 	// BOLT OPTIMIZATION: Avoid running regex if the signal characters are not present.
 	if strings.Contains(s, "{") {
-		for _, match := range bracePlaceholderPattern.FindAllStringSubmatch(s, -1) {
-			tokens["brace:"+match[1]]++
-			total++
+		for i := 0; i < len(s); {
+			idx := strings.IndexByte(s[i:], '{')
+			if idx < 0 {
+				break
+			}
+			start := i + idx
+
+			endIdx := strings.IndexByte(s[start:], '}')
+			if endIdx < 0 {
+				break
+			}
+			end := start + endIdx
+
+			content := s[start+1 : end]
+
+			j := 0
+			for j < len(content) && isWhitespace(content[j]) {
+				j++
+			}
+
+			if j < len(content) {
+				first := content[j]
+				if (first >= 'a' && first <= 'z') || (first >= 'A' && first <= 'Z') || first == '_' || first == '$' {
+					identStart := j
+					j++
+					for j < len(content) {
+						c := content[j]
+						if (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_' || c == '.' || c == '$' || c == '-' {
+							j++
+						} else {
+							break
+						}
+					}
+					identEnd := j
+
+					for j < len(content) && isWhitespace(content[j]) {
+						j++
+					}
+
+					if j == len(content) {
+						ident := content[identStart:identEnd]
+						tokens["brace:"+ident]++
+						total++
+					}
+				}
+			}
+			i = start + 1
 		}
 	}
 	if strings.Contains(s, "%") {
@@ -632,4 +683,8 @@ func min(a, b int) int {
 		return a
 	}
 	return b
+}
+
+func isWhitespace(ch byte) bool {
+	return ch == ' ' || ch == '\t' || ch == '\n' || ch == '\r' || ch == '\v' || ch == '\f'
 }
