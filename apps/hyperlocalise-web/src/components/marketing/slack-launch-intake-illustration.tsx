@@ -239,9 +239,6 @@ export function SlackLaunchIntakeIllustration({
   const initialPrompt = intl.formatMessage(slackLaunchIntakeIllustrationMessages.channelPrompt, {
     mention: `@${agentName}`,
   });
-  const followUpPrompt = intl.formatMessage(
-    slackLaunchIntakeIllustrationMessages.agentSummaryOutro,
-  );
   const mayaFollowUp = intl.formatMessage(slackLaunchIntakeIllustrationMessages.userFollowUp);
   const threadRef = useRef<HTMLDivElement>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -536,7 +533,7 @@ export function SlackLaunchIntakeIllustration({
             onFollowUp={handleFollowUpPrompt}
             isDone={isDone}
             onReset={handleReset}
-            followUpPrompt={followUpPrompt}
+            followUpPrompt={mayaFollowUp}
           />
         </motion.aside>
       )}
