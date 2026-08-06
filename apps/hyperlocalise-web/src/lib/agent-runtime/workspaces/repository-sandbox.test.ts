@@ -11,10 +11,12 @@
  * Version 2.0 or later.
  */
 import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
+import { APIError } from "@vercel/sandbox";
 
 const sandboxGetMock = vi.hoisted(() => vi.fn());
 
-vi.mock("@vercel/sandbox", () => ({
+vi.mock("@vercel/sandbox", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@vercel/sandbox")>()),
   Sandbox: {
     get: sandboxGetMock,
   },
@@ -44,13 +46,15 @@ describe("isRepositorySandboxAvailable", () => {
   });
 
   it("reports a deleted stored sandbox as unavailable", async () => {
-    sandboxGetMock.mockRejectedValueOnce(
-      Object.assign(new Error("Sandbox not found"), {
-        status: 404,
-        code: "not_found",
-      }),
-    );
+    sandboxGetMock.mockRejectedValueOnce(new APIError(new Response(null, { status: 404 })));
 
     await expect(isRepositorySandboxAvailable("sandbox_deleted")).resolves.toBe(false);
+  });
+
+  it("does not replace a sandbox when the availability probe fails transiently", async () => {
+    const error = new APIError(new Response(null, { status: 503 }));
+    sandboxGetMock.mockRejectedValueOnce(error);
+
+    await expect(isRepositorySandboxAvailable("sandbox_existing")).rejects.toBe(error);
   });
 });

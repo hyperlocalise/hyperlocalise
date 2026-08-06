@@ -10,7 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { Sandbox } from "@vercel/sandbox";
+import { APIError, Sandbox } from "@vercel/sandbox";
 
 import type { RepositoryAgentGitHubContext } from "@/lib/agent-contracts/repository-task";
 import {
@@ -65,8 +65,11 @@ export async function isRepositorySandboxAvailable(sandboxId: string): Promise<b
   try {
     await Sandbox.get({ name: sandboxId, resume: false });
     return true;
-  } catch {
-    return false;
+  } catch (error) {
+    if (error instanceof APIError && error.response.status === 404) {
+      return false;
+    }
+    throw error;
   }
 }
 
