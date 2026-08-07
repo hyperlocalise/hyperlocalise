@@ -28,7 +28,7 @@ import { IssueDetailPanel } from "./issue-detail-panel";
 const issue = issueSheetIssuesFixture[0];
 
 const meta = {
-  title: "App/Issues/Detail",
+  title: "App/Issues/Detail Panel",
   component: IssueDetailPanel,
   decorators: [
     (Story) => (
@@ -39,6 +39,12 @@ const meta = {
   ],
   parameters: {
     layout: "fullscreen",
+    nextjs: {
+      appDirectory: true,
+      navigation: {
+        pathname: `/org/${issueSheetOrganizationSlug}/projects/${issueSheetProjectId}/issue-sheet/${issue.id}`,
+      },
+    },
   },
   args: {
     organizationSlug: issueSheetOrganizationSlug,

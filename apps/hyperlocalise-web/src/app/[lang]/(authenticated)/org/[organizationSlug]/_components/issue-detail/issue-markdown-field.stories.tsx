@@ -23,7 +23,7 @@ const description = [
 ].join("\n");
 
 const meta = {
-  title: "App/Issues/Issue Markdown Field",
+  title: "App/Issues/Markdown Field",
   component: IssueMarkdownField,
   render: (args) => (
     <div className="max-w-2xl p-6">
