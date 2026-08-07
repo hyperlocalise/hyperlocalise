@@ -18,7 +18,9 @@ import { AppShellStoreProvider } from "@/components/app-shell/store/app-shell-st
 import {
   issueDetailColumnsErrorMswHandlers,
   issueDetailLoadingMswHandlers,
+  issueDetailManySubscribersMswHandlers,
   issueDetailNotFoundMswHandlers,
+  issueDetailNotSubscribedMswHandlers,
   issueSheetMswHandlers,
 } from "../../_components/issue-sheet-msw-handlers";
 import {
@@ -74,7 +76,38 @@ export const Default: Story = {
     await expect(canvas.getByText("Sprint")).toBeInTheDocument();
     await expect(canvas.getByText("Waiting on product copy review.")).toBeInTheDocument();
     await expect(canvas.getByRole("button", { name: "Open in CAT" })).toBeInTheDocument();
-    await expect(canvas.getByRole("button", { name: "Unsubscribe" })).toBeInTheDocument();
+    const unsubscribe = await canvas.findByRole("button", { name: "Unsubscribe" });
+    await expect(unsubscribe).toBeInTheDocument();
+    await expect(canvas.getByTitle("Mina Chen")).toBeInTheDocument();
+    await expect(canvas.getByTitle("Otto Klein")).toBeInTheDocument();
+    await expect(canvas.queryByRole("button", { name: "Notifications" })).not.toBeInTheDocument();
+  },
+};
+
+export const NotSubscribed: Story = {
+  parameters: {
+    msw: {
+      handlers: issueDetailNotSubscribedMswHandlers,
+    },
+  },
+  play: async ({ canvas }) => {
+    await expect(canvas.getByText("Source string needs context")).toBeInTheDocument();
+    await expect(await canvas.findByRole("button", { name: "Subscribe" })).toBeInTheDocument();
+    await expect(canvas.getByTitle("Mina Chen")).toBeInTheDocument();
+    await expect(canvas.getByTitle("Otto Klein")).toBeInTheDocument();
+  },
+};
+
+export const ManySubscribers: Story = {
+  parameters: {
+    msw: {
+      handlers: issueDetailManySubscribersMswHandlers,
+    },
+  },
+  play: async ({ canvas }) => {
+    await expect(await canvas.findByRole("button", { name: "Unsubscribe" })).toBeInTheDocument();
+    await expect(canvas.getByTitle("Aiko Tanaka")).toBeInTheDocument();
+    await expect(canvas.getByText("+2")).toBeInTheDocument();
   },
 };
 

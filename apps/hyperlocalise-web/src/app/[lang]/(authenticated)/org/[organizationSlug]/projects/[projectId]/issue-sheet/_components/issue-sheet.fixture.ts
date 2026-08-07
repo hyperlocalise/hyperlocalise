@@ -82,6 +82,25 @@ export const issueSheetSubscribersFixture: IssueSheetSubscriberFixture[] = [
   },
 ];
 
+export const issueSheetManySubscribersFixture: IssueSheetSubscriberFixture[] = [
+  ...issueSheetSubscribersFixture,
+  {
+    userId: "user_aiko",
+    displayName: "Aiko Tanaka",
+    avatarUrl: null,
+  },
+  {
+    userId: "user_jamal",
+    displayName: "Jamal Rivers",
+    avatarUrl: null,
+  },
+  {
+    userId: "user_leo",
+    displayName: "Leo Park",
+    avatarUrl: null,
+  },
+];
+
 export const issueSheetColumnsFixture: IssueSheetColumnFixture[] = [
   {
     id: "col_priority",

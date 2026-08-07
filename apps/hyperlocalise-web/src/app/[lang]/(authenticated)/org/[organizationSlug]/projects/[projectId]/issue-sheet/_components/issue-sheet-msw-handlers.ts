@@ -15,6 +15,7 @@ import { delay, http, HttpResponse } from "msw";
 import {
   issueSheetAssignableMembersFixture,
   issueSheetIssuesFixture,
+  issueSheetManySubscribersFixture,
   issueSheetProjectFixture,
   issueSheetResponseFixture,
   issueSheetSubscribersFixture,
@@ -171,6 +172,36 @@ export const issueSheetMswHandlers = [
     );
   }),
   ...issueSubscriptionHandlers,
+];
+
+export const issueDetailManySubscribersMswHandlers = [
+  http.get(`${issueSheetBasePath}/:issueId/subscriptions`, ({ params }) => {
+    const issue = issueSheetIssuesFixture.find((row) => row.id === params.issueId);
+    if (!issue) {
+      return HttpResponse.json({ error: "issue_not_found" }, { status: 404 });
+    }
+    return HttpResponse.json({ subscribers: issueSheetManySubscribersFixture });
+  }),
+  ...issueSheetMswHandlers,
+];
+
+export const issueDetailNotSubscribedMswHandlers = [
+  http.get(`${issueSheetBasePath}/:issueId`, ({ params }) => {
+    const issue = issueSheetIssuesFixture.find((row) => row.id === params.issueId);
+    if (!issue) {
+      return HttpResponse.json({ error: "issue_not_found" }, { status: 404 });
+    }
+    return HttpResponse.json({
+      issue: {
+        ...issue,
+        isWatching: false,
+      },
+    });
+  }),
+  http.get(`${issueSheetBasePath}/:issueId/subscriptions`, () =>
+    HttpResponse.json({ subscribers: issueSheetSubscribersFixture }),
+  ),
+  ...issueSheetMswHandlers,
 ];
 
 export const issueSheetEmptyMswHandlers = [

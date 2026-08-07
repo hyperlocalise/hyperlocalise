@@ -15,6 +15,7 @@ import { expect } from "storybook/test";
 
 import {
   issueDetailLoadingMswHandlers,
+  issueDetailNotSubscribedMswHandlers,
   issueDetailUnavailableMswHandlers,
   issueSheetMswHandlers,
 } from "../../projects/[projectId]/issue-sheet/_components/issue-sheet-msw-handlers";
@@ -62,9 +63,34 @@ export const Default: Story = {
     ).toBeInTheDocument();
     await expect(canvas.getByText("Linked context")).toBeInTheDocument();
     await expect(canvas.getByText("Owner note")).toBeInTheDocument();
+    const unsubscribe = await canvas.findByRole("button", { name: "Unsubscribe" });
+    await expect(unsubscribe).toBeInTheDocument();
+    await expect(canvas.getByTitle("Mina Chen")).toBeInTheDocument();
+    await expect(canvas.getByTitle("Otto Klein")).toBeInTheDocument();
+    const commentsEmptyState = canvas.getByText(
+      "No comments or activity yet. Start the discussion.",
+    );
+    await expect(commentsEmptyState).toBeVisible();
+    expect(
+      unsubscribe.compareDocumentPosition(commentsEmptyState) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  },
+};
+
+export const NotSubscribed: Story = {
+  parameters: {
+    msw: {
+      handlers: issueDetailNotSubscribedMswHandlers,
+    },
+  },
+  play: async ({ canvas }) => {
     await expect(
-      canvas.getByText("No comments or activity yet. Start the discussion."),
-    ).toBeVisible();
+      await canvas.findByDisplayValue("Source string needs context"),
+    ).toBeInTheDocument();
+    await expect(await canvas.findByRole("button", { name: "Subscribe" })).toBeInTheDocument();
+    await expect(canvas.getByTitle("Mina Chen")).toBeInTheDocument();
+    await expect(canvas.getByTitle("Otto Klein")).toBeInTheDocument();
+    await expect(canvas.queryByRole("button", { name: "Notifications" })).not.toBeInTheDocument();
   },
 };
 
