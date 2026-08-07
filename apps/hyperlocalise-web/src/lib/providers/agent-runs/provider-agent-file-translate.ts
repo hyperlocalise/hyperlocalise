@@ -210,30 +210,43 @@ function sandboxWorkFilename(fileId: string, basename: string): string {
   return `work_${sanitizeSandboxFilename(fileId)}_${sanitizeSandboxFilename(basename)}`;
 }
 
-/** Merge per-file prefills; drop keys that conflict across files for the same locale. */
+/**
+ * Merge per-file prefills for a single `hl run`. The CLI matches locale-keyed prefills on locale and
+ * entry key alone, so an entry key that more than one file in the batch owns is dropped instead of
+ * leaking one file's translation into another file that happens to reuse the same key.
+ */
 export function mergeLocaleKeyedPrefills(
-  filePrefills: Array<Record<string, Record<string, string>>>,
+  filePrefills: Array<{
+    entryKeys: Iterable<string>;
+    prefillsByLocale: Record<string, Record<string, string>>;
+  }>,
 ): Record<string, Record<string, string>> {
-  const merged: Record<string, Record<string, string>> = {};
-  const conflicts = new Set<string>();
+  const ownedKeysPerFile = filePrefills.map((file) => {
+    const owned = new Set(file.entryKeys);
+    for (const entries of Object.values(file.prefillsByLocale)) {
+      for (const key of Object.keys(entries)) {
+        owned.add(key);
+      }
+    }
+    return owned;
+  });
 
-  for (const byLocale of filePrefills) {
-    for (const [locale, entries] of Object.entries(byLocale)) {
+  const fileCountByEntryKey = new Map<string, number>();
+  for (const owned of ownedKeysPerFile) {
+    for (const key of owned) {
+      fileCountByEntryKey.set(key, (fileCountByEntryKey.get(key) ?? 0) + 1);
+    }
+  }
+
+  const merged: Record<string, Record<string, string>> = {};
+  for (const file of filePrefills) {
+    for (const [locale, entries] of Object.entries(file.prefillsByLocale)) {
       const localeMap = (merged[locale] ??= {});
       for (const [key, value] of Object.entries(entries)) {
-        const conflictKey = `${locale}\0${key}`;
-        if (conflicts.has(conflictKey)) {
+        if ((fileCountByEntryKey.get(key) ?? 0) > 1) {
           continue;
         }
-        const existing = localeMap[key];
-        if (existing === undefined) {
-          localeMap[key] = value;
-          continue;
-        }
-        if (existing !== value) {
-          delete localeMap[key];
-          conflicts.add(conflictKey);
-        }
+        localeMap[key] = value;
       }
     }
   }
@@ -743,7 +756,15 @@ export async function translateProviderJobFiles(input: {
           }
         }
 
-        const prefilledByLocale = mergeLocaleKeyedPrefills(filePrefills);
+        const prefilledByLocale = mergeLocaleKeyedPrefills(
+          preparedFiles.map((prepared, index) => ({
+            entryKeys: [
+              ...prepared.fileUnits.map((unit) => unit.key),
+              ...Object.keys(prepared.sourceEntries ?? {}),
+            ],
+            prefillsByLocale: filePrefills[index]!,
+          })),
+        );
 
         let batchFailed = false;
         try {
@@ -878,7 +899,11 @@ export async function translateProviderJobFiles(input: {
     filesProcessed,
   };
 
-  if (input.content.units.length > 0 && filesProcessed === 0) {
+  // Every source file being already fully translated is a healthy no-op, not a failed run.
+  const allSourceFilesAlreadyTranslated =
+    skippedFullyTranslatedCount > 0 && skippedFullyTranslatedCount === input.sourceFiles.length;
+
+  if (input.content.units.length > 0 && filesProcessed === 0 && !allSourceFilesAlreadyTranslated) {
     logger.warn(
       {
         ...logContext,

@@ -189,14 +189,42 @@ describe("isProviderFileFullyTranslated", () => {
 });
 
 describe("mergeLocaleKeyedPrefills", () => {
-  it("keeps identical values and drops conflicting keys", () => {
+  it("keeps prefills for keys owned by a single file", () => {
     expect(
       mergeLocaleKeyedPrefills([
-        { fr: { hello: "Bonjour", save: "Enregistrer" } },
-        { fr: { hello: "Bonjour", save: "Sauver" } },
+        { entryKeys: ["hello"], prefillsByLocale: { fr: { hello: "Bonjour" } } },
+        { entryKeys: ["bye"], prefillsByLocale: { fr: { bye: "Au revoir" } } },
       ]),
     ).toEqual({
-      fr: { hello: "Bonjour" },
+      fr: { hello: "Bonjour", bye: "Au revoir" },
+    });
+  });
+
+  it("drops keys shared by more than one file even when the values agree", () => {
+    expect(
+      mergeLocaleKeyedPrefills([
+        {
+          entryKeys: ["hello", "save"],
+          prefillsByLocale: { fr: { hello: "Bonjour", save: "Enregistrer" } },
+        },
+        {
+          entryKeys: ["hello", "save"],
+          prefillsByLocale: { fr: { hello: "Bonjour", save: "Sauver" } },
+        },
+      ]),
+    ).toEqual({
+      fr: {},
+    });
+  });
+
+  it("drops a key another file owns even when only one file has a prefill for it", () => {
+    expect(
+      mergeLocaleKeyedPrefills([
+        { entryKeys: ["title"], prefillsByLocale: { fr: { title: "Titre" } } },
+        { entryKeys: ["title"], prefillsByLocale: { fr: {} } },
+      ]),
+    ).toEqual({
+      fr: {},
     });
   });
 });
