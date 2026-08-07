@@ -40,7 +40,7 @@ const meta = {
   decorators: [
     (Story) => (
       <StoryProviders>
-        <div className="w-56 rounded-lg border border-border bg-muted/20 p-3">
+        <div className="w-full max-w-xl rounded-lg border border-border bg-background p-4">
           <Story />
         </div>
       </StoryProviders>
@@ -63,37 +63,39 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-export const Watching: Story = {
+export const Subscribed: Story = {
   args: {
     isWatching: true,
   },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await expect(canvas.getByRole("button", { name: "Watching" })).toBeInTheDocument();
+    await expect(canvas.getByRole("button", { name: "Unsubscribe" })).toBeInTheDocument();
+    await expect(canvas.getByTitle("Mina Chen")).toBeInTheDocument();
+    await expect(canvas.getByTitle("Otto Klein")).toBeInTheDocument();
   },
 };
 
-export const NotWatching: Story = {
+export const NotSubscribed: Story = {
   args: {
     isWatching: false,
   },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await expect(canvas.getByRole("button", { name: "Watch" })).toBeInTheDocument();
+    await expect(canvas.getByRole("button", { name: "Subscribe" })).toBeInTheDocument();
   },
 };
 
-export const ToggleWatch: Story = {
+export const ToggleSubscription: Story = {
   args: {
     isWatching: true,
   },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    const button = canvas.getByRole("button", { name: "Watching" });
+    const button = await canvas.findByRole("button", { name: "Unsubscribe" });
     await userEvent.click(button);
-    await expect(canvas.getByRole("button", { name: "Watch" })).toBeInTheDocument();
-    await userEvent.click(canvas.getByRole("button", { name: "Watch" }));
-    await expect(canvas.getByRole("button", { name: "Watching" })).toBeInTheDocument();
+    await expect(canvas.getByRole("button", { name: "Subscribe" })).toBeInTheDocument();
+    await userEvent.click(canvas.getByRole("button", { name: "Subscribe" }));
+    await expect(canvas.getByRole("button", { name: "Unsubscribe" })).toBeInTheDocument();
   },
 };
 
@@ -104,6 +106,6 @@ export const Disabled: Story = {
   },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await expect(canvas.getByRole("button", { name: "Watch" })).toBeDisabled();
+    await expect(canvas.getByRole("button", { name: "Subscribe" })).toBeDisabled();
   },
 };

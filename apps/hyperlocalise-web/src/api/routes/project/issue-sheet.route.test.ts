@@ -1380,4 +1380,34 @@ Second import issue,Done,EXT-2,P2`;
     );
     expect(duplicateWatch.status).toBe(201);
   });
+
+  it("lists issue subscribers", async () => {
+    const { identity, project } = await projectFixture.createStoredProjectFixture();
+    const headers = await projectFixture.authHeadersFor(identity);
+    const organizationSlug = identity.organization.slug ?? "missing-slug";
+
+    const createResponse = await requestJson(issueSheetUrl(organizationSlug, project.id), {
+      method: "POST",
+      headers,
+      body: {
+        title: "Subscribers test",
+        issueType: "general_question",
+      },
+    });
+    expect(createResponse.status).toBe(201);
+    const created = (await createResponse.json()) as IssueResponse;
+    const issueId = created.issue.id;
+
+    const subscribersResponse = await requestJson(
+      issueSheetUrl(organizationSlug, project.id, `/${issueId}/subscriptions`),
+      { headers },
+    );
+    expect(subscribersResponse.status).toBe(200);
+    const subscribersBody = (await subscribersResponse.json()) as {
+      subscribers: { userId: string; displayName: string; avatarUrl: string | null }[];
+    };
+    expect(subscribersBody.subscribers).toHaveLength(1);
+    expect(subscribersBody.subscribers[0]?.userId).toBeTruthy();
+    expect(subscribersBody.subscribers[0]?.displayName).toBeTruthy();
+  });
 });

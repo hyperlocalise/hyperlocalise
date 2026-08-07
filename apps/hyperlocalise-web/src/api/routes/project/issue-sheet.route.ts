@@ -274,6 +274,24 @@ export function createIssueSheetRoutes() {
       }
       return c.json({ issue }, 200);
     })
+    .get("/:issueId/subscriptions", validateIssueSheetIssueParams, async (c) => {
+      const params = c.req.valid("param");
+      const project = await requireProject(c, params.projectId);
+      if (!project) {
+        return projectNotFoundResponse(c);
+      }
+
+      const subscribers = await service.listIssueSubscribers({
+        organizationId: c.var.auth.organization.localOrganizationId,
+        projectId: project.id,
+        issueId: params.issueId,
+        actorUserId: c.var.auth.user.localUserId,
+      });
+      if (!subscribers) {
+        return notFoundResponse(c, "issue_not_found", "Issue not found");
+      }
+      return c.json({ subscribers }, 200);
+    })
     .post("/:issueId/subscription", validateIssueSheetIssueParams, async (c) => {
       const params = c.req.valid("param");
       const project = await requireProject(c, params.projectId);

@@ -198,6 +198,31 @@ describe("IssueSubscriptionService", () => {
     expect(watchers.has(outsiderUserId)).toBe(false);
   });
 
+  it("lists subscribers with display names", async () => {
+    const { actor, memberUserId, organization, project } = await createProjectWithMembers();
+    const issue = await issueSheetService.createIssue({
+      organizationId: organization.id,
+      projectId: project.id,
+      actorUserId: actor.id,
+      body: {
+        title: "List subscribers",
+        assigneeUserId: memberUserId,
+      },
+    });
+
+    const subscribers = await subscriptionService.listSubscribers({
+      organizationId: organization.id,
+      projectId: project.id,
+      issueId: issue.id,
+    });
+
+    expect(subscribers).toHaveLength(2);
+    expect(subscribers.map((subscriber) => subscriber.userId).sort()).toEqual(
+      [actor.id, memberUserId].sort(),
+    );
+    expect(subscribers.every((subscriber) => subscriber.displayName.length > 0)).toBe(true);
+  });
+
   it("removes subscriptions when the issue is deleted", async () => {
     const { actor, organization, project } = await createProjectWithMembers();
     const issue = await issueSheetService.createIssue({

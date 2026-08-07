@@ -23,6 +23,46 @@ import { IssueWatchControl } from "./issue-watch-control";
 const organizationSlug = "acme";
 const projectId = "project_website";
 const issueId = "issue_001";
+const subscribersPath = `/api/orgs/${organizationSlug}/projects/${projectId}/issue-sheet/${issueId}/subscriptions`;
+const subscriptionPath = `/api/orgs/${organizationSlug}/projects/${projectId}/issue-sheet/${issueId}/subscription`;
+
+const subscribersFixture = [
+  {
+    userId: "user_mina",
+    displayName: "Mina Chen",
+    avatarUrl: null,
+  },
+  {
+    userId: "user_otto",
+    displayName: "Otto Klein",
+    avatarUrl: null,
+  },
+];
+
+function mockFetch() {
+  return vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+    const url = String(input);
+    if (url === subscribersPath) {
+      return new Response(JSON.stringify({ subscribers: subscribersFixture }), { status: 200 });
+    }
+    if (url === subscriptionPath && init?.method === "DELETE") {
+      return new Response(null, { status: 204 });
+    }
+    if (url === subscriptionPath && init?.method === "POST") {
+      return new Response(
+        JSON.stringify({
+          subscription: {
+            issueId,
+            userId: "user_001",
+            createdAt: "2026-06-07T12:00:00.000Z",
+          },
+        }),
+        { status: 201 },
+      );
+    }
+    throw new Error(`Unexpected fetch: ${url} ${init?.method ?? "GET"}`);
+  });
+}
 
 function renderWatchControl(isWatching: boolean) {
   const queryClient = new QueryClient({
@@ -51,56 +91,52 @@ describe("IssueWatchControl", () => {
     vi.restoreAllMocks();
   });
 
-  it("renders Watching when subscribed", () => {
+  it("renders Unsubscribe when subscribed", async () => {
+    mockFetch();
     renderWatchControl(true);
-    expect(screen.getByRole("button", { name: "Watching" })).toBeInTheDocument();
-  });
-
-  it("renders Watch when not subscribed", () => {
-    renderWatchControl(false);
-    expect(screen.getByRole("button", { name: "Watch" })).toBeInTheDocument();
-  });
-
-  it("calls unwatch when clicking while watching", async () => {
-    const user = userEvent.setup();
-    const fetchMock = vi
-      .spyOn(globalThis, "fetch")
-      .mockResolvedValue(new Response(null, { status: 204 }));
-
-    renderWatchControl(true);
-    await user.click(screen.getByRole("button", { name: "Watching" }));
-
     await waitFor(() => {
-      expect(fetchMock).toHaveBeenCalledWith(
-        `/api/orgs/${organizationSlug}/projects/${projectId}/issue-sheet/${issueId}/subscription`,
-        { method: "DELETE" },
-      );
+      expect(screen.getByRole("button", { name: "Unsubscribe" })).toBeInTheDocument();
     });
   });
 
-  it("calls watch when clicking while not watching", async () => {
-    const user = userEvent.setup();
-    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
-      new Response(
-        JSON.stringify({
-          subscription: {
-            issueId,
-            userId: "user_001",
-            createdAt: "2026-06-07T12:00:00.000Z",
-          },
-        }),
-        { status: 201 },
-      ),
-    );
-
+  it("renders Subscribe when not subscribed", async () => {
+    mockFetch();
     renderWatchControl(false);
-    await user.click(screen.getByRole("button", { name: "Watch" }));
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Subscribe" })).toBeInTheDocument();
+    });
+  });
+
+  it("renders subscriber avatars", async () => {
+    mockFetch();
+    renderWatchControl(true);
+    await waitFor(() => {
+      expect(screen.getByTitle("Mina Chen")).toBeInTheDocument();
+      expect(screen.getByTitle("Otto Klein")).toBeInTheDocument();
+    });
+  });
+
+  it("calls unwatch when clicking while subscribed", async () => {
+    const user = userEvent.setup();
+    const fetchMock = mockFetch();
+
+    renderWatchControl(true);
+    await user.click(await screen.findByRole("button", { name: "Unsubscribe" }));
 
     await waitFor(() => {
-      expect(fetchMock).toHaveBeenCalledWith(
-        `/api/orgs/${organizationSlug}/projects/${projectId}/issue-sheet/${issueId}/subscription`,
-        { method: "POST" },
-      );
+      expect(fetchMock).toHaveBeenCalledWith(subscriptionPath, { method: "DELETE" });
+    });
+  });
+
+  it("calls watch when clicking while not subscribed", async () => {
+    const user = userEvent.setup();
+    const fetchMock = mockFetch();
+
+    renderWatchControl(false);
+    await user.click(await screen.findByRole("button", { name: "Subscribe" }));
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith(subscriptionPath, { method: "POST" });
     });
   });
 });

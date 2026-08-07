@@ -17,6 +17,7 @@ import {
   issueSheetIssuesFixture,
   issueSheetProjectFixture,
   issueSheetResponseFixture,
+  issueSheetSubscribersFixture,
 } from "./issue-sheet.fixture";
 
 const issueSheetBasePath = "/api/orgs/:organizationSlug/projects/:projectId/issue-sheet";
@@ -24,6 +25,23 @@ const issueSheetBasePath = "/api/orgs/:organizationSlug/projects/:projectId/issu
 const watchedIssueIds = new Set(
   issueSheetIssuesFixture.filter((issue) => issue.isWatching).map((issue) => issue.id),
 );
+
+const subscribersByIssueId = new Map<string, Set<string>>(
+  issueSheetIssuesFixture
+    .filter((issue) => issue.isWatching)
+    .map((issue) => [
+      issue.id,
+      new Set(issueSheetSubscribersFixture.map((subscriber) => subscriber.userId)),
+    ]),
+);
+
+function subscribersForIssue(issueId: string) {
+  const userIds = subscribersByIssueId.get(issueId);
+  if (!userIds || userIds.size === 0) {
+    return [];
+  }
+  return issueSheetSubscribersFixture.filter((subscriber) => userIds.has(subscriber.userId));
+}
 
 function issueWithWatchState(issue: (typeof issueSheetIssuesFixture)[number]) {
   return {
@@ -33,8 +51,19 @@ function issueWithWatchState(issue: (typeof issueSheetIssuesFixture)[number]) {
 }
 
 const issueSubscriptionHandlers = [
+  http.get(`${issueSheetBasePath}/:issueId/subscriptions`, ({ params }) => {
+    const issue = issueSheetIssuesFixture.find((row) => row.id === params.issueId);
+    if (!issue) {
+      return HttpResponse.json({ error: "issue_not_found" }, { status: 404 });
+    }
+    return HttpResponse.json({ subscribers: subscribersForIssue(String(params.issueId)) });
+  }),
   http.post(`${issueSheetBasePath}/:issueId/subscription`, ({ params }) => {
-    watchedIssueIds.add(String(params.issueId));
+    const issueId = String(params.issueId);
+    watchedIssueIds.add(issueId);
+    const subscribers = subscribersByIssueId.get(issueId) ?? new Set<string>();
+    subscribers.add("user_storybook");
+    subscribersByIssueId.set(issueId, subscribers);
     return HttpResponse.json(
       {
         subscription: {
@@ -47,7 +76,10 @@ const issueSubscriptionHandlers = [
     );
   }),
   http.delete(`${issueSheetBasePath}/:issueId/subscription`, ({ params }) => {
-    watchedIssueIds.delete(String(params.issueId));
+    const issueId = String(params.issueId);
+    watchedIssueIds.delete(issueId);
+    const subscribers = subscribersByIssueId.get(issueId);
+    subscribers?.delete("user_storybook");
     return new HttpResponse(null, { status: 204 });
   }),
 ];

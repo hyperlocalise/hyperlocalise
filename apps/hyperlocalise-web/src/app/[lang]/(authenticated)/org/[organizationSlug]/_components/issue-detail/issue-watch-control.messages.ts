@@ -15,20 +15,15 @@
 import { defineMessages } from "react-intl";
 
 export const issueWatchControlMessages = defineMessages({
-  fieldWatch: {
-    defaultMessage: "Notifications",
-    id: "lPWJxlAqbq",
-    description: "Label for the issue watch control in the detail sidebar",
-  },
-  watching: {
-    defaultMessage: "Watching",
-    id: "PrVMTdEIQS",
-    description: "Button label when the current user is subscribed to issue updates",
-  },
-  notWatching: {
-    defaultMessage: "Watch",
-    id: "V7gYPd0v2H",
+  subscribe: {
+    defaultMessage: "Subscribe",
+    id: "APXHAbBkYL",
     description: "Button label when the current user is not subscribed to issue updates",
+  },
+  unsubscribe: {
+    defaultMessage: "Unsubscribe",
+    id: "Lnk8Rz0vVt",
+    description: "Button label when the current user is subscribed to issue updates",
   },
   watchError: {
     defaultMessage: "Could not update watch settings",

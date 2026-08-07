@@ -10,8 +10,9 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { and, eq, inArray } from "drizzle-orm";
+import { and, asc, eq, inArray } from "drizzle-orm";
 
+import { formatMemberDisplayName } from "@/api/routes/member/member.shared";
 import { db, schema, type DatabaseClient } from "@/lib/database";
 import { ProjectServiceBase } from "@/lib/projects/project-service-base";
 
@@ -21,6 +22,12 @@ export type IssueSubscription = {
   issueId: string;
   userId: string;
   createdAt: string;
+};
+
+export type IssueSubscriber = {
+  userId: string;
+  displayName: string;
+  avatarUrl: string | null;
 };
 
 export class IssueSubscriptionService extends ProjectServiceBase {
@@ -199,6 +206,39 @@ export class IssueSubscriptionService extends ProjectServiceBase {
       userId: row.userId,
       createdAt: row.createdAt.toISOString(),
     };
+  }
+
+  async listSubscribers(input: {
+    organizationId: string;
+    projectId: string;
+    issueId: string;
+    database?: DatabaseClient;
+  }): Promise<IssueSubscriber[]> {
+    const database = input.database ?? this.database;
+    const rows = await database
+      .select({
+        userId: schema.issueSheetSubscriptions.userId,
+        firstName: schema.users.firstName,
+        lastName: schema.users.lastName,
+        email: schema.users.email,
+        avatarUrl: schema.users.avatarUrl,
+      })
+      .from(schema.issueSheetSubscriptions)
+      .innerJoin(schema.users, eq(schema.issueSheetSubscriptions.userId, schema.users.id))
+      .where(
+        and(
+          eq(schema.issueSheetSubscriptions.organizationId, input.organizationId),
+          eq(schema.issueSheetSubscriptions.projectId, input.projectId),
+          eq(schema.issueSheetSubscriptions.issueId, input.issueId),
+        ),
+      )
+      .orderBy(asc(schema.issueSheetSubscriptions.createdAt));
+
+    return rows.map((row) => ({
+      userId: row.userId,
+      displayName: formatMemberDisplayName(row),
+      avatarUrl: row.avatarUrl,
+    }));
   }
 
   async subscribedUserIdsForIssues(

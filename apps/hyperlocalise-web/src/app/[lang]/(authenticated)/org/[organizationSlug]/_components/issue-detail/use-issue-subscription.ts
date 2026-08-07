@@ -21,6 +21,7 @@ import { readApiResponseError } from "@/lib/api-error";
 import { issueWatchControlMessages as messages } from "./issue-watch-control.messages";
 import { issueSheetApiPath, type IssueDetailIssue } from "./issue-detail-utils";
 import { issueDetailQueryKey } from "./use-issue-detail-query";
+import { issueSubscribersQueryKey } from "./use-issue-subscribers-query";
 
 export function useIssueSubscriptionMutations({
   organizationSlug,
@@ -34,6 +35,7 @@ export function useIssueSubscriptionMutations({
   const intl = useIntl();
   const queryClient = useQueryClient();
   const detailKey = issueDetailQueryKey(organizationSlug, projectId, issueId);
+  const subscribersKey = issueSubscribersQueryKey(organizationSlug, projectId, issueId);
   const basePath = `${issueSheetApiPath(organizationSlug, projectId)}/${issueId}/subscription`;
 
   const setWatching = (isWatching: boolean) => {
@@ -58,6 +60,7 @@ export function useIssueSubscriptionMutations({
     },
     onSettled: () => {
       void queryClient.invalidateQueries({ queryKey: detailKey });
+      void queryClient.invalidateQueries({ queryKey: subscribersKey });
     },
   });
 
@@ -77,6 +80,7 @@ export function useIssueSubscriptionMutations({
     },
     onSettled: () => {
       void queryClient.invalidateQueries({ queryKey: detailKey });
+      void queryClient.invalidateQueries({ queryKey: subscribersKey });
     },
   });
 

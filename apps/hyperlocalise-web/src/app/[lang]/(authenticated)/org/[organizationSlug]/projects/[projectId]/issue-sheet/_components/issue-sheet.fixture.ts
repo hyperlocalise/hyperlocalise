@@ -63,6 +63,25 @@ export type IssueSheetIssueFixture = {
   isWatching: boolean;
 };
 
+export type IssueSheetSubscriberFixture = {
+  userId: string;
+  displayName: string;
+  avatarUrl: string | null;
+};
+
+export const issueSheetSubscribersFixture: IssueSheetSubscriberFixture[] = [
+  {
+    userId: "user_mina",
+    displayName: "Mina Chen",
+    avatarUrl: null,
+  },
+  {
+    userId: "user_otto",
+    displayName: "Otto Klein",
+    avatarUrl: null,
+  },
+];
+
 export const issueSheetColumnsFixture: IssueSheetColumnFixture[] = [
   {
     id: "col_priority",

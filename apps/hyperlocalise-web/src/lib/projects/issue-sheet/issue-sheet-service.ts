@@ -1460,6 +1460,20 @@ export class IssueSheetService {
     return true;
   }
 
+  async listIssueSubscribers(input: {
+    organizationId: string;
+    projectId: string;
+    issueId: string;
+    actorUserId: string;
+  }) {
+    const issue = await this.getIssueById(input);
+    if (!issue) {
+      return null;
+    }
+
+    return issueSubscriptionService.listSubscribers(input);
+  }
+
   private async getIssueById(input: {
     organizationId: string;
     projectId: string;

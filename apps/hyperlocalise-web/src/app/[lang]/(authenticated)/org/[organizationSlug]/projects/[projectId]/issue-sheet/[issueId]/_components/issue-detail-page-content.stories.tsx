@@ -74,7 +74,7 @@ export const Default: Story = {
     await expect(canvas.getByText("Sprint")).toBeInTheDocument();
     await expect(canvas.getByText("Waiting on product copy review.")).toBeInTheDocument();
     await expect(canvas.getByRole("button", { name: "Open in CAT" })).toBeInTheDocument();
-    await expect(canvas.getByRole("button", { name: "Watching" })).toBeInTheDocument();
+    await expect(canvas.getByRole("button", { name: "Unsubscribe" })).toBeInTheDocument();
   },
 };
 
