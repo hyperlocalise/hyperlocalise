@@ -32,6 +32,7 @@ import {
   type IssueSheetColumn,
   type IssueSheetService,
 } from "./issue-sheet-service";
+import { issueSubscriptionService } from "./issue-subscription-service";
 
 export type IssueSheetImportResult = {
   dryRun: boolean;
@@ -470,6 +471,14 @@ export async function runIssueSheetCsvImport(
           createdAt: new Date(activityCreatedAt.getTime() + 1),
         });
       }
+
+      await issueSubscriptionService.subscribeMany({
+        organizationId: input.organizationId,
+        projectId: input.projectId,
+        issueId: issue.id,
+        userIds: [input.actorUserId, ...(row.assigneeUserId ? [row.assigneeUserId] : [])],
+        database: tx,
+      });
 
       for (const value of row.customValues) {
         const column = columnByKey.get(value.columnKey);

@@ -21,6 +21,7 @@ import { db, schema } from "@/lib/database";
 
 import { runIssueSheetCsvImport } from "./issue-sheet-csv-import-runner";
 import { IssueSheetService } from "./issue-sheet-service";
+import { issueSubscriptionService } from "./issue-subscription-service";
 
 const projectFixture = createProjectTestFixture();
 
@@ -220,5 +221,17 @@ Check copy,missing-assignee@example.com,Low`,
       assigneeUserId: null,
       values: { imported_severity: "Low" },
     });
+
+    const assignedIssueSubscriptions = await issueSubscriptionService.resolveWatchers(
+      assignedIssue!.id,
+    );
+    expect(assignedIssueSubscriptions.has(user.id)).toBe(true);
+    expect(assignedIssueSubscriptions.has(assigneeUser.id)).toBe(true);
+
+    const unassignedIssueSubscriptions = await issueSubscriptionService.resolveWatchers(
+      unassignedIssue!.id,
+    );
+    expect(unassignedIssueSubscriptions.has(user.id)).toBe(true);
+    expect(unassignedIssueSubscriptions.has(assigneeUser.id)).toBe(false);
   });
 });

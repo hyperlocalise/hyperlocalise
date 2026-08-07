@@ -464,6 +464,14 @@ export class IssueSheetCommentService extends ProjectServiceBase {
       return { ok: false, error: { code: "comment_not_found" } };
     }
 
+    await issueSubscriptionService.subscribeMany({
+      organizationId: input.organizationId,
+      projectId: input.projectId,
+      issueId: input.issueId,
+      userIds: mentionedUserIds,
+      requireProjectAccess: true,
+    });
+
     return {
       ok: true,
       value: mapIssueSheetCommentRow(row, { userId: input.actorUserId, role: input.role }),
