@@ -508,6 +508,7 @@ export class CatWorkspaceOrchestrator {
       meta,
       draft: this.drafts.get(segmentId),
       comments: this.segmentComments.get(segmentId),
+      openIssueCount: this.segments.openIssueCounts.get(segmentId),
       intelligence: this.segmentIntelligence[segmentId],
     });
   }
@@ -517,6 +518,11 @@ export class CatWorkspaceOrchestrator {
   }
 
   segmentHasOpenIssues(segmentId: string) {
+    const openFromSheet = (this.segments.openIssueCounts.get(segmentId) ?? 0) > 0;
+    if (openFromSheet) {
+      return true;
+    }
+
     return (
       this.segmentComments
         .get(segmentId)
@@ -813,13 +819,29 @@ export class CatWorkspaceOrchestrator {
     const mappedComments = mapSegmentComments(comments);
     this.segmentComments.set(segmentId, mappedComments);
 
-    const hasOpenIssues = mappedComments.some(
-      (comment) => comment.type === "issue" && isOpenIssueStatus(comment.status),
-    );
+    const hasOpenIssues = this.segmentHasOpenIssues(segmentId);
     const draft = this.drafts.get(segmentId);
     if (
       draft &&
       hasOpenIssues &&
+      draft.status !== "reviewed" &&
+      this.localStatusOverrides.get(segmentId) !== "skipped"
+    ) {
+      draft.applyServerStatus("needs_review");
+    }
+  }
+
+  applySegmentOpenIssueCount(segmentId: string, openIssueCount: number) {
+    if (!this.segmentMeta.has(segmentId)) {
+      return;
+    }
+
+    this.segments.openIssueCounts.set(segmentId, openIssueCount);
+
+    const draft = this.drafts.get(segmentId);
+    if (
+      draft &&
+      openIssueCount > 0 &&
       draft.status !== "reviewed" &&
       this.localStatusOverrides.get(segmentId) !== "skipped"
     ) {
@@ -845,6 +867,7 @@ export class CatWorkspaceOrchestrator {
   ) {
     this.segmentMeta.clear();
     this.segmentComments.clear();
+    this.segments.openIssueCounts.clear();
     this.drafts.clear();
     this.hydratedTargetSegmentIds = new Set();
     this.locallyCommittedTargetTexts = new Map();
@@ -862,6 +885,7 @@ export class CatWorkspaceOrchestrator {
   ) {
     this.segmentMeta.clear();
     this.segmentComments.clear();
+    this.segments.openIssueCounts.clear();
     this.drafts.clear();
     this.hydratedTargetSegmentIds = new Set();
     this.locallyCommittedTargetTexts = new Map();
@@ -873,6 +897,9 @@ export class CatWorkspaceOrchestrator {
       this.hydratedTargetSegmentIds.add(segment.id);
       if (segment.comments !== undefined) {
         this.segmentComments.set(segment.id, segment.comments);
+      }
+      if (segment.hasOpenIssues) {
+        this.segments.openIssueCounts.set(segment.id, 1);
       }
       if (segment.targetText.trim() || segment.status !== "pending") {
         this.drafts.set(
@@ -917,6 +944,7 @@ export class CatWorkspaceOrchestrator {
           this.drafts.delete(segmentId);
           this.segmentMeta.delete(segmentId);
           this.segmentComments.delete(segmentId);
+          this.segments.openIssueCounts.delete(segmentId);
           this.hydratedTargetSegmentIds.delete(segmentId);
           this.locallyCommittedTargetTexts.delete(segmentId);
           this.preSaveTargetTexts.delete(segmentId);
@@ -1016,6 +1044,7 @@ export class CatWorkspaceOrchestrator {
     this.queue.remove(segmentId);
     this.drafts.delete(segmentId);
     this.segmentComments.delete(segmentId);
+    this.segments.openIssueCounts.delete(segmentId);
     this.hydratedTargetSegmentIds.delete(segmentId);
     this.locallyCommittedTargetTexts.delete(segmentId);
     this.preSaveTargetTexts.delete(segmentId);

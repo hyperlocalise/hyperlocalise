@@ -147,13 +147,12 @@ function translationKeysQueueFilterCondition(input: {
     case "has_issues":
       return sql`exists (
         select 1
-        from ${schema.projectTranslationComments}
-        where ${schema.projectTranslationComments.translationKeyId} = ${schema.projectTranslationKeys.id}
-          and ${schema.projectTranslationComments.organizationId} = ${input.organizationId}
-          and ${schema.projectTranslationComments.projectId} = ${input.projectId}
-          and ${schema.projectTranslationComments.targetLocale} = ${input.targetLocale}
-          and ${schema.projectTranslationComments.type} = 'issue'
-          and ${schema.projectTranslationComments.status} = 'unresolved'
+        from ${schema.issueSheetIssues}
+        where ${schema.issueSheetIssues.translationKeyId} = ${schema.projectTranslationKeys.id}
+          and ${schema.issueSheetIssues.organizationId} = ${input.organizationId}
+          and ${schema.issueSheetIssues.projectId} = ${input.projectId}
+          and ${schema.issueSheetIssues.targetLocale} = ${input.targetLocale}
+          and ${schema.issueSheetIssues.status} in ('open', 'in_progress')
       )`;
     default:
       return undefined;

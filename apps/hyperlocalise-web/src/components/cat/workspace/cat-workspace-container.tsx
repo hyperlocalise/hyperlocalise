@@ -87,6 +87,7 @@ export interface CatWorkspaceContainerProps {
   canLookupFreshContext?: boolean;
   onPageLimitChange?: (pageLimit: number) => void;
   pageNavigationGuardRef?: CatPageNavigationGuardRef;
+  nativeIssuesEnabled?: boolean;
 }
 
 const CatWorkspaceContainerObserver = observer(function CatWorkspaceContainerObserver({
@@ -115,6 +116,7 @@ const CatWorkspaceContainerObserver = observer(function CatWorkspaceContainerObs
   buildSegmentShareUrl,
   canLookupFreshContext,
   onPageLimitChange,
+  nativeIssuesEnabled = false,
 }: CatWorkspaceContainerProps & { store: CatWorkspaceOrchestrator }) {
   const controller = useCatWorkspaceRuntime({
     store,
@@ -207,6 +209,9 @@ const CatWorkspaceContainerObserver = observer(function CatWorkspaceContainerObs
           isBulkActionPending={store.isBulkActionPending}
           buildSegmentShareUrl={controller.resolvedBuildSegmentShareUrl}
           onIntelligencePanelVisible={controller.handleIntelligencePanelVisible}
+          organizationSlug={lazySegment?.organizationSlug}
+          projectId={lazySegment?.projectId}
+          nativeIssuesEnabled={nativeIssuesEnabled}
         />
       </CatPanelErrorBoundary>
 

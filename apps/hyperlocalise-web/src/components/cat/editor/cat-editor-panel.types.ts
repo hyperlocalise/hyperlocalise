@@ -51,6 +51,21 @@ export type CatEditorPanelProps = {
   onAddComment?: (input: CatSegmentCommentInput) => void | Promise<void>;
   onAddToIssueSheet?: () => void | Promise<void>;
   onResolveComment?: (commentId: string) => void | Promise<void>;
+  organizationSlug?: string;
+  projectId?: string;
+  nativeIssuesEnabled?: boolean;
+  translationKeyId?: string | null;
+  issueStringLink?: {
+    segmentId: string;
+    sourcePath: string;
+    targetLocale: string;
+    translationKeyId?: string;
+    defaultTitle?: string;
+    defaultDescription?: string;
+    linkUrl?: string;
+    linkLabel?: string;
+  } | null;
+  onNativeOpenIssueCountChange?: (openIssueCount: number) => void;
   primaryActionLabel?: string;
   onAskQuestion: () => void;
   onGenerateAiRecommendation?: () => void;

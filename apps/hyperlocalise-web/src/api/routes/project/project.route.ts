@@ -26,7 +26,6 @@ import {
   notFoundResponse,
   serviceUnavailableResponse,
 } from "@/api/errors";
-import { isWorkspaceFeatureFlagEnabled } from "@/api/middleware/workspace-feature-flag";
 import { translationsNotFoundResponse } from "@/api/routes/public-translations/public-translations.shared";
 import {
   withWorkspaceResourceLimit,
@@ -38,7 +37,6 @@ import { db, schema, type DatabaseClient } from "@/lib/database";
 import type { Project } from "@/lib/database/types";
 import { getFileStorageAdapter, type FileStorageAdapter } from "@/lib/file-storage";
 import { isReleaseCatAllFilesEnabled } from "@/lib/flags/release-flags";
-import { workspaceIssuesFlag } from "@/lib/flags/workspace-flags";
 import { createLogger } from "@/lib/log";
 import {
   createRepositorySourceFileVersion,
@@ -67,15 +65,10 @@ import {
   getNativeProjectCatFile,
   getNativeProjectCatSegmentComments,
   getNativeProjectCatSegmentTarget,
-  resolveNativeProjectCatComment,
   saveNativeProjectCatComment,
   saveNativeProjectCatTranslation,
   updateNativeProjectTranslationStatus,
 } from "@/lib/projects/cat/native-cat-service";
-import {
-  maybeCreateIssueSheetFromNativeCatIssueComment,
-  maybeResolveIssueSheetFromNativeCatIssueComment,
-} from "@/lib/projects/cat/native-cat-issue-sheet";
 import {
   enrichExternalCatFileImageFields,
   enrichExternalCatTranslationImageFields,
@@ -161,11 +154,7 @@ import { ensureOrganizationProjectRecord } from "@/lib/projects/organization/org
 import { normalizeProjectId } from "@/lib/projects/identity/project-id";
 import { parseProviderProjectId } from "@/lib/providers/jobs/tms-provider-resource-id";
 
-import {
-  isAiActionAllowed,
-  isReviewApproveAllowed,
-  isWriteBackTranslationAllowed,
-} from "@/api/auth/capability-guards";
+import { isAiActionAllowed, isWriteBackTranslationAllowed } from "@/api/auth/capability-guards";
 import {
   buildAccessibleProjectsWhere,
   projectForbiddenResponse,
@@ -1112,6 +1101,14 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
             return projectNotFoundResponse(c);
           }
 
+          if (body.type === "issue") {
+            return badRequestResponse(
+              c,
+              "native_cat_issue_unsupported",
+              "Native CAT issues are tracked in Issues. Create an issue from the Issues section.",
+            );
+          }
+
           const comment = await saveNativeProjectCatComment({
             organizationId: c.var.auth.organization.localOrganizationId,
             projectId: params.projectId,
@@ -1119,8 +1116,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
             targetLocale: body.targetLocale,
             translationKeyId: body.externalStringId,
             text: body.text,
-            type: body.type,
-            issueType: body.issueType,
+            type: "comment",
             actorUserId: c.var.auth.user.localUserId,
           });
 
@@ -1130,26 +1126,6 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
               "translation_key_not_found",
               "Translation key not found for the given file.",
             );
-          }
-
-          if (body.type === "issue") {
-            const issuesEnabled = await isWorkspaceFeatureFlagEnabled(
-              workspaceIssuesFlag,
-              c.var.auth,
-            );
-            await maybeCreateIssueSheetFromNativeCatIssueComment({
-              organizationId: c.var.auth.organization.localOrganizationId,
-              organizationSlug:
-                c.var.auth.organization.slug ?? c.var.auth.organization.localOrganizationId,
-              projectId: params.projectId,
-              actorUserId: c.var.auth.user.localUserId,
-              sourcePath: body.sourcePath,
-              targetLocale: body.targetLocale,
-              translationKeyId: body.externalStringId,
-              issueType: body.issueType,
-              comment,
-              issuesEnabled,
-            });
           }
 
           return c.json({ comment }, 200);
@@ -1197,35 +1173,11 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
         }
 
         if (target.kind !== "provider") {
-          const project = await getOwnedProject(c.var.auth, params.projectId);
-          if (!project) {
-            return projectNotFoundResponse(c);
-          }
-
-          const comment = await resolveNativeProjectCatComment({
-            organizationId: c.var.auth.organization.localOrganizationId,
-            projectId: params.projectId,
-            commentId: params.commentId,
-            actorUserId: c.var.auth.user.localUserId,
-            canResolveOthersIssues: isReviewApproveAllowed(c.var.auth.membership.role),
-          });
-
-          if (!comment) {
-            return badRequestResponse(
-              c,
-              "comment_not_found",
-              "Comment not found or not resolvable.",
-            );
-          }
-
-          await maybeResolveIssueSheetFromNativeCatIssueComment({
-            organizationId: c.var.auth.organization.localOrganizationId,
-            projectId: params.projectId,
-            actorUserId: c.var.auth.user.localUserId,
-            linkedCommentId: comment.externalCommentId,
-          });
-
-          return c.json({ comment }, 200);
+          return badRequestResponse(
+            c,
+            "native_cat_issue_unsupported",
+            "Native CAT issues are tracked in Issues. Resolve them from the Issues section.",
+          );
         }
 
         try {

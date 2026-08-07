@@ -127,6 +127,7 @@ export class NativeCatCommentService extends ProjectServiceBase {
           eq(schema.projectTranslationComments.organizationId, input.organizationId),
           eq(schema.projectTranslationComments.projectId, input.projectId),
           eq(schema.projectTranslationComments.targetLocale, input.targetLocale),
+          eq(schema.projectTranslationComments.type, "comment"),
           inArray(schema.projectTranslationComments.translationKeyId, input.translationKeyIds),
         ),
       )
@@ -154,6 +155,10 @@ export class NativeCatCommentService extends ProjectServiceBase {
     issueType?: string;
     actorUserId?: string;
   }): Promise<ProjectFileCatComment | null> {
+    if (input.type === "issue") {
+      return null;
+    }
+
     const sourceFile = await this.translations.getRepositorySourceFileByPath({
       organizationId: input.organizationId,
       projectId: input.projectId,
@@ -181,7 +186,6 @@ export class NativeCatCommentService extends ProjectServiceBase {
       return null;
     }
 
-    const commentType = input.type ?? "comment";
     const authorFields = input.actorUserId
       ? await fetchCommentAuthorFields(this.database, input.actorUserId)
       : {
@@ -197,10 +201,10 @@ export class NativeCatCommentService extends ProjectServiceBase {
         projectId: input.projectId,
         translationKeyId: key.id,
         targetLocale: input.targetLocale,
-        type: commentType,
-        status: commentType === "issue" ? "unresolved" : null,
+        type: "comment",
+        status: null,
         text: input.text,
-        issueType: commentType === "issue" ? (input.issueType ?? "general_question") : null,
+        issueType: null,
         authorUserId: input.actorUserId ?? null,
       })
       .returning({
@@ -221,7 +225,7 @@ export class NativeCatCommentService extends ProjectServiceBase {
         organizationId: input.organizationId,
         projectId: input.projectId,
         translationKeyId: input.translationKeyId,
-        commentType,
+        commentType: "comment",
       },
       "saved native CAT comment",
     );
@@ -229,88 +233,6 @@ export class NativeCatCommentService extends ProjectServiceBase {
     return toCatComment({
       ...saved,
       ...authorFields,
-    });
-  }
-
-  async resolve(input: {
-    organizationId: string;
-    projectId: string;
-    commentId: string;
-    actorUserId?: string;
-    canResolveOthersIssues?: boolean;
-  }): Promise<ProjectFileCatComment | null> {
-    const [existing] = await this.database
-      .select({
-        id: schema.projectTranslationComments.id,
-        type: schema.projectTranslationComments.type,
-        status: schema.projectTranslationComments.status,
-        text: schema.projectTranslationComments.text,
-        createdAt: schema.projectTranslationComments.createdAt,
-        targetLocale: schema.projectTranslationComments.targetLocale,
-        authorUserId: schema.projectTranslationComments.authorUserId,
-        authorFirstName: schema.users.firstName,
-        authorLastName: schema.users.lastName,
-        authorEmail: schema.users.email,
-      })
-      .from(schema.projectTranslationComments)
-      .leftJoin(schema.users, eq(schema.projectTranslationComments.authorUserId, schema.users.id))
-      .where(
-        and(
-          eq(schema.projectTranslationComments.id, input.commentId),
-          eq(schema.projectTranslationComments.organizationId, input.organizationId),
-          eq(schema.projectTranslationComments.projectId, input.projectId),
-        ),
-      )
-      .limit(1);
-
-    if (!existing || existing.type !== "issue" || existing.status === "resolved") {
-      return null;
-    }
-
-    if (
-      input.actorUserId &&
-      existing.authorUserId &&
-      existing.authorUserId !== input.actorUserId &&
-      !input.canResolveOthersIssues
-    ) {
-      return null;
-    }
-
-    const [updated] = await this.database
-      .update(schema.projectTranslationComments)
-      .set({
-        status: "resolved",
-        updatedAt: new Date(),
-      })
-      .where(eq(schema.projectTranslationComments.id, existing.id))
-      .returning({
-        id: schema.projectTranslationComments.id,
-        type: schema.projectTranslationComments.type,
-        status: schema.projectTranslationComments.status,
-        text: schema.projectTranslationComments.text,
-        createdAt: schema.projectTranslationComments.createdAt,
-        targetLocale: schema.projectTranslationComments.targetLocale,
-      });
-
-    if (!updated) {
-      return null;
-    }
-
-    this.log.debug(
-      {
-        organizationId: input.organizationId,
-        projectId: input.projectId,
-        commentId: input.commentId,
-        actorUserId: input.actorUserId ?? null,
-      },
-      "resolved native CAT issue comment",
-    );
-
-    return toCatComment({
-      ...updated,
-      authorFirstName: existing.authorFirstName,
-      authorLastName: existing.authorLastName,
-      authorEmail: existing.authorEmail,
     });
   }
 }

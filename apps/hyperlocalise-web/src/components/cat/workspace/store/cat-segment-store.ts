@@ -18,6 +18,7 @@ import { CatSegmentDraft } from "./cat-segment-draft";
 
 export class CatSegmentStore {
   comments = new Map<string, CatSegmentComment[]>();
+  openIssueCounts = new Map<string, number>();
   drafts = new Map<string, CatSegmentDraft>();
 
   isTargetLoading = false;
@@ -55,6 +56,7 @@ export class CatSegmentStore {
 
   clear() {
     this.comments.clear();
+    this.openIssueCounts.clear();
     this.drafts.clear();
     this.queueTargetLoadingSegmentIds.clear();
   }
@@ -64,6 +66,7 @@ export class CatSegmentStore {
     if (!draft?.isDirty) {
       this.drafts.delete(segmentId);
       this.comments.delete(segmentId);
+      this.openIssueCounts.delete(segmentId);
       return true;
     }
     return false;

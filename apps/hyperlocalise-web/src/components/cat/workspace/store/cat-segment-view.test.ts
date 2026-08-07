@@ -162,4 +162,20 @@ describe("composeSegmentView", () => {
     expect(view.hasOpenIssues).toBe(true);
     expect(view.tags).toEqual(["heading", "3 comments", "1 issue"]);
   });
+
+  it("uses sheet open-issue counts when comments have no issues", () => {
+    const view = composeSegmentView({
+      fileContext,
+      meta: { id: "seg-01", index: 1, key: "hero.title", sourceText: "Hello" },
+      draft: undefined,
+      comments: [
+        { id: "c-1", type: "comment", status: null, text: "Note", createdAt: null, locale: null },
+      ],
+      openIssueCount: 2,
+      intelligence: { glossaryTerms: [], segmentType: "heading" },
+    });
+
+    expect(view.hasOpenIssues).toBe(true);
+    expect(view.tags).toEqual(["heading", "1 comment", "2 issues"]);
+  });
 });

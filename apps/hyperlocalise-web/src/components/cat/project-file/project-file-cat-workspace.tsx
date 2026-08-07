@@ -714,6 +714,7 @@ export function ProjectFileCatWorkspace({
         hasMoreQueue={pagination?.hasMore ?? false}
         canLookupFreshContext={canLookupFreshContext}
         onPageLimitChange={setPageLimit}
+        nativeIssuesEnabled={issuesEnabled && isNativeProject}
       />
       {issuesEnabled ? (
         <CatLinkedIssuesDialog

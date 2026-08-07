@@ -103,13 +103,13 @@ describe("CatEditorPanel UI", () => {
     expect(screen.getByText("Failed to post comment.")).toBeInTheDocument();
   });
 
-  it("opens the linked Issue Sheet from the comments section", async () => {
+  it("opens the linked Issue Sheet from Crowdin comments section", async () => {
     const user = userEvent.setup();
     const onAddToIssueSheet = vi.fn();
 
     renderEditorPanel({
       canAddComment: true,
-      providerKind: null,
+      providerKind: "crowdin",
       onAddToIssueSheet,
       segment: {
         ...createCatWorkspaceState({ selectedSegmentId: "seg-02" }).segments!.find(
@@ -135,6 +135,18 @@ describe("CatEditorPanel UI", () => {
     await user.click(within(commentsSection!).getByRole("button", { name: "Issues" }));
 
     expect(onAddToIssueSheet).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not show Issue tab for native projects", () => {
+    renderEditorPanel({
+      canAddComment: true,
+      providerKind: null,
+      onAddToIssueSheet: vi.fn(),
+    });
+
+    const commentsSection = screen.getByText("Comments").closest("section");
+    expect(commentsSection).not.toBeNull();
+    expect(within(commentsSection!).queryByRole("tab", { name: "Issue" })).toBeNull();
   });
 
   it("invokes navigation handlers from the action bar", async () => {

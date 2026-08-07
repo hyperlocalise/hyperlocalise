@@ -14,7 +14,7 @@
  */
 import { useEffect, useState } from "react";
 import { observer } from "mobx-react-lite";
-import { FormattedMessage } from "react-intl";
+import { FormattedMessage, useIntl } from "react-intl";
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/primitives/cn";
@@ -22,6 +22,8 @@ import { cn } from "@/lib/primitives/cn";
 import { CatEditorPanel } from "@/components/cat/editor/cat-editor-panel";
 import { CatFileViewPanel } from "@/components/cat/file-view/cat-file-view-panel";
 import { CatIntelligencePanel } from "@/components/cat/intelligence/cat-intelligence-panel";
+import { resolveCatLinkedIssueTranslationKeyId } from "@/components/cat/issues/cat-linked-issue-translation-key";
+import { catLinkedIssuesDialogMessages } from "@/components/cat/issues/cat-linked-issues-dialog.messages";
 import { CatQueuePanel } from "@/components/cat/queue/cat-queue-panel";
 import { CatSegmentKeyMeta } from "@/components/cat/segment/cat-segment-key-meta";
 import { CatSideBySidePanel } from "@/components/cat/side-by-side/cat-side-by-side-panel";
@@ -104,7 +106,11 @@ export const CatWorkspaceView = observer(function CatWorkspaceView({
   isBulkActionPending = false,
   buildSegmentShareUrl,
   onIntelligencePanelVisible,
+  organizationSlug,
+  projectId,
+  nativeIssuesEnabled = false,
 }: CatWorkspaceViewProps) {
+  const intl = useIntl();
   const store = useCatWorkspace();
   const viewMode = store.ui.viewMode;
   const intelligenceSegmentId = store.intelligenceSegmentId;
@@ -258,9 +264,50 @@ export const CatWorkspaceView = observer(function CatWorkspaceView({
         intelligenceSegment.id,
       )
     : null;
-  const supportsIssueComments =
-    (shell.fileContext.providerKind === "crowdin" || shell.fileContext.providerKind === null) &&
-    canAddComment;
+  const supportsIssueComments = shell.fileContext.providerKind === "crowdin" && canAddComment;
+  const isNativeProject = shell.fileContext.providerKind === null;
+  const showNativeIssues = nativeIssuesEnabled && isNativeProject;
+  const editorTranslationKeyId = showNativeIssues
+    ? resolveCatLinkedIssueTranslationKeyId({
+        isNativeProject: true,
+        segmentId: editorSegment.id,
+        contentKind: editorSegment.contentKind,
+      })
+    : null;
+  const editorIssueStringLink =
+    showNativeIssues && editorTranslationKeyId
+      ? {
+          segmentId: editorSegment.id,
+          sourcePath: editorSegment.sourcePath ?? shell.fileContext.sourcePath,
+          targetLocale: shell.fileContext.targetLocale,
+          translationKeyId: editorTranslationKeyId,
+          defaultTitle: editorSegment.sourceText,
+          linkUrl: segmentShareUrl ?? undefined,
+          linkLabel: intl.formatMessage(catLinkedIssuesDialogMessages.openInCatLinkLabel),
+        }
+      : null;
+  const intelligenceTranslationKeyId =
+    showNativeIssues && intelligenceSegment
+      ? resolveCatLinkedIssueTranslationKeyId({
+          isNativeProject: true,
+          segmentId: intelligenceSegment.id,
+          contentKind: intelligenceSegment.contentKind,
+        })
+      : null;
+  const intelligenceIssueStringLink =
+    showNativeIssues && intelligenceSegment && intelligenceTranslationKeyId
+      ? {
+          segmentId: intelligenceSegment.id,
+          sourcePath: intelligenceSegment.sourcePath ?? shell.fileContext.sourcePath,
+          targetLocale: shell.fileContext.targetLocale,
+          translationKeyId: intelligenceTranslationKeyId,
+          defaultTitle: intelligenceSegment.sourceText,
+          linkUrl:
+            (buildSegmentShareUrl?.(intelligenceSegment) ?? undefined) ||
+            (segmentShareUrl ?? undefined),
+          linkLabel: intl.formatMessage(catLinkedIssuesDialogMessages.openInCatLinkLabel),
+        }
+      : null;
 
   function renderSideBySidePanel() {
     if (!selectedSegment) {
@@ -382,6 +429,18 @@ export const CatWorkspaceView = observer(function CatWorkspaceView({
               ? (segmentId, commentId) => review.onResolveComment?.(segmentId, commentId)
               : undefined
           }
+          organizationSlug={organizationSlug}
+          projectId={projectId}
+          nativeIssuesEnabled={showNativeIssues}
+          translationKeyId={intelligenceTranslationKeyId}
+          issueStringLink={intelligenceIssueStringLink}
+          onNativeOpenIssueCountChange={
+            intelligenceSegment
+              ? (openIssueCount) => {
+                  store.applySegmentOpenIssueCount(intelligenceSegment.id, openIssueCount);
+                }
+              : undefined
+          }
           primaryActionLabel={shell.primaryActionLabel}
           segmentShareUrl={segmentShareUrl}
         />
@@ -486,6 +545,14 @@ export const CatWorkspaceView = observer(function CatWorkspaceView({
               ? (commentId) => review.onResolveComment?.(editorSegment.id, commentId)
               : undefined
           }
+          organizationSlug={organizationSlug}
+          projectId={projectId}
+          nativeIssuesEnabled={showNativeIssues}
+          translationKeyId={editorTranslationKeyId}
+          issueStringLink={editorIssueStringLink}
+          onNativeOpenIssueCountChange={(openIssueCount) => {
+            store.applySegmentOpenIssueCount(editorSegment.id, openIssueCount);
+          }}
           primaryActionLabel={shell.primaryActionLabel}
           onAskQuestion={() => review.onAskQuestion(editorSegment.id)}
           onGenerateAiRecommendation={

@@ -32,6 +32,7 @@ import {
 import type { CatEditorPanelProps } from "./cat-editor-panel.types";
 import { CatEditorSourceSection } from "./cat-editor-source-section";
 import { CatEditorTargetSection } from "./cat-editor-target-section";
+import { CatEditorIssuesSection } from "@/components/cat/issues/cat-editor-issues-section";
 
 function isImageEditorSegment(segment: CatEditorPanelProps["segment"]) {
   return segment.contentKind === "image_file" || segment.contentKind === "image_url";
@@ -72,6 +73,12 @@ export function CatEditorPanel({
   onAddComment,
   onAddToIssueSheet,
   onResolveComment,
+  organizationSlug,
+  projectId,
+  nativeIssuesEnabled = false,
+  translationKeyId = null,
+  issueStringLink = null,
+  onNativeOpenIssueCountChange,
   primaryActionLabel,
   onAskQuestion,
   onGenerateAiRecommendation,
@@ -89,8 +96,7 @@ export function CatEditorPanel({
   const isMac = useIsMac();
   const resolvedPrimaryActionLabel =
     primaryActionLabel ?? intl.formatMessage(catEditorPanelMessages.approve);
-  const supportsIssueComments =
-    (providerKind === "crowdin" || providerKind === null) && canAddComment;
+  const supportsIssueComments = providerKind === "crowdin" && canAddComment;
 
   const actionState = useMemo(() => {
     const isActionBlocked =
@@ -250,6 +256,16 @@ export function CatEditorPanel({
             onOpenIssueSheet={onAddToIssueSheet}
             onResolveComment={onResolveComment}
           />
+          {nativeIssuesEnabled && organizationSlug && projectId ? (
+            <CatEditorIssuesSection
+              organizationSlug={organizationSlug}
+              projectId={projectId}
+              translationKeyId={translationKeyId}
+              stringLink={issueStringLink}
+              canCreate={canAddComment}
+              onOpenIssueCountChange={onNativeOpenIssueCountChange}
+            />
+          ) : null}
         </div>
       </div>
     </div>

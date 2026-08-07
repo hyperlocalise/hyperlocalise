@@ -36,16 +36,9 @@ afterEach(async () => {
   await authFixture.cleanup();
 });
 
-describe("NativeCatCommentService.resolve", () => {
-  it("rejects resolution by a non-author without review permission", async () => {
-    const {
-      organization,
-      user: authorUser,
-      identity,
-    } = await authFixture.createLocalWorkosIdentity();
-    const { user: otherUser } = await authFixture.createLocalWorkosIdentity(
-      authFixture.createWorkosIdentityForOrganization(identity.organization, "translator"),
-    );
+describe("NativeCatCommentService.save", () => {
+  it("saves comments only and rejects issue type", async () => {
+    const { organization, user } = await authFixture.createLocalWorkosIdentity();
     const team = await ensureDefaultWorkspaceTeam(organization.id);
     const [project] = await db
       .insert(schema.projects)
@@ -53,7 +46,7 @@ describe("NativeCatCommentService.resolve", () => {
         id: `project_${randomUUID()}`,
         organizationId: organization.id,
         teamId: team.id,
-        createdByUserId: authorUser.id,
+        createdByUserId: user.id,
         name: "Docs",
         description: "",
         translationContext: "",
@@ -83,7 +76,24 @@ describe("NativeCatCommentService.resolve", () => {
       .limit(1);
 
     const service = new NativeCatCommentService(db, projectTranslationService);
-    const posted = await service.save({
+    const comment = await service.save({
+      organizationId: organization.id,
+      projectId: project.id,
+      sourcePath,
+      targetLocale: "fr-FR",
+      translationKeyId: translationKey!.id,
+      text: "Looks good.",
+      type: "comment",
+      actorUserId: user.id,
+    });
+
+    expect(comment).toMatchObject({
+      type: "comment",
+      text: "Looks good.",
+      status: null,
+    });
+
+    const issue = await service.save({
       organizationId: organization.id,
       projectId: project.id,
       sourcePath,
@@ -92,91 +102,19 @@ describe("NativeCatCommentService.resolve", () => {
       text: "Wrong tone.",
       type: "issue",
       issueType: "translation_mistake",
-      actorUserId: authorUser.id,
+      actorUserId: user.id,
     });
 
-    expect(posted).not.toBeNull();
+    expect(issue).toBeNull();
 
-    const resolved = await service.resolve({
+    const listed = await service.listByKeyIds({
       organizationId: organization.id,
       projectId: project.id,
-      commentId: posted!.externalCommentId,
-      actorUserId: otherUser.id,
-      canResolveOthersIssues: false,
-    });
-
-    expect(resolved).toBeNull();
-  });
-
-  it("allows reviewers to resolve another user's issue", async () => {
-    const {
-      organization,
-      user: authorUser,
-      identity,
-    } = await authFixture.createLocalWorkosIdentity();
-    const { user: reviewer } = await authFixture.createLocalWorkosIdentity(
-      authFixture.createWorkosIdentityForOrganization(identity.organization, "reviewer"),
-    );
-    const team = await ensureDefaultWorkspaceTeam(organization.id);
-    const [project] = await db
-      .insert(schema.projects)
-      .values({
-        id: `project_${randomUUID()}`,
-        organizationId: organization.id,
-        teamId: team.id,
-        createdByUserId: authorUser.id,
-        name: "Docs",
-        description: "",
-        translationContext: "",
-        sourceLocale: "en-US",
-        targetLocales: ["fr-FR"],
-      })
-      .returning();
-
-    const sourcePath = "locales/en.json";
-    const sourceFile = await ensureRepositorySourceFile({
-      organizationId: organization.id,
-      projectId: project.id,
-      sourcePath,
-    });
-
-    await upsertProjectTranslationKeysFromEntries({
-      organizationId: organization.id,
-      projectId: project.id,
-      repositorySourceFileId: sourceFile.id,
-      entries: [{ key: "greeting", text: "Hello", context: null }],
-    });
-
-    const [translationKey] = await db
-      .select({ id: schema.projectTranslationKeys.id })
-      .from(schema.projectTranslationKeys)
-      .where(eq(schema.projectTranslationKeys.repositorySourceFileId, sourceFile.id))
-      .limit(1);
-
-    const service = new NativeCatCommentService(db, projectTranslationService);
-    const posted = await service.save({
-      organizationId: organization.id,
-      projectId: project.id,
-      sourcePath,
+      translationKeyIds: [translationKey!.id],
       targetLocale: "fr-FR",
-      translationKeyId: translationKey!.id,
-      text: "Wrong tone.",
-      type: "issue",
-      issueType: "translation_mistake",
-      actorUserId: authorUser.id,
     });
 
-    const resolved = await service.resolve({
-      organizationId: organization.id,
-      projectId: project.id,
-      commentId: posted!.externalCommentId,
-      actorUserId: reviewer.id,
-      canResolveOthersIssues: true,
-    });
-
-    expect(resolved).toMatchObject({
-      externalCommentId: posted!.externalCommentId,
-      status: "resolved",
-    });
+    expect(listed.get(translationKey!.id)).toHaveLength(1);
+    expect(listed.get(translationKey!.id)?.[0]?.type).toBe("comment");
   });
 });

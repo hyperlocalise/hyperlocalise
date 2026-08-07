@@ -24,22 +24,27 @@ import type { CatSegmentDraft } from "./cat-segment-draft";
 function lazyCommentFields(
   segmentType: string | undefined,
   comments: CatSegmentComment[] | undefined,
+  openIssueCountFromSheet: number | undefined,
 ) {
-  if (comments === undefined) {
+  if (comments === undefined && openIssueCountFromSheet === undefined) {
     return segmentType ? { tags: [segmentType] } : {};
   }
 
-  const issueCount = comments.filter(
-    (comment) => comment.type === "issue" && isOpenIssueStatus(comment.status),
-  ).length;
+  const commentIssueCount =
+    comments?.filter((comment) => comment.type === "issue" && isOpenIssueStatus(comment.status))
+      .length ?? 0;
+  const issueCount = Math.max(commentIssueCount, openIssueCountFromSheet ?? 0);
+  const commentCount = comments?.length ?? 0;
   const tags = [
     segmentType,
-    comments.length > 0 ? `${comments.length} comment${comments.length === 1 ? "" : "s"}` : null,
+    comments !== undefined && commentCount > 0
+      ? `${commentCount} comment${commentCount === 1 ? "" : "s"}`
+      : null,
     issueCount > 0 ? `${issueCount} issue${issueCount === 1 ? "" : "s"}` : null,
   ].filter((tag): tag is string => Boolean(tag));
 
   return {
-    comments,
+    ...(comments !== undefined ? { comments } : {}),
     hasOpenIssues: issueCount > 0,
     tags,
   };
@@ -50,9 +55,10 @@ export function composeSegmentView(input: {
   meta: CatQueueSegment;
   draft: CatSegmentDraft | undefined;
   comments: CatSegmentComment[] | undefined;
+  openIssueCount?: number;
   intelligence: CatSegmentIntelligence | undefined;
 }): CatSegment {
-  const { fileContext, meta, draft, comments, intelligence } = input;
+  const { fileContext, meta, draft, comments, openIssueCount, intelligence } = input;
   const segmentType = intelligence?.segmentType;
   const contextLabel = intelligence?.productMeaning?.trim() || undefined;
   const maxLength =
@@ -68,7 +74,7 @@ export function composeSegmentView(input: {
     status: draft?.status ?? "pending",
     ...(contextLabel ? { contextLabel } : {}),
     ...(maxLength != null ? { maxLength } : {}),
-    ...lazyCommentFields(segmentType, comments),
+    ...lazyCommentFields(segmentType, comments, openIssueCount),
   };
 }
 

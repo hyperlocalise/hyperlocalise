@@ -88,7 +88,7 @@ export function findSegmentIdByKeyOrId(segments: CatSegment[], segmentIdOrKey: s
 }
 
 export function isOpenIssueStatus(status: string | null | undefined) {
-  return status === "open" || status === "unresolved";
+  return status === "open" || status === "unresolved" || status === "in_progress";
 }
 
 export function segmentHasOpenIssues(segment: CatSegment) {

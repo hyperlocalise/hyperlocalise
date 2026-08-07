@@ -459,10 +459,6 @@ export class NativeCatService extends ProjectServiceBase {
     return this.comments.save(input);
   }
 
-  async resolveComment(input: Parameters<NativeCatCommentService["resolve"]>[0]) {
-    return this.comments.resolve(input);
-  }
-
   async saveTranslation(input: {
     organizationId: string;
     projectId: string;
@@ -834,10 +830,6 @@ export const saveNativeProjectCatTranslation = (
 export const saveNativeProjectCatComment = (
   input: Parameters<NativeCatService["saveComment"]>[0],
 ) => nativeCatService.saveComment(input);
-
-export const resolveNativeProjectCatComment = (
-  input: Parameters<NativeCatService["resolveComment"]>[0],
-) => nativeCatService.resolveComment(input);
 
 export const updateNativeProjectTranslationStatus = (
   input: Parameters<NativeCatService["updateTranslationStatus"]>[0],

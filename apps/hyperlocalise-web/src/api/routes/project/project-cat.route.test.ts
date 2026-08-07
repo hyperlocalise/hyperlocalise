@@ -12,6 +12,8 @@
  */
 import "dotenv/config";
 
+import { randomUUID } from "node:crypto";
+
 import { testClient } from "hono/testing";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 
@@ -1114,7 +1116,7 @@ describe("project file CAT routes", () => {
     );
   });
 
-  it("posts and resolves native CAT issues", async () => {
+  it("rejects native CAT issue posts via comments API", async () => {
     const { identity, project, organization } = await projectFixture.createStoredProjectFixture();
     const headers = await projectFixture.authHeadersFor(identity);
     const sourcePath = "locales/en.json";
@@ -1158,40 +1160,16 @@ describe("project file CAT routes", () => {
       { headers },
     );
 
-    expect(postResponse.status).toBe(200);
-    const posted = (await postResponse.json()) as ProjectFileCatCommentResponse;
-    expect(posted.comment).toMatchObject({
-      type: "issue",
-      status: "unresolved",
-      text: "Wrong tone.",
+    expect(postResponse.status).toBe(400);
+    expect(await postResponse.json()).toMatchObject({
+      error: "native_cat_issue_unsupported",
     });
 
     const linkedIssues = await db
-      .select({
-        title: schema.issueSheetIssues.title,
-        issueType: schema.issueSheetIssues.issueType,
-        translationKeyId: schema.issueSheetIssues.translationKeyId,
-        linkedCommentId: schema.issueSheetIssues.linkedCommentId,
-        linkKind: schema.issueSheetIssues.linkKind,
-        segmentId: schema.issueSheetIssues.segmentId,
-        targetLocale: schema.issueSheetIssues.targetLocale,
-        sourcePath: schema.issueSheetIssues.sourcePath,
-      })
+      .select({ id: schema.issueSheetIssues.id })
       .from(schema.issueSheetIssues)
       .where(eq(schema.issueSheetIssues.projectId, project.id));
-
-    expect(linkedIssues).toEqual([
-      expect.objectContaining({
-        title: "Wrong tone.",
-        issueType: "translation_mistake",
-        translationKeyId,
-        linkedCommentId: posted.comment.externalCommentId,
-        linkKind: "cat_segment",
-        segmentId: translationKeyId,
-        targetLocale: "fr-FR",
-        sourcePath,
-      }),
-    ]);
+    expect(linkedIssues).toEqual([]);
 
     const resolveResponse = await client.api.orgs[":organizationSlug"].projects[
       ":projectId"
@@ -1200,39 +1178,20 @@ describe("project file CAT routes", () => {
         param: {
           organizationSlug: identity.organization.slug ?? "missing-slug",
           projectId: project.id,
-          commentId: posted.comment.externalCommentId,
+          commentId: randomUUID(),
         },
         json: { sourcePath },
       },
       { headers },
     );
 
-    expect(resolveResponse.status).toBe(200);
+    expect(resolveResponse.status).toBe(400);
     expect(await resolveResponse.json()).toMatchObject({
-      comment: {
-        externalCommentId: posted.comment.externalCommentId,
-        status: "resolved",
-      },
+      error: "native_cat_issue_unsupported",
     });
-
-    const resolvedIssues = await db
-      .select({
-        status: schema.issueSheetIssues.status,
-        linkedCommentId: schema.issueSheetIssues.linkedCommentId,
-      })
-      .from(schema.issueSheetIssues)
-      .where(eq(schema.issueSheetIssues.projectId, project.id));
-
-    expect(resolvedIssues).toEqual([
-      expect.objectContaining({
-        status: "resolved",
-        linkedCommentId: posted.comment.externalCommentId,
-      }),
-    ]);
-    expect(resolveTmsProviderLiveCatCommentMock).not.toHaveBeenCalled();
   });
 
-  it("does not create an Issues row from CAT raise-issue when the workspace flag is off", async () => {
+  it("still rejects native CAT issue posts when the workspace flag is off", async () => {
     workspaceIssuesFlagRunMock.mockResolvedValue(false);
     const { identity, project, organization } = await projectFixture.createStoredProjectFixture();
     const headers = await projectFixture.authHeadersFor(identity);
@@ -1277,14 +1236,10 @@ describe("project file CAT routes", () => {
       { headers },
     );
 
-    expect(postResponse.status).toBe(200);
-
-    const linkedIssues = await db
-      .select({ id: schema.issueSheetIssues.id })
-      .from(schema.issueSheetIssues)
-      .where(eq(schema.issueSheetIssues.projectId, project.id));
-
-    expect(linkedIssues).toEqual([]);
+    expect(postResponse.status).toBe(400);
+    expect(await postResponse.json()).toMatchObject({
+      error: "native_cat_issue_unsupported",
+    });
   });
 
   it("returns Crowdin CAT content for an encoded provider project", async () => {

@@ -129,6 +129,7 @@ const meta = {
     initialSegment: createCatEditorCommentsSegment(),
     isLoading: false,
     canAddComment: true,
+    // Crowdin keeps Comment/Issue tabs; native uses CatEditorIssuesSection instead.
     supportsIssueComments: true,
   },
 } satisfies Meta<typeof CommentsStoryHost>;
