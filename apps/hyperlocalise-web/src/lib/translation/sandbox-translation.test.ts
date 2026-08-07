@@ -540,6 +540,25 @@ describe("sandbox translation temporary config", () => {
     expect(config).toContain("workspace -> espace de travail (fr-FR)");
     expect(config).toContain("workspace -> Arbeitsbereich (de-DE)");
   });
+
+  it("builds multi-file multi-locale configs in one bucket", async () => {
+    const { buildMultiFileMultiLocaleTempConfig } = await import("@/lib/translation/sandbox");
+    const config = buildMultiFileMultiLocaleTempConfig(
+      [
+        { from: "work_a_messages.json", to: "work_a_messages-{{target}}.json" },
+        { from: "work_b_labels.json", to: "work_b_labels-{{target}}.json" },
+      ],
+      "en-US",
+      ["fr-FR"],
+      null,
+    );
+
+    expect(config).toContain('from: "work_a_messages.json"');
+    expect(config).toContain('to: "work_a_messages-{{target}}.json"');
+    expect(config).toContain('from: "work_b_labels.json"');
+    expect(config).toContain('to: "work_b_labels-{{target}}.json"');
+    expect(config).toContain('- "fr-FR"');
+  });
 });
 
 describe("crowdin sandbox file config", () => {

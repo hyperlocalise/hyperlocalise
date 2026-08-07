@@ -441,10 +441,35 @@ export class HyperlocaliseCliConfigBuilder {
     instructions: string | null = null,
     context: SandboxTranslationContext | null = null,
   ): string {
+    return this.buildMultiFileMultiLocale(
+      [{ from: inputFile, to: outputPattern }],
+      sourceLocale,
+      targetLocales,
+      instructions,
+      context,
+    );
+  }
+
+  /** One i18n.yml bucket with many source files for a single `hl run`. */
+  buildMultiFileMultiLocale(
+    files: Array<{ from: string; to: string }>,
+    sourceLocale: string | null,
+    targetLocales: string[],
+    instructions: string | null = null,
+    context: SandboxTranslationContext | null = null,
+  ): string {
+    if (files.length === 0) {
+      throw new Error("buildMultiFileMultiLocale requires at least one file mapping");
+    }
+
     const yamlString = (value: string) => JSON.stringify(value);
     const systemPrompt = translationPromptPolicy.buildSandboxConfigPrompt(context, instructions);
     const userPrompt = ["Translate from {{source}} to {{target}}.", "", "{{input}}"].join("\n");
     const targets = targetLocales.map((locale) => `    - ${yamlString(locale)}`);
+    const fileLines = files.flatMap((file) => [
+      `      - from: ${yamlString(file.from)}`,
+      `        to: ${yamlString(file.to)}`,
+    ]);
 
     return [
       "locales:",
@@ -455,8 +480,7 @@ export class HyperlocaliseCliConfigBuilder {
       "buckets:",
       `  ${sandboxFileBucketName}:`,
       "    files:",
-      `      - from: ${yamlString(inputFile)}`,
-      `        to: ${yamlString(outputPattern)}`,
+      ...fileLines,
       "",
       "llm:",
       "  profiles:",
@@ -482,17 +506,29 @@ export class CrowdinSandboxOperations {
   }
 
   buildFileConfig(input: { sourceFilename: string; includeBaseUrl: boolean }): string {
+    return this.buildMultiFileConfig({
+      sourceFilenames: [input.sourceFilename],
+      includeBaseUrl: input.includeBaseUrl,
+    });
+  }
+
+  buildMultiFileConfig(input: { sourceFilenames: string[]; includeBaseUrl: boolean }): string {
+    if (input.sourceFilenames.length === 0) {
+      throw new Error("buildMultiFileConfig requires at least one source filename");
+    }
+
     const lines = ["project_id_env: CROWDIN_PROJECT_ID", "api_token_env: CROWDIN_PERSONAL_TOKEN"];
     if (input.includeBaseUrl) {
       lines.push("base_url_env: CROWDIN_BASE_URL");
     }
 
-    lines.push(
-      "base_path: .",
-      "files:",
-      `  - source: ${input.sourceFilename}`,
-      `    translation: ${this.buildTranslationPath(input.sourceFilename)}`,
-    );
+    lines.push("base_path: .", "files:");
+    for (const sourceFilename of input.sourceFilenames) {
+      lines.push(
+        `  - source: ${sourceFilename}`,
+        `    translation: ${this.buildTranslationPath(sourceFilename)}`,
+      );
+    }
 
     return lines.join("\n");
   }
@@ -665,6 +701,22 @@ export class HyperlocaliseCliRunner {
     return this.configBuilder.buildMultiLocale(
       inputFile,
       outputPattern,
+      sourceLocale,
+      targetLocales,
+      instructions,
+      context,
+    );
+  }
+
+  buildMultiFileMultiLocaleConfig(
+    files: Array<{ from: string; to: string }>,
+    sourceLocale: string | null,
+    targetLocales: string[],
+    instructions: string | null = null,
+    context: SandboxTranslationContext | null = null,
+  ): string {
+    return this.configBuilder.buildMultiFileMultiLocale(
+      files,
       sourceLocale,
       targetLocales,
       instructions,
@@ -883,6 +935,22 @@ export function buildMultiLocaleTempConfig(
   );
 }
 
+export function buildMultiFileMultiLocaleTempConfig(
+  files: Array<{ from: string; to: string }>,
+  sourceLocale: string | null,
+  targetLocales: string[],
+  instructions: string | null = null,
+  context: SandboxTranslationContext | null = null,
+) {
+  return defaultRunner.buildMultiFileMultiLocaleConfig(
+    files,
+    sourceLocale,
+    targetLocales,
+    instructions,
+    context,
+  );
+}
+
 export async function writeTempConfig(
   sandboxId: string,
   configContent: string,
@@ -922,6 +990,13 @@ export function buildCrowdinFileSandboxConfig(input: {
   includeBaseUrl: boolean;
 }) {
   return defaultRunner.crowdin.buildFileConfig(input);
+}
+
+export function buildCrowdinMultiFileSandboxConfig(input: {
+  sourceFilenames: string[];
+  includeBaseUrl: boolean;
+}) {
+  return defaultRunner.crowdin.buildMultiFileConfig(input);
 }
 
 export function getCrowdinSandboxEnv(input: {
