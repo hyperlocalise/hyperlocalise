@@ -213,12 +213,12 @@ export const issueDetailPanelMessages = defineMessages({
   },
   collapseSidebar: {
     defaultMessage: "Collapse properties",
-    id: "k8mQp2nRwX",
+    id: "eaNtS/5vOt",
     description: "Aria label to collapse the issue detail properties sidebar",
   },
   expandSidebar: {
     defaultMessage: "Expand properties",
-    id: "v3nLk9sHtY",
+    id: "a59gdX+rmW",
     description: "Aria label to expand the issue detail properties sidebar",
   },
 });
