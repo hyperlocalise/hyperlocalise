@@ -15,11 +15,75 @@ import { delay, http, HttpResponse } from "msw";
 import {
   issueSheetAssignableMembersFixture,
   issueSheetIssuesFixture,
+  issueSheetManySubscribersFixture,
   issueSheetProjectFixture,
   issueSheetResponseFixture,
+  issueSheetSubscribersFixture,
 } from "./issue-sheet.fixture";
 
 const issueSheetBasePath = "/api/orgs/:organizationSlug/projects/:projectId/issue-sheet";
+
+const watchedIssueIds = new Set(
+  issueSheetIssuesFixture.filter((issue) => issue.isWatching).map((issue) => issue.id),
+);
+
+const subscribersByIssueId = new Map<string, Set<string>>(
+  issueSheetIssuesFixture
+    .filter((issue) => issue.isWatching)
+    .map((issue) => [
+      issue.id,
+      new Set(issueSheetSubscribersFixture.map((subscriber) => subscriber.userId)),
+    ]),
+);
+
+function subscribersForIssue(issueId: string) {
+  const userIds = subscribersByIssueId.get(issueId);
+  if (!userIds || userIds.size === 0) {
+    return [];
+  }
+  return issueSheetSubscribersFixture.filter((subscriber) => userIds.has(subscriber.userId));
+}
+
+function issueWithWatchState(issue: (typeof issueSheetIssuesFixture)[number]) {
+  return {
+    ...issue,
+    isWatching: watchedIssueIds.has(issue.id),
+  };
+}
+
+const issueSubscriptionHandlers = [
+  http.get(`${issueSheetBasePath}/:issueId/subscriptions`, ({ params }) => {
+    const issue = issueSheetIssuesFixture.find((row) => row.id === params.issueId);
+    if (!issue) {
+      return HttpResponse.json({ error: "issue_not_found" }, { status: 404 });
+    }
+    return HttpResponse.json({ subscribers: subscribersForIssue(String(params.issueId)) });
+  }),
+  http.post(`${issueSheetBasePath}/:issueId/subscription`, ({ params }) => {
+    const issueId = String(params.issueId);
+    watchedIssueIds.add(issueId);
+    const subscribers = subscribersByIssueId.get(issueId) ?? new Set<string>();
+    subscribers.add("user_storybook");
+    subscribersByIssueId.set(issueId, subscribers);
+    return HttpResponse.json(
+      {
+        subscription: {
+          issueId: params.issueId,
+          userId: "user_storybook",
+          createdAt: new Date().toISOString(),
+        },
+      },
+      { status: 201 },
+    );
+  }),
+  http.delete(`${issueSheetBasePath}/:issueId/subscription`, ({ params }) => {
+    const issueId = String(params.issueId);
+    watchedIssueIds.delete(issueId);
+    const subscribers = subscribersByIssueId.get(issueId);
+    subscribers?.delete("user_storybook");
+    return new HttpResponse(null, { status: 204 });
+  }),
+];
 
 export const issueSheetMswHandlers = [
   http.get("/api/orgs/:organizationSlug/projects/:projectId", () =>
@@ -37,7 +101,7 @@ export const issueSheetMswHandlers = [
     if (!issue) {
       return HttpResponse.json({ error: "issue_not_found" }, { status: 404 });
     }
-    return HttpResponse.json({ issue });
+    return HttpResponse.json({ issue: issueWithWatchState(issue) });
   }),
   http.get(`${issueSheetBasePath}/:issueId/feed`, () =>
     HttpResponse.json({
@@ -54,7 +118,7 @@ export const issueSheetMswHandlers = [
     }
     return HttpResponse.json({
       issue: {
-        ...issue,
+        ...issueWithWatchState(issue),
         ...body,
         updatedAt: new Date().toISOString(),
       },
@@ -107,6 +171,37 @@ export const issueSheetMswHandlers = [
       { status: 201 },
     );
   }),
+  ...issueSubscriptionHandlers,
+];
+
+export const issueDetailManySubscribersMswHandlers = [
+  http.get(`${issueSheetBasePath}/:issueId/subscriptions`, ({ params }) => {
+    const issue = issueSheetIssuesFixture.find((row) => row.id === params.issueId);
+    if (!issue) {
+      return HttpResponse.json({ error: "issue_not_found" }, { status: 404 });
+    }
+    return HttpResponse.json({ subscribers: issueSheetManySubscribersFixture });
+  }),
+  ...issueSheetMswHandlers,
+];
+
+export const issueDetailNotSubscribedMswHandlers = [
+  http.get(`${issueSheetBasePath}/:issueId`, ({ params }) => {
+    const issue = issueSheetIssuesFixture.find((row) => row.id === params.issueId);
+    if (!issue) {
+      return HttpResponse.json({ error: "issue_not_found" }, { status: 404 });
+    }
+    return HttpResponse.json({
+      issue: {
+        ...issue,
+        isWatching: false,
+      },
+    });
+  }),
+  http.get(`${issueSheetBasePath}/:issueId/subscriptions`, () =>
+    HttpResponse.json({ subscribers: issueSheetSubscribersFixture }),
+  ),
+  ...issueSheetMswHandlers,
 ];
 
 export const issueSheetEmptyMswHandlers = [
@@ -167,8 +262,9 @@ export const issueDetailColumnsErrorMswHandlers = [
     if (!issue) {
       return HttpResponse.json({ error: "issue_not_found" }, { status: 404 });
     }
-    return HttpResponse.json({ issue });
+    return HttpResponse.json({ issue: issueWithWatchState(issue) });
   }),
+  ...issueSubscriptionHandlers,
 ];
 
 export const issueDetailLoadingMswHandlers = [

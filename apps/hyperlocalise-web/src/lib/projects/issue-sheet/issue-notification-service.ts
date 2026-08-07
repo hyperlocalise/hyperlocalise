@@ -22,6 +22,8 @@ import type {
 import { stripMarkdown } from "@/lib/markdown/strip-markdown";
 import { ProjectServiceBase } from "@/lib/projects/project-service-base";
 
+import { issueSubscriptionService } from "./issue-subscription-service";
+
 export const ISSUE_NOTIFICATION_ASSIGNED = "assigned" as const;
 export const ISSUE_NOTIFICATION_MENTIONED = "mentioned" as const;
 export const ISSUE_NOTIFICATION_COMMENT = "comment" as const;
@@ -129,41 +131,19 @@ export class IssueNotificationService extends ProjectServiceBase {
     super(database, "issue-notification-service");
   }
 
+  async resolveWatchers(
+    issueId: string,
+    database: DatabaseClient = this.database,
+  ): Promise<Set<string>> {
+    return issueSubscriptionService.resolveWatchers(issueId, database);
+  }
+
+  /** @deprecated Use resolveWatchers — subscriptions are persisted explicitly. */
   async resolveImplicitWatchers(
     issueId: string,
     database: DatabaseClient = this.database,
   ): Promise<Set<string>> {
-    const [issue] = await database
-      .select({
-        assigneeUserId: schema.issueSheetIssues.assigneeUserId,
-        reporterUserId: schema.issueSheetIssues.reporterUserId,
-      })
-      .from(schema.issueSheetIssues)
-      .where(eq(schema.issueSheetIssues.id, issueId))
-      .limit(1);
-
-    const watchers = new Set<string>();
-    if (issue?.assigneeUserId) {
-      watchers.add(issue.assigneeUserId);
-    }
-    if (issue?.reporterUserId) {
-      watchers.add(issue.reporterUserId);
-    }
-
-    const comments = await database
-      .select({ mentionedUserIds: schema.issueSheetComments.mentionedUserIds })
-      .from(schema.issueSheetComments)
-      .where(eq(schema.issueSheetComments.issueId, issueId));
-
-    for (const comment of comments) {
-      for (const userId of comment.mentionedUserIds ?? []) {
-        if (typeof userId === "string" && userId.length > 0) {
-          watchers.add(userId);
-        }
-      }
-    }
-
-    return watchers;
+    return this.resolveWatchers(issueId, database);
   }
 
   private async loadIssueContext(
@@ -337,7 +317,7 @@ export class IssueNotificationService extends ProjectServiceBase {
       });
     }
 
-    const watchers = await this.resolveImplicitWatchers(input.issueId, database);
+    const watchers = await this.resolveWatchers(input.issueId, database);
     if (input.previousAssigneeUserId) {
       watchers.add(input.previousAssigneeUserId);
     }
@@ -379,7 +359,7 @@ export class IssueNotificationService extends ProjectServiceBase {
       return;
     }
 
-    const watchers = await this.resolveImplicitWatchers(input.issueId, database);
+    const watchers = await this.resolveWatchers(input.issueId, database);
     const bucket = timeBucket();
 
     await this.notifyRecipients({
@@ -434,7 +414,7 @@ export class IssueNotificationService extends ProjectServiceBase {
       database,
     });
 
-    const watchers = await this.resolveImplicitWatchers(input.issueId, database);
+    const watchers = await this.resolveWatchers(input.issueId, database);
     const mentionedSet = new Set(mentioned);
     const commentRecipients = [...watchers].filter((userId) => !mentionedSet.has(userId));
 

@@ -16,7 +16,7 @@ import { hasCapability } from "@/api/auth/policy";
 import { formatMemberDisplayName } from "@/api/routes/member/member.shared";
 import { db, schema, type DatabaseClient } from "@/lib/database";
 import type { OrganizationMembershipRole } from "@/lib/database/types";
-import { err, ok, type Result } from "@/lib/primitives/result/results";
+import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
 import { backfillOrganizationProjectTeams } from "@/lib/teams/default-workspace-team";
 import { isActiveOrganizationMembership } from "@/lib/workos/constants";
 
@@ -153,6 +153,21 @@ export async function assertAssignableIssueAssignee(input: {
   }
 
   return ok(undefined);
+}
+
+export async function userHasIssueProjectAccess(input: {
+  organizationId: string;
+  projectId: string;
+  userId: string;
+  database?: DatabaseClient;
+}): Promise<boolean> {
+  const result = await assertAssignableIssueAssignee({
+    organizationId: input.organizationId,
+    projectId: input.projectId,
+    assigneeUserId: input.userId,
+    database: input.database,
+  });
+  return !isErr(result);
 }
 
 export async function listAssignableIssueMembers(input: {

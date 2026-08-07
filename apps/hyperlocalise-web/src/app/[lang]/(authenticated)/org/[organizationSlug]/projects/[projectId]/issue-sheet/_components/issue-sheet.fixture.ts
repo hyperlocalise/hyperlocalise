@@ -60,7 +60,46 @@ export type IssueSheetIssueFixture = {
   updatedAt: string;
   resolvedAt: string | null;
   values: Record<string, unknown>;
+  isWatching: boolean;
 };
+
+export type IssueSheetSubscriberFixture = {
+  userId: string;
+  displayName: string;
+  avatarUrl: string | null;
+};
+
+export const issueSheetSubscribersFixture: IssueSheetSubscriberFixture[] = [
+  {
+    userId: "user_mina",
+    displayName: "Mina Chen",
+    avatarUrl: null,
+  },
+  {
+    userId: "user_otto",
+    displayName: "Otto Klein",
+    avatarUrl: null,
+  },
+];
+
+export const issueSheetManySubscribersFixture: IssueSheetSubscriberFixture[] = [
+  ...issueSheetSubscribersFixture,
+  {
+    userId: "user_aiko",
+    displayName: "Aiko Tanaka",
+    avatarUrl: null,
+  },
+  {
+    userId: "user_jamal",
+    displayName: "Jamal Rivers",
+    avatarUrl: null,
+  },
+  {
+    userId: "user_leo",
+    displayName: "Leo Park",
+    avatarUrl: null,
+  },
+];
 
 export const issueSheetColumnsFixture: IssueSheetColumnFixture[] = [
   {
@@ -171,6 +210,7 @@ export function createIssueSheetIssue(
       component: "Checkout",
       reviewer: "user_mina",
     },
+    isWatching: true,
     ...overrides,
   };
 }
