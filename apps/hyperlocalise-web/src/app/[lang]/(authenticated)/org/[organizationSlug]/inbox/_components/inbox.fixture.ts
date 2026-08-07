@@ -13,6 +13,7 @@
 import type { UIMessage } from "ai";
 
 import type { InboxGithubRepository } from "./inbox-api";
+import type { InboxIssueNotification } from "./inbox-notifications-api";
 import type {
   Conversation,
   ConversationMessage,
@@ -188,5 +189,88 @@ export const repositoriesFixture: InboxGithubRepository[] = [
     githubRepositoryId: "102",
     name: "mobile-app",
     fullName: "hyperlocalise/mobile-app",
+  }),
+];
+
+export function createInboxIssueNotification(
+  overrides: Partial<InboxIssueNotification> = {},
+): InboxIssueNotification {
+  return {
+    id: "notification_assigned_001",
+    organizationId: "org_acme",
+    projectId: "project_website",
+    issueId: "issue_001",
+    type: "assigned",
+    payload: {
+      issueTitle: "Source string needs context",
+      projectId: "project_website",
+    },
+    actor: {
+      userId: "user_otto",
+      displayName: "Otto Klein",
+      email: "otto@example.com",
+      avatarUrl: null,
+    },
+    readAt: null,
+    createdAt: iso(-900_000),
+    ...overrides,
+  };
+}
+
+export const issueNotificationsFixture: InboxIssueNotification[] = [
+  createInboxIssueNotification(),
+  createInboxIssueNotification({
+    id: "notification_mention_001",
+    type: "mentioned",
+    payload: {
+      issueTitle: "Checkout CTA tone feels off",
+      projectId: "project_website",
+      commentId: "comment_001",
+      commentExcerpt: "Can you review the CTA wording?",
+    },
+    actor: {
+      userId: "user_mina",
+      displayName: "Mina Chen",
+      email: "mina@example.com",
+      avatarUrl: null,
+    },
+    readAt: null,
+    createdAt: iso(-1_200_000),
+  }),
+  createInboxIssueNotification({
+    id: "notification_comment_001",
+    type: "comment",
+    payload: {
+      issueTitle: "Source string needs context",
+      projectId: "project_website",
+      commentId: "comment_002",
+      commentExcerpt: "Added a screenshot from the checkout flow.",
+    },
+    actor: {
+      userId: "user_aiko",
+      displayName: "Aiko Tanaka",
+      email: "aiko@example.com",
+      avatarUrl: null,
+    },
+    readAt: iso(-600_000),
+    createdAt: iso(-3_600_000),
+  }),
+  createInboxIssueNotification({
+    id: "notification_status_001",
+    type: "status_changed",
+    payload: {
+      issueTitle: "Glossary term mismatch",
+      projectId: "project_website",
+      previousStatus: "open",
+      nextStatus: "in_progress",
+    },
+    actor: {
+      userId: "user_otto",
+      displayName: "Otto Klein",
+      email: "otto@example.com",
+      avatarUrl: null,
+    },
+    readAt: iso(-3_000_000),
+    createdAt: iso(-7_200_000),
   }),
 ];

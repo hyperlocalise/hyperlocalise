@@ -22,6 +22,8 @@ import {
   type ReactNode,
 } from "react";
 import {
+  ArrowLeft01Icon,
+  ArrowRight01Icon,
   Calendar03Icon,
   CheckmarkCircle02Icon,
   Clock01Icon,
@@ -39,6 +41,7 @@ import { FormattedMessage, useIntl } from "react-intl";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import { Collapsible, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
   Select,
   SelectContent,
@@ -63,6 +66,8 @@ import {
   issuePriorityValues,
   issueStatusLabel,
   issueStatusValues,
+  issueTypeLabel,
+  issueTypeValues,
   linkKindLabel,
   type IssueDetailIssue,
 } from "./issue-detail-utils";
@@ -186,6 +191,9 @@ function IssueDetailSkeleton() {
 const ghostSelectTriggerClassName =
   "h-8 max-w-full justify-end border-transparent bg-transparent px-1.5 shadow-none hover:bg-muted/60 focus-visible:border-ring";
 
+const iconRailSelectTriggerClassName =
+  "size-8 justify-center border-transparent bg-transparent p-0 shadow-none hover:bg-muted/60 focus-visible:border-ring";
+
 export const IssueDetailPanel = forwardRef<
   IssueDetailPanelHandle,
   {
@@ -193,8 +201,12 @@ export const IssueDetailPanel = forwardRef<
     projectId: string;
     issueId: string;
     onDirtyChange?: (dirty: boolean) => void;
+    defaultSidebarOpen?: boolean;
   }
->(function IssueDetailPanel({ organizationSlug, projectId, issueId, onDirtyChange }, ref) {
+>(function IssueDetailPanel(
+  { organizationSlug, projectId, issueId, onDirtyChange, defaultSidebarOpen = true },
+  ref,
+) {
   const intl = useIntl();
   const emptyValue = intl.formatMessage(sharedMessages.emptyValue);
   const issueQuery = useIssueDetailQuery({
@@ -227,6 +239,7 @@ export const IssueDetailPanel = forwardRef<
   const [descriptionDraft, setDescriptionDraft] = useState("");
   const [ownerNoteDraft, setOwnerNoteDraft] = useState("");
   const [customColumnDrafts, setCustomColumnDrafts] = useState<Record<string, string>>({});
+  const [sidebarOpen, setSidebarOpen] = useState(defaultSidebarOpen);
   const isSaving = updateIssue.isPending || setValue.isPending;
 
   const titleDraftRef = useRef(titleDraft);
@@ -453,6 +466,15 @@ export const IssueDetailPanel = forwardRef<
     [],
   );
 
+  const typeItems = useMemo(
+    () =>
+      issueTypeValues.map((value) => ({
+        value,
+        label: issueTypeLabel(intl, value),
+      })),
+    [intl],
+  );
+
   const sidebarCustomColumns = useMemo(
     () => detailColumns.filter(isSidebarCustomColumn),
     [detailColumns],
@@ -567,7 +589,10 @@ export const IssueDetailPanel = forwardRef<
 
   return (
     <div
-      className="grid h-full min-h-0 flex-1 grid-rows-[minmax(0,1fr)_auto] overflow-hidden lg:grid-cols-[minmax(0,1fr)_22rem] lg:grid-rows-none"
+      className={cn(
+        "grid h-full min-h-0 flex-1 grid-rows-[minmax(0,1fr)_auto] overflow-hidden lg:grid-rows-none",
+        sidebarOpen ? "lg:grid-cols-[minmax(0,1fr)_22rem]" : "lg:grid-cols-[minmax(0,1fr)_3rem]",
+      )}
       aria-busy={isSaving}
     >
       <div className="flex min-h-0 min-w-0 flex-col gap-3 overflow-y-auto px-6 py-5">
@@ -698,227 +723,422 @@ export const IssueDetailPanel = forwardRef<
         />
       </div>
 
-      <aside className="flex min-h-0 flex-col gap-1 overflow-y-auto border-t border-border bg-muted/20 px-4 py-5 md:border-t-0 md:border-s">
-        <div className="mb-3 flex flex-col gap-2">
-          {catHref ? (
-            <Button
-              variant="outline"
-              size="sm"
-              className="w-full justify-start"
-              render={<a href={catHref} />}
-            >
-              <HugeiconsIcon icon={TranslateIcon} strokeWidth={1.8} data-icon="inline-start" />
-              <FormattedMessage {...messages.openInCat} />
-            </Button>
-          ) : (
-            <TypographyP className="text-xs text-muted-foreground">
-              <FormattedMessage {...messages.openInCatUnavailable} />
-            </TypographyP>
+      <Collapsible
+        open={sidebarOpen}
+        onOpenChange={setSidebarOpen}
+        className="flex min-h-0 flex-col overflow-hidden border-t border-border bg-muted/20 md:border-t-0 md:border-s"
+      >
+        <aside
+          className={cn(
+            "flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto",
+            sidebarOpen ? "px-4 py-5" : "px-4 py-5 lg:items-center lg:px-1.5 lg:py-3",
           )}
-          {issue.linkUrl && issue.linkUrl !== catHref && isHttpOrHttpsUrl(issue.linkUrl) ? (
-            <Button
-              variant="ghost"
-              size="sm"
-              className="w-full justify-start"
+        >
+          <div className="mb-2 hidden shrink-0 lg:flex lg:justify-end">
+            <CollapsibleTrigger
               render={
-                <a
-                  href={issue.linkUrl}
-                  {...(isExternalHttpUrl(issue.linkUrl)
-                    ? { target: "_blank", rel: "noopener noreferrer" }
-                    : {})}
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
+                  className={cn(!sidebarOpen && "mx-auto")}
+                  aria-label={intl.formatMessage(
+                    sidebarOpen ? messages.collapseSidebar : messages.expandSidebar,
+                  )}
                 />
               }
             >
-              <HugeiconsIcon icon={LinkSquare02Icon} strokeWidth={1.8} data-icon="inline-start" />
-              {issue.linkLabel || intl.formatMessage(messages.openLink)}
-            </Button>
-          ) : null}
-        </div>
-
-        {columnsQuery.isError ? (
-          <div className="mb-3 space-y-2 rounded-lg border border-destructive/30 bg-destructive/5 p-3">
-            <TypographyP className="text-xs text-destructive">
-              <FormattedMessage {...messages.loadColumnsError} />
-            </TypographyP>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              disabled={columnsQuery.isFetching}
-              onClick={() => void columnsQuery.refetch()}
-            >
-              <FormattedMessage {...messages.retryColumns} />
-            </Button>
-          </div>
-        ) : null}
-
-        <dl className="flex flex-col">
-          <PropertyRow icon={User02Icon} label={<FormattedMessage {...messages.fieldAssignee} />}>
-            <IssueAssigneePicker
-              value={issue.assigneeUserId}
-              currentLabel={issue.assignee}
-              members={assignableMembersQuery.data?.members ?? []}
-              isLoading={assignableMembersQuery.isLoading}
-              disabled={isSaving}
-              size="ghost"
-              triggerClassName={ghostSelectTriggerClassName}
-              onChange={(assigneeUserId) => {
-                updateIssue.mutate({ assigneeUserId });
-              }}
-            />
-          </PropertyRow>
-
-          <PropertyRow
-            icon={CheckmarkCircle02Icon}
-            label={<FormattedMessage {...messages.fieldStatus} />}
-          >
-            <Select
-              value={issue.status}
-              items={statusItems}
-              onValueChange={(value) => {
-                if (value) {
-                  updateIssue.mutate({ status: value });
-                }
-              }}
-              disabled={isSaving}
-            >
-              <SelectTrigger className={ghostSelectTriggerClassName}>
-                <span className="flex items-center gap-2">
-                  <IssueStatusIcon status={issue.status} className="size-3.5" />
-                  {issueStatusLabel(intl, issue.status)}
-                </span>
-              </SelectTrigger>
-              <SelectContent className="min-w-44 p-1.5">
-                {statusItems.map((status) => (
-                  <SelectItem
-                    key={status.value}
-                    value={status.value}
-                    label={status.label}
-                    className="rounded-lg px-2 py-1.5 focus:bg-muted! focus:text-foreground! data-highlighted:bg-muted! data-highlighted:text-foreground!"
-                  >
-                    <span className="flex items-center gap-2">
-                      <IssueStatusIcon status={status.value} className="size-3.5" />
-                      {status.label}
-                    </span>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </PropertyRow>
-
-          <PropertyRow icon={Tag01Icon} label={<FormattedMessage {...messages.fieldType} />}>
-            <IssueTypePicker
-              value={issue.issueType as IssueTypeValue}
-              onValueChange={(value) => {
-                updateIssue.mutate({ issueType: value });
-              }}
-              disabled={isSaving}
-              triggerClassName={ghostSelectTriggerClassName}
-            />
-          </PropertyRow>
-
-          <PropertyRow icon={Flag01Icon} label={<FormattedMessage {...messages.fieldPriority} />}>
-            <Select
-              value={priority || undefined}
-              items={priorityItems}
-              onValueChange={(value) => {
-                if (value) {
-                  setValue.mutate({ columnKey: "priority", value });
-                }
-              }}
-              disabled={isSaving}
-            >
-              <SelectTrigger className={ghostSelectTriggerClassName}>
-                {priority ? (
-                  <IssuePriorityIcon priority={priority} size="sm" />
-                ) : (
-                  <SelectValue placeholder={emptyValue} />
-                )}
-              </SelectTrigger>
-              <SelectContent>
-                {priorityItems.map((item) => (
-                  <SelectItem key={item.value} value={item.value} label={item.label}>
-                    <span className="flex items-center gap-2">
-                      <IssuePriorityIcon priority={item.value} size="sm" />
-                      {item.label}
-                    </span>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </PropertyRow>
-
-          <PropertyRow
-            icon={UserCircleIcon}
-            label={<FormattedMessage {...messages.fieldReporter} />}
-          >
-            <ReadOnlyValue value={issue.reporter} empty={emptyValue} className="truncate" />
-          </PropertyRow>
-
-          <PropertyRow
-            icon={LanguageCircleIcon}
-            label={<FormattedMessage {...messages.fieldLocale} />}
-          >
-            <ReadOnlyValue value={issue.targetLocale} empty={emptyValue} className="truncate" />
-          </PropertyRow>
-
-          <PropertyRow icon={File01Icon} label={<FormattedMessage {...messages.fieldSourcePath} />}>
-            <ReadOnlyValue value={issue.sourcePath} empty={emptyValue} className="truncate" />
-          </PropertyRow>
-
-          <PropertyRow
-            icon={Calendar03Icon}
-            label={<FormattedMessage {...messages.fieldCreatedAt} />}
-          >
-            <ReadOnlyValue
-              value={formatRelativeTimestamp(issue.createdAt)}
-              empty={emptyValue}
-              className="truncate"
-            />
-          </PropertyRow>
-
-          <PropertyRow icon={Clock01Icon} label={<FormattedMessage {...messages.fieldUpdatedAt} />}>
-            <ReadOnlyValue
-              value={formatRelativeTimestamp(issue.updatedAt)}
-              empty={emptyValue}
-              className="truncate"
-            />
-          </PropertyRow>
-
-          {issue.resolvedAt ? (
-            <PropertyRow
-              icon={CheckmarkCircle02Icon}
-              label={<FormattedMessage {...messages.fieldResolvedAt} />}
-            >
-              <ReadOnlyValue
-                value={formatRelativeTimestamp(issue.resolvedAt)}
-                empty={emptyValue}
-                className="truncate"
+              <HugeiconsIcon
+                icon={sidebarOpen ? ArrowRight01Icon : ArrowLeft01Icon}
+                strokeWidth={1.8}
+                className="size-4 rtl:rotate-180"
               />
-            </PropertyRow>
-          ) : null}
+            </CollapsibleTrigger>
+          </div>
 
-          {showCustomColumns
-            ? sidebarCustomColumns.map((column) => (
-                <PropertyRow key={column.id} icon={Tag01Icon} label={column.label}>
-                  <IssueCustomColumnField
-                    column={column}
-                    value={issue.values[column.key]}
-                    draft={customColumnDrafts[column.key] ?? ""}
-                    emptyValue={emptyValue}
-                    disabled={isSaving}
-                    variant="sidebar"
-                    members={assignableMembersQuery.data?.members ?? []}
-                    membersLoading={assignableMembersQuery.isLoading}
-                    onDraftChange={(value) => updateCustomColumnDraft(column.key, value)}
-                    onCommit={() => saveCustomColumnDraft(column.key)}
-                    onChange={(value) => saveCustomColumnValue(column.key, value)}
+          <div className={cn("flex flex-col gap-1", !sidebarOpen && "lg:hidden")}>
+            <div className="mb-3 flex flex-col gap-2">
+              {catHref ? (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full justify-start"
+                  render={<a href={catHref} />}
+                >
+                  <HugeiconsIcon icon={TranslateIcon} strokeWidth={1.8} data-icon="inline-start" />
+                  <FormattedMessage {...messages.openInCat} />
+                </Button>
+              ) : (
+                <TypographyP className="text-xs text-muted-foreground">
+                  <FormattedMessage {...messages.openInCatUnavailable} />
+                </TypographyP>
+              )}
+              {issue.linkUrl && issue.linkUrl !== catHref && isHttpOrHttpsUrl(issue.linkUrl) ? (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="w-full justify-start"
+                  render={
+                    <a
+                      href={issue.linkUrl}
+                      {...(isExternalHttpUrl(issue.linkUrl)
+                        ? { target: "_blank", rel: "noopener noreferrer" }
+                        : {})}
+                    />
+                  }
+                >
+                  <HugeiconsIcon
+                    icon={LinkSquare02Icon}
+                    strokeWidth={1.8}
+                    data-icon="inline-start"
+                  />
+                  {issue.linkLabel || intl.formatMessage(messages.openLink)}
+                </Button>
+              ) : null}
+            </div>
+
+            {columnsQuery.isError ? (
+              <div className="mb-3 space-y-2 rounded-lg border border-destructive/30 bg-destructive/5 p-3">
+                <TypographyP className="text-xs text-destructive">
+                  <FormattedMessage {...messages.loadColumnsError} />
+                </TypographyP>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={columnsQuery.isFetching}
+                  onClick={() => void columnsQuery.refetch()}
+                >
+                  <FormattedMessage {...messages.retryColumns} />
+                </Button>
+              </div>
+            ) : null}
+
+            <dl className="flex flex-col">
+              <PropertyRow
+                icon={User02Icon}
+                label={<FormattedMessage {...messages.fieldAssignee} />}
+              >
+                <IssueAssigneePicker
+                  value={issue.assigneeUserId}
+                  currentLabel={issue.assignee}
+                  members={assignableMembersQuery.data?.members ?? []}
+                  isLoading={assignableMembersQuery.isLoading}
+                  disabled={isSaving}
+                  size="ghost"
+                  triggerClassName={ghostSelectTriggerClassName}
+                  onChange={(assigneeUserId) => {
+                    updateIssue.mutate({ assigneeUserId });
+                  }}
+                />
+              </PropertyRow>
+
+              <PropertyRow
+                icon={CheckmarkCircle02Icon}
+                label={<FormattedMessage {...messages.fieldStatus} />}
+              >
+                <Select
+                  value={issue.status}
+                  items={statusItems}
+                  onValueChange={(value) => {
+                    if (value) {
+                      updateIssue.mutate({ status: value });
+                    }
+                  }}
+                  disabled={isSaving}
+                >
+                  <SelectTrigger className={ghostSelectTriggerClassName} showIcon={false}>
+                    <span className="flex items-center gap-2">
+                      <IssueStatusIcon status={issue.status} className="size-3.5" />
+                      {issueStatusLabel(intl, issue.status)}
+                    </span>
+                  </SelectTrigger>
+                  <SelectContent className="min-w-44 p-1.5">
+                    {statusItems.map((status) => (
+                      <SelectItem
+                        key={status.value}
+                        value={status.value}
+                        label={status.label}
+                        className="rounded-lg px-2 py-1.5 focus:bg-muted! focus:text-foreground! data-highlighted:bg-muted! data-highlighted:text-foreground!"
+                      >
+                        <span className="flex items-center gap-2">
+                          <IssueStatusIcon status={status.value} className="size-3.5" />
+                          {status.label}
+                        </span>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </PropertyRow>
+
+              <PropertyRow icon={Tag01Icon} label={<FormattedMessage {...messages.fieldType} />}>
+                <IssueTypePicker
+                  value={issue.issueType as IssueTypeValue}
+                  onValueChange={(value) => {
+                    updateIssue.mutate({ issueType: value });
+                  }}
+                  disabled={isSaving}
+                  showIcon={false}
+                  triggerClassName={ghostSelectTriggerClassName}
+                />
+              </PropertyRow>
+
+              <PropertyRow
+                icon={Flag01Icon}
+                label={<FormattedMessage {...messages.fieldPriority} />}
+              >
+                <Select
+                  value={priority || undefined}
+                  items={priorityItems}
+                  onValueChange={(value) => {
+                    if (value) {
+                      setValue.mutate({ columnKey: "priority", value });
+                    }
+                  }}
+                  disabled={isSaving}
+                >
+                  <SelectTrigger className={ghostSelectTriggerClassName} showIcon={false}>
+                    {priority ? (
+                      <IssuePriorityIcon priority={priority} size="sm" />
+                    ) : (
+                      <SelectValue placeholder={emptyValue} />
+                    )}
+                  </SelectTrigger>
+                  <SelectContent>
+                    {priorityItems.map((item) => (
+                      <SelectItem key={item.value} value={item.value} label={item.label}>
+                        <span className="flex items-center gap-2">
+                          <IssuePriorityIcon priority={item.value} size="sm" />
+                          {item.label}
+                        </span>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </PropertyRow>
+
+              <PropertyRow
+                icon={UserCircleIcon}
+                label={<FormattedMessage {...messages.fieldReporter} />}
+              >
+                <ReadOnlyValue value={issue.reporter} empty={emptyValue} className="truncate" />
+              </PropertyRow>
+
+              <PropertyRow
+                icon={LanguageCircleIcon}
+                label={<FormattedMessage {...messages.fieldLocale} />}
+              >
+                <ReadOnlyValue value={issue.targetLocale} empty={emptyValue} className="truncate" />
+              </PropertyRow>
+
+              <PropertyRow
+                icon={File01Icon}
+                label={<FormattedMessage {...messages.fieldSourcePath} />}
+              >
+                <ReadOnlyValue value={issue.sourcePath} empty={emptyValue} className="truncate" />
+              </PropertyRow>
+
+              <PropertyRow
+                icon={Calendar03Icon}
+                label={<FormattedMessage {...messages.fieldCreatedAt} />}
+              >
+                <ReadOnlyValue
+                  value={formatRelativeTimestamp(issue.createdAt)}
+                  empty={emptyValue}
+                  className="truncate"
+                />
+              </PropertyRow>
+
+              <PropertyRow
+                icon={Clock01Icon}
+                label={<FormattedMessage {...messages.fieldUpdatedAt} />}
+              >
+                <ReadOnlyValue
+                  value={formatRelativeTimestamp(issue.updatedAt)}
+                  empty={emptyValue}
+                  className="truncate"
+                />
+              </PropertyRow>
+
+              {issue.resolvedAt ? (
+                <PropertyRow
+                  icon={CheckmarkCircle02Icon}
+                  label={<FormattedMessage {...messages.fieldResolvedAt} />}
+                >
+                  <ReadOnlyValue
+                    value={formatRelativeTimestamp(issue.resolvedAt)}
+                    empty={emptyValue}
+                    className="truncate"
                   />
                 </PropertyRow>
-              ))
-            : null}
-        </dl>
-      </aside>
+              ) : null}
+
+              {showCustomColumns
+                ? sidebarCustomColumns.map((column) => (
+                    <PropertyRow key={column.id} icon={Tag01Icon} label={column.label}>
+                      <IssueCustomColumnField
+                        column={column}
+                        value={issue.values[column.key]}
+                        draft={customColumnDrafts[column.key] ?? ""}
+                        emptyValue={emptyValue}
+                        disabled={isSaving}
+                        variant="sidebar"
+                        members={assignableMembersQuery.data?.members ?? []}
+                        membersLoading={assignableMembersQuery.isLoading}
+                        onDraftChange={(value) => updateCustomColumnDraft(column.key, value)}
+                        onCommit={() => saveCustomColumnDraft(column.key)}
+                        onChange={(value) => saveCustomColumnValue(column.key, value)}
+                      />
+                    </PropertyRow>
+                  ))
+                : null}
+            </dl>
+          </div>
+
+          {!sidebarOpen ? (
+            <div className="hidden flex-col items-center gap-2 lg:flex">
+              {catHref ? (
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label={intl.formatMessage(messages.openInCat)}
+                  title={intl.formatMessage(messages.openInCat)}
+                  render={<a href={catHref} />}
+                >
+                  <HugeiconsIcon icon={TranslateIcon} strokeWidth={1.8} className="size-4" />
+                </Button>
+              ) : null}
+              {issue.linkUrl && issue.linkUrl !== catHref && isHttpOrHttpsUrl(issue.linkUrl) ? (
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label={issue.linkLabel || intl.formatMessage(messages.openLink)}
+                  title={issue.linkLabel || intl.formatMessage(messages.openLink)}
+                  render={
+                    <a
+                      href={issue.linkUrl}
+                      {...(isExternalHttpUrl(issue.linkUrl)
+                        ? { target: "_blank", rel: "noopener noreferrer" }
+                        : {})}
+                    />
+                  }
+                >
+                  <HugeiconsIcon icon={LinkSquare02Icon} strokeWidth={1.8} className="size-4" />
+                </Button>
+              ) : null}
+
+              <IssueAssigneePicker
+                value={issue.assigneeUserId}
+                currentLabel={issue.assignee}
+                members={assignableMembersQuery.data?.members ?? []}
+                isLoading={assignableMembersQuery.isLoading}
+                disabled={isSaving}
+                size="sm"
+                align="end"
+                onChange={(assigneeUserId) => {
+                  updateIssue.mutate({ assigneeUserId });
+                }}
+              />
+
+              <Select
+                value={issue.status}
+                items={statusItems}
+                onValueChange={(value) => {
+                  if (value) {
+                    updateIssue.mutate({ status: value });
+                  }
+                }}
+                disabled={isSaving}
+              >
+                <SelectTrigger
+                  className={iconRailSelectTriggerClassName}
+                  showIcon={false}
+                  aria-label={intl.formatMessage(messages.fieldStatus)}
+                  title={issueStatusLabel(intl, issue.status)}
+                >
+                  <IssueStatusIcon status={issue.status} className="size-3.5" />
+                </SelectTrigger>
+                <SelectContent className="min-w-44 p-1.5" align="end">
+                  {statusItems.map((status) => (
+                    <SelectItem
+                      key={status.value}
+                      value={status.value}
+                      label={status.label}
+                      className="rounded-lg px-2 py-1.5 focus:bg-muted! focus:text-foreground! data-highlighted:bg-muted! data-highlighted:text-foreground!"
+                    >
+                      <span className="flex items-center gap-2">
+                        <IssueStatusIcon status={status.value} className="size-3.5" />
+                        {status.label}
+                      </span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              <Select
+                value={issue.issueType}
+                items={typeItems}
+                onValueChange={(value) => {
+                  if (value && issueTypeValues.includes(value as IssueTypeValue)) {
+                    updateIssue.mutate({ issueType: value });
+                  }
+                }}
+                disabled={isSaving}
+              >
+                <SelectTrigger
+                  className={iconRailSelectTriggerClassName}
+                  showIcon={false}
+                  aria-label={intl.formatMessage(messages.fieldType)}
+                  title={issueTypeLabel(intl, issue.issueType)}
+                >
+                  <HugeiconsIcon icon={Tag01Icon} strokeWidth={1.8} className="size-3.5" />
+                </SelectTrigger>
+                <SelectContent align="end">
+                  {typeItems.map((type) => (
+                    <SelectItem key={type.value} value={type.value} label={type.label}>
+                      {type.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              <Select
+                value={priority || undefined}
+                items={priorityItems}
+                onValueChange={(value) => {
+                  if (value) {
+                    setValue.mutate({ columnKey: "priority", value });
+                  }
+                }}
+                disabled={isSaving}
+              >
+                <SelectTrigger
+                  className={iconRailSelectTriggerClassName}
+                  showIcon={false}
+                  aria-label={intl.formatMessage(messages.fieldPriority)}
+                  title={priority || emptyValue}
+                >
+                  {priority ? (
+                    <IssuePriorityIcon priority={priority} size="sm" />
+                  ) : (
+                    <HugeiconsIcon icon={Flag01Icon} strokeWidth={1.8} className="size-3.5" />
+                  )}
+                </SelectTrigger>
+                <SelectContent align="end">
+                  {priorityItems.map((item) => (
+                    <SelectItem key={item.value} value={item.value} label={item.label}>
+                      <span className="flex items-center gap-2">
+                        <IssuePriorityIcon priority={item.value} size="sm" />
+                        {item.label}
+                      </span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          ) : null}
+        </aside>
+      </Collapsible>
     </div>
   );
 });

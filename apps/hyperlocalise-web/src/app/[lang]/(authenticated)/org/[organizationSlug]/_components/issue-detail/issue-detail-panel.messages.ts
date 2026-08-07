@@ -211,4 +211,14 @@ export const issueDetailPanelMessages = defineMessages({
     id: "FtQgWtXBLP",
     description: "Retry button when issue sheet columns fail to load",
   },
+  collapseSidebar: {
+    defaultMessage: "Collapse properties",
+    id: "eaNtS/5vOt",
+    description: "Aria label to collapse the issue detail properties sidebar",
+  },
+  expandSidebar: {
+    defaultMessage: "Expand properties",
+    id: "a59gdX+rmW",
+    description: "Aria label to expand the issue detail properties sidebar",
+  },
 });

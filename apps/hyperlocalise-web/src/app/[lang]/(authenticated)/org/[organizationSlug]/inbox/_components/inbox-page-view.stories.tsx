@@ -18,10 +18,12 @@ import {
   createConversation,
   createStreamedAssistantMessage,
   currentUserFixture,
+  issueNotificationsFixture,
   linkedJobsFixture,
   messagesFixture,
 } from "./inbox.fixture";
 import { InboxPageView } from "./inbox-page-view";
+import { issueSheetMswHandlers } from "../../projects/[projectId]/issue-sheet/_components/issue-sheet-msw-handlers";
 
 const meta = {
   title: "App/Inbox/Page",
@@ -169,5 +171,56 @@ export const SendingMessage: Story = {
   args: {
     isSending: true,
     selectedConversation: createConversation({ source: "chat_ui" }),
+  },
+};
+
+export const IssueNotificationSelected: Story = {
+  args: {
+    conversations: conversationsFixture,
+    notifications: issueNotificationsFixture,
+    unreadNotificationCount: 2,
+    selection: { kind: "notification", id: issueNotificationsFixture[0].id },
+    selectedConversation: undefined,
+    selectedNotification: issueNotificationsFixture[0],
+    messages: [],
+    jobs: [],
+  },
+  parameters: {
+    msw: {
+      handlers: issueSheetMswHandlers,
+    },
+    nextjs: {
+      appDirectory: true,
+      navigation: {
+        pathname: `/org/acme/inbox/notifications/${issueNotificationsFixture[0].id}`,
+      },
+    },
+  },
+  play: async ({ canvas }) => {
+    await expect(
+      canvas.getByText("Otto Klein assigned you to Source string needs context"),
+    ).toBeInTheDocument();
+    await expect(canvas.getByRole("button", { name: "Mark all as read" })).toBeInTheDocument();
+    await expect(
+      await canvas.findByDisplayValue("Source string needs context"),
+    ).toBeInTheDocument();
+  },
+};
+
+export const IssueNotificationLoading: Story = {
+  args: {
+    conversations: [],
+    notifications: issueNotificationsFixture,
+    unreadNotificationCount: 2,
+    selection: { kind: "notification", id: issueNotificationsFixture[0].id },
+    selectedConversation: undefined,
+    selectedNotification: undefined,
+    selectedNotificationIsLoading: true,
+    messages: [],
+    jobs: [],
+  },
+  play: async ({ canvas }) => {
+    await expect(canvas.getByLabelText("Loading notification")).toBeInTheDocument();
+    await expect(canvas.getByText("Loading issue")).toBeInTheDocument();
   },
 };

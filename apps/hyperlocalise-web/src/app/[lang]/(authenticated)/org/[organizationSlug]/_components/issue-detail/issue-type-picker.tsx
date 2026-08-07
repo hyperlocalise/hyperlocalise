@@ -28,12 +28,14 @@ export function IssueTypePicker({
   onValueChange,
   disabled = false,
   triggerClassName,
+  showIcon = true,
   "aria-label": ariaLabel,
 }: {
   value: IssueTypeValue;
   onValueChange: (value: IssueTypeValue) => void;
   disabled?: boolean;
   triggerClassName?: string;
+  showIcon?: boolean;
   "aria-label"?: string;
 }) {
   const intl = useIntl();
@@ -59,6 +61,7 @@ export function IssueTypePicker({
     >
       <SelectTrigger
         aria-label={ariaLabel}
+        showIcon={showIcon}
         className={cn(DEFAULT_TRIGGER_CLASS_NAME, triggerClassName)}
       >
         <Badge variant="outline" className="rounded-full">

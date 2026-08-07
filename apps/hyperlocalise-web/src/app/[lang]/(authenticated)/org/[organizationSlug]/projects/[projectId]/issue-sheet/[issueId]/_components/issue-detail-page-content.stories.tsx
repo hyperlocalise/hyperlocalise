@@ -116,3 +116,24 @@ export const ColumnsError: Story = {
     await expect(canvas.queryByText("Context")).not.toBeInTheDocument();
   },
 };
+
+export const WithCustomFields: Story = {
+  parameters: {
+    msw: {
+      handlers: issueSheetMswHandlers,
+    },
+  },
+  play: async ({ canvas }) => {
+    await expect(await canvas.findByText("Source string needs context")).toBeInTheDocument();
+    await expect(await canvas.findByText("Context")).toBeInTheDocument();
+    await expect(canvas.getByText("Acceptance criteria")).toBeInTheDocument();
+    await expect(
+      canvas.getByText("Confirm CTA meaning with product before translation."),
+    ).toBeInTheDocument();
+    await expect(canvas.getByText("Sprint")).toBeInTheDocument();
+    await expect(canvas.getByText("Sprint 24")).toBeInTheDocument();
+    await expect(canvas.getByText("Component")).toBeInTheDocument();
+    await expect(canvas.getByDisplayValue("Checkout")).toBeInTheDocument();
+    await expect(canvas.getByText("Reviewer")).toBeInTheDocument();
+  },
+};

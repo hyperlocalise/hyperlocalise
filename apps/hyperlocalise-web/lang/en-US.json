@@ -5387,6 +5387,10 @@
     "defaultMessage": "Translation files drift from source strings between releases.",
     "description": "Problem pain point 3 for the github-release-localisation use case"
   },
+  "k8mQp2nRwX": {
+    "defaultMessage": "Collapse properties",
+    "description": "Aria label to collapse the issue detail properties sidebar"
+  },
   "K99IJACIpb": {
     "defaultMessage": "The rest of your workspace is still available. Try loading this chat again.",
     "description": "Description shown when the chat dock panel fails to render"
@@ -7886,6 +7890,10 @@
   "V3N8wNW3/m": {
     "defaultMessage": "But we also saw the reality behind every successful global launch. Localisation teams worked tirelessly to keep pace with product development. Product context lived in dozens of places. Questions were repeated across projects. Reviews stretched across time zones. As products shipped faster, the operational burden only grew.",
     "description": "Fourth paragraph of the founders note on the company page"
+  },
+  "v3nLk9sHtY": {
+    "defaultMessage": "Expand properties",
+    "description": "Aria label to expand the issue detail properties sidebar"
   },
   "V5IhYqq1Fk": {
     "defaultMessage": "Manage",
