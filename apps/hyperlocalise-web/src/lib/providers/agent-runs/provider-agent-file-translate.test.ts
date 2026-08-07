@@ -387,12 +387,12 @@ describe("translateProviderJobFiles", () => {
     expect(buildMultiFileMultiLocaleTempConfigMock).toHaveBeenCalledWith(
       [
         {
-          from: "work_file-1_a.json",
-          to: "work_file-1_a-{{target}}.json",
+          from: "work_file-1_c2bb3ccfff6a_a.json",
+          to: "work_file-1_c2bb3ccfff6a_a-{{target}}.json",
         },
         {
-          from: "work_file-2_b.json",
-          to: "work_file-2_b-{{target}}.json",
+          from: "work_file-2_69453e62c1ee_b.json",
+          to: "work_file-2_69453e62c1ee_b-{{target}}.json",
         },
       ],
       "en",
@@ -409,6 +409,62 @@ describe("translateProviderJobFiles", () => {
         expect.objectContaining({ key: "bye", to: "Au revoir" }),
       ]),
     );
+  });
+
+  it("uses distinct download and config filenames when sanitized provider file IDs collide", async () => {
+    await translateProviderJobFiles({
+      organizationId: "org_1",
+      projectId: "project_1",
+      providerKind: "crowdin",
+      sourceFiles: [
+        {
+          id: "web::a/b/foo.json",
+          displayName: "foo.json",
+          sourcePath: "a/b/foo.json",
+        },
+        {
+          id: "web::a_b/foo.json",
+          displayName: "foo.json",
+          sourcePath: "a_b/foo.json",
+        },
+      ],
+      content: {
+        externalJobId: "task-1",
+        sourceLocale: "en",
+        targetLocales: ["fr"],
+        units: [
+          {
+            externalStringId: "1",
+            key: "hello",
+            sourceText: "Hello",
+            fileId: "web::a/b/foo.json",
+            translations: [],
+          },
+          {
+            externalStringId: "2",
+            key: "bye",
+            sourceText: "Goodbye",
+            fileId: "web::a_b/foo.json",
+            translations: [],
+          },
+        ],
+      },
+    });
+
+    const downloadFilenames = downloadCrowdinSourceInSandboxMock.mock.calls.map(
+      ([call]) => call.sourceFilename,
+    );
+    expect(downloadFilenames).toHaveLength(2);
+    expect(new Set(downloadFilenames).size).toBe(2);
+    expect(downloadFilenames).toEqual([
+      "work_web__a_b_foo.json_236fd0ec964e_foo.json",
+      "work_web__a_b_foo.json_0ac26f21cf33_foo.json",
+    ]);
+
+    const [configuredFiles] = buildMultiFileMultiLocaleTempConfigMock.mock.calls[0]!;
+    const configFilenames = configuredFiles.map((file: { from: string }) => file.from);
+    expect(new Set(configFilenames).size).toBe(2);
+    expect(configFilenames).toEqual(downloadFilenames);
   });
 
   it("preserves readable outputs when the multi-file hl run reports a partial failure", async () => {
@@ -528,8 +584,8 @@ describe("translateProviderJobFiles", () => {
     expect(buildMultiFileMultiLocaleTempConfigMock).toHaveBeenCalledWith(
       [
         {
-          from: "work_file-pending_pending.json",
-          to: "work_file-pending_pending-{{target}}.json",
+          from: "work_file-pending_074d1b841541_pending.json",
+          to: "work_file-pending_074d1b841541_pending-{{target}}.json",
         },
       ],
       "en",

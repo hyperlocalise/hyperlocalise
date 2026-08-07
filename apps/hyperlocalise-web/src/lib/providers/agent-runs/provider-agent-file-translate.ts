@@ -10,6 +10,8 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { createHash } from "node:crypto";
+
 import {
   detectAgentRunProposalWarnings,
   deriveChangedFields,
@@ -207,7 +209,8 @@ function buildGlossaryContext(input: {
 }
 
 function sandboxWorkFilename(fileId: string, basename: string): string {
-  return `work_${sanitizeSandboxFilename(fileId)}_${sanitizeSandboxFilename(basename)}`;
+  const fileIdHash = createHash("sha256").update(fileId, "utf8").digest("hex").slice(0, 12);
+  return `work_${sanitizeSandboxFilename(fileId)}_${fileIdHash}_${sanitizeSandboxFilename(basename)}`;
 }
 
 /**
