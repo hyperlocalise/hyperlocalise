@@ -766,7 +766,6 @@ export async function translateProviderJobFiles(input: {
           })),
         );
 
-        let batchFailed = false;
         try {
           await runMultiFileTranslationInSandbox({
             sandboxId,
@@ -780,7 +779,6 @@ export async function translateProviderJobFiles(input: {
             prefilledByLocale,
           });
         } catch (error) {
-          batchFailed = true;
           warnings.push(
             `Batch file translation failed: ${
               error instanceof Error ? error.message : "unknown error"
@@ -788,7 +786,8 @@ export async function translateProviderJobFiles(input: {
           );
         }
 
-        if (!batchFailed) {
+        // A failed aggregate run can still flush valid outputs for independent file/locale tasks.
+        if (preparedFiles.length > 0) {
           const glossaryTermsForValidation = (batchContext.glossaryTerms ?? []).map((term) => ({
             sourceTerm: term.sourceTerm,
             targetTerm: term.targetTerm,
