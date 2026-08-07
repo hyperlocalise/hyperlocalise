@@ -14,7 +14,6 @@ import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { expect, userEvent, within } from "storybook/test";
 
 import {
-  issueSheetManySubscribersFixture,
   issueSheetOrganizationSlug,
   issueSheetProjectId,
 } from "../../projects/[projectId]/issue-sheet/_components/issue-sheet.fixture";
@@ -102,7 +101,6 @@ export const ManySubscribers: Story = {
     await expect(canvas.getByTitle("Otto Klein")).toBeInTheDocument();
     await expect(canvas.getByTitle("Aiko Tanaka")).toBeInTheDocument();
     await expect(canvas.getByText("+2")).toBeInTheDocument();
-    expect(issueSheetManySubscribersFixture.length).toBeGreaterThan(3);
   },
 };
 

@@ -71,7 +71,7 @@ export const Default: Story = {
       "No comments or activity yet. Start the discussion.",
     );
     await expect(commentsEmptyState).toBeVisible();
-    expect(
+    await expect(
       unsubscribe.compareDocumentPosition(commentsEmptyState) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
   },

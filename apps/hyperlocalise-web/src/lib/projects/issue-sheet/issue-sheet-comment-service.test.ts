@@ -404,7 +404,7 @@ describe("IssueSheetCommentService", () => {
   });
 
   it("subscribes newly mentioned users when a comment is edited", async () => {
-    const { identity, organization, project, user } = await createProjectForIdentity();
+    const { identity, project, user } = await createProjectForIdentity();
     const memberIdentity = authFixture.createWorkosIdentityForOrganization(
       identity.organization,
       "member",

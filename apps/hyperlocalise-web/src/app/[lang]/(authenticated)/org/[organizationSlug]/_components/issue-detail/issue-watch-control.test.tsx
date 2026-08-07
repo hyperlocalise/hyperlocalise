@@ -39,9 +39,19 @@ const subscribersFixture = [
   },
 ];
 
+function resolveFetchUrl(input: RequestInfo | URL): string {
+  if (typeof input === "string") {
+    return input;
+  }
+  if (input instanceof URL) {
+    return input.toString();
+  }
+  return input.url;
+}
+
 function mockFetch() {
   return vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
-    const url = String(input);
+    const url = resolveFetchUrl(input);
     if (url === subscribersPath) {
       return new Response(JSON.stringify({ subscribers: subscribersFixture }), { status: 200 });
     }

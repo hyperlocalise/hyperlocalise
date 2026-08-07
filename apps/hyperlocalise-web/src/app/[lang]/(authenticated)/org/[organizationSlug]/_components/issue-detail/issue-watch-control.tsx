@@ -120,7 +120,9 @@ export function IssueWatchControl({
             <SubscriberAvatar key={subscriber.userId} subscriber={subscriber} />
           ))}
           {hiddenSubscriberCount > 0 ? (
-            <AvatarGroupCount className="size-[22px] text-xs">+{hiddenSubscriberCount}</AvatarGroupCount>
+            <AvatarGroupCount className="size-[22px] text-xs">
+              +{hiddenSubscriberCount}
+            </AvatarGroupCount>
           ) : null}
         </AvatarGroup>
       ) : null}
