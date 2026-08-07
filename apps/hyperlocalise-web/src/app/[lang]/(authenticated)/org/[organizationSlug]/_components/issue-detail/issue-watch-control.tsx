@@ -59,7 +59,7 @@ function avatarFallbackClassName(seed: string) {
 
 function SubscriberAvatar({ subscriber }: { subscriber: IssueSubscriber }) {
   return (
-    <Avatar size="sm" title={subscriber.displayName}>
+    <Avatar size="sm" className="size-[22px]" title={subscriber.displayName}>
       {subscriber.avatarUrl ? <AvatarImage src={subscriber.avatarUrl} alt="" /> : null}
       <AvatarFallback className={avatarFallbackClassName(subscriber.userId)}>
         {initials(subscriber.displayName)}
@@ -103,7 +103,7 @@ export function IssueWatchControl({
         variant="ghost"
         size="sm"
         disabled={disabled || isPending}
-        className="h-auto px-0 text-sm font-normal text-muted-foreground hover:bg-transparent hover:text-foreground"
+        className="h-auto px-0 text-xs font-normal text-muted-foreground hover:bg-transparent hover:text-foreground"
         onClick={() => {
           if (isWatching) {
             unwatch.mutate();
@@ -120,7 +120,7 @@ export function IssueWatchControl({
             <SubscriberAvatar key={subscriber.userId} subscriber={subscriber} />
           ))}
           {hiddenSubscriberCount > 0 ? (
-            <AvatarGroupCount>+{hiddenSubscriberCount}</AvatarGroupCount>
+            <AvatarGroupCount className="size-[22px] text-xs">+{hiddenSubscriberCount}</AvatarGroupCount>
           ) : null}
         </AvatarGroup>
       ) : null}
