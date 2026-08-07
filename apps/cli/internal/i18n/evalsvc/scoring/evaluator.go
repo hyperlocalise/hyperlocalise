@@ -67,7 +67,7 @@ func NewEvaluator() *Evaluator {
 }
 
 func (e *Evaluator) Evaluate(source, translated, reference, targetLocale string, tags []string) Result {
-	result := Result{Details: map[string]float64{}}
+	result := Result{Details: make(map[string]float64, 8)}
 
 	srcTrimmed := strings.TrimSpace(source)
 	translatedTrimmed := strings.TrimSpace(translated)
@@ -506,45 +506,116 @@ func tokenF1(reference, candidate string) float64 {
 	return tokenF1Normalized(normalizeText(reference), normalizeText(candidate))
 }
 
-// BOLT OPTIMIZATION: tokenF1Normalized was optimized by replacing the two independent
-// token-count maps with a single map (rCount) pre-allocated with a capacity hint based
-// on the length of reference tokens r. Matching tokens from the candidate string
-// decrement counts in rCount on the fly. This reduces allocations and avoids second
-// map construction entirely, reducing BenchmarkTokenF1 execution time and decreasing
-// allocations in BenchmarkEvaluatorEvaluate.
+// BOLT OPTIMIZATION: tokenF1Normalized was optimized to run completely allocation-free for token slicing
+// by processing the strings on-the-fly. This function implements a highly optimized, fully unicode-aware
+// whitespace-skipping tokenizer that behaves exactly like strings.Fields. By iterating over strings and
+// slicing words directly using indices, we completely avoid slice allocations (r and c slice headers),
+// resulting in massive garbage collection savings and much faster execution.
 func tokenF1Normalized(reference, candidate string) float64 {
-	r := tokenizeNormalized(reference)
-	c := tokenizeNormalized(candidate)
-	if len(r) == 0 && len(c) == 0 {
+	if reference == "" && candidate == "" {
 		return 1
 	}
-	if len(r) == 0 || len(c) == 0 {
+	if reference == "" || candidate == "" {
 		return 0
 	}
-	rCount := make(map[string]int, len(r))
-	for _, tok := range r {
-		rCount[tok]++
+
+	rCount := make(map[string]int)
+	rLen := 0
+	start := -1
+	for i := 0; i < len(reference); {
+		c := reference[i]
+		if c < utf8.RuneSelf {
+			isSpace := c == ' ' || c == '\t' || c == '\n' || c == '\r' || c == '\v' || c == '\f'
+			if isSpace {
+				if start != -1 {
+					rCount[reference[start:i]]++
+					rLen++
+					start = -1
+				}
+			} else if start == -1 {
+				start = i
+			}
+			i++
+		} else {
+			r, size := utf8.DecodeRuneInString(reference[i:])
+			if unicode.IsSpace(r) {
+				if start != -1 {
+					rCount[reference[start:i]]++
+					rLen++
+					start = -1
+				}
+			} else if start == -1 {
+				start = i
+			}
+			i += size
+		}
 	}
+	if start != -1 {
+		rCount[reference[start:]]++
+		rLen++
+	}
+
 	matches := 0
-	for _, tok := range c {
+	cLen := 0
+	start = -1
+	for i := 0; i < len(candidate); {
+		c := candidate[i]
+		if c < utf8.RuneSelf {
+			isSpace := c == ' ' || c == '\t' || c == '\n' || c == '\r' || c == '\v' || c == '\f'
+			if isSpace {
+				if start != -1 {
+					tok := candidate[start:i]
+					cLen++
+					if count, ok := rCount[tok]; ok && count > 0 {
+						matches++
+						rCount[tok]--
+					}
+					start = -1
+				}
+			} else if start == -1 {
+				start = i
+			}
+			i++
+		} else {
+			r, size := utf8.DecodeRuneInString(candidate[i:])
+			if unicode.IsSpace(r) {
+				if start != -1 {
+					tok := candidate[start:i]
+					cLen++
+					if count, ok := rCount[tok]; ok && count > 0 {
+						matches++
+						rCount[tok]--
+					}
+					start = -1
+				}
+			} else if start == -1 {
+				start = i
+			}
+			i += size
+		}
+	}
+	if start != -1 {
+		tok := candidate[start:]
+		cLen++
 		if count, ok := rCount[tok]; ok && count > 0 {
 			matches++
 			rCount[tok]--
 		}
 	}
-	precision := float64(matches) / float64(len(c))
-	recall := float64(matches) / float64(len(r))
+
+	if rLen == 0 && cLen == 0 {
+		return 1
+	}
+	if rLen == 0 || cLen == 0 {
+		return 0
+	}
+
+	precision := float64(matches) / float64(cLen)
+	recall := float64(matches) / float64(rLen)
 	if precision+recall == 0 {
 		return 0
 	}
 	return 2 * precision * recall / (precision + recall)
-}
-
-func tokenizeNormalized(s string) []string {
-	if s == "" {
-		return nil
-	}
-	return strings.Fields(s)
 }
 
 func normalizeText(s string) string {
