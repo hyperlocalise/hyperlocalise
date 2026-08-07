@@ -186,6 +186,23 @@ describe("isProviderFileFullyTranslated", () => {
       }),
     ).toBe(false);
   });
+
+  it("returns true when targetLocales is empty", () => {
+    expect(
+      isProviderFileFullyTranslated({
+        targetLocales: [],
+        units: [
+          {
+            externalStringId: "1",
+            key: "hello",
+            sourceText: "Hello",
+            fileId: "file-1",
+            translations: [],
+          },
+        ],
+      }),
+    ).toBe(true);
+  });
 });
 
 describe("mergeLocaleKeyedPrefills", () => {
@@ -470,5 +487,152 @@ describe("translateProviderJobFiles", () => {
     );
     expect(result.filesProcessed).toBe(1);
     expect(result.skippedExistingLocales).toBe(1);
+  });
+
+  it("skips sandbox work when requested locales do not intersect content locales", async () => {
+    const result = await translateProviderJobFiles({
+      organizationId: "org_1",
+      projectId: "project_1",
+      providerKind: "crowdin",
+      targetLocales: ["ja"],
+      sourceFiles: [
+        {
+          id: "file-1",
+          displayName: "messages.json",
+          sourcePath: "locales/messages.json",
+        },
+      ],
+      content: {
+        externalJobId: "task-1",
+        sourceLocale: "en",
+        targetLocales: ["fr"],
+        units: [
+          {
+            externalStringId: "1",
+            key: "hello",
+            sourceText: "Hello",
+            fileId: "file-1",
+            translations: [],
+          },
+        ],
+      },
+    });
+
+    expect(result).toMatchObject({
+      filesProcessed: 0,
+      unitsProcessed: 0,
+      changedItems: [],
+    });
+    expect(createTranslationSandboxMock).not.toHaveBeenCalled();
+    expect(stopTranslationSandboxMock).not.toHaveBeenCalled();
+  });
+
+  it("stops the sandbox and records a warning when the batch hl run fails", async () => {
+    runSandboxCommandMock.mockResolvedValue({
+      exitCode: 1,
+      output: "hl run crashed",
+    });
+
+    const result = await translateProviderJobFiles({
+      organizationId: "org_1",
+      projectId: "project_1",
+      providerKind: "crowdin",
+      sourceFiles: [
+        {
+          id: "file-1",
+          displayName: "a.json",
+          sourcePath: "locales/a.json",
+        },
+      ],
+      content: {
+        externalJobId: "task-1",
+        sourceLocale: "en",
+        targetLocales: ["fr"],
+        units: [
+          {
+            externalStringId: "1",
+            key: "hello",
+            sourceText: "Hello",
+            fileId: "file-1",
+            translations: [],
+          },
+        ],
+      },
+    });
+
+    expect(createTranslationSandboxMock).toHaveBeenCalledTimes(1);
+    expect(stopTranslationSandboxMock).toHaveBeenCalledTimes(1);
+    expect(result.changedItems).toEqual([]);
+    expect(
+      result.warnings.some((warning) => warning.includes("Batch file translation failed")),
+    ).toBe(true);
+  });
+
+  it("continues the batch when one sandbox source download fails", async () => {
+    downloadCrowdinSourceInSandboxMock.mockImplementation(
+      async (input: { externalFileId: string }) => {
+        if (input.externalFileId === "file-1") {
+          throw new Error("download boom");
+        }
+        return { ok: true };
+      },
+    );
+
+    const result = await translateProviderJobFiles({
+      organizationId: "org_1",
+      projectId: "project_1",
+      providerKind: "crowdin",
+      sourceFiles: [
+        {
+          id: "file-1",
+          displayName: "a.json",
+          sourcePath: "locales/a.json",
+        },
+        {
+          id: "file-2",
+          displayName: "b.json",
+          sourcePath: "locales/b.json",
+        },
+      ],
+      content: {
+        externalJobId: "task-1",
+        sourceLocale: "en",
+        targetLocales: ["fr"],
+        units: [
+          {
+            externalStringId: "1",
+            key: "hello",
+            sourceText: "Hello",
+            fileId: "file-1",
+            translations: [],
+          },
+          {
+            externalStringId: "2",
+            key: "bye",
+            sourceText: "Goodbye",
+            fileId: "file-2",
+            translations: [],
+          },
+        ],
+      },
+    });
+
+    expect(createTranslationSandboxMock).toHaveBeenCalledTimes(1);
+    expect(stopTranslationSandboxMock).toHaveBeenCalledTimes(1);
+    expect(buildMultiFileMultiLocaleTempConfigMock).toHaveBeenCalledWith(
+      [
+        {
+          from: "work_file-2_b.json",
+          to: "work_file-2_b-{{target}}.json",
+        },
+      ],
+      "en",
+      ["fr"],
+      null,
+      expect.any(Object),
+    );
+    expect(result.warnings.some((warning) => warning.includes("Skipped file a.json"))).toBe(true);
+    expect(result.changedItems).toEqual([expect.objectContaining({ key: "bye", to: "Au revoir" })]);
+    expect(result.changedItems.some((item) => item.key === "hello")).toBe(false);
   });
 });

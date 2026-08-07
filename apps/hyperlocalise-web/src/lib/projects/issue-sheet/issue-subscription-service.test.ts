@@ -160,6 +160,56 @@ describe("IssueSubscriptionService", () => {
     expect(subscribed).toBe(true);
   });
 
+  it("auto-subscribes the next assignee on reassignment", async () => {
+    const { actor, actorIdentity, memberUserId, organization, project } =
+      await createProjectWithMembers();
+
+    const nextIdentity = authFixture.createWorkosIdentityForOrganization(
+      actorIdentity.organization,
+      "member",
+    );
+    await authFixture.authHeadersFor(nextIdentity);
+    const nextAssigneeUserId = await authFixture.getLocalUserId(nextIdentity.user.workosUserId);
+    const team = await ensureDefaultWorkspaceTeam(organization.id);
+    await db
+      .insert(schema.teamMemberships)
+      .values({
+        teamId: team.id,
+        userId: nextAssigneeUserId,
+        role: "member",
+      })
+      .onConflictDoNothing();
+    await authFixture.authHeadersFor(actorIdentity);
+
+    const issue = await issueSheetService.createIssue({
+      organizationId: organization.id,
+      projectId: project.id,
+      actorUserId: actor.id,
+      body: {
+        title: "Reassign subscribe",
+        assigneeUserId: memberUserId,
+      },
+    });
+
+    await issueSheetService.updateIssue({
+      organizationId: organization.id,
+      projectId: project.id,
+      issueId: issue.id,
+      actorUserId: actor.id,
+      body: { assigneeUserId: nextAssigneeUserId },
+    });
+
+    const subscribed = await subscriptionService.isSubscribed({
+      issueId: issue.id,
+      userId: nextAssigneeUserId,
+    });
+    expect(subscribed).toBe(true);
+
+    const watchers = await subscriptionService.resolveWatchers(issue.id);
+    expect(watchers.has(nextAssigneeUserId)).toBe(true);
+    expect(watchers.has(memberUserId)).toBe(true);
+  });
+
   it("subscribes comment authors and mentioned users with project access", async () => {
     const { actor, actorIdentity, memberUserId, organization, project } =
       await createProjectWithMembers();
