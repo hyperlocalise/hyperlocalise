@@ -25,9 +25,10 @@ func TestApprovalsListOptionsValues(t *testing.T) {
 			opts: &ApprovalsListOptions{
 				OrderBy: "createdAt desc,id", FileID: 1, LabelIDs: []int{1, 2},
 				ExcludeLabelIDs: []int{3, 4}, StringID: 2, LanguageID: "en", TranslationID: 3,
-				ListOptions: ListOptions{Offset: 1, Limit: 10},
+				CorrectionID: 4,
+				ListOptions:  ListOptions{Offset: 1, Limit: 10},
 			},
-			out: "excludeLabelIds=3%2C4&fileId=1&labelIds=1%2C2&languageId=en&limit=10&offset=1&orderBy=createdAt+desc%2Cid&stringId=2&translationId=3",
+			out: "correctionId=4&excludeLabelIds=3%2C4&fileId=1&labelIds=1%2C2&languageId=en&limit=10&offset=1&orderBy=createdAt+desc%2Cid&stringId=2&translationId=3",
 		},
 	}
 

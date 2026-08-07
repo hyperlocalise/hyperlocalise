@@ -40,12 +40,13 @@ func TestStringTranslationsService_ListApprovals(t *testing.T) {
 				StringID:        2345,
 				LanguageID:      "uk",
 				TranslationID:   190695,
+				CorrectionID:    9876,
 				ListOptions: model.ListOptions{
 					Offset: 10,
 					Limit:  25,
 				},
 			},
-			expect: "?excludeLabelIds=3%2C4&fileId=1&labelIds=1%2C2&languageId=uk&limit=25&offset=10&orderBy=createdAt+desc%2Cid&stringId=2345&translationId=190695",
+			expect: "?correctionId=9876&excludeLabelIds=3%2C4&fileId=1&labelIds=1%2C2&languageId=uk&limit=25&offset=10&orderBy=createdAt+desc%2Cid&stringId=2345&translationId=190695",
 		},
 	}
 

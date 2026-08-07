@@ -54,6 +54,9 @@ type ApprovalsListOptions struct {
 	// Translation Identifier.
 	// Note: If specified, `fileId`, `stringId` and `languageId` are ignored.
 	TranslationID int `json:"translationId,omitempty"`
+	// Correction Identifier.
+	// Note: If specified, `fileId`, `stringId` and `languageId` are ignored.
+	CorrectionID int `json:"correctionId,omitempty"`
 
 	ListOptions
 }
@@ -87,6 +90,9 @@ func (o *ApprovalsListOptions) Values() (url.Values, bool) {
 	}
 	if o.TranslationID > 0 {
 		v.Add("translationId", strconv.Itoa(o.TranslationID))
+	}
+	if o.CorrectionID > 0 {
+		v.Add("correctionId", strconv.Itoa(o.CorrectionID))
 	}
 
 	return v, len(v) > 0
