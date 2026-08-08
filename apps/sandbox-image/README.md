@@ -48,9 +48,9 @@ is public, so the Dockerfile build itself does not need VCR.
 | Name | Kind | Purpose |
 |------|------|---------|
 | `VERCEL_TOKEN` | repository secret | Vercel access token with access to the web project |
-| `VERCEL_TEAM_ID` | repository variable | Docker login username (`team_…`) |
-| `VERCEL_TEAM_SLUG` | repository variable | Image path team slug |
-| `VERCEL_PROJECT_SLUG` | repository variable | Image path project slug (hyperlocalise-web) |
+| `VERCEL_TEAM_ID` | repository secret | Docker login username (`team_…`) |
+| `VERCEL_TEAM_SLUG` | repository secret | Image path team slug |
+| `VERCEL_PROJECT_SLUG` | repository secret | Image path project slug (hyperlocalise-web) |
 
 Pushed reference:
 
