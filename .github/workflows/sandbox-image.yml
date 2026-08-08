@@ -16,6 +16,8 @@ on:
 
 permissions:
   contents: read
+  # Required for the GitHub Actions cache backend (cache-to: type=gha).
+  actions: write
 
 concurrency:
   group: sandbox-image-${{ github.workflow }}-${{ github.ref }}
@@ -109,4 +111,5 @@ jobs:
           load: ${{ steps.meta.outputs.push != 'true' }}
           tags: ${{ steps.meta.outputs.tags }}
           cache-from: type=gha
-          cache-to: type=gha,mode=max
+          # ignore-error keeps fork PRs green: their token cannot write the cache.
+          cache-to: type=gha,mode=max,ignore-error=true
