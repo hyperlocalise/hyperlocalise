@@ -34,7 +34,7 @@ const config: StorybookConfig = {
       ];
     } else {
       viteConfig.resolve.alias = {
-        ...existingAlias,
+        ...(existingAlias && !Array.isArray(existingAlias) ? existingAlias : {}),
         "@workos-inc/authkit-nextjs/components": authkitComponentsMock,
       };
     }
