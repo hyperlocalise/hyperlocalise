@@ -368,6 +368,7 @@ async function translateProviderUnits(input: {
             reviewState: "pending",
             changedFields: deriveChangedFields(from, translation.text),
             warnings: proposalWarnings,
+            fileId: unit.fileId ?? null,
             translationMemoryMatchesUsed: localeMatches.length > 0 ? localeMatches : undefined,
             glossaryMatchesUsed:
               localeGlossaryMatches.length > 0 ? localeGlossaryMatches : undefined,

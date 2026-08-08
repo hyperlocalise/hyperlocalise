@@ -115,6 +115,7 @@ describe("provider-agent-writeback", () => {
           reviewState: "accepted",
           changedFields: ["target"],
           warnings: {},
+          fileId: "101",
         }),
       ],
     });
@@ -171,6 +172,7 @@ describe("provider-agent-writeback", () => {
             key: "cta.label",
             locale: "fr-FR",
             text: "Acheter",
+            fileId: "101",
           }),
         ],
       }),
@@ -328,6 +330,131 @@ describe("provider-agent-writeback", () => {
           message: "upload failed",
         }),
       ]),
+    );
+  });
+
+  it("forwards per-proposal fileIds so multi-file Crowdin keys do not collapse to task.fileIds[0]", async () => {
+    const projectId = randomUUID();
+    const orgSuffix = randomUUID();
+
+    const [organization] = await db
+      .insert(schema.organizations)
+      .values({
+        workosOrganizationId: `org_${orgSuffix}`,
+        name: "Multi-file Write-back Org",
+        slug: `multi-file-writeback-${orgSuffix.slice(0, 8)}`,
+      })
+      .returning();
+    const organizationId = organization!.id;
+
+    await db.insert(schema.projects).values({
+      id: projectId,
+      organizationId,
+      name: "External TMS Project",
+      source: "external_tms",
+      externalProviderKind: "crowdin",
+      externalProjectId: "123",
+    });
+
+    const job = await createTestJob({ organizationId, projectId });
+
+    const sourceRun = await createAgentRun({
+      organizationId,
+      providerKind: "crowdin",
+      externalJobId: "task-multi",
+      kind: "translate",
+      hyperlocaliseJobId: job.id,
+      inputSnapshot: { projectId },
+    });
+
+    await startAgentRun({ runId: sourceRun.id, organizationId });
+
+    await completeAgentRun({
+      runId: sourceRun.id,
+      organizationId,
+      outputSummary: { proposals: 2 },
+      changedItems: [
+        serializeAgentRunProposalItem({
+          itemId: "s1:fr-FR",
+          externalStringId: "s1",
+          key: "title",
+          locale: "fr-FR",
+          sourceText: "Title A",
+          from: "",
+          to: "Titre A",
+          reviewState: "accepted",
+          changedFields: ["target"],
+          warnings: {},
+          fileId: "11",
+        }),
+        serializeAgentRunProposalItem({
+          itemId: "s2:fr-FR",
+          externalStringId: "s2",
+          key: "title",
+          locale: "fr-FR",
+          sourceText: "Title B",
+          from: "",
+          to: "Titre B",
+          reviewState: "accepted",
+          changedFields: ["target"],
+          warnings: {},
+          fileId: "22",
+        }),
+      ],
+    });
+
+    const writebackRun = await createAgentRun({
+      organizationId,
+      providerKind: "crowdin",
+      externalJobId: "task-multi",
+      kind: "translate",
+      hyperlocaliseJobId: job.id,
+      inputSnapshot: {
+        action: "push_approved_changes",
+        projectId,
+        hyperlocaliseJobId: job.id,
+      },
+    });
+
+    pushExternalTmsTranslationsMock.mockResolvedValue({
+      runId: "sync-run-multi",
+      status: "succeeded",
+      providerKind: "crowdin",
+      providerCredentialId: "cred-1",
+      projectId,
+      counts: {
+        translationsRequested: 2,
+        translationsUploaded: 2,
+        translationsFailed: 0,
+        asyncOperations: 0,
+      },
+      failures: [],
+      asyncOperations: [],
+    });
+
+    const result = await executeProviderAgentWriteback({
+      agentRunId: writebackRun.id,
+      organizationId,
+    });
+
+    expect(result).toMatchObject({ ok: true, uploaded: 2, failed: 0 });
+    expect(pushExternalTmsTranslationsMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        translations: expect.arrayContaining([
+          expect.objectContaining({
+            externalStringId: "s1",
+            key: "title",
+            text: "Titre A",
+            fileId: "11",
+          }),
+          expect.objectContaining({
+            externalStringId: "s2",
+            key: "title",
+            text: "Titre B",
+            fileId: "22",
+          }),
+        ]),
+      }),
     );
   });
 });

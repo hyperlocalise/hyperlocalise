@@ -414,6 +414,7 @@ export async function executeProviderAgentWriteback(input: {
     key: proposal.key,
     locale: proposal.locale,
     text: proposal.to,
+    ...(proposal.fileId?.trim() ? { fileId: proposal.fileId } : {}),
   }));
 
   try {

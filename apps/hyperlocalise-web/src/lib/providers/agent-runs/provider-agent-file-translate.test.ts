@@ -422,8 +422,8 @@ describe("translateProviderJobFiles", () => {
     expect(result.unitsProcessed).toBe(2);
     expect(result.changedItems).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ key: "hello", to: "Bonjour" }),
-        expect.objectContaining({ key: "bye", to: "Au revoir" }),
+        expect.objectContaining({ key: "hello", to: "Bonjour", fileId: "file-1" }),
+        expect.objectContaining({ key: "bye", to: "Au revoir", fileId: "file-2" }),
       ]),
     );
   });

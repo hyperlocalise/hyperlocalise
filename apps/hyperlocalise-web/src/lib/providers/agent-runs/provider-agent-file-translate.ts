@@ -874,6 +874,7 @@ export async function translateProviderJobFiles(input: {
                       reviewState: "pending",
                       changedFields: deriveChangedFields(from, to),
                       warnings: proposalWarnings,
+                      fileId: unit.fileId ?? prepared.sourceFile.id,
                     }),
                   );
                 }
