@@ -130,7 +130,7 @@ describe("repositoryAgentWorkflow", () => {
     expect(authMock).toHaveBeenCalledWith({ type: "installation" });
     expect(createMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        runtime: "node26",
+        image: "vercel/sandbox/node:26",
         source: expect.objectContaining({
           password: "installation-token",
           username: "x-access-token",

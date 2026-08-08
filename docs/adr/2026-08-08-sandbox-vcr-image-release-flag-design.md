@@ -3,14 +3,15 @@
 ## Problem
 
 Phase 1 publishes `hyperlocalise-sandbox` to Vercel Container Registry. App
-sandbox creates still use managed `node26` plus create-time installs. We need a
-safe, reversible cutover to `Sandbox.create({ image })`.
+sandbox creates still use the managed Node image plus create-time installs. We
+need a safe, reversible cutover to our custom VCR image.
 
 ## Decision
 
 Add Flags SDK release flag `release-sandbox-vcr-image` and optional env
 `VERCEL_SANDBOX_IMAGE`. When the flag is on and the image ref is set,
-`createConfiguredVercelSandbox` passes `image` instead of `runtime: "node26"`.
+`createConfiguredVercelSandbox` uses that image instead of
+`vercel/sandbox/node:26`.
 
 This is a release flag, not a WorkOS workspace flag: sandbox create runs in
 workflows and other paths without org/user context.
@@ -19,8 +20,8 @@ workflows and other paths without org/user context.
 
 | Flag (`decide` / override) | `VERCEL_SANDBOX_IMAGE` | Create options |
 |----------------------------|------------------------|----------------|
-| off | any | `runtime: "node26"` (today) |
-| on | unset / empty | `runtime: "node26"` (fail closed) |
+| off | any | `image: "vercel/sandbox/node:26"` |
+| on | unset / empty | `image: "vercel/sandbox/node:26"` (fail closed) |
 | on | set | `image: <ref>` |
 
 Caller-supplied `runtime`, `image`, or snapshot `source` still wins.

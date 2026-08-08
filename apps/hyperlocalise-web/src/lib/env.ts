@@ -186,7 +186,7 @@ export const env = createEnv({
     /**
      * Env-backed decide for release flag `release-sandbox-vcr-image`.
      * When true (and `VERCEL_SANDBOX_IMAGE` is set), sandboxes create from the
-     * VCR image instead of the managed `node26` runtime.
+     * custom VCR image instead of the managed `vercel/sandbox/node:26` image.
      */
     RELEASE_SANDBOX_VCR_IMAGE: z
       .enum(["true", "false"])

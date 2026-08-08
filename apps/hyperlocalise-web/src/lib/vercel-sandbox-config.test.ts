@@ -39,7 +39,7 @@ vi.mock("@/lib/env", () => ({
 
 import {
   createConfiguredVercelSandbox,
-  defaultVercelSandboxRuntime,
+  defaultVercelSandboxImage,
   installRequiredSandboxToolsCommand,
   sandboxChromiumDnfPackages,
   sandboxHyperlocaliseReleaseVersion,
@@ -138,7 +138,7 @@ describe("createConfiguredVercelSandbox", () => {
 
     expect(sandboxMocks.create).toHaveBeenCalledWith(
       expect.objectContaining({
-        runtime: defaultVercelSandboxRuntime,
+        image: defaultVercelSandboxImage,
         snapshotExpiration: sandboxSnapshotExpirationMs,
         keepLastSnapshots: { count: sandboxSnapshotRetentionCount, deleteEvicted: true },
       }),
@@ -174,17 +174,17 @@ describe("createConfiguredVercelSandbox", () => {
     expect(sandboxMocks.create.mock.calls[0]?.[0]).not.toHaveProperty("runtime");
   });
 
-  it("keeps the managed runtime when the flag is on but the image env is unset", async () => {
+  it("keeps the managed Node image when the flag is on but the image env is unset", async () => {
     releaseSandboxVcrImageEnabledMock.mockResolvedValue(true);
 
     await createConfiguredVercelSandbox();
 
     expect(sandboxMocks.create).toHaveBeenCalledWith(
       expect.objectContaining({
-        runtime: defaultVercelSandboxRuntime,
+        image: defaultVercelSandboxImage,
       }),
     );
-    expect(sandboxMocks.create.mock.calls[0]?.[0]).not.toHaveProperty("image");
+    expect(sandboxMocks.create.mock.calls[0]?.[0]).not.toHaveProperty("runtime");
   });
 
   it("keeps caller-supplied image over the release-flag default", async () => {

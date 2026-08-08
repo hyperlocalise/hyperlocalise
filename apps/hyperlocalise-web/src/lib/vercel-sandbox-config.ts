@@ -59,6 +59,14 @@ export const sandboxChromiumDnfPackages = [
 
 type VercelSandboxCreateOptions = Parameters<typeof Sandbox.create>[0];
 
+/**
+ * Default managed image for sandboxes that do not opt into the custom VCR
+ * image. `@vercel/sandbox` v3 deprecates `runtime`; use the Ubuntu Node 26
+ * image equivalent of the former `runtime: "node26"` default.
+ */
+export const defaultVercelSandboxImage = "vercel/sandbox/node:26";
+
+/** @deprecated Prefer {@link defaultVercelSandboxImage}. */
 export const defaultVercelSandboxRuntime = "node26";
 
 /**
@@ -193,11 +201,11 @@ export async function createConfiguredVercelSandbox(
     vcrSandboxImage != null &&
     vcrSandboxImage.length > 0 &&
     (await isReleaseSandboxVcrImageEnabled());
-  const shouldUseDefaultRuntime = !callerChoosesImageOrRuntime && !shouldUseVcrImage;
+  const shouldUseDefaultImage = !callerChoosesImageOrRuntime && !shouldUseVcrImage;
   const createOptions = {
     ...options,
     ...(shouldUseVcrImage ? { image: vcrSandboxImage } : {}),
-    ...(shouldUseDefaultRuntime ? { runtime: defaultVercelSandboxRuntime } : {}),
+    ...(shouldUseDefaultImage ? { image: defaultVercelSandboxImage } : {}),
     ...("snapshotExpiration" in options ? {} : { snapshotExpiration: sandboxSnapshotExpirationMs }),
     ...("keepLastSnapshots" in options
       ? {}
