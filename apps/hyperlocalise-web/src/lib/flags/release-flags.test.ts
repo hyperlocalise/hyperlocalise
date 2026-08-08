@@ -66,7 +66,7 @@ describe("isReleaseSandboxVcrImageEnabled", () => {
 
     await expect(isReleaseSandboxVcrImageEnabled()).resolves.toBe(true);
 
-    expect(releaseFlagRunMocks.sandboxVcrImage).toHaveBeenCalledWith();
+    expect(releaseFlagRunMocks.sandboxVcrImage).toHaveBeenCalledWith({ identify: {} });
   });
 
   it("returns false when flag evaluation throws", async () => {

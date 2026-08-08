@@ -19,6 +19,10 @@ const sandboxMocks = vi.hoisted(() => ({
 
 const releaseSandboxVcrImageEnabledMock = vi.hoisted(() => vi.fn());
 
+const envMock = vi.hoisted(() => ({
+  VERCEL_SANDBOX_IMAGE: undefined as string | undefined,
+}));
+
 vi.mock("@vercel/sandbox", () => ({
   Sandbox: {
     create: sandboxMocks.create,
@@ -30,12 +34,9 @@ vi.mock("@/lib/flags/release-flags", () => ({
 }));
 
 vi.mock("@/lib/env", () => ({
-  env: {
-    VERCEL_SANDBOX_IMAGE: undefined as string | undefined,
-  },
+  env: envMock,
 }));
 
-import { env } from "@/lib/env";
 import {
   createConfiguredVercelSandbox,
   defaultVercelSandboxRuntime,
@@ -123,7 +124,7 @@ describe("installRequiredSandboxToolsCommand", () => {
 describe("createConfiguredVercelSandbox", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    env.VERCEL_SANDBOX_IMAGE = undefined;
+    envMock.VERCEL_SANDBOX_IMAGE = undefined;
     releaseSandboxVcrImageEnabledMock.mockResolvedValue(false);
     sandboxMocks.runCommand.mockResolvedValue({ exitCode: 0, output: vi.fn() });
     sandboxMocks.create.mockResolvedValue({
@@ -160,7 +161,7 @@ describe("createConfiguredVercelSandbox", () => {
 
   it("creates from the VCR image when the release flag is on and the image env is set", async () => {
     const image = "vcr.vercel.com/team/project/hyperlocalise-sandbox:latest";
-    env.VERCEL_SANDBOX_IMAGE = image;
+    envMock.VERCEL_SANDBOX_IMAGE = image;
     releaseSandboxVcrImageEnabledMock.mockResolvedValue(true);
 
     await createConfiguredVercelSandbox();
@@ -187,7 +188,7 @@ describe("createConfiguredVercelSandbox", () => {
   });
 
   it("keeps caller-supplied image over the release-flag default", async () => {
-    env.VERCEL_SANDBOX_IMAGE = "vcr.vercel.com/team/project/hyperlocalise-sandbox:latest";
+    envMock.VERCEL_SANDBOX_IMAGE = "vcr.vercel.com/team/project/hyperlocalise-sandbox:latest";
     releaseSandboxVcrImageEnabledMock.mockResolvedValue(true);
 
     await createConfiguredVercelSandbox({

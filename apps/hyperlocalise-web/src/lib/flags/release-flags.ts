@@ -15,15 +15,9 @@ import { flag } from "flags/next";
 import type { ExternalTmsProviderKind } from "@/lib/providers/contracts/external-tms-provider-kind";
 import { supportsCatAllFilesProvider } from "@/lib/projects/cat-all-files";
 
-import {
-  RELEASE_CAT_ALL_FILES_FLAG,
-  RELEASE_SANDBOX_VCR_IMAGE_FLAG,
-} from "./release-flag-keys";
+import { RELEASE_CAT_ALL_FILES_FLAG, RELEASE_SANDBOX_VCR_IMAGE_FLAG } from "./release-flag-keys";
 
-export {
-  RELEASE_CAT_ALL_FILES_FLAG,
-  RELEASE_SANDBOX_VCR_IMAGE_FLAG,
-} from "./release-flag-keys";
+export { RELEASE_CAT_ALL_FILES_FLAG, RELEASE_SANDBOX_VCR_IMAGE_FLAG } from "./release-flag-keys";
 
 export type ReleaseCatAllFilesEntities = {
   /** `null` / omitted = native project; otherwise the live TMS provider kind. */
@@ -82,7 +76,7 @@ export const releaseSandboxVcrImageFlag = flag<boolean>({
 
 export async function isReleaseSandboxVcrImageEnabled(): Promise<boolean> {
   try {
-    return (await releaseSandboxVcrImageFlag.run()) === true;
+    return (await releaseSandboxVcrImageFlag.run({ identify: {} })) === true;
   } catch {
     return false;
   }
