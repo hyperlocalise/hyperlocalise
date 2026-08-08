@@ -652,10 +652,16 @@ describe("translateProviderJobFiles", () => {
     expect(stopTranslationSandboxMock).not.toHaveBeenCalled();
   });
 
-  it("stops the sandbox and records a warning when the batch hl run fails", async () => {
+  it("stops the sandbox and proposes nothing when a failed batch flushes no outputs", async () => {
     runSandboxCommandMock.mockResolvedValue({
       exitCode: 1,
       output: "hl run crashed",
+    });
+    readTranslatedFileMock.mockImplementation(async (_sandboxId: string, path: string) => {
+      if (path.includes("-fr")) {
+        throw new Error("translated output not found");
+      }
+      return Buffer.from('{"hello":"Hello"}', "utf8");
     });
 
     const result = await translateProviderJobFiles({
@@ -688,9 +694,12 @@ describe("translateProviderJobFiles", () => {
     expect(createTranslationSandboxMock).toHaveBeenCalledTimes(1);
     expect(stopTranslationSandboxMock).toHaveBeenCalledTimes(1);
     expect(result.changedItems).toEqual([]);
-    expect(
-      result.warnings.some((warning) => warning.includes("Batch file translation failed")),
-    ).toBe(true);
+    expect(result.warnings).toEqual(
+      expect.arrayContaining([
+        expect.stringContaining("Batch file translation failed"),
+        expect.stringContaining("File translation failed for a.json (fr)"),
+      ]),
+    );
   });
 
   it("continues the batch when one sandbox source download fails", async () => {
@@ -747,8 +756,8 @@ describe("translateProviderJobFiles", () => {
     expect(buildMultiFileMultiLocaleTempConfigMock).toHaveBeenCalledWith(
       [
         {
-          from: "work_file-2_b.json",
-          to: "work_file-2_b-{{target}}.json",
+          from: "work_file-2_69453e62c1ee_b.json",
+          to: "work_file-2_69453e62c1ee_b-{{target}}.json",
         },
       ],
       "en",
