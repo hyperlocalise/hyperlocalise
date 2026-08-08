@@ -42,14 +42,14 @@ Workflow: [`.github/workflows/sandbox-image.yml`](../../.github/workflows/sandbo
 PR / fork builds do **not** require repository secrets (forks cannot read them).
 Registry login and credential checks run only when pushing.
 
-### Required GitHub configuration (push / `workflow_dispatch` only)
+### Required GitHub secrets (push / `workflow_dispatch` only)
 
-| Name | Kind | Purpose |
-|------|------|---------|
-| `VERCEL_TOKEN` | repository secret | Vercel access token with access to the web project |
-| `VERCEL_TEAM_ID` | repository variable | Docker login username (`team_…`) |
-| `VERCEL_TEAM_SLUG` | repository variable | Image path team slug |
-| `VERCEL_PROJECT_SLUG` | repository variable | Image path project slug (hyperlocalise-web) |
+| Name | Purpose |
+|------|---------|
+| `VERCEL_TOKEN` | Vercel access token with access to the web project |
+| `VERCEL_TEAM_ID` | Docker login username (`team_…`) |
+| `VERCEL_TEAM_SLUG` | Image path team slug |
+| `VERCEL_PROJECT_SLUG` | Image path project slug (hyperlocalise-web) |
 
 Pushed reference:
 
