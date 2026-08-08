@@ -19,6 +19,7 @@ We only add Hyperlocalise-specific tooling on top:
 | Tool | Version source |
 |------|----------------|
 | ripgrep (`rg`) | from universal (not reinstalled) |
+| Volta | installed for `ubuntu` under `/vercel/.volta` (`VOLTA_VERSION` optional pin) |
 | hyperlocalise CLI (`hl`) | pinned (`HYPERLOCALISE_VERSION`) |
 | Playwright + Chromium | pinned (`PLAYWRIGHT_VERSION`), under `/tmp/hyperlocalise-browser-runtime` |
 
@@ -86,6 +87,7 @@ repository shows **Ready** in the project Images dashboard.
 ```bash
 docker build --platform linux/amd64 -t hyperlocalise-sandbox:local .
 docker run --rm hyperlocalise-sandbox:local rg --version
+docker run --rm hyperlocalise-sandbox:local volta --version
 docker run --rm hyperlocalise-sandbox:local hl --help
 docker run --rm hyperlocalise-sandbox:local \
   node -e "require('/tmp/hyperlocalise-browser-runtime/node_modules/playwright'); console.log('ok')"

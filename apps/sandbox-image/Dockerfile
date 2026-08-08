@@ -18,6 +18,8 @@ ARG DEBIAN_FRONTEND=noninteractive
 # Keep in sync with apps/hyperlocalise-web/src/lib/vercel-sandbox-config.ts
 ARG HYPERLOCALISE_VERSION=1.8.24
 ARG PLAYWRIGHT_VERSION=1.61.1
+# Optional pin; omit / leave empty to install the latest Volta release.
+ARG VOLTA_VERSION=
 # Matches MANAGED_BROWSER_RUNTIME_DIR in capture-screenshot.ts (web wiring later).
 ARG BROWSER_RUNTIME_DIR=/tmp/hyperlocalise-browser-runtime
 
@@ -53,9 +55,21 @@ RUN set -eux; \
 RUN chown -R ubuntu:ubuntu /vercel
 
 ENV HOME=/vercel
+ENV VOLTA_HOME=/vercel/.volta
+ENV PATH="/vercel/.volta/bin:${PATH}"
 ENV PLAYWRIGHT_BROWSERS_PATH=/tmp/hyperlocalise-browser-runtime/ms-playwright
 USER ubuntu
 WORKDIR /vercel
+
+# Install Volta for the sandbox user. PATH above covers non-login shells
+# (Sandbox runCommand does not source profile scripts).
+RUN set -eux; \
+    if [ -n "${VOLTA_VERSION}" ]; then \
+      curl -fsSL https://get.volta.sh | bash -s -- --skip-setup --version "${VOLTA_VERSION}"; \
+    else \
+      curl -fsSL https://get.volta.sh | bash -s -- --skip-setup; \
+    fi; \
+    volta --version
 
 # Sandbox ignores ENTRYPOINT/CMD; keep image metadata for local docker runs.
 CMD ["node", "--version"]
