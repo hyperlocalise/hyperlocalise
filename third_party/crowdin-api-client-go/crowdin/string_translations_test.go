@@ -354,6 +354,297 @@ func TestStringTranslationsService_RemoveStringApprovals(t *testing.T) {
 	assert.Equal(t, http.StatusNoContent, resp.StatusCode)
 }
 
+func TestStringTranslationsService_ListCorrections(t *testing.T) {
+	client, mux, teardown := setupClient()
+	defer teardown()
+
+	cases := []struct {
+		name   string
+		opts   *model.CorrectionsListOptions
+		expect string
+	}{
+		{
+			name:   "nil options",
+			opts:   nil,
+			expect: "",
+		},
+		{
+			name:   "empty options",
+			opts:   &model.CorrectionsListOptions{},
+			expect: "",
+		},
+		{
+			name: "with options",
+			opts: &model.CorrectionsListOptions{
+				StringID:                123,
+				OrderBy:                 "createdAt desc",
+				DenormalizePlaceholders: ToPtr(1),
+				ListOptions:             model.ListOptions{Offset: 5, Limit: 15},
+			},
+			expect: "?denormalizePlaceholders=1&limit=15&offset=5&orderBy=createdAt+desc&stringId=123",
+		},
+	}
+
+	for projectID, tt := range cases {
+		path := fmt.Sprintf("/api/v2/projects/%d/corrections", projectID)
+		mux.HandleFunc(path, func(w http.ResponseWriter, r *http.Request) {
+			testMethod(t, r, http.MethodGet)
+			testURL(t, r, path+tt.expect)
+
+			fmt.Fprint(w, `{
+				"data": [
+					{
+						"data": {
+							"id": 190695,
+							"text": "This string has been corrected",
+							"pluralCategoryName": "few",
+							"user": {
+								"id": 19,
+								"username": "john_doe",
+								"fullName": "John Smith",
+								"avatarUrl": ""
+							},
+							"createdAt": "2019-09-23T11:26:54+00:00"
+						}
+					}
+				],
+				"pagination": {
+					"offset": 5,
+					"limit": 15
+				}
+			}`)
+		})
+
+		list, resp, err := client.StringTranslations.ListCorrections(context.Background(), projectID, tt.opts)
+		require.NoError(t, err)
+
+		expected := []*model.Correction{
+			{
+				ID:                 190695,
+				Text:               "This string has been corrected",
+				PluralCategoryName: "few",
+				User: &model.ShortUser{
+					ID:        19,
+					Username:  "john_doe",
+					FullName:  "John Smith",
+					AvatarURL: "",
+				},
+				CreatedAt: "2019-09-23T11:26:54+00:00",
+			},
+		}
+		assert.Equal(t, expected, list)
+
+		expectedPagination := model.Pagination{Offset: 5, Limit: 15}
+		assert.Equal(t, expectedPagination, resp.Pagination)
+	}
+}
+
+func TestStringTranslationsService_ListCorrections_invalidJSON(t *testing.T) {
+	client, mux, teardown := setupClient()
+	defer teardown()
+
+	mux.HandleFunc("/api/v2/projects/1/corrections", func(w http.ResponseWriter, _ *http.Request) {
+		fmt.Fprint(w, `invalid json`)
+	})
+
+	res, _, err := client.StringTranslations.ListCorrections(context.Background(), 1, nil)
+	require.Error(t, err)
+	assert.Nil(t, res)
+}
+
+func TestStringTranslationsService_GetCorrection(t *testing.T) {
+	client, mux, teardown := setupClient()
+	defer teardown()
+
+	cases := []struct {
+		name   string
+		opts   *model.CorrectionGetOptions
+		expect string
+	}{
+		{
+			name:   "nil options",
+			opts:   nil,
+			expect: "",
+		},
+		{
+			name:   "with options",
+			opts:   &model.CorrectionGetOptions{DenormalizePlaceholders: ToPtr(1)},
+			expect: "?denormalizePlaceholders=1",
+		},
+	}
+
+	for projectID, tt := range cases {
+		path := fmt.Sprintf("/api/v2/projects/%d/corrections/190695", projectID)
+		mux.HandleFunc(path, func(w http.ResponseWriter, r *http.Request) {
+			testMethod(t, r, http.MethodGet)
+			testURL(t, r, path+tt.expect)
+
+			fmt.Fprint(w, `{
+				"data": {
+					"id": 190695,
+					"text": "This string has been corrected",
+					"pluralCategoryName": "few",
+					"user": {
+						"id": 19,
+						"username": "john_doe",
+						"fullName": "John Smith",
+						"avatarUrl": ""
+					},
+					"createdAt": "2019-09-23T11:26:54+00:00"
+				}
+			}`)
+		})
+
+		correction, resp, err := client.StringTranslations.GetCorrection(context.Background(), projectID, 190695, tt.opts)
+		require.NoError(t, err)
+
+		expected := &model.Correction{
+			ID:                 190695,
+			Text:               "This string has been corrected",
+			PluralCategoryName: "few",
+			User: &model.ShortUser{
+				ID:        19,
+				Username:  "john_doe",
+				FullName:  "John Smith",
+				AvatarURL: "",
+			},
+			CreatedAt: "2019-09-23T11:26:54+00:00",
+		}
+		assert.Equal(t, expected, correction)
+		assert.Equal(t, http.StatusOK, resp.StatusCode)
+	}
+}
+
+func TestStringTranslationsService_AddCorrection(t *testing.T) {
+	client, mux, teardown := setupClient()
+	defer teardown()
+
+	const path = "/api/v2/projects/1/corrections"
+	mux.HandleFunc(path, func(w http.ResponseWriter, r *http.Request) {
+		testMethod(t, r, http.MethodPost)
+		testURL(t, r, path)
+		testBody(t, r, `{"stringId":123,"text":"This string has been corrected","pluralCategoryName":"few"}`+"\n")
+
+		w.WriteHeader(http.StatusCreated)
+		fmt.Fprint(w, `{
+			"data": {
+				"id": 190695,
+				"text": "This string has been corrected",
+				"pluralCategoryName": "few",
+				"user": {
+					"id": 19,
+					"username": "john_doe",
+					"fullName": "John Smith",
+					"avatarUrl": ""
+				},
+				"createdAt": "2019-09-23T11:26:54+00:00"
+			}
+		}`)
+	})
+
+	req := &model.CorrectionAddRequest{
+		StringID:           123,
+		Text:               "This string has been corrected",
+		PluralCategoryName: "few",
+	}
+	correction, resp, err := client.StringTranslations.AddCorrection(context.Background(), 1, req)
+	require.NoError(t, err)
+
+	expected := &model.Correction{
+		ID:                 190695,
+		Text:               "This string has been corrected",
+		PluralCategoryName: "few",
+		User: &model.ShortUser{
+			ID:        19,
+			Username:  "john_doe",
+			FullName:  "John Smith",
+			AvatarURL: "",
+		},
+		CreatedAt: "2019-09-23T11:26:54+00:00",
+	}
+	assert.Equal(t, expected, correction)
+	assert.Equal(t, http.StatusCreated, resp.StatusCode)
+}
+
+func TestStringTranslationsService_RestoreCorrection(t *testing.T) {
+	client, mux, teardown := setupClient()
+	defer teardown()
+
+	const path = "/api/v2/projects/1/corrections/190695"
+	mux.HandleFunc(path, func(w http.ResponseWriter, r *http.Request) {
+		testMethod(t, r, http.MethodPut)
+		testURL(t, r, path)
+
+		w.WriteHeader(http.StatusOK)
+		fmt.Fprint(w, `{
+			"data": {
+				"id": 190695,
+				"text": "This string has been corrected",
+				"pluralCategoryName": "few",
+				"user": {
+					"id": 19,
+					"username": "john_doe",
+					"fullName": "John Smith",
+					"avatarUrl": ""
+				},
+				"createdAt": "2019-09-23T11:26:54+00:00"
+			}
+		}`)
+	})
+
+	correction, resp, err := client.StringTranslations.RestoreCorrection(context.Background(), 1, 190695)
+	require.NoError(t, err)
+
+	expected := &model.Correction{
+		ID:                 190695,
+		Text:               "This string has been corrected",
+		PluralCategoryName: "few",
+		User: &model.ShortUser{
+			ID:        19,
+			Username:  "john_doe",
+			FullName:  "John Smith",
+			AvatarURL: "",
+		},
+		CreatedAt: "2019-09-23T11:26:54+00:00",
+	}
+	assert.Equal(t, expected, correction)
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+}
+
+func TestStringTranslationsService_DeleteCorrection(t *testing.T) {
+	client, mux, teardown := setupClient()
+	defer teardown()
+
+	const path = "/api/v2/projects/1/corrections/190695"
+	mux.HandleFunc(path, func(w http.ResponseWriter, r *http.Request) {
+		testMethod(t, r, http.MethodDelete)
+		testURL(t, r, path)
+
+		w.WriteHeader(http.StatusNoContent)
+	})
+
+	resp, err := client.StringTranslations.DeleteCorrection(context.Background(), 1, 190695)
+	require.NoError(t, err)
+	assert.Equal(t, http.StatusNoContent, resp.StatusCode)
+}
+
+func TestStringTranslationsService_DeleteCorrections(t *testing.T) {
+	client, mux, teardown := setupClient()
+	defer teardown()
+
+	const path = "/api/v2/projects/1/corrections"
+	mux.HandleFunc(path, func(w http.ResponseWriter, r *http.Request) {
+		testMethod(t, r, http.MethodDelete)
+		testURL(t, r, path+"?stringId=123")
+
+		w.WriteHeader(http.StatusNoContent)
+	})
+
+	resp, err := client.StringTranslations.DeleteCorrections(context.Background(), 1, 123)
+	require.NoError(t, err)
+	assert.Equal(t, http.StatusNoContent, resp.StatusCode)
+}
+
 func TestStringTranslationsService_RemoveApproval(t *testing.T) {
 	client, mux, teardown := setupClient()
 	defer teardown()

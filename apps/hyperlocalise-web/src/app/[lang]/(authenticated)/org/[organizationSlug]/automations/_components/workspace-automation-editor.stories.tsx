@@ -142,8 +142,9 @@ export const CreateWithMemories: Story = {
     form: createMemoriesAutomationFormFixture(),
   },
   play: async ({ canvas }) => {
-    await expect(canvas.getByText("Memories")).toBeInTheDocument();
+    await expect(canvas.getByText("Use organization memory")).toBeInTheDocument();
     await expect(canvas.getByRole("button", { name: "Manage" })).toBeInTheDocument();
+    await expect(canvas.getByText("Allow memory updates")).toBeInTheDocument();
     await expect(canvas.getByText("3 tools")).toBeInTheDocument();
   },
 };

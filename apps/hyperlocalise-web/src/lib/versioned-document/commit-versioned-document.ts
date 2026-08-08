@@ -48,7 +48,7 @@ type HeadWriteValues = {
   version: number;
   content: string;
   summary: string;
-  updatedByUserId: string;
+  updatedByUserId: string | null;
   now: Date;
 };
 
@@ -66,7 +66,7 @@ export async function commitVersionedDocument(input: {
   summary?: string;
   initialSummaryFallback: string;
   updatedSummaryFallback: string;
-  updatedByUserId: string;
+  updatedByUserId: string | null;
   expectedRevisionId: string | null;
   forceNewRevision?: boolean;
   emptyRecord: VersionedDocumentRecord;

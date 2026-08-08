@@ -20,6 +20,32 @@ func TestEvaluatorDetectsPlaceholderDrop(t *testing.T) {
 	}
 }
 
+func TestEvaluatorPlaceholderDropHardFailIsDeduped(t *testing.T) {
+	e := NewEvaluator()
+	// ICU block shape differs (plural vs select) and placeholder integrity is also < 1.
+	// Both hard-fail paths used to be able to append HardFailPlaceholderDrop; keep one.
+	got := e.Evaluate(
+		"{count, plural, one {# file} other {# files}}",
+		"{count, select, other {# fichiers}}",
+		"",
+		"fr-FR",
+		nil,
+	)
+
+	if got.PlaceholderIntegrity >= 1 {
+		t.Fatalf("expected placeholder integrity penalty, got %+v", got)
+	}
+	dropCount := 0
+	for _, hardFail := range got.HardFails {
+		if hardFail == HardFailPlaceholderDrop {
+			dropCount++
+		}
+	}
+	if dropCount != 1 {
+		t.Fatalf("expected exactly one %q hard fail, got %+v", HardFailPlaceholderDrop, got.HardFails)
+	}
+}
+
 func TestEvaluatorHandlesICUPluralIntegrity(t *testing.T) {
 	e := NewEvaluator()
 	source := "{count, plural, one {# file} other {# files}} uploaded by {name}"

@@ -1554,11 +1554,30 @@ function ToolsSettings({
                 <DeleteToolButton
                   disabled={disabled}
                   label={intl.formatMessage(workspaceAutomationFormMessages.removeMemoriesTool)}
-                  onClick={() => onChange({ ...form, knowledgeEnabled: false })}
+                  onClick={() =>
+                    onChange({ ...form, knowledgeEnabled: false, knowledgeAllowUpdates: false })
+                  }
                 />
               </>
             }
-          />
+          >
+            <label className="flex items-center justify-between gap-3 rounded-lg border border-border px-3 py-2">
+              <span className="text-xs text-foreground">
+                <FormattedMessage {...workspaceAutomationFormMessages.allowMemoryUpdates} />
+              </span>
+              <Switch
+                size="sm"
+                checked={form.knowledgeAllowUpdates}
+                disabled={disabled || !knowledgeAvailable}
+                onCheckedChange={(checked) => onChange({ ...form, knowledgeAllowUpdates: checked })}
+              />
+            </label>
+            {form.knowledgeAllowUpdates ? (
+              <p className="mt-2 text-xs text-pretty text-muted-foreground">
+                <FormattedMessage {...workspaceAutomationFormMessages.allowMemoryUpdatesWarning} />
+              </p>
+            ) : null}
+          </EditorRow>
         ) : null}
 
         {form.githubEnabled && form.githubMode === "agent" ? (

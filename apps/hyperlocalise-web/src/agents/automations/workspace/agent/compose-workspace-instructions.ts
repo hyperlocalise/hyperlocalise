@@ -20,15 +20,22 @@ export function composeWorkspaceAutomationInstructions(input: {
   userOverride?: string | null;
   triggerMode: WorkspaceAutomationTriggerConfig["mode"];
   plan: WorkspaceOrchestratorPlan;
-  knowledgeMemory?: string | null;
-  knowledgeEnabled?: boolean;
 }) {
+  // Org Memory access is a tool call, not text pasted into these instructions — see
+  // recall_memory.ts / save_memory.ts. These two lines are only a nudge so the agent knows the
+  // tools exist and when to reach for them; the actual guidance never lands in the prompt here.
+  const hasRecallMemory = input.plan.tools.includes("recall_memory");
+  const hasSaveMemory = input.plan.tools.includes("save_memory");
+
   const enabledToolsSection = [
     "## Enabled tools",
     `Trigger mode: ${input.triggerMode}.`,
     `Execution plan: ${input.plan.tools.map((tool) => `\`${tool}\``).join(" → ") || "none"}.`,
-    input.knowledgeEnabled && input.knowledgeMemory?.trim()
-      ? "Workspace knowledge memories are enabled and applied as context below."
+    hasRecallMemory
+      ? "You have a recall_memory tool for organization guidance. Call it when relevant to this automation's task."
+      : null,
+    hasSaveMemory
+      ? "You have a save_memory tool. Use it only when this automation's own instructions say to remember something."
       : null,
     "Call each planned tool in order. Use customer instructions when invoking workflow tools.",
   ]
@@ -36,9 +43,6 @@ export function composeWorkspaceAutomationInstructions(input: {
     .join("\n");
 
   const dynamicSections = [enabledToolsSection];
-  if (input.knowledgeMemory?.trim()) {
-    dynamicSections.push(`## Workspace knowledge\n${input.knowledgeMemory.trim()}`);
-  }
 
   const skills = input.templateSkillId ? [input.templateSkillId] : [];
 

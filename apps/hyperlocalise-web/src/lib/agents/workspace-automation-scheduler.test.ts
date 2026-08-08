@@ -28,9 +28,16 @@ vi.mock("./workspace-automation-dispatcher", () => ({
     dispatchWorkspaceAutomationForScheduleAndAdvance(...args),
 }));
 
-vi.mock("@/agents/automations/workspace/agent/plan", () => ({
-  buildWorkspaceOrchestratorPlan: (...args: unknown[]) => buildWorkspaceOrchestratorPlan(...args),
-}));
+vi.mock("@/agents/automations/workspace/agent/plan", async () => {
+  const actual = await vi.importActual<typeof import("@/agents/automations/workspace/agent/plan")>(
+    "@/agents/automations/workspace/agent/plan",
+  );
+
+  return {
+    ...actual,
+    buildWorkspaceOrchestratorPlan: (...args: unknown[]) => buildWorkspaceOrchestratorPlan(...args),
+  };
+});
 
 import { runWorkspaceAutomationScheduler } from "./workspace-automation-scheduler";
 

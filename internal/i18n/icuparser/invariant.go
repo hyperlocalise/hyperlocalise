@@ -32,30 +32,47 @@ func ParseInvariant(s string) (Invariant, error) {
 		}
 	}
 
-	inv := Invariant{}
+	numBraces := strings.Count(s, "{")
+	numPounds := strings.Count(s, "#")
+	inv := Invariant{
+		Placeholders: make([]string, 0, numBraces+numPounds),
+	}
 	collectInvariantFromElements(elems, &inv, "")
 
-	slices.Sort(inv.Placeholders)
-	inv.Placeholders = slices.Compact(inv.Placeholders)
-	slices.SortFunc(inv.ICUBlocks, func(a, b BlockSignature) int {
-		if c := cmp.Compare(a.Arg, b.Arg); c != 0 {
-			return c
-		}
-		if c := cmp.Compare(a.Type, b.Type); c != 0 {
-			return c
-		}
-		if c := cmp.Compare(a.Offset, b.Offset); c != 0 {
-			return c
-		}
-		if c := slices.Compare(a.Options, b.Options); c != 0 {
-			return c
-		}
-		return slices.Compare(a.Pounds, b.Pounds)
-	})
+	if !isSortedAndUnique(inv.Placeholders) {
+		slices.Sort(inv.Placeholders)
+		inv.Placeholders = slices.Compact(inv.Placeholders)
+	}
+	if len(inv.ICUBlocks) > 1 {
+		slices.SortFunc(inv.ICUBlocks, func(a, b BlockSignature) int {
+			if c := cmp.Compare(a.Arg, b.Arg); c != 0 {
+				return c
+			}
+			if c := cmp.Compare(a.Type, b.Type); c != 0 {
+				return c
+			}
+			if c := cmp.Compare(a.Offset, b.Offset); c != 0 {
+				return c
+			}
+			if c := slices.Compare(a.Options, b.Options); c != 0 {
+				return c
+			}
+			return slices.Compare(a.Pounds, b.Pounds)
+		})
+	}
+	if len(inv.Placeholders) == 0 {
+		inv.Placeholders = nil
+	}
+	if len(inv.ICUBlocks) == 0 {
+		inv.ICUBlocks = nil
+	}
 	return inv, nil
 }
 
 func SamePlaceholderSet(a, b []string) bool {
+	if isSortedAndUnique(a) && isSortedAndUnique(b) {
+		return slices.Equal(a, b)
+	}
 	return slicesEqual(uniqueStrings(a), uniqueStrings(b))
 }
 
@@ -266,35 +283,60 @@ func appendPluralBlockInvariant(inv *Invariant, v PluralElement) {
 }
 
 func sortedSelectors(opts []SelectOption) []string {
-	out := make([]string, 0, len(opts))
-	for _, o := range opts {
-		out = append(out, o.Selector)
+	if len(opts) == 0 {
+		return nil
+	}
+	out := make([]string, len(opts))
+	for i, o := range opts {
+		out[i] = o.Selector
 	}
 	slices.Sort(out)
 	return out
 }
 
 func sortedPluralOptionSignatures(opts []PluralOption) ([]string, []int) {
+	if len(opts) == 0 {
+		return nil, nil
+	}
+
 	type optionSig struct {
 		selector string
 		pounds   int
 	}
-	sigs := make([]optionSig, 0, len(opts))
-	for _, o := range opts {
-		sigs = append(sigs, optionSig{selector: o.Selector, pounds: countPounds(o.Value)})
+	var sigsBuf [8]optionSig
+	var sigs []optionSig
+	if len(opts) <= 8 {
+		sigs = sigsBuf[:0]
+	} else {
+		sigs = make([]optionSig, 0, len(opts))
 	}
+
+	hasNonZero := false
+	for _, o := range opts {
+		p := countPounds(o.Value)
+		if p != 0 {
+			hasNonZero = true
+		}
+		sigs = append(sigs, optionSig{selector: o.Selector, pounds: p})
+	}
+
 	slices.SortFunc(sigs, func(a, b optionSig) int {
 		return cmp.Compare(a.selector, b.selector)
 	})
-	selectors := make([]string, 0, len(sigs))
-	pounds := make([]int, 0, len(sigs))
-	for _, sig := range sigs {
-		selectors = append(selectors, sig.selector)
-		pounds = append(pounds, sig.pounds)
+
+	selectors := make([]string, len(sigs))
+	var pounds []int
+	if hasNonZero {
+		pounds = make([]int, len(sigs))
 	}
-	if !hasNonZeroPounds(pounds) {
-		pounds = nil
+
+	for i, sig := range sigs {
+		selectors[i] = sig.selector
+		if pounds != nil {
+			pounds[i] = sig.pounds
+		}
 	}
+
 	return selectors, pounds
 }
 
@@ -340,9 +382,21 @@ func uniqueStrings(values []string) []string {
 	if len(values) == 0 {
 		return nil
 	}
+	if isSortedAndUnique(values) {
+		return values
+	}
 	sorted := append([]string(nil), values...)
 	slices.Sort(sorted)
 	return slices.Compact(sorted)
+}
+
+func isSortedAndUnique(values []string) bool {
+	for i := 1; i < len(values); i++ {
+		if values[i-1] >= values[i] {
+			return false
+		}
+	}
+	return true
 }
 
 func slicesEqual[T comparable](a, b []T) bool {

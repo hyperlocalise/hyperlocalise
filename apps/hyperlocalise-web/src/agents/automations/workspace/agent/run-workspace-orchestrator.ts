@@ -30,8 +30,11 @@ import {
 import { createWorkspaceOrchestratorAgent } from "./agent";
 import { composeWorkspaceAutomationInstructions } from "./compose-workspace-instructions";
 import { createWorkspaceOrchestratorSession, type WorkspaceOrchestratorSession } from "./context";
-import { buildWorkspaceOrchestratorPlan } from "./plan";
-import { resolveWorkspaceAutomationKnowledgeContext } from "./resolve-workspace-automation-knowledge";
+import {
+  buildWorkspaceOrchestratorPlan,
+  planHasActionableTool,
+  type WorkspaceOrchestratorPlan,
+} from "./plan";
 import { buildWorkspaceOrchestratorOutputSummary } from "./workspace-orchestrator-output-summary";
 
 const logger = createLogger("workspace-orchestrator");
@@ -114,14 +117,14 @@ function collectNotificationWarnings(session: WorkspaceOrchestratorSession) {
 
 function deriveTerminalStatus(session: {
   terminalStatus: WorkspaceAutomationRunStatus | null;
-  plan: { tools: string[] };
+  plan: WorkspaceOrchestratorPlan;
   stepResults: Record<string, unknown>;
 }): WorkspaceAutomationRunStatus {
   if (session.terminalStatus) {
     return session.terminalStatus;
   }
 
-  if (session.plan.tools.length === 0) {
+  if (!planHasActionableTool(session.plan)) {
     return "skipped";
   }
 
@@ -160,17 +163,11 @@ export async function runWorkspaceOrchestrator(input: {
 
   const templateSkillId = resolveTemplateSkillId(run.inputSnapshot);
   const plan = buildWorkspaceOrchestratorPlan(automation, { templateSkillId });
-  const knowledgeMemory = await resolveWorkspaceAutomationKnowledgeContext({
-    organizationId: input.organizationId,
-    automation,
-  });
   const composedInstructions = composeWorkspaceAutomationInstructions({
     templateSkillId,
     userOverride: automation.instructions,
     triggerMode: automation.triggerConfig.mode,
     plan,
-    knowledgeEnabled: Boolean(automation.toolConfig.knowledge?.enabled),
-    knowledgeMemory,
   });
 
   let repository: {
@@ -215,7 +212,7 @@ export async function runWorkspaceOrchestrator(input: {
     composedInstructions,
   });
 
-  if (plan.tools.length === 0) {
+  if (!planHasActionableTool(plan)) {
     const completedAt = new Date();
     await updateWorkspaceAutomationRun({
       runId: run.id,

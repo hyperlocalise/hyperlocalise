@@ -94,7 +94,9 @@ export async function commitKnowledgeMemoryForOrganization(input: {
   organizationId: string;
   content: string;
   summary?: string;
-  updatedByUserId: string;
+  // Nullable: agent-authored commits via the save_memory tool have no human actor. Provenance
+  // for those goes in `summary` instead (see save_memory.ts).
+  updatedByUserId: string | null;
   expectedRevisionId: string | null;
   forceNewRevision?: boolean;
 }): Promise<Result<KnowledgeMemoryCommitResult, KnowledgeMemoryCommitError>> {
