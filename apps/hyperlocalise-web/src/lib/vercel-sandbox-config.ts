@@ -88,7 +88,7 @@ export const sandboxSnapshotRetentionCount = 3;
  * Empty/unset keeps the managed `node26` runtime path.
  */
 export function resolveVercelSandboxImage(
-  env: NodeJS.ProcessEnv = process.env,
+  env: Record<string, string | undefined> = process.env,
 ): string | undefined {
   const image = env.VERCEL_SANDBOX_IMAGE?.trim();
   return image ? image : undefined;
