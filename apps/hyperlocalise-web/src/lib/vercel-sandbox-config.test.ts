@@ -10,7 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
 const sandboxMocks = vi.hoisted(() => ({
   create: vi.fn(),
@@ -26,6 +26,7 @@ vi.mock("@vercel/sandbox", () => ({
 import {
   createConfiguredVercelSandbox,
   installRequiredSandboxToolsCommand,
+  resolveVercelSandboxImage,
   sandboxChromiumDnfPackages,
   sandboxHyperlocaliseReleaseVersion,
   sandboxPlaywrightVersion,
@@ -106,9 +107,25 @@ describe("installRequiredSandboxToolsCommand", () => {
   });
 });
 
+describe("resolveVercelSandboxImage", () => {
+  it("returns undefined when unset or blank", () => {
+    expect(resolveVercelSandboxImage({})).toBeUndefined();
+    expect(resolveVercelSandboxImage({ VERCEL_SANDBOX_IMAGE: "  " })).toBeUndefined();
+  });
+
+  it("trims a configured image reference", () => {
+    expect(
+      resolveVercelSandboxImage({ VERCEL_SANDBOX_IMAGE: " hyperlocalise-sandbox:latest " }),
+    ).toBe("hyperlocalise-sandbox:latest");
+  });
+});
+
 describe("createConfiguredVercelSandbox", () => {
+  const originalSandboxImage = process.env.VERCEL_SANDBOX_IMAGE;
+
   beforeEach(() => {
     vi.clearAllMocks();
+    delete process.env.VERCEL_SANDBOX_IMAGE;
     sandboxMocks.runCommand.mockResolvedValue({ exitCode: 0, output: vi.fn() });
     sandboxMocks.create.mockResolvedValue({
       name: "sandbox_123",
@@ -116,15 +133,37 @@ describe("createConfiguredVercelSandbox", () => {
     });
   });
 
+  afterEach(() => {
+    if (originalSandboxImage === undefined) {
+      delete process.env.VERCEL_SANDBOX_IMAGE;
+    } else {
+      process.env.VERCEL_SANDBOX_IMAGE = originalSandboxImage;
+    }
+  });
+
   it("bounds snapshot growth with an expiration and retention policy", async () => {
     await createConfiguredVercelSandbox();
 
     expect(sandboxMocks.create).toHaveBeenCalledWith(
       expect.objectContaining({
+        runtime: "node26",
         snapshotExpiration: sandboxSnapshotExpirationMs,
         keepLastSnapshots: { count: sandboxSnapshotRetentionCount, deleteEvicted: true },
       }),
     );
+  });
+
+  it("uses VERCEL_SANDBOX_IMAGE instead of the default runtime", async () => {
+    process.env.VERCEL_SANDBOX_IMAGE = "hyperlocalise-sandbox:latest";
+
+    await createConfiguredVercelSandbox();
+
+    expect(sandboxMocks.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        image: "hyperlocalise-sandbox:latest",
+      }),
+    );
+    expect(sandboxMocks.create.mock.calls[0]?.[0]).not.toHaveProperty("runtime");
   });
 
   it("keeps caller-supplied snapshot settings", async () => {

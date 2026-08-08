@@ -498,7 +498,7 @@ describe("createCaptureScreenshotTool", () => {
     expect(writeWorkspaceFile).toHaveBeenCalledWith(
       expect.stringMatching(/^\.hyperlocalise-agent\/screenshots\/.+\/capture\.cjs$/),
       expect.stringContaining(
-        'require("/tmp/hyperlocalise-browser-runtime/node_modules/playwright")',
+        'require("/vercel/hyperlocalise-browser-runtime/node_modules/playwright")',
       ),
     );
     expect(exec).toHaveBeenCalledWith("bash", {
@@ -527,14 +527,14 @@ describe("createCaptureScreenshotTool", () => {
     expect(exec).toHaveBeenCalledWith("bash", {
       args: [
         "-lc",
-        expect.stringContaining("npm --prefix '/tmp/hyperlocalise-browser-runtime' install"),
+        expect.stringContaining("npm --prefix '/vercel/hyperlocalise-browser-runtime' install"),
       ],
     });
     expect(exec).toHaveBeenCalledWith("bash", {
       args: [
         "-lc",
         expect.stringContaining(
-          "export PLAYWRIGHT_BROWSERS_PATH='/tmp/hyperlocalise-browser-runtime/ms-playwright'",
+          "export PLAYWRIGHT_BROWSERS_PATH='/vercel/hyperlocalise-browser-runtime/ms-playwright'",
         ),
       ],
     });
