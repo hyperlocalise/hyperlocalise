@@ -13,8 +13,9 @@ Publish a custom OCI image to [Vercel Container Registry](https://vercel.com/doc
 without changing sandbox create paths yet.
 
 1. **Image source**: `apps/sandbox-image/Dockerfile` extends the public managed
-   image `vercel/sandbox/node:26` and bakes ripgrep, `hl`, Playwright Chromium,
-   and OS libs at paths the current bootstrap/screenshot code already expects.
+   image `vercel/sandbox/universal:latest` (already includes ripgrep and common
+   agent tooling) and bakes `hl` plus Playwright Chromium at paths the current
+   bootstrap/screenshot code already expects.
 2. **CI**: `.github/workflows/sandbox-image.yml` builds on PRs and pushes
    `:sha` + `:latest` from `main` (and `workflow_dispatch`) to
    `vcr.vercel.com/<team>/<project>/hyperlocalise-sandbox`.

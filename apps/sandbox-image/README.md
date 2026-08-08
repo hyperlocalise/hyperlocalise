@@ -11,16 +11,23 @@ ready once the app is wired to use it.
 
 ## Contents
 
-Built on `vercel/sandbox/node:26` (Ubuntu, Node 26, pnpm, passwordless sudo):
+Built on [`vercel/sandbox/universal:latest`](https://github.com/vercel/sandbox/tree/main/images/universal)
+(Ubuntu, Node 24, Bun, Python, `rg`, `git`/`gh`, coding agents, passwordless sudo).
+
+We only add Hyperlocalise-specific tooling on top:
 
 | Tool | Version source |
 |------|----------------|
-| ripgrep (`rg`) | pinned in Dockerfile (`RIPGREP_VERSION`) |
+| ripgrep (`rg`) | from universal (not reinstalled) |
 | hyperlocalise CLI (`hl`) | pinned (`HYPERLOCALISE_VERSION`) |
 | Playwright + Chromium | pinned (`PLAYWRIGHT_VERSION`), under `/tmp/hyperlocalise-browser-runtime` |
 
 Keep those `ARG`s aligned with
 `apps/hyperlocalise-web/src/lib/vercel-sandbox-config.ts`.
+
+Note: universal ships **Node 24**, while the app’s current default runtime is
+`node26`. That is fine for baking tools; revisit if you need Node 26 APIs when
+wiring `Sandbox.create({ image })`.
 
 ## CI
 

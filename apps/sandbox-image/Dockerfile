@@ -1,13 +1,14 @@
 # syntax=docker/dockerfile:1
 #
 # Custom Vercel Sandbox image for Hyperlocalise agents.
-# Extends the managed Node 26 image and bakes tools that we otherwise install
-# on every Sandbox.create() (ripgrep, hyperlocalise CLI, Playwright Chromium).
+# Extends the managed universal image (ripgrep, git, gh, bun, Node, …)
+# and bakes tools we still install at runtime today: hyperlocalise CLI and
+# Playwright Chromium.
 #
 # Build for linux/amd64 (Sandbox requirement), then push to Vercel Container
 # Registry. See README.md in this directory.
 
-ARG BASE_IMAGE=vcr.vercel.com/vercel/sandbox/node:26
+ARG BASE_IMAGE=vcr.vercel.com/vercel/sandbox/universal:latest
 FROM ${BASE_IMAGE}
 
 USER root
@@ -15,33 +16,13 @@ ENV HOME=/root
 ARG DEBIAN_FRONTEND=noninteractive
 
 # Keep in sync with apps/hyperlocalise-web/src/lib/vercel-sandbox-config.ts
-ARG RIPGREP_VERSION=14.1.1
 ARG HYPERLOCALISE_VERSION=1.8.24
 ARG PLAYWRIGHT_VERSION=1.61.1
 # Matches MANAGED_BROWSER_RUNTIME_DIR in capture-screenshot.ts (web wiring later).
 ARG BROWSER_RUNTIME_DIR=/tmp/hyperlocalise-browser-runtime
 
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends \
-        ca-certificates \
-        curl \
-        ripgrep \
-        tar \
-    && rm -rf /var/lib/apt/lists/*
-
-# Pin ripgrep binary when apt ships an older package.
-RUN set -eux; \
-    if ! rg --version | grep -Fq "${RIPGREP_VERSION}"; then \
-      curl -fsSL -o /tmp/rg.tar.gz \
-        "https://github.com/BurntSushi/ripgrep/releases/download/${RIPGREP_VERSION}/ripgrep-${RIPGREP_VERSION}-x86_64-unknown-linux-musl.tar.gz"; \
-      tar -xzf /tmp/rg.tar.gz -C /tmp; \
-      install -m 0755 \
-        "/tmp/ripgrep-${RIPGREP_VERSION}-x86_64-unknown-linux-musl/rg" \
-        /usr/local/bin/rg; \
-      rm -rf /tmp/rg.tar.gz "/tmp/ripgrep-${RIPGREP_VERSION}-x86_64-unknown-linux-musl"; \
-    fi; \
-    command -v rg; \
-    rg --version
+# universal already ships ripgrep; assert it is on PATH.
+RUN command -v rg && rg --version
 
 RUN set -eux; \
     ARCHIVE="hyperlocalise_${HYPERLOCALISE_VERSION}_linux_amd64.tar.gz"; \
