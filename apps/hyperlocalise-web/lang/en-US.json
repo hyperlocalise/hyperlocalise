@@ -3127,6 +3127,10 @@
     "defaultMessage": "Resetting...",
     "description": "Button label while repository automation settings are resetting"
   },
+  "APXHAbBkYL": {
+    "defaultMessage": "Subscribe",
+    "description": "Button label when the current user is not subscribed to issue updates"
+  },
   "ARpiURdPaK": {
     "defaultMessage": "The shift",
     "description": "Use case page problem panel eyebrow above the title"
@@ -5555,6 +5559,10 @@
     "defaultMessage": "Usage",
     "description": "Pricing matrix section title for usage quotas"
   },
+  "KzyWBbcmTH": {
+    "defaultMessage": "Could not update watch settings",
+    "description": "Toast shown when watch or unwatch fails"
+  },
   "L0g+No60zf": {
     "defaultMessage": "Context needed: {key}",
     "description": "Default title when creating an issue from a CAT string"
@@ -5718,6 +5726,10 @@
   "Lmup4mp1Uh": {
     "defaultMessage": "AI features",
     "description": "Heading for the AI features explainer on the pricing page"
+  },
+  "Lnk8Rz0vVt": {
+    "defaultMessage": "Unsubscribe",
+    "description": "Button label when the current user is subscribed to issue updates"
   },
   "Lod4vy7+T/": {
     "defaultMessage": "{email} will no longer be able to accept this workspace invitation.",
