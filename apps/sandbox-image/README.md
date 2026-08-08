@@ -36,10 +36,13 @@ Workflow: [`.github/workflows/sandbox-image.yml`](../../.github/workflows/sandbo
 
 | Event | Behavior |
 |-------|----------|
-| PR touching `apps/sandbox-image/**` | Build `linux/amd64` (no push) |
-| Push to `main` / `workflow_dispatch` | Build and push `:sha` + `:latest` |
+| PR touching `apps/sandbox-image/**` | Build `linux/amd64` only, tag `hyperlocalise-sandbox:ci` (no registry auth) |
+| Push to `main` / `workflow_dispatch` | Authenticate to VCR, build and push `:sha` + `:latest` |
 
-### Required GitHub configuration
+PR / fork builds do **not** require repository secrets (forks cannot read them).
+Registry login and credential checks run only when pushing.
+
+### Required GitHub configuration (push / `workflow_dispatch` only)
 
 | Name | Kind | Purpose |
 |------|------|---------|
