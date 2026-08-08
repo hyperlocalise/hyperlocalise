@@ -170,13 +170,6 @@ export const env = createEnv({
       .positive()
       .default(100),
 
-    /**
-     * Optional Vercel Container Registry image for Sandbox.create (e.g.
-     * `hyperlocalise-sandbox:latest`). When set, replaces the default `node26`
-     * runtime. Built from apps/sandbox-image.
-     */
-    VERCEL_SANDBOX_IMAGE: z.string().min(1).optional(),
-
     /** Maximum sandboxes deleted per sandbox cleanup cron tick. */
     SANDBOX_CLEANUP_MAX_PER_TICK: z.coerce.number().int().positive().default(100),
 
@@ -298,7 +291,6 @@ export const env = createEnv({
     CRON_SECRET: process.env.CRON_SECRET ?? (isTestEnv ? "test-cron-secret" : undefined),
     GITHUB_REPOSITORY_AUTOMATION_DISPATCH_MAX_REPOS_PER_TICK:
       process.env.GITHUB_REPOSITORY_AUTOMATION_DISPATCH_MAX_REPOS_PER_TICK,
-    VERCEL_SANDBOX_IMAGE: process.env.VERCEL_SANDBOX_IMAGE,
     SANDBOX_CLEANUP_MAX_PER_TICK: process.env.SANDBOX_CLEANUP_MAX_PER_TICK,
     SNAPSHOT_CLEANUP_MAX_PER_TICK: process.env.SNAPSHOT_CLEANUP_MAX_PER_TICK,
     CANVA_APP_ID: process.env.CANVA_APP_ID ?? (isTestEnv ? "test-canva-app-id" : undefined),

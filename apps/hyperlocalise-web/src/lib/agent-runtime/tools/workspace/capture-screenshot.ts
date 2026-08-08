@@ -20,7 +20,6 @@ import { schema } from "@/lib/database";
 import { createStoredFile, getStoredFileContent } from "@/lib/file-storage/records";
 import {
   installChromiumSystemDependenciesFunction,
-  sandboxBrowserRuntimeDir,
   sandboxPlaywrightVersion,
 } from "@/lib/vercel-sandbox-config";
 
@@ -46,7 +45,7 @@ const MAX_TRANSIENT_CAPTURE_ATTEMPTS = 2;
 /** Keep failure excerpts short enough for the model to act on. */
 const FAILURE_ERROR_EXCERPT_BYTES = 8_000;
 const MANAGED_PLAYWRIGHT_VERSION = sandboxPlaywrightVersion;
-const MANAGED_BROWSER_RUNTIME_DIR = sandboxBrowserRuntimeDir;
+const MANAGED_BROWSER_RUNTIME_DIR = "/tmp/hyperlocalise-browser-runtime";
 const MANAGED_PLAYWRIGHT_MODULE = `${MANAGED_BROWSER_RUNTIME_DIR}/node_modules/playwright`;
 const ERROR_CODE_PREFIX = "HYPERLOCALISE_SCREENSHOT_ERROR_CODE=";
 

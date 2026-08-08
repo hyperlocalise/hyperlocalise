@@ -18,7 +18,8 @@ ARG DEBIAN_FRONTEND=noninteractive
 ARG RIPGREP_VERSION=14.1.1
 ARG HYPERLOCALISE_VERSION=1.8.24
 ARG PLAYWRIGHT_VERSION=1.61.1
-ARG BROWSER_RUNTIME_DIR=/vercel/hyperlocalise-browser-runtime
+# Matches MANAGED_BROWSER_RUNTIME_DIR in capture-screenshot.ts (web wiring later).
+ARG BROWSER_RUNTIME_DIR=/tmp/hyperlocalise-browser-runtime
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
@@ -71,7 +72,7 @@ RUN set -eux; \
 RUN chown -R ubuntu:ubuntu /vercel
 
 ENV HOME=/vercel
-ENV PLAYWRIGHT_BROWSERS_PATH=/vercel/hyperlocalise-browser-runtime/ms-playwright
+ENV PLAYWRIGHT_BROWSERS_PATH=/tmp/hyperlocalise-browser-runtime/ms-playwright
 USER ubuntu
 WORKDIR /vercel
 

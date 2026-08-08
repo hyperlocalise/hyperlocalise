@@ -1,0 +1,105 @@
+name: Sandbox Image
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths:
+      - apps/sandbox-image/**
+      - .github/workflows/sandbox-image.yml
+  push:
+    branches:
+      - main
+    paths:
+      - apps/sandbox-image/**
+      - .github/workflows/sandbox-image.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sandbox-image-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  REGISTRY: vcr.vercel.com
+  IMAGE_REPOSITORY: hyperlocalise-sandbox
+
+jobs:
+  build-and-push:
+    name: Build Sandbox Image
+    # Skip expensive image builds on draft PRs (same pattern as web.yml).
+    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Require VCR credentials
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_TEAM_ID: ${{ vars.VERCEL_TEAM_ID }}
+          VERCEL_TEAM_SLUG: ${{ vars.VERCEL_TEAM_SLUG }}
+          VERCEL_PROJECT_SLUG: ${{ vars.VERCEL_PROJECT_SLUG }}
+        run: |
+          set -euo pipefail
+          missing=()
+          [ -n "${VERCEL_TOKEN:-}" ] || missing+=("secrets.VERCEL_TOKEN")
+          [ -n "${VERCEL_TEAM_ID:-}" ] || missing+=("vars.VERCEL_TEAM_ID")
+          [ -n "${VERCEL_TEAM_SLUG:-}" ] || missing+=("vars.VERCEL_TEAM_SLUG")
+          [ -n "${VERCEL_PROJECT_SLUG:-}" ] || missing+=("vars.VERCEL_PROJECT_SLUG")
+          if [ "${#missing[@]}" -gt 0 ]; then
+            echo "::error::Missing VCR configuration: ${missing[*]}"
+            echo "See apps/sandbox-image/README.md for required GitHub secrets/variables."
+            exit 1
+          fi
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+
+      - name: Log in to Vercel Container Registry
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ vars.VERCEL_TEAM_ID }}
+          password: ${{ secrets.VERCEL_TOKEN }}
+
+      - name: Compute image tags
+        id: meta
+        env:
+          TEAM_SLUG: ${{ vars.VERCEL_TEAM_SLUG }}
+          PROJECT_SLUG: ${{ vars.VERCEL_PROJECT_SLUG }}
+        run: |
+          set -euo pipefail
+          image="${REGISTRY}/${TEAM_SLUG}/${PROJECT_SLUG}/${IMAGE_REPOSITORY}"
+          echo "image=${image}" >> "$GITHUB_OUTPUT"
+          if [ "${GITHUB_EVENT_NAME}" = "push" ] || [ "${GITHUB_EVENT_NAME}" = "workflow_dispatch" ]; then
+            echo "push=true" >> "$GITHUB_OUTPUT"
+            {
+              echo "tags<<EOF"
+              echo "${image}:${GITHUB_SHA}"
+              echo "${image}:latest"
+              echo "EOF"
+            } >> "$GITHUB_OUTPUT"
+          else
+            echo "push=false" >> "$GITHUB_OUTPUT"
+            {
+              echo "tags<<EOF"
+              echo "${image}:${GITHUB_SHA}"
+              echo "EOF"
+            } >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build and push
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
+        with:
+          context: apps/sandbox-image
+          file: apps/sandbox-image/Dockerfile
+          platforms: linux/amd64
+          # PRs build only (still need VCR login to pull the managed base image).
+          # main / workflow_dispatch push sha + latest.
+          push: ${{ steps.meta.outputs.push == 'true' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

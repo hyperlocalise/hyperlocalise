@@ -6,7 +6,8 @@ published to [Vercel Container Registry (VCR)](https://vercel.com/docs/container
 Today every sandbox boots the managed `node26` runtime, then
 `createConfiguredVercelSandbox` installs ripgrep, the `hl` CLI, and Chromium
 system libraries over the network. Screenshot capture then installs Playwright
-into a temp directory. This image bakes those tools in so sandboxes start ready.
+into a temp directory. This image bakes those tools in so sandboxes can start
+ready once the app is wired to use it.
 
 ## Contents
 
@@ -16,36 +17,52 @@ Built on `vercel/sandbox/node:26` (Ubuntu, Node 26, pnpm, passwordless sudo):
 |------|----------------|
 | ripgrep (`rg`) | pinned in Dockerfile (`RIPGREP_VERSION`) |
 | hyperlocalise CLI (`hl`) | pinned (`HYPERLOCALISE_VERSION`) |
-| Playwright + Chromium | pinned (`PLAYWRIGHT_VERSION`), under `/vercel/hyperlocalise-browser-runtime` |
+| Playwright + Chromium | pinned (`PLAYWRIGHT_VERSION`), under `/tmp/hyperlocalise-browser-runtime` |
 
 Keep those `ARG`s aligned with
 `apps/hyperlocalise-web/src/lib/vercel-sandbox-config.ts`.
 
-## Prerequisites
+## CI
 
-- [Vercel CLI](https://vercel.com/docs/cli) linked to the hyperlocalise-web project
-- Docker (or Podman) with Buildx
+Workflow: [`.github/workflows/sandbox-image.yml`](../../.github/workflows/sandbox-image.yml)
 
-## Build and push
+| Event | Behavior |
+|-------|----------|
+| PR touching `apps/sandbox-image/**` | Build `linux/amd64` (no push) |
+| Push to `main` / `workflow_dispatch` | Build and push `:sha` + `:latest` |
 
-From the repository root (or this directory):
+### Required GitHub configuration
+
+| Name | Kind | Purpose |
+|------|------|---------|
+| `VERCEL_TOKEN` | repository secret | Vercel access token with access to the web project |
+| `VERCEL_TEAM_ID` | repository variable | Docker login username (`team_…`) |
+| `VERCEL_TEAM_SLUG` | repository variable | Image path team slug |
+| `VERCEL_PROJECT_SLUG` | repository variable | Image path project slug (hyperlocalise-web) |
+
+Pushed reference:
+
+```text
+vcr.vercel.com/<VERCEL_TEAM_SLUG>/<VERCEL_PROJECT_SLUG>/hyperlocalise-sandbox:latest
+```
+
+## Local build and push
 
 ```bash
 cd apps/sandbox-image
 
 # Authenticate Docker to VCR (OIDC, 12h credentials)
-vercel link   # if not already linked
+vercel link   # if not already linked to hyperlocalise-web
 vercel vcr login docker
 
 # Build + push (recommended)
 vercel vcr build docker . hyperlocalise-sandbox:latest --push
 ```
 
-Or with Docker Buildx (zstd compression recommended by Vercel):
+Or with Docker Buildx:
 
 ```bash
-# Replace team-slug / project-slug with your Vercel team and project
-IMAGE=vcr.vercel.com/team-slug/project-slug/hyperlocalise-sandbox:latest
+IMAGE=vcr.vercel.com/<team-slug>/<project-slug>/hyperlocalise-sandbox:latest
 
 docker buildx build \
   --platform linux/amd64 \
@@ -55,27 +72,7 @@ docker buildx build \
 ```
 
 Sandbox only accepts prepared `linux/amd64` images. After push, wait until the
-repository shows **Ready** in the project Images dashboard (not Preparing /
-Unoptimized).
-
-## Use from the app
-
-Set the image reference on the web app (project env or `.env`):
-
-```bash
-VERCEL_SANDBOX_IMAGE=hyperlocalise-sandbox:latest
-```
-
-Team-scoped and digest pins also work:
-
-```bash
-VERCEL_SANDBOX_IMAGE=team-slug/project-slug/hyperlocalise-sandbox@sha256:...
-```
-
-When `VERCEL_SANDBOX_IMAGE` is set, `createConfiguredVercelSandbox` passes
-`image` to `Sandbox.create` instead of `runtime: "node26"`. Bootstrap still
-runs, but becomes a fast no-op when `rg` / `hl` / Chromium libs are already
-present.
+repository shows **Ready** in the project Images dashboard.
 
 ## Local smoke test
 
@@ -84,11 +81,12 @@ docker build --platform linux/amd64 -t hyperlocalise-sandbox:local .
 docker run --rm hyperlocalise-sandbox:local rg --version
 docker run --rm hyperlocalise-sandbox:local hl --help
 docker run --rm hyperlocalise-sandbox:local \
-  node -e "require('/vercel/hyperlocalise-browser-runtime/node_modules/playwright'); console.log('ok')"
+  node -e "require('/tmp/hyperlocalise-browser-runtime/node_modules/playwright'); console.log('ok')"
 ```
 
 ## Notes
 
+- App wiring (`Sandbox.create({ image })`) is intentionally out of scope here.
 - Sandbox does not run Docker `ENTRYPOINT` / `CMD`. Start work with
   `sandbox.runCommand()`.
 - Rebuild and push when bumping ripgrep, Playwright, or the CLI pin.

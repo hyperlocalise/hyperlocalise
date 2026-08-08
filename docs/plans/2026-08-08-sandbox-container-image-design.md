@@ -7,27 +7,25 @@ ripgrep, the hyperlocalise CLI, and Chromium system libraries at create time.
 Screenshot capture then installs Playwright into a writable directory. That
 repeats network and package work on cold sandboxes.
 
-## Approach
+## Approach (phase 1)
 
 Publish a custom OCI image to [Vercel Container Registry](https://vercel.com/docs/container-registry)
-and boot sandboxes from it with `Sandbox.create({ image })`.
+without changing sandbox create paths yet.
 
 1. **Image source**: `apps/sandbox-image/Dockerfile` extends the public managed
    image `vercel/sandbox/node:26` and bakes ripgrep, `hl`, Playwright Chromium,
-   and OS libs.
-2. **Registry**: Push as `hyperlocalise-sandbox:latest` (or a digest pin) via
-   `vercel vcr build docker . hyperlocalise-sandbox:latest --push`.
-3. **App wiring**: Optional `VERCEL_SANDBOX_IMAGE`. When unset, behavior stays
-   `runtime: "node26"` plus bootstrap. When set, create uses `image` instead.
-4. **Browser path**: Playwright runtime moved to
-   `/vercel/hyperlocalise-browser-runtime` so image layers survive (unlike a
-   possible tmpfs on `/tmp`).
+   and OS libs at paths the current bootstrap/screenshot code already expects.
+2. **CI**: `.github/workflows/sandbox-image.yml` builds on PRs and pushes
+   `:sha` + `:latest` from `main` (and `workflow_dispatch`) to
+   `vcr.vercel.com/<team>/<project>/hyperlocalise-sandbox`.
 
-Bootstrap remains after create as a cheap idempotent check (`command -v rg/hl`,
-libnspr presence) so unmanaged runtimes keep working.
+## Follow-up (phase 2)
 
-## Out of scope
+Point `Sandbox.create` at the VCR image (for example via `VERCEL_SANDBOX_IMAGE`)
+and trim create-time installs once the image is Ready in production.
 
-- CI job to rebuild/push on pin bumps (follow-up)
-- Removing bootstrap entirely once the image is mandatory in production
+## Out of scope for phase 1
+
+- Changing `apps/hyperlocalise-web` sandbox create or screenshot paths
+- Removing bootstrap
 - Using the image for Vercel Functions

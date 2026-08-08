@@ -59,20 +59,6 @@ type VercelSandboxCreateOptions = Parameters<typeof Sandbox.create>[0];
 export const defaultVercelSandboxRuntime = "node26";
 
 /**
- * Default VCR repository name for apps/sandbox-image. Override with
- * `VERCEL_SANDBOX_IMAGE` (tag, digest, or team-scoped ref). When set,
- * sandboxes boot from that custom image instead of `runtime: "node26"`.
- */
-export const defaultVercelSandboxImageRepository = "hyperlocalise-sandbox";
-
-/**
- * Playwright + Chromium install root baked into apps/sandbox-image and used by
- * capture-screenshot. Prefer `/vercel` (writable home on managed Ubuntu images)
- * over `/tmp`, which may be a fresh tmpfs per sandbox.
- */
-export const sandboxBrowserRuntimeDir = "/vercel/hyperlocalise-browser-runtime";
-
-/**
  * Sandboxes are persistent by default, so every `stop()` (including the
  * stop/resume recovery path) can mint a snapshot. Expire them on the same
  * horizon the snapshot cleanup cron sweeps so storage stays bounded even if the
@@ -82,17 +68,6 @@ export const sandboxSnapshotExpirationMs = 3 * 24 * 60 * 60 * 1000;
 
 /** Snapshots retained per sandbox; older ones are evicted as new ones are created. Vercel allows 1-10. */
 export const sandboxSnapshotRetentionCount = 3;
-
-/**
- * Resolves the optional custom Sandbox image from `VERCEL_SANDBOX_IMAGE`.
- * Empty/unset keeps the managed `node26` runtime path.
- */
-export function resolveVercelSandboxImage(
-  env: Record<string, string | undefined> = process.env,
-): string | undefined {
-  const image = env.VERCEL_SANDBOX_IMAGE?.trim();
-  return image ? image : undefined;
-}
 
 const installRipgrepFromGithubRelease = [
   "install_ripgrep_from_github_release() {",
@@ -207,20 +182,10 @@ export const installRequiredSandboxToolsCommand = [
 export async function createConfiguredVercelSandbox(
   options: VercelSandboxCreateOptions = {},
 ): Promise<Sandbox> {
-  const configuredImage = resolveVercelSandboxImage();
-  const shouldUseDefaultImage =
-    Boolean(configuredImage) &&
-    !("runtime" in options) &&
-    !("image" in options) &&
-    options.source?.type !== "snapshot";
   const shouldUseDefaultRuntime =
-    !shouldUseDefaultImage &&
-    !("runtime" in options) &&
-    !("image" in options) &&
-    options.source?.type !== "snapshot";
+    !("runtime" in options) && !("image" in options) && options.source?.type !== "snapshot";
   const createOptions = {
     ...options,
-    ...(shouldUseDefaultImage ? { image: configuredImage } : {}),
     ...(shouldUseDefaultRuntime ? { runtime: defaultVercelSandboxRuntime } : {}),
     ...("snapshotExpiration" in options ? {} : { snapshotExpiration: sandboxSnapshotExpirationMs }),
     ...("keepLastSnapshots" in options
