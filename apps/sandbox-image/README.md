@@ -11,24 +11,24 @@ ready once the app is wired to use it.
 
 ## Contents
 
-Built on [`vercel/sandbox/universal:latest`](https://github.com/vercel/sandbox/tree/main/images/universal)
-(Ubuntu, Node 24, Bun, Python, `rg`, `git`/`gh`, coding agents, passwordless sudo).
+Built from public **`ubuntu:26.04`** (same foundation as
+[`vercel/sandbox/ubuntu`](https://github.com/vercel/sandbox/tree/main/images/ubuntu)),
+not `FROM vercel/sandbox/universal`. Managed VCR images return **401** on
+unauthenticated pulls, which breaks fork/PR CI that cannot use registry secrets.
 
-We only add Hyperlocalise-specific tooling on top:
+Layout matches Vercel Sandbox conventions (`ubuntu` user, `HOME=/vercel`,
+passwordless sudo), with:
 
 | Tool | Version source |
 |------|----------------|
-| ripgrep (`rg`) | from universal (not reinstalled) |
-| Volta | installed for `ubuntu` under `/vercel/.volta` (`VOLTA_VERSION` optional pin) |
+| Node.js + npm + pnpm 11 | latest of major `NODE_MAJOR` (default **24**) |
+| ripgrep (`rg`) | apt |
+| Volta | `/vercel/.volta` (`VOLTA_VERSION` optional pin) |
 | hyperlocalise CLI (`hl`) | pinned (`HYPERLOCALISE_VERSION`) |
 | Playwright + Chromium | pinned (`PLAYWRIGHT_VERSION`), under `/tmp/hyperlocalise-browser-runtime` |
 
 Keep those `ARG`s aligned with
 `apps/hyperlocalise-web/src/lib/vercel-sandbox-config.ts`.
-
-Note: universal ships **Node 24**, while the app’s current default runtime is
-`node26`. That is fine for baking tools; revisit if you need Node 26 APIs when
-wiring `Sandbox.create({ image })`.
 
 ## CI
 
@@ -40,7 +40,8 @@ Workflow: [`.github/workflows/sandbox-image.yml`](../../.github/workflows/sandbo
 | Push to `main` / `workflow_dispatch` | Authenticate to VCR, build and push `:sha` + `:latest` |
 
 PR / fork builds do **not** require repository secrets (forks cannot read them).
-Registry login and credential checks run only when pushing.
+Registry login and credential checks run only when pushing. The base OS image
+is public, so the Dockerfile build itself does not need VCR.
 
 ### Required GitHub configuration (push / `workflow_dispatch` only)
 
