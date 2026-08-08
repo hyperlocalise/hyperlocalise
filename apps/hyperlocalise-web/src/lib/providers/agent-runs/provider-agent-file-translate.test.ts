@@ -129,8 +129,75 @@ vi.mock("@/lib/translation/sandbox", () => ({
 import {
   isProviderFileFullyTranslated,
   mergeLocaleKeyedPrefills,
+  shouldUseProviderFileTranslation,
+  summarizeProviderUnitFileIds,
   translateProviderJobFiles,
 } from "./provider-agent-file-translate";
+
+describe("summarizeProviderUnitFileIds", () => {
+  it("counts units by fileId and maps blank ids to (null)", () => {
+    expect(
+      summarizeProviderUnitFileIds([
+        {
+          externalStringId: "1",
+          key: "hello",
+          sourceText: "Hello",
+          fileId: "file-1",
+          translations: [],
+        },
+        {
+          externalStringId: "2",
+          key: "bye",
+          sourceText: "Bye",
+          fileId: "file-1",
+          translations: [],
+        },
+        {
+          externalStringId: "3",
+          key: "orphan",
+          sourceText: "Orphan",
+          fileId: "   ",
+          translations: [],
+        },
+        {
+          externalStringId: "4",
+          key: "missing",
+          sourceText: "Missing",
+          fileId: null as unknown as string,
+          translations: [],
+        },
+      ]),
+    ).toEqual({
+      "file-1": 2,
+      "(null)": 2,
+    });
+  });
+});
+
+describe("shouldUseProviderFileTranslation", () => {
+  it("returns true when any source file has a non-blank sourcePath", () => {
+    expect(
+      shouldUseProviderFileTranslation({
+        sourceFiles: [
+          { id: "file-1", displayName: "a.json", sourcePath: "   " },
+          { id: "file-2", displayName: "b.json", sourcePath: "locales/b.json" },
+        ],
+      }),
+    ).toBe(true);
+  });
+
+  it("returns false when every sourcePath is missing or whitespace", () => {
+    expect(
+      shouldUseProviderFileTranslation({
+        sourceFiles: [
+          { id: "file-1", displayName: "a.json", sourcePath: "" },
+          { id: "file-2", displayName: "b.json", sourcePath: " \t " },
+          { id: "file-3", displayName: "c.json", sourcePath: null },
+        ],
+      }),
+    ).toBe(false);
+  });
+});
 
 describe("isProviderFileFullyTranslated", () => {
   it("returns true when every unit has a translation for every locale", () => {
@@ -425,6 +492,43 @@ describe("translateProviderJobFiles", () => {
         expect.objectContaining({ key: "hello", to: "Bonjour" }),
         expect.objectContaining({ key: "bye", to: "Au revoir" }),
       ]),
+    );
+  });
+
+  it("shell-escapes apostrophes in locale flags for the batched hl run", async () => {
+    await translateProviderJobFiles({
+      organizationId: "org_1",
+      projectId: "project_1",
+      providerKind: "crowdin",
+      targetLocales: ["fr'x"],
+      sourceFiles: [
+        {
+          id: "file-1",
+          displayName: "a.json",
+          sourcePath: "locales/a.json",
+        },
+      ],
+      content: {
+        externalJobId: "task-1",
+        sourceLocale: "en",
+        targetLocales: ["fr'x"],
+        units: [
+          {
+            externalStringId: "1",
+            key: "hello",
+            sourceText: "Hello",
+            fileId: "file-1",
+            translations: [],
+          },
+        ],
+      },
+    });
+
+    expect(runSandboxCommandMock).toHaveBeenCalledWith(
+      "sandbox_shared",
+      "bash",
+      ["-lc", expect.stringContaining("--locale 'fr'\\''x'")],
+      expect.any(Object),
     );
   });
 
