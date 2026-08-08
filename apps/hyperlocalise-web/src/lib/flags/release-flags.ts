@@ -15,9 +15,15 @@ import { flag } from "flags/next";
 import type { ExternalTmsProviderKind } from "@/lib/providers/contracts/external-tms-provider-kind";
 import { supportsCatAllFilesProvider } from "@/lib/projects/cat-all-files";
 
-import { RELEASE_CAT_ALL_FILES_FLAG } from "./release-flag-keys";
+import {
+  RELEASE_CAT_ALL_FILES_FLAG,
+  RELEASE_SANDBOX_VCR_IMAGE_FLAG,
+} from "./release-flag-keys";
 
-export { RELEASE_CAT_ALL_FILES_FLAG } from "./release-flag-keys";
+export {
+  RELEASE_CAT_ALL_FILES_FLAG,
+  RELEASE_SANDBOX_VCR_IMAGE_FLAG,
+} from "./release-flag-keys";
 
 export type ReleaseCatAllFilesEntities = {
   /** `null` / omitted = native project; otherwise the live TMS provider kind. */
@@ -49,6 +55,34 @@ export async function isReleaseCatAllFilesEnabled(
         identify: { providerKind: providerKind ?? null },
       })) === true
     );
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Release gate for creating sandboxes from the hyperlocalise-sandbox VCR image.
+ *
+ * `decide` enables when `RELEASE_SANDBOX_VCR_IMAGE=true` so workflow/sandbox
+ * create paths (no HTTP request) can cut over. Flags Explorer overrides still
+ * win over `decide` when a request context exists. Callers must also set
+ * `VERCEL_SANDBOX_IMAGE`; otherwise create falls back to the managed runtime.
+ */
+export const releaseSandboxVcrImageFlag = flag<boolean>({
+  key: RELEASE_SANDBOX_VCR_IMAGE_FLAG,
+  description:
+    "Create Vercel Sandboxes from the hyperlocalise-sandbox image in Vercel Container Registry.",
+  defaultValue: false,
+  decide() {
+    // Read process.env directly so this module does not import `@/lib/env`
+    // (heavy validation) and so workflow paths without request context work.
+    return process.env.RELEASE_SANDBOX_VCR_IMAGE === "true";
+  },
+});
+
+export async function isReleaseSandboxVcrImageEnabled(): Promise<boolean> {
+  try {
+    return (await releaseSandboxVcrImageFlag.run()) === true;
   } catch {
     return false;
   }

@@ -97,9 +97,23 @@ docker run --rm hyperlocalise-sandbox:local \
   node -e "require('/tmp/hyperlocalise-browser-runtime/node_modules/playwright'); console.log('ok')"
 ```
 
+## App cutover
+
+Set both on the web app deployment:
+
+```text
+VERCEL_SANDBOX_IMAGE=vcr.vercel.com/<team-slug>/<project-slug>/hyperlocalise-sandbox:latest
+RELEASE_SANDBOX_VCR_IMAGE=true
+```
+
+`RELEASE_SANDBOX_VCR_IMAGE` backs Flags SDK release flag
+`release-sandbox-vcr-image`. When the flag is on and the image env is set,
+`createConfiguredVercelSandbox` passes `image` instead of `runtime: node26`.
+See
+[`docs/adr/2026-08-08-sandbox-vcr-image-release-flag-design.md`](../../docs/adr/2026-08-08-sandbox-vcr-image-release-flag-design.md).
+
 ## Notes
 
-- App wiring (`Sandbox.create({ image })`) is intentionally out of scope here.
 - Sandbox does not run Docker `ENTRYPOINT` / `CMD`. Start work with
   `sandbox.runCommand()`.
 - Rebuild and push when bumping ripgrep, Playwright, or the CLI pin.

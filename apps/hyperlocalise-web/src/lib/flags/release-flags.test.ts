@@ -12,44 +12,66 @@
  */
 import { describe, expect, it, vi } from "vite-plus/test";
 
-const releaseCatAllFilesFlagRunMock = vi.hoisted(() => vi.fn());
+const releaseFlagRunMocks = vi.hoisted(() => ({
+  catAllFiles: vi.fn(),
+  sandboxVcrImage: vi.fn(),
+}));
 
 vi.mock("flags/next", () => ({
-  flag: () => {
-    const flagFn = Object.assign(vi.fn(), {
-      run: releaseCatAllFilesFlagRunMock,
-      key: "release-cat-all-files",
+  flag: (definition: { key: string }) => {
+    const run =
+      definition.key === "release-sandbox-vcr-image"
+        ? releaseFlagRunMocks.sandboxVcrImage
+        : releaseFlagRunMocks.catAllFiles;
+    return Object.assign(vi.fn(), {
+      run,
+      key: definition.key,
     });
-    return flagFn;
   },
 }));
 
-import { isReleaseCatAllFilesEnabled } from "./release-flags";
+import { isReleaseCatAllFilesEnabled, isReleaseSandboxVcrImageEnabled } from "./release-flags";
 
 describe("isReleaseCatAllFilesEnabled", () => {
   it("passes providerKind into flag.run identify entities", async () => {
-    releaseCatAllFilesFlagRunMock.mockResolvedValue(true);
+    releaseFlagRunMocks.catAllFiles.mockResolvedValue(true);
 
     await expect(isReleaseCatAllFilesEnabled("crowdin")).resolves.toBe(true);
 
-    expect(releaseCatAllFilesFlagRunMock).toHaveBeenCalledWith({
+    expect(releaseFlagRunMocks.catAllFiles).toHaveBeenCalledWith({
       identify: { providerKind: "crowdin" },
     });
   });
 
   it("normalizes omitted providerKind to null for native projects", async () => {
-    releaseCatAllFilesFlagRunMock.mockResolvedValue(true);
+    releaseFlagRunMocks.catAllFiles.mockResolvedValue(true);
 
     await expect(isReleaseCatAllFilesEnabled()).resolves.toBe(true);
 
-    expect(releaseCatAllFilesFlagRunMock).toHaveBeenCalledWith({
+    expect(releaseFlagRunMocks.catAllFiles).toHaveBeenCalledWith({
       identify: { providerKind: null },
     });
   });
 
   it("returns false when flag evaluation throws", async () => {
-    releaseCatAllFilesFlagRunMock.mockRejectedValue(new Error("flags unavailable"));
+    releaseFlagRunMocks.catAllFiles.mockRejectedValue(new Error("flags unavailable"));
 
     await expect(isReleaseCatAllFilesEnabled("crowdin")).resolves.toBe(false);
+  });
+});
+
+describe("isReleaseSandboxVcrImageEnabled", () => {
+  it("returns the flag.run result", async () => {
+    releaseFlagRunMocks.sandboxVcrImage.mockResolvedValue(true);
+
+    await expect(isReleaseSandboxVcrImageEnabled()).resolves.toBe(true);
+
+    expect(releaseFlagRunMocks.sandboxVcrImage).toHaveBeenCalledWith();
+  });
+
+  it("returns false when flag evaluation throws", async () => {
+    releaseFlagRunMocks.sandboxVcrImage.mockRejectedValue(new Error("flags unavailable"));
+
+    await expect(isReleaseSandboxVcrImageEnabled()).resolves.toBe(false);
   });
 });

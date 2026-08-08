@@ -176,6 +176,23 @@ export const env = createEnv({
     /** Maximum snapshots deleted per snapshot cleanup cron tick. */
     SNAPSHOT_CLEANUP_MAX_PER_TICK: z.coerce.number().int().positive().default(100),
 
+    /**
+     * OCI image ref for custom Vercel Sandboxes (VCR), e.g.
+     * `vcr.vercel.com/<team>/<project>/hyperlocalise-sandbox:latest`.
+     * Used only when release flag `release-sandbox-vcr-image` is enabled.
+     */
+    VERCEL_SANDBOX_IMAGE: z.string().min(1).optional(),
+
+    /**
+     * Env-backed decide for release flag `release-sandbox-vcr-image`.
+     * When true (and `VERCEL_SANDBOX_IMAGE` is set), sandboxes create from the
+     * VCR image instead of the managed `node26` runtime.
+     */
+    RELEASE_SANDBOX_VCR_IMAGE: z
+      .enum(["true", "false"])
+      .default("false")
+      .transform((value) => value === "true"),
+
     /** Canva app ID used to verify Canva JWTs for the integration API. */
     CANVA_APP_ID: z.string().min(1).optional(),
 
@@ -293,6 +310,8 @@ export const env = createEnv({
       process.env.GITHUB_REPOSITORY_AUTOMATION_DISPATCH_MAX_REPOS_PER_TICK,
     SANDBOX_CLEANUP_MAX_PER_TICK: process.env.SANDBOX_CLEANUP_MAX_PER_TICK,
     SNAPSHOT_CLEANUP_MAX_PER_TICK: process.env.SNAPSHOT_CLEANUP_MAX_PER_TICK,
+    VERCEL_SANDBOX_IMAGE: process.env.VERCEL_SANDBOX_IMAGE,
+    RELEASE_SANDBOX_VCR_IMAGE: process.env.RELEASE_SANDBOX_VCR_IMAGE,
     CANVA_APP_ID: process.env.CANVA_APP_ID ?? (isTestEnv ? "test-canva-app-id" : undefined),
     CANVA_CORS_ORIGINS: process.env.CANVA_CORS_ORIGINS,
     CANVA_APP_ORIGIN: process.env.CANVA_APP_ORIGIN,

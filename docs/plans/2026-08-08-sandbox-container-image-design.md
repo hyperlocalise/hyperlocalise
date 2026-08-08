@@ -23,8 +23,10 @@ without changing sandbox create paths yet.
 
 ## Follow-up (phase 2)
 
-Point `Sandbox.create` at the VCR image (for example via `VERCEL_SANDBOX_IMAGE`)
-and trim create-time installs once the image is Ready in production.
+Point `Sandbox.create` at the VCR image behind release flag
+`release-sandbox-vcr-image` and env `VERCEL_SANDBOX_IMAGE`. See
+[`docs/adr/2026-08-08-sandbox-vcr-image-release-flag-design.md`](../adr/2026-08-08-sandbox-vcr-image-release-flag-design.md).
+Trim create-time installs once the image is Ready and the cutover is stable.
 
 ## Out of scope for phase 1
 

@@ -12,6 +12,9 @@
  */
 import { Sandbox } from "@vercel/sandbox";
 
+import { env } from "@/lib/env";
+import { isReleaseSandboxVcrImageEnabled } from "@/lib/flags/release-flags";
+
 /** Pinned ripgrep release used when package managers do not ship rg (e.g. Amazon Linux 2023). */
 export const sandboxRipgrepReleaseVersion = "14.1.1";
 
@@ -182,10 +185,18 @@ export const installRequiredSandboxToolsCommand = [
 export async function createConfiguredVercelSandbox(
   options: VercelSandboxCreateOptions = {},
 ): Promise<Sandbox> {
-  const shouldUseDefaultRuntime =
-    !("runtime" in options) && !("image" in options) && options.source?.type !== "snapshot";
+  const callerChoosesImageOrRuntime =
+    "runtime" in options || "image" in options || options.source?.type === "snapshot";
+  const vcrSandboxImage = env.VERCEL_SANDBOX_IMAGE;
+  const shouldUseVcrImage =
+    !callerChoosesImageOrRuntime &&
+    vcrSandboxImage != null &&
+    vcrSandboxImage.length > 0 &&
+    (await isReleaseSandboxVcrImageEnabled());
+  const shouldUseDefaultRuntime = !callerChoosesImageOrRuntime && !shouldUseVcrImage;
   const createOptions = {
     ...options,
+    ...(shouldUseVcrImage ? { image: vcrSandboxImage } : {}),
     ...(shouldUseDefaultRuntime ? { runtime: defaultVercelSandboxRuntime } : {}),
     ...("snapshotExpiration" in options ? {} : { snapshotExpiration: sandboxSnapshotExpirationMs }),
     ...("keepLastSnapshots" in options
