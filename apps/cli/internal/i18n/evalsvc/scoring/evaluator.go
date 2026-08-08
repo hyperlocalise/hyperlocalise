@@ -515,9 +515,6 @@ func tokenF1Normalized(reference, candidate string) float64 {
 	if reference == "" && candidate == "" {
 		return 1
 	}
-	if reference == "" || candidate == "" {
-		return 0
-	}
 
 	rCount := make(map[string]int)
 	rLen := 0
