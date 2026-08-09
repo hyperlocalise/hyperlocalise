@@ -51,6 +51,10 @@ export function isToolPartRunning(part: ToolPart): boolean {
   return part.state === "input-streaming" || part.state === "input-available";
 }
 
+export function isToolPartFailed(part: ToolPart): boolean {
+  return part.state === "output-error" || part.state === "output-denied";
+}
+
 export function groupToolActivityBlocks(parts: ToolPart[]): ToolActivityBlock[] {
   const blocks: ToolActivityBlock[] = [];
 

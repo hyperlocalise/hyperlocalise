@@ -68,4 +68,14 @@ describe("ExploreToolActivity", () => {
     expect(screen.getByText("Explored account-form.tsx, 2 searches")).toBeInTheDocument();
     expect(screen.queryByText(/^detail:/)).not.toBeInTheDocument();
   });
+
+  it("opens a failure rollup when any explore tool errors", () => {
+    renderActivity([
+      toolPart("grep", { pattern: "Save" }),
+      toolPart("read", { path: "apps/web/src/account-form.tsx" }, "output-error"),
+    ]);
+
+    expect(screen.getByText("Couldn't explore account-form.tsx")).toBeInTheDocument();
+    expect(screen.getByText(/detail:read-output-error/)).toBeInTheDocument();
+  });
 });

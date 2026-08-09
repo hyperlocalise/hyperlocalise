@@ -82,4 +82,14 @@ export const toolActivityMessages = defineMessages({
     defaultMessage: "{count, plural, one {Opened # file} other {Opened # files}}",
     description: "Collapsed explore rollup for multiple file reads",
   },
+  exploreFailedSubject: {
+    id: "T8Ggt03ksb",
+    defaultMessage: "Couldn't explore {subject}",
+    description: "Completed explore rollup when at least one tool failed and a subject is known",
+  },
+  exploreFailed: {
+    id: "WhBlkGYmVr",
+    defaultMessage: "Couldn't explore the codebase",
+    description: "Completed explore rollup when at least one tool failed and no subject is known",
+  },
 });

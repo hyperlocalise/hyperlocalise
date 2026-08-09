@@ -23,6 +23,7 @@ import {
   getExploreRollupStats,
   getToolName,
   getToolPartSubject,
+  isToolPartFailed,
   isToolPartRunning,
   type ToolPart,
 } from "./tool-activity";
@@ -55,8 +56,18 @@ function formatLiveExploreLabel(intl: ReturnType<typeof useIntl>, part: ToolPart
   }
 }
 
-function formatExploreRollupLabel(intl: ReturnType<typeof useIntl>, parts: ToolPart[]): string {
+function formatExploreRollupLabel(
+  intl: ReturnType<typeof useIntl>,
+  parts: ToolPart[],
+  hasFailed: boolean,
+): string {
   const { subject, readCount, onlyReads, count } = getExploreRollupStats(parts);
+
+  if (hasFailed) {
+    return subject
+      ? intl.formatMessage(toolActivityMessages.exploreFailedSubject, { subject })
+      : intl.formatMessage(toolActivityMessages.exploreFailed);
+  }
 
   if (onlyReads) {
     if (readCount === 1 && subject) {
@@ -84,6 +95,7 @@ export function ExploreToolActivity({
   const shouldReduceMotion = useReducedMotion();
   const latestPart = parts.at(-1);
   const isLive = parts.some(isToolPartRunning);
+  const hasFailed = parts.some(isToolPartFailed);
 
   if (!latestPart) {
     return null;
@@ -109,12 +121,18 @@ export function ExploreToolActivity({
     );
   }
 
-  const rollupLabel = formatExploreRollupLabel(intl, parts);
+  const rollupLabel = formatExploreRollupLabel(intl, parts, hasFailed);
 
   return (
-    <Task defaultOpen={false} className="mb-1 w-full">
+    <Task defaultOpen={hasFailed} className="mb-1 w-full">
       <TaskTrigger title={rollupLabel} className="w-full">
-        <div className="flex w-full min-w-0 cursor-pointer items-center gap-1.5 py-0.5 text-start text-sm text-muted-foreground transition-colors hover:text-foreground">
+        <div
+          className={
+            hasFailed
+              ? "flex w-full min-w-0 cursor-pointer items-center gap-1.5 py-0.5 text-start text-sm text-destructive transition-colors hover:text-destructive/90"
+              : "flex w-full min-w-0 cursor-pointer items-center gap-1.5 py-0.5 text-start text-sm text-muted-foreground transition-colors hover:text-foreground"
+          }
+        >
           <span className="min-w-0 truncate">{rollupLabel}</span>
           <ChevronDownIcon className="size-3.5 shrink-0 opacity-0 transition-all group-hover:opacity-100 group-data-[state=open]:rotate-180 group-data-[state=open]:opacity-100" />
         </div>

@@ -532,9 +532,10 @@ function AssistantToolPart({
         state: part.state,
       };
   const hasImageOutput = Boolean(getImageToolOutput(part.output));
-  // null = follow hasImageOutput; once the user toggles, keep their choice.
+  const hasFailed = part.state === "output-error" || part.state === "output-denied";
+  // null = follow image/error defaults; once the user toggles, keep their choice.
   const [userOpen, setUserOpen] = useState<boolean | null>(null);
-  const open = userOpen ?? hasImageOutput;
+  const open = userOpen ?? (hasImageOutput || hasFailed);
   const isRunning = part.state === "input-streaming" || part.state === "input-available";
 
   return (

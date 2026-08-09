@@ -18,6 +18,7 @@ import {
   getToolName,
   groupToolActivityBlocks,
   isExploreToolPart,
+  isToolPartFailed,
   type ToolPart,
 } from "./tool-activity";
 
@@ -69,6 +70,12 @@ describe("tool-activity helpers", () => {
     expect(formatToolSubject("apps/web/src/account-form.tsx")).toBe("account-form.tsx");
     expect(formatToolSubject("Save")).toBe("Save");
     expect(getToolName(toolPart("fuzzySearch", { query: "label" }))).toBe("fuzzySearch");
+  });
+
+  it("detects failed tool states", () => {
+    expect(isToolPartFailed(toolPart("grep", { pattern: "Save" }, "output-error"))).toBe(true);
+    expect(isToolPartFailed(toolPart("grep", { pattern: "Save" }, "output-denied"))).toBe(true);
+    expect(isToolPartFailed(toolPart("grep", { pattern: "Save" }))).toBe(false);
   });
 
   it("summarizes explore rollups for searches and reads", () => {
