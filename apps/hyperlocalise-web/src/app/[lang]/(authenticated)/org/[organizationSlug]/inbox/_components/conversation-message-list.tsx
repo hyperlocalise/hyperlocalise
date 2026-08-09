@@ -30,6 +30,7 @@ import { AiElementErrorBoundary } from "@/components/ai-elements/ai-element-erro
 import { MessageResponse } from "@/components/ai-elements/message";
 import { Reasoning, ReasoningContent, ReasoningTrigger } from "@/components/ai-elements/reasoning";
 import { Source, Sources, SourcesContent, SourcesTrigger } from "@/components/ai-elements/sources";
+import { ExploreToolActivity } from "@/components/ai-elements/explore-tool-activity";
 import {
   getImageToolOutput,
   serializeToolJson,
@@ -39,6 +40,7 @@ import {
   ToolInput,
   ToolOutput,
 } from "@/components/ai-elements/tool";
+import { groupToolActivityBlocks } from "@/components/ai-elements/tool-activity";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Marker, MarkerContent, MarkerIcon } from "@/components/ui/marker";
 import { Message, MessageAvatar, MessageContent, MessageFooter } from "@/components/ui/message";
@@ -390,6 +392,10 @@ function AssistantMessageParts({
   const sourceParts = message.parts.filter(isSourcePart);
   const toolParts = message.parts.filter(isToolPart);
   const latestTodoCallId = toolParts.findLast(isTodoWritePart)?.toolCallId;
+  const visibleToolParts = toolParts.filter(
+    (part) => !isTodoWritePart(part) || part.toolCallId === latestTodoCallId,
+  );
+  const toolBlocks = groupToolActivityBlocks(visibleToolParts);
   const statusPart = message.parts.findLast(isStatusPart);
   const toolProgressByCallId = new Map(
     message.parts
@@ -429,18 +435,43 @@ function AssistantMessageParts({
           </AiElementErrorBoundary>
         ) : null,
       )}
-      {toolParts.map((part, index) => {
-        if (isTodoWritePart(part) && part.toolCallId !== latestTodoCallId) {
-          return null;
+      {toolBlocks.map((block, blockIndex) => {
+        if (block.kind === "explore") {
+          return (
+            <AiElementErrorBoundary
+              key={`explore-${block.parts[0]?.toolCallId ?? blockIndex}`}
+              scope="tool"
+              resetKeys={block.parts.flatMap((part) => [
+                part.type,
+                part.state,
+                part.toolCallId,
+                serializeToolJson(part.input),
+                serializeToolJson(part.output),
+                part.errorText ?? "",
+              ])}
+            >
+              <ExploreToolActivity
+                parts={block.parts}
+                renderToolPart={(part, index) => (
+                  <AssistantToolPart
+                    key={`${part.toolCallId}-${index}`}
+                    part={part}
+                    progressMessage={toolProgressByCallId.get(part.toolCallId)}
+                  />
+                )}
+              />
+            </AiElementErrorBoundary>
+          );
         }
 
+        const part = block.part;
         const todoItems = isTodoWritePart(part)
           ? (getAgentTodoItems(part.output) ?? getAgentTodoItems(part.input))
           : null;
 
         return (
           <AiElementErrorBoundary
-            key={`${part.type}-${index}`}
+            key={`${part.type}-${part.toolCallId}-${blockIndex}`}
             scope="tool"
             resetKeys={[
               part.type,
@@ -466,7 +497,7 @@ function AssistantMessageParts({
         <AiElementErrorBoundary scope="message" resetKeys={[text, isStreaming]}>
           <MessageResponse isAnimating={isStreaming}>{text}</MessageResponse>
         </AiElementErrorBoundary>
-      ) : isStreaming && reasoningParts.length === 0 && toolParts.length === 0 ? (
+      ) : isStreaming && reasoningParts.length === 0 && visibleToolParts.length === 0 ? (
         <Marker role="status">
           <MarkerIcon>
             <Spinner />

@@ -219,3 +219,82 @@ export const ScreenshotProgressAndReasoning: Story = {
     ).toBeInTheDocument();
   },
 };
+
+export const CompactExploreToolsStreaming: Story = {
+  args: {
+    messages: [messagesFixture[0]],
+    isStreaming: true,
+    streamedAssistant: createStreamedAssistantMessage({
+      message: {
+        id: "stream-explore-live",
+        role: "assistant",
+        parts: [
+          {
+            type: "tool-grep",
+            toolCallId: "grep-save",
+            state: "output-available",
+            input: { pattern: "Save", path: "apps/web/src" },
+            output: { matches: 2 },
+          },
+          {
+            type: "tool-read",
+            toolCallId: "read-form",
+            state: "input-available",
+            input: { path: "apps/web/src/components/settings/account-form.tsx" },
+          },
+        ],
+      },
+    }),
+  },
+  play: async ({ canvas }) => {
+    await expect(canvas.getByText("Reading account-form.tsx")).toBeInTheDocument();
+    await expect(canvas.queryByText(/^grep$/i)).not.toBeInTheDocument();
+  },
+};
+
+export const CompactExploreToolsCompleted: Story = {
+  args: {
+    messages: [messagesFixture[0]],
+    isStreaming: false,
+    streamedAssistant: createStreamedAssistantMessage({
+      message: {
+        id: "stream-explore-done",
+        role: "assistant",
+        parts: [
+          {
+            type: "tool-grep",
+            toolCallId: "grep-save",
+            state: "output-available",
+            input: { pattern: "Save", path: "apps/web/src" },
+            output: { matches: 2 },
+          },
+          {
+            type: "tool-read",
+            toolCallId: "read-form",
+            state: "output-available",
+            input: { path: "apps/web/src/components/settings/account-form.tsx" },
+            output: { content: "..." },
+          },
+          {
+            type: "tool-grep",
+            toolCallId: "grep-cancel",
+            state: "output-available",
+            input: { pattern: "Cancel" },
+            output: { matches: 1 },
+          },
+          {
+            type: "text",
+            text: "I found the Save label in the account settings form.",
+            state: "done",
+          },
+        ],
+      },
+    }),
+  },
+  play: async ({ canvas }) => {
+    await expect(canvas.getByText("Explored account-form.tsx, 2 searches")).toBeInTheDocument();
+    await expect(
+      canvas.getByText("I found the Save label in the account settings form."),
+    ).toBeInTheDocument();
+  },
+};
