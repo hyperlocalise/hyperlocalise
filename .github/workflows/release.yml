@@ -24,39 +24,6 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Normalize git remote for GoReleaser
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          # Blacksmith/checkouts may leave a scheme-less remote (github.com/owner/repo)
-          # or set url.insteadOf rules that rewrite https:// back to scheme-less URLs.
-          # GoReleaser parses `git ls-remote --get-url` for changelog generation and
-          # mis-reads scheme-less remotes as owner=github.com/owner.
-          repo="${GITHUB_REPOSITORY#https://github.com/}"
-          repo="${repo#github.com/}"
-          repo="${repo%.git}"
-          origin_url="https://github.com/${repo}.git"
-
-          while IFS= read -r key; do
-            instead_of="$(git config --get "$key" || true)"
-            if [[ "$instead_of" == "$origin_url" || "$instead_of" == "https://github.com/${repo}" ]]; then
-              section="${key%.insteadof}"
-              git config --global --unset-all "$key" || true
-              git config --global --remove-section "$section" 2>/dev/null || true
-            fi
-          done < <(git config --global --get-regexp '^url\..*\.insteadof$' 2>/dev/null | cut -d' ' -f1 || true)
-
-          git remote set-url origin "$origin_url"
-          git remote set-url --push origin "$origin_url"
-
-          resolved="$(git ls-remote --get-url origin)"
-          echo "origin remote: $resolved"
-          if [[ ! "$resolved" =~ ^https://github.com/[^/]+/[^/]+$ ]]; then
-            echo "unexpected origin remote format for GoReleaser: $resolved" >&2
-            exit 1
-          fi
-
       - name: Setup Go
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
         with:
