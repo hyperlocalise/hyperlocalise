@@ -101,7 +101,9 @@ export function ExploreToolActivity({
     return null;
   }
 
-  if (isLive) {
+  // Prefer the failure rollup while any grouped tool has already failed/denied,
+  // even if a sibling explore call is still pending.
+  if (isLive && !hasFailed) {
     const liveLabel = formatLiveExploreLabel(intl, latestPart);
     return (
       <div

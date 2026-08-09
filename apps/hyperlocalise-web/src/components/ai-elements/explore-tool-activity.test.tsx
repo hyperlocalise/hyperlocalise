@@ -78,4 +78,15 @@ describe("ExploreToolActivity", () => {
     expect(screen.getByText("Couldn't explore account-form.tsx")).toBeInTheDocument();
     expect(screen.getByText(/detail:read-output-error/)).toBeInTheDocument();
   });
+
+  it("keeps the failure rollup visible while a sibling explore tool is still pending", () => {
+    renderActivity([
+      toolPart("grep", { pattern: "Save" }, "output-error"),
+      toolPart("read", { path: "apps/web/src/account-form.tsx" }, "input-available"),
+    ]);
+
+    expect(screen.getByText("Couldn't explore account-form.tsx")).toBeInTheDocument();
+    expect(screen.queryByText("Reading account-form.tsx")).not.toBeInTheDocument();
+    expect(screen.getByText(/detail:grep-output-error/)).toBeInTheDocument();
+  });
 });
