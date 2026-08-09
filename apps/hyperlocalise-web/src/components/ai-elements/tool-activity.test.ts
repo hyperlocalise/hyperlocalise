@@ -45,6 +45,7 @@ describe("tool-activity helpers", () => {
         toolCallId: "dyn-read",
         state: "output-available",
         input: { path: "src/a.tsx" },
+        output: { content: "ok" },
       }),
     ).toBe(true);
   });
@@ -84,10 +85,7 @@ describe("tool-activity helpers", () => {
       count: 2,
     });
 
-    const readsOnly = [
-      toolPart("read", { path: "a.tsx" }),
-      toolPart("read", { path: "b.tsx" }),
-    ];
+    const readsOnly = [toolPart("read", { path: "a.tsx" }), toolPart("read", { path: "b.tsx" })];
     expect(getExploreRollupStats(readsOnly)).toMatchObject({
       onlyReads: true,
       readCount: 2,
