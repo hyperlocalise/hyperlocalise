@@ -164,7 +164,7 @@ describe("buildWorkspaceOrchestratorPlan", () => {
     expect(plan.tools).toEqual(["use_ahrefs", "notify_slack"]);
   });
 
-    it("does not plan recall_memory when knowledge is enabled", () => {
+  it("does not plan recall_memory when knowledge is enabled", () => {
     const plan = buildWorkspaceOrchestratorPlan(
       automation({
         projectId: "project-1",
@@ -182,10 +182,10 @@ describe("buildWorkspaceOrchestratorPlan", () => {
       }),
     );
 
-        expect(plan.tools).toEqual(["run_github_workflows", "notify_slack"]);
+    expect(plan.tools).toEqual(["run_github_workflows", "notify_slack"]);
   });
 
-    it("does not plan save_memory when knowledge updates are allowed", () => {
+  it("does not plan save_memory when knowledge updates are allowed", () => {
     const plan = buildWorkspaceOrchestratorPlan(
       automation({
         projectId: "project-1",
@@ -203,7 +203,7 @@ describe("buildWorkspaceOrchestratorPlan", () => {
       }),
     );
 
-        expect(plan.tools).toEqual(["run_github_workflows", "notify_slack"]);
+    expect(plan.tools).toEqual(["run_github_workflows", "notify_slack"]);
   });
 
   it("doesn't plan save_memory when allowUpdates is off", () => {
@@ -220,16 +220,16 @@ describe("buildWorkspaceOrchestratorPlan", () => {
 });
 
 describe("planHasActionableTool", () => {
-    it("is false when only knowledge recall is enabled", () => {
+  it("is false when only knowledge recall is enabled", () => {
     const plan = buildWorkspaceOrchestratorPlan(
       automation({ toolConfig: { knowledge: { enabled: true, allowUpdates: false } } }),
     );
 
-        expect(plan.tools).toEqual([]);
+    expect(plan.tools).toEqual([]);
     expect(planHasActionableTool(plan)).toBe(false);
   });
 
-    it("is true when a notification tool is planned alongside disabled memory execution", () => {
+  it("is true when a notification tool is planned alongside disabled memory execution", () => {
     const plan = buildWorkspaceOrchestratorPlan(
       automation({
         projectId: "project-1",
@@ -240,7 +240,7 @@ describe("planHasActionableTool", () => {
       }),
     );
 
-        expect(plan.tools).toEqual(["notify_slack"]);
+    expect(plan.tools).toEqual(["notify_slack"]);
     expect(planHasActionableTool(plan)).toBe(true);
   });
 
@@ -248,12 +248,12 @@ describe("planHasActionableTool", () => {
     expect(planHasActionableTool(buildWorkspaceOrchestratorPlan(automation()))).toBe(false);
   });
 
-    it("is false when knowledge recall and updates are enabled without another tool", () => {
+  it("is false when knowledge recall and updates are enabled without another tool", () => {
     const plan = buildWorkspaceOrchestratorPlan(
       automation({ toolConfig: { knowledge: { enabled: true, allowUpdates: true } } }),
     );
 
-        expect(plan.tools).toEqual([]);
+    expect(plan.tools).toEqual([]);
     expect(planHasActionableTool(plan)).toBe(false);
   });
 });
