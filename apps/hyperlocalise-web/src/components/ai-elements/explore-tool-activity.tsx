@@ -28,10 +28,7 @@ import {
 } from "./tool-activity";
 import { toolActivityMessages } from "./tool-activity.messages";
 
-function formatLiveExploreLabel(
-  intl: ReturnType<typeof useIntl>,
-  part: ToolPart,
-): string {
+function formatLiveExploreLabel(intl: ReturnType<typeof useIntl>, part: ToolPart): string {
   const toolName = getToolName(part);
   const detail = getToolPartSubject(part);
 
@@ -58,10 +55,7 @@ function formatLiveExploreLabel(
   }
 }
 
-function formatExploreRollupLabel(
-  intl: ReturnType<typeof useIntl>,
-  parts: ToolPart[],
-): string {
+function formatExploreRollupLabel(intl: ReturnType<typeof useIntl>, parts: ToolPart[]): string {
   const { subject, readCount, onlyReads, count } = getExploreRollupStats(parts);
 
   if (onlyReads) {
