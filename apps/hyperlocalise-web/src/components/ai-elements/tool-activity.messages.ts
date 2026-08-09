@@ -16,69 +16,69 @@ import { defineMessages } from "react-intl";
 
 export const toolActivityMessages = defineMessages({
   searching: {
-    id: "tActSearch00",
+    id: "n3a+6mF2IX",
     defaultMessage: "Searching",
     description: "Live explore status when the agent is searching without a subject",
   },
   searchingDetail: {
-    id: "tActSearch01",
+    id: "yJSROTn1AA",
     defaultMessage: "Searching {detail}",
     description: "Live explore status when the agent is searching for a subject",
   },
   reading: {
-    id: "tActRead0000",
+    id: "ufFJx4vPTD",
     defaultMessage: "Reading",
     description: "Live explore status when the agent is reading a file without a subject",
   },
   readingDetail: {
-    id: "tActRead0001",
+    id: "JRvO1zUFRY",
     defaultMessage: "Reading {detail}",
     description: "Live explore status when the agent is reading a named file",
   },
   findingFiles: {
-    id: "tActFind0000",
+    id: "m8UlToMOXC",
     defaultMessage: "Finding files",
     description: "Live explore status when the agent is listing files without a pattern",
   },
   findingDetail: {
-    id: "tActFind0001",
+    id: "/iIPpWEOXd",
     defaultMessage: "Finding {detail}",
     description: "Live explore status when the agent is listing files with a pattern",
   },
   checkingRepoConfig: {
-    id: "tActRepoCfg0",
+    id: "zLa51T7B2l",
     defaultMessage: "Checking repository config",
     description: "Live explore status when the agent inspects repository localization config",
   },
   checkingGitHistory: {
-    id: "tActGitHist0",
+    id: "fFie7livIj",
     defaultMessage: "Checking git history",
     description: "Live explore status when the agent inspects git history",
   },
   working: {
-    id: "tActWorking0",
+    id: "U9HdNspgPF",
     defaultMessage: "Working…",
     description: "Fallback live explore status for an unknown explore tool",
   },
   exploredSubject: {
-    id: "tActExplrd0",
+    id: "6V8CrxumwV",
     defaultMessage:
       "{count, plural, one {Explored {subject}, # search} other {Explored {subject}, # searches}}",
     description: "Collapsed explore rollup with a subject and search count",
   },
   exploredCodebase: {
-    id: "tActExplrd1",
+    id: "40cOR2CWgx",
     defaultMessage:
       "{count, plural, one {Explored the codebase, # search} other {Explored the codebase, # searches}}",
     description: "Collapsed explore rollup without a subject",
   },
   openedFile: {
-    id: "tActOpen000",
+    id: "4f79gyGj6Q",
     defaultMessage: "Opened {subject}",
     description: "Collapsed explore rollup for a single file read",
   },
   openedFiles: {
-    id: "tActOpen001",
+    id: "PtTFfFyjEn",
     defaultMessage: "{count, plural, one {Opened # file} other {Opened # files}}",
     description: "Collapsed explore rollup for multiple file reads",
   },
