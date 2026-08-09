@@ -533,9 +533,10 @@ function AssistantToolPart({
       };
   const hasImageOutput = Boolean(getImageToolOutput(part.output));
   const hasFailed = part.state === "output-error" || part.state === "output-denied";
-  // null = follow image/error defaults; once the user toggles, keep their choice.
+  // null = follow image default; once the user toggles, keep their choice — except
+  // failures always win so a collapse during flight cannot hide later error details.
   const [userOpen, setUserOpen] = useState<boolean | null>(null);
-  const open = userOpen ?? (hasImageOutput || hasFailed);
+  const open = hasFailed || (userOpen ?? hasImageOutput);
   const isRunning = part.state === "input-streaming" || part.state === "input-available";
 
   return (
