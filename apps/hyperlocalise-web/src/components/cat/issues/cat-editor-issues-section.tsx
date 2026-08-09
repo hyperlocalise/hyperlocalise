@@ -47,9 +47,14 @@ type IssueSheetListIssue = {
 
 type IssueSheetListResponse = {
   issues: IssueSheetListIssue[];
+  /** Row count for the requested filters, independent of paging. */
+  total?: number;
 };
 
-const SEGMENT_ISSUE_LIMIT = 50;
+/** Maximum accepted by the issue sheet list endpoint. */
+const SEGMENT_ISSUE_PAGE_SIZE = 100;
+/** Bounds the paging loop; one string in one locale never gets close to this. */
+const SEGMENT_ISSUE_MAX_PAGES = 5;
 
 function issueSheetPath(organizationSlug: string, projectId: string) {
   return `/api/orgs/${encodeURIComponent(organizationSlug)}/projects/${encodeURIComponent(projectId)}/issue-sheet`;
@@ -106,8 +111,7 @@ export function CatEditorIssuesSection({
       status: "all",
       sort: "status",
       sortDir: "asc",
-      limit: String(SEGMENT_ISSUE_LIMIT),
-      offset: "0",
+      limit: String(SEGMENT_ISSUE_PAGE_SIZE),
     };
     if (translationKeyId) {
       query.translationKeyId = translationKeyId;
@@ -128,12 +132,29 @@ export function CatEditorIssuesSection({
   const issuesQuery = useQuery({
     queryKey,
     enabled: Boolean(translationKeyId),
+    // The endpoint's `summary` counts the whole project, so status group counts
+    // and the open-issue badge have to come from the rows themselves. Page until
+    // the segment's filtered `total` is covered rather than showing a truncated
+    // first page as if it were everything.
     queryFn: async () => {
-      const params = new URLSearchParams(apiQuery);
-      const response = await fetch(
-        `${issueSheetPath(organizationSlug, projectId)}?${params.toString()}`,
-      );
-      return readJsonOrThrow<IssueSheetListResponse>(response, requestFailed);
+      const issues: IssueSheetListIssue[] = [];
+
+      for (let page = 0; page < SEGMENT_ISSUE_MAX_PAGES; page += 1) {
+        const params = new URLSearchParams(apiQuery);
+        params.set("offset", String(page * SEGMENT_ISSUE_PAGE_SIZE));
+        const response = await fetch(
+          `${issueSheetPath(organizationSlug, projectId)}?${params.toString()}`,
+        );
+        const body = await readJsonOrThrow<IssueSheetListResponse>(response, requestFailed);
+        issues.push(...body.issues);
+
+        const total = body.total ?? issues.length;
+        if (body.issues.length === 0 || issues.length >= total) {
+          break;
+        }
+      }
+
+      return { issues } satisfies IssueSheetListResponse;
     },
   });
 

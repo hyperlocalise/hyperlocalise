@@ -13,7 +13,7 @@
 // @vitest-environment happy-dom
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import { IntlProvider } from "react-intl";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
@@ -65,20 +65,37 @@ function renderSection(
   return { ...view, queryClient };
 }
 
-function requestedUrls() {
-  return (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls.map(([input]) => String(input));
+/** List requests only; the assignee cell separately loads assignable members. */
+function listRequestUrls() {
+  return (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls
+    .map(([input]) => String(input))
+    .filter((url) => !url.includes("/assignable-members"));
+}
+
+function jsonResponse(body: unknown) {
+  return Promise.resolve(new Response(JSON.stringify(body), { status: 200 }));
+}
+
+/** Serves `issues` in pages of `pageSize`, mirroring the list endpoint's paging. */
+function stubPagedIssueSheet(issues: (typeof frenchIssue)[], pageSize: number) {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn().mockImplementation((input: string) => {
+      if (String(input).includes("/assignable-members")) {
+        return jsonResponse({ members: [] });
+      }
+      const offset = Number(new URL(input, "https://app.test").searchParams.get("offset") ?? "0");
+      return jsonResponse({
+        issues: issues.slice(offset, offset + pageSize),
+        total: issues.length,
+      });
+    }),
+  );
 }
 
 describe("CatEditorIssuesSection", () => {
   beforeEach(() => {
-    vi.stubGlobal(
-      "fetch",
-      vi
-        .fn()
-        .mockResolvedValue(
-          new Response(JSON.stringify({ issues: [frenchIssue] }), { status: 200 }),
-        ),
-    );
+    stubPagedIssueSheet([frenchIssue], 100);
   });
 
   afterEach(() => {
@@ -89,9 +106,9 @@ describe("CatEditorIssuesSection", () => {
   it("scopes the request to the translation key and the active target locale", async () => {
     renderSection();
 
-    await waitFor(() => expect(requestedUrls()).toHaveLength(1));
+    await waitFor(() => expect(listRequestUrls()).toHaveLength(1));
 
-    const url = new URL(requestedUrls()[0]!, "https://app.test");
+    const url = new URL(listRequestUrls()[0]!, "https://app.test");
     expect(url.searchParams.get("translationKeyId")).toBe(TRANSLATION_KEY_ID);
     expect(url.searchParams.get("locale")).toBe("fr-FR");
     expect(url.searchParams.get("status")).toBe("all");
@@ -100,7 +117,7 @@ describe("CatEditorIssuesSection", () => {
   it("refetches when the edited locale changes", async () => {
     const { rerender, queryClient } = renderSection();
 
-    await waitFor(() => expect(requestedUrls()).toHaveLength(1));
+    await waitFor(() => expect(listRequestUrls()).toHaveLength(1));
 
     rerender(
       <QueryClientProvider client={queryClient}>
@@ -117,8 +134,8 @@ describe("CatEditorIssuesSection", () => {
       </QueryClientProvider>,
     );
 
-    await waitFor(() => expect(requestedUrls()).toHaveLength(2));
-    expect(new URL(requestedUrls()[1]!, "https://app.test").searchParams.get("locale")).toBe(
+    await waitFor(() => expect(listRequestUrls()).toHaveLength(2));
+    expect(new URL(listRequestUrls()[1]!, "https://app.test").searchParams.get("locale")).toBe(
       "ja-JP",
     );
   });
@@ -128,6 +145,55 @@ describe("CatEditorIssuesSection", () => {
     renderSection({ onOpenIssueCountChange });
 
     await waitFor(() => expect(onOpenIssueCountChange).toHaveBeenCalledWith(1));
+  });
+
+  it("stops after one request when the segment fits on a single page", async () => {
+    renderSection();
+
+    await waitFor(() => expect(listRequestUrls()).toHaveLength(1));
+    expect(new URL(listRequestUrls()[0]!, "https://app.test").searchParams.get("limit")).toBe(
+      "100",
+    );
+  });
+
+  it("pages past the first response so counts cover every issue on the segment", async () => {
+    const issues = Array.from({ length: 130 }, (_, index) => ({
+      ...frenchIssue,
+      id: `2222222${index.toString().padStart(2, "0")}-2222-4222-8222-222222222222`,
+      status: index < 120 ? "open" : "resolved",
+    }));
+    stubPagedIssueSheet(issues, 100);
+
+    const onOpenIssueCountChange = vi.fn();
+    renderSection({ onOpenIssueCountChange });
+
+    await waitFor(() => expect(onOpenIssueCountChange).toHaveBeenCalledWith(120));
+    expect(listRequestUrls()).toHaveLength(2);
+    expect(new URL(listRequestUrls()[1]!, "https://app.test").searchParams.get("offset")).toBe(
+      "100",
+    );
+
+    const openHeader = await screen.findByRole("button", { name: /collapse.*open/i });
+    expect(openHeader).toHaveTextContent("120");
+  });
+
+  it("gives up paging instead of looping when total never gets covered", async () => {
+    // A page that never advances toward `total` would spin forever unbounded.
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockImplementation(() =>
+          Promise.resolve(
+            new Response(JSON.stringify({ issues: [frenchIssue], total: 10_000 }), { status: 200 }),
+          ),
+        ),
+    );
+
+    renderSection();
+
+    await waitFor(() => expect(listRequestUrls()).toHaveLength(5));
+    expect(listRequestUrls()).toHaveLength(5);
   });
 
   it("shows status counts from the segment rows rather than a project-wide summary", async () => {
@@ -145,12 +211,14 @@ describe("CatEditorIssuesSection", () => {
       await screen.findByRole("button", { name: "Select assignee: Ada Lovelace" }),
     ).toBeInTheDocument();
 
-    patchIssueSheetListCacheForAssignee(queryClient, {
-      organizationSlug: ORGANIZATION_SLUG,
-      projectId: PROJECT_ID,
-      issueId: frenchIssue.id,
-      assigneeUserId: "44444444-4444-4444-8444-444444444444",
-      assignee: "Grace Hopper",
+    act(() => {
+      patchIssueSheetListCacheForAssignee(queryClient, {
+        organizationSlug: ORGANIZATION_SLUG,
+        projectId: PROJECT_ID,
+        issueId: frenchIssue.id,
+        assigneeUserId: "44444444-4444-4444-8444-444444444444",
+        assignee: "Grace Hopper",
+      });
     });
 
     expect(
