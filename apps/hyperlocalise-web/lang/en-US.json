@@ -415,6 +415,10 @@
     "defaultMessage": "Add target locales in project settings before creating translation jobs.",
     "description": "Hint when the project has no target locales configured for agent translation"
   },
+  "/iIPpWEOXd": {
+    "defaultMessage": "Finding {detail}",
+    "description": "Live explore status when the agent is listing files with a pattern"
+  },
   "/nzPUPTay3": {
     "defaultMessage": "Environment Variables",
     "description": "Section title for environment variables panel"
@@ -1503,6 +1507,10 @@
     "defaultMessage": "Platform",
     "description": "Category heading above product links in the marketing navbar mega-menu"
   },
+  "40cOR2CWgx": {
+    "defaultMessage": "{count, plural, one {Explored the codebase, # search} other {Explored the codebase, # searches}}",
+    "description": "Collapsed explore rollup without a subject"
+  },
   "40qJqxVu6N": {
     "defaultMessage": "Locale",
     "description": "Label for the issue list locale filter"
@@ -1619,6 +1627,10 @@
     "defaultMessage": "Pull translations to GitHub",
     "description": "Label for the pull translations workflow toggle"
   },
+  "4QiNYfF++j": {
+    "defaultMessage": "Use organization memory",
+    "description": "Menu item and tool title for workspace knowledge memories"
+  },
   "4R0gB8zCuT": {
     "defaultMessage": "Next",
     "description": "Desktop navigation button to the next segment"
@@ -1654,6 +1666,10 @@
   "4aYY8lTBYg": {
     "defaultMessage": "Translation work starts too late in the release cycle, so locales block launches or ship with gaps.",
     "description": "Problem pain point 3 for the product-localisation use case"
+  },
+  "4f79gyGj6Q": {
+    "defaultMessage": "Opened {subject}",
+    "description": "Collapsed explore rollup for a single file read"
   },
   "4gW2ktRuC/": {
     "defaultMessage": "{direction} {connector}",
@@ -2058,6 +2074,10 @@
   "6Su/xhxJZL": {
     "defaultMessage": "Slack",
     "description": "Inbox conversation source label for the Slack agent"
+  },
+  "6V8CrxumwV": {
+    "defaultMessage": "{count, plural, one {Explored {subject}, # search} other {Explored {subject}, # searches}}",
+    "description": "Collapsed explore rollup with a subject and search count"
   },
   "6YRqpDlcKq": {
     "defaultMessage": "GitHub push",
@@ -2666,6 +2686,10 @@
   "8pfmpD7Pez": {
     "defaultMessage": "Glossary created",
     "description": "Toast after a glossary is created successfully"
+  },
+  "8qNqRTyyLK": {
+    "defaultMessage": "Create an issue to track work on this string.",
+    "description": "Empty-state description when the CAT segment has no linked Issues"
   },
   "8qa1pUW6eX": {
     "defaultMessage": "Account",
@@ -3379,6 +3403,10 @@
     "defaultMessage": "Issues",
     "description": "Section title for the project Issue Sheet page"
   },
+  "Bel9GZJcDc": {
+    "defaultMessage": "Allow memory updates",
+    "description": "Toggle label letting this automation append to organization Memory.md"
+  },
   "Bfwle3X1Yy": {
     "defaultMessage": "Connect {provider} to view provider {resource}.",
     "description": "Error heading when TMS provider data cannot load because the user has not connected their account"
@@ -3750,6 +3778,10 @@
   "D0mCtflyKZ": {
     "defaultMessage": "Loading channels...",
     "description": "Placeholder while Slack channels are loading"
+  },
+  "D2Iw7bGHIc": {
+    "defaultMessage": "Issues",
+    "description": "Heading for the CAT segment Issues section"
   },
   "D2ZrcxejKr": {
     "defaultMessage": "MCP servers",
@@ -4194,6 +4226,10 @@
   "EsHwflBzPz": {
     "defaultMessage": "Track review coverage and approval status",
     "description": "Capability 4 title for the localisation-quality-monitoring use case"
+  },
+  "Esr6tXDJJe": {
+    "defaultMessage": "No issues for this string",
+    "description": "Empty-state title when the CAT segment has no linked Issues"
   },
   "EuTWCTh8wL": {
     "defaultMessage": "Browse source files from the connected TMS provider, then open one in the CAT workspace when it is supported.",
@@ -5235,6 +5271,10 @@
     "defaultMessage": "GitHub",
     "description": "Marketing footer resource link label"
   },
+  "JRvO1zUFRY": {
+    "defaultMessage": "Reading {detail}",
+    "description": "Live explore status when the agent is reading a named file"
+  },
   "JRvnN6Kkq8": {
     "defaultMessage": "Hyperlocalise projects",
     "description": "Section title for native Hyperlocalise projects"
@@ -5322,6 +5362,10 @@
   "JpSMiCgbq5": {
     "defaultMessage": "Workspaces",
     "description": "Label above the list of workspaces in the switch submenu"
+  },
+  "JprxqupePC": {
+    "defaultMessage": "Request failed",
+    "description": "Generic fallback when a CAT Issues API request fails"
   },
   "JqZe/Pxka2": {
     "defaultMessage": "Sample i18n.yml",
@@ -6667,6 +6711,10 @@
     "defaultMessage": "Next",
     "description": "Accessible label for navigating to the next citation in a carousel"
   },
+  "PtTFfFyjEn": {
+    "defaultMessage": "{count, plural, one {Opened # file} other {Opened # files}}",
+    "description": "Collapsed explore rollup for multiple file reads"
+  },
   "PtTtkKUG7c": {
     "defaultMessage": "Loading project…",
     "description": "Suspense fallback while project overview content loads"
@@ -7455,6 +7503,10 @@
     "defaultMessage": "Connect Ahrefs with an MCP API key in Integrations before using this tool.",
     "description": "Description when no Ahrefs connection is available"
   },
+  "T7+otbWCxu": {
+    "defaultMessage": "Issues are unavailable for this string.",
+    "description": "Shown when the CAT segment cannot link to Issues (missing translation key)"
+  },
   "T7ocGbiped": {
     "defaultMessage": "Last delivery: No deliveries yet",
     "description": "Shown when the Contentful webhook has not delivered events"
@@ -7466,6 +7518,10 @@
   "T8F8lD+KK1": {
     "defaultMessage": "Channel",
     "description": "Label for the Slack channel select"
+  },
+  "T8Ggt03ksb": {
+    "defaultMessage": "Couldn't explore {subject}",
+    "description": "Completed explore rollup when at least one tool failed and a subject is known"
   },
   "TBagRGINiT": {
     "defaultMessage": "Scheduled and GitHub-triggered deterministic workflows",
@@ -7698,6 +7754,10 @@
   "U7qjKZzoBx": {
     "defaultMessage": "Save settings",
     "description": "Button label to save repository automation settings"
+  },
+  "U9HdNspgPF": {
+    "defaultMessage": "Working…",
+    "description": "Fallback live explore status for an unknown explore tool"
   },
   "UA3ioLbPld": {
     "defaultMessage": "{count} invalid skipped",
@@ -8290,6 +8350,10 @@
   "Wh0P2263Np": {
     "defaultMessage": "{current} of {total}",
     "description": "Message branch pager showing the current branch index and total branches"
+  },
+  "WhBlkGYmVr": {
+    "defaultMessage": "Couldn't explore the codebase",
+    "description": "Completed explore rollup when at least one tool failed and no subject is known"
   },
   "WhMZXjHjRn": {
     "defaultMessage": "Pending",
@@ -10331,6 +10395,10 @@
     "defaultMessage": "Diff",
     "description": "Diff column header for the code column in the review PR illustration"
   },
+  "fFie7livIj": {
+    "defaultMessage": "Checking git history",
+    "description": "Live explore status when the agent inspects git history"
+  },
   "fIcVSh09FH": {
     "defaultMessage": "Words to do",
     "description": "Detail row label for remaining words to translate"
@@ -12055,6 +12123,10 @@
     "defaultMessage": "Failed to start agent run",
     "description": "Toast and error fallback when starting a QA-related agent run fails"
   },
+  "m8UlToMOXC": {
+    "defaultMessage": "Finding files",
+    "description": "Live explore status when the agent is listing files without a pattern"
+  },
   "mAyP67aqS8": {
     "defaultMessage": "Clear",
     "description": "Button to clear all selected target locales"
@@ -12106,10 +12178,6 @@
   "mL4jmlzo/F": {
     "defaultMessage": "Choose which project should receive the imported Issue Sheet rows.",
     "description": "Description of the workspace issues CSV import project picker dialog"
-  },
-  "mLI55faX8v": {
-    "defaultMessage": "Memories",
-    "description": "Menu item and tool title for workspace knowledge memories"
   },
   "mMp/zOre+X": {
     "defaultMessage": "Private",
@@ -12290,6 +12358,10 @@
   "n2pk6Y4oGA": {
     "defaultMessage": "If the last review taught the team something, the next workflow should know it.",
     "description": "Details section headline for the self-evolving knowledge product page"
+  },
+  "n3a+6mF2IX": {
+    "defaultMessage": "Searching",
+    "description": "Live explore status when the agent is searching without a subject"
   },
   "n5bYPU3uSK": {
     "defaultMessage": "Product updates outpace help center translations. Support teams absorb the cost when localized articles lag behind.",
@@ -13783,6 +13855,10 @@
     "defaultMessage": "Provider link",
     "description": "Detail row label for the external provider URL"
   },
+  "thNgDb6rW2": {
+    "defaultMessage": "Could not load issues.",
+    "description": "Error message when CAT segment Issues fail to load"
+  },
   "tj9LSxTmXM": {
     "defaultMessage": "Console",
     "description": "Label for the web preview console collapsible section"
@@ -14010,6 +14086,10 @@
   "uf1YHYgy0L": {
     "defaultMessage": "Read-only",
     "description": "Capability badge for live provider glossaries that cannot be edited"
+  },
+  "ufFJx4vPTD": {
+    "defaultMessage": "Reading",
+    "description": "Live explore status when the agent is reading a file without a subject"
   },
   "ufjLSLmtEV": {
     "defaultMessage": "GitLab",
@@ -14835,6 +14915,10 @@
     "defaultMessage": "Open",
     "description": "Button to open a linked issue detail page"
   },
+  "xj9AZAhTSo": {
+    "defaultMessage": "New issue",
+    "description": "Button to create a new issue linked to the current CAT segment"
+  },
   "xjcfJrUODP": {
     "defaultMessage": "e.g. de-DE",
     "description": "Placeholder example for the issue list locale filter input"
@@ -15018,6 +15102,10 @@
   "yIwRFz93s7": {
     "defaultMessage": "Italian (Italy)",
     "description": "Display name for BCP-47 locale it-IT"
+  },
+  "yJSROTn1AA": {
+    "defaultMessage": "Searching {detail}",
+    "description": "Live explore status when the agent is searching for a subject"
   },
   "yKtWAeejtx": {
     "defaultMessage": "New request",
@@ -15242,6 +15330,14 @@
   "zL0C07+8z3": {
     "defaultMessage": "Overview",
     "description": "Use case page overview section label"
+  },
+  "zLa51T7B2l": {
+    "defaultMessage": "Checking repository config",
+    "description": "Live explore status when the agent inspects repository localization config"
+  },
+  "zLdcgO8mwD": {
+    "defaultMessage": "Allows this automation to append information to the organization's shared Memory.md. Changes are recorded in revision history and can be restored.",
+    "description": "Warning copy shown when the allow-memory-updates toggle is on"
   },
   "zM/fYyJiHY": {
     "defaultMessage": "Enabled repositories updated",
