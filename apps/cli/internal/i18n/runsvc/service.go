@@ -995,14 +995,16 @@ func taskIdentity(targetPath, entryKey string) string {
 
 func hashSourceText(source string) string {
 	sum := sha512.Sum512([]byte(source))
-	return fmt.Sprintf("%x", sum)
+	// Bolt: Use hex.EncodeToString instead of fmt.Sprintf("%x") to avoid reflection/formatting overhead
+	return hex.EncodeToString(sum[:])
 }
 
 // lockStoredFingerprint is a compact SHA-512 prefix (32 hex chars) stored in the lockfile.
 // hashSourceText remains full-length for exact-cache keys and other non-lock uses.
 func lockStoredFingerprint(preimage string) string {
 	sum := sha512.Sum512([]byte(preimage))
-	return fmt.Sprintf("%x", sum[:16])
+	// Bolt: Use hex.EncodeToString instead of fmt.Sprintf("%x") to avoid reflection/formatting overhead
+	return hex.EncodeToString(sum[:16])
 }
 
 // lockFingerprintEqual reports whether a fingerprint stored in the lockfile
@@ -1021,7 +1023,8 @@ func lockFingerprintEqual(stored, computed string) bool {
 	if err != nil || len(decoded) != 64 {
 		return false
 	}
-	return fmt.Sprintf("%x", decoded[:16]) == computed
+	// Bolt: Use hex.EncodeToString instead of fmt.Sprintf("%x") to avoid reflection/formatting overhead
+	return hex.EncodeToString(decoded[:16]) == computed
 }
 
 func parserModeForSource(path string, content []byte) string {
