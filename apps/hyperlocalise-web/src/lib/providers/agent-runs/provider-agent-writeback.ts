@@ -261,6 +261,16 @@ async function enrichProposalsWithResolvedFileIds(input: {
   externalJobId: string;
   actorUserId?: string | null;
 }) {
+  // Crowdin groups approved uploads by (fileId, locale). Missing fileIds collapse multi-file
+  // keys onto task.fileIds[0]. Phrase/Lokalise push by key+locale and routinely emit null
+  // fileIds, so requiring a resolved fileId there hard-fails every write-back.
+  if (input.providerKind !== "crowdin") {
+    return {
+      proposals: input.proposals,
+      prePushFailures: [] as ExternalTmsContentSyncFailure[],
+    };
+  }
+
   const legacyProposals = input.proposals.filter((proposal) => !proposal.fileId?.trim());
   if (legacyProposals.length === 0) {
     return {

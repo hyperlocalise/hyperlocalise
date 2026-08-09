@@ -576,13 +576,11 @@ describe("selectKnowledgeMemoryContext", () => {
   });
 
   it("keeps a language-level heading's opening rule when a regional target selects it", () => {
-    // Regression for a Codex finding: retrieveKnowledgeMemorySegmentsLexically derives the base
-    // language ("fr") from a regional targetLocale ("fr-FR") to award a language-level heading a
-    // locale-marker score, but buildKnowledgeMemoryQueryTokens only tokenized the literal query
-    // parts, never adding that derived language back in. So headingMatchesQuery (excerpt.ts)
-    // couldn't recognize the "fr" heading as a query match, and an incidental match elsewhere in
-    // the section's body (here, "checkout") got excerpted instead of the section's actual opening
-    // rule, which has no token overlap with the query and isn't adjacent to the incidental match.
+    // Locale affinity for `### fr` under targetLocale `fr-FR` uses the dedicated heading
+    // locale-marker path (not bare `fr` query tokens). Bare language codes must stay out of
+    // body queryTokens — they pollute retrieval/excerpt ranking — while
+    // knowledgeMemoryHeadingMatchesLocales still forces the opening rule beside incidental
+    // body matches like "checkout".
     const content = [
       "# Memory.md",
       "",
@@ -628,6 +626,40 @@ describe("selectKnowledgeMemoryContext", () => {
       KNOWLEDGE_MEMORY_SELECTED_CONTEXT_MAX_LENGTH,
     );
     expect(selected.metrics.matchedHeadingPaths).toContain("Memory.md > Locale notes > en-AU");
+  });
+
+  it("does not select unrelated sections just because the body uses the target language code", () => {
+    // Bare codes like Spanish "es" ("is") must not enter retrieval/excerpt queryTokens. Otherwise
+    // an es-ES job with weak source overlap can pull Spanish prose that merely contains "es".
+    const content = [
+      "# Memory.md",
+      "",
+      "## Locale notes",
+      "",
+      "### es-ES",
+      "",
+      "Always keep product names in English for Spanish Spain storefront copy.",
+      "",
+      "## Notas generales",
+      "",
+      "El boton es importante. El enlace es visible. El titulo es corto. ".repeat(8),
+      "",
+      ...Array.from(
+        { length: 60 },
+        (_, index) => `## Noise section ${index + 1}\n\nSupport operations archive ${index + 1}.`,
+      ),
+    ].join("\n");
+
+    const selected = selectKnowledgeMemoryContext({
+      content,
+      targetLocale: "es-ES",
+      sourceText: "Update account settings",
+    });
+
+    expect(selected.metrics.fallbackMode).toBe("selective");
+    expect(selected.compactText).toContain("Always keep product names in English");
+    expect(selected.compactText).not.toContain("El boton es importante");
+    expect(selected.metrics.matchedHeadingPaths).not.toContain("Memory.md > Notas generales");
   });
 
   it("keeps current whole-memory behavior for small memory", () => {

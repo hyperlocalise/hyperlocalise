@@ -764,6 +764,28 @@ describe("buildSegmentExcerpt", () => {
     expect(excerpt).toContain("Never translate the internal identifier");
   });
 
+  it("keeps the opener for a language-level locale heading without treating the code as a body token", () => {
+    const frenchSegment = segment({
+      headingPath: ["Memory.md", "Locale notes", "fr"],
+      segmentText: [
+        "Always keep the brand name capitalized exactly as written.",
+        "This section also discusses checkout flows for testing purposes here today.",
+      ].join(" "),
+    });
+
+    const excerpt = buildSegmentExcerpt({
+      segment: frenchSegment,
+      queryTokens: tokens("checkout"),
+      inputLocales: ["fr-fr"],
+      maxChars: 160,
+    });
+
+    expect(excerpt).toContain("Always keep the brand name capitalized");
+    expect(excerpt).not.toMatch(
+      /^Memory\.md > Locale notes > fr -> This section also discusses checkout/,
+    );
+  });
+
   it("reserves room for the top-ranked match instead of letting the forced opener crowd it out", () => {
     // Regression for a Codex finding: forcedFirstUnit used to be added before the ranked loop
     // unconditionally. When it very nearly fills a tight bodyBudget, the actual top-ranked match —

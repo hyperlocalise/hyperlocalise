@@ -22,6 +22,7 @@ import {
 } from "./knowledge-memory-markdown-parser";
 import { buildSegmentExcerpt, truncateToBudget } from "./knowledge-memory-excerpt";
 import {
+  buildKnowledgeMemoryInputLocales,
   buildKnowledgeMemoryQueryTokens,
   retrieveKnowledgeMemorySegmentsLexicallyWithTokens,
 } from "./knowledge-memory-lexical-retriever";
@@ -192,10 +193,13 @@ function buildSelectedContext(input: {
    * fallback mode — general/fallback/raw paths pass none, so their output stays unchanged.
    */
   queryTokens?: Set<string>;
+  /** Target locales for heading locale-marker matching during excerpt packing. */
+  inputLocales?: string[];
 }) {
   const lines: string[] = [];
   const segments: SelectedKnowledgeMemorySegment[] = [];
   const queryTokens = input.queryTokens ?? new Set<string>();
+  const inputLocales = input.inputLocales ?? [];
 
   if (input.headingFallbackText) {
     appendWithinBudget(
@@ -229,6 +233,7 @@ function buildSelectedContext(input: {
     const preview = buildSegmentExcerpt({
       segment,
       queryTokens,
+      inputLocales,
       maxChars: Math.min(input.maxSegmentChars ?? input.maxChars, input.maxChars),
       fallbackMaxChars: input.maxSegmentChars ?? Math.max(input.maxChars, minFallbackPreviewChars),
     });
@@ -444,6 +449,9 @@ export function selectKnowledgeMemoryContext(
   const defaultQueryTokens = isDefaultRetriever
     ? buildKnowledgeMemoryQueryTokens(input)
     : undefined;
+  const defaultInputLocales = isDefaultRetriever
+    ? buildKnowledgeMemoryInputLocales(input)
+    : undefined;
   const rankedSegments = options.retrieveSegments
     ? options.retrieveSegments({ segments, query: input })
     : retrieveKnowledgeMemorySegmentsLexicallyWithTokens(segments, input, defaultQueryTokens!);
@@ -463,6 +471,7 @@ export function selectKnowledgeMemoryContext(
       // that happens to appear later in that segment, dropping the guidance the retriever actually
       // selected. Omitting queryTokens here falls back to the segment's own compactPromptText.
       queryTokens: defaultQueryTokens,
+      inputLocales: defaultInputLocales,
       // shouldBalance: true unconditionally, not just for multi-locale requests — this call site
       // can select multiple independently-matched segments under a single target locale too (a
       // single query matching more than one Memory.md section). maxCharsPerSelectedSegment already

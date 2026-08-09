@@ -215,7 +215,18 @@ function scoreSegment(
     const searchText = normalizeLocaleForSearch(segment.searchText);
     if (includesAnyLocaleMarker(headingText, normalizedLocale)) {
       score += 12;
-    } else if (includesAnyLocaleMarker(searchText, normalizedLocale)) {
+      continue;
+    }
+    // Body text: only score explicit regional tags (e.g. "de-DE"). Bare language codes like
+    // Spanish "es", French/Spanish "de", or French "et" are ordinary words and must not pull
+    // unrelated sections into selective retrieval.
+    const [fullLocale, language] = localeSearchCandidates(normalizedLocale);
+    if (
+      fullLocale &&
+      language &&
+      fullLocale !== language &&
+      includesLocaleMarker(searchText, fullLocale)
+    ) {
       score += 6;
     }
   }
@@ -223,29 +234,46 @@ function scoreSegment(
   return score;
 }
 
+function isLocaleShapedQueryPart(part: string) {
+  return /^[a-z]{2,3}(?:[-_][a-z0-9]{1,8})*$/i.test(part);
+}
+
 /**
- * Also used directly by excerpt selection (knowledge-memory-selection.ts, when the default
- * retriever is active) to build queryTokens for rankMatchingUnits/headingMatchesQuery — not just
- * for retrieval scoring here. Regular tokenizing alone doesn't split a hyphenated locale like
- * "fr-FR" into its base language: the "-" survives inside a single "fr-fr" token (tokenize's char
- * class treats it like a letter), so a language-level heading such as "### fr" never matched
- * queryTokens even though scoreSegment below already awards that same segment a locale-marker
- * bonus for exactly this relationship (via inputLocalesFromParts/localeSearchCandidates). Adding
- * those same locale candidates here keeps both consumers seeing the language token the retriever
- * already reasons about, instead of the excerpter silently missing it and centering on some
- * unrelated incidental match elsewhere in the segment's body under a tight budget.
+ * Literal query tokens for retrieval body scoring and excerpt unit ranking.
+ *
+ * Locale-shaped query parts (`es`, `et`, `de-DE`, …) are excluded: bare language codes are ordinary
+ * words in many languages, and a single body hit scores +3 (`minSelectiveScore`), which can select
+ * or excerpt unrelated Memory sections. Locale affinity stays on the dedicated marker path in
+ * `scoreSegment` / `knowledgeMemoryHeadingMatchesLocales` (+12/+6, heading-forced openers).
  */
 export function buildKnowledgeMemoryQueryTokens(
   query: SelectKnowledgeMemoryContextInput,
 ): Set<string> {
-  const queryParts = buildQueryParts(query);
-  const tokens = expandKnowledgeMemoryTokens(queryParts.join(" "));
-  for (const locale of inputLocalesFromParts(queryParts)) {
-    for (const candidate of localeSearchCandidates(locale)) {
-      tokens.add(candidate);
-    }
+  const nonLocaleParts = buildQueryParts(query).filter((part) => !isLocaleShapedQueryPart(part));
+  return expandKnowledgeMemoryTokens(nonLocaleParts.join(" "));
+}
+
+/** Target locales from the query, used for heading locale-marker matching (not body tokens). */
+export function buildKnowledgeMemoryInputLocales(
+  query: SelectKnowledgeMemoryContextInput,
+): string[] {
+  return inputLocalesFromParts(buildQueryParts(query));
+}
+
+/**
+ * True when a segment heading is a locale/language marker for any of the query's target locales
+ * (e.g. `### fr` for `fr-FR`). Used by excerpt packing to keep the opening rule when retrieval
+ * selected the segment for its heading rather than an incidental body token.
+ */
+export function knowledgeMemoryHeadingMatchesLocales(
+  headingPath: string[],
+  inputLocales: string[],
+): boolean {
+  if (inputLocales.length === 0) {
+    return false;
   }
-  return tokens;
+  const headingText = normalizeLocaleForSearch(headingPath.join(" "));
+  return inputLocales.some((locale) => includesAnyLocaleMarker(headingText, locale));
 }
 
 /**

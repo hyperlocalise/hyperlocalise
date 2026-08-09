@@ -13,6 +13,7 @@
 import {
   canonicalizeSpellingVariant,
   expandKnowledgeMemoryTokens,
+  knowledgeMemoryHeadingMatchesLocales,
 } from "./knowledge-memory-lexical-retriever";
 import type { KnowledgeMemorySegment } from "./knowledge-memory-selection.types";
 
@@ -318,14 +319,18 @@ function rankMatchingUnits(
  * preview always started at the beginning), so it's worth keeping even if it has no token overlap
  * of its own — see forcedFirstUnit below.
  */
-function headingMatchesQuery(segment: KnowledgeMemorySegment, queryTokens: Set<string>): boolean {
+function headingMatchesQuery(
+  segment: KnowledgeMemorySegment,
+  queryTokens: Set<string>,
+  inputLocales: string[] = [],
+): boolean {
   const headingTokens = expandKnowledgeMemoryTokens(segment.headingPath.join(" "));
   for (const token of queryTokens) {
     if (headingTokens.has(token)) {
       return true;
     }
   }
-  return false;
+  return knowledgeMemoryHeadingMatchesLocales(segment.headingPath, inputLocales);
 }
 
 // The smallest cap a unit actually needs: its own full length when that already fits within the
@@ -542,6 +547,11 @@ function withNeighbourContext(input: {
 export function buildSegmentExcerpt(input: {
   segment: KnowledgeMemorySegment;
   queryTokens: Set<string>;
+  /**
+   * Target locales for heading locale-marker matching (e.g. keep the opener under `### fr` for
+   * `fr-FR`). Kept separate from queryTokens so bare language codes never rank body units.
+   */
+  inputLocales?: string[];
   maxChars: number;
   /**
    * Budget for the no-match fallback (segment.compactPromptText, used below when nothing in the
@@ -557,6 +567,7 @@ export function buildSegmentExcerpt(input: {
   fallbackMaxChars?: number;
 }): string {
   const { segment, queryTokens, maxChars } = input;
+  const inputLocales = input.inputLocales ?? [];
   const fallbackMaxChars = input.fallbackMaxChars ?? maxChars;
 
   const units =
@@ -600,7 +611,9 @@ export function buildSegmentExcerpt(input: {
   const unitsByOffset = new Map(units.map((unit) => [unit.offset, unit]));
   const firstUnit = unitsByOffset.get(0);
   const forcedFirstUnit =
-    firstUnit && !ranked.includes(firstUnit) && headingMatchesQuery(segment, queryTokens)
+    firstUnit &&
+    !ranked.includes(firstUnit) &&
+    headingMatchesQuery(segment, queryTokens, inputLocales)
       ? firstUnit
       : undefined;
   const chosen = packUnitsWithinBudget(

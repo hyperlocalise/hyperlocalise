@@ -746,4 +746,114 @@ describe("provider-agent-writeback", () => {
 
     expect(pullExternalTmsTaskContentMock).not.toHaveBeenCalled();
   });
+
+  it("pushes Phrase proposals without fileId instead of hard-failing legacy resolution", async () => {
+    const projectId = randomUUID();
+    const orgSuffix = randomUUID();
+
+    const [organization] = await db
+      .insert(schema.organizations)
+      .values({
+        workosOrganizationId: `org_${orgSuffix}`,
+        name: "Phrase Write-back Org",
+        slug: `phrase-writeback-${orgSuffix.slice(0, 8)}`,
+      })
+      .returning();
+    const organizationId = organization!.id;
+
+    await db.insert(schema.projects).values({
+      id: projectId,
+      organizationId,
+      name: "Phrase Project",
+      source: "external_tms",
+      externalProviderKind: "phrase",
+      externalProjectId: "phrase-proj-1",
+    });
+
+    const job = await createTestJob({ organizationId, projectId });
+
+    const sourceRun = await createAgentRun({
+      organizationId,
+      providerKind: "phrase",
+      externalJobId: "job-phrase-1",
+      kind: "translate",
+      hyperlocaliseJobId: job.id,
+      inputSnapshot: { projectId },
+    });
+
+    await startAgentRun({ runId: sourceRun.id, organizationId });
+
+    await completeAgentRun({
+      runId: sourceRun.id,
+      organizationId,
+      outputSummary: { proposals: 1 },
+      changedItems: [
+        {
+          itemId: "key-1:de-DE",
+          externalStringId: "key-1",
+          key: "cta.label",
+          locale: "de-DE",
+          sourceText: "Buy now",
+          from: "",
+          to: "Jetzt kaufen",
+          reviewState: "accepted",
+          changedFields: ["target"],
+          warnings: {},
+        },
+      ],
+    });
+
+    const writebackRun = await createAgentRun({
+      organizationId,
+      providerKind: "phrase",
+      externalJobId: "job-phrase-1",
+      kind: "translate",
+      hyperlocaliseJobId: job.id,
+      inputSnapshot: {
+        action: "push_approved_changes",
+        projectId,
+        hyperlocaliseJobId: job.id,
+      },
+    });
+
+    pushExternalTmsTranslationsMock.mockResolvedValue({
+      runId: "sync-run-phrase",
+      status: "succeeded",
+      providerKind: "phrase",
+      providerCredentialId: "cred-phrase",
+      projectId,
+      counts: {
+        translationsRequested: 1,
+        translationsUploaded: 1,
+        translationsFailed: 0,
+        asyncOperations: 0,
+      },
+      failures: [],
+      asyncOperations: [],
+    });
+
+    const result = await executeProviderAgentWriteback({
+      agentRunId: writebackRun.id,
+      organizationId,
+    });
+
+    expect(result).toMatchObject({ ok: true, uploaded: 1, failed: 0 });
+    expect(pullExternalTmsTaskContentMock).not.toHaveBeenCalled();
+    expect(pushExternalTmsTranslationsMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        providerKind: "phrase",
+        translations: [
+          expect.objectContaining({
+            externalStringId: "key-1",
+            key: "cta.label",
+            locale: "de-DE",
+            text: "Jetzt kaufen",
+          }),
+        ],
+      }),
+    );
+    expect(
+      pushExternalTmsTranslationsMock.mock.calls[0]?.[0]?.translations?.[0]?.fileId,
+    ).toBeUndefined();
+  });
 });
