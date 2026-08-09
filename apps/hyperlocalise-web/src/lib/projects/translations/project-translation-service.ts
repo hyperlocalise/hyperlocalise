@@ -145,14 +145,36 @@ function translationKeysQueueFilterCondition(input: {
           and ${schema.projectTranslations.status} != 'approved'
       )`;
     case "has_issues":
-      return sql`exists (
-        select 1
-        from ${schema.issueSheetIssues}
-        where ${schema.issueSheetIssues.translationKeyId} = ${schema.projectTranslationKeys.id}
-          and ${schema.issueSheetIssues.organizationId} = ${input.organizationId}
-          and ${schema.issueSheetIssues.projectId} = ${input.projectId}
-          and ${schema.issueSheetIssues.targetLocale} = ${input.targetLocale}
-          and ${schema.issueSheetIssues.status} in ('open', 'in_progress')
+      // Sheet issues are the source of truth for new native CAT issues. Also keep
+      // unmirrored legacy `type='issue'` comments (pre-sheet / failed mirror) so
+      // the Has issues queue does not hide open work after the Issues migration.
+      // Mirrored comments are excluded: resolving the sheet leaves the comment
+      // unresolved, and counting those would pin segments in this filter forever.
+      return sql`(
+        exists (
+          select 1
+          from ${schema.issueSheetIssues}
+          where ${schema.issueSheetIssues.translationKeyId} = ${schema.projectTranslationKeys.id}
+            and ${schema.issueSheetIssues.organizationId} = ${input.organizationId}
+            and ${schema.issueSheetIssues.projectId} = ${input.projectId}
+            and ${schema.issueSheetIssues.targetLocale} = ${input.targetLocale}
+            and ${schema.issueSheetIssues.status} in ('open', 'in_progress')
+        )
+        or exists (
+          select 1
+          from ${schema.projectTranslationComments}
+          where ${schema.projectTranslationComments.translationKeyId} = ${schema.projectTranslationKeys.id}
+            and ${schema.projectTranslationComments.organizationId} = ${input.organizationId}
+            and ${schema.projectTranslationComments.projectId} = ${input.projectId}
+            and ${schema.projectTranslationComments.targetLocale} = ${input.targetLocale}
+            and ${schema.projectTranslationComments.type} = 'issue'
+            and ${schema.projectTranslationComments.status} = 'unresolved'
+            and not exists (
+              select 1
+              from ${schema.issueSheetIssues}
+              where ${schema.issueSheetIssues.linkedCommentId} = ${schema.projectTranslationComments.id}
+            )
+        )
       )`;
     default:
       return undefined;
