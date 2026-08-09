@@ -10,7 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { and, asc, eq, inArray } from "drizzle-orm";
+import { and, asc, eq, inArray, notExists, or } from "drizzle-orm";
 
 import type { ProjectFileCatComment } from "@/api/routes/project/project.schema";
 import { db, schema } from "@/lib/database";
@@ -89,6 +89,27 @@ function toCatComment(row: {
   };
 }
 
+/**
+ * Native issues are created in the issue sheet, so `type = 'issue'` rows only
+ * exist for segments commented on before that change. Keep the ones that were
+ * never mirrored into a sheet issue visible and resolvable; hide the rest so
+ * they do not appear twice alongside their sheet issue.
+ */
+function legacyIssueOrCommentCondition(database: typeof db) {
+  return or(
+    eq(schema.projectTranslationComments.type, "comment"),
+    and(
+      eq(schema.projectTranslationComments.type, "issue"),
+      notExists(
+        database
+          .select({ id: schema.issueSheetIssues.id })
+          .from(schema.issueSheetIssues)
+          .where(eq(schema.issueSheetIssues.linkedCommentId, schema.projectTranslationComments.id)),
+      ),
+    ),
+  );
+}
+
 export class NativeCatCommentService extends ProjectServiceBase {
   constructor(
     database: typeof db = db,
@@ -127,7 +148,7 @@ export class NativeCatCommentService extends ProjectServiceBase {
           eq(schema.projectTranslationComments.organizationId, input.organizationId),
           eq(schema.projectTranslationComments.projectId, input.projectId),
           eq(schema.projectTranslationComments.targetLocale, input.targetLocale),
-          eq(schema.projectTranslationComments.type, "comment"),
+          legacyIssueOrCommentCondition(this.database),
           inArray(schema.projectTranslationComments.translationKeyId, input.translationKeyIds),
         ),
       )
@@ -233,6 +254,93 @@ export class NativeCatCommentService extends ProjectServiceBase {
     return toCatComment({
       ...saved,
       ...authorFields,
+    });
+  }
+
+  /**
+   * Resolves a legacy `type = 'issue'` comment. New native issues live in the
+   * issue sheet and are resolved there; this only keeps pre-existing rows
+   * actionable.
+   */
+  async resolveLegacyIssue(input: {
+    organizationId: string;
+    projectId: string;
+    commentId: string;
+    actorUserId?: string;
+    canResolveOthersIssues?: boolean;
+  }): Promise<ProjectFileCatComment | null> {
+    const [existing] = await this.database
+      .select({
+        id: schema.projectTranslationComments.id,
+        type: schema.projectTranslationComments.type,
+        status: schema.projectTranslationComments.status,
+        text: schema.projectTranslationComments.text,
+        createdAt: schema.projectTranslationComments.createdAt,
+        targetLocale: schema.projectTranslationComments.targetLocale,
+        authorUserId: schema.projectTranslationComments.authorUserId,
+        authorFirstName: schema.users.firstName,
+        authorLastName: schema.users.lastName,
+        authorEmail: schema.users.email,
+      })
+      .from(schema.projectTranslationComments)
+      .leftJoin(schema.users, eq(schema.projectTranslationComments.authorUserId, schema.users.id))
+      .where(
+        and(
+          eq(schema.projectTranslationComments.id, input.commentId),
+          eq(schema.projectTranslationComments.organizationId, input.organizationId),
+          eq(schema.projectTranslationComments.projectId, input.projectId),
+        ),
+      )
+      .limit(1);
+
+    if (!existing || existing.type !== "issue" || existing.status === "resolved") {
+      return null;
+    }
+
+    if (
+      input.actorUserId &&
+      existing.authorUserId &&
+      existing.authorUserId !== input.actorUserId &&
+      !input.canResolveOthersIssues
+    ) {
+      return null;
+    }
+
+    const [updated] = await this.database
+      .update(schema.projectTranslationComments)
+      .set({
+        status: "resolved",
+        updatedAt: new Date(),
+      })
+      .where(eq(schema.projectTranslationComments.id, existing.id))
+      .returning({
+        id: schema.projectTranslationComments.id,
+        type: schema.projectTranslationComments.type,
+        status: schema.projectTranslationComments.status,
+        text: schema.projectTranslationComments.text,
+        createdAt: schema.projectTranslationComments.createdAt,
+        targetLocale: schema.projectTranslationComments.targetLocale,
+      });
+
+    if (!updated) {
+      return null;
+    }
+
+    this.log.debug(
+      {
+        organizationId: input.organizationId,
+        projectId: input.projectId,
+        commentId: input.commentId,
+        actorUserId: input.actorUserId ?? null,
+      },
+      "resolved legacy native CAT issue comment",
+    );
+
+    return toCatComment({
+      ...updated,
+      authorFirstName: existing.authorFirstName,
+      authorLastName: existing.authorLastName,
+      authorEmail: existing.authorEmail,
     });
   }
 }

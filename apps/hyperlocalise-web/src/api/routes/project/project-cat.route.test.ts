@@ -1191,6 +1191,87 @@ describe("project file CAT routes", () => {
     });
   });
 
+  it("lists and resolves legacy native CAT issue comments", async () => {
+    const { identity, project, organization, user } =
+      await projectFixture.createStoredProjectFixture();
+    const headers = await projectFixture.authHeadersFor(identity);
+    const sourcePath = "locales/en.json";
+    const sourceFile = await ensureRepositorySourceFile({
+      organizationId: organization.id,
+      projectId: project.id,
+      sourcePath,
+    });
+
+    await upsertProjectTranslationKeysFromEntries({
+      organizationId: organization.id,
+      projectId: project.id,
+      repositorySourceFileId: sourceFile.id,
+      entries: [{ key: "greeting", text: "Hello", context: null }],
+    });
+
+    const keys = await db
+      .select({ id: schema.projectTranslationKeys.id })
+      .from(schema.projectTranslationKeys)
+      .where(eq(schema.projectTranslationKeys.repositorySourceFileId, sourceFile.id))
+      .limit(1);
+    const translationKeyId = keys[0]!.id;
+
+    const [legacyIssue] = await db
+      .insert(schema.projectTranslationComments)
+      .values({
+        organizationId: organization.id,
+        projectId: project.id,
+        translationKeyId,
+        targetLocale: "fr-FR",
+        type: "issue",
+        status: "unresolved",
+        text: "Wrong tone.",
+        issueType: "translation_mistake",
+        authorUserId: user.id,
+      })
+      .returning({ id: schema.projectTranslationComments.id });
+
+    const commentsResponse = await client.api.orgs[":organizationSlug"].projects[
+      ":projectId"
+    ].files.detail.cat.segments[":externalStringId"].comments.$get(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          projectId: project.id,
+          externalStringId: translationKeyId,
+        },
+        query: { sourcePath, targetLocale: "fr-FR" },
+      },
+      { headers },
+    );
+
+    expect(commentsResponse.status).toBe(200);
+    const commentsBody = (await commentsResponse.json()) as ProjectFileCatSegmentCommentsResponse;
+    expect(commentsBody.comments).toMatchObject([
+      { externalCommentId: legacyIssue!.id, type: "issue", status: "unresolved" },
+    ]);
+
+    const resolveResponse = await client.api.orgs[":organizationSlug"].projects[
+      ":projectId"
+    ].files.detail.cat.comments[":commentId"].resolve.$patch(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          projectId: project.id,
+          commentId: legacyIssue!.id,
+        },
+        json: { sourcePath },
+      },
+      { headers },
+    );
+
+    expect(resolveResponse.status).toBe(200);
+    expect(await resolveResponse.json()).toMatchObject({
+      comment: { externalCommentId: legacyIssue!.id, status: "resolved" },
+    });
+    expect(resolveTmsProviderLiveCatCommentMock).not.toHaveBeenCalled();
+  });
+
   it("still rejects native CAT issue posts when the workspace flag is off", async () => {
     workspaceIssuesFlagRunMock.mockResolvedValue(false);
     const { identity, project, organization } = await projectFixture.createStoredProjectFixture();

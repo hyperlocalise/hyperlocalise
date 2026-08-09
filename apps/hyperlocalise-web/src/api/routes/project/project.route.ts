@@ -65,6 +65,7 @@ import {
   getNativeProjectCatFile,
   getNativeProjectCatSegmentComments,
   getNativeProjectCatSegmentTarget,
+  resolveNativeProjectCatLegacyIssueComment,
   saveNativeProjectCatComment,
   saveNativeProjectCatTranslation,
   updateNativeProjectTranslationStatus,
@@ -154,7 +155,11 @@ import { ensureOrganizationProjectRecord } from "@/lib/projects/organization/org
 import { normalizeProjectId } from "@/lib/projects/identity/project-id";
 import { parseProviderProjectId } from "@/lib/providers/jobs/tms-provider-resource-id";
 
-import { isAiActionAllowed, isWriteBackTranslationAllowed } from "@/api/auth/capability-guards";
+import {
+  isAiActionAllowed,
+  isReviewApproveAllowed,
+  isWriteBackTranslationAllowed,
+} from "@/api/auth/capability-guards";
 import {
   buildAccessibleProjectsWhere,
   projectForbiddenResponse,
@@ -1173,11 +1178,30 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
         }
 
         if (target.kind !== "provider") {
-          return badRequestResponse(
-            c,
-            "native_cat_issue_unsupported",
-            "Native CAT issues are tracked in Issues. Resolve them from the Issues section.",
-          );
+          const project = await getOwnedProject(c.var.auth, params.projectId);
+          if (!project) {
+            return projectNotFoundResponse(c);
+          }
+
+          // Native issues live in the issue sheet now. Only comments raised as
+          // issues before that change are still resolvable here.
+          const comment = await resolveNativeProjectCatLegacyIssueComment({
+            organizationId: c.var.auth.organization.localOrganizationId,
+            projectId: params.projectId,
+            commentId: params.commentId,
+            actorUserId: c.var.auth.user.localUserId,
+            canResolveOthersIssues: isReviewApproveAllowed(c.var.auth.membership.role),
+          });
+
+          if (!comment) {
+            return badRequestResponse(
+              c,
+              "native_cat_issue_unsupported",
+              "Native CAT issues are tracked in Issues. Resolve them from the Issues section.",
+            );
+          }
+
+          return c.json({ comment }, 200);
         }
 
         try {
