@@ -27,9 +27,10 @@ func TestStringCommentsListOptionsValues(t *testing.T) {
 			opts: &StringCommentsListOptions{
 				OrderBy: "createdAt desc,text", StringID: 1, Type: "comment",
 				IssueType: []string{"general_question", "translation_mistake"}, IssueStatus: "resolved",
-				ListOptions: ListOptions{Offset: 1, Limit: 10},
+				TargetLanguageID: "uk,de",
+				ListOptions:      ListOptions{Offset: 1, Limit: 10},
 			},
-			out: "issueStatus=resolved&issueType=general_question%2Ctranslation_mistake&limit=10&offset=1&orderBy=createdAt+desc%2Ctext&stringId=1&type=comment",
+			out: "issueStatus=resolved&issueType=general_question%2Ctranslation_mistake&limit=10&offset=1&orderBy=createdAt+desc%2Ctext&stringId=1&targetLanguageId=uk%2Cde&type=comment",
 		},
 	}
 

@@ -78,6 +78,8 @@ type StringCommentsListOptions struct {
 	// Defines issue resolution status.
 	// Enum: resolved, unresolved.
 	IssueStatus string `json:"issueStatus,omitempty"`
+	// Target Language Identifier.
+	TargetLanguageID string `json:"targetLanguageId,omitempty"`
 
 	ListOptions
 }
@@ -105,6 +107,9 @@ func (o *StringCommentsListOptions) Values() (url.Values, bool) {
 	}
 	if o.IssueStatus != "" {
 		v.Set("issueStatus", o.IssueStatus)
+	}
+	if o.TargetLanguageID != "" {
+		v.Set("targetLanguageId", o.TargetLanguageID)
 	}
 
 	return v, len(v) > 0

@@ -95,6 +95,16 @@ func TestStringCommentsService_List(t *testing.T) {
 			},
 			expect: "?issueStatus=resolved&issueType=general_question%2Ctranslation_mistake&limit=10",
 		},
+		{
+			name: "with TargetLanguageID option",
+			opts: &model.StringCommentsListOptions{
+				TargetLanguageID: "uk,de",
+				ListOptions: model.ListOptions{
+					Limit: 10,
+				},
+			},
+			expect: "?limit=10&targetLanguageId=uk%2Cde",
+		},
 	}
 
 	for projectID, tt := range tests {
