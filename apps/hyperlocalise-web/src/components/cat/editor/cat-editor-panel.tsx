@@ -77,6 +77,7 @@ export function CatEditorPanel({
   projectId,
   nativeIssuesEnabled = false,
   translationKeyId = null,
+  issueTargetLocale = null,
   issueStringLink = null,
   onNativeOpenIssueCountChange,
   primaryActionLabel,
@@ -261,6 +262,7 @@ export function CatEditorPanel({
               organizationSlug={organizationSlug}
               projectId={projectId}
               translationKeyId={translationKeyId}
+              targetLocale={issueTargetLocale}
               stringLink={issueStringLink}
               canCreate={canAddComment}
               onOpenIssueCountChange={onNativeOpenIssueCountChange}

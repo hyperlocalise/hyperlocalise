@@ -267,6 +267,7 @@ export const CatWorkspaceView = observer(function CatWorkspaceView({
   const supportsIssueComments = shell.fileContext.providerKind === "crowdin" && canAddComment;
   const isNativeProject = shell.fileContext.providerKind === null;
   const showNativeIssues = nativeIssuesEnabled && isNativeProject;
+  const issueTargetLocale = showNativeIssues ? shell.fileContext.targetLocale : null;
   const editorTranslationKeyId = showNativeIssues
     ? resolveCatLinkedIssueTranslationKeyId({
         isNativeProject: true,
@@ -433,6 +434,7 @@ export const CatWorkspaceView = observer(function CatWorkspaceView({
           projectId={projectId}
           nativeIssuesEnabled={showNativeIssues}
           translationKeyId={intelligenceTranslationKeyId}
+          issueTargetLocale={issueTargetLocale}
           issueStringLink={intelligenceIssueStringLink}
           onNativeOpenIssueCountChange={
             intelligenceSegment
@@ -549,6 +551,7 @@ export const CatWorkspaceView = observer(function CatWorkspaceView({
           projectId={projectId}
           nativeIssuesEnabled={showNativeIssues}
           translationKeyId={editorTranslationKeyId}
+          issueTargetLocale={issueTargetLocale}
           issueStringLink={editorIssueStringLink}
           onNativeOpenIssueCountChange={(openIssueCount) => {
             store.applySegmentOpenIssueCount(editorSegment.id, openIssueCount);

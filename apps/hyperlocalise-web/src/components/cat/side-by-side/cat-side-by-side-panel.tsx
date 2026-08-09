@@ -125,6 +125,7 @@ export const CatSideBySidePanel = observer(function CatSideBySidePanel({
   projectId,
   nativeIssuesEnabled = false,
   translationKeyId = null,
+  issueTargetLocale = null,
   issueStringLink = null,
   onNativeOpenIssueCountChange,
   primaryActionLabel,
@@ -192,6 +193,7 @@ export const CatSideBySidePanel = observer(function CatSideBySidePanel({
   projectId?: string;
   nativeIssuesEnabled?: boolean;
   translationKeyId?: string | null;
+  issueTargetLocale?: string | null;
   issueStringLink?: {
     segmentId: string;
     sourcePath: string;
@@ -458,6 +460,7 @@ export const CatSideBySidePanel = observer(function CatSideBySidePanel({
           projectId={projectId}
           nativeIssuesEnabled={nativeIssuesEnabled}
           translationKeyId={translationKeyId}
+          issueTargetLocale={issueTargetLocale}
           issueStringLink={issueStringLink}
           onNativeOpenIssueCountChange={onNativeOpenIssueCountChange}
           placement="right"

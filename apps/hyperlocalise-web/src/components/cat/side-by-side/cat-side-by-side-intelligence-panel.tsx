@@ -69,6 +69,7 @@ export function CatSideBySideIntelligencePanel({
   projectId,
   nativeIssuesEnabled = false,
   translationKeyId = null,
+  issueTargetLocale = null,
   issueStringLink = null,
   onNativeOpenIssueCountChange,
   placement = "bottom",
@@ -104,6 +105,7 @@ export function CatSideBySideIntelligencePanel({
   projectId?: string;
   nativeIssuesEnabled?: boolean;
   translationKeyId?: string | null;
+  issueTargetLocale?: string | null;
   issueStringLink?: IssueSheetCreateStringLink | null;
   onNativeOpenIssueCountChange?: (openIssueCount: number) => void;
   placement?: "bottom" | "right";
@@ -185,6 +187,7 @@ export function CatSideBySideIntelligencePanel({
           organizationSlug={organizationSlug}
           projectId={projectId}
           translationKeyId={translationKeyId}
+          targetLocale={issueTargetLocale}
           stringLink={issueStringLink}
           canCreate={canAddComment}
           onOpenIssueCountChange={onNativeOpenIssueCountChange}

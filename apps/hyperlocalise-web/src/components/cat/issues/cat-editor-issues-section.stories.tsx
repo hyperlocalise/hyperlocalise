@@ -35,6 +35,7 @@ const meta = {
     organizationSlug: catLinkedIssuesOrganizationSlug,
     projectId: catLinkedIssuesProjectId,
     translationKeyId: catLinkedIssuesTranslationKeyId,
+    targetLocale: "ja-JP",
     canCreate: true,
     stringLink: {
       segmentId: catLinkedIssuesTranslationKeyId,

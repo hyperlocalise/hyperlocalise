@@ -47,13 +47,9 @@ type IssueSheetListIssue = {
 
 type IssueSheetListResponse = {
   issues: IssueSheetListIssue[];
-  summary?: {
-    open: number;
-    inProgress: number;
-    resolved: number;
-    wontFix: number;
-  };
 };
+
+const SEGMENT_ISSUE_LIMIT = 50;
 
 function issueSheetPath(organizationSlug: string, projectId: string) {
   return `/api/orgs/${encodeURIComponent(organizationSlug)}/projects/${encodeURIComponent(projectId)}/issue-sheet`;
@@ -84,6 +80,7 @@ export function CatEditorIssuesSection({
   organizationSlug,
   projectId,
   translationKeyId,
+  targetLocale,
   stringLink,
   canCreate,
   onOpenIssueCountChange,
@@ -91,6 +88,7 @@ export function CatEditorIssuesSection({
   organizationSlug: string;
   projectId: string;
   translationKeyId: string | null;
+  targetLocale: string | null;
   stringLink: IssueSheetCreateStringLink | null;
   canCreate: boolean;
   onOpenIssueCountChange?: (openIssueCount: number) => void;
@@ -101,22 +99,37 @@ export function CatEditorIssuesSection({
   const [createOpen, setCreateOpen] = useState(false);
   const requestFailed = intl.formatMessage(messages.requestFailed);
 
+  // A translation key is shared across locales, so scope to the locale being
+  // edited to match the segment the panel is showing.
+  const apiQuery = useMemo(() => {
+    const query: Record<string, string> = {
+      status: "all",
+      sort: "status",
+      sortDir: "asc",
+      limit: String(SEGMENT_ISSUE_LIMIT),
+      offset: "0",
+    };
+    if (translationKeyId) {
+      query.translationKeyId = translationKeyId;
+    }
+    if (targetLocale) {
+      query.locale = targetLocale;
+    }
+    return query;
+  }, [targetLocale, translationKeyId]);
+
+  // Share the `issue-sheet` key prefix so issue mutations elsewhere (assignee
+  // edits, status changes) patch and invalidate this list too.
   const queryKey = useMemo(
-    () => ["cat-segment-issues", organizationSlug, projectId, translationKeyId] as const,
-    [organizationSlug, projectId, translationKeyId],
+    () => ["issue-sheet", organizationSlug, projectId, apiQuery] as const,
+    [apiQuery, organizationSlug, projectId],
   );
 
   const issuesQuery = useQuery({
     queryKey,
     enabled: Boolean(translationKeyId),
     queryFn: async () => {
-      const params = new URLSearchParams({
-        translationKeyId: translationKeyId!,
-        status: "all",
-        sort: "status",
-        sortDir: "asc",
-        limit: "50",
-      });
+      const params = new URLSearchParams(apiQuery);
       const response = await fetch(
         `${issueSheetPath(organizationSlug, projectId)}?${params.toString()}`,
       );
@@ -154,7 +167,9 @@ export function CatEditorIssuesSection({
   }, [issuesQuery.data, onOpenIssueCountChange, translationKeyId]);
 
   const refresh = async () => {
-    await queryClient.invalidateQueries({ queryKey });
+    await queryClient.invalidateQueries({
+      queryKey: ["issue-sheet", organizationSlug, projectId],
+    });
   };
 
   if (!translationKeyId) {
@@ -187,7 +202,6 @@ export function CatEditorIssuesSection({
       <IssueGroupedList
         organizationSlug={organizationSlug}
         issues={listIssues}
-        summary={issuesQuery.data?.summary}
         showProject={false}
         isLoading={issuesQuery.isLoading}
         isError={issuesQuery.isError}

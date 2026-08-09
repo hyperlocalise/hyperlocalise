@@ -55,6 +55,7 @@ export type CatEditorPanelProps = {
   projectId?: string;
   nativeIssuesEnabled?: boolean;
   translationKeyId?: string | null;
+  issueTargetLocale?: string | null;
   issueStringLink?: {
     segmentId: string;
     sourcePath: string;
