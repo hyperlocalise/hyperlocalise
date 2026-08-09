@@ -22,7 +22,7 @@ ARG DEBIAN_FRONTEND=noninteractive
 
 # Keep in sync with apps/hyperlocalise-web/src/lib/vercel-sandbox-config.ts
 ARG NODE_MAJOR=24
-ARG HYPERLOCALISE_VERSION=1.8.24
+ARG HYPERLOCALISE_VERSION=1.8.28
 ARG PLAYWRIGHT_VERSION=1.61.1
 # Optional pin; omit / leave empty to install the latest Volta release.
 ARG VOLTA_VERSION=

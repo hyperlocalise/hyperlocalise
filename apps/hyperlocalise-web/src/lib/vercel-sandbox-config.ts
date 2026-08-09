@@ -16,7 +16,7 @@ import { Sandbox } from "@vercel/sandbox";
 export const sandboxRipgrepReleaseVersion = "14.1.1";
 
 /** Pinned hyperlocalise CLI release installed into every sandbox. */
-export const sandboxHyperlocaliseReleaseVersion = "1.8.24";
+export const sandboxHyperlocaliseReleaseVersion = "1.8.28";
 
 /**
  * Pinned Playwright release used for Debian/Ubuntu `install-deps` fallback.
