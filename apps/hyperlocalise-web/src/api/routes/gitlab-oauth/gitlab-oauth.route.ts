@@ -110,20 +110,6 @@ export function createGitlabOAuthRoutes() {
       return c.redirect("/dashboard?error=organization_not_found");
     }
 
-    const errorParam = c.req.query("error");
-    if (errorParam) {
-      return c.redirect(
-        integrationsRedirectForOrg(org, {
-          error: errorParam === "access_denied" ? "gitlab_access_denied" : "gitlab_oauth_failed",
-        }),
-      );
-    }
-
-    const code = c.req.query("code");
-    if (!code) {
-      return c.redirect(integrationsRedirectForOrg(org, { error: "missing_gitlab_code" }));
-    }
-
     const auth = await resolveApiAuthContextFromSession({
       cookie: c.req.header("cookie"),
       organizationSlug: org.slug ?? undefined,
@@ -139,6 +125,8 @@ export function createGitlabOAuthRoutes() {
       return c.redirect(integrationsRedirectForOrg(org, { error: "gitlab_forbidden" }));
     }
 
+    // Consume the one-time nonce before branching on provider error/code so a
+    // terminal OAuth return cannot be replayed for org-scoped error redirects.
     const now = new Date();
     const consumedStates = await db
       .update(schema.gitlabConnectionStates)
@@ -156,6 +144,20 @@ export function createGitlabOAuthRoutes() {
 
     if (consumedStates.length === 0) {
       return c.redirect(integrationsRedirectForOrg(org, { error: "invalid_gitlab_state" }));
+    }
+
+    const errorParam = c.req.query("error");
+    if (errorParam) {
+      return c.redirect(
+        integrationsRedirectForOrg(org, {
+          error: errorParam === "access_denied" ? "gitlab_access_denied" : "gitlab_oauth_failed",
+        }),
+      );
+    }
+
+    const code = c.req.query("code");
+    if (!code) {
+      return c.redirect(integrationsRedirectForOrg(org, { error: "missing_gitlab_code" }));
     }
 
     const redirectUri = getGitlabRedirectUri(c.req.url);

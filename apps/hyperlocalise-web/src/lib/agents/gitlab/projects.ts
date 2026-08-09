@@ -12,7 +12,7 @@
  */
 import { and, eq, notInArray, sql } from "drizzle-orm";
 
-import { db, schema } from "@/lib/database";
+import { db, schema, type DatabaseClient } from "@/lib/database";
 import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
 
 import { listGitlabMembershipProjects, type GitlabApiProject } from "./api";
@@ -56,13 +56,15 @@ export async function upsertGitlabProjects(input: {
   organizationId: string;
   gitlabConnectionId: string;
   projects: GitlabProjectSyncRecord[];
+  database?: DatabaseClient;
 }) {
   if (input.projects.length === 0) {
     return;
   }
 
+  const database = input.database ?? db;
   const now = new Date();
-  await db
+  await database
     .insert(schema.gitlabProjects)
     .values(
       input.projects.map((project) => ({
@@ -94,6 +96,35 @@ export async function upsertGitlabProjects(input: {
     });
 }
 
+async function deleteStaleGitlabProjects(input: {
+  organizationId: string;
+  gitlabConnectionId: string;
+  projectIds: string[];
+  database: DatabaseClient;
+}) {
+  if (input.projectIds.length === 0) {
+    await input.database
+      .delete(schema.gitlabProjects)
+      .where(
+        and(
+          eq(schema.gitlabProjects.organizationId, input.organizationId),
+          eq(schema.gitlabProjects.gitlabConnectionId, input.gitlabConnectionId),
+        ),
+      );
+    return;
+  }
+
+  await input.database
+    .delete(schema.gitlabProjects)
+    .where(
+      and(
+        eq(schema.gitlabProjects.organizationId, input.organizationId),
+        eq(schema.gitlabProjects.gitlabConnectionId, input.gitlabConnectionId),
+        notInArray(schema.gitlabProjects.gitlabProjectId, input.projectIds),
+      ),
+    );
+}
+
 export async function syncGitlabConnectionProjects(input: {
   organizationId: string;
   gitlabConnectionId: string;
@@ -121,33 +152,22 @@ export async function syncGitlabConnectionProjects(input: {
     .map(normalizeGitlabProject)
     .filter((project): project is GitlabProjectSyncRecord => project !== null);
 
-  await upsertGitlabProjects({
-    organizationId: input.organizationId,
-    gitlabConnectionId: input.gitlabConnectionId,
-    projects,
+  // Upsert and stale deletion must commit together so a failed delete cannot
+  // leave a partially reconciled project set for concurrent enablement.
+  await db.transaction(async (tx) => {
+    await upsertGitlabProjects({
+      organizationId: input.organizationId,
+      gitlabConnectionId: input.gitlabConnectionId,
+      projects,
+      database: tx,
+    });
+    await deleteStaleGitlabProjects({
+      organizationId: input.organizationId,
+      gitlabConnectionId: input.gitlabConnectionId,
+      projectIds: projects.map((project) => project.id),
+      database: tx,
+    });
   });
-
-  const projectIds = projects.map((project) => project.id);
-  if (projectIds.length === 0) {
-    await db
-      .delete(schema.gitlabProjects)
-      .where(
-        and(
-          eq(schema.gitlabProjects.organizationId, input.organizationId),
-          eq(schema.gitlabProjects.gitlabConnectionId, input.gitlabConnectionId),
-        ),
-      );
-  } else {
-    await db
-      .delete(schema.gitlabProjects)
-      .where(
-        and(
-          eq(schema.gitlabProjects.organizationId, input.organizationId),
-          eq(schema.gitlabProjects.gitlabConnectionId, input.gitlabConnectionId),
-          notInArray(schema.gitlabProjects.gitlabProjectId, projectIds),
-        ),
-      );
-  }
 
   return ok(projects);
 }
