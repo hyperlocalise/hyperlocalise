@@ -125,7 +125,7 @@
 **Action:** Include `\r` and `\n` in edge whitespace parity checks. Ensure special character literal width matches the source representation (e.g., `width: 4` for `\r\n`) to maintain scanner integrity.
 
 ## 2025-08-15 - [PHP Hex Escape Robustness]
-**Learning:** PHP's string parser is lenient with invalid hex escape sequences (e.g., `\x` followed by a non-hex character), treating them as literal text rather than fatal errors. Mirroring this behavior in translation parsers prevents unnecessary extraction failures on valid PHP files that happen to contain these sequences.
+**Learning:** PHP's string parser is lenient with invalid hex escape sequences (e.g., `\x` followed by a non-hex character), treating them as literal text rather than fatal errors. Mirroring this behavior in translation formats prevents unnecessary extraction failures on valid PHP files that happen to contain these sequences.
 **Action:** When parsing escaped sequences in format-specific parsers, prefer falling back to literal text for malformed or incomplete escapes if that matches the source language's runtime behavior.
 
 ## 2025-05-23 - [PO Parser Comment State Reset]
@@ -215,3 +215,7 @@
 ## 2026-11-19 - [Generic XML Syntax and Validation Error Cases]
 **Learning:** In token-based custom XML parsers utilizing Go's standard `xml.Decoder`, syntax errors (such as mismatched tags, unexpected closing tags, and unexpected EOF/unclosed elements) are caught and surfaced early by Go's standard parser. Custom validation errors (like duplicate key detection, keyed metadata conflict, mixed content, or stable key omission) require syntactically valid XML structure to be reached.
 **Action:** When writing syntax error and edge-case unit tests for custom XML parsers, separate malformed/invalid XML layout test cases (and expect the underlying `xml.Decoder` syntax errors) from syntactically valid but structurally invalid custom error test cases (and assert precise custom error strings).
+
+## 2026-11-20 - [CSV Parser and Marshaller Edge Cases]
+**Learning:** `CSVParser` automatically resolves key/value columns using fallback names (like `key`, `id`, `value`, `target`, `source`), and falls back to any other available column if specified/preferred value columns are not found. Additionally, custom delimiters and lazy quoting can affect parsing error boundaries (such as treating rows with mismatched quotes as fewer fields).
+**Action:** When validating CSV parser error boundaries, test fallback resolution mechanics, whitespace key exclusions, and ensure that empty templates generate correct structured headers deterministically.
