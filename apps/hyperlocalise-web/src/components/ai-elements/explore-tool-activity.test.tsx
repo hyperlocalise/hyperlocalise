@@ -89,4 +89,30 @@ describe("ExploreToolActivity", () => {
     expect(screen.queryByText("Reading account-form.tsx")).not.toBeInTheDocument();
     expect(screen.getByText(/detail:grep-output-error/)).toBeInTheDocument();
   });
+
+  it("opens a previously mounted rollup when a tool later fails", () => {
+    const successParts = [
+      toolPart("grep", { pattern: "Save" }),
+      toolPart("read", { path: "apps/web/src/account-form.tsx" }),
+    ];
+    const { rerender } = renderActivity(successParts);
+
+    expect(screen.getByText("Explored account-form.tsx, 1 search")).toBeInTheDocument();
+    expect(screen.queryByText(/^detail:/)).not.toBeInTheDocument();
+
+    rerender(
+      <IntlProvider locale="en">
+        <ExploreToolActivity
+          parts={[
+            toolPart("grep", { pattern: "Save" }),
+            toolPart("read", { path: "apps/web/src/account-form.tsx" }, "output-error"),
+          ]}
+          renderToolPart={(part) => <div key={part.toolCallId}>detail:{part.toolCallId}</div>}
+        />
+      </IntlProvider>,
+    );
+
+    expect(screen.getByText("Couldn't explore account-form.tsx")).toBeInTheDocument();
+    expect(screen.getByText(/detail:read-output-error/)).toBeInTheDocument();
+  });
 });

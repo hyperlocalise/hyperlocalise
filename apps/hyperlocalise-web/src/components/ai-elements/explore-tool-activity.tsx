@@ -15,7 +15,7 @@
 import { ScrambleText } from "dot-anime-react";
 import { ChevronDownIcon } from "lucide-react";
 import { useReducedMotion } from "motion/react";
-import type { ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { useIntl } from "react-intl";
 
 import { Task, TaskContent, TaskTrigger } from "@/components/ai-elements/task";
@@ -96,6 +96,14 @@ export function ExploreToolActivity({
   const latestPart = parts.at(-1);
   const isLive = parts.some(isToolPartRunning);
   const hasFailed = parts.some(isToolPartFailed);
+  // Controlled: defaultOpen would not reopen when a mounted rollup later fails.
+  const [open, setOpen] = useState(hasFailed);
+
+  useEffect(() => {
+    if (hasFailed) {
+      setOpen(true);
+    }
+  }, [hasFailed]);
 
   if (!latestPart) {
     return null;
@@ -126,7 +134,7 @@ export function ExploreToolActivity({
   const rollupLabel = formatExploreRollupLabel(intl, parts, hasFailed);
 
   return (
-    <Task defaultOpen={hasFailed} className="mb-1 w-full">
+    <Task open={open} onOpenChange={setOpen} className="mb-1 w-full">
       <TaskTrigger title={rollupLabel} className="w-full">
         <div
           className={
