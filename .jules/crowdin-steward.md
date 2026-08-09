@@ -1,5 +1,17 @@
 # Crowdin Steward's Journal
 
+## 2026-12-24 - Implement Corrections API for Crowdin Enterprise parity
+
+**Learning:** In Crowdin Enterprise API v2, proofreaders can create translation corrections. However, the Go SDK lacked model representations and endpoint methods for managing corrections (such as list, get, add, restore, and delete corrections). This gap prevented enterprise users from managing the translation correction lifecycle programmatically.
+
+**Action:** Added `Correction` resource models, list/get options, list/get/add response wrappers, and an add request with standard validation to `model/string_translations.go`. Implemented `ListCorrections`, `GetCorrection`, `AddCorrection`, `RestoreCorrection`, `DeleteCorrection`, and `DeleteCorrections` (which operates on a specific `stringId` query param) in `StringTranslationsService`. Developed focused unit tests asserting query serialization, request validation, and endpoint execution under the `crowdin` and `crowdin/model` packages.
+
+## 2026-12-23 - Add CorrectionID query filter to List Translation Approvals
+
+**Learning:** In Crowdin API v2 (and particularly Crowdin Enterprise), proofreaders can create translation corrections. Correspondingly, the List Translation Approvals endpoint (`GET /api/v2/projects/{projectId}/approvals`) supports filtering by `correctionId`. However, the Go SDK's `ApprovalsListOptions` lacked a `CorrectionID` parameter and did not encode it in its `Values()` query string serialization, making it impossible for workflows to filter approvals by a specific proofreading correction.
+
+**Action:** Added `CorrectionID` to `ApprovalsListOptions` in `model/string_translations.go` and updated `Values()` to serialize it as `correctionId` if greater than 0. Expanded tests in both `model/string_translations_test.go` and `string_translations_test.go` to cover and assert correct `CorrectionID` serialization.
+
 ## 2026-12-22 - Embed ListOptions in DictionariesListOptions
 
 **Learning:** In Crowdin API v2, the List Dictionaries endpoint (`GET /api/v2/projects/{projectId}/dictionaries`) supports standard pagination parameters (`limit` and `offset`). However, `DictionariesListOptions` did not embed `ListOptions` or include standard pagination parameters in its `Values()` query string serialization. This caused queries with explicit limits/offsets to be ignored under actual workflows.

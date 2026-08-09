@@ -23,7 +23,7 @@ import { issueSheetOrganizationSlug, issueSheetProjectId } from "./issue-sheet.f
 import { IssueSheetPageContent } from "./issue-sheet-page-content";
 
 const meta = {
-  title: "App/Project/Issue Sheet/Page",
+  title: "App/Issues/Sheet",
   component: IssueSheetPageContent,
   parameters: {
     layout: "fullscreen",

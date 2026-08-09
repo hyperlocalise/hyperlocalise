@@ -22,12 +22,14 @@ import { db, schema } from "@/lib/database";
 import { IssueNotificationService } from "@/lib/projects/issue-sheet/issue-notification-service";
 import { IssueSheetCommentService } from "@/lib/projects/issue-sheet/issue-sheet-comment-service";
 import { IssueSheetService } from "@/lib/projects/issue-sheet/issue-sheet-service";
+import { IssueSubscriptionService } from "@/lib/projects/issue-sheet/issue-subscription-service";
 import { ensureDefaultWorkspaceTeam } from "@/lib/teams/default-workspace-team";
 
 const authFixture = createAuthTestFixture();
 const notificationService = new IssueNotificationService();
 const issueSheetService = new IssueSheetService();
 const commentService = new IssueSheetCommentService();
+const subscriptionService = new IssueSubscriptionService();
 
 beforeAll(async () => {
   await db.$client.query("select 1");
@@ -231,7 +233,7 @@ describe("IssueNotificationService", () => {
     expect(rows.some((row) => row.recipientUserId === assigneeUserId)).toBe(true);
   });
 
-  it("resolves implicit watchers from assignee, reporter, and mentions", async () => {
+  it("resolves watchers from persisted subscriptions", async () => {
     const { actor, assigneeUserId, organization, project } = await createProjectWithAssignee();
     const issue = await issueSheetService.createIssue({
       organizationId: organization.id,
@@ -257,7 +259,7 @@ describe("IssueNotificationService", () => {
       },
     });
 
-    const watchers = await notificationService.resolveImplicitWatchers(issue.id);
+    const watchers = await notificationService.resolveWatchers(issue.id);
     expect(watchers.has(actor.id)).toBe(true);
     expect(watchers.has(assigneeUserId)).toBe(true);
   });
@@ -378,5 +380,110 @@ describe("IssueNotificationService", () => {
       .where(eq(schema.issueNotifications.organizationId, organization.id));
 
     expect(rows).toHaveLength(0);
+  });
+
+  it("stops status fan-out after an assignee unsubscribes", async () => {
+    const { actor, assigneeUserId, organization, project } = await createProjectWithAssignee();
+    const issue = await issueSheetService.createIssue({
+      organizationId: organization.id,
+      projectId: project.id,
+      actorUserId: actor.id,
+      body: {
+        title: "Unwatch stops fan-out",
+        assigneeUserId,
+      },
+    });
+
+    await subscriptionService.unsubscribe({
+      organizationId: organization.id,
+      projectId: project.id,
+      issueId: issue.id,
+      userId: assigneeUserId,
+    });
+
+    await db
+      .delete(schema.issueNotifications)
+      .where(eq(schema.issueNotifications.issueId, issue.id));
+
+    await issueSheetService.updateIssue({
+      organizationId: organization.id,
+      projectId: project.id,
+      issueId: issue.id,
+      actorUserId: actor.id,
+      body: { status: "in_progress" },
+    });
+
+    const rows = await db
+      .select()
+      .from(schema.issueNotifications)
+      .where(eq(schema.issueNotifications.issueId, issue.id));
+
+    expect(
+      rows.some((row) => row.type === "status_changed" && row.recipientUserId === assigneeUserId),
+    ).toBe(false);
+  });
+
+  it("notifies an explicit third-party subscriber on status change", async () => {
+    const { actor, assigneeUserId, organization, project, actorIdentity } =
+      await createProjectWithAssignee();
+
+    const watcherIdentity = authFixture.createWorkosIdentityForOrganization(
+      actorIdentity.organization,
+      "member",
+    );
+    await authFixture.authHeadersFor(watcherIdentity);
+    const watcherUserId = await authFixture.getLocalUserId(watcherIdentity.user.workosUserId);
+    const team = await ensureDefaultWorkspaceTeam(organization.id);
+    await db
+      .insert(schema.teamMemberships)
+      .values({
+        teamId: team.id,
+        userId: watcherUserId,
+        role: "member",
+      })
+      .onConflictDoNothing();
+    await authFixture.authHeadersFor(actorIdentity);
+
+    const issue = await issueSheetService.createIssue({
+      organizationId: organization.id,
+      projectId: project.id,
+      actorUserId: actor.id,
+      body: {
+        title: "Explicit watcher",
+        assigneeUserId,
+      },
+    });
+
+    await subscriptionService.subscribe({
+      organizationId: organization.id,
+      projectId: project.id,
+      issueId: issue.id,
+      userId: watcherUserId,
+    });
+
+    await db
+      .delete(schema.issueNotifications)
+      .where(eq(schema.issueNotifications.issueId, issue.id));
+
+    await issueSheetService.updateIssue({
+      organizationId: organization.id,
+      projectId: project.id,
+      issueId: issue.id,
+      actorUserId: actor.id,
+      body: { status: "in_progress" },
+    });
+
+    const rows = await db
+      .select()
+      .from(schema.issueNotifications)
+      .where(eq(schema.issueNotifications.issueId, issue.id));
+
+    expect(
+      rows.some((row) => row.type === "status_changed" && row.recipientUserId === watcherUserId),
+    ).toBe(true);
+    expect(
+      rows.some((row) => row.type === "status_changed" && row.recipientUserId === assigneeUserId),
+    ).toBe(true);
+    expect(rows.every((row) => row.recipientUserId !== actor.id)).toBe(true);
   });
 });

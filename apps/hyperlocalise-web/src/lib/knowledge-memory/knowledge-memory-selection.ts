@@ -20,7 +20,11 @@ import {
   normalizeKnowledgeMemoryForSelection,
   parseMarkdownMemory,
 } from "./knowledge-memory-markdown-parser";
-import { retrieveKnowledgeMemorySegmentsLexically } from "./knowledge-memory-lexical-retriever";
+import { buildSegmentExcerpt, truncateToBudget } from "./knowledge-memory-excerpt";
+import {
+  buildKnowledgeMemoryQueryTokens,
+  retrieveKnowledgeMemorySegmentsLexicallyWithTokens,
+} from "./knowledge-memory-lexical-retriever";
 import type {
   KnowledgeMemoryFallbackMode,
   KnowledgeMemoryRetriever,
@@ -171,6 +175,10 @@ function headingFallbackReservedChars(headingFallbackText: string, maxChars: num
   return Math.min(headingFallbackText.length, Math.min(maxChars, 1_200)) + 1;
 }
 
+// Floor (not a ceiling) for the no-query-token-match fallback preview only — see fallbackMaxChars
+// below. Keeps that preview's own room decoupled from a small outer maxChars.
+const minFallbackPreviewChars = 900;
+
 function buildSelectedContext(input: {
   wholeMemoryChars: number;
   selectedSegments: KnowledgeMemorySegment[];
@@ -178,22 +186,52 @@ function buildSelectedContext(input: {
   maxChars: number;
   headingFallbackText?: string;
   maxSegmentChars?: number;
+  /**
+   * Query tokens used to excerpt the sentence/bullet within each selected segment that actually
+   * matches, instead of a query-independent prefix slice. Only meaningful for the "selective"
+   * fallback mode — general/fallback/raw paths pass none, so their output stays unchanged.
+   */
+  queryTokens?: Set<string>;
 }) {
   const lines: string[] = [];
   const segments: SelectedKnowledgeMemorySegment[] = [];
+  const queryTokens = input.queryTokens ?? new Set<string>();
 
   if (input.headingFallbackText) {
     appendWithinBudget(
       lines,
-      truncateFallbackText(input.headingFallbackText, Math.min(input.maxChars, 1_200)),
+      truncateToBudget(input.headingFallbackText, Math.min(input.maxChars, 1_200)),
       input.maxChars,
     );
   }
 
   for (const segment of input.selectedSegments) {
-    const preview = input.maxSegmentChars
-      ? truncateFallbackText(segment.compactPromptText, input.maxSegmentChars)
-      : segment.compactPromptText;
+    // Bound by input.maxChars even when no explicit per-segment budget was computed (single
+    // selected segment, not balancing across locales): otherwise buildSegmentExcerpt centers its
+    // match inside the full caller-provided budget, and the dumb prefix-cut in appendWithinBudget
+    // below can then chop that correctly-centered excerpt back down to the real (smaller) budget
+    // from the front, discarding the match this function exists to keep. The no-match fallback
+    // doesn't center on anything, so it isn't at risk from that same double-truncation — pass it the
+    // *unclamped* per-segment share (still respecting a genuine balanced share when one exists, via
+    // input.maxSegmentChars) so a segment with no query-token match doesn't lose guidance from the
+    // end of an otherwise-fitting preview just because this path also protects the match-centering
+    // one below it.
+    //
+    // Falls back to input.maxChars itself, not a fixed default, when there's no balanced share: a
+    // single selected segment has nothing else competing for the budget, so it should get all of
+    // whatever the caller actually allowed instead of an arbitrary smaller cap.
+    //
+    // fallbackMaxChars (the no-match path) keeps a floor under that instead of using input.maxChars
+    // directly: unlike the match-centered path above, it isn't re-trimmed from the correct end by
+    // appendWithinBudget's prefix cut on compactText, so a tiny outer maxChars would otherwise chop
+    // the one preview stored in segment metadata down to the same tiny size for no reason — nothing
+    // downstream needs it that small, since compactText enforces the real outer budget regardless.
+    const preview = buildSegmentExcerpt({
+      segment,
+      queryTokens,
+      maxChars: Math.min(input.maxSegmentChars ?? input.maxChars, input.maxChars),
+      fallbackMaxChars: input.maxSegmentChars ?? Math.max(input.maxChars, minFallbackPreviewChars),
+    });
 
     if (!appendWithinBudget(lines, preview, input.maxChars)) {
       break;
@@ -260,12 +298,6 @@ function buildEmptyContext(
   };
 }
 
-function truncateFallbackText(content: string, maxChars: number) {
-  return content.length > maxChars
-    ? `${content.slice(0, Math.max(0, maxChars - 3)).trimEnd()}...`
-    : content;
-}
-
 function headingFallbackPriority(heading: string) {
   if (
     /brand|voice|tone|style|glossary|terminology|protected|token|never|avoid|locale|rule/i.test(
@@ -315,7 +347,7 @@ function buildRawFallbackContext(
   content: string,
   maxChars: number,
 ): SelectedKnowledgeMemoryContext {
-  const compactText = truncateFallbackText(buildHeadingFallbackText(content), maxChars);
+  const compactText = truncateToBudget(buildHeadingFallbackText(content), maxChars);
 
   return {
     compactText,
@@ -404,14 +436,19 @@ export function selectKnowledgeMemoryContext(
     return buildRawFallbackContext(content, maxChars);
   }
 
-  const retrieveSegments = options.retrieveSegments ?? retrieveKnowledgeMemorySegmentsLexically;
-  const rankedSegments = retrieveSegments({
-    segments,
-    query: input,
-  });
+  const isDefaultRetriever = !options.retrieveSegments;
+  // Computed once and reused for the default retriever's own scoring below, instead of letting
+  // retrieveKnowledgeMemorySegmentsLexically recompute the same tokenize + spelling-variant
+  // expansion internally right before this function needs the identical tokens again for excerpt
+  // selection's queryTokens.
+  const defaultQueryTokens = isDefaultRetriever
+    ? buildKnowledgeMemoryQueryTokens(input)
+    : undefined;
+  const rankedSegments = options.retrieveSegments
+    ? options.retrieveSegments({ segments, query: input })
+    : retrieveKnowledgeMemorySegmentsLexicallyWithTokens(segments, input, defaultQueryTokens!);
 
   if (rankedSegments.length > 0) {
-    const requestedLocaleCount = requestedTargetLocaleCount(input);
     const selectedSegments = selectRankedSegmentsForTargets(rankedSegments, input);
 
     return buildSelectedContext({
@@ -419,10 +456,25 @@ export function selectKnowledgeMemoryContext(
       selectedSegments,
       fallbackMode: "selective",
       maxChars,
+      // Only the default lexical retriever's match reason is "these literal tokens", so only it
+      // gets literal-token excerpting. A custom retriever may select a segment for a reason that
+      // has nothing to do with token overlap (semantic similarity, a fixed heading, etc.); handing
+      // it the raw query tokens anyway can make buildSegmentExcerpt center on some unrelated word
+      // that happens to appear later in that segment, dropping the guidance the retriever actually
+      // selected. Omitting queryTokens here falls back to the segment's own compactPromptText.
+      queryTokens: defaultQueryTokens,
+      // shouldBalance: true unconditionally, not just for multi-locale requests — this call site
+      // can select multiple independently-matched segments under a single target locale too (a
+      // single query matching more than one Memory.md section). maxCharsPerSelectedSegment already
+      // returns undefined for a single selected segment on its own, so this only starts dividing
+      // the budget once there's actually more than one preview competing for it. Without this, an
+      // early segment with many matched units could fill the entire outer maxChars on its own,
+      // and appendWithinBudget's sequential loop would then reject every segment selected after it
+      // instead of each one getting a bounded share.
       maxSegmentChars: maxCharsPerSelectedSegment({
         maxChars,
         selectedSegmentCount: selectedSegments.length,
-        shouldBalance: requestedLocaleCount > 1,
+        shouldBalance: true,
       }),
     });
   }

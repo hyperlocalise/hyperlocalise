@@ -20,6 +20,7 @@ import type { OrganizationMembershipRole } from "@/lib/database/types";
 import { ProjectServiceBase } from "@/lib/projects/project-service-base";
 
 import { issueNotificationService } from "./issue-notification-service";
+import { issueSubscriptionService } from "./issue-subscription-service";
 
 export type IssueSheetCommentAuthor = {
   userId: string;
@@ -337,6 +338,22 @@ export class IssueSheetCommentService extends ProjectServiceBase {
         .where(eq(schema.issueSheetComments.id, inserted.id))
         .limit(1);
 
+      await issueSubscriptionService.subscribe({
+        organizationId: input.organizationId,
+        projectId: input.projectId,
+        issueId: input.issueId,
+        userId: input.actorUserId,
+        database: tx,
+      });
+      await issueSubscriptionService.subscribeMany({
+        organizationId: input.organizationId,
+        projectId: input.projectId,
+        issueId: input.issueId,
+        userIds: mentionedUserIds,
+        requireProjectAccess: true,
+        database: tx,
+      });
+
       return row;
     });
 
@@ -446,6 +463,14 @@ export class IssueSheetCommentService extends ProjectServiceBase {
     if (!row) {
       return { ok: false, error: { code: "comment_not_found" } };
     }
+
+    await issueSubscriptionService.subscribeMany({
+      organizationId: input.organizationId,
+      projectId: input.projectId,
+      issueId: input.issueId,
+      userIds: mentionedUserIds,
+      requireProjectAccess: true,
+    });
 
     return {
       ok: true,

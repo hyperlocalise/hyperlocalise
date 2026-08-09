@@ -16,7 +16,10 @@ import {
   dispatchDueContentfulWorkspaceAutomations,
   dispatchWorkspaceAutomationForScheduleAndAdvance,
 } from "./workspace-automation-dispatcher";
-import { buildWorkspaceOrchestratorPlan } from "@/agents/automations/workspace/agent/plan";
+import {
+  buildWorkspaceOrchestratorPlan,
+  planHasActionableTool,
+} from "@/agents/automations/workspace/agent/plan";
 import { listDueWorkspaceAutomations } from "./workspace-automations";
 
 const logger = createLogger("workspace-automation-scheduler");
@@ -78,7 +81,7 @@ export async function runWorkspaceAutomationScheduler(input?: {
       }
 
       const plan = buildWorkspaceOrchestratorPlan(entry.automation);
-      if (plan.tools.length === 0) {
+      if (!planHasActionableTool(plan)) {
         await dispatchWorkspaceAutomationForScheduleAndAdvance({
           automation: entry.automation,
           scheduledRunAt,

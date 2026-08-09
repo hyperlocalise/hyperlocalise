@@ -28,6 +28,13 @@ type BenchmarkFixture = {
   goldPositiveHeadings?: string[];
   goldNegativeHeadings?: string[];
   requiredSelectedHeadings?: string[];
+  /**
+   * Substrings that must appear in the final `compactText`, not just in a matched heading.
+   * Ranking a segment correctly (top1/top3 coverage) says nothing about whether the specific
+   * rule text inside that segment survived the selector's per-segment truncation — this closes
+   * that gap.
+   */
+  requiredSelectedText?: string[];
 };
 
 type FixtureScore = {
@@ -35,6 +42,7 @@ type FixtureScore = {
   top1Coverage: 0 | 1;
   top3Coverage: 0 | 1;
   requiredHeadingCoverage: 0 | 1;
+  requiredTextCoverage: 0 | 1;
   irrelevantSelectedCount: number;
   top3Count: number;
   reductionPercent: number;
@@ -136,6 +144,83 @@ const structuralRobustnessMemory = [
   ),
 ].join("\n");
 
+// Regression fixtures for the compactPromptText prefix-truncation bug: a segment can rank
+// correctly (top1/top3 coverage) while the specific rule text inside it is silently dropped
+// because only the first ~900 characters of the segment ever reached the final prompt.
+const truncationFillerSentence =
+  "This sentence is unrelated filler prose added only to push the paragraph well past the selector's per-segment character budget. ";
+
+const longFormCheckoutParagraph = [
+  "This paragraph intentionally bundles several distinct checkout rules into one continuous block of prose so retrieval must excerpt the sentence that actually matches instead of only ever keeping the first slice of text.",
+  "At the very start of this note the gridwidget component must remain left aligned on every step across all locales, because early usability testing showed right alignment caused repeated mis-taps on mobile.",
+  truncationFillerSentence.repeat(6),
+  "Roughly in the middle of this same paragraph the confirmpanel must always display the order total above the shipping address on every confirmation screen, since customers reported confusion when totals appeared last.",
+  truncationFillerSentence.repeat(6),
+  "Near the very end of this paragraph the shippingflag status indicator must stay visible throughout the entire flow, including on any error or retry screen, so shoppers can always see it.",
+].join(" ");
+
+const protectedFulfillmentTokensList = [
+  "Keep every internal system identifier exactly as written across every locale and never localise, transliterate, or adjust the punctuation immediately surrounding them in customer-facing or internal copy.",
+  "Fulfillment identifiers are consumed programmatically by downstream warehouse and logistics systems and must never be reworded, abbreviated, or expanded even when the surrounding sentence is rewritten for style.",
+  "Treat any code containing a hyphen, slash, or mixed capitalisation as a literal opaque token regardless of the surrounding sentence casing, tense, or grammatical number in the target locale.",
+  "Do not add articles such as the, a, or an directly in front of internal system identifiers in any locale, since doing so has historically confused automated log-parsing tooling.",
+  "Do not pluralise, hyphenate, or otherwise inflect internal system identifiers even when the surrounding sentence describing them is grammatically plural in the target language.",
+  "Preserve the original capitalisation of internal system identifiers exactly as authored in the source document, including any deliberately inconsistent internal casing conventions.",
+  "Never translate the routingtoken internal code because the fulfillment system reads it directly and any translated variant will silently break automated shipment routing.",
+];
+
+const punctuationFreeIdentifierBlock =
+  Array.from(
+    { length: 16 },
+    (_, index) =>
+      `identifierBatch${index + 1} inventorySync releaseGate warehouseNode shipmentQueue`,
+  ).join(" ") + " nopunctailmarker resolvesInventoryDrift";
+
+const truncationRegressionMemory = [
+  "# Memory.md",
+  "",
+  "## Long-form checkout paragraph",
+  "",
+  longFormCheckoutParagraph,
+  "",
+  "## Protected fulfillment tokens",
+  "",
+  ...protectedFulfillmentTokensList.map((line) => `- ${line}`),
+  "",
+  "## Punctuation-free identifier block",
+  "",
+  punctuationFreeIdentifierBlock,
+  "",
+].join("\n");
+
+const multiLocaleShortRuleFor = (locale: string) =>
+  [
+    `## ${locale} payment rule`,
+    "",
+    `### ${locale}`,
+    "",
+    `Use formal, locale-appropriate payment confirmation wording for ${locale}.`,
+    "",
+  ].join("\n");
+
+const longEnAuConfirmationParagraph = [
+  "This paragraph documents Australian retail checkout confirmation wording in extended detail so the selector's tighter multi-locale budget must be spent on the sentence that actually matches the query.",
+  truncationFillerSentence.repeat(30),
+  "Near the very end of this en-AU confirmation guidance, the auconfirmtoken confirmation banner must always show the estimated delivery window immediately below the order total on the confirmation screen.",
+].join(" ");
+
+const multiLocaleTruncationMemory = [
+  "# Memory.md",
+  "",
+  ...["fr-FR", "de-DE", "es-ES", "it-IT", "pt-PT", "ja-JP"].map(multiLocaleShortRuleFor),
+  "## en-AU confirmation guidance",
+  "",
+  "### en-AU",
+  "",
+  longEnAuConfirmationParagraph,
+  "",
+].join("\n");
+
 const asymmetricMultiLocaleMemory = [
   "# Memory.md",
   "",
@@ -219,6 +304,7 @@ const benchmarkFixtures: BenchmarkFixture[] = [
       "Memory.md > General checkout guidance",
     ],
     goldNegativeHeadings: ["Legal privacy compliance"],
+    requiredSelectedText: ["colour", "customise"],
   },
   {
     name: "negative protected-token rule wins on exact source token",
@@ -292,6 +378,74 @@ const benchmarkFixtures: BenchmarkFixture[] = [
       "Memory.md > Australian English > en-AU",
     ],
   },
+  {
+    name: "truncation regression: rule at the beginning of a long paragraph survives",
+    content: truncationRegressionMemory,
+    input: {
+      targetLocale: "en-US",
+      sourceText: "gridwidget alignment behaviour mobile",
+    },
+    expectedHeading: "Memory.md > Long-form checkout paragraph",
+    requiredSelectedText: ["gridwidget"],
+  },
+  {
+    name: "truncation regression: rule in the middle of a long paragraph survives",
+    content: truncationRegressionMemory,
+    input: {
+      targetLocale: "en-US",
+      sourceText: "confirmpanel total placement screen",
+    },
+    expectedHeading: "Memory.md > Long-form checkout paragraph",
+    requiredSelectedText: ["confirmpanel"],
+  },
+  {
+    name: "truncation regression: rule at the tail of a long paragraph survives",
+    content: truncationRegressionMemory,
+    input: {
+      targetLocale: "en-US",
+      sourceText: "shippingflag status indicator visibility",
+    },
+    expectedHeading: "Memory.md > Long-form checkout paragraph",
+    requiredSelectedText: ["shippingflag"],
+  },
+  {
+    name: "truncation regression: negation rule for a protected token survives at the tail of a bullet group",
+    content: truncationRegressionMemory,
+    input: {
+      targetLocale: "de-DE",
+      sourceText: "routingtoken warehouse fulfillment identifier",
+    },
+    expectedHeading: "Memory.md > Protected fulfillment tokens",
+    requiredSelectedText: ["routingtoken"],
+  },
+  {
+    name: "truncation regression: punctuation-free oversized text preserves its tail marker",
+    content: truncationRegressionMemory,
+    input: {
+      targetLocale: "en-US",
+      sourceText: "nopunctailmarker resolvesInventoryDrift",
+    },
+    expectedHeading: "Memory.md > Punctuation-free identifier block",
+    requiredSelectedText: ["nopunctailmarker"],
+  },
+  {
+    name: "truncation regression: tail rule survives the tighter multi-locale per-segment budget",
+    content: multiLocaleTruncationMemory,
+    input: {
+      targetLocales: ["fr-FR", "de-DE", "es-ES", "it-IT", "pt-PT", "ja-JP", "en-AU"],
+      sourceText: "auconfirmtoken delivery window confirmation banner",
+    },
+    expectedHeading: "Memory.md > en-AU confirmation guidance > en-AU",
+    goldPositiveHeadings: [
+      "Memory.md > fr-FR payment rule",
+      "Memory.md > de-DE payment rule",
+      "Memory.md > es-ES payment rule",
+      "Memory.md > it-IT payment rule",
+      "Memory.md > pt-PT payment rule",
+      "Memory.md > ja-JP payment rule",
+    ],
+    requiredSelectedText: ["auconfirmtoken"],
+  },
 ];
 
 function headingMatches(heading: string, expected: string) {
@@ -331,6 +485,7 @@ function scoreFixture(fixture: BenchmarkFixture): FixtureScore {
   }).length;
   const selectedHeadingPaths = firstRun.metrics.matchedHeadingPaths;
   const requiredSelectedHeadings = fixture.requiredSelectedHeadings ?? [fixture.expectedHeading];
+  const requiredSelectedText = fixture.requiredSelectedText ?? [];
 
   return {
     name: fixture.name,
@@ -339,6 +494,9 @@ function scoreFixture(fixture: BenchmarkFixture): FixtureScore {
     requiredHeadingCoverage: requiredSelectedHeadings.every((requiredHeading) =>
       selectedHeadingPaths.some((heading) => headingMatches(heading, requiredHeading)),
     )
+      ? 1
+      : 0,
+    requiredTextCoverage: requiredSelectedText.every((text) => firstRun.compactText.includes(text))
       ? 1
       : 0,
     irrelevantSelectedCount,
@@ -372,6 +530,9 @@ function summarize(scores: FixtureScore[]) {
     top3Coverage: Number(average(scores.map((score) => score.top3Coverage)).toFixed(2)),
     requiredHeadingCoverage: Number(
       average(scores.map((score) => score.requiredHeadingCoverage)).toFixed(2),
+    ),
+    requiredTextCoverage: Number(
+      average(scores.map((score) => score.requiredTextCoverage)).toFixed(2),
     ),
     irrelevantHitRate: Number((irrelevantSelectedCount / Math.max(1, top3Count)).toFixed(2)),
     maxSelectedMemoryChars: Math.max(...scores.map((score) => score.selectedMemoryChars)),
@@ -448,6 +609,7 @@ describe("knowledge memory lexical retrieval benchmark", () => {
     expect(summary.top1Coverage).toBeGreaterThanOrEqual(0.75);
     expect(summary.top3Coverage).toBeGreaterThanOrEqual(0.9);
     expect(summary.requiredHeadingCoverage).toBe(1);
+    expect(summary.requiredTextCoverage).toBe(1);
     expect(summary.irrelevantHitRate).toBeLessThanOrEqual(0.1);
     expect(summary.fallbackTriggeredCount).toBe(0);
     expect(summary.maxSelectedMemoryChars).toBeLessThanOrEqual(

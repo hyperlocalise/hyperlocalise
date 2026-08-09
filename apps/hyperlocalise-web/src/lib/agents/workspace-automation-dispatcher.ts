@@ -12,7 +12,10 @@
  */
 import { createLogger } from "@/lib/log";
 import { composeWorkspaceAutomationInstructions } from "@/agents/automations/workspace/agent/compose-workspace-instructions";
-import { buildWorkspaceOrchestratorPlan } from "@/agents/automations/workspace/agent/plan";
+import {
+  buildWorkspaceOrchestratorPlan,
+  planHasActionableTool,
+} from "@/agents/automations/workspace/agent/plan";
 
 import {
   buildWorkspaceContentfulWebhookAutomationIdempotencyKey,
@@ -165,7 +168,9 @@ async function dispatchWorkspaceAutomationViaOrchestrator(input: {
   const templateSkillId = resolveTemplateSkillId(snapshot);
   const plan = buildWorkspaceOrchestratorPlan(input.automation, { templateSkillId });
   const skipReason =
-    input.preDispatchSkipReason ?? (plan.tools.length === 0 ? "no_enabled_tools" : null) ?? null;
+    input.preDispatchSkipReason ??
+    (!planHasActionableTool(plan) ? "no_enabled_tools" : null) ??
+    null;
 
   const { idempotencyKey, existing } = await resolveDispatchTargetRun({
     organizationId: input.organizationId,
@@ -275,7 +280,7 @@ export async function dispatchManualWorkspaceAutomationRun(input: {
         ? input.inputSnapshot.templateSkillId
         : null,
   });
-  if (plan.tools.length === 0) {
+  if (!planHasActionableTool(plan)) {
     return null;
   }
 
@@ -321,7 +326,7 @@ export async function dispatchWorkspaceAutomationForSchedule(input: {
   }
 
   const plan = buildWorkspaceOrchestratorPlan(input.automation);
-  if (plan.tools.length === 0) {
+  if (!planHasActionableTool(plan)) {
     return null;
   }
 

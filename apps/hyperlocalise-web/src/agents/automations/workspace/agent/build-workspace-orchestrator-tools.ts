@@ -18,8 +18,10 @@ import { createAssignTranslateWithAgentTool } from "./tools/assign_translate_wit
 import { createNativeTmsJobTool } from "./tools/create_native_tms_job";
 import { createNotifyEmailTool } from "./tools/notify_email";
 import { createNotifySlackTool } from "./tools/notify_slack";
+import { createRecallMemoryTool } from "./tools/recall_memory";
 import { createRunContentfulTranslationTool } from "./tools/run_contentful_translation";
 import { createRunGithubWorkflowsTool } from "./tools/run_github_workflows";
+import { createSaveMemoryTool } from "./tools/save_memory";
 import { createUseAhrefsTool } from "./tools/use_ahrefs";
 import { createUseGithubRepositoryTool } from "./tools/use_github_repository";
 import { createUseSemrushTool } from "./tools/use_semrush";
@@ -37,6 +39,8 @@ const TOOL_BUILDERS: Record<
   use_ahrefs: createUseAhrefsTool,
   notify_slack: createNotifySlackTool,
   notify_email: createNotifyEmailTool,
+  recall_memory: createRecallMemoryTool,
+  save_memory: createSaveMemoryTool,
 };
 
 export function buildWorkspaceOrchestratorTools(session: WorkspaceOrchestratorSession): ToolSet {

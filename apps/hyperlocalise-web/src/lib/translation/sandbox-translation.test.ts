@@ -75,7 +75,7 @@ describe("sandbox command runner", () => {
     });
   });
 
-  it("creates translation sandboxes with Node 26", async () => {
+  it("creates translation sandboxes with the managed Node 26 image", async () => {
     sandboxMocks.create.mockResolvedValueOnce({
       name: "sandbox_123",
       runCommand: sandboxMocks.runCommand,
@@ -84,7 +84,7 @@ describe("sandbox command runner", () => {
     await expect(createTranslationSandbox()).resolves.toEqual({ sandboxId: "sandbox_123" });
 
     expect(sandboxMocks.create).toHaveBeenCalledWith({
-      runtime: "node26",
+      image: "vercel/sandbox/node:26",
       timeout: 600_000,
       snapshotExpiration: 3 * 24 * 60 * 60 * 1000,
       keepLastSnapshots: { count: 3, deleteEvicted: true },

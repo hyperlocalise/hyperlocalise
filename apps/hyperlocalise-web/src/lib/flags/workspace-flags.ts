@@ -132,6 +132,49 @@ export async function resolveWorkspaceVisualMockFlag(input: {
   }
 }
 
+/**
+ * Resolves workspaceKnowledgeFlag from just an internal organizationId, for callers with no live
+ * HTTP auth context to build a WorkOS identify() from — background jobs, queue workers, and
+ * workspace-automation tool calls. Mirrors resolveWorkspaceVisualMockFlag's DB-join-then-run-flag
+ * shape, minus the user lookup those callers don't have either.
+ *
+ * knowledge-memory.route.ts already rejects every request when this flag is off, but that check
+ * lives only on the human-facing HTTP route — nothing stopped an automation's stored toolConfig
+ * (set once, possibly before the flag was disabled, or via direct API access that skips UI
+ * validation) from reaching save_memory/recall_memory and mutating or reading Memory.md on a
+ * schedule regardless of the flag. Call this at the point of use, not just at config-save time, so
+ * disabling the flag actually stops in-flight automations too.
+ */
+export async function resolveWorkspaceKnowledgeFlag(input: {
+  organizationId: string;
+  dbClient?: Pick<typeof db, "select">;
+}): Promise<boolean> {
+  const dbClient = input.dbClient ?? db;
+  if (typeof dbClient.select !== "function") {
+    return false;
+  }
+
+  try {
+    const [organization] = await dbClient
+      .select({ workosOrganizationId: schema.organizations.workosOrganizationId })
+      .from(schema.organizations)
+      .where(eq(schema.organizations.id, input.organizationId))
+      .limit(1);
+
+    if (!organization) {
+      return false;
+    }
+
+    return (
+      (await workspaceKnowledgeFlag.run({
+        identify: () => ({ organization: { id: organization.workosOrganizationId } }),
+      })) === true
+    );
+  } catch {
+    return false;
+  }
+}
+
 export async function requireWorkspaceFeatureFlag(
   workspaceFlag: Flag<boolean, WorkosFlagEntities>,
   auth: Pick<AppAuthContext, "activeOrganization" | "user">,

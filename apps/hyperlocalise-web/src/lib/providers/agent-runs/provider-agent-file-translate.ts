@@ -10,6 +10,8 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { createHash } from "node:crypto";
+
 import {
   detectAgentRunProposalWarnings,
   deriveChangedFields,
@@ -207,7 +209,8 @@ function buildGlossaryContext(input: {
 }
 
 function sandboxWorkFilename(fileId: string, basename: string): string {
-  return `work_${sanitizeSandboxFilename(fileId)}_${sanitizeSandboxFilename(basename)}`;
+  const fileIdHash = createHash("sha256").update(fileId, "utf8").digest("hex").slice(0, 12);
+  return `work_${sanitizeSandboxFilename(fileId)}_${fileIdHash}_${sanitizeSandboxFilename(basename)}`;
 }
 
 /**
@@ -766,7 +769,6 @@ export async function translateProviderJobFiles(input: {
           })),
         );
 
-        let batchFailed = false;
         try {
           await runMultiFileTranslationInSandbox({
             sandboxId,
@@ -780,7 +782,6 @@ export async function translateProviderJobFiles(input: {
             prefilledByLocale,
           });
         } catch (error) {
-          batchFailed = true;
           warnings.push(
             `Batch file translation failed: ${
               error instanceof Error ? error.message : "unknown error"
@@ -788,7 +789,8 @@ export async function translateProviderJobFiles(input: {
           );
         }
 
-        if (!batchFailed) {
+        // A failed aggregate run can still flush valid outputs for independent file/locale tasks.
+        if (preparedFiles.length > 0) {
           const glossaryTermsForValidation = (batchContext.glossaryTerms ?? []).map((term) => ({
             sourceTerm: term.sourceTerm,
             targetTerm: term.targetTerm,
@@ -872,6 +874,7 @@ export async function translateProviderJobFiles(input: {
                       reviewState: "pending",
                       changedFields: deriveChangedFields(from, to),
                       warnings: proposalWarnings,
+                      fileId: unit.fileId ?? prepared.sourceFile.id,
                     }),
                   );
                 }

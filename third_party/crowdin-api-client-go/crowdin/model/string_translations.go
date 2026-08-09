@@ -54,6 +54,9 @@ type ApprovalsListOptions struct {
 	// Translation Identifier.
 	// Note: If specified, `fileId`, `stringId` and `languageId` are ignored.
 	TranslationID int `json:"translationId,omitempty"`
+	// Correction Identifier.
+	// Note: If specified, `fileId`, `stringId` and `languageId` are ignored.
+	CorrectionID int `json:"correctionId,omitempty"`
 
 	ListOptions
 }
@@ -87,6 +90,9 @@ func (o *ApprovalsListOptions) Values() (url.Values, bool) {
 	}
 	if o.TranslationID > 0 {
 		v.Add("translationId", strconv.Itoa(o.TranslationID))
+	}
+	if o.CorrectionID > 0 {
+		v.Add("correctionId", strconv.Itoa(o.CorrectionID))
 	}
 
 	return v, len(v) > 0
@@ -287,6 +293,115 @@ type TranslationGetOptions struct {
 // Values returns the url.Values representation of the TranslationGetOptions.
 // It implements the crowdin.ListOptionsProvider interface.
 func (o *TranslationGetOptions) Values() (url.Values, bool) {
+	if o == nil {
+		return nil, false
+	}
+
+	v := url.Values{}
+	if o.DenormalizePlaceholders != nil &&
+		(*o.DenormalizePlaceholders == 0 || *o.DenormalizePlaceholders == 1) {
+		v.Add("denormalizePlaceholders", strconv.Itoa(*o.DenormalizePlaceholders))
+	}
+	return v, len(v) > 0
+}
+
+// Correction represents a Crowdin translation correction (Enterprise only).
+type Correction struct {
+	ID                 int        `json:"id"`
+	Text               string     `json:"text"`
+	PluralCategoryName string     `json:"pluralCategoryName"`
+	User               *ShortUser `json:"user"`
+	CreatedAt          string     `json:"createdAt"`
+}
+
+// CorrectionGetResponse defines the structure of the response when
+// getting a single translation correction.
+type CorrectionGetResponse struct {
+	Data *Correction `json:"data"`
+}
+
+// CorrectionsListResponse defines the structure of the response when
+// getting a list of translation corrections.
+type CorrectionsListResponse struct {
+	Data       []*CorrectionGetResponse `json:"data"`
+	Pagination *Pagination              `json:"pagination"`
+}
+
+// CorrectionsListOptions specifies the optional parameters to the
+// StringTranslationsService.ListCorrections method.
+type CorrectionsListOptions struct {
+	// String Identifier. Filter corrections by `stringId`.
+	// Note: Required in Crowdin Enterprise.
+	StringID int `json:"stringId,omitempty"`
+	// Sort corrections.
+	OrderBy string `json:"orderBy,omitempty"`
+	// Enable denormalize placeholders.
+	// Enum: 0, 1. Default: 0.
+	DenormalizePlaceholders *int `json:"denormalizePlaceholders,omitempty"`
+
+	ListOptions
+}
+
+// Values returns the url.Values representation of the CorrectionsListOptions.
+// It implements the crowdin.ListOptionsProvider interface.
+func (o *CorrectionsListOptions) Values() (url.Values, bool) {
+	if o == nil {
+		return nil, false
+	}
+
+	v, _ := o.ListOptions.Values()
+
+	if o.StringID > 0 {
+		v.Add("stringId", strconv.Itoa(o.StringID))
+	}
+	if o.OrderBy != "" {
+		v.Add("orderBy", o.OrderBy)
+	}
+	if o.DenormalizePlaceholders != nil &&
+		(*o.DenormalizePlaceholders == 0 || *o.DenormalizePlaceholders == 1) {
+		v.Add("denormalizePlaceholders", strconv.Itoa(*o.DenormalizePlaceholders))
+	}
+
+	return v, len(v) > 0
+}
+
+// CorrectionAddRequest defines the structure of the request
+// to add a translation correction.
+type CorrectionAddRequest struct {
+	// String Identifier.
+	StringID int `json:"stringId"`
+	// Correction text.
+	Text string `json:"text"`
+	// Plural form. Enum: zero, one, two, few, many, and other.
+	PluralCategoryName string `json:"pluralCategoryName,omitempty"`
+}
+
+// Validate checks if the CorrectionAddRequest is valid.
+// It implements the crowdin.RequestValidator interface.
+func (r *CorrectionAddRequest) Validate() error {
+	if r == nil {
+		return errors.New("request cannot be nil")
+	}
+	if r.StringID == 0 {
+		return errors.New("string ID is required")
+	}
+	if r.Text == "" {
+		return errors.New("text is required")
+	}
+	return nil
+}
+
+// CorrectionGetOptions specifies the optional parameters to the
+// StringTranslationsService.GetCorrection method.
+type CorrectionGetOptions struct {
+	// Enable denormalize placeholders.
+	// Enum: 0, 1. Default: 0.
+	DenormalizePlaceholders *int `json:"denormalizePlaceholders,omitempty"`
+}
+
+// Values returns the url.Values representation of the CorrectionGetOptions.
+// It implements the crowdin.ListOptionsProvider interface.
+func (o *CorrectionGetOptions) Values() (url.Values, bool) {
 	if o == nil {
 		return nil, false
 	}

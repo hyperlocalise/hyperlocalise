@@ -12,11 +12,14 @@
  */
 import { Sandbox } from "@vercel/sandbox";
 
+import { env } from "@/lib/env";
+import { isReleaseSandboxVcrImageEnabled } from "@/lib/flags/release-flags";
+
 /** Pinned ripgrep release used when package managers do not ship rg (e.g. Amazon Linux 2023). */
 export const sandboxRipgrepReleaseVersion = "14.1.1";
 
 /** Pinned hyperlocalise CLI release installed into every sandbox. */
-export const sandboxHyperlocaliseReleaseVersion = "1.8.24";
+export const sandboxHyperlocaliseReleaseVersion = "1.8.28";
 
 /**
  * Pinned Playwright release used for Debian/Ubuntu `install-deps` fallback.
@@ -56,6 +59,14 @@ export const sandboxChromiumDnfPackages = [
 
 type VercelSandboxCreateOptions = Parameters<typeof Sandbox.create>[0];
 
+/**
+ * Default managed image for sandboxes that do not opt into the custom VCR
+ * image. `@vercel/sandbox` v3 deprecates `runtime`; use the Ubuntu Node 26
+ * image equivalent of the former `runtime: "node26"` default.
+ */
+export const defaultVercelSandboxImage = "vercel/sandbox/node:26";
+
+/** @deprecated Prefer {@link defaultVercelSandboxImage}. */
 export const defaultVercelSandboxRuntime = "node26";
 
 /**
@@ -182,11 +193,19 @@ export const installRequiredSandboxToolsCommand = [
 export async function createConfiguredVercelSandbox(
   options: VercelSandboxCreateOptions = {},
 ): Promise<Sandbox> {
-  const shouldUseDefaultRuntime =
-    !("runtime" in options) && !("image" in options) && options.source?.type !== "snapshot";
+  const callerChoosesImageOrRuntime =
+    "runtime" in options || "image" in options || options.source?.type === "snapshot";
+  const vcrSandboxImage = env.VERCEL_SANDBOX_IMAGE;
+  const shouldUseVcrImage =
+    !callerChoosesImageOrRuntime &&
+    vcrSandboxImage != null &&
+    vcrSandboxImage.length > 0 &&
+    (await isReleaseSandboxVcrImageEnabled());
+  const shouldUseDefaultImage = !callerChoosesImageOrRuntime && !shouldUseVcrImage;
   const createOptions = {
     ...options,
-    ...(shouldUseDefaultRuntime ? { runtime: defaultVercelSandboxRuntime } : {}),
+    ...(shouldUseVcrImage ? { image: vcrSandboxImage } : {}),
+    ...(shouldUseDefaultImage ? { image: defaultVercelSandboxImage } : {}),
     ...("snapshotExpiration" in options ? {} : { snapshotExpiration: sandboxSnapshotExpirationMs }),
     ...("keepLastSnapshots" in options
       ? {}

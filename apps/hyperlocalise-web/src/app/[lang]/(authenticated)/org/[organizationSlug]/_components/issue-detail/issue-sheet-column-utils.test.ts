@@ -87,6 +87,7 @@ describe("issue-sheet-column-utils", () => {
       updatedAt: "2026-07-21T00:00:00.000Z",
       resolvedAt: null,
       values: { sprint: "S24", context: "Saved context" },
+      isWatching: false,
     } satisfies IssueDetailIssue;
     const columns = [
       column({ key: "sprint", type: "select" }),

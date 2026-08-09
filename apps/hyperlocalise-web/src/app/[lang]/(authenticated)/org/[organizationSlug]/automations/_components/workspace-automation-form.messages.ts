@@ -281,8 +281,8 @@ export const workspaceAutomationFormMessages = defineMessages({
     description: "Dropdown section label for available automation tools",
   },
   memories: {
-    defaultMessage: "Memories",
-    id: "mLI55faX8v",
+    defaultMessage: "Use organization memory",
+    id: "4QiNYfF++j",
     description: "Menu item and tool title for workspace knowledge memories",
   },
   memoriesDescription: {
@@ -315,6 +315,17 @@ export const workspaceAutomationFormMessages = defineMessages({
     defaultMessage: "Remove memories tool",
     id: "axtydiBtML",
     description: "Accessible label to remove the knowledge memories tool",
+  },
+  allowMemoryUpdates: {
+    defaultMessage: "Allow memory updates",
+    id: "Bel9GZJcDc",
+    description: "Toggle label letting this automation append to organization Memory.md",
+  },
+  allowMemoryUpdatesWarning: {
+    defaultMessage:
+      "Allows this automation to append information to the organization's shared Memory.md. Changes are recorded in revision history and can be restored.",
+    id: "zLdcgO8mwD",
+    description: "Warning copy shown when the allow-memory-updates toggle is on",
   },
   enableKnowledgeFirstShortcut: {
     defaultMessage: "Enable first",

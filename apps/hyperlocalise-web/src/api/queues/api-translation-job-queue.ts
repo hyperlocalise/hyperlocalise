@@ -13,17 +13,17 @@
 import { eq } from "drizzle-orm";
 
 import { db, schema } from "@/lib/database";
-import { workspaceKnowledgeFlag } from "@/lib/flags/workspace-flags";
+import { resolveWorkspaceKnowledgeFlag } from "@/lib/flags/workspace-flags";
 import { createTranslationJobEventQueue } from "@/lib/workflow/queues";
 import type { JobQueue, TranslationJobEventData } from "@/lib/workflow/types";
 
+// Delegates to resolveWorkspaceKnowledgeFlag (which takes an internal organizationId directly)
+// instead of re-running its own org lookup + workspaceKnowledgeFlag.run() — this call site only
+// has a projectId, so it resolves that to an organizationId first.
 async function resolveKnowledgeMemoryEnabled(projectId: string) {
   const [project] = await db
-    .select({
-      workosOrganizationId: schema.organizations.workosOrganizationId,
-    })
+    .select({ organizationId: schema.projects.organizationId })
     .from(schema.projects)
-    .innerJoin(schema.organizations, eq(schema.organizations.id, schema.projects.organizationId))
     .where(eq(schema.projects.id, projectId))
     .limit(1);
 
@@ -31,13 +31,7 @@ async function resolveKnowledgeMemoryEnabled(projectId: string) {
     return false;
   }
 
-  return (
-    (await workspaceKnowledgeFlag.run({
-      identify: () => ({
-        organization: { id: project.workosOrganizationId },
-      }),
-    })) === true
-  );
+  return resolveWorkspaceKnowledgeFlag({ organizationId: project.organizationId });
 }
 
 export function createApiTranslationJobQueue(): JobQueue<TranslationJobEventData> {

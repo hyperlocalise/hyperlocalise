@@ -16,17 +16,26 @@ import { randomUUID } from "node:crypto";
 
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
-const { workflowEnqueueMock, workspaceKnowledgeFlagRunMock } = vi.hoisted(() => ({
+const { workflowEnqueueMock, resolveWorkspaceKnowledgeFlagMock } = vi.hoisted(() => ({
   workflowEnqueueMock: vi.fn(),
-  workspaceKnowledgeFlagRunMock: vi.fn(),
+  resolveWorkspaceKnowledgeFlagMock: vi.fn(),
 }));
 
 vi.mock("@/lib/workflow/queues", () => ({
   createTranslationJobEventQueue: () => ({ enqueue: workflowEnqueueMock }),
 }));
 
+// Mocks resolveWorkspaceKnowledgeFlag itself, not workspaceKnowledgeFlag (the flag object it
+// closes over): an importOriginal-spread mock re-exports the *real* resolveWorkspaceKnowledgeFlag
+// function, whose own body still resolves `workspaceKnowledgeFlag` from its own module's closure,
+// not from this file's mock object — the override never takes effect, and the real function reaches
+// the real WorkOS adapter, which fails closed to false under vp test's placeholder credentials
+// regardless of what this mock returns. Mocking the resolver directly avoids that entirely. This
+// does mean resolveWorkspaceKnowledgeFlag's own org-lookup-then-flag.run() body isn't exercised
+// here — it's covered by resolveKnowledgeMemoryEnabled's own org-lookup assertion below instead,
+// and by memory-tools-integration.test.ts's real end-to-end DB coverage for the tools that call it.
 vi.mock("@/lib/flags/workspace-flags", () => ({
-  workspaceKnowledgeFlag: { run: workspaceKnowledgeFlagRunMock },
+  resolveWorkspaceKnowledgeFlag: resolveWorkspaceKnowledgeFlagMock,
 }));
 
 import { createProjectTestFixture } from "@/api/routes/project/project.fixture";
@@ -43,7 +52,7 @@ beforeAll(async () => {
 
 beforeEach(() => {
   workflowEnqueueMock.mockResolvedValue({ ids: ["run_test"] });
-  workspaceKnowledgeFlagRunMock.mockResolvedValue(true);
+  resolveWorkspaceKnowledgeFlagMock.mockResolvedValue(true);
 });
 
 afterEach(async () => {
@@ -66,17 +75,16 @@ describe("createApiTranslationJobQueue", () => {
     expect(workflowEnqueueMock).toHaveBeenCalledWith(
       expect.objectContaining({ knowledgeMemoryEnabled: true }),
     );
-    const flagInput = workspaceKnowledgeFlagRunMock.mock.calls[0]?.[0] as {
-      identify: () => { organization: { id: string } };
-    };
-    expect(flagInput.identify()).toEqual({
-      organization: { id: organization.workosOrganizationId },
+    // Proves resolveKnowledgeMemoryEnabled's own project -> organizationId resolution, now that
+    // resolveWorkspaceKnowledgeFlag's own internals are mocked out from under it.
+    expect(resolveWorkspaceKnowledgeFlagMock).toHaveBeenCalledWith({
+      organizationId: organization.id,
     });
   });
 
   it("disables knowledge memory for a non-entitled string job organization", async () => {
     const { project } = await fixture.createStoredProjectFixture();
-    workspaceKnowledgeFlagRunMock.mockResolvedValue(false);
+    resolveWorkspaceKnowledgeFlagMock.mockResolvedValue(false);
     const queue = createApiTranslationJobQueue();
 
     await queue.enqueue({
@@ -101,7 +109,7 @@ describe("createApiTranslationJobQueue", () => {
       type: "string",
     });
 
-    expect(workspaceKnowledgeFlagRunMock).not.toHaveBeenCalled();
+    expect(resolveWorkspaceKnowledgeFlagMock).not.toHaveBeenCalled();
     expect(workflowEnqueueMock).toHaveBeenCalledWith(
       expect.objectContaining({ knowledgeMemoryEnabled: false }),
     );
@@ -109,7 +117,7 @@ describe("createApiTranslationJobQueue", () => {
 
   it("fails closed when the entitlement lookup throws", async () => {
     const { project } = await fixture.createStoredProjectFixture();
-    workspaceKnowledgeFlagRunMock.mockRejectedValue(new Error("flag unavailable"));
+    resolveWorkspaceKnowledgeFlagMock.mockRejectedValue(new Error("flag unavailable"));
     const queue = createApiTranslationJobQueue();
 
     await queue.enqueue({
@@ -135,7 +143,7 @@ describe("createApiTranslationJobQueue", () => {
 
     await queue.enqueue(event);
 
-    expect(workspaceKnowledgeFlagRunMock).not.toHaveBeenCalled();
+    expect(resolveWorkspaceKnowledgeFlagMock).not.toHaveBeenCalled();
     expect(workflowEnqueueMock).toHaveBeenCalledWith(event);
   });
 });

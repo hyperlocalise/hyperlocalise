@@ -25,7 +25,21 @@ import type { WorkspaceOrchestratorSession } from "./context";
 export function createWorkspaceOrchestratorAgent(session: WorkspaceOrchestratorSession) {
   const tools = buildWorkspaceOrchestratorTools(session);
   const plannedToolCount = session.plan.tools.length;
-  const stepLimit = Math.min(WORKSPACE_ORCHESTRATOR_STEP_LIMIT, Math.max(plannedToolCount + 1, 1));
+  // WORKSPACE_ORCHESTRATOR_STEP_LIMIT is a floor, not a ceiling: prepareStep below forces the
+  // exact next planned tool at each step (or toolChoice: "none" past the end of the plan), so
+  // there's no way for the loop to run past plannedToolCount + 1 steps regardless of how high this
+  // is set. Capping it with Math.min instead used to silently drop any planned tool beyond the
+  // limit — e.g. Memory enabled on an automation already planning 6 tools pushed the 7th (often
+  // the Slack/email notification) past the cap, so it never ran even though the automation
+  // reported success.
+  //
+  // Every planned tool is forced via toolChoice: { type: "tool", toolName }, never "auto": the
+  // underlying ToolLoopAgent's step loop only continues past a step that produced at least one
+  // tool call, so an "auto" step the model could legitimately skip (e.g. a genuinely optional
+  // save_memory call) risked ending the run before any tool planned after it — like a Slack/email
+  // notification — ever ran. save_memory being forced doesn't mean it fabricates content: its own
+  // input schema accepts an explicit "nothing to remember" decision instead.
+  const stepLimit = Math.max(WORKSPACE_ORCHESTRATOR_STEP_LIMIT, plannedToolCount + 1);
 
   return new ToolLoopAgent({
     model: getHyperlocaliseAgentModel(),

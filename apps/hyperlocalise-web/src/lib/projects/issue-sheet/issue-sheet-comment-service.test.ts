@@ -24,6 +24,7 @@ import {
   IssueSheetCommentService,
 } from "@/lib/projects/issue-sheet/issue-sheet-comment-service";
 import { IssueSheetService } from "@/lib/projects/issue-sheet/issue-sheet-service";
+import { issueSubscriptionService } from "@/lib/projects/issue-sheet/issue-subscription-service";
 import { ensureDefaultWorkspaceTeam } from "@/lib/teams/default-workspace-team";
 
 const authFixture = createAuthTestFixture();
@@ -400,6 +401,73 @@ describe("IssueSheetCommentService", () => {
       },
     });
     expect(allowed.ok).toBe(true);
+  });
+
+  it("subscribes newly mentioned users when a comment is edited", async () => {
+    const { identity, project, user } = await createProjectForIdentity();
+    const memberIdentity = authFixture.createWorkosIdentityForOrganization(
+      identity.organization,
+      "member",
+    );
+    await authFixture.authHeadersFor(memberIdentity);
+    const memberUserId = await authFixture.getLocalUserId(memberIdentity.user.workosUserId);
+    await db.insert(schema.teamMemberships).values({
+      teamId: project.teamId!,
+      userId: memberUserId,
+      role: "member",
+    });
+    await authFixture.authHeadersFor(identity);
+    const organizationId = actorAuth().organization.localOrganizationId;
+    const auth = actorAuth();
+
+    const issue = await issueSheetService.createIssue({
+      organizationId,
+      projectId: project.id,
+      actorUserId: user.id,
+      body: { title: "Mention on edit", issueType: "general_question" },
+    });
+
+    const created = await commentService.create({
+      organizationId,
+      projectId: project.id,
+      issueId: issue.id,
+      actorUserId: user.id,
+      role: "admin",
+      auth,
+      body: { body: "Initial comment" },
+    });
+    expect(created.ok).toBe(true);
+    if (!created.ok) {
+      return;
+    }
+
+    await issueSubscriptionService.unsubscribe({
+      organizationId,
+      projectId: project.id,
+      issueId: issue.id,
+      userId: memberUserId,
+    });
+
+    const updated = await commentService.update({
+      organizationId,
+      projectId: project.id,
+      issueId: issue.id,
+      commentId: created.value.id,
+      actorUserId: user.id,
+      role: "admin",
+      auth,
+      body: {
+        body: "Updated with mention",
+        mentionedUserIds: [memberUserId],
+      },
+    });
+    expect(updated.ok).toBe(true);
+
+    const subscribed = await issueSubscriptionService.isSubscribed({
+      issueId: issue.id,
+      userId: memberUserId,
+    });
+    expect(subscribed).toBe(true);
   });
 
   it("cascades reply deletion when deleting a parent comment", async () => {

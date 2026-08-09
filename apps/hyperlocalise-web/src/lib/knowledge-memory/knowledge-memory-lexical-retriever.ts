@@ -91,6 +91,21 @@ function tokenize(value: string): string[] {
     .filter((token) => token.length > 1 && !stopWords.has(token));
 }
 
+/**
+ * Stable representative for a token's spelling-variant family (e.g. color/colour both resolve to
+ * "color"), used to avoid double-counting a single literal word as independent evidence when
+ * expandTokens has added its variant to the same unit's token set alongside it. Sorting the
+ * family and taking the first entry needs no extra state and is stable regardless of which
+ * variant happens to be the literal one.
+ */
+export function canonicalizeSpellingVariant(token: string): string {
+  const family = tokenVariantMap[token];
+  if (!family || family.length === 0) {
+    return token;
+  }
+  return [token, ...family].sort()[0]!;
+}
+
 function expandTokens(tokens: string[]) {
   const expanded = new Set<string>();
   for (const token of tokens) {
@@ -104,6 +119,15 @@ function expandTokens(tokens: string[]) {
 
 function uniqueValues(values: Array<string | null | undefined>) {
   return [...new Set(values.map((value) => value?.trim()).filter(Boolean) as string[])];
+}
+
+/**
+ * Shared tokenizer (stopwords + spelling-variant expansion) used both to score segments during
+ * retrieval and to score sentences/bullets during excerpt selection, so scoring stays consistent
+ * across the two stages instead of duplicating tokenisation rules.
+ */
+export function expandKnowledgeMemoryTokens(value: string): Set<string> {
+  return expandTokens(tokenize(value));
 }
 
 function buildQueryParts(input: SelectKnowledgeMemoryContextInput) {
@@ -199,16 +223,46 @@ function scoreSegment(
   return score;
 }
 
-export const retrieveKnowledgeMemorySegmentsLexically: KnowledgeMemoryRetriever = ({
-  segments,
-  query,
-}) => {
+/**
+ * Also used directly by excerpt selection (knowledge-memory-selection.ts, when the default
+ * retriever is active) to build queryTokens for rankMatchingUnits/headingMatchesQuery — not just
+ * for retrieval scoring here. Regular tokenizing alone doesn't split a hyphenated locale like
+ * "fr-FR" into its base language: the "-" survives inside a single "fr-fr" token (tokenize's char
+ * class treats it like a letter), so a language-level heading such as "### fr" never matched
+ * queryTokens even though scoreSegment below already awards that same segment a locale-marker
+ * bonus for exactly this relationship (via inputLocalesFromParts/localeSearchCandidates). Adding
+ * those same locale candidates here keeps both consumers seeing the language token the retriever
+ * already reasons about, instead of the excerpter silently missing it and centering on some
+ * unrelated incidental match elsewhere in the segment's body under a tight budget.
+ */
+export function buildKnowledgeMemoryQueryTokens(
+  query: SelectKnowledgeMemoryContextInput,
+): Set<string> {
   const queryParts = buildQueryParts(query);
-  const queryTokens = expandTokens(tokenize(queryParts.join(" ")));
+  const tokens = expandKnowledgeMemoryTokens(queryParts.join(" "));
+  for (const locale of inputLocalesFromParts(queryParts)) {
+    for (const candidate of localeSearchCandidates(locale)) {
+      tokens.add(candidate);
+    }
+  }
+  return tokens;
+}
+
+/**
+ * Split out from retrieveKnowledgeMemorySegmentsLexically so a caller that already has queryTokens
+ * (knowledge-memory-selection.ts, which also needs them separately for excerpt selection) can reuse
+ * them here instead of paying for buildKnowledgeMemoryQueryTokens's tokenize + spelling-variant
+ * expansion a second time for the same query.
+ */
+export function retrieveKnowledgeMemorySegmentsLexicallyWithTokens(
+  segments: KnowledgeMemorySegment[],
+  query: SelectKnowledgeMemoryContextInput,
+  queryTokens: Set<string>,
+) {
   if (queryTokens.size === 0) {
     return [];
   }
-  const inputLocales = inputLocalesFromParts(queryParts);
+  const inputLocales = inputLocalesFromParts(buildQueryParts(query));
 
   return segments
     .map((segment) => ({
@@ -222,4 +276,14 @@ export const retrieveKnowledgeMemorySegmentsLexically: KnowledgeMemoryRetriever 
       }
       return a.segment.startOffset - b.segment.startOffset;
     });
-};
+}
+
+export const retrieveKnowledgeMemorySegmentsLexically: KnowledgeMemoryRetriever = ({
+  segments,
+  query,
+}) =>
+  retrieveKnowledgeMemorySegmentsLexicallyWithTokens(
+    segments,
+    query,
+    buildKnowledgeMemoryQueryTokens(query),
+  );

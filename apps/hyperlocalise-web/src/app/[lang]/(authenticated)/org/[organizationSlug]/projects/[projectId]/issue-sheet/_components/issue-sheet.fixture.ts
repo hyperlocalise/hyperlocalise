@@ -60,7 +60,46 @@ export type IssueSheetIssueFixture = {
   updatedAt: string;
   resolvedAt: string | null;
   values: Record<string, unknown>;
+  isWatching: boolean;
 };
+
+export type IssueSheetSubscriberFixture = {
+  userId: string;
+  displayName: string;
+  avatarUrl: string | null;
+};
+
+export const issueSheetSubscribersFixture: IssueSheetSubscriberFixture[] = [
+  {
+    userId: "user_mina",
+    displayName: "Mina Chen",
+    avatarUrl: null,
+  },
+  {
+    userId: "user_otto",
+    displayName: "Otto Klein",
+    avatarUrl: null,
+  },
+];
+
+export const issueSheetManySubscribersFixture: IssueSheetSubscriberFixture[] = [
+  ...issueSheetSubscribersFixture,
+  {
+    userId: "user_aiko",
+    displayName: "Aiko Tanaka",
+    avatarUrl: null,
+  },
+  {
+    userId: "user_jamal",
+    displayName: "Jamal Rivers",
+    avatarUrl: null,
+  },
+  {
+    userId: "user_leo",
+    displayName: "Leo Park",
+    avatarUrl: null,
+  },
+];
 
 export const issueSheetColumnsFixture: IssueSheetColumnFixture[] = [
   {
@@ -97,6 +136,15 @@ export const issueSheetColumnsFixture: IssueSheetColumnFixture[] = [
     sortOrder: 30,
   },
   {
+    id: "col_acceptance",
+    key: "acceptance",
+    label: "Acceptance criteria",
+    layer: "custom",
+    type: "long_text",
+    config: {},
+    sortOrder: 35,
+  },
+  {
     id: "col_sprint",
     key: "sprint",
     label: "Sprint",
@@ -109,6 +157,24 @@ export const issueSheetColumnsFixture: IssueSheetColumnFixture[] = [
       ],
     },
     sortOrder: 40,
+  },
+  {
+    id: "col_component",
+    key: "component",
+    label: "Component",
+    layer: "custom",
+    type: "text",
+    config: {},
+    sortOrder: 50,
+  },
+  {
+    id: "col_reviewer",
+    key: "reviewer",
+    label: "Reviewer",
+    layer: "custom",
+    type: "user",
+    config: {},
+    sortOrder: 60,
   },
 ];
 
@@ -139,8 +205,12 @@ export function createIssueSheetIssue(
       priority: "P1",
       owner_note: "Waiting on product copy review.",
       context: "",
+      acceptance: "Confirm CTA meaning with product before translation.",
       sprint: "S24",
+      component: "Checkout",
+      reviewer: "user_mina",
     },
+    isWatching: true,
     ...overrides,
   };
 }
@@ -162,6 +232,10 @@ export const issueSheetIssuesFixture: IssueSheetIssueFixture[] = [
       priority: "P2",
       owner_note: "Shorten to fit mobile layout.",
       context: "",
+      acceptance: "",
+      sprint: "S25",
+      component: "Payments",
+      reviewer: "user_otto",
     },
     updatedAt: iso(-3_600_000),
   }),
@@ -178,10 +252,15 @@ export const issueSheetIssuesFixture: IssueSheetIssueFixture[] = [
     sourceText: "Welcome back",
     reporter: "QA Bot",
     assignee: "Aiko Tanaka",
+    assigneeUserId: "user_aiko",
     values: {
       priority: "P1",
       owner_note: "Shortened German variant approved.",
       context: "Suggested shorter headline: Willkommen zurück",
+      acceptance: "German headline fits the hero without wrapping on mobile.",
+      sprint: "S24",
+      component: "Marketing",
+      reviewer: "user_mina",
     },
     resolvedAt: iso(-172_800_000),
     updatedAt: iso(-172_800_000),

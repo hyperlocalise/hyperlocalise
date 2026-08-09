@@ -575,6 +575,44 @@ describe("selectKnowledgeMemoryContext", () => {
     expect(selected.compactText).not.toBe("Avoid US spelling.");
   });
 
+  it("keeps a language-level heading's opening rule when a regional target selects it", () => {
+    // Regression for a Codex finding: retrieveKnowledgeMemorySegmentsLexically derives the base
+    // language ("fr") from a regional targetLocale ("fr-FR") to award a language-level heading a
+    // locale-marker score, but buildKnowledgeMemoryQueryTokens only tokenized the literal query
+    // parts, never adding that derived language back in. So headingMatchesQuery (excerpt.ts)
+    // couldn't recognize the "fr" heading as a query match, and an incidental match elsewhere in
+    // the section's body (here, "checkout") got excerpted instead of the section's actual opening
+    // rule, which has no token overlap with the query and isn't adjacent to the incidental match.
+    const content = [
+      "# Memory.md",
+      "",
+      "## Locale notes",
+      "",
+      "### fr",
+      "",
+      "Always keep the brand name capitalized exactly as written in every context. " +
+        "This is unrelated filler text about generic formatting standards used broadly. " +
+        "This section also discusses checkout flows for testing purposes here today.",
+      "",
+      // Padding past KNOWLEDGE_MEMORY_SMALL_CONTENT_MAX_LENGTH so selective retrieval and
+      // per-segment excerpting actually run, instead of the whole-memory-verbatim fallback a
+      // short document would take (which would trivially include the opening rule regardless).
+      ...Array.from(
+        { length: 60 },
+        (_, index) => `## Noise section ${index + 1}\n\nSupport operations archive ${index + 1}.`,
+      ),
+    ].join("\n");
+
+    const selected = selectKnowledgeMemoryContext({
+      content,
+      targetLocale: "fr-FR",
+      sourceText: "checkout",
+    });
+
+    expect(selected.metrics.fallbackMode).toBe("selective");
+    expect(selected.compactText).toContain("Always keep the brand name capitalized");
+  });
+
   it("reduces selected prompt text compared with the whole memory on a long fixture", () => {
     const content = longRepresentativeMemory();
     const selected = selectKnowledgeMemoryContext({
@@ -631,6 +669,142 @@ describe("selectKnowledgeMemoryContext", () => {
     expect(content.length).toBeLessThan(KNOWLEDGE_MEMORY_SMALL_CONTENT_MAX_LENGTH);
     expect(selected.metrics.fallbackMode).toBe("selective");
     expect(selected.metrics.selectedMemoryChars).toBeLessThanOrEqual(256);
+  });
+
+  it("keeps a matched rule under a tight cap instead of a query-independent prefix cut", () => {
+    // Regression for a Codex finding: with a single selected segment (no multi-locale balancing),
+    // maxCharsPerSelectedSegment returns undefined, so buildSegmentExcerpt used to always get the
+    // 900-char default regardless of the caller's real maxChars. The correctly match-centered
+    // excerpt then got dumbly prefix-cut down to the real (smaller) cap afterward, discarding the
+    // match if it wasn't near the very start.
+    const content = [
+      "# Memory.md",
+      "",
+      "## Checkout guidance",
+      "",
+      "This section explains various general formatting details and covers many unrelated " +
+        "checkout process steps before finally explaining that the tailmarker identifier must " +
+        "never be translated under any circumstances.",
+      "",
+      "## Reference",
+      "",
+      "Unrelated reference details. ".repeat(80),
+    ].join("\n");
+
+    const selected = selectKnowledgeMemoryContext({
+      content,
+      targetLocale: "en-AU",
+      sourceText: "Translate the tailmarker string",
+      maxChars: 100,
+    });
+
+    expect(content.length).toBeGreaterThan(KNOWLEDGE_MEMORY_SMALL_CONTENT_MAX_LENGTH);
+    expect(selected.metrics.fallbackMode).toBe("selective");
+    expect(selected.compactText).toContain("tailmarker");
+  });
+
+  it("lets a single selected segment use the caller's real budget instead of a fixed 900-char cap", () => {
+    // Regression for a Codex finding: with a single selected segment (no multi-locale balancing),
+    // maxCharsPerSelectedSegment returns undefined, so buildSegmentExcerpt used to always fall back
+    // to a fixed 900-char default no matter how much larger the caller's real maxChars was —
+    // silently discarding matched sentences the caller had budget for.
+    const matchingSentences = Array.from(
+      { length: 20 },
+      (_, index) => `Rule number ${index} explains that tailmarker must never be translated here.`,
+    ).join(" ");
+    const content = [
+      "# Memory.md",
+      "",
+      "## Checkout guidance",
+      "",
+      matchingSentences,
+      "",
+      "## Reference",
+      "",
+      "Unrelated reference details. ".repeat(80),
+    ].join("\n");
+
+    const selected = selectKnowledgeMemoryContext({
+      content,
+      targetLocale: "en-AU",
+      sourceText: "Translate the tailmarker string",
+      maxChars: KNOWLEDGE_MEMORY_SELECTED_CONTEXT_MAX_LENGTH,
+    });
+
+    expect(selected.metrics.fallbackMode).toBe("selective");
+    expect(selected.metrics.selectedMemoryChars).toBeGreaterThan(1_200);
+    expect(selected.compactText).toContain("Rule number 19");
+  });
+
+  it("balances excerpts across multiple selected segments under a single target locale", () => {
+    // Regression for a Codex finding against the fix above: giving a segment the caller's full
+    // maxChars when maxSegmentChars is undefined isn't safe once more than one segment is
+    // selected — maxCharsPerSelectedSegment used to only balance for multi-locale requests, so a
+    // single-locale query matching two independent sections still left the first one uncapped. Its
+    // preview then filled the entire outer budget, and appendWithinBudget's sequential loop
+    // rejected the second segment outright instead of each one getting a bounded share.
+    const manyMatchingSentences = Array.from(
+      { length: 60 },
+      (_, index) => `Rule number ${index} explains that tailmarker must never be translated here.`,
+    ).join(" ");
+    const content = [
+      "# Memory.md",
+      "",
+      "## Checkout guidance",
+      "",
+      manyMatchingSentences,
+      "",
+      "## Payment guidance",
+      "",
+      "Never translate the paymentmarker identifier for any locale.",
+    ].join("\n");
+
+    const selected = selectKnowledgeMemoryContext({
+      content,
+      targetLocale: "en-AU",
+      sourceText: "Translate the tailmarker and paymentmarker strings",
+      maxChars: KNOWLEDGE_MEMORY_SELECTED_CONTEXT_MAX_LENGTH,
+    });
+
+    expect(selected.metrics.fallbackMode).toBe("selective");
+    expect(selected.metrics.selectedMemoryCount).toBe(2);
+    expect(selected.compactText).toContain("paymentmarker");
+  });
+
+  it("keeps the end of a heading-driven fallback preview in segment metadata under a tight cap", () => {
+    // Regression for a Codex finding: the fix above (bound the per-segment excerpt to maxChars)
+    // also capped the no-query-token-match fallback the same way. That fallback is a plain prefix
+    // cut with no match to center on, so capping it to the same small budget can remove guidance
+    // from the end of a preview that would otherwise have fit — here, the segment is selected
+    // because "routingtoken" is in its heading, not its body, so buildSegmentExcerpt falls back to
+    // compactPromptText entirely. compactText itself is still bounded by the outer maxChars either
+    // way (appendWithinBudget's own trim), so the observable difference is in the segment metadata
+    // preview field, which downstream consumers (e.g. a "matched excerpts" UI) read independently
+    // of the assembled prompt text.
+    const content = [
+      "# Memory.md",
+      "",
+      "## routingtoken guidance",
+      "",
+      "General unrelated body text repeated here to push the preview well past a small budget so " +
+        "it needs truncating at all. ".repeat(3) +
+        "IMPORTANT_TAIL_MARKER must never be dropped from the end of this preview.",
+      "",
+      "## Reference",
+      "",
+      "Unrelated reference details. ".repeat(80),
+    ].join("\n");
+
+    const selected = selectKnowledgeMemoryContext({
+      content,
+      targetLocale: "en-AU",
+      sourceText: "Translate the routingtoken string",
+      maxChars: 100,
+    });
+
+    expect(content.length).toBeGreaterThan(KNOWLEDGE_MEMORY_SMALL_CONTENT_MAX_LENGTH);
+    expect(selected.metrics.fallbackMode).toBe("selective");
+    expect(selected.segments.map((s) => s.preview).join("\n")).toContain("IMPORTANT_TAIL_MARKER");
   });
 
   it("never expands selected context beyond the source memory", () => {
@@ -1021,5 +1195,49 @@ describe("selectKnowledgeMemoryContext", () => {
     expect(selected.metrics.fallbackMode).toBe("selective");
     expect(selected.metrics.matchedHeadingPaths).toEqual(["Memory.md > Brand voice"]);
     expect(selected.compactText).toContain("engineering-native");
+  });
+
+  it("keeps a custom retriever's selected segment intact instead of centering on a coincidental keyword", () => {
+    // Regression for a Codex finding: literal query tokens were always passed into
+    // buildSegmentExcerpt, even for a custom (non-lexical) retriever whose match reason has
+    // nothing to do with token overlap. If the segment the retriever picked happens to also
+    // contain, later on, some unrelated word that matches a query token, excerpting used to
+    // center on that coincidental match and drop the actual guidance at the top of the segment.
+    const padding =
+      "This is unrelated padding text repeated to push the segment length well past a tight " +
+      "budget window used for this test. ";
+    const content = [
+      "# Memory.md",
+      "",
+      "## Custom policy",
+      "",
+      "Always keep the compliance banner pinned at the very top of every page for legal reasons. " +
+        padding.repeat(3) +
+        "A later note mentions color only in passing and is not the actual policy.",
+      "",
+      "## Reference",
+      "",
+      "Unrelated reference details. ".repeat(80),
+    ].join("\n");
+
+    const selected = selectKnowledgeMemoryContext(
+      {
+        content,
+        targetLocale: "en-AU",
+        sourceText: "Customize your color settings",
+        maxChars: 100,
+      },
+      {
+        retrieveSegments: ({ segments }) => {
+          const policySegment = segments.find(
+            (segment) => segment.headingPath.join(" > ") === "Memory.md > Custom policy",
+          );
+          return policySegment ? [{ segment: policySegment, score: 100 }] : [];
+        },
+      },
+    );
+
+    expect(content.length).toBeGreaterThan(KNOWLEDGE_MEMORY_SMALL_CONTENT_MAX_LENGTH);
+    expect(selected.compactText).toContain("compliance banner");
   });
 });

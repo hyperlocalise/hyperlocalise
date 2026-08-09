@@ -48,6 +48,7 @@ const issue: IssueDetailIssue = {
   updatedAt: "2026-07-21T00:00:00.000Z",
   resolvedAt: null,
   values: {},
+  isWatching: false,
 };
 
 function createDeferred<T>() {

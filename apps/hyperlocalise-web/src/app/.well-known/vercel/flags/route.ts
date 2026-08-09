@@ -1,6 +1,9 @@
 import { createFlagsDiscoveryEndpoint, getProviderData } from "flags/next";
 
-import { releaseCatAllFilesFlag } from "../../../../lib/flags/release-flags";
+import {
+  releaseCatAllFilesFlag,
+  releaseSandboxVcrImageFlag,
+} from "../../../../lib/flags/release-flags";
 import {
   workspaceAutomationsFlag,
   workspaceIssuesFlag,
@@ -13,5 +16,6 @@ export const GET = createFlagsDiscoveryEndpoint(async () =>
     workspaceIssuesFlag,
     workspaceKnowledgeFlag,
     releaseCatAllFilesFlag,
+    releaseSandboxVcrImageFlag,
   }),
 );

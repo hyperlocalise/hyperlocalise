@@ -58,6 +58,7 @@ export type IssueDetailIssue = {
   updatedAt: string;
   resolvedAt: string | null;
   values: Record<string, unknown>;
+  isWatching: boolean;
 };
 
 function formatUnknownLabel(value: string) {

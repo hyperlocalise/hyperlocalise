@@ -295,8 +295,38 @@ export type IssueNotificationPayload = {
 };
 
 /**
+ * Explicit issue subscriptions for users who should receive updates.
+ * Rows are created by watch, assignment, comments, and mentions; removed only
+ * by explicit unwatch or issue deletion (cascade).
+ */
+export const issueSheetSubscriptions = pgTable(
+  "issue_sheet_subscriptions",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    projectId: text("project_id")
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
+    issueId: uuid("issue_id")
+      .notNull()
+      .references(() => issueSheetIssues.id, { onDelete: "cascade" }),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("issue_sheet_subscriptions_issue_user_key").on(table.issueId, table.userId),
+    index("idx_issue_sheet_subscriptions_user_org").on(table.userId, table.organizationId),
+    index("idx_issue_sheet_subscriptions_issue").on(table.issueId),
+  ],
+);
+
+/**
  * In-app inbox notifications for Issue Sheet activity (assignment, mentions,
- * comments, and relevant changes for implicit watchers).
+ * comments, and relevant changes for subscribers).
  */
 export const issueNotifications = pgTable(
   "issue_notifications",

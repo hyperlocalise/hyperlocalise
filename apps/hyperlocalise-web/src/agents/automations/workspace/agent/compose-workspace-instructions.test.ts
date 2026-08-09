@@ -15,30 +15,36 @@ import { describe, expect, it } from "vite-plus/test";
 import { composeWorkspaceAutomationInstructions } from "./compose-workspace-instructions";
 
 describe("composeWorkspaceAutomationInstructions", () => {
-  it("includes selected knowledge when memories are enabled", () => {
+  it("nudges the agent toward recall_memory when it's in the plan", () => {
     const instructions = composeWorkspaceAutomationInstructions({
       triggerMode: "manual",
-      plan: { tools: ["notify_slack"] },
+      plan: { tools: ["notify_slack", "recall_memory"] },
       userOverride: "Notify the team.",
-      knowledgeEnabled: true,
-      knowledgeMemory: "Use sentence case for feature names.",
     });
 
-    expect(instructions).toContain("Workspace knowledge memories are enabled");
-    expect(instructions).toContain("## Workspace knowledge");
-    expect(instructions).toContain("Use sentence case for feature names.");
+    expect(instructions).toContain("recall_memory tool");
+    expect(instructions).not.toContain("save_memory tool");
   });
 
-  it("omits knowledge context copy when memories are enabled but empty", () => {
+  it("nudges the agent toward save_memory when it's in the plan", () => {
+    const instructions = composeWorkspaceAutomationInstructions({
+      triggerMode: "manual",
+      plan: { tools: ["recall_memory", "save_memory"] },
+      userOverride: "Notify the team.",
+    });
+
+    expect(instructions).toContain("recall_memory tool");
+    expect(instructions).toContain("save_memory tool");
+  });
+
+  it("omits both memory nudges when neither tool is in the plan", () => {
     const instructions = composeWorkspaceAutomationInstructions({
       triggerMode: "manual",
       plan: { tools: ["notify_slack"] },
       userOverride: "Notify the team.",
-      knowledgeEnabled: true,
-      knowledgeMemory: null,
     });
 
-    expect(instructions).not.toContain("applied as context below");
-    expect(instructions).not.toContain("## Workspace knowledge");
+    expect(instructions).not.toContain("recall_memory tool");
+    expect(instructions).not.toContain("save_memory tool");
   });
 });

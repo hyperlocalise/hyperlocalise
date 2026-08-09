@@ -17,14 +17,29 @@ const sandboxMocks = vi.hoisted(() => ({
   runCommand: vi.fn(),
 }));
 
+const releaseSandboxVcrImageEnabledMock = vi.hoisted(() => vi.fn());
+
+const envMock = vi.hoisted(() => ({
+  VERCEL_SANDBOX_IMAGE: undefined as string | undefined,
+}));
+
 vi.mock("@vercel/sandbox", () => ({
   Sandbox: {
     create: sandboxMocks.create,
   },
 }));
 
+vi.mock("@/lib/flags/release-flags", () => ({
+  isReleaseSandboxVcrImageEnabled: releaseSandboxVcrImageEnabledMock,
+}));
+
+vi.mock("@/lib/env", () => ({
+  env: envMock,
+}));
+
 import {
   createConfiguredVercelSandbox,
+  defaultVercelSandboxImage,
   installRequiredSandboxToolsCommand,
   sandboxChromiumDnfPackages,
   sandboxHyperlocaliseReleaseVersion,
@@ -109,6 +124,8 @@ describe("installRequiredSandboxToolsCommand", () => {
 describe("createConfiguredVercelSandbox", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    envMock.VERCEL_SANDBOX_IMAGE = undefined;
+    releaseSandboxVcrImageEnabledMock.mockResolvedValue(false);
     sandboxMocks.runCommand.mockResolvedValue({ exitCode: 0, output: vi.fn() });
     sandboxMocks.create.mockResolvedValue({
       name: "sandbox_123",
@@ -121,6 +138,7 @@ describe("createConfiguredVercelSandbox", () => {
 
     expect(sandboxMocks.create).toHaveBeenCalledWith(
       expect.objectContaining({
+        image: defaultVercelSandboxImage,
         snapshotExpiration: sandboxSnapshotExpirationMs,
         keepLastSnapshots: { count: sandboxSnapshotRetentionCount, deleteEvicted: true },
       }),
@@ -137,6 +155,49 @@ describe("createConfiguredVercelSandbox", () => {
       expect.objectContaining({
         snapshotExpiration: 0,
         keepLastSnapshots: { count: 1 },
+      }),
+    );
+  });
+
+  it("creates from the VCR image when the release flag is on and the image env is set", async () => {
+    const image = "vcr.vercel.com/team/project/hyperlocalise-sandbox:latest";
+    envMock.VERCEL_SANDBOX_IMAGE = image;
+    releaseSandboxVcrImageEnabledMock.mockResolvedValue(true);
+
+    await createConfiguredVercelSandbox();
+
+    expect(sandboxMocks.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        image,
+      }),
+    );
+    expect(sandboxMocks.create.mock.calls[0]?.[0]).not.toHaveProperty("runtime");
+  });
+
+  it("keeps the managed Node image when the flag is on but the image env is unset", async () => {
+    releaseSandboxVcrImageEnabledMock.mockResolvedValue(true);
+
+    await createConfiguredVercelSandbox();
+
+    expect(sandboxMocks.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        image: defaultVercelSandboxImage,
+      }),
+    );
+    expect(sandboxMocks.create.mock.calls[0]?.[0]).not.toHaveProperty("runtime");
+  });
+
+  it("keeps caller-supplied image over the release-flag default", async () => {
+    envMock.VERCEL_SANDBOX_IMAGE = "vcr.vercel.com/team/project/hyperlocalise-sandbox:latest";
+    releaseSandboxVcrImageEnabledMock.mockResolvedValue(true);
+
+    await createConfiguredVercelSandbox({
+      image: "vcr.vercel.com/team/project/hyperlocalise-sandbox:custom",
+    });
+
+    expect(sandboxMocks.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        image: "vcr.vercel.com/team/project/hyperlocalise-sandbox:custom",
       }),
     );
   });
