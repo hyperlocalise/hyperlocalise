@@ -204,4 +204,137 @@ describe("native CAT has_issues queue filter", () => {
     expect(result?.segments).toEqual([]);
     expect(result?.pagination?.totalCount).toBe(0);
   });
+
+  it("includes segments with in_progress sheet issues", async () => {
+    const { organization, user, project, sourcePath, greetingKeyId } = await seedProjectWithKeys();
+
+    await db.insert(schema.issueSheetIssues).values({
+      organizationId: organization.id,
+      projectId: project.id,
+      title: "In progress tone fix",
+      issueType: "translation_mistake",
+      status: "in_progress",
+      targetLocale: "fr-FR",
+      translationKeyId: greetingKeyId,
+      reporterUserId: user.id,
+    });
+
+    const result = await loadHasIssuesQueue({
+      organizationId: organization.id,
+      projectId: project.id,
+      sourcePath,
+    });
+
+    expect(result?.segments.map((segment) => segment.key)).toEqual(["greeting"]);
+    expect(result?.pagination?.totalCount).toBe(1);
+  });
+
+  it("scopes sheet and legacy issues to the requested target locale", async () => {
+    const { organization, user, project, sourcePath, greetingKeyId, farewellKeyId } =
+      await seedProjectWithKeys();
+
+    await db.insert(schema.issueSheetIssues).values({
+      organizationId: organization.id,
+      projectId: project.id,
+      title: "German sheet issue",
+      issueType: "translation_mistake",
+      status: "open",
+      targetLocale: "de-DE",
+      translationKeyId: greetingKeyId,
+      reporterUserId: user.id,
+    });
+    await db.insert(schema.projectTranslationComments).values({
+      organizationId: organization.id,
+      projectId: project.id,
+      translationKeyId: farewellKeyId,
+      targetLocale: "de-DE",
+      type: "issue",
+      status: "unresolved",
+      text: "German legacy issue",
+      issueType: "translation_mistake",
+      authorUserId: user.id,
+    });
+
+    const result = await loadHasIssuesQueue({
+      organizationId: organization.id,
+      projectId: project.id,
+      sourcePath,
+    });
+
+    expect(result?.segments).toEqual([]);
+    expect(result?.pagination?.totalCount).toBe(0);
+  });
+
+  it("excludes resolved legacy issue comments and non-issue comment types", async () => {
+    const { organization, user, project, sourcePath, greetingKeyId, farewellKeyId } =
+      await seedProjectWithKeys();
+
+    await db.insert(schema.projectTranslationComments).values([
+      {
+        organizationId: organization.id,
+        projectId: project.id,
+        translationKeyId: greetingKeyId,
+        targetLocale: "fr-FR",
+        type: "issue",
+        status: "resolved",
+        text: "Already fixed.",
+        issueType: "translation_mistake",
+        authorUserId: user.id,
+      },
+      {
+        organizationId: organization.id,
+        projectId: project.id,
+        translationKeyId: farewellKeyId,
+        targetLocale: "fr-FR",
+        type: "comment",
+        status: "unresolved",
+        text: "Just a note.",
+        authorUserId: user.id,
+      },
+    ]);
+
+    const result = await loadHasIssuesQueue({
+      organizationId: organization.id,
+      projectId: project.id,
+      sourcePath,
+    });
+
+    expect(result?.segments).toEqual([]);
+    expect(result?.pagination?.totalCount).toBe(0);
+  });
+
+  it("dedupes a segment that has both an open sheet issue and an unmirrored legacy issue", async () => {
+    const { organization, user, project, sourcePath, greetingKeyId } = await seedProjectWithKeys();
+
+    await db.insert(schema.issueSheetIssues).values({
+      organizationId: organization.id,
+      projectId: project.id,
+      title: "Sheet issue",
+      issueType: "translation_mistake",
+      status: "open",
+      targetLocale: "fr-FR",
+      translationKeyId: greetingKeyId,
+      reporterUserId: user.id,
+    });
+    await db.insert(schema.projectTranslationComments).values({
+      organizationId: organization.id,
+      projectId: project.id,
+      translationKeyId: greetingKeyId,
+      targetLocale: "fr-FR",
+      type: "issue",
+      status: "unresolved",
+      text: "Unmirrored legacy",
+      issueType: "translation_mistake",
+      authorUserId: user.id,
+    });
+
+    const result = await loadHasIssuesQueue({
+      organizationId: organization.id,
+      projectId: project.id,
+      sourcePath,
+    });
+
+    expect(result?.segments.map((segment) => segment.key)).toEqual(["greeting"]);
+    expect(result?.pagination?.totalCount).toBe(1);
+  });
 });

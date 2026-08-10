@@ -445,6 +445,83 @@ describe("Issue Sheet routes", () => {
     expect(persistedIssues).toEqual([]);
   });
 
+  it("ignores values.priority when top-level priority is omitted", async () => {
+    // createIssue skips columnKey === "priority" inside values so top-level
+    // priority remains the sole write path. API clients that only set
+    // values.priority must not silently receive a stored priority.
+    const { identity, project } = await projectFixture.createStoredProjectFixture();
+    const headers = await projectFixture.authHeadersFor(identity);
+    const organizationSlug = identity.organization.slug ?? "missing-slug";
+
+    const createResponse = await requestJson(issueSheetUrl(organizationSlug, project.id), {
+      method: "POST",
+      headers,
+      body: {
+        title: "Values priority only",
+        values: { priority: "P1" },
+      },
+    });
+
+    expect(createResponse.status).toBe(201);
+    const createdBody = (await createResponse.json()) as IssueResponse;
+    expect(createdBody.issue.values.priority).toBeUndefined();
+  });
+
+  it("rolls back create when a later custom value is invalid", async () => {
+    const { identity, organization, project } = await projectFixture.createStoredProjectFixture();
+    const headers = await projectFixture.authHeadersFor(identity);
+    const organizationSlug = identity.organization.slug ?? "missing-slug";
+
+    await requestJson(issueSheetUrl(organizationSlug, project.id, "/columns"), {
+      method: "POST",
+      headers,
+      body: {
+        key: "component",
+        label: "Component",
+        type: "text",
+      },
+    });
+    await requestJson(issueSheetUrl(organizationSlug, project.id, "/columns"), {
+      method: "POST",
+      headers,
+      body: {
+        key: "sprint",
+        label: "Sprint",
+        type: "select",
+        config: { options: [{ id: "S24", label: "S24" }] },
+      },
+    });
+
+    const createResponse = await requestJson(issueSheetUrl(organizationSlug, project.id), {
+      method: "POST",
+      headers,
+      body: {
+        title: "Partial values rollback",
+        values: {
+          component: "Checkout",
+          sprint: "S99",
+        },
+      },
+    });
+
+    expect(createResponse.status).toBe(400);
+    await expect(createResponse.json()).resolves.toMatchObject({
+      error: "invalid_issue_sheet_select_value",
+    });
+
+    const persistedIssues = await db
+      .select({ id: schema.issueSheetIssues.id })
+      .from(schema.issueSheetIssues)
+      .where(
+        and(
+          eq(schema.issueSheetIssues.organizationId, organization.id),
+          eq(schema.issueSheetIssues.projectId, project.id),
+          eq(schema.issueSheetIssues.title, "Partial values rollback"),
+        ),
+      );
+    expect(persistedIssues).toEqual([]);
+  });
+
   it("rejects unknown custom column keys in the create payload", async () => {
     const { identity, organization, project } = await projectFixture.createStoredProjectFixture();
     const headers = await projectFixture.authHeadersFor(identity);

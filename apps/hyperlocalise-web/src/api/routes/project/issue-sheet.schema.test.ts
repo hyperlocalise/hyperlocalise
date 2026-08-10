@@ -12,9 +12,48 @@
  */
 import { describe, expect, it } from "vite-plus/test";
 
-import { issueSheetFeedQuerySchema } from "./issue-sheet.schema";
+import { issueSheetCreateIssueBodySchema, issueSheetFeedQuerySchema } from "./issue-sheet.schema";
 
 const VALID_FEED_CURSOR = "2026-08-08T12:00:00.000Z|0|550e8400-e29b-41d4-a716-446655440000";
+
+describe("issueSheetCreateIssueBodySchema values", () => {
+  it("accepts omitted values and string/number custom entries", () => {
+    const withoutValues = issueSheetCreateIssueBodySchema.safeParse({
+      title: "No custom values",
+    });
+    expect(withoutValues.success).toBe(true);
+    if (withoutValues.success) {
+      expect(withoutValues.data.values).toBeUndefined();
+    }
+
+    const withValues = issueSheetCreateIssueBodySchema.safeParse({
+      title: "With custom values",
+      values: {
+        sprint: "S24",
+        points: 3,
+      },
+    });
+    expect(withValues.success).toBe(true);
+    if (withValues.success) {
+      expect(withValues.data.values).toEqual({
+        sprint: "S24",
+        points: 3,
+      });
+    }
+  });
+
+  it("rejects a non-object values payload", () => {
+    const result = issueSheetCreateIssueBodySchema.safeParse({
+      title: "Bad values shape",
+      values: ["sprint"],
+    });
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues.some((issue) => issue.path.includes("values"))).toBe(true);
+    }
+  });
+});
 
 describe("issueSheetFeedQuerySchema", () => {
   it("accepts a well-formed feed cursor", () => {
