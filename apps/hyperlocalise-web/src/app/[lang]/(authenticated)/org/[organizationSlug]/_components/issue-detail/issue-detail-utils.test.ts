@@ -19,7 +19,9 @@ import {
   buildIssueDetailHref,
   isExternalHttpUrl,
   isHttpOrHttpsUrl,
+  isSameIssueCatDestination,
   issueSheetApiPath,
+  shouldShowIssueExternalLink,
   truncateIssueTitleForBreadcrumb,
 } from "./issue-detail-utils";
 
@@ -51,6 +53,24 @@ describe("issue-detail-utils", () => {
   it("returns false for external checks when window is unavailable", () => {
     vi.stubGlobal("window", undefined);
     expect(isExternalHttpUrl("https://tracker.example.com/ABC-1")).toBe(false);
+  });
+
+  it("detects equivalent CAT destinations across absolute and relative URLs", () => {
+    vi.stubGlobal("window", {
+      location: { origin: "http://localhost:6006" },
+    });
+
+    const catHref =
+      "/org/acme/projects/project_website/files/cat?sourcePath=messages%2Fhome.json&locale=de-DE&segment=cta.save";
+    const absolute =
+      "http://localhost:6006/org/acme/projects/project_website/files/cat?sourcePath=messages%2Fhome.json&locale=de-DE&segment=cta.save";
+
+    expect(isSameIssueCatDestination(absolute, catHref)).toBe(true);
+    expect(isSameIssueCatDestination(catHref, catHref)).toBe(true);
+    expect(shouldShowIssueExternalLink("https://jira.example.com/browse/LOC-42", catHref)).toBe(
+      true,
+    );
+    expect(shouldShowIssueExternalLink(absolute, catHref)).toBe(false);
   });
 
   it("builds CAT hrefs only when source path and locale are present", () => {

@@ -75,12 +75,58 @@ export const Default: Story = {
     await expect(canvas.getByText("Context")).toBeInTheDocument();
     await expect(canvas.getByText("Sprint")).toBeInTheDocument();
     await expect(canvas.getByText("Waiting on product copy review.")).toBeInTheDocument();
-    await expect(canvas.getByRole("button", { name: "Open in CAT" })).toBeInTheDocument();
+    const openInCat = canvas.getByRole("link", { name: "Open in CAT" });
+    await expect(openInCat).toBeInTheDocument();
+    await expect(openInCat).toHaveAttribute("target", "_blank");
+    await expect(canvas.getAllByRole("link", { name: "Open in CAT" })).toHaveLength(1);
     const unsubscribe = await canvas.findByRole("button", { name: "Unsubscribe" });
     await expect(unsubscribe).toBeInTheDocument();
     await expect(canvas.getByTitle("Mina Chen")).toBeInTheDocument();
     await expect(canvas.getByTitle("Otto Klein")).toBeInTheDocument();
     await expect(canvas.queryByRole("button", { name: "Notifications" })).not.toBeInTheDocument();
+  },
+};
+
+export const LegacyStoredCatLink: Story = {
+  args: {
+    issueId: "issue_cat_legacy_link",
+  },
+  parameters: {
+    msw: {
+      handlers: issueSheetMswHandlers,
+    },
+    nextjs: {
+      appDirectory: true,
+      navigation: {
+        pathname: `/org/${issueSheetOrganizationSlug}/projects/${issueSheetProjectId}/issue-sheet/issue_cat_legacy_link`,
+      },
+    },
+  },
+  play: async ({ canvas }) => {
+    await expect(canvas.getByText("Legacy stored CAT share link")).toBeInTheDocument();
+    await expect(canvas.getAllByRole("link", { name: "Open in CAT" })).toHaveLength(1);
+  },
+};
+
+export const WithExternalLink: Story = {
+  args: {
+    issueId: "issue_external_ref",
+  },
+  parameters: {
+    msw: {
+      handlers: issueSheetMswHandlers,
+    },
+    nextjs: {
+      appDirectory: true,
+      navigation: {
+        pathname: `/org/${issueSheetOrganizationSlug}/projects/${issueSheetProjectId}/issue-sheet/issue_external_ref`,
+      },
+    },
+  },
+  play: async ({ canvas }) => {
+    await expect(canvas.getByText("Copy review tracked in Jira")).toBeInTheDocument();
+    await expect(canvas.queryByRole("link", { name: "Open in CAT" })).not.toBeInTheDocument();
+    await expect(canvas.getByRole("link", { name: "View in Jira" })).toBeInTheDocument();
   },
 };
 
