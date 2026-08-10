@@ -106,4 +106,25 @@ describe("sanitizeIssueCreateTargetLocale", () => {
       }),
     ).toBe("");
   });
+
+  it("keeps the locale while selected project locales are loading", () => {
+    expect(
+      sanitizeIssueCreateTargetLocale({
+        currentLocale: "fr-FR",
+        resolvedProjectId: "loading",
+        projects: [{ id: "loading", targetLocales: null }],
+      }),
+    ).toBe("fr-FR");
+  });
+
+  it("clears the locale after fetched project locales resolve empty", () => {
+    expect(
+      sanitizeIssueCreateTargetLocale({
+        currentLocale: "fr-FR",
+        resolvedProjectId: "loading",
+        projects: [{ id: "loading", targetLocales: null }],
+        projectTargetLocales: [],
+      }),
+    ).toBe("");
+  });
 });
