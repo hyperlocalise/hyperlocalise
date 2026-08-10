@@ -13,48 +13,75 @@
 export type IssueDetailSidebarScope = "issue-detail" | "inbox";
 
 const STORAGE_KEYS: Record<IssueDetailSidebarScope, string> = {
-  "issue-detail": "issue-detail-sidebar-open:v1",
-  inbox: "inbox-issue-sidebar-open:v1",
+  "issue-detail": "issue-detail-sidebar-open:v2",
+  inbox: "inbox-issue-sidebar-open:v2",
 };
 
-function parseStoredSidebarOpen(value: string | null): boolean | null {
-  if (value === "true") {
-    return true;
-  }
-  if (value === "false") {
-    return false;
-  }
-  return null;
-}
+type IssueDetailSidebarState = Record<string, boolean>;
 
-export function readIssueDetailSidebarOpen(
-  scope: IssueDetailSidebarScope,
-  fallback: boolean,
-): boolean {
-  if (typeof window === "undefined") {
-    return fallback;
+function parseStoredSidebarState(value: string | null): IssueDetailSidebarState | null {
+  if (!value) {
+    return null;
   }
 
   try {
-    const stored = parseStoredSidebarOpen(window.localStorage.getItem(STORAGE_KEYS[scope]));
-    if (stored !== null) {
-      return stored;
+    const parsed: unknown = JSON.parse(value);
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+      return null;
     }
-  } catch {
-    return fallback;
-  }
 
-  return fallback;
+    const state: IssueDetailSidebarState = {};
+    for (const [issueId, open] of Object.entries(parsed)) {
+      if (typeof open === "boolean") {
+        state[issueId] = open;
+      }
+    }
+
+    return state;
+  } catch {
+    return null;
+  }
 }
 
-export function writeIssueDetailSidebarOpen(scope: IssueDetailSidebarScope, open: boolean) {
+function readStoredSidebarState(scope: IssueDetailSidebarScope): IssueDetailSidebarState {
+  if (typeof window === "undefined") {
+    return {};
+  }
+
+  try {
+    return parseStoredSidebarState(window.localStorage.getItem(STORAGE_KEYS[scope])) ?? {};
+  } catch {
+    return {};
+  }
+}
+
+function writeStoredSidebarState(scope: IssueDetailSidebarScope, state: IssueDetailSidebarState) {
   if (typeof window === "undefined") {
     return;
   }
 
   try {
-    window.localStorage.setItem(STORAGE_KEYS[scope], String(open));
+    window.localStorage.setItem(STORAGE_KEYS[scope], JSON.stringify(state));
   } catch {
     // Ignore storage failures in private browsing or restricted environments.
   }
+}
+
+export function readIssueDetailSidebarOpen(
+  scope: IssueDetailSidebarScope,
+  issueId: string,
+  fallback: boolean,
+): boolean {
+  const stored = readStoredSidebarState(scope)[issueId];
+  return stored ?? fallback;
+}
+
+export function writeIssueDetailSidebarOpen(
+  scope: IssueDetailSidebarScope,
+  issueId: string,
+  open: boolean,
+) {
+  const state = readStoredSidebarState(scope);
+  state[issueId] = open;
+  writeStoredSidebarState(scope, state);
 }

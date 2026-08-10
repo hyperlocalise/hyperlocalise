@@ -254,13 +254,17 @@ export const IssueDetailPanel = forwardRef<
   const [ownerNoteDraft, setOwnerNoteDraft] = useState("");
   const [customColumnDrafts, setCustomColumnDrafts] = useState<Record<string, string>>({});
   const [sidebarOpen, setSidebarOpen] = useState(() =>
-    readIssueDetailSidebarOpen(sidebarStorageScope, defaultSidebarOpen),
+    readIssueDetailSidebarOpen(sidebarStorageScope, issueId, defaultSidebarOpen),
   );
   const isSaving = updateIssue.isPending || setValue.isPending;
 
+  useEffect(() => {
+    setSidebarOpen(readIssueDetailSidebarOpen(sidebarStorageScope, issueId, defaultSidebarOpen));
+  }, [sidebarStorageScope, issueId, defaultSidebarOpen]);
+
   const handleSidebarOpenChange = (open: boolean) => {
     setSidebarOpen(open);
-    writeIssueDetailSidebarOpen(sidebarStorageScope, open);
+    writeIssueDetailSidebarOpen(sidebarStorageScope, issueId, open);
   };
 
   const titleDraftRef = useRef(titleDraft);
