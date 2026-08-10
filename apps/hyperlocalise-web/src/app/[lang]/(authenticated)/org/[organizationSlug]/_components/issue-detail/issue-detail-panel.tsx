@@ -772,7 +772,7 @@ export const IssueDetailPanel = forwardRef<
                   variant="outline"
                   size="sm"
                   className="w-full justify-start"
-                  render={<a href={catHref} />}
+                  render={<a href={catHref} target="_blank" rel="noopener noreferrer" />}
                 >
                   <HugeiconsIcon icon={TranslateIcon} strokeWidth={1.8} data-icon="inline-start" />
                   <FormattedMessage {...messages.openInCat} />
@@ -1012,7 +1012,7 @@ export const IssueDetailPanel = forwardRef<
                   size="icon-sm"
                   aria-label={intl.formatMessage(messages.openInCat)}
                   title={intl.formatMessage(messages.openInCat)}
-                  render={<a href={catHref} />}
+                  render={<a href={catHref} target="_blank" rel="noopener noreferrer" />}
                 >
                   <HugeiconsIcon icon={TranslateIcon} strokeWidth={1.8} className="size-4" />
                 </Button>
