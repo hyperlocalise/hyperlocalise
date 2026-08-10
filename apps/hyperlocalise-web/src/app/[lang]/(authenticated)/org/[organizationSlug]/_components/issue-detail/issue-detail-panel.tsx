@@ -62,7 +62,7 @@ import { IssueCommentThread } from "./issue-comment-thread";
 import {
   buildIssueCatHref,
   isExternalHttpUrl,
-  shouldShowIssueExternalLink,
+  isHttpOrHttpsUrl,
   issuePriorityValues,
   issueStatusLabel,
   issueStatusValues,
@@ -551,7 +551,9 @@ export const IssueDetailPanel = forwardRef<
   }
 
   const catHref = buildIssueCatHref(organizationSlug, projectId, issue);
-  const showExternalLink = shouldShowIssueExternalLink(issue.linkUrl, catHref);
+  const showExternalLink = Boolean(
+    issue.linkUrl && issue.linkUrl !== catHref && isHttpOrHttpsUrl(issue.linkUrl),
+  );
   const sidebarToggleLabel = intl.formatMessage(
     sidebarOpen ? messages.collapseSidebar : messages.expandSidebar,
   );

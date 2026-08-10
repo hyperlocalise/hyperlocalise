@@ -95,31 +95,6 @@ export const Default: Story = {
   },
 };
 
-export const LegacyStoredCatLink: Story = {
-  args: {
-    issueId: "issue_cat_legacy_link",
-  },
-  parameters: {
-    msw: {
-      handlers: issueSheetMswHandlers,
-    },
-    nextjs: {
-      appDirectory: true,
-      navigation: {
-        pathname: `/org/${issueSheetOrganizationSlug}/projects/${issueSheetProjectId}/issue-sheet/issue_cat_legacy_link`,
-      },
-    },
-    viewport: desktopViewport,
-  },
-  play: async ({ canvas }) => {
-    await expect(
-      await canvas.findByDisplayValue("Legacy stored CAT share link"),
-    ).toBeInTheDocument();
-    await expect(canvas.getAllByRole("link", { name: "Open in CAT" })).toHaveLength(1);
-    await expect(canvas.queryByRole("link", { name: "View in Jira" })).not.toBeInTheDocument();
-  },
-};
-
 export const WithExternalLink: Story = {
   args: {
     issueId: "issue_external_ref",

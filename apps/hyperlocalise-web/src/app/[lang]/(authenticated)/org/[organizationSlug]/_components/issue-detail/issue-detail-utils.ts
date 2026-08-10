@@ -177,35 +177,6 @@ export function isExternalHttpUrl(url: string) {
   }
 }
 
-export function isSameIssueCatDestination(linkUrl: string, catHref: string) {
-  if (linkUrl === catHref) {
-    return true;
-  }
-  if (typeof window === "undefined") {
-    return linkUrl.endsWith(catHref);
-  }
-  try {
-    const absolute = new URL(linkUrl, window.location.origin);
-    const cat = new URL(catHref, window.location.origin);
-    return absolute.pathname === cat.pathname && absolute.search === cat.search;
-  } catch {
-    return false;
-  }
-}
-
-export function shouldShowIssueExternalLink(
-  linkUrl: string | null | undefined,
-  catHref: string | null,
-) {
-  if (!linkUrl || !isHttpOrHttpsUrl(linkUrl)) {
-    return false;
-  }
-  if (!catHref) {
-    return true;
-  }
-  return !isSameIssueCatDestination(linkUrl, catHref);
-}
-
 export function buildIssueDetailHref({
   organizationSlug,
   projectId,

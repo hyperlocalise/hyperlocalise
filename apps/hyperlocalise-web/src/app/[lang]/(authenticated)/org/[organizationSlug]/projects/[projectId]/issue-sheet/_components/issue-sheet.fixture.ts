@@ -266,15 +266,6 @@ export const issueSheetIssuesFixture: IssueSheetIssueFixture[] = [
     updatedAt: iso(-172_800_000),
   }),
   createIssueSheetIssue({
-    id: "issue_cat_legacy_link",
-    title: "Legacy stored CAT share link",
-    description: "Older issues may still have a redundant stored share URL.",
-    linkKind: "cat_segment",
-    linkLabel: "Open in CAT",
-    linkUrl:
-      "http://localhost:6006/org/acme/projects/project_website/files/cat?sourcePath=messages%2Fhome.json&locale=de-DE&segment=cta.save",
-  }),
-  createIssueSheetIssue({
     id: "issue_external_ref",
     title: "Copy review tracked in Jira",
     description: "Product copy is being finalized in the tracker.",
