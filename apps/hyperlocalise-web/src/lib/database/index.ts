@@ -1,3 +1,4 @@
+import "server-only";
 /*
  * Copyright (c) 2026 Hyperlocalise Pty Ltd
  *

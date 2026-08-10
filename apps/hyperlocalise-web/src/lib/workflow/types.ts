@@ -143,3 +143,15 @@ export type TranslationFileImportEventData = {
 };
 
 export type TranslationFileImportQueue = JobQueue<TranslationFileImportEventData>;
+
+/** Pre-rendered Issue Sheet Inbox email for the Resend delivery workflow. */
+export type IssueNotificationEmailEventData = {
+  kind: "issue_notification_email";
+  to: string;
+  subject: string;
+  html: string;
+  text: string;
+  notificationIds: string[];
+};
+
+export type IssueNotificationEmailQueue = JobQueue<IssueNotificationEmailEventData>;

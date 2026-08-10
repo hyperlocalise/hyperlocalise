@@ -526,6 +526,13 @@
       "when": 1785994925923,
       "tag": "0074_blue_purifiers",
       "breakpoints": true
+    },
+    {
+      "idx": 75,
+      "version": "7",
+      "when": 1786370596726,
+      "tag": "0075_nostalgic_bug",
+      "breakpoints": true
     }
   ]
 }

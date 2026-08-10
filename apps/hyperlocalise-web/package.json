@@ -43,6 +43,8 @@
     "@pierre/diffs": "^1.2.12",
     "@pierre/trees": "1.0.0-beta.6",
     "@radix-ui/react-use-controllable-state": "^1.2.2",
+    "@react-email/components": "^1.0.12",
+    "@react-email/render": "^2.1.0",
     "@rive-app/react-webgl2": "^4.29.4",
     "@shadcn/react": "^0.3.0",
     "@streamdown/cjk": "^1.0.3",

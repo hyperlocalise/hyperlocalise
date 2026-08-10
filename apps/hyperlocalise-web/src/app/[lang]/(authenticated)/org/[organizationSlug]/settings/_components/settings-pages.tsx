@@ -33,6 +33,7 @@ import { cn } from "@/lib/primitives/cn";
 
 import type { OrganizationCapability } from "@/api/auth/policy";
 import { WorkspaceSettingsForm } from "./workspace-settings-form";
+import { NotificationPreferencesSection } from "./notification-preferences-section";
 
 type SettingsPageProps = {
   organizationSlug: string;
@@ -335,6 +336,10 @@ export async function AccountSettingsPageContent({
           organizationName={organizationName}
           organizationSlug={organizationSlug}
         />
+      </section>
+
+      <section className="space-y-4 border-t border-border pt-8">
+        <NotificationPreferencesSection organizationSlug={organizationSlug} />
       </section>
     </main>
   );

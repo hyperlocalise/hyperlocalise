@@ -12,6 +12,7 @@
  */
 import { sql } from "drizzle-orm";
 import {
+  boolean,
   foreignKey,
   index,
   integer,
@@ -354,6 +355,7 @@ export const issueNotifications = pgTable(
       .notNull()
       .default(sql`'{}'::jsonb`),
     readAt: timestamp("read_at", { withTimezone: true }),
+    emailedAt: timestamp("emailed_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [
@@ -372,5 +374,31 @@ export const issueNotifications = pgTable(
       table.readAt,
     ),
     index("idx_issue_notifications_issue").on(table.issueId),
+    index("idx_issue_notifications_email_digest").on(
+      table.emailedAt,
+      table.readAt,
+      table.createdAt,
+    ),
   ],
 );
+
+export type UserNotificationEmailFormat = "digest" | "immediate";
+
+/**
+ * Account-scoped preferences for Issue Sheet Inbox email delivery.
+ * Subscribe/watch remains eligibility; this table only controls the email channel.
+ */
+export const userNotificationPreferences = pgTable("user_notification_preferences", {
+  userId: uuid("user_id")
+    .primaryKey()
+    .references(() => users.id, { onDelete: "cascade" }),
+  emailEnabled: boolean("email_enabled").notNull().default(false),
+  emailFormat: text("email_format")
+    .$type<UserNotificationEmailFormat>()
+    .notNull()
+    .default("digest"),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .notNull()
+    .defaultNow()
+    .$onUpdateFn(() => new Date()),
+});
