@@ -67,6 +67,29 @@ export function resolveIssueCreateLocaleOptions(input: {
   return collectOrganizationIssueLocales(input.projects ?? []);
 }
 
+export function sanitizeIssueCreateTargetLocale(input: {
+  currentLocale: string;
+  resolvedProjectId?: string;
+  projects?: Array<{ id: string; targetLocales?: string[] | null }>;
+  projectTargetLocales?: string[];
+}) {
+  const trimmedLocale = input.currentLocale.trim();
+  if (!input.resolvedProjectId || !trimmedLocale) {
+    return input.currentLocale;
+  }
+
+  const localeOptions = resolveIssueCreateLocaleOptions({
+    resolvedProjectId: input.resolvedProjectId,
+    projects: input.projects,
+    projectTargetLocales: input.projectTargetLocales,
+  });
+  if (!localeOptions.length || !localeOptions.includes(trimmedLocale)) {
+    return "";
+  }
+
+  return input.currentLocale;
+}
+
 export function IssueLocalePicker({
   value,
   onValueChange,

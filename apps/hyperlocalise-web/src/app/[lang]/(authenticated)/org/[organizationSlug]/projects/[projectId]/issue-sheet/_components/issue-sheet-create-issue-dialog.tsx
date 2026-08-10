@@ -74,6 +74,7 @@ import {
 import {
   IssueLocalePicker,
   resolveIssueCreateLocaleOptions,
+  sanitizeIssueCreateTargetLocale,
 } from "../../../../_components/issue-detail/issue-locale-picker";
 import { IssuePriorityIcon } from "../../../../_components/issue-detail/issue-priority-icon";
 import { IssueStatusIcon } from "../../../../_components/issue-detail/issue-status-icon";
@@ -250,21 +251,6 @@ export function IssueSheetCreateIssueDialog({
 
   const resolvedProjectId = projectId ?? selectedProjectId;
 
-  useEffect(() => {
-    setAssigneeUserId(null);
-    setCustomValues({});
-    if (!resolvedProjectId || linkSegmentId) {
-      return;
-    }
-    const projectLocales = projects?.find(
-      (project) => project.id === resolvedProjectId,
-    )?.targetLocales;
-    if (!projectLocales?.length) {
-      return;
-    }
-    setTargetLocale((current) => (current && projectLocales.includes(current) ? current : ""));
-  }, [linkSegmentId, projects, resolvedProjectId]);
-
   const showProjectPicker = Boolean(projects && projects.length > 0 && !projectId);
   const assignableMembersQuery = useAssignableIssueMembersQuery({
     organizationSlug,
@@ -296,6 +282,22 @@ export function IssueSheetCreateIssueDialog({
       }),
     [projectQuery.data?.targetLocales, projects, resolvedProjectId],
   );
+
+  useEffect(() => {
+    setAssigneeUserId(null);
+    setCustomValues({});
+    if (!resolvedProjectId || linkSegmentId) {
+      return;
+    }
+    setTargetLocale((current) =>
+      sanitizeIssueCreateTargetLocale({
+        currentLocale: current,
+        resolvedProjectId,
+        projects,
+        projectTargetLocales: projectQuery.data?.targetLocales,
+      }),
+    );
+  }, [linkSegmentId, projectQuery.data?.targetLocales, projects, resolvedProjectId]);
 
   const compactCustomColumns = useMemo(
     () => (columnsQuery.data ?? []).filter(isCreateCompactCustomColumn),

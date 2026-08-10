@@ -16,6 +16,7 @@ import {
   buildIssueLocaleOptions,
   collectOrganizationIssueLocales,
   resolveIssueCreateLocaleOptions,
+  sanitizeIssueCreateTargetLocale,
 } from "./issue-locale-picker";
 
 describe("buildIssueLocaleOptions", () => {
@@ -67,5 +68,42 @@ describe("resolveIssueCreateLocaleOptions", () => {
         projectTargetLocales: ["ja-JP", "ko-KR"],
       }),
     ).toEqual(["ja-JP", "ko-KR"]);
+  });
+});
+
+describe("sanitizeIssueCreateTargetLocale", () => {
+  const projects = [
+    { id: "web", targetLocales: ["fr-FR", "de-DE"] },
+    { id: "mobile", targetLocales: ["ja-JP"] },
+  ];
+
+  it("keeps the locale when it belongs to the selected project", () => {
+    expect(
+      sanitizeIssueCreateTargetLocale({
+        currentLocale: "ja-JP",
+        resolvedProjectId: "mobile",
+        projects,
+      }),
+    ).toBe("ja-JP");
+  });
+
+  it("clears the locale when it does not belong to the selected project", () => {
+    expect(
+      sanitizeIssueCreateTargetLocale({
+        currentLocale: "fr-FR",
+        resolvedProjectId: "mobile",
+        projects,
+      }),
+    ).toBe("");
+  });
+
+  it("clears the locale when the selected project has no known locales", () => {
+    expect(
+      sanitizeIssueCreateTargetLocale({
+        currentLocale: "fr-FR",
+        resolvedProjectId: "empty",
+        projects: [{ id: "empty", targetLocales: [] }],
+      }),
+    ).toBe("");
   });
 });
