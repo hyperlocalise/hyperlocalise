@@ -12,7 +12,11 @@
  */
 import { describe, expect, it } from "vite-plus/test";
 
-import { buildIssueLocaleOptions, collectOrganizationIssueLocales } from "./issue-locale-picker";
+import {
+  buildIssueLocaleOptions,
+  collectOrganizationIssueLocales,
+  resolveIssueCreateLocaleOptions,
+} from "./issue-locale-picker";
 
 describe("buildIssueLocaleOptions", () => {
   it("dedupes, trims, and sorts project locales", () => {
@@ -34,5 +38,34 @@ describe("collectOrganizationIssueLocales", () => {
         {},
       ]),
     ).toEqual(["de-DE", "fr-FR", "ja-JP"]);
+  });
+});
+
+describe("resolveIssueCreateLocaleOptions", () => {
+  const projects = [
+    { id: "web", targetLocales: ["fr-FR", "de-DE"] },
+    { id: "mobile", targetLocales: ["ja-JP"] },
+  ];
+
+  it("returns the organization union before a project is selected", () => {
+    expect(resolveIssueCreateLocaleOptions({ projects })).toEqual(["de-DE", "fr-FR", "ja-JP"]);
+  });
+
+  it("scopes locales to the selected project at organization level", () => {
+    expect(
+      resolveIssueCreateLocaleOptions({
+        resolvedProjectId: "mobile",
+        projects,
+      }),
+    ).toEqual(["ja-JP"]);
+  });
+
+  it("falls back to fetched project locales when project metadata is missing", () => {
+    expect(
+      resolveIssueCreateLocaleOptions({
+        resolvedProjectId: "mobile",
+        projectTargetLocales: ["ja-JP", "ko-KR"],
+      }),
+    ).toEqual(["ja-JP", "ko-KR"]);
   });
 });

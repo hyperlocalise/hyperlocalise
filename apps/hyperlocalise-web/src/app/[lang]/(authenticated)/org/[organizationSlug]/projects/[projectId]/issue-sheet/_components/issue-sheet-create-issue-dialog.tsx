@@ -73,7 +73,7 @@ import {
 } from "../../../../_components/issue-detail/issue-detail-utils";
 import {
   IssueLocalePicker,
-  collectOrganizationIssueLocales,
+  resolveIssueCreateLocaleOptions,
 } from "../../../../_components/issue-detail/issue-locale-picker";
 import { IssuePriorityIcon } from "../../../../_components/issue-detail/issue-priority-icon";
 import { IssueStatusIcon } from "../../../../_components/issue-detail/issue-status-icon";
@@ -253,7 +253,17 @@ export function IssueSheetCreateIssueDialog({
   useEffect(() => {
     setAssigneeUserId(null);
     setCustomValues({});
-  }, [resolvedProjectId]);
+    if (!resolvedProjectId || linkSegmentId) {
+      return;
+    }
+    const projectLocales = projects?.find(
+      (project) => project.id === resolvedProjectId,
+    )?.targetLocales;
+    if (!projectLocales?.length) {
+      return;
+    }
+    setTargetLocale((current) => (current && projectLocales.includes(current) ? current : ""));
+  }, [linkSegmentId, projects, resolvedProjectId]);
 
   const showProjectPicker = Boolean(projects && projects.length > 0 && !projectId);
   const assignableMembersQuery = useAssignableIssueMembersQuery({
@@ -267,15 +277,25 @@ export function IssueSheetCreateIssueDialog({
     enabled: open && Boolean(resolvedProjectId),
   });
   const isOrganizationScoped = !projectId;
+  const selectedProject = useMemo(
+    () => projects?.find((project) => project.id === resolvedProjectId),
+    [projects, resolvedProjectId],
+  );
   const projectQuery = useProjectPageQuery(organizationSlug, resolvedProjectId || "", {
-    enabled: open && Boolean(resolvedProjectId) && !isOrganizationScoped,
+    enabled:
+      open &&
+      Boolean(resolvedProjectId) &&
+      (!isOrganizationScoped || !selectedProject?.targetLocales?.length),
   });
-  const localeOptions = useMemo(() => {
-    if (isOrganizationScoped) {
-      return collectOrganizationIssueLocales(projects ?? []);
-    }
-    return projectQuery.data?.targetLocales ?? [];
-  }, [isOrganizationScoped, projectQuery.data?.targetLocales, projects]);
+  const localeOptions = useMemo(
+    () =>
+      resolveIssueCreateLocaleOptions({
+        resolvedProjectId: resolvedProjectId || undefined,
+        projects,
+        projectTargetLocales: projectQuery.data?.targetLocales,
+      }),
+    [projectQuery.data?.targetLocales, projects, resolvedProjectId],
+  );
 
   const compactCustomColumns = useMemo(
     () => (columnsQuery.data ?? []).filter(isCreateCompactCustomColumn),

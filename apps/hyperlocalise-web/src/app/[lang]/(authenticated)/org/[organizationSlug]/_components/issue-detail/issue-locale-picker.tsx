@@ -53,6 +53,20 @@ export function collectOrganizationIssueLocales(
   return buildIssueLocaleOptions(projects.flatMap((project) => project.targetLocales ?? []));
 }
 
+export function resolveIssueCreateLocaleOptions(input: {
+  resolvedProjectId?: string;
+  projects?: Array<{ id: string; targetLocales?: string[] | null }>;
+  projectTargetLocales?: string[];
+}) {
+  if (input.resolvedProjectId) {
+    const selectedProject = input.projects?.find(
+      (project) => project.id === input.resolvedProjectId,
+    );
+    return selectedProject?.targetLocales ?? input.projectTargetLocales ?? [];
+  }
+  return collectOrganizationIssueLocales(input.projects ?? []);
+}
+
 export function IssueLocalePicker({
   value,
   onValueChange,

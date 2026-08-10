@@ -12,7 +12,7 @@
  */
 import "dotenv/config";
 
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
 import { app } from "@/api/app";
@@ -431,6 +431,18 @@ describe("Issue Sheet routes", () => {
     await expect(createResponse.json()).resolves.toMatchObject({
       error: "invalid_issue_sheet_select_value",
     });
+
+    const persistedIssues = await db
+      .select({ id: schema.issueSheetIssues.id })
+      .from(schema.issueSheetIssues)
+      .where(
+        and(
+          eq(schema.issueSheetIssues.organizationId, identity.organization.id),
+          eq(schema.issueSheetIssues.projectId, project.id),
+          eq(schema.issueSheetIssues.title, "Bad select value"),
+        ),
+      );
+    expect(persistedIssues).toEqual([]);
   });
 
   it("deduplicates open rows for the same external reference", async () => {
