@@ -92,17 +92,27 @@ export function NotificationPreferencesSection({ organizationSlug }: { organizat
       }
       return next;
     },
+    onMutate: (next) => {
+      const previous =
+        queryClient.getQueryData<NotificationPreferencesFormValues>(queryKey) ??
+        data ??
+        DEFAULT_USER_NOTIFICATION_PREFERENCES;
+      setValues(next);
+      return { previous };
+    },
     onSuccess: (saved) => {
       setValues(saved);
       void queryClient.setQueryData(queryKey, saved);
     },
-    onError: () => {
+    onError: (_error, _next, context) => {
+      const previous = context?.previous ?? data ?? DEFAULT_USER_NOTIFICATION_PREFERENCES;
+      setValues(previous);
+      void queryClient.setQueryData(queryKey, previous);
       toast.error(intl.formatMessage(messages.saveError));
     },
   });
 
   function persist(next: NotificationPreferencesFormValues) {
-    setValues(next);
     saveMutation.mutate(next);
   }
 

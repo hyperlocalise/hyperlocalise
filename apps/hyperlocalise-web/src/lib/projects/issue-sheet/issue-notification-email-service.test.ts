@@ -224,6 +224,19 @@ describe("IssueNotificationEmailService", () => {
     const results = await emailService.runDigestTick();
     expect(results.emailsEnqueued).toBeGreaterThanOrEqual(1);
     expect(enqueueMock).toHaveBeenCalled();
+
+    enqueueMock.mockClear();
+    const preferenceSpy = vi
+      .spyOn(userNotificationPreferencesService, "getForUser")
+      .mockResolvedValue({ emailEnabled: false, emailFormat: "digest" });
+    try {
+      const optedOutResults = await emailService.runDigestTick();
+      expect(optedOutResults.emailsEnqueued).toBe(0);
+      expect(optedOutResults.notificationsQueued).toBe(0);
+      expect(enqueueMock).not.toHaveBeenCalled();
+    } finally {
+      preferenceSpy.mockRestore();
+    }
   });
 
   it("clears emailed_at when a notification is re-opened via dedupe upsert", async () => {

@@ -21,9 +21,13 @@ import { createAuthTestFixture } from "@/api/test-auth.fixture";
 import { db, schema } from "@/lib/database";
 import { IssueSheetService } from "@/lib/projects/issue-sheet/issue-sheet-service";
 import { ensureDefaultWorkspaceTeam } from "@/lib/teams/default-workspace-team";
+import type { IssueNotificationEmailEventData } from "@/lib/workflow/types";
 
 const sendMock = vi.fn(
-  async (_input: { from: string; to: string[]; subject: string; html: string; text: string }) => ({
+  async (
+    _input: { from: string; to: string[]; subject: string; html: string; text: string },
+    _options?: { idempotencyKey?: string },
+  ): Promise<{ data: { id: string } | null; error: { message: string } | null }> => ({
     data: { id: "email_1" },
     error: null,
   }),
@@ -66,7 +70,7 @@ afterEach(async () => {
 });
 
 describe("sendIssueNotificationEmailStep", () => {
-  it("calls Resend and marks emailed_at", async () => {
+  it("atomically claims a notification before calling Resend", async () => {
     const actorIdentity = authFixture.createWorkosIdentityWithRole("admin");
     await authFixture.authHeadersFor(actorIdentity);
     const { organization, user: actor } =
@@ -127,17 +131,33 @@ describe("sendIssueNotificationEmailStep", () => {
     const { sendIssueNotificationEmailStep } =
       await import("@/workflows/steps/issue-notification-email");
 
-    const result = await sendIssueNotificationEmailStep({
+    const event: IssueNotificationEmailEventData = {
       kind: "issue_notification_email",
       to: "assignee@example.com",
       subject: "You have 1 unread notification on Hyperlocalise.",
       html: "<p>Open your Inbox</p>",
       text: "Open your Inbox",
       notificationIds: [notification!.id],
-    });
+    };
+    const results = await Promise.all([
+      sendIssueNotificationEmailStep(event),
+      sendIssueNotificationEmailStep(event),
+    ]);
 
-    expect(result).toMatchObject({ ok: true, skipped: false, markedCount: 1 });
+    expect(results).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ ok: true, skipped: false, markedCount: 1 }),
+        expect.objectContaining({
+          ok: true,
+          skipped: true,
+          reason: "already_read_or_emailed",
+        }),
+      ]),
+    );
     expect(sendMock).toHaveBeenCalledTimes(1);
+    expect(sendMock.mock.calls[0]?.[1]?.idempotencyKey).toMatch(
+      /^issue-notification-email\/[a-f0-9]{64}$/,
+    );
 
     const [updated] = await db
       .select()
@@ -145,6 +165,24 @@ describe("sendIssueNotificationEmailStep", () => {
       .where(eq(schema.issueNotifications.id, notification!.id))
       .limit(1);
     expect(updated?.emailedAt).not.toBeNull();
+
+    await db
+      .update(schema.issueNotifications)
+      .set({ emailedAt: null })
+      .where(eq(schema.issueNotifications.id, notification!.id));
+    sendMock.mockResolvedValueOnce({
+      data: null,
+      error: { message: "Resend unavailable" },
+    });
+
+    await expect(sendIssueNotificationEmailStep(event)).rejects.toThrow("Resend unavailable");
+
+    const [released] = await db
+      .select({ emailedAt: schema.issueNotifications.emailedAt })
+      .from(schema.issueNotifications)
+      .where(eq(schema.issueNotifications.id, notification!.id))
+      .limit(1);
+    expect(released?.emailedAt).toBeNull();
   });
 
   it("skips Resend when notifications are already read", async () => {

@@ -249,7 +249,15 @@ export class IssueNotificationEmailService {
     await mapWithConcurrency(
       [...byRecipient.entries()],
       DIGEST_USER_CONCURRENCY,
-      async ([, notificationIds]) => {
+      async ([recipientUserId, notificationIds]) => {
+        const prefs = await userNotificationPreferencesService.getForUser(
+          recipientUserId,
+          database,
+        );
+        if (!prefs.emailEnabled || prefs.emailFormat !== "digest") {
+          return;
+        }
+
         const rows = await this.loadNotificationRows(notificationIds, database);
         const sendable = rows.filter((row) => row.readAt == null && row.emailedAt == null);
         if (sendable.length === 0) {

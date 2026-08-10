@@ -10,7 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { and, inArray, isNull } from "drizzle-orm";
+import { and, eq, inArray, isNull } from "drizzle-orm";
 import { Resend } from "resend";
 
 import { db, schema } from "@/lib/database";
@@ -26,9 +26,18 @@ function resendFromAddress(): string | null {
     : env.RESEND_FROM_ADDRESS;
 }
 
+async function deliveryIdempotencyKey(notificationIds: string[]): Promise<string> {
+  const input = new TextEncoder().encode(notificationIds.toSorted().join(","));
+  const digest = await crypto.subtle.digest("SHA-256", input);
+  const hash = Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join(
+    "",
+  );
+  return `issue-notification-email/${hash}`;
+}
+
 /**
- * Workflow step: send a pre-rendered Issue notification email via Resend,
- * then mark the related Inbox rows as emailed.
+ * Workflow step: atomically claim Inbox rows, then send their pre-rendered
+ * Issue notification email via Resend.
  */
 export async function sendIssueNotificationEmailStep(event: IssueNotificationEmailEventData) {
   "use step";
@@ -42,51 +51,58 @@ export async function sendIssueNotificationEmailStep(event: IssueNotificationEma
     return { ok: true as const, skipped: true as const, reason: "empty_notification_ids" };
   }
 
-  // Drop anything already read or emailed before calling Resend.
+  const claimedAt = new Date();
   const openRows = await db
-    .select({ id: schema.issueNotifications.id })
-    .from(schema.issueNotifications)
+    .update(schema.issueNotifications)
+    .set({ emailedAt: claimedAt })
     .where(
       and(
         inArray(schema.issueNotifications.id, event.notificationIds),
         isNull(schema.issueNotifications.readAt),
         isNull(schema.issueNotifications.emailedAt),
       ),
-    );
+    )
+    .returning({ id: schema.issueNotifications.id });
 
   if (openRows.length === 0) {
     return { ok: true as const, skipped: true as const, reason: "already_read_or_emailed" };
   }
 
-  const resend = new Resend(env.RESEND_API_KEY);
-  const result = await resend.emails.send({
-    from,
-    to: [event.to],
-    subject: event.subject,
-    html: event.html,
-    text: event.text,
-  });
-
-  if (result.error) {
-    throw new Error(result.error.message);
-  }
-
   const openIds = openRows.map((row) => row.id);
-  await db
-    .update(schema.issueNotifications)
-    .set({ emailedAt: new Date() })
-    .where(
-      and(
-        inArray(schema.issueNotifications.id, openIds),
-        isNull(schema.issueNotifications.emailedAt),
-        isNull(schema.issueNotifications.readAt),
-      ),
+  const resend = new Resend(env.RESEND_API_KEY);
+  try {
+    const idempotencyKey = await deliveryIdempotencyKey(openIds);
+    const result = await resend.emails.send(
+      {
+        from,
+        to: [event.to],
+        subject: event.subject,
+        html: event.html,
+        text: event.text,
+      },
+      { idempotencyKey },
     );
 
-  return {
-    ok: true as const,
-    skipped: false as const,
-    markedCount: openIds.length,
-    resendId: result.data?.id ?? null,
-  };
+    if (result.error) {
+      throw new Error(result.error.message);
+    }
+
+    return {
+      ok: true as const,
+      skipped: false as const,
+      markedCount: openIds.length,
+      resendId: result.data?.id ?? null,
+    };
+  } catch (error) {
+    await db
+      .update(schema.issueNotifications)
+      .set({ emailedAt: null })
+      .where(
+        and(
+          inArray(schema.issueNotifications.id, openIds),
+          eq(schema.issueNotifications.emailedAt, claimedAt),
+        ),
+      );
+    throw error;
+  }
 }
