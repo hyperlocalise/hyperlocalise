@@ -33,6 +33,7 @@ export function createNotifySlackTool(session: WorkspaceOrchestratorSession) {
 
       const text = message?.trim() || buildOrchestratorRunSummaryMessage(session);
       const result = await runWorkspaceAutomationSlackNotificationTool({
+        organizationId: session.organizationId,
         channelId: slack.channelId,
         message: text,
       });

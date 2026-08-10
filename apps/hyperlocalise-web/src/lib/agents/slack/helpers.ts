@@ -36,6 +36,40 @@ export async function findSlackConnector(teamId: string, options: { enabledOnly?
   return connectors[0];
 }
 
+export async function findSlackConnectorForOrganization(
+  organizationId: string,
+  options: { enabledOnly?: boolean } = {},
+) {
+  const conditions = [
+    eq(schema.connectors.organizationId, organizationId),
+    eq(schema.connectors.kind, "slack"),
+  ];
+  if (options.enabledOnly ?? true) {
+    conditions.push(eq(schema.connectors.enabled, true));
+  }
+
+  const [connector] = await db
+    .select()
+    .from(schema.connectors)
+    .where(and(...conditions))
+    .limit(1);
+
+  return connector ?? null;
+}
+
+export function getSlackConnectorTeamId(
+  connector: {
+    config: unknown;
+  } | null,
+): string | null {
+  if (!connector) {
+    return null;
+  }
+
+  const teamId = (connector.config as { teamId?: unknown } | null)?.teamId;
+  return typeof teamId === "string" && teamId.trim().length > 0 ? teamId : null;
+}
+
 export async function findSlackConnectorOwnedByAnotherOrganization(input: {
   teamId: string;
   organizationId: string;

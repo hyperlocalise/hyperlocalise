@@ -21,6 +21,7 @@ export type WorkspaceAutomationNotificationError = {
 };
 
 export async function runWorkspaceAutomationSlackNotificationTool(input: {
+  organizationId: string;
   channelId: string;
   message: string;
 }): Promise<Result<void, WorkspaceAutomationNotificationError>> {
@@ -33,7 +34,11 @@ export async function runWorkspaceAutomationSlackNotificationTool(input: {
 
   try {
     const { postSlackChannelMessage } = await import("@/lib/agents/slack/post-channel-message");
-    await postSlackChannelMessage({ channelId: input.channelId, text: input.message });
+    await postSlackChannelMessage({
+      organizationId: input.organizationId,
+      channelId: input.channelId,
+      text: input.message,
+    });
     return ok(undefined);
   } catch (error) {
     return err({

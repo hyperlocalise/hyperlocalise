@@ -13,9 +13,19 @@
 import { Chat, type Adapter } from "chat";
 
 import { createChatStateAdapter } from "@/lib/agents/runtime/state";
+import {
+  findSlackConnectorForOrganization,
+  getSlackConnectorTeamId,
+} from "@/lib/agents/slack/helpers";
 import { env } from "@/lib/env";
 
 type SlackChat = Chat<{ slack: Adapter<unknown, unknown> }>;
+
+type SlackOutboundAdapter = {
+  getInstallation: (teamId: string) => Promise<{ botToken?: string } | null>;
+  postChannelMessage: (channelId: string, message: string) => Promise<unknown>;
+  withBotToken: <T>(token: string, fn: () => T, options?: { installationId?: string }) => T;
+};
 
 let slackChatPromise: Promise<SlackChat> | null = null;
 
@@ -55,16 +65,32 @@ async function initializeSlackChat(): Promise<SlackChat> {
   return slackChat;
 }
 
+function toCanonicalSlackChannelId(channelId: string) {
+  return channelId.startsWith("slack:") ? channelId : `slack:${channelId}`;
+}
+
 export async function postSlackChannelMessage(input: {
+  organizationId: string;
   channelId: string;
   text: string;
 }): Promise<void> {
+  const connector = await findSlackConnectorForOrganization(input.organizationId);
+  const teamId = getSlackConnectorTeamId(connector);
+  if (!teamId) {
+    throw new Error("Slack is not connected for this organization.");
+  }
+
   const chat = await getSlackChat();
-  const adapter = chat.getAdapter("slack") as {
-    postChannelMessage: (channelId: string, message: string) => Promise<unknown>;
-  };
-  const channelId = input.channelId.startsWith("slack:")
-    ? input.channelId
-    : `slack:${input.channelId}`;
-  await adapter.postChannelMessage(channelId, input.text);
+  const adapter = chat.getAdapter("slack") as unknown as SlackOutboundAdapter;
+  const installation = await adapter.getInstallation(teamId);
+  if (!installation?.botToken) {
+    throw new Error("Slack installation not found for this organization.");
+  }
+
+  const channelId = toCanonicalSlackChannelId(input.channelId);
+  await adapter.withBotToken(
+    installation.botToken,
+    () => adapter.postChannelMessage(channelId, input.text),
+    { installationId: teamId },
+  );
 }
