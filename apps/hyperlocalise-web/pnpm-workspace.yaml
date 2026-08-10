@@ -43,8 +43,6 @@ overrides:
   # TipTap 3.28 pulls prosemirror-model ^1.25.9 while nested PM packages
   # still resolve 1.25.8; dual copies break editor Fragment identity.
   prosemirror-model: "1.25.11"
-patchedDependencies:
-  chat@4.36.0: patches/chat@4.36.0.patch
 peerDependencyRules:
   allowAny:
     - vite

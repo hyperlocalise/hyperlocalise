@@ -39,12 +39,11 @@ function loadEsbuild(): EsbuildBuild {
   return require(require.resolve("esbuild", { paths: [buildersDir] })) as EsbuildBuild;
 }
 
-function resolveChatContextChunkPath(): string {
-  // Prefer the app-resolved install (patched) over any leftover unpatched
-  // transitive chat copies that may still exist under node_modules/.pnpm.
-  const chatPackageJson = path.join(process.cwd(), "node_modules/chat/package.json");
-  const chatDir = path.dirname(chatPackageJson);
-  return path.join(chatDir, "dist/chunk-3VEMJAGK.js");
+function listChatDistJsFiles(): string[] {
+  const chatDist = path.join(process.cwd(), "node_modules/chat/dist");
+  return readdirSync(chatDist)
+    .filter((name) => name.endsWith(".js"))
+    .map((name) => path.join(chatDist, name));
 }
 
 /**
@@ -52,14 +51,26 @@ function resolveChatContextChunkPath(): string {
  * discovers `chat` and side-effect-imports it into the shared workflow VM
  * bundle. A static `async_hooks` import becomes `require("async_hooks")` in
  * that CJS sandbox and crashes every workflow (including source-file-ingest).
+ *
+ * chat@4.36.0 introduced that static import; pin below that until upstream
+ * ships a workflow-safe build.
  */
 describe("chat package workflow sandbox compatibility", () => {
-  it("does not statically import async_hooks from the conversation context chunk", () => {
-    const source = readFileSync(resolveChatContextChunkPath(), "utf8");
+  it("does not statically import async_hooks anywhere in chat/dist", () => {
+    const offenders = listChatDistJsFiles().flatMap((filePath) => {
+      const source = readFileSync(filePath, "utf8");
+      if (
+        /from\s+["']async_hooks["']/.test(source) ||
+        /from\s+["']node:async_hooks["']/.test(source) ||
+        /require\(["']async_hooks["']\)/.test(source) ||
+        /require\(["']node:async_hooks["']\)/.test(source)
+      ) {
+        return [path.basename(filePath)];
+      }
+      return [];
+    });
 
-    expect(source).not.toMatch(/from\s+["']async_hooks["']/);
-    expect(source).not.toMatch(/from\s+["']node:async_hooks["']/);
-    expect(source).toContain('getBuiltinModule("async_hooks")');
+    expect(offenders).toEqual([]);
   });
 
   it("bundles into a workflow-like CJS sandbox without require(async_hooks)", async () => {
@@ -86,7 +97,6 @@ describe("chat package workflow sandbox compatibility", () => {
     expect(text.length).toBeGreaterThan(0);
     expect(text).not.toMatch(/require\(["']async_hooks["']\)/);
     expect(text).not.toMatch(/require\(["']node:async_hooks["']\)/);
-    expect(text).toContain('getBuiltinModule("async_hooks")');
 
     const sandbox: Record<string, unknown> = {
       module: { exports: {} },
