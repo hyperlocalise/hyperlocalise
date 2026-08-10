@@ -1,0 +1,43 @@
+diff --git a/dist/chunk-3VEMJAGK.js b/dist/chunk-3VEMJAGK.js
+index 1503244009eb369032331ee28277afe4e4eb5696..7bd5c63fd847f5cd9ae3c4517e196946e3eac7d3 100644
+--- a/dist/chunk-3VEMJAGK.js
++++ b/dist/chunk-3VEMJAGK.js
+@@ -127,8 +127,36 @@ ${linkParts}`;
+ }
+ 
+ // src/context.ts
+-import { AsyncLocalStorage } from "async_hooks";
+-var conversationStorage = new AsyncLocalStorage();
++// Avoid a static `async_hooks` import. Workflow DevKit discovers this package
++// for @workflow/serde class registration and bundles it into the workflow VM,
++// where Node builtins are externalized as `require()` and crash at runtime
++// (`ReferenceError: require is not defined`). Prefer Node's
++// `process.getBuiltinModule` when available; otherwise use a sync fallback.
++function createConversationStorage() {
++  const asyncHooks =
++    typeof process !== "undefined" && typeof process.getBuiltinModule === "function"
++      ? process.getBuiltinModule("async_hooks")
++      : null;
++  if (asyncHooks?.AsyncLocalStorage) {
++    return new asyncHooks.AsyncLocalStorage();
++  }
++  let current;
++  return {
++    run(store, fn) {
++      const previous = current;
++      current = store;
++      try {
++        return fn();
++      } finally {
++        current = previous;
++      }
++    },
++    getStore() {
++      return current;
++    }
++  };
++}
++var conversationStorage = createConversationStorage();
+ function runInConversation(threadId, fn) {
+   return conversationStorage.run(threadId, fn);
+ }
