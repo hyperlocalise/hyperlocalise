@@ -23,7 +23,7 @@ require (
 	github.com/subosito/gotenv v1.6.0
 	github.com/tidwall/jsonc v0.3.3
 	github.com/workos/workos-go/v10 v10.1.1
-	github.com/workos/workos-go/v9 v9.6.0
+	github.com/workos/workos-go/v10 v10.1.1
 	github.com/yuin/goldmark v1.8.5
 	go.opentelemetry.io/otel v1.45.0
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp v1.45.0
