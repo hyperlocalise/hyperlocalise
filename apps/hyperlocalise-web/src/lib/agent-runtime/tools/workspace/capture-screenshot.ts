@@ -1041,7 +1041,7 @@ It does not commit, push, open pull requests, or publish repository changes.`,
 
       ctx.reportToolProgress?.({
         toolCallId,
-        message: "Resolving Storybook…",
+        message: "Looking for a preview…",
       });
       const resolvedPackage = await resolveStorybookPackage(repo);
       if ("errorCode" in resolvedPackage) {
@@ -1109,8 +1109,7 @@ It does not commit, push, open pull requests, or publish repository changes.`,
         attempts = attempt;
         ctx.reportToolProgress?.({
           toolCallId,
-          message:
-            attempt === 1 ? "Preparing browser and loading story…" : "Retrying screenshot capture…",
+          message: attempt === 1 ? "Loading the preview…" : "Trying the capture again…",
         });
         captureResult = await repo.bash.exec("bash", {
           args: ["-lc", captureCommand],
@@ -1157,7 +1156,7 @@ It does not commit, push, open pull requests, or publish repository changes.`,
       const content = Buffer.from(captureResult.stdout.trim(), "base64");
       ctx.reportToolProgress?.({
         toolCallId,
-        message: "Uploading screenshot…",
+        message: "Saving the screenshot…",
       });
       const storedFile = await createStoredFile({
         organizationId: ctx.organizationId,

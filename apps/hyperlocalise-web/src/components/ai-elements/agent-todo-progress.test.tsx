@@ -21,12 +21,12 @@ import { AgentTodoProgress, getAgentTodoItems } from "./agent-todo-progress";
 const items = [
   {
     id: "find-story",
-    content: "Find the target component and an existing Storybook story",
+    content: "Find the target component and an existing preview",
     status: "completed" as const,
   },
   {
     id: "prepare-preview",
-    content: "No story found — create a temporary Storybook story with mock data",
+    content: "No preview found — create a temporary one with mock data",
     status: "in-progress" as const,
   },
   {

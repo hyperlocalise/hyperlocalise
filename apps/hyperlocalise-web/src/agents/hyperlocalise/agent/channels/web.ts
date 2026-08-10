@@ -122,7 +122,7 @@ export function createWebChatAgentUIStreamResponse(input: {
       writer.write({
         type: "data-status",
         id: "prep",
-        data: { message: "Preparing…" },
+        data: { message: "Setting up workspace…" },
       });
 
       const prepared = await prepareAndCommitWebConversationTurn(input.conversationId, {

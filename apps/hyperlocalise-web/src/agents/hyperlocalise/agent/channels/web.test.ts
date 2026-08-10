@@ -298,7 +298,7 @@ describe("createWebChatAgentUIStreamResponse", () => {
       expect.objectContaining({ knowledgeMemoryEnabled: true }),
     );
     expect(body).toContain("data-status");
-    expect(body).toContain("Preparing");
+    expect(body).toContain("Setting up workspace");
     expect(body).toContain("Which repository should I search?");
     expect(addInteractionMessageMock).toHaveBeenCalledWith(
       expect.objectContaining({

@@ -100,7 +100,7 @@ export const CreatingMissingStoryProgress: Story = {
               todos: [
                 {
                   id: "find-story",
-                  content: "Find the target component and an existing Storybook story",
+                  content: "Find the target component and an existing preview",
                   status: "in-progress",
                 },
               ],
@@ -110,7 +110,7 @@ export const CreatingMissingStoryProgress: Story = {
               todos: [
                 {
                   id: "find-story",
-                  content: "Find the target component and an existing Storybook story",
+                  content: "Find the target component and an existing preview",
                   status: "in-progress",
                 },
               ],
@@ -124,12 +124,12 @@ export const CreatingMissingStoryProgress: Story = {
               todos: [
                 {
                   id: "find-story",
-                  content: "Find the target component and an existing Storybook story",
+                  content: "Find the target component and an existing preview",
                   status: "completed",
                 },
                 {
                   id: "prepare-preview",
-                  content: "No story found — create a temporary Storybook story with mock data",
+                  content: "No preview found — create a temporary one with mock data",
                   status: "in-progress",
                 },
                 {
@@ -144,12 +144,12 @@ export const CreatingMissingStoryProgress: Story = {
               todos: [
                 {
                   id: "find-story",
-                  content: "Find the target component and an existing Storybook story",
+                  content: "Find the target component and an existing preview",
                   status: "completed",
                 },
                 {
                   id: "prepare-preview",
-                  content: "No story found — create a temporary Storybook story with mock data",
+                  content: "No preview found — create a temporary one with mock data",
                   status: "in-progress",
                 },
                 {
@@ -167,7 +167,7 @@ export const CreatingMissingStoryProgress: Story = {
   play: async ({ canvas }) => {
     await expect(canvas.getByText("Progress")).toBeInTheDocument();
     await expect(
-      canvas.getByText("No story found — create a temporary Storybook story with mock data"),
+      canvas.getByText("No preview found — create a temporary one with mock data"),
     ).toBeInTheDocument();
     await expect(canvas.getAllByRole("status")).toHaveLength(1);
   },
@@ -184,7 +184,7 @@ export const ScreenshotProgressAndReasoning: Story = {
         parts: [
           {
             type: "reasoning",
-            text: "I found the matching Storybook story and am verifying the localized state.",
+            text: "I found a matching preview and am checking the localized state.",
             state: "done",
           },
           {
@@ -203,7 +203,7 @@ export const ScreenshotProgressAndReasoning: Story = {
             id: "capture-story",
             data: {
               toolCallId: "capture-story",
-              message: "Preparing browser and loading story…",
+              message: "Loading the preview…",
             },
           },
         ],
@@ -211,11 +211,9 @@ export const ScreenshotProgressAndReasoning: Story = {
     }),
   },
   play: async ({ canvas }) => {
-    await expect(canvas.getByText("Preparing browser and loading story…")).toBeInTheDocument();
+    await expect(canvas.getByText("Loading the preview…")).toBeInTheDocument();
     await expect(
-      canvas.getByText(
-        "I found the matching Storybook story and am verifying the localized state.",
-      ),
+      canvas.getByText("I found a matching preview and am checking the localized state."),
     ).toBeInTheDocument();
   },
 };

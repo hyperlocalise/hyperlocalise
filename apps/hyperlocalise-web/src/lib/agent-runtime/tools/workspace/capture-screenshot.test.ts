@@ -575,19 +575,19 @@ describe("createCaptureScreenshotTool", () => {
       [
         {
           toolCallId: "test-tool-call",
-          message: "Resolving Storybook…",
+          message: "Looking for a preview…",
         },
       ],
       [
         {
           toolCallId: "test-tool-call",
-          message: "Preparing browser and loading story…",
+          message: "Loading the preview…",
         },
       ],
       [
         {
           toolCallId: "test-tool-call",
-          message: "Uploading screenshot…",
+          message: "Saving the screenshot…",
         },
       ],
     ]);
@@ -737,7 +737,7 @@ describe("createCaptureScreenshotTool", () => {
     expect(exec.mock.calls.filter(([command]) => command === "bash")).toHaveLength(2);
     expect(reportToolProgress).toHaveBeenCalledWith({
       toolCallId: "test-tool-call",
-      message: "Retrying screenshot capture…",
+      message: "Trying the capture again…",
     });
   });
 
