@@ -40,7 +40,10 @@ function loadEsbuild(): EsbuildBuild {
 }
 
 function resolveChatContextChunkPath(): string {
-  const chatDir = resolvePnpmPackageDir("chat@4.36.0", "chat");
+  // Prefer the app-resolved install (patched) over any leftover unpatched
+  // transitive chat copies that may still exist under node_modules/.pnpm.
+  const chatPackageJson = path.join(process.cwd(), "node_modules/chat/package.json");
+  const chatDir = path.dirname(chatPackageJson);
   return path.join(chatDir, "dist/chunk-3VEMJAGK.js");
 }
 
@@ -79,7 +82,7 @@ describe("chat package workflow sandbox compatibility", () => {
       logLevel: "silent",
     });
 
-    const text = result.outputFiles[0]?.text ?? "";
+    const text = result.outputFiles?.[0]?.text ?? "";
     expect(text.length).toBeGreaterThan(0);
     expect(text).not.toMatch(/require\(["']async_hooks["']\)/);
     expect(text).not.toMatch(/require\(["']node:async_hooks["']\)/);
