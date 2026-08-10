@@ -10,29 +10,42 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { createLogger } from "@/lib/log";
 import type { WorkspaceAutomationExecutionEventData } from "@/lib/workflow/types";
-import type {
-  WorkspaceOrchestratorExecutionError,
-  WorkspaceOrchestratorExecutionSuccess,
-} from "@/agents/automations/workspace/agent/run-workspace-orchestrator";
 
-const logger = createLogger("workspace-automation-step");
-
+/**
+ * Step-local result types (duplicated structurally from the orchestrator module)
+ * so this file — which is statically imported by a `"use workflow"` module —
+ * never pulls the orchestrator / logging graph into the workflow sandbox bundle.
+ */
 export type WorkspaceAutomationStepResult =
   | {
       ok: true;
-      value: WorkspaceOrchestratorExecutionSuccess;
+      value: {
+        runId: string;
+        status: string;
+        planTools: string[];
+        stepResults: Record<string, unknown>;
+      };
     }
   | {
       ok: false;
-      error: WorkspaceOrchestratorExecutionError;
+      error: {
+        code:
+          | "workspace_automation_not_found"
+          | "workspace_automation_run_not_found"
+          | "workspace_orchestrator_failed";
+        message: string;
+        runId?: string;
+      };
     };
 
 export async function executeWorkspaceAutomationStep(
   event: WorkspaceAutomationExecutionEventData,
 ): Promise<WorkspaceAutomationStepResult> {
   "use step";
+
+  const { createLogger } = await import("@/lib/log");
+  const logger = createLogger("workspace-automation-step");
 
   const stepContext = {
     workspaceAutomationRunId: event.workspaceAutomationRunId,

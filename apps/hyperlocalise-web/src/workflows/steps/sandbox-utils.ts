@@ -10,14 +10,13 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { Sandbox } from "@vercel/sandbox";
-
 export async function runSandboxCommand(
   sandboxId: string,
   command: string,
   args: string[],
   options?: { env?: Record<string, string> },
 ): Promise<{ exitCode: number; output: string }> {
+  const { Sandbox } = await import("@vercel/sandbox");
   const sandbox = await Sandbox.get({ name: sandboxId });
   const result = await sandbox.runCommand({
     cmd: command,

@@ -13,7 +13,6 @@
 import { getWorkflowMetadata } from "workflow";
 
 import { hyperlocaliseAgentModelId } from "@/lib/agent-runtime/loops/model-id";
-import { env } from "@/lib/env";
 import type { EmailAgentTask, EmailAgentTaskAttachment } from "@/lib/workflow/types";
 import {
   markEmailTranslationJobFailed,
@@ -199,12 +198,15 @@ function shellQuote(value: string): string {
 }
 
 export function getSandboxTranslationEnv(): Record<string, string> {
-  if (!env.OPENAI_API_KEY) {
+  // Read process.env directly so this workflow module never static-imports `@/lib/env`
+  // (t3 env + Next helpers are unsafe in the Workflow DevKit sandbox).
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) {
     throw new Error("OPENAI_API_KEY is not configured");
   }
 
   return {
-    OPENAI_API_KEY: env.OPENAI_API_KEY,
+    OPENAI_API_KEY: apiKey,
   };
 }
 
@@ -217,6 +219,7 @@ async function sendReplyEmail(
   "use step";
 
   const { Resend } = await import("resend");
+  const { env } = await import("@/lib/env");
   const { inferAttachmentContentType, toBase64AttachmentContent } =
     await import("@/lib/resend/attachments");
 
@@ -272,6 +275,7 @@ async function sendFailureReplyEmail(
   "use step";
 
   const { Resend } = await import("resend");
+  const { env } = await import("@/lib/env");
 
   if (!env.RESEND_API_KEY) {
     throw new Error("Resend is not configured");

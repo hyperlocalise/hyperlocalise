@@ -12,7 +12,6 @@
  */
 import { initLogger, log as evlog } from "evlog";
 import type { DrainFn, LogLevel, LoggerConfig } from "evlog";
-import type { Logger as ChatLogger } from "chat";
 
 import { errorToLogObject, isError } from "@/lib/serialize-error-for-log";
 
@@ -268,7 +267,20 @@ function emit(level: LogLevel, bindings: LogBindings, input: LogInput, messageOr
   evlog[level](mergeLogContext(bindings, input, messageOrContext));
 }
 
-export function createChatLogger(prefix?: string): ChatLogger {
+/**
+ * Structural logger shape compatible with the Chat SDK `Logger` interface.
+ * Kept local so `@/lib/log` never imports `chat` — that package uses Node
+ * `async_hooks` and must not enter the Workflow DevKit sandbox bundle.
+ */
+export type ChatSdkLogger = {
+  child: (prefix: string) => ChatSdkLogger;
+  debug: (message: string, ...args: unknown[]) => void;
+  error: (message: string, ...args: unknown[]) => void;
+  info: (message: string, ...args: unknown[]) => void;
+  warn: (message: string, ...args: unknown[]) => void;
+};
+
+export function createChatLogger(prefix?: string): ChatSdkLogger {
   const base = createLogger(prefix);
   return {
     child: (subPrefix) => createChatLogger(prefix ? `${prefix}:${subPrefix}` : subPrefix),
