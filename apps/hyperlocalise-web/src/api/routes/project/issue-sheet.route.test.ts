@@ -403,7 +403,7 @@ describe("Issue Sheet routes", () => {
   });
 
   it("rejects invalid select values in the create payload", async () => {
-    const { identity, project } = await projectFixture.createStoredProjectFixture();
+    const { identity, organization, project } = await projectFixture.createStoredProjectFixture();
     const headers = await projectFixture.authHeadersFor(identity);
     const organizationSlug = identity.organization.slug ?? "missing-slug";
 
@@ -437,7 +437,7 @@ describe("Issue Sheet routes", () => {
       .from(schema.issueSheetIssues)
       .where(
         and(
-          eq(schema.issueSheetIssues.organizationId, identity.organization.id),
+          eq(schema.issueSheetIssues.organizationId, organization.id),
           eq(schema.issueSheetIssues.projectId, project.id),
           eq(schema.issueSheetIssues.title, "Bad select value"),
         ),
