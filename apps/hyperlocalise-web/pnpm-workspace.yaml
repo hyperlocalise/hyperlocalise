@@ -22,7 +22,7 @@ minimumReleaseAgeExclude:
   - '@ai-sdk/react@4.0.40'
   - ai@7.0.37
 overrides:
-  vite: "8.2.0"
+  vite: "8.2.1"
   # Pin each undici major independently (transitive deps use 6/7/8).
   "undici@^6.0.0": "6.28.0"
   "undici@^7.0.0": "7.29.0"
