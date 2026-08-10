@@ -14,6 +14,7 @@ import { describe, expect, it, vi } from "vite-plus/test";
 
 import {
   readIssueDetailSidebarOpen,
+  subscribeIssueDetailSidebarState,
   writeIssueDetailSidebarOpen,
 } from "./issue-detail-sidebar-state";
 
@@ -66,5 +67,22 @@ describe("issue-detail-sidebar-state", () => {
     });
 
     expect(readIssueDetailSidebarOpen("issue-detail", "issue_1", true)).toBe(true);
+  });
+
+  it("notifies subscribers when sidebar state is written", () => {
+    const { getItem, setItem } = createStorageMock();
+    vi.stubGlobal("window", {
+      localStorage: { getItem, setItem },
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    });
+
+    const listener = vi.fn();
+    const unsubscribe = subscribeIssueDetailSidebarState(listener);
+
+    writeIssueDetailSidebarOpen("issue-detail", "issue_1", false);
+
+    expect(listener).toHaveBeenCalledTimes(1);
+    unsubscribe();
   });
 });

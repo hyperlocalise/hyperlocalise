@@ -89,11 +89,8 @@ import { useIssueDetailMutations } from "./use-issue-detail-mutations";
 import { useIssueDetailQuery } from "./use-issue-detail-query";
 import { useIssueSheetColumnsQuery } from "./use-issue-sheet-columns-query";
 import { issueDetailPanelMessages as messages } from "./issue-detail-panel.messages";
-import {
-  readIssueDetailSidebarOpen,
-  writeIssueDetailSidebarOpen,
-  type IssueDetailSidebarScope,
-} from "./issue-detail-sidebar-state";
+import { type IssueDetailSidebarScope } from "./issue-detail-sidebar-state";
+import { useIssueDetailSidebarOpen } from "./use-issue-detail-sidebar-open";
 import { issueSheetSharedMessages as sharedMessages } from "../../projects/[projectId]/issue-sheet/_components/issue-sheet-shared.messages";
 import { formatRelativeTimestamp } from "../workspace-files-shared";
 
@@ -253,19 +250,12 @@ export const IssueDetailPanel = forwardRef<
   const [descriptionDraft, setDescriptionDraft] = useState("");
   const [ownerNoteDraft, setOwnerNoteDraft] = useState("");
   const [customColumnDrafts, setCustomColumnDrafts] = useState<Record<string, string>>({});
-  const [sidebarOpen, setSidebarOpen] = useState(() =>
-    readIssueDetailSidebarOpen(sidebarStorageScope, issueId, defaultSidebarOpen),
+  const [sidebarOpen, setSidebarOpen] = useIssueDetailSidebarOpen(
+    sidebarStorageScope,
+    issueId,
+    defaultSidebarOpen,
   );
   const isSaving = updateIssue.isPending || setValue.isPending;
-
-  useEffect(() => {
-    setSidebarOpen(readIssueDetailSidebarOpen(sidebarStorageScope, issueId, defaultSidebarOpen));
-  }, [sidebarStorageScope, issueId, defaultSidebarOpen]);
-
-  const handleSidebarOpenChange = (open: boolean) => {
-    setSidebarOpen(open);
-    writeIssueDetailSidebarOpen(sidebarStorageScope, issueId, open);
-  };
 
   const titleDraftRef = useRef(titleDraft);
   const descriptionDraftRef = useRef(descriptionDraft);
@@ -758,7 +748,7 @@ export const IssueDetailPanel = forwardRef<
 
       <Collapsible
         open={sidebarOpen}
-        onOpenChange={handleSidebarOpenChange}
+        onOpenChange={setSidebarOpen}
         className="flex min-h-0 flex-col overflow-hidden border-t border-border bg-muted/20 md:border-t-0 md:border-s"
       >
         <aside

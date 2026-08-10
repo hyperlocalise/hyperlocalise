@@ -19,6 +19,8 @@ const STORAGE_KEYS: Record<IssueDetailSidebarScope, string> = {
 
 type IssueDetailSidebarState = Record<string, boolean>;
 
+const sidebarStateListeners = new Set<() => void>();
+
 function parseStoredSidebarState(value: string | null): IssueDetailSidebarState | null {
   if (!value) {
     return null;
@@ -67,6 +69,38 @@ function writeStoredSidebarState(scope: IssueDetailSidebarScope, state: IssueDet
   }
 }
 
+function notifyIssueDetailSidebarStateListeners() {
+  for (const listener of sidebarStateListeners) {
+    listener();
+  }
+}
+
+function isIssueDetailSidebarStorageKey(key: string | null) {
+  return key === STORAGE_KEYS["issue-detail"] || key === STORAGE_KEYS.inbox;
+}
+
+export function subscribeIssueDetailSidebarState(listener: () => void) {
+  sidebarStateListeners.add(listener);
+
+  if (typeof window === "undefined") {
+    return () => {
+      sidebarStateListeners.delete(listener);
+    };
+  }
+
+  const onStorage = (event: StorageEvent) => {
+    if (isIssueDetailSidebarStorageKey(event.key)) {
+      listener();
+    }
+  };
+  window.addEventListener("storage", onStorage);
+
+  return () => {
+    sidebarStateListeners.delete(listener);
+    window.removeEventListener("storage", onStorage);
+  };
+}
+
 export function readIssueDetailSidebarOpen(
   scope: IssueDetailSidebarScope,
   issueId: string,
@@ -84,4 +118,5 @@ export function writeIssueDetailSidebarOpen(
   const state = readStoredSidebarState(scope);
   state[issueId] = open;
   writeStoredSidebarState(scope, state);
+  notifyIssueDetailSidebarStateListeners();
 }
