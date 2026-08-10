@@ -17,6 +17,7 @@ import {
   collectOrganizationIssueLocales,
   resolveIssueCreateLocaleOptions,
   sanitizeIssueCreateTargetLocale,
+  shouldSanitizeIssueCreateTargetLocale,
 } from "./issue-locale-picker";
 
 describe("buildIssueLocaleOptions", () => {
@@ -66,16 +67,29 @@ describe("resolveIssueCreateLocaleOptions", () => {
       resolveIssueCreateLocaleOptions({
         resolvedProjectId: "mobile",
         projectTargetLocales: ["ja-JP", "ko-KR"],
+        fetchedProjectId: "mobile",
       }),
     ).toEqual(["ja-JP", "ko-KR"]);
   });
 
-  it("falls back to fetched project locales when list metadata is an empty placeholder", () => {
+  it("ignores fetched locales from a different project", () => {
+    expect(
+      resolveIssueCreateLocaleOptions({
+        resolvedProjectId: "mobile",
+        projects: [{ id: "mobile", targetLocales: [] }],
+        projectTargetLocales: ["fr-FR", "de-DE"],
+        fetchedProjectId: "web",
+      }),
+    ).toEqual([]);
+  });
+
+  it("falls back to fetched locales when list metadata is an empty placeholder", () => {
     expect(
       resolveIssueCreateLocaleOptions({
         resolvedProjectId: "mobile",
         projects: [{ id: "mobile", targetLocales: [] }],
         projectTargetLocales: ["ja-JP", "ko-KR"],
+        fetchedProjectId: "mobile",
       }),
     ).toEqual(["ja-JP", "ko-KR"]);
   });
@@ -107,24 +121,28 @@ describe("sanitizeIssueCreateTargetLocale", () => {
     ).toBe("");
   });
 
-  it("keeps the locale while empty list metadata awaits project detail", () => {
+  it("clears the locale when the selected project has no known locales", () => {
     expect(
       sanitizeIssueCreateTargetLocale({
         currentLocale: "fr-FR",
         resolvedProjectId: "empty",
         projects: [{ id: "empty", targetLocales: [] }],
+        fetchedProjectId: "empty",
+        projectTargetLocales: [],
       }),
-    ).toBe("fr-FR");
+    ).toBe("");
   });
 
-  it("keeps the locale while selected project locales are loading", () => {
+  it("does not keep a locale using fetched data from another project", () => {
     expect(
       sanitizeIssueCreateTargetLocale({
         currentLocale: "fr-FR",
-        resolvedProjectId: "loading",
-        projects: [{ id: "loading", targetLocales: null }],
+        resolvedProjectId: "mobile",
+        projects: [{ id: "mobile", targetLocales: [] }],
+        projectTargetLocales: ["fr-FR", "de-DE"],
+        fetchedProjectId: "web",
       }),
-    ).toBe("fr-FR");
+    ).toBe("");
   });
 
   it("keeps a valid locale once fetched project locales resolve", () => {
@@ -134,6 +152,7 @@ describe("sanitizeIssueCreateTargetLocale", () => {
         resolvedProjectId: "loading",
         projects: [{ id: "loading", targetLocales: [] }],
         projectTargetLocales: ["fr-FR", "de-DE"],
+        fetchedProjectId: "loading",
       }),
     ).toBe("fr-FR");
   });
@@ -145,7 +164,45 @@ describe("sanitizeIssueCreateTargetLocale", () => {
         resolvedProjectId: "loading",
         projects: [{ id: "loading", targetLocales: null }],
         projectTargetLocales: [],
+        fetchedProjectId: "loading",
       }),
     ).toBe("");
+  });
+});
+
+describe("shouldSanitizeIssueCreateTargetLocale", () => {
+  const projects = [
+    { id: "web", targetLocales: ["fr-FR", "de-DE"] },
+    { id: "mobile", targetLocales: [] },
+  ];
+
+  it("sanitizes immediately when list metadata includes locales", () => {
+    expect(
+      shouldSanitizeIssueCreateTargetLocale({
+        resolvedProjectId: "web",
+        projects,
+      }),
+    ).toBe(true);
+  });
+
+  it("waits for fetched locales when list metadata is empty", () => {
+    expect(
+      shouldSanitizeIssueCreateTargetLocale({
+        resolvedProjectId: "mobile",
+        projects,
+        isProjectLocalesFetching: true,
+      }),
+    ).toBe(false);
+  });
+
+  it("sanitizes once fetched locales match the selected project", () => {
+    expect(
+      shouldSanitizeIssueCreateTargetLocale({
+        resolvedProjectId: "mobile",
+        projects,
+        fetchedProjectId: "mobile",
+        isProjectLocalesFetching: false,
+      }),
+    ).toBe(true);
   });
 });

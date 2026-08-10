@@ -53,23 +53,55 @@ export function collectOrganizationIssueLocales(
   return buildIssueLocaleOptions(projects.flatMap((project) => project.targetLocales ?? []));
 }
 
+function normalizeProjectLocaleList(locales?: string[] | null) {
+  return (locales ?? []).map((locale) => locale.trim()).filter(Boolean);
+}
+
 export function resolveIssueCreateLocaleOptions(input: {
   resolvedProjectId?: string;
   projects?: Array<{ id: string; targetLocales?: string[] | null }>;
   projectTargetLocales?: string[];
+  fetchedProjectId?: string;
 }) {
   if (input.resolvedProjectId) {
-    const selectedProject = input.projects?.find(
-      (project) => project.id === input.resolvedProjectId,
+    const listLocales = normalizeProjectLocaleList(
+      input.projects?.find((project) => project.id === input.resolvedProjectId)?.targetLocales,
     );
-    const selectedLocales = selectedProject?.targetLocales;
-    if (selectedLocales?.length) {
-      return selectedLocales;
+    if (listLocales.length > 0) {
+      return listLocales;
     }
-    // Empty list metadata is often a normalized placeholder; prefer fetched project detail.
-    return input.projectTargetLocales ?? selectedLocales ?? [];
+    if (
+      input.fetchedProjectId === input.resolvedProjectId &&
+      input.projectTargetLocales !== undefined
+    ) {
+      return normalizeProjectLocaleList(input.projectTargetLocales);
+    }
+    return [];
   }
   return collectOrganizationIssueLocales(input.projects ?? []);
+}
+
+export function shouldSanitizeIssueCreateTargetLocale(input: {
+  resolvedProjectId?: string;
+  projects?: Array<{ id: string; targetLocales?: string[] | null }>;
+  fetchedProjectId?: string;
+  isProjectLocalesFetching?: boolean;
+}) {
+  if (!input.resolvedProjectId) {
+    return false;
+  }
+
+  const listLocales = normalizeProjectLocaleList(
+    input.projects?.find((project) => project.id === input.resolvedProjectId)?.targetLocales,
+  );
+  if (listLocales.length > 0) {
+    return true;
+  }
+  if (input.isProjectLocalesFetching) {
+    return false;
+  }
+
+  return input.fetchedProjectId === input.resolvedProjectId;
 }
 
 export function sanitizeIssueCreateTargetLocale(input: {
@@ -77,17 +109,10 @@ export function sanitizeIssueCreateTargetLocale(input: {
   resolvedProjectId?: string;
   projects?: Array<{ id: string; targetLocales?: string[] | null }>;
   projectTargetLocales?: string[];
+  fetchedProjectId?: string;
 }) {
   const trimmedLocale = input.currentLocale.trim();
   if (!input.resolvedProjectId || !trimmedLocale) {
-    return input.currentLocale;
-  }
-
-  const selectedProject = input.projects?.find((project) => project.id === input.resolvedProjectId);
-  const selectedLocales = selectedProject?.targetLocales;
-  const hasAuthoritativeLocales =
-    Boolean(selectedLocales?.length) || input.projectTargetLocales !== undefined;
-  if (!hasAuthoritativeLocales) {
     return input.currentLocale;
   }
 
@@ -95,6 +120,7 @@ export function sanitizeIssueCreateTargetLocale(input: {
     resolvedProjectId: input.resolvedProjectId,
     projects: input.projects,
     projectTargetLocales: input.projectTargetLocales,
+    fetchedProjectId: input.fetchedProjectId,
   });
   if (!localeOptions.length || !localeOptions.includes(trimmedLocale)) {
     return "";

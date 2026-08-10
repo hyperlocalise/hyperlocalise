@@ -75,6 +75,7 @@ import {
   IssueLocalePicker,
   resolveIssueCreateLocaleOptions,
   sanitizeIssueCreateTargetLocale,
+  shouldSanitizeIssueCreateTargetLocale,
 } from "../../../../_components/issue-detail/issue-locale-picker";
 import { IssuePriorityIcon } from "../../../../_components/issue-detail/issue-priority-icon";
 import { IssueStatusIcon } from "../../../../_components/issue-detail/issue-status-icon";
@@ -273,14 +274,17 @@ export function IssueSheetCreateIssueDialog({
       Boolean(resolvedProjectId) &&
       (!isOrganizationScoped || !selectedProject?.targetLocales?.length),
   });
+  const fetchedProjectLocales =
+    projectQuery.data?.id === resolvedProjectId ? projectQuery.data.targetLocales : undefined;
   const localeOptions = useMemo(
     () =>
       resolveIssueCreateLocaleOptions({
         resolvedProjectId: resolvedProjectId || undefined,
         projects,
-        projectTargetLocales: projectQuery.data?.targetLocales,
+        projectTargetLocales: fetchedProjectLocales,
+        fetchedProjectId: projectQuery.data?.id,
       }),
-    [projectQuery.data?.targetLocales, projects, resolvedProjectId],
+    [fetchedProjectLocales, projectQuery.data?.id, projects, resolvedProjectId],
   );
 
   useEffect(() => {
@@ -289,15 +293,33 @@ export function IssueSheetCreateIssueDialog({
     if (!resolvedProjectId || linkSegmentId) {
       return;
     }
+    if (
+      !shouldSanitizeIssueCreateTargetLocale({
+        resolvedProjectId,
+        projects,
+        fetchedProjectId: projectQuery.data?.id,
+        isProjectLocalesFetching: projectQuery.isFetching,
+      })
+    ) {
+      return;
+    }
     setTargetLocale((current) =>
       sanitizeIssueCreateTargetLocale({
         currentLocale: current,
         resolvedProjectId,
         projects,
-        projectTargetLocales: projectQuery.data?.targetLocales,
+        projectTargetLocales: fetchedProjectLocales,
+        fetchedProjectId: projectQuery.data?.id,
       }),
     );
-  }, [linkSegmentId, projectQuery.data?.targetLocales, projects, resolvedProjectId]);
+  }, [
+    fetchedProjectLocales,
+    linkSegmentId,
+    projectQuery.data?.id,
+    projectQuery.isFetching,
+    projects,
+    resolvedProjectId,
+  ]);
 
   const compactCustomColumns = useMemo(
     () => (columnsQuery.data ?? []).filter(isCreateCompactCustomColumn),
