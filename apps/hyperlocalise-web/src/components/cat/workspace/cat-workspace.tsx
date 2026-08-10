@@ -14,7 +14,7 @@
  */
 import { useEffect, useState } from "react";
 import { observer } from "mobx-react-lite";
-import { FormattedMessage, useIntl } from "react-intl";
+import { FormattedMessage } from "react-intl";
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/primitives/cn";
@@ -23,7 +23,6 @@ import { CatEditorPanel } from "@/components/cat/editor/cat-editor-panel";
 import { CatFileViewPanel } from "@/components/cat/file-view/cat-file-view-panel";
 import { CatIntelligencePanel } from "@/components/cat/intelligence/cat-intelligence-panel";
 import { resolveCatLinkedIssueTranslationKeyId } from "@/components/cat/issues/cat-linked-issue-translation-key";
-import { catLinkedIssuesDialogMessages } from "@/components/cat/issues/cat-linked-issues-dialog.messages";
 import { CatQueuePanel } from "@/components/cat/queue/cat-queue-panel";
 import { CatSegmentKeyMeta } from "@/components/cat/segment/cat-segment-key-meta";
 import { CatSideBySidePanel } from "@/components/cat/side-by-side/cat-side-by-side-panel";
@@ -110,7 +109,6 @@ export const CatWorkspaceView = observer(function CatWorkspaceView({
   projectId,
   nativeIssuesEnabled = false,
 }: CatWorkspaceViewProps) {
-  const intl = useIntl();
   const store = useCatWorkspace();
   const viewMode = store.ui.viewMode;
   const intelligenceSegmentId = store.intelligenceSegmentId;
@@ -283,8 +281,6 @@ export const CatWorkspaceView = observer(function CatWorkspaceView({
           targetLocale: shell.fileContext.targetLocale,
           translationKeyId: editorTranslationKeyId,
           defaultTitle: editorSegment.sourceText,
-          linkUrl: segmentShareUrl ?? undefined,
-          linkLabel: intl.formatMessage(catLinkedIssuesDialogMessages.openInCatLinkLabel),
         }
       : null;
   const intelligenceTranslationKeyId =
@@ -303,10 +299,6 @@ export const CatWorkspaceView = observer(function CatWorkspaceView({
           targetLocale: shell.fileContext.targetLocale,
           translationKeyId: intelligenceTranslationKeyId,
           defaultTitle: intelligenceSegment.sourceText,
-          linkUrl:
-            (buildSegmentShareUrl?.(intelligenceSegment) ?? undefined) ||
-            (segmentShareUrl ?? undefined),
-          linkLabel: intl.formatMessage(catLinkedIssuesDialogMessages.openInCatLinkLabel),
         }
       : null;
 

@@ -68,7 +68,6 @@ import {
   CatLinkedIssuesDialog,
   type CatLinkedIssueSegmentContext,
 } from "@/components/cat/issues/cat-linked-issues-dialog";
-import { catLinkedIssuesDialogMessages } from "@/components/cat/issues/cat-linked-issues-dialog.messages";
 
 import { projectFileCatToWorkspaceState } from "./project-file-cat-mapper";
 import { projectFileCatWorkspaceMessages } from "./project-file-cat-workspace.messages";
@@ -366,15 +365,6 @@ export function ProjectFileCatWorkspace({
         throw new Error(intl.formatMessage(projectFileCatWorkspaceMessages.segmentNotFound));
       }
 
-      const linkUrl =
-        typeof window === "undefined"
-          ? null
-          : buildCatSegmentShareUrl({
-              baseUrl: window.location.href,
-              segmentId,
-              segmentKey: segment.key,
-            });
-
       const translationKeyId = resolveCatLinkedIssueTranslationKeyId({
         isNativeProject,
         segmentId,
@@ -387,8 +377,6 @@ export function ProjectFileCatWorkspace({
         translationKeyId,
         targetLocale,
         sourcePath,
-        linkUrl,
-        linkLabel: intl.formatMessage(catLinkedIssuesDialogMessages.openInCatLinkLabel),
       });
       setLinkedIssuesOpen(true);
     },

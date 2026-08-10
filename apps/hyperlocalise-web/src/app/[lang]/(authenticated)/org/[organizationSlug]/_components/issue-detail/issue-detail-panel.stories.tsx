@@ -86,9 +86,39 @@ export const Default: Story = {
     await expect(
       unsubscribe.compareDocumentPosition(commentsEmptyState) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
+    const openInCat = await canvas.findByRole("link", { name: "Open in CAT" });
+    await expect(openInCat).toHaveAttribute("target", "_blank");
+    await expect(canvas.getAllByRole("link", { name: "Open in CAT" })).toHaveLength(1);
     await expect(
       await canvas.findByRole("button", { name: "Collapse properties" }),
     ).toBeInTheDocument();
+  },
+};
+
+export const WithExternalLink: Story = {
+  args: {
+    issueId: "issue_external_ref",
+  },
+  parameters: {
+    msw: {
+      handlers: issueSheetMswHandlers,
+    },
+    nextjs: {
+      appDirectory: true,
+      navigation: {
+        pathname: `/org/${issueSheetOrganizationSlug}/projects/${issueSheetProjectId}/issue-sheet/issue_external_ref`,
+      },
+    },
+    viewport: desktopViewport,
+  },
+  play: async ({ canvas }) => {
+    await expect(
+      await canvas.findByDisplayValue("Copy review tracked in Jira"),
+    ).toBeInTheDocument();
+    await expect(canvas.queryByRole("link", { name: "Open in CAT" })).not.toBeInTheDocument();
+    const jiraLink = await canvas.findByRole("link", { name: "View in Jira" });
+    await expect(jiraLink).toHaveAttribute("href", "https://jira.example.com/browse/LOC-42");
+    await expect(jiraLink).toHaveAttribute("target", "_blank");
   },
 };
 
@@ -109,6 +139,10 @@ export const MinimizedSidebar: Story = {
     await expect(
       await canvas.findByRole("button", { name: "Expand properties" }),
     ).toBeInTheDocument();
+    await expect(canvas.getByRole("link", { name: "Open in CAT" })).toHaveAttribute(
+      "target",
+      "_blank",
+    );
     await expect(canvas.getByRole("combobox", { name: "Status" })).toBeInTheDocument();
     await expect(canvas.getByRole("combobox", { name: "Type" })).toBeInTheDocument();
     await expect(canvas.getByRole("combobox", { name: "Priority" })).toBeInTheDocument();

@@ -50,8 +50,6 @@ export type CatLinkedIssueSegmentContext = {
   translationKeyId: string | null;
   targetLocale: string;
   sourcePath: string;
-  linkUrl: string | null;
-  linkLabel: string;
 };
 
 type LinkedIssueListItem = {
@@ -166,8 +164,6 @@ export function CatLinkedIssuesDialog({
             sourcePath: segment.sourcePath,
             targetLocale: segment.targetLocale,
             linkKind: "cat_segment",
-            linkLabel: segment.linkLabel,
-            linkUrl: segment.linkUrl,
           }),
         },
       );
@@ -230,8 +226,6 @@ export function CatLinkedIssuesDialog({
       targetLocale: segment.targetLocale,
       defaultTitle: intl.formatMessage(messages.defaultTitle, { key: segment.segmentKey }),
       defaultDescription: segment.sourceText,
-      linkUrl: segment.linkUrl ?? undefined,
-      linkLabel: segment.linkLabel,
     };
   }, [intl, segment]);
 

@@ -568,6 +568,12 @@ export const IssueDetailPanel = forwardRef<
   }
 
   const catHref = buildIssueCatHref(organizationSlug, projectId, issue);
+  const showExternalLink = Boolean(
+    issue.linkUrl && issue.linkUrl !== catHref && isHttpOrHttpsUrl(issue.linkUrl),
+  );
+  const sidebarToggleLabel = intl.formatMessage(
+    sidebarOpen ? messages.collapseSidebar : messages.expandSidebar,
+  );
   const priority = typeof issue.values.priority === "string" ? issue.values.priority : "";
   const hasLinkedContext = Boolean(
     issue.translationKeyId || issue.key || issue.sourceText || issue.segmentId || issue.linkKind,
@@ -760,46 +766,50 @@ export const IssueDetailPanel = forwardRef<
             sidebarOpen ? "px-4 py-5" : "px-4 py-5 lg:items-center lg:px-1.5 lg:py-3",
           )}
         >
-          <div className="mb-2 hidden shrink-0 lg:flex lg:justify-end">
-            <CollapsibleTrigger
-              render={
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon-sm"
-                  className={cn(!sidebarOpen && "mx-auto")}
-                  aria-label={intl.formatMessage(
-                    sidebarOpen ? messages.collapseSidebar : messages.expandSidebar,
-                  )}
-                />
-              }
-            >
-              <HugeiconsIcon
-                icon={sidebarOpen ? ArrowRight01Icon : ArrowLeft01Icon}
-                strokeWidth={1.8}
-                className="size-4 rtl:rotate-180"
-              />
-            </CollapsibleTrigger>
-          </div>
-
-          <div className={cn("flex flex-col gap-1", !sidebarOpen && "lg:hidden")}>
-            <div className="mb-3 flex flex-col gap-2">
-              {catHref ? (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="w-full justify-start"
-                  render={<a href={catHref} />}
+          {sidebarOpen ? (
+            <div className="mb-4 flex flex-col gap-2">
+              <div className="flex items-stretch gap-2">
+                {catHref ? (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="min-w-0 flex-1 justify-start"
+                    render={<a href={catHref} target="_blank" rel="noopener noreferrer" />}
+                  >
+                    <HugeiconsIcon
+                      icon={TranslateIcon}
+                      strokeWidth={1.8}
+                      data-icon="inline-start"
+                    />
+                    <FormattedMessage {...messages.openInCat} />
+                  </Button>
+                ) : (
+                  <div className="flex min-w-0 flex-1 items-center rounded-lg border border-dashed border-border px-3 py-2">
+                    <TypographyP className="text-xs text-muted-foreground">
+                      <FormattedMessage {...messages.openInCatUnavailable} />
+                    </TypographyP>
+                  </div>
+                )}
+                <CollapsibleTrigger
+                  className="hidden shrink-0 lg:flex"
+                  render={
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon-sm"
+                      aria-label={sidebarToggleLabel}
+                      title={sidebarToggleLabel}
+                    />
+                  }
                 >
-                  <HugeiconsIcon icon={TranslateIcon} strokeWidth={1.8} data-icon="inline-start" />
-                  <FormattedMessage {...messages.openInCat} />
-                </Button>
-              ) : (
-                <TypographyP className="text-xs text-muted-foreground">
-                  <FormattedMessage {...messages.openInCatUnavailable} />
-                </TypographyP>
-              )}
-              {issue.linkUrl && issue.linkUrl !== catHref && isHttpOrHttpsUrl(issue.linkUrl) ? (
+                  <HugeiconsIcon
+                    icon={ArrowRight01Icon}
+                    strokeWidth={1.8}
+                    className="size-4 rtl:rotate-180"
+                  />
+                </CollapsibleTrigger>
+              </div>
+              {showExternalLink && issue.linkUrl ? (
                 <Button
                   variant="ghost"
                   size="sm"
@@ -822,7 +832,9 @@ export const IssueDetailPanel = forwardRef<
                 </Button>
               ) : null}
             </div>
+          ) : null}
 
+          <div className={cn("flex flex-col gap-1", !sidebarOpen && "lg:hidden")}>
             {columnsQuery.isError ? (
               <div className="mb-3 space-y-2 rounded-lg border border-destructive/30 bg-destructive/5 p-3">
                 <TypographyP className="text-xs text-destructive">
@@ -1035,18 +1047,35 @@ export const IssueDetailPanel = forwardRef<
 
           {!sidebarOpen ? (
             <div className="hidden flex-col items-center gap-2 lg:flex">
+              <CollapsibleTrigger
+                render={
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon-sm"
+                    aria-label={sidebarToggleLabel}
+                    title={sidebarToggleLabel}
+                  />
+                }
+              >
+                <HugeiconsIcon
+                  icon={ArrowLeft01Icon}
+                  strokeWidth={1.8}
+                  className="size-4 rtl:rotate-180"
+                />
+              </CollapsibleTrigger>
               {catHref ? (
                 <Button
                   variant="ghost"
                   size="icon-sm"
                   aria-label={intl.formatMessage(messages.openInCat)}
                   title={intl.formatMessage(messages.openInCat)}
-                  render={<a href={catHref} />}
+                  render={<a href={catHref} target="_blank" rel="noopener noreferrer" />}
                 >
                   <HugeiconsIcon icon={TranslateIcon} strokeWidth={1.8} className="size-4" />
                 </Button>
               ) : null}
-              {issue.linkUrl && issue.linkUrl !== catHref && isHttpOrHttpsUrl(issue.linkUrl) ? (
+              {showExternalLink && issue.linkUrl ? (
                 <Button
                   variant="ghost"
                   size="icon-sm"

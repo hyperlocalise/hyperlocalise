@@ -43,8 +43,6 @@ const meta = {
       targetLocale: "ja-JP",
       translationKeyId: catLinkedIssuesTranslationKeyId,
       defaultTitle: "Social:",
-      linkLabel: "Open in CAT",
-      linkUrl: "/org/acme/projects/project_website/files/cat?segment=1",
     },
   },
   decorators: [

@@ -69,8 +69,6 @@ function stringLinkFor(segmentId: string): IssueSheetCreateStringLink {
     targetLocale: "fr-FR",
     defaultTitle: `Context needed: ${segmentId}`,
     defaultDescription: "Source text",
-    linkUrl: "https://app.test/cat",
-    linkLabel: "Open in CAT",
   };
 }
 
