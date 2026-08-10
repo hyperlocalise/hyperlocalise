@@ -106,6 +106,54 @@ export type RepositoryAgentGitHubContextUnion = z.infer<
 >;
 
 /**
+ * Resolved GitLab repository context for repository tasks.
+ */
+export const repositoryAgentGitLabContextSchema = z.object({
+  resolved: z.literal(true),
+  /** Organization that owns the GitLab connection. */
+  organizationId: z.string(),
+  /** GitLab connection row identifier. */
+  connectionId: z.string(),
+  /** GitLab project identifier. */
+  projectId: z.string(),
+  /** Full project path (group/subgroup/project). */
+  pathWithNamespace: z.string(),
+  /** Optional HTTPS clone URL from GitLab. */
+  httpUrlToRepo: z.string().optional(),
+  /** Optional merge request IID when the task is MR-scoped. */
+  mergeRequestIid: z.number().optional(),
+  /** Optional commit SHA when the task targets a specific revision. */
+  commitSha: z.string().optional(),
+  /** Optional branch name when the task targets a specific branch. */
+  branch: z.string().optional(),
+});
+
+export type RepositoryAgentGitLabContext = z.infer<typeof repositoryAgentGitLabContextSchema>;
+
+/**
+ * Unresolved GitLab context signals that the source adapter could not
+ * determine the project or MR to work on.
+ */
+export const unresolvedRepositoryAgentGitLabContextSchema = z.object({
+  resolved: z.literal(false),
+  reason: z.string(),
+  hint: z.string().optional(),
+});
+
+export type UnresolvedRepositoryAgentGitLabContext = z.infer<
+  typeof unresolvedRepositoryAgentGitLabContextSchema
+>;
+
+export const repositoryAgentGitLabContextUnionSchema = z.union([
+  repositoryAgentGitLabContextSchema,
+  unresolvedRepositoryAgentGitLabContextSchema,
+]);
+
+export type RepositoryAgentGitLabContextUnion = z.infer<
+  typeof repositoryAgentGitLabContextUnionSchema
+>;
+
+/**
  * Durable task contract for repository agent workflows.
  *
  * This payload is source-neutral: the same workflow runner can handle tasks
@@ -135,6 +183,11 @@ export const repositoryAgentTaskSchema = z.object({
    * May be unresolved so the agent can ask clarifying questions.
    */
   githubContext: repositoryAgentGitHubContextUnionSchema.optional(),
+  /**
+   * Optional GitLab repository context. Present when the task is GitLab-scoped.
+   * May be unresolved so the agent can ask clarifying questions.
+   */
+  gitlabContext: repositoryAgentGitLabContextUnionSchema.optional(),
   /** ISO-8601 creation timestamp. */
   createdAt: z.string().datetime(),
   /** Deterministic idempotency key for deduplicating repeated triggers. */
@@ -152,6 +205,7 @@ export function buildRepositoryTaskIdempotencyKey(input: {
   organizationId: string;
   instructions: string;
   githubContext?: RepositoryAgentGitHubContext;
+  gitlabContext?: RepositoryAgentGitLabContext;
 }): string {
   const parts = [input.source, input.sourceThreadId, input.organizationId, input.instructions];
 
@@ -163,6 +217,17 @@ export function buildRepositoryTaskIdempotencyKey(input: {
         ? String(input.githubContext.pullRequestNumber)
         : "",
       input.githubContext.commitSha ?? "",
+    );
+  }
+
+  if (input.gitlabContext) {
+    parts.push(
+      input.gitlabContext.connectionId,
+      input.gitlabContext.pathWithNamespace,
+      input.gitlabContext.mergeRequestIid !== undefined
+        ? String(input.gitlabContext.mergeRequestIid)
+        : "",
+      input.gitlabContext.commitSha ?? "",
     );
   }
 
@@ -200,5 +265,23 @@ export function isUnresolvedGitHubContext(
 export function isResolvedGitHubContext(
   context: RepositoryAgentGitHubContextUnion | undefined,
 ): context is RepositoryAgentGitHubContext {
+  return context !== undefined && "resolved" in context && context.resolved === true;
+}
+
+/**
+ * Type guard for unresolved GitLab context.
+ */
+export function isUnresolvedGitLabContext(
+  context: RepositoryAgentGitLabContextUnion | undefined,
+): context is UnresolvedRepositoryAgentGitLabContext {
+  return context !== undefined && "resolved" in context && context.resolved === false;
+}
+
+/**
+ * Type guard for resolved GitLab context.
+ */
+export function isResolvedGitLabContext(
+  context: RepositoryAgentGitLabContextUnion | undefined,
+): context is RepositoryAgentGitLabContext {
   return context !== undefined && "resolved" in context && context.resolved === true;
 }

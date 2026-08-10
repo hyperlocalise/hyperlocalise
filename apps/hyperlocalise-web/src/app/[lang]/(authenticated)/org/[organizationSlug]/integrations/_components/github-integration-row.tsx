@@ -235,6 +235,15 @@ export function GitHubIntegrationRow({
       return;
     }
 
+    // Ignore GitLab-specific error codes handled by the GitLab row.
+    if (
+      errorCode.startsWith("gitlab_") ||
+      errorCode.startsWith("missing_gitlab_") ||
+      errorCode === "invalid_gitlab_state"
+    ) {
+      return;
+    }
+
     handledGithubErrorRef.current = true;
 
     const url = new URL(window.location.href);

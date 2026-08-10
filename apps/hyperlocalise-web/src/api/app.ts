@@ -49,6 +49,8 @@ import { createOrganizationIssuesRoutes } from "./routes/issues/issues.route";
 import { createMentionSuggestionsRoutes } from "./routes/mentions/mention-suggestions.route";
 import { createIssueNotificationsRoutes } from "./routes/notifications/notifications.route";
 import { createGithubInstallationRoutes } from "./routes/github-installation/github-installation.route";
+import { createGitlabConnectionRoutes } from "./routes/gitlab-connection/gitlab-connection.route";
+import { createGitlabOAuthRoutes } from "./routes/gitlab-oauth/gitlab-oauth.route";
 import { createGithubWebhookRoutes } from "./routes/github-webhook/github-webhook.route";
 import { healthRoutes } from "./routes/health";
 import { createMcpRoutes } from "./routes/mcp/mcp.route";
@@ -160,7 +162,8 @@ function createAuthRoutes() {
   return new Hono()
     .route("/native", createNativeAuthRoutes())
     .route("/", authRoutes)
-    .route("/slack", createSlackOAuthRoutes());
+    .route("/slack", createSlackOAuthRoutes())
+    .route("/gitlab", createGitlabOAuthRoutes());
 }
 
 function createOrgScopedAppRoutes(
@@ -217,6 +220,7 @@ function createOrgScopedAppRoutes(
       createConversationRoutes({ fileStorageAdapter: options.fileStorageAdapter }),
     )
     .route("/github-installation", createGithubInstallationRoutes())
+    .route("/gitlab-connection", createGitlabConnectionRoutes())
     .route("/api-keys", createApiKeyRoutes())
     .route("/billing", createBillingRoutes())
     .route("/members", createMemberRoutes())

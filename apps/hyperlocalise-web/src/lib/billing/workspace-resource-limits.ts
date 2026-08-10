@@ -134,41 +134,49 @@ export async function getWorkspaceResourceUsage(input: {
 }
 
 async function countActiveIntegrations(database: DatabaseClient, organizationId: string) {
-  const [[tmsCredentials], [githubInstallations], [contentfulConnections], [connectors]] =
-    await Promise.all([
-      database
-        .select({ value: count() })
-        .from(schema.organizationExternalTmsProviderCredentials)
-        .where(
-          eq(schema.organizationExternalTmsProviderCredentials.organizationId, organizationId),
+  const [
+    [tmsCredentials],
+    [githubInstallations],
+    [gitlabConnections],
+    [contentfulConnections],
+    [connectors],
+  ] = await Promise.all([
+    database
+      .select({ value: count() })
+      .from(schema.organizationExternalTmsProviderCredentials)
+      .where(eq(schema.organizationExternalTmsProviderCredentials.organizationId, organizationId)),
+    database
+      .select({ value: count() })
+      .from(schema.githubInstallations)
+      .where(eq(schema.githubInstallations.organizationId, organizationId)),
+    database
+      .select({ value: count() })
+      .from(schema.gitlabConnections)
+      .where(eq(schema.gitlabConnections.organizationId, organizationId)),
+    database
+      .select({ value: count() })
+      .from(schema.contentfulConnections)
+      .where(
+        and(
+          eq(schema.contentfulConnections.organizationId, organizationId),
+          eq(schema.contentfulConnections.enabled, true),
         ),
-      database
-        .select({ value: count() })
-        .from(schema.githubInstallations)
-        .where(eq(schema.githubInstallations.organizationId, organizationId)),
-      database
-        .select({ value: count() })
-        .from(schema.contentfulConnections)
-        .where(
-          and(
-            eq(schema.contentfulConnections.organizationId, organizationId),
-            eq(schema.contentfulConnections.enabled, true),
-          ),
+      ),
+    database
+      .select({ value: count() })
+      .from(schema.connectors)
+      .where(
+        and(
+          eq(schema.connectors.organizationId, organizationId),
+          eq(schema.connectors.enabled, true),
         ),
-      database
-        .select({ value: count() })
-        .from(schema.connectors)
-        .where(
-          and(
-            eq(schema.connectors.organizationId, organizationId),
-            eq(schema.connectors.enabled, true),
-          ),
-        ),
-    ]);
+      ),
+  ]);
 
   return (
     countValue(tmsCredentials) +
     countValue(githubInstallations) +
+    countValue(gitlabConnections) +
     countValue(contentfulConnections) +
     countValue(connectors)
   );
