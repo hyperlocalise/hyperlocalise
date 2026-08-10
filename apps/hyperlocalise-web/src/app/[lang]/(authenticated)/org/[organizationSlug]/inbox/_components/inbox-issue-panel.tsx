@@ -64,6 +64,8 @@ export function InboxIssuePanel({
           projectId={projectId}
           issueId={issueId}
           onDirtyChange={setIsDraftDirty}
+          defaultSidebarOpen={false}
+          sidebarStorageScope="inbox"
         />
       </IssueDetailNavigationGuard>
     </section>
