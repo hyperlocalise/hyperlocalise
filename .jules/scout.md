@@ -219,3 +219,7 @@
 ## 2026-11-20 - [CSV Parser and Marshaller Edge Cases]
 **Learning:** `CSVParser` automatically resolves key/value columns using fallback names (like `key`, `id`, `value`, `target`, `source`), and falls back to any other available column if specified/preferred value columns are not found. Additionally, custom delimiters and lazy quoting can affect parsing error boundaries (such as treating rows with mismatched quotes as fewer fields).
 **Action:** When validating CSV parser error boundaries, test fallback resolution mechanics, whitespace key exclusions, and ensure that empty templates generate correct structured headers deterministically.
+
+## 2026-11-21 - [Testing Unexported Prompt Helpers and Config Fallbacks]
+**Learning:** Unexported functions (like `appendRuntimeContextToSystemPrompt` and `parsePromptDebugBool`) may have code branches (such as `base == ""` system prompt conditions) that are unreachable when called via public APIs due to default value layers. Testing these unexported functions directly within the same package is a clean, robust way to enforce boundary logic without over-mocking public interfaces.
+**Action:** When writing package-level unit tests, leverage package-level access to unexported helpers to test unreachable default fallbacks and environment variable parsing options directly.
