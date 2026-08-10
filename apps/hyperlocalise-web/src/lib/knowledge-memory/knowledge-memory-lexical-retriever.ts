@@ -130,12 +130,22 @@ export function expandKnowledgeMemoryTokens(value: string): Set<string> {
   return expandTokens(tokenize(value));
 }
 
-function buildQueryParts(input: SelectKnowledgeMemoryContextInput) {
-  const metadata = Object.values(input.metadata ?? {}).filter(Boolean) as string[];
+function buildLocaleQueryParts(input: SelectKnowledgeMemoryContextInput) {
   return uniqueValues([
     input.targetLocale ?? null,
     ...(input.targetLocales ?? []),
     input.sourceLocale ?? null,
+  ]);
+}
+
+/**
+ * Non-locale query fields used for body/heading token scoring. Locale fields stay on the dedicated
+ * marker path (`buildKnowledgeMemoryInputLocales`) so short UI copy like "OK" / "FAQ" / "CTA" is
+ * never discarded just because it matches a locale-shaped regex.
+ */
+function buildContentQueryParts(input: SelectKnowledgeMemoryContextInput) {
+  const metadata = Object.values(input.metadata ?? {}).filter(Boolean) as string[];
+  return uniqueValues([
     input.sourceText ?? null,
     input.context ?? null,
     input.key ?? null,
@@ -178,14 +188,6 @@ function includesAnyLocaleMarker(text: string, normalizedLocale: string) {
   return (
     includesLocaleMarker(text, fullLocale) ||
     (language ? includesLanguageMarker(text, language) : false)
-  );
-}
-
-function inputLocalesFromParts(queryParts: string[]) {
-  return uniqueValues(
-    queryParts
-      .filter((part) => /^[a-z]{2,3}(?:[-_][a-z0-9]{1,8})*$/i.test(part))
-      .map(normalizeLocaleForSearch),
   );
 }
 
@@ -234,30 +236,29 @@ function scoreSegment(
   return score;
 }
 
-function isLocaleShapedQueryPart(part: string) {
-  return /^[a-z]{2,3}(?:[-_][a-z0-9]{1,8})*$/i.test(part);
-}
-
 /**
  * Literal query tokens for retrieval body scoring and excerpt unit ranking.
  *
- * Locale-shaped query parts (`es`, `et`, `de-DE`, …) are excluded: bare language codes are ordinary
- * words in many languages, and a single body hit scores +3 (`minSelectiveScore`), which can select
- * or excerpt unrelated Memory sections. Locale affinity stays on the dedicated marker path in
- * `scoreSegment` / `knowledgeMemoryHeadingMatchesLocales` (+12/+6, heading-forced openers).
+ * Dedicated locale fields (`targetLocale` / `targetLocales` / `sourceLocale`) are omitted here:
+ * bare language codes are ordinary words in many languages, and a single body hit scores +3
+ * (`minSelectiveScore`), which can select or excerpt unrelated Memory sections. Locale affinity
+ * stays on the dedicated marker path in `scoreSegment` /
+ * `knowledgeMemoryHeadingMatchesLocales` (+12/+6, heading-forced openers).
+ *
+ * Content fields such as `sourceText` / `key` are kept even when they look locale-shaped ("OK",
+ * "FAQ", "es") so short UI strings still retrieve the Memory rules that mention them.
  */
 export function buildKnowledgeMemoryQueryTokens(
   query: SelectKnowledgeMemoryContextInput,
 ): Set<string> {
-  const nonLocaleParts = buildQueryParts(query).filter((part) => !isLocaleShapedQueryPart(part));
-  return expandKnowledgeMemoryTokens(nonLocaleParts.join(" "));
+  return expandKnowledgeMemoryTokens(buildContentQueryParts(query).join(" "));
 }
 
 /** Target locales from the query, used for heading locale-marker matching (not body tokens). */
 export function buildKnowledgeMemoryInputLocales(
   query: SelectKnowledgeMemoryContextInput,
 ): string[] {
-  return inputLocalesFromParts(buildQueryParts(query));
+  return buildLocaleQueryParts(query).map(normalizeLocaleForSearch);
 }
 
 /**
@@ -290,7 +291,7 @@ export function retrieveKnowledgeMemorySegmentsLexicallyWithTokens(
   if (queryTokens.size === 0) {
     return [];
   }
-  const inputLocales = inputLocalesFromParts(buildQueryParts(query));
+  const inputLocales = buildKnowledgeMemoryInputLocales(query);
 
   return segments
     .map((segment) => ({
