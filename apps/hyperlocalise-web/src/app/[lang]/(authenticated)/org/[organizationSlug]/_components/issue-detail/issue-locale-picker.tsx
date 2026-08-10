@@ -78,9 +78,7 @@ export function sanitizeIssueCreateTargetLocale(input: {
     return input.currentLocale;
   }
 
-  const selectedProject = input.projects?.find(
-    (project) => project.id === input.resolvedProjectId,
-  );
+  const selectedProject = input.projects?.find((project) => project.id === input.resolvedProjectId);
   const hasResolvedLocales =
     selectedProject?.targetLocales !== undefined && selectedProject.targetLocales !== null
       ? true
