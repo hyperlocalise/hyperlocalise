@@ -36,8 +36,8 @@ export default async function Image({ params }: TermsOgImageProps) {
   });
   const description = intl.formatMessage({
     defaultMessage:
-      "The baseline terms that govern use of Hyperlocalise websites, docs, and services.",
-    id: "gvMFvBmTU/",
+      "Cloud Service Agreement terms that govern use of Hyperlocalise websites, docs, and services.",
+    id: "ZtI4YcVk7b",
     description: "Open Graph description for the terms of service page",
   });
 

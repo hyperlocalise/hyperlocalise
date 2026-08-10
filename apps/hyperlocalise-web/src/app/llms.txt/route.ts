@@ -105,7 +105,7 @@ ${formatLinks(useCaseLinks)}
 - [Blog](${SITE_URL}/en/blog): Product updates and writing on localisation operations.
 - [Trust Center](https://app.aus.vanta.com/hyperlocalise.com/trust/su9x7fcjfa8q700wu9pt2u): Security, privacy, and subprocessors.
 - [Privacy](${SITE_URL}/en/privacy): Privacy policy.
-- [Terms](${SITE_URL}/en/terms): Terms of service.
+- [Terms](${SITE_URL}/en/terms): Cloud Service Agreement terms.
 - [Contact](mailto:minh@hyperlocalise.com): Email Hyperlocalise.
 
 ## Optional

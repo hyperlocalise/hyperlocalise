@@ -132,8 +132,7 @@
           {
             "group": "Legal",
             "pages": [
-              "legal/privacy-policy",
-              "legal/terms-of-service"
+              "legal/privacy-policy"
             ]
           }
         ]
