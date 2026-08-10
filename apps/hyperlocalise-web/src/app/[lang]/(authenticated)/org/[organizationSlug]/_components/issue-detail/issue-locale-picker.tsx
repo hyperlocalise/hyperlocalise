@@ -62,7 +62,12 @@ export function resolveIssueCreateLocaleOptions(input: {
     const selectedProject = input.projects?.find(
       (project) => project.id === input.resolvedProjectId,
     );
-    return selectedProject?.targetLocales ?? input.projectTargetLocales ?? [];
+    const selectedLocales = selectedProject?.targetLocales;
+    if (selectedLocales?.length) {
+      return selectedLocales;
+    }
+    // Empty list metadata is often a normalized placeholder; prefer fetched project detail.
+    return input.projectTargetLocales ?? selectedLocales ?? [];
   }
   return collectOrganizationIssueLocales(input.projects ?? []);
 }
@@ -79,11 +84,10 @@ export function sanitizeIssueCreateTargetLocale(input: {
   }
 
   const selectedProject = input.projects?.find((project) => project.id === input.resolvedProjectId);
-  const hasResolvedLocales =
-    selectedProject?.targetLocales !== undefined && selectedProject.targetLocales !== null
-      ? true
-      : input.projectTargetLocales !== undefined;
-  if (!hasResolvedLocales) {
+  const selectedLocales = selectedProject?.targetLocales;
+  const hasAuthoritativeLocales =
+    Boolean(selectedLocales?.length) || input.projectTargetLocales !== undefined;
+  if (!hasAuthoritativeLocales) {
     return input.currentLocale;
   }
 

@@ -69,6 +69,16 @@ describe("resolveIssueCreateLocaleOptions", () => {
       }),
     ).toEqual(["ja-JP", "ko-KR"]);
   });
+
+  it("falls back to fetched project locales when list metadata is an empty placeholder", () => {
+    expect(
+      resolveIssueCreateLocaleOptions({
+        resolvedProjectId: "mobile",
+        projects: [{ id: "mobile", targetLocales: [] }],
+        projectTargetLocales: ["ja-JP", "ko-KR"],
+      }),
+    ).toEqual(["ja-JP", "ko-KR"]);
+  });
 });
 
 describe("sanitizeIssueCreateTargetLocale", () => {
@@ -97,14 +107,14 @@ describe("sanitizeIssueCreateTargetLocale", () => {
     ).toBe("");
   });
 
-  it("clears the locale when the selected project has no known locales", () => {
+  it("keeps the locale while empty list metadata awaits project detail", () => {
     expect(
       sanitizeIssueCreateTargetLocale({
         currentLocale: "fr-FR",
         resolvedProjectId: "empty",
         projects: [{ id: "empty", targetLocales: [] }],
       }),
-    ).toBe("");
+    ).toBe("fr-FR");
   });
 
   it("keeps the locale while selected project locales are loading", () => {
@@ -113,6 +123,17 @@ describe("sanitizeIssueCreateTargetLocale", () => {
         currentLocale: "fr-FR",
         resolvedProjectId: "loading",
         projects: [{ id: "loading", targetLocales: null }],
+      }),
+    ).toBe("fr-FR");
+  });
+
+  it("keeps a valid locale once fetched project locales resolve", () => {
+    expect(
+      sanitizeIssueCreateTargetLocale({
+        currentLocale: "fr-FR",
+        resolvedProjectId: "loading",
+        projects: [{ id: "loading", targetLocales: [] }],
+        projectTargetLocales: ["fr-FR", "de-DE"],
       }),
     ).toBe("fr-FR");
   });

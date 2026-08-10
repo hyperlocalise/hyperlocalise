@@ -445,6 +445,38 @@ describe("Issue Sheet routes", () => {
     expect(persistedIssues).toEqual([]);
   });
 
+  it("rejects unknown custom column keys in the create payload", async () => {
+    const { identity, organization, project } = await projectFixture.createStoredProjectFixture();
+    const headers = await projectFixture.authHeadersFor(identity);
+    const organizationSlug = identity.organization.slug ?? "missing-slug";
+
+    const createResponse = await requestJson(issueSheetUrl(organizationSlug, project.id), {
+      method: "POST",
+      headers,
+      body: {
+        title: "Unknown custom column",
+        values: { missing_column: "S24" },
+      },
+    });
+
+    expect(createResponse.status).toBe(400);
+    await expect(createResponse.json()).resolves.toMatchObject({
+      error: "issue_sheet_column_not_found",
+    });
+
+    const persistedIssues = await db
+      .select({ id: schema.issueSheetIssues.id })
+      .from(schema.issueSheetIssues)
+      .where(
+        and(
+          eq(schema.issueSheetIssues.organizationId, organization.id),
+          eq(schema.issueSheetIssues.projectId, project.id),
+          eq(schema.issueSheetIssues.title, "Unknown custom column"),
+        ),
+      );
+    expect(persistedIssues).toEqual([]);
+  });
+
   it("deduplicates open rows for the same external reference", async () => {
     const { identity, project } = await projectFixture.createStoredProjectFixture();
     const headers = await projectFixture.authHeadersFor(identity);

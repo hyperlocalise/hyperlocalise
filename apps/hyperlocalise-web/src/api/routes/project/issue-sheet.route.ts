@@ -364,6 +364,9 @@ export function createIssueSheetRoutes() {
         if (error instanceof Error && error.message === "invalid_issue_sheet_select_value") {
           return badRequestResponse(c, "invalid_issue_sheet_select_value", "Invalid select value");
         }
+        if (error instanceof Error && error.message === "issue_sheet_column_not_found") {
+          return badRequestResponse(c, "issue_sheet_column_not_found", "Column not found");
+        }
         if (error instanceof Error && error.message.includes("duplicate")) {
           return conflictResponse(c, "issue_sheet_issue_exists", "Issue already exists");
         }

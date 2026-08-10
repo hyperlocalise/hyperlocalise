@@ -932,13 +932,16 @@ export class IssueSheetService {
           if (columnKey === "priority") {
             continue;
           }
-          await this.setValue({
+          const savedValue = await this.setValue({
             organizationId: input.organizationId,
             projectId: input.projectId,
             issueId: issue.id,
             body: { columnKey, value },
             database: tx,
           });
+          if (!savedValue) {
+            throw new Error("issue_sheet_column_not_found");
+          }
         }
       }
 
