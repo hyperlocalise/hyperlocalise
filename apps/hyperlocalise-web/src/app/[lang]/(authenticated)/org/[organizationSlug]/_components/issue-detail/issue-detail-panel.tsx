@@ -71,6 +71,7 @@ import {
   linkKindLabel,
   type IssueDetailIssue,
 } from "./issue-detail-utils";
+import { IssueLocalePicker } from "./issue-locale-picker";
 import { IssuePriorityIcon } from "./issue-priority-icon";
 import { IssueStatusIcon } from "./issue-status-icon";
 import {
@@ -92,6 +93,7 @@ import { issueDetailPanelMessages as messages } from "./issue-detail-panel.messa
 import { type IssueDetailSidebarScope } from "./issue-detail-sidebar-state";
 import { useIssueDetailSidebarOpen } from "./use-issue-detail-sidebar-open";
 import { issueSheetSharedMessages as sharedMessages } from "../../projects/[projectId]/issue-sheet/_components/issue-sheet-shared.messages";
+import { useProjectPageQuery } from "../../projects/[projectId]/_components/project-page-shell";
 import { formatRelativeTimestamp } from "../workspace-files-shared";
 
 type PropertyIcon = Parameters<typeof HugeiconsIcon>[0]["icon"];
@@ -229,6 +231,7 @@ export const IssueDetailPanel = forwardRef<
     organizationSlug,
     projectId,
   });
+  const projectQuery = useProjectPageQuery(organizationSlug, projectId);
   const assignableMembersQuery = useAssignableIssueMembersQuery({
     organizationSlug,
     projectId,
@@ -951,7 +954,19 @@ export const IssueDetailPanel = forwardRef<
                 icon={LanguageCircleIcon}
                 label={<FormattedMessage {...messages.fieldLocale} />}
               >
-                <ReadOnlyValue value={issue.targetLocale} empty={emptyValue} className="truncate" />
+                <IssueLocalePicker
+                  value={issue.targetLocale}
+                  locales={projectQuery.data?.targetLocales ?? []}
+                  allowClear
+                  disabled={isSaving}
+                  showIcon={false}
+                  size="sm"
+                  triggerClassName={ghostSelectTriggerClassName}
+                  aria-label={intl.formatMessage(messages.fieldLocale)}
+                  onValueChange={(targetLocale) => {
+                    updateIssue.mutate({ targetLocale });
+                  }}
+                />
               </PropertyRow>
 
               <PropertyRow

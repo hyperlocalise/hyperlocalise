@@ -90,6 +90,7 @@ export const issueSheetCreateIssueBodySchema = z.object({
   externalRef: z.string().trim().min(1).max(512).optional(),
   assigneeUserId: z.string().uuid().optional(),
   priority: z.enum(["P0", "P1", "P2"]).optional(),
+  values: z.record(z.string(), z.unknown()).optional(),
 });
 
 export const issueSheetUpdateIssueBodySchema = z

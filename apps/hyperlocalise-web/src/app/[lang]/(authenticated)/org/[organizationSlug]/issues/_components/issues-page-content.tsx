@@ -43,7 +43,7 @@ type OrganizationIssuesResponse = {
   };
 };
 
-type ProjectOption = { id: string; name: string };
+type ProjectOption = { id: string; name: string; targetLocales?: string[] };
 
 export function IssuesPageContent({ organizationSlug }: { organizationSlug: string }) {
   const router = useRouter();
@@ -68,6 +68,7 @@ export function IssuesPageContent({ organizationSlug }: { organizationSlug: stri
       return body.projects.map((project) => ({
         id: project.id,
         name: project.name,
+        targetLocales: project.targetLocales ?? [],
       }));
     },
   });
@@ -107,6 +108,21 @@ export function IssuesPageContent({ organizationSlug }: { organizationSlug: stri
   const summary = issuesQuery.data?.pages[0]?.summary;
   const total = issuesQuery.data?.pages[0]?.total ?? 0;
   const hasMore = issues.length < total;
+  const localeOptions = useMemo(() => {
+    const locales = new Set<string>();
+    for (const project of projectsQuery.data ?? []) {
+      for (const locale of project.targetLocales ?? []) {
+        const trimmed = locale.trim();
+        if (trimmed) {
+          locales.add(trimmed);
+        }
+      }
+    }
+    if (state.locale?.trim()) {
+      locales.add(state.locale.trim());
+    }
+    return [...locales].toSorted((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" }));
+  }, [projectsQuery.data, state.locale]);
 
   const refreshIssues = async () => {
     await queryClient.invalidateQueries({
@@ -143,6 +159,7 @@ export function IssuesPageContent({ organizationSlug }: { organizationSlug: stri
           onStateChange={updateState}
           onClearFilters={clearFilters}
           projects={projectsQuery.data ?? []}
+          locales={localeOptions}
           searchPlaceholder="Search title, description, project, or source path"
         />
       }

@@ -151,7 +151,7 @@ export function IssueSheetPageContent({
   organizationSlug: string;
   projectId: string;
 }) {
-  useProjectPageQuery(organizationSlug, projectId);
+  const projectQuery = useProjectPageQuery(organizationSlug, projectId);
   const intl = useIntl();
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -225,6 +225,7 @@ export function IssueSheetPageContent({
           onSearchDraftChange={setSearchDraft}
           onStateChange={updateState}
           onClearFilters={clearFilters}
+          locales={projectQuery.data?.targetLocales ?? []}
         />
 
         <IssueGroupedList

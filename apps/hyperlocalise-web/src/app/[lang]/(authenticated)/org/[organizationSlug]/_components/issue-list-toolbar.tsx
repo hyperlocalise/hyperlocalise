@@ -57,6 +57,7 @@ import {
   type IssueFilterChip,
   type IssueListUrlState,
 } from "./issue-list-url-state";
+import { IssueLocalePicker } from "./issue-detail/issue-locale-picker";
 import { WorkspaceFilterField, workspaceFilterTriggerClassName } from "./workspace-resource-shared";
 
 type ProjectOption = { id: string; name: string };
@@ -96,6 +97,7 @@ export function IssueListToolbar({
   onStateChange,
   onClearFilters,
   projects,
+  locales = [],
   searchPlaceholder,
 }: {
   state: IssueListUrlState;
@@ -104,6 +106,7 @@ export function IssueListToolbar({
   onStateChange: (patch: Partial<IssueListUrlState>) => void;
   onClearFilters: () => void;
   projects?: ProjectOption[];
+  locales?: string[];
   searchPlaceholder?: string;
 }) {
   const intl = useIntl();
@@ -288,14 +291,13 @@ export function IssueListToolbar({
               </WorkspaceFilterField>
 
               <WorkspaceFilterField label={intl.formatMessage(messages.localeLabel)}>
-                <Input
-                  defaultValue={state.locale ?? ""}
-                  key={state.locale ?? "locale-empty"}
-                  onBlur={(event) => {
-                    const value = event.currentTarget.value.trim();
-                    onStateChange({ locale: value || undefined });
-                  }}
-                  placeholder={intl.formatMessage(messages.localePlaceholder)}
+                <IssueLocalePicker
+                  value={state.locale}
+                  locales={locales}
+                  allowAny
+                  size="sm"
+                  triggerClassName={workspaceFilterTriggerClassName}
+                  onValueChange={(locale) => onStateChange({ locale: locale || undefined })}
                 />
               </WorkspaceFilterField>
 

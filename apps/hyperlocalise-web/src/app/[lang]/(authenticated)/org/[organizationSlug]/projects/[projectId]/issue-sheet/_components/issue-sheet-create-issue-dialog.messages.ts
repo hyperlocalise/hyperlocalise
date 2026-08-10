@@ -16,8 +16,8 @@ import { defineMessages } from "react-intl";
 
 export const issueSheetCreateIssueDialogMessages = defineMessages({
   title: {
-    defaultMessage: "Add issue",
-    id: "shmTD0A07P",
+    defaultMessage: "New issue",
+    id: "UvLPwAuWGw",
     description: "Title of the create Issue Sheet issue dialog",
   },
   description: {
@@ -36,11 +36,6 @@ export const issueSheetCreateIssueDialogMessages = defineMessages({
     id: "Jm9tR2PeYs",
     description: "Placeholder for the project select in the create issue dialog",
   },
-  detailsSection: {
-    defaultMessage: "Details",
-    id: "HAhLpB+d2h",
-    description: "Section heading for title and description in the create issue dialog",
-  },
   titleLabel: {
     defaultMessage: "Title",
     id: "1wPEKChqz/",
@@ -52,8 +47,8 @@ export const issueSheetCreateIssueDialogMessages = defineMessages({
     description: "Validation error when creating an issue without a title",
   },
   titlePlaceholder: {
-    defaultMessage: "Short issue title",
-    id: "sBAMcTOMdn",
+    defaultMessage: "Issue title",
+    id: "afDLXVwU/G",
     description: "Placeholder for the issue title input",
   },
   descriptionLabel: {
@@ -66,10 +61,10 @@ export const issueSheetCreateIssueDialogMessages = defineMessages({
     id: "KmO8v/yN7F",
     description: "Placeholder for the issue description textarea",
   },
-  propertiesSection: {
-    defaultMessage: "Properties",
-    id: "NbLadz5lws",
-    description: "Section heading for type and priority in the create issue dialog",
+  statusLabel: {
+    defaultMessage: "Status",
+    id: "8cIXg7FjMX",
+    description: "Aria label for the status property in the create issue dialog",
   },
   issueTypeLabel: {
     defaultMessage: "Type",
@@ -96,10 +91,40 @@ export const issueSheetCreateIssueDialogMessages = defineMessages({
     id: "sE8e8Vuut1",
     description: "Label for assignee on create issue dialog",
   },
-  contextSection: {
-    defaultMessage: "Context",
-    id: "ZV3TeuXtMA",
-    description: "Section heading for locale and source path in the create issue dialog",
+  moreProperties: {
+    defaultMessage: "More properties",
+    id: "kJB7LZiflj",
+    description: "Aria label for the more properties button in the create issue dialog",
+  },
+  setType: {
+    defaultMessage: "Set type",
+    id: "JfbQQEL9oW",
+    description: "More menu action to set issue type",
+  },
+  setLocale: {
+    defaultMessage: "Set locale",
+    id: "MlaMWBdPiE",
+    description: "More menu action to set target locale",
+  },
+  setSourcePath: {
+    defaultMessage: "Set source path",
+    id: "EMm+gaNq/8",
+    description: "More menu action to set source path",
+  },
+  addLink: {
+    defaultMessage: "Add link…",
+    id: "dtA9CObQ6G",
+    description: "More menu action to add an external link",
+  },
+  setColumn: {
+    defaultMessage: "Set {label}",
+    id: "XdFM8Ff6nf",
+    description: "More menu action to set a custom column value",
+  },
+  clearValue: {
+    defaultMessage: "Clear",
+    id: "JzWvMRP2Wi",
+    description: "Clear the current value in a more-menu submenu",
   },
   localeLabel: {
     defaultMessage: "Locale",
@@ -121,14 +146,9 @@ export const issueSheetCreateIssueDialogMessages = defineMessages({
     id: "9cKD+mtj5v",
     description: "Placeholder for the source path input",
   },
-  linkSection: {
-    defaultMessage: "External link",
-    id: "nRjDDcLPcB",
-    description: "Section heading for optional link fields in the create issue dialog",
-  },
   linkLabelLabel: {
-    defaultMessage: "Label",
-    id: "M4B6W56NTK",
+    defaultMessage: "Link label",
+    id: "V+EGj1aT6i",
     description: "Label for the link label input",
   },
   linkLabelPlaceholder: {
@@ -137,8 +157,8 @@ export const issueSheetCreateIssueDialogMessages = defineMessages({
     description: "Placeholder for the link label input",
   },
   linkUrlLabel: {
-    defaultMessage: "URL",
-    id: "6q29k14I2n",
+    defaultMessage: "Link URL",
+    id: "jBT5g3zPS2",
     description: "Label for the link URL input",
   },
   linkUrlPlaceholder: {
@@ -146,14 +166,24 @@ export const issueSheetCreateIssueDialogMessages = defineMessages({
     id: "5Ol0Sy99An",
     description: "Placeholder for the link URL input",
   },
+  unassigned: {
+    defaultMessage: "Unassigned",
+    id: "iOn8sWqJvi",
+    description: "Clear/unassigned option in a user custom column submenu",
+  },
+  createMore: {
+    defaultMessage: "Create more",
+    id: "SEclZdUwgN",
+    description: "Checkbox label to keep the create issue dialog open after submit",
+  },
   cancel: {
     defaultMessage: "Cancel",
     id: "ozFSiYX+w7",
     description: "Cancel button in the create Issue Sheet issue dialog",
   },
   submit: {
-    defaultMessage: "Add issue",
-    id: "swlRLlRcrP",
+    defaultMessage: "Create issue",
+    id: "PEOKvIZPuS",
     description: "Submit button in the create Issue Sheet issue dialog",
   },
   selectProject: {
@@ -162,8 +192,8 @@ export const issueSheetCreateIssueDialogMessages = defineMessages({
     description: "Validation error when creating an issue without a selected project",
   },
   issueAdded: {
-    defaultMessage: "Issue added",
-    id: "KIxSVeRx4D",
+    defaultMessage: "Issue created",
+    id: "Neb7Fy6bU4",
     description: "Toast when an Issue Sheet issue is created successfully",
   },
   createFailed: {

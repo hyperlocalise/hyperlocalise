@@ -349,6 +349,90 @@ describe("Issue Sheet routes", () => {
     });
   });
 
+  it("persists custom column values from the create payload", async () => {
+    const { identity, project } = await projectFixture.createStoredProjectFixture();
+    const headers = await projectFixture.authHeadersFor(identity);
+    const organizationSlug = identity.organization.slug ?? "missing-slug";
+
+    await requestJson(issueSheetUrl(organizationSlug, project.id, "/columns"), {
+      method: "POST",
+      headers,
+      body: {
+        key: "sprint",
+        label: "Sprint",
+        type: "select",
+        config: { options: [{ id: "S24", label: "S24" }] },
+      },
+    });
+    await requestJson(issueSheetUrl(organizationSlug, project.id, "/columns"), {
+      method: "POST",
+      headers,
+      body: {
+        key: "component",
+        label: "Component",
+        type: "text",
+      },
+    });
+
+    const createResponse = await requestJson(issueSheetUrl(organizationSlug, project.id), {
+      method: "POST",
+      headers,
+      body: {
+        title: "Issue with create-time values",
+        issueType: "general_question",
+        status: "in_progress",
+        priority: "P0",
+        values: {
+          priority: "P2",
+          sprint: "S24",
+          component: "Checkout",
+        },
+      },
+    });
+
+    expect(createResponse.status).toBe(201);
+    const createdBody = (await createResponse.json()) as IssueResponse;
+    expect(createdBody.issue).toMatchObject({
+      status: "in_progress",
+      values: {
+        priority: "P0",
+        sprint: "S24",
+        component: "Checkout",
+      },
+    });
+  });
+
+  it("rejects invalid select values in the create payload", async () => {
+    const { identity, project } = await projectFixture.createStoredProjectFixture();
+    const headers = await projectFixture.authHeadersFor(identity);
+    const organizationSlug = identity.organization.slug ?? "missing-slug";
+
+    await requestJson(issueSheetUrl(organizationSlug, project.id, "/columns"), {
+      method: "POST",
+      headers,
+      body: {
+        key: "sprint",
+        label: "Sprint",
+        type: "select",
+        config: { options: [{ id: "S24", label: "S24" }] },
+      },
+    });
+
+    const createResponse = await requestJson(issueSheetUrl(organizationSlug, project.id), {
+      method: "POST",
+      headers,
+      body: {
+        title: "Bad select value",
+        values: { sprint: "S99" },
+      },
+    });
+
+    expect(createResponse.status).toBe(400);
+    await expect(createResponse.json()).resolves.toMatchObject({
+      error: "invalid_issue_sheet_select_value",
+    });
+  });
+
   it("deduplicates open rows for the same external reference", async () => {
     const { identity, project } = await projectFixture.createStoredProjectFixture();
     const headers = await projectFixture.authHeadersFor(identity);

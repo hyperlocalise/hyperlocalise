@@ -28,6 +28,7 @@ import { IssuesProjectImportDialog } from "./issues-project-import-dialog";
 type ProjectOption = {
   id: string;
   name: string;
+  targetLocales?: string[];
 };
 
 function organizationProjectsPath(organizationSlug: string) {
@@ -52,7 +53,11 @@ export function IssuesActions({
         throw await readApiResponseError(response, "Failed to load projects");
       }
       const body = (await response.json()) as { projects: ProjectOption[] };
-      return body.projects;
+      return body.projects.map((project) => ({
+        id: project.id,
+        name: project.name,
+        targetLocales: project.targetLocales ?? [],
+      }));
     },
   });
 

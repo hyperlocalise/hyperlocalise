@@ -936,6 +936,21 @@ export class IssueSheetService {
       });
     }
 
+    const customValues = input.body.values;
+    if (customValues) {
+      for (const [columnKey, value] of Object.entries(customValues)) {
+        if (columnKey === "priority") {
+          continue;
+        }
+        await this.setValue({
+          organizationId: input.organizationId,
+          projectId: input.projectId,
+          issueId,
+          body: { columnKey, value },
+        });
+      }
+    }
+
     if (assigneeUserId) {
       await issueNotificationService.safeFanOut("assigned_on_create", () =>
         issueNotificationService.notifyAssigned({
