@@ -335,6 +335,9 @@
   "/hT2cIKUSb": {
     "defaultMessage": "Thêm ngôn ngữ đích trong cài đặt dự án trước khi tạo các tác vụ dịch."
   },
+  "/iIPpWEOXd": {
+    "defaultMessage": "Đang tìm {detail}"
+  },
   "/iwtwhLhum": {
     "defaultMessage": "Preview uses the saved markdown memory."
   },
@@ -1238,6 +1241,9 @@
   "4/ptvuF8gA": {
     "defaultMessage": "Platform"
   },
+  "40cOR2CWgx": {
+    "defaultMessage": "{count, plural, one {Đã khám phá cơ sở mã, # lượt tìm kiếm} other {Đã khám phá cơ sở mã, # lượt tìm kiếm}}"
+  },
   "40qJqxVu6N": {
     "defaultMessage": "Locale"
   },
@@ -1328,6 +1334,9 @@
   "4Qb5sAFHM8": {
     "defaultMessage": "Kéo bản dịch về GitHub"
   },
+  "4QiNYfF++j": {
+    "defaultMessage": "Sử dụng bộ nhớ tổ chức"
+  },
   "4R0gB8zCuT": {
     "defaultMessage": "Tiếp theo"
   },
@@ -1357,6 +1366,9 @@
   },
   "4aYY8lTBYg": {
     "defaultMessage": "Công việc dịch thuật bắt đầu quá muộn trong chu kỳ phát hành, vì vậy các ngôn ngữ địa phương làm chậm việc ra mắt hoặc được phát hành với các phần còn thiếu."
+  },
+  "4f79gyGj6Q": {
+    "defaultMessage": "Đã mở {subject}"
   },
   "4gW2ktRuC/": {
     "defaultMessage": "{direction} {connector}"
@@ -1687,6 +1699,9 @@
   },
   "6Su/xhxJZL": {
     "defaultMessage": "Slack"
+  },
+  "6V8CrxumwV": {
+    "defaultMessage": "{count, plural, one {Đã khám phá {subject}, # lượt tìm kiếm} other {Đã khám phá {subject}, # lượt tìm kiếm}}"
   },
   "6XDIPXtsI4": {
     "defaultMessage": "Ship-safe locales"
@@ -2186,6 +2201,9 @@
   "8pfmpD7Pez": {
     "defaultMessage": "Glossary created"
   },
+  "8qNqRTyyLK": {
+    "defaultMessage": "Tạo một issue để theo dõi công việc liên quan đến chuỗi này."
+  },
   "8qa1pUW6eX": {
     "defaultMessage": "Tài khoản"
   },
@@ -2546,6 +2564,9 @@
   "ALRaijWLiy": {
     "defaultMessage": "Đang đặt lại..."
   },
+  "APXHAbBkYL": {
+    "defaultMessage": "Đăng ký theo dõi"
+  },
   "ARpiURdPaK": {
     "defaultMessage": "Ca làm việc"
   },
@@ -2737,6 +2758,9 @@
   },
   "BeXUx2ytXa": {
     "defaultMessage": "Vấn đề"
+  },
+  "Bel9GZJcDc": {
+    "defaultMessage": "Cho phép cập nhật bộ nhớ"
   },
   "Bfwle3X1Yy": {
     "defaultMessage": "Connect {provider} to view provider {resource}."
@@ -3031,6 +3055,9 @@
   },
   "D0mCtflyKZ": {
     "defaultMessage": "Loading channels..."
+  },
+  "D2Iw7bGHIc": {
+    "defaultMessage": "Vấn đề"
   },
   "D2ZrcxejKr": {
     "defaultMessage": "MCP servers"
@@ -3398,6 +3425,9 @@
   "EsHwflBzPz": {
     "defaultMessage": "Theo dõi phạm vi đánh giá và trạng thái phê duyệt"
   },
+  "Esr6tXDJJe": {
+    "defaultMessage": "Không có vấn đề nào đối với chuỗi này"
+  },
   "EuTWCTh8wL": {
     "defaultMessage": "Browse source files from the connected TMS provider, then open one in the CAT workspace when it is supported."
   },
@@ -3595,6 +3625,9 @@
   },
   "FrF4P2cRG5": {
     "defaultMessage": "Đang tải thành viên…"
+  },
+  "FtQgWtXBLP": {
+    "defaultMessage": "Thử lại"
   },
   "FtS1qUeQJM": {
     "defaultMessage": "{progress}% translated"
@@ -4220,6 +4253,9 @@
   "JPh5F8lV0A": {
     "defaultMessage": "GitHub"
   },
+  "JRvO1zUFRY": {
+    "defaultMessage": "Đang đọc {detail}"
+  },
   "JRvnN6Kkq8": {
     "defaultMessage": "Hyperlocalise projects"
   },
@@ -4291,6 +4327,9 @@
   },
   "JpSMiCgbq5": {
     "defaultMessage": "Không gian làm việc"
+  },
+  "JprxqupePC": {
+    "defaultMessage": "Yêu cầu không thành công"
   },
   "JqELr8GP9s": {
     "defaultMessage": "Project"
@@ -4481,6 +4520,9 @@
   "Kyj/6Mb2oy": {
     "defaultMessage": "Test what saved Memory.md guidance would be loaded for a translation query."
   },
+  "KzyWBbcmTH": {
+    "defaultMessage": "Không thể cập nhật cài đặt theo dõi"
+  },
   "L0g+No60zf": {
     "defaultMessage": "{key}"
   },
@@ -4612,6 +4654,9 @@
   },
   "Lmup4mp1Uh": {
     "defaultMessage": "Tính năng AI"
+  },
+  "Lnk8Rz0vVt": {
+    "defaultMessage": "Hủy đăng ký"
   },
   "Lod4vy7+T/": {
     "defaultMessage": "{email} will no longer be able to accept this workspace invitation."
@@ -5366,6 +5411,9 @@
   "Pso/sy4WEl": {
     "defaultMessage": "Tiếp theo"
   },
+  "PtTFfFyjEn": {
+    "defaultMessage": "{count, plural, one {Đã mở # tệp} other {Đã mở # tệp}}"
+  },
   "PtTtkKUG7c": {
     "defaultMessage": "Loading project…"
   },
@@ -5593,6 +5641,9 @@
   },
   "QrQMEfiDGs": {
     "defaultMessage": "50 total findings"
+  },
+  "QrUlBs3ARV": {
+    "defaultMessage": "Không có giá trị"
   },
   "QsCILqwet/": {
     "defaultMessage": "Ask Hyperlocalise…"
@@ -5999,6 +6050,9 @@
   "T67SNUNeWw": {
     "defaultMessage": "Kết nối Ahrefs bằng khóa API MCP trong mục Tích hợp trước khi sử dụng công cụ này."
   },
+  "T7+otbWCxu": {
+    "defaultMessage": "Không có Issues cho chuỗi này."
+  },
   "T7ocGbiped": {
     "defaultMessage": "Lần giao gần nhất: Chưa có lần giao nào"
   },
@@ -6007,6 +6061,9 @@
   },
   "T8F8lD+KK1": {
     "defaultMessage": "Channel"
+  },
+  "T8Ggt03ksb": {
+    "defaultMessage": "Không thể khám phá {subject}"
   },
   "TBagRGINiT": {
     "defaultMessage": "Scheduled and GitHub-triggered deterministic workflows"
@@ -6193,6 +6250,9 @@
   },
   "U7qjKZzoBx": {
     "defaultMessage": "Lưu cài đặt"
+  },
+  "U9HdNspgPF": {
+    "defaultMessage": "Đang xử lý…"
   },
   "UA3ioLbPld": {
     "defaultMessage": "{count} invalid skipped"
@@ -6679,6 +6739,9 @@
   },
   "Wh0P2263Np": {
     "defaultMessage": "{current} of {total}"
+  },
+  "WhBlkGYmVr": {
+    "defaultMessage": "Không thể khám phá cơ sở mã"
   },
   "WhMZXjHjRn": {
     "defaultMessage": "Pending"
@@ -7310,6 +7373,9 @@
   "ZsYP7x8uWu": {
     "defaultMessage": "Search files"
   },
+  "ZtI4YcVk7b": {
+    "defaultMessage": "Các điều khoản Thỏa thuận Dịch vụ Đám mây chi phối việc sử dụng các trang web, tài liệu và dịch vụ của Hyperlocalise."
+  },
   "ZtpmqfuRlV": {
     "defaultMessage": "Trích xuất cấu trúc, liên kết và thuật ngữ sản phẩm"
   },
@@ -7363,6 +7429,9 @@
   },
   "a51/Gtv+h4": {
     "defaultMessage": "Enable first"
+  },
+  "a59gdX+rmW": {
+    "defaultMessage": "Mở rộng thuộc tính"
   },
   "a5J/Q0J1lX": {
     "defaultMessage": "Tiếng Mã Lai (Malaysia)"
@@ -8195,6 +8264,9 @@
   "eZ9Pa/eLoU": {
     "defaultMessage": "Billing settings"
   },
+  "eaNtS/5vOt": {
+    "defaultMessage": "Thu gọn thuộc tính"
+  },
   "ebI/JnzL7S": {
     "defaultMessage": "Tự động hóa"
   },
@@ -8320,6 +8392,9 @@
   },
   "fF31f5m0dZ": {
     "defaultMessage": "Diff"
+  },
+  "fFie7livIj": {
+    "defaultMessage": "Đang kiểm tra lịch sử git"
   },
   "fIXR+y8rly": {
     "defaultMessage": "Failed to load project files"
@@ -9770,6 +9845,9 @@
   "m7kZYILbyh": {
     "defaultMessage": "Failed to start agent run"
   },
+  "m8UlToMOXC": {
+    "defaultMessage": "Đang tìm tệp"
+  },
   "mAyP67aqS8": {
     "defaultMessage": "Clear"
   },
@@ -9958,6 +10036,9 @@
   },
   "n2pk6Y4oGA": {
     "defaultMessage": "Nếu lần đánh giá trước đã dạy cho nhóm điều gì đó, quy trình làm việc tiếp theo nên biết điều đó."
+  },
+  "n3a+6mF2IX": {
+    "defaultMessage": "Đang tìm kiếm"
   },
   "n5bYPU3uSK": {
     "defaultMessage": "Các bản cập nhật sản phẩm diễn ra nhanh hơn bản dịch trung tâm trợ giúp. Các đội ngũ hỗ trợ gánh chịu chi phí khi các bài viết bản địa hóa bị chậm so với tiến độ."
@@ -10465,6 +10546,9 @@
   },
   "ppXDMSLgyj": {
     "defaultMessage": "Không tải được bảng điều khiển hàng đợi"
+  },
+  "ppqLcxUWCQ": {
+    "defaultMessage": "Không thể tải các trường tùy chỉnh."
   },
   "prJEYrujJH": {
     "defaultMessage": "Live projects fetched from your connected TMS provider, ordered by recent activity."
@@ -11207,6 +11291,9 @@
   "thAleOBSL6": {
     "defaultMessage": "Provider link"
   },
+  "thNgDb6rW2": {
+    "defaultMessage": "Không thể tải các vấn đề."
+  },
   "tj9LSxTmXM": {
     "defaultMessage": "Bảng điều khiển"
   },
@@ -11377,6 +11464,9 @@
   },
   "uf1YHYgy0L": {
     "defaultMessage": "Read-only"
+  },
+  "ufFJx4vPTD": {
+    "defaultMessage": "Đang đọc"
   },
   "ufjLSLmtEV": {
     "defaultMessage": "GitLab"
@@ -12047,6 +12137,9 @@
   "xixmTqHWvz": {
     "defaultMessage": "Mở"
   },
+  "xj9AZAhTSo": {
+    "defaultMessage": "Vấn đề mới"
+  },
   "xjcfJrUODP": {
     "defaultMessage": "e.g. de-DE"
   },
@@ -12193,6 +12286,9 @@
   },
   "yIwRFz93s7": {
     "defaultMessage": "Tiếng Ý (Ý)"
+  },
+  "yJSROTn1AA": {
+    "defaultMessage": "Đang tìm kiếm {detail}"
   },
   "yKtWAeejtx": {
     "defaultMessage": "Yêu cầu mới"
@@ -12376,6 +12472,12 @@
   },
   "zL0C07+8z3": {
     "defaultMessage": "Tổng quan"
+  },
+  "zLa51T7B2l": {
+    "defaultMessage": "Đang kiểm tra cấu hình kho lưu trữ"
+  },
+  "zLdcgO8mwD": {
+    "defaultMessage": "Cho phép tự động hóa này thêm thông tin vào Memory.md dùng chung của tổ chức. Các thay đổi được ghi lại trong lịch sử sửa đổi và có thể được khôi phục."
   },
   "zM/fYyJiHY": {
     "defaultMessage": "Kho lưu trữ đã bật đã được cập nhật"

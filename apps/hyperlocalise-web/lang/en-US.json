@@ -9119,6 +9119,10 @@
     "defaultMessage": "Search files",
     "description": "Accessible label for the project files tree search input"
   },
+  "ZtI4YcVk7b": {
+    "defaultMessage": "Cloud Service Agreement terms that govern use of Hyperlocalise websites, docs, and services.",
+    "description": "Open Graph description for the terms of service page"
+  },
   "ZtpmqfuRlV": {
     "defaultMessage": "Extract structure, links, and product terms",
     "description": "Workflow step 2 description for the help-center-localisation use case"
@@ -10814,10 +10818,6 @@
   "gus2NGbaV8": {
     "defaultMessage": "Review coverage is unclear: which locales were human-approved vs. machine-translated only.",
     "description": "Problem pain point 4 for the localisation-quality-monitoring use case"
-  },
-  "gvMFvBmTU/": {
-    "defaultMessage": "The baseline terms that govern use of Hyperlocalise websites, docs, and services.",
-    "description": "Open Graph description for the terms of service page"
   },
   "gvu/VOCeeU": {
     "defaultMessage": "Open navigation menu",

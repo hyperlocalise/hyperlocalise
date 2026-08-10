@@ -335,6 +335,9 @@
   "/hT2cIKUSb": {
     "defaultMessage": "Ajoutez des paramètres régionaux cibles dans les paramètres du projet avant de créer des tâches de traduction."
   },
+  "/iIPpWEOXd": {
+    "defaultMessage": "Recherche de {detail}"
+  },
   "/iwtwhLhum": {
     "defaultMessage": "Preview uses the saved markdown memory."
   },
@@ -1238,6 +1241,9 @@
   "4/ptvuF8gA": {
     "defaultMessage": "Plateforme"
   },
+  "40cOR2CWgx": {
+    "defaultMessage": "{count, plural, one {Base de code explorée, # recherche} other {Base de code explorée, # recherches}}"
+  },
   "40qJqxVu6N": {
     "defaultMessage": "Locale"
   },
@@ -1328,6 +1334,9 @@
   "4Qb5sAFHM8": {
     "defaultMessage": "Récupérer les traductions vers GitHub"
   },
+  "4QiNYfF++j": {
+    "defaultMessage": "Utiliser la mémoire de l’organisation"
+  },
   "4R0gB8zCuT": {
     "defaultMessage": "Suivant"
   },
@@ -1357,6 +1366,9 @@
   },
   "4aYY8lTBYg": {
     "defaultMessage": "Les travaux de traduction commencent trop tard dans le cycle de publication, de sorte que les paramètres régionaux bloquent les lancements ou sont livrés avec des lacunes."
+  },
+  "4f79gyGj6Q": {
+    "defaultMessage": "{subject} ouvert"
   },
   "4gW2ktRuC/": {
     "defaultMessage": "{direction} {connector}"
@@ -1687,6 +1699,9 @@
   },
   "6Su/xhxJZL": {
     "defaultMessage": "Slack"
+  },
+  "6V8CrxumwV": {
+    "defaultMessage": "{count, plural, one {Exploration de {subject}, # recherche} other {Exploration de {subject}, # recherches}}"
   },
   "6XDIPXtsI4": {
     "defaultMessage": "Ship-safe locales"
@@ -2186,6 +2201,9 @@
   "8pfmpD7Pez": {
     "defaultMessage": "Glossary created"
   },
+  "8qNqRTyyLK": {
+    "defaultMessage": "Créez un ticket pour suivre le travail sur cette chaîne."
+  },
   "8qa1pUW6eX": {
     "defaultMessage": "Account"
   },
@@ -2546,6 +2564,9 @@
   "ALRaijWLiy": {
     "defaultMessage": "Réinitialisation..."
   },
+  "APXHAbBkYL": {
+    "defaultMessage": "S’abonner"
+  },
   "ARpiURdPaK": {
     "defaultMessage": "Le changement"
   },
@@ -2737,6 +2758,9 @@
   },
   "BeXUx2ytXa": {
     "defaultMessage": "Problèmes"
+  },
+  "Bel9GZJcDc": {
+    "defaultMessage": "Autoriser les mises à jour de la mémoire"
   },
   "Bfwle3X1Yy": {
     "defaultMessage": "Connectez {provider} pour afficher {resource} du fournisseur."
@@ -3031,6 +3055,9 @@
   },
   "D0mCtflyKZ": {
     "defaultMessage": "Chargement des canaux…"
+  },
+  "D2Iw7bGHIc": {
+    "defaultMessage": "Problèmes"
   },
   "D2ZrcxejKr": {
     "defaultMessage": "Serveurs MCP"
@@ -3398,6 +3425,9 @@
   "EsHwflBzPz": {
     "defaultMessage": "Suivre la couverture des révisions et l’état d’approbation"
   },
+  "Esr6tXDJJe": {
+    "defaultMessage": "Aucun problème pour cette chaîne"
+  },
   "EuTWCTh8wL": {
     "defaultMessage": "Parcourez les fichiers source du fournisseur TMS connecté, puis ouvrez-en un dans l’espace de travail CAT lorsqu’il est pris en charge."
   },
@@ -3595,6 +3625,9 @@
   },
   "FrF4P2cRG5": {
     "defaultMessage": "Chargement des membres…"
+  },
+  "FtQgWtXBLP": {
+    "defaultMessage": "Réessayer"
   },
   "FtS1qUeQJM": {
     "defaultMessage": "{progress}% translated"
@@ -4220,6 +4253,9 @@
   "JPh5F8lV0A": {
     "defaultMessage": "GitHub"
   },
+  "JRvO1zUFRY": {
+    "defaultMessage": "Lecture de {detail}"
+  },
   "JRvnN6Kkq8": {
     "defaultMessage": "Projets Hyperlocalise"
   },
@@ -4291,6 +4327,9 @@
   },
   "JpSMiCgbq5": {
     "defaultMessage": "Espaces de travail"
+  },
+  "JprxqupePC": {
+    "defaultMessage": "La requête a échoué"
   },
   "JqELr8GP9s": {
     "defaultMessage": "Projet"
@@ -4481,6 +4520,9 @@
   "Kyj/6Mb2oy": {
     "defaultMessage": "Test what saved Memory.md guidance would be loaded for a translation query."
   },
+  "KzyWBbcmTH": {
+    "defaultMessage": "Impossible de mettre à jour les paramètres de suivi"
+  },
   "L0g+No60zf": {
     "defaultMessage": "Contexte requis : {key}"
   },
@@ -4612,6 +4654,9 @@
   },
   "Lmup4mp1Uh": {
     "defaultMessage": "Fonctionnalités d’IA"
+  },
+  "Lnk8Rz0vVt": {
+    "defaultMessage": "Se désabonner"
   },
   "Lod4vy7+T/": {
     "defaultMessage": "{email} will no longer be able to accept this workspace invitation."
@@ -5366,6 +5411,9 @@
   "Pso/sy4WEl": {
     "defaultMessage": "Suivant"
   },
+  "PtTFfFyjEn": {
+    "defaultMessage": "{count, plural, one {# fichier ouvert} other {# fichiers ouverts}}"
+  },
   "PtTtkKUG7c": {
     "defaultMessage": "Loading project…"
   },
@@ -5593,6 +5641,9 @@
   },
   "QrQMEfiDGs": {
     "defaultMessage": "50 total findings"
+  },
+  "QrUlBs3ARV": {
+    "defaultMessage": "Aucune valeur"
   },
   "QsCILqwet/": {
     "defaultMessage": "Demander à Hyperlocalise…"
@@ -5999,6 +6050,9 @@
   "T67SNUNeWw": {
     "defaultMessage": "Connectez Ahrefs avec une clé API MCP dans les intégrations avant d’utiliser cet outil."
   },
+  "T7+otbWCxu": {
+    "defaultMessage": "Les problèmes ne sont pas disponibles pour cette chaîne."
+  },
   "T7ocGbiped": {
     "defaultMessage": "Dernière livraison : aucune livraison pour le moment"
   },
@@ -6007,6 +6061,9 @@
   },
   "T8F8lD+KK1": {
     "defaultMessage": "Canal"
+  },
+  "T8Ggt03ksb": {
+    "defaultMessage": "Impossible d’explorer {subject}"
   },
   "TBagRGINiT": {
     "defaultMessage": "Workflows déterministes planifiés et déclenchés par GitHub"
@@ -6193,6 +6250,9 @@
   },
   "U7qjKZzoBx": {
     "defaultMessage": "Enregistrer les paramètres"
+  },
+  "U9HdNspgPF": {
+    "defaultMessage": "En cours…"
   },
   "UA3ioLbPld": {
     "defaultMessage": "{count} invalid skipped"
@@ -6679,6 +6739,9 @@
   },
   "Wh0P2263Np": {
     "defaultMessage": "{current} sur {total}"
+  },
+  "WhBlkGYmVr": {
+    "defaultMessage": "Impossible d’explorer la base de code"
   },
   "WhMZXjHjRn": {
     "defaultMessage": "Pending"
@@ -7310,6 +7373,9 @@
   "ZsYP7x8uWu": {
     "defaultMessage": "Rechercher des fichiers"
   },
+  "ZtI4YcVk7b": {
+    "defaultMessage": "Conditions du contrat de services cloud régissant l’utilisation des sites web, de la documentation et des services d’Hyperlocalise."
+  },
   "ZtpmqfuRlV": {
     "defaultMessage": "Extraire la structure, les liens et les termes produit"
   },
@@ -7363,6 +7429,9 @@
   },
   "a51/Gtv+h4": {
     "defaultMessage": "Enable first"
+  },
+  "a59gdX+rmW": {
+    "defaultMessage": "Développer les propriétés"
   },
   "a5J/Q0J1lX": {
     "defaultMessage": "malais (Malaisie)"
@@ -8195,6 +8264,9 @@
   "eZ9Pa/eLoU": {
     "defaultMessage": "Billing settings"
   },
+  "eaNtS/5vOt": {
+    "defaultMessage": "Réduire les propriétés"
+  },
   "ebI/JnzL7S": {
     "defaultMessage": "Automatisation"
   },
@@ -8320,6 +8392,9 @@
   },
   "fF31f5m0dZ": {
     "defaultMessage": "Diff"
+  },
+  "fFie7livIj": {
+    "defaultMessage": "Vérification de l’historique Git"
   },
   "fIXR+y8rly": {
     "defaultMessage": "Failed to load project files"
@@ -9770,6 +9845,9 @@
   "m7kZYILbyh": {
     "defaultMessage": "Failed to start agent run"
   },
+  "m8UlToMOXC": {
+    "defaultMessage": "Recherche de fichiers"
+  },
   "mAyP67aqS8": {
     "defaultMessage": "Clear"
   },
@@ -9958,6 +10036,9 @@
   },
   "n2pk6Y4oGA": {
     "defaultMessage": "Si la dernière revue a appris quelque chose à l’équipe, le prochain flux de travail devrait le savoir."
+  },
+  "n3a+6mF2IX": {
+    "defaultMessage": "Recherche en cours"
   },
   "n5bYPU3uSK": {
     "defaultMessage": "Les mises à jour des produits dépassent les traductions du centre d’aide. Les équipes d’assistance absorbent le coût lorsque les articles localisés prennent du retard."
@@ -10465,6 +10546,9 @@
   },
   "ppXDMSLgyj": {
     "defaultMessage": "Échec du chargement du panneau de la file d’attente"
+  },
+  "ppqLcxUWCQ": {
+    "defaultMessage": "Les champs personnalisés n’ont pas pu être chargés."
   },
   "prJEYrujJH": {
     "defaultMessage": "Live projects fetched from your connected TMS provider, ordered by recent activity."
@@ -11207,6 +11291,9 @@
   "thAleOBSL6": {
     "defaultMessage": "Provider link"
   },
+  "thNgDb6rW2": {
+    "defaultMessage": "Impossible de charger les problèmes."
+  },
   "tj9LSxTmXM": {
     "defaultMessage": "Console"
   },
@@ -11377,6 +11464,9 @@
   },
   "uf1YHYgy0L": {
     "defaultMessage": "Read-only"
+  },
+  "ufFJx4vPTD": {
+    "defaultMessage": "Lecture"
   },
   "ufjLSLmtEV": {
     "defaultMessage": "GitLab"
@@ -12047,6 +12137,9 @@
   "xixmTqHWvz": {
     "defaultMessage": "Ouvrir"
   },
+  "xj9AZAhTSo": {
+    "defaultMessage": "Nouveau problème"
+  },
   "xjcfJrUODP": {
     "defaultMessage": "e.g. de-DE"
   },
@@ -12193,6 +12286,9 @@
   },
   "yIwRFz93s7": {
     "defaultMessage": "Italien (Italie)"
+  },
+  "yJSROTn1AA": {
+    "defaultMessage": "Recherche de {detail}"
   },
   "yKtWAeejtx": {
     "defaultMessage": "New request"
@@ -12376,6 +12472,12 @@
   },
   "zL0C07+8z3": {
     "defaultMessage": "Aperçu"
+  },
+  "zLa51T7B2l": {
+    "defaultMessage": "Vérification de la configuration du dépôt"
+  },
+  "zLdcgO8mwD": {
+    "defaultMessage": "Permet à cette automatisation d’ajouter des informations au fichier Memory.md partagé de l’organisation. Les modifications sont enregistrées dans l’historique des révisions et peuvent être restaurées."
   },
   "zM/fYyJiHY": {
     "defaultMessage": "Dépôts activés mis à jour"

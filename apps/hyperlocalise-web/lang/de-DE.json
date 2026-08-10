@@ -335,6 +335,9 @@
   "/hT2cIKUSb": {
     "defaultMessage": "Fügen Sie in den Projekteinstellungen Ziel-Lokalisierungen hinzu, bevor Sie Übersetzungsaufträge erstellen."
   },
+  "/iIPpWEOXd": {
+    "defaultMessage": "Suche nach {detail}"
+  },
   "/iwtwhLhum": {
     "defaultMessage": "Die Vorschau verwendet den gespeicherten Markdown-Speicher."
   },
@@ -1238,6 +1241,9 @@
   "4/ptvuF8gA": {
     "defaultMessage": "Plattform"
   },
+  "40cOR2CWgx": {
+    "defaultMessage": "{count, plural, one {Codebasis durchsucht, # Suche} other {Codebasis durchsucht, # Suchvorgänge}}"
+  },
   "40qJqxVu6N": {
     "defaultMessage": "Sprache"
   },
@@ -1328,6 +1334,9 @@
   "4Qb5sAFHM8": {
     "defaultMessage": "Übersetzungen zu GitHub abrufen"
   },
+  "4QiNYfF++j": {
+    "defaultMessage": "Organisationsspeicher verwenden"
+  },
   "4R0gB8zCuT": {
     "defaultMessage": "Weiter"
   },
@@ -1357,6 +1366,9 @@
   },
   "4aYY8lTBYg": {
     "defaultMessage": "Die Übersetzungsarbeit beginnt im Release-Zyklus zu spät, sodass Lokalisierungen Launches blockieren oder mit Lücken ausgeliefert werden."
+  },
+  "4f79gyGj6Q": {
+    "defaultMessage": "{subject} geöffnet"
   },
   "4gW2ktRuC/": {
     "defaultMessage": "{direction} {connector}"
@@ -1687,6 +1699,9 @@
   },
   "6Su/xhxJZL": {
     "defaultMessage": "Slack"
+  },
+  "6V8CrxumwV": {
+    "defaultMessage": "{count, plural, one {Erkundet {subject}, # Suche} other {Erkundet {subject}, # Suchen}}"
   },
   "6XDIPXtsI4": {
     "defaultMessage": "Für den Versand geeignete Locales"
@@ -2186,6 +2201,9 @@
   "8pfmpD7Pez": {
     "defaultMessage": "Glossar erstellt"
   },
+  "8qNqRTyyLK": {
+    "defaultMessage": "Erstelle ein Issue, um die Arbeit an dieser Zeichenfolge zu verfolgen."
+  },
   "8qa1pUW6eX": {
     "defaultMessage": "Konto"
   },
@@ -2546,6 +2564,9 @@
   "ALRaijWLiy": {
     "defaultMessage": "Wird zurückgesetzt..."
   },
+  "APXHAbBkYL": {
+    "defaultMessage": "Abonnieren"
+  },
   "ARpiURdPaK": {
     "defaultMessage": "Die Schicht"
   },
@@ -2737,6 +2758,9 @@
   },
   "BeXUx2ytXa": {
     "defaultMessage": "Probleme"
+  },
+  "Bel9GZJcDc": {
+    "defaultMessage": "Speicheraktualisierungen zulassen"
   },
   "Bfwle3X1Yy": {
     "defaultMessage": "Verbinde {provider}, um die Ressource {resource} des Anbieters anzuzeigen."
@@ -3031,6 +3055,9 @@
   },
   "D0mCtflyKZ": {
     "defaultMessage": "Kanäle werden geladen ..."
+  },
+  "D2Iw7bGHIc": {
+    "defaultMessage": "Probleme"
   },
   "D2ZrcxejKr": {
     "defaultMessage": "MCP-Server"
@@ -3398,6 +3425,9 @@
   "EsHwflBzPz": {
     "defaultMessage": "Prüfe den Abdeckungsgrad und den Genehmigungsstatus von Rezensionen"
   },
+  "Esr6tXDJJe": {
+    "defaultMessage": "Keine Probleme für diese Zeichenfolge"
+  },
   "EuTWCTh8wL": {
     "defaultMessage": "Durchsuchen Sie Quelldateien vom verbundenen TMS-Anbieter und öffnen Sie eine davon im CAT-Arbeitsbereich, sofern sie unterstützt wird."
   },
@@ -3595,6 +3625,9 @@
   },
   "FrF4P2cRG5": {
     "defaultMessage": "Mitglieder werden geladen …"
+  },
+  "FtQgWtXBLP": {
+    "defaultMessage": "Erneut versuchen"
   },
   "FtS1qUeQJM": {
     "defaultMessage": "{progress}% übersetzt"
@@ -4220,6 +4253,9 @@
   "JPh5F8lV0A": {
     "defaultMessage": "GitHub"
   },
+  "JRvO1zUFRY": {
+    "defaultMessage": "Lese {detail}"
+  },
   "JRvnN6Kkq8": {
     "defaultMessage": "Hyperlocalise projects"
   },
@@ -4291,6 +4327,9 @@
   },
   "JpSMiCgbq5": {
     "defaultMessage": "Arbeitsbereiche"
+  },
+  "JprxqupePC": {
+    "defaultMessage": "Anfrage fehlgeschlagen"
   },
   "JqELr8GP9s": {
     "defaultMessage": "Projekt"
@@ -4481,6 +4520,9 @@
   "Kyj/6Mb2oy": {
     "defaultMessage": "Teste, welche gespeicherten Memory.md-Richtlinien für eine Übersetzungsanfrage geladen würden."
   },
+  "KzyWBbcmTH": {
+    "defaultMessage": "Watch-Einstellungen konnten nicht aktualisiert werden"
+  },
   "L0g+No60zf": {
     "defaultMessage": "Kontext erforderlich: {key}"
   },
@@ -4612,6 +4654,9 @@
   },
   "Lmup4mp1Uh": {
     "defaultMessage": "KI-Funktionen"
+  },
+  "Lnk8Rz0vVt": {
+    "defaultMessage": "Abbestellen"
   },
   "Lod4vy7+T/": {
     "defaultMessage": "{email} kann diese Workspace-Einladung nicht mehr annehmen."
@@ -5366,6 +5411,9 @@
   "Pso/sy4WEl": {
     "defaultMessage": "Weiter"
   },
+  "PtTFfFyjEn": {
+    "defaultMessage": "{count, plural, one {# Datei geöffnet} other {# Dateien geöffnet}}"
+  },
   "PtTtkKUG7c": {
     "defaultMessage": "Projekt wird geladen …"
   },
@@ -5593,6 +5641,9 @@
   },
   "QrQMEfiDGs": {
     "defaultMessage": "50 Ergebnisse insgesamt"
+  },
+  "QrUlBs3ARV": {
+    "defaultMessage": "Kein Wert"
   },
   "QsCILqwet/": {
     "defaultMessage": "Hyperlocalise fragen …"
@@ -5999,6 +6050,9 @@
   "T67SNUNeWw": {
     "defaultMessage": "Verbinde Ahrefs unter „Integrationen“ mit einem MCP-API-Schlüssel, bevor du dieses Tool verwendest."
   },
+  "T7+otbWCxu": {
+    "defaultMessage": "Issues sind für diesen String nicht verfügbar."
+  },
   "T7ocGbiped": {
     "defaultMessage": "Letzte Übermittlung: Noch keine Übermittlungen"
   },
@@ -6007,6 +6061,9 @@
   },
   "T8F8lD+KK1": {
     "defaultMessage": "Kanal"
+  },
+  "T8Ggt03ksb": {
+    "defaultMessage": "{subject} konnte nicht durchsucht werden"
   },
   "TBagRGINiT": {
     "defaultMessage": "Geplante und durch GitHub ausgelöste deterministische Workflows"
@@ -6193,6 +6250,9 @@
   },
   "U7qjKZzoBx": {
     "defaultMessage": "Einstellungen speichern"
+  },
+  "U9HdNspgPF": {
+    "defaultMessage": "Wird bearbeitet …"
   },
   "UA3ioLbPld": {
     "defaultMessage": "{count} ungültige übersprungen"
@@ -6679,6 +6739,9 @@
   },
   "Wh0P2263Np": {
     "defaultMessage": "{current} von {total}"
+  },
+  "WhBlkGYmVr": {
+    "defaultMessage": "Die Codebasis konnte nicht durchsucht werden."
   },
   "WhMZXjHjRn": {
     "defaultMessage": "Ausstehend"
@@ -7310,6 +7373,9 @@
   "ZsYP7x8uWu": {
     "defaultMessage": "Dateien durchsuchen"
   },
+  "ZtI4YcVk7b": {
+    "defaultMessage": "Cloud-Service-Vertragsbedingungen, die die Nutzung der Websites, Dokumentationen und Dienste von Hyperlocalise regeln."
+  },
   "ZtpmqfuRlV": {
     "defaultMessage": "Struktur, Links und Produktbegriffe extrahieren"
   },
@@ -7363,6 +7429,9 @@
   },
   "a51/Gtv+h4": {
     "defaultMessage": "Enable first"
+  },
+  "a59gdX+rmW": {
+    "defaultMessage": "Eigenschaften erweitern"
   },
   "a5J/Q0J1lX": {
     "defaultMessage": "Malaysisch (Malaysia)"
@@ -8195,6 +8264,9 @@
   "eZ9Pa/eLoU": {
     "defaultMessage": "Abrechnungseinstellungen"
   },
+  "eaNtS/5vOt": {
+    "defaultMessage": "Eigenschaften einklappen"
+  },
   "ebI/JnzL7S": {
     "defaultMessage": "Automation"
   },
@@ -8320,6 +8392,9 @@
   },
   "fF31f5m0dZ": {
     "defaultMessage": "Diff"
+  },
+  "fFie7livIj": {
+    "defaultMessage": "Git-Verlauf wird überprüft"
   },
   "fIXR+y8rly": {
     "defaultMessage": "Projektdateien konnten nicht geladen werden"
@@ -9770,6 +9845,9 @@
   "m7kZYILbyh": {
     "defaultMessage": "Agentenlauf konnte nicht gestartet werden"
   },
+  "m8UlToMOXC": {
+    "defaultMessage": "Dateien werden gesucht"
+  },
   "mAyP67aqS8": {
     "defaultMessage": "Clear"
   },
@@ -9958,6 +10036,9 @@
   },
   "n2pk6Y4oGA": {
     "defaultMessage": "Wenn die letzte Überprüfung dem Team etwas beigebracht hat, sollte der nächste Workflow es wissen."
+  },
+  "n3a+6mF2IX": {
+    "defaultMessage": "Suche"
   },
   "n5bYPU3uSK": {
     "defaultMessage": "Produkt-Updates überholen die Übersetzungen des Hilfezentrums. Support-Teams tragen die Kosten, wenn lokalisierte Artikel hinterherhinken."
@@ -10465,6 +10546,9 @@
   },
   "ppXDMSLgyj": {
     "defaultMessage": "Warteschlangenbereich konnte nicht geladen werden"
+  },
+  "ppqLcxUWCQ": {
+    "defaultMessage": "Benutzerdefinierte Felder konnten nicht geladen werden."
   },
   "prJEYrujJH": {
     "defaultMessage": "Live-Projekte, die von Ihrem verbundenen TMS-Anbieter abgerufen wurden, nach letzter Aktivität sortiert."
@@ -11207,6 +11291,9 @@
   "thAleOBSL6": {
     "defaultMessage": "Provider link"
   },
+  "thNgDb6rW2": {
+    "defaultMessage": "Probleme konnten nicht geladen werden."
+  },
   "tj9LSxTmXM": {
     "defaultMessage": "Konsole"
   },
@@ -11377,6 +11464,9 @@
   },
   "uf1YHYgy0L": {
     "defaultMessage": "Schreibgeschützt"
+  },
+  "ufFJx4vPTD": {
+    "defaultMessage": "Wird gelesen"
   },
   "ufjLSLmtEV": {
     "defaultMessage": "GitLab"
@@ -12047,6 +12137,9 @@
   "xixmTqHWvz": {
     "defaultMessage": "Öffnen"
   },
+  "xj9AZAhTSo": {
+    "defaultMessage": "Neues Problem"
+  },
   "xjcfJrUODP": {
     "defaultMessage": "z. B. de-DE"
   },
@@ -12193,6 +12286,9 @@
   },
   "yIwRFz93s7": {
     "defaultMessage": "Italienisch (Italien)"
+  },
+  "yJSROTn1AA": {
+    "defaultMessage": "Suche nach {detail}"
   },
   "yKtWAeejtx": {
     "defaultMessage": "Neue Anfrage"
@@ -12376,6 +12472,12 @@
   },
   "zL0C07+8z3": {
     "defaultMessage": "Übersicht"
+  },
+  "zLa51T7B2l": {
+    "defaultMessage": "Repository-Konfiguration wird überprüft"
+  },
+  "zLdcgO8mwD": {
+    "defaultMessage": "Ermöglicht dieser Automatisierung, Informationen an die gemeinsame Memory.md-Datei der Organisation anzuhängen. Änderungen werden im Revisionsverlauf aufgezeichnet und können wiederhergestellt werden."
   },
   "zM/fYyJiHY": {
     "defaultMessage": "Aktivierte Repositories aktualisiert"
