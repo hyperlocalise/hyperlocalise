@@ -23,17 +23,12 @@ export const catLinkedIssuesSegmentFixture: CatLinkedIssueSegmentContext = {
   translationKeyId: catLinkedIssuesTranslationKeyId,
   targetLocale: "de-DE",
   sourcePath: "messages/home.json",
-  // Absolute, like buildCatSegmentShareUrl() produces from window.location.href.
-  linkUrl:
-    "https://app.hyperlocalise.test/org/acme/projects/project_website/files/cat?sourcePath=messages%2Fhome.json&locale=de-DE&segment=home.cta.save",
-  linkLabel: "Open in CAT",
 };
 
 export const catLinkedIssuesExternalSegmentFixture: CatLinkedIssueSegmentContext = {
   ...catLinkedIssuesSegmentFixture,
   segmentId: "ext-string-cta-save",
   translationKeyId: null,
-  linkUrl: null,
 };
 
 export type CatLinkedIssueListItemFixture = {
