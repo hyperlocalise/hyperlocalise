@@ -70,97 +70,90 @@ afterEach(async () => {
   await authFixture.cleanup();
 });
 
-describe("sendIssueNotificationEmailStep", () => {
-  it("atomically claims a notification before calling Resend", async () => {
-    const actorIdentity = authFixture.createWorkosIdentityWithRole("admin");
-    await authFixture.authHeadersFor(actorIdentity);
-    const { organization, user: actor } =
-      await authFixture.createLocalWorkosIdentity(actorIdentity);
+async function createAssignedNotificationFixture() {
+  const actorIdentity = authFixture.createWorkosIdentityWithRole("admin");
+  await authFixture.authHeadersFor(actorIdentity);
+  const { organization, user: actor } = await authFixture.createLocalWorkosIdentity(actorIdentity);
 
-    const memberIdentity = authFixture.createWorkosIdentityForOrganization(
-      actorIdentity.organization,
-      "member",
-    );
-    await authFixture.authHeadersFor(memberIdentity);
-    const assigneeUserId = await authFixture.getLocalUserId(memberIdentity.user.workosUserId);
-    await authFixture.createLocalWorkosIdentity(memberIdentity);
+  const memberIdentity = authFixture.createWorkosIdentityForOrganization(
+    actorIdentity.organization,
+    "member",
+  );
+  await authFixture.authHeadersFor(memberIdentity);
+  const assigneeUserId = await authFixture.getLocalUserId(memberIdentity.user.workosUserId);
+  await authFixture.createLocalWorkosIdentity(memberIdentity);
 
-    const team = await ensureDefaultWorkspaceTeam(organization.id);
-    await db
-      .insert(schema.teamMemberships)
-      .values({
-        teamId: team.id,
-        userId: assigneeUserId,
-        role: "member",
-      })
-      .onConflictDoNothing();
+  const team = await ensureDefaultWorkspaceTeam(organization.id);
+  await db
+    .insert(schema.teamMemberships)
+    .values({
+      teamId: team.id,
+      userId: assigneeUserId,
+      role: "member",
+    })
+    .onConflictDoNothing();
 
-    await authFixture.authHeadersFor(actorIdentity);
+  await authFixture.authHeadersFor(actorIdentity);
 
-    const [project] = await db
-      .insert(schema.projects)
-      .values({
-        id: `project_${randomUUID()}`,
-        organizationId: organization.id,
-        teamId: team.id,
-        createdByUserId: actor.id,
-        name: "Workflow Email Project",
-        description: "",
-        translationContext: "",
-        sourceLocale: "en-US",
-        targetLocales: ["fr-FR"],
-      })
-      .returning();
-
-    const issue = await issueSheetService.createIssue({
+  const [project] = await db
+    .insert(schema.projects)
+    .values({
+      id: `project_${randomUUID()}`,
       organizationId: organization.id,
-      projectId: project.id,
-      actorUserId: actor.id,
-      body: {
-        title: "Workflow email",
-        assigneeUserId,
-      },
-    });
+      teamId: team.id,
+      createdByUserId: actor.id,
+      name: "Workflow Email Project",
+      description: "",
+      translationContext: "",
+      sourceLocale: "en-US",
+      targetLocales: ["fr-FR"],
+    })
+    .returning();
 
-    const [notification] = await db
-      .select()
-      .from(schema.issueNotifications)
-      .where(eq(schema.issueNotifications.issueId, issue.id))
-      .limit(1);
-    expect(notification).toBeTruthy();
+  const issue = await issueSheetService.createIssue({
+    organizationId: organization.id,
+    projectId: project.id,
+    actorUserId: actor.id,
+    body: {
+      title: "Workflow email",
+      assigneeUserId,
+    },
+  });
 
+  const [notification] = await db
+    .select()
+    .from(schema.issueNotifications)
+    .where(eq(schema.issueNotifications.issueId, issue.id))
+    .limit(1);
+  expect(notification).toBeTruthy();
+
+  await userNotificationPreferencesService.upsertForUser(assigneeUserId, {
+    emailEnabled: true,
+    emailFormat: "immediate",
+  });
+
+  const event: IssueNotificationEmailEventData = {
+    kind: "issue_notification_email",
+    recipientUserId: assigneeUserId,
+    emailFormat: "immediate",
+    to: "assignee@example.com",
+    subject: "You have 1 unread notification on Hyperlocalise.",
+    html: "<p>Open your Inbox</p>",
+    text: "Open your Inbox",
+    notificationIds: [notification!.id],
+  };
+
+  return { assigneeUserId, notification: notification!, event };
+}
+
+describe("sendIssueNotificationEmailStep", () => {
+  it("marks emailedAt only after Resend succeeds and uses an idempotency key", async () => {
+    const { notification, event } = await createAssignedNotificationFixture();
     const { sendIssueNotificationEmailStep } =
       await import("@/workflows/steps/issue-notification-email");
-    await userNotificationPreferencesService.upsertForUser(assigneeUserId, {
-      emailEnabled: true,
-      emailFormat: "immediate",
-    });
 
-    const event: IssueNotificationEmailEventData = {
-      kind: "issue_notification_email",
-      recipientUserId: assigneeUserId,
-      emailFormat: "immediate",
-      to: "assignee@example.com",
-      subject: "You have 1 unread notification on Hyperlocalise.",
-      html: "<p>Open your Inbox</p>",
-      text: "Open your Inbox",
-      notificationIds: [notification!.id],
-    };
-    const results = await Promise.all([
-      sendIssueNotificationEmailStep(event),
-      sendIssueNotificationEmailStep(event),
-    ]);
-
-    expect(results).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ ok: true, skipped: false, markedCount: 1 }),
-        expect.objectContaining({
-          ok: true,
-          skipped: true,
-          reason: "already_read_or_emailed",
-        }),
-      ]),
-    );
+    const result = await sendIssueNotificationEmailStep(event);
+    expect(result).toMatchObject({ ok: true, skipped: false, markedCount: 1 });
     expect(sendMock).toHaveBeenCalledTimes(1);
     expect(sendMock.mock.calls[0]?.[1]?.idempotencyKey).toMatch(
       /^issue-notification-email\/[a-f0-9]{64}$/,
@@ -169,14 +162,14 @@ describe("sendIssueNotificationEmailStep", () => {
     const [updated] = await db
       .select()
       .from(schema.issueNotifications)
-      .where(eq(schema.issueNotifications.id, notification!.id))
+      .where(eq(schema.issueNotifications.id, notification.id))
       .limit(1);
     expect(updated?.emailedAt).not.toBeNull();
 
     await db
       .update(schema.issueNotifications)
       .set({ emailedAt: null })
-      .where(eq(schema.issueNotifications.id, notification!.id));
+      .where(eq(schema.issueNotifications.id, notification.id));
     sendMock.mockResolvedValueOnce({
       data: null,
       error: { message: "Resend unavailable" },
@@ -187,9 +180,15 @@ describe("sendIssueNotificationEmailStep", () => {
     const [released] = await db
       .select({ emailedAt: schema.issueNotifications.emailedAt })
       .from(schema.issueNotifications)
-      .where(eq(schema.issueNotifications.id, notification!.id))
+      .where(eq(schema.issueNotifications.id, notification.id))
       .limit(1);
     expect(released?.emailedAt).toBeNull();
+  });
+
+  it("skips Resend when preferences changed before delivery", async () => {
+    const { assigneeUserId, event } = await createAssignedNotificationFixture();
+    const { sendIssueNotificationEmailStep } =
+      await import("@/workflows/steps/issue-notification-email");
 
     await userNotificationPreferencesService.upsertForUser(assigneeUserId, {
       emailEnabled: false,
@@ -208,85 +207,21 @@ describe("sendIssueNotificationEmailStep", () => {
   });
 
   it("skips Resend when notifications are already read", async () => {
-    const actorIdentity = authFixture.createWorkosIdentityWithRole("admin");
-    await authFixture.authHeadersFor(actorIdentity);
-    const { organization, user: actor } =
-      await authFixture.createLocalWorkosIdentity(actorIdentity);
-
-    const memberIdentity = authFixture.createWorkosIdentityForOrganization(
-      actorIdentity.organization,
-      "member",
-    );
-    await authFixture.authHeadersFor(memberIdentity);
-    const assigneeUserId = await authFixture.getLocalUserId(memberIdentity.user.workosUserId);
-    await authFixture.createLocalWorkosIdentity(memberIdentity);
-
-    const team = await ensureDefaultWorkspaceTeam(organization.id);
-    await db
-      .insert(schema.teamMemberships)
-      .values({
-        teamId: team.id,
-        userId: assigneeUserId,
-        role: "member",
-      })
-      .onConflictDoNothing();
-
-    await authFixture.authHeadersFor(actorIdentity);
-
-    const [project] = await db
-      .insert(schema.projects)
-      .values({
-        id: `project_${randomUUID()}`,
-        organizationId: organization.id,
-        teamId: team.id,
-        createdByUserId: actor.id,
-        name: "Workflow Skip Project",
-        description: "",
-        translationContext: "",
-        sourceLocale: "en-US",
-        targetLocales: ["fr-FR"],
-      })
-      .returning();
-
-    const issue = await issueSheetService.createIssue({
-      organizationId: organization.id,
-      projectId: project.id,
-      actorUserId: actor.id,
-      body: {
-        title: "Already read",
-        assigneeUserId,
-      },
-    });
-
-    const [notification] = await db
-      .select()
-      .from(schema.issueNotifications)
-      .where(eq(schema.issueNotifications.issueId, issue.id))
-      .limit(1);
-    expect(notification).toBeTruthy();
+    const { notification, assigneeUserId, event } = await createAssignedNotificationFixture();
+    const { sendIssueNotificationEmailStep } =
+      await import("@/workflows/steps/issue-notification-email");
 
     await db
       .update(schema.issueNotifications)
       .set({ readAt: new Date() })
-      .where(eq(schema.issueNotifications.id, notification!.id));
+      .where(eq(schema.issueNotifications.id, notification.id));
 
-    const { sendIssueNotificationEmailStep } =
-      await import("@/workflows/steps/issue-notification-email");
     await userNotificationPreferencesService.upsertForUser(assigneeUserId, {
       emailEnabled: true,
       emailFormat: "immediate",
     });
 
-    const result = await sendIssueNotificationEmailStep({
-      kind: "issue_notification_email",
-      recipientUserId: assigneeUserId,
-      emailFormat: "immediate",
-      to: "assignee@example.com",
-      subject: "You have 1 unread notification on Hyperlocalise.",
-      html: "<p>Open your Inbox</p>",
-      text: "Open your Inbox",
-      notificationIds: [notification!.id],
-    });
+    const result = await sendIssueNotificationEmailStep(event);
 
     expect(result).toMatchObject({ ok: true, skipped: true, reason: "already_read_or_emailed" });
     expect(sendMock).not.toHaveBeenCalled();

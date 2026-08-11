@@ -10,7 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { and, eq, inArray, isNull } from "drizzle-orm";
+import { and, inArray, isNull } from "drizzle-orm";
 import { Resend } from "resend";
 
 import { db, schema } from "@/lib/database";
@@ -36,9 +36,37 @@ async function deliveryIdempotencyKey(notificationIds: string[]): Promise<string
   return `issue-notification-email/${hash}`;
 }
 
+async function loadOpenNotificationIds(notificationIds: string[]): Promise<string[]> {
+  const openRows = await db
+    .select({ id: schema.issueNotifications.id })
+    .from(schema.issueNotifications)
+    .where(
+      and(
+        inArray(schema.issueNotifications.id, notificationIds),
+        isNull(schema.issueNotifications.readAt),
+        isNull(schema.issueNotifications.emailedAt),
+      ),
+    );
+  return openRows.map((row) => row.id);
+}
+
+async function preferencesAllowDelivery(
+  recipientUserId: string,
+  emailFormat: IssueNotificationEmailEventData["emailFormat"],
+): Promise<boolean> {
+  const preferences = await userNotificationPreferencesService.getForUser(recipientUserId);
+  return preferences.emailEnabled && preferences.emailFormat === emailFormat;
+}
+
 /**
- * Workflow step: atomically claim Inbox rows, then send their pre-rendered
- * Issue notification email via Resend.
+ * Workflow step: send a pre-rendered Issue notification email via Resend,
+ * then mark matching Inbox rows as emailed.
+ *
+ * `emailedAt` is set only after Resend succeeds so a crashed worker cannot
+ * permanently suppress an undelivered notification. Concurrent retries share a
+ * Resend idempotency key so duplicate API calls do not create duplicate mail.
+ * Preferences are re-checked immediately before Resend so opt-out wins over a
+ * stale queued payload.
  */
 export async function sendIssueNotificationEmailStep(event: IssueNotificationEmailEventData) {
   "use step";
@@ -56,63 +84,51 @@ export async function sendIssueNotificationEmailStep(event: IssueNotificationEma
     return { ok: true as const, skipped: true as const, reason: "missing_preference_context" };
   }
 
-  const preferences = await userNotificationPreferencesService.getForUser(event.recipientUserId);
-  if (!preferences.emailEnabled || preferences.emailFormat !== event.emailFormat) {
+  const openIds = await loadOpenNotificationIds(event.notificationIds);
+  if (openIds.length === 0) {
+    return { ok: true as const, skipped: true as const, reason: "already_read_or_emailed" };
+  }
+
+  // Recheck immediately before calling Resend so a mid-queue opt-out is honored.
+  if (!(await preferencesAllowDelivery(event.recipientUserId, event.emailFormat))) {
     return { ok: true as const, skipped: true as const, reason: "delivery_preferences_changed" };
   }
 
-  const claimedAt = new Date();
-  const openRows = await db
+  const resend = new Resend(env.RESEND_API_KEY);
+  const idempotencyKey = await deliveryIdempotencyKey(openIds);
+  const result = await resend.emails.send(
+    {
+      from,
+      to: [event.to],
+      subject: event.subject,
+      html: event.html,
+      text: event.text,
+    },
+    { idempotencyKey },
+  );
+
+  if (result.error) {
+    throw new Error(result.error.message);
+  }
+
+  // Mark only rows that are still unread/unemailed. Do not claim before send —
+  // an interrupted process must leave rows eligible for retry.
+  const marked = await db
     .update(schema.issueNotifications)
-    .set({ emailedAt: claimedAt })
+    .set({ emailedAt: new Date() })
     .where(
       and(
-        inArray(schema.issueNotifications.id, event.notificationIds),
+        inArray(schema.issueNotifications.id, openIds),
         isNull(schema.issueNotifications.readAt),
         isNull(schema.issueNotifications.emailedAt),
       ),
     )
     .returning({ id: schema.issueNotifications.id });
 
-  if (openRows.length === 0) {
-    return { ok: true as const, skipped: true as const, reason: "already_read_or_emailed" };
-  }
-
-  const openIds = openRows.map((row) => row.id);
-  const resend = new Resend(env.RESEND_API_KEY);
-  try {
-    const idempotencyKey = await deliveryIdempotencyKey(openIds);
-    const result = await resend.emails.send(
-      {
-        from,
-        to: [event.to],
-        subject: event.subject,
-        html: event.html,
-        text: event.text,
-      },
-      { idempotencyKey },
-    );
-
-    if (result.error) {
-      throw new Error(result.error.message);
-    }
-
-    return {
-      ok: true as const,
-      skipped: false as const,
-      markedCount: openIds.length,
-      resendId: result.data?.id ?? null,
-    };
-  } catch (error) {
-    await db
-      .update(schema.issueNotifications)
-      .set({ emailedAt: null })
-      .where(
-        and(
-          inArray(schema.issueNotifications.id, openIds),
-          eq(schema.issueNotifications.emailedAt, claimedAt),
-        ),
-      );
-    throw error;
-  }
+  return {
+    ok: true as const,
+    skipped: false as const,
+    markedCount: marked.length,
+    resendId: result.data?.id ?? null,
+  };
 }
