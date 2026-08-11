@@ -186,14 +186,48 @@ describe("sendIssueNotificationEmailStep", () => {
   });
 
   it("skips Resend when preferences changed before delivery", async () => {
-    const { assigneeUserId, event } = await createAssignedNotificationFixture();
+    const { assigneeUserId, notification, event } = await createAssignedNotificationFixture();
     const { sendIssueNotificationEmailStep } =
       await import("@/workflows/steps/issue-notification-email");
 
-    await userNotificationPreferencesService.upsertForUser(assigneeUserId, {
-      emailEnabled: false,
-      emailFormat: "immediate",
+    let markSendStarted: () => void = () => {};
+    const sendStarted = new Promise<void>((resolve) => {
+      markSendStarted = resolve;
     });
+    let releaseSend: () => void = () => {};
+    const sendReleased = new Promise<void>((resolve) => {
+      releaseSend = resolve;
+    });
+    sendMock.mockImplementationOnce(async () => {
+      markSendStarted();
+      await sendReleased;
+      return { data: { id: "email_locked_preferences" }, error: null };
+    });
+
+    const lockedDelivery = sendIssueNotificationEmailStep(event);
+    await sendStarted;
+
+    let preferenceUpdateFinished = false;
+    const preferenceUpdate = userNotificationPreferencesService
+      .upsertForUser(assigneeUserId, {
+        emailEnabled: false,
+        emailFormat: "immediate",
+      })
+      .then(() => {
+        preferenceUpdateFinished = true;
+      });
+    await new Promise((resolve) => setTimeout(resolve, 25));
+    expect(preferenceUpdateFinished).toBe(false);
+
+    releaseSend();
+    await expect(lockedDelivery).resolves.toMatchObject({ ok: true, skipped: false });
+    await preferenceUpdate;
+    expect(preferenceUpdateFinished).toBe(true);
+
+    await db
+      .update(schema.issueNotifications)
+      .set({ emailedAt: null })
+      .where(eq(schema.issueNotifications.id, notification.id));
     sendMock.mockClear();
 
     const optedOutResult = await sendIssueNotificationEmailStep(event);
