@@ -43,7 +43,9 @@ describe("crawlLocalisationAuditSample", () => {
     withPublicHttpFetchMock.mockImplementation(async (url, init, handler) => {
       expect(init?.redirect).toBe("manual");
       if (url === "https://example.com/") {
-        return handler(htmlResponse("<html lang='en'><title>Home</title><body>Hello world page</body></html>"));
+        return handler(
+          htmlResponse("<html lang='en'><title>Home</title><body>Hello world page</body></html>"),
+        );
       }
       return handler(htmlResponse("<html><body>Other page content here for sample</body></html>"));
     });
@@ -54,9 +56,9 @@ describe("crawlLocalisationAuditSample", () => {
     });
 
     expect(pages.length).toBeGreaterThan(0);
-    expect(
-      withPublicHttpFetchMock.mock.calls.every((call) => call[1]?.redirect === "manual"),
-    ).toBe(true);
+    expect(withPublicHttpFetchMock.mock.calls.every((call) => call[1]?.redirect === "manual")).toBe(
+      true,
+    );
   });
 
   it("re-validates each redirect hop so private Location targets are not fetched", async () => {
@@ -102,7 +104,9 @@ describe("crawlLocalisationAuditSample", () => {
         );
       }
       return handler(
-        htmlResponse("<html><body>Secondary page with enough text content for parsing.</body></html>"),
+        htmlResponse(
+          "<html><body>Secondary page with enough text content for parsing.</body></html>",
+        ),
       );
     });
 
