@@ -35,8 +35,11 @@ describe("createChatLogger", () => {
     // Reintroducing `import type { Logger } from "chat"` pulls async_hooks into
     // workflow sandbox bundles and crashes source-file-ingest / automations.
     const source = readFileSync(path.join(import.meta.dirname, "log.ts"), "utf8");
-    expect(source).not.toMatch(/from\s+["']chat["']/);
-    expect(source).not.toMatch(/from\s+["']chat\//);
+    // Side-effect and named/type imports of chat (or chat/*) all pull the package
+    // into Workflow DevKit sandbox bundles.
+    expect(source).not.toMatch(
+      /(?:^|[;\n])\s*import\s(?!\()(?:type\s+)?(?:[^"'`;]*?\sfrom\s+)?["']chat(?:\/[^"'`]*)?["']/,
+    );
   });
 
   it("nests child prefixes and stringifies messages with args", () => {

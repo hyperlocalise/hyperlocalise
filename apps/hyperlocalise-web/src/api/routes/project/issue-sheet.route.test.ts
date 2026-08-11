@@ -13,6 +13,7 @@
 import "dotenv/config";
 
 import { and, eq } from "drizzle-orm";
+import { testClient } from "hono/testing";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
 import { app } from "@/api/app";
@@ -46,7 +47,12 @@ vi.mock("@/lib/flags/workspace-flags", async (importOriginal) => {
   };
 });
 
-const projectFixture = createProjectTestFixture();
+const client = testClient(app);
+const projectFixture = createProjectTestFixture(client);
+
+function issueSheet() {
+  return client.api.orgs[":organizationSlug"].projects[":projectId"]["issue-sheet"];
+}
 
 type IssueResponse = {
   issue: {
@@ -90,30 +96,6 @@ afterEach(async () => {
   await projectFixture.cleanup();
 });
 
-function issueSheetUrl(organizationSlug: string, projectId: string, suffix = "") {
-  return `/api/orgs/${encodeURIComponent(organizationSlug)}/projects/${encodeURIComponent(projectId)}/issue-sheet${suffix}`;
-}
-
-async function requestJson(
-  url: string,
-  input: {
-    method?: string;
-    headers: HeadersInit;
-    body?: unknown;
-    query?: Record<string, string>;
-  },
-) {
-  const query = input.query ? `?${new URLSearchParams(input.query).toString()}` : "";
-  return app.request(`${url}${query}`, {
-    method: input.method ?? "GET",
-    headers: {
-      ...(input.body ? { "Content-Type": "application/json" } : {}),
-      ...Object.fromEntries(new Headers(input.headers).entries()),
-    },
-    body: input.body ? JSON.stringify(input.body) : undefined,
-  });
-}
-
 describe("Issue Sheet routes", () => {
   it("denies issue sheet access when the feature flag is disabled", async () => {
     workspaceIssuesFlagRunMock.mockResolvedValue(false);
@@ -121,9 +103,10 @@ describe("Issue Sheet routes", () => {
     const headers = await projectFixture.authHeadersFor(identity);
     const organizationSlug = identity.organization.slug ?? "missing-slug";
 
-    const response = await requestJson(issueSheetUrl(organizationSlug, project.id), {
-      headers,
-    });
+    const response = await issueSheet().$get(
+      { param: { organizationSlug: organizationSlug, projectId: project.id } } as never,
+      { headers: headers },
+    );
 
     expect(response.status).toBe(403);
     await expect(response.json()).resolves.toMatchObject({
@@ -136,22 +119,24 @@ describe("Issue Sheet routes", () => {
     const headers = await projectFixture.authHeadersFor(identity);
     const organizationSlug = identity.organization.slug ?? "missing-slug";
 
-    const createResponse = await requestJson(issueSheetUrl(organizationSlug, project.id), {
-      method: "POST",
-      headers,
-      body: {
-        title: "Source string needs context",
-        description: "The CTA is ambiguous.",
-        issueType: "context_request",
-        targetLocale: "de-DE",
-        sourcePath: "messages/home.json",
-        segmentId: "cta.save",
-        linkKind: "cat_segment",
-        linkLabel: "Open in CAT",
-        externalRef: "cat:home:de-DE:cta.save",
-        priority: "P1",
-      },
-    });
+    const createResponse = await issueSheet().$post(
+      {
+        param: { organizationSlug: organizationSlug, projectId: project.id },
+        json: {
+          title: "Source string needs context",
+          description: "The CTA is ambiguous.",
+          issueType: "context_request",
+          targetLocale: "de-DE",
+          sourcePath: "messages/home.json",
+          segmentId: "cta.save",
+          linkKind: "cat_segment",
+          linkLabel: "Open in CAT",
+          externalRef: "cat:home:de-DE:cta.save",
+          priority: "P1",
+        },
+      } as never,
+      { headers: headers },
+    );
 
     expect(createResponse.status).toBe(201);
     const createdBody = (await createResponse.json()) as IssueResponse;
@@ -163,10 +148,13 @@ describe("Issue Sheet routes", () => {
       values: { priority: "P1" },
     });
 
-    const listResponse = await requestJson(issueSheetUrl(organizationSlug, project.id), {
-      headers,
-      query: { view: "all_open" },
-    });
+    const listResponse = await issueSheet().$get(
+      {
+        param: { organizationSlug: organizationSlug, projectId: project.id },
+        query: { view: "all_open" },
+      } as never,
+      { headers: headers },
+    );
 
     expect(listResponse.status).toBe(200);
     const listBody = (await listResponse.json()) as IssueSheetListResponse;
@@ -178,10 +166,13 @@ describe("Issue Sheet routes", () => {
       "context",
     ]);
 
-    const viewWithStatusResponse = await requestJson(issueSheetUrl(organizationSlug, project.id), {
-      headers,
-      query: { view: "all_open", status: "resolved" },
-    });
+    const viewWithStatusResponse = await issueSheet().$get(
+      {
+        param: { organizationSlug: organizationSlug, projectId: project.id },
+        query: { view: "all_open", status: "resolved" },
+      } as never,
+      { headers: headers },
+    );
 
     expect(viewWithStatusResponse.status).toBe(200);
     const viewWithStatusBody = (await viewWithStatusResponse.json()) as IssueSheetListResponse;
@@ -189,57 +180,62 @@ describe("Issue Sheet routes", () => {
 
     const issueId = createdBody.issue.id;
 
-    const getIssueResponse = await requestJson(
-      issueSheetUrl(organizationSlug, project.id, `/${issueId}`),
-      { headers },
+    const getIssueResponse = await issueSheet()[":issueId"].$get(
+      {
+        param: { organizationSlug: organizationSlug, projectId: project.id, issueId: issueId },
+      } as never,
+      { headers: headers },
     );
     expect(getIssueResponse.status).toBe(200);
     const getIssueBody = (await getIssueResponse.json()) as IssueResponse;
     expect(getIssueBody.issue.id).toBe(issueId);
     expect(getIssueBody.issue.title).toBe("Source string needs context");
 
-    const missingIssueResponse = await requestJson(
-      issueSheetUrl(organizationSlug, project.id, "/00000000-0000-4000-8000-000000000000"),
-      { headers },
+    const missingIssueResponse = await issueSheet()[":issueId"].$get(
+      {
+        param: {
+          organizationSlug: organizationSlug,
+          projectId: project.id,
+          issueId: "00000000-0000-4000-8000-000000000000",
+        },
+      } as never,
+      { headers: headers },
     );
     expect(missingIssueResponse.status).toBe(404);
 
-    const updateResponse = await requestJson(
-      issueSheetUrl(organizationSlug, project.id, `/${issueId}`),
+    const updateResponse = await issueSheet()[":issueId"].$patch(
       {
-        method: "PATCH",
-        headers,
-        body: { status: "in_progress" },
-      },
+        param: { organizationSlug: organizationSlug, projectId: project.id, issueId: issueId },
+        json: { status: "in_progress" },
+      } as never,
+      { headers: headers },
     );
 
     expect(updateResponse.status).toBe(200);
     const updatedBody = (await updateResponse.json()) as IssueResponse;
     expect(updatedBody.issue.status).toBe("in_progress");
 
-    const columnResponse = await requestJson(
-      issueSheetUrl(organizationSlug, project.id, "/columns"),
+    const columnResponse = await issueSheet().columns.$post(
       {
-        method: "POST",
-        headers,
-        body: {
+        param: { organizationSlug: organizationSlug, projectId: project.id },
+        json: {
           key: "sprint",
           label: "Sprint",
           type: "select",
           config: { options: [{ id: "S24", label: "S24" }] },
         },
-      },
+      } as never,
+      { headers: headers },
     );
 
     expect(columnResponse.status).toBe(201);
 
-    const valueResponse = await requestJson(
-      issueSheetUrl(organizationSlug, project.id, `/${issueId}/values`),
+    const valueResponse = await issueSheet()[":issueId"].values.$patch(
       {
-        method: "PATCH",
-        headers,
-        body: { columnKey: "sprint", value: "S24" },
-      },
+        param: { organizationSlug: organizationSlug, projectId: project.id, issueId: issueId },
+        json: { columnKey: "sprint", value: "S24" },
+      } as never,
+      { headers: headers },
     );
 
     expect(valueResponse.status).toBe(200);
@@ -250,9 +246,9 @@ describe("Issue Sheet routes", () => {
     const headers = await projectFixture.authHeadersFor(identity);
     const organizationSlug = identity.organization.slug ?? "missing-slug";
 
-    const columnsResponse = await requestJson(
-      issueSheetUrl(organizationSlug, project.id, "/columns"),
-      { headers },
+    const columnsResponse = await issueSheet().columns.$get(
+      { param: { organizationSlug: organizationSlug, projectId: project.id } } as never,
+      { headers: headers },
     );
 
     expect(columnsResponse.status).toBe(200);
@@ -269,24 +265,23 @@ describe("Issue Sheet routes", () => {
       label: "Context",
     });
 
-    const createColumnResponse = await requestJson(
-      issueSheetUrl(organizationSlug, project.id, "/columns"),
+    const createColumnResponse = await issueSheet().columns.$post(
       {
-        method: "POST",
-        headers,
-        body: {
+        param: { organizationSlug: organizationSlug, projectId: project.id },
+        json: {
           key: "component",
           label: "Component",
           type: "text",
           config: {},
         },
-      },
+      } as never,
+      { headers: headers },
     );
     expect(createColumnResponse.status).toBe(201);
 
-    const columnsAfterResponse = await requestJson(
-      issueSheetUrl(organizationSlug, project.id, "/columns"),
-      { headers },
+    const columnsAfterResponse = await issueSheet().columns.$get(
+      { param: { organizationSlug: organizationSlug, projectId: project.id } } as never,
+      { headers: headers },
     );
     expect(columnsAfterResponse.status).toBe(200);
     const columnsAfterBody = (await columnsAfterResponse.json()) as {
@@ -305,42 +300,47 @@ describe("Issue Sheet routes", () => {
     const headers = await projectFixture.authHeadersFor(identity);
     const organizationSlug = identity.organization.slug ?? "missing-slug";
 
-    const createResponse = await requestJson(issueSheetUrl(organizationSlug, project.id), {
-      method: "POST",
-      headers,
-      body: {
-        title: "Issue with custom fields",
-        issueType: "general_question",
-      },
-    });
+    const createResponse = await issueSheet().$post(
+      {
+        param: { organizationSlug: organizationSlug, projectId: project.id },
+        json: {
+          title: "Issue with custom fields",
+          issueType: "general_question",
+        },
+      } as never,
+      { headers: headers },
+    );
     expect(createResponse.status).toBe(201);
     const createdBody = (await createResponse.json()) as IssueResponse;
     const issueId = createdBody.issue.id;
 
-    await requestJson(issueSheetUrl(organizationSlug, project.id, "/columns"), {
-      method: "POST",
-      headers,
-      body: {
-        key: "sprint",
-        label: "Sprint",
-        type: "select",
-        config: { options: [{ id: "S24", label: "S24" }] },
-      },
-    });
-
-    const valueResponse = await requestJson(
-      issueSheetUrl(organizationSlug, project.id, `/${issueId}/values`),
+    await issueSheet().columns.$post(
       {
-        method: "PATCH",
-        headers,
-        body: { columnKey: "sprint", value: "S24" },
-      },
+        param: { organizationSlug: organizationSlug, projectId: project.id },
+        json: {
+          key: "sprint",
+          label: "Sprint",
+          type: "select",
+          config: { options: [{ id: "S24", label: "S24" }] },
+        },
+      } as never,
+      { headers: headers },
+    );
+
+    const valueResponse = await issueSheet()[":issueId"].values.$patch(
+      {
+        param: { organizationSlug: organizationSlug, projectId: project.id, issueId: issueId },
+        json: { columnKey: "sprint", value: "S24" },
+      } as never,
+      { headers: headers },
     );
     expect(valueResponse.status).toBe(200);
 
-    const getIssueResponse = await requestJson(
-      issueSheetUrl(organizationSlug, project.id, `/${issueId}`),
-      { headers },
+    const getIssueResponse = await issueSheet()[":issueId"].$get(
+      {
+        param: { organizationSlug: organizationSlug, projectId: project.id, issueId: issueId },
+      } as never,
+      { headers: headers },
     );
     expect(getIssueResponse.status).toBe(200);
     const getIssueBody = (await getIssueResponse.json()) as IssueResponse;
@@ -354,41 +354,47 @@ describe("Issue Sheet routes", () => {
     const headers = await projectFixture.authHeadersFor(identity);
     const organizationSlug = identity.organization.slug ?? "missing-slug";
 
-    await requestJson(issueSheetUrl(organizationSlug, project.id, "/columns"), {
-      method: "POST",
-      headers,
-      body: {
-        key: "sprint",
-        label: "Sprint",
-        type: "select",
-        config: { options: [{ id: "S24", label: "S24" }] },
-      },
-    });
-    await requestJson(issueSheetUrl(organizationSlug, project.id, "/columns"), {
-      method: "POST",
-      headers,
-      body: {
-        key: "component",
-        label: "Component",
-        type: "text",
-      },
-    });
-
-    const createResponse = await requestJson(issueSheetUrl(organizationSlug, project.id), {
-      method: "POST",
-      headers,
-      body: {
-        title: "Issue with create-time values",
-        issueType: "general_question",
-        status: "in_progress",
-        priority: "P0",
-        values: {
-          priority: "P2",
-          sprint: "S24",
-          component: "Checkout",
+    await issueSheet().columns.$post(
+      {
+        param: { organizationSlug: organizationSlug, projectId: project.id },
+        json: {
+          key: "sprint",
+          label: "Sprint",
+          type: "select",
+          config: { options: [{ id: "S24", label: "S24" }] },
         },
-      },
-    });
+      } as never,
+      { headers: headers },
+    );
+    await issueSheet().columns.$post(
+      {
+        param: { organizationSlug: organizationSlug, projectId: project.id },
+        json: {
+          key: "component",
+          label: "Component",
+          type: "text",
+        },
+      } as never,
+      { headers: headers },
+    );
+
+    const createResponse = await issueSheet().$post(
+      {
+        param: { organizationSlug: organizationSlug, projectId: project.id },
+        json: {
+          title: "Issue with create-time values",
+          issueType: "general_question",
+          status: "in_progress",
+          priority: "P0",
+          values: {
+            priority: "P2",
+            sprint: "S24",
+            component: "Checkout",
+          },
+        },
+      } as never,
+      { headers: headers },
+    );
 
     expect(createResponse.status).toBe(201);
     const createdBody = (await createResponse.json()) as IssueResponse;
@@ -407,25 +413,29 @@ describe("Issue Sheet routes", () => {
     const headers = await projectFixture.authHeadersFor(identity);
     const organizationSlug = identity.organization.slug ?? "missing-slug";
 
-    await requestJson(issueSheetUrl(organizationSlug, project.id, "/columns"), {
-      method: "POST",
-      headers,
-      body: {
-        key: "sprint",
-        label: "Sprint",
-        type: "select",
-        config: { options: [{ id: "S24", label: "S24" }] },
-      },
-    });
+    await issueSheet().columns.$post(
+      {
+        param: { organizationSlug: organizationSlug, projectId: project.id },
+        json: {
+          key: "sprint",
+          label: "Sprint",
+          type: "select",
+          config: { options: [{ id: "S24", label: "S24" }] },
+        },
+      } as never,
+      { headers: headers },
+    );
 
-    const createResponse = await requestJson(issueSheetUrl(organizationSlug, project.id), {
-      method: "POST",
-      headers,
-      body: {
-        title: "Bad select value",
-        values: { sprint: "S99" },
-      },
-    });
+    const createResponse = await issueSheet().$post(
+      {
+        param: { organizationSlug: organizationSlug, projectId: project.id },
+        json: {
+          title: "Bad select value",
+          values: { sprint: "S99" },
+        },
+      } as never,
+      { headers: headers },
+    );
 
     expect(createResponse.status).toBe(400);
     await expect(createResponse.json()).resolves.toMatchObject({
@@ -453,14 +463,16 @@ describe("Issue Sheet routes", () => {
     const headers = await projectFixture.authHeadersFor(identity);
     const organizationSlug = identity.organization.slug ?? "missing-slug";
 
-    const createResponse = await requestJson(issueSheetUrl(organizationSlug, project.id), {
-      method: "POST",
-      headers,
-      body: {
-        title: "Values priority only",
-        values: { priority: "P1" },
-      },
-    });
+    const createResponse = await issueSheet().$post(
+      {
+        param: { organizationSlug: organizationSlug, projectId: project.id },
+        json: {
+          title: "Values priority only",
+          values: { priority: "P1" },
+        },
+      } as never,
+      { headers: headers },
+    );
 
     expect(createResponse.status).toBe(201);
     const createdBody = (await createResponse.json()) as IssueResponse;
@@ -472,37 +484,43 @@ describe("Issue Sheet routes", () => {
     const headers = await projectFixture.authHeadersFor(identity);
     const organizationSlug = identity.organization.slug ?? "missing-slug";
 
-    await requestJson(issueSheetUrl(organizationSlug, project.id, "/columns"), {
-      method: "POST",
-      headers,
-      body: {
-        key: "component",
-        label: "Component",
-        type: "text",
-      },
-    });
-    await requestJson(issueSheetUrl(organizationSlug, project.id, "/columns"), {
-      method: "POST",
-      headers,
-      body: {
-        key: "sprint",
-        label: "Sprint",
-        type: "select",
-        config: { options: [{ id: "S24", label: "S24" }] },
-      },
-    });
-
-    const createResponse = await requestJson(issueSheetUrl(organizationSlug, project.id), {
-      method: "POST",
-      headers,
-      body: {
-        title: "Partial values rollback",
-        values: {
-          component: "Checkout",
-          sprint: "S99",
+    await issueSheet().columns.$post(
+      {
+        param: { organizationSlug: organizationSlug, projectId: project.id },
+        json: {
+          key: "component",
+          label: "Component",
+          type: "text",
         },
-      },
-    });
+      } as never,
+      { headers: headers },
+    );
+    await issueSheet().columns.$post(
+      {
+        param: { organizationSlug: organizationSlug, projectId: project.id },
+        json: {
+          key: "sprint",
+          label: "Sprint",
+          type: "select",
+          config: { options: [{ id: "S24", label: "S24" }] },
+        },
+      } as never,
+      { headers: headers },
+    );
+
+    const createResponse = await issueSheet().$post(
+      {
+        param: { organizationSlug: organizationSlug, projectId: project.id },
+        json: {
+          title: "Partial values rollback",
+          values: {
+            component: "Checkout",
+            sprint: "S99",
+          },
+        },
+      } as never,
+      { headers: headers },
+    );
 
     expect(createResponse.status).toBe(400);
     await expect(createResponse.json()).resolves.toMatchObject({
@@ -527,14 +545,16 @@ describe("Issue Sheet routes", () => {
     const headers = await projectFixture.authHeadersFor(identity);
     const organizationSlug = identity.organization.slug ?? "missing-slug";
 
-    const createResponse = await requestJson(issueSheetUrl(organizationSlug, project.id), {
-      method: "POST",
-      headers,
-      body: {
-        title: "Unknown custom column",
-        values: { missing_column: "S24" },
-      },
-    });
+    const createResponse = await issueSheet().$post(
+      {
+        param: { organizationSlug: organizationSlug, projectId: project.id },
+        json: {
+          title: "Unknown custom column",
+          values: { missing_column: "S24" },
+        },
+      } as never,
+      { headers: headers },
+    );
 
     expect(createResponse.status).toBe(400);
     await expect(createResponse.json()).resolves.toMatchObject({
@@ -567,16 +587,20 @@ describe("Issue Sheet routes", () => {
       externalRef: "cat:home:fr-FR:headline",
     };
 
-    const first = await requestJson(issueSheetUrl(organizationSlug, project.id), {
-      method: "POST",
-      headers,
-      body: payload,
-    });
-    const second = await requestJson(issueSheetUrl(organizationSlug, project.id), {
-      method: "POST",
-      headers,
-      body: payload,
-    });
+    const first = await issueSheet().$post(
+      {
+        param: { organizationSlug: organizationSlug, projectId: project.id },
+        json: payload,
+      } as never,
+      { headers: headers },
+    );
+    const second = await issueSheet().$post(
+      {
+        param: { organizationSlug: organizationSlug, projectId: project.id },
+        json: payload,
+      } as never,
+      { headers: headers },
+    );
 
     expect(first.status).toBe(201);
     expect(second.status).toBe(201);
@@ -584,10 +608,13 @@ describe("Issue Sheet routes", () => {
     const secondBody = (await second.json()) as IssueResponse;
     expect(secondBody.issue.id).toBe(firstBody.issue.id);
 
-    const listResponse = await requestJson(issueSheetUrl(organizationSlug, project.id), {
-      headers,
-      query: { status: "all" },
-    });
+    const listResponse = await issueSheet().$get(
+      {
+        param: { organizationSlug: organizationSlug, projectId: project.id },
+        query: { status: "all" },
+      } as never,
+      { headers: headers },
+    );
     const listBody = (await listResponse.json()) as IssueSheetListResponse;
     expect(listBody.issues).toHaveLength(1);
   });
@@ -605,40 +632,50 @@ describe("Issue Sheet routes", () => {
       externalRef: "cat:home:fr-FR:resolved-headline",
     };
 
-    const first = await requestJson(issueSheetUrl(organizationSlug, project.id), {
-      method: "POST",
-      headers,
-      body: payload,
-    });
+    const first = await issueSheet().$post(
+      {
+        param: { organizationSlug: organizationSlug, projectId: project.id },
+        json: payload,
+      } as never,
+      { headers: headers },
+    );
 
     expect(first.status).toBe(201);
     const firstBody = (await first.json()) as IssueResponse;
 
-    const resolveResponse = await requestJson(
-      issueSheetUrl(organizationSlug, project.id, `/${firstBody.issue.id}`),
+    const resolveResponse = await issueSheet()[":issueId"].$patch(
       {
-        method: "PATCH",
-        headers,
-        body: { status: "resolved" },
-      },
+        param: {
+          organizationSlug: organizationSlug,
+          projectId: project.id,
+          issueId: firstBody.issue.id,
+        },
+        json: { status: "resolved" },
+      } as never,
+      { headers: headers },
     );
     expect(resolveResponse.status).toBe(200);
 
-    const repeated = await requestJson(issueSheetUrl(organizationSlug, project.id), {
-      method: "POST",
-      headers,
-      body: payload,
-    });
+    const repeated = await issueSheet().$post(
+      {
+        param: { organizationSlug: organizationSlug, projectId: project.id },
+        json: payload,
+      } as never,
+      { headers: headers },
+    );
 
     expect(repeated.status).toBe(201);
     const repeatedBody = (await repeated.json()) as IssueResponse;
     expect(repeatedBody.issue.id).toBe(firstBody.issue.id);
     expect(repeatedBody.issue.status).toBe("resolved");
 
-    const listResponse = await requestJson(issueSheetUrl(organizationSlug, project.id), {
-      headers,
-      query: { status: "all" },
-    });
+    const listResponse = await issueSheet().$get(
+      {
+        param: { organizationSlug: organizationSlug, projectId: project.id },
+        query: { status: "all" },
+      } as never,
+      { headers: headers },
+    );
     const listBody = (await listResponse.json()) as IssueSheetListResponse;
     expect(listBody.issues).toHaveLength(1);
   });
@@ -662,17 +699,16 @@ Second import issue,Done,EXT-2,P2`;
       },
     ];
 
-    const previewResponse = await requestJson(
-      issueSheetUrl(organizationSlug, project.id, "/import"),
+    const previewResponse = await issueSheet().import.$post(
       {
-        method: "POST",
-        headers,
-        body: {
+        param: { organizationSlug: organizationSlug, projectId: project.id },
+        json: {
           content: csv,
           dryRun: true,
           mapping,
         },
-      },
+      } as never,
+      { headers: headers },
     );
     expect(previewResponse.status).toBe(200);
     const previewBody = (await previewResponse.json()) as {
@@ -681,17 +717,16 @@ Second import issue,Done,EXT-2,P2`;
     expect(previewBody.import.created).toBe(2);
     expect(previewBody.import.skippedDuplicates).toBe(0);
 
-    const importResponse = await requestJson(
-      issueSheetUrl(organizationSlug, project.id, "/import"),
+    const importResponse = await issueSheet().import.$post(
       {
-        method: "POST",
-        headers,
-        body: {
+        param: { organizationSlug: organizationSlug, projectId: project.id },
+        json: {
           content: csv,
           dryRun: false,
           mapping,
         },
-      },
+      } as never,
+      { headers: headers },
     );
     expect(importResponse.status).toBe(201);
     const importBody = (await importResponse.json()) as {
@@ -699,17 +734,16 @@ Second import issue,Done,EXT-2,P2`;
     };
     expect(importBody.import.created).toBe(2);
 
-    const reimportResponse = await requestJson(
-      issueSheetUrl(organizationSlug, project.id, "/import"),
+    const reimportResponse = await issueSheet().import.$post(
       {
-        method: "POST",
-        headers,
-        body: {
+        param: { organizationSlug: organizationSlug, projectId: project.id },
+        json: {
           content: csv,
           dryRun: true,
           mapping,
         },
-      },
+      } as never,
+      { headers: headers },
     );
     const reimportBody = (await reimportResponse.json()) as {
       import: { created: number; skippedDuplicates: number };
@@ -717,10 +751,13 @@ Second import issue,Done,EXT-2,P2`;
     expect(reimportBody.import.created).toBe(0);
     expect(reimportBody.import.skippedDuplicates).toBe(2);
 
-    const listResponse = await requestJson(issueSheetUrl(organizationSlug, project.id), {
-      headers,
-      query: { status: "all" },
-    });
+    const listResponse = await issueSheet().$get(
+      {
+        param: { organizationSlug: organizationSlug, projectId: project.id },
+        query: { status: "all" },
+      } as never,
+      { headers: headers },
+    );
     const listBody = (await listResponse.json()) as IssueSheetListResponse;
     expect(listBody.issues).toHaveLength(2);
   });
@@ -756,65 +793,82 @@ Second import issue,Done,EXT-2,P2`;
     ] as const;
 
     for (const payload of payloads) {
-      const response = await requestJson(issueSheetUrl(organizationSlug, project.id), {
-        method: "POST",
-        headers,
-        body: payload,
-      });
+      const response = await issueSheet().$post(
+        {
+          param: { organizationSlug: organizationSlug, projectId: project.id },
+          json: payload,
+        } as never,
+        { headers: headers },
+      );
       expect(response.status).toBe(201);
     }
 
-    const qaTriage = await requestJson(issueSheetUrl(organizationSlug, project.id), {
-      headers,
-      query: { view: "qa_triage" },
-    });
+    const qaTriage = await issueSheet().$get(
+      {
+        param: { organizationSlug: organizationSlug, projectId: project.id },
+        query: { view: "qa_triage" },
+      } as never,
+      { headers: headers },
+    );
     const qaTriageBody = (await qaTriage.json()) as IssueSheetListResponse;
     expect(qaTriageBody.issues.map((issue) => issue.title)).toEqual(["QA triage candidate"]);
     expect(qaTriageBody.total).toBe(1);
 
-    const myWork = await requestJson(issueSheetUrl(organizationSlug, project.id), {
-      headers,
-      query: { view: "my_work" },
-    });
+    const myWork = await issueSheet().$get(
+      {
+        param: { organizationSlug: organizationSlug, projectId: project.id },
+        query: { view: "my_work" },
+      } as never,
+      { headers: headers },
+    );
     const myWorkBody = (await myWork.json()) as IssueSheetListResponse;
     expect(myWorkBody.issues.map((issue) => issue.title)).toEqual(["My work candidate"]);
 
-    const filtered = await requestJson(issueSheetUrl(organizationSlug, project.id), {
-      headers,
-      query: {
-        view: "all_open",
-        locale: "de-DE",
-        assignee: "unassigned",
-        sort: "priority",
-        sortDir: "asc",
-        limit: "10",
-        offset: "0",
-      },
-    });
+    const filtered = await issueSheet().$get(
+      {
+        param: { organizationSlug: organizationSlug, projectId: project.id },
+        query: {
+          view: "all_open",
+          locale: "de-DE",
+          assignee: "unassigned",
+          sort: "priority",
+          sortDir: "asc",
+          limit: "10",
+          offset: "0",
+        },
+      } as never,
+      { headers: headers },
+    );
     const filteredBody = (await filtered.json()) as IssueSheetListResponse;
     expect(filteredBody.issues.map((issue) => issue.title)).toEqual([
       "QA triage candidate",
       "Source context candidate",
     ]);
 
-    const pageOne = await requestJson(issueSheetUrl(organizationSlug, project.id), {
-      headers,
-      query: {
-        view: "all_open",
-        sort: "priority",
-        limit: "2",
-        offset: "0",
-      },
-    });
-    const pageTwo = await requestJson(issueSheetUrl(organizationSlug, project.id), {
-      headers,
-      query: {
-        view: "all_open",
-        sort: "priority",
-        limit: "2",
-        offset: "2",
-      },
-    });
+    const pageOne = await issueSheet().$get(
+      {
+        param: { organizationSlug: organizationSlug, projectId: project.id },
+        query: {
+          view: "all_open",
+          sort: "priority",
+          limit: "2",
+          offset: "0",
+        },
+      } as never,
+      { headers: headers },
+    );
+    const pageTwo = await issueSheet().$get(
+      {
+        param: { organizationSlug: organizationSlug, projectId: project.id },
+        query: {
+          view: "all_open",
+          sort: "priority",
+          limit: "2",
+          offset: "2",
+        },
+      } as never,
+      { headers: headers },
+    );
     const pageOneBody = (await pageOne.json()) as IssueSheetListResponse;
     const pageTwoBody = (await pageTwo.json()) as IssueSheetListResponse;
     expect(pageOneBody.issues).toHaveLength(2);
@@ -829,18 +883,20 @@ Second import issue,Done,EXT-2,P2`;
     const headers = await projectFixture.authHeadersFor(identity);
     const organizationSlug = identity.organization.slug ?? "missing-slug";
 
-    const response = await requestJson(issueSheetUrl(organizationSlug, project.id, "/import"), {
-      method: "POST",
-      headers,
-      body: {
-        content: "Title,Summary\nIssue one,Issue two",
-        dryRun: true,
-        mapping: [
-          { csvHeader: "Title", target: { kind: "system", field: "title" } },
-          { csvHeader: "Summary", target: { kind: "system", field: "title" } },
-        ],
-      },
-    });
+    const response = await issueSheet().import.$post(
+      {
+        param: { organizationSlug: organizationSlug, projectId: project.id },
+        json: {
+          content: "Title,Summary\nIssue one,Issue two",
+          dryRun: true,
+          mapping: [
+            { csvHeader: "Title", target: { kind: "system", field: "title" } },
+            { csvHeader: "Summary", target: { kind: "system", field: "title" } },
+          ],
+        },
+      } as never,
+      { headers: headers },
+    );
 
     expect(response.status).toBe(400);
     const body = (await response.json()) as { error: string };
@@ -868,29 +924,43 @@ Second import issue,Done,EXT-2,P2`;
       })
       .returning();
 
-    const createResponse = await requestJson(issueSheetUrl(organizationSlug, project.id), {
-      method: "POST",
-      headers,
-      body: {
-        title: "Owned by first project",
-        issueType: "general_question",
-      },
-    });
+    const createResponse = await issueSheet().$post(
+      {
+        param: { organizationSlug: organizationSlug, projectId: project.id },
+        json: {
+          title: "Owned by first project",
+          issueType: "general_question",
+        },
+      } as never,
+      { headers: headers },
+    );
     expect(createResponse.status).toBe(201);
     const created = (await createResponse.json()) as IssueResponse;
 
-    const crossProjectResponse = await requestJson(
-      issueSheetUrl(organizationSlug, otherProject.id, `/${created.issue.id}`),
-      { headers },
+    const crossProjectResponse = await issueSheet()[":issueId"].$get(
+      {
+        param: {
+          organizationSlug: organizationSlug,
+          projectId: otherProject.id,
+          issueId: created.issue.id,
+        },
+      } as never,
+      { headers: headers },
     );
     expect(crossProjectResponse.status).toBe(404);
     await expect(crossProjectResponse.json()).resolves.toMatchObject({
       error: "issue_not_found",
     });
 
-    const missingResponse = await requestJson(
-      issueSheetUrl(organizationSlug, project.id, "/00000000-0000-4000-8000-000000000000"),
-      { headers },
+    const missingResponse = await issueSheet()[":issueId"].$get(
+      {
+        param: {
+          organizationSlug: organizationSlug,
+          projectId: project.id,
+          issueId: "00000000-0000-4000-8000-000000000000",
+        },
+      } as never,
+      { headers: headers },
     );
     expect(missingResponse.status).toBe(404);
   });
@@ -902,19 +972,27 @@ Second import issue,Done,EXT-2,P2`;
     const outsiderHeaders = await projectFixture.authHeadersFor(outsider.identity);
     const ownerSlug = owner.identity.organization.slug ?? "missing-slug";
 
-    const createResponse = await requestJson(issueSheetUrl(ownerSlug, owner.project.id), {
-      method: "POST",
-      headers: ownerHeaders,
-      body: {
-        title: "Private org issue",
-        issueType: "general_question",
-      },
-    });
+    const createResponse = await issueSheet().$post(
+      {
+        param: { organizationSlug: ownerSlug, projectId: owner.project.id },
+        json: {
+          title: "Private org issue",
+          issueType: "general_question",
+        },
+      } as never,
+      { headers: ownerHeaders },
+    );
     expect(createResponse.status).toBe(201);
     const created = (await createResponse.json()) as IssueResponse;
 
-    const response = await requestJson(
-      issueSheetUrl(ownerSlug, owner.project.id, `/${created.issue.id}`),
+    const response = await issueSheet()[":issueId"].$get(
+      {
+        param: {
+          organizationSlug: ownerSlug,
+          projectId: owner.project.id,
+          issueId: created.issue.id,
+        },
+      } as never,
       { headers: outsiderHeaders },
     );
     expect(response.status).toBe(404);
@@ -961,24 +1039,32 @@ Second import issue,Done,EXT-2,P2`;
       workosMembershipId: null,
     });
 
-    const createResponse = await requestJson(issueSheetUrl(organizationSlug, project.id), {
-      method: "POST",
-      headers,
-      body: {
-        title: "Assigned on create",
-        issueType: "general_question",
-        assigneeUserId: teammateLocalId,
-      },
-    });
+    const createResponse = await issueSheet().$post(
+      {
+        param: { organizationSlug: organizationSlug, projectId: project.id },
+        json: {
+          title: "Assigned on create",
+          issueType: "general_question",
+          assigneeUserId: teammateLocalId,
+        },
+      } as never,
+      { headers: headers },
+    );
     expect(createResponse.status).toBe(201);
     const created = (await createResponse.json()) as IssueResponse & {
       issue: { assigneeUserId: string | null };
     };
     expect(created.issue.assigneeUserId).toBe(teammateLocalId);
 
-    const activitiesResponse = await requestJson(
-      issueSheetUrl(organizationSlug, project.id, `/${created.issue.id}/feed`),
-      { headers },
+    const activitiesResponse = await issueSheet()[":issueId"].feed.$get(
+      {
+        param: {
+          organizationSlug: organizationSlug,
+          projectId: project.id,
+          issueId: created.issue.id,
+        },
+      } as never,
+      { headers: headers },
     );
     expect(activitiesResponse.status).toBe(200);
     const activitiesBody = (await activitiesResponse.json()) as {
@@ -1013,9 +1099,9 @@ Second import issue,Done,EXT-2,P2`;
       },
     });
 
-    const assignableResponse = await requestJson(
-      issueSheetUrl(organizationSlug, project.id, "/assignable-members"),
-      { headers },
+    const assignableResponse = await issueSheet()["assignable-members"].$get(
+      { param: { organizationSlug: organizationSlug, projectId: project.id } } as never,
+      { headers: headers },
     );
     expect(assignableResponse.status).toBe(200);
     const assignableBody = (await assignableResponse.json()) as {
@@ -1027,45 +1113,60 @@ Second import issue,Done,EXT-2,P2`;
     expect(assignableIds.has(outsiderLocalId)).toBe(false);
     expect(assignableIds.has(invitedUser.id)).toBe(false);
 
-    const rejectInvited = await requestJson(
-      issueSheetUrl(organizationSlug, project.id, `/${created.issue.id}`),
+    const rejectInvited = await issueSheet()[":issueId"].$patch(
       {
-        method: "PATCH",
-        headers,
-        body: { assigneeUserId: invitedUser.id },
-      },
+        param: {
+          organizationSlug: organizationSlug,
+          projectId: project.id,
+          issueId: created.issue.id,
+        },
+        json: { assigneeUserId: invitedUser.id },
+      } as never,
+      { headers: headers },
     );
     expect(rejectInvited.status).toBe(400);
     expect(((await rejectInvited.json()) as { error: string }).error).toBe(
       "assignee_not_assignable",
     );
 
-    const rejectOutsider = await requestJson(
-      issueSheetUrl(organizationSlug, project.id, `/${created.issue.id}`),
+    const rejectOutsider = await issueSheet()[":issueId"].$patch(
       {
-        method: "PATCH",
-        headers,
-        body: { assigneeUserId: outsiderLocalId },
-      },
+        param: {
+          organizationSlug: organizationSlug,
+          projectId: project.id,
+          issueId: created.issue.id,
+        },
+        json: { assigneeUserId: outsiderLocalId },
+      } as never,
+      { headers: headers },
     );
     expect(rejectOutsider.status).toBe(400);
     expect(((await rejectOutsider.json()) as { error: string }).error).toBe(
       "assignee_not_assignable",
     );
 
-    const unassign = await requestJson(
-      issueSheetUrl(organizationSlug, project.id, `/${created.issue.id}`),
+    const unassign = await issueSheet()[":issueId"].$patch(
       {
-        method: "PATCH",
-        headers,
-        body: { assigneeUserId: null },
-      },
+        param: {
+          organizationSlug: organizationSlug,
+          projectId: project.id,
+          issueId: created.issue.id,
+        },
+        json: { assigneeUserId: null },
+      } as never,
+      { headers: headers },
     );
     expect(unassign.status).toBe(200);
 
-    const activitiesAfter = await requestJson(
-      issueSheetUrl(organizationSlug, project.id, `/${created.issue.id}/feed`),
-      { headers },
+    const activitiesAfter = await issueSheet()[":issueId"].feed.$get(
+      {
+        param: {
+          organizationSlug: organizationSlug,
+          projectId: project.id,
+          issueId: created.issue.id,
+        },
+      } as never,
+      { headers: headers },
     );
     const activitiesAfterBody = (await activitiesAfter.json()) as {
       items: Array<
@@ -1084,19 +1185,28 @@ Second import issue,Done,EXT-2,P2`;
       activity: { type: "assignee_changed", nextAssignee: null },
     });
 
-    const statusChange = await requestJson(
-      issueSheetUrl(organizationSlug, project.id, `/${created.issue.id}`),
+    const statusChange = await issueSheet()[":issueId"].$patch(
       {
-        method: "PATCH",
-        headers,
-        body: { status: "in_progress" },
-      },
+        param: {
+          organizationSlug: organizationSlug,
+          projectId: project.id,
+          issueId: created.issue.id,
+        },
+        json: { status: "in_progress" },
+      } as never,
+      { headers: headers },
     );
     expect(statusChange.status).toBe(200);
 
-    const activitiesAfterStatus = await requestJson(
-      issueSheetUrl(organizationSlug, project.id, `/${created.issue.id}/feed`),
-      { headers },
+    const activitiesAfterStatus = await issueSheet()[":issueId"].feed.$get(
+      {
+        param: {
+          organizationSlug: organizationSlug,
+          projectId: project.id,
+          issueId: created.issue.id,
+        },
+      } as never,
+      { headers: headers },
     );
     const activitiesAfterStatusBody = (await activitiesAfterStatus.json()) as {
       items: Array<
@@ -1122,13 +1232,16 @@ Second import issue,Done,EXT-2,P2`;
       },
     });
 
-    const reassign = await requestJson(
-      issueSheetUrl(organizationSlug, project.id, `/${created.issue.id}`),
+    const reassign = await issueSheet()[":issueId"].$patch(
       {
-        method: "PATCH",
-        headers,
-        body: { assigneeUserId: teammateLocalId },
-      },
+        param: {
+          organizationSlug: organizationSlug,
+          projectId: project.id,
+          issueId: created.issue.id,
+        },
+        json: { assigneeUserId: teammateLocalId },
+      } as never,
+      { headers: headers },
     );
     expect(reassign.status).toBe(200);
 
@@ -1136,9 +1249,15 @@ Second import issue,Done,EXT-2,P2`;
       .delete(schema.organizationMemberships)
       .where(eq(schema.organizationMemberships.userId, teammateLocalId));
 
-    const getAfterRemoval = await requestJson(
-      issueSheetUrl(organizationSlug, project.id, `/${created.issue.id}`),
-      { headers },
+    const getAfterRemoval = await issueSheet()[":issueId"].$get(
+      {
+        param: {
+          organizationSlug: organizationSlug,
+          projectId: project.id,
+          issueId: created.issue.id,
+        },
+      } as never,
+      { headers: headers },
     );
     expect(getAfterRemoval.status).toBe(200);
     const afterRemoval = (await getAfterRemoval.json()) as {
@@ -1147,13 +1266,16 @@ Second import issue,Done,EXT-2,P2`;
     expect(afterRemoval.issue.assigneeUserId).toBe(teammateLocalId);
     expect(afterRemoval.issue.assignee).toBeTruthy();
 
-    const rejectRemoved = await requestJson(
-      issueSheetUrl(organizationSlug, project.id, `/${created.issue.id}`),
+    const rejectRemoved = await issueSheet()[":issueId"].$patch(
       {
-        method: "PATCH",
-        headers,
-        body: { assigneeUserId: teammateLocalId },
-      },
+        param: {
+          organizationSlug: organizationSlug,
+          projectId: project.id,
+          issueId: created.issue.id,
+        },
+        json: { assigneeUserId: teammateLocalId },
+      } as never,
+      { headers: headers },
     );
     expect(rejectRemoved.status).toBe(400);
   });
@@ -1163,53 +1285,70 @@ Second import issue,Done,EXT-2,P2`;
     const headers = await projectFixture.authHeadersFor(identity);
     const organizationSlug = identity.organization.slug ?? "missing-slug";
 
-    const createResponse = await requestJson(issueSheetUrl(organizationSlug, project.id), {
-      method: "POST",
-      headers,
-      body: {
-        title: "Feed interleave",
-        issueType: "general_question",
-      },
-    });
+    const createResponse = await issueSheet().$post(
+      {
+        param: { organizationSlug: organizationSlug, projectId: project.id },
+        json: {
+          title: "Feed interleave",
+          issueType: "general_question",
+        },
+      } as never,
+      { headers: headers },
+    );
     expect(createResponse.status).toBe(201);
     const created = (await createResponse.json()) as IssueResponse;
 
-    const commentResponse = await requestJson(
-      issueSheetUrl(organizationSlug, project.id, `/${created.issue.id}/comments`),
+    const commentResponse = await issueSheet()[":issueId"].comments.$post(
       {
-        method: "POST",
-        headers,
-        body: { body: "Root comment" },
-      },
+        param: {
+          organizationSlug: organizationSlug,
+          projectId: project.id,
+          issueId: created.issue.id,
+        },
+        json: { body: "Root comment" },
+      } as never,
+      { headers: headers },
     );
     expect(commentResponse.status).toBe(201);
     const commentBody = (await commentResponse.json()) as {
       issueComment: { id: string; path: string };
     };
 
-    const replyResponse = await requestJson(
-      issueSheetUrl(organizationSlug, project.id, `/${created.issue.id}/comments`),
+    const replyResponse = await issueSheet()[":issueId"].comments.$post(
       {
-        method: "POST",
-        headers,
-        body: { body: "Reply comment", parentId: commentBody.issueComment.id },
-      },
+        param: {
+          organizationSlug: organizationSlug,
+          projectId: project.id,
+          issueId: created.issue.id,
+        },
+        json: { body: "Reply comment", parentId: commentBody.issueComment.id },
+      } as never,
+      { headers: headers },
     );
     expect(replyResponse.status).toBe(201);
 
-    const statusChange = await requestJson(
-      issueSheetUrl(organizationSlug, project.id, `/${created.issue.id}`),
+    const statusChange = await issueSheet()[":issueId"].$patch(
       {
-        method: "PATCH",
-        headers,
-        body: { status: "in_progress" },
-      },
+        param: {
+          organizationSlug: organizationSlug,
+          projectId: project.id,
+          issueId: created.issue.id,
+        },
+        json: { status: "in_progress" },
+      } as never,
+      { headers: headers },
     );
     expect(statusChange.status).toBe(200);
 
-    const feedResponse = await requestJson(
-      issueSheetUrl(organizationSlug, project.id, `/${created.issue.id}/feed`),
-      { headers },
+    const feedResponse = await issueSheet()[":issueId"].feed.$get(
+      {
+        param: {
+          organizationSlug: organizationSlug,
+          projectId: project.id,
+          issueId: created.issue.id,
+        },
+      } as never,
+      { headers: headers },
     );
     expect(feedResponse.status).toBe(200);
     const feedBody = (await feedResponse.json()) as {
@@ -1254,9 +1393,16 @@ Second import issue,Done,EXT-2,P2`;
       activity: { type: "status_changed" },
     });
 
-    const pageOne = await requestJson(
-      issueSheetUrl(organizationSlug, project.id, `/${created.issue.id}/feed`),
-      { headers, query: { limit: "2" } },
+    const pageOne = await issueSheet()[":issueId"].feed.$get(
+      {
+        param: {
+          organizationSlug: organizationSlug,
+          projectId: project.id,
+          issueId: created.issue.id,
+        },
+        query: { limit: "2" },
+      } as never,
+      { headers: headers },
     );
     expect(pageOne.status).toBe(200);
     const pageOneBody = (await pageOne.json()) as {
@@ -1268,12 +1414,16 @@ Second import issue,Done,EXT-2,P2`;
     expect(pageOneBody.items).toHaveLength(2);
     expect(pageOneBody.nextCursor).toBeTruthy();
 
-    const pageTwo = await requestJson(
-      issueSheetUrl(organizationSlug, project.id, `/${created.issue.id}/feed`),
+    const pageTwo = await issueSheet()[":issueId"].feed.$get(
       {
-        headers,
+        param: {
+          organizationSlug: organizationSlug,
+          projectId: project.id,
+          issueId: created.issue.id,
+        },
         query: { limit: "2", cursor: pageOneBody.nextCursor! },
-      },
+      } as never,
+      { headers: headers },
     );
     expect(pageTwo.status).toBe(200);
     const pageTwoBody = (await pageTwo.json()) as {
@@ -1314,16 +1464,20 @@ Second import issue,Done,EXT-2,P2`;
       linkKind: "cat_segment",
     };
 
-    const first = await requestJson(issueSheetUrl(organizationSlug, project.id), {
-      method: "POST",
-      headers,
-      body: payload,
-    });
-    const second = await requestJson(issueSheetUrl(organizationSlug, project.id), {
-      method: "POST",
-      headers,
-      body: { ...payload, title: "Second context request" },
-    });
+    const first = await issueSheet().$post(
+      {
+        param: { organizationSlug: organizationSlug, projectId: project.id },
+        json: payload,
+      } as never,
+      { headers: headers },
+    );
+    const second = await issueSheet().$post(
+      {
+        param: { organizationSlug: organizationSlug, projectId: project.id },
+        json: { ...payload, title: "Second context request" },
+      } as never,
+      { headers: headers },
+    );
 
     expect(first.status).toBe(201);
     expect(second.status).toBe(201);
@@ -1335,10 +1489,13 @@ Second import issue,Done,EXT-2,P2`;
     expect(secondBody.issue.id).not.toBe(firstBody.issue.id);
     expect(secondBody.issue.translationKeyId).toBe(translationKey.id);
 
-    const listResponse = await requestJson(issueSheetUrl(organizationSlug, project.id), {
-      headers,
-      query: { translationKeyId: translationKey.id, status: "all" },
-    });
+    const listResponse = await issueSheet().$get(
+      {
+        param: { organizationSlug: organizationSlug, projectId: project.id },
+        query: { translationKeyId: translationKey.id, status: "all" },
+      } as never,
+      { headers: headers },
+    );
     expect(listResponse.status).toBe(200);
     const listBody = (await listResponse.json()) as IssueSheetListResponse;
     expect(listBody.total).toBe(2);
@@ -1363,44 +1520,52 @@ Second import issue,Done,EXT-2,P2`;
       })
       .returning();
 
-    const createResponse = await requestJson(issueSheetUrl(organizationSlug, project.id), {
-      method: "POST",
-      headers,
-      body: {
-        title: "Standalone issue",
-        issueType: "general_question",
-      },
-    });
+    const createResponse = await issueSheet().$post(
+      {
+        param: { organizationSlug: organizationSlug, projectId: project.id },
+        json: {
+          title: "Standalone issue",
+          issueType: "general_question",
+        },
+      } as never,
+      { headers: headers },
+    );
     expect(createResponse.status).toBe(201);
     const created = (await createResponse.json()) as IssueResponse;
     expect(created.issue.translationKeyId).toBeNull();
 
-    const linkResponse = await requestJson(
-      issueSheetUrl(organizationSlug, project.id, `/${created.issue.id}`),
+    const linkResponse = await issueSheet()[":issueId"].$patch(
       {
-        method: "PATCH",
-        headers,
-        body: {
+        param: {
+          organizationSlug: organizationSlug,
+          projectId: project.id,
+          issueId: created.issue.id,
+        },
+        json: {
           translationKeyId: translationKey.id,
           segmentId: translationKey.id,
           sourcePath: "messages/nav.json",
           targetLocale: "de-DE",
           linkKind: "cat_segment",
         },
-      },
+      } as never,
+      { headers: headers },
     );
     expect(linkResponse.status).toBe(200);
     const linked = (await linkResponse.json()) as IssueResponse;
     expect(linked.issue.translationKeyId).toBe(translationKey.id);
     expect(linked.issue.key).toBe("nav.home");
 
-    const unlinkResponse = await requestJson(
-      issueSheetUrl(organizationSlug, project.id, `/${created.issue.id}`),
+    const unlinkResponse = await issueSheet()[":issueId"].$patch(
       {
-        method: "PATCH",
-        headers,
-        body: { translationKeyId: null },
-      },
+        param: {
+          organizationSlug: organizationSlug,
+          projectId: project.id,
+          issueId: created.issue.id,
+        },
+        json: { translationKeyId: null },
+      } as never,
+      { headers: headers },
     );
     expect(unlinkResponse.status).toBe(200);
     const unlinked = (await unlinkResponse.json()) as IssueResponse;
@@ -1413,14 +1578,16 @@ Second import issue,Done,EXT-2,P2`;
     const ownerHeaders = await projectFixture.authHeadersFor(identity);
     const organizationSlug = identity.organization.slug ?? "missing-slug";
 
-    const missingKeyResponse = await requestJson(issueSheetUrl(organizationSlug, project.id), {
-      method: "POST",
-      headers: ownerHeaders,
-      body: {
-        title: "Missing key",
-        translationKeyId: crypto.randomUUID(),
-      },
-    });
+    const missingKeyResponse = await issueSheet().$post(
+      {
+        param: { organizationSlug: organizationSlug, projectId: project.id },
+        json: {
+          title: "Missing key",
+          translationKeyId: crypto.randomUUID(),
+        },
+      } as never,
+      { headers: ownerHeaders },
+    );
     expect(missingKeyResponse.status).toBe(400);
     await expect(missingKeyResponse.json()).resolves.toMatchObject({
       error: "translation_key_not_found",
@@ -1437,17 +1604,22 @@ Second import issue,Done,EXT-2,P2`;
       role: "member",
     });
 
-    const forbiddenCreate = await requestJson(issueSheetUrl(organizationSlug, project.id), {
-      method: "POST",
-      headers: memberHeaders,
-      body: { title: "Member cannot create" },
-    });
+    const forbiddenCreate = await issueSheet().$post(
+      {
+        param: { organizationSlug: organizationSlug, projectId: project.id },
+        json: { title: "Member cannot create" },
+      } as never,
+      { headers: memberHeaders },
+    );
     expect(forbiddenCreate.status).toBe(403);
 
-    const allowedList = await requestJson(issueSheetUrl(organizationSlug, project.id), {
-      headers: memberHeaders,
-      query: { status: "all" },
-    });
+    const allowedList = await issueSheet().$get(
+      {
+        param: { organizationSlug: organizationSlug, projectId: project.id },
+        query: { status: "all" },
+      } as never,
+      { headers: memberHeaders },
+    );
     expect(allowedList.status).toBe(200);
   });
 
@@ -1483,41 +1655,48 @@ Second import issue,Done,EXT-2,P2`;
       })
       .returning();
 
-    const createResponse = await requestJson(issueSheetUrl(organizationSlug, project.id), {
-      method: "POST",
-      headers,
-      body: {
-        title: "Cross-project key create",
-        translationKeyId: foreignKey.id,
-      },
-    });
+    const createResponse = await issueSheet().$post(
+      {
+        param: { organizationSlug: organizationSlug, projectId: project.id },
+        json: {
+          title: "Cross-project key create",
+          translationKeyId: foreignKey.id,
+        },
+      } as never,
+      { headers: headers },
+    );
     expect(createResponse.status).toBe(400);
     await expect(createResponse.json()).resolves.toMatchObject({
       error: "translation_key_not_found",
     });
 
-    const standalone = await requestJson(issueSheetUrl(organizationSlug, project.id), {
-      method: "POST",
-      headers,
-      body: {
-        title: "Standalone before bad link",
-        issueType: "general_question",
-      },
-    });
+    const standalone = await issueSheet().$post(
+      {
+        param: { organizationSlug: organizationSlug, projectId: project.id },
+        json: {
+          title: "Standalone before bad link",
+          issueType: "general_question",
+        },
+      } as never,
+      { headers: headers },
+    );
     expect(standalone.status).toBe(201);
     const created = (await standalone.json()) as IssueResponse;
 
-    const linkResponse = await requestJson(
-      issueSheetUrl(organizationSlug, project.id, `/${created.issue.id}`),
+    const linkResponse = await issueSheet()[":issueId"].$patch(
       {
-        method: "PATCH",
-        headers,
-        body: {
+        param: {
+          organizationSlug: organizationSlug,
+          projectId: project.id,
+          issueId: created.issue.id,
+        },
+        json: {
           translationKeyId: foreignKey.id,
           segmentId: foreignKey.id,
           linkKind: "cat_segment",
         },
-      },
+      } as never,
+      { headers: headers },
     );
     expect(linkResponse.status).toBe(400);
     await expect(linkResponse.json()).resolves.toMatchObject({
@@ -1531,18 +1710,20 @@ Second import issue,Done,EXT-2,P2`;
     const organizationSlug = identity.organization.slug ?? "missing-slug";
 
     // Image and office file segments carry a source file id, not a translation key id.
-    const response = await requestJson(issueSheetUrl(organizationSlug, project.id), {
-      method: "POST",
-      headers,
-      body: {
-        title: "Banner needs localized artwork",
-        issueType: "context_request",
-        targetLocale: "fr-FR",
-        sourcePath: "assets/banner.png",
-        segmentId: crypto.randomUUID(),
-        linkKind: "cat_segment",
-      },
-    });
+    const response = await issueSheet().$post(
+      {
+        param: { organizationSlug: organizationSlug, projectId: project.id },
+        json: {
+          title: "Banner needs localized artwork",
+          issueType: "context_request",
+          targetLocale: "fr-FR",
+          sourcePath: "assets/banner.png",
+          segmentId: crypto.randomUUID(),
+          linkKind: "cat_segment",
+        },
+      } as never,
+      { headers: headers },
+    );
 
     expect(response.status).toBe(201);
     const body = (await response.json()) as IssueResponse;
@@ -1566,18 +1747,20 @@ Second import issue,Done,EXT-2,P2`;
       })
       .returning();
 
-    const createResponse = await requestJson(issueSheetUrl(organizationSlug, project.id), {
-      method: "POST",
-      headers,
-      body: {
-        title: "Legal copy issue",
-        translationKeyId: translationKey.id,
-        segmentId: translationKey.id,
-        linkKind: "cat_segment",
-        targetLocale: "fr-FR",
-        sourcePath: "messages/footer.json",
-      },
-    });
+    const createResponse = await issueSheet().$post(
+      {
+        param: { organizationSlug: organizationSlug, projectId: project.id },
+        json: {
+          title: "Legal copy issue",
+          translationKeyId: translationKey.id,
+          segmentId: translationKey.id,
+          linkKind: "cat_segment",
+          targetLocale: "fr-FR",
+          sourcePath: "messages/footer.json",
+        },
+      } as never,
+      { headers: headers },
+    );
     expect(createResponse.status).toBe(201);
     const created = (await createResponse.json()) as IssueResponse;
 
@@ -1585,9 +1768,15 @@ Second import issue,Done,EXT-2,P2`;
       .delete(schema.projectTranslationKeys)
       .where(eq(schema.projectTranslationKeys.id, translationKey.id));
 
-    const getResponse = await requestJson(
-      issueSheetUrl(organizationSlug, project.id, `/${created.issue.id}`),
-      { headers },
+    const getResponse = await issueSheet()[":issueId"].$get(
+      {
+        param: {
+          organizationSlug: organizationSlug,
+          projectId: project.id,
+          issueId: created.issue.id,
+        },
+      } as never,
+      { headers: headers },
     );
     expect(getResponse.status).toBe(200);
     const body = (await getResponse.json()) as IssueResponse;
@@ -1601,42 +1790,52 @@ Second import issue,Done,EXT-2,P2`;
     const headers = await projectFixture.authHeadersFor(identity);
     const organizationSlug = identity.organization.slug ?? "missing-slug";
 
-    const createResponse = await requestJson(issueSheetUrl(organizationSlug, project.id), {
-      method: "POST",
-      headers,
-      body: {
-        title: "Watch me",
-        issueType: "general_question",
-      },
-    });
+    const createResponse = await issueSheet().$post(
+      {
+        param: { organizationSlug: organizationSlug, projectId: project.id },
+        json: {
+          title: "Watch me",
+          issueType: "general_question",
+        },
+      } as never,
+      { headers: headers },
+    );
     expect(createResponse.status).toBe(201);
     const created = (await createResponse.json()) as IssueResponse;
     const issueId = created.issue.id;
 
-    const initialGet = await requestJson(
-      issueSheetUrl(organizationSlug, project.id, `/${issueId}`),
-      { headers },
+    const initialGet = await issueSheet()[":issueId"].$get(
+      {
+        param: { organizationSlug: organizationSlug, projectId: project.id, issueId: issueId },
+      } as never,
+      { headers: headers },
     );
     expect(initialGet.status).toBe(200);
     const initialBody = (await initialGet.json()) as IssueResponse;
     expect(initialBody.issue.isWatching).toBe(true);
 
-    const unwatchResponse = await requestJson(
-      issueSheetUrl(organizationSlug, project.id, `/${issueId}/subscription`),
-      { method: "DELETE", headers },
+    const unwatchResponse = await issueSheet()[":issueId"].subscription.$delete(
+      {
+        param: { organizationSlug: organizationSlug, projectId: project.id, issueId: issueId },
+      } as never,
+      { headers: headers },
     );
     expect(unwatchResponse.status).toBe(204);
 
-    const unwatchedGet = await requestJson(
-      issueSheetUrl(organizationSlug, project.id, `/${issueId}`),
-      { headers },
+    const unwatchedGet = await issueSheet()[":issueId"].$get(
+      {
+        param: { organizationSlug: organizationSlug, projectId: project.id, issueId: issueId },
+      } as never,
+      { headers: headers },
     );
     const unwatchedBody = (await unwatchedGet.json()) as IssueResponse;
     expect(unwatchedBody.issue.isWatching).toBe(false);
 
-    const watchResponse = await requestJson(
-      issueSheetUrl(organizationSlug, project.id, `/${issueId}/subscription`),
-      { method: "POST", headers },
+    const watchResponse = await issueSheet()[":issueId"].subscription.$post(
+      {
+        param: { organizationSlug: organizationSlug, projectId: project.id, issueId: issueId },
+      } as never,
+      { headers: headers },
     );
     expect(watchResponse.status).toBe(201);
     await expect(watchResponse.json()).resolves.toMatchObject({
@@ -1646,16 +1845,20 @@ Second import issue,Done,EXT-2,P2`;
       },
     });
 
-    const watchedGet = await requestJson(
-      issueSheetUrl(organizationSlug, project.id, `/${issueId}`),
-      { headers },
+    const watchedGet = await issueSheet()[":issueId"].$get(
+      {
+        param: { organizationSlug: organizationSlug, projectId: project.id, issueId: issueId },
+      } as never,
+      { headers: headers },
     );
     const watchedBody = (await watchedGet.json()) as IssueResponse;
     expect(watchedBody.issue.isWatching).toBe(true);
 
-    const duplicateWatch = await requestJson(
-      issueSheetUrl(organizationSlug, project.id, `/${issueId}/subscription`),
-      { method: "POST", headers },
+    const duplicateWatch = await issueSheet()[":issueId"].subscription.$post(
+      {
+        param: { organizationSlug: organizationSlug, projectId: project.id, issueId: issueId },
+      } as never,
+      { headers: headers },
     );
     expect(duplicateWatch.status).toBe(201);
   });
@@ -1665,21 +1868,25 @@ Second import issue,Done,EXT-2,P2`;
     const headers = await projectFixture.authHeadersFor(identity);
     const organizationSlug = identity.organization.slug ?? "missing-slug";
 
-    const createResponse = await requestJson(issueSheetUrl(organizationSlug, project.id), {
-      method: "POST",
-      headers,
-      body: {
-        title: "Subscribers test",
-        issueType: "general_question",
-      },
-    });
+    const createResponse = await issueSheet().$post(
+      {
+        param: { organizationSlug: organizationSlug, projectId: project.id },
+        json: {
+          title: "Subscribers test",
+          issueType: "general_question",
+        },
+      } as never,
+      { headers: headers },
+    );
     expect(createResponse.status).toBe(201);
     const created = (await createResponse.json()) as IssueResponse;
     const issueId = created.issue.id;
 
-    const subscribersResponse = await requestJson(
-      issueSheetUrl(organizationSlug, project.id, `/${issueId}/subscriptions`),
-      { headers },
+    const subscribersResponse = await issueSheet()[":issueId"].subscriptions.$get(
+      {
+        param: { organizationSlug: organizationSlug, projectId: project.id, issueId: issueId },
+      } as never,
+      { headers: headers },
     );
     expect(subscribersResponse.status).toBe(200);
     const subscribersBody = (await subscribersResponse.json()) as {
