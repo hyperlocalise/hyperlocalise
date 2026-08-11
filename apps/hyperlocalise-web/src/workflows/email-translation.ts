@@ -1,6 +1,18 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import { getWorkflowMetadata } from "workflow";
 
-import { env } from "@/lib/env";
+import { hyperlocaliseAgentModelId } from "@/lib/agent-runtime/loops/model-id";
 import type { EmailAgentTask, EmailAgentTaskAttachment } from "@/lib/workflow/types";
 import {
   markEmailTranslationJobFailed,
@@ -51,13 +63,8 @@ async function runSandboxCommand(
 async function prepareSandbox(sandboxId: string): Promise<void> {
   "use step";
 
-  const installResult = await runSandboxCommand(sandboxId, "bash", [
-    "-lc",
-    'command -v hl >/dev/null 2>&1 || command -v hyperlocalise >/dev/null 2>&1 || (curl -fsSL https://hyperlocalise.com/install | bash); command -v hl >/dev/null 2>&1 || { mkdir -p ~/.local/bin; ln -sf "$(command -v hyperlocalise)" ~/.local/bin/hl; }',
-  ]);
-  if (installResult.exitCode !== 0) {
-    throw new Error(`hyperlocalise CLI installation failed: ${installResult.output}`);
-  }
+  const { prepareSandbox: prepareTranslationSandbox } = await import("@/lib/translation/sandbox");
+  await prepareTranslationSandbox(sandboxId);
 }
 
 async function downloadAttachment(
@@ -109,7 +116,7 @@ export function buildTempConfig(
     "  profiles:",
     "    default:",
     "      provider: openai",
-    "      model: gpt-5.4-mini",
+    `      model: ${hyperlocaliseAgentModelId}`,
     `      system_prompt: ${yamlString(systemPrompt)}`,
     `      user_prompt: ${yamlString(userPrompt)}`,
   ].join("\n");
@@ -137,16 +144,16 @@ async function runTranslationCommand(
 ): Promise<{ exitCode: number; output: string }> {
   "use step";
 
-  const configPath = "/tmp/hyperlocalise-email.yml";
+  const { sandboxI18nConfigPath } = await import("@/lib/translation/sandbox");
   const config = buildTempConfig(inputFile, outputFile, sourceLocale, targetLocale, instructions);
-  await writeTempConfig(sandboxId, config, configPath);
+  await writeTempConfig(sandboxId, config, sandboxI18nConfigPath);
 
   return runSandboxCommand(
     sandboxId,
     "bash",
     [
       "-lc",
-      `export PATH="$HOME/.local/bin:$PATH"; hl run --config ${shellQuote(configPath)} --locale ${shellQuote(targetLocale)} --force --progress off`,
+      `hl run --config ${shellQuote(sandboxI18nConfigPath)} --locale ${shellQuote(targetLocale)} --force --progress off`,
     ],
     {
       env: getSandboxTranslationEnv(),
@@ -191,12 +198,15 @@ function shellQuote(value: string): string {
 }
 
 export function getSandboxTranslationEnv(): Record<string, string> {
-  if (!env.OPENAI_API_KEY) {
+  // Read process.env directly so this workflow module never static-imports `@/lib/env`
+  // (t3 env + Next helpers are unsafe in the Workflow DevKit sandbox).
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) {
     throw new Error("OPENAI_API_KEY is not configured");
   }
 
   return {
-    OPENAI_API_KEY: env.OPENAI_API_KEY,
+    OPENAI_API_KEY: apiKey,
   };
 }
 
@@ -209,6 +219,7 @@ async function sendReplyEmail(
   "use step";
 
   const { Resend } = await import("resend");
+  const { env } = await import("@/lib/env");
   const { inferAttachmentContentType, toBase64AttachmentContent } =
     await import("@/lib/resend/attachments");
 
@@ -264,6 +275,7 @@ async function sendFailureReplyEmail(
   "use step";
 
   const { Resend } = await import("resend");
+  const { env } = await import("@/lib/env");
 
   if (!env.RESEND_API_KEY) {
     throw new Error("Resend is not configured");
@@ -298,7 +310,10 @@ async function sendFailureReplyEmail(
 function userFacingFailureReason(error: unknown): string {
   const message = error instanceof Error ? error.message : "Unknown translation failure";
 
-  if (message.includes("hyperlocalise CLI installation failed")) {
+  if (
+    message.includes("hyperlocalise CLI installation failed") ||
+    message.includes("sandbox tool installation failed")
+  ) {
     return "something went wrong while setting up the translation environment on our end.";
   }
 

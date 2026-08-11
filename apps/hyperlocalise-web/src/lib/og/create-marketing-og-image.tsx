@@ -1,3 +1,15 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 
@@ -10,9 +22,7 @@ const logoPromise = readFile(join(process.cwd(), "public/images/logo.png"));
 const domineFontPromise = readFile(
   join(process.cwd(), "public/fonts/domine-latin-700-normal.woff"),
 );
-const openSansFontPromise = readFile(
-  join(process.cwd(), "public/fonts/open-sans-latin-400-normal.woff"),
-);
+const interFontPromise = readFile(join(process.cwd(), "public/fonts/inter-latin-400-normal.ttf"));
 
 type CreateMarketingOgImageOptions = {
   heading: string;
@@ -37,10 +47,10 @@ export async function createMarketingOgImage({
   description,
   size = marketingOgImageSize,
 }: CreateMarketingOgImageOptions) {
-  const [logo, domineFont, openSansFont] = await Promise.all([
+  const [logo, domineFont, interFont] = await Promise.all([
     logoPromise,
     domineFontPromise,
-    openSansFontPromise,
+    interFontPromise,
   ]);
 
   const logoSrc = `data:image/png;base64,${logo.toString("base64")}`;
@@ -91,7 +101,7 @@ export async function createMarketingOgImage({
         <div
           style={{
             color: "rgba(255, 255, 255, 0.72)",
-            fontFamily: "Open Sans",
+            fontFamily: "Inter",
             fontSize: 28,
             fontWeight: 400,
             lineHeight: 1.45,
@@ -105,7 +115,7 @@ export async function createMarketingOgImage({
       ...size,
       fonts: [
         { name: "Domine", data: domineFont, weight: 700, style: "normal" },
-        { name: "Open Sans", data: openSansFont, weight: 400, style: "normal" },
+        { name: "Inter", data: interFont, weight: 400, style: "normal" },
       ],
     },
   );

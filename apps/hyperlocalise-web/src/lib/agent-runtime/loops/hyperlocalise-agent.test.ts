@@ -1,8 +1,20 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
-const { openaiMock, stepCountIsMock, toolLoopAgentMock } = vi.hoisted(() => ({
+const { openaiMock, isStepCountMock, toolLoopAgentMock } = vi.hoisted(() => ({
   openaiMock: vi.fn(() => "mock-model"),
-  stepCountIsMock: vi.fn((count: number) => ({ stepLimit: count })),
+  isStepCountMock: vi.fn((count: number) => ({ stepLimit: count })),
   toolLoopAgentMock: vi.fn(function ToolLoopAgent(settings: unknown) {
     return { settings };
   }),
@@ -17,7 +29,7 @@ vi.mock("ai", async () => {
 
   return {
     ...actual,
-    stepCountIs: stepCountIsMock,
+    isStepCount: isStepCountMock,
     ToolLoopAgent: toolLoopAgentMock,
   };
 });
@@ -41,9 +53,9 @@ vi.mock("@/lib/database", () => ({
 }));
 
 vi.mock("@/lib/agent-runtime/loops/conversation-skill-agent", () => ({
-  createConversationSkillAgent: vi.fn((runtime: unknown, onFinish: unknown) => ({
+  createConversationSkillAgent: vi.fn((runtime: unknown, onEnd: unknown) => ({
     runtime,
-    onFinish,
+    onEnd,
   })),
 }));
 
@@ -53,6 +65,7 @@ import {
   createHyperlocaliseAgent,
   hyperlocaliseAgentModelId,
   hyperlocaliseAgentStepLimit,
+  prepareConversationSkillStep,
   replaceLastUserMessage,
   toModelMessages,
 } from "./hyperlocalise-agent";
@@ -113,7 +126,7 @@ describe("hyperlocalise agent core", () => {
     });
 
     expect(openaiMock).toHaveBeenCalledWith(hyperlocaliseAgentModelId);
-    expect(stepCountIsMock).toHaveBeenCalledWith(hyperlocaliseAgentStepLimit);
+    expect(isStepCountMock).toHaveBeenCalledWith(hyperlocaliseAgentStepLimit);
     expect(toolLoopAgentMock).toHaveBeenCalledWith(
       expect.objectContaining({
         model: "mock-model",
@@ -123,6 +136,16 @@ describe("hyperlocalise agent core", () => {
         stopWhen: { stepLimit: hyperlocaliseAgentStepLimit },
       }),
     );
+  });
+
+  it("forces a text-only reply on the final conversation skill step", () => {
+    expect(prepareConversationSkillStep({ stepNumber: 0 })).toBeUndefined();
+    expect(
+      prepareConversationSkillStep({ stepNumber: hyperlocaliseAgentStepLimit - 2 }),
+    ).toBeUndefined();
+    expect(prepareConversationSkillStep({ stepNumber: hyperlocaliseAgentStepLimit - 1 })).toEqual({
+      toolChoice: "none",
+    });
   });
 
   it("creates a skill-based conversation agent from runtime context", () => {

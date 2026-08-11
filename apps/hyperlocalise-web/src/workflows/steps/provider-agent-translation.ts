@@ -1,12 +1,23 @@
-import { createLogger, serializeErrorForLog } from "@/lib/log";
-
-const logger = createLogger("provider-agent-translation-step");
-
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 export async function executeProviderAgentTranslationStep(input: {
   agentRunId: string;
   organizationId: string;
 }) {
   "use step";
+
+  const { createLogger, serializeErrorForLog } = await import("@/lib/log");
+  const logger = createLogger("provider-agent-translation-step");
 
   const stepContext = {
     agentRunId: input.agentRunId,
@@ -64,6 +75,9 @@ export async function failProviderAgentTranslationStep(input: {
   message: string;
 }) {
   "use step";
+
+  const { createLogger } = await import("@/lib/log");
+  const logger = createLogger("provider-agent-translation-step");
 
   logger.warn(
     {

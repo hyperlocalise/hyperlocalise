@@ -1,3 +1,15 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 
 import type {
@@ -67,13 +79,13 @@ function session(input: {
     status: "active",
     name: input.automationName ?? "Translate Contentful article",
     instructions: "",
+    projectId: "00000000-0000-4000-8000-000000000002",
     triggerConfig: { mode: "contentful" },
     repositoryTarget: { kind: "none" },
     toolConfig: {
       contentful: {
         enabled: true,
         connectionId: "00000000-0000-4000-8000-000000000001",
-        projectId: "00000000-0000-4000-8000-000000000002",
         sourceLocale: "en",
         targetLocales: ["fr-FR"],
         contentTypeIds: [],
@@ -220,7 +232,10 @@ describe("createRunContentfulTranslationTool", () => {
       throw new Error("run_contentful_translation tool is missing execute");
     }
 
-    const result = await tool.execute({}, { toolCallId: "test-tool-call", messages: [] });
+    const result = await tool.execute(
+      {},
+      { toolCallId: "test-tool-call", messages: [], context: {} },
+    );
 
     expect(mocks.createContentfulTranslationRun).not.toHaveBeenCalled();
     expect(mocks.runContentfulAgent).not.toHaveBeenCalled();
@@ -267,7 +282,10 @@ describe("createRunContentfulTranslationTool", () => {
       throw new Error("run_contentful_translation tool is missing execute");
     }
 
-    const result = await tool.execute({}, { toolCallId: "test-tool-call", messages: [] });
+    const result = await tool.execute(
+      {},
+      { toolCallId: "test-tool-call", messages: [], context: {} },
+    );
 
     expect(mocks.createContentfulTranslationRun).not.toHaveBeenCalled();
     expect(mocks.runContentfulAgent).not.toHaveBeenCalled();
@@ -305,7 +323,10 @@ describe("createRunContentfulTranslationTool", () => {
       throw new Error("run_contentful_translation tool is missing execute");
     }
 
-    const result = await tool.execute({}, { toolCallId: "test-tool-call", messages: [] });
+    const result = await tool.execute(
+      {},
+      { toolCallId: "test-tool-call", messages: [], context: {} },
+    );
 
     expect(mocks.createContentfulTranslationRun).toHaveBeenCalledWith(
       expect.objectContaining({

@@ -276,3 +276,21 @@ func TestStrategyParsesPHPArrayLocale(t *testing.T) {
 		t.Fatalf("unexpected value: %#v", got)
 	}
 }
+
+func TestPHPArrayParserKeepsInvalidHexEscapeLiteral(t *testing.T) {
+	content := []byte(`<?php return [
+    'invalid_hex' => "\x",
+    'not_hex' => "\xG",
+];`)
+
+	got, err := (PHPArrayParser{}).Parse(content)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	if got["invalid_hex"] != `\x` {
+		t.Fatalf("invalid_hex = %q, want literal \\x", got["invalid_hex"])
+	}
+	if got["not_hex"] != `\xG` {
+		t.Fatalf("not_hex = %q, want literal \\xG", got["not_hex"])
+	}
+}

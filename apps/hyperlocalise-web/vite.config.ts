@@ -1,3 +1,15 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -15,12 +27,20 @@ const formatjsRulesOff = Object.fromEntries(
   }).map(([rule]) => [rule, "off"]),
 );
 
+// Keep Hyperlocalise-synced target catalogs as pulled (see i18n.yml targets).
+const translatedLocales = ["de-DE", "fr-FR", "vi-VN", "zh-CN"] as const;
+const translatedIgnorePatterns = translatedLocales.flatMap((locale) => [
+  `_posts/${locale}/**`,
+  `lang/${locale}.json`,
+]);
+
 export default defineConfig({
   fmt: {
-    ignorePatterns: ["drizzle/**", "pnpm-*.yaml"],
+    ignorePatterns: ["drizzle/**", "pnpm-*.yaml", ...translatedIgnorePatterns],
   },
   lint: {
-    ignorePatterns: ["drizzle/**", "pnpm-*.yaml"],
+    // Match tsconfig exclude: browser e2e is local-only (vite.e2e.config.ts).
+    ignorePatterns: ["drizzle/**", "pnpm-*.yaml", "src/e2e/**", ...translatedIgnorePatterns],
     options: { typeAware: true, typeCheck: true },
     jsPlugins: ["eslint-plugin-formatjs"],
     rules: {
@@ -40,6 +60,8 @@ export default defineConfig({
   test: {
     environment: "node",
     setupFiles: ["./src/test/setup-dom.ts"],
+    include: ["src/**/*.test.{ts,tsx}"],
+    exclude: ["src/e2e/**"],
     server: {
       deps: {
         inline: ["@workos-inc/authkit-nextjs"],
@@ -52,6 +74,8 @@ export default defineConfig({
       "next/cache": path.resolve(rootDir, "node_modules/next/cache.js"),
       "next/headers": path.resolve(rootDir, "node_modules/next/headers.js"),
       "next/navigation": path.resolve(rootDir, "node_modules/next/navigation.js"),
+      // AuthKit 4.3+ imports `server-only` at module scope; stub it for Vitest.
+      "server-only": path.resolve(rootDir, "src/test/mocks/server-only.ts"),
     },
   },
 });

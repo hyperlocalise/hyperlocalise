@@ -370,6 +370,19 @@ func protectMarkdownInlineSyntax(segment string) (string, map[string]string, str
 		}
 
 		switch {
+		case segment[idx] == '!' && idx+1 < len(segment) && startsMarkdownLinkLabel(segment, idx+1):
+			// The image marker and opening bracket form one structural opener.
+			// Keeping the marker out of translated text prevents an image from
+			// silently degrading into a normal link.
+			appendPlaceholder(segment[idx : idx+2])
+			idx += 2
+		case segment[idx] == '[' && startsMarkdownLinkLabel(segment, idx):
+			// Keep the opening delimiter marshal-owned just like the closing
+			// delimiter and destination below. Otherwise a translator can omit
+			// this byte while preserving the closing placeholder, producing
+			// syntactically invalid Markdown during expansion.
+			appendPlaceholder(segment[idx : idx+1])
+			idx++
 		case segment[idx] == '`':
 			run := 0
 			for idx+run < len(segment) && segment[idx+run] == '`' {
@@ -439,6 +452,36 @@ func protectMarkdownInlineSyntax(segment string) (string, map[string]string, str
 		return segment, nil, segment, false
 	}
 	return rendered.String(), placeholders, plain.String(), false
+}
+
+func startsMarkdownLinkLabel(segment string, start int) bool {
+	if start < 0 || start >= len(segment) || segment[start] != '[' {
+		return false
+	}
+	backslashes := 0
+	for idx := start - 1; idx >= 0 && segment[idx] == '\\'; idx-- {
+		backslashes++
+	}
+	if backslashes%2 != 0 {
+		return false
+	}
+
+	depth := 1
+	for idx := start + 1; idx < len(segment); idx++ {
+		switch segment[idx] {
+		case '\\':
+			idx++
+		case '[':
+			depth++
+		case ']':
+			depth--
+			if depth != 0 {
+				continue
+			}
+			return idx+1 < len(segment) && (segment[idx+1] == '(' || segment[idx+1] == '[')
+		}
+	}
+	return false
 }
 
 func findMarkdownReferenceDefinitionDestination(segment string) (int, int, bool) {
@@ -730,6 +773,22 @@ func renderMarkdownPartWithDiagnostics(part markdownPart, translated string, dia
 	if len(part.placeholders) == 0 {
 		return rendered
 	}
+	if !trustedFallback {
+		// Detect omitted sentinels before expansion makes their absence
+		// indistinguishable from ordinary translated text. A single placeholder
+		// may still use the existing recognizable-token recovery below; multiple
+		// placeholders must match exactly so duplicates or swaps cannot expand
+		// into malformed Markdown without leaving a sentinel behind.
+		placeholderErr := ValidateMarkdownInternalPlaceholders(part.source, rendered)
+		canRecoverSingle := len(part.placeholders) == 1 && len(MarkdownInternalPlaceholderTokens(rendered)) == 1
+		linkOrderValid := markdownLinkPlaceholderOrderValid(part.source, rendered, part.placeholders)
+		if (placeholderErr != nil || !linkOrderValid) && !canRecoverSingle {
+			if diags != nil && part.key != "" {
+				diags.SourceFallbackKeys = append(diags.SourceFallbackKeys, part.key)
+			}
+			return expandMarkdownPlaceholders(part.source, part.placeholders)
+		}
+	}
 	rendered = expandMarkdownPlaceholders(rendered, part.placeholders)
 	rendered = normalizeMarkdownPlaceholders(rendered, part.placeholders)
 	rendered = normalizeUnexpectedMarkdownLinkClosers(part, rendered)
@@ -742,7 +801,195 @@ func renderMarkdownPartWithDiagnostics(part markdownPart, translated string, dia
 		}
 		return expandMarkdownPlaceholders(part.source, part.placeholders)
 	}
+	// Trusted target-fallback text is already expanded, so placeholder multiset checks
+	// above are skipped. Still reject orphan link/image closers such as
+	// `label](/url)` (missing `[` / `![`) that pre-fix translations can leave behind.
+	if markdownHasOrphanLinkClosers(rendered) {
+		if diags != nil && part.key != "" {
+			diags.SourceFallbackKeys = append(diags.SourceFallbackKeys, part.key)
+		}
+		return expandMarkdownPlaceholders(part.source, part.placeholders)
+	}
 	return rendered
+}
+
+// markdownHasOrphanLinkClosers reports whether s contains a `](` / `][` closer
+// without a matching `[` / `![` opener. Inline code spans and escapes are skipped.
+// Escaped link-like constructs such as `\[label](/url)` are skipped entirely so
+// intentional literal bracket syntax is not treated as an orphan closer.
+func markdownHasOrphanLinkClosers(s string) bool {
+	openerDepth := 0
+	for idx := 0; idx < len(s); {
+		if s[idx] == '\\' && idx+1 < len(s) {
+			if s[idx+1] == '[' {
+				idx = skipEscapedMarkdownBracketConstruct(s, idx)
+				continue
+			}
+			idx += 2
+			continue
+		}
+		if s[idx] == '`' {
+			run := 0
+			for idx+run < len(s) && s[idx+run] == '`' {
+				run++
+			}
+			closing := strings.Repeat("`", run)
+			end := idx + run
+			found := false
+			for end <= len(s)-run {
+				if s[end:end+run] == closing {
+					end += run
+					found = true
+					break
+				}
+				end++
+			}
+			if !found {
+				idx += run
+				continue
+			}
+			idx = end
+			continue
+		}
+		if s[idx] == '!' && idx+1 < len(s) && s[idx+1] == '[' {
+			openerDepth++
+			idx += 2
+			continue
+		}
+		if s[idx] == '[' {
+			openerDepth++
+			idx++
+			continue
+		}
+		if strings.HasPrefix(s[idx:], "](") {
+			if openerDepth == 0 {
+				return true
+			}
+			openerDepth--
+			idx = findMarkdownLinkDestinationEnd(s, idx+2)
+			continue
+		}
+		if strings.HasPrefix(s[idx:], "][") {
+			if openerDepth == 0 {
+				return true
+			}
+			closeIdx := strings.IndexByte(s[idx+2:], ']')
+			if closeIdx < 0 {
+				return true
+			}
+			openerDepth--
+			idx = idx + 2 + closeIdx + 1
+			continue
+		}
+		if s[idx] == ']' {
+			if openerDepth > 0 {
+				openerDepth--
+			}
+			idx++
+			continue
+		}
+		idx++
+	}
+	return false
+}
+
+// skipEscapedMarkdownBracketConstruct advances past `\[…](…)`, `\[…][…]`, or a
+// bare `\[…]` so orphan-closer detection ignores escaped literal link syntax.
+// idx must point at the backslash of `\[`.
+func skipEscapedMarkdownBracketConstruct(s string, idx int) int {
+	idx += 2 // skip \[
+	for idx < len(s) {
+		if s[idx] == '\\' && idx+1 < len(s) {
+			idx += 2
+			continue
+		}
+		if s[idx] == '`' {
+			run := 0
+			for idx+run < len(s) && s[idx+run] == '`' {
+				run++
+			}
+			closing := strings.Repeat("`", run)
+			end := idx + run
+			found := false
+			for end <= len(s)-run {
+				if s[end:end+run] == closing {
+					end += run
+					found = true
+					break
+				}
+				end++
+			}
+			if !found {
+				return idx + run
+			}
+			idx = end
+			continue
+		}
+		if s[idx] != ']' {
+			idx++
+			continue
+		}
+		idx++ // past ]
+		if strings.HasPrefix(s[idx:], "(") {
+			return findMarkdownLinkDestinationEnd(s, idx+1)
+		}
+		if strings.HasPrefix(s[idx:], "[") {
+			closeIdx := strings.IndexByte(s[idx+1:], ']')
+			if closeIdx < 0 {
+				return idx
+			}
+			return idx + 1 + closeIdx + 1
+		}
+		return idx
+	}
+	return idx
+}
+
+func markdownLinkPlaceholderOrderValid(source, rendered string, placeholders map[string]string) bool {
+	expectedCloserByOpener := make(map[string]string)
+	var sourceOpeners []string
+	for _, token := range markdownPlaceholderPattern.FindAllString(source, -1) {
+		original, ok := placeholders[token]
+		if !ok {
+			continue
+		}
+		switch {
+		case original == "[" || original == "![":
+			sourceOpeners = append(sourceOpeners, token)
+		case strings.HasPrefix(original, "](") || strings.HasPrefix(original, "]["):
+			if len(sourceOpeners) == 0 {
+				return false
+			}
+			opener := sourceOpeners[len(sourceOpeners)-1]
+			sourceOpeners = sourceOpeners[:len(sourceOpeners)-1]
+			expectedCloserByOpener[opener] = token
+		}
+	}
+	if len(sourceOpeners) != 0 {
+		return false
+	}
+
+	var expectedClosers []string
+	for _, token := range markdownPlaceholderPattern.FindAllString(rendered, -1) {
+		original, ok := placeholders[token]
+		if !ok {
+			continue
+		}
+		switch {
+		case original == "[" || original == "![":
+			expectedCloser, ok := expectedCloserByOpener[token]
+			if !ok {
+				return false
+			}
+			expectedClosers = append(expectedClosers, expectedCloser)
+		case strings.HasPrefix(original, "](") || strings.HasPrefix(original, "]["):
+			if len(expectedClosers) == 0 || expectedClosers[len(expectedClosers)-1] != token {
+				return false
+			}
+			expectedClosers = expectedClosers[:len(expectedClosers)-1]
+		}
+	}
+	return len(expectedClosers) == 0
 }
 
 func yamlPlainScalarNeedsQuotes(value string) bool {

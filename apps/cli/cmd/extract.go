@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"html"
+	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -58,7 +59,7 @@ func newExtractCmd() *cobra.Command {
 		Short:        "extract react-intl messages from TypeScript files",
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			messages, err := runExtract(args, o)
+			messages, err := runExtract(args, o, cmd.ErrOrStderr())
 			if err != nil {
 				return err
 			}
@@ -119,7 +120,7 @@ func buildExtractCatalog(messages []extractMessage) map[string]extractCatalogMes
 	return catalog
 }
 
-func runExtract(paths []string, options extractOptions) ([]extractMessage, error) {
+func runExtract(paths []string, options extractOptions, errorOut io.Writer) ([]extractMessage, error) {
 	if len(paths) == 0 {
 		paths = []string{"."}
 	}
@@ -131,6 +132,9 @@ func runExtract(paths []string, options extractOptions) ([]extractMessage, error
 	if len(files) == 0 {
 		return nil, fmt.Errorf("no .ts or .tsx files matched")
 	}
+	if errorOut == nil {
+		errorOut = io.Discard
+	}
 
 	messages := make([]extractMessage, 0)
 	for _, file := range files {
@@ -141,7 +145,10 @@ func runExtract(paths []string, options extractOptions) ([]extractMessage, error
 
 		fileMessages, err := extractMessagesFromReactIntlSource(string(content), file)
 		if err != nil {
-			return nil, fmt.Errorf("extract %q: %w", file, err)
+			if _, writeErr := fmt.Fprintf(errorOut, "error: extract %q: %v\n", file, err); writeErr != nil {
+				return nil, fmt.Errorf("write extract error for %q: %w", file, writeErr)
+			}
+			continue
 		}
 		if options.prefixID {
 			prefix := normalizedExtractFilename(file)
@@ -151,7 +158,10 @@ func runExtract(paths []string, options extractOptions) ([]extractMessage, error
 		}
 		if options.flatten {
 			if err := flattenExtractMessages(fileMessages); err != nil {
-				return nil, fmt.Errorf("flatten %q: %w", file, err)
+				if _, writeErr := fmt.Fprintf(errorOut, "error: flatten %q: %v\n", file, err); writeErr != nil {
+					return nil, fmt.Errorf("write flatten error for %q: %w", file, writeErr)
+				}
+				continue
 			}
 		}
 
@@ -456,9 +466,41 @@ func extractMessagesFromReactIntlSource(src, file string) ([]extractMessage, err
 }
 
 func extractReactIntlCallMessages(src, file string) ([]extractMessage, error) {
+	return extractReactIntlCallMessagesRange(src, file, 0, len(src))
+}
+
+func extractReactIntlCallMessagesRange(src, file string, start, end int) ([]extractMessage, error) {
+	if start < 0 {
+		start = 0
+	}
+	if end > len(src) {
+		end = len(src)
+	}
+
 	messages := make([]extractMessage, 0)
-	for i := 0; i < len(src); {
+	for i := start; i < end; {
+		if src[i] == '`' {
+			next, expressions, ok := scanTemplateLiteral(src, i)
+			if !ok {
+				return nil, fmt.Errorf("unterminated template literal at line %d", sourceLine(src, i))
+			}
+			for _, expression := range expressions {
+				extracted, err := extractReactIntlCallMessagesRange(src, file, expression.start, expression.end)
+				if err != nil {
+					return nil, err
+				}
+				messages = append(messages, extracted...)
+			}
+			if next > end {
+				break
+			}
+			i = next
+			continue
+		}
 		if next, ok := skipIgnoredToken(src, i); ok {
+			if next > end {
+				break
+			}
 			i = next
 			continue
 		}
@@ -468,19 +510,19 @@ func extractReactIntlCallMessages(src, file string) ([]extractMessage, error) {
 		}
 
 		name, next := readIdentifier(src, i)
-		if !isReactIntlCallName(name) {
+		if next > end || !isReactIntlCallName(name) {
 			i = next
 			continue
 		}
 
 		callOpen := findCallOpenAfterIdentifier(src, next)
-		if callOpen < 0 {
+		if callOpen < 0 || callOpen >= end {
 			i = next
 			continue
 		}
 
 		objectStart := firstObjectArgument(src, callOpen)
-		if objectStart < 0 {
+		if objectStart < 0 || objectStart >= end {
 			i = callOpen + 1
 			continue
 		}
@@ -728,19 +770,51 @@ func skipValueExpression(src string, index, end int) int {
 }
 
 func extractReactIntlJSXMessages(src, file string) ([]extractMessage, error) {
+	return extractReactIntlJSXMessagesRange(src, file, 0, len(src))
+}
+
+func extractReactIntlJSXMessagesRange(src, file string, start, end int) ([]extractMessage, error) {
+	if start < 0 {
+		start = 0
+	}
+	if end > len(src) {
+		end = len(src)
+	}
+
 	messages := make([]extractMessage, 0)
-	for i := 0; i < len(src); {
-		if next, ok := skipIgnoredToken(src, i); ok {
+	for i := start; i < end; {
+		if src[i] == '`' {
+			next, expressions, ok := scanTemplateLiteral(src, i)
+			if !ok {
+				return nil, fmt.Errorf("unterminated template literal at line %d", sourceLine(src, i))
+			}
+			for _, expression := range expressions {
+				extracted, err := extractReactIntlJSXMessagesRange(src, file, expression.start, expression.end)
+				if err != nil {
+					return nil, err
+				}
+				messages = append(messages, extracted...)
+			}
+			if next > end {
+				break
+			}
 			i = next
 			continue
 		}
-		if src[i] != '<' || i+1 >= len(src) || src[i+1] == '/' {
+		if next, ok := skipIgnoredToken(src, i); ok {
+			if next > end {
+				break
+			}
+			i = next
+			continue
+		}
+		if src[i] != '<' || i+1 >= end || src[i+1] == '/' {
 			i++
 			continue
 		}
 
 		name, nameEnd, ok := readJSXElementName(src, i+1)
-		if !ok || !isReactIntlJSXName(name) {
+		if !ok || nameEnd > end || !isReactIntlJSXName(name) {
 			i++
 			continue
 		}
@@ -1129,6 +1203,11 @@ func findTypeArgumentEnd(src string, open int) (int, bool) {
 	return 0, false
 }
 
+type extractSourceRange struct {
+	start int
+	end   int
+}
+
 func skipIgnoredToken(src string, index int) (int, bool) {
 	if index >= len(src) {
 		return index, false
@@ -1138,13 +1217,119 @@ func skipIgnoredToken(src string, index int) (int, bool) {
 	case '\'', '"', '`':
 		return skipStringLiteral(src, index), true
 	case '/':
-		return skipComment(src, index)
+		if next, ok := skipComment(src, index); ok {
+			return next, true
+		}
+		return skipRegexLiteral(src, index)
 	default:
 		return index, false
 	}
 }
 
+// skipRegexLiteral skips a JavaScript regular expression literal starting at '/'.
+// It uses a lookbehind heuristic to distinguish regex literals from division.
+func skipRegexLiteral(src string, index int) (int, bool) {
+	if index >= len(src) || src[index] != '/' || !canStartRegexLiteral(src, index) {
+		return index, false
+	}
+
+	inClass := false
+	for i := index + 1; i < len(src); i++ {
+		switch src[i] {
+		case '\\':
+			if i+1 >= len(src) {
+				return index, false
+			}
+			i++
+		case '\n', '\r':
+			return index, false
+		case '[':
+			if !inClass {
+				inClass = true
+				if i+1 < len(src) && src[i+1] == '^' {
+					i++
+				}
+				// A ']' immediately after '[' or '[^' is a literal character.
+				if i+1 < len(src) && src[i+1] == ']' {
+					i++
+				}
+			}
+		case ']':
+			inClass = false
+		case '/':
+			if inClass {
+				continue
+			}
+			i++
+			for i < len(src) && isRegexFlag(src[i]) {
+				i++
+			}
+			return i, true
+		}
+	}
+
+	return index, false
+}
+
+func canStartRegexLiteral(src string, index int) bool {
+	i := index - 1
+	for i >= 0 && unicode.IsSpace(rune(src[i])) {
+		i--
+	}
+	if i < 0 {
+		return true
+	}
+
+	ch := src[i]
+	switch ch {
+	case ')', ']', '"', '\'', '`':
+		return false
+	case '+', '-':
+		if i > 0 && src[i-1] == ch {
+			return false
+		}
+		return true
+	}
+
+	if !isIdentifierPart(ch) {
+		return true
+	}
+
+	end := i + 1
+	for i >= 0 && isIdentifierPart(src[i]) {
+		i--
+	}
+
+	return isRegexPrefixKeyword(src[i+1 : end])
+}
+
+func isRegexPrefixKeyword(word string) bool {
+	switch word {
+	case "return", "throw", "case", "else", "typeof", "void", "delete",
+		"await", "yield", "new", "in", "of", "instanceof", "extends",
+		"do", "with":
+		return true
+	default:
+		return false
+	}
+}
+
+func isRegexFlag(ch byte) bool {
+	return ('a' <= ch && ch <= 'z') || ('A' <= ch && ch <= 'Z')
+}
+
 func skipStringLiteral(src string, index int) int {
+	if index >= len(src) {
+		return index
+	}
+	if src[index] == '`' {
+		end, _, ok := scanTemplateLiteral(src, index)
+		if !ok {
+			return len(src)
+		}
+		return end
+	}
+
 	quote := src[index]
 	for i := index + 1; i < len(src); i++ {
 		if src[i] == '\\' {
@@ -1157,6 +1342,46 @@ func skipStringLiteral(src string, index int) int {
 	}
 
 	return len(src)
+}
+
+// scanTemplateLiteral walks a template literal starting at a backtick.
+// It returns the index after the closing backtick and the body ranges of
+// each top-level ${...} interpolation so callers can extract from them.
+func scanTemplateLiteral(src string, start int) (int, []extractSourceRange, bool) {
+	if start >= len(src) || src[start] != '`' {
+		return start, nil, false
+	}
+
+	expressions := make([]extractSourceRange, 0)
+	for i := start + 1; i < len(src); {
+		switch src[i] {
+		case '\\':
+			if i+1 >= len(src) {
+				return len(src), nil, false
+			}
+			i += 2
+		case '`':
+			return i + 1, expressions, true
+		case '$':
+			if i+1 < len(src) && src[i+1] == '{' {
+				closeIdx, ok := findMatchingDelimiter(src, i+1, '{', '}')
+				if !ok {
+					return len(src), nil, false
+				}
+				expressions = append(expressions, extractSourceRange{
+					start: i + 2,
+					end:   closeIdx,
+				})
+				i = closeIdx + 1
+				continue
+			}
+			i++
+		default:
+			i++
+		}
+	}
+
+	return len(src), nil, false
 }
 
 func skipComment(src string, index int) (int, bool) {

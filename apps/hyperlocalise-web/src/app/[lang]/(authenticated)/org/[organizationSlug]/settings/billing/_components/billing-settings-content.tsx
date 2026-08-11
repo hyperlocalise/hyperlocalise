@@ -1,10 +1,23 @@
 "use client";
 
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import { useMemo, useState } from "react";
 import { CreditCardIcon, Wallet03Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useQuery } from "@tanstack/react-query";
-import { useCustomer, useListPlans } from "autumn-js/react";
+import { AutumnClientError, useCustomer, useListPlans } from "autumn-js/react";
+import { FormattedMessage, useIntl, type IntlShape } from "react-intl";
 import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
@@ -14,7 +27,6 @@ import { Separator } from "@/components/ui/separator";
 import { TypographyH1, TypographyP } from "@/components/ui/typography";
 import { PlanUsageSummaryContent } from "@/components/billing/plan-usage-summary";
 import { PlanUsageHashScroll } from "@/components/billing/plan-usage-hash-scroll";
-import { formatAutumnBillingError } from "@/lib/billing/autumn-errors";
 import {
   getActiveSubscription,
   availablePlansSectionId,
@@ -24,8 +36,10 @@ import {
   resolvePlanUsageSummary,
 } from "@/lib/billing/plan-usage";
 import { autumnFeatureIds } from "@/lib/billing/autumn-ids";
-import { billingBalanceFeatureIds, getUsageFeatureLabel } from "@/lib/billing/usage-feature-labels";
+import { billingBalanceFeatureIds } from "@/lib/billing/usage-feature-labels";
 import { apiClient } from "@/lib/api-client-instance";
+
+import { billingSettingsContentMessages } from "./billing-settings-content.messages";
 
 const workspaceResourceFeatureIds = [
   autumnFeatureIds.seats,
@@ -57,20 +71,86 @@ function SurfaceCard({
   );
 }
 
-function formatUsageValue(value: number) {
-  return new Intl.NumberFormat(undefined, { maximumFractionDigits: 0 }).format(value);
+function formatUsageValue(intl: IntlShape, value: number) {
+  return intl.formatNumber(value, { maximumFractionDigits: 0 });
 }
 
-function formatResetDate(timestamp: number | null | undefined) {
+function formatResetDate(intl: IntlShape, timestamp: number | null | undefined) {
   if (!timestamp) {
-    return "—";
+    return intl.formatMessage(billingSettingsContentMessages.noResetDate);
   }
 
-  return new Intl.DateTimeFormat(undefined, { dateStyle: "medium" }).format(new Date(timestamp));
+  return intl.formatDate(new Date(timestamp), { dateStyle: "medium" });
 }
 
 function isWorkspaceResourceFeatureId(featureId: string): featureId is WorkspaceResourceFeatureId {
   return workspaceResourceUsageFeatureIds.has(featureId);
+}
+
+function getLocalizedUsageFeatureLabel(intl: IntlShape, featureId: string) {
+  switch (featureId) {
+    case autumnFeatureIds.aiTokens:
+      return intl.formatMessage(billingSettingsContentMessages.featureAiCredit);
+    case autumnFeatureIds.translationJobs:
+      return intl.formatMessage(billingSettingsContentMessages.featureTranslationJobs);
+    case autumnFeatureIds.agentRuns:
+      return intl.formatMessage(billingSettingsContentMessages.featureAgentRuns);
+    case autumnFeatureIds.seats:
+      return intl.formatMessage(billingSettingsContentMessages.featureSeats);
+    case autumnFeatureIds.projects:
+      return intl.formatMessage(billingSettingsContentMessages.featureProjects);
+    case autumnFeatureIds.automations:
+      return intl.formatMessage(billingSettingsContentMessages.featureAutomations);
+    case autumnFeatureIds.integrations:
+      return intl.formatMessage(billingSettingsContentMessages.featureIntegrations);
+    default:
+      return featureId.replaceAll("_", " ");
+  }
+}
+
+function getBillingErrorCode(error: unknown): string | null {
+  if (error instanceof AutumnClientError) {
+    return error.code;
+  }
+
+  if (error && typeof error === "object" && ("error" in error || "code" in error)) {
+    const apiError = error as { error?: string; code?: string };
+    return apiError.error ?? apiError.code ?? null;
+  }
+
+  return null;
+}
+
+function formatBillingError(intl: IntlShape, error: unknown): string {
+  switch (getBillingErrorCode(error)) {
+    case "billing_read_forbidden":
+      return intl.formatMessage(billingSettingsContentMessages.billingReadForbidden);
+    case "billing_write_forbidden":
+      return intl.formatMessage(billingSettingsContentMessages.billingWriteForbidden);
+    case "billing_customer_unavailable":
+      return intl.formatMessage(billingSettingsContentMessages.billingCustomerUnavailable);
+    case "unauthorized":
+      return intl.formatMessage(billingSettingsContentMessages.billingUnauthorized);
+    default:
+      break;
+  }
+
+  if (error instanceof AutumnClientError && error.message) {
+    return error.message;
+  }
+
+  if (error && typeof error === "object" && "message" in error) {
+    const message = (error as { message?: string }).message;
+    if (message) {
+      return message;
+    }
+  }
+
+  if (error instanceof Error && error.message) {
+    return error.message;
+  }
+
+  return intl.formatMessage(billingSettingsContentMessages.billingRequestFailed);
 }
 
 function BillingSettingsHeader() {
@@ -79,13 +159,15 @@ function BillingSettingsHeader() {
       <div className="max-w-2xl">
         <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground antialiased">
           <HugeiconsIcon icon={CreditCardIcon} strokeWidth={1.8} className="size-4 shrink-0" />
-          <span>Billing settings</span>
+          <span>
+            <FormattedMessage {...billingSettingsContentMessages.pageLabel} />
+          </span>
         </div>
         <TypographyH1 className="mt-2 font-heading text-2xl font-medium text-foreground md:text-2xl">
-          Billing
+          <FormattedMessage {...billingSettingsContentMessages.pageTitle} />
         </TypographyH1>
         <TypographyP className="mt-2 text-pretty text-sm leading-6 text-muted-foreground">
-          View your workspace plan, AI credit usage, workspace limits, and subscription billing.
+          <FormattedMessage {...billingSettingsContentMessages.pageDescription} />
         </TypographyP>
       </div>
     </section>
@@ -96,10 +178,11 @@ function BillingUnavailableCard() {
   return (
     <SurfaceCard>
       <CardHeader className="px-5 py-5">
-        <CardTitle className="text-lg font-medium text-foreground">Billing unavailable</CardTitle>
+        <CardTitle className="text-lg font-medium text-foreground">
+          <FormattedMessage {...billingSettingsContentMessages.billingUnavailableTitle} />
+        </CardTitle>
         <CardDescription className="text-muted-foreground">
-          Autumn is not configured in this environment. Add a sandbox `AUTUMN_API_KEY` to enable
-          billing for this workspace.
+          <FormattedMessage {...billingSettingsContentMessages.billingUnavailableDescription} />
         </CardDescription>
       </CardHeader>
     </SurfaceCard>
@@ -134,6 +217,7 @@ function ConfiguredBillingSettingsPanel({
   canManageBilling: boolean;
   organizationSlug: string;
 }) {
+  const intl = useIntl();
   const [actionPending, setActionPending] = useState<string | null>(null);
   const {
     data: customer,
@@ -154,7 +238,7 @@ function ConfiguredBillingSettingsPanel({
         },
       );
       if (!response.ok) {
-        throw new Error("Failed to load workspace resource usage");
+        throw new Error(intl.formatMessage(billingSettingsContentMessages.resourceUsageLoadFailed));
       }
 
       const body = await response.json();
@@ -189,7 +273,7 @@ function ConfiguredBillingSettingsPanel({
       const displayBalance = resolveUsageDisplayBalance({ balance, localUsage });
       return {
         featureId,
-        label: getUsageFeatureLabel(featureId),
+        label: getLocalizedUsageFeatureLabel(intl, featureId),
         usageUnavailable:
           isResourceFeature &&
           (resourceUsageQuery.isLoading ||
@@ -208,7 +292,7 @@ function ConfiguredBillingSettingsPanel({
       await action();
       await refetchCustomer();
     } catch (error) {
-      toast.error(formatAutumnBillingError(error));
+      toast.error(formatBillingError(intl, error));
     } finally {
       setActionPending(null);
     }
@@ -257,9 +341,11 @@ function ConfiguredBillingSettingsPanel({
     return (
       <SurfaceCard>
         <CardHeader className="px-5 py-5">
-          <CardTitle className="text-lg font-medium text-foreground">Loading billing</CardTitle>
+          <CardTitle className="text-lg font-medium text-foreground">
+            <FormattedMessage {...billingSettingsContentMessages.loadingTitle} />
+          </CardTitle>
           <CardDescription className="text-muted-foreground">
-            Fetching plan and usage details for this workspace.
+            <FormattedMessage {...billingSettingsContentMessages.loadingDescription} />
           </CardDescription>
         </CardHeader>
       </SurfaceCard>
@@ -271,16 +357,16 @@ function ConfiguredBillingSettingsPanel({
       <SurfaceCard>
         <CardHeader className="px-5 py-5">
           <CardTitle className="text-lg font-medium text-foreground">
-            Unable to load billing
+            <FormattedMessage {...billingSettingsContentMessages.loadErrorTitle} />
           </CardTitle>
           <CardDescription className="text-muted-foreground">
-            {formatAutumnBillingError(billingError)}
+            {formatBillingError(intl, billingError)}
           </CardDescription>
         </CardHeader>
         <Separator className="bg-skeleton" />
         <CardContent className="px-5 py-4">
           <Button variant="outline" onClick={() => void refetchCustomer()}>
-            Try again
+            <FormattedMessage {...billingSettingsContentMessages.tryAgain} />
           </Button>
         </CardContent>
       </SurfaceCard>
@@ -294,13 +380,25 @@ function ConfiguredBillingSettingsPanel({
           <CardHeader className="px-5 py-5">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <CardTitle className="text-lg font-medium text-foreground">Subscription</CardTitle>
+                <CardTitle className="text-lg font-medium text-foreground">
+                  <FormattedMessage {...billingSettingsContentMessages.subscriptionTitle} />
+                </CardTitle>
                 <CardDescription className="mt-1 text-muted-foreground">
-                  {activeSubscription
-                    ? isScheduledForCancel
-                      ? "Your subscription stays active until the current billing period ends."
-                      : "Manage cancellation for this workspace subscription."
-                    : "Choose a plan below to start a subscription for this workspace."}
+                  {activeSubscription ? (
+                    isScheduledForCancel ? (
+                      <FormattedMessage
+                        {...billingSettingsContentMessages.subscriptionCancelingDescription}
+                      />
+                    ) : (
+                      <FormattedMessage
+                        {...billingSettingsContentMessages.subscriptionActiveDescription}
+                      />
+                    )
+                  ) : (
+                    <FormattedMessage
+                      {...billingSettingsContentMessages.subscriptionEmptyDescription}
+                    />
+                  )}
                 </CardDescription>
               </div>
               {activeSubscription ? (
@@ -308,7 +406,11 @@ function ConfiguredBillingSettingsPanel({
                   variant="outline"
                   className="shrink-0 rounded-full border-bud-500/25 bg-bud-500/10 text-bud-100"
                 >
-                  {isScheduledForCancel ? "Canceling" : "Active"}
+                  {isScheduledForCancel ? (
+                    <FormattedMessage {...billingSettingsContentMessages.statusCanceling} />
+                  ) : (
+                    <FormattedMessage {...billingSettingsContentMessages.statusActive} />
+                  )}
                 </Badge>
               ) : null}
             </div>
@@ -322,7 +424,11 @@ function ConfiguredBillingSettingsPanel({
                   disabled={actionPending !== null}
                   onClick={() => void handleUncancelSubscription()}
                 >
-                  {actionPending === "uncancel" ? "Restoring…" : "Restore subscription"}
+                  {actionPending === "uncancel" ? (
+                    <FormattedMessage {...billingSettingsContentMessages.restoringSubscription} />
+                  ) : (
+                    <FormattedMessage {...billingSettingsContentMessages.restoreSubscription} />
+                  )}
                 </Button>
               </div>
             ) : null}
@@ -333,7 +439,11 @@ function ConfiguredBillingSettingsPanel({
                   disabled={actionPending !== null}
                   onClick={() => void handleCancelSubscription()}
                 >
-                  {actionPending === "cancel" ? "Scheduling…" : "Cancel at period end"}
+                  {actionPending === "cancel" ? (
+                    <FormattedMessage {...billingSettingsContentMessages.schedulingCancel} />
+                  ) : (
+                    <FormattedMessage {...billingSettingsContentMessages.cancelAtPeriodEnd} />
+                  )}
                 </Button>
               </div>
             ) : null}
@@ -345,9 +455,11 @@ function ConfiguredBillingSettingsPanel({
             <div className="flex size-10 items-center justify-center rounded-lg border border-border bg-muted">
               <HugeiconsIcon icon={Wallet03Icon} strokeWidth={1.8} className="size-5" />
             </div>
-            <CardTitle className="text-base font-medium text-foreground">Billing portal</CardTitle>
+            <CardTitle className="text-base font-medium text-foreground">
+              <FormattedMessage {...billingSettingsContentMessages.billingPortalTitle} />
+            </CardTitle>
             <CardDescription className="leading-6 text-muted-foreground">
-              Update payment methods, review invoices, and manage subscription billing details.
+              <FormattedMessage {...billingSettingsContentMessages.billingPortalDescription} />
             </CardDescription>
           </CardHeader>
           <Separator className="bg-skeleton" />
@@ -358,11 +470,15 @@ function ConfiguredBillingSettingsPanel({
               disabled={!canManageBilling || actionPending !== null}
               onClick={() => void handleOpenPortal()}
             >
-              {actionPending === "portal" ? "Opening…" : "Manage billing"}
+              {actionPending === "portal" ? (
+                <FormattedMessage {...billingSettingsContentMessages.openingPortal} />
+              ) : (
+                <FormattedMessage {...billingSettingsContentMessages.manageBilling} />
+              )}
             </Button>
             {!canManageBilling ? (
               <TypographyP className="mt-3 text-xs text-muted-foreground">
-                Only workspace admins can open the billing portal.
+                <FormattedMessage {...billingSettingsContentMessages.adminOnlyPortal} />
               </TypographyP>
             ) : null}
           </CardContent>
@@ -374,15 +490,16 @@ function ConfiguredBillingSettingsPanel({
         className="scroll-mt-[calc(var(--app-shell-header-height)+1rem)]"
       >
         <CardHeader className="px-5 py-5">
-          <CardTitle className="text-lg font-medium text-foreground">Plan usage</CardTitle>
+          <CardTitle className="text-lg font-medium text-foreground">
+            <FormattedMessage {...billingSettingsContentMessages.planUsageTitle} />
+          </CardTitle>
           <CardDescription className="text-muted-foreground">
-            AI credit usage resets each billing cycle. Seats, projects, automations, and
-            integrations are workspace limits.
+            <FormattedMessage {...billingSettingsContentMessages.planUsageDescription} />
           </CardDescription>
         </CardHeader>
         <Separator className="bg-skeleton" />
         <div className="px-5 py-5">
-          <PlanUsageSummaryContent summary={planUsageSummary} variant="billing" />
+          <PlanUsageSummaryContent summary={planUsageSummary} />
         </div>
         <Separator className="bg-skeleton" />
         <CardContent className="divide-y divide-border px-5 py-0">
@@ -393,24 +510,41 @@ function ConfiguredBillingSettingsPanel({
                   {row.label}
                 </TypographyP>
                 <TypographyP className="text-xs text-muted-foreground">
-                  Resets {formatResetDate(row.nextResetAt)}
+                  <FormattedMessage
+                    {...billingSettingsContentMessages.resetsOn}
+                    values={{ date: formatResetDate(intl, row.nextResetAt) }}
+                  />
                 </TypographyP>
               </div>
               <div className="text-right">
                 <TypographyP className="text-sm font-medium text-foreground">
-                  {row.usageUnavailable
-                    ? "Usage unavailable"
-                    : row.unlimited
-                      ? "Unlimited"
-                      : `${formatUsageValue(row.usage)} / ${formatUsageValue(row.granted)} used`}
+                  {row.usageUnavailable ? (
+                    <FormattedMessage {...billingSettingsContentMessages.usageUnavailable} />
+                  ) : row.unlimited ? (
+                    <FormattedMessage {...billingSettingsContentMessages.unlimited} />
+                  ) : (
+                    <FormattedMessage
+                      {...billingSettingsContentMessages.usageUsed}
+                      values={{
+                        usage: formatUsageValue(intl, row.usage),
+                        granted: formatUsageValue(intl, row.granted),
+                      }}
+                    />
+                  )}
                 </TypographyP>
                 {!row.unlimited && !row.usageUnavailable ? (
                   <TypographyP className="text-xs text-muted-foreground">
-                    {formatUsageValue(row.remaining)} remaining
+                    <FormattedMessage
+                      {...billingSettingsContentMessages.usageRemaining}
+                      values={{ remaining: formatUsageValue(intl, row.remaining) }}
+                    />
                   </TypographyP>
                 ) : row.usageUnavailable ? (
                   <TypographyP className="text-xs text-muted-foreground">
-                    Plan limit {formatUsageValue(row.granted)}
+                    <FormattedMessage
+                      {...billingSettingsContentMessages.planLimit}
+                      values={{ granted: formatUsageValue(intl, row.granted) }}
+                    />
                   </TypographyP>
                 ) : null}
               </div>
@@ -424,9 +558,11 @@ function ConfiguredBillingSettingsPanel({
         className="scroll-mt-[calc(var(--app-shell-header-height)+1rem)]"
       >
         <CardHeader className="px-5 py-5">
-          <CardTitle className="text-lg font-medium text-foreground">Available plans</CardTitle>
+          <CardTitle className="text-lg font-medium text-foreground">
+            <FormattedMessage {...billingSettingsContentMessages.availablePlansTitle} />
+          </CardTitle>
           <CardDescription className="text-muted-foreground">
-            Plans are configured in Autumn. Pricing changes there do not require app migrations.
+            <FormattedMessage {...billingSettingsContentMessages.availablePlansDescription} />
           </CardDescription>
         </CardHeader>
         <Separator className="bg-skeleton" />
@@ -440,7 +576,11 @@ function ConfiguredBillingSettingsPanel({
                     {plan.name}
                   </TypographyP>
                   <TypographyP className="mt-1 max-w-xl text-sm leading-6 text-muted-foreground">
-                    {plan.description ?? "Workspace subscription plan"}
+                    {plan.description ?? (
+                      <FormattedMessage
+                        {...billingSettingsContentMessages.planDescriptionFallback}
+                      />
+                    )}
                   </TypographyP>
                 </div>
                 <div className="flex shrink-0 flex-col items-end gap-2">
@@ -449,7 +589,7 @@ function ConfiguredBillingSettingsPanel({
                       variant="outline"
                       className="rounded-full border-border bg-muted text-muted-foreground"
                     >
-                      Current plan
+                      <FormattedMessage {...billingSettingsContentMessages.currentPlan} />
                     </Badge>
                   ) : (
                     <Button
@@ -458,7 +598,11 @@ function ConfiguredBillingSettingsPanel({
                       disabled={!canManageBilling || actionPending !== null}
                       onClick={() => void handleAttachPlan(plan.id)}
                     >
-                      {actionPending === `attach-${plan.id}` ? "Starting…" : "Select plan"}
+                      {actionPending === `attach-${plan.id}` ? (
+                        <FormattedMessage {...billingSettingsContentMessages.startingPlan} />
+                      ) : (
+                        <FormattedMessage {...billingSettingsContentMessages.selectPlan} />
+                      )}
                     </Button>
                   )}
                 </div>
@@ -468,7 +612,7 @@ function ConfiguredBillingSettingsPanel({
           {!plans?.length ? (
             <div className="py-4">
               <TypographyP className="text-sm text-muted-foreground">
-                No plans are configured in Autumn yet.
+                <FormattedMessage {...billingSettingsContentMessages.noPlansConfigured} />
               </TypographyP>
             </div>
           ) : null}

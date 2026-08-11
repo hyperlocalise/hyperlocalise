@@ -1,11 +1,25 @@
 "use client";
 
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { useCallback, useEffect, useRef } from "react";
 import { useIntl } from "react-intl";
 
 import { cn } from "@/lib/primitives/cn";
 
+import { formatInternalMarkupForDisplay } from "@/components/cat/message-format/cat-internal-markup";
+import { CatSegmentKeyMeta } from "@/components/cat/segment/cat-segment-key-meta";
 import { catQueuePanelMessages } from "@/components/cat/shared/cat.messages";
 import type { CatSegment } from "@/components/cat/shared/types";
 
@@ -59,11 +73,13 @@ export function CatQueueVirtualList({
     },
     [hasMore, isLoadingMore, onNearEnd, segments.length],
   );
+  const getItemKey = useCallback((index: number) => segments[index]?.id ?? index, [segments]);
   const virtualizer = useVirtualizer({
     count: segments.length,
     getScrollElement: () => parentRef.current,
     estimateSize: () => ESTIMATED_ROW_HEIGHT,
     overscan: 8,
+    getItemKey,
     onChange: (instance) => {
       checkForNearEnd(instance.getVirtualItems());
     },
@@ -94,7 +110,7 @@ export function CatQueueVirtualList({
 
           return (
             <li
-              key={segment.id}
+              key={virtualRow.key}
               ref={virtualizer.measureElement}
               data-index={virtualRow.index}
               className="absolute top-0 left-0 w-full"
@@ -135,12 +151,14 @@ export function CatQueueVirtualList({
                     {String(segment.index).padStart(2, "0")}
                   </span>
                   <div className="min-w-0 flex-1 space-y-1">
-                    <p className="line-clamp-2 text-sm text-foreground">{segment.sourceText}</p>
-                    <div className="flex min-w-0 items-center">
-                      <span className="min-w-0 truncate font-mono text-xs text-muted-foreground">
-                        {segment.key}
-                      </span>
-                    </div>
+                    <p className="line-clamp-2 text-sm text-foreground">
+                      {formatInternalMarkupForDisplay(segment.sourceText)}
+                    </p>
+                    <CatSegmentKeyMeta
+                      segmentKey={segment.key}
+                      sourcePath={segment.sourcePath}
+                      keyClassName="text-xs"
+                    />
                   </div>
                   <div className="mt-1 flex shrink-0 flex-col items-center gap-1">
                     {isDirty ? (

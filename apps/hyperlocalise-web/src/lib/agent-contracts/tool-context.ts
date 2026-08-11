@@ -1,3 +1,15 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import type { db } from "@/lib/database";
 import type { OrganizationMembershipRole } from "@/lib/database/types";
 import type {
@@ -16,6 +28,13 @@ export type AgentTodoItem = {
 export type AgentSessionState = {
   todos: AgentTodoItem[];
 };
+
+export type ToolProgressUpdate = {
+  toolCallId: string;
+  message: string;
+};
+
+export type ToolProgressEmitter = (update: ToolProgressUpdate) => void;
 
 export function ensureAgentSession(ctx: { agentSession?: AgentSessionState }): AgentSessionState {
   if (!ctx.agentSession) {
@@ -39,6 +58,10 @@ export type ToolContext = {
   membershipRole: OrganizationMembershipRole;
   projectId: string | null;
   db: typeof db;
+  /** Resolved at the web API boundary; omitted and false both disable Knowledge Memory tools. */
+  knowledgeMemoryEnabled?: boolean;
+  /** Resolved at the web API boundary; omitted and false both disable glossary search tools. */
+  glossarySearchEnabled?: boolean;
   /** Repository agent context (optional, populated for repository workflows). */
   workMode?: RepositoryAgentWorkMode;
   repositorySource?: RepositoryAgentTaskSource;
@@ -47,4 +70,6 @@ export type ToolContext = {
   githubContext?: RepositoryAgentGitHubContext | null;
   /** Mutable per-run session state (todos, etc.). */
   agentSession?: AgentSessionState;
+  /** Request-scoped live progress for web chat tools. Other channels omit it. */
+  reportToolProgress?: ToolProgressEmitter;
 };

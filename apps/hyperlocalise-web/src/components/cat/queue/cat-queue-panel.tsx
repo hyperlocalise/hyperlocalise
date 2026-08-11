@@ -1,5 +1,17 @@
 "use client";
 
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import { FilterIcon, MoreHorizontalCircle01Icon, SearchIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { FormattedMessage, useIntl } from "react-intl";
@@ -26,6 +38,7 @@ import { catQueueFilterValues, type CatQueueFilter } from "./cat-queue-filter";
 import { useCatQueueSelectionMode } from "./use-cat-queue-selection-mode";
 import { catQueuePanelMessages, catWorkspaceMessages } from "@/components/cat/shared/cat.messages";
 import type { CatSegment } from "@/components/cat/shared/types";
+import { CatWorkspaceViewSwitcherConnected } from "@/components/cat/workspace/cat-workspace-view-switcher-connected";
 
 export type CatQueuePagination = {
   offset: number;
@@ -111,10 +124,11 @@ export function CatQueuePanel({
   return (
     <div className="flex h-full min-h-0 flex-col bg-background lg:border-r lg:border-border">
       <div className="shrink-0 space-y-3 border-b border-border px-4 py-3">
-        <div>
+        <div className="flex items-center justify-between gap-2">
           <h2 className="text-sm font-semibold text-foreground">
             <FormattedMessage {...catQueuePanelMessages.queueTitle} />
           </h2>
+          <CatWorkspaceViewSwitcherConnected />
         </div>
 
         {onSearchChange ? (

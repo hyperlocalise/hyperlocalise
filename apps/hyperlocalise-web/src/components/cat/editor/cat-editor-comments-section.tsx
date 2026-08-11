@@ -1,17 +1,26 @@
 "use client";
 
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import { useState } from "react";
 import { FormattedMessage, useIntl, type IntlShape } from "react-intl";
 
+import {
+  IssueTypePicker,
+  type IssueTypeValue,
+} from "@/app/[lang]/(authenticated)/org/[organizationSlug]/_components/issue-detail/issue-type-picker";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -24,7 +33,6 @@ import type {
   CatSegmentComment,
   CatSegmentCommentInput,
   CatSegmentCommentType,
-  CrowdinIssueType,
 } from "@/components/cat/shared/types";
 
 function formatCommentTimestamp(intl: IntlShape, createdAt: string) {
@@ -41,16 +49,6 @@ function formatCommentTimestamp(intl: IntlShape, createdAt: string) {
     minute: "2-digit",
   });
 }
-
-const crowdinIssueTypeOptions: Array<{
-  value: CrowdinIssueType;
-  message: (typeof catEditorPanelMessages)[keyof typeof catEditorPanelMessages];
-}> = [
-  { value: "general_question", message: catEditorPanelMessages.issueTypeGeneralQuestion },
-  { value: "translation_mistake", message: catEditorPanelMessages.issueTypeTranslationMistake },
-  { value: "context_request", message: catEditorPanelMessages.issueTypeContextRequest },
-  { value: "source_mistake", message: catEditorPanelMessages.issueTypeSourceMistake },
-];
 
 function CatEditorCommentItem({
   comment,
@@ -178,6 +176,7 @@ export function CatEditorCommentsSection({
   resolvingCommentId,
   commentPostError,
   onAddComment,
+  onOpenIssueSheet,
   onResolveComment,
 }: {
   segment: CatSegment;
@@ -189,6 +188,7 @@ export function CatEditorCommentsSection({
   resolvingCommentId: string | null;
   commentPostError?: string;
   onAddComment?: (input: CatSegmentCommentInput) => void | Promise<void>;
+  onOpenIssueSheet?: () => void;
   onResolveComment?: (commentId: string) => void | Promise<void>;
 }) {
   const intl = useIntl();
@@ -197,12 +197,17 @@ export function CatEditorCommentsSection({
   const [commentInputTypes, setCommentInputTypes] = useState<Record<string, CatSegmentCommentType>>(
     {},
   );
-  const [issueTypes, setIssueTypes] = useState<Record<string, CrowdinIssueType>>({});
+  const [issueTypes, setIssueTypes] = useState<Record<string, IssueTypeValue>>({});
 
   const commentDraft = commentDrafts[segment.id] ?? "";
   const commentInputType = commentInputTypes[segment.id] ?? "comment";
   const issueType = issueTypes[segment.id] ?? "general_question";
   const trimmedCommentDraft = commentDraft.trim();
+  const hasIssueComments = segmentComments.some((comment) => comment.type === "issue");
+  const showIssueSheetCta =
+    Boolean(onOpenIssueSheet) &&
+    supportsIssueComments &&
+    (commentInputType === "issue" || hasIssueComments);
 
   function handleCommentDraftChange(value: string) {
     setCommentDrafts((current) => ({ ...current, [segment.id]: value }));
@@ -232,16 +237,7 @@ export function CatEditorCommentsSection({
     setCommentInputTypes((current) => ({ ...current, [segment.id]: value }));
   }
 
-  function handleIssueTypeChange(value: CrowdinIssueType | null) {
-    if (
-      value !== "general_question" &&
-      value !== "translation_mistake" &&
-      value !== "context_request" &&
-      value !== "source_mistake"
-    ) {
-      return;
-    }
-
+  function handleIssueTypeChange(value: IssueTypeValue) {
     setIssueTypes((current) => ({ ...current, [segment.id]: value }));
   }
 
@@ -271,7 +267,7 @@ export function CatEditorCommentsSection({
       <Textarea
         value={commentDraft}
         onChange={(event) => handleCommentDraftChange(event.currentTarget.value)}
-        className="min-h-20 resize-y rounded-xl border-border bg-background px-3 py-3 text-sm leading-relaxed"
+        className="min-h-20 resize-y rounded-xl border-border bg-muted px-3 py-3 text-sm leading-relaxed"
         placeholder={intl.formatMessage(catEditorPanelMessages.commentPlaceholder)}
         disabled={!canAddComment || isPostingComment || isResolvingComment}
         data-cat-comment-input="true"
@@ -293,24 +289,31 @@ export function CatEditorCommentsSection({
               <span className="text-xs text-muted-foreground">
                 <FormattedMessage {...catEditorPanelMessages.issueTypeLabel} />
               </span>
-              <Select value={issueType} onValueChange={handleIssueTypeChange}>
-                <SelectTrigger className="h-8 flex-1 text-xs">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {crowdinIssueTypeOptions.map((option) => (
-                    <SelectItem key={option.value} value={option.value}>
-                      <FormattedMessage {...option.message} />
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <IssueTypePicker
+                value={issueType}
+                onValueChange={handleIssueTypeChange}
+                disabled={!canAddComment || isPostingComment || isResolvingComment}
+                aria-label={intl.formatMessage(catEditorPanelMessages.issueTypeLabel)}
+                triggerClassName="h-8 border-border bg-muted"
+              />
             </div>
           ) : null}
         </div>
       ) : null}
       {commentPostError ? <p className="text-sm text-flame-100">{commentPostError}</p> : null}
-      <div className="flex justify-end">
+      <div className="flex items-center justify-between gap-2">
+        {showIssueSheetCta ? (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onOpenIssueSheet}
+            disabled={isPostingComment || isResolvingComment}
+          >
+            <FormattedMessage {...catEditorPanelMessages.addToIssueSheet} />
+          </Button>
+        ) : (
+          <span />
+        )}
         <Button
           variant="ghost"
           size="sm"

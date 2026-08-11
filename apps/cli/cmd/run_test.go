@@ -1567,6 +1567,49 @@ func TestRunForceFlagPlumbedToServiceInput(t *testing.T) {
 	}
 }
 
+func TestRunMaxTranslationsFlagPlumbedToServiceInput(t *testing.T) {
+	originalRunFunc := runFunc
+	t.Cleanup(func() { runFunc = originalRunFunc })
+
+	var gotInput runsvc.Input
+	runFunc = func(_ context.Context, input runsvc.Input) (runsvc.Report, error) {
+		gotInput = input
+		return runsvc.Report{DeferredByLimit: 3}, nil
+	}
+
+	cmd := newRootCmd("")
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetErr(out)
+	cmd.SetArgs([]string{"run", "--max-translations", "1000"})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("run with max-translations: %v", err)
+	}
+	if gotInput.MaxTranslations != 1000 {
+		t.Fatalf("expected MaxTranslations=1000, got %d", gotInput.MaxTranslations)
+	}
+	if !strings.Contains(out.String(), "deferred_by_limit=3") {
+		t.Fatalf("expected deferred_by_limit in report output, got %q", out.String())
+	}
+}
+
+func TestRunRejectsNegativeMaxTranslationsFlag(t *testing.T) {
+	cmd := newRootCmd("")
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetErr(out)
+	cmd.SetArgs([]string{"run", "--max-translations", "-1"})
+
+	err := cmd.Execute()
+	if err == nil {
+		t.Fatalf("expected invalid max-translations error")
+	}
+	if !strings.Contains(err.Error(), "invalid --max-translations value") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
 func TestRunExperimentalContextMemoryFlagsPlumbedToServiceInput(t *testing.T) {
 	originalRunFunc := runFunc
 	t.Cleanup(func() { runFunc = originalRunFunc })
@@ -1926,5 +1969,41 @@ func TestRunWritesSummaryArtifactOmitsHeavyFields(t *testing.T) {
 	}
 	if got, ok := payload["pruneCandidateCount"].(float64); !ok || got != 1 {
 		t.Fatalf("expected pruneCandidateCount=1, got %v", payload["pruneCandidateCount"])
+	}
+}
+
+func TestLoadPrefilledEntriesFlatAndLocaleKeyed(t *testing.T) {
+	dir := t.TempDir()
+
+	flatPath := filepath.Join(dir, "flat.json")
+	if err := os.WriteFile(flatPath, []byte(`{"hello":"bonjour"}`), 0o600); err != nil {
+		t.Fatalf("write flat: %v", err)
+	}
+	flat, err := loadPrefilledEntries(flatPath)
+	if err != nil {
+		t.Fatalf("load flat: %v", err)
+	}
+	if len(flat.ByLocale) != 0 || flat.Flat["hello"] != "bonjour" {
+		t.Fatalf("unexpected flat load: %+v", flat)
+	}
+
+	nestedPath := filepath.Join(dir, "nested.json")
+	if err := os.WriteFile(nestedPath, []byte(`{"fr":{"hello":"bonjour"},"de":{"hello":"hallo"}}`), 0o600); err != nil {
+		t.Fatalf("write nested: %v", err)
+	}
+	nested, err := loadPrefilledEntries(nestedPath)
+	if err != nil {
+		t.Fatalf("load nested: %v", err)
+	}
+	if len(nested.Flat) != 0 || nested.ByLocale["fr"]["hello"] != "bonjour" || nested.ByLocale["de"]["hello"] != "hallo" {
+		t.Fatalf("unexpected nested load: %+v", nested)
+	}
+
+	mixedPath := filepath.Join(dir, "mixed.json")
+	if err := os.WriteFile(mixedPath, []byte(`{"hello":"bonjour","fr":{"bye":"au revoir"}}`), 0o600); err != nil {
+		t.Fatalf("write mixed: %v", err)
+	}
+	if _, err := loadPrefilledEntries(mixedPath); err == nil || !strings.Contains(err.Error(), "mixed") {
+		t.Fatalf("expected mixed shape error, got %v", err)
 	}
 }

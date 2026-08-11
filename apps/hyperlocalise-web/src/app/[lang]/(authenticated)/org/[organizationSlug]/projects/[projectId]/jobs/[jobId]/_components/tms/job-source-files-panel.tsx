@@ -1,17 +1,34 @@
 "use client";
 
-import { useMemo, useState } from "react";
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
+import { useCallback, useMemo, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { ListIcon } from "lucide-react";
+import { FormattedMessage, useIntl, type IntlShape } from "react-intl";
+import { toast } from "sonner";
 
 import type { ProjectFileRecord } from "@/api/routes/project/project.schema";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TypographyH4, TypographyP } from "@/components/ui/typography";
-import { supportsProviderCatFile } from "@/lib/providers/provider-cat-capabilities";
+import { supportsProviderCatFile } from "@/lib/providers/capabilities/provider-cat-capabilities";
+import { jobCatQueueFilterParam } from "@/lib/projects/job-cat-routing";
+import type { CatQueueFilter } from "@/components/cat/queue/cat-queue-filter";
 
 import { ProjectFilesTree } from "../../../../files/_components/project-files-tree";
-import { ProjectFileDetailPanel } from "../../../../files/_components/project-file-detail-panel";
+import { jobSourceFilesPanelMessages as messages } from "./job-source-files-panel.messages";
 
 function sortFilesByPath(files: ProjectFileRecord[]) {
   return [...files].toSorted((a, b) =>
@@ -26,6 +43,7 @@ function stringsHref(input: {
   targetLocale: string;
   sourcePath?: string;
   storedFileId?: string;
+  queueFilter?: CatQueueFilter;
 }) {
   const params = new URLSearchParams({
     targetLocale: input.targetLocale,
@@ -39,7 +57,51 @@ function stringsHref(input: {
     params.set("storedFileId", input.storedFileId);
   }
 
+  if (input.queueFilter && input.queueFilter !== "all") {
+    params.set(jobCatQueueFilterParam, input.queueFilter);
+  }
+
   return `/org/${input.organizationSlug}/projects/${encodeURIComponent(input.projectId)}/jobs/${encodeURIComponent(input.encodedJobId)}/strings?${params.toString()}`;
+}
+
+function resolveTargetLocale(file: ProjectFileRecord, highlightLocale: string | null) {
+  if (file.provider) {
+    if (highlightLocale && file.provider.targetLocales?.includes(highlightLocale)) {
+      return highlightLocale;
+    }
+
+    return file.provider.targetLocales?.[0] ?? highlightLocale;
+  }
+
+  return highlightLocale;
+}
+
+function canOpenFileInCat(
+  file: ProjectFileRecord,
+  sourcePath: string,
+  encodedJobId: string | null | undefined,
+  targetLocale: string | null,
+) {
+  if (!encodedJobId || !targetLocale) {
+    return false;
+  }
+
+  const isProviderCatFile = supportsProviderCatFile(file);
+  const isNativeCatFile = !file.provider && Boolean(file.storedFileId);
+
+  if (isProviderCatFile) {
+    return Boolean(sourcePath);
+  }
+
+  return isNativeCatFile;
+}
+
+function catOpenUnavailableMessage(targetLocale: string | null, intl: IntlShape) {
+  if (!targetLocale) {
+    return intl.formatMessage(messages.noTargetLocaleForTaskFile);
+  }
+
+  return intl.formatMessage(messages.fileCantOpenInCat);
 }
 
 export function JobSourceFilesPanel({
@@ -50,8 +112,9 @@ export function JobSourceFilesPanel({
   isLoading,
   isError,
   errorMessage,
-  emptyMessage = "No source files linked to this job.",
+  emptyMessage,
   highlightLocale = null,
+  queueFilter,
 }: {
   organizationSlug: string;
   projectId: string;
@@ -62,105 +125,145 @@ export function JobSourceFilesPanel({
   errorMessage?: string;
   emptyMessage?: string;
   highlightLocale?: string | null;
+  queueFilter?: CatQueueFilter;
 }) {
+  const intl = useIntl();
+  const resolvedEmptyMessage = emptyMessage ?? intl.formatMessage(messages.defaultEmptyMessage);
+  const router = useRouter();
   const sortedFiles = useMemo(() => sortFilesByPath(files), [files]);
   const [selectedSourcePath, setSelectedSourcePath] = useState<string | null>(null);
   const selectedFile =
     sortedFiles.find((file) => file.sourcePath === selectedSourcePath) ?? sortedFiles[0] ?? null;
   const activeSourcePath = selectedFile?.sourcePath ?? null;
-  const targetLocale = selectedFile?.provider
-    ? highlightLocale && selectedFile.provider.targetLocales?.includes(highlightLocale)
-      ? highlightLocale
-      : (selectedFile.provider.targetLocales?.[0] ?? highlightLocale)
-    : highlightLocale;
-  const isProviderCatFile = Boolean(selectedFile && supportsProviderCatFile(selectedFile));
-  const isNativeCatFile = Boolean(
-    selectedFile && !selectedFile.provider && selectedFile.storedFileId,
+
+  const openFileInCat = useCallback(
+    (sourcePath: string) => {
+      if (!encodedJobId) {
+        return;
+      }
+
+      const file = sortedFiles.find((entry) => entry.sourcePath === sourcePath);
+      if (!file) {
+        return;
+      }
+
+      const targetLocale = resolveTargetLocale(file, highlightLocale);
+      if (!canOpenFileInCat(file, sourcePath, encodedJobId, targetLocale)) {
+        toast.error(catOpenUnavailableMessage(targetLocale, intl));
+        return;
+      }
+
+      router.push(
+        stringsHref({
+          organizationSlug,
+          projectId,
+          encodedJobId,
+          targetLocale: targetLocale as string,
+          queueFilter,
+          ...(supportsProviderCatFile(file)
+            ? { sourcePath }
+            : { storedFileId: file.storedFileId as string }),
+        }),
+      );
+    },
+    [
+      encodedJobId,
+      highlightLocale,
+      intl,
+      organizationSlug,
+      projectId,
+      queueFilter,
+      router,
+      sortedFiles,
+    ],
   );
+
+  const handleSelectFile = useCallback((sourcePath: string) => {
+    setSelectedSourcePath(sourcePath);
+  }, []);
+
+  const selectedTargetLocale = selectedFile
+    ? resolveTargetLocale(selectedFile, highlightLocale)
+    : null;
   const canViewStrings = Boolean(
-    encodedJobId &&
     selectedFile &&
-    targetLocale &&
-    ((isProviderCatFile && activeSourcePath) || isNativeCatFile),
+    activeSourcePath &&
+    canOpenFileInCat(selectedFile, activeSourcePath, encodedJobId, selectedTargetLocale),
   );
-  const showStringsAction = isProviderCatFile || isNativeCatFile;
+  const stringsHrefForSelected =
+    canViewStrings && selectedFile && activeSourcePath && encodedJobId && selectedTargetLocale
+      ? stringsHref({
+          organizationSlug,
+          projectId,
+          encodedJobId,
+          targetLocale: selectedTargetLocale,
+          queueFilter,
+          ...(supportsProviderCatFile(selectedFile)
+            ? { sourcePath: activeSourcePath }
+            : { storedFileId: selectedFile.storedFileId as string }),
+        })
+      : null;
 
   return (
     <section className="rounded-lg border border-border bg-card p-5">
-      <TypographyH4>Source files</TypographyH4>
+      <TypographyH4>
+        <FormattedMessage {...messages.sourceFilesHeading} />
+      </TypographyH4>
 
       {isLoading ? (
-        <div className="mt-4 space-y-3">
-          <Skeleton className="h-10 w-full" />
-          <Skeleton className="h-48 w-full" />
+        <div className="mt-4">
+          <Skeleton className="h-80 w-full" />
         </div>
       ) : null}
 
       {isError ? (
         <p className="mt-4 text-sm text-flame-100">
-          {errorMessage ?? "Unable to load source files."}
+          {errorMessage ?? intl.formatMessage(messages.unableToLoadSourceFiles)}
         </p>
       ) : null}
 
       {!isLoading && !isError && sortedFiles.length === 0 ? (
-        <p className="mt-4 text-sm text-muted-foreground">{emptyMessage}</p>
+        <p className="mt-4 text-sm text-muted-foreground">{resolvedEmptyMessage}</p>
       ) : null}
 
       {!isLoading && !isError && sortedFiles.length > 0 ? (
-        <div className="mt-4 overflow-hidden rounded-lg border border-border bg-background lg:grid lg:grid-cols-[minmax(0,16rem)_minmax(0,1fr)]">
-          <aside className="min-h-80 border-b border-border p-2 lg:border-r lg:border-b-0">
+        <div className="mt-4 space-y-2">
+          {encodedJobId ? (
+            <div className="flex flex-col gap-2 rounded-lg border border-border bg-background px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="min-w-0">
+                <TypographyP className="truncate font-mono text-xs text-foreground">
+                  {selectedFile?.sourcePath}
+                </TypographyP>
+                <TypographyP className="text-xs text-muted-foreground">
+                  {selectedTargetLocale ? (
+                    <FormattedMessage
+                      {...messages.catWorkspaceHintWithLocale}
+                      values={{ targetLocale: selectedTargetLocale }}
+                    />
+                  ) : (
+                    <FormattedMessage {...messages.noTargetLocaleForTaskFile} />
+                  )}
+                </TypographyP>
+              </div>
+              <Button
+                type="button"
+                size="sm"
+                className="shrink-0"
+                disabled={!stringsHrefForSelected}
+                render={stringsHrefForSelected ? <Link href={stringsHrefForSelected} /> : undefined}
+              >
+                <ListIcon />
+                <FormattedMessage {...messages.viewStrings} />
+              </Button>
+            </div>
+          ) : null}
+          <div className="overflow-hidden rounded-lg border border-border bg-background p-2">
             <ProjectFilesTree
-              ariaLabel="Job source files"
+              ariaLabel={intl.formatMessage(messages.jobSourceFilesAriaLabel)}
               files={sortedFiles}
               selectedSourcePath={activeSourcePath}
-              onSelectFile={setSelectedSourcePath}
-            />
-          </aside>
-          <div className="min-h-[min(20rem,50vh)] overflow-y-auto">
-            {showStringsAction ? (
-              <div className="flex flex-col gap-2 border-b border-border px-5 py-3 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                  <TypographyP className="font-mono text-xs text-foreground">
-                    {selectedFile?.sourcePath}
-                  </TypographyP>
-                  <TypographyP className="text-xs text-muted-foreground">
-                    {targetLocale
-                      ? `Edit ${targetLocale} strings in the CAT workspace.`
-                      : "No target locale is available for this task file."}
-                  </TypographyP>
-                </div>
-                <Button
-                  type="button"
-                  size="sm"
-                  disabled={!canViewStrings}
-                  render={
-                    canViewStrings ? (
-                      <Link
-                        href={stringsHref({
-                          organizationSlug,
-                          projectId,
-                          encodedJobId: encodedJobId as string,
-                          targetLocale: targetLocale as string,
-                          ...(isProviderCatFile
-                            ? { sourcePath: activeSourcePath as string }
-                            : { storedFileId: selectedFile?.storedFileId as string }),
-                        })}
-                      />
-                    ) : undefined
-                  }
-                >
-                  <ListIcon />
-                  View strings
-                </Button>
-              </div>
-            ) : null}
-            <ProjectFileDetailPanel
-              organizationSlug={organizationSlug}
-              projectId={projectId}
-              encodedJobId={encodedJobId}
-              file={selectedFile}
-              requestedSourcePath={activeSourcePath}
-              highlightLocale={highlightLocale}
+              onSelectFile={handleSelectFile}
+              onActivateFile={encodedJobId ? openFileInCat : undefined}
             />
           </div>
         </div>

@@ -1,3 +1,15 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import { tool } from "ai";
 import { z } from "zod";
 
@@ -11,7 +23,8 @@ import {
   createStoredFile,
   normalizeSourcePath,
 } from "@/lib/file-storage/records";
-import { inferSupportedFileTranslationFileFormat } from "@/lib/translation/file-formats";
+import { inferSupportedSourceUploadFormat } from "@/lib/translation/file-formats";
+import { readTranslatedFile } from "@/lib/translation/sandbox";
 import type { ToolContext } from "@/lib/agent-contracts/tool-context";
 import type { WriteAction } from "@/lib/agent-contracts/write-gate";
 import { canPushToGitHubBranch } from "@/lib/agents/repository-write-gate";
@@ -52,7 +65,7 @@ function sourceFilename(path: string) {
 }
 
 function sourceContentType(path: string) {
-  const format = inferSupportedFileTranslationFileFormat(path);
+  const format = inferSupportedSourceUploadFormat(path);
   switch (format) {
     case "json":
     case "jsonc":
@@ -71,6 +84,12 @@ function sourceContentType(path: string) {
       return "text/markdown";
     case "csv":
       return "text/csv";
+    case "png":
+      return "image/png";
+    case "jpeg":
+      return "image/jpeg";
+    case "webp":
+      return "image/webp";
     default:
       return "application/octet-stream";
   }
@@ -113,7 +132,7 @@ export function createApplyHyperlocaliseFixesTool(ctx: ToolContext) {
       try {
         const result = await runSandboxCommand(ctx.sandboxId, "bash", [
           "-lc",
-          `export PATH="$HOME/.local/bin:$PATH"; hl ${args.map((a) => `'${a.replaceAll("'", "'\\''")}'`).join(" ")}`,
+          `hl ${args.map((a) => `'${a.replaceAll("'", "'\\''")}'`).join(" ")}`,
         ]);
 
         if (result.exitCode !== 0) {
@@ -381,21 +400,25 @@ export function createUploadSourcesTool(ctx: ToolContext) {
         const uploaded: Array<{ path: string; fileId: string; sourceFileVersionId: string }> = [];
         for (const path of input.paths) {
           const normalizedPath = normalizeSourcePath(path);
-          if (!inferSupportedFileTranslationFileFormat(normalizedPath)) {
+          if (!inferSupportedSourceUploadFormat(normalizedPath)) {
             return {
               success: false,
               error: `Unsupported source file format for ${path}.`,
             };
           }
 
-          const result = await runSandboxCommand(ctx.sandboxId, "cat", [path], "stdout");
-          if (result.exitCode !== 0) {
+          let fileContent: Buffer;
+          try {
+            // Binary read avoids sandbox stdout UTF-8 corruption (multi-byte → �).
+            fileContent = await readTranslatedFile(ctx.sandboxId, path);
+          } catch (error) {
+            const message = error instanceof Error ? error.message : `Failed to read ${path}`;
             await logMutation(ctx, {
               action: "upload_sources",
               status: "failed",
-              details: { error: `Failed to read ${path}: ${result.output}` },
+              details: { error: message },
             });
-            return { success: false, error: `Failed to read ${path}: ${result.output}` };
+            return { success: false, error: message };
           }
 
           let uploadedFile: typeof schema.storedFiles.$inferSelect | null = null;
@@ -409,7 +432,7 @@ export function createUploadSourcesTool(ctx: ToolContext) {
                 sourceKind: "repository_file",
                 filename: sourceFilename(normalizedPath),
                 contentType: sourceContentType(normalizedPath),
-                content: Buffer.from(result.output),
+                content: fileContent,
                 metadata: {
                   sourcePath: normalizedPath,
                   commitSha: ctx.githubContext?.commitSha,

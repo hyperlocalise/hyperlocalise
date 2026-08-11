@@ -1,3 +1,15 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import {
   type GlossaryTermConstraint,
   translationUnitHasGlossaryViolations,
@@ -23,6 +35,8 @@ export type AgentRunProposalItem = {
   reviewState: AgentRunProposalReviewState;
   changedFields: string[];
   warnings: AgentRunProposalWarnings;
+  /** Provider source file id when known — required for multi-file Crowdin/TMS write-back. */
+  fileId?: string | null;
   translationMemoryMatchesUsed?: AgentRunTranslationMemoryMatchUsage[];
   glossaryMatchesUsed?: AgentRunGlossaryMatchUsage[];
 };
@@ -264,6 +278,8 @@ export function enrichAgentRunProposalItem(
       )
     : undefined;
 
+  const fileId = typeof raw.fileId === "string" && raw.fileId.trim() ? raw.fileId : null;
+
   const warnings =
     raw.warnings && typeof raw.warnings === "object" && !Array.isArray(raw.warnings)
       ? (raw.warnings as AgentRunProposalWarnings)
@@ -295,6 +311,7 @@ export function enrichAgentRunProposalItem(
     reviewState,
     changedFields: changedFields.length > 0 ? changedFields : deriveChangedFields(from, to),
     warnings,
+    fileId,
     translationMemoryMatchesUsed,
     glossaryMatchesUsed,
   };
@@ -350,6 +367,7 @@ export function serializeAgentRunProposalItem(item: AgentRunProposalItem) {
     reviewState: item.reviewState,
     changedFields: item.changedFields,
     warnings: item.warnings,
+    ...(item.fileId?.trim() ? { fileId: item.fileId } : {}),
     ...(item.translationMemoryMatchesUsed?.length
       ? { translationMemoryMatchesUsed: item.translationMemoryMatchesUsed }
       : {}),

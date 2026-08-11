@@ -1,3 +1,15 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import { and, eq } from "drizzle-orm";
 
 import { db, schema } from "@/lib/database";
@@ -9,31 +21,25 @@ import {
   listAgentRuns,
   startAgentRun,
 } from "../agent-runs/agent-runs";
-import { getProviderCommentPusher } from "../adapters/tms-provider-adapter-registry";
+import { getProviderCommentPusher } from "@/lib/providers/adapters/tms-provider-registry";
 import type {
   ProviderCommentChangedItem,
   ProviderQaFeedbackUpload,
-} from "../provider-feedback-types";
+} from "@/lib/providers/shared/provider-feedback-types";
 import { buildFindingId } from "../provider-job-qa/build-finding-id";
 import type { ProviderQaFinding } from "../provider-job-qa/types";
-import {
-  getCrowdinUserConnection,
-  resolveCrowdinUserConnectionSecretMaterial,
-} from "../adapters/crowdin/crowdin-user-connections";
+import { crowdinAuth } from "@/lib/providers/adapters/crowdin/crowdin-auth";
 import {
   getPhraseUserConnection,
   resolvePhraseUserConnectionSecretMaterial,
-} from "../adapters/phrase/phrase-user-connections";
-import {
-  getLokaliseUserConnection,
-  resolveLokaliseUserConnectionSecretMaterial,
-} from "../adapters/lokalise/lokalise-user-connections";
+} from "@/lib/providers/adapters/phrase/phrase-auth";
+import { lokaliseAuth } from "@/lib/providers/adapters/lokalise/lokalise-auth";
 import {
   crowdinUsesPerUserAuth,
   OAUTH_AUTH_MODE,
   resolveExternalTmsSecretMaterial,
   type ExternalTmsProviderKind,
-} from "../organization-external-tms-provider-credentials";
+} from "@/lib/providers/credentials/organization-external-tms-provider-credentials";
 
 export type ProviderAgentCommentResult =
   | {
@@ -224,6 +230,11 @@ export async function executeProviderAgentComment(input: {
   }
 
   if (run.status === "succeeded") {
+    await completeAgentRun({
+      runId: run.id,
+      organizationId: input.organizationId,
+      outputSummary: (run.outputSummary ?? {}) as Record<string, unknown>,
+    });
     const outputSummary = run.outputSummary ?? {};
     return {
       ok: true,
@@ -480,7 +491,7 @@ async function resolveProviderCommentSecretMaterial(input: {
   }
 
   if (input.credential.providerKind === "lokalise") {
-    const connection = await getLokaliseUserConnection({
+    const connection = await lokaliseAuth.getUserConnection({
       organizationId: input.organizationId,
       userId: input.actorUserId,
     });
@@ -488,10 +499,10 @@ async function resolveProviderCommentSecretMaterial(input: {
       throw new Error("lokalise_user_connection_required");
     }
 
-    return resolveLokaliseUserConnectionSecretMaterial({ connection });
+    return lokaliseAuth.resolveUserConnectionSecretMaterial({ connection });
   }
 
-  const connection = await getCrowdinUserConnection({
+  const connection = await crowdinAuth.getUserConnection({
     organizationId: input.organizationId,
     userId: input.actorUserId,
   });
@@ -499,7 +510,7 @@ async function resolveProviderCommentSecretMaterial(input: {
     throw new Error("crowdin_user_connection_required");
   }
 
-  return resolveCrowdinUserConnectionSecretMaterial({
+  return crowdinAuth.resolveUserConnectionSecretMaterial({
     connection,
     authMode: input.credential.authMode ?? OAUTH_AUTH_MODE,
   });

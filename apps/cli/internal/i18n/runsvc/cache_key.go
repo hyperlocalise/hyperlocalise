@@ -35,6 +35,16 @@ func sourceContextFingerprintForLock(task Task) string {
 	}, "\n"))
 }
 
+// lockSourceContextFingerprint returns the context fingerprint used in lock hashes.
+// Non-Markdown tasks reuse the precomputed sourceContextFingerprint; Markdown keeps
+// the lock-specific constant context so structural hints do not invalidate entries.
+func lockSourceContextFingerprint(task Task) string {
+	if isMarkdownEntryKey(task.EntryKey) {
+		return sourceContextFingerprintForLock(task)
+	}
+	return task.sourceContextFingerprint
+}
+
 func isMarkdownEntryKey(key string) bool {
 	return strings.HasPrefix(strings.TrimSpace(key), "md.")
 }
@@ -49,6 +59,7 @@ func legacyMarkdownContextSensitiveLockTaskHashCandidates(task Task) []string {
 	for _, context := range contexts {
 		candidate := task
 		candidate.SourceContext = context
+		candidate.sourceContextFingerprint = ""
 		candidates = append(
 			candidates,
 			legacyContextSensitiveLockTaskHash(candidate),
@@ -119,6 +130,9 @@ func precomputeStableTaskCacheFields(task *Task) {
 	if task == nil {
 		return
 	}
+	if task.sourceTextHash != "" && task.sourceContextFingerprint != "" {
+		return
+	}
 
 	if isImageTask(*task) {
 		task.sourceTextHash = strings.TrimSpace(task.sourceFingerprint)
@@ -132,7 +146,7 @@ func precomputeStableTaskCacheFields(task *Task) {
 
 func lockTaskHash(task Task) string {
 	precomputeStableTaskCacheFields(&task)
-	return lockTaskHashWithContextFingerprint(task, sourceContextFingerprintForLock(task), false)
+	return lockTaskHashWithContextFingerprint(task, lockSourceContextFingerprint(task), false)
 }
 
 func legacyContextSensitiveLockTaskHash(task Task) string {
@@ -187,7 +201,7 @@ func legacyDefaultRetrievalSnapshot() string {
 
 func legacyDefaultLockTaskHash(task Task) string {
 	precomputeStableTaskCacheFields(&task)
-	return lockTaskHashWithContextFingerprint(task, sourceContextFingerprintForLock(task), true)
+	return lockTaskHashWithContextFingerprint(task, lockSourceContextFingerprint(task), true)
 }
 
 func legacyDefaultContextSensitiveLockTaskHash(task Task) string {

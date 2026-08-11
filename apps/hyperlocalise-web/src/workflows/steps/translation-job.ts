@@ -1,5 +1,17 @@
-import type { StringTranslationJobResult } from "@/lib/translation/string-job-executor";
-import type { ClaimedTranslationJob } from "@/lib/translation/translation-job-queued-function";
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
+import type { StringTranslationJobResult } from "@/lib/translation/domain";
+import type { ClaimedTranslationJob } from "@/lib/translation/jobs";
 import type { TranslationJobEventData } from "@/lib/workflow/types";
 
 export async function claimTranslationJobStep(input: {
@@ -7,14 +19,13 @@ export async function claimTranslationJobStep(input: {
   runId: string;
 }) {
   "use step";
-  const { claimTranslationJob } = await import("@/lib/translation/translation-job-queued-function");
+  const { claimTranslationJob } = await import("@/lib/translation/jobs");
   return claimTranslationJob(input);
 }
 
 export async function executeClaimedTranslationJobStep(job: ClaimedTranslationJob) {
   "use step";
-  const { executeClaimedTranslationJob } =
-    await import("@/lib/translation/translation-job-queued-function");
+  const { executeClaimedTranslationJob } = await import("@/lib/translation/jobs");
   return executeClaimedTranslationJob(job);
 }
 
@@ -25,8 +36,7 @@ export async function completeTranslationJobStep(input: {
   result: StringTranslationJobResult;
 }) {
   "use step";
-  const { completeTranslationJob } =
-    await import("@/lib/translation/translation-job-queued-function");
+  const { completeTranslationJob } = await import("@/lib/translation/jobs");
   return completeTranslationJob(input);
 }
 
@@ -38,7 +48,7 @@ export async function failTranslationJobStep(input: {
   message: string;
 }) {
   "use step";
-  const { failTranslationJob } = await import("@/lib/translation/translation-job-queued-function");
+  const { failTranslationJob } = await import("@/lib/translation/jobs");
   return failTranslationJob(input);
 }
 
@@ -89,7 +99,7 @@ export async function markEmailTranslationJobSucceeded(input: {
   const { and, eq } = await import("drizzle-orm");
   const { db, schema } = await import("@/lib/database");
 
-  await db.transaction(async (tx) => {
+  const succeededJob = await db.transaction(async (tx) => {
     const [updatedJob] = await tx
       .update(schema.jobs)
       .set({
@@ -110,7 +120,7 @@ export async function markEmailTranslationJobSucceeded(input: {
           eq(schema.jobs.workflowRunId, input.workflowRunId),
         ),
       )
-      .returning({ id: schema.jobs.id });
+      .returning({ id: schema.jobs.id, organizationId: schema.jobs.organizationId });
 
     if (!updatedJob) {
       throw new Error(
@@ -122,7 +132,30 @@ export async function markEmailTranslationJobSucceeded(input: {
       .update(schema.translationJobDetails)
       .set({ outcomeKind: "file_result" })
       .where(eq(schema.translationJobDetails.jobId, input.jobId));
+
+    return updatedJob;
   });
+
+  const { completeAndTrackBillableUsage, formatUsageControlError } =
+    await import("@/lib/billing/usage-control");
+  const { isErr } = await import("@/lib/primitives/result/results");
+  const operationKey = `job:${input.jobId}:translation_jobs`;
+  const trackUsageResult = await completeAndTrackBillableUsage({
+    organizationId: succeededJob.organizationId,
+    operationKey,
+    autumnEventName: "translation_job.completed",
+    unit: "job",
+    jobId: input.jobId,
+    aiCreditSource: "email_translation_job_complete",
+  });
+
+  if (isErr(trackUsageResult)) {
+    console.error("[email-translation-job] Autumn usage tracking failed after job succeeded", {
+      jobId: input.jobId,
+      operationKey,
+      error: formatUsageControlError(trackUsageResult.error),
+    });
+  }
 }
 
 export async function markEmailTranslationJobFailed(input: {
@@ -324,8 +357,7 @@ export async function reuseFileTranslationMemoryEntriesStep(input: {
   sourceEntries: Record<string, string>;
 }) {
   "use step";
-  const { reuseFileTranslationMemoryEntries } =
-    await import("@/lib/translation/file-translation-memory");
+  const { reuseFileTranslationMemoryEntries } = await import("@/lib/translation/file-memory");
   return reuseFileTranslationMemoryEntries(input);
 }
 
@@ -352,8 +384,7 @@ export async function persistFileTranslationMemoryEntriesStep(input: {
   targetEntries: Record<string, string>;
 }) {
   "use step";
-  const { persistFileTranslationMemoryEntries } =
-    await import("@/lib/translation/file-translation-memory");
+  const { persistFileTranslationMemoryEntries } = await import("@/lib/translation/file-memory");
   return persistFileTranslationMemoryEntries(input);
 }
 
@@ -422,27 +453,28 @@ export async function completeFileTranslationJobStep(input: {
     );
   }
 
-  const {
-    formatUsageControlError,
-    markUsageEventSucceededByOperationKey,
-    trackUsageEventInAutumnByOperationKey,
-  } = await import("@/lib/billing/usage-control");
+  const { completeAndTrackBillableUsage, formatUsageControlError } =
+    await import("@/lib/billing/usage-control");
   const { isErr } = await import("@/lib/primitives/result/results");
   const operationKey = `job:${input.jobId}:translation_jobs`;
-  const markUsageResult = await markUsageEventSucceededByOperationKey({
-    operationKey,
-    quantity: 1,
-    dimensions: {
-      autumn_event_name: "translation_job.completed",
-      unit: "job",
-    },
-  });
-
-  if (isErr(markUsageResult)) {
-    throw new Error(formatUsageControlError(markUsageResult.error));
+  const [jobForUsage] = await db
+    .select({ organizationId: schema.jobs.organizationId })
+    .from(schema.jobs)
+    .where(eq(schema.jobs.id, input.jobId))
+    .limit(1);
+  if (!jobForUsage?.organizationId) {
+    throw new Error(`translation job ${input.jobId} has no organization for usage tracking`);
   }
 
-  const trackUsageResult = await trackUsageEventInAutumnByOperationKey({ operationKey });
+  const trackUsageResult = await completeAndTrackBillableUsage({
+    organizationId: jobForUsage.organizationId,
+    operationKey,
+    autumnEventName: "translation_job.completed",
+    unit: "job",
+    jobId: input.jobId,
+    aiCreditSource: "translation_job_complete",
+  });
+
   if (isErr(trackUsageResult)) {
     console.error("[file-translation-job] Autumn usage tracking failed after job succeeded", {
       jobId: input.jobId,
@@ -450,4 +482,79 @@ export async function completeFileTranslationJobStep(input: {
       error: formatUsageControlError(trackUsageResult.error),
     });
   }
+}
+
+export async function localizeImageVariantForJobStep(input: {
+  organizationId: string;
+  projectId: string;
+  sourcePath: string;
+  targetLocale: string;
+  sourceLocale?: string | null;
+  sourceStoredFileId: string;
+  sourceJobId: string;
+  createdByUserId?: string | null;
+}) {
+  "use step";
+  const { getRepositorySourceFileVersionForStoredFile } =
+    await import("@/lib/file-storage/records");
+  const { getImageVariant, localizeAndStoreImageVariant } =
+    await import("@/lib/projects/files/image-variant-service");
+  const { localizedImageOutputFilename } = await import("@/lib/agents/image-localization");
+
+  const version = await getRepositorySourceFileVersionForStoredFile({
+    fileId: input.sourceStoredFileId,
+    organizationId: input.organizationId,
+  });
+
+  const filename = localizedImageOutputFilename(
+    input.sourcePath.split("/").at(-1) ?? "image.png",
+    input.targetLocale,
+    "image/png",
+  );
+
+  const result = await localizeAndStoreImageVariant({
+    organizationId: input.organizationId,
+    projectId: input.projectId,
+    sourcePath: input.sourcePath,
+    targetLocale: input.targetLocale,
+    sourceLocale: input.sourceLocale,
+    sourceStoredFileId: input.sourceStoredFileId,
+    repositorySourceFileId: version?.repositorySourceFileId ?? null,
+    provenance: "translation_job",
+    sourceJobId: input.sourceJobId,
+    createdByUserId: input.createdByUserId,
+  });
+
+  if (!result.ok) {
+    if (result.error.code === "approved_locked") {
+      const existing = await getImageVariant({
+        organizationId: input.organizationId,
+        projectId: input.projectId,
+        sourcePath: input.sourcePath,
+        targetLocale: input.targetLocale,
+      });
+
+      if (!existing?.storedFileId) {
+        throw new Error("image localization failed: approved_locked");
+      }
+
+      return {
+        fileId: existing.storedFileId,
+        locale: input.targetLocale,
+        filename,
+      };
+    }
+
+    throw new Error(`image localization failed: ${result.error.code}`);
+  }
+
+  if (!result.value.storedFileId) {
+    throw new Error("image localization produced no stored file");
+  }
+
+  return {
+    fileId: result.value.storedFileId,
+    locale: input.targetLocale,
+    filename,
+  };
 }

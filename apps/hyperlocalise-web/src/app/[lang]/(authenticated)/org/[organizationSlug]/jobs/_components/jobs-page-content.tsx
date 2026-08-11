@@ -1,23 +1,38 @@
 "use client";
 
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import { useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
-import { TranslateIcon } from "@hugeicons/core-free-icons";
+import { Add01Icon, TranslateIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
+import { FormattedMessage, useIntl } from "react-intl";
 
 import { TmsUserConnectionErrorPanel } from "@/components/app-shell/tms-user-connection-prompt";
 import { Button } from "@/components/ui/button";
 import { apiClient } from "@/lib/api-client-instance";
 import { readApiResponseError } from "@/lib/api-error";
 import { isNativeWorkspaceJob } from "@/lib/projects/workspace-resource-capabilities";
-import { parseProviderProjectId } from "@/lib/providers/tms-provider-resource-id";
-import { readTmsProviderListResponse } from "@/lib/providers/tms-provider-list-fetch";
-import { isTmsUserConnectionRequiredError } from "@/lib/providers/tms-user-connection-shared";
+import { parseProviderProjectId } from "@/lib/providers/jobs/tms-provider-resource-id";
+import { readTmsProviderListResponse } from "@/lib/providers/jobs/tms-provider-list-fetch";
+import { isTmsUserConnectionRequiredError } from "@/lib/providers/credentials/tms-user-connection-shared";
 
 import { useActiveTmsProvider } from "../../_hooks/use-active-tms-provider";
+import { useProjectPageQuery } from "../../projects/[projectId]/_components/project-page-shell";
 
+import { CreateJobDialog } from "./create-job-dialog";
 import {
   JobsPageErrorMessage,
   JobsPageView,
@@ -29,6 +44,7 @@ import {
   type JobsScope,
   type JobsStatusFilter,
 } from "./jobs-page-view";
+import { jobsPageContentMessages } from "./jobs-page-content.messages";
 
 import {
   JOB_STATUS_FILTERS,
@@ -116,6 +132,7 @@ function toNativeJobRows(jobs: JobRow[]): JobRow[] {
 async function fetchNativeWorkspaceJobs(
   organizationSlug: string,
   statusFilter: JobsStatusFilter,
+  loadJobsFailedMessage: string,
   relationship?: "assigned" | "created",
 ) {
   const response = await apiClient.api.orgs[":organizationSlug"].jobs.$get({
@@ -127,7 +144,7 @@ async function fetchNativeWorkspaceJobs(
     },
   });
   if (!response.ok) {
-    throw await readApiResponseError(response, "Failed to load jobs");
+    throw await readApiResponseError(response, loadJobsFailedMessage);
   }
 
   const body = await response.json();
@@ -138,6 +155,7 @@ async function fetchNativeProjectJobs(
   organizationSlug: string,
   projectId: string,
   statusFilter: JobsStatusFilter,
+  loadJobsFailedMessage: string,
 ) {
   const response = await apiClient.api.orgs[":organizationSlug"].projects[":projectId"].jobs.$get({
     param: { organizationSlug, projectId },
@@ -147,25 +165,30 @@ async function fetchNativeProjectJobs(
     },
   });
   if (!response.ok) {
-    throw await readApiResponseError(response, "Failed to load jobs");
+    throw await readApiResponseError(response, loadJobsFailedMessage);
   }
 
   const body = await response.json();
   return body.jobs as JobListResponse[];
 }
 
-async function fetchTmsWorkspaceJobs(organizationSlug: string, mine = false) {
+async function fetchTmsWorkspaceJobs(
+  organizationSlug: string,
+  loadTmsJobsFailedMessage: string,
+  mine = false,
+) {
   const response = await apiClient.api.orgs[":organizationSlug"]["tms-provider"].jobs.$get({
     param: { organizationSlug },
     query: { mine: mine ? "true" : "false" },
   });
 
-  return readTmsProviderListResponse<JobListResponse>(response, "jobs", "Failed to load TMS jobs");
+  return readTmsProviderListResponse<JobListResponse>(response, "jobs", loadTmsJobsFailedMessage);
 }
 
 async function fetchTmsProjectJobs(
   organizationSlug: string,
   externalProjectId: string,
+  loadTmsJobsFailedMessage: string,
   mine = false,
 ) {
   const response = await apiClient.api.orgs[":organizationSlug"]["tms-provider"].projects[
@@ -175,7 +198,7 @@ async function fetchTmsProjectJobs(
     query: { mine: mine ? "true" : "false" },
   });
 
-  return readTmsProviderListResponse<JobListResponse>(response, "jobs", "Failed to load TMS jobs");
+  return readTmsProviderListResponse<JobListResponse>(response, "jobs", loadTmsJobsFailedMessage);
 }
 
 export function JobsPageContent({
@@ -187,12 +210,19 @@ export function JobsPageContent({
   scope?: JobsScope;
   projectId?: string;
 }) {
+  const intl = useIntl();
   const searchParams = useSearchParams();
   const [statusFilter, setStatusFilter] = useState(() => readInitialStatusFilter(searchParams));
+  const [createJobOpen, setCreateJobOpen] = useState(false);
   const parsedProviderProject = projectId ? parseProviderProjectId(projectId) : null;
   const isProviderProjectScope = Boolean(parsedProviderProject);
   const activeTmsProviderQuery = useActiveTmsProvider(organizationSlug);
   const hasActiveTmsConnection = Boolean(activeTmsProviderQuery.data);
+  const projectQuery = useProjectPageQuery(organizationSlug, projectId ?? "", {
+    enabled: Boolean(projectId),
+  });
+  const loadJobsFailedMessage = intl.formatMessage(jobsPageContentMessages.loadJobsFailed);
+  const loadTmsJobsFailedMessage = intl.formatMessage(jobsPageContentMessages.loadTmsJobsFailed);
 
   const nativeJobsQueryKey = [
     "jobs",
@@ -216,21 +246,28 @@ export function JobsPageContent({
     enabled: !isProviderProjectScope && (scope !== "personal" || !projectId),
     queryFn: async () => {
       if (projectId) {
-        return fetchNativeProjectJobs(organizationSlug, projectId, statusFilter);
+        return fetchNativeProjectJobs(
+          organizationSlug,
+          projectId,
+          statusFilter,
+          loadJobsFailedMessage,
+        );
       }
 
-      return fetchNativeWorkspaceJobs(organizationSlug, statusFilter);
+      return fetchNativeWorkspaceJobs(organizationSlug, statusFilter, loadJobsFailedMessage);
     },
   });
   const assignedNativeJobsQuery = useQuery({
     queryKey: [...nativeJobsQueryKey, "assigned"],
     enabled: scope === "personal" && !projectId,
-    queryFn: async () => fetchNativeWorkspaceJobs(organizationSlug, statusFilter, "assigned"),
+    queryFn: async () =>
+      fetchNativeWorkspaceJobs(organizationSlug, statusFilter, loadJobsFailedMessage, "assigned"),
   });
   const createdNativeJobsQuery = useQuery({
     queryKey: [...nativeJobsQueryKey, "created"],
     enabled: scope === "personal" && !projectId,
-    queryFn: async () => fetchNativeWorkspaceJobs(organizationSlug, statusFilter, "created"),
+    queryFn: async () =>
+      fetchNativeWorkspaceJobs(organizationSlug, statusFilter, loadJobsFailedMessage, "created"),
   });
   const tmsJobsQuery = useQuery({
     queryKey: tmsJobsQueryKey,
@@ -240,11 +277,16 @@ export function JobsPageContent({
         return fetchTmsProjectJobs(
           organizationSlug,
           parsedProviderProject.externalProjectId,
+          loadTmsJobsFailedMessage,
           scope === "personal",
         );
       }
 
-      return fetchTmsWorkspaceJobs(organizationSlug, scope === "personal");
+      return fetchTmsWorkspaceJobs(
+        organizationSlug,
+        loadTmsJobsFailedMessage,
+        scope === "personal",
+      );
     },
   });
 
@@ -260,27 +302,54 @@ export function JobsPageContent({
       ? assignedNativeJobsQuery.isLoading || createdNativeJobsQuery.isLoading
       : nativeJobsQuery.isLoading;
 
+  const canCreateJob = Boolean(projectId);
+  const sourceLocale = projectQuery.data?.sourceLocale?.trim() || "en";
+  const targetLocales = projectQuery.data?.targetLocales ?? [];
+
   return (
-    <JobsPageView
-      assignedNativeJobs={assignedNativeJobs}
-      createdNativeJobs={createdNativeJobs}
-      hasActiveTmsConnection={
-        hasActiveTmsConnection || tmsJobsQuery.isLoading || tmsJobsQuery.isFetching
-      }
-      isNativeLoading={isNativeLoading}
-      isProviderProjectScope={isProviderProjectScope}
-      isTmsLoading={tmsJobsQuery.isLoading || tmsJobsQuery.isFetching}
-      nativeError={nativeError}
-      nativeJobs={nativeJobs}
-      onStatusFilterChange={setStatusFilter}
-      organizationSlug={organizationSlug}
-      projectId={projectId}
-      renderError={renderProductionJobsError}
-      renderJobLink={renderProductionJobLink}
-      scope={scope}
-      statusFilter={statusFilter}
-      tmsError={tmsJobsQuery.error}
-      tmsJobs={tmsJobs}
-    />
+    <>
+      <JobsPageView
+        assignedNativeJobs={assignedNativeJobs}
+        createdNativeJobs={createdNativeJobs}
+        hasActiveTmsConnection={
+          hasActiveTmsConnection || tmsJobsQuery.isLoading || tmsJobsQuery.isFetching
+        }
+        headerActions={
+          canCreateJob ? (
+            <Button type="button" size="sm" onClick={() => setCreateJobOpen(true)}>
+              <HugeiconsIcon icon={Add01Icon} strokeWidth={1.8} />
+              <FormattedMessage {...jobsPageContentMessages.createJob} />
+            </Button>
+          ) : null
+        }
+        isNativeLoading={isNativeLoading}
+        isProviderProjectScope={isProviderProjectScope}
+        isTmsLoading={tmsJobsQuery.isLoading || tmsJobsQuery.isFetching}
+        nativeError={nativeError}
+        nativeJobs={nativeJobs}
+        onStatusFilterChange={setStatusFilter}
+        organizationSlug={organizationSlug}
+        projectId={projectId}
+        renderError={renderProductionJobsError}
+        renderJobLink={renderProductionJobLink}
+        scope={scope}
+        statusFilter={statusFilter}
+        tmsError={tmsJobsQuery.error}
+        tmsJobs={tmsJobs}
+      />
+      {projectId ? (
+        <CreateJobDialog
+          open={createJobOpen}
+          onOpenChange={setCreateJobOpen}
+          organizationSlug={organizationSlug}
+          projectId={projectId}
+          sourceLocale={sourceLocale}
+          targetLocales={targetLocales}
+          onCreated={async () => {
+            await Promise.all([nativeJobsQuery.refetch(), tmsJobsQuery.refetch()]);
+          }}
+        />
+      ) : null}
+    </>
   );
 }

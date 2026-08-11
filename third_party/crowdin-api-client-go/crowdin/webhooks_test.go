@@ -323,6 +323,39 @@ func TestWebhooksService_Add(t *testing.T) {
 	assert.Equal(t, 4, webhook.ID)
 }
 
+func TestWebhooksService_Add_BranchEvents(t *testing.T) {
+	client, mux, teardown := setupClient()
+	defer teardown()
+
+	const path = "/api/v2/projects/1/webhooks"
+	mux.HandleFunc(path, func(w http.ResponseWriter, r *http.Request) {
+		testMethod(t, r, "POST")
+		testURL(t, r, path)
+		testJSONBody(t, r, `{
+			"name":"Branch Webhook",
+			"url":"https://webhook.site/123",
+			"events":[
+				"branch.translated",
+				"branch.approved"
+			],
+			"requestType":"POST"
+		}`)
+
+		w.WriteHeader(http.StatusCreated)
+		fmt.Fprint(w, `{"data": {"id": 10}}`)
+	})
+
+	req := &model.WebhookAddRequest{
+		Name:        "Branch Webhook",
+		URL:         "https://webhook.site/123",
+		Events:      []model.Event{model.BranchTranslated, model.BranchApproved},
+		RequestType: "POST",
+	}
+	webhook, _, err := client.Webhooks.Add(context.Background(), 1, req)
+	require.NoError(t, err)
+	assert.Equal(t, 10, webhook.ID)
+}
+
 func TestWebhooksService_Add_requiredFields(t *testing.T) {
 	client, mux, teardown := setupClient()
 	defer teardown()

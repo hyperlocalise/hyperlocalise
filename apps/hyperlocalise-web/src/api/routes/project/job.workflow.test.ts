@@ -1,3 +1,15 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import "dotenv/config";
 
 import { randomUUID } from "node:crypto";
@@ -21,8 +33,8 @@ import {
   completeTranslationJob,
   executeClaimedTranslationJob,
   failTranslationJob,
-} from "@/lib/translation/translation-job-queued-function";
-import type { StringTranslationGenerator } from "@/lib/translation/string-job-executor";
+} from "@/lib/translation/jobs";
+import type { StringTranslationGenerator } from "@/lib/translation/domain";
 import type { TranslationJobEventData } from "@/lib/workflow/types";
 
 import { createProjectTestFixture } from "./project.fixture";
@@ -208,6 +220,50 @@ describe("translation job workflow helpers", () => {
       translations: [{ locale: "fr-FR", text: "Bonjour le monde" }],
     });
     expect(storedJob?.completedAt).toBeTruthy();
+  });
+
+  it("carries the knowledge memory capability from the event into translation context", async () => {
+    const { organization, project, user } = await projectFixture.createStoredProjectFixture();
+    await db.insert(schema.knowledgeMemories).values({
+      organizationId: organization.id,
+      updatedByUserId: user.id,
+      content: "Always refer to Hyperlocalise as the product name.",
+    });
+    const job = await insertJob({
+      organizationId: organization.id,
+      projectId: project.id,
+      createdByUserId: user.id,
+      type: "string",
+      status: "queued",
+      inputPayload: {
+        sourceText: "Welcome to Hyperlocalise",
+        sourceLocale: "en-US",
+        targetLocales: ["fr-FR"],
+      },
+    });
+    const translateStringJob = vi.fn(async () => ({
+      translations: [{ locale: "fr-FR", text: "Bienvenue sur Hyperlocalise" }],
+    }));
+
+    await executeTranslationJob({
+      runId: `run_${randomUUID()}`,
+      event: {
+        kind: "translation",
+        jobId: job.id,
+        projectId: project.id,
+        type: "string",
+        knowledgeMemoryEnabled: true,
+      },
+      translateStringJob,
+    });
+
+    expect(translateStringJob).toHaveBeenCalledWith(
+      expect.objectContaining({
+        contextSnapshot: expect.objectContaining({
+          knowledgeMemory: "Always refer to Hyperlocalise as the product name.",
+        }),
+      }),
+    );
   });
 
   it("does not overwrite an existing workflow run id on replay", async () => {

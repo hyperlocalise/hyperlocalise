@@ -1,3 +1,15 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import { createHash } from "node:crypto";
 
 import { and, eq } from "drizzle-orm";
@@ -6,9 +18,9 @@ import type { StringTranslationJobInput } from "@/api/routes/project/job.schema"
 import { db, schema } from "@/lib/database";
 import { mapWithConcurrency } from "@/lib/primitives/map-with-concurrency/map-with-concurrency";
 import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
-import { assembleStringTranslationContextSnapshot } from "@/lib/translation/assemble-translation-context";
-import { loadOrganizationTranslationGenerator } from "@/lib/translation/load-organization-translation-generator";
-import type { StringTranslationGenerator } from "@/lib/translation/string-job-executor";
+import { assembleStringTranslationContextSnapshot } from "@/lib/translation/context";
+import { loadOrganizationTranslationGenerator } from "@/lib/translation/generation";
+import type { StringTranslationGenerator } from "@/lib/translation/domain";
 
 import { createLogger, serializeErrorForLog } from "@/lib/log";
 
@@ -127,6 +139,8 @@ async function getLocalizedAssetId(input: {
   fieldName: string;
   assetId: string;
   cache: LocalizedAssetCache;
+  organizationId?: string;
+  runId?: string;
 }) {
   const cacheKey = localizedAssetCacheKey(input.assetId, input.targetLocale);
   const cached = input.cache.get(cacheKey);
@@ -140,6 +154,8 @@ async function getLocalizedAssetId(input: {
     sourceLocale: input.sourceLocale,
     targetLocale: input.targetLocale,
     fieldName: input.fieldName,
+    organizationId: input.organizationId,
+    runId: input.runId,
   }).then((localizedResult) => {
     if (isErr(localizedResult)) {
       throw localizedResult.error;
@@ -163,6 +179,8 @@ export async function ensureLocalizedAssets(input: {
   fieldName: string;
   assetIds: string[];
   cache: LocalizedAssetCache;
+  organizationId?: string;
+  runId?: string;
 }) {
   const localizedBySourceId = new Map<string, string>();
   for (const assetId of input.assetIds) {
@@ -173,6 +191,8 @@ export async function ensureLocalizedAssets(input: {
       targetLocale: input.targetLocale,
       fieldName: input.fieldName,
       cache: input.cache,
+      organizationId: input.organizationId,
+      runId: input.runId,
     });
     localizedBySourceId.set(assetId, localizedAssetId);
   }
@@ -378,6 +398,8 @@ export async function translateTextUnit(input: {
             fieldName: input.unit.fieldName,
             assetIds: input.unit.embeddedAssetIds,
             cache: input.localizedAssetCache,
+            organizationId: input.organizationId,
+            runId: input.runId,
           });
         } catch (error) {
           embeddedAssetLocalizationFailed = true;
@@ -432,6 +454,7 @@ export async function translateTextUnit(input: {
 }
 
 async function translateImageUnit(input: {
+  organizationId: string;
   runId: string;
   unit: ContentfulImageUnit;
   targetLocales: string[];
@@ -470,6 +493,8 @@ async function translateImageUnit(input: {
         targetLocale: locale,
         fieldName: input.unit.fieldName,
         cache: input.localizedAssetCache,
+        organizationId: input.organizationId,
+        runId: input.runId,
       });
       translations.push({
         fieldId: input.unit.fieldId,
@@ -541,6 +566,7 @@ async function translateFieldUnit(input: {
 }) {
   if (input.unit.kind === "image") {
     return translateImageUnit({
+      organizationId: input.organizationId,
       runId: input.runId,
       unit: input.unit,
       targetLocales: input.targetLocales,

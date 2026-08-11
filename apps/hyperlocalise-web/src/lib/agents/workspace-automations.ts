@@ -1,9 +1,23 @@
-import { and, asc, desc, eq, isNotNull, lte, sql } from "drizzle-orm";
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
+import { and, asc, desc, eq, isNotNull, isNull, lte, or, sql } from "drizzle-orm";
 import { z } from "zod";
 
 import { db, schema, type DatabaseClient } from "@/lib/database";
 import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
 import { optionalProjectIdSchema } from "@/lib/projects/identity/project-id";
+import { lockAhrefsConnectionForUpdate } from "@/lib/ahrefs/connections";
+import { lockSemrushConnectionForUpdate } from "@/lib/semrush/connections";
 
 import {
   hasWorkspaceAutomationGithubAgentTool,
@@ -63,7 +77,6 @@ const githubToolConfigSchema = z
   .object({
     enabled: z.boolean().default(false),
     mode: z.enum(["agent", "sync"]).default("sync"),
-    projectId: optionalProjectIdSchema,
     pushSource: z.boolean().default(false),
     pullTranslations: z.boolean().default(false),
     validation: z.boolean().default(false),
@@ -96,7 +109,6 @@ const contentfulToolConfigSchema = z
   .object({
     enabled: z.boolean().default(false),
     connectionId: z.string().uuid().optional(),
-    projectId: optionalProjectIdSchema,
     sourceLocale: z.string().trim().min(1).max(32).default("en"),
     entryId: z.string().trim().min(1).max(256).optional(),
     contentTypeIds: z.array(z.string().trim().min(1).max(128)).max(50).default([]),
@@ -117,26 +129,117 @@ const contentfulToolConfigSchema = z
     writeDrafts: true,
   });
 
-const translationToolConfigSchema = z
+const createNativeTmsJobToolConfigSchema = z
   .object({
     enabled: z.boolean().default(false),
-    projectId: optionalProjectIdSchema,
     useProjectTargetLocales: z.boolean().default(true),
     targetLocales: z.array(z.string().trim().min(1).max(32)).max(20).default([]),
   })
   .default({ enabled: false, useProjectTargetLocales: true, targetLocales: [] });
 
-const toolConfigSchema = z
+const assignTranslateWithAgentToolConfigSchema = z
+  .object({
+    enabled: z.boolean().default(false),
+  })
+  .default({ enabled: false });
+
+const knowledgeToolConfigSchema = z
+  .object({
+    enabled: z.boolean().default(false),
+    // Lets the automation append to the shared organization Memory.md via the save_memory tool.
+    // Meaningless without `enabled`; callers must not treat this as authoritative on its own.
+    allowUpdates: z.boolean().default(false),
+  })
+  .default({ enabled: false, allowUpdates: false });
+
+const mcpToolConfigSchema = z
+  .object({
+    enabled: z.boolean().default(false),
+    connectionId: z.string().uuid().optional(),
+  })
+  .default({ enabled: false });
+
+const semrushToolConfigSchema = z
+  .object({
+    enabled: z.boolean().default(false),
+    connectionId: z.string().uuid().optional(),
+  })
+  .default({ enabled: false });
+
+const ahrefsToolConfigSchema = z
+  .object({
+    enabled: z.boolean().default(false),
+    connectionId: z.string().uuid().optional(),
+  })
+  .default({ enabled: false });
+
+function migrateLegacyTranslationToolConfig(
+  value: Record<string, unknown>,
+): Record<string, unknown> {
+  const { translation: legacyTranslation, ...rest } = value;
+  if (!legacyTranslation || typeof legacyTranslation !== "object") {
+    return rest;
+  }
+
+  const legacy = legacyTranslation as {
+    enabled?: unknown;
+    useProjectTargetLocales?: unknown;
+    targetLocales?: unknown;
+  };
+  if (!legacy.enabled) {
+    return rest;
+  }
+
+  const hasCreateNativeTmsJob =
+    rest.createNativeTmsJob && typeof rest.createNativeTmsJob === "object";
+  const hasAssignTranslateWithAgent =
+    rest.assignTranslateWithAgent && typeof rest.assignTranslateWithAgent === "object";
+
+  return {
+    ...rest,
+    ...(hasCreateNativeTmsJob
+      ? {}
+      : {
+          createNativeTmsJob: {
+            enabled: true,
+            useProjectTargetLocales: legacy.useProjectTargetLocales ?? true,
+            targetLocales: Array.isArray(legacy.targetLocales) ? legacy.targetLocales : [],
+          },
+        }),
+    ...(hasAssignTranslateWithAgent
+      ? {}
+      : {
+          assignTranslateWithAgent: {
+            enabled: true,
+          },
+        }),
+  };
+}
+
+const toolConfigObjectSchema = z
   .object({
     github: githubToolConfigSchema.optional(),
     slack: slackToolConfigSchema.optional(),
     email: emailToolConfigSchema.optional(),
     contentful: contentfulToolConfigSchema.optional(),
-    translation: translationToolConfigSchema.optional(),
+    createNativeTmsJob: createNativeTmsJobToolConfigSchema.optional(),
+    assignTranslateWithAgent: assignTranslateWithAgentToolConfigSchema.optional(),
+    knowledge: knowledgeToolConfigSchema.optional(),
+    mcp: mcpToolConfigSchema.optional(),
+    semrush: semrushToolConfigSchema.optional(),
+    ahrefs: ahrefsToolConfigSchema.optional(),
   })
   .default({});
 
+const toolConfigSchema = z.preprocess((value) => {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return {};
+  }
+  return migrateLegacyTranslationToolConfig(value as Record<string, unknown>);
+}, toolConfigObjectSchema);
+
 export const workspaceAutomationConfigSchema = z.object({
+  projectId: optionalProjectIdSchema,
   triggerConfig: triggerConfigSchema,
   repositoryTarget: repositoryTargetSchema,
   toolConfig: toolConfigSchema,
@@ -152,14 +255,27 @@ export type WorkspaceAutomationRepositoryTarget = z.infer<typeof repositoryTarge
 export type WorkspaceAutomationSlackToolConfig = z.infer<typeof slackToolConfigSchema>;
 export type WorkspaceAutomationEmailToolConfig = z.infer<typeof emailToolConfigSchema>;
 export type WorkspaceAutomationContentfulToolConfig = z.infer<typeof contentfulToolConfigSchema>;
-export type WorkspaceAutomationToolConfig = z.infer<typeof toolConfigSchema>;
+export type WorkspaceAutomationCreateNativeTmsJobToolConfig = z.infer<
+  typeof createNativeTmsJobToolConfigSchema
+>;
+export type WorkspaceAutomationAssignTranslateWithAgentToolConfig = z.infer<
+  typeof assignTranslateWithAgentToolConfigSchema
+>;
+export type WorkspaceAutomationKnowledgeToolConfig = z.infer<typeof knowledgeToolConfigSchema>;
+export type WorkspaceAutomationMcpToolConfig = z.infer<typeof mcpToolConfigSchema>;
+export type WorkspaceAutomationSemrushToolConfig = z.infer<typeof semrushToolConfigSchema>;
+export type WorkspaceAutomationAhrefsToolConfig = z.infer<typeof ahrefsToolConfigSchema>;
+export type WorkspaceAutomationToolConfig = z.infer<typeof toolConfigObjectSchema>;
 
 export type WorkspaceAutomationConfigValidationError =
   | {
       code: "github_repository_target_required";
       message: "Enabled GitHub tools require a GitHub repository target.";
     }
-  | { code: "github_project_required"; message: "Enabled GitHub tools require a project." }
+  | {
+      code: "project_required";
+      message: "Choose a Hyperlocalise project for this automation.";
+    }
   | {
       code: "github_trigger_required";
       message: "Enabled GitHub tools require a scheduled or GitHub push trigger.";
@@ -179,10 +295,6 @@ export type WorkspaceAutomationConfigValidationError =
   | {
       code: "contentful_connection_required";
       message: "Enabled Contentful tools require a Contentful connection.";
-    }
-  | {
-      code: "contentful_project_required";
-      message: "Enabled Contentful tools require a project.";
     }
   | {
       code: "contentful_target_locales_required";
@@ -209,16 +321,52 @@ export type WorkspaceAutomationConfigValidationError =
       message: "Add at least one email recipient for automation notifications.";
     }
   | {
-      code: "translation_project_required";
-      message: "Enabled translation tools require a project.";
+      code: "create_native_tms_job_target_locales_required";
+      message: "Create job requires at least one target locale.";
     }
   | {
-      code: "translation_target_locales_required";
-      message: "Enabled translation tools require at least one target locale.";
+      code: "assign_translate_with_agent_requires_create_job";
+      message: "Translate with agent requires Create job to be enabled.";
     }
   | {
       code: "source_upload_workflow_required";
-      message: "Source upload triggers require translation jobs to be enabled.";
+      message: "Source upload triggers require Create job to be enabled.";
+    }
+  | {
+      code: "mcp_connection_required";
+      message: "Enabled MCP Server tools require an MCP server connection.";
+    }
+  | {
+      code: "mcp_connection_not_found";
+      message: "The selected MCP server connection was not found. Choose another connection.";
+    }
+  | {
+      code: "mcp_not_connected";
+      message: "Enable the selected MCP server connection in Integrations before using it.";
+    }
+  | {
+      code: "semrush_connection_required";
+      message: "Enabled Semrush tools require a Semrush connection.";
+    }
+  | {
+      code: "semrush_connection_not_found";
+      message: "The selected Semrush connection was not found. Choose another connection.";
+    }
+  | {
+      code: "semrush_not_connected";
+      message: "Enable the selected Semrush connection in Integrations before using it.";
+    }
+  | {
+      code: "ahrefs_connection_required";
+      message: "Enabled Ahrefs tools require an Ahrefs connection.";
+    }
+  | {
+      code: "ahrefs_connection_not_found";
+      message: "The selected Ahrefs connection was not found. Choose another connection.";
+    }
+  | {
+      code: "ahrefs_not_connected";
+      message: "Enable the selected Ahrefs connection in Integrations before using it.";
     };
 
 type AutomationRow = typeof schema.workspaceAutomations.$inferSelect;
@@ -230,10 +378,39 @@ export function hasWorkspaceAutomationContentfulWorkflow(
   return Boolean(toolConfig.contentful?.enabled);
 }
 
-export function hasWorkspaceAutomationTranslationWorkflow(
+export function hasWorkspaceAutomationCreateNativeTmsJobTool(
   toolConfig: WorkspaceAutomationToolConfig,
 ) {
-  return Boolean(toolConfig.translation?.enabled);
+  return Boolean(toolConfig.createNativeTmsJob?.enabled);
+}
+
+export function hasWorkspaceAutomationAssignTranslateWithAgentTool(
+  toolConfig: WorkspaceAutomationToolConfig,
+) {
+  return Boolean(toolConfig.assignTranslateWithAgent?.enabled);
+}
+
+export function hasWorkspaceAutomationKnowledgeTool(toolConfig: WorkspaceAutomationToolConfig) {
+  return Boolean(toolConfig.knowledge?.enabled);
+}
+
+// Meaningless without hasWorkspaceAutomationKnowledgeTool — callers must check both, not just this.
+export function hasWorkspaceAutomationKnowledgeUpdatesAllowed(
+  toolConfig: WorkspaceAutomationToolConfig,
+) {
+  return Boolean(toolConfig.knowledge?.enabled && toolConfig.knowledge.allowUpdates);
+}
+
+export function hasWorkspaceAutomationMcpTool(toolConfig: WorkspaceAutomationToolConfig) {
+  return Boolean(toolConfig.mcp?.enabled);
+}
+
+export function hasWorkspaceAutomationSemrushTool(toolConfig: WorkspaceAutomationToolConfig) {
+  return Boolean(toolConfig.semrush?.enabled);
+}
+
+export function hasWorkspaceAutomationAhrefsTool(toolConfig: WorkspaceAutomationToolConfig) {
+  return Boolean(toolConfig.ahrefs?.enabled);
 }
 
 export type WorkspaceAutomationRecord = {
@@ -243,6 +420,7 @@ export type WorkspaceAutomationRecord = {
   status: WorkspaceAutomationStatus;
   name: string;
   instructions: string;
+  projectId: string | null;
   triggerConfig: WorkspaceAutomationTriggerConfig;
   repositoryTarget: WorkspaceAutomationRepositoryTarget;
   toolConfig: WorkspaceAutomationToolConfig;
@@ -251,6 +429,63 @@ export type WorkspaceAutomationRecord = {
   createdAt: string;
   updatedAt: string;
 };
+
+function readOptionalProjectId(value: unknown): string | null {
+  if (typeof value !== "string") {
+    return null;
+  }
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+export function hoistLegacyWorkspaceAutomationProjectId(
+  toolConfig: Record<string, unknown> | WorkspaceAutomationToolConfig,
+): string | null {
+  const rawToolConfig = toolConfig as Record<string, unknown>;
+  const contentful =
+    rawToolConfig.contentful && typeof rawToolConfig.contentful === "object"
+      ? (rawToolConfig.contentful as { projectId?: unknown }).projectId
+      : undefined;
+  const translation =
+    rawToolConfig.translation && typeof rawToolConfig.translation === "object"
+      ? (rawToolConfig.translation as { projectId?: unknown }).projectId
+      : undefined;
+  const github =
+    rawToolConfig.github && typeof rawToolConfig.github === "object"
+      ? (rawToolConfig.github as { projectId?: unknown }).projectId
+      : undefined;
+
+  // Only hoist when every non-empty legacy tool projectId agrees. The pre-header
+  // UI let Contentful diverge from the header-owned GitHub/translation pickers;
+  // preferring one winner would silently run those tools against the wrong project.
+  const distinctProjectIds = [
+    ...new Set(
+      [contentful, translation, github]
+        .map((value) => readOptionalProjectId(value))
+        .filter((value): value is string => value !== null),
+    ),
+  ];
+  return distinctProjectIds.length === 1 ? (distinctProjectIds[0] ?? null) : null;
+}
+
+export function workspaceAutomationNeedsProject(input: {
+  triggerConfig: WorkspaceAutomationTriggerConfig;
+  toolConfig: WorkspaceAutomationToolConfig;
+}): boolean {
+  if (input.triggerConfig.mode === "source_upload") {
+    return true;
+  }
+  if (hasWorkspaceAutomationContentfulWorkflow(input.toolConfig)) {
+    return true;
+  }
+  if (
+    hasWorkspaceAutomationCreateNativeTmsJobTool(input.toolConfig) ||
+    hasWorkspaceAutomationAssignTranslateWithAgentTool(input.toolConfig)
+  ) {
+    return true;
+  }
+  return hasWorkspaceAutomationGithubWorkflow(input.toolConfig);
+}
 
 export type WorkspaceAutomationRunRecord = {
   id: string;
@@ -284,10 +519,25 @@ function normalizeToolConfig(value: Record<string, unknown>): WorkspaceAutomatio
 }
 
 function validateWorkspaceAutomationConfig(input: {
+  projectId?: string | null;
   triggerConfig: WorkspaceAutomationTriggerConfig;
   repositoryTarget: WorkspaceAutomationRepositoryTarget;
   toolConfig: WorkspaceAutomationToolConfig;
 }): Result<void, WorkspaceAutomationConfigValidationError> {
+  const projectId = readOptionalProjectId(input.projectId);
+  if (
+    workspaceAutomationNeedsProject({
+      triggerConfig: input.triggerConfig,
+      toolConfig: input.toolConfig,
+    }) &&
+    !projectId
+  ) {
+    return err({
+      code: "project_required",
+      message: "Choose a Hyperlocalise project for this automation.",
+    });
+  }
+
   const githubTools = input.toolConfig.github;
   if (githubTools?.enabled) {
     if (
@@ -309,23 +559,14 @@ function validateWorkspaceAutomationConfig(input: {
           message: "GitHub repo agent automations support scheduled or manual triggers only.",
         });
       }
-    } else {
-      if (!githubTools.projectId) {
-        return err({
-          code: "github_project_required",
-          message: "Enabled GitHub tools require a project.",
-        });
-      }
-
-      if (
-        input.triggerConfig.mode === "github" &&
-        (!input.triggerConfig.branches || input.triggerConfig.branches.length === 0)
-      ) {
-        return err({
-          code: "github_push_branches_required",
-          message: "GitHub push triggers require at least one branch pattern.",
-        });
-      }
+    } else if (
+      input.triggerConfig.mode === "github" &&
+      (!input.triggerConfig.branches || input.triggerConfig.branches.length === 0)
+    ) {
+      return err({
+        code: "github_push_branches_required",
+        message: "GitHub push triggers require at least one branch pattern.",
+      });
     }
   }
 
@@ -347,12 +588,6 @@ function validateWorkspaceAutomationConfig(input: {
       return err({
         code: "contentful_connection_required",
         message: "Enabled Contentful tools require a Contentful connection.",
-      });
-    }
-    if (!contentfulTools.projectId) {
-      return err({
-        code: "contentful_project_required",
-        message: "Enabled Contentful tools require a project.",
       });
     }
     if (contentfulTools.targetLocales.length === 0) {
@@ -385,30 +620,60 @@ function validateWorkspaceAutomationConfig(input: {
     });
   }
 
-  const translationTools = input.toolConfig.translation;
-  if (translationTools?.enabled) {
-    if (!translationTools.projectId) {
+  const createNativeTmsJob = input.toolConfig.createNativeTmsJob;
+  if (createNativeTmsJob?.enabled) {
+    if (
+      !createNativeTmsJob.useProjectTargetLocales &&
+      createNativeTmsJob.targetLocales.length === 0
+    ) {
       return err({
-        code: "translation_project_required",
-        message: "Enabled translation tools require a project.",
-      });
-    }
-
-    if (!translationTools.useProjectTargetLocales && translationTools.targetLocales.length === 0) {
-      return err({
-        code: "translation_target_locales_required",
-        message: "Enabled translation tools require at least one target locale.",
+        code: "create_native_tms_job_target_locales_required",
+        message: "Create job requires at least one target locale.",
       });
     }
   }
 
   if (
+    hasWorkspaceAutomationAssignTranslateWithAgentTool(input.toolConfig) &&
+    !hasWorkspaceAutomationCreateNativeTmsJobTool(input.toolConfig)
+  ) {
+    return err({
+      code: "assign_translate_with_agent_requires_create_job",
+      message: "Translate with agent requires Create job to be enabled.",
+    });
+  }
+
+  if (
     input.triggerConfig.mode === "source_upload" &&
-    !hasWorkspaceAutomationTranslationWorkflow(input.toolConfig)
+    !hasWorkspaceAutomationCreateNativeTmsJobTool(input.toolConfig)
   ) {
     return err({
       code: "source_upload_workflow_required",
-      message: "Source upload triggers require translation jobs to be enabled.",
+      message: "Source upload triggers require Create job to be enabled.",
+    });
+  }
+
+  const mcpTools = input.toolConfig.mcp;
+  if (mcpTools?.enabled && !mcpTools.connectionId) {
+    return err({
+      code: "mcp_connection_required",
+      message: "Enabled MCP Server tools require an MCP server connection.",
+    });
+  }
+
+  const semrushTools = input.toolConfig.semrush;
+  if (semrushTools?.enabled && !semrushTools.connectionId) {
+    return err({
+      code: "semrush_connection_required",
+      message: "Enabled Semrush tools require a Semrush connection.",
+    });
+  }
+
+  const ahrefsTools = input.toolConfig.ahrefs;
+  if (ahrefsTools?.enabled && !ahrefsTools.connectionId) {
+    return err({
+      code: "ahrefs_connection_required",
+      message: "Enabled Ahrefs tools require an Ahrefs connection.",
     });
   }
 
@@ -418,9 +683,24 @@ function validateWorkspaceAutomationConfig(input: {
 export async function validateWorkspaceAutomationIntegrations(input: {
   organizationId: string;
   toolConfig: WorkspaceAutomationToolConfig;
+  db?: DatabaseClient;
+  /**
+   * When true, locks the selected Semrush connection row for update so a
+   * concurrent delete cannot remove it before the automation write commits.
+   * Requires `db` to be a transaction client.
+   */
+  lockSemrushConnection?: boolean;
+  /**
+   * When true, locks the selected Ahrefs connection row for update so a
+   * concurrent delete cannot remove it before the automation write commits.
+   * Requires `db` to be a transaction client.
+   */
+  lockAhrefsConnection?: boolean;
 }): Promise<Result<void, WorkspaceAutomationConfigValidationError>> {
+  const database = input.db ?? db;
+
   if (input.toolConfig.slack?.enabled) {
-    const [connector] = await db
+    const [connector] = await database
       .select({ enabled: schema.connectors.enabled })
       .from(schema.connectors)
       .where(
@@ -440,7 +720,7 @@ export async function validateWorkspaceAutomationIntegrations(input: {
   }
 
   if (input.toolConfig.email?.enabled) {
-    const [connector] = await db
+    const [connector] = await database
       .select({ enabled: schema.connectors.enabled })
       .from(schema.connectors)
       .where(
@@ -459,10 +739,143 @@ export async function validateWorkspaceAutomationIntegrations(input: {
     }
   }
 
+  if (input.toolConfig.mcp?.enabled) {
+    const connectionId = input.toolConfig.mcp.connectionId;
+    if (!connectionId) {
+      return err({
+        code: "mcp_connection_required",
+        message: "Enabled MCP Server tools require an MCP server connection.",
+      });
+    }
+
+    const [connection] = await database
+      .select({
+        id: schema.mcpServerConnections.id,
+        enabled: schema.mcpServerConnections.enabled,
+      })
+      .from(schema.mcpServerConnections)
+      .where(
+        and(
+          eq(schema.mcpServerConnections.organizationId, input.organizationId),
+          eq(schema.mcpServerConnections.id, connectionId),
+        ),
+      )
+      .limit(1);
+
+    if (!connection) {
+      return err({
+        code: "mcp_connection_not_found",
+        message: "The selected MCP server connection was not found. Choose another connection.",
+      });
+    }
+
+    if (!connection.enabled) {
+      return err({
+        code: "mcp_not_connected",
+        message: "Enable the selected MCP server connection in Integrations before using it.",
+      });
+    }
+  }
+
+  if (input.toolConfig.semrush?.enabled) {
+    const connectionId = input.toolConfig.semrush.connectionId;
+    if (!connectionId) {
+      return err({
+        code: "semrush_connection_required",
+        message: "Enabled Semrush tools require a Semrush connection.",
+      });
+    }
+
+    const connection = input.lockSemrushConnection
+      ? await lockSemrushConnectionForUpdate({
+          organizationId: input.organizationId,
+          connectionId,
+          db: database,
+        })
+      : ((
+          await database
+            .select({
+              id: schema.semrushConnections.id,
+              enabled: schema.semrushConnections.enabled,
+              validationStatus: schema.semrushConnections.validationStatus,
+            })
+            .from(schema.semrushConnections)
+            .where(
+              and(
+                eq(schema.semrushConnections.organizationId, input.organizationId),
+                eq(schema.semrushConnections.id, connectionId),
+              ),
+            )
+            .limit(1)
+        )[0] ?? null);
+
+    if (!connection) {
+      return err({
+        code: "semrush_connection_not_found",
+        message: "The selected Semrush connection was not found. Choose another connection.",
+      });
+    }
+
+    if (!connection.enabled || connection.validationStatus !== "valid") {
+      return err({
+        code: "semrush_not_connected",
+        message: "Enable the selected Semrush connection in Integrations before using it.",
+      });
+    }
+  }
+
+  if (input.toolConfig.ahrefs?.enabled) {
+    const connectionId = input.toolConfig.ahrefs.connectionId;
+    if (!connectionId) {
+      return err({
+        code: "ahrefs_connection_required",
+        message: "Enabled Ahrefs tools require an Ahrefs connection.",
+      });
+    }
+
+    const connection = input.lockAhrefsConnection
+      ? await lockAhrefsConnectionForUpdate({
+          organizationId: input.organizationId,
+          connectionId,
+          db: database,
+        })
+      : ((
+          await database
+            .select({
+              id: schema.ahrefsConnections.id,
+              enabled: schema.ahrefsConnections.enabled,
+              validationStatus: schema.ahrefsConnections.validationStatus,
+            })
+            .from(schema.ahrefsConnections)
+            .where(
+              and(
+                eq(schema.ahrefsConnections.organizationId, input.organizationId),
+                eq(schema.ahrefsConnections.id, connectionId),
+              ),
+            )
+            .limit(1)
+        )[0] ?? null);
+
+    if (!connection) {
+      return err({
+        code: "ahrefs_connection_not_found",
+        message: "The selected Ahrefs connection was not found. Choose another connection.",
+      });
+    }
+
+    if (!connection.enabled || connection.validationStatus !== "valid") {
+      return err({
+        code: "ahrefs_not_connected",
+        message: "Enable the selected Ahrefs connection in Integrations before using it.",
+      });
+    }
+  }
+
   return ok(undefined);
 }
 
 function serializeAutomation(row: AutomationRow): WorkspaceAutomationRecord {
+  const rawToolConfig = (row.toolConfig ?? {}) as Record<string, unknown>;
   return {
     id: row.id,
     organizationId: row.organizationId,
@@ -470,9 +883,12 @@ function serializeAutomation(row: AutomationRow): WorkspaceAutomationRecord {
     status: row.status,
     name: row.name,
     instructions: row.instructions,
+    projectId:
+      readOptionalProjectId(row.projectId) ??
+      hoistLegacyWorkspaceAutomationProjectId(rawToolConfig),
     triggerConfig: normalizeTriggerConfig(row.triggerConfig),
     repositoryTarget: normalizeRepositoryTarget(row.repositoryTarget),
-    toolConfig: normalizeToolConfig(row.toolConfig),
+    toolConfig: normalizeToolConfig(rawToolConfig),
     configVersion: row.configVersion,
     nextRunAt: row.nextRunAt?.toISOString() ?? null,
     createdAt: row.createdAt.toISOString(),
@@ -499,12 +915,25 @@ function serializeAutomationRun(row: AutomationRunRow): WorkspaceAutomationRunRe
   };
 }
 
+function shouldLockSemrushConnectionForToolConfig(
+  toolConfig: WorkspaceAutomationToolConfig,
+): boolean {
+  return Boolean(toolConfig.semrush?.enabled && toolConfig.semrush.connectionId);
+}
+
+function shouldLockAhrefsConnectionForToolConfig(
+  toolConfig: WorkspaceAutomationToolConfig,
+): boolean {
+  return Boolean(toolConfig.ahrefs?.enabled && toolConfig.ahrefs.connectionId);
+}
+
 export async function createWorkspaceAutomation(input: {
   organizationId: string;
   authorUserId?: string | null;
   status?: WorkspaceAutomationStatus;
   name: string;
   instructions: string;
+  projectId?: string | null;
   triggerConfig?: WorkspaceAutomationTriggerConfig;
   repositoryTarget?: WorkspaceAutomationRepositoryTarget;
   toolConfig?: WorkspaceAutomationToolConfig;
@@ -512,25 +941,20 @@ export async function createWorkspaceAutomation(input: {
   db?: DatabaseClient;
 }): Promise<Result<WorkspaceAutomationRecord, WorkspaceAutomationConfigValidationError>> {
   const config = workspaceAutomationConfigSchema.parse({
+    projectId: input.projectId ?? undefined,
     triggerConfig: input.triggerConfig ?? {},
     repositoryTarget: input.repositoryTarget ?? {},
     toolConfig: input.toolConfig ?? {},
   });
+  const projectId = readOptionalProjectId(config.projectId);
   const validation = validateWorkspaceAutomationConfig({
+    projectId,
     triggerConfig: config.triggerConfig,
     repositoryTarget: config.repositoryTarget,
     toolConfig: config.toolConfig,
   });
   if (isErr(validation)) {
     return err(validation.error);
-  }
-
-  const integrationValidation = await validateWorkspaceAutomationIntegrations({
-    organizationId: input.organizationId,
-    toolConfig: config.toolConfig,
-  });
-  if (isErr(integrationValidation)) {
-    return err(integrationValidation.error);
   }
 
   const draftAutomation: WorkspaceAutomationRecord = {
@@ -540,6 +964,7 @@ export async function createWorkspaceAutomation(input: {
     status: input.status ?? "active",
     name: input.name,
     instructions: input.instructions,
+    projectId,
     triggerConfig: config.triggerConfig,
     repositoryTarget: config.repositoryTarget,
     toolConfig: config.toolConfig,
@@ -553,32 +978,58 @@ export async function createWorkspaceAutomation(input: {
       ? input.nextRunAt
       : resolveNextRunAtForWorkspaceAutomation(draftAutomation);
 
-  const database = input.db ?? db;
+  const lockSemrushConnection = shouldLockSemrushConnectionForToolConfig(config.toolConfig);
+  const lockAhrefsConnection = shouldLockAhrefsConnectionForToolConfig(config.toolConfig);
+  const needsConnectionLock = lockSemrushConnection || lockAhrefsConnection;
 
-  const [row] = await database
-    .insert(schema.workspaceAutomations)
-    .values({
+  const write = async (
+    database: DatabaseClient,
+  ): Promise<Result<WorkspaceAutomationRecord, WorkspaceAutomationConfigValidationError>> => {
+    const integrationValidation = await validateWorkspaceAutomationIntegrations({
       organizationId: input.organizationId,
-      authorUserId: input.authorUserId ?? null,
-      status: input.status ?? "active",
-      name: input.name,
-      instructions: input.instructions,
-      triggerConfig: config.triggerConfig,
-      githubInstallationRepositoryId:
-        config.repositoryTarget.kind === "github"
-          ? (config.repositoryTarget.githubInstallationRepositoryId ?? null)
-          : null,
-      repositoryTarget: config.repositoryTarget,
       toolConfig: config.toolConfig,
-      nextRunAt: resolvedNextRunAt,
-    })
-    .returning();
+      db: database,
+      lockSemrushConnection,
+      lockAhrefsConnection,
+    });
+    if (isErr(integrationValidation)) {
+      return err(integrationValidation.error);
+    }
 
-  if (!row) {
-    throw new Error("failed_to_create_workspace_automation");
+    const [row] = await database
+      .insert(schema.workspaceAutomations)
+      .values({
+        organizationId: input.organizationId,
+        authorUserId: input.authorUserId ?? null,
+        status: input.status ?? "active",
+        name: input.name,
+        instructions: input.instructions,
+        projectId,
+        triggerConfig: config.triggerConfig,
+        githubInstallationRepositoryId:
+          config.repositoryTarget.kind === "github"
+            ? (config.repositoryTarget.githubInstallationRepositoryId ?? null)
+            : null,
+        repositoryTarget: config.repositoryTarget,
+        toolConfig: config.toolConfig,
+        nextRunAt: resolvedNextRunAt,
+      })
+      .returning();
+
+    if (!row) {
+      throw new Error("failed_to_create_workspace_automation");
+    }
+
+    return ok(serializeAutomation(row));
+  };
+
+  if (input.db) {
+    return write(input.db);
   }
-
-  return ok(serializeAutomation(row));
+  if (needsConnectionLock) {
+    return db.transaction(write);
+  }
+  return write(db);
 }
 
 export async function updateWorkspaceAutomation(input: {
@@ -587,6 +1038,7 @@ export async function updateWorkspaceAutomation(input: {
   status?: WorkspaceAutomationStatus;
   name?: string;
   instructions?: string;
+  projectId?: string | null;
   triggerConfig?: WorkspaceAutomationTriggerConfig;
   repositoryTarget?: WorkspaceAutomationRepositoryTarget;
   toolConfig?: WorkspaceAutomationToolConfig;
@@ -603,38 +1055,38 @@ export async function updateWorkspaceAutomation(input: {
 
   const configChanged =
     input.instructions !== undefined ||
+    input.projectId !== undefined ||
     input.triggerConfig !== undefined ||
     input.repositoryTarget !== undefined ||
     input.toolConfig !== undefined;
 
   const config = configChanged
     ? workspaceAutomationConfigSchema.parse({
+        projectId:
+          input.projectId !== undefined
+            ? (input.projectId ?? undefined)
+            : (existing.projectId ?? undefined),
         triggerConfig: input.triggerConfig ?? existing.triggerConfig,
         repositoryTarget: input.repositoryTarget ?? existing.repositoryTarget,
         toolConfig: input.toolConfig ?? existing.toolConfig,
       })
     : {
+        projectId: existing.projectId ?? undefined,
         triggerConfig: existing.triggerConfig,
         repositoryTarget: existing.repositoryTarget,
         toolConfig: existing.toolConfig,
       };
+  const projectId = readOptionalProjectId(config.projectId);
 
   if (configChanged) {
     const validation = validateWorkspaceAutomationConfig({
+      projectId,
       triggerConfig: config.triggerConfig,
       repositoryTarget: config.repositoryTarget,
       toolConfig: config.toolConfig,
     });
     if (isErr(validation)) {
       return err(validation.error);
-    }
-
-    const integrationValidation = await validateWorkspaceAutomationIntegrations({
-      organizationId: input.organizationId,
-      toolConfig: config.toolConfig,
-    });
-    if (isErr(integrationValidation)) {
-      return err(integrationValidation.error);
     }
   }
 
@@ -643,6 +1095,7 @@ export async function updateWorkspaceAutomation(input: {
     status: input.status ?? existing.status,
     name: input.name ?? existing.name,
     instructions: input.instructions ?? existing.instructions,
+    projectId,
     triggerConfig: config.triggerConfig,
     repositoryTarget: config.repositoryTarget,
     toolConfig: config.toolConfig,
@@ -668,37 +1121,74 @@ export async function updateWorkspaceAutomation(input: {
     updateConditions.push(eq(schema.workspaceAutomations.configVersion, existing.configVersion));
   }
 
-  const database = input.db ?? db;
+  const lockSemrushConnection =
+    configChanged && shouldLockSemrushConnectionForToolConfig(config.toolConfig);
+  const lockAhrefsConnection =
+    configChanged && shouldLockAhrefsConnectionForToolConfig(config.toolConfig);
+  const needsConnectionLock = lockSemrushConnection || lockAhrefsConnection;
 
-  const [row] = await database
-    .update(schema.workspaceAutomations)
-    .set({
-      ...(input.status !== undefined ? { status: input.status } : {}),
-      ...(input.name !== undefined ? { name: input.name } : {}),
-      ...(input.instructions !== undefined ? { instructions: input.instructions } : {}),
-      ...(input.triggerConfig !== undefined ? { triggerConfig: config.triggerConfig } : {}),
-      ...(input.repositoryTarget !== undefined
-        ? {
-            githubInstallationRepositoryId:
-              config.repositoryTarget.kind === "github"
-                ? (config.repositoryTarget.githubInstallationRepositoryId ?? null)
-                : null,
-            repositoryTarget: config.repositoryTarget,
-          }
-        : {}),
-      ...(input.toolConfig !== undefined ? { toolConfig: config.toolConfig } : {}),
-      ...(input.nextRunAt !== undefined || configChanged || input.status !== undefined
-        ? { nextRunAt: resolvedNextRunAt }
-        : {}),
-      ...(configChanged
-        ? { configVersion: sql`${schema.workspaceAutomations.configVersion} + 1` }
-        : {}),
-      updatedAt: new Date(),
-    })
-    .where(and(...updateConditions))
-    .returning();
+  const write = async (
+    database: DatabaseClient,
+  ): Promise<
+    Result<WorkspaceAutomationRecord | null, WorkspaceAutomationConfigValidationError>
+  > => {
+    if (configChanged) {
+      const integrationValidation = await validateWorkspaceAutomationIntegrations({
+        organizationId: input.organizationId,
+        toolConfig: config.toolConfig,
+        db: database,
+        lockSemrushConnection,
+        lockAhrefsConnection,
+      });
+      if (isErr(integrationValidation)) {
+        return err(integrationValidation.error);
+      }
+    }
 
-  return ok(row ? serializeAutomation(row) : null);
+    const [row] = await database
+      .update(schema.workspaceAutomations)
+      .set({
+        ...(input.status !== undefined ? { status: input.status } : {}),
+        ...(input.name !== undefined ? { name: input.name } : {}),
+        ...(input.instructions !== undefined ? { instructions: input.instructions } : {}),
+        ...(configChanged
+          ? {
+              projectId,
+              // Re-persist normalized tool config so legacy per-tool projectIds are stripped.
+              toolConfig: config.toolConfig,
+            }
+          : {}),
+        ...(input.triggerConfig !== undefined ? { triggerConfig: config.triggerConfig } : {}),
+        ...(input.repositoryTarget !== undefined
+          ? {
+              githubInstallationRepositoryId:
+                config.repositoryTarget.kind === "github"
+                  ? (config.repositoryTarget.githubInstallationRepositoryId ?? null)
+                  : null,
+              repositoryTarget: config.repositoryTarget,
+            }
+          : {}),
+        ...(input.nextRunAt !== undefined || configChanged || input.status !== undefined
+          ? { nextRunAt: resolvedNextRunAt }
+          : {}),
+        ...(configChanged
+          ? { configVersion: sql`${schema.workspaceAutomations.configVersion} + 1` }
+          : {}),
+        updatedAt: new Date(),
+      })
+      .where(and(...updateConditions))
+      .returning();
+
+    return ok(row ? serializeAutomation(row) : null);
+  };
+
+  if (input.db) {
+    return write(input.db);
+  }
+  if (needsConnectionLock) {
+    return db.transaction(write);
+  }
+  return write(db);
 }
 
 export async function pauseWorkspaceAutomation(input: {
@@ -811,8 +1301,20 @@ export async function listSourceUploadWorkspaceAutomations(input: {
         eq(schema.workspaceAutomations.organizationId, input.organizationId),
         eq(schema.workspaceAutomations.status, "active"),
         sql`${schema.workspaceAutomations.triggerConfig}->>'mode' = 'source_upload'`,
-        sql`${schema.workspaceAutomations.toolConfig}->'translation'->>'enabled' = 'true'`,
-        sql`${schema.workspaceAutomations.toolConfig}->'translation'->>'projectId' = ${input.projectId}`,
+        sql`(
+          ${schema.workspaceAutomations.toolConfig}->'createNativeTmsJob'->>'enabled' = 'true'
+          OR ${schema.workspaceAutomations.toolConfig}->'translation'->>'enabled' = 'true'
+        )`,
+        or(
+          eq(schema.workspaceAutomations.projectId, input.projectId),
+          and(
+            isNull(schema.workspaceAutomations.projectId),
+            sql`(
+              ${schema.workspaceAutomations.toolConfig}->'createNativeTmsJob'->>'projectId' = ${input.projectId}
+              OR ${schema.workspaceAutomations.toolConfig}->'translation'->>'projectId' = ${input.projectId}
+            )`,
+          ),
+        ),
       ),
     )
     .orderBy(desc(schema.workspaceAutomations.createdAt))
@@ -1003,6 +1505,59 @@ export async function createWorkspaceAutomationRun(input: {
   }
 
   return serializeAutomationRun(row);
+}
+
+export async function enqueueWorkspaceAutomationRunOnce(input: {
+  runId: string;
+  organizationId: string;
+  enqueue: () => Promise<void>;
+}): Promise<boolean> {
+  return db.transaction(async (tx) => {
+    const [run] = await tx
+      .select({
+        outputSummary: schema.workspaceAutomationRuns.outputSummary,
+      })
+      .from(schema.workspaceAutomationRuns)
+      .where(
+        and(
+          eq(schema.workspaceAutomationRuns.id, input.runId),
+          eq(schema.workspaceAutomationRuns.organizationId, input.organizationId),
+        ),
+      )
+      .limit(1)
+      .for("update");
+
+    if (!run) {
+      throw new Error("workspace_automation_run_not_found");
+    }
+
+    if (
+      typeof run.outputSummary.orchestratorEnqueuedAt === "string" &&
+      run.outputSummary.orchestratorEnqueuedAt.length > 0
+    ) {
+      return false;
+    }
+
+    await input.enqueue();
+
+    await tx
+      .update(schema.workspaceAutomationRuns)
+      .set({
+        outputSummary: {
+          ...run.outputSummary,
+          orchestratorEnqueuedAt: new Date().toISOString(),
+        },
+        updatedAt: new Date(),
+      })
+      .where(
+        and(
+          eq(schema.workspaceAutomationRuns.id, input.runId),
+          eq(schema.workspaceAutomationRuns.organizationId, input.organizationId),
+        ),
+      );
+
+    return true;
+  });
 }
 
 export async function updateWorkspaceAutomationRun(input: {

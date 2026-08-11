@@ -1,11 +1,25 @@
 "use client";
 
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import { useEffect, useId, useMemo, useState } from "react";
 import { SaveIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { FormattedMessage, useIntl } from "react-intl";
 import { toast } from "sonner";
 
+import { contentfulConnectionPanelMessages } from "./contentful-connection-panel.messages";
 import { createApiClient } from "@/lib/api-client";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -71,6 +85,8 @@ type SaveContentfulConnectionPayload =
     });
 
 export function useContentfulConnections(organizationSlug: string) {
+  const intl = useIntl();
+
   return useQuery({
     queryKey: ["contentful-connections", organizationSlug],
     queryFn: async () => {
@@ -78,7 +94,9 @@ export function useContentfulConnections(organizationSlug: string) {
         param: { organizationSlug },
       });
       if (!res.ok) {
-        throw new Error("Failed to fetch Contentful connections");
+        throw new Error(
+          intl.formatMessage(contentfulConnectionPanelMessages.fetchConnectionsFailed),
+        );
       }
       const data = await res.json();
       return data.contentfulConnections as ContentfulConnectionSummary[];
@@ -94,6 +112,7 @@ function useDiscoverContentfulSpace(input: {
   connectionId?: string;
   enabled: boolean;
 }) {
+  const intl = useIntl();
   const trimmedSpaceId = input.spaceId.trim();
   const trimmedEnvironmentId = input.environmentId.trim() || "master";
   const trimmedAccessToken = input.accessToken.trim();
@@ -124,9 +143,10 @@ function useDiscoverContentfulSpace(input: {
         },
       });
       if (!res.ok) {
-        const error = await res
-          .json()
-          .catch(() => ({ message: "Unable to load Contentful metadata" }));
+        const fallbackMessage = intl.formatMessage(
+          contentfulConnectionPanelMessages.loadMetadataFailed,
+        );
+        const error = await res.json().catch(() => ({ message: fallbackMessage }));
         const message =
           typeof error === "object" &&
           error !== null &&
@@ -139,7 +159,7 @@ function useDiscoverContentfulSpace(input: {
                 "error" in error &&
                 typeof error.error === "string"
               ? error.error.replaceAll("_", " ")
-              : "Unable to load Contentful metadata";
+              : fallbackMessage;
         throw new Error(message);
       }
       const data = await res.json();
@@ -153,6 +173,7 @@ function useDiscoverContentfulSpace(input: {
 }
 
 export function useSaveContentfulConnection(organizationSlug: string) {
+  const intl = useIntl();
   const queryClient = useQueryClient();
 
   return useMutation({
@@ -193,7 +214,9 @@ export function useSaveContentfulConnection(organizationSlug: string) {
       if (!res.ok) {
         const error = await res.json().catch(() => ({ error: "contentful_connection_failed" }));
         throw new Error(
-          "message" in error ? String(error.message) : "Unable to save Contentful connection",
+          "message" in error
+            ? String(error.message)
+            : intl.formatMessage(contentfulConnectionPanelMessages.saveConnectionFailed),
         );
       }
       return res.json();
@@ -202,20 +225,32 @@ export function useSaveContentfulConnection(organizationSlug: string) {
       await queryClient.invalidateQueries({
         queryKey: ["contentful-connections", organizationSlug],
       });
-      toast.success("Contentful connection saved");
+      toast.success(intl.formatMessage(contentfulConnectionPanelMessages.connectionSavedToast));
       if (result.webhookSecret) {
-        toast.message("Contentful webhook registered", {
-          description:
-            "Hyperlocalise created the Contentful webhook automatically. Save the secret below if you need to re-register manually.",
-        });
+        toast.message(
+          intl.formatMessage(contentfulConnectionPanelMessages.webhookRegisteredToastTitle),
+          {
+            description: intl.formatMessage(
+              contentfulConnectionPanelMessages.webhookRegisteredToastDescription,
+            ),
+          },
+        );
       } else if (result.contentfulConnection.webhook?.providerWebhookId) {
-        toast.message("Contentful webhook synced", {
-          description: "Hyperlocalise updated the Contentful webhook configuration.",
-        });
+        toast.message(
+          intl.formatMessage(contentfulConnectionPanelMessages.webhookSyncedToastTitle),
+          {
+            description: intl.formatMessage(
+              contentfulConnectionPanelMessages.webhookSyncedToastDescription,
+            ),
+          },
+        );
       } else if (result.contentfulConnection.webhook?.lastError) {
-        toast.message("Contentful webhook needs attention", {
-          description: result.contentfulConnection.webhook.lastError,
-        });
+        toast.message(
+          intl.formatMessage(contentfulConnectionPanelMessages.webhookNeedsAttentionToastTitle),
+          {
+            description: result.contentfulConnection.webhook.lastError,
+          },
+        );
       }
     },
     onError: (error) => {
@@ -227,9 +262,7 @@ export function useSaveContentfulConnection(organizationSlug: string) {
 function ContentfulTokenGuidance() {
   return (
     <FieldDescription>
-      Use a Content Management API personal access token from Contentful Settings → Content
-      management tokens. Do not use Content Delivery or Preview API keys — those are read-only and
-      cannot write draft translations or register webhooks.
+      <FormattedMessage {...contentfulConnectionPanelMessages.tokenGuidance} />
     </FieldDescription>
   );
 }
@@ -266,13 +299,17 @@ function ContentTypePicker({
   if (requiresCredentials) {
     return (
       <p className="text-sm text-muted-foreground">
-        Enter your Space ID and Content Management API token to load content types from Contentful.
+        <FormattedMessage {...contentfulConnectionPanelMessages.enterCredentialsForContentTypes} />
       </p>
     );
   }
 
   if (isLoading) {
-    return <p className="text-sm text-muted-foreground">Loading content types...</p>;
+    return (
+      <p className="text-sm text-muted-foreground">
+        <FormattedMessage {...contentfulConnectionPanelMessages.loadingContentTypes} />
+      </p>
+    );
   }
 
   if (loadError) {
@@ -280,7 +317,11 @@ function ContentTypePicker({
   }
 
   if (contentTypes.length === 0) {
-    return <p className="text-sm text-muted-foreground">No content types found in this space.</p>;
+    return (
+      <p className="text-sm text-muted-foreground">
+        <FormattedMessage {...contentfulConnectionPanelMessages.noContentTypesFound} />
+      </p>
+    );
   }
 
   return (
@@ -324,6 +365,7 @@ export function ContentfulConnectionPanel({
   onFormChange: (form: ContentfulConnectionForm) => void;
   organizationSlug: string;
 }) {
+  const intl = useIntl();
   const contentTypesFieldId = useId();
   const [isReplacingToken, setIsReplacingToken] = useState(false);
   const tokenRequired = !connection || isReplacingToken;
@@ -370,25 +412,38 @@ export function ContentfulConnectionPanel({
     <div className="flex flex-col gap-5">
       {connection ? (
         <div className="flex flex-wrap gap-2 text-xs">
-          <Badge variant="outline">Token ...{connection.maskedTokenSuffix}</Badge>
           <Badge variant="outline">
-            {connection.spaceId}/{connection.environmentId}
+            {intl.formatMessage(contentfulConnectionPanelMessages.tokenBadge, {
+              suffix: connection.maskedTokenSuffix,
+            })}
+          </Badge>
+          <Badge variant="outline">
+            {intl.formatMessage(contentfulConnectionPanelMessages.spaceEnvironmentBadge, {
+              spaceId: connection.spaceId,
+              environmentId: connection.environmentId,
+            })}
           </Badge>
         </div>
       ) : null}
 
       <div className="grid gap-4 lg:grid-cols-2">
         <Field className="gap-2 lg:col-span-2">
-          <FieldLabel>Display name</FieldLabel>
+          <FieldLabel>
+            {intl.formatMessage(contentfulConnectionPanelMessages.displayNameLabel)}
+          </FieldLabel>
           <Input
             value={form.displayName}
             disabled={disabled}
-            placeholder="Contentful Help Center"
+            placeholder={intl.formatMessage(
+              contentfulConnectionPanelMessages.displayNamePlaceholder,
+            )}
             onChange={(event) => onFormChange({ ...form, displayName: event.target.value })}
           />
         </Field>
         <Field className="gap-2">
-          <FieldLabel>Space ID</FieldLabel>
+          <FieldLabel>
+            {intl.formatMessage(contentfulConnectionPanelMessages.spaceIdLabel)}
+          </FieldLabel>
           <Input
             value={form.spaceId}
             disabled={disabled}
@@ -396,17 +451,23 @@ export function ContentfulConnectionPanel({
           />
         </Field>
         <Field className="gap-2">
-          <FieldLabel>Environment ID</FieldLabel>
+          <FieldLabel>
+            {intl.formatMessage(contentfulConnectionPanelMessages.environmentIdLabel)}
+          </FieldLabel>
           <Input
             value={form.environmentId}
             disabled={disabled}
-            placeholder="master"
+            placeholder={intl.formatMessage(
+              contentfulConnectionPanelMessages.environmentIdPlaceholder,
+            )}
             onChange={(event) => onFormChange({ ...form, environmentId: event.target.value })}
           />
         </Field>
         {!connection || isReplacingToken ? (
           <Field className="gap-2 lg:col-span-2">
-            <FieldLabel>Content Management API token</FieldLabel>
+            <FieldLabel>
+              {intl.formatMessage(contentfulConnectionPanelMessages.cmaTokenLabel)}
+            </FieldLabel>
             <ContentfulTokenGuidance />
             <div className="flex gap-2">
               <Input
@@ -426,14 +487,16 @@ export function ContentfulConnectionPanel({
                     onFormChange({ ...form, accessToken: "" });
                   }}
                 >
-                  Cancel
+                  {intl.formatMessage(contentfulConnectionPanelMessages.cancel)}
                 </Button>
               ) : null}
             </div>
           </Field>
         ) : (
           <Field className="gap-2 lg:col-span-2">
-            <FieldLabel>Content Management API token</FieldLabel>
+            <FieldLabel>
+              {intl.formatMessage(contentfulConnectionPanelMessages.cmaTokenLabel)}
+            </FieldLabel>
             <ContentfulTokenGuidance />
             <Button
               type="button"
@@ -442,12 +505,14 @@ export function ContentfulConnectionPanel({
               className="justify-start"
               onClick={() => setIsReplacingToken(true)}
             >
-              Replace token
+              {intl.formatMessage(contentfulConnectionPanelMessages.replaceToken)}
             </Button>
           </Field>
         )}
         <Field className="gap-2 lg:col-span-2">
-          <FieldLabel id={contentTypesFieldId}>Content types</FieldLabel>
+          <FieldLabel id={contentTypesFieldId}>
+            {intl.formatMessage(contentfulConnectionPanelMessages.contentTypesLabel)}
+          </FieldLabel>
           <ContentTypePicker
             contentTypes={discoveredContentTypes}
             disabled={disabled}
@@ -463,36 +528,55 @@ export function ContentfulConnectionPanel({
 
       {connection?.webhook ? (
         <div className="text-sm">
-          <h4 className="font-medium">Webhook</h4>
+          <h4 className="font-medium">
+            <FormattedMessage {...contentfulConnectionPanelMessages.webhookHeading} />
+          </h4>
           <p className="mt-1 text-xs text-muted-foreground">
-            Hyperlocalise registers a Contentful webhook for entry publish events when you save or
-            validate this connection. Automations with a Contentful trigger use it to start
-            translation runs.
+            <FormattedMessage {...contentfulConnectionPanelMessages.webhookDescription} />
           </p>
           <div className="mt-3 grid gap-2 rounded-lg bg-muted/50 p-3 text-xs">
             <span>
-              Registration:{" "}
-              {connection.webhook.providerWebhookId
-                ? "Registered in Contentful"
-                : connection.webhook.lastError
-                  ? "Not registered"
-                  : "Pending registration"}
+              {intl.formatMessage(contentfulConnectionPanelMessages.registrationStatus, {
+                status: intl.formatMessage(
+                  connection.webhook.providerWebhookId
+                    ? contentfulConnectionPanelMessages.registrationRegistered
+                    : connection.webhook.lastError
+                      ? contentfulConnectionPanelMessages.registrationNotRegistered
+                      : contentfulConnectionPanelMessages.registrationPending,
+                ),
+              })}
             </span>
             <span className="font-mono break-all">
-              URL: {connection.webhook.url ?? "Set HYPERLOCALISE_PUBLIC_APP_URL"}
+              {intl.formatMessage(contentfulConnectionPanelMessages.webhookUrl, {
+                url:
+                  connection.webhook.url ??
+                  intl.formatMessage(contentfulConnectionPanelMessages.webhookUrlUnset),
+              })}
             </span>
             {connection.webhook.providerWebhookId ? (
               <span className="font-mono break-all">
-                Contentful webhook ID: {connection.webhook.providerWebhookId}
+                {intl.formatMessage(contentfulConnectionPanelMessages.contentfulWebhookId, {
+                  webhookId: connection.webhook.providerWebhookId,
+                })}
               </span>
             ) : null}
             {lastWebhookSecret ? (
-              <span className="font-mono break-all">Secret: {lastWebhookSecret}</span>
+              <span className="font-mono break-all">
+                {intl.formatMessage(contentfulConnectionPanelMessages.webhookSecret, {
+                  secret: lastWebhookSecret,
+                })}
+              </span>
             ) : null}
             {connection.webhook.lastError ? (
               <span className="text-destructive">{connection.webhook.lastError}</span>
             ) : null}
-            <span>Last delivery: {connection.webhook.lastDeliveredAt ?? "No deliveries yet"}</span>
+            <span>
+              {connection.webhook.lastDeliveredAt
+                ? intl.formatMessage(contentfulConnectionPanelMessages.lastDeliveryAt, {
+                    timestamp: connection.webhook.lastDeliveredAt,
+                  })
+                : intl.formatMessage(contentfulConnectionPanelMessages.lastDeliveryNone)}
+            </span>
           </div>
         </div>
       ) : null}
@@ -504,7 +588,11 @@ export function ContentfulConnectionPanel({
           onClick={onSave}
         >
           <HugeiconsIcon icon={SaveIcon} strokeWidth={1.8} />
-          {isSaving ? "Saving..." : connection ? "Update connection" : "Save connection"}
+          {isSaving
+            ? intl.formatMessage(contentfulConnectionPanelMessages.saving)
+            : connection
+              ? intl.formatMessage(contentfulConnectionPanelMessages.updateConnection)
+              : intl.formatMessage(contentfulConnectionPanelMessages.saveConnection)}
         </Button>
       </div>
     </div>

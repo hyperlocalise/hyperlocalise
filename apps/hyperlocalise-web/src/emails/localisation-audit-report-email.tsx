@@ -1,0 +1,177 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
+import {
+  Body,
+  Button,
+  Container,
+  Head,
+  Heading,
+  Hr,
+  Html,
+  Preview,
+  Section,
+  Text,
+} from "react-email";
+
+import type { LocalisationAuditFinding } from "@/lib/localisation-audit/types";
+
+export type LocalisationAuditReportEmailProps = {
+  domainKey: string;
+  score: number;
+  completedAt: string;
+  findings: LocalisationAuditFinding[];
+  verifyUrl: string;
+};
+
+export function localisationAuditReportEmailText(props: LocalisationAuditReportEmailProps) {
+  const findings = props.findings
+    .slice(0, 3)
+    .map((finding, index) => `${index + 1}. [${finding.severity}] ${finding.title}`)
+    .join("\n");
+
+  return [
+    `Your localisation audit for ${props.domainKey} is ready.`,
+    "",
+    `Score: ${props.score}/100`,
+    `Audited: ${props.completedAt}`,
+    "",
+    "Top findings:",
+    findings || "No headline findings.",
+    "",
+    "Open your full report (link expires in 24 hours):",
+    props.verifyUrl,
+    "",
+    "If you did not request this audit, you can ignore this email.",
+    "",
+    "— Hyperlocalise",
+  ].join("\n");
+}
+
+export function LocalisationAuditReportEmail(props: LocalisationAuditReportEmailProps) {
+  const preview = `${props.domainKey} scored ${props.score}/100 — open your full localisation audit`;
+
+  return (
+    <Html lang="en">
+      <Head />
+      <Preview>{preview}</Preview>
+      <Body style={body}>
+        <Container style={container}>
+          <Heading style={heading}>Your localisation audit is ready</Heading>
+          <Text style={text}>
+            We finished sampling <strong>{props.domainKey}</strong>. Your teaser score is{" "}
+            <strong>{props.score}/100</strong>.
+          </Text>
+          <Text style={muted}>Audited {props.completedAt}</Text>
+          <Hr style={hr} />
+          <Heading as="h2" style={subheading}>
+            Top findings
+          </Heading>
+          {props.findings.slice(0, 3).map((finding) => (
+            <Section key={finding.id} style={findingBlock}>
+              <Text style={findingTitle}>
+                {finding.severity.toUpperCase()} · {finding.title}
+              </Text>
+              <Text style={muted}>{finding.summary}</Text>
+            </Section>
+          ))}
+          <Section style={ctaSection}>
+            <Button href={props.verifyUrl} style={button}>
+              Open full report
+            </Button>
+          </Section>
+          <Text style={muted}>
+            This link verifies your email and unlocks the full report. It expires in 24 hours and
+            can be used once.
+          </Text>
+        </Container>
+      </Body>
+    </Html>
+  );
+}
+
+const body = {
+  backgroundColor: "#f6f7f9",
+  fontFamily:
+    '-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Oxygen-Sans,Ubuntu,Cantarell,"Helvetica Neue",sans-serif',
+};
+
+const container = {
+  backgroundColor: "#ffffff",
+  margin: "0 auto",
+  padding: "32px 24px",
+  maxWidth: "560px",
+  borderRadius: "12px",
+};
+
+const heading = {
+  fontSize: "24px",
+  lineHeight: "32px",
+  fontWeight: 600,
+  color: "#111827",
+  margin: "0 0 16px",
+};
+
+const subheading = {
+  fontSize: "16px",
+  lineHeight: "24px",
+  fontWeight: 600,
+  color: "#111827",
+  margin: "0 0 12px",
+};
+
+const text = {
+  fontSize: "15px",
+  lineHeight: "24px",
+  color: "#374151",
+  margin: "0 0 8px",
+};
+
+const muted = {
+  fontSize: "13px",
+  lineHeight: "20px",
+  color: "#6b7280",
+  margin: "0 0 8px",
+};
+
+const hr = {
+  borderColor: "#e5e7eb",
+  margin: "20px 0",
+};
+
+const findingBlock = {
+  marginBottom: "12px",
+};
+
+const findingTitle = {
+  fontSize: "14px",
+  lineHeight: "20px",
+  fontWeight: 600,
+  color: "#111827",
+  margin: "0 0 4px",
+};
+
+const ctaSection = {
+  margin: "24px 0",
+};
+
+const button = {
+  backgroundColor: "#111827",
+  borderRadius: "8px",
+  color: "#ffffff",
+  display: "inline-block",
+  fontSize: "14px",
+  fontWeight: 600,
+  lineHeight: "20px",
+  padding: "12px 18px",
+  textDecoration: "none",
+};

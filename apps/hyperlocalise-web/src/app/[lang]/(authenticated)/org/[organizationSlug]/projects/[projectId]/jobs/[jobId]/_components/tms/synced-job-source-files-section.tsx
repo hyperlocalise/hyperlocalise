@@ -1,12 +1,27 @@
 "use client";
 
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import { useMemo } from "react";
+import { useIntl } from "react-intl";
 
-import { parseProviderProjectId } from "@/lib/providers/tms-provider-resource-id";
+import { parseProviderProjectId } from "@/lib/providers/jobs/tms-provider-resource-id";
 
 import type { ProviderSourceFile } from "../job-provider-detail-section";
 import { providerSourceFileToProjectFileRecord } from "./job-source-file-mappers";
 import { JobSourceFilesPanel } from "./job-source-files-panel";
+import type { CatQueueFilter } from "@/components/cat/queue/cat-queue-filter";
+import { syncedJobSourceFilesSectionMessages as messages } from "./synced-job-source-files-section.messages";
 
 export function SyncedJobSourceFilesSection({
   organizationSlug,
@@ -15,6 +30,7 @@ export function SyncedJobSourceFilesSection({
   providerKind,
   sourceFiles,
   highlightLocale,
+  queueFilter,
 }: {
   organizationSlug: string;
   projectId: string;
@@ -22,7 +38,9 @@ export function SyncedJobSourceFilesSection({
   providerKind: string;
   sourceFiles: ProviderSourceFile[];
   highlightLocale?: string | null;
+  queueFilter?: CatQueueFilter;
 }) {
+  const intl = useIntl();
   const encodedProjectId = parseProviderProjectId(projectId);
   const externalProjectId = encodedProjectId?.externalProjectId ?? projectId;
 
@@ -41,8 +59,9 @@ export function SyncedJobSourceFilesSection({
       projectId={projectId}
       encodedJobId={encodedJobId}
       files={files}
-      emptyMessage="No synced source files linked to this job."
+      emptyMessage={intl.formatMessage(messages.noSourceFilesLinked)}
       highlightLocale={highlightLocale ?? null}
+      queueFilter={queueFilter}
     />
   );
 }

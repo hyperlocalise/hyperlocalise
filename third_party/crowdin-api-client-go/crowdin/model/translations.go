@@ -678,6 +678,37 @@ func (r *ExportTranslationRequest) Validate() error {
 		return errors.New("targetLanguageId is required")
 	}
 
+	var count int
+	if len(r.BranchIDs) > 0 {
+		count++
+	}
+	if len(r.DirectoryIDs) > 0 {
+		count++
+	}
+	if len(r.FileIDs) > 0 {
+		count++
+	}
+	if count > 1 {
+		return errors.New("only one of branchIds, directoryIds, or fileIds may be set")
+	}
+
+	if (r.SkipUntranslatedStrings != nil && r.SkipUntranslatedFiles != nil) &&
+		(*r.SkipUntranslatedStrings && *r.SkipUntranslatedFiles) {
+		return errors.New("skipUntranslatedStrings and skipUntranslatedFiles must not be true at the same request")
+	}
+
+	// MarshalJSON maps exportApprovedOnly=true to exportWithMinApprovalsCount=1 when
+	// ExportWithMinApprovalsCount is unset, so validate the effective approvals count.
+	exportWithMinApprovalsCount := r.ExportWithMinApprovalsCount
+	if r.ExportApprovedOnly != nil && *r.ExportApprovedOnly && exportWithMinApprovalsCount == nil {
+		minApprovalsCount := 1
+		exportWithMinApprovalsCount = &minApprovalsCount
+	}
+	if (exportWithMinApprovalsCount != nil && r.ExportStringsThatPassedWorkflow != nil) &&
+		(*exportWithMinApprovalsCount > 0 && *r.ExportStringsThatPassedWorkflow) {
+		return errors.New("exportWithMinApprovalsCount and exportStringsThatPassedWorkflow must not be true at the same request")
+	}
+
 	return nil
 }
 

@@ -383,6 +383,14 @@ func protectStandardMarkdownInlineSyntax(segment string) (string, map[string]str
 		}
 
 		switch {
+		case segment[idx] == '!' && idx+1 < len(segment) && startsMarkdownLinkLabel(segment, idx+1):
+			// The image marker and opening bracket form one structural opener.
+			appendPlaceholder(segment[idx : idx+2])
+			idx += 2
+		case segment[idx] == '[' && startsMarkdownLinkLabel(segment, idx):
+			// Link delimiters are structural syntax, not translatable content.
+			appendPlaceholder(segment[idx : idx+1])
+			idx++
 		case segment[idx] == '`':
 			run := 0
 			for idx+run < len(segment) && segment[idx+run] == '`' {

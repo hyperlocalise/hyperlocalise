@@ -1,5 +1,20 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
+import type { IntlShape } from "@formatjs/intl";
+
 import { canonicalizeLocale, normalizeProjectLocales } from "@/lib/i18n/locales";
 
+import { projectFormMessages } from "./project-form.messages";
 import type { ProjectListRow } from "./project-list";
 
 export type ProjectFormValues = {
@@ -14,9 +29,23 @@ export type ProjectFormErrors = Partial<Record<keyof ProjectFormValues, string>>
   targetLocales?: string;
 };
 
+export type ProjectFormIntl = Pick<IntlShape, "formatMessage">;
+
 export const defaultNativeProjectSourceLocale = "en-US";
 
 export const defaultNativeProjectTargetLocales = ["fr-FR", "de-DE"];
+
+function resolveMessage(
+  intl: ProjectFormIntl | undefined,
+  descriptor: (typeof projectFormMessages)[keyof typeof projectFormMessages],
+  values?: Record<string, string>,
+) {
+  if (intl) {
+    return intl.formatMessage(descriptor, values);
+  }
+
+  return typeof descriptor.defaultMessage === "string" ? descriptor.defaultMessage : "";
+}
 
 export function createEmptyProjectForm(): ProjectFormValues {
   return {
@@ -43,24 +72,25 @@ export function createProjectFormFromRow(project: ProjectListRow): ProjectFormVa
 
 export function validateProjectForm(
   values: ProjectFormValues,
-  options?: { requireLocales?: boolean },
+  options?: { requireLocales?: boolean; intl?: ProjectFormIntl },
 ): ProjectFormErrors {
   const errors: ProjectFormErrors = {};
   const name = values.name.trim();
   const requireLocales = options?.requireLocales ?? true;
+  const intl = options?.intl;
 
   if (!name) {
-    errors.name = "Project name is required.";
+    errors.name = resolveMessage(intl, projectFormMessages.nameRequired);
   } else if (name.length > 200) {
-    errors.name = "Project name must be 200 characters or fewer.";
+    errors.name = resolveMessage(intl, projectFormMessages.nameTooLong);
   }
 
   if (values.description.trim().length > 10_000) {
-    errors.description = "Description must be 10,000 characters or fewer.";
+    errors.description = resolveMessage(intl, projectFormMessages.descriptionTooLong);
   }
 
   if (values.translationContext.trim().length > 20_000) {
-    errors.translationContext = "Translation context must be 20,000 characters or fewer.";
+    errors.translationContext = resolveMessage(intl, projectFormMessages.translationContextTooLong);
   }
 
   if (requireLocales) {
@@ -71,11 +101,11 @@ export function validateProjectForm(
 
     if ("error" in normalized) {
       if (normalized.error === "invalid_source_locale") {
-        errors.sourceLocale = "Select a valid source locale.";
+        errors.sourceLocale = resolveMessage(intl, projectFormMessages.invalidSourceLocale);
       } else if (normalized.error === "source_in_targets") {
-        errors.targetLocales = "Remove the source locale from target locales.";
+        errors.targetLocales = resolveMessage(intl, projectFormMessages.sourceInTargets);
       } else {
-        errors.targetLocales = "Select at least one valid target locale.";
+        errors.targetLocales = resolveMessage(intl, projectFormMessages.targetLocalesRequired);
       }
     }
   }
@@ -159,9 +189,13 @@ export function projectFormRequiresLocales(
   return mode === "create" || source === "native";
 }
 
-export function formatProjectLocaleSummary(sourceLocale: string | null, targetLocales: string[]) {
+export function formatProjectLocaleSummary(
+  sourceLocale: string | null,
+  targetLocales: string[],
+  intl?: ProjectFormIntl,
+) {
   if (!sourceLocale && targetLocales.length === 0) {
-    return "No locales configured";
+    return resolveMessage(intl, projectFormMessages.noLocalesConfigured);
   }
 
   const source = sourceLocale ? (canonicalizeLocale(sourceLocale) ?? sourceLocale) : "—";
@@ -170,5 +204,5 @@ export function formatProjectLocaleSummary(sourceLocale: string | null, targetLo
       ? targetLocales.map((locale) => canonicalizeLocale(locale) ?? locale).join(", ")
       : "—";
 
-  return `${source} → ${targets}`;
+  return resolveMessage(intl, projectFormMessages.localeSummary, { source, targets });
 }

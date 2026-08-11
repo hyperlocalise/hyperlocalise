@@ -1,3 +1,15 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import { z } from "zod";
 
 import { projectIdSchema } from "@/lib/projects/identity/project-id";
@@ -49,21 +61,52 @@ export const createJobBodySchema = z.discriminatedUnion("type", [
   z.object({
     type: z.literal("string"),
     stringInput: stringTranslationJobInputSchema,
+    ownerWorkosUserId: z.string().trim().min(1).max(256).optional(),
+    title: z.string().trim().min(1).max(256).optional(),
   }),
   z.object({
     type: z.literal("file"),
     fileInput: fileTranslationJobInputSchema,
+    ownerWorkosUserId: z.string().trim().min(1).max(256).optional(),
+    title: z.string().trim().min(1).max(256).optional(),
   }),
 ]);
 
-/** Statuses counted by project `openJobCount` and surfaced on overview pages. */
+export const updateJobBodySchema = z
+  .object({
+    title: z.string().trim().min(1).max(256).optional(),
+    description: z.string().trim().max(2_048).nullable().optional(),
+    ownerWorkosUserId: z.string().trim().min(1).max(256).nullable().optional(),
+  })
+  .refine(
+    (body) =>
+      body.title !== undefined ||
+      body.description !== undefined ||
+      body.ownerWorkosUserId !== undefined,
+    { message: "At least one of title, description, or ownerWorkosUserId is required" },
+  );
+
+/** Statuses counted by project `openJobCount` and listed by `open=true`. */
 export const openJobStatusValues = ["queued", "running", "waiting_for_review"] as const;
+
+/**
+ * Statuses eligible for the project Overview Today queue.
+ * Includes failed jobs (actionable) in addition to open statuses.
+ */
+export const overviewTriageJobStatusValues = [
+  "waiting_for_review",
+  "failed",
+  "queued",
+  "running",
+] as const;
 
 export const jobListQuerySchema = z.object({
   kind: z.enum(schema.jobKindEnum.enumValues).optional(),
   type: z.enum(schema.translationJobTypeEnum.enumValues).optional(),
   status: z.enum(schema.jobStatusEnum.enumValues).optional(),
   open: z.coerce.boolean().optional(),
+  /** Prefer review/failed before other open jobs, then apply `limit`. */
+  triage: z.coerce.boolean().optional(),
   relationship: z.enum(["assigned", "created"]).optional(),
   limit: z.coerce.number().int().min(1).max(100).default(50),
 });

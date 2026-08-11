@@ -1,7 +1,19 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import {
   parseProviderJobId,
   parseProviderProjectId,
-} from "@/lib/providers/tms-provider-resource-id";
+} from "@/lib/providers/jobs/tms-provider-resource-id";
 
 export type WorkspaceProjectSource = "native" | "external_tms";
 
@@ -44,10 +56,10 @@ export function isNativeWorkspaceJob(job: { id: string; externalProviderKind: st
 
 export function canOpenProviderJobCat(job: {
   id: string;
-  kind: "translation" | "research" | "review" | "sync" | "asset_management";
+  kind: "translation" | "research" | "review" | "proofread" | "sync" | "asset_management";
   externalProviderKind: string | null;
 }) {
-  if (job.kind !== "translation" && job.kind !== "review") {
+  if (job.kind !== "translation" && job.kind !== "review" && job.kind !== "proofread") {
     return false;
   }
 
@@ -56,7 +68,7 @@ export function canOpenProviderJobCat(job: {
 
 export function canOpenNativeJobCat(job: {
   id: string;
-  kind: "translation" | "research" | "review" | "sync" | "asset_management";
+  kind: "translation" | "research" | "review" | "proofread" | "sync" | "asset_management";
   type: "string" | "file" | null;
   externalProviderKind: string | null;
   inputPayload: unknown;

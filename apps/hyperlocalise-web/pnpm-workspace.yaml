@@ -7,6 +7,7 @@ allowBuilds:
   esbuild: false
   msw: false
   node-liblzma: false
+  protobufjs: false
   sharp: false
 catalog:
   vite: npm:@voidzero-dev/vite-plus-core@latest
@@ -14,23 +15,34 @@ catalog:
 ignoredBuiltDependencies:
   - sharp
   - unrs-resolver
+minimumReleaseAgeExclude:
+  - '@ai-sdk/anthropic@4.0.19'
+  - '@ai-sdk/gateway@4.0.28'
+  - '@ai-sdk/openai@4.0.20'
+  - '@ai-sdk/react@4.0.40'
+  - ai@7.0.37
 overrides:
-  vite: "8.1.2"
+  vite: "8.2.1"
   # Pin each undici major independently (transitive deps use 6/7/8).
-  "undici@^6.0.0": "6.27.0"
-  "undici@^7.0.0": "7.28.0"
-  "undici@^8.0.0": "8.5.0"
-  devalue: "5.8.1"
+  "undici@^6.0.0": "6.28.0"
+  "undici@^7.0.0": "7.29.0"
+  "undici@^8.0.0": "8.10.0"
+  devalue: "5.9.0"
   qs: "6.15.3"
-  "@anthropic-ai/sdk": "0.109.0"
-  postcss: "8.5.16"
+  "@anthropic-ai/sdk": "0.115.0"
+  postcss: "8.5.26"
   esbuild: "0.28.1"
-  "ip-address": "10.2.0"
-  hono: "4.12.27"
+  "ip-address": "10.4.0"
+  hono: "4.13.0"
   form-data: "4.0.6"
-  dompurify: "3.4.11"
+  "axios@^1.0.0": "1.19.0"
+  fast-uri: "3.1.5"
+  dompurify: "3.4.13"
   "js-yaml@^3.0.0": "3.15.0"
-  "js-yaml@^4.0.0": "4.3.0"
+  "js-yaml@^4.0.0": "4.3.1"
+  # TipTap 3.28 pulls prosemirror-model ^1.25.9 while nested PM packages
+  # still resolve 1.25.8; dual copies break editor Fragment identity.
+  prosemirror-model: "1.25.11"
 peerDependencyRules:
   allowAny:
     - vite

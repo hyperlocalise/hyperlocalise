@@ -19,6 +19,14 @@ bump: ## update go dependencies
 check-build: ## check golang build
 	@go build -ldflags "-X main.version=$(version)" -o /dev/null ./apps/cli
 
+.PHONY: check-build-go-svc
+check-build-go-svc: ## check go-svc container service build
+	@go build -o /dev/null ./apps/go-svc
+
+.PHONY: docker-build-go-svc
+docker-build-go-svc: ## build go-svc container image locally
+	docker build -f Dockerfile.vercel .
+
 .PHONY: install
 install: ## install golang binary
 	@go install -ldflags "-X main.version=$(version)" ./apps/cli

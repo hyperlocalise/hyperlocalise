@@ -13,6 +13,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/hyperlocalise/hyperlocalise/internal/i18n/translationfileparser"
 	jsoncparser "github.com/tidwall/jsonc"
 )
 
@@ -74,11 +75,11 @@ func marshalJSONTarget(path string, template []byte, values map[string]string, p
 
 	// Note: JSONC comments/trailing commas are not preserved on write-back.
 	// We always emit canonical JSON syntax (while allowing .jsonc extension).
-	content, err := json.MarshalIndent(payload, "", "  ")
+	content, err := translationfileparser.MarshalJSONIndent(payload)
 	if err != nil {
 		return nil, fmt.Errorf("flush outputs: marshal %q: %w", path, err)
 	}
-	return append(content, '\n'), nil
+	return content, nil
 }
 
 func (s *Service) marshalJSONTargetWithFallback(path, sourcePath string, values map[string]string, pruneKeys map[string]struct{}) ([]byte, error) {

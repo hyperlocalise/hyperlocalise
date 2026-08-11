@@ -1,6 +1,19 @@
 "use client";
 
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import { useMutation } from "@tanstack/react-query";
+import { useIntl, type IntlShape } from "react-intl";
 
 import type {
   ProjectFileCatComment,
@@ -10,25 +23,59 @@ import type {
 import { readApiError } from "@/lib/api-error";
 import { apiClient } from "@/lib/api-client-instance";
 
-import type { CrowdinIssueType } from "@/components/cat/shared/types";
+import type { CatIssueType } from "@/components/cat/shared/types";
 
 import { requireProviderExternalResourceId } from "./project-file-cat-mapper";
+import { isCatAllFilesSourcePath } from "@/lib/projects/cat-all-files";
 import { useInvalidateCatSegmentComments } from "./use-cat-segment-comments";
-import { useInvalidateCatSegmentTarget } from "./use-cat-segment-target";
+import {
+  useInvalidateCatSegmentTarget,
+  useSyncCatSegmentTargetAfterSave,
+} from "./use-cat-segment-target";
+import { useCatMutationsMessages } from "./use-cat-mutations.messages";
+
+function resolveCatMutationFileIdentity(
+  input: {
+    sourcePath: string;
+    catFile: ProjectFileCatQueueFile | null | undefined;
+  },
+  externalStringId: string,
+  intl: IntlShape,
+) {
+  const segment = input.catFile?.segments.find(
+    (entry) => entry.externalStringId === externalStringId,
+  );
+  const sourcePath =
+    segment?.sourcePath?.trim() ||
+    (isCatAllFilesSourcePath(input.sourcePath) ? "" : input.sourcePath);
+
+  if (!sourcePath) {
+    throw new Error(intl.formatMessage(useCatMutationsMessages.missingSegmentSourceFile));
+  }
+
+  const externalResourceId = segment?.externalResourceId
+    ? segment.externalResourceId
+    : input.catFile?.provider
+      ? requireProviderExternalResourceId(input.catFile, intl)
+      : undefined;
+  const resourceType = segment?.resourceType ?? input.catFile?.provider?.resourceType;
+
+  return { sourcePath, externalResourceId, resourceType };
+}
 
 export function useCatMutations(input: {
   organizationSlug: string;
   projectId: string;
   sourcePath: string;
   targetLocale: string;
-  repositoryFullName?: string | null;
   catFile: ProjectFileCatQueueFile | null | undefined;
   invalidateQueue: () => Promise<void>;
   onTranslationSaved?: (segmentId: string, targetText: string, isApproved: boolean) => void;
 }) {
+  const intl = useIntl();
   const invalidateSegmentTarget = useInvalidateCatSegmentTarget();
+  const syncSegmentTargetAfterSave = useSyncCatSegmentTargetAfterSave();
   const invalidateSegmentComments = useInvalidateCatSegmentComments();
-  const repositoryFullName = input.repositoryFullName ?? null;
 
   const saveMutation = useMutation({
     mutationFn: async (mutationInput: {
@@ -36,9 +83,11 @@ export function useCatMutations(input: {
       text: string;
       approve?: boolean;
     }) => {
-      const externalResourceId = input.catFile?.provider
-        ? requireProviderExternalResourceId(input.catFile)
-        : undefined;
+      const { sourcePath, externalResourceId } = resolveCatMutationFileIdentity(
+        input,
+        mutationInput.externalStringId,
+        intl,
+      );
 
       const response = await apiClient.api.orgs[":organizationSlug"].projects[
         ":projectId"
@@ -48,7 +97,7 @@ export function useCatMutations(input: {
           projectId: input.projectId,
         },
         json: {
-          sourcePath: input.sourcePath,
+          sourcePath,
           targetLocale: input.targetLocale,
           externalStringId: mutationInput.externalStringId,
           externalResourceId,
@@ -58,7 +107,12 @@ export function useCatMutations(input: {
       });
 
       if (!response.ok) {
-        throw new Error(await readApiError(response, "Failed to save translation"));
+        throw new Error(
+          await readApiError(
+            response,
+            intl.formatMessage(useCatMutationsMessages.failedToSaveTranslation),
+          ),
+        );
       }
 
       const body = (await response.json()) as { translation: ProjectFileCatTranslation };
@@ -70,23 +124,25 @@ export function useCatMutations(input: {
         variables.text,
         translation.isApproved,
       );
-      const externalResourceId = input.catFile?.provider
-        ? requireProviderExternalResourceId(input.catFile)
-        : undefined;
-      const resourceType = input.catFile?.provider?.resourceType;
+      const { sourcePath, externalResourceId, resourceType } = resolveCatMutationFileIdentity(
+        input,
+        variables.externalStringId,
+        intl,
+      );
+
+      const segmentTargetInput = {
+        organizationSlug: input.organizationSlug,
+        projectId: input.projectId,
+        sourcePath,
+        externalResourceId,
+        resourceType,
+        targetLocale: input.targetLocale,
+        externalStringId: variables.externalStringId,
+      };
 
       await Promise.all([
         input.invalidateQueue(),
-        invalidateSegmentTarget({
-          organizationSlug: input.organizationSlug,
-          projectId: input.projectId,
-          sourcePath: input.sourcePath,
-          externalResourceId,
-          resourceType,
-          targetLocale: input.targetLocale,
-          externalStringId: variables.externalStringId,
-          repositoryFullName,
-        }),
+        syncSegmentTargetAfterSave(segmentTargetInput, translation),
       ]);
     },
   });
@@ -96,11 +152,13 @@ export function useCatMutations(input: {
       externalStringId: string;
       text: string;
       type?: "comment" | "issue";
-      issueType?: CrowdinIssueType;
+      issueType?: CatIssueType;
     }) => {
-      const externalResourceId = input.catFile?.provider
-        ? requireProviderExternalResourceId(input.catFile)
-        : undefined;
+      const { sourcePath, externalResourceId } = resolveCatMutationFileIdentity(
+        input,
+        mutationInput.externalStringId,
+        intl,
+      );
 
       const response = await apiClient.api.orgs[":organizationSlug"].projects[
         ":projectId"
@@ -110,7 +168,7 @@ export function useCatMutations(input: {
           projectId: input.projectId,
         },
         json: {
-          sourcePath: input.sourcePath,
+          sourcePath,
           targetLocale: input.targetLocale,
           externalStringId: mutationInput.externalStringId,
           externalResourceId,
@@ -121,34 +179,39 @@ export function useCatMutations(input: {
       });
 
       if (!response.ok) {
-        throw new Error(await readApiError(response, "Failed to post comment"));
+        throw new Error(
+          await readApiError(
+            response,
+            intl.formatMessage(useCatMutationsMessages.failedToPostComment),
+          ),
+        );
       }
 
       const body = (await response.json()) as { comment: ProjectFileCatComment };
       return body.comment;
     },
     onSuccess: async (_data, variables) => {
-      const externalResourceId = input.catFile?.provider
-        ? requireProviderExternalResourceId(input.catFile)
-        : undefined;
-      const resourceType = input.catFile?.provider?.resourceType;
+      const { sourcePath, externalResourceId, resourceType } = resolveCatMutationFileIdentity(
+        input,
+        variables.externalStringId,
+        intl,
+      );
 
       await Promise.all([
         input.invalidateQueue(),
         invalidateSegmentTarget({
           organizationSlug: input.organizationSlug,
           projectId: input.projectId,
-          sourcePath: input.sourcePath,
+          sourcePath,
           externalResourceId,
           resourceType,
           targetLocale: input.targetLocale,
           externalStringId: variables.externalStringId,
-          repositoryFullName,
         }),
         invalidateSegmentComments({
           organizationSlug: input.organizationSlug,
           projectId: input.projectId,
-          sourcePath: input.sourcePath,
+          sourcePath,
           externalResourceId,
           resourceType,
           targetLocale: input.targetLocale,
@@ -160,9 +223,11 @@ export function useCatMutations(input: {
 
   const resolveCommentMutation = useMutation({
     mutationFn: async (mutationInput: { externalStringId: string; externalCommentId: string }) => {
-      const externalResourceId = input.catFile?.provider
-        ? requireProviderExternalResourceId(input.catFile)
-        : undefined;
+      const { sourcePath, externalResourceId } = resolveCatMutationFileIdentity(
+        input,
+        mutationInput.externalStringId,
+        intl,
+      );
 
       const response = await apiClient.api.orgs[":organizationSlug"].projects[
         ":projectId"
@@ -173,46 +238,203 @@ export function useCatMutations(input: {
           commentId: mutationInput.externalCommentId,
         },
         json: {
-          sourcePath: input.sourcePath,
+          sourcePath,
           externalResourceId,
         },
       });
 
       if (!response.ok) {
-        throw new Error(await readApiError(response, "Failed to resolve issue"));
+        throw new Error(
+          await readApiError(
+            response,
+            intl.formatMessage(useCatMutationsMessages.failedToResolveIssue),
+          ),
+        );
       }
 
       const body = (await response.json()) as { comment: ProjectFileCatComment };
       return body.comment;
     },
     onSuccess: async (_data, variables) => {
-      const externalResourceId = input.catFile?.provider
-        ? requireProviderExternalResourceId(input.catFile)
-        : undefined;
-      const resourceType = input.catFile?.provider?.resourceType;
+      const { sourcePath, externalResourceId, resourceType } = resolveCatMutationFileIdentity(
+        input,
+        variables.externalStringId,
+        intl,
+      );
 
       await Promise.all([
         input.invalidateQueue(),
         invalidateSegmentTarget({
           organizationSlug: input.organizationSlug,
           projectId: input.projectId,
-          sourcePath: input.sourcePath,
+          sourcePath,
           externalResourceId,
           resourceType,
           targetLocale: input.targetLocale,
           externalStringId: variables.externalStringId,
-          repositoryFullName,
         }),
         invalidateSegmentComments({
           organizationSlug: input.organizationSlug,
           projectId: input.projectId,
-          sourcePath: input.sourcePath,
+          sourcePath,
           externalResourceId,
           resourceType,
           targetLocale: input.targetLocale,
           externalStringId: variables.externalStringId,
         }),
       ]);
+    },
+  });
+
+  async function invalidateAfterImageChange(externalStringId: string) {
+    const { sourcePath, externalResourceId, resourceType } = resolveCatMutationFileIdentity(
+      input,
+      externalStringId,
+      intl,
+    );
+
+    await Promise.all([
+      input.invalidateQueue(),
+      invalidateSegmentTarget({
+        organizationSlug: input.organizationSlug,
+        projectId: input.projectId,
+        sourcePath,
+        externalResourceId,
+        resourceType,
+        targetLocale: input.targetLocale,
+        externalStringId,
+      }),
+    ]);
+  }
+
+  const regenerateImageMutation = useMutation({
+    mutationFn: async (mutationInput: {
+      externalStringId: string;
+      instructions?: string;
+      force?: boolean;
+    }) => {
+      const { sourcePath } = resolveCatMutationFileIdentity(
+        input,
+        mutationInput.externalStringId,
+        intl,
+      );
+      const response = await apiClient.api.orgs[":organizationSlug"].projects[
+        ":projectId"
+      ].files.detail.cat.images.regenerate.$post({
+        param: {
+          organizationSlug: input.organizationSlug,
+          projectId: input.projectId,
+        },
+        json: {
+          sourcePath,
+          targetLocale: input.targetLocale,
+          externalStringId: mutationInput.externalStringId,
+          instructions: mutationInput.instructions,
+          force: mutationInput.force,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(
+          await readApiError(
+            response,
+            intl.formatMessage(useCatMutationsMessages.failedToRegenerateImage),
+          ),
+        );
+      }
+
+      return response.json();
+    },
+    onSuccess: async (_data, variables) => {
+      await invalidateAfterImageChange(variables.externalStringId);
+    },
+  });
+
+  const uploadImageMutation = useMutation({
+    mutationFn: async (mutationInput: {
+      externalStringId: string;
+      file: File;
+      force?: boolean;
+    }) => {
+      const { sourcePath } = resolveCatMutationFileIdentity(
+        input,
+        mutationInput.externalStringId,
+        intl,
+      );
+      const formData = new FormData();
+      formData.set("sourcePath", sourcePath);
+      formData.set("targetLocale", input.targetLocale);
+      formData.set("externalStringId", mutationInput.externalStringId);
+      if (mutationInput.force) {
+        formData.set("force", "true");
+      }
+      if (input.catFile?.provider) {
+        formData.set("externalResourceId", requireProviderExternalResourceId(input.catFile, intl));
+      }
+      formData.set("file", mutationInput.file);
+
+      const response = await fetch(
+        `/api/orgs/${encodeURIComponent(input.organizationSlug)}/projects/${encodeURIComponent(input.projectId)}/files/detail/cat/images/upload`,
+        {
+          method: "POST",
+          body: formData,
+        },
+      );
+
+      if (!response.ok) {
+        throw new Error(
+          await readApiError(
+            response,
+            intl.formatMessage(useCatMutationsMessages.failedToUploadImage),
+          ),
+        );
+      }
+
+      return response.json();
+    },
+    onSuccess: async (_data, variables) => {
+      await invalidateAfterImageChange(variables.externalStringId);
+    },
+  });
+
+  const treatAsImageMutation = useMutation({
+    mutationFn: async (mutationInput: { externalStringId: string; treatAsImage: boolean }) => {
+      const { sourcePath, externalResourceId } = resolveCatMutationFileIdentity(
+        input,
+        mutationInput.externalStringId,
+        intl,
+      );
+
+      const response = await apiClient.api.orgs[":organizationSlug"].projects[
+        ":projectId"
+      ].files.detail.cat.segments[":externalStringId"]["treat-as-image"].$post({
+        param: {
+          organizationSlug: input.organizationSlug,
+          projectId: input.projectId,
+          externalStringId: mutationInput.externalStringId,
+        },
+        json: {
+          sourcePath,
+          targetLocale: input.targetLocale,
+          externalStringId: mutationInput.externalStringId,
+          externalResourceId,
+          treatAsImage: mutationInput.treatAsImage,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(
+          await readApiError(
+            response,
+            intl.formatMessage(useCatMutationsMessages.failedToUpdateImageMode),
+          ),
+        );
+      }
+
+      return response.json();
+    },
+    onSuccess: async (_data, variables) => {
+      await invalidateAfterImageChange(variables.externalStringId);
     },
   });
 
@@ -223,8 +445,18 @@ export function useCatMutations(input: {
     postComment: commentMutation.mutateAsync,
     resolveCommentMutation,
     resolveComment: resolveCommentMutation.mutateAsync,
+    regenerateImageMutation,
+    regenerateImage: regenerateImageMutation.mutateAsync,
+    uploadImageMutation,
+    uploadImage: uploadImageMutation.mutateAsync,
+    treatAsImageMutation,
+    treatAsImage: treatAsImageMutation.mutateAsync,
     isSaving: saveMutation.isPending,
     isPostingComment: commentMutation.isPending,
     isResolvingComment: resolveCommentMutation.isPending,
+    isImageBusy:
+      regenerateImageMutation.isPending ||
+      uploadImageMutation.isPending ||
+      treatAsImageMutation.isPending,
   };
 }

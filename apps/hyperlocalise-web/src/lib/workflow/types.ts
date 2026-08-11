@@ -1,3 +1,17 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
+import type { UserNotificationEmailFormat } from "@/lib/database/schema/issue-sheet";
+
 export type JobEventData<Kind extends string, Type extends string = string> = {
   kind: Kind;
   jobId: string;
@@ -5,7 +19,9 @@ export type JobEventData<Kind extends string, Type extends string = string> = {
   type: Type;
 };
 
-export type TranslationJobEventData = JobEventData<"translation", "string" | "file">;
+export type TranslationJobEventData = JobEventData<"translation", "string" | "file"> & {
+  knowledgeMemoryEnabled?: boolean;
+};
 
 export type ReviewJobEventData = JobEventData<"review", "native">;
 
@@ -129,3 +145,27 @@ export type TranslationFileImportEventData = {
 };
 
 export type TranslationFileImportQueue = JobQueue<TranslationFileImportEventData>;
+
+/** Pre-rendered Issue Sheet Inbox email for the Resend delivery workflow. */
+export type IssueNotificationEmailEventData = {
+  kind: "issue_notification_email";
+  recipientUserId: string;
+  emailFormat: UserNotificationEmailFormat;
+  to: string;
+  subject: string;
+  html: string;
+  text: string;
+  notificationIds: string[];
+};
+
+export type IssueNotificationEmailQueue = JobQueue<IssueNotificationEmailEventData>;
+
+export type LocalisationAuditQueue = JobQueue<{
+  auditId: string;
+  attemptNumber: number;
+}>;
+
+export type LocalisationAuditReportEmailQueue = JobQueue<{
+  leadId: string;
+  token?: string;
+}>;

@@ -1,15 +1,32 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
+import { and, eq } from "drizzle-orm";
 
 const {
   createRepositorySandboxMock,
   resolveWebProjectRepositoryGitHubContextMock,
   runSubagentMock,
   stopRepositorySandboxMock,
+  reserveAgentRuntimeUsageMock,
+  trackSucceededAgentRuntimeUsageMock,
 } = vi.hoisted(() => ({
   createRepositorySandboxMock: vi.fn(),
   resolveWebProjectRepositoryGitHubContextMock: vi.fn(),
   runSubagentMock: vi.fn(),
   stopRepositorySandboxMock: vi.fn(),
+  reserveAgentRuntimeUsageMock: vi.fn(),
+  trackSucceededAgentRuntimeUsageMock: vi.fn(),
 }));
 
 vi.mock("@/lib/agents/repository-context", () => ({
@@ -28,11 +45,19 @@ vi.mock("@/lib/agent-runtime/subagents/run-subagent", () => ({
   runSubagent: runSubagentMock,
 }));
 
+vi.mock("@/lib/billing/agent-runtime-usage", () => ({
+  reserveAgentRuntimeUsage: reserveAgentRuntimeUsageMock,
+  trackSucceededAgentRuntimeUsage: trackSucceededAgentRuntimeUsageMock,
+}));
+
 import { createProjectTestFixture } from "@/api/routes/project/project.fixture";
 import { db, schema } from "@/lib/database";
 import { isErr } from "@/lib/primitives/result/results";
 
-import { lookupProjectFileStringRepositoryContext } from "./project-string-context-service";
+import {
+  lookupCachedProjectFileStringRepositoryContext,
+  lookupProjectFileStringRepositoryContext,
+} from "./project-string-context-service";
 
 const fixture = createProjectTestFixture();
 
@@ -95,6 +120,8 @@ describe("lookupProjectFileStringRepositoryContext", () => {
     );
     runSubagentMock.mockResolvedValue({ text: "Found this key in the homepage hero." });
     stopRepositorySandboxMock.mockResolvedValue(undefined);
+    reserveAgentRuntimeUsageMock.mockResolvedValue(true);
+    trackSucceededAgentRuntimeUsageMock.mockResolvedValue(undefined);
   });
 
   afterEach(async () => {
@@ -141,6 +168,8 @@ describe("lookupProjectFileStringRepositoryContext", () => {
     });
     expect(resolveWebProjectRepositoryGitHubContextMock).not.toHaveBeenCalled();
     expect(runSubagentMock).not.toHaveBeenCalled();
+    expect(reserveAgentRuntimeUsageMock).not.toHaveBeenCalled();
+    expect(trackSucceededAgentRuntimeUsageMock).not.toHaveBeenCalled();
   });
 
   it("uses an explicit repository name without auto-selecting from enabled repositories", async () => {
@@ -167,6 +196,7 @@ describe("lookupProjectFileStringRepositoryContext", () => {
     expect(runSubagentMock).toHaveBeenCalledWith(
       "repository",
       expect.objectContaining({
+        instructions: expect.stringContaining("Find context in repository"),
         toolContext: expect.objectContaining({
           githubContext: expect.objectContaining({
             repositoryFullName: "hyperlocalise/explicit",
@@ -174,7 +204,74 @@ describe("lookupProjectFileStringRepositoryContext", () => {
         }),
       }),
     );
+    expect(runSubagentMock).toHaveBeenCalledWith(
+      "repository",
+      expect.objectContaining({
+        instructions: expect.stringContaining("Repository tools"),
+      }),
+    );
+    expect(runSubagentMock).toHaveBeenCalledWith(
+      "repository",
+      expect.objectContaining({
+        instructions: expect.stringContaining("String key: home.hero.title"),
+      }),
+    );
+    expect(runSubagentMock).toHaveBeenCalledWith(
+      "repository",
+      expect.objectContaining({
+        instructions: expect.stringContaining("Source text: Ship localized product experiences"),
+      }),
+    );
     expect(stopRepositorySandboxMock).toHaveBeenCalledWith("sandbox-test");
+    expect(reserveAgentRuntimeUsageMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        organizationId: organization.id,
+        source: "project_file_string_context_lookup",
+      }),
+    );
+    expect(trackSucceededAgentRuntimeUsageMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        organizationId: organization.id,
+      }),
+    );
+  });
+
+  it("caches context for an external project without materializing it", async () => {
+    const { organization, user } = await fixture.createLocalWorkosIdentity();
+    const projectId = "ext:crowdin:9";
+    const input = baseInput({
+      organizationId: organization.id,
+      projectId,
+      localUserId: user.id,
+      repositoryFullName: "hyperlocalise/explicit",
+    });
+
+    const firstResult = await lookupProjectFileStringRepositoryContext(input);
+    const secondResult = await lookupProjectFileStringRepositoryContext(input);
+
+    expect(firstResult).toEqual({
+      ok: true,
+      value: {
+        summary: "Found this key in the homepage hero.",
+        cached: false,
+      },
+    });
+    expect(secondResult).toEqual({
+      ok: true,
+      value: {
+        summary: "Found this key in the homepage hero.",
+        cached: true,
+      },
+    });
+    expect(runSubagentMock).toHaveBeenCalledTimes(1);
+
+    const projectRows = await db
+      .select({ id: schema.projects.id })
+      .from(schema.projects)
+      .where(
+        and(eq(schema.projects.organizationId, organization.id), eq(schema.projects.id, projectId)),
+      );
+    expect(projectRows).toEqual([]);
   });
 
   it("returns repository_not_enabled when no repository is specified and none are enabled", async () => {
@@ -248,6 +345,39 @@ describe("lookupProjectFileStringRepositoryContext", () => {
     expect(stopRepositorySandboxMock).toHaveBeenCalledWith("sandbox-test");
   });
 
+  it("completes reserved usage when the repository agent returns only whitespace", async () => {
+    const { organization, project, user } = await fixture.createStoredProjectFixture();
+    runSubagentMock.mockResolvedValue({ text: " \n\t " });
+
+    const result = await lookupProjectFileStringRepositoryContext(
+      baseInput({
+        organizationId: organization.id,
+        projectId: project.id,
+        localUserId: user.id,
+        repositoryFullName: "hyperlocalise/explicit",
+      }),
+    );
+
+    expect(result).toEqual({
+      ok: false,
+      error: expect.objectContaining({
+        code: "agent_failed",
+      }),
+    });
+    expect(reserveAgentRuntimeUsageMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        organizationId: organization.id,
+        source: "project_file_string_context_lookup",
+      }),
+    );
+    expect(trackSucceededAgentRuntimeUsageMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        organizationId: organization.id,
+      }),
+    );
+    expect(stopRepositorySandboxMock).toHaveBeenCalledWith("sandbox-test");
+  });
+
   it("returns repository_context_ambiguous when multiple enabled repositories match", async () => {
     const { organization, project, user } = await fixture.createStoredProjectFixture();
     await insertRepository({
@@ -277,5 +407,98 @@ describe("lookupProjectFileStringRepositoryContext", () => {
     });
     expect(resolveWebProjectRepositoryGitHubContextMock).not.toHaveBeenCalled();
     expect(runSubagentMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("lookupCachedProjectFileStringRepositoryContext", () => {
+  afterEach(async () => {
+    vi.clearAllMocks();
+    await fixture.cleanup();
+  });
+
+  it("returns cached context without requiring a repository selection", async () => {
+    const { organization, project, user } = await fixture.createStoredProjectFixture();
+    await insertRepository({
+      organizationId: organization.id,
+      githubRepositoryId: "2001",
+      fullName: "hyperlocalise/first",
+    });
+    await insertRepository({
+      organizationId: organization.id,
+      githubRepositoryId: "2002",
+      fullName: "hyperlocalise/second",
+    });
+
+    const { saveProjectFileStringRepositoryContext } =
+      await import("./project-string-context-service");
+    await saveProjectFileStringRepositoryContext({
+      organizationId: organization.id,
+      projectId: project.id,
+      sourcePath: "locales/en.json",
+      stringKey: "home.hero.title",
+      repositoryFullName: "hyperlocalise/second",
+      sourceText: "Ship localized product experiences",
+      summary: "Cached hero headline context.",
+      createdByUserId: user.id,
+    });
+
+    const result = await lookupCachedProjectFileStringRepositoryContext(
+      baseInput({
+        organizationId: organization.id,
+        projectId: project.id,
+        localUserId: user.id,
+      }),
+    );
+
+    expect(isErr(result)).toBe(false);
+    if (!result.ok) {
+      throw new Error("expected cached lookup to succeed");
+    }
+    expect(result.value).toEqual({
+      summary: "Cached hero headline context.",
+      cached: true,
+    });
+  });
+
+  it("prefers the explicitly selected repository when multiple caches exist", async () => {
+    const { organization, project, user } = await fixture.createStoredProjectFixture();
+
+    const { saveProjectFileStringRepositoryContext } =
+      await import("./project-string-context-service");
+    await saveProjectFileStringRepositoryContext({
+      organizationId: organization.id,
+      projectId: project.id,
+      sourcePath: "locales/en.json",
+      stringKey: "home.hero.title",
+      repositoryFullName: "hyperlocalise/web",
+      sourceText: "Ship localized product experiences",
+      summary: "Web repository context.",
+      createdByUserId: user.id,
+    });
+    await saveProjectFileStringRepositoryContext({
+      organizationId: organization.id,
+      projectId: project.id,
+      sourcePath: "locales/en.json",
+      stringKey: "home.hero.title",
+      repositoryFullName: "hyperlocalise/legacy",
+      sourceText: "Ship localized product experiences",
+      summary: "Legacy repository context.",
+      createdByUserId: user.id,
+    });
+
+    const result = await lookupCachedProjectFileStringRepositoryContext({
+      ...baseInput({
+        organizationId: organization.id,
+        projectId: project.id,
+        localUserId: user.id,
+      }),
+      repositoryFullName: "hyperlocalise/web",
+    });
+
+    expect(isErr(result)).toBe(false);
+    if (!result.ok) {
+      throw new Error("expected cached lookup to succeed");
+    }
+    expect(result.value.summary).toBe("Web repository context.");
   });
 });

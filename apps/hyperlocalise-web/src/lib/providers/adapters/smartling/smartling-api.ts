@@ -1,3 +1,15 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 /**
  * Smartling API client for authentication and project discovery.
  *
@@ -5,10 +17,118 @@
  * credential validation, TMS connector scans, terminology resources, and job-scoped content pull/write-back.
  */
 
-import { parseSmartlingCredentials, type SmartlingCredentials } from "./smartling-credentials";
-import { uniqueLocales } from "./smartling-locales";
-import { requireProviderBaseUrl } from "../../provider-url-safety";
+import { requireProviderBaseUrl } from "@/lib/providers/shared/provider-url-safety";
 
+/** Parsed Smartling user identifier and secret material from stored credentials. */
+export type SmartlingCredentials = {
+  userIdentifier: string;
+  userSecret: string;
+  accountUid?: string;
+  projectId?: string;
+};
+
+/**
+ * Parses Smartling credential secret material from JSON or compact colon-delimited forms.
+ *
+ * Supported compact shapes:
+ * - `userIdentifier:userSecret`
+ * - `userIdentifier:userSecret:accountUid`
+ * - `userIdentifier:userSecret:accountUid:projectId`
+ *
+ * @throws Error with message `smartling_credentials_invalid` when parsing fails.
+ */
+export function parseSmartlingCredentials(secretMaterial: string): SmartlingCredentials {
+  const trimmed = secretMaterial.trim();
+  if (!trimmed) {
+    throw new Error("smartling_credentials_invalid");
+  }
+
+  try {
+    const parsed = JSON.parse(trimmed) as unknown;
+    if (parsed && typeof parsed === "object") {
+      const record = parsed as Record<string, unknown>;
+      const userIdentifier = readCredentialField(record, ["userIdentifier", "userId", "user_id"]);
+      const userSecret = readCredentialField(record, ["userSecret", "secret", "user_secret"]);
+      if (userIdentifier && userSecret) {
+        return {
+          userIdentifier,
+          userSecret,
+          accountUid: readOptionalCredentialField(record, [
+            "accountUid",
+            "accountId",
+            "account_id",
+          ]),
+          projectId: readOptionalCredentialField(record, ["projectId", "project_id"]),
+        };
+      }
+    }
+  } catch {
+    // Fall through to compact credential forms.
+  }
+
+  const colonParts = trimmed.split(":");
+  if (colonParts.length === 4) {
+    const [userIdentifier, userSecret, accountUid, projectId] = colonParts;
+    if (userIdentifier && userSecret) {
+      return {
+        userIdentifier,
+        userSecret,
+        accountUid: accountUid || undefined,
+        projectId: projectId || undefined,
+      };
+    }
+  }
+
+  if (colonParts.length === 3) {
+    const [userIdentifier, userSecret, accountUid] = colonParts;
+    if (userIdentifier && userSecret) {
+      return {
+        userIdentifier,
+        userSecret,
+        accountUid: accountUid || undefined,
+      };
+    }
+  }
+
+  const [userIdentifier, ...secretParts] = colonParts;
+  const userSecret = secretParts.join(":");
+  if (userIdentifier && userSecret) {
+    return { userIdentifier, userSecret };
+  }
+
+  throw new Error("smartling_credentials_invalid");
+}
+
+function readCredentialField(record: Record<string, unknown>, keys: string[]) {
+  for (const key of keys) {
+    const value = record[key];
+    if (typeof value === "string" && value.trim()) {
+      return value.trim();
+    }
+  }
+  return null;
+}
+
+function readOptionalCredentialField(record: Record<string, unknown>, keys: string[]) {
+  return readCredentialField(record, keys) ?? undefined;
+}
+
+/** Returns unique trimmed locale identifiers while preserving first-seen order. */
+export function uniqueLocales(locales: string[]) {
+  const seen = new Set<string>();
+  const result: string[] = [];
+
+  for (const locale of locales) {
+    const trimmed = locale.trim();
+    if (!trimmed || seen.has(trimmed)) {
+      continue;
+    }
+    seen.add(trimmed);
+    result.push(trimmed);
+  }
+
+  return result;
+}
 const DEFAULT_AUTH_BASE_URL = "https://api.smartling.com/auth-api/v2";
 const DEFAULT_ACCOUNTS_BASE_URL = "https://api.smartling.com/accounts-api/v2";
 const DEFAULT_PROJECTS_BASE_URL = "https://api.smartling.com/projects-api/v2";
@@ -19,6 +139,7 @@ const DEFAULT_GLOSSARY_BASE_URL = "https://api.smartling.com/glossary-api/v2";
 const DEFAULT_GLOSSARY_V3_BASE_URL = "https://api.smartling.com/glossary-api/v3";
 const DEFAULT_TM_BASE_URL = "https://api.smartling.com/translation-memory-api/v2";
 const DEFAULT_ISSUES_BASE_URL = "https://api.smartling.com/issues-api/v2";
+const DEFAULT_CONTEXT_BASE_URL = "https://api.smartling.com/context-api/v2";
 const DEFAULT_WEBHOOKS_BASE_URL = "https://api.smartling.com/webhooks-api/v2";
 const TOKEN_REFRESH_SKEW_MS = 60_000;
 const DEFAULT_PAGE_SIZE = 500;
@@ -37,6 +158,7 @@ export interface SmartlingApiClientOptions {
   glossaryV3BaseUrl?: string;
   tmBaseUrl?: string;
   issuesBaseUrl?: string;
+  contextBaseUrl?: string;
   webhooksBaseUrl?: string;
   fetchFn?: typeof fetch;
 }
@@ -190,6 +312,28 @@ export interface SmartlingJobSummary {
 
 export type SmartlingJobDetails = SmartlingJobSummary;
 
+export interface SmartlingContextCoordinates {
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+}
+
+export interface SmartlingContextBinding {
+  bindingUid?: string | null;
+  contextUid: string;
+  stringHashcode: string;
+  coordinates?: SmartlingContextCoordinates | null;
+  anchors?: string[] | null;
+}
+
+export interface SmartlingContextInfo {
+  contextUid: string;
+  contextType: string;
+  name: string | null;
+  created: string | null;
+}
+
 export interface SmartlingJobFile {
   fileUri: string;
   fileName?: string | null;
@@ -226,6 +370,13 @@ export interface SmartlingAsyncProcessStatus {
   processState?: string;
   processStatus?: string;
   percentComplete?: number;
+}
+
+export interface SmartlingSourceUploadResult {
+  fileUri: string;
+  fileType: string;
+  processUid: string | null;
+  providerPayload: Record<string, unknown>;
 }
 
 export interface SmartlingIssueStringReference {
@@ -313,6 +464,7 @@ export class SmartlingApiClient {
   private readonly glossaryV3BaseUrl: string;
   private readonly tmBaseUrl: string;
   private readonly issuesBaseUrl: string;
+  private readonly contextBaseUrl: string;
   private readonly webhooksBaseUrl: string;
   private readonly fetchFn: typeof fetch;
   private tokens: SmartlingAuthTokens | null = null;
@@ -358,6 +510,10 @@ export class SmartlingApiClient {
     this.issuesBaseUrl = normalizeServiceBaseUrl(
       options.issuesBaseUrl ?? deriveServiceBaseUrl(this.authBaseUrl, "issues"),
       DEFAULT_ISSUES_BASE_URL,
+    );
+    this.contextBaseUrl = normalizeServiceBaseUrl(
+      options.contextBaseUrl ?? deriveServiceBaseUrl(this.authBaseUrl, "context"),
+      DEFAULT_CONTEXT_BASE_URL,
     );
     this.webhooksBaseUrl = normalizeServiceBaseUrl(
       options.webhooksBaseUrl ?? deriveServiceBaseUrl(this.authBaseUrl, "webhooks"),
@@ -529,6 +685,45 @@ export class SmartlingApiClient {
     return files;
   }
 
+  async uploadSourceFile(
+    projectId: string,
+    input: {
+      fileUri: string;
+      fileType: string;
+      filename: string;
+      content: Uint8Array;
+      contentType: string;
+    },
+  ): Promise<SmartlingSourceUploadResult> {
+    const token = await this.getAccessToken();
+    const form = new FormData();
+    form.append("fileUri", input.fileUri);
+    form.append("fileType", input.fileType);
+    const content = input.content.buffer.slice(
+      input.content.byteOffset,
+      input.content.byteOffset + input.content.byteLength,
+    ) as ArrayBuffer;
+    form.append("file", new Blob([content], { type: input.contentType }), input.filename);
+
+    const url = `${this.filesBaseUrl}/projects/${encodeURIComponent(projectId)}/file`;
+    const response = await this.fetchFn(url, {
+      method: "POST",
+      redirect: "error",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      body: form,
+    });
+
+    const payload = await parseSmartlingResponse<Record<string, unknown>>(response, url);
+    return {
+      fileUri: input.fileUri,
+      fileType: input.fileType,
+      processUid: typeof payload.processUid === "string" ? payload.processUid : null,
+      providerPayload: payload,
+    };
+  }
+
   async getFileStatusForAllLocales(
     projectId: string,
     fileUri: string,
@@ -580,6 +775,43 @@ export class SmartlingApiClient {
     return strings;
   }
 
+  async listSourceStringsPage(
+    projectId: string,
+    options: { fileUri?: string; offset: number; limit: number },
+  ): Promise<{ strings: SmartlingSourceString[]; hasMore: boolean; totalCount?: number }> {
+    const token = await this.getAccessToken();
+    const params = new URLSearchParams({
+      limit: String(options.limit),
+      offset: String(options.offset),
+    });
+    if (options.fileUri) {
+      params.set("fileUri", options.fileUri);
+    }
+
+    const data = await this.get<{ items?: SmartlingSourceString[]; totalCount?: number }>(
+      `${this.stringsBaseUrl}/projects/${encodeURIComponent(projectId)}/source-strings?${params.toString()}`,
+      token,
+    );
+
+    const strings = (data.items ?? []).map(normalizeSmartlingSourceString);
+    const totalCount = data.totalCount;
+    const hasMore =
+      typeof totalCount === "number"
+        ? options.offset + strings.length < totalCount
+        : strings.length >= options.limit;
+
+    return { strings, hasMore, totalCount };
+  }
+
+  async downloadSourceFile(projectId: string, fileUri: string): Promise<Uint8Array> {
+    const token = await this.getAccessToken();
+    const params = new URLSearchParams({ fileUri });
+    return this.downloadBinary(
+      `${this.filesBaseUrl}/projects/${encodeURIComponent(projectId)}/file?${params.toString()}`,
+      token,
+    );
+  }
+
   async listJobs(projectId: string): Promise<SmartlingJobSummary[]> {
     const jobs: SmartlingJobSummary[] = [];
 
@@ -612,6 +844,122 @@ export class SmartlingApiClient {
       token,
     );
     return normalizeSmartlingJobSummary(data);
+  }
+
+  async updateJob(
+    projectId: string,
+    translationJobUid: string,
+    fields: {
+      jobName?: string;
+      description?: string | null;
+    },
+  ): Promise<SmartlingJobDetails> {
+    const token = await this.getAccessToken();
+    const body: Record<string, string> = {};
+    if (fields.jobName !== undefined) {
+      body.jobName = fields.jobName;
+    }
+    if (fields.description !== undefined) {
+      body.description = fields.description ?? "";
+    }
+    const data = await this.put<SmartlingJobDetails>(
+      `${this.jobsBaseUrl}/projects/${encodeURIComponent(projectId)}/jobs/${encodeURIComponent(translationJobUid)}`,
+      token,
+      body,
+    );
+    return normalizeSmartlingJobSummary(data);
+  }
+
+  async updateJobDescription(
+    projectId: string,
+    translationJobUid: string,
+    description: string,
+  ): Promise<SmartlingJobDetails> {
+    return this.updateJob(projectId, translationJobUid, { description });
+  }
+
+  async listContextBindings(
+    projectId: string,
+    request: {
+      stringHashcodes?: string[];
+      contextUid?: string;
+      contentFileUri?: string;
+      offset?: string;
+    },
+  ): Promise<{ items: SmartlingContextBinding[]; offset: string | null }> {
+    const bindings: SmartlingContextBinding[] = [];
+    let offset: string | undefined = request.offset;
+
+    while (true) {
+      const token = await this.getAccessToken();
+      const params = new URLSearchParams();
+      if (offset) {
+        params.set("offset", offset);
+      }
+      const query = params.toString();
+      const data = await this.post<{ items?: SmartlingContextBinding[]; offset?: string | null }>(
+        `${this.contextBaseUrl}/projects/${encodeURIComponent(projectId)}/bindings/list${query ? `?${query}` : ""}`,
+        token,
+        {
+          ...(request.stringHashcodes ? { stringHashcodes: request.stringHashcodes } : {}),
+          ...(request.contextUid ? { contextUid: request.contextUid } : {}),
+          ...(request.contentFileUri ? { contentFileUri: request.contentFileUri } : {}),
+        },
+      );
+
+      const page = (data.items ?? []).map(normalizeSmartlingContextBinding);
+      bindings.push(...page);
+      const nextOffset = data.offset?.trim();
+      offset = nextOffset ? nextOffset : undefined;
+
+      if (!offset || page.length === 0) {
+        break;
+      }
+    }
+
+    return { items: bindings, offset: null };
+  }
+
+  async getContextInfo(projectId: string, contextUid: string): Promise<SmartlingContextInfo> {
+    const token = await this.getAccessToken();
+    const data = await this.get<SmartlingContextInfo>(
+      `${this.contextBaseUrl}/projects/${encodeURIComponent(projectId)}/contexts/${encodeURIComponent(contextUid)}`,
+      token,
+    );
+    return normalizeSmartlingContextInfo(data);
+  }
+
+  async downloadContextContent(
+    projectId: string,
+    contextUid: string,
+  ): Promise<{ bytes: Uint8Array; contentType: string }> {
+    const token = await this.getAccessToken();
+    const url = `${this.contextBaseUrl}/projects/${encodeURIComponent(projectId)}/contexts/${encodeURIComponent(contextUid)}/content`;
+    const response = await this.fetchFn(url, {
+      method: "GET",
+      redirect: "error",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      let body: unknown = null;
+      try {
+        body = await response.json();
+      } catch {
+        body = await response.text().catch(() => null);
+      }
+      const classified = classifySmartlingHttpError(response.status, body);
+      throw new SmartlingApiError(classified.message, response.status, classified.errorCode, body);
+    }
+
+    const contentType = response.headers.get("content-type")?.split(";")[0]?.trim() || "image/png";
+    const buffer = await response.arrayBuffer();
+    return {
+      bytes: new Uint8Array(buffer),
+      contentType,
+    };
   }
 
   async listJobFiles(projectId: string, translationJobUid: string): Promise<SmartlingJobFile[]> {
@@ -961,6 +1309,15 @@ export class SmartlingApiClient {
     );
   }
 
+  async closeIssue(projectId: string, issueUid: string): Promise<SmartlingIssue> {
+    const token = await this.getAccessToken();
+    return this.post<SmartlingIssue>(
+      `${this.issuesBaseUrl}/projects/${encodeURIComponent(projectId)}/issues/${encodeURIComponent(issueUid)}/close`,
+      token,
+      {},
+    );
+  }
+
   async listWebhookSubscriptions(accountUid: string): Promise<SmartlingWebhookSubscription[]> {
     const token = await this.getAccessToken();
     const subscriptions: SmartlingWebhookSubscription[] = [];
@@ -1092,6 +1449,30 @@ export class SmartlingApiClient {
 
     await parseSmartlingResponse<Record<string, never>>(response, url);
   }
+
+  private async downloadBinary(url: string, token: string): Promise<Uint8Array> {
+    const response = await this.fetchFn(url, {
+      method: "GET",
+      redirect: "error",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      let body: unknown = null;
+      try {
+        body = await response.json();
+      } catch {
+        body = await response.text().catch(() => null);
+      }
+      const classified = classifySmartlingHttpError(response.status, body);
+      throw new SmartlingApiError(classified.message, response.status, classified.errorCode, body);
+    }
+
+    const buffer = await response.arrayBuffer();
+    return new Uint8Array(buffer);
+  }
 }
 
 function normalizeSmartlingWebhookSubscription(
@@ -1122,6 +1503,7 @@ export function deriveServiceBaseUrl(
     | "glossary-v3"
     | "translation-memory"
     | "issues"
+    | "context"
     | "webhooks",
 ) {
   const normalized = normalizeServiceBaseUrl(authBaseUrl, authBaseUrl);
@@ -1157,6 +1539,8 @@ export function deriveServiceBaseUrl(
       return DEFAULT_TM_BASE_URL;
     case "issues":
       return DEFAULT_ISSUES_BASE_URL;
+    case "context":
+      return DEFAULT_CONTEXT_BASE_URL;
     case "webhooks":
       return DEFAULT_WEBHOOKS_BASE_URL;
   }
@@ -1529,6 +1913,38 @@ function normalizeSmartlingJobSummary(item: SmartlingJobSummary): SmartlingJobSu
     modifiedDate: item.modifiedDate ?? null,
     referenceNumber: item.referenceNumber ?? null,
     jobNumber: item.jobNumber ?? null,
+  };
+}
+
+function normalizeSmartlingContextBinding(item: SmartlingContextBinding): SmartlingContextBinding {
+  const coordinates = item.coordinates;
+  return {
+    bindingUid: item.bindingUid ?? null,
+    contextUid: item.contextUid,
+    stringHashcode: item.stringHashcode,
+    anchors: item.anchors ?? null,
+    coordinates:
+      coordinates &&
+      Number.isFinite(coordinates.left) &&
+      Number.isFinite(coordinates.top) &&
+      Number.isFinite(coordinates.width) &&
+      Number.isFinite(coordinates.height)
+        ? {
+            left: coordinates.left,
+            top: coordinates.top,
+            width: coordinates.width,
+            height: coordinates.height,
+          }
+        : null,
+  };
+}
+
+function normalizeSmartlingContextInfo(item: SmartlingContextInfo): SmartlingContextInfo {
+  return {
+    contextUid: item.contextUid,
+    contextType: item.contextType,
+    name: item.name?.trim() || null,
+    created: item.created ?? null,
   };
 }
 

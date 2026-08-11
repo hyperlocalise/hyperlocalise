@@ -1,15 +1,29 @@
 "use client";
 
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import { useQuery } from "@tanstack/react-query";
 
 import {
   fetchNativeProjectJobs,
   fetchTmsProjectJobs,
-  filterOpenProjectJobs,
+  selectOverviewTriageProjectJobs,
 } from "@/lib/projects/jobs/fetch-project-jobs";
-import { parseProviderProjectId } from "@/lib/providers/tms-provider-resource-id";
+import { parseProviderProjectId } from "@/lib/providers/jobs/tms-provider-resource-id";
 
 import type { ApiJob } from "../../../jobs/_components/jobs-page-view";
+
+import { PROJECT_OVERVIEW_TRIAGE_LIMIT } from "./project-overview-view-model";
 
 export function useProjectOverviewJobsQuery(
   organizationSlug: string,
@@ -32,12 +46,14 @@ export function useProjectOverviewJobsQuery(
           organizationSlug,
           parsedProviderProject.externalProjectId,
         );
-        return filterOpenProjectJobs(jobs).slice(0, 5) as ApiJob[];
+        return selectOverviewTriageProjectJobs(jobs, PROJECT_OVERVIEW_TRIAGE_LIMIT) as ApiJob[];
       }
 
+      // Server orders by triage priority before applying the cap so older
+      // waiting_for_review / failed jobs are not displaced by newer queued work.
       return (await fetchNativeProjectJobs(organizationSlug, projectId, {
-        open: true,
-        limit: 5,
+        triage: true,
+        limit: PROJECT_OVERVIEW_TRIAGE_LIMIT,
       })) as ApiJob[];
     },
   });

@@ -1,4 +1,23 @@
+"use client";
+
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import type { UIMessage } from "ai";
+import type { IntlShape } from "react-intl";
+
+import { assertNever } from "@/lib/primitives/assert-never/assert-never";
+
+import { inboxTypesMessages } from "./inbox-types.messages";
 
 export type Conversation = {
   id: string;
@@ -29,6 +48,7 @@ export type ConversationMessage = {
   senderType: "user" | "agent";
   senderEmail: string | null;
   text: string;
+  parts?: UIMessage["parts"] | null;
   attachments: ConversationMessageAttachment[] | null;
   createdAt: string;
 };
@@ -36,7 +56,7 @@ export type ConversationMessage = {
 export type LinkedJob = {
   id: string;
   projectId: string | null;
-  kind: "translation" | "research" | "review" | "sync" | "asset_management";
+  kind: "translation" | "research" | "review" | "proofread" | "sync" | "asset_management";
   type: "string" | "file" | null;
   status: "queued" | "running" | "succeeded" | "failed" | "waiting_for_review" | "cancelled";
   outcomeKind: "string_result" | "file_result" | "error" | null;
@@ -69,41 +89,49 @@ export function initialsFor(value: string) {
 export function getConversationParticipantAvatar(
   participantEmail: string | null,
   currentUser: InboxCurrentUser,
+  intl: IntlShape,
 ) {
   const isCurrentUser = !participantEmail || participantEmail === currentUser.email;
   const displayName = isCurrentUser ? currentUser.name : participantEmail;
+  const userFallback = intl.formatMessage(inboxTypesMessages.userFallback);
 
   return {
-    alt: displayName ?? "User",
+    alt: displayName ?? userFallback,
     imageUrl: isCurrentUser ? currentUser.avatarUrl : null,
-    label: initialsFor(displayName ?? "User"),
+    label: initialsFor(displayName ?? userFallback),
   };
 }
 
-export const sourceLabel: Record<Conversation["source"], string> = {
-  chat_ui: "Chat",
-  email_agent: "Email",
-  github_agent: "GitHub",
-  slack_agent: "Slack",
-};
+export function getSourceLabel(source: Conversation["source"], intl: IntlShape) {
+  switch (source) {
+    case "chat_ui":
+      return intl.formatMessage(inboxTypesMessages.sourceChat);
+    case "email_agent":
+      return intl.formatMessage(inboxTypesMessages.sourceEmail);
+    case "github_agent":
+      return intl.formatMessage(inboxTypesMessages.sourceGitHub);
+    case "slack_agent":
+      return intl.formatMessage(inboxTypesMessages.sourceSlack);
+    default:
+      return assertNever(source);
+  }
+}
+
+export function getStatusLabel(status: Conversation["status"], intl: IntlShape) {
+  switch (status) {
+    case "active":
+      return intl.formatMessage(inboxTypesMessages.statusActive);
+    case "archived":
+      return intl.formatMessage(inboxTypesMessages.statusArchived);
+    default:
+      return assertNever(status);
+  }
+}
 
 export const statusStyles: Record<Conversation["status"], string> = {
   active:
     "border-grove-500/35 bg-grove-100 text-grove-900 dark:border-grove-300/20 dark:bg-grove-300/10 dark:text-grove-300",
   archived: "border-border bg-muted text-muted-foreground",
-};
-
-export const jobStatusStyles: Record<LinkedJob["status"], string> = {
-  queued: "border-border bg-muted text-muted-foreground",
-  running:
-    "border-beam-700/30 bg-beam-100 text-beam-900 dark:border-beam-500/25 dark:bg-beam-500/10 dark:text-beam-700",
-  succeeded:
-    "border-grove-500/35 bg-grove-100 text-grove-900 dark:border-grove-300/20 dark:bg-grove-300/10 dark:text-grove-300",
-  failed:
-    "border-flame-700/30 bg-flame-100 text-flame-900 dark:border-flame-500/25 dark:bg-flame-500/10 dark:text-flame-100",
-  waiting_for_review:
-    "border-bud-700/30 bg-bud-100 text-gray-900 dark:border-bud-500/25 dark:bg-bud-500/10 dark:text-bud-300",
-  cancelled: "border-border bg-muted text-muted-foreground",
 };
 
 /**
@@ -113,11 +141,13 @@ export const jobStatusStyles: Record<LinkedJob["status"], string> = {
  */
 const DATE_FORMATTER = new Intl.DateTimeFormat();
 
-export function formatRelativeTime(value: string | Date | null) {
-  if (!value) return "n/a";
+export function formatRelativeTime(value: string | Date | null, intl: IntlShape) {
+  if (!value) return intl.formatMessage(inboxTypesMessages.relativeUnavailable);
 
   const date = typeof value === "string" ? new Date(value) : value;
-  if (Number.isNaN(date.getTime())) return "n/a";
+  if (Number.isNaN(date.getTime())) {
+    return intl.formatMessage(inboxTypesMessages.relativeUnavailable);
+  }
 
   const now = new Date();
   const diffMs = Math.max(0, now.getTime() - date.getTime());
@@ -125,9 +155,15 @@ export function formatRelativeTime(value: string | Date | null) {
   const diffHour = Math.floor(diffMin / 60);
   const diffDay = Math.floor(diffHour / 24);
 
-  if (diffMin < 1) return "now";
-  if (diffMin < 60) return `${diffMin}m`;
-  if (diffHour < 24) return `${diffHour}h`;
-  if (diffDay < 7) return `${diffDay}d`;
+  if (diffMin < 1) return intl.formatMessage(inboxTypesMessages.relativeNow);
+  if (diffMin < 60) {
+    return intl.formatMessage(inboxTypesMessages.relativeMinutes, { count: diffMin });
+  }
+  if (diffHour < 24) {
+    return intl.formatMessage(inboxTypesMessages.relativeHours, { count: diffHour });
+  }
+  if (diffDay < 7) {
+    return intl.formatMessage(inboxTypesMessages.relativeDays, { count: diffDay });
+  }
   return DATE_FORMATTER.format(date);
 }

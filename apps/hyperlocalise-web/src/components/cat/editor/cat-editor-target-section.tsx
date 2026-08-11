@@ -1,5 +1,18 @@
 "use client";
 
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
+import { CopyIcon, EraserIcon } from "lucide-react";
 import { useMemo } from "react";
 import { FormattedMessage } from "react-intl";
 
@@ -43,15 +56,17 @@ export function CatEditorTargetSection({
         </h3>
         {canEditTarget ? (
           <div className="flex flex-wrap items-center gap-1">
-            <Button variant="ghost" size="sm" onClick={onCopySource} disabled={isLoading}>
+            <Button variant="ghost" size="xs" onClick={onCopySource} disabled={isLoading}>
+              <CopyIcon className="size-3" aria-hidden />
               <FormattedMessage {...catEditorPanelMessages.copySource} />
             </Button>
             <Button
               variant="ghost"
-              size="sm"
+              size="xs"
               onClick={onClearTarget}
               disabled={isLoading || segment.targetText.length === 0}
             >
+              <EraserIcon className="size-3" aria-hidden />
               <FormattedMessage {...catEditorPanelMessages.clearTarget} />
             </Button>
           </div>

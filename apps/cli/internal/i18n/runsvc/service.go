@@ -28,16 +28,20 @@ const (
 )
 
 type Input struct {
-	ConfigPath                string
-	Bucket                    string
-	Group                     string
-	TargetLocales             []string
-	SourcePaths               []string
-	DryRun                    bool
-	Force                     bool
-	Prune                     bool
-	PruneLimit                int
-	PruneForce                bool
+	ConfigPath    string
+	Bucket        string
+	Group         string
+	TargetLocales []string
+	SourcePaths   []string
+	DryRun        bool
+	Force         bool
+	Prune         bool
+	PruneLimit    int
+	PruneForce    bool
+	// MaxTranslations caps how many executable tasks run in this session after lock
+	// filtering and prefill. 0 means unlimited. Deferred tasks remain unlocked so a
+	// later run without --force can continue.
+	MaxTranslations           int
 	LockPath                  string
 	Workers                   int
 	ExperimentalContextMemory bool
@@ -49,8 +53,12 @@ type Input struct {
 	// ReportJSONDetail controls --output JSON shape: summary (aggregate-only) or full (complete report).
 	// The CLI defaults to summary; an empty value normalizes to full for backward compatibility with
 	// library callers that omit the field. Run applies NormalizeReportJSONDetail again (idempotent).
-	ReportJSONDetail    string
-	PrefilledEntries    map[string]string
+	ReportJSONDetail string
+	// PrefilledEntries is the legacy flat map keyed by entry id. Requires PrefilledTargetPath.
+	PrefilledEntries map[string]string
+	// PrefilledByLocale is locale -> entry id -> value. Mutually exclusive with PrefilledEntries.
+	// Target paths are resolved from planned tasks; PrefilledTargetPath must be empty.
+	PrefilledByLocale   map[string]map[string]string
 	PrefilledTargetPath string
 }
 
@@ -126,6 +134,7 @@ type Event struct {
 	PlannedTotal             int       `json:"plannedTotal,omitempty"`
 	SkippedByLock            int       `json:"skippedByLock,omitempty"`
 	ExecutableTotal          int       `json:"executableTotal,omitempty"`
+	DeferredByLimit          int       `json:"deferredByLimit,omitempty"`
 	Succeeded                int       `json:"succeeded,omitempty"`
 	Failed                   int       `json:"failed,omitempty"`
 	PersistedToLock          int       `json:"persistedToLock,omitempty"`
@@ -265,9 +274,12 @@ type Report struct {
 	PlannedTotal    int       `json:"plannedTotal"`
 	SkippedByLock   int       `json:"skippedByLock"`
 	ExecutableTotal int       `json:"executableTotal"`
-	Succeeded       int       `json:"succeeded"`
-	Failed          int       `json:"failed"`
-	PersistedToLock int       `json:"persistedToLock"`
+	// DeferredByLimit is the number of executable tasks left for a later session
+	// because MaxTranslations capped this run.
+	DeferredByLimit int `json:"deferredByLimit"`
+	Succeeded       int `json:"succeeded"`
+	Failed          int `json:"failed"`
+	PersistedToLock int `json:"persistedToLock"`
 	TokenUsage
 	LocaleUsage                 map[string]TokenUsage `json:"localeUsage,omitempty"`
 	Batches                     []BatchUsage          `json:"batches,omitempty"`
@@ -473,6 +485,9 @@ func (s *Service) planTasks(cfg *config.I18NConfig, onlyBucket, onlyGroup string
 						if strings.ToLower(strings.TrimSpace(profile.Provider)) != translator.ProviderOpenAI {
 							return nil, nil, fmt.Errorf("planning tasks: image source %q uses profile %q with provider %q; image localization is only supported with provider %q", sourcePath, profileName, profile.Provider, translator.ProviderOpenAI)
 						}
+						if !filterFixes && cap(tasks)-len(tasks) < len(targets) {
+							tasks = slices.Grow(tasks, len(targets))
+						}
 						for _, target := range targets {
 							resolvedTargetPattern := pathresolver.ResolveTargetPath(file.To, cfg.Locales.Source, target)
 							targetPath, err := resolveTargetPath(sourcePattern, resolvedTargetPattern, sourcePath)
@@ -523,11 +538,24 @@ func (s *Service) planTasks(cfg *config.I18NConfig, onlyBucket, onlyGroup string
 						}
 						continue
 					}
-					sourceEntries, sourceContextByKey, parserMode, err := s.loadSourceEntriesCached(parser, sourceCache, sourcePath)
+					snapshot, err := s.loadSourceEntriesCached(parser, sourceCache, sourcePath)
 					if err != nil {
 						return nil, nil, err
 					}
+					sourceEntries := snapshot.entries
+					sourceContextByKey := snapshot.entryContext
+					parserMode := snapshot.parserMode
 					keys := sortedEntryKeys(sourceEntries)
+
+					// Fix runs keep only a small matching subset after filterFixes;
+					// skip bulk reservation so large catalogs do not OOM.
+					if !filterFixes {
+						expectedNewTasks := len(keys) * len(targets)
+						if cap(tasks)-len(tasks) < expectedNewTasks {
+							tasks = slices.Grow(tasks, expectedNewTasks)
+						}
+					}
+
 					for _, target := range targets {
 						resolvedTargetPattern := pathresolver.ResolveTargetPath(file.To, cfg.Locales.Source, target)
 						targetPath, err := resolveTargetPath(sourcePattern, resolvedTargetPattern, sourcePath)
@@ -542,26 +570,28 @@ func (s *Service) planTasks(cfg *config.I18NConfig, onlyBucket, onlyGroup string
 							legacyRendered := renderPrompt(profile.Prompt, cfg.Locales.Source, target, sourceText)
 							legacyPromptUsed := strings.TrimSpace(legacyRendered) != "" && strings.TrimSpace(profile.SystemPrompt) == "" && strings.TrimSpace(profile.UserPrompt) == ""
 							task := Task{
-								SourceLocale:         cfg.Locales.Source,
-								TargetLocale:         target,
-								SourcePath:           sourcePath,
-								TargetPath:           targetPath,
-								EntryKey:             key,
-								SourceText:           sourceText,
-								ProfileName:          profileName,
-								Provider:             profile.Provider,
-								Model:                profile.Model,
-								LegacyPrompt:         legacyPromptUsed,
-								PromptLegacyTemplate: profile.Prompt,
-								PromptSystemTemplate: profile.SystemPrompt,
-								PromptUserTemplate:   profile.UserPrompt,
-								SourceContext:        sourceContextByKey[key],
-								ContextProvider:      contextProvider,
-								ContextModel:         contextModel,
-								GroupName:            groupName,
-								BucketName:           bucketName,
-								ParserMode:           parserMode,
-								PromptVersion:        promptVersion,
+								SourceLocale:             cfg.Locales.Source,
+								TargetLocale:             target,
+								SourcePath:               sourcePath,
+								TargetPath:               targetPath,
+								EntryKey:                 key,
+								SourceText:               sourceText,
+								ProfileName:              profileName,
+								Provider:                 profile.Provider,
+								Model:                    profile.Model,
+								LegacyPrompt:             legacyPromptUsed,
+								PromptLegacyTemplate:     profile.Prompt,
+								PromptSystemTemplate:     profile.SystemPrompt,
+								PromptUserTemplate:       profile.UserPrompt,
+								SourceContext:            sourceContextByKey[key],
+								ContextProvider:          contextProvider,
+								ContextModel:             contextModel,
+								GroupName:                groupName,
+								BucketName:               bucketName,
+								ParserMode:               parserMode,
+								PromptVersion:            promptVersion,
+								sourceTextHash:           snapshot.sourceTextHashes[key],
+								sourceContextFingerprint: snapshot.sourceContextFingerprints[key],
 							}
 							precomputeStableTaskCacheFields(&task)
 							if filterFixes {
@@ -650,9 +680,11 @@ func (s *Service) planTasks(cfg *config.I18NConfig, onlyBucket, onlyGroup string
 }
 
 type plannedSourceSnapshot struct {
-	entries      map[string]string
-	entryContext map[string]string
-	parserMode   string
+	entries                   map[string]string
+	entryContext              map[string]string
+	parserMode                string
+	sourceTextHashes          map[string]string
+	sourceContextFingerprints map[string]string
 }
 
 func normalizeTargetLocales(locales []string) ([]string, error) {
@@ -738,21 +770,37 @@ func (s *Service) loadSourceEntries(parser *translationfileparser.Strategy, sour
 	return entries, entryContext, parserModeForSource(sourcePath, content), nil
 }
 
-func (s *Service) loadSourceEntriesCached(parser *translationfileparser.Strategy, sourceCache map[string]plannedSourceSnapshot, sourcePath string) (map[string]string, map[string]string, string, error) {
+func (s *Service) loadSourceEntriesCached(parser *translationfileparser.Strategy, sourceCache map[string]plannedSourceSnapshot, sourcePath string) (plannedSourceSnapshot, error) {
 	if cached, ok := sourceCache[sourcePath]; ok {
-		return cached.entries, cached.entryContext, cached.parserMode, nil
+		return cached, nil
 	}
 
 	entries, entryContext, parserMode, err := s.loadSourceEntries(parser, sourcePath)
 	if err != nil {
-		return nil, nil, "", err
+		return plannedSourceSnapshot{}, err
 	}
-	sourceCache[sourcePath] = plannedSourceSnapshot{
-		entries:      entries,
-		entryContext: entryContext,
-		parserMode:   parserMode,
+
+	sourceTextHashes := make(map[string]string, len(entries))
+	sourceContextFingerprints := make(map[string]string, len(entries))
+	for key, text := range entries {
+		sourceTextHashes[key] = hashSourceText(normalizeSourceForCache(text))
+
+		ctxVal := entryContext[key]
+		effectiveContext := sanitizePromptContext(ctxVal, maxSourceContextLen)
+		sourceContextFingerprints[key] = hashSourceText(strings.Join([]string{
+			"source_context=" + normalizeSourceForCache(effectiveContext),
+		}, "\n"))
 	}
-	return entries, entryContext, parserMode, nil
+
+	snapshot := plannedSourceSnapshot{
+		entries:                   entries,
+		entryContext:              entryContext,
+		parserMode:                parserMode,
+		sourceTextHashes:          sourceTextHashes,
+		sourceContextFingerprints: sourceContextFingerprints,
+	}
+	sourceCache[sourcePath] = snapshot
+	return snapshot, nil
 }
 
 type eventEmitter struct {
@@ -947,14 +995,16 @@ func taskIdentity(targetPath, entryKey string) string {
 
 func hashSourceText(source string) string {
 	sum := sha512.Sum512([]byte(source))
-	return fmt.Sprintf("%x", sum)
+	// Bolt: Use hex.EncodeToString instead of fmt.Sprintf("%x") to avoid reflection/formatting overhead
+	return hex.EncodeToString(sum[:])
 }
 
 // lockStoredFingerprint is a compact SHA-512 prefix (32 hex chars) stored in the lockfile.
 // hashSourceText remains full-length for exact-cache keys and other non-lock uses.
 func lockStoredFingerprint(preimage string) string {
 	sum := sha512.Sum512([]byte(preimage))
-	return fmt.Sprintf("%x", sum[:16])
+	// Bolt: Use hex.EncodeToString instead of fmt.Sprintf("%x") to avoid reflection/formatting overhead
+	return hex.EncodeToString(sum[:16])
 }
 
 // lockFingerprintEqual reports whether a fingerprint stored in the lockfile
@@ -973,7 +1023,8 @@ func lockFingerprintEqual(stored, computed string) bool {
 	if err != nil || len(decoded) != 64 {
 		return false
 	}
-	return fmt.Sprintf("%x", decoded[:16]) == computed
+	// Bolt: Use hex.EncodeToString instead of fmt.Sprintf("%x") to avoid reflection/formatting overhead
+	return hex.EncodeToString(decoded[:16]) == computed
 }
 
 func parserModeForSource(path string, content []byte) string {

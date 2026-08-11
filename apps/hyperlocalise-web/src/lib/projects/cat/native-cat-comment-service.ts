@@ -1,4 +1,16 @@
-import { and, asc, eq, inArray, sql } from "drizzle-orm";
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
+import { and, asc, eq, inArray, notExists, or } from "drizzle-orm";
 
 import type { ProjectFileCatComment } from "@/api/routes/project/project.schema";
 import { db, schema } from "@/lib/database";
@@ -77,6 +89,27 @@ function toCatComment(row: {
   };
 }
 
+/**
+ * Native issues are created in the issue sheet, so `type = 'issue'` rows only
+ * exist for segments commented on before that change. Keep the ones that were
+ * never mirrored into a sheet issue visible and resolvable; hide the rest so
+ * they do not appear twice alongside their sheet issue.
+ */
+function legacyIssueOrCommentCondition(database: typeof db) {
+  return or(
+    eq(schema.projectTranslationComments.type, "comment"),
+    and(
+      eq(schema.projectTranslationComments.type, "issue"),
+      notExists(
+        database
+          .select({ id: schema.issueSheetIssues.id })
+          .from(schema.issueSheetIssues)
+          .where(eq(schema.issueSheetIssues.linkedCommentId, schema.projectTranslationComments.id)),
+      ),
+    ),
+  );
+}
+
 export class NativeCatCommentService extends ProjectServiceBase {
   constructor(
     database: typeof db = db,
@@ -115,6 +148,7 @@ export class NativeCatCommentService extends ProjectServiceBase {
           eq(schema.projectTranslationComments.organizationId, input.organizationId),
           eq(schema.projectTranslationComments.projectId, input.projectId),
           eq(schema.projectTranslationComments.targetLocale, input.targetLocale),
+          legacyIssueOrCommentCondition(this.database),
           inArray(schema.projectTranslationComments.translationKeyId, input.translationKeyIds),
         ),
       )
@@ -131,60 +165,6 @@ export class NativeCatCommentService extends ProjectServiceBase {
     return commentsByKeyId;
   }
 
-  async countByKeyIds(input: {
-    organizationId: string;
-    projectId: string;
-    translationKeyIds: string[];
-    targetLocale: string;
-  }) {
-    if (input.translationKeyIds.length === 0) {
-      return new Map<string, { commentCount: number; unresolvedIssueCount: number }>();
-    }
-
-    const rows = await this.database
-      .select({
-        translationKeyId: schema.projectTranslationComments.translationKeyId,
-        type: schema.projectTranslationComments.type,
-        status: schema.projectTranslationComments.status,
-        count: sql<number>`count(*)::int`,
-      })
-      .from(schema.projectTranslationComments)
-      .where(
-        and(
-          eq(schema.projectTranslationComments.organizationId, input.organizationId),
-          eq(schema.projectTranslationComments.projectId, input.projectId),
-          eq(schema.projectTranslationComments.targetLocale, input.targetLocale),
-          inArray(schema.projectTranslationComments.translationKeyId, input.translationKeyIds),
-        ),
-      )
-      .groupBy(
-        schema.projectTranslationComments.translationKeyId,
-        schema.projectTranslationComments.type,
-        schema.projectTranslationComments.status,
-      );
-
-    const countsByKeyId = new Map<string, { commentCount: number; unresolvedIssueCount: number }>();
-
-    for (const row of rows) {
-      const existing = countsByKeyId.get(row.translationKeyId) ?? {
-        commentCount: 0,
-        unresolvedIssueCount: 0,
-      };
-      existing.commentCount += row.count;
-
-      if (
-        row.type === "issue" &&
-        (row.status === "open" || row.status === "unresolved" || row.status === null)
-      ) {
-        existing.unresolvedIssueCount += row.count;
-      }
-
-      countsByKeyId.set(row.translationKeyId, existing);
-    }
-
-    return countsByKeyId;
-  }
-
   async save(input: {
     organizationId: string;
     projectId: string;
@@ -196,6 +176,10 @@ export class NativeCatCommentService extends ProjectServiceBase {
     issueType?: string;
     actorUserId?: string;
   }): Promise<ProjectFileCatComment | null> {
+    if (input.type === "issue") {
+      return null;
+    }
+
     const sourceFile = await this.translations.getRepositorySourceFileByPath({
       organizationId: input.organizationId,
       projectId: input.projectId,
@@ -223,7 +207,6 @@ export class NativeCatCommentService extends ProjectServiceBase {
       return null;
     }
 
-    const commentType = input.type ?? "comment";
     const authorFields = input.actorUserId
       ? await fetchCommentAuthorFields(this.database, input.actorUserId)
       : {
@@ -239,10 +222,10 @@ export class NativeCatCommentService extends ProjectServiceBase {
         projectId: input.projectId,
         translationKeyId: key.id,
         targetLocale: input.targetLocale,
-        type: commentType,
-        status: commentType === "issue" ? "unresolved" : null,
+        type: "comment",
+        status: null,
         text: input.text,
-        issueType: commentType === "issue" ? (input.issueType ?? "general_question") : null,
+        issueType: null,
         authorUserId: input.actorUserId ?? null,
       })
       .returning({
@@ -263,7 +246,7 @@ export class NativeCatCommentService extends ProjectServiceBase {
         organizationId: input.organizationId,
         projectId: input.projectId,
         translationKeyId: input.translationKeyId,
-        commentType,
+        commentType: "comment",
       },
       "saved native CAT comment",
     );
@@ -274,7 +257,12 @@ export class NativeCatCommentService extends ProjectServiceBase {
     });
   }
 
-  async resolve(input: {
+  /**
+   * Resolves a legacy `type = 'issue'` comment. New native issues live in the
+   * issue sheet and are resolved there; this only keeps pre-existing rows
+   * actionable.
+   */
+  async resolveLegacyIssue(input: {
     organizationId: string;
     projectId: string;
     commentId: string;
@@ -345,7 +333,7 @@ export class NativeCatCommentService extends ProjectServiceBase {
         commentId: input.commentId,
         actorUserId: input.actorUserId ?? null,
       },
-      "resolved native CAT issue comment",
+      "resolved legacy native CAT issue comment",
     );
 
     return toCatComment({

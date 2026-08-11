@@ -1,3 +1,15 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import type { Message, Thread } from "chat";
 
 import { localizeImageAttachment } from "@/lib/agents/image-localization";
@@ -11,6 +23,10 @@ export async function handleImageAttachment(
   imageAttachment: Message["attachments"][number],
   raw: Pick<RawEmailMessage, "emailId" | "subject" | "messageId">,
   intent: EmailRequestIntent,
+  billing?: {
+    organizationId: string;
+    interactionId?: string | null;
+  },
 ) {
   const file = await localizeImageAttachment({
     attachment: imageAttachment,
@@ -21,6 +37,18 @@ export async function handleImageAttachment(
       raw.subject ? `Email subject: ${raw.subject}` : null,
       message.text ? `Email body: ${message.text}` : null,
     ],
+    billing: billing
+      ? {
+          organizationId: billing.organizationId,
+          operationKey: `image-localization:email:${raw.emailId}:${intent.targetLocale ?? "unknown"}`,
+          source: "email_image_localization",
+          interactionId: billing.interactionId,
+          dimensions: {
+            channel: "email",
+            target_locale: intent.targetLocale,
+          },
+        }
+      : undefined,
   });
 
   await thread.post({

@@ -51,11 +51,13 @@ func (p FluentParser) ParseWithContext(content []byte) (map[string]string, map[s
 		return nil, nil, err
 	}
 
-	values := map[string]string{}
-	contextByKey := map[string]string{}
+	// BOLT OPTIMIZATION: Hint map capacity based on entries.
+	values := make(map[string]string, len(doc.entries))
+	contextByKey := make(map[string]string, len(doc.entries)/4)
 	for _, entry := range doc.entries {
 		values[entry.key] = entry.sourceValue
-		if strings.TrimSpace(entry.context) != "" {
+		// BOLT OPTIMIZATION: entry.context is already trimmed by formatFluentComments.
+		if entry.context != "" {
 			contextByKey[entry.key] = entry.context
 		}
 	}
@@ -74,16 +76,9 @@ func MarshalFluent(template []byte, values map[string]string) ([]byte, error) {
 }
 
 func (d fluentDocument) render(values map[string]string) ([]byte, error) {
-	entries := append([]fluentEntry(nil), d.entries...)
-	slices.SortFunc(entries, func(a, b fluentEntry) int {
-		if a.valueStart < b.valueStart {
-			return -1
-		}
-		if a.valueStart > b.valueStart {
-			return 1
-		}
-		return strings.Compare(a.key, b.key)
-	})
+	// BOLT OPTIMIZATION: Avoid redundant clone and sort as entries are
+	// naturally collected in document order during parsing.
+	entries := d.entries
 
 	templateKeys := make(map[string]struct{}, len(entries)+len(d.messageIDs))
 	for messageID := range d.messageIDs {
@@ -140,9 +135,15 @@ func parseFluentDocument(content []byte) (fluentDocument, error) {
 
 	text := string(content)
 	lines := scanFluentLines(text)
-	doc := fluentDocument{template: text, entries: []fluentEntry{}, messageIDs: map[string]struct{}{}}
-	seen := map[string]struct{}{}
-	pendingComments := []string{}
+	// BOLT OPTIMIZATION: Hint capacity for entries and messageIDs.
+	doc := fluentDocument{
+		template:   text,
+		entries:    make([]fluentEntry, 0, len(lines)/2),
+		messageIDs: make(map[string]struct{}, len(lines)/2),
+	}
+	// BOLT OPTIMIZATION: Hint capacity for seen map.
+	seen := make(map[string]struct{}, len(lines)/2)
+	pendingComments := make([]string, 0, 4)
 	parentID := ""
 	parentContext := ""
 
@@ -150,7 +151,8 @@ func parseFluentDocument(content []byte) (fluentDocument, error) {
 		line := lines[i]
 		trimmed := strings.TrimSpace(line.text)
 		if trimmed == "" {
-			pendingComments = nil
+			// BOLT OPTIMIZATION: Reuse pendingComments slice.
+			pendingComments = pendingComments[:0]
 			parentID = ""
 			parentContext = ""
 			i++
@@ -160,7 +162,8 @@ func parseFluentDocument(content []byte) (fluentDocument, error) {
 			if fluentCommentLevel(trimmed) == 1 {
 				pendingComments = append(pendingComments, fluentCommentText(trimmed))
 			} else {
-				pendingComments = nil
+				// BOLT OPTIMIZATION: Reuse pendingComments slice.
+				pendingComments = pendingComments[:0]
 			}
 			parentID = ""
 			parentContext = ""
@@ -201,7 +204,8 @@ func parseFluentDocument(content []byte) (fluentDocument, error) {
 		}
 		doc.messageIDs[messageID] = struct{}{}
 		context := formatFluentComments(pendingComments)
-		pendingComments = nil
+		// BOLT OPTIMIZATION: Reuse pendingComments slice.
+		pendingComments = pendingComments[:0]
 		parentID = messageID
 		parentContext = context
 
@@ -423,14 +427,14 @@ func formatFluentComments(comments []string) string {
 
 	first := true
 	for _, comment := range comments {
-		clean := strings.TrimSpace(comment)
-		if clean == "" {
+		// BOLT OPTIMIZATION: comment is already trimmed by fluentCommentText.
+		if comment == "" {
 			continue
 		}
 		if !first {
 			b.WriteByte('\n')
 		}
-		b.WriteString(clean)
+		b.WriteString(comment)
 		first = false
 	}
 	return b.String()

@@ -1,3 +1,15 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import { createHash, randomBytes } from "node:crypto";
 
 import { and, eq, gt, isNull } from "drizzle-orm";
@@ -39,47 +51,40 @@ import {
   upsertLokaliseOAuthProviderCredential,
   upsertOrganizationExternalTmsProviderCredential,
   upsertPhraseOAuthProviderCredential,
-} from "@/lib/providers/organization-external-tms-provider-credentials";
+} from "@/lib/providers/credentials/organization-external-tms-provider-credentials";
 import {
   checkExternalTmsProviderHealth,
   persistExternalTmsProviderHealth,
-} from "@/lib/providers/external-tms-health-check";
+} from "@/lib/providers/credentials/external-tms-health-check";
 import {
   isCrowdinEnterpriseApiBaseUrl,
   resolveCrowdinApiBaseUrl,
-} from "@/lib/providers/adapters/crowdin/crowdin-base-url";
+} from "@/lib/providers/adapters/crowdin/crowdin-api";
 import { getCrowdinOAuthScopeString } from "@/lib/providers/adapters/crowdin/crowdin-oauth-scopes";
 import {
   CrowdinApiClient,
   CrowdinApiError,
   type CrowdinAuthenticatedUser,
 } from "@/lib/providers/adapters/crowdin/crowdin-api";
-import {
-  getCrowdinUserConnectionSummary,
-  upsertCrowdinUserConnection,
-  upsertCrowdinUserPatConnection,
-} from "@/lib/providers/adapters/crowdin/crowdin-user-connections";
+import { crowdinAuth } from "@/lib/providers/adapters/crowdin/crowdin-auth";
 import {
   PhraseTmsApiClient,
   PhraseTmsApiError,
 } from "@/lib/providers/adapters/phrase/phrase-tms-api";
 import { getPhraseOAuthScopeString } from "@/lib/providers/adapters/phrase/phrase-oauth-scopes";
-import { resolvePhraseTmsBaseUrl } from "@/lib/providers/adapters/phrase/phrase-tms-base-url";
+import { resolvePhraseTmsBaseUrl } from "@/lib/providers/adapters/phrase/phrase-tms-api";
 import {
   getPhraseUserConnectionSummary,
   upsertPhraseUserConnection,
-} from "@/lib/providers/adapters/phrase/phrase-user-connections";
+} from "@/lib/providers/adapters/phrase/phrase-auth";
 import { getLokaliseOAuthScopeString } from "@/lib/providers/adapters/lokalise/lokalise-oauth-scopes";
 import {
   LokaliseApiClient,
   LokaliseApiError,
   LokaliseOAuthUserResolutionError,
 } from "@/lib/providers/adapters/lokalise/lokalise-api";
-import {
-  getLokaliseUserConnectionSummary,
-  upsertLokaliseUserConnection,
-} from "@/lib/providers/adapters/lokalise/lokalise-user-connections";
-import { getTmsUserConnectCtaState } from "@/lib/providers/tms-user-connection";
+import { lokaliseAuth } from "@/lib/providers/adapters/lokalise/lokalise-auth";
+import { getTmsUserConnectCtaState } from "@/lib/providers/credentials/tms-user-connection";
 import { createLogger } from "@/lib/log";
 
 import {
@@ -527,7 +532,7 @@ async function completeCrowdinUserOAuthLink(
     });
   }
 
-  const upsertResult = await upsertCrowdinUserConnection({
+  const upsertResult = await crowdinAuth.upsertUserConnection({
     organizationId: c.var.auth.organization.localOrganizationId,
     userId: c.var.auth.user.localUserId,
     providerCredentialId: input.credential.id,
@@ -662,7 +667,7 @@ async function completeCrowdinUserPatLink(
     "crowdin user pat profile lookup succeeded",
   );
 
-  const upsertResult = await upsertCrowdinUserPatConnection({
+  const upsertResult = await crowdinAuth.upsertUserPatConnection({
     organizationId: c.var.auth.organization.localOrganizationId,
     userId: c.var.auth.user.localUserId,
     providerCredentialId: input.credential.id,
@@ -1128,7 +1133,7 @@ async function completeLokaliseUserOAuthLink(
     });
   }
 
-  const upsertResult = await upsertLokaliseUserConnection({
+  const upsertResult = await lokaliseAuth.upsertUserConnection({
     organizationId: c.var.auth.organization.localOrganizationId,
     userId: c.var.auth.user.localUserId,
     providerCredentialId: input.credential.id,
@@ -1888,7 +1893,7 @@ export function createExternalTmsProviderCredentialRoutes() {
       const hasCrowdinIntegration =
         credential?.providerKind === "crowdin" && crowdinUsesPerUserAuth(credential.authMode);
       const connection = hasCrowdinIntegration
-        ? await getCrowdinUserConnectionSummary({
+        ? await crowdinAuth.getUserConnectionSummary({
             organizationId: c.var.auth.organization.localOrganizationId,
             userId: c.var.auth.user.localUserId,
           })
@@ -1964,7 +1969,7 @@ export function createExternalTmsProviderCredentialRoutes() {
       const hasLokaliseIntegration =
         credential?.providerKind === "lokalise" && credential.authMode === OAUTH_AUTH_MODE;
       const connection = hasLokaliseIntegration
-        ? await getLokaliseUserConnectionSummary({
+        ? await lokaliseAuth.getUserConnectionSummary({
             organizationId: c.var.auth.organization.localOrganizationId,
             userId: c.var.auth.user.localUserId,
           })

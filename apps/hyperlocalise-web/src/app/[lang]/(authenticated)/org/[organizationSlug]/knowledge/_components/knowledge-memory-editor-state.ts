@@ -1,4 +1,38 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
+import {
+  knowledgeMemoryRecordSchema,
+  type KnowledgeMemoryRecord,
+} from "@/api/routes/knowledge-memory/knowledge-memory.schema";
 import { KNOWLEDGE_MEMORY_CONTENT_MAX_LENGTH } from "@/lib/knowledge-memory/knowledge-memory.shared";
+
+export function parseKnowledgeMemoryPreconditionFailure(
+  body: unknown,
+): KnowledgeMemoryRecord | null {
+  if (
+    typeof body !== "object" ||
+    body === null ||
+    !("details" in body) ||
+    typeof body.details !== "object" ||
+    body.details === null ||
+    !("knowledgeMemory" in body.details)
+  ) {
+    return null;
+  }
+
+  const result = knowledgeMemoryRecordSchema.safeParse(body.details.knowledgeMemory);
+  return result.success ? result.data : null;
+}
 
 export function getKnowledgeMemoryEditorState(input: {
   content: string;
@@ -17,4 +51,11 @@ export function getKnowledgeMemoryEditorState(input: {
     hasChanges,
     canSave: input.canUpdateKnowledgeMemory && hasChanges && !isOverLimit && !input.isSaving,
   };
+}
+
+export function shouldApplyKnowledgeMemoryRefresh(input: {
+  content: string;
+  savedContent: string;
+}) {
+  return input.content === input.savedContent;
 }

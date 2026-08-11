@@ -1,4 +1,6 @@
 .git
 .hyperlocalise
 artifacts
-apps/web/node_modules
+apps/hyperlocalise-web
+apps/cli
+bazel-*

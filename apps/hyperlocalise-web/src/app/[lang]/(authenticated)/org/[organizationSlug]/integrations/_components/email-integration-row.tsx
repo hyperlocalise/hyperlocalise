@@ -1,12 +1,26 @@
 "use client";
 
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Copy01Icon, Tick02Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { siGmail } from "simple-icons";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useIntl } from "react-intl";
 import { toast } from "sonner";
 
+import { emailIntegrationRowMessages } from "./email-integration-row.messages";
 import { IntegrationRow } from "./integration-row";
 import { SimpleBrandIcon } from "./simple-brand-icon";
 import {
@@ -80,6 +94,7 @@ export function EmailIntegrationRow({
   isLast = false,
   userCanManage,
 }: EmailIntegrationRowProps) {
+  const intl = useIntl();
   const [expanded, setExpanded] = useState(false);
   const { data: emailAgent, isLoading, isError } = useEmailAgentState(organizationSlug);
   const updateEmailAgentState = useUpdateEmailAgentState(organizationSlug);
@@ -95,7 +110,7 @@ export function EmailIntegrationRow({
 
     await navigator.clipboard.writeText(emailAddress);
     setCopied(true);
-    toast.success("Inbound email copied");
+    toast.success(intl.formatMessage(emailIntegrationRowMessages.inboundEmailCopiedToast));
 
     if (copyTimeoutRef.current) clearTimeout(copyTimeoutRef.current);
     copyTimeoutRef.current = setTimeout(() => setCopied(false), 5000);
@@ -111,19 +126,25 @@ export function EmailIntegrationRow({
   const toggleEnabled = async (enabled: boolean) => {
     try {
       await updateEmailAgentState.mutateAsync(enabled);
-      toast.success(enabled ? "Email agent enabled" : "Email agent disabled");
+      toast.success(
+        intl.formatMessage(
+          enabled
+            ? emailIntegrationRowMessages.enabledToast
+            : emailIntegrationRowMessages.disabledToast,
+        ),
+      );
       if (enabled) {
         setExpanded(true);
       }
     } catch {
-      toast.error("Unable to update email agent right now");
+      toast.error(intl.formatMessage(emailIntegrationRowMessages.updateFailedToast));
     }
   };
 
   const hasAddress = Boolean(emailAgent?.inboundEmailAddress);
   const description = hasAddress
-    ? `Inbound address ready. Send files or images with a target language to translate by email.`
-    : "Enable the email agent to receive a unique workspace address for translation requests.";
+    ? intl.formatMessage(emailIntegrationRowMessages.descriptionReady)
+    : intl.formatMessage(emailIntegrationRowMessages.descriptionNotReady);
 
   const action = !userCanManage
     ? "view-only"
@@ -133,7 +154,7 @@ export function EmailIntegrationRow({
 
   return (
     <IntegrationRow
-      name="Email"
+      name={intl.formatMessage(emailIntegrationRowMessages.name)}
       description={description}
       icon={<SimpleBrandIcon icon={siGmail} colored={hasAddress} />}
       iconMuted={!hasAddress}
@@ -148,20 +169,19 @@ export function EmailIntegrationRow({
       <div className="flex flex-col gap-4">
         <div className="flex flex-col gap-3 rounded-lg border border-border bg-background/70 p-3 sm:flex-row sm:items-center sm:justify-between">
           <TypographyP className="text-sm leading-6 text-muted-foreground">
-            Send documents, spreadsheets, JSON, text files, or images with a target language. Source
-            language is optional, and style notes apply to file translations.
+            {intl.formatMessage(emailIntegrationRowMessages.panelInstructions)}
           </TypographyP>
           <Switch
             checked={emailAgent?.enabled ?? false}
             onCheckedChange={toggleEnabled}
-            aria-label="Enable email agent"
+            aria-label={intl.formatMessage(emailIntegrationRowMessages.enableEmailAgentAriaLabel)}
             disabled={isLoading || isError || updateEmailAgentState.isPending || !userCanManage}
           />
         </div>
 
         {isError ? (
           <TypographyP className="text-sm text-destructive">
-            Unable to load email agent settings right now.
+            {intl.formatMessage(emailIntegrationRowMessages.loadError)}
           </TypographyP>
         ) : null}
 
@@ -174,13 +194,13 @@ export function EmailIntegrationRow({
             <InputGroupInput
               readOnly
               value={emailAddress}
-              aria-label="Email agent intake address"
+              aria-label={intl.formatMessage(emailIntegrationRowMessages.intakeAddressAriaLabel)}
               className="truncate text-sm"
               disabled={!emailAgent?.enabled}
               placeholder={
                 isError
-                  ? "Email agent settings unavailable"
-                  : "Enable email agent to generate inbox address"
+                  ? intl.formatMessage(emailIntegrationRowMessages.placeholderUnavailable)
+                  : intl.formatMessage(emailIntegrationRowMessages.placeholderEnable)
               }
             />
           )}
@@ -193,13 +213,23 @@ export function EmailIntegrationRow({
                     size="icon-sm"
                     onClick={copyEmailAddress}
                     disabled={!emailAgent?.enabled || !emailAddress}
-                    aria-label={copied ? "Copied!" : "Copy email address"}
+                    aria-label={intl.formatMessage(
+                      copied
+                        ? emailIntegrationRowMessages.copiedAriaLabel
+                        : emailIntegrationRowMessages.copyAriaLabel,
+                    )}
                   >
                     <HugeiconsIcon icon={copied ? Tick02Icon : Copy01Icon} strokeWidth={1.8} />
                   </InputGroupButton>
                 }
               />
-              <TooltipContent>{copied ? "Copied!" : "Copy email address"}</TooltipContent>
+              <TooltipContent>
+                {intl.formatMessage(
+                  copied
+                    ? emailIntegrationRowMessages.copiedTooltip
+                    : emailIntegrationRowMessages.copyTooltip,
+                )}
+              </TooltipContent>
             </Tooltip>
           </InputGroupAddon>
         </InputGroup>

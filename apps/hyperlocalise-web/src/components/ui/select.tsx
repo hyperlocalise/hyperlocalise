@@ -1,5 +1,17 @@
 "use client";
 
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import * as React from "react";
 import { Select as SelectPrimitive } from "@base-ui/react/select";
 
@@ -37,10 +49,12 @@ function SelectValue({ className, ...props }: SelectPrimitive.Value.Props) {
 function SelectTrigger({
   className,
   size = "default",
+  showIcon = true,
   children,
   ...props
 }: SelectPrimitive.Trigger.Props & {
   size?: "sm" | "default";
+  showIcon?: boolean;
 }) {
   return (
     <SelectPrimitive.Trigger
@@ -53,15 +67,17 @@ function SelectTrigger({
       {...props}
     >
       {children}
-      <SelectPrimitive.Icon
-        render={
-          <HugeiconsIcon
-            icon={UnfoldMoreIcon}
-            strokeWidth={2}
-            className="pointer-events-none size-4 text-muted-foreground"
-          />
-        }
-      />
+      {showIcon ? (
+        <SelectPrimitive.Icon
+          render={
+            <HugeiconsIcon
+              icon={UnfoldMoreIcon}
+              strokeWidth={2}
+              className="pointer-events-none size-4 text-muted-foreground"
+            />
+          }
+        />
+      ) : null}
     </SelectPrimitive.Trigger>
   );
 }

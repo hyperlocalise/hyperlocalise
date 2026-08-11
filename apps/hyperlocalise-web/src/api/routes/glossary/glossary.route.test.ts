@@ -1,3 +1,15 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import "dotenv/config";
 
 import { eq } from "drizzle-orm";
@@ -24,10 +36,14 @@ vi.mock("@/api/auth/workos-session", async (importOriginal) => {
 import { createApp } from "@/api/app";
 import { db, schema } from "@/lib/database";
 
+import { createTeamTestFixture } from "../team/team.fixture";
+import type { TeamResponse } from "../team/team.schema";
+import type { ProjectResponse } from "../project/project.schema";
 import { createGlossaryTestFixture } from "./glossary.fixture";
 
 const client = testClient(createApp());
 const fixture = createGlossaryTestFixture(client);
+const teamFixture = createTeamTestFixture(client);
 
 beforeAll(async () => {
   await db.$client.query("select 1");
@@ -175,5 +191,99 @@ describe("glossaryRoutes", () => {
     await expect(response.json()).resolves.toMatchObject({
       error: "external_tms_glossary_immutable",
     });
+  });
+
+  it("hides other teams' projects from glossary project listings for team-scoped members", async () => {
+    const admin = fixture.createWorkosIdentityWithRole("admin");
+    const member = fixture.createWorkosIdentityForOrganization(admin.organization, "member");
+    const organizationSlug = admin.organization.slug ?? "missing-slug";
+    const adminHeaders = await fixture.authHeadersFor(admin);
+    await fixture.authHeadersFor(member);
+
+    const createGlossaryResponse = await fixture.createGlossaryViaApi(
+      admin,
+      undefined,
+      adminHeaders,
+    );
+    expect(createGlossaryResponse.status).toBe(201);
+    const glossaryId = ((await createGlossaryResponse.json()) as { glossary: { id: string } })
+      .glossary.id;
+
+    const teamAlphaResponse = await teamFixture.createTeamViaApi(admin, { name: "Alpha Team" });
+    expect(teamAlphaResponse.status).toBe(201);
+    const teamAlphaBody = (await teamAlphaResponse.json()) as TeamResponse;
+
+    const teamBetaResponse = await teamFixture.createTeamViaApi(admin, { name: "Beta Team" });
+    expect(teamBetaResponse.status).toBe(201);
+    const teamBetaBody = (await teamBetaResponse.json()) as TeamResponse;
+
+    await db.insert(schema.teamMemberships).values({
+      teamId: teamAlphaBody.team.id,
+      userId: await fixture.getLocalUserId(member.user.workosUserId),
+      role: "member",
+    });
+
+    const alphaProjectResponse = await client.api.orgs[":organizationSlug"].projects.$post(
+      {
+        param: { organizationSlug },
+        json: {
+          name: "Alpha Project",
+          teamId: teamAlphaBody.team.id,
+          sourceLocale: "en-US",
+          targetLocales: ["es-ES"],
+        },
+      },
+      { headers: adminHeaders },
+    );
+    expect(alphaProjectResponse.status).toBe(201);
+    const alphaProject = ((await alphaProjectResponse.json()) as ProjectResponse).project;
+
+    const betaProjectResponse = await client.api.orgs[":organizationSlug"].projects.$post(
+      {
+        param: { organizationSlug },
+        json: {
+          name: "Beta Secret Project",
+          teamId: teamBetaBody.team.id,
+          sourceLocale: "en-US",
+          targetLocales: ["de-DE"],
+        },
+      },
+      { headers: adminHeaders },
+    );
+    expect(betaProjectResponse.status).toBe(201);
+    const betaProject = ((await betaProjectResponse.json()) as ProjectResponse).project;
+
+    for (const projectId of [alphaProject.id, betaProject.id]) {
+      const attachResponse = await client.api.orgs[":organizationSlug"].glossaries[
+        ":glossaryId"
+      ].projects.$post(
+        {
+          param: { organizationSlug, glossaryId },
+          json: { projectId, priority: 1 },
+        },
+        { headers: adminHeaders },
+      );
+      expect(attachResponse.status).toBe(200);
+    }
+
+    const memberListResponse = await client.api.orgs[":organizationSlug"].glossaries[
+      ":glossaryId"
+    ].projects.$get(
+      { param: { organizationSlug, glossaryId } },
+      { headers: await fixture.authHeadersFor(member) },
+    );
+    expect(memberListResponse.status).toBe(200);
+    const memberListBody = (await memberListResponse.json()) as {
+      projects: Array<{ projectId: string; projectName: string }>;
+    };
+    expect(memberListBody.projects).toEqual([
+      expect.objectContaining({
+        projectId: alphaProject.id,
+        projectName: "Alpha Project",
+      }),
+    ]);
+    expect(memberListBody.projects.map((project) => project.projectId)).not.toContain(
+      betaProject.id,
+    );
   });
 });

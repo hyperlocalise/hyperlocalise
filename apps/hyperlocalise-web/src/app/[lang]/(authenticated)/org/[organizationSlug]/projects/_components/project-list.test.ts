@@ -1,3 +1,15 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import { describe, expect, it } from "vite-plus/test";
 
 import { mapProjectToListRow, type ApiProject } from "./project-list";
@@ -61,5 +73,19 @@ describe("mapProjectToListRow", () => {
 
     expect(row.created).toContain("2026");
     expect(row.updated).toContain("2026");
+  });
+
+  it("maps logo and last activity fields for live TMS projects", () => {
+    const row = mapProjectToListRow(
+      createProject({
+        source: "external_tms",
+        externalProviderKind: "crowdin",
+        logoUrl: "data:image/png;base64,abc123",
+        lastActivityAt: "2026-04-30T03:20:00.000Z",
+      }),
+    );
+
+    expect(row.logoUrl).toBe("data:image/png;base64,abc123");
+    expect(row.lastActivityAt).toBe("2026-04-30T03:20:00.000Z");
   });
 });

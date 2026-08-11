@@ -25,7 +25,8 @@ func TestLabelsService_Get(t *testing.T) {
 			"data": {
 				"id": 34,
 				"projectId": 1,
-				"title": "main"
+				"title": "main",
+				"isSystem": true
 			}
 		}`)
 	})
@@ -37,6 +38,7 @@ func TestLabelsService_Get(t *testing.T) {
 	assert.Equal(t, "main", label.Title)
 	assert.Equal(t, 34, label.ID)
 	assert.Equal(t, 1, label.ProjectID)
+	assert.True(t, label.IsSystem)
 }
 
 func TestLabelsService_Get_NotFound(t *testing.T) {
@@ -101,14 +103,16 @@ func TestLabelsService_List(t *testing.T) {
 						"data": {
 							"id": 34,
 							"projectId": 1,
-							"title": "main"
+							"title": "main",
+							"isSystem": true
 						}
 					},
 					{
 						"data": {
 							"id": 36,
 							"projectId": 1,
-							"title": "test"
+							"title": "test",
+							"isSystem": false
 						}
 					}
 				],
@@ -127,11 +131,13 @@ func TestLabelsService_List(t *testing.T) {
 				ID:        34,
 				ProjectID: 1,
 				Title:     "main",
+				IsSystem:  true,
 			},
 			{
 				ID:        36,
 				ProjectID: 1,
 				Title:     "test",
+				IsSystem:  false,
 			},
 		}
 		assert.Equal(t, expected, labels)
@@ -170,7 +176,8 @@ func TestLabelsService_Add(t *testing.T) {
 			"data": {
 				"id": 34,
 				"projectId": 1,
-				"title": "main"
+				"title": "main",
+				"isSystem": false
 			}
 		}`)
 	})
@@ -182,6 +189,7 @@ func TestLabelsService_Add(t *testing.T) {
 	assert.Equal(t, "main", label.Title)
 	assert.Equal(t, 34, label.ID)
 	assert.Equal(t, 1, label.ProjectID)
+	assert.False(t, label.IsSystem)
 }
 
 func TestLabelsService_Edit(t *testing.T) {
@@ -198,7 +206,8 @@ func TestLabelsService_Edit(t *testing.T) {
 			"data": {
 				"id": 34,
 				"projectId": 1,
-				"title": "main"
+				"title": "main",
+				"isSystem": false
 			}
 		}`)
 	})
@@ -217,6 +226,7 @@ func TestLabelsService_Edit(t *testing.T) {
 	assert.Equal(t, "main", label.Title)
 	assert.Equal(t, 34, label.ID)
 	assert.Equal(t, 1, label.ProjectID)
+	assert.False(t, label.IsSystem)
 }
 
 func TestLabelsService_Delete(t *testing.T) {

@@ -1,8 +1,24 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import { and, eq } from "drizzle-orm";
-import { stepCountIs, ToolLoopAgent } from "ai";
+import { isStepCount, ToolLoopAgent } from "ai";
 
 import { getHyperlocaliseAgentModel } from "@/lib/agent-runtime/loops/model";
 import { WORKFLOW_AGENT_TIMEOUT } from "@/lib/agent-runtime/subagents/constants";
+import {
+  extractGenerateResultTokenUsage,
+  withAgentRuntimeUsageMetering,
+} from "@/lib/billing/agent-runtime-usage";
 import type { ContentfulAutomationExecutionEvent } from "@/lib/contentful/automation-executor";
 import { db, schema } from "@/lib/database";
 import { createLogger } from "@/lib/log";
@@ -12,7 +28,7 @@ import type {
   ContentfulAutomationExecutionSuccess,
 } from "@/lib/contentful/types";
 import { hasContentfulNoWriteback } from "@/lib/contentful/types";
-import { loadOrganizationTranslationGenerator } from "@/lib/translation/load-organization-translation-generator";
+import { loadOrganizationTranslationGenerator } from "@/lib/translation/generation";
 import { composeContentfulAutomationInstructions } from "@/agents/automations/workspace/agent/workspace-template-manifest";
 
 import { createContentfulAgentSession, type ContentfulAgentSession } from "./context";
@@ -119,9 +135,9 @@ export async function runContentfulAgent(
       instructions: composedInstructions,
       tools,
       activeTools: [CONTENTFUL_TRANSLATION_EXECUTOR_TOOL_NAME],
-      stopWhen: stepCountIs(CONTENTFUL_AGENT_STEP_LIMIT),
+      stopWhen: isStepCount(CONTENTFUL_AGENT_STEP_LIMIT),
       timeout: WORKFLOW_AGENT_TIMEOUT,
-      experimental_context: session,
+      runtimeContext: session,
       prepareStep: ({ stepNumber }) => {
         if (stepNumber === 0) {
           return {
@@ -136,18 +152,30 @@ export async function runContentfulAgent(
       },
     });
 
-    await agent.generate({
-      messages: [
-        {
-          role: "user",
-          content: [
-            `Translate Contentful entry ${run.entryId}.`,
-            `Source locale: ${run.sourceLocale}.`,
-            `Target locales: ${run.targetLocales.join(", ")}.`,
-            "Call run_translation to execute the translation pipeline.",
-          ].join("\n"),
-        },
-      ],
+    await withAgentRuntimeUsageMetering({
+      organizationId: input.organizationId,
+      operationKey: `contentful-agent:${run.id}:agent_runs`,
+      source: "contentful_agent",
+      dimensions: {
+        surface: "automation",
+        agent_surface: "contentful",
+        entry_id: run.entryId,
+      },
+      extractTokenUsage: extractGenerateResultTokenUsage,
+      run: () =>
+        agent.generate({
+          messages: [
+            {
+              role: "user",
+              content: [
+                `Translate Contentful entry ${run.entryId}.`,
+                `Source locale: ${run.sourceLocale}.`,
+                `Target locales: ${run.targetLocales.join(", ")}.`,
+                "Call run_translation to execute the translation pipeline.",
+              ].join("\n"),
+            },
+          ],
+        }),
     });
 
     if (!session.executionResult) {

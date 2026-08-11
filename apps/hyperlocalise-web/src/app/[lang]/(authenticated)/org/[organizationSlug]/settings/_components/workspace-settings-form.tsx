@@ -1,16 +1,31 @@
 "use client";
 
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Edit02Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useMutation } from "@tanstack/react-query";
+import { FormattedMessage, useIntl } from "react-intl";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { apiClient } from "@/lib/api-client-instance";
+
+import { workspaceSettingsFormMessages } from "./workspace-settings-form.messages";
 
 function isStaleOrganizationSlugBody(
   body: unknown,
@@ -55,6 +70,7 @@ export function WorkspaceSettingsForm({
   organizationName: string;
   organizationSlug: string;
 }) {
+  const intl = useIntl();
   const router = useRouter();
   const [name, setName] = useState(organizationName);
   const [slug, setSlug] = useState(organizationSlug);
@@ -80,7 +96,12 @@ export function WorkspaceSettingsForm({
           return null;
         }
 
-        throw new Error(readWorkspaceErrorBody(body, "Failed to update workspace"));
+        throw new Error(
+          readWorkspaceErrorBody(
+            body,
+            intl.formatMessage(workspaceSettingsFormMessages.updateFailed),
+          ),
+        );
       }
 
       return body as {
@@ -93,7 +114,7 @@ export function WorkspaceSettingsForm({
         return;
       }
 
-      toast.success("Workspace updated");
+      toast.success(intl.formatMessage(workspaceSettingsFormMessages.updatedToast));
       const nextSlug = data.workspace.slug ?? organizationSlug;
       router.replace(data.redirectTo);
       router.refresh();
@@ -120,7 +141,7 @@ export function WorkspaceSettingsForm({
     >
       <div className="grid gap-2">
         <Label htmlFor="workspace-name" className="text-xs font-medium text-muted-foreground">
-          Organization name
+          <FormattedMessage {...workspaceSettingsFormMessages.organizationNameLabel} />
         </Label>
         <Input
           id="workspace-name"
@@ -132,7 +153,7 @@ export function WorkspaceSettingsForm({
       </div>
       <div className="grid gap-2">
         <Label htmlFor="workspace-slug" className="text-xs font-medium text-muted-foreground">
-          Workspace slug
+          <FormattedMessage {...workspaceSettingsFormMessages.workspaceSlugLabel} />
         </Label>
         <Input
           id="workspace-slug"
@@ -145,7 +166,7 @@ export function WorkspaceSettingsForm({
       {canUpdateWorkspace ? (
         <Button type="submit" disabled={!hasChanges || updateWorkspace.isPending}>
           <HugeiconsIcon icon={Edit02Icon} strokeWidth={1.8} />
-          Save
+          <FormattedMessage {...workspaceSettingsFormMessages.save} />
         </Button>
       ) : null}
     </form>

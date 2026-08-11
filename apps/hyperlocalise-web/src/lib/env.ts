@@ -1,5 +1,19 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import { createEnv } from "@t3-oss/env-nextjs";
 import { z } from "zod";
+
+import { assertWorkosApiHostnameSafe } from "@/lib/workos/api-hostname";
 
 const isTestEnv = process.env.VITEST === "true" || process.env.NODE_ENV === "test";
 const isCI = process.env.CI === "true";
@@ -49,8 +63,30 @@ export const env = createEnv({
     /** Password for encrypting WorkOS session cookies. Must be at least 32 characters. */
     WORKOS_COOKIE_PASSWORD: z.string().min(32).optional(),
 
+    /**
+     * Comma-separated AuthKit redirect URIs allowed for native clients (Mac app).
+     * Always merged with the default `hyperlocalise://auth/callback` scheme.
+     * Example: `http://127.0.0.1:53682/callback`
+     */
+    WORKOS_NATIVE_REDIRECT_URIS: z.string().min(1).optional(),
+
     /** Secret used by WorkOS to sign webhook payloads. Required for secure WorkOS webhook handling. */
     WORKOS_WEBHOOK_SECRET: z.string().min(1).optional(),
+
+    /**
+     * Optional WorkOS API hostname override (e.g. `localhost` for workos-emulate).
+     * AuthKit and `getWorkosServerClient` both honor this. Rejected in production.
+     */
+    WORKOS_API_HOSTNAME: z.string().min(1).optional(),
+
+    /**
+     * Whether the WorkOS API uses HTTPS. Set to `false` for workos-emulate.
+     * Defaults to HTTPS when unset (AuthKit/SDK default).
+     */
+    WORKOS_API_HTTPS: z.enum(["true", "false"]).optional(),
+
+    /** Optional WorkOS API port override (e.g. `4100` for workos-emulate). */
+    WORKOS_API_PORT: z.coerce.number().int().positive().optional(),
 
     /** Secret used by Flags SDK for toolbar overrides and encrypted flag values. */
     FLAGS_SECRET: z.string().min(32).optional(),
@@ -134,13 +170,36 @@ export const env = createEnv({
       .positive()
       .default(100),
 
+    /** Maximum sandboxes deleted per sandbox cleanup cron tick. */
+    SANDBOX_CLEANUP_MAX_PER_TICK: z.coerce.number().int().positive().default(100),
+
+    /** Maximum snapshots deleted per snapshot cleanup cron tick. */
+    SNAPSHOT_CLEANUP_MAX_PER_TICK: z.coerce.number().int().positive().default(100),
+
+    /**
+     * OCI image ref for custom Vercel Sandboxes (VCR), e.g.
+     * `vcr.vercel.com/<team>/<project>/hyperlocalise-sandbox:latest`.
+     * Used only when release flag `release-sandbox-vcr-image` is enabled.
+     */
+    VERCEL_SANDBOX_IMAGE: z.string().min(1).optional(),
+
+    /**
+     * Env-backed decide for release flag `release-sandbox-vcr-image`.
+     * When true (and `VERCEL_SANDBOX_IMAGE` is set), sandboxes create from the
+     * custom VCR image instead of the managed `vercel/sandbox/node:26` image.
+     */
+    RELEASE_SANDBOX_VCR_IMAGE: z
+      .enum(["true", "false"])
+      .default("false")
+      .transform((value) => value === "true"),
+
     /** Canva app ID used to verify Canva JWTs for the integration API. */
     CANVA_APP_ID: z.string().min(1).optional(),
 
     /** Comma-separated browser origins allowed to call the Canva integration API. */
     CANVA_CORS_ORIGINS: z.string().min(1).optional(),
 
-    /** Optional Canva app origin used for local development CORS. */
+    /** Canva app origin used for local development CORS. */
     CANVA_APP_ORIGIN: z.string().url().optional(),
 
     /** OAuth client id issued to the Canva app for Hyperlocalise sign-in. */
@@ -157,6 +216,28 @@ export const env = createEnv({
 
     /** Canva OAuth refresh token lifetime in days. */
     CANVA_OAUTH_REFRESH_TOKEN_LIFETIME_DAYS: z.coerce.number().int().positive().default(90),
+
+    /** Crowdin App OAuth client id used for Crowdin Apps JWT audience checks. */
+    CROWDIN_APP_CLIENT_ID: z.string().min(1).optional(),
+
+    /** Crowdin App OAuth client secret used to verify Crowdin Apps JWTs. */
+    CROWDIN_APP_CLIENT_SECRET: z.string().min(1).optional(),
+
+    /**
+     * Secret for signing Crowdin App embed sessions. Required when the Crowdin
+     * App iframe is enabled; do not reuse WorkOS or provider credential keys.
+     */
+    CROWDIN_APP_EMBED_SESSION_SECRET: z.string().min(32).optional(),
+
+    /**
+     * Extra CSP frame-ancestors for `/crowdin-app/*`, merged with Crowdin SaaS
+     * defaults. Use for Crowdin Enterprise custom UI domains (CNAME), e.g.
+     * `https://translate.acme.com`. Applied by the Next proxy at runtime.
+     */
+    CROWDIN_APP_FRAME_ANCESTORS: z.string().min(1).optional(),
+
+    /** Base URL for browser e2e tests. Defaults to http://localhost:3000. */
+    E2E_BASE_URL: z.url().optional(),
   },
   client: {
     /** Public URL for the waitlist/sign-up page. Required for client-side redirects. */
@@ -167,6 +248,9 @@ export const env = createEnv({
 
     /** Public WorkOS OAuth redirect URI exposed to the browser. Optional — falls back to WORKOS_REDIRECT_URI. */
     NEXT_PUBLIC_WORKOS_REDIRECT_URI: z.url().optional(),
+
+    /** Crowdin Apps iframe helper script CDN URL. */
+    NEXT_PUBLIC_CROWDIN_IFRAME_SRC: z.url().optional(),
   },
   runtimeEnv: {
     NODE_ENV: process.env.NODE_ENV,
@@ -194,8 +278,12 @@ export const env = createEnv({
     WORKOS_COOKIE_PASSWORD:
       process.env.WORKOS_COOKIE_PASSWORD ??
       (isTestEnv ? "test-workos-cookie-password-at-least-32-chars" : undefined),
+    WORKOS_NATIVE_REDIRECT_URIS: process.env.WORKOS_NATIVE_REDIRECT_URIS,
     WORKOS_WEBHOOK_SECRET:
       process.env.WORKOS_WEBHOOK_SECRET ?? (isTestEnv ? "test-workos-webhook-secret" : undefined),
+    WORKOS_API_HOSTNAME: process.env.WORKOS_API_HOSTNAME,
+    WORKOS_API_HTTPS: process.env.WORKOS_API_HTTPS as "true" | "false" | undefined,
+    WORKOS_API_PORT: process.env.WORKOS_API_PORT,
     FLAGS_SECRET:
       process.env.FLAGS_SECRET ??
       (isTestEnv ? "test-flags-secret-at-least-32-characters-long" : undefined),
@@ -235,6 +323,10 @@ export const env = createEnv({
     CRON_SECRET: process.env.CRON_SECRET ?? (isTestEnv ? "test-cron-secret" : undefined),
     GITHUB_REPOSITORY_AUTOMATION_DISPATCH_MAX_REPOS_PER_TICK:
       process.env.GITHUB_REPOSITORY_AUTOMATION_DISPATCH_MAX_REPOS_PER_TICK,
+    SANDBOX_CLEANUP_MAX_PER_TICK: process.env.SANDBOX_CLEANUP_MAX_PER_TICK,
+    SNAPSHOT_CLEANUP_MAX_PER_TICK: process.env.SNAPSHOT_CLEANUP_MAX_PER_TICK,
+    VERCEL_SANDBOX_IMAGE: process.env.VERCEL_SANDBOX_IMAGE,
+    RELEASE_SANDBOX_VCR_IMAGE: process.env.RELEASE_SANDBOX_VCR_IMAGE,
     CANVA_APP_ID: process.env.CANVA_APP_ID ?? (isTestEnv ? "test-canva-app-id" : undefined),
     CANVA_CORS_ORIGINS: process.env.CANVA_CORS_ORIGINS,
     CANVA_APP_ORIGIN: process.env.CANVA_APP_ORIGIN,
@@ -251,6 +343,16 @@ export const env = createEnv({
       (isTestEnv || isCI ? "60" : undefined),
     CANVA_OAUTH_REFRESH_TOKEN_LIFETIME_DAYS:
       process.env.CANVA_OAUTH_REFRESH_TOKEN_LIFETIME_DAYS ?? (isTestEnv || isCI ? "90" : undefined),
+    CROWDIN_APP_CLIENT_ID:
+      process.env.CROWDIN_APP_CLIENT_ID ?? (isTestEnv ? "test-crowdin-app-client-id" : undefined),
+    CROWDIN_APP_CLIENT_SECRET:
+      process.env.CROWDIN_APP_CLIENT_SECRET ??
+      (isTestEnv ? "test-crowdin-app-client-secret" : undefined),
+    CROWDIN_APP_EMBED_SESSION_SECRET:
+      process.env.CROWDIN_APP_EMBED_SESSION_SECRET ??
+      (isTestEnv ? "test-crowdin-embed-session-secret-32chars" : undefined),
+    CROWDIN_APP_FRAME_ANCESTORS: process.env.CROWDIN_APP_FRAME_ANCESTORS,
+    E2E_BASE_URL: process.env.E2E_BASE_URL,
     NEXT_PUBLIC_WAITLIST_URL:
       process.env.NEXT_PUBLIC_WAITLIST_URL ??
       (isTestEnv ? "https://example.com/waitlist" : undefined),
@@ -258,5 +360,11 @@ export const env = createEnv({
       process.env.NEXT_PUBLIC_WORKOS_REDIRECT_URI ??
       process.env.WORKOS_REDIRECT_URI ??
       (isTestEnv ? "http://localhost:3000/auth/callback" : undefined),
+    NEXT_PUBLIC_CROWDIN_IFRAME_SRC:
+      process.env.NEXT_PUBLIC_CROWDIN_IFRAME_SRC ??
+      (isTestEnv ? "https://cdn.crowdin.com/apps/dist/iframe.js" : undefined),
   },
 });
+
+// Fail fast if a production deployment points AuthKit at a non-WorkOS host.
+assertWorkosApiHostnameSafe();

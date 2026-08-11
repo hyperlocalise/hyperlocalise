@@ -1,3 +1,15 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import { Hono } from "hono";
 import { evlog, type EvlogVariables } from "evlog/hono";
 import { secureHeaders } from "hono/secure-headers";
@@ -13,19 +25,30 @@ import type {
   TranslationFileImportQueue,
   TranslationJobEventData,
 } from "@/lib/workflow/types";
+import { createApiTranslationJobQueue } from "./queues/api-translation-job-queue";
 import { handleUnexpectedError, notFoundHandler } from "./errors";
 import { createAgentEmailRoutes } from "./routes/agent-email/agent-email.route";
 import { createAgentSlackRoutes } from "./routes/agent-slack/agent-slack.route";
 import { createApiKeyRoutes } from "./routes/api-key/api-key.route";
 import { authRoutes } from "./routes/auth/auth.route";
+import { createNativeAuthRoutes } from "./routes/auth/native-auth.route";
 import { createConversationRoutes } from "./routes/conversation/conversation.route";
 import { createCanvaIntegrationRoutes } from "./routes/canva-integration/canva-integration.route";
 import { createCanvaOAuthRoutes } from "./routes/canva-oauth/canva-oauth.route";
+import { createCrowdinAppRoutes } from "./routes/crowdin-app/crowdin-app.route";
 import { createContentfulConnectionRoutes } from "./routes/contentful-connection/contentful-connection.route";
 import { createContentfulWebhookRoutes } from "./routes/contentful-webhook/contentful-webhook.route";
+import { createMcpServerConnectionRoutes } from "./routes/mcp-server-connection/mcp-server-connection.route";
+import { createAhrefsConnectionRoutes } from "./routes/ahrefs-connection/ahrefs-connection.route";
+import { createSemrushConnectionRoutes } from "./routes/semrush-connection/semrush-connection.route";
 import { createGlossaryRoutes } from "./routes/glossary/glossary.route";
 import { createKnowledgeMemoryRoutes } from "./routes/knowledge-memory/knowledge-memory.route";
 import { createMemoryRoutes } from "./routes/memory/memory.route";
+import { createOrganizationIssueSheetRoutes } from "./routes/issues/organization-issue-sheet.route";
+import { createOrganizationIssuesRoutes } from "./routes/issues/issues.route";
+import { createMentionSuggestionsRoutes } from "./routes/mentions/mention-suggestions.route";
+import { createIssueNotificationsRoutes } from "./routes/notifications/notifications.route";
+import { createNotificationPreferencesRoutes } from "./routes/notification-preferences/notification-preferences.route";
 import { createGithubInstallationRoutes } from "./routes/github-installation/github-installation.route";
 import { createGithubWebhookRoutes } from "./routes/github-webhook/github-webhook.route";
 import { healthRoutes } from "./routes/health";
@@ -34,7 +57,9 @@ import { createWorkspaceJobRoutes } from "./routes/project/job.route";
 import { createProjectRoutes } from "./routes/project/project.route";
 import { createProviderCredentialRoutes } from "./routes/provider-credential/provider-credential.route";
 import { createPublicFileRoutes } from "./routes/public-files/public-files.route";
+import { createPublicImageRoutes } from "./routes/public-images/public-images.route";
 import { createPublicJobRoutes } from "./routes/public-jobs/public-jobs.route";
+import { createPublicMediaRoutes } from "./routes/public-media/public-media.route";
 import { createPublicTranslationRoutes } from "./routes/public-translations/public-translations.route";
 import { createResendWebhookRoutes } from "./routes/resend-webhook/resend-webhook.route";
 import { createSlackOAuthRoutes } from "./routes/slack-oauth/slack-oauth.route";
@@ -54,13 +79,18 @@ import { createAutumnRoutes } from "./routes/autumn/autumn.route";
 import { createBillingRoutes } from "./routes/billing/billing.route";
 import { createBlogOgImageRoutes } from "./routes/blog-og-image/blog-og-image.route";
 import { createGithubRepositoryAutomationDispatchRoutes } from "./routes/cron/github-repository-automation-dispatch.route";
+import { createSandboxCleanupRoutes } from "./routes/cron/sandbox-cleanup.route";
+import { createSnapshotCleanupRoutes } from "./routes/cron/snapshot-cleanup.route";
+import { createIssueNotificationDigestRoutes } from "./routes/cron/issue-notification-digest.route";
+import { createLocalisationAuditRoutes } from "./routes/localisation-audit/localisation-audit.route";
 import {
-  createTranslationJobEventQueue,
+  createLocalisationAuditQueue,
   createProviderAgentCommentQueue,
   createProviderAgentQaQueue,
   createProviderAgentTranslationQueue,
   createProviderAgentWritebackQueue,
 } from "@/workflows/adapters";
+import type { LocalisationAuditQueue } from "@/lib/workflow/types";
 
 type CreateAppOptions = {
   emailAgentTaskQueue?: EmailAgentTaskQueue;
@@ -72,10 +102,11 @@ type CreateAppOptions = {
   providerAgentWritebackQueue?: ProviderAgentWritebackQueue;
   fileStorageAdapter?: FileStorageAdapter;
   translationFileImportQueue?: TranslationFileImportQueue;
+  localisationAuditQueue?: LocalisationAuditQueue;
 };
 
 export function createApp(options: CreateAppOptions = {}) {
-  const jobQueue = options.jobQueue ?? createTranslationJobEventQueue();
+  const jobQueue = options.jobQueue ?? createApiTranslationJobQueue();
   const providerAgentTranslationQueue =
     options.providerAgentTranslationQueue ?? createProviderAgentTranslationQueue();
   const providerAgentQaQueue = options.providerAgentQaQueue ?? createProviderAgentQaQueue();
@@ -95,6 +126,12 @@ export function createApp(options: CreateAppOptions = {}) {
     .route("/autumn", createAutumnRoutes())
     .route("/blog", createBlogOgImageRoutes())
     .route(
+      "/localisation-audit",
+      createLocalisationAuditRoutes({
+        localisationAuditQueue: options.localisationAuditQueue ?? createLocalisationAuditQueue(),
+      }),
+    )
+    .route(
       "/orgs/:organizationSlug",
       createOrgScopedAppRoutes({
         ...options,
@@ -106,8 +143,13 @@ export function createApp(options: CreateAppOptions = {}) {
       }),
     )
     .route("/v1", createPublicApiRoutes({ ...options, jobQueue }))
+    .route(
+      "/public/media",
+      createPublicMediaRoutes({ fileStorageAdapter: options.fileStorageAdapter }),
+    )
     .route("/integrations/canva", createCanvaIntegrationRoutes({ ...options, jobQueue }))
     .route("/", createCanvaOAuthRoutes())
+    .route("/crowdin-app", createCrowdinAppRoutes())
     .route("/webhooks", createWebhookRoutes(options));
 }
 
@@ -122,11 +164,17 @@ function createInternalRoutes() {
     .route(
       "/cron/github-repository-automation-dispatch",
       createGithubRepositoryAutomationDispatchRoutes(),
-    );
+    )
+    .route("/cron/sandbox-cleanup", createSandboxCleanupRoutes())
+    .route("/cron/snapshot-cleanup", createSnapshotCleanupRoutes())
+    .route("/cron/issue-notification-digest", createIssueNotificationDigestRoutes());
 }
 
 function createAuthRoutes() {
-  return new Hono().route("/", authRoutes).route("/slack", createSlackOAuthRoutes());
+  return new Hono()
+    .route("/native", createNativeAuthRoutes())
+    .route("/", authRoutes)
+    .route("/slack", createSlackOAuthRoutes());
 }
 
 function createOrgScopedAppRoutes(
@@ -139,6 +187,11 @@ function createOrgScopedAppRoutes(
   },
 ) {
   return new Hono()
+    .route("/issues", createOrganizationIssuesRoutes())
+    .route("/issue-sheet", createOrganizationIssueSheetRoutes())
+    .route("/notifications", createIssueNotificationsRoutes())
+    .route("/notification-preferences", createNotificationPreferencesRoutes())
+    .route("/mentions", createMentionSuggestionsRoutes())
     .route("/glossaries", createGlossaryRoutes())
     .route("/knowledge-memory", createKnowledgeMemoryRoutes())
     .route("/translation-memories", createMemoryRoutes())
@@ -155,6 +208,9 @@ function createOrgScopedAppRoutes(
     )
     .route("/provider-credential", createProviderCredentialRoutes())
     .route("/contentful-connections", createContentfulConnectionRoutes())
+    .route("/mcp-server-connections", createMcpServerConnectionRoutes())
+    .route("/semrush-connections", createSemrushConnectionRoutes())
+    .route("/ahrefs-connections", createAhrefsConnectionRoutes())
     .route("/external-tms-provider-credential", createExternalTmsProviderCredentialRoutes())
     .route(
       "/tms-provider",
@@ -187,7 +243,11 @@ function createPublicApiRoutes(
   return new Hono()
     .route("/files", createPublicFileRoutes({ fileStorageAdapter: options.fileStorageAdapter }))
     .route("/jobs", createPublicJobRoutes(options))
-    .route("/projects", createPublicTranslationRoutes());
+    .route("/projects", createPublicTranslationRoutes())
+    .route(
+      "/projects",
+      createPublicImageRoutes({ fileStorageAdapter: options.fileStorageAdapter }),
+    );
 }
 
 function createWebhookRoutes(options: CreateAppOptions) {

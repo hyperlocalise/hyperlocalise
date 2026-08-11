@@ -1,3 +1,15 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import "dotenv/config";
 
 import { eq } from "drizzle-orm";
@@ -8,7 +20,7 @@ import {
   encryptProviderCredential,
   unwrapProviderCredentialCrypto,
 } from "@/lib/security/provider-credential-crypto";
-import { encodeProviderProjectId } from "@/lib/providers/tms-provider-resource-id";
+import { encodeProviderProjectId } from "@/lib/providers/jobs/tms-provider-resource-id";
 
 import { isErr, isOk } from "@/lib/primitives/result/results";
 
@@ -21,8 +33,8 @@ const { getTmsProviderLiveProjectMock } = vi.hoisted(() => ({
   getTmsProviderLiveProjectMock: vi.fn(),
 }));
 
-vi.mock("@/lib/providers/tms-provider-live", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/lib/providers/tms-provider-live")>();
+vi.mock("@/lib/providers/jobs/tms-provider-live", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/providers/jobs/tms-provider-live")>();
   return {
     ...actual,
     getTmsProviderLiveProject: (...args: unknown[]) => getTmsProviderLiveProjectMock(...args),

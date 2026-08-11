@@ -1,5 +1,17 @@
 "use client";
 
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import {
   Accordion,
   AccordionContent,
@@ -87,7 +99,11 @@ export const AgentTool = memo(({ className, tool, value, ...props }: AgentToolPr
   return (
     <AccordionItem className={cn("border-b last:border-b-0", className)} value={value} {...props}>
       <AccordionTrigger className="px-3 py-2 text-sm hover:no-underline">
-        {tool.description ?? <FormattedMessage {...agentMessages.noDescription} />}
+        {typeof tool.description === "string" ? (
+          tool.description
+        ) : (
+          <FormattedMessage {...agentMessages.noDescription} />
+        )}
       </AccordionTrigger>
       <AccordionContent className="px-3 pb-3">
         <div className="rounded-md bg-muted/50">

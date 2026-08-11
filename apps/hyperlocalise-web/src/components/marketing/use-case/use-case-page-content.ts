@@ -1,3 +1,15 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import type { UseCaseMessageKey } from "./use-case-page-content.messages";
 
 export type { UseCaseMessageKey } from "./use-case-page-content.messages";
@@ -23,7 +35,7 @@ export type UseCasePageContent = {
     eyebrowKey: UseCaseMessageKey;
     headlineKey: UseCaseMessageKey;
     subheadlineKey: UseCaseMessageKey;
-    ctaLabelKey: "ctaJoinWaitlist" | "ctaRequestDemo";
+    ctaLabelKey: "ctaRequestDemo";
   };
   problem: {
     titleKey: UseCaseMessageKey;
@@ -55,7 +67,7 @@ export type UseCasePageContent = {
   cta: {
     headlineKey: UseCaseMessageKey;
     descriptionKey: UseCaseMessageKey;
-    primaryLabelKey: "ctaJoinWaitlist" | "ctaRequestDemo";
+    primaryLabelKey: "ctaRequestDemo";
   };
 };
 
@@ -76,7 +88,7 @@ export const useCasePages: UseCasePageContent[] = [
       eyebrowKey: "productLocalisationHeroEyebrow",
       headlineKey: "productLocalisationHeroHeadline",
       subheadlineKey: "productLocalisationHeroSubheadline",
-      ctaLabelKey: "ctaJoinWaitlist",
+      ctaLabelKey: "ctaRequestDemo",
     },
     problem: {
       titleKey: "productLocalisationProblemTitle",
@@ -171,7 +183,7 @@ export const useCasePages: UseCasePageContent[] = [
     cta: {
       headlineKey: "productLocalisationCtaHeadline",
       descriptionKey: "productLocalisationCtaDescription",
-      primaryLabelKey: "ctaJoinWaitlist",
+      primaryLabelKey: "ctaRequestDemo",
     },
   },
   {
@@ -304,7 +316,7 @@ export const useCasePages: UseCasePageContent[] = [
       eyebrowKey: "helpCenterLocalisationHeroEyebrow",
       headlineKey: "helpCenterLocalisationHeroHeadline",
       subheadlineKey: "helpCenterLocalisationHeroSubheadline",
-      ctaLabelKey: "ctaJoinWaitlist",
+      ctaLabelKey: "ctaRequestDemo",
     },
     problem: {
       titleKey: "helpCenterLocalisationProblemTitle",
@@ -399,7 +411,7 @@ export const useCasePages: UseCasePageContent[] = [
     cta: {
       headlineKey: "helpCenterLocalisationCtaHeadline",
       descriptionKey: "helpCenterLocalisationCtaDescription",
-      primaryLabelKey: "ctaJoinWaitlist",
+      primaryLabelKey: "ctaRequestDemo",
     },
   },
   {
@@ -418,7 +430,7 @@ export const useCasePages: UseCasePageContent[] = [
       eyebrowKey: "githubReleaseLocalisationHeroEyebrow",
       headlineKey: "githubReleaseLocalisationHeroHeadline",
       subheadlineKey: "githubReleaseLocalisationHeroSubheadline",
-      ctaLabelKey: "ctaJoinWaitlist",
+      ctaLabelKey: "ctaRequestDemo",
     },
     problem: {
       titleKey: "githubReleaseLocalisationProblemTitle",
@@ -513,7 +525,7 @@ export const useCasePages: UseCasePageContent[] = [
     cta: {
       headlineKey: "githubReleaseLocalisationCtaHeadline",
       descriptionKey: "githubReleaseLocalisationCtaDescription",
-      primaryLabelKey: "ctaJoinWaitlist",
+      primaryLabelKey: "ctaRequestDemo",
     },
   },
   {
@@ -741,7 +753,7 @@ export const useCasePages: UseCasePageContent[] = [
     cta: {
       headlineKey: "localisationOperationsCtaHeadline",
       descriptionKey: "localisationOperationsCtaDescription",
-      primaryLabelKey: "ctaJoinWaitlist",
+      primaryLabelKey: "ctaRequestDemo",
     },
   },
 ];

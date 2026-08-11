@@ -1,3 +1,15 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import { and, desc, eq, inArray, or } from "drizzle-orm";
 
 import type { ProjectSourceStringEntry } from "@/api/routes/project/project.schema";
@@ -137,6 +149,7 @@ export async function dispatchSourceUploadAutomations(input: {
   sourceFileId: string;
   sourceFileVersionId: string;
   sourcePath: string;
+  sourceHash?: string | null;
 }) {
   await dispatchWorkspaceAutomationsForSourceUpload({
     organizationId: input.organizationId,
@@ -144,6 +157,7 @@ export async function dispatchSourceUploadAutomations(input: {
     sourceFileId: input.sourceFileId,
     sourceFileVersionId: input.sourceFileVersionId,
     sourcePath: input.sourcePath,
+    sourceHash: input.sourceHash,
   });
 }
 
@@ -184,6 +198,7 @@ export async function enqueueSourceFileIngestAfterUpload(
       sourceFileId: input.storedFileId,
       sourceFileVersionId: input.sourceFileVersionId,
       sourcePath: input.sourcePath,
+      sourceHash: input.sourceHash,
     }).catch((error) => {
       logger.warn(
         {

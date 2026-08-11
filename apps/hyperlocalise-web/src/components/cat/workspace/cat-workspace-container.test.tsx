@@ -1,3 +1,15 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 // @vitest-environment happy-dom
 
 import type { ReactElement } from "react";
@@ -56,6 +68,29 @@ describe("CatWorkspaceContainer UI", () => {
     ).toBeInTheDocument();
   });
 
+  it("starts in comfortable view when initialViewMode is comfortable", async () => {
+    window.localStorage.setItem("cat-workspace-view-mode:v1", "side-by-side");
+
+    try {
+      renderCatWorkspace(
+        <CatWorkspaceContainer
+          initialState={createUiCatWorkspaceState()}
+          initialViewMode="comfortable"
+          services={{ validateFormat: mockValidateFormat }}
+        />,
+      );
+
+      const viewModeButton = await waitFor(() =>
+        screen.getByRole("button", { name: "CAT view mode" }),
+      );
+      expect(viewModeButton).toHaveTextContent("Comfortable");
+      expect(screen.getByText("Translation Intelligence")).toBeInTheDocument();
+      expect(screen.queryByText("Source")).not.toBeInTheDocument();
+    } finally {
+      window.localStorage.removeItem("cat-workspace-view-mode:v1");
+    }
+  });
+
   it("shows an empty queue state when there are no segments", () => {
     renderCatWorkspace(
       <CatWorkspaceContainer
@@ -84,6 +119,29 @@ describe("CatWorkspaceContainer UI", () => {
     await user.click(screen.getByRole("button", { name: /Approve/i }));
 
     await waitFor(() => expect(onApprove).toHaveBeenCalledWith("seg-02", "Updated translation"));
+  });
+
+  it("approves with Ctrl+Enter while typing in the comfortable target editor", async () => {
+    const user = userEvent.setup();
+    const onApprove = vi.fn().mockResolvedValue("reviewed");
+
+    renderCatWorkspace(
+      <CatWorkspaceContainer
+        initialState={createUiCatWorkspaceState()}
+        review={{ onApprove }}
+        services={{ validateFormat: mockValidateFormat }}
+      />,
+    );
+
+    const targetEditor = (await waitForTargetEditor()) as HTMLElement;
+    await user.click(targetEditor);
+    await user.keyboard("{Control>}a{/Control}Saved via shortcut");
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: /Approve/i })).not.toBeDisabled(),
+    );
+    await user.keyboard("{Control>}{Enter}{/Control}");
+
+    await waitFor(() => expect(onApprove).toHaveBeenCalledWith("seg-02", "Saved via shortcut"));
   });
 
   it("applies AI suggestions from the editor recommendation panel", async () => {

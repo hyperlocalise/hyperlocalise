@@ -25,9 +25,139 @@ func TestApprovalsListOptionsValues(t *testing.T) {
 			opts: &ApprovalsListOptions{
 				OrderBy: "createdAt desc,id", FileID: 1, LabelIDs: []int{1, 2},
 				ExcludeLabelIDs: []int{3, 4}, StringID: 2, LanguageID: "en", TranslationID: 3,
-				ListOptions: ListOptions{Offset: 1, Limit: 10},
+				CorrectionID: 4,
+				ListOptions:  ListOptions{Offset: 1, Limit: 10},
 			},
-			out: "excludeLabelIds=3%2C4&fileId=1&labelIds=1%2C2&languageId=en&limit=10&offset=1&orderBy=createdAt+desc%2Cid&stringId=2&translationId=3",
+			out: "correctionId=4&excludeLabelIds=3%2C4&fileId=1&labelIds=1%2C2&languageId=en&limit=10&offset=1&orderBy=createdAt+desc%2Cid&stringId=2&translationId=3",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			v, ok := tt.opts.Values()
+			if len(tt.out) > 0 {
+				assert.True(t, ok)
+				assert.Equal(t, tt.out, v.Encode())
+			} else {
+				assert.False(t, ok)
+				assert.Empty(t, v)
+			}
+		})
+	}
+}
+
+func TestCorrectionsListOptionsValues(t *testing.T) {
+	tests := []struct {
+		name string
+		opts *CorrectionsListOptions
+		out  string
+	}{
+		{
+			name: "nil options",
+			opts: nil,
+		},
+		{
+			name: "empty options",
+			opts: &CorrectionsListOptions{},
+		},
+		{
+			name: "with denormalizePlaceholders = 0",
+			opts: &CorrectionsListOptions{DenormalizePlaceholders: toPtr(0)},
+			out:  "denormalizePlaceholders=0",
+		},
+		{
+			name: "with all options",
+			opts: &CorrectionsListOptions{
+				StringID:                123,
+				OrderBy:                 "createdAt desc",
+				DenormalizePlaceholders: toPtr(1),
+				ListOptions:             ListOptions{Offset: 5, Limit: 15},
+			},
+			out: "denormalizePlaceholders=1&limit=15&offset=5&orderBy=createdAt+desc&stringId=123",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			v, ok := tt.opts.Values()
+			if len(tt.out) > 0 {
+				assert.True(t, ok)
+				assert.Equal(t, tt.out, v.Encode())
+			} else {
+				assert.False(t, ok)
+				assert.Empty(t, v)
+			}
+		})
+	}
+}
+
+func TestCorrectionAddRequestValidate(t *testing.T) {
+	tests := []struct {
+		name  string
+		req   *CorrectionAddRequest
+		err   string
+		valid bool
+	}{
+		{
+			name: "nil request",
+			req:  nil,
+			err:  "request cannot be nil",
+		},
+		{
+			name: "empty request",
+			req:  &CorrectionAddRequest{},
+			err:  "string ID is required",
+		},
+		{
+			name: "missing text",
+			req:  &CorrectionAddRequest{StringID: 123},
+			err:  "text is required",
+		},
+		{
+			name: "valid request",
+			req: &CorrectionAddRequest{
+				StringID:           123,
+				Text:               "Corrected text",
+				PluralCategoryName: "few",
+			},
+			valid: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if err := tt.req.Validate(); tt.valid {
+				assert.NoError(t, err)
+			} else {
+				assert.EqualError(t, err, tt.err)
+			}
+		})
+	}
+}
+
+func TestCorrectionGetOptionsValues(t *testing.T) {
+	tests := []struct {
+		name string
+		opts *CorrectionGetOptions
+		out  string
+	}{
+		{
+			name: "nil options",
+			opts: nil,
+		},
+		{
+			name: "empty options",
+			opts: &CorrectionGetOptions{},
+		},
+		{
+			name: "with denormalizePlaceholders = 0",
+			opts: &CorrectionGetOptions{DenormalizePlaceholders: toPtr(0)},
+			out:  "denormalizePlaceholders=0",
+		},
+		{
+			name: "with denormalizePlaceholders = 1",
+			opts: &CorrectionGetOptions{DenormalizePlaceholders: toPtr(1)},
+			out:  "denormalizePlaceholders=1",
 		},
 	}
 

@@ -1,0 +1,166 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
+import type { AgentRunKind } from "@/lib/database/types";
+
+import {
+  getTmsProviderActionCapability,
+  type TmsProviderCapabilityAction,
+} from "@/lib/providers/capabilities/tms-capabilities";
+import type { ExternalTmsProviderKind } from "@/lib/providers/credentials/organization-external-tms-provider-credentials";
+import { providerSupportsCommentPush } from "@/lib/providers/adapters/tms-provider-registry";
+import type { JobProviderActionId } from "./job-provider-action-ids";
+
+export type { JobProviderActionId } from "./job-provider-action-ids";
+export { isJobProviderActionId } from "./job-provider-action-ids";
+
+export type JobProviderActionDefinition = {
+  id: JobProviderActionId;
+  label: string;
+  agentRunKind: AgentRunKind;
+  requiredCapabilities: TmsProviderCapabilityAction[];
+  inputSnapshot?: Record<string, unknown>;
+};
+
+export const jobProviderActionDefinitions: JobProviderActionDefinition[] = [
+  {
+    id: "translate_with_agent",
+    label: "Translate with agent",
+    agentRunKind: "translate",
+    requiredCapabilities: ["jobs.read", "keys.read", "write_back.translation"],
+  },
+  {
+    id: "review_with_agent",
+    label: "Review with agent",
+    agentRunKind: "review",
+    requiredCapabilities: ["jobs.read", "comments.read", "keys.read"],
+  },
+  {
+    id: "run_qa_checks",
+    label: "Run QA checks",
+    agentRunKind: "review",
+    requiredCapabilities: ["jobs.read", "qa.run", "keys.read"],
+  },
+  {
+    id: "fix_qa_issues",
+    label: "Fix QA issues",
+    agentRunKind: "qa_fix",
+    requiredCapabilities: ["qa.run", "write_back.translation"],
+  },
+  {
+    id: "leave_provider_comment",
+    label: "Leave provider comment",
+    agentRunKind: "comment_only",
+    requiredCapabilities: ["comments.write"],
+  },
+  {
+    id: "push_approved_changes",
+    label: "Push approved changes",
+    agentRunKind: "translate",
+    requiredCapabilities: ["write_back.translation", "status_transitions.write"],
+    inputSnapshot: { action: "push_approved" },
+  },
+];
+
+export type JobProviderActionAvailability = {
+  id: JobProviderActionId;
+  label: string;
+  agentRunKind: AgentRunKind;
+  visible: boolean;
+  enabled: boolean;
+  disabledReason?: string;
+};
+
+const commentWriteBackUnsupportedReason =
+  "This provider connector does not support writing comments back to the TMS yet.";
+
+function resolveActionAvailability(
+  providerKind: string,
+  action: JobProviderActionDefinition,
+): JobProviderActionAvailability {
+  const capabilityResults = action.requiredCapabilities.map((capability) =>
+    getTmsProviderActionCapability(providerKind, capability),
+  );
+
+  const unsupported = capabilityResults.find((capability) => !capability.supported);
+  if (unsupported) {
+    if (unsupported.ui.state === "hidden") {
+      return {
+        id: action.id,
+        label: action.label,
+        agentRunKind: action.agentRunKind,
+        visible: false,
+        enabled: false,
+      };
+    }
+
+    return {
+      id: action.id,
+      label: action.label,
+      agentRunKind: action.agentRunKind,
+      visible: true,
+      enabled: false,
+      disabledReason: unsupported.ui.disabledReason,
+    };
+  }
+
+  const disabled = capabilityResults.find((capability) => capability.ui.state === "disabled");
+  if (disabled) {
+    return {
+      id: action.id,
+      label: action.label,
+      agentRunKind: action.agentRunKind,
+      visible: true,
+      enabled: false,
+      disabledReason: disabled.ui.disabledReason,
+    };
+  }
+
+  if (action.id === "leave_provider_comment") {
+    if (!providerSupportsCommentPush(providerKind as ExternalTmsProviderKind)) {
+      return {
+        id: action.id,
+        label: action.label,
+        agentRunKind: action.agentRunKind,
+        visible: true,
+        enabled: false,
+        disabledReason: commentWriteBackUnsupportedReason,
+      };
+    }
+  }
+
+  return {
+    id: action.id,
+    label: action.label,
+    agentRunKind: action.agentRunKind,
+    visible: true,
+    enabled: true,
+  };
+}
+
+export function getJobProviderActionAvailability(providerKind: string) {
+  return jobProviderActionDefinitions.map((action) =>
+    resolveActionAvailability(providerKind, action),
+  );
+}
+
+export function getJobProviderActionDefinition(actionId: JobProviderActionId) {
+  return jobProviderActionDefinitions.find((action) => action.id === actionId) ?? null;
+}
+
+export function isJobProviderActionAvailable(providerKind: string, actionId: JobProviderActionId) {
+  const availability = getJobProviderActionAvailability(providerKind).find(
+    (action) => action.id === actionId,
+  );
+
+  return availability?.enabled ?? false;
+}

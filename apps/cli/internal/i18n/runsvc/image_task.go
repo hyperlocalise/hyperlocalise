@@ -3,6 +3,7 @@ package runsvc
 import (
 	"crypto/sha512"
 	"encoding/base64"
+	"encoding/hex"
 	"fmt"
 	"mime"
 	"path/filepath"
@@ -47,7 +48,8 @@ func imageOutputFormat(path string) (string, error) {
 
 func imageSourceFingerprint(content []byte) string {
 	sum := sha512.Sum512(content)
-	return fmt.Sprintf("%x", sum[:])
+	// Bolt: Use hex.EncodeToString instead of fmt.Sprintf("%x") to avoid reflection/formatting overhead
+	return hex.EncodeToString(sum[:])
 }
 
 func imageLockSourceHash(content []byte) string {

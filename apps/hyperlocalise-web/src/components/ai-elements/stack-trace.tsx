@@ -1,5 +1,17 @@
 "use client";
 
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import { useControllableState } from "@radix-ui/react-use-controllable-state";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -112,14 +124,15 @@ const parseStackFrame = (line: string): StackFrame => {
 };
 
 const parseStackTrace = (trace: string): ParsedStackTrace => {
-  const lines = trace.split("\n").filter((line) => line.trim());
+  const safeTrace = trace ?? "";
+  const lines = safeTrace.split("\n").filter((line) => line.trim());
 
   if (lines.length === 0) {
     return {
-      errorMessage: trace,
+      errorMessage: safeTrace,
       errorType: null,
       frames: [],
-      raw: trace,
+      raw: safeTrace,
     };
   }
 
@@ -145,7 +158,7 @@ const parseStackTrace = (trace: string): ParsedStackTrace => {
     errorMessage,
     errorType,
     frames,
-    raw: trace,
+    raw: safeTrace,
   };
 };
 
@@ -411,6 +424,17 @@ interface FilePathButtonProps {
   onFilePathClick?: (filePath: string, lineNumber?: number, columnNumber?: number) => void;
 }
 
+const formatStackFrameLocation = (frame: StackFrame): string => {
+  let location = frame.filePath ?? "";
+  if (frame.lineNumber !== null) {
+    location = `${location}:${String(frame.lineNumber)}`;
+  }
+  if (frame.columnNumber !== null) {
+    location = `${location}:${String(frame.columnNumber)}`;
+  }
+  return location;
+};
+
 const FilePathButton = memo(({ frame, onFilePathClick }: FilePathButtonProps) => {
   const handleClick = useCallback(() => {
     if (frame.filePath) {
@@ -432,9 +456,7 @@ const FilePathButton = memo(({ frame, onFilePathClick }: FilePathButtonProps) =>
       onClick={handleClick}
       type="button"
     >
-      {frame.filePath}
-      {frame.lineNumber !== null && `:${frame.lineNumber}`}
-      {frame.columnNumber !== null && `:${frame.columnNumber}`}
+      {formatStackFrameLocation(frame)}
     </button>
   );
 });
@@ -443,40 +465,48 @@ FilePathButton.displayName = "FilePathButton";
 
 export const StackTraceFrames = memo(
   ({ className, showInternalFrames = true, ...props }: StackTraceFramesProps) => {
+    const intl = useIntl();
     const { trace, onFilePathClick } = useStackTrace();
 
     const framesToShow = showInternalFrames
       ? trace.frames
       : trace.frames.filter((f) => !f.isInternal);
 
+    const framePrefix = intl.formatMessage(stackTraceMessages.framePrefix);
+
     return (
       <div className={cn("space-y-1 p-3", className)} {...props}>
-        {framesToShow.map((frame) => (
-          <div
-            className={cn(
-              "text-xs",
-              frame.isInternal ? "text-muted-foreground" : "text-foreground",
-            )}
-            key={frame.raw}
-          >
-            <span className="text-muted-foreground">at </span>
-            {frame.functionName && (
-              <span className={frame.isInternal ? "" : "text-foreground"}>
-                {frame.functionName}{" "}
-              </span>
-            )}
-            {frame.filePath && (
-              <>
-                <span className="text-muted-foreground">(</span>
-                <FilePathButton frame={frame} onFilePathClick={onFilePathClick} />
-                <span className="text-muted-foreground">)</span>
-              </>
-            )}
-            {!(frame.filePath || frame.functionName) && (
-              <span>{frame.raw.replace(AT_PREFIX_REGEX, "")}</span>
-            )}
-          </div>
-        ))}
+        {framesToShow.map((frame) => {
+          const prefixLabel = `${framePrefix} `;
+          const functionLabel = frame.functionName ? `${frame.functionName} ` : "";
+          const openParen = "(";
+          const closeParen = ")";
+
+          return (
+            <div
+              className={cn(
+                "text-xs",
+                frame.isInternal ? "text-muted-foreground" : "text-foreground",
+              )}
+              key={frame.raw}
+            >
+              <span className="text-muted-foreground">{prefixLabel}</span>
+              {frame.functionName ? (
+                <span className={frame.isInternal ? "" : "text-foreground"}>{functionLabel}</span>
+              ) : null}
+              {frame.filePath ? (
+                <>
+                  <span className="text-muted-foreground">{openParen}</span>
+                  <FilePathButton frame={frame} onFilePathClick={onFilePathClick} />
+                  <span className="text-muted-foreground">{closeParen}</span>
+                </>
+              ) : null}
+              {!(frame.filePath || frame.functionName) ? (
+                <span>{frame.raw.replace(AT_PREFIX_REGEX, "")}</span>
+              ) : null}
+            </div>
+          );
+        })}
         {framesToShow.length === 0 && (
           <div className="text-muted-foreground text-xs">
             <FormattedMessage {...stackTraceMessages.noStackFrames} />

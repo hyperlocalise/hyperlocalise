@@ -1,6 +1,19 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import type { UIMessage } from "ai";
 
-import type { InboxProjectSummary } from "./inbox-api";
+import type { InboxGithubRepository } from "./inbox-api";
+import type { InboxIssueNotification } from "./inbox-notifications-api";
 import type {
   Conversation,
   ConversationMessage,
@@ -72,30 +85,18 @@ export function createLinkedJob(overrides: Partial<LinkedJob> = {}): LinkedJob {
   };
 }
 
-export function createProjectSummary(
-  overrides: Partial<InboxProjectSummary> = {},
-): InboxProjectSummary {
+export function createGithubRepository(
+  overrides: Partial<InboxGithubRepository> = {},
+): InboxGithubRepository {
   return {
-    id: "project_website",
-    organizationId: "org_001",
-    teamId: null,
-    createdByUserId: "user_001",
-    name: "Website",
-    description: "Marketing website localization",
-    translationContext: "Public marketing copy",
-    source: "native",
-    externalProviderKind: null,
-    externalProjectId: null,
-    sourceLocale: "en-US",
-    targetLocales: ["fr-FR", "de-DE"],
-    externalProjectUrl: null,
-    isActive: true,
-    lastSyncedAt: null,
-    lastSyncErrorAt: null,
-    lastSyncErrorMessage: null,
-    createdAt: iso(-604_800_000),
-    updatedAt: iso(-86_400_000),
-    openJobCount: 2,
+    id: "repo_website",
+    githubRepositoryId: "101",
+    owner: "hyperlocalise",
+    name: "hyperlocalise-web",
+    fullName: "hyperlocalise/hyperlocalise-web",
+    archived: false,
+    defaultBranch: "main",
+    enabled: true,
     ...overrides,
   };
 }
@@ -181,10 +182,95 @@ export const linkedJobsFixture: LinkedJob[] = [
   }),
 ];
 
-export const projectsFixture: InboxProjectSummary[] = [
-  createProjectSummary(),
-  createProjectSummary({
-    id: "project_mobile",
-    name: "Mobile app",
+export const repositoriesFixture: InboxGithubRepository[] = [
+  createGithubRepository(),
+  createGithubRepository({
+    id: "repo_mobile",
+    githubRepositoryId: "102",
+    name: "mobile-app",
+    fullName: "hyperlocalise/mobile-app",
+  }),
+];
+
+export function createInboxIssueNotification(
+  overrides: Partial<InboxIssueNotification> = {},
+): InboxIssueNotification {
+  return {
+    id: "notification_assigned_001",
+    organizationId: "org_acme",
+    projectId: "project_website",
+    issueId: "issue_001",
+    type: "assigned",
+    payload: {
+      issueTitle: "Source string needs context",
+      projectId: "project_website",
+    },
+    actor: {
+      userId: "user_otto",
+      displayName: "Otto Klein",
+      email: "otto@example.com",
+      avatarUrl: null,
+    },
+    readAt: null,
+    createdAt: iso(-900_000),
+    ...overrides,
+  };
+}
+
+export const issueNotificationsFixture: InboxIssueNotification[] = [
+  createInboxIssueNotification(),
+  createInboxIssueNotification({
+    id: "notification_mention_001",
+    type: "mentioned",
+    payload: {
+      issueTitle: "Checkout CTA tone feels off",
+      projectId: "project_website",
+      commentId: "comment_001",
+      commentExcerpt: "Can you review the CTA wording?",
+    },
+    actor: {
+      userId: "user_mina",
+      displayName: "Mina Chen",
+      email: "mina@example.com",
+      avatarUrl: null,
+    },
+    readAt: null,
+    createdAt: iso(-1_200_000),
+  }),
+  createInboxIssueNotification({
+    id: "notification_comment_001",
+    type: "comment",
+    payload: {
+      issueTitle: "Source string needs context",
+      projectId: "project_website",
+      commentId: "comment_002",
+      commentExcerpt: "Added a screenshot from the checkout flow.",
+    },
+    actor: {
+      userId: "user_aiko",
+      displayName: "Aiko Tanaka",
+      email: "aiko@example.com",
+      avatarUrl: null,
+    },
+    readAt: iso(-600_000),
+    createdAt: iso(-3_600_000),
+  }),
+  createInboxIssueNotification({
+    id: "notification_status_001",
+    type: "status_changed",
+    payload: {
+      issueTitle: "Glossary term mismatch",
+      projectId: "project_website",
+      previousStatus: "open",
+      nextStatus: "in_progress",
+    },
+    actor: {
+      userId: "user_otto",
+      displayName: "Otto Klein",
+      email: "otto@example.com",
+      avatarUrl: null,
+    },
+    readAt: iso(-3_000_000),
+    createdAt: iso(-7_200_000),
   }),
 ];

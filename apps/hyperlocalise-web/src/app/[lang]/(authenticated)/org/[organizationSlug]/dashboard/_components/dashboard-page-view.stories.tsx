@@ -1,5 +1,20 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { expect } from "storybook/test";
+import type { IntlShape } from "react-intl";
+
+import { getIntlShape } from "@/lib/app-i18n/intl";
 
 import { automationsFixture } from "../../automations/_components/automations.fixture";
 import {
@@ -17,8 +32,9 @@ import {
 } from "./dashboard-page-view-model";
 
 const organizationSlug = "acme";
+const intl = getIntlShape("en") as IntlShape;
 
-const activeHero = resolveDashboardHero({
+const activeHero = resolveDashboardHero(intl, {
   integrations: dashboardIntegrationsCompleteFixture,
   projectCount: dashboardProjectsItemsFixture.length,
   pendingCount: resolveWorkspacePendingActionCount({
@@ -29,26 +45,35 @@ const activeHero = resolveDashboardHero({
   }),
   integrationsHref: `/org/${organizationSlug}/integrations`,
   myJobsHref: `/org/${organizationSlug}/my-jobs`,
-  newRequestHref: `/org/${organizationSlug}/chat`,
 });
 
-const setupHero = resolveDashboardHero({
+const setupHero = resolveDashboardHero(intl, {
   integrations: dashboardIntegrationsIncompleteFixture,
   projectCount: 0,
   pendingCount: 0,
   integrationsHref: `/org/${organizationSlug}/integrations`,
   myJobsHref: `/org/${organizationSlug}/my-jobs`,
-  newRequestHref: `/org/${organizationSlug}/chat`,
 });
 
-const caughtUpHero = resolveDashboardHero({
+const caughtUpHero = resolveDashboardHero(intl, {
   integrations: dashboardIntegrationsCompleteFixture,
   projectCount: dashboardProjectsItemsFixture.length,
   pendingCount: 0,
   integrationsHref: `/org/${organizationSlug}/integrations`,
   myJobsHref: `/org/${organizationSlug}/my-jobs`,
-  newRequestHref: `/org/${organizationSlug}/chat`,
 });
+
+const tmsJobsFixture = dashboardJobsFixture.slice(0, 2).map((job) => ({
+  ...job,
+  id: `tms_${job.id}`,
+  name: `Crowdin · ${job.name}`,
+}));
+
+const tmsProjectsFixture = dashboardProjectsItemsFixture.slice(0, 2).map((project) => ({
+  ...project,
+  id: `tms_${project.id}`,
+  name: `Crowdin · ${project.name}`,
+}));
 
 const meta = {
   title: "App/Dashboard/Page",
@@ -61,7 +86,12 @@ const meta = {
     hero: activeHero,
     integrations: dashboardIntegrationsCompleteFixture,
     jobs: dashboardJobsFixture,
+    latestJobs: [...dashboardJobsFixture].reverse(),
     projects: dashboardProjectsItemsFixture,
+    showTmsSections: true,
+    tmsProviderName: "Crowdin",
+    tmsJobs: tmsJobsFixture,
+    tmsProjects: tmsProjectsFixture,
     automationStats: resolveAutomationSnapshotStats(automationsFixture),
     automationRuns: dashboardAutomationRunsFixture,
     automationsEnabled: true,
@@ -72,6 +102,7 @@ const meta = {
     isProjectsError: false,
     isAutomationsLoading: false,
     isAutomationsError: false,
+    onNewRequest: () => undefined,
   },
 } satisfies Meta<typeof DashboardPageView>;
 
@@ -82,7 +113,10 @@ export const Default: Story = {
   play: async ({ canvas }) => {
     await expect(canvas.getByRole("heading", { name: "Overview" })).toBeInTheDocument();
     await expect(canvas.getByText("My jobs")).toBeInTheDocument();
+    await expect(canvas.getByText("Latest jobs")).toBeInTheDocument();
     await expect(canvas.getByText("Recent projects")).toBeInTheDocument();
+    await expect(canvas.getByText("Crowdin jobs")).toBeInTheDocument();
+    await expect(canvas.getByText("Crowdin projects")).toBeInTheDocument();
     await expect(canvas.getByText("Integrations")).toBeInTheDocument();
     await expect(canvas.getByText("Automation runs")).toBeInTheDocument();
     await expect(canvas.getByText("Review: terminology consistency")).toBeInTheDocument();
@@ -95,7 +129,11 @@ export const SetupIncomplete: Story = {
     hero: setupHero,
     integrations: dashboardIntegrationsIncompleteFixture,
     jobs: [],
+    latestJobs: [],
     projects: [],
+    showTmsSections: false,
+    tmsJobs: [],
+    tmsProjects: [],
     automationRuns: [],
     automationStats: { total: 0, active: 0, paused: 0 },
   },
@@ -110,6 +148,7 @@ export const CaughtUp: Story = {
   args: {
     hero: caughtUpHero,
     jobs: dashboardJobsFixture.filter((job) => job.status === "succeeded").slice(0, 3),
+    latestJobs: dashboardJobsFixture.filter((job) => job.status === "succeeded").slice(0, 3),
     projects: dashboardProjectsItemsFixture.map((project) => ({
       ...project,
       pendingActionCount: 0,
@@ -133,12 +172,19 @@ export const AutomationsDisabled: Story = {
 export const Loading: Story = {
   args: {
     jobs: [],
+    latestJobs: [],
     projects: [],
+    tmsJobs: [],
+    tmsProjects: [],
     integrations: [],
     automationRuns: [],
+    isHeroLoading: true,
     isIntegrationsLoading: true,
     isJobsLoading: true,
+    isLatestJobsLoading: true,
     isProjectsLoading: true,
+    isTmsJobsLoading: true,
+    isTmsProjectsLoading: true,
     isAutomationsLoading: true,
   },
 };
@@ -147,7 +193,10 @@ export const Empty: Story = {
   args: {
     hero: caughtUpHero,
     jobs: [],
+    latestJobs: [],
     projects: [],
+    tmsJobs: [],
+    tmsProjects: [],
     automationRuns: [],
     automationStats: { total: 0, active: 0, paused: 0 },
   },
@@ -156,13 +205,20 @@ export const Empty: Story = {
 export const LoadError: Story = {
   args: {
     jobs: [],
+    latestJobs: [],
     projects: [],
+    tmsJobs: [],
+    tmsProjects: [],
     isJobsError: true,
+    isLatestJobsError: true,
     isProjectsError: true,
+    isTmsJobsError: true,
+    isTmsProjectsError: true,
     isAutomationsError: true,
   },
   play: async ({ canvas }) => {
     await expect(canvas.getByText("My jobs could not be loaded.")).toBeInTheDocument();
+    await expect(canvas.getByText("Latest jobs could not be loaded.")).toBeInTheDocument();
     await expect(canvas.getByText("Recent projects could not be loaded.")).toBeInTheDocument();
     await expect(canvas.getByText("Automation runs could not be loaded.")).toBeInTheDocument();
   },

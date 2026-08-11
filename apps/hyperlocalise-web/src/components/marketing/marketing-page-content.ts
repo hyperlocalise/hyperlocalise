@@ -1,11 +1,28 @@
-import { useCaseFooterLinks } from "@/components/marketing/use-case";
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import { productFooterLinks } from "@/components/marketing/product/product-page-content";
+import { useCaseFooterLinks } from "@/components/marketing/use-case/use-case-page-content";
 
 export const githubRepoUrl = "https://github.com/hyperlocalise/hyperlocalise";
 export const githubActionUrl = "https://github.com/marketplace/actions/hyperlocalise-ci";
 export const githubReleasesUrl = "https://github.com/hyperlocalise/hyperlocalise/releases";
 export const docsUrl = "https://hyperlocalise.dev";
 export const cliDocsUrl = "https://hyperlocalise.dev/commands/overview";
+export const contactUrl = "mailto:minh@hyperlocalise.com";
+export const statusUrl = "https://status.hyperlocalise.com/";
+export const linkedInCompanyUrl = "https://www.linkedin.com/company/hyperlocalise/";
+export const trustCenterUrl =
+  "https://app.aus.vanta.com/hyperlocalise.com/trust/su9x7fcjfa8q700wu9pt2u";
 
 export type MarketingFooterLink = {
   labelKey?: string;
@@ -19,112 +36,11 @@ export type MarketingFooterColumn = {
   titleKey?: string;
   title?: string;
   links: MarketingFooterLink[];
+  nested?: {
+    title: string;
+    links: MarketingFooterLink[];
+  };
 };
-
-export const principles = [
-  {
-    titleKey: "principleAgentNativeTitle",
-    descriptionKey: "principleAgentNativeDescription",
-  },
-  {
-    titleKey: "principleBringYourLlmsTitle",
-    descriptionKey: "principleBringYourLlmsDescription",
-  },
-  {
-    titleKey: "principleReleaseConfidenceTitle",
-    descriptionKey: "principleReleaseConfidenceDescription",
-  },
-] as const;
-
-export const chapters = [
-  {
-    id: "01",
-    anchorId: "sources",
-    labelKey: "chapter01Label",
-    titleKey: "chapter01Title",
-    descriptionKey: "chapter01Description",
-    linkKeys: [
-      "chapter01LinkGitHubChanges",
-      "chapter01LinkSlackRequests",
-      "chapter01LinkClaudeBriefs",
-      "chapter01LinkContextAttached",
-    ],
-    cta: {
-      labelKey: "viewGitHubAction",
-      href: githubActionUrl,
-    },
-    placeholderType: "product",
-    placeholderTitleKey: "chapter01PlaceholderTitle",
-    placeholderDescriptionKey: "chapter01PlaceholderDescription",
-  },
-  {
-    id: "02",
-    anchorId: "translate-task",
-    labelKey: "chapter02Label",
-    titleKey: "chapter02Title",
-    descriptionKey: "chapter02Description",
-    linkKeys: [
-      "chapter02LinkAiTranslationReview",
-      "chapter02LinkTmsAgnostic",
-      "chapter02LinkRegressionEvals",
-      "chapter02LinkContextAutoDiscovery",
-    ],
-  },
-  {
-    id: "03",
-    anchorId: "providers",
-    labelKey: "chapter03Label",
-    titleKey: "chapter03Title",
-    descriptionKey: "chapter03Description",
-    linkKeys: [
-      "chapter03LinkLlmAgnostic",
-      "chapter03LinkTmsAgnostic",
-      "chapter03LinkProviderSwitching",
-      "chapter03LinkWorkflowContinuity",
-    ],
-    placeholderType: "illustration",
-    placeholderTitleKey: "chapter03PlaceholderTitle",
-    placeholderDescriptionKey: "chapter03PlaceholderDescription",
-  },
-  {
-    id: "04",
-    anchorId: "evaluations",
-    labelKey: "chapter04Label",
-    titleKey: "chapter04Title",
-    descriptionKey: "chapter04Description",
-    linkKeys: [
-      "chapter04LinkDriftChecks",
-      "chapter04LinkEvalGates",
-      "chapter04LinkPrVisibility",
-      "chapter04LinkReleaseBlocking",
-    ],
-    cta: {
-      labelKey: "viewGitHubAction",
-      href: githubActionUrl,
-    },
-    placeholderType: "illustration",
-    placeholderTitleKey: "chapter04PlaceholderTitle",
-    placeholderDescriptionKey: "chapter04PlaceholderDescription",
-  },
-  {
-    id: "05",
-    anchorId: "monitor",
-    labelKey: "chapter05Label",
-    titleKey: "chapter05Title",
-    descriptionKey: "chapter05Description",
-    linkKeys: [
-      "chapter05LinkLocaleHealth",
-      "chapter05LinkEvalHistory",
-      "chapter05LinkReviewCoverage",
-      "chapter05LinkReleaseReadiness",
-    ],
-    placeholderType: "product",
-    placeholderTitleKey: "chapter05PlaceholderTitle",
-    placeholderDescriptionKey: "chapter05PlaceholderDescription",
-  },
-] as const;
-
-export type MarketingChapter = (typeof chapters)[number];
 
 export const testimonials = [
   {
@@ -161,10 +77,14 @@ export const footerColumns: MarketingFooterColumn[] = [
     links: [
       { labelKey: "footerDocumentation", href: docsUrl },
       { labelKey: "footerCliDocs", href: cliDocsUrl },
+      { labelKey: "footerPricing", href: "/pricing" },
+      { labelKey: "footerStartups", href: "/startups" },
+      { labelKey: "footerCompany", href: "/company" },
+      { labelKey: "footerLocalisationAudit", href: "/localisation-audit" },
       { label: "Blog", href: "/en/blog" },
       { labelKey: "footerGitHubAction", href: githubActionUrl },
-      { labelKey: "footerGitHub", href: githubRepoUrl },
-      { labelKey: "footerContact", href: "mailto:minh@hyperlocalise.com" },
+      { labelKey: "footerContact", href: contactUrl },
+      { labelKey: "footerStatus", href: statusUrl },
     ],
   },
   {
@@ -172,7 +92,11 @@ export const footerColumns: MarketingFooterColumn[] = [
     links: [
       { label: "Terms", href: "/en/terms" },
       { label: "Privacy", href: "/en/privacy" },
-      { label: "Trust Center", href: "/en/trust-center" },
+      { label: "Trust Center", href: trustCenterUrl },
     ],
+    nested: {
+      title: "Social",
+      links: [{ label: "LinkedIn", href: linkedInCompanyUrl }],
+    },
   },
 ];

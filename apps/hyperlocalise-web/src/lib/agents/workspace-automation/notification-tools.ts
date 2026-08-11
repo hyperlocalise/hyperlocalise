@@ -1,3 +1,15 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import { Resend } from "resend";
 
 import { env } from "@/lib/env";
@@ -9,6 +21,7 @@ export type WorkspaceAutomationNotificationError = {
 };
 
 export async function runWorkspaceAutomationSlackNotificationTool(input: {
+  organizationId: string;
   channelId: string;
   message: string;
 }): Promise<Result<void, WorkspaceAutomationNotificationError>> {
@@ -21,7 +34,11 @@ export async function runWorkspaceAutomationSlackNotificationTool(input: {
 
   try {
     const { postSlackChannelMessage } = await import("@/lib/agents/slack/post-channel-message");
-    await postSlackChannelMessage({ channelId: input.channelId, text: input.message });
+    await postSlackChannelMessage({
+      organizationId: input.organizationId,
+      channelId: input.channelId,
+      text: input.message,
+    });
     return ok(undefined);
   } catch (error) {
     return err({

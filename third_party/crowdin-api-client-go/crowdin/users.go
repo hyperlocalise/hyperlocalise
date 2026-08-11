@@ -192,9 +192,9 @@ func (s *UsersService) ListManagers(ctx context.Context, groupID int, opts *mode
 // Get returns a manager by its identifier.
 //
 // https://support.crowdin.com/developer/enterprise/api/v2/#tag/Users/operation/api.groups.managers.get
-func (s *UsersService) GetManagers(ctx context.Context, groupID int) (*model.Manager, *Response, error) {
+func (s *UsersService) GetManagers(ctx context.Context, groupID, userID int) (*model.Manager, *Response, error) {
 	res := new(model.ManagerGetResponse)
-	resp, err := s.client.Get(ctx, fmt.Sprintf("/api/v2/groups/%d/managers", groupID), nil, res)
+	resp, err := s.client.Get(ctx, fmt.Sprintf("/api/v2/groups/%d/managers/%d", groupID, userID), nil, res)
 
 	return res.Data, resp, err
 }

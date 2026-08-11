@@ -2,6 +2,7 @@ name: CI
 
 on:
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
     paths-ignore:
       - apps/hyperlocalise-web/**
       - .github/workflows/web.yml
@@ -20,13 +21,35 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  action-self-test:
-    name: Action Self Test
+  go-lint:
+    name: Go Lint
     runs-on: blacksmith-4vcpu-ubuntu-2404
 
     steps:
       - name: Checkout
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Bootstrap Go toolchain
+        uses: ./.github/actions/go-bootstrap
+        with:
+          go-version-file: go.mod
+
+      - name: Verify formatting
+        run: |
+          make fmt
+          git diff --exit-code
+
+      - name: Lint
+        run: make lint
+
+  action-self-test:
+    name: Action Self Test
+    if: github.event_name == 'push' || github.event.pull_request.draft == false
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Run Hyperlocalise action
         id: hyperlocalise
@@ -59,67 +82,68 @@ jobs:
           [[ "${ERROR_COUNT}" =~ ^[0-9]+$ ]]
           [[ "${WARNING_COUNT}" =~ ^[0-9]+$ ]]
 
-  bazel-build-test:
-    name: Bazel Build/Test
+  web-sync-cli-smoke-test:
+    name: Web Sync CLI Smoke Test
+    if: github.event_name == 'push' || github.event.pull_request.draft == false
     runs-on: blacksmith-4vcpu-ubuntu-2404
+    defaults:
+      run:
+        working-directory: apps/hyperlocalise-web
     env:
-      BUILDBUDDY_ENDPOINT: grpcs://remote.buildbuddy.io
-      BUILDBUDDY_RESULTS_URL: https://app.buildbuddy.io/invocation/
+      HYPERLOCALISE_API_KEY: hl_sync_self_test
+      HYPERLOCALISE_PROJECT_ID: project_sync_self_test
 
     steps:
       - name: Checkout
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Install Hyperlocalise
+        uses: ./install
+        with:
+          version: 1.8.28
+
+      - name: Dry-run sync push
+        run: hl sync push --dry-run
+
+      - name: Dry-run sync pull
+        run: hl sync pull --dry-run
+
+      - name: Pack locale catalogs
+        run: hl pack
+
+  bazel-build-test:
+    name: Bazel Build/Test
+    if: github.event_name == 'push' || github.event.pull_request.draft == false
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Setup Bazelisk
         uses: bazelbuild/setup-bazelisk@b39c379c82683a5f25d34f0d062761f62693e0b2 # v3
 
-      - name: Configure BuildBuddy
-        id: buildbuddy
-        shell: bash
-        env:
-          BUILDBUDDY_API_KEY: ${{ secrets.BUILDBUDDY_API_KEY }}
-        run: |
-          rc_path="$RUNNER_TEMP/buildbuddy.bazelrc"
-          if [[ -n "${BUILDBUDDY_API_KEY}" ]]; then
-            printf '%s\n' \
-              "common --bes_backend=${BUILDBUDDY_ENDPOINT}" \
-              "common --bes_results_url=${BUILDBUDDY_RESULTS_URL}" \
-              "common --remote_cache=${BUILDBUDDY_ENDPOINT}" \
-              "common --remote_timeout=10m" \
-              "common --remote_header=x-buildbuddy-api-key=${BUILDBUDDY_API_KEY}" \
-              >"${rc_path}"
-            echo "extra_bazelrc=--bazelrc=${rc_path}" >>"${GITHUB_OUTPUT}"
-          else
-            echo "extra_bazelrc=" >>"${GITHUB_OUTPUT}"
-            echo "BuildBuddy secret unavailable; continuing with local-only Bazel execution."
-          fi
-
+      # Blacksmith injects --remote_cache when Bazel Build Caching is enabled.
+      # Do not set an explicit --remote_cache here; it would take precedence.
       - name: Bazel build
-        run: bazel ${{ steps.buildbuddy.outputs.extra_bazelrc }} build --config=ci //:cli
+        run: bazel build --config=ci //:cli
 
       - name: Bazel test
-        run: bazel ${{ steps.buildbuddy.outputs.extra_bazelrc }} test --config=ci //apps/cli/cmd:cmd_test
+        run: bazel test --config=ci //apps/cli/cmd:cmd_test
 
   go-quality:
     name: Go Quality
+    if: github.event_name == 'push' || github.event.pull_request.draft == false
     runs-on: blacksmith-4vcpu-ubuntu-2404
 
     steps:
       - name: Checkout
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Bootstrap Go toolchain
         uses: ./.github/actions/go-bootstrap
         with:
           go-version-file: go.mod
-
-      - name: Verify formatting
-        run: |
-          make fmt
-          git diff --exit-code
-
-      - name: Lint
-        run: make lint
 
       - name: Workspace tests
         run: make test-workspace

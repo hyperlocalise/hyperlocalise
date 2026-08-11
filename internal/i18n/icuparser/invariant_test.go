@@ -140,6 +140,13 @@ func TestFormatICUBlocks(t *testing.T) {
 			want: "[n:plural[one other]#[1 0]]",
 		},
 		{
+			name: "plural with offset and pounds",
+			blocks: []BlockSignature{
+				{Arg: "n", Type: "plural", Offset: 1, Options: []string{"one", "other"}, Pounds: []int{1, 0}},
+			},
+			want: "[n(offset:1):plural[one other]#[1 0]]",
+		},
+		{
 			name: "select without pounds",
 			blocks: []BlockSignature{
 				{Arg: "g", Type: "select", Options: []string{"female", "male"}},
@@ -264,6 +271,73 @@ func TestParseInvariantSorting(t *testing.T) {
 		if inv.ICUBlocks[i].Arg != exp.arg || inv.ICUBlocks[i].Type != exp.kind {
 			t.Errorf("block %d: expected %s:%s, got %s:%s", i, exp.arg, exp.kind, inv.ICUBlocks[i].Arg, inv.ICUBlocks[i].Type)
 		}
+	}
+}
+
+func TestSameICUBlocksOffsetParity(t *testing.T) {
+	tests := []struct {
+		name string
+		src  string
+		tgt  string
+		want bool
+	}{
+		{
+			name: "different offsets",
+			src:  "{n, plural, offset:1 one {item} other {items}}",
+			tgt:  "{n, plural, offset:2 one {item} other {items}}",
+			want: false,
+		},
+		{
+			name: "offset vs no offset",
+			src:  "{n, plural, offset:1 one {item} other {items}}",
+			tgt:  "{n, plural, one {item} other {items}}",
+			want: false,
+		},
+		{
+			name: "same offset",
+			src:  "{n, plural, offset:5 one {item} other {items}}",
+			tgt:  "{n, plural, offset:5 one {item} other {items}}",
+			want: true,
+		},
+		{
+			name: "selectordinal different offsets",
+			src:  "{n, selectordinal, offset:1 one {#st} other {#th}}",
+			tgt:  "{n, selectordinal, offset:0 one {#st} other {#th}}",
+			want: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			srcInv, err := ParseInvariant(tt.src)
+			if err != nil {
+				t.Fatalf("failed to parse src: %v", err)
+			}
+			tgtInv, err := ParseInvariant(tt.tgt)
+			if err != nil {
+				t.Fatalf("failed to parse tgt: %v", err)
+			}
+
+			if got := SameICUBlocks(srcInv.ICUBlocks, tgtInv.ICUBlocks); got != tt.want {
+				t.Errorf("SameICUBlocks() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestParseInvariantSortingWithOffset(t *testing.T) {
+	msg := "{n, plural, offset:2 other {#}} {n, plural, offset:1 other {#}}"
+	inv, err := ParseInvariant(msg)
+	if err != nil {
+		t.Fatalf("ParseInvariant failed: %v", err)
+	}
+
+	if len(inv.ICUBlocks) != 2 {
+		t.Fatalf("expected 2 ICU blocks, got %d", len(inv.ICUBlocks))
+	}
+
+	if inv.ICUBlocks[0].Offset != 1 || inv.ICUBlocks[1].Offset != 2 {
+		t.Errorf("blocks not sorted by offset: %s", FormatICUBlocks(inv.ICUBlocks))
 	}
 }
 

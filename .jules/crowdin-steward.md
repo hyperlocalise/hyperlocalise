@@ -1,5 +1,53 @@
 # Crowdin Steward's Journal
 
+## 2026-12-24 - Implement Corrections API for Crowdin Enterprise parity
+
+**Learning:** In Crowdin Enterprise API v2, proofreaders can create translation corrections. However, the Go SDK lacked model representations and endpoint methods for managing corrections (such as list, get, add, restore, and delete corrections). This gap prevented enterprise users from managing the translation correction lifecycle programmatically.
+
+**Action:** Added `Correction` resource models, list/get options, list/get/add response wrappers, and an add request with standard validation to `model/string_translations.go`. Implemented `ListCorrections`, `GetCorrection`, `AddCorrection`, `RestoreCorrection`, `DeleteCorrection`, and `DeleteCorrections` (which operates on a specific `stringId` query param) in `StringTranslationsService`. Developed focused unit tests asserting query serialization, request validation, and endpoint execution under the `crowdin` and `crowdin/model` packages.
+
+## 2026-12-23 - Add CorrectionID query filter to List Translation Approvals
+
+**Learning:** In Crowdin API v2 (and particularly Crowdin Enterprise), proofreaders can create translation corrections. Correspondingly, the List Translation Approvals endpoint (`GET /api/v2/projects/{projectId}/approvals`) supports filtering by `correctionId`. However, the Go SDK's `ApprovalsListOptions` lacked a `CorrectionID` parameter and did not encode it in its `Values()` query string serialization, making it impossible for workflows to filter approvals by a specific proofreading correction.
+
+**Action:** Added `CorrectionID` to `ApprovalsListOptions` in `model/string_translations.go` and updated `Values()` to serialize it as `correctionId` if greater than 0. Expanded tests in both `model/string_translations_test.go` and `string_translations_test.go` to cover and assert correct `CorrectionID` serialization.
+
+## 2026-12-22 - Embed ListOptions in DictionariesListOptions
+
+**Learning:** In Crowdin API v2, the List Dictionaries endpoint (`GET /api/v2/projects/{projectId}/dictionaries`) supports standard pagination parameters (`limit` and `offset`). However, `DictionariesListOptions` did not embed `ListOptions` or include standard pagination parameters in its `Values()` query string serialization. This caused queries with explicit limits/offsets to be ignored under actual workflows.
+
+**Action:** Updated `DictionariesListOptions` in `model/dictionaries.go` to embed `ListOptions` and updated its `Values()` method to delegate to `o.ListOptions.Values()`. Added comprehensive unit tests validating correct pagination parameter serialization in `model/dictionaries_test.go` and `dictionaries_test.go`.
+
+## 2026-12-21 - Fix GetManagers endpoint path and signature parity
+
+**Learning:** In Crowdin Enterprise API v2, retrieving a single manager requires specifying both the `groupId` and the `userId` in the path `/api/v2/groups/{groupId}/managers/{userId}`. The SDK previously only accepted `groupID` and requested the listing endpoint `/api/v2/groups/{groupId}/managers` while trying to unmarshal it as a single `ManagerGetResponse` struct. Under real workloads, this led to immediate JSON unmarshaling errors due to array-to-object type mismatch.
+
+**Action:** Updated the `GetManagers` signature to accept `userID` in addition to `groupID` in `crowdin/users.go`, and updated the HTTP request URL path to `/api/v2/groups/%d/managers/%d`. Updated `TestManagersService_Get` in `crowdin/users_test.go` to assert correct request path generation.
+
+## 2026-07-29 - Validate derived exportWithMinApprovalsCount from exportApprovedOnly
+
+**Learning:** `ExportTranslationRequest.MarshalJSON` maps `exportApprovedOnly=true` to `exportWithMinApprovalsCount=1` when no explicit approval count is set. Validating only the explicit `ExportWithMinApprovalsCount` field let `exportApprovedOnly=true` + `exportStringsThatPassedWorkflow=true` pass client validation and still serialize into the incompatible API pair.
+
+**Action:** Updated `ExportTranslationRequest.Validate()` to apply the same derived approvals-count logic as `MarshalJSON` before enforcing mutual exclusivity with `exportStringsThatPassedWorkflow`, and added regression tests covering both the derived and explicit-zero cases.
+
+## 2026-12-20 - Add ExportTranslationRequest validation parity
+
+**Learning:** In Crowdin API v2, the Export Project Translation request body contains several fields that are strictly mutually exclusive, such as `branchIds`, `directoryIds`, and `fileIds` (only one can be targeted per request), as well as boolean flag pairs like `skipUntranslatedStrings`/`skipUntranslatedFiles` and `exportWithMinApprovalsCount`/`exportStringsThatPassedWorkflow`. Lacking client-side validation for these constraints could lead to invalid payloads being transmitted and failing at the API gateway layer.
+
+**Action:** Added validations to `ExportTranslationRequest.Validate()` in `model/translations.go` to enforce these mutual exclusivity constraints and expanded the unit test suite in `model/translations_test.go` and `translations_test.go` to assert correct validation behavior and request alignment.
+
+## 2026-12-19 - Align AI Translate with Crowdin API v2
+
+**Learning:** The `POST /ai/translate` endpoint accepts several optional body fields like `sourceLanguageId`, `aiPromptId`, `tmIds`, `glossaryIds`, and `instructions` to customize on-demand translations. Additionally, its response contains `sourceLanguageId` and `targetLanguageId`. The initial SDK implementation was heavily simplified and missing these fields, which prevented utilizing Corporate AI pipelines with custom glossaries and translation memories.
+
+**Action:** Updated `AITranslateRequest` and `AITranslate` response models in `crowdin/model/ai.go` to include the missing fields with proper JSON mappings, and expanded the test suite in `crowdin/ai_test.go` and `crowdin/model/ai_test.go` to validate and test serialize/parse these fields end-to-end.
+
+## 2026-12-12 - Fix CheckGlossaryImportStatus importID type mismatch
+
+**Learning:** In Crowdin API v2, the glossary import background job is initiated by `ImportGlossary` which returns a string UUID `identifier` representing the job. Consequently, checking the status of this background job via the Check Glossary Import Status endpoint (`GET /api/v2/glossaries/{glossaryId}/imports/{importId}`) requires passing this string UUID. However, the SDK incorrectly typed `importID` as an `int` and formatted the request URL using `%d`, rendering the status check unusable under real-world scenarios.
+
+**Action:** Updated `CheckGlossaryImportStatus` in `crowdin/glossaries.go` to accept `importID string` and formatted the URL using `%s` instead of `%d`. Updated the corresponding unit test `TestGlossariesService_CheckGlossaryImportStatus` in `crowdin/glossaries_test.go` to use a string UUID for `importID` and verify the correct endpoint URL construction.
+
 ## 2026-05-08 - Fix Project model parity for DelayedWorkflowStart and AiPreTranslate
 
 **Learning:** Crowdin API v2 uses `delayedWorkflowStart` as the JSON field name for delaying workflows, but the SDK was using `delayedTranslations`. Additionally, the `aiPreTranslate` field was missing from the `Project` response model despite being present in `ProjectsAddRequest`.
@@ -118,18 +166,6 @@
 
 **Learning:** The Crowdin Translations API v2 supports several parameters that were missing from the Go SDK, specifically filtering by labels during project and directory builds, and the 'soft match' option for pre-translations. Additionally, uploading translations supports marking them as done immediately.
 
-**Action:** Added  (*bool) to  and . Added  ([]int) to , , and , and updated  to include them. Added  (*bool) to . Verified with comprehensive unit tests in  and .
-
-## 2026-08-29 - Improve AI Prompts parity for provider and model filtering
-
-**Learning:** The Crowdin AI Prompts API v2 supports filtering prompts by `aiProviderId` and `aiModelId`, but these options were missing from the SDK's `AIPromptsListOptions`. Additionally, the `Prompt` response model was using a generic `string` for the `action` field instead of the existing `PromptAction` enum.
-
-**Action:** Added `AIProviderID` and `AIModelID` to `AIPromptsListOptions` and updated its `Values()` method for correct query parameter encoding. Updated `Prompt.Action` to use the `PromptAction` type. Cleaned up redundant client access in AI service tests. Verified with updated unit tests in `model/ai_test.go` and full suite passing.
-
-## 2026-08-22 - Improve Translations API parity for labels and soft match
-
-**Learning:** The Crowdin Translations API v2 supports several parameters that were missing from the Go SDK, specifically filtering by labels during project and directory builds, and the 'soft match' option for pre-translations. Additionally, uploading translations supports marking them as done immediately.
-
 **Action:** Added `TranslateWithSoftMatchOnly` (*bool) to `PreTranslationRequest` and `PreTranslationAttributes`. Added `LabelIDs` ([]int) to `BuildProjectRequest`, `BuildProjectDirectoryTranslationRequest`, and `BuildAttributes`, and updated `MarshalJSON` to include them. Added `MarkAddedAsDone` (*bool) to `UploadTranslationsRequest`. Verified with comprehensive unit tests in `translations_test.go` and `model/translations_test.go`.
 
 ## 2026-09-05 - Improve Machine Translation Engines model parity and flexibility
@@ -176,12 +212,6 @@
 
 ## 2026-10-10 - Improve Enterprise Task parity and fix test typos
 
-**Learning:** The Crowdin Enterprise API v2 supports  in , but it was missing from the SDK model. Additionally, several test function names in  contained typos (e.g., "Tepmlate").
-
-**Action:** Added  string field to  in . Corrected "Tepmlate" to "Template" and "Tepmlates" to "Templates" in . Added  to verify parity.
-
-## 2026-10-10 - Improve Enterprise Task parity and fix test typos
-
 **Learning:** The Crowdin Enterprise API v2 supports `dateFrom` in `EnterpriseVendorTaskCreateForm`, but it was missing from the SDK model. Additionally, several test function names in `tasks_test.go` contained typos (e.g., "Tepmlate").
 
 **Action:** Added `DateFrom` string field to `EnterpriseVendorTaskCreateForm` in `model/tasks.go`. Corrected "Tepmlate" to "Template" and "Tepmlates" to "Templates" in `tasks_test.go`. Added `TestTasksService_Add_EnterpriseVendorTaskCreateForm` to verify parity.
@@ -209,3 +239,41 @@
 **Learning:** The Crowdin Tasks API v2 supports filtering by `creatorId` when listing project tasks and by `projectId` when listing user tasks. These parameters were missing from the SDK's `TasksListOptions` and `UserTasksListOptions` respectively.
 
 **Action:** Added `CreatorID` to `TasksListOptions` and `ProjectID` to `UserTasksListOptions` in `model/tasks.go`. Updated their `Values()` methods to correctly encode these parameters in query strings. Verified with updated unit tests in `tasks_test.go`.
+
+## 2026-07-07 - Add Language model parity for internalCode
+
+**Learning:** The Crowdin API v2 Language resource includes an `internalCode` field in its response, which was missing from the Go SDK's `Language` model. This field provides the internal Crowdin language code, which can differ from standard ISO codes.
+
+**Action:** Added `InternalCode` (string) to the `Language` struct in `model/languages.go`. Updated contract tests in `languages_test.go` to include the `internalCode` field in mock responses and verify correct unmarshaling across List, Get, and Add operations.
+
+## 2026-11-07 - Improve Task and Source Strings upload parity
+
+**Learning:** Crowdin API v2 allows specifying task content via `directoryIds`, and the Source Strings upload response includes an `updateOption` attribute indicating how string updates were handled. These were missing from the Go SDK models.
+
+**Action:** Added `DirectoryIDs` to the `Task` model and all relevant task creation forms (`TaskCreateForm`, `EnterpriseTaskCreateForm`, etc.) and updated validation logic. Added `UpdateOption` to the `SourceStringsUpload` attributes. Updated contract tests to verify correct unmarshaling and request validation.
+
+## 2026-11-14 - Improve Label parity and Model type consistency
+
+**Learning:** The Crowdin Label response model was missing the `isSystem` field, which indicates if a label was created by the system (e.g., for tasks). Additionally, several resource models like `Distribution` and `ReportArchive` used raw `string` types for fields where specific enum-like types (`ExportMode`, `ReportScopeType`) were already defined and used in request models.
+
+**Action:** Added `IsSystem` (bool) to the `Label` struct in `model/labels.go`. Updated `Distribution.ExportMode` and `ReportArchive.ScopeType` to use their respective typed definitions. Updated contract tests in `labels_test.go`, `distributions_test.go`, and `reports_test.go` to verify correct unmarshaling and ensure end-to-end type safety.
+
+## 2026-11-21 - Optimize JoinSlice for task-related enums
+**Learning:** The `model.JoinSlice` utility used for encoding query parameters was using reflection-based `fmt.Fprintf` for any slice type other than `[]int` and `[]string`. This included task-related enums like `TaskStatus` and `TaskType`, which are frequently joined into comma-separated strings for filtering. Specialized type switch cases using `strings.Builder` and direct string/integer conversion are significantly more efficient.
+**Action:** Added specialized type switch cases for `[]TaskStatus` and `[]TaskType` to `JoinSlice` and updated the test suite to use concrete typed slices to ensure these optimized paths are exercised and verified.
+
+## 2026-11-28 - Improve Workflows ListSteps parity and pagination
+**Learning:** The `Workflows.ListSteps` endpoint in the Crowdin API v2 uses an integer for the project ID and supports pagination via `limit` and `offset`. The Go SDK was incorrectly using a string for the project ID and was missing pagination support for both the request and response models.
+**Action:** Updated `WorkflowsService.ListSteps` to accept `projectID` as an `int` and added `WorkflowStepsListOptions` for pagination. Added the `Pagination` field to `WorkflowStepsResponse`. Note that `WorkflowStep.Languages` at the project level uses string identifiers (e.g., "de"), which differs from the workflow template level. Verified with updated contract tests in `workflows_test.go`.
+
+## 2026-12-05 - Improve Webhook model parity for Branch events and documentation
+
+**Learning:** Crowdin API v2 supports branch-level webhooks (`branch.translated`, `branch.approved`) which were missing from the SDK's `Event` type. Additionally, the service documentation was missing many modern events like file lifecycle, tasks, and groups, which can lead to confusion about supported capabilities.
+
+**Action:** Added `BranchTranslated` and `BranchApproved` constants to the `Event` model in `model/webhooks.go`. Comprehensively updated the docstrings for `WebhooksService` and `OrganizationWebhooksService` to list all supported events confirmed by documentation. Verified correct serialization of the new branch events with `TestWebhooksService_Add_BranchEvents`.
+
+## 2026-12-12 - Improve Group model parity for ParentID root filtering
+
+**Learning:** In Crowdin API v2, `parentId` is an optional field when listing groups. Specifically, querying root-level groups requires setting `parentId=0`. However, the Go SDK typed `ParentID` as an `int` and had a condition `o.ParentID > 0` before appending it to query parameters, making root group filtering impossible.
+
+**Action:** Changed `ParentID` type to `*int` in `GroupsListOptions` and updated `Values()` serialization logic to append the parameter as long as `ParentID != nil`. Updated unit tests in both `model/groups_test.go` and `groups_test.go` to explicitly verify `parentId=0` query parameter construction.

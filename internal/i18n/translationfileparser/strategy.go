@@ -36,7 +36,7 @@ func NewDefaultStrategy() *Strategy {
 	// BOLT OPTIMIZATION: Use a pre-allocated map to avoid re-allocations
 	// during initialization. We use assignments for static extensions and
 	// a loop for JSTSLocaleModuleExts to maintain correctness and DRY.
-	parsers := make(map[string]Parser, 22+len(JSTSLocaleModuleExts))
+	parsers := make(map[string]Parser, 28+len(JSTSLocaleModuleExts))
 	parsers[".json"] = JSONParser{}
 	parsers[".jsonc"] = JSONCParser{}
 	parsers[".yaml"] = YAMLParser{}
@@ -47,9 +47,15 @@ func NewDefaultStrategy() *Strategy {
 	parsers[".xliff"] = XLIFFParser{}
 	parsers[".po"] = POFileParser{}
 	parsers[".html"] = HTMLParser{}
+	parsers[".htm"] = HTMLParser{}
 	parsers[".liquid"] = LiquidParser{}
 	parsers[".md"] = MarkdownParser{MDX: false}
 	parsers[".mdx"] = MarkdownParser{MDX: true}
+	parsers[".markdown"] = MarkdownParser{MDX: false}
+	parsers[".mdown"] = MarkdownParser{MDX: false}
+	parsers[".mkdn"] = MarkdownParser{MDX: false}
+	parsers[".mdwn"] = MarkdownParser{MDX: false}
+	parsers[".mkd"] = MarkdownParser{MDX: false}
 	parsers[".strings"] = AppleStringsParser{}
 	parsers[".stringsdict"] = AppleStringsdictParser{}
 	parsers[".xcstrings"] = XCStringsParser{}

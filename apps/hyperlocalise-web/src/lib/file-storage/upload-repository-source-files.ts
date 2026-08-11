@@ -1,3 +1,15 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import { db } from "@/lib/database";
 import { getFileStorageAdapter } from "@/lib/file-storage";
 import { createLogger } from "@/lib/log";
@@ -10,8 +22,8 @@ import {
   sha256Hex,
 } from "@/lib/file-storage/records";
 import { sourceContentType, sourceFilename } from "@/lib/file-storage/source-file-metadata";
-import { runSandboxCommand } from "@/lib/translation/sandbox-translation";
-import { inferSupportedFileTranslationFileFormat } from "@/lib/translation/file-formats";
+import { readTranslatedFile } from "@/lib/translation/sandbox";
+import { inferSupportedSourceUploadFormat } from "@/lib/translation/file-formats";
 
 const logger = createLogger("upload-repository-source-files");
 
@@ -48,7 +60,7 @@ export async function uploadRepositorySourceFilesFromSandbox(input: {
 
   for (const path of input.paths) {
     const normalizedPath = normalizeSourcePath(path);
-    if (!inferSupportedFileTranslationFileFormat(normalizedPath)) {
+    if (!inferSupportedSourceUploadFormat(normalizedPath)) {
       results.push({
         path: normalizedPath,
         outcome: "skipped",
@@ -57,10 +69,11 @@ export async function uploadRepositorySourceFilesFromSandbox(input: {
       continue;
     }
 
-    const readResult = await runSandboxCommand(input.sandboxId, "cat", [normalizedPath], {
-      output: "stdout",
-    });
-    if (readResult.exitCode !== 0) {
+    let content: Buffer;
+    try {
+      // Binary read avoids sandbox stdout UTF-8 corruption (multi-byte → �).
+      content = await readTranslatedFile(input.sandboxId, normalizedPath);
+    } catch {
       results.push({
         path: normalizedPath,
         outcome: "failed",
@@ -69,7 +82,6 @@ export async function uploadRepositorySourceFilesFromSandbox(input: {
       continue;
     }
 
-    const content = Buffer.from(readResult.output);
     const sourceHash = await sha256Hex(content);
 
     if (input.commitSha) {

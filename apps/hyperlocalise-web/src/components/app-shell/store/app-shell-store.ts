@@ -1,6 +1,23 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import { makeAutoObservable } from "mobx";
 
+import { ChatDockStore } from "@/components/app-shell/chat-dock/chat-dock-store";
 import type { NavigationGroup } from "@/components/app-shell/navigation-config";
+import {
+  DISABLED_WORKSPACE_FEATURE_FLAGS,
+  type WorkspaceFeatureFlagState,
+} from "@/lib/flags/workos-flag-entities";
 
 import { BreadcrumbStore } from "./breadcrumb-store";
 import { HeaderActionsStore } from "./header-actions-store";
@@ -12,14 +29,27 @@ export class AppShellStore {
   navigation: NavigationStore;
   breadcrumb: BreadcrumbStore;
   headerActions: HeaderActionsStore;
+  chatDock: ChatDockStore;
+  workspaceFeatureFlags: WorkspaceFeatureFlagState;
 
-  constructor(defaultNavigationGroups: readonly NavigationGroup[]) {
+  constructor(
+    defaultNavigationGroups: readonly NavigationGroup[],
+    workspaceFeatureFlags: WorkspaceFeatureFlagState,
+  ) {
     this.sidebar = new SidebarStore();
     this.navigation = new NavigationStore(defaultNavigationGroups);
     this.breadcrumb = new BreadcrumbStore();
     this.headerActions = new HeaderActionsStore();
+    this.chatDock = new ChatDockStore();
+    this.workspaceFeatureFlags = workspaceFeatureFlags;
 
-    makeAutoObservable(this, {}, { autoBind: true });
+    makeAutoObservable(
+      this,
+      {
+        chatDock: false,
+      },
+      { autoBind: true },
+    );
   }
 
   resetPageScope() {
@@ -28,9 +58,13 @@ export class AppShellStore {
     this.navigation.clearCustomMode();
     this.sidebar.setForceCollapsed(false);
     this.sidebar.setPreferredOpen(null);
+    this.chatDock.clearPageContext();
   }
 }
 
-export function createAppShellStore(defaultNavigationGroups: readonly NavigationGroup[]) {
-  return new AppShellStore(defaultNavigationGroups);
+export function createAppShellStore(
+  defaultNavigationGroups: readonly NavigationGroup[],
+  workspaceFeatureFlags: WorkspaceFeatureFlagState = DISABLED_WORKSPACE_FEATURE_FLAGS,
+) {
+  return new AppShellStore(defaultNavigationGroups, workspaceFeatureFlags);
 }

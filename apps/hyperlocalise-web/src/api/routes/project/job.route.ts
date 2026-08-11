@@ -1,3 +1,15 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import { randomUUID } from "node:crypto";
 
 import { and, eq, or } from "drizzle-orm";
@@ -26,7 +38,7 @@ import {
   ensureRepositorySourceFileVersionForStoredFile,
   getStoredFileForJobScope,
 } from "@/lib/file-storage/records";
-import { inferSupportedFileTranslationFileFormat } from "@/lib/translation/file-formats";
+import { inferSupportedTranslationFileFormat } from "@/lib/translation/file-formats";
 import {
   formatUsageControlError,
   reserveUsageEvent,
@@ -42,6 +54,7 @@ import {
   listOrganizationJobs,
   listOrganizationProjectJobs,
 } from "@/lib/projects/jobs/organization-job-query-service";
+import { mergeNativeFileTranslationJobMetadata } from "@/lib/projects/jobs/enqueue-file-translation-job";
 import type {
   JobQueue,
   ProviderAgentCommentQueue,
@@ -54,7 +67,7 @@ import type {
 import { validateJobLocalesAgainstProject } from "@/lib/i18n/project-job-locales";
 
 import {
-  forbiddenResponse,
+  projectForbiddenResponse,
   getOwnedProject,
   getOwnedProjectRecord,
   projectNotFoundResponse,
@@ -78,9 +91,9 @@ import {
   getJobProviderActionAvailability,
   getJobProviderActionDefinition,
   isJobProviderActionAvailable,
-} from "@/lib/providers/job-provider-actions";
-import { resolveProviderSourceFilesForJob } from "@/lib/providers/job-provider-source-files";
-import { mapProviderQaErrorToHttpStatus } from "@/lib/providers/map-provider-qa-http-error";
+} from "@/lib/providers/jobs/job-provider-actions";
+import { resolveProviderSourceFilesForJob } from "@/lib/providers/jobs/job-provider-source-files";
+import { mapProviderQaErrorToHttpStatus } from "@/lib/providers/shared/map-provider-qa-http-error";
 import { runProviderJobQaForJob } from "@/lib/providers/agent-runs/provider-agent-qa";
 import { maybeEnqueueAutoWriteBackAfterProposalReview } from "@/lib/providers/agent-runs/tms-agent-automation-runner";
 
@@ -95,8 +108,10 @@ import {
   jobListQuerySchema,
   jobParamsSchema,
   jobProjectParamsSchema,
+  updateJobBodySchema,
   workspaceJobParamsSchema,
 } from "./job.schema";
+import { updateNativeJob } from "@/lib/projects/jobs/update-native-job";
 
 type CreateJobRoutesOptions = {
   jobQueue: JobQueue<TranslationJobEventData>;
@@ -211,6 +226,19 @@ const validateJobParams = validator("param", (value, c) => {
     return notFoundResponse(c, "job_not_found", "Job not found");
   }
 
+  return parsed.data;
+});
+
+const validateUpdateJobBody = validator("json", (value, c) => {
+  const parsed = updateJobBodySchema.safeParse(value);
+  if (!parsed.success) {
+    return validationErrorResponse(
+      c,
+      "invalid_job_update",
+      "Invalid job update payload",
+      parsed.error.issues,
+    );
+  }
   return parsed.data;
 });
 
@@ -368,7 +396,7 @@ export function createJobRoutes(options: CreateJobRoutesOptions) {
     })
     .post("/", validateProjectParams, validateCreateJobBody, async (c) => {
       if (!isJobCreateAllowed(c.var.auth.membership.role)) {
-        return forbiddenResponse(c);
+        return projectForbiddenResponse(c);
       }
 
       const params = c.req.valid("param");
@@ -385,13 +413,53 @@ export function createJobRoutes(options: CreateJobRoutesOptions) {
       }
 
       const inputPayload = payload.type === "string" ? payload.stringInput : payload.fileInput;
+      let enrichedInputPayload =
+        payload.title && payload.title.trim().length > 0
+          ? {
+              ...inputPayload,
+              metadata: {
+                ...inputPayload.metadata,
+                title: payload.title.trim(),
+              },
+            }
+          : inputPayload;
 
       const localeValidation = validateJobLocalesAgainstProject(project, {
-        sourceLocale: inputPayload.sourceLocale,
-        targetLocales: inputPayload.targetLocales,
+        sourceLocale: enrichedInputPayload.sourceLocale,
+        targetLocales: enrichedInputPayload.targetLocales,
       });
       if (isErr(localeValidation)) {
         return badRequestResponse(c, localeValidation.error.code, localeValidation.error.message);
+      }
+
+      let ownerUserId: string | null = null;
+      if (payload.ownerWorkosUserId) {
+        const [owner] = await db
+          .select({ id: schema.users.id })
+          .from(schema.users)
+          .innerJoin(
+            schema.organizationMemberships,
+            eq(schema.organizationMemberships.userId, schema.users.id),
+          )
+          .where(
+            and(
+              eq(schema.users.workosUserId, payload.ownerWorkosUserId),
+              eq(
+                schema.organizationMemberships.organizationId,
+                c.var.auth.organization.localOrganizationId,
+              ),
+            ),
+          )
+          .limit(1);
+
+        if (!owner) {
+          return badRequestResponse(
+            c,
+            "owner_not_found",
+            "Assigned owner must be an organization member",
+          );
+        }
+        ownerUserId = owner.id;
       }
 
       if (payload.type === "file") {
@@ -405,7 +473,7 @@ export function createJobRoutes(options: CreateJobRoutesOptions) {
           return notFoundResponse(c, "source_file_not_found", "Source file not found");
         }
 
-        const inferredFileFormat = inferSupportedFileTranslationFileFormat(sourceFile.filename);
+        const inferredFileFormat = inferSupportedTranslationFileFormat(sourceFile.filename);
         if (!inferredFileFormat) {
           return badRequestResponse(
             c,
@@ -424,6 +492,14 @@ export function createJobRoutes(options: CreateJobRoutesOptions) {
             400,
           );
         }
+
+        enrichedInputPayload = {
+          ...enrichedInputPayload,
+          metadata: mergeNativeFileTranslationJobMetadata(
+            sourceFile.filename,
+            enrichedInputPayload.metadata,
+          ),
+        };
       }
 
       const jobId = `job_${randomUUID()}`;
@@ -455,9 +531,10 @@ export function createJobRoutes(options: CreateJobRoutesOptions) {
               organizationId: c.var.auth.organization.localOrganizationId,
               projectId: params.projectId,
               createdByUserId: c.var.auth.user.localUserId,
+              ownerUserId,
               kind: "translation",
               status: "queued",
-              inputPayload,
+              inputPayload: enrichedInputPayload,
             })
             .returning();
 
@@ -643,7 +720,7 @@ export function createWorkspaceJobRoutes(options: CreateWorkspaceJobRoutesOption
       validateUpdateAgentRunProposalReviewBody,
       async (c) => {
         if (!isReviewApproveAllowed(c.var.auth.membership.role)) {
-          return forbiddenResponse(c);
+          return projectForbiddenResponse(c);
         }
 
         const params = c.req.valid("param");
@@ -821,7 +898,7 @@ export function createWorkspaceJobRoutes(options: CreateWorkspaceJobRoutesOption
         const payload = c.req.valid("json");
 
         if (!isJobProviderActionAllowed(c.var.auth.membership.role, payload.action)) {
-          return forbiddenResponse(c);
+          return projectForbiddenResponse(c);
         }
 
         const organizationId = c.var.auth.organization.localOrganizationId;
@@ -982,7 +1059,7 @@ export function createWorkspaceJobRoutes(options: CreateWorkspaceJobRoutesOption
     )
     .post("/:jobId/qa", validateWorkspaceJobParams, async (c) => {
       if (!isAiActionAllowed(c.var.auth.membership.role)) {
-        return forbiddenResponse(c);
+        return projectForbiddenResponse(c);
       }
 
       const params = c.req.valid("param");
@@ -1061,7 +1138,7 @@ export function createWorkspaceJobRoutes(options: CreateWorkspaceJobRoutesOption
     })
     .post("/:jobId/run-agent", validateWorkspaceJobParams, async (c) => {
       if (!isAiActionAllowed(c.var.auth.membership.role)) {
-        return forbiddenResponse(c);
+        return projectForbiddenResponse(c);
       }
 
       const params = c.req.valid("param");
@@ -1190,7 +1267,7 @@ export function createWorkspaceJobRoutes(options: CreateWorkspaceJobRoutesOption
     })
     .post("/:jobId/retry", validateWorkspaceJobParams, async (c) => {
       if (!isJobMutationAllowed(c.var.auth.membership.role)) {
-        return forbiddenResponse(c);
+        return projectForbiddenResponse(c);
       }
 
       const params = c.req.valid("param");
@@ -1314,7 +1391,7 @@ export function createWorkspaceJobRoutes(options: CreateWorkspaceJobRoutesOption
     })
     .post("/:jobId/mark-failed", validateWorkspaceJobParams, async (c) => {
       if (!isJobMutationAllowed(c.var.auth.membership.role)) {
-        return forbiddenResponse(c);
+        return projectForbiddenResponse(c);
       }
 
       const params = c.req.valid("param");
@@ -1340,6 +1417,128 @@ export function createWorkspaceJobRoutes(options: CreateWorkspaceJobRoutesOption
             .set({ outcomeKind: "error" })
             .where(eq(schema.translationJobDetails.jobId, params.jobId));
         }
+
+        return job;
+      });
+
+      if (!updatedJob) {
+        const [existingJob] = await db
+          .select({ id: schema.jobs.id })
+          .from(schema.jobs)
+          .where(and(eq(schema.jobs.id, params.jobId), await buildAccessibleJobsWhere(c.var.auth)))
+          .limit(1);
+
+        return existingJob
+          ? conflictResponse(c, "job_action_unavailable", "Job action is not available")
+          : notFoundResponse(c, "job_not_found", "Job not found");
+      }
+
+      const [job] = await db
+        .select(jobWithProjectSelect)
+        .from(schema.jobs)
+        .leftJoin(
+          schema.translationJobDetails,
+          eq(schema.translationJobDetails.jobId, schema.jobs.id),
+        )
+        .leftJoin(schema.reviewJobDetails, eq(schema.reviewJobDetails.jobId, schema.jobs.id))
+        .leftJoin(schema.syncJobDetails, eq(schema.syncJobDetails.jobId, schema.jobs.id))
+        .leftJoin(
+          schema.assetManagementJobDetails,
+          eq(schema.assetManagementJobDetails.jobId, schema.jobs.id),
+        )
+        .leftJoin(schema.externalJobDetails, eq(schema.externalJobDetails.jobId, schema.jobs.id))
+        .leftJoin(
+          schema.projects,
+          and(
+            eq(schema.projects.id, schema.jobs.projectId),
+            eq(schema.projects.organizationId, schema.jobs.organizationId),
+          ),
+        )
+        .where(and(eq(schema.jobs.id, params.jobId), await buildAccessibleJobsWhere(c.var.auth)))
+        .limit(1);
+
+      return c.json({ job }, 200);
+    })
+    .patch("/:jobId", validateWorkspaceJobParams, validateUpdateJobBody, async (c) => {
+      if (!isJobMutationAllowed(c.var.auth.membership.role)) {
+        return projectForbiddenResponse(c);
+      }
+
+      const params = c.req.valid("param");
+      const body = c.req.valid("json");
+      const result = await updateNativeJob({
+        organizationId: c.var.auth.organization.localOrganizationId,
+        jobId: params.jobId,
+        body,
+        accessWhere: await buildAccessibleJobsWhere(c.var.auth),
+      });
+
+      if (isErr(result)) {
+        switch (result.error.code) {
+          case "job_not_found":
+            return notFoundResponse(c, "job_not_found", "Job not found");
+          case "provider_job_not_updatable":
+            return conflictResponse(c, result.error.code, result.error.message);
+          case "owner_not_found":
+          case "assignee_not_assignable":
+          case "project_required":
+            return badRequestResponse(c, result.error.code, result.error.message);
+          default:
+            return internalErrorResponse(c);
+        }
+      }
+
+      const [job] = await db
+        .select(jobWithProjectSelect)
+        .from(schema.jobs)
+        .leftJoin(
+          schema.translationJobDetails,
+          eq(schema.translationJobDetails.jobId, schema.jobs.id),
+        )
+        .leftJoin(schema.reviewJobDetails, eq(schema.reviewJobDetails.jobId, schema.jobs.id))
+        .leftJoin(schema.syncJobDetails, eq(schema.syncJobDetails.jobId, schema.jobs.id))
+        .leftJoin(
+          schema.assetManagementJobDetails,
+          eq(schema.assetManagementJobDetails.jobId, schema.jobs.id),
+        )
+        .leftJoin(schema.externalJobDetails, eq(schema.externalJobDetails.jobId, schema.jobs.id))
+        .leftJoin(
+          schema.projects,
+          and(
+            eq(schema.projects.id, schema.jobs.projectId),
+            eq(schema.projects.organizationId, schema.jobs.organizationId),
+          ),
+        )
+        .where(and(eq(schema.jobs.id, params.jobId), await buildAccessibleJobsWhere(c.var.auth)))
+        .limit(1);
+
+      if (!job) {
+        return notFoundResponse(c, "job_not_found", "Job not found");
+      }
+
+      return c.json({ job }, 200);
+    })
+    .post("/:jobId/cancel", validateWorkspaceJobParams, async (c) => {
+      if (!isJobMutationAllowed(c.var.auth.membership.role)) {
+        return projectForbiddenResponse(c);
+      }
+
+      const params = c.req.valid("param");
+      const updatedJob = await db.transaction(async (tx) => {
+        const [job] = await tx
+          .update(schema.jobs)
+          .set({
+            status: "cancelled",
+            workflowRunId: null,
+            lastError: null,
+            outcomePayload: {
+              code: "cancelled_by_user",
+              message: "Cancelled by user",
+            },
+            completedAt: new Date(),
+          })
+          .where(await activeJobWhere(c.var.auth, params.jobId))
+          .returning({ id: schema.jobs.id, kind: schema.jobs.kind });
 
         return job;
       });

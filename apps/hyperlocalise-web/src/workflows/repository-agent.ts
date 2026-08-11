@@ -1,3 +1,15 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import { getWorkflowMetadata } from "workflow";
 
 import type {
@@ -53,6 +65,8 @@ async function runRepositoryAgentStep(input: {
     await import("@/lib/agent-runtime/tools/manifest");
   const { buildTools } = await import("@/lib/agent-runtime/tools/registry");
   const { ensureAgentSession } = await import("@/lib/tools/types");
+  const { extractGenerateResultTokenUsage, withAgentRuntimeUsageMetering } =
+    await import("@/lib/billing/agent-runtime-usage");
 
   const { task, workflowRunId, sandboxId } = input;
   const localUserId = task.actor.userId?.trim() || "repository_agent";
@@ -98,11 +112,23 @@ async function runRepositoryAgentStep(input: {
         .filter((instruction): instruction is string => instruction !== null)
         .join("\n\n"),
     }),
-    experimental_context: { sandboxId, repositoryTaskId: task.id },
+    runtimeContext: { sandboxId, repositoryTaskId: task.id },
   });
 
-  const result = await agent.generate({
-    messages: [{ role: "user", content: task.instructions }],
+  const result = await withAgentRuntimeUsageMetering({
+    organizationId: task.organizationId,
+    operationKey: `repository-agent:${task.id}:${workflowRunId}:agent_runs`,
+    source: "repository_agent_workflow",
+    dimensions: {
+      surface: task.source,
+      agent_surface: "repository_agent",
+      project_id: task.projectId,
+    },
+    extractTokenUsage: extractGenerateResultTokenUsage,
+    run: () =>
+      agent.generate({
+        messages: [{ role: "user", content: task.instructions }],
+      }),
   });
 
   return result.text.trim() || "Completed repository agent task.";

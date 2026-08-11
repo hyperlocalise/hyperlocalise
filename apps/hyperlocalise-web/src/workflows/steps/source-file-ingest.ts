@@ -1,3 +1,15 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import type { ProjectSourceStringEntry } from "@/api/routes/project/project.schema";
 
 export async function claimSourceFileIngestStep(input: {
@@ -35,13 +47,13 @@ export async function getStoredFileMetadataStep(fileId: string, organizationId: 
 
 export async function createSourceIngestSandboxStep() {
   "use step";
-  const { createTranslationSandbox } = await import("@/lib/translation/sandbox-translation");
+  const { createTranslationSandbox } = await import("@/lib/translation/sandbox");
   return createTranslationSandbox();
 }
 
 export async function prepareSourceIngestSandboxStep(sandboxId: string) {
   "use step";
-  const { prepareSandbox } = await import("@/lib/translation/sandbox-translation");
+  const { prepareSandbox } = await import("@/lib/translation/sandbox");
   return prepareSandbox(sandboxId);
 }
 
@@ -51,18 +63,18 @@ export async function writeSourceIngestFileStep(
   content: Buffer,
 ) {
   "use step";
-  const { writeFileToSandbox } = await import("@/lib/translation/sandbox-translation");
+  const { writeFileToSandbox } = await import("@/lib/translation/sandbox");
   return writeFileToSandbox(sandboxId, filename, content);
 }
 
 export async function extractSourceIngestEntriesStep(sandboxId: string, filePath: string) {
   "use step";
-  const { extractSandboxEntries } = await import("@/lib/translation/sandbox-translation");
-  const entries = await extractSandboxEntries(sandboxId, filePath);
-  if (!entries) {
-    throw new Error(`failed to extract entries for ${filePath}`);
+  const { extractSandboxEntries } = await import("@/lib/translation/sandbox");
+  const result = await extractSandboxEntries(sandboxId, filePath);
+  if (!result.ok) {
+    throw new Error(`failed to extract entries for ${filePath}: exitCode=${result.exitCode}`);
   }
-  return entries;
+  return result.entries;
 }
 
 export async function parseHlEntriesStep(
@@ -75,7 +87,7 @@ export async function parseHlEntriesStep(
 
 export async function stopSourceIngestSandboxStep(sandboxId: string) {
   "use step";
-  const { stopTranslationSandbox } = await import("@/lib/translation/sandbox-translation");
+  const { stopTranslationSandbox } = await import("@/lib/translation/sandbox");
   return stopTranslationSandbox(sandboxId);
 }
 
@@ -118,9 +130,51 @@ export async function dispatchSourceUploadAutomationsStep(input: {
   sourceFileId: string;
   sourceFileVersionId: string;
   sourcePath: string;
+  sourceHash?: string | null;
 }) {
   "use step";
   const { dispatchSourceUploadAutomations } =
     await import("@/lib/projects/files/source-file-ingest");
   return dispatchSourceUploadAutomations(input);
+}
+
+export async function getProjectTargetLocalesStep(input: {
+  organizationId: string;
+  projectId: string;
+}) {
+  "use step";
+  const { and, eq } = await import("drizzle-orm");
+  const { db, schema } = await import("@/lib/database");
+
+  const [project] = await db
+    .select({
+      targetLocales: schema.projects.targetLocales,
+    })
+    .from(schema.projects)
+    .where(
+      and(
+        eq(schema.projects.id, input.projectId),
+        eq(schema.projects.organizationId, input.organizationId),
+      ),
+    )
+    .limit(1);
+
+  if (!project) {
+    throw new Error(`project ${input.projectId} not found`);
+  }
+
+  return project.targetLocales ?? [];
+}
+
+export async function ensureImageVariantsForSourceFileStep(input: {
+  organizationId: string;
+  projectId: string;
+  sourcePath: string;
+  repositorySourceFileId?: string | null;
+  targetLocales: string[];
+}) {
+  "use step";
+  const { ensureImageVariantsForSourceFile } =
+    await import("@/lib/projects/files/image-variant-service");
+  return ensureImageVariantsForSourceFile(input);
 }

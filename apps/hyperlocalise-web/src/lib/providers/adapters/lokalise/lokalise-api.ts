@@ -1,3 +1,15 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 /**
  * Lokalise API v2 client for TMS connector discovery.
  */
@@ -5,7 +17,7 @@
 import {
   normalizeProviderDownloadUrl,
   requireProviderBaseUrl,
-} from "@/lib/providers/provider-url-safety";
+} from "@/lib/providers/shared/provider-url-safety";
 
 export const LOKALISE_DEFAULT_BASE_URL = "https://api.lokalise.com/api2";
 
@@ -152,6 +164,13 @@ export type LokaliseFileDownloadRequest = {
 export type LokaliseFileDownloadResult = {
   bundleUrl: string;
   warning: string | null;
+};
+
+export type LokaliseSourceUploadResult = {
+  processId: string;
+  type: string | null;
+  status: string | null;
+  message: string | null;
 };
 
 export interface LokaliseComment {
@@ -417,6 +436,48 @@ export class LokaliseApiClient {
     return maxKeys != null ? keys.slice(0, maxKeys) : keys;
   }
 
+  async listKeysCursorPage(
+    projectId: string,
+    options?: {
+      includeTranslations?: boolean;
+      filterKeyIds?: number[];
+      filterTranslationLangIds?: number[];
+      cursor?: string;
+      limit?: number;
+    },
+  ): Promise<{ keys: LokaliseKey[]; nextCursor: string | null }> {
+    const pageLimit = options?.limit ?? 500;
+    const includeTranslations = options?.includeTranslations ?? true;
+    const filterKeyIds = options?.filterKeyIds?.length ? options.filterKeyIds.join(",") : null;
+    const filterTranslationLangIds = options?.filterTranslationLangIds?.length
+      ? options.filterTranslationLangIds.join(",")
+      : null;
+
+    const params = new URLSearchParams({
+      pagination: "cursor",
+      limit: String(pageLimit),
+      include_translations: includeTranslations ? "1" : "0",
+    });
+    if (options?.cursor) {
+      params.set("cursor", options.cursor);
+    }
+    if (filterKeyIds) {
+      params.set("filter_key_ids", filterKeyIds);
+    }
+    if (filterTranslationLangIds) {
+      params.set("filter_translation_lang_ids", filterTranslationLangIds);
+    }
+
+    const { body, nextCursor } = await this.getWithPagination<LokaliseKeysListResponse>(
+      `/projects/${encodeURIComponent(projectId)}/keys?${params.toString()}`,
+    );
+
+    return {
+      keys: (body.keys ?? []).map(normalizeLokaliseKey),
+      nextCursor: nextCursor?.trim() ? nextCursor.trim() : null,
+    };
+  }
+
   async listTasks(projectId: string, options?: LokaliseListTasksOptions): Promise<LokaliseTask[]> {
     const tasks: LokaliseTask[] = [];
     let page = 1;
@@ -529,6 +590,44 @@ export class LokaliseApiClient {
     return {
       bundleUrl,
       warning: response.warning?.trim() || null,
+    };
+  }
+
+  async uploadSourceFile(
+    projectId: string,
+    input: {
+      filename: string;
+      content: Uint8Array;
+      sourceLocale: string;
+      format: string;
+      branch?: string | null;
+    },
+  ): Promise<LokaliseSourceUploadResult> {
+    const response = await this.post<LokaliseFileUploadResponse>(
+      `/projects/${lokaliseProjectPathSegment(projectId, input.branch)}/files/upload`,
+      {
+        data: Buffer.from(input.content).toString("base64"),
+        filename: input.filename,
+        lang_iso: input.sourceLocale,
+        format: input.format,
+        queue: true,
+      },
+    );
+
+    const process = response.process;
+    if (!process?.process_id) {
+      throw new LokaliseApiError(
+        "Lokalise source upload response is missing a process id",
+        502,
+        response,
+      );
+    }
+
+    return {
+      processId: process.process_id,
+      type: process.type ?? null,
+      status: process.status ?? null,
+      message: process.message ?? null,
     };
   }
 
@@ -1042,6 +1141,16 @@ type LokaliseFileDownloadResponse = {
   warning?: string | null;
 };
 
+type LokaliseFileUploadResponse = {
+  project_id?: string;
+  process?: {
+    process_id?: string;
+    type?: string | null;
+    status?: string | null;
+    message?: string | null;
+  };
+};
+
 type LokaliseTaskLanguageUserApiRecord = {
   user_id?: number;
   email?: string;
@@ -1343,6 +1452,14 @@ function normalizeLokaliseProject(record: LokaliseProjectApiRecord): LokalisePro
     baseLanguageIso: record.base_language_iso ?? null,
     createdAt: record.created_at ?? null,
   };
+}
+
+function lokaliseProjectPathSegment(projectId: string, branch?: string | null) {
+  const projectSegment = encodeURIComponent(projectId.trim());
+  const normalizedBranch = branch?.trim();
+  return normalizedBranch
+    ? `${projectSegment}:${encodeURIComponent(normalizedBranch)}`
+    : projectSegment;
 }
 
 function normalizeLokaliseLanguage(record: LokaliseLanguageApiRecord): LokaliseLanguage {

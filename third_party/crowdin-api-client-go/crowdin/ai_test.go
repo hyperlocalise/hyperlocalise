@@ -1249,12 +1249,19 @@ func TestAIService_Translate(t *testing.T) {
 		testURL(t, r, path)
 		testJSONBody(t, r, `{
 			"strings": ["Chef's Special: Spicy Tuna Roll"],
-			"targetLanguageId": "de"
+			"targetLanguageId": "de",
+			"sourceLanguageId": "en",
+			"aiPromptId": 82,
+			"tmIds": [102, 305],
+			"glossaryIds": [12],
+			"instructions": ["Keep dish names appetizing", "Do not translate brand names"]
 		}`)
 
 		fmt.Fprint(w, `{
 			"data": {
-				"translations": ["Chef-Spezialität: Pikante Thunfisch-Rolle"]
+				"sourceLanguageId": "en",
+				"targetLanguageId": "de",
+				"translations": ["Chef's Special: Würzige Thunfischrolle"]
 			}
 		}`)
 	})
@@ -1262,13 +1269,20 @@ func TestAIService_Translate(t *testing.T) {
 	req := &model.AITranslateRequest{
 		Strings:          []string{"Chef's Special: Spicy Tuna Roll"},
 		TargetLanguageID: "de",
+		SourceLanguageID: "en",
+		AIPromptID:       82,
+		TMIDs:            []int{102, 305},
+		GlossaryIDs:      []int{12},
+		Instructions:     []string{"Keep dish names appetizing", "Do not translate brand names"},
 	}
 	res, resp, err := client.AI.Translate(context.Background(), 1, req)
 	require.NoError(t, err)
 	assert.NotNil(t, resp)
 
 	expected := &model.AITranslate{
-		Translations: []string{"Chef-Spezialität: Pikante Thunfisch-Rolle"},
+		SourceLanguageID: "en",
+		TargetLanguageID: "de",
+		Translations:     []string{"Chef's Special: Würzige Thunfischrolle"},
 	}
 	assert.Equal(t, expected, res)
 }

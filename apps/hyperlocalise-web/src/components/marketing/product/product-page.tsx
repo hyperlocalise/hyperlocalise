@@ -1,14 +1,26 @@
 "use client";
 
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import Link from "next/link";
 import { ArrowRightIcon, CheckCircle2Icon } from "lucide-react";
 import { FormattedMessage } from "react-intl";
 
-import { HeroFrame } from "@/components/marketing/hero-frame";
+import { HeroFrameMeshStage } from "@/components/marketing/hero-frame-mesh-stage";
 import { MarketingFooter } from "@/components/marketing/marketing-footer";
 import { footerColumns } from "@/components/marketing/marketing-page-content";
+import { REQUEST_DEMO_URL } from "@/components/marketing/request-demo";
 import { Button } from "@/components/ui/button";
-import { env } from "@/lib/env";
 import { cn } from "@/lib/primitives/cn";
 
 import type { ProductPageContent, ProductVisualKind } from "./product-page-content";
@@ -42,7 +54,11 @@ function ProductHero({ content }: ProductPageProps) {
         </p>
       </div>
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-        <Button size="lg" nativeButton={false} render={<a href={env.NEXT_PUBLIC_WAITLIST_URL} />}>
+        <Button
+          size="lg"
+          nativeButton={false}
+          render={<a href={REQUEST_DEMO_URL} target="_blank" rel="noopener noreferrer" />}
+        >
           <ProductMessage messageKey="ctaJoinWaitlist" />
           <ArrowRightIcon data-icon="inline-end" className="size-4" />
         </Button>
@@ -207,11 +223,7 @@ function ProductVisual({ kind }: { kind: ProductVisualKind }) {
 
 function ProductShowcase({ content }: ProductPageProps) {
   if (content.visualKind === "cat") {
-    return (
-      <div className="mx-auto max-w-6xl">
-        <HeroFrame />
-      </div>
-    );
+    return <HeroFrameMeshStage priority />;
   }
 
   return (
@@ -293,9 +305,7 @@ function ProductCta({ content }: ProductPageProps) {
       <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
         <Button
           nativeButton={false}
-          render={
-            <a href={env.NEXT_PUBLIC_WAITLIST_URL} target="_blank" rel="noopener noreferrer" />
-          }
+          render={<a href={REQUEST_DEMO_URL} target="_blank" rel="noopener noreferrer" />}
         >
           <ProductMessage messageKey="ctaJoinEarlyAccess" />
         </Button>
@@ -324,7 +334,7 @@ export function ProductPage({ content }: ProductPageProps) {
           <ProductCta content={content} />
         </section>
 
-        <section className="border-t border-border px-5 py-16 sm:px-8 lg:px-10">
+        <section className="border-t border-border px-5 pt-16 sm:px-8 lg:px-10">
           <MarketingFooter columns={footerColumns} />
         </section>
       </main>

@@ -1,0 +1,3 @@
+ALTER TABLE "workspace_automations" ADD COLUMN "project_id" text;--> statement-breakpoint
+ALTER TABLE "workspace_automations" ADD CONSTRAINT "workspace_automations_project_id_projects_id_fk" FOREIGN KEY ("project_id") REFERENCES "public"."projects"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+CREATE INDEX "idx_workspace_automations_org_project" ON "workspace_automations" USING btree ("organization_id","project_id");

@@ -1,9 +1,22 @@
 "use client";
 
-import { useMemo } from "react";
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import { observer } from "mobx-react-lite";
+import { useEffect } from "react";
 import { FormattedMessage } from "react-intl";
 
+import type { ProjectFileCatQueueFile } from "@/api/routes/project/project.schema";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -24,13 +37,33 @@ import { catWorkspaceContainerMessages } from "@/components/cat/shared/cat.messa
 import type { CatSegment, CatWorkspaceState } from "@/components/cat/shared/types";
 import type { CatQueueFilter } from "@/components/cat/queue/cat-queue-filter";
 
+import { CatQueryBridge } from "./bridge/cat-query-bridge";
+import { CatChatDockPageContextBridge } from "./cat-chat-dock-page-context-bridge";
 import { CatPanelErrorBoundary } from "./cat-panel-error-boundary";
+import { CatWorkspaceLazySegmentSync } from "./cat-workspace-lazy-segment-sync";
 import { CatWorkspaceView } from "./cat-workspace";
-import { createCatWorkspaceStore } from "./store/cat-workspace-store";
-import { useCatWorkspaceController } from "./use-cat-workspace-controller";
+import { CatWorkspaceProvider, useCatWorkspace } from "./cat-workspace-context";
+import type { CatWorkspaceOrchestrator } from "./cat-workspace-orchestrator";
+import type { CatPageNavigationGuardRef } from "./cat-page-navigation-guard";
+import type { CatWorkspaceViewMode } from "./cat-workspace-view-mode";
+import { CatWorkspaceViewModeSync } from "./cat-workspace-view-mode-sync";
+import { useCatWorkspaceRuntime } from "./use-cat-workspace-runtime";
 
 export interface CatWorkspaceContainerProps {
   initialState: CatWorkspaceState;
+  /** Overrides persisted view-mode preference for this workspace instance. */
+  initialViewMode?: CatWorkspaceViewMode;
+  queueSnapshot?: CatWorkspaceState | null;
+  lazySegment?: {
+    organizationSlug: string;
+    projectId: string;
+    sourcePath: string;
+    targetLocale: string;
+    externalResourceId?: string | null;
+    resourceType?: "file" | "key";
+    catFile: ProjectFileCatQueueFile | null | undefined;
+    enabled: boolean;
+  };
   dependencies?: PartialCatWorkspaceDependencies;
   navigation?: Partial<CatWorkspaceDependencies["navigation"]>;
   editing?: Partial<CatWorkspaceDependencies["editing"]>;
@@ -45,19 +78,22 @@ export interface CatWorkspaceContainerProps {
   isQueueSearchPending?: boolean;
   isQueueFetchingPage?: boolean;
   isQueueLoading?: boolean;
+  isImageBusy?: boolean;
   queuePagination?: CatWorkspaceViewProps["queuePagination"];
   hasMoreQueue?: boolean;
   onLoadMoreQueue?: () => void;
-  isCommentsLoading?: boolean;
-  isSegmentTargetLoading?: boolean;
   initialSegmentKeyOrId?: string | null;
   buildSegmentShareUrl?: (segment: CatSegment) => string | null;
-  tmAutoFillMinMatchPercent?: number;
+  canLookupFreshContext?: boolean;
+  onPageLimitChange?: (pageLimit: number) => void;
+  pageNavigationGuardRef?: CatPageNavigationGuardRef;
+  nativeIssuesEnabled?: boolean;
 }
 
 const CatWorkspaceContainerObserver = observer(function CatWorkspaceContainerObserver({
   store,
-  initialState,
+  queueSnapshot,
+  lazySegment,
   initialSegmentKeyOrId,
   dependencies,
   navigation,
@@ -73,18 +109,17 @@ const CatWorkspaceContainerObserver = observer(function CatWorkspaceContainerObs
   isQueueSearchPending,
   isQueueFetchingPage,
   isQueueLoading,
+  isImageBusy,
   queuePagination,
   hasMoreQueue,
   onLoadMoreQueue,
-  isCommentsLoading,
-  isSegmentTargetLoading,
   buildSegmentShareUrl,
-  tmAutoFillMinMatchPercent,
-}: CatWorkspaceContainerProps & { store: ReturnType<typeof createCatWorkspaceStore> }) {
-  const controller = useCatWorkspaceController({
+  canLookupFreshContext,
+  onPageLimitChange,
+  nativeIssuesEnabled = false,
+}: CatWorkspaceContainerProps & { store: CatWorkspaceOrchestrator }) {
+  const controller = useCatWorkspaceRuntime({
     store,
-    initialState,
-    initialSegmentKeyOrId,
     dependencies,
     navigation,
     editing,
@@ -93,11 +128,23 @@ const CatWorkspaceContainerObserver = observer(function CatWorkspaceContainerObs
     queueFilter,
     onQueueFilterChange,
     buildSegmentShareUrl,
-    tmAutoFillMinMatchPercent,
+    canLookupFreshContext,
+    hasMoreQueue,
+    onLoadMoreQueue,
   });
 
   return (
     <>
+      <CatChatDockPageContextBridge projectId={lazySegment?.projectId} />
+      {onPageLimitChange ? (
+        <CatWorkspaceViewModeSync onPageLimitChange={onPageLimitChange} />
+      ) : null}
+      <CatQueryBridge
+        snapshot={queueSnapshot ?? null}
+        initialSegmentKeyOrId={initialSegmentKeyOrId}
+      />
+      {lazySegment ? <CatWorkspaceLazySegmentSync {...lazySegment} /> : null}
+
       <CatPanelErrorBoundary
         scope="workspace"
         className={className}
@@ -106,11 +153,13 @@ const CatWorkspaceContainerObserver = observer(function CatWorkspaceContainerObs
           controller.queueFilter,
           queueSearch,
           queuePagination?.offset,
+          store.ui.viewMode,
         ]}
       >
         <CatWorkspaceView
-          state={controller.queueViewState}
-          editorState={controller.editorState}
+          shell={controller.shell}
+          queueSegments={controller.queueSegments}
+          selectedSegment={controller.selectedSegment}
           dependencies={controller.dependencies}
           dirtySegmentIds={controller.dirtySegmentIds}
           isValidating={store.isValidating}
@@ -129,6 +178,7 @@ const CatWorkspaceContainerObserver = observer(function CatWorkspaceContainerObs
           isFormatChecksLoading={store.isRunningFormatChecks || store.isValidating}
           canLookupContext={controller.canLookupContext}
           showAgentContext={store.revealedAgentContextSegmentIds.has(store.selectedSegmentId)}
+          revealedAgentContextSegmentIds={store.revealedAgentContextSegmentIds}
           showVisualContext={controller.canLoadVisualContext}
           canUseAiRecommendation={controller.canUseAiRecommendation}
           className={className}
@@ -137,8 +187,9 @@ const CatWorkspaceContainerObserver = observer(function CatWorkspaceContainerObs
           isQueueSearchPending={isQueueSearchPending}
           isQueueFetchingPage={isQueueFetchingPage}
           isQueueLoading={isQueueLoading}
-          isCommentsLoading={isCommentsLoading}
-          isSegmentTargetLoading={isSegmentTargetLoading}
+          isCommentsLoading={store.isCommentsLoading}
+          isSegmentTargetLoading={store.isSegmentTargetLoading}
+          isImageBusy={isImageBusy}
           queuePagination={queuePagination}
           hasMoreQueue={hasMoreQueue}
           onLoadMoreQueue={onLoadMoreQueue}
@@ -150,7 +201,7 @@ const CatWorkspaceContainerObserver = observer(function CatWorkspaceContainerObs
             store.toggleSegmentChecked(segmentId, checked)
           }
           onSelectAllVisible={() =>
-            store.selectAllVisible(controller.queueViewState.segments.map((s) => s.id))
+            store.selectAllVisible(controller.queueSegments.map((segment) => segment.id))
           }
           onClearChecked={() => store.clearChecked()}
           onBulkApprove={() => void controller.handleBulkApprove()}
@@ -158,6 +209,9 @@ const CatWorkspaceContainerObserver = observer(function CatWorkspaceContainerObs
           isBulkActionPending={store.isBulkActionPending}
           buildSegmentShareUrl={controller.resolvedBuildSegmentShareUrl}
           onIntelligencePanelVisible={controller.handleIntelligencePanelVisible}
+          organizationSlug={lazySegment?.organizationSlug}
+          projectId={lazySegment?.projectId}
+          nativeIssuesEnabled={nativeIssuesEnabled}
         />
       </CatPanelErrorBoundary>
 
@@ -172,24 +226,12 @@ const CatWorkspaceContainerObserver = observer(function CatWorkspaceContainerObs
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>
-              {store.unsavedNavigationPrompt?.kind === "page" ? (
-                <FormattedMessage {...catWorkspaceContainerMessages.unsavedPageNavigationTitle} />
-              ) : (
-                <FormattedMessage
-                  {...catWorkspaceContainerMessages.unsavedSegmentNavigationTitle}
-                />
-              )}
+              <FormattedMessage {...catWorkspaceContainerMessages.unsavedPageNavigationTitle} />
             </AlertDialogTitle>
             <AlertDialogDescription>
-              {store.unsavedNavigationPrompt?.kind === "page" ? (
-                <FormattedMessage
-                  {...catWorkspaceContainerMessages.unsavedPageNavigationDescription}
-                />
-              ) : (
-                <FormattedMessage
-                  {...catWorkspaceContainerMessages.unsavedSegmentNavigationDescription}
-                />
-              )}
+              <FormattedMessage
+                {...catWorkspaceContainerMessages.unsavedPageNavigationDescription}
+              />
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -206,12 +248,47 @@ const CatWorkspaceContainerObserver = observer(function CatWorkspaceContainerObs
   );
 });
 
-export function CatWorkspaceContainer(props: CatWorkspaceContainerProps) {
-  const store = useMemo(
-    () => createCatWorkspaceStore(props.initialState, props.initialSegmentKeyOrId),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [],
+export function CatWorkspaceContainer({
+  initialState,
+  initialSegmentKeyOrId,
+  initialViewMode,
+  ...props
+}: CatWorkspaceContainerProps) {
+  return (
+    <CatWorkspaceProvider
+      initialState={initialState}
+      initialSegmentKeyOrId={initialSegmentKeyOrId}
+      initialViewMode={initialViewMode}
+    >
+      <CatWorkspaceContainerInner
+        initialState={initialState}
+        initialSegmentKeyOrId={initialSegmentKeyOrId}
+        initialViewMode={initialViewMode}
+        {...props}
+      />
+    </CatWorkspaceProvider>
   );
-
-  return <CatWorkspaceContainerObserver {...props} store={store} />;
 }
+
+const CatWorkspaceContainerInner = observer(function CatWorkspaceContainerInner({
+  pageNavigationGuardRef,
+  ...props
+}: CatWorkspaceContainerProps) {
+  const store = useCatWorkspace();
+
+  useEffect(() => {
+    if (!pageNavigationGuardRef) {
+      return;
+    }
+
+    pageNavigationGuardRef.current = (proceed) => store.attemptPageNavigation(proceed);
+
+    return () => {
+      if (pageNavigationGuardRef.current) {
+        pageNavigationGuardRef.current = null;
+      }
+    };
+  }, [pageNavigationGuardRef, store]);
+
+  return <CatWorkspaceContainerObserver store={store} {...props} />;
+});

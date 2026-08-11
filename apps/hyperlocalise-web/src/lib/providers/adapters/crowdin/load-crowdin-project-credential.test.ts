@@ -1,12 +1,25 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import "dotenv/config";
 
 import { describe, expect, it, vi } from "vite-plus/test";
 
-import { encodeProviderProjectId } from "@/lib/providers/tms-provider-resource-id";
+import { encodeProviderProjectId } from "@/lib/providers/jobs/tms-provider-resource-id";
+import { crowdinAuth } from "./crowdin-auth";
 
 const getActiveCredentialMock = vi.fn();
 
-vi.mock("@/lib/providers/organization-external-tms-provider-credentials", () => ({
+vi.mock("@/lib/providers/credentials/organization-external-tms-provider-credentials", () => ({
   getActiveOrganizationExternalTmsProviderCredentialRow: (...args: unknown[]) =>
     getActiveCredentialMock(...args),
 }));
@@ -57,8 +70,7 @@ describe("loadCrowdinProjectCredential", () => {
 
     getActiveCredentialMock.mockResolvedValueOnce(credential);
 
-    const { loadCrowdinProjectCredential } = await import("./load-crowdin-project-credential");
-    const result = await loadCrowdinProjectCredential({
+    const result = await crowdinAuth.loadProjectCredential({
       organizationId: "org_1",
       projectId,
     });

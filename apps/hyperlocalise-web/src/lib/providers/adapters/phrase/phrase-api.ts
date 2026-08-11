@@ -1,8 +1,46 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 /**
  * Phrase Strings API v2 client for TMS connector discovery and file/key sync.
  */
 
-import { resolvePhraseBaseUrl } from "./phrase-base-url";
+import { requireProviderBaseUrl } from "@/lib/providers/shared/provider-url-safety";
+
+export const PHRASE_EU_BASE_URL = "https://api.phrase.com/v2";
+export const PHRASE_US_BASE_URL = "https://api.us.app.phrase.com/v2";
+
+export function resolvePhraseBaseUrl(input: {
+  region?: string | null;
+  baseUrl?: string | null;
+}): string {
+  const explicitBaseUrl = input.baseUrl?.trim();
+  if (explicitBaseUrl) {
+    const parsed = new URL(explicitBaseUrl);
+    const hostname = parsed.hostname.toLowerCase();
+    if (hostname === "cloud.memsource.com" || hostname.endsWith(".cloud.memsource.com")) {
+      return hostname.startsWith("us.") ? PHRASE_US_BASE_URL : PHRASE_EU_BASE_URL;
+    }
+
+    return requireProviderBaseUrl(explicitBaseUrl, PHRASE_EU_BASE_URL, "Phrase");
+  }
+
+  const region = input.region?.trim().toLowerCase();
+  if (region === "us" || region === "usa" || region === "united states") {
+    return PHRASE_US_BASE_URL;
+  }
+
+  return PHRASE_EU_BASE_URL;
+}
 
 export interface PhraseApiClientOptions {
   token: string;
@@ -563,6 +601,40 @@ export class PhraseApiClient {
     });
   }
 
+  async uploadSourceFile(
+    projectId: string,
+    input: {
+      filename: string;
+      content: Uint8Array;
+      contentType: string;
+      fileFormat: string;
+      localeId: string;
+      branch?: string | null;
+    },
+  ): Promise<PhraseUpload> {
+    const form = new FormData();
+    const content = input.content.buffer.slice(
+      input.content.byteOffset,
+      input.content.byteOffset + input.content.byteLength,
+    ) as ArrayBuffer;
+    form.append("file", new Blob([content], { type: input.contentType }), input.filename);
+    form.append("file_format", input.fileFormat);
+    form.append("locale_id", input.localeId);
+
+    const record = await this.request<PhraseUploadApiRecord>(
+      this.buildPath(`/projects/${encodeURIComponent(projectId)}/uploads`, {
+        branch: input.branch,
+      }),
+      {
+        method: "POST",
+        headers: this.authHeaders(),
+        body: form,
+      },
+    );
+
+    return normalizePhraseUpload(record);
+  }
+
   async createKey(
     projectId: string,
     input: {
@@ -1113,4 +1185,40 @@ function normalizePhraseKeyComment(comment: PhraseKeyCommentApiRecord): PhraseKe
     updatedAt: comment.updated_at ?? null,
     locales: (comment.locales ?? []).map(normalizePhraseLocalePreview),
   };
+}
+
+export function createPhraseStringsApiClient(input: {
+  token: string;
+  region?: string | null;
+  baseUrl?: string | null;
+}) {
+  return new PhraseApiClient({
+    token: input.token,
+    region: input.region,
+    baseUrl: resolvePhraseStringsApiBaseUrl(input.baseUrl),
+  });
+}
+
+function resolvePhraseStringsApiBaseUrl(baseUrl?: string | null) {
+  const trimmed = baseUrl?.trim();
+  if (!trimmed) {
+    return null;
+  }
+
+  if (trimmed === PHRASE_EU_BASE_URL || trimmed === PHRASE_US_BASE_URL) {
+    return trimmed;
+  }
+
+  try {
+    const parsed = new URL(trimmed);
+    const allowedHosts = new Set(["api.phrase.com", "api.us.app.phrase.com"]);
+
+    if (parsed.protocol === "https:" && allowedHosts.has(parsed.hostname)) {
+      return trimmed.replace(/\/+$/, "");
+    }
+  } catch {
+    return null;
+  }
+
+  return null;
 }

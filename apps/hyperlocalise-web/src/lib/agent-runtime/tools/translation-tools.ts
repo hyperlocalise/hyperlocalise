@@ -1,3 +1,15 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import { randomUUID } from "node:crypto";
 
 import { and, desc, eq } from "drizzle-orm";
@@ -35,7 +47,14 @@ import {
 } from "@/lib/agent-runtime/tools/tool-access";
 import type { ToolContext } from "@/lib/agent-contracts/tool-context";
 
-const jobKinds = ["translation", "research", "review", "sync", "asset_management"] as const;
+const jobKinds = [
+  "translation",
+  "research",
+  "review",
+  "proofread",
+  "sync",
+  "asset_management",
+] as const;
 type JobKind = (typeof jobKinds)[number];
 type JobRecord = typeof schema.jobs.$inferSelect;
 
@@ -248,7 +267,7 @@ async function getJobDetails(ctx: ToolContext, jobId: string) {
     details:
       job.kind === "translation"
         ? { type: job.translationType, outcomeKind: job.translationOutcomeKind }
-        : job.kind === "review"
+        : job.kind === "review" || job.kind === "proofread"
           ? {
               criteria: job.reviewCriteria,
               targetLocale: job.reviewTargetLocale,

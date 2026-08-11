@@ -468,6 +468,40 @@ func TestStrategyParseWithContextIncludesJSONCKeyComments(t *testing.T) {
 	}
 }
 
+func TestStrategyParsesMarkdownExtensions(t *testing.T) {
+	s := NewDefaultStrategy()
+
+	extensions := []string{".md", ".markdown", ".mdown", ".mkdn", ".mdwn", ".mkd"}
+	for _, ext := range extensions {
+		t.Run(ext, func(t *testing.T) {
+			got, err := s.Parse("file"+ext, []byte("# Hello"))
+			if err != nil {
+				t.Fatalf("parse %s: %v", ext, err)
+			}
+			if len(got) == 0 {
+				t.Fatalf("expected extracted entries for %s", ext)
+			}
+		})
+	}
+}
+
+func TestStrategyParsesHTMLExtensions(t *testing.T) {
+	s := NewDefaultStrategy()
+
+	extensions := []string{".html", ".htm"}
+	for _, ext := range extensions {
+		t.Run(ext, func(t *testing.T) {
+			got, err := s.Parse("file"+ext, []byte("<p>Hello</p>"))
+			if err != nil {
+				t.Fatalf("parse %s: %v", ext, err)
+			}
+			if len(got) == 0 {
+				t.Fatalf("expected extracted entries for %s", ext)
+			}
+		})
+	}
+}
+
 func TestStrategyUnsupportedExtension(t *testing.T) {
 	s := NewDefaultStrategy()
 

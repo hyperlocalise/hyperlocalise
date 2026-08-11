@@ -1,12 +1,33 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import { createOpenAI } from "@ai-sdk/openai";
 import { generateImage } from "ai";
 
+import { withAgentRuntimeUsageMetering } from "@/lib/billing/agent-runtime-usage";
 import { env } from "@/lib/env";
 
 export type ImageGenerationResult = {
   image: Buffer;
   mimeType: string;
   prompt: string;
+};
+
+export type ImageGenerationBilling = {
+  organizationId: string;
+  operationKey: string;
+  source?: string;
+  interactionId?: string | null;
+  dimensions?: Record<string, string | number | boolean | null>;
 };
 
 function getImageModel() {
@@ -55,6 +76,7 @@ export async function regenerateImageFromAttachment(
   imageBuffer: Buffer,
   _mimeType: string,
   userText: string,
+  billing?: ImageGenerationBilling,
 ): Promise<ImageGenerationResult> {
   // The AI SDK image prompt accepts the source image as a Buffer and infers media type from bytes.
   const prompt = userText.trim();
@@ -62,6 +84,25 @@ export async function regenerateImageFromAttachment(
     throw new Error("Image generation prompt is required");
   }
 
-  const generated = await generateImageFromPrompt(imageBuffer, prompt);
-  return { ...generated, prompt };
+  const run = async () => {
+    const generated = await generateImageFromPrompt(imageBuffer, prompt);
+    return { ...generated, prompt };
+  };
+
+  if (!billing) {
+    return run();
+  }
+
+  return withAgentRuntimeUsageMetering({
+    organizationId: billing.organizationId,
+    operationKey: billing.operationKey,
+    source: billing.source ?? "image_localization",
+    interactionId: billing.interactionId,
+    dimensions: {
+      surface: "image",
+      agent_surface: "image_localization",
+      ...billing.dimensions,
+    },
+    run,
+  });
 }

@@ -1,4 +1,33 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
+import type { IntlShape } from "@formatjs/intl";
+
 import { sanitizeExternalUrl } from "@/lib/security/safe-external-url";
+
+import { projectListMessages } from "./project-list.messages";
+
+export type ProjectListIntl = Pick<IntlShape, "formatMessage">;
+
+function resolveMessage(
+  intl: ProjectListIntl | undefined,
+  descriptor: (typeof projectListMessages)[keyof typeof projectListMessages],
+) {
+  if (intl) {
+    return intl.formatMessage(descriptor);
+  }
+
+  return typeof descriptor.defaultMessage === "string" ? descriptor.defaultMessage : "";
+}
 
 export type ApiProject = {
   id: string;
@@ -14,6 +43,8 @@ export type ApiProject = {
   targetLocales?: string[];
   externalProjectUrl?: string | null;
   isActive?: boolean;
+  logoUrl?: string | null;
+  lastActivityAt?: string | Date | null;
   lastSyncedAt?: string | Date | null;
   lastSyncErrorAt?: string | Date | null;
   lastSyncErrorMessage?: string | null;
@@ -37,6 +68,8 @@ export type ProjectListRow = {
   targetLocales: string[];
   externalProjectUrl: string | null;
   isActive: boolean;
+  logoUrl: string | null;
+  lastActivityAt: string | null;
   lastSyncedAt: string | null;
   lastSyncErrorAt: string | null;
   lastSyncErrorMessage: string | null;
@@ -100,20 +133,56 @@ function createProjectKey(project: ApiProject) {
   );
 }
 
-export function mapProjectToListRow(project: ApiProject): ProjectListRow {
+function normalizeIsoTimestamp(value: string | Date | null | undefined): string | null {
+  if (!value) {
+    return null;
+  }
+
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return null;
+  }
+
+  return date.toISOString();
+}
+
+export function formatProjectLocaleRoute(
+  sourceLocale: string | null,
+  targetLocales: readonly string[],
+) {
+  const source = sourceLocale ?? "—";
+  if (targetLocales.length === 0) {
+    return source;
+  }
+
+  const preview = targetLocales.slice(0, 2).join(", ");
+  const suffix = targetLocales.length > 2 ? ` +${targetLocales.length - 2}` : "";
+  return `${source} → ${preview}${suffix}`;
+}
+
+export function mapProjectToListRow(project: ApiProject, intl?: ProjectListIntl): ProjectListRow {
   const descriptionValue = project.description?.trim() ?? "";
   const translationContextValue = project.translationContext?.trim() ?? "";
+  const lastActivityAt =
+    normalizeIsoTimestamp(project.lastActivityAt) ?? normalizeIsoTimestamp(project.updatedAt);
 
   return {
     id: project.id,
     name: project.name,
     key: createProjectKey(project),
-    description: descriptionValue || "No description",
+    description: descriptionValue || resolveMessage(intl, projectListMessages.noDescription),
     descriptionValue,
-    translationContext: translationContextValue || "No translation context",
+    translationContext:
+      translationContextValue || resolveMessage(intl, projectListMessages.noTranslationContext),
     translationContextValue,
-    created: formatTimestamp(project.createdAt, "Created date unavailable"),
-    updated: formatTimestamp(project.updatedAt, "Updated date unavailable"),
+    created: formatTimestamp(
+      project.createdAt,
+      resolveMessage(intl, projectListMessages.createdUnavailable),
+    ),
+    updated: formatTimestamp(
+      project.updatedAt,
+      resolveMessage(intl, projectListMessages.updatedUnavailable),
+    ),
     source: project.source ?? "native",
     externalProviderKind: project.externalProviderKind ?? null,
     externalProjectId: project.externalProjectId ?? null,
@@ -121,6 +190,8 @@ export function mapProjectToListRow(project: ApiProject): ProjectListRow {
     targetLocales: project.targetLocales ?? [],
     externalProjectUrl: sanitizeExternalUrl(project.externalProjectUrl),
     isActive: project.isActive ?? true,
+    logoUrl: project.logoUrl?.trim() || null,
+    lastActivityAt,
     lastSyncedAt: formatTimestampOrNull(project.lastSyncedAt),
     lastSyncErrorAt: formatTimestampOrNull(project.lastSyncErrorAt),
     lastSyncErrorMessage: project.lastSyncErrorMessage ?? null,

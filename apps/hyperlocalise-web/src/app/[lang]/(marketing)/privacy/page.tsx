@@ -1,10 +1,37 @@
-import { createLegalMetadata, LegalList, LegalPage, LegalSection } from "../_components/legal-page";
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
+import type { Metadata } from "next";
+
+import { DEFAULT_APP_LOCALE, normalizeAppLocale } from "@/lib/app-i18n/locales";
 import { TypographyP } from "@/components/ui/typography";
 
-export const metadata = createLegalMetadata({
-  title: "Privacy policy",
-  description: "How Hyperlocalise handles account, usage, and provider-related data.",
-});
+import { createLegalMetadata, LegalList, LegalPage, LegalSection } from "../_components/legal-page";
+
+type PrivacyPageProps = {
+  params: Promise<{ lang: string }>;
+};
+
+export async function generateMetadata({ params }: PrivacyPageProps): Promise<Metadata> {
+  const { lang } = await params;
+  const locale = normalizeAppLocale(lang) ?? DEFAULT_APP_LOCALE;
+
+  return createLegalMetadata({
+    title: "Privacy policy",
+    description: "How Hyperlocalise handles account, usage, and provider-related data.",
+    locale,
+    path: "/privacy",
+  });
+}
 
 export default function PrivacyPage() {
   return (

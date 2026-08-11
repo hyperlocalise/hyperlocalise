@@ -1,6 +1,18 @@
 "use client";
 
-import type { Post } from "@/lib/blog/blog-post";
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
+import type { PostSummary } from "@/lib/blog/blog-post";
 import { getBlogPostPath } from "@/lib/blog/blog-post-path";
 import { formatBlogPostDate } from "@/components/marketing/blog/format-blog-post-date";
 import { BlogPostCover } from "@/components/marketing/blog/blog-post-cover";
@@ -8,13 +20,14 @@ import Link from "next/link";
 import { useIntl } from "react-intl";
 
 type BlogPostCardProps = {
-  post: Post;
+  post: PostSummary;
   lang: string;
 };
 
 export function BlogPostCard({ post, lang }: BlogPostCardProps) {
   const intl = useIntl();
   const href = getBlogPostPath(lang, post.slug);
+  const metaLine = [post.category, formatBlogPostDate(intl, post.date)].join(" · ");
 
   if (!href) {
     return null;
@@ -34,9 +47,7 @@ export function BlogPostCard({ post, lang }: BlogPostCardProps) {
         <h2 className="text-lg font-medium tracking-tight text-foreground transition-colors group-hover:text-foreground">
           {post.title}
         </h2>
-        <p className="text-sm text-muted-foreground">
-          {post.category} · {formatBlogPostDate(intl, post.date)}
-        </p>
+        <p className="text-sm text-muted-foreground">{metaLine}</p>
       </div>
     </Link>
   );

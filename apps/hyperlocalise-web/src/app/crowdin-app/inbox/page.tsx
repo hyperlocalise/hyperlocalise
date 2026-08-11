@@ -1,0 +1,29 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
+import { CrowdinAppInboxContent } from "./_components/crowdin-app-inbox-content";
+import { getCrowdinAppBaseUrl } from "@/lib/crowdin-app/manifest";
+
+type CrowdinAppInboxPageProps = {
+  searchParams: Promise<{
+    jwtToken?: string;
+    origin?: string;
+    clientId?: string;
+  }>;
+};
+
+export default async function CrowdinAppInboxPage({ searchParams }: CrowdinAppInboxPageProps) {
+  const params = await searchParams;
+  const appBaseUrl = getCrowdinAppBaseUrl() ?? "";
+
+  return <CrowdinAppInboxContent appBaseUrl={appBaseUrl} jwtToken={params.jwtToken ?? null} />;
+}

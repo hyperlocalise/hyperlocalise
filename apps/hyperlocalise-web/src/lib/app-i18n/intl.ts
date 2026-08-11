@@ -1,16 +1,67 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import { createIntl, createIntlCache, type IntlShape } from "@formatjs/intl";
 
-import { DEFAULT_APP_LOCALE, normalizeAppLocale, type AppLocale } from "./locales";
+import deDEMessages from "../../../lang/de-DE.json";
+import frFRMessages from "../../../lang/fr-FR.json";
+import viVNMessages from "../../../lang/vi-VN.json";
+import zhCNMessages from "../../../lang/zh-CN.json";
+
+import {
+  DEFAULT_APP_LOCALE,
+  normalizeAppContentLocale,
+  normalizeAppLocale,
+  type AppContentLocale,
+} from "./locales";
 
 const cache = createIntlCache();
 
-function getMessagesForLocale(_locale: AppLocale): Record<string, string> {
-  // Load compiled locale catalogs here when the translation pipeline is wired up.
-  return {};
+type SourceCatalogEntry = {
+  defaultMessage: string;
+  description?: string;
+};
+
+type LocaleCatalog = Record<string, string | SourceCatalogEntry>;
+
+function toMessages(catalog: LocaleCatalog): Record<string, string> {
+  const messages: Record<string, string> = {};
+
+  for (const [id, value] of Object.entries(catalog)) {
+    messages[id] = typeof value === "string" ? value : value.defaultMessage;
+  }
+
+  return messages;
+}
+
+const translatedCatalogs: Partial<Record<AppContentLocale, Record<string, string>>> = {
+  "zh-CN": toMessages(zhCNMessages as LocaleCatalog),
+  "vi-VN": toMessages(viVNMessages as LocaleCatalog),
+  "de-DE": toMessages(deDEMessages as LocaleCatalog),
+  "fr-FR": toMessages(frFRMessages as LocaleCatalog),
+};
+
+function getMessagesForLocale(locale: AppContentLocale): Record<string, string> {
+  // Source locale uses defaultMessage from descriptors; no en-US catalog needed.
+  if (locale === DEFAULT_APP_LOCALE) {
+    return {};
+  }
+
+  return translatedCatalogs[locale] ?? {};
 }
 
 export function getIntlShape(locale: string = DEFAULT_APP_LOCALE): IntlShape {
-  const normalizedLocale = normalizeAppLocale(locale) ?? DEFAULT_APP_LOCALE;
+  const normalizedLocale =
+    normalizeAppLocale(locale) ?? normalizeAppContentLocale(locale) ?? DEFAULT_APP_LOCALE;
 
   return createIntl(
     {

@@ -1,5 +1,17 @@
 "use client";
 
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import { useMemo } from "react";
 import { useIntl } from "react-intl";
 
@@ -13,9 +25,18 @@ import { CatEditorCommentsSection } from "./cat-editor-comments-section";
 import { CatEditorFormatChecksSection } from "./cat-editor-format-checks-section";
 import { CatEditorHeader } from "./cat-editor-header";
 import { useCatEditorHotkeys } from "./cat-editor-hotkeys";
+import {
+  CatEditorImageSourceSection,
+  CatEditorImageTargetSection,
+} from "./cat-editor-image-sections";
 import type { CatEditorPanelProps } from "./cat-editor-panel.types";
 import { CatEditorSourceSection } from "./cat-editor-source-section";
 import { CatEditorTargetSection } from "./cat-editor-target-section";
+import { CatEditorIssuesSection } from "@/components/cat/issues/cat-editor-issues-section";
+
+function isImageEditorSegment(segment: CatEditorPanelProps["segment"]) {
+  return segment.contentKind === "image_file" || segment.contentKind === "image_url";
+}
 
 export function CatEditorPanel({
   segment,
@@ -31,6 +52,7 @@ export function CatEditorPanel({
   isFormatChecksLoading = false,
   isCommentsLoading = false,
   isSegmentTargetLoading = false,
+  isImageBusy = false,
   canApprove = true,
   canAddComment = false,
   canEditTranslations = true,
@@ -49,7 +71,15 @@ export function CatEditorPanel({
   onApprove,
   onSaveDraft,
   onAddComment,
+  onAddToIssueSheet,
   onResolveComment,
+  organizationSlug,
+  projectId,
+  nativeIssuesEnabled = false,
+  translationKeyId = null,
+  issueTargetLocale = null,
+  issueStringLink = null,
+  onNativeOpenIssueCountChange,
   primaryActionLabel,
   onAskQuestion,
   onGenerateAiRecommendation,
@@ -59,13 +89,15 @@ export function CatEditorPanel({
   hasPreviousSegment,
   hasNextSegment,
   segmentShareUrl = null,
+  onTreatAsImage,
+  onRegenerateImage,
+  onUploadImage,
 }: CatEditorPanelProps) {
   const intl = useIntl();
   const isMac = useIsMac();
   const resolvedPrimaryActionLabel =
     primaryActionLabel ?? intl.formatMessage(catEditorPanelMessages.approve);
-  const supportsIssueComments =
-    (providerKind === "crowdin" || providerKind === null) && canAddComment;
+  const supportsIssueComments = providerKind === "crowdin" && canAddComment;
 
   const actionState = useMemo(() => {
     const isActionBlocked =
@@ -75,8 +107,11 @@ export function CatEditorPanel({
       isLookingUpContext ||
       isAiSuggestionLoading ||
       isFormatChecksLoading ||
-      isSegmentTargetLoading;
-    const hasTargetText = segment.targetText.trim().length > 0;
+      isSegmentTargetLoading ||
+      isImageBusy;
+    const hasTargetText = isImageEditorSegment(segment)
+      ? Boolean(segment.targetAssetUrl || segment.targetText.trim())
+      : segment.targetText.trim().length > 0;
 
     return {
       canTriggerApprove: canApprove && hasTargetText && !isActionBlocked,
@@ -86,8 +121,9 @@ export function CatEditorPanel({
         !isSavingDraft &&
         !isLookingUpContext &&
         !isAiSuggestionLoading &&
-        !isFormatChecksLoading,
-      canEditTarget: canEditTranslations && !isEditorBusy,
+        !isFormatChecksLoading &&
+        !isImageBusy,
+      canEditTarget: canEditTranslations && !isEditorBusy && !isImageBusy,
     };
   }, [
     canApprove,
@@ -97,10 +133,12 @@ export function CatEditorPanel({
     isApproving,
     isEditorBusy,
     isFormatChecksLoading,
+    isImageBusy,
     isLookingUpContext,
     isPostingComment,
     isSavingDraft,
-    segment.targetText,
+    isSegmentTargetLoading,
+    segment,
   ]);
 
   useCatEditorHotkeys({
@@ -131,20 +169,44 @@ export function CatEditorPanel({
 
       <div className="min-h-0 flex-1 overflow-y-auto">
         <div className="mx-auto max-w-3xl space-y-6 px-4 py-5 sm:px-6 lg:space-y-7 lg:px-8 lg:py-8">
-          <CatEditorSourceSection
-            sourceText={segment.sourceText}
-            sourceLocale={segment.sourceLocale}
-            segmentKey={segment.key}
-          />
+          {isImageEditorSegment(segment) || segment.looksLikeImageUrl ? (
+            <CatEditorImageSourceSection
+              segment={segment}
+              canEdit={actionState.canEditTarget}
+              isBusy={isImageBusy}
+              onTreatAsImage={
+                onTreatAsImage ? (treatAsImage) => onTreatAsImage(treatAsImage) : undefined
+              }
+              onRegenerate={onRegenerateImage}
+            />
+          ) : (
+            <CatEditorSourceSection
+              sourceText={segment.sourceText}
+              sourceLocale={segment.sourceLocale}
+              segmentKey={segment.key}
+              sourcePath={segment.sourcePath}
+            />
+          )}
 
-          <CatEditorTargetSection
-            segment={segment}
-            canEditTarget={actionState.canEditTarget}
-            isLoading={isSegmentTargetLoading}
-            onTargetChange={onTargetChange}
-            onCopySource={onCopySource}
-            onClearTarget={onClearTarget}
-          />
+          {isImageEditorSegment(segment) ? (
+            <CatEditorImageTargetSection
+              segment={segment}
+              canEdit={actionState.canEditTarget}
+              isBusy={isImageBusy}
+              isLoading={isSegmentTargetLoading}
+              onUpload={onUploadImage}
+              onRegenerate={onRegenerateImage}
+            />
+          ) : (
+            <CatEditorTargetSection
+              segment={segment}
+              canEditTarget={actionState.canEditTarget}
+              isLoading={isSegmentTargetLoading}
+              onTargetChange={onTargetChange}
+              onCopySource={onCopySource}
+              onClearTarget={onClearTarget}
+            />
+          )}
 
           <CatEditorActions
             primaryActionLabel={resolvedPrimaryActionLabel}
@@ -158,13 +220,14 @@ export function CatEditorPanel({
             hasPreviousSegment={hasPreviousSegment}
             hasNextSegment={hasNextSegment}
             onApprove={onApprove}
-            onSaveDraft={onSaveDraft}
+            onSaveDraft={isImageEditorSegment(segment) ? undefined : onSaveDraft}
+            onAddToIssueSheet={onAddToIssueSheet}
             onAskQuestion={onAskQuestion}
             onPrevious={onPrevious}
             onNext={onNext}
           />
 
-          {canUseAiRecommendation ? (
+          {canUseAiRecommendation && !isImageEditorSegment(segment) ? (
             <CatEditorAiRecommendation
               intelligence={intelligence}
               isLoading={isAiSuggestionLoading}
@@ -174,10 +237,12 @@ export function CatEditorPanel({
             />
           ) : null}
 
-          <CatEditorFormatChecksSection
-            formatChecks={formatChecks}
-            isLoading={isFormatChecksLoading}
-          />
+          {!isImageEditorSegment(segment) ? (
+            <CatEditorFormatChecksSection
+              formatChecks={formatChecks}
+              isLoading={isFormatChecksLoading}
+            />
+          ) : null}
 
           <CatEditorCommentsSection
             segment={segment}
@@ -189,8 +254,20 @@ export function CatEditorPanel({
             resolvingCommentId={resolvingCommentId}
             commentPostError={commentPostError}
             onAddComment={onAddComment}
+            onOpenIssueSheet={onAddToIssueSheet}
             onResolveComment={onResolveComment}
           />
+          {nativeIssuesEnabled && organizationSlug && projectId ? (
+            <CatEditorIssuesSection
+              organizationSlug={organizationSlug}
+              projectId={projectId}
+              translationKeyId={translationKeyId}
+              targetLocale={issueTargetLocale}
+              stringLink={issueStringLink}
+              canCreate={canAddComment}
+              onOpenIssueCountChange={onNativeOpenIssueCountChange}
+            />
+          ) : null}
         </div>
       </div>
     </div>

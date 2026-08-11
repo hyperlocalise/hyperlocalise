@@ -150,7 +150,7 @@ import { defineMessages } from 'react-intl';
 
 export const heroSectionMessages = defineMessages({
   headline: {
-    defaultMessage: 'The localization platform to launch globally in days',
+    defaultMessage: 'The best localization platform to launch globally in days',
     description: 'Marketing homepage hero headline',
   },
 });

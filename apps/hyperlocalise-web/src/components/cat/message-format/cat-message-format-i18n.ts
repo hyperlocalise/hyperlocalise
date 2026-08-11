@@ -1,3 +1,15 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import type { IntlShape } from "@formatjs/intl";
 
 import type { CatMessageParityIssue } from "./cat-message-format";
@@ -83,6 +95,25 @@ export function localizeCatMessageParityIssue(
             defaultMessage: "Target ICU structure must match {tokens} from the source string.",
             id: "tsN6wGlUZC",
             description: "CAT format check message listing ICU blocks missing from the target",
+          },
+          { tokens },
+        ),
+      };
+    }
+    case "token-order": {
+      const tokens = issue.tokens?.join(", ") ?? "";
+      return {
+        label: intl.formatMessage({
+          defaultMessage: "Markup order",
+          id: "UL3odPVruI",
+          description: "CAT format check label when markup sentinel order does not match source",
+        }),
+        message: intl.formatMessage(
+          {
+            defaultMessage:
+              "Target must keep source order for markup tokens {tokens}. Swapped openers and closers break export.",
+            id: "xrvyWAPhPg",
+            description: "CAT format check message when markup sentinel nesting/order is wrong",
           },
           { tokens },
         ),

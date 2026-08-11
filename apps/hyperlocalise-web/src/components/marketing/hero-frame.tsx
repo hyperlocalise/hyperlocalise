@@ -1,14 +1,38 @@
 "use client";
 
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import { motion, useReducedMotion } from "motion/react";
+import type { IntlShape } from "react-intl";
+import { useIntl } from "react-intl";
 
 import { CatWorkspaceContainer } from "@/components/cat/workspace/cat-workspace-container";
+import { toQueueSegment } from "@/components/cat/workspace/store/cat-segment-view";
 import type {
   CatFormatCheck,
   CatSegment,
   CatSegmentIntelligence,
   CatWorkspaceState,
 } from "@/components/cat/shared/types";
+import { cn } from "@/lib/primitives/cn";
+
+import { heroFrameMessages } from "./hero-frame.messages";
+
+type HeroFrameProps = {
+  /** `breakout` spans near the viewport; `contained` fills a parent stage. */
+  layout?: "breakout" | "contained";
+  className?: string;
+};
 
 const heroDemoSegments: CatSegment[] = [
   {
@@ -28,8 +52,8 @@ const heroDemoSegments: CatSegment[] = [
     id: "hero-cta",
     index: 2,
     key: "home.hero.cta",
-    sourceText: "Join the waitlist",
-    targetText: "Rejoindre la liste d'attente",
+    sourceText: "Request a Demo",
+    targetText: "Demander une démo",
     sourceLocale: "en-US",
     targetLocale: "fr-FR",
     contextLabel: "Primary CTA",
@@ -326,56 +350,59 @@ const heroDemoSegments: CatSegment[] = [
   },
 ];
 
-const heroDemoChecks: CatFormatCheck[] = [
-  {
-    id: "check-tone",
-    label: "Launch tone",
-    status: "pass",
-    message: "Target keeps the concise, confident product positioning.",
-    category: "qa",
-  },
-  {
-    id: "check-length",
-    label: "Hero fit",
-    status: "warn",
-    message: "Translation is close to the button and hero layout limits.",
-    category: "length",
-  },
-  {
-    id: "check-placeholders",
-    label: "Placeholders",
-    status: "pass",
-    message: "No required placeholders are missing.",
-    category: "placeholder",
-  },
-];
+function buildHeroDemoChecks(intl: IntlShape): CatFormatCheck[] {
+  return [
+    {
+      id: "check-tone",
+      label: intl.formatMessage(heroFrameMessages.checkLaunchToneLabel),
+      status: "pass",
+      message: intl.formatMessage(heroFrameMessages.checkLaunchToneMessage),
+      category: "qa",
+    },
+    {
+      id: "check-glossary",
+      label: intl.formatMessage(heroFrameMessages.checkGlossaryLabel),
+      status: "pass",
+      message: intl.formatMessage(heroFrameMessages.checkGlossaryMessage),
+      category: "glossary",
+    },
+    {
+      id: "check-length",
+      label: intl.formatMessage(heroFrameMessages.checkHeroFitLabel),
+      status: "warn",
+      message: intl.formatMessage(heroFrameMessages.checkHeroFitMessage),
+      category: "length",
+    },
+    {
+      id: "check-placeholders",
+      label: intl.formatMessage(heroFrameMessages.checkPlaceholdersLabel),
+      status: "pass",
+      message: intl.formatMessage(heroFrameMessages.checkPlaceholdersMessage),
+      category: "placeholder",
+    },
+  ];
+}
 
-const heroDemoState: CatWorkspaceState = {
-  segments: heroDemoSegments,
-  selectedSegmentId: "hero-title",
-  formatChecks: heroDemoChecks,
-  segmentFormatChecks: {
-    "hero-title": [],
-    "usage-limit": [
-      {
-        id: "check-icu",
-        label: "ICU structure",
-        status: "pass",
-        message: "Plural branches and the {count} token match the source.",
-        category: "icu",
-        relatedTokens: ["{count, plural}"],
-      },
-    ],
-  },
-  intelligence: {
-    productMeaning: "Marketing hero headline shown above the primary waitlist call to action.",
-    intent: "Position speed as release confidence, not shortcut automation.",
-    locationBreadcrumb: "Marketing site / Hero",
+function buildHeroTitleIntelligence(intl: IntlShape): CatSegmentIntelligence {
+  return {
+    productMeaning: intl.formatMessage(heroFrameMessages.intelligenceProductMeaning),
+    intent: intl.formatMessage(heroFrameMessages.intelligenceIntent),
+    locationBreadcrumb: intl.formatMessage(heroFrameMessages.intelligenceBreadcrumb),
     filePath: "apps/hyperlocalise-web/src/components/marketing/hero-section.tsx",
     componentName: "HeroSection",
-    reviewerPreference: "Prefer concise French that still feels executive.",
-    constraints: "Hero title · Max 2 lines on tablet",
+    reviewerPreference: intl.formatMessage(heroFrameMessages.intelligenceReviewerPreference),
+    constraints: intl.formatMessage(heroFrameMessages.intelligenceConstraints),
+    reviewReason: intl.formatMessage(heroFrameMessages.reviewReasonHeroTitle),
+    reviewRisk: "medium",
+    agentContext: intl.formatMessage(heroFrameMessages.agentContextHeroTitle),
     glossaryTerms: [
+      {
+        id: "term-launch",
+        source: "Launch",
+        target: "Lancez",
+        approved: true,
+        forbidden: false,
+      },
       {
         id: "term-global",
         source: "globally",
@@ -384,164 +411,333 @@ const heroDemoState: CatWorkspaceState = {
         forbidden: false,
       },
       {
-        id: "term-launch",
-        source: "launch",
-        target: "lancer",
+        id: "term-days",
+        source: "days",
+        target: "jours",
+        approved: true,
+        forbidden: false,
+      },
+      {
+        id: "term-quarters",
+        source: "quarters",
+        target: "trimestres",
         approved: true,
         forbidden: false,
       },
     ],
     translationMemoryMatches: [
       {
-        id: "tm-launch",
+        id: "tm-hero-exact",
+        sourceText: "Launch globally in days, not quarters.",
+        targetText: "Lancez-vous à l'international en quelques jours, pas en quelques trimestres.",
+        matchPercent: 100,
+        matchKind: "exact",
+        contextLabel: intl.formatMessage(heroFrameMessages.tmContextHomepageHero),
+      },
+      {
+        id: "tm-launch-context",
         sourceText: "Launch every market from one workflow.",
         targetText: "Lancez chaque marché depuis un seul workflow.",
         matchPercent: 84,
-        contextLabel: "Product overview",
+        matchKind: "context",
+        contextLabel: intl.formatMessage(heroFrameMessages.tmContextProductOverview),
+      },
+      {
+        id: "tm-launch-fuzzy",
+        sourceText: "Go global without waiting quarters for localization.",
+        targetText: "Passez à l'international sans attendre des trimestres de localisation.",
+        matchPercent: 71,
+        matchKind: "fuzzy",
+        contextLabel: intl.formatMessage(heroFrameMessages.tmContextLaunchCampaign),
       },
     ],
-  },
-  segmentIntelligence: {
-    "hero-cta": {
-      productMeaning: "Waitlist CTA button label on the marketing homepage.",
-      intent: "Keep it short and action-oriented.",
-      locationBreadcrumb: "Marketing site / Hero / CTA",
-      filePath: "apps/hyperlocalise-web/src/components/marketing/hero-section.tsx",
-      componentName: "Button",
-      constraints: "Button label · Must stay compact on mobile",
-      glossaryTerms: [],
-      translationMemoryMatches: [],
-      aiSuggestion: "Rejoindre la liste d'attente",
-      aiReasoning: "Direct and familiar French SaaS CTA phrasing.",
-    },
-    "usage-limit": {
-      productMeaning: "Billing usage meter string with ICU plural branches.",
-      intent: "Preserve ICU syntax exactly.",
-      locationBreadcrumb: "Billing / Usage meter",
-      filePath: "apps/hyperlocalise-web/src/app/[lang]/(authenticated)/billing/usage-card.tsx",
-      componentName: "UsageCard",
-      constraints: "ICU plural · Preserve {count}",
-      glossaryTerms: [],
-      translationMemoryMatches: [],
-      aiSuggestion: "{count, plural, one {# chaîne restante} other {# chaînes restantes}}",
-      aiReasoning: "Keeps both plural branches and the required count placeholder.",
-    },
-    "qa-warning": {
-      productMeaning: "Banner label for pending translation approvals in the review queue.",
-      intent: "Avoid wording that implies public customer reviews.",
-      locationBreadcrumb: "CAT workspace / Review queue",
-      filePath: "apps/hyperlocalise-web/src/components/cat/queue/cat-queue-panel.tsx",
-      componentName: "CatQueuePanel",
-      constraints: "Short label · Avoid ambiguity around reviews",
-      glossaryTerms: [
+    aiSuggestion: "Déployez à l'international en quelques jours, pas en quelques trimestres.",
+    aiReasoning: intl.formatMessage(heroFrameMessages.aiReasoningHeroTitle),
+    visualContext: {
+      screenshots: [
         {
-          id: "term-review",
-          source: "review",
-          target: "validation",
-          approved: true,
-          forbidden: false,
+          id: "hero-desktop",
+          name: intl.formatMessage(heroFrameMessages.visualContextScreenshotName),
+          imageUrl: "/images/visual-context.png",
+          width: 999,
+          height: 432,
+          markers: [
+            {
+              left: 4,
+              top: 8,
+              width: 72,
+              height: 28,
+            },
+          ],
         },
       ],
-      translationMemoryMatches: [
+    },
+  };
+}
+
+function localizeHeroDemoSegments(intl: IntlShape): CatSegment[] {
+  const contextById: Record<string, string> = {
+    "hero-title": intl.formatMessage(heroFrameMessages.contextLabelHomepageHero),
+    "hero-cta": intl.formatMessage(heroFrameMessages.contextLabelPrimaryCta),
+    "usage-limit": intl.formatMessage(heroFrameMessages.contextLabelUsageMeter),
+    "qa-warning": intl.formatMessage(heroFrameMessages.contextLabelReviewQueue),
+    "hero-subtitle": intl.formatMessage(heroFrameMessages.contextLabelHomepageHero),
+    "nav-product": intl.formatMessage(heroFrameMessages.contextLabelSiteNavigation),
+    "nav-pricing": intl.formatMessage(heroFrameMessages.contextLabelSiteNavigation),
+    "features-agents-title": intl.formatMessage(heroFrameMessages.contextLabelFeatures),
+    "features-tms-body": intl.formatMessage(heroFrameMessages.contextLabelFeatures),
+    "onboarding-welcome": intl.formatMessage(heroFrameMessages.contextLabelOnboarding),
+    "onboarding-locale": intl.formatMessage(heroFrameMessages.contextLabelOnboarding),
+    "projects-empty-title": intl.formatMessage(heroFrameMessages.contextLabelProjectsList),
+    "projects-empty-body": intl.formatMessage(heroFrameMessages.contextLabelProjectsList),
+    "sync-running": intl.formatMessage(heroFrameMessages.contextLabelSyncProgress),
+    "sync-complete": intl.formatMessage(heroFrameMessages.contextLabelSyncProgress),
+    "error-network-title": intl.formatMessage(heroFrameMessages.contextLabelErrorBanner),
+    "error-network-retry": intl.formatMessage(heroFrameMessages.contextLabelErrorAction),
+    "settings-team-invite": intl.formatMessage(heroFrameMessages.contextLabelTeamSettings),
+    "settings-api-keys": intl.formatMessage(heroFrameMessages.contextLabelSettings),
+    "toast-saved": intl.formatMessage(heroFrameMessages.contextLabelToast),
+    "pricing-pro-name": intl.formatMessage(heroFrameMessages.contextLabelPricing),
+    "pricing-pro-cta": intl.formatMessage(heroFrameMessages.contextLabelPricingCta),
+    "github-checks-passed": intl.formatMessage(heroFrameMessages.contextLabelGithubCheck),
+    "eval-drift-warning": intl.formatMessage(heroFrameMessages.contextLabelEvalGate),
+  };
+
+  return heroDemoSegments.map((segment) => ({
+    ...segment,
+    contextLabel: contextById[segment.id] ?? segment.contextLabel,
+  }));
+}
+
+function buildHeroDemoState(intl: IntlShape): CatWorkspaceState {
+  const segments = localizeHeroDemoSegments(intl);
+  const heroDemoChecks = buildHeroDemoChecks(intl);
+  const heroTitleIntelligence = buildHeroTitleIntelligence(intl);
+
+  return {
+    fileContext: {
+      sourcePath: "apps/hyperlocalise-web/src/components/marketing/hero-section.tsx",
+      filename: "hero-section.tsx",
+      sourceLocale: "en-US",
+      targetLocale: "fr-FR",
+      providerKind: "crowdin",
+      canEditTranslations: true,
+      canAddComments: true,
+    },
+    segments,
+    queueSegments: segments.map(toQueueSegment),
+    selectedSegmentId: "hero-title",
+    formatChecks: heroDemoChecks,
+    segmentFormatChecks: {
+      "hero-title": heroDemoChecks,
+      "usage-limit": [
         {
-          id: "tm-review",
-          sourceText: "Approve translation review",
-          targetText: "Valider la traduction",
-          matchPercent: 79,
-          contextLabel: "CAT action",
+          id: "check-icu",
+          label: intl.formatMessage(heroFrameMessages.checkIcuLabel),
+          status: "pass",
+          message: intl.formatMessage(heroFrameMessages.checkIcuMessage),
+          category: "icu",
+          relatedTokens: ["{count, plural}"],
         },
       ],
-      aiSuggestion: "Validations en attente d'approbation",
-      aiReasoning: "Clarifies this is an internal translation review queue.",
     },
-  },
-  breadcrumbs: ["Marketing", "Homepage", "French launch"],
-  primaryActionLabel: "Approve",
-  canEditTranslations: true,
-};
+    intelligence: heroTitleIntelligence,
+    segmentIntelligence: {
+      "hero-title": heroTitleIntelligence,
+      "hero-cta": {
+        productMeaning: intl.formatMessage(heroFrameMessages.ctaProductMeaning),
+        intent: intl.formatMessage(heroFrameMessages.ctaIntent),
+        locationBreadcrumb: intl.formatMessage(heroFrameMessages.ctaBreadcrumb),
+        filePath: "apps/hyperlocalise-web/src/components/marketing/hero-section.tsx",
+        componentName: "Button",
+        constraints: intl.formatMessage(heroFrameMessages.ctaConstraints),
+        glossaryTerms: [],
+        translationMemoryMatches: [],
+        aiSuggestion: "Rejoindre la liste d'attente",
+        aiReasoning: intl.formatMessage(heroFrameMessages.ctaAiReasoning),
+      },
+      "usage-limit": {
+        productMeaning: intl.formatMessage(heroFrameMessages.usageProductMeaning),
+        intent: intl.formatMessage(heroFrameMessages.usageIntent),
+        locationBreadcrumb: intl.formatMessage(heroFrameMessages.usageBreadcrumb),
+        filePath: "apps/hyperlocalise-web/src/app/[lang]/(authenticated)/billing/usage-card.tsx",
+        componentName: "UsageCard",
+        constraints: intl.formatMessage(heroFrameMessages.usageConstraints),
+        glossaryTerms: [],
+        translationMemoryMatches: [],
+        aiSuggestion: "{count, plural, one {# chaîne restante} other {# chaînes restantes}}",
+        aiReasoning: intl.formatMessage(heroFrameMessages.usageAiReasoning),
+      },
+      "qa-warning": {
+        productMeaning: intl.formatMessage(heroFrameMessages.qaProductMeaning),
+        intent: intl.formatMessage(heroFrameMessages.qaIntent),
+        locationBreadcrumb: intl.formatMessage(heroFrameMessages.qaBreadcrumb),
+        filePath: "apps/hyperlocalise-web/src/components/cat/queue/cat-queue-panel.tsx",
+        componentName: "CatQueuePanel",
+        constraints: intl.formatMessage(heroFrameMessages.qaConstraints),
+        glossaryTerms: [
+          {
+            id: "term-review",
+            source: "review",
+            target: "validation",
+            approved: true,
+            forbidden: false,
+          },
+        ],
+        translationMemoryMatches: [
+          {
+            id: "tm-review",
+            sourceText: "Approve translation review",
+            targetText: "Valider la traduction",
+            matchPercent: 79,
+            contextLabel: intl.formatMessage(heroFrameMessages.qaTmContext),
+          },
+        ],
+        aiSuggestion: "Validations en attente d'approbation",
+        aiReasoning: intl.formatMessage(heroFrameMessages.qaAiReasoning),
+      },
+    },
+    breadcrumbs: [
+      intl.formatMessage(heroFrameMessages.breadcrumbMarketing),
+      intl.formatMessage(heroFrameMessages.breadcrumbHomepage),
+      intl.formatMessage(heroFrameMessages.breadcrumbFrenchLaunch),
+    ],
+    primaryActionLabel: intl.formatMessage(heroFrameMessages.primaryActionApprove),
+    canEditTranslations: true,
+  };
+}
 
 function wait(ms: number) {
   return new Promise((resolve) => window.setTimeout(resolve, ms));
 }
 
-async function lookupHeroDemoContext(segment: CatSegment) {
-  await wait(1700);
+function createHeroDemoServices(intl: IntlShape, heroDemoState: CatWorkspaceState) {
+  const heroDemoChecks = heroDemoState.formatChecks;
+  const heroTitleIntelligence =
+    heroDemoState.segmentIntelligence?.["hero-title"] ?? heroDemoState.intelligence;
 
-  if (segment.id === "hero-title") {
-    return "Homepage headline for a launch-focused localization platform. Keep the claim direct and outcome-led.";
+  async function lookupHeroDemoContext(segment: CatSegment) {
+    await wait(1700);
+
+    if (segment.id === "hero-title") {
+      return (
+        heroTitleIntelligence.agentContext ?? intl.formatMessage(heroFrameMessages.contextHeroTitle)
+      );
+    }
+
+    if (segment.id === "hero-cta") {
+      return intl.formatMessage(heroFrameMessages.contextHeroCta);
+    }
+
+    if (segment.id === "usage-limit") {
+      return intl.formatMessage(heroFrameMessages.contextUsageLimit);
+    }
+
+    if (segment.id === "qa-warning") {
+      return intl.formatMessage(heroFrameMessages.contextQaWarning);
+    }
+
+    return intl.formatMessage(heroFrameMessages.contextFallback, { key: segment.key });
   }
 
-  if (segment.id === "hero-cta") {
-    return "Primary conversion button for the public waitlist.";
+  async function lookupHeroDemoVisualContext(segment: CatSegment) {
+    if (segment.id === "hero-title" && heroTitleIntelligence.visualContext) {
+      return heroTitleIntelligence.visualContext;
+    }
+
+    return { screenshots: [] };
   }
 
-  if (segment.id === "usage-limit") {
-    return "Usage meter copy shown in billing and review dashboards.";
-  }
+  async function generateHeroAiRecommendation(
+    segment: CatSegment,
+    _targetText: string,
+    intelligence?: CatSegmentIntelligence,
+  ): Promise<{ aiSuggestion: string; aiReasoning: string; formatChecks: CatFormatCheck[] }> {
+    await wait(1200);
 
-  if (segment.id === "qa-warning") {
-    return "Queue banner for translation reviews that still need human approval.";
-  }
+    if (segment.id === "hero-title") {
+      return {
+        aiSuggestion:
+          heroTitleIntelligence.aiSuggestion ??
+          "Déployez à l'international en quelques jours, pas en quelques trimestres.",
+        aiReasoning:
+          heroTitleIntelligence.aiReasoning ??
+          intl.formatMessage(heroFrameMessages.aiReasoningHeroTitle),
+        formatChecks: heroDemoChecks,
+      };
+    }
 
-  return `Repository context: ${segment.key} is part of the product UI and should keep tone, placeholders, and layout constraints intact.`;
-}
+    const segmentIntelligence = intelligence ?? heroDemoState.segmentIntelligence?.[segment.id];
 
-async function generateHeroAiRecommendation(
-  segment: CatSegment,
-  _targetText: string,
-  intelligence?: CatSegmentIntelligence,
-): Promise<{ aiSuggestion: string; aiReasoning: string; formatChecks: CatFormatCheck[] }> {
-  await wait(1200);
-
-  if (segment.id === "hero-title") {
     return {
-      aiSuggestion: "Déployez à l'international en quelques jours, pas en quelques trimestres.",
+      aiSuggestion: segmentIntelligence?.aiSuggestion ?? segment.targetText,
       aiReasoning:
-        "Uses deployment language that fits a B2B product launch while staying short enough for the hero layout.",
-      formatChecks: heroDemoChecks,
+        segmentIntelligence?.aiReasoning ??
+        intl.formatMessage(heroFrameMessages.aiReasoningFallback),
+      formatChecks: heroDemoState.segmentFormatChecks?.[segment.id] ?? heroDemoChecks,
     };
   }
 
-  const segmentIntelligence = intelligence ?? heroDemoState.segmentIntelligence?.[segment.id];
+  async function validateHeroDemoFormat(
+    segment: CatSegment,
+    value: string,
+  ): Promise<CatFormatCheck[]> {
+    const checks = [...(heroDemoState.segmentFormatChecks?.[segment.id] ?? heroDemoChecks)];
+
+    if (segment.maxLength && value.length > segment.maxLength) {
+      return [
+        {
+          id: "check-length-over",
+          label: intl.formatMessage(heroFrameMessages.checkLayoutLengthLabel),
+          status: "warn",
+          message: intl.formatMessage(heroFrameMessages.checkLayoutLengthMessage, {
+            maxLength: segment.maxLength,
+          }),
+          category: "length",
+        },
+        ...checks.filter((check) => check.id !== "check-length"),
+      ];
+    }
+
+    return checks;
+  }
 
   return {
-    aiSuggestion: segmentIntelligence?.aiSuggestion ?? segment.targetText,
-    aiReasoning:
-      segmentIntelligence?.aiReasoning ??
-      "Keeps terminology, placeholders, and layout constraints aligned with the source.",
-    formatChecks: heroDemoState.segmentFormatChecks?.[segment.id] ?? heroDemoChecks,
+    validateFormat: validateHeroDemoFormat,
+    lookupSegmentContext: lookupHeroDemoContext,
+    lookupSegmentVisualContext: lookupHeroDemoVisualContext,
+    generateAiRecommendation: generateHeroAiRecommendation,
   };
 }
 
-async function validateHeroDemoFormat(
-  segment: CatSegment,
-  value: string,
-): Promise<CatFormatCheck[]> {
-  const checks = [...(heroDemoState.segmentFormatChecks?.[segment.id] ?? heroDemoChecks)];
-
-  if (segment.maxLength && value.length > segment.maxLength) {
-    return [
-      {
-        id: "check-length-over",
-        label: "Layout length",
-        status: "warn",
-        message: `Translation exceeds the recommended ${segment.maxLength} characters.`,
-        category: "length",
-      },
-      ...checks.filter((check) => check.id !== "check-length"),
-    ];
-  }
-
-  return checks;
-}
-
-export function HeroFrame() {
+export function HeroFrame({ layout = "breakout", className }: HeroFrameProps) {
+  const intl = useIntl();
   const shouldReduceMotion = useReducedMotion();
+  const heroDemoState = buildHeroDemoState(intl);
+  const services = createHeroDemoServices(intl, heroDemoState);
+  const frameClassName = cn(
+    "relative overflow-hidden rounded-2xl border border-border bg-background shadow-2xl shadow-gray-alpha-200",
+    className,
+  );
+  const workspace = (
+    <div className="flex h-[min(42rem,78svh)] min-h-136 flex-col lg:h-176 xl:h-184">
+      <CatWorkspaceContainer
+        initialState={heroDemoState}
+        initialViewMode="comfortable"
+        services={services}
+      />
+    </div>
+  );
+
+  // Contained layout is staged by the parent (e.g. whileInView); skip mount animation.
+  if (layout === "contained") {
+    return <div className={frameClassName}>{workspace}</div>;
+  }
 
   return (
     <div className="relative left-1/2 w-screen max-w-[calc(100vw-2.5rem)] -translate-x-1/2 lg:max-w-[min(92rem,calc(100vw-5rem))]">
       <motion.div
-        className="relative overflow-hidden rounded-2xl border border-border bg-background shadow-2xl shadow-gray-alpha-200"
+        className={frameClassName}
         initial={shouldReduceMotion ? false : { opacity: 0, y: 24, scale: 0.98 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         transition={{
@@ -549,16 +745,7 @@ export function HeroFrame() {
           ease: [0.19, 1, 0.22, 1],
         }}
       >
-        <div className="flex h-[min(42rem,78svh)] min-h-136 flex-col lg:h-176 xl:h-184">
-          <CatWorkspaceContainer
-            initialState={heroDemoState}
-            services={{
-              validateFormat: validateHeroDemoFormat,
-              lookupSegmentContext: lookupHeroDemoContext,
-              generateAiRecommendation: generateHeroAiRecommendation,
-            }}
-          />
-        </div>
+        {workspace}
       </motion.div>
     </div>
   );

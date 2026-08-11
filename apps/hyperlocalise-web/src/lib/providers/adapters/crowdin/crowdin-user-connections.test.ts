@@ -1,3 +1,15 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import "dotenv/config";
 
 import { eq } from "drizzle-orm";
@@ -12,13 +24,8 @@ import {
   upsertCrowdinOAuthProviderCredential,
   upsertCrowdinPatProviderCredential,
   type CrowdinOAuthTokenBundle,
-} from "../../organization-external-tms-provider-credentials";
-import {
-  getCrowdinUserConnection,
-  resolveCrowdinUserConnectionSecretMaterial,
-  upsertCrowdinUserConnection,
-  upsertCrowdinUserPatConnection,
-} from "./crowdin-user-connections";
+} from "@/lib/providers/credentials/organization-external-tms-provider-credentials";
+import { crowdinAuth } from "./crowdin-auth";
 
 const fixture = createAuthTestFixture();
 
@@ -81,7 +88,7 @@ describe("crowdin user connections", () => {
     vi.setSystemTime(new Date("2026-01-01T00:00:00.000Z"));
     const { authContext, credential } = await createCrowdinOAuthCredential();
 
-    const result = await upsertCrowdinUserConnection({
+    const result = await crowdinAuth.upsertUserConnection({
       organizationId: authContext.organization.localOrganizationId,
       userId: authContext.user.localUserId,
       providerCredentialId: credential.id,
@@ -106,7 +113,7 @@ describe("crowdin user connections", () => {
       oauthExpiresAt: "2026-01-01T01:00:00.000Z",
     });
 
-    const connection = await getCrowdinUserConnection({
+    const connection = await crowdinAuth.getUserConnection({
       organizationId: authContext.organization.localOrganizationId,
       userId: authContext.user.localUserId,
     });
@@ -122,7 +129,7 @@ describe("crowdin user connections", () => {
     vi.setSystemTime(new Date("2026-01-01T00:00:00.000Z"));
     const { authContext, credential, identity } = await createCrowdinOAuthCredential();
 
-    const firstResult = await upsertCrowdinUserConnection({
+    const firstResult = await crowdinAuth.upsertUserConnection({
       organizationId: authContext.organization.localOrganizationId,
       userId: authContext.user.localUserId,
       providerCredentialId: credential.id,
@@ -140,7 +147,7 @@ describe("crowdin user connections", () => {
     );
     await fixture.authHeadersFor(secondIdentity);
     const secondAuthContext = globalThis.__testApiAuthContext!;
-    const duplicateResult = await upsertCrowdinUserConnection({
+    const duplicateResult = await crowdinAuth.upsertUserConnection({
       organizationId: secondAuthContext.organization.localOrganizationId,
       userId: secondAuthContext.user.localUserId,
       providerCredentialId: credential.id,
@@ -163,7 +170,7 @@ describe("crowdin user connections", () => {
     vi.setSystemTime(new Date("2026-01-01T00:00:00.000Z"));
     const { authContext, credential, identity } = await createCrowdinOAuthCredential();
 
-    const firstResult = await upsertCrowdinUserConnection({
+    const firstResult = await crowdinAuth.upsertUserConnection({
       organizationId: authContext.organization.localOrganizationId,
       userId: authContext.user.localUserId,
       providerCredentialId: credential.id,
@@ -192,7 +199,7 @@ describe("crowdin user connections", () => {
     });
 
     try {
-      const duplicateResult = await upsertCrowdinUserConnection({
+      const duplicateResult = await crowdinAuth.upsertUserConnection({
         organizationId: authContext.organization.localOrganizationId,
         userId: secondAuthContext.user.localUserId,
         providerCredentialId: credential.id,
@@ -218,7 +225,7 @@ describe("crowdin user connections", () => {
     vi.setSystemTime(new Date("2026-01-01T00:00:00.000Z"));
     const nearExpiry = new Date(Date.now() + CROWDIN_OAUTH_TOKEN_REFRESH_BUFFER_MS + 30_000);
     const { authContext, credential } = await createCrowdinOAuthCredential();
-    const upsertResult = await upsertCrowdinUserConnection({
+    const upsertResult = await crowdinAuth.upsertUserConnection({
       organizationId: authContext.organization.localOrganizationId,
       userId: authContext.user.localUserId,
       providerCredentialId: credential.id,
@@ -232,14 +239,14 @@ describe("crowdin user connections", () => {
       },
     });
     expect(isErr(upsertResult)).toBe(false);
-    const connection = await getCrowdinUserConnection({
+    const connection = await crowdinAuth.getUserConnection({
       organizationId: authContext.organization.localOrganizationId,
       userId: authContext.user.localUserId,
     });
     expect(connection).not.toBeNull();
     const fetchMock = vi.fn(async () => new Response("{}", { status: 200 }));
 
-    const accessToken = await resolveCrowdinUserConnectionSecretMaterial({
+    const accessToken = await crowdinAuth.resolveUserConnectionSecretMaterial({
       connection: connection!,
       authMode: "oauth",
       fetchFn: fetchMock,
@@ -253,7 +260,7 @@ describe("crowdin user connections", () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-01-01T00:00:00.000Z"));
     const { authContext, credential } = await createCrowdinOAuthCredential();
-    const upsertResult = await upsertCrowdinUserConnection({
+    const upsertResult = await crowdinAuth.upsertUserConnection({
       organizationId: authContext.organization.localOrganizationId,
       userId: authContext.user.localUserId,
       providerCredentialId: credential.id,
@@ -268,7 +275,7 @@ describe("crowdin user connections", () => {
       },
     });
     expect(isErr(upsertResult)).toBe(false);
-    const connection = await getCrowdinUserConnection({
+    const connection = await crowdinAuth.getUserConnection({
       organizationId: authContext.organization.localOrganizationId,
       userId: authContext.user.localUserId,
     });
@@ -287,7 +294,7 @@ describe("crowdin user connections", () => {
       );
     });
 
-    const accessToken = await resolveCrowdinUserConnectionSecretMaterial({
+    const accessToken = await crowdinAuth.resolveUserConnectionSecretMaterial({
       connection: connection!,
       authMode: "oauth",
       fetchFn: fetchMock,
@@ -324,7 +331,7 @@ describe("crowdin user connections", () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-01-01T00:00:00.000Z"));
     const { authContext, credential } = await createCrowdinOAuthCredential();
-    const upsertResult = await upsertCrowdinUserConnection({
+    const upsertResult = await crowdinAuth.upsertUserConnection({
       organizationId: authContext.organization.localOrganizationId,
       userId: authContext.user.localUserId,
       providerCredentialId: credential.id,
@@ -338,7 +345,7 @@ describe("crowdin user connections", () => {
       },
     });
     expect(isErr(upsertResult)).toBe(false);
-    const connection = await getCrowdinUserConnection({
+    const connection = await crowdinAuth.getUserConnection({
       organizationId: authContext.organization.localOrganizationId,
       userId: authContext.user.localUserId,
     });
@@ -348,7 +355,7 @@ describe("crowdin user connections", () => {
     });
 
     await expect(
-      resolveCrowdinUserConnectionSecretMaterial({
+      crowdinAuth.resolveUserConnectionSecretMaterial({
         connection: connection!,
         authMode: "oauth",
         fetchFn: fetchMock,
@@ -359,7 +366,7 @@ describe("crowdin user connections", () => {
 
   it("returns stored PAT material without refresh for pat auth mode", async () => {
     const { authContext, credential } = await createCrowdinPatCredential();
-    const upsertResult = await upsertCrowdinUserPatConnection({
+    const upsertResult = await crowdinAuth.upsertUserPatConnection({
       organizationId: authContext.organization.localOrganizationId,
       userId: authContext.user.localUserId,
       providerCredentialId: credential.id,
@@ -370,14 +377,14 @@ describe("crowdin user connections", () => {
       },
     });
     expect(isErr(upsertResult)).toBe(false);
-    const connection = await getCrowdinUserConnection({
+    const connection = await crowdinAuth.getUserConnection({
       organizationId: authContext.organization.localOrganizationId,
       userId: authContext.user.localUserId,
     });
     expect(connection).not.toBeNull();
     const fetchMock = vi.fn(async () => new Response("{}", { status: 200 }));
 
-    const accessToken = await resolveCrowdinUserConnectionSecretMaterial({
+    const accessToken = await crowdinAuth.resolveUserConnectionSecretMaterial({
       connection: connection!,
       authMode: "pat",
       fetchFn: fetchMock,
@@ -391,7 +398,7 @@ describe("crowdin user connections", () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-01-01T00:00:00.000Z"));
     const { authContext, credential } = await createCrowdinOAuthCredential();
-    const upsertResult = await upsertCrowdinUserConnection({
+    const upsertResult = await crowdinAuth.upsertUserConnection({
       organizationId: authContext.organization.localOrganizationId,
       userId: authContext.user.localUserId,
       providerCredentialId: credential.id,
@@ -402,20 +409,20 @@ describe("crowdin user connections", () => {
       },
     });
     expect(isErr(upsertResult)).toBe(false);
-    const connection = await getCrowdinUserConnection({
+    const connection = await crowdinAuth.getUserConnection({
       organizationId: authContext.organization.localOrganizationId,
       userId: authContext.user.localUserId,
     });
     expect(connection).not.toBeNull();
 
     await expect(
-      resolveCrowdinUserConnectionSecretMaterial({
+      crowdinAuth.resolveUserConnectionSecretMaterial({
         connection: connection!,
         authMode: "pat",
       }),
     ).rejects.toThrow("crowdin_user_connection_auth_mode_mismatch");
 
-    const deletedConnection = await getCrowdinUserConnection({
+    const deletedConnection = await crowdinAuth.getUserConnection({
       organizationId: authContext.organization.localOrganizationId,
       userId: authContext.user.localUserId,
     });

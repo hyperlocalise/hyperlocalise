@@ -1,13 +1,28 @@
 "use client";
 
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import Link from "next/link";
 import { ArrowRight01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
+import { FormattedMessage } from "react-intl";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { TypographyP } from "@/components/ui/typography";
 import { cn } from "@/lib/primitives/cn";
+
+import { overviewHeroCardMessages } from "./overview-hero-card.messages";
 
 export function OverviewHeroCard({
   pendingCount,
@@ -15,13 +30,15 @@ export function OverviewHeroCard({
   description,
   ctaLabel,
   ctaHref,
+  onCtaClick,
   className,
 }: {
   pendingCount: number;
   title: string;
   description: string;
   ctaLabel: string;
-  ctaHref: string;
+  ctaHref?: string;
+  onCtaClick?: () => void;
   className?: string;
 }) {
   const isCaughtUp = pendingCount === 0;
@@ -39,9 +56,14 @@ export function OverviewHeroCard({
       <CardContent className="flex h-full flex-col justify-between gap-6 px-6 py-6">
         <div>
           <TypographyP className="text-sm font-medium text-subtle-foreground">
-            {isCaughtUp
-              ? "All caught up"
-              : `${pendingCount} pending ${pendingCount === 1 ? "action" : "actions"}`}
+            {isCaughtUp ? (
+              <FormattedMessage {...overviewHeroCardMessages.allCaughtUp} />
+            ) : (
+              <FormattedMessage
+                {...overviewHeroCardMessages.pendingActions}
+                values={{ count: pendingCount }}
+              />
+            )}
           </TypographyP>
           <TypographyP className="mt-2 font-heading text-2xl font-medium text-foreground">
             {title}
@@ -51,15 +73,27 @@ export function OverviewHeroCard({
           </TypographyP>
         </div>
 
-        <Button
-          nativeButton={false}
-          render={<Link href={ctaHref} />}
-          variant="default"
-          className="w-fit rounded-full"
-        >
-          {ctaLabel}
-          <HugeiconsIcon icon={ArrowRight01Icon} strokeWidth={1.8} />
-        </Button>
+        {onCtaClick ? (
+          <Button
+            type="button"
+            variant="default"
+            className="w-fit rounded-full"
+            onClick={onCtaClick}
+          >
+            {ctaLabel}
+            <HugeiconsIcon icon={ArrowRight01Icon} strokeWidth={1.8} />
+          </Button>
+        ) : (
+          <Button
+            nativeButton={false}
+            render={<Link href={ctaHref ?? "#"} />}
+            variant="default"
+            className="w-fit rounded-full"
+          >
+            {ctaLabel}
+            <HugeiconsIcon icon={ArrowRight01Icon} strokeWidth={1.8} />
+          </Button>
+        )}
       </CardContent>
     </Card>
   );

@@ -1,3 +1,15 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import { randomUUID } from "node:crypto";
 import path from "node:path";
 
@@ -10,6 +22,7 @@ import { workosAuthMiddleware, type ApiAuthContext, type AuthVariables } from "@
 import {
   badRequestResponse,
   conflictResponse,
+  forbiddenResponse as sharedForbiddenResponse,
   notFoundResponse,
   serviceUnavailableResponse,
 } from "@/api/errors";
@@ -23,11 +36,19 @@ import {
 import { db, schema, type DatabaseClient } from "@/lib/database";
 import type { Project } from "@/lib/database/types";
 import { getFileStorageAdapter, type FileStorageAdapter } from "@/lib/file-storage";
+import { isReleaseCatAllFilesEnabled } from "@/lib/flags/release-flags";
 import { createLogger } from "@/lib/log";
-import { createRepositorySourceFileVersion, createStoredFile } from "@/lib/file-storage/records";
+import {
+  createRepositorySourceFileVersion,
+  createStoredFile,
+  getLatestRepositorySourceFileVersion,
+} from "@/lib/file-storage/records";
 import { sourceContentType } from "@/lib/file-storage/source-file-metadata";
+import { isCatAllFilesSourcePath, parseCatSourcePathsFilter } from "@/lib/projects/cat-all-files";
+
 import {
   countTmsProviderLiveOpenJobsForProject,
+  getTmsProviderLiveCatAllFiles,
   getTmsProviderLiveCatFile,
   getTmsProviderLiveCatSegmentComments,
   getTmsProviderLiveCatSegmentTarget,
@@ -38,23 +59,43 @@ import {
   saveTmsProviderLiveCatTranslation,
   saveTmsProviderLiveCatComment,
   resolveTmsProviderLiveCatComment,
-} from "@/lib/providers/tms-provider-live";
+} from "@/lib/providers/jobs/tms-provider-live";
 import { listOrganizationProjects } from "@/lib/projects/organization/organization-project-service";
 import {
   getNativeProjectCatFile,
   getNativeProjectCatSegmentComments,
   getNativeProjectCatSegmentTarget,
-  resolveNativeProjectCatComment,
+  resolveNativeProjectCatLegacyIssueComment,
   saveNativeProjectCatComment,
   saveNativeProjectCatTranslation,
   updateNativeProjectTranslationStatus,
 } from "@/lib/projects/cat/native-cat-service";
+import {
+  enrichExternalCatFileImageFields,
+  enrichExternalCatTranslationImageFields,
+  getExternalCatStringOverlay,
+  setExternalCatStringTreatAsImage,
+  storeExternalCatImageUpload,
+  cleanupFailedExternalCatImageUpload,
+} from "@/lib/projects/cat/external-cat-string-overlay-service";
 import { resolveProjectFileCatPagination } from "@/lib/projects/cat/project-file-cat-pagination";
 import {
   getProjectFileDetail,
   listFilteredProjectFiles,
 } from "@/lib/projects/files/project-file-service";
 import { enqueueSourceFileIngestAfterUpload } from "@/lib/projects/files/source-file-ingest";
+import {
+  localizeAndStoreImageVariant,
+  projectImageAssetPath,
+  replaceImageVariantBytes,
+  updateImageVariantStatus,
+} from "@/lib/projects/files/image-variant-service";
+import {
+  isImageUrlContentKind,
+  localizeImageUrlTranslation,
+  replaceImageUrlTranslationBytes,
+  setTranslationKeyTreatAsImage,
+} from "@/lib/projects/files/image-url-translation-service";
 import {
   lookupCachedProjectFileStringRepositoryContext,
   lookupProjectFileStringRepositoryContext,
@@ -63,7 +104,7 @@ import {
   getRepositorySourceFileByPath,
   loadProjectTranslationsAsPrefilledEntries,
 } from "@/lib/projects/translations/project-translation-service";
-import type { ExternalTmsFileKeyMetadata } from "@/lib/providers/tms-provider-types";
+import type { ExternalTmsFileKeyMetadata } from "@/lib/providers/jobs/tms-provider-types";
 import type {
   JobQueue,
   TranslationFileImportQueue,
@@ -83,8 +124,11 @@ import {
   projectFileCatConcordanceBodySchema,
   projectFileCatCommentBodySchema,
   projectFileCatCommentResolveBodySchema,
+  projectFileCatImageRegenerateBodySchema,
+  projectFileCatImageStatusBodySchema,
   projectFileCatRecommendationBodySchema,
   projectFileCatStatusBodySchema,
+  projectFileCatTreatAsImageBodySchema,
   projectFileCatTranslationBodySchema,
   projectFileCatVisualContextBodySchema,
   projectFileDetailQuerySchema,
@@ -103,10 +147,13 @@ import {
 import { getVisibleTeamIds, hasOrganizationWideProjectAccess } from "@/api/auth/team-access";
 import { normalizeProjectLocalePatch, type ProjectLocalePatchError } from "@/lib/i18n/locales";
 import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
-import { ensureDefaultWorkspaceTeam } from "@/lib/teams/default-workspace-team";
+import {
+  ensureDefaultWorkspaceTeam,
+  ensureTeamMembership,
+} from "@/lib/teams/default-workspace-team";
 import { ensureOrganizationProjectRecord } from "@/lib/projects/organization/organization-project-service";
 import { normalizeProjectId } from "@/lib/projects/identity/project-id";
-import { parseProviderProjectId } from "@/lib/providers/tms-provider-resource-id";
+import { parseProviderProjectId } from "@/lib/providers/jobs/tms-provider-resource-id";
 
 import {
   isAiActionAllowed,
@@ -115,7 +162,7 @@ import {
 } from "@/api/auth/capability-guards";
 import {
   buildAccessibleProjectsWhere,
-  forbiddenResponse,
+  projectForbiddenResponse,
   getOwnedProject,
   getOwnedProjectRecord,
   invalidProjectPayloadResponse,
@@ -124,16 +171,27 @@ import {
   ownedProjectWhere,
   projectNotFoundResponse,
   providerProjectUnavailableResponse,
+  catAllFilesProviderKindFromTarget,
   resolveProjectResourceTarget,
   scheduleProjectNotFoundDiagnostics,
   tmsProviderLiveErrorResponse,
   unsupportedProjectFileResponse,
 } from "./project.shared";
 import { createJobRoutes } from "./job.route";
-import { generateCatAiRecommendation } from "@/lib/translation/generate-cat-ai-recommendation";
-import { loadCatSegmentConcordance } from "@/lib/translation/load-cat-segment-concordance";
-import { loadCatSegmentVisualContext } from "@/lib/translation/load-cat-segment-visual-context";
-import { inferSupportedFileTranslationFileFormat } from "@/lib/translation/file-formats";
+import { createIssueSheetRoutes } from "./issue-sheet.route";
+import { createProjectAssetRoutes } from "./project-assets.route";
+import {
+  generateCatAiRecommendation,
+  loadCatSegmentConcordance,
+  loadCatSegmentVisualContext,
+} from "@/lib/translation/cat";
+import {
+  inferSupportedFileTranslationFileFormat,
+  inferSupportedBinaryTranslationFileFormat,
+  inferSupportedImageTranslationFileFormat,
+  inferSupportedSourceUploadFormat,
+  looksLikeImageUrl,
+} from "@/lib/translation/file-formats";
 
 type ProjectUpdateErrorCode =
   | "invalid_project_team"
@@ -247,6 +305,17 @@ const projectStore: ProjectStore = {
         targetLocales: payload.targetLocales,
       })
       .returning();
+
+    // Creators without teams:write only see projects on teams they belong to.
+    // Mirror team-create behavior so the new project is immediately listable.
+    if (!hasOrganizationWideProjectAccess(auth)) {
+      await ensureTeamMembership({
+        teamId,
+        userId: auth.user.localUserId,
+        role: "member",
+        database,
+      });
+    }
 
     return project;
   },
@@ -477,6 +546,36 @@ const validateProjectFileCatStatusBody = validator("json", (value, c) => {
   return parsed.data;
 });
 
+const validateProjectFileCatImageRegenerateBody = validator("json", (value, c) => {
+  const parsed = projectFileCatImageRegenerateBodySchema.safeParse(value);
+
+  if (!parsed.success) {
+    return invalidProjectPayloadResponse(c);
+  }
+
+  return parsed.data;
+});
+
+const validateProjectFileCatImageStatusBody = validator("json", (value, c) => {
+  const parsed = projectFileCatImageStatusBodySchema.safeParse(value);
+
+  if (!parsed.success) {
+    return invalidProjectPayloadResponse(c);
+  }
+
+  return parsed.data;
+});
+
+const validateProjectFileCatTreatAsImageBody = validator("json", (value, c) => {
+  const parsed = projectFileCatTreatAsImageBodySchema.safeParse(value);
+
+  if (!parsed.success) {
+    return invalidProjectPayloadResponse(c);
+  }
+
+  return parsed.data;
+});
+
 const validateProjectFileStringContextBody = validator("json", (value, c) => {
   const parsed = projectFileStringContextBodySchema.safeParse(value);
 
@@ -566,6 +665,17 @@ async function loadProjectFileCatQueue(
 ) {
   const pagination = resolveProjectFileCatPagination(query);
   const target = await resolveProjectResourceTarget(auth, projectId);
+  const organizationSlug = auth.organization.slug ?? auth.organization.localOrganizationId;
+  const allFiles = isCatAllFilesSourcePath(query.sourcePath);
+  const sourcePathsFilter = allFiles ? parseCatSourcePathsFilter(query.sourcePaths) : null;
+
+  if (allFiles) {
+    const providerKind = catAllFilesProviderKindFromTarget(target);
+    // Provider support lives in decide(); Flags Explorer overrides still win.
+    if (!(await isReleaseCatAllFilesEnabled(providerKind))) {
+      return { kind: "feature_unavailable" as const };
+    }
+  }
 
   if (target.kind === "provider_unavailable") {
     return { kind: "provider_unavailable" as const, target };
@@ -583,7 +693,9 @@ async function loadProjectFileCatQueue(
       sourcePath: query.sourcePath,
       targetLocale: query.targetLocale,
       canEditTranslations: isWriteBackTranslationAllowed(auth.membership.role),
+      organizationSlug,
       pagination,
+      sourcePaths: sourcePathsFilter,
     });
 
     if (!catQueue) {
@@ -594,25 +706,43 @@ async function loadProjectFileCatQueue(
   }
 
   try {
-    const catQueue = await getTmsProviderLiveCatFile(
-      auth.organization.localOrganizationId,
-      target.externalProjectId,
-      query.sourcePath,
-      query.targetLocale,
-      {
-        actorUserId: auth.user.localUserId,
-        canEditTranslations: isWriteBackTranslationAllowed(auth.membership.role),
-        externalResourceId: query.externalResourceId,
-        resourceType: query.resourceType,
-        pagination,
-      },
-    );
+    const catQueue = allFiles
+      ? await getTmsProviderLiveCatAllFiles(
+          auth.organization.localOrganizationId,
+          target.externalProjectId,
+          query.targetLocale,
+          {
+            actorUserId: auth.user.localUserId,
+            canEditTranslations: isWriteBackTranslationAllowed(auth.membership.role),
+            pagination,
+            sourcePaths: sourcePathsFilter,
+          },
+        )
+      : await getTmsProviderLiveCatFile(
+          auth.organization.localOrganizationId,
+          target.externalProjectId,
+          query.sourcePath,
+          query.targetLocale,
+          {
+            actorUserId: auth.user.localUserId,
+            canEditTranslations: isWriteBackTranslationAllowed(auth.membership.role),
+            externalResourceId: query.externalResourceId,
+            resourceType: query.resourceType,
+            pagination,
+          },
+        );
 
     if (!catQueue) {
       return { kind: "project_not_found" as const };
     }
 
-    return { kind: "ok" as const, catQueue };
+    const enrichedCatQueue = await enrichExternalCatFileImageFields({
+      organizationId: auth.organization.localOrganizationId,
+      projectId,
+      catFile: catQueue,
+    });
+
+    return { kind: "ok" as const, catQueue: enrichedCatQueue };
   } catch (error) {
     return { kind: "provider_error" as const, error };
   }
@@ -631,7 +761,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
     })
     .post("/", validateCreateProjectBody, async (c) => {
       if (!isProjectCreateAllowed(c.var.auth.membership.role)) {
-        return forbiddenResponse(c);
+        return projectForbiddenResponse(c);
       }
 
       const payload = c.req.valid("json");
@@ -672,6 +802,11 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
       }
     })
     .route("/:projectId/jobs", createJobRoutes({ jobQueue }))
+    .route("/:projectId/issue-sheet", createIssueSheetRoutes())
+    .route(
+      "/:projectId/assets",
+      createProjectAssetRoutes({ fileStorageAdapter: options.fileStorageAdapter }),
+    )
     .get(
       "/:projectId/files/detail/cat/queue",
       validateProjectParams,
@@ -681,6 +816,13 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
         const query = c.req.valid("query");
         const result = await loadProjectFileCatQueue(c.var.auth, params.projectId, query);
 
+        if (result.kind === "feature_unavailable") {
+          return sharedForbiddenResponse(
+            c,
+            "feature_unavailable",
+            "All Files CAT is not enabled for this organization",
+          );
+        }
         if (result.kind === "provider_unavailable") {
           return providerProjectUnavailableResponse(c, result.target);
         }
@@ -710,6 +852,13 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
         const query = c.req.valid("query");
         const result = await loadProjectFileCatQueue(c.var.auth, params.projectId, query);
 
+        if (result.kind === "feature_unavailable") {
+          return sharedForbiddenResponse(
+            c,
+            "feature_unavailable",
+            "All Files CAT is not enabled for this organization",
+          );
+        }
         if (result.kind === "provider_unavailable") {
           return providerProjectUnavailableResponse(c, result.target);
         }
@@ -755,6 +904,8 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
             sourcePath: query.sourcePath,
             targetLocale: query.targetLocale,
             externalStringId: params.externalStringId,
+            organizationSlug:
+              c.var.auth.organization.slug ?? c.var.auth.organization.localOrganizationId,
           });
 
           if (segmentTarget === "not_found") {
@@ -781,7 +932,26 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
             return notFoundResponse(c, "cat_segment_not_found");
           }
 
-          return c.json({ target: segmentTarget }, 200);
+          if (!query.externalResourceId) {
+            return c.json({ target: segmentTarget }, 200);
+          }
+
+          const overlay = await getExternalCatStringOverlay({
+            organizationId: c.var.auth.organization.localOrganizationId,
+            projectId: params.projectId,
+            sourcePath: query.sourcePath,
+            externalResourceId: query.externalResourceId,
+            externalStringId: params.externalStringId,
+          });
+
+          return c.json(
+            {
+              target: segmentTarget
+                ? enrichExternalCatTranslationImageFields(segmentTarget, overlay)
+                : segmentTarget,
+            },
+            200,
+          );
         } catch (error) {
           return tmsProviderLiveErrorResponse(c, error);
         }
@@ -843,7 +1013,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
       validateProjectFileCatTranslationBody,
       async (c) => {
         if (!isWriteBackTranslationAllowed(c.var.auth.membership.role)) {
-          return forbiddenResponse(c);
+          return projectForbiddenResponse(c);
         }
 
         const params = c.req.valid("param");
@@ -920,7 +1090,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
       validateProjectFileCatCommentBody,
       async (c) => {
         if (!isWriteBackTranslationAllowed(c.var.auth.membership.role)) {
-          return forbiddenResponse(c);
+          return projectForbiddenResponse(c);
         }
 
         const params = c.req.valid("param");
@@ -936,6 +1106,14 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
             return projectNotFoundResponse(c);
           }
 
+          if (body.type === "issue") {
+            return badRequestResponse(
+              c,
+              "native_cat_issue_unsupported",
+              "Native CAT issues are tracked in Issues. Create an issue from the Issues section.",
+            );
+          }
+
           const comment = await saveNativeProjectCatComment({
             organizationId: c.var.auth.organization.localOrganizationId,
             projectId: params.projectId,
@@ -943,8 +1121,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
             targetLocale: body.targetLocale,
             translationKeyId: body.externalStringId,
             text: body.text,
-            type: body.type,
-            issueType: body.issueType,
+            type: "comment",
             actorUserId: c.var.auth.user.localUserId,
           });
 
@@ -990,7 +1167,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
       validateProjectFileCatCommentResolveBody,
       async (c) => {
         if (!isWriteBackTranslationAllowed(c.var.auth.membership.role)) {
-          return forbiddenResponse(c);
+          return projectForbiddenResponse(c);
         }
 
         const params = c.req.valid("param");
@@ -1006,7 +1183,9 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
             return projectNotFoundResponse(c);
           }
 
-          const comment = await resolveNativeProjectCatComment({
+          // Native issues live in the issue sheet now. Only comments raised as
+          // issues before that change are still resolvable here.
+          const comment = await resolveNativeProjectCatLegacyIssueComment({
             organizationId: c.var.auth.organization.localOrganizationId,
             projectId: params.projectId,
             commentId: params.commentId,
@@ -1017,8 +1196,8 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
           if (!comment) {
             return badRequestResponse(
               c,
-              "comment_not_found",
-              "Comment not found or not resolvable.",
+              "native_cat_issue_unsupported",
+              "Native CAT issues are tracked in Issues. Resolve them from the Issues section.",
             );
           }
 
@@ -1124,7 +1303,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
       validateProjectFileCatRecommendationBody,
       async (c) => {
         if (!isAiActionAllowed(c.var.auth.membership.role)) {
-          return forbiddenResponse(c);
+          return projectForbiddenResponse(c);
         }
 
         const params = c.req.valid("param");
@@ -1161,6 +1340,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
           filename,
           sourceLocale: body.sourceLocale,
           targetLocale: body.targetLocale,
+          displayLocale: body.displayLocale,
           key: body.key,
           sourceText: body.sourceText,
           targetText: body.targetText,
@@ -1184,7 +1364,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
       validateProjectFileCatStatusBody,
       async (c) => {
         if (!isWriteBackTranslationAllowed(c.var.auth.membership.role)) {
-          return forbiddenResponse(c);
+          return projectForbiddenResponse(c);
         }
 
         const params = c.req.valid("param");
@@ -1221,6 +1401,548 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
         }
 
         return c.json({ translation }, 200);
+      },
+    )
+    .post(
+      "/:projectId/files/detail/cat/images/regenerate",
+      validateProjectParams,
+      validateProjectFileCatImageRegenerateBody,
+      async (c) => {
+        if (!isAiActionAllowed(c.var.auth.membership.role)) {
+          return projectForbiddenResponse(c);
+        }
+
+        const params = c.req.valid("param");
+        const body = c.req.valid("json");
+        const target = await resolveProjectResourceTarget(c.var.auth, params.projectId);
+        if (target.kind === "provider_unavailable") {
+          return providerProjectUnavailableResponse(c, target);
+        }
+        if (target.kind === "provider") {
+          return badRequestResponse(
+            c,
+            "provider_cat_unsupported",
+            "Image regeneration is only available for workspace files.",
+          );
+        }
+
+        const project = await getOwnedProjectRecord(c.var.auth, params.projectId);
+        if (!project) {
+          return projectNotFoundResponse(c);
+        }
+
+        const organizationSlug =
+          c.var.auth.organization.slug ?? c.var.auth.organization.localOrganizationId;
+        const organizationId = c.var.auth.organization.localOrganizationId;
+
+        if (inferSupportedImageTranslationFileFormat(body.sourcePath)) {
+          const sourceFile = await getRepositorySourceFileByPath({
+            organizationId,
+            projectId: params.projectId,
+            sourcePath: body.sourcePath,
+          });
+          if (!sourceFile) {
+            return badRequestResponse(
+              c,
+              "source_file_not_found",
+              "Source file not found for the given path",
+            );
+          }
+
+          const latestVersion = await getLatestRepositorySourceFileVersion({
+            organizationId,
+            projectId: params.projectId,
+            sourcePath: body.sourcePath,
+          });
+          if (!latestVersion?.storedFileId) {
+            return badRequestResponse(c, "source_bytes_missing", "Source image bytes are missing");
+          }
+
+          const result = await localizeAndStoreImageVariant({
+            organizationId,
+            projectId: params.projectId,
+            sourcePath: body.sourcePath,
+            targetLocale: body.targetLocale,
+            sourceLocale: project.sourceLocale,
+            sourceStoredFileId: latestVersion.storedFileId,
+            repositorySourceFileId: sourceFile.id,
+            instructions: body.instructions,
+            provenance: "agent",
+            createdByUserId: c.var.auth.user.localUserId,
+            force: body.force,
+          });
+
+          if (!result.ok) {
+            return badRequestResponse(c, result.error.code, "Image regeneration failed");
+          }
+
+          const targetAssetUrl = result.value.storedFileId
+            ? projectImageAssetPath({
+                organizationSlug,
+                projectId: params.projectId,
+                fileId: result.value.storedFileId,
+              })
+            : null;
+
+          return c.json(
+            {
+              imageVariant: {
+                id: result.value.id,
+                status: result.value.status,
+                targetAssetUrl,
+                storedFileId: result.value.storedFileId,
+              },
+            },
+            200,
+          );
+        }
+
+        if (!body.externalStringId) {
+          return badRequestResponse(
+            c,
+            "external_string_id_required",
+            "externalStringId is required for URL-backed image regeneration",
+          );
+        }
+
+        const result = await localizeImageUrlTranslation({
+          organizationId,
+          projectId: params.projectId,
+          translationKeyId: body.externalStringId,
+          targetLocale: body.targetLocale,
+          sourceLocale: project.sourceLocale,
+          instructions: body.instructions,
+          actorUserId: c.var.auth.user.localUserId,
+          force: body.force,
+        });
+
+        if (!result.ok) {
+          return badRequestResponse(c, result.error.code, "Image URL regeneration failed");
+        }
+
+        return c.json(
+          {
+            translation: {
+              text: result.value.translation.text,
+              externalTranslationId: result.value.translation.id,
+              isApproved: result.value.translation.status === "approved",
+              contentKind: "image_url" as const,
+              targetAssetUrl: result.value.assetUrl,
+              status: result.value.translation.status,
+            },
+          },
+          200,
+        );
+      },
+    )
+    .post(
+      "/:projectId/files/detail/cat/images/upload",
+      validateProjectParams,
+      bodyLimit({
+        maxSize: maxProjectFileUploadBytes,
+        onError: (c) => badRequestResponse(c, "file_upload_too_large", "File upload is too large"),
+      }),
+      async (c) => {
+        if (!isWriteBackTranslationAllowed(c.var.auth.membership.role)) {
+          return projectForbiddenResponse(c);
+        }
+
+        const params = c.req.valid("param");
+        const target = await resolveProjectResourceTarget(c.var.auth, params.projectId);
+        if (target.kind === "provider_unavailable") {
+          return providerProjectUnavailableResponse(c, target);
+        }
+
+        const form = await c.req.parseBody({ all: true });
+        const sourcePath = asString(form.sourcePath);
+        const targetLocale = asString(form.targetLocale);
+        const externalStringId = asString(form.externalStringId);
+        const externalResourceId = asString(form.externalResourceId);
+        const forceRaw = asString(form.force);
+        const force = forceRaw === "true" || forceRaw === "1";
+        const file = asFile(form.file);
+
+        if (!sourcePath || !targetLocale || !file) {
+          return invalidProjectPayloadResponse(c);
+        }
+
+        const organizationSlug =
+          c.var.auth.organization.slug ?? c.var.auth.organization.localOrganizationId;
+        const organizationId = c.var.auth.organization.localOrganizationId;
+        const content = Buffer.from(await file.arrayBuffer());
+        const contentType = file.type || sourceContentType(file.name || sourcePath);
+
+        if (target.kind === "provider") {
+          if (!externalStringId) {
+            return badRequestResponse(
+              c,
+              "external_string_id_required",
+              "externalStringId is required for URL-backed image upload",
+            );
+          }
+
+          if (!externalResourceId) {
+            return badRequestResponse(
+              c,
+              "external_resource_id_required",
+              "externalResourceId is required for provider image upload",
+            );
+          }
+
+          if (inferSupportedImageTranslationFileFormat(sourcePath)) {
+            return badRequestResponse(
+              c,
+              "provider_cat_unsupported",
+              "File-backed image upload is only available for workspace files.",
+            );
+          }
+
+          const ensured = await ensureOrganizationProjectRecord({
+            organizationId,
+            projectId: params.projectId,
+            userId: c.var.auth.user.localUserId,
+          });
+          if (isErr(ensured)) {
+            return projectNotFoundResponse(c);
+          }
+
+          const stored = await storeExternalCatImageUpload({
+            organizationId,
+            projectId: ensured.value,
+            externalStringId,
+            externalResourceId,
+            sourcePath,
+            targetLocale,
+            content,
+            contentType,
+            filename: file.name || "image.png",
+            actorUserId: c.var.auth.user.localUserId,
+          });
+
+          let translation;
+          try {
+            translation = await saveTmsProviderLiveCatTranslation(
+              organizationId,
+              target.externalProjectId,
+              sourcePath,
+              {
+                targetLocale,
+                externalStringId,
+                text: stored.assetUrl,
+                externalResourceId,
+              },
+              { actorUserId: c.var.auth.user.localUserId },
+            );
+          } catch (error) {
+            await cleanupFailedExternalCatImageUpload({
+              organizationId,
+              projectId: ensured.value,
+              storedFileId: stored.storedFileId,
+            });
+            return tmsProviderLiveErrorResponse(c, error);
+          }
+
+          if (!translation) {
+            await cleanupFailedExternalCatImageUpload({
+              organizationId,
+              projectId: ensured.value,
+              storedFileId: stored.storedFileId,
+            });
+            return projectNotFoundResponse(c);
+          }
+
+          // Overlay is local metadata after a committed provider write-back.
+          // Never delete public media here — the provider already points at stored.assetUrl.
+          try {
+            await setExternalCatStringTreatAsImage({
+              organizationId,
+              projectId: params.projectId,
+              sourcePath,
+              externalResourceId,
+              externalStringId,
+              treatAsImage: true,
+              actorUserId: c.var.auth.user.localUserId,
+            });
+          } catch {
+            // Best-effort: write-back already committed; CAT can still treat via URL heuristic.
+          }
+
+          return c.json(
+            {
+              translation: {
+                text: translation.text,
+                externalTranslationId: translation.externalTranslationId,
+                isApproved: translation.isApproved,
+                contentKind: "image_url" as const,
+                targetAssetUrl: stored.assetUrl,
+              },
+            },
+            200,
+          );
+        }
+
+        const project = await getOwnedProject(c.var.auth, params.projectId);
+        if (!project) {
+          return projectNotFoundResponse(c);
+        }
+
+        if (inferSupportedBinaryTranslationFileFormat(sourcePath)) {
+          const sourceFile = await getRepositorySourceFileByPath({
+            organizationId,
+            projectId: params.projectId,
+            sourcePath,
+          });
+          if (!sourceFile) {
+            return badRequestResponse(
+              c,
+              "source_file_not_found",
+              "Source file not found for the given path",
+            );
+          }
+
+          const result = await replaceImageVariantBytes({
+            organizationId,
+            projectId: params.projectId,
+            sourcePath,
+            targetLocale,
+            content,
+            contentType,
+            filename: file.name || path.basename(sourcePath),
+            repositorySourceFileId: sourceFile.id,
+            createdByUserId: c.var.auth.user.localUserId,
+            force,
+          });
+
+          if (!result.ok) {
+            return badRequestResponse(c, result.error.code, "File upload failed");
+          }
+
+          const targetAssetUrl = result.value.storedFileId
+            ? projectImageAssetPath({
+                organizationSlug,
+                projectId: params.projectId,
+                fileId: result.value.storedFileId,
+              })
+            : null;
+
+          return c.json(
+            {
+              imageVariant: {
+                id: result.value.id,
+                status: result.value.status,
+                targetAssetUrl,
+                storedFileId: result.value.storedFileId,
+              },
+            },
+            200,
+          );
+        }
+
+        if (!externalStringId) {
+          return badRequestResponse(
+            c,
+            "external_string_id_required",
+            "externalStringId is required for URL-backed image upload",
+          );
+        }
+
+        const result = await replaceImageUrlTranslationBytes({
+          organizationId,
+          projectId: params.projectId,
+          translationKeyId: externalStringId,
+          targetLocale,
+          content,
+          contentType,
+          filename: file.name || "image.png",
+          actorUserId: c.var.auth.user.localUserId,
+          force,
+        });
+
+        if (!result.ok) {
+          return badRequestResponse(c, result.error.code, "Image URL upload failed");
+        }
+
+        return c.json(
+          {
+            translation: {
+              text: result.value.translation.text,
+              externalTranslationId: result.value.translation.id,
+              isApproved: result.value.translation.status === "approved",
+              contentKind: "image_url" as const,
+              targetAssetUrl: result.value.assetUrl,
+              status: result.value.translation.status,
+            },
+          },
+          200,
+        );
+      },
+    )
+    .patch(
+      "/:projectId/files/detail/cat/images/status",
+      validateProjectParams,
+      validateProjectFileCatImageStatusBody,
+      async (c) => {
+        if (!isWriteBackTranslationAllowed(c.var.auth.membership.role)) {
+          return projectForbiddenResponse(c);
+        }
+
+        const params = c.req.valid("param");
+        const body = c.req.valid("json");
+        const target = await resolveProjectResourceTarget(c.var.auth, params.projectId);
+        if (target.kind === "provider_unavailable") {
+          return providerProjectUnavailableResponse(c, target);
+        }
+        if (target.kind === "provider") {
+          return badRequestResponse(
+            c,
+            "provider_cat_unsupported",
+            "Image status updates are only available for workspace files.",
+          );
+        }
+
+        const project = await getOwnedProject(c.var.auth, params.projectId);
+        if (!project) {
+          return projectNotFoundResponse(c);
+        }
+
+        const organizationId = c.var.auth.organization.localOrganizationId;
+        const organizationSlug =
+          c.var.auth.organization.slug ?? c.var.auth.organization.localOrganizationId;
+
+        if (inferSupportedBinaryTranslationFileFormat(body.sourcePath)) {
+          const result = await updateImageVariantStatus({
+            organizationId,
+            projectId: params.projectId,
+            sourcePath: body.sourcePath,
+            targetLocale: body.targetLocale,
+            status: body.status,
+            actorUserId: c.var.auth.user.localUserId,
+          });
+
+          if (!result.ok) {
+            return badRequestResponse(c, result.error.code, "File variant not found");
+          }
+
+          const targetAssetUrl = result.value.storedFileId
+            ? projectImageAssetPath({
+                organizationSlug,
+                projectId: params.projectId,
+                fileId: result.value.storedFileId,
+              })
+            : null;
+
+          return c.json(
+            {
+              imageVariant: {
+                id: result.value.id,
+                status: result.value.status,
+                targetAssetUrl,
+                storedFileId: result.value.storedFileId,
+              },
+            },
+            200,
+          );
+        }
+
+        return badRequestResponse(
+          c,
+          "image_status_unsupported",
+          "Use translations/status for URL-backed image keys.",
+        );
+      },
+    )
+    .post(
+      "/:projectId/files/detail/cat/segments/:externalStringId/treat-as-image",
+      validateProjectParams,
+      validateProjectFileCatSegmentParams,
+      validateProjectFileCatTreatAsImageBody,
+      async (c) => {
+        if (!isWriteBackTranslationAllowed(c.var.auth.membership.role)) {
+          return projectForbiddenResponse(c);
+        }
+
+        const params = c.req.valid("param");
+        const body = c.req.valid("json");
+        if (params.externalStringId !== body.externalStringId) {
+          return invalidProjectPayloadResponse(c);
+        }
+
+        const target = await resolveProjectResourceTarget(c.var.auth, params.projectId);
+        if (target.kind === "provider_unavailable") {
+          return providerProjectUnavailableResponse(c, target);
+        }
+
+        if (target.kind === "provider") {
+          if (!body.externalResourceId) {
+            return badRequestResponse(
+              c,
+              "external_resource_id_required",
+              "externalResourceId is required for provider treat-as-image",
+            );
+          }
+
+          const result = await setExternalCatStringTreatAsImage({
+            organizationId: c.var.auth.organization.localOrganizationId,
+            projectId: params.projectId,
+            sourcePath: body.sourcePath,
+            externalResourceId: body.externalResourceId,
+            externalStringId: body.externalStringId,
+            treatAsImage: body.treatAsImage,
+            actorUserId: c.var.auth.user.localUserId,
+          });
+
+          if (!result.ok) {
+            return badRequestResponse(c, result.error.code, "Failed to update image mode");
+          }
+
+          // Source text is not stored on the overlay; the client already has it.
+          // Prefer looksLikeImageUrl true when treating as image so the editor stays in image mode.
+          return c.json(
+            {
+              segment: {
+                externalStringId: body.externalStringId,
+                contentKind: body.treatAsImage ? ("image_url" as const) : ("text" as const),
+                looksLikeImageUrl: body.treatAsImage,
+                ...(body.treatAsImage ? { sourceAssetUrl: null as string | null } : {}),
+              },
+            },
+            200,
+          );
+        }
+
+        const project = await getOwnedProject(c.var.auth, params.projectId);
+        if (!project) {
+          return projectNotFoundResponse(c);
+        }
+
+        const result = await setTranslationKeyTreatAsImage({
+          organizationId: c.var.auth.organization.localOrganizationId,
+          projectId: params.projectId,
+          translationKeyId: body.externalStringId,
+          treatAsImage: body.treatAsImage,
+        });
+
+        if (!result.ok) {
+          return badRequestResponse(c, result.error.code, "Translation key not found");
+        }
+
+        return c.json(
+          {
+            segment: {
+              externalStringId: result.value.id,
+              key: result.value.key,
+              sourceText: result.value.sourceText,
+              contentKind: isImageUrlContentKind(result.value.metadata)
+                ? ("image_url" as const)
+                : ("text" as const),
+              looksLikeImageUrl: looksLikeImageUrl(result.value.sourceText),
+              ...(isImageUrlContentKind(result.value.metadata)
+                ? { sourceAssetUrl: result.value.sourceText }
+                : {}),
+            },
+          },
+          200,
+        );
       },
     )
     .get(
@@ -1293,7 +2015,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
         const body = c.req.valid("json");
 
         if (!isAiActionAllowed(c.var.auth.membership.role)) {
-          return forbiddenResponse(c);
+          return projectForbiddenResponse(c);
         }
 
         const target = await resolveProjectResourceTarget(c.var.auth, params.projectId);
@@ -1425,7 +2147,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
           );
         }
 
-        if (result.translatedKeyCount === 0) {
+        if (result.loadedKeyCount === 0) {
           return translationsNotFoundResponse(c);
         }
 
@@ -1527,7 +2249,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
       }),
       async (c) => {
         if (!isProjectMutationAllowed(c.var.auth.membership.role)) {
-          return forbiddenResponse(c);
+          return projectForbiddenResponse(c);
         }
 
         const params = c.req.valid("param");
@@ -1559,7 +2281,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
           return invalidProjectPayloadResponse(c);
         }
 
-        if (!inferSupportedFileTranslationFileFormat(parsed.data.sourcePath)) {
+        if (!inferSupportedSourceUploadFormat(parsed.data.sourcePath)) {
           return unsupportedProjectFileResponse(c, parsed.data.sourcePath);
         }
 
@@ -1650,7 +2372,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
       }),
       async (c) => {
         if (!isWriteBackTranslationAllowed(c.var.auth.membership.role)) {
-          return forbiddenResponse(c);
+          return projectForbiddenResponse(c);
         }
 
         const params = c.req.valid("param");
@@ -1954,7 +2676,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
     })
     .patch("/:projectId", validateProjectParams, validateUpdateProjectBody, async (c) => {
       if (!isProjectMutationAllowed(c.var.auth.membership.role)) {
-        return forbiddenResponse(c);
+        return projectForbiddenResponse(c);
       }
 
       const params = c.req.valid("param");
@@ -1978,7 +2700,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
     })
     .delete("/:projectId", validateProjectParams, async (c) => {
       if (!isProjectMutationAllowed(c.var.auth.membership.role)) {
-        return forbiddenResponse(c);
+        return projectForbiddenResponse(c);
       }
 
       const params = c.req.valid("param");

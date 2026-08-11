@@ -1,3 +1,15 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import {
   isArgumentElement,
   isDateElement,
@@ -14,7 +26,17 @@ import {
   type SelectElement,
 } from "@formatjs/icu-messageformat-parser";
 
-export type CatMessageTokenKind = "argument" | "icu" | "number" | "date" | "time" | "pound" | "tag";
+import { extractInternalMarkupSpans } from "./cat-internal-markup";
+
+export type CatMessageTokenKind =
+  | "argument"
+  | "icu"
+  | "number"
+  | "date"
+  | "time"
+  | "pound"
+  | "tag"
+  | "markup";
 
 export interface CatMessageToken {
   id: string;
@@ -25,6 +47,8 @@ export interface CatMessageToken {
   end: number;
   options?: string[];
   type?: "plural" | "select" | "selectordinal";
+  /** Short chip label for internal markup sentinels (e.g. MD#0). */
+  displayLabel?: string;
 }
 
 export interface CatIcuBlockSummary {
@@ -47,7 +71,7 @@ export interface CatMessageAnalysis {
 }
 
 export interface CatMessageParityIssue {
-  kind: "missing-token" | "extra-token" | "icu-mismatch" | "parse-error";
+  kind: "missing-token" | "extra-token" | "icu-mismatch" | "token-order" | "parse-error";
   tokens?: string[];
   parseErrorMessage?: string;
   parseTarget?: "source" | "target";
@@ -164,32 +188,57 @@ function walkElements(
   });
 }
 
+function markupTokensFromMessage(message: string): CatMessageToken[] {
+  return extractInternalMarkupSpans(message).map((span, index) => ({
+    id: `markup-${span.family}-${span.index}-${span.start}-${index}`,
+    kind: "markup" as const,
+    name: span.label,
+    literal: span.literal,
+    start: span.start,
+    end: span.end,
+    displayLabel: span.label,
+  }));
+}
+
+function mergeMessageTokens(markupTokens: CatMessageToken[], icuTokens: CatMessageToken[]) {
+  return [...markupTokens, ...icuTokens].toSorted((first, second) => first.start - second.start);
+}
+
+function placeholderTokens(tokens: CatMessageToken[]) {
+  return tokens.filter((token) =>
+    ["argument", "number", "date", "time", "tag", "markup"].includes(token.kind),
+  );
+}
+
+function icuBlockSummaries(tokens: CatMessageToken[]): CatIcuBlockSummary[] {
+  return tokens
+    .filter((token) => token.kind === "icu" && token.type)
+    .map((token) => ({
+      id: token.id,
+      arg: token.name,
+      type: token.type!,
+      options: token.options ?? [],
+    }));
+}
+
 export function analyzeCatMessageFormat(message: string): CatMessageAnalysis {
+  const markupTokens = markupTokensFromMessage(message);
+
   try {
     const ast = parse(message, {
       captureLocation: true,
       ignoreTag: false,
       requiresOtherClause: true,
     });
-    const tokens: CatMessageToken[] = [];
-    walkElements(ast, message, tokens);
-    const placeholders = tokens.filter((token) =>
-      ["argument", "number", "date", "time", "tag"].includes(token.kind),
-    );
-    const icuBlocks = tokens
-      .filter((token) => token.kind === "icu" && token.type)
-      .map((token) => ({
-        id: token.id,
-        arg: token.name,
-        type: token.type!,
-        options: token.options ?? [],
-      }));
+    const icuTokens: CatMessageToken[] = [];
+    walkElements(ast, message, icuTokens);
+    const tokens = mergeMessageTokens(markupTokens, icuTokens);
 
     return {
       message,
       tokens,
-      placeholders,
-      icuBlocks,
+      placeholders: placeholderTokens(tokens),
+      icuBlocks: icuBlockSummaries(tokens),
     };
   } catch (error) {
     const parserError = error as {
@@ -200,8 +249,8 @@ export function analyzeCatMessageFormat(message: string): CatMessageAnalysis {
 
     return {
       message,
-      tokens: [],
-      placeholders: [],
+      tokens: markupTokens,
+      placeholders: placeholderTokens(markupTokens),
       icuBlocks: [],
       parseError: {
         message: parserError.message ?? "",
@@ -212,9 +261,15 @@ export function analyzeCatMessageFormat(message: string): CatMessageAnalysis {
   }
 }
 
-function tokenSignature(token: CatMessageToken) {
+/** Stable signature for placeholder parity and required-token UI lookup. */
+export function catMessageTokenSignature(token: CatMessageToken) {
   if (token.kind === "icu") {
     return `${token.kind}:${token.name}:${token.type}`;
+  }
+
+  if (token.kind === "markup") {
+    // Exact sentinel bytes must round-trip; label alone is not unique across hashes.
+    return `${token.kind}:${token.literal}`;
   }
 
   return `${token.kind}:${token.name}`;
@@ -229,12 +284,70 @@ function tokenDisplayName(token: CatMessageToken) {
     return `<${token.name}>`;
   }
 
+  if (token.kind === "markup") {
+    return token.displayLabel ?? token.name;
+  }
+
   return `{${token.name}}`;
 }
 
-function findMissingTokens(sourceTokens: CatMessageToken[], targetTokens: CatMessageToken[]) {
-  const targetSignatures = new Set(targetTokens.map(tokenSignature));
-  return sourceTokens.filter((token) => !targetSignatures.has(tokenSignature(token)));
+function signatureCounts(tokens: CatMessageToken[]) {
+  const counts = new Map<string, { count: number; sample: CatMessageToken }>();
+  for (const token of tokens) {
+    const signature = catMessageTokenSignature(token);
+    const entry = counts.get(signature);
+    if (entry) {
+      entry.count += 1;
+      continue;
+    }
+    counts.set(signature, { count: 1, sample: token });
+  }
+  return counts;
+}
+
+/** Tokens present more often on the left than the right (multiset difference). */
+function findMissingTokens(leftTokens: CatMessageToken[], rightTokens: CatMessageToken[]) {
+  const rightCounts = new Map<string, number>();
+  for (const token of rightTokens) {
+    const signature = catMessageTokenSignature(token);
+    rightCounts.set(signature, (rightCounts.get(signature) ?? 0) + 1);
+  }
+
+  const missing: CatMessageToken[] = [];
+  for (const [signature, { count, sample }] of signatureCounts(leftTokens)) {
+    const deficit = count - (rightCounts.get(signature) ?? 0);
+    for (let index = 0; index < deficit; index += 1) {
+      missing.push(sample);
+    }
+  }
+  return missing;
+}
+
+function markupTokensInOrder(tokens: CatMessageToken[]) {
+  return tokens.filter((token) => token.kind === "markup");
+}
+
+/** True when both sides have the same markup multiset but a different order/nesting. */
+function markupOrderMismatch(source: CatMessageAnalysis, target: CatMessageAnalysis) {
+  const sourceMarkup = markupTokensInOrder(source.tokens);
+  const targetMarkup = markupTokensInOrder(target.tokens);
+  if (sourceMarkup.length < 2 || sourceMarkup.length !== targetMarkup.length) {
+    return false;
+  }
+  if (findMissingTokens(sourceMarkup, targetMarkup).length > 0) {
+    return false;
+  }
+  if (findMissingTokens(targetMarkup, sourceMarkup).length > 0) {
+    return false;
+  }
+  return sourceMarkup.some(
+    (token, index) =>
+      catMessageTokenSignature(token) !== catMessageTokenSignature(targetMarkup[index]!),
+  );
+}
+
+function analysisHasMarkup(analysis: CatMessageAnalysis) {
+  return analysis.tokens.some((token) => token.kind === "markup");
 }
 
 export function compareCatMessageFormats(
@@ -242,6 +355,7 @@ export function compareCatMessageFormats(
   target: CatMessageAnalysis,
 ): CatMessageParityIssue[] {
   const issues: CatMessageParityIssue[] = [];
+  const hasMarkup = analysisHasMarkup(source) || analysisHasMarkup(target);
 
   if (source.parseError) {
     issues.push({
@@ -249,22 +363,17 @@ export function compareCatMessageFormats(
       parseTarget: "source",
       parseErrorMessage: source.parseError.message || undefined,
     });
-    if (target.parseError) {
-      issues.push({
-        kind: "parse-error",
-        parseTarget: "target",
-        parseErrorMessage: target.parseError.message || undefined,
-      });
-    }
-    return issues;
   }
-
   if (target.parseError) {
     issues.push({
       kind: "parse-error",
       parseTarget: "target",
       parseErrorMessage: target.parseError.message || undefined,
     });
+  }
+
+  // Pure ICU parse failures without markup have nothing else useful to compare.
+  if ((source.parseError || target.parseError) && !hasMarkup) {
     return issues;
   }
 
@@ -286,16 +395,26 @@ export function compareCatMessageFormats(
     });
   }
 
-  const missingIcuBlocks = findMissingTokens(
-    source.tokens.filter((token) => token.kind === "icu"),
-    target.tokens.filter((token) => token.kind === "icu"),
-  );
-  if (missingIcuBlocks.length > 0) {
-    const labels = uniqueSorted(missingIcuBlocks.map(tokenDisplayName));
+  if (markupOrderMismatch(source, target)) {
+    const labels = uniqueSorted(markupTokensInOrder(source.tokens).map(tokenDisplayName));
     issues.push({
-      kind: "icu-mismatch",
+      kind: "token-order",
       tokens: labels,
     });
+  }
+
+  if (!source.parseError && !target.parseError) {
+    const missingIcuBlocks = findMissingTokens(
+      source.tokens.filter((token) => token.kind === "icu"),
+      target.tokens.filter((token) => token.kind === "icu"),
+    );
+    if (missingIcuBlocks.length > 0) {
+      const labels = uniqueSorted(missingIcuBlocks.map(tokenDisplayName));
+      issues.push({
+        kind: "icu-mismatch",
+        tokens: labels,
+      });
+    }
   }
 
   return issues;
@@ -304,9 +423,19 @@ export function compareCatMessageFormats(
 export function missingCatMessageTokens(sourceMessage: string, targetMessage: string) {
   const source = analyzeCatMessageFormat(sourceMessage);
   const target = analyzeCatMessageFormat(targetMessage);
-  if (source.parseError || target.parseError) {
+  const hasMarkup = analysisHasMarkup(source) || analysisHasMarkup(target);
+  if ((source.parseError || target.parseError) && !hasMarkup) {
     return [];
   }
 
-  return findMissingTokens(source.tokens, target.tokens).filter((token) => token.kind !== "pound");
+  const sourceTokens =
+    source.parseError || target.parseError
+      ? source.tokens.filter((token) => token.kind === "markup")
+      : source.tokens;
+  const targetTokens =
+    source.parseError || target.parseError
+      ? target.tokens.filter((token) => token.kind === "markup")
+      : target.tokens;
+
+  return findMissingTokens(sourceTokens, targetTokens).filter((token) => token.kind !== "pound");
 }

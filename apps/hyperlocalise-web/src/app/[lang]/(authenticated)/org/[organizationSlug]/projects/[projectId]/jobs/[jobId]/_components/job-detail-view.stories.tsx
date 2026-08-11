@@ -1,3 +1,15 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import Link from "next/link";
 import { expect, userEvent } from "storybook/test";
@@ -7,6 +19,9 @@ import { ListIcon } from "lucide-react";
 
 import type { ProjectFileRecord } from "@/api/routes/project/project.schema";
 import { Button } from "@/components/ui/button";
+import type { IntlShape } from "react-intl";
+
+import { getIntlShape } from "@/lib/app-i18n/intl";
 import { buildJobCatHref } from "@/lib/projects/job-cat-routing";
 
 import { ProviderJobDescriptionFieldView } from "../../../../../jobs/_components/provider-job-description-field";
@@ -41,6 +56,7 @@ type Story = StoryObj<typeof meta>;
 
 const organizationSlug = "acme";
 const projectId = "project_website";
+const storyIntl = getIntlShape("en") as IntlShape;
 
 const nativeJob = createNativeJobDetail();
 const failedJob = createNativeJobDetail({
@@ -108,7 +124,7 @@ function syncedProviderMain({
 }
 
 function taskViewArgsFromRecord(job: JobDetailRecord) {
-  const layout = jobDetailTaskLayoutFromRecord(job);
+  const layout = jobDetailTaskLayoutFromRecord(job, storyIntl);
   return {
     jobId: job.id,
     organizationSlug,
@@ -122,7 +138,7 @@ function taskViewArgsFromRecord(job: JobDetailRecord) {
 }
 
 function taskViewArgsFromLiveJob(job: typeof liveJob) {
-  const layout = jobDetailTaskLayoutFromLiveJob(job);
+  const layout = jobDetailTaskLayoutFromLiveJob(job, storyIntl);
   return {
     jobId: job.id,
     organizationSlug,

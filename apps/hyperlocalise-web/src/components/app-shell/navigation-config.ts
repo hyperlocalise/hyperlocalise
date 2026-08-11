@@ -1,17 +1,36 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import type { ComponentProps } from "react";
+import type { IntlShape } from "react-intl";
 
 import { normalizeAppLocale } from "@/lib/app-i18n/locales";
+import { RELEASE_CAT_ALL_FILES_FLAG } from "@/lib/flags/release-flag-keys";
 import {
   WORKSPACE_AUTOMATIONS_FLAG,
+  WORKSPACE_ISSUES_FLAG,
   WORKSPACE_KNOWLEDGE_FLAG,
 } from "@/lib/flags/workos-flag-entities";
+import { supportsCatAllFilesProvider } from "@/lib/projects/cat-all-files";
+import { parseProviderProjectId } from "@/lib/providers/jobs/tms-provider-resource-id";
 import {
   AiBrain01Icon,
   BookOpenTextIcon,
   Chat01Icon,
+  ClipboardListIcon,
   DashboardSquare01Icon,
   DatabaseSyncIcon,
   File01Icon,
+  LanguageCircleIcon,
   FolderKanbanIcon,
   InboxIcon,
   LinkSquare02Icon,
@@ -24,14 +43,25 @@ import type { HugeiconsIcon } from "@hugeicons/react";
 
 export type NavigationIcon = ComponentProps<typeof HugeiconsIcon>["icon"];
 
+export type NavigationItemAction = "open-chat-dock";
+
 export type NavigationItem = {
   label: string;
   href: string;
   icon: NavigationIcon;
   description?: string;
   badge?: string;
-  featureFlagKey?: typeof WORKSPACE_AUTOMATIONS_FLAG | typeof WORKSPACE_KNOWLEDGE_FLAG;
+  /** Non-route action; when set, the sidebar renders a button instead of a link. */
+  action?: NavigationItemAction;
+  featureFlagKey?:
+    | typeof WORKSPACE_AUTOMATIONS_FLAG
+    | typeof WORKSPACE_KNOWLEDGE_FLAG
+    | typeof WORKSPACE_ISSUES_FLAG
+    | typeof RELEASE_CAT_ALL_FILES_FLAG;
 };
+
+/** Sentinel href for the New Request sidebar action (never navigated). */
+export const OPEN_CHAT_DOCK_HREF = "#open-chat-dock";
 
 export type NavigationGroup = {
   label?: string;
@@ -47,81 +77,167 @@ export function buildProjectPath(organizationSlug: string, projectId: string, se
   return section ? `${base}/${section}` : base;
 }
 
-export function buildGlobalNavigationGroups(organizationSlug: string): readonly NavigationGroup[] {
+export function buildGlobalNavigationGroups(
+  organizationSlug: string,
+  intl: IntlShape,
+): readonly NavigationGroup[] {
   const org = (section: string) => buildOrganizationPath(organizationSlug, section);
 
   return [
     {
       items: [
         {
-          label: "New Request",
-          href: org("chat"),
+          label: intl.formatMessage({
+            defaultMessage: "New Request",
+            id: "VtO24sqmBM",
+            description: "Sidebar navigation item to start a new localisation request",
+          }),
+          href: OPEN_CHAT_DOCK_HREF,
+          action: "open-chat-dock",
           icon: Chat01Icon,
-          description: "Ask the localisation agent to prepare work",
+          description: intl.formatMessage({
+            defaultMessage: "Ask the localisation agent to prepare work",
+            id: "z45OPLD254",
+            description: "Sidebar description for the New Request navigation item",
+          }),
         },
         {
-          label: "Inbox",
+          label: intl.formatMessage({
+            defaultMessage: "Inbox",
+            id: "qYH/VTnW7r",
+            description: "Sidebar navigation item for the workspace inbox",
+          }),
           href: org("inbox"),
           icon: InboxIcon,
         },
         {
-          label: "My Jobs",
+          label: intl.formatMessage({
+            defaultMessage: "My Jobs",
+            id: "7VRqQJwWUI",
+            description: "Sidebar navigation item for the current user’s jobs",
+          }),
           href: org("my-work"),
           icon: WorkHistoryIcon,
         },
         {
-          label: "Overview",
+          label: intl.formatMessage({
+            defaultMessage: "Issues",
+            id: "olmZvevw/Q",
+            description: "Sidebar navigation item for workspace issues",
+          }),
+          href: org("issues"),
+          icon: ClipboardListIcon,
+          featureFlagKey: WORKSPACE_ISSUES_FLAG,
+        },
+        {
+          label: intl.formatMessage({
+            defaultMessage: "Overview",
+            id: "M1acCMedpF",
+            description: "Sidebar navigation item for the workspace dashboard overview",
+          }),
           href: org("dashboard"),
           icon: DashboardSquare01Icon,
         },
         {
-          label: "Automations",
+          label: intl.formatMessage({
+            defaultMessage: "Automations",
+            id: "87mk4HgY5S",
+            description: "Sidebar navigation item for workspace automations",
+          }),
           href: org("automations"),
           icon: Task01Icon,
-          description: "Scheduled and GitHub-triggered deterministic workflows",
-          badge: "Beta",
+          description: intl.formatMessage({
+            defaultMessage: "Scheduled and GitHub-triggered deterministic workflows",
+            id: "TBagRGINiT",
+            description: "Sidebar description for the Automations navigation item",
+          }),
+          badge: intl.formatMessage({
+            defaultMessage: "Beta",
+            id: "+WwLLR9+vz",
+            description: "Badge shown next to the Automations navigation item",
+          }),
           featureFlagKey: WORKSPACE_AUTOMATIONS_FLAG,
         },
       ],
     },
     {
-      label: "Workspace",
+      label: intl.formatMessage({
+        defaultMessage: "Workspace",
+        id: "VMLVh0fGup",
+        description: "Sidebar group label for workspace-level navigation items",
+      }),
       items: [
         {
-          label: "Projects",
+          label: intl.formatMessage({
+            defaultMessage: "Projects",
+            id: "WXz3UNteSC",
+            description: "Sidebar navigation item for the projects list",
+          }),
           href: org("projects"),
           icon: FolderKanbanIcon,
         },
         {
-          label: "Knowledge",
+          label: intl.formatMessage({
+            defaultMessage: "Knowledge",
+            id: "HrKmOaq57x",
+            description: "Sidebar navigation item for workspace knowledge",
+          }),
           href: org("knowledge"),
           icon: AiBrain01Icon,
-          description: "Workspace memory for agents and teams",
+          description: intl.formatMessage({
+            defaultMessage: "Workspace memory for agents and teams",
+            id: "ZFNYMG0eSQ",
+            description: "Sidebar description for the Knowledge navigation item",
+          }),
           featureFlagKey: WORKSPACE_KNOWLEDGE_FLAG,
         },
         {
-          label: "Glossaries",
+          label: intl.formatMessage({
+            defaultMessage: "Glossaries",
+            id: "p2ZEW4INMa",
+            description: "Sidebar navigation item for glossaries",
+          }),
           href: org("glossaries"),
           icon: BookOpenTextIcon,
         },
         {
-          label: "Translation Memories",
+          label: intl.formatMessage({
+            defaultMessage: "Translation Memories",
+            id: "x6PqOisw0g",
+            description: "Sidebar navigation item for translation memories",
+          }),
           href: org("translation-memories"),
           icon: DatabaseSyncIcon,
         },
         {
-          label: "Integrations",
+          label: intl.formatMessage({
+            defaultMessage: "Integrations",
+            id: "lq1y6qqiDK",
+            description: "Sidebar navigation item for integrations",
+          }),
           href: org("integrations"),
           icon: LinkSquare02Icon,
         },
         {
-          label: "Members",
+          label: intl.formatMessage({
+            defaultMessage: "Members",
+            id: "1/YUf106Rt",
+            description: "Sidebar navigation item for workspace members",
+          }),
           href: org("members"),
           icon: UserMultiple02Icon,
-          description: "Invite people and manage workspace roles",
+          description: intl.formatMessage({
+            defaultMessage: "Invite people and manage workspace roles",
+            id: "blLcFpSkB4",
+            description: "Sidebar description for the Members navigation item",
+          }),
         },
         {
-          label: "Settings",
+          label: intl.formatMessage({
+            defaultMessage: "Settings",
+            id: "3cDDnXngWu",
+            description: "Sidebar navigation item for workspace settings",
+          }),
           href: org("settings"),
           icon: Settings01Icon,
         },
@@ -133,31 +249,78 @@ export function buildGlobalNavigationGroups(organizationSlug: string): readonly 
 export function buildProjectNavigationItems(
   organizationSlug: string,
   projectId: string,
+  intl: IntlShape,
 ): readonly NavigationItem[] {
   const project = (section: string) => buildProjectPath(organizationSlug, projectId, section);
+  const providerKind = parseProviderProjectId(projectId)?.providerKind ?? null;
+  const showStrings = supportsCatAllFilesProvider(providerKind);
 
-  return [
+  const items: NavigationItem[] = [
     {
-      label: "Overview",
+      label: intl.formatMessage({
+        defaultMessage: "Overview",
+        id: "w6stmLL+C3",
+        description: "Project sidebar navigation item for the project overview",
+      }),
       href: buildProjectPath(organizationSlug, projectId),
       icon: FolderKanbanIcon,
     },
     {
-      label: "Files",
+      label: intl.formatMessage({
+        defaultMessage: "Files",
+        id: "IMr6sfD/7/",
+        description: "Project sidebar navigation item for project files",
+      }),
       href: project("files"),
       icon: File01Icon,
     },
+  ];
+
+  if (showStrings) {
+    items.push({
+      label: intl.formatMessage({
+        defaultMessage: "Strings",
+        id: "CWdGpW4jOj",
+        description: "Project sidebar navigation item for the CAT strings workspace",
+      }),
+      href: project("strings"),
+      icon: LanguageCircleIcon,
+      featureFlagKey: RELEASE_CAT_ALL_FILES_FLAG,
+    });
+  }
+
+  items.push(
     {
-      label: "Jobs",
+      label: intl.formatMessage({
+        defaultMessage: "Jobs",
+        id: "8HNfmSDv7C",
+        description: "Project sidebar navigation item for project jobs",
+      }),
       href: project("jobs"),
       icon: Task01Icon,
     },
     {
-      label: "Settings",
+      label: intl.formatMessage({
+        defaultMessage: "Issues",
+        id: "enrIL8oTbj",
+        description: "Project sidebar navigation item for the project issue sheet",
+      }),
+      href: project("issue-sheet"),
+      icon: ClipboardListIcon,
+      featureFlagKey: WORKSPACE_ISSUES_FLAG,
+    },
+    {
+      label: intl.formatMessage({
+        defaultMessage: "Settings",
+        id: "Ly3jSjXVvC",
+        description: "Project sidebar navigation item for project settings",
+      }),
       href: project("settings"),
       icon: Settings01Icon,
     },
-  ] as const;
+  );
+
+  return items;
 }
 
 export function stripAppLocalePrefix(pathname: string | null | undefined) {

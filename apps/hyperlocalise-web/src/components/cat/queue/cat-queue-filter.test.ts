@@ -1,3 +1,15 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import { describe, expect, it } from "vite-plus/test";
 
 import {
@@ -118,7 +130,25 @@ describe("resolveAvailableCatQueueFilters", () => {
   });
 
   it("includes has issues for Phrase projects", () => {
-    expect(resolveAvailableCatQueueFilters("phrase")).toContain("has_issues");
+    expect(resolveAvailableCatQueueFilters("phrase")).not.toContain("has_issues");
+  });
+
+  it("omits translation status filters for Phrase projects", () => {
+    const filters = resolveAvailableCatQueueFilters("phrase");
+    expect(filters).not.toContain("untranslated");
+    expect(filters).not.toContain("needs_review");
+    expect(filters).not.toContain("reviewed");
+  });
+
+  it("includes has issues for Smartling projects", () => {
+    expect(resolveAvailableCatQueueFilters("smartling")).toContain("has_issues");
+  });
+
+  it("omits translation status filters for Smartling projects", () => {
+    const filters = resolveAvailableCatQueueFilters("smartling");
+    expect(filters).not.toContain("untranslated");
+    expect(filters).not.toContain("needs_review");
+    expect(filters).not.toContain("reviewed");
   });
 });
 

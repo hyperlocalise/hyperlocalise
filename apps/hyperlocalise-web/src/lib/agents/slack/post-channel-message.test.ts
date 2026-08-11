@@ -1,12 +1,36 @@
-import { describe, expect, it, vi } from "vite-plus/test";
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
+import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
-const { chatConstructorMock, createSlackAdapterMock, initializeMock, postChannelMessageMock } =
-  vi.hoisted(() => ({
-    chatConstructorMock: vi.fn(),
-    createSlackAdapterMock: vi.fn(() => ({ kind: "slack-adapter" })),
-    initializeMock: vi.fn(),
-    postChannelMessageMock: vi.fn(async () => undefined),
-  }));
+const {
+  chatConstructorMock,
+  createSlackAdapterMock,
+  findSlackConnectorForOrganizationMock,
+  getInstallationMock,
+  getSlackConnectorTeamIdMock,
+  initializeMock,
+  postChannelMessageMock,
+  withBotTokenMock,
+} = vi.hoisted(() => ({
+  chatConstructorMock: vi.fn(),
+  createSlackAdapterMock: vi.fn(() => ({ kind: "slack-adapter" })),
+  findSlackConnectorForOrganizationMock: vi.fn(),
+  getInstallationMock: vi.fn(),
+  getSlackConnectorTeamIdMock: vi.fn(),
+  initializeMock: vi.fn(),
+  postChannelMessageMock: vi.fn(async () => undefined),
+  withBotTokenMock: vi.fn(async <T>(_token: string, fn: () => T) => fn()),
+}));
 
 vi.mock("@/lib/env", () => ({
   env: {
@@ -18,6 +42,11 @@ vi.mock("@/lib/env", () => ({
 
 vi.mock("@/lib/agents/runtime/state", () => ({
   createChatStateAdapter: vi.fn(() => ({ kind: "state-adapter" })),
+}));
+
+vi.mock("@/lib/agents/slack/helpers", () => ({
+  findSlackConnectorForOrganization: findSlackConnectorForOrganizationMock,
+  getSlackConnectorTeamId: getSlackConnectorTeamIdMock,
 }));
 
 vi.mock("@chat-adapter/slack", () => ({
@@ -37,7 +66,9 @@ vi.mock("chat", () => ({
     getAdapter(adapterName: string) {
       return {
         adapterName,
+        getInstallation: getInstallationMock,
         postChannelMessage: postChannelMessageMock,
+        withBotToken: withBotTokenMock,
       };
     }
   },
@@ -66,18 +97,33 @@ async function waitForInitializeCall() {
 }
 
 describe("postSlackChannelMessage", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    findSlackConnectorForOrganizationMock.mockResolvedValue({
+      id: "connector-1",
+      config: { teamId: "T123" },
+    });
+    getSlackConnectorTeamIdMock.mockReturnValue("T123");
+    getInstallationMock.mockResolvedValue({ botToken: "xoxb-token" });
+    withBotTokenMock.mockImplementation(async <T>(_token: string, fn: () => T) => fn());
+    postChannelMessageMock.mockResolvedValue(undefined);
+    initializeMock.mockResolvedValue(undefined);
+  });
+
   it("shares initialization across concurrent callers before posting messages", async () => {
     const initialized = createDeferred<void>();
     initializeMock.mockReturnValueOnce(initialized.promise);
     const { postSlackChannelMessage } = await import("./post-channel-message");
 
     const firstPost = postSlackChannelMessage({
+      organizationId: "org-1",
       channelId: "C123",
       text: "first",
     });
     await waitForInitializeCall();
 
     const secondPost = postSlackChannelMessage({
+      organizationId: "org-1",
       channelId: "slack:C123",
       text: "second",
     });
@@ -91,8 +137,44 @@ describe("postSlackChannelMessage", () => {
     initialized.resolve();
     await Promise.all([firstPost, secondPost]);
 
+    expect(getInstallationMock).toHaveBeenCalledWith("T123");
+    expect(withBotTokenMock).toHaveBeenCalledTimes(2);
+    expect(withBotTokenMock).toHaveBeenNthCalledWith(1, "xoxb-token", expect.any(Function), {
+      installationId: "T123",
+    });
     expect(postChannelMessageMock).toHaveBeenCalledTimes(2);
     expect(postChannelMessageMock).toHaveBeenNthCalledWith(1, "slack:C123", "first");
     expect(postChannelMessageMock).toHaveBeenNthCalledWith(2, "slack:C123", "second");
+  });
+
+  it("fails when the organization has no Slack connector team", async () => {
+    getSlackConnectorTeamIdMock.mockReturnValueOnce(null);
+    const { postSlackChannelMessage } = await import("./post-channel-message");
+
+    await expect(
+      postSlackChannelMessage({
+        organizationId: "org-1",
+        channelId: "C123",
+        text: "hello",
+      }),
+    ).rejects.toThrow("Slack is not connected for this organization.");
+
+    expect(getInstallationMock).not.toHaveBeenCalled();
+    expect(postChannelMessageMock).not.toHaveBeenCalled();
+  });
+
+  it("fails when the Slack installation token is missing", async () => {
+    getInstallationMock.mockResolvedValueOnce(null);
+    const { postSlackChannelMessage } = await import("./post-channel-message");
+
+    await expect(
+      postSlackChannelMessage({
+        organizationId: "org-1",
+        channelId: "C123",
+        text: "hello",
+      }),
+    ).rejects.toThrow("Slack installation not found for this organization.");
+
+    expect(postChannelMessageMock).not.toHaveBeenCalled();
   });
 });

@@ -1,6 +1,19 @@
 "use client";
 
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import { useState, type ReactNode } from "react";
+import { FormattedMessage } from "react-intl";
 
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -12,6 +25,7 @@ import {
   type JobDetailBackLinkRenderer,
   type JobDetailErrorRenderer,
 } from "./job-detail-shared";
+import { jobDetailTaskViewMessages as messages } from "./job-detail-task-view.messages";
 import { buildJobsListHref } from "./job-detail-types";
 import {
   JobDetailView,
@@ -79,7 +93,7 @@ export function JobDetailTaskView({
   renderCommentsSection?: JobDetailTaskCommentsRenderer;
   secondaryProperties?: JobDetailViewProperty[];
   showComments?: boolean;
-  title?: string;
+  title?: ReactNode;
 }) {
   const [activeTab, setActiveTab] = useState<JobDetailTaskTab>("overview");
 
@@ -92,7 +106,9 @@ export function JobDetailTaskView({
   const descriptionSection =
     showDescriptionSection && renderDescriptionField ? (
       <section>
-        <TypographyH4>Description</TypographyH4>
+        <TypographyH4>
+          <FormattedMessage {...messages.descriptionHeading} />
+        </TypographyH4>
         <div className="mt-4">
           {renderDescriptionField({
             description,
@@ -121,9 +137,19 @@ export function JobDetailTaskView({
       className="gap-4"
     >
       <TabsList variant="line" className="w-full justify-start">
-        <TabsTrigger value="overview">Overview</TabsTrigger>
-        {hasFilesTab ? <TabsTrigger value="files">Files</TabsTrigger> : null}
-        {hasCommentsTab ? <TabsTrigger value="comments">Comments</TabsTrigger> : null}
+        <TabsTrigger value="overview">
+          <FormattedMessage {...messages.overviewTab} />
+        </TabsTrigger>
+        {hasFilesTab ? (
+          <TabsTrigger value="files">
+            <FormattedMessage {...messages.filesTab} />
+          </TabsTrigger>
+        ) : null}
+        {hasCommentsTab ? (
+          <TabsTrigger value="comments">
+            <FormattedMessage {...messages.commentsTab} />
+          </TabsTrigger>
+        ) : null}
       </TabsList>
 
       <TabsContent value="overview" className="space-y-8">

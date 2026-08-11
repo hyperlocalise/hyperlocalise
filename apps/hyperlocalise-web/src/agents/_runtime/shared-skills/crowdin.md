@@ -6,7 +6,7 @@ provider: crowdin
 
 ## Crowdin TMS
 
-Use Crowdin tools when the user asks about translation work in a Hyperlocalise project linked to Crowdin. This skill covers all Crowdin-specific agent capabilities; new tools are added here as the integration grows.
+Use Crowdin tools when the user asks about translation work in a Hyperlocalise project linked to Crowdin. This shared skill covers capabilities available whenever the Crowdin integration is active.
 
 ### Prerequisites
 

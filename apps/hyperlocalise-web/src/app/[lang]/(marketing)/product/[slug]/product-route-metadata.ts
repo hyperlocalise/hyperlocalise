@@ -1,3 +1,15 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import type { IntlShape } from "@formatjs/intl";
 
 export function getProductRouteMetadata(slug: string, intl: IntlShape) {
@@ -19,8 +31,9 @@ export function getProductRouteMetadata(slug: string, intl: IntlShape) {
     case "next-gen-cat-tool":
       return {
         title: intl.formatMessage({
-          defaultMessage: "Review Translations With the Context Next to the String | Hyperlocalise",
-          id: "zwRYJHfFfL",
+          defaultMessage:
+            "Review Translations Without Guessing What the String Means | Hyperlocalise",
+          id: "jeP5GjQn+Q",
           description: "Page title for the next-gen CAT tool product page",
         }),
         description: intl.formatMessage({

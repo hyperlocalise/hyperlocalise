@@ -1,3 +1,15 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import { describe, expect, it } from "vite-plus/test";
 
 import type {
@@ -21,13 +33,13 @@ function baseAutomation(): WorkspaceAutomationRecord {
     status: "active",
     name: "Contentful + GitHub automation",
     instructions: "",
+    projectId: "project-1",
     triggerConfig: { mode: "contentful" },
     repositoryTarget: { kind: "github", githubInstallationRepositoryId: "repo-install-1" },
     toolConfig: {
       contentful: {
         enabled: true,
         connectionId: "conn-1",
-        projectId: "project-1",
         sourceLocale: "en",
         targetLocales: ["de"],
         contentTypeIds: [],
@@ -39,7 +51,6 @@ function baseAutomation(): WorkspaceAutomationRecord {
       github: {
         enabled: true,
         mode: "sync",
-        projectId: "project-1",
         pushSource: true,
         pullTranslations: false,
         validation: false,

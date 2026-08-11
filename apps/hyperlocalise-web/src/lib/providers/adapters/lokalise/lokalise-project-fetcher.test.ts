@@ -1,9 +1,21 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 
-import { requestUrlString } from "../../fetch-mock-helpers";
-import { fetchLokaliseProjects } from "./lokalise-project-fetcher";
+import { requestUrlString } from "@/lib/providers/shared/fetch-mock-helpers";
+import { lokaliseTmsProvider } from "./lokalise-provider";
 
-describe("fetchLokaliseProjects", () => {
+describe("lokaliseTmsProvider.fetchProjects", () => {
   afterEach(() => vi.unstubAllGlobals());
 
   const credential = {
@@ -13,6 +25,7 @@ describe("fetchLokaliseProjects", () => {
     displayName: "Lokalise",
     region: null,
     baseUrl: null,
+    externalOrganizationId: null,
     validationStatus: "connected",
     validationMessage: null,
     lastValidatedAt: null,
@@ -66,9 +79,8 @@ describe("fetchLokaliseProjects", () => {
 
     vi.stubGlobal("fetch", fetchMock);
 
-    const projects = await fetchLokaliseProjects({
+    const projects = await lokaliseTmsProvider.fetchProjects({
       organizationId: "org-1",
-      providerKind: "lokalise",
       credential,
       secretMaterial: "lokalise-token",
     });
@@ -132,9 +144,8 @@ describe("fetchLokaliseProjects", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     await expect(
-      fetchLokaliseProjects({
+      lokaliseTmsProvider.fetchProjects({
         organizationId: "org-1",
-        providerKind: "lokalise",
         credential,
         secretMaterial: "invalid-token",
       }),
@@ -156,9 +167,8 @@ describe("fetchLokaliseProjects", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     await expect(
-      fetchLokaliseProjects({
+      lokaliseTmsProvider.fetchProjects({
         organizationId: "org-1",
-        providerKind: "lokalise",
         credential,
         secretMaterial: "invalid-token",
       }),

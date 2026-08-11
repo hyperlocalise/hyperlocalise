@@ -1,14 +1,39 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import type { Bash } from "just-bash";
 import type { ToolSet } from "ai";
 
+import { hasCapability } from "@/api/auth/policy";
 import { getAgentManifest, type AgentSkillDocument } from "@/agents/_runtime/loader";
 import { createCheckCrowdinProgressTool } from "@/agents/_runtime/shared-tools/check_crowdin_progress";
+import { createSearchCrowdinGlossaryTool } from "@/agents/_runtime/shared-tools/search_crowdin_glossary";
+import { createSearchNativeGlossaryTool } from "@/agents/_runtime/shared-tools/search_native_glossary";
 import { createTranslateStringTool } from "@/agents/_runtime/shared-tools/translate_string";
 import type { HyperlocaliseAgentRuntimeContext } from "@/lib/agent-runtime/context";
 import { repositoryWorkspaceToolNames } from "@/lib/agent-contracts/repository-workspace-tools";
 import type { ToolContext } from "@/lib/agent-contracts/tool-context";
+import { assertRepositoryWriteAllowed } from "@/lib/agent-runtime/tools/policy";
 import { createSandboxRepoBash } from "@/lib/agent-runtime/workspaces/sandbox-repo-bash";
-import { buildTools, buildWorkspaceTools } from "@/lib/agent-runtime/tools/registry";
+import { buildWorkspaceTools, createTranslationJobTool } from "@/lib/agent-runtime/tools/registry";
+import {
+  createFetchTool,
+  createTodoWriteTool,
+  workspaceSessionToolNames,
+} from "@/lib/agent-runtime/tools/workspace";
+import {
+  createGetKnowledgeMemoryTool,
+  createUpdateKnowledgeMemoryTool,
+} from "@/lib/agent-runtime/tools/knowledge-memory-tools";
 import {
   createGetProjectContextTool,
   createListProjectsTool,
@@ -17,8 +42,16 @@ import {
 
 const CONVERSATION_AGENT_ID = "hyperlocalise";
 
-const REPO_TOOL_NAMES = new Set<string>(repositoryWorkspaceToolNames);
+/** Session tools live on the agent session, not the sandbox workspace. */
+const SESSION_TOOL_NAMES = new Set<string>(workspaceSessionToolNames);
+const REPO_TOOL_NAMES = new Set<string>(
+  [...repositoryWorkspaceToolNames, "captureScreenshot"].filter(
+    (toolName) => !SESSION_TOOL_NAMES.has(toolName),
+  ),
+);
+const WEB_TOOL_NAMES = new Set(["fetch"]);
 const FILE_JOB_GATED_TOOL_NAMES = new Set(["createTranslationJob"]);
+const REPO_WRITE_TOOL_NAMES = new Set(["write", "applyPatch", "captureScreenshot"]);
 
 export type ConversationSkillMetadata = {
   id: string;
@@ -28,6 +61,9 @@ export type ConversationSkillMetadata = {
   requiresTmsIntegration: boolean;
   requiresFileAttachments?: boolean;
   requiresProjectOrAttachments: boolean;
+  requiresVisualMockSkill: boolean;
+  requiresKnowledgeMemory: boolean;
+  requiresGlossarySearch: boolean;
   tools: string[];
   sharedSkills: string[];
 };
@@ -43,6 +79,9 @@ export type ConversationSkillActivationContext = {
   hasProjectId: boolean;
   hasSandbox: boolean;
   hasTmsIntegration: boolean;
+  hasVisualMockSkill: boolean;
+  knowledgeMemoryEnabled: boolean;
+  glossarySearchEnabled: boolean;
 };
 
 type ConversationSkillToolFactory = (toolContext: ToolContext) => ToolSet[string];
@@ -52,6 +91,10 @@ const conversationSkillToolFactories: Record<string, ConversationSkillToolFactor
   get_project_context: (toolContext) => createGetProjectContextTool(toolContext),
   update_interaction_project: (toolContext) => createUpdateInteractionProjectTool(toolContext),
   check_crowdin_progress: (toolContext) => createCheckCrowdinProgressTool(toolContext),
+  search_crowdin_glossary: (toolContext) => createSearchCrowdinGlossaryTool(toolContext),
+  search_native_glossary: (toolContext) => createSearchNativeGlossaryTool(toolContext),
+  get_knowledge_memory: (toolContext) => createGetKnowledgeMemoryTool(toolContext),
+  update_knowledge_memory: (toolContext) => createUpdateKnowledgeMemoryTool(toolContext),
 };
 
 function parseCommaSeparated(value: string | undefined): string[] {
@@ -90,6 +133,9 @@ export function parseConversationSkillMetadata(
     requiresTmsIntegration: frontmatter.requiresTmsIntegration === "true",
     requiresFileAttachments: parseBooleanFlag(frontmatter.requiresFileAttachments),
     requiresProjectOrAttachments: frontmatter.requiresProjectOrAttachments === "true",
+    requiresVisualMockSkill: frontmatter.requiresVisualMockSkill === "true",
+    requiresKnowledgeMemory: frontmatter.requiresKnowledgeMemory === "true",
+    requiresGlossarySearch: frontmatter.requiresGlossarySearch === "true",
     tools: parseCommaSeparated(frontmatter.tools),
     sharedSkills: parseCommaSeparated(frontmatter.sharedSkills),
   };
@@ -103,7 +149,7 @@ export function listConversationSkills(): ConversationSkillMetadata[] {
 export function toConversationSkillActivationContext(
   runtime: Pick<
     HyperlocaliseAgentRuntimeContext,
-    "hasFileAttachments" | "hasTmsIntegration" | "toolContext"
+    "hasFileAttachments" | "hasTmsIntegration" | "hasVisualMockSkill" | "toolContext"
   >,
 ): ConversationSkillActivationContext {
   return {
@@ -111,6 +157,9 @@ export function toConversationSkillActivationContext(
     hasProjectId: Boolean(runtime.toolContext.projectId),
     hasSandbox: Boolean(runtime.toolContext.sandboxId),
     hasTmsIntegration: runtime.hasTmsIntegration,
+    hasVisualMockSkill: runtime.hasVisualMockSkill ?? false,
+    knowledgeMemoryEnabled: runtime.toolContext.knowledgeMemoryEnabled === true,
+    glossarySearchEnabled: runtime.toolContext.glossarySearchEnabled === true,
   };
 }
 
@@ -146,12 +195,27 @@ export function isConversationSkillActivated(
     return false;
   }
 
+  if (skill.requiresVisualMockSkill && !context.hasVisualMockSkill) {
+    return false;
+  }
+
+  if (skill.requiresKnowledgeMemory && !context.knowledgeMemoryEnabled) {
+    return false;
+  }
+
+  if (skill.requiresGlossarySearch && !context.glossarySearchEnabled) {
+    return false;
+  }
+
   const hasActivationRule =
     skill.requiresSandbox ||
     skill.requiresTmsIntegration ||
     skill.requiresProjectId ||
     skill.requiresFileAttachments !== undefined ||
-    skill.requiresProjectOrAttachments;
+    skill.requiresProjectOrAttachments ||
+    skill.requiresVisualMockSkill ||
+    skill.requiresKnowledgeMemory ||
+    skill.requiresGlossarySearch;
 
   return hasActivationRule;
 }
@@ -159,7 +223,7 @@ export function isConversationSkillActivated(
 export function buildConversationSkillPlan(
   runtime: Pick<
     HyperlocaliseAgentRuntimeContext,
-    "hasFileAttachments" | "hasTmsIntegration" | "toolContext"
+    "hasFileAttachments" | "hasTmsIntegration" | "hasVisualMockSkill" | "toolContext"
   >,
 ): ConversationSkillPlan {
   const context = toConversationSkillActivationContext(runtime);
@@ -179,6 +243,27 @@ export function filterAvailableConversationToolNames(
   runtime: Pick<HyperlocaliseAgentRuntimeContext, "hasFileAttachments" | "toolContext">,
 ): string[] {
   return toolNames.filter((toolName) => {
+    if (REPO_WRITE_TOOL_NAMES.has(toolName)) {
+      const gate = assertRepositoryWriteAllowed(runtime.toolContext, "apply_fixes");
+      if (!gate.allowed) {
+        return false;
+      }
+    }
+
+    if (
+      toolName === "update_knowledge_memory" &&
+      !hasCapability(runtime.toolContext.membershipRole, "workspace:update")
+    ) {
+      return false;
+    }
+
+    if (
+      (toolName === "search_native_glossary" || toolName === "search_crowdin_glossary") &&
+      runtime.toolContext.glossarySearchEnabled !== true
+    ) {
+      return false;
+    }
+
     if (
       FILE_JOB_GATED_TOOL_NAMES.has(toolName) &&
       !runtime.toolContext.projectId &&
@@ -209,9 +294,12 @@ export function buildConversationSkillTools(
       ? buildWorkspaceTools(ctx, { bash: createSandboxRepoBash(ctx.sandboxId) as Bash })
       : null;
 
-  const builtTools = buildTools(ctx);
-
   for (const toolName of availableToolNames) {
+    if (toolName === "todoWrite") {
+      tools[toolName] = createTodoWriteTool(() => ctx);
+      continue;
+    }
+
     if (REPO_TOOL_NAMES.has(toolName)) {
       const repoTool = repoTools?.[toolName];
       if (repoTool) {
@@ -220,8 +308,13 @@ export function buildConversationSkillTools(
       continue;
     }
 
-    if (toolName === "createTranslationJob" && builtTools.createTranslationJob) {
-      tools[toolName] = builtTools.createTranslationJob;
+    if (toolName === "createTranslationJob") {
+      tools[toolName] = createTranslationJobTool(ctx);
+      continue;
+    }
+
+    if (WEB_TOOL_NAMES.has(toolName)) {
+      tools[toolName] = createFetchTool();
       continue;
     }
 

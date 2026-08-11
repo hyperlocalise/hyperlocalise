@@ -1,6 +1,21 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import { createLogger } from "@/lib/log";
 import { composeWorkspaceAutomationInstructions } from "@/agents/automations/workspace/agent/compose-workspace-instructions";
-import { buildWorkspaceOrchestratorPlan } from "@/agents/automations/workspace/agent/plan";
+import {
+  buildWorkspaceOrchestratorPlan,
+  planHasActionableTool,
+} from "@/agents/automations/workspace/agent/plan";
 
 import {
   buildWorkspaceContentfulWebhookAutomationIdempotencyKey,
@@ -16,14 +31,15 @@ import {
 import {
   advanceWorkspaceAutomationNextRun,
   createWorkspaceAutomationRun,
+  enqueueWorkspaceAutomationRunOnce,
   getWorkspaceAutomationRunByIdempotencyKey,
   hasWorkspaceAutomationContentfulWorkflow,
-  hasWorkspaceAutomationTranslationWorkflow,
+  hasWorkspaceAutomationCreateNativeTmsJobTool,
   listDueContentfulWorkspaceAutomations,
   listSourceUploadWorkspaceAutomations,
   listWorkspaceAutomations,
-  updateWorkspaceAutomationRun,
   type WorkspaceAutomationRecord,
+  type WorkspaceAutomationRunRecord,
   type WorkspaceAutomationRunTriggerSource,
 } from "./workspace-automations";
 import type { WorkspaceAutomationExecutionQueue } from "@/lib/workflow/types";
@@ -48,10 +64,55 @@ function orchestratorQueue(input?: WorkspaceAutomationExecutionQueue) {
   return input ?? createWorkspaceAutomationExecutionQueue();
 }
 
+const MAX_RETRYABLE_DISPATCH_ATTEMPTS = 20;
+
 function isTerminalRunStatus(status: string) {
   return (
     status === "succeeded" || status === "failed" || status === "skipped" || status === "cancelled"
   );
+}
+
+function isRetryableRunStatus(status: string) {
+  return status === "failed" || status === "cancelled";
+}
+
+function buildRetryAttemptIdempotencyKey(idempotencyKey: string, attempt: number) {
+  return attempt === 0 ? idempotencyKey : `${idempotencyKey}:retry:${attempt}`;
+}
+
+/**
+ * Content-keyed triggers reuse the same idempotency key for identical inputs, so a run that
+ * ended in `failed` or `cancelled` would otherwise pin every later dispatch to that dead run.
+ * Walking a bounded chain of attempt-suffixed keys keeps duplicates deduplicated while letting
+ * the next dispatch start a fresh run, and keeps concurrent retries on one key so they collapse
+ * into a single run.
+ */
+async function resolveDispatchTargetRun(input: {
+  organizationId: string;
+  automationId: string;
+  idempotencyKey: string;
+  retryFailedRuns: boolean;
+}): Promise<{ idempotencyKey: string; existing: WorkspaceAutomationRunRecord | null }> {
+  let resolved: { idempotencyKey: string; existing: WorkspaceAutomationRunRecord | null } = {
+    idempotencyKey: input.idempotencyKey,
+    existing: null,
+  };
+
+  for (let attempt = 0; attempt <= MAX_RETRYABLE_DISPATCH_ATTEMPTS; attempt += 1) {
+    const idempotencyKey = buildRetryAttemptIdempotencyKey(input.idempotencyKey, attempt);
+    const existing = await getWorkspaceAutomationRunByIdempotencyKey({
+      organizationId: input.organizationId,
+      automationId: input.automationId,
+      idempotencyKey,
+    });
+    resolved = { idempotencyKey, existing };
+
+    if (!existing || !input.retryFailedRuns || !isRetryableRunStatus(existing.status)) {
+      return resolved;
+    }
+  }
+
+  return resolved;
 }
 
 function resolveTemplateSkillId(inputSnapshot: Record<string, unknown>) {
@@ -71,7 +132,7 @@ function resolveContentfulDispatchSkipReason(input: {
   if (!contentful?.connectionId) {
     return "contentful_connection_missing";
   }
-  if (!contentful.projectId) {
+  if (!input.automation.projectId?.trim()) {
     return "contentful_project_missing";
   }
   if (!contentful.sourceLocale?.trim()) {
@@ -94,6 +155,7 @@ async function dispatchWorkspaceAutomationViaOrchestrator(input: {
   idempotencyKey: string;
   inputSnapshot?: Record<string, unknown>;
   preDispatchSkipReason?: string | null;
+  retryFailedRuns?: boolean;
   queue?: WorkspaceAutomationExecutionQueue;
 }): Promise<WorkspaceAutomationDispatchResult> {
   const snapshot = {
@@ -106,12 +168,15 @@ async function dispatchWorkspaceAutomationViaOrchestrator(input: {
   const templateSkillId = resolveTemplateSkillId(snapshot);
   const plan = buildWorkspaceOrchestratorPlan(input.automation, { templateSkillId });
   const skipReason =
-    input.preDispatchSkipReason ?? (plan.tools.length === 0 ? "no_enabled_tools" : null) ?? null;
+    input.preDispatchSkipReason ??
+    (!planHasActionableTool(plan) ? "no_enabled_tools" : null) ??
+    null;
 
-  const existing = await getWorkspaceAutomationRunByIdempotencyKey({
+  const { idempotencyKey, existing } = await resolveDispatchTargetRun({
     organizationId: input.organizationId,
     automationId: input.automation.id,
     idempotencyKey: input.idempotencyKey,
+    retryFailedRuns: input.retryFailedRuns ?? false,
   });
 
   if (existing && isTerminalRunStatus(existing.status)) {
@@ -141,7 +206,7 @@ async function dispatchWorkspaceAutomationViaOrchestrator(input: {
       organizationId: input.organizationId,
       triggerSource: input.triggerSource,
       status: skipReason ? "skipped" : "queued",
-      idempotencyKey: input.idempotencyKey,
+      idempotencyKey,
       inputSnapshot: {
         ...snapshot,
         effectiveInstructions: composeWorkspaceAutomationInstructions({
@@ -177,24 +242,21 @@ async function dispatchWorkspaceAutomationViaOrchestrator(input: {
     };
   }
 
-  await orchestratorQueue(input.queue).enqueue({
-    workspaceAutomationRunId: run.id,
-    organizationId: input.organizationId,
-  });
-
-  await updateWorkspaceAutomationRun({
+  const enqueued = await enqueueWorkspaceAutomationRunOnce({
     runId: run.id,
     organizationId: input.organizationId,
-    outputSummary: {
-      ...run.outputSummary,
-      orchestratorEnqueuedAt: new Date().toISOString(),
+    enqueue: async () => {
+      await orchestratorQueue(input.queue).enqueue({
+        workspaceAutomationRunId: run.id,
+        organizationId: input.organizationId,
+      });
     },
   });
 
   return {
     outcome: "enqueued",
     runId: run.id,
-    inserted,
+    inserted: enqueued ? inserted : false,
   };
 }
 
@@ -218,7 +280,7 @@ export async function dispatchManualWorkspaceAutomationRun(input: {
         ? input.inputSnapshot.templateSkillId
         : null,
   });
-  if (plan.tools.length === 0) {
+  if (!planHasActionableTool(plan)) {
     return null;
   }
 
@@ -264,7 +326,7 @@ export async function dispatchWorkspaceAutomationForSchedule(input: {
   }
 
   const plan = buildWorkspaceOrchestratorPlan(input.automation);
-  if (plan.tools.length === 0) {
+  if (!planHasActionableTool(plan)) {
     return null;
   }
 
@@ -534,6 +596,7 @@ export async function dispatchWorkspaceAutomationsForSourceUpload(input: {
   sourceFileId: string;
   sourceFileVersionId: string;
   sourcePath: string;
+  sourceHash?: string | null;
   queue?: WorkspaceAutomationExecutionQueue;
 }): Promise<WorkspaceAutomationDispatchResult[]> {
   const automations = await listSourceUploadWorkspaceAutomations({
@@ -554,7 +617,7 @@ export async function dispatchWorkspaceAutomationsForSourceUpload(input: {
   const results: WorkspaceAutomationDispatchResult[] = [];
 
   for (const automation of automations) {
-    if (!hasWorkspaceAutomationTranslationWorkflow(automation.toolConfig)) {
+    if (!hasWorkspaceAutomationCreateNativeTmsJobTool(automation.toolConfig)) {
       continue;
     }
 
@@ -566,6 +629,9 @@ export async function dispatchWorkspaceAutomationsForSourceUpload(input: {
         idempotencyKey: buildWorkspaceSourceUploadAutomationIdempotencyKey({
           automationId: automation.id,
           configVersion: automation.configVersion,
+          projectId: input.projectId,
+          sourcePath: input.sourcePath,
+          sourceHash: input.sourceHash,
           sourceFileVersionId: input.sourceFileVersionId,
         }),
         inputSnapshot: {
@@ -573,7 +639,9 @@ export async function dispatchWorkspaceAutomationsForSourceUpload(input: {
           sourceFileId: input.sourceFileId,
           sourceFileVersionId: input.sourceFileVersionId,
           sourcePath: input.sourcePath,
+          sourceHash: input.sourceHash ?? undefined,
         },
+        retryFailedRuns: true,
         queue: input.queue,
       });
       results.push(result);

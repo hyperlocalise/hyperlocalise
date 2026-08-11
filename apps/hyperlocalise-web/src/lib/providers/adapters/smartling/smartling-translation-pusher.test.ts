@@ -1,8 +1,20 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
-import { pushSmartlingTranslations } from "./smartling-translation-pusher";
+import { smartlingTmsProvider } from "./smartling-provider";
 
-describe("pushSmartlingTranslations", () => {
+describe("smartlingTmsProvider.pushTranslations", () => {
   let originalFetch: typeof fetch;
 
   beforeEach(() => {
@@ -82,10 +94,9 @@ describe("pushSmartlingTranslations", () => {
 
     globalThis.fetch = fetchMock as typeof fetch;
 
-    const result = await pushSmartlingTranslations({
+    const result = await smartlingTmsProvider.pushTranslations({
       organizationId: "org_1",
       projectId: "proj_1",
-      providerKind: "smartling",
       externalProjectId: "proj-1",
       externalJobId: "job-1",
       credential: { id: "cred_1" } as never,
@@ -144,10 +155,9 @@ describe("pushSmartlingTranslations", () => {
 
     globalThis.fetch = fetchMock as typeof fetch;
 
-    const result = await pushSmartlingTranslations({
+    const result = await smartlingTmsProvider.pushTranslations({
       organizationId: "org_1",
       projectId: "proj_1",
-      providerKind: "smartling",
       externalProjectId: "proj-1",
       externalJobId: "job-1",
       credential: { id: "cred_1" } as never,

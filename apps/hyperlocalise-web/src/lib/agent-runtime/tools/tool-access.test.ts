@@ -1,12 +1,24 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
-import { encodeProviderProjectId } from "@/lib/providers/tms-provider-resource-id";
+import { encodeProviderProjectId } from "@/lib/providers/jobs/tms-provider-resource-id";
 
-const ownedProjectWhereMock = vi.fn(async () => ({}));
-const getTmsProviderLiveProjectMock = vi.fn();
+const canAccessProjectMock = vi.fn();
 
 vi.mock("@/api/auth/team-access", () => ({
-  ownedProjectWhere: ownedProjectWhereMock,
+  canAccessProject: canAccessProjectMock,
+  ownedProjectWhere: vi.fn(),
   buildAccessibleProjectsWhere: vi.fn(),
   buildAccessibleJobsWhere: vi.fn(),
   buildProjectLinkedGlossaryWhere: vi.fn(),
@@ -14,10 +26,6 @@ vi.mock("@/api/auth/team-access", () => ({
   canAccessGlossary: vi.fn(),
   canAccessMemory: vi.fn(),
   canAccessStoredFile: vi.fn(),
-}));
-
-vi.mock("@/lib/providers/tms-provider-live", () => ({
-  getTmsProviderLiveProject: getTmsProviderLiveProjectMock,
 }));
 
 vi.mock("@/lib/database", () => ({
@@ -31,36 +39,19 @@ vi.mock("@/lib/database", () => ({
   },
 }));
 
-function createDbSelectMock(results: Array<Array<{ id: string }>>) {
-  let callIndex = 0;
-
-  return {
-    select: vi.fn(() => ({
-      from: vi.fn(() => ({
-        where: vi.fn(() => ({
-          limit: vi.fn(async () => results[callIndex++] ?? []),
-        })),
-      })),
-    })),
-  };
-}
-
 describe("toolCanAccessProject", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.resetModules();
   });
 
-  it("allows live-only external TMS projects when no local projects row exists", async () => {
+  it("delegates project access to canAccessProject, including live TMS fallback", async () => {
     const projectId = encodeProviderProjectId({
       providerKind: "crowdin",
       externalProjectId: "902807",
     });
 
-    getTmsProviderLiveProjectMock.mockResolvedValueOnce({
-      id: projectId,
-      name: "HL-Test",
-    });
+    canAccessProjectMock.mockResolvedValueOnce({ id: projectId });
 
     const { toolCanAccessProject } = await import("./tool-access");
     const result = await toolCanAccessProject(
@@ -70,37 +61,81 @@ describe("toolCanAccessProject", () => {
         localUserId: "user_1",
         membershipRole: "member",
         projectId: null,
-        db: createDbSelectMock([[], []]),
+        db: {},
       } as never,
       projectId,
     );
 
-    expect(getTmsProviderLiveProjectMock).toHaveBeenCalledWith("org_1", "902807", {
-      actorUserId: "user_1",
-    });
+    expect(canAccessProjectMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        user: expect.objectContaining({ localUserId: "user_1" }),
+        organization: expect.objectContaining({ localOrganizationId: "org_1" }),
+        membership: expect.objectContaining({ role: "member" }),
+      }),
+      projectId,
+    );
     expect(result).toEqual({ id: projectId });
   });
+});
 
-  it("denies live external TMS projects that are materialized outside the member's teams", async () => {
-    const projectId = encodeProviderProjectId({
-      providerKind: "crowdin",
-      externalProjectId: "902807",
-    });
+describe("toolGetAccessibleGlossary", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.resetModules();
+  });
 
-    const { toolCanAccessProject } = await import("./tool-access");
-    const result = await toolCanAccessProject(
+  it("does not treat live provider glossary ids as stored glossary ids", async () => {
+    const db = {
+      select: vi.fn(() => {
+        throw new Error("live provider glossary ids must not hit the database");
+      }),
+    };
+
+    const { toolGetAccessibleGlossary } = await import("./tool-access");
+    const result = await toolGetAccessibleGlossary(
       {
         conversationId: "conv_1",
         organizationId: "org_1",
         localUserId: "user_1",
         membershipRole: "member",
         projectId: null,
-        db: createDbSelectMock([[], [{ id: projectId }]]),
+        db,
       } as never,
-      projectId,
+      "crowdin:glossary:718373",
     );
 
-    expect(getTmsProviderLiveProjectMock).not.toHaveBeenCalled();
     expect(result).toBeNull();
+    expect(db.select).not.toHaveBeenCalled();
+  });
+});
+
+describe("toolGetAccessibleMemory", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.resetModules();
+  });
+
+  it("does not treat live provider memory ids as stored memory ids", async () => {
+    const db = {
+      select: vi.fn(() => {
+        throw new Error("live provider memory ids must not hit the database");
+      }),
+    };
+
+    const { toolGetAccessibleMemory } = await import("./tool-access");
+    const result = await toolGetAccessibleMemory(
+      {
+        conversationId: "conv_1",
+        organizationId: "org_1",
+        localUserId: "user_1",
+        membershipRole: "member",
+        projectId: null,
+        db,
+      } as never,
+      "smartling:tm:tm-42",
+    );
+
+    expect(result).toBeNull();
+    expect(db.select).not.toHaveBeenCalled();
   });
 });

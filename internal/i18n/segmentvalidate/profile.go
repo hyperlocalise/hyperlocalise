@@ -1,0 +1,277 @@
+package segmentvalidate
+
+import (
+	"fmt"
+	"slices"
+	"strings"
+	"unicode/utf8"
+)
+
+func validateProfileParityWithTokens(source, translated string) (bool, error) {
+	// BOLT OPTIMIZATION: If source and translated are identical, we only extract and verify on the source.
+	// This avoids duplicate placeholder extraction, duplicate special characters scanning, and
+	// duplicate whitespace profiling of the translated string entirely.
+	if source == translated {
+		hasExtra := len(extractExtraPlaceholders(source)) > 0
+		sourceNorm := normalizeProfileText(source)
+		hasWS := hasProfileWhitespaceSignals(sourceNorm)
+		hasSpecial := len(extractSpecialCharLiterals(source)) > 0
+		return hasExtra || hasWS || hasSpecial, nil
+	}
+
+	hasExtra, err := validateExtraPlaceholderParityWithTokens(source, translated)
+	if err != nil {
+		return false, err
+	}
+	hasWS, err := validateWhitespaceProfileWithTokens(source, translated)
+	if err != nil {
+		return false, err
+	}
+	hasSpecial, err := validateSpecialCharParityWithTokens(source, translated)
+	if err != nil {
+		return false, err
+	}
+	return hasExtra || hasWS || hasSpecial, nil
+}
+
+var profileNBSPReplacer = strings.NewReplacer(
+	"&nbsp;", "\u00a0",
+	"&NBSP;", "\u00a0",
+	"&Nbsp;", "\u00a0",
+)
+
+func normalizeProfileText(value string) string {
+	if !strings.Contains(value, "&") {
+		return value
+	}
+	return profileNBSPReplacer.Replace(value)
+}
+
+func validateWhitespaceProfile(source, translated string) error {
+	_, err := validateWhitespaceProfileWithTokens(source, translated)
+	return err
+}
+
+func validateWhitespaceProfileWithTokens(source, translated string) (bool, error) {
+	sourceNorm := normalizeProfileText(source)
+	targetNorm := normalizeProfileText(translated)
+
+	// BOLT OPTIMIZATION: If the normalized strings are identical, their whitespace profiles are guaranteed to be identical.
+	if sourceNorm == targetNorm {
+		return hasProfileWhitespaceSignals(sourceNorm), nil
+	}
+
+	sourceLeading, sourceTrailing := profileEdgeWhitespace(sourceNorm)
+	targetLeading, targetTrailing := profileEdgeWhitespace(targetNorm)
+
+	var parts []string
+	if sourceLeading != targetLeading {
+		parts = append(parts, "leading whitespace differs from source")
+	}
+	if sourceTrailing != targetTrailing {
+		parts = append(parts, "trailing whitespace differs from source")
+	}
+	srcNBSP := countNBSP(sourceNorm)
+	if srcNBSP != countNBSP(targetNorm) {
+		parts = append(parts, "non-breaking space count differs from source")
+	}
+	if len(parts) == 0 {
+		hasWS := sourceLeading != "" || sourceTrailing != "" || srcNBSP > 0
+		return hasWS, nil
+	}
+
+	return false, fmt.Errorf(
+		"translation invariant violation: whitespace profile mismatch (%s) | %s",
+		strings.Join(parts, "; "),
+		formatInvariantDebugContext(source, translated),
+	)
+}
+
+func profileEdgeWhitespace(value string) (leading, trailing string) {
+	if value == "" {
+		return "", ""
+	}
+
+	// BOLT OPTIMIZATION: Check if the first and last bytes are ASCII non-whitespace.
+	// If so, we can bypass rune decoding and scanning entirely for both leading and trailing whitespace.
+	firstASCII := value[0] < 0x80
+	lastASCII := value[len(value)-1] < 0x80
+
+	firstNonWS := firstASCII && !isASCIIEdgeWhitespace(value[0])
+	lastNonWS := lastASCII && !isASCIIEdgeWhitespace(value[len(value)-1])
+
+	if firstNonWS && lastNonWS {
+		return "", ""
+	}
+
+	start := 0
+	if !firstNonWS {
+		for start < len(value) {
+			r, w := utf8.DecodeRuneInString(value[start:])
+			if !isProfileEdgeWhitespace(r) {
+				break
+			}
+			start += w
+		}
+		leading = value[:start]
+	}
+
+	end := len(value)
+	if !lastNonWS {
+		for end > start {
+			r, w := utf8.DecodeLastRuneInString(value[start:end])
+			if !isProfileEdgeWhitespace(r) {
+				break
+			}
+			end -= w
+		}
+		trailing = value[end:]
+	}
+
+	return leading, trailing
+}
+
+func isASCIIEdgeWhitespace(b byte) bool {
+	return b == ' ' || b == '\t' || b == '\r' || b == '\n'
+}
+
+func isProfileEdgeWhitespace(r rune) bool {
+	return r == '\u00a0' || r == ' ' || r == '\t' || r == '\r' || r == '\n'
+}
+
+func countNBSP(value string) int {
+	return strings.Count(value, "\u00a0")
+}
+
+func validateSpecialCharParity(source, translated string) error {
+	_, err := validateSpecialCharParityWithTokens(source, translated)
+	return err
+}
+
+func validateSpecialCharParityWithTokens(source, translated string) (bool, error) {
+	expected := extractSpecialCharLiterals(source)
+	got := extractSpecialCharLiterals(translated)
+	if stringSlicesEqual(expected, got) {
+		return len(expected) > 0, nil
+	}
+	return false, fmt.Errorf(
+		"translation invariant violation: special character parity mismatch (expected %v, got %v) | %s",
+		expected,
+		got,
+		formatInvariantDebugContext(source, translated),
+	)
+}
+
+func extractSpecialCharLiterals(value string) []string {
+	// BOLT OPTIMIZATION: Fast-path for strings without backslashes to avoid
+	// unnecessary processing and map allocation (~2.5x faster).
+	if value == "" || !strings.Contains(value, "\\") {
+		return nil
+	}
+
+	counts := make(map[string]int)
+	for i := 0; i < len(value); {
+		if value[i] != '\\' {
+			i++
+			continue
+		}
+
+		if token, width, ok := readSpecialCharLiteral(value, i); ok {
+			counts[token]++
+			i += width
+			continue
+		}
+		i++
+	}
+
+	if len(counts) == 0 {
+		return nil
+	}
+
+	out := make([]string, 0, len(counts))
+	for token, count := range counts {
+		for range count {
+			out = append(out, token)
+		}
+	}
+	// BOLT OPTIMIZATION: Use modern slices.Sort for allocation-free inlined sorting.
+	slices.Sort(out)
+	return out
+}
+
+func readSpecialCharLiteral(value string, start int) (token string, width int, ok bool) {
+	if start >= len(value) || value[start] != '\\' {
+		return "", 0, false
+	}
+
+	switch {
+	case strings.HasPrefix(value[start:], `\r\n`):
+		return `\r\n`, 4, true
+	case strings.HasPrefix(value[start:], `\r`):
+		return `\r`, 2, true
+	case strings.HasPrefix(value[start:], `\n`):
+		return `\n`, 2, true
+	case strings.HasPrefix(value[start:], `\t`):
+		return `\t`, 2, true
+	}
+
+	if strings.HasPrefix(value[start:], `\u`) || strings.HasPrefix(value[start:], `\U`) {
+		prefixLen := 2
+		hexLen := 4
+		if value[start+1] == 'U' {
+			hexLen = 8
+		}
+		if start+prefixLen+hexLen > len(value) {
+			return "", 0, false
+		}
+		hex := value[start+prefixLen : start+prefixLen+hexLen]
+		if !isHexDigits(hex) {
+			return "", 0, false
+		}
+		return value[start : start+prefixLen+hexLen], prefixLen + hexLen, true
+	}
+
+	if strings.HasPrefix(value[start:], `\x`) {
+		end := start + 2
+		for end < len(value) && end < start+4 && isHexByte(value[end]) {
+			end++
+		}
+		if end == start+2 {
+			return "", 0, false
+		}
+		return value[start:end], end - start, true
+	}
+
+	return "", 0, false
+}
+
+func isHexDigits(value string) bool {
+	// BOLT OPTIMIZATION: Use a byte loop instead of rune decoding since
+	// hex digits are always ASCII.
+	for i := 0; i < len(value); i++ {
+		if !isHexByte(value[i]) {
+			return false
+		}
+	}
+	return len(value) > 0
+}
+
+func isHexByte(b byte) bool {
+	return (b >= '0' && b <= '9') || (b >= 'a' && b <= 'f') || (b >= 'A' && b <= 'F')
+}
+
+// profileHasFormatTokens reports whether the segment contains profile-managed tokens.
+func profileHasFormatTokens(source string) bool {
+	return len(extractExtraPlaceholders(source)) > 0 ||
+		len(extractSpecialCharLiterals(source)) > 0 ||
+		hasProfileWhitespaceSignals(source)
+}
+
+func hasProfileWhitespaceSignals(source string) bool {
+	normalized := normalizeProfileText(source)
+	leading, trailing := profileEdgeWhitespace(normalized)
+	// BOLT OPTIMIZATION: Use strings.Contains instead of countNBSP > 0.
+	// This avoids scanning the entire string if a non-breaking space is found,
+	// and is simpler and faster since we only care about its presence.
+	return leading != "" || trailing != "" || strings.Contains(normalized, "\u00a0")
+}

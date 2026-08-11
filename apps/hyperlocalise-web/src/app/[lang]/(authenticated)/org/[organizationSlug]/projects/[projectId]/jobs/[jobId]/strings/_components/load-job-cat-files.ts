@@ -1,3 +1,15 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import type {
   ProjectFileDetailResponse,
   ProjectFileRecord,
@@ -7,14 +19,16 @@ import {
   parseProviderJobId,
   parseProviderProjectId,
   resolveEncodedProviderJobId,
-} from "@/lib/providers/tms-provider-resource-id";
-import type { TmsProviderLiveFile } from "@/lib/providers/tms-provider-live";
+} from "@/lib/providers/jobs/tms-provider-resource-id";
+import type { TmsProviderLiveFile } from "@/lib/providers/jobs/tms-provider-live";
 
 import type { JobDetailRecord } from "../../_components/job-detail-types";
 import {
+  nativeJobToProjectFileRecord,
   providerSourceFileToProjectFileRecord,
   tmsLiveFileToProjectFileRecord,
 } from "../../_components/tms/job-source-file-mappers";
+import { resolveJobCatSelectableTargetLocales } from "./job-cat-target-locale";
 
 export const PROJECT_FILES_FETCH_LIMIT = 1_000;
 
@@ -207,11 +221,48 @@ export function mapSyncedProviderSourceFiles(input: {
   });
 }
 
+export async function loadJobCatSelectableTargetLocales(input: {
+  organizationSlug: string;
+  projectId: string;
+  jobId: string;
+}) {
+  const parsedJobId = parseProviderJobId(input.jobId);
+  if (parsedJobId) {
+    const response = await apiClient.api.orgs[":organizationSlug"]["tms-provider"].jobs[
+      ":encodedJobId"
+    ].$get({
+      param: {
+        organizationSlug: input.organizationSlug,
+        encodedJobId: input.jobId,
+      },
+    });
+
+    if (!response.ok) {
+      return [];
+    }
+
+    const body = (await response.json()) as { job: { externalTargetLocales?: string[] } };
+    return resolveJobCatSelectableTargetLocales({
+      externalTargetLocales: body.job.externalTargetLocales ?? null,
+      reviewTargetLocale: null,
+      inputPayload: null,
+    });
+  }
+
+  const job = await fetchJobDetail(input.organizationSlug, input.jobId);
+  if (job.projectId !== input.projectId) {
+    return [];
+  }
+
+  return resolveJobCatSelectableTargetLocales(job);
+}
+
 export async function loadJobCatProviderJobFiles(input: {
   organizationSlug: string;
   projectId: string;
   jobId: string;
   targetLocale?: string | null;
+  job?: JobDetailRecord;
 }) {
   const parsedJobId = parseProviderJobId(input.jobId);
   if (parsedJobId) {
@@ -222,7 +273,7 @@ export async function loadJobCatProviderJobFiles(input: {
     });
   }
 
-  const job = await fetchJobDetail(input.organizationSlug, input.jobId);
+  const job = input.job ?? (await fetchJobDetail(input.organizationSlug, input.jobId));
   if (job.projectId !== input.projectId) {
     throw new Error("Task does not belong to this project");
   }
@@ -248,4 +299,28 @@ export async function loadJobCatProviderJobFiles(input: {
     projectId: input.projectId,
     targetLocale: input.targetLocale ?? null,
   });
+}
+
+export async function loadJobCatJobSourceFiles(input: {
+  organizationSlug: string;
+  projectId: string;
+  jobId: string;
+  targetLocale?: string | null;
+}) {
+  if (parseProviderJobId(input.jobId)) {
+    return loadJobCatProviderJobFiles(input);
+  }
+
+  const job = await fetchJobDetail(input.organizationSlug, input.jobId);
+  if (job.projectId !== input.projectId) {
+    throw new Error("Task does not belong to this project");
+  }
+
+  const providerFiles = await loadJobCatProviderJobFiles({ ...input, job });
+  if (providerFiles.length > 0) {
+    return providerFiles;
+  }
+
+  const nativeFile = nativeJobToProjectFileRecord(job);
+  return nativeFile ? [nativeFile] : [];
 }

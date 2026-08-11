@@ -1,5 +1,17 @@
 "use client";
 
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import { useState, type ReactNode } from "react";
 import {
   BulbIcon,
@@ -8,9 +20,11 @@ import {
   RefreshIcon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
+import { CheckIcon, CopyIcon } from "lucide-react";
 import { FormattedMessage, useIntl } from "react-intl";
 
-import { MarkdownContent } from "@/components/markdown-description-editor/markdown-description-editor";
+import { formatInternalMarkupForDisplay } from "@/components/cat/message-format/cat-internal-markup";
+import { MarkdownContent } from "@/components/markdown-editor/markdown-editor";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -43,6 +57,8 @@ import type {
 import { containsGlossaryTerm } from "./cat-glossary-checks";
 import { requiresLowMatchConfirmation } from "./tm-match-quality";
 import { CatVisualContextPanel } from "./cat-visual-context-panel";
+
+const RIGHT_ARROW = "→";
 
 function PanelSection({
   title,
@@ -93,25 +109,39 @@ function AgentContextSkeleton() {
   );
 }
 
-function GlossaryTermRow({
-  term,
-  targetText,
-  onUse,
-}: {
-  term: CatGlossaryTerm;
-  targetText: string;
-  onUse?: (term: CatGlossaryTerm) => void;
-}) {
+function GlossaryTermRow({ term, targetText }: { term: CatGlossaryTerm; targetText: string }) {
   const intl = useIntl();
+  const [copyState, setCopyState] = useState<"idle" | "copied" | "error">("idle");
   const forbiddenInTarget = term.forbidden && containsGlossaryTerm(targetText, term.source);
-  const canUse = Boolean(onUse && term.approved && !term.forbidden);
+  const copyValue = term.target.trim();
+
+  async function handleCopy() {
+    if (!copyValue) {
+      return;
+    }
+
+    if (typeof window === "undefined" || !navigator?.clipboard?.writeText) {
+      setCopyState("error");
+      window.setTimeout(() => setCopyState("idle"), 2000);
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(copyValue);
+      setCopyState("copied");
+      window.setTimeout(() => setCopyState("idle"), 2000);
+    } catch {
+      setCopyState("error");
+      window.setTimeout(() => setCopyState("idle"), 2000);
+    }
+  }
 
   return (
     <li className="px-3 py-2.5">
       <div className="flex items-center gap-3">
         <div className="flex min-w-0 flex-1 items-center gap-2">
           <span className="min-w-0 truncate text-sm text-foreground">{term.source}</span>
-          <span className="shrink-0 text-xs text-muted-foreground">→</span>
+          <span className="shrink-0 text-xs text-muted-foreground">{RIGHT_ARROW}</span>
           <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">
             {term.target}
           </span>
@@ -129,14 +159,30 @@ function GlossaryTermRow({
             aria-label={intl.formatMessage(catIntelligencePanelMessages.approvedAria)}
           />
         ) : null}
-      </div>
-      {canUse ? (
-        <div className="mt-2 flex justify-end">
-          <Button variant="ghost" size="sm" onClick={() => onUse?.(term)}>
-            <FormattedMessage {...catIntelligencePanelMessages.useGlossaryTerm} />
+        {copyValue ? (
+          <Button
+            type="button"
+            variant="ghost"
+            size="xs"
+            className="shrink-0"
+            onClick={() => void handleCopy()}
+          >
+            {copyState === "copied" ? (
+              <>
+                <CheckIcon className="size-3" aria-hidden />
+                <FormattedMessage {...catIntelligencePanelMessages.glossaryTermCopied} />
+              </>
+            ) : copyState === "error" ? (
+              <FormattedMessage {...catIntelligencePanelMessages.glossaryTermCopyFailed} />
+            ) : (
+              <>
+                <CopyIcon className="size-3" aria-hidden />
+                <FormattedMessage {...catIntelligencePanelMessages.copyGlossaryTerm} />
+              </>
+            )}
           </Button>
-        </div>
-      ) : null}
+        ) : null}
+      </div>
     </li>
   );
 }
@@ -203,9 +249,11 @@ function TranslationMemoryRow({
       </div>
       <div className="space-y-1">
         <p className="text-pretty text-xs leading-relaxed text-muted-foreground">
-          {match.sourceText}
+          {formatInternalMarkupForDisplay(match.sourceText)}
         </p>
-        <p className="text-pretty text-sm leading-relaxed text-foreground">{match.targetText}</p>
+        <p className="text-pretty text-sm leading-relaxed text-foreground">
+          {formatInternalMarkupForDisplay(match.targetText)}
+        </p>
       </div>
     </li>
   );
@@ -220,9 +268,9 @@ export function CatIntelligencePanel({
   showAgentContext = false,
   showVisualContext = false,
   canEditTranslations = true,
+  canLookupFreshContext = true,
   onRefreshContext,
   onUseTmMatch,
-  onUseGlossaryTerm,
 }: {
   intelligence: CatSegmentIntelligence;
   targetText?: string;
@@ -232,9 +280,9 @@ export function CatIntelligencePanel({
   showAgentContext?: boolean;
   showVisualContext?: boolean;
   canEditTranslations?: boolean;
+  canLookupFreshContext?: boolean;
   onRefreshContext?: () => void;
   onUseTmMatch?: (match: CatTranslationMemoryMatch) => void;
-  onUseGlossaryTerm?: (term: CatGlossaryTerm) => void;
 }) {
   const intl = useIntl();
   const [pendingLowMatch, setPendingLowMatch] = useState<CatTranslationMemoryMatch | null>(null);
@@ -247,7 +295,8 @@ export function CatIntelligencePanel({
   const hasAgentInsight = Boolean(intelligence.agentContext?.trim());
   const hasAttemptedAgentLookup = intelligence.agentContext !== undefined;
   const hasAgentContext = hasAgentInsight || agentBadges.length > 0;
-  const canRefreshAgentContext = hasAttemptedAgentLookup && onRefreshContext;
+  const canRefreshAgentContext =
+    hasAttemptedAgentLookup && canLookupFreshContext && onRefreshContext;
 
   function handleUseTmMatch(match: CatTranslationMemoryMatch) {
     if (!onUseTmMatch) {
@@ -400,14 +449,7 @@ export function CatIntelligencePanel({
               <div className="overflow-hidden rounded-2xl bg-muted">
                 <ul className="divide-y divide-border">
                   {intelligence.glossaryTerms.map((term) => (
-                    <GlossaryTermRow
-                      key={term.id}
-                      term={term}
-                      targetText={targetText}
-                      onUse={
-                        canEditTranslations && onUseGlossaryTerm ? onUseGlossaryTerm : undefined
-                      }
-                    />
+                    <GlossaryTermRow key={term.id} term={term} targetText={targetText} />
                   ))}
                 </ul>
               </div>

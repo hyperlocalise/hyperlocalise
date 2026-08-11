@@ -1,8 +1,25 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import type { ProjectFileCatQueueFilter } from "@/api/routes/project/project.schema";
 
 import type { CatSegment } from "@/components/cat/shared/types";
 
 export type CatQueueFilter = ProjectFileCatQueueFilter | "skipped";
+
+export type CatSegmentFilterInput = {
+  status: CatSegment["status"];
+  hasOpenIssues?: boolean;
+};
 
 export const catQueueFilterValues: CatQueueFilter[] = [
   "all",
@@ -22,7 +39,14 @@ export function isQueueFilterSupportedForProvider(
   providerKind: string | null | undefined,
 ) {
   if (filter === "has_issues") {
-    return providerKind === "crowdin" || providerKind === "phrase" || providerKind === null;
+    return providerKind === "crowdin" || providerKind === "smartling" || providerKind === null;
+  }
+
+  if (
+    (providerKind === "phrase" || providerKind === "lokalise" || providerKind === "smartling") &&
+    (filter === "untranslated" || filter === "needs_review" || filter === "reviewed")
+  ) {
+    return false;
   }
 
   return true;
@@ -48,7 +72,10 @@ export function resolveVisibleQueueSegments(
   return filterCatQueueSegments(segments, queueFilter);
 }
 
-export function findSegmentIdByKeyOrId(segments: CatSegment[], segmentIdOrKey: string) {
+export function findSegmentIdByKeyOrIdInQueue(
+  segments: Pick<CatSegment, "id" | "key">[],
+  segmentIdOrKey: string,
+) {
   const match = segments.find(
     (segment) => segment.id === segmentIdOrKey || segment.key === segmentIdOrKey,
   );
@@ -56,8 +83,12 @@ export function findSegmentIdByKeyOrId(segments: CatSegment[], segmentIdOrKey: s
   return match?.id ?? null;
 }
 
+export function findSegmentIdByKeyOrId(segments: CatSegment[], segmentIdOrKey: string) {
+  return findSegmentIdByKeyOrIdInQueue(segments, segmentIdOrKey);
+}
+
 export function isOpenIssueStatus(status: string | null | undefined) {
-  return status === "open" || status === "unresolved";
+  return status === "open" || status === "unresolved" || status === "in_progress";
 }
 
 export function segmentHasOpenIssues(segment: CatSegment) {
@@ -72,23 +103,44 @@ export function segmentHasOpenIssues(segment: CatSegment) {
   );
 }
 
-export function segmentMatchesQueueFilter(segment: CatSegment, filter: CatQueueFilter) {
+export function segmentHasOpenIssuesFromInput(input: CatSegmentFilterInput) {
+  if (input.hasOpenIssues) {
+    return true;
+  }
+
+  return false;
+}
+
+export function segmentMatchesQueueFilterFromInput(
+  input: CatSegmentFilterInput,
+  filter: CatQueueFilter,
+) {
   switch (filter) {
     case "all":
       return true;
     case "untranslated":
-      return segment.status === "pending";
+      return input.status === "pending";
     case "needs_review":
-      return segment.status === "needs_review" && !segmentHasOpenIssues(segment);
+      return input.status === "needs_review" && !segmentHasOpenIssuesFromInput(input);
     case "reviewed":
-      return segment.status === "reviewed";
+      return input.status === "reviewed";
     case "has_issues":
-      return segmentHasOpenIssues(segment);
+      return segmentHasOpenIssuesFromInput(input);
     case "skipped":
-      return segment.status === "skipped";
+      return input.status === "skipped";
     default:
       return true;
   }
+}
+
+export function segmentMatchesQueueFilter(segment: CatSegment, filter: CatQueueFilter) {
+  return segmentMatchesQueueFilterFromInput(
+    {
+      status: segment.status,
+      hasOpenIssues: segmentHasOpenIssues(segment),
+    },
+    filter,
+  );
 }
 
 export function filterCatQueueSegments(segments: CatSegment[], filter: CatQueueFilter) {

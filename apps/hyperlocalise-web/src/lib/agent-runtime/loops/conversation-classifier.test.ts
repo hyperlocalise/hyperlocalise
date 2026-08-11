@@ -1,3 +1,15 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
 const { generateTextMock } = vi.hoisted(() => ({
@@ -127,6 +139,12 @@ describe("conversation classifier", () => {
     );
 
     expect(generateTextMock).toHaveBeenCalledOnce();
+    expect(generateTextMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        instructions: expect.stringContaining("localization agent"),
+      }),
+    );
+    expect(generateTextMock.mock.calls[0]?.[0]).not.toHaveProperty("system");
   });
 
   it("includes a repository lookup example for context-of string questions", async () => {
@@ -167,6 +185,46 @@ describe("conversation classifier", () => {
         ),
       }),
     );
+    expect(generateTextMock.mock.calls[0]?.[0].prompt).not.toContain(
+      "Organization Memory.md routing",
+    );
+  });
+
+  it("distinguishes organization Memory.md requests from repository context", async () => {
+    generateTextMock.mockResolvedValueOnce({
+      output: repositoryClassification({
+        needsRepositoryTools: false,
+        shouldAskForRepositoryClarification: false,
+      }),
+    });
+
+    const classification = await classifyConversation({
+      currentMessage: "Yes, add that.",
+      conversationText: "Should we add short checkout labels to Memory.md?\nYes, add that.",
+      hasFileAttachments: false,
+      hasStoredRepositoryContext: true,
+      knowledgeMemoryEnabled: true,
+      surface: "web",
+    });
+
+    expect(classification).toMatchObject({
+      needsRepositoryTools: false,
+      continuesRepositoryThread: false,
+      shouldAskForRepositoryClarification: false,
+    });
+    expect(
+      shouldAttemptRepositoryContextResolution({
+        classification,
+        storedRepositoryContext: {
+          resolved: true,
+          installationId: 1,
+          repositoryFullName: "acme/web",
+        },
+      }),
+    ).toBe(false);
+    const prompt = generateTextMock.mock.calls[0]?.[0].prompt;
+    expect(prompt).toContain("Organization Memory.md skill enabled: yes");
+    expect(prompt).toContain("An explicit Memory.md request starts an independent task");
   });
 
   it("keeps using model classification for stored repository context follow-ups", async () => {

@@ -1,3 +1,15 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import { and, eq } from "drizzle-orm";
 import { Hono } from "hono";
 
@@ -60,18 +72,20 @@ export function createFileRoutes(options: CreateFileRoutesOptions = {}) {
         return fileNotFoundResponse(c);
       }
 
-      c.header(
-        "Content-Type",
-        storedObject.contentType ?? file.contentType ?? "application/octet-stream",
-      );
+      const contentType =
+        storedObject.contentType ?? file.contentType ?? "application/octet-stream";
+      const isImage = contentType.toLowerCase().startsWith("image/");
+      c.header("Content-Type", contentType);
       c.header(
         "Content-Disposition",
-        `attachment; filename*=UTF-8''${encodeURIComponent(file.filename)}`,
+        `${isImage ? "inline" : "attachment"}; filename*=UTF-8''${encodeURIComponent(file.filename)}`,
       );
       c.header("Content-Security-Policy", "default-src 'none'; sandbox;");
       c.header("X-Content-Type-Options", "nosniff");
-      c.header("X-Download-Options", "noopen");
-      c.header("Cache-Control", "no-store");
+      if (!isImage) {
+        c.header("X-Download-Options", "noopen");
+      }
+      c.header("Cache-Control", isImage ? "private, max-age=60" : "no-store");
 
       return c.body(storedObject.body);
     });

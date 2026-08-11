@@ -1,3 +1,15 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 export function buildWorkspaceScheduledAutomationIdempotencyKey(input: {
   automationId: string;
   configVersion: number;
@@ -70,8 +82,25 @@ export function buildWorkspaceContentfulWebhookAutomationIdempotencyKey(input: {
 export function buildWorkspaceSourceUploadAutomationIdempotencyKey(input: {
   automationId: string;
   configVersion: number;
+  projectId: string;
+  sourcePath: string;
+  sourceHash?: string | null;
   sourceFileVersionId: string;
 }): string {
+  const sourceHash = input.sourceHash?.trim();
+  if (sourceHash) {
+    return [
+      "workspace-automation:source-upload:content",
+      JSON.stringify([
+        input.automationId,
+        input.configVersion,
+        input.projectId,
+        input.sourcePath,
+        sourceHash,
+      ]),
+    ].join(":");
+  }
+
   return [
     "workspace-automation:source-upload",
     input.automationId,

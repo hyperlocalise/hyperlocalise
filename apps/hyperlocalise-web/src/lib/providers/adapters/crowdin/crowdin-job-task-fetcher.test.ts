@@ -1,6 +1,18 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
-import { fetchCrowdinJobTasks, fetchCrowdinUserJobTasks } from "./crowdin-job-task-fetcher";
+import { crowdinTmsProvider } from "./crowdin-provider";
 
 describe("fetchCrowdinJobTasks", () => {
   let originalFetch: typeof fetch;
@@ -66,10 +78,9 @@ describe("fetchCrowdinJobTasks", () => {
 
     globalThis.fetch = fetchMock;
 
-    const result = await fetchCrowdinJobTasks({
+    const result = await crowdinTmsProvider.fetchJobTasks({
       organizationId: "org-1",
       projectId: "project-1",
-      providerKind: "crowdin",
       externalProjectId: "1",
       credential: { baseUrl: "https://api.crowdin.test/api/v2" } as never,
       project: {} as never,
@@ -132,10 +143,9 @@ describe("fetchCrowdinJobTasks", () => {
 
     globalThis.fetch = fetchMock;
 
-    const result = await fetchCrowdinJobTasks({
+    const result = await crowdinTmsProvider.fetchJobTasks({
       organizationId: "org-1",
       projectId: "project-1",
-      providerKind: "crowdin",
       externalProjectId: "1",
       credential: { baseUrl: "https://api.crowdin.test/api/v2" } as never,
       project: {} as never,
@@ -150,10 +160,9 @@ describe("fetchCrowdinJobTasks", () => {
 
   it("throws on invalid project id", async () => {
     await expect(
-      fetchCrowdinJobTasks({
+      crowdinTmsProvider.fetchJobTasks({
         organizationId: "org-1",
         projectId: "project-1",
-        providerKind: "crowdin",
         externalProjectId: "not-a-number",
         credential: {} as never,
         project: {} as never,
@@ -198,10 +207,9 @@ describe("fetchCrowdinJobTasks", () => {
 
     globalThis.fetch = fetchMock;
 
-    const result = await fetchCrowdinJobTasks({
+    const result = await crowdinTmsProvider.fetchJobTasks({
       organizationId: "org-1",
       projectId: "project-1",
-      providerKind: "crowdin",
       externalProjectId: "1",
       credential: { baseUrl: "https://api.crowdin.test/api/v2" } as never,
       project: {} as never,
@@ -229,10 +237,9 @@ describe("fetchCrowdinJobTasks", () => {
     globalThis.fetch = fetchMock;
 
     await expect(
-      fetchCrowdinJobTasks({
+      crowdinTmsProvider.fetchJobTasks({
         organizationId: "org-1",
         projectId: "project-1",
-        providerKind: "crowdin",
         externalProjectId: "1",
         credential: { baseUrl: "https://api.crowdin.test/api/v2" } as never,
         project: {} as never,
@@ -275,7 +282,7 @@ describe("fetchCrowdinJobTasks", () => {
 
     globalThis.fetch = fetchMock;
 
-    const result = await fetchCrowdinUserJobTasks({
+    const result = await crowdinTmsProvider.fetchUserJobTasks({
       credential: { baseUrl: "https://api.crowdin.test/api/v2" } as never,
       secretMaterial: "test-token",
       externalProjectId: "2",
@@ -294,5 +301,226 @@ describe("fetchCrowdinJobTasks", () => {
       expect.stringMatching(/\/user\/tasks\?.*projectId=2/),
       expect.anything(),
     );
+  });
+
+  it("creates a Crowdin task from provider task input", async () => {
+    const fetchMock = vi.fn(async (url, init) => {
+      const path = String(url);
+
+      if (path === "https://api.crowdin.test/api/v2/projects/1/tasks") {
+        expect(init?.method).toBe("POST");
+        expect(JSON.parse(String(init?.body))).toEqual({
+          title: "Review homepage",
+          languageId: "fr",
+          type: 1,
+          fileIds: [101],
+          labelIds: [7],
+          description: "Proofread launch strings",
+          assignees: [{ id: 55, wordsCount: 250 }],
+          deadline: "2026-08-01T00:00:00.000Z",
+        });
+
+        return new Response(
+          JSON.stringify({
+            data: {
+              id: 5001,
+              projectId: 1,
+              type: 1,
+              status: "todo",
+              title: "Review homepage",
+              description: "Proofread launch strings",
+              languageId: "fr",
+              sourceLanguageId: "en",
+              targetLanguageId: "fr",
+              fileIds: [101],
+              assignees: [{ id: 55, username: "reviewer1" }],
+              deadline: "2026-08-01T00:00:00Z",
+              webUrl: "https://crowdin.com/project/1/tasks/5001",
+              stringIds: null,
+            },
+          }),
+          { status: 200 },
+        );
+      }
+
+      return new Response(JSON.stringify({ data: [] }), { status: 200 });
+    }) as unknown as typeof fetch;
+
+    globalThis.fetch = fetchMock;
+
+    const result = await crowdinTmsProvider.createJobTask({
+      organizationId: "org-1",
+      projectId: "project-1",
+      externalProjectId: "1",
+      credential: { baseUrl: "https://api.crowdin.test/api/v2" } as never,
+      project: {} as never,
+      secretMaterial: "test-token",
+      task: {
+        title: "Review homepage",
+        targetLocale: "fr",
+        kind: "proofread",
+        fileIds: ["101"],
+        labelIds: ["7"],
+        description: "Proofread launch strings",
+        dueDate: new Date("2026-08-01T00:00:00.000Z"),
+        assignees: [{ externalUserId: "55", wordsCount: 250 }],
+      },
+    });
+
+    expect(result).toMatchObject({
+      externalJobId: "5001",
+      externalStatus: "todo",
+      title: "Review homepage",
+      targetLocales: ["fr"],
+      assignedUsers: ["reviewer1"],
+      kind: "proofread",
+    });
+    expect(fetchMock).toHaveBeenCalledOnce();
+  });
+
+  it("rejects review kind when creating a Crowdin task", async () => {
+    await expect(
+      crowdinTmsProvider.createJobTask({
+        organizationId: "org-1",
+        projectId: "project-1",
+        externalProjectId: "1",
+        credential: { baseUrl: "https://api.crowdin.test/api/v2" } as never,
+        project: {} as never,
+        secretMaterial: "test-token",
+        task: {
+          title: "Review homepage",
+          targetLocale: "fr",
+          kind: "review",
+          fileIds: ["101"],
+        },
+      }),
+    ).rejects.toThrow("crowdin_task_kind_not_supported:review");
+  });
+
+  it("requires exactly one source scope when creating a Crowdin task", async () => {
+    await expect(
+      crowdinTmsProvider.createJobTask({
+        organizationId: "org-1",
+        projectId: "project-1",
+        externalProjectId: "1",
+        credential: { baseUrl: "https://api.crowdin.test/api/v2" } as never,
+        project: {} as never,
+        secretMaterial: "test-token",
+        task: {
+          title: "French task",
+          targetLocale: "fr",
+        },
+      }),
+    ).rejects.toThrow("crowdin_task_source_scope_required");
+
+    await expect(
+      crowdinTmsProvider.createJobTask({
+        organizationId: "org-1",
+        projectId: "project-1",
+        externalProjectId: "1",
+        credential: { baseUrl: "https://api.crowdin.test/api/v2" } as never,
+        project: {} as never,
+        secretMaterial: "test-token",
+        task: {
+          title: "French task",
+          targetLocale: "fr",
+          fileIds: ["101"],
+          stringIds: ["202"],
+        },
+      }),
+    ).rejects.toThrow("crowdin_task_source_scope_ambiguous");
+  });
+
+  it("deletes a Crowdin task from provider job scope", async () => {
+    const fetchMock = vi.fn(async (url, init) => {
+      expect(String(url)).toBe("https://api.crowdin.test/api/v2/projects/1/tasks/5001");
+      expect(init?.method).toBe("DELETE");
+      expect(init?.headers).toEqual(
+        expect.objectContaining({
+          Authorization: "Bearer test-token",
+        }),
+      );
+
+      return new Response(null, { status: 204 });
+    }) as unknown as typeof fetch;
+
+    globalThis.fetch = fetchMock;
+
+    await expect(
+      crowdinTmsProvider.deleteJobTask({
+        organizationId: "org-1",
+        projectId: "project-1",
+        externalProjectId: "1",
+        credential: { baseUrl: "https://api.crowdin.test/api/v2" } as never,
+        project: {} as never,
+        secretMaterial: "test-token",
+        externalJobId: "5001",
+      }),
+    ).resolves.toBe(true);
+    expect(fetchMock).toHaveBeenCalledOnce();
+  });
+
+  it("throws crowdin_auth_invalid when deleting a task with invalid auth", async () => {
+    const fetchMock = vi.fn(async () => {
+      return new Response(JSON.stringify({ error: { code: 401, message: "Unauthorized" } }), {
+        status: 401,
+      });
+    }) as unknown as typeof fetch;
+
+    globalThis.fetch = fetchMock;
+
+    await expect(
+      crowdinTmsProvider.deleteJobTask({
+        organizationId: "org-1",
+        projectId: "project-1",
+        externalProjectId: "1",
+        credential: { baseUrl: "https://api.crowdin.test/api/v2" } as never,
+        project: {} as never,
+        secretMaterial: "test-token",
+        externalJobId: "5001",
+      }),
+    ).rejects.toThrow("crowdin_auth_invalid");
+  });
+
+  it("lists Crowdin project members through the provider adapter", async () => {
+    const fetchMock = vi.fn(async (url) => {
+      expect(String(url)).toContain("/projects/1/members");
+      return Response.json({
+        data: [
+          {
+            data: {
+              id: 42,
+              username: "translator1",
+              fullName: "Ada Translator",
+              avatarUrl: "https://example.com/a.png",
+              role: "translator",
+            },
+          },
+        ],
+        pagination: { offset: 0, limit: 1 },
+      });
+    }) as unknown as typeof fetch;
+
+    globalThis.fetch = fetchMock;
+
+    const result = await crowdinTmsProvider.listProjectMembers({
+      organizationId: "org-1",
+      projectId: "project-1",
+      externalProjectId: "1",
+      credential: { baseUrl: "https://api.crowdin.test/api/v2" } as never,
+      project: {} as never,
+      secretMaterial: "test-token",
+    });
+
+    expect(result).toEqual([
+      {
+        externalUserId: "42",
+        username: "translator1",
+        displayName: "Ada Translator",
+        avatarUrl: "https://example.com/a.png",
+        role: "translator",
+      },
+    ]);
+    expect(fetchMock).toHaveBeenCalledOnce();
   });
 });

@@ -1,3 +1,15 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 // @vitest-environment happy-dom
 
 import { act } from "react";
@@ -29,6 +41,7 @@ type MockVirtualizer = {
 let virtualItems: MockVirtualItem[] = [];
 let virtualizerCount = 0;
 let onVirtualizerChange: ((instance: MockVirtualizer) => void) | undefined;
+let lastGetItemKey: ((index: number) => string | number) | undefined;
 
 function makeVirtualItems(indexes: number[]) {
   return indexes.map((index) => ({
@@ -51,9 +64,11 @@ vi.mock("@tanstack/react-virtual", () => ({
   useVirtualizer: (options: {
     count: number;
     estimateSize?: () => number;
+    getItemKey?: (index: number) => string | number;
     onChange?: (instance: MockVirtualizer) => void;
   }) => {
     virtualizerCount = options.count;
+    lastGetItemKey = options.getItemKey;
     onVirtualizerChange = options.onChange;
     return virtualizer;
   },
@@ -63,9 +78,26 @@ beforeEach(() => {
   virtualItems = makeVirtualItems([0, 1, 2]);
   virtualizerCount = 0;
   onVirtualizerChange = undefined;
+  lastGetItemKey = undefined;
 });
 
 describe("CatQueueVirtualList pagination", () => {
+  it("keys virtual rows by segment id so mid-list removals keep stable measurements", () => {
+    const segments = catSegmentsFixture.slice(0, 3);
+
+    renderWithCatProviders(
+      <CatQueueVirtualList
+        segments={segments}
+        selectedSegmentId={segments[0]!.id}
+        onSelectSegment={vi.fn()}
+      />,
+    );
+
+    expect(lastGetItemKey?.(0)).toBe(segments[0]!.id);
+    expect(lastGetItemKey?.(1)).toBe(segments[1]!.id);
+    expect(lastGetItemKey?.(2)).toBe(segments[2]!.id);
+  });
+
   it("loads the next page when the virtual range reaches the end during scroll", async () => {
     const onNearEnd = vi.fn();
     const segments = catSegmentsFixture.slice(0, 12);

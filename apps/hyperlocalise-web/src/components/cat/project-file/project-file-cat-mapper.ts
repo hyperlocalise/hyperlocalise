@@ -1,6 +1,19 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import type {
+  ProjectFileCatComment,
   ProjectFileCatQueueFile,
-  ProjectFileCatSegment,
+  ProjectFileCatTranslation,
 } from "@/api/routes/project/project.schema";
 import {
   analyzeCatMessageFormat,
@@ -12,37 +25,23 @@ import {
   type CatFormatMessageIntl,
 } from "@/components/cat/message-format/cat-message-format-i18n";
 import { glossaryFormatChecksForSegment } from "@/components/cat/intelligence/cat-glossary-checks";
-import { isOpenIssueStatus } from "@/components/cat/queue/cat-queue-filter";
-import { getSegmentTagKind } from "@/components/cat/segment/cat-segment-tags";
 import type {
+  CatFileContext,
   CatFormatCheck,
   CatGlossaryTerm,
+  CatQueueSegment,
   CatSegment,
   CatSegmentComment,
   CatSegmentIntelligence,
   CatWorkspaceState,
 } from "@/components/cat/shared/types";
 
+import { projectFileCatMapperMessages } from "./project-file-cat-mapper.messages";
+
 type CatFile = ProjectFileCatQueueFile;
 
-function segmentTarget(segment: CatFile["segments"][number] | ProjectFileCatSegment) {
-  return "target" in segment ? segment.target : null;
-}
-
-function countOpenIssues(segment: CatFile["segments"][number] | ProjectFileCatSegment) {
-  if (segment.comments.length > 0) {
-    return segment.comments.filter(
-      (comment) => comment.type === "issue" && isOpenIssueStatus(comment.status),
-    ).length;
-  }
-
-  return segment.unresolvedIssueCount ?? 0;
-}
-
-function mapSegmentComments(
-  segment: CatFile["segments"][number] | ProjectFileCatSegment,
-): CatSegmentComment[] {
-  return segment.comments.map((comment) => ({
+export function mapSegmentComments(comments: ProjectFileCatComment[]): CatSegmentComment[] {
+  return comments.map((comment) => ({
     id: comment.externalCommentId,
     type: comment.type,
     status: comment.status,
@@ -53,18 +52,15 @@ function mapSegmentComments(
   }));
 }
 
-export function segmentStatusFor(
-  segment: CatFile["segments"][number] | ProjectFileCatSegment,
+export function segmentStatusFromTarget(
+  segment: Pick<CatSegment, "hasOpenIssues">,
+  target: ProjectFileCatTranslation | null,
 ): CatSegment["status"] {
-  const target = segmentTarget(segment);
-
   if (target?.isApproved) {
     return "reviewed";
   }
 
-  const hasUnresolvedIssue = countOpenIssues(segment) > 0;
-
-  if (hasUnresolvedIssue) {
+  if (segment.hasOpenIssues) {
     return "needs_review";
   }
 
@@ -107,12 +103,15 @@ export function formatCheckForSegment(
   if (parityIssues.length === 0) {
     checks.push({
       id: "format-parity",
-      label: sourceAnalysis.tokens.length > 0 ? "Placeholders & ICU" : "Format",
+      label:
+        sourceAnalysis.tokens.length > 0
+          ? intl.formatMessage(projectFileCatMapperMessages.placeholdersAndIcuLabel)
+          : intl.formatMessage(projectFileCatMapperMessages.formatLabel),
       status: "pass",
       message:
         sourceAnalysis.tokens.length > 0
-          ? "Target keeps the required placeholders and ICU structure."
-          : "No placeholders or ICU blocks detected.",
+          ? intl.formatMessage(projectFileCatMapperMessages.placeholdersPassMessage)
+          : intl.formatMessage(projectFileCatMapperMessages.noPlaceholdersMessage),
       category: "placeholder",
     });
   } else {
@@ -124,9 +123,11 @@ export function formatCheckForSegment(
   if (segment.maxLength && value.length > segment.maxLength) {
     checks.unshift({
       id: "length",
-      label: "Length",
+      label: intl.formatMessage(projectFileCatMapperMessages.lengthLabel),
       status: "fail",
-      message: `Translation exceeds ${segment.maxLength} characters.`,
+      message: intl.formatMessage(projectFileCatMapperMessages.lengthExceededMessage, {
+        maxLength: segment.maxLength,
+      }),
       category: "length",
     });
   }
@@ -147,89 +148,25 @@ export async function validateSegmentFormat(
   return formatCheckForSegment(segment, value, intl, glossaryTerms);
 }
 
-function buildCommentIssueSuffix(
-  issueCount: number,
-  isNativeProject: boolean,
-  providerKind?: string | null,
-) {
-  if (issueCount <= 0) {
-    return "";
-  }
-
-  if (isNativeProject || providerKind === "crowdin") {
-    return `, including ${issueCount} issue${issueCount === 1 ? "" : "s"}`;
-  }
-
-  return "";
-}
-
-function buildCommentProductMeaning(input: {
-  supportsComments: boolean;
-  commentCount: number;
-  issueCount: number;
-  isNativeProject: boolean;
-  providerKind?: string | null;
-  entity: "file" | "string";
-}) {
-  if (!input.supportsComments) {
-    return undefined;
-  }
-
-  if (input.commentCount > 0) {
-    const providerPrefix = input.isNativeProject ? "" : "provider ";
-    const verb = input.entity === "file" ? "are" : input.commentCount === 1 ? "is" : "are";
-    const issueSuffix = buildCommentIssueSuffix(
-      input.issueCount,
-      input.isNativeProject,
-      input.providerKind,
-    );
-
-    return `${input.commentCount} ${providerPrefix}comment${input.commentCount === 1 ? "" : "s"} ${verb} attached to this ${input.entity}${issueSuffix}.`;
-  }
-
-  if (input.isNativeProject) {
-    return `No comments are attached to this ${input.entity} yet.`;
-  }
-
-  return input.entity === "file"
-    ? "The provider did not return comments for this file."
-    : "The provider did not return context or comments for this string.";
-}
-
-function intelligenceFor(catFile: CatFile): CatSegmentIntelligence {
-  const issueCount = catFile.segments.reduce(
-    (count, segment) =>
-      count + segment.comments.filter((comment) => comment.type === "issue").length,
-    0,
-  );
-  const commentCount = catFile.segments.reduce(
-    (count, segment) => count + segment.comments.length,
-    0,
-  );
+function intelligenceFor(catFile: CatFile, intl: CatFormatMessageIntl): CatSegmentIntelligence {
   const providerKind = catFile.provider?.kind;
-  const isNativeProject = !catFile.provider;
-  const supportsComments =
-    isNativeProject || providerKind === "crowdin" || providerKind === "phrase";
 
   return {
-    intent: `Translate ${catFile.filename} into ${catFile.targetLocale}.`,
+    intent: intl.formatMessage(projectFileCatMapperMessages.fileIntent, {
+      filename: catFile.filename,
+      targetLocale: catFile.targetLocale,
+    }),
     locationBreadcrumb: catFile.sourcePath,
     filePath: catFile.sourcePath,
     componentName: catFile.provider?.format ?? providerKind ?? undefined,
-    productMeaning: buildCommentProductMeaning({
-      supportsComments,
-      commentCount,
-      issueCount,
-      isNativeProject,
-      providerKind,
-      entity: "file",
-    }),
     reviewerPreference: catFile.canEditTranslations
       ? providerKind
-        ? "Approve writes the current target text back to the provider."
-        : "Approve saves the current target text."
-      : "This role can inspect strings but cannot write translations back.",
-    constraints: catFile.truncated ? "More strings are available beyond this page." : undefined,
+        ? intl.formatMessage(projectFileCatMapperMessages.approveWritesToProvider)
+        : intl.formatMessage(projectFileCatMapperMessages.approveSavesTarget)
+      : intl.formatMessage(projectFileCatMapperMessages.readOnlyRolePreference),
+    constraints: catFile.truncated
+      ? intl.formatMessage(projectFileCatMapperMessages.moreStringsAvailable)
+      : undefined,
     glossaryTerms: [],
     translationMemoryMatches: [],
   };
@@ -238,193 +175,110 @@ function intelligenceFor(catFile: CatFile): CatSegmentIntelligence {
 function segmentIntelligenceFor(
   catFile: CatFile,
   segment: CatFile["segments"][number],
+  intl: CatFormatMessageIntl,
 ): CatSegmentIntelligence {
-  const comments = segment.comments.length || segment.commentCount || 0;
-  const issues = countOpenIssues(segment);
   const context = segment.context?.trim();
-  const repositoryContext = segment.repositoryContext?.trim();
   const providerKind = catFile.provider?.kind;
-  const isNativeProject = !catFile.provider;
-  const supportsComments =
-    isNativeProject || providerKind === "crowdin" || providerKind === "phrase";
+  const segmentType = segment.type?.trim() || undefined;
+  const maxLength =
+    segment.maxLength != null && segment.maxLength > 0 ? segment.maxLength : undefined;
+
+  const segmentFormat = segment.format?.trim() || undefined;
 
   return {
-    intent: `Translate ${segment.key} into ${catFile.targetLocale}.`,
+    intent: intl.formatMessage(projectFileCatMapperMessages.segmentIntent, {
+      key: segment.key,
+      targetLocale: catFile.targetLocale,
+    }),
     locationBreadcrumb: segment.key,
-    filePath: catFile.sourcePath,
-    componentName: segment.type ?? catFile.provider?.format ?? providerKind ?? undefined,
-    productMeaning:
-      context ||
-      buildCommentProductMeaning({
-        supportsComments,
-        commentCount: comments,
-        issueCount: issues,
-        isNativeProject,
-        providerKind,
-        entity: "string",
-      }),
-    agentContext: repositoryContext || undefined,
+    filePath: segment.sourcePath ?? catFile.sourcePath,
+    componentName:
+      segmentType ?? segmentFormat ?? catFile.provider?.format ?? providerKind ?? undefined,
+    productMeaning: context || undefined,
+    ...(segmentType ? { segmentType } : {}),
+    ...(maxLength != null ? { maxLength } : {}),
     reviewerPreference: catFile.canEditTranslations
       ? providerKind
-        ? "Approve writes the current target text back to the provider."
-        : "Approve saves the current target text."
-      : "This role can inspect strings but cannot write translations back.",
-    constraints: catFile.truncated ? "More strings are available beyond this page." : undefined,
+        ? intl.formatMessage(projectFileCatMapperMessages.approveWritesToProvider)
+        : intl.formatMessage(projectFileCatMapperMessages.approveSavesTarget)
+      : intl.formatMessage(projectFileCatMapperMessages.readOnlyRolePreference),
+    constraints: catFile.truncated
+      ? intl.formatMessage(projectFileCatMapperMessages.moreStringsAvailable)
+      : undefined,
     glossaryTerms: [],
     translationMemoryMatches: [],
   };
 }
 
-export function projectFileCatToWorkspaceState(
-  catFile: CatFile,
-  _intl: CatFormatMessageIntl,
-): CatWorkspaceState {
-  const sourceLocale = catFile.provider?.sourceLocale ?? "source";
-  const segmentOffset = catFile.pagination?.offset ?? 0;
-  const segments = catFile.segments.map((segment, index): CatSegment => {
-    const commentCount = segment.comments.length || segment.commentCount || 0;
-    const issueComments = countOpenIssues(segment);
-    const tags = [
-      segment.type,
-      commentCount > 0 ? `${commentCount} comment${commentCount === 1 ? "" : "s"}` : null,
-      issueComments > 0 ? `${issueComments} issue${issueComments === 1 ? "" : "s"}` : null,
-    ].filter((tag): tag is string => Boolean(tag));
-
-    return {
-      id: segment.externalStringId,
-      index: segmentOffset + index + 1,
-      key: segment.key,
-      sourceText: segment.sourceText,
-      targetText: segmentTarget(segment)?.text ?? "",
-      sourceLocale,
-      targetLocale: catFile.targetLocale,
-      contextLabel: segment.context ?? undefined,
-      status: segmentStatusFor(segment),
-      hasOpenIssues: issueComments > 0,
-      tags,
-      ...(segment.maxLength != null && segment.maxLength > 0
-        ? { maxLength: segment.maxLength }
-        : {}),
-      comments: mapSegmentComments(segment),
-    };
-  });
+function fileContextFor(catFile: CatFile, sourceLocale: string): CatFileContext {
+  const providerKind = catFile.provider?.kind ?? null;
 
   return {
-    segments,
+    sourcePath: catFile.sourcePath,
+    filename: catFile.filename,
+    sourceLocale,
+    targetLocale: catFile.targetLocale,
+    providerKind,
+    canEditTranslations: catFile.canEditTranslations,
+    canAddComments: Boolean(catFile.canEditTranslations),
+    truncated: catFile.truncated,
+  };
+}
+
+export function projectFileCatToWorkspaceState(
+  catFile: CatFile,
+  sourceLocale: string,
+  intl: CatFormatMessageIntl,
+): CatWorkspaceState {
+  const fileContext = fileContextFor(catFile, sourceLocale);
+  const segmentOffset = catFile.pagination?.offset ?? 0;
+  const segments: CatQueueSegment[] = catFile.segments.map((segment, index) => ({
+    id: segment.externalStringId,
+    index: segmentOffset + index + 1,
+    key: segment.key,
+    sourceText: segment.sourceText,
+    ...(segment.contentKind ? { contentKind: segment.contentKind } : {}),
+    ...(segment.sourceAssetUrl !== undefined ? { sourceAssetUrl: segment.sourceAssetUrl } : {}),
+    ...(segment.targetAssetUrl !== undefined ? { targetAssetUrl: segment.targetAssetUrl } : {}),
+    ...(segment.imageVariantId !== undefined ? { imageVariantId: segment.imageVariantId } : {}),
+    ...(segment.looksLikeImageUrl !== undefined
+      ? { looksLikeImageUrl: segment.looksLikeImageUrl }
+      : {}),
+    ...(segment.sourcePath ? { sourcePath: segment.sourcePath } : {}),
+    ...(segment.externalResourceId ? { externalResourceId: segment.externalResourceId } : {}),
+    ...(segment.resourceType ? { resourceType: segment.resourceType } : {}),
+  }));
+
+  return {
+    fileContext,
+    queueSegments: segments,
     selectedSegmentId: segments[0]?.id ?? "",
     formatChecks: [],
     segmentFormatChecks: {},
-    intelligence: intelligenceFor(catFile),
+    intelligence: intelligenceFor(catFile, intl),
     segmentIntelligence: Object.fromEntries(
       catFile.segments.map((segment) => [
         segment.externalStringId,
-        segmentIntelligenceFor(catFile, segment),
+        segmentIntelligenceFor(catFile, segment, intl),
       ]),
     ),
     breadcrumbs: [catFile.provider?.kind ?? "native", catFile.filename, catFile.targetLocale],
-    primaryActionLabel: catFile.provider ? "Save to provider" : "Approve",
+    primaryActionLabel: catFile.provider
+      ? intl.formatMessage(projectFileCatMapperMessages.saveToProvider)
+      : intl.formatMessage(projectFileCatMapperMessages.approve),
     canEditTranslations: catFile.canEditTranslations,
     canAddComments: Boolean(catFile.canEditTranslations),
-    providerKind: catFile.provider?.kind ?? null,
+    providerKind: fileContext.providerKind,
   };
 }
 
-export function applyCatSegmentTargetToWorkspaceState(
-  state: CatWorkspaceState,
-  catFile: CatFile,
-  segmentId: string,
-  target: ProjectFileCatSegment["target"],
+export function requireProviderExternalResourceId(
+  catFile: CatFile | null | undefined,
   intl: CatFormatMessageIntl,
-): CatWorkspaceState {
-  const queueSegment = catFile.segments.find((segment) => segment.externalStringId === segmentId);
-  if (!queueSegment) {
-    return state;
-  }
-
-  const mergedSegment: ProjectFileCatSegment = {
-    ...queueSegment,
-    externalStringId: segmentId,
-    key: queueSegment.key,
-    sourceText: queueSegment.sourceText,
-    context: queueSegment.context,
-    type: queueSegment.type,
-    comments: [],
-    target,
-  };
-
-  const nextCatFile: CatFile = {
-    ...catFile,
-    segments: catFile.segments.map((segment) =>
-      segment.externalStringId === segmentId ? mergedSegment : segment,
-    ),
-  };
-  const targetState = projectFileCatToWorkspaceState(nextCatFile, intl);
-  const targetSegment = targetState.segments.find((segment) => segment.id === segmentId);
-
-  if (!targetSegment) {
-    return state;
-  }
-
-  return {
-    ...state,
-    segments: state.segments.map((segment) =>
-      segment.id === targetSegment.id ? targetSegment : segment,
-    ),
-  };
-}
-
-export function applyCatSegmentCommentsToWorkspaceState(
-  state: CatWorkspaceState,
-  segmentId: string,
-  comments: ProjectFileCatSegment["comments"],
-): CatWorkspaceState {
-  const existingSegment = state.segments.find((segment) => segment.id === segmentId);
-  if (!existingSegment) {
-    return state;
-  }
-
-  const apiSegment: ProjectFileCatSegment = {
-    externalStringId: segmentId,
-    key: existingSegment.key,
-    sourceText: existingSegment.sourceText,
-    context: existingSegment.contextLabel ?? null,
-    type: null,
-    target: existingSegment.targetText
-      ? { text: existingSegment.targetText, externalTranslationId: null, isApproved: false }
-      : null,
-    comments,
-  };
-  const mappedComments = mapSegmentComments(apiSegment);
-  const issueComments = countOpenIssues(apiSegment);
-  const commentCount = comments.length;
-  const tags = [
-    ...(existingSegment.tags ?? []).filter((tag) => {
-      const kind = getSegmentTagKind(tag);
-      return kind !== "comment" && kind !== "issue";
-    }),
-    commentCount > 0 ? `${commentCount} comment${commentCount === 1 ? "" : "s"}` : null,
-    issueComments > 0 ? `${issueComments} issue${issueComments === 1 ? "" : "s"}` : null,
-  ].filter((tag): tag is string => Boolean(tag));
-
-  return {
-    ...state,
-    segments: state.segments.map((segment) =>
-      segment.id === segmentId
-        ? {
-            ...segment,
-            comments: mappedComments,
-            hasOpenIssues: issueComments > 0,
-            tags,
-          }
-        : segment,
-    ),
-  };
-}
-
-export function requireProviderExternalResourceId(catFile: CatFile | null | undefined) {
+) {
   const externalResourceId = catFile?.provider?.externalResourceId;
   if (!externalResourceId) {
-    throw new Error("Cannot save translation because the provider file identifier is missing.");
+    throw new Error(intl.formatMessage(projectFileCatMapperMessages.missingProviderFileId));
   }
 
   return externalResourceId;

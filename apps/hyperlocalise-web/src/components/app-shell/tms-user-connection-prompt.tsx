@@ -1,8 +1,24 @@
 "use client";
 
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
+import { useIntl } from "react-intl";
+
 import { useTmsUserConnectCta } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/_hooks/use-tms-user-connect-cta";
 import { TmsUserConnectButton } from "@/components/app-shell/tms-user-connect-button";
-import { tmsUserConnectionRequiredMessage } from "@/lib/providers/tms-user-connection-shared";
+import { formatTmsUserConnectProviderLabel } from "@/lib/providers/credentials/tms-user-connection-shared";
+
+import { tmsUserConnectionPromptMessages } from "./tms-user-connection-prompt.messages";
 
 export function TmsUserConnectionErrorPanel({
   organizationSlug,
@@ -15,13 +31,19 @@ export function TmsUserConnectionErrorPanel({
   error: unknown;
   className?: string;
 }) {
+  const intl = useIntl();
   const query = useTmsUserConnectCta(organizationSlug);
   const resolved = query.data;
 
   const heading =
     resolved?.showConnectCta === true
-      ? tmsUserConnectionRequiredMessage(resolved.providerKind, resource)
-      : "Failed to load provider data.";
+      ? intl.formatMessage(tmsUserConnectionPromptMessages.connectionRequired, {
+          provider:
+            resolved.providerDisplayName ??
+            formatTmsUserConnectProviderLabel(resolved.providerKind),
+          resource,
+        })
+      : intl.formatMessage(tmsUserConnectionPromptMessages.loadFailed);
 
   return (
     <div className={className}>

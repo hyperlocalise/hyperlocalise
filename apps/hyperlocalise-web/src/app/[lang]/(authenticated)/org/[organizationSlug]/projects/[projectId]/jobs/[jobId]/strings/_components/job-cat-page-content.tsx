@@ -1,37 +1,68 @@
 "use client";
 
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeftIcon } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
+import { FormattedMessage, useIntl } from "react-intl";
 
 import { Button } from "@/components/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
 import { TypographyP } from "@/components/ui/typography";
 import { apiClient } from "@/lib/api-client-instance";
 import { useAppShellSidebar } from "@/components/app-shell/store/use-app-shell-sidebar";
-import { supportsProviderCatFile } from "@/lib/providers/provider-cat-capabilities";
+import { supportsProviderCatFile } from "@/lib/providers/capabilities/provider-cat-capabilities";
 
-import { ProjectPageShell } from "../../../../_components/project-page-shell";
+import {
+  CatFileTreePicker,
+  CatLocaleSelect,
+  CatRepositorySelect,
+} from "../../../../_components/cat-header-pickers";
+import { ProjectPageShell, useProjectPageQuery } from "../../../../_components/project-page-shell";
 import {
   catFileRepositoryPreferenceKey,
   readCatFileRepositoryPreference,
   writeCatFileRepositoryPreference,
 } from "./job-cat-repository-preference";
 import { selectJobCatTargetLocale } from "./job-cat-target-locale";
-import { loadJobCatProviderJobFiles, loadJobCatTargetFile } from "./load-job-cat-files";
-import { selectJobCatRepository, sortJobCatProviderFiles } from "./select-job-cat-repository";
+import { resolveDefaultJobCatFileReference } from "./job-cat-default-file";
+import {
+  loadJobCatJobSourceFiles,
+  loadJobCatProviderJobFiles,
+  loadJobCatSelectableTargetLocales,
+  loadJobCatTargetFile,
+} from "./load-job-cat-files";
+import {
+  canLookupFreshCatRepositoryContext,
+  selectJobCatRepository,
+  sortJobCatProviderFiles,
+} from "./select-job-cat-repository";
+import { jobCatPageContentMessages } from "./job-cat-page-content.messages";
 import { ProjectFileCatWorkspace } from "@/components/cat/project-file/project-file-cat-workspace";
-
-import { JobCatSourceFilePicker } from "./job-cat-source-file-picker";
+import {
+  attemptCatPageNavigation,
+  type CatPageNavigationGuardRef,
+} from "@/components/cat/workspace/cat-page-navigation-guard";
+import type { CatQueueFilter } from "@/components/cat/queue/cat-queue-filter";
+import { jobCatQueueFilterParam } from "@/lib/projects/job-cat-routing";
+import {
+  CAT_ALL_FILES_SOURCE_PATH,
+  isCatAllFilesSourcePath,
+  serializeCatSourcePathsFilter,
+} from "@/lib/projects/cat-all-files";
 
 type JobCatGithubRepository = {
   fullName: string;
@@ -54,6 +85,29 @@ function projectJobCatTargetFileQueryKey(
   ] as const;
 }
 
+function projectJobCatDefaultFileQueryKey(
+  organizationSlug: string,
+  projectId: string,
+  jobId: string,
+  targetLocale: string | null,
+) {
+  return [
+    "project-job-cat-default-file",
+    organizationSlug,
+    projectId,
+    jobId,
+    targetLocale,
+  ] as const;
+}
+
+function projectJobCatSelectableLocalesQueryKey(
+  organizationSlug: string,
+  projectId: string,
+  jobId: string,
+) {
+  return ["project-job-cat-selectable-locales", organizationSlug, projectId, jobId] as const;
+}
+
 function projectJobCatProviderFilesQueryKey(
   organizationSlug: string,
   projectId: string,
@@ -72,8 +126,10 @@ function stringsPageHref(input: {
   jobId: string;
   sourcePath?: string;
   storedFileId?: string;
+  sourcePaths?: readonly string[];
   targetLocale: string;
   segment?: string | null;
+  queueFilter?: CatQueueFilter;
 }) {
   const params = new URLSearchParams({
     targetLocale: input.targetLocale,
@@ -87,8 +143,16 @@ function stringsPageHref(input: {
     params.set("storedFileId", input.storedFileId);
   }
 
+  if (input.sourcePaths && input.sourcePaths.length > 0) {
+    params.set("sourcePaths", serializeCatSourcePathsFilter(input.sourcePaths));
+  }
+
   if (input.segment) {
     params.set("segment", input.segment);
+  }
+
+  if (input.queueFilter && input.queueFilter !== "all") {
+    params.set(jobCatQueueFilterParam, input.queueFilter);
   }
 
   return `/org/${input.organizationSlug}/projects/${encodeURIComponent(input.projectId)}/jobs/${encodeURIComponent(input.jobId)}/strings?${params.toString()}`;
@@ -100,21 +164,54 @@ export function JobCatPageContent({
   jobId,
   sourcePath,
   storedFileId = null,
+  sourcePaths = null,
   targetLocale,
   initialSegmentKey = null,
+  initialQueueFilter = "untranslated",
+  catAllFilesEnabled = false,
 }: {
   organizationSlug: string;
   projectId: string;
   jobId: string;
   sourcePath: string | null;
   storedFileId?: string | null;
+  sourcePaths?: string | null;
   targetLocale: string | null;
   initialSegmentKey?: string | null;
+  initialQueueFilter?: CatQueueFilter;
+  catAllFilesEnabled?: boolean;
 }) {
+  const intl = useIntl();
   const router = useRouter();
+  const pageNavigationGuardRef = useRef<CatPageNavigationGuardRef["current"]>(null);
   const taskHref = `/org/${organizationSlug}/projects/${encodeURIComponent(projectId)}/jobs/${encodeURIComponent(jobId)}`;
-  const hasFileReference = Boolean(sourcePath || storedFileId);
-  const isNativeJob = Boolean(storedFileId);
+  const canUseAllFiles = catAllFilesEnabled;
+  const requestedAllFiles = isCatAllFilesSourcePath(sourcePath) && Boolean(sourcePath);
+  const allFiles = canUseAllFiles && requestedAllFiles;
+  const hasFileReference = Boolean((sourcePath && !requestedAllFiles) || storedFileId) || allFiles;
+  const isNativeJob = Boolean(storedFileId) && !allFiles;
+  const didAutoSelectDefaultFileRef = useRef(false);
+  const defaultFileQuery = useQuery({
+    queryKey: projectJobCatDefaultFileQueryKey(organizationSlug, projectId, jobId, targetLocale),
+    enabled: !hasFileReference || allFiles,
+    queryFn: async () => {
+      const files = await loadJobCatJobSourceFiles({
+        organizationSlug,
+        projectId,
+        jobId,
+        targetLocale,
+      });
+
+      return {
+        files,
+        reference: resolveDefaultJobCatFileReference(files, targetLocale),
+      };
+    },
+  });
+  const projectQuery = useProjectPageQuery(organizationSlug, projectId, {
+    enabled: hasFileReference,
+  });
+  // allFiles uses projectQuery + job file lists
   useAppShellSidebar({ forceCollapsed: hasFileReference });
   const targetFileQuery = useQuery({
     queryKey: projectJobCatTargetFileQueryKey(
@@ -123,7 +220,7 @@ export function JobCatPageContent({
       sourcePath,
       storedFileId,
     ),
-    enabled: hasFileReference,
+    enabled: hasFileReference && !allFiles,
     queryFn: () =>
       loadJobCatTargetFile({
         organizationSlug,
@@ -135,13 +232,19 @@ export function JobCatPageContent({
 
   const providerFilesQuery = useQuery({
     queryKey: projectJobCatProviderFilesQueryKey(organizationSlug, projectId, jobId),
-    enabled: hasFileReference && !isNativeJob,
+    enabled: (hasFileReference && !isNativeJob) || allFiles,
     queryFn: () => loadJobCatProviderJobFiles({ organizationSlug, projectId, jobId, targetLocale }),
+  });
+
+  const jobLocalesQuery = useQuery({
+    queryKey: projectJobCatSelectableLocalesQueryKey(organizationSlug, projectId, jobId),
+    enabled: hasFileReference || allFiles,
+    queryFn: () => loadJobCatSelectableTargetLocales({ organizationSlug, projectId, jobId }),
   });
 
   const repositoriesQuery = useQuery({
     queryKey: githubInstallationRepositoriesQueryKey(organizationSlug),
-    enabled: hasFileReference && !isNativeJob,
+    enabled: hasFileReference,
     queryFn: async () => {
       const response = await apiClient.api.orgs[":organizationSlug"]["github-installation"][
         "repositories"
@@ -178,8 +281,9 @@ export function JobCatPageContent({
     [repositoriesQuery.data],
   );
 
-  const repositoryPreferenceKey = selectedFile
-    ? catFileRepositoryPreferenceKey(organizationSlug, projectId, selectedFile.sourcePath)
+  const repositoryPreferencePath = allFiles ? CAT_ALL_FILES_SOURCE_PATH : selectedFile?.sourcePath;
+  const repositoryPreferenceKey = repositoryPreferencePath
+    ? catFileRepositoryPreferenceKey(organizationSlug, projectId, repositoryPreferencePath)
     : null;
 
   const [repositoryOverride, setRepositoryOverride] = useState<string | null>(null);
@@ -201,36 +305,373 @@ export function JobCatPageContent({
 
   const selectedRepositoryFullName = repositoryOverride ?? autoSelectedRepositoryFullName;
 
-  if (!hasFileReference) {
-    return (
-      <JobCatSourceFilePicker
-        organizationSlug={organizationSlug}
-        projectId={projectId}
-        jobId={jobId}
-        targetLocale={targetLocale}
-      />
-    );
-  }
+  const handleRepositoryChange = (nextRepositoryFullName: string) => {
+    if (!repositoryPreferenceKey) {
+      return;
+    }
 
-  if (targetFileQuery.isLoading) {
+    writeCatFileRepositoryPreference(repositoryPreferenceKey, nextRepositoryFullName);
+    setRepositoryOverride(nextRepositoryFullName);
+  };
+
+  const repositoryBanner =
+    repositoriesQuery.isError ||
+    (enabledRepositoryFullNames.length > 1 && !selectedRepositoryFullName) ? (
+      <div className="shrink-0 border-b border-border px-3 py-1.5 sm:px-4 lg:px-6">
+        {repositoriesQuery.isError ? (
+          <TypographyP className="text-xs text-muted-foreground">
+            <FormattedMessage {...jobCatPageContentMessages.repositoriesLoadFailed} />
+          </TypographyP>
+        ) : (
+          <TypographyP className="text-xs text-muted-foreground">
+            <FormattedMessage {...jobCatPageContentMessages.selectRepositoryForContext} />
+          </TypographyP>
+        )}
+      </div>
+    ) : null;
+
+  const jobTargetLocales = jobLocalesQuery.data ?? [];
+  const activeTargetLocale = selectJobCatTargetLocale({
+    requestedTargetLocale: targetLocale,
+    providerTargetLocales:
+      jobTargetLocales.length > 0 ? jobTargetLocales : targetLocale ? [targetLocale] : [],
+  });
+
+  const handleLocaleChange = (nextLocale: string) => {
+    if (!nextLocale || nextLocale === activeTargetLocale) {
+      return;
+    }
+
+    const navigate = () => {
+      router.push(
+        stringsPageHref({
+          organizationSlug,
+          projectId,
+          jobId,
+          sourcePath: sourcePath ?? undefined,
+          storedFileId: storedFileId ?? undefined,
+          targetLocale: nextLocale,
+          segment: initialSegmentKey,
+          queueFilter: initialQueueFilter,
+        }),
+      );
+    };
+
+    attemptCatPageNavigation(pageNavigationGuardRef, navigate);
+  };
+
+  useEffect(() => {
+    if (
+      hasFileReference ||
+      didAutoSelectDefaultFileRef.current ||
+      !defaultFileQuery.data?.reference
+    ) {
+      return;
+    }
+
+    didAutoSelectDefaultFileRef.current = true;
+    const jobSourcePaths = defaultFileQuery.data.files
+      .map((file) => file.sourcePath)
+      .filter((path): path is string => Boolean(path?.trim()));
+    const reference = defaultFileQuery.data.reference;
+
+    if (canUseAllFiles) {
+      router.replace(
+        stringsPageHref({
+          organizationSlug,
+          projectId,
+          jobId,
+          sourcePath: CAT_ALL_FILES_SOURCE_PATH,
+          sourcePaths: jobSourcePaths,
+          targetLocale: reference.targetLocale,
+          segment: initialSegmentKey,
+          queueFilter: initialQueueFilter,
+        }),
+      );
+      return;
+    }
+
+    router.replace(
+      stringsPageHref({
+        organizationSlug,
+        projectId,
+        jobId,
+        sourcePath: reference.sourcePath ?? undefined,
+        storedFileId: reference.storedFileId ?? undefined,
+        targetLocale: reference.targetLocale,
+        segment: initialSegmentKey,
+        queueFilter: initialQueueFilter,
+      }),
+    );
+  }, [
+    canUseAllFiles,
+    defaultFileQuery.data,
+    hasFileReference,
+    initialSegmentKey,
+    initialQueueFilter,
+    jobId,
+    organizationSlug,
+    projectId,
+    router,
+  ]);
+
+  if (!hasFileReference) {
+    if (defaultFileQuery.isLoading) {
+      return (
+        <ProjectPageShell>
+          <div className="flex min-h-48 items-center justify-center gap-2 rounded-lg border border-border bg-card p-5">
+            <Spinner />
+            <TypographyP className="text-sm text-muted-foreground">
+              <FormattedMessage {...jobCatPageContentMessages.loadingWorkspace} />
+            </TypographyP>
+          </div>
+        </ProjectPageShell>
+      );
+    }
+
+    if (defaultFileQuery.isError) {
+      return (
+        <ProjectPageShell>
+          <div className="rounded-lg border border-border bg-card p-5">
+            <TypographyP className="text-sm text-flame-100">
+              {defaultFileQuery.error instanceof Error
+                ? defaultFileQuery.error.message
+                : intl.formatMessage(jobCatPageContentMessages.unableToLoadTaskFiles)}
+            </TypographyP>
+          </div>
+        </ProjectPageShell>
+      );
+    }
+
+    if (!defaultFileQuery.data?.reference) {
+      const hasSourceFiles = (defaultFileQuery.data?.files.length ?? 0) > 0;
+      const emptyStateMessage =
+        hasSourceFiles && !targetLocale
+          ? intl.formatMessage(jobCatPageContentMessages.noTargetLocaleSpecified)
+          : intl.formatMessage(jobCatPageContentMessages.noSourceFileLinked);
+
+      return (
+        <ProjectPageShell>
+          <div className="rounded-lg border border-border bg-card p-5">
+            <TypographyP className="text-sm text-muted-foreground">{emptyStateMessage}</TypographyP>
+          </div>
+        </ProjectPageShell>
+      );
+    }
+
     return (
       <ProjectPageShell>
         <div className="flex min-h-48 items-center justify-center gap-2 rounded-lg border border-border bg-card p-5">
           <Spinner />
-          <TypographyP className="text-sm text-muted-foreground">Loading workspace…</TypographyP>
+          <TypographyP className="text-sm text-muted-foreground">
+            <FormattedMessage {...jobCatPageContentMessages.openingWorkspace} />
+          </TypographyP>
         </div>
       </ProjectPageShell>
     );
   }
 
-  if (targetFileQuery.isError) {
+  if (allFiles) {
+    const defaultJobFiles = defaultFileQuery.data?.files ?? [];
+    const jobFiles =
+      providerFiles.length > 0
+        ? providerFiles
+        : defaultJobFiles.filter((file) => Boolean(file.storedFileId || file.provider));
+    const jobSourcePaths =
+      sourcePaths
+        ?.split(",")
+        .map((value) => value.trim())
+        .filter(Boolean) ??
+      jobFiles
+        .map((file) => file.sourcePath)
+        .filter((path): path is string => Boolean(path?.trim()));
+    const selectedTargetLocale = activeTargetLocale ?? targetLocale;
+
+    if (
+      projectQuery.isLoading ||
+      defaultFileQuery.isLoading ||
+      (!isNativeJob && providerFilesQuery.isLoading && !providerFilesQuery.data) ||
+      (!selectedTargetLocale && jobLocalesQuery.isLoading)
+    ) {
+      return (
+        <ProjectPageShell>
+          <div className="flex min-h-48 items-center justify-center gap-2 rounded-lg border border-border bg-card p-5">
+            <Spinner />
+            <TypographyP className="text-sm text-muted-foreground">
+              <FormattedMessage {...jobCatPageContentMessages.loadingWorkspace} />
+            </TypographyP>
+          </div>
+        </ProjectPageShell>
+      );
+    }
+
+    const sourceLocale = projectQuery.data?.sourceLocale;
+    if (projectQuery.isSuccess && !sourceLocale) {
+      return (
+        <ProjectPageShell>
+          <div className="rounded-lg border border-border bg-card p-5">
+            <TypographyP className="text-sm text-flame-100">
+              <FormattedMessage {...jobCatPageContentMessages.projectMissingSourceLocale} />
+            </TypographyP>
+          </div>
+        </ProjectPageShell>
+      );
+    }
+
+    if (!sourceLocale || !selectedTargetLocale) {
+      return (
+        <ProjectPageShell>
+          <div className="rounded-lg border border-border bg-card p-5">
+            <TypographyP className="text-sm text-muted-foreground">
+              {!sourceLocale ? (
+                <FormattedMessage {...jobCatPageContentMessages.loadingWorkspace} />
+              ) : (
+                <FormattedMessage {...jobCatPageContentMessages.noTargetLocaleForTask} />
+              )}
+            </TypographyP>
+          </div>
+        </ProjectPageShell>
+      );
+    }
+
+    const handleAllFilesLocaleChange = (nextLocale: string) => {
+      if (!nextLocale || nextLocale === selectedTargetLocale) {
+        return;
+      }
+      attemptCatPageNavigation(pageNavigationGuardRef, () => {
+        router.push(
+          stringsPageHref({
+            organizationSlug,
+            projectId,
+            jobId,
+            sourcePath: CAT_ALL_FILES_SOURCE_PATH,
+            sourcePaths: jobSourcePaths,
+            targetLocale: nextLocale,
+            segment: initialSegmentKey,
+            queueFilter: initialQueueFilter,
+          }),
+        );
+      });
+    };
+
+    const handleJobFileChange = (nextSourcePath: string | null) => {
+      if (!nextSourcePath) {
+        return;
+      }
+      router.push(
+        stringsPageHref({
+          organizationSlug,
+          projectId,
+          jobId,
+          sourcePath: nextSourcePath,
+          targetLocale: selectedTargetLocale,
+          queueFilter: initialQueueFilter,
+        }),
+      );
+    };
+
+    const handleJobSelectAllFiles = () => {
+      router.push(
+        stringsPageHref({
+          organizationSlug,
+          projectId,
+          jobId,
+          sourcePath: CAT_ALL_FILES_SOURCE_PATH,
+          sourcePaths: jobSourcePaths,
+          targetLocale: selectedTargetLocale,
+          queueFilter: initialQueueFilter,
+        }),
+      );
+    };
+
+    return (
+      <main className="-mx-4 -my-5 flex h-[var(--app-shell-content-height)] min-h-0 flex-col overflow-hidden bg-background sm:-mx-6 lg:-mx-8">
+        <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-border px-3 py-2 sm:px-4 lg:px-6">
+          <Button
+            variant="outline"
+            size="icon-sm"
+            className="size-8 shrink-0"
+            render={<Link href={taskHref} />}
+          >
+            <ArrowLeftIcon className="size-4" />
+          </Button>
+
+          <CatFileTreePicker
+            files={jobFiles}
+            selectedSourcePath=""
+            onSelectFile={handleJobFileChange}
+            allFilesSelected
+            onSelectAllFiles={canUseAllFiles ? handleJobSelectAllFiles : undefined}
+          />
+
+          {enabledRepositoryFullNames.length > 0 ? (
+            <CatRepositorySelect
+              repositoryFullNames={enabledRepositoryFullNames}
+              selectedRepositoryFullName={selectedRepositoryFullName}
+              onRepositoryChange={handleRepositoryChange}
+            />
+          ) : null}
+
+          {jobTargetLocales.length > 0 ? (
+            <CatLocaleSelect
+              targetLocales={jobTargetLocales}
+              selectedTargetLocale={selectedTargetLocale}
+              onTargetLocaleChange={handleAllFilesLocaleChange}
+            />
+          ) : null}
+        </div>
+
+        {repositoryBanner}
+
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-3 py-2 sm:px-4 lg:px-6">
+          <ProjectFileCatWorkspace
+            key={`${CAT_ALL_FILES_SOURCE_PATH}:${selectedTargetLocale}`}
+            organizationSlug={organizationSlug}
+            projectId={projectId}
+            sourceLocale={sourceLocale}
+            sourcePath={CAT_ALL_FILES_SOURCE_PATH}
+            targetLocale={selectedTargetLocale}
+            highlightLocale={selectedTargetLocale}
+            repositoryFullName={selectedRepositoryFullName}
+            canLookupFreshContext={canLookupFreshCatRepositoryContext(
+              enabledRepositoryFullNames,
+              selectedRepositoryFullName,
+            )}
+            initialSegmentKey={initialSegmentKey}
+            initialQueueFilter={initialQueueFilter}
+            sourcePathsFilter={serializeCatSourcePathsFilter(jobSourcePaths)}
+            layout="fullscreen"
+            className="min-h-0 flex-1"
+            pageNavigationGuardRef={pageNavigationGuardRef}
+          />
+        </div>
+      </main>
+    );
+  }
+
+  if (targetFileQuery.isLoading || projectQuery.isLoading) {
+    return (
+      <ProjectPageShell>
+        <div className="flex min-h-48 items-center justify-center gap-2 rounded-lg border border-border bg-card p-5">
+          <Spinner />
+          <TypographyP className="text-sm text-muted-foreground">
+            <FormattedMessage {...jobCatPageContentMessages.loadingWorkspace} />
+          </TypographyP>
+        </div>
+      </ProjectPageShell>
+    );
+  }
+
+  if (targetFileQuery.isError || projectQuery.isError) {
     return (
       <ProjectPageShell>
         <div className="rounded-lg border border-border bg-card p-5">
           <TypographyP className="text-sm text-flame-100">
-            {targetFileQuery.error instanceof Error
-              ? targetFileQuery.error.message
-              : "Unable to load task files."}
+            {projectQuery.error instanceof Error
+              ? projectQuery.error.message
+              : targetFileQuery.error instanceof Error
+                ? targetFileQuery.error.message
+                : intl.formatMessage(jobCatPageContentMessages.unableToLoadTaskFiles)}
           </TypographyP>
         </div>
       </ProjectPageShell>
@@ -245,9 +686,10 @@ export function JobCatPageContent({
             {targetFileQuery.data.reference}
           </TypographyP>
           <TypographyP className="mt-2 text-sm text-muted-foreground">
-            This project has more than {targetFileQuery.data.fetchedCount.toLocaleString()} files,
-            so the source file could not be resolved from the loaded file list. Open CAT from the
-            project Files page instead, or ask support to narrow the project file list.
+            <FormattedMessage
+              {...jobCatPageContentMessages.listTruncated}
+              values={{ fetchedCount: targetFileQuery.data.fetchedCount }}
+            />
           </TypographyP>
         </div>
       </ProjectPageShell>
@@ -262,41 +704,36 @@ export function JobCatPageContent({
             {sourcePath ?? storedFileId}
           </TypographyP>
           <TypographyP className="mt-2 text-sm text-muted-foreground">
-            This source file is not linked to the task anymore.
+            <FormattedMessage {...jobCatPageContentMessages.sourceFileNoLongerLinked} />
           </TypographyP>
         </div>
       </ProjectPageShell>
     );
   }
 
-  if (isNativeFile) {
+  const sourceLocale = projectQuery.data?.sourceLocale;
+  if (projectQuery.isSuccess && !sourceLocale) {
     return (
-      <main className="-mx-4 -my-5 flex min-h-[calc(100svh-var(--app-shell-header-height))] flex-col overflow-hidden bg-background sm:-mx-6 lg:-mx-8">
-        <div className="flex shrink-0 flex-col gap-3 border-b border-border px-4 py-3 sm:px-6 lg:px-8">
-          <div className="flex min-w-0 items-center gap-3">
-            <Button variant="outline" size="sm" render={<Link href={taskHref} />}>
-              <ArrowLeftIcon />
-              Task
-            </Button>
-            <TypographyP className="truncate font-mono text-xs text-muted-foreground">
-              {selectedFile.sourcePath}
-            </TypographyP>
-          </div>
+      <ProjectPageShell>
+        <div className="rounded-lg border border-border bg-card p-5">
+          <TypographyP className="text-sm text-flame-100">
+            <FormattedMessage {...jobCatPageContentMessages.projectMissingSourceLocale} />
+          </TypographyP>
         </div>
+      </ProjectPageShell>
+    );
+  }
 
-        <div className="flex min-h-0 flex-1 flex-col px-4 py-3 sm:px-6 lg:px-8">
-          <ProjectFileCatWorkspace
-            key={selectedFile.sourcePath}
-            organizationSlug={organizationSlug}
-            projectId={projectId}
-            sourcePath={selectedFile.sourcePath}
-            targetLocale={targetLocale ?? undefined}
-            highlightLocale={targetLocale}
-            initialSegmentKey={initialSegmentKey}
-            layout="fullscreen"
-          />
+  if (!sourceLocale) {
+    return (
+      <ProjectPageShell>
+        <div className="flex min-h-48 items-center justify-center gap-2 rounded-lg border border-border bg-card p-5">
+          <Spinner />
+          <TypographyP className="text-sm text-muted-foreground">
+            <FormattedMessage {...jobCatPageContentMessages.loadingWorkspace} />
+          </TypographyP>
         </div>
-      </main>
+      </ProjectPageShell>
     );
   }
 
@@ -305,9 +742,84 @@ export function JobCatPageContent({
       <ProjectPageShell>
         <div className="flex min-h-48 items-center justify-center gap-2 rounded-lg border border-border bg-card p-5">
           <Spinner />
-          <TypographyP className="text-sm text-muted-foreground">Loading workspace…</TypographyP>
+          <TypographyP className="text-sm text-muted-foreground">
+            <FormattedMessage {...jobCatPageContentMessages.loadingWorkspace} />
+          </TypographyP>
         </div>
       </ProjectPageShell>
+    );
+  }
+
+  if (isNativeFile) {
+    if (!activeTargetLocale) {
+      return (
+        <ProjectPageShell>
+          <div className="rounded-lg border border-border bg-card p-5">
+            <TypographyP className="text-sm text-muted-foreground">
+              <FormattedMessage {...jobCatPageContentMessages.noTargetLocaleForTaskFile} />
+            </TypographyP>
+          </div>
+        </ProjectPageShell>
+      );
+    }
+
+    return (
+      <main className="-mx-4 -my-5 flex h-[var(--app-shell-content-height)] min-h-0 flex-col overflow-hidden bg-background sm:-mx-6 lg:-mx-8">
+        <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-border px-3 py-2 sm:px-4 lg:px-6">
+          <Button
+            variant="outline"
+            size="icon-sm"
+            className="size-8 shrink-0"
+            render={<Link href={taskHref} />}
+          >
+            <ArrowLeftIcon className="size-4" />
+          </Button>
+
+          <TypographyP className="min-w-0 truncate font-mono text-xs text-muted-foreground sm:max-w-xs">
+            {selectedFile.sourcePath}
+          </TypographyP>
+
+          {jobTargetLocales.length > 0 ? (
+            <CatLocaleSelect
+              targetLocales={jobTargetLocales}
+              selectedTargetLocale={activeTargetLocale}
+              onTargetLocaleChange={handleLocaleChange}
+            />
+          ) : null}
+
+          {enabledRepositoryFullNames.length > 0 ? (
+            <CatRepositorySelect
+              repositoryFullNames={enabledRepositoryFullNames}
+              selectedRepositoryFullName={selectedRepositoryFullName}
+              onRepositoryChange={handleRepositoryChange}
+            />
+          ) : null}
+        </div>
+
+        {repositoryBanner}
+
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-3 py-2 sm:px-4 lg:px-6">
+          <ProjectFileCatWorkspace
+            key={`${selectedFile.sourcePath}:${activeTargetLocale}`}
+            organizationSlug={organizationSlug}
+            projectId={projectId}
+            sourceLocale={sourceLocale}
+            sourcePath={selectedFile.sourcePath}
+            targetLocale={activeTargetLocale}
+            highlightLocale={activeTargetLocale}
+            repositoryFullName={selectedRepositoryFullName}
+            canLookupFreshContext={canLookupFreshCatRepositoryContext(
+              enabledRepositoryFullNames,
+              selectedRepositoryFullName,
+            )}
+            initialSegmentKey={initialSegmentKey}
+            initialQueueFilter={initialQueueFilter}
+            layout="fullscreen"
+            className="min-h-0 flex-1"
+            pageNavigationGuardRef={pageNavigationGuardRef}
+          />
+        </div>
+      </main>
     );
   }
 
@@ -316,24 +828,21 @@ export function JobCatPageContent({
       <ProjectPageShell>
         <div className="rounded-lg border border-border bg-card p-5">
           <TypographyP className="text-sm text-muted-foreground">
-            String editing is only available for supported provider task files.
+            <FormattedMessage {...jobCatPageContentMessages.stringEditingUnsupported} />
           </TypographyP>
         </div>
       </ProjectPageShell>
     );
   }
 
-  const selectedTargetLocale = selectJobCatTargetLocale({
-    requestedTargetLocale: targetLocale,
-    providerTargetLocales: selectedFile.provider.targetLocales,
-  });
+  const selectedTargetLocale = activeTargetLocale;
 
   if (!selectedTargetLocale) {
     return (
       <ProjectPageShell>
         <div className="rounded-lg border border-border bg-card p-5">
           <TypographyP className="text-sm text-muted-foreground">
-            No target locale is available for this provider task file.
+            <FormattedMessage {...jobCatPageContentMessages.noTargetLocaleForProviderFile} />
           </TypographyP>
         </div>
       </ProjectPageShell>
@@ -352,7 +861,8 @@ export function JobCatPageContent({
 
     const nextTargetLocale = selectJobCatTargetLocale({
       requestedTargetLocale: targetLocale,
-      providerTargetLocales: nextFile.provider.targetLocales,
+      providerTargetLocales:
+        jobTargetLocales.length > 0 ? jobTargetLocales : targetLocale ? [targetLocale] : [],
     });
 
     if (!nextTargetLocale) {
@@ -366,21 +876,13 @@ export function JobCatPageContent({
         jobId,
         sourcePath: nextSourcePath,
         targetLocale: nextTargetLocale,
+        queueFilter: initialQueueFilter,
       }),
     );
   };
 
-  const handleRepositoryChange = (nextRepositoryFullName: string | null) => {
-    if (!nextRepositoryFullName || !repositoryPreferenceKey) {
-      return;
-    }
-
-    writeCatFileRepositoryPreference(repositoryPreferenceKey, nextRepositoryFullName);
-    setRepositoryOverride(nextRepositoryFullName);
-  };
-
   return (
-    <main className="-mx-4 -my-5 flex h-[calc(100svh-var(--app-shell-header-height))] min-h-0 flex-col overflow-hidden bg-background sm:-mx-6 lg:-mx-8">
+    <main className="-mx-4 -my-5 flex h-[var(--app-shell-content-height)] min-h-0 flex-col overflow-hidden bg-background sm:-mx-6 lg:-mx-8">
       <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-border px-3 py-2 sm:px-4 lg:px-6">
         <Button
           variant="outline"
@@ -391,73 +893,78 @@ export function JobCatPageContent({
           <ArrowLeftIcon className="size-4" />
         </Button>
 
-        <Select value={selectedFile.sourcePath} onValueChange={handleFileChange}>
-          <SelectTrigger
-            className="h-8 min-w-0 flex-1 basis-40 font-mono text-xs sm:max-w-xs"
-            aria-label="Source file"
-          >
-            <SelectValue placeholder="Source file" />
-          </SelectTrigger>
-          <SelectContent>
-            {providerFiles.map((file) => (
-              <SelectItem key={file.sourcePath} value={file.sourcePath}>
-                {file.sourcePath}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <CatFileTreePicker
+          files={providerFiles}
+          selectedSourcePath={selectedFile.sourcePath}
+          onSelectFile={handleFileChange}
+          allFilesSelected={false}
+          onSelectAllFiles={
+            canUseAllFiles
+              ? () => {
+                  router.push(
+                    stringsPageHref({
+                      organizationSlug,
+                      projectId,
+                      jobId,
+                      sourcePath: CAT_ALL_FILES_SOURCE_PATH,
+                      sourcePaths: providerFiles.map((file) => file.sourcePath),
+                      targetLocale: selectedTargetLocale,
+                      queueFilter: initialQueueFilter,
+                    }),
+                  );
+                }
+              : undefined
+          }
+        />
+
+        {jobTargetLocales.length > 0 ? (
+          <CatLocaleSelect
+            targetLocales={jobTargetLocales}
+            selectedTargetLocale={selectedTargetLocale}
+            onTargetLocaleChange={handleLocaleChange}
+          />
+        ) : null}
 
         {enabledRepositoryFullNames.length > 0 ? (
-          <Select value={selectedRepositoryFullName ?? ""} onValueChange={handleRepositoryChange}>
-            <SelectTrigger
-              className="h-8 min-w-0 flex-1 basis-40 font-mono text-xs sm:max-w-xs"
-              aria-label="GitHub repository"
-            >
-              <SelectValue placeholder="GitHub repo" />
-            </SelectTrigger>
-            <SelectContent>
-              {enabledRepositoryFullNames.map((repositoryFullName) => (
-                <SelectItem key={repositoryFullName} value={repositoryFullName}>
-                  {repositoryFullName}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <CatRepositorySelect
+            repositoryFullNames={enabledRepositoryFullNames}
+            selectedRepositoryFullName={selectedRepositoryFullName}
+            onRepositoryChange={handleRepositoryChange}
+          />
         ) : null}
 
         <TypographyP className="hidden min-w-0 truncate text-xs text-muted-foreground sm:block lg:max-w-48">
-          {selectedFile.provider.kind} · {selectedFile.provider.format ?? "file"}
+          {intl.formatMessage(jobCatPageContentMessages.providerKindAndFormat, {
+            kind: selectedFile.provider.kind,
+            format:
+              selectedFile.provider.format ??
+              intl.formatMessage(jobCatPageContentMessages.fileFormatFallback),
+          })}
         </TypographyP>
       </div>
 
-      {(repositoriesQuery.isError ||
-        (enabledRepositoryFullNames.length > 1 && !selectedRepositoryFullName)) && (
-        <div className="shrink-0 border-b border-border px-3 py-1.5 sm:px-4 lg:px-6">
-          {repositoriesQuery.isError ? (
-            <TypographyP className="text-xs text-muted-foreground">
-              GitHub repositories could not be loaded. Repository context lookup is unavailable.
-            </TypographyP>
-          ) : (
-            <TypographyP className="text-xs text-muted-foreground">
-              Select a GitHub repository to look up string context.
-            </TypographyP>
-          )}
-        </div>
-      )}
+      {repositoryBanner}
 
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-3 py-2 sm:px-4 lg:px-6">
         <ProjectFileCatWorkspace
-          key={`${selectedFile.sourcePath}:${selectedRepositoryFullName ?? "default"}`}
+          key={`${selectedFile.sourcePath}:${selectedTargetLocale}`}
           organizationSlug={organizationSlug}
           projectId={projectId}
+          sourceLocale={sourceLocale}
           sourcePath={selectedFile.sourcePath}
           externalResourceId={selectedFile.provider.externalResourceId}
           resourceType={selectedFile.provider.resourceType}
           targetLocale={selectedTargetLocale}
           repositoryFullName={selectedRepositoryFullName}
+          canLookupFreshContext={canLookupFreshCatRepositoryContext(
+            enabledRepositoryFullNames,
+            selectedRepositoryFullName,
+          )}
           initialSegmentKey={initialSegmentKey}
+          initialQueueFilter={initialQueueFilter}
           layout="fullscreen"
           className="min-h-0 flex-1"
+          pageNavigationGuardRef={pageNavigationGuardRef}
         />
       </div>
     </main>

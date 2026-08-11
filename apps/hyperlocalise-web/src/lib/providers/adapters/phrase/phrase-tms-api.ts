@@ -1,8 +1,46 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 /**
  * Phrase TMS (Memsource) API client for job and resource sync.
  */
 
-import { resolvePhraseTmsBaseUrl } from "./phrase-tms-base-url";
+import { normalizeProviderBaseUrl } from "@/lib/providers/shared/provider-url-safety";
+
+export const PHRASE_TMS_DEFAULT_BASE_URL = "https://cloud.memsource.com/web";
+
+export function resolvePhraseTmsBaseUrl(input: { baseUrl?: string | null }): string {
+  const explicitBaseUrl = input.baseUrl?.trim();
+  if (!explicitBaseUrl) {
+    return PHRASE_TMS_DEFAULT_BASE_URL;
+  }
+
+  const normalized = normalizeProviderBaseUrl(explicitBaseUrl, PHRASE_TMS_DEFAULT_BASE_URL);
+  if (!normalized) return PHRASE_TMS_DEFAULT_BASE_URL;
+
+  try {
+    const parsed = new URL(normalized);
+    const hostname = parsed.hostname.toLowerCase();
+    const isMemsourceHost = hostname === "memsource.com" || hostname.endsWith(".memsource.com");
+
+    if (isMemsourceHost) {
+      return normalized;
+    }
+  } catch {
+    // Invalid URL: fall back to default base URL.
+  }
+
+  return PHRASE_TMS_DEFAULT_BASE_URL;
+}
 
 export interface PhraseTmsApiClientOptions {
   token: string;

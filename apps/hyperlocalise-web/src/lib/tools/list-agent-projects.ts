@@ -1,11 +1,23 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import { and, desc, eq } from "drizzle-orm";
 
 import { schema } from "@/lib/database";
-import { getActiveOrganizationExternalTmsProviderCredentialRow } from "@/lib/providers/organization-external-tms-provider-credentials";
+import { getActiveOrganizationExternalTmsProviderCredentialRow } from "@/lib/providers/credentials/organization-external-tms-provider-credentials";
 import {
   listTmsProviderLiveProjects,
   TmsProviderLiveError,
-} from "@/lib/providers/tms-provider-live";
+} from "@/lib/providers/jobs/tms-provider-live";
 import type { ToolContext } from "@/lib/tools/types";
 
 import { toolAccessibleProjectsWhere } from "@/lib/tools/tool-access";

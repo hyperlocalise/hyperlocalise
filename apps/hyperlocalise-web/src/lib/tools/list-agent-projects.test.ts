@@ -1,3 +1,15 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import { describe, expect, it, vi } from "vite-plus/test";
 
 const listTmsProviderLiveProjectsMock = vi.fn();
@@ -15,7 +27,7 @@ vi.mock("@/lib/database", () => ({
   },
 }));
 
-vi.mock("@/lib/providers/tms-provider-live", () => ({
+vi.mock("@/lib/providers/jobs/tms-provider-live", () => ({
   listTmsProviderLiveProjects: (...args: unknown[]) => listTmsProviderLiveProjectsMock(...args),
   TmsProviderLiveError: class TmsProviderLiveError extends Error {
     constructor(
@@ -28,7 +40,7 @@ vi.mock("@/lib/providers/tms-provider-live", () => ({
   },
 }));
 
-vi.mock("@/lib/providers/organization-external-tms-provider-credentials", () => ({
+vi.mock("@/lib/providers/credentials/organization-external-tms-provider-credentials", () => ({
   getActiveOrganizationExternalTmsProviderCredentialRow: (...args: unknown[]) =>
     getActiveCredentialMock(...args),
 }));
@@ -110,7 +122,7 @@ describe("listAgentProjects", () => {
   });
 
   it("returns native projects with an error when the user Crowdin connection is missing", async () => {
-    const { TmsProviderLiveError } = await import("@/lib/providers/tms-provider-live");
+    const { TmsProviderLiveError } = await import("@/lib/providers/jobs/tms-provider-live");
 
     getActiveCredentialMock.mockResolvedValueOnce({ providerKind: "crowdin" });
     listTmsProviderLiveProjectsMock.mockRejectedValueOnce(

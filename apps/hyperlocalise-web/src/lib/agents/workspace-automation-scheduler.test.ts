@@ -1,3 +1,15 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import { describe, expect, it, vi, beforeEach } from "vite-plus/test";
 
 const listDueWorkspaceAutomations = vi.fn();
@@ -16,9 +28,16 @@ vi.mock("./workspace-automation-dispatcher", () => ({
     dispatchWorkspaceAutomationForScheduleAndAdvance(...args),
 }));
 
-vi.mock("@/agents/automations/workspace/agent/plan", () => ({
-  buildWorkspaceOrchestratorPlan: (...args: unknown[]) => buildWorkspaceOrchestratorPlan(...args),
-}));
+vi.mock("@/agents/automations/workspace/agent/plan", async () => {
+  const actual = await vi.importActual<typeof import("@/agents/automations/workspace/agent/plan")>(
+    "@/agents/automations/workspace/agent/plan",
+  );
+
+  return {
+    ...actual,
+    buildWorkspaceOrchestratorPlan: (...args: unknown[]) => buildWorkspaceOrchestratorPlan(...args),
+  };
+});
 
 import { runWorkspaceAutomationScheduler } from "./workspace-automation-scheduler";
 
@@ -43,6 +62,7 @@ describe("runWorkspaceAutomationScheduler", () => {
       status: "active" as const,
       name: "Scheduled Contentful on GitHub repo",
       instructions: "",
+      projectId: "project-1",
       triggerConfig: {
         mode: "scheduled" as const,
         schedule: { cadence: "daily" as const, hourUtc: 8, timezone: "UTC" },
@@ -55,7 +75,6 @@ describe("runWorkspaceAutomationScheduler", () => {
         contentful: {
           enabled: true,
           connectionId: "conn-1",
-          projectId: "project-1",
           sourceLocale: "en",
           targetLocales: ["de"],
           contentTypeIds: [],
@@ -67,7 +86,6 @@ describe("runWorkspaceAutomationScheduler", () => {
         github: {
           enabled: true,
           mode: "agent" as const,
-          projectId: "project-1",
           pushSource: false,
           pullTranslations: false,
           validation: false,

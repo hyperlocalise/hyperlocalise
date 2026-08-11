@@ -127,6 +127,46 @@ func TestInvariantHelpersEdgeCases(t *testing.T) {
 	}
 }
 
+func TestIsSortedAndUniqueFastPath(t *testing.T) {
+	// Bolt #1735 skips Sort/Compact when placeholders are already sorted+unique.
+	cases := []struct {
+		name   string
+		values []string
+		want   bool
+	}{
+		{name: "empty", values: nil, want: true},
+		{name: "single", values: []string{"a"}, want: true},
+		{name: "sorted unique", values: []string{"a", "b", "c"}, want: true},
+		{name: "duplicate", values: []string{"a", "a"}, want: false},
+		{name: "reverse order", values: []string{"c", "b", "a"}, want: false},
+		{name: "unsorted mid", values: []string{"a", "c", "b"}, want: false},
+		{name: "equal adjacent after sort would collapse", values: []string{"a", "b", "b"}, want: false},
+	}
+	for _, tt := range cases {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := isSortedAndUnique(tt.values); got != tt.want {
+				t.Fatalf("isSortedAndUnique(%v) = %v, want %v", tt.values, got, tt.want)
+			}
+		})
+	}
+
+	// uniqueStrings must reuse the input slice when already sorted+unique.
+	sorted := []string{"a", "b"}
+	if got := uniqueStrings(sorted); &got[0] != &sorted[0] {
+		t.Fatal("uniqueStrings should return the same slice for sorted unique input")
+	}
+	unsorted := []string{"b", "a", "a"}
+	if got := uniqueStrings(unsorted); len(got) != 2 || got[0] != "a" || got[1] != "b" {
+		t.Fatalf("uniqueStrings(%v) = %v", unsorted, got)
+	}
+	if !SamePlaceholderSet([]string{"b", "a"}, []string{"a", "b"}) {
+		t.Fatal("SamePlaceholderSet should use uniqueStrings fallback for unsorted inputs")
+	}
+	if !SamePlaceholderSet([]string{"a", "b"}, []string{"a", "b"}) {
+		t.Fatal("SamePlaceholderSet sorted fast-path should match")
+	}
+}
+
 func TestParseErrorsAndEdgeCases(t *testing.T) {
 	if _, err := Parse("{x, select, other {", nil); err == nil {
 		t.Fatal("expected unclosed")

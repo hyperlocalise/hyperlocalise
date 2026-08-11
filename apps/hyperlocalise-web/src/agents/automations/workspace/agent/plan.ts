@@ -1,10 +1,23 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import {
   hasWorkspaceAutomationGithubAgentTool,
   hasWorkspaceAutomationGithubWorkflow,
 } from "@/lib/agents/workspace-automation-github-mapping";
 import {
+  hasWorkspaceAutomationAssignTranslateWithAgentTool,
   hasWorkspaceAutomationContentfulWorkflow,
-  hasWorkspaceAutomationTranslationWorkflow,
+  hasWorkspaceAutomationCreateNativeTmsJobTool,
   type WorkspaceAutomationRecord,
   type WorkspaceAutomationToolConfig,
 } from "@/lib/agents/workspace-automations";
@@ -15,9 +28,14 @@ export const WORKSPACE_ORCHESTRATOR_TOOL_NAMES = [
   "use_github_repository",
   "run_github_workflows",
   "run_contentful_translation",
-  "create_translation_jobs",
+  "create_native_tms_job",
+  "assign_translate_with_agent",
+  "use_semrush",
+  "use_ahrefs",
   "notify_slack",
   "notify_email",
+  "recall_memory",
+  "save_memory",
 ] as const;
 
 export type WorkspaceOrchestratorToolName = (typeof WORKSPACE_ORCHESTRATOR_TOOL_NAMES)[number];
@@ -34,10 +52,19 @@ const WORKFLOW_TOOLS: WorkspaceOrchestratorToolName[] = [
   "use_github_repository",
   "run_github_workflows",
   "run_contentful_translation",
-  "create_translation_jobs",
+  "create_native_tms_job",
+  "assign_translate_with_agent",
+  "use_semrush",
+  "use_ahrefs",
 ];
 
 const NOTIFICATION_TOOLS: WorkspaceOrchestratorToolName[] = ["notify_slack", "notify_email"];
+
+// Memory tools remain in the tool-name union while the retrieval redesign is pending, but they
+// must not be added to execution plans. The orchestrator forces every planned tool, so planning
+// recall_memory/save_memory made both calls mandatory on every run. Keeping them out of plans
+// disables automation memory execution without affecting the human editor or chat memory tools.
+const MEMORY_ONLY_TOOLS: WorkspaceOrchestratorToolName[] = ["recall_memory", "save_memory"];
 
 function workflowToolEnabled(
   tool: WorkspaceOrchestratorToolName,
@@ -50,8 +77,14 @@ function workflowToolEnabled(
       return hasWorkspaceAutomationGithubWorkflow(toolConfig);
     case "run_contentful_translation":
       return hasWorkspaceAutomationContentfulWorkflow(toolConfig);
-    case "create_translation_jobs":
-      return hasWorkspaceAutomationTranslationWorkflow(toolConfig);
+    case "create_native_tms_job":
+      return hasWorkspaceAutomationCreateNativeTmsJobTool(toolConfig);
+    case "assign_translate_with_agent":
+      return hasWorkspaceAutomationAssignTranslateWithAgentTool(toolConfig);
+    case "use_semrush":
+      return Boolean(toolConfig.semrush?.enabled && toolConfig.semrush.connectionId);
+    case "use_ahrefs":
+      return Boolean(toolConfig.ahrefs?.enabled && toolConfig.ahrefs.connectionId);
     default:
       return false;
   }
@@ -93,6 +126,10 @@ function orderWorkflowTools(input: {
       ...enabled.filter((tool) => tool === "run_contentful_translation"),
       ...enabled.filter((tool) => tool === "run_github_workflows"),
       ...enabled.filter((tool) => tool === "use_github_repository"),
+      ...enabled.filter((tool) => tool === "create_native_tms_job"),
+      ...enabled.filter((tool) => tool === "assign_translate_with_agent"),
+      ...enabled.filter((tool) => tool === "use_semrush"),
+      ...enabled.filter((tool) => tool === "use_ahrefs"),
     ];
   }
 
@@ -100,6 +137,10 @@ function orderWorkflowTools(input: {
     ...enabled.filter((tool) => tool === "use_github_repository"),
     ...enabled.filter((tool) => tool === "run_github_workflows"),
     ...enabled.filter((tool) => tool === "run_contentful_translation"),
+    ...enabled.filter((tool) => tool === "create_native_tms_job"),
+    ...enabled.filter((tool) => tool === "assign_translate_with_agent"),
+    ...enabled.filter((tool) => tool === "use_semrush"),
+    ...enabled.filter((tool) => tool === "use_ahrefs"),
   ];
 }
 
@@ -118,4 +159,12 @@ export function buildWorkspaceOrchestratorPlan(
   return {
     tools: [...workflowTools, ...notificationTools],
   };
+}
+
+/**
+ * Whether the plan includes an actionable workflow or notification tool. Memory tools are
+ * excluded defensively even though buildWorkspaceOrchestratorPlan no longer emits them.
+ */
+export function planHasActionableTool(plan: WorkspaceOrchestratorPlan): boolean {
+  return plan.tools.some((tool) => !MEMORY_ONLY_TOOLS.includes(tool));
 }

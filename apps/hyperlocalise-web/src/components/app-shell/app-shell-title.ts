@@ -1,53 +1,98 @@
-const ROUTE_TITLES = {
-  account: "Account",
-  activity: "Activity",
-  "agent-runs": "Agent Runs",
-  "api-keys": "API Keys",
-  billing: "Billing",
-  chat: "New Request",
-  dashboard: "Overview",
-  files: "Files",
-  glossaries: "Glossaries",
-  inbox: "Inbox",
-  integrations: "Integrations",
-  jobs: "Jobs",
-  knowledge: "Knowledge",
-  locales: "Locales",
-  members: "Members",
-  "my-jobs": "My Jobs",
-  "my-work": "My Jobs",
-  "new-request": "New Request",
-  projects: "Projects",
-  qa: "QA",
-  reviews: "Reviews",
-  settings: "Settings",
-  teams: "Teams",
-  "translation-memories": "Translation Memories",
-} as const;
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
+import type { IntlShape } from "react-intl";
 
 export type AppShellBreadcrumb = {
   label: string;
   href?: string;
+  title?: string;
 };
 
-const PROJECT_SECTION_TITLES = {
-  activity: "Activity",
-  "agent-runs": "Agent Runs",
-  context: "Context",
-  files: "Files",
-  jobs: "Jobs",
-  locales: "Locales",
-  qa: "QA",
-  reviews: "Reviews",
-  settings: "Settings",
+type RouteTitleKey =
+  | "account"
+  | "activity"
+  | "agent-runs"
+  | "api-keys"
+  | "billing"
+  | "dashboard"
+  | "files"
+  | "glossaries"
+  | "inbox"
+  | "integrations"
+  | "issues"
+  | "issue-sheet"
+  | "jobs"
+  | "knowledge"
+  | "locales"
+  | "members"
+  | "my-jobs"
+  | "my-work"
+  | "projects"
+  | "qa"
+  | "reviews"
+  | "settings"
+  | "strings"
+  | "teams"
+  | "translation-memories";
+
+const PROJECT_SECTION_KEYS = {
+  activity: true,
+  "agent-runs": true,
+  context: true,
+  files: true,
+  "issue-sheet": true,
+  jobs: true,
+  locales: true,
+  qa: true,
+  reviews: true,
+  settings: true,
+  strings: true,
 } as const;
 
-function isRouteTitleKey(value: string): value is keyof typeof ROUTE_TITLES {
-  return value in ROUTE_TITLES;
+type ProjectSectionKey = keyof typeof PROJECT_SECTION_KEYS;
+
+function isRouteTitleKey(value: string): value is RouteTitleKey {
+  return (
+    value === "account" ||
+    value === "activity" ||
+    value === "agent-runs" ||
+    value === "api-keys" ||
+    value === "billing" ||
+    value === "dashboard" ||
+    value === "files" ||
+    value === "glossaries" ||
+    value === "inbox" ||
+    value === "integrations" ||
+    value === "issues" ||
+    value === "issue-sheet" ||
+    value === "jobs" ||
+    value === "knowledge" ||
+    value === "locales" ||
+    value === "members" ||
+    value === "my-jobs" ||
+    value === "my-work" ||
+    value === "projects" ||
+    value === "qa" ||
+    value === "reviews" ||
+    value === "settings" ||
+    value === "strings" ||
+    value === "teams" ||
+    value === "translation-memories"
+  );
 }
 
-function isProjectSectionKey(value: string): value is keyof typeof PROJECT_SECTION_TITLES {
-  return value in PROJECT_SECTION_TITLES;
+function isProjectSectionKey(value: string): value is ProjectSectionKey {
+  return value in PROJECT_SECTION_KEYS;
 }
 
 function parseOrgRoute(pathname: string | null) {
@@ -84,17 +129,180 @@ function decodePathSegment(value: string) {
   }
 }
 
-function routeTitle(segment: string) {
-  return isRouteTitleKey(segment) ? ROUTE_TITLES[segment] : segment;
+function routeTitle(intl: IntlShape, segment: string) {
+  return isRouteTitleKey(segment) ? formatRouteTitle(intl, segment) : segment;
+}
+
+function formatRouteTitle(intl: IntlShape, key: RouteTitleKey): string {
+  switch (key) {
+    case "account":
+      return intl.formatMessage({
+        defaultMessage: "Account",
+        id: "tMPM8tkhJg",
+        description: "App shell breadcrumb title for the account settings page",
+      });
+    case "activity":
+      return intl.formatMessage({
+        defaultMessage: "Activity",
+        id: "rW0O4vxb9w",
+        description: "App shell breadcrumb title for the activity page",
+      });
+    case "agent-runs":
+      return intl.formatMessage({
+        defaultMessage: "Agent Runs",
+        id: "2he28Pg1K2",
+        description: "App shell breadcrumb title for the agent runs page",
+      });
+    case "api-keys":
+      return intl.formatMessage({
+        defaultMessage: "API Keys",
+        id: "BuW96vtm0m",
+        description: "App shell breadcrumb title for the API keys settings page",
+      });
+    case "billing":
+      return intl.formatMessage({
+        defaultMessage: "Billing",
+        id: "Rn6kkInOe/",
+        description: "App shell breadcrumb title for the billing settings page",
+      });
+    case "dashboard":
+      return intl.formatMessage({
+        defaultMessage: "Overview",
+        id: "cQIBb8VVUr",
+        description: "App shell breadcrumb title for the workspace overview page",
+      });
+    case "files":
+      return intl.formatMessage({
+        defaultMessage: "Files",
+        id: "CGit9CSACq",
+        description: "App shell breadcrumb title for the files page",
+      });
+    case "glossaries":
+      return intl.formatMessage({
+        defaultMessage: "Glossaries",
+        id: "Qbn+bjzsz0",
+        description: "App shell breadcrumb title for the glossaries page",
+      });
+    case "inbox":
+      return intl.formatMessage({
+        defaultMessage: "Inbox",
+        id: "2f2Oa8dJQI",
+        description: "App shell breadcrumb title for the inbox page",
+      });
+    case "integrations":
+      return intl.formatMessage({
+        defaultMessage: "Integrations",
+        id: "XOLvGAW68Q",
+        description: "App shell breadcrumb title for the integrations page",
+      });
+    case "issues":
+      return intl.formatMessage({
+        defaultMessage: "Issues",
+        id: "RtEbYHhw1P",
+        description: "App shell breadcrumb title for the issues page",
+      });
+    case "issue-sheet":
+      return intl.formatMessage({
+        defaultMessage: "Issues",
+        id: "jmazd5AXy4",
+        description: "App shell breadcrumb title for the issue sheet page",
+      });
+    case "jobs":
+      return intl.formatMessage({
+        defaultMessage: "Jobs",
+        id: "WzPTL0QId6",
+        description: "App shell breadcrumb title for the jobs page",
+      });
+    case "knowledge":
+      return intl.formatMessage({
+        defaultMessage: "Knowledge",
+        id: "T+wQxH/IG1",
+        description: "App shell breadcrumb title for the knowledge page",
+      });
+    case "locales":
+      return intl.formatMessage({
+        defaultMessage: "Locales",
+        id: "s+WyHO3V5f",
+        description: "App shell breadcrumb title for the locales page",
+      });
+    case "members":
+      return intl.formatMessage({
+        defaultMessage: "Members",
+        id: "p97Cor56nd",
+        description: "App shell breadcrumb title for the members page",
+      });
+    case "my-jobs":
+    case "my-work":
+      return intl.formatMessage({
+        defaultMessage: "My Jobs",
+        id: "YM1jd5PwaY",
+        description: "App shell breadcrumb title for the my jobs page",
+      });
+    case "projects":
+      return intl.formatMessage({
+        defaultMessage: "Projects",
+        id: "A0qlCRVH2r",
+        description: "App shell breadcrumb title for the projects page",
+      });
+    case "qa":
+      return intl.formatMessage({
+        defaultMessage: "QA",
+        id: "A4tXh3Cw8D",
+        description: "App shell breadcrumb title for the QA page",
+      });
+    case "reviews":
+      return intl.formatMessage({
+        defaultMessage: "Reviews",
+        id: "2uwHtwT4Tc",
+        description: "App shell breadcrumb title for the reviews page",
+      });
+    case "settings":
+      return intl.formatMessage({
+        defaultMessage: "Settings",
+        id: "5Xs2gSCUMi",
+        description: "App shell breadcrumb title for the settings page",
+      });
+    case "strings":
+      return intl.formatMessage({
+        defaultMessage: "Strings",
+        id: "RbHK79ne0Y",
+        description: "App shell breadcrumb title for the project strings CAT page",
+      });
+    case "teams":
+      return intl.formatMessage({
+        defaultMessage: "Teams",
+        id: "LD3YSKplTh",
+        description: "App shell breadcrumb title for the teams page",
+      });
+    case "translation-memories":
+      return intl.formatMessage({
+        defaultMessage: "Translation Memories",
+        id: "vbaH3BSX3d",
+        description: "App shell breadcrumb title for the translation memories page",
+      });
+  }
+}
+
+function formatProjectSectionTitle(intl: IntlShape, key: ProjectSectionKey): string {
+  if (key === "context") {
+    return intl.formatMessage({
+      defaultMessage: "Context",
+      id: "FkLEYWNws0",
+      description: "App shell breadcrumb title for a project context section",
+    });
+  }
+
+  return formatRouteTitle(intl, key);
 }
 
 export function getAppShellBreadcrumbs(
   pathname: string | null,
+  intl: IntlShape,
   options?: { projectName?: string },
 ): AppShellBreadcrumb[] {
   const orgRoute = parseOrgRoute(pathname);
   if (!orgRoute) {
-    return [{ label: ROUTE_TITLES.dashboard }];
+    return [{ label: formatRouteTitle(intl, "dashboard") }];
   }
 
   const { organizationSlug, routeSegments } = orgRoute;
@@ -102,61 +310,75 @@ export function getAppShellBreadcrumbs(
 
   if (section === "settings") {
     if (!subsection) {
-      return [{ label: ROUTE_TITLES.settings }];
+      return [{ label: formatRouteTitle(intl, "settings") }];
     }
 
     return [
-      { label: ROUTE_TITLES.settings, href: buildOrgPath(organizationSlug, "settings") },
-      { label: routeTitle(subsection) },
+      {
+        label: formatRouteTitle(intl, "settings"),
+        href: buildOrgPath(organizationSlug, "settings"),
+      },
+      { label: routeTitle(intl, subsection) },
     ];
   }
 
   if (section === "teams") {
     if (!subsection) {
-      return [{ label: ROUTE_TITLES.teams }];
+      return [{ label: formatRouteTitle(intl, "teams") }];
     }
 
     return [
-      { label: ROUTE_TITLES.teams, href: buildOrgPath(organizationSlug, "teams") },
+      { label: formatRouteTitle(intl, "teams"), href: buildOrgPath(organizationSlug, "teams") },
       { label: decodePathSegment(subsection) },
     ];
   }
 
   if (section === "members") {
-    return [{ label: ROUTE_TITLES.members }];
+    return [{ label: formatRouteTitle(intl, "members") }];
   }
 
   if (section === "projects" && subsection) {
     const projectId = decodePathSegment(subsection);
     const projectLabel = options?.projectName?.trim() || projectId;
     const projectHref = buildOrgPath(organizationSlug, "projects", subsection);
+    const issueIdSegment = routeSegments[3];
 
     if (projectSection && isProjectSectionKey(projectSection)) {
+      const sectionHref = buildOrgPath(organizationSlug, "projects", subsection, projectSection);
       return [
-        { label: ROUTE_TITLES.projects, href: buildOrgPath(organizationSlug, "projects") },
+        {
+          label: formatRouteTitle(intl, "projects"),
+          href: buildOrgPath(organizationSlug, "projects"),
+        },
         { label: projectLabel, href: projectHref },
-        { label: PROJECT_SECTION_TITLES[projectSection] },
+        {
+          label: formatProjectSectionTitle(intl, projectSection),
+          href: issueIdSegment ? sectionHref : undefined,
+        },
       ];
     }
 
     return [
-      { label: ROUTE_TITLES.projects, href: buildOrgPath(organizationSlug, "projects") },
+      {
+        label: formatRouteTitle(intl, "projects"),
+        href: buildOrgPath(organizationSlug, "projects"),
+      },
       { label: projectLabel },
     ];
   }
 
   if (section === "projects") {
-    return [{ label: ROUTE_TITLES.projects }];
+    return [{ label: formatRouteTitle(intl, "projects") }];
   }
 
   if (section && isRouteTitleKey(section)) {
-    return [{ label: ROUTE_TITLES[section] }];
+    return [{ label: formatRouteTitle(intl, section) }];
   }
 
-  return [{ label: ROUTE_TITLES.dashboard }];
+  return [{ label: formatRouteTitle(intl, "dashboard") }];
 }
 
-export function getAppShellTitle(pathname: string | null): string {
-  const breadcrumbs = getAppShellBreadcrumbs(pathname);
-  return breadcrumbs[breadcrumbs.length - 1]?.label ?? ROUTE_TITLES.dashboard;
+export function getAppShellTitle(pathname: string | null, intl: IntlShape): string {
+  const breadcrumbs = getAppShellBreadcrumbs(pathname, intl);
+  return breadcrumbs[breadcrumbs.length - 1]?.label ?? formatRouteTitle(intl, "dashboard");
 }

@@ -1,9 +1,19 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import { describe, expect, it, vi } from "vite-plus/test";
 
-import {
-  memorySupportsLiveSearch,
-  searchLokaliseTranslationMemoryMatches,
-} from "./lokalise-tm-matcher";
+import { memorySupportsLiveSearch } from "@/lib/providers/contracts/memory-live-search";
+import { lokaliseTmsProvider } from "./lokalise-provider";
 
 describe("memorySupportsLiveSearch", () => {
   it("allows synced Lokalise memories to fall back to live key scans", () => {
@@ -34,7 +44,7 @@ describe("memorySupportsLiveSearch", () => {
   });
 });
 
-describe("searchLokaliseTranslationMemoryMatches", () => {
+describe("lokaliseTmsProvider.searchTranslationMemoryMatches", () => {
   it("normalizes key translation matches for attached memories", async () => {
     const fetchMock = vi.fn(async (url: string) => {
       if (!url.includes("/keys")) {
@@ -60,10 +70,9 @@ describe("searchLokaliseTranslationMemoryMatches", () => {
 
     vi.stubGlobal("fetch", fetchMock);
 
-    const matches = await searchLokaliseTranslationMemoryMatches({
+    const matches = await lokaliseTmsProvider.searchTranslationMemoryMatches({
       organizationId: "org_1",
       projectId: "project_1",
-      providerKind: "lokalise",
       externalProjectId: "proj.123",
       credential: {
         id: "cred_1",
@@ -80,7 +89,7 @@ describe("searchLokaliseTranslationMemoryMatches", () => {
       targetLocale: "fr",
       sourceText: "Hello",
       limit: 5,
-    });
+    } as never);
 
     vi.unstubAllGlobals();
 
@@ -89,7 +98,6 @@ describe("searchLokaliseTranslationMemoryMatches", () => {
       memoryId: "memory_local_1",
       sourceText: "Hello",
       targetText: "Bonjour",
-      providerKind: "lokalise",
       matchSource: "live_provider",
       externalResourceId: "proj.123:translation-memory",
       externalSegmentId: "42",
@@ -101,10 +109,9 @@ describe("searchLokaliseTranslationMemoryMatches", () => {
     const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
 
-    const matches = await searchLokaliseTranslationMemoryMatches({
+    const matches = await lokaliseTmsProvider.searchTranslationMemoryMatches({
       organizationId: "org_1",
       projectId: "project_1",
-      providerKind: "lokalise",
       externalProjectId: "proj.123",
       credential: {
         id: "cred_1",
@@ -121,7 +128,7 @@ describe("searchLokaliseTranslationMemoryMatches", () => {
       targetLocale: "fr",
       sourceText: "Hello",
       limit: 5,
-    });
+    } as never);
 
     vi.unstubAllGlobals();
 
@@ -130,10 +137,9 @@ describe("searchLokaliseTranslationMemoryMatches", () => {
   });
 
   it("returns no matches for a different external memory id", async () => {
-    const matches = await searchLokaliseTranslationMemoryMatches({
+    const matches = await lokaliseTmsProvider.searchTranslationMemoryMatches({
       organizationId: "org_1",
       projectId: "project_1",
-      providerKind: "lokalise",
       externalProjectId: "proj.123",
       credential: {
         id: "cred_1",
@@ -150,7 +156,7 @@ describe("searchLokaliseTranslationMemoryMatches", () => {
       targetLocale: "fr",
       sourceText: "Hello",
       limit: 5,
-    });
+    } as never);
 
     expect(matches).toEqual([]);
   });

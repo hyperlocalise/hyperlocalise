@@ -1,15 +1,27 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import {
   CROWDIN_DEFAULT_API_BASE_URL,
   crowdinAuthenticatedUserUrl,
   isCrowdinEnterpriseApiBaseUrl,
   resolveCrowdinApiBaseUrl,
-} from "@/lib/providers/adapters/crowdin/crowdin-base-url";
+} from "@/lib/providers/adapters/crowdin/crowdin-api";
 import { LOKALISE_DEFAULT_BASE_URL } from "@/lib/providers/adapters/lokalise/lokalise-api";
 import {
   PHRASE_TMS_DEFAULT_BASE_URL,
   resolvePhraseTmsBaseUrl,
-} from "@/lib/providers/adapters/phrase/phrase-tms-base-url";
-import { requireProviderBaseUrl } from "@/lib/providers/provider-url-safety";
+} from "@/lib/providers/adapters/phrase/phrase-tms-api";
+import { requireProviderBaseUrl } from "@/lib/providers/shared/provider-url-safety";
 
 const PROVIDER_API_PATH_PATTERN = / returned HTTP \d+ for (.+)$/;
 

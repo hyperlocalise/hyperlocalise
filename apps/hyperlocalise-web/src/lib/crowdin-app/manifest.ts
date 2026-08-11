@@ -1,0 +1,64 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
+import { env } from "@/lib/env";
+
+export function getCrowdinAppBaseUrl() {
+  return (
+    env.HYPERLOCALISE_PUBLIC_APP_URL?.replace(/\/$/, "") ??
+    (env.NODE_ENV === "development" ? "http://localhost:3000" : undefined)
+  );
+}
+
+export function buildCrowdinAppManifest() {
+  const baseUrl = getCrowdinAppBaseUrl();
+  const clientId = env.CROWDIN_APP_CLIENT_ID;
+
+  return {
+    identifier: "hyperlocalise-inbox",
+    name: "Hyperlocalise",
+    description: "Agent chat inbox for Crowdin projects connected to Hyperlocalise.",
+    logo: "/logo.svg",
+    baseUrl,
+    authentication: clientId
+      ? {
+          type: "crowdin_app" as const,
+          clientId,
+        }
+      : {
+          type: "none" as const,
+        },
+    events: {
+      installed: "/api/crowdin-app/events/installed",
+      uninstall: "/api/crowdin-app/events/uninstall",
+    },
+    scopes: ["project"],
+    modules: {
+      "project-menu": [
+        {
+          key: "inbox",
+          name: "Hyperlocalise",
+          url: "/crowdin-app/inbox",
+        },
+      ],
+      "editor-right-panel": [
+        {
+          key: "inbox-editor",
+          name: "Hyperlocalise",
+          modes: ["translate"],
+          supportsMultipleStrings: false,
+          url: "/crowdin-app/inbox",
+        },
+      ],
+    },
+  };
+}

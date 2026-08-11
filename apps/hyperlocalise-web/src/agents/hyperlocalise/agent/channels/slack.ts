@@ -1,3 +1,15 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import { Chat, emoji } from "chat";
 import { createSlackAdapter } from "@chat-adapter/slack";
 import type { Message, Thread, UserInfo } from "chat";
@@ -22,8 +34,13 @@ import {
   postThreadMessageWithoutTracking,
   wrapThreadPostForInteraction,
 } from "@/lib/agent-runtime/runs/agent-run-events";
+import {
+  reserveAgentRuntimeUsage,
+  trackSucceededAgentRuntimeUsage,
+} from "@/lib/billing/agent-runtime-usage";
 import { db } from "@/lib/database";
 import { env } from "@/lib/env";
+import { resolveWorkspaceVisualMockFlag } from "@/lib/flags/workspace-flags";
 import { createChatLogger, createLogger, serializeErrorForLog } from "@/lib/log";
 import {
   addInteractionMessage,
@@ -48,6 +65,10 @@ import {
 } from "@/lib/agents/slack/image-attachments";
 import { threadHasStoredSlackImages } from "@/lib/agents/slack/image-session";
 import { type SlackBotThreadState } from "@/lib/agents/slack/repository-session";
+import {
+  buildSlackScreenshotFileUploads,
+  extractSuccessfulCaptureScreenshots,
+} from "@/lib/agents/slack/screenshot-attachments";
 
 type SlackBotState = SlackBotThreadState;
 
@@ -331,12 +352,7 @@ async function processSlackMessage(
       });
     }
 
-    const chatMessages = replaceLastUserMessage(
-      loadedMessages,
-      resolvedRepositoryContext
-        ? getRecentUserConversationText(loadedMessages, persistedUserText)
-        : persistedUserText,
-    );
+    const chatMessages = replaceLastUserMessage(loadedMessages, persistedUserText);
 
     if (imageAttachments.length > 0) {
       await removeEyesReaction(thread, message);
@@ -403,7 +419,13 @@ async function processSlackMessage(
       }
     }
 
-    const hasTmsIntegration = await resolveOrganizationHasTmsIntegration(organizationId);
+    const [hasTmsIntegration, hasVisualMockSkill] = await Promise.all([
+      resolveOrganizationHasTmsIntegration(organizationId),
+      resolveWorkspaceVisualMockFlag({
+        organizationId,
+        localUserId: membership.localUserId,
+      }),
+    ]);
 
     const agent = createConversationToolLoopAgent({
       surface: "slack",
@@ -418,7 +440,7 @@ async function processSlackMessage(
           ? {
               sandboxId,
               githubContext: resolvedRepositoryContext,
-              workMode: "read_only" as const,
+              workMode: hasVisualMockSkill ? ("write" as const) : ("read_only" as const),
               repositorySource: "slack" as const,
               actor: {
                 sourceUserId: message.author.userId,
@@ -430,6 +452,7 @@ async function processSlackMessage(
       },
       hasFileAttachments: hasTranslationAttachments,
       hasTmsIntegration,
+      hasVisualMockSkill,
       additionalInstructions: [buildFileTranslationInstructions(), repositoryContextInstructions]
         .filter((instruction): instruction is string => instruction !== null)
         .join("\n\n"),
@@ -442,10 +465,39 @@ async function processSlackMessage(
       },
       "running slack conversation agent",
     );
+
+    const usageOperationKey = `slack-agent-turn:${persistedMessage.id}:agent_runs`;
+    const usageDimensions = {
+      surface: "slack",
+      agent_surface: "chat",
+      repository_tools: Boolean(sandboxId),
+    };
+    await reserveAgentRuntimeUsage({
+      organizationId,
+      operationKey: usageOperationKey,
+      source: "slack_agent_turn",
+      interactionId,
+      dimensions: usageDimensions,
+    });
+
     const result = await agent.generate({ messages: chatMessages });
+    await trackSucceededAgentRuntimeUsage({
+      organizationId,
+      operationKey: usageOperationKey,
+      dimensions: usageDimensions,
+    });
+
+    const screenshots = extractSuccessfulCaptureScreenshots(result);
+    const screenshotFiles = await buildSlackScreenshotFileUploads({
+      screenshots,
+      organizationId,
+      projectId,
+    });
     log.info(
       {
         hasReplyText: result.text.trim().length > 0,
+        screenshotCount: screenshots.length,
+        screenshotUploadCount: screenshotFiles.length,
       },
       "slack conversation agent completed",
     );
@@ -453,8 +505,12 @@ async function processSlackMessage(
     await removeEyesReaction(thread, message);
     wrapThreadPost(thread, interactionId);
     const replyText = result.text.trim();
-    if (replyText) {
+    if (replyText && screenshotFiles.length > 0) {
+      await thread.post({ markdown: replyText, files: screenshotFiles });
+    } else if (replyText) {
       await thread.post({ markdown: replyText });
+    } else if (screenshotFiles.length > 0) {
+      await thread.post({ markdown: "", files: screenshotFiles });
     }
   } catch (error) {
     log.error({ err: serializeErrorForLog(error) }, "slack agent message processing failed");

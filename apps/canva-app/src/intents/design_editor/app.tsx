@@ -1,3 +1,15 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import {
     Alert,
     Box,
@@ -17,12 +29,14 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { FormattedMessage, useIntl } from "react-intl";
 import * as styles from "styles/components.css";
 import {
+    applyTranslationsToDesign,
     extractDesignContent,
     listDesignPages,
 } from "./design-content";
 import {
     fetchCanvaMe,
     fetchCanvaProjects,
+    HyperlocaliseClientError,
     pollLocalizeDesign,
     startLocalizeDesign,
 } from "./hyperlocalise-client";
@@ -53,7 +67,7 @@ function pageDescription(page: DesignPageInfo): string {
 }
 
 function getErrorMessage(error: unknown): string {
-    if (error instanceof Error) {
+    if (error instanceof HyperlocaliseClientError || error instanceof Error) {
         return error.message;
     }
 
@@ -340,21 +354,39 @@ export const App = () => {
                 jobId: created.jobId,
             });
 
+            const localeToApply = targetLocales[0] ?? "";
+            const translations = localeToApply
+                ? finalStatus.translationsByLocale[localeToApply]
+                : undefined;
+            if (!translations) {
+                throw new Error(
+                    localeToApply
+                        ? `No translated content returned for ${localeToApply}.`
+                        : "No target locale selected to sync back into the design.",
+                );
+            }
+
+            setJobStatus("applying");
+            await applyTranslationsToDesign(
+                translations,
+                selectedPageIndices,
+                settings.preserveFormatting,
+            );
+
             setJobStatus("succeeded");
             setStatusMessage(
                 intl.formatMessage(
                     {
                         id: "hyperlocalise.canva.status.jobFinished",
                         defaultMessage:
-                            "Localization job {jobId} finished with {segmentCount} segments translated.",
+                            "Localization job {jobId} finished with {segmentCount} segments translated and synced {locale} into the design.",
                         description:
-                            "Status shown after localization completes.",
+                            "Status shown after localization completes and is applied to Canva.",
                     },
                     {
                         jobId: finalStatus.jobId,
-                        segmentCount: Object.keys(
-                            finalStatus.translationsByLocale[targetLocales[0] ?? ""] ?? {},
-                        ).length,
+                        segmentCount: Object.keys(translations).length,
+                        locale: localeToApply,
                     },
                 ),
             );

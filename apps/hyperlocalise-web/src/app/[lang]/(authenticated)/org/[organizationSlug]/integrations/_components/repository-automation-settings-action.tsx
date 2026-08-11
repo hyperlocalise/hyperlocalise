@@ -1,8 +1,22 @@
 "use client";
 
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import { useState } from "react";
+import { FormattedMessage } from "react-intl";
 
 import { RepositoryAutomationSettingsPanel } from "./repository-automation-settings-panel";
+import { repositoryAutomationSettingsActionMessages } from "./repository-automation-settings-action.messages";
 import { Button } from "@/components/ui/button";
 import {
   Sheet,
@@ -41,13 +55,15 @@ export function RepositoryAutomationSettingsAction({
       <SheetTrigger
         render={<Button type="button" variant="outline" size="sm" className="whitespace-nowrap" />}
       >
-        Automation
+        <FormattedMessage {...repositoryAutomationSettingsActionMessages.automationButton} />
       </SheetTrigger>
       <SheetContent side="right" className="w-full overflow-y-auto sm:max-w-xl">
         <SheetHeader>
-          <SheetTitle>Repository automation</SheetTitle>
+          <SheetTitle>
+            <FormattedMessage {...repositoryAutomationSettingsActionMessages.sheetTitle} />
+          </SheetTitle>
           <SheetDescription>
-            Push source, pull translations, and publish localization checks for this repository.
+            <FormattedMessage {...repositoryAutomationSettingsActionMessages.sheetDescription} />
           </SheetDescription>
         </SheetHeader>
         <div className="px-6 pb-6">

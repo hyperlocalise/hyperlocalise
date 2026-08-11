@@ -1,9 +1,28 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import { and, eq, exists, inArray, isNull, or, sql, type SQL } from "drizzle-orm";
 
 import { hasCapability } from "@/api/auth/policy";
 import type { ApiAuthContext } from "@/api/auth/workos";
 import { db, schema } from "@/lib/database";
-import { providerAssignedUsersMatch } from "@/lib/providers/tms-provider-assignee-match";
+import { providerAssignedUsersMatch } from "@/lib/providers/jobs/tms-provider-assignee-match";
+import { getTmsProviderLiveProject } from "@/lib/providers/jobs/tms-provider-live";
+import {
+  isLiveProviderGlossaryId,
+  isLiveProviderMemoryId,
+  parseProviderProjectId,
+} from "@/lib/providers/jobs/tms-provider-resource-id";
+import { normalizeProjectId } from "@/lib/projects/identity/project-id";
 import { backfillOrganizationProjectTeams } from "@/lib/teams/default-workspace-team";
 
 export function hasOrganizationWideProjectAccess(auth: ApiAuthContext) {
@@ -70,6 +89,51 @@ export async function buildAccessibleProjectsWhere(auth: ApiAuthContext): Promis
 
 export async function ownedProjectWhere(auth: ApiAuthContext, projectId: string) {
   return and(eq(schema.projects.id, projectId), await buildAccessibleProjectsWhere(auth))!;
+}
+
+/**
+ * Resolve whether the caller may use a project id.
+ *
+ * Native projects stay team-scoped. External TMS project ids (`ext:…`) defer to
+ * the connected provider's live API with the caller's credentials — Crowdin and
+ * other TMS systems already enforce project membership, so Hyperlocalise must
+ * not re-apply team gates after a project is materialized locally.
+ */
+export async function canAccessProject(
+  auth: ApiAuthContext,
+  projectId: string,
+): Promise<{ id: string } | null> {
+  const normalizedProjectId = normalizeProjectId(projectId);
+  if (typeof normalizedProjectId !== "string" || normalizedProjectId.length === 0) {
+    return null;
+  }
+
+  const [project] = await db
+    .select({ id: schema.projects.id })
+    .from(schema.projects)
+    .where(await ownedProjectWhere(auth, normalizedProjectId))
+    .limit(1);
+
+  if (project) {
+    return project;
+  }
+
+  const encodedProject = parseProviderProjectId(normalizedProjectId);
+  if (!encodedProject) {
+    return null;
+  }
+
+  const liveProject = await getTmsProviderLiveProject(
+    auth.organization.localOrganizationId,
+    encodedProject.externalProjectId,
+    { actorUserId: auth.user.localUserId },
+  ).catch(() => null);
+
+  if (!liveProject || liveProject.id !== normalizedProjectId) {
+    return null;
+  }
+
+  return { id: liveProject.id };
 }
 
 export async function getAccessibleProjectIds(auth: ApiAuthContext) {
@@ -199,9 +263,12 @@ export async function buildAccessibleInteractionsWhere(auth: ApiAuthContext): Pr
   }
 
   const accessibleProjectIds = await getAccessibleProjectIds(auth);
+  // Personal chat_ui threads stay visible to their author when unscoped or when
+  // attached to a live provider project id (`ext:…`). Those ids are not in the
+  // local projects table, so team-scoped `inArray` alone would hide them.
   const ownedWorkspaceChatFilter = and(
-    isNull(schema.interactions.projectId),
     eq(schema.interactions.source, "chat_ui"),
+    or(isNull(schema.interactions.projectId), sql`${schema.interactions.projectId} like 'ext:%'`),
     exists(
       db
         .select({ id: schema.interactionMessages.id })
@@ -250,6 +317,10 @@ export async function canAccessInteraction(auth: ApiAuthContext, interactionId: 
 }
 
 export async function canAccessGlossary(auth: ApiAuthContext, glossaryId: string) {
+  if (isLiveProviderGlossaryId(glossaryId)) {
+    return null;
+  }
+
   if (hasOrganizationWideProjectAccess(auth)) {
     const [glossary] = await db
       .select({ id: schema.glossaries.id })
@@ -302,12 +373,7 @@ export async function canAccessStoredFile(
   }
 
   if (input.projectId) {
-    const [project] = await db
-      .select({ id: schema.projects.id })
-      .from(schema.projects)
-      .where(await ownedProjectWhere(auth, input.projectId))
-      .limit(1);
-
+    const project = await canAccessProject(auth, input.projectId);
     return Boolean(project);
   }
 
@@ -324,6 +390,10 @@ export async function canAccessStoredFile(
 }
 
 export async function canAccessMemory(auth: ApiAuthContext, memoryId: string) {
+  if (isLiveProviderMemoryId(memoryId)) {
+    return null;
+  }
+
   if (hasOrganizationWideProjectAccess(auth)) {
     const [memory] = await db
       .select({ id: schema.memories.id })

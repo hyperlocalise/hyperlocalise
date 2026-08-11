@@ -293,3 +293,73 @@ func (s *StringTranslationsService) AddVote(ctx context.Context, projectID int, 
 func (s *StringTranslationsService) CancelVote(ctx context.Context, projectID, voteID int) (*Response, error) {
 	return s.client.Delete(ctx, fmt.Sprintf("/api/v2/projects/%d/votes/%d", projectID, voteID), nil)
 }
+
+// ListCorrections returns a list of translation corrections (Enterprise only).
+//
+// https://developer.crowdin.com/api/v2/#operation/api.projects.corrections.getMany
+func (s *StringTranslationsService) ListCorrections(ctx context.Context, projectID int, opts *model.CorrectionsListOptions) (
+	[]*model.Correction, *Response, error,
+) {
+	res := new(model.CorrectionsListResponse)
+	resp, err := s.client.Get(ctx, fmt.Sprintf("/api/v2/projects/%d/corrections", projectID), opts, res)
+	if err != nil {
+		return nil, resp, err
+	}
+
+	list := make([]*model.Correction, 0, len(res.Data))
+	for _, correction := range res.Data {
+		list = append(list, correction.Data)
+	}
+
+	return list, resp, nil
+}
+
+// GetCorrection returns a single translation correction by its identifier (Enterprise only).
+//
+// https://developer.crowdin.com/api/v2/#operation/api.projects.corrections.get
+func (s *StringTranslationsService) GetCorrection(ctx context.Context, projectID, correctionID int, opts *model.CorrectionGetOptions) (
+	*model.Correction, *Response, error,
+) {
+	res := new(model.CorrectionGetResponse)
+	resp, err := s.client.Get(ctx, fmt.Sprintf("/api/v2/projects/%d/corrections/%d", projectID, correctionID), opts, res)
+
+	return res.Data, resp, err
+}
+
+// AddCorrection adds a new translation correction (Enterprise only).
+//
+// https://developer.crowdin.com/api/v2/#operation/api.projects.corrections.post
+func (s *StringTranslationsService) AddCorrection(ctx context.Context, projectID int, req *model.CorrectionAddRequest) (
+	*model.Correction, *Response, error,
+) {
+	res := new(model.CorrectionGetResponse)
+	resp, err := s.client.Post(ctx, fmt.Sprintf("/api/v2/projects/%d/corrections", projectID), req, res)
+
+	return res.Data, resp, err
+}
+
+// RestoreCorrection restores a correction by its identifier (Enterprise only).
+//
+// https://developer.crowdin.com/api/v2/#operation/api.projects.corrections.put
+func (s *StringTranslationsService) RestoreCorrection(ctx context.Context, projectID, correctionID int) (
+	*model.Correction, *Response, error,
+) {
+	res := new(model.CorrectionGetResponse)
+	resp, err := s.client.Put(ctx, fmt.Sprintf("/api/v2/projects/%d/corrections/%d", projectID, correctionID), nil, res)
+
+	return res.Data, resp, err
+}
+
+// DeleteCorrection deletes a correction by its identifier (Enterprise only).
+//
+// https://developer.crowdin.com/api/v2/#operation/api.projects.corrections.delete
+func (s *StringTranslationsService) DeleteCorrection(ctx context.Context, projectID, correctionID int) (*Response, error) {
+	return s.client.Delete(ctx, fmt.Sprintf("/api/v2/projects/%d/corrections/%d", projectID, correctionID), nil)
+}
+
+// DeleteCorrections deletes corrections by its string identifier (Enterprise only).
+//
+// https://developer.crowdin.com/api/v2/#operation/api.projects.corrections.deleteMany
+func (s *StringTranslationsService) DeleteCorrections(ctx context.Context, projectID, stringID int) (*Response, error) {
+	return s.client.Delete(ctx, fmt.Sprintf("/api/v2/projects/%d/corrections?stringId=%d", projectID, stringID), nil)
+}

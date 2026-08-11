@@ -1,6 +1,18 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 // @vitest-environment happy-dom
 
-import { screen } from "@testing-library/react";
+import { screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vite-plus/test";
 
@@ -12,12 +24,12 @@ import { CatEditorPanel } from "./cat-editor-panel";
 
 function renderEditorPanel(overrides: Partial<CatEditorPanelProps> = {}) {
   const state = createCatWorkspaceState({ selectedSegmentId: "seg-02" });
-  const segment = state.segments.find((item) => item.id === "seg-02")!;
+  const segment = state.segments!.find((item) => item.id === "seg-02")!;
 
   const props: CatEditorPanelProps = {
     segment,
     segmentPosition: 2,
-    totalSegments: state.segments.length,
+    totalSegments: state.segments!.length,
     formatChecks: state.formatChecks,
     intelligence: state.intelligence,
     canApprove: true,
@@ -54,7 +66,7 @@ describe("CatEditorPanel UI", () => {
   it("disables approve when the target string is empty", () => {
     renderEditorPanel({
       segment: {
-        ...createCatWorkspaceState({ selectedSegmentId: "seg-02" }).segments.find(
+        ...createCatWorkspaceState({ selectedSegmentId: "seg-02" }).segments!.find(
           (item) => item.id === "seg-02",
         )!,
         targetText: "",
@@ -89,6 +101,52 @@ describe("CatEditorPanel UI", () => {
     });
 
     expect(screen.getByText("Failed to post comment.")).toBeInTheDocument();
+  });
+
+  it("opens the linked Issue Sheet from Crowdin comments section", async () => {
+    const user = userEvent.setup();
+    const onAddToIssueSheet = vi.fn();
+
+    renderEditorPanel({
+      canAddComment: true,
+      providerKind: "crowdin",
+      onAddToIssueSheet,
+      segment: {
+        ...createCatWorkspaceState({ selectedSegmentId: "seg-02" }).segments!.find(
+          (item) => item.id === "seg-02",
+        )!,
+        comments: [
+          {
+            id: "issue-open-1",
+            type: "issue",
+            status: "unresolved",
+            text: "Needs clarification.",
+            createdAt: "2026-06-11T14:30:00.000Z",
+            locale: "ja-JP",
+            author: "Reviewer",
+          },
+        ],
+      },
+    });
+
+    const commentsSection = screen.getByText("Comments").closest("section");
+    expect(commentsSection).not.toBeNull();
+
+    await user.click(within(commentsSection!).getByRole("button", { name: "Issues" }));
+
+    expect(onAddToIssueSheet).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not show Issue tab for native projects", () => {
+    renderEditorPanel({
+      canAddComment: true,
+      providerKind: null,
+      onAddToIssueSheet: vi.fn(),
+    });
+
+    const commentsSection = screen.getByText("Comments").closest("section");
+    expect(commentsSection).not.toBeNull();
+    expect(within(commentsSection!).queryByRole("tab", { name: "Issue" })).toBeNull();
   });
 
   it("invokes navigation handlers from the action bar", async () => {

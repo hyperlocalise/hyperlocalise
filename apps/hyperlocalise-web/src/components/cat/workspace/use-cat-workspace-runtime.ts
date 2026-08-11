@@ -1,0 +1,387 @@
+"use client";
+
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
+import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useIntl } from "react-intl";
+
+import {
+  findSegmentIdByKeyOrIdInQueue,
+  type CatQueueFilter,
+} from "@/components/cat/queue/cat-queue-filter";
+import { buildCatSegmentShareUrl } from "@/components/cat/segment/cat-segment-share-link";
+import type {
+  CatWorkspaceDependencies,
+  CatWorkspaceEditing,
+  CatWorkspaceNavigation,
+  CatWorkspaceReview,
+  CatWorkspaceServices,
+  PartialCatWorkspaceDependencies,
+} from "@/components/cat/shared/dependencies";
+import type { CatSegment, CatTranslationMemoryMatch } from "@/components/cat/shared/types";
+
+import type { CatWorkspaceOrchestrator } from "./cat-workspace-orchestrator";
+import {
+  CatIntelligenceController,
+  type CatIntelligenceControllerPorts,
+} from "./controllers/cat-intelligence-controller";
+import {
+  CatReviewController,
+  type CatReviewControllerPorts,
+} from "./controllers/cat-review-controller";
+import { getAiSuggestionForSegment } from "./store/cat-workspace-store-utils";
+
+function getSegmentQueueIndex(segments: Pick<CatSegment, "id" | "key">[], segmentIdOrKey: string) {
+  const resolvedId = findSegmentIdByKeyOrIdInQueue(segments, segmentIdOrKey) ?? segmentIdOrKey;
+  return segments.findIndex((segment) => segment.id === resolvedId);
+}
+
+function getAdjacentSegmentId(
+  segments: Pick<CatSegment, "id" | "key">[],
+  currentId: string,
+  direction: -1 | 1,
+) {
+  const currentIndex = getSegmentQueueIndex(segments, currentId);
+  if (currentIndex < 0) {
+    return segments[0]?.id;
+  }
+
+  const nextIndex = currentIndex + direction;
+  if (nextIndex < 0 || nextIndex >= segments.length) {
+    return undefined;
+  }
+
+  return segments[nextIndex]?.id;
+}
+
+export interface UseCatWorkspaceRuntimeInput {
+  store: CatWorkspaceOrchestrator;
+  dependencies?: PartialCatWorkspaceDependencies;
+  navigation?: Partial<CatWorkspaceNavigation>;
+  editing?: Partial<CatWorkspaceEditing>;
+  review?: Partial<CatWorkspaceReview>;
+  services?: CatWorkspaceServices;
+  queueFilter?: CatQueueFilter;
+  onQueueFilterChange?: (filter: CatQueueFilter) => void;
+  buildSegmentShareUrl?: (segment: CatSegment) => string | null;
+  canLookupFreshContext?: boolean;
+  /** When true, Next at the loaded-page boundary should fetch more queue rows. */
+  hasMoreQueue?: boolean;
+  onLoadMoreQueue?: () => void;
+}
+
+export function useCatWorkspaceRuntime({
+  store,
+  dependencies: dependencyOverrides,
+  navigation: navigationOverrides = dependencyOverrides?.navigation,
+  editing: editingOverrides = dependencyOverrides?.editing,
+  review: reviewOverrides = dependencyOverrides?.review,
+  services: serviceOverrides = dependencyOverrides?.services,
+  queueFilter: queueFilterProp,
+  onQueueFilterChange,
+  buildSegmentShareUrl,
+  canLookupFreshContext = true,
+  hasMoreQueue = false,
+  onLoadMoreQueue,
+}: UseCatWorkspaceRuntimeInput) {
+  const intl = useIntl();
+  const queueFilter = queueFilterProp ?? store.queueFilter;
+  const usesServerQueueFilter = Boolean(onQueueFilterChange);
+  const pendingAdvanceFromSegmentIdRef = useRef<string | null>(null);
+
+  const validateFormat = serviceOverrides?.validateFormat;
+  const runQaChecks = serviceOverrides?.runQaChecks;
+  const lookupSegmentContext = serviceOverrides?.lookupSegmentContext;
+  const lookupSegmentVisualContext = serviceOverrides?.lookupSegmentVisualContext;
+  const generateAiRecommendation = serviceOverrides?.generateAiRecommendation;
+
+  const onSelectSegment = navigationOverrides?.onSelectSegment;
+  const onPreviousSegment = navigationOverrides?.onPreviousSegment;
+  const onNextSegment = navigationOverrides?.onNextSegment;
+  const onReviewInSequence = navigationOverrides?.onReviewInSequence;
+  const onTargetChange = editingOverrides?.onTargetChange;
+  const onUseAiSuggestion = editingOverrides?.onUseAiSuggestion;
+  const onSaveDraft = reviewOverrides?.onSaveDraft;
+  const onAskQuestion = reviewOverrides?.onAskQuestion;
+
+  const canLookupContext = Boolean(lookupSegmentContext) && canLookupFreshContext;
+  const canLoadVisualContext = Boolean(
+    lookupSegmentVisualContext && store.providerKind && store.providerKind !== "native",
+  );
+  const canUseAiRecommendation = Boolean(generateAiRecommendation);
+  const queuePanelSegments = store.getQueuePanelSegments(queueFilter, usesServerQueueFilter);
+
+  const intelligencePorts = useMemo<CatIntelligenceControllerPorts>(
+    () => ({
+      intl,
+      services: serviceOverrides,
+    }),
+    [intl, serviceOverrides],
+  );
+  const intelligenceController = useMemo(
+    () => new CatIntelligenceController(store, intelligencePorts),
+    [store],
+  );
+
+  const reviewPorts = useMemo<CatReviewControllerPorts>(
+    () => ({
+      intl,
+      services: serviceOverrides,
+      review: reviewOverrides,
+      loadConcordance: (segmentId) => intelligenceController.loadConcordance(segmentId),
+      queueFilter,
+      usesServerQueueFilter,
+    }),
+    [
+      intelligenceController,
+      intl,
+      queueFilter,
+      reviewOverrides,
+      serviceOverrides,
+      usesServerQueueFilter,
+    ],
+  );
+  const reviewController = useMemo(() => new CatReviewController(store, reviewPorts), [store]);
+
+  useEffect(() => {
+    intelligenceController.configure(intelligencePorts);
+    reviewController.configure(reviewPorts);
+  }, [intelligenceController, intelligencePorts, reviewController, reviewPorts]);
+
+  useEffect(() => {
+    store.attachControllers(intelligenceController, reviewController);
+    store.start();
+    return () => store.dispose();
+  }, [intelligenceController, reviewController, store]);
+
+  const handleIntelligencePanelVisible = useCallback(
+    (segmentId: string) => intelligenceController.panelVisible(segmentId),
+    [intelligenceController],
+  );
+
+  useEffect(() => {
+    const fromId = pendingAdvanceFromSegmentIdRef.current;
+    if (!fromId) {
+      return;
+    }
+
+    const visibleSegments = store.getFilteredQueueSegments(queueFilter, usesServerQueueFilter);
+    const nextId = getAdjacentSegmentId(visibleSegments, fromId, 1);
+    if (nextId) {
+      pendingAdvanceFromSegmentIdRef.current = null;
+      const currentId =
+        store.findSegmentIdByKeyOrId(store.selectedSegmentId) ?? store.selectedSegmentId;
+      const resolvedFromId = store.findSegmentIdByKeyOrId(fromId) ?? fromId;
+      if (currentId === resolvedFromId) {
+        store.setSelectedSegmentId(nextId);
+      }
+      return;
+    }
+
+    if (!hasMoreQueue) {
+      pendingAdvanceFromSegmentIdRef.current = null;
+    }
+  }, [hasMoreQueue, queueFilter, queuePanelSegments, store, usesServerQueueFilter]);
+
+  const dependencies = useMemo<CatWorkspaceDependencies>(() => {
+    const editing: CatWorkspaceEditing = {
+      onTargetChange: (segmentId: string, value: string) => {
+        store.setTargetText(segmentId, value);
+        const segmentToValidate = store.getSegmentView(segmentId);
+        if (segmentToValidate) {
+          reviewController.scheduleChecks(segmentToValidate, value);
+        }
+        onTargetChange?.(segmentId, value);
+      },
+      onUseAiSuggestion: (segmentId: string) => {
+        const aiSuggestion = getAiSuggestionForSegment(store.shellState, segmentId);
+        if (!aiSuggestion) {
+          return;
+        }
+        editing.onTargetChange(segmentId, aiSuggestion);
+        onUseAiSuggestion?.(segmentId);
+      },
+      onUseTmMatch: (segmentId: string, match: CatTranslationMemoryMatch) => {
+        editing.onTargetChange(segmentId, match.targetText);
+      },
+      ...(editingOverrides?.onTreatAsImage
+        ? { onTreatAsImage: editingOverrides.onTreatAsImage }
+        : {}),
+      ...(editingOverrides?.onRegenerateImage
+        ? { onRegenerateImage: editingOverrides.onRegenerateImage }
+        : {}),
+      ...(editingOverrides?.onUploadImage ? { onUploadImage: editingOverrides.onUploadImage } : {}),
+    };
+
+    const navigation: CatWorkspaceNavigation = {
+      onSelectSegment: (segmentId: string) => {
+        const selectedSegmentId = store.findSegmentIdByKeyOrId(segmentId) ?? segmentId;
+        const currentSegmentId =
+          store.findSegmentIdByKeyOrId(store.selectedSegmentId) ?? store.selectedSegmentId;
+        if (selectedSegmentId === currentSegmentId) {
+          return;
+        }
+
+        pendingAdvanceFromSegmentIdRef.current = null;
+        store.setSelectedSegmentId(selectedSegmentId);
+        onSelectSegment?.(segmentId);
+      },
+      onPreviousSegment: () => {
+        pendingAdvanceFromSegmentIdRef.current = null;
+        const visibleSegments = store.getFilteredQueueSegments(queueFilter, usesServerQueueFilter);
+        const previousId = getAdjacentSegmentId(visibleSegments, store.selectedSegmentId, -1);
+        if (previousId) {
+          store.setSelectedSegmentId(previousId);
+        }
+        onPreviousSegment?.();
+      },
+      onNextSegment: () => {
+        const visibleSegments = store.getFilteredQueueSegments(queueFilter, usesServerQueueFilter);
+        const currentId = store.selectedSegmentId;
+        const nextId = getAdjacentSegmentId(visibleSegments, currentId, 1);
+        if (nextId) {
+          pendingAdvanceFromSegmentIdRef.current = null;
+          store.setSelectedSegmentId(nextId);
+          onNextSegment?.();
+          return;
+        }
+
+        if (hasMoreQueue && onLoadMoreQueue) {
+          pendingAdvanceFromSegmentIdRef.current = currentId;
+          onLoadMoreQueue();
+          // Sync loaders (tests / already-buffered pages) can populate the store
+          // before the pending-advance effect runs.
+          const refreshedSegments = store.getFilteredQueueSegments(
+            queueFilter,
+            usesServerQueueFilter,
+          );
+          const loadedNextId = getAdjacentSegmentId(refreshedSegments, currentId, 1);
+          if (loadedNextId) {
+            pendingAdvanceFromSegmentIdRef.current = null;
+            store.setSelectedSegmentId(loadedNextId);
+          }
+        }
+        onNextSegment?.();
+      },
+      onReviewInSequence: () => {
+        onReviewInSequence?.();
+      },
+    };
+
+    const review: CatWorkspaceReview = {
+      onApprove: (segmentId, targetText) => reviewController.approve(segmentId, targetText),
+      ...(onSaveDraft
+        ? {
+            onSaveDraft: (segmentId: string, targetText: string) =>
+              reviewController.saveDraft(segmentId, targetText),
+          }
+        : {}),
+      onAddComment: (segmentId, input) => reviewController.addComment(segmentId, input),
+      onResolveComment: (segmentId, commentId) =>
+        reviewController.resolveComment(segmentId, commentId),
+      onAskQuestion: async (segmentId: string, options?: { forceRefresh?: boolean }) => {
+        await onAskQuestion?.(segmentId, options);
+        const receivedFreshContext = await intelligenceController.askQuestion(segmentId, options);
+        if (receivedFreshContext && generateAiRecommendation) {
+          await reviewController.runReview(segmentId, { includeAi: true });
+        }
+      },
+      onReviewWithAi: async (segmentId: string) => {
+        await reviewController.runReview(segmentId, { includeAi: true });
+      },
+      onSkip: reviewController.skip.bind(reviewController),
+    };
+
+    return {
+      navigation,
+      editing,
+      review,
+      services: {
+        validateFormat,
+        runQaChecks,
+      },
+    };
+  }, [
+    editingOverrides?.onRegenerateImage,
+    editingOverrides?.onTreatAsImage,
+    editingOverrides?.onUploadImage,
+    generateAiRecommendation,
+    hasMoreQueue,
+    intelligenceController,
+    onAskQuestion,
+    onLoadMoreQueue,
+    onNextSegment,
+    onPreviousSegment,
+    onReviewInSequence,
+    onSaveDraft,
+    onSelectSegment,
+    onTargetChange,
+    onUseAiSuggestion,
+    queueFilter,
+    runQaChecks,
+    reviewController,
+    store,
+    usesServerQueueFilter,
+    validateFormat,
+  ]);
+
+  const handleQueueFilterChange = useCallback(
+    (filter: CatQueueFilter) => {
+      pendingAdvanceFromSegmentIdRef.current = null;
+      if (onQueueFilterChange) {
+        onQueueFilterChange(filter);
+        return;
+      }
+
+      store.setQueueFilter(filter);
+    },
+    [onQueueFilterChange, store],
+  );
+
+  const handleBulkApprove = useCallback(() => reviewController.bulkApprove(), [reviewController]);
+  const handleBulkSkip = useCallback(() => reviewController.bulkSkip(), [reviewController]);
+
+  const resolvedBuildSegmentShareUrl = useMemo(() => {
+    if (buildSegmentShareUrl) {
+      return buildSegmentShareUrl;
+    }
+
+    if (typeof window === "undefined") {
+      return undefined;
+    }
+
+    return (segment: CatSegment) =>
+      buildCatSegmentShareUrl({
+        baseUrl: window.location.href,
+        segmentId: segment.id,
+        segmentKey: segment.key,
+      });
+  }, [buildSegmentShareUrl]);
+
+  return {
+    shell: store.shellState,
+    queueSegments: queuePanelSegments,
+    selectedSegment: store.selectedSegmentView ?? null,
+    dependencies,
+    dirtySegmentIds: store.dirtySegmentIds,
+    queueFilter,
+    handleQueueFilterChange,
+    handleBulkApprove,
+    handleBulkSkip,
+    resolvedBuildSegmentShareUrl,
+    canLookupContext,
+    canLoadVisualContext,
+    canUseAiRecommendation,
+    handleIntelligencePanelVisible,
+  };
+}

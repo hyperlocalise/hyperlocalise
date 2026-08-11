@@ -1,3 +1,15 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { expect } from "storybook/test";
 
@@ -68,5 +80,219 @@ export const Streaming: Story = {
   args: {
     isStreaming: true,
     streamedAssistant: createStreamedAssistantMessage(),
+  },
+};
+
+export const CreatingMissingStoryProgress: Story = {
+  args: {
+    messages: [messagesFixture[0]],
+    isStreaming: true,
+    streamedAssistant: createStreamedAssistantMessage({
+      message: {
+        id: "stream-missing-story-progress",
+        role: "assistant",
+        parts: [
+          {
+            type: "tool-todoWrite",
+            toolCallId: "initial-plan",
+            state: "output-available",
+            input: {
+              todos: [
+                {
+                  id: "find-story",
+                  content: "Find the target component and an existing preview",
+                  status: "in-progress",
+                },
+              ],
+            },
+            output: {
+              success: true,
+              todos: [
+                {
+                  id: "find-story",
+                  content: "Find the target component and an existing preview",
+                  status: "in-progress",
+                },
+              ],
+            },
+          },
+          {
+            type: "tool-todoWrite",
+            toolCallId: "missing-story-plan",
+            state: "output-available",
+            input: {
+              todos: [
+                {
+                  id: "find-story",
+                  content: "Find the target component and an existing preview",
+                  status: "completed",
+                },
+                {
+                  id: "prepare-preview",
+                  content: "No preview found — create a temporary one with mock data",
+                  status: "in-progress",
+                },
+                {
+                  id: "capture",
+                  content: "Capture and verify the screenshot",
+                  status: "todo",
+                },
+              ],
+            },
+            output: {
+              success: true,
+              todos: [
+                {
+                  id: "find-story",
+                  content: "Find the target component and an existing preview",
+                  status: "completed",
+                },
+                {
+                  id: "prepare-preview",
+                  content: "No preview found — create a temporary one with mock data",
+                  status: "in-progress",
+                },
+                {
+                  id: "capture",
+                  content: "Capture and verify the screenshot",
+                  status: "todo",
+                },
+              ],
+            },
+          },
+        ],
+      },
+    }),
+  },
+  play: async ({ canvas }) => {
+    await expect(canvas.getByText("Progress")).toBeInTheDocument();
+    await expect(
+      canvas.getByText("No preview found — create a temporary one with mock data"),
+    ).toBeInTheDocument();
+    await expect(canvas.getAllByRole("status")).toHaveLength(1);
+  },
+};
+
+export const ScreenshotProgressAndReasoning: Story = {
+  args: {
+    messages: [messagesFixture[0]],
+    isStreaming: true,
+    streamedAssistant: createStreamedAssistantMessage({
+      message: {
+        id: "stream-screenshot-progress",
+        role: "assistant",
+        parts: [
+          {
+            type: "reasoning",
+            text: "I found a matching preview and am checking the localized state.",
+            state: "done",
+          },
+          {
+            type: "tool-captureScreenshot",
+            toolCallId: "capture-story",
+            state: "input-available",
+            input: {
+              target: {
+                type: "storybook",
+                storyId: "app-inbox-message-list--default",
+              },
+            },
+          },
+          {
+            type: "data-toolProgress",
+            id: "capture-story",
+            data: {
+              toolCallId: "capture-story",
+              message: "Loading the preview…",
+            },
+          },
+        ],
+      },
+    }),
+  },
+  play: async ({ canvas }) => {
+    await expect(canvas.getByText("Loading the preview…")).toBeInTheDocument();
+    await expect(
+      canvas.getByText("I found a matching preview and am checking the localized state."),
+    ).toBeInTheDocument();
+  },
+};
+
+export const CompactExploreToolsStreaming: Story = {
+  args: {
+    messages: [messagesFixture[0]],
+    isStreaming: true,
+    streamedAssistant: createStreamedAssistantMessage({
+      message: {
+        id: "stream-explore-live",
+        role: "assistant",
+        parts: [
+          {
+            type: "tool-grep",
+            toolCallId: "grep-save",
+            state: "output-available",
+            input: { pattern: "Save", path: "apps/web/src" },
+            output: { matches: 2 },
+          },
+          {
+            type: "tool-read",
+            toolCallId: "read-form",
+            state: "input-available",
+            input: { path: "apps/web/src/components/settings/account-form.tsx" },
+          },
+        ],
+      },
+    }),
+  },
+  play: async ({ canvas }) => {
+    await expect(canvas.getByText("Reading account-form.tsx")).toBeInTheDocument();
+    await expect(canvas.queryByText(/^grep$/i)).not.toBeInTheDocument();
+  },
+};
+
+export const CompactExploreToolsCompleted: Story = {
+  args: {
+    messages: [messagesFixture[0]],
+    isStreaming: false,
+    streamedAssistant: createStreamedAssistantMessage({
+      message: {
+        id: "stream-explore-done",
+        role: "assistant",
+        parts: [
+          {
+            type: "tool-grep",
+            toolCallId: "grep-save",
+            state: "output-available",
+            input: { pattern: "Save", path: "apps/web/src" },
+            output: { matches: 2 },
+          },
+          {
+            type: "tool-read",
+            toolCallId: "read-form",
+            state: "output-available",
+            input: { path: "apps/web/src/components/settings/account-form.tsx" },
+            output: { content: "..." },
+          },
+          {
+            type: "tool-grep",
+            toolCallId: "grep-cancel",
+            state: "output-available",
+            input: { pattern: "Cancel" },
+            output: { matches: 1 },
+          },
+          {
+            type: "text",
+            text: "I found the Save label in the account settings form.",
+            state: "done",
+          },
+        ],
+      },
+    }),
+  },
+  play: async ({ canvas }) => {
+    await expect(canvas.getByText("Explored account-form.tsx, 2 searches")).toBeInTheDocument();
+    await expect(
+      canvas.getByText("I found the Save label in the account settings form."),
+    ).toBeInTheDocument();
   },
 };

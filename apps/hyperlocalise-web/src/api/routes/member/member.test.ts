@@ -1,3 +1,15 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import "dotenv/config";
 
 import { and, eq } from "drizzle-orm";
@@ -148,6 +160,88 @@ describe("memberRoutes", () => {
     const body = (await response.json()) as { member: { email: string; role: string } };
     expect(body.member.email).toBe("new-member@example.com");
     expect(body.member.role).toBe("admin");
+  });
+
+  it("adds invited developers to the default workspace team", async () => {
+    const ownerIdentity = createWorkosIdentity();
+    const headers = await authHeadersFor(ownerIdentity);
+
+    const response = await inviteMemberViaApi(
+      ownerIdentity,
+      { email: "developer-invite@example.com", role: "developer" },
+      headers,
+    );
+
+    expect(response.status).toBe(201);
+
+    const organization = (
+      await db
+        .select({ id: schema.organizations.id })
+        .from(schema.organizations)
+        .where(eq(schema.organizations.slug, ownerIdentity.organization.slug ?? ""))
+        .limit(1)
+    )[0]!;
+
+    const invitedUser = (
+      await db
+        .select({ id: schema.users.id })
+        .from(schema.users)
+        .where(eq(schema.users.email, "developer-invite@example.com"))
+        .limit(1)
+    )[0]!;
+
+    const defaultTeam = (
+      await db
+        .select({ id: schema.teams.id })
+        .from(schema.teams)
+        .where(
+          and(eq(schema.teams.organizationId, organization.id), eq(schema.teams.slug, "default")),
+        )
+        .limit(1)
+    )[0];
+
+    expect(defaultTeam).toBeDefined();
+
+    const [membership] = await db
+      .select({ role: schema.teamMemberships.role })
+      .from(schema.teamMemberships)
+      .where(
+        and(
+          eq(schema.teamMemberships.teamId, defaultTeam!.id),
+          eq(schema.teamMemberships.userId, invitedUser.id),
+        ),
+      )
+      .limit(1);
+
+    expect(membership?.role).toBe("member");
+  });
+
+  it("does not add invited operators to the default workspace team", async () => {
+    const ownerIdentity = createWorkosIdentity();
+    const headers = await authHeadersFor(ownerIdentity);
+
+    const response = await inviteMemberViaApi(
+      ownerIdentity,
+      { email: "manager-invite@example.com", role: "localization_manager" },
+      headers,
+    );
+
+    expect(response.status).toBe(201);
+
+    const invitedUser = (
+      await db
+        .select({ id: schema.users.id })
+        .from(schema.users)
+        .where(eq(schema.users.email, "manager-invite@example.com"))
+        .limit(1)
+    )[0]!;
+
+    const memberships = await db
+      .select({ id: schema.teamMemberships.id })
+      .from(schema.teamMemberships)
+      .where(eq(schema.teamMemberships.userId, invitedUser.id));
+
+    expect(memberships).toEqual([]);
   });
 
   it("updates a member role", async () => {

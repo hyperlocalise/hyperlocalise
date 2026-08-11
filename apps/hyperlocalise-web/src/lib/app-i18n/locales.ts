@@ -1,10 +1,31 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import { match } from "@formatjs/intl-localematcher";
 import Negotiator from "negotiator";
 import type { NextRequest } from "next/server";
 
-export const SUPPORTED_APP_LOCALES = ["en"] as const;
+/**
+ * Locales with message catalogs and/or blog posts ready to serve.
+ * When adding a locale, land catalogs here first, then promote into
+ * SUPPORTED_APP_LOCALES once routing should accept it.
+ */
+export const AVAILABLE_APP_CONTENT_LOCALES = ["en", "zh-CN", "vi-VN", "de-DE", "fr-FR"] as const;
+
+/** Locales accepted by `/[lang]` routing, cookies, and the language toggle. */
+export const SUPPORTED_APP_LOCALES = AVAILABLE_APP_CONTENT_LOCALES;
 
 export type AppLocale = (typeof SUPPORTED_APP_LOCALES)[number];
+export type AppContentLocale = (typeof AVAILABLE_APP_CONTENT_LOCALES)[number];
 
 export const DEFAULT_APP_LOCALE: AppLocale = "en";
 export const APP_LOCALE_COOKIE_NAME = "hl_locale";
@@ -17,9 +38,24 @@ export function isSupportedAppLocale(value: unknown): value is AppLocale {
   );
 }
 
+export function isAvailableAppContentLocale(value: unknown): value is AppContentLocale {
+  return (
+    typeof value === "string" &&
+    AVAILABLE_APP_CONTENT_LOCALES.some((locale) => locale.toLowerCase() === value.toLowerCase())
+  );
+}
+
 export function normalizeAppLocale(value: string): AppLocale | null {
   const locale = SUPPORTED_APP_LOCALES.find(
     (supportedLocale) => supportedLocale.toLowerCase() === value.toLowerCase(),
+  );
+
+  return locale ?? null;
+}
+
+export function normalizeAppContentLocale(value: string): AppContentLocale | null {
+  const locale = AVAILABLE_APP_CONTENT_LOCALES.find(
+    (contentLocale) => contentLocale.toLowerCase() === value.toLowerCase(),
   );
 
   return locale ?? null;

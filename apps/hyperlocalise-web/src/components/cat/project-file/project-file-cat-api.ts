@@ -1,10 +1,25 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import type {
   ProjectFileCatQueueFilter,
   ProjectFileCatQueueResponse,
 } from "@/api/routes/project/project.schema";
 import { defaultProjectFileCatPageLimit } from "@/api/routes/project/project.schema";
+import type { CatFormatMessageIntl } from "@/components/cat/message-format/cat-message-format-i18n";
 import { readApiError } from "@/lib/api-error";
 import { apiClient } from "@/lib/api-client-instance";
+
+import { projectFileCatApiMessages } from "./project-file-cat-api.messages";
 
 export type ProjectFileCatQueuePage = ProjectFileCatQueueResponse["catQueue"];
 
@@ -15,11 +30,11 @@ export function projectFileCatQueryKey(input: {
   externalResourceId?: string | null;
   resourceType?: "file" | "key";
   targetLocale: string;
-  repositoryFullName: string | null;
   search: string;
   queueFilter: ProjectFileCatQueueFilter;
   limit: number;
   offset: number;
+  sourcePaths?: string | null;
 }) {
   return [
     "project-file-cat-queue",
@@ -29,11 +44,11 @@ export function projectFileCatQueryKey(input: {
     input.externalResourceId ?? null,
     input.resourceType ?? null,
     input.targetLocale,
-    input.repositoryFullName,
     input.search,
     input.queueFilter,
     input.limit,
     input.offset,
+    input.sourcePaths ?? null,
   ] as const;
 }
 
@@ -44,10 +59,10 @@ export function projectFileCatBaseQueryKey(input: {
   externalResourceId?: string | null;
   resourceType?: "file" | "key";
   targetLocale: string;
-  repositoryFullName: string | null;
   search: string;
   queueFilter: ProjectFileCatQueueFilter;
   limit: number;
+  sourcePaths?: string | null;
 }) {
   return [
     "project-file-cat-queue",
@@ -57,10 +72,10 @@ export function projectFileCatBaseQueryKey(input: {
     input.externalResourceId ?? null,
     input.resourceType ?? null,
     input.targetLocale,
-    input.repositoryFullName,
     input.search,
     input.queueFilter,
     input.limit,
+    input.sourcePaths ?? null,
   ] as const;
 }
 
@@ -77,13 +92,14 @@ export async function fetchProjectFileCatQueuePage(input: {
   externalResourceId?: string | null;
   resourceType?: "file" | "key";
   targetLocale: string;
-  repositoryFullName: string | null;
   search: string;
   queueFilter: ProjectFileCatQueueFilter;
   limit: number;
   offset: number;
   phraseScanPage?: number;
   phraseScanSkip?: number;
+  sourcePaths?: string | null;
+  intl: CatFormatMessageIntl;
 }) {
   const response = await apiClient.api.orgs[":organizationSlug"].projects[
     ":projectId"
@@ -93,19 +109,24 @@ export async function fetchProjectFileCatQueuePage(input: {
       sourcePath: input.sourcePath,
       ...(input.externalResourceId ? { externalResourceId: input.externalResourceId } : {}),
       ...(input.resourceType ? { resourceType: input.resourceType } : {}),
+      ...(input.sourcePaths ? { sourcePaths: input.sourcePaths } : {}),
       targetLocale: input.targetLocale,
       offset: input.offset,
       limit: input.limit,
       ...(input.search ? { search: input.search } : {}),
       ...(input.queueFilter !== "all" ? { queueFilter: input.queueFilter } : {}),
-      ...(input.repositoryFullName ? { repositoryFullName: input.repositoryFullName } : {}),
       ...(input.phraseScanPage != null ? { phraseScanPage: input.phraseScanPage } : {}),
       ...(input.phraseScanSkip != null ? { phraseScanSkip: input.phraseScanSkip } : {}),
     },
   });
 
   if (!response.ok) {
-    throw new Error(await readApiError(response, "Failed to load CAT queue"));
+    throw new Error(
+      await readApiError(
+        response,
+        input.intl.formatMessage(projectFileCatApiMessages.failedToLoadQueue),
+      ),
+    );
   }
 
   const body = (await response.json()) as ProjectFileCatQueueResponse;

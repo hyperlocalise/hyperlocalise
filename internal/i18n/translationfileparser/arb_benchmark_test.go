@@ -60,3 +60,21 @@ func BenchmarkMarshalARB_Large(b *testing.B) {
 		_, _ = MarshalARB(templateBytes, templateBytes, values, "fr")
 	}
 }
+
+func BenchmarkARBParser_ParseLarge(b *testing.B) {
+	numEntries := 1000
+	template := "{\n  \"@@locale\": \"en\""
+	for i := 0; i < numEntries; i++ {
+		key := fmt.Sprintf("key_%d", i)
+		template += fmt.Sprintf(",\n  %q: %q", key, fmt.Sprintf("value_%d", i))
+		template += fmt.Sprintf(",\n  %q: { %q: %q }", "@"+key, "description", fmt.Sprintf("desc_%d", i))
+	}
+	template += "\n}"
+	templateBytes := []byte(template)
+	parser := ARBParser{}
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_, _, _ = parser.ParseWithContext(templateBytes)
+	}
+}

@@ -1,3 +1,14 @@
+# License
+
+This app is licensed under the Business Source License 1.1. See [`LICENSE`](./LICENSE).
+New Hyperlocalise-owned source files (`.ts`, `.tsx`, `.js`, `.jsx`, `.mjs`, `.cjs`,
+`.css`) must include the BSL header. Preserve separate notices on third-party or
+generated files. From the repository root:
+
+```bash
+node scripts/add-bsl-headers.mjs apps/hyperlocalise-web
+```
+
 <!-- BEGIN:nextjs-agent-rules -->
 
 # This is NOT the Next.js you know
@@ -44,6 +55,21 @@ Follow the official Hono best-practices guide for this app: [Best Practices](htt
 
 - Use Hono's `testClient` for route tests.
 - Test the real API app exported from [`src/api/app.ts`](src/api/app.ts) when possible, rather than rebuilding a parallel test-only app structure.
+
+## Browser E2E (local only, workos-emulate)
+
+Browser flows live under [`src/e2e/`](src/e2e/) and talk to a local [WorkOS emulator](https://github.com/workos/emulate). They exercise the real AuthKit authorize → callback → sealed session → membership reconcile path. They are **not** part of `vp test` and are **not** wired into CI yet.
+
+See [`docs/adr/2026-08-04-workos-emulator-e2e-auth-design.md`](../../docs/adr/2026-08-04-workos-emulator-e2e-auth-design.md).
+
+1. Start Postgres and migrate (`vp run db:migrate`).
+2. Start the emulator: `vp run e2e:emulator` (pinned binary under `.cache/`, seed in [`e2e/workos-emulate.config.yaml`](e2e/workos-emulate.config.yaml)).
+3. Copy [`.env.e2e.example`](.env.e2e.example) to `.env.e2e`. Keep regular `.env` on placeholder WorkOS keys for `vp test` — do not put `sk_test_default` / `WORKOS_API_HOSTNAME` in `.env` or unit tests will treat the emulator as a live WorkOS and revoke fixture memberships.
+4. Serve the app with the e2e env, for example `set -a && source .env.e2e && set +a && vp run dev` (or the same with `vp run build && vp run start`).
+5. Install Chromium once: `vp run e2e:install`.
+6. Run `vp run test:e2e` (loads `.env` then overrides with `.env.e2e`). Set `E2E_BASE_URL` when the app is not at `http://localhost:3000`.
+
+Helpers in [`src/e2e/fixtures/browser.ts`](src/e2e/fixtures/browser.ts) provision identities in the emulator, drive the interactive login page, and clean up WorkOS + local rows by exact id afterwards. Vitest Browser Mode is not used (it cannot `page.goto` external origins).
 
 <!-- END:hono-agent-rules -->
 
@@ -154,8 +180,7 @@ For predictable error handling, prefer the Go-like `Result<T, E>` pattern for ex
 import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
 
 type ProviderCredentialError =
-  | { code: "unsupported_provider_model" }
-  | { code: "provider_validation_failed"; message: string };
+  { code: "unsupported_provider_model" } | { code: "provider_validation_failed"; message: string };
 
 async function validateCredential(
   input: CredentialInput,
@@ -302,4 +327,5 @@ For GitHub Actions, consider using [`voidzero-dev/setup-vp`](https://github.com/
 
 - [ ] Run `vp install` after pulling remote changes and before getting started.
 - [ ] Run `vp check --fix` and `vp test` to validate changes.
+
 <!--VITE PLUS END-->

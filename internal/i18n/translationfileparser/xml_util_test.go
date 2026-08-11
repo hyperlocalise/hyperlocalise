@@ -62,7 +62,7 @@ func TestContainsXMLTextEntityReference(t *testing.T) {
 		{"&quot;", true},
 		{"&#10;", true},
 		{"&#x0A;", true},
-		{"&#X0A;", true},
+		{"&#X0A;", false},
 		{"&unknown;", false},
 		{"&unknown; &amp;", true},
 		{"&incomplete", false},
@@ -71,6 +71,9 @@ func TestContainsXMLTextEntityReference(t *testing.T) {
 		{"Value: &#1234; - more", true},
 		{"&#xZ123;", false},
 		{"&#123A;", false},
+		{"&#0;", false},
+		{"&#xFFFE;", false},
+		{"&#x110000;", false},
 	}
 
 	for _, tt := range tests {

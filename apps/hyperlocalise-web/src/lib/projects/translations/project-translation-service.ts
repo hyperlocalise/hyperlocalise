@@ -1,3 +1,15 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import { and, asc, count, eq, ilike, inArray, or, sql } from "drizzle-orm";
 import { createHash } from "node:crypto";
 
@@ -9,7 +21,14 @@ import { db, schema } from "@/lib/database";
 import { ProjectServiceBase } from "@/lib/projects/project-service-base";
 import { normalizeTranslationMemorySourceText } from "@/lib/translation/normalizeTranslationMemorySourceText";
 
+type ProjectKeysScopeInput = {
+  organizationId: string;
+  projectId: string;
+  sourcePaths?: readonly string[] | null;
+};
+
 const maxKeysPerImport = 5_000;
+const prefillKeysPageSize = maxKeysPerImport;
 
 function sourceTextHash(sourceText: string) {
   return createHash("sha256").update(sourceText, "utf8").digest("hex");
@@ -27,19 +46,61 @@ function translationKeysFileConditions(input: {
   );
 }
 
-function translationKeysSearchCondition(search: string | undefined) {
-  const query = search?.trim();
+function translationKeysProjectConditions(input: ProjectKeysScopeInput) {
+  return and(
+    eq(schema.projectTranslationKeys.organizationId, input.organizationId),
+    eq(schema.projectTranslationKeys.projectId, input.projectId),
+  );
+}
+
+function translationKeysSourcePathFilter(sourcePaths: readonly string[] | null | undefined) {
+  if (!sourcePaths || sourcePaths.length === 0) {
+    return undefined;
+  }
+
+  return inArray(schema.repositorySourceFiles.sourcePath, [...sourcePaths]);
+}
+
+function escapeIlikePattern(value: string) {
+  return value.replace(/\\/g, "\\\\").replace(/%/g, "\\%").replace(/_/g, "\\_");
+}
+
+function translationKeysSearchCondition(input: {
+  search?: string;
+  organizationId: string;
+  projectId: string;
+  targetLocale?: string;
+}) {
+  const query = input.search?.trim();
   if (!query) {
     return undefined;
   }
 
-  const pattern = `%${query}%`;
+  const pattern = `%${escapeIlikePattern(query)}%`;
 
-  return or(
+  const keySourceOrContext = or(
     ilike(schema.projectTranslationKeys.key, pattern),
     ilike(schema.projectTranslationKeys.sourceText, pattern),
     ilike(schema.projectTranslationKeys.context, pattern),
   );
+
+  if (!input.targetLocale) {
+    return keySourceOrContext;
+  }
+
+  // Also match target translation text for the active CAT locale so translators
+  // can find segments by the content they see in either column.
+  const targetTextMatch = sql`exists (
+    select 1
+    from ${schema.projectTranslations}
+    where ${schema.projectTranslations.translationKeyId} = ${schema.projectTranslationKeys.id}
+      and ${schema.projectTranslations.organizationId} = ${input.organizationId}
+      and ${schema.projectTranslations.projectId} = ${input.projectId}
+      and ${schema.projectTranslations.targetLocale} = ${input.targetLocale}
+      and ${schema.projectTranslations.text} ilike ${pattern}
+  )`;
+
+  return or(keySourceOrContext, targetTextMatch);
 }
 
 function translationKeysQueueFilterCondition(input: {
@@ -84,15 +145,36 @@ function translationKeysQueueFilterCondition(input: {
           and ${schema.projectTranslations.status} != 'approved'
       )`;
     case "has_issues":
-      return sql`exists (
-        select 1
-        from ${schema.projectTranslationComments}
-        where ${schema.projectTranslationComments.translationKeyId} = ${schema.projectTranslationKeys.id}
-          and ${schema.projectTranslationComments.organizationId} = ${input.organizationId}
-          and ${schema.projectTranslationComments.projectId} = ${input.projectId}
-          and ${schema.projectTranslationComments.targetLocale} = ${input.targetLocale}
-          and ${schema.projectTranslationComments.type} = 'issue'
-          and ${schema.projectTranslationComments.status} = 'unresolved'
+      // Sheet issues are the source of truth for new native CAT issues. Also keep
+      // unmirrored legacy `type='issue'` comments (pre-sheet / failed mirror) so
+      // the Has issues queue does not hide open work after the Issues migration.
+      // Mirrored comments are excluded: resolving the sheet leaves the comment
+      // unresolved, and counting those would pin segments in this filter forever.
+      return sql`(
+        exists (
+          select 1
+          from ${schema.issueSheetIssues}
+          where ${schema.issueSheetIssues.translationKeyId} = ${schema.projectTranslationKeys.id}
+            and ${schema.issueSheetIssues.organizationId} = ${input.organizationId}
+            and ${schema.issueSheetIssues.projectId} = ${input.projectId}
+            and ${schema.issueSheetIssues.targetLocale} = ${input.targetLocale}
+            and ${schema.issueSheetIssues.status} in ('open', 'in_progress')
+        )
+        or exists (
+          select 1
+          from ${schema.projectTranslationComments}
+          where ${schema.projectTranslationComments.translationKeyId} = ${schema.projectTranslationKeys.id}
+            and ${schema.projectTranslationComments.organizationId} = ${input.organizationId}
+            and ${schema.projectTranslationComments.projectId} = ${input.projectId}
+            and ${schema.projectTranslationComments.targetLocale} = ${input.targetLocale}
+            and ${schema.projectTranslationComments.type} = 'issue'
+            and ${schema.projectTranslationComments.status} = 'unresolved'
+            and not exists (
+              select 1
+              from ${schema.issueSheetIssues}
+              where ${schema.issueSheetIssues.linkedCommentId} = ${schema.projectTranslationComments.id}
+            )
+        )
       )`;
     default:
       return undefined;
@@ -234,7 +316,7 @@ export class ProjectTranslationService extends ProjectServiceBase {
       .where(
         and(
           translationKeysFileConditions(input),
-          translationKeysSearchCondition(input.search),
+          translationKeysSearchCondition(input),
           input.targetLocale
             ? translationKeysQueueFilterCondition({
                 organizationId: input.organizationId,
@@ -270,12 +352,13 @@ export class ProjectTranslationService extends ProjectServiceBase {
         context: schema.projectTranslationKeys.context,
         type: schema.projectTranslationKeys.type,
         maxLength: schema.projectTranslationKeys.maxLength,
+        metadata: schema.projectTranslationKeys.metadata,
       })
       .from(schema.projectTranslationKeys)
       .where(
         and(
           translationKeysFileConditions(input),
-          translationKeysSearchCondition(input.search),
+          translationKeysSearchCondition(input),
           input.targetLocale
             ? translationKeysQueueFilterCondition({
                 organizationId: input.organizationId,
@@ -287,6 +370,93 @@ export class ProjectTranslationService extends ProjectServiceBase {
         ),
       )
       .orderBy(asc(schema.projectTranslationKeys.key), asc(schema.projectTranslationKeys.id))
+      .limit(limit)
+      .offset(offset);
+  }
+
+  async countKeysForProject(input: {
+    organizationId: string;
+    projectId: string;
+    targetLocale?: string;
+    search?: string;
+    queueFilter?: ProjectFileCatQueueFilter;
+    sourcePaths?: readonly string[] | null;
+  }) {
+    const [row] = await this.database
+      .select({ total: count() })
+      .from(schema.projectTranslationKeys)
+      .innerJoin(
+        schema.repositorySourceFiles,
+        eq(schema.projectTranslationKeys.repositorySourceFileId, schema.repositorySourceFiles.id),
+      )
+      .where(
+        and(
+          translationKeysProjectConditions(input),
+          translationKeysSourcePathFilter(input.sourcePaths),
+          translationKeysSearchCondition(input),
+          input.targetLocale
+            ? translationKeysQueueFilterCondition({
+                organizationId: input.organizationId,
+                projectId: input.projectId,
+                targetLocale: input.targetLocale,
+                queueFilter: input.queueFilter,
+              })
+            : undefined,
+        ),
+      );
+
+    return Number(row?.total ?? 0);
+  }
+
+  async listKeysForProject(input: {
+    organizationId: string;
+    projectId: string;
+    targetLocale?: string;
+    limit?: number;
+    offset?: number;
+    search?: string;
+    queueFilter?: ProjectFileCatQueueFilter;
+    sourcePaths?: readonly string[] | null;
+  }) {
+    const limit = input.limit ?? 2_000;
+    const offset = input.offset ?? 0;
+
+    return this.database
+      .select({
+        id: schema.projectTranslationKeys.id,
+        key: schema.projectTranslationKeys.key,
+        sourceText: schema.projectTranslationKeys.sourceText,
+        context: schema.projectTranslationKeys.context,
+        type: schema.projectTranslationKeys.type,
+        maxLength: schema.projectTranslationKeys.maxLength,
+        metadata: schema.projectTranslationKeys.metadata,
+        sourcePath: schema.repositorySourceFiles.sourcePath,
+      })
+      .from(schema.projectTranslationKeys)
+      .innerJoin(
+        schema.repositorySourceFiles,
+        eq(schema.projectTranslationKeys.repositorySourceFileId, schema.repositorySourceFiles.id),
+      )
+      .where(
+        and(
+          translationKeysProjectConditions(input),
+          translationKeysSourcePathFilter(input.sourcePaths),
+          translationKeysSearchCondition(input),
+          input.targetLocale
+            ? translationKeysQueueFilterCondition({
+                organizationId: input.organizationId,
+                projectId: input.projectId,
+                targetLocale: input.targetLocale,
+                queueFilter: input.queueFilter,
+              })
+            : undefined,
+        ),
+      )
+      .orderBy(
+        asc(schema.repositorySourceFiles.sourcePath),
+        asc(schema.projectTranslationKeys.key),
+        asc(schema.projectTranslationKeys.id),
+      )
       .limit(limit)
       .offset(offset);
   }
@@ -349,59 +519,62 @@ export class ProjectTranslationService extends ProjectServiceBase {
       };
     }
 
-    const keys = await this.listKeysForFile({
-      organizationId: input.organizationId,
-      projectId: input.projectId,
-      repositorySourceFileId: sourceFile.id,
-      limit: maxKeysPerImport + 1,
-    });
-
-    const truncated = keys.length > maxKeysPerImport;
-    const visibleKeys = truncated ? keys.slice(0, maxKeysPerImport) : keys;
-
-    if (visibleKeys.length === 0) {
-      return {
-        prefilled: {},
-        truncated,
-        loadedKeyCount: 0,
-        maxKeyCount: maxKeysPerImport,
-        translatedKeyCount: 0,
-      };
-    }
-
-    const translations = await this.getTranslationsByKeyIds({
-      organizationId: input.organizationId,
-      projectId: input.projectId,
-      translationKeyIds: visibleKeys.map((key) => key.id),
-      targetLocale: input.targetLocale,
-    });
-    const translationByKeyId = new Map(
-      translations.map((translation) => [translation.translationKeyId, translation]),
-    );
-
     const prefilled: Record<string, string> = {};
+    let loadedKeyCount = 0;
     let translatedKeyCount = 0;
+    let offset = 0;
 
-    for (const key of visibleKeys) {
-      const translation = translationByKeyId.get(key.id);
-      const hasValidTranslation =
-        Boolean(translation?.text?.trim()) && translation?.status !== "rejected";
+    while (true) {
+      const keys = await this.listKeysForFile({
+        organizationId: input.organizationId,
+        projectId: input.projectId,
+        repositorySourceFileId: sourceFile.id,
+        limit: prefillKeysPageSize,
+        offset,
+      });
 
-      if (hasValidTranslation) {
-        prefilled[key.key] = translation!.text;
-        translatedKeyCount += 1;
-        continue;
+      if (keys.length === 0) {
+        break;
       }
 
-      if (input.includeAllSourceKeys) {
-        prefilled[key.key] = key.sourceText;
+      const translations = await this.getTranslationsByKeyIds({
+        organizationId: input.organizationId,
+        projectId: input.projectId,
+        translationKeyIds: keys.map((key) => key.id),
+        targetLocale: input.targetLocale,
+      });
+      const translationByKeyId = new Map(
+        translations.map((translation) => [translation.translationKeyId, translation]),
+      );
+
+      for (const key of keys) {
+        const translation = translationByKeyId.get(key.id);
+        const hasValidTranslation =
+          Boolean(translation?.text?.trim()) && translation?.status !== "rejected";
+
+        if (hasValidTranslation) {
+          prefilled[key.key] = translation!.text;
+          translatedKeyCount += 1;
+          continue;
+        }
+
+        if (input.includeAllSourceKeys) {
+          prefilled[key.key] = key.sourceText;
+        }
+      }
+
+      loadedKeyCount += keys.length;
+      offset += keys.length;
+
+      if (keys.length < prefillKeysPageSize) {
+        break;
       }
     }
 
     return {
       prefilled,
-      truncated,
-      loadedKeyCount: visibleKeys.length,
+      truncated: false,
+      loadedKeyCount,
       maxKeyCount: maxKeysPerImport,
       translatedKeyCount,
     };
@@ -863,6 +1036,14 @@ export const countProjectTranslationKeysForFile = (
 export const listProjectTranslationKeysForFile = (
   input: Parameters<ProjectTranslationService["listKeysForFile"]>[0],
 ) => projectTranslationService.listKeysForFile(input);
+
+export const countProjectTranslationKeysForProject = (
+  input: Parameters<ProjectTranslationService["countKeysForProject"]>[0],
+) => projectTranslationService.countKeysForProject(input);
+
+export const listProjectTranslationKeysForProject = (
+  input: Parameters<ProjectTranslationService["listKeysForProject"]>[0],
+) => projectTranslationService.listKeysForProject(input);
 
 export const getProjectTranslationsByKeyIds = (
   input: Parameters<ProjectTranslationService["getTranslationsByKeyIds"]>[0],

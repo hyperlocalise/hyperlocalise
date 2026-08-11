@@ -1,3 +1,15 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import type {
   CatFormatCheck,
   CatSegment,
@@ -19,6 +31,7 @@ export type CatEditorPanelProps = {
   isFormatChecksLoading?: boolean;
   isCommentsLoading?: boolean;
   isSegmentTargetLoading?: boolean;
+  isImageBusy?: boolean;
   canApprove?: boolean;
   canAddComment?: boolean;
   canEditTranslations?: boolean;
@@ -36,7 +49,24 @@ export type CatEditorPanelProps = {
   onApprove: () => void;
   onSaveDraft?: () => void;
   onAddComment?: (input: CatSegmentCommentInput) => void | Promise<void>;
+  onAddToIssueSheet?: () => void | Promise<void>;
   onResolveComment?: (commentId: string) => void | Promise<void>;
+  organizationSlug?: string;
+  projectId?: string;
+  nativeIssuesEnabled?: boolean;
+  translationKeyId?: string | null;
+  issueTargetLocale?: string | null;
+  issueStringLink?: {
+    segmentId: string;
+    sourcePath: string;
+    targetLocale: string;
+    translationKeyId?: string;
+    defaultTitle?: string;
+    defaultDescription?: string;
+    linkUrl?: string;
+    linkLabel?: string;
+  } | null;
+  onNativeOpenIssueCountChange?: (openIssueCount: number) => void;
   primaryActionLabel?: string;
   onAskQuestion: () => void;
   onGenerateAiRecommendation?: () => void;
@@ -47,4 +77,7 @@ export type CatEditorPanelProps = {
   hasNextSegment: boolean;
   segmentShareUrl?: string | null;
   providerKind?: string | null;
+  onTreatAsImage?: (treatAsImage: boolean) => void;
+  onRegenerateImage?: () => void;
+  onUploadImage?: (file: File) => void;
 };

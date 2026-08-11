@@ -1,5 +1,17 @@
 "use client";
 
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import { defineMessages } from "react-intl";
 
 export const catWorkspaceMessages = defineMessages({
@@ -31,6 +43,12 @@ export const catQueuePanelMessages = defineMessages({
     id: "EUZbcVhX5v",
     description: "Heading for the CAT segment queue panel",
   },
+  loadingSegmentsAria: {
+    defaultMessage: "Loading segments",
+    id: "XUGFGcmuvI",
+    description: "Accessible label while the CAT segment queue skeleton is shown",
+  },
+
   filterQueueAria: {
     defaultMessage: "Filter queue",
     id: "qSH0vWKsTL",
@@ -42,13 +60,13 @@ export const catQueuePanelMessages = defineMessages({
     description: "Accessible label for the queue overflow actions button",
   },
   searchPlaceholder: {
-    defaultMessage: "Search key or text…",
-    id: "8TtvvjSylP",
+    defaultMessage: "Search key, source, or translation…",
+    id: "extNy23p4p",
     description: "Placeholder for CAT queue search input",
   },
   searchAria: {
-    defaultMessage: "Search segments by key or source text",
-    id: "Wk16E7zAqa",
+    defaultMessage: "Search segments by key, source text, or translation",
+    id: "Kjim0yzISM",
     description: "Accessible label for CAT queue search input",
   },
   emptySearchResults: {
@@ -279,25 +297,15 @@ export const catWorkspaceContainerMessages = defineMessages({
     id: "pMRZvoJLzS",
     description: "Fallback error when approving or saving a CAT translation fails",
   },
-  unsavedSegmentNavigationTitle: {
-    defaultMessage: "Leave segment with unsaved changes?",
-    id: "2O/RojUz55",
-    description: "Title when navigating away from a segment with unsaved target text",
-  },
-  unsavedSegmentNavigationDescription: {
-    defaultMessage: "Your edits to this segment have not been saved. Leave without saving?",
-    id: "37yFkjafwR",
-    description: "Body when navigating away from a segment with unsaved target text",
-  },
   unsavedPageNavigationTitle: {
     defaultMessage: "Leave page with unsaved changes?",
-    id: "oeD72ehQB/",
-    description: "Title when changing CAT queue page with unsaved target text",
+    id: "mctwKXU94p",
+    description: "Title when leaving the CAT workspace with unsaved target text",
   },
   unsavedPageNavigationDescription: {
-    defaultMessage: "Some segments on this page have unsaved edits. Change page without saving?",
-    id: "+pyXMBZm58",
-    description: "Body when changing CAT queue page with unsaved target text",
+    defaultMessage: "Some segments have unsaved edits. Leave without saving?",
+    id: "mmB/r+ohDb",
+    description: "Body when leaving the CAT workspace with unsaved target text",
   },
   unsavedNavigationStay: {
     defaultMessage: "Stay",
@@ -351,6 +359,11 @@ export const catTargetEditorMessages = defineMessages({
     defaultMessage: "{count} characters used",
     id: "8eFLCTVPnq",
     description: "Accessible label for the CAT target character counter without a max length",
+  },
+  icuBlockSummary: {
+    defaultMessage: "{arg} · {type}",
+    id: "iXddAxYfyx",
+    description: "ICU plural/select block argument and type summary in the CAT target editor",
   },
 });
 
@@ -445,10 +458,20 @@ export const catIntelligencePanelMessages = defineMessages({
     id: "rHDcSl4Kt4",
     description: "Button to apply a translation memory match to the target field",
   },
-  useGlossaryTerm: {
-    defaultMessage: "Use",
-    id: "/qvZ8TPpqw",
-    description: "Button to apply an approved glossary term to the target field",
+  copyGlossaryTerm: {
+    defaultMessage: "Copy",
+    id: "Rw5WXF50Q2",
+    description: "Button to copy an approved glossary target term to the clipboard",
+  },
+  glossaryTermCopied: {
+    defaultMessage: "Copied",
+    id: "K+AvrhTOJl",
+    description: "Button label after a glossary target term was copied to the clipboard",
+  },
+  glossaryTermCopyFailed: {
+    defaultMessage: "Copy failed",
+    id: "Ya0t4KyDVG",
+    description: "Button label when copying a glossary target term fails",
   },
   lowMatchConfirmTitle: {
     defaultMessage: "Apply low-quality TM match?",
@@ -499,6 +522,61 @@ export const catEditorPanelMessages = defineMessages({
     id: "wnYoaQhT6i",
     description: "Section heading for the source string with locale code",
   },
+  treatAsImage: {
+    defaultMessage: "Treat as image",
+    id: "ZkAl1q2it8",
+    description: "Button to treat a URL source string as a localizable image",
+  },
+  treatAsText: {
+    defaultMessage: "Treat as text",
+    id: "ismdmCNJ+n",
+    description: "Button to stop treating a URL source string as an image",
+  },
+  treatAsImageTitle: {
+    defaultMessage: "Preview and localize this URL as an image",
+    id: "vdOK0pRPUg",
+    description: "Tooltip for the treat-as-image toggle in CAT",
+  },
+  regenerateImage: {
+    defaultMessage: "Regenerate image",
+    id: "zA2ZC7UBbt",
+    description: "Button to regenerate a localized image with the agent",
+  },
+  uploadImage: {
+    defaultMessage: "Upload image",
+    id: "SUoQN+pj+e",
+    description: "Button to upload a replacement localized image",
+  },
+  imageSourceAlt: {
+    defaultMessage: "Source image",
+    id: "cHvtlHrefQ",
+    description: "Alt text for the CAT source image preview",
+  },
+  imageTargetAlt: {
+    defaultMessage: "Target image",
+    id: "dv6HEp4mGP",
+    description: "Alt text for the CAT target image preview",
+  },
+  imageSourceEmpty: {
+    defaultMessage: "Source image unavailable",
+    id: "gInelMBn+I",
+    description: "Empty state when the CAT source image cannot be shown",
+  },
+  imageTargetEmpty: {
+    defaultMessage: "No localized image yet",
+    id: "V04dsqCSZQ",
+    description: "Empty state when the CAT target image has not been created",
+  },
+  imageEmpty: {
+    defaultMessage: "No image yet",
+    id: "aMf9NbDyem",
+    description: "Fallback empty state when a CAT image preview has no source URL",
+  },
+  segmentPosition: {
+    defaultMessage: "{position} / {total}",
+    id: "uadZLjPGYZ",
+    description: "Current segment index and total count in the CAT editor header",
+  },
   targetHeading: {
     defaultMessage: "Target ({locale})",
     id: "1PcszZ/Z93",
@@ -533,6 +611,11 @@ export const catEditorPanelMessages = defineMessages({
     defaultMessage: "Find context",
     id: "/MBsvL6JVH",
     description: "Button to look up repository context for the current string",
+  },
+  addToIssueSheet: {
+    defaultMessage: "Issues",
+    id: "IA5Kmwt4uK",
+    description: "Button to open linked Issues for the current CAT segment",
   },
   refreshContextTitle: {
     defaultMessage: "Re-run repository context lookup for this string",
@@ -569,10 +652,10 @@ export const catEditorPanelMessages = defineMessages({
     id: "MN2GW5Szxo",
     description: "Button to request an AI translation recommendation",
   },
-  reasoningPrefix: {
-    defaultMessage: "Reasoning:",
-    id: "0zYUPddzdy",
-    description: "Label prefix before AI recommendation reasoning text",
+  aiReasoning: {
+    defaultMessage: "<b>Reasoning:</b> {reasoning}",
+    id: "TE3bLZyBSZ",
+    description: "AI recommendation reasoning with bold label prefix; b wraps the label",
   },
   aiSuggestionEmpty: {
     defaultMessage: "Generate a translation suggestion for this string.",
@@ -658,26 +741,6 @@ export const catEditorPanelMessages = defineMessages({
     defaultMessage: "Resolving…",
     id: "E8rEmEqTpX",
     description: "Button label while a Crowdin issue is being resolved",
-  },
-  issueTypeGeneralQuestion: {
-    defaultMessage: "General question",
-    id: "2oU/YE7MsU",
-    description: "Crowdin issue type for general questions",
-  },
-  issueTypeTranslationMistake: {
-    defaultMessage: "Translation mistake",
-    id: "p83H7uOHst",
-    description: "Crowdin issue type for translation mistakes",
-  },
-  issueTypeContextRequest: {
-    defaultMessage: "Context request",
-    id: "YNB1czGowu",
-    description: "Crowdin issue type for context requests",
-  },
-  issueTypeSourceMistake: {
-    defaultMessage: "Source mistake",
-    id: "LMW/LqnbFb",
-    description: "Crowdin issue type for source mistakes",
   },
   issueTypeLabel: {
     defaultMessage: "Issue type",
@@ -775,5 +838,76 @@ export const catPanelErrorBoundaryMessages = defineMessages({
     defaultMessage: "Try again",
     id: "27qrEmB3yO",
     description: "Button label to retry rendering a crashed CAT panel",
+  },
+});
+
+export const catWorkspaceViewModeMessages = defineMessages({
+  viewModeAria: {
+    defaultMessage: "CAT view mode",
+    id: "djDzIFmWT8",
+    description: "Accessible label for the CAT workspace view mode switcher",
+  },
+  comfortableView: {
+    defaultMessage: "Comfortable",
+    id: "z+yNDK6TMM",
+    description: "CAT workspace view mode with queue, editor, and intelligence panels",
+  },
+  sideBySideView: {
+    defaultMessage: "Side by side",
+    id: "EkIRMNMq59",
+    description: "CAT workspace view mode with source and translation columns",
+  },
+  fileView: {
+    defaultMessage: "File view",
+    id: "aHtGik8gUy",
+    description: "CAT workspace view mode that previews source and translated files side by side",
+  },
+});
+
+export const catSideBySidePanelMessages = defineMessages({
+  sourceColumn: {
+    defaultMessage: "Source string",
+    id: "Q5+U++Wf7Z",
+    description: "Column heading for source strings in side-by-side CAT view",
+  },
+  translationColumn: {
+    defaultMessage: "Translation",
+    id: "uuXWiAkNhO",
+    description: "Column heading for translations in side-by-side CAT view",
+  },
+  intelligencePanelTitle: {
+    defaultMessage: "Translation intelligence",
+    id: "8Tp9Y/Dgx2",
+    description: "Heading for the bottom intelligence panel in side-by-side CAT view",
+  },
+  emptyIntelligence: {
+    defaultMessage: "Focus or hover a string to see translation intelligence.",
+    id: "8x7A3iYxrD",
+    description: "Empty state when no segment is focused in side-by-side CAT view",
+  },
+  segmentPosition: {
+    defaultMessage: "{position} / {total}",
+    id: "gLK1qAKU2c",
+    description: "Current segment position in side-by-side CAT view footer",
+  },
+  clickToLocalizeImage: {
+    defaultMessage: "Click to localize image",
+    id: "Ga0sjgCRoD",
+    description: "Placeholder when a side-by-side image row has no localized image yet",
+  },
+  formatCheckFail: {
+    defaultMessage: "Format & QA failed ({count, plural, one {# issue} other {# issues}})",
+    id: "xQCn9y4Cu3",
+    description: "Accessible label for side-by-side format check failure icon",
+  },
+  formatCheckWarn: {
+    defaultMessage: "Format & QA warning ({count, plural, one {# issue} other {# issues}})",
+    id: "vp6YtfmYlV",
+    description: "Accessible label for side-by-side format check warning icon",
+  },
+  formatCheckLoading: {
+    defaultMessage: "Checking format & QA",
+    id: "StSqQpNlpj",
+    description: "Accessible label while side-by-side format checks are loading",
   },
 });

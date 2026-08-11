@@ -1,7 +1,23 @@
 "use client";
 
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
+import { useIntl } from "react-intl";
+
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/primitives/cn";
+
+import { catQueuePanelMessages } from "@/components/cat/shared/cat.messages";
 
 const DEFAULT_SKELETON_ROWS = 8;
 
@@ -12,9 +28,15 @@ export function CatQueueSkeletonList({
   rowCount?: number;
   className?: string;
 }) {
+  const intl = useIntl();
+
   return (
     <div className={cn("min-h-0 flex-1 overflow-hidden px-4 pb-3", className)}>
-      <ul className="space-y-2" aria-busy="true" aria-label="Loading segments">
+      <ul
+        className="space-y-2"
+        aria-busy="true"
+        aria-label={intl.formatMessage(catQueuePanelMessages.loadingSegmentsAria)}
+      >
         {Array.from({ length: rowCount }, (_, index) => (
           <li
             key={`cat-queue-skeleton-${index}`}

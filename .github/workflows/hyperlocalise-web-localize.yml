@@ -1,0 +1,149 @@
+name: Hyperlocalise Web Localize
+
+on:
+  workflow_dispatch:
+    inputs:
+      job:
+        description: Which sync job to run
+        type: choice
+        options:
+          - upload
+          - download
+        default: upload
+  schedule:
+    # Upload English source catalogs shortly after UTC midnight.
+    - cron: "0 2 * * *"
+    # Download translated catalogs later so Hyperlocalise has time to finish jobs.
+    - cron: "0 10 * * *"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: hyperlocalise-web-localize-${{ github.event.schedule || github.event.inputs.job || 'manual' }}-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  WEB_WORKING_DIRECTORY: apps/hyperlocalise-web
+
+jobs:
+  upload:
+    name: Upload Web Sources
+    if: >-
+      ${{
+        (github.event_name == 'workflow_dispatch' && github.event.inputs.job == 'upload') ||
+        (github.event_name == 'schedule' && github.event.schedule == '0 2 * * *')
+      }}
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    environment: hyperlocalise-web-localize
+    defaults:
+      run:
+        working-directory: ${{ env.WEB_WORKING_DIRECTORY }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Install Hyperlocalise
+        uses: ./install
+        with:
+          version: 1.8.28
+
+      - name: Extract source catalog
+        run: |
+          hl extract src --out-file lang/en-US.json \
+            --ignore '**/*.test.ts' \
+            --ignore '**/*.test.tsx' \
+            --ignore '**/*.stories.tsx' \
+            --ignore '**/*.fixture.ts' \
+            --ignore '**/*.e2e.ts' \
+            --ignore '**/__tests__/**'
+
+      - name: Push sources
+        run: hl sync push
+        env:
+          HYPERLOCALISE_API_KEY: ${{ secrets.HYPERLOCALISE_API_KEY }}
+          HYPERLOCALISE_PROJECT_ID: ${{ secrets.HYPERLOCALISE_PROJECT_ID }}
+
+  download:
+    name: Download Web Translations
+    if: >-
+      ${{
+        (github.event_name == 'workflow_dispatch' && github.event.inputs.job == 'download') ||
+        (github.event_name == 'schedule' && github.event.schedule == '0 10 * * *')
+      }}
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    environment: hyperlocalise-web-localize
+    permissions:
+      contents: write
+      pull-requests: write
+    defaults:
+      run:
+        working-directory: ${{ env.WEB_WORKING_DIRECTORY }}
+
+    steps:
+      - name: Create GitHub App token
+        id: app-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          # Client ID from the GitHub App settings page (not the numeric App ID).
+          # Secret names must not start with GITHUB_.
+          client-id: ${{ secrets.APP_CLIENT_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          token: ${{ steps.app-token.outputs.token }}
+          # Avoid duplicate Authorization headers with create-pull-request on checkout v6+.
+          # Sync only needs local git add/diff; the PR action supplies its own token.
+          persist-credentials: false
+
+      - name: Install Hyperlocalise
+        uses: ./install
+        with:
+          version: 1.8.28
+
+      - name: Extract source catalog
+        run: |
+          hl extract src --out-file lang/en-US.json \
+            --ignore '**/*.test.ts' \
+            --ignore '**/*.test.tsx' \
+            --ignore '**/*.stories.tsx' \
+            --ignore '**/*.fixture.ts' \
+            --ignore '**/*.e2e.ts' \
+            --ignore '**/__tests__/**'
+
+      - name: Pull translations
+        run: hl sync pull
+        env:
+          HYPERLOCALISE_API_KEY: ${{ secrets.HYPERLOCALISE_API_KEY }}
+          HYPERLOCALISE_PROJECT_ID: ${{ secrets.HYPERLOCALISE_PROJECT_ID }}
+
+      - name: Pack locale catalogs
+        run: hl pack
+
+      - name: Prepare translation branch name
+        id: branch
+        working-directory: ${{ github.workspace }}
+        run: echo "name=hyperlocalise/web-translations-$(date -u +%Y%m%d-%H%M%S)" >>"${GITHUB_OUTPUT}"
+
+      - name: Create pull request
+        uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8.1.1
+        with:
+          token: ${{ steps.app-token.outputs.token }}
+          branch: ${{ steps.branch.outputs.name }}
+          delete-branch: true
+          commit-message: "chore(web): sync Hyperlocalise translations"
+          title: "chore(web): sync Hyperlocalise translations"
+          body: |
+            Automated translation pull from Hyperlocalise for `apps/hyperlocalise-web`.
+
+            - `hl extract` — refresh `lang/en-US.json`
+            - `hl sync pull` — download target locale catalogs
+            - `hl pack` — strip FormatJS metadata for runtime
+
+            Review ICU placeholders, message ids, and locale coverage before merging.
+          labels: |
+            localization
+            hyperlocalise-web

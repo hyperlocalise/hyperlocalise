@@ -36,6 +36,7 @@ type SummaryJSONReport struct {
 	PlannedTotal    int       `json:"plannedTotal"`
 	SkippedByLock   int       `json:"skippedByLock"`
 	ExecutableTotal int       `json:"executableTotal"`
+	DeferredByLimit int       `json:"deferredByLimit"`
 	Succeeded       int       `json:"succeeded"`
 	Failed          int       `json:"failed"`
 	PersistedToLock int       `json:"persistedToLock"`
@@ -93,6 +94,7 @@ func SummaryJSONReportFrom(r Report) SummaryJSONReport {
 		PlannedTotal:                r.PlannedTotal,
 		SkippedByLock:               r.SkippedByLock,
 		ExecutableTotal:             r.ExecutableTotal,
+		DeferredByLimit:             r.DeferredByLimit,
 		Succeeded:                   r.Succeeded,
 		Failed:                      r.Failed,
 		PersistedToLock:             r.PersistedToLock,

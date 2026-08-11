@@ -1,8 +1,22 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
+import { APIError, Sandbox } from "@vercel/sandbox";
+
+import type { RepositoryAgentGitHubContext } from "@/lib/agent-contracts/repository-task";
 import {
   createVercelSandboxWorkspace,
   stopWorkspace,
 } from "@/lib/agent-runtime/workspaces/vercel-sandbox-runtime";
-import type { RepositoryAgentGitHubContext } from "@/lib/agent-contracts/repository-task";
 import { createLogger, serializeErrorForLog } from "@/lib/log";
 
 type ResolvedRepositoryGitHubContext = Extract<RepositoryAgentGitHubContext, { resolved: true }>;
@@ -45,6 +59,18 @@ export async function createRepositorySandbox(
   }
   log.info({ sandboxId: workspace.id }, "vercel repository sandbox created");
   return workspace.id;
+}
+
+export async function isRepositorySandboxAvailable(sandboxId: string): Promise<boolean> {
+  try {
+    await Sandbox.get({ name: sandboxId, resume: false });
+    return true;
+  } catch (error) {
+    if (error instanceof APIError && error.response.status === 404) {
+      return false;
+    }
+    throw error;
+  }
 }
 
 export async function stopRepositorySandbox(sandboxId: string): Promise<void> {

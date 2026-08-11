@@ -1,7 +1,24 @@
 "use client";
 
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
+import { FormattedMessage, useIntl } from "react-intl";
+
 import type { ProjectSourceStringsPreview } from "@/api/routes/project/project.schema";
+import { CatMessagePreview } from "@/components/cat/editor/cat-target-editor";
 import { TypographyP } from "@/components/ui/typography";
+
+import { projectFileSourceStringsPreviewMessages as messages } from "./project-file-source-strings-preview.messages";
 
 export function ProjectFileSourceStringsPreview({
   sourceStrings,
@@ -16,11 +33,15 @@ export function ProjectFileSourceStringsPreview({
 }
 
 function SourceStringsTable({ preview }: { preview: ProjectSourceStringsPreview }) {
+  const intl = useIntl();
+
   return (
     <div className="space-y-3">
       <TypographyP className="text-xs text-muted-foreground">
-        {preview.entries.length} string{preview.entries.length === 1 ? "" : "s"}
-        {preview.truncated ? " (preview truncated)" : ""}
+        <FormattedMessage
+          {...(preview.truncated ? messages.stringCountTruncated : messages.stringCount)}
+          values={{ count: preview.entries.length }}
+        />
       </TypographyP>
 
       {preview.note ? (
@@ -32,9 +53,15 @@ function SourceStringsTable({ preview }: { preview: ProjectSourceStringsPreview 
           <table className="w-full min-w-[32rem] border-collapse text-left text-xs">
             <thead className="sticky top-0 z-10 border-b border-border bg-background/95 backdrop-blur-sm">
               <tr>
-                <th className="px-3 py-2 font-medium text-muted-foreground">Key</th>
-                <th className="px-3 py-2 font-medium text-muted-foreground">Text</th>
-                <th className="px-3 py-2 font-medium text-muted-foreground">Context</th>
+                <th className="px-3 py-2 font-medium text-muted-foreground">
+                  <FormattedMessage {...messages.keyColumn} />
+                </th>
+                <th className="px-3 py-2 font-medium text-muted-foreground">
+                  <FormattedMessage {...messages.textColumn} />
+                </th>
+                <th className="px-3 py-2 font-medium text-muted-foreground">
+                  <FormattedMessage {...messages.contextColumn} />
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
@@ -42,10 +69,12 @@ function SourceStringsTable({ preview }: { preview: ProjectSourceStringsPreview 
                 <tr key={entry.id ?? entry.key} className="align-top">
                   <td className="px-3 py-2 font-mono text-foreground">{entry.key}</td>
                   <td className="max-w-[14rem] px-3 py-2 whitespace-pre-wrap text-subtle-foreground">
-                    {entry.text}
+                    <CatMessagePreview message={entry.text} />
                   </td>
                   <td className="max-w-[12rem] px-3 py-2 whitespace-pre-wrap text-muted-foreground">
-                    {entry.context?.trim() ? entry.context : "—"}
+                    {entry.context?.trim()
+                      ? entry.context
+                      : intl.formatMessage(messages.emptyContext)}
                   </td>
                 </tr>
               ))}

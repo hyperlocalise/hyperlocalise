@@ -1,11 +1,24 @@
 "use client";
 
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ArrowDown01Icon, ArrowLeft01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useQuery } from "@tanstack/react-query";
 import { observer } from "mobx-react-lite";
+import { FormattedMessage, useIntl } from "react-intl";
 
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
@@ -13,12 +26,20 @@ import {
   SidebarGroupContent,
   SidebarGroupLabel,
   SidebarMenu,
+  SidebarMenuBadge,
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { apiClient } from "@/lib/api-client-instance";
 import { cn } from "@/lib/primitives/cn";
+import {
+  createInboxNotificationsApi,
+  notificationsUnreadCountQueryKey,
+} from "@/app/[lang]/(authenticated)/org/[organizationSlug]/inbox/_components/inbox-notifications-api";
+
+import { appShellNavigationMessages } from "./app-shell-navigation.messages";
+import { filterNavigationItemsByWorkspaceFlags } from "@/lib/flags/workspace-flag-navigation";
 
 import {
   buildOrganizationPath,
@@ -29,6 +50,8 @@ import {
   type NavigationItem,
 } from "./navigation-config";
 import { useAppShellStore } from "./store/app-shell-store-context";
+
+const inboxNotificationsApi = createInboxNotificationsApi();
 
 type AppShellNavigationProps = {
   organizationSlug: string;
@@ -145,6 +168,7 @@ function ProjectNavigation({
   projectName?: string;
   items?: readonly NavigationItem[];
 }) {
+  const intl = useIntl();
   const projectQuery = useQuery({
     queryKey: ["translation-project", organizationSlug, projectId],
     enabled: !projectName && !items,
@@ -160,9 +184,17 @@ function ProjectNavigation({
     },
   });
 
-  const resolvedItems = items ?? buildProjectNavigationItems(organizationSlug, projectId);
-  const resolvedProjectName = projectName ?? projectQuery.data?.name ?? "Project";
+  const store = useAppShellStore();
+  const resolvedItems = filterNavigationItemsByWorkspaceFlags(
+    items ?? buildProjectNavigationItems(organizationSlug, projectId, intl),
+    store.workspaceFeatureFlags,
+  );
+  const resolvedProjectName =
+    projectName ??
+    projectQuery.data?.name ??
+    intl.formatMessage(appShellNavigationMessages.projectFallbackName);
   const projectsHref = buildOrganizationPath(organizationSlug, "projects");
+  const allProjectsLabel = intl.formatMessage(appShellNavigationMessages.allProjects);
 
   return (
     <div className="flex flex-col gap-3">
@@ -172,11 +204,13 @@ function ProjectNavigation({
             <SidebarMenuItem>
               <SidebarMenuButton
                 render={<Link href={projectsHref} />}
-                tooltip="All projects"
+                tooltip={allProjectsLabel}
                 className="h-8 rounded-md px-2.5 text-sm font-medium text-muted-foreground hover:text-sidebar-foreground group-data-[collapsible=icon]:size-8!"
               >
                 <HugeiconsIcon icon={ArrowLeft01Icon} strokeWidth={2} className="size-4" />
-                <span>All projects</span>
+                <span>
+                  <FormattedMessage {...appShellNavigationMessages.allProjects} />
+                </span>
               </SidebarMenuButton>
             </SidebarMenuItem>
           </SidebarMenu>
@@ -185,7 +219,7 @@ function ProjectNavigation({
 
       <SidebarGroup className="gap-1 p-0">
         <SidebarGroupLabel className="h-auto px-3 py-1 text-xs font-medium tracking-wide text-muted-foreground uppercase group-data-[collapsible=icon]:hidden">
-          Project
+          <FormattedMessage {...appShellNavigationMessages.projectSection} />
         </SidebarGroupLabel>
         <div className="px-3 pb-1 group-data-[collapsible=icon]:hidden">
           {!projectName && projectQuery.isLoading ? (
@@ -218,31 +252,62 @@ function NavigationGroupItems({
   organizationSlug: string;
   projectId?: string;
 }) {
+  const intl = useIntl();
+  const { chatDock, workspaceFeatureFlags } = useAppShellStore();
+  const inboxHref = buildOrganizationPath(organizationSlug, "inbox");
+  const issuesEnabled = workspaceFeatureFlags.issues;
+  const unreadCountQuery = useQuery({
+    queryKey: notificationsUnreadCountQueryKey(organizationSlug),
+    queryFn: () => inboxNotificationsApi.unreadCount(organizationSlug),
+    enabled: Boolean(organizationSlug) && issuesEnabled,
+    refetchInterval: 45_000,
+  });
+  const unreadCount = unreadCountQuery.data ?? 0;
+  const unreadBadgeLabel = unreadCount > 99 ? "99+" : unreadCount > 0 ? String(unreadCount) : null;
+
   return (
     <SidebarGroupContent>
       <SidebarMenu className="gap-1">
         {group.items.map((item) => {
-          const isActive = isNavigationItemActive(pathname, item.href, {
-            projectId,
-            organizationSlug,
-          });
+          const isActionItem = item.action === "open-chat-dock";
+          const isActive = isActionItem
+            ? false
+            : isNavigationItemActive(pathname, item.href, {
+                projectId,
+                organizationSlug,
+              });
+          const isInboxItem = item.href === inboxHref;
+          const dynamicBadge = isInboxItem ? unreadBadgeLabel : null;
+          const badge = dynamicBadge ?? item.badge;
+          const tooltip = badge
+            ? intl.formatMessage(appShellNavigationMessages.badgeSeparator, {
+                label: item.label,
+                badge,
+              })
+            : item.label;
 
           return (
             <SidebarMenuItem key={item.href}>
               <SidebarMenuButton
-                render={<Link href={item.href} />}
+                render={isActionItem ? undefined : <Link href={item.href} />}
                 isActive={isActive}
-                tooltip={item.badge ? `${item.label} · ${item.badge}` : item.label}
+                tooltip={tooltip}
                 className={navigationButtonClass(isActive)}
+                onClick={isActionItem ? () => chatDock.openNewTab() : undefined}
               >
                 <HugeiconsIcon icon={item.icon} strokeWidth={2} className="size-4" />
                 <span className="min-w-0 flex-1 truncate">{item.label}</span>
-                {item.badge ? (
+                {item.badge && !dynamicBadge ? (
                   <span className="ms-auto inline-flex shrink-0 items-center rounded-full border border-sidebar-border bg-sidebar px-1.5 py-0.5 text-[0.625rem] leading-none font-medium tracking-normal text-muted-foreground group-data-[collapsible=icon]:hidden">
                     {item.badge}
                   </span>
                 ) : null}
               </SidebarMenuButton>
+              {dynamicBadge ? (
+                <SidebarMenuBadge className="pointer-events-none peer-hover/menu-button:text-sidebar-accent-foreground">
+                  {dynamicBadge}
+                </SidebarMenuBadge>
+              ) : null}
             </SidebarMenuItem>
           );
         })}

@@ -1,26 +1,37 @@
 "use client";
 
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import type { ComponentProps, ReactNode } from "react";
-import { cn } from "@/lib/primitives/cn";
 import { HugeiconsIcon } from "@hugeicons/react";
+import { useIntl } from "react-intl";
 
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { TypographyH1, TypographyP } from "@/components/ui/typography";
+import { cn } from "@/lib/primitives/cn";
+
+import { workspaceResourceSharedMessages as messages } from "./workspace-resource-shared.messages";
 
 export type Icon = ComponentProps<typeof HugeiconsIcon>["icon"];
 export type Tone = "safe" | "watch" | "risk" | "info";
 
-export function WorkspacePageShell({
-  children,
-  className,
-}: {
-  children: ReactNode;
-  className?: string;
-}) {
+type WorkspacePageShellProps = ComponentProps<"main">;
+
+export function WorkspacePageShell({ children, className, ...props }: WorkspacePageShellProps) {
   return (
-    <main className={cn("mx-auto flex w-full max-w-6xl flex-col gap-6", className)}>
+    <main className={cn("mx-auto flex w-full max-w-6xl flex-col gap-6", className)} {...props}>
       {children}
     </main>
   );
@@ -156,8 +167,13 @@ export function MetricsGrid({
 }
 
 export function ProgressBar({ value, tone }: { value: number; tone: Tone }) {
+  const intl = useIntl();
+
   return (
-    <div className="h-2 overflow-hidden rounded-full bg-skeleton" aria-label={`${value}% complete`}>
+    <div
+      className="h-2 overflow-hidden rounded-full bg-skeleton"
+      aria-label={intl.formatMessage(messages.progressComplete, { value })}
+    >
       <div
         className={cn(
           "h-full rounded-full",

@@ -1,3 +1,15 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import type { ToolSet } from "ai";
 
 import {
@@ -9,7 +21,14 @@ import type { RepositoryAgentTaskSource } from "@/lib/agent-contracts/repository
 export { repositoryWorkflowToolNames, repositoryWorkspaceToolNames };
 
 export type AgentToolSideEffect = "none" | "workspace_write" | "external_write";
-export type AgentToolDomain = "translation" | "repo" | "tms" | "project" | "session" | "web";
+export type AgentToolDomain =
+  | "translation"
+  | "repo"
+  | "tms"
+  | "project"
+  | "knowledge"
+  | "session"
+  | "web";
 
 export type ToolManifest = {
   name: string;
@@ -24,9 +43,13 @@ export const toolManifests = [
   { name: "createTranslationJob", domain: "translation", sideEffect: "external_write" },
   { name: "translate_string", domain: "translation", sideEffect: "none" },
   { name: "check_crowdin_progress", domain: "tms", sideEffect: "none" },
+  { name: "search_crowdin_glossary", domain: "tms", sideEffect: "none" },
+  { name: "search_native_glossary", domain: "project", sideEffect: "none" },
   { name: "list_projects", domain: "project", sideEffect: "none" },
   { name: "get_project_context", domain: "project", sideEffect: "none" },
   { name: "update_interaction_project", domain: "project", sideEffect: "workspace_write" },
+  { name: "get_knowledge_memory", domain: "knowledge", sideEffect: "none" },
+  { name: "update_knowledge_memory", domain: "knowledge", sideEffect: "workspace_write" },
   { name: "todoWrite", domain: "session", sideEffect: "none" },
   { name: "fetch", domain: "web", sideEffect: "none" },
   {
@@ -60,7 +83,31 @@ export const toolManifests = [
     requiredWorkspaceCapability: "repo_read",
   },
   {
+    name: "write",
+    domain: "repo",
+    sideEffect: "workspace_write",
+    requiredWorkspaceCapability: "repo_write",
+  },
+  {
+    name: "applyPatch",
+    domain: "repo",
+    sideEffect: "workspace_write",
+    requiredWorkspaceCapability: "repo_write",
+  },
+  {
+    name: "captureScreenshot",
+    domain: "repo",
+    sideEffect: "workspace_write",
+    requiredWorkspaceCapability: "repo_write",
+  },
+  {
     name: "detectRepoConfig",
+    domain: "repo",
+    sideEffect: "none",
+    requiredWorkspaceCapability: "repo_read",
+  },
+  {
+    name: "gitHistory",
     domain: "repo",
     sideEffect: "none",
     requiredWorkspaceCapability: "repo_read",

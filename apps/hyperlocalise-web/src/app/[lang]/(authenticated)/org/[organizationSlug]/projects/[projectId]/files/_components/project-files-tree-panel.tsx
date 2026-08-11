@@ -1,9 +1,22 @@
 "use client";
 
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import type { ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
 import type { QueryClient } from "@tanstack/react-query";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { FormattedMessage, useIntl } from "react-intl";
 
 import type { ProjectFileRecord } from "@/api/routes/project/project.schema";
 import { Button } from "@/components/ui/button";
@@ -15,8 +28,11 @@ import { getProjectWorkspaceCapabilities } from "@/lib/projects/workspace-resour
 import { ProjectSectionTitle } from "../../_components/project-page-shell";
 import { ProjectFilesErrorBoundary } from "./project-files-error-boundary";
 import { ProjectFilesTree } from "./project-files-tree";
+import type { ProjectFileTreeActionsConfig } from "./project-file-tree-context-menu";
+import { projectFilesTreePanelMessages as messages } from "./project-files-tree-panel.messages";
+import { dedupeProjectFilesBySourcePath } from "./project-files-shared";
 
-export const PROJECT_FILES_PAGE_SIZE = 50;
+export const PROJECT_FILES_PAGE_SIZE = 500;
 export const PROJECT_FILES_MAX_LIMIT = 1_000;
 
 export function projectFilesQueryKey(
@@ -49,6 +65,11 @@ export function findCachedProjectFiles(
     return exact;
   }
 
+  // Never reuse another branch's cached file list while the branch query loads.
+  if (branch?.trim()) {
+    return undefined;
+  }
+
   const prefix = ["project-files", organizationSlug, projectId] as const;
   const entries = queryClient.getQueriesData<ProjectFileRecord[]>({ queryKey: prefix });
   let best: ProjectFileRecord[] | undefined;
@@ -71,6 +92,7 @@ export async function fetchProjectFiles(
   projectId: string,
   limit: number = PROJECT_FILES_PAGE_SIZE,
   branch?: string | null,
+  loadFailedMessage = "Failed to load project files",
 ) {
   const params = new URLSearchParams({ limit: String(limit) });
   const trimmedBranch = branch?.trim();
@@ -83,7 +105,7 @@ export async function fetchProjectFiles(
   });
 
   if (!response.ok) {
-    throw await readApiResponseError(response, "Failed to load project files");
+    throw await readApiResponseError(response, loadFailedMessage);
   }
 
   const body = (await response.json()) as { files: ProjectFileRecord[] };
@@ -95,7 +117,7 @@ function apiPath(organizationSlug: string, projectId: string) {
 }
 
 export function sortFilesByPath(files: ProjectFileRecord[]) {
-  return [...files].toSorted((a, b) =>
+  return dedupeProjectFilesBySourcePath(files).toSorted((a, b) =>
     a.sourcePath.localeCompare(b.sourcePath, undefined, { sensitivity: "base" }),
   );
 }
@@ -105,11 +127,17 @@ function ProjectFilesTreeBody({
   files,
   selectedSourcePath,
   onSelectSourcePath,
+  onActivateFile,
+  catOpenHint,
+  fileActions,
 }: {
   projectId: string;
   files: ProjectFileRecord[];
   selectedSourcePath: string | null;
   onSelectSourcePath: (sourcePath: string | null) => void;
+  onActivateFile?: (sourcePath: string) => void;
+  catOpenHint?: string | null;
+  fileActions?: ProjectFileTreeActionsConfig;
 }) {
   const projectCapabilities = getProjectWorkspaceCapabilities({ projectId });
   const isProviderProject = projectCapabilities.isProviderProject;
@@ -117,23 +145,39 @@ function ProjectFilesTreeBody({
   if (files.length === 0) {
     return (
       <div className="flex flex-col gap-2 p-4">
-        <TypographyP className="text-sm font-medium text-foreground">No files yet</TypographyP>
+        <TypographyP className="text-sm font-medium text-foreground">
+          <FormattedMessage {...messages.noFilesYet} />
+        </TypographyP>
         <TypographyP className="text-sm text-muted-foreground">
-          {isProviderProject
-            ? "No provider files were found for this project."
-            : "Use Add files above to upload JSON, YAML, XLIFF, PO, and other supported formats."}
+          {isProviderProject ? (
+            <FormattedMessage {...messages.noProviderFiles} />
+          ) : (
+            <FormattedMessage {...messages.noNativeFiles} />
+          )}
         </TypographyP>
       </div>
     );
   }
 
   return (
-    <div className="min-h-0 flex-1 p-2">
-      <ProjectFilesTree
-        files={files}
-        selectedSourcePath={selectedSourcePath}
-        onSelectFile={onSelectSourcePath}
-      />
+    <div className="flex min-h-0 flex-1 flex-col gap-2 p-2">
+      {onActivateFile && selectedSourcePath && catOpenHint ? (
+        <div className="rounded-lg border border-border bg-background px-4 py-3">
+          <TypographyP className="truncate font-mono text-xs text-foreground">
+            {selectedSourcePath}
+          </TypographyP>
+          <TypographyP className="text-xs text-muted-foreground">{catOpenHint}</TypographyP>
+        </div>
+      ) : null}
+      <div className="min-h-0 flex-1">
+        <ProjectFilesTree
+          files={files}
+          selectedSourcePath={selectedSourcePath}
+          onSelectFile={onSelectSourcePath}
+          onActivateFile={onActivateFile}
+          fileActions={fileActions}
+        />
+      </div>
     </div>
   );
 }
@@ -144,12 +188,18 @@ function ProjectFilesTreeQueryResult({
   files,
   selectedSourcePath,
   onSelectSourcePath,
+  onActivateFile,
+  catOpenHint,
+  fileActions,
 }: {
   error: unknown;
   projectId: string;
   files: ProjectFileRecord[];
   selectedSourcePath: string | null;
   onSelectSourcePath: (sourcePath: string | null) => void;
+  onActivateFile?: (sourcePath: string) => void;
+  catOpenHint?: string | null;
+  fileActions?: ProjectFileTreeActionsConfig;
 }) {
   if (error) {
     throw error;
@@ -161,6 +211,9 @@ function ProjectFilesTreeQueryResult({
       files={files}
       selectedSourcePath={selectedSourcePath}
       onSelectSourcePath={onSelectSourcePath}
+      onActivateFile={onActivateFile}
+      catOpenHint={catOpenHint}
+      fileActions={fileActions}
     />
   );
 }
@@ -171,7 +224,10 @@ export function ProjectFilesTreePanel({
   selectedSourcePath,
   onSelectSourcePath,
   onLoadedFilesChange,
+  onActivateFile,
+  catOpenHint = null,
   headerActions,
+  fileActions,
   branch = null,
 }: {
   organizationSlug: string;
@@ -179,17 +235,23 @@ export function ProjectFilesTreePanel({
   selectedSourcePath: string | null;
   onSelectSourcePath: (sourcePath: string | null) => void;
   onLoadedFilesChange?: (files: ProjectFileRecord[]) => void;
+  onActivateFile?: (sourcePath: string) => void;
+  catOpenHint?: string | null;
   headerActions?: ReactNode;
+  fileActions?: ProjectFileTreeActionsConfig;
   branch?: string | null;
 }) {
+  const intl = useIntl();
   const queryClient = useQueryClient();
   const [fileLimit, setFileLimit] = useState(PROJECT_FILES_PAGE_SIZE);
   const [autoAdvanceExhausted, setAutoAdvanceExhausted] = useState(false);
   const fetchLimit = Math.min(fileLimit + 1, PROJECT_FILES_MAX_LIMIT);
   const queryKey = projectFilesQueryKey(organizationSlug, projectId, fetchLimit, branch);
+  const loadFailedMessage = intl.formatMessage(messages.loadFailed);
   const filesQuery = useQuery({
     queryKey,
-    queryFn: () => fetchProjectFiles(organizationSlug, projectId, fetchLimit, branch),
+    queryFn: () =>
+      fetchProjectFiles(organizationSlug, projectId, fetchLimit, branch, loadFailedMessage),
     placeholderData: () => findCachedProjectFiles(queryClient, organizationSlug, projectId, branch),
   });
 
@@ -252,15 +314,19 @@ export function ProjectFilesTreePanel({
     <>
       <header className="flex shrink-0 items-center justify-between gap-3 border-b border-border px-4 py-2.5">
         <div className="min-w-0">
-          <ProjectSectionTitle>Project files</ProjectSectionTitle>
+          <ProjectSectionTitle>
+            <FormattedMessage {...messages.projectFilesTitle} />
+          </ProjectSectionTitle>
           <TypographyP className="mt-0.5 text-sm text-muted-foreground">
-            {filesQuery.isLoading
-              ? "Loading…"
-              : filesQuery.isError
-                ? "Could not load files"
-                : hasMoreFiles
-                  ? `${files.length}+ files`
-                  : `${files.length} file${files.length === 1 ? "" : "s"}`}
+            {filesQuery.isLoading ? (
+              <FormattedMessage {...messages.loading} />
+            ) : filesQuery.isError ? (
+              <FormattedMessage {...messages.couldNotLoad} />
+            ) : hasMoreFiles ? (
+              <FormattedMessage {...messages.fileCountMore} values={{ count: files.length }} />
+            ) : (
+              <FormattedMessage {...messages.fileCount} values={{ count: files.length }} />
+            )}
           </TypographyP>
         </div>
         {headerActions ? (
@@ -273,7 +339,9 @@ export function ProjectFilesTreePanel({
       </header>
 
       {filesQuery.isLoading ? (
-        <TypographyP className="p-4 text-sm text-muted-foreground">Loading files…</TypographyP>
+        <TypographyP className="p-4 text-sm text-muted-foreground">
+          <FormattedMessage {...messages.loadingFiles} />
+        </TypographyP>
       ) : (
         <ProjectFilesErrorBoundary
           organizationSlug={organizationSlug}
@@ -288,6 +356,9 @@ export function ProjectFilesTreePanel({
             files={files}
             selectedSourcePath={selectedSourcePath}
             onSelectSourcePath={onSelectSourcePath}
+            onActivateFile={onActivateFile}
+            catOpenHint={catOpenHint}
+            fileActions={fileActions}
           />
           {hasMoreFiles ? (
             <div className="shrink-0 border-t border-border p-2">
@@ -306,10 +377,10 @@ export function ProjectFilesTreePanel({
                 {filesQuery.isFetching ? (
                   <>
                     <Spinner />
-                    Loading more…
+                    <FormattedMessage {...messages.loadingMore} />
                   </>
                 ) : (
-                  "Load more files"
+                  <FormattedMessage {...messages.loadMore} />
                 )}
               </Button>
             </div>

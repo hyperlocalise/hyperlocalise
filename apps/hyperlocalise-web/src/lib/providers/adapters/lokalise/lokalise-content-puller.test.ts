@@ -1,9 +1,21 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
-import { requestUrlString } from "../../fetch-mock-helpers";
-import { pullLokaliseTaskContent } from "./lokalise-content-puller";
+import { requestUrlString } from "@/lib/providers/shared/fetch-mock-helpers";
+import { lokaliseTmsProvider } from "./lokalise-provider";
 
-describe("pullLokaliseTaskContent", () => {
+describe("lokaliseTmsProvider.pullTaskContent", () => {
   let originalFetch: typeof fetch;
 
   beforeEach(() => {
@@ -93,10 +105,9 @@ describe("pullLokaliseTaskContent", () => {
 
     globalThis.fetch = fetchMock;
 
-    const content = await pullLokaliseTaskContent({
+    const content = await lokaliseTmsProvider.pullTaskContent({
       organizationId: "org-1",
       projectId: "project-1",
-      providerKind: "lokalise",
       externalProjectId: "proj.123",
       externalJobId: "42",
       credential: {

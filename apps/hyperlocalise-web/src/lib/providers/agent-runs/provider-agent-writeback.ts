@@ -1,3 +1,15 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import {
   collectAcceptedAgentRunProposalsForJob,
   isPushApprovedWritebackAgentRun,
@@ -10,13 +22,21 @@ import {
   listAgentRuns,
   startAgentRun,
 } from "../agent-runs/agent-runs";
-import { pushExternalTmsTranslations } from "../tms-provider-content";
+import {
+  pullExternalTmsTaskContent,
+  pushExternalTmsTranslations,
+} from "@/lib/providers/shared/tms-provider-content";
 import type {
   ExternalTmsApprovedTranslationUpload,
   ExternalTmsContentSyncFailure,
-} from "../tms-provider-types";
-import type { ProviderTranslationWritebackChangedItem } from "../provider-feedback-types";
-import { getProviderTranslationPusher } from "../adapters/tms-provider-adapter-registry";
+  ExternalTmsTaskContent,
+} from "@/lib/providers/jobs/tms-provider-types";
+import type { ExternalTmsProviderKind } from "@/lib/providers/credentials/organization-external-tms-provider-credentials";
+import type { ProviderTranslationWritebackChangedItem } from "@/lib/providers/shared/provider-feedback-types";
+import {
+  getProviderContentPuller,
+  getProviderTranslationPusher,
+} from "@/lib/providers/adapters/tms-provider-registry";
 
 export type ProviderAgentWritebackResult =
   | {
@@ -221,6 +241,106 @@ function buildWritebackChangedItems(input: {
   return changedItems;
 }
 
+function buildFileIdByExternalStringId(content: ExternalTmsTaskContent) {
+  const fileIdByExternalStringId = new Map<string, string>();
+
+  for (const unit of content.units) {
+    if (unit.externalStringId && unit.fileId?.trim()) {
+      fileIdByExternalStringId.set(unit.externalStringId, unit.fileId);
+    }
+  }
+
+  return fileIdByExternalStringId;
+}
+
+async function enrichProposalsWithResolvedFileIds(input: {
+  proposals: AcceptedAgentRunProposal[];
+  organizationId: string;
+  projectId: string;
+  providerKind: ExternalTmsProviderKind;
+  externalJobId: string;
+  actorUserId?: string | null;
+}) {
+  // Crowdin groups approved uploads by (fileId, locale). Missing fileIds collapse multi-file
+  // keys onto task.fileIds[0]. Phrase/Lokalise push by key+locale and routinely emit null
+  // fileIds, so requiring a resolved fileId there hard-fails every write-back.
+  if (input.providerKind !== "crowdin") {
+    return {
+      proposals: input.proposals,
+      prePushFailures: [] as ExternalTmsContentSyncFailure[],
+    };
+  }
+
+  const legacyProposals = input.proposals.filter((proposal) => !proposal.fileId?.trim());
+  if (legacyProposals.length === 0) {
+    return {
+      proposals: input.proposals,
+      prePushFailures: [] as ExternalTmsContentSyncFailure[],
+    };
+  }
+
+  const pullContent = getProviderContentPuller(input.providerKind);
+
+  let content: ExternalTmsTaskContent;
+  try {
+    const pullResult = await pullExternalTmsTaskContent({
+      organizationId: input.organizationId,
+      projectId: input.projectId,
+      providerKind: input.providerKind,
+      externalJobId: input.externalJobId,
+      pullContent,
+      actorUserId: input.actorUserId,
+    });
+    content = pullResult.content;
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "Failed to resolve legacy proposal fileIds";
+    return {
+      proposals: input.proposals,
+      prePushFailures: legacyProposals.map((proposal) => ({
+        externalStringId: proposal.externalStringId,
+        locale: proposal.locale,
+        message: `legacy_proposal_file_id_resolution_failed: ${message}`,
+      })),
+    };
+  }
+
+  const fileIdByExternalStringId = buildFileIdByExternalStringId(content);
+  const prePushFailures: ExternalTmsContentSyncFailure[] = [];
+
+  const proposals = input.proposals.map((proposal) => {
+    if (proposal.fileId?.trim()) {
+      return proposal;
+    }
+
+    const resolvedFileId = fileIdByExternalStringId.get(proposal.externalStringId);
+    if (!resolvedFileId) {
+      prePushFailures.push({
+        externalStringId: proposal.externalStringId,
+        locale: proposal.locale,
+        message: "legacy_proposal_missing_file_id",
+      });
+      return proposal;
+    }
+
+    return { ...proposal, fileId: resolvedFileId };
+  });
+
+  return { proposals, prePushFailures };
+}
+
+function toApprovedTranslationUpload(
+  proposal: AcceptedAgentRunProposal,
+): ExternalTmsApprovedTranslationUpload {
+  return {
+    externalStringId: proposal.externalStringId,
+    key: proposal.key,
+    locale: proposal.locale,
+    text: proposal.to,
+    ...(proposal.fileId?.trim() ? { fileId: proposal.fileId } : {}),
+  };
+}
+
 export async function executeProviderAgentWriteback(input: {
   agentRunId: string;
   organizationId: string;
@@ -249,6 +369,11 @@ export async function executeProviderAgentWriteback(input: {
   }
 
   if (run.status === "succeeded") {
+    await completeAgentRun({
+      runId: run.id,
+      organizationId: input.organizationId,
+      outputSummary: (run.outputSummary ?? {}) as Record<string, unknown>,
+    });
     const outputSummary = run.outputSummary ?? {};
     return {
       ok: true,
@@ -392,12 +517,58 @@ export async function executeProviderAgentWriteback(input: {
     };
   }
 
-  const translations: ExternalTmsApprovedTranslationUpload[] = proposalsToPush.map((proposal) => ({
-    externalStringId: proposal.externalStringId,
-    key: proposal.key,
-    locale: proposal.locale,
-    text: proposal.to,
-  }));
+  const { proposals: proposalsWithFileIds, prePushFailures } =
+    await enrichProposalsWithResolvedFileIds({
+      proposals: proposalsToPush,
+      organizationId: input.organizationId,
+      projectId,
+      providerKind: run.providerKind,
+      externalJobId: run.externalJobId,
+      actorUserId: run.actorUserId,
+    });
+
+  const prePushFailureKeys = new Set(
+    prePushFailures.map((failure) => `${failure.externalStringId ?? ""}:${failure.locale ?? ""}`),
+  );
+  const pushableProposals = proposalsWithFileIds.filter(
+    (proposal) => !prePushFailureKeys.has(`${proposal.externalStringId}:${proposal.locale}`),
+  );
+  const translations = pushableProposals.map(toApprovedTranslationUpload);
+
+  if (translations.length === 0 && prePushFailures.length > 0) {
+    const changedItems = buildWritebackChangedItems({
+      proposals: acceptedProposals,
+      skippedItemIds: previouslyUploadedItemIds,
+      uploaded: 0,
+      failed: prePushFailures.length,
+      failures: prePushFailures,
+    });
+    const warnings = prePushFailures.map(
+      (failure) => `${failure.locale ?? "unknown"}: ${failure.message}`,
+    );
+
+    await failAgentRun({
+      runId: run.id,
+      organizationId: input.organizationId,
+      outputSummary: {
+        code: "provider_translation_push_failed",
+        uploaded: 0,
+        skipped: skippedCount,
+        failed: prePushFailures.length,
+        translationsRequested: 0,
+        acceptedProposals: acceptedProposals.length,
+      },
+      changedItems,
+      warnings,
+    });
+
+    return {
+      ok: false,
+      agentRunId: input.agentRunId,
+      code: "provider_translation_push_failed",
+      message: warnings[0] ?? "Provider translation write-back failed",
+    };
+  }
 
   try {
     const pushResult = await pushExternalTmsTranslations({
@@ -410,17 +581,18 @@ export async function executeProviderAgentWriteback(input: {
       actorUserId: run.actorUserId,
     });
 
+    const mergedFailures = [...prePushFailures, ...pushResult.failures];
     const changedItems = buildWritebackChangedItems({
       proposals: acceptedProposals,
       skippedItemIds: previouslyUploadedItemIds,
       uploaded: pushResult.counts.translationsUploaded,
-      failed: pushResult.counts.translationsFailed,
-      failures: pushResult.failures,
+      failed: pushResult.counts.translationsFailed + prePushFailures.length,
+      failures: mergedFailures,
     });
 
     const uploaded = changedItems.filter((item) => item.status === "uploaded").length;
     const failed = changedItems.filter((item) => item.status === "failed").length;
-    const warnings = pushResult.failures.map(
+    const warnings = mergedFailures.map(
       (failure) => `${failure.locale ?? "unknown"}: ${failure.message}`,
     );
 

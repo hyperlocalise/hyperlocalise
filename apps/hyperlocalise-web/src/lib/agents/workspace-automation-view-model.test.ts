@@ -1,6 +1,19 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import { describe, expect, it } from "vite-plus/test";
 
 import { mergeWorkspaceTemplateSkills } from "@/agents/automations/workspace/agent/workspace-template-manifest";
+import { createAutomationSummary } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/automations/_components/automations.fixture";
 
 import {
   getWorkspaceAutomationTemplate,
@@ -8,8 +21,10 @@ import {
 } from "./workspace-automation-templates";
 import {
   createDefaultWorkspaceAutomationFormState,
+  createWorkspaceAutomationFormStateFromRecord,
   createWorkspaceAutomationFormStateFromTemplate,
   formStateToWorkspaceAutomationPayload,
+  mapWorkspaceAutomationApiErrorToFieldErrors,
   validateWorkspaceAutomationFormState,
 } from "./workspace-automation-view-model";
 
@@ -56,9 +71,9 @@ describe("workspace automation view model", () => {
       name: "Nightly validation",
       instructions: "Validate repository changes.",
       triggerMode: "scheduled" as const,
+      projectId: "project-1",
       githubEnabled: true,
       githubInstallationRepositoryId: "11111111-1111-4111-8111-111111111111",
-      githubProjectId: "project-1",
       validationEnabled: true,
       slackEnabled: true,
       slackChannelId: "C123",
@@ -68,6 +83,7 @@ describe("workspace automation view model", () => {
 
     expect(validateWorkspaceAutomationFormState(form)).toEqual({});
     const payload = formStateToWorkspaceAutomationPayload(form);
+    expect(payload.projectId).toBe("project-1");
     expect(payload.triggerConfig.mode).toBe("scheduled");
     expect(payload.repositoryTarget).toEqual({
       kind: "github",
@@ -75,9 +91,9 @@ describe("workspace automation view model", () => {
     });
     expect(payload.toolConfig.github).toMatchObject({
       enabled: true,
-      projectId: "project-1",
       validation: true,
     });
+    expect(payload.toolConfig.github).not.toHaveProperty("projectId");
     expect(payload.toolConfig.slack).toEqual({
       enabled: true,
       channelId: "C123",
@@ -86,6 +102,68 @@ describe("workspace automation view model", () => {
       enabled: true,
       recipients: ["ops@example.com"],
     });
+  });
+
+  it("maps knowledge memories tool into the API payload", () => {
+    const form = {
+      ...createDefaultWorkspaceAutomationFormState(),
+      name: "Knowledge-aware sync",
+      instructions: "Follow brand guidance.",
+      githubEnabled: true,
+      githubMode: "agent" as const,
+      githubInstallationRepositoryId: "11111111-1111-4111-8111-111111111111",
+      knowledgeEnabled: true,
+    };
+
+    expect(formStateToWorkspaceAutomationPayload(form).toolConfig.knowledge).toEqual({
+      enabled: true,
+      allowUpdates: false,
+    });
+  });
+
+  it("maps knowledgeAllowUpdates into the API payload alongside knowledgeEnabled", () => {
+    const form = {
+      ...createDefaultWorkspaceAutomationFormState(),
+      name: "Memory-writing sync",
+      instructions: "Remember reviewer preferences.",
+      githubEnabled: true,
+      githubMode: "agent" as const,
+      githubInstallationRepositoryId: "11111111-1111-4111-8111-111111111111",
+      knowledgeEnabled: true,
+      knowledgeAllowUpdates: true,
+    };
+
+    expect(formStateToWorkspaceAutomationPayload(form).toolConfig.knowledge).toEqual({
+      enabled: true,
+      allowUpdates: true,
+    });
+  });
+
+  it("never serializes allowUpdates as true when knowledge itself is disabled", () => {
+    // Defense in depth: a stale/inconsistent form state (allowUpdates true but enabled false)
+    // must not leak through to the API payload — the UI keeps these in sync, but the serializer
+    // doesn't trust that alone.
+    const form = {
+      ...createDefaultWorkspaceAutomationFormState(),
+      name: "Inconsistent state",
+      githubEnabled: true,
+      githubMode: "agent" as const,
+      githubInstallationRepositoryId: "11111111-1111-4111-8111-111111111111",
+      knowledgeEnabled: false,
+      knowledgeAllowUpdates: true,
+    };
+
+    expect(formStateToWorkspaceAutomationPayload(form).toolConfig.knowledge).toBeUndefined();
+  });
+
+  it("hydrates knowledgeAllowUpdates from an existing automation record", () => {
+    const state = createWorkspaceAutomationFormStateFromRecord({
+      ...createAutomationSummary(),
+      toolConfig: { knowledge: { enabled: true, allowUpdates: true } },
+    });
+
+    expect(state.knowledgeEnabled).toBe(true);
+    expect(state.knowledgeAllowUpdates).toBe(true);
   });
 
   it("prefills the Contentful translation template", () => {
@@ -143,9 +221,10 @@ describe("workspace automation view model", () => {
       pullTranslations: false,
       validation: false,
     });
-    expect(
-      formStateToWorkspaceAutomationPayload(form).toolConfig.github?.projectId,
-    ).toBeUndefined();
+    expect(formStateToWorkspaceAutomationPayload(form).projectId).toBeUndefined();
+    expect(formStateToWorkspaceAutomationPayload(form).toolConfig.github).not.toHaveProperty(
+      "projectId",
+    );
   });
 
   it("maps Contentful tool settings to API payload", () => {
@@ -154,9 +233,9 @@ describe("workspace automation view model", () => {
       name: "Translate Contentful updates",
       instructions: "Translate updates.",
       triggerMode: "contentful" as const,
+      projectId: "project-1",
       contentfulEnabled: true,
       contentfulConnectionId: "11111111-1111-4111-8111-111111111111",
-      contentfulProjectId: "project-1",
       contentfulSourceLocale: "de-DE",
       contentfulTargetLocales: ["fr-FR", "de-DE"],
       contentfulContentTypeIds: ["helpCenterArticle"],
@@ -166,17 +245,18 @@ describe("workspace automation view model", () => {
 
     expect(validateWorkspaceAutomationFormState(form)).toEqual({});
     const payload = formStateToWorkspaceAutomationPayload(form);
+    expect(payload.projectId).toBe("project-1");
     expect(payload.triggerConfig).toEqual({ mode: "contentful" });
     expect(payload.toolConfig.contentful).toMatchObject({
       enabled: true,
       connectionId: "11111111-1111-4111-8111-111111111111",
-      projectId: "project-1",
       sourceLocale: "de-DE",
       targetLocales: ["fr-FR", "de-DE"],
       contentTypeIds: ["helpCenterArticle"],
       runQa: true,
       writeDrafts: true,
     });
+    expect(payload.toolConfig.contentful).not.toHaveProperty("projectId");
   });
 
   it("requires Contentful connection, project, and locales when enabled", () => {
@@ -187,41 +267,129 @@ describe("workspace automation view model", () => {
 
     expect(validateWorkspaceAutomationFormState(form)).toMatchObject({
       contentfulConnectionId: "Choose a Contentful connection.",
-      contentfulProjectId: "Choose a Hyperlocalise project.",
+      projectId: "Choose a Hyperlocalise project.",
       contentfulTargetLocales: "Add at least one target locale.",
     });
   });
 
-  it("maps source upload translation settings to API payload", () => {
+  it("maps source upload create job and translate-with-agent tools to API payload", () => {
     const form = {
       ...createDefaultWorkspaceAutomationFormState(),
       name: "Translate uploads",
       instructions: "Queue jobs after each upload.",
       triggerMode: "source_upload" as const,
-      translationEnabled: true,
-      translationProjectId: "project-1",
-      translationUseProjectTargetLocales: true,
+      projectId: "project-1",
+      createNativeTmsJobEnabled: true,
+      createNativeTmsJobUseProjectTargetLocales: true,
+      assignTranslateWithAgentEnabled: true,
     };
 
     expect(validateWorkspaceAutomationFormState(form)).toEqual({});
     const payload = formStateToWorkspaceAutomationPayload(form);
+    expect(payload.projectId).toBe("project-1");
     expect(payload.triggerConfig).toEqual({ mode: "source_upload" });
-    expect(payload.toolConfig.translation).toEqual({
+    expect(payload.toolConfig.createNativeTmsJob).toEqual({
       enabled: true,
-      projectId: "project-1",
       useProjectTargetLocales: true,
       targetLocales: [],
     });
+    expect(payload.toolConfig.assignTranslateWithAgent).toEqual({
+      enabled: true,
+    });
+    expect(payload.toolConfig.createNativeTmsJob).not.toHaveProperty("projectId");
   });
 
-  it("requires translation tool when source upload trigger is selected", () => {
+  it("prefills and maps the translate-on-source-upload template", () => {
+    const form = createWorkspaceAutomationFormStateFromTemplate(
+      "translate-on-source-upload",
+      mergedTemplates,
+    );
+    expect(form).toMatchObject({
+      name: "Translate on source upload",
+      triggerMode: "source_upload",
+      createNativeTmsJobEnabled: true,
+      createNativeTmsJobUseProjectTargetLocales: true,
+      assignTranslateWithAgentEnabled: true,
+    });
+    expect(form?.instructions).toContain("Translate with agent");
+
+    const readyForm = {
+      ...form!,
+      projectId: "project-1",
+    };
+    expect(validateWorkspaceAutomationFormState(readyForm)).toEqual({});
+    expect(formStateToWorkspaceAutomationPayload(readyForm)).toMatchObject({
+      projectId: "project-1",
+      triggerConfig: { mode: "source_upload" },
+      toolConfig: {
+        createNativeTmsJob: {
+          enabled: true,
+          useProjectTargetLocales: true,
+          targetLocales: [],
+        },
+        assignTranslateWithAgent: {
+          enabled: true,
+        },
+      },
+    });
+  });
+
+  it("requires Create job when source upload trigger is selected", () => {
     const form = {
       ...createDefaultWorkspaceAutomationFormState(),
       triggerMode: "source_upload" as const,
     };
 
     expect(validateWorkspaceAutomationFormState(form)).toMatchObject({
-      trigger: "Source upload triggers require translation jobs to be enabled.",
+      trigger: "Source upload triggers require Create job to be enabled.",
+    });
+  });
+
+  it("requires Create job when Translate with agent is enabled alone", () => {
+    const form = {
+      ...createDefaultWorkspaceAutomationFormState(),
+      assignTranslateWithAgentEnabled: true,
+    };
+
+    expect(validateWorkspaceAutomationFormState(form)).toMatchObject({
+      form: "Translate with agent requires Create job to be enabled.",
+    });
+  });
+
+  it("requires Semrush and Ahrefs connection IDs when those tools are enabled", () => {
+    const form = {
+      ...createDefaultWorkspaceAutomationFormState(),
+      semrushEnabled: true,
+      ahrefsEnabled: true,
+    };
+
+    expect(validateWorkspaceAutomationFormState(form)).toMatchObject({
+      semrushConnectionId: "Choose a Semrush connection.",
+      ahrefsConnectionId: "Choose an Ahrefs connection.",
+    });
+  });
+
+  it("maps Semrush and Ahrefs API errors onto connection fields", () => {
+    expect(mapWorkspaceAutomationApiErrorToFieldErrors("semrush_connection_required")).toEqual({
+      semrushConnectionId: "Choose a Semrush connection.",
+    });
+    expect(mapWorkspaceAutomationApiErrorToFieldErrors("semrush_connection_not_found")).toEqual({
+      semrushConnectionId:
+        "The selected Semrush connection was not found. Choose another connection.",
+    });
+    expect(mapWorkspaceAutomationApiErrorToFieldErrors("semrush_not_connected")).toEqual({
+      semrushConnectionId:
+        "Enable the selected Semrush connection in Integrations before using it.",
+    });
+    expect(mapWorkspaceAutomationApiErrorToFieldErrors("ahrefs_connection_required")).toEqual({
+      ahrefsConnectionId: "Choose an Ahrefs connection.",
+    });
+    expect(mapWorkspaceAutomationApiErrorToFieldErrors("ahrefs_connection_not_found")).toEqual({
+      ahrefsConnectionId:
+        "The selected Ahrefs connection was not found. Choose another connection.",
+    });
+    expect(mapWorkspaceAutomationApiErrorToFieldErrors("ahrefs_not_connected")).toEqual({
+      ahrefsConnectionId: "Enable the selected Ahrefs connection in Integrations before using it.",
     });
   });
 });

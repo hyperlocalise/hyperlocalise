@@ -1,3 +1,15 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { expect, fn } from "storybook/test";
 
@@ -6,10 +18,12 @@ import {
   createConversation,
   createStreamedAssistantMessage,
   currentUserFixture,
+  issueNotificationsFixture,
   linkedJobsFixture,
   messagesFixture,
 } from "./inbox.fixture";
 import { InboxPageView } from "./inbox-page-view";
+import { issueSheetMswHandlers } from "../../projects/[projectId]/issue-sheet/_components/issue-sheet-msw-handlers";
 
 const meta = {
   title: "App/Inbox/Page",
@@ -23,18 +37,29 @@ const meta = {
     conversations: conversationsFixture,
     conversationsIsLoading: false,
     conversationsIsError: false,
-    selectedConversationId: conversationsFixture[0].id,
     selectedConversation: conversationsFixture[0],
+    selectedNotification: undefined,
+    selectedNotificationIsLoading: false,
+    selection: { kind: "conversation", id: conversationsFixture[0].id },
     messages: messagesFixture,
     messagesIsLoading: false,
     jobs: linkedJobsFixture,
     jobsIsLoading: false,
+    notifications: [],
+    notificationsIsLoading: false,
+    notificationsIsError: false,
+    hasMoreNotifications: false,
+    isLoadingMoreNotifications: false,
     isSending: false,
     isStreaming: false,
     isSparseInbox: false,
     streamedAssistant: null,
+    onMarkAllRead: fn(),
+    onLoadMoreNotifications: fn(),
     onSelectConversation: fn(),
+    onSelectNotification: fn(),
     onSendMessage: fn(),
+    unreadNotificationCount: 0,
   },
 } satisfies Meta<typeof InboxPageView>;
 
@@ -53,11 +78,12 @@ export const Default: Story = {
 export const LoadingConversations: Story = {
   args: {
     conversations: [],
-    selectedConversationId: "",
     selectedConversation: undefined,
+    selection: null,
     messages: [],
     jobs: [],
     conversationsIsLoading: true,
+    notificationsIsLoading: true,
     messagesIsLoading: true,
     jobsIsLoading: true,
   },
@@ -66,14 +92,14 @@ export const LoadingConversations: Story = {
 export const EmptyInbox: Story = {
   args: {
     conversations: [],
-    selectedConversationId: "",
     selectedConversation: undefined,
+    selection: null,
     messages: [],
     jobs: [],
     isSparseInbox: true,
   },
   play: async ({ canvas }) => {
-    await expect(canvas.getByText("No conversations yet.")).toBeInTheDocument();
+    await expect(canvas.getByText("No conversations or notifications yet.")).toBeInTheDocument();
     await expect(canvas.getByText("Select a conversation to view details")).toBeInTheDocument();
   },
 };
@@ -81,14 +107,14 @@ export const EmptyInbox: Story = {
 export const ConversationsLoadError: Story = {
   args: {
     conversations: [],
-    selectedConversationId: "",
     selectedConversation: undefined,
+    selection: null,
     messages: [],
     jobs: [],
     conversationsIsError: true,
   },
   play: async ({ canvas }) => {
-    await expect(canvas.getByText("Unable to load conversations.")).toBeInTheDocument();
+    await expect(canvas.getByText("Unable to load inbox.")).toBeInTheDocument();
   },
 };
 
@@ -108,22 +134,20 @@ export const StreamingResponse: Story = {
 
 export const EmailConversation: Story = {
   args: {
-    selectedConversationId: conversationsFixture[1].id,
+    selection: { kind: "conversation", id: conversationsFixture[1].id },
     selectedConversation: conversationsFixture[1],
     messages: [],
     jobs: [],
   },
   play: async ({ canvas }) => {
     await expect(canvas.getByText("Email: Q3 release notes")).toBeInTheDocument();
-    await expect(
-      canvas.queryByPlaceholderText("Paste text or describe what to translate..."),
-    ).not.toBeInTheDocument();
+    await expect(canvas.queryByPlaceholderText("Ask Hyperlocalise…")).not.toBeInTheDocument();
   },
 };
 
 export const ArchivedConversation: Story = {
   args: {
-    selectedConversationId: conversationsFixture[2].id,
+    selection: { kind: "conversation", id: conversationsFixture[2].id },
     selectedConversation: conversationsFixture[2],
     messages: [
       {
@@ -147,5 +171,56 @@ export const SendingMessage: Story = {
   args: {
     isSending: true,
     selectedConversation: createConversation({ source: "chat_ui" }),
+  },
+};
+
+export const IssueNotificationSelected: Story = {
+  args: {
+    conversations: conversationsFixture,
+    notifications: issueNotificationsFixture,
+    unreadNotificationCount: 2,
+    selection: { kind: "notification", id: issueNotificationsFixture[0].id },
+    selectedConversation: undefined,
+    selectedNotification: issueNotificationsFixture[0],
+    messages: [],
+    jobs: [],
+  },
+  parameters: {
+    msw: {
+      handlers: issueSheetMswHandlers,
+    },
+    nextjs: {
+      appDirectory: true,
+      navigation: {
+        pathname: `/org/acme/inbox/notifications/${issueNotificationsFixture[0].id}`,
+      },
+    },
+  },
+  play: async ({ canvas }) => {
+    await expect(
+      canvas.getByText("Otto Klein assigned you to Source string needs context"),
+    ).toBeInTheDocument();
+    await expect(canvas.getByRole("button", { name: "Mark all as read" })).toBeInTheDocument();
+    await expect(
+      await canvas.findByDisplayValue("Source string needs context"),
+    ).toBeInTheDocument();
+  },
+};
+
+export const IssueNotificationLoading: Story = {
+  args: {
+    conversations: [],
+    notifications: issueNotificationsFixture,
+    unreadNotificationCount: 2,
+    selection: { kind: "notification", id: issueNotificationsFixture[0].id },
+    selectedConversation: undefined,
+    selectedNotification: undefined,
+    selectedNotificationIsLoading: true,
+    messages: [],
+    jobs: [],
+  },
+  play: async ({ canvas }) => {
+    await expect(canvas.getByLabelText("Loading notification")).toBeInTheDocument();
+    await expect(canvas.getByText("Loading issue")).toBeInTheDocument();
   },
 };

@@ -1,3 +1,15 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import "dotenv/config";
 
 import { eq } from "drizzle-orm";
@@ -278,6 +290,8 @@ describe("workspace automation routes", () => {
   it("returns stable errors for invalid tool and trigger configuration", async () => {
     const identity = fixture.createWorkosIdentityWithRole("admin");
     const headers = await fixture.authHeadersFor(identity);
+    const organizationId = await getOrganizationId(identity.organization.workosOrganizationId);
+    const projectId = await seedProject({ organizationId });
 
     const response = await client.api.orgs[":organizationSlug"].automations.$post(
       {
@@ -285,6 +299,7 @@ describe("workspace automation routes", () => {
         json: {
           name: "Broken GitHub automation",
           instructions: "Run GitHub automation.",
+          projectId,
           triggerConfig: { mode: "manual" },
           repositoryTarget: { kind: "none" },
           toolConfig: {
@@ -320,13 +335,13 @@ describe("workspace automation routes", () => {
         json: {
           name: "Manual repository automation",
           instructions: "Run manual automation.",
+          projectId,
           triggerConfig: { mode: "manual" },
           repositoryTarget: { kind: "none" },
           toolConfig: {
             github: {
               enabled: false,
               mode: "sync",
-              projectId,
               pushSource: false,
               pullTranslations: false,
               validation: false,
@@ -372,6 +387,7 @@ describe("workspace automation routes", () => {
         json: {
           name: "Manual repository automation",
           instructions: "Run manual automation.",
+          projectId,
           triggerConfig: { mode: "manual" },
           repositoryTarget: {
             kind: "github",
@@ -381,7 +397,6 @@ describe("workspace automation routes", () => {
             github: {
               enabled: true,
               mode: "sync",
-              projectId,
               pushSource: true,
               pullTranslations: false,
               validation: false,

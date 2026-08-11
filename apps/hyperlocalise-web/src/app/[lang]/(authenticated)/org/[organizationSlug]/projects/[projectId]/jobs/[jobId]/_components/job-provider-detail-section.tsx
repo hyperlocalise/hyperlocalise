@@ -1,13 +1,31 @@
 "use client";
 
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useIntl } from "react-intl";
 import { toast } from "sonner";
 
 import { apiClient } from "@/lib/api-client-instance";
-import type { JobProviderActionId } from "@/lib/providers/job-provider-actions";
-import { resolveEncodedProviderJobId } from "@/lib/providers/tms-provider-resource-id";
+import type { JobProviderActionId } from "@/lib/providers/jobs/job-provider-actions";
+import {
+  resolveDefaultJobCatQueueFilter,
+  type JobCatQueueFilterContext,
+} from "@/lib/projects/job-cat-routing";
+import { resolveEncodedProviderJobId } from "@/lib/providers/jobs/tms-provider-resource-id";
 
 import { JobAgentRunDiffReviewSection } from "./job-agent-run-diff-review-section";
+import { jobProviderDetailSectionMessages as messages } from "./job-provider-detail-section.messages";
 import { JobProviderDetailSectionView } from "./job-provider-detail-section-view";
 import { JobQaFindingsSection } from "./job-qa-findings-section";
 import type { AgentRunRecord, ProviderBackedJobFields } from "./job-detail-types";
@@ -42,13 +60,14 @@ export function JobProviderDetailSection({
   showAgentActions = true,
   showProviderMetadata = true,
 }: {
-  job: ProviderBackedJobFields;
+  job: ProviderBackedJobFields & JobCatQueueFilterContext;
   jobId: string;
   organizationSlug: string;
   projectId: string | null;
   showAgentActions?: boolean;
   showProviderMetadata?: boolean;
 }) {
+  const intl = useIntl();
   const queryClient = useQueryClient();
   const jobQueryKey = ["job", organizationSlug, projectId ?? "workspace", jobId] as const;
   const agentRunsQueryKey = ["job-agent-runs", organizationSlug, jobId] as const;
@@ -63,7 +82,9 @@ export function JobProviderDetailSection({
       });
 
       if (!response.ok) {
-        throw new Error(`Failed to load agent runs (${response.status})`);
+        throw new Error(
+          intl.formatMessage(messages.failedToLoadAgentRuns, { status: response.status }),
+        );
       }
 
       const body = (await response.json()) as { agentRuns: AgentRunRecord[] };
@@ -90,7 +111,9 @@ export function JobProviderDetailSection({
       });
 
       if (!response.ok) {
-        throw new Error(await parseActionError(response, "Failed to start agent run"));
+        throw new Error(
+          await parseActionError(response, intl.formatMessage(messages.failedToStartAgentRun)),
+        );
       }
 
       const body = (await response.json()) as { agentRun: AgentRunRecord };
@@ -102,11 +125,17 @@ export function JobProviderDetailSection({
         queryClient.invalidateQueries({ queryKey: jobQueryKey }),
       ]);
       toast.success(
-        action === "translate_with_agent" ? "Translation agent is running" : "Agent run queued",
+        intl.formatMessage(
+          action === "translate_with_agent"
+            ? messages.translationAgentRunning
+            : messages.agentRunQueued,
+        ),
       );
     },
     onError: (error) => {
-      toast.error(error instanceof Error ? error.message : "Failed to start agent run");
+      toast.error(
+        error instanceof Error ? error.message : intl.formatMessage(messages.failedToStartAgentRun),
+      );
     },
   });
 
@@ -131,6 +160,7 @@ export function JobProviderDetailSection({
           externalJobId: providerJob.externalJobId,
           externalTaskId: providerJob.externalTaskId,
         });
+        const queueFilter = resolveDefaultJobCatQueueFilter(job);
 
         if (encodedJobId) {
           return (
@@ -139,6 +169,7 @@ export function JobProviderDetailSection({
               projectId={projId}
               encodedJobId={encodedJobId}
               highlightLocale={providerJob.externalTargetLocales?.[0] ?? null}
+              queueFilter={queueFilter}
             />
           );
         }
@@ -151,6 +182,7 @@ export function JobProviderDetailSection({
             providerKind={providerJob.externalProviderKind}
             sourceFiles={providerJob.providerSourceFiles ?? []}
             highlightLocale={providerJob.externalTargetLocales?.[0] ?? null}
+            queueFilter={queueFilter}
           />
         );
       }}

@@ -1,3 +1,17 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
+import type { IntlShape } from "react-intl";
+
 import type {
   AgentRunProposalItem,
   AgentRunProposalReviewState,
@@ -10,17 +24,24 @@ import {
 } from "@/lib/providers/agent-runs/agent-run-proposals";
 
 import type { AgentRunRecord } from "./job-provider-detail-section";
+import { jobAgentRunDiffReviewModelMessages as messages } from "./job-agent-run-diff-review-model.messages";
 
 export type ProposalReviewFilter = "all" | AgentRunProposalReviewState | "has_warnings";
 
 export const proposalReviewPageSize = 25;
 
-export const warningLabels: Record<AgentRunProposalWarningKind, string> = {
-  glossary: "Glossary",
-  placeholder: "Placeholder",
-  format: "Format",
-  confidence: "Confidence",
-};
+export function getWarningLabel(kind: AgentRunProposalWarningKind, intl: IntlShape) {
+  switch (kind) {
+    case "glossary":
+      return intl.formatMessage(messages.warningGlossary);
+    case "placeholder":
+      return intl.formatMessage(messages.warningPlaceholder);
+    case "format":
+      return intl.formatMessage(messages.warningFormat);
+    case "confidence":
+      return intl.formatMessage(messages.warningConfidence);
+  }
+}
 
 export function listReviewableAgentRuns(agentRuns: AgentRunRecord[] | undefined) {
   return (agentRuns ?? []).filter((run) =>

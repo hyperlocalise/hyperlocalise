@@ -1,3 +1,15 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import { describe, expect, it } from "vite-plus/test";
 
 import { buildWorkspaceOrchestratorOutputSummary } from "./workspace-orchestrator-output-summary";
@@ -26,21 +38,33 @@ describe("buildWorkspaceOrchestratorOutputSummary", () => {
     });
   });
 
-  it("preserves createTranslationJobs from current step results", () => {
+  it("preserves createNativeTmsJob and assignTranslateWithAgent from current step results", () => {
     const outputSummary = buildWorkspaceOrchestratorOutputSummary(
       { orchestratorEnqueuedAt: "2026-06-24T00:00:00.000Z" },
       {
-        create_translation_jobs: {
+        create_native_tms_job: {
           jobId: "job_123",
           projectId: "project_123",
+        },
+        assign_translate_with_agent: {
+          jobId: "job_123",
+          projectId: "project_123",
+          action: "translate_with_agent",
+          enqueued: true,
         },
       },
     );
 
     expect(outputSummary).toMatchObject({
-      createTranslationJobs: {
+      createNativeTmsJob: {
         jobId: "job_123",
         projectId: "project_123",
+      },
+      assignTranslateWithAgent: {
+        jobId: "job_123",
+        projectId: "project_123",
+        action: "translate_with_agent",
+        enqueued: true,
       },
     });
   });

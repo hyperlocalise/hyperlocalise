@@ -1,3 +1,15 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import { randomUUID } from "node:crypto";
 
 import { eq } from "drizzle-orm";
@@ -5,6 +17,7 @@ import { eq } from "drizzle-orm";
 import { syncWorkosUser } from "@/api/auth/workos-sync";
 import { db, schema } from "@/lib/database";
 import { slugifyOrganizationName } from "@/lib/onboarding/slugify-organization-name";
+import { ensureDefaultWorkspaceTeamMembership } from "@/lib/teams/default-workspace-team";
 import {
   deleteProvisionedWorkosOrganization,
   provisionWorkspaceInWorkos,
@@ -103,9 +116,18 @@ export async function createWorkspaceForSessionUser(input: {
           workosMembershipId: adminMembership.workosMembershipId,
         });
 
+        await ensureDefaultWorkspaceTeamMembership({
+          organizationId: organization.id,
+          userId: user.id,
+          role: "manager",
+          database: tx,
+        });
+
         return {
-          user,
           organization,
+          user,
+          workosMembershipId: adminMembership.workosMembershipId,
+          workosOrganizationId: identity.workosOrganizationId,
         };
       });
     } catch (error) {

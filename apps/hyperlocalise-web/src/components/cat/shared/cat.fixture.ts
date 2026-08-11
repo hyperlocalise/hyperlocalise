@@ -1,4 +1,17 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import type {
+  CatFileContext,
   CatFormatCheck,
   CatGlossaryTerm,
   CatSegment,
@@ -14,6 +27,7 @@ import {
 import type { CatMessageParityIssue } from "@/components/cat/message-format/cat-message-format";
 import { localizeCatMessageParityIssue } from "@/components/cat/message-format/cat-message-format-i18n";
 import { glossaryFormatChecksForSegment } from "@/components/cat/intelligence/cat-glossary-checks";
+import { toQueueSegment } from "@/components/cat/workspace/store/cat-segment-view";
 
 const fixtureIntl = getIntlShape("en");
 
@@ -538,14 +552,31 @@ export function createCatWorkspaceState(
   overrides: Partial<CatWorkspaceState> = {},
 ): CatWorkspaceState {
   const segments = overrides.segments ?? catSegmentsFixture;
+  const queueSegments = overrides.queueSegments ?? segments.map(toQueueSegment);
+  const defaultFileContext: CatFileContext = {
+    sourcePath: "app/dashboard/index.tsx",
+    filename: "dashboard.tsx",
+    sourceLocale: SOURCE_LOCALE,
+    targetLocale: TARGET_LOCALE,
+    providerKind: null,
+    canEditTranslations: true,
+    canAddComments: true,
+  };
+  const { fileContext: fileContextOverride, ...restOverrides } = overrides;
+  const selectedSegmentId = overrides.selectedSegmentId ?? "seg-02";
 
   return {
+    queueSegments,
     segments,
-    selectedSegmentId: overrides.selectedSegmentId ?? "seg-02",
+    selectedSegmentId,
     formatChecks: catFormatChecksFixture,
+    segmentFormatChecks: {
+      [selectedSegmentId]: catFormatChecksFixture,
+    },
     intelligence: catIntelligenceFixture,
     breadcrumbs: ["Project", "HL-Test", "Jobs", "Translate to Vietnamese"],
-    ...overrides,
+    ...restOverrides,
+    fileContext: { ...defaultFileContext, ...fileContextOverride },
   };
 }
 

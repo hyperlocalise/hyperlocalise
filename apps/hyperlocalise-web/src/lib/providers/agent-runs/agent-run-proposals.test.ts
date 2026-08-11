@@ -1,3 +1,15 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import { describe, expect, it } from "vite-plus/test";
 
 import {
@@ -8,6 +20,7 @@ import {
   detectAgentRunProposalWarnings,
   enrichAgentRunProposalItem,
   parseAgentRunProposalItems,
+  serializeAgentRunProposalItem,
 } from "./agent-run-proposals";
 
 describe("agent-run-proposals", () => {
@@ -43,13 +56,34 @@ describe("agent-run-proposals", () => {
       sourceText: "Hello",
       from: "",
       to: "Bonjour",
+      fileId: "file-42",
     });
 
     expect(item).toMatchObject({
       itemId: "1:fr",
       reviewState: "pending",
       changedFields: ["target"],
+      fileId: "file-42",
     });
+  });
+
+  it("preserves fileId through serialize/enrich round-trip", () => {
+    const serialized = serializeAgentRunProposalItem({
+      itemId: "1:fr",
+      externalStringId: "1",
+      key: "title",
+      locale: "fr",
+      sourceText: "Title",
+      from: "",
+      to: "Titre",
+      reviewState: "accepted",
+      changedFields: ["target"],
+      warnings: {},
+      fileId: "911",
+    });
+
+    expect(serialized).toMatchObject({ fileId: "911" });
+    expect(enrichAgentRunProposalItem(serialized)?.fileId).toBe("911");
   });
 
   it("applies per-item and bulk review updates", () => {

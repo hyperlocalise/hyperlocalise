@@ -3,6 +3,18 @@
     {
       "path": "/api/cron/github-repository-automation-dispatch",
       "schedule": "*/15 * * * *"
+    },
+    {
+      "path": "/api/cron/sandbox-cleanup",
+      "schedule": "0 3 * * *"
+    },
+    {
+      "path": "/api/cron/snapshot-cleanup",
+      "schedule": "0 4 * * *"
+    },
+    {
+      "path": "/api/cron/issue-notification-digest",
+      "schedule": "*/15 * * * *"
     }
   ]
 }

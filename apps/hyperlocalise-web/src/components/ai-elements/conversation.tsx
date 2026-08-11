@@ -1,5 +1,17 @@
 "use client";
 
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/primitives/cn";
@@ -96,13 +108,13 @@ export const ConversationScrollButton = ({
             <Button
               aria-label={intl.formatMessage(conversationMessages.scrollToBottomAria)}
               className={cn(
-                "absolute bottom-4 start-[50%] translate-x-[-50%] rtl:-translate-x-[-50%] rounded-full dark:bg-background dark:hover:bg-muted",
+                "absolute bottom-4 start-[50%] z-10 translate-x-[-50%] rounded-full shadow-md rtl:-translate-x-[-50%]",
                 className,
               )}
               onClick={handleScrollToBottom}
               size="icon"
               type="button"
-              variant="outline"
+              variant="secondary"
               {...props}
             >
               <ArrowDownIcon className="size-4" />

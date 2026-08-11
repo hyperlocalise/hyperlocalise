@@ -14,6 +14,18 @@
       "matchManagers": ["npm"],
       "matchUpdateTypes": ["minor", "patch"],
       "groupName": "Web dependencies"
+    },
+    {
+      "description": "chat@4.36+ statically imports async_hooks; Workflow DevKit bundles chat via @workflow/serde into a require-less VM and crashes all workflows.",
+      "matchPackageNames": [
+        "chat",
+        "@chat-adapter/github",
+        "@chat-adapter/slack",
+        "@chat-adapter/state-memory",
+        "@chat-adapter/state-pg",
+        "@chat-adapter/web"
+      ],
+      "allowedVersions": "<4.36.0"
     }
   ]
 }

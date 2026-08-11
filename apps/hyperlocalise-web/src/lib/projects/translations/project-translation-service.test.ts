@@ -1,3 +1,15 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
 const { offsetMock, repoLimitMock, orderByMock, selectMock, whereMock } = vi.hoisted(() => {
@@ -208,15 +220,12 @@ describe("loadProjectTranslationsAsPrefilledEntries", () => {
     expect(result.translatedKeyCount).toBe(1);
   });
 
-  it("reports truncation when the source file exceeds the prefill key cap", async () => {
-    const overLimitKeys = Array.from({ length: 5_001 }, (_, index) => ({
-      id: `key_${index}`,
-      key: `entry_${index}`,
-      sourceText: `Source ${index}`,
-    }));
-
+  it("exports source fallback entries when no target translations exist", async () => {
     repoLimitMock.mockResolvedValueOnce([{ id: "repo_file_1", sourcePath: "locales/en.json" }]);
-    offsetMock.mockResolvedValueOnce(overLimitKeys);
+    offsetMock.mockResolvedValueOnce([
+      { id: "key_1", key: "greeting", sourceText: "Hello" },
+      { id: "key_2", key: "farewell", sourceText: "Goodbye" },
+    ]);
 
     whereMock.mockImplementationOnce(() => ({
       limit: repoLimitMock,
@@ -239,12 +248,74 @@ describe("loadProjectTranslationsAsPrefilledEntries", () => {
       projectId: "project_1",
       sourcePath: "locales/en.json",
       targetLocale: "fr",
+      includeAllSourceKeys: true,
     });
 
-    expect(result.truncated).toBe(true);
-    expect(result.loadedKeyCount).toBe(5_000);
+    expect(result).toEqual({
+      prefilled: {
+        greeting: "Hello",
+        farewell: "Goodbye",
+      },
+      truncated: false,
+      loadedKeyCount: 2,
+      maxKeyCount: 5_000,
+      translatedKeyCount: 0,
+    });
+  });
+
+  it("loads all keys across paginated fetches when the source file exceeds one page", async () => {
+    const pageOneKeys = Array.from({ length: 5_000 }, (_, index) => ({
+      id: `key_${index}`,
+      key: `entry_${index}`,
+      sourceText: `Source ${index}`,
+    }));
+    const pageTwoKeys = [{ id: "key_5000", key: "entry_5000", sourceText: "Source 5000" }];
+
+    repoLimitMock.mockResolvedValueOnce([{ id: "repo_file_1", sourcePath: "locales/en.json" }]);
+    offsetMock.mockResolvedValueOnce(pageOneKeys).mockResolvedValueOnce(pageTwoKeys);
+
+    whereMock.mockImplementationOnce(() => ({
+      limit: repoLimitMock,
+      orderBy: orderByMock,
+    }));
+    whereMock.mockImplementationOnce(() => ({
+      limit: repoLimitMock,
+      orderBy: orderByMock,
+    }));
+    whereMock.mockImplementationOnce(
+      () =>
+        Promise.resolve([]) as unknown as {
+          limit: typeof repoLimitMock;
+          orderBy: typeof orderByMock;
+        },
+    );
+    whereMock.mockImplementationOnce(() => ({
+      limit: repoLimitMock,
+      orderBy: orderByMock,
+    }));
+    whereMock.mockImplementationOnce(
+      () =>
+        Promise.resolve([]) as unknown as {
+          limit: typeof repoLimitMock;
+          orderBy: typeof orderByMock;
+        },
+    );
+
+    const result = await loadProjectTranslationsAsPrefilledEntries({
+      organizationId: "org_1",
+      projectId: "project_1",
+      sourcePath: "locales/en.json",
+      targetLocale: "fr",
+      includeAllSourceKeys: true,
+    });
+
+    expect(result.truncated).toBe(false);
+    expect(result.loadedKeyCount).toBe(5_001);
     expect(result.maxKeyCount).toBe(5_000);
     expect(result.translatedKeyCount).toBe(0);
-    expect(Object.keys(result.prefilled)).toHaveLength(0);
+    expect(Object.keys(result.prefilled)).toHaveLength(5_001);
+    expect(result.prefilled.entry_0).toBe("Source 0");
+    expect(result.prefilled.entry_5000).toBe("Source 5000");
+    expect(offsetMock).toHaveBeenCalledTimes(2);
   });
 });

@@ -1,5 +1,17 @@
 "use client";
 
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import { FormattedMessage, useIntl } from "react-intl";
 
 import { Button } from "@/components/ui/button";
@@ -22,6 +34,7 @@ export function CatEditorActions({
   hasNextSegment,
   onApprove,
   onSaveDraft,
+  onAddToIssueSheet,
   onAskQuestion,
   onPrevious,
   onNext,
@@ -38,6 +51,7 @@ export function CatEditorActions({
   hasNextSegment: boolean;
   onApprove: () => void;
   onSaveDraft?: () => void;
+  onAddToIssueSheet?: () => void;
   onAskQuestion: () => void;
   onPrevious: () => void;
   onNext: () => void;
@@ -91,6 +105,16 @@ export function CatEditorActions({
         )}
         <CatEditorShortcutKbd shortcut="findContext" isMac={isMac} />
       </Button>
+      {onAddToIssueSheet ? (
+        <Button
+          variant="outline"
+          className="min-h-11 flex-1 sm:flex-none lg:min-h-0"
+          onClick={onAddToIssueSheet}
+          disabled={isNavigationBlocked}
+        >
+          <FormattedMessage {...catEditorPanelMessages.addToIssueSheet} />
+        </Button>
+      ) : null}
       <Button
         variant="ghost"
         className="hidden lg:inline-flex"

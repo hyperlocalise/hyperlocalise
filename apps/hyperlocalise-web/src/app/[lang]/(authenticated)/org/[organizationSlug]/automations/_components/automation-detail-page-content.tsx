@@ -1,8 +1,21 @@
 "use client";
 
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { FormattedMessage, useIntl } from "react-intl";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -14,15 +27,21 @@ import {
   validateWorkspaceAutomationFormState,
 } from "@/lib/agents/workspace-automation-view-model";
 import { WorkspacePageShell } from "../../_components/workspace-resource-shared";
+import { automationDetailPageContentMessages } from "./automation-detail-page-content.messages";
 import { WorkspaceAutomationEditor } from "./workspace-automation-form";
 
 export function AutomationDetailPageContent({
   organizationSlug,
   automationId,
+  knowledgeAvailable = false,
+  canUpdateKnowledgeMemory = false,
 }: {
   organizationSlug: string;
   automationId: string;
+  knowledgeAvailable?: boolean;
+  canUpdateKnowledgeMemory?: boolean;
 }) {
+  const intl = useIntl();
   const queryClient = useQueryClient();
 
   const automationQuery = useQuery({
@@ -86,7 +105,7 @@ export function AutomationDetailPageContent({
       return response.json();
     },
     onSuccess: () => {
-      toast.success("Automation updated");
+      toast.success(intl.formatMessage(automationDetailPageContentMessages.updateSuccess));
       void queryClient.invalidateQueries({
         queryKey: ["workspace-automation", organizationSlug, automationId],
       });
@@ -98,7 +117,7 @@ export function AutomationDetailPageContent({
       if (error.message === "validation_failed") {
         return;
       }
-      toast.error("Unable to save automation right now");
+      toast.error(intl.formatMessage(automationDetailPageContentMessages.updateError));
     },
   });
 
@@ -118,20 +137,22 @@ export function AutomationDetailPageContent({
       return response.json();
     },
     onSuccess: () => {
-      toast.success("Manual run queued");
+      toast.success(intl.formatMessage(automationDetailPageContentMessages.runQueued));
       void queryClient.invalidateQueries({
         queryKey: ["workspace-automation", organizationSlug, automationId],
       });
     },
     onError: () => {
-      toast.error("Unable to queue a manual run right now");
+      toast.error(intl.formatMessage(automationDetailPageContentMessages.runError));
     },
   });
 
   if (automationQuery.isLoading || !form || !automation) {
     return (
       <WorkspacePageShell>
-        <p className="text-sm text-muted-foreground">Loading automation...</p>
+        <p className="text-sm text-muted-foreground">
+          <FormattedMessage {...automationDetailPageContentMessages.loading} />
+        </p>
       </WorkspacePageShell>
     );
   }
@@ -143,6 +164,8 @@ export function AutomationDetailPageContent({
         organizationSlug={organizationSlug}
         form={form}
         errors={errors}
+        knowledgeAvailable={knowledgeAvailable}
+        canUpdateKnowledgeMemory={canUpdateKnowledgeMemory}
         onChange={setForm}
         runHistory={recentRuns}
         actions={
@@ -152,10 +175,14 @@ export function AutomationDetailPageContent({
               onClick={() => runMutation.mutate()}
               disabled={runMutation.isPending || automation.status !== "active"}
             >
-              Run now
+              <FormattedMessage {...automationDetailPageContentMessages.runNow} />
             </Button>
             <Button onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending}>
-              {saveMutation.isPending ? "Saving..." : "Save changes"}
+              {saveMutation.isPending ? (
+                <FormattedMessage {...automationDetailPageContentMessages.saving} />
+              ) : (
+                <FormattedMessage {...automationDetailPageContentMessages.saveChanges} />
+              )}
             </Button>
           </div>
         }
@@ -167,7 +194,7 @@ export function AutomationDetailPageContent({
           nativeButton={false}
           render={<Link href={`/org/${organizationSlug}/automations`} />}
         >
-          Back to automations
+          <FormattedMessage {...automationDetailPageContentMessages.backToAutomations} />
         </Button>
       </div>
     </WorkspacePageShell>

@@ -50,6 +50,62 @@ func TestFineTuningDatasetAttributesValidate(t *testing.T) {
 	}
 }
 
+func TestAITranslateRequestValidate(t *testing.T) {
+	tests := []struct {
+		name  string
+		req   *AITranslateRequest
+		err   string
+		valid bool
+	}{
+		{
+			name: "nil request",
+			req:  nil,
+			err:  "request cannot be nil",
+		},
+		{
+			name: "empty strings",
+			req:  &AITranslateRequest{TargetLanguageID: "de"},
+			err:  "strings are required",
+		},
+		{
+			name: "empty target language ID",
+			req:  &AITranslateRequest{Strings: []string{"test"}},
+			err:  "targetLanguageId is required",
+		},
+		{
+			name: "valid minimal request",
+			req: &AITranslateRequest{
+				Strings:          []string{"Chef's Special"},
+				TargetLanguageID: "de",
+			},
+			valid: true,
+		},
+		{
+			name: "valid full request",
+			req: &AITranslateRequest{
+				Strings:          []string{"Chef's Special"},
+				TargetLanguageID: "de",
+				SourceLanguageID: "en",
+				AIPromptID:       82,
+				TMIDs:            []int{102, 305},
+				GlossaryIDs:      []int{12},
+				Instructions:     []string{"Do not translate brand names"},
+			},
+			valid: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if err := tt.req.Validate(); tt.valid {
+				assert.NoError(t, err)
+			} else {
+				assert.EqualError(t, err, tt.err)
+			}
+		})
+	}
+}
+
 func TestFineTuningJobsListOptionsValues(t *testing.T) {
 	tests := []struct {
 		name string

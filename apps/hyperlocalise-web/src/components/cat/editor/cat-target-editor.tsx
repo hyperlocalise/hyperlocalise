@@ -1,6 +1,18 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
+import { useEffect, useMemo, useRef } from "react";
 import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import { Extension, type Extensions } from "@tiptap/core";
@@ -13,6 +25,7 @@ import { cn } from "@/lib/primitives/cn";
 
 import {
   analyzeCatMessageFormat,
+  catMessageTokenSignature,
   compareCatMessageFormats,
   missingCatMessageTokens,
   type CatIcuBlockSummary,
@@ -49,6 +62,8 @@ function tokenVisualKind(token: CatMessageToken): CatMessageTokenVisualKind {
       return "pound";
     case "tag":
       return "tag";
+    case "markup":
+      return "markup";
     default:
       return "placeholder";
   }
@@ -122,6 +137,15 @@ function createCatMessageFormatExtension() {
 
               analysis.tokens.forEach((token) => {
                 decorationRangesForToken(textRanges, token).forEach(({ from, to }) => {
+                  if (token.kind === "markup") {
+                    decorations.push(
+                      Decoration.inline(from, to, {
+                        class: cn(tokenClassName(token), "cat-mf-markup-chip"),
+                        "data-cat-label": token.displayLabel ?? token.name,
+                      }),
+                    );
+                    return;
+                  }
                   decorations.push(Decoration.inline(from, to, { class: tokenClassName(token) }));
                 });
               });
@@ -166,17 +190,15 @@ function tokenLabel(token: CatMessageToken) {
     return `<${token.name}>`;
   }
 
+  if (token.kind === "markup") {
+    return token.displayLabel ?? token.name;
+  }
+
   return token.literal || `{${token.name}}`;
 }
 
 function presentTokenSignatures(analysis: CatMessageAnalysis) {
-  return new Set(
-    analysis.tokens.map((token) =>
-      token.kind === "icu"
-        ? `${token.kind}:${token.name}:${token.type}`
-        : `${token.kind}:${token.name}`,
-    ),
-  );
+  return new Set(analysis.tokens.map((token) => catMessageTokenSignature(token)));
 }
 
 export function CatMessagePreview({ message, className }: { message: string; className?: string }) {
@@ -204,7 +226,10 @@ export function CatMessagePreview({ message, className }: { message: string; cla
     }
     parts.push({
       key: token.id,
-      text: message.slice(token.start, token.end),
+      text:
+        token.kind === "markup"
+          ? (token.displayLabel ?? token.name)
+          : message.slice(token.start, token.end),
       token,
     });
     cursor = token.end;
@@ -224,6 +249,7 @@ export function CatMessagePreview({ message, className }: { message: string; cla
               "rounded-md border px-1 py-0.5 font-mono text-[0.9em]",
               catMessageTokenToneClass(tokenVisualKind(part.token)),
             )}
+            title={part.token.kind === "markup" ? part.token.literal : undefined}
           >
             {part.text}
           </span>
@@ -248,17 +274,23 @@ export function CatIcuStructureSummary({ blocks }: { blocks: CatIcuBlockSummary[
       <ul className="space-y-2">
         {blocks.map((block) => (
           <li key={block.id} className="space-y-1">
-            <div className="flex flex-wrap items-center gap-1.5 text-xs">
-              <span
-                className={cn(
-                  "rounded-md border px-1.5 py-0.5 font-mono",
-                  catMessageTokenToneClass("icu"),
-                )}
-              >
-                {block.arg}
-              </span>
-              <span className="text-muted-foreground">·</span>
-              <span className="font-mono text-muted-foreground">{block.type}</span>
+            <div className="flex flex-wrap items-center gap-1.5 text-xs font-mono text-muted-foreground">
+              <FormattedMessage
+                {...catTargetEditorMessages.icuBlockSummary}
+                values={{
+                  arg: (
+                    <span
+                      className={cn(
+                        "rounded-md border px-1.5 py-0.5 text-foreground",
+                        catMessageTokenToneClass("icu"),
+                      )}
+                    >
+                      {block.arg}
+                    </span>
+                  ),
+                  type: block.type,
+                }}
+              />
             </div>
             <div className="flex flex-wrap gap-1">
               {block.options.map((option) => (
@@ -282,15 +314,19 @@ export function CatTargetEditor({
   value,
   maxLength,
   disabled = false,
+  compact = false,
   onChange,
 }: {
   sourceText: string;
   value: string;
   maxLength?: number;
   disabled?: boolean;
+  compact?: boolean;
   onChange: (value: string) => void;
 }) {
   const intl = useIntl();
+  const valueRef = useRef(value);
+  valueRef.current = value;
   const sourceAnalysis = useMemo(() => analyzeCatMessageFormat(sourceText), [sourceText]);
   const targetAnalysis = useMemo(() => analyzeCatMessageFormat(value), [value]);
   const parityIssues = useMemo(
@@ -312,12 +348,20 @@ export function CatTargetEditor({
     editable: !disabled,
     immediatelyRender: false,
     onUpdate: ({ editor: activeEditor }) => {
-      onChange(editorText(activeEditor));
+      const nextValue = editorText(activeEditor);
+      // Ignore no-op updates (e.g. mount/focus round-trips) so focusing a loaded
+      // translation does not mark the segment as an unsaved draft.
+      if (nextValue === valueRef.current) {
+        return;
+      }
+      onChange(nextValue);
     },
     editorProps: {
       attributes: {
         class: cn(
-          "min-h-36 px-4 py-4 text-lg leading-relaxed text-foreground focus:outline-none md:text-lg",
+          compact
+            ? "min-h-10 px-3 py-2 text-sm leading-relaxed text-foreground focus:outline-none"
+            : "min-h-36 px-4 py-4 text-lg leading-relaxed text-foreground focus:outline-none md:text-lg",
           "whitespace-pre-wrap break-words",
         ),
         "aria-label": intl.formatMessage(catTargetEditorMessages.targetTranslationAria),
@@ -363,12 +407,18 @@ export function CatTargetEditor({
   }
 
   return (
-    <div className="space-y-2">
+    <div className={cn("space-y-2", compact && "space-y-1.5")}>
       <div
         className={cn(
-          "rounded-2xl border border-border bg-background shadow-sm transition-colors",
+          compact
+            ? "rounded-lg border border-border bg-background transition-colors"
+            : "rounded-2xl border border-border bg-background shadow-sm transition-colors",
           "focus-within:border-ring focus-within:ring-[3px] focus-within:ring-ring/50",
           "[&_.cat-mf-token]:rounded-md [&_.cat-mf-token]:px-1 [&_.cat-mf-token]:py-0.5 [&_.cat-mf-token]:font-mono [&_.cat-mf-token]:text-[0.9em]",
+          // Collapse raw HL*PH sentinel glyphs; ::before paints the short MD#n / HT#n / LQ#n chip.
+          "[&_.cat-mf-markup-chip]:text-[0px] [&_.cat-mf-markup-chip]:leading-none",
+          "[&_.cat-mf-markup-chip::before]:content-[attr(data-cat-label)] [&_.cat-mf-markup-chip::before]:text-[0.9rem]",
+          "[&_.cat-mf-markup-chip::before]:font-mono [&_.cat-mf-markup-chip::before]:leading-normal",
           "[&_.tiptap_p.is-editor-empty:first-child::before]:text-muted-foreground",
           "[&_.tiptap_p.is-editor-empty:first-child::before]:content-[attr(data-placeholder)]",
           "[&_.tiptap_p.is-editor-empty:first-child::before]:float-left",
@@ -381,7 +431,12 @@ export function CatTargetEditor({
         {editor ? (
           <EditorContent editor={editor} />
         ) : (
-          <div className="min-h-36 px-4 py-4 text-lg text-muted-foreground" />
+          <div
+            className={cn(
+              "text-muted-foreground",
+              compact ? "min-h-10 px-3 py-2 text-sm" : "min-h-36 px-4 py-4 text-lg",
+            )}
+          />
         )}
       </div>
 
@@ -424,21 +479,17 @@ export function CatTargetEditor({
           </span>
           {sourceTokens.map((token) => {
             const isMissing = missingTokens.some((missingToken) => missingToken.id === token.id);
-            const isPresent = targetSignatures.has(
-              token.kind === "icu"
-                ? `${token.kind}:${token.name}:${token.type}`
-                : `${token.kind}:${token.name}`,
-            );
+            const isPresent = targetSignatures.has(catMessageTokenSignature(token));
 
             return (
               <Button
                 key={token.id}
                 variant="outline"
-                size="sm"
+                size="xs"
                 onClick={() => insertToken(token)}
                 disabled={disabled}
                 className={cn(
-                  "h-7 rounded-full px-2 font-mono text-xs",
+                  "rounded-full font-mono",
                   isMissing && catMessageTokenMissingClass,
                   isPresent && !isMissing && "text-muted-foreground",
                 )}

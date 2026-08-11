@@ -1,3 +1,15 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 
 import {
@@ -7,6 +19,9 @@ import {
   errorResponse,
   jsonResponse,
 } from "@/components/cat/shared/cat-api.fixture";
+import { getIntlShape } from "@/lib/app-i18n/intl";
+
+const testIntl = getIntlShape("en");
 
 const { catQueueGetMock, catSegmentTargetGetMock, catSegmentCommentsGetMock } = vi.hoisted(() => ({
   catQueueGetMock: vi.fn(),
@@ -67,11 +82,11 @@ describe("fetchProjectFileCatQueuePage", () => {
 
     const result = await fetchProjectFileCatQueuePage({
       ...catApiTestContext,
-      repositoryFullName: null,
       search: "",
       queueFilter: "all",
       limit: 50,
       offset: 0,
+      intl: testIntl,
     });
 
     expect(result).toEqual(queue);
@@ -91,7 +106,7 @@ describe("fetchProjectFileCatQueuePage", () => {
     );
   });
 
-  it("forwards search, queue filter, repository, and phrase scan params", async () => {
+  it("forwards search, queue filter, and phrase scan params without repository context", async () => {
     catQueueGetMock.mockResolvedValue(jsonResponse(createCatQueueResponse()));
 
     await fetchProjectFileCatQueuePage({
@@ -102,6 +117,7 @@ describe("fetchProjectFileCatQueuePage", () => {
       offset: 50,
       phraseScanPage: 2,
       phraseScanSkip: 10,
+      intl: testIntl,
     });
 
     expect(catQueueGetMock).toHaveBeenCalledWith(
@@ -113,7 +129,6 @@ describe("fetchProjectFileCatQueuePage", () => {
           limit: 25,
           search: "hero",
           queueFilter: "needs_review",
-          repositoryFullName: catApiTestContext.repositoryFullName,
           phraseScanPage: 2,
           phraseScanSkip: 10,
         },
@@ -129,11 +144,11 @@ describe("fetchProjectFileCatQueuePage", () => {
     await expect(
       fetchProjectFileCatQueuePage({
         ...catApiTestContext,
-        repositoryFullName: null,
         search: "",
         queueFilter: "all",
         limit: 50,
         offset: 0,
+        intl: testIntl,
       }),
     ).rejects.toThrow("CAT queue is unavailable.");
   });
@@ -153,7 +168,7 @@ describe("fetchProjectFileCatSegmentTarget", () => {
       externalResourceId: "101",
       resourceType: "file",
       externalStringId: "segment-42",
-      repositoryFullName: null,
+      intl: testIntl,
     });
 
     expect(result).toEqual(target);
@@ -183,7 +198,7 @@ describe("fetchProjectFileCatSegmentTarget", () => {
       fetchProjectFileCatSegmentTarget({
         ...catApiTestContext,
         externalStringId: "missing",
-        repositoryFullName: null,
+        intl: testIntl,
       }),
     ).rejects.toThrow("Segment was not found.");
   });
@@ -199,6 +214,7 @@ describe("fetchProjectFileCatSegmentComments", () => {
       externalResourceId: "101",
       resourceType: "file",
       externalStringId: "segment-1",
+      intl: testIntl,
     });
 
     expect(result).toEqual(comments);
@@ -223,6 +239,7 @@ describe("fetchProjectFileCatSegmentComments", () => {
       fetchProjectFileCatSegmentComments({
         ...catApiTestContext,
         externalStringId: "segment-1",
+        intl: testIntl,
       }),
     ).rejects.toThrow("Failed to load comments.");
   });
@@ -236,7 +253,6 @@ describe("projectFileCatQueryKey", () => {
         projectId: "project_1",
         sourcePath: "locales/en.json",
         targetLocale: "fr",
-        repositoryFullName: "acme/web",
         search: "hero",
         queueFilter: "needs_review",
         limit: 50,
@@ -250,11 +266,11 @@ describe("projectFileCatQueryKey", () => {
       null,
       null,
       "fr",
-      "acme/web",
       "hero",
       "needs_review",
       50,
       50,
+      null,
     ]);
   });
 
@@ -264,7 +280,6 @@ describe("projectFileCatQueryKey", () => {
       projectId: "project_1",
       sourcePath: "locales/en.json",
       targetLocale: "fr",
-      repositoryFullName: null,
       search: "",
       queueFilter: "all" as const,
       limit: 50,
@@ -274,7 +289,7 @@ describe("projectFileCatQueryKey", () => {
     const page1 = projectFileCatQueryKey({ ...base, offset: 50 });
 
     expect(page0).not.toEqual(page1);
-    expect(page1.at(-1)).toBe(50);
+    expect(page1.at(-2)).toBe(50);
   });
 });
 
@@ -282,7 +297,6 @@ describe("projectFileCatBaseQueryKey", () => {
   it("omits offset so infinite-query pages share a base key", () => {
     const key = projectFileCatBaseQueryKey({
       ...catApiTestContext,
-      repositoryFullName: null,
       search: "",
       queueFilter: "all",
       limit: 50,
@@ -296,10 +310,10 @@ describe("projectFileCatBaseQueryKey", () => {
       null,
       null,
       "fr",
-      null,
       "",
       "all",
       50,
+      null,
     ]);
     expect(key).not.toContain(0);
   });

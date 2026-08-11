@@ -1,6 +1,22 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import { and, eq } from "drizzle-orm";
 
 import { db, schema } from "@/lib/database";
+import {
+  extractGenerateResultTokenUsage,
+  withAgentRuntimeUsageMetering,
+} from "@/lib/billing/agent-runtime-usage";
 import { createLogger } from "@/lib/log";
 import { err, ok, type Result } from "@/lib/primitives/result/results";
 import {
@@ -14,7 +30,11 @@ import {
 import { createWorkspaceOrchestratorAgent } from "./agent";
 import { composeWorkspaceAutomationInstructions } from "./compose-workspace-instructions";
 import { createWorkspaceOrchestratorSession, type WorkspaceOrchestratorSession } from "./context";
-import { buildWorkspaceOrchestratorPlan } from "./plan";
+import {
+  buildWorkspaceOrchestratorPlan,
+  planHasActionableTool,
+  type WorkspaceOrchestratorPlan,
+} from "./plan";
 import { buildWorkspaceOrchestratorOutputSummary } from "./workspace-orchestrator-output-summary";
 
 const logger = createLogger("workspace-orchestrator");
@@ -97,14 +117,14 @@ function collectNotificationWarnings(session: WorkspaceOrchestratorSession) {
 
 function deriveTerminalStatus(session: {
   terminalStatus: WorkspaceAutomationRunStatus | null;
-  plan: { tools: string[] };
+  plan: WorkspaceOrchestratorPlan;
   stepResults: Record<string, unknown>;
 }): WorkspaceAutomationRunStatus {
   if (session.terminalStatus) {
     return session.terminalStatus;
   }
 
-  if (session.plan.tools.length === 0) {
+  if (!planHasActionableTool(session.plan)) {
     return "skipped";
   }
 
@@ -192,7 +212,7 @@ export async function runWorkspaceOrchestrator(input: {
     composedInstructions,
   });
 
-  if (plan.tools.length === 0) {
+  if (!planHasActionableTool(plan)) {
     const completedAt = new Date();
     await updateWorkspaceAutomationRun({
       runId: run.id,
@@ -219,17 +239,29 @@ export async function runWorkspaceOrchestrator(input: {
 
   try {
     const agent = createWorkspaceOrchestratorAgent(session);
-    await agent.generate({
-      messages: [
-        {
-          role: "user",
-          content: buildWorkspaceOrchestratorUserMessage({
-            automationName: automation.name,
-            triggerSource: run.triggerSource,
-            inputSnapshot: run.inputSnapshot,
-          }),
-        },
-      ],
+    await withAgentRuntimeUsageMetering({
+      organizationId: input.organizationId,
+      operationKey: `workspace-automation:${run.id}:agent_runs`,
+      source: "workspace_orchestrator",
+      dimensions: {
+        surface: "automation",
+        agent_surface: "workspace_orchestrator",
+        automation_id: automation.id,
+      },
+      extractTokenUsage: extractGenerateResultTokenUsage,
+      run: () =>
+        agent.generate({
+          messages: [
+            {
+              role: "user",
+              content: buildWorkspaceOrchestratorUserMessage({
+                automationName: automation.name,
+                triggerSource: run.triggerSource,
+                inputSnapshot: run.inputSnapshot,
+              }),
+            },
+          ],
+        }),
     });
 
     const terminalStatus = deriveTerminalStatus(session);

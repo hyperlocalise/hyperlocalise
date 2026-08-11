@@ -1,3 +1,15 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import { sql } from "drizzle-orm";
 import {
   index,
@@ -9,6 +21,8 @@ import {
   uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
+
+import type { UIMessage } from "ai";
 
 import {
   agentRunKindEnum,
@@ -24,6 +38,7 @@ import {
 import { githubInstallationRepositories, githubRepositoryAutomationJobs } from "./github";
 import { organizations, users } from "./organizations";
 import { jobs } from "./jobs";
+import { projects } from "./projects";
 
 /**
  * Stores persisted workspace automation definitions, including the user-authored guidance, trigger settings, repository target, enabled tools, and scheduling state.
@@ -55,6 +70,8 @@ export const workspaceAutomations = pgTable(
       .$type<Record<string, unknown>>()
       .notNull()
       .default(sql`'{}'::jsonb`),
+    // Hyperlocalise project owned by the automation header; tools read this value.
+    projectId: text("project_id").references(() => projects.id, { onDelete: "set null" }),
     configVersion: integer("config_version").notNull().default(1),
     nextRunAt: timestamp("next_run_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
@@ -67,6 +84,7 @@ export const workspaceAutomations = pgTable(
     index("idx_workspace_automations_org_status").on(table.organizationId, table.status),
     index("idx_workspace_automations_org_next_run").on(table.organizationId, table.nextRunAt),
     index("idx_workspace_automations_github_repo").on(table.githubInstallationRepositoryId),
+    index("idx_workspace_automations_org_project").on(table.organizationId, table.projectId),
   ],
 );
 
@@ -252,6 +270,7 @@ export const interactionMessages = pgTable(
     senderType: messageSenderTypeEnum("sender_type").notNull(),
     senderEmail: text("sender_email"),
     text: text("text").notNull(),
+    parts: jsonb("parts").$type<UIMessage["parts"]>(),
     attachments:
       jsonb("attachments").$type<
         Array<{ id: string; filename: string; contentType: string; url: string }>

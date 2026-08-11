@@ -1,8 +1,21 @@
 "use client";
 
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import { useState, type ReactNode } from "react";
 import { ArrowDown01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
+import { FormattedMessage, useIntl } from "react-intl";
 
 import { TypographyH1, TypographyH4 } from "@/components/ui/typography";
 import { cn } from "@/lib/primitives/cn";
@@ -16,6 +29,7 @@ import {
 } from "./job-detail-shared";
 import { JobDetailSkeleton } from "./job-detail-skeleton";
 import { buildJobsListHref } from "./job-detail-types";
+import { jobDetailViewMessages as messages } from "./job-detail-view.messages";
 
 export type JobDetailViewMetric = {
   icon: Parameters<typeof HugeiconsIcon>[0]["icon"];
@@ -23,6 +37,7 @@ export type JobDetailViewMetric = {
 };
 
 export type JobDetailViewProperty = {
+  id?: string;
   label: string;
   value: ReactNode;
 };
@@ -41,10 +56,14 @@ function MetricItem({ icon, label }: JobDetailViewMetric) {
 }
 
 function CompactPropertyRow({ label, value }: JobDetailViewProperty) {
+  const intl = useIntl();
+
   return (
     <div className="grid grid-cols-[7.5rem_minmax(0,1fr)] items-start gap-3 py-2">
       <dt className="text-sm text-muted-foreground">{label}</dt>
-      <dd className="min-w-0 wrap-break-word text-sm leading-5 text-foreground">{value ?? "—"}</dd>
+      <dd className="min-w-0 wrap-break-word text-sm leading-5 text-foreground">
+        {value ?? intl.formatMessage(messages.emptyValue)}
+      </dd>
     </div>
   );
 }
@@ -58,10 +77,13 @@ function PropertiesCard({
 }) {
   const [showMore, setShowMore] = useState(false);
   const hasSecondary = secondaryProperties.length > 0;
+  const intl = useIntl();
 
   return (
     <section className="rounded-lg border border-border bg-card p-5 xl:sticky xl:top-5">
-      <TypographyH4>Properties</TypographyH4>
+      <TypographyH4>
+        <FormattedMessage {...messages.propertiesHeading} />
+      </TypographyH4>
       {hasSecondary ? (
         <Collapsible open={showMore} onOpenChange={setShowMore}>
           <dl className="mt-5">
@@ -76,11 +98,17 @@ function PropertiesCard({
           </dl>
           <CollapsibleTrigger
             className="mt-3 inline-flex items-center gap-1.5 rounded-md py-1 text-sm font-medium text-muted-foreground outline-hidden transition-colors hover:text-foreground focus-visible:text-foreground"
-            aria-label={
-              showMore ? "Hide secondary task properties" : "Show secondary task properties"
-            }
+            aria-label={intl.formatMessage(
+              showMore
+                ? messages.hideSecondaryPropertiesAriaLabel
+                : messages.showSecondaryPropertiesAriaLabel,
+            )}
           >
-            {showMore ? "Show less" : "Show more"}
+            {showMore ? (
+              <FormattedMessage {...messages.showLess} />
+            ) : (
+              <FormattedMessage {...messages.showMore} />
+            )}
             <HugeiconsIcon
               icon={ArrowDown01Icon}
               strokeWidth={1.8}
@@ -128,9 +156,10 @@ export function JobDetailView({
   renderError?: JobDetailErrorRenderer;
   renderMain?: () => ReactNode;
   secondaryProperties?: JobDetailViewProperty[];
-  title?: string;
+  title?: ReactNode;
 }) {
   const jobsListHref = buildJobsListHrefProp(organizationSlug, projectId);
+  const intl = useIntl();
 
   if (isLoading) {
     return <JobDetailSkeleton />;
@@ -140,8 +169,15 @@ export function JobDetailView({
     <main className="mx-auto flex w-full max-w-7xl flex-col gap-5">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
-          {renderBackLink({ href: jobsListHref, children: "Jobs" })}
-          <TypographyH1>{title ?? jobId}</TypographyH1>
+          {renderBackLink({
+            href: jobsListHref,
+            children: intl.formatMessage(messages.jobsBackLink),
+          })}
+          {typeof title === "string" || title == null ? (
+            <TypographyH1>{title ?? jobId}</TypographyH1>
+          ) : (
+            title
+          )}
           {metrics.length > 0 ? (
             <div className="mt-4 flex flex-wrap items-center gap-x-6 gap-y-2">
               {metrics.map((metric) => (

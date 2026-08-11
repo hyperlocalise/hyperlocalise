@@ -1,12 +1,24 @@
 "use client";
 
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import { useQuery } from "@tanstack/react-query";
 
 import { apiClient } from "@/lib/api-client-instance";
 import {
   parseProviderJobId,
   resolveEncodedProviderJobId,
-} from "@/lib/providers/tms-provider-resource-id";
+} from "@/lib/providers/jobs/tms-provider-resource-id";
 
 import { useActiveTmsProvider } from "../../../../../_hooks/use-active-tms-provider";
 
@@ -20,12 +32,14 @@ export function JobDetailPageContent({
   jobId,
   organizationSlug,
   projectId,
-  canEditProviderJobDescription,
+  canEditJobFields,
+  canEditSharedCredentialProviderJobFields = false,
 }: {
   jobId: string;
   organizationSlug: string;
   projectId: string;
-  canEditProviderJobDescription: boolean;
+  canEditJobFields: boolean;
+  canEditSharedCredentialProviderJobFields?: boolean;
 }) {
   const activeTmsProviderQuery = useActiveTmsProvider(organizationSlug);
   const encodedProviderJobFromRoute = parseProviderJobId(jobId);
@@ -74,12 +88,16 @@ export function JobDetailPageContent({
   }
 
   if (useLiveProviderJob && encodedProviderJobId) {
+    const providerKind = parseProviderJobId(encodedProviderJobId)?.providerKind;
+    const canEditProviderJobFields =
+      providerKind === "smartling" ? canEditSharedCredentialProviderJobFields : canEditJobFields;
+
     return (
       <ProviderLiveJobDetailContent
         jobId={encodedProviderJobId}
         organizationSlug={organizationSlug}
         projectId={projectId}
-        canEditProviderJobDescription={canEditProviderJobDescription}
+        canEditJobFields={canEditProviderJobFields}
       />
     );
   }
@@ -89,6 +107,7 @@ export function JobDetailPageContent({
       jobId={jobId}
       organizationSlug={organizationSlug}
       projectId={projectId}
+      canEditJobFields={canEditJobFields}
     />
   );
 }

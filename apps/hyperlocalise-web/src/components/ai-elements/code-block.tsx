@@ -1,5 +1,17 @@
 "use client";
 
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -76,6 +88,8 @@ const TokenSpan = ({ token }: { token: ThemedToken }) => (
 );
 
 // Line number styles using CSS counters
+const EMPTY_CODE_LINE = "\n";
+
 const LINE_NUMBER_CLASSES = cn(
   "block",
   "before:content-[counter(line)]",
@@ -99,14 +113,15 @@ const LineSpan = ({
 }) => (
   <span className={showLineNumbers ? LINE_NUMBER_CLASSES : "block"}>
     {keyedLine.tokens.length === 0
-      ? "\n"
+      ? EMPTY_CODE_LINE
       : keyedLine.tokens.map(({ token, key }) => <TokenSpan key={key} token={token} />)}
   </span>
 );
 
 // Types
 type CodeBlockProps = HTMLAttributes<HTMLDivElement> & {
-  code: string;
+  /** Missing during tool input streaming when `JSON.stringify(undefined)` yields `undefined`. */
+  code: string | null | undefined;
   language: BundledLanguage;
   showLineNumbers?: boolean;
 };
@@ -159,20 +174,25 @@ const getHighlighter = (
   return highlighterPromise;
 };
 
+/** Coerce missing code (e.g. JSON.stringify(undefined) during tool streaming) before split. */
+export const normalizeCodeBlockSource = (code: string | null | undefined): string => code ?? "";
+
 // Create raw tokens for immediate display while highlighting loads
 const createRawTokens = (code: string): TokenizedCode => ({
   bg: "transparent",
   fg: "inherit",
-  tokens: code.split("\n").map((line) =>
-    line === ""
-      ? []
-      : [
-          {
-            color: "inherit",
-            content: line,
-          } as ThemedToken,
-        ],
-  ),
+  tokens: normalizeCodeBlockSource(code)
+    .split("\n")
+    .map((line) =>
+      line === ""
+        ? []
+        : [
+            {
+              color: "inherit",
+              content: line,
+            } as ThemedToken,
+          ],
+    ),
 });
 
 // Synchronous highlight with callback for async results
@@ -361,33 +381,35 @@ export const CodeBlockContent = ({
   language,
   showLineNumbers = false,
 }: {
-  code: string;
+  code: string | null | undefined;
   language: BundledLanguage;
   showLineNumbers?: boolean;
 }) => {
+  const safeCode = normalizeCodeBlockSource(code);
+
   // Memoized raw tokens for immediate display
-  const rawTokens = useMemo(() => createRawTokens(code), [code]);
+  const rawTokens = useMemo(() => createRawTokens(safeCode), [safeCode]);
 
   // Synchronous cache lookup — avoids setState in effect for cached results
   const syncTokens = useMemo(
-    () => highlightCode(code, language) ?? rawTokens,
-    [code, language, rawTokens],
+    () => highlightCode(safeCode, language) ?? rawTokens,
+    [safeCode, language, rawTokens],
   );
 
   // Async highlighting result (populated after shiki loads)
   const [asyncTokens, setAsyncTokens] = useState<TokenizedCode | null>(null);
-  const asyncKeyRef = useRef({ code, language });
+  const asyncKeyRef = useRef({ code: safeCode, language });
 
   // Invalidate stale async tokens synchronously during render
-  if (asyncKeyRef.current.code !== code || asyncKeyRef.current.language !== language) {
-    asyncKeyRef.current = { code, language };
+  if (asyncKeyRef.current.code !== safeCode || asyncKeyRef.current.language !== language) {
+    asyncKeyRef.current = { code: safeCode, language };
     setAsyncTokens(null);
   }
 
   useEffect(() => {
     let cancelled = false;
 
-    highlightCode(code, language, (result) => {
+    highlightCode(safeCode, language, (result) => {
       if (!cancelled) {
         setAsyncTokens(result);
       }
@@ -396,7 +418,7 @@ export const CodeBlockContent = ({
     return () => {
       cancelled = true;
     };
-  }, [code, language]);
+  }, [safeCode, language]);
 
   const tokenized = asyncTokens ?? syncTokens;
 
@@ -415,13 +437,14 @@ export const CodeBlock = ({
   children,
   ...props
 }: CodeBlockProps) => {
-  const contextValue = useMemo(() => ({ code }), [code]);
+  const safeCode = normalizeCodeBlockSource(code);
+  const contextValue = useMemo(() => ({ code: safeCode }), [safeCode]);
 
   return (
     <CodeBlockContext.Provider value={contextValue}>
       <CodeBlockContainer className={className} language={language} {...props}>
         {children}
-        <CodeBlockContent code={code} language={language} showLineNumbers={showLineNumbers} />
+        <CodeBlockContent code={safeCode} language={language} showLineNumbers={showLineNumbers} />
       </CodeBlockContainer>
     </CodeBlockContext.Provider>
   );

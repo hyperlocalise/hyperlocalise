@@ -64,7 +64,13 @@ func marshalYAML(template []byte, values map[string]string, pruneKeys map[string
 }
 
 func validateYAMLMarshalTemplate(root *yaml.Node) error {
-	entries := make(map[string]string)
+	// BOLT OPTIMIZATION: Hint capacity for the validation map based on the
+	// mapping node's content size to reduce re-allocations.
+	capacity := len(root.Content) / 2
+	if capacity < 4 {
+		capacity = 4
+	}
+	entries := make(map[string]string, capacity)
 	return flattenYAMLNode(entries, "", root)
 }
 

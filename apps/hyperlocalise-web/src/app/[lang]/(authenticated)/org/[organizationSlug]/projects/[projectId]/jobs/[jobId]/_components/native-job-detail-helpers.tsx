@@ -1,12 +1,28 @@
 "use client";
 
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import { useMemo } from "react";
+import { useIntl, type IntlShape } from "react-intl";
 
 import type { ProjectFileRecord } from "@/api/routes/project/project.schema";
 
 import { jobDetailTaskLayoutFromRecord } from "./job-detail-layout-helpers";
+import { nativeJobDetailHelpersMessages as messages } from "./native-job-detail-helpers.messages";
 import { isProviderBackedJob, type JobDetailRecord } from "./job-detail-types";
 import { JobSourceFilesPanel } from "./tms/job-source-files-panel";
+import { nativeJobToProjectFileRecord } from "./tms/job-source-file-mappers";
+import { resolveDefaultJobCatQueueFilter } from "@/lib/projects/job-cat-routing";
 
 function getInputPayloadString(job: JobDetailRecord, key: string) {
   if (typeof job.inputPayload !== "object" || !job.inputPayload || !(key in job.inputPayload)) {
@@ -40,18 +56,18 @@ export function isNativeFileTranslationJob(job: JobDetailRecord) {
 }
 
 /** @deprecated Use jobDetailTaskLayoutFromRecord */
-export function nativeJobDetailTitle(job: JobDetailRecord) {
-  return jobDetailTaskLayoutFromRecord(job).title;
+export function nativeJobDetailTitle(job: JobDetailRecord, intl: IntlShape) {
+  return jobDetailTaskLayoutFromRecord(job, intl).title;
 }
 
 /** @deprecated Use jobDetailTaskLayoutFromRecord */
-export function nativeJobDetailMetrics(job: JobDetailRecord) {
-  return jobDetailTaskLayoutFromRecord(job).metrics;
+export function nativeJobDetailMetrics(job: JobDetailRecord, intl: IntlShape) {
+  return jobDetailTaskLayoutFromRecord(job, intl).metrics;
 }
 
 /** @deprecated Use jobDetailTaskLayoutFromRecord */
-export function nativeJobDetailProperties(job: JobDetailRecord) {
-  const layout = jobDetailTaskLayoutFromRecord(job);
+export function nativeJobDetailProperties(job: JobDetailRecord, intl: IntlShape) {
+  const layout = jobDetailTaskLayoutFromRecord(job, intl);
   return {
     properties: layout.properties,
     secondaryProperties: layout.secondaryProperties,
@@ -61,32 +77,7 @@ export function nativeJobDetailProperties(job: JobDetailRecord) {
 export { jobDetailTaskLayoutFromRecord };
 
 export function buildNativeJobFileRecord(job: JobDetailRecord): ProjectFileRecord | null {
-  const sourcePath = getInputPayloadString(job, "sourceFileId");
-  if (!sourcePath) {
-    return null;
-  }
-
-  const filename = sourcePath.split("/").filter(Boolean).at(-1) ?? sourcePath;
-
-  return {
-    origin: "repository",
-    sourcePath,
-    sourceHash: null,
-    commitSha: null,
-    workflowRunId: job.workflowRunId,
-    uploadedAt: job.createdAt,
-    storedFileId: sourcePath,
-    metadata: {},
-    filename,
-    byteSize: null,
-    provider: null,
-    latestJob: {
-      id: job.id,
-      status: job.status,
-      createdAt: job.createdAt,
-      type: job.type ?? "file",
-    },
-  };
+  return nativeJobToProjectFileRecord(job);
 }
 
 export function NativeJobSourceFilesSection({
@@ -98,9 +89,11 @@ export function NativeJobSourceFilesSection({
   projectId: string;
   job: JobDetailRecord;
 }) {
+  const intl = useIntl();
   const file = useMemo(() => buildNativeJobFileRecord(job), [job]);
   const targetLocales = getInputPayloadStringArray(job, "targetLocales");
   const highlightLocale = targetLocales[0] ?? null;
+  const queueFilter = resolveDefaultJobCatQueueFilter(job);
 
   if (!file) {
     return null;
@@ -113,7 +106,8 @@ export function NativeJobSourceFilesSection({
       encodedJobId={job.id}
       files={[file]}
       highlightLocale={highlightLocale}
-      emptyMessage="No source file linked to this job."
+      queueFilter={queueFilter}
+      emptyMessage={intl.formatMessage(messages.noSourceFileLinked)}
     />
   );
 }

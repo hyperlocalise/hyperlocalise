@@ -1,7 +1,19 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import { Analytics } from "@vercel/analytics/next";
 import type { Metadata } from "next";
-import { Domine, Geist_Mono, Open_Sans } from "next/font/google";
-import { withAuth } from "@workos-inc/authkit-nextjs";
+import { Domine, Geist_Mono, Inter, Noto_Serif, Noto_Serif_SC } from "next/font/google";
+import { withAuth } from "@/lib/workos/server-auth";
 import { AuthKitProvider } from "@workos-inc/authkit-nextjs/components";
 import { I18nProvider } from "@/components/i18n/i18n-provider";
 import { QueryProvider } from "@/components/query-provider";
@@ -9,23 +21,57 @@ import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { getAppLocale } from "@/lib/app-i18n/server-locale";
+import type { AppLocale } from "@/lib/app-i18n/locales";
+import { SITE_URL } from "@/lib/seo/site-url";
 import { GoogleAnalytics } from "@next/third-parties/google";
 import { cn } from "@/lib/primitives/cn";
 import "./globals.css";
 
-const opensans = Open_Sans({ subsets: ["latin"], variable: "--font-sans" });
+const inter = Inter({
+  subsets: ["latin", "latin-ext", "vietnamese"],
+  variable: "--font-sans",
+});
 
-const domine = Domine({ subsets: ["latin"], variable: "--font-heading" });
+/** Domine only ships latin + latin-ext (covers en / de-DE / fr-FR). */
+const domine = Domine({
+  subsets: ["latin", "latin-ext"],
+  variable: "--font-heading",
+});
+
+/** Fallback heading face when Domine lacks Vietnamese glyphs. */
+const notoSerif = Noto_Serif({
+  subsets: ["latin", "latin-ext", "vietnamese"],
+  variable: "--font-heading",
+});
+
+/** Fallback heading face when Domine lacks CJK glyphs. */
+const notoSerifSc = Noto_Serif_SC({
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+  preload: false,
+  variable: "--font-heading",
+});
 
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
 });
 
+function headingFontForLocale(locale: AppLocale) {
+  if (locale === "vi-VN") {
+    return notoSerif;
+  }
+  if (locale === "zh-CN") {
+    return notoSerifSc;
+  }
+  return domine;
+}
+
 export const metadata: Metadata = {
-  title: "Hyperlocalise | Localisation for the Agentic Era",
+  metadataBase: new URL(SITE_URL),
+  title: "Hyperlocalise | The Best Agentic Localisation Platform",
   description:
-    "Localisation for the Agentic Era. Hyperlocalise helps teams review multilingual product copy for quality, nuance, and release safety before it ships.",
+    "Hyperlocalise is an AI workforce that helps teams launch globally in days — with market nuance, translation, and first-class human review.",
 };
 
 async function getInitialAuth(): Promise<
@@ -41,6 +87,7 @@ export default async function RootLayout({
   children: React.ReactNode;
 }>) {
   const [locale, initialAuth] = await Promise.all([getAppLocale(), getInitialAuth()]);
+  const headingFont = headingFontForLocale(locale);
 
   return (
     <html
@@ -49,8 +96,8 @@ export default async function RootLayout({
         "antialiased",
         "font-sans",
         geistMono.variable,
-        domine.variable,
-        opensans.variable,
+        inter.variable,
+        headingFont.variable,
       )}
       suppressHydrationWarning
     >

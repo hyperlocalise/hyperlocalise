@@ -1,6 +1,7 @@
 package translationfileparser
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -182,6 +183,350 @@ func TestMarshalMarkdownPreservesLinkDestinationsWithParentheses(t *testing.T) {
 	if !strings.Contains(output, "[URL DOCS]") {
 		t.Fatalf("expected link text translated, got %q", output)
 	}
+}
+
+func TestMarshalMarkdownOwnsLinkDelimiters(t *testing.T) {
+	tests := []struct {
+		name     string
+		template string
+		want     string
+	}{
+		{
+			name:     "inline link",
+			template: "Read [the docs](/docs) now.\n",
+			want:     "Lire [la documentation](/docs) maintenant.\n",
+		},
+		{
+			name:     "reference link",
+			template: "Read [the docs][docs] now.\n\n[docs]: /docs\n",
+			want:     "Lire [la documentation][docs] maintenant.\n\n[docs]: /docs\n",
+		},
+		{
+			name:     "image",
+			template: "View ![the diagram](/diagram.png) now.\n",
+			want:     "Voir ![le diagramme](/diagram.png) maintenant.\n",
+		},
+		{
+			name:     "nested label brackets",
+			template: "Read [the [draft] docs](/docs) now.\n",
+			want:     "Lire [la documentation [brouillon]](/docs) maintenant.\n",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			entries, err := (MarkdownParser{}).Parse([]byte(tt.template))
+			if err != nil {
+				t.Fatalf("parse: %v", err)
+			}
+
+			updates := make(map[string]string, len(entries))
+			for key, value := range entries {
+				if strings.Contains(value, "Read") {
+					value = strings.Replace(value, "Read ", "Lire ", 1)
+					value = strings.Replace(value, "the [draft] docs", "la documentation [brouillon]", 1)
+					value = strings.Replace(value, "the docs", "la documentation", 1)
+					value = strings.Replace(value, " now", " maintenant", 1)
+				}
+				if strings.Contains(value, "View") {
+					value = strings.Replace(value, "View ", "Voir ", 1)
+					value = strings.Replace(value, "the diagram", "le diagramme", 1)
+					value = strings.Replace(value, " now", " maintenant", 1)
+				}
+				updates[key] = value
+			}
+
+			output := string(MarshalMarkdown([]byte(tt.template), updates, false))
+			if output != tt.want {
+				t.Fatalf("output = %q, want %q", output, tt.want)
+			}
+		})
+	}
+}
+
+func TestMarkdownParserDoesNotProtectEscapedLinkLikeBracket(t *testing.T) {
+	template := []byte("Keep \\[literal](/not-a-link) unchanged.\n")
+	entries, err := (MarkdownParser{}).Parse(template)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+
+	for _, value := range entries {
+		if len(markdownPlaceholderPattern.FindAllString(value, -1)) != 1 {
+			t.Fatalf("expected only destination-like closer protected, got %q", value)
+		}
+	}
+	if output := string(MarshalMarkdown(template, entries, false)); output != string(template) {
+		t.Fatalf("output = %q, want %q", output, template)
+	}
+}
+
+func TestMarshalMarkdownFallsBackWhenOpeningLinkDelimiterPlaceholderIsDropped(t *testing.T) {
+	template := []byte("Read [the docs](/docs) now.\n")
+	entries, err := (MarkdownParser{}).Parse(template)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+
+	updates := make(map[string]string, len(entries))
+	for key, value := range entries {
+		placeholders := markdownPlaceholderPattern.FindAllString(value, -1)
+		if len(placeholders) != 2 {
+			t.Fatalf("expected opening link delimiter placeholder in %q", value)
+		}
+		updates[key] = strings.Replace(value, placeholders[0], "", 1)
+	}
+
+	output, diags := MarshalMarkdownWithDiagnostics(template, updates, false)
+	if string(output) != string(template) {
+		t.Fatalf("expected valid source fallback, got %q", output)
+	}
+	if len(diags.SourceFallbackKeys) != 1 {
+		t.Fatalf("expected placeholder fallback diagnostic, got %+v", diags)
+	}
+}
+
+func TestMarshalMarkdownFallsBackWhenImageOpenerPlaceholderIsDropped(t *testing.T) {
+	for _, mdx := range []bool{false, true} {
+		t.Run(fmt.Sprintf("mdx=%t", mdx), func(t *testing.T) {
+			template := []byte("View ![the diagram](/diagram.png) now.\n")
+			entries, err := (MarkdownParser{MDX: mdx}).Parse(template)
+			if err != nil {
+				t.Fatalf("parse: %v", err)
+			}
+
+			updates := make(map[string]string, len(entries))
+			for key, value := range entries {
+				placeholders := markdownPlaceholderPattern.FindAllString(value, -1)
+				if len(placeholders) != 2 {
+					t.Fatalf("expected image opener and closer placeholders in %q", value)
+				}
+				updates[key] = strings.Replace(value, placeholders[0], "", 1)
+			}
+
+			output, diags := MarshalMarkdownWithDiagnostics(template, updates, mdx)
+			if string(output) != string(template) {
+				t.Fatalf("expected valid source fallback, got %q", output)
+			}
+			if len(diags.SourceFallbackKeys) != 1 {
+				t.Fatalf("expected placeholder fallback diagnostic, got %+v", diags)
+			}
+		})
+	}
+}
+
+func TestMarkdownHasOrphanLinkClosers(t *testing.T) {
+	cases := []struct {
+		name string
+		in   string
+		want bool
+	}{
+		{name: "balanced_inline_link", in: "See [docs](/docs) now.", want: false},
+		{name: "balanced_image", in: "View ![diagram](/d.png) now.", want: false},
+		{name: "balanced_reference_link", in: "See [docs][ref] now.", want: false},
+		{name: "missing_link_opener", in: "See docs](/docs) now.", want: true},
+		{name: "missing_image_opener", in: "View diagram](/d.png) now.", want: true},
+		{name: "missing_reference_opener", in: "See docs][ref] now.", want: true},
+		{name: "code_span_false_positive", in: "Use `label](/url)` literally.", want: false},
+		{name: "escaped_brackets", in: `Keep \[literal](/not-a-link) text.`, want: false},
+		{name: "escaped_reference", in: `Keep \[literal][ref] text.`, want: false},
+		{name: "escaped_bare_bracket", in: `Keep \[literal] text.`, want: false},
+		{name: "escaped_then_real_orphan", in: `Keep \[ok](/a) and bad two](/b).`, want: true},
+		{name: "double_escape_real_link", in: `Keep \\[literal](/is-a-link) text.`, want: false},
+		{name: "multiple_links_one_orphan", in: "Good [one](/a) and bad two](/b).", want: true},
+		{name: "blog_style_vietnamese", in: "cần một công cụ CAT thế hệ mới](/product/next-gen-cat-tool) đưa", want: true},
+		{name: "empty", in: "", want: false},
+		{name: "no_links", in: "Plain prose without markup.", want: false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := markdownHasOrphanLinkClosers(tc.in); got != tc.want {
+				t.Fatalf("markdownHasOrphanLinkClosers(%q) = %v, want %v", tc.in, got, tc.want)
+			}
+		})
+	}
+}
+
+func TestMarshalMarkdownWithTargetFallbackPreservesEscapedLiteralLinks(t *testing.T) {
+	source := []byte("Type \\[label](/url) to show a literal link.\n")
+	translated := []byte("Gõ \\[label](/url) để hiện liên kết chữ.\n")
+
+	out, diags := MarshalMarkdownWithTargetFallbackDiagnostics(source, translated, map[string]string{}, false)
+	if !strings.Contains(string(out), `Gõ \[label](/url)`) {
+		t.Fatalf("expected escaped literal link translation preserved, got %q", out)
+	}
+	if len(diags.SourceFallbackKeys) != 0 {
+		t.Fatalf("expected no source fallback for escaped literal link, got %+v", diags)
+	}
+}
+
+func TestMarshalMarkdownWithTargetFallbackRejectsMissingLinkOpener(t *testing.T) {
+	source := []byte("Global teams need a [next-generation CAT tool](/product/next-gen-cat-tool) that brings context.\n")
+	broken := []byte("Các nhóm toàn cầu cần một công cụ CAT thế hệ mới](/product/next-gen-cat-tool) đưa ngữ cảnh.\n")
+	good := []byte("Các nhóm toàn cầu cần một [công cụ CAT thế hệ mới](/product/next-gen-cat-tool) đưa ngữ cảnh.\n")
+
+	brokenOut, brokenDiags := MarshalMarkdownWithTargetFallbackDiagnostics(source, broken, map[string]string{}, false)
+	if strings.Contains(string(brokenOut), "thế hệ mới](/product") {
+		t.Fatalf("expected orphan closer rejected, got %q", brokenOut)
+	}
+	if !strings.Contains(string(brokenOut), "[next-generation CAT tool](/product/next-gen-cat-tool)") {
+		t.Fatalf("expected source fallback with valid link, got %q", brokenOut)
+	}
+	if len(brokenDiags.SourceFallbackKeys) == 0 {
+		t.Fatalf("expected source fallback diagnostic for orphan closer, got %+v", brokenDiags)
+	}
+
+	goodOut, goodDiags := MarshalMarkdownWithTargetFallbackDiagnostics(source, good, map[string]string{}, false)
+	if !strings.Contains(string(goodOut), "[công cụ CAT thế hệ mới](/product/next-gen-cat-tool)") {
+		t.Fatalf("expected valid translated link preserved, got %q", goodOut)
+	}
+	if len(goodDiags.SourceFallbackKeys) != 0 {
+		t.Fatalf("expected no source fallback for valid target, got %+v", goodDiags)
+	}
+}
+
+func TestMarshalMarkdownWithTargetFallbackRejectsMissingImageOpener(t *testing.T) {
+	source := []byte("See ![architecture](/images/arch.png) for details.\n")
+	broken := []byte("Xem architecture](/images/arch.png) để biết chi tiết.\n")
+
+	out, diags := MarshalMarkdownWithTargetFallbackDiagnostics(source, broken, map[string]string{}, false)
+	if strings.Contains(string(out), "Xem architecture](/images/arch.png)") {
+		t.Fatalf("expected orphan image closer rejected, got %q", out)
+	}
+	if !strings.Contains(string(out), "![architecture](/images/arch.png)") {
+		t.Fatalf("expected source image fallback, got %q", out)
+	}
+	if len(diags.SourceFallbackKeys) == 0 {
+		t.Fatalf("expected source fallback diagnostic, got %+v", diags)
+	}
+}
+
+func TestMarshalMarkdownWithTargetFallbackRejectsMissingReferenceLinkOpener(t *testing.T) {
+	source := []byte("Read [the docs][docs-ref] first.\n\n[docs-ref]: https://example.com/docs\n")
+	broken := []byte("Đọc the docs][docs-ref] trước.\n\n[docs-ref]: https://example.com/docs\n")
+
+	out, diags := MarshalMarkdownWithTargetFallbackDiagnostics(source, broken, map[string]string{}, false)
+	if strings.Contains(string(out), "Đọc the docs][docs-ref]") {
+		t.Fatalf("expected orphan reference closer rejected, got %q", out)
+	}
+	if !strings.Contains(string(out), "[the docs][docs-ref]") {
+		t.Fatalf("expected source reference link fallback, got %q", out)
+	}
+	if len(diags.SourceFallbackKeys) == 0 {
+		t.Fatalf("expected source fallback diagnostic, got %+v", diags)
+	}
+}
+
+func TestMarshalMarkdownWithTargetFallbackPreservesLinksInsideCodeSpans(t *testing.T) {
+	source := []byte("Use `[label](/url)` as an example.\n")
+	target := []byte("Dùng `[label](/url)` làm ví dụ.\n")
+
+	out, diags := MarshalMarkdownWithTargetFallbackDiagnostics(source, target, map[string]string{}, false)
+	if !strings.Contains(string(out), "`[label](/url)`") {
+		t.Fatalf("expected code-span example preserved, got %q", out)
+	}
+	if len(diags.SourceFallbackKeys) != 0 {
+		t.Fatalf("expected no source fallback for code-span content, got %+v", diags)
+	}
+}
+
+func TestMarshalMarkdownWithTargetFallbackMixedSegmentsFallsBackOnlyBrokenOnes(t *testing.T) {
+	source := []byte("Intro [one](/a).\n\nOther [two](/b).\n")
+	target := []byte("Intro traduit [un](/a).\n\nAutre two](/b).\n")
+
+	out, diags := MarshalMarkdownWithTargetFallbackDiagnostics(source, target, map[string]string{}, false)
+	if !strings.Contains(string(out), "[un](/a)") {
+		t.Fatalf("expected valid translated segment kept, got %q", out)
+	}
+	if !strings.Contains(string(out), "[two](/b)") {
+		t.Fatalf("expected broken segment to fall back to source, got %q", out)
+	}
+	if strings.Contains(string(out), "Autre two](/b)") || strings.Contains(string(out), "Autre [two]") {
+		t.Fatalf("expected broken translated segment not preserved, got %q", out)
+	}
+	if len(diags.SourceFallbackKeys) != 1 {
+		t.Fatalf("expected exactly one source fallback key, got %+v", diags)
+	}
+}
+
+func TestMarshalMarkdownFallsBackWhenLinkPlaceholdersAreInvalid(t *testing.T) {
+	template := []byte("Read [the docs](/docs) now.\n")
+	entries, err := (MarkdownParser{}).Parse(template)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+
+	for name, corrupt := range map[string]func([]string, string) string{
+		"dropped closer": func(tokens []string, value string) string {
+			return strings.Replace(value, tokens[1], "", 1)
+		},
+		"duplicated opener": func(tokens []string, value string) string {
+			return strings.Replace(value, tokens[1], tokens[0], 1)
+		},
+		"swapped tokens": func(tokens []string, value string) string {
+			value = strings.Replace(value, tokens[0], "SWAP_TOKEN", 1)
+			value = strings.Replace(value, tokens[1], tokens[0], 1)
+			return strings.Replace(value, "SWAP_TOKEN", tokens[1], 1)
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			updates := make(map[string]string, len(entries))
+			for key, value := range entries {
+				tokens := markdownPlaceholderPattern.FindAllString(value, -1)
+				if len(tokens) != 2 {
+					t.Fatalf("expected two link placeholders in %q", value)
+				}
+				updates[key] = corrupt(tokens, value)
+			}
+
+			output, diags := MarshalMarkdownWithDiagnostics(template, updates, false)
+			if string(output) != string(template) {
+				t.Fatalf("expected valid source fallback, got %q", output)
+			}
+			if len(diags.SourceFallbackKeys) != 1 {
+				t.Fatalf("expected placeholder fallback diagnostic, got %+v", diags)
+			}
+		})
+	}
+}
+
+func TestMarshalMarkdownKeepsLinkPlaceholderPairsTogether(t *testing.T) {
+	template := []byte("First [A](/url-1), then [B](/url-2).\n")
+	entries, err := (MarkdownParser{}).Parse(template)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+
+	var key, value string
+	for entryKey, entryValue := range entries {
+		key, value = entryKey, entryValue
+	}
+	tokens := markdownPlaceholderPattern.FindAllString(value, -1)
+	if len(tokens) != 4 {
+		t.Fatalf("expected four link placeholders in %q", value)
+	}
+
+	t.Run("crossed destinations fall back", func(t *testing.T) {
+		crossed := "First " + tokens[0] + "A" + tokens[3] + ", then " + tokens[2] + "B" + tokens[1] + "."
+		output, diags := MarshalMarkdownWithDiagnostics(template, map[string]string{key: crossed}, false)
+		if string(output) != string(template) {
+			t.Fatalf("expected source fallback, got %q", output)
+		}
+		if len(diags.SourceFallbackKeys) != 1 {
+			t.Fatalf("expected placeholder fallback diagnostic, got %+v", diags)
+		}
+	})
+
+	t.Run("complete links may reorder", func(t *testing.T) {
+		reordered := "First " + tokens[2] + "B" + tokens[3] + ", then " + tokens[0] + "A" + tokens[1] + "."
+		output, diags := MarshalMarkdownWithDiagnostics(template, map[string]string{key: reordered}, false)
+		if got, want := string(output), "First [B](/url-2), then [A](/url-1).\n"; got != want {
+			t.Fatalf("output = %q, want %q", got, want)
+		}
+		if len(diags.SourceFallbackKeys) != 0 {
+			t.Fatalf("unexpected fallback diagnostic: %+v", diags)
+		}
+	})
 }
 
 func TestMarshalMarkdownPreservesLinkTitleWithParenthesis(t *testing.T) {

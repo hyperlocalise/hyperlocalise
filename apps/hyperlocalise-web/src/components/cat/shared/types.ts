@@ -1,3 +1,15 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import type { CatVisualContext } from "@/lib/translation/cat-visual-context";
 
 export type CatSegmentStatus = "pending" | "needs_review" | "reviewed" | "skipped";
@@ -10,16 +22,24 @@ export type CatFormatCheckStatus = "pass" | "warn" | "fail";
 
 export type CatSegmentCommentType = "comment" | "issue";
 
-export type CrowdinIssueType =
+export type CatIssueType =
   | "general_question"
   | "translation_mistake"
   | "context_request"
-  | "source_mistake";
+  | "source_mistake"
+  | "glossary_violation"
+  | "qa_failure";
+
+/** @deprecated Prefer CatIssueType — kept for Crowdin comment payloads. */
+export type CrowdinIssueType = Extract<
+  CatIssueType,
+  "general_question" | "translation_mistake" | "context_request" | "source_mistake"
+>;
 
 export interface CatSegmentCommentInput {
   text: string;
   type?: CatSegmentCommentType;
-  issueType?: CrowdinIssueType;
+  issueType?: CatIssueType;
 }
 
 export interface CatSegmentComment {
@@ -32,12 +52,43 @@ export interface CatSegmentComment {
   author?: string | null;
 }
 
+/** Queue list identity — no locale, target, or editor metadata. */
+export interface CatQueueSegment {
+  id: string;
+  index: number;
+  key: string;
+  sourceText: string;
+  contentKind?: "text" | "image_file" | "image_url" | "office_file";
+  sourceAssetUrl?: string | null;
+  targetAssetUrl?: string | null;
+  imageVariantId?: string | null;
+  looksLikeImageUrl?: boolean;
+  /** Set when the queue spans multiple files. */
+  sourcePath?: string;
+  externalResourceId?: string;
+  resourceType?: "file" | "key";
+}
+
+/** File and locale scope for the CAT editor, shared across all segments. */
+export interface CatFileContext {
+  sourcePath: string;
+  filename: string;
+  sourceLocale: string;
+  targetLocale: string;
+  providerKind: string | null;
+  canEditTranslations: boolean;
+  canAddComments: boolean;
+  truncated?: boolean;
+}
+
 export interface CatSegment {
   id: string;
   index: number;
   key: string;
   sourceText: string;
   targetText: string;
+  /** Present when the queue spans multiple files. */
+  sourcePath?: string;
   sourceLocale: string;
   targetLocale: string;
   contextLabel?: string;
@@ -46,6 +97,11 @@ export interface CatSegment {
   tags?: string[];
   maxLength?: number;
   comments?: CatSegmentComment[];
+  contentKind?: "text" | "image_file" | "image_url" | "office_file";
+  sourceAssetUrl?: string | null;
+  targetAssetUrl?: string | null;
+  imageVariantId?: string | null;
+  looksLikeImageUrl?: boolean;
 }
 
 export interface CatFormatCheck {
@@ -82,6 +138,8 @@ export interface CatSegmentIntelligence {
   filePath?: string;
   componentName?: string;
   productMeaning?: string;
+  segmentType?: string;
+  maxLength?: number;
   agentContext?: string | null;
   reviewerPreference?: string;
   constraints?: string;
@@ -93,7 +151,8 @@ export interface CatSegmentIntelligence {
 }
 
 export interface CatWorkspaceState {
-  segments: CatSegment[];
+  fileContext: CatFileContext;
+  queueSegments: CatQueueSegment[];
   selectedSegmentId: string;
   formatChecks: CatFormatCheck[];
   segmentFormatChecks?: Record<string, CatFormatCheck[]>;
@@ -102,7 +161,17 @@ export interface CatWorkspaceState {
   jobTitle?: string;
   breadcrumbs?: string[];
   primaryActionLabel?: string;
+  /** @deprecated Use fileContext.canEditTranslations */
   canEditTranslations?: boolean;
+  /** @deprecated Use fileContext.canAddComments */
   canAddComments?: boolean;
+  /** @deprecated Use fileContext.providerKind */
   providerKind?: string | null;
+  /**
+   * @deprecated Legacy hydrate input only. Prefer queueSegments.
+   * Full segments are split into queue meta, drafts, and intelligence on ingest.
+   */
+  segments?: CatSegment[];
 }
+
+export type CatWorkspaceShell = Omit<CatWorkspaceState, "queueSegments" | "segments">;

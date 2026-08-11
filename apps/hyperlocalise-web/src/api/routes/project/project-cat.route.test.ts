@@ -1,4 +1,18 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import "dotenv/config";
+
+import { randomUUID } from "node:crypto";
 
 import { testClient } from "hono/testing";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
@@ -9,7 +23,7 @@ import { app } from "@/api/app";
 import { db, schema } from "@/lib/database";
 import { ensureRepositorySourceFile } from "@/lib/file-storage/records";
 import { upsertProjectTranslationKeysFromEntries } from "@/lib/projects/translations/project-translation-service";
-import { TmsProviderLiveError } from "@/lib/providers/tms-provider-live";
+import { TmsProviderLiveError } from "@/lib/providers/jobs/tms-provider-live";
 
 import { createProjectTestFixture } from "./project.fixture";
 import { ok } from "@/lib/primitives/result/results";
@@ -27,6 +41,7 @@ import type {
 const {
   getTmsProviderConnectionMock,
   getTmsProviderLiveCatFileMock,
+  getTmsProviderLiveCatAllFilesMock,
   saveTmsProviderLiveCatTranslationMock,
   saveTmsProviderLiveCatCommentMock,
   resolveTmsProviderLiveCatCommentMock,
@@ -34,9 +49,14 @@ const {
   loadCatSegmentVisualContextMock,
   generateCatAiRecommendationMock,
   ensureOrganizationProjectRecordMock,
+  createStoredFileMock,
+  deleteStoredFileMock,
+  isReleaseCatAllFilesEnabledMock,
+  workspaceIssuesFlagRunMock,
 } = vi.hoisted(() => ({
   getTmsProviderConnectionMock: vi.fn(),
   getTmsProviderLiveCatFileMock: vi.fn(),
+  getTmsProviderLiveCatAllFilesMock: vi.fn(),
   saveTmsProviderLiveCatTranslationMock: vi.fn(),
   saveTmsProviderLiveCatCommentMock: vi.fn(),
   resolveTmsProviderLiveCatCommentMock: vi.fn(),
@@ -44,17 +64,24 @@ const {
   loadCatSegmentVisualContextMock: vi.fn(),
   generateCatAiRecommendationMock: vi.fn(),
   ensureOrganizationProjectRecordMock: vi.fn(),
+  createStoredFileMock: vi.fn(),
+  deleteStoredFileMock: vi.fn(),
+  isReleaseCatAllFilesEnabledMock: vi.fn(async () => false),
+  workspaceIssuesFlagRunMock: vi.fn(async () => true),
 }));
 
-vi.mock("@/lib/translation/load-cat-segment-concordance", () => ({
+vi.mock("@/lib/flags/release-flags", () => ({
+  isReleaseCatAllFilesEnabled: isReleaseCatAllFilesEnabledMock,
+  RELEASE_CAT_ALL_FILES_FLAG: "release-cat-all-files",
+}));
+
+vi.mock("@/lib/flags/workspace-flags", () => ({
+  workspaceIssuesFlag: { run: workspaceIssuesFlagRunMock },
+}));
+
+vi.mock("@/lib/translation/cat", () => ({
   loadCatSegmentConcordance: (...args: unknown[]) => loadCatSegmentConcordanceMock(...args),
-}));
-
-vi.mock("@/lib/translation/load-cat-segment-visual-context", () => ({
   loadCatSegmentVisualContext: (...args: unknown[]) => loadCatSegmentVisualContextMock(...args),
-}));
-
-vi.mock("@/lib/translation/generate-cat-ai-recommendation", () => ({
   generateCatAiRecommendation: (...args: unknown[]) => generateCatAiRecommendationMock(...args),
 }));
 
@@ -63,12 +90,23 @@ vi.mock("@/lib/projects/organization/organization-project-service", () => ({
     ensureOrganizationProjectRecordMock(...args),
 }));
 
-vi.mock("@/lib/providers/tms-provider-live", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/lib/providers/tms-provider-live")>();
+vi.mock("@/lib/file-storage/records", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/file-storage/records")>();
+  return {
+    ...actual,
+    createStoredFile: (...args: unknown[]) => createStoredFileMock(...args),
+    deleteStoredFile: (...args: unknown[]) => deleteStoredFileMock(...args),
+  };
+});
+
+vi.mock("@/lib/providers/jobs/tms-provider-live", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/providers/jobs/tms-provider-live")>();
   return {
     ...actual,
     getTmsProviderConnection: (...args: unknown[]) => getTmsProviderConnectionMock(...args),
     getTmsProviderLiveCatFile: (...args: unknown[]) => getTmsProviderLiveCatFileMock(...args),
+    getTmsProviderLiveCatAllFiles: (...args: unknown[]) =>
+      getTmsProviderLiveCatAllFilesMock(...args),
     saveTmsProviderLiveCatTranslation: (...args: unknown[]) =>
       saveTmsProviderLiveCatTranslationMock(...args),
     saveTmsProviderLiveCatComment: (...args: unknown[]) =>
@@ -104,10 +142,240 @@ beforeAll(async () => {
 
 afterEach(async () => {
   vi.clearAllMocks();
+  isReleaseCatAllFilesEnabledMock.mockResolvedValue(false);
+  workspaceIssuesFlagRunMock.mockResolvedValue(true);
   await projectFixture.cleanup();
 });
 
 describe("project file CAT routes", () => {
+  it("rejects All Files CAT when the release flag is off", async () => {
+    const translator = projectFixture.createWorkosIdentityWithRole("translator");
+    getTmsProviderConnectionMock.mockResolvedValue({
+      providerKind: "crowdin",
+      displayName: "Crowdin",
+      validationStatus: "valid",
+      validationMessage: null,
+    });
+    isReleaseCatAllFilesEnabledMock.mockResolvedValue(false);
+
+    const response = await client.api.orgs[":organizationSlug"].projects[
+      ":projectId"
+    ].files.detail.cat.queue.$get(
+      {
+        param: {
+          organizationSlug: translator.organization.slug ?? "missing-slug",
+          projectId: "ext:crowdin:42",
+        },
+        query: {
+          sourcePath: "*",
+          targetLocale: "fr",
+        },
+      },
+      { headers: await projectFixture.authHeadersFor(translator) },
+    );
+
+    expect(response.status).toBe(403);
+    expect(await response.json()).toMatchObject({ error: "feature_unavailable" });
+    expect(getTmsProviderLiveCatAllFilesMock).not.toHaveBeenCalled();
+  });
+
+  it("loads Crowdin All Files CAT when the release flag is on", async () => {
+    const translator = projectFixture.createWorkosIdentityWithRole("translator");
+    getTmsProviderConnectionMock.mockResolvedValue({
+      providerKind: "crowdin",
+      displayName: "Crowdin",
+      validationStatus: "valid",
+      validationMessage: null,
+    });
+    isReleaseCatAllFilesEnabledMock.mockResolvedValue(true);
+    getTmsProviderLiveCatAllFilesMock.mockResolvedValue({
+      sourcePath: "*",
+      filename: "All Files",
+      provider: {
+        kind: "crowdin",
+        resourceType: "file",
+        externalProjectId: "42",
+        externalResourceId: "101",
+        externalUrl: null,
+        syncState: "synced",
+        sourceLocale: "en",
+        targetLocales: ["fr"],
+        localeReadiness: {},
+        revision: "1",
+        format: "json",
+        lastSyncedAt: null,
+      },
+      targetLocale: "fr",
+      canEditTranslations: true,
+      truncated: false,
+      pagination: {
+        offset: 0,
+        limit: 50,
+        returnedCount: 1,
+        totalCount: 1,
+        hasMore: false,
+      },
+      segments: [
+        {
+          externalStringId: "1001",
+          key: "hello",
+          sourceText: "Hello",
+          context: null,
+          type: "text",
+          sourcePath: "crowdin/home.json",
+          externalResourceId: "101",
+          resourceType: "file",
+        },
+      ],
+    });
+
+    const response = await client.api.orgs[":organizationSlug"].projects[
+      ":projectId"
+    ].files.detail.cat.queue.$get(
+      {
+        param: {
+          organizationSlug: translator.organization.slug ?? "missing-slug",
+          projectId: "ext:crowdin:42",
+        },
+        query: {
+          sourcePath: "*",
+          targetLocale: "fr",
+          limit: 50,
+        },
+      },
+      { headers: await projectFixture.authHeadersFor(translator) },
+    );
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({
+      catQueue: {
+        sourcePath: "*",
+        segments: [{ externalStringId: "1001", sourcePath: "crowdin/home.json" }],
+      },
+    });
+    expect(getTmsProviderLiveCatAllFilesMock).toHaveBeenCalledWith(
+      expect.any(String),
+      "42",
+      "fr",
+      expect.objectContaining({
+        pagination: expect.objectContaining({ paginated: true, limit: 50 }),
+      }),
+    );
+    expect(isReleaseCatAllFilesEnabledMock).toHaveBeenCalledWith("crowdin");
+  });
+
+  it("rejects All Files CAT when decide disables the provider", async () => {
+    const translator = projectFixture.createWorkosIdentityWithRole("translator");
+    getTmsProviderConnectionMock.mockResolvedValue({
+      providerKind: "phrase",
+      displayName: "Phrase",
+      validationStatus: "valid",
+      validationMessage: null,
+    });
+    isReleaseCatAllFilesEnabledMock.mockResolvedValue(false);
+
+    const response = await client.api.orgs[":organizationSlug"].projects[
+      ":projectId"
+    ].files.detail.cat.queue.$get(
+      {
+        param: {
+          organizationSlug: translator.organization.slug ?? "missing-slug",
+          projectId: "ext:phrase:42",
+        },
+        query: {
+          sourcePath: "*",
+          targetLocale: "fr",
+        },
+      },
+      { headers: await projectFixture.authHeadersFor(translator) },
+    );
+
+    expect(response.status).toBe(403);
+    expect(await response.json()).toMatchObject({ error: "feature_unavailable" });
+    expect(isReleaseCatAllFilesEnabledMock).toHaveBeenCalledWith("phrase");
+    expect(getTmsProviderLiveCatAllFilesMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects All Files CAT at the TMS layer when Flags Explorer overrides the flag on for an unsupported provider", async () => {
+    const translator = projectFixture.createWorkosIdentityWithRole("translator");
+    getTmsProviderConnectionMock.mockResolvedValue({
+      providerKind: "phrase",
+      displayName: "Phrase",
+      validationStatus: "valid",
+      validationMessage: null,
+    });
+    isReleaseCatAllFilesEnabledMock.mockResolvedValue(true);
+    getTmsProviderLiveCatAllFilesMock.mockRejectedValue(
+      new TmsProviderLiveError(
+        "provider_cat_all_files_unsupported",
+        "All Files CAT is not available for this provider yet.",
+      ),
+    );
+
+    const response = await client.api.orgs[":organizationSlug"].projects[
+      ":projectId"
+    ].files.detail.cat.queue.$get(
+      {
+        param: {
+          organizationSlug: translator.organization.slug ?? "missing-slug",
+          projectId: "ext:phrase:42",
+        },
+        query: {
+          sourcePath: "*",
+          targetLocale: "fr",
+        },
+      },
+      { headers: await projectFixture.authHeadersFor(translator) },
+    );
+
+    expect(response.status).toBe(501);
+    expect(await response.json()).toMatchObject({
+      error: "provider_cat_all_files_unsupported",
+    });
+    expect(isReleaseCatAllFilesEnabledMock).toHaveBeenCalledWith("phrase");
+    expect(getTmsProviderLiveCatAllFilesMock).toHaveBeenCalled();
+  });
+
+  it("returns a select-a-file message when Crowdin All Files CROQL is too large", async () => {
+    const translator = projectFixture.createWorkosIdentityWithRole("translator");
+    getTmsProviderConnectionMock.mockResolvedValue({
+      providerKind: "crowdin",
+      displayName: "Crowdin",
+      validationStatus: "valid",
+      validationMessage: null,
+    });
+    isReleaseCatAllFilesEnabledMock.mockResolvedValue(true);
+    getTmsProviderLiveCatAllFilesMock.mockRejectedValue(
+      new TmsProviderLiveError(
+        "crowdin_cat_all_files_query_too_large",
+        "This Crowdin project has too many files to open All Files at once. Select a single file to view strings instead.",
+      ),
+    );
+
+    const response = await client.api.orgs[":organizationSlug"].projects[
+      ":projectId"
+    ].files.detail.cat.queue.$get(
+      {
+        param: {
+          organizationSlug: translator.organization.slug ?? "missing-slug",
+          projectId: "ext:crowdin:42",
+        },
+        query: {
+          sourcePath: "*",
+          targetLocale: "fr",
+        },
+      },
+      { headers: await projectFixture.authHeadersFor(translator) },
+    );
+
+    expect(response.status).toBe(400);
+    expect(await response.json()).toMatchObject({
+      error: "crowdin_cat_all_files_query_too_large",
+      message:
+        "This Crowdin project has too many files to open All Files at once. Select a single file to view strings instead.",
+    });
+  });
+
   it("returns Crowdin AI recommendations for an encoded provider project", async () => {
     const translator = projectFixture.createWorkosIdentityWithRole("translator");
     getTmsProviderConnectionMock.mockResolvedValue({
@@ -136,6 +404,7 @@ describe("project file CAT routes", () => {
           sourcePath: "crowdin/home.json",
           sourceLocale: "en",
           targetLocale: "fr",
+          displayLocale: "de-DE",
           key: "hello",
           sourceText: "Hello",
           targetText: "Bonjour",
@@ -163,6 +432,7 @@ describe("project file CAT routes", () => {
         sourcePath: "crowdin/home.json",
         key: "hello",
         sourceText: "Hello",
+        displayLocale: "de-DE",
       }),
     );
   });
@@ -372,8 +642,7 @@ describe("project file CAT routes", () => {
 
     expect(response.status).toBe(200);
     const body = (await response.json()) as ProjectFileCatResponse;
-    expect(body.catFile.segments[0]?.comments).toEqual([]);
-    expect(body.catFile.segments[0]?.commentCount).toBe(1);
+    expect(body.catFile.segments[0]).not.toHaveProperty("comments");
 
     const targetResponse = await client.api.orgs[":organizationSlug"].projects[
       ":projectId"
@@ -419,7 +688,435 @@ describe("project file CAT routes", () => {
     expect(commentsBody.comments[0]?.externalCommentId).toBeTruthy();
   });
 
-  it("posts and resolves native CAT issues", async () => {
+  it("loads native segment targets with All Files sourcePath=*", async () => {
+    isReleaseCatAllFilesEnabledMock.mockResolvedValue(true);
+    const { identity, project, organization } = await projectFixture.createStoredProjectFixture();
+    const headers = await projectFixture.authHeadersFor(identity);
+    const sourcePath = "locales/en.json";
+    const sourceFile = await ensureRepositorySourceFile({
+      organizationId: organization.id,
+      projectId: project.id,
+      sourcePath,
+    });
+
+    const { imported } = await upsertProjectTranslationKeysFromEntries({
+      organizationId: organization.id,
+      projectId: project.id,
+      repositorySourceFileId: sourceFile.id,
+      entries: [{ key: "greeting", text: "Hello", context: null }],
+    });
+    expect(imported).toBe(1);
+
+    const [translationKey] = await db
+      .select({ id: schema.projectTranslationKeys.id })
+      .from(schema.projectTranslationKeys)
+      .where(eq(schema.projectTranslationKeys.repositorySourceFileId, sourceFile.id))
+      .limit(1);
+    expect(translationKey).toBeDefined();
+
+    await db.insert(schema.projectTranslations).values({
+      organizationId: organization.id,
+      projectId: project.id,
+      translationKeyId: translationKey!.id,
+      targetLocale: "fr-FR",
+      text: "Bonjour",
+      status: "needs_review",
+      provenance: "manual",
+    });
+
+    const missingFileResponse = await client.api.orgs[":organizationSlug"].projects[
+      ":projectId"
+    ].files.detail.cat.segments[":externalStringId"].target.$get(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          projectId: project.id,
+          externalStringId: translationKey!.id,
+        },
+        query: { sourcePath: "missing/file.json", targetLocale: "fr-FR" },
+      },
+      { headers },
+    );
+    expect(missingFileResponse.status).toBe(404);
+
+    const allFilesTargetResponse = await client.api.orgs[":organizationSlug"].projects[
+      ":projectId"
+    ].files.detail.cat.segments[":externalStringId"].target.$get(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          projectId: project.id,
+          externalStringId: translationKey!.id,
+        },
+        query: { sourcePath: "*", targetLocale: "fr-FR" },
+      },
+      { headers },
+    );
+
+    expect(allFilesTargetResponse.status).toBe(200);
+    const allFilesTargetBody =
+      (await allFilesTargetResponse.json()) as ProjectFileCatSegmentTargetResponse;
+    expect(allFilesTargetBody.target).toMatchObject({
+      text: "Bonjour",
+      isApproved: false,
+      status: "needs_review",
+    });
+
+    const allFilesCommentsResponse = await client.api.orgs[":organizationSlug"].projects[
+      ":projectId"
+    ].files.detail.cat.segments[":externalStringId"].comments.$get(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          projectId: project.id,
+          externalStringId: translationKey!.id,
+        },
+        query: { sourcePath: "*", targetLocale: "fr-FR" },
+      },
+      { headers },
+    );
+
+    expect(allFilesCommentsResponse.status).toBe(200);
+    expect(await allFilesCommentsResponse.json()).toMatchObject({ comments: [] });
+  });
+
+  it("toggles treat-as-image metadata on a native CAT segment", async () => {
+    const { identity, project, organization } = await projectFixture.createStoredProjectFixture();
+    const headers = await projectFixture.authHeadersFor(identity);
+    const sourcePath = "locales/en.json";
+    const sourceFile = await ensureRepositorySourceFile({
+      organizationId: organization.id,
+      projectId: project.id,
+      sourcePath,
+    });
+
+    await upsertProjectTranslationKeysFromEntries({
+      organizationId: organization.id,
+      projectId: project.id,
+      repositorySourceFileId: sourceFile.id,
+      entries: [
+        {
+          key: "banner.url",
+          text: "https://cdn.example.com/banner.png",
+          context: null,
+        },
+      ],
+    });
+
+    const [translationKey] = await db
+      .select({ id: schema.projectTranslationKeys.id })
+      .from(schema.projectTranslationKeys)
+      .where(eq(schema.projectTranslationKeys.repositorySourceFileId, sourceFile.id))
+      .limit(1);
+    expect(translationKey).toBeDefined();
+
+    const response = await client.api.orgs[":organizationSlug"].projects[
+      ":projectId"
+    ].files.detail.cat.segments[":externalStringId"]["treat-as-image"].$post(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          projectId: project.id,
+          externalStringId: translationKey!.id,
+        },
+        json: {
+          sourcePath,
+          targetLocale: "fr-FR",
+          externalStringId: translationKey!.id,
+          treatAsImage: true,
+        },
+      },
+      { headers },
+    );
+
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as {
+      segment: {
+        externalStringId: string;
+        contentKind: string;
+        looksLikeImageUrl: boolean;
+      };
+    };
+    expect(body.segment).toMatchObject({
+      externalStringId: translationKey!.id,
+      contentKind: "image_url",
+      looksLikeImageUrl: true,
+    });
+
+    const catResponse = await client.api.orgs[":organizationSlug"].projects[
+      ":projectId"
+    ].files.detail.cat.$get(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          projectId: project.id,
+        },
+        query: { sourcePath, targetLocale: "fr-FR" },
+      },
+      { headers },
+    );
+    expect(catResponse.status).toBe(200);
+    const catBody = (await catResponse.json()) as ProjectFileCatResponse;
+    expect(catBody.catFile.segments[0]).toMatchObject({
+      contentKind: "image_url",
+      looksLikeImageUrl: true,
+    });
+  });
+
+  it("toggles treat-as-image for external TMS segments and enriches the CAT queue", async () => {
+    const translator = projectFixture.createWorkosIdentityWithRole("translator");
+    getTmsProviderConnectionMock.mockResolvedValue({
+      providerKind: "crowdin",
+      displayName: "Crowdin",
+      validationStatus: "valid",
+      validationMessage: null,
+    });
+    getTmsProviderLiveCatFileMock.mockResolvedValue({
+      sourcePath: "crowdin/home.json",
+      filename: "home.json",
+      provider: {
+        kind: "crowdin",
+        resourceType: "file",
+        externalProjectId: "42",
+        externalResourceId: "101",
+        externalUrl: null,
+        syncState: "synced",
+        sourceLocale: "en",
+        targetLocales: ["fr"],
+        localeReadiness: {},
+        revision: "1",
+        format: "json",
+        lastSyncedAt: null,
+      },
+      targetLocale: "fr",
+      canEditTranslations: true,
+      truncated: false,
+      pagination: {
+        offset: 0,
+        limit: 50,
+        returnedCount: 1,
+        totalCount: 1,
+        hasMore: false,
+      },
+      segments: [
+        {
+          externalStringId: "1001",
+          key: "banner.url",
+          sourceText: "https://cdn.example.com/banner.png",
+          context: null,
+          type: null,
+        },
+      ],
+      targetsByExternalStringId: {},
+    });
+
+    const treatResponse = await client.api.orgs[":organizationSlug"].projects[
+      ":projectId"
+    ].files.detail.cat.segments[":externalStringId"]["treat-as-image"].$post(
+      {
+        param: {
+          organizationSlug: translator.organization.slug ?? "missing-slug",
+          projectId: "ext:crowdin:42",
+          externalStringId: "1001",
+        },
+        json: {
+          sourcePath: "crowdin/home.json",
+          targetLocale: "fr",
+          externalStringId: "1001",
+          externalResourceId: "101",
+          treatAsImage: true,
+        },
+      },
+      { headers: await projectFixture.authHeadersFor(translator) },
+    );
+
+    expect(treatResponse.status).toBe(200);
+    expect(await treatResponse.json()).toMatchObject({
+      segment: {
+        externalStringId: "1001",
+        contentKind: "image_url",
+        looksLikeImageUrl: true,
+      },
+    });
+
+    const catResponse = await client.api.orgs[":organizationSlug"].projects[
+      ":projectId"
+    ].files.detail.cat.$get(
+      {
+        param: {
+          organizationSlug: translator.organization.slug ?? "missing-slug",
+          projectId: "ext:crowdin:42",
+        },
+        query: { sourcePath: "crowdin/home.json", targetLocale: "fr" },
+      },
+      { headers: await projectFixture.authHeadersFor(translator) },
+    );
+
+    expect(catResponse.status).toBe(200);
+    const catBody = (await catResponse.json()) as ProjectFileCatResponse;
+    expect(catBody.catFile.segments[0]).toMatchObject({
+      externalStringId: "1001",
+      contentKind: "image_url",
+      sourceAssetUrl: "https://cdn.example.com/banner.png",
+      looksLikeImageUrl: true,
+    });
+  });
+
+  it("uploads a translated image for external TMS and writes back a public media URL", async () => {
+    const translator = projectFixture.createWorkosIdentityWithRole("translator");
+    getTmsProviderConnectionMock.mockResolvedValue({
+      providerKind: "crowdin",
+      displayName: "Crowdin",
+      validationStatus: "valid",
+      validationMessage: null,
+    });
+    ensureOrganizationProjectRecordMock.mockResolvedValue(ok("ext:crowdin:42"));
+    createStoredFileMock.mockResolvedValue({
+      id: "file_external-upload",
+      organizationId: "org",
+      projectId: "ext:crowdin:42",
+      contentType: "image/png",
+      filename: "banner-fr.png",
+      metadata: { publicMedia: true },
+    });
+    saveTmsProviderLiveCatTranslationMock.mockImplementation(
+      async (
+        _organizationId: string,
+        _externalProjectId: string,
+        _sourcePath: string,
+        input: { text: string },
+      ) => ({
+        text: input.text,
+        externalTranslationId: "9001",
+        isApproved: false,
+      }),
+    );
+
+    const formData = new FormData();
+    formData.set("sourcePath", "crowdin/home.json");
+    formData.set("targetLocale", "fr");
+    formData.set("externalStringId", "1001");
+    formData.set("externalResourceId", "101");
+    formData.set(
+      "file",
+      new File([Uint8Array.from([137, 80, 78, 71])], "banner-fr.png", { type: "image/png" }),
+    );
+
+    const response = await app.request(
+      `/api/orgs/${encodeURIComponent(translator.organization.slug ?? "missing-slug")}/projects/${encodeURIComponent("ext:crowdin:42")}/files/detail/cat/images/upload`,
+      {
+        method: "POST",
+        headers: await projectFixture.authHeadersFor(translator),
+        body: formData,
+      },
+    );
+
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as {
+      translation: { text: string; contentKind: string; targetAssetUrl: string };
+    };
+    expect(body.translation.contentKind).toBe("image_url");
+    expect(body.translation.targetAssetUrl).toMatch(/\/api\/public\/media\/file_external-upload$/);
+    expect(body.translation.text).toBe(body.translation.targetAssetUrl);
+    expect(createStoredFileMock).toHaveBeenCalled();
+    expect(saveTmsProviderLiveCatTranslationMock).toHaveBeenCalledWith(
+      expect.any(String),
+      "42",
+      "crowdin/home.json",
+      expect.objectContaining({
+        targetLocale: "fr",
+        externalStringId: "1001",
+        externalResourceId: "101",
+        text: body.translation.targetAssetUrl,
+      }),
+      expect.objectContaining({ actorUserId: expect.any(String) }),
+    );
+  });
+
+  it("rejects provider image upload without externalResourceId", async () => {
+    const translator = projectFixture.createWorkosIdentityWithRole("translator");
+    getTmsProviderConnectionMock.mockResolvedValue({
+      providerKind: "crowdin",
+      displayName: "Crowdin",
+      validationStatus: "valid",
+      validationMessage: null,
+    });
+
+    const formData = new FormData();
+    formData.set("sourcePath", "crowdin/home.json");
+    formData.set("targetLocale", "fr");
+    formData.set("externalStringId", "1001");
+    formData.set(
+      "file",
+      new File([Uint8Array.from([137, 80, 78, 71])], "banner-fr.png", { type: "image/png" }),
+    );
+
+    const response = await app.request(
+      `/api/orgs/${encodeURIComponent(translator.organization.slug ?? "missing-slug")}/projects/${encodeURIComponent("ext:crowdin:42")}/files/detail/cat/images/upload`,
+      {
+        method: "POST",
+        headers: await projectFixture.authHeadersFor(translator),
+        body: formData,
+      },
+    );
+
+    expect(response.status).toBe(400);
+    expect(await response.json()).toMatchObject({ error: "external_resource_id_required" });
+    expect(createStoredFileMock).not.toHaveBeenCalled();
+    expect(saveTmsProviderLiveCatTranslationMock).not.toHaveBeenCalled();
+  });
+
+  it("deletes stored public media when provider write-back fails after upload", async () => {
+    const translator = projectFixture.createWorkosIdentityWithRole("translator");
+    getTmsProviderConnectionMock.mockResolvedValue({
+      providerKind: "crowdin",
+      displayName: "Crowdin",
+      validationStatus: "valid",
+      validationMessage: null,
+    });
+    ensureOrganizationProjectRecordMock.mockResolvedValue(ok("ext:crowdin:42"));
+    createStoredFileMock.mockResolvedValue({
+      id: "file_external-upload-fail",
+      organizationId: "org",
+      projectId: "ext:crowdin:42",
+      contentType: "image/png",
+      filename: "banner-fr.png",
+      metadata: { publicMedia: true },
+    });
+    deleteStoredFileMock.mockResolvedValue(undefined);
+    saveTmsProviderLiveCatTranslationMock.mockRejectedValue(
+      new TmsProviderLiveError("provider_unauthorized", "Token expired"),
+    );
+
+    const formData = new FormData();
+    formData.set("sourcePath", "crowdin/home.json");
+    formData.set("targetLocale", "fr");
+    formData.set("externalStringId", "1001");
+    formData.set("externalResourceId", "101");
+    formData.set(
+      "file",
+      new File([Uint8Array.from([137, 80, 78, 71])], "banner-fr.png", { type: "image/png" }),
+    );
+
+    const response = await app.request(
+      `/api/orgs/${encodeURIComponent(translator.organization.slug ?? "missing-slug")}/projects/${encodeURIComponent("ext:crowdin:42")}/files/detail/cat/images/upload`,
+      {
+        method: "POST",
+        headers: await projectFixture.authHeadersFor(translator),
+        body: formData,
+      },
+    );
+
+    expect(response.status).toBeGreaterThanOrEqual(400);
+    expect(deleteStoredFileMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        projectId: "ext:crowdin:42",
+        fileId: "file_external-upload-fail",
+      }),
+    );
+  });
+
+  it("rejects native CAT issue posts via comments API", async () => {
     const { identity, project, organization } = await projectFixture.createStoredProjectFixture();
     const headers = await projectFixture.authHeadersFor(identity);
     const sourcePath = "locales/en.json";
@@ -463,13 +1160,16 @@ describe("project file CAT routes", () => {
       { headers },
     );
 
-    expect(postResponse.status).toBe(200);
-    const posted = (await postResponse.json()) as ProjectFileCatCommentResponse;
-    expect(posted.comment).toMatchObject({
-      type: "issue",
-      status: "unresolved",
-      text: "Wrong tone.",
+    expect(postResponse.status).toBe(400);
+    expect(await postResponse.json()).toMatchObject({
+      error: "native_cat_issue_unsupported",
     });
+
+    const linkedIssues = await db
+      .select({ id: schema.issueSheetIssues.id })
+      .from(schema.issueSheetIssues)
+      .where(eq(schema.issueSheetIssues.projectId, project.id));
+    expect(linkedIssues).toEqual([]);
 
     const resolveResponse = await client.api.orgs[":organizationSlug"].projects[
       ":projectId"
@@ -478,7 +1178,87 @@ describe("project file CAT routes", () => {
         param: {
           organizationSlug: identity.organization.slug ?? "missing-slug",
           projectId: project.id,
-          commentId: posted.comment.externalCommentId,
+          commentId: randomUUID(),
+        },
+        json: { sourcePath },
+      },
+      { headers },
+    );
+
+    expect(resolveResponse.status).toBe(400);
+    expect(await resolveResponse.json()).toMatchObject({
+      error: "native_cat_issue_unsupported",
+    });
+  });
+
+  it("lists and resolves legacy native CAT issue comments", async () => {
+    const { identity, project, organization, user } =
+      await projectFixture.createStoredProjectFixture();
+    const headers = await projectFixture.authHeadersFor(identity);
+    const sourcePath = "locales/en.json";
+    const sourceFile = await ensureRepositorySourceFile({
+      organizationId: organization.id,
+      projectId: project.id,
+      sourcePath,
+    });
+
+    await upsertProjectTranslationKeysFromEntries({
+      organizationId: organization.id,
+      projectId: project.id,
+      repositorySourceFileId: sourceFile.id,
+      entries: [{ key: "greeting", text: "Hello", context: null }],
+    });
+
+    const keys = await db
+      .select({ id: schema.projectTranslationKeys.id })
+      .from(schema.projectTranslationKeys)
+      .where(eq(schema.projectTranslationKeys.repositorySourceFileId, sourceFile.id))
+      .limit(1);
+    const translationKeyId = keys[0]!.id;
+
+    const [legacyIssue] = await db
+      .insert(schema.projectTranslationComments)
+      .values({
+        organizationId: organization.id,
+        projectId: project.id,
+        translationKeyId,
+        targetLocale: "fr-FR",
+        type: "issue",
+        status: "unresolved",
+        text: "Wrong tone.",
+        issueType: "translation_mistake",
+        authorUserId: user.id,
+      })
+      .returning({ id: schema.projectTranslationComments.id });
+
+    const commentsResponse = await client.api.orgs[":organizationSlug"].projects[
+      ":projectId"
+    ].files.detail.cat.segments[":externalStringId"].comments.$get(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          projectId: project.id,
+          externalStringId: translationKeyId,
+        },
+        query: { sourcePath, targetLocale: "fr-FR" },
+      },
+      { headers },
+    );
+
+    expect(commentsResponse.status).toBe(200);
+    const commentsBody = (await commentsResponse.json()) as ProjectFileCatSegmentCommentsResponse;
+    expect(commentsBody.comments).toMatchObject([
+      { externalCommentId: legacyIssue!.id, type: "issue", status: "unresolved" },
+    ]);
+
+    const resolveResponse = await client.api.orgs[":organizationSlug"].projects[
+      ":projectId"
+    ].files.detail.cat.comments[":commentId"].resolve.$patch(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          projectId: project.id,
+          commentId: legacyIssue!.id,
         },
         json: { sourcePath },
       },
@@ -487,12 +1267,60 @@ describe("project file CAT routes", () => {
 
     expect(resolveResponse.status).toBe(200);
     expect(await resolveResponse.json()).toMatchObject({
-      comment: {
-        externalCommentId: posted.comment.externalCommentId,
-        status: "resolved",
-      },
+      comment: { externalCommentId: legacyIssue!.id, status: "resolved" },
     });
     expect(resolveTmsProviderLiveCatCommentMock).not.toHaveBeenCalled();
+  });
+
+  it("still rejects native CAT issue posts when the workspace flag is off", async () => {
+    workspaceIssuesFlagRunMock.mockResolvedValue(false);
+    const { identity, project, organization } = await projectFixture.createStoredProjectFixture();
+    const headers = await projectFixture.authHeadersFor(identity);
+    const sourcePath = "locales/en.json";
+    const sourceFile = await ensureRepositorySourceFile({
+      organizationId: organization.id,
+      projectId: project.id,
+      sourcePath,
+    });
+
+    await upsertProjectTranslationKeysFromEntries({
+      organizationId: organization.id,
+      projectId: project.id,
+      repositorySourceFileId: sourceFile.id,
+      entries: [{ key: "greeting", text: "Hello", context: null }],
+    });
+
+    const keys = await db
+      .select({ id: schema.projectTranslationKeys.id })
+      .from(schema.projectTranslationKeys)
+      .where(eq(schema.projectTranslationKeys.repositorySourceFileId, sourceFile.id))
+      .limit(1);
+    const translationKeyId = keys[0]!.id;
+
+    const postResponse = await client.api.orgs[":organizationSlug"].projects[
+      ":projectId"
+    ].files.detail.cat.comments.$post(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          projectId: project.id,
+        },
+        json: {
+          sourcePath,
+          targetLocale: "fr-FR",
+          externalStringId: translationKeyId,
+          text: "Still wrong tone.",
+          type: "issue",
+          issueType: "translation_mistake",
+        },
+      },
+      { headers },
+    );
+
+    expect(postResponse.status).toBe(400);
+    expect(await postResponse.json()).toMatchObject({
+      error: "native_cat_issue_unsupported",
+    });
   });
 
   it("returns Crowdin CAT content for an encoded provider project", async () => {
@@ -530,9 +1358,6 @@ describe("project file CAT routes", () => {
           sourceText: "Hello",
           context: null,
           type: "text",
-          target: { text: "Bonjour", externalTranslationId: "9001", isApproved: true },
-          comments: [],
-          unresolvedIssueCount: 1,
         },
       ],
     });
@@ -552,11 +1377,9 @@ describe("project file CAT routes", () => {
 
     expect(response.status).toBe(200);
     const body = (await response.json()) as ProjectFileCatResponse;
-    expect(body.catFile.segments[0]).toMatchObject({
-      externalStringId: "1001",
-      target: { text: "Bonjour", isApproved: true },
-      comments: [],
-    });
+    expect(body.catFile.segments[0]).toMatchObject({ externalStringId: "1001" });
+    expect(body.catFile.segments[0]).not.toHaveProperty("target");
+    expect(body.catFile.segments[0]).not.toHaveProperty("comments");
     expect(getTmsProviderLiveCatFileMock).toHaveBeenCalledWith(
       expect.any(String),
       "42",
@@ -616,9 +1439,6 @@ describe("project file CAT routes", () => {
           sourceText: "Goodbye",
           context: null,
           type: "text",
-          target: null,
-          comments: [],
-          commentCount: 2,
         },
       ],
     });
@@ -659,8 +1479,6 @@ describe("project file CAT routes", () => {
       segments: [
         {
           externalStringId: "1002",
-          comments: [],
-          commentCount: 2,
         },
       ],
     });
@@ -723,8 +1541,6 @@ describe("project file CAT routes", () => {
           sourceText: "Goodbye",
           context: null,
           type: "text",
-          target: null,
-          comments: [],
         },
       ],
     });

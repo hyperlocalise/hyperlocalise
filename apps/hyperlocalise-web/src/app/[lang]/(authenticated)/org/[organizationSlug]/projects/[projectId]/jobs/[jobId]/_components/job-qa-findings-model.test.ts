@@ -1,4 +1,20 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import { describe, expect, it } from "vite-plus/test";
+
+import type { IntlShape } from "react-intl";
+
+import { getIntlShape } from "@/lib/app-i18n/intl";
 
 import {
   attachFindingIds,
@@ -15,6 +31,8 @@ import {
   parseProviderReviewReportFromOutputSummary,
   parseQaReportFromOutputSummary,
 } from "./job-qa-findings-model";
+
+const intl = getIntlShape("en") as IntlShape;
 
 const sampleFinding = {
   checkType: "placeholder_mismatch" as const,
@@ -112,7 +130,7 @@ describe("job-qa-findings-model", () => {
 
   it("groups findings by locale", () => {
     const findings = attachFindingIds([sampleFinding]);
-    const groups = groupFindings(findings, "locale");
+    const groups = groupFindings(findings, "locale", intl);
 
     expect(groups).toHaveLength(1);
     expect(groups[0]?.label).toBe("fr");
@@ -157,7 +175,7 @@ describe("job-qa-findings-model", () => {
       externalCommentUid: "comment-42",
       providerUrl: "https://crowdin.com/project/demo/comments/42",
     });
-    expect(formatProviderCommentWriteBackLabel(writeBack)).toBe("Comment posted");
+    expect(formatProviderCommentWriteBackLabel(writeBack, intl)).toBe("Comment posted");
     expect(isProviderCommentWriteBackComplete(writeBack)).toBe(true);
   });
 

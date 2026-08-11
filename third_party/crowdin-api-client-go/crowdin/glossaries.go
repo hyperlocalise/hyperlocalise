@@ -183,11 +183,11 @@ func (s *GlossariesService) ImportGlossary(ctx context.Context, glossaryID int, 
 // CheckGlossaryImportStatus returns the status of a glossary import.
 //
 // https://developer.crowdin.com/api/v2/#operation/api.glossaries.imports.get
-func (s *GlossariesService) CheckGlossaryImportStatus(ctx context.Context, glossaryID, importID int) (
+func (s *GlossariesService) CheckGlossaryImportStatus(ctx context.Context, glossaryID int, importID string) (
 	*model.GlossaryImport, *Response, error,
 ) {
 	res := new(model.GlossaryImportResponse)
-	resp, err := s.client.Get(ctx, fmt.Sprintf("/api/v2/glossaries/%d/imports/%d", glossaryID, importID), nil, res)
+	resp, err := s.client.Get(ctx, fmt.Sprintf("/api/v2/glossaries/%d/imports/%s", glossaryID, importID), nil, res)
 
 	return res.Data, resp, err
 }

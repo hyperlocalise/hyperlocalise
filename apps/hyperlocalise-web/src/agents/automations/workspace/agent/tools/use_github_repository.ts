@@ -1,5 +1,17 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import { and, eq } from "drizzle-orm";
-import { stepCountIs, ToolLoopAgent, type ModelMessage, type ToolSet } from "ai";
+import { isStepCount, ToolLoopAgent, type ModelMessage, type ToolSet } from "ai";
 import { z } from "zod";
 
 import { defineAgentTool } from "@/agents/_runtime/define-agent-tool";
@@ -11,6 +23,10 @@ import {
   repositoryWorkflowToolNames,
 } from "@/lib/agent-runtime/tools/manifest";
 import { buildTools } from "@/lib/agent-runtime/tools/registry";
+import {
+  extractGenerateResultTokenUsage,
+  withAgentRuntimeUsageMetering,
+} from "@/lib/billing/agent-runtime-usage";
 import { ensureAgentSession } from "@/lib/tools/types";
 import type { ToolContext } from "@/lib/tools/types";
 import { db, schema } from "@/lib/database";
@@ -117,9 +133,9 @@ export function createUseGithubRepositoryTool(session: WorkspaceOrchestratorSess
           model: getHyperlocaliseAgentModel(),
           tools,
           instructions: composedInstructions,
-          stopWhen: stepCountIs(GITHUB_REPO_AGENT_STEP_LIMIT),
+          stopWhen: isStepCount(GITHUB_REPO_AGENT_STEP_LIMIT),
           timeout: WORKFLOW_AGENT_TIMEOUT,
-          experimental_context: { sandboxId },
+          runtimeContext: { sandboxId },
         });
 
         const prompt = [
@@ -129,8 +145,20 @@ export function createUseGithubRepositoryTool(session: WorkspaceOrchestratorSess
           "Return the final digest as plain text for automation delivery.",
         ].join("\n");
 
-        const result = await agent.generate({
-          messages: [{ role: "user", content: prompt }] as ModelMessage[],
+        const result = await withAgentRuntimeUsageMetering({
+          organizationId: session.organizationId,
+          operationKey: `workspace-github-repo:${session.run.id}:agent_runs`,
+          source: "workspace_github_repository_agent",
+          dimensions: {
+            surface: "automation",
+            agent_surface: "github_repository",
+            repository_full_name: repositoryRow.fullName,
+          },
+          extractTokenUsage: extractGenerateResultTokenUsage,
+          run: () =>
+            agent.generate({
+              messages: [{ role: "user", content: prompt }] as ModelMessage[],
+            }),
         });
 
         const digest =

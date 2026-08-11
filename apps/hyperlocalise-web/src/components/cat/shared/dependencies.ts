@@ -1,3 +1,15 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import type { CatVisualContext } from "@/lib/translation/cat-visual-context";
 import type {
   CatFormatCheck,
@@ -7,7 +19,7 @@ import type {
   CatSegmentIntelligence,
   CatSegmentStatus,
   CatTranslationMemoryMatch,
-  CatWorkspaceState,
+  CatWorkspaceShell,
 } from "./types";
 import type { CatQueueFilter } from "@/components/cat/queue/cat-queue-filter";
 
@@ -35,7 +47,9 @@ export interface CatWorkspaceEditing {
   onTargetChange: (segmentId: string, value: string) => void;
   onUseAiSuggestion: (segmentId: string) => void;
   onUseTmMatch: (segmentId: string, match: CatTranslationMemoryMatch) => void;
-  onUseGlossaryTerm: (segmentId: string, term: CatGlossaryTerm, sourceText: string) => void;
+  onTreatAsImage?: (segmentId: string, treatAsImage: boolean) => void | Promise<void>;
+  onRegenerateImage?: (segmentId: string) => void | Promise<void>;
+  onUploadImage?: (segmentId: string, file: File) => void | Promise<void>;
 }
 
 export interface CatWorkspaceReview {
@@ -48,6 +62,7 @@ export interface CatWorkspaceReview {
     targetText: string,
   ) => void | CatSegmentStatus | Promise<void | CatSegmentStatus>;
   onAddComment?: (segmentId: string, input: CatSegmentCommentInput) => void | Promise<void>;
+  onAddToIssueSheet?: (segmentId: string) => void | Promise<void>;
   onResolveComment?: (segmentId: string, commentId: string) => void | Promise<void>;
   onAskQuestion: (segmentId: string, options?: { forceRefresh?: boolean }) => void | Promise<void>;
   onReviewWithAi: (segmentId: string) => void | Promise<void>;
@@ -61,6 +76,7 @@ export interface CatWorkspaceServices {
     segment: CatSegment,
     value: string,
     glossaryTerms?: CatGlossaryTerm[],
+    options?: { signal?: AbortSignal },
   ) => Promise<CatFormatCheck[]>;
   runQaChecks?: (segment: CatSegment, value: string) => Promise<CatFormatCheck[]>;
   lookupSegmentContext?: (
@@ -90,8 +106,12 @@ export type PartialCatWorkspaceDependencies = {
   services?: CatWorkspaceServices;
 };
 
+export type { CatWorkspaceShell };
+
 export interface CatWorkspaceViewProps {
-  state: CatWorkspaceState;
+  shell: CatWorkspaceShell;
+  queueSegments: CatSegment[];
+  selectedSegment: CatSegment | null;
   dependencies: CatWorkspaceDependencies;
   isValidating?: boolean;
   isApproving?: boolean;
@@ -109,6 +129,7 @@ export interface CatWorkspaceViewProps {
   canUseAiRecommendation?: boolean;
   showAgentContext?: boolean;
   showVisualContext?: boolean;
+  revealedAgentContextSegmentIds?: ReadonlySet<string>;
   dirtySegmentIds?: ReadonlySet<string>;
   className?: string;
   queueSearch?: string;
@@ -127,6 +148,7 @@ export interface CatWorkspaceViewProps {
   onLoadMoreQueue?: () => void;
   isCommentsLoading?: boolean;
   isSegmentTargetLoading?: boolean;
+  isImageBusy?: boolean;
   queueFilter?: CatQueueFilter;
   onQueueFilterChange?: (filter: CatQueueFilter) => void;
   availableQueueFilters?: CatQueueFilter[];
@@ -138,8 +160,10 @@ export interface CatWorkspaceViewProps {
   onBulkSkip?: () => void;
   isBulkActionPending?: boolean;
   buildSegmentShareUrl?: (segment: CatSegment) => string | null;
-  editorState?: CatWorkspaceState;
   onIntelligencePanelVisible?: (segmentId: string) => void;
+  organizationSlug?: string;
+  projectId?: string;
+  nativeIssuesEnabled?: boolean;
 }
 
 export const noopCatDependencies: CatWorkspaceDependencies = {
@@ -153,7 +177,6 @@ export const noopCatDependencies: CatWorkspaceDependencies = {
     onTargetChange: () => undefined,
     onUseAiSuggestion: () => undefined,
     onUseTmMatch: () => undefined,
-    onUseGlossaryTerm: () => undefined,
   },
   review: {
     onApprove: () => undefined,

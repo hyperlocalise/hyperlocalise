@@ -1,26 +1,51 @@
-import { createLogger } from "@/lib/log";
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import type { WorkspaceAutomationExecutionEventData } from "@/lib/workflow/types";
-import type {
-  WorkspaceOrchestratorExecutionError,
-  WorkspaceOrchestratorExecutionSuccess,
-} from "@/agents/automations/workspace/agent/run-workspace-orchestrator";
 
-const logger = createLogger("workspace-automation-step");
-
+/**
+ * Step-local result types (duplicated structurally from the orchestrator module)
+ * so this file — which is statically imported by a `"use workflow"` module —
+ * never pulls the orchestrator / logging graph into the workflow sandbox bundle.
+ */
 export type WorkspaceAutomationStepResult =
   | {
       ok: true;
-      value: WorkspaceOrchestratorExecutionSuccess;
+      value: {
+        runId: string;
+        status: string;
+        planTools: string[];
+        stepResults: Record<string, unknown>;
+      };
     }
   | {
       ok: false;
-      error: WorkspaceOrchestratorExecutionError;
+      error: {
+        code:
+          | "workspace_automation_not_found"
+          | "workspace_automation_run_not_found"
+          | "workspace_orchestrator_failed";
+        message: string;
+        runId?: string;
+      };
     };
 
 export async function executeWorkspaceAutomationStep(
   event: WorkspaceAutomationExecutionEventData,
 ): Promise<WorkspaceAutomationStepResult> {
   "use step";
+
+  const { createLogger } = await import("@/lib/log");
+  const logger = createLogger("workspace-automation-step");
 
   const stepContext = {
     workspaceAutomationRunId: event.workspaceAutomationRunId,

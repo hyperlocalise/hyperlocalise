@@ -1,129 +1,147 @@
 "use client";
 
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import Link from "next/link";
-import { useQuery } from "@tanstack/react-query";
-import { File01Icon } from "@hugeicons/core-free-icons";
+import { useState, type ReactNode } from "react";
+import { Add01Icon, ArrowRight01Icon, LanguageCircleIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
+import { FormattedMessage, useIntl } from "react-intl";
 
 import { buildProjectPath } from "@/components/app-shell/navigation-config";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TypographyH1, TypographyP } from "@/components/ui/typography";
-import { parseApiJsonResponse, readApiResponseError } from "@/lib/api-error";
-import { apiClient } from "@/lib/api-client-instance";
-import { parseProviderProjectId } from "@/lib/providers/tms-provider-resource-id";
-import {
-  projectFilesResponseSchema,
-  type ProjectFileRecord,
-} from "@/api/routes/project/project.schema";
+import { supportsCatAllFilesProvider } from "@/lib/projects/cat-all-files";
+import { parseProviderProjectId } from "@/lib/providers/jobs/tms-provider-resource-id";
 
-import { OverviewActionCard } from "../../../_components/overview/overview-action-card";
-import {
-  computeProjectPendingActionCount,
-  countFilesNeedingAttention,
-  selectFilesNeedingAttention,
-  selectOngoingJobs,
-} from "../../../_components/overview/overview-attention";
-import { OverviewHeroCard } from "../../../_components/overview/overview-hero-card";
 import { OverviewSectionHeader } from "../../../_components/overview/overview-section-header";
-import { OverviewSnapshotCard } from "../../../_components/overview/overview-snapshot-card";
+import { CreateJobDialog } from "../../../jobs/_components/create-job-dialog";
 import {
-  formatRelativeTimestamp,
-  providerLabel,
-  summarizeLocaleReadiness,
-} from "../../../_components/workspace-files-shared";
-import {
-  countReadyLocales,
-  resolveFileLocaleReadiness,
-} from "@/lib/projects/files/native-locale-readiness";
-import type { Tone } from "../../../_components/workspace-resource-shared";
-import { getJobName, jobTone, type ApiJob } from "../../../jobs/_components/jobs-page-view";
+  getJobName,
+  taskDetailSummary,
+  type ApiJob,
+} from "../../../jobs/_components/jobs-page-view";
 import type { ProjectListRow } from "../../_components/project-list";
+import { ProjectOverviewMeshStage } from "./project-overview-mesh-stage";
+import { projectOverviewPageContentMessages as messages } from "./project-overview-page-content.messages";
 import { ProjectPageShell, useProjectPageQuery } from "./project-page-shell";
-import { useProjectOpenJobCountQuery } from "./use-project-open-job-count";
 import { useProjectOverviewJobsQuery } from "./use-project-overview-jobs";
+import {
+  buildProjectOverviewTriageItems,
+  formatProjectLocaleRoute,
+  projectOverviewMeshTone,
+  type ProjectOverviewTriageItem,
+} from "./project-overview-view-model";
 
 function buildProjectJobHref(organizationSlug: string, projectId: string, jobId: string) {
   return `/org/${organizationSlug}/projects/${encodeURIComponent(projectId)}/jobs/${encodeURIComponent(jobId)}`;
 }
 
-function buildProjectFileHref(organizationSlug: string, projectId: string, sourcePath: string) {
-  const base = buildProjectPath(organizationSlug, projectId, "files");
-  const params = new URLSearchParams({ sourcePath });
-  return `${base}?${params.toString()}`;
-}
-
-function formatLocaleRoute(sourceLocale: string | null, targetLocales: readonly string[]) {
-  const source = sourceLocale ?? "—";
-  if (targetLocales.length === 0) {
-    return source;
+function resolveTriageJobMeta(
+  job: ApiJob | undefined,
+  intl: ReturnType<typeof useIntl>,
+): string | null {
+  if (!job) {
+    return null;
   }
 
-  const preview = targetLocales.slice(0, 3).join(", ");
-  const suffix = targetLocales.length > 3 ? ` +${targetLocales.length - 3}` : "";
-  return `${source} → ${preview}${suffix}`;
-}
-
-function buildHeroCopy(filesNeedingAttention: number, pendingCount: number, openJobCount: number) {
-  if (pendingCount === 0) {
-    return {
-      title: "You're all caught up",
-      description:
-        "No pending actions right now. Upload source files or review completed jobs when you're ready to continue.",
-      ctaLabel: "Browse files",
-      ctaHref: "files",
-    };
+  const hasLocales = Boolean(job.externalTargetLocales?.length || job.reviewTargetLocale);
+  const hasAssignees = Boolean(job.externalAssignedUsers?.length);
+  if (!hasLocales && !hasAssignees) {
+    return null;
   }
 
-  const parts: string[] = [];
-  if (openJobCount > 0) {
-    parts.push(`${openJobCount} open ${openJobCount === 1 ? "job" : "jobs"}`);
+  return taskDetailSummary(job, intl);
+}
+
+function resolveTriageCopy(
+  item: ProjectOverviewTriageItem,
+  intl: ReturnType<typeof useIntl>,
+): { title: string; description: string; meta: string | null; cta: string } {
+  switch (item.kind) {
+    case "review":
+      return {
+        title: getJobName(item.job!, intl),
+        description: intl.formatMessage(messages.triageReviewTitle),
+        meta: resolveTriageJobMeta(item.job, intl),
+        cta: intl.formatMessage(messages.reviewCta),
+      };
+    case "failed":
+      return {
+        title: getJobName(item.job!, intl),
+        description: intl.formatMessage(messages.triageFailedTitle),
+        meta: resolveTriageJobMeta(item.job, intl),
+        cta: intl.formatMessage(messages.openJobCta),
+      };
+    case "job":
+      return {
+        title: getJobName(item.job!, intl),
+        description: intl.formatMessage(messages.triageJobRunning),
+        meta: resolveTriageJobMeta(item.job, intl),
+        cta: intl.formatMessage(messages.openJobCta),
+      };
+    case "guidance":
+      return {
+        title: intl.formatMessage(messages.triageGuidanceTitle),
+        description: intl.formatMessage(messages.triageGuidanceDescription),
+        meta: null,
+        cta: intl.formatMessage(messages.addGuidanceCta),
+      };
+    default: {
+      const _exhaustive: never = item.kind;
+      return _exhaustive;
+    }
   }
-  if (filesNeedingAttention > 0) {
-    parts.push(
-      `${filesNeedingAttention} ${filesNeedingAttention === 1 ? "file" : "files"} needing attention`,
-    );
-  }
-
-  return {
-    title: "A few things need your attention",
-    description: `Pick up where you left off — ${parts.join(", ")}.`,
-    ctaLabel: "Pick up where you left off",
-    ctaHref: "jobs",
-  };
 }
 
-function formatJobStatusLine(job: ApiJob) {
-  return `${job.status.replaceAll("_", " ")} · updated ${formatRelativeTimestamp(job.updatedAt)}`;
-}
-
-function formatFileStatusLine(file: ProjectFileRecord) {
-  const readiness = resolveFileLocaleReadiness(file);
-  const summary = summarizeLocaleReadiness(readiness);
-  return summary ?? "Needs attention";
-}
-
-function fileStatusTone(file: ProjectFileRecord): Tone {
-  const readiness = resolveFileLocaleReadiness(file);
-  const hasMissing = Object.values(readiness).some(
-    (value) => value === "missing" || value === "stale" || value === "changed",
+function TriageRow({
+  href,
+  title,
+  description,
+  meta,
+  cta,
+}: {
+  href: string;
+  title: string;
+  description: string;
+  meta: string | null;
+  cta: string;
+}) {
+  return (
+    <Link
+      href={href}
+      className="group flex items-center justify-between gap-4 rounded-xl border border-border/70 bg-background/70 px-4 py-3 transition-colors hover:border-border hover:bg-background/90"
+    >
+      <div className="min-w-0">
+        <TypographyP className="truncate text-sm font-medium text-foreground">{title}</TypographyP>
+        <TypographyP className="mt-0.5 text-xs text-muted-foreground">{description}</TypographyP>
+        {meta ? (
+          <TypographyP className="mt-0.5 truncate text-xs text-muted-foreground">
+            {meta}
+          </TypographyP>
+        ) : null}
+      </div>
+      <span className="inline-flex shrink-0 items-center gap-1 text-sm font-medium text-foreground">
+        {cta}
+        <HugeiconsIcon
+          icon={ArrowRight01Icon}
+          strokeWidth={1.8}
+          className="size-4 transition-transform group-hover:translate-x-0.5"
+        />
+      </span>
+    </Link>
   );
-  if (hasMissing) {
-    return "watch";
-  }
-  return "info";
-}
-
-function countReadyToPullFiles(files: readonly ProjectFileRecord[], targetLocaleCount: number) {
-  if (targetLocaleCount === 0) {
-    return 0;
-  }
-
-  return files.filter((file) => {
-    const readiness = resolveFileLocaleReadiness(file);
-    return countReadyLocales(readiness) > 0;
-  }).length;
 }
 
 export type ProjectOverviewPageContentViewProps = {
@@ -132,15 +150,10 @@ export type ProjectOverviewPageContentViewProps = {
   project: ProjectListRow | null;
   isProjectLoading: boolean;
   isProjectError: boolean;
-  openJobCount: number;
-  isOpenJobCountLoading: boolean;
-  isOpenJobCountError: boolean;
   jobs: readonly ApiJob[];
   isJobsLoading: boolean;
   isJobsError: boolean;
-  files: readonly ProjectFileRecord[];
-  isFilesLoading: boolean;
-  isFilesError: boolean;
+  onCreateJob?: () => void;
 };
 
 export function ProjectOverviewPageContentView({
@@ -149,227 +162,271 @@ export function ProjectOverviewPageContentView({
   project,
   isProjectLoading,
   isProjectError,
-  openJobCount,
-  isOpenJobCountLoading,
-  isOpenJobCountError,
   jobs,
   isJobsLoading,
   isJobsError,
-  files,
-  isFilesLoading,
-  isFilesError,
+  onCreateJob,
 }: ProjectOverviewPageContentViewProps) {
-  const filesNeedingAttention = countFilesNeedingAttention(files);
-  const pendingCount = project ? computeProjectPendingActionCount({ openJobCount }, files) : 0;
-  const ongoingJobs = selectOngoingJobs(jobs);
-  const attentionFiles = selectFilesNeedingAttention(files);
-  const ongoingCount = ongoingJobs.length + attentionFiles.length;
-  const readyToPullCount = project ? countReadyToPullFiles(files, project.targetLocales.length) : 0;
+  const intl = useIntl();
+  const isNative = project?.source === "native";
+  const hasTranslationGuidance = Boolean(project?.translationContextValue?.trim());
+  const showViewStrings = supportsCatAllFilesProvider(
+    parseProviderProjectId(projectId)?.providerKind,
+  );
 
-  const heroCopy = project
-    ? buildHeroCopy(filesNeedingAttention, pendingCount, openJobCount)
-    : null;
+  const triageItems = project
+    ? buildProjectOverviewTriageItems({
+        jobs,
+        isNative: isNative ?? false,
+        hasTranslationGuidance,
+      })
+    : [];
+  const meshTone = projectOverviewMeshTone(triageItems.length);
 
   const projectDescription =
-    project?.descriptionValue ||
-    project?.translationContextValue ||
-    "Project hub for localization work.";
+    project?.descriptionValue || intl.formatMessage(messages.defaultProjectDescription);
 
-  const snapshotRows = project
-    ? [
-        {
-          label: "Locales",
-          value: formatLocaleRoute(project.sourceLocale, project.targetLocales),
-        },
-        {
-          label: "Source",
-          value:
-            project.source === "external_tms" && project.externalProviderKind
-              ? providerLabel(project.externalProviderKind)
-              : "Native project",
-        },
-        {
-          label: "Open jobs",
-          value: isOpenJobCountLoading
-            ? "…"
-            : isOpenJobCountError
-              ? "Unavailable"
-              : String(openJobCount),
-        },
-      ]
-    : [];
+  const settingsHref = buildProjectPath(organizationSlug, projectId, "settings");
+  const filesHref = buildProjectPath(organizationSlug, projectId, "files");
+  const jobsHref = buildProjectPath(organizationSlug, projectId, "jobs");
+  const showHeaderActions = Boolean(project) && !isProjectLoading && !isProjectError;
+  const localeRoute = project
+    ? formatProjectLocaleRoute(project.sourceLocale, project.targetLocales)
+    : "";
 
   return (
     <ProjectPageShell className="gap-8">
-      <header className="space-y-2">
-        {isProjectLoading ? (
-          <>
-            <Skeleton className="h-8 w-64" />
-            <Skeleton className="h-4 w-full max-w-xl" />
-          </>
-        ) : isProjectError ? (
-          <>
-            <TypographyH1 className="font-sans text-2xl font-medium text-foreground">
-              Project overview
-            </TypographyH1>
-            <TypographyP className="text-sm text-muted-foreground">
-              Unable to load project details. Refresh the page or try again in a moment.
-            </TypographyP>
-          </>
-        ) : (
-          <>
-            <TypographyH1 className="font-sans text-2xl font-medium text-foreground">
-              {project?.name ?? "Project"}
-            </TypographyH1>
-            <TypographyP className="max-w-2xl text-sm leading-6 text-muted-foreground">
-              {projectDescription}
-            </TypographyP>
-          </>
-        )}
-      </header>
-
-      <section className="grid gap-4 lg:grid-cols-3">
-        {isProjectLoading ? (
-          <>
-            <Skeleton className="min-h-52 rounded-2xl lg:col-span-2" />
-            <Skeleton className="min-h-52 rounded-2xl" />
-          </>
-        ) : project && heroCopy ? (
-          <>
-            <OverviewHeroCard
-              className="lg:col-span-2"
-              pendingCount={pendingCount}
-              title={heroCopy.title}
-              description={heroCopy.description}
-              ctaLabel={heroCopy.ctaLabel}
-              ctaHref={buildProjectPath(organizationSlug, projectId, heroCopy.ctaHref)}
-            />
-            <OverviewSnapshotCard
-              title="Project snapshot"
-              rows={snapshotRows}
-              ctaLabel="View settings"
-              ctaHref={buildProjectPath(organizationSlug, projectId, "settings")}
-            />
-          </>
-        ) : null}
-      </section>
-
-      <section className="space-y-4">
-        <OverviewSectionHeader title="Ongoing" count={ongoingCount} />
-
-        <div className="grid gap-4 md:grid-cols-2">
-          {isJobsLoading || isFilesLoading ? (
+      <header className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0 space-y-2">
+          {isProjectLoading ? (
             <>
-              <Skeleton className="min-h-44 rounded-2xl" />
-              <Skeleton className="min-h-44 rounded-2xl" />
+              <Skeleton className="h-8 w-64" />
+              <Skeleton className="h-4 w-full max-w-xl" />
+            </>
+          ) : isProjectError ? (
+            <>
+              <TypographyH1 className="font-sans text-2xl font-medium text-foreground">
+                <FormattedMessage {...messages.projectOverviewFallbackTitle} />
+              </TypographyH1>
+              <TypographyP className="text-sm text-muted-foreground">
+                <FormattedMessage {...messages.loadProjectError} />
+              </TypographyP>
             </>
           ) : (
             <>
-              {ongoingJobs.length > 0 ? (
-                ongoingJobs.map((job) => (
-                  <OverviewActionCard
-                    key={job.id}
-                    category="Job"
-                    title={getJobName(job)}
-                    statusLine={formatJobStatusLine(job)}
-                    statusTone={jobTone(job.status)}
-                    viewHref={buildProjectJobHref(organizationSlug, projectId, job.id)}
-                  />
-                ))
-              ) : (
-                <Card className="rounded-2xl border border-dashed border-border bg-muted py-0 ring-0">
-                  <CardContent className="flex h-full flex-col justify-between gap-4 px-5 py-5">
-                    <div>
-                      <TypographyP className="text-sm font-medium text-foreground">
-                        {isJobsError ? "Jobs unavailable" : "No active jobs"}
-                      </TypographyP>
-                      <TypographyP className="mt-1 text-sm text-muted-foreground">
-                        {isJobsError
-                          ? "We could not load jobs for this project."
-                          : "Queued, running, and review jobs will appear here."}
-                      </TypographyP>
-                    </div>
-                    <Button
-                      nativeButton={false}
-                      render={<Link href={buildProjectPath(organizationSlug, projectId, "jobs")} />}
-                      variant="outline"
-                      size="sm"
-                      className="w-fit rounded-full"
-                    >
-                      View jobs
-                    </Button>
-                  </CardContent>
-                </Card>
-              )}
-
-              {attentionFiles.length > 0 ? (
-                attentionFiles.map((file) => (
-                  <OverviewActionCard
-                    key={file.sourcePath}
-                    category="File"
-                    title={file.filename}
-                    statusLine={formatFileStatusLine(file)}
-                    statusTone={fileStatusTone(file)}
-                    viewHref={buildProjectFileHref(organizationSlug, projectId, file.sourcePath)}
-                  />
-                ))
-              ) : (
-                <Card className="rounded-2xl border border-dashed border-border bg-muted py-0 ring-0">
-                  <CardContent className="flex h-full flex-col justify-between gap-4 px-5 py-5">
-                    <div>
-                      <TypographyP className="text-sm font-medium text-foreground">
-                        {isFilesError ? "Files unavailable" : "No files need attention"}
-                      </TypographyP>
-                      <TypographyP className="mt-1 text-sm text-muted-foreground">
-                        {isFilesError
-                          ? "We could not load project files."
-                          : "Files with missing or changed translations will appear here."}
-                      </TypographyP>
-                    </div>
-                    <Button
-                      nativeButton={false}
-                      render={
-                        <Link href={buildProjectPath(organizationSlug, projectId, "files")} />
-                      }
-                      variant="outline"
-                      size="sm"
-                      className="w-fit rounded-full"
-                    >
-                      View files
-                    </Button>
-                  </CardContent>
-                </Card>
-              )}
+              <TypographyH1 className="font-sans text-2xl font-medium text-foreground">
+                {project?.name ?? intl.formatMessage(messages.projectFallbackName)}
+              </TypographyH1>
+              <TypographyP className="max-w-2xl text-sm leading-6 text-muted-foreground">
+                {projectDescription}
+              </TypographyP>
             </>
           )}
         </div>
-      </section>
 
-      {project && project.source === "native" && readyToPullCount > 0 ? (
-        <Card className="rounded-2xl border border-border bg-muted py-0 ring-0">
-          <CardContent className="flex flex-col gap-3 px-5 py-5 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <TypographyP className="text-sm font-medium text-foreground">
-                Ready to pull
-              </TypographyP>
-              <TypographyP className="mt-1 text-sm text-muted-foreground">
-                {readyToPullCount} {readyToPullCount === 1 ? "file has" : "files have"} completed
-                translations you can download or sync with{" "}
-                <span className="font-mono text-foreground">sync pull</span>.
-              </TypographyP>
-            </div>
+        {showHeaderActions ? (
+          <div className="flex shrink-0 flex-wrap gap-2">
+            {showViewStrings ? (
+              <Button
+                nativeButton={false}
+                render={<Link href={buildProjectPath(organizationSlug, projectId, "strings")} />}
+                size="sm"
+                variant="outline"
+              >
+                <HugeiconsIcon icon={LanguageCircleIcon} strokeWidth={1.8} />
+                <FormattedMessage {...messages.viewStrings} />
+              </Button>
+            ) : null}
             <Button
               nativeButton={false}
-              render={<Link href={buildProjectPath(organizationSlug, projectId, "files")} />}
-              variant="outline"
+              render={<Link href={filesHref} />}
               size="sm"
-              className="w-fit rounded-full"
+              variant="outline"
             >
-              <HugeiconsIcon icon={File01Icon} strokeWidth={1.8} />
-              Open files
+              <FormattedMessage {...messages.viewFiles} />
             </Button>
-          </CardContent>
-        </Card>
+            <Button type="button" size="sm" onClick={onCreateJob}>
+              <HugeiconsIcon icon={Add01Icon} strokeWidth={1.8} />
+              <FormattedMessage {...messages.createJob} />
+            </Button>
+          </div>
+        ) : null}
+      </header>
+
+      {isProjectLoading || isJobsLoading ? (
+        <Skeleton className="min-h-56 rounded-2xl" />
+      ) : project ? (
+        <ProjectOverviewMeshStage tone={meshTone}>
+          <div className="flex flex-col gap-4">
+            <div className="flex flex-wrap items-baseline justify-between gap-2">
+              <TypographyP className="font-heading text-xl font-medium text-foreground">
+                <FormattedMessage {...messages.needsYouNowTitle} />
+              </TypographyP>
+              {triageItems.length > 0 ? (
+                <TypographyP className="text-sm text-muted-foreground">
+                  <FormattedMessage
+                    {...messages.needsYouNowCount}
+                    values={{ count: triageItems.length }}
+                  />
+                </TypographyP>
+              ) : null}
+            </div>
+
+            {triageItems.length > 0 ? (
+              <div className="flex flex-col gap-2">
+                {triageItems.map((item) => {
+                  const copy = resolveTriageCopy(item, intl);
+                  const href =
+                    item.kind === "guidance"
+                      ? settingsHref
+                      : item.job
+                        ? buildProjectJobHref(organizationSlug, projectId, item.job.id)
+                        : jobsHref;
+
+                  return (
+                    <TriageRow
+                      key={item.id}
+                      href={href}
+                      title={copy.title}
+                      description={copy.description}
+                      meta={copy.meta}
+                      cta={copy.cta}
+                    />
+                  );
+                })}
+                <div className="pt-1">
+                  <Button
+                    nativeButton={false}
+                    render={<Link href={jobsHref} />}
+                    variant="ghost"
+                    size="sm"
+                    className="w-fit px-0"
+                  >
+                    <FormattedMessage {...messages.viewAllJobs} />
+                    <HugeiconsIcon icon={ArrowRight01Icon} strokeWidth={1.8} />
+                  </Button>
+                </div>
+              </div>
+            ) : isJobsError ? (
+              <div className="rounded-xl border border-dashed border-border bg-background/60 px-4 py-4">
+                <TypographyP className="text-sm font-medium text-foreground">
+                  <FormattedMessage {...messages.jobsUnavailable} />
+                </TypographyP>
+                <TypographyP className="mt-1 text-sm text-muted-foreground">
+                  <FormattedMessage {...messages.jobsUnavailableDescription} />
+                </TypographyP>
+                <Button
+                  nativeButton={false}
+                  render={<Link href={jobsHref} />}
+                  variant="outline"
+                  size="sm"
+                  className="mt-3 w-fit"
+                >
+                  <FormattedMessage {...messages.viewJobs} />
+                </Button>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <TypographyP className="text-sm font-medium text-foreground">
+                  <FormattedMessage {...messages.triageEmptyTitle} />
+                </TypographyP>
+                <TypographyP className="text-sm text-muted-foreground">
+                  <FormattedMessage {...messages.triageEmptyDescription} />
+                </TypographyP>
+              </div>
+            )}
+          </div>
+        </ProjectOverviewMeshStage>
+      ) : null}
+
+      {project && !isProjectLoading ? (
+        <section className="space-y-4">
+          <OverviewSectionHeader title={intl.formatMessage(messages.signalsTitle)} />
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="rounded-2xl border border-border px-5 py-4">
+              <TypographyP className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+                <FormattedMessage {...messages.signalsLocales} />
+              </TypographyP>
+              <TypographyP className="mt-2 font-mono text-sm text-foreground">
+                {project.targetLocales.length > 0 ? (
+                  localeRoute
+                ) : (
+                  <FormattedMessage {...messages.signalsNoLocales} />
+                )}
+              </TypographyP>
+              {project.targetLocales.length === 0 ? (
+                <Button
+                  nativeButton={false}
+                  render={<Link href={settingsHref} />}
+                  variant="ghost"
+                  size="sm"
+                  className="mt-2 px-0"
+                >
+                  <FormattedMessage {...messages.viewSettings} />
+                </Button>
+              ) : null}
+            </div>
+
+            {isNative ? (
+              <div className="rounded-2xl border border-border px-5 py-4">
+                <TypographyP className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+                  <FormattedMessage {...messages.shipTitle} />
+                </TypographyP>
+                <TypographyP className="mt-2 text-sm text-foreground">
+                  {project.lastSyncedAt ? (
+                    <FormattedMessage
+                      {...messages.shipLastSynced}
+                      values={{ when: project.lastSyncedAt }}
+                    />
+                  ) : (
+                    <FormattedMessage {...messages.shipNeverSynced} />
+                  )}
+                </TypographyP>
+                <TypographyP className="mt-1 text-sm text-muted-foreground">
+                  <FormattedMessage
+                    {...messages.shipCliHint}
+                    values={{
+                      code: (chunks: ReactNode) => (
+                        <span className="font-mono text-foreground">{chunks}</span>
+                      ),
+                    }}
+                  />
+                </TypographyP>
+                <Button
+                  nativeButton={false}
+                  render={<Link href={settingsHref} />}
+                  variant="ghost"
+                  size="sm"
+                  className="mt-2 px-0"
+                >
+                  <FormattedMessage {...messages.shipConnectCli} />
+                </Button>
+              </div>
+            ) : null}
+          </div>
+        </section>
+      ) : null}
+
+      {isNative && hasTranslationGuidance ? (
+        <section className="space-y-3 rounded-2xl border border-border bg-muted/30 px-5 py-5">
+          <div className="flex items-center justify-between gap-3">
+            <TypographyP className="text-sm font-medium text-foreground">
+              <FormattedMessage {...messages.guidanceTitle} />
+            </TypographyP>
+            <Button
+              nativeButton={false}
+              render={<Link href={settingsHref} />}
+              variant="ghost"
+              size="sm"
+              className="shrink-0"
+            >
+              <FormattedMessage {...messages.guidanceEdit} />
+            </Button>
+          </div>
+          <TypographyP className="line-clamp-3 whitespace-pre-wrap text-sm leading-6 text-muted-foreground">
+            {project?.translationContextValue}
+          </TypographyP>
+        </section>
       ) : null}
     </ProjectPageShell>
   );
@@ -382,53 +439,39 @@ export function ProjectOverviewPageContent({
   organizationSlug: string;
   projectId: string;
 }) {
+  const [createJobOpen, setCreateJobOpen] = useState(false);
   const projectQuery = useProjectPageQuery(organizationSlug, projectId);
-  const isLiveTmsProject = Boolean(parseProviderProjectId(projectId));
-  const openJobCountQuery = useProjectOpenJobCountQuery(organizationSlug, projectId, {
-    enabled: projectQuery.isSuccess,
-  });
   const jobsQuery = useProjectOverviewJobsQuery(organizationSlug, projectId, {
     enabled: projectQuery.isSuccess,
   });
 
-  const filesQuery = useQuery({
-    queryKey: ["project-overview-files", organizationSlug, projectId],
-    enabled: projectQuery.isSuccess && !isLiveTmsProject,
-    queryFn: async () => {
-      const response = await apiClient.api.orgs[":organizationSlug"].projects[
-        ":projectId"
-      ].files.$get({
-        param: { organizationSlug, projectId },
-        query: { limit: "10" },
-      });
-      if (!response.ok) {
-        throw await readApiResponseError(response, "Failed to load project files");
-      }
-      const { files } = await parseApiJsonResponse(
-        response,
-        projectFilesResponseSchema,
-        "Invalid project files response",
-      );
-      return files;
-    },
-  });
+  const sourceLocale = projectQuery.data?.sourceLocale?.trim() || "en";
+  const targetLocales = projectQuery.data?.targetLocales ?? [];
 
   return (
-    <ProjectOverviewPageContentView
-      organizationSlug={organizationSlug}
-      projectId={projectId}
-      project={projectQuery.data ?? null}
-      isProjectLoading={projectQuery.isLoading}
-      isProjectError={projectQuery.isError}
-      openJobCount={openJobCountQuery.data ?? 0}
-      isOpenJobCountLoading={openJobCountQuery.isLoading}
-      isOpenJobCountError={openJobCountQuery.isError}
-      jobs={jobsQuery.data ?? []}
-      isJobsLoading={jobsQuery.isLoading}
-      isJobsError={jobsQuery.isError}
-      files={filesQuery.data ?? []}
-      isFilesLoading={filesQuery.isLoading}
-      isFilesError={filesQuery.isError}
-    />
+    <>
+      <ProjectOverviewPageContentView
+        organizationSlug={organizationSlug}
+        projectId={projectId}
+        project={projectQuery.data ?? null}
+        isProjectLoading={projectQuery.isLoading}
+        isProjectError={projectQuery.isError}
+        jobs={jobsQuery.data ?? []}
+        isJobsLoading={jobsQuery.isLoading}
+        isJobsError={jobsQuery.isError}
+        onCreateJob={() => setCreateJobOpen(true)}
+      />
+      <CreateJobDialog
+        open={createJobOpen}
+        onOpenChange={setCreateJobOpen}
+        organizationSlug={organizationSlug}
+        projectId={projectId}
+        sourceLocale={sourceLocale}
+        targetLocales={targetLocales}
+        onCreated={async () => {
+          await jobsQuery.refetch();
+        }}
+      />
+    </>
   );
 }

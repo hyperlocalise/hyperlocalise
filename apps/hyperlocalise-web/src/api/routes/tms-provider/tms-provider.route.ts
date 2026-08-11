@@ -1,10 +1,27 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
+import { and, eq } from "drizzle-orm";
 import { Hono } from "hono";
 import { validator } from "hono/validator";
 import { z } from "zod";
 
-import { isJobProviderActionAllowed } from "@/api/auth/capability-guards";
-import { hasCapability } from "@/api/auth/policy";
-import { ownedProjectWhere } from "@/api/auth/team-access";
+import {
+  isJobCreateAllowed,
+  isJobMutationAllowed,
+  isJobProviderActionAllowed,
+} from "@/api/auth/capability-guards";
+import { hasCapability, isWorkspaceOperatorRole } from "@/api/auth/policy";
+import { canAccessProject } from "@/api/auth/team-access";
 import { workosAuthMiddleware, type AuthVariables } from "@/api/auth/workos";
 import {
   badRequestResponse,
@@ -17,10 +34,12 @@ import { createAgentRun, failAgentRun } from "@/lib/providers/agent-runs/agent-r
 import {
   getJobProviderActionDefinition,
   isJobProviderActionAvailable,
-} from "@/lib/providers/job-provider-actions";
-import { parseProviderJobId } from "@/lib/providers/tms-provider-resource-id";
+} from "@/lib/providers/jobs/job-provider-actions";
+import { parseProviderJobId } from "@/lib/providers/jobs/tms-provider-resource-id";
 import type { ProviderAgentTranslationQueue } from "@/lib/workflow/types";
 import {
+  createTmsProviderLiveJobs,
+  deleteTmsProviderLiveJob,
   getTmsProviderConnection,
   getTmsProviderLiveJobFileDetail,
   listTmsProviderLiveJobComments,
@@ -28,16 +47,18 @@ import {
   getTmsProviderLiveJobDetail,
   getTmsProviderLiveProjectLocaleReadiness,
   updateTmsProviderLiveJobDescription,
+  updateTmsProviderLiveJobFields,
   getTmsProviderLiveProject,
   listTmsProviderLiveFilesForProject,
   listTmsProviderLiveGlossaries,
   listTmsProviderLiveJobs,
   listTmsProviderLiveJobsForProject,
+  listTmsProviderLiveProjectMembers,
   listTmsProviderLiveProjects,
   listTmsProviderLiveTranslationMemories,
-} from "@/lib/providers/tms-provider-live";
-import { tmsProviderLiveErrorResponse } from "@/lib/providers/tms-provider-live-error-response";
-import { getCurrentUserProviderAssigneeCandidates } from "@/lib/providers/tms-provider-assignee-candidates";
+} from "@/lib/providers/jobs/tms-provider-live";
+import { tmsProviderLiveErrorResponse } from "@/lib/providers/jobs/tms-provider-live-error-response";
+import { getCurrentUserProviderAssigneeCandidates } from "@/lib/providers/jobs/tms-provider-assignee-candidates";
 import { projectIdSchema } from "@/lib/projects/identity/project-id";
 
 const mineQuerySchema = z.object({
@@ -63,9 +84,32 @@ const updateJobDescriptionBodySchema = z.object({
   description: z.string().max(2_048),
 });
 
+const updateTmsProviderJobBodySchema = z
+  .object({
+    title: z.string().trim().min(1).max(256).optional(),
+    description: z.string().trim().max(2_048).nullable().optional(),
+    assigneeExternalUserIds: z.array(z.string().trim().min(1).max(128)).max(50).optional(),
+  })
+  .refine(
+    (body) =>
+      body.title !== undefined ||
+      body.description !== undefined ||
+      body.assigneeExternalUserIds !== undefined,
+    { message: "At least one of title, description, or assigneeExternalUserIds is required" },
+  );
+
 const createTmsProviderJobAgentRunBodySchema = z.object({
   projectId: projectIdSchema,
   action: z.literal("translate_with_agent"),
+});
+
+const createTmsProviderJobsBodySchema = z.object({
+  title: z.string().trim().min(1).max(256),
+  targetLocales: z.array(z.string().trim().min(1).max(32)).min(1).max(20),
+  fileIds: z.array(z.string().trim().min(1).max(128)).min(1).max(100),
+  assigneeExternalUserIds: z.array(z.string().trim().min(1).max(128)).max(50).optional(),
+  kind: z.enum(["translation", "proofread", "review"]).optional().default("translation"),
+  description: z.string().trim().max(2_048).optional(),
 });
 
 function serializeAgentRun(run: typeof schema.agentRuns.$inferSelect) {
@@ -136,6 +180,15 @@ const validateUpdateJobDescriptionBody = validator("json", (value, c) => {
   return parsed.data;
 });
 
+const validateUpdateTmsProviderJobBody = validator("json", (value, c) => {
+  const parsed = updateTmsProviderJobBodySchema.safeParse(value);
+  if (!parsed.success) {
+    return badRequestResponse(c, "invalid_job_update", "Invalid provider job update payload");
+  }
+
+  return parsed.data;
+});
+
 const validateCreateTmsProviderJobAgentRunBody = validator("json", (value, c) => {
   const parsed = createTmsProviderJobAgentRunBodySchema.safeParse(value);
   if (!parsed.success) {
@@ -145,9 +198,27 @@ const validateCreateTmsProviderJobAgentRunBody = validator("json", (value, c) =>
   return parsed.data;
 });
 
-function canEditTmsProviderJobDescription(auth: AuthVariables["auth"]) {
-  const role = auth.membership.role;
-  return role === "admin" || (role === "localization_manager" && hasCapability(role, "jobs:write"));
+const validateCreateTmsProviderJobsBody = validator("json", (value, c) => {
+  const parsed = createTmsProviderJobsBodySchema.safeParse(value);
+  if (!parsed.success) {
+    return badRequestResponse(c, "invalid_request_body", "Invalid create job payload");
+  }
+
+  return parsed.data;
+});
+
+/**
+ * Crowdin uses per-user OAuth, so `jobs:write` is enough (provider enforces project access).
+ * Smartling uses shared org credentials — restrict field edits to workspace operators.
+ */
+function canEditTmsProviderJobFields(
+  auth: AuthVariables["auth"],
+  providerKind: string | null | undefined,
+) {
+  if (providerKind === "smartling") {
+    return isWorkspaceOperatorRole(auth.membership.role);
+  }
+  return isJobMutationAllowed(auth.membership.role);
 }
 
 type CreateTmsProviderRoutesOptions = {
@@ -231,6 +302,48 @@ export function createTmsProviderRoutes(options: CreateTmsProviderRoutesOptions 
           },
         );
         return c.json({ jobs }, 200);
+      } catch (error) {
+        return tmsProviderLiveErrorResponse(c, error);
+      }
+    })
+    .post("/projects/:externalProjectId/jobs", validateCreateTmsProviderJobsBody, async (c) => {
+      if (!isJobCreateAllowed(c.var.auth.membership.role)) {
+        return c.json({ error: "forbidden" }, 403);
+      }
+
+      const payload = c.req.valid("json");
+
+      try {
+        const jobs = await createTmsProviderLiveJobs(
+          c.var.auth.organization.localOrganizationId,
+          c.req.param("externalProjectId"),
+          {
+            title: payload.title,
+            targetLocales: payload.targetLocales,
+            fileIds: payload.fileIds,
+            assigneeExternalUserIds: payload.assigneeExternalUserIds,
+            kind: payload.kind,
+            description: payload.description,
+            actorUserId: c.var.auth.user.localUserId,
+          },
+        );
+        return c.json({ jobs }, 201);
+      } catch (error) {
+        return tmsProviderLiveErrorResponse(c, error);
+      }
+    })
+    .get("/projects/:externalProjectId/members", async (c) => {
+      if (!hasCapability(c.var.auth.membership.role, "jobs:read")) {
+        return c.json({ error: "forbidden" }, 403);
+      }
+
+      try {
+        const members = await listTmsProviderLiveProjectMembers(
+          c.var.auth.organization.localOrganizationId,
+          c.req.param("externalProjectId"),
+          { actorUserId: c.var.auth.user.localUserId },
+        );
+        return c.json({ members }, 200);
       } catch (error) {
         return tmsProviderLiveErrorResponse(c, error);
       }
@@ -382,8 +495,55 @@ export function createTmsProviderRoutes(options: CreateTmsProviderRoutesOptions 
         return tmsProviderLiveErrorResponse(c, error);
       }
     })
+    .delete("/jobs/:encodedJobId", async (c) => {
+      if (!isJobMutationAllowed(c.var.auth.membership.role)) {
+        return c.json({ error: "forbidden" }, 403);
+      }
+
+      try {
+        const deleted = await deleteTmsProviderLiveJob(
+          c.var.auth.organization.localOrganizationId,
+          c.req.param("encodedJobId"),
+          c.var.auth.user.localUserId,
+        );
+        if (!deleted) {
+          return c.json({ error: "job_not_found" }, 404);
+        }
+
+        return c.body(null, 204);
+      } catch (error) {
+        return tmsProviderLiveErrorResponse(c, error);
+      }
+    })
+    .patch("/jobs/:encodedJobId", validateUpdateTmsProviderJobBody, async (c) => {
+      const encodedJobId = c.req.param("encodedJobId");
+      const parsedJobId = parseProviderJobId(encodedJobId);
+      if (!canEditTmsProviderJobFields(c.var.auth, parsedJobId?.providerKind)) {
+        return c.json({ error: "forbidden" }, 403);
+      }
+
+      const body = c.req.valid("json");
+
+      try {
+        const job = await updateTmsProviderLiveJobFields(
+          c.var.auth.organization.localOrganizationId,
+          encodedJobId,
+          body,
+          c.var.auth.user.localUserId,
+        );
+        if (!job) {
+          return c.json({ error: "job_not_found" }, 404);
+        }
+
+        return c.json({ job }, 200);
+      } catch (error) {
+        return tmsProviderLiveErrorResponse(c, error);
+      }
+    })
     .patch("/jobs/:encodedJobId/description", validateUpdateJobDescriptionBody, async (c) => {
-      if (!canEditTmsProviderJobDescription(c.var.auth)) {
+      const encodedJobId = c.req.param("encodedJobId");
+      const parsedJobId = parseProviderJobId(encodedJobId);
+      if (!canEditTmsProviderJobFields(c.var.auth, parsedJobId?.providerKind)) {
         return c.json({ error: "forbidden" }, 403);
       }
 
@@ -392,7 +552,7 @@ export function createTmsProviderRoutes(options: CreateTmsProviderRoutesOptions 
       try {
         const job = await updateTmsProviderLiveJobDescription(
           c.var.auth.organization.localOrganizationId,
-          c.req.param("encodedJobId"),
+          encodedJobId,
           body.description,
           c.var.auth.user.localUserId,
         );
@@ -419,6 +579,11 @@ export function createTmsProviderRoutes(options: CreateTmsProviderRoutesOptions 
         return badRequestResponse(c, "invalid_encoded_job_id", "Job id is not a provider job id");
       }
 
+      const accessibleProject = await canAccessProject(c.var.auth, payload.projectId);
+      if (!accessibleProject) {
+        return notFoundResponse(c, "project_not_found", "Project not found");
+      }
+
       const [project] = await db
         .select({
           id: schema.projects.id,
@@ -426,7 +591,12 @@ export function createTmsProviderRoutes(options: CreateTmsProviderRoutesOptions 
           externalProviderKind: schema.projects.externalProviderKind,
         })
         .from(schema.projects)
-        .where(await ownedProjectWhere(c.var.auth, payload.projectId))
+        .where(
+          and(
+            eq(schema.projects.organizationId, organizationId),
+            eq(schema.projects.id, accessibleProject.id),
+          ),
+        )
         .limit(1);
 
       if (!project) {

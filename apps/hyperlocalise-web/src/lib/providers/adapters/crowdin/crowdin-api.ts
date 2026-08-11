@@ -1,3 +1,15 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 /**
  * Crowdin API v2 client for project discovery and metadata extraction.
  *
@@ -6,15 +18,125 @@
  * attempt to wrap the full Crowdin API surface.
  */
 
+import type { ProjectFileCatQueueFilter } from "@/api/routes/project/project.schema";
 import { createLogger } from "@/lib/log";
 import { mapWithConcurrency } from "@/lib/primitives/map-with-concurrency/map-with-concurrency";
-import { resolveCrowdinApiBaseUrl } from "@/lib/providers/adapters/crowdin/crowdin-base-url";
-import { normalizeProviderDownloadUrl } from "@/lib/providers/provider-url-safety";
+import {
+  normalizeProviderBaseUrl,
+  normalizeProviderDownloadUrl,
+  requireProviderBaseUrl,
+} from "@/lib/providers/shared/provider-url-safety";
 
 const logger = createLogger("crowdin-api");
 
+export const CROWDIN_DEFAULT_API_BASE_URL = "https://api.crowdin.com/api/v2";
+
+export function resolveCrowdinApiBaseUrl(baseUrl?: string | null): string {
+  return requireProviderBaseUrl(baseUrl, CROWDIN_DEFAULT_API_BASE_URL, "Crowdin");
+}
+
+export function normalizeCrowdinApiBaseUrl(baseUrl?: string | null): string | null {
+  return normalizeProviderBaseUrl(baseUrl, CROWDIN_DEFAULT_API_BASE_URL);
+}
+
+export function crowdinAuthenticatedUserUrl(baseUrl?: string | null): string | null {
+  const normalized = normalizeCrowdinApiBaseUrl(baseUrl);
+  if (!normalized) {
+    return null;
+  }
+
+  return `${normalized}/user`;
+}
+
+export function isCrowdinEnterpriseApiBaseUrl(baseUrl?: string | null): boolean {
+  const normalized = normalizeCrowdinApiBaseUrl(baseUrl);
+  if (!normalized) {
+    return false;
+  }
+
+  return new URL(normalized).hostname !== "api.crowdin.com";
+}
+
+export function escapeCrowdinCroqlString(value: string) {
+  return value.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+}
+
+/**
+ * Soft cap for an encoded Crowdin `croql` query param.
+ * Proxies and gateways often reject URLs near 8KB; keep headroom for path + other params.
+ */
+export const CROWDIN_CROQL_MAX_ENCODED_LENGTH = 4000;
+
+export function getCrowdinCroqlEncodedLength(croql: string): number {
+  return encodeURIComponent(croql).length;
+}
+
+export function isCrowdinCroqlWithinLimit(croql: string): boolean {
+  return getCrowdinCroqlEncodedLength(croql) <= CROWDIN_CROQL_MAX_ENCODED_LENGTH;
+}
+
+export function buildCrowdinFileQueueCroql(input: {
+  fileId?: number;
+  fileIds?: readonly number[];
+  targetLocale: string;
+  queueFilter?: ProjectFileCatQueueFilter;
+  search?: string;
+}) {
+  const parts: string[] = [];
+
+  const fileIds =
+    input.fileIds && input.fileIds.length > 0
+      ? input.fileIds
+      : input.fileId !== undefined
+        ? [input.fileId]
+        : [];
+
+  if (fileIds.length === 1) {
+    parts.push(`id of file = ${fileIds[0]}`);
+  } else if (fileIds.length > 1) {
+    parts.push(`(${fileIds.map((fileId) => `id of file = ${fileId}`).join(" or ")})`);
+  }
+
+  if (input.search?.trim()) {
+    const escaped = escapeCrowdinCroqlString(input.search.trim());
+    parts.push(`(identifier contains "${escaped}" or text contains "${escaped}")`);
+  }
+
+  const locale = escapeCrowdinCroqlString(input.targetLocale);
+  const languageSummary = `language = @language:"${locale}"`;
+
+  switch (input.queueFilter) {
+    case "untranslated":
+      parts.push(`count of languages summary where (${languageSummary} and is translated) = 0`);
+      break;
+    case "needs_review":
+      parts.push(
+        `count of languages summary where (${languageSummary} and is translated and not is approved) > 0`,
+      );
+      parts.push("count of comments where (has unresolved issue) = 0");
+      break;
+    case "reviewed":
+      parts.push(`count of languages summary where (${languageSummary} and is approved) > 0`);
+      break;
+    case "has_issues":
+      parts.push("count of comments where (has unresolved issue) > 0");
+      break;
+    case "all":
+    default:
+      break;
+  }
+
+  return parts.length > 0 ? parts.join(" and ") : undefined;
+}
+
+export function buildCrowdinFileSearchCroql(fileId: number, search: string) {
+  const escaped = escapeCrowdinCroqlString(search.trim());
+  return `id of file = ${fileId} and (identifier contains "${escaped}" or text contains "${escaped}")`;
+}
+
 export const CROWDIN_LIVE_TASK_LIST_LIMIT = 50;
 export const CROWDIN_LIVE_TASK_LIST_ORDER_BY = "createdAt desc";
+export const CROWDIN_PROJECT_LIST_ORDER_BY = "lastActivity desc";
 export const CROWDIN_SYNC_TASK_PAGE_LIMIT = 500;
 
 export type ListCrowdinTasksOptions = {
@@ -38,10 +160,13 @@ export interface CrowdinProject {
   id: number;
   name: string;
   identifier: string;
+  description?: string;
   sourceLanguageId: string;
   targetLanguageIds: string[];
   webUrl: string;
   isSuspended: boolean;
+  logo?: string;
+  lastActivity?: string;
 }
 
 export interface CrowdinBranch {
@@ -74,6 +199,11 @@ export interface CrowdinFile {
   path: string;
   status: string;
   revisionId: number;
+}
+
+export interface CrowdinSourceFileUploadResult {
+  file: CrowdinFile;
+  storageId: number;
 }
 
 export interface CrowdinFileRevision {
@@ -166,6 +296,42 @@ export interface CrowdinLanguageProgress {
 
 export interface CrowdinTaskDetails extends CrowdinTask {
   stringIds?: number[] | null;
+}
+
+export interface CrowdinCreateTaskAssignee {
+  id: number;
+  wordsCount?: number;
+}
+
+export interface CrowdinCreateTaskRequest {
+  title: string;
+  languageId: string;
+  type: 0 | 1;
+  fileIds?: number[];
+  stringIds?: number[];
+  branchIds?: number[];
+  labelIds?: number[];
+  excludeLabelIds?: number[];
+  status?: "todo" | "in_progress";
+  description?: string;
+  splitContent?: boolean;
+  skipAssignedStrings?: boolean;
+  includePreTranslatedStringsOnly?: boolean;
+  assignees?: CrowdinCreateTaskAssignee[];
+  deadline?: string;
+  startedAt?: string;
+  dateFrom?: string;
+  dateTo?: string;
+}
+
+export interface CrowdinProjectMember {
+  id: number;
+  username: string;
+  fullName?: string | null;
+  firstName?: string | null;
+  lastName?: string | null;
+  avatarUrl?: string | null;
+  role?: string | null;
 }
 
 export interface CrowdinLanguageTranslation {
@@ -393,6 +559,8 @@ export interface CrowdinGlossaryConcordanceSearchRequest {
   sourceLanguageId: string;
   targetLanguageId: string;
   expressions: string[];
+  /** Owner whose glossaries to search for org-level concordance. Defaults to the authenticated account. */
+  userId?: number | null;
 }
 
 export interface CrowdinGlossaryConcordanceTerm {
@@ -469,10 +637,11 @@ export class CrowdinApiClient {
     const projects: CrowdinProject[] = [];
     let offset = 0;
     const limit = 500;
+    const orderBy = encodeURIComponent(CROWDIN_PROJECT_LIST_ORDER_BY);
 
     while (true) {
       const response = await this.get<CrowdinListResponse<CrowdinProject>>(
-        `/projects?limit=${limit}&offset=${offset}`,
+        `/projects?limit=${limit}&offset=${offset}&orderBy=${orderBy}`,
       );
 
       const page = response.data.map((item) => item.data);
@@ -580,6 +749,61 @@ export class CrowdinApiClient {
     }
 
     return files;
+  }
+
+  async addDirectory(
+    projectId: number,
+    input: { name: string; branchId?: number | null; directoryId?: number | null },
+  ): Promise<CrowdinDirectory> {
+    const response = await this.post<CrowdinGetResponse<CrowdinDirectory>>(
+      `/projects/${projectId}/directories`,
+      {
+        name: input.name,
+        ...(input.directoryId ? { directoryId: input.directoryId } : {}),
+        ...(!input.directoryId && input.branchId ? { branchId: input.branchId } : {}),
+      },
+    );
+
+    return response.data;
+  }
+
+  async addSourceFile(
+    projectId: number,
+    input: {
+      storageId: number;
+      name: string;
+      branchId?: number | null;
+      directoryId?: number | null;
+    },
+  ): Promise<CrowdinFile> {
+    const response = await this.post<CrowdinGetResponse<CrowdinFile>>(
+      `/projects/${projectId}/files`,
+      {
+        storageId: input.storageId,
+        name: input.name,
+        ...(input.directoryId ? { directoryId: input.directoryId } : {}),
+        ...(!input.directoryId && input.branchId ? { branchId: input.branchId } : {}),
+      },
+    );
+
+    return response.data;
+  }
+
+  async updateSourceFile(
+    projectId: number,
+    fileId: number,
+    input: { storageId: number; name: string },
+  ): Promise<CrowdinFile> {
+    const response = await this.put<CrowdinGetResponse<CrowdinFile>>(
+      `/projects/${projectId}/files/${fileId}`,
+      {
+        storageId: input.storageId,
+        name: input.name,
+        updateOption: "keep_translations_and_approvals",
+      },
+    );
+
+    return response.data;
   }
 
   /**
@@ -902,16 +1126,86 @@ export class CrowdinApiClient {
     return response.data;
   }
 
+  async addTask(projectId: number, request: CrowdinCreateTaskRequest): Promise<CrowdinTaskDetails> {
+    const response = await this.post<CrowdinGetResponse<CrowdinTaskDetails>>(
+      `/projects/${projectId}/tasks`,
+      request,
+    );
+    return response.data;
+  }
+
+  async deleteTask(projectId: number, taskId: number): Promise<void> {
+    await this.delete(`/projects/${projectId}/tasks/${taskId}`);
+  }
+
+  async listProjectMembers(projectId: number): Promise<CrowdinProjectMember[]> {
+    return this.listPaginated<CrowdinProjectMember>(`/projects/${projectId}/members`);
+  }
+
+  async editTask(
+    projectId: number,
+    taskId: number,
+    patches: Array<{ op: "replace" | "add" | "remove"; path: string; value?: unknown }>,
+  ): Promise<CrowdinTaskDetails> {
+    const response = await this.patch<CrowdinGetResponse<CrowdinTaskDetails>>(
+      `/projects/${projectId}/tasks/${taskId}`,
+      patches,
+    );
+    return response.data;
+  }
+
   async editTaskDescription(
     projectId: number,
     taskId: number,
     description: string,
   ): Promise<CrowdinTaskDetails> {
-    const response = await this.patch<CrowdinGetResponse<CrowdinTaskDetails>>(
-      `/projects/${projectId}/tasks/${taskId}`,
-      [{ op: "replace", path: "/description", value: description }],
-    );
-    return response.data;
+    return this.editTask(projectId, taskId, [
+      { op: "replace", path: "/description", value: description },
+    ]);
+  }
+
+  async editTaskFields(
+    projectId: number,
+    taskId: number,
+    fields: {
+      title?: string;
+      description?: string | null;
+      assigneeExternalUserIds?: string[];
+    },
+  ): Promise<CrowdinTaskDetails> {
+    const patches: Array<{ op: "replace"; path: string; value: unknown }> = [];
+
+    if (fields.title !== undefined) {
+      patches.push({ op: "replace", path: "/title", value: fields.title });
+    }
+    if (fields.description !== undefined) {
+      patches.push({
+        op: "replace",
+        path: "/description",
+        value: fields.description ?? "",
+      });
+    }
+    if (fields.assigneeExternalUserIds !== undefined) {
+      const assignees: Array<{ id: number }> = [];
+      for (const externalUserId of fields.assigneeExternalUserIds) {
+        const trimmed = externalUserId.trim();
+        if (!/^[1-9]\d*$/.test(trimmed)) {
+          throw new Error("invalid_crowdin_assignee_id");
+        }
+        const id = Number(trimmed);
+        if (!Number.isSafeInteger(id) || String(id) !== trimmed) {
+          throw new Error("invalid_crowdin_assignee_id");
+        }
+        assignees.push({ id });
+      }
+      patches.push({ op: "replace", path: "/assignees", value: assignees });
+    }
+
+    if (patches.length === 0) {
+      return this.getTask(projectId, taskId);
+    }
+
+    return this.editTask(projectId, taskId, patches);
   }
 
   async listTaskComments(projectId: number, taskId: number): Promise<CrowdinTaskComment[]> {
@@ -1002,7 +1296,7 @@ export class CrowdinApiClient {
   }
 
   /**
-   * Search glossary concordance for source expressions.
+   * Search glossary concordance for source expressions within a Crowdin project.
    */
   async glossaryConcordanceSearch(
     projectId: number,
@@ -1014,6 +1308,27 @@ export class CrowdinApiClient {
         sourceLanguageId: input.sourceLanguageId,
         targetLanguageId: input.targetLanguageId,
         expressions: input.expressions,
+      },
+    );
+
+    return response.data.map((item) => item.data);
+  }
+
+  /**
+   * Search glossary concordance across organization glossaries (not project-scoped).
+   *
+   * @see https://support.crowdin.com/developer/api/v2/#operation/api.glossaries.concordance.post
+   */
+  async organizationGlossaryConcordanceSearch(
+    input: CrowdinGlossaryConcordanceSearchRequest,
+  ): Promise<CrowdinGlossaryConcordanceSearchResult[]> {
+    const response = await this.post<CrowdinListResponse<CrowdinGlossaryConcordanceSearchResult>>(
+      `/glossaries/concordance`,
+      {
+        sourceLanguageId: input.sourceLanguageId,
+        targetLanguageId: input.targetLanguageId,
+        expressions: input.expressions,
+        ...(input.userId !== undefined ? { userId: input.userId } : {}),
       },
     );
 
@@ -1642,6 +1957,14 @@ export class CrowdinApiClient {
   private async patch<T>(path: string, body: unknown): Promise<T> {
     return this.request<T>(path, {
       method: "PATCH",
+      headers: this.authHeaders(),
+      body: JSON.stringify(body),
+    });
+  }
+
+  private async put<T>(path: string, body: unknown): Promise<T> {
+    return this.request<T>(path, {
+      method: "PUT",
       headers: this.authHeaders(),
       body: JSON.stringify(body),
     });

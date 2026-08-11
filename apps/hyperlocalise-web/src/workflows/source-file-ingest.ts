@@ -1,11 +1,29 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import { getWorkflowMetadata } from "workflow";
 
+import {
+  inferSupportedTranslationFileFormat,
+  isBinaryTranslationFileFormat,
+} from "@/lib/translation/file-formats";
 import type { SourceFileIngestEventData } from "@/lib/workflow/types";
 import {
   claimSourceFileIngestStep,
   createSourceIngestSandboxStep,
   dispatchSourceUploadAutomationsStep,
+  ensureImageVariantsForSourceFileStep,
   extractSourceIngestEntriesStep,
+  getProjectTargetLocalesStep,
   getStoredFileMetadataStep,
   markSourceFileIngestStateStep,
   parseHlEntriesStep,
@@ -28,7 +46,10 @@ function basename(filePath: string): string {
 
 function userFacingIngestFailureReason(error: unknown): string {
   const message = error instanceof Error ? error.message : "source file ingest failed";
-  if (message.includes("hyperlocalise CLI installation failed")) {
+  if (
+    message.includes("hyperlocalise CLI installation failed") ||
+    message.includes("sandbox tool installation failed")
+  ) {
     return "failed to prepare the translation parser environment";
   }
   if (message.includes("failed to extract entries")) {
@@ -54,15 +75,53 @@ export async function sourceFileIngestWorkflow(event: SourceFileIngestEventData)
   let sandboxId: string | null = null;
 
   try {
-    const [storedFile, content] = await Promise.all([
-      getStoredFileMetadataStep(event.storedFileId, event.organizationId),
-      getStoredFileContentStep(event.storedFileId, event.organizationId),
-    ]);
+    const storedFile = await getStoredFileMetadataStep(event.storedFileId, event.organizationId);
 
     const repositorySourceFileId = claim.repositorySourceFileId;
     if (!repositorySourceFileId) {
       throw new Error(`repository source file not found for ${event.sourcePath}`);
     }
+
+    const inferredFormat = inferSupportedTranslationFileFormat(event.sourcePath);
+    if (inferredFormat && isBinaryTranslationFileFormat(inferredFormat)) {
+      const targetLocales = await getProjectTargetLocalesStep({
+        organizationId: event.organizationId,
+        projectId: event.projectId,
+      });
+
+      await ensureImageVariantsForSourceFileStep({
+        organizationId: event.organizationId,
+        projectId: event.projectId,
+        sourcePath: event.sourcePath,
+        repositorySourceFileId,
+        targetLocales,
+      });
+
+      await markSourceFileIngestStateStep({
+        sourceFileVersionId: event.sourceFileVersionId,
+        organizationId: event.organizationId,
+        ingestState: "ingested",
+        ingestWorkflowRunId: workflowRunId,
+        ingestedAt: new Date(),
+        fromIngestingWorkflowRunId: workflowRunId,
+      });
+
+      await dispatchSourceUploadAutomationsStep({
+        organizationId: event.organizationId,
+        projectId: event.projectId,
+        sourceFileId: event.storedFileId,
+        sourceFileVersionId: event.sourceFileVersionId,
+        sourcePath: event.sourcePath,
+        sourceHash: claim.sourceHash,
+      });
+
+      return {
+        status: "ingested" as const,
+        importedKeyCount: 0,
+      };
+    }
+
+    const content = await getStoredFileContentStep(event.storedFileId, event.organizationId);
 
     const inputFilename = sanitizeSandboxFilename(
       basename(event.sourcePath) || storedFile.filename,
@@ -100,6 +159,7 @@ export async function sourceFileIngestWorkflow(event: SourceFileIngestEventData)
       sourceFileId: event.storedFileId,
       sourceFileVersionId: event.sourceFileVersionId,
       sourcePath: event.sourcePath,
+      sourceHash: claim.sourceHash,
     });
 
     return {

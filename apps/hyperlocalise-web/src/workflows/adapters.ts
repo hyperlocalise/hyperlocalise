@@ -1,3 +1,15 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import { start } from "workflow/api";
 
 import { createLogger } from "@/lib/log";
@@ -12,6 +24,9 @@ import { repositoryAgentWorkflow } from "./repository-agent";
 import type {
   EmailAgentTaskQueue,
   JobQueue,
+  IssueNotificationEmailQueue,
+  LocalisationAuditQueue,
+  LocalisationAuditReportEmailQueue,
   ProviderAgentCommentQueue,
   ProviderAgentQaQueue,
   ProviderAgentTranslationQueue,
@@ -23,8 +38,14 @@ import type {
 } from "@/lib/workflow/types";
 
 const providerAgentTranslationQueueLogger = createLogger("provider-agent-translation-queue");
+const issueNotificationEmailQueueLogger = createLogger("issue-notification-email-queue");
 
 export { createTranslationJobEventQueue, createReviewJobEventQueue } from "@/lib/workflow/queues";
+
+function shouldRunWorkflowInlineLocally(): boolean {
+  // Vercel Workflow World is not available in local next/dev — invoke the consumer directly.
+  return process.env.VERCEL !== "1";
+}
 
 export function createEmailAgentTaskQueue(): EmailAgentTaskQueue {
   return {
@@ -34,6 +55,28 @@ export function createEmailAgentTaskQueue(): EmailAgentTaskQueue {
       return {
         ids: [run.runId],
       };
+    },
+  };
+}
+
+export function createIssueNotificationEmailQueue(): IssueNotificationEmailQueue {
+  return {
+    async enqueue(event) {
+      if (shouldRunWorkflowInlineLocally()) {
+        const { sendIssueNotificationEmailStep } =
+          await import("@/workflows/steps/issue-notification-email");
+        issueNotificationEmailQueueLogger.info(
+          { notificationCount: event.notificationIds.length },
+          "running issue notification email consumer inline (local)",
+        );
+        await sendIssueNotificationEmailStep(event);
+        return { ids: ["local_inline_issue_notification_email"] };
+      }
+
+      const { issueNotificationEmailWorkflow } =
+        await import("@/workflows/issue-notification-email");
+      const run = await start(issueNotificationEmailWorkflow, [event]);
+      return { ids: [run.runId] };
     },
   };
 }
@@ -126,6 +169,27 @@ export function createTranslationFileImportQueue(): TranslationFileImportQueue {
     async enqueue(event) {
       const { translationFileImportWorkflow } = await import("@/workflows/translation-file-import");
       const run = await start(translationFileImportWorkflow, [event]);
+      return { ids: [run.runId] };
+    },
+  };
+}
+
+export function createLocalisationAuditQueue(): LocalisationAuditQueue {
+  return {
+    async enqueue(event) {
+      const { localisationAuditWorkflow } = await import("@/workflows/localisation-audit");
+      const run = await start(localisationAuditWorkflow, [event]);
+      return { ids: [run.runId] };
+    },
+  };
+}
+
+export function createLocalisationAuditReportEmailQueue(): LocalisationAuditReportEmailQueue {
+  return {
+    async enqueue(event) {
+      const { localisationAuditReportEmailWorkflow } =
+        await import("@/workflows/localisation-audit-report-email");
+      const run = await start(localisationAuditReportEmailWorkflow, [event]);
       return { ids: [run.runId] };
     },
   };

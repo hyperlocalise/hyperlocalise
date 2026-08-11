@@ -1,8 +1,21 @@
 "use client";
 
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useIntl } from "react-intl";
 import { toast } from "sonner";
 
 import { apiClient } from "@/lib/api-client-instance";
@@ -10,6 +23,7 @@ import { apiClient } from "@/lib/api-client-instance";
 import { createTeamsApi, type TeamSummaryRow } from "./teams-api";
 import { toCreateTeamPayload, toUpdateTeamPayload } from "./team-form";
 import { TeamsPageView } from "./teams-page-view";
+import { teamsPageContentMessages } from "./teams-page-content.messages";
 
 const teamsApi = createTeamsApi(apiClient);
 
@@ -26,6 +40,7 @@ export function TeamsPageContent({
   canManageTeams: boolean;
   teamsApi?: typeof teamsApi;
 }) {
+  const intl = useIntl();
   const router = useRouter();
   const queryClient = useQueryClient();
   const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -47,7 +62,7 @@ export function TeamsPageContent({
     onSuccess: async (team) => {
       setIsCreateOpen(false);
       await invalidateTeams();
-      toast.success("Team created");
+      toast.success(intl.formatMessage(teamsPageContentMessages.teamCreated));
       router.push(`/org/${organizationSlug}/teams/${team.id}`);
     },
     onError: (error) => {
@@ -70,7 +85,7 @@ export function TeamsPageContent({
     onSuccess: async () => {
       setEditingTeam(null);
       await invalidateTeams();
-      toast.success("Team updated");
+      toast.success(intl.formatMessage(teamsPageContentMessages.teamUpdated));
     },
     onError: (error) => {
       toast.error(error.message);
@@ -88,7 +103,7 @@ export function TeamsPageContent({
     onSuccess: async () => {
       setDeletingTeam(null);
       await invalidateTeams();
-      toast.success("Team deleted");
+      toast.success(intl.formatMessage(teamsPageContentMessages.teamDeleted));
     },
     onError: (error) => {
       toast.error(error.message);
