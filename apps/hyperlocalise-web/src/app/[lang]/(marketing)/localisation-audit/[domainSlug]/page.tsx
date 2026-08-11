@@ -24,6 +24,7 @@ import {
 } from "@/lib/localisation-audit/email-unlock";
 import {
   findLocalisationAuditBySlug,
+  getLocalisationAuditStanding,
   isLocalisationAuditRetryable,
 } from "@/lib/localisation-audit/store";
 import { getLocalizedAlternates } from "@/lib/seo/localized-alternates";
@@ -89,11 +90,19 @@ export default async function LocalisationAuditResultRoutePage({
     domainSlug,
   );
   const unlocked = unlock != null && audit.status === "succeeded";
+  const standing =
+    audit.status === "succeeded" && audit.score != null
+      ? await getLocalisationAuditStanding({
+          domainSlug: audit.domainSlug,
+          score: audit.score,
+        }).catch(() => null)
+      : null;
 
   return (
     <LocalisationAuditResultPage
       locale={locale}
       domainSlug={domainSlug}
+      standing={standing}
       audit={{
         id: audit.id,
         domainKey: audit.domainKey,

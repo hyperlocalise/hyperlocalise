@@ -58,6 +58,8 @@ export type LocalisationAuditTeaser = {
   domainSlug: string;
   detectedLocales: LocalisationAuditLocaleSignal[];
   headlineFindings: LocalisationAuditFinding[];
+  /** Total findings in the full report; used to tease locked depth on public pages. */
+  findingsCount: number;
   pagesCrawled: number;
   completedAt: string;
 };

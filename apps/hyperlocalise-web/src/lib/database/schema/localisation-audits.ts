@@ -65,6 +65,7 @@ export const localisationAudits = pgTable(
     index("idx_localisation_audits_status").on(table.status),
     index("idx_localisation_audits_completed_at").on(table.completedAt),
     index("idx_localisation_audits_status_updated_at").on(table.statusUpdatedAt),
+    index("idx_localisation_audits_score").on(table.score),
   ],
 );
 

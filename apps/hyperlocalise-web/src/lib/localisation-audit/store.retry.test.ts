@@ -19,7 +19,9 @@ import {
   claimOrReuseLocalisationAudit,
   completeLocalisationAudit,
   failLocalisationAudit,
+  getLocalisationAuditStanding,
   isLocalisationAuditRetryable,
+  listLocalisationAuditLeaderboard,
   listPendingLocalisationAuditLeads,
   markLocalisationAuditLeadEmailQueued,
   upsertLocalisationAuditLeadForDelivery,
@@ -96,6 +98,7 @@ describe("localisation audit claim/retry", () => {
         domainSlug,
         detectedLocales: [],
         headlineFindings: [],
+        findingsCount: 0,
         pagesCrawled: 1,
         completedAt: new Date().toISOString(),
       },
@@ -230,6 +233,7 @@ describe("localisation audit claim/retry", () => {
         domainSlug: created.audit.domainSlug,
         detectedLocales: [],
         headlineFindings: [],
+        findingsCount: 0,
         pagesCrawled: 2,
         completedAt: new Date().toISOString(),
       },
@@ -272,5 +276,102 @@ describe("localisation audit claim/retry", () => {
     await db
       .delete(schema.localisationAudits)
       .where(and(eq(schema.localisationAudits.id, created.audit.id)));
+  });
+});
+
+describe("localisation audit leaderboard", () => {
+  const keys = [`lb-a-${Date.now()}.example`, `lb-b-${Date.now()}.example`];
+
+  afterEach(async () => {
+    for (const domainKey of keys) {
+      await cleanup(domainKey);
+    }
+  });
+
+  it("ranks succeeded teasers and computes standing", async () => {
+    const first = await claimOrReuseLocalisationAudit({
+      domainKey: keys[0]!,
+      domainSlug: `lb-a-${Date.now()}-example`,
+      sourceUrl: `https://${keys[0]}/`,
+      focusLocales: [],
+    });
+    const second = await claimOrReuseLocalisationAudit({
+      domainKey: keys[1]!,
+      domainSlug: `lb-b-${Date.now()}-example`,
+      sourceUrl: `https://${keys[1]}/`,
+      focusLocales: [],
+    });
+
+    await completeLocalisationAudit({
+      auditId: first.audit.id,
+      attemptNumber: 1,
+      score: 91,
+      teaser: {
+        score: 91,
+        domainKey: keys[0]!,
+        domainSlug: first.audit.domainSlug,
+        detectedLocales: [],
+        headlineFindings: [],
+        findingsCount: 2,
+        pagesCrawled: 8,
+        completedAt: new Date().toISOString(),
+      },
+      report: {
+        score: 91,
+        domainKey: keys[0]!,
+        domainSlug: first.audit.domainSlug,
+        sourceUrl: first.audit.sourceUrl,
+        focusLocales: [],
+        detectedLocales: [],
+        findings: [],
+        pages: [],
+        linguisticNotes: [],
+        pagesCrawled: 8,
+        completedAt: new Date().toISOString(),
+      },
+    });
+    await completeLocalisationAudit({
+      auditId: second.audit.id,
+      attemptNumber: 1,
+      score: 62,
+      teaser: {
+        score: 62,
+        domainKey: keys[1]!,
+        domainSlug: second.audit.domainSlug,
+        detectedLocales: [],
+        headlineFindings: [],
+        findingsCount: 4,
+        pagesCrawled: 8,
+        completedAt: new Date().toISOString(),
+      },
+      report: {
+        score: 62,
+        domainKey: keys[1]!,
+        domainSlug: second.audit.domainSlug,
+        sourceUrl: second.audit.sourceUrl,
+        focusLocales: [],
+        detectedLocales: [],
+        findings: [],
+        pages: [],
+        linguisticNotes: [],
+        pagesCrawled: 8,
+        completedAt: new Date().toISOString(),
+      },
+    });
+
+    const leaderboard = await listLocalisationAuditLeaderboard(50);
+    const ranks = leaderboard.filter((entry) => keys.includes(entry.domainKey));
+    expect(ranks[0]?.domainKey).toBe(keys[0]);
+    expect(ranks[0]?.score).toBe(91);
+    expect(ranks[1]?.domainKey).toBe(keys[1]);
+
+    const standing = await getLocalisationAuditStanding({
+      domainSlug: second.audit.domainSlug,
+      score: 62,
+    });
+    expect(standing).toBeTruthy();
+    expect(standing!.rank).toBeGreaterThanOrEqual(2);
+    expect(standing!.total).toBeGreaterThanOrEqual(2);
+    expect(standing!.averageScore).toBeGreaterThan(0);
   });
 });

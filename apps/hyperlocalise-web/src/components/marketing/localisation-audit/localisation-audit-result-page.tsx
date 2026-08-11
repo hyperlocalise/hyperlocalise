@@ -12,6 +12,7 @@
  */
 import { MarketingFooter } from "@/components/marketing/marketing-footer";
 import { footerColumns } from "@/components/marketing/marketing-page-content";
+import type { LocalisationAuditStanding } from "@/lib/localisation-audit/store";
 import type {
   LocalisationAuditProgressStage,
   LocalisationAuditReport,
@@ -23,6 +24,7 @@ import { LocalisationAuditResult } from "./localisation-audit-result";
 type LocalisationAuditResultPageProps = {
   locale: string;
   domainSlug: string;
+  standing: LocalisationAuditStanding | null;
   audit: {
     id: string;
     domainKey: string;
@@ -45,12 +47,18 @@ type LocalisationAuditResultPageProps = {
 export function LocalisationAuditResultPage({
   locale,
   domainSlug,
+  standing,
   audit,
 }: LocalisationAuditResultPageProps) {
   return (
     <div className="min-h-screen bg-background text-foreground">
       <div className="mx-auto max-w-7xl">
-        <LocalisationAuditResult locale={locale} domainSlug={domainSlug} initialAudit={audit} />
+        <LocalisationAuditResult
+          locale={locale}
+          domainSlug={domainSlug}
+          initialAudit={audit}
+          standing={standing}
+        />
         <MarketingFooter columns={footerColumns} />
       </div>
     </div>

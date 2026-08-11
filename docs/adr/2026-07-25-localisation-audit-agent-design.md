@@ -75,3 +75,14 @@ Public Hono routes under `/api/localisation-audit` start/retry runs, expose teas
 ## Lead gen UX
 
 Landing discloses methodology, crawl limits, privacy/safe-crawl posture, and that teasers are public. Result waiting state shows a progress stepper, expected duration, safe-to-leave messaging, and optional “Email me when ready.” Failure states expose retry. Contextual CTAs vary by score band (create workspace / deeper registered audit / book review).
+
+Public teaser pages are the primary lead magnet:
+
+- Score + top findings are indexable; remaining findings, linguistic notes, and page samples stay behind verified email unlock.
+- Unlock copy states how many findings remain locked.
+- Result pages show competitive standing (rank, percentile, public average) against other succeeded teasers and link back to the landing leaderboard.
+- Share CTA copies the public teaser URL for viral comparison loops.
+
+## Leaderboard
+
+Landing includes a public leaderboard of succeeded teaser scores (domain + score only; never emails or full reports). Ranking is highest score first, then most recently completed. Result pages compute standing with the same public set.

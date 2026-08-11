@@ -13,15 +13,18 @@
 import { MarketingFooter } from "@/components/marketing/marketing-footer";
 import { footerColumns } from "@/components/marketing/marketing-page-content";
 import { TypographyH1, TypographyH2, TypographyP } from "@/components/ui/typography";
+import type { LocalisationAuditLeaderboardEntry } from "@/lib/localisation-audit/store";
 
 import { LocalisationAuditForm } from "./localisation-audit-form";
+import { LocalisationAuditLeaderboard } from "./localisation-audit-leaderboard";
 import { getLocalisationAuditPageCopy } from "./localisation-audit-page-content";
 
 type LocalisationAuditPageProps = {
   locale: string;
+  leaderboard: LocalisationAuditLeaderboardEntry[];
 };
 
-export function LocalisationAuditPage({ locale }: LocalisationAuditPageProps) {
+export function LocalisationAuditPage({ locale, leaderboard }: LocalisationAuditPageProps) {
   const copy = getLocalisationAuditPageCopy(locale);
 
   return (
@@ -34,6 +37,8 @@ export function LocalisationAuditPage({ locale }: LocalisationAuditPageProps) {
           </div>
           <LocalisationAuditForm locale={locale} />
         </section>
+
+        <LocalisationAuditLeaderboard locale={locale} entries={leaderboard} />
 
         <section className="border-t border-border px-5 py-16 sm:px-8 lg:px-10">
           <TypographyH2 className="pb-0">{copy.methodologyHeading}</TypographyH2>

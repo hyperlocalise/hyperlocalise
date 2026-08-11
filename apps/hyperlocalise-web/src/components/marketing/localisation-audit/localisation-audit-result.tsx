@@ -22,6 +22,7 @@ import { Label } from "@/components/ui/label";
 import { TypographyH1, TypographyH2, TypographyP } from "@/components/ui/typography";
 import { clientAnalytics } from "@/lib/analytics/client";
 import { LOCALISATION_AUDIT_ANALYTICS_EVENTS, scoreBand } from "@/lib/analytics/events";
+import type { LocalisationAuditStanding } from "@/lib/localisation-audit/store";
 import type {
   LocalisationAuditFinding,
   LocalisationAuditProgressStage,
@@ -53,6 +54,7 @@ type LocalisationAuditResultProps = {
   locale: string;
   domainSlug: string;
   initialAudit: AuditPayload;
+  standing: LocalisationAuditStanding | null;
 };
 
 const PROGRESS_STAGES = ["queued", "preparing", "crawling", "analyzing", "scoring"] as const;
@@ -94,10 +96,18 @@ function prioritizeFindings(findings: LocalisationAuditFinding[]) {
   return findings.toSorted((a, b) => weight[a.severity] - weight[b.severity]).slice(0, 3);
 }
 
+function formatCopy(template: string, values: Record<string, string | number>) {
+  return Object.entries(values).reduce(
+    (text, [key, value]) => text.replaceAll(`{${key}}`, String(value)),
+    template,
+  );
+}
+
 export function LocalisationAuditResult({
   locale,
   domainSlug,
   initialAudit,
+  standing,
 }: LocalisationAuditResultProps) {
   const copy = getLocalisationAuditResultCopy(locale);
   const [audit, setAudit] = useState(initialAudit);
@@ -106,6 +116,7 @@ export function LocalisationAuditResult({
   const [pending, setPending] = useState(false);
   const [retryPending, setRetryPending] = useState(false);
   const [deliveryMessage, setDeliveryMessage] = useState<string | null>(null);
+  const [shareMessage, setShareMessage] = useState<string | null>(null);
   const teaserTracked = useRef(false);
 
   useEffect(() => {
@@ -198,6 +209,17 @@ export function LocalisationAuditResult({
       cta,
       score_band: scoreBand(audit.score),
     });
+  }
+
+  async function copyShareLink() {
+    const url = `${window.location.origin}/${locale}/localisation-audit/${domainSlug}`;
+    try {
+      await navigator.clipboard.writeText(url);
+      setShareMessage(copy.shareCopied);
+      trackCta("share_teaser");
+    } catch {
+      setShareMessage(url);
+    }
   }
 
   if ((audit.status === "queued" || audit.status === "running") && audit.retryable) {
@@ -312,6 +334,9 @@ export function LocalisationAuditResult({
         ? copy.scoreInterpretationMid
         : copy.scoreInterpretationLow;
   const fixFirst = prioritizeFindings(teaser?.headlineFindings ?? report?.findings ?? []);
+  const headlineFindings = teaser?.headlineFindings ?? [];
+  const totalFindings = report?.findings.length ?? teaser?.findingsCount ?? headlineFindings.length;
+  const lockedFindingCount = Math.max(0, totalFindings - headlineFindings.length);
   const ctaBody =
     band === "high"
       ? copy.reauditBodyHigh
@@ -350,6 +375,34 @@ export function LocalisationAuditResult({
         </TypographyP>
       </section>
 
+      {standing ? (
+        <section className="border-t border-border px-5 py-16 sm:px-8 lg:px-10">
+          <TypographyH2 className="pb-0">{copy.standingHeading}</TypographyH2>
+          <TypographyP className="mt-4 max-w-2xl text-lg text-muted-foreground">
+            {formatCopy(copy.standingRank, { rank: standing.rank, total: standing.total })}
+          </TypographyP>
+          <div className="mt-4 flex flex-wrap gap-x-8 gap-y-2 text-sm text-muted-foreground">
+            <span>
+              {formatCopy(copy.standingPercentile, { percentile: standing.percentile })}
+            </span>
+            {standing.averageScore != null ? (
+              <span>
+                {formatCopy(copy.standingAverage, { average: standing.averageScore })}
+              </span>
+            ) : null}
+          </div>
+          <div className="mt-6">
+            <Button
+              variant="outline"
+              nativeButton={false}
+              render={<Link href={`/${locale}/localisation-audit`} />}
+            >
+              {copy.standingCta}
+            </Button>
+          </div>
+        </section>
+      ) : null}
+
       <section className="border-t border-border px-5 py-16 sm:px-8 lg:px-10">
         <TypographyH2 className="pb-0">{copy.fixFirstHeading}</TypographyH2>
         <div className="mt-8">
@@ -372,7 +425,7 @@ export function LocalisationAuditResult({
       <section className="border-t border-border px-5 py-16 sm:px-8 lg:px-10">
         <TypographyH2 className="pb-0">{copy.findingsHeading}</TypographyH2>
         <div className="mt-8">
-          <FindingList findings={teaser?.headlineFindings ?? []} />
+          <FindingList findings={headlineFindings} />
         </div>
       </section>
 
@@ -382,6 +435,11 @@ export function LocalisationAuditResult({
           <TypographyP className="mt-4 max-w-2xl text-muted-foreground">
             {copy.unlockBody}
           </TypographyP>
+          {lockedFindingCount > 0 ? (
+            <TypographyP className="mt-3 max-w-2xl font-medium text-foreground">
+              {formatCopy(copy.unlockLockedCount, { count: lockedFindingCount })}
+            </TypographyP>
+          ) : null}
           <form onSubmit={requestReportEmail} className="mt-8 max-w-md space-y-4">
             <div className="space-y-2">
               <Label htmlFor="localisation-audit-email">{copy.emailLabel}</Label>
@@ -405,6 +463,17 @@ export function LocalisationAuditResult({
           </form>
         </section>
       ) : null}
+
+      <section className="border-t border-border px-5 py-16 sm:px-8 lg:px-10">
+        <TypographyH2 className="pb-0">{copy.shareHeading}</TypographyH2>
+        <TypographyP className="mt-4 max-w-2xl text-muted-foreground">{copy.shareBody}</TypographyP>
+        <div className="mt-6 flex flex-wrap items-center gap-3">
+          <Button type="button" variant="outline" onClick={copyShareLink}>
+            {copy.shareCopyLink}
+          </Button>
+          {shareMessage ? <p className="text-sm text-muted-foreground">{shareMessage}</p> : null}
+        </div>
+      </section>
 
       {report ? (
         <>

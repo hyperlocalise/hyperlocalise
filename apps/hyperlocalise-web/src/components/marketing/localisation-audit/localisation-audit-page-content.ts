@@ -15,7 +15,7 @@ export function getLocalisationAuditPageCopy(_locale: string) {
   return {
     headline: "Localisation health check",
     subcopy:
-      "Paste a URL. We sample key pages, score technical and linguistic readiness, and show the gaps that hurt global conversion.",
+      "Paste a URL. Get a public score, see how you rank against other domains, and unlock the full report with your work email.",
     urlLabel: "Website URL",
     urlPlaceholder: "https://example.com",
     focusLabel: "Focus markets (optional)",
@@ -45,6 +45,11 @@ export function getLocalisationAuditPageCopy(_locale: string) {
     sampleFindingTitle: "Sample finding",
     sampleFindingBody:
       "Critical · Missing hreflang return tags between EN and FR can split SEO equity across locales.",
+    leaderboardHeading: "Public localisation leaderboard",
+    leaderboardSubcopy:
+      "Teaser scores are public. Compare domains, then run your own audit to see where you rank.",
+    leaderboardEmpty:
+      "No public audits yet. Run the first health check and claim the top spot.",
   };
 }
 
@@ -85,6 +90,16 @@ export function getLocalisationAuditResultCopy(_locale: string) {
     unlockHeading: "Get the full report by email",
     unlockBody:
       "Enter your work email. We send a verified link (expires in 24 hours) to unlock every finding, page sample, and linguistic note.",
+    unlockLockedCount: "{count} more findings stay locked until you verify your email.",
+    standingHeading: "How you compare",
+    standingRank: "Rank #{rank} of {total} public audits",
+    standingPercentile: "Top {percentile}% of audited domains",
+    standingAverage: "Public average: {average}/100",
+    standingCta: "See the full leaderboard",
+    shareHeading: "Share this public teaser",
+    shareBody: "This score page is public. Share it with your team or post it to start a comparison.",
+    shareCopyLink: "Copy report link",
+    shareCopied: "Link copied",
     emailLabel: "Work email",
     emailPlaceholder: "you@company.com",
     unlockSubmit: "Email me the report",

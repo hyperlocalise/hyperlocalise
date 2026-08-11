@@ -15,6 +15,7 @@ import type { Metadata } from "next";
 import { LocalisationAuditPage } from "@/components/marketing/localisation-audit/localisation-audit-page";
 import { getIntlShape } from "@/lib/app-i18n/intl";
 import { DEFAULT_APP_LOCALE, normalizeAppLocale } from "@/lib/app-i18n/locales";
+import { listLocalisationAuditLeaderboard } from "@/lib/localisation-audit/store";
 import { getLocalizedAlternates } from "@/lib/seo/localized-alternates";
 
 import { getLocalisationAuditRouteMetadata } from "./localisation-audit-route-metadata";
@@ -44,5 +45,11 @@ export async function generateMetadata({ params }: LocalisationAuditRouteProps):
 export default async function LocalisationAuditRoutePage({ params }: LocalisationAuditRouteProps) {
   const { lang } = await params;
   const locale = normalizeAppLocale(lang) ?? DEFAULT_APP_LOCALE;
-  return <LocalisationAuditPage locale={locale} />;
+  let leaderboard: Awaited<ReturnType<typeof listLocalisationAuditLeaderboard>> = [];
+  try {
+    leaderboard = await listLocalisationAuditLeaderboard(25);
+  } catch {
+    leaderboard = [];
+  }
+  return <LocalisationAuditPage locale={locale} leaderboard={leaderboard} />;
 }

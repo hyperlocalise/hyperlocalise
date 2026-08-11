@@ -10,7 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { and, desc, eq, inArray, isNotNull, isNull, lt, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNotNull, isNull, lt, or, sql } from "drizzle-orm";
 
 import { db, schema } from "@/lib/database";
 
@@ -100,6 +100,100 @@ export async function listCompletedLocalisationAuditSlugs(limit = 200) {
   return rows;
 }
 
+export type LocalisationAuditLeaderboardEntry = {
+  rank: number;
+  domainKey: string;
+  domainSlug: string;
+  score: number;
+  completedAt: Date | null;
+};
+
+/**
+ * Public leaderboard of succeeded teaser scores (highest first).
+ * Only exposes domain identity + score — never emails or full reports.
+ */
+export async function listLocalisationAuditLeaderboard(limit = 25) {
+  const rows = await db
+    .select({
+      domainKey: schema.localisationAudits.domainKey,
+      domainSlug: schema.localisationAudits.domainSlug,
+      score: schema.localisationAudits.score,
+      completedAt: schema.localisationAudits.completedAt,
+    })
+    .from(schema.localisationAudits)
+    .where(
+      and(
+        eq(schema.localisationAudits.status, "succeeded"),
+        isNotNull(schema.localisationAudits.score),
+        isNotNull(schema.localisationAudits.teaser),
+      ),
+    )
+    .orderBy(
+      desc(schema.localisationAudits.score),
+      desc(schema.localisationAudits.completedAt),
+      asc(schema.localisationAudits.domainKey),
+    )
+    .limit(limit);
+
+  return rows.flatMap((row, index) => {
+    if (row.score == null) return [];
+    return [
+      {
+        rank: index + 1,
+        domainKey: row.domainKey,
+        domainSlug: row.domainSlug,
+        score: row.score,
+        completedAt: row.completedAt,
+      } satisfies LocalisationAuditLeaderboardEntry,
+    ];
+  });
+}
+
+export type LocalisationAuditStanding = {
+  rank: number;
+  total: number;
+  score: number;
+  percentile: number;
+  averageScore: number | null;
+};
+
+/** Rank/percentile for a succeeded audit among all public teaser scores. */
+export async function getLocalisationAuditStanding(input: {
+  domainSlug: string;
+  score: number;
+}): Promise<LocalisationAuditStanding | null> {
+  const [stats] = await db
+    .select({
+      total: sql<number>`count(*)::int`,
+      averageScore: sql<number | null>`avg(${schema.localisationAudits.score})`,
+      betterOrEqual: sql<number>`count(*) filter (where ${schema.localisationAudits.score} > ${input.score})::int`,
+    })
+    .from(schema.localisationAudits)
+    .where(
+      and(
+        eq(schema.localisationAudits.status, "succeeded"),
+        isNotNull(schema.localisationAudits.score),
+        isNotNull(schema.localisationAudits.teaser),
+      ),
+    );
+
+  const total = stats?.total ?? 0;
+  if (total === 0) return null;
+
+  const rank = (stats?.betterOrEqual ?? 0) + 1;
+  const percentile = Math.max(1, Math.min(99, Math.round(((total - rank + 1) / total) * 100)));
+  const averageScore =
+    stats?.averageScore == null ? null : Math.round(Number(stats.averageScore));
+
+  return {
+    rank,
+    total,
+    score: input.score,
+    percentile,
+    averageScore,
+  };
+}
+
 async function createLocalisationAudit(input: {
   domainKey: string;
   domainSlug: string;
@@ -135,7 +229,10 @@ export async function claimOrReuseLocalisationAudit(input: {
   domainSlug: string;
   sourceUrl: string;
   focusLocales: string[];
+  /** Internal retry budget after reclaim races. */
+  _reclaimAttempts?: number;
 }): Promise<{ audit: LocalisationAuditRow; outcome: ClaimLocalisationAuditOutcome }> {
+  const reclaimAttempts = input._reclaimAttempts ?? 0;
   const existing = await findLocalisationAuditByDomainKey(input.domainKey);
   if (!existing) {
     try {
@@ -210,6 +307,10 @@ export async function claimOrReuseLocalisationAudit(input: {
   }
   if (fresh.status === "succeeded" && fresh.report) {
     return { audit: fresh, outcome: "reused_success" };
+  }
+  // Succeeded-without-report (or other retryable states) must not stick as "active".
+  if (isLocalisationAuditRetryable(fresh) && reclaimAttempts < 3) {
+    return claimOrReuseLocalisationAudit({ ...input, _reclaimAttempts: reclaimAttempts + 1 });
   }
   return { audit: fresh, outcome: "reused_active" };
 }

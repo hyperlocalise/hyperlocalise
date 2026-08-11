@@ -177,6 +177,7 @@ export async function analyzeLocalisationAuditStep(input: {
     domainSlug: input.domainSlug,
     detectedLocales: technical.detectedLocales,
     headlineFindings: pickHeadlineFindings(findings, 3),
+    findingsCount: findings.length,
     pagesCrawled: input.pages.length,
     completedAt,
   };

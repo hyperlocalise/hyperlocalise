@@ -120,7 +120,7 @@
     "pptxgenjs": "^4.0.1",
     "react": "19.2.8",
     "react-dom": "19.2.8",
-    "react-email": "^6.9.1",
+    "react-email": "^6.9.2",
     "react-error-boundary": "^6.1.2",
     "react-hook-form": "7.84.0",
     "react-hotkeys-hook": "^5.3.3",

@@ -94,7 +94,7 @@ function succeededAudit(overrides: Record<string, unknown> = {}) {
     progressStage: "completed",
     score: 82,
     focusLocales: [],
-    teaser: { score: 82, headlineFindings: [] },
+    teaser: { score: 82, headlineFindings: [], findingsCount: 0 },
     report: { score: 82, findings: [] },
     errorCode: null,
     errorMessage: null,
