@@ -136,9 +136,10 @@ func parseFluentDocument(content []byte) (fluentDocument, error) {
 	text := string(content)
 	lines := scanFluentLines(text)
 	// BOLT OPTIMIZATION: Hint capacity for entries and messageIDs.
+	// Since entries can be close to the number of lines, using len(lines) avoids reallocations entirely.
 	doc := fluentDocument{
 		template:   text,
-		entries:    make([]fluentEntry, 0, len(lines)/2),
+		entries:    make([]fluentEntry, 0, len(lines)),
 		messageIDs: make(map[string]struct{}, len(lines)/2),
 	}
 	// BOLT OPTIMIZATION: Hint capacity for seen map.
@@ -384,10 +385,15 @@ func fluentIndentWidth(line string) int {
 }
 
 func fluentAttributeContinuationIndent(line string) string {
-	indent := line[:fluentIndentWidth(line)]
-	if indent == "" {
-		indent = "    "
+	// BOLT OPTIMIZATION: Avoid string allocations for common indent sizes.
+	width := fluentIndentWidth(line)
+	if width == 4 && line[:4] == "    " {
+		return "        "
 	}
+	if width == 0 {
+		return "        " // Matches logic of indent == "" evaluating to "    " and returning "    " + "    " ("        ")
+	}
+	indent := line[:width]
 	return indent + "    "
 }
 
@@ -416,6 +422,9 @@ func fluentCommentText(trimmed string) string {
 }
 
 func formatFluentComments(comments []string) string {
+	if len(comments) == 0 {
+		return ""
+	}
 	// BOLT OPTIMIZATION: Use strings.Builder to avoid intermediate slice and Join.
 	var b strings.Builder
 	// BOLT OPTIMIZATION: Pre-calculate total length to avoid re-allocations.
