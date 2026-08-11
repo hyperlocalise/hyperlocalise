@@ -1,4 +1,4 @@
-import { createHash, createHmac, randomBytes, timingSafeEqual } from "node:crypto";
+import { createHash, createHmac, randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
 
 import { and, eq, gt, isNull } from "drizzle-orm";
 
@@ -8,6 +8,8 @@ import { env } from "@/lib/env";
 import { markAuthorizationCodeUsed, verifyPkceChallenge } from "@/api/auth/mcp";
 
 const TOKEN_PREFIX = "hl_canva_";
+/** Static salt for deriving a 32-byte HMAC key when the signing secret is not already 32 bytes. */
+const CANVA_OAUTH_SIGNING_SCRYPT_SALT = "hl-canva-oauth-signing-v1";
 
 export type CanvaAuthorizationCodePayload = {
   clientId: string;
@@ -53,7 +55,8 @@ function getCanvaOAuthSigningSecret(): Buffer {
     return decoded;
   }
 
-  return createHash("sha256").update(configuredKey).digest();
+  // Slow KDF only for non-standard secret encodings; prefer a 32-byte base64 secret.
+  return scryptSync(configuredKey, CANVA_OAUTH_SIGNING_SCRYPT_SALT, 32);
 }
 
 function base64Url(input: Buffer | string): string {
@@ -106,9 +109,12 @@ export function generateCanvaOAuthToken(): string {
 
 /**
  * Hash high-entropy bearer/refresh tokens with SHA-256 for O(1) lookup.
- * Tokens are 256-bit random values (not passwords), matching the MCP/API-key pattern.
+ * Tokens are 256-bit random values from generateCanvaOAuthToken (not human passwords),
+ * matching the MCP/API-key pattern — a slow password KDF is unnecessary here.
  */
 export function hashCanvaOAuthToken(token: string): string {
+  // codeql[js/insufficient-password-hash]
+  // High-entropy 256-bit random OAuth tokens, not user passwords; SHA-256 is appropriate.
   return createHash("sha256").update(token).digest("hex");
 }
 
