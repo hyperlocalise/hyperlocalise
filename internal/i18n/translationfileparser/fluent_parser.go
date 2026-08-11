@@ -136,10 +136,11 @@ func parseFluentDocument(content []byte) (fluentDocument, error) {
 	text := string(content)
 	lines := scanFluentLines(text)
 	// BOLT OPTIMIZATION: Hint capacity for entries and messageIDs.
-	// Since entries can be close to the number of lines, using len(lines) avoids reallocations entirely.
+	// Use len(lines)/2 so sparse or comment-heavy files do not over-reserve
+	// a fluentEntry per physical line (blank/comment/continuation lines are not entries).
 	doc := fluentDocument{
 		template:   text,
-		entries:    make([]fluentEntry, 0, len(lines)),
+		entries:    make([]fluentEntry, 0, len(lines)/2),
 		messageIDs: make(map[string]struct{}, len(lines)/2),
 	}
 	// BOLT OPTIMIZATION: Hint capacity for seen map.
