@@ -61,53 +61,61 @@ type SafeFetchOutcome<T> =
  * Follow redirects manually so each hop is re-validated by withPublicHttpFetch.
  * Never use redirect:"follow" — undici can connect to IP-literal Location targets
  * without the DNS pin, bypassing the SSRF guard.
+ *
+ * One AbortController + FETCH_TIMEOUT_MS deadline covers the whole redirect chain
+ * (not a fresh 12s budget per hop).
  */
 async function fetchPublicWithSafeRedirects<T>(
   startUrl: string,
   handler: (response: Response, finalUrl: string) => Promise<T>,
 ): Promise<T | null> {
-  let currentUrl = startUrl;
-  for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
-    try {
-      const outcome = await withPublicHttpFetch(
-        currentUrl,
-        {
-          method: "GET",
-          redirect: "manual",
-          signal: controller.signal,
-          headers: FETCH_HEADERS,
-        },
-        async (response): Promise<SafeFetchOutcome<T>> => {
-          if (REDIRECT_STATUSES.has(response.status)) {
-            const location = response.headers.get("location");
-            if (!location) return { kind: "fail" };
-            const nextUrl = toAbsoluteUrl(currentUrl, location);
-            if (!nextUrl) return { kind: "fail" };
-            return { kind: "redirect", nextUrl };
-          }
-          return {
-            kind: "ok",
-            value: await handler(response, currentUrl),
-          };
-        },
-      );
-      if (outcome.kind === "redirect") {
-        currentUrl = outcome.nextUrl;
-        continue;
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+  try {
+    let currentUrl = startUrl;
+    for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
+      if (controller.signal.aborted) {
+        return null;
       }
-      if (outcome.kind === "ok") {
-        return outcome.value;
+      try {
+        const outcome = await withPublicHttpFetch(
+          currentUrl,
+          {
+            method: "GET",
+            redirect: "manual",
+            signal: controller.signal,
+            headers: FETCH_HEADERS,
+          },
+          async (response): Promise<SafeFetchOutcome<T>> => {
+            if (REDIRECT_STATUSES.has(response.status)) {
+              const location = response.headers.get("location");
+              if (!location) return { kind: "fail" };
+              const nextUrl = toAbsoluteUrl(currentUrl, location);
+              if (!nextUrl) return { kind: "fail" };
+              return { kind: "redirect", nextUrl };
+            }
+            return {
+              kind: "ok",
+              value: await handler(response, currentUrl),
+            };
+          },
+        );
+        if (outcome.kind === "redirect") {
+          currentUrl = outcome.nextUrl;
+          continue;
+        }
+        if (outcome.kind === "ok") {
+          return outcome.value;
+        }
+        return null;
+      } catch {
+        return null;
       }
-      return null;
-    } catch {
-      return null;
-    } finally {
-      clearTimeout(timeout);
     }
+    return null;
+  } finally {
+    clearTimeout(timeout);
   }
-  return null;
 }
 
 async function fetchPage(url: string): Promise<LocalisationAuditCrawledPage | null> {

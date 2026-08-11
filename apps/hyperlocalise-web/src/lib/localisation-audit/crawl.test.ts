@@ -118,4 +118,41 @@ describe("crawlLocalisationAuditSample", () => {
     expect(pages.some((page) => page.url === "https://example.com/en")).toBe(true);
     expect(pages.find((page) => page.url === "https://example.com/en")?.title).toBe("EN");
   });
+
+  it("reuses one abort signal across redirect hops so the page timeout does not reset", async () => {
+    const signals: AbortSignal[] = [];
+    withPublicHttpFetchMock.mockImplementation(async (url, init, handler) => {
+      if (init?.signal) {
+        signals.push(init.signal);
+      }
+      if (url === "https://example.com/") {
+        return handler(
+          new Response(null, {
+            status: 302,
+            headers: { location: "https://example.com/en" },
+          }),
+        );
+      }
+      if (url === "https://example.com/en") {
+        return handler(
+          htmlResponse(
+            "<html lang='en'><title>EN</title><body>Welcome to the English homepage content.</body></html>",
+          ),
+        );
+      }
+      return handler(
+        htmlResponse(
+          "<html><body>Secondary page with enough text content for parsing.</body></html>",
+        ),
+      );
+    });
+
+    await crawlLocalisationAuditSample({
+      origin: "https://example.com",
+      sourceUrl: "https://example.com/",
+    });
+
+    expect(signals.length).toBeGreaterThanOrEqual(2);
+    expect(signals[0]).toBe(signals[1]);
+  });
 });
