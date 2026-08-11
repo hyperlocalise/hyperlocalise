@@ -225,4 +225,32 @@ func TestCompareRiskChange_Scout(t *testing.T) {
 			}
 		})
 	}
+
+	// Transitivity: if a <= b and b <= c then a <= c (and strict: a < b && b < c => a < c).
+	// Pairwise antisymmetry alone cannot catch three-element ordering cycles.
+	ordered := []RiskChange{
+		{ID: idA, Code: "code-a", Message: "msg-a"},
+		{ID: idA, Code: "code-a", Message: "msg-b"},
+		{ID: idA, Code: "code-b", Message: "msg-a"},
+		{ID: idB, Code: "code-a", Message: "msg-a"},
+		{ID: idC, Code: "code-a", Message: "msg-a"},
+		{ID: idD, Code: "code-a", Message: "msg-a"},
+	}
+	for i := range ordered {
+		for j := range ordered {
+			for k := range ordered {
+				a, b, c := ordered[i], ordered[j], ordered[k]
+				ab := compareRiskChange(a, b)
+				bc := compareRiskChange(b, c)
+				ac := compareRiskChange(a, c)
+
+				if ab <= 0 && bc <= 0 && ac > 0 {
+					t.Errorf("transitivity violation: a<=b and b<=c but a>c; a=%+v b=%+v c=%+v (ab=%d bc=%d ac=%d)", a, b, c, ab, bc, ac)
+				}
+				if ab < 0 && bc < 0 && ac >= 0 {
+					t.Errorf("strict transitivity violation: a<b and b<c but a>=c; a=%+v b=%+v c=%+v (ab=%d bc=%d ac=%d)", a, b, c, ab, bc, ac)
+				}
+			}
+		}
+	}
 }
