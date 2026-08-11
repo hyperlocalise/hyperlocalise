@@ -66,6 +66,19 @@ describe("public-http-fetch", () => {
     expect(undiciMock.fetch).not.toHaveBeenCalled();
   });
 
+  it("rejects redirect: follow so callers cannot bypass DNS pinning via IP-literal Location", async () => {
+    dnsMock.lookup.mockResolvedValue([{ address: "93.184.216.34", family: 4 }]);
+
+    await expect(
+      withPublicHttpFetch(
+        "https://api.example.com/docs",
+        { method: "GET", redirect: "follow" },
+        async () => "ok",
+      ),
+    ).rejects.toThrow(/redirect: "follow"/);
+    expect(undiciMock.fetch).not.toHaveBeenCalled();
+  });
+
   it("pins the vetted address into the connect lookup while keeping the hostname URL", async () => {
     dnsMock.lookup.mockResolvedValue([{ address: "93.184.216.34", family: 4 }]);
     undiciMock.fetch.mockResolvedValue(new Response("ok", { status: 200 }));

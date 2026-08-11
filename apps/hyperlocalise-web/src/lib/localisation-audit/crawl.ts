@@ -19,9 +19,17 @@ import type { LocalisationAuditCrawledPage } from "./types";
 const USER_AGENT = "HyperlocaliseLocalisationAudit/1.0 (+https://hyperlocalise.com)";
 const MAX_PAGES = 15;
 const FETCH_TIMEOUT_MS = 12_000;
+const MAX_REDIRECTS = 5;
+const REDIRECT_STATUSES = new Set([301, 302, 303, 307, 308]);
 const HIGH_VALUE_PATHS = ["/pricing", "/product", "/products", "/about", "/company", "/blog"];
 
 const LOCALE_PREFIX = /^\/([a-z]{2}(?:-[a-z]{2})?)(\/|$)/i;
+
+const FETCH_HEADERS = {
+  "User-Agent": USER_AGENT,
+  Accept: "text/html,application/xhtml+xml;q=0.9,*/*;q=0.1",
+  "Accept-Language": "en-US,en;q=0.9",
+} as const;
 
 function toAbsoluteUrl(base: string, href: string): string | null {
   try {
@@ -44,100 +52,114 @@ function sameHost(originHost: string, url: string): boolean {
   }
 }
 
-async function fetchPage(url: string): Promise<LocalisationAuditCrawledPage | null> {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+type SafeFetchOutcome<T> =
+  | { kind: "ok"; value: T }
+  | { kind: "redirect"; nextUrl: string }
+  | { kind: "fail" };
 
-  try {
-    return await withPublicHttpFetch(
-      url,
-      {
-        method: "GET",
-        redirect: "follow",
-        signal: controller.signal,
-        headers: {
-          "User-Agent": USER_AGENT,
-          Accept: "text/html,application/xhtml+xml;q=0.9,*/*;q=0.1",
-          "Accept-Language": "en-US,en;q=0.9",
+/**
+ * Follow redirects manually so each hop is re-validated by withPublicHttpFetch.
+ * Never use redirect:"follow" — undici can connect to IP-literal Location targets
+ * without the DNS pin, bypassing the SSRF guard.
+ */
+async function fetchPublicWithSafeRedirects<T>(
+  startUrl: string,
+  handler: (response: Response, finalUrl: string) => Promise<T>,
+): Promise<T | null> {
+  let currentUrl = startUrl;
+  for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+    try {
+      const outcome = await withPublicHttpFetch(
+        currentUrl,
+        {
+          method: "GET",
+          redirect: "manual",
+          signal: controller.signal,
+          headers: FETCH_HEADERS,
         },
-      },
-      async (response) => {
-        const contentType = response.headers.get("content-type") ?? "";
-        if (!contentType.includes("text/html") && !contentType.includes("application/xhtml")) {
+        async (response): Promise<SafeFetchOutcome<T>> => {
+          if (REDIRECT_STATUSES.has(response.status)) {
+            const location = response.headers.get("location");
+            if (!location) return { kind: "fail" };
+            const nextUrl = toAbsoluteUrl(currentUrl, location);
+            if (!nextUrl) return { kind: "fail" };
+            return { kind: "redirect", nextUrl };
+          }
           return {
-            url,
-            status: response.status,
-            htmlLang: null,
-            title: null,
-            textSample: "",
-            hreflang: [],
+            kind: "ok",
+            value: await handler(response, currentUrl),
           };
-        }
-
-        const body = await readBoundedResponseBody(response);
-        const html = new TextDecoder("utf-8", { fatal: false }).decode(body);
-        const signals = parsePageSignals(html);
-        return {
-          url,
-          status: response.status,
-          htmlLang: signals.htmlLang,
-          title: signals.title,
-          textSample: signals.textSample,
-          hreflang: signals.hreflang,
-        };
-      },
-    );
-  } catch {
-    return null;
-  } finally {
-    clearTimeout(timeout);
+        },
+      );
+      if (outcome.kind === "redirect") {
+        currentUrl = outcome.nextUrl;
+        continue;
+      }
+      if (outcome.kind === "ok") {
+        return outcome.value;
+      }
+      return null;
+    } catch {
+      return null;
+    } finally {
+      clearTimeout(timeout);
+    }
   }
+  return null;
+}
+
+async function fetchPage(url: string): Promise<LocalisationAuditCrawledPage | null> {
+  return fetchPublicWithSafeRedirects(url, async (response, finalUrl) => {
+    const contentType = response.headers.get("content-type") ?? "";
+    if (!contentType.includes("text/html") && !contentType.includes("application/xhtml")) {
+      return {
+        url: finalUrl,
+        status: response.status,
+        htmlLang: null,
+        title: null,
+        textSample: "",
+        hreflang: [],
+      };
+    }
+
+    const body = await readBoundedResponseBody(response);
+    const html = new TextDecoder("utf-8", { fatal: false }).decode(body);
+    const signals = parsePageSignals(html);
+    return {
+      url: finalUrl,
+      status: response.status,
+      htmlLang: signals.htmlLang,
+      title: signals.title,
+      textSample: signals.textSample,
+      hreflang: signals.hreflang,
+    };
+  });
 }
 
 async function fetchPageWithAnchors(url: string): Promise<{
   page: LocalisationAuditCrawledPage;
   candidateUrls: string[];
 } | null> {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
-
-  try {
-    return await withPublicHttpFetch(
-      url,
-      {
-        method: "GET",
-        redirect: "follow",
-        signal: controller.signal,
-        headers: {
-          "User-Agent": USER_AGENT,
-          Accept: "text/html,application/xhtml+xml;q=0.9,*/*;q=0.1",
-          "Accept-Language": "en-US,en;q=0.9",
-        },
-      },
-      async (response) => {
-        const body = await readBoundedResponseBody(response);
-        const html = new TextDecoder("utf-8", { fatal: false }).decode(body);
-        const signals = parsePageSignals(html);
-        const page: LocalisationAuditCrawledPage = {
-          url,
-          status: response.status,
-          htmlLang: signals.htmlLang,
-          title: signals.title,
-          textSample: signals.textSample,
-          hreflang: signals.hreflang,
-        };
-        const candidateUrls = [
-          ...signals.hreflang.map((entry) => toAbsoluteUrl(url, entry.href)).filter(Boolean),
-          ...signals.anchors.map((anchor) => toAbsoluteUrl(url, anchor.href)).filter(Boolean),
-        ] as string[];
-        return { page, candidateUrls };
-      },
-    );
-  } catch {
-    return null;
-  } finally {
-    clearTimeout(timeout);
-  }
+  return fetchPublicWithSafeRedirects(url, async (response, finalUrl) => {
+    const body = await readBoundedResponseBody(response);
+    const html = new TextDecoder("utf-8", { fatal: false }).decode(body);
+    const signals = parsePageSignals(html);
+    const page: LocalisationAuditCrawledPage = {
+      url: finalUrl,
+      status: response.status,
+      htmlLang: signals.htmlLang,
+      title: signals.title,
+      textSample: signals.textSample,
+      hreflang: signals.hreflang,
+    };
+    const candidateUrls = [
+      ...signals.hreflang.map((entry) => toAbsoluteUrl(finalUrl, entry.href)).filter(Boolean),
+      ...signals.anchors.map((anchor) => toAbsoluteUrl(finalUrl, anchor.href)).filter(Boolean),
+    ] as string[];
+    return { page, candidateUrls };
+  });
 }
 
 function scoreCandidate(url: string, origin: string): number {
