@@ -12,7 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { useEffect, useEffectEvent, useMemo, useState } from "react";
+import { useEffect, useEffectEvent, useMemo, useRef, useState } from "react";
 import { FormattedMessage } from "react-intl";
 
 import { useCatEditorHotkeys } from "@/components/cat/editor/cat-editor-hotkeys";
@@ -108,6 +108,8 @@ export function CatVisualEditorWorkspace({
   );
   const [device, setDevice] = useState<CatVisualEditorDevice>("desktop");
   const [highlightTranslatable, setHighlightTranslatable] = useState(true);
+  const selectedSourcePathRef = useRef(selectedSourcePath);
+  selectedSourcePathRef.current = selectedSourcePath;
 
   useEffect(() => {
     setSelectedSourcePath(initialState.selectedSourcePath);
@@ -137,14 +139,15 @@ export function CatVisualEditorWorkspace({
   const remainingCount = segments.filter((segment) => needsAttention(segment.status)).length;
 
   function updateActiveFileState(updater: (current: FileWorkspaceState) => FileWorkspaceState) {
+    const sourcePath = selectedSourcePathRef.current;
     setFileStates((current) => {
-      const active = current[selectedSourcePath];
+      const active = current[sourcePath];
       if (!active) {
         return current;
       }
       return {
         ...current,
-        [selectedSourcePath]: updater(active),
+        [sourcePath]: updater(active),
       };
     });
   }
@@ -155,6 +158,10 @@ export function CatVisualEditorWorkspace({
       selectedSegmentId: segmentId,
     }));
   }
+
+  const clearActiveSelection = useEffectEvent(() => {
+    setSelectedSegmentId(null);
+  });
 
   function updateSelectedTarget(value: string) {
     if (!selectedSegmentId) {
@@ -282,7 +289,7 @@ export function CatVisualEditorWorkspace({
         }
       }
       if (event.key === "Escape") {
-        setSelectedSegmentId(null);
+        clearActiveSelection();
         return;
       }
       if (event.key === "Tab") {
@@ -293,7 +300,7 @@ export function CatVisualEditorWorkspace({
 
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [goToNextOpen]);
+  }, [clearActiveSelection, goToNextOpen]);
 
   const progress = activePage?.progress ?? {
     locale: "de-DE",

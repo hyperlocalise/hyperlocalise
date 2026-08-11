@@ -135,6 +135,29 @@ export const EscapeInCommentKeepsSelection: Story = {
   },
 };
 
+export const EscapeClearsCurrentFileSelection: Story = {
+  args: {
+    initialState: visualEditorFixture,
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+
+    await selectFileInTree(canvasElement, "pages/pricing.json");
+    await expect(canvas.getByText("Pricing headline")).toBeInTheDocument();
+
+    await userEvent.click(canvas.getByText("Highlight translatable"));
+    await userEvent.keyboard("{Escape}");
+
+    await expect(
+      canvas.getByText("Click a string in the preview to edit it here."),
+    ).toBeInTheDocument();
+    await expect(canvas.queryByText("Pricing headline")).not.toBeInTheDocument();
+
+    await selectFileInTree(canvasElement, "pages/home.json");
+    await expect(canvas.getByText("Hero headline")).toBeInTheDocument();
+  },
+};
+
 export const EmptySelection: Story = {
   args: {
     initialState: createVisualEditorFixture({
