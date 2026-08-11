@@ -115,11 +115,6 @@ export const catVisualEditorMessages = defineMessages({
     id: "oHxxsDmsrY",
     description: "Keyboard shortcut hint for deselecting a node in the visual editor",
   },
-  shortcutsHint: {
-    defaultMessage: "Shortcuts",
-    id: "AvA8AXeJqN",
-    description: "Label linking to keyboard shortcuts help in the visual editor status bar",
-  },
   emptySelection: {
     defaultMessage: "Click a string in the preview to edit it here.",
     id: "7yLnsi62KD",
