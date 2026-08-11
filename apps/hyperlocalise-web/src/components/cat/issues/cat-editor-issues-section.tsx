@@ -226,7 +226,6 @@ export function CatEditorIssuesSection({
         showProject={false}
         isLoading={issuesQuery.isLoading}
         isError={issuesQuery.isError}
-        className="rounded-lg border border-border"
         onIssueActivate={(issue) => {
           router.push(
             buildIssueDetailHref({

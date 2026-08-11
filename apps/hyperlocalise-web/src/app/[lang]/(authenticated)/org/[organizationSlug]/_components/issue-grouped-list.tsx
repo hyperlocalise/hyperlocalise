@@ -256,8 +256,8 @@ export function IssueGroupedList<T extends IssueGroupedListItem>({
   }
 
   return (
-    <div className={cn("space-y-4", className)}>
-      <div className="overflow-hidden rounded-xl border bg-card">
+    <div className="space-y-4">
+      <div className={cn("overflow-hidden rounded-xl border bg-card", className)}>
         {groups.map((group, groupIndex) => {
           // When headers are hidden there is no expand control, so never keep
           // a previously collapsed section empty.
