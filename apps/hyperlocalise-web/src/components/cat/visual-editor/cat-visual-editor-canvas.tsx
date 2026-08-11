@@ -27,7 +27,11 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/primitives/cn";
 
-import type { CatVisualEditorDevice, CatVisualEditorSegment } from "./cat-visual-editor.fixture";
+import type {
+  CatVisualEditorDevice,
+  CatVisualEditorPreviewKind,
+  CatVisualEditorSegment,
+} from "./cat-visual-editor.fixture";
 import { catVisualEditorMessages } from "./cat-visual-editor.messages";
 import { CatVisualEditorPreview } from "./cat-visual-editor-preview";
 
@@ -39,6 +43,7 @@ const DEVICE_WIDTH: Record<CatVisualEditorDevice, string> = {
 
 export function CatVisualEditorCanvas({
   previewUrl,
+  previewKind,
   fileLabel,
   locale,
   device,
@@ -52,6 +57,7 @@ export function CatVisualEditorCanvas({
   className,
 }: {
   previewUrl: string;
+  previewKind: CatVisualEditorPreviewKind;
   fileLabel: string;
   locale: string;
   device: CatVisualEditorDevice;
@@ -132,6 +138,7 @@ export function CatVisualEditorCanvas({
       <div className="min-h-0 flex-1 overflow-auto p-4 sm:p-6">
         <div className={cn("mx-auto transition-[max-width]", DEVICE_WIDTH[device])}>
           <CatVisualEditorPreview
+            previewKind={previewKind}
             segments={segments}
             selectedSegmentId={selectedSegmentId}
             highlightTranslatable={highlightTranslatable}

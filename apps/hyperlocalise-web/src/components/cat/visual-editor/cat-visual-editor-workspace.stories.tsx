@@ -34,6 +34,19 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
+async function selectFileInTree(canvasElement: HTMLElement, sourcePath: string) {
+  await waitFor(() => {
+    void expect(canvasElement.querySelector("file-tree-container")).toBeTruthy();
+  });
+
+  const treeContainer = canvasElement.querySelector("file-tree-container");
+  const fileRow = treeContainer?.shadowRoot?.querySelector(`[data-item-path="${sourcePath}"]`);
+  if (!fileRow) {
+    throw new Error(`Expected file tree row for ${sourcePath}`);
+  }
+  await userEvent.click(fileRow);
+}
+
 export const Default: Story = {
   args: {
     initialState: visualEditorFixture,
@@ -70,6 +83,23 @@ export const SelectNavNode: Story = {
   },
 };
 
+export const SelectFileUpdatesContent: Story = {
+  args: {
+    initialState: visualEditorFixture,
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+
+    await selectFileInTree(canvasElement, "pages/pricing.json");
+
+    await expect(canvas.getByDisplayValue("https://acme.com/de/pricing/")).toBeInTheDocument();
+    await expect(canvas.getByText("Pricing headline")).toBeInTheDocument();
+    await expect(canvas.getByText("Simple pricing for every team")).toBeInTheDocument();
+    await expect(canvas.queryByText("Hero headline")).not.toBeInTheDocument();
+    await expect(canvasElement.querySelector('[data-preview-kind="pricing"]')).toBeTruthy();
+  },
+};
+
 export const EditInPanel: Story = {
   args: {
     initialState: createVisualEditorFixture(),
@@ -88,9 +118,34 @@ export const EditInPanel: Story = {
   },
 };
 
+export const EscapeInCommentKeepsSelection: Story = {
+  args: {
+    initialState: visualEditorFixture,
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const commentInput = canvas.getByPlaceholderText("Add a comment...");
+
+    await userEvent.click(commentInput);
+    await userEvent.type(commentInput, "Keep this draft");
+    await userEvent.keyboard("{Escape}");
+
+    await expect(canvas.getByText("Hero headline")).toBeInTheDocument();
+    await expect(commentInput).toHaveValue("Keep this draft");
+  },
+};
+
 export const EmptySelection: Story = {
   args: {
-    initialState: createVisualEditorFixture({ selectedSegmentId: "" }),
+    initialState: createVisualEditorFixture({
+      pagesBySourcePath: {
+        ...visualEditorFixture.pagesBySourcePath,
+        "pages/home.json": {
+          ...visualEditorFixture.pagesBySourcePath["pages/home.json"]!,
+          defaultSelectedSegmentId: "",
+        },
+      },
+    }),
   },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);

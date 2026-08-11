@@ -22,6 +22,7 @@ import { cn } from "@/lib/primitives/cn";
 
 import type {
   CatVisualEditorDevice,
+  CatVisualEditorFilePage,
   CatVisualEditorFixture,
   CatVisualEditorSegment,
 } from "./cat-visual-editor.fixture";
@@ -29,6 +30,12 @@ import { catVisualEditorMessages } from "./cat-visual-editor.messages";
 import { CatVisualEditorCanvas } from "./cat-visual-editor-canvas";
 import { CatVisualEditorDetailPanel } from "./cat-visual-editor-detail-panel";
 import { CatVisualEditorFilesSidebar } from "./cat-visual-editor-files-sidebar";
+
+type FileWorkspaceState = {
+  segments: CatVisualEditorSegment[];
+  selectedSegmentId: string | null;
+  baselineTargets: Record<string, string>;
+};
 
 function fileLabelFromPath(sourcePath: string) {
   const parts = sourcePath.split("/");
@@ -60,6 +67,34 @@ function findOpenSegmentId(
   return null;
 }
 
+function createFileState(page: CatVisualEditorFilePage): FileWorkspaceState {
+  return {
+    segments: page.segments,
+    selectedSegmentId: page.defaultSelectedSegmentId,
+    baselineTargets: Object.fromEntries(
+      page.segments.map((segment) => [segment.id, segment.targetText]),
+    ),
+  };
+}
+
+function createFileStates(
+  pagesBySourcePath: Record<string, CatVisualEditorFilePage>,
+): Record<string, FileWorkspaceState> {
+  return Object.fromEntries(
+    Object.entries(pagesBySourcePath).map(([sourcePath, page]) => [
+      sourcePath,
+      createFileState(page),
+    ]),
+  );
+}
+
+function resolveActivePage(
+  pagesBySourcePath: Record<string, CatVisualEditorFilePage>,
+  selectedSourcePath: string,
+): CatVisualEditorFilePage | null {
+  return pagesBySourcePath[selectedSourcePath] ?? null;
+}
+
 export function CatVisualEditorWorkspace({
   initialState,
   className,
@@ -68,33 +103,32 @@ export function CatVisualEditorWorkspace({
   className?: string;
 }) {
   const [selectedSourcePath, setSelectedSourcePath] = useState(initialState.selectedSourcePath);
-  const [segments, setSegments] = useState<CatVisualEditorSegment[]>(initialState.segments);
-  const [selectedSegmentId, setSelectedSegmentId] = useState<string | null>(
-    initialState.selectedSegmentId || null,
+  const [fileStates, setFileStates] = useState(() =>
+    createFileStates(initialState.pagesBySourcePath),
   );
   const [device, setDevice] = useState<CatVisualEditorDevice>("desktop");
   const [highlightTranslatable, setHighlightTranslatable] = useState(true);
-  const [baselineTargets, setBaselineTargets] = useState(() =>
-    Object.fromEntries(initialState.segments.map((segment) => [segment.id, segment.targetText])),
-  );
 
   useEffect(() => {
     setSelectedSourcePath(initialState.selectedSourcePath);
-    setSegments(initialState.segments);
-    setSelectedSegmentId(initialState.selectedSegmentId || null);
-    setBaselineTargets(
-      Object.fromEntries(initialState.segments.map((segment) => [segment.id, segment.targetText])),
-    );
+    setFileStates(createFileStates(initialState.pagesBySourcePath));
   }, [initialState]);
+
+  const activePage = resolveActivePage(initialState.pagesBySourcePath, selectedSourcePath);
+  const activeFileState = fileStates[selectedSourcePath] ?? null;
+  const segments = activeFileState?.segments ?? [];
+  const selectedSegmentId = activeFileState?.selectedSegmentId ?? null;
+  const baselineTargets = activeFileState?.baselineTargets ?? {};
 
   const selectedIndex = useMemo(
     () => segments.findIndex((segment) => segment.id === selectedSegmentId),
     [segments, selectedSegmentId],
   );
   const selectedSegment = selectedIndex >= 0 ? segments[selectedIndex] : null;
-  const intelligence = selectedSegment
-    ? (initialState.intelligenceBySegmentId[selectedSegment.id] ?? null)
-    : null;
+  const intelligence =
+    selectedSegment && activePage
+      ? (activePage.intelligenceBySegmentId[selectedSegment.id] ?? null)
+      : null;
   const isTargetDirty = selectedSegment
     ? selectedSegment.targetText !== (baselineTargets[selectedSegment.id] ?? "")
     : false;
@@ -102,15 +136,36 @@ export function CatVisualEditorWorkspace({
   const reviewedCount = segments.filter((segment) => segment.status === "reviewed").length;
   const remainingCount = segments.filter((segment) => needsAttention(segment.status)).length;
 
+  function updateActiveFileState(updater: (current: FileWorkspaceState) => FileWorkspaceState) {
+    setFileStates((current) => {
+      const active = current[selectedSourcePath];
+      if (!active) {
+        return current;
+      }
+      return {
+        ...current,
+        [selectedSourcePath]: updater(active),
+      };
+    });
+  }
+
+  function setSelectedSegmentId(segmentId: string | null) {
+    updateActiveFileState((current) => ({
+      ...current,
+      selectedSegmentId: segmentId,
+    }));
+  }
+
   function updateSelectedTarget(value: string) {
     if (!selectedSegmentId) {
       return;
     }
-    setSegments((current) =>
-      current.map((segment) =>
+    updateActiveFileState((current) => ({
+      ...current,
+      segments: current.segments.map((segment) =>
         segment.id === selectedSegmentId ? { ...segment, targetText: value } : segment,
       ),
-    );
+    }));
   }
 
   function applyAiSuggestion() {
@@ -146,18 +201,21 @@ export function CatVisualEditorWorkspace({
       return;
     }
     const approvedId = selectedSegment.id;
-    setBaselineTargets((current) => ({
-      ...current,
-      [approvedId]: selectedSegment.targetText,
-    }));
-    setSegments((current) => {
-      const nextSegments = current.map((segment) =>
+    const approvedTarget = selectedSegment.targetText;
+    updateActiveFileState((current) => {
+      const nextSegments = current.segments.map((segment) =>
         segment.id === approvedId ? { ...segment, status: "reviewed" as const } : segment,
       );
       const fromIndex = nextSegments.findIndex((segment) => segment.id === approvedId);
       const nextOpenId = findOpenSegmentId(nextSegments, fromIndex, 1);
-      setSelectedSegmentId(nextOpenId ?? approvedId);
-      return nextSegments;
+      return {
+        segments: nextSegments,
+        selectedSegmentId: nextOpenId ?? approvedId,
+        baselineTargets: {
+          ...current.baselineTargets,
+          [approvedId]: approvedTarget,
+        },
+      };
     });
   }
 
@@ -165,9 +223,14 @@ export function CatVisualEditorWorkspace({
     if (!selectedSegment) {
       return;
     }
-    setBaselineTargets((current) => ({
+    const segmentId = selectedSegment.id;
+    const targetText = selectedSegment.targetText;
+    updateActiveFileState((current) => ({
       ...current,
-      [selectedSegment.id]: selectedSegment.targetText,
+      baselineTargets: {
+        ...current.baselineTargets,
+        [segmentId]: targetText,
+      },
     }));
   }
 
@@ -180,6 +243,23 @@ export function CatVisualEditorWorkspace({
 
   function handleClearTarget() {
     updateSelectedTarget("");
+  }
+
+  function handleSelectFile(sourcePath: string) {
+    setSelectedSourcePath(sourcePath);
+    setFileStates((current) => {
+      if (current[sourcePath]) {
+        return current;
+      }
+      const page = initialState.pagesBySourcePath[sourcePath];
+      if (!page) {
+        return current;
+      }
+      return {
+        ...current,
+        [sourcePath]: createFileState(page),
+      };
+    });
   }
 
   useCatEditorHotkeys({
@@ -195,15 +275,15 @@ export function CatVisualEditorWorkspace({
 
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") {
-        setSelectedSegmentId(null);
-        return;
-      }
       if (event.target instanceof HTMLElement) {
         const tag = event.target.tagName;
         if (tag === "INPUT" || tag === "TEXTAREA" || event.target.isContentEditable) {
           return;
         }
+      }
+      if (event.key === "Escape") {
+        setSelectedSegmentId(null);
+        return;
       }
       if (event.key === "Tab") {
         event.preventDefault();
@@ -215,21 +295,30 @@ export function CatVisualEditorWorkspace({
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [goToNextOpen]);
 
+  const progress = activePage?.progress ?? {
+    locale: "de-DE",
+    percent: 0,
+    translated: 0,
+    inReview: 0,
+    untranslated: 0,
+  };
+
   return (
     <div className={cn("flex h-full min-h-0 flex-col bg-background text-foreground", className)}>
       <div className="grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-[17.5rem_minmax(0,1fr)_22rem] xl:grid-cols-[18rem_minmax(0,1fr)_24rem]">
         <CatVisualEditorFilesSidebar
           files={initialState.files}
           selectedSourcePath={selectedSourcePath}
-          onSelectFile={setSelectedSourcePath}
-          progress={initialState.progress}
+          onSelectFile={handleSelectFile}
+          progress={progress}
           className="hidden min-h-0 lg:flex"
         />
 
         <CatVisualEditorCanvas
-          previewUrl={initialState.previewUrl}
+          previewUrl={activePage?.previewUrl ?? ""}
+          previewKind={activePage?.previewKind ?? "generic"}
           fileLabel={fileLabelFromPath(selectedSourcePath)}
-          locale={initialState.progress.locale}
+          locale={progress.locale}
           device={device}
           onDeviceChange={setDevice}
           highlightTranslatable={highlightTranslatable}
@@ -270,13 +359,15 @@ export function CatVisualEditorWorkspace({
               locale: selectedSegment.targetLocale,
               author: "You",
             };
-            setSegments((current) =>
-              current.map((segment) =>
-                segment.id === selectedSegment.id
+            const segmentId = selectedSegment.id;
+            updateActiveFileState((current) => ({
+              ...current,
+              segments: current.segments.map((segment) =>
+                segment.id === segmentId
                   ? { ...segment, comments: [...(segment.comments ?? []), comment] }
                   : segment,
               ),
-            );
+            }));
           }}
           className="hidden min-h-0 lg:flex"
         />

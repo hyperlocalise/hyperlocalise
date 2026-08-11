@@ -120,6 +120,11 @@ export const catVisualEditorMessages = defineMessages({
     id: "7yLnsi62KD",
     description: "Empty state when no preview node is selected in the visual editor",
   },
+  previewEmptyFile: {
+    defaultMessage: "No previewable strings in this file yet.",
+    id: "0G0Gi8OsmJ",
+    description: "Empty state when the selected visual editor file has no preview strings",
+  },
   footerCopyright: {
     defaultMessage: "© {year} Hyperlocalise",
     id: "uirqgKf7xz",
