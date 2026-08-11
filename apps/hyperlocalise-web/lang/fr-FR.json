@@ -299,6 +299,9 @@
   "/WFoDeqxe7": {
     "defaultMessage": "Téléversez une exportation de feuille de calcul, associez les colonnes aux champs de la fiche de problème, prévisualisez le résultat, puis importez-le."
   },
+  "/WfsxTCk+E": {
+    "defaultMessage": "Enregistrement…"
+  },
   "/X6DitE9lx": {
     "defaultMessage": "All sync states"
   },
@@ -581,6 +584,9 @@
   "0su3rYbABy": {
     "defaultMessage": "Dernier traitement · {status}"
   },
+  "0uQydL2hST": {
+    "defaultMessage": "Notifications par e-mail"
+  },
   "0ug9As7ELn": {
     "defaultMessage": "Définissez le playbook une seule fois. Les agents s’occupent des tâches répétitives afin que vous puissiez couvrir davantage de marchés sans agrandir l’équipe — les réviseurs n’interviennent que pour les décisions nécessitant un jugement."
   },
@@ -685,6 +691,9 @@
   },
   "1RfCN9F8ux": {
     "defaultMessage": "—"
+  },
+  "1SIj6NW9T+": {
+    "defaultMessage": "Immédiat"
   },
   "1SarEJV+CO": {
     "defaultMessage": "Le problème n’a jamais été le talent des équipes de localisation. C’est qu’on attendait d’elles qu’elles développent leurs connaissances plus rapidement que ne pourrait le faire n’importe quelle équipe humaine."
@@ -1160,6 +1169,9 @@
   "3hTiwfSSe8": {
     "defaultMessage": "Saisissez une clé API MCP Ahrefs."
   },
+  "3hYpLYs0dC": {
+    "defaultMessage": "Email notifications"
+  },
   "3i6/WZOWss": {
     "defaultMessage": "Une force de travail IA qui agit comme votre équipe d’experts locaux.<desktopOnly><lineBreak></lineBreak>Elle comprend les nuances du marché, puis traduit et transcrée.</desktopOnly>"
   },
@@ -1606,6 +1618,9 @@
   },
   "60PQQ7C+fN": {
     "defaultMessage": "Last used {date}"
+  },
+  "60tUDKEOmt": {
+    "defaultMessage": "Could not load notification preferences."
   },
   "61uI/yL9TQ": {
     "defaultMessage": "Updated {timestamp}"
@@ -2156,6 +2171,9 @@
   "8cCnIQ+Lhz": {
     "defaultMessage": "Unable to update project"
   },
+  "8cIXg7FjMX": {
+    "defaultMessage": "Statut"
+  },
   "8d4Iw9Q9DE": {
     "defaultMessage": "Chaque {weekday} à {time} · {timezone}"
   },
@@ -2200,6 +2218,9 @@
   },
   "8pfmpD7Pez": {
     "defaultMessage": "Glossary created"
+  },
+  "8pg1Ysbsbk": {
+    "defaultMessage": "Choose whether Issue Sheet Inbox updates are also delivered to your email."
   },
   "8qNqRTyyLK": {
     "defaultMessage": "Créez un ticket pour suivre le travail sur cette chaîne."
@@ -2416,6 +2437,9 @@
   },
   "9hphmwIx1l": {
     "defaultMessage": "https://cloud.memsource.com/web"
+  },
+  "9jLtl6PUKI": {
+    "defaultMessage": "Aucune langue définie"
   },
   "9l9T50rviR": {
     "defaultMessage": "Italique"
@@ -3197,6 +3221,9 @@
   "DXhIxcX2oM": {
     "defaultMessage": "Context request"
   },
+  "DYLD1YkZo6": {
+    "defaultMessage": "Format d’e-mail"
+  },
   "DZx5zjElsr": {
     "defaultMessage": "Posez n’importe quelle question. Obtenez un contexte issu du dépôt."
   },
@@ -3275,6 +3302,9 @@
   "E2040akAix": {
     "defaultMessage": "Project"
   },
+  "E2gAmHwHN8": {
+    "defaultMessage": "Envoyer un e-mail pour les notifications non lues de la boîte de réception concernant les problèmes auxquels vous êtes abonné."
+  },
   "E5p3SqvCuO": {
     "defaultMessage": "Dans votre application OAuth Crowdin, activez toutes les autorisations ci-dessous. Hyperlocalise demande la même liste lorsque vous connectez Crowdin."
   },
@@ -3337,6 +3367,9 @@
   },
   "EJdAEUdkMf": {
     "defaultMessage": "Populaires"
+  },
+  "EMm+gaNq/8": {
+    "defaultMessage": "Définir le chemin source"
   },
   "ENDjImu9Gr": {
     "defaultMessage": "Derniers travaux"
@@ -3808,6 +3841,9 @@
   },
   "GvcjcKm7Sc": {
     "defaultMessage": "Échéance {due}"
+  },
+  "Gw6z856Urj": {
+    "defaultMessage": "Could not save notification preferences."
   },
   "GwX/prLtJh": {
     "defaultMessage": "Connect Semrush with an API key in Integrations before using this tool."
@@ -4295,6 +4331,9 @@
   "JemgHUamHh": {
     "defaultMessage": "Unable to load terms"
   },
+  "JfbQQEL9oW": {
+    "defaultMessage": "Définir le type"
+  },
   "JhA3QIY56T": {
     "defaultMessage": "Displays the mobile sidebar."
   },
@@ -4357,6 +4396,9 @@
   },
   "JxSxJmFns3": {
     "defaultMessage": "Loading issue..."
+  },
+  "JzWvMRP2Wi": {
+    "defaultMessage": "Effacer"
   },
   "K+AvrhTOJl": {
     "defaultMessage": "Copié"
@@ -4450,6 +4492,9 @@
   },
   "KYKSoue+Dr": {
     "defaultMessage": "En cours"
+  },
+  "KYOkDtqOsb": {
+    "defaultMessage": "Sélectionner la langue régionale"
   },
   "Ka+dKs8Zz9": {
     "defaultMessage": "Rejoignez la liste d’attente Hyperlocalise et intégrez les vérifications de localisation à votre pipeline de publication."
@@ -4721,6 +4766,9 @@
   "M4h3UcxULX": {
     "defaultMessage": "Paramètres"
   },
+  "M4lNU20CQe": {
+    "defaultMessage": "Digest"
+  },
   "M4sYVolrI+": {
     "defaultMessage": "Tâches indisponibles"
   },
@@ -4829,6 +4877,9 @@
   "MjW+xFl6ux": {
     "defaultMessage": "Transformez les nouveaux articles d’aide et les articles mis à jour en traductions relues, synchronisez-les avec votre CMS et surveillez leur fraîcheur afin que les clients ne lisent jamais de conseils obsolètes."
   },
+  "MlaMWBdPiE": {
+    "defaultMessage": "Définir les paramètres régionaux"
+  },
   "Mo34UnIccj": {
     "defaultMessage": "Motif de branche"
   },
@@ -4900,6 +4951,9 @@
   },
   "N9BYBbfFW0": {
     "defaultMessage": "Réussi"
+  },
+  "NAidKbB0vi": {
+    "defaultMessage": "Notifications"
   },
   "NBLnrSCLwC": {
     "defaultMessage": "Enregistrer le fournisseur"
@@ -4981,6 +5035,9 @@
   },
   "NbLadz5lws": {
     "defaultMessage": "Propriétés"
+  },
+  "Neb7Fy6bU4": {
+    "defaultMessage": "Problème créé"
   },
   "Nf+4tJMRVh": {
     "defaultMessage": "All locales"
@@ -5285,6 +5342,9 @@
   "PDy7PaVKiz": {
     "defaultMessage": "QA checks are running. Results will refresh when the agent run completes."
   },
+  "PEOKvIZPuS": {
+    "defaultMessage": "Créer un problème"
+  },
   "PEkJb1qGtI": {
     "defaultMessage": "Prefer concise French that still feels executive."
   },
@@ -5521,6 +5581,9 @@
   },
   "QNkL8EdZgQ": {
     "defaultMessage": "Actif"
+  },
+  "QOKexdLasq": {
+    "defaultMessage": "N’importe quelle langue régionale"
   },
   "QR/HxiItgI": {
     "defaultMessage": "Term base"
@@ -5876,6 +5939,9 @@
   "SCoaZFO7Pm": {
     "defaultMessage": "Warning type"
   },
+  "SEclZdUwgN": {
+    "defaultMessage": "Créer davantage"
+  },
   "SFMLZ4RNJi": {
     "defaultMessage": "Équipe"
   },
@@ -6092,6 +6158,9 @@
   "TG1FpMpW2X": {
     "defaultMessage": "Changer d’espace de travail"
   },
+  "THoRXiMHfa": {
+    "defaultMessage": "Impossible de charger les préférences de notification."
+  },
   "TIsb5WlP88": {
     "defaultMessage": "Something went wrong in this panel. You can retry or keep working in the other panels."
   },
@@ -6131,6 +6200,9 @@
   "TRlFNEhzfJ": {
     "defaultMessage": "Postulez au tarif startup"
   },
+  "TSS07fFqPb": {
+    "defaultMessage": "Immediate"
+  },
   "TTwT8pJqTJ": {
     "defaultMessage": "Loading"
   },
@@ -6163,6 +6235,9 @@
   },
   "Th3qMjLdD4": {
     "defaultMessage": "Sélectionnez au moins un fichier."
+  },
+  "ThGy8XF2yq": {
+    "defaultMessage": "Notifications"
   },
   "Ti9Gb8n4Gh": {
     "defaultMessage": "Impossible de charger les fichiers"
@@ -6380,6 +6455,9 @@
   "Uv4fMm9uKS": {
     "defaultMessage": "Review proposals"
   },
+  "UvLPwAuWGw": {
+    "defaultMessage": "Nouveau problème"
+  },
   "UvTEiYJq6k": {
     "defaultMessage": "Contextuel à partir des pull requests et des issues"
   },
@@ -6388,6 +6466,9 @@
   },
   "V+8wDWpBnh": {
     "defaultMessage": "Toutes les chaînes"
+  },
+  "V+EGj1aT6i": {
+    "defaultMessage": "Libellé du lien"
   },
   "V-PkRAMN_s": {
     "defaultMessage": "Failed to delete Ahrefs connection."
@@ -6704,8 +6785,14 @@
   "WSbyg2v11q": {
     "defaultMessage": "Natif"
   },
+  "WTS9c0ZlMB": {
+    "defaultMessage": "Impossible d’enregistrer les préférences de notification."
+  },
   "WUFTI428rT": {
     "defaultMessage": "Manual"
+  },
+  "WUV28A6Pf2": {
+    "defaultMessage": "Saving…"
   },
   "WUYpu2cx7T": {
     "defaultMessage": "—"
@@ -6937,6 +7024,9 @@
   },
   "Xc6qahwRY8": {
     "defaultMessage": "Votre compte est connecté, mais cette invitation à rejoindre l’espace de travail n’a pas encore été confirmée."
+  },
+  "XdFM8Ff6nf": {
+    "defaultMessage": "Définir {label}"
   },
   "XdMf1WMmy8": {
     "defaultMessage": "Corps de la requête"
@@ -7412,6 +7502,9 @@
   "ZzPp69g3M2": {
     "defaultMessage": "Savoir quelles chaînes ont été relues par un humain, traduites uniquement par machine, ou en attente d’approbation par langue locale."
   },
+  "_zWO7n_TPO": {
+    "defaultMessage": "Email format"
+  },
   "a+NsH6m9p4": {
     "defaultMessage": "Surveiller"
   },
@@ -7499,6 +7592,9 @@
   "aHtGik8gUy": {
     "defaultMessage": "Vue des fichiers"
   },
+  "aI1MOY8Fo5": {
+    "defaultMessage": "Digests wait a few minutes and skip items you already read in Inbox. Immediate sends each notification right away."
+  },
   "aI9OdzlmW1": {
     "defaultMessage": "Delete"
   },
@@ -7543,6 +7639,9 @@
   },
   "advxgHaDz+": {
     "defaultMessage": "Edit the source locale and target locales for this native project."
+  },
+  "afDLXVwU/G": {
+    "defaultMessage": "Titre du problème"
   },
   "afM0hfkHOH": {
     "defaultMessage": "Derniers articles"
@@ -8045,6 +8144,9 @@
   "dYlXc1BTpY": {
     "defaultMessage": "Connect first"
   },
+  "dYzwXx2D9X": {
+    "defaultMessage": "Résumé"
+  },
   "dZcHfTdmF2": {
     "defaultMessage": "Liste numérotée"
   },
@@ -8095,6 +8197,9 @@
   },
   "dsAsLnB2MG": {
     "defaultMessage": "Row"
+  },
+  "dtA9CObQ6G": {
+    "defaultMessage": "Ajouter un lien…"
   },
   "duqEj6Omtc": {
     "defaultMessage": "Type de colonne"
@@ -8242,6 +8347,9 @@
   },
   "eTERhCaPbB": {
     "defaultMessage": "Open billing"
+  },
+  "eTfP1zMvKR": {
+    "defaultMessage": "Aucun paramètre régional de projet n’est configuré"
   },
   "eUfRa6PSO+": {
     "defaultMessage": "Role"
@@ -9053,6 +9161,9 @@
   "iOQUj8xk0+": {
     "defaultMessage": "Total"
   },
+  "iOn8sWqJvi": {
+    "defaultMessage": "Non assigné"
+  },
   "iPC/1o5vbg": {
     "defaultMessage": "Comments"
   },
@@ -9238,6 +9349,9 @@
   },
   "jBITE1qEv6": {
     "defaultMessage": "Géré"
+  },
+  "jBT5g3zPS2": {
+    "defaultMessage": "URL du lien"
   },
   "jBW+LURvnY": {
     "defaultMessage": "Keep it a short verb, not “Save changes.” Match Cancel’s brevity so the pair stays balanced in tight toolbars."
@@ -9503,6 +9617,9 @@
   "kIG+JJHbzJ": {
     "defaultMessage": "Réinitialiser le zoom"
   },
+  "kJB7LZiflj": {
+    "defaultMessage": "Plus de propriétés"
+  },
   "kJE4wAhywD": {
     "defaultMessage": "La demande de facturation a échoué. Réessayez dans un instant."
   },
@@ -9649,6 +9766,9 @@
   },
   "ky7nZwQbWB": {
     "defaultMessage": "Warnings"
+  },
+  "kzAQTYATA+": {
+    "defaultMessage": "Choisissez si les mises à jour de la boîte de réception des fiches de problèmes sont également envoyées à votre adresse e-mail."
   },
   "l+wMmn4Krw": {
     "defaultMessage": "Failed to load Semrush connections."
@@ -9814,6 +9934,9 @@
   },
   "lsXD2TTIpU": {
     "defaultMessage": "Indépendant du LLM"
+  },
+  "lui7Kq_43P": {
+    "defaultMessage": "Send email for unread Inbox notifications on issues you subscribe to."
   },
   "lvwFhMaVAT": {
     "defaultMessage": "Coming soon"
@@ -10345,6 +10468,9 @@
   },
   "onLY1zBVa5": {
     "defaultMessage": "Open in {providerKind}"
+  },
+  "oojEYpvA6e": {
+    "defaultMessage": "Les récapitulatifs attendent quelques minutes et ignorent les éléments que vous avez déjà lus dans la boîte de réception. L’envoi immédiat envoie chaque notification dès qu’elle arrive."
   },
   "opXLqo3spW": {
     "defaultMessage": "Conçu pour la qualité à grande échelle"
@@ -12619,49 +12745,5 @@
   },
   "zztNzAuBoJ": {
     "defaultMessage": "Activé"
-  },
-  "NAidKbB0vi": {
-    "defaultMessage": "Notifications",
-    "description": "Section heading for notification preferences on account settings"
-  },
-  "8pg1Ysbsbk": {
-    "defaultMessage": "Choose whether Issue Sheet Inbox updates are also delivered to your email.",
-    "description": "Helper text under notification preferences on account settings"
-  },
-  "3hYpLYs0dC": {
-    "defaultMessage": "Email notifications",
-    "description": "Label for enabling Issue Sheet email notifications"
-  },
-  "lui7Kq_43P": {
-    "defaultMessage": "Send email for unread Inbox notifications on issues you subscribe to.",
-    "description": "Description for enabling Issue Sheet email notifications"
-  },
-  "_zWO7n_TPO": {
-    "defaultMessage": "Email format",
-    "description": "Label for email digest vs immediate delivery format"
-  },
-  "aI1MOY8Fo5": {
-    "defaultMessage": "Digests wait a few minutes and skip items you already read in Inbox. Immediate sends each notification right away.",
-    "description": "Description for email digest vs immediate delivery format"
-  },
-  "M4lNU20CQe": {
-    "defaultMessage": "Digest",
-    "description": "Email format option for batched digests"
-  },
-  "TSS07fFqPb": {
-    "defaultMessage": "Immediate",
-    "description": "Email format option for immediate delivery"
-  },
-  "WUV28A6Pf2": {
-    "defaultMessage": "Saving…",
-    "description": "Status text while notification preferences are saving"
-  },
-  "Gw6z856Urj": {
-    "defaultMessage": "Could not save notification preferences.",
-    "description": "Toast when notification preferences fail to save"
-  },
-  "60tUDKEOmt": {
-    "defaultMessage": "Could not load notification preferences.",
-    "description": "Error when notification preferences fail to load"
   }
 }
