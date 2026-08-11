@@ -32,6 +32,12 @@ export async function localisationAuditWorkflow(event: LocalisationAuditEventDat
 
   const { workflowRunId } = getWorkflowMetadata();
 
+  // Keep audit completion separate from report-email queueing so a transient
+  // enqueue failure can retry without marking a succeeded audit failed.
+  let completedAuditId: string | null = null;
+  let alreadyCompleted = false;
+  let analyzedResult: Awaited<ReturnType<typeof analyzeLocalisationAuditStep>> | null = null;
+
   try {
     const prepared = await prepareLocalisationAuditStep({
       auditId: event.auditId,
@@ -41,60 +47,43 @@ export async function localisationAuditWorkflow(event: LocalisationAuditEventDat
       return { ...prepared, workflowRunId };
     }
     if (prepared.alreadyCompleted) {
-      try {
-        await queuePendingLocalisationAuditReportEmailsStep(prepared.auditId);
-      } catch {
-        return {
-          ok: true,
-          alreadyCompleted: true,
-          auditId: prepared.auditId,
-          workflowRunId,
-          emailQueueFailed: true as const,
-        };
-      }
-      return { ok: true, alreadyCompleted: true, auditId: prepared.auditId, workflowRunId };
-    }
-    if (prepared.staleAttempt) {
+      completedAuditId = prepared.auditId;
+      alreadyCompleted = true;
+    } else if (prepared.staleAttempt) {
       return { ok: false, code: "stale_attempt", auditId: prepared.auditId, workflowRunId };
-    }
+    } else {
+      await setLocalisationAuditProgressStep({
+        auditId: prepared.auditId,
+        attemptNumber: prepared.attemptNumber,
+        progressStage: "crawling",
+      });
 
-    await setLocalisationAuditProgressStep({
-      auditId: prepared.auditId,
-      attemptNumber: prepared.attemptNumber,
-      progressStage: "crawling",
-    });
+      const pages = await crawlLocalisationAuditStep({
+        origin: prepared.origin,
+        sourceUrl: prepared.sourceUrl,
+      });
 
-    const pages = await crawlLocalisationAuditStep({
-      origin: prepared.origin,
-      sourceUrl: prepared.sourceUrl,
-    });
+      await setLocalisationAuditProgressStep({
+        auditId: prepared.auditId,
+        attemptNumber: prepared.attemptNumber,
+        progressStage: "analyzing",
+      });
 
-    await setLocalisationAuditProgressStep({
-      auditId: prepared.auditId,
-      attemptNumber: prepared.attemptNumber,
-      progressStage: "analyzing",
-    });
+      analyzedResult = await analyzeLocalisationAuditStep({
+        auditId: prepared.auditId,
+        attemptNumber: prepared.attemptNumber,
+        domainKey: prepared.domainKey,
+        domainSlug: prepared.domainSlug,
+        sourceUrl: prepared.sourceUrl,
+        focusLocales: prepared.focusLocales,
+        pages,
+      });
 
-    const analyzed = await analyzeLocalisationAuditStep({
-      auditId: prepared.auditId,
-      attemptNumber: prepared.attemptNumber,
-      domainKey: prepared.domainKey,
-      domainSlug: prepared.domainSlug,
-      sourceUrl: prepared.sourceUrl,
-      focusLocales: prepared.focusLocales,
-      pages,
-    });
-
-    if (analyzed.ok) {
-      // Email delivery must not overwrite a completed audit on transient queue failure.
-      try {
-        await queuePendingLocalisationAuditReportEmailsStep(prepared.auditId);
-      } catch {
-        return { ...analyzed, workflowRunId, emailQueueFailed: true as const };
+      if (!analyzedResult.ok) {
+        return { ...analyzedResult, workflowRunId };
       }
+      completedAuditId = prepared.auditId;
     }
-
-    return { ...analyzed, workflowRunId };
   } catch (error) {
     await failLocalisationAuditStep({
       auditId: event.auditId,
@@ -109,4 +98,15 @@ export async function localisationAuditWorkflow(event: LocalisationAuditEventDat
       workflowRunId,
     };
   }
+
+  if (completedAuditId) {
+    // Let step/workflow retries re-drive pending leads. Do not swallow failures.
+    await queuePendingLocalisationAuditReportEmailsStep(completedAuditId);
+    if (alreadyCompleted) {
+      return { ok: true, alreadyCompleted: true, auditId: completedAuditId, workflowRunId };
+    }
+    return { ...analyzedResult!, workflowRunId };
+  }
+
+  return { ok: false, code: "localisation_audit_failed", workflowRunId };
 }

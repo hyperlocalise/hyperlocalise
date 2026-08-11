@@ -16,15 +16,16 @@ vi.mock("workflow", () => ({
   getWorkflowMetadata: vi.fn(() => ({ workflowRunId: "run_123" })),
 }));
 
-const { prepareMock, queueEmailsMock } = vi.hoisted(() => ({
+const { prepareMock, queueEmailsMock, failMock } = vi.hoisted(() => ({
   prepareMock: vi.fn(),
   queueEmailsMock: vi.fn(),
+  failMock: vi.fn(),
 }));
 
 vi.mock("./steps/localisation-audit", () => ({
   analyzeLocalisationAuditStep: vi.fn(),
   crawlLocalisationAuditStep: vi.fn(),
-  failLocalisationAuditStep: vi.fn(),
+  failLocalisationAuditStep: failMock,
   prepareLocalisationAuditStep: prepareMock,
   queuePendingLocalisationAuditReportEmailsStep: queueEmailsMock,
   setLocalisationAuditProgressStep: vi.fn(),
@@ -59,5 +60,24 @@ describe("localisationAuditWorkflow", () => {
       auditId: "audit_123",
       workflowRunId: "run_123",
     });
+  });
+
+  it("rethrows report-email queue failures after completion without failing the audit", async () => {
+    prepareMock.mockResolvedValue({
+      ok: true,
+      alreadyCompleted: true,
+      staleAttempt: false,
+      auditId: "audit_123",
+      attemptNumber: 1,
+    });
+    queueEmailsMock.mockRejectedValue(new Error("queue unavailable"));
+
+    await expect(
+      localisationAuditWorkflow({
+        auditId: "audit_123",
+        attemptNumber: 1,
+      }),
+    ).rejects.toThrow("queue unavailable");
+    expect(failMock).not.toHaveBeenCalled();
   });
 });

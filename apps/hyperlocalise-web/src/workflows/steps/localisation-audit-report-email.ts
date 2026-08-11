@@ -95,44 +95,33 @@ export async function sendLocalisationAuditReportEmailStep(input: {
     verifyUrl,
   };
 
-  try {
-    const html = await render(LocalisationAuditReportEmail(emailProps));
-    const text = localisationAuditReportEmailText(emailProps);
-    const resend = new Resend(env.RESEND_API_KEY);
-    const fromName = env.RESEND_FROM_NAME ?? "Hyperlocalise";
-    const result = await resend.emails.send(
-      {
-        from: `${fromName} <${env.RESEND_FROM_ADDRESS}>`,
-        to: lead.email,
-        subject: `${audit.domainKey} localisation score: ${audit.score}/100`,
-        html,
-        text,
-      },
-      {
-        idempotencyKey: `localisation-audit-report:${lead.id}:${lead.tokenHash}`,
-      },
-    );
+  // Transient provider failures must throw so the workflow step retries.
+  // Keep the lead queued (do not mark failed) so retries and stale recovery can resend.
+  const html = await render(LocalisationAuditReportEmail(emailProps));
+  const text = localisationAuditReportEmailText(emailProps);
+  const resend = new Resend(env.RESEND_API_KEY);
+  const fromName = env.RESEND_FROM_NAME ?? "Hyperlocalise";
+  const result = await resend.emails.send(
+    {
+      from: `${fromName} <${env.RESEND_FROM_ADDRESS}>`,
+      to: lead.email,
+      subject: `${audit.domainKey} localisation score: ${audit.score}/100`,
+      html,
+      text,
+    },
+    {
+      idempotencyKey: `localisation-audit-report:${lead.id}:${lead.tokenHash}`,
+    },
+  );
 
-    if (result.error) {
-      await markLocalisationAuditLeadEmailFailed({
-        leadId: input.leadId,
-        error: result.error.message,
-      });
-      return { ok: false as const, code: "resend_error" as const };
-    }
-
-    await markLocalisationAuditLeadEmailSent(input.leadId);
-    serverAnalytics.track(LOCALISATION_AUDIT_ANALYTICS_EVENTS.reportEmailSent, {
-      delivery: "sent",
-      score_band: scoreBand(audit.score),
-    });
-    return { ok: true as const };
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "email_send_failed";
-    await markLocalisationAuditLeadEmailFailed({
-      leadId: input.leadId,
-      error: message,
-    });
-    return { ok: false as const, code: "email_send_failed" as const };
+  if (result.error) {
+    throw new Error(result.error.message);
   }
+
+  await markLocalisationAuditLeadEmailSent(input.leadId);
+  serverAnalytics.track(LOCALISATION_AUDIT_ANALYTICS_EVENTS.reportEmailSent, {
+    delivery: "sent",
+    score_band: scoreBand(audit.score),
+  });
+  return { ok: true as const };
 }

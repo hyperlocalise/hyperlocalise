@@ -58,7 +58,8 @@ Public Hono routes under `/api/localisation-audit` start/retry runs, expose teas
 - Email uses React Email + Resend (existing `RESEND_*` env vars).
 - `GET /:domainSlug/verify` validates the token (reusable until expiry so email link-previews cannot burn it), marks the lead verified, sets `hl_la_unlock_{domainSlug}` HttpOnly cookie, and redirects to a normalized app locale path.
 - Per-domain cookies prevent unlocking one domain from unlocking another.
-- Report-email enqueue failures after a successful analysis do not mark the audit failed.
+- Report-email enqueue failures after a successful analysis do not mark the audit failed; they throw so the workflow/step retries queueing without touching audit status.
+- Transient Resend send failures throw from the report-email step (lead stays `queued`) so Workflow retries delivery. Permanent configuration / readiness failures mark the lead `failed` and return without retry.
 
 ## Analytics
 

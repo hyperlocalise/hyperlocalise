@@ -116,4 +116,24 @@ describe("sendLocalisationAuditReportEmailStep", () => {
       idempotencyKey: `localisation-audit-report:lead-1:${hashLocalisationAuditReportToken(token)}`,
     });
   });
+
+  it("throws on Resend errors so the workflow step can retry", async () => {
+    sendMock.mockResolvedValue({ data: null, error: { message: "rate limited" } });
+
+    await expect(sendLocalisationAuditReportEmailStep({ leadId: "lead-1", token })).rejects.toThrow(
+      "rate limited",
+    );
+    expect(markFailedMock).not.toHaveBeenCalled();
+    expect(markSentMock).not.toHaveBeenCalled();
+  });
+
+  it("throws when Resend send rejects so the workflow step can retry", async () => {
+    sendMock.mockRejectedValue(new Error("network down"));
+
+    await expect(sendLocalisationAuditReportEmailStep({ leadId: "lead-1", token })).rejects.toThrow(
+      "network down",
+    );
+    expect(markFailedMock).not.toHaveBeenCalled();
+    expect(markSentMock).not.toHaveBeenCalled();
+  });
 });

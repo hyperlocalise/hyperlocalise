@@ -228,6 +228,7 @@ export async function queuePendingLocalisationAuditReportEmailsStep(auditId: str
   const { createLocalisationAuditReportEmailQueue } = await import("@/workflows/adapters");
   const queue = createLocalisationAuditReportEmailQueue();
   let queued = 0;
+  let enqueueFailures = 0;
   for (const lead of pending) {
     const refreshed = await upsertLocalisationAuditLeadForDelivery({
       auditId: lead.auditId,
@@ -245,7 +246,17 @@ export async function queuePendingLocalisationAuditReportEmailsStep(auditId: str
         leadId: refreshed.lead.id,
         error: "localisation_audit_email_enqueue_failed",
       });
+      enqueueFailures += 1;
     }
   }
+
+  if (enqueueFailures > 0) {
+    // Throw so the step retries; recently queued leads stay within the resend
+    // cooldown and are skipped on the next listPending pass.
+    throw new Error(
+      `localisation_audit_email_enqueue_failed:${enqueueFailures}_of_${pending.length}`,
+    );
+  }
+
   return { queued };
 }
