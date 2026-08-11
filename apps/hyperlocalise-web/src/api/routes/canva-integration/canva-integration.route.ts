@@ -106,7 +106,11 @@ export function createCanvaIntegrationRoutes(options: CreateCanvaIntegrationRout
         {
           ok: true,
           canvaConfigured: Boolean(env.CANVA_APP_ID),
-          oauthConfigured: Boolean(env.CANVA_OAUTH_CLIENT_ID && env.CANVA_OAUTH_CLIENT_SECRET),
+          oauthConfigured: Boolean(
+            env.CANVA_OAUTH_CLIENT_ID &&
+              env.CANVA_OAUTH_CLIENT_SECRET &&
+              env.CANVA_OAUTH_SIGNING_SECRET,
+          ),
           authenticated: Boolean(c.var.canvaUser),
         },
         200,
@@ -177,9 +181,10 @@ export function createCanvaIntegrationRoutes(options: CreateCanvaIntegrationRout
           });
         }
 
+        let result;
         try {
           const designId = await resolveCanvaDesignId(payload.designToken, env.CANVA_APP_ID);
-          const result = await startCanvaLocalization({
+          result = await startCanvaLocalization({
             session,
             organizationId: payload.organizationId,
             projectId: payload.projectId,
@@ -191,25 +196,30 @@ export function createCanvaIntegrationRoutes(options: CreateCanvaIntegrationRout
             jobQueue: options.jobQueue,
             fileStorageAdapter: options.fileStorageAdapter,
           });
+        } catch (error) {
+          return localizeErrorResponse(c, error);
+        }
 
-          if (payload.rememberBrandOrgBinding) {
+        // Binding is best-effort and must not suppress a successful jobId.
+        if (payload.rememberBrandOrgBinding) {
+          try {
             await upsertCanvaBrandOrgBinding({
               canvaBrandId: canvaUser.brandId,
               organizationId: payload.organizationId,
               userId: session.user.localUserId,
             });
+          } catch {
+            // Ignore binding failures after the job has already been queued.
           }
-
-          return c.json(
-            {
-              ...result,
-              mode: "hyperlocalise" as const,
-            },
-            202,
-          );
-        } catch (error) {
-          return localizeErrorResponse(c, error);
         }
+
+        return c.json(
+          {
+            ...result,
+            mode: "hyperlocalise" as const,
+          },
+          202,
+        );
       },
     )
     .get(

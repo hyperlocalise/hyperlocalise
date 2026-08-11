@@ -116,6 +116,11 @@ export function CanvaIntegrationInstructions() {
                 random client id and secret pair for the Canva app OAuth provider.
               </li>
               <li>
+                <code className="text-foreground">CANVA_OAUTH_SIGNING_SECRET</code> — separate
+                high-entropy secret for signing authorization codes and OAuth cookies. Do not reuse
+                the client secret.
+              </li>
+              <li>
                 <code className="text-foreground">CANVA_OAUTH_REDIRECT_URIS</code> — include
                 Canva&apos;s OAuth callback URL (typically{" "}
                 <code className="text-foreground">https://www.canva.com/apps/oauth/authorized</code>

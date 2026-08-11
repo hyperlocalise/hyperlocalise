@@ -43,6 +43,7 @@ vp run bundle
 In the Hyperlocalise web app, open **Integrations** and follow the **Canva** setup instructions. You will need:
 
 - `CANVA_OAUTH_CLIENT_ID` and `CANVA_OAUTH_CLIENT_SECRET` on the Hyperlocalise server
+- `CANVA_OAUTH_SIGNING_SECRET` — separate secret for signing OAuth codes/cookies (not the client secret)
 - `CANVA_OAUTH_REDIRECT_URIS` including `https://www.canva.com/apps/oauth/authorized`
 - `CANVA_APP_ID` for Canva JWT verification
 

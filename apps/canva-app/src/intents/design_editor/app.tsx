@@ -144,6 +144,17 @@ export const App = () => {
         }
     }, [persistSettings, selectedPageIndices.length]);
 
+    const applyProjectSelection = useCallback(
+        (projectId: string, projectList: CanvaProjectSummary[]) => {
+            setSelectedProjectId(projectId);
+            const project = projectList.find((entry) => entry.id === projectId);
+            const sourceLocale =
+                project?.sourceLocale?.trim() || settings.sourceLocale;
+            persistSettings({ projectId, sourceLocale });
+        },
+        [persistSettings, settings.sourceLocale],
+    );
+
     const loadProjectsForOrganization = useCallback(async (organizationId: string) => {
         if (!organizationId) {
             setProjects([]);
@@ -162,14 +173,14 @@ export const App = () => {
                 (projectList.length === 1 ? projectList[0]?.id : "") ||
                 "";
             if (preferredProjectId) {
-                setSelectedProjectId(preferredProjectId);
+                applyProjectSelection(preferredProjectId, projectList);
             }
         } catch (error) {
             setErrorMessage(getErrorMessage(error));
         } finally {
             setIsLoadingProjects(false);
         }
-    }, [settings.projectId]);
+    }, [applyProjectSelection, settings.projectId]);
 
     const loadAccountContext = useCallback(async () => {
         const accessToken = await getHyperlocaliseAccessToken();
@@ -261,6 +272,10 @@ export const App = () => {
         await loadProjectsForOrganization(organizationId);
     };
 
+    const handleProjectChange = (projectId: string) => {
+        applyProjectSelection(projectId, projects);
+    };
+
     const handleLocalize = async () => {
         if (!selectedOrganizationId || !selectedProjectId) {
             setErrorMessage(
@@ -317,9 +332,17 @@ export const App = () => {
                 ),
             ]);
 
+            const selectedProject = projects.find(
+                (project) => project.id === selectedProjectId,
+            );
+            const sourceLocale =
+                selectedProject?.sourceLocale?.trim() ||
+                settings.sourceLocale.trim();
+
             persistSettings({
                 organizationId: selectedOrganizationId,
                 projectId: selectedProjectId,
+                sourceLocale,
                 targetLocales: settings.targetLocales,
                 selectedPageIndices,
                 rememberBrandOrgBinding,
@@ -328,7 +351,7 @@ export const App = () => {
             const created = await startLocalizeDesign({
                 organizationId: selectedOrganizationId,
                 projectId: selectedProjectId,
-                sourceLocale: settings.sourceLocale,
+                sourceLocale,
                 targetLocales,
                 designToken: designToken.token,
                 segments: extracted.segments,
@@ -509,8 +532,7 @@ export const App = () => {
                                 value={selectedProjectId}
                                 options={projectOptions}
                                 onChange={(value) => {
-                                    setSelectedProjectId(value);
-                                    persistSettings({ projectId: value });
+                                    handleProjectChange(value);
                                 }}
                                 disabled={isLoadingProjects}
                                 placeholder={intl.formatMessage({

@@ -1,4 +1,4 @@
-import { createHmac, randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
+import { createHash, createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 
 import { and, eq, gt, isNull } from "drizzle-orm";
 
@@ -8,7 +8,6 @@ import { env } from "@/lib/env";
 import { markAuthorizationCodeUsed, verifyPkceChallenge } from "@/api/auth/mcp";
 
 const TOKEN_PREFIX = "hl_canva_";
-const CANVA_OAUTH_SCRYPT_SALT = "hl-canva-oauth-hmac-v1";
 
 export type CanvaAuthorizationCodePayload = {
   clientId: string;
@@ -42,15 +41,19 @@ export type CanvaConsentGrantPayload = {
 export const CANVA_AUTH_REQUEST_COOKIE = "hl_canva_auth_req";
 export const CANVA_CONSENT_COOKIE = "hl_canva_consent";
 
-function getCanvaOAuthSecret(): Buffer {
-  const configuredKey = env.CANVA_OAUTH_CLIENT_SECRET ?? env.PROVIDER_CREDENTIALS_MASTER_KEY;
+/**
+ * Signing key for authorization codes and OAuth cookies.
+ * Uses CANVA_OAUTH_SIGNING_SECRET (never the OAuth client secret).
+ */
+function getCanvaOAuthSigningSecret(): Buffer {
+  const configuredKey = env.CANVA_OAUTH_SIGNING_SECRET ?? env.PROVIDER_CREDENTIALS_MASTER_KEY;
   const decoded = Buffer.from(configuredKey, "base64");
 
   if (decoded.length === 32) {
     return decoded;
   }
 
-  return scryptSync(configuredKey, CANVA_OAUTH_SCRYPT_SALT, 32);
+  return createHash("sha256").update(configuredKey).digest();
 }
 
 function base64Url(input: Buffer | string): string {
@@ -58,7 +61,7 @@ function base64Url(input: Buffer | string): string {
 }
 
 function sign(value: string): string {
-  return createHmac("sha256", getCanvaOAuthSecret()).update(value).digest("base64url");
+  return createHmac("sha256", getCanvaOAuthSigningSecret()).update(value).digest("base64url");
 }
 
 function constantTimeEqual(left: string, right: string): boolean {
@@ -101,8 +104,12 @@ export function generateCanvaOAuthToken(): string {
   return `${TOKEN_PREFIX}${randomBytes(32).toString("base64url")}`;
 }
 
+/**
+ * Hash high-entropy bearer/refresh tokens with SHA-256 for O(1) lookup.
+ * Tokens are 256-bit random values (not passwords), matching the MCP/API-key pattern.
+ */
 export function hashCanvaOAuthToken(token: string): string {
-  return scryptSync(token, CANVA_OAUTH_SCRYPT_SALT, 32).toString("hex");
+  return createHash("sha256").update(token).digest("hex");
 }
 
 export function isCanvaOAuthAccessToken(token: string): boolean {

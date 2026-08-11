@@ -224,8 +224,12 @@ export async function startCanvaLocalization(input: {
     throw new Error("canva_project_not_found");
   }
 
+  // Prefer the project's configured source locale so a stale Canva-app default
+  // (e.g. "en") cannot fail localization for en-US / other project locales.
+  const sourceLocale = project.sourceLocale?.trim() || input.sourceLocale;
+
   const localeValidation = validateJobLocalesAgainstProject(project, {
-    sourceLocale: input.sourceLocale,
+    sourceLocale,
     targetLocales: input.targetLocales,
   });
   if (isErr(localeValidation)) {
@@ -295,7 +299,7 @@ export async function startCanvaLocalization(input: {
           fileInput: {
             sourceFileId: uploadedFile.id,
             fileFormat: "json",
-            sourceLocale: input.sourceLocale,
+            sourceLocale,
             targetLocales: input.targetLocales,
             metadata: {
               integration: "canva-app",

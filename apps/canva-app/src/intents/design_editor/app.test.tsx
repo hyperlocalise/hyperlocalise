@@ -46,6 +46,7 @@ vi.mock("@canva/platform", () => ({
 vi.mock("./design-content", () => ({
   listDesignPages: vi.fn(),
   extractDesignContent: vi.fn(),
+  applyTranslationsToDesign: vi.fn(),
 }));
 
 vi.mock("./oauth", () => ({
@@ -107,6 +108,76 @@ describe("Hyperlocalise Canva app", () => {
       expect(result.getByText("Signed in as user@example.com")).toBeTruthy();
       expect(hyperlocaliseClient.fetchCanvaMe).toHaveBeenCalled();
       expect(hyperlocaliseClient.fetchCanvaProjects).toHaveBeenCalledWith("org_1");
+    });
+  });
+
+  it("syncs sourceLocale from the selected project before localizing", async () => {
+    const storage = new Map<string, string>();
+    vi.stubGlobal("localStorage", {
+      getItem: (key: string) => storage.get(key) ?? null,
+      setItem: (key: string, value: string) => {
+        storage.set(key, value);
+      },
+      removeItem: (key: string) => {
+        storage.delete(key);
+      },
+    });
+
+    vi.mocked(oauth.getHyperlocaliseAccessToken).mockResolvedValue("hl_canva_test_token");
+    vi.mocked(hyperlocaliseClient.fetchCanvaMe).mockResolvedValue({
+      user: { id: "user_1", email: "user@example.com" },
+      organizations: [{ id: "org_1", name: "Acme", slug: "acme", role: "admin" }],
+      brandBinding: null,
+    });
+    vi.mocked(hyperlocaliseClient.fetchCanvaProjects).mockResolvedValue([
+      {
+        id: "project_1",
+        name: "Website",
+        sourceLocale: "en-US",
+        targetLocales: ["es-ES"],
+      },
+    ]);
+    vi.mocked(designContent.extractDesignContent).mockResolvedValue({
+      segments: [
+        {
+          key: "seg_1",
+          pageIndex: 0,
+          contentIndex: 0,
+          regionIndex: 0,
+          text: "Hello",
+        },
+      ],
+      pageIndices: [0],
+      preserveFormatting: true,
+    });
+    vi.mocked(designContent.applyTranslationsToDesign).mockResolvedValue(undefined);
+    vi.mocked(hyperlocaliseClient.startLocalizeDesign).mockResolvedValue({
+      jobId: "job_1",
+      mode: "hyperlocalise",
+    });
+    vi.mocked(hyperlocaliseClient.pollLocalizeDesign).mockResolvedValue({
+      jobId: "job_1",
+      status: "succeeded",
+      translationsByLocale: { es: { seg_1: "Hola" } },
+      mode: "hyperlocalise",
+    });
+
+    const result = renderInTestProvider(<App />);
+
+    await waitFor(() => {
+      expect(result.getByText("Signed in as user@example.com")).toBeTruthy();
+      expect(result.getByRole("button", { name: "Localize design" })).not.toBeDisabled();
+    });
+
+    result.getByRole("button", { name: "Localize design" }).click();
+
+    await waitFor(() => {
+      expect(hyperlocaliseClient.startLocalizeDesign).toHaveBeenCalledWith(
+        expect.objectContaining({
+          projectId: "project_1",
+          sourceLocale: "en-US",
+        }),
+      );
     });
   });
 });

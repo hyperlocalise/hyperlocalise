@@ -101,6 +101,7 @@ jobs:
       CANVA_APP_ID: test-canva-app-id
       CANVA_OAUTH_CLIENT_ID: test-canva-oauth-client
       CANVA_OAUTH_CLIENT_SECRET: test-canva-oauth-client-secret
+      CANVA_OAUTH_SIGNING_SECRET: MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=
       CANVA_OAUTH_REDIRECT_URIS: https://www.canva.com/apps/oauth/authorized
       CANVA_OAUTH_ACCESS_TOKEN_LIFETIME_MINUTES: "60"
       CANVA_OAUTH_REFRESH_TOKEN_LIFETIME_DAYS: "90"

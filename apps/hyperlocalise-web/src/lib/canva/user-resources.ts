@@ -97,26 +97,52 @@ export async function getCanvaBrandOrgBinding(canvaBrandId: string) {
   return binding ?? null;
 }
 
+/**
+ * Bind a Canva brand to an organization using first-writer-wins semantics.
+ * Concurrent localize calls must not rebind a brand to a different org.
+ */
 export async function upsertCanvaBrandOrgBinding(input: {
   canvaBrandId: string;
   organizationId: string;
   userId: string;
-}) {
-  await db
+}): Promise<"created" | "refreshed" | "unchanged"> {
+  const [inserted] = await db
     .insert(schema.canvaBrandOrgBindings)
     .values({
       canvaBrandId: input.canvaBrandId,
       organizationId: input.organizationId,
       boundByUserId: input.userId,
     })
-    .onConflictDoUpdate({
+    .onConflictDoNothing({
       target: schema.canvaBrandOrgBindings.canvaBrandId,
-      set: {
-        organizationId: input.organizationId,
-        boundByUserId: input.userId,
-        updatedAt: new Date(),
-      },
-    });
+    })
+    .returning({ id: schema.canvaBrandOrgBindings.id });
+
+  if (inserted) {
+    return "created";
+  }
+
+  const [existing] = await db
+    .select({
+      organizationId: schema.canvaBrandOrgBindings.organizationId,
+    })
+    .from(schema.canvaBrandOrgBindings)
+    .where(eq(schema.canvaBrandOrgBindings.canvaBrandId, input.canvaBrandId))
+    .limit(1);
+
+  if (!existing || existing.organizationId !== input.organizationId) {
+    return "unchanged";
+  }
+
+  await db
+    .update(schema.canvaBrandOrgBindings)
+    .set({
+      boundByUserId: input.userId,
+      updatedAt: new Date(),
+    })
+    .where(eq(schema.canvaBrandOrgBindings.canvaBrandId, input.canvaBrandId));
+
+  return "refreshed";
 }
 
 export async function touchCanvaOAuthBrand(input: { sessionId: string; canvaBrandId: string }) {

@@ -208,6 +208,13 @@ export const env = createEnv({
     /** OAuth client secret for the Canva app provider. */
     CANVA_OAUTH_CLIENT_SECRET: z.string().min(1).optional(),
 
+    /**
+     * Secret for HMAC-signing Canva OAuth authorization codes and cookies.
+     * Must not reuse CANVA_OAUTH_CLIENT_SECRET — a client-secret leak must not
+     * let an attacker forge codes or consent cookies.
+     */
+    CANVA_OAUTH_SIGNING_SECRET: z.string().min(1).optional(),
+
     /** Comma-separated redirect URIs allowed for Canva OAuth callbacks. */
     CANVA_OAUTH_REDIRECT_URIS: z.string().min(1).optional(),
 
@@ -335,6 +342,9 @@ export const env = createEnv({
     CANVA_OAUTH_CLIENT_SECRET:
       process.env.CANVA_OAUTH_CLIENT_SECRET ??
       (isTestEnv ? "test-canva-oauth-client-secret" : undefined),
+    CANVA_OAUTH_SIGNING_SECRET:
+      process.env.CANVA_OAUTH_SIGNING_SECRET ??
+      (isTestEnv ? "MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=" : undefined),
     CANVA_OAUTH_REDIRECT_URIS:
       process.env.CANVA_OAUTH_REDIRECT_URIS ??
       (isTestEnv ? "https://www.canva.com/apps/oauth/authorized" : undefined),
