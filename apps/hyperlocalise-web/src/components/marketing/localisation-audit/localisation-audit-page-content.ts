@@ -48,8 +48,7 @@ export function getLocalisationAuditPageCopy(_locale: string) {
     leaderboardHeading: "Public localisation leaderboard",
     leaderboardSubcopy:
       "Teaser scores are public. Compare domains, then run your own audit to see where you rank.",
-    leaderboardEmpty:
-      "No public audits yet. Run the first health check and claim the top spot.",
+    leaderboardEmpty: "No public audits yet. Run the first health check and claim the top spot.",
   };
 }
 
@@ -97,7 +96,8 @@ export function getLocalisationAuditResultCopy(_locale: string) {
     standingAverage: "Public average: {average}/100",
     standingCta: "See the full leaderboard",
     shareHeading: "Share this public teaser",
-    shareBody: "This score page is public. Share it with your team or post it to start a comparison.",
+    shareBody:
+      "This score page is public. Share it with your team or post it to start a comparison.",
     shareCopyLink: "Copy report link",
     shareCopied: "Link copied",
     emailLabel: "Work email",

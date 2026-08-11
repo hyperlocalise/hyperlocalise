@@ -382,13 +382,9 @@ export function LocalisationAuditResult({
             {formatCopy(copy.standingRank, { rank: standing.rank, total: standing.total })}
           </TypographyP>
           <div className="mt-4 flex flex-wrap gap-x-8 gap-y-2 text-sm text-muted-foreground">
-            <span>
-              {formatCopy(copy.standingPercentile, { percentile: standing.percentile })}
-            </span>
+            <span>{formatCopy(copy.standingPercentile, { percentile: standing.percentile })}</span>
             {standing.averageScore != null ? (
-              <span>
-                {formatCopy(copy.standingAverage, { average: standing.averageScore })}
-              </span>
+              <span>{formatCopy(copy.standingAverage, { average: standing.averageScore })}</span>
             ) : null}
           </div>
           <div className="mt-6">

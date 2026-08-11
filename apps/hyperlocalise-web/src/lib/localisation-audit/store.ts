@@ -182,8 +182,7 @@ export async function getLocalisationAuditStanding(input: {
 
   const rank = (stats?.betterOrEqual ?? 0) + 1;
   const percentile = Math.max(1, Math.min(99, Math.round(((total - rank + 1) / total) * 100)));
-  const averageScore =
-    stats?.averageScore == null ? null : Math.round(Number(stats.averageScore));
+  const averageScore = stats?.averageScore == null ? null : Math.round(Number(stats.averageScore));
 
   return {
     rank,
