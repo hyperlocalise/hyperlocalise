@@ -1,4 +1,4 @@
-import { createHash, createHmac, randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
+import { createHmac, randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
 
 import { and, eq, gt, isNull } from "drizzle-orm";
 
@@ -10,6 +10,11 @@ import { markAuthorizationCodeUsed, verifyPkceChallenge } from "@/api/auth/mcp";
 const TOKEN_PREFIX = "hl_canva_";
 /** Static salt for deriving a 32-byte HMAC key when the signing secret is not already 32 bytes. */
 const CANVA_OAUTH_SIGNING_SCRYPT_SALT = "hl-canva-oauth-signing-v1";
+/**
+ * Static salt for hashing OAuth bearer/refresh tokens.
+ * Must not use CANVA_OAUTH_CLIENT_SECRET / SIGNING_SECRET — rotating those must not invalidate sessions.
+ */
+const CANVA_OAUTH_TOKEN_SCRYPT_SALT = "hl-canva-oauth-token-v1";
 
 export type CanvaAuthorizationCodePayload = {
   clientId: string;
@@ -108,14 +113,12 @@ export function generateCanvaOAuthToken(): string {
 }
 
 /**
- * Hash high-entropy bearer/refresh tokens with SHA-256 for O(1) lookup.
- * Tokens are 256-bit random values from generateCanvaOAuthToken (not human passwords),
- * matching the MCP/API-key pattern — a slow password KDF is unnecessary here.
+ * Hash OAuth bearer/refresh tokens for storage/lookup.
+ * Uses scrypt with a static salt so CodeQL accepts the sink and secret rotation
+ * does not invalidate existing sessions. Tokens remain high-entropy random values.
  */
 export function hashCanvaOAuthToken(token: string): string {
-  // codeql[js/insufficient-password-hash]
-  // High-entropy 256-bit random OAuth tokens, not user passwords; SHA-256 is appropriate.
-  return createHash("sha256").update(token).digest("hex");
+  return scryptSync(token, CANVA_OAUTH_TOKEN_SCRYPT_SALT, 32).toString("hex");
 }
 
 export function isCanvaOAuthAccessToken(token: string): boolean {
