@@ -289,9 +289,7 @@ describe("IssueNotificationEmailService", () => {
     enqueueMock.mockClear();
     await emailService.runDigestTick();
     expect(
-      enqueueMock.mock.calls.some((call) =>
-        call[0]?.notificationIds?.includes(notification!.id),
-      ),
+      enqueueMock.mock.calls.some((call) => call[0]?.notificationIds?.includes(notification!.id)),
     ).toBe(false);
 
     const [afterDigest] = await db

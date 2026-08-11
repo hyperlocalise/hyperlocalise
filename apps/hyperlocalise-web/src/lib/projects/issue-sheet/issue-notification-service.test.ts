@@ -532,9 +532,9 @@ describe("IssueNotificationService", () => {
       .from(schema.issueNotifications)
       .where(eq(schema.issueNotifications.issueId, issue.id));
 
-    expect(rows.some((row) => row.recipientUserId === assigneeUserId && row.type === "mentioned")).toBe(
-      true,
-    );
+    expect(
+      rows.some((row) => row.recipientUserId === assigneeUserId && row.type === "mentioned"),
+    ).toBe(true);
     expect(rows.some((row) => row.recipientUserId === outsiderUserId)).toBe(false);
   });
 });
