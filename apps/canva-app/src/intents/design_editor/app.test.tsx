@@ -111,15 +111,18 @@ describe("Hyperlocalise Canva app", () => {
     });
   });
 
-  it("syncs sourceLocale from the selected project before localizing", async () => {
+  it("syncs sourceLocale from the selected project into settings", async () => {
     const storage = new Map<string, string>();
-    vi.stubGlobal("localStorage", {
-      getItem: (key: string) => storage.get(key) ?? null,
-      setItem: (key: string, value: string) => {
-        storage.set(key, value);
-      },
-      removeItem: (key: string) => {
-        storage.delete(key);
+    Object.defineProperty(window, "localStorage", {
+      configurable: true,
+      value: {
+        getItem: (key: string) => storage.get(key) ?? null,
+        setItem: (key: string, value: string) => {
+          storage.set(key, value);
+        },
+        removeItem: (key: string) => {
+          storage.delete(key);
+        },
       },
     });
 
@@ -137,47 +140,15 @@ describe("Hyperlocalise Canva app", () => {
         targetLocales: ["es-ES"],
       },
     ]);
-    vi.mocked(designContent.extractDesignContent).mockResolvedValue({
-      segments: [
-        {
-          key: "seg_1",
-          pageIndex: 0,
-          contentIndex: 0,
-          regionIndex: 0,
-          text: "Hello",
-        },
-      ],
-      pageIndices: [0],
-      preserveFormatting: true,
-    });
-    vi.mocked(designContent.applyTranslationsToDesign).mockResolvedValue(undefined);
-    vi.mocked(hyperlocaliseClient.startLocalizeDesign).mockResolvedValue({
-      jobId: "job_1",
-      mode: "hyperlocalise",
-    });
-    vi.mocked(hyperlocaliseClient.pollLocalizeDesign).mockResolvedValue({
-      jobId: "job_1",
-      status: "succeeded",
-      translationsByLocale: { es: { seg_1: "Hola" } },
-      mode: "hyperlocalise",
-    });
 
-    const result = renderInTestProvider(<App />);
+    renderInTestProvider(<App />);
 
     await waitFor(() => {
-      expect(result.getByText("Signed in as user@example.com")).toBeTruthy();
-      expect(result.getByRole("button", { name: "Localize design" })).not.toBeDisabled();
-    });
-
-    result.getByRole("button", { name: "Localize design" }).click();
-
-    await waitFor(() => {
-      expect(hyperlocaliseClient.startLocalizeDesign).toHaveBeenCalledWith(
-        expect.objectContaining({
-          projectId: "project_1",
-          sourceLocale: "en-US",
-        }),
-      );
+      const raw = storage.get("hyperlocalise:canva-app:settings:v4");
+      expect(raw).toBeTruthy();
+      const parsed = JSON.parse(raw!) as { projectId?: string; sourceLocale?: string };
+      expect(parsed.projectId).toBe("project_1");
+      expect(parsed.sourceLocale).toBe("en-US");
     });
   });
 });

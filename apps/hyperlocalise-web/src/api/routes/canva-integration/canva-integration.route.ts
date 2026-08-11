@@ -108,8 +108,8 @@ export function createCanvaIntegrationRoutes(options: CreateCanvaIntegrationRout
           canvaConfigured: Boolean(env.CANVA_APP_ID),
           oauthConfigured: Boolean(
             env.CANVA_OAUTH_CLIENT_ID &&
-              env.CANVA_OAUTH_CLIENT_SECRET &&
-              env.CANVA_OAUTH_SIGNING_SECRET,
+            env.CANVA_OAUTH_CLIENT_SECRET &&
+            env.CANVA_OAUTH_SIGNING_SECRET,
           ),
           authenticated: Boolean(c.var.canvaUser),
         },
