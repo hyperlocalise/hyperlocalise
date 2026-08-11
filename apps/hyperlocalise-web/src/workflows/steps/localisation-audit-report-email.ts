@@ -19,7 +19,6 @@ import {
 } from "@/emails/localisation-audit-report-email";
 import { LOCALISATION_AUDIT_ANALYTICS_EVENTS, scoreBand } from "@/lib/analytics/events";
 import { serverAnalytics } from "@/lib/analytics/server";
-import { env } from "@/lib/env";
 import {
   buildLocalisationAuditVerifyUrl,
   hashLocalisationAuditReportToken,
@@ -36,6 +35,10 @@ export async function sendLocalisationAuditReportEmailStep(input: {
   token?: string;
 }) {
   "use step";
+
+  // Keep `@/lib/env` behind a dynamic import — static imports crash the Workflow
+  // DevKit CJS sandbox before the step body runs.
+  const { env } = await import("@/lib/env");
 
   const lead = await findLocalisationAuditLeadById(input.leadId);
   if (!lead) {
