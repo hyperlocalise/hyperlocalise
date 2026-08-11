@@ -34,6 +34,18 @@ type astParser struct {
 }
 
 func (p *astParser) parseMessage(ctx parseCtx, untilBrace bool) ([]Element, error) {
+	if !untilBrace {
+		idx := strings.IndexAny(p.src[p.pos:], "{#<}'}")
+		if idx == -1 {
+			val := p.src[p.pos:]
+			p.pos = len(p.src)
+			if val == "" {
+				return []Element{}, nil
+			}
+			return []Element{LiteralElement{Value: val}}, nil
+		}
+	}
+
 	// BOLT OPTIMIZATION: Initial capacity hint to minimize re-allocations.
 	out := make([]Element, 0, 4)
 	var text strings.Builder

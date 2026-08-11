@@ -335,3 +335,7 @@
 ## 2027-05-10 - Optimizing SHA-512 hashing and fingerprints via hex.EncodeToString
 **Learning:** In Go, formatting hex-encoded digests (such as SHA-512 hashes or checkpoints) using `fmt.Sprintf("%x", ...)` is highly expensive because it relies on runtime reflection, format-string parsing, and dynamic allocations. Replacing it with `hex.EncodeToString` from the standard `encoding/hex` library completely bypasses reflection, dramatically reducing allocations and memory overhead in high-frequency operations.
 **Action:** Replaced `fmt.Sprintf("%x", ...)` with `hex.EncodeToString` inside hot hashing functions like `hashSourceText`, `lockStoredFingerprint`, `lockFingerprintEqual`, and `imageSourceFingerprint` to achieve a ~28.2% reduction in planning time and save over 20,000 allocations per large planning operation.
+
+## 2027-05-15 - Plain text fast-path in ICU parser
+**Learning:** In high-volume translation engines, the vast majority (60-90%) of strings are plain text containing no ICU special syntax (such as braces `{`, tags `<`, quotes `'`, or plural markers `#`). Running full recursive parsing loops and pre-allocating slice capacities for these simple strings generates substantial garbage collection pressure and CPU overhead. A dual-guard fast-path checking for these characters immediately returns a single sliced `LiteralElement`, bypassing the parser loop entirely.
+**Action:** Always consider plain text fast-paths for sequential and structural template parsers when literal strings dominate the expected input corpus.

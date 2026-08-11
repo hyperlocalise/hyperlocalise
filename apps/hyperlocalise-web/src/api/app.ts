@@ -48,6 +48,7 @@ import { createOrganizationIssueSheetRoutes } from "./routes/issues/organization
 import { createOrganizationIssuesRoutes } from "./routes/issues/issues.route";
 import { createMentionSuggestionsRoutes } from "./routes/mentions/mention-suggestions.route";
 import { createIssueNotificationsRoutes } from "./routes/notifications/notifications.route";
+import { createNotificationPreferencesRoutes } from "./routes/notification-preferences/notification-preferences.route";
 import { createGithubInstallationRoutes } from "./routes/github-installation/github-installation.route";
 import { createGithubWebhookRoutes } from "./routes/github-webhook/github-webhook.route";
 import { healthRoutes } from "./routes/health";
@@ -80,6 +81,7 @@ import { createBlogOgImageRoutes } from "./routes/blog-og-image/blog-og-image.ro
 import { createGithubRepositoryAutomationDispatchRoutes } from "./routes/cron/github-repository-automation-dispatch.route";
 import { createSandboxCleanupRoutes } from "./routes/cron/sandbox-cleanup.route";
 import { createSnapshotCleanupRoutes } from "./routes/cron/snapshot-cleanup.route";
+import { createIssueNotificationDigestRoutes } from "./routes/cron/issue-notification-digest.route";
 import {
   createProviderAgentCommentQueue,
   createProviderAgentQaQueue,
@@ -153,7 +155,8 @@ function createInternalRoutes() {
       createGithubRepositoryAutomationDispatchRoutes(),
     )
     .route("/cron/sandbox-cleanup", createSandboxCleanupRoutes())
-    .route("/cron/snapshot-cleanup", createSnapshotCleanupRoutes());
+    .route("/cron/snapshot-cleanup", createSnapshotCleanupRoutes())
+    .route("/cron/issue-notification-digest", createIssueNotificationDigestRoutes());
 }
 
 function createAuthRoutes() {
@@ -176,6 +179,7 @@ function createOrgScopedAppRoutes(
     .route("/issues", createOrganizationIssuesRoutes())
     .route("/issue-sheet", createOrganizationIssueSheetRoutes())
     .route("/notifications", createIssueNotificationsRoutes())
+    .route("/notification-preferences", createNotificationPreferencesRoutes())
     .route("/mentions", createMentionSuggestionsRoutes())
     .route("/glossaries", createGlossaryRoutes())
     .route("/knowledge-memory", createKnowledgeMemoryRoutes())

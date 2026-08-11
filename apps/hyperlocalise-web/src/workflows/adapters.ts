@@ -24,6 +24,7 @@ import { repositoryAgentWorkflow } from "./repository-agent";
 import type {
   EmailAgentTaskQueue,
   JobQueue,
+  IssueNotificationEmailQueue,
   ProviderAgentCommentQueue,
   ProviderAgentQaQueue,
   ProviderAgentTranslationQueue,
@@ -35,8 +36,14 @@ import type {
 } from "@/lib/workflow/types";
 
 const providerAgentTranslationQueueLogger = createLogger("provider-agent-translation-queue");
+const issueNotificationEmailQueueLogger = createLogger("issue-notification-email-queue");
 
 export { createTranslationJobEventQueue, createReviewJobEventQueue } from "@/lib/workflow/queues";
+
+function shouldRunWorkflowInlineLocally(): boolean {
+  // Vercel Workflow World is not available in local next/dev — invoke the consumer directly.
+  return process.env.VERCEL !== "1";
+}
 
 export function createEmailAgentTaskQueue(): EmailAgentTaskQueue {
   return {
@@ -46,6 +53,28 @@ export function createEmailAgentTaskQueue(): EmailAgentTaskQueue {
       return {
         ids: [run.runId],
       };
+    },
+  };
+}
+
+export function createIssueNotificationEmailQueue(): IssueNotificationEmailQueue {
+  return {
+    async enqueue(event) {
+      if (shouldRunWorkflowInlineLocally()) {
+        const { sendIssueNotificationEmailStep } =
+          await import("@/workflows/steps/issue-notification-email");
+        issueNotificationEmailQueueLogger.info(
+          { notificationCount: event.notificationIds.length },
+          "running issue notification email consumer inline (local)",
+        );
+        await sendIssueNotificationEmailStep(event);
+        return { ids: ["local_inline_issue_notification_email"] };
+      }
+
+      const { issueNotificationEmailWorkflow } =
+        await import("@/workflows/issue-notification-email");
+      const run = await start(issueNotificationEmailWorkflow, [event]);
+      return { ids: [run.runId] };
     },
   };
 }

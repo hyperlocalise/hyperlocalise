@@ -55,6 +55,7 @@ export async function notifyWorkspaceAutomationTerminalRun(input: {
   const slack = input.automation.toolConfig.slack;
   if (slack?.enabled && slack.channelId) {
     const result = await runWorkspaceAutomationSlackNotificationTool({
+      organizationId: input.automation.organizationId,
       channelId: slack.channelId,
       message,
     });

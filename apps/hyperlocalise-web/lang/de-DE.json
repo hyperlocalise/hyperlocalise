@@ -12619,5 +12619,49 @@
   },
   "zztNzAuBoJ": {
     "defaultMessage": "Aktiviert"
+  },
+  "NAidKbB0vi": {
+    "defaultMessage": "Notifications",
+    "description": "Section heading for notification preferences on account settings"
+  },
+  "8pg1Ysbsbk": {
+    "defaultMessage": "Choose whether Issue Sheet Inbox updates are also delivered to your email.",
+    "description": "Helper text under notification preferences on account settings"
+  },
+  "3hYpLYs0dC": {
+    "defaultMessage": "Email notifications",
+    "description": "Label for enabling Issue Sheet email notifications"
+  },
+  "lui7Kq_43P": {
+    "defaultMessage": "Send email for unread Inbox notifications on issues you subscribe to.",
+    "description": "Description for enabling Issue Sheet email notifications"
+  },
+  "_zWO7n_TPO": {
+    "defaultMessage": "Email format",
+    "description": "Label for email digest vs immediate delivery format"
+  },
+  "aI1MOY8Fo5": {
+    "defaultMessage": "Digests wait a few minutes and skip items you already read in Inbox. Immediate sends each notification right away.",
+    "description": "Description for email digest vs immediate delivery format"
+  },
+  "M4lNU20CQe": {
+    "defaultMessage": "Digest",
+    "description": "Email format option for batched digests"
+  },
+  "TSS07fFqPb": {
+    "defaultMessage": "Immediate",
+    "description": "Email format option for immediate delivery"
+  },
+  "WUV28A6Pf2": {
+    "defaultMessage": "Saving…",
+    "description": "Status text while notification preferences are saving"
+  },
+  "Gw6z856Urj": {
+    "defaultMessage": "Could not save notification preferences.",
+    "description": "Toast when notification preferences fail to save"
+  },
+  "60tUDKEOmt": {
+    "defaultMessage": "Could not load notification preferences.",
+    "description": "Error when notification preferences fail to load"
   }
 }

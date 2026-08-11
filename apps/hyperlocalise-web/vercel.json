@@ -11,6 +11,10 @@
     {
       "path": "/api/cron/snapshot-cleanup",
       "schedule": "0 4 * * *"
+    },
+    {
+      "path": "/api/cron/issue-notification-digest",
+      "schedule": "*/15 * * * *"
     }
   ]
 }

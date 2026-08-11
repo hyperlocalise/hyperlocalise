@@ -184,19 +184,20 @@ export class IssueNotificationService extends ProjectServiceBase {
       payload: IssueNotificationPayload;
     }>,
     database: DatabaseClient = this.database,
-  ): Promise<void> {
+  ): Promise<string[]> {
     if (rows.length === 0) {
-      return;
+      return [];
     }
 
     const now = new Date();
-    await database
+    const upserted = await database
       .insert(schema.issueNotifications)
       .values(
         rows.map((row) => ({
           ...row,
           createdAt: now,
           readAt: null,
+          emailedAt: null,
         })),
       )
       .onConflictDoUpdate({
@@ -206,9 +207,16 @@ export class IssueNotificationService extends ProjectServiceBase {
           actorUserId: sql`excluded.actor_user_id`,
           payload: sql`excluded.payload`,
           readAt: null,
+          emailedAt: null,
           createdAt: now,
         },
-      });
+      })
+      .returning({ id: schema.issueNotifications.id });
+
+    const notificationIds = upserted.map((row) => row.id);
+    const { issueNotificationEmailService } = await import("./issue-notification-email-service");
+    await issueNotificationEmailService.scheduleImmediateDelivery(notificationIds);
+    return notificationIds;
   }
 
   private async notifyRecipients(input: {
