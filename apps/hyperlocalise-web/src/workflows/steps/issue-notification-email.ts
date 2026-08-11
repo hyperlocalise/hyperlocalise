@@ -68,10 +68,7 @@ export async function sendIssueNotificationEmailStep(event: IssueNotificationEma
       .where(eq(schema.userNotificationPreferences.userId, event.recipientUserId))
       .limit(1)
       .for("update");
-    if (
-      !preferences?.emailEnabled ||
-      preferences.emailFormat !== event.emailFormat
-    ) {
+    if (!preferences?.emailEnabled || preferences.emailFormat !== event.emailFormat) {
       return { ok: true as const, skipped: true as const, reason: "delivery_preferences_changed" };
     }
 
