@@ -185,7 +185,7 @@ export class IssueNotificationEmailService {
         }
 
         for (const row of recipientRows) {
-          const result = await this.enqueueEmailForRows([row], database);
+          const result = await this.enqueueEmailForRows([row], "immediate", database);
           if (!result.ok) {
             logger.warn(
               {
@@ -264,7 +264,7 @@ export class IssueNotificationEmailService {
           return;
         }
 
-        const result = await this.enqueueEmailForRows(sendable, database);
+        const result = await this.enqueueEmailForRows(sendable, "digest", database);
         if (result.ok) {
           emailsEnqueued += 1;
           notificationsQueued += sendable.length;
@@ -336,6 +336,7 @@ export class IssueNotificationEmailService {
 
   private async enqueueEmailForRows(
     rows: NotificationEmailRow[],
+    emailFormat: "digest" | "immediate",
     database: DatabaseClient,
   ): Promise<Result<{ ids: string[] }, EmailEnqueueError>> {
     if (rows.length === 0) {
@@ -391,6 +392,8 @@ export class IssueNotificationEmailService {
       const text = issueInboxNotificationsPlainText(emailProps);
       const event: IssueNotificationEmailEventData = {
         kind: "issue_notification_email",
+        recipientUserId: rows[0]!.recipientUserId,
+        emailFormat,
         to: recipientEmail,
         subject: issueInboxNotificationsSubject(items.length),
         html,

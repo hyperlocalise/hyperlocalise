@@ -10,6 +10,8 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import type { UserNotificationEmailFormat } from "@/lib/database/schema/issue-sheet";
+
 export type JobEventData<Kind extends string, Type extends string = string> = {
   kind: Kind;
   jobId: string;
@@ -147,6 +149,8 @@ export type TranslationFileImportQueue = JobQueue<TranslationFileImportEventData
 /** Pre-rendered Issue Sheet Inbox email for the Resend delivery workflow. */
 export type IssueNotificationEmailEventData = {
   kind: "issue_notification_email";
+  recipientUserId: string;
+  emailFormat: UserNotificationEmailFormat;
   to: string;
   subject: string;
   html: string;

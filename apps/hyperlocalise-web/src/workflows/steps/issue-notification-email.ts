@@ -15,6 +15,7 @@ import { Resend } from "resend";
 
 import { db, schema } from "@/lib/database";
 import { env } from "@/lib/env";
+import { userNotificationPreferencesService } from "@/lib/notifications/user-notification-preferences-service";
 import type { IssueNotificationEmailEventData } from "@/lib/workflow/types";
 
 function resendFromAddress(): string | null {
@@ -49,6 +50,15 @@ export async function sendIssueNotificationEmailStep(event: IssueNotificationEma
 
   if (event.notificationIds.length === 0) {
     return { ok: true as const, skipped: true as const, reason: "empty_notification_ids" };
+  }
+
+  if (!event.recipientUserId || !event.emailFormat) {
+    return { ok: true as const, skipped: true as const, reason: "missing_preference_context" };
+  }
+
+  const preferences = await userNotificationPreferencesService.getForUser(event.recipientUserId);
+  if (!preferences.emailEnabled || preferences.emailFormat !== event.emailFormat) {
+    return { ok: true as const, skipped: true as const, reason: "delivery_preferences_changed" };
   }
 
   const claimedAt = new Date();

@@ -19,6 +19,7 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vite
 
 import { createAuthTestFixture } from "@/api/test-auth.fixture";
 import { db, schema } from "@/lib/database";
+import { userNotificationPreferencesService } from "@/lib/notifications/user-notification-preferences-service";
 import { IssueSheetService } from "@/lib/projects/issue-sheet/issue-sheet-service";
 import { ensureDefaultWorkspaceTeam } from "@/lib/teams/default-workspace-team";
 import type { IssueNotificationEmailEventData } from "@/lib/workflow/types";
@@ -130,9 +131,15 @@ describe("sendIssueNotificationEmailStep", () => {
 
     const { sendIssueNotificationEmailStep } =
       await import("@/workflows/steps/issue-notification-email");
+    await userNotificationPreferencesService.upsertForUser(assigneeUserId, {
+      emailEnabled: true,
+      emailFormat: "immediate",
+    });
 
     const event: IssueNotificationEmailEventData = {
       kind: "issue_notification_email",
+      recipientUserId: assigneeUserId,
+      emailFormat: "immediate",
       to: "assignee@example.com",
       subject: "You have 1 unread notification on Hyperlocalise.",
       html: "<p>Open your Inbox</p>",
@@ -183,6 +190,21 @@ describe("sendIssueNotificationEmailStep", () => {
       .where(eq(schema.issueNotifications.id, notification!.id))
       .limit(1);
     expect(released?.emailedAt).toBeNull();
+
+    await userNotificationPreferencesService.upsertForUser(assigneeUserId, {
+      emailEnabled: false,
+      emailFormat: "immediate",
+    });
+    sendMock.mockClear();
+
+    const optedOutResult = await sendIssueNotificationEmailStep(event);
+
+    expect(optedOutResult).toMatchObject({
+      ok: true,
+      skipped: true,
+      reason: "delivery_preferences_changed",
+    });
+    expect(sendMock).not.toHaveBeenCalled();
   });
 
   it("skips Resend when notifications are already read", async () => {
@@ -250,9 +272,15 @@ describe("sendIssueNotificationEmailStep", () => {
 
     const { sendIssueNotificationEmailStep } =
       await import("@/workflows/steps/issue-notification-email");
+    await userNotificationPreferencesService.upsertForUser(assigneeUserId, {
+      emailEnabled: true,
+      emailFormat: "immediate",
+    });
 
     const result = await sendIssueNotificationEmailStep({
       kind: "issue_notification_email",
+      recipientUserId: assigneeUserId,
+      emailFormat: "immediate",
       to: "assignee@example.com",
       subject: "You have 1 unread notification on Hyperlocalise.",
       html: "<p>Open your Inbox</p>",

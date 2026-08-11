@@ -173,6 +173,8 @@ describe("IssueNotificationEmailService", () => {
     const event = enqueueMock.mock.calls[0]?.[0];
     expect(event).toMatchObject({
       kind: "issue_notification_email",
+      recipientUserId: assigneeUserId,
+      emailFormat: "immediate",
       to: assignee.email,
       notificationIds: [notification!.id],
     });
@@ -224,6 +226,10 @@ describe("IssueNotificationEmailService", () => {
     const results = await emailService.runDigestTick();
     expect(results.emailsEnqueued).toBeGreaterThanOrEqual(1);
     expect(enqueueMock).toHaveBeenCalled();
+    expect(enqueueMock.mock.calls[0]?.[0]).toMatchObject({
+      recipientUserId: assigneeUserId,
+      emailFormat: "digest",
+    });
 
     enqueueMock.mockClear();
     const preferenceSpy = vi
