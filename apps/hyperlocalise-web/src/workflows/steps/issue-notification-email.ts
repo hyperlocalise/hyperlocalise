@@ -14,10 +14,12 @@ import { and, eq, inArray, isNull } from "drizzle-orm";
 import { Resend } from "resend";
 
 import { db, schema } from "@/lib/database";
-import { env } from "@/lib/env";
 import type { IssueNotificationEmailEventData } from "@/lib/workflow/types";
 
-function resendFromAddress(): string | null {
+function resendFromAddress(env: {
+  RESEND_FROM_ADDRESS?: string;
+  RESEND_FROM_NAME?: string;
+}): string | null {
   if (!env.RESEND_FROM_ADDRESS) {
     return null;
   }
@@ -42,7 +44,10 @@ async function deliveryIdempotencyKey(notificationIds: string[]): Promise<string
 export async function sendIssueNotificationEmailStep(event: IssueNotificationEmailEventData) {
   "use step";
 
-  const from = resendFromAddress();
+  // Keep `@/lib/env` behind a dynamic import — static imports crash the Workflow
+  // DevKit CJS sandbox before the step runs.
+  const { env } = await import("@/lib/env");
+  const from = resendFromAddress(env);
   if (!env.RESEND_API_KEY || !from) {
     throw new Error("Email delivery is not configured for this environment.");
   }
