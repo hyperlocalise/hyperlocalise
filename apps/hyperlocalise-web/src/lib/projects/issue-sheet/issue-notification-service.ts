@@ -22,6 +22,7 @@ import type {
 import { stripMarkdown } from "@/lib/markdown/strip-markdown";
 import { ProjectServiceBase } from "@/lib/projects/project-service-base";
 
+import { userHasIssueProjectAccess } from "./issue-sheet-assignee";
 import { issueSubscriptionService } from "./issue-subscription-service";
 
 export const ISSUE_NOTIFICATION_ASSIGNED = "assigned" as const;
@@ -231,9 +232,28 @@ export class IssueNotificationService extends ProjectServiceBase {
     payloadExtra?: Omit<IssueNotificationPayload, "issueTitle" | "projectId">;
     database?: DatabaseClient;
   }): Promise<void> {
-    const recipients = [...new Set(input.recipientUserIds)].filter(
+    const database = input.database ?? this.database;
+    const candidateUserIds = [...new Set(input.recipientUserIds)].filter(
       (userId) => userId !== input.actorUserId,
     );
+    if (candidateUserIds.length === 0) {
+      return;
+    }
+
+    // Match Inbox list/get scoping: never fan out to users who cannot access the project.
+    // Mentions allow any org member in the API, but email + Inbox must not leak team-scoped issues.
+    const recipients: string[] = [];
+    for (const userId of candidateUserIds) {
+      const hasAccess = await userHasIssueProjectAccess({
+        organizationId: input.organizationId,
+        projectId: input.projectId,
+        userId,
+        database,
+      });
+      if (hasAccess) {
+        recipients.push(userId);
+      }
+    }
     if (recipients.length === 0) {
       return;
     }
@@ -255,7 +275,7 @@ export class IssueNotificationService extends ProjectServiceBase {
         dedupeKey: input.dedupeKeyFor(recipientUserId),
         payload: payloadBase,
       })),
-      input.database ?? this.database,
+      database,
     );
   }
 

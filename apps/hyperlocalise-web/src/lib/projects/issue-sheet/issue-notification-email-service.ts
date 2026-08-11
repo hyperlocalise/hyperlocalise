@@ -33,6 +33,8 @@ import {
 } from "@/emails/issue-inbox-notifications-email";
 import { createIssueNotificationEmailQueue } from "@/workflows/adapters";
 
+import { userHasIssueProjectAccess } from "./issue-sheet-assignee";
+
 const logger = createLogger("issue-notification-email-service");
 const recipientUsers = alias(schema.users, "issue_notification_recipient_users");
 const actorUsers = alias(schema.users, "issue_notification_actor_users");
@@ -160,13 +162,22 @@ export class IssueNotificationEmailService {
     database: DatabaseClient = this.database,
   ): Promise<void> {
     const rows = await this.loadNotificationRows(notificationIds, database);
-    const eligible = rows.filter((row) => row.readAt == null && row.emailedAt == null);
-    if (eligible.length === 0) {
+    const open = rows.filter((row) => row.readAt == null && row.emailedAt == null);
+    if (open.length === 0) {
+      return;
+    }
+
+    const { accessible, inaccessible } = await this.partitionByProjectAccess(open, database);
+    await this.suppressEmailForInaccessible(
+      inaccessible.map((row) => row.id),
+      database,
+    );
+    if (accessible.length === 0) {
       return;
     }
 
     const byRecipient = new Map<string, NotificationEmailRow[]>();
-    for (const row of eligible) {
+    for (const row of accessible) {
       const list = byRecipient.get(row.recipientUserId) ?? [];
       list.push(row);
       byRecipient.set(row.recipientUserId, list);
@@ -259,24 +270,43 @@ export class IssueNotificationEmailService {
         }
 
         const rows = await this.loadNotificationRows(notificationIds, database);
-        const sendable = rows.filter((row) => row.readAt == null && row.emailedAt == null);
-        if (sendable.length === 0) {
+        const open = rows.filter((row) => row.readAt == null && row.emailedAt == null);
+        if (open.length === 0) {
           return;
         }
 
-        const result = await this.enqueueEmailForRows(sendable, "digest", database);
-        if (result.ok) {
-          emailsEnqueued += 1;
-          notificationsQueued += sendable.length;
-        } else {
-          logger.warn(
-            {
-              notificationCount: sendable.length,
-              code: result.error.code,
-              message: result.error.message,
-            },
-            "digest issue notification email enqueue skipped",
-          );
+        const { accessible, inaccessible } = await this.partitionByProjectAccess(open, database);
+        await this.suppressEmailForInaccessible(
+          inaccessible.map((row) => row.id),
+          database,
+        );
+        if (accessible.length === 0) {
+          return;
+        }
+
+        // One digest email per organization — never mix tenant content or inbox URLs.
+        const byOrganization = new Map<string, NotificationEmailRow[]>();
+        for (const row of accessible) {
+          const list = byOrganization.get(row.organizationId) ?? [];
+          list.push(row);
+          byOrganization.set(row.organizationId, list);
+        }
+
+        for (const orgRows of byOrganization.values()) {
+          const result = await this.enqueueEmailForRows(orgRows, "digest", database);
+          if (result.ok) {
+            emailsEnqueued += 1;
+            notificationsQueued += orgRows.length;
+          } else {
+            logger.warn(
+              {
+                notificationCount: orgRows.length,
+                code: result.error.code,
+                message: result.error.message,
+              },
+              "digest issue notification email enqueue skipped",
+            );
+          }
         }
       },
     );
@@ -286,6 +316,65 @@ export class IssueNotificationEmailService {
       emailsEnqueued,
       notificationsQueued,
     };
+  }
+
+  /**
+   * Inbox list/get hide notifications for projects the recipient cannot access.
+   * Email must apply the same gate — otherwise mention/watch rows leak issue titles
+   * and comment excerpts across team boundaries, and inaccessible rows can stall digest.
+   */
+  private async partitionByProjectAccess(
+    rows: NotificationEmailRow[],
+    database: DatabaseClient,
+  ): Promise<{ accessible: NotificationEmailRow[]; inaccessible: NotificationEmailRow[] }> {
+    const accessible: NotificationEmailRow[] = [];
+    const inaccessible: NotificationEmailRow[] = [];
+
+    await mapWithConcurrency(rows, DIGEST_USER_CONCURRENCY, async (row) => {
+      const hasAccess = await userHasIssueProjectAccess({
+        organizationId: row.organizationId,
+        projectId: row.projectId,
+        userId: row.recipientUserId,
+        database,
+      });
+      if (hasAccess) {
+        accessible.push(row);
+      } else {
+        inaccessible.push(row);
+      }
+    });
+
+    return { accessible, inaccessible };
+  }
+
+  /**
+   * Mark inaccessible rows emailed so digest candidates advance. Without this, up to
+   * DIGEST_BATCH_CAP inaccessible rows can occupy every tick forever and starve
+   * deliverable notifications for that user.
+   */
+  private async suppressEmailForInaccessible(
+    notificationIds: string[],
+    database: DatabaseClient,
+  ): Promise<void> {
+    if (notificationIds.length === 0) {
+      return;
+    }
+
+    await database
+      .update(schema.issueNotifications)
+      .set({ emailedAt: new Date() })
+      .where(
+        and(
+          inArray(schema.issueNotifications.id, notificationIds),
+          isNull(schema.issueNotifications.readAt),
+          isNull(schema.issueNotifications.emailedAt),
+        ),
+      );
+
+    logger.info(
+      { count: notificationIds.length },
+      "suppressed issue notification email for recipients without project access",
+    );
   }
 
   private async loadNotificationRows(
@@ -350,9 +439,25 @@ export class IssueNotificationEmailService {
       });
     }
 
+    const organizationIds = new Set(rows.map((row) => row.organizationId));
+    if (organizationIds.size !== 1) {
+      return err({
+        code: "skipped",
+        message: "Notifications for multiple organizations cannot share one email.",
+      });
+    }
+
     const organizationSlug = rows[0]!.organizationSlug;
     if (!organizationSlug) {
       return err({ code: "skipped", message: "Organization slug is missing." });
+    }
+
+    const recipientUserIds = new Set(rows.map((row) => row.recipientUserId));
+    if (recipientUserIds.size !== 1) {
+      return err({
+        code: "skipped",
+        message: "Notifications for multiple recipients cannot share one email.",
+      });
     }
 
     const recipientEmail = rows[0]!.recipientEmail;

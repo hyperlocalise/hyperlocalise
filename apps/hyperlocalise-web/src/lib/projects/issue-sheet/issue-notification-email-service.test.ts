@@ -14,7 +14,7 @@ import "dotenv/config";
 
 import { randomUUID } from "node:crypto";
 
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
 import { createAuthTestFixture } from "@/api/test-auth.fixture";
@@ -243,6 +243,63 @@ describe("IssueNotificationEmailService", () => {
     } finally {
       preferenceSpy.mockRestore();
     }
+  });
+
+  it("suppresses email and skips enqueue when recipient lacks project access", async () => {
+    const { notification, assigneeUserId, project } = await createAssignedNotification();
+    expect(notification).toBeTruthy();
+    expect(project.teamId).toBeTruthy();
+
+    await userNotificationPreferencesService.upsertForUser(assigneeUserId, {
+      emailEnabled: true,
+      emailFormat: "immediate",
+    });
+
+    // Remove team membership so the assignee can no longer access the project.
+    await db
+      .delete(schema.teamMemberships)
+      .where(
+        and(
+          eq(schema.teamMemberships.userId, assigneeUserId),
+          eq(schema.teamMemberships.teamId, project.teamId!),
+        ),
+      );
+
+    await emailService.deliverImmediate([notification!.id]);
+    expect(enqueueMock).not.toHaveBeenCalled();
+
+    const [updated] = await db
+      .select()
+      .from(schema.issueNotifications)
+      .where(eq(schema.issueNotifications.id, notification!.id))
+      .limit(1);
+    expect(updated?.emailedAt).not.toBeNull();
+
+    // Digest must not keep retrying suppressed inaccessible rows.
+    const agedCreatedAt = new Date(Date.now() - ISSUE_NOTIFICATION_DIGEST_MIN_AGE_MS - 1000);
+    await db
+      .update(schema.issueNotifications)
+      .set({ createdAt: agedCreatedAt, emailedAt: null, readAt: null })
+      .where(eq(schema.issueNotifications.id, notification!.id));
+    await userNotificationPreferencesService.upsertForUser(assigneeUserId, {
+      emailEnabled: true,
+      emailFormat: "digest",
+    });
+
+    enqueueMock.mockClear();
+    await emailService.runDigestTick();
+    expect(
+      enqueueMock.mock.calls.some((call) =>
+        call[0]?.notificationIds?.includes(notification!.id),
+      ),
+    ).toBe(false);
+
+    const [afterDigest] = await db
+      .select({ emailedAt: schema.issueNotifications.emailedAt })
+      .from(schema.issueNotifications)
+      .where(eq(schema.issueNotifications.id, notification!.id))
+      .limit(1);
+    expect(afterDigest?.emailedAt).not.toBeNull();
   });
 
   it("clears emailed_at when a notification is re-opened via dedupe upsert", async () => {
