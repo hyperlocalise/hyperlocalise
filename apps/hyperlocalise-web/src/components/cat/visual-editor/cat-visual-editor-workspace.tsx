@@ -15,6 +15,8 @@
 import { useEffect, useEffectEvent, useMemo, useState } from "react";
 import { FormattedMessage } from "react-intl";
 
+import { useCatEditorHotkeys } from "@/components/cat/editor/cat-editor-hotkeys";
+import type { CatSegmentStatus } from "@/components/cat/shared/types";
 import { Kbd, KbdGroup } from "@/components/ui/kbd";
 import { cn } from "@/lib/primitives/cn";
 
@@ -34,6 +36,30 @@ function fileLabelFromPath(sourcePath: string) {
   return filename.replace(/\.json$/i, "");
 }
 
+function needsAttention(status: CatSegmentStatus) {
+  return status === "pending" || status === "needs_review";
+}
+
+function findOpenSegmentId(
+  segments: CatVisualEditorSegment[],
+  fromIndex: number,
+  direction: 1 | -1,
+): string | null {
+  if (segments.length === 0) {
+    return null;
+  }
+
+  for (let step = 1; step <= segments.length; step += 1) {
+    const index = (fromIndex + direction * step + segments.length * 10) % segments.length;
+    const segment = segments[index];
+    if (segment && needsAttention(segment.status)) {
+      return segment.id;
+    }
+  }
+
+  return null;
+}
+
 export function CatVisualEditorWorkspace({
   initialState,
   className,
@@ -44,7 +70,7 @@ export function CatVisualEditorWorkspace({
   const [selectedSourcePath, setSelectedSourcePath] = useState(initialState.selectedSourcePath);
   const [segments, setSegments] = useState<CatVisualEditorSegment[]>(initialState.segments);
   const [selectedSegmentId, setSelectedSegmentId] = useState<string | null>(
-    initialState.selectedSegmentId,
+    initialState.selectedSegmentId || null,
   );
   const [device, setDevice] = useState<CatVisualEditorDevice>("desktop");
   const [highlightTranslatable, setHighlightTranslatable] = useState(true);
@@ -55,7 +81,7 @@ export function CatVisualEditorWorkspace({
   useEffect(() => {
     setSelectedSourcePath(initialState.selectedSourcePath);
     setSegments(initialState.segments);
-    setSelectedSegmentId(initialState.selectedSegmentId);
+    setSelectedSegmentId(initialState.selectedSegmentId || null);
     setBaselineTargets(
       Object.fromEntries(initialState.segments.map((segment) => [segment.id, segment.targetText])),
     );
@@ -74,6 +100,7 @@ export function CatVisualEditorWorkspace({
     : false;
 
   const reviewedCount = segments.filter((segment) => segment.status === "reviewed").length;
+  const remainingCount = segments.filter((segment) => needsAttention(segment.status)).length;
 
   function updateSelectedTarget(value: string) {
     if (!selectedSegmentId) {
@@ -106,20 +133,32 @@ export function CatVisualEditorWorkspace({
     setSelectedSegmentId(segments[nextIndex]?.id ?? null);
   });
 
+  const goToNextOpen = useEffectEvent(() => {
+    const fromIndex = selectedIndex < 0 ? -1 : selectedIndex;
+    const nextId = findOpenSegmentId(segments, fromIndex, 1);
+    if (nextId) {
+      setSelectedSegmentId(nextId);
+    }
+  });
+
   function handleApprove() {
     if (!selectedSegment) {
       return;
     }
+    const approvedId = selectedSegment.id;
     setBaselineTargets((current) => ({
       ...current,
-      [selectedSegment.id]: selectedSegment.targetText,
+      [approvedId]: selectedSegment.targetText,
     }));
-    setSegments((current) =>
-      current.map((segment) =>
-        segment.id === selectedSegment.id ? { ...segment, status: "reviewed" } : segment,
-      ),
-    );
-    goToOffset(1);
+    setSegments((current) => {
+      const nextSegments = current.map((segment) =>
+        segment.id === approvedId ? { ...segment, status: "reviewed" as const } : segment,
+      );
+      const fromIndex = nextSegments.findIndex((segment) => segment.id === approvedId);
+      const nextOpenId = findOpenSegmentId(nextSegments, fromIndex, 1);
+      setSelectedSegmentId(nextOpenId ?? approvedId);
+      return nextSegments;
+    });
   }
 
   function handleSaveDraft() {
@@ -143,6 +182,17 @@ export function CatVisualEditorWorkspace({
     updateSelectedTarget("");
   }
 
+  useCatEditorHotkeys({
+    hasPreviousSegment: selectedIndex > 0,
+    hasNextSegment: selectedIndex >= 0 && selectedIndex < segments.length - 1,
+    canTriggerApprove: Boolean(selectedSegment?.targetText.trim()),
+    canTriggerFindContext: false,
+    onPrevious: () => goToOffset(-1),
+    onNext: () => goToOffset(1),
+    onApprove: handleApprove,
+    onAskQuestion: () => undefined,
+  });
+
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape") {
@@ -155,19 +205,15 @@ export function CatVisualEditorWorkspace({
           return;
         }
       }
-      if (event.key === "ArrowDown" || event.key === "ArrowRight") {
+      if (event.key === "Tab") {
         event.preventDefault();
-        goToOffset(1);
-      }
-      if (event.key === "ArrowUp" || event.key === "ArrowLeft") {
-        event.preventDefault();
-        goToOffset(-1);
+        goToNextOpen();
       }
     }
 
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [goToOffset]);
+  }, [goToNextOpen]);
 
   return (
     <div className={cn("flex h-full min-h-0 flex-col bg-background text-foreground", className)}>
@@ -190,17 +236,14 @@ export function CatVisualEditorWorkspace({
           onHighlightTranslatableChange={setHighlightTranslatable}
           segments={segments}
           selectedSegmentId={selectedSegmentId}
-          showInlineEdit={Boolean(selectedSegment)}
           onSelectSegment={setSelectedSegmentId}
-          onTargetChange={updateSelectedTarget}
-          onConfirmInline={handleSaveDraft}
-          onApplyAi={applyAiSuggestion}
         />
 
         <CatVisualEditorDetailPanel
           segment={selectedSegment}
           segmentPosition={selectedIndex >= 0 ? selectedIndex + 1 : 0}
           totalSegments={segments.length}
+          remainingCount={remainingCount}
           intelligence={intelligence}
           isTargetDirty={isTargetDirty}
           hasPreviousSegment={selectedIndex > 0}
@@ -214,7 +257,6 @@ export function CatVisualEditorWorkspace({
           onUseTmMatch={(match) => applyTmMatch(match.targetText)}
           onApprove={handleApprove}
           onSaveDraft={handleSaveDraft}
-          onAskQuestion={() => undefined}
           onAddComment={async (input) => {
             if (!selectedSegment) {
               return;
@@ -253,8 +295,8 @@ export function CatVisualEditorWorkspace({
           </span>
           <span>
             <FormattedMessage
-              {...catVisualEditorMessages.statusBarSelected}
-              values={{ count: selectedSegment ? 1 : 0 }}
+              {...catVisualEditorMessages.statusBarRemaining}
+              values={{ count: remainingCount }}
             />
           </span>
         </div>
@@ -267,11 +309,12 @@ export function CatVisualEditorWorkspace({
             <FormattedMessage {...catVisualEditorMessages.navigateHint} />
           </span>
           <span className="inline-flex items-center gap-1.5">
+            <Kbd>tab</Kbd>
+            <FormattedMessage {...catVisualEditorMessages.nextOpenHint} />
+          </span>
+          <span className="inline-flex items-center gap-1.5">
             <Kbd>esc</Kbd>
             <FormattedMessage {...catVisualEditorMessages.deselectHint} />
-          </span>
-          <span>
-            <FormattedMessage {...catVisualEditorMessages.shortcutsHint} />
           </span>
         </div>
       </footer>

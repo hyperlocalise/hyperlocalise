@@ -13,6 +13,13 @@ Add a presentational `CatVisualEditorWorkspace` under
 `apps/hyperlocalise-web/src/components/cat/visual-editor/`. Expose it only via
 Storybook. Reuse production building blocks; mock the preview canvas.
 
+Translator UX rules for this prototype:
+
+- Preview is select + live reflect only (no inline edit popup).
+- Right rail is the single edit surface; Approve/Save stay sticky.
+- Quieter highlights; status dots mark unfinished strings.
+- Approve advances to the next open string; Tab jumps to next open.
+
 ## Architecture
 
 Three panes:

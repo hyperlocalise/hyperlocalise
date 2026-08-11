@@ -43,11 +43,13 @@ export const Default: Story = {
 
     await expect(canvas.getByText("Files")).toBeInTheDocument();
     await expect(canvas.getByText("Translation Intelligence")).toBeInTheDocument();
-    await expect(canvas.getByText("Text node H1")).toBeInTheDocument();
+    await expect(canvas.getByText("Hero headline")).toBeInTheDocument();
     await expect(canvas.getByText("The platform for modern teams")).toBeInTheDocument();
     await expect(canvas.getAllByText("Die Plattform für moderne Teams").length).toBeGreaterThan(0);
-    await expect(canvas.getByRole("button", { name: "Approve" })).toBeInTheDocument();
+    await expect(canvas.getByRole("button", { name: /Approve/i })).toBeInTheDocument();
     await expect(canvas.getByText("Highlight translatable")).toBeInTheDocument();
+    await expect(canvas.queryByText("Text node H1")).not.toBeInTheDocument();
+    await expect(canvasElement.querySelector('[data-slot="visual-editor-inline-edit"]')).toBeNull();
 
     await waitFor(() => {
       void expect(canvasElement.querySelector("file-tree-container")).toBeTruthy();
@@ -63,27 +65,26 @@ export const SelectNavNode: Story = {
     const canvas = within(canvasElement);
 
     await userEvent.click(canvas.getByText("Preise"));
-    await expect(canvas.getByText("Text node A")).toBeInTheDocument();
+    await expect(canvas.getByText("Primary navigation")).toBeInTheDocument();
     await expect(canvas.getByText("nav.pricing")).toBeInTheDocument();
   },
 };
 
-export const EditInlineHero: Story = {
+export const EditInPanel: Story = {
   args: {
     initialState: createVisualEditorFixture(),
   },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    const inlineInput = canvasElement.querySelector(
-      '[data-slot="visual-editor-inline-edit"] input',
-    );
-    if (!(inlineInput instanceof HTMLInputElement)) {
-      throw new Error("Expected inline edit input for the selected hero title");
-    }
+    const targetBox = canvas.getByRole("textbox", { name: "Target translation" });
 
-    await userEvent.clear(inlineInput);
-    await userEvent.type(inlineInput, "Die Plattform für starke Teams");
-    await expect(canvas.getByDisplayValue("Die Plattform für starke Teams")).toBeInTheDocument();
+    await userEvent.click(targetBox);
+    await userEvent.keyboard("{Control>}a{/Control}Die Plattform für starke Teams");
+
+    await waitFor(() => {
+      const preview = canvasElement.querySelector('[data-slot="visual-editor-preview"]');
+      void expect(preview?.textContent).toContain("Die Plattform für starke Teams");
+    });
   },
 };
 
@@ -94,8 +95,20 @@ export const EmptySelection: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await expect(
-      canvas.getByText("Select a highlighted string in the preview to edit it."),
+      canvas.getByText("Click a string in the preview to edit it here."),
     ).toBeInTheDocument();
+  },
+};
+
+export const ApproveAdvancesToNextOpen: Story = {
+  args: {
+    initialState: visualEditorFixture,
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+
+    await userEvent.click(canvas.getByRole("button", { name: /Approve/i }));
+    await expect(canvas.getByText("Hero supporting copy")).toBeInTheDocument();
   },
 };
 

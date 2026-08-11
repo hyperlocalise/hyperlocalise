@@ -75,40 +75,40 @@ export const catVisualEditorMessages = defineMessages({
     id: "5H2Xr7AzgM",
     description: "Aria label for the visual editor live preview region",
   },
-  inlineConfirm: {
-    defaultMessage: "Confirm translation",
-    id: "y67tURYFUp",
-    description: "Aria label for confirm button on the visual editor inline edit popup",
+  selectedStringHeading: {
+    defaultMessage: "Selected string",
+    id: "vhTlP0jReG",
+    description: "Fallback right-panel heading when a visual editor string has no context label",
   },
-  inlineAi: {
-    defaultMessage: "Apply AI suggestion",
-    id: "KyJwSVZhHh",
-    description: "Aria label for AI suggestion button on the visual editor inline edit popup",
+  stringPosition: {
+    defaultMessage: "{position} / {total}",
+    id: "pbA55RTgks",
+    description: "Current string index and total count in the visual editor detail panel",
   },
-  characterCount: {
-    defaultMessage: "{current} / {max}",
-    id: "ERN+VZrV7G",
-    description: "Character count for the visual editor inline translation field",
-  },
-  textNodeHeading: {
-    defaultMessage: "Text node {tag}",
-    id: "I36gOxvz/d",
-    description: "Right panel heading for the selected text node in the visual editor",
+  remainingCount: {
+    defaultMessage: "{count} left",
+    id: "rZuJRFmTxw",
+    description: "Count of strings still needing translation or review in the visual editor",
   },
   statusBarProgress: {
-    defaultMessage: "{done} / {total} strings",
-    id: "1t1U3y5/ZB",
-    description: "Bottom status bar string progress in the visual editor",
+    defaultMessage: "{done} / {total} approved",
+    id: "8juGL005+Y",
+    description: "Bottom status bar approved string progress in the visual editor",
   },
-  statusBarSelected: {
-    defaultMessage: "{count} selected",
-    id: "C/eqU8t/O1",
-    description: "Bottom status bar selected node count in the visual editor",
+  statusBarRemaining: {
+    defaultMessage: "{count} need attention",
+    id: "FF6P5p7LKO",
+    description: "Bottom status bar count of pending or in-review strings in the visual editor",
   },
   navigateHint: {
-    defaultMessage: "Navigate",
-    id: "XLq9iP13g1",
-    description: "Keyboard shortcut hint for navigating nodes in the visual editor",
+    defaultMessage: "Next string",
+    id: "uVBHlI1Rb6",
+    description: "Keyboard shortcut hint for navigating strings in the visual editor",
+  },
+  nextOpenHint: {
+    defaultMessage: "Next open",
+    id: "oc3EaT6uAq",
+    description: "Keyboard shortcut hint for jumping to the next unfinished string",
   },
   deselectHint: {
     defaultMessage: "Deselect",
@@ -121,8 +121,8 @@ export const catVisualEditorMessages = defineMessages({
     description: "Label linking to keyboard shortcuts help in the visual editor status bar",
   },
   emptySelection: {
-    defaultMessage: "Select a highlighted string in the preview to edit it.",
-    id: "MGGYx8BG6F",
+    defaultMessage: "Click a string in the preview to edit it here.",
+    id: "7yLnsi62KD",
     description: "Empty state when no preview node is selected in the visual editor",
   },
   footerCopyright: {

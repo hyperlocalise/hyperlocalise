@@ -14,10 +14,10 @@
  */
 import type { ReactNode } from "react";
 
+import { QueueStatusDot } from "@/components/cat/segment/cat-segment-status";
 import { cn } from "@/lib/primitives/cn";
 
 import type { CatVisualEditorSegment } from "./cat-visual-editor.fixture";
-import { CatVisualEditorInlineEdit } from "./cat-visual-editor-inline-edit";
 
 function textForSegment(segment: CatVisualEditorSegment | undefined, fallback: string) {
   if (!segment) {
@@ -27,43 +27,43 @@ function textForSegment(segment: CatVisualEditorSegment | undefined, fallback: s
 }
 
 function TranslatableNode({
-  segmentId,
+  segment,
   selectedSegmentId,
   highlightTranslatable,
-  tagName,
   className,
   onSelect,
   children,
 }: {
-  segmentId: string;
+  segment: CatVisualEditorSegment;
   selectedSegmentId: string | null;
   highlightTranslatable: boolean;
-  tagName: CatVisualEditorSegment["node"]["tagName"];
   className?: string;
   onSelect: (segmentId: string) => void;
   children: ReactNode;
 }) {
-  const isSelected = selectedSegmentId === segmentId;
+  const isSelected = selectedSegmentId === segment.id;
+  const needsAttention = segment.status === "pending" || segment.status === "needs_review";
 
   return (
     <button
       type="button"
-      data-node={segmentId}
+      data-node={segment.id}
       data-selected={isSelected ? "true" : undefined}
-      onClick={() => onSelect(segmentId)}
+      data-status={segment.status}
+      onClick={() => onSelect(segment.id)}
       className={cn(
-        "relative rounded-sm text-left transition-[box-shadow,background-color]",
+        "group/node relative rounded-sm text-left transition-[box-shadow,background-color,outline-color]",
+        "hover:bg-grove-500/5",
         highlightTranslatable &&
           !isSelected &&
-          "outline outline-1 outline-dashed outline-grove-300/45 hover:bg-grove-500/5",
-        isSelected &&
-          "bg-grove-500/8 outline outline-2 outline-dashed outline-grove-300 ring-4 ring-grove-500/10",
+          "outline outline-1 outline-dashed outline-grove-300/25",
+        isSelected && "bg-grove-500/10 outline outline-2 outline-grove-400/70",
         className,
       )}
     >
-      {isSelected ? (
-        <span className="absolute -top-2.5 left-2 z-10 rounded bg-grove-700 px-1.5 py-0.5 text-[10px] font-semibold tracking-wide text-primary-foreground uppercase">
-          {tagName}
+      {needsAttention || isSelected ? (
+        <span className="pointer-events-none absolute -top-1 -right-1 z-10 opacity-90">
+          <QueueStatusDot status={segment.status} />
         </span>
       ) : null}
       {children}
@@ -75,25 +75,35 @@ export function CatVisualEditorPreview({
   segments,
   selectedSegmentId,
   highlightTranslatable,
-  showInlineEdit,
   onSelectSegment,
-  onTargetChange,
-  onConfirmInline,
-  onApplyAi,
   className,
 }: {
   segments: CatVisualEditorSegment[];
   selectedSegmentId: string | null;
   highlightTranslatable: boolean;
-  showInlineEdit: boolean;
   onSelectSegment: (segmentId: string) => void;
-  onTargetChange: (value: string) => void;
-  onConfirmInline: () => void;
-  onApplyAi?: () => void;
   className?: string;
 }) {
   const byId = new Map(segments.map((segment) => [segment.id, segment]));
-  const selected = selectedSegmentId ? byId.get(selectedSegmentId) : undefined;
+
+  function renderNode(id: string, fallback: string, className?: string, textClassName?: string) {
+    const segment = byId.get(id);
+    if (!segment) {
+      return <span className={textClassName}>{fallback}</span>;
+    }
+
+    return (
+      <TranslatableNode
+        segment={segment}
+        selectedSegmentId={selectedSegmentId}
+        highlightTranslatable={highlightTranslatable}
+        className={className}
+        onSelect={onSelectSegment}
+      >
+        <span className={textClassName}>{textForSegment(segment, fallback)}</span>
+      </TranslatableNode>
+    );
+  }
 
   return (
     <div
@@ -106,117 +116,47 @@ export function CatVisualEditorPreview({
       <header className="flex items-center justify-between gap-4 border-b border-neutral-200 px-6 py-4">
         <div className="text-lg font-semibold tracking-tight">Acme</div>
         <nav className="flex flex-wrap items-center gap-4 text-sm text-neutral-600">
-          {(
-            [
-              ["ve-seg-nav-product", "Product"],
-              ["ve-seg-nav-solutions", "Solutions"],
-              ["ve-seg-nav-resources", "Resources"],
-              ["ve-seg-nav-pricing", "Pricing"],
-            ] as const
-          ).map(([id, fallback]) => (
-            <TranslatableNode
-              key={id}
-              segmentId={id}
-              selectedSegmentId={selectedSegmentId}
-              highlightTranslatable={highlightTranslatable}
-              tagName="A"
-              className="px-0.5"
-              onSelect={onSelectSegment}
-            >
-              <span>{textForSegment(byId.get(id), fallback)}</span>
-            </TranslatableNode>
-          ))}
+          {renderNode("ve-seg-nav-product", "Product", "px-0.5")}
+          {renderNode("ve-seg-nav-solutions", "Solutions", "px-0.5")}
+          {renderNode("ve-seg-nav-resources", "Resources", "px-0.5")}
+          {renderNode("ve-seg-nav-pricing", "Pricing", "px-0.5")}
         </nav>
-        <TranslatableNode
-          segmentId="ve-seg-nav-cta"
-          selectedSegmentId={selectedSegmentId}
-          highlightTranslatable={highlightTranslatable}
-          tagName="BUTTON"
-          className="rounded-md bg-neutral-900 px-3 py-1.5 text-sm font-medium text-white"
-          onSelect={onSelectSegment}
-        >
-          <span>{textForSegment(byId.get("ve-seg-nav-cta"), "Get started")}</span>
-        </TranslatableNode>
+        {renderNode(
+          "ve-seg-nav-cta",
+          "Get started",
+          "rounded-md bg-neutral-900 px-3 py-1.5 text-sm font-medium text-white",
+        )}
       </header>
 
-      <main className="relative px-8 py-14 sm:px-12 sm:py-16">
-        <div className="mx-auto max-w-2xl space-y-6 text-center">
-          <TranslatableNode
-            segmentId="ve-seg-hero-title"
-            selectedSegmentId={selectedSegmentId}
-            highlightTranslatable={highlightTranslatable}
-            tagName="H1"
-            className="inline-block px-2 py-1"
-            onSelect={onSelectSegment}
-          >
-            <span className="block text-4xl font-semibold tracking-tight text-balance sm:text-5xl">
-              {textForSegment(byId.get("ve-seg-hero-title"), "The platform for modern teams")}
-            </span>
-          </TranslatableNode>
+      <main className="px-8 py-14 sm:px-12 sm:py-16">
+        <div className="mx-auto flex max-w-2xl flex-col items-center gap-6 text-center">
+          {renderNode(
+            "ve-seg-hero-title",
+            "The platform for modern teams",
+            "inline-block px-1.5 py-0.5",
+            "block text-4xl font-semibold tracking-tight text-balance sm:text-5xl",
+          )}
 
-          {showInlineEdit && selected?.id === "ve-seg-hero-title" ? (
-            <div className="flex justify-center">
-              <CatVisualEditorInlineEdit
-                value={selected.targetText}
-                maxLength={selected.maxLength}
-                onChange={onTargetChange}
-                onConfirm={onConfirmInline}
-                onApplyAi={onApplyAi}
-              />
-            </div>
-          ) : null}
-
-          <TranslatableNode
-            segmentId="ve-seg-hero-body"
-            selectedSegmentId={selectedSegmentId}
-            highlightTranslatable={highlightTranslatable}
-            tagName="P"
-            className="inline-block px-2 py-1"
-            onSelect={onSelectSegment}
-          >
-            <span className="block text-base leading-relaxed text-neutral-600 text-pretty sm:text-lg">
-              {textForSegment(
-                byId.get("ve-seg-hero-body"),
-                "Coordinate launches, keep terminology consistent, and ship every locale with confidence.",
-              )}
-            </span>
-          </TranslatableNode>
+          {renderNode(
+            "ve-seg-hero-body",
+            "Coordinate launches, keep terminology consistent, and ship every locale with confidence.",
+            "inline-block px-1.5 py-0.5",
+            "block text-base leading-relaxed text-neutral-600 text-pretty sm:text-lg",
+          )}
 
           <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
-            <TranslatableNode
-              segmentId="ve-seg-hero-cta"
-              selectedSegmentId={selectedSegmentId}
-              highlightTranslatable={highlightTranslatable}
-              tagName="BUTTON"
-              className="rounded-md bg-grove-700 px-4 py-2 text-sm font-medium text-white"
-              onSelect={onSelectSegment}
-            >
-              <span>{textForSegment(byId.get("ve-seg-hero-cta"), "Start free trial")}</span>
-            </TranslatableNode>
-            <TranslatableNode
-              segmentId="ve-seg-hero-secondary"
-              selectedSegmentId={selectedSegmentId}
-              highlightTranslatable={highlightTranslatable}
-              tagName="BUTTON"
-              className="rounded-md border border-neutral-300 bg-white px-4 py-2 text-sm font-medium text-neutral-800"
-              onSelect={onSelectSegment}
-            >
-              <span>{textForSegment(byId.get("ve-seg-hero-secondary"), "Book a demo")}</span>
-            </TranslatableNode>
+            {renderNode(
+              "ve-seg-hero-cta",
+              "Start free trial",
+              "rounded-md bg-grove-700 px-4 py-2 text-sm font-medium text-white",
+            )}
+            {renderNode(
+              "ve-seg-hero-secondary",
+              "Book a demo",
+              "rounded-md border border-neutral-300 bg-white px-4 py-2 text-sm font-medium text-neutral-800",
+            )}
           </div>
         </div>
-
-        {showInlineEdit && selected && selected.id !== "ve-seg-hero-title" ? (
-          <div className="absolute right-6 bottom-6 left-6 flex justify-center sm:right-10 sm:left-auto">
-            <CatVisualEditorInlineEdit
-              value={selected.targetText}
-              maxLength={selected.maxLength}
-              onChange={onTargetChange}
-              onConfirm={onConfirmInline}
-              onApplyAi={onApplyAi}
-            />
-          </div>
-        ) : null}
       </main>
     </div>
   );

@@ -48,11 +48,7 @@ export function CatVisualEditorCanvas({
   onRefresh,
   segments,
   selectedSegmentId,
-  showInlineEdit,
   onSelectSegment,
-  onTargetChange,
-  onConfirmInline,
-  onApplyAi,
   className,
 }: {
   previewUrl: string;
@@ -65,11 +61,7 @@ export function CatVisualEditorCanvas({
   onRefresh?: () => void;
   segments: CatVisualEditorSegment[];
   selectedSegmentId: string | null;
-  showInlineEdit: boolean;
   onSelectSegment: (segmentId: string) => void;
-  onTargetChange: (value: string) => void;
-  onConfirmInline: () => void;
-  onApplyAi?: () => void;
   className?: string;
 }) {
   const intl = useIntl();
@@ -143,11 +135,7 @@ export function CatVisualEditorCanvas({
             segments={segments}
             selectedSegmentId={selectedSegmentId}
             highlightTranslatable={highlightTranslatable}
-            showInlineEdit={showInlineEdit}
             onSelectSegment={onSelectSegment}
-            onTargetChange={onTargetChange}
-            onConfirmInline={onConfirmInline}
-            onApplyAi={onApplyAi}
           />
         </div>
       </div>
