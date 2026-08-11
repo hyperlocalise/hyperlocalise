@@ -20,13 +20,13 @@ import type { CatSegmentStatus } from "@/components/cat/shared/types";
 import { Kbd, KbdGroup } from "@/components/ui/kbd";
 import { cn } from "@/lib/primitives/cn";
 
+import { catVisualEditorMessages } from "./cat-visual-editor.messages";
 import type {
   CatVisualEditorDevice,
   CatVisualEditorFilePage,
   CatVisualEditorFixture,
   CatVisualEditorSegment,
-} from "./cat-visual-editor.fixture";
-import { catVisualEditorMessages } from "./cat-visual-editor.messages";
+} from "./cat-visual-editor.types";
 import { CatVisualEditorCanvas } from "./cat-visual-editor-canvas";
 import { CatVisualEditorDetailPanel } from "./cat-visual-editor-detail-panel";
 import { CatVisualEditorFilesSidebar } from "./cat-visual-editor-files-sidebar";

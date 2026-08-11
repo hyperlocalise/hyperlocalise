@@ -18,11 +18,11 @@ import { FormattedMessage } from "react-intl";
 import { QueueStatusDot } from "@/components/cat/segment/cat-segment-status";
 import { cn } from "@/lib/primitives/cn";
 
+import { catVisualEditorMessages } from "./cat-visual-editor.messages";
 import type {
   CatVisualEditorPreviewKind,
   CatVisualEditorSegment,
-} from "./cat-visual-editor.fixture";
-import { catVisualEditorMessages } from "./cat-visual-editor.messages";
+} from "./cat-visual-editor.types";
 
 function textForSegment(segment: CatVisualEditorSegment | undefined, fallback: string) {
   if (!segment) {

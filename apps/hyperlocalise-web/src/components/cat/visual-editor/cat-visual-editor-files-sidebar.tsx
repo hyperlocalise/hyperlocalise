@@ -19,8 +19,8 @@ import { ProjectFilesTree } from "@/app/[lang]/(authenticated)/org/[organization
 import { Progress, ProgressLabel, ProgressValue } from "@/components/ui/progress";
 import { cn } from "@/lib/primitives/cn";
 
-import type { CatVisualEditorProgress } from "./cat-visual-editor.fixture";
 import { catVisualEditorMessages } from "./cat-visual-editor.messages";
+import type { CatVisualEditorProgress } from "./cat-visual-editor.types";
 
 export function CatVisualEditorFilesSidebar({
   files,

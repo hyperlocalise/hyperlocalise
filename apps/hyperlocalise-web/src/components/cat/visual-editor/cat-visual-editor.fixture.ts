@@ -12,44 +12,25 @@
  */
 import { createProjectFileRecord } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/projects/[projectId]/files/_components/project-files.fixture";
 import type { ProjectFileRecord } from "@/api/routes/project/project.schema";
-import type { CatSegment, CatSegmentIntelligence } from "@/components/cat/shared/types";
+import type { CatSegmentIntelligence } from "@/components/cat/shared/types";
 
-export type CatVisualEditorDevice = "desktop" | "tablet" | "mobile";
+import type {
+  CatVisualEditorFilePage,
+  CatVisualEditorFixture,
+  CatVisualEditorPreviewKind,
+  CatVisualEditorProgress,
+  CatVisualEditorSegment,
+} from "./cat-visual-editor.types";
 
-export type CatVisualEditorPreviewKind = "home" | "pricing" | "generic";
-
-export type CatVisualEditorNodeMeta = {
-  tagName: "H1" | "H2" | "P" | "A" | "BUTTON" | "SPAN";
-  selector: string;
-};
-
-export type CatVisualEditorSegment = CatSegment & {
-  node: CatVisualEditorNodeMeta;
-};
-
-export type CatVisualEditorProgress = {
-  locale: string;
-  percent: number;
-  translated: number;
-  inReview: number;
-  untranslated: number;
-};
-
-export type CatVisualEditorFilePage = {
-  sourcePath: string;
-  previewUrl: string;
-  previewKind: CatVisualEditorPreviewKind;
-  progress: CatVisualEditorProgress;
-  segments: CatVisualEditorSegment[];
-  defaultSelectedSegmentId: string;
-  intelligenceBySegmentId: Record<string, CatSegmentIntelligence>;
-};
-
-export type CatVisualEditorFixture = {
-  files: ProjectFileRecord[];
-  selectedSourcePath: string;
-  pagesBySourcePath: Record<string, CatVisualEditorFilePage>;
-};
+export type {
+  CatVisualEditorDevice,
+  CatVisualEditorFilePage,
+  CatVisualEditorFixture,
+  CatVisualEditorNodeMeta,
+  CatVisualEditorPreviewKind,
+  CatVisualEditorProgress,
+  CatVisualEditorSegment,
+} from "./cat-visual-editor.types";
 
 const SOURCE_LOCALE = "en-US";
 const TARGET_LOCALE = "de-DE";

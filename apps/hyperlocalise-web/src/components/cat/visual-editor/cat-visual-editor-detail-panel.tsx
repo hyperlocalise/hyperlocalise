@@ -35,8 +35,8 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { useIsMac } from "@/hooks/use-is-mac";
 import { cn } from "@/lib/primitives/cn";
 
-import type { CatVisualEditorSegment } from "./cat-visual-editor.fixture";
 import { catVisualEditorMessages } from "./cat-visual-editor.messages";
+import type { CatVisualEditorSegment } from "./cat-visual-editor.types";
 
 export function CatVisualEditorDetailPanel({
   segment,

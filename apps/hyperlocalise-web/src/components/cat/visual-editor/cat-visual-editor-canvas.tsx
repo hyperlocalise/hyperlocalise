@@ -27,12 +27,12 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/primitives/cn";
 
+import { catVisualEditorMessages } from "./cat-visual-editor.messages";
 import type {
   CatVisualEditorDevice,
   CatVisualEditorPreviewKind,
   CatVisualEditorSegment,
-} from "./cat-visual-editor.fixture";
-import { catVisualEditorMessages } from "./cat-visual-editor.messages";
+} from "./cat-visual-editor.types";
 import { CatVisualEditorPreview } from "./cat-visual-editor-preview";
 
 const DEVICE_WIDTH: Record<CatVisualEditorDevice, string> = {
