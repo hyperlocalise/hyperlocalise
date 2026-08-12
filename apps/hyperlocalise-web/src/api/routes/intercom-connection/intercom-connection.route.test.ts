@@ -54,9 +54,7 @@ describe("intercomConnectionRoutes", () => {
     const headers = await fixture.authHeadersFor(identity);
     const organizationSlug = identity.organization.slug ?? "missing-slug";
 
-    const createResponse = await client.api.orgs[":organizationSlug"][
-      "intercom-connections"
-    ].$post(
+    const createResponse = await client.api.orgs[":organizationSlug"]["intercom-connections"].$post(
       {
         param: { organizationSlug },
         json: {
@@ -86,9 +84,10 @@ describe("intercomConnectionRoutes", () => {
     expect(created.intercomConnection).not.toHaveProperty("ciphertext");
     expect(created.intercomConnection.maskedAccessTokenSuffix).toContain("1234");
 
-    const listResponse = await client.api.orgs[":organizationSlug"][
-      "intercom-connections"
-    ].$get({ param: { organizationSlug } }, { headers });
+    const listResponse = await client.api.orgs[":organizationSlug"]["intercom-connections"].$get(
+      { param: { organizationSlug } },
+      { headers },
+    );
     expect(listResponse.status).toBe(200);
     const listed = await listResponse.json();
     expect(listed).toMatchObject({
@@ -97,9 +96,9 @@ describe("intercomConnectionRoutes", () => {
       ]),
     });
 
-    const deleteResponse = await client.api.orgs[":organizationSlug"][
-      "intercom-connections"
-    ][":connectionId"].$delete(
+    const deleteResponse = await client.api.orgs[":organizationSlug"]["intercom-connections"][
+      ":connectionId"
+    ].$delete(
       {
         param: {
           organizationSlug,
@@ -124,7 +123,7 @@ describe("intercomConnectionRoutes", () => {
           accessToken: "",
           restEndpoint: "https://api.intercom.io",
           enabled: true,
-        },
+        } as never,
       },
       { headers },
     );

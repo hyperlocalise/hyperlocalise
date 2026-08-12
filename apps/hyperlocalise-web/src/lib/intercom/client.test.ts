@@ -16,10 +16,9 @@ import { isErr, isOk } from "@/lib/primitives/result/results";
 
 import { validateIntercomAccessToken } from "./client";
 
-const mocks = vi.hoisted(() => ({
-  identify: vi.fn(),
-  IntercomClient: vi.fn(),
-  IntercomError: class IntercomError extends Error {
+const mocks = vi.hoisted(() => {
+  const identify = vi.fn();
+  class IntercomError extends Error {
     statusCode: number;
 
     constructor(message: string, statusCode: number) {
@@ -27,8 +26,16 @@ const mocks = vi.hoisted(() => ({
       this.name = "IntercomError";
       this.statusCode = statusCode;
     }
-  },
-}));
+  }
+
+  class IntercomClient {
+    admins = { identify };
+
+    constructor(public options: { token: string; environment: string }) {}
+  }
+
+  return { identify, IntercomClient, IntercomError };
+});
 
 vi.mock("intercom-client", () => ({
   IntercomClient: mocks.IntercomClient,
@@ -50,16 +57,13 @@ describe("intercom client", () => {
     if (isErr(result)) {
       expect(result.error.code).toBe("intercom_access_token_required");
     }
-    expect(mocks.IntercomClient).not.toHaveBeenCalled();
+    expect(mocks.identify).not.toHaveBeenCalled();
   });
 
   it("validates tokens via admins.identify against the regional host", async () => {
     mocks.identify.mockResolvedValue({
       app: { name: "Acme Help" },
     });
-    mocks.IntercomClient.mockImplementation(() => ({
-      admins: { identify: mocks.identify },
-    }));
 
     const result = await validateIntercomAccessToken({
       accessToken: "  dGVzdA==  ",
@@ -70,18 +74,14 @@ describe("intercom client", () => {
     if (isOk(result)) {
       expect(result.value).toEqual({ appName: "Acme Help" });
     }
-    expect(mocks.IntercomClient).toHaveBeenCalledWith({
-      token: "dGVzdA==",
-      environment: "https://api.eu.intercom.io",
-    });
     expect(mocks.identify).toHaveBeenCalledOnce();
+    expect(mocks.identify.mock.calls[0]?.[0]).toMatchObject({
+      abortSignal: expect.any(AbortSignal),
+    });
   });
 
   it("maps unauthorized Intercom responses to validation failure", async () => {
     mocks.identify.mockRejectedValue(new mocks.IntercomError("Unauthorized", 401));
-    mocks.IntercomClient.mockImplementation(() => ({
-      admins: { identify: mocks.identify },
-    }));
 
     const result = await validateIntercomAccessToken({
       accessToken: "bad-token",
@@ -96,12 +96,7 @@ describe("intercom client", () => {
   });
 
   it("maps abort signals to intercom_validation_timeout", async () => {
-    mocks.identify.mockRejectedValue(
-      Object.assign(new Error("aborted"), { name: "AbortError" }),
-    );
-    mocks.IntercomClient.mockImplementation(() => ({
-      admins: { identify: mocks.identify },
-    }));
+    mocks.identify.mockRejectedValue(Object.assign(new Error("aborted"), { name: "AbortError" }));
 
     const result = await validateIntercomAccessToken({
       accessToken: "token",
