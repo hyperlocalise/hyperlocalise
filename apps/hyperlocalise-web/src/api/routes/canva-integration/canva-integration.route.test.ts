@@ -278,4 +278,40 @@ describe("canvaIntegrationRoutes", () => {
 
     expect(response.status).toBe(401);
   });
+
+  it("rejects localize requests without a Canva user token", async () => {
+    const { stored, oauth } = await createOAuthContext();
+
+    const response = await client.api.integrations.canva.localize.$post(
+      {
+        json: {
+          organizationId: stored.organization.id,
+          projectId: stored.project.id,
+          designToken: "design-token",
+          sourceLocale: "en",
+          targetLocales: ["es"],
+          segments: [
+            {
+              key: "canva.segment.0.0.0",
+              pageIndex: 0,
+              contentIndex: 0,
+              regionIndex: 0,
+              text: "Hello",
+            },
+          ],
+        },
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${oauth.accessToken}`,
+        },
+      },
+    );
+
+    expect(response.status).toBe(401);
+    await expect(response.json()).resolves.toMatchObject({
+      error: "canva_user_token_required",
+    });
+    expect(mocks.startCanvaLocalizationMock).not.toHaveBeenCalled();
+  });
 });

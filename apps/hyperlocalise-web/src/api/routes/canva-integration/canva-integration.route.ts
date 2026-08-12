@@ -19,7 +19,12 @@ import {
 } from "@/api/auth/canva-integration-auth";
 import { canvaCorsMiddleware } from "@/api/auth/canva-cors";
 import { createCanvaJwtMiddleware } from "@/api/auth/canva-jwt";
-import { badRequestResponse, forbiddenResponse, notFoundResponse } from "@/api/response.schema";
+import {
+  badRequestResponse,
+  forbiddenResponse,
+  notFoundResponse,
+  unauthorizedResponse,
+} from "@/api/response.schema";
 import { resolveCanvaDesignId } from "@/lib/canva/auth";
 import { getCanvaLocalizationStatus, startCanvaLocalization } from "@/lib/canva/localize-design";
 import {
@@ -164,7 +169,14 @@ export function createCanvaIntegrationRoutes(options: CreateCanvaIntegrationRout
       async (c) => {
         const payload = c.req.valid("json");
         const session = c.var.canvaOAuth!;
-        const canvaUser = c.var.canvaUser!;
+        const canvaUser = c.var.canvaUser;
+        if (!canvaUser) {
+          return unauthorizedResponse(
+            c,
+            "canva_user_token_required",
+            "Canva user token is required.",
+          );
+        }
 
         if (session.canvaBrandId && session.canvaBrandId !== canvaUser.brandId) {
           return forbiddenResponse(
