@@ -1235,14 +1235,24 @@ func hasJSTSKeywordAt(src string, index int, keyword string) bool {
 	}
 	beforeOK := index == 0
 	if !beforeOK {
-		r, _ := utf8.DecodeLastRuneInString(src[:index])
-		beforeOK = !isJSTSIdentifierRunePart(r)
+		prevByte := src[index-1]
+		if prevByte < 0x80 {
+			beforeOK = !isASCIIIdentifierPart(prevByte)
+		} else {
+			r, _ := utf8.DecodeLastRuneInString(src[:index])
+			beforeOK = !isJSTSIdentifierRunePart(r)
+		}
 	}
 	after := index + len(keyword)
 	afterOK := after >= len(src)
 	if !afterOK {
-		r, _ := utf8.DecodeRuneInString(src[after:])
-		afterOK = !isJSTSIdentifierRunePart(r)
+		nextByte := src[after]
+		if nextByte < 0x80 {
+			afterOK = !isASCIIIdentifierPart(nextByte)
+		} else {
+			r, _ := utf8.DecodeRuneInString(src[after:])
+			afterOK = !isJSTSIdentifierRunePart(r)
+		}
 	}
 	return beforeOK && afterOK
 }
@@ -1253,6 +1263,10 @@ func isASCIIIdentifierStart(ch byte) bool {
 
 func isASCIIIdentifierPart(ch byte) bool {
 	return ch == '_' || ch == '$' || (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || (ch >= '0' && ch <= '9')
+}
+
+func isJSTSIdentifierRunePart(r rune) bool {
+	return r == '_' || r == '$' || unicode.IsLetter(r) || unicode.IsDigit(r)
 }
 
 func readJSTSIdentifier(src string, index int) (string, int, bool) {
@@ -1290,14 +1304,6 @@ func readJSTSIdentifier(src string, index int) (string, int, bool) {
 		}
 	}
 	return src[index:i], i, true
-}
-
-func isJSTSIdentifierStartRune(r rune) bool {
-	return r == '_' || r == '$' || unicode.IsLetter(r)
-}
-
-func isJSTSIdentifierRunePart(r rune) bool {
-	return r == '_' || r == '$' || unicode.IsLetter(r) || unicode.IsDigit(r)
 }
 
 func isJSTSStringQuote(ch byte) bool {
