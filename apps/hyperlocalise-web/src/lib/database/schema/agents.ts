@@ -258,6 +258,37 @@ export const inboxItems = pgTable(
 );
 
 /**
+ * Stores the chat-dock repository sandbox session for a web conversation so
+ * repository tool turns can reuse the same Vercel sandbox across instances.
+ */
+export const interactionRepositorySessions = pgTable(
+  "interaction_repository_sessions",
+  {
+    interactionId: uuid("interaction_id")
+      .primaryKey()
+      .references(() => interactions.id, { onDelete: "cascade" }),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    session: jsonb("session").$type<Record<string, unknown>>().notNull(),
+    version: integer("version").notNull().default(1),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdateFn(() => new Date()),
+  },
+  (table) => [
+    index("idx_interaction_repository_sessions_org_expires").on(
+      table.organizationId,
+      table.expiresAt,
+    ),
+    index("idx_interaction_repository_sessions_expires").on(table.expiresAt),
+  ],
+);
+
+/**
  * Stores individual messages inside an interaction thread, including sender type, optional sender email, text content, attachments, and creation time.
  */
 export const interactionMessages = pgTable(
