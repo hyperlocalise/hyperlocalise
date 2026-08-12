@@ -67,7 +67,7 @@ function clampMarkdownEditorInsertPos(editor: Editor, pos: number) {
 export function insertMarkdownEditorImage(
   editor: Editor,
   input: { src: string; alt?: string | null; pos?: number },
-) {
+): number | false {
   const src = input.src.trim();
   if (!isValidMarkdownEditorImageSrc(src)) {
     return false;
@@ -80,9 +80,13 @@ export function insertMarkdownEditorImage(
     editor.commands.setTextSelection(clampMarkdownEditorInsertPos(editor, input.pos));
   }
   const inserted = editor.commands.setImage(attrs);
-  // Best-effort: keep caret with the image in a live editor; may be false headless.
+  if (!inserted) {
+    return false;
+  }
+  // Capture the post-insert caret before focus(), which may restore a live click/caret.
+  const nextPos = editor.state.selection.from;
   editor.commands.focus();
-  return inserted;
+  return nextPos;
 }
 
 export function insertMarkdownEditorImageFromUrl(

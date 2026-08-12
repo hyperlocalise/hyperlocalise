@@ -68,18 +68,69 @@ describe("markdown editor image helpers", () => {
     const insertPos = secondParagraphPos!;
     editor.commands.setTextSelection(1);
 
-    const inserted = insertMarkdownEditorImage(editor, {
+    const nextPos = insertMarkdownEditorImage(editor, {
       src: "/api/orgs/acme/files/file_1",
       alt: "Banner",
       pos: insertPos,
     });
-    expect(inserted).toBe(true);
+    expect(typeof nextPos).toBe("number");
 
     const markdown = editor.getMarkdown();
     // Image should land with the second paragraph, not at the moved caret in the first.
     expect(markdown.indexOf("First paragraph")).toBeLessThan(markdown.indexOf("![Banner]"));
     expect(markdown.indexOf("![Banner]")).toBeLessThan(markdown.indexOf("Second paragraph"));
     expect(markdown).not.toMatch(/^!\[Banner]/);
+
+    editor.destroy();
+  });
+
+  it("keeps a multi-image sequence even if selection moves between inserts", () => {
+    const editor = new Editor({
+      extensions: [StarterKit, Image.configure({ inline: false, allowBase64: false }), Markdown],
+      content: "First paragraph\n\nSecond paragraph",
+      contentType: "markdown",
+    });
+
+    let secondParagraphPos: number | null = null;
+    editor.state.doc.descendants((node, pos) => {
+      if (
+        secondParagraphPos === null &&
+        node.type.name === "paragraph" &&
+        node.textContent === "Second paragraph"
+      ) {
+        secondParagraphPos = pos + 1;
+      }
+    });
+    expect(secondParagraphPos).not.toBeNull();
+
+    let insertPos = secondParagraphPos!;
+    editor.commands.setTextSelection(1);
+
+    const firstNext = insertMarkdownEditorImage(editor, {
+      src: "/api/orgs/acme/files/file_1",
+      alt: "One",
+      pos: insertPos,
+    });
+    expect(typeof firstNext).toBe("number");
+    insertPos = firstNext as number;
+
+    // Simulate the user moving the caret while a later upload is pending.
+    editor.commands.setTextSelection(1);
+
+    const secondNext = insertMarkdownEditorImage(editor, {
+      src: "/api/orgs/acme/files/file_2",
+      alt: "Two",
+      pos: insertPos,
+    });
+    expect(typeof secondNext).toBe("number");
+
+    const markdown = editor.getMarkdown();
+    const firstIdx = markdown.indexOf("![One]");
+    const secondIdx = markdown.indexOf("![Two]");
+    expect(firstIdx).toBeGreaterThan(markdown.indexOf("First paragraph"));
+    expect(secondIdx).toBeGreaterThan(firstIdx);
+    expect(secondIdx).toBeLessThan(markdown.indexOf("Second paragraph"));
+    expect(markdown).not.toMatch(/^!\[Two]/);
 
     editor.destroy();
   });

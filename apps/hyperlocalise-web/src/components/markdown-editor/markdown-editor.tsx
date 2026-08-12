@@ -315,13 +315,13 @@ export function MarkdownEditor({
           try {
             const uploaded = await uploadMarkdownEditorImage({ file, upload });
             const alt = file.name.replace(/\.[^.]+$/, "");
-            const inserted = insertMarkdownEditorImage(editorInstance, {
+            const nextPos = insertMarkdownEditorImage(editorInstance, {
               src: uploaded.url,
               alt: alt || undefined,
               pos: insertPos,
             });
-            if (inserted) {
-              insertPos = editorInstance.state.selection.from;
+            if (typeof nextPos === "number") {
+              insertPos = nextPos;
             }
           } catch (error) {
             const code = error instanceof Error ? error.message : "image_upload_failed";
