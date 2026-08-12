@@ -318,7 +318,7 @@ export async function updateIntercomConnection(input: {
       validationStatus = "valid";
       validationMessage = validationSuccessMessage(validation.value.appName);
       lastValidatedAt = new Date();
-    } else if (input.accessToken !== undefined) {
+    } else {
       validationStatus = "unvalidated";
       validationMessage = null;
       lastValidatedAt = null;

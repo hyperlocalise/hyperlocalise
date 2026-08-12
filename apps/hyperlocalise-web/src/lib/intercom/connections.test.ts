@@ -162,4 +162,46 @@ describe("intercom connections", () => {
     expect(updated?.restEndpoint).toBe("us");
     expect(updated?.maskedAccessTokenSuffix).toBe(created.maskedAccessTokenSuffix);
   });
+
+  it("clears validation metadata when the endpoint changes without revalidation", async () => {
+    const scope = await seedIntercomScope();
+    const created = expectOk(
+      await createIntercomConnection({
+        organizationId: scope.organizationId,
+        userId: scope.userId,
+        displayName: "Validated Intercom",
+        accessToken: "intercom-token-valid",
+        restEndpoint: "us",
+        validate: false,
+      }),
+    );
+
+    const validatedAt = new Date("2026-08-12T12:00:00.000Z");
+    await db
+      .update(schema.intercomConnections)
+      .set({
+        validationStatus: "valid",
+        validationMessage: "Connected as Test App.",
+        lastValidatedAt: validatedAt,
+      })
+      .where(eq(schema.intercomConnections.id, created.id));
+
+    const updated = expectOk(
+      await updateIntercomConnection({
+        organizationId: scope.organizationId,
+        userId: scope.userId,
+        connectionId: created.id,
+        restEndpoint: "eu",
+        validate: false,
+      }),
+    );
+
+    expect(updated).toMatchObject({
+      restEndpoint: "eu",
+      validationStatus: "unvalidated",
+      validationMessage: null,
+      lastValidatedAt: null,
+      maskedAccessTokenSuffix: created.maskedAccessTokenSuffix,
+    });
+  });
 });
