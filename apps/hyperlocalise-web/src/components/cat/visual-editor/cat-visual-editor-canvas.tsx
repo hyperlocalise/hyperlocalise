@@ -44,8 +44,6 @@ const DEVICE_WIDTH: Record<CatVisualEditorDevice, string> = {
 export function CatVisualEditorCanvas({
   previewUrl,
   previewKind,
-  fileLabel,
-  locale,
   device,
   onDeviceChange,
   highlightTranslatable,
@@ -58,8 +56,6 @@ export function CatVisualEditorCanvas({
 }: {
   previewUrl: string;
   previewKind: CatVisualEditorPreviewKind;
-  fileLabel: string;
-  locale: string;
   device: CatVisualEditorDevice;
   onDeviceChange: (device: CatVisualEditorDevice) => void;
   highlightTranslatable: boolean;
@@ -126,13 +122,6 @@ export function CatVisualEditorCanvas({
             <FormattedMessage {...catVisualEditorMessages.highlightToggle} />
           </Label>
         </div>
-
-        <p className="hidden text-xs text-muted-foreground lg:block">
-          <FormattedMessage
-            {...catVisualEditorMessages.editingStatus}
-            values={{ file: fileLabel, locale }}
-          />
-        </p>
       </div>
 
       <div className="min-h-0 flex-1 overflow-auto p-4 sm:p-6">

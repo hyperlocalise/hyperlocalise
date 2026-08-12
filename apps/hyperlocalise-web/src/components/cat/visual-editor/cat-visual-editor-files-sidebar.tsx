@@ -81,7 +81,7 @@ export function CatVisualEditorFilesSidebar({
             <dt className="text-[10px] text-muted-foreground">
               <FormattedMessage {...catVisualEditorMessages.inReviewCount} />
             </dt>
-            <dd className="mt-0.5 text-sm font-semibold text-amber-700 tabular-nums dark:text-amber-400">
+            <dd className="mt-0.5 text-sm font-semibold text-beam-700 tabular-nums">
               {progress.inReview}
             </dd>
           </div>

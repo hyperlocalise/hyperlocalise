@@ -37,12 +37,6 @@ type FileWorkspaceState = {
   baselineTargets: Record<string, string>;
 };
 
-function fileLabelFromPath(sourcePath: string) {
-  const parts = sourcePath.split("/");
-  const filename = parts[parts.length - 1] ?? sourcePath;
-  return filename.replace(/\.json$/i, "");
-}
-
 function needsAttention(status: CatSegmentStatus) {
   return status === "pending" || status === "needs_review";
 }
@@ -324,8 +318,6 @@ export function CatVisualEditorWorkspace({
         <CatVisualEditorCanvas
           previewUrl={activePage?.previewUrl ?? ""}
           previewKind={activePage?.previewKind ?? "generic"}
-          fileLabel={fileLabelFromPath(selectedSourcePath)}
-          locale={progress.locale}
           device={device}
           onDeviceChange={setDevice}
           highlightTranslatable={highlightTranslatable}

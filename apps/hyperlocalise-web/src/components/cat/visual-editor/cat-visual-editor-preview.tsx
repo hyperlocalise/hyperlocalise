@@ -103,6 +103,273 @@ function createSegmentRenderer(
   return { renderNode };
 }
 
+const HOME_LOGOS = ["Northwind", "Helix", "Orbit", "Lattice", "Cascade"] as const;
+
+type RenderNode = (
+  id: string,
+  fallback: string,
+  className?: string,
+  textClassName?: string,
+) => ReactNode;
+
+function HomePageChrome({ renderNode }: { renderNode: RenderNode }) {
+  return (
+    <>
+      <section
+        data-node="trust"
+        className="border-t border-neutral-200 bg-neutral-50/80 px-6 py-10 sm:px-10"
+      >
+        <div className="flex justify-center">
+          {renderNode(
+            "ve-seg-trust-eyebrow",
+            "Trusted by teams shipping worldwide",
+            "inline-block px-1",
+            "block text-center text-[11px] font-medium tracking-[0.18em] text-neutral-400 uppercase",
+          )}
+        </div>
+        <div className="mt-6 flex flex-wrap items-center justify-center gap-x-8 gap-y-3">
+          {HOME_LOGOS.map((logo) => (
+            <span key={logo} className="text-sm font-semibold tracking-tight text-neutral-300">
+              {logo}
+            </span>
+          ))}
+        </div>
+      </section>
+
+      <section
+        data-node="features"
+        className="border-t border-neutral-200 px-6 py-12 sm:px-10 sm:py-14"
+      >
+        <div className="mx-auto max-w-5xl">
+          <div className="mx-auto flex max-w-xl flex-col items-center gap-2 text-center">
+            {renderNode(
+              "ve-seg-features-eyebrow",
+              "Why teams switch",
+              "inline-block px-1",
+              "block text-xs font-medium tracking-[0.14em] text-grove-700 uppercase",
+            )}
+            {renderNode(
+              "ve-seg-features-title",
+              "Everything you need to localize with confidence",
+              "inline-block px-1.5 py-0.5",
+              "block text-2xl font-semibold tracking-tight text-neutral-900 text-balance sm:text-3xl",
+            )}
+          </div>
+          <div className="mt-10 grid gap-4 sm:grid-cols-3">
+            {(
+              [
+                {
+                  mark: "01",
+                  titleId: "ve-seg-feature-1-title",
+                  titleFallback: "Release coordination",
+                  bodyId: "ve-seg-feature-1-body",
+                  bodyFallback:
+                    "Align copy freezes, reviewers, and ship windows across every market.",
+                  node: "feature-1",
+                },
+                {
+                  mark: "02",
+                  titleId: "ve-seg-feature-2-title",
+                  titleFallback: "Terminology control",
+                  bodyId: "ve-seg-feature-2-body",
+                  bodyFallback:
+                    "Keep product language consistent with shared glossaries and memory.",
+                  node: "feature-2",
+                },
+                {
+                  mark: "03",
+                  titleId: "ve-seg-feature-3-title",
+                  titleFallback: "Locale confidence",
+                  bodyId: "ve-seg-feature-3-body",
+                  bodyFallback: "Catch regressions before launch with visual review in context.",
+                  node: "feature-3",
+                },
+              ] as const
+            ).map((feature) => (
+              <article
+                key={feature.node}
+                data-node={feature.node}
+                className="rounded-xl border border-neutral-200 bg-neutral-50/60 p-5"
+              >
+                <span className="font-mono text-[11px] font-medium text-grove-700">
+                  {feature.mark}
+                </span>
+                <div className="mt-3">
+                  {renderNode(
+                    feature.titleId,
+                    feature.titleFallback,
+                    "inline-block px-0.5",
+                    "block text-sm font-semibold text-neutral-900",
+                  )}
+                </div>
+                <div className="mt-2">
+                  {renderNode(
+                    feature.bodyId,
+                    feature.bodyFallback,
+                    "inline-block px-0.5",
+                    "block text-sm leading-relaxed text-neutral-500",
+                  )}
+                </div>
+              </article>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section
+        data-node="product"
+        className="border-t border-neutral-200 bg-[linear-gradient(180deg,#fafafa_0%,#ffffff_55%)] px-6 py-12 sm:px-10 sm:py-14"
+      >
+        <div className="mx-auto max-w-5xl">
+          <div className="mb-8 flex max-w-lg flex-col gap-2">
+            {renderNode(
+              "ve-seg-product-title",
+              "Review every string in the real layout",
+              "inline-block px-1.5 py-0.5",
+              "block text-2xl font-semibold tracking-tight text-neutral-900 text-balance sm:text-3xl",
+            )}
+            {renderNode(
+              "ve-seg-product-body",
+              "Spot truncation, wrapping, and tone issues before they reach production.",
+              "inline-block px-1.5 py-0.5",
+              "block text-sm leading-relaxed text-neutral-500",
+            )}
+          </div>
+
+          <div
+            aria-hidden="true"
+            className="pointer-events-none overflow-hidden rounded-xl border border-neutral-200 bg-white shadow-[0_24px_60px_-36px_rgba(15,23,42,0.35)]"
+          >
+            <div className="flex items-center gap-2 border-b border-neutral-200 bg-neutral-50 px-4 py-2.5">
+              <span className="size-2.5 rounded-full bg-neutral-300" />
+              <span className="size-2.5 rounded-full bg-neutral-300" />
+              <span className="size-2.5 rounded-full bg-neutral-300" />
+              <div className="ml-3 flex-1 rounded-md border border-neutral-200 bg-white px-3 py-1 text-[11px] text-neutral-400">
+                app.acme.com/projects/northwind
+              </div>
+            </div>
+            <div className="grid min-h-56 grid-cols-[7.5rem_minmax(0,1fr)] sm:grid-cols-[9rem_minmax(0,1fr)]">
+              <aside className="space-y-2 border-r border-neutral-200 bg-neutral-50/90 p-3">
+                <div className="h-2 w-14 rounded bg-neutral-200" />
+                <div className="mt-4 space-y-1.5">
+                  <div className="h-7 rounded-md bg-grove-700/10 ring-1 ring-grove-700/15" />
+                  <div className="h-7 rounded-md bg-neutral-200/70" />
+                  <div className="h-7 rounded-md bg-neutral-200/70" />
+                  <div className="h-7 rounded-md bg-neutral-200/70" />
+                </div>
+              </aside>
+              <div className="space-y-4 p-4 sm:p-5">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="space-y-1.5">
+                    <div className="h-3 w-28 rounded bg-neutral-900/80" />
+                    <div className="h-2 w-40 rounded bg-neutral-200" />
+                  </div>
+                  <div className="h-7 w-20 rounded-md bg-grove-700" />
+                </div>
+                <div className="overflow-hidden rounded-lg border border-neutral-200">
+                  <div className="grid grid-cols-[1.2fr_1fr_0.7fr] gap-3 border-b border-neutral-200 bg-neutral-50 px-3 py-2">
+                    <div className="h-2 rounded bg-neutral-300" />
+                    <div className="h-2 rounded bg-neutral-300" />
+                    <div className="h-2 rounded bg-neutral-300" />
+                  </div>
+                  {[78, 54, 91, 36].map((progress) => (
+                    <div
+                      key={progress}
+                      className="grid grid-cols-[1.2fr_1fr_0.7fr] items-center gap-3 border-b border-neutral-100 px-3 py-2.5 last:border-b-0"
+                    >
+                      <div className="h-2 rounded bg-neutral-200" />
+                      <div className="h-1.5 overflow-hidden rounded-full bg-neutral-100">
+                        <div
+                          className="h-full rounded-full bg-grove-700/80"
+                          style={{ width: `${progress}%` }}
+                        />
+                      </div>
+                      <div className="h-2 w-10 justify-self-end rounded bg-neutral-200" />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <footer className="border-t border-neutral-200 bg-neutral-950 px-6 py-10 text-neutral-300 sm:px-10">
+        <div className="mx-auto grid max-w-5xl gap-8 sm:grid-cols-[1.2fr_repeat(3,minmax(0,1fr))]">
+          <div>
+            <div className="text-base font-semibold tracking-tight text-white">Acme</div>
+            <div className="mt-2 max-w-xs">
+              {renderNode(
+                "ve-seg-footer-tagline",
+                "The operating system for modern localization teams.",
+                "inline-block px-0.5",
+                "block text-sm leading-relaxed text-neutral-500",
+              )}
+            </div>
+          </div>
+          <div data-col="product">
+            {renderNode(
+              "ve-seg-footer-col-product",
+              "Product",
+              "inline-block px-0.5",
+              "block text-xs font-medium tracking-[0.12em] text-neutral-500 uppercase",
+            )}
+            <ul className="mt-3 space-y-2 text-sm text-neutral-400">
+              <li>
+                {renderNode("ve-seg-footer-link-overview", "Overview", "inline-block px-0.5")}
+              </li>
+              <li>
+                {renderNode(
+                  "ve-seg-footer-link-integrations",
+                  "Integrations",
+                  "inline-block px-0.5",
+                )}
+              </li>
+              <li>
+                {renderNode("ve-seg-footer-link-changelog", "Changelog", "inline-block px-0.5")}
+              </li>
+            </ul>
+          </div>
+          <div data-col="company">
+            {renderNode(
+              "ve-seg-footer-col-company",
+              "Company",
+              "inline-block px-0.5",
+              "block text-xs font-medium tracking-[0.12em] text-neutral-500 uppercase",
+            )}
+            <ul className="mt-3 space-y-2 text-sm text-neutral-400">
+              <li>{renderNode("ve-seg-footer-link-about", "About", "inline-block px-0.5")}</li>
+              <li>{renderNode("ve-seg-footer-link-careers", "Careers", "inline-block px-0.5")}</li>
+              <li>{renderNode("ve-seg-footer-link-contact", "Contact", "inline-block px-0.5")}</li>
+            </ul>
+          </div>
+          <div data-col="resources">
+            {renderNode(
+              "ve-seg-footer-col-resources",
+              "Resources",
+              "inline-block px-0.5",
+              "block text-xs font-medium tracking-[0.12em] text-neutral-500 uppercase",
+            )}
+            <ul className="mt-3 space-y-2 text-sm text-neutral-400">
+              <li>{renderNode("ve-seg-footer-link-docs", "Docs", "inline-block px-0.5")}</li>
+              <li>{renderNode("ve-seg-footer-link-guides", "Guides", "inline-block px-0.5")}</li>
+              <li>{renderNode("ve-seg-footer-link-support", "Support", "inline-block px-0.5")}</li>
+            </ul>
+          </div>
+        </div>
+        <div className="mx-auto mt-10 max-w-5xl border-t border-white/10 pt-5">
+          {renderNode(
+            "ve-seg-footer-copyright",
+            "© 2026 Acme Inc. All rights reserved.",
+            "inline-block px-0.5",
+            "block text-xs text-neutral-600",
+          )}
+        </div>
+      </footer>
+    </>
+  );
+}
+
 function HomePreview({
   segments,
   selectedSegmentId,
@@ -138,34 +405,38 @@ function HomePreview({
         )}
       </header>
 
-      <main className="px-8 py-14 sm:px-12 sm:py-16">
-        <div className="mx-auto flex max-w-2xl flex-col items-center gap-6 text-center">
-          {renderNode(
-            "ve-seg-hero-title",
-            "The platform for modern teams",
-            "inline-block px-1.5 py-0.5",
-            "block text-4xl font-semibold tracking-tight text-balance sm:text-5xl",
-          )}
-          {renderNode(
-            "ve-seg-hero-body",
-            "Coordinate launches, keep terminology consistent, and ship every locale with confidence.",
-            "inline-block px-1.5 py-0.5",
-            "block text-base leading-relaxed text-neutral-600 text-pretty sm:text-lg",
-          )}
-          <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
+      <main>
+        <section className="relative overflow-hidden border-b border-neutral-200 bg-[radial-gradient(120%_80%_at_50%_-10%,#ecfdf3_0%,#ffffff_55%)] px-8 py-14 sm:px-12 sm:py-16">
+          <div className="mx-auto flex max-w-2xl flex-col items-center gap-6 text-center">
             {renderNode(
-              "ve-seg-hero-cta",
-              "Start free trial",
-              "rounded-md bg-grove-700 px-4 py-2 text-sm font-medium text-white",
+              "ve-seg-hero-title",
+              "The platform for modern teams",
+              "inline-block px-1.5 py-0.5",
+              "block text-4xl font-semibold tracking-tight text-balance sm:text-5xl",
             )}
             {renderNode(
-              "ve-seg-hero-secondary",
-              "Book a demo",
-              "rounded-md border border-neutral-300 bg-white px-4 py-2 text-sm font-medium text-neutral-800",
+              "ve-seg-hero-body",
+              "Coordinate launches, keep terminology consistent, and ship every locale with confidence.",
+              "inline-block px-1.5 py-0.5",
+              "block text-base leading-relaxed text-neutral-600 text-pretty sm:text-lg",
             )}
+            <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
+              {renderNode(
+                "ve-seg-hero-cta",
+                "Start free trial",
+                "rounded-md bg-grove-700 px-4 py-2 text-sm font-medium text-white",
+              )}
+              {renderNode(
+                "ve-seg-hero-secondary",
+                "Book a demo",
+                "rounded-md border border-neutral-300 bg-white px-4 py-2 text-sm font-medium text-neutral-800",
+              )}
+            </div>
           </div>
-        </div>
+        </section>
       </main>
+
+      <HomePageChrome renderNode={renderNode} />
     </>
   );
 }

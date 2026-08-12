@@ -65,11 +65,6 @@ export const catVisualEditorMessages = defineMessages({
     id: "c7/0cqs4Ou",
     description: "Label for toggle that highlights translatable nodes in the preview",
   },
-  editingStatus: {
-    defaultMessage: "Editing · {file} · {locale}",
-    id: "Ve2Cw+kZK7",
-    description: "Status text in the visual editor canvas toolbar",
-  },
   previewAria: {
     defaultMessage: "Website preview canvas",
     id: "5H2Xr7AzgM",

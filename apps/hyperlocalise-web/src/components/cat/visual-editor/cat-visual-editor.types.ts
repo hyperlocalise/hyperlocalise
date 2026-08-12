@@ -18,7 +18,7 @@ export type CatVisualEditorDevice = "desktop" | "tablet" | "mobile";
 export type CatVisualEditorPreviewKind = "home" | "pricing" | "generic";
 
 export type CatVisualEditorNodeMeta = {
-  tagName: "H1" | "H2" | "P" | "A" | "BUTTON" | "SPAN";
+  tagName: "H1" | "H2" | "H3" | "P" | "A" | "BUTTON" | "SPAN";
   selector: string;
 };
 
