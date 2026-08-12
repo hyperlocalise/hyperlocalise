@@ -25,7 +25,9 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/primitives/cn";
 
 import type { ProductPageContent, ProductVisualKind } from "./product-page-content";
+import { AutomationsMockUI } from "./automations-mock-ui";
 import { productPageMessages, type ProductMessageKey } from "./product-page-content.messages";
+import { AutomationEditorMock } from "./automation-editor-mock";
 
 type ProductPageProps = {
   content: ProductPageContent;
@@ -216,7 +218,11 @@ function KnowledgePrimaryVisual() {
 
 function ProductVisual({ kind }: { kind: ProductVisualKind }) {
   if (kind === "automation") {
-    return <AutomationPrimaryVisual />;
+    return (
+      <>
+        <AutomationsMockUI />
+      </>
+    );
   }
 
   return <KnowledgePrimaryVisual />;
@@ -234,7 +240,7 @@ function ProductShowcase({ content }: ProductPageProps) {
           aria-hidden
           className="pointer-events-none absolute inset-x-[8%] -top-8 -bottom-10 rounded-lg bg-[radial-gradient(circle_at_top,rgba(96,116,9,0.16),transparent_58%),radial-gradient(circle_at_bottom_right,rgba(9,108,229,0.1),transparent_46%)] blur-3xl"
         />
-        <div className="relative grid min-h-[32rem] overflow-hidden rounded-lg border border-border bg-background p-2 shadow-2xl shadow-gray-alpha-100 sm:min-h-[38rem] sm:p-3 lg:min-h-[42rem]">
+        <div className="relative grid overflow-hidden rounded-lg border border-border bg-background p-2 shadow-2xl shadow-gray-alpha-100 sm:p-3">
           <ProductVisual kind={content.visualKind} />
         </div>
       </div>
@@ -334,6 +340,12 @@ export function ProductPage({ content }: ProductPageProps) {
         <section className="border-t border-border px-5 py-20 sm:px-8 lg:px-10 lg:py-24">
           <ProductDetailsSection content={content} />
         </section>
+
+        {content.visualKind === "automation" && (
+          <section className="border-t border-border px-5 py-20 sm:px-8 lg:px-10 lg:py-24">
+            <AutomationEditorMock />
+          </section>
+        )}
 
         <section className="border-t border-border px-5 py-20 sm:px-8 lg:px-10 lg:py-24">
           <ProductCta content={content} />
