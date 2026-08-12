@@ -14,6 +14,7 @@
  */
 import { useEffect, useId, useRef, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
+import type { Editor } from "@tiptap/core";
 import type { IntlShape } from "react-intl";
 
 import { Button } from "@/components/ui/button";
@@ -27,7 +28,13 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-import { isValidMarkdownEditorImageSrc } from "./markdown-editor-image";
+import {
+  createMarkdownEditorMappedPosTracker,
+  insertMarkdownEditorImage,
+  isValidMarkdownEditorImageSrc,
+  pickMarkdownEditorImageFile,
+  type MarkdownEditorUploadImageFiles,
+} from "./markdown-editor-image";
 import { markdownEditorMessages } from "./markdown-editor.messages";
 
 export type MarkdownEditorImageSourceResult = { kind: "upload" } | { kind: "url"; src: string };
@@ -199,4 +206,49 @@ export function promptMarkdownEditorImageSource(
       />,
     );
   });
+}
+
+/**
+ * Opens the image source dialog, then inserts via URL or upload while remapping
+ * the original caret through any edits made while the dialog/picker is open.
+ */
+export async function insertMarkdownEditorImageViaSourceDialog(
+  editor: Editor,
+  labels: MarkdownEditorImageSourceLabels,
+  options: {
+    allowUpload: boolean;
+    uploadImageFiles?: MarkdownEditorUploadImageFiles | null;
+    pos?: number;
+  },
+): Promise<boolean> {
+  const insertPosTracker = createMarkdownEditorMappedPosTracker(
+    editor,
+    options.pos ?? editor.state.selection.from,
+  );
+  try {
+    const choice = await promptMarkdownEditorImageSource(labels, {
+      allowUpload: options.allowUpload,
+    });
+    if (!choice) {
+      return false;
+    }
+    if (choice.kind === "url") {
+      return (
+        insertMarkdownEditorImage(editor, {
+          src: choice.src,
+          pos: insertPosTracker.getPos(),
+        }) !== false
+      );
+    }
+    if (!options.uploadImageFiles) {
+      return false;
+    }
+    const file = await pickMarkdownEditorImageFile();
+    if (!file) {
+      return false;
+    }
+    return options.uploadImageFiles(editor, [file], { pos: insertPosTracker.getPos() });
+  } finally {
+    insertPosTracker.stop();
+  }
 }

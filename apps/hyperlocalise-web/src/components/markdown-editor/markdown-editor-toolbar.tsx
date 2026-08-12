@@ -18,15 +18,13 @@ import { useIntl } from "react-intl";
 
 import { cn } from "@/lib/primitives/cn";
 
-import {
-  insertMarkdownEditorImage,
-  pickMarkdownEditorImageFile,
-  type MarkdownEditorImageUploadConfig,
-  type MarkdownEditorUploadImageFiles,
+import type {
+  MarkdownEditorImageUploadConfig,
+  MarkdownEditorUploadImageFiles,
 } from "./markdown-editor-image";
 import {
   getMarkdownEditorImageSourceLabels,
-  promptMarkdownEditorImageSource,
+  insertMarkdownEditorImageViaSourceDialog,
 } from "./markdown-editor-image-source-dialog";
 import { markdownEditorMessages } from "./markdown-editor.messages";
 
@@ -87,25 +85,11 @@ async function insertImageViaToolbar(
   uploadImageFiles: MarkdownEditorUploadImageFiles | null,
 ) {
   const allowUpload = Boolean(imageUpload && uploadImageFiles);
-  const choice = await promptMarkdownEditorImageSource(getMarkdownEditorImageSourceLabels(intl), {
+  await insertMarkdownEditorImageViaSourceDialog(editor, getMarkdownEditorImageSourceLabels(intl), {
     allowUpload,
+    uploadImageFiles,
+    pos: editor.state.selection.from,
   });
-  if (!choice) {
-    return;
-  }
-  if (choice.kind === "url") {
-    insertMarkdownEditorImage(editor, { src: choice.src });
-    return;
-  }
-  if (!uploadImageFiles) {
-    return;
-  }
-  const pos = editor.state.selection.from;
-  const file = await pickMarkdownEditorImageFile();
-  if (!file) {
-    return;
-  }
-  await uploadImageFiles(editor, [file], { pos });
 }
 
 export function MarkdownEditorToolbar({

@@ -29,14 +29,12 @@ import {
 import type { IntlShape } from "react-intl";
 
 import {
-  insertMarkdownEditorImage,
-  pickMarkdownEditorImageFile,
   type MarkdownEditorImageUploadConfig,
   type MarkdownEditorUploadImageFiles,
 } from "./markdown-editor-image";
 import {
   getMarkdownEditorImageSourceLabels,
-  promptMarkdownEditorImageSource,
+  insertMarkdownEditorImageViaSourceDialog,
 } from "./markdown-editor-image-source-dialog";
 import { markdownEditorMessages as messages } from "./markdown-editor.messages";
 
@@ -183,25 +181,11 @@ export function buildMarkdownSlashCommandItems(
       run: ({ editor, range }) => {
         editor.chain().focus().deleteRange(range).run();
         const allowUpload = Boolean(imageUpload && uploadImageFiles);
-        const pos = editor.state.selection.from;
-        void (async () => {
-          const choice = await promptMarkdownEditorImageSource(imageSourceLabels, { allowUpload });
-          if (!choice) {
-            return;
-          }
-          if (choice.kind === "url") {
-            insertMarkdownEditorImage(editor, { src: choice.src, pos });
-            return;
-          }
-          if (!uploadImageFiles) {
-            return;
-          }
-          const file = await pickMarkdownEditorImageFile();
-          if (!file) {
-            return;
-          }
-          await uploadImageFiles(editor, [file], { pos });
-        })();
+        void insertMarkdownEditorImageViaSourceDialog(editor, imageSourceLabels, {
+          allowUpload,
+          uploadImageFiles,
+          pos: editor.state.selection.from,
+        });
       },
     },
     {

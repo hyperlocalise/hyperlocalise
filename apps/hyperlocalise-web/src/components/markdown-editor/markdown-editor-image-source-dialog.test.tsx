@@ -14,9 +14,14 @@
 
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { Editor } from "@tiptap/core";
+import Image from "@tiptap/extension-image";
+import { Markdown } from "@tiptap/markdown";
+import StarterKit from "@tiptap/starter-kit";
 import { describe, expect, it } from "vite-plus/test";
 
 import {
+  insertMarkdownEditorImageViaSourceDialog,
   promptMarkdownEditorImageSource,
   type MarkdownEditorImageSourceLabels,
 } from "./markdown-editor-image-source-dialog";
@@ -98,5 +103,51 @@ describe("promptMarkdownEditorImageSource", () => {
     await waitFor(() => {
       expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     });
+  });
+});
+
+describe("insertMarkdownEditorImageViaSourceDialog", () => {
+  it("inserts at the remapped anchor when the doc changes while the dialog is open", async () => {
+    const user = userEvent.setup();
+    const editor = new Editor({
+      extensions: [StarterKit, Image.configure({ inline: false, allowBase64: false }), Markdown],
+      content: "First paragraph\n\nSecond paragraph",
+      contentType: "markdown",
+    });
+
+    let secondParagraphPos: number | null = null;
+    editor.state.doc.descendants((node, pos) => {
+      if (
+        secondParagraphPos === null &&
+        node.type.name === "paragraph" &&
+        node.textContent === "Second paragraph"
+      ) {
+        secondParagraphPos = pos + 1;
+      }
+    });
+    expect(secondParagraphPos).not.toBeNull();
+
+    const insertPromise = insertMarkdownEditorImageViaSourceDialog(editor, labels, {
+      allowUpload: false,
+      pos: secondParagraphPos!,
+    });
+
+    const input = await screen.findByLabelText("Enter image URL");
+    editor.view.dispatch(editor.state.tr.insertText("PREFIX ", 1));
+    editor.commands.setTextSelection(1);
+
+    await user.clear(input);
+    await user.type(input, "https://cdn.example/a.png");
+    await user.click(screen.getByRole("button", { name: "Insert" }));
+
+    await expect(insertPromise).resolves.toBe(true);
+
+    const markdown = editor.getMarkdown();
+    expect(markdown).toContain("PREFIX");
+    expect(markdown.indexOf("First paragraph")).toBeLessThan(markdown.indexOf("![]("));
+    expect(markdown.indexOf("![](")).toBeLessThan(markdown.indexOf("Second paragraph"));
+    expect(markdown).toContain("https://cdn.example/a.png");
+
+    editor.destroy();
   });
 });
