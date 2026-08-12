@@ -124,6 +124,9 @@ const PUBLIC_LOCALIZED_PATHS = new Set([
 ]);
 const PROTECTED_LOCALIZED_PREFIXES = ["/dashboard", "/org"];
 const NON_LOCALE_ROOT_PREFIXES = ["/auth", "/install", "/api", "/crowdin-app"];
+// BotID (and similar) use opaque UUID first segments; locales never do.
+const UUID_PATH_SEGMENT_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 function splitLocalePath(pathname: string): {
   locale: string | null;
@@ -190,6 +193,11 @@ export function isUnsupportedLocalePath(pathname: string): boolean {
     return false;
   }
 
+  // Skip opaque UUID roots (BotID challenge scripts) — not /[lang] candidates.
+  if (UUID_PATH_SEGMENT_RE.test(firstSegment)) {
+    return false;
+  }
+
   return true;
 }
 
@@ -244,7 +252,8 @@ export default async function proxy(request: NextRequest, event: NextFetchEvent)
 
 export const config = {
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|images|api|mcp|\\.well-known|install|sitemap\\.xml|robots\\.txt).*)",
+    // Exclude opaque UUID roots (BotID challenge scripts) so locale proxy does not 404 them.
+    "/((?!_next/static|_next/image|favicon.ico|images|api|mcp|\\.well-known|install|sitemap\\.xml|robots\\.txt|[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}).*)",
     "/api/:path*",
   ],
 };
