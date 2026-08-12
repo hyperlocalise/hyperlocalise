@@ -41,7 +41,7 @@ func TestNotificationValidate(t *testing.T) {
 				Role:    "invalid",
 				Message: "notification message",
 			},
-			err: "role must be either owner or manager",
+			err: "role must be either owner, manager, language_coordinator, developer, translator, or proofreader",
 		},
 		{
 			name:  "valid request (message only)",
@@ -49,9 +49,49 @@ func TestNotificationValidate(t *testing.T) {
 			valid: true,
 		},
 		{
-			name: "valid request (with role)",
+			name: "valid request (with role owner)",
 			req: &Notification{
 				Role:    "owner",
+				Message: "notification message",
+			},
+			valid: true,
+		},
+		{
+			name: "valid request (with role manager)",
+			req: &Notification{
+				Role:    "manager",
+				Message: "notification message",
+			},
+			valid: true,
+		},
+		{
+			name: "valid request (with role language_coordinator)",
+			req: &Notification{
+				Role:    "language_coordinator",
+				Message: "notification message",
+			},
+			valid: true,
+		},
+		{
+			name: "valid request (with role developer)",
+			req: &Notification{
+				Role:    "developer",
+				Message: "notification message",
+			},
+			valid: true,
+		},
+		{
+			name: "valid request (with role translator)",
+			req: &Notification{
+				Role:    "translator",
+				Message: "notification message",
+			},
+			valid: true,
+		},
+		{
+			name: "valid request (with role proofreader)",
+			req: &Notification{
+				Role:    "proofreader",
 				Message: "notification message",
 			},
 			valid: true,

@@ -414,6 +414,9 @@ func determineErrorType(res *http.Request, resp *http.Response, body []byte) err
 			}
 			return &model.ValidationErrorResponse{Response: resp, Status: resp.StatusCode}
 		}
+		if _, ok := b["error"]; ok {
+			return &model.ErrorResponse{Response: resp}
+		}
 		return fmt.Errorf("client: error while determining error type")
 	default:
 		return &model.ErrorResponse{Response: resp}

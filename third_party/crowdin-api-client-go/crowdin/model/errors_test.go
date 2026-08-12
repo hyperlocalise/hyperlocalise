@@ -116,6 +116,17 @@ func TestParseErrorResponse(t *testing.T) {
 		err  string
 	}{
 		{
+			resp: &http.Response{StatusCode: http.StatusBadRequest},
+			body: []byte(`{
+				"error": {
+					"message": "Some bad request error",
+					"code": 400
+				}
+			}`),
+			code: 400,
+			err:  "400 Some bad request error",
+		},
+		{
 			resp: &http.Response{StatusCode: http.StatusNotFound},
 			body: []byte(`{
 				"error": {
@@ -436,6 +447,9 @@ func determineErrorType(resp *http.Response, body []byte, graph bool) error {
 				}
 			}
 			return &ValidationErrorResponse{Response: resp, Status: resp.StatusCode}
+		}
+		if _, ok := b["error"]; ok {
+			return &ErrorResponse{Response: resp}
 		}
 		return nil
 	default:

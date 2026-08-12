@@ -1,5 +1,15 @@
 # Crowdin Steward's Journal
 
+## 2026-12-25 - Improve error visibility and align notification role validations
+
+**Learning:**
+1) When a `400 Bad Request` returned a standard `error` payload instead of a list of `errors`, the client's `determineErrorType` incorrectly fell back to returning an un-unmarshalable Go error string rather than a pointer to an `ErrorResponse`. This caused the client to obscure the underlying Crowdin API error message with a generic `client: server returned 400 status code`.
+2) In Crowdin API v2, sending notifications to project members supports all project member roles, including `language_coordinator`, `developer`, `translator`, and `proofreader` in addition to `owner` and `manager`. Lacking these roles in client-side validations prevented valid notification requests from being sent.
+
+**Action:**
+1) Updated `determineErrorType` in `crowdin.go` and `errors_test.go` to explicitly check for the presence of a standard `"error"` key in the parsed JSON response of a `400 Bad Request` and return `&model.ErrorResponse{Response: resp}` to allow the detailed error code and message to be correctly unmarshaled and returned.
+2) Expanded `Notification.Validate()` inside `model/notifications.go` to accept all valid project-level roles (`language_coordinator`, `developer`, `translator`, `proofreader`). Added focused unit and contract test cases asserting both error unmarshaling and role validation edge cases.
+
 ## 2026-12-24 - Implement Corrections API for Crowdin Enterprise parity
 
 **Learning:** In Crowdin Enterprise API v2, proofreaders can create translation corrections. However, the Go SDK lacked model representations and endpoint methods for managing corrections (such as list, get, add, restore, and delete corrections). This gap prevented enterprise users from managing the translation correction lifecycle programmatically.
