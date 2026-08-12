@@ -205,6 +205,7 @@ export function IssueCommentComposer({
             compact
             mentionConfig={mentionConfig}
             onMentionNavigate={handleMentionNavigate}
+            imageUpload={{ organizationSlug, projectId }}
             placeholder={placeholder}
             className="min-h-6 border-0 bg-transparent p-0 shadow-none"
           />
@@ -254,6 +255,7 @@ export function IssueCommentComposer({
           chrome="minimal"
           mentionConfig={mentionConfig}
           onMentionNavigate={handleMentionNavigate}
+          imageUpload={{ organizationSlug, projectId }}
           placeholder={placeholder}
           className="min-h-14 border-0 bg-transparent p-0 shadow-none"
         />

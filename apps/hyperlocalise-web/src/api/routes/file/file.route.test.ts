@@ -14,6 +14,7 @@ import "dotenv/config";
 
 import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 
+import { eq } from "drizzle-orm";
 import { testClient } from "hono/testing";
 
 import { createApp } from "@/api/app";
@@ -362,5 +363,84 @@ describe("file download route", () => {
     expect(response.headers.get("content-type")).toBe("application/json");
     expect(response.headers.get("content-disposition")).toContain("team-files.json");
     await expect(response.text()).resolves.toBe(fileContent.toString());
+  });
+});
+
+describe("file upload route", () => {
+  it("stores an editor image upload and returns a proxy URL", async () => {
+    const identity = createWorkosIdentityWithRole("member");
+    const headers = await authHeadersFor(identity);
+    const formData = new FormData();
+    formData.set(
+      "file",
+      new File([Uint8Array.from([0x89, 0x50, 0x4e, 0x47])], "banner.png", {
+        type: "image/png",
+      }),
+    );
+
+    const response = await app.request(`/api/orgs/${identity.organization.slug}/files`, {
+      method: "POST",
+      headers,
+      body: formData,
+    });
+
+    expect(response.status).toBe(201);
+    const body = (await response.json()) as {
+      file: { id: string; url: string; filename: string; contentType: string; byteSize: number };
+    };
+    expect(body.file.filename).toBe("banner.png");
+    expect(body.file.contentType).toBe("image/png");
+    expect(body.file.byteSize).toBe(4);
+    expect(body.file.url).toBe(
+      `/api/orgs/${encodeURIComponent(identity.organization.slug!)}/files/${body.file.id}`,
+    );
+
+    const [stored] = await db
+      .select({
+        role: schema.storedFiles.role,
+        sourceKind: schema.storedFiles.sourceKind,
+        metadata: schema.storedFiles.metadata,
+      })
+      .from(schema.storedFiles)
+      .where(eq(schema.storedFiles.id, body.file.id))
+      .limit(1);
+    expect(stored?.role).toBe("asset");
+    expect(stored?.sourceKind).toBe("editor_upload");
+    expect(stored?.metadata).toEqual({ uploadSurface: "markdown_editor" });
+  });
+
+  it("rejects unsupported image content types", async () => {
+    const identity = createWorkosIdentityWithRole("member");
+    const headers = await authHeadersFor(identity);
+    const formData = new FormData();
+    formData.set(
+      "file",
+      new File([Uint8Array.from([1, 2, 3])], "notes.gif", { type: "image/gif" }),
+    );
+
+    const response = await app.request(`/api/orgs/${identity.organization.slug}/files`, {
+      method: "POST",
+      headers,
+      body: formData,
+    });
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toMatchObject({ error: "unsupported_image_type" });
+  });
+
+  it("rejects uploads without a file field", async () => {
+    const identity = createWorkosIdentityWithRole("member");
+    const headers = await authHeadersFor(identity);
+    const formData = new FormData();
+    formData.set("projectId", "proj_missing");
+
+    const response = await app.request(`/api/orgs/${identity.organization.slug}/files`, {
+      method: "POST",
+      headers,
+      body: formData,
+    });
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toMatchObject({ error: "file_required" });
   });
 });

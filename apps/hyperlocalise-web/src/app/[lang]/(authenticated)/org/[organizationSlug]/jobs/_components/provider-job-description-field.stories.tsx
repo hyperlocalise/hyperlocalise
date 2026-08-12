@@ -13,10 +13,21 @@
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { expect, userEvent } from "storybook/test";
 
+import { markdownEditorImageMswHandlers } from "@/components/markdown-editor/markdown-editor-msw-handlers";
+
 import { ProviderJobDescriptionFieldView } from "./provider-job-description-field";
 
 const description = [
   "Translate the product launch page for the spring campaign.",
+  "",
+  "- Keep product names in English",
+  "- Use a friendly, concise tone",
+].join("\n");
+
+const descriptionWithImage = [
+  "Translate the product launch page for the spring campaign.",
+  "",
+  "![Launch banner](https://placehold.co/640x360/png?text=Launch+banner)",
   "",
   "- Keep product names in English",
   "- Use a friendly, concise tone",
@@ -52,6 +63,16 @@ export const ReadOnlyMarkdown: Story = {
   },
 };
 
+export const ReadOnlyWithImage: Story = {
+  args: {
+    description: descriptionWithImage,
+    editable: false,
+  },
+  play: async ({ canvas }) => {
+    await expect(await canvas.findByRole("img", { name: "Launch banner" })).toBeInTheDocument();
+  },
+};
+
 export const EditablePreview: Story = {
   args: {
     description,
@@ -60,6 +81,25 @@ export const EditablePreview: Story = {
   },
   play: async ({ canvas }) => {
     await expect(canvas.getByRole("button", { name: "Edit description" })).toBeInTheDocument();
+  },
+};
+
+export const EditingWithImageUpload: Story = {
+  args: {
+    description: descriptionWithImage,
+    editable: true,
+    initialIsEditing: true,
+    imageUpload: { organizationSlug: "acme" },
+    onSaveDescription: async (nextDescription) => nextDescription,
+  },
+  parameters: {
+    msw: {
+      handlers: markdownEditorImageMswHandlers,
+    },
+  },
+  play: async ({ canvas }) => {
+    await expect(canvas.getByRole("button", { name: "Insert image" })).toBeInTheDocument();
+    await expect(await canvas.findByRole("img", { name: "Launch banner" })).toBeInTheDocument();
   },
 };
 

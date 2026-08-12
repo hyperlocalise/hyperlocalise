@@ -15,9 +15,16 @@
 import type { Editor } from "@tiptap/core";
 import { useEditorState } from "@tiptap/react";
 import { useIntl } from "react-intl";
+import { toast } from "sonner";
 
 import { cn } from "@/lib/primitives/cn";
 
+import {
+  insertMarkdownEditorImageFromUpload,
+  insertMarkdownEditorImageFromUrl,
+  pickMarkdownEditorImageFile,
+  type MarkdownEditorImageUploadConfig,
+} from "./markdown-editor-image";
 import { markdownEditorMessages } from "./markdown-editor.messages";
 
 type MarkdownCommandChain = ReturnType<Editor["chain"]> & {
@@ -70,7 +77,51 @@ function MarkdownToolbarButton({
   );
 }
 
-export function MarkdownEditorToolbar({ editor, disabled }: { editor: Editor; disabled: boolean }) {
+async function insertImageViaToolbar(
+  editor: Editor,
+  intl: ReturnType<typeof useIntl>,
+  imageUpload: MarkdownEditorImageUploadConfig | null,
+) {
+  if (imageUpload) {
+    const file = await pickMarkdownEditorImageFile();
+    if (!file) {
+      insertMarkdownEditorImageFromUrl(
+        editor,
+        intl.formatMessage(markdownEditorMessages.imagePrompt),
+      );
+      return;
+    }
+    try {
+      await insertMarkdownEditorImageFromUpload({
+        editor,
+        file,
+        upload: imageUpload,
+      });
+    } catch (error) {
+      const code = error instanceof Error ? error.message : "image_upload_failed";
+      if (code === "unsupported_image_type") {
+        toast.error(intl.formatMessage(markdownEditorMessages.imageUnsupportedType));
+      } else if (code === "image_too_large" || code === "file_upload_too_large") {
+        toast.error(intl.formatMessage(markdownEditorMessages.imageTooLarge));
+      } else {
+        toast.error(intl.formatMessage(markdownEditorMessages.imageUploadFailed));
+      }
+    }
+    return;
+  }
+
+  insertMarkdownEditorImageFromUrl(editor, intl.formatMessage(markdownEditorMessages.imagePrompt));
+}
+
+export function MarkdownEditorToolbar({
+  editor,
+  disabled,
+  imageUpload = null,
+}: {
+  editor: Editor;
+  disabled: boolean;
+  imageUpload?: MarkdownEditorImageUploadConfig | null;
+}) {
   const intl = useIntl();
   const isDisabled = disabled || !editor.isEditable;
   const activeMarks = useEditorState({
@@ -147,6 +198,14 @@ export function MarkdownEditorToolbar({ editor, disabled }: { editor: Editor; di
         pressed={activeMarks.code}
         disabled={isDisabled}
         onClick={() => markdownCommandChain(editor).toggleCode().run()}
+      />
+      <MarkdownToolbarButton
+        label={intl.formatMessage(markdownEditorMessages.imageLabel)}
+        title={intl.formatMessage(markdownEditorMessages.imageTitle)}
+        disabled={isDisabled}
+        onClick={() => {
+          void insertImageViaToolbar(editor, intl, imageUpload);
+        }}
       />
     </div>
   );

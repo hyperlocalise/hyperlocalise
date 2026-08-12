@@ -83,6 +83,7 @@ export function createKnowledgeEditorViewFixture(
   const content = overrides.content ?? savedKnowledgeMemory?.content ?? "";
 
   return {
+    organizationSlug: "test-org",
     content,
     onContentChange: () => undefined,
     summary: "",

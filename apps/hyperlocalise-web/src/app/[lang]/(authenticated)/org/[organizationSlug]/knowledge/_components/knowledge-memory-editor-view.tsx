@@ -49,6 +49,7 @@ function formatUpdatedAt(value: string | null, notSavedYet: string) {
 }
 
 export type KnowledgeMemoryEditorViewProps = {
+  organizationSlug: string;
   content: string;
   onContentChange: (value: string) => void;
   summary: string;
@@ -67,6 +68,7 @@ export type KnowledgeMemoryEditorViewProps = {
 };
 
 export function KnowledgeMemoryEditorView({
+  organizationSlug,
   content,
   onContentChange,
   summary,
@@ -131,6 +133,7 @@ export function KnowledgeMemoryEditorView({
               onChange={onContentChange}
               disabled={!canUpdateKnowledgeMemory}
               chrome="minimal"
+              imageUpload={{ organizationSlug }}
               ariaLabel={intl.formatMessage(knowledgeMemoryEditorMessages.memoryAriaLabel)}
               placeholder={intl.formatMessage(knowledgeMemoryEditorMessages.memoryPlaceholder)}
               className={cn(

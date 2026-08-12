@@ -13,10 +13,21 @@
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { expect, userEvent } from "storybook/test";
 
+import { markdownEditorImageMswHandlers } from "@/components/markdown-editor/markdown-editor-msw-handlers";
+
 import { IssueMarkdownField } from "./issue-markdown-field";
 
 const description = [
   "Review the German headline on the launch page.",
+  "",
+  "- Keep product names in English",
+  "- [ ] Confirm with legal",
+].join("\n");
+
+const descriptionWithImage = [
+  "Review the German headline on the launch page.",
+  "",
+  "![Launch banner](https://placehold.co/640x360/png?text=Launch+banner)",
   "",
   "- Keep product names in English",
   "- [ ] Confirm with legal",
@@ -48,6 +59,26 @@ export const PreviewWithMarkdown: Story = {
   },
 };
 
+export const PreviewWithImage: Story = {
+  args: {
+    value: descriptionWithImage,
+    onChange: () => {},
+    onCommit: () => {},
+    ariaLabel: "Description",
+    emptyMessage: "No description",
+    imageUpload: { organizationSlug: "acme", projectId: "proj_demo" },
+  },
+  parameters: {
+    msw: {
+      handlers: markdownEditorImageMswHandlers,
+    },
+  },
+  play: async ({ canvas }) => {
+    await expect(canvas.getByLabelText("Description")).toBeInTheDocument();
+    await expect(await canvas.findByRole("img", { name: "Launch banner" })).toBeInTheDocument();
+  },
+};
+
 export const Editing: Story = {
   args: {
     value: description,
@@ -59,5 +90,26 @@ export const Editing: Story = {
   play: async ({ canvas }) => {
     await userEvent.click(canvas.getByLabelText("Description"));
     await expect(canvas.getByRole("textbox", { name: "Description" })).toBeInTheDocument();
+  },
+};
+
+export const EditingWithImageUpload: Story = {
+  args: {
+    value: descriptionWithImage,
+    onChange: () => {},
+    onCommit: () => {},
+    ariaLabel: "Description",
+    emptyMessage: "No description",
+    imageUpload: { organizationSlug: "acme", projectId: "proj_demo" },
+  },
+  parameters: {
+    msw: {
+      handlers: markdownEditorImageMswHandlers,
+    },
+  },
+  play: async ({ canvas }) => {
+    await userEvent.click(canvas.getByLabelText("Description"));
+    await expect(canvas.getByRole("textbox", { name: "Description" })).toBeInTheDocument();
+    await expect(await canvas.findByRole("img", { name: "Launch banner" })).toBeInTheDocument();
   },
 };

@@ -25,6 +25,7 @@ export function IssueMarkdownField({
   placeholder,
   emptyMessage,
   ariaLabel,
+  imageUpload = null,
 }: {
   value: string;
   onChange: (value: string) => void;
@@ -33,6 +34,7 @@ export function IssueMarkdownField({
   placeholder?: string;
   emptyMessage?: string;
   ariaLabel: string;
+  imageUpload?: { organizationSlug: string; projectId?: string | null } | null;
 }) {
   const [isEditing, setIsEditing] = useState(false);
 
@@ -49,6 +51,7 @@ export function IssueMarkdownField({
         placeholder={placeholder}
         ariaLabel={ariaLabel}
         chrome="minimal"
+        imageUpload={imageUpload}
       />
     );
   }

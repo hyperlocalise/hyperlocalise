@@ -569,6 +569,7 @@ export function CreateJobDialog({
                   onChange={setDescription}
                   disabled={createJob.isPending}
                   placeholder={intl.formatMessage(createJobDialogMessages.descriptionPlaceholder)}
+                  imageUpload={{ organizationSlug, projectId }}
                 />
               </div>
             </div>

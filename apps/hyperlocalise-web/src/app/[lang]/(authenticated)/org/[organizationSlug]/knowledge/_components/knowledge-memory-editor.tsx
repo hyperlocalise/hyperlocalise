@@ -182,6 +182,7 @@ export function KnowledgeMemoryEditor({
   return (
     <>
       <KnowledgeMemoryEditorView
+        organizationSlug={organizationSlug}
         content={content}
         onContentChange={(value) => {
           setContent(value);

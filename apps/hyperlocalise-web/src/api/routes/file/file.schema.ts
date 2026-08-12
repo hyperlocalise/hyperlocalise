@@ -18,3 +18,13 @@ export const fileParamsSchema = z.object({
 });
 
 export type FileParams = z.infer<typeof fileParamsSchema>;
+
+export const maxEditorImageUploadBytes = 10 * 1024 * 1024;
+
+export const editorImageContentTypes = ["image/png", "image/jpeg", "image/webp"] as const;
+
+export const editorImageUploadFormSchema = z.object({
+  projectId: z.string().trim().min(1).max(256).optional(),
+});
+
+export type EditorImageUploadForm = z.infer<typeof editorImageUploadFormSchema>;

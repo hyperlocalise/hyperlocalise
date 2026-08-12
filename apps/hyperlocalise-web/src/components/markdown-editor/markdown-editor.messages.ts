@@ -195,6 +195,41 @@ export const markdownEditorMessages = defineMessages({
     id: "YyO52dNKVM",
     description: "Slash menu item for inserting a hyperlink",
   },
+  slashImageTitle: {
+    defaultMessage: "Image",
+    id: "roHaMHNwoS",
+    description: "Slash menu item for inserting an image",
+  },
+  imagePrompt: {
+    defaultMessage: "Enter image URL",
+    id: "TMj6D+Yhyn",
+    description: "Prompt shown when inserting an image by URL",
+  },
+  imageLabel: {
+    defaultMessage: "Img",
+    id: "ed4/NRs4Oy",
+    description: "Visible abbreviation on the image toolbar button",
+  },
+  imageTitle: {
+    defaultMessage: "Insert image",
+    id: "q9T9hQuPR7",
+    description: "Tooltip and accessible label for the image toolbar button",
+  },
+  imageUnsupportedType: {
+    defaultMessage: "Only PNG, JPEG, and WebP images are supported.",
+    id: "wem2T5DJ9n",
+    description: "Toast when an unsupported image type is uploaded",
+  },
+  imageTooLarge: {
+    defaultMessage: "Image must be 10 MB or smaller.",
+    id: "f3IEqEzc4J",
+    description: "Toast when an uploaded image exceeds the size limit",
+  },
+  imageUploadFailed: {
+    defaultMessage: "Failed to upload image",
+    id: "s2RbfpSnxA",
+    description: "Toast when image upload to storage fails",
+  },
   bubbleBold: {
     defaultMessage: "Bold",
     id: "DRi2LRug2G",

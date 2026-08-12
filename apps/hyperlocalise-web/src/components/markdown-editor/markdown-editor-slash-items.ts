@@ -20,13 +20,21 @@ import {
   Heading01Icon,
   Heading02Icon,
   Heading03Icon,
+  Image01Icon,
   LeftToRightBlockQuoteIcon,
   LeftToRightListBulletIcon,
   LeftToRightListNumberIcon,
   Link01Icon,
 } from "@hugeicons/core-free-icons";
 import type { IntlShape } from "react-intl";
+import { toast } from "sonner";
 
+import {
+  insertMarkdownEditorImageFromUrl,
+  insertMarkdownEditorImageFromUpload,
+  pickMarkdownEditorImageFile,
+  type MarkdownEditorImageUploadConfig,
+} from "./markdown-editor-image";
 import { markdownEditorMessages as messages } from "./markdown-editor.messages";
 
 export type MarkdownSlashShortcutPart = "mod" | "alt" | "shift" | (string & {});
@@ -65,8 +73,13 @@ export function formatMarkdownSlashShortcut(
     .join(isMac ? " " : "+");
 }
 
-export function buildMarkdownSlashCommandItems(intl: IntlShape): MarkdownSlashCommandItem[] {
+export function buildMarkdownSlashCommandItems(
+  intl: IntlShape,
+  options: { imageUpload?: MarkdownEditorImageUploadConfig | null } = {},
+): MarkdownSlashCommandItem[] {
   const linkPrompt = intl.formatMessage(messages.linkPrompt);
+  const imagePrompt = intl.formatMessage(messages.imagePrompt);
+  const imageUpload = options.imageUpload ?? null;
 
   return [
     {
@@ -153,6 +166,42 @@ export function buildMarkdownSlashCommandItems(intl: IntlShape): MarkdownSlashCo
       shortcut: ["mod", "shift", "b"],
       run: ({ editor, range }) => {
         deleteTriggerAndRun(editor, range, () => editor.chain().focus().toggleBlockquote().run());
+      },
+    },
+    {
+      id: "image",
+      title: intl.formatMessage(messages.slashImageTitle),
+      icon: Image01Icon,
+      keywords: ["image", "img", "picture", "photo", "upload"],
+      run: ({ editor, range }) => {
+        editor.chain().focus().deleteRange(range).run();
+        if (imageUpload) {
+          void (async () => {
+            const file = await pickMarkdownEditorImageFile();
+            if (!file) {
+              insertMarkdownEditorImageFromUrl(editor, imagePrompt);
+              return;
+            }
+            try {
+              await insertMarkdownEditorImageFromUpload({
+                editor,
+                file,
+                upload: imageUpload,
+              });
+            } catch (error) {
+              const code = error instanceof Error ? error.message : "image_upload_failed";
+              if (code === "unsupported_image_type") {
+                toast.error(intl.formatMessage(messages.imageUnsupportedType));
+              } else if (code === "image_too_large" || code === "file_upload_too_large") {
+                toast.error(intl.formatMessage(messages.imageTooLarge));
+              } else {
+                toast.error(intl.formatMessage(messages.imageUploadFailed));
+              }
+            }
+          })();
+          return;
+        }
+        insertMarkdownEditorImageFromUrl(editor, imagePrompt);
       },
     },
     {
