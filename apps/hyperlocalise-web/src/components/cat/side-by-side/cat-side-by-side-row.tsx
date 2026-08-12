@@ -36,6 +36,7 @@ import {
   CatTargetEditor,
 } from "@/components/cat/editor/cat-target-editor";
 import { analyzeCatMessageFormat } from "@/components/cat/message-format/cat-message-format";
+import { CatHiddenStringBadge } from "@/components/cat/segment/cat-hidden-string-badge";
 import { SegmentStatusBadge } from "@/components/cat/segment/cat-segment-status";
 import { CatSegmentKeyMeta } from "@/components/cat/segment/cat-segment-key-meta";
 import { CatSegmentTags } from "@/components/cat/segment/cat-segment-tags";
@@ -190,6 +191,7 @@ export function CatSideBySideRow({
   const statusAndTags = (
     <div className="flex flex-wrap items-center gap-1.5">
       {isTargetLoading ? null : <SegmentStatusBadge status={segment.status} />}
+      {segment.isHidden ? <CatHiddenStringBadge /> : null}
       {segmentTags.length > 0 ? <CatSegmentTags tags={segmentTags} /> : null}
     </div>
   );

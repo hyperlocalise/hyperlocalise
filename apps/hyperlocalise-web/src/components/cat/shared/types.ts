@@ -63,6 +63,8 @@ export interface CatQueueSegment {
   targetAssetUrl?: string | null;
   imageVariantId?: string | null;
   looksLikeImageUrl?: boolean;
+  /** TMS hidden string — unavailable to translators, still visible to managers. */
+  isHidden?: boolean;
   /** Set when the queue spans multiple files. */
   sourcePath?: string;
   externalResourceId?: string;
@@ -94,6 +96,8 @@ export interface CatSegment {
   contextLabel?: string;
   status: CatSegmentStatus;
   hasOpenIssues?: boolean;
+  /** TMS hidden string — unavailable to translators, still visible to managers. */
+  isHidden?: boolean;
   tags?: string[];
   maxLength?: number;
   comments?: CatSegmentComment[];

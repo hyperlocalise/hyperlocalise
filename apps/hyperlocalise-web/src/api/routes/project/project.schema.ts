@@ -618,6 +618,8 @@ export const projectFileCatSegmentSchema = z.object({
   context: z.string().nullable(),
   type: z.string().nullable(),
   maxLength: z.number().int().positive().optional(),
+  /** Crowdin (and similar TMS) hidden/unavailable-for-translators flag. */
+  isHidden: z.boolean().optional(),
   contentKind: projectFileCatContentKindSchema.optional(),
   sourceAssetUrl: z.string().nullable().optional(),
   targetAssetUrl: z.string().nullable().optional(),

@@ -19,6 +19,7 @@ import { useIntl } from "react-intl";
 import { cn } from "@/lib/primitives/cn";
 
 import { formatInternalMarkupForDisplay } from "@/components/cat/message-format/cat-internal-markup";
+import { CatHiddenStringBadge } from "@/components/cat/segment/cat-hidden-string-badge";
 import { CatSegmentKeyMeta } from "@/components/cat/segment/cat-segment-key-meta";
 import { catQueuePanelMessages } from "@/components/cat/shared/cat.messages";
 import type { CatSegment } from "@/components/cat/shared/types";
@@ -158,6 +159,11 @@ export function CatQueueVirtualList({
                       segmentKey={segment.key}
                       sourcePath={segment.sourcePath}
                       keyClassName="text-xs"
+                      trailing={
+                        segment.isHidden ? (
+                          <CatHiddenStringBadge className="h-5 shrink-0 px-1.5 text-[0.625rem]" />
+                        ) : null
+                      }
                     />
                   </div>
                   <div className="mt-1 flex shrink-0 flex-col items-center gap-1">

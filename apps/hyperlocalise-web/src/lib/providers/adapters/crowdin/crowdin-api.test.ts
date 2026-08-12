@@ -545,6 +545,7 @@ describe("CrowdinApiClient", () => {
                 text: "Hello",
                 type: "text",
                 context: null,
+                isHidden: false,
                 labelIds: null,
               },
             },
@@ -558,7 +559,12 @@ describe("CrowdinApiClient", () => {
     const strings = await client.listSourceStrings(1, { fileId: 101 });
 
     expect(strings).toHaveLength(1);
-    expect(strings[0]).toMatchObject({ id: 1001, identifier: "hello", fileId: 101 });
+    expect(strings[0]).toMatchObject({
+      id: 1001,
+      identifier: "hello",
+      fileId: 101,
+      isHidden: false,
+    });
   });
 
   it("lists source strings by taskId", async () => {

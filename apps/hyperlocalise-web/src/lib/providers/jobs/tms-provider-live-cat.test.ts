@@ -186,6 +186,7 @@ describe("getTmsProviderLiveCatFile", () => {
                   text: "Hello",
                   type: "text",
                   context: "Hero",
+                  isHidden: true,
                   labelIds: null,
                 },
               },
@@ -200,6 +201,7 @@ describe("getTmsProviderLiveCatFile", () => {
                   text: { one: "Start", other: "Start all" },
                   type: "text",
                   context: null,
+                  isHidden: false,
                   labelIds: null,
                 },
               },
@@ -228,6 +230,7 @@ describe("getTmsProviderLiveCatFile", () => {
                   text: { one: "Start", other: "Start all" },
                   type: "text",
                   context: null,
+                  isHidden: false,
                   labelIds: null,
                 },
               },
@@ -347,12 +350,14 @@ describe("getTmsProviderLiveCatFile", () => {
       externalStringId: "1001",
       key: "hero.title",
       sourceText: "Hello",
+      isHidden: true,
     });
     expect(catFile?.segments[0]).not.toHaveProperty("target");
     expect(catFile?.segments[1]).toMatchObject({
       externalStringId: "1002",
       sourceText: JSON.stringify({ one: "Start", other: "Start all" }),
     });
+    expect(catFile?.segments[1]).not.toHaveProperty("isHidden");
     expect(catFile?.segments[1]).not.toHaveProperty("target");
     const requestedPaths = fetchMock.mock.calls.map(([url]) => String(url));
     expect(requestedPaths.some((path) => path.includes("/projects/42/approvals?"))).toBe(false);

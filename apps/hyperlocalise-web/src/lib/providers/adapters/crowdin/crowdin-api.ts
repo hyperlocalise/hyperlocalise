@@ -228,6 +228,7 @@ export interface CrowdinSourceString {
   text: string | Record<string, string>;
   type: string;
   context: string | null;
+  isHidden: boolean;
   labelIds: number[] | null;
 }
 

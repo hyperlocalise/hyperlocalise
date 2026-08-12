@@ -194,6 +194,14 @@ export const catSegmentStatusMessages = defineMessages({
   },
 });
 
+export const catHiddenStringMessages = defineMessages({
+  hidden: {
+    defaultMessage: "Hidden",
+    id: "/d/gbp0E4g",
+    description: "Badge shown when a TMS source string is hidden from translators",
+  },
+});
+
 export const catGlossaryChecksMessages = defineMessages({
   complianceLabel: {
     defaultMessage: "Glossary compliance",

@@ -91,6 +91,7 @@ export function toQueueSegment(
     | "targetAssetUrl"
     | "imageVariantId"
     | "looksLikeImageUrl"
+    | "isHidden"
   >,
 ): CatQueueSegment {
   return {
@@ -106,5 +107,6 @@ export function toQueueSegment(
     ...(segment.looksLikeImageUrl !== undefined
       ? { looksLikeImageUrl: segment.looksLikeImageUrl }
       : {}),
+    ...(segment.isHidden ? { isHidden: true } : {}),
   };
 }
