@@ -29,6 +29,7 @@ import {
   editorImageUploadFormSchema,
   fileParamsSchema,
   maxEditorImageUploadBytes,
+  maxEditorImageUploadRequestBytes,
 } from "./file.schema";
 import { fileNotFoundResponse } from "./file.shared";
 
@@ -58,7 +59,7 @@ export function createFileRoutes(options: CreateFileRoutesOptions = {}) {
     .post(
       "/",
       bodyLimit({
-        maxSize: maxEditorImageUploadBytes,
+        maxSize: maxEditorImageUploadRequestBytes,
         onError: (c) => payloadTooLargeResponse(c, "file_upload_too_large"),
       }),
       async (c) => {

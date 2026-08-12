@@ -25,6 +25,7 @@ import type { ProjectResponse } from "../project/project.schema";
 import { createTeamTestFixture } from "../team/team.fixture";
 import type { TeamResponse } from "../team/team.schema";
 import { createMemoryFileStorageAdapter } from "./file.fixture";
+import { maxEditorImageUploadBytes, maxEditorImageUploadRequestBytes } from "./file.schema";
 
 const { resolveApiAuthContextFromSessionMock } = vi.hoisted(() => ({
   resolveApiAuthContextFromSessionMock: vi.fn(
@@ -367,6 +368,10 @@ describe("file download route", () => {
 });
 
 describe("file upload route", () => {
+  it("allows multipart request overhead above the file byte cap", () => {
+    expect(maxEditorImageUploadRequestBytes).toBeGreaterThan(maxEditorImageUploadBytes);
+  });
+
   it("stores an editor image upload and returns a proxy URL", async () => {
     const identity = createWorkosIdentityWithRole("member");
     const headers = await authHeadersFor(identity);

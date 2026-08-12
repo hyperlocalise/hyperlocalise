@@ -19,7 +19,11 @@ export type MarkdownEditorImageUploadConfig = {
   projectId?: string | null;
 };
 
-export type MarkdownEditorUploadImageFiles = (editor: Editor, files: File[]) => Promise<boolean>;
+export type MarkdownEditorUploadImageFiles = (
+  editor: Editor,
+  files: File[],
+  options?: { pos?: number },
+) => Promise<boolean>;
 
 export const MARKDOWN_EDITOR_IMAGE_ACCEPT = "image/png,image/jpeg,image/webp";
 export const MARKDOWN_EDITOR_IMAGE_MAX_BYTES = 10 * 1024 * 1024;
@@ -55,22 +59,30 @@ export function isValidMarkdownEditorImageSrc(src: string) {
   }
 }
 
+function clampMarkdownEditorInsertPos(editor: Editor, pos: number) {
+  const max = editor.state.doc.content.size;
+  return Math.max(0, Math.min(pos, max));
+}
+
 export function insertMarkdownEditorImage(
   editor: Editor,
-  input: { src: string; alt?: string | null },
+  input: { src: string; alt?: string | null; pos?: number },
 ) {
   const src = input.src.trim();
   if (!isValidMarkdownEditorImageSrc(src)) {
     return false;
   }
-  return editor
-    .chain()
-    .focus()
-    .setImage({
-      src,
-      alt: input.alt?.trim() || undefined,
-    })
-    .run();
+  const attrs = {
+    src,
+    alt: input.alt?.trim() || undefined,
+  };
+  if (typeof input.pos === "number") {
+    editor.commands.setTextSelection(clampMarkdownEditorInsertPos(editor, input.pos));
+  }
+  const inserted = editor.commands.setImage(attrs);
+  // Best-effort: keep caret with the image in a live editor; may be false headless.
+  editor.commands.focus();
+  return inserted;
 }
 
 export function insertMarkdownEditorImageFromUrl(
@@ -164,13 +176,18 @@ export async function insertMarkdownEditorImageFromUpload(input: {
   editor: Editor;
   file: File;
   upload: MarkdownEditorImageUploadConfig;
+  pos?: number;
 }) {
   const uploaded = await uploadMarkdownEditorImage({
     file: input.file,
     upload: input.upload,
   });
   const alt = input.file.name.replace(/\.[^.]+$/, "");
-  return insertMarkdownEditorImage(input.editor, { src: uploaded.url, alt });
+  return insertMarkdownEditorImage(input.editor, {
+    src: uploaded.url,
+    alt,
+    pos: input.pos,
+  });
 }
 
 export function collectImageFilesFromDataTransfer(dataTransfer: DataTransfer | null) {

@@ -179,13 +179,14 @@ export function buildMarkdownSlashCommandItems(
       run: ({ editor, range }) => {
         editor.chain().focus().deleteRange(range).run();
         if (imageUpload && uploadImageFiles) {
+          const pos = editor.state.selection.from;
           void (async () => {
             const file = await pickMarkdownEditorImageFile();
             if (!file) {
               insertMarkdownEditorImageFromUrl(editor, imagePrompt);
               return;
             }
-            await uploadImageFiles(editor, [file]);
+            await uploadImageFiles(editor, [file], { pos });
           })();
           return;
         }

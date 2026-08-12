@@ -17,6 +17,7 @@ import Image from "@tiptap/extension-image";
 import { Markdown } from "@tiptap/markdown";
 
 import {
+  insertMarkdownEditorImage,
   isAllowedMarkdownEditorImageFile,
   isValidMarkdownEditorImageSrc,
 } from "./markdown-editor-image";
@@ -42,6 +43,45 @@ describe("markdown editor image helpers", () => {
     expect(isValidMarkdownEditorImageSrc("/api/orgs/acme/files/file_1")).toBe(true);
     expect(isValidMarkdownEditorImageSrc("javascript:alert(1)")).toBe(false);
     expect(isValidMarkdownEditorImageSrc("data:image/png;base64,abc")).toBe(false);
+  });
+
+  it("inserts at a captured position even if selection moved", () => {
+    const editor = new Editor({
+      extensions: [StarterKit, Image.configure({ inline: false, allowBase64: false }), Markdown],
+      content: "First paragraph\n\nSecond paragraph",
+      contentType: "markdown",
+    });
+
+    // Start of the second paragraph — not the end-of-doc selection.
+    let secondParagraphPos: number | null = null;
+    editor.state.doc.descendants((node, pos) => {
+      if (
+        secondParagraphPos === null &&
+        node.type.name === "paragraph" &&
+        node.textContent === "Second paragraph"
+      ) {
+        secondParagraphPos = pos + 1;
+      }
+    });
+    expect(secondParagraphPos).not.toBeNull();
+
+    const insertPos = secondParagraphPos!;
+    editor.commands.setTextSelection(1);
+
+    const inserted = insertMarkdownEditorImage(editor, {
+      src: "/api/orgs/acme/files/file_1",
+      alt: "Banner",
+      pos: insertPos,
+    });
+    expect(inserted).toBe(true);
+
+    const markdown = editor.getMarkdown();
+    // Image should land with the second paragraph, not at the moved caret in the first.
+    expect(markdown.indexOf("First paragraph")).toBeLessThan(markdown.indexOf("![Banner]"));
+    expect(markdown.indexOf("![Banner]")).toBeLessThan(markdown.indexOf("Second paragraph"));
+    expect(markdown).not.toMatch(/^!\[Banner]/);
+
+    editor.destroy();
   });
 });
 

@@ -238,9 +238,9 @@ export function MarkdownEditor({
     resolveItems: () => [],
     emptyLabel: "",
   });
-  const uploadImageFilesRef = useRef<(editorInstance: Editor, files: File[]) => Promise<boolean>>(
-    async () => false,
-  );
+  const uploadImageFilesRef = useRef<
+    (editorInstance: Editor, files: File[], options?: { pos?: number }) => Promise<boolean>
+  >(async () => false);
   slashConfigRef.current = {
     resolveItems: (query: string) =>
       filterMarkdownSlashCommandItems(
@@ -302,22 +302,27 @@ export function MarkdownEditor({
   }, []);
 
   const uploadImageFiles = useCallback(
-    async (editorInstance: Editor, files: File[]) => {
+    async (editorInstance: Editor, files: File[], options?: { pos?: number }) => {
       const upload = imageUploadRef.current;
       if (!upload || files.length === 0 || isUploadingImageRef.current) {
         return false;
       }
       isUploadingImageRef.current = true;
       setIsUploadingImage(true);
+      let insertPos = options?.pos ?? editorInstance.state.selection.from;
       try {
         for (const file of files) {
           try {
             const uploaded = await uploadMarkdownEditorImage({ file, upload });
             const alt = file.name.replace(/\.[^.]+$/, "");
-            insertMarkdownEditorImage(editorInstance, {
+            const inserted = insertMarkdownEditorImage(editorInstance, {
               src: uploaded.url,
               alt: alt || undefined,
+              pos: insertPos,
             });
+            if (inserted) {
+              insertPos = editorInstance.state.selection.from;
+            }
           } catch (error) {
             const code = error instanceof Error ? error.message : "image_upload_failed";
             if (code === "unsupported_image_type") {
@@ -367,10 +372,12 @@ export function MarkdownEditor({
         if (!activeEditor) {
           return true;
         }
-        void uploadImageFilesRef.current(activeEditor, files);
+        void uploadImageFilesRef.current(activeEditor, files, {
+          pos: activeEditor.state.selection.from,
+        });
         return true;
       },
-      handleDrop: (_view, event) => {
+      handleDrop: (view, event) => {
         const files = collectImageFilesFromDataTransfer(event.dataTransfer);
         if (files.length === 0 || !imageUploadRef.current) {
           return false;
@@ -380,7 +387,10 @@ export function MarkdownEditor({
         if (!activeEditor) {
           return true;
         }
-        void uploadImageFilesRef.current(activeEditor, files);
+        const dropPos = view.posAtCoords({ left: event.clientX, top: event.clientY })?.pos;
+        void uploadImageFilesRef.current(activeEditor, files, {
+          pos: dropPos ?? activeEditor.state.selection.from,
+        });
         return true;
       },
       handleDOMEvents: {
@@ -458,10 +468,12 @@ export function MarkdownEditor({
           if (!activeEditor) {
             return true;
           }
-          void uploadImageFilesRef.current(activeEditor, files);
+          void uploadImageFilesRef.current(activeEditor, files, {
+            pos: activeEditor.state.selection.from,
+          });
           return true;
         },
-        handleDrop: (_view, event) => {
+        handleDrop: (view, event) => {
           const files = collectImageFilesFromDataTransfer(event.dataTransfer);
           if (files.length === 0 || !imageUploadRef.current) {
             return false;
@@ -471,7 +483,10 @@ export function MarkdownEditor({
           if (!activeEditor) {
             return true;
           }
-          void uploadImageFilesRef.current(activeEditor, files);
+          const dropPos = view.posAtCoords({ left: event.clientX, top: event.clientY })?.pos;
+          void uploadImageFilesRef.current(activeEditor, files, {
+            pos: dropPos ?? activeEditor.state.selection.from,
+          });
           return true;
         },
         handleDOMEvents: {

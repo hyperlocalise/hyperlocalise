@@ -83,6 +83,7 @@ async function insertImageViaToolbar(
   uploadImageFiles: MarkdownEditorUploadImageFiles | null,
 ) {
   if (imageUpload && uploadImageFiles) {
+    const pos = editor.state.selection.from;
     const file = await pickMarkdownEditorImageFile();
     if (!file) {
       insertMarkdownEditorImageFromUrl(
@@ -91,7 +92,7 @@ async function insertImageViaToolbar(
       );
       return;
     }
-    await uploadImageFiles(editor, [file]);
+    await uploadImageFiles(editor, [file], { pos });
     return;
   }
 
