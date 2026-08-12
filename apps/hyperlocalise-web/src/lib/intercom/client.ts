@@ -91,9 +91,7 @@ export async function validateIntercomAccessToken(input: {
     return err({
       code: "intercom_connection_validation_failed",
       message:
-        error instanceof Error
-          ? error.message
-          : "Unable to validate the Intercom access token.",
+        error instanceof Error ? error.message : "Unable to validate the Intercom access token.",
     });
   }
 }

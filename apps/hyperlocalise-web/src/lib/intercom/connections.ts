@@ -22,10 +22,7 @@ import {
 } from "@/lib/security/provider-credential-crypto";
 
 import { validateIntercomAccessToken } from "./client";
-import {
-  isIntercomRestEndpoint,
-  type IntercomRestEndpoint,
-} from "./constants";
+import { isIntercomRestEndpoint, type IntercomRestEndpoint } from "./constants";
 import type {
   IntercomConnectionError,
   IntercomConnectionSummary,
@@ -84,9 +81,7 @@ function encryptAccessToken(accessToken: string) {
   return unwrapProviderCredentialCrypto(encryptProviderCredential(accessToken));
 }
 
-function decryptAccessToken(
-  row: IntercomConnectionRow,
-): Result<string, IntercomConnectionError> {
+function decryptAccessToken(row: IntercomConnectionRow): Result<string, IntercomConnectionError> {
   const decrypted = decryptProviderCredential({
     algorithm: row.encryptionAlgorithm,
     keyVersion: row.keyVersion,

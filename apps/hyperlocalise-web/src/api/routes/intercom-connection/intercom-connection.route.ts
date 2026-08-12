@@ -15,11 +15,7 @@ import { validator } from "hono/validator";
 
 import { hasCapability } from "@/api/auth/policy";
 import { workosAuthMiddleware, type AuthVariables } from "@/api/auth/workos";
-import {
-  badRequestResponse,
-  forbiddenResponse,
-  notFoundResponse,
-} from "@/api/response.schema";
+import { badRequestResponse, forbiddenResponse, notFoundResponse } from "@/api/response.schema";
 import {
   createIntercomConnection,
   deleteIntercomConnection,
