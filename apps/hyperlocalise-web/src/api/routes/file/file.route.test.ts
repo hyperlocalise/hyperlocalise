@@ -414,6 +414,40 @@ describe("file upload route", () => {
     expect(stored?.metadata).toEqual({ uploadSurface: "markdown_editor" });
   });
 
+  it("accepts a proxied multipart upload without content length", async () => {
+    const identity = createWorkosIdentityWithRole("member");
+    const headers = await authHeadersFor(identity);
+    const formData = new FormData();
+    formData.set(
+      "file",
+      new File([Uint8Array.from([0x89, 0x50, 0x4e, 0x47])], "proxied.png", {
+        type: "image/png",
+      }),
+    );
+    const request = new Request(`http://localhost/api/orgs/${identity.organization.slug}/files`, {
+      method: "POST",
+      headers,
+      body: formData,
+    });
+    const proxiedRequest = new Proxy(request, {
+      get(target, property) {
+        const value = Reflect.get(target, property, target);
+        return typeof value === "function" ? value.bind(target) : value;
+      },
+    });
+
+    const response = await app.fetch(proxiedRequest);
+
+    expect(response.status).toBe(201);
+    await expect(response.json()).resolves.toMatchObject({
+      file: {
+        filename: "proxied.png",
+        contentType: "image/png",
+        byteSize: 4,
+      },
+    });
+  });
+
   it("rejects unsupported image content types", async () => {
     const identity = createWorkosIdentityWithRole("member");
     const headers = await authHeadersFor(identity);
