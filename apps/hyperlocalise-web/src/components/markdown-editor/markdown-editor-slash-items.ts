@@ -29,11 +29,15 @@ import {
 import type { IntlShape } from "react-intl";
 
 import {
-  insertMarkdownEditorImageFromUrl,
+  insertMarkdownEditorImage,
   pickMarkdownEditorImageFile,
   type MarkdownEditorImageUploadConfig,
   type MarkdownEditorUploadImageFiles,
 } from "./markdown-editor-image";
+import {
+  getMarkdownEditorImageSourceLabels,
+  promptMarkdownEditorImageSource,
+} from "./markdown-editor-image-source-dialog";
 import { markdownEditorMessages as messages } from "./markdown-editor.messages";
 
 export type MarkdownSlashShortcutPart = "mod" | "alt" | "shift" | (string & {});
@@ -80,9 +84,9 @@ export function buildMarkdownSlashCommandItems(
   } = {},
 ): MarkdownSlashCommandItem[] {
   const linkPrompt = intl.formatMessage(messages.linkPrompt);
-  const imagePrompt = intl.formatMessage(messages.imagePrompt);
   const imageUpload = options.imageUpload ?? null;
   const uploadImageFiles = options.uploadImageFiles ?? null;
+  const imageSourceLabels = getMarkdownEditorImageSourceLabels(intl);
 
   return [
     {
@@ -178,19 +182,26 @@ export function buildMarkdownSlashCommandItems(
       keywords: ["image", "img", "picture", "photo", "upload"],
       run: ({ editor, range }) => {
         editor.chain().focus().deleteRange(range).run();
-        if (imageUpload && uploadImageFiles) {
-          const pos = editor.state.selection.from;
-          void (async () => {
-            const file = await pickMarkdownEditorImageFile();
-            if (!file) {
-              insertMarkdownEditorImageFromUrl(editor, imagePrompt);
-              return;
-            }
-            await uploadImageFiles(editor, [file], { pos });
-          })();
-          return;
-        }
-        insertMarkdownEditorImageFromUrl(editor, imagePrompt);
+        const allowUpload = Boolean(imageUpload && uploadImageFiles);
+        const pos = editor.state.selection.from;
+        void (async () => {
+          const choice = await promptMarkdownEditorImageSource(imageSourceLabels, { allowUpload });
+          if (!choice) {
+            return;
+          }
+          if (choice.kind === "url") {
+            insertMarkdownEditorImage(editor, { src: choice.src, pos });
+            return;
+          }
+          if (!uploadImageFiles) {
+            return;
+          }
+          const file = await pickMarkdownEditorImageFile();
+          if (!file) {
+            return;
+          }
+          await uploadImageFiles(editor, [file], { pos });
+        })();
       },
     },
     {

@@ -202,8 +202,38 @@ export const markdownEditorMessages = defineMessages({
   },
   imagePrompt: {
     defaultMessage: "Enter image URL",
-    id: "TMj6D+Yhyn",
-    description: "Prompt shown when inserting an image by URL",
+    id: "nU96BLMwJI",
+    description: "Label for the image URL field in the insert-image dialog",
+  },
+  imageSourceDialogTitle: {
+    defaultMessage: "Insert image",
+    id: "YhyWgKMwTp",
+    description: "Title of the dialog for choosing how to insert an image",
+  },
+  imageSourceUpload: {
+    defaultMessage: "Upload image",
+    id: "BWdxr7XQ2f",
+    description: "Dialog action to upload an image file",
+  },
+  imageSourceEnterUrl: {
+    defaultMessage: "Enter URL",
+    id: "3poXpaPEFu",
+    description: "Dialog action to switch to entering an image URL",
+  },
+  imageSourceUrlPlaceholder: {
+    defaultMessage: "https://",
+    id: "CGcIng445f",
+    description: "Placeholder shown in the image URL input",
+  },
+  imageSourceInsert: {
+    defaultMessage: "Insert",
+    id: "Qnl5usEJ9F",
+    description: "Confirm button to insert an image from a URL",
+  },
+  imageSourceCancel: {
+    defaultMessage: "Cancel",
+    id: "ze9bxcwl8T",
+    description: "Cancel button on the insert-image dialog",
   },
   imageLabel: {
     defaultMessage: "Img",

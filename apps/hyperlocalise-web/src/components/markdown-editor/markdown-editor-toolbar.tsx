@@ -19,11 +19,15 @@ import { useIntl } from "react-intl";
 import { cn } from "@/lib/primitives/cn";
 
 import {
-  insertMarkdownEditorImageFromUrl,
+  insertMarkdownEditorImage,
   pickMarkdownEditorImageFile,
   type MarkdownEditorImageUploadConfig,
   type MarkdownEditorUploadImageFiles,
 } from "./markdown-editor-image";
+import {
+  getMarkdownEditorImageSourceLabels,
+  promptMarkdownEditorImageSource,
+} from "./markdown-editor-image-source-dialog";
 import { markdownEditorMessages } from "./markdown-editor.messages";
 
 type MarkdownCommandChain = ReturnType<Editor["chain"]> & {
@@ -82,21 +86,26 @@ async function insertImageViaToolbar(
   imageUpload: MarkdownEditorImageUploadConfig | null,
   uploadImageFiles: MarkdownEditorUploadImageFiles | null,
 ) {
-  if (imageUpload && uploadImageFiles) {
-    const pos = editor.state.selection.from;
-    const file = await pickMarkdownEditorImageFile();
-    if (!file) {
-      insertMarkdownEditorImageFromUrl(
-        editor,
-        intl.formatMessage(markdownEditorMessages.imagePrompt),
-      );
-      return;
-    }
-    await uploadImageFiles(editor, [file], { pos });
+  const allowUpload = Boolean(imageUpload && uploadImageFiles);
+  const choice = await promptMarkdownEditorImageSource(getMarkdownEditorImageSourceLabels(intl), {
+    allowUpload,
+  });
+  if (!choice) {
     return;
   }
-
-  insertMarkdownEditorImageFromUrl(editor, intl.formatMessage(markdownEditorMessages.imagePrompt));
+  if (choice.kind === "url") {
+    insertMarkdownEditorImage(editor, { src: choice.src });
+    return;
+  }
+  if (!uploadImageFiles) {
+    return;
+  }
+  const pos = editor.state.selection.from;
+  const file = await pickMarkdownEditorImageFile();
+  if (!file) {
+    return;
+  }
+  await uploadImageFiles(editor, [file], { pos });
 }
 
 export function MarkdownEditorToolbar({

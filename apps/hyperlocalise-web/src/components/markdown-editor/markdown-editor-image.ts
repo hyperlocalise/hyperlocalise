@@ -126,18 +126,6 @@ export function insertMarkdownEditorImage(
   return nextPos;
 }
 
-export function insertMarkdownEditorImageFromUrl(
-  editor: Editor,
-  promptLabel: string,
-  defaultValue = "https://",
-) {
-  const url = window.prompt(promptLabel, defaultValue);
-  if (url === null) {
-    return false;
-  }
-  return insertMarkdownEditorImage(editor, { src: url });
-}
-
 export async function uploadMarkdownEditorImage(input: {
   file: File;
   upload: MarkdownEditorImageUploadConfig;
