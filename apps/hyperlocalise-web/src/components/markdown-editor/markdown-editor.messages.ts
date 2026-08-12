@@ -230,6 +230,11 @@ export const markdownEditorMessages = defineMessages({
     id: "s2RbfpSnxA",
     description: "Toast when image upload to storage fails",
   },
+  imageUploading: {
+    defaultMessage: "Uploading image…",
+    id: "TtLubrrGZM",
+    description: "Status shown over the editor while an image upload is in progress",
+  },
   bubbleBold: {
     defaultMessage: "Bold",
     id: "DRi2LRug2G",

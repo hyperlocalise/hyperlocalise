@@ -27,13 +27,12 @@ import {
   Link01Icon,
 } from "@hugeicons/core-free-icons";
 import type { IntlShape } from "react-intl";
-import { toast } from "sonner";
 
 import {
   insertMarkdownEditorImageFromUrl,
-  insertMarkdownEditorImageFromUpload,
   pickMarkdownEditorImageFile,
   type MarkdownEditorImageUploadConfig,
+  type MarkdownEditorUploadImageFiles,
 } from "./markdown-editor-image";
 import { markdownEditorMessages as messages } from "./markdown-editor.messages";
 
@@ -75,11 +74,15 @@ export function formatMarkdownSlashShortcut(
 
 export function buildMarkdownSlashCommandItems(
   intl: IntlShape,
-  options: { imageUpload?: MarkdownEditorImageUploadConfig | null } = {},
+  options: {
+    imageUpload?: MarkdownEditorImageUploadConfig | null;
+    uploadImageFiles?: MarkdownEditorUploadImageFiles | null;
+  } = {},
 ): MarkdownSlashCommandItem[] {
   const linkPrompt = intl.formatMessage(messages.linkPrompt);
   const imagePrompt = intl.formatMessage(messages.imagePrompt);
   const imageUpload = options.imageUpload ?? null;
+  const uploadImageFiles = options.uploadImageFiles ?? null;
 
   return [
     {
@@ -175,29 +178,14 @@ export function buildMarkdownSlashCommandItems(
       keywords: ["image", "img", "picture", "photo", "upload"],
       run: ({ editor, range }) => {
         editor.chain().focus().deleteRange(range).run();
-        if (imageUpload) {
+        if (imageUpload && uploadImageFiles) {
           void (async () => {
             const file = await pickMarkdownEditorImageFile();
             if (!file) {
               insertMarkdownEditorImageFromUrl(editor, imagePrompt);
               return;
             }
-            try {
-              await insertMarkdownEditorImageFromUpload({
-                editor,
-                file,
-                upload: imageUpload,
-              });
-            } catch (error) {
-              const code = error instanceof Error ? error.message : "image_upload_failed";
-              if (code === "unsupported_image_type") {
-                toast.error(intl.formatMessage(messages.imageUnsupportedType));
-              } else if (code === "image_too_large" || code === "file_upload_too_large") {
-                toast.error(intl.formatMessage(messages.imageTooLarge));
-              } else {
-                toast.error(intl.formatMessage(messages.imageUploadFailed));
-              }
-            }
+            await uploadImageFiles(editor, [file]);
           })();
           return;
         }

@@ -12,7 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { useCallback, useEffect, useMemo, useRef, type FocusEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type FocusEvent } from "react";
 import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Image from "@tiptap/extension-image";
@@ -25,6 +25,7 @@ import type { Editor, Extensions } from "@tiptap/core";
 import { useIntl } from "react-intl";
 import { toast } from "sonner";
 
+import { Spinner } from "@/components/ui/spinner";
 import { cn } from "@/lib/primitives/cn";
 
 import { MarkdownEditorBubbleMenu } from "./markdown-editor-bubble-menu";
@@ -225,7 +226,8 @@ export function MarkdownEditor({
   const rootRef = useRef<HTMLDivElement>(null);
   const blurCommitScheduledRef = useRef(false);
   const linkPromptOpenRef = useRef(false);
-  const imageUploadBusyRef = useRef(false);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
+  const isUploadingImageRef = useRef(false);
   const onBlurRef = useRef(onBlur);
   onBlurRef.current = onBlur;
   const onMentionNavigateRef = useRef(onMentionNavigate);
@@ -236,10 +238,16 @@ export function MarkdownEditor({
     resolveItems: () => [],
     emptyLabel: "",
   });
+  const uploadImageFilesRef = useRef<(editorInstance: Editor, files: File[]) => Promise<boolean>>(
+    async () => false,
+  );
   slashConfigRef.current = {
     resolveItems: (query: string) =>
       filterMarkdownSlashCommandItems(
-        buildMarkdownSlashCommandItems(intl, { imageUpload: imageUploadRef.current }),
+        buildMarkdownSlashCommandItems(intl, {
+          imageUpload: imageUploadRef.current,
+          uploadImageFiles: uploadImageFilesRef.current,
+        }),
         query,
       ),
     emptyLabel: intl.formatMessage(markdownEditorMessages.slashEmpty),
@@ -296,10 +304,11 @@ export function MarkdownEditor({
   const uploadImageFiles = useCallback(
     async (editorInstance: Editor, files: File[]) => {
       const upload = imageUploadRef.current;
-      if (!upload || files.length === 0 || imageUploadBusyRef.current) {
+      if (!upload || files.length === 0 || isUploadingImageRef.current) {
         return false;
       }
-      imageUploadBusyRef.current = true;
+      isUploadingImageRef.current = true;
+      setIsUploadingImage(true);
       try {
         for (const file of files) {
           try {
@@ -322,13 +331,13 @@ export function MarkdownEditor({
         }
         return true;
       } finally {
-        imageUploadBusyRef.current = false;
+        isUploadingImageRef.current = false;
+        setIsUploadingImage(false);
       }
     },
     [intl],
   );
 
-  const uploadImageFilesRef = useRef(uploadImageFiles);
   uploadImageFilesRef.current = uploadImageFiles;
   const editorRef = useRef<Editor | null>(null);
 
@@ -510,7 +519,9 @@ export function MarkdownEditor({
     <div
       ref={rootRef}
       onBlur={handleRootFocusOut}
+      aria-busy={isUploadingImage || undefined}
       className={cn(
+        "relative",
         isMinimal
           ? compact
             ? "[&_.tiptap]:min-h-6"
@@ -522,7 +533,13 @@ export function MarkdownEditor({
       )}
     >
       {!disabled && !isMinimal ? (
-        <MarkdownEditorToolbar editor={editor} disabled={disabled} imageUpload={imageUpload} />
+        <MarkdownEditorToolbar
+          editor={editor}
+          disabled={disabled}
+          imageUpload={imageUpload}
+          uploadImageFiles={uploadImageFiles}
+          isUploadingImage={isUploadingImage}
+        />
       ) : null}
       <EditorContent
         editor={editor}
@@ -532,6 +549,18 @@ export function MarkdownEditor({
             : "max-h-[32rem] min-h-[8rem] resize-y overflow-auto",
         )}
       />
+      {isUploadingImage ? (
+        <div
+          className="absolute inset-0 z-10 flex items-center justify-center rounded-[inherit] bg-background/70 backdrop-blur-[1px]"
+          role="status"
+          aria-live="polite"
+        >
+          <div className="inline-flex items-center gap-2 rounded-md border border-border bg-muted px-3 py-1.5 text-sm text-subtle-foreground shadow-sm">
+            <Spinner className="size-4" />
+            <span>{intl.formatMessage(markdownEditorMessages.imageUploading)}</span>
+          </div>
+        </div>
+      ) : null}
       {!disabled ? (
         <MarkdownEditorBubbleMenu
           editor={editor}

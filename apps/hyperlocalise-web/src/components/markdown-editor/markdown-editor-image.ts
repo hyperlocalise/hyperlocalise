@@ -19,6 +19,8 @@ export type MarkdownEditorImageUploadConfig = {
   projectId?: string | null;
 };
 
+export type MarkdownEditorUploadImageFiles = (editor: Editor, files: File[]) => Promise<boolean>;
+
 export const MARKDOWN_EDITOR_IMAGE_ACCEPT = "image/png,image/jpeg,image/webp";
 export const MARKDOWN_EDITOR_IMAGE_MAX_BYTES = 10 * 1024 * 1024;
 
