@@ -10,7 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { and, eq } from "drizzle-orm";
+import { and, eq, lte } from "drizzle-orm";
 
 import type { RepositoryAgentGitHubContext } from "@/lib/agent-contracts/repository-task";
 import { stopRepositorySandbox } from "@/lib/agent-runtime/workspaces/repository-sandbox";
@@ -117,25 +117,16 @@ function asConversationRepositorySession(value: unknown): ConversationRepository
   return value as ConversationRepositorySession;
 }
 
-async function deleteExpiredSessionRow(input: {
-  interactionId: string;
+type InteractionRepositorySessionRow = {
   organizationId: string;
-  session: ConversationRepositorySession;
-}) {
-  await db
-    .delete(schema.interactionRepositorySessions)
-    .where(
-      and(
-        eq(schema.interactionRepositorySessions.interactionId, input.interactionId),
-        eq(schema.interactionRepositorySessions.organizationId, input.organizationId),
-      ),
-    );
-  releaseWebSessionSandbox(input.session);
-}
+  session: unknown;
+  version: number;
+  expiresAt: Date;
+};
 
-export async function getWebConversationRepositorySession(
+async function readInteractionRepositorySessionRow(
   conversationId: string,
-): Promise<WebConversationRepositorySessionState | null> {
+): Promise<InteractionRepositorySessionRow | null> {
   const [row] = await db
     .select({
       organizationId: schema.interactionRepositorySessions.organizationId,
@@ -147,6 +138,44 @@ export async function getWebConversationRepositorySession(
     .where(eq(schema.interactionRepositorySessions.interactionId, conversationId))
     .limit(1);
 
+  return row ?? null;
+}
+
+async function deleteExpiredSessionRow(input: {
+  interactionId: string;
+  organizationId: string;
+  version: number;
+  expiresAt: Date;
+  session: ConversationRepositorySession;
+}) {
+  // Compare-and-delete on the observed version and expiry so a concurrent refresh
+  // cannot be wiped by a stale cleanup path.
+  const deleted = await db
+    .delete(schema.interactionRepositorySessions)
+    .where(
+      and(
+        eq(schema.interactionRepositorySessions.interactionId, input.interactionId),
+        eq(schema.interactionRepositorySessions.organizationId, input.organizationId),
+        eq(schema.interactionRepositorySessions.version, input.version),
+        lte(schema.interactionRepositorySessions.expiresAt, input.expiresAt),
+      ),
+    )
+    .returning({
+      interactionId: schema.interactionRepositorySessions.interactionId,
+    });
+
+  if (deleted.length === 0) {
+    return false;
+  }
+
+  releaseWebSessionSandbox(input.session);
+  return true;
+}
+
+export async function getWebConversationRepositorySession(
+  conversationId: string,
+): Promise<WebConversationRepositorySessionState | null> {
+  const row = await readInteractionRepositorySessionRow(conversationId);
   if (!row) {
     return null;
   }
@@ -160,11 +189,17 @@ export async function getWebConversationRepositorySession(
   }
 
   if (row.expiresAt.getTime() <= Date.now()) {
-    await deleteExpiredSessionRow({
+    const deleted = await deleteExpiredSessionRow({
       interactionId: conversationId,
       organizationId: row.organizationId,
+      version: row.version,
+      expiresAt: row.expiresAt,
       session,
     });
+    if (!deleted) {
+      // Another turn refreshed the row; return the live session instead of null.
+      return getWebConversationRepositorySession(conversationId);
+    }
     return null;
   }
 
@@ -185,30 +220,33 @@ export async function setWebConversationRepositorySession(
   const now = new Date();
   const expiresAt = new Date(now.getTime() + WEB_SESSION_TTL_MS);
 
-  const [existing] = await db
-    .select({
-      organizationId: schema.interactionRepositorySessions.organizationId,
-      session: schema.interactionRepositorySessions.session,
-      version: schema.interactionRepositorySessions.version,
-      expiresAt: schema.interactionRepositorySessions.expiresAt,
-    })
-    .from(schema.interactionRepositorySessions)
-    .where(eq(schema.interactionRepositorySessions.interactionId, conversationId))
-    .limit(1);
-
+  let existing = await readInteractionRepositorySessionRow(conversationId);
   let existingSession: ConversationRepositorySession | null = null;
   let currentVersion: number | null = null;
 
   if (existing) {
     existingSession = asConversationRepositorySession(existing.session);
     if (existing.expiresAt.getTime() <= now.getTime()) {
-      await deleteExpiredSessionRow({
+      const deleted = await deleteExpiredSessionRow({
         interactionId: conversationId,
         organizationId: existing.organizationId,
+        version: existing.version,
+        expiresAt: existing.expiresAt,
         session: existingSession ?? {},
       });
-      existingSession = null;
-      currentVersion = null;
+      if (deleted) {
+        existingSession = null;
+        currentVersion = null;
+      } else {
+        existing = await readInteractionRepositorySessionRow(conversationId);
+        if (!existing || existing.expiresAt.getTime() <= now.getTime()) {
+          existingSession = null;
+          currentVersion = null;
+        } else {
+          existingSession = asConversationRepositorySession(existing.session);
+          currentVersion = existing.version;
+        }
+      }
     } else {
       currentVersion = existing.version;
     }

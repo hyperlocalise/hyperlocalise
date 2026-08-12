@@ -14,7 +14,7 @@ import "dotenv/config";
 
 import { randomUUID } from "node:crypto";
 
-import { eq } from "drizzle-orm";
+import { and, eq, lte } from "drizzle-orm";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
 const { stopRepositorySandboxMock } = vi.hoisted(() => ({
@@ -319,6 +319,78 @@ describe("web conversation repository session", () => {
         },
       },
       version: 2,
+    });
+  });
+
+  it("does not delete a refreshed session when a stale versioned expiry cleanup runs", async () => {
+    const organization = await createOrganization();
+    const interaction = await createInteraction(organization.id);
+
+    await setSession(interaction.id, {
+      organizationId: organization.id,
+      baseVersion: null,
+      session: {
+        repositorySandboxSession: {
+          sandboxId: "sbx_stale",
+          repositoryContextKey: "ctx_stale",
+          createdAt: "2026-07-01T12:00:00.000Z",
+          lastUsedAt: "2026-07-01T12:00:00.000Z",
+        },
+      },
+    });
+
+    const [expiredRow] = await db
+      .select({
+        version: schema.interactionRepositorySessions.version,
+        expiresAt: schema.interactionRepositorySessions.expiresAt,
+      })
+      .from(schema.interactionRepositorySessions)
+      .where(eq(schema.interactionRepositorySessions.interactionId, interaction.id))
+      .limit(1);
+
+    vi.advanceTimersByTime(WEB_SESSION_TTL_MS + 1);
+
+    // Concurrent turn refreshes the row (new version + expiry) before stale cleanup runs.
+    await db
+      .update(schema.interactionRepositorySessions)
+      .set({
+        session: {
+          repositorySandboxSession: {
+            sandboxId: "sbx_refreshed",
+            repositoryContextKey: "ctx_refreshed",
+            createdAt: "2026-07-01T12:31:00.000Z",
+            lastUsedAt: "2026-07-01T12:31:00.000Z",
+          },
+        },
+        version: (expiredRow?.version ?? 1) + 1,
+        expiresAt: new Date(Date.now() + WEB_SESSION_TTL_MS),
+        updatedAt: new Date(),
+      })
+      .where(eq(schema.interactionRepositorySessions.interactionId, interaction.id));
+
+    // Same compare-and-delete predicate used by expiry cleanup for the stale observation.
+    const deleted = await db
+      .delete(schema.interactionRepositorySessions)
+      .where(
+        and(
+          eq(schema.interactionRepositorySessions.interactionId, interaction.id),
+          eq(schema.interactionRepositorySessions.organizationId, organization.id),
+          eq(schema.interactionRepositorySessions.version, expiredRow!.version),
+          lte(schema.interactionRepositorySessions.expiresAt, expiredRow!.expiresAt),
+        ),
+      )
+      .returning({
+        interactionId: schema.interactionRepositorySessions.interactionId,
+      });
+
+    expect(deleted).toHaveLength(0);
+    await expect(getWebConversationRepositorySession(interaction.id)).resolves.toMatchObject({
+      session: {
+        repositorySandboxSession: {
+          sandboxId: "sbx_refreshed",
+        },
+      },
+      version: (expiredRow?.version ?? 1) + 1,
     });
   });
 });
