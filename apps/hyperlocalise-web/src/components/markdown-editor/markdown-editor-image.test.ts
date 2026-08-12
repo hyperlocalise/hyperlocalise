@@ -17,6 +17,7 @@ import Image from "@tiptap/extension-image";
 import { Markdown } from "@tiptap/markdown";
 
 import {
+  createMarkdownEditorMappedPosTracker,
   insertMarkdownEditorImage,
   isAllowedMarkdownEditorImageFile,
   isValidMarkdownEditorImageSrc,
@@ -132,6 +133,50 @@ describe("markdown editor image helpers", () => {
     expect(secondIdx).toBeLessThan(markdown.indexOf("Second paragraph"));
     expect(markdown).not.toMatch(/^!\[Two]/);
 
+    editor.destroy();
+  });
+
+  it("remaps a tracked insert pos when earlier content changes during upload", () => {
+    const editor = new Editor({
+      extensions: [StarterKit, Image.configure({ inline: false, allowBase64: false }), Markdown],
+      content: "First paragraph\n\nSecond paragraph",
+      contentType: "markdown",
+    });
+
+    let secondParagraphPos: number | null = null;
+    editor.state.doc.descendants((node, pos) => {
+      if (
+        secondParagraphPos === null &&
+        node.type.name === "paragraph" &&
+        node.textContent === "Second paragraph"
+      ) {
+        secondParagraphPos = pos + 1;
+      }
+    });
+    expect(secondParagraphPos).not.toBeNull();
+
+    const stalePos = secondParagraphPos!;
+    const tracker = createMarkdownEditorMappedPosTracker(editor, stalePos);
+
+    // Prefer a ProseMirror text insert so the headless editor does not need DOM parsing.
+    editor.view.dispatch(editor.state.tr.insertText("PREFIX ", 1));
+
+    const remappedPos = tracker.getPos();
+    expect(remappedPos).toBeGreaterThan(stalePos);
+
+    const nextPos = insertMarkdownEditorImage(editor, {
+      src: "/api/orgs/acme/files/file_1",
+      alt: "Banner",
+      pos: remappedPos,
+    });
+    expect(typeof nextPos).toBe("number");
+
+    const markdown = editor.getMarkdown();
+    expect(markdown).toContain("PREFIX");
+    expect(markdown.indexOf("First paragraph")).toBeLessThan(markdown.indexOf("![Banner]"));
+    expect(markdown.indexOf("![Banner]")).toBeLessThan(markdown.indexOf("Second paragraph"));
+
+    tracker.stop();
     editor.destroy();
   });
 });

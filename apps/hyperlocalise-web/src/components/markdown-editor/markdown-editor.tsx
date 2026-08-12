@@ -32,6 +32,7 @@ import { MarkdownEditorBubbleMenu } from "./markdown-editor-bubble-menu";
 import { markdownEditorMessages } from "./markdown-editor.messages";
 import {
   collectImageFilesFromDataTransfer,
+  createMarkdownEditorMappedPosTracker,
   insertMarkdownEditorImage,
   uploadMarkdownEditorImage,
   type MarkdownEditorImageUploadConfig,
@@ -309,7 +310,10 @@ export function MarkdownEditor({
       }
       isUploadingImageRef.current = true;
       setIsUploadingImage(true);
-      let insertPos = options?.pos ?? editorInstance.state.selection.from;
+      const insertPosTracker = createMarkdownEditorMappedPosTracker(
+        editorInstance,
+        options?.pos ?? editorInstance.state.selection.from,
+      );
       try {
         for (const file of files) {
           try {
@@ -318,10 +322,10 @@ export function MarkdownEditor({
             const nextPos = insertMarkdownEditorImage(editorInstance, {
               src: uploaded.url,
               alt: alt || undefined,
-              pos: insertPos,
+              pos: insertPosTracker.getPos(),
             });
             if (typeof nextPos === "number") {
-              insertPos = nextPos;
+              insertPosTracker.setPos(nextPos);
             }
           } catch (error) {
             const code = error instanceof Error ? error.message : "image_upload_failed";
@@ -336,6 +340,7 @@ export function MarkdownEditor({
         }
         return true;
       } finally {
+        insertPosTracker.stop();
         isUploadingImageRef.current = false;
         setIsUploadingImage(false);
       }

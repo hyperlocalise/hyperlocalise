@@ -64,6 +64,43 @@ function clampMarkdownEditorInsertPos(editor: Editor, pos: number) {
   return Math.max(0, Math.min(pos, max));
 }
 
+export type MarkdownEditorMappedPosTracker = {
+  getPos: () => number;
+  setPos: (pos: number) => void;
+  stop: () => void;
+};
+
+/**
+ * Keeps a document position valid across concurrent edits by remapping it
+ * through ProseMirror transaction mappings until `stop()` is called.
+ */
+export function createMarkdownEditorMappedPosTracker(
+  editor: Editor,
+  initialPos: number,
+): MarkdownEditorMappedPosTracker {
+  let pos = clampMarkdownEditorInsertPos(editor, initialPos);
+  const onTransaction = ({
+    transaction,
+  }: {
+    transaction: { docChanged: boolean; mapping: { map: (position: number) => number } };
+  }) => {
+    if (!transaction.docChanged) {
+      return;
+    }
+    pos = clampMarkdownEditorInsertPos(editor, transaction.mapping.map(pos));
+  };
+  editor.on("transaction", onTransaction);
+  return {
+    getPos: () => clampMarkdownEditorInsertPos(editor, pos),
+    setPos: (nextPos: number) => {
+      pos = clampMarkdownEditorInsertPos(editor, nextPos);
+    },
+    stop: () => {
+      editor.off("transaction", onTransaction);
+    },
+  };
+}
+
 export function insertMarkdownEditorImage(
   editor: Editor,
   input: { src: string; alt?: string | null; pos?: number },
