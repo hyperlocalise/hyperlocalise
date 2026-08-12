@@ -51,7 +51,13 @@ export function CatEditorAiRecommendation({
     >
       <div className="mb-2.5 flex items-center justify-between gap-3">
         <p className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
-          <SparklesIcon className="size-3.5 shrink-0" aria-hidden />
+          <SparklesIcon
+            className={cn(
+              "size-3.5 shrink-0",
+              hasSuggestion ? "text-grove-300" : "text-grove-300/70",
+            )}
+            aria-hidden
+          />
           <FormattedMessage {...catEditorPanelMessages.aiRecommendation} />
         </p>
         <div className="flex items-center gap-1.5">

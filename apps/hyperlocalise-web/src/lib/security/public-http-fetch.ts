@@ -67,11 +67,20 @@ export async function withPublicHttpFetch<T>(
     maxResponseSize: MAX_PUBLIC_HTTP_RESPONSE_BYTES,
   });
 
+  // redirect:"follow" is unsafe with DNS pinning: undici/Node can connect to
+  // IP-literal Location targets without calling the pinned lookup, enabling SSRF.
+  const requestedRedirect = init?.redirect ?? "error";
+  if (requestedRedirect === "follow") {
+    throw new Error(
+      'withPublicHttpFetch does not allow redirect: "follow"; use "manual" and re-validate each hop',
+    );
+  }
+
   try {
     const requestInit = {
       ...init,
       dispatcher,
-      redirect: init?.redirect ?? "error",
+      redirect: requestedRedirect,
     } as UndiciRequestInit;
 
     const response = (await undiciFetch(url, requestInit)) as unknown as Response;

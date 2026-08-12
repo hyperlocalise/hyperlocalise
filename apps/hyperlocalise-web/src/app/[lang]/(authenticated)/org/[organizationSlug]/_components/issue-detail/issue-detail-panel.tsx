@@ -642,6 +642,7 @@ export const IssueDetailPanel = forwardRef<
           placeholder={intl.formatMessage(messages.fieldDescription)}
           emptyMessage={intl.formatMessage(markdownFieldMessages.emptyDescription)}
           ariaLabel={intl.formatMessage(messages.fieldDescription)}
+          imageUpload={{ organizationSlug, projectId }}
         />
 
         <section className="mt-2 grid gap-2 border-t border-border pt-4">
@@ -657,6 +658,7 @@ export const IssueDetailPanel = forwardRef<
             placeholder={intl.formatMessage(messages.fieldOwnerNotePlaceholder)}
             emptyMessage={intl.formatMessage(markdownFieldMessages.emptyOwnerNote)}
             ariaLabel={intl.formatMessage(messages.fieldOwnerNote)}
+            imageUpload={{ organizationSlug, projectId }}
           />
         </section>
 
@@ -675,6 +677,7 @@ export const IssueDetailPanel = forwardRef<
                   variant="main"
                   members={assignableMembersQuery.data?.members ?? []}
                   membersLoading={assignableMembersQuery.isLoading}
+                  imageUpload={{ organizationSlug, projectId }}
                   onDraftChange={(value) => updateCustomColumnDraft(column.key, value)}
                   onCommit={() => saveCustomColumnDraft(column.key)}
                   onChange={(value) => saveCustomColumnValue(column.key, value)}
@@ -1035,6 +1038,7 @@ export const IssueDetailPanel = forwardRef<
                         variant="sidebar"
                         members={assignableMembersQuery.data?.members ?? []}
                         membersLoading={assignableMembersQuery.isLoading}
+                        imageUpload={{ organizationSlug, projectId }}
                         onDraftChange={(value) => updateCustomColumnDraft(column.key, value)}
                         onCommit={() => saveCustomColumnDraft(column.key)}
                         onChange={(value) => saveCustomColumnValue(column.key, value)}

@@ -18,6 +18,14 @@ import { useIntl } from "react-intl";
 
 import { cn } from "@/lib/primitives/cn";
 
+import type {
+  MarkdownEditorImageUploadConfig,
+  MarkdownEditorUploadImageFiles,
+} from "./markdown-editor-image";
+import {
+  getMarkdownEditorImageSourceLabels,
+  insertMarkdownEditorImageViaSourceDialog,
+} from "./markdown-editor-image-source-dialog";
 import { markdownEditorMessages } from "./markdown-editor.messages";
 
 type MarkdownCommandChain = ReturnType<Editor["chain"]> & {
@@ -70,7 +78,33 @@ function MarkdownToolbarButton({
   );
 }
 
-export function MarkdownEditorToolbar({ editor, disabled }: { editor: Editor; disabled: boolean }) {
+async function insertImageViaToolbar(
+  editor: Editor,
+  intl: ReturnType<typeof useIntl>,
+  imageUpload: MarkdownEditorImageUploadConfig | null,
+  uploadImageFiles: MarkdownEditorUploadImageFiles | null,
+) {
+  const allowUpload = Boolean(imageUpload && uploadImageFiles);
+  await insertMarkdownEditorImageViaSourceDialog(editor, getMarkdownEditorImageSourceLabels(intl), {
+    allowUpload,
+    uploadImageFiles,
+    pos: editor.state.selection.from,
+  });
+}
+
+export function MarkdownEditorToolbar({
+  editor,
+  disabled,
+  imageUpload = null,
+  uploadImageFiles = null,
+  isUploadingImage = false,
+}: {
+  editor: Editor;
+  disabled: boolean;
+  imageUpload?: MarkdownEditorImageUploadConfig | null;
+  uploadImageFiles?: MarkdownEditorUploadImageFiles | null;
+  isUploadingImage?: boolean;
+}) {
   const intl = useIntl();
   const isDisabled = disabled || !editor.isEditable;
   const activeMarks = useEditorState({
@@ -147,6 +181,14 @@ export function MarkdownEditorToolbar({ editor, disabled }: { editor: Editor; di
         pressed={activeMarks.code}
         disabled={isDisabled}
         onClick={() => markdownCommandChain(editor).toggleCode().run()}
+      />
+      <MarkdownToolbarButton
+        label={intl.formatMessage(markdownEditorMessages.imageLabel)}
+        title={intl.formatMessage(markdownEditorMessages.imageTitle)}
+        disabled={isDisabled || isUploadingImage}
+        onClick={() => {
+          void insertImageViaToolbar(editor, intl, imageUpload, uploadImageFiles);
+        }}
       />
     </div>
   );

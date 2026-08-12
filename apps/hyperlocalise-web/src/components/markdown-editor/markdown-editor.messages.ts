@@ -195,6 +195,76 @@ export const markdownEditorMessages = defineMessages({
     id: "YyO52dNKVM",
     description: "Slash menu item for inserting a hyperlink",
   },
+  slashImageTitle: {
+    defaultMessage: "Image",
+    id: "roHaMHNwoS",
+    description: "Slash menu item for inserting an image",
+  },
+  imagePrompt: {
+    defaultMessage: "Enter image URL",
+    id: "nU96BLMwJI",
+    description: "Label for the image URL field in the insert-image dialog",
+  },
+  imageSourceDialogTitle: {
+    defaultMessage: "Insert image",
+    id: "YhyWgKMwTp",
+    description: "Title of the dialog for choosing how to insert an image",
+  },
+  imageSourceUpload: {
+    defaultMessage: "Upload image",
+    id: "BWdxr7XQ2f",
+    description: "Dialog action to upload an image file",
+  },
+  imageSourceEnterUrl: {
+    defaultMessage: "Enter URL",
+    id: "3poXpaPEFu",
+    description: "Dialog action to switch to entering an image URL",
+  },
+  imageSourceUrlPlaceholder: {
+    defaultMessage: "https://",
+    id: "CGcIng445f",
+    description: "Placeholder shown in the image URL input",
+  },
+  imageSourceInsert: {
+    defaultMessage: "Insert",
+    id: "Qnl5usEJ9F",
+    description: "Confirm button to insert an image from a URL",
+  },
+  imageSourceCancel: {
+    defaultMessage: "Cancel",
+    id: "ze9bxcwl8T",
+    description: "Cancel button on the insert-image dialog",
+  },
+  imageLabel: {
+    defaultMessage: "Img",
+    id: "ed4/NRs4Oy",
+    description: "Visible abbreviation on the image toolbar button",
+  },
+  imageTitle: {
+    defaultMessage: "Insert image",
+    id: "q9T9hQuPR7",
+    description: "Tooltip and accessible label for the image toolbar button",
+  },
+  imageUnsupportedType: {
+    defaultMessage: "Only PNG, JPEG, and WebP images are supported.",
+    id: "wem2T5DJ9n",
+    description: "Toast when an unsupported image type is uploaded",
+  },
+  imageTooLarge: {
+    defaultMessage: "Image must be 10 MB or smaller.",
+    id: "f3IEqEzc4J",
+    description: "Toast when an uploaded image exceeds the size limit",
+  },
+  imageUploadFailed: {
+    defaultMessage: "Failed to upload image",
+    id: "s2RbfpSnxA",
+    description: "Toast when image upload to storage fails",
+  },
+  imageUploading: {
+    defaultMessage: "Uploading image…",
+    id: "TtLubrrGZM",
+    description: "Status shown over the editor while an image upload is in progress",
+  },
   bubbleBold: {
     defaultMessage: "Bold",
     id: "DRi2LRug2G",

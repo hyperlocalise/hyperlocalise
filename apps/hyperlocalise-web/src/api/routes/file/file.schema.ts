@@ -18,3 +18,20 @@ export const fileParamsSchema = z.object({
 });
 
 export type FileParams = z.infer<typeof fileParamsSchema>;
+
+export const maxEditorImageUploadBytes = 10 * 1024 * 1024;
+
+/** Multipart framing + optional projectId headroom beyond the file byte cap. */
+export const editorImageUploadMultipartOverheadBytes = 64 * 1024;
+
+/** Request bodyLimit must exceed the file cap so a max-size image is not rejected. */
+export const maxEditorImageUploadRequestBytes =
+  maxEditorImageUploadBytes + editorImageUploadMultipartOverheadBytes;
+
+export const editorImageContentTypes = ["image/png", "image/jpeg", "image/webp"] as const;
+
+export const editorImageUploadFormSchema = z.object({
+  projectId: z.string().trim().min(1).max(256).optional(),
+});
+
+export type EditorImageUploadForm = z.infer<typeof editorImageUploadFormSchema>;

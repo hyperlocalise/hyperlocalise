@@ -486,4 +486,55 @@ describe("IssueNotificationService", () => {
     ).toBe(true);
     expect(rows.every((row) => row.recipientUserId !== actor.id)).toBe(true);
   });
+
+  it("does not notify org members who lack project team access on mention", async () => {
+    const { actor, assigneeUserId, organization, project, actorIdentity } =
+      await createProjectWithAssignee();
+    const issue = await issueSheetService.createIssue({
+      organizationId: organization.id,
+      projectId: project.id,
+      actorUserId: actor.id,
+      body: {
+        title: "Team-scoped mention",
+        assigneeUserId,
+      },
+    });
+
+    await db
+      .delete(schema.issueNotifications)
+      .where(eq(schema.issueNotifications.issueId, issue.id));
+
+    const outsiderIdentity = authFixture.createWorkosIdentityForOrganization(
+      actorIdentity.organization,
+      "member",
+    );
+    await authFixture.authHeadersFor(outsiderIdentity);
+    const outsiderUserId = await authFixture.getLocalUserId(outsiderIdentity.user.workosUserId);
+    await authFixture.authHeadersFor(actorIdentity);
+
+    const auth = globalThis.__testApiAuthContext!;
+    const created = await commentService.create({
+      organizationId: organization.id,
+      projectId: project.id,
+      issueId: issue.id,
+      actorUserId: actor.id,
+      role: "admin",
+      auth,
+      body: {
+        body: "ping outsider",
+        mentionedUserIds: [assigneeUserId, outsiderUserId],
+      },
+    });
+    expect(created.ok).toBe(true);
+
+    const rows = await db
+      .select()
+      .from(schema.issueNotifications)
+      .where(eq(schema.issueNotifications.issueId, issue.id));
+
+    expect(
+      rows.some((row) => row.recipientUserId === assigneeUserId && row.type === "mentioned"),
+    ).toBe(true);
+    expect(rows.some((row) => row.recipientUserId === outsiderUserId)).toBe(false);
+  });
 });

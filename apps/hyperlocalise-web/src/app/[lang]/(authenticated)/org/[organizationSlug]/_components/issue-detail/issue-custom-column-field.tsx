@@ -44,6 +44,7 @@ export function IssueCustomColumnField({
   variant,
   members = [],
   membersLoading = false,
+  imageUpload = null,
   onDraftChange,
   onCommit,
   onChange,
@@ -56,6 +57,7 @@ export function IssueCustomColumnField({
   variant: "sidebar" | "main";
   members?: AssignableIssueMember[];
   membersLoading?: boolean;
+  imageUpload?: { organizationSlug: string; projectId?: string | null } | null;
   onDraftChange: (value: string) => void;
   onCommit: () => void;
   onChange: (value: unknown) => void;
@@ -129,6 +131,7 @@ export function IssueCustomColumnField({
           placeholder={placeholder}
           emptyMessage={intl.formatMessage(messages.emptyLongText)}
           ariaLabel={column.label}
+          imageUpload={imageUpload}
         />
       );
     }

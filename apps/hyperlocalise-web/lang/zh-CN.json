@@ -299,6 +299,9 @@
   "/WFoDeqxe7": {
     "defaultMessage": "Upload a spreadsheet export, map columns to Issue Sheet fields, preview the result, then import."
   },
+  "/WfsxTCk+E": {
+    "defaultMessage": "正在保存…"
+  },
   "/X6DitE9lx": {
     "defaultMessage": "All sync states"
   },
@@ -433,6 +436,9 @@
   },
   "0DwOCagj+y": {
     "defaultMessage": "区域适配"
+  },
+  "0G0Gi8OsmJ": {
+    "defaultMessage": "此文件中尚无可预览的字符串。"
   },
   "0GW7ilY3Dj": {
     "defaultMessage": "此功能暂时无法用于您的工作区。"
@@ -581,6 +587,9 @@
   "0su3rYbABy": {
     "defaultMessage": "Latest job · {status}"
   },
+  "0uQydL2hST": {
+    "defaultMessage": "电子邮件通知"
+  },
   "0ug9As7ELn": {
     "defaultMessage": "只需设置一次操作手册。智能体会处理繁琐工作，让您无需扩充团队即可覆盖更多市场——只有需要作出判断时，审核人员才会介入。"
   },
@@ -685,6 +694,9 @@
   },
   "1RfCN9F8ux": {
     "defaultMessage": "—"
+  },
+  "1SIj6NW9T+": {
+    "defaultMessage": "立即"
   },
   "1SarEJV+CO": {
     "defaultMessage": "问题从来不在于本地化团队的能力，而在于人们期望他们以任何人类团队都无法企及的速度扩展知识。"
@@ -1160,6 +1172,9 @@
   "3hTiwfSSe8": {
     "defaultMessage": "输入 Ahrefs MCP API 密钥。"
   },
+  "3hYpLYs0dC": {
+    "defaultMessage": "Email notifications"
+  },
   "3i6/WZOWss": {
     "defaultMessage": "一支如同您的本地专家团队般行动的 AI 劳动力。<desktopOnly><lineBreak></lineBreak>它理解市场细微差异，然后进行翻译和创译。</desktopOnly>"
   },
@@ -1430,6 +1445,9 @@
   "4zEqWvETM+": {
     "defaultMessage": "Locale: {value}"
   },
+  "5+ZicYt+Yo": {
+    "defaultMessage": "{domain} 的本地化健康检查结果。"
+  },
   "5/QxgxarO+": {
     "defaultMessage": "资源交付"
   },
@@ -1483,6 +1501,9 @@
   },
   "5H+UdOBSV9": {
     "defaultMessage": "上下文匹配"
+  },
+  "5H2Xr7AzgM": {
+    "defaultMessage": "网站预览画布"
   },
   "5KdZWVlAAs": {
     "defaultMessage": "最后送达时间：{timestamp}"
@@ -1606,6 +1627,9 @@
   },
   "60PQQ7C+fN": {
     "defaultMessage": "上次使用时间：{date}"
+  },
+  "60tUDKEOmt": {
+    "defaultMessage": "Could not load notification preferences."
   },
   "61uI/yL9TQ": {
     "defaultMessage": "Updated {timestamp}"
@@ -1732,6 +1756,9 @@
   },
   "6ilKS2sOmJ": {
     "defaultMessage": "无法获取 Contentful 连接"
+  },
+  "6k5g5rQjwO": {
+    "defaultMessage": "翻译进度"
   },
   "6lH73749rG": {
     "defaultMessage": "此项目今天的队列。"
@@ -1997,6 +2024,9 @@
   "7wIRX6GiLH": {
     "defaultMessage": "Text"
   },
+  "7yLnsi62KD": {
+    "defaultMessage": "在预览中点击字符串，即可在此处编辑。"
+  },
   "7yXPQhyKta": {
     "defaultMessage": "Locale"
   },
@@ -2005,6 +2035,9 @@
   },
   "7zCB6p8hxw": {
     "defaultMessage": "Column label, e.g. Sprint"
+  },
+  "7zP273oZkl": {
+    "defaultMessage": "本地化审计"
   },
   "7zni895OkR": {
     "defaultMessage": "Automation created"
@@ -2156,6 +2189,9 @@
   "8cCnIQ+Lhz": {
     "defaultMessage": "Unable to update project"
   },
+  "8cIXg7FjMX": {
+    "defaultMessage": "状态"
+  },
   "8d4Iw9Q9DE": {
     "defaultMessage": "每周{weekday} {time} · {timezone}"
   },
@@ -2176,6 +2212,9 @@
   },
   "8jmFMvrCLC": {
     "defaultMessage": "revision {revision}"
+  },
+  "8juGL005+Y": {
+    "defaultMessage": "{done} / {total} 已批准"
   },
   "8kFDR1/eiv": {
     "defaultMessage": "Select at least one target locale."
@@ -2200,6 +2239,9 @@
   },
   "8pfmpD7Pez": {
     "defaultMessage": "Glossary created"
+  },
+  "8pg1Ysbsbk": {
+    "defaultMessage": "Choose whether Issue Sheet Inbox updates are also delivered to your email."
   },
   "8qNqRTyyLK": {
     "defaultMessage": "创建一个问题以跟踪此字符串的相关工作。"
@@ -2416,6 +2458,9 @@
   },
   "9hphmwIx1l": {
     "defaultMessage": "https://cloud.memsource.com/web"
+  },
+  "9jLtl6PUKI": {
+    "defaultMessage": "无区域设置"
   },
   "9l9T50rviR": {
     "defaultMessage": "斜体"
@@ -2713,6 +2758,9 @@
   },
   "BQ2Um1RaCK": {
     "defaultMessage": "请提供需要翻译的英文文本。"
+  },
+  "BUGP6fk/PM": {
+    "defaultMessage": "审核中"
   },
   "BUP/2Zum32": {
     "defaultMessage": "人工介入升级"
@@ -3197,6 +3245,9 @@
   "DXhIxcX2oM": {
     "defaultMessage": "Context request"
   },
+  "DYLD1YkZo6": {
+    "defaultMessage": "电子邮件格式"
+  },
   "DZx5zjElsr": {
     "defaultMessage": "Ask any string. Get repo-backed context."
   },
@@ -3275,6 +3326,9 @@
   "E2040akAix": {
     "defaultMessage": "项目"
   },
+  "E2gAmHwHN8": {
+    "defaultMessage": "为您订阅的问题中的未读收件箱通知发送电子邮件。"
+  },
   "E5p3SqvCuO": {
     "defaultMessage": "在你的 Crowdin OAuth 应用中，启用下面的所有范围。Hyperlocalise 在你连接 Crowdin 时会请求相同的列表。"
   },
@@ -3329,6 +3383,9 @@
   "EGy0DHdyiF": {
     "defaultMessage": "加入 Hyperlocalise 等候名单，了解您的团队如何在每个地区保持支持内容始终最新。"
   },
+  "EH16+mA9TP": {
+    "defaultMessage": "桌面预览"
+  },
   "EHcSgWwvER": {
     "defaultMessage": "Phrase"
   },
@@ -3337,6 +3394,9 @@
   },
   "EJdAEUdkMf": {
     "defaultMessage": "Popular"
+  },
+  "EMm+gaNq/8": {
+    "defaultMessage": "设置源路径"
   },
   "ENDjImu9Gr": {
     "defaultMessage": "最新任务"
@@ -3511,6 +3571,9 @@
   },
   "FDx1dPH6dv": {
     "defaultMessage": "嘿 {mention}，我们能在周五前将 Canva 春季宣传活动看板本地化为法语、德语和日语吗？"
+  },
+  "FF6P5p7LKO": {
+    "defaultMessage": "{count} 个需要处理"
   },
   "FHYpiHKFtf": {
     "defaultMessage": "File"
@@ -3808,6 +3871,9 @@
   },
   "GvcjcKm7Sc": {
     "defaultMessage": "Due {due}"
+  },
+  "Gw6z856Urj": {
+    "defaultMessage": "Could not save notification preferences."
   },
   "GwX/prLtJh": {
     "defaultMessage": "Connect Semrush with an API key in Integrations before using this tool."
@@ -4295,6 +4361,9 @@
   "JemgHUamHh": {
     "defaultMessage": "Unable to load terms"
   },
+  "JfbQQEL9oW": {
+    "defaultMessage": "设置类型"
+  },
   "JhA3QIY56T": {
     "defaultMessage": "Displays the mobile sidebar."
   },
@@ -4357,6 +4426,9 @@
   },
   "JxSxJmFns3": {
     "defaultMessage": "Loading issue..."
+  },
+  "JzWvMRP2Wi": {
+    "defaultMessage": "清除"
   },
   "K+AvrhTOJl": {
     "defaultMessage": "已复制"
@@ -4450,6 +4522,9 @@
   },
   "KYKSoue+Dr": {
     "defaultMessage": "进行中"
+  },
+  "KYOkDtqOsb": {
+    "defaultMessage": "选择区域设置"
   },
   "Ka+dKs8Zz9": {
     "defaultMessage": "加入 Hyperlocalise 等候名单，将本地化检查纳入您的发布流程。"
@@ -4721,6 +4796,9 @@
   "M4h3UcxULX": {
     "defaultMessage": "参数"
   },
+  "M4lNU20CQe": {
+    "defaultMessage": "Digest"
+  },
   "M4sYVolrI+": {
     "defaultMessage": "Jobs unavailable"
   },
@@ -4829,6 +4907,9 @@
   "MjW+xFl6ux": {
     "defaultMessage": "将新增和更新的帮助文章转化为经过审核的译文，同步到您的 CMS，并监控时效性，确保客户不会看到过时的指南。"
   },
+  "MlaMWBdPiE": {
+    "defaultMessage": "设置语言区域"
+  },
   "Mo34UnIccj": {
     "defaultMessage": "Branch pattern"
   },
@@ -4900,6 +4981,9 @@
   },
   "N9BYBbfFW0": {
     "defaultMessage": "Succeeded"
+  },
+  "NAidKbB0vi": {
+    "defaultMessage": "Notifications"
   },
   "NBLnrSCLwC": {
     "defaultMessage": "保存提供商"
@@ -4981,6 +5065,12 @@
   },
   "NbLadz5lws": {
     "defaultMessage": "属性"
+  },
+  "NdDEnysUFB": {
+    "defaultMessage": "本地化审计 | Hyperlocalise"
+  },
+  "Neb7Fy6bU4": {
+    "defaultMessage": "问题已创建"
   },
   "Nf+4tJMRVh": {
     "defaultMessage": "All locales"
@@ -5285,6 +5375,9 @@
   "PDy7PaVKiz": {
     "defaultMessage": "QA checks are running. Results will refresh when the agent run completes."
   },
+  "PEOKvIZPuS": {
+    "defaultMessage": "创建问题"
+  },
   "PEkJb1qGtI": {
     "defaultMessage": "Prefer concise French that still feels executive."
   },
@@ -5522,6 +5615,9 @@
   "QNkL8EdZgQ": {
     "defaultMessage": "Active"
   },
+  "QOKexdLasq": {
+    "defaultMessage": "任意语言区域"
+  },
   "QR/HxiItgI": {
     "defaultMessage": "Term base"
   },
@@ -5626,6 +5722,9 @@
   },
   "QoBU315wiz": {
     "defaultMessage": "Glossary violation"
+  },
+  "QoSDgiiNvY": {
+    "defaultMessage": "{domain} 的本地化评分为 {score}/100。Hyperlocalise 的技术和语言问题。"
   },
   "Qov7AjZh9+": {
     "defaultMessage": "价格页面重构在周二发起了一个拉取请求"
@@ -5876,6 +5975,9 @@
   "SCoaZFO7Pm": {
     "defaultMessage": "Warning type"
   },
+  "SEclZdUwgN": {
+    "defaultMessage": "创建更多"
+  },
   "SFMLZ4RNJi": {
     "defaultMessage": "Team"
   },
@@ -6092,6 +6194,9 @@
   "TG1FpMpW2X": {
     "defaultMessage": "Switch workspace"
   },
+  "THoRXiMHfa": {
+    "defaultMessage": "无法加载通知偏好设置。"
+  },
   "TIsb5WlP88": {
     "defaultMessage": "此面板出现问题。您可以重试，或继续在其他面板中工作。"
   },
@@ -6131,6 +6236,9 @@
   "TRlFNEhzfJ": {
     "defaultMessage": "申请创业公司定价"
   },
+  "TSS07fFqPb": {
+    "defaultMessage": "Immediate"
+  },
   "TTwT8pJqTJ": {
     "defaultMessage": "Loading"
   },
@@ -6163,6 +6271,9 @@
   },
   "Th3qMjLdD4": {
     "defaultMessage": "Select at least one file."
+  },
+  "ThGy8XF2yq": {
+    "defaultMessage": "通知"
   },
   "Ti9Gb8n4Gh": {
     "defaultMessage": "Could not load files"
@@ -6380,6 +6491,9 @@
   "Uv4fMm9uKS": {
     "defaultMessage": "Review proposals"
   },
+  "UvLPwAuWGw": {
+    "defaultMessage": "新建问题"
+  },
   "UvTEiYJq6k": {
     "defaultMessage": "结合拉取请求和 issue 的上下文"
   },
@@ -6388,6 +6502,9 @@
   },
   "V+8wDWpBnh": {
     "defaultMessage": "所有字符串"
+  },
+  "V+EGj1aT6i": {
+    "defaultMessage": "链接标签"
   },
   "V-PkRAMN_s": {
     "defaultMessage": "Failed to delete Ahrefs connection."
@@ -6704,8 +6821,14 @@
   "WSbyg2v11q": {
     "defaultMessage": "原生"
   },
+  "WTS9c0ZlMB": {
+    "defaultMessage": "无法保存通知偏好设置。"
+  },
   "WUFTI428rT": {
     "defaultMessage": "Manual"
+  },
+  "WUV28A6Pf2": {
+    "defaultMessage": "Saving…"
   },
   "WUYpu2cx7T": {
     "defaultMessage": "—"
@@ -6938,6 +7061,9 @@
   "Xc6qahwRY8": {
     "defaultMessage": "您的账户已登录，但此工作区邀请尚未确认。"
   },
+  "XdFM8Ff6nf": {
+    "defaultMessage": "设置 {label}"
+  },
   "XdMf1WMmy8": {
     "defaultMessage": "请求正文"
   },
@@ -6970,6 +7096,9 @@
   },
   "XqfvXT5zJ1": {
     "defaultMessage": "Target locale"
+  },
+  "Xr/7GtH4gF": {
+    "defaultMessage": "免费检查任意网站的本地化状况。评估技术和语言准备度，然后解锁完整报告。"
   },
   "Xs0cc+EY83": {
     "defaultMessage": "Agent Actions"
@@ -7126,6 +7255,9 @@
   },
   "Ygi+pnLdm5": {
     "defaultMessage": "选择 {key}"
+  },
+  "YhCxIj8rLK": {
+    "defaultMessage": "{domain} 的本地化审计 | Hyperlocalise"
   },
   "YhwlgG0Ruv": {
     "defaultMessage": "My work"
@@ -7412,6 +7544,9 @@
   "ZzPp69g3M2": {
     "defaultMessage": "知道哪些字符串已由人工审核、仅机器翻译，或按区域设置待批准。"
   },
+  "_zWO7n_TPO": {
+    "defaultMessage": "Email format"
+  },
   "a+NsH6m9p4": {
     "defaultMessage": "监控"
   },
@@ -7499,6 +7634,9 @@
   "aHtGik8gUy": {
     "defaultMessage": "文件视图"
   },
+  "aI1MOY8Fo5": {
+    "defaultMessage": "Digests wait a few minutes and skip items you already read in Inbox. Immediate sends each notification right away."
+  },
   "aI9OdzlmW1": {
     "defaultMessage": "Delete"
   },
@@ -7543,6 +7681,9 @@
   },
   "advxgHaDz+": {
     "defaultMessage": "Edit the source locale and target locales for this native project."
+  },
+  "afDLXVwU/G": {
+    "defaultMessage": "问题标题"
   },
   "afM0hfkHOH": {
     "defaultMessage": "最新文章"
@@ -7789,6 +7930,9 @@
   },
   "c6U0JK/OgK": {
     "defaultMessage": "Skip"
+  },
+  "c7/0cqs4Ou": {
+    "defaultMessage": "突出显示可翻译内容"
   },
   "c7ggsCcxGl": {
     "defaultMessage": "AI 翻译草稿"
@@ -8045,6 +8189,9 @@
   "dYlXc1BTpY": {
     "defaultMessage": "Connect first"
   },
+  "dYzwXx2D9X": {
+    "defaultMessage": "摘要"
+  },
   "dZcHfTdmF2": {
     "defaultMessage": "编号列表"
   },
@@ -8095,6 +8242,12 @@
   },
   "dsAsLnB2MG": {
     "defaultMessage": "Row"
+  },
+  "dsSZ7Ag4+b": {
+    "defaultMessage": "本地化审查"
+  },
+  "dtA9CObQ6G": {
+    "defaultMessage": "添加链接…"
   },
   "duqEj6Omtc": {
     "defaultMessage": "Column type"
@@ -8242,6 +8395,9 @@
   },
   "eTERhCaPbB": {
     "defaultMessage": "Open billing"
+  },
+  "eTfP1zMvKR": {
+    "defaultMessage": "未配置项目语言区域"
   },
   "eUfRa6PSO+": {
     "defaultMessage": "Role"
@@ -8873,6 +9029,9 @@
   "hTbl8aKMIU": {
     "defaultMessage": "{operation} {assetType}"
   },
+  "hU16et2xGh": {
+    "defaultMessage": "已翻译"
+  },
   "hUsIV/tGFE": {
     "defaultMessage": "AI drafted"
   },
@@ -9052,6 +9211,9 @@
   },
   "iOQUj8xk0+": {
     "defaultMessage": "Total"
+  },
+  "iOn8sWqJvi": {
+    "defaultMessage": "未分配"
   },
   "iPC/1o5vbg": {
     "defaultMessage": "Comments"
@@ -9238,6 +9400,9 @@
   },
   "jBITE1qEv6": {
     "defaultMessage": "托管"
+  },
+  "jBT5g3zPS2": {
+    "defaultMessage": "链接 URL"
   },
   "jBW+LURvnY": {
     "defaultMessage": "Keep it a short verb, not “Save changes.” Match Cancel’s brevity so the pair stays balanced in tight toolbars."
@@ -9503,6 +9668,9 @@
   "kIG+JJHbzJ": {
     "defaultMessage": "重置缩放"
   },
+  "kJB7LZiflj": {
+    "defaultMessage": "更多属性"
+  },
   "kJE4wAhywD": {
     "defaultMessage": "Billing request failed. Try again in a moment."
   },
@@ -9649,6 +9817,9 @@
   },
   "ky7nZwQbWB": {
     "defaultMessage": "Warnings"
+  },
+  "kzAQTYATA+": {
+    "defaultMessage": "选择是否也将 Issue Sheet 收件箱更新发送到您的电子邮箱。"
   },
   "l+wMmn4Krw": {
     "defaultMessage": "Failed to load Semrush connections."
@@ -9815,6 +9986,9 @@
   "lsXD2TTIpU": {
     "defaultMessage": "与LLM无关"
   },
+  "lui7Kq_43P": {
+    "defaultMessage": "Send email for unread Inbox notifications on issues you subscribe to."
+  },
   "lvwFhMaVAT": {
     "defaultMessage": "Coming soon"
   },
@@ -9866,6 +10040,9 @@
   "mE9BVZ+4OT": {
     "defaultMessage": "推送触发器和定时触发器互斥。"
   },
+  "mF/FxMOcA8": {
+    "defaultMessage": "平板电脑预览"
+  },
   "mF3XaS/Oxa": {
     "defaultMessage": "Failed to create job"
   },
@@ -9907,6 +10084,9 @@
   },
   "mRWwmBY6N9": {
     "defaultMessage": "工作区"
+  },
+  "mRdtQn8m2l": {
+    "defaultMessage": "刷新预览"
   },
   "mRvhPlspGD": {
     "defaultMessage": "我什么时候需要 Enterprise？"
@@ -10217,6 +10397,9 @@
   "nzwZ/Y5WaF": {
     "defaultMessage": "Copied"
   },
+  "o+9WBKhrWc": {
+    "defaultMessage": "文件"
+  },
   "o+CbdMbr62": {
     "defaultMessage": "葡萄牙语（葡萄牙）"
   },
@@ -10259,6 +10442,9 @@
   "oFlc5dBfFx": {
     "defaultMessage": "明白了，Maya——我调取了 Canva 画板，并确定了发布上线所需的信息："
   },
+  "oHxxsDmsrY": {
+    "defaultMessage": "取消选择"
+  },
   "oJ52cXcJDI": {
     "defaultMessage": "Choose a plan below to start a subscription for this workspace."
   },
@@ -10300,6 +10486,9 @@
   },
   "obkqu+QKmi": {
     "defaultMessage": "{count, plural, one {# 个项目} other {# 个项目}}"
+  },
+  "oc3EaT6uAq": {
+    "defaultMessage": "打开下一个"
   },
   "oeD72ehQB/": {
     "defaultMessage": "要离开有未保存更改的页面吗？"
@@ -10345,6 +10534,9 @@
   },
   "onLY1zBVa5": {
     "defaultMessage": "Open in {providerKind}"
+  },
+  "oojEYpvA6e": {
+    "defaultMessage": "摘要会等待几分钟，并跳过您已在收件箱中阅读的项目。即时发送会立即发送每条通知。"
   },
   "opXLqo3spW": {
     "defaultMessage": "面向规模化质量构建"
@@ -10483,6 +10675,9 @@
   },
   "paJg6jTRIA": {
     "defaultMessage": "负责人"
+  },
+  "pbA55RTgks": {
+    "defaultMessage": "{position} / {total}"
   },
   "pcjLSSIwsF": {
     "defaultMessage": "Select microphone..."
@@ -10894,6 +11089,9 @@
   },
   "rZ8kVxd7JR": {
     "defaultMessage": "Hyperlocalise 并不是来取代你的 TMS 的。它增加了一层工作流，将工程变更信号、LLM 辅助起草、人工审校和发布信心连接起来。"
+  },
+  "rZuJRFmTxw": {
+    "defaultMessage": "还剩 {count} 个"
   },
   "ra0EyftjV0": {
     "defaultMessage": "Recently opened"
@@ -11426,6 +11624,9 @@
   "uUnWGsYCBS": {
     "defaultMessage": "选择要为此仓库运行哪些自动化���务。"
   },
+  "uVBHlI1Rb6": {
+    "defaultMessage": "下一个字符串"
+  },
   "uVpYHu+SN7": {
     "defaultMessage": "Workspace managed"
   },
@@ -11473,6 +11674,9 @@
   },
   "ugpx7KUX9X": {
     "defaultMessage": "Workspace"
+  },
+  "uirqgKf7xz": {
+    "defaultMessage": "© {year} Hyperlocalise"
   },
   "ujHf+4KmE7": {
     "defaultMessage": "为产品发布速度而生"
@@ -11707,6 +11911,9 @@
   },
   "vgj4VLCd7U": {
     "defaultMessage": "由澳大利亚和新西兰领先的初创企业加速器支持。"
+  },
+  "vhTlP0jReG": {
+    "defaultMessage": "已选择的字符串"
   },
   "viq5/Imoma": {
     "defaultMessage": "工作区"
@@ -12113,6 +12320,9 @@
   "xaHT3hr/g2": {
     "defaultMessage": "No required placeholders are missing."
   },
+  "xaRX3MQcXd": {
+    "defaultMessage": "移动端预览"
+  },
   "xaqBXxdnZN": {
     "defaultMessage": "{title} 的封面图像"
   },
@@ -12355,6 +12565,9 @@
   },
   "yl7Dzt+xE3": {
     "defaultMessage": "Enable workspace knowledge for this organization before using memories in automations."
+  },
+  "yllmXGQJt9": {
+    "defaultMessage": "未翻译"
   },
   "yn7Eufu4t+": {
     "defaultMessage": "评论"
@@ -12619,49 +12832,5 @@
   },
   "zztNzAuBoJ": {
     "defaultMessage": "已启用"
-  },
-  "NAidKbB0vi": {
-    "defaultMessage": "Notifications",
-    "description": "Section heading for notification preferences on account settings"
-  },
-  "8pg1Ysbsbk": {
-    "defaultMessage": "Choose whether Issue Sheet Inbox updates are also delivered to your email.",
-    "description": "Helper text under notification preferences on account settings"
-  },
-  "3hYpLYs0dC": {
-    "defaultMessage": "Email notifications",
-    "description": "Label for enabling Issue Sheet email notifications"
-  },
-  "lui7Kq_43P": {
-    "defaultMessage": "Send email for unread Inbox notifications on issues you subscribe to.",
-    "description": "Description for enabling Issue Sheet email notifications"
-  },
-  "_zWO7n_TPO": {
-    "defaultMessage": "Email format",
-    "description": "Label for email digest vs immediate delivery format"
-  },
-  "aI1MOY8Fo5": {
-    "defaultMessage": "Digests wait a few minutes and skip items you already read in Inbox. Immediate sends each notification right away.",
-    "description": "Description for email digest vs immediate delivery format"
-  },
-  "M4lNU20CQe": {
-    "defaultMessage": "Digest",
-    "description": "Email format option for batched digests"
-  },
-  "TSS07fFqPb": {
-    "defaultMessage": "Immediate",
-    "description": "Email format option for immediate delivery"
-  },
-  "WUV28A6Pf2": {
-    "defaultMessage": "Saving…",
-    "description": "Status text while notification preferences are saving"
-  },
-  "Gw6z856Urj": {
-    "defaultMessage": "Could not save notification preferences.",
-    "description": "Toast when notification preferences fail to save"
-  },
-  "60tUDKEOmt": {
-    "defaultMessage": "Could not load notification preferences.",
-    "description": "Error when notification preferences fail to load"
   }
 }

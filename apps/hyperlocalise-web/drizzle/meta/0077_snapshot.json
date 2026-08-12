@@ -1,5 +1,5 @@
 {
-  "id": "161f2df4-e888-4be4-82bc-60428bcaa65d",
+  "id": "5928a968-3760-4e0c-8a36-ee6d1e3c01a7",
   "prevId": "d7640acc-76f8-4e07-8071-0d6f0ce70389",
   "version": "7",
   "dialect": "postgresql",
@@ -9565,8 +9565,8 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.canva_brand_org_bindings": {
-      "name": "canva_brand_org_bindings",
+    "public.canva_connections": {
+      "name": "canva_connections",
       "schema": "",
       "columns": {
         "id": {
@@ -9575,12 +9575,6 @@
           "primaryKey": true,
           "notNull": true,
           "default": "gen_random_uuid()"
-        },
-        "canva_brand_id": {
-          "name": "canva_brand_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
         },
         "organization_id": {
           "name": "organization_id",
@@ -9588,128 +9582,49 @@
           "primaryKey": false,
           "notNull": true
         },
-        "bound_by_user_id": {
-          "name": "bound_by_user_id",
+        "api_key_id": {
+          "name": "api_key_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "project_id": {
+          "name": "project_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_by_user_id": {
+          "name": "created_by_user_id",
           "type": "uuid",
           "primaryKey": false,
           "notNull": false
         },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "canva_brand_org_bindings_brand_key": {
-          "name": "canva_brand_org_bindings_brand_key",
-          "columns": [
-            {
-              "expression": "canva_brand_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "idx_canva_brand_org_bindings_org": {
-          "name": "idx_canva_brand_org_bindings_org",
-          "columns": [
-            {
-              "expression": "organization_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "canva_brand_org_bindings_organization_id_organizations_id_fk": {
-          "name": "canva_brand_org_bindings_organization_id_organizations_id_fk",
-          "tableFrom": "canva_brand_org_bindings",
-          "tableTo": "organizations",
-          "columnsFrom": [
-            "organization_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "canva_brand_org_bindings_bound_by_user_id_users_id_fk": {
-          "name": "canva_brand_org_bindings_bound_by_user_id_users_id_fk",
-          "tableFrom": "canva_brand_org_bindings",
-          "tableTo": "users",
-          "columnsFrom": [
-            "bound_by_user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.canva_oauth_sessions": {
-      "name": "canva_oauth_sessions",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "user_id": {
-          "name": "user_id",
+        "updated_by_user_id": {
+          "name": "updated_by_user_id",
           "type": "uuid",
           "primaryKey": false,
+          "notNull": false
+        },
+        "display_name": {
+          "name": "display_name",
+          "type": "text",
+          "primaryKey": false,
           "notNull": true
         },
-        "scope": {
-          "name": "scope",
+        "source_locale": {
+          "name": "source_locale",
           "type": "text",
           "primaryKey": false,
           "notNull": true,
-          "default": "'canva.localize offline_access'"
+          "default": "'en'"
         },
-        "access_token_hash": {
-          "name": "access_token_hash",
-          "type": "text",
+        "target_locales": {
+          "name": "target_locales",
+          "type": "jsonb",
           "primaryKey": false,
-          "notNull": true
-        },
-        "refresh_token_hash": {
-          "name": "refresh_token_hash",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
+          "notNull": true,
+          "default": "'[\"es\",\"fr\",\"de\"]'::jsonb"
         },
         "canva_brand_id": {
           "name": "canva_brand_id",
@@ -9717,23 +9632,24 @@
           "primaryKey": false,
           "notNull": false
         },
-        "expires_at": {
-          "name": "expires_at",
-          "type": "timestamp with time zone",
+        "connection_token_hash": {
+          "name": "connection_token_hash",
+          "type": "text",
           "primaryKey": false,
           "notNull": true
         },
-        "refresh_expires_at": {
-          "name": "refresh_expires_at",
-          "type": "timestamp with time zone",
+        "connection_token_prefix": {
+          "name": "connection_token_prefix",
+          "type": "text",
           "primaryKey": false,
           "notNull": true
         },
-        "revoked_at": {
-          "name": "revoked_at",
-          "type": "timestamp with time zone",
+        "enabled": {
+          "name": "enabled",
+          "type": "boolean",
           "primaryKey": false,
-          "notNull": false
+          "notNull": true,
+          "default": true
         },
         "last_used_at": {
           "name": "last_used_at",
@@ -9757,11 +9673,11 @@
         }
       },
       "indexes": {
-        "canva_oauth_sessions_access_token_hash_key": {
-          "name": "canva_oauth_sessions_access_token_hash_key",
+        "canva_connections_token_hash_key": {
+          "name": "canva_connections_token_hash_key",
           "columns": [
             {
-              "expression": "access_token_hash",
+              "expression": "connection_token_hash",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -9772,26 +9688,33 @@
           "method": "btree",
           "with": {}
         },
-        "canva_oauth_sessions_refresh_token_hash_key": {
-          "name": "canva_oauth_sessions_refresh_token_hash_key",
+        "canva_connections_org_brand_key": {
+          "name": "canva_connections_org_brand_key",
           "columns": [
             {
-              "expression": "refresh_token_hash",
+              "expression": "organization_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "canva_brand_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
             }
           ],
           "isUnique": true,
+          "where": "\"canva_connections\".\"canva_brand_id\" IS NOT NULL",
           "concurrently": false,
           "method": "btree",
           "with": {}
         },
-        "idx_canva_oauth_sessions_user_id": {
-          "name": "idx_canva_oauth_sessions_user_id",
+        "idx_canva_connections_org": {
+          "name": "idx_canva_connections_org",
           "columns": [
             {
-              "expression": "user_id",
+              "expression": "organization_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -9802,11 +9725,26 @@
           "method": "btree",
           "with": {}
         },
-        "idx_canva_oauth_sessions_expires_at": {
-          "name": "idx_canva_oauth_sessions_expires_at",
+        "idx_canva_connections_api_key": {
+          "name": "idx_canva_connections_api_key",
           "columns": [
             {
-              "expression": "expires_at",
+              "expression": "api_key_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "idx_canva_connections_project": {
+          "name": "idx_canva_connections_project",
+          "columns": [
+            {
+              "expression": "project_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -9819,17 +9757,69 @@
         }
       },
       "foreignKeys": {
-        "canva_oauth_sessions_user_id_users_id_fk": {
-          "name": "canva_oauth_sessions_user_id_users_id_fk",
-          "tableFrom": "canva_oauth_sessions",
-          "tableTo": "users",
+        "canva_connections_organization_id_organizations_id_fk": {
+          "name": "canva_connections_organization_id_organizations_id_fk",
+          "tableFrom": "canva_connections",
+          "tableTo": "organizations",
           "columnsFrom": [
-            "user_id"
+            "organization_id"
           ],
           "columnsTo": [
             "id"
           ],
           "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "canva_connections_api_key_id_organization_api_keys_id_fk": {
+          "name": "canva_connections_api_key_id_organization_api_keys_id_fk",
+          "tableFrom": "canva_connections",
+          "tableTo": "organization_api_keys",
+          "columnsFrom": [
+            "api_key_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        },
+        "canva_connections_project_id_projects_id_fk": {
+          "name": "canva_connections_project_id_projects_id_fk",
+          "tableFrom": "canva_connections",
+          "tableTo": "projects",
+          "columnsFrom": [
+            "project_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        },
+        "canva_connections_created_by_user_id_users_id_fk": {
+          "name": "canva_connections_created_by_user_id_users_id_fk",
+          "tableFrom": "canva_connections",
+          "tableTo": "users",
+          "columnsFrom": [
+            "created_by_user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "canva_connections_updated_by_user_id_users_id_fk": {
+          "name": "canva_connections_updated_by_user_id_users_id_fk",
+          "tableFrom": "canva_connections",
+          "tableTo": "users",
+          "columnsFrom": [
+            "updated_by_user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
           "onUpdate": "no action"
         }
       },
@@ -11632,6 +11622,128 @@
           "tableTo": "interactions",
           "columnsFrom": [
             "interaction_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.interaction_repository_sessions": {
+      "name": "interaction_repository_sessions",
+      "schema": "",
+      "columns": {
+        "interaction_id": {
+          "name": "interaction_id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "organization_id": {
+          "name": "organization_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "session": {
+          "name": "session",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "version": {
+          "name": "version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 1
+        },
+        "expires_at": {
+          "name": "expires_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "idx_interaction_repository_sessions_org_expires": {
+          "name": "idx_interaction_repository_sessions_org_expires",
+          "columns": [
+            {
+              "expression": "organization_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "expires_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "idx_interaction_repository_sessions_expires": {
+          "name": "idx_interaction_repository_sessions_expires",
+          "columns": [
+            {
+              "expression": "expires_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "interaction_repository_sessions_interaction_id_interactions_id_fk": {
+          "name": "interaction_repository_sessions_interaction_id_interactions_id_fk",
+          "tableFrom": "interaction_repository_sessions",
+          "tableTo": "interactions",
+          "columnsFrom": [
+            "interaction_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "interaction_repository_sessions_organization_id_organizations_id_fk": {
+          "name": "interaction_repository_sessions_organization_id_organizations_id_fk",
+          "tableFrom": "interaction_repository_sessions",
+          "tableTo": "organizations",
+          "columnsFrom": [
+            "organization_id"
           ],
           "columnsTo": [
             "id"

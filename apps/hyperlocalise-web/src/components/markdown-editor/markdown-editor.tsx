@@ -12,21 +12,31 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { useCallback, useEffect, useMemo, useRef, type FocusEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type FocusEvent } from "react";
 import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
+import Image from "@tiptap/extension-image";
 import Link from "@tiptap/extension-link";
 import Placeholder from "@tiptap/extension-placeholder";
 import TaskItem from "@tiptap/extension-task-item";
 import TaskList from "@tiptap/extension-task-list";
 import { Markdown } from "@tiptap/markdown";
-import type { Extensions } from "@tiptap/core";
+import type { Editor, Extensions } from "@tiptap/core";
 import { useIntl } from "react-intl";
+import { toast } from "sonner";
 
+import { Spinner } from "@/components/ui/spinner";
 import { cn } from "@/lib/primitives/cn";
 
 import { MarkdownEditorBubbleMenu } from "./markdown-editor-bubble-menu";
 import { markdownEditorMessages } from "./markdown-editor.messages";
+import {
+  collectImageFilesFromDataTransfer,
+  createMarkdownEditorMappedPosTracker,
+  insertMarkdownEditorImage,
+  uploadMarkdownEditorImage,
+  type MarkdownEditorImageUploadConfig,
+} from "./markdown-editor-image";
 import {
   buildMarkdownSlashCommandItems,
   filterMarkdownSlashCommandItems,
@@ -44,6 +54,7 @@ import {
 import { MarkdownEditorToolbar } from "./markdown-editor-toolbar";
 
 export type { MarkdownMentionConfig, ParsedMarkdownMention } from "./markdown-editor-mention-types";
+export type { MarkdownEditorImageUploadConfig } from "./markdown-editor-image";
 export { extractMentionIdsFromMarkdown, parseMentionHref } from "./markdown-editor-mention-types";
 
 function isMarkdownEditorChromeTarget(target: EventTarget | null) {
@@ -64,18 +75,21 @@ const markdownEditorContentClassName = cn(
   "[&_h2]:mb-2 [&_h2]:mt-4 [&_h2]:font-heading [&_h2]:text-xl [&_h2]:font-semibold [&_h2]:leading-tight [&_h2]:text-foreground",
   "[&_h3]:mb-2 [&_h3]:mt-3 [&_h3]:font-heading [&_h3]:text-base [&_h3]:font-semibold [&_h3]:leading-snug [&_h3]:text-foreground",
   "[&_ul]:my-2 [&_ul]:list-disc [&_ul]:pl-5",
-  "[&_ul[data-type=taskList]]:list-none [&_ul[data-type=taskList]]:pl-0",
+  "[&_ul.markdown-task-list]:my-2 [&_ul.markdown-task-list]:list-none [&_ul.markdown-task-list]:pl-0",
   "[&_ol]:my-2 [&_ol]:list-decimal [&_ol]:pl-5",
   "[&_li]:my-1 [&_li>p]:my-0",
-  "[&_li[data-type=taskItem]]:flex [&_li[data-type=taskItem]]:items-start [&_li[data-type=taskItem]]:gap-2",
-  "[&_li[data-type=taskItem]_label]:mt-0.5",
-  "[&_li[data-type=taskItem]_div]:flex-1",
+  // TipTap task items render as <li><label><input></label><div><p>…</p></div></li>.
+  "[&_li.markdown-task-item]:!flex [&_li.markdown-task-item]:flex-row [&_li.markdown-task-item]:items-start [&_li.markdown-task-item]:gap-2",
+  "[&_li.markdown-task-item>label]:mt-0.5 [&_li.markdown-task-item>label]:inline-flex [&_li.markdown-task-item>label]:shrink-0 [&_li.markdown-task-item>label]:items-center",
+  "[&_li.markdown-task-item>div]:min-w-0 [&_li.markdown-task-item>div]:flex-1",
+  "[&_li.markdown-task-item>div>p]:my-0",
   "[&_blockquote]:my-3 [&_blockquote]:border-l-2 [&_blockquote]:border-border [&_blockquote]:pl-3 [&_blockquote]:text-subtle-foreground",
   "[&_a]:text-foreground [&_a]:underline [&_a]:decoration-border [&_a]:underline-offset-4 [&_a:hover]:decoration-muted-foreground",
   "[&_a[href^='mention:']]:cursor-pointer [&_a[href^='mention:']]:rounded-md [&_a[href^='mention:']]:bg-muted [&_a[href^='mention:']]:px-1 [&_a[href^='mention:']]:py-0.5 [&_a[href^='mention:']]:no-underline [&_a[href^='mention:']]:decoration-transparent",
   "[&_code]:rounded [&_code]:bg-skeleton [&_code]:px-1 [&_code]:py-0.5 [&_code]:font-mono [&_code]:text-[0.85em]",
   "[&_pre]:my-3 [&_pre]:overflow-x-auto [&_pre]:rounded-md [&_pre]:bg-skeleton [&_pre]:p-3",
   "[&_pre_code]:bg-transparent [&_pre_code]:p-0",
+  "[&_img]:my-3 [&_img]:h-auto [&_img]:max-w-full [&_img]:rounded-md [&_img]:border [&_img]:border-border",
 );
 
 const markdownEditorMinimalContentClassName = cn(
@@ -139,8 +153,21 @@ const markdownBaseExtensions = [
       }
     },
   }),
-  TaskList,
-  TaskItem.configure({ nested: true }),
+  TaskList.configure({
+    HTMLAttributes: {
+      class: "markdown-task-list",
+    },
+  }),
+  TaskItem.configure({
+    nested: true,
+    HTMLAttributes: {
+      class: "markdown-task-item",
+    },
+  }),
+  Image.configure({
+    inline: false,
+    allowBase64: false,
+  }),
   Markdown,
 ] as unknown as Extensions;
 
@@ -178,6 +205,7 @@ export function MarkdownEditor({
   compact = false,
   mentionConfig = null,
   onMentionNavigate,
+  imageUpload = null,
 }: {
   value: string;
   onChange: (value: string) => void;
@@ -192,22 +220,37 @@ export function MarkdownEditor({
   compact?: boolean;
   mentionConfig?: MarkdownMentionConfig | null;
   onMentionNavigate?: (mention: ParsedMarkdownMention) => void;
+  /** When set, paste/drop and slash/toolbar can upload images to org file storage. */
+  imageUpload?: MarkdownEditorImageUploadConfig | null;
 }) {
   const intl = useIntl();
   const rootRef = useRef<HTMLDivElement>(null);
   const blurCommitScheduledRef = useRef(false);
   const linkPromptOpenRef = useRef(false);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
+  const isUploadingImageRef = useRef(false);
   const onBlurRef = useRef(onBlur);
   onBlurRef.current = onBlur;
   const onMentionNavigateRef = useRef(onMentionNavigate);
   onMentionNavigateRef.current = onMentionNavigate;
+  const imageUploadRef = useRef<MarkdownEditorImageUploadConfig | null>(null);
+  imageUploadRef.current = imageUpload;
   const slashConfigRef = useRef<MarkdownSlashCommandConfig>({
     resolveItems: () => [],
     emptyLabel: "",
   });
+  const uploadImageFilesRef = useRef<
+    (editorInstance: Editor, files: File[], options?: { pos?: number }) => Promise<boolean>
+  >(async () => false);
   slashConfigRef.current = {
     resolveItems: (query: string) =>
-      filterMarkdownSlashCommandItems(buildMarkdownSlashCommandItems(intl), query),
+      filterMarkdownSlashCommandItems(
+        buildMarkdownSlashCommandItems(intl, {
+          imageUpload: imageUploadRef.current,
+          uploadImageFiles: uploadImageFilesRef.current,
+        }),
+        query,
+      ),
     emptyLabel: intl.formatMessage(markdownEditorMessages.slashEmpty),
   };
   const mentionConfigRef = useRef<MarkdownMentionConfig | null>(null);
@@ -259,6 +302,55 @@ export function MarkdownEditor({
     });
   }, []);
 
+  const uploadImageFiles = useCallback(
+    async (editorInstance: Editor, files: File[], options?: { pos?: number }) => {
+      const upload = imageUploadRef.current;
+      if (!upload || files.length === 0 || isUploadingImageRef.current) {
+        return false;
+      }
+      isUploadingImageRef.current = true;
+      setIsUploadingImage(true);
+      const insertPosTracker = createMarkdownEditorMappedPosTracker(
+        editorInstance,
+        options?.pos ?? editorInstance.state.selection.from,
+      );
+      try {
+        for (const file of files) {
+          try {
+            const uploaded = await uploadMarkdownEditorImage({ file, upload });
+            const alt = file.name.replace(/\.[^.]+$/, "");
+            const nextPos = insertMarkdownEditorImage(editorInstance, {
+              src: uploaded.url,
+              alt: alt || undefined,
+              pos: insertPosTracker.getPos(),
+            });
+            if (typeof nextPos === "number") {
+              insertPosTracker.setPos(nextPos);
+            }
+          } catch (error) {
+            const code = error instanceof Error ? error.message : "image_upload_failed";
+            if (code === "unsupported_image_type") {
+              toast.error(intl.formatMessage(markdownEditorMessages.imageUnsupportedType));
+            } else if (code === "image_too_large" || code === "file_upload_too_large") {
+              toast.error(intl.formatMessage(markdownEditorMessages.imageTooLarge));
+            } else {
+              toast.error(intl.formatMessage(markdownEditorMessages.imageUploadFailed));
+            }
+          }
+        }
+        return true;
+      } finally {
+        insertPosTracker.stop();
+        isUploadingImageRef.current = false;
+        setIsUploadingImage(false);
+      }
+    },
+    [intl],
+  );
+
+  uploadImageFilesRef.current = uploadImageFiles;
+  const editorRef = useRef<Editor | null>(null);
+
   const editor = useEditor({
     extensions: editorExtensions,
     content: value,
@@ -275,6 +367,37 @@ export function MarkdownEditor({
       },
       handleClick: (_view, _pos, event) =>
         tryHandleMentionClick(event, onMentionNavigateRef.current),
+      handlePaste: (_view, event) => {
+        const files = collectImageFilesFromDataTransfer(event.clipboardData);
+        if (files.length === 0 || !imageUploadRef.current) {
+          return false;
+        }
+        event.preventDefault();
+        const activeEditor = editorRef.current;
+        if (!activeEditor) {
+          return true;
+        }
+        void uploadImageFilesRef.current(activeEditor, files, {
+          pos: activeEditor.state.selection.from,
+        });
+        return true;
+      },
+      handleDrop: (view, event) => {
+        const files = collectImageFilesFromDataTransfer(event.dataTransfer);
+        if (files.length === 0 || !imageUploadRef.current) {
+          return false;
+        }
+        event.preventDefault();
+        const activeEditor = editorRef.current;
+        if (!activeEditor) {
+          return true;
+        }
+        const dropPos = view.posAtCoords({ left: event.clientX, top: event.clientY })?.pos;
+        void uploadImageFilesRef.current(activeEditor, files, {
+          pos: dropPos ?? activeEditor.state.selection.from,
+        });
+        return true;
+      },
       handleDOMEvents: {
         blur: (_view) => {
           scheduleBlurCommit(() => _view.hasFocus());
@@ -283,6 +406,8 @@ export function MarkdownEditor({
       },
     },
   });
+
+  editorRef.current = editor;
 
   const handleRootFocusOut = (event: FocusEvent<HTMLDivElement>) => {
     const next = event.relatedTarget;
@@ -338,6 +463,37 @@ export function MarkdownEditor({
         },
         handleClick: (_view, _pos, event) =>
           tryHandleMentionClick(event, onMentionNavigateRef.current),
+        handlePaste: (_view, event) => {
+          const files = collectImageFilesFromDataTransfer(event.clipboardData);
+          if (files.length === 0 || !imageUploadRef.current) {
+            return false;
+          }
+          event.preventDefault();
+          const activeEditor = editorRef.current;
+          if (!activeEditor) {
+            return true;
+          }
+          void uploadImageFilesRef.current(activeEditor, files, {
+            pos: activeEditor.state.selection.from,
+          });
+          return true;
+        },
+        handleDrop: (view, event) => {
+          const files = collectImageFilesFromDataTransfer(event.dataTransfer);
+          if (files.length === 0 || !imageUploadRef.current) {
+            return false;
+          }
+          event.preventDefault();
+          const activeEditor = editorRef.current;
+          if (!activeEditor) {
+            return true;
+          }
+          const dropPos = view.posAtCoords({ left: event.clientX, top: event.clientY })?.pos;
+          void uploadImageFilesRef.current(activeEditor, files, {
+            pos: dropPos ?? activeEditor.state.selection.from,
+          });
+          return true;
+        },
         handleDOMEvents: {
           blur: (_view) => {
             scheduleBlurCommit(() => editor.view.hasFocus());
@@ -383,7 +539,9 @@ export function MarkdownEditor({
     <div
       ref={rootRef}
       onBlur={handleRootFocusOut}
+      aria-busy={isUploadingImage || undefined}
       className={cn(
+        "relative",
         isMinimal
           ? compact
             ? "[&_.tiptap]:min-h-6"
@@ -395,7 +553,13 @@ export function MarkdownEditor({
       )}
     >
       {!disabled && !isMinimal ? (
-        <MarkdownEditorToolbar editor={editor} disabled={disabled} />
+        <MarkdownEditorToolbar
+          editor={editor}
+          disabled={disabled}
+          imageUpload={imageUpload}
+          uploadImageFiles={uploadImageFiles}
+          isUploadingImage={isUploadingImage}
+        />
       ) : null}
       <EditorContent
         editor={editor}
@@ -405,6 +569,18 @@ export function MarkdownEditor({
             : "max-h-[32rem] min-h-[8rem] resize-y overflow-auto",
         )}
       />
+      {isUploadingImage ? (
+        <div
+          className="absolute inset-0 z-10 flex items-center justify-center rounded-[inherit] bg-background/70 backdrop-blur-[1px]"
+          role="status"
+          aria-live="polite"
+        >
+          <div className="inline-flex items-center gap-2 rounded-md border border-border bg-muted px-3 py-1.5 text-sm text-subtle-foreground shadow-sm">
+            <Spinner className="size-4" />
+            <span>{intl.formatMessage(markdownEditorMessages.imageUploading)}</span>
+          </div>
+        </div>
+      ) : null}
       {!disabled ? (
         <MarkdownEditorBubbleMenu
           editor={editor}

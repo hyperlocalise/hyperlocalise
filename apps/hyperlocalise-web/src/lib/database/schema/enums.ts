@@ -267,7 +267,7 @@ export const storedFileRoleEnum = pgEnum("stored_file_role", [
   "asset",
 ]);
 /**
- * Records where stored file bytes originated, such as chat uploads, email attachments, job outputs, repositories, or external TMS files.
+ * Records where stored file bytes originated, such as chat uploads, email attachments, job outputs, repositories, external TMS files, or markdown editor uploads.
  */
 export const storedFileSourceKindEnum = pgEnum("stored_file_source_kind", [
   "chat_upload",
@@ -275,6 +275,7 @@ export const storedFileSourceKindEnum = pgEnum("stored_file_source_kind", [
   "job_output",
   "repository_file",
   "tms_file",
+  "editor_upload",
 ]);
 /**
  * Identifies billable or metered product features so usage events can be mapped to subscription entitlements and external billing systems.

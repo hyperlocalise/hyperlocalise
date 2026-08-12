@@ -101,7 +101,7 @@ async function readSseText(response: Response) {
 describe("runWebChatAgentTurn", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    getWebConversationRepositorySessionMock.mockReturnValue({
+    getWebConversationRepositorySessionMock.mockResolvedValue({
       session: {
         repositorySandboxSession: {
           sandboxId: "sandbox_committed",
@@ -112,7 +112,7 @@ describe("runWebChatAgentTurn", () => {
       },
       version: 1,
     });
-    setWebConversationRepositorySessionMock.mockReturnValue(false);
+    setWebConversationRepositorySessionMock.mockResolvedValue(false);
     reserveAgentRuntimeUsageMock.mockResolvedValue(true);
     trackSucceededAgentRuntimeUsageMock.mockResolvedValue(undefined);
     addInteractionMessageMock.mockResolvedValue({ id: "msg_agent" });
@@ -134,7 +134,7 @@ describe("runWebChatAgentTurn", () => {
   ])(
     "passes a $expected Knowledge Memory capability into turn preparation",
     async ({ capability, expected }) => {
-      setWebConversationRepositorySessionMock.mockReturnValue(true);
+      setWebConversationRepositorySessionMock.mockResolvedValue(true);
 
       await runWebChatAgentTurn({
         conversationId: "conv_123",
@@ -176,6 +176,12 @@ describe("runWebChatAgentTurn", () => {
       }),
     );
     expect(setWebConversationRepositorySessionMock).toHaveBeenCalledTimes(3);
+    expect(setWebConversationRepositorySessionMock).toHaveBeenCalledWith(
+      "conv_123",
+      expect.objectContaining({
+        organizationId: "org_123",
+      }),
+    );
   });
 
   it("returns a clarification instead of streaming when repository access is contended", async () => {
@@ -268,8 +274,8 @@ describe("runWebChatAgentTurn", () => {
 describe("createWebChatAgentUIStreamResponse", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    getWebConversationRepositorySessionMock.mockReturnValue(null);
-    setWebConversationRepositorySessionMock.mockReturnValue(true);
+    getWebConversationRepositorySessionMock.mockResolvedValue(null);
+    setWebConversationRepositorySessionMock.mockResolvedValue(true);
     reserveAgentRuntimeUsageMock.mockResolvedValue(true);
     trackSucceededAgentRuntimeUsageMock.mockResolvedValue(undefined);
     addInteractionMessageMock.mockResolvedValue({ id: "msg_agent" });

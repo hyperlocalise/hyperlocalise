@@ -31,6 +31,7 @@ export function ProviderJobDescriptionFieldView({
   initialDraft,
   initialIsEditing = false,
   isSaving = false,
+  imageUpload = null,
   onSaveDescription,
   onSaveError,
 }: {
@@ -39,6 +40,7 @@ export function ProviderJobDescriptionFieldView({
   initialDraft?: string;
   initialIsEditing?: boolean;
   isSaving?: boolean;
+  imageUpload?: { organizationSlug: string; projectId?: string | null } | null;
   onSaveDescription?: (description: string) => Promise<string | void>;
   onSaveError?: (error: unknown) => void;
 }) {
@@ -95,6 +97,7 @@ export function ProviderJobDescriptionFieldView({
           setDraftState({ baseDescription: description, draft: nextDraft });
         }}
         disabled={savePending}
+        imageUpload={imageUpload}
       />
       <div className="flex flex-wrap items-center gap-2">
         <Button
@@ -223,6 +226,7 @@ export function ProviderJobDescriptionField({
       description={description}
       editable={editable}
       isSaving={saveMutation.isPending}
+      imageUpload={{ organizationSlug }}
       onSaveDescription={(nextDescription) => saveMutation.mutateAsync(nextDescription)}
       onSaveError={(error) => {
         toast.error(

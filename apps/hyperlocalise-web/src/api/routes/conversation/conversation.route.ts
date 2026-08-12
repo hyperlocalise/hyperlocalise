@@ -165,24 +165,26 @@ function normalizeRepositoryFullName(value: string | undefined): string | undefi
   return normalized || undefined;
 }
 
-function seedConversationRepositorySession(
-  conversationId: string,
-  repositoryGitHubContext: RepositoryAgentGitHubContext,
-) {
-  const repositoryContextKey = getRepositoryContextKey(repositoryGitHubContext);
+async function seedConversationRepositorySession(input: {
+  conversationId: string;
+  organizationId: string;
+  repositoryGitHubContext: RepositoryAgentGitHubContext;
+}) {
+  const repositoryContextKey = getRepositoryContextKey(input.repositoryGitHubContext);
 
   for (let attempt = 0; attempt < 3; attempt++) {
-    const current = getWebConversationRepositorySession(conversationId);
+    const current = await getWebConversationRepositorySession(input.conversationId);
     const repositorySandboxSession =
       current?.session.repositorySandboxSession?.repositoryContextKey === repositoryContextKey
         ? current.session.repositorySandboxSession
         : undefined;
 
-    const committed = setWebConversationRepositorySession(conversationId, {
+    const committed = await setWebConversationRepositorySession(input.conversationId, {
+      organizationId: input.organizationId,
       baseVersion: current?.version ?? null,
       session: {
         ...current?.session,
-        repositoryGitHubContext,
+        repositoryGitHubContext: input.repositoryGitHubContext,
         ...(repositorySandboxSession ? { repositorySandboxSession } : {}),
       },
     });
@@ -467,7 +469,11 @@ export function createConversationRoutes(options: CreateConversationRoutesOption
         conversation = createdConversation;
 
         if (repositoryGitHubContext) {
-          seedConversationRepositorySession(createdConversation.id, repositoryGitHubContext);
+          await seedConversationRepositorySession({
+            conversationId: createdConversation.id,
+            organizationId: orgId,
+            repositoryGitHubContext,
+          });
         }
 
         if (storedFiles.length > 0) {
@@ -658,7 +664,11 @@ export function createConversationRoutes(options: CreateConversationRoutesOption
         }
 
         if (repositoryGitHubContext) {
-          seedConversationRepositorySession(conversationId, repositoryGitHubContext);
+          await seedConversationRepositorySession({
+            conversationId,
+            organizationId: orgId,
+            repositoryGitHubContext,
+          });
         }
 
         let message;

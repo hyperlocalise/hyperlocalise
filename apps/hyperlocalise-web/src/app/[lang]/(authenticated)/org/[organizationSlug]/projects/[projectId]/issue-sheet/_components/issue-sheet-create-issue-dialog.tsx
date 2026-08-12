@@ -486,6 +486,10 @@ export function IssueSheetCreateIssueDialog({
               placeholder={intl.formatMessage(messages.descriptionPlaceholder)}
               ariaLabel={intl.formatMessage(messages.descriptionLabel)}
               chrome="minimal"
+              imageUpload={{
+                organizationSlug,
+                projectId: resolvedProjectId || null,
+              }}
               className="min-h-28 bg-transparent px-0"
             />
 

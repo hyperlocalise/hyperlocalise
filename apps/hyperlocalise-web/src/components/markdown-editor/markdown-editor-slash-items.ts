@@ -20,6 +20,7 @@ import {
   Heading01Icon,
   Heading02Icon,
   Heading03Icon,
+  Image01Icon,
   LeftToRightBlockQuoteIcon,
   LeftToRightListBulletIcon,
   LeftToRightListNumberIcon,
@@ -27,6 +28,14 @@ import {
 } from "@hugeicons/core-free-icons";
 import type { IntlShape } from "react-intl";
 
+import {
+  type MarkdownEditorImageUploadConfig,
+  type MarkdownEditorUploadImageFiles,
+} from "./markdown-editor-image";
+import {
+  getMarkdownEditorImageSourceLabels,
+  insertMarkdownEditorImageViaSourceDialog,
+} from "./markdown-editor-image-source-dialog";
 import { markdownEditorMessages as messages } from "./markdown-editor.messages";
 
 export type MarkdownSlashShortcutPart = "mod" | "alt" | "shift" | (string & {});
@@ -65,8 +74,17 @@ export function formatMarkdownSlashShortcut(
     .join(isMac ? " " : "+");
 }
 
-export function buildMarkdownSlashCommandItems(intl: IntlShape): MarkdownSlashCommandItem[] {
+export function buildMarkdownSlashCommandItems(
+  intl: IntlShape,
+  options: {
+    imageUpload?: MarkdownEditorImageUploadConfig | null;
+    uploadImageFiles?: MarkdownEditorUploadImageFiles | null;
+  } = {},
+): MarkdownSlashCommandItem[] {
   const linkPrompt = intl.formatMessage(messages.linkPrompt);
+  const imageUpload = options.imageUpload ?? null;
+  const uploadImageFiles = options.uploadImageFiles ?? null;
+  const imageSourceLabels = getMarkdownEditorImageSourceLabels(intl);
 
   return [
     {
@@ -153,6 +171,21 @@ export function buildMarkdownSlashCommandItems(intl: IntlShape): MarkdownSlashCo
       shortcut: ["mod", "shift", "b"],
       run: ({ editor, range }) => {
         deleteTriggerAndRun(editor, range, () => editor.chain().focus().toggleBlockquote().run());
+      },
+    },
+    {
+      id: "image",
+      title: intl.formatMessage(messages.slashImageTitle),
+      icon: Image01Icon,
+      keywords: ["image", "img", "picture", "photo", "upload"],
+      run: ({ editor, range }) => {
+        editor.chain().focus().deleteRange(range).run();
+        const allowUpload = Boolean(imageUpload && uploadImageFiles);
+        void insertMarkdownEditorImageViaSourceDialog(editor, imageSourceLabels, {
+          allowUpload,
+          uploadImageFiles,
+          pos: editor.state.selection.from,
+        });
       },
     },
     {

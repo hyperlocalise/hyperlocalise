@@ -56,38 +56,6 @@
 **Learning:** Standard regex-based tag extraction (e.g., `</?[A-Za-z][^>]*?>`) is insufficient for HTML tag parity checks when attributes contain `>` or tag-like content (e.g., `<div title="a > b">`). The regex prematurely terminates at the first `>`, leading to incorrect tag sequences and false-positive mismatches.
 **Action:** Use a scanner-based approach for tag extraction that respects single and double quotes within tags. Ensure the scanner correctly identifies the full span of a tag before normalization and comparison.
 
-## 2025-06-12 - [Structural Validation of Complex Identifiers]
-**Learning:** ICU placeholders often use flattened JSON paths (dots and array indices). Validation must ensure structural integrity: a closing bracket `]` must either end the identifier or be immediately followed by a path separator (`.`) or another index (`[`). Failing to enforce this allows malformed strings like `{items[0]suffix}` to be collected as valid placeholders.
-**Action:** When testing identifier validation, include "tail" cases where valid segments are followed by invalid characters to ensure the state machine or regex correctly terminates or rejects the input.
-
-## 2025-06-18 - [ICU Plural Negative Selectors]
-**Learning:** ICU plural exact-value selectors (e.g., `=-1`) can include negative numbers. A naive selector parser that only expects digits after the `=` prefix will fail on these valid selectors. Additionally, when parsing sequences that require at least one element (like digits after a sign), using an explicit starting position marker (`digitStart`) to verify consumption is clearer and more robust than checking the last character's properties.
-**Action:** Ensure plural selector parsing explicitly handles an optional minus sign following the `=` prefix before consuming digits, and use explicit position markers to validate that at least one digit was consumed.
-
-## 2025-06-19 - [Flexible Whitespace in Self-Closing Tags]
-**Learning:** ICU and HTML-style tag parsers must handle flexible whitespace in self-closing tags (e.g., `<br / >`). Standard XML is strict about `/>`, but real-world localization strings often contain these variations. Failing to support them leads to "unclosed tag" errors during parsing.
-**Action:** Always allow whitespace after the slash in self-closing tag detection to improve compatibility with common HTML formatting.
-
-## 2025-06-25 - [Path Resolution with Empty Tokens]
-**Learning:** Path resolution patterns using tokens like {{localeDir}} can produce leading slashes if the token is at the start of the pattern and resolves to an empty string (e.g., when source and target locales match). These leading slashes can cause downstream safety checks that expect strictly relative paths to fail.
-**Action:** Always apply repository-relative path normalization after token substitution and before safety validation to ensure consistent handling of relative paths regardless of token resolution.
-
-## 2025-06-25 - [Slash Collapsing in Path Resolution]
-**Learning:** `normalizeRepositoryRelativePath` may only handle leading/trailing slashes and specific segments (like `.` or `..`). It might not collapse internal multiple slashes (e.g., `a//b`).
-**Action:** When performing token substitution that might result in empty segments, explicitly collapse multiple slashes using a regex (e.g., `path.replace(/\/+/g, "/")`) before applying repository-wide normalization.
-
-## 2026-07-02 - [Mixed XML Encoder and Buffer Writes]
-**Learning:** Interleaving `xml.Encoder.EncodeToken` calls with direct writes to the encoder's underlying `bytes.Buffer` causes content reordering because `xml.Encoder` is buffered. Tokens sent to the encoder are held until a flush, while direct buffer writes happen immediately.
-**Action:** Always call `enc.Flush()` before writing directly to the underlying buffer (e.g., when decoding `CharData` tokens into literal text) to maintain correct element order.
-
-## 2026-07-03 - [Heuristic Tag Identification for Parity]
-**Learning:** HTML tag parity checks must balance protecting application-specific markup (like MDX or Web Components) with allowing legitimate removal of template-style placeholders (like `<resource_id>` or `<v1>`). Aggressively treating any tag containing dots, underscores, or digits as structural markup causes false-positive mismatches when translators omit these tokens. Strong indicators of "true" markup include hyphens, colons, PascalCase (MDX), or the presence of attributes.
-**Action:** Use heuristics to distinguish markup from placeholders: treat tags as markup if they are known atoms (excluding generic placeholders like `name` and `id`), contain hyphens/colons, start with an uppercase letter, or have attributes. Avoid treating plain attribute-less tokens with dots, underscores, or digits as structural markup by default.
-
-## 2026-07-10 - [Robust Markdown Link Title Parentheses Handling]
-**Learning:** Naive depth-counting scanners for Markdown link destinations (e.g., `[](/url "title")`) fail when parentheses appear inside quoted titles (e.g., `[link](/url "title )")`). The scanner prematurely terminates the destination segment at the first unquoted closing parenthesis, leading to corrupted metadata and broken round-trips.
-**Action:** Always implement quote-aware scanning for link destinations and titles. Parentheses encountered while inside a single or double-quoted literal must be ignored by depth counters to ensure the full span of the link is correctly identified and protected.
-
 ## 2025-07-15 - [ICU Parser Error Robustness]
 **Learning:** ICU parsers should provide clear error messages for common syntax mistakes like unclosed braces, mismatched tags, or missing options. While leniency is good for some things (like unclosed quotes), structural errors should be caught to prevent malformed ASTs that could lead to incorrect translations or application crashes.
 **Action:** Include comprehensive error-case tests for the parser to ensure it correctly identifies and reports syntax errors in ICU messages and HTML tags.
@@ -113,7 +81,7 @@
 **Action:** When validating identifiers with dots, ensure each dot is followed by a valid subsequent character that is not another dot or an opening bracket.
 
 ## 2025-08-01 - [Preserving Path Relativity with Empty Tokens]
-**Learning:** Path resolution patterns starting with tokens (e.g., `{{localeDir}}/index.mdx`) can become absolute (e.g., `/index.mdx`) if the token resolves to an empty string. This causes "path escapes root" errors in security-sensitive CLI operations that expect relative paths.
+**Learning:** Path-resolution patterns starting with tokens (e.g., `{{localeDir}}/index.mdx`) can become absolute (e.g., `/index.mdx`) if the token resolves to an empty string. This causes "path escapes root" errors in security-sensitive CLI operations that expect relative paths.
 **Action:** When resolving paths, only trim leading slashes if the original pattern was relative. Use `strings.TrimPrefix(path, "/")` conditionally based on the original pattern's prefix to preserve both absolute paths and intended relativity.
 
 ## 2025-08-05 - [ICU Invariant Styles]
@@ -219,3 +187,7 @@
 ## 2026-11-20 - [CSV Parser and Marshaller Edge Cases]
 **Learning:** `CSVParser` automatically resolves key/value columns using fallback names (like `key`, `id`, `value`, `target`, `source`), and falls back to any other available column if specified/preferred value columns are not found. Additionally, custom delimiters and lazy quoting can affect parsing error boundaries (such as treating rows with mismatched quotes as fewer fields).
 **Action:** When validating CSV parser error boundaries, test fallback resolution mechanics, whitespace key exclusions, and ensure that empty templates generate correct structured headers deterministically.
+
+## 2026-11-20 - [Translation Risk and Comparison Mechanics Verification]
+**Learning:** Translation risk and comparison mechanics are vital safety boundaries in sync commands to alert users of translation length spikes (e.g. from LLM hallucinations) and structure/placeholder changes. Directly testing `detectRiskyChanges` with multi-byte Unicode strings (e.g., Japanese, Russian, French) ensures precise rune length calculation and correct floating-point ratio rounding boundaries, while validating `compareRiskChange` ordering ensures sorting of risk reports remains transitive and completely deterministic across locales, keys, contexts, and code groups.
+**Action:** When testing sync, comparison, or diagnostic CLI workflows, always include robust, unicode-rich test vectors for risk evaluation and transitive checks on custom comparison helpers to prevent regressions in user-facing warning systems.
