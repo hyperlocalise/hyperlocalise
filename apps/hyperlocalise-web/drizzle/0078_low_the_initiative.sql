@@ -1,0 +1,1 @@
+ALTER TYPE "public"."stored_file_source_kind" ADD VALUE 'editor_upload';
