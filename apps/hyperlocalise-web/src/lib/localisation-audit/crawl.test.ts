@@ -168,4 +168,42 @@ describe("crawlLocalisationAuditSample", () => {
     expect(signals.length).toBeGreaterThanOrEqual(2);
     expect(signals[0]).toBe(signals[1]);
   });
+
+  it("seeds locale-prefixed high-value paths from focusLocales and homepage hreflang", async () => {
+    const fetchedUrls: string[] = [];
+    withPublicHttpFetchMock.mockImplementation(async (url, _init, handler) => {
+      fetchedUrls.push(url);
+      if (url === "https://example.com/") {
+        return handler(
+          htmlResponse(
+            `<html lang="en"><head><title>Home</title><link rel="alternate" hreflang="fr" href="/fr" /><link rel="alternate" hreflang="x-default" href="/" /></head><body><a href="/de">Deutsch</a> Welcome to the homepage content sample.</body></html>`,
+          ),
+        );
+      }
+      if (url === "https://example.com/fr/pricing") {
+        return handler(
+          htmlResponse(
+            "<html lang='fr'><title>Tarifs</title><body>Page tarifaire francaise avec contenu.</body></html>",
+          ),
+        );
+      }
+      return handler(
+        htmlResponse(
+          "<html><body>Secondary page with enough text content for parsing.</body></html>",
+        ),
+      );
+    });
+
+    const pages = await crawlLocalisationAuditSample({
+      origin: "https://example.com",
+      sourceUrl: "https://example.com/",
+      focusLocales: ["ja"],
+    });
+
+    expect(fetchedUrls).toContain("https://example.com/ja/pricing");
+    expect(fetchedUrls).toContain("https://example.com/fr/pricing");
+    expect(fetchedUrls).toContain("https://example.com/de/pricing");
+    expect(fetchedUrls).not.toContain("https://example.com/x-default/pricing");
+    expect(pages.some((page) => page.url === "https://example.com/fr/pricing")).toBe(true);
+  });
 });

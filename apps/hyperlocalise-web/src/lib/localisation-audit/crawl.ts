@@ -18,12 +18,14 @@ import type { LocalisationAuditCrawledPage } from "./types";
 
 const USER_AGENT = "HyperlocaliseLocalisationAudit/1.0 (+https://hyperlocalise.com)";
 const MAX_PAGES = 15;
+const MAX_DISCOVERED_LOCALES = 5;
 const FETCH_TIMEOUT_MS = 12_000;
 const MAX_REDIRECTS = 5;
 const REDIRECT_STATUSES = new Set([301, 302, 303, 307, 308]);
 const HIGH_VALUE_PATHS = ["/pricing", "/product", "/products", "/about", "/company", "/blog"];
 
 const LOCALE_PREFIX = /^\/([a-z]{2}(?:-[a-z]{2})?)(\/|$)/i;
+const LOCALE_CODE = /^[a-z]{2}(?:-[a-z]{2})?$/i;
 
 const FETCH_HEADERS = {
   "User-Agent": USER_AGENT,
@@ -179,6 +181,79 @@ async function fetchPageWithAnchors(url: string): Promise<
   });
 }
 
+function normalizeLocaleCode(value: string): string | null {
+  const normalized = value.trim().replaceAll("_", "-").toLowerCase();
+  if (normalized === "x-default" || !LOCALE_CODE.test(normalized)) {
+    return null;
+  }
+  return normalized;
+}
+
+function localeFromPath(pathname: string): string | null {
+  const match = pathname.match(LOCALE_PREFIX);
+  return match ? normalizeLocaleCode(match[1]!) : null;
+}
+
+function isHighValuePath(path: string): boolean {
+  return HIGH_VALUE_PATHS.some((candidate) => path === candidate || path.endsWith(candidate));
+}
+
+/**
+ * Prefer focus locales, then hreflang, then locale prefixes seen on same-host
+ * homepage links — capped so prefixed high-value probes stay within MAX_PAGES.
+ */
+function discoverLocales(input: {
+  focusLocales: string[];
+  hreflang: Array<{ locale: string }>;
+  candidateUrls: string[];
+  originHost: string;
+}): string[] {
+  const ordered: string[] = [];
+  const seen = new Set<string>();
+
+  const add = (raw: string) => {
+    const locale = normalizeLocaleCode(raw);
+    if (!locale || seen.has(locale)) {
+      return;
+    }
+    seen.add(locale);
+    ordered.push(locale);
+  };
+
+  for (const locale of input.focusLocales) {
+    add(locale);
+  }
+  for (const entry of input.hreflang) {
+    add(entry.locale);
+  }
+  for (const url of input.candidateUrls) {
+    if (!sameHost(input.originHost, url)) {
+      continue;
+    }
+    try {
+      const locale = localeFromPath(new URL(url).pathname);
+      if (locale) {
+        add(locale);
+      }
+    } catch {
+      // ignore malformed candidate URLs
+    }
+  }
+
+  return ordered.slice(0, MAX_DISCOVERED_LOCALES);
+}
+
+function seedHighValuePaths(origin: string, locales: string[]): string[] {
+  const seeds: string[] = [];
+  for (const path of HIGH_VALUE_PATHS) {
+    seeds.push(new URL(path, origin).toString());
+    for (const locale of locales) {
+      seeds.push(new URL(`/${locale}${path}`, origin).toString());
+    }
+  }
+  return seeds;
+}
+
 function scoreCandidate(url: string, origin: string): number {
   try {
     const parsed = new URL(url);
@@ -189,9 +264,8 @@ function scoreCandidate(url: string, origin: string): number {
     const path = parsed.pathname.replace(/\/+$/, "") || "/";
     if (path === "/") return 100;
     if (LOCALE_PREFIX.test(path) && path.split("/").filter(Boolean).length <= 1) return 90;
-    if (HIGH_VALUE_PATHS.some((candidate) => path === candidate || path.endsWith(candidate))) {
-      return 80;
-    }
+    if (isHighValuePath(path) && localeFromPath(path)) return 85;
+    if (isHighValuePath(path)) return 80;
     if (LOCALE_PREFIX.test(path)) return 60;
     if (path.split("/").filter(Boolean).length <= 2) return 40;
     return 10;
@@ -203,6 +277,7 @@ function scoreCandidate(url: string, origin: string): number {
 export async function crawlLocalisationAuditSample(input: {
   origin: string;
   sourceUrl: string;
+  focusLocales?: string[];
 }): Promise<LocalisationAuditCrawledPage[]> {
   try {
     return await crawlLocalisationAuditSampleInner(input);
@@ -216,6 +291,7 @@ export async function crawlLocalisationAuditSample(input: {
 async function crawlLocalisationAuditSampleInner(input: {
   origin: string;
   sourceUrl: string;
+  focusLocales?: string[];
 }): Promise<LocalisationAuditCrawledPage[]> {
   const homeResult = await fetchPageWithAnchors(input.sourceUrl);
   if (homeResult.ok === false) {
@@ -224,9 +300,15 @@ async function crawlLocalisationAuditSampleInner(input: {
 
   const { page: homePage, candidateUrls } = homeResult.value;
   const originHost = new URL(input.origin).hostname;
+  const locales = discoverLocales({
+    focusLocales: input.focusLocales ?? [],
+    hreflang: homePage.hreflang,
+    candidateUrls,
+    originHost,
+  });
   const seeded = new Set<string>([homePage.url]);
-  for (const path of HIGH_VALUE_PATHS) {
-    seeded.add(new URL(path, input.origin).toString());
+  for (const url of seedHighValuePaths(input.origin, locales)) {
+    seeded.add(url);
   }
   for (const candidate of candidateUrls) {
     if (sameHost(originHost, candidate)) {
