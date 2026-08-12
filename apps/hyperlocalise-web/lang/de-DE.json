@@ -437,6 +437,9 @@
   "0DwOCagj+y": {
     "defaultMessage": "Gebietsschema-Anpassung"
   },
+  "0G0Gi8OsmJ": {
+    "defaultMessage": "Noch keine anzeigbaren Zeichenfolgen in dieser Datei."
+  },
   "0GW7ilY3Dj": {
     "defaultMessage": "Diese Funktion ist für Ihren Arbeitsbereich noch nicht verfügbar."
   },
@@ -1442,6 +1445,9 @@
   "4zEqWvETM+": {
     "defaultMessage": "Gebietsschema: {value}"
   },
+  "5+ZicYt+Yo": {
+    "defaultMessage": "Ergebnisse der Lokalisierungsprüfung für {domain}."
+  },
   "5/QxgxarO+": {
     "defaultMessage": "Asset-Auslieferung"
   },
@@ -1495,6 +1501,9 @@
   },
   "5H+UdOBSV9": {
     "defaultMessage": "Kontextübereinstimmung"
+  },
+  "5H2Xr7AzgM": {
+    "defaultMessage": "Website-Vorschaufläche"
   },
   "5KdZWVlAAs": {
     "defaultMessage": "Letzte Zustellung: {timestamp}"
@@ -1747,6 +1756,9 @@
   },
   "6ilKS2sOmJ": {
     "defaultMessage": "Fehler beim Abrufen der Contentful-Verbindungen"
+  },
+  "6k5g5rQjwO": {
+    "defaultMessage": "Übersetzungsfortschritt"
   },
   "6lH73749rG": {
     "defaultMessage": "Die heutige Warteschlange für dieses Projekt."
@@ -2012,6 +2024,9 @@
   "7wIRX6GiLH": {
     "defaultMessage": "Text"
   },
+  "7yLnsi62KD": {
+    "defaultMessage": "Klicken Sie auf eine Zeichenfolge in der Vorschau, um sie hier zu bearbeiten."
+  },
   "7yXPQhyKta": {
     "defaultMessage": "Gebietsschema"
   },
@@ -2020,6 +2035,9 @@
   },
   "7zCB6p8hxw": {
     "defaultMessage": "Spaltenbezeichnung, z. B. Sprint"
+  },
+  "7zP273oZkl": {
+    "defaultMessage": "Lokalisierungsprüfung"
   },
   "7zni895OkR": {
     "defaultMessage": "Automation created"
@@ -2194,6 +2212,9 @@
   },
   "8jmFMvrCLC": {
     "defaultMessage": "Revision {revision}"
+  },
+  "8juGL005+Y": {
+    "defaultMessage": "{done} / {total} genehmigt"
   },
   "8kFDR1/eiv": {
     "defaultMessage": "Wählen Sie mindestens eine Zielsprache aus."
@@ -2737,6 +2758,9 @@
   },
   "BQ2Um1RaCK": {
     "defaultMessage": "Bitte geben Sie den zu übersetzenden Quelltext an."
+  },
+  "BUGP6fk/PM": {
+    "defaultMessage": "In Prüfung"
   },
   "BUP/2Zum32": {
     "defaultMessage": "Human-in-the-loop-Eskalation"
@@ -3359,6 +3383,9 @@
   "EGy0DHdyiF": {
     "defaultMessage": "Tritt der Hyperlocalise-Warteliste bei und sieh, wie dein Team Support-Inhalte in jeder Sprachvariante aktuell halten kann."
   },
+  "EH16+mA9TP": {
+    "defaultMessage": "Desktop-Vorschau"
+  },
   "EHcSgWwvER": {
     "defaultMessage": "Phrase"
   },
@@ -3544,6 +3571,9 @@
   },
   "FDx1dPH6dv": {
     "defaultMessage": "Hey {mention}, können wir das Canva-Board der Frühjahrskampagne bis Freitag für FR, DE und JA lokalisieren?"
+  },
+  "FF6P5p7LKO": {
+    "defaultMessage": "{count} benötigen Aufmerksamkeit"
   },
   "FHYpiHKFtf": {
     "defaultMessage": "Datei"
@@ -5036,6 +5066,9 @@
   "NbLadz5lws": {
     "defaultMessage": "Eigenschaften"
   },
+  "NdDEnysUFB": {
+    "defaultMessage": "Lokalisierungsprüfung | Hyperlocalise"
+  },
   "Neb7Fy6bU4": {
     "defaultMessage": "Problem erstellt"
   },
@@ -5689,6 +5722,9 @@
   },
   "QoBU315wiz": {
     "defaultMessage": "Glossarverstoß"
+  },
+  "QoSDgiiNvY": {
+    "defaultMessage": "Lokalisierungsbewertung {score}/100 für {domain}. Technische und sprachliche Erkenntnisse von Hyperlocalise."
   },
   "Qov7AjZh9+": {
     "defaultMessage": "Eine Überarbeitung der Preisseite öffnet am Dienstag einen Pull Request"
@@ -7061,6 +7097,9 @@
   "XqfvXT5zJ1": {
     "defaultMessage": "Zielsprache"
   },
+  "Xr/7GtH4gF": {
+    "defaultMessage": "Führen Sie auf jeder Website eine kostenlose Prüfung der Lokalisierungsqualität durch. Bewerten Sie die technische und sprachliche Bereitschaft und schalten Sie anschließend den vollständigen Bericht frei."
+  },
   "Xs0cc+EY83": {
     "defaultMessage": "Agent-Aktionen"
   },
@@ -7216,6 +7255,9 @@
   },
   "Ygi+pnLdm5": {
     "defaultMessage": "{key} auswählen"
+  },
+  "YhCxIj8rLK": {
+    "defaultMessage": "Lokalisierungsprüfung für {domain} | Hyperlocalise"
   },
   "YhwlgG0Ruv": {
     "defaultMessage": "Meine Arbeit"
@@ -7889,6 +7931,9 @@
   "c6U0JK/OgK": {
     "defaultMessage": "Überspringen"
   },
+  "c7/0cqs4Ou": {
+    "defaultMessage": "Übersetzbare hervorheben"
+  },
   "c7ggsCcxGl": {
     "defaultMessage": "KI-Übersetzungsentwurf"
   },
@@ -8197,6 +8242,9 @@
   },
   "dsAsLnB2MG": {
     "defaultMessage": "Zeile"
+  },
+  "dsSZ7Ag4+b": {
+    "defaultMessage": "Lokalisierungsprüfung"
   },
   "dtA9CObQ6G": {
     "defaultMessage": "Link hinzufügen …"
@@ -8980,6 +9028,9 @@
   },
   "hTbl8aKMIU": {
     "defaultMessage": "{operation} {assetType}"
+  },
+  "hU16et2xGh": {
+    "defaultMessage": "Übersetzt"
   },
   "hUsIV/tGFE": {
     "defaultMessage": "KI-Entwurf"
@@ -9989,6 +10040,9 @@
   "mE9BVZ+4OT": {
     "defaultMessage": "Push- und geplante Trigger schließen sich gegenseitig aus."
   },
+  "mF/FxMOcA8": {
+    "defaultMessage": "Tablet-Vorschau"
+  },
   "mF3XaS/Oxa": {
     "defaultMessage": "Auftrag konnte nicht erstellt werden"
   },
@@ -10030,6 +10084,9 @@
   },
   "mRWwmBY6N9": {
     "defaultMessage": "Arbeitsbereich"
+  },
+  "mRdtQn8m2l": {
+    "defaultMessage": "Vorschau aktualisieren"
   },
   "mRvhPlspGD": {
     "defaultMessage": "Wann benötige ich den Enterprise-Tarif?"
@@ -10340,6 +10397,9 @@
   "nzwZ/Y5WaF": {
     "defaultMessage": "Kopiert"
   },
+  "o+9WBKhrWc": {
+    "defaultMessage": "Dateien"
+  },
   "o+CbdMbr62": {
     "defaultMessage": "Portugiesisch (Portugal)"
   },
@@ -10382,6 +10442,9 @@
   "oFlc5dBfFx": {
     "defaultMessage": "Verstanden, Maya – ich habe das Canva-Board abgerufen und den Launch-Intake abgegrenzt:"
   },
+  "oHxxsDmsrY": {
+    "defaultMessage": "Abwählen"
+  },
   "oJ52cXcJDI": {
     "defaultMessage": "Choose a plan below to start a subscription for this workspace."
   },
@@ -10423,6 +10486,9 @@
   },
   "obkqu+QKmi": {
     "defaultMessage": "{count, plural, one {# Element} other {# Elemente}}"
+  },
+  "oc3EaT6uAq": {
+    "defaultMessage": "Nächste offeneufferุ้นบาท"
   },
   "oeD72ehQB/": {
     "defaultMessage": "Seite mit nicht gespeicherten Änderungen verlassen?"
@@ -10609,6 +10675,9 @@
   },
   "paJg6jTRIA": {
     "defaultMessage": "Zuständig gestaltende Person"
+  },
+  "pbA55RTgks": {
+    "defaultMessage": "{position} / {total}"
   },
   "pcjLSSIwsF": {
     "defaultMessage": "Select microphone..."
@@ -11020,6 +11089,9 @@
   },
   "rZ8kVxd7JR": {
     "defaultMessage": "Hyperlocalise ist nicht dazu da, Ihr TMS zu ersetzen. Es fügt eine Workflow-Ebene hinzu, die Engineering-Änderungssignale, LLM-gestütztes Entwerfen, menschliche Überprüfung und Release-Sicherheit miteinander verbindet."
+  },
+  "rZuJRFmTxw": {
+    "defaultMessage": "Noch {count} übrig"
   },
   "ra0EyftjV0": {
     "defaultMessage": "Zuletzt geöffnet"
@@ -11552,6 +11624,9 @@
   "uUnWGsYCBS": {
     "defaultMessage": "Wählen Sie aus, welche Automatisierungsjobs für dieses Repository ausgeführt werden."
   },
+  "uVBHlI1Rb6": {
+    "defaultMessage": "Nächster String"
+  },
   "uVpYHu+SN7": {
     "defaultMessage": "Vom Workspace verwaltet"
   },
@@ -11599,6 +11674,9 @@
   },
   "ugpx7KUX9X": {
     "defaultMessage": "Arbeitsbereich"
+  },
+  "uirqgKf7xz": {
+    "defaultMessage": "© {year} Hyperlocalise"
   },
   "ujHf+4KmE7": {
     "defaultMessage": "Für Produkt-Release-Geschwindigkeit entwickelt"
@@ -11833,6 +11911,9 @@
   },
   "vgj4VLCd7U": {
     "defaultMessage": "Unterstützt von Australiens und Neuseelands führendem Startup-Accelerator."
+  },
+  "vhTlP0jReG": {
+    "defaultMessage": "Ausgewählter String"
   },
   "viq5/Imoma": {
     "defaultMessage": "Arbeitsbereich"
@@ -12239,6 +12320,9 @@
   "xaHT3hr/g2": {
     "defaultMessage": "Keine erforderlichen Platzhalter fehlen."
   },
+  "xaRX3MQcXd": {
+    "defaultMessage": "Mobile-Vorschau"
+  },
   "xaqBXxdnZN": {
     "defaultMessage": "Titelbild für {title}"
   },
@@ -12481,6 +12565,9 @@
   },
   "yl7Dzt+xE3": {
     "defaultMessage": "Aktivieren Sie das Arbeitsbereichswissen für diese Organisation, bevor Sie Erinnerungen in Automatisierungen verwenden."
+  },
+  "yllmXGQJt9": {
+    "defaultMessage": "Nicht übersetzt"
   },
   "yn7Eufu4t+": {
     "defaultMessage": "Kommentar"

@@ -437,6 +437,9 @@
   "0DwOCagj+y": {
     "defaultMessage": "区域适配"
   },
+  "0G0Gi8OsmJ": {
+    "defaultMessage": "此文件中尚无可预览的字符串。"
+  },
   "0GW7ilY3Dj": {
     "defaultMessage": "此功能暂时无法用于您的工作区。"
   },
@@ -1442,6 +1445,9 @@
   "4zEqWvETM+": {
     "defaultMessage": "Locale: {value}"
   },
+  "5+ZicYt+Yo": {
+    "defaultMessage": "{domain} 的本地化健康检查结果。"
+  },
   "5/QxgxarO+": {
     "defaultMessage": "资源交付"
   },
@@ -1495,6 +1501,9 @@
   },
   "5H+UdOBSV9": {
     "defaultMessage": "上下文匹配"
+  },
+  "5H2Xr7AzgM": {
+    "defaultMessage": "网站预览画布"
   },
   "5KdZWVlAAs": {
     "defaultMessage": "最后送达时间：{timestamp}"
@@ -1747,6 +1756,9 @@
   },
   "6ilKS2sOmJ": {
     "defaultMessage": "无法获取 Contentful 连接"
+  },
+  "6k5g5rQjwO": {
+    "defaultMessage": "翻译进度"
   },
   "6lH73749rG": {
     "defaultMessage": "此项目今天的队列。"
@@ -2012,6 +2024,9 @@
   "7wIRX6GiLH": {
     "defaultMessage": "Text"
   },
+  "7yLnsi62KD": {
+    "defaultMessage": "在预览中点击字符串，即可在此处编辑。"
+  },
   "7yXPQhyKta": {
     "defaultMessage": "Locale"
   },
@@ -2020,6 +2035,9 @@
   },
   "7zCB6p8hxw": {
     "defaultMessage": "Column label, e.g. Sprint"
+  },
+  "7zP273oZkl": {
+    "defaultMessage": "本地化审计"
   },
   "7zni895OkR": {
     "defaultMessage": "Automation created"
@@ -2194,6 +2212,9 @@
   },
   "8jmFMvrCLC": {
     "defaultMessage": "revision {revision}"
+  },
+  "8juGL005+Y": {
+    "defaultMessage": "{done} / {total} 已批准"
   },
   "8kFDR1/eiv": {
     "defaultMessage": "Select at least one target locale."
@@ -2737,6 +2758,9 @@
   },
   "BQ2Um1RaCK": {
     "defaultMessage": "请提供需要翻译的英文文本。"
+  },
+  "BUGP6fk/PM": {
+    "defaultMessage": "审核中"
   },
   "BUP/2Zum32": {
     "defaultMessage": "人工介入升级"
@@ -3359,6 +3383,9 @@
   "EGy0DHdyiF": {
     "defaultMessage": "加入 Hyperlocalise 等候名单，了解您的团队如何在每个地区保持支持内容始终最新。"
   },
+  "EH16+mA9TP": {
+    "defaultMessage": "桌面预览"
+  },
   "EHcSgWwvER": {
     "defaultMessage": "Phrase"
   },
@@ -3544,6 +3571,9 @@
   },
   "FDx1dPH6dv": {
     "defaultMessage": "嘿 {mention}，我们能在周五前将 Canva 春季宣传活动看板本地化为法语、德语和日语吗？"
+  },
+  "FF6P5p7LKO": {
+    "defaultMessage": "{count} 个需要处理"
   },
   "FHYpiHKFtf": {
     "defaultMessage": "File"
@@ -5036,6 +5066,9 @@
   "NbLadz5lws": {
     "defaultMessage": "属性"
   },
+  "NdDEnysUFB": {
+    "defaultMessage": "本地化审计 | Hyperlocalise"
+  },
   "Neb7Fy6bU4": {
     "defaultMessage": "问题已创建"
   },
@@ -5689,6 +5722,9 @@
   },
   "QoBU315wiz": {
     "defaultMessage": "Glossary violation"
+  },
+  "QoSDgiiNvY": {
+    "defaultMessage": "{domain} 的本地化评分为 {score}/100。Hyperlocalise 的技术和语言问题。"
   },
   "Qov7AjZh9+": {
     "defaultMessage": "价格页面重构在周二发起了一个拉取请求"
@@ -7061,6 +7097,9 @@
   "XqfvXT5zJ1": {
     "defaultMessage": "Target locale"
   },
+  "Xr/7GtH4gF": {
+    "defaultMessage": "免费检查任意网站的本地化状况。评估技术和语言准备度，然后解锁完整报告。"
+  },
   "Xs0cc+EY83": {
     "defaultMessage": "Agent Actions"
   },
@@ -7216,6 +7255,9 @@
   },
   "Ygi+pnLdm5": {
     "defaultMessage": "选择 {key}"
+  },
+  "YhCxIj8rLK": {
+    "defaultMessage": "{domain} 的本地化审计 | Hyperlocalise"
   },
   "YhwlgG0Ruv": {
     "defaultMessage": "My work"
@@ -7889,6 +7931,9 @@
   "c6U0JK/OgK": {
     "defaultMessage": "Skip"
   },
+  "c7/0cqs4Ou": {
+    "defaultMessage": "突出显示可翻译内容"
+  },
   "c7ggsCcxGl": {
     "defaultMessage": "AI 翻译草稿"
   },
@@ -8197,6 +8242,9 @@
   },
   "dsAsLnB2MG": {
     "defaultMessage": "Row"
+  },
+  "dsSZ7Ag4+b": {
+    "defaultMessage": "本地化审查"
   },
   "dtA9CObQ6G": {
     "defaultMessage": "添加链接…"
@@ -8980,6 +9028,9 @@
   },
   "hTbl8aKMIU": {
     "defaultMessage": "{operation} {assetType}"
+  },
+  "hU16et2xGh": {
+    "defaultMessage": "已翻译"
   },
   "hUsIV/tGFE": {
     "defaultMessage": "AI drafted"
@@ -9989,6 +10040,9 @@
   "mE9BVZ+4OT": {
     "defaultMessage": "推送触发器和定时触发器互斥。"
   },
+  "mF/FxMOcA8": {
+    "defaultMessage": "平板电脑预览"
+  },
   "mF3XaS/Oxa": {
     "defaultMessage": "Failed to create job"
   },
@@ -10030,6 +10084,9 @@
   },
   "mRWwmBY6N9": {
     "defaultMessage": "工作区"
+  },
+  "mRdtQn8m2l": {
+    "defaultMessage": "刷新预览"
   },
   "mRvhPlspGD": {
     "defaultMessage": "我什么时候需要 Enterprise？"
@@ -10340,6 +10397,9 @@
   "nzwZ/Y5WaF": {
     "defaultMessage": "Copied"
   },
+  "o+9WBKhrWc": {
+    "defaultMessage": "文件"
+  },
   "o+CbdMbr62": {
     "defaultMessage": "葡萄牙语（葡萄牙）"
   },
@@ -10382,6 +10442,9 @@
   "oFlc5dBfFx": {
     "defaultMessage": "明白了，Maya——我调取了 Canva 画板，并确定了发布上线所需的信息："
   },
+  "oHxxsDmsrY": {
+    "defaultMessage": "取消选择"
+  },
   "oJ52cXcJDI": {
     "defaultMessage": "Choose a plan below to start a subscription for this workspace."
   },
@@ -10423,6 +10486,9 @@
   },
   "obkqu+QKmi": {
     "defaultMessage": "{count, plural, one {# 个项目} other {# 个项目}}"
+  },
+  "oc3EaT6uAq": {
+    "defaultMessage": "打开下一个"
   },
   "oeD72ehQB/": {
     "defaultMessage": "要离开有未保存更改的页面吗？"
@@ -10609,6 +10675,9 @@
   },
   "paJg6jTRIA": {
     "defaultMessage": "负责人"
+  },
+  "pbA55RTgks": {
+    "defaultMessage": "{position} / {total}"
   },
   "pcjLSSIwsF": {
     "defaultMessage": "Select microphone..."
@@ -11020,6 +11089,9 @@
   },
   "rZ8kVxd7JR": {
     "defaultMessage": "Hyperlocalise 并不是来取代你的 TMS 的。它增加了一层工作流，将工程变更信号、LLM 辅助起草、人工审校和发布信心连接起来。"
+  },
+  "rZuJRFmTxw": {
+    "defaultMessage": "还剩 {count} 个"
   },
   "ra0EyftjV0": {
     "defaultMessage": "Recently opened"
@@ -11552,6 +11624,9 @@
   "uUnWGsYCBS": {
     "defaultMessage": "选择要为此仓库运行哪些自动化���务。"
   },
+  "uVBHlI1Rb6": {
+    "defaultMessage": "下一个字符串"
+  },
   "uVpYHu+SN7": {
     "defaultMessage": "Workspace managed"
   },
@@ -11599,6 +11674,9 @@
   },
   "ugpx7KUX9X": {
     "defaultMessage": "Workspace"
+  },
+  "uirqgKf7xz": {
+    "defaultMessage": "© {year} Hyperlocalise"
   },
   "ujHf+4KmE7": {
     "defaultMessage": "为产品发布速度而生"
@@ -11833,6 +11911,9 @@
   },
   "vgj4VLCd7U": {
     "defaultMessage": "由澳大利亚和新西兰领先的初创企业加速器支持。"
+  },
+  "vhTlP0jReG": {
+    "defaultMessage": "已选择的字符串"
   },
   "viq5/Imoma": {
     "defaultMessage": "工作区"
@@ -12239,6 +12320,9 @@
   "xaHT3hr/g2": {
     "defaultMessage": "No required placeholders are missing."
   },
+  "xaRX3MQcXd": {
+    "defaultMessage": "移动端预览"
+  },
   "xaqBXxdnZN": {
     "defaultMessage": "{title} 的封面图像"
   },
@@ -12481,6 +12565,9 @@
   },
   "yl7Dzt+xE3": {
     "defaultMessage": "Enable workspace knowledge for this organization before using memories in automations."
+  },
+  "yllmXGQJt9": {
+    "defaultMessage": "未翻译"
   },
   "yn7Eufu4t+": {
     "defaultMessage": "评论"

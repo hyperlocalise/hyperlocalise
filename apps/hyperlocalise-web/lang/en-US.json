@@ -1459,6 +1459,10 @@
     "defaultMessage": "Registration: {status}",
     "description": "Webhook registration status line with localized status value"
   },
+  "3poXpaPEFu": {
+    "defaultMessage": "Enter URL",
+    "description": "Dialog action to switch to entering an image URL"
+  },
   "3r10YA/kX+": {
     "defaultMessage": "Config version: <version>{configVersion}</version>",
     "description": "Metadata label showing saved automation config version"
@@ -3407,6 +3411,10 @@
     "defaultMessage": "Enter provider API token",
     "description": "Placeholder for the API token or secret field"
   },
+  "BWdxr7XQ2f": {
+    "defaultMessage": "Upload image",
+    "description": "Dialog action to upload an image file"
+  },
   "BX0DlJwbY+": {
     "defaultMessage": "Disconnect {providerName}?",
     "description": "Title for the external TMS disconnect confirmation dialog"
@@ -3610,6 +3618,10 @@
   "CFMr/AO+mA": {
     "defaultMessage": "Translate Task",
     "description": "Title of the translation flow illustration mock task card"
+  },
+  "CGcIng445f": {
+    "defaultMessage": "https://",
+    "description": "Placeholder shown in the image URL input"
   },
   "CGit9CSACq": {
     "defaultMessage": "Files",
@@ -7059,6 +7071,10 @@
     "defaultMessage": "Select",
     "description": "Issue Sheet column type option for a select list"
   },
+  "Qnl5usEJ9F": {
+    "defaultMessage": "Insert",
+    "description": "Confirm button to insert an image from a URL"
+  },
   "QoBU315wiz": {
     "defaultMessage": "Glossary violation",
     "description": "Issue type filter option for a glossary violation"
@@ -7811,6 +7827,10 @@
     "defaultMessage": "Position speed as release confidence, not shortcut automation.",
     "description": "Intent panel copy in the hero CAT mock"
   },
+  "TtLubrrGZM": {
+    "defaultMessage": "Uploading image…",
+    "description": "Status shown over the editor while an image upload is in progress"
+  },
   "TtcvnbdV7R": {
     "defaultMessage": "No Hyperlocalise work items found for your account.",
     "description": "Empty state for native jobs in personal workspace scope"
@@ -8210,10 +8230,6 @@
   "VdjibQd9gV": {
     "defaultMessage": "Open full-page editor",
     "description": "Link to open repository automation settings on a dedicated page"
-  },
-  "Ve2Cw+kZK7": {
-    "defaultMessage": "Editing · {file} · {locale}",
-    "description": "Status text in the visual editor canvas toolbar"
   },
   "ViFhELlwfG": {
     "defaultMessage": "Get a demo",
@@ -8958,6 +8974,10 @@
   "YhwlgG0Ruv": {
     "defaultMessage": "My work",
     "description": "Issue list view preset showing issues assigned to the current user"
+  },
+  "YhyWgKMwTp": {
+    "defaultMessage": "Insert image",
+    "description": "Title of the dialog for choosing how to insert an image"
   },
   "Yi/8efQvnI": {
     "defaultMessage": "Your account is signed in, but this workspace does not have an active organization context you can use.",
@@ -10407,6 +10427,10 @@
     "defaultMessage": "Email support",
     "description": "Accessible label for the support email button in the app shell footer"
   },
+  "ed4/NRs4Oy": {
+    "defaultMessage": "Img",
+    "description": "Visible abbreviation on the image toolbar button"
+  },
   "ee60kiAN7Z": {
     "defaultMessage": "Glossary guidance",
     "description": "Section heading for glossary term guidance in the intelligence panel"
@@ -10514,6 +10538,10 @@
   "f0pASu5TFR": {
     "defaultMessage": "Search repositories",
     "description": "Placeholder for the GitHub repository search input"
+  },
+  "f3IEqEzc4J": {
+    "defaultMessage": "Image must be 10 MB or smaller.",
+    "description": "Toast when an uploaded image exceeds the size limit"
   },
   "f5viDmb9eZ": {
     "defaultMessage": "Unsaved changes",
@@ -12631,6 +12659,10 @@
     "defaultMessage": "Search by name...",
     "description": "Placeholder for the projects search field"
   },
+  "nU96BLMwJI": {
+    "defaultMessage": "Enter image URL",
+    "description": "Label for the image URL field in the insert-image dialog"
+  },
   "nULuPBbLbZ": {
     "defaultMessage": "Localise Pricing Messages",
     "description": "Subtitle under the translate task title in the translation flow illustration"
@@ -13247,6 +13279,10 @@
     "defaultMessage": "How Hyperlocalise handles account, usage, and provider-related data.",
     "description": "Open Graph description for the privacy policy page"
   },
+  "q9T9hQuPR7": {
+    "defaultMessage": "Insert image",
+    "description": "Tooltip and accessible label for the image toolbar button"
+  },
   "q9qDjh4G/B": {
     "defaultMessage": "Changes committed",
     "description": "Status badge after the agent commits the fix"
@@ -13607,6 +13643,10 @@
     "defaultMessage": "Tell the automation what to do, what to inspect, and what to ignore.",
     "description": "Placeholder for the automation instructions textarea"
   },
+  "roHaMHNwoS": {
+    "defaultMessage": "Image",
+    "description": "Slash menu item for inserting an image"
+  },
   "rponYzKMZ3": {
     "defaultMessage": "Create issues from translation blockers and keep launch tasks in sync.",
     "description": "Linear integration description on the integrations page"
@@ -13662,6 +13702,10 @@
   "s1gl7VHrHd": {
     "defaultMessage": "Accept",
     "description": "Button to accept a single agent proposal"
+  },
+  "s2RbfpSnxA": {
+    "defaultMessage": "Failed to upload image",
+    "description": "Toast when image upload to storage fails"
   },
   "s2Vo5Fg6Dj": {
     "defaultMessage": "Apply glossaries, tone guides, and do-not-translate rules before drafts reach reviewers.",
@@ -14815,6 +14859,10 @@
     "defaultMessage": "Manage terms and assign this glossary to projects.",
     "description": "Fallback description when a glossary has no description"
   },
+  "wem2T5DJ9n": {
+    "defaultMessage": "Only PNG, JPEG, and WebP images are supported.",
+    "description": "Toast when an unsupported image type is uploaded"
+  },
   "wewNVYT5+w": {
     "defaultMessage": "GitHub sync workflows",
     "description": "Menu item and tool title for GitHub sync workflows"
@@ -15618,6 +15666,10 @@
   "zdN3ToHnj1": {
     "defaultMessage": "Unable to load glossary",
     "description": "Fallback error when a glossary fails to load"
+  },
+  "ze9bxcwl8T": {
+    "defaultMessage": "Cancel",
+    "description": "Cancel button on the insert-image dialog"
   },
   "zedkthWR8N": {
     "defaultMessage": "Target locales",
