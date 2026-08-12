@@ -540,6 +540,13 @@
       "when": 1786415036815,
       "tag": "0076_wealthy_donald_blake",
       "breakpoints": true
+    },
+    {
+      "idx": 77,
+      "version": "7",
+      "when": 1786518983140,
+      "tag": "0077_lying_goliath",
+      "breakpoints": true
     }
   ]
 }

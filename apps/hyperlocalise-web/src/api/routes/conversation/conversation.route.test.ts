@@ -236,7 +236,7 @@ describe("conversation creation", () => {
     const body = (await response.json()) as {
       conversation: { id: string };
     };
-    const session = getWebConversationRepositorySession(body.conversation.id);
+    const session = await getWebConversationRepositorySession(body.conversation.id);
     expect(session?.session.repositoryGitHubContext).toMatchObject({
       resolved: true,
       installationId: Number(repository.githubInstallationId),
@@ -358,7 +358,7 @@ describe("conversation creation", () => {
     );
 
     expect(replyResponse.status).toBe(201);
-    const session = getWebConversationRepositorySession(conversationBody.conversation.id);
+    const session = await getWebConversationRepositorySession(conversationBody.conversation.id);
     expect(session?.session.repositoryGitHubContext).toMatchObject({
       resolved: true,
       installationId: Number(repository.githubInstallationId),

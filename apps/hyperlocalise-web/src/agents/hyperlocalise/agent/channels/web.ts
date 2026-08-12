@@ -67,7 +67,7 @@ async function prepareAndCommitWebConversationTurn(
   conversationId: string,
   prepareInput: Omit<PrepareConversationAgentTurnInput, "repositorySession">,
 ): Promise<PrepareConversationAgentTurnResult> {
-  let repositorySessionState = getWebConversationRepositorySession(conversationId);
+  let repositorySessionState = await getWebConversationRepositorySession(conversationId);
 
   for (let attempt = 0; attempt < 3; attempt += 1) {
     const prepared = await prepareConversationAgentTurn({
@@ -79,7 +79,8 @@ async function prepareAndCommitWebConversationTurn(
       return prepared;
     }
 
-    const committed = setWebConversationRepositorySession(conversationId, {
+    const committed = await setWebConversationRepositorySession(conversationId, {
+      organizationId: prepareInput.organizationId,
       baseVersion: repositorySessionState?.version ?? null,
       session: prepared.updatedRepositorySession,
     });
@@ -88,12 +89,13 @@ async function prepareAndCommitWebConversationTurn(
       return prepared;
     }
 
-    repositorySessionState = getWebConversationRepositorySession(conversationId);
+    repositorySessionState = await getWebConversationRepositorySession(conversationId);
   }
 
+  const fallbackSession = await getWebConversationRepositorySession(conversationId);
   return prepareConversationAgentTurn({
     ...prepareInput,
-    repositorySession: getWebConversationRepositorySession(conversationId)?.session ?? null,
+    repositorySession: fallbackSession?.session ?? null,
     reuseCommittedRepositorySandboxOnly: true,
   });
 }

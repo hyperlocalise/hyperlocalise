@@ -46,6 +46,7 @@ import type {
   projects,
   interactions,
   inboxItems,
+  interactionRepositorySessions,
   interactionMessages,
   connectors,
   tmsLinks,
@@ -116,6 +117,8 @@ export type Interaction = typeof interactions.$inferSelect;
 export type NewInteraction = typeof interactions.$inferInsert;
 export type InboxItem = typeof inboxItems.$inferSelect;
 export type NewInboxItem = typeof inboxItems.$inferInsert;
+export type InteractionRepositorySession = typeof interactionRepositorySessions.$inferSelect;
+export type NewInteractionRepositorySession = typeof interactionRepositorySessions.$inferInsert;
 export type InteractionMessage = typeof interactionMessages.$inferSelect;
 export type NewInteractionMessage = typeof interactionMessages.$inferInsert;
 export type Connector = typeof connectors.$inferSelect;

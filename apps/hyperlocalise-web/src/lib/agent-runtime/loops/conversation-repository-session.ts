@@ -10,8 +10,11 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { and, eq } from "drizzle-orm";
+
 import type { RepositoryAgentGitHubContext } from "@/lib/agent-contracts/repository-task";
 import { stopRepositorySandbox } from "@/lib/agent-runtime/workspaces/repository-sandbox";
+import { db, schema } from "@/lib/database";
 import { createLogger, serializeErrorForLog } from "@/lib/log";
 
 const logger = createLogger("conversation-repository-session");
@@ -39,21 +42,13 @@ export function getRepositoryContextKey(context: RepositoryAgentGitHubContext): 
   });
 }
 
-const WEB_SESSION_TTL_MS = 30 * 60 * 1000;
-const WEB_SESSION_MAX_ENTRIES = 200;
+export const WEB_SESSION_TTL_MS = 30 * 60 * 1000;
 
 export type WebConversationRepositorySessionState = {
   session: ConversationRepositorySession;
   version: number;
 };
 
-type WebSessionEntry = {
-  session: ConversationRepositorySession;
-  version: number;
-  expiresAt: number;
-};
-
-const webRepositorySessions = new Map<string, WebSessionEntry>();
 const webRepositorySandboxLeaseCounts = new Map<string, number>();
 const pendingWebRepositorySandboxStops = new Set<string>();
 
@@ -115,80 +110,173 @@ function releaseWebSessionSandbox(session: ConversationRepositorySession) {
   });
 }
 
-function removeWebRepositorySession(conversationId: string) {
-  const entry = webRepositorySessions.get(conversationId);
-  if (!entry) {
-    return;
+function asConversationRepositorySession(value: unknown): ConversationRepositorySession | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return null;
   }
-
-  releaseWebSessionSandbox(entry.session);
-  webRepositorySessions.delete(conversationId);
+  return value as ConversationRepositorySession;
 }
 
-function pruneExpiredWebSessions(now: number) {
-  for (const [conversationId, entry] of webRepositorySessions) {
-    if (entry.expiresAt <= now) {
-      removeWebRepositorySession(conversationId);
-    }
-  }
-
-  while (webRepositorySessions.size > WEB_SESSION_MAX_ENTRIES) {
-    const oldestConversationId = webRepositorySessions.keys().next().value;
-    if (!oldestConversationId) {
-      break;
-    }
-    removeWebRepositorySession(oldestConversationId);
-  }
+async function deleteExpiredSessionRow(input: {
+  interactionId: string;
+  organizationId: string;
+  session: ConversationRepositorySession;
+}) {
+  await db
+    .delete(schema.interactionRepositorySessions)
+    .where(
+      and(
+        eq(schema.interactionRepositorySessions.interactionId, input.interactionId),
+        eq(schema.interactionRepositorySessions.organizationId, input.organizationId),
+      ),
+    );
+  releaseWebSessionSandbox(input.session);
 }
 
-export function getWebConversationRepositorySession(
+export async function getWebConversationRepositorySession(
   conversationId: string,
-): WebConversationRepositorySessionState | null {
-  const now = Date.now();
-  pruneExpiredWebSessions(now);
+): Promise<WebConversationRepositorySessionState | null> {
+  const [row] = await db
+    .select({
+      organizationId: schema.interactionRepositorySessions.organizationId,
+      session: schema.interactionRepositorySessions.session,
+      version: schema.interactionRepositorySessions.version,
+      expiresAt: schema.interactionRepositorySessions.expiresAt,
+    })
+    .from(schema.interactionRepositorySessions)
+    .where(eq(schema.interactionRepositorySessions.interactionId, conversationId))
+    .limit(1);
 
-  const entry = webRepositorySessions.get(conversationId);
-  if (!entry || entry.expiresAt <= now) {
-    if (entry) {
-      removeWebRepositorySession(conversationId);
-    }
+  if (!row) {
+    return null;
+  }
+
+  const session = asConversationRepositorySession(row.session);
+  if (!session) {
+    await db
+      .delete(schema.interactionRepositorySessions)
+      .where(eq(schema.interactionRepositorySessions.interactionId, conversationId));
+    return null;
+  }
+
+  if (row.expiresAt.getTime() <= Date.now()) {
+    await deleteExpiredSessionRow({
+      interactionId: conversationId,
+      organizationId: row.organizationId,
+      session,
+    });
     return null;
   }
 
   return {
-    session: entry.session,
-    version: entry.version,
+    session,
+    version: row.version,
   };
 }
 
-export function setWebConversationRepositorySession(
+export async function setWebConversationRepositorySession(
   conversationId: string,
   input: {
+    organizationId: string;
     baseVersion: number | null;
     session: ConversationRepositorySession;
   },
-): boolean {
-  const now = Date.now();
-  pruneExpiredWebSessions(now);
+): Promise<boolean> {
+  const now = new Date();
+  const expiresAt = new Date(now.getTime() + WEB_SESSION_TTL_MS);
 
-  const existing = webRepositorySessions.get(conversationId);
-  const currentVersion = existing?.version ?? null;
+  const [existing] = await db
+    .select({
+      organizationId: schema.interactionRepositorySessions.organizationId,
+      session: schema.interactionRepositorySessions.session,
+      version: schema.interactionRepositorySessions.version,
+      expiresAt: schema.interactionRepositorySessions.expiresAt,
+    })
+    .from(schema.interactionRepositorySessions)
+    .where(eq(schema.interactionRepositorySessions.interactionId, conversationId))
+    .limit(1);
+
+  let existingSession: ConversationRepositorySession | null = null;
+  let currentVersion: number | null = null;
+
+  if (existing) {
+    existingSession = asConversationRepositorySession(existing.session);
+    if (existing.expiresAt.getTime() <= now.getTime()) {
+      await deleteExpiredSessionRow({
+        interactionId: conversationId,
+        organizationId: existing.organizationId,
+        session: existingSession ?? {},
+      });
+      existingSession = null;
+      currentVersion = null;
+    } else {
+      currentVersion = existing.version;
+    }
+  }
+
   if (currentVersion !== input.baseVersion) {
     releaseWebSessionSandbox(input.session);
     return false;
   }
 
-  const existingSandboxId = existing?.session.repositorySandboxSession?.sandboxId;
+  const existingSandboxId = existingSession?.repositorySandboxSession?.sandboxId;
   const nextSandboxId = input.session.repositorySandboxSession?.sandboxId;
   if (existingSandboxId && existingSandboxId !== nextSandboxId) {
-    releaseWebSessionSandbox(existing.session);
+    releaseWebSessionSandbox(existingSession ?? {});
   }
 
-  webRepositorySessions.set(conversationId, {
-    session: input.session,
-    version: (input.baseVersion ?? 0) + 1,
-    expiresAt: now + WEB_SESSION_TTL_MS,
-  });
-  pruneExpiredWebSessions(now);
+  const nextVersion = (input.baseVersion ?? 0) + 1;
+  const sessionPayload = input.session as Record<string, unknown>;
+
+  if (currentVersion === null) {
+    try {
+      await db.insert(schema.interactionRepositorySessions).values({
+        interactionId: conversationId,
+        organizationId: input.organizationId,
+        session: sessionPayload,
+        version: nextVersion,
+        expiresAt,
+        createdAt: now,
+        updatedAt: now,
+      });
+      return true;
+    } catch (error: unknown) {
+      // Concurrent first write lost the race on the primary key.
+      releaseWebSessionSandbox(input.session);
+      logger.warn(
+        {
+          err: serializeErrorForLog(error),
+          conversationId,
+          organizationId: input.organizationId,
+        },
+        "web repository session insert lost a concurrency race",
+      );
+      return false;
+    }
+  }
+
+  const updated = await db
+    .update(schema.interactionRepositorySessions)
+    .set({
+      session: sessionPayload,
+      version: nextVersion,
+      expiresAt,
+      updatedAt: now,
+    })
+    .where(
+      and(
+        eq(schema.interactionRepositorySessions.interactionId, conversationId),
+        eq(schema.interactionRepositorySessions.version, currentVersion),
+      ),
+    )
+    .returning({
+      interactionId: schema.interactionRepositorySessions.interactionId,
+    });
+
+  if (updated.length === 0) {
+    releaseWebSessionSandbox(input.session);
+    return false;
+  }
+
   return true;
 }

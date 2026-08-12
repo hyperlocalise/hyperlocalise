@@ -10,6 +10,11 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import "dotenv/config";
+
+import { randomUUID } from "node:crypto";
+
+import { eq } from "drizzle-orm";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
 const { stopRepositorySandboxMock } = vi.hoisted(() => ({
@@ -27,17 +32,58 @@ vi.mock("@/lib/log", () => ({
   serializeErrorForLog: vi.fn((error: unknown) => ({ error })),
 }));
 
+import { db, schema } from "@/lib/database";
 import {
   acquireWebRepositorySandboxLease,
   getWebConversationRepositorySession,
   setWebConversationRepositorySession,
+  WEB_SESSION_TTL_MS,
 } from "./conversation-repository-session";
 
-const WEB_SESSION_TTL_MS = 30 * 60 * 1000;
+const createdWorkosOrganizationIds = new Set<string>();
+const createdInteractionIds = new Set<string>();
 
-function setSession(
+async function createOrganization() {
+  const suffix = randomUUID();
+  const workosOrganizationId = `org_${suffix}`;
+  createdWorkosOrganizationIds.add(workosOrganizationId);
+
+  const [organization] = await db
+    .insert(schema.organizations)
+    .values({
+      workosOrganizationId,
+      name: `Example Org ${suffix}`,
+      slug: `example-org-${suffix}`,
+    })
+    .returning();
+
+  return organization;
+}
+
+async function createInteraction(organizationId: string) {
+  const [interaction] = await db
+    .insert(schema.interactions)
+    .values({
+      organizationId,
+      source: "chat_ui",
+      title: "Test conversation",
+    })
+    .returning();
+
+  await db.insert(schema.inboxItems).values({
+    interactionId: interaction.id,
+    organizationId,
+    status: "active",
+  });
+
+  createdInteractionIds.add(interaction.id);
+  return interaction;
+}
+
+async function setSession(
   conversationId: string,
   input: {
+    organizationId: string;
     baseVersion: number | null;
     session: Parameters<typeof setWebConversationRepositorySession>[1]["session"];
   },
@@ -48,16 +94,36 @@ function setSession(
 describe("web conversation repository session", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.useFakeTimers();
+    vi.useFakeTimers({ shouldAdvanceTime: true });
     vi.setSystemTime(new Date("2026-07-01T12:00:00.000Z"));
   });
 
-  afterEach(() => {
+  afterEach(async () => {
     vi.useRealTimers();
+
+    for (const interactionId of createdInteractionIds) {
+      await db
+        .delete(schema.interactionRepositorySessions)
+        .where(eq(schema.interactionRepositorySessions.interactionId, interactionId));
+      await db.delete(schema.inboxItems).where(eq(schema.inboxItems.interactionId, interactionId));
+      await db.delete(schema.interactions).where(eq(schema.interactions.id, interactionId));
+    }
+    createdInteractionIds.clear();
+
+    for (const workosOrganizationId of createdWorkosOrganizationIds) {
+      await db
+        .delete(schema.organizations)
+        .where(eq(schema.organizations.workosOrganizationId, workosOrganizationId));
+    }
+    createdWorkosOrganizationIds.clear();
   });
 
   it("stops the sandbox when a session expires", async () => {
-    setSession("conv_expired", {
+    const organization = await createOrganization();
+    const interaction = await createInteraction(organization.id);
+
+    await setSession(interaction.id, {
+      organizationId: organization.id,
       baseVersion: null,
       session: {
         repositorySandboxSession: {
@@ -71,47 +137,18 @@ describe("web conversation repository session", () => {
 
     vi.advanceTimersByTime(WEB_SESSION_TTL_MS + 1);
 
-    expect(getWebConversationRepositorySession("conv_expired")).toBeNull();
+    await expect(getWebConversationRepositorySession(interaction.id)).resolves.toBeNull();
     await vi.waitFor(() => {
       expect(stopRepositorySandboxMock).toHaveBeenCalledWith("sbx_expired");
     });
   });
 
-  it("stops the sandbox when the cache exceeds its entry limit", async () => {
-    for (let index = 0; index < 200; index += 1) {
-      setSession(`conv_${index}`, {
-        baseVersion: null,
-        session: {
-          repositorySandboxSession: {
-            sandboxId: `sbx_${index}`,
-            repositoryContextKey: `ctx_${index}`,
-            createdAt: "2026-07-01T12:00:00.000Z",
-            lastUsedAt: "2026-07-01T12:00:00.000Z",
-          },
-        },
-      });
-    }
-
-    setSession("conv_overflow", {
-      baseVersion: null,
-      session: {
-        repositorySandboxSession: {
-          sandboxId: "sbx_overflow",
-          repositoryContextKey: "ctx_overflow",
-          createdAt: "2026-07-01T12:00:00.000Z",
-          lastUsedAt: "2026-07-01T12:00:00.000Z",
-        },
-      },
-    });
-
-    await vi.waitFor(() => {
-      expect(stopRepositorySandboxMock).toHaveBeenCalledWith("sbx_0");
-    });
-    expect(getWebConversationRepositorySession("conv_overflow")).not.toBeNull();
-  });
-
   it("stops the overwritten sandbox when a session is replaced", async () => {
-    setSession("conv_replace", {
+    const organization = await createOrganization();
+    const interaction = await createInteraction(organization.id);
+
+    await setSession(interaction.id, {
+      organizationId: organization.id,
       baseVersion: null,
       session: {
         repositorySandboxSession: {
@@ -123,10 +160,11 @@ describe("web conversation repository session", () => {
       },
     });
 
-    const current = getWebConversationRepositorySession("conv_replace");
+    const current = await getWebConversationRepositorySession(interaction.id);
     expect(current?.version).toBe(1);
 
-    setSession("conv_replace", {
+    await setSession(interaction.id, {
+      organizationId: organization.id,
       baseVersion: current?.version ?? null,
       session: {
         repositorySandboxSession: {
@@ -141,13 +179,21 @@ describe("web conversation repository session", () => {
     await vi.waitFor(() => {
       expect(stopRepositorySandboxMock).toHaveBeenCalledWith("sbx_old");
     });
-    expect(
-      getWebConversationRepositorySession("conv_replace")?.session.repositorySandboxSession,
-    ).toMatchObject({ sandboxId: "sbx_new" });
+    await expect(getWebConversationRepositorySession(interaction.id)).resolves.toMatchObject({
+      session: {
+        repositorySandboxSession: {
+          sandboxId: "sbx_new",
+        },
+      },
+    });
   });
 
   it("rejects stale writes and stops the sandbox from the losing turn", async () => {
-    setSession("conv_race", {
+    const organization = await createOrganization();
+    const interaction = await createInteraction(organization.id);
+
+    await setSession(interaction.id, {
+      organizationId: organization.id,
       baseVersion: null,
       session: {
         repositorySandboxSession: {
@@ -159,11 +205,12 @@ describe("web conversation repository session", () => {
       },
     });
 
-    const staleRead = getWebConversationRepositorySession("conv_race");
-    const current = getWebConversationRepositorySession("conv_race");
+    const staleRead = await getWebConversationRepositorySession(interaction.id);
+    const current = await getWebConversationRepositorySession(interaction.id);
     expect(staleRead?.version).toBe(current?.version);
 
-    setSession("conv_race", {
+    await setSession(interaction.id, {
+      organizationId: organization.id,
       baseVersion: current?.version ?? null,
       session: {
         repositorySandboxSession: {
@@ -175,7 +222,8 @@ describe("web conversation repository session", () => {
       },
     });
 
-    const committed = setSession("conv_race", {
+    const committed = await setSession(interaction.id, {
+      organizationId: organization.id,
       baseVersion: staleRead?.version ?? null,
       session: {
         repositorySandboxSession: {
@@ -191,13 +239,21 @@ describe("web conversation repository session", () => {
     await vi.waitFor(() => {
       expect(stopRepositorySandboxMock).toHaveBeenCalledWith("sbx_loser");
     });
-    expect(
-      getWebConversationRepositorySession("conv_race")?.session.repositorySandboxSession,
-    ).toMatchObject({ sandboxId: "sbx_winner" });
+    await expect(getWebConversationRepositorySession(interaction.id)).resolves.toMatchObject({
+      session: {
+        repositorySandboxSession: {
+          sandboxId: "sbx_winner",
+        },
+      },
+    });
   });
 
   it("defers sandbox cleanup while a web turn holds an active lease", async () => {
-    setSession("conv_active", {
+    const organization = await createOrganization();
+    const interaction = await createInteraction(organization.id);
+
+    await setSession(interaction.id, {
+      organizationId: organization.id,
       baseVersion: null,
       session: {
         repositorySandboxSession: {
@@ -212,7 +268,7 @@ describe("web conversation repository session", () => {
     const releaseLease = acquireWebRepositorySandboxLease("sbx_active");
 
     vi.advanceTimersByTime(WEB_SESSION_TTL_MS + 1);
-    expect(getWebConversationRepositorySession("conv_active")).toBeNull();
+    await expect(getWebConversationRepositorySession(interaction.id)).resolves.toBeNull();
     expect(stopRepositorySandboxMock).not.toHaveBeenCalledWith("sbx_active");
 
     releaseLease();
@@ -221,40 +277,48 @@ describe("web conversation repository session", () => {
     });
   });
 
-  it("defers sandbox cleanup on cache eviction while a lease is active", async () => {
-    for (let index = 0; index < 200; index += 1) {
-      setSession(`conv_${index}`, {
-        baseVersion: null,
-        session: {
-          repositorySandboxSession: {
-            sandboxId: `sbx_${index}`,
-            repositoryContextKey: `ctx_${index}`,
-            createdAt: "2026-07-01T12:00:00.000Z",
-            lastUsedAt: "2026-07-01T12:00:00.000Z",
-          },
-        },
-      });
-    }
+  it("refreshes expiry on a successful write", async () => {
+    const organization = await createOrganization();
+    const interaction = await createInteraction(organization.id);
 
-    const releaseLease = acquireWebRepositorySandboxLease("sbx_0");
-
-    setSession("conv_overflow", {
+    await setSession(interaction.id, {
+      organizationId: organization.id,
       baseVersion: null,
       session: {
         repositorySandboxSession: {
-          sandboxId: "sbx_overflow",
-          repositoryContextKey: "ctx_overflow",
+          sandboxId: "sbx_refresh",
+          repositoryContextKey: "ctx_refresh",
           createdAt: "2026-07-01T12:00:00.000Z",
           lastUsedAt: "2026-07-01T12:00:00.000Z",
         },
       },
     });
 
-    expect(stopRepositorySandboxMock).not.toHaveBeenCalledWith("sbx_0");
+    vi.advanceTimersByTime(WEB_SESSION_TTL_MS - 60_000);
+    const current = await getWebConversationRepositorySession(interaction.id);
+    expect(current?.version).toBe(1);
 
-    releaseLease();
-    await vi.waitFor(() => {
-      expect(stopRepositorySandboxMock).toHaveBeenCalledWith("sbx_0");
+    await setSession(interaction.id, {
+      organizationId: organization.id,
+      baseVersion: current?.version ?? null,
+      session: {
+        repositorySandboxSession: {
+          sandboxId: "sbx_refresh",
+          repositoryContextKey: "ctx_refresh",
+          createdAt: "2026-07-01T12:00:00.000Z",
+          lastUsedAt: "2026-07-01T12:29:00.000Z",
+        },
+      },
+    });
+
+    vi.advanceTimersByTime(90_000);
+    await expect(getWebConversationRepositorySession(interaction.id)).resolves.toMatchObject({
+      session: {
+        repositorySandboxSession: {
+          sandboxId: "sbx_refresh",
+        },
+      },
+      version: 2,
     });
   });
 });
