@@ -119,6 +119,19 @@ describe("crawlLocalisationAuditSample", () => {
     expect(pages.find((page) => page.url === "https://example.com/en")?.title).toBe("EN");
   });
 
+  it("returns an empty sample when the home page fetch fails instead of throwing", async () => {
+    withPublicHttpFetchMock.mockImplementation(async () => {
+      throw new Error("URL host is not allowed.");
+    });
+
+    await expect(
+      crawlLocalisationAuditSample({
+        origin: "https://example.com",
+        sourceUrl: "https://example.com/",
+      }),
+    ).resolves.toEqual([]);
+  });
+
   it("reuses one abort signal across redirect hops so the page timeout does not reset", async () => {
     const signals: AbortSignal[] = [];
     withPublicHttpFetchMock.mockImplementation(async (url, init, handler) => {

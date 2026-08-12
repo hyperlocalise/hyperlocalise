@@ -60,7 +60,15 @@ export async function withPublicHttpFetch<T>(
   const { address, family } = hostResult.value;
   const dispatcher = new Agent({
     connect: {
-      lookup(_hostname, _options, callback) {
+      // Node 20+/undici often call custom lookup with `{ all: true }`. In that
+      // mode the callback must receive `[{ address, family }]`; the legacy
+      // `(address, family)` shape yields ERR_INVALID_IP_ADDRESS and every
+      // public crawl fails.
+      lookup(_hostname, options, callback) {
+        if (options?.all) {
+          callback(null, [{ address, family }]);
+          return;
+        }
         callback(null, address, family);
       },
     },
