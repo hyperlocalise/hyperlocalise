@@ -32,8 +32,16 @@ export function isDetailExcludedColumnKey(key: string) {
 
 export function listDetailPanelColumns(columns: IssueSheetColumn[]) {
   return columns
-    .filter((column) => column.layer !== "system" && !isDetailExcludedColumnKey(column.key))
+    .filter(
+      (column) =>
+        !column.hidden && column.layer !== "system" && !isDetailExcludedColumnKey(column.key),
+    )
     .toSorted((left, right) => left.sortOrder - right.sortOrder);
+}
+
+export function isIssueSheetColumnVisible(columns: IssueSheetColumn[], key: string) {
+  const column = columns.find((entry) => entry.key === key);
+  return column ? !column.hidden : true;
 }
 
 export function isMainContentCustomColumn(column: IssueSheetColumn) {

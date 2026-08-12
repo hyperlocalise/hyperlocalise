@@ -51,6 +51,7 @@ import {
   useProjectPageQuery,
 } from "../../_components/project-page-shell";
 import { ProjectNativeConnectCliPanel } from "./project-native-connect-cli-panel";
+import { ProjectIssueColumnsSettings } from "./project-issue-columns-settings";
 import { projectSettingsPageContentMessages } from "./project-settings-page-content.messages";
 
 const providerLabels: Record<NonNullable<ProjectListRow["externalProviderKind"]>, string> = {
@@ -421,6 +422,10 @@ export function ProjectSettingsPageContent({
           <ProjectNativeConnectCliPanel organizationSlug={organizationSlug} projectId={projectId} />
         ) : null}
       </form>
+
+      <div className="mt-5">
+        <ProjectIssueColumnsSettings organizationSlug={organizationSlug} projectId={projectId} />
+      </div>
     </ProjectPageShell>
   );
 }

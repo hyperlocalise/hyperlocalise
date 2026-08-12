@@ -33,7 +33,9 @@ import {
   issueSheetParamsSchema,
   issueSheetQuerySchema,
   issueSheetFeedQuerySchema,
+  issueSheetReorderColumnsBodySchema,
   issueSheetSetValueBodySchema,
+  issueSheetUpdateColumnBodySchema,
   issueSheetUpdateIssueBodySchema,
 } from "./issue-sheet.schema";
 import {
@@ -78,6 +80,16 @@ const validateCreateColumnBody = createZodValidator(
   "json",
   issueSheetCreateColumnBodySchema,
   "invalid_issue_sheet_column_payload",
+);
+const validateUpdateColumnBody = createZodValidator(
+  "json",
+  issueSheetUpdateColumnBodySchema,
+  "invalid_issue_sheet_column_payload",
+);
+const validateReorderColumnsBody = createZodValidator(
+  "json",
+  issueSheetReorderColumnsBodySchema,
+  "invalid_issue_sheet_column_order_payload",
 );
 const validateSetValueBody = createZodValidator(
   "json",
@@ -176,6 +188,34 @@ export function createIssueSheetRoutes() {
       } catch (error) {
         if (error instanceof Error && error.message.includes("duplicate")) {
           return conflictResponse(c, "issue_sheet_column_exists", "Column already exists");
+        }
+        throw error;
+      }
+    })
+    .put("/columns/order", validateIssueSheetParams, validateReorderColumnsBody, async (c) => {
+      if (!isProjectMutationAllowed(c.var.auth.membership.role)) {
+        return projectForbiddenResponse(c);
+      }
+      const params = c.req.valid("param");
+      const project = await requireProject(c, params.projectId);
+      if (!project) {
+        return projectNotFoundResponse(c);
+      }
+
+      try {
+        const columns = await service.reorderColumns({
+          organizationId: c.var.auth.organization.localOrganizationId,
+          projectId: project.id,
+          columnIds: c.req.valid("json").columnIds,
+        });
+        return c.json({ columns }, 200);
+      } catch (error) {
+        if (error instanceof Error && error.message === "issue_sheet_column_order_mismatch") {
+          return badRequestResponse(
+            c,
+            "issue_sheet_column_order_mismatch",
+            "Column order must include every project column exactly once",
+          );
         }
         throw error;
       }
@@ -445,10 +485,74 @@ export function createIssueSheetRoutes() {
       }
     })
     .delete("/columns/:columnId", validateIssueSheetColumnParams, async (c) => {
-      return badRequestResponse(
-        c,
-        "issue_sheet_column_delete_not_supported",
-        "Deleting columns is not supported yet",
-      );
-    });
+      if (!isProjectMutationAllowed(c.var.auth.membership.role)) {
+        return projectForbiddenResponse(c);
+      }
+      const params = c.req.valid("param");
+      const project = await requireProject(c, params.projectId);
+      if (!project) {
+        return projectNotFoundResponse(c);
+      }
+
+      try {
+        const result = await service.deleteColumn({
+          organizationId: c.var.auth.organization.localOrganizationId,
+          projectId: project.id,
+          columnId: params.columnId,
+        });
+        if (!result) {
+          return notFoundResponse(c, "issue_sheet_column_not_found");
+        }
+        return c.body(null, 204);
+      } catch (error) {
+        if (error instanceof Error && error.message === "issue_sheet_column_not_deletable") {
+          return badRequestResponse(
+            c,
+            "issue_sheet_column_not_deletable",
+            "Built-in columns cannot be deleted",
+          );
+        }
+        throw error;
+      }
+    })
+    .patch(
+      "/columns/:columnId",
+      validateIssueSheetColumnParams,
+      validateUpdateColumnBody,
+      async (c) => {
+        if (!isProjectMutationAllowed(c.var.auth.membership.role)) {
+          return projectForbiddenResponse(c);
+        }
+        const params = c.req.valid("param");
+        const project = await requireProject(c, params.projectId);
+        if (!project) {
+          return projectNotFoundResponse(c);
+        }
+
+        try {
+          const column = await service.updateColumn({
+            organizationId: c.var.auth.organization.localOrganizationId,
+            projectId: project.id,
+            columnId: params.columnId,
+            body: c.req.valid("json"),
+          });
+          if (!column) {
+            return notFoundResponse(c, "issue_sheet_column_not_found");
+          }
+          return c.json({ column }, 200);
+        } catch (error) {
+          if (
+            error instanceof Error &&
+            error.message === "issue_sheet_column_config_not_editable"
+          ) {
+            return badRequestResponse(
+              c,
+              "issue_sheet_column_config_not_editable",
+              "This column's options cannot be edited",
+            );
+          }
+          throw error;
+        }
+      },
+    );
 }

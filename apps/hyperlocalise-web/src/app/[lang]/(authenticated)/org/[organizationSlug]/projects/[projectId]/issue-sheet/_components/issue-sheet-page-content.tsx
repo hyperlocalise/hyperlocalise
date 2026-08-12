@@ -60,6 +60,7 @@ type IssueSheetColumn = {
   type: string;
   config: { options?: { id: string; label: string; color?: string }[] };
   sortOrder: number;
+  hidden?: boolean;
 };
 
 type IssueSheetIssue = {

@@ -137,6 +137,31 @@ export const issueSheetCreateColumnBodySchema = z.object({
     .optional(),
 });
 
+const issueSheetColumnSelectOptionSchema = z.object({
+  id: z.string().trim().min(1).max(64),
+  label: z.string().trim().min(1).max(120),
+  color: z.string().trim().min(1).max(64).optional(),
+});
+
+export const issueSheetUpdateColumnBodySchema = z
+  .object({
+    label: z.string().trim().min(1).max(120).optional(),
+    hidden: z.boolean().optional(),
+    sortOrder: z.number().int().min(0).max(100_000).optional(),
+    config: z
+      .object({
+        options: z.array(issueSheetColumnSelectOptionSchema).max(25).optional(),
+      })
+      .optional(),
+  })
+  .refine((value) => Object.keys(value).length > 0, {
+    message: "at least one field must be provided",
+  });
+
+export const issueSheetReorderColumnsBodySchema = z.object({
+  columnIds: z.array(z.string().uuid()).min(1).max(200),
+});
+
 export const issueSheetSetValueBodySchema = z.object({
   columnKey: z.string().trim().min(1).max(64),
   value: z.unknown(),
@@ -318,5 +343,7 @@ export type IssueSheetQuery = z.infer<typeof issueSheetQuerySchema>;
 export type IssueSheetCreateIssueBody = z.infer<typeof issueSheetCreateIssueBodySchema>;
 export type IssueSheetUpdateIssueBody = z.infer<typeof issueSheetUpdateIssueBodySchema>;
 export type IssueSheetCreateColumnBody = z.infer<typeof issueSheetCreateColumnBodySchema>;
+export type IssueSheetUpdateColumnBody = z.infer<typeof issueSheetUpdateColumnBodySchema>;
+export type IssueSheetReorderColumnsBody = z.infer<typeof issueSheetReorderColumnsBodySchema>;
 export type IssueSheetSetValueBody = z.infer<typeof issueSheetSetValueBodySchema>;
 export type IssueSheetImportBody = z.infer<typeof issueSheetImportBodySchema>;

@@ -37,6 +37,7 @@ export type IssueSheetColumnFixture = {
   type: string;
   config: { options?: { id: string; label: string; color?: string }[] };
   sortOrder: number;
+  hidden: boolean;
 };
 
 export type IssueSheetIssueFixture = {
@@ -116,6 +117,7 @@ export const issueSheetColumnsFixture: IssueSheetColumnFixture[] = [
       ],
     },
     sortOrder: 0,
+    hidden: false,
   },
   {
     id: "col_owner_note",
@@ -125,6 +127,7 @@ export const issueSheetColumnsFixture: IssueSheetColumnFixture[] = [
     type: "long_text",
     config: {},
     sortOrder: 1,
+    hidden: false,
   },
   {
     id: "col_context",
@@ -134,6 +137,7 @@ export const issueSheetColumnsFixture: IssueSheetColumnFixture[] = [
     type: "enrichment",
     config: {},
     sortOrder: 30,
+    hidden: false,
   },
   {
     id: "col_acceptance",
@@ -143,6 +147,7 @@ export const issueSheetColumnsFixture: IssueSheetColumnFixture[] = [
     type: "long_text",
     config: {},
     sortOrder: 35,
+    hidden: false,
   },
   {
     id: "col_sprint",
@@ -157,6 +162,7 @@ export const issueSheetColumnsFixture: IssueSheetColumnFixture[] = [
       ],
     },
     sortOrder: 40,
+    hidden: false,
   },
   {
     id: "col_component",
@@ -166,6 +172,7 @@ export const issueSheetColumnsFixture: IssueSheetColumnFixture[] = [
     type: "text",
     config: {},
     sortOrder: 50,
+    hidden: false,
   },
   {
     id: "col_reviewer",
@@ -175,6 +182,7 @@ export const issueSheetColumnsFixture: IssueSheetColumnFixture[] = [
     type: "user",
     config: {},
     sortOrder: 60,
+    hidden: false,
   },
 ];
 

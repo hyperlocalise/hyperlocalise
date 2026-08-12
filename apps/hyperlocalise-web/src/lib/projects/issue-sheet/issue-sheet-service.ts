@@ -22,6 +22,7 @@ import {
 } from "@/api/routes/project/issue-sheet.schema";
 import type { IssueSheetImportBody } from "@/api/routes/project/issue-sheet.schema";
 import { db, schema, type DatabaseClient } from "@/lib/database";
+import type { IssueSheetColumnConfig } from "@/lib/database/schema/issue-sheet";
 import type { OrganizationMembershipRole } from "@/lib/database/types";
 
 import { isErr } from "@/lib/primitives/result/results";
@@ -52,6 +53,17 @@ import {
 } from "./issue-list-query";
 import { issueNotificationService } from "./issue-notification-service";
 import { issueSubscriptionService } from "./issue-subscription-service";
+import {
+  canDeleteIssueSheetColumn,
+  isIssueSheetProtectedColumnKey,
+  ISSUE_SHEET_PROTECTED_COLUMN_KEYS,
+} from "./issue-sheet-column-guards";
+
+export {
+  canDeleteIssueSheetColumn,
+  isIssueSheetProtectedColumnKey,
+  ISSUE_SHEET_PROTECTED_COLUMN_KEYS,
+};
 
 export const ISSUE_SHEET_ACTIVITY_ASSIGNEE_CHANGED = "assignee_changed" as const;
 export const ISSUE_SHEET_ACTIVITY_ISSUE_CREATED = "issue_created" as const;
@@ -164,7 +176,41 @@ export type IssueSheetColumn = {
   type: string;
   config: Record<string, unknown>;
   sortOrder: number;
+  hidden: boolean;
 };
+
+const columnSelect = {
+  id: schema.issueSheetColumns.id,
+  key: schema.issueSheetColumns.key,
+  label: schema.issueSheetColumns.label,
+  layer: schema.issueSheetColumns.layer,
+  type: schema.issueSheetColumns.type,
+  config: schema.issueSheetColumns.config,
+  sortOrder: schema.issueSheetColumns.sortOrder,
+  hidden: schema.issueSheetColumns.hidden,
+} as const;
+
+function mapColumnRow(row: {
+  id: string;
+  key: string;
+  label: string;
+  layer: string;
+  type: string;
+  config: IssueSheetColumnConfig | null;
+  sortOrder: number;
+  hidden: boolean;
+}): IssueSheetColumn {
+  return {
+    id: row.id,
+    key: row.key,
+    label: row.label,
+    layer: row.layer,
+    type: row.type,
+    config: (row.config ?? {}) as Record<string, unknown>,
+    sortOrder: row.sortOrder,
+    hidden: row.hidden,
+  };
+}
 
 export type IssueSheetIssue = {
   id: string;
@@ -359,15 +405,7 @@ export class IssueSheetService {
   }): Promise<IssueSheetColumn[]> {
     await this.ensureStarterColumns(input);
     const rows = await this.database
-      .select({
-        id: schema.issueSheetColumns.id,
-        key: schema.issueSheetColumns.key,
-        label: schema.issueSheetColumns.label,
-        layer: schema.issueSheetColumns.layer,
-        type: schema.issueSheetColumns.type,
-        config: schema.issueSheetColumns.config,
-        sortOrder: schema.issueSheetColumns.sortOrder,
-      })
+      .select(columnSelect)
       .from(schema.issueSheetColumns)
       .where(
         and(
@@ -377,10 +415,7 @@ export class IssueSheetService {
       )
       .orderBy(asc(schema.issueSheetColumns.sortOrder), asc(schema.issueSheetColumns.createdAt));
 
-    return rows.map((row) => ({
-      ...row,
-      config: row.config as Record<string, unknown>,
-    }));
+    return rows.map(mapColumnRow);
   }
 
   async createColumn(input: {
@@ -413,26 +448,160 @@ export class IssueSheetService {
         type: input.body.type,
         config: input.body.config ?? {},
         sortOrder: (maxRow?.maxSortOrder ?? 0) + 10,
+        hidden: false,
         createdByUserId: input.actorUserId ?? null,
       })
-      .returning({
-        id: schema.issueSheetColumns.id,
-        key: schema.issueSheetColumns.key,
-        label: schema.issueSheetColumns.label,
-        layer: schema.issueSheetColumns.layer,
-        type: schema.issueSheetColumns.type,
-        config: schema.issueSheetColumns.config,
-        sortOrder: schema.issueSheetColumns.sortOrder,
-      });
+      .returning(columnSelect);
 
     if (!column) {
       throw new Error("issue_sheet_column_create_failed");
     }
 
-    return {
-      ...column,
-      config: column.config as Record<string, unknown>,
+    return mapColumnRow(column);
+  }
+
+  async updateColumn(input: {
+    organizationId: string;
+    projectId: string;
+    columnId: string;
+    body: {
+      label?: string;
+      hidden?: boolean;
+      sortOrder?: number;
+      config?: { options?: { id: string; label: string; color?: string }[] };
     };
+  }): Promise<IssueSheetColumn | null> {
+    const [existing] = await this.database
+      .select(columnSelect)
+      .from(schema.issueSheetColumns)
+      .where(
+        and(
+          eq(schema.issueSheetColumns.id, input.columnId),
+          eq(schema.issueSheetColumns.organizationId, input.organizationId),
+          eq(schema.issueSheetColumns.projectId, input.projectId),
+        ),
+      )
+      .limit(1);
+
+    if (!existing) {
+      return null;
+    }
+
+    const updates: {
+      label?: string;
+      hidden?: boolean;
+      sortOrder?: number;
+      config?: IssueSheetColumnConfig;
+    } = {};
+
+    if (input.body.label !== undefined) {
+      updates.label = input.body.label;
+    }
+    if (input.body.hidden !== undefined) {
+      updates.hidden = input.body.hidden;
+    }
+    if (input.body.sortOrder !== undefined) {
+      updates.sortOrder = input.body.sortOrder;
+    }
+    if (input.body.config !== undefined) {
+      if (existing.type === "enrichment" || isIssueSheetProtectedColumnKey(existing.key)) {
+        throw new Error("issue_sheet_column_config_not_editable");
+      }
+      if (existing.type !== "select") {
+        throw new Error("issue_sheet_column_config_not_editable");
+      }
+      updates.config = {
+        ...existing.config,
+        options: input.body.config.options,
+      };
+    }
+
+    if (Object.keys(updates).length === 0) {
+      return mapColumnRow(existing);
+    }
+
+    const [column] = await this.database
+      .update(schema.issueSheetColumns)
+      .set(updates)
+      .where(eq(schema.issueSheetColumns.id, existing.id))
+      .returning(columnSelect);
+
+    if (!column) {
+      throw new Error("issue_sheet_column_update_failed");
+    }
+
+    return mapColumnRow(column);
+  }
+
+  async reorderColumns(input: {
+    organizationId: string;
+    projectId: string;
+    columnIds: string[];
+  }): Promise<IssueSheetColumn[]> {
+    await this.ensureStarterColumns(input);
+    const existing = await this.listColumns(input);
+    const existingIds = new Set(existing.map((column) => column.id));
+
+    if (input.columnIds.length !== existing.length) {
+      throw new Error("issue_sheet_column_order_mismatch");
+    }
+    for (const columnId of input.columnIds) {
+      if (!existingIds.has(columnId)) {
+        throw new Error("issue_sheet_column_order_mismatch");
+      }
+    }
+    if (new Set(input.columnIds).size !== input.columnIds.length) {
+      throw new Error("issue_sheet_column_order_mismatch");
+    }
+
+    await this.database.transaction(async (tx) => {
+      for (const [index, columnId] of input.columnIds.entries()) {
+        await tx
+          .update(schema.issueSheetColumns)
+          .set({ sortOrder: (index + 1) * 10 })
+          .where(
+            and(
+              eq(schema.issueSheetColumns.id, columnId),
+              eq(schema.issueSheetColumns.organizationId, input.organizationId),
+              eq(schema.issueSheetColumns.projectId, input.projectId),
+            ),
+          );
+      }
+    });
+
+    return this.listColumns(input);
+  }
+
+  async deleteColumn(input: {
+    organizationId: string;
+    projectId: string;
+    columnId: string;
+  }): Promise<{ deleted: true } | null> {
+    const [existing] = await this.database
+      .select(columnSelect)
+      .from(schema.issueSheetColumns)
+      .where(
+        and(
+          eq(schema.issueSheetColumns.id, input.columnId),
+          eq(schema.issueSheetColumns.organizationId, input.organizationId),
+          eq(schema.issueSheetColumns.projectId, input.projectId),
+        ),
+      )
+      .limit(1);
+
+    if (!existing) {
+      return null;
+    }
+
+    if (!canDeleteIssueSheetColumn(existing)) {
+      throw new Error("issue_sheet_column_not_deletable");
+    }
+
+    await this.database
+      .delete(schema.issueSheetColumns)
+      .where(eq(schema.issueSheetColumns.id, existing.id));
+
+    return { deleted: true };
   }
 
   async listIssues(input: {

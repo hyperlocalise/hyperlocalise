@@ -32,6 +32,7 @@ function column(overrides: Partial<IssueSheetColumn> = {}): IssueSheetColumn {
     type: "select",
     config: { options: [{ id: "s24", label: "Sprint 24" }] },
     sortOrder: 30,
+    hidden: false,
     ...overrides,
   };
 }
@@ -43,12 +44,13 @@ describe("issue-sheet-column-utils", () => {
     expect(issueSheetColumnValueString(42)).toBe("42");
   });
 
-  it("lists detail panel columns excluding system and dedicated fields", () => {
+  it("lists detail panel columns excluding system, dedicated, and hidden fields", () => {
     const columns = listDetailPanelColumns([
       column({ key: "priority", sortOrder: 10 }),
       column({ key: "owner_note", type: "long_text", sortOrder: 20 }),
       column({ key: "context", type: "enrichment", sortOrder: 40 }),
       column({ key: "sprint", sortOrder: 30 }),
+      column({ key: "hidden_field", sortOrder: 25, hidden: true }),
       column({ key: "component", layer: "system", sortOrder: 50 }),
     ]);
 

@@ -106,7 +106,9 @@ async function readJsonOrThrow<T>(response: Response, fallbackMessage: string): 
 
 function isCreateCompactCustomColumn(column: IssueSheetColumn) {
   return (
-    !CREATE_EXCLUDED_COLUMN_KEYS.has(column.key) && CREATE_COMPACT_COLUMN_TYPES.has(column.type)
+    !column.hidden &&
+    !CREATE_EXCLUDED_COLUMN_KEYS.has(column.key) &&
+    CREATE_COMPACT_COLUMN_TYPES.has(column.type)
   );
 }
 

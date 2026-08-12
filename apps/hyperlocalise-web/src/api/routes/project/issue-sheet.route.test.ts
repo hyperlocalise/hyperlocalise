@@ -295,6 +295,111 @@ describe("Issue Sheet routes", () => {
     ]);
   });
 
+  it("updates, reorders, hides, and deletes custom columns", async () => {
+    const { identity, project } = await projectFixture.createStoredProjectFixture();
+    const headers = await projectFixture.authHeadersFor(identity);
+    const organizationSlug = identity.organization.slug ?? "missing-slug";
+
+    const createColumnResponse = await issueSheet().columns.$post(
+      {
+        param: { organizationSlug, projectId: project.id },
+        json: {
+          key: "component",
+          label: "Component",
+          type: "text",
+          config: {},
+        },
+      } as never,
+      { headers },
+    );
+    expect(createColumnResponse.status).toBe(201);
+    const createdColumn = (await createColumnResponse.json()) as {
+      column: { id: string; key: string; hidden: boolean };
+    };
+
+    const patchResponse = await issueSheet().columns[":columnId"].$patch(
+      {
+        param: {
+          organizationSlug,
+          projectId: project.id,
+          columnId: createdColumn.column.id,
+        },
+        json: { label: "Module", hidden: true },
+      } as never,
+      { headers },
+    );
+    expect(patchResponse.status).toBe(200);
+    const patchedBody = (await patchResponse.json()) as {
+      column: { label: string; hidden: boolean };
+    };
+    expect(patchedBody.column).toMatchObject({ label: "Module", hidden: true });
+
+    const columnsResponse = await issueSheet().columns.$get(
+      { param: { organizationSlug, projectId: project.id } } as never,
+      { headers },
+    );
+    expect(columnsResponse.status).toBe(200);
+    const columnsBody = (await columnsResponse.json()) as {
+      columns: Array<{ id: string; key: string }>;
+    };
+    const reorderedIds = [
+      createdColumn.column.id,
+      ...columnsBody.columns
+        .filter((column) => column.id !== createdColumn.column.id)
+        .map((column) => column.id),
+    ];
+
+    const orderResponse = await issueSheet().columns.order.$put(
+      {
+        param: { organizationSlug, projectId: project.id },
+        json: { columnIds: reorderedIds },
+      } as never,
+      { headers },
+    );
+    expect(orderResponse.status).toBe(200);
+    const orderBody = (await orderResponse.json()) as { columns: Array<{ key: string }> };
+    expect(orderBody.columns.map((column) => column.key)[0]).toBe("component");
+
+    const protectedColumn = columnsBody.columns.find((column) => column.key === "priority");
+    expect(protectedColumn).toBeTruthy();
+    const deleteProtectedResponse = await issueSheet().columns[":columnId"].$delete(
+      {
+        param: {
+          organizationSlug,
+          projectId: project.id,
+          columnId: protectedColumn!.id,
+        },
+      } as never,
+      { headers },
+    );
+    expect(deleteProtectedResponse.status).toBe(400);
+
+    const deleteResponse = await issueSheet().columns[":columnId"].$delete(
+      {
+        param: {
+          organizationSlug,
+          projectId: project.id,
+          columnId: createdColumn.column.id,
+        },
+      } as never,
+      { headers },
+    );
+    expect(deleteResponse.status).toBe(204);
+
+    const columnsAfterDelete = await issueSheet().columns.$get(
+      { param: { organizationSlug, projectId: project.id } } as never,
+      { headers },
+    );
+    const columnsAfterBody = (await columnsAfterDelete.json()) as {
+      columns: Array<{ key: string }>;
+    };
+    expect(columnsAfterBody.columns.map((column) => column.key)).toEqual([
+      "priority",
+      "owner_note",
+      "context",
+    ]);
+  });
+
   it("returns custom column values on GET issue", async () => {
     const { identity, project } = await projectFixture.createStoredProjectFixture();
     const headers = await projectFixture.authHeadersFor(identity);
