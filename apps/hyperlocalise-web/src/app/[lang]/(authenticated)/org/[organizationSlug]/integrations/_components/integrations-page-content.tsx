@@ -86,6 +86,7 @@ import {
 import { McpServerConnectionPanel } from "./mcp-server-connection-panel";
 import { AhrefsConnectionPanel } from "./ahrefs-connection-panel";
 import { SemrushConnectionPanel } from "./semrush-connection-panel";
+import { IntercomConnectionPanel } from "./intercom-connection-panel";
 import { integrationRowMessages } from "./integration-row.messages";
 import { integrationsPageContentMessages } from "./integrations-page-content.messages";
 import { IntegrationCategoryLabel, integrationConnectButtonClassName } from "./integration-row";
@@ -1400,6 +1401,12 @@ export function IntegrationsPageContent({
                     }}
                   />
                 </CmsIntegrationRow>
+                <div className="border-t border-border">
+                  <IntercomConnectionPanel
+                    organizationSlug={organizationSlug}
+                    disabled={!userIsAdmin}
+                  />
+                </div>
               </div>
             )}
           </section>

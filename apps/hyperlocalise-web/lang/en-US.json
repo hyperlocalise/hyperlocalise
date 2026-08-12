@@ -399,6 +399,10 @@
     "defaultMessage": "Enable all",
     "description": "Button label to enable all GitHub repositories"
   },
+  "/d/gbp0E4g": {
+    "defaultMessage": "Hidden",
+    "description": "Badge shown when a TMS source string is hidden from translators"
+  },
   "/d8vf0Z+2x": {
     "defaultMessage": "Repositories",
     "description": "Table header for GitHub repository names"
@@ -5162,6 +5166,98 @@
   "Ic0GDPpTRm": {
     "defaultMessage": "Translation context must be 20,000 characters or fewer.",
     "description": "Validation error when translation context exceeds 20,000 characters"
+  },
+  "IcAddConn1": {
+    "defaultMessage": "Add connection",
+    "description": "Button to add a new Intercom connection"
+  },
+  "IcCancel01": {
+    "defaultMessage": "Cancel",
+    "description": "Cancel adding Intercom connection"
+  },
+  "IcDelFail1": {
+    "defaultMessage": "Failed to delete Intercom connection.",
+    "description": "Error when Intercom connection delete fails"
+  },
+  "IcDelOk001": {
+    "defaultMessage": "Intercom connection deleted.",
+    "description": "Toast when Intercom connection is deleted"
+  },
+  "IcDelete01": {
+    "defaultMessage": "Delete",
+    "description": "Delete Intercom connection button"
+  },
+  "IcDispName1": {
+    "defaultMessage": "Display name",
+    "description": "Label for Intercom display name field"
+  },
+  "IcEmpty001": {
+    "defaultMessage": "No Intercom connections yet.",
+    "description": "Empty state when no Intercom connections exist"
+  },
+  "IcEnabled1": {
+    "defaultMessage": "Enabled",
+    "description": "Badge shown when an Intercom connection is enabled"
+  },
+  "IcEpAu0001": {
+    "defaultMessage": "Australia (api.au.intercom.io)",
+    "description": "Australia Intercom REST endpoint option label"
+  },
+  "IcEpEu0001": {
+    "defaultMessage": "Europe (api.eu.intercom.io)",
+    "description": "Europe Intercom REST endpoint option label"
+  },
+  "IcEpHelp01": {
+    "defaultMessage": "Choose the region where your Intercom workspace is hosted.",
+    "description": "Help text for Intercom regional REST endpoint select"
+  },
+  "IcEpLabel01": {
+    "defaultMessage": "REST endpoint",
+    "description": "Label for Intercom regional REST endpoint select"
+  },
+  "IcEpUs0001": {
+    "defaultMessage": "US (api.intercom.io)",
+    "description": "US Intercom REST endpoint option label"
+  },
+  "IcFetchFail": {
+    "defaultMessage": "Failed to load Intercom connections.",
+    "description": "Error when Intercom connections cannot be loaded"
+  },
+  "IcRowDesc01": {
+    "defaultMessage": "Connect an Intercom access token for Help Center content.",
+    "description": "Description for the Intercom integrations row"
+  },
+  "IcRowName01": {
+    "defaultMessage": "Intercom",
+    "description": "Name shown for the Intercom integrations row"
+  },
+  "IcSave0001": {
+    "defaultMessage": "Save",
+    "description": "Save Intercom connection button"
+  },
+  "IcSaveFail1": {
+    "defaultMessage": "Failed to save Intercom connection.",
+    "description": "Error when Intercom connection save fails"
+  },
+  "IcSaveOk01": {
+    "defaultMessage": "Intercom connection saved.",
+    "description": "Toast when Intercom connection is saved"
+  },
+  "IcTokCfg01": {
+    "defaultMessage": "{region} · token ending in {suffix}",
+    "description": "Hint that an Intercom access token is stored, with region"
+  },
+  "IcTokHelp01": {
+    "defaultMessage": "Create an access token in the Intercom Developer Hub for your workspace.",
+    "description": "Help text for where to find an Intercom access token"
+  },
+  "IcTokLabel1": {
+    "defaultMessage": "Access token",
+    "description": "Label for Intercom access token field"
+  },
+  "IcTokReq01": {
+    "defaultMessage": "Enter an Intercom access token.",
+    "description": "Validation error when Intercom access token is missing on create"
   },
   "Icd4dfBmnK": {
     "defaultMessage": "Give every reviewer the context, checks, and approval controls they need before translated copy reaches production.",
