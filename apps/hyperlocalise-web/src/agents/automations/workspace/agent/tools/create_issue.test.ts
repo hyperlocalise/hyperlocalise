@@ -163,7 +163,15 @@ describe("createCreateIssueTool", () => {
       projectId: "project-1",
       createdCount: 1,
       skipped: false,
-      issues: [{ id: "issue-existing", key: "ISS-9", title: "Existing", status: "open", issueType: "qa_failure" }],
+      issues: [
+        {
+          id: "issue-existing",
+          key: "ISS-9",
+          title: "Existing",
+          status: "open",
+          issueType: "qa_failure",
+        },
+      ],
     };
     const tool = createCreateIssueTool(session({ outputSummary: { createIssue: existing } }));
 

@@ -126,7 +126,7 @@ export const WORKSPACE_AUTOMATION_API_ERROR_MESSAGES: Record<string, string> = {
     "Use GitHub repo automations with a scheduled or manual trigger, not GitHub push.",
   github_push_branches_required: "Add at least one branch pattern for GitHub push triggers.",
   scheduled_workflow_required:
-    "Scheduled automations require at least one GitHub or Contentful workflow.",
+    "Scheduled automations require at least one GitHub, Contentful, or Issues workflow tool.",
   slack_not_connected: "Connect Slack in Integrations before enabling Slack notifications.",
   slack_channel_required: "Choose a Slack channel for notifications.",
   email_not_connected: "Enable the email agent in Integrations before using email notifications.",

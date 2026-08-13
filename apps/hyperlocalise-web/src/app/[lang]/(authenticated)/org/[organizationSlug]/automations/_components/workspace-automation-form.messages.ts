@@ -369,42 +369,42 @@ export const workspaceAutomationFormMessages = defineMessages({
   },
   listIssues: {
     defaultMessage: "List issues",
-    id: "IssLstTl01",
+    id: "DeCrAOQFGT",
     description: "Menu item and tool title for listing Issue Sheet issues",
   },
   listIssuesDescription: {
     defaultMessage: "Read Issue Sheet issues for the selected project during this automation.",
-    id: "IssLstDs01",
+    id: "04BDy8jZlJ",
     description: "Description for the List issues automation tool",
   },
   createIssue: {
     defaultMessage: "Create issue",
-    id: "IssCrtTl01",
+    id: "SGKONsO7tY",
     description: "Menu item and tool title for creating Issue Sheet issues",
   },
   createIssueDescription: {
     defaultMessage: "File Issue Sheet issues for the selected project from automation findings.",
-    id: "IssCrtDs01",
+    id: "MweQRnF9MU",
     description: "Description for the Create issue automation tool",
   },
   issuesUnavailableDescription: {
     defaultMessage: "Enable workspace Issues before using Issue Sheet tools in automations.",
-    id: "IssUnaDs01",
+    id: "uyibAnXll7",
     description: "Description when workspace Issues feature flag is off",
   },
   enableIssuesFirstShortcut: {
     defaultMessage: "Enable first",
-    id: "IssEnbSc01",
+    id: "SCwFU6O6EH",
     description: "Shortcut shown when workspace Issues is not enabled for the organization",
   },
   removeListIssues: {
     defaultMessage: "Remove List issues tool",
-    id: "IssRmLst01",
+    id: "N7Y/6FnTVv",
     description: "Accessible label to remove the List issues tool",
   },
   removeCreateIssue: {
     defaultMessage: "Remove Create issue tool",
-    id: "IssRmCrt01",
+    id: "iIHDh1dH3y",
     description: "Accessible label to remove the Create issue tool",
   },
   mcpServer: {

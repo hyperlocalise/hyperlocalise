@@ -355,7 +355,8 @@ describe("workspace automations", () => {
     }
     expect(notificationOnlySchedule.error).toMatchObject({
       code: "scheduled_workflow_required",
-      message: "Scheduled automations require at least one GitHub or Contentful workflow.",
+      message:
+        "Scheduled automations require at least one GitHub, Contentful, or Issues workflow tool.",
     });
 
     const manualNotification = expectOk(
@@ -383,7 +384,8 @@ describe("workspace automations", () => {
     }
     expect(scheduledUpdate.error).toMatchObject({
       code: "scheduled_workflow_required",
-      message: "Scheduled automations require at least one GitHub or Contentful workflow.",
+      message:
+        "Scheduled automations require at least one GitHub, Contentful, or Issues workflow tool.",
     });
   });
 
