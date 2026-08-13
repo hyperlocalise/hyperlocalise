@@ -23,6 +23,7 @@ import { createCreateIssueTool } from "./create_issue";
 const mocks = vi.hoisted(() => ({
   createIssue: vi.fn(),
   updateWorkspaceAutomationRun: vi.fn(),
+  resolveWorkspaceIssuesFlag: vi.fn(),
 }));
 
 vi.mock("@/lib/projects/issue-sheet/issue-sheet-service", () => ({
@@ -35,11 +36,16 @@ vi.mock("@/lib/agents/workspace-automations", () => ({
   updateWorkspaceAutomationRun: (...args: unknown[]) => mocks.updateWorkspaceAutomationRun(...args),
 }));
 
+vi.mock("@/lib/flags/workspace-flags", () => ({
+  resolveWorkspaceIssuesFlag: (...args: unknown[]) => mocks.resolveWorkspaceIssuesFlag(...args),
+}));
+
 function session(
   overrides: {
     outputSummary?: Record<string, unknown>;
     toolConfig?: WorkspaceAutomationRecord["toolConfig"];
     authorUserId?: string | null;
+    projectId?: string | null;
   } = {},
 ): WorkspaceOrchestratorSession {
   const automation = {
@@ -49,7 +55,7 @@ function session(
     status: "active",
     name: "File findings",
     instructions: "",
-    projectId: "project-1",
+    projectId: overrides.projectId === undefined ? "project-1" : overrides.projectId,
     triggerConfig: { mode: "manual" },
     repositoryTarget: { kind: "none" },
     toolConfig: overrides.toolConfig ?? { createIssue: { enabled: true } },
@@ -65,7 +71,7 @@ function session(
     organizationId: automation.organizationId,
     triggerSource: "manual",
     status: "running",
-    inputSnapshot: {},
+    inputSnapshot: { projectId: "snapshot-project" },
     outputSummary: overrides.outputSummary ?? {},
     error: null,
     githubRepositoryAutomationJobId: null,
@@ -92,6 +98,7 @@ function session(
 describe("createCreateIssueTool", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.resolveWorkspaceIssuesFlag.mockResolvedValue(true);
     mocks.createIssue.mockResolvedValue({
       id: "issue-1",
       key: "ISS-1",
@@ -102,7 +109,7 @@ describe("createCreateIssueTool", () => {
     mocks.updateWorkspaceAutomationRun.mockResolvedValue(undefined);
   });
 
-  it("creates issues and links them to the automation run", async () => {
+  it("creates issues with run-scoped external refs and no agent_runs FK", async () => {
     const currentSession = session();
     const tool = createCreateIssueTool(currentSession);
 
@@ -127,18 +134,31 @@ describe("createCreateIssueTool", () => {
         title: "Missing glossary term",
         issueType: "glossary_violation",
         priority: "P0",
-        linkedAgentRunId: "run-1",
-        linkKind: "agent_run",
+        linkKind: "manual",
         linkLabel: "File findings",
+        externalRef: "workspace-automation-run:run-1:0",
       }),
     });
+    expect(mocks.createIssue.mock.calls[0]?.[0].body.linkedAgentRunId).toBeUndefined();
     expect(result).toMatchObject({
       projectId: "project-1",
       createdCount: 1,
       skipped: false,
-      issues: [{ id: "issue-1", key: "ISS-1" }],
+      completed: true,
+      issues: [{ id: "issue-1", key: "ISS-1", externalRef: "workspace-automation-run:run-1:0" }],
     });
     expect(mocks.updateWorkspaceAutomationRun).toHaveBeenCalled();
+  });
+
+  it("uses the automation project, not the input snapshot project", async () => {
+    const tool = createCreateIssueTool(session());
+    await tool.execute!(
+      { issues: [{ title: "One" }] },
+      { toolCallId: "call-1", messages: [], context: {} },
+    );
+    expect(mocks.createIssue).toHaveBeenCalledWith(
+      expect.objectContaining({ projectId: "project-1" }),
+    );
   });
 
   it("treats an empty issues array as a successful no-op", async () => {
@@ -154,15 +174,17 @@ describe("createCreateIssueTool", () => {
     expect(result).toMatchObject({
       createdCount: 0,
       skipped: true,
+      completed: true,
       issues: [],
     });
   });
 
-  it("returns existing create output for idempotent retries", async () => {
+  it("returns completed create output for idempotent retries", async () => {
     const existing = {
       projectId: "project-1",
       createdCount: 1,
       skipped: false,
+      completed: true,
       issues: [
         {
           id: "issue-existing",
@@ -170,6 +192,7 @@ describe("createCreateIssueTool", () => {
           title: "Existing",
           status: "open",
           issueType: "qa_failure",
+          externalRef: "workspace-automation-run:run-1:0",
         },
       ],
     };
@@ -182,5 +205,63 @@ describe("createCreateIssueTool", () => {
 
     expect(result).toEqual(existing);
     expect(mocks.createIssue).not.toHaveBeenCalled();
+  });
+
+  it("resumes from partial progress without recreating earlier issues", async () => {
+    mocks.createIssue.mockResolvedValue({
+      id: "issue-2",
+      key: "ISS-2",
+      title: "Second",
+      status: "open",
+      issueType: "qa_failure",
+    });
+    const partial = {
+      projectId: "project-1",
+      createdCount: 1,
+      skipped: false,
+      completed: false,
+      issues: [
+        {
+          id: "issue-1",
+          key: "ISS-1",
+          title: "First",
+          status: "open",
+          issueType: "qa_failure",
+          externalRef: "workspace-automation-run:run-1:0",
+        },
+      ],
+    };
+    const tool = createCreateIssueTool(session({ outputSummary: { createIssue: partial } }));
+
+    const result = await tool.execute!(
+      { issues: [{ title: "First" }, { title: "Second" }] },
+      { toolCallId: "call-1", messages: [], context: {} },
+    );
+
+    expect(mocks.createIssue).toHaveBeenCalledTimes(1);
+    expect(mocks.createIssue).toHaveBeenCalledWith(
+      expect.objectContaining({
+        body: expect.objectContaining({
+          title: "Second",
+          externalRef: "workspace-automation-run:run-1:1",
+        }),
+      }),
+    );
+    expect(result).toMatchObject({
+      createdCount: 2,
+      completed: true,
+      issues: [{ id: "issue-1" }, { id: "issue-2" }],
+    });
+  });
+
+  it("rejects when workspace Issues is disabled", async () => {
+    mocks.resolveWorkspaceIssuesFlag.mockResolvedValue(false);
+    const tool = createCreateIssueTool(session());
+    await expect(
+      tool.execute!(
+        { issues: [{ title: "Nope" }] },
+        { toolCallId: "call-1", messages: [], context: {} },
+      ),
+    ).rejects.toThrow("issues_feature_unavailable");
   });
 });

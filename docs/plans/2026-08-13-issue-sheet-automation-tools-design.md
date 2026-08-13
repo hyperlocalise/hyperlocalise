@@ -19,20 +19,22 @@ Add two first-class orchestrator tools that call `IssueSheetService`:
 Both require the automation header `projectId` (Issue Sheet is project-scoped).
 Both use `automation.authorUserId` as the Issue Sheet actor (reporter / list
 viewer). Missing author or project fails the tool with a stable error code.
+Both re-check `workspace-issues` at save time and at tool execution.
 
 ### `list_issues`
 
 Optional filters (`status`, `issueType`, `priority`, `search`, `limit`,
 `offset`). Returns a compact list plus totals so the model can triage without
-shipping full column payloads.
+shipping full column payloads. Always scopes to `automation.projectId`.
 
 ### `create_issue`
 
 Accepts `issues: [...]` (max 20). An empty array is a successful no-op so a
 forced plan step can skip filing when there is nothing actionable. Each created
-issue links to the automation run (`linkKind: agent_run`,
-`linkedAgentRunId: run.id`). Persist created IDs in `outputSummary.createIssue`
-for idempotent retries.
+issue uses `linkKind: manual` plus a stable
+`externalRef` (`workspace-automation-run:<runId>:<index>`) for idempotent
+retries — do not set `linkedAgentRunId`, which FKs to `agent_runs`, not
+workspace automation runs. Persist progress after each successful create.
 
 ### UI
 

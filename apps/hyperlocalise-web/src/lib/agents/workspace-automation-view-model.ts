@@ -150,6 +150,7 @@ export const WORKSPACE_AUTOMATION_API_ERROR_MESSAGES: Record<string, string> = {
   ahrefs_connection_not_found:
     "The selected Ahrefs connection was not found. Choose another connection.",
   ahrefs_not_connected: "Enable the selected Ahrefs connection in Integrations before using it.",
+  issues_feature_unavailable: "Enable workspace Issues before using Issue Sheet automation tools.",
   github_repository_not_enabled: "Enable this repository before configuring automation.",
   github_repository_archived: "Archived repositories cannot use automations.",
   project_not_found: "The selected project could not be found.",
@@ -650,6 +651,8 @@ export function mapWorkspaceAutomationApiErrorToFieldErrors(
     case "ahrefs_connection_not_found":
     case "ahrefs_not_connected":
       return { ahrefsConnectionId: message };
+    case "issues_feature_unavailable":
+      return { form: message };
     default:
       return { form: message };
   }

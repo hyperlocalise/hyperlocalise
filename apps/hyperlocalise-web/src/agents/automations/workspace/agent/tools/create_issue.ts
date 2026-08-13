@@ -18,6 +18,7 @@ import {
   issueSheetIssueTypeSchema,
 } from "@/api/routes/project/issue-sheet.schema";
 import { updateWorkspaceAutomationRun } from "@/lib/agents/workspace-automations";
+import { resolveWorkspaceIssuesFlag } from "@/lib/flags/workspace-flags";
 import { IssueSheetService } from "@/lib/projects/issue-sheet/issue-sheet-service";
 
 import type { WorkspaceOrchestratorSession } from "../context";
@@ -47,13 +48,33 @@ const createIssueInputSchema = z.object({
     ),
 });
 
-function resolveProjectId(session: WorkspaceOrchestratorSession): string | null {
-  const fromSnapshot =
-    typeof session.run.inputSnapshot.projectId === "string"
-      ? session.run.inputSnapshot.projectId.trim()
-      : "";
-  const fromAutomation = session.automation.projectId?.trim() || "";
-  return fromSnapshot || fromAutomation || null;
+type CreatedIssueSummary = {
+  id: string;
+  key: string | null;
+  title: string;
+  status: string;
+  issueType: string;
+  externalRef: string;
+};
+
+function buildCreateIssueExternalRef(runId: string, index: number): string {
+  return `workspace-automation-run:${runId}:${index}`;
+}
+
+async function persistCreateIssueOutput(
+  session: WorkspaceOrchestratorSession,
+  output: Record<string, unknown>,
+) {
+  session.stepResults.create_issue = output;
+  await updateWorkspaceAutomationRun({
+    runId: session.run.id,
+    organizationId: session.organizationId,
+    outputSummary: {
+      ...session.run.outputSummary,
+      createIssue: output,
+    },
+  });
+  mergeToolOutputSummaryIntoSessionRun(session, { createIssue: output });
 }
 
 export function createCreateIssueTool(session: WorkspaceOrchestratorSession) {
@@ -67,13 +88,20 @@ export function createCreateIssueTool(session: WorkspaceOrchestratorSession) {
         throw new Error("create_issue_not_configured");
       }
 
+      const issuesFeatureEnabled = await resolveWorkspaceIssuesFlag({
+        organizationId: session.organizationId,
+      });
+      if (!issuesFeatureEnabled) {
+        throw new Error("issues_feature_unavailable");
+      }
+
       const existingOutput = readCreateIssue(session.run.outputSummary, session.stepResults);
-      if (existingOutput) {
+      if (existingOutput?.completed === true) {
         session.stepResults.create_issue = existingOutput;
         return existingOutput;
       }
 
-      const projectId = resolveProjectId(session);
+      const projectId = session.automation.projectId?.trim() || null;
       if (!projectId) {
         throw new Error("project_required");
       }
@@ -83,16 +111,37 @@ export function createCreateIssueTool(session: WorkspaceOrchestratorSession) {
         throw new Error("automation_author_required");
       }
 
-      const service = new IssueSheetService();
-      const created: Array<{
-        id: string;
-        key: string | null;
-        title: string;
-        status: string;
-        issueType: string;
-      }> = [];
+      const created: CreatedIssueSummary[] = Array.isArray(existingOutput?.issues)
+        ? (existingOutput.issues as CreatedIssueSummary[]).filter(
+            (issue) =>
+              issue &&
+              typeof issue === "object" &&
+              typeof issue.id === "string" &&
+              typeof issue.externalRef === "string",
+          )
+        : [];
 
-      for (const issue of issues) {
+      if (issues.length === 0) {
+        const output = {
+          projectId,
+          createdCount: 0,
+          skipped: true,
+          completed: true,
+          issues: [],
+        };
+        await persistCreateIssueOutput(session, output);
+        return output;
+      }
+
+      const service = new IssueSheetService();
+      const linkLabel = session.automation.name.slice(0, 200) || "Agent Automation";
+
+      for (let index = created.length; index < issues.length; index += 1) {
+        const issue = issues[index];
+        if (!issue) {
+          continue;
+        }
+        const externalRef = buildCreateIssueExternalRef(session.run.id, index);
         const record = await service.createIssue({
           organizationId: session.organizationId,
           projectId,
@@ -107,9 +156,10 @@ export function createCreateIssueTool(session: WorkspaceOrchestratorSession) {
             translationKeyId: issue.translationKeyId,
             assigneeUserId: issue.assigneeUserId,
             priority: issue.priority,
-            linkedAgentRunId: session.run.id,
-            linkKind: "agent_run",
-            linkLabel: session.automation.name.slice(0, 200) || "Agent Automation",
+            // workspace_automation_runs are not agent_runs; use externalRef for idempotent linkage.
+            linkKind: "manual",
+            linkLabel,
+            externalRef,
           },
         });
         created.push({
@@ -118,28 +168,27 @@ export function createCreateIssueTool(session: WorkspaceOrchestratorSession) {
           title: record.title,
           status: record.status,
           issueType: record.issueType,
+          externalRef,
         });
+
+        const partialOutput = {
+          projectId,
+          createdCount: created.length,
+          skipped: false,
+          completed: created.length >= issues.length,
+          issues: created,
+        };
+        await persistCreateIssueOutput(session, partialOutput);
       }
 
       const output = {
         projectId,
         createdCount: created.length,
-        skipped: issues.length === 0,
+        skipped: false,
+        completed: true,
         issues: created,
       };
-
-      session.stepResults.create_issue = output;
-
-      await updateWorkspaceAutomationRun({
-        runId: session.run.id,
-        organizationId: session.organizationId,
-        outputSummary: {
-          ...session.run.outputSummary,
-          createIssue: output,
-        },
-      });
-      mergeToolOutputSummaryIntoSessionRun(session, { createIssue: output });
-
+      await persistCreateIssueOutput(session, output);
       return output;
     },
   });

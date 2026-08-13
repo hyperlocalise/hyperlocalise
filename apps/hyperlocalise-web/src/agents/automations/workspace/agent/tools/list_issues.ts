@@ -18,6 +18,7 @@ import {
   issueSheetIssueTypeSchema,
   issueSheetPrioritySchema,
 } from "@/api/routes/project/issue-sheet.schema";
+import { resolveWorkspaceIssuesFlag } from "@/lib/flags/workspace-flags";
 import { IssueSheetService } from "@/lib/projects/issue-sheet/issue-sheet-service";
 
 import type { WorkspaceOrchestratorSession } from "../context";
@@ -30,15 +31,6 @@ const listIssuesInputSchema = z.object({
   limit: z.number().int().min(1).max(100).optional(),
   offset: z.number().int().min(0).optional(),
 });
-
-function resolveProjectId(session: WorkspaceOrchestratorSession): string | null {
-  const fromSnapshot =
-    typeof session.run.inputSnapshot.projectId === "string"
-      ? session.run.inputSnapshot.projectId.trim()
-      : "";
-  const fromAutomation = session.automation.projectId?.trim() || "";
-  return fromSnapshot || fromAutomation || null;
-}
 
 function compactIssue(issue: {
   id: string;
@@ -82,7 +74,14 @@ export function createListIssuesTool(session: WorkspaceOrchestratorSession) {
         throw new Error("list_issues_not_configured");
       }
 
-      const projectId = resolveProjectId(session);
+      const issuesFeatureEnabled = await resolveWorkspaceIssuesFlag({
+        organizationId: session.organizationId,
+      });
+      if (!issuesFeatureEnabled) {
+        throw new Error("issues_feature_unavailable");
+      }
+
+      const projectId = session.automation.projectId?.trim() || null;
       if (!projectId) {
         throw new Error("project_required");
       }

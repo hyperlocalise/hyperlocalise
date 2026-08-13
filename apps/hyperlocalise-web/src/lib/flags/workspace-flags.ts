@@ -175,6 +175,43 @@ export async function resolveWorkspaceKnowledgeFlag(input: {
   }
 }
 
+/**
+ * Resolves workspaceIssuesFlag from an internal organizationId for callers without a live HTTP
+ * auth context — workspace-automation tool execution and config validation. Mirrors
+ * resolveWorkspaceKnowledgeFlag: Issue Sheet HTTP routes already reject when the flag is off, but
+ * automation create/update and orchestrator tools can still reach IssueSheetService unless we
+ * re-check here.
+ */
+export async function resolveWorkspaceIssuesFlag(input: {
+  organizationId: string;
+  dbClient?: Pick<typeof db, "select">;
+}): Promise<boolean> {
+  const dbClient = input.dbClient ?? db;
+  if (typeof dbClient.select !== "function") {
+    return false;
+  }
+
+  try {
+    const [organization] = await dbClient
+      .select({ workosOrganizationId: schema.organizations.workosOrganizationId })
+      .from(schema.organizations)
+      .where(eq(schema.organizations.id, input.organizationId))
+      .limit(1);
+
+    if (!organization) {
+      return false;
+    }
+
+    return (
+      (await workspaceIssuesFlag.run({
+        identify: () => ({ organization: { id: organization.workosOrganizationId } }),
+      })) === true
+    );
+  } catch {
+    return false;
+  }
+}
+
 export async function requireWorkspaceFeatureFlag(
   workspaceFlag: Flag<boolean, WorkosFlagEntities>,
   auth: Pick<AppAuthContext, "activeOrganization" | "user">,
