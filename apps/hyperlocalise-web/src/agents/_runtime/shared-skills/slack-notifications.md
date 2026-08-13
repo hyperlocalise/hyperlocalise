@@ -5,50 +5,37 @@ name: Slack notifications
 
 ## Slack notifications
 
-When calling `notify_slack`, write the `message` in **standard Markdown** (Slack renders it natively). Never send one dense paragraph of IDs.
+When calling `notify_slack`, write `message` in **Markdown** (Slack renders it natively). Make it easy for a human to scan in a busy channel.
 
-### Structure
+### Customer format first
 
-1. **Headline** — one bold line stating what finished and the outcome (completed, failed, blocked).
-2. **Key facts** — a short bullet list. Prefer human labels over raw IDs.
-3. **Locales / findings** — bullet each locale or issue when there are two or more.
-4. **Next step** — one line on what happens next or what the team should do.
+- If customer instructions, automation instructions, or recalled memory specify a Slack message shape, tone, template, sections, or wording — **follow that format**.
+- Use these defaults only when the customer did not define a format.
+- Still keep Markdown readable (line breaks, lists when useful) even when following a custom format, unless the customer asked for a single line or plain text.
 
-### Formatting
+### Default shape (when no customer format)
 
-- Use `**bold**` for labels and the headline.
-- Use `-` bullets for facts and locales.
-- Wrap opaque IDs in backticks: `` `job_…` ``, `` `file_…` ``.
-- Prefer file names, project names, locale codes, and status over dumping every UUID.
-- Include IDs only when they help the team find the work (job, file, version). Put them on their own bullet lines, not inline in a sentence.
-- Keep the message scannable: aim for under ~12 lines.
-- Skip fluff (“Just letting you know…”) and JSON dumps.
+1. **Headline** — bold line with the automation name and outcome (completed, failed, blocked, nothing to do).
+2. **Key facts** — short bullets for the facts that matter for this run.
+3. **Details** — bullet each item when there are two or more related values (locales, findings, repos, PRs, entries, etc.).
+4. **Next step** — one line on what happens next or what the team should do. Omit if nothing useful.
+
+### Formatting defaults
+
+- Prefer names, titles, statuses, and counts over dumping opaque IDs into a sentence.
+- Put IDs on their own bullets in backticks when the team needs them to find the work.
+- Keep it short: usually under ~12 lines.
+- Skip fluff and JSON dumps.
 - Do not invent links, names, or statuses that tools did not return.
 
-### Example (source upload → translate)
+### Example default
 
 ```markdown
-**Translate on source upload** completed
+**Weekly digest** completed
 
-- **Job:** `job_a8e92d25-932f-49f8-b9e3-7143822fcc6e`
-- **Source file:** `file_3b017712-ec57-448f-8015-ca282a5a103a`
-- **Version:** `c349d33c-1605-4d2c-8498-c0468da388ce`
-- **Locales:**
-  - de-DE
-  - fr-FR
-  - vi-VN
-  - zh-CN
-- **Next:** Assigned to Translate with agent; localisation enqueued
-```
-
-### Example (validation blockers)
-
-```markdown
-**Release localisation check** found blockers
-
-- **Branch:** `main`
-- **Blockers:**
-  - fr-FR — missing translations on 12 keys
-  - de-DE — broken ICU plural in `checkout.cart.count`
-- **Next:** Fix blockers before merge
+- **Window:** last 24 hours
+- **Highlights:**
+  - 3 PRs merged
+  - 1 migration still open
+- **Next:** Review the open migration before Friday
 ```

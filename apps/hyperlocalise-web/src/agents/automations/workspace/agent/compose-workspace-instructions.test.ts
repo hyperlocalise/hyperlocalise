@@ -45,7 +45,7 @@ describe("composeWorkspaceAutomationInstructions", () => {
     });
 
     expect(instructions).toContain("## Slack notifications");
-    expect(instructions).toContain("standard Markdown");
+    expect(instructions).toContain("Customer format first");
     expect(instructions).not.toContain("recall_memory tool");
     expect(instructions).not.toContain("save_memory tool");
   });
