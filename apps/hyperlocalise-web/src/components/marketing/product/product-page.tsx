@@ -28,6 +28,7 @@ import type { ProductPageContent, ProductVisualKind } from "./product-page-conte
 import { AutomationsMockUI } from "./automations-mock-ui";
 import { productPageMessages, type ProductMessageKey } from "./product-page-content.messages";
 import { AutomationEditorMock } from "./automation-editor-mock";
+import { Globe } from "@/components/ui/globe";
 
 type ProductPageProps = {
   content: ProductPageContent;
@@ -47,24 +48,39 @@ function ProductEyebrow({ messageKey }: { messageKey: ProductMessageKey }) {
 
 function ProductHero({ content }: ProductPageProps) {
   return (
-    <div className="mx-auto flex max-w-4xl flex-col items-center gap-8 text-center">
-      <div className="flex flex-col items-center gap-5">
-        <h1 className="max-w-4xl font-heading text-[clamp(2.5rem,5vw,4.75rem)] leading-[1] font-semibold tracking-normal text-balance">
-          <ProductMessage messageKey={content.hero.headlineKey} />
-        </h1>
-        <p className="max-w-2xl text-lg leading-8 text-muted-foreground text-balance sm:text-xl">
-          <ProductMessage messageKey={content.hero.subcopyKey} />
-        </p>
-      </div>
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-        <Button
-          size="lg"
-          nativeButton={false}
-          render={<a href={REQUEST_DEMO_URL} target="_blank" rel="noopener noreferrer" />}
-        >
-          <ProductMessage messageKey="ctaJoinWaitlist" />
-          <HugeiconsIcon icon={ArrowRight01Icon} data-icon="inline-end" className="size-4" />
-        </Button>
+    <div className="relative mx-auto flex min-h-[80vh] max-w-6xl items-center">
+      <div className="flex flex-col items-center gap-8 lg:flex-row lg:items-center lg:justify-between">
+        <div className="flex max-w-xl flex-col gap-8 text-center lg:text-left">
+          <div className="flex flex-col gap-5">
+            <h1 className="font-heading text-[clamp(2.5rem,5vw,4.75rem)] leading-[1] font-semibold tracking-normal text-balance">
+              <ProductMessage messageKey={content.hero.headlineKey} />
+            </h1>
+            <p className="max-w-lg text-lg leading-8 text-muted-foreground text-balance sm:text-xl">
+              <ProductMessage messageKey={content.hero.subcopyKey} />
+            </p>
+          </div>
+          <div className="flex justify-center lg:justify-start">
+            <Button
+              size="lg"
+              nativeButton={false}
+              render={<a href={REQUEST_DEMO_URL} target="_blank" rel="noopener noreferrer" />}
+            >
+              <ProductMessage messageKey="ctaJoinWaitlist" />
+              <ArrowRightIcon data-icon="inline-end" className="size-4" />
+            </Button>
+          </div>
+        </div>
+
+        {content.visualKind === "automation" && (
+          <div className="shrink-0">
+            <div className="h-[260px] w-[260px] lg:hidden">
+              <Globe className="h-full w-full" />
+            </div>
+            <div className="hidden h-[580px] w-[580px] translate-x-16 lg:block">
+              <Globe className="h-full w-full" />
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
