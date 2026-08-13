@@ -218,31 +218,58 @@ func TestResponseText(t *testing.T) {
 		{
 			name: "single text block",
 			resp: &openai.ChatCompletion{Choices: []openai.ChatCompletionChoice{{
-				Message: openai.ChatCompletionMessage{Content: "bonjour"},
+				FinishReason: "stop",
+				Message:      openai.ChatCompletionMessage{Content: "bonjour"},
 			}}},
 			want: "bonjour",
 		},
 		{
 			name: "strips trailing model control marker",
 			resp: &openai.ChatCompletion{Choices: []openai.ChatCompletionChoice{{
-				Message: openai.ChatCompletionMessage{Content: "bonjour <|END_RESPONSE|>"},
+				FinishReason: "stop",
+				Message:      openai.ChatCompletionMessage{Content: "bonjour <|END_RESPONSE|>"},
 			}}},
 			want: "bonjour",
 		},
 		{
 			name: "strips embedded model control marker",
 			resp: &openai.ChatCompletion{Choices: []openai.ChatCompletionChoice{{
-				Message: openai.ChatCompletionMessage{Content: "bon<|END_RESPONSE|>jour"},
+				FinishReason: "stop",
+				Message:      openai.ChatCompletionMessage{Content: "bon<|END_RESPONSE|>jour"},
 			}}},
 			want: "bonjour",
 		},
 		{
 			name: "uses first choice only",
 			resp: &openai.ChatCompletion{Choices: []openai.ChatCompletionChoice{
-				{Message: openai.ChatCompletionMessage{Content: "bonjour"}},
-				{Message: openai.ChatCompletionMessage{Content: "salut"}},
+				{FinishReason: "stop", Message: openai.ChatCompletionMessage{Content: "bonjour"}},
+				{FinishReason: "stop", Message: openai.ChatCompletionMessage{Content: "salut"}},
 			}},
 			want: "bonjour",
+		},
+		{
+			name: "rejects truncated completion",
+			resp: &openai.ChatCompletion{Choices: []openai.ChatCompletionChoice{{
+				FinishReason: "length",
+				Message:      openai.ChatCompletionMessage{Content: `{"greeting": "bon`},
+			}}},
+			wantErr: true,
+		},
+		{
+			name: "rejects content filter completion",
+			resp: &openai.ChatCompletion{Choices: []openai.ChatCompletionChoice{{
+				FinishReason: "content_filter",
+				Message:      openai.ChatCompletionMessage{Content: "[filtered]"},
+			}}},
+			wantErr: true,
+		},
+		{
+			name: "rejects finish_reason error with partial content",
+			resp: &openai.ChatCompletion{Choices: []openai.ChatCompletionChoice{{
+				FinishReason: "error",
+				Message:      openai.ChatCompletionMessage{Content: "partial-out"},
+			}}},
+			wantErr: true,
 		},
 		{
 			name:    "empty content",

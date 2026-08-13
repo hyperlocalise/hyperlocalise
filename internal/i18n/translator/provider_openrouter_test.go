@@ -91,6 +91,81 @@ func TestOpenRouterProviderDefaultBaseURL(t *testing.T) {
 	}
 }
 
+// OpenRouter documents that non-streaming upstream failures after generation starts
+// return HTTP 200 with finish_reason=error, an embedded choice.error, and any partial
+// content already produced. Accepting that content would write truncated/corrupt
+// translations as successes.
+func TestOpenRouterProviderRejectsChoiceErrorWithPartialContent(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{
+			"id": "gen-partial",
+			"object": "chat.completion",
+			"choices": [{
+				"index": 0,
+				"finish_reason": "error",
+				"native_finish_reason": "error",
+				"message": {"role": "assistant", "content": "half-translated {"},
+				"error": {"code": 502, "message": "Provider disconnected mid-stream", "metadata": {"error_type": "provider_unavailable"}}
+			}]
+		}`))
+	}))
+	defer srv.Close()
+
+	t.Setenv(defaultOpenRouterBaseURLEnv, srv.URL)
+	t.Setenv(defaultOpenRouterAPIKeyEnv, "sk-or-test-key")
+
+	got, err := NewOpenRouterProvider().Translate(context.Background(), Request{
+		Source:         "hello",
+		TargetLanguage: "fr",
+		Model:          "openai/gpt-4o",
+	})
+	if err == nil {
+		t.Fatalf("expected error, got translation %q", got)
+	}
+	if !strings.Contains(err.Error(), "status code 502") {
+		t.Fatalf("error %q does not contain status code 502", err.Error())
+	}
+	if !strings.Contains(err.Error(), "Provider disconnected mid-stream") {
+		t.Fatalf("error %q does not contain upstream message", err.Error())
+	}
+	if strings.Contains(got, "half-translated") {
+		t.Fatalf("partial content must not be returned on choice error, got %q", got)
+	}
+}
+
+func TestOpenRouterProviderRejectsTruncatedCompletion(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{
+			"id": "gen-trunc",
+			"object": "chat.completion",
+			"choices": [{
+				"index": 0,
+				"finish_reason": "length",
+				"message": {"role": "assistant", "content": "{\"greeting\": \"bon"}
+			}]
+		}`))
+	}))
+	defer srv.Close()
+
+	t.Setenv(defaultOpenRouterBaseURLEnv, srv.URL)
+	t.Setenv(defaultOpenRouterAPIKeyEnv, "sk-or-test-key")
+
+	got, err := NewOpenRouterProvider().Translate(context.Background(), Request{
+		Source:         "hello",
+		TargetLanguage: "fr",
+		Model:          "openai/gpt-4o",
+	})
+	if err == nil {
+		t.Fatalf("expected truncation error, got %q", got)
+	}
+	if !strings.Contains(err.Error(), "finish_reason=length") {
+		t.Fatalf("error %q does not mention finish_reason=length", err.Error())
+	}
+}
+
 // Error payload shapes below match OpenRouter's documented error format
 // (https://openrouter.ai/docs/api-reference/errors): {"error": {"code": <int>, "message": <string>, "metadata": {...}}}.
 // The "invalid model" message text mirrors what OpenRouter returns in practice
