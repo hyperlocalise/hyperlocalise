@@ -81,6 +81,7 @@ import {
 import { IssuePriorityIcon } from "../../../../_components/issue-detail/issue-priority-icon";
 import { IssueStatusIcon } from "../../../../_components/issue-detail/issue-status-icon";
 import type { IssueSheetColumn } from "../../../../_components/issue-detail/issue-sheet-column-types";
+import { isIssueSheetColumnVisible } from "../../../../_components/issue-detail/issue-sheet-column-utils";
 import { useAssignableIssueMembersQuery } from "../../../../_components/issue-detail/use-assignable-issue-members";
 import { useIssueSheetColumnsQuery } from "../../../../_components/issue-detail/use-issue-sheet-columns-query";
 import { useProjectPageQuery } from "../../_components/project-page-shell";
@@ -328,6 +329,7 @@ export function IssueSheetCreateIssueDialog({
     () => (columnsQuery.data ?? []).filter(isCreateCompactCustomColumn),
     [columnsQuery.data],
   );
+  const showPriorityField = isIssueSheetColumnVisible(columnsQuery.data ?? [], "priority");
 
   const statusItems = useMemo(
     () =>
@@ -529,37 +531,39 @@ export function IssueSheetCreateIssueDialog({
                 </SelectContent>
               </Select>
 
-              <Select
-                value={priority}
-                items={priorityItems}
-                onValueChange={(value) => {
-                  if (value && issuePriorityValues.includes(value as IssuePriorityValue)) {
-                    setPriority(value as IssuePriorityValue);
-                  }
-                }}
-                disabled={createIssue.isPending}
-              >
-                <SelectTrigger
-                  aria-label={intl.formatMessage(messages.priorityLabel)}
-                  showIcon={false}
-                  className={propertyTriggerClassName}
+              {showPriorityField ? (
+                <Select
+                  value={priority}
+                  items={priorityItems}
+                  onValueChange={(value) => {
+                    if (value && issuePriorityValues.includes(value as IssuePriorityValue)) {
+                      setPriority(value as IssuePriorityValue);
+                    }
+                  }}
+                  disabled={createIssue.isPending}
                 >
-                  <span className="flex items-center gap-1.5">
-                    <IssuePriorityIcon priority={priority} size="sm" />
-                    {priority}
-                  </span>
-                </SelectTrigger>
-                <SelectContent>
-                  {priorityItems.map((item) => (
-                    <SelectItem key={item.value} value={item.value} label={item.label}>
-                      <span className="flex items-center gap-2">
-                        <IssuePriorityIcon priority={item.value} size="sm" />
-                        {item.label}
-                      </span>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                  <SelectTrigger
+                    aria-label={intl.formatMessage(messages.priorityLabel)}
+                    showIcon={false}
+                    className={propertyTriggerClassName}
+                  >
+                    <span className="flex items-center gap-1.5">
+                      <IssuePriorityIcon priority={priority} size="sm" />
+                      {priority}
+                    </span>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {priorityItems.map((item) => (
+                      <SelectItem key={item.value} value={item.value} label={item.label}>
+                        <span className="flex items-center gap-2">
+                          <IssuePriorityIcon priority={item.value} size="sm" />
+                          {item.label}
+                        </span>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : null}
 
               {resolvedProjectId ? (
                 <IssueAssigneePicker

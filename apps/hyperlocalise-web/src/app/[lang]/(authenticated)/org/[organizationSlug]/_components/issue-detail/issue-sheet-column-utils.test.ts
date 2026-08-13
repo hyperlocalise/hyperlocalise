@@ -17,6 +17,7 @@ import type { IssueDetailIssue } from "./issue-detail-utils";
 import {
   areCustomColumnDraftsDirty,
   buildCustomColumnDrafts,
+  isIssueSheetColumnVisible,
   isMainContentCustomColumn,
   isSidebarCustomColumn,
   issueSheetColumnValueString,
@@ -56,6 +57,16 @@ describe("issue-sheet-column-utils", () => {
     ]);
 
     expect(columns.map((entry) => entry.key)).toEqual(["sprint", "context"]);
+  });
+
+  it("treats a missing column as visible and a hidden column as not", () => {
+    expect(isIssueSheetColumnVisible([], "priority")).toBe(true);
+    expect(
+      isIssueSheetColumnVisible([column({ key: "priority", hidden: false })], "priority"),
+    ).toBe(true);
+    expect(isIssueSheetColumnVisible([column({ key: "priority", hidden: true })], "priority")).toBe(
+      false,
+    );
   });
 
   it("splits long text and enrichment columns into the main content area", () => {

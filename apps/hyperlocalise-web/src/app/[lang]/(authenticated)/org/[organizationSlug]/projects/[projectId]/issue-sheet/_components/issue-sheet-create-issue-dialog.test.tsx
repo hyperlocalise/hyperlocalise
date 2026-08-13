@@ -72,7 +72,7 @@ function stringLinkFor(segmentId: string): IssueSheetCreateStringLink {
   };
 }
 
-function mockFetch() {
+function mockFetch(columns = issueSheetColumnsFixture) {
   return vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
     if (url.includes("/assignable-members")) {
@@ -81,7 +81,7 @@ function mockFetch() {
       });
     }
     if (url.includes("/columns")) {
-      return new Response(JSON.stringify({ columns: issueSheetColumnsFixture }), { status: 200 });
+      return new Response(JSON.stringify({ columns }), { status: 200 });
     }
     if (init?.method === "POST") {
       return new Response(JSON.stringify({ issue: { id: "issue_new" } }), { status: 201 });
@@ -216,6 +216,27 @@ describe("IssueSheetCreateIssueDialog", () => {
     expect(
       screen.queryByRole("menuitem", { name: /Acceptance criteria/i }),
     ).not.toBeInTheDocument();
+  });
+
+  it("hides priority when the priority column is hidden", async () => {
+    const user = userEvent.setup();
+    vi.stubGlobal(
+      "fetch",
+      mockFetch(
+        issueSheetColumnsFixture.map((column) =>
+          column.key === "priority" ? { ...column, hidden: true } : column,
+        ),
+      ),
+    );
+
+    renderDialog();
+
+    await openMoreProperties(user);
+    await waitFor(() => {
+      expect(screen.getByRole("menuitem", { name: "Set Sprint" })).toBeInTheDocument();
+    });
+    expect(screen.queryByLabelText("Priority")).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Status")).toBeInTheDocument();
   });
 
   it("creates an issue with status and priority, then closes", async () => {

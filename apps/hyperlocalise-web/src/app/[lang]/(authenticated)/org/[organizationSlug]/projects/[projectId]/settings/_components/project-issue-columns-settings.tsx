@@ -72,6 +72,12 @@ import {
   useIssueSheetColumnsQuery,
 } from "../../../../_components/issue-detail/use-issue-sheet-columns-query";
 import { ProjectSectionTitle } from "../../_components/project-page-shell";
+import {
+  mergeSelectOptionsFromLabels,
+  optionsToCsv,
+  parseOptionLabelsCsv,
+  selectOptionsFromLabels,
+} from "./project-issue-columns-options";
 import { projectIssueColumnsSettingsMessages as messages } from "./project-issue-columns-settings.messages";
 
 const COLUMN_TYPE_VALUES = ["text", "long_text", "select", "user"] as const;
@@ -108,18 +114,6 @@ function columnTypeLabel(intl: ReturnType<typeof useIntl>, type: string) {
     default:
       return type;
   }
-}
-
-function optionsToCsv(column: IssueSheetColumn) {
-  return (column.config.options ?? []).map((option) => option.label).join(", ");
-}
-
-function parseOptionsCsv(raw: string) {
-  return raw
-    .split(",")
-    .map((option) => option.trim())
-    .filter(Boolean)
-    .map((option) => ({ id: option, label: option }));
 }
 
 export function ProjectIssueColumnsSettings({
@@ -164,7 +158,7 @@ export function ProjectIssueColumnsSettings({
         label?: string;
         hidden?: boolean;
         icon?: string | null;
-        config?: { options?: { id: string; label: string }[] };
+        config?: { options?: { id: string; label: string; color?: string }[] };
       };
     }) => {
       const response = await fetch(
@@ -251,7 +245,10 @@ export function ProjectIssueColumnsSettings({
           label: formString(formData, "label").trim(),
           type,
           icon: createIcon,
-          config: type === "select" ? { options: parseOptionsCsv(rawOptions) } : {},
+          config:
+            type === "select"
+              ? { options: selectOptionsFromLabels(parseOptionLabelsCsv(rawOptions)) }
+              : {},
         }),
       });
       return readJsonOrThrow<{ column: IssueSheetColumn }>(
@@ -648,7 +645,10 @@ export function ProjectIssueColumnsSettings({
                 columnId: optionsColumn.id,
                 body: {
                   config: {
-                    options: parseOptionsCsv(formString(formData, "options")),
+                    options: mergeSelectOptionsFromLabels(
+                      optionsColumn.config.options ?? [],
+                      parseOptionLabelsCsv(formString(formData, "options")),
+                    ),
                   },
                 },
               });
@@ -666,7 +666,7 @@ export function ProjectIssueColumnsSettings({
               <Input
                 id="edit-issue-column-options"
                 name="options"
-                defaultValue={optionsColumn ? optionsToCsv(optionsColumn) : ""}
+                defaultValue={optionsColumn ? optionsToCsv(optionsColumn.config.options ?? []) : ""}
               />
             </Field>
             <DialogFooter>
