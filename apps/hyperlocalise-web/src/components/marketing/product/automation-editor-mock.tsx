@@ -16,14 +16,7 @@ import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
 import { motion } from "motion/react";
 import { CheckIcon } from "lucide-react";
-import {
-  BrainCircuitIcon,
-  Clock01Icon,
-  GitBranchIcon,
-  PlusSignIcon,
-  SecurityCheckIcon,
-  SparklesIcon,
-} from "@hugeicons/core-free-icons";
+import { GitBranchIcon, PlusSignIcon, SecurityCheckIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { FormattedMessage, useIntl } from "react-intl";
 import Image from "next/image";
@@ -33,8 +26,6 @@ import { RefreshIcon } from "@hugeicons/core-free-icons";
 
 import { automationEditorMockMessages } from "./automation-editor-mock.messages";
 
-// ─── Types ────────────────────────────────────────────────────────────────────
-
 type Step = {
   id: string;
   titleKey: keyof typeof automationEditorMockMessages;
@@ -42,11 +33,7 @@ type Step = {
   highlightSection: "name" | "trigger" | "instructions" | "tools" | "done";
 };
 
-// ─── Constants ────────────────────────────────────────────────────────────────
-
-const STEP_DURATION_MS = 3000;
-
-// ─── Shared UI primitives (matching AutomationEditorIllustration style) ───────
+const STEP_DURATION_MS = 2000;
 
 function MockSection({
   title,
@@ -113,15 +100,11 @@ function Pill({ children }: { children: ReactNode }) {
   );
 }
 
-// ─── Mock editor preview ──────────────────────────────────────────────────────
-
 function MockEditorPreview({
   highlight,
-  onReplay,
   isDone,
 }: {
   highlight: Step["highlightSection"];
-  onReplay: () => void;
   isDone: boolean;
 }) {
   const intl = useIntl();
@@ -147,7 +130,6 @@ function MockEditorPreview({
       </div>
 
       <div className="flex flex-col gap-3 overflow-y-auto p-3">
-        {/* Triggers */}
         <MockSection
           highlighted={highlight === "trigger"}
           title={<FormattedMessage {...automationEditorMockMessages.triggersLabel} />}
@@ -167,7 +149,6 @@ function MockEditorPreview({
           </MockPanel>
         </MockSection>
 
-        {/* Instructions */}
         <MockSection
           highlighted={highlight === "instructions"}
           title={<FormattedMessage {...automationEditorMockMessages.instructionsLabel} />}
@@ -179,7 +160,6 @@ function MockEditorPreview({
           </MockPanel>
         </MockSection>
 
-        {/* Tools */}
         <MockSection
           highlighted={highlight === "tools"}
           title={<FormattedMessage {...automationEditorMockMessages.toolsLabel} />}
@@ -213,98 +193,105 @@ function MockEditorPreview({
             </div>
           </MockPanel>
         </MockSection>
-
-        {/* Done state */}
-        {isDone && (
-          <div className="flex flex-col items-center gap-3 py-2 text-center">
-            <button
-              type="button"
-              onClick={onReplay}
-              className="flex cursor-pointer items-center gap-1.5 rounded-lg px-3 py-1.5 text-[0.72rem] text-muted-foreground transition-colors hover:bg-muted/40"
-            >
-              <HugeiconsIcon icon={RefreshIcon} strokeWidth={1.8} className="size-3.5" />
-              <FormattedMessage {...automationEditorMockMessages.replay} />
-            </button>
-          </div>
-        )}
       </div>
     </div>
   );
 }
 
-// ─── Vertical stepper ─────────────────────────────────────────────────────────
-
 function VerticalStepper({
   steps,
   current,
   onSelect,
+  onReplay,
 }: {
   steps: Step[];
   current: number;
   onSelect: (i: number) => void;
+  onReplay: () => void;
 }) {
   const intl = useIntl();
+  const isLastStep = current === steps.length - 1;
 
   return (
-    <div className="flex flex-col">
-      {steps.map((step, i) => {
-        const isDone = i < current;
-        const isActive = i === current;
+    <div className="flex h-full flex-col">
+      {/* Steps */}
+      <div className="flex flex-1 flex-col">
+        {steps.map((step, i) => {
+          const isDone = i < current;
+          const isActive = i === current;
 
-        return (
-          <div key={step.id} className="flex gap-4">
-            <div className="flex flex-col items-center">
-              <button
-                type="button"
-                onClick={() => onSelect(i)}
-                className={cn(
-                  "flex size-8 cursor-pointer items-center justify-center rounded-full border-2 text-xs font-semibold transition-all duration-300",
-                  isDone && "border-foreground bg-foreground text-background",
-                  isActive && "border-foreground bg-foreground text-background",
-                  !isDone && !isActive && "border-border bg-transparent text-muted-foreground",
-                )}
-              >
-                {isDone ? <CheckIcon className="size-3.5" /> : i + 1}
-              </button>
-              {i < steps.length - 1 && (
-                <div
+          return (
+            <div key={step.id} className="flex gap-3 sm:gap-4">
+              {/* Circle + line */}
+              <div className="flex flex-col items-center">
+                <button
+                  type="button"
+                  onClick={() => onSelect(i)}
                   className={cn(
-                    "my-1 w-px flex-1 transition-colors duration-500",
-                    i < current ? "bg-foreground" : "bg-border",
+                    "flex size-7 cursor-pointer items-center justify-center rounded-full border-2 text-xs font-semibold transition-all duration-300 sm:size-8",
+                    isDone && "border-foreground bg-foreground text-background",
+                    isActive && "border-foreground bg-foreground text-background",
+                    !isDone && !isActive && "border-border bg-transparent text-muted-foreground",
                   )}
-                  style={{ minHeight: "2rem" }}
-                />
-              )}
-            </div>
-            <div className={cn("pb-6", i === steps.length - 1 && "pb-0")}>
-              <p
-                className={cn(
-                  "mt-1 text-sm font-semibold leading-snug transition-colors duration-300",
-                  isActive || isDone ? "text-foreground" : "text-muted-foreground/50",
-                )}
-              >
-                {intl.formatMessage(automationEditorMockMessages[step.titleKey])}
-              </p>
-              {isActive && (
-                <motion.p
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: "auto" }}
-                  exit={{ opacity: 0, height: 0 }}
-                  transition={{ duration: 0.25 }}
-                  className="mt-1 text-xs leading-relaxed text-muted-foreground"
                 >
-                  {intl.formatMessage(automationEditorMockMessages[step.descriptionKey])}
-                </motion.p>
-              )}
+                  {isDone ? <CheckIcon className="size-3" /> : i + 1}
+                </button>
+                {i < steps.length - 1 && (
+                  <div
+                    className={cn(
+                      "my-1 w-px flex-1 transition-colors duration-500",
+                      i < current ? "bg-foreground" : "bg-border",
+                    )}
+                    style={{ minHeight: "1.5rem" }}
+                  />
+                )}
+              </div>
+
+              {/* Title + description */}
+              <div className={cn("min-w-0 pb-4", i === steps.length - 1 && "pb-0")}>
+                <p
+                  className={cn(
+                    "mt-1 text-sm font-semibold leading-snug transition-colors duration-300",
+                    isActive || isDone ? "text-foreground" : "text-muted-foreground/50",
+                  )}
+                >
+                  {intl.formatMessage(automationEditorMockMessages[step.titleKey])}
+                </p>
+                {isActive && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: "auto" }}
+                    exit={{ opacity: 0, height: 0 }}
+                    transition={{ duration: 0.25 }}
+                  >
+                    <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                      {intl.formatMessage(automationEditorMockMessages[step.descriptionKey])}
+                    </p>
+                  </motion.div>
+                )}
+              </div>
             </div>
-          </div>
-        );
-      })}
+          );
+        })}
+      </div>
+
+      {/* Divider + Replay — only shown on last step */}
+      {isLastStep && (
+        <div className="mt-4">
+          <div className="border-t border-border/60" />
+          <button
+            type="button"
+            onClick={onReplay}
+            className="mt-3 flex cursor-pointer items-center gap-1.5 rounded-lg px-3 py-1.5 text-[0.72rem] text-muted-foreground transition-colors hover:bg-muted/40"
+          >
+            <HugeiconsIcon icon={RefreshIcon} strokeWidth={1.8} className="size-3.5" />
+            {intl.formatMessage(automationEditorMockMessages.replay)}
+          </button>
+        </div>
+      )}
     </div>
   );
 }
-
-// ─── Main export ──────────────────────────────────────────────────────────────
 
 export function AutomationEditorMock() {
   const [currentStep, setCurrentStep] = useState(0);
@@ -377,14 +364,12 @@ export function AutomationEditorMock() {
 
       <div className="overflow-hidden rounded-xl border border-border bg-card shadow-2xl shadow-gray-alpha-100">
         <div className="grid md:grid-cols-[1.4fr_1fr]">
-          {/* Left — mock editor */}
           <div className="border-b border-border/60 md:border-b-0 md:border-r">
             <MockEditorPreview
               highlight={steps[currentStep]!.highlightSection}
-              onReplay={handleReplay}
+
               isDone={isDone}
             />
-            {/* Progress bar */}
             <div className="border-t border-border/60 px-4 py-3">
               <div className="h-0.5 w-full overflow-hidden rounded-full bg-border/40">
                 <motion.div
@@ -396,9 +381,13 @@ export function AutomationEditorMock() {
             </div>
           </div>
 
-          {/* Right — stepper */}
           <div className="p-6">
-            <VerticalStepper steps={steps} current={currentStep} onSelect={handleSelect} />
+            <VerticalStepper
+              steps={steps}
+              current={currentStep}
+              onSelect={handleSelect}
+              onReplay={handleReplay}
+            />
           </div>
         </div>
       </div>
