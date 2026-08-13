@@ -50,12 +50,12 @@ describe("crawlLocalisationAuditSample", () => {
       return handler(htmlResponse("<html><body>Other page content here for sample</body></html>"));
     });
 
-    const pages = await crawlLocalisationAuditSample({
+    const result = await crawlLocalisationAuditSample({
       origin: "https://example.com",
       sourceUrl: "https://example.com/",
     });
 
-    expect(pages.length).toBeGreaterThan(0);
+    expect(result.pages.length).toBeGreaterThan(0);
     expect(withPublicHttpFetchMock.mock.calls.every((call) => call[1]?.redirect === "manual")).toBe(
       true,
     );
@@ -77,12 +77,12 @@ describe("crawlLocalisationAuditSample", () => {
       throw new Error("URL host is not allowed.");
     });
 
-    const pages = await crawlLocalisationAuditSample({
+    const result = await crawlLocalisationAuditSample({
       origin: "https://example.com",
       sourceUrl: "https://example.com/",
     });
 
-    expect(pages).toEqual([]);
+    expect(result.pages).toEqual([]);
     expect(fetchedUrls).toEqual(["https://example.com/", "http://127.0.0.1/secret"]);
   });
 
@@ -110,13 +110,13 @@ describe("crawlLocalisationAuditSample", () => {
       );
     });
 
-    const pages = await crawlLocalisationAuditSample({
+    const result = await crawlLocalisationAuditSample({
       origin: "https://example.com",
       sourceUrl: "https://example.com/",
     });
 
-    expect(pages.some((page) => page.url === "https://example.com/en")).toBe(true);
-    expect(pages.find((page) => page.url === "https://example.com/en")?.title).toBe("EN");
+    expect(result.pages.some((page) => page.url === "https://example.com/en")).toBe(true);
+    expect(result.pages.find((page) => page.url === "https://example.com/en")?.title).toBe("EN");
   });
 
   it("returns an empty sample when the home page fetch fails instead of throwing", async () => {
@@ -129,7 +129,10 @@ describe("crawlLocalisationAuditSample", () => {
         origin: "https://example.com",
         sourceUrl: "https://example.com/",
       }),
-    ).resolves.toEqual([]);
+    ).resolves.toEqual({
+      pages: [],
+      sitemap: { robotsFound: false, sitemapUrls: [], localizedUrls: [] },
+    });
   });
 
   it("reuses one abort signal across redirect hops so the page timeout does not reset", async () => {
@@ -169,7 +172,7 @@ describe("crawlLocalisationAuditSample", () => {
     expect(signals[0]).toBe(signals[1]);
   });
 
-  it("seeds locale-prefixed high-value paths from focusLocales and homepage hreflang", async () => {
+  it("crawls homepage links and hreflang without inventing high-value paths", async () => {
     const fetchedUrls: string[] = [];
     withPublicHttpFetchMock.mockImplementation(async (url, _init, handler) => {
       fetchedUrls.push(url);
@@ -180,10 +183,10 @@ describe("crawlLocalisationAuditSample", () => {
           ),
         );
       }
-      if (url === "https://example.com/fr/pricing") {
+      if (url === "https://example.com/fr") {
         return handler(
           htmlResponse(
-            "<html lang='fr'><title>Tarifs</title><body>Page tarifaire francaise avec contenu.</body></html>",
+            "<html lang='fr'><title>Accueil</title><body>Page d accueil francaise avec contenu.</body></html>",
           ),
         );
       }
@@ -194,16 +197,59 @@ describe("crawlLocalisationAuditSample", () => {
       );
     });
 
-    const pages = await crawlLocalisationAuditSample({
+    const result = await crawlLocalisationAuditSample({
       origin: "https://example.com",
       sourceUrl: "https://example.com/",
-      focusLocales: ["ja"],
     });
 
-    expect(fetchedUrls).toContain("https://example.com/ja/pricing");
-    expect(fetchedUrls).toContain("https://example.com/fr/pricing");
-    expect(fetchedUrls).toContain("https://example.com/de/pricing");
-    expect(fetchedUrls).not.toContain("https://example.com/x-default/pricing");
-    expect(pages.some((page) => page.url === "https://example.com/fr/pricing")).toBe(true);
+    expect(fetchedUrls).toContain("https://example.com/fr");
+    expect(fetchedUrls).toContain("https://example.com/de");
+    expect(fetchedUrls).not.toContain("https://example.com/ja/pricing");
+    expect(fetchedUrls).not.toContain("https://example.com/fr/pricing");
+    expect(fetchedUrls).not.toContain("https://example.com/pricing");
+    expect(result.pages.some((page) => page.url === "https://example.com/fr")).toBe(true);
+  });
+
+  it("parses robots.txt and sitemap locale URLs without adding them as scored pages", async () => {
+    withPublicHttpFetchMock.mockImplementation(async (url, _init, handler) => {
+      if (url === "https://example.com/robots.txt") {
+        return handler(
+          new Response("Sitemap: https://example.com/sitemap.xml\n", {
+            status: 200,
+            headers: { "content-type": "text/plain" },
+          }),
+        );
+      }
+      if (url === "https://example.com/sitemap.xml") {
+        return handler(
+          new Response(
+            `<?xml version="1.0"?><urlset><loc>https://example.com/fr/pricing</loc><loc>https://example.com/about</loc></urlset>`,
+            { status: 200, headers: { "content-type": "application/xml" } },
+          ),
+        );
+      }
+      if (url === "https://example.com/") {
+        return handler(
+          htmlResponse(
+            "<html lang='en'><title>Home</title><body>Welcome to the homepage content sample.</body></html>",
+          ),
+        );
+      }
+      return handler(
+        htmlResponse(
+          "<html><body>Secondary page with enough text content for parsing.</body></html>",
+        ),
+      );
+    });
+
+    const result = await crawlLocalisationAuditSample({
+      origin: "https://example.com",
+      sourceUrl: "https://example.com/",
+    });
+
+    expect(result.sitemap.robotsFound).toBe(true);
+    expect(result.sitemap.sitemapUrls).toContain("https://example.com/sitemap.xml");
+    expect(result.sitemap.localizedUrls).toContain("https://example.com/fr/pricing");
+    expect(result.pages.some((page) => page.url === "https://example.com/sitemap.xml")).toBe(false);
   });
 });

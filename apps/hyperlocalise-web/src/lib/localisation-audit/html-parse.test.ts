@@ -48,6 +48,44 @@ describe("parsePageSignals", () => {
     expect(signals.textSample).not.toContain("color: red");
   });
 
+  it("extracts canonical, Open Graph, JSON-LD, dir, and accessibility samples", () => {
+    const signals = parsePageSignals(`
+      <html lang="fr-FR" dir="ltr">
+        <head>
+          <title>Tarifs</title>
+          <link rel="canonical" href="https://example.com/fr/pricing" />
+          <meta name="description" content="Plans en euros" />
+          <meta property="og:title" content="Tarifs Hyperlocalise" />
+          <meta property="og:description" content="Essayez gratuitement" />
+          <meta property="og:locale" content="fr_FR" />
+          <script type="application/ld+json">
+            {"@type":"WebPage","inLanguage":"fr-FR","name":"Tarifs"}
+          </script>
+          <style>body { font-family: "Noto Sans", sans-serif; }</style>
+        </head>
+        <body>
+          <h1>Nos tarifs</h1>
+          <button>Commencer</button>
+          <img src="/hero-fr.png" alt="Tableau de bord en français" />
+          <a href="/de/pricing" aria-label="Deutsch">DE</a>
+        </body>
+      </html>
+    `);
+
+    expect(signals.canonical).toBe("https://example.com/fr/pricing");
+    expect(signals.metaDescription).toBe("Plans en euros");
+    expect(signals.ogTitle).toBe("Tarifs Hyperlocalise");
+    expect(signals.ogDescription).toBe("Essayez gratuitement");
+    expect(signals.ogLocale).toBe("fr_FR");
+    expect(signals.dir).toBe("ltr");
+    expect(signals.jsonLd).toEqual([{ type: "WebPage", inLanguage: "fr-FR" }]);
+    expect(signals.headings).toEqual(["Nos tarifs"]);
+    expect(signals.buttons).toEqual(["Commencer"]);
+    expect(signals.altTexts).toEqual([{ alt: "Tableau de bord en français", src: "/hero-fr.png" }]);
+    expect(signals.ariaLabels).toEqual(["Deutsch"]);
+    expect(signals.fontFamilies).toContain("Noto Sans");
+  });
+
   it("truncates long text samples with an ellipsis", () => {
     const longText = "word ".repeat(1_200);
     const signals = parsePageSignals(`<html><body><p>${longText}</p></body></html>`);

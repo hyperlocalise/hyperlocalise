@@ -38,9 +38,11 @@ describe("analytics sanitization", () => {
   });
 
   it("maps score bands without inventing benchmarks", () => {
-    expect(scoreBand(92)).toBe("high");
-    expect(scoreBand(55)).toBe("mid");
-    expect(scoreBand(12)).toBe("low");
+    expect(scoreBand(92)).toBe("excellent");
+    expect(scoreBand(80)).toBe("good");
+    expect(scoreBand(55)).toBe("needs_improvement");
+    expect(scoreBand(30)).toBe("poor");
+    expect(scoreBand(12)).toBe("critical");
     expect(scoreBand(null)).toBe("unknown");
   });
 

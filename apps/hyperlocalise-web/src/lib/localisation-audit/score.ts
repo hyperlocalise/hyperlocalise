@@ -10,30 +10,81 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import type { LocalisationAuditFinding } from "./types";
+import type {
+  LocalisationAuditCreditResult,
+  LocalisationAuditDimension,
+  LocalisationAuditDimensionScores,
+  LocalisationAuditFinding,
+  LocalisationAuditFindingSeverity,
+} from "./types";
 
-export function scoreLocalisationAudit(findings: LocalisationAuditFinding[]): number {
-  let score = 100;
-  for (const finding of findings) {
-    switch (finding.severity) {
-      case "critical":
-        score -= 18;
-        break;
-      case "warning":
-        score -= 8;
-        break;
-      case "info":
-        score -= 2;
-        break;
+const DIMENSIONS: LocalisationAuditDimension[] = [
+  "technical",
+  "linguistic",
+  "contextual",
+  "visual",
+];
+
+const SEVERITY_RANK: Record<LocalisationAuditFindingSeverity, number> = {
+  critical: 0,
+  high: 1,
+  warning: 1,
+  medium: 2,
+  low: 3,
+  info: 4,
+};
+
+function mean(values: number[]): number {
+  if (values.length === 0) return 0;
+  return values.reduce((sum, value) => sum + value, 0) / values.length;
+}
+
+function roundScore(value: number): number {
+  return Math.max(0, Math.min(100, Math.round(value)));
+}
+
+export function aggregateLocalisationAuditCredits(credits: LocalisationAuditCreditResult[]): {
+  score: number;
+  dimensionScores: LocalisationAuditDimensionScores;
+} {
+  const dimensionScores = {
+    technical: 100,
+    linguistic: 100,
+    contextual: 100,
+    visual: 100,
+  } satisfies LocalisationAuditDimensionScores;
+
+  const applicableDimensions: LocalisationAuditDimension[] = [];
+  for (const dimension of DIMENSIONS) {
+    const scores = credits
+      .filter(
+        (credit) =>
+          credit.dimension === dimension && credit.method !== "na" && credit.score != null,
+      )
+      .map((credit) => credit.score!);
+    if (scores.length === 0) {
+      continue;
     }
+    dimensionScores[dimension] = roundScore(mean(scores));
+    applicableDimensions.push(dimension);
   }
-  return Math.max(0, Math.min(100, score));
+
+  const overall =
+    applicableDimensions.length === 0
+      ? 0
+      : mean(applicableDimensions.map((dimension) => dimensionScores[dimension]));
+
+  return {
+    score: roundScore(overall),
+    dimensionScores,
+  };
 }
 
 export function pickHeadlineFindings(
   findings: LocalisationAuditFinding[],
   limit = 3,
 ): LocalisationAuditFinding[] {
-  const rank = { critical: 0, warning: 1, info: 2 } as const;
-  return findings.toSorted((a, b) => rank[a.severity] - rank[b.severity]).slice(0, limit);
+  return findings
+    .toSorted((a, b) => SEVERITY_RANK[a.severity] - SEVERITY_RANK[b.severity])
+    .slice(0, limit);
 }

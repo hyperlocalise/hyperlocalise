@@ -10,28 +10,39 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { readBoundedResponseBody, withPublicHttpFetch } from "@/lib/security/public-http-fetch";
 import { mapWithConcurrency } from "@/lib/primitives/map-with-concurrency/map-with-concurrency";
+import { readBoundedResponseBody, withPublicHttpFetch } from "@/lib/security/public-http-fetch";
 
-import { parsePageSignals } from "./html-parse";
-import type { LocalisationAuditCrawledPage } from "./types";
+import { crawledPageFromSignals, emptyParsedPage, parsePageSignals } from "./html-parse";
+import type {
+  LocalisationAuditCrawledPage,
+  LocalisationAuditCrawlResult,
+  LocalisationAuditSitemapSignal,
+} from "./types";
+import { EMPTY_SITEMAP_SIGNAL } from "./types";
 
 const USER_AGENT = "HyperlocaliseLocalisationAudit/1.0 (+https://hyperlocalise.com)";
 const MAX_PAGES = 15;
-const MAX_DISCOVERED_LOCALES = 5;
 const FETCH_TIMEOUT_MS = 12_000;
 const MAX_REDIRECTS = 5;
 const REDIRECT_STATUSES = new Set([301, 302, 303, 307, 308]);
-const HIGH_VALUE_PATHS = ["/pricing", "/product", "/products", "/about", "/company", "/blog"];
 
 const LOCALE_PREFIX = /^\/([a-z]{2}(?:-[a-z]{2})?)(\/|$)/i;
 const LOCALE_CODE = /^[a-z]{2}(?:-[a-z]{2})?$/i;
 
-const FETCH_HEADERS = {
+const FETCH_HEADERS: Record<string, string> = {
   "User-Agent": USER_AGENT,
   Accept: "text/html,application/xhtml+xml;q=0.9,*/*;q=0.1",
   "Accept-Language": "en-US,en;q=0.9",
-} as const;
+};
+
+const FETCH_TEXT_HEADERS: Record<string, string> = {
+  "User-Agent": USER_AGENT,
+  Accept: "text/plain,application/xml,text/xml,application/xhtml+xml;q=0.9,*/*;q=0.1",
+};
+
+const MAX_SITEMAP_URLS = 50;
+const MAX_NESTED_SITEMAPS = 3;
 
 function toAbsoluteUrl(base: string, href: string): string | null {
   try {
@@ -76,6 +87,7 @@ type SafeFetchResult<T> = { ok: true; value: T } | { ok: false };
 async function fetchPublicWithSafeRedirects<T>(
   startUrl: string,
   handler: (response: Response, finalUrl: string) => Promise<T>,
+  headers: Record<string, string> = FETCH_HEADERS,
 ): Promise<SafeFetchResult<T>> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
@@ -92,7 +104,7 @@ async function fetchPublicWithSafeRedirects<T>(
             method: "GET",
             redirect: "manual",
             signal: controller.signal,
-            headers: FETCH_HEADERS,
+            headers,
           },
           async (response): Promise<SafeFetchOutcome<T>> => {
             if (REDIRECT_STATUSES.has(response.status)) {
@@ -126,31 +138,111 @@ async function fetchPublicWithSafeRedirects<T>(
   }
 }
 
+async function fetchText(url: string): Promise<string | null> {
+  const result = await fetchPublicWithSafeRedirects(
+    url,
+    async (response) => {
+      if (response.status < 200 || response.status >= 400) {
+        return null;
+      }
+      const body = await readBoundedResponseBody(response);
+      return new TextDecoder("utf-8", { fatal: false }).decode(body);
+    },
+    FETCH_TEXT_HEADERS,
+  );
+  return result.ok ? result.value : null;
+}
+
+function parseSitemapLocs(xml: string): string[] {
+  return [...xml.matchAll(/<loc>\s*([^<]+)\s*<\/loc>/gi)]
+    .map((match) => match[1]?.trim() ?? "")
+    .filter(Boolean);
+}
+
+function parseRobotsSitemaps(robots: string): string[] {
+  const urls: string[] = [];
+  for (const line of robots.split(/\r?\n/)) {
+    const match = line.match(/^\s*sitemap\s*:\s*(\S+)/i);
+    if (match?.[1]) {
+      urls.push(match[1]);
+    }
+  }
+  return urls;
+}
+
+async function fetchSitemapSignals(origin: string): Promise<LocalisationAuditSitemapSignal> {
+  const originHost = new URL(origin).hostname;
+  const robotsUrl = new URL("/robots.txt", origin).toString();
+  const robots = await fetchText(robotsUrl);
+  const robotsFound = robots != null;
+  const sitemapUrls = new Set<string>();
+  if (robots) {
+    for (const raw of parseRobotsSitemaps(robots)) {
+      const absolute = toAbsoluteUrl(origin, raw);
+      if (absolute) {
+        sitemapUrls.add(absolute);
+      }
+    }
+  }
+  sitemapUrls.add(new URL("/sitemap.xml", origin).toString());
+
+  const localizedUrls: string[] = [];
+  const nestedQueue = [...sitemapUrls];
+  const fetchedSitemaps = new Set<string>();
+  while (nestedQueue.length > 0 && fetchedSitemaps.size < MAX_NESTED_SITEMAPS) {
+    const sitemapUrl = nestedQueue.shift();
+    if (!sitemapUrl || fetchedSitemaps.has(sitemapUrl)) {
+      continue;
+    }
+    fetchedSitemaps.add(sitemapUrl);
+    const xml = await fetchText(sitemapUrl);
+    if (!xml || !xml.includes("<loc")) {
+      sitemapUrls.delete(sitemapUrl);
+      continue;
+    }
+    const locs = parseSitemapLocs(xml);
+    const looksLikeIndex = /<sitemapindex/i.test(xml);
+    for (const loc of locs) {
+      const absolute = toAbsoluteUrl(sitemapUrl, loc);
+      if (!absolute || !sameHost(originHost, absolute)) {
+        continue;
+      }
+      if (looksLikeIndex && nestedQueue.length + fetchedSitemaps.size < MAX_NESTED_SITEMAPS) {
+        nestedQueue.push(absolute);
+        sitemapUrls.add(absolute);
+        continue;
+      }
+      try {
+        if (localeFromPath(new URL(absolute).pathname) && localizedUrls.length < MAX_SITEMAP_URLS) {
+          localizedUrls.push(absolute);
+        }
+      } catch {
+        // ignore malformed loc
+      }
+    }
+  }
+
+  return {
+    robotsFound,
+    sitemapUrls: [...sitemapUrls],
+    localizedUrls,
+  };
+}
+
 async function fetchPage(url: string): Promise<LocalisationAuditCrawledPage | null> {
   const result = await fetchPublicWithSafeRedirects(url, async (response, finalUrl) => {
     const contentType = response.headers.get("content-type") ?? "";
     if (!contentType.includes("text/html") && !contentType.includes("application/xhtml")) {
-      return {
-        url: finalUrl,
-        status: response.status,
-        htmlLang: null,
-        title: null,
-        textSample: "",
-        hreflang: [],
-      };
+      return emptyParsedPage(finalUrl, response.status);
     }
 
     const body = await readBoundedResponseBody(response);
     const html = new TextDecoder("utf-8", { fatal: false }).decode(body);
-    const signals = parsePageSignals(html);
-    return {
+    return crawledPageFromSignals({
       url: finalUrl,
       status: response.status,
-      htmlLang: signals.htmlLang,
-      title: signals.title,
-      textSample: signals.textSample,
-      hreflang: signals.hreflang,
-    };
+      signals: parsePageSignals(html),
+    });
   });
   return result.ok ? result.value : null;
 }
@@ -165,14 +257,11 @@ async function fetchPageWithAnchors(url: string): Promise<
     const body = await readBoundedResponseBody(response);
     const html = new TextDecoder("utf-8", { fatal: false }).decode(body);
     const signals = parsePageSignals(html);
-    const page: LocalisationAuditCrawledPage = {
+    const page = crawledPageFromSignals({
       url: finalUrl,
       status: response.status,
-      htmlLang: signals.htmlLang,
-      title: signals.title,
-      textSample: signals.textSample,
-      hreflang: signals.hreflang,
-    };
+      signals,
+    });
     const candidateUrls = [
       ...signals.hreflang.map((entry) => toAbsoluteUrl(finalUrl, entry.href)).filter(Boolean),
       ...signals.anchors.map((anchor) => toAbsoluteUrl(finalUrl, anchor.href)).filter(Boolean),
@@ -194,66 +283,6 @@ function localeFromPath(pathname: string): string | null {
   return match ? normalizeLocaleCode(match[1]!) : null;
 }
 
-function isHighValuePath(path: string): boolean {
-  return HIGH_VALUE_PATHS.some((candidate) => path === candidate || path.endsWith(candidate));
-}
-
-/**
- * Prefer focus locales, then hreflang, then locale prefixes seen on same-host
- * homepage links — capped so prefixed high-value probes stay within MAX_PAGES.
- */
-function discoverLocales(input: {
-  focusLocales: string[];
-  hreflang: Array<{ locale: string }>;
-  candidateUrls: string[];
-  originHost: string;
-}): string[] {
-  const ordered: string[] = [];
-  const seen = new Set<string>();
-
-  const add = (raw: string) => {
-    const locale = normalizeLocaleCode(raw);
-    if (!locale || seen.has(locale)) {
-      return;
-    }
-    seen.add(locale);
-    ordered.push(locale);
-  };
-
-  for (const locale of input.focusLocales) {
-    add(locale);
-  }
-  for (const entry of input.hreflang) {
-    add(entry.locale);
-  }
-  for (const url of input.candidateUrls) {
-    if (!sameHost(input.originHost, url)) {
-      continue;
-    }
-    try {
-      const locale = localeFromPath(new URL(url).pathname);
-      if (locale) {
-        add(locale);
-      }
-    } catch {
-      // ignore malformed candidate URLs
-    }
-  }
-
-  return ordered.slice(0, MAX_DISCOVERED_LOCALES);
-}
-
-function seedHighValuePaths(origin: string, locales: string[]): string[] {
-  const seeds: string[] = [];
-  for (const path of HIGH_VALUE_PATHS) {
-    seeds.push(new URL(path, origin).toString());
-    for (const locale of locales) {
-      seeds.push(new URL(`/${locale}${path}`, origin).toString());
-    }
-  }
-  return seeds;
-}
-
 function scoreCandidate(url: string, origin: string): number {
   try {
     const parsed = new URL(url);
@@ -264,8 +293,6 @@ function scoreCandidate(url: string, origin: string): number {
     const path = parsed.pathname.replace(/\/+$/, "") || "/";
     if (path === "/") return 100;
     if (LOCALE_PREFIX.test(path) && path.split("/").filter(Boolean).length <= 1) return 90;
-    if (isHighValuePath(path) && localeFromPath(path)) return 85;
-    if (isHighValuePath(path)) return 80;
     if (LOCALE_PREFIX.test(path)) return 60;
     if (path.split("/").filter(Boolean).length <= 2) return 40;
     return 10;
@@ -277,39 +304,28 @@ function scoreCandidate(url: string, origin: string): number {
 export async function crawlLocalisationAuditSample(input: {
   origin: string;
   sourceUrl: string;
-  focusLocales?: string[];
-}): Promise<LocalisationAuditCrawledPage[]> {
+}): Promise<LocalisationAuditCrawlResult> {
   try {
     return await crawlLocalisationAuditSampleInner(input);
   } catch {
     // Soft-fail unexpected errors (and any remaining Turbopack null-guard DCE)
     // so the workflow step does not retry forever on an empty crawl.
-    return [];
+    return { pages: [], sitemap: EMPTY_SITEMAP_SIGNAL };
   }
 }
 
 async function crawlLocalisationAuditSampleInner(input: {
   origin: string;
   sourceUrl: string;
-  focusLocales?: string[];
-}): Promise<LocalisationAuditCrawledPage[]> {
+}): Promise<LocalisationAuditCrawlResult> {
   const homeResult = await fetchPageWithAnchors(input.sourceUrl);
   if (homeResult.ok === false) {
-    return [];
+    return { pages: [], sitemap: EMPTY_SITEMAP_SIGNAL };
   }
 
   const { page: homePage, candidateUrls } = homeResult.value;
   const originHost = new URL(input.origin).hostname;
-  const locales = discoverLocales({
-    focusLocales: input.focusLocales ?? [],
-    hreflang: homePage.hreflang,
-    candidateUrls,
-    originHost,
-  });
   const seeded = new Set<string>([homePage.url]);
-  for (const url of seedHighValuePaths(input.origin, locales)) {
-    seeded.add(url);
-  }
   for (const candidate of candidateUrls) {
     if (sameHost(originHost, candidate)) {
       seeded.add(candidate.split("#")[0]!);
@@ -322,12 +338,18 @@ async function crawlLocalisationAuditSampleInner(input: {
     .toSorted((a, b) => b.score - a.score)
     .slice(0, MAX_PAGES);
 
-  const pages = await mapWithConcurrency(ranked, 4, async (entry) => {
-    if (entry.url === homePage.url) {
-      return homePage;
-    }
-    return fetchPage(entry.url);
-  });
+  const [pages, sitemap] = await Promise.all([
+    mapWithConcurrency(ranked, 4, async (entry) => {
+      if (entry.url === homePage.url) {
+        return homePage;
+      }
+      return fetchPage(entry.url);
+    }),
+    fetchSitemapSignals(input.origin),
+  ]);
 
-  return pages.filter((page): page is LocalisationAuditCrawledPage => page != null);
+  return {
+    pages: pages.filter((page): page is LocalisationAuditCrawledPage => page != null),
+    sitemap,
+  };
 }

@@ -13,8 +13,11 @@
 import { LOCALISATION_AUDIT_ANALYTICS_EVENTS, scoreBand } from "@/lib/analytics/events";
 import { serverAnalytics } from "@/lib/analytics/server";
 import { crawlLocalisationAuditSample } from "@/lib/localisation-audit/crawl";
-import { runLinguisticLocalisationReview } from "@/lib/localisation-audit/linguistic-review";
-import { pickHeadlineFindings, scoreLocalisationAudit } from "@/lib/localisation-audit/score";
+import { runLocalisationAuditCredits } from "@/lib/localisation-audit/credits/runner";
+import {
+  aggregateLocalisationAuditCredits,
+  pickHeadlineFindings,
+} from "@/lib/localisation-audit/score";
 import {
   completeLocalisationAudit,
   failLocalisationAudit,
@@ -26,13 +29,13 @@ import {
   markLocalisationAuditRunning,
   upsertLocalisationAuditLeadForDelivery,
 } from "@/lib/localisation-audit/store";
-import { runTechnicalLocalisationChecks } from "@/lib/localisation-audit/technical-checks";
 import type {
-  LocalisationAuditCrawledPage,
+  LocalisationAuditCrawlResult,
   LocalisationAuditProgressStage,
   LocalisationAuditReport,
   LocalisationAuditTeaser,
 } from "@/lib/localisation-audit/types";
+
 export async function prepareLocalisationAuditStep(input: {
   auditId: string;
   attemptNumber: number;
@@ -103,8 +106,7 @@ export async function setLocalisationAuditProgressStep(input: {
 export async function crawlLocalisationAuditStep(input: {
   origin: string;
   sourceUrl: string;
-  focusLocales?: string[];
-}): Promise<LocalisationAuditCrawledPage[]> {
+}): Promise<LocalisationAuditCrawlResult> {
   "use step";
   return crawlLocalisationAuditSample(input);
 }
@@ -116,7 +118,8 @@ export async function analyzeLocalisationAuditStep(input: {
   domainSlug: string;
   sourceUrl: string;
   focusLocales: string[];
-  pages: LocalisationAuditCrawledPage[];
+  pages: LocalisationAuditCrawlResult["pages"];
+  sitemap: LocalisationAuditCrawlResult["sitemap"];
 }) {
   "use step";
 
@@ -140,17 +143,12 @@ export async function analyzeLocalisationAuditStep(input: {
     progressStage: "scoring",
   });
 
-  const technical = runTechnicalLocalisationChecks({
+  const scored = await runLocalisationAuditCredits({
     pages: input.pages,
     focusLocales: input.focusLocales,
+    sitemap: input.sitemap,
   });
-  const linguistic = await runLinguisticLocalisationReview({
-    pages: input.pages,
-    focusLocales: input.focusLocales,
-  });
-
-  const findings = [...technical.findings, ...linguistic.findings];
-  const score = scoreLocalisationAudit(findings);
+  const { score, dimensionScores } = aggregateLocalisationAuditCredits(scored.credits);
   const completedAt = new Date().toISOString();
 
   const report: LocalisationAuditReport = {
@@ -159,28 +157,31 @@ export async function analyzeLocalisationAuditStep(input: {
     domainSlug: input.domainSlug,
     sourceUrl: input.sourceUrl,
     focusLocales: input.focusLocales,
-    detectedLocales: technical.detectedLocales,
-    findings,
+    detectedLocales: scored.detectedLocales,
+    findings: scored.findings,
     pages: input.pages.map((page) => ({
       url: page.url,
       status: page.status,
       htmlLang: page.htmlLang,
       title: page.title,
     })),
-    linguisticNotes: linguistic.linguisticNotes,
+    linguisticNotes: scored.linguisticNotes,
     pagesCrawled: input.pages.length,
     completedAt,
+    dimensionScores,
+    credits: scored.credits,
   };
 
   const teaser: LocalisationAuditTeaser = {
     score,
     domainKey: input.domainKey,
     domainSlug: input.domainSlug,
-    detectedLocales: technical.detectedLocales,
-    headlineFindings: pickHeadlineFindings(findings, 3),
-    findingsCount: findings.length,
+    detectedLocales: scored.detectedLocales,
+    headlineFindings: pickHeadlineFindings(scored.findings, 3),
+    findingsCount: scored.findings.length,
     pagesCrawled: input.pages.length,
     completedAt,
+    dimensionScores,
   };
 
   const completed = await completeLocalisationAudit({

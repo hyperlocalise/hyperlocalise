@@ -61,7 +61,9 @@ export function sanitizeAnalyticsProperties(
 
 export function scoreBand(score: number | null | undefined): string {
   if (score == null || Number.isNaN(score)) return "unknown";
-  if (score >= 80) return "high";
-  if (score >= 50) return "mid";
-  return "low";
+  if (score >= 90) return "excellent";
+  if (score >= 75) return "good";
+  if (score >= 50) return "needs_improvement";
+  if (score >= 25) return "poor";
+  return "critical";
 }

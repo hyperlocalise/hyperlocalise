@@ -22,9 +22,18 @@ export type LocalisationAuditProgressStage =
   | "completed"
   | "failed";
 
-export type LocalisationAuditFindingSeverity = "critical" | "warning" | "info";
+/** `warning` is a legacy stored-report value; treat it as `high`. */
+export type LocalisationAuditFindingSeverity =
+  | "critical"
+  | "high"
+  | "medium"
+  | "low"
+  | "info"
+  | "warning";
 
-export type LocalisationAuditFindingCategory = "technical" | "linguistic";
+export type LocalisationAuditDimension = "technical" | "linguistic" | "contextual" | "visual";
+
+export type LocalisationAuditFindingCategory = LocalisationAuditDimension;
 
 export type LocalisationAuditFinding = {
   id: string;
@@ -34,12 +43,24 @@ export type LocalisationAuditFinding = {
   summary: string;
   url?: string;
   evidence?: string;
+  confidence?: number;
+  creditId?: string;
 };
 
 export type LocalisationAuditLocaleSignal = {
   locale: string;
   source: "hreflang" | "html_lang" | "url_prefix" | "url_subdomain" | "focus";
   sampleUrl?: string;
+};
+
+export type LocalisationAuditJsonLd = {
+  type: string;
+  inLanguage: string | null;
+};
+
+export type LocalisationAuditAltText = {
+  alt: string;
+  src: string;
 };
 
 export type LocalisationAuditCrawledPage = {
@@ -50,6 +71,46 @@ export type LocalisationAuditCrawledPage = {
   title: string | null;
   textSample: string;
   hreflang: Array<{ locale: string; href: string }>;
+  canonical: string | null;
+  metaDescription: string | null;
+  ogTitle: string | null;
+  ogDescription: string | null;
+  ogLocale: string | null;
+  dir: string | null;
+  jsonLd: LocalisationAuditJsonLd[];
+  ariaLabels: string[];
+  altTexts: LocalisationAuditAltText[];
+  buttons: string[];
+  headings: string[];
+  fontFamilies: string[];
+  anchors: Array<{ href: string; text: string }>;
+};
+
+export type LocalisationAuditSitemapSignal = {
+  robotsFound: boolean;
+  sitemapUrls: string[];
+  localizedUrls: string[];
+};
+
+export type LocalisationAuditCrawlResult = {
+  pages: LocalisationAuditCrawledPage[];
+  sitemap: LocalisationAuditSitemapSignal;
+};
+
+export type LocalisationAuditCreditMethod = "heuristic" | "luna" | "na";
+
+export type LocalisationAuditCreditResult = {
+  id: string;
+  dimension: LocalisationAuditDimension;
+  score: number | null;
+  method: LocalisationAuditCreditMethod;
+};
+
+export type LocalisationAuditDimensionScores = {
+  technical: number;
+  linguistic: number;
+  contextual: number;
+  visual: number;
 };
 
 export type LocalisationAuditTeaser = {
@@ -62,6 +123,7 @@ export type LocalisationAuditTeaser = {
   findingsCount: number;
   pagesCrawled: number;
   completedAt: string;
+  dimensionScores?: LocalisationAuditDimensionScores;
 };
 
 export type LocalisationAuditReport = {
@@ -85,6 +147,8 @@ export type LocalisationAuditReport = {
   }>;
   pagesCrawled: number;
   completedAt: string;
+  dimensionScores?: LocalisationAuditDimensionScores;
+  credits?: LocalisationAuditCreditResult[];
 };
 
 export type LocalisationAuditEventData = {
@@ -108,3 +172,35 @@ export type LocalisationAuditLeadDeliveryStatus =
 export const LOCALISATION_AUDIT_STALE_MS = 15 * 60 * 1000;
 export const LOCALISATION_AUDIT_EMAIL_RESEND_COOLDOWN_MS = 60 * 1000;
 export const LOCALISATION_AUDIT_REPORT_TOKEN_TTL_MS = 24 * 60 * 60 * 1000;
+
+export const EMPTY_SITEMAP_SIGNAL: LocalisationAuditSitemapSignal = {
+  robotsFound: false,
+  sitemapUrls: [],
+  localizedUrls: [],
+};
+
+export function emptyCrawledPage(
+  partial: Partial<LocalisationAuditCrawledPage> & { url: string },
+): LocalisationAuditCrawledPage {
+  return {
+    status: 200,
+    htmlLang: null,
+    title: null,
+    textSample: "",
+    hreflang: [],
+    canonical: null,
+    metaDescription: null,
+    ogTitle: null,
+    ogDescription: null,
+    ogLocale: null,
+    dir: null,
+    jsonLd: [],
+    ariaLabels: [],
+    altTexts: [],
+    buttons: [],
+    headings: [],
+    fontFamilies: [],
+    anchors: [],
+    ...partial,
+  };
+}

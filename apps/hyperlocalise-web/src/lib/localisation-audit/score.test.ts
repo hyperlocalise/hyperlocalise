@@ -12,8 +12,19 @@
  */
 import { describe, expect, it } from "vite-plus/test";
 
-import { pickHeadlineFindings, scoreLocalisationAudit } from "./score";
-import type { LocalisationAuditFinding } from "./types";
+import { aggregateLocalisationAuditCredits, pickHeadlineFindings } from "./score";
+import type { LocalisationAuditCreditResult, LocalisationAuditFinding } from "./types";
+
+function credit(
+  partial: Partial<LocalisationAuditCreditResult> &
+    Pick<LocalisationAuditCreditResult, "id" | "dimension">,
+): LocalisationAuditCreditResult {
+  return {
+    score: 100,
+    method: "heuristic",
+    ...partial,
+  };
+}
 
 function finding(
   severity: LocalisationAuditFinding["severity"],
@@ -28,45 +39,66 @@ function finding(
   };
 }
 
-describe("scoreLocalisationAudit", () => {
-  it("starts at 100 with no findings and clamps to [0, 100]", () => {
-    expect(scoreLocalisationAudit([])).toBe(100);
-    expect(
-      scoreLocalisationAudit([
-        finding("critical", "c1"),
-        finding("critical", "c2"),
-        finding("critical", "c3"),
-        finding("critical", "c4"),
-        finding("critical", "c5"),
-        finding("critical", "c6"),
-      ]),
-    ).toBe(0);
+describe("aggregateLocalisationAuditCredits", () => {
+  it("averages applicable credits equally within each dimension and 4x25 overall", () => {
+    const result = aggregateLocalisationAuditCredits([
+      credit({ id: "a", dimension: "technical", score: 80 }),
+      credit({ id: "b", dimension: "technical", score: 100 }),
+      credit({ id: "c", dimension: "linguistic", score: 60 }),
+      credit({ id: "d", dimension: "contextual", score: 40 }),
+      credit({ id: "e", dimension: "visual", score: 20 }),
+    ]);
+
+    expect(result.dimensionScores).toEqual({
+      technical: 90,
+      linguistic: 60,
+      contextual: 40,
+      visual: 20,
+    });
+    expect(result.score).toBe(53);
   });
 
-  it("applies severity weights for critical, warning, and info", () => {
+  it("excludes N/A credits from the dimension mean instead of treating them as zero", () => {
+    const result = aggregateLocalisationAuditCredits([
+      credit({ id: "hreflang", dimension: "technical", score: 80 }),
+      credit({ id: "sitemap", dimension: "technical", score: null, method: "na" }),
+      credit({ id: "fluency", dimension: "linguistic", score: 100 }),
+      credit({ id: "glossary-compliance", dimension: "contextual", score: null, method: "na" }),
+      credit({ id: "cta-intent", dimension: "contextual", score: 50 }),
+      credit({ id: "rtl-support", dimension: "visual", score: null, method: "na" }),
+      credit({ id: "text-expansion", dimension: "visual", score: 90 }),
+    ]);
+
+    expect(result.dimensionScores.technical).toBe(80);
+    expect(result.dimensionScores.contextual).toBe(50);
+    expect(result.dimensionScores.visual).toBe(90);
+    expect(result.score).toBe(80);
+  });
+
+  it("clamps the overall score to [0, 100]", () => {
+    expect(aggregateLocalisationAuditCredits([]).score).toBe(0);
     expect(
-      scoreLocalisationAudit([
-        finding("critical", "c1"),
-        finding("warning", "w1"),
-        finding("info", "i1"),
-      ]),
-    ).toBe(100 - 18 - 8 - 2);
+      aggregateLocalisationAuditCredits([
+        credit({ id: "a", dimension: "technical", score: 100 }),
+        credit({ id: "b", dimension: "linguistic", score: 100 }),
+        credit({ id: "c", dimension: "contextual", score: 100 }),
+        credit({ id: "d", dimension: "visual", score: 100 }),
+      ]).score,
+    ).toBe(100);
   });
 });
 
 describe("pickHeadlineFindings", () => {
-  it("orders by severity and respects the limit", () => {
+  it("orders by spec severity and treats legacy warning as high", () => {
     const findings = [
       finding("info", "i1"),
       finding("critical", "c1"),
       finding("warning", "w1"),
-      finding("critical", "c2"),
-      finding("warning", "w2"),
+      finding("medium", "m1"),
+      finding("high", "h1"),
     ];
 
-    expect(pickHeadlineFindings(findings, 3).map((item) => item.id)).toEqual(["c1", "c2", "w1"]);
-    expect(pickHeadlineFindings(findings).map((item) => item.id)).toEqual(["c1", "c2", "w1"]);
-    expect(pickHeadlineFindings(findings, 1).map((item) => item.id)).toEqual(["c1"]);
+    expect(pickHeadlineFindings(findings, 3).map((item) => item.id)).toEqual(["c1", "w1", "h1"]);
   });
 
   it("does not mutate the input order", () => {
