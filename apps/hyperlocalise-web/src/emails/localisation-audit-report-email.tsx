@@ -19,12 +19,14 @@ import {
   Heading,
   Hr,
   Html,
+  Link,
   Preview,
   Row,
   Section,
   Text,
 } from "react-email";
 
+import { getLocalisationAuditGuideHref } from "@/components/marketing/localisation-audit/localisation-audit-page-content";
 import {
   emailAuditToneColor,
   emailAuditToneFill,
@@ -35,6 +37,7 @@ import type {
   LocalisationAuditDimensionScores,
   LocalisationAuditFinding,
 } from "@/lib/localisation-audit/types";
+import { SITE_URL } from "@/lib/seo/site-url";
 
 export type LocalisationAuditReportEmailProps = {
   domainKey: string;
@@ -72,6 +75,9 @@ export function localisationAuditReportEmailText(props: LocalisationAuditReportE
     "",
     "Open your full report (link expires in 24 hours):",
     props.verifyUrl,
+    "",
+    "How we score localisation audits:",
+    localisationAuditGuideUrl(),
     "",
     "If you did not request this audit, you can ignore this email.",
     "",
@@ -152,10 +158,19 @@ export function LocalisationAuditReportEmail(props: LocalisationAuditReportEmail
             This link verifies your email and unlocks the full report. It expires in 24 hours and
             can be used once.
           </Text>
+          <Text style={muted}>
+            <Link href={localisationAuditGuideUrl()} style={link}>
+              How we score localisation audits
+            </Link>
+          </Text>
         </Container>
       </Body>
     </Html>
   );
+}
+
+function localisationAuditGuideUrl() {
+  return `${SITE_URL}${getLocalisationAuditGuideHref()}`;
 }
 
 function EmailDimensionCircle({ label, score }: { label: string; score: number }) {
@@ -285,4 +300,9 @@ const button = {
   lineHeight: "20px",
   padding: "12px 18px",
   textDecoration: "none",
+};
+
+const link = {
+  color: "#006bff",
+  textDecoration: "underline",
 };

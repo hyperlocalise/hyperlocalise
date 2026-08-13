@@ -38,6 +38,7 @@ import type {
 import { cn } from "@/lib/primitives/cn";
 
 import {
+  getLocalisationAuditGuideHref,
   getLocalisationAuditResultCopy,
   interpretScore,
   interpretScoreCtaBand,
@@ -504,7 +505,13 @@ export function LocalisationAuditResult({
         </div>
         <TypographyP className="mt-4 max-w-2xl text-muted-foreground">
           Sampled {teaser?.pagesCrawled ?? report?.pagesCrawled ?? 0} pages across technical,
-          linguistic, contextual, and visual localisation credits.
+          linguistic, contextual, and visual localisation credits.{" "}
+          <Link
+            href={getLocalisationAuditGuideHref()}
+            className="font-medium text-foreground underline-offset-4 hover:underline"
+          >
+            {copy.methodologyLink}
+          </Link>
         </TypographyP>
       </section>
 

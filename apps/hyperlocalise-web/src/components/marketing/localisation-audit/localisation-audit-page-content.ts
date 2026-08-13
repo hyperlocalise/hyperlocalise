@@ -10,6 +10,17 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { DEFAULT_APP_LOCALE } from "@/lib/app-i18n/locales";
+import { getBlogPostPath } from "@/lib/blog/blog-post-path";
+
+export const LOCALISATION_AUDIT_GUIDE_SLUG = "what-is-a-website-localisation-audit";
+
+export function getLocalisationAuditGuideHref(): string {
+  return (
+    getBlogPostPath(DEFAULT_APP_LOCALE, LOCALISATION_AUDIT_GUIDE_SLUG) ??
+    `/${DEFAULT_APP_LOCALE}/blog/${LOCALISATION_AUDIT_GUIDE_SLUG}`
+  );
+}
 
 export function getLocalisationAuditPageCopy(_locale: string) {
   return {
@@ -135,6 +146,7 @@ export function getLocalisationAuditResultCopy(_locale: string) {
     scoreInterpretationPoor: "Significant localisation gaps are affecting the experience.",
     scoreInterpretationCritical:
       "The localised experience has major problems that should be addressed.",
+    methodologyLink: "How we score localisation audits",
   };
 }
 

@@ -41,6 +41,7 @@ describe("localisation audit report email", () => {
     expect(text).toContain("[critical]");
     expect(text).toContain("verify?token=abc");
     expect(text).toContain("example.com");
+    expect(text).toContain("/en/blog/what-is-a-website-localisation-audit");
   });
 
   it("includes dimension scores when provided", () => {
@@ -82,5 +83,6 @@ describe("localisation audit report email", () => {
     expect(html).toContain("#107d32");
     expect(html).toContain("#ecfdec");
     expect(html).toContain("#ffeeef");
+    expect(html).toContain("/en/blog/what-is-a-website-localisation-audit");
   });
 });
