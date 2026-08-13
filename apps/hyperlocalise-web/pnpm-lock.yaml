@@ -274,6 +274,9 @@ importers:
       htmlparser2:
         specifier: ^12.0.0
         version: 12.0.0
+      intercom-client:
+        specifier: ^7.0.3
+        version: 7.0.3
       jsonwebtoken:
         specifier: ^9.0.3
         version: 9.0.3
@@ -7800,6 +7803,10 @@ packages:
 
   inspect-with-kind@1.0.5:
     resolution: {integrity: sha512-MAQUJuIo7Xqk8EVNP+6d3CKq9c80hi4tjIbIAT6lmGW9W6WzlHiu9PS8uSuUYU+Do+j1baiFp3H25XEVxDIG2g==}
+
+  intercom-client@7.0.3:
+    resolution: {integrity: sha512-2rsNxBNqDqA0rZ0E/VsWa+/Ao+/nOxKNj9P7gUiQoOGY88eULTJUNtT9oNnT4Dq2+6dr0vvvo+I8ZNzN30Xj7A==}
+    engines: {node: '>=18.0.0'}
 
   internmap@1.0.1:
     resolution: {integrity: sha512-lDB5YccMydFBtasVtxnZ3MRBHuaoE8GKsppq+EchKL2U4nK/DmEpPHNH8MZe5HkMtpSiTSOZwfN0tzYjO/lJEw==}
@@ -18831,6 +18838,8 @@ snapshots:
   inspect-with-kind@1.0.5:
     dependencies:
       kind-of: 6.0.3
+
+  intercom-client@7.0.3: {}
 
   internmap@1.0.1: {}
 

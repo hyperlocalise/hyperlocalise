@@ -151,12 +151,14 @@ func findJSTSLocaleExportObject(src string) (jstsExportObject, error) {
 
 	depth := 0
 	for i := 0; i < len(src); {
-		if next, ok := skipJSTSIgnoredToken(src, i); ok {
-			i = next
-			continue
+		ch := src[i]
+		if ch == '\'' || ch == '"' || ch == '`' || ch == '/' {
+			if next, ok := skipJSTSIgnoredToken(src, i); ok {
+				i = next
+				continue
+			}
 		}
 
-		ch := src[i]
 		if ch == '{' || ch == '[' || ch == '(' {
 			depth++
 			i++
@@ -732,6 +734,12 @@ func jstsObjectSpan(src string, start int) (jstsExportObject, error) {
 	return jstsExportObject{start: start, end: end}, nil
 }
 
+const (
+	stopCharsSingle = "\\'\n\r"
+	stopCharsDouble = "\\\"\n\r"
+	stopCharsBack   = "\\`$"
+)
+
 func parseJSTSStringLiteral(src string, start int) (jstsStringLiteral, error) {
 	if start >= len(src) || !isJSTSStringQuote(src[start]) {
 		return jstsStringLiteral{}, fmt.Errorf("expected string literal at line %d", lineNumberAt(src, start))
@@ -740,11 +748,14 @@ func parseJSTSStringLiteral(src string, start int) (jstsStringLiteral, error) {
 	quote := src[start]
 	i := start + 1
 
-	stopChars := "\\" + string(quote)
-	if quote == '`' {
-		stopChars += "$"
-	} else {
-		stopChars += "\n\r"
+	var stopChars string
+	switch quote {
+	case '\'':
+		stopChars = stopCharsSingle
+	case '"':
+		stopChars = stopCharsDouble
+	case '`':
+		stopChars = stopCharsBack
 	}
 
 	// BOLT OPTIMIZATION: Fast-path for simple strings without escapes or interpolation.
@@ -1011,9 +1022,12 @@ func encodeJSTSStringLiteral(value string, quote byte) string {
 func skipJSTSValueExpression(src string, index, end int) int {
 	depth := 0
 	for i := index; i < end; {
-		if next, ok := skipJSTSIgnoredToken(src, i); ok {
-			i = next
-			continue
+		ch := src[i]
+		if ch == '\'' || ch == '"' || ch == '`' || ch == '/' {
+			if next, ok := skipJSTSIgnoredToken(src, i); ok {
+				i = next
+				continue
+			}
 		}
 
 		switch src[i] {
@@ -1040,9 +1054,12 @@ func findJSTSMatchingDelimiter(src string, open int, openCh, closeCh byte) (int,
 	}
 	depth := 0
 	for i := open; i < len(src); {
-		if next, ok := skipJSTSIgnoredToken(src, i); ok {
-			i = next
-			continue
+		ch := src[i]
+		if ch == '\'' || ch == '"' || ch == '`' || ch == '/' {
+			if next, ok := skipJSTSIgnoredToken(src, i); ok {
+				i = next
+				continue
+			}
 		}
 		switch src[i] {
 		case openCh:
@@ -1077,22 +1094,39 @@ func skipJSTSIgnoredToken(src string, index int) (int, bool) {
 
 func skipJSTSStringLiteral(src string, index int) int {
 	quote := src[index]
-	for i := index + 1; i < len(src); i++ {
-		if src[i] == '\\' {
-			i++
+	i := index + 1
+	var stop string
+	switch quote {
+	case '\'':
+		stop = stopCharsSingle
+	case '"':
+		stop = stopCharsDouble
+	case '`':
+		stop = stopCharsBack
+	}
+	for i < len(src) {
+		idx := strings.IndexAny(src[i:], stop)
+		if idx < 0 {
+			return len(src)
+		}
+		i += idx
+		ch := src[i]
+		if ch == quote {
+			return i + 1
+		}
+		if ch == '\\' {
+			i += 2
 			continue
 		}
-		if quote == '`' && src[i] == '$' && i+1 < len(src) && src[i+1] == '{' {
+		if quote == '`' && ch == '$' && i+1 < len(src) && src[i+1] == '{' {
 			end, ok := findJSTSMatchingDelimiter(src, i+1, '{', '}')
 			if !ok {
 				return len(src)
 			}
-			i = end
+			i = end + 1
 			continue
 		}
-		if src[i] == quote {
-			return i + 1
-		}
+		i++
 	}
 	return len(src)
 }
@@ -1159,9 +1193,21 @@ func isJSTSRegexFlag(ch byte) bool {
 	return (ch >= 'A' && ch <= 'Z') || (ch >= 'a' && ch <= 'z')
 }
 
+func isASCIIWhitespace(ch byte) bool {
+	return ch == ' ' || ch == '\t' || ch == '\n' || ch == '\r' || ch == '\v' || ch == '\f'
+}
+
 func skipJSTSWhitespaceAndComments(src string, index int) int {
 	for i := index; i < len(src); {
 		for i < len(src) {
+			ch := src[i]
+			if isASCIIWhitespace(ch) {
+				i++
+				continue
+			}
+			if ch < 0x80 {
+				break
+			}
 			r, size := utf8.DecodeRuneInString(src[i:])
 			if !unicode.IsSpace(r) {
 				break
@@ -1189,43 +1235,75 @@ func hasJSTSKeywordAt(src string, index int, keyword string) bool {
 	}
 	beforeOK := index == 0
 	if !beforeOK {
-		r, _ := utf8.DecodeLastRuneInString(src[:index])
-		beforeOK = !isJSTSIdentifierRunePart(r)
+		prevByte := src[index-1]
+		if prevByte < 0x80 {
+			beforeOK = !isASCIIIdentifierPart(prevByte)
+		} else {
+			r, _ := utf8.DecodeLastRuneInString(src[:index])
+			beforeOK = !isJSTSIdentifierRunePart(r)
+		}
 	}
 	after := index + len(keyword)
 	afterOK := after >= len(src)
 	if !afterOK {
-		r, _ := utf8.DecodeRuneInString(src[after:])
-		afterOK = !isJSTSIdentifierRunePart(r)
+		nextByte := src[after]
+		if nextByte < 0x80 {
+			afterOK = !isASCIIIdentifierPart(nextByte)
+		} else {
+			r, _ := utf8.DecodeRuneInString(src[after:])
+			afterOK = !isJSTSIdentifierRunePart(r)
+		}
 	}
 	return beforeOK && afterOK
+}
+
+func isASCIIIdentifierStart(ch byte) bool {
+	return ch == '_' || ch == '$' || (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z')
+}
+
+func isASCIIIdentifierPart(ch byte) bool {
+	return ch == '_' || ch == '$' || (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || (ch >= '0' && ch <= '9')
+}
+
+func isJSTSIdentifierRunePart(r rune) bool {
+	return r == '_' || r == '$' || unicode.IsLetter(r) || unicode.IsDigit(r)
 }
 
 func readJSTSIdentifier(src string, index int) (string, int, bool) {
 	if index >= len(src) {
 		return "", index, false
 	}
-	r, size := utf8.DecodeRuneInString(src[index:])
-	if !isJSTSIdentifierStartRune(r) {
-		return "", index, false
+	ch := src[index]
+	var size int
+	if ch < 0x80 {
+		if !isASCIIIdentifierStart(ch) {
+			return "", index, false
+		}
+		size = 1
+	} else {
+		r, sz := utf8.DecodeRuneInString(src[index:])
+		if !unicode.IsLetter(r) && r != '_' && r != '$' {
+			return "", index, false
+		}
+		size = sz
 	}
 	i := index + size
 	for i < len(src) {
-		r, size := utf8.DecodeRuneInString(src[i:])
-		if !isJSTSIdentifierRunePart(r) {
-			break
+		ch := src[i]
+		if ch < 0x80 {
+			if !isASCIIIdentifierPart(ch) {
+				break
+			}
+			i++
+		} else {
+			r, sz := utf8.DecodeRuneInString(src[i:])
+			if !unicode.IsLetter(r) && !unicode.IsDigit(r) && r != '_' && r != '$' {
+				break
+			}
+			i += sz
 		}
-		i += size
 	}
 	return src[index:i], i, true
-}
-
-func isJSTSIdentifierStartRune(r rune) bool {
-	return r == '_' || r == '$' || unicode.IsLetter(r)
-}
-
-func isJSTSIdentifierRunePart(r rune) bool {
-	return r == '_' || r == '$' || unicode.IsLetter(r) || unicode.IsDigit(r)
 }
 
 func isJSTSStringQuote(ch byte) bool {

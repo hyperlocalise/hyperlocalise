@@ -22,6 +22,7 @@ export * from "./contentful";
 export * from "./mcp-server-connections";
 export * from "./semrush";
 export * from "./ahrefs";
+export * from "./intercom";
 export * from "./canva";
 export * from "./crowdin-app";
 export * from "./jobs";

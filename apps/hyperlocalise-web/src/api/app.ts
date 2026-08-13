@@ -41,6 +41,7 @@ import { createContentfulWebhookRoutes } from "./routes/contentful-webhook/conte
 import { createMcpServerConnectionRoutes } from "./routes/mcp-server-connection/mcp-server-connection.route";
 import { createAhrefsConnectionRoutes } from "./routes/ahrefs-connection/ahrefs-connection.route";
 import { createSemrushConnectionRoutes } from "./routes/semrush-connection/semrush-connection.route";
+import { createIntercomConnectionRoutes } from "./routes/intercom-connection/intercom-connection.route";
 import { createGlossaryRoutes } from "./routes/glossary/glossary.route";
 import { createKnowledgeMemoryRoutes } from "./routes/knowledge-memory/knowledge-memory.route";
 import { createMemoryRoutes } from "./routes/memory/memory.route";
@@ -210,6 +211,7 @@ function createOrgScopedAppRoutes(
     .route("/mcp-server-connections", createMcpServerConnectionRoutes())
     .route("/semrush-connections", createSemrushConnectionRoutes())
     .route("/ahrefs-connections", createAhrefsConnectionRoutes())
+    .route("/intercom-connections", createIntercomConnectionRoutes())
     .route("/canva-connections", createCanvaConnectionRoutes())
     .route("/external-tms-provider-credential", createExternalTmsProviderCredentialRoutes())
     .route(
