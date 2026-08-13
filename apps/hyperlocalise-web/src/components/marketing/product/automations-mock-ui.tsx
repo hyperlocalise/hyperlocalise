@@ -23,6 +23,8 @@ import { REQUEST_DEMO_URL } from "@/components/marketing/request-demo";
 
 import { automationsMockMessages } from "./automations-mock-ui.messages";
 
+import Image from "next/image";
+
 type StepStatus = "pending" | "running" | "done" | "warning";
 
 type Step = {
@@ -50,7 +52,7 @@ function StepIcon({ status }: { status: StepStatus }) {
     );
   }
   if (status === "warning") {
-    return <span className="text-[11px] leading-none text-amber-400">⚠</span>;
+    return <span className="text-[11px] leading-none text-amber-700">⚠</span>;
   }
   if (status === "done") {
     return <span className="text-[11px] leading-none text-emerald-400">✓</span>;
@@ -64,7 +66,13 @@ function TerminalPanel({ useCase, visibleSteps }: { useCase: UseCase; visibleSte
   return (
     <div className="flex h-full flex-col">
       <div className="flex items-center gap-2 border-b border-border/50 px-4 py-3">
-        <SparklesIcon className="size-3.5 text-primary" />
+        <Image
+          src="/images/logo.png"
+          alt="Hyperlocalise"
+          width={14}
+          height={14}
+          className="size-3.5"
+        />
         <span className="text-xs font-semibold text-foreground">
           <FormattedMessage {...automationsMockMessages.botLabel} />
         </span>
@@ -91,7 +99,7 @@ function TerminalPanel({ useCase, visibleSteps }: { useCase: UseCase; visibleSte
                   "text-xs leading-relaxed",
                   step.status === "done" && "text-foreground/80",
                   step.status === "running" && "text-muted-foreground",
-                  step.status === "warning" && "text-amber-400",
+                  step.status === "warning" && "text-amber-700",
                   step.status === "pending" && "text-muted-foreground/40",
                 )}
               >
@@ -150,7 +158,7 @@ function UseCaseSelector({
               key={uc.id}
               onClick={() => onSelect(uc.id)}
               className={cn(
-                "flex cursor-pointer items-start gap-3 rounded-lg border px-4 py-3.5 text-left transition-all duration-200",
+                "flex cursor-pointer items-start gap-3 rounded-sm border px-4 py-3.5 text-left transition-all duration-200",
                 uc.id === active
                   ? "border-primary/30 bg-primary/6"
                   : "border-transparent hover:border-border/60 hover:bg-muted/30",
@@ -188,10 +196,10 @@ function UseCaseSelector({
       <div className="mt-4 flex items-center">
         <Button
           variant="outline"
-          size="sm"
+          size="lg"
           nativeButton={false}
           render={<a href={REQUEST_DEMO_URL} target="_blank" rel="noopener noreferrer" />}
-          className="cursor-pointer rounded-full"
+          className="cursor-pointer rounded-sm"
         >
           <FormattedMessage {...automationsMockMessages.requestDemo} />
         </Button>

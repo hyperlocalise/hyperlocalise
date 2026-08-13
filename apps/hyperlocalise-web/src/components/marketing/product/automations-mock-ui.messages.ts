@@ -19,8 +19,8 @@ export const automationsMockMessages = defineMessages({
     description: "Automations mock UI eyebrow label",
   },
   headline: {
-    defaultMessage: "Stop chasing localisation work across tools",
-    id: "VRLc3wPzw1",
+    defaultMessage: "Localise faster and efficiently",
+    id: "zuBGly8hc0",
     description: "Automations mock UI section heading",
   },
   botLabel: {
