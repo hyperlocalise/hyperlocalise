@@ -568,6 +568,13 @@
       "when": 1786613913583,
       "tag": "0080_uneven_wrecker",
       "breakpoints": true
+    },
+    {
+      "idx": 81,
+      "version": "7",
+      "when": 1786665421089,
+      "tag": "0081_even_amazoness",
+      "breakpoints": true
     }
   ]
 }

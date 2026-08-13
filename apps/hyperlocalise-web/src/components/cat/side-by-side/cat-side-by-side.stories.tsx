@@ -110,6 +110,7 @@ const sideBySideArgs = {
     onTargetChange: fn(),
     onUseAiSuggestion: fn(),
     onTreatAsImage: fn(),
+    onTreatAsVideo: fn(),
   },
   review: {
     onApprove: fn(),

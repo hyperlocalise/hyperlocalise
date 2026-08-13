@@ -114,6 +114,7 @@ export const CatSideBySidePanel = observer(function CatSideBySidePanel({
   onUseAiSuggestion,
   onGenerateAiRecommendation,
   onTreatAsImage,
+  onTreatAsVideo,
   onRegenerateImage,
   onUploadImage,
   onAskQuestion,
@@ -182,6 +183,7 @@ export const CatSideBySidePanel = observer(function CatSideBySidePanel({
   onUseAiSuggestion?: (segmentId: string) => void;
   onGenerateAiRecommendation?: (segmentId: string) => void;
   onTreatAsImage?: (segmentId: string, treatAsImage: boolean) => void;
+  onTreatAsVideo?: (segmentId: string, treatAsVideo: boolean) => void;
   onRegenerateImage?: (segmentId: string) => void;
   onUploadImage?: (segmentId: string, file: File) => void;
   onAskQuestion?: () => void;
@@ -367,6 +369,7 @@ export const CatSideBySidePanel = observer(function CatSideBySidePanel({
               onUseAiSuggestion={onUseAiSuggestion}
               onGenerateAiRecommendation={onGenerateAiRecommendation}
               onTreatAsImage={onTreatAsImage}
+              onTreatAsVideo={onTreatAsVideo}
               onRegenerateImage={onRegenerateImage}
               onUploadImage={onUploadImage}
               hasMore={hasMoreQueue}

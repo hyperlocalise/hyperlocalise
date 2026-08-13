@@ -67,6 +67,34 @@ describe("public media route", () => {
     expect(Buffer.from(await response.arrayBuffer()).toString()).toBe("public-png-bytes");
   });
 
+  it("serves opted-in mp4 bytes without auth and with long-lived cache headers", async () => {
+    const { organization, user, project } = await createStoredProjectFixture();
+    const videoBytes = Buffer.from("public-mp4-bytes");
+    const file = await createStoredFile({
+      organizationId: organization.id,
+      projectId: project.id,
+      createdByUserId: user.id,
+      role: "output",
+      sourceKind: "job_output",
+      filename: "hero-fr.mp4",
+      contentType: "video/mp4",
+      content: videoBytes,
+      metadata: publicMediaMetadata({
+        videoLocalizationOutput: true,
+        contentKind: "video_url",
+      }),
+      adapter: fileStorageAdapter,
+    });
+
+    const response = await app.request(`/api/public/media/${file.id}`, { method: "GET" });
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("content-type")).toBe("video/mp4");
+    expect(response.headers.get("content-disposition")).toContain("inline");
+    expect(response.headers.get("cache-control")).toBe(PUBLIC_MEDIA_CACHE_CONTROL);
+    expect(Buffer.from(await response.arrayBuffer()).toString()).toBe("public-mp4-bytes");
+  });
+
   it("returns 304 when If-None-Match matches the file etag", async () => {
     const { organization, user, project } = await createStoredProjectFixture();
     const file = await createStoredFile({

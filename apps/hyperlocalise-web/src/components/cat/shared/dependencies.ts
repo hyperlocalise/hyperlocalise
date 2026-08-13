@@ -48,6 +48,7 @@ export interface CatWorkspaceEditing {
   onUseAiSuggestion: (segmentId: string) => void;
   onUseTmMatch: (segmentId: string, match: CatTranslationMemoryMatch) => void;
   onTreatAsImage?: (segmentId: string, treatAsImage: boolean) => void | Promise<void>;
+  onTreatAsVideo?: (segmentId: string, treatAsVideo: boolean) => void | Promise<void>;
   onRegenerateImage?: (segmentId: string) => void | Promise<void>;
   onUploadImage?: (segmentId: string, file: File) => void | Promise<void>;
 }

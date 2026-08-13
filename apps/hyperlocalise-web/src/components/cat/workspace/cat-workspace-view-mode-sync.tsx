@@ -59,7 +59,9 @@ export const CatWorkspaceViewModeSync = observer(function CatWorkspaceViewModeSy
         // Entering a binary-first family selects File view by default.
         // Staying in the same family keeps an explicit Comfortable / Side by side choice.
         if (
-          (capabilities.family === "image" || capabilities.family === "office") &&
+          (capabilities.family === "image" ||
+            capabilities.family === "video" ||
+            capabilities.family === "office") &&
           previousFamily !== capabilities.family
         ) {
           nextMode = capabilities.defaultView;

@@ -328,6 +328,13 @@ export const projectFileCatTreatAsImageBodySchema = z.object({
   treatAsImage: z.boolean(),
 });
 
+export const projectFileCatTreatAsVideoBodySchema = z.object({
+  sourcePath: z.string().trim().min(1).max(2048),
+  targetLocale: z.string().trim().min(1).max(32),
+  externalStringId: z.string().trim().min(1).max(128),
+  treatAsVideo: z.boolean(),
+});
+
 export const maxProjectFileUploadBytes = 25 * 1024 * 1024;
 
 export const projectFileUploadBodySchema = z.object({
@@ -598,6 +605,8 @@ export const projectFileCatContentKindSchema = z.enum([
   "text",
   "image_file",
   "image_url",
+  "video_file",
+  "video_url",
   "office_file",
 ]);
 
@@ -625,6 +634,7 @@ export const projectFileCatSegmentSchema = z.object({
   targetAssetUrl: z.string().nullable().optional(),
   imageVariantId: z.string().nullable().optional(),
   looksLikeImageUrl: z.boolean().optional(),
+  looksLikeVideoUrl: z.boolean().optional(),
   /** Present when the queue spans multiple files (`sourcePath=*`). */
   sourcePath: z.string().optional(),
   /** Provider file format for this segment's file (All Files mode). */
@@ -699,6 +709,7 @@ export type ProjectFileCatImageRegenerateBody = z.infer<
 >;
 export type ProjectFileCatImageStatusBody = z.infer<typeof projectFileCatImageStatusBodySchema>;
 export type ProjectFileCatTreatAsImageBody = z.infer<typeof projectFileCatTreatAsImageBodySchema>;
+export type ProjectFileCatTreatAsVideoBody = z.infer<typeof projectFileCatTreatAsVideoBodySchema>;
 export type ProjectFileCatRecommendationBody = z.infer<
   typeof projectFileCatRecommendationBodySchema
 >;

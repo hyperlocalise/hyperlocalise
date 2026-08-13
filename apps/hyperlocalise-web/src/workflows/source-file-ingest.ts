@@ -15,6 +15,8 @@ import { getWorkflowMetadata } from "workflow";
 import {
   inferSupportedTranslationFileFormat,
   isBinaryTranslationFileFormat,
+  isImageTranslationFileFormat,
+  isVideoTranslationFileFormat,
 } from "@/lib/translation/file-formats";
 import type { SourceFileIngestEventData } from "@/lib/workflow/types";
 import {
@@ -22,6 +24,7 @@ import {
   createSourceIngestSandboxStep,
   dispatchSourceUploadAutomationsStep,
   ensureImageVariantsForSourceFileStep,
+  ensureVideoVariantsForSourceFileStep,
   extractSourceIngestEntriesStep,
   getProjectTargetLocalesStep,
   getStoredFileMetadataStep,
@@ -89,13 +92,30 @@ export async function sourceFileIngestWorkflow(event: SourceFileIngestEventData)
         projectId: event.projectId,
       });
 
-      await ensureImageVariantsForSourceFileStep({
-        organizationId: event.organizationId,
-        projectId: event.projectId,
-        sourcePath: event.sourcePath,
-        repositorySourceFileId,
-        targetLocales,
-      });
+      if (isVideoTranslationFileFormat(inferredFormat)) {
+        const stored = await getStoredFileContentStep(event.storedFileId, event.organizationId);
+        const { assertMp4DurationSupported } = await import("@/lib/translation/mp4-duration");
+        const duration = assertMp4DurationSupported(stored.content);
+        if (!duration.ok) {
+          throw new Error(duration.error.code);
+        }
+
+        await ensureVideoVariantsForSourceFileStep({
+          organizationId: event.organizationId,
+          projectId: event.projectId,
+          sourcePath: event.sourcePath,
+          repositorySourceFileId,
+          targetLocales,
+        });
+      } else if (isImageTranslationFileFormat(inferredFormat)) {
+        await ensureImageVariantsForSourceFileStep({
+          organizationId: event.organizationId,
+          projectId: event.projectId,
+          sourcePath: event.sourcePath,
+          repositorySourceFileId,
+          targetLocales,
+        });
+      }
 
       await markSourceFileIngestStateStep({
         sourceFileVersionId: event.sourceFileVersionId,

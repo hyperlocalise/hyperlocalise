@@ -393,6 +393,11 @@ export const CatWorkspaceView = observer(function CatWorkspaceView({
               ? (segmentId, treatAsImage) => void editing.onTreatAsImage?.(segmentId, treatAsImage)
               : undefined
           }
+          onTreatAsVideo={
+            editing.onTreatAsVideo
+              ? (segmentId, treatAsVideo) => void editing.onTreatAsVideo?.(segmentId, treatAsVideo)
+              : undefined
+          }
           onRegenerateImage={
             editing.onRegenerateImage
               ? (segmentId) => void editing.onRegenerateImage?.(segmentId)
@@ -471,7 +476,8 @@ export const CatWorkspaceView = observer(function CatWorkspaceView({
               : undefined
           }
           onRegenerate={
-            capabilities.viewerId === "image" && editing.onRegenerateImage
+            (capabilities.viewerId === "image" || capabilities.viewerId === "video") &&
+            editing.onRegenerateImage
               ? () => void editing.onRegenerateImage?.(editorSegment.id)
               : undefined
           }
@@ -556,6 +562,11 @@ export const CatWorkspaceView = observer(function CatWorkspaceView({
           onTreatAsImage={
             editing.onTreatAsImage
               ? (treatAsImage) => void editing.onTreatAsImage?.(editorSegment.id, treatAsImage)
+              : undefined
+          }
+          onTreatAsVideo={
+            editing.onTreatAsVideo
+              ? (treatAsVideo) => void editing.onTreatAsVideo?.(editorSegment.id, treatAsVideo)
               : undefined
           }
           onRegenerateImage={

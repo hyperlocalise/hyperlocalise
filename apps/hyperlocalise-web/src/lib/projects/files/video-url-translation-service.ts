@@ -13,35 +13,71 @@
 import { and, eq } from "drizzle-orm";
 
 import {
-  buildImageLocalizationPrompt,
-  localizedImageOutputFilename,
-} from "@/lib/agents/image-localization";
-import { regenerateImageFromAttachment } from "@/lib/agents/image-generation";
+  VideoLocalizationError,
+  regenerateVideoFromAttachment,
+} from "@/lib/agents/video-generation";
+import {
+  buildVideoLocalizationPrompt,
+  localizedVideoOutputFilename,
+} from "@/lib/agents/video-localization";
 import { db, schema } from "@/lib/database";
 import { createStoredFile } from "@/lib/file-storage/records";
-import { fetchImageBytesFromUrl } from "@/lib/projects/files/image-variant-service";
 import { publicMediaAssetUrl, publicMediaMetadata } from "@/lib/projects/files/public-media";
+import {
+  fetchVideoBytesFromUrl,
+  type VideoVariantError,
+} from "@/lib/projects/files/video-variant-service";
 import { err, ok, type Result } from "@/lib/primitives/result/results";
+import { assertMp4DurationSupported } from "@/lib/translation/mp4-duration";
 
-export const IMAGE_URL_CONTENT_KIND = "image_url" as const;
+export const VIDEO_URL_CONTENT_KIND = "video_url" as const;
 
-export type ImageUrlContentKindError =
+export type VideoUrlContentKindError =
   | { code: "key_not_found" }
-  | { code: "fetch_failed"; message: string }
-  | { code: "unsupported_image_response" }
-  | { code: "localization_failed"; message: string }
+  | { code: "video_fetch_failed"; message: string }
+  | { code: "video_ssrf_blocked" }
+  | { code: "unsupported_video_format" }
+  | { code: "video_duration_unreadable" }
+  | { code: "video_duration_unsupported" }
+  | { code: "video_model_unavailable" }
+  | { code: "video_edit_region_blocked" }
+  | { code: "video_localization_failed"; message: string }
   | { code: "approved_locked" };
 
-export function isImageUrlContentKind(metadata: Record<string, unknown> | null | undefined) {
-  return metadata?.contentKind === IMAGE_URL_CONTENT_KIND;
+export function isVideoUrlContentKind(metadata: Record<string, unknown> | null | undefined) {
+  return metadata?.contentKind === VIDEO_URL_CONTENT_KIND;
 }
 
-export async function setTranslationKeyTreatAsImage(input: {
+function contentKindMetadata(
+  metadata: Record<string, unknown>,
+  contentKind: typeof VIDEO_URL_CONTENT_KIND | null,
+) {
+  const next = { ...metadata };
+  if (contentKind) {
+    next.contentKind = contentKind;
+  } else if (next.contentKind === VIDEO_URL_CONTENT_KIND) {
+    delete next.contentKind;
+  }
+  return next;
+}
+
+function mapFetchError(error: VideoVariantError): VideoUrlContentKindError {
+  if (
+    error.code === "video_fetch_failed" ||
+    error.code === "video_ssrf_blocked" ||
+    error.code === "unsupported_video_format"
+  ) {
+    return error;
+  }
+  return { code: "video_fetch_failed", message: "video fetch failed" };
+}
+
+export async function setTranslationKeyTreatAsVideo(input: {
   organizationId: string;
   projectId: string;
   translationKeyId: string;
-  treatAsImage: boolean;
-}): Promise<Result<typeof schema.projectTranslationKeys.$inferSelect, ImageUrlContentKindError>> {
+  treatAsVideo: boolean;
+}): Promise<Result<typeof schema.projectTranslationKeys.$inferSelect, VideoUrlContentKindError>> {
   const [key] = await db
     .select()
     .from(schema.projectTranslationKeys)
@@ -58,16 +94,15 @@ export async function setTranslationKeyTreatAsImage(input: {
     return err({ code: "key_not_found" });
   }
 
-  const metadata = { ...key.metadata };
-  if (input.treatAsImage) {
-    metadata.contentKind = IMAGE_URL_CONTENT_KIND;
-  } else if (metadata.contentKind === IMAGE_URL_CONTENT_KIND) {
-    delete metadata.contentKind;
-  }
-
   const [updated] = await db
     .update(schema.projectTranslationKeys)
-    .set({ metadata, updatedAt: new Date() })
+    .set({
+      metadata: contentKindMetadata(
+        key.metadata,
+        input.treatAsVideo ? VIDEO_URL_CONTENT_KIND : null,
+      ),
+      updatedAt: new Date(),
+    })
     .where(eq(schema.projectTranslationKeys.id, key.id))
     .returning();
 
@@ -78,7 +113,20 @@ export async function setTranslationKeyTreatAsImage(input: {
   return ok(updated);
 }
 
-export async function localizeImageUrlTranslation(input: {
+function mapGenerationError(error: unknown): VideoUrlContentKindError {
+  if (error instanceof VideoLocalizationError) {
+    if (error.code === "video_localization_failed") {
+      return { code: "video_localization_failed", message: error.message };
+    }
+    return { code: error.code };
+  }
+  return {
+    code: "video_localization_failed",
+    message: error instanceof Error ? error.message : "video localization failed",
+  };
+}
+
+export async function localizeVideoUrlTranslation(input: {
   organizationId: string;
   projectId: string;
   translationKeyId: string;
@@ -95,7 +143,7 @@ export async function localizeImageUrlTranslation(input: {
       assetUrl: string;
       storedFileId: string;
     },
-    ImageUrlContentKindError
+    VideoUrlContentKindError
   >
 > {
   const [key] = await db
@@ -129,55 +177,44 @@ export async function localizeImageUrlTranslation(input: {
     return err({ code: "approved_locked" });
   }
 
-  const fetched = await fetchImageBytesFromUrl(key.sourceText);
+  const fetched = await fetchVideoBytesFromUrl(key.sourceText);
   if (!fetched.ok) {
-    if (fetched.error.code === "fetch_failed") {
-      return err({ code: "fetch_failed", message: fetched.error.message });
-    }
-    if (fetched.error.code === "unsupported_image_response") {
-      return err({ code: "unsupported_image_response" });
-    }
-    return err({
-      code: "fetch_failed",
-      message: "image fetch failed",
-    });
+    return err(mapFetchError(fetched.error));
   }
 
-  const prompt = buildImageLocalizationPrompt({
-    attachment: {
-      type: "image",
-      name: fetched.value.filename,
-      mimeType: fetched.value.contentType,
-      data: fetched.value.content,
-    },
+  const duration = assertMp4DurationSupported(fetched.value.content);
+  if (!duration.ok) {
+    return err({ code: duration.error.code });
+  }
+
+  const prompt = buildVideoLocalizationPrompt({
+    filename: fetched.value.filename,
     sourceLocale: input.sourceLocale,
     targetLocale: input.targetLocale,
     instructions: input.instructions,
   });
 
-  let localized: { image: Buffer; mimeType: string };
+  let localized: { video: Buffer; mimeType: string };
   try {
-    const result = await regenerateImageFromAttachment(
+    const result = await regenerateVideoFromAttachment(
       fetched.value.content,
       fetched.value.contentType,
       prompt,
       {
         organizationId: input.organizationId,
-        operationKey: `image-localization:url:${input.projectId}:${input.translationKeyId}:${input.targetLocale}`,
-        source: "project_image_url_translation",
+        operationKey: `video-localization:url:${input.projectId}:${input.translationKeyId}:${input.targetLocale}`,
+        source: "project_video_url_translation",
         dimensions: {
           channel: "project",
           project_id: input.projectId,
           target_locale: input.targetLocale,
         },
       },
+      duration.value.durationSeconds,
     );
-    localized = { image: result.image, mimeType: result.mimeType || "image/png" };
+    localized = { video: result.video, mimeType: result.mimeType || "video/mp4" };
   } catch (error) {
-    return err({
-      code: "localization_failed",
-      message: error instanceof Error ? error.message : "image localization failed",
-    });
+    return err(mapGenerationError(error));
   }
 
   const stored = await createStoredFile({
@@ -186,19 +223,16 @@ export async function localizeImageUrlTranslation(input: {
     createdByUserId: input.actorUserId ?? null,
     role: "output",
     sourceKind: "job_output",
-    filename: localizedImageOutputFilename(
-      fetched.value.filename,
-      input.targetLocale,
-      localized.mimeType,
-    ),
+    filename: localizedVideoOutputFilename(fetched.value.filename, input.targetLocale),
     contentType: localized.mimeType,
-    content: localized.image,
+    content: localized.video,
     metadata: publicMediaMetadata({
-      imageLocalizationOutput: true,
-      contentKind: IMAGE_URL_CONTENT_KIND,
+      videoLocalizationOutput: true,
+      contentKind: VIDEO_URL_CONTENT_KIND,
       translationKeyId: key.id,
       sourceUrl: key.sourceText,
       targetLocale: input.targetLocale,
+      durationSeconds: duration.value.durationSeconds,
     }),
   });
 
@@ -207,10 +241,12 @@ export async function localizeImageUrlTranslation(input: {
     origin: input.origin,
   });
 
-  const metadata = { ...key.metadata, contentKind: IMAGE_URL_CONTENT_KIND };
   await db
     .update(schema.projectTranslationKeys)
-    .set({ metadata, updatedAt: new Date() })
+    .set({
+      metadata: contentKindMetadata(key.metadata, VIDEO_URL_CONTENT_KIND),
+      updatedAt: new Date(),
+    })
     .where(eq(schema.projectTranslationKeys.id, key.id));
 
   const [translation] = await db
@@ -224,7 +260,7 @@ export async function localizeImageUrlTranslation(input: {
       status: "needs_review",
       provenance: "agent",
       metadata: {
-        contentKind: IMAGE_URL_CONTENT_KIND,
+        contentKind: VIDEO_URL_CONTENT_KIND,
         storedFileId: stored.id,
       },
     })
@@ -240,7 +276,7 @@ export async function localizeImageUrlTranslation(input: {
         reviewedByUserId: null,
         reviewedAt: null,
         metadata: {
-          contentKind: IMAGE_URL_CONTENT_KIND,
+          contentKind: VIDEO_URL_CONTENT_KIND,
           storedFileId: stored.id,
         },
         updatedAt: new Date(),
@@ -255,7 +291,7 @@ export async function localizeImageUrlTranslation(input: {
   return ok({ translation, assetUrl, storedFileId: stored.id });
 }
 
-export async function replaceImageUrlTranslationBytes(input: {
+export async function replaceVideoUrlTranslationBytes(input: {
   organizationId: string;
   projectId: string;
   translationKeyId: string;
@@ -273,7 +309,7 @@ export async function replaceImageUrlTranslationBytes(input: {
       assetUrl: string;
       storedFileId: string;
     },
-    ImageUrlContentKindError
+    VideoUrlContentKindError
   >
 > {
   const [key] = await db
@@ -307,6 +343,11 @@ export async function replaceImageUrlTranslationBytes(input: {
     return err({ code: "approved_locked" });
   }
 
+  const duration = assertMp4DurationSupported(input.content);
+  if (!duration.ok) {
+    return err({ code: duration.error.code });
+  }
+
   const stored = await createStoredFile({
     organizationId: input.organizationId,
     projectId: input.projectId,
@@ -314,13 +355,14 @@ export async function replaceImageUrlTranslationBytes(input: {
     role: "asset",
     sourceKind: "chat_upload",
     filename: input.filename,
-    contentType: input.contentType,
+    contentType: input.contentType || "video/mp4",
     content: input.content,
     metadata: publicMediaMetadata({
-      imageLocalizationManualUpload: true,
-      contentKind: IMAGE_URL_CONTENT_KIND,
+      videoLocalizationManualUpload: true,
+      contentKind: VIDEO_URL_CONTENT_KIND,
       translationKeyId: key.id,
       targetLocale: input.targetLocale,
+      durationSeconds: duration.value.durationSeconds,
     }),
   });
 
@@ -329,10 +371,12 @@ export async function replaceImageUrlTranslationBytes(input: {
     origin: input.origin,
   });
 
-  const metadata = { ...key.metadata, contentKind: IMAGE_URL_CONTENT_KIND };
   await db
     .update(schema.projectTranslationKeys)
-    .set({ metadata, updatedAt: new Date() })
+    .set({
+      metadata: contentKindMetadata(key.metadata, VIDEO_URL_CONTENT_KIND),
+      updatedAt: new Date(),
+    })
     .where(eq(schema.projectTranslationKeys.id, key.id));
 
   const [translation] = await db
@@ -346,7 +390,7 @@ export async function replaceImageUrlTranslationBytes(input: {
       status: "needs_review",
       provenance: "manual",
       metadata: {
-        contentKind: IMAGE_URL_CONTENT_KIND,
+        contentKind: VIDEO_URL_CONTENT_KIND,
         storedFileId: stored.id,
       },
     })
@@ -362,7 +406,7 @@ export async function replaceImageUrlTranslationBytes(input: {
         reviewedByUserId: null,
         reviewedAt: null,
         metadata: {
-          contentKind: IMAGE_URL_CONTENT_KIND,
+          contentKind: VIDEO_URL_CONTENT_KIND,
           storedFileId: stored.id,
         },
         updatedAt: new Date(),

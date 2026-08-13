@@ -19,13 +19,14 @@ export type PublicMediaStoredFileLike = {
   metadata: Record<string, unknown> | null | undefined;
 };
 
-/** Only explicitly opted-in image outputs are served on the public media route. */
+/** Only explicitly opted-in image or MP4 outputs are served on the public media route. */
 export function isPublicMediaStoredFile(file: PublicMediaStoredFileLike): boolean {
   if (file.metadata?.[PUBLIC_MEDIA_METADATA_FLAG] !== true) {
     return false;
   }
 
-  return file.contentType.toLowerCase().startsWith("image/");
+  const contentType = file.contentType.toLowerCase();
+  return contentType.startsWith("image/") || contentType === "video/mp4";
 }
 
 export function publicMediaMetadata(extra: Record<string, unknown> = {}): Record<string, unknown> {

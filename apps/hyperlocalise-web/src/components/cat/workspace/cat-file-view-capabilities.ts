@@ -13,13 +13,15 @@
 import {
   inferSupportedImageTranslationFileFormat,
   inferSupportedOfficeTranslationFileFormat,
+  inferSupportedVideoTranslationFileFormat,
 } from "@/lib/translation/file-formats";
 
+import type { CatContentKind } from "@/components/cat/shared/types";
 import type { CatWorkspaceViewMode } from "./cat-workspace-view-mode";
 
-export type CatFileViewFamily = "image" | "text" | "office";
+export type CatFileViewFamily = "image" | "video" | "text" | "office";
 
-export type CatFileViewerId = "image" | "docx" | "xlsx" | "pptx";
+export type CatFileViewerId = "image" | "video" | "docx" | "xlsx" | "pptx";
 
 export type CatFileViewCapabilities = {
   family: CatFileViewFamily;
@@ -37,6 +39,7 @@ const IMAGE_VIEWS = [
   "comfortable",
   "side-by-side",
 ] as const satisfies readonly CatWorkspaceViewMode[];
+const VIDEO_VIEWS = IMAGE_VIEWS;
 const OFFICE_VIEWS = ["file"] as const satisfies readonly CatWorkspaceViewMode[];
 
 function extensionOf(sourcePath: string): string | null {
@@ -64,7 +67,7 @@ function officeViewerIdForExtension(extension: string | null): CatFileViewerId |
 
 export function resolveCatFileViewCapabilities(input: {
   sourcePath?: string | null;
-  contentKind?: "text" | "image_file" | "image_url" | "office_file" | null;
+  contentKind?: CatContentKind | null;
 }): CatFileViewCapabilities {
   const sourcePath = input.sourcePath?.trim() ?? "";
   const contentKind = input.contentKind ?? null;
@@ -75,6 +78,15 @@ export function resolveCatFileViewCapabilities(input: {
       availableViews: IMAGE_VIEWS,
       defaultView: "file",
       viewerId: "image",
+    };
+  }
+
+  if (contentKind === "video_file" || inferSupportedVideoTranslationFileFormat(sourcePath)) {
+    return {
+      family: "video",
+      availableViews: VIDEO_VIEWS,
+      defaultView: "file",
+      viewerId: "video",
     };
   }
 

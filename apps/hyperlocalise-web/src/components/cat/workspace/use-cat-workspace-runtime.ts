@@ -217,6 +217,9 @@ export function useCatWorkspaceRuntime({
       ...(editingOverrides?.onTreatAsImage
         ? { onTreatAsImage: editingOverrides.onTreatAsImage }
         : {}),
+      ...(editingOverrides?.onTreatAsVideo
+        ? { onTreatAsVideo: editingOverrides.onTreatAsVideo }
+        : {}),
       ...(editingOverrides?.onRegenerateImage
         ? { onRegenerateImage: editingOverrides.onRegenerateImage }
         : {}),
@@ -314,6 +317,7 @@ export function useCatWorkspaceRuntime({
   }, [
     editingOverrides?.onRegenerateImage,
     editingOverrides?.onTreatAsImage,
+    editingOverrides?.onTreatAsVideo,
     editingOverrides?.onUploadImage,
     generateAiRecommendation,
     hasMoreQueue,

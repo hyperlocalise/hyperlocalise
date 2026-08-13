@@ -863,6 +863,121 @@ describe("project file CAT routes", () => {
     });
   });
 
+  it("toggles treat-as-video metadata on a native CAT segment", async () => {
+    const { identity, project, organization } = await projectFixture.createStoredProjectFixture();
+    const headers = await projectFixture.authHeadersFor(identity);
+    const sourcePath = "locales/en.json";
+    const sourceFile = await ensureRepositorySourceFile({
+      organizationId: organization.id,
+      projectId: project.id,
+      sourcePath,
+    });
+
+    await upsertProjectTranslationKeysFromEntries({
+      organizationId: organization.id,
+      projectId: project.id,
+      repositorySourceFileId: sourceFile.id,
+      entries: [
+        {
+          key: "banner.video",
+          text: "https://cdn.example.com/banner.mp4",
+          context: null,
+        },
+      ],
+    });
+
+    const [translationKey] = await db
+      .select({ id: schema.projectTranslationKeys.id })
+      .from(schema.projectTranslationKeys)
+      .where(eq(schema.projectTranslationKeys.repositorySourceFileId, sourceFile.id))
+      .limit(1);
+    expect(translationKey).toBeDefined();
+
+    const response = await client.api.orgs[":organizationSlug"].projects[
+      ":projectId"
+    ].files.detail.cat.segments[":externalStringId"]["treat-as-video"].$post(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          projectId: project.id,
+          externalStringId: translationKey!.id,
+        },
+        json: {
+          sourcePath,
+          targetLocale: "fr-FR",
+          externalStringId: translationKey!.id,
+          treatAsVideo: true,
+        },
+      },
+      { headers },
+    );
+
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as {
+      segment: {
+        externalStringId: string;
+        contentKind: string;
+        looksLikeVideoUrl: boolean;
+      };
+    };
+    expect(body.segment).toMatchObject({
+      externalStringId: translationKey!.id,
+      contentKind: "video_url",
+      looksLikeVideoUrl: true,
+    });
+
+    const catResponse = await client.api.orgs[":organizationSlug"].projects[
+      ":projectId"
+    ].files.detail.cat.$get(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          projectId: project.id,
+        },
+        query: { sourcePath, targetLocale: "fr-FR" },
+      },
+      { headers },
+    );
+    expect(catResponse.status).toBe(200);
+    const catBody = (await catResponse.json()) as ProjectFileCatResponse;
+    expect(catBody.catFile.segments[0]).toMatchObject({
+      contentKind: "video_url",
+      looksLikeVideoUrl: true,
+    });
+  });
+
+  it("rejects treat-as-video for provider CAT", async () => {
+    const translator = projectFixture.createWorkosIdentityWithRole("translator");
+    getTmsProviderConnectionMock.mockResolvedValue({
+      providerKind: "crowdin",
+      displayName: "Crowdin",
+      validationStatus: "valid",
+      validationMessage: null,
+    });
+
+    const response = await client.api.orgs[":organizationSlug"].projects[
+      ":projectId"
+    ].files.detail.cat.segments[":externalStringId"]["treat-as-video"].$post(
+      {
+        param: {
+          organizationSlug: translator.organization.slug ?? "missing-slug",
+          projectId: "ext:crowdin:42",
+          externalStringId: "string_1",
+        },
+        json: {
+          sourcePath: "crowdin/home.json",
+          targetLocale: "fr",
+          externalStringId: "string_1",
+          treatAsVideo: true,
+        },
+      },
+      { headers: await projectFixture.authHeadersFor(translator) },
+    );
+
+    expect(response.status).toBe(400);
+    expect(await response.json()).toMatchObject({ error: "provider_cat_unsupported" });
+  });
+
   it("toggles treat-as-image for external TMS segments and enriches the CAT queue", async () => {
     const translator = projectFixture.createWorkosIdentityWithRole("translator");
     getTmsProviderConnectionMock.mockResolvedValue({

@@ -29,6 +29,7 @@ import { cn } from "@/lib/primitives/cn";
 
 import { catFileViewMessages } from "./cat-file-view.messages";
 import { CAT_IMAGE_FILE_UPLOAD_ACCEPT, CatImageFileViewerPane } from "./cat-image-file-viewer";
+import { CAT_VIDEO_FILE_UPLOAD_ACCEPT, CatVideoFileViewerPane } from "./cat-video-file-viewer";
 import { catOfficeUploadAccept } from "./cat-office-mime";
 import type { CatOfficeKind } from "./cat-office-convert";
 
@@ -94,13 +95,18 @@ export function CatFileViewPanel({
   const hasTarget = Boolean(segment.targetAssetUrl || segment.targetText.trim());
   const canTriggerApprove = Boolean(canApprove && hasTarget && !isApproving && !isImageBusy);
   const uploadAccept =
-    viewerId === "image" ? CAT_IMAGE_FILE_UPLOAD_ACCEPT : catOfficeUploadAccept(viewerId);
+    viewerId === "image"
+      ? CAT_IMAGE_FILE_UPLOAD_ACCEPT
+      : viewerId === "video"
+        ? CAT_VIDEO_FILE_UPLOAD_ACCEPT
+        : catOfficeUploadAccept(viewerId);
   const displayName = segment.sourcePath || filename || segment.key;
   const officeKind = isOfficeViewerId(viewerId) ? viewerId : null;
+  const isMediaViewer = viewerId === "image" || viewerId === "video";
 
-  const sourceSrc = viewerId === "image" || officeKind ? (segment.sourceAssetUrl ?? null) : null;
+  const sourceSrc = isMediaViewer || officeKind ? (segment.sourceAssetUrl ?? null) : null;
   const targetSrc =
-    viewerId === "image" || officeKind
+    isMediaViewer || officeKind
       ? (segment.targetAssetUrl ??
         (/^https?:\/\//i.test(segment.targetText) ? segment.targetText : null))
       : null;
@@ -210,6 +216,12 @@ export function CatFileViewPanel({
                 src={targetSrc}
                 isLoading={isSegmentTargetLoading}
               />
+            ) : viewerId === "video" ? (
+              <CatVideoFileViewerPane
+                role="target"
+                src={targetSrc}
+                isLoading={isSegmentTargetLoading}
+              />
             ) : officeKind ? (
               <CatOfficeFileViewerPane
                 kind={officeKind}
@@ -236,6 +248,8 @@ export function CatFileViewPanel({
           >
             {viewerId === "image" ? (
               <CatImageFileViewerPane role="source" src={sourceSrc} />
+            ) : viewerId === "video" ? (
+              <CatVideoFileViewerPane role="source" src={sourceSrc} />
             ) : officeKind ? (
               <CatOfficeFileViewerPane
                 kind={officeKind}

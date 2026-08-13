@@ -438,6 +438,46 @@ export function useCatMutations(input: {
     },
   });
 
+  const treatAsVideoMutation = useMutation({
+    mutationFn: async (mutationInput: { externalStringId: string; treatAsVideo: boolean }) => {
+      const { sourcePath } = resolveCatMutationFileIdentity(
+        input,
+        mutationInput.externalStringId,
+        intl,
+      );
+
+      const response = await apiClient.api.orgs[":organizationSlug"].projects[
+        ":projectId"
+      ].files.detail.cat.segments[":externalStringId"]["treat-as-video"].$post({
+        param: {
+          organizationSlug: input.organizationSlug,
+          projectId: input.projectId,
+          externalStringId: mutationInput.externalStringId,
+        },
+        json: {
+          sourcePath,
+          targetLocale: input.targetLocale,
+          externalStringId: mutationInput.externalStringId,
+          treatAsVideo: mutationInput.treatAsVideo,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(
+          await readApiError(
+            response,
+            intl.formatMessage(useCatMutationsMessages.failedToUpdateVideoMode),
+          ),
+        );
+      }
+
+      return response.json();
+    },
+    onSuccess: async (_data, variables) => {
+      await invalidateAfterImageChange(variables.externalStringId);
+    },
+  });
+
   return {
     saveMutation,
     saveTranslation: saveMutation.mutateAsync,
@@ -451,12 +491,15 @@ export function useCatMutations(input: {
     uploadImage: uploadImageMutation.mutateAsync,
     treatAsImageMutation,
     treatAsImage: treatAsImageMutation.mutateAsync,
+    treatAsVideoMutation,
+    treatAsVideo: treatAsVideoMutation.mutateAsync,
     isSaving: saveMutation.isPending,
     isPostingComment: commentMutation.isPending,
     isResolvingComment: resolveCommentMutation.isPending,
     isImageBusy:
       regenerateImageMutation.isPending ||
       uploadImageMutation.isPending ||
-      treatAsImageMutation.isPending,
+      treatAsImageMutation.isPending ||
+      treatAsVideoMutation.isPending,
   };
 }

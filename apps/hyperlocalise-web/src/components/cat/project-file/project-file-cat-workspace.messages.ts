@@ -30,6 +30,11 @@ export const projectFileCatWorkspaceMessages = defineMessages({
     id: "nqfqbc0zeN",
     description: "Fallback error when approving an image translation fails",
   },
+  failedToApproveVideo: {
+    defaultMessage: "Failed to approve video",
+    id: "x6hQg1nOrU",
+    description: "Fallback error when approving a video translation fails",
+  },
   cannotPostComments: {
     defaultMessage: "Your role cannot post comments to the provider.",
     id: "xsnuwmUnCV",

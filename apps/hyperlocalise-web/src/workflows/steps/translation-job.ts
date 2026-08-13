@@ -558,3 +558,77 @@ export async function localizeImageVariantForJobStep(input: {
     filename,
   };
 }
+
+export async function localizeVideoVariantForJobStep(input: {
+  organizationId: string;
+  projectId: string;
+  sourcePath: string;
+  targetLocale: string;
+  sourceLocale?: string | null;
+  sourceStoredFileId: string;
+  sourceJobId: string;
+  createdByUserId?: string | null;
+}) {
+  "use step";
+  const { getRepositorySourceFileVersionForStoredFile } =
+    await import("@/lib/file-storage/records");
+  const { getVideoVariant, localizeAndStoreVideoVariant } =
+    await import("@/lib/projects/files/video-variant-service");
+  const { localizedVideoOutputFilename } = await import("@/lib/agents/video-localization");
+
+  const version = await getRepositorySourceFileVersionForStoredFile({
+    fileId: input.sourceStoredFileId,
+    organizationId: input.organizationId,
+  });
+
+  const filename = localizedVideoOutputFilename(
+    input.sourcePath.split("/").at(-1) ?? "video.mp4",
+    input.targetLocale,
+  );
+
+  const result = await localizeAndStoreVideoVariant({
+    organizationId: input.organizationId,
+    projectId: input.projectId,
+    sourcePath: input.sourcePath,
+    targetLocale: input.targetLocale,
+    sourceLocale: input.sourceLocale,
+    sourceStoredFileId: input.sourceStoredFileId,
+    repositorySourceFileId: version?.repositorySourceFileId ?? null,
+    provenance: "translation_job",
+    sourceJobId: input.sourceJobId,
+    createdByUserId: input.createdByUserId,
+  });
+
+  if (!result.ok) {
+    if (result.error.code === "approved_locked") {
+      const existing = await getVideoVariant({
+        organizationId: input.organizationId,
+        projectId: input.projectId,
+        sourcePath: input.sourcePath,
+        targetLocale: input.targetLocale,
+      });
+
+      if (!existing?.storedFileId) {
+        throw new Error("video localization failed: approved_locked");
+      }
+
+      return {
+        fileId: existing.storedFileId,
+        locale: input.targetLocale,
+        filename,
+      };
+    }
+
+    throw new Error(`video localization failed: ${result.error.code}`);
+  }
+
+  if (!result.value.storedFileId) {
+    throw new Error("video localization produced no stored file");
+  }
+
+  return {
+    fileId: result.value.storedFileId,
+    locale: input.targetLocale,
+    filename,
+  };
+}

@@ -477,6 +477,65 @@ describe("CatSideBySideRow", () => {
     expect(screen.getByRole("button", { name: /Approve/i })).toBeEnabled();
   });
 
+  it("shows treat as video for video-url rows even when not focused", () => {
+    const state = createCatWorkspaceState({ selectedSegmentId: "seg-02" });
+    const segment = {
+      ...state.segments!.find((item) => item.id === "seg-02")!,
+      contentKind: "video_url" as const,
+      sourceText: "https://cdn.example.com/clip.mp4",
+      sourceAssetUrl: "https://cdn.example.com/clip.mp4",
+      targetText: "",
+    };
+
+    renderRow({
+      isFocused: false,
+      segment,
+      onTreatAsVideo: vi.fn(),
+    });
+
+    expect(
+      screen.getByRole("button", { name: /Treat as video|Treat as text/i }),
+    ).toBeInTheDocument();
+  });
+
+  it("renders video upload controls for video segments", () => {
+    const state = createCatWorkspaceState({ selectedSegmentId: "seg-02" });
+    const segment = {
+      ...state.segments!.find((item) => item.id === "seg-02")!,
+      contentKind: "video_url" as const,
+      sourceText: "https://example.com/source.mp4",
+      sourceAssetUrl: "https://example.com/source.mp4",
+      targetText: "",
+      targetAssetUrl: undefined,
+    };
+
+    renderRow({
+      segment,
+      isDirty: false,
+      onUploadImage: vi.fn(),
+      onTreatAsVideo: vi.fn(),
+    });
+
+    expect(screen.getByText(/Upload/i)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Approve/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Save as draft/i })).not.toBeInTheDocument();
+  });
+
+  it("enables approve for video segments with a target asset", () => {
+    const state = createCatWorkspaceState({ selectedSegmentId: "seg-02" });
+    const segment = {
+      ...state.segments!.find((item) => item.id === "seg-02")!,
+      contentKind: "video_file" as const,
+      sourceAssetUrl: "https://example.com/source.mp4",
+      targetAssetUrl: "https://example.com/target.mp4",
+      targetText: "",
+    };
+
+    renderRow({ segment, isDirty: false, onUploadImage: vi.fn() });
+
+    expect(screen.getByRole("button", { name: /Approve/i })).toBeEnabled();
+  });
+
   it.each([
     { isApproving: true },
     { isSavingDraft: true },

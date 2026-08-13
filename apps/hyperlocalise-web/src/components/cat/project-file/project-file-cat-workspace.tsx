@@ -199,6 +199,7 @@ export function ProjectFileCatWorkspace({
     regenerateImage,
     uploadImage,
     treatAsImage,
+    treatAsVideo,
     isImageBusy,
   } = useCatMutations({
     organizationSlug,
@@ -271,7 +272,11 @@ export function ProjectFileCatWorkspace({
       }
 
       const segment = catFile.segments.find((entry) => entry.externalStringId === segmentId);
-      if (segment?.contentKind === "image_file" || segment?.contentKind === "office_file") {
+      if (
+        segment?.contentKind === "image_file" ||
+        segment?.contentKind === "video_file" ||
+        segment?.contentKind === "office_file"
+      ) {
         const response = await apiClient.api.orgs[":organizationSlug"].projects[
           ":projectId"
         ].files.detail.cat.images.status.$patch({
@@ -286,7 +291,11 @@ export function ProjectFileCatWorkspace({
           throw new Error(
             await readApiError(
               response,
-              intl.formatMessage(projectFileCatWorkspaceMessages.failedToApproveImage),
+              intl.formatMessage(
+                segment?.contentKind === "video_file"
+                  ? projectFileCatWorkspaceMessages.failedToApproveVideo
+                  : projectFileCatWorkspaceMessages.failedToApproveImage,
+              ),
             ),
           );
         }
@@ -659,6 +668,12 @@ export function ProjectFileCatWorkspace({
           },
           ...(isNativeProject
             ? {
+                onTreatAsVideo: async (segmentId: string, nextTreatAsVideo: boolean) => {
+                  await treatAsVideo({
+                    externalStringId: segmentId,
+                    treatAsVideo: nextTreatAsVideo,
+                  });
+                },
                 onRegenerateImage: async (segmentId: string) => {
                   await regenerateImage({ externalStringId: segmentId });
                 },

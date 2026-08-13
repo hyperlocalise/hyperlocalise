@@ -20,6 +20,7 @@ import {
   inferSupportedFileTranslationFileFormat,
   isImageTranslationFileFormat,
   isOfficeTranslationFileFormat,
+  isVideoTranslationFileFormat,
   isSupportedFileTranslationFileFormat,
   type SupportedTranslationFileFormat,
 } from "@/lib/translation/file-formats";
@@ -35,6 +36,7 @@ import {
   getRepositorySourcePathForStoredFileStep,
   loadProjectTranslationsAsPrefilledEntriesStep,
   localizeImageVariantForJobStep,
+  localizeVideoVariantForJobStep,
   persistFileProjectTranslationsStep,
   persistFileTranslationMemoryEntriesStep,
   reuseFileTranslationMemoryEntriesStep,
@@ -640,6 +642,70 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
         projectId: claim.job.projectId,
         workflowRunId: claim.job.workflowRunId,
         code: "image_translation_failed",
+        message,
+      });
+      throw error;
+    }
+  }
+
+  if (isVideoTranslationFileFormat(parsedInput.fileFormat as SupportedTranslationFileFormat)) {
+    let sourceFile: Awaited<ReturnType<typeof getStoredFileStep>>;
+    try {
+      sourceFile = await getStoredFileStep(parsedInput.sourceFileId, organizationId);
+    } catch {
+      await failTranslationJobStep({
+        jobId: claim.job.id,
+        projectId: claim.job.projectId,
+        workflowRunId: claim.job.workflowRunId,
+        code: "source_file_not_found",
+        message: `source file ${parsedInput.sourceFileId} not found`,
+      });
+      throw new Error("source file not found");
+    }
+
+    const repositorySourcePath =
+      (await getRepositorySourcePathForStoredFileStep(parsedInput.sourceFileId, organizationId)) ??
+      sourceFile.filename;
+
+    const outputFiles: Array<{ fileId: string; locale: string; filename: string }> = [];
+    try {
+      for (const targetLocale of parsedInput.targetLocales) {
+        const output = await localizeVideoVariantForJobStep({
+          organizationId,
+          projectId: claim.job.projectId,
+          sourcePath: repositorySourcePath,
+          targetLocale,
+          sourceLocale: parsedInput.sourceLocale,
+          sourceStoredFileId: parsedInput.sourceFileId,
+          sourceJobId: claim.job.id,
+        });
+        outputFiles.push(output);
+      }
+
+      await completeFileTranslationJobStep({
+        jobId: claim.job.id,
+        projectId: claim.job.projectId,
+        workflowRunId: claim.job.workflowRunId,
+        outputFiles,
+      });
+
+      return outputFiles;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "video translation failed";
+      const code = message.includes("video_duration")
+        ? message.includes("unreadable")
+          ? "video_duration_unreadable"
+          : "video_duration_unsupported"
+        : message.includes("video_edit_region_blocked")
+          ? "video_edit_region_blocked"
+          : message.includes("video_model_unavailable")
+            ? "video_model_unavailable"
+            : "video_localization_failed";
+      await failTranslationJobStep({
+        jobId: claim.job.id,
+        projectId: claim.job.projectId,
+        workflowRunId: claim.job.workflowRunId,
+        code,
         message,
       });
       throw error;

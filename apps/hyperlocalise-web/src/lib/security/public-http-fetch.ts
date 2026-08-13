@@ -21,6 +21,7 @@ import {
 import { resolvePublicHostAddress } from "@/lib/security/ssrf-guard-dns";
 
 export const MAX_PUBLIC_HTTP_RESPONSE_BYTES = 5 * 1024 * 1024;
+export const MAX_PUBLIC_VIDEO_HTTP_RESPONSE_BYTES = 25 * 1024 * 1024;
 
 export async function assertResolvablePublicHttpUrl(
   url: string,
@@ -46,7 +47,9 @@ export async function withPublicHttpFetch<T>(
   url: string,
   init: RequestInit | undefined,
   handler: (response: Response) => Promise<T>,
+  options?: { maxResponseSize?: number },
 ): Promise<T> {
+  const maxResponseSize = options?.maxResponseSize ?? MAX_PUBLIC_HTTP_RESPONSE_BYTES;
   const urlResult = validatePublicHttpUrl(url);
   if (isErr(urlResult)) {
     throw new Error(formatSsrfGuardError(urlResult.error));
@@ -64,15 +67,15 @@ export async function withPublicHttpFetch<T>(
       // mode the callback must receive `[{ address, family }]`; the legacy
       // `(address, family)` shape yields ERR_INVALID_IP_ADDRESS and every
       // public crawl fails.
-      lookup(_hostname, options, callback) {
-        if (options?.all) {
+      lookup(_hostname, lookupOptions, callback) {
+        if (lookupOptions?.all) {
           callback(null, [{ address, family }]);
           return;
         }
         callback(null, address, family);
       },
     },
-    maxResponseSize: MAX_PUBLIC_HTTP_RESPONSE_BYTES,
+    maxResponseSize,
   });
 
   // redirect:"follow" is unsafe with DNS pinning: undici/Node can connect to

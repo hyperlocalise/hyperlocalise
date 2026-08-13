@@ -545,6 +545,16 @@ export const catEditorPanelMessages = defineMessages({
     id: "vdOK0pRPUg",
     description: "Tooltip for the treat-as-image toggle in CAT",
   },
+  treatAsVideo: {
+    defaultMessage: "Treat as video",
+    id: "k2mPq8nRwT",
+    description: "Button to treat a URL source string as a localizable video",
+  },
+  treatAsVideoTitle: {
+    defaultMessage: "Preview and localize this URL as a video",
+    id: "n7sLk4vXcB",
+    description: "Tooltip for the treat-as-video toggle in CAT",
+  },
   regenerateImage: {
     defaultMessage: "Regenerate image",
     id: "zA2ZC7UBbt",
@@ -579,6 +589,31 @@ export const catEditorPanelMessages = defineMessages({
     defaultMessage: "No image yet",
     id: "aMf9NbDyem",
     description: "Fallback empty state when a CAT image preview has no source URL",
+  },
+  regenerateVideo: {
+    defaultMessage: "Regenerate video",
+    id: "p9wQe3zLmN",
+    description: "Button to regenerate a localized video with the agent",
+  },
+  uploadVideo: {
+    defaultMessage: "Upload video",
+    id: "r4tYh8bVsC",
+    description: "Button to upload a replacement localized video",
+  },
+  videoSourceEmpty: {
+    defaultMessage: "Source video unavailable",
+    id: "s6uJa1dFkP",
+    description: "Empty state when the CAT source video cannot be shown",
+  },
+  videoTargetEmpty: {
+    defaultMessage: "No localized video yet",
+    id: "t8cMb5gHnQ",
+    description: "Empty state when the CAT target video has not been created",
+  },
+  videoEmpty: {
+    defaultMessage: "No video yet",
+    id: "u1eNd7iJoR",
+    description: "Fallback empty state when a CAT video preview has no source URL",
   },
   segmentPosition: {
     defaultMessage: "{position} / {total}",
@@ -902,6 +937,11 @@ export const catSideBySidePanelMessages = defineMessages({
     defaultMessage: "Click to localize image",
     id: "Ga0sjgCRoD",
     description: "Placeholder when a side-by-side image row has no localized image yet",
+  },
+  clickToLocalizeVideo: {
+    defaultMessage: "Click to localize video",
+    id: "v3fOe9kLpS",
+    description: "Placeholder when a side-by-side video row has no localized video yet",
   },
   formatCheckFail: {
     defaultMessage: "Format & QA failed ({count, plural, one {# issue} other {# issues}})",

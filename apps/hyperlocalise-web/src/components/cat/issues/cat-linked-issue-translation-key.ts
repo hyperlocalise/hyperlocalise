@@ -16,6 +16,7 @@ import type { CatSegment } from "@/components/cat/shared/types";
 // string id, not a `project_translation_keys` row id.
 const FILE_BACKED_CONTENT_KINDS = new Set<NonNullable<CatSegment["contentKind"]>>([
   "image_file",
+  "video_file",
   "office_file",
 ]);
 
