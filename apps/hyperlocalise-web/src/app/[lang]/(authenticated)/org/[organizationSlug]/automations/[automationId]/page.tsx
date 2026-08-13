@@ -37,6 +37,7 @@ export default async function AutomationDetailPage({
       <AutomationDetailPageContent
         organizationSlug={organizationSlug}
         automationId={automationId}
+        issuesAvailable={flags.issues}
         knowledgeAvailable={flags.knowledge}
         canUpdateKnowledgeMemory={hasCapability(auth.membership.role, "workspace:update")}
       />

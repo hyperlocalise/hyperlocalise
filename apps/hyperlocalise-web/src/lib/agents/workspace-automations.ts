@@ -143,6 +143,18 @@ const assignTranslateWithAgentToolConfigSchema = z
   })
   .default({ enabled: false });
 
+const listIssuesToolConfigSchema = z
+  .object({
+    enabled: z.boolean().default(false),
+  })
+  .default({ enabled: false });
+
+const createIssueToolConfigSchema = z
+  .object({
+    enabled: z.boolean().default(false),
+  })
+  .default({ enabled: false });
+
 const knowledgeToolConfigSchema = z
   .object({
     enabled: z.boolean().default(false),
@@ -224,6 +236,8 @@ const toolConfigObjectSchema = z
     contentful: contentfulToolConfigSchema.optional(),
     createNativeTmsJob: createNativeTmsJobToolConfigSchema.optional(),
     assignTranslateWithAgent: assignTranslateWithAgentToolConfigSchema.optional(),
+    listIssues: listIssuesToolConfigSchema.optional(),
+    createIssue: createIssueToolConfigSchema.optional(),
     knowledge: knowledgeToolConfigSchema.optional(),
     mcp: mcpToolConfigSchema.optional(),
     semrush: semrushToolConfigSchema.optional(),
@@ -261,6 +275,8 @@ export type WorkspaceAutomationCreateNativeTmsJobToolConfig = z.infer<
 export type WorkspaceAutomationAssignTranslateWithAgentToolConfig = z.infer<
   typeof assignTranslateWithAgentToolConfigSchema
 >;
+export type WorkspaceAutomationListIssuesToolConfig = z.infer<typeof listIssuesToolConfigSchema>;
+export type WorkspaceAutomationCreateIssueToolConfig = z.infer<typeof createIssueToolConfigSchema>;
 export type WorkspaceAutomationKnowledgeToolConfig = z.infer<typeof knowledgeToolConfigSchema>;
 export type WorkspaceAutomationMcpToolConfig = z.infer<typeof mcpToolConfigSchema>;
 export type WorkspaceAutomationSemrushToolConfig = z.infer<typeof semrushToolConfigSchema>;
@@ -390,6 +406,14 @@ export function hasWorkspaceAutomationAssignTranslateWithAgentTool(
   return Boolean(toolConfig.assignTranslateWithAgent?.enabled);
 }
 
+export function hasWorkspaceAutomationListIssuesTool(toolConfig: WorkspaceAutomationToolConfig) {
+  return Boolean(toolConfig.listIssues?.enabled);
+}
+
+export function hasWorkspaceAutomationCreateIssueTool(toolConfig: WorkspaceAutomationToolConfig) {
+  return Boolean(toolConfig.createIssue?.enabled);
+}
+
 export function hasWorkspaceAutomationKnowledgeTool(toolConfig: WorkspaceAutomationToolConfig) {
   return Boolean(toolConfig.knowledge?.enabled);
 }
@@ -484,6 +508,12 @@ export function workspaceAutomationNeedsProject(input: {
   ) {
     return true;
   }
+  if (
+    hasWorkspaceAutomationListIssuesTool(input.toolConfig) ||
+    hasWorkspaceAutomationCreateIssueTool(input.toolConfig)
+  ) {
+    return true;
+  }
   return hasWorkspaceAutomationGithubWorkflow(input.toolConfig);
 }
 
@@ -574,11 +604,14 @@ function validateWorkspaceAutomationConfig(input: {
     input.triggerConfig.mode === "scheduled" &&
     !hasWorkspaceAutomationGithubAgentTool(input.toolConfig) &&
     !hasWorkspaceAutomationGithubWorkflow(input.toolConfig) &&
-    !hasWorkspaceAutomationContentfulWorkflow(input.toolConfig)
+    !hasWorkspaceAutomationContentfulWorkflow(input.toolConfig) &&
+    !hasWorkspaceAutomationListIssuesTool(input.toolConfig) &&
+    !hasWorkspaceAutomationCreateIssueTool(input.toolConfig)
   ) {
     return err({
       code: "scheduled_workflow_required",
-      message: "Scheduled automations require at least one GitHub or Contentful workflow.",
+      message:
+        "Scheduled automations require at least one GitHub, Contentful, or Issues workflow tool.",
     });
   }
 

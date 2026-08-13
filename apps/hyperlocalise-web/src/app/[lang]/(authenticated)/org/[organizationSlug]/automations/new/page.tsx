@@ -50,6 +50,7 @@ export default async function NewAutomationPage({
       <AutomationsNewPageContent
         organizationSlug={organizationSlug}
         initialForm={initialForm}
+        issuesAvailable={flags.issues}
         knowledgeAvailable={flags.knowledge}
         canUpdateKnowledgeMemory={hasCapability(auth.membership.role, "workspace:update")}
       />

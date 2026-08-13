@@ -65,6 +65,8 @@ export type WorkspaceAutomationFormState = {
   createNativeTmsJobUseProjectTargetLocales: boolean;
   createNativeTmsJobTargetLocales: string[];
   assignTranslateWithAgentEnabled: boolean;
+  listIssuesEnabled: boolean;
+  createIssueEnabled: boolean;
   knowledgeEnabled: boolean;
   knowledgeAllowUpdates: boolean;
   mcpEnabled: boolean;
@@ -83,6 +85,9 @@ function workspaceAutomationFormNeedsProject(form: WorkspaceAutomationFormState)
     return true;
   }
   if (form.createNativeTmsJobEnabled || form.assignTranslateWithAgentEnabled) {
+    return true;
+  }
+  if (form.listIssuesEnabled || form.createIssueEnabled) {
     return true;
   }
   return form.githubEnabled && form.githubMode === "sync";
@@ -187,6 +192,8 @@ export function createDefaultWorkspaceAutomationFormState(): WorkspaceAutomation
     createNativeTmsJobUseProjectTargetLocales: true,
     createNativeTmsJobTargetLocales: [],
     assignTranslateWithAgentEnabled: false,
+    listIssuesEnabled: false,
+    createIssueEnabled: false,
     knowledgeEnabled: false,
     knowledgeAllowUpdates: false,
     mcpEnabled: false,
@@ -207,6 +214,8 @@ export function createWorkspaceAutomationFormStateFromRecord(
   const contentful = automation.toolConfig.contentful;
   const createNativeTmsJob = automation.toolConfig.createNativeTmsJob;
   const assignTranslateWithAgent = automation.toolConfig.assignTranslateWithAgent;
+  const listIssues = automation.toolConfig.listIssues;
+  const createIssue = automation.toolConfig.createIssue;
   const knowledge = automation.toolConfig.knowledge;
   const mcp = automation.toolConfig.mcp;
   const semrush = automation.toolConfig.semrush;
@@ -266,6 +275,8 @@ export function createWorkspaceAutomationFormStateFromRecord(
       ? [...createNativeTmsJob.targetLocales]
       : [],
     assignTranslateWithAgentEnabled: Boolean(assignTranslateWithAgent?.enabled),
+    listIssuesEnabled: Boolean(listIssues?.enabled),
+    createIssueEnabled: Boolean(createIssue?.enabled),
     knowledgeEnabled: Boolean(knowledge?.enabled),
     knowledgeAllowUpdates: Boolean(knowledge?.allowUpdates),
     mcpEnabled: Boolean(mcp?.enabled),
@@ -428,6 +439,20 @@ export function formStateToWorkspaceAutomationPayload(form: WorkspaceAutomationF
     ...(form.assignTranslateWithAgentEnabled
       ? {
           assignTranslateWithAgent: {
+            enabled: true,
+          },
+        }
+      : {}),
+    ...(form.listIssuesEnabled
+      ? {
+          listIssues: {
+            enabled: true,
+          },
+        }
+      : {}),
+    ...(form.createIssueEnabled
+      ? {
+          createIssue: {
             enabled: true,
           },
         }
@@ -638,6 +663,8 @@ export function workspaceAutomationFormCanActivate(form: WorkspaceAutomationForm
     form.contentfulEnabled ||
     form.createNativeTmsJobEnabled ||
     form.assignTranslateWithAgentEnabled ||
+    form.listIssuesEnabled ||
+    form.createIssueEnabled ||
     form.mcpEnabled ||
     form.semrushEnabled ||
     form.ahrefsEnabled

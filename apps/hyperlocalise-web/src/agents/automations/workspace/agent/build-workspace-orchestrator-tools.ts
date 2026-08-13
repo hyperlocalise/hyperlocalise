@@ -15,7 +15,9 @@ import type { ToolSet } from "ai";
 import type { WorkspaceOrchestratorSession } from "./context";
 import type { WorkspaceOrchestratorToolName } from "./plan";
 import { createAssignTranslateWithAgentTool } from "./tools/assign_translate_with_agent";
+import { createCreateIssueTool } from "./tools/create_issue";
 import { createNativeTmsJobTool } from "./tools/create_native_tms_job";
+import { createListIssuesTool } from "./tools/list_issues";
 import { createNotifyEmailTool } from "./tools/notify_email";
 import { createNotifySlackTool } from "./tools/notify_slack";
 import { createRecallMemoryTool } from "./tools/recall_memory";
@@ -35,6 +37,8 @@ const TOOL_BUILDERS: Record<
   run_contentful_translation: createRunContentfulTranslationTool,
   create_native_tms_job: createNativeTmsJobTool,
   assign_translate_with_agent: createAssignTranslateWithAgentTool,
+  list_issues: createListIssuesTool,
+  create_issue: createCreateIssueTool,
   use_semrush: createUseSemrushTool,
   use_ahrefs: createUseAhrefsTool,
   notify_slack: createNotifySlackTool,

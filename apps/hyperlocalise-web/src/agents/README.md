@@ -30,7 +30,8 @@ Each package uses Eve-inspired slots under `agent/`:
 
 - **Plan**: deterministic tool order from `toolConfig` and `executorAgent` skill metadata
 - **Execution**: `ToolLoopAgent` with `prepareStep` forcing each planned tool
-- **Tools**: GitHub workflows, Contentful translation, Slack, and email notifications
+- **Tools**: GitHub workflows, Contentful translation, Issue Sheet list/create,
+  Slack, and email notifications
 
 Child executors remain specialized packages (`contentful`, `github-repository`) but are invoked as orchestrator tools rather than separate dispatch branches.
 

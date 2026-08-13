@@ -21,6 +21,7 @@ import {
   FolderLibraryIcon,
   GitBranchIcon,
   SlackIcon,
+  Task01Icon,
   Upload01Icon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
@@ -335,6 +336,8 @@ function toolCount(form: WorkspaceAutomationFormState) {
     Number(form.contentfulEnabled) +
     Number(form.createNativeTmsJobEnabled) +
     Number(form.assignTranslateWithAgentEnabled) +
+    Number(form.listIssuesEnabled) +
+    Number(form.createIssueEnabled) +
     Number(form.knowledgeEnabled) +
     Number(form.mcpEnabled) +
     Number(form.semrushEnabled) +
@@ -1087,6 +1090,7 @@ function AddToolMenu({
   emailConnected,
   form,
   githubConnected,
+  issuesAvailable,
   knowledgeAvailable,
   mcpConnected,
   onChange,
@@ -1100,6 +1104,7 @@ function AddToolMenu({
   emailConnected: boolean;
   form: WorkspaceAutomationFormState;
   githubConnected: boolean;
+  issuesAvailable: boolean;
   knowledgeAvailable: boolean;
   mcpConnected: boolean;
   onChange: (next: WorkspaceAutomationFormState) => void;
@@ -1315,6 +1320,42 @@ function AddToolMenu({
               ) : null}
             </DropdownMenuItem>
             <DropdownMenuItem
+              disabled={form.listIssuesEnabled || !issuesAvailable}
+              onClick={() => onChange({ ...form, listIssuesEnabled: true })}
+            >
+              <HugeiconsIcon icon={Task01Icon} strokeWidth={1.8} className="size-4" />
+              <FormattedMessage {...workspaceAutomationFormMessages.listIssues} />
+              {form.listIssuesEnabled ? (
+                <DropdownMenuShortcut>
+                  <FormattedMessage {...workspaceAutomationFormMessages.addedShortcut} />
+                </DropdownMenuShortcut>
+              ) : !issuesAvailable ? (
+                <DropdownMenuShortcut>
+                  <FormattedMessage
+                    {...workspaceAutomationFormMessages.enableIssuesFirstShortcut}
+                  />
+                </DropdownMenuShortcut>
+              ) : null}
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              disabled={form.createIssueEnabled || !issuesAvailable}
+              onClick={() => onChange({ ...form, createIssueEnabled: true })}
+            >
+              <HugeiconsIcon icon={Task01Icon} strokeWidth={1.8} className="size-4" />
+              <FormattedMessage {...workspaceAutomationFormMessages.createIssue} />
+              {form.createIssueEnabled ? (
+                <DropdownMenuShortcut>
+                  <FormattedMessage {...workspaceAutomationFormMessages.addedShortcut} />
+                </DropdownMenuShortcut>
+              ) : !issuesAvailable ? (
+                <DropdownMenuShortcut>
+                  <FormattedMessage
+                    {...workspaceAutomationFormMessages.enableIssuesFirstShortcut}
+                  />
+                </DropdownMenuShortcut>
+              ) : null}
+            </DropdownMenuItem>
+            <DropdownMenuItem
               disabled={form.mcpEnabled || !mcpConnected}
               onClick={() => onChange({ ...form, mcpEnabled: true })}
             >
@@ -1474,6 +1515,7 @@ function ToolsSettings({
   errors,
   form,
   githubConnected,
+  issuesAvailable,
   knowledgeAvailable,
   mcpServerConnections,
   onChange,
@@ -1493,6 +1535,7 @@ function ToolsSettings({
   errors: Record<string, string | undefined>;
   form: WorkspaceAutomationFormState;
   githubConnected: boolean;
+  issuesAvailable: boolean;
   knowledgeAvailable: boolean;
   mcpServerConnections: McpServerConnectionOption[];
   onChange: (next: WorkspaceAutomationFormState) => void;
@@ -2097,6 +2140,52 @@ function ToolsSettings({
           />
         ) : null}
 
+        {form.listIssuesEnabled ? (
+          <EditorRow
+            icon={<HugeiconsIcon icon={Task01Icon} strokeWidth={1.8} className="size-4" />}
+            title={<FormattedMessage {...workspaceAutomationFormMessages.listIssues} />}
+            description={
+              issuesAvailable ? (
+                <FormattedMessage {...workspaceAutomationFormMessages.listIssuesDescription} />
+              ) : (
+                <FormattedMessage
+                  {...workspaceAutomationFormMessages.issuesUnavailableDescription}
+                />
+              )
+            }
+            action={
+              <DeleteToolButton
+                disabled={disabled}
+                label={intl.formatMessage(workspaceAutomationFormMessages.removeListIssues)}
+                onClick={() => onChange({ ...form, listIssuesEnabled: false })}
+              />
+            }
+          />
+        ) : null}
+
+        {form.createIssueEnabled ? (
+          <EditorRow
+            icon={<HugeiconsIcon icon={Task01Icon} strokeWidth={1.8} className="size-4" />}
+            title={<FormattedMessage {...workspaceAutomationFormMessages.createIssue} />}
+            description={
+              issuesAvailable ? (
+                <FormattedMessage {...workspaceAutomationFormMessages.createIssueDescription} />
+              ) : (
+                <FormattedMessage
+                  {...workspaceAutomationFormMessages.issuesUnavailableDescription}
+                />
+              )
+            }
+            action={
+              <DeleteToolButton
+                disabled={disabled}
+                label={intl.formatMessage(workspaceAutomationFormMessages.removeCreateIssue)}
+                onClick={() => onChange({ ...form, createIssueEnabled: false })}
+              />
+            }
+          />
+        ) : null}
+
         {form.mcpEnabled ? (
           <EditorRow
             icon={<HugeiconsIcon icon={FolderLibraryIcon} strokeWidth={1.8} className="size-4" />}
@@ -2291,6 +2380,7 @@ function ToolsSettings({
           emailConnected={emailConnected}
           form={form}
           githubConnected={githubConnected}
+          issuesAvailable={issuesAvailable}
           knowledgeAvailable={knowledgeAvailable}
           mcpConnected={mcpConnected}
           onChange={onChange}
@@ -2408,6 +2498,7 @@ export function WorkspaceAutomationEditor({
   disabled,
   errors,
   form,
+  issuesAvailable = false,
   knowledgeAvailable = false,
   mode,
   onChange,
@@ -2419,6 +2510,7 @@ export function WorkspaceAutomationEditor({
   disabled?: boolean;
   errors: Record<string, string | undefined>;
   form: WorkspaceAutomationFormState;
+  issuesAvailable?: boolean;
   knowledgeAvailable?: boolean;
   mode: "create" | "detail";
   onChange: (next: WorkspaceAutomationFormState) => void;
@@ -2726,6 +2818,7 @@ export function WorkspaceAutomationEditor({
             errors={errors}
             form={form}
             githubConnected={githubConnected}
+            issuesAvailable={issuesAvailable}
             knowledgeAvailable={knowledgeAvailable}
             mcpServerConnections={mcpServerConnections}
             onChange={onChange}
@@ -2755,6 +2848,7 @@ export function WorkspaceAutomationForm(props: {
   form: WorkspaceAutomationFormState;
   errors: Record<string, string | undefined>;
   disabled?: boolean;
+  issuesAvailable?: boolean;
   knowledgeAvailable?: boolean;
   canUpdateKnowledgeMemory?: boolean;
   onChange: (next: WorkspaceAutomationFormState) => void;

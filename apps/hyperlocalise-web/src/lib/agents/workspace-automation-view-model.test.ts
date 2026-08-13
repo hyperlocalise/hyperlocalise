@@ -299,6 +299,27 @@ describe("workspace automation view model", () => {
     expect(payload.toolConfig.createNativeTmsJob).not.toHaveProperty("projectId");
   });
 
+  it("maps list and create issue tools to API payload and requires a project", () => {
+    const form = {
+      ...createDefaultWorkspaceAutomationFormState(),
+      name: "Triage issues",
+      instructions: "List open issues and file new findings.",
+      listIssuesEnabled: true,
+      createIssueEnabled: true,
+    };
+
+    expect(validateWorkspaceAutomationFormState(form)).toMatchObject({
+      projectId: "Choose a Hyperlocalise project.",
+    });
+
+    const readyForm = { ...form, projectId: "project-1" };
+    expect(validateWorkspaceAutomationFormState(readyForm)).toEqual({});
+    expect(formStateToWorkspaceAutomationPayload(readyForm).toolConfig).toEqual({
+      listIssues: { enabled: true },
+      createIssue: { enabled: true },
+    });
+  });
+
   it("prefills and maps the translate-on-source-upload template", () => {
     const form = createWorkspaceAutomationFormStateFromTemplate(
       "translate-on-source-upload",

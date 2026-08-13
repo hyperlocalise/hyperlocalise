@@ -132,6 +132,21 @@ describe("buildWorkspaceOrchestratorPlan", () => {
     expect(plan.tools).toEqual(["create_native_tms_job"]);
   });
 
+  it("plans list_issues before create_issue when both are enabled", () => {
+    const plan = buildWorkspaceOrchestratorPlan(
+      automation({
+        projectId: "project-1",
+        toolConfig: {
+          listIssues: { enabled: true },
+          createIssue: { enabled: true },
+          slack: { enabled: true, channelId: "C123" },
+        },
+      }),
+    );
+
+    expect(plan.tools).toEqual(["list_issues", "create_issue", "notify_slack"]);
+  });
+
   it("includes use_semrush when a Semrush connection is enabled", () => {
     const plan = buildWorkspaceOrchestratorPlan(
       automation({
