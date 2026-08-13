@@ -312,7 +312,14 @@ export function AutomationsMockUI() {
     }, SCENE_HOLD_MS);
 
     return () => clearTimeout(t);
-  }, [visibleStepCount, activeIndex, isPaused, activeUseCase.steps.length, useCases.length, shouldReduceMotion]);
+  }, [
+    visibleStepCount,
+    activeIndex,
+    isPaused,
+    activeUseCase.steps.length,
+    useCases.length,
+    shouldReduceMotion,
+  ]);
 
   function handleSelect(id: string) {
     const idx = useCases.findIndex((uc) => uc.id === id);
