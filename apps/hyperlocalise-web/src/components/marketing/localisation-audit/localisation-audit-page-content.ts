@@ -80,6 +80,13 @@ export function getLocalisationAuditResultCopy(_locale: string) {
     progressCrawling: "Crawling",
     progressAnalyzing: "Analyzing",
     progressScoring: "Scoring",
+    progressStepOf: "Step {current} of {total}",
+    progressBarLabel: "Audit progress",
+    progressQueuedDetail: "This audit is queued and will start shortly.",
+    progressPreparingDetail: "Checking the domain and opening a safe crawl.",
+    progressCrawlingDetail: "Sampling public pages and locale roots.",
+    progressAnalyzingDetail: "Checking technical, linguistic, contextual, and visual signals.",
+    progressScoringDetail: "Combining credits into the four module scores.",
     staleTitle: "This audit looks stuck",
     staleBody:
       "No progress for a while. You can safely retry — we will reclaim the stalled run and start a fresh attempt.",

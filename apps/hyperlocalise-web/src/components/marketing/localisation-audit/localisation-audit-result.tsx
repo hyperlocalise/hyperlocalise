@@ -13,6 +13,7 @@
  * Version 2.0 or later.
  */
 import Link from "next/link";
+import { CheckIcon } from "lucide-react";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 
 import { REQUEST_DEMO_URL } from "@/components/marketing/request-demo";
@@ -173,9 +174,106 @@ function FindingList({ findings }: { findings: LocalisationAuditFinding[] }) {
 }
 
 function stageIndex(stage: LocalisationAuditProgressStage | null | undefined) {
-  if (!stage) return 0;
+  if (!stage || stage === "failed") return 0;
+  if (stage === "completed") return PROGRESS_STAGES.length - 1;
   const index = (PROGRESS_STAGES as readonly string[]).indexOf(stage);
   return index >= 0 ? index : 0;
+}
+
+function AuditProgressTrack({
+  activeIndex,
+  copy,
+}: {
+  activeIndex: number;
+  copy: ReturnType<typeof getLocalisationAuditResultCopy>;
+}) {
+  const labels = {
+    queued: copy.progressQueued,
+    preparing: copy.progressPreparing,
+    crawling: copy.progressCrawling,
+    analyzing: copy.progressAnalyzing,
+    scoring: copy.progressScoring,
+  } as const;
+  const details = {
+    queued: copy.progressQueuedDetail,
+    preparing: copy.progressPreparingDetail,
+    crawling: copy.progressCrawlingDetail,
+    analyzing: copy.progressAnalyzingDetail,
+    scoring: copy.progressScoringDetail,
+  } as const;
+  const total = PROGRESS_STAGES.length;
+  const currentIndex = Math.min(activeIndex, total - 1);
+  const currentStage = PROGRESS_STAGES[currentIndex]!;
+  const currentStep = currentIndex + 1;
+
+  return (
+    <div className="mt-10 max-w-2xl">
+      <div className="flex items-baseline justify-between gap-3">
+        <p className="text-pretty text-sm font-medium">{labels[currentStage]}</p>
+        <p className="text-sm text-muted-foreground tabular-nums">
+          {formatCopy(copy.progressStepOf, { current: currentStep, total })}
+        </p>
+      </div>
+
+      <ol className="mt-6 grid grid-cols-5" aria-label={copy.progressBarLabel}>
+        {PROGRESS_STAGES.map((stage, index) => {
+          const done = index < activeIndex;
+          const current = index === activeIndex;
+          const isLast = index === total - 1;
+          return (
+            <li
+              key={stage}
+              className="relative flex flex-col items-center"
+              aria-current={current ? "step" : undefined}
+            >
+              {isLast ? null : (
+                <span
+                  aria-hidden
+                  className={cn(
+                    "absolute top-3 start-[calc(50%+0.75rem)] h-px w-[calc(100%-1.5rem)]",
+                    index < activeIndex ? "bg-foreground" : "bg-border",
+                  )}
+                />
+              )}
+              <span
+                className={cn(
+                  "relative flex size-6 items-center justify-center rounded-full",
+                  done && "bg-foreground text-background",
+                  current && "border-2 border-foreground bg-background",
+                  !done && !current && "border border-border bg-background",
+                )}
+              >
+                {done ? <CheckIcon className="size-3.5" aria-hidden /> : null}
+                {current ? (
+                  <span className="size-2 rounded-full bg-foreground motion-safe:animate-pulse" />
+                ) : null}
+              </span>
+              <p
+                className={cn(
+                  "mt-2 text-center text-xs text-pretty",
+                  current && "font-medium",
+                  done && "text-foreground",
+                  !done && !current && "text-muted-foreground",
+                )}
+              >
+                {labels[stage]}
+              </p>
+            </li>
+          );
+        })}
+      </ol>
+
+      <p
+        key={currentStage}
+        className="mt-4 text-pretty text-sm text-muted-foreground motion-safe:animate-in motion-safe:fade-in-0 motion-safe:duration-200"
+      >
+        {details[currentStage]}
+      </p>
+      <p className="sr-only" aria-live="polite">
+        {labels[currentStage]}. {details[currentStage]}
+      </p>
+    </div>
+  );
 }
 
 function prioritizeFindings(findings: LocalisationAuditFinding[]) {
@@ -336,30 +434,7 @@ export function LocalisationAuditResult({
         <p className="mt-2 text-sm text-muted-foreground">{copy.expectedDuration}</p>
         <p className="mt-6 text-sm text-muted-foreground">{audit.domainKey}</p>
 
-        <ol className="mt-10 flex flex-wrap gap-3">
-          {PROGRESS_STAGES.map((stage, index) => {
-            const labels = {
-              queued: copy.progressQueued,
-              preparing: copy.progressPreparing,
-              crawling: copy.progressCrawling,
-              analyzing: copy.progressAnalyzing,
-              scoring: copy.progressScoring,
-            } as const;
-            const active = index <= activeIndex;
-            return (
-              <li
-                key={stage}
-                className={`rounded-full border px-3 py-1 text-sm ${
-                  active
-                    ? "border-foreground bg-foreground text-background"
-                    : "border-border text-muted-foreground"
-                }`}
-              >
-                {labels[stage]}
-              </li>
-            );
-          })}
-        </ol>
+        <AuditProgressTrack activeIndex={activeIndex} copy={copy} />
 
         <div className="mt-12 max-w-md">
           <TypographyH2 className="pb-0 text-xl">{copy.emailWhenReadyHeading}</TypographyH2>
