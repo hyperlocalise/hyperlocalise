@@ -47,6 +47,9 @@
   "+8hEYpTb4c": {
     "defaultMessage": "Ein Growth Lead teilt in Slack ein Launch-Briefing mit Positionierung, Zielgruppensegmenten und rechtlichen Hinweisen. Hyperlocalise strukturiert die Kampagne für die Lokalisierung, wendet Marken-Glossar und Tonalitätsregeln an, erstellt angepasste Entwürfe für jede Locale, leitet sie durch Marketing- und Rechtsprüfung, synchronisiert freigegebene Texte mit dem CMS und den Werbeplattformen und kennzeichnet jede Locale, in der die Botschaft vom freigegebenen Ausgangstext abgewichen ist."
   },
+  "+8igDOrn5C": {
+    "defaultMessage": "Noch keine Intercom-Verbindungen."
+  },
   "+91wkWHR07": {
     "defaultMessage": "{name} entfernen"
   },
@@ -55,6 +58,9 @@
   },
   "+BzVn5MdKT": {
     "defaultMessage": "Verknüpfen Sie dieses Crowdin-Projekt mit Hyperlocalise, damit Unterhaltungen auf das Projekt beschränkt bleiben können."
+  },
+  "+CvStp9tzG": {
+    "defaultMessage": "Intercom-Verbindung gelöscht."
   },
   "+EhuajKQYW": {
     "defaultMessage": "Bleiben"
@@ -323,6 +329,9 @@
   "/cgIKQ7r8o": {
     "defaultMessage": "Alle aktivieren"
   },
+  "/d/gbp0E4g": {
+    "defaultMessage": "Ausgeblendet"
+  },
   "/d8vf0Z+2x": {
     "defaultMessage": "Repositories"
   },
@@ -541,6 +550,9 @@
   },
   "0bosLZsKFI": {
     "defaultMessage": "Koordiniere Lokalisierungsprüfungen aus Slack-Erwähnungen, DMs und abonnierten Threads."
+  },
+  "0czRTKBGYl": {
+    "defaultMessage": "Löschen"
   },
   "0eU/dl/Oha": {
     "defaultMessage": "Speichern"
@@ -1133,6 +1145,9 @@
   "3XNlGxtFuq": {
     "defaultMessage": "A few things need your attention"
   },
+  "3Z+3pA/kaR": {
+    "defaultMessage": "Speichern"
+  },
   "3Ze8wX3xRS": {
     "defaultMessage": "Diese Quelldatei ist nicht mehr mit der Aufgabe verknüpft."
   },
@@ -1204,6 +1219,9 @@
   },
   "3nHm7zuXbR": {
     "defaultMessage": "Contentful-Artikel übersetzen"
+  },
+  "3poXpaPEFu": {
+    "defaultMessage": "URL eingeben"
   },
   "3r10YA/kX+": {
     "defaultMessage": "Konfigurationsversion: <version>{configVersion}</version>"
@@ -1507,6 +1525,9 @@
   },
   "5KdZWVlAAs": {
     "defaultMessage": "Letzte Zustellung: {timestamp}"
+  },
+  "5Mjf4nqDKl": {
+    "defaultMessage": "{region} · Token mit der Endung {suffix}"
   },
   "5N0h/1bean": {
     "defaultMessage": "Nach Prüfart gruppieren"
@@ -2774,6 +2795,9 @@
   "BVsezPmDFQ": {
     "defaultMessage": "Anbieter-API-Token eingeben"
   },
+  "BWdxr7XQ2f": {
+    "defaultMessage": "Bild hochladen"
+  },
   "BX0DlJwbY+": {
     "defaultMessage": "{providerName} trennen?"
   },
@@ -2936,6 +2960,9 @@
   "CFMr/AO+mA": {
     "defaultMessage": "Aufgabe übersetzen"
   },
+  "CGcIng445f": {
+    "defaultMessage": "https://"
+  },
   "CGit9CSACq": {
     "defaultMessage": "Dateien"
   },
@@ -3073,6 +3100,9 @@
   },
   "CrBQt1oY62": {
     "defaultMessage": "Hyperlocalise-Logo"
+  },
+  "Csa9NF0Qo2": {
+    "defaultMessage": "Erstellen Sie ein Zugriffstoken im Intercom Developer Hub für Ihren Workspace."
   },
   "CtXpaStJTy": {
     "defaultMessage": "Start der Marketing-Website"
@@ -3290,6 +3320,9 @@
   "DqaqeEsPck": {
     "defaultMessage": "Übersetzen Sie Abweichungen, bevor Ihre Kunden es tun"
   },
+  "Dsh7E+5ifE": {
+    "defaultMessage": "US (api.intercom.io)"
+  },
   "DtRFjTA7Kk": {
     "defaultMessage": "{actor} hat {assignee} zugewiesen"
   },
@@ -3316,6 +3349,9 @@
   },
   "E/rfTTHsFg": {
     "defaultMessage": "Enthält Warnungen"
+  },
+  "E0jx/ueMaN": {
+    "defaultMessage": "Verbindung hinzufügen"
   },
   "E0kqf33f8D": {
     "defaultMessage": "Verbinden Sie Contentful unter <link>Integrationen</link>, um dieses Tool zu verwenden."
@@ -4319,6 +4355,9 @@
   "JPh5F8lV0A": {
     "defaultMessage": "GitHub"
   },
+  "JRTnSLtq//": {
+    "defaultMessage": "Intercom"
+  },
   "JRvO1zUFRY": {
     "defaultMessage": "Lese {detail}"
   },
@@ -4628,6 +4667,9 @@
   "LAx6QaaPwX": {
     "defaultMessage": "Auswählen"
   },
+  "LBBqTZQKA3": {
+    "defaultMessage": "Verbinden Sie ein Intercom-Zugriffstoken für Help-Center-Inhalte."
+  },
   "LC2bgUm6Db": {
     "defaultMessage": "Aktiv"
   },
@@ -4918,6 +4960,9 @@
   },
   "ModLI3ew1I": {
     "defaultMessage": "Noch keine Glossare 马会"
+  },
+  "Mojh5Scg1j": {
+    "defaultMessage": "Wählen Sie die Region aus, in der Ihr Intercom-Arbeitsbereich gehostet wird."
   },
   "MpshM2ubvT": {
     "defaultMessage": "Manual"
@@ -5615,6 +5660,9 @@
   "QNkL8EdZgQ": {
     "defaultMessage": "Aktiv"
   },
+  "QNpNdcu+Mx": {
+    "defaultMessage": "Australien (api.au.intercom.io)"
+  },
   "QOKexdLasq": {
     "defaultMessage": "Beliebige Sprache"
   },
@@ -5672,6 +5720,9 @@
   "QfmZdcP/TR": {
     "defaultMessage": "Jedes Workspace-Mitglied verbindet sein eigenes {providerName}-Konto. Projekte, Jobs, Glossare und Translation Memories werden live von {providerName} geladen, wenn Sie diese Seiten öffnen."
   },
+  "Qg9jUhHjfz": {
+    "defaultMessage": "Aktiviert"
+  },
   "QgcgQchgyn": {
     "defaultMessage": "Platzhalter"
   },
@@ -5719,6 +5770,9 @@
   },
   "Qn/UGdy2iq": {
     "defaultMessage": "Auswählen"
+  },
+  "Qnl5usEJ9F": {
+    "defaultMessage": "Einfügen"
   },
   "QoBU315wiz": {
     "defaultMessage": "Glossarverstoß"
@@ -5947,6 +6001,9 @@
   },
   "S/Jvw/IvO5": {
     "defaultMessage": "Gedankengang"
+  },
+  "S0eNIe6iwe": {
+    "defaultMessage": "Intercom-Verbindung gespeichert."
   },
   "S2pzZyn+jp": {
     "defaultMessage": "Schlüssel widerrufen"
@@ -6322,6 +6379,9 @@
   },
   "Ts8Uopd5oT": {
     "defaultMessage": "Positioniere Geschwindigkeit als Release-Sicherheit, nicht als Abkürzung zur Automatisierung."
+  },
+  "TtLubrrGZM": {
+    "defaultMessage": "Bild wird hochgeladen …"
   },
   "TtcvnbdV7R": {
     "defaultMessage": "No Hyperlocalise work items found for your account."
@@ -7262,6 +7322,9 @@
   "YhwlgG0Ruv": {
     "defaultMessage": "Meine Arbeit"
   },
+  "YhyWgKMwTp": {
+    "defaultMessage": "Bild einfügen"
+  },
   "Yi/8efQvnI": {
     "defaultMessage": "Ihr Konto ist angemeldet, aber dieser Arbeitsbereich verfügt nicht über einen aktiven Organisationskontext, den Sie verwenden können."
   },
@@ -7445,6 +7508,9 @@
   "ZWFR3jXEW2": {
     "defaultMessage": "Überprüfung fällig"
   },
+  "ZZsyqRkYsB": {
+    "defaultMessage": "Anzeigename"
+  },
   "Zb2NG5FzSq": {
     "defaultMessage": "Eintrag hinzufügen"
   },
@@ -7612,6 +7678,9 @@
   },
   "aEJ2kyKHZN": {
     "defaultMessage": "Back to automations"
+  },
+  "aEn/VDi+Yp": {
+    "defaultMessage": "Geben Sie ein Intercom-Zugriffstoken ein."
   },
   "aFBvwlBhSp": {
     "defaultMessage": "Seitenleiste einklappen"
@@ -8054,6 +8123,9 @@
   "crhiHIjb38": {
     "defaultMessage": "{count}/{limit} Zeichen"
   },
+  "cx00LgHL3+": {
+    "defaultMessage": "REST-Endpunkt"
+  },
   "czQTkWnDNV": {
     "defaultMessage": "When a help article changes in Contentful, agents translate it across locales, run QA, and write drafts back for review — so support stays current in every market without a handoff."
   },
@@ -8330,6 +8402,9 @@
   "e9TsGisohb": {
     "defaultMessage": "Zuerst verbinden"
   },
+  "e9lzOZ7/lz": {
+    "defaultMessage": "Intercom-Verbindung konnte nicht gespeichert werden."
+  },
   "eAIQ4Y8Q3i": {
     "defaultMessage": "Alle Quellen"
   },
@@ -8432,6 +8507,9 @@
   "ecG+jsddyC": {
     "defaultMessage": "E-Mail-Support"
   },
+  "ed4/NRs4Oy": {
+    "defaultMessage": "Bild"
+  },
   "edDxW76Fj5": {
     "defaultMessage": "{count} ausgewählt"
   },
@@ -8524,6 +8602,9 @@
   },
   "f2cTOkA6mx": {
     "defaultMessage": "Erstelle eine allgemeine Zeile im Issue Sheet. Verknüpfe sie bei Bedarf mit CAT oder einem anderen Issue-Tracker."
+  },
+  "f3IEqEzc4J": {
+    "defaultMessage": "Das Bild darf höchstens 10 MB groß sein."
   },
   "f5viDmb9eZ": {
     "defaultMessage": "Nicht gespeicherte Änderungen"
@@ -8827,6 +8908,9 @@
   },
   "gYPVPf6Rwy": {
     "defaultMessage": "Mit Zendesk, Intercom, Contentful und mehr verbinden"
+  },
+  "gbtHgYP/IG": {
+    "defaultMessage": "Die Intercom-Verbindung konnte nicht gelöscht werden."
   },
   "gcoMjtaFWO": {
     "defaultMessage": "ICU-Struktur"
@@ -10028,6 +10112,9 @@
   "mBKFh3zYqD": {
     "defaultMessage": "Ressourcen"
   },
+  "mBNLdtt327": {
+    "defaultMessage": "Abbrechen"
+  },
   "mC64PC89AZ": {
     "defaultMessage": "Aufgabentyp"
   },
@@ -10078,6 +10165,9 @@
   },
   "mMsPU5+otj": {
     "defaultMessage": "Projekte konnten nicht geladen werden"
+  },
+  "mObQkKgd8s": {
+    "defaultMessage": "Intercom-Verbindungen konnten nicht geladen werden."
   },
   "mPLVbw9Dvq": {
     "defaultMessage": "Abbrechen"
@@ -10313,6 +10403,9 @@
   "nTmsRemoveCreateJob": {
     "defaultMessage": "Remove Create job"
   },
+  "nU96BLMwJI": {
+    "defaultMessage": "Bild-URL eingeben"
+  },
   "nULuPBbLbZ": {
     "defaultMessage": "Preismeldungen lokalisieren"
   },
@@ -10488,7 +10581,7 @@
     "defaultMessage": "{count, plural, one {# Element} other {# Elemente}}"
   },
   "oc3EaT6uAq": {
-    "defaultMessage": "Nächste offeneufferุ้นบาท"
+    "defaultMessage": "Als Nächstes öffnen"
   },
   "oeD72ehQB/": {
     "defaultMessage": "Seite mit nicht gespeicherten Änderungen verlassen?"
@@ -10540,6 +10633,9 @@
   },
   "opXLqo3spW": {
     "defaultMessage": "Für Qualität im großen Maßstab entwickelt"
+  },
+  "or2nJ8Fbp+": {
+    "defaultMessage": "Europa (api.eu.intercom.io)"
   },
   "orN5K1E2Yc": {
     "defaultMessage": "Blockierende Prüfungen können Pull Requests fehlschlagen lassen, wenn sie mit <link>Branch-Schutzregeln</link> kombiniert werden."
@@ -10816,6 +10912,9 @@
   },
   "q9M+h9o1YI": {
     "defaultMessage": "Wie Hyperlocalise mit Kontodaten, Nutzungsdaten und anbieterspezifischen Daten umgeht."
+  },
+  "q9T9hQuPR7": {
+    "defaultMessage": "Bild einfügen"
   },
   "q9qDjh4G/B": {
     "defaultMessage": "Änderungen übernommen"
@@ -11129,6 +11228,9 @@
   "rkQ7AmKMrt": {
     "defaultMessage": "Teilen Sie der Automatisierung mit, was sie tun, überprüfen und ignorieren soll."
   },
+  "roHaMHNwoS": {
+    "defaultMessage": "Bild"
+  },
   "rponYzKMZ3": {
     "defaultMessage": "Erstelle Issues aus Übersetzungsblockern und halte Startaufgaben synchron."
   },
@@ -11170,6 +11272,9 @@
   },
   "s1gl7VHrHd": {
     "defaultMessage": "Annehmen"
+  },
+  "s2RbfpSnxA": {
+    "defaultMessage": "Bild konnte nicht hochgeladen werden"
   },
   "s2Vo5Fg6Dj": {
     "defaultMessage": "Wende Glossare, Tonalitätsrichtlinien und Nicht-übersetzen-Regeln an, bevor Entwürfe die Prüfer erreichen."
@@ -12110,6 +12215,9 @@
   "weWSzrQ1Qp": {
     "defaultMessage": "Verwalten Sie Begriffe und weisen Sie dieses Glossar Projekten zu."
   },
+  "wem2T5DJ9n": {
+    "defaultMessage": "Nur PNG-, JPEG- und WebP-Bilder werden unterstützt."
+  },
   "wewNVYT5+w": {
     "defaultMessage": "GitHub sync workflows"
   },
@@ -12190,6 +12298,9 @@
   },
   "x/9TtAEs9e": {
     "defaultMessage": "Chinesisch (Sonderverwaltungsregion Hongkong, China)"
+  },
+  "x/Kqcar7eA": {
+    "defaultMessage": "Zugriffstoken"
   },
   "x15Qhc61Zn": {
     "defaultMessage": "Funktionen"
@@ -12754,6 +12865,9 @@
   },
   "zdN3ToHnj1": {
     "defaultMessage": "Glossar konnte nicht geladen werden"
+  },
+  "ze9bxcwl8T": {
+    "defaultMessage": "Abbrechen"
   },
   "zedkthWR8N": {
     "defaultMessage": "Zielländer"

@@ -47,6 +47,9 @@
   "+8hEYpTb4c": {
     "defaultMessage": "一位增长负责人在 Slack 中分享了一份发布简报，其中包含定位、受众细分和法律免责声明。Hyperlocalise 会为本地化构建活动结构，应用品牌术语表和语气规则，为每个地区生成适配草稿，将其流转至市场和法务审核，将已批准文案同步到 CMS 和广告平台，并标记任何与已批准源文案出现偏差的地区。"
   },
+  "+8igDOrn5C": {
+    "defaultMessage": "尚未连接 Intercom。"
+  },
   "+91wkWHR07": {
     "defaultMessage": "Remove {name}"
   },
@@ -55,6 +58,9 @@
   },
   "+BzVn5MdKT": {
     "defaultMessage": "Connect this Crowdin project in Hyperlocalise so conversations can stay project-scoped."
+  },
+  "+CvStp9tzG": {
+    "defaultMessage": "Intercom 连接已删除。"
   },
   "+EhuajKQYW": {
     "defaultMessage": "停留"
@@ -323,6 +329,9 @@
   "/cgIKQ7r8o": {
     "defaultMessage": "启用全部"
   },
+  "/d/gbp0E4g": {
+    "defaultMessage": "已隐藏"
+  },
   "/d8vf0Z+2x": {
     "defaultMessage": "仓库"
   },
@@ -541,6 +550,9 @@
   },
   "0bosLZsKFI": {
     "defaultMessage": "从 Slack 提及、私信和订阅的线程中协调本地化审核。"
+  },
+  "0czRTKBGYl": {
+    "defaultMessage": "删除"
   },
   "0eU/dl/Oha": {
     "defaultMessage": "Save"
@@ -1133,6 +1145,9 @@
   "3XNlGxtFuq": {
     "defaultMessage": "A few things need your attention"
   },
+  "3Z+3pA/kaR": {
+    "defaultMessage": "保存"
+  },
   "3Ze8wX3xRS": {
     "defaultMessage": "This source file is not linked to the task anymore."
   },
@@ -1204,6 +1219,9 @@
   },
   "3nHm7zuXbR": {
     "defaultMessage": "翻译 Contentful 文章"
+  },
+  "3poXpaPEFu": {
+    "defaultMessage": "输入 URL"
   },
   "3r10YA/kX+": {
     "defaultMessage": "配置版本：<version>{configVersion}</version>"
@@ -1507,6 +1525,9 @@
   },
   "5KdZWVlAAs": {
     "defaultMessage": "最后送达时间：{timestamp}"
+  },
+  "5Mjf4nqDKl": {
+    "defaultMessage": "{region} · 令牌末尾为 {suffix}"
   },
   "5N0h/1bean": {
     "defaultMessage": "Group by check type"
@@ -2774,6 +2795,9 @@
   "BVsezPmDFQ": {
     "defaultMessage": "输入提供商 API 令牌"
   },
+  "BWdxr7XQ2f": {
+    "defaultMessage": "上传图片"
+  },
   "BX0DlJwbY+": {
     "defaultMessage": "断开连接 {providerName}？"
   },
@@ -2936,6 +2960,9 @@
   "CFMr/AO+mA": {
     "defaultMessage": "Translate Task"
   },
+  "CGcIng445f": {
+    "defaultMessage": "https://"
+  },
   "CGit9CSACq": {
     "defaultMessage": "文件"
   },
@@ -3073,6 +3100,9 @@
   },
   "CrBQt1oY62": {
     "defaultMessage": "Hyperlocalise logo"
+  },
+  "Csa9NF0Qo2": {
+    "defaultMessage": "在 Intercom Developer Hub 中为您的工作区创建访问令牌。"
   },
   "CtXpaStJTy": {
     "defaultMessage": "Marketing site launch"
@@ -3290,6 +3320,9 @@
   "DqaqeEsPck": {
     "defaultMessage": "在您的客户发现之前，先发现翻译偏差"
   },
+  "Dsh7E+5ifE": {
+    "defaultMessage": "美国（api.intercom.io）"
+  },
   "DtRFjTA7Kk": {
     "defaultMessage": "{actor} 将问题分配给了 {assignee}"
   },
@@ -3316,6 +3349,9 @@
   },
   "E/rfTTHsFg": {
     "defaultMessage": "Has warnings"
+  },
+  "E0jx/ueMaN": {
+    "defaultMessage": "添加连接"
   },
   "E0kqf33f8D": {
     "defaultMessage": "Connect Contentful in <link>Integrations</link> to use this tool."
@@ -4319,6 +4355,9 @@
   "JPh5F8lV0A": {
     "defaultMessage": "GitHub"
   },
+  "JRTnSLtq//": {
+    "defaultMessage": "Intercom"
+  },
   "JRvO1zUFRY": {
     "defaultMessage": "正在读取 {detail}"
   },
@@ -4628,6 +4667,9 @@
   "LAx6QaaPwX": {
     "defaultMessage": "选择"
   },
+  "LBBqTZQKA3": {
+    "defaultMessage": "连接 Intercom 访问令牌以获取帮助中心内容。"
+  },
   "LC2bgUm6Db": {
     "defaultMessage": "Active"
   },
@@ -4918,6 +4960,9 @@
   },
   "ModLI3ew1I": {
     "defaultMessage": "No glossaries yet"
+  },
+  "Mojh5Scg1j": {
+    "defaultMessage": "选择您的 Intercom 工作区所在的区域。"
   },
   "MpshM2ubvT": {
     "defaultMessage": "手动"
@@ -5615,6 +5660,9 @@
   "QNkL8EdZgQ": {
     "defaultMessage": "Active"
   },
+  "QNpNdcu+Mx": {
+    "defaultMessage": "澳大利亚（api.au.intercom.io）"
+  },
   "QOKexdLasq": {
     "defaultMessage": "任意语言区域"
   },
@@ -5672,6 +5720,9 @@
   "QfmZdcP/TR": {
     "defaultMessage": "每个工作区成员都连接自己的 {providerName} 账户。打开这些页面时，项目、任务、词汇表和翻译记忆会从 {providerName} 实时加载。"
   },
+  "Qg9jUhHjfz": {
+    "defaultMessage": "已启用"
+  },
   "QgcgQchgyn": {
     "defaultMessage": "Placeholder"
   },
@@ -5719,6 +5770,9 @@
   },
   "Qn/UGdy2iq": {
     "defaultMessage": "Select"
+  },
+  "Qnl5usEJ9F": {
+    "defaultMessage": "插入"
   },
   "QoBU315wiz": {
     "defaultMessage": "Glossary violation"
@@ -5947,6 +6001,9 @@
   },
   "S/Jvw/IvO5": {
     "defaultMessage": "思维链"
+  },
+  "S0eNIe6iwe": {
+    "defaultMessage": "Intercom 连接已保存。"
   },
   "S2pzZyn+jp": {
     "defaultMessage": "撤销密钥"
@@ -6322,6 +6379,9 @@
   },
   "Ts8Uopd5oT": {
     "defaultMessage": "Position speed as release confidence, not shortcut automation."
+  },
+  "TtLubrrGZM": {
+    "defaultMessage": "正在上传图片…"
   },
   "TtcvnbdV7R": {
     "defaultMessage": "No Hyperlocalise work items found for your account."
@@ -7262,6 +7322,9 @@
   "YhwlgG0Ruv": {
     "defaultMessage": "My work"
   },
+  "YhyWgKMwTp": {
+    "defaultMessage": "插入图片"
+  },
   "Yi/8efQvnI": {
     "defaultMessage": "您的帐户已登录，但此工作区没有可供使用的有效组织上下文。"
   },
@@ -7445,6 +7508,9 @@
   "ZWFR3jXEW2": {
     "defaultMessage": "Review due"
   },
+  "ZZsyqRkYsB": {
+    "defaultMessage": "显示名称"
+  },
   "Zb2NG5FzSq": {
     "defaultMessage": "Add entry"
   },
@@ -7612,6 +7678,9 @@
   },
   "aEJ2kyKHZN": {
     "defaultMessage": "Back to automations"
+  },
+  "aEn/VDi+Yp": {
+    "defaultMessage": "请输入 Intercom 访问令牌。"
   },
   "aFBvwlBhSp": {
     "defaultMessage": "Collapse Sidebar"
@@ -8054,6 +8123,9 @@
   "crhiHIjb38": {
     "defaultMessage": "{count}/{limit} characters"
   },
+  "cx00LgHL3+": {
+    "defaultMessage": "REST 端点"
+  },
   "czQTkWnDNV": {
     "defaultMessage": "When a help article changes in Contentful, agents translate it across locales, run QA, and write drafts back for review — so support stays current in every market without a handoff."
   },
@@ -8330,6 +8402,9 @@
   "e9TsGisohb": {
     "defaultMessage": "Connect first"
   },
+  "e9lzOZ7/lz": {
+    "defaultMessage": "保存 Intercom 连接失败。"
+  },
   "eAIQ4Y8Q3i": {
     "defaultMessage": "All sources"
   },
@@ -8432,6 +8507,9 @@
   "ecG+jsddyC": {
     "defaultMessage": "Email support"
   },
+  "ed4/NRs4Oy": {
+    "defaultMessage": "图像"
+  },
   "edDxW76Fj5": {
     "defaultMessage": "{count} selected"
   },
@@ -8524,6 +8602,9 @@
   },
   "f2cTOkA6mx": {
     "defaultMessage": "Create a generic Issue Sheet row. Link it to CAT or another issue tracker when useful."
+  },
+  "f3IEqEzc4J": {
+    "defaultMessage": "图片大小必须不超过 10 MB。"
   },
   "f5viDmb9eZ": {
     "defaultMessage": "Unsaved changes"
@@ -8827,6 +8908,9 @@
   },
   "gYPVPf6Rwy": {
     "defaultMessage": "连接到 Zendesk、Intercom、Contentful 等更多服务"
+  },
+  "gbtHgYP/IG": {
+    "defaultMessage": "删除 Intercom 连接失败。"
   },
   "gcoMjtaFWO": {
     "defaultMessage": "ICU structure"
@@ -10028,6 +10112,9 @@
   "mBKFh3zYqD": {
     "defaultMessage": "资源"
   },
+  "mBNLdtt327": {
+    "defaultMessage": "取消"
+  },
   "mC64PC89AZ": {
     "defaultMessage": "Task type"
   },
@@ -10078,6 +10165,9 @@
   },
   "mMsPU5+otj": {
     "defaultMessage": "项目加载失败"
+  },
+  "mObQkKgd8s": {
+    "defaultMessage": "加载 Intercom 连接失败。"
   },
   "mPLVbw9Dvq": {
     "defaultMessage": "Cancel"
@@ -10313,6 +10403,9 @@
   "nTmsRemoveCreateJob": {
     "defaultMessage": "Remove Create job"
   },
+  "nU96BLMwJI": {
+    "defaultMessage": "输入图片 URL"
+  },
   "nULuPBbLbZ": {
     "defaultMessage": "Localise Pricing Messages"
   },
@@ -10540,6 +10633,9 @@
   },
   "opXLqo3spW": {
     "defaultMessage": "面向规模化质量构建"
+  },
+  "or2nJ8Fbp+": {
+    "defaultMessage": "欧洲（api.eu.intercom.io）"
   },
   "orN5K1E2Yc": {
     "defaultMessage": "当与<link>分支保护规则</link>结合使用时，阻止检查会使拉取请求失败。"
@@ -10816,6 +10912,9 @@
   },
   "q9M+h9o1YI": {
     "defaultMessage": "Hyperlocalise 如何处理账户、使用情况和与提供商相关的数据。"
+  },
+  "q9T9hQuPR7": {
+    "defaultMessage": "插入图片"
   },
   "q9qDjh4G/B": {
     "defaultMessage": "Changes committed"
@@ -11129,6 +11228,9 @@
   "rkQ7AmKMrt": {
     "defaultMessage": "Tell the automation what to do, what to inspect, and what to ignore."
   },
+  "roHaMHNwoS": {
+    "defaultMessage": "图片"
+  },
   "rponYzKMZ3": {
     "defaultMessage": "从翻译阻塞项创建问题，并保持发布任务同步。"
   },
@@ -11170,6 +11272,9 @@
   },
   "s1gl7VHrHd": {
     "defaultMessage": "Accept"
+  },
+  "s2RbfpSnxA": {
+    "defaultMessage": "图片上传失败"
   },
   "s2Vo5Fg6Dj": {
     "defaultMessage": "在草稿送达审核人员之前，应用术语表、语气指南和不可翻译规则。"
@@ -12110,6 +12215,9 @@
   "weWSzrQ1Qp": {
     "defaultMessage": "Manage terms and assign this glossary to projects."
   },
+  "wem2T5DJ9n": {
+    "defaultMessage": "仅支持 PNG、JPEG 和 WebP 图片。"
+  },
   "wewNVYT5+w": {
     "defaultMessage": "GitHub sync workflows"
   },
@@ -12190,6 +12298,9 @@
   },
   "x/9TtAEs9e": {
     "defaultMessage": "中文（中国香港特别行政区）"
+  },
+  "x/Kqcar7eA": {
+    "defaultMessage": "访问令牌"
   },
   "x15Qhc61Zn": {
     "defaultMessage": "Features"
@@ -12754,6 +12865,9 @@
   },
   "zdN3ToHnj1": {
     "defaultMessage": "Unable to load glossary"
+  },
+  "ze9bxcwl8T": {
+    "defaultMessage": "取消"
   },
   "zedkthWR8N": {
     "defaultMessage": "Target locales"

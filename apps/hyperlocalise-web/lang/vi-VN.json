@@ -47,6 +47,9 @@
   "+8hEYpTb4c": {
     "defaultMessage": "Một trưởng nhóm tăng trưởng chia sẻ bản tóm tắt ra mắt trên Slack với định vị, các phân khúc đối tượng và các tuyên bố miễn trừ trách nhiệm pháp lý. Hyperlocalise cấu trúc chiến dịch cho bản địa hóa, áp dụng bảng chú giải thương hiệu và các quy tắc giọng điệu, tạo các bản nháp đã điều chỉnh cho từng ngôn ngữ địa phương, chuyển chúng qua quy trình xem xét của bộ phận marketing và pháp lý, đồng bộ nội dung đã được phê duyệt lên CMS và các nền tảng quảng cáo, đồng thời đánh dấu bất kỳ ngôn ngữ địa phương nào mà thông điệp đã lệch khỏi nguồn đã được phê duyệt."
   },
+  "+8igDOrn5C": {
+    "defaultMessage": "Chưa có kết nối Intercom nào."
+  },
   "+91wkWHR07": {
     "defaultMessage": "Remove {name}"
   },
@@ -55,6 +58,9 @@
   },
   "+BzVn5MdKT": {
     "defaultMessage": "Connect this Crowdin project in Hyperlocalise so conversations can stay project-scoped."
+  },
+  "+CvStp9tzG": {
+    "defaultMessage": "Đã xóa kết nối Intercom."
   },
   "+EhuajKQYW": {
     "defaultMessage": "Ở lại"
@@ -323,6 +329,9 @@
   "/cgIKQ7r8o": {
     "defaultMessage": "Bật tất cả"
   },
+  "/d/gbp0E4g": {
+    "defaultMessage": "Đã ẩn"
+  },
   "/d8vf0Z+2x": {
     "defaultMessage": "Kho lưu trữ"
   },
@@ -541,6 +550,9 @@
   },
   "0bosLZsKFI": {
     "defaultMessage": "Điều phối các lượt rà soát bản địa hóa từ các đề cập, tin nhắn trực tiếp và các chuỗi đã đăng ký trên Slack."
+  },
+  "0czRTKBGYl": {
+    "defaultMessage": "Xóa"
   },
   "0eU/dl/Oha": {
     "defaultMessage": "Save"
@@ -1133,6 +1145,9 @@
   "3XNlGxtFuq": {
     "defaultMessage": "A few things need your attention"
   },
+  "3Z+3pA/kaR": {
+    "defaultMessage": "Lưu"
+  },
   "3Ze8wX3xRS": {
     "defaultMessage": "This source file is not linked to the task anymore."
   },
@@ -1204,6 +1219,9 @@
   },
   "3nHm7zuXbR": {
     "defaultMessage": "Dịch bài viết Contentful"
+  },
+  "3poXpaPEFu": {
+    "defaultMessage": "Nhập URL"
   },
   "3r10YA/kX+": {
     "defaultMessage": "Phiên bản cấu hình: <version>{configVersion}</version>"
@@ -1507,6 +1525,9 @@
   },
   "5KdZWVlAAs": {
     "defaultMessage": "Lần gửi cuối: {timestamp}"
+  },
+  "5Mjf4nqDKl": {
+    "defaultMessage": "{region} · token kết thúc bằng {suffix}"
   },
   "5N0h/1bean": {
     "defaultMessage": "Group by check type"
@@ -2774,6 +2795,9 @@
   "BVsezPmDFQ": {
     "defaultMessage": "Nhập token API của nhà cung cấp"
   },
+  "BWdxr7XQ2f": {
+    "defaultMessage": "Tải ảnh lên"
+  },
   "BX0DlJwbY+": {
     "defaultMessage": "Ngắt kết nối {providerName}?"
   },
@@ -2936,6 +2960,9 @@
   "CFMr/AO+mA": {
     "defaultMessage": "Translate Task"
   },
+  "CGcIng445f": {
+    "defaultMessage": "https://"
+  },
   "CGit9CSACq": {
     "defaultMessage": "Tệp"
   },
@@ -3073,6 +3100,9 @@
   },
   "CrBQt1oY62": {
     "defaultMessage": "Hyperlocalise logo"
+  },
+  "Csa9NF0Qo2": {
+    "defaultMessage": "Tạo mã thông báo truy cập trong Intercom Developer Hub cho không gian làm việc của bạn."
   },
   "CtXpaStJTy": {
     "defaultMessage": "Marketing site launch"
@@ -3290,6 +3320,9 @@
   "DqaqeEsPck": {
     "defaultMessage": "Phát hiện sự sai lệch bản dịch trước khi khách hàng của bạn nhận ra"
   },
+  "Dsh7E+5ifE": {
+    "defaultMessage": "US (api.intercom.io)"
+  },
   "DtRFjTA7Kk": {
     "defaultMessage": "{actor} đã giao vấn đề cho {assignee}"
   },
@@ -3316,6 +3349,9 @@
   },
   "E/rfTTHsFg": {
     "defaultMessage": "Has warnings"
+  },
+  "E0jx/ueMaN": {
+    "defaultMessage": "Thêm kết nối"
   },
   "E0kqf33f8D": {
     "defaultMessage": "Connect Contentful in <link>Integrations</link> to use this tool."
@@ -4319,6 +4355,9 @@
   "JPh5F8lV0A": {
     "defaultMessage": "GitHub"
   },
+  "JRTnSLtq//": {
+    "defaultMessage": "Intercom"
+  },
   "JRvO1zUFRY": {
     "defaultMessage": "Đang đọc {detail}"
   },
@@ -4628,6 +4667,9 @@
   "LAx6QaaPwX": {
     "defaultMessage": "Chọn"
   },
+  "LBBqTZQKA3": {
+    "defaultMessage": "Kết nối mã thông báo truy cập Intercom để sử dụng nội dung Trung tâm trợ giúp."
+  },
   "LC2bgUm6Db": {
     "defaultMessage": "Active"
   },
@@ -4918,6 +4960,9 @@
   },
   "ModLI3ew1I": {
     "defaultMessage": "No glossaries yet"
+  },
+  "Mojh5Scg1j": {
+    "defaultMessage": "Chọn khu vực nơi không gian làm việc Intercom của bạn được lưu trữ."
   },
   "MpshM2ubvT": {
     "defaultMessage": "Manual"
@@ -5615,6 +5660,9 @@
   "QNkL8EdZgQ": {
     "defaultMessage": "Active"
   },
+  "QNpNdcu+Mx": {
+    "defaultMessage": "Úc (api.au.intercom.io)"
+  },
   "QOKexdLasq": {
     "defaultMessage": "Bất kỳ ngôn ngữ nào"
   },
@@ -5672,6 +5720,9 @@
   "QfmZdcP/TR": {
     "defaultMessage": "Mỗi thành viên trong không gian làm việc kết nối tài khoản {providerName} của riêng họ. Các dự án, công việc, bảng thuật ngữ và bộ nhớ dịch sẽ được tải trực tiếp từ {providerName} khi bạn mở các trang đó."
   },
+  "Qg9jUhHjfz": {
+    "defaultMessage": "Đã bật"
+  },
   "QgcgQchgyn": {
     "defaultMessage": "Placeholder"
   },
@@ -5719,6 +5770,9 @@
   },
   "Qn/UGdy2iq": {
     "defaultMessage": "Select"
+  },
+  "Qnl5usEJ9F": {
+    "defaultMessage": "Chèn"
   },
   "QoBU315wiz": {
     "defaultMessage": "Glossary violation"
@@ -5947,6 +6001,9 @@
   },
   "S/Jvw/IvO5": {
     "defaultMessage": "Chuỗi suy nghĩ"
+  },
+  "S0eNIe6iwe": {
+    "defaultMessage": "Đã lưu kết nối Intercom."
   },
   "S2pzZyn+jp": {
     "defaultMessage": "Thu hồi khóa"
@@ -6322,6 +6379,9 @@
   },
   "Ts8Uopd5oT": {
     "defaultMessage": "Position speed as release confidence, not shortcut automation."
+  },
+  "TtLubrrGZM": {
+    "defaultMessage": "Đang tải hình ảnh lên…"
   },
   "TtcvnbdV7R": {
     "defaultMessage": "No Hyperlocalise work items found for your account."
@@ -7262,6 +7322,9 @@
   "YhwlgG0Ruv": {
     "defaultMessage": "My work"
   },
+  "YhyWgKMwTp": {
+    "defaultMessage": "Chèn hình ảnh"
+  },
   "Yi/8efQvnI": {
     "defaultMessage": "Tài khoản của bạn đã đăng nhập, nhưng không gian làm việc này không có ngữ cảnh tổ chức đang hoạt động mà bạn có thể sử dụng."
   },
@@ -7445,6 +7508,9 @@
   "ZWFR3jXEW2": {
     "defaultMessage": "Review due"
   },
+  "ZZsyqRkYsB": {
+    "defaultMessage": "Tên hiển thị"
+  },
   "Zb2NG5FzSq": {
     "defaultMessage": "Add entry"
   },
@@ -7612,6 +7678,9 @@
   },
   "aEJ2kyKHZN": {
     "defaultMessage": "Back to automations"
+  },
+  "aEn/VDi+Yp": {
+    "defaultMessage": "Nhập mã thông báo truy cập Intercom."
   },
   "aFBvwlBhSp": {
     "defaultMessage": "Collapse Sidebar"
@@ -8054,6 +8123,9 @@
   "crhiHIjb38": {
     "defaultMessage": "{count}/{limit} characters"
   },
+  "cx00LgHL3+": {
+    "defaultMessage": "Điểm cuối REST"
+  },
   "czQTkWnDNV": {
     "defaultMessage": "When a help article changes in Contentful, agents translate it across locales, run QA, and write drafts back for review — so support stays current in every market without a handoff."
   },
@@ -8330,6 +8402,9 @@
   "e9TsGisohb": {
     "defaultMessage": "Connect first"
   },
+  "e9lzOZ7/lz": {
+    "defaultMessage": "Không thể lưu kết nối Intercom."
+  },
   "eAIQ4Y8Q3i": {
     "defaultMessage": "All sources"
   },
@@ -8432,6 +8507,9 @@
   "ecG+jsddyC": {
     "defaultMessage": "Email support"
   },
+  "ed4/NRs4Oy": {
+    "defaultMessage": "Ảnh"
+  },
   "edDxW76Fj5": {
     "defaultMessage": "{count} selected"
   },
@@ -8524,6 +8602,9 @@
   },
   "f2cTOkA6mx": {
     "defaultMessage": "Create a generic Issue Sheet row. Link it to CAT or another issue tracker when useful."
+  },
+  "f3IEqEzc4J": {
+    "defaultMessage": "Hình ảnh phải có kích thước từ 10 MB trở xuống."
   },
   "f5viDmb9eZ": {
     "defaultMessage": "Unsaved changes"
@@ -8827,6 +8908,9 @@
   },
   "gYPVPf6Rwy": {
     "defaultMessage": "Kết nối với Zendesk, Intercom, Contentful và nhiều hơn nữa"
+  },
+  "gbtHgYP/IG": {
+    "defaultMessage": "Không thể xóa kết nối Intercom."
   },
   "gcoMjtaFWO": {
     "defaultMessage": "ICU structure"
@@ -10028,6 +10112,9 @@
   "mBKFh3zYqD": {
     "defaultMessage": "Tài nguyên"
   },
+  "mBNLdtt327": {
+    "defaultMessage": "Hủy"
+  },
   "mC64PC89AZ": {
     "defaultMessage": "Task type"
   },
@@ -10078,6 +10165,9 @@
   },
   "mMsPU5+otj": {
     "defaultMessage": "Không thể tải dự án"
+  },
+  "mObQkKgd8s": {
+    "defaultMessage": "Không thể tải các kết nối Intercom."
   },
   "mPLVbw9Dvq": {
     "defaultMessage": "Cancel"
@@ -10313,6 +10403,9 @@
   "nTmsRemoveCreateJob": {
     "defaultMessage": "Remove Create job"
   },
+  "nU96BLMwJI": {
+    "defaultMessage": "Nhập URL hình ảnh"
+  },
   "nULuPBbLbZ": {
     "defaultMessage": "Localise Pricing Messages"
   },
@@ -10540,6 +10633,9 @@
   },
   "opXLqo3spW": {
     "defaultMessage": "Được xây dựng cho chất lượng ở quy mô lớn"
+  },
+  "or2nJ8Fbp+": {
+    "defaultMessage": "Châu Âu (api.eu.intercom.io)"
   },
   "orN5K1E2Yc": {
     "defaultMessage": "Các kiểm tra chặn có thể làm cho pull request thất bại khi kết hợp với <link>branch protection rules</link>."
@@ -10816,6 +10912,9 @@
   },
   "q9M+h9o1YI": {
     "defaultMessage": "Hyperlocalise xử lý dữ liệu về tài khoản, việc sử dụng và liên quan đến nhà cung cấp như thế nào."
+  },
+  "q9T9hQuPR7": {
+    "defaultMessage": "Chèn hình ảnh"
   },
   "q9qDjh4G/B": {
     "defaultMessage": "Changes committed"
@@ -11129,6 +11228,9 @@
   "rkQ7AmKMrt": {
     "defaultMessage": "Tell the automation what to do, what to inspect, and what to ignore."
   },
+  "roHaMHNwoS": {
+    "defaultMessage": "Hình ảnh"
+  },
   "rponYzKMZ3": {
     "defaultMessage": "Tạo issue từ các chặn dịch thuật và giữ các tác vụ ra mắt luôn đồng bộ."
   },
@@ -11170,6 +11272,9 @@
   },
   "s1gl7VHrHd": {
     "defaultMessage": "Accept"
+  },
+  "s2RbfpSnxA": {
+    "defaultMessage": "Không thể tải hình ảnh lên"
   },
   "s2Vo5Fg6Dj": {
     "defaultMessage": "Áp dụng bảng thuật ngữ, hướng dẫn giọng điệu và các quy tắc không dịch trước khi bản nháp đến tay người duyệt."
@@ -12110,6 +12215,9 @@
   "weWSzrQ1Qp": {
     "defaultMessage": "Manage terms and assign this glossary to projects."
   },
+  "wem2T5DJ9n": {
+    "defaultMessage": "Chỉ hỗ trợ hình ảnh PNG, JPEG và WebP."
+  },
   "wewNVYT5+w": {
     "defaultMessage": "GitHub sync workflows"
   },
@@ -12190,6 +12298,9 @@
   },
   "x/9TtAEs9e": {
     "defaultMessage": "Tiếng Trung (Đặc khu hành chính Hồng Kông, Trung Quốc)"
+  },
+  "x/Kqcar7eA": {
+    "defaultMessage": "Mã thông báo truy cập"
   },
   "x15Qhc61Zn": {
     "defaultMessage": "Features"
@@ -12754,6 +12865,9 @@
   },
   "zdN3ToHnj1": {
     "defaultMessage": "Unable to load glossary"
+  },
+  "ze9bxcwl8T": {
+    "defaultMessage": "HủyTHOOK"
   },
   "zedkthWR8N": {
     "defaultMessage": "Target locales"
