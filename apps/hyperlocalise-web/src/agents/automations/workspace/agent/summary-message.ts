@@ -26,20 +26,49 @@ function asStringArray(value: unknown): string[] {
   );
 }
 
+/**
+ * `notify_slack` / `notify_email` run inside the tool loop, before
+ * `deriveTerminalStatus` persists the final run status. Prefer explicit
+ * terminal signals; treat still-queued/running as completed for the summary.
+ */
+export function resolveNotificationOutcome(
+  session: Pick<WorkspaceOrchestratorSession, "terminalStatus" | "terminalError" | "run">,
+): "completed" | "failed" | "skipped" | "cancelled" {
+  if (session.terminalError || session.run.error) {
+    return "failed";
+  }
+
+  const status = session.terminalStatus ?? session.run.status;
+  if (status === "failed") {
+    return "failed";
+  }
+  if (status === "skipped") {
+    return "skipped";
+  }
+  if (status === "cancelled") {
+    return "cancelled";
+  }
+
+  return "completed";
+}
+
+function formatStatusLabel(outcome: ReturnType<typeof resolveNotificationOutcome>): string {
+  const labels: Record<ReturnType<typeof resolveNotificationOutcome>, string> = {
+    completed: "SUCCEEDED",
+    failed: "FAILED",
+    skipped: "SKIPPED",
+    cancelled: "CANCELLED",
+  };
+  return labels[outcome];
+}
+
 function buildNativeTmsSummary(session: WorkspaceOrchestratorSession): string | null {
   const createdJob = session.stepResults.create_native_tms_job;
   if (!createdJob) {
     return null;
   }
 
-  const statusLabel = (session.terminalStatus ?? session.run.status).toLowerCase();
-  const outcome =
-    session.terminalError || session.run.error
-      ? "failed"
-      : statusLabel === "succeeded" || statusLabel === "completed"
-        ? "completed"
-        : statusLabel;
-
+  const outcome = resolveNotificationOutcome(session);
   const lines = [`**${session.automation.name}** ${outcome}`, ""];
 
   const jobId = asString(createdJob.jobId);
@@ -90,7 +119,8 @@ export function buildOrchestratorRunSummaryMessage(session: WorkspaceOrchestrato
     return nativeTmsSummary;
   }
 
-  const statusLabel = (session.terminalStatus ?? session.run.status).toUpperCase();
+  const outcome = resolveNotificationOutcome(session);
+  const statusLabel = formatStatusLabel(outcome);
   const lines = [
     `**${session.automation.name}** finished`,
     "",

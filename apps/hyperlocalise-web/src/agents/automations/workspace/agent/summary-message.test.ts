@@ -13,7 +13,7 @@
 import { describe, expect, it } from "vite-plus/test";
 
 import type { WorkspaceOrchestratorSession } from "./context";
-import { buildOrchestratorRunSummaryMessage } from "./summary-message";
+import { buildOrchestratorRunSummaryMessage, resolveNotificationOutcome } from "./summary-message";
 
 function createSession(
   overrides: Partial<WorkspaceOrchestratorSession> = {},
@@ -62,10 +62,43 @@ function createSession(
   };
 }
 
+describe("resolveNotificationOutcome", () => {
+  it("treats in-loop running status without terminalStatus as completed", () => {
+    const session = createSession({
+      terminalStatus: null,
+      run: {
+        ...createSession().run,
+        status: "running",
+        error: null,
+      },
+    });
+
+    expect(resolveNotificationOutcome(session)).toBe("completed");
+  });
+
+  it("returns failed when a terminal error is present", () => {
+    const session = createSession({
+      terminalStatus: null,
+      terminalError: "native_tms_job_missing",
+      run: {
+        ...createSession().run,
+        status: "running",
+      },
+    });
+
+    expect(resolveNotificationOutcome(session)).toBe("failed");
+  });
+});
+
 describe("buildOrchestratorRunSummaryMessage", () => {
-  it("formats native TMS runs as scannable markdown", () => {
+  it("formats native TMS runs as scannable markdown while the run is still running", () => {
     const message = buildOrchestratorRunSummaryMessage(
       createSession({
+        terminalStatus: null,
+        run: {
+          ...createSession().run,
+          status: "running",
+        },
         stepResults: {
           create_native_tms_job: {
             jobId: "job_a8e92d25-932f-49f8-b9e3-7143822fcc6e",
