@@ -12,7 +12,8 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
+import { useTheme } from "next-themes";
 import createGlobe from "cobe";
 
 const MARKERS = [
@@ -33,19 +34,12 @@ const MARKERS = [
 
 export function Globe({ className }: { className?: string }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [isDark, setIsDark] = useState(false);
+  const { resolvedTheme } = useTheme();
+  const isDark = resolvedTheme === "dark";
 
   const pointerInteracting = useRef<number | null>(null);
   const pointerInteractionMovement = useRef(0);
   const phiRef = useRef(0);
-
-  useEffect(() => {
-    const mq = window.matchMedia("(prefers-color-scheme: dark)");
-    setIsDark(mq.matches);
-    const handler = (e: MediaQueryListEvent) => setIsDark(e.matches);
-    mq.addEventListener("change", handler);
-    return () => mq.removeEventListener("change", handler);
-  }, []);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -129,9 +123,6 @@ export function Globe({ className }: { className?: string }) {
     canvas.addEventListener("pointerup", onPointerUp);
     canvas.addEventListener("pointerout", onPointerUp);
     canvas.addEventListener("pointermove", onPointerMove);
-    canvas.addEventListener("touchstart", onTouchStart);
-    canvas.addEventListener("touchend", onTouchEnd);
-    canvas.addEventListener("touchmove", onTouchMove);
 
     return () => {
       cancelAnimationFrame(animationFrame);
@@ -140,9 +131,6 @@ export function Globe({ className }: { className?: string }) {
       canvas.removeEventListener("pointerup", onPointerUp);
       canvas.removeEventListener("pointerout", onPointerUp);
       canvas.removeEventListener("pointermove", onPointerMove);
-      canvas.removeEventListener("touchstart", onTouchStart);
-      canvas.removeEventListener("touchend", onTouchEnd);
-      canvas.removeEventListener("touchmove", onTouchMove);
     };
   }, [isDark]);
 

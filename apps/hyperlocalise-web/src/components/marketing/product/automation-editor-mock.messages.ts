@@ -1,3 +1,4 @@
+"use client";
 /*
  * Copyright (c) 2026 Hyperlocalise Pty Ltd
  *

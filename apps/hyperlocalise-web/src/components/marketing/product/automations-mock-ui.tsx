@@ -13,7 +13,7 @@
  * Version 2.0 or later.
  */
 import { useEffect, useState } from "react";
-import { AnimatePresence, motion } from "motion/react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { ClockIcon, GitBranchIcon, SparklesIcon, UploadIcon } from "lucide-react";
 import { FormattedMessage, useIntl } from "react-intl";
 
@@ -210,6 +210,7 @@ function UseCaseSelector({
 
 export function AutomationsMockUI() {
   const intl = useIntl();
+  const shouldReduceMotion = useReducedMotion();
 
   const useCases: UseCase[] = [
     {
@@ -296,7 +297,7 @@ export function AutomationsMockUI() {
   });
 
   useEffect(() => {
-    if (isPaused) return;
+    if (isPaused || shouldReduceMotion) return;
 
     const totalSteps = activeUseCase.steps.length;
 
@@ -311,7 +312,7 @@ export function AutomationsMockUI() {
     }, SCENE_HOLD_MS);
 
     return () => clearTimeout(t);
-  }, [visibleStepCount, activeIndex, isPaused, activeUseCase.steps.length, useCases.length]);
+  }, [visibleStepCount, activeIndex, isPaused, activeUseCase.steps.length, useCases.length, shouldReduceMotion]);
 
   function handleSelect(id: string) {
     const idx = useCases.findIndex((uc) => uc.id === id);
