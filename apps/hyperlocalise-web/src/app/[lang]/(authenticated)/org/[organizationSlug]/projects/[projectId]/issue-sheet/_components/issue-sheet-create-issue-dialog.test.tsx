@@ -13,7 +13,7 @@
 // @vitest-environment happy-dom
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { IntlProvider } from "react-intl";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
@@ -265,6 +265,43 @@ describe("IssueSheetCreateIssueDialog", () => {
       title: "Broken CTA",
       status: "open",
       priority: "P2",
+    });
+    expect(body).not.toHaveProperty("values");
+  });
+
+  it("includes trimmed custom column values in the create payload", async () => {
+    const user = userEvent.setup();
+    const onCreated = vi.fn(async () => undefined);
+    const fetchMock = mockFetch();
+    vi.stubGlobal("fetch", fetchMock);
+
+    renderDialog({ onCreated });
+
+    await user.type(screen.getByLabelText("Title"), "Sprint board issue");
+    await openMoreProperties(user);
+    await openSubmenuItem(user, "Set Sprint");
+    // Nested Base UI menus inherit pointer-events:none until fully open; fireEvent
+    // exercises the radio onValueChange path without the pointer-events gate.
+    fireEvent.click(await screen.findByRole("menuitemradio", { name: "Sprint 25" }));
+    await openSubmenuItem(user, "Set Component");
+    const componentInput = await screen.findByLabelText("Component");
+    fireEvent.change(componentInput, { target: { value: "  checkout  " } });
+    await user.click(screen.getByRole("button", { name: "Create issue" }));
+
+    await waitFor(() => expect(onCreated).toHaveBeenCalled());
+
+    const createCall = fetchMock.mock.calls.find(
+      ([, init]) => init && typeof init === "object" && init.method === "POST",
+    );
+    expect(createCall).toBeTruthy();
+    const requestBody = createCall?.[1]?.body;
+    expect(typeof requestBody).toBe("string");
+    const body = JSON.parse(requestBody as string) as {
+      values?: Record<string, string>;
+    };
+    expect(body.values).toEqual({
+      sprint: "S25",
+      component: "checkout",
     });
   });
 
