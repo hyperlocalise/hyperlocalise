@@ -38,6 +38,7 @@ export type IssueSheetColumnFixture = {
   config: { options?: { id: string; label: string; color?: string }[] };
   sortOrder: number;
   hidden: boolean;
+  icon: string | null;
 };
 
 export type IssueSheetIssueFixture = {
@@ -118,6 +119,7 @@ export const issueSheetColumnsFixture: IssueSheetColumnFixture[] = [
     },
     sortOrder: 0,
     hidden: false,
+    icon: null,
   },
   {
     id: "col_owner_note",
@@ -128,6 +130,7 @@ export const issueSheetColumnsFixture: IssueSheetColumnFixture[] = [
     config: {},
     sortOrder: 1,
     hidden: false,
+    icon: null,
   },
   {
     id: "col_context",
@@ -138,6 +141,7 @@ export const issueSheetColumnsFixture: IssueSheetColumnFixture[] = [
     config: {},
     sortOrder: 30,
     hidden: false,
+    icon: null,
   },
   {
     id: "col_acceptance",
@@ -148,6 +152,7 @@ export const issueSheetColumnsFixture: IssueSheetColumnFixture[] = [
     config: {},
     sortOrder: 35,
     hidden: false,
+    icon: "checklist",
   },
   {
     id: "col_sprint",
@@ -163,6 +168,7 @@ export const issueSheetColumnsFixture: IssueSheetColumnFixture[] = [
     },
     sortOrder: 40,
     hidden: false,
+    icon: "calendar",
   },
   {
     id: "col_component",
@@ -173,6 +179,7 @@ export const issueSheetColumnsFixture: IssueSheetColumnFixture[] = [
     config: {},
     sortOrder: 50,
     hidden: false,
+    icon: "code",
   },
   {
     id: "col_reviewer",
@@ -183,6 +190,7 @@ export const issueSheetColumnsFixture: IssueSheetColumnFixture[] = [
     config: {},
     sortOrder: 60,
     hidden: false,
+    icon: "user",
   },
 ];
 

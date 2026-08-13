@@ -33,6 +33,7 @@ function column(overrides: Partial<IssueSheetColumn> = {}): IssueSheetColumn {
     config: { options: [{ id: "s24", label: "Sprint 24" }] },
     sortOrder: 30,
     hidden: false,
+    icon: null,
     ...overrides,
   };
 }

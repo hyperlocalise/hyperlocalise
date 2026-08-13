@@ -154,6 +154,7 @@ export const issueSheetMswHandlers = [
       key: string;
       label: string;
       type: string;
+      icon?: string | null;
       config?: { options?: { id: string; label: string }[] };
     };
     return HttpResponse.json(
@@ -167,6 +168,7 @@ export const issueSheetMswHandlers = [
           config: body.config ?? {},
           sortOrder: issueSheetResponseFixture.columns.length,
           hidden: false,
+          icon: body.icon ?? null,
         },
       },
       { status: 201 },
@@ -180,6 +182,7 @@ export const issueSheetMswHandlers = [
     const body = (await request.json()) as {
       label?: string;
       hidden?: boolean;
+      icon?: string | null;
       config?: { options?: { id: string; label: string }[] };
     };
     if (body.label !== undefined) {
@@ -187,6 +190,9 @@ export const issueSheetMswHandlers = [
     }
     if (body.hidden !== undefined) {
       column.hidden = body.hidden;
+    }
+    if (body.icon !== undefined) {
+      column.icon = body.icon;
     }
     if (body.config !== undefined) {
       column.config = body.config;

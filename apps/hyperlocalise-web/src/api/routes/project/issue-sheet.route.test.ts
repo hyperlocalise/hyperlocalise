@@ -400,6 +400,97 @@ describe("Issue Sheet routes", () => {
     ]);
   });
 
+  it("persists, updates, and clears a custom column icon", async () => {
+    const { identity, project } = await projectFixture.createStoredProjectFixture();
+    const headers = await projectFixture.authHeadersFor(identity);
+    const organizationSlug = identity.organization.slug ?? "missing-slug";
+
+    const createColumnResponse = await issueSheet().columns.$post(
+      {
+        param: { organizationSlug, projectId: project.id },
+        json: {
+          key: "sprint",
+          label: "Sprint",
+          type: "text",
+          icon: "calendar",
+        },
+      } as never,
+      { headers },
+    );
+    expect(createColumnResponse.status).toBe(201);
+    const createdColumn = (await createColumnResponse.json()) as {
+      column: { id: string; icon: string | null };
+    };
+    expect(createdColumn.column.icon).toBe("calendar");
+
+    const patchResponse = await issueSheet().columns[":columnId"].$patch(
+      {
+        param: {
+          organizationSlug,
+          projectId: project.id,
+          columnId: createdColumn.column.id,
+        },
+        json: { icon: "bug" },
+      } as never,
+      { headers },
+    );
+    expect(patchResponse.status).toBe(200);
+    const patchedBody = (await patchResponse.json()) as { column: { icon: string | null } };
+    expect(patchedBody.column.icon).toBe("bug");
+
+    const clearResponse = await issueSheet().columns[":columnId"].$patch(
+      {
+        param: {
+          organizationSlug,
+          projectId: project.id,
+          columnId: createdColumn.column.id,
+        },
+        json: { icon: null },
+      } as never,
+      { headers },
+    );
+    expect(clearResponse.status).toBe(200);
+    const clearedBody = (await clearResponse.json()) as { column: { icon: string | null } };
+    expect(clearedBody.column.icon).toBeNull();
+
+    const columnsResponse = await issueSheet().columns.$get(
+      { param: { organizationSlug, projectId: project.id } } as never,
+      { headers },
+    );
+    expect(columnsResponse.status).toBe(200);
+    const columnsBody = (await columnsResponse.json()) as {
+      columns: Array<{ id: string; key: string }>;
+    };
+    const protectedColumn = columnsBody.columns.find((column) => column.key === "priority");
+    expect(protectedColumn).toBeTruthy();
+    const protectedIconResponse = await issueSheet().columns[":columnId"].$patch(
+      {
+        param: {
+          organizationSlug,
+          projectId: project.id,
+          columnId: protectedColumn!.id,
+        },
+        json: { icon: "flag" },
+      } as never,
+      { headers },
+    );
+    expect(protectedIconResponse.status).toBe(400);
+
+    const unknownIconResponse = await issueSheet().columns.$post(
+      {
+        param: { organizationSlug, projectId: project.id },
+        json: {
+          key: "invalid_icon",
+          label: "Invalid",
+          type: "text",
+          icon: "not-an-icon",
+        },
+      } as never,
+      { headers },
+    );
+    expect(unknownIconResponse.status).toBe(400);
+  });
+
   it("returns custom column values on GET issue", async () => {
     const { identity, project } = await projectFixture.createStoredProjectFixture();
     const headers = await projectFixture.authHeadersFor(identity);

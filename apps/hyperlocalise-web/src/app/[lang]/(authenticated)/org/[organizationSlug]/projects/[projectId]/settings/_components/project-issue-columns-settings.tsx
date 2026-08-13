@@ -44,7 +44,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Field, FieldLabel } from "@/components/ui/field";
+import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -54,6 +54,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
+import { IssueColumnIcon } from "@/components/issue-column-icon/issue-column-icon";
+import { IssueColumnIconPicker } from "@/components/issue-column-icon/issue-column-icon-picker";
 import { TypographyP } from "@/components/ui/typography";
 import { readApiResponseError } from "@/lib/api-error";
 import {
@@ -131,6 +133,7 @@ export function ProjectIssueColumnsSettings({
   const queryClient = useQueryClient();
   const columnsQuery = useIssueSheetColumnsQuery({ organizationSlug, projectId });
   const [createOpen, setCreateOpen] = useState(false);
+  const [createIcon, setCreateIcon] = useState<string | null>(null);
   const [renameColumn, setRenameColumn] = useState<IssueSheetColumn | null>(null);
   const [optionsColumn, setOptionsColumn] = useState<IssueSheetColumn | null>(null);
   const [deleteColumn, setDeleteColumn] = useState<IssueSheetColumn | null>(null);
@@ -160,6 +163,7 @@ export function ProjectIssueColumnsSettings({
       body: {
         label?: string;
         hidden?: boolean;
+        icon?: string | null;
         config?: { options?: { id: string; label: string }[] };
       };
     }) => {
@@ -246,6 +250,7 @@ export function ProjectIssueColumnsSettings({
           key: formString(formData, "key").trim(),
           label: formString(formData, "label").trim(),
           type,
+          icon: createIcon,
           config: type === "select" ? { options: parseOptionsCsv(rawOptions) } : {},
         }),
       });
@@ -258,6 +263,7 @@ export function ProjectIssueColumnsSettings({
       await invalidateColumns();
       toast.success(intl.formatMessage(messages.toastCreated));
       setCreateOpen(false);
+      setCreateIcon(null);
     },
     onError: (error) => {
       toast.error(error instanceof Error ? error.message : intl.formatMessage(messages.toastError));
@@ -297,6 +303,20 @@ export function ProjectIssueColumnsSettings({
       >
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
+            {deletable ? (
+              <IssueColumnIconPicker
+                value={column.icon}
+                disabled={isBusy}
+                onChange={(icon) =>
+                  patchColumn.mutate({
+                    columnId: column.id,
+                    body: { icon },
+                  })
+                }
+              />
+            ) : (
+              <IssueColumnIcon iconId={column.icon} className="text-muted-foreground" />
+            )}
             <TypographyP className="truncate text-sm font-medium text-foreground">
               {column.label}
             </TypographyP>
@@ -465,7 +485,15 @@ export function ProjectIssueColumnsSettings({
         </div>
       ) : null}
 
-      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+      <Dialog
+        open={createOpen}
+        onOpenChange={(open) => {
+          setCreateOpen(open);
+          if (!open) {
+            setCreateIcon(null);
+          }
+        }}
+      >
         <DialogContent>
           <form
             className="space-y-4"
@@ -482,12 +510,20 @@ export function ProjectIssueColumnsSettings({
                 <FormattedMessage {...messages.description} />
               </DialogDescription>
             </DialogHeader>
-            <Field className="gap-1.5">
-              <FieldLabel htmlFor="issue-column-label">
-                <FormattedMessage {...messages.labelField} />
-              </FieldLabel>
-              <Input id="issue-column-label" name="label" required />
-            </Field>
+            <FieldGroup className="flex-row items-start gap-3">
+              <div className="flex shrink-0 flex-col items-start gap-1.5">
+                <FieldLabel>
+                  <FormattedMessage {...messages.iconField} />
+                </FieldLabel>
+                <IssueColumnIconPicker value={createIcon} onChange={setCreateIcon} />
+              </div>
+              <Field className="min-w-0 flex-1 gap-1.5">
+                <FieldLabel htmlFor="issue-column-label">
+                  <FormattedMessage {...messages.labelField} />
+                </FieldLabel>
+                <Input id="issue-column-label" name="label" required />
+              </Field>
+            </FieldGroup>
             <Field className="gap-1.5">
               <FieldLabel htmlFor="issue-column-key">
                 <FormattedMessage {...messages.keyField} />

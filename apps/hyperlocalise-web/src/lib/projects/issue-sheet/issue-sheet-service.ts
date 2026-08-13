@@ -177,6 +177,7 @@ export type IssueSheetColumn = {
   config: Record<string, unknown>;
   sortOrder: number;
   hidden: boolean;
+  icon: string | null;
 };
 
 const columnSelect = {
@@ -188,6 +189,7 @@ const columnSelect = {
   config: schema.issueSheetColumns.config,
   sortOrder: schema.issueSheetColumns.sortOrder,
   hidden: schema.issueSheetColumns.hidden,
+  icon: schema.issueSheetColumns.icon,
 } as const;
 
 function mapColumnRow(row: {
@@ -199,6 +201,7 @@ function mapColumnRow(row: {
   config: IssueSheetColumnConfig | null;
   sortOrder: number;
   hidden: boolean;
+  icon: string | null;
 }): IssueSheetColumn {
   return {
     id: row.id,
@@ -209,6 +212,7 @@ function mapColumnRow(row: {
     config: (row.config ?? {}) as Record<string, unknown>,
     sortOrder: row.sortOrder,
     hidden: row.hidden,
+    icon: row.icon,
   };
 }
 
@@ -449,6 +453,7 @@ export class IssueSheetService {
         config: input.body.config ?? {},
         sortOrder: (maxRow?.maxSortOrder ?? 0) + 10,
         hidden: false,
+        icon: input.body.icon ?? null,
         createdByUserId: input.actorUserId ?? null,
       })
       .returning(columnSelect);
@@ -468,6 +473,7 @@ export class IssueSheetService {
       label?: string;
       hidden?: boolean;
       sortOrder?: number;
+      icon?: string | null;
       config?: { options?: { id: string; label: string; color?: string }[] };
     };
   }): Promise<IssueSheetColumn | null> {
@@ -491,6 +497,7 @@ export class IssueSheetService {
       label?: string;
       hidden?: boolean;
       sortOrder?: number;
+      icon?: string | null;
       config?: IssueSheetColumnConfig;
     } = {};
 
@@ -502,6 +509,12 @@ export class IssueSheetService {
     }
     if (input.body.sortOrder !== undefined) {
       updates.sortOrder = input.body.sortOrder;
+    }
+    if (input.body.icon !== undefined) {
+      if (!canDeleteIssueSheetColumn(existing)) {
+        throw new Error("issue_sheet_column_icon_not_editable");
+      }
+      updates.icon = input.body.icon;
     }
     if (input.body.config !== undefined) {
       if (existing.type === "enrichment" || isIssueSheetProtectedColumnKey(existing.key)) {

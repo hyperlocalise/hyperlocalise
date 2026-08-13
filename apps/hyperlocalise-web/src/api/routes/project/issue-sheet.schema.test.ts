@@ -12,7 +12,12 @@
  */
 import { describe, expect, it } from "vite-plus/test";
 
-import { issueSheetCreateIssueBodySchema, issueSheetFeedQuerySchema } from "./issue-sheet.schema";
+import {
+  issueSheetCreateColumnBodySchema,
+  issueSheetCreateIssueBodySchema,
+  issueSheetFeedQuerySchema,
+  issueSheetUpdateColumnBodySchema,
+} from "./issue-sheet.schema";
 
 const VALID_FEED_CURSOR = "2026-08-08T12:00:00.000Z|0|550e8400-e29b-41d4-a716-446655440000";
 
@@ -52,6 +57,44 @@ describe("issueSheetCreateIssueBodySchema values", () => {
     if (!result.success) {
       expect(result.error.issues.some((issue) => issue.path.includes("values"))).toBe(true);
     }
+  });
+});
+
+describe("issueSheetColumn icon", () => {
+  it("accepts a registry icon on create and update, including null", () => {
+    const created = issueSheetCreateColumnBodySchema.safeParse({
+      key: "sprint",
+      label: "Sprint",
+      type: "text",
+      icon: "calendar",
+    });
+    expect(created.success).toBe(true);
+
+    const cleared = issueSheetUpdateColumnBodySchema.safeParse({ icon: null });
+    expect(cleared.success).toBe(true);
+
+    const omitted = issueSheetCreateColumnBodySchema.safeParse({
+      key: "sprint",
+      label: "Sprint",
+      type: "text",
+    });
+    expect(omitted.success).toBe(true);
+    if (omitted.success) {
+      expect(omitted.data.icon).toBeUndefined();
+    }
+  });
+
+  it("rejects an unknown icon id", () => {
+    const created = issueSheetCreateColumnBodySchema.safeParse({
+      key: "sprint",
+      label: "Sprint",
+      type: "text",
+      icon: "not-an-icon",
+    });
+    expect(created.success).toBe(false);
+
+    const updated = issueSheetUpdateColumnBodySchema.safeParse({ icon: "not-an-icon" });
+    expect(updated.success).toBe(false);
   });
 });
 

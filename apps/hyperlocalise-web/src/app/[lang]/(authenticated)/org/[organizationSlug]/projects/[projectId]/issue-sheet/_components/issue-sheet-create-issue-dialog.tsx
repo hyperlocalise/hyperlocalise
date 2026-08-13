@@ -32,6 +32,7 @@ import {
 import { HugeiconsIcon } from "@hugeicons/react";
 import { toast } from "sonner";
 
+import { IssueColumnIcon } from "@/components/issue-column-icon/issue-column-icon";
 import { MarkdownEditor } from "@/components/markdown-editor/markdown-editor";
 import { Button } from "@/components/ui/button";
 import {
@@ -744,11 +745,7 @@ export function IssueSheetCreateIssueDialog({
                             return (
                               <DropdownMenuSub key={column.id}>
                                 <DropdownMenuSubTrigger>
-                                  <HugeiconsIcon
-                                    icon={Tag01Icon}
-                                    strokeWidth={1.8}
-                                    className="size-4"
-                                  />
+                                  <IssueColumnIcon iconId={column.icon} className="size-4" />
                                   {setLabel}
                                 </DropdownMenuSubTrigger>
                                 <DropdownMenuSubContent className="min-w-44">
@@ -794,11 +791,7 @@ export function IssueSheetCreateIssueDialog({
                             return (
                               <DropdownMenuSub key={column.id}>
                                 <DropdownMenuSubTrigger>
-                                  <HugeiconsIcon
-                                    icon={Tag01Icon}
-                                    strokeWidth={1.8}
-                                    className="size-4"
-                                  />
+                                  <IssueColumnIcon iconId={column.icon} className="size-4" />
                                   {setLabel}
                                 </DropdownMenuSubTrigger>
                                 <DropdownMenuSubContent className="min-w-52">
@@ -842,11 +835,7 @@ export function IssueSheetCreateIssueDialog({
                           return (
                             <DropdownMenuSub key={column.id}>
                               <DropdownMenuSubTrigger>
-                                <HugeiconsIcon
-                                  icon={Tag01Icon}
-                                  strokeWidth={1.8}
-                                  className="size-4"
-                                />
+                                <IssueColumnIcon iconId={column.icon} className="size-4" />
                                 {setLabel}
                               </DropdownMenuSubTrigger>
                               <DropdownMenuSubContent className="w-64 p-2">

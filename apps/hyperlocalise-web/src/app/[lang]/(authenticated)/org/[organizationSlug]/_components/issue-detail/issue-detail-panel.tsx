@@ -52,6 +52,10 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { TypographyP } from "@/components/ui/typography";
+import {
+  IssueColumnIcon,
+  resolveIssueSheetColumnIcon,
+} from "@/components/issue-column-icon/issue-column-icon";
 import { cn } from "@/lib/primitives/cn";
 
 import { IssueCustomColumnField } from "./issue-custom-column-field";
@@ -671,7 +675,8 @@ export const IssueDetailPanel = forwardRef<
         {showCustomColumns
           ? mainCustomColumns.map((column) => (
               <section key={column.id} className="mt-2 grid gap-2 border-t border-border pt-4">
-                <TypographyP className="text-sm font-medium text-foreground">
+                <TypographyP className="inline-flex items-center gap-1.5 text-sm font-medium text-foreground">
+                  <IssueColumnIcon iconId={column.icon} className="text-muted-foreground" />
                   {column.label}
                 </TypographyP>
                 <IssueCustomColumnField
@@ -1036,7 +1041,11 @@ export const IssueDetailPanel = forwardRef<
 
               {showCustomColumns
                 ? sidebarCustomColumns.map((column) => (
-                    <PropertyRow key={column.id} icon={Tag01Icon} label={column.label}>
+                    <PropertyRow
+                      key={column.id}
+                      icon={resolveIssueSheetColumnIcon(column.icon)}
+                      label={column.label}
+                    >
                       <IssueCustomColumnField
                         column={column}
                         value={issue.values[column.key]}

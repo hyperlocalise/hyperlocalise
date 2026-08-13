@@ -19,6 +19,7 @@ export type IssueSheetColumn = {
   config: { options?: { id: string; label: string; color?: string }[] };
   sortOrder: number;
   hidden: boolean;
+  icon: string | null;
 };
 
 export const DETAIL_EXCLUDED_COLUMN_KEYS = ["priority", "owner_note"] as const;

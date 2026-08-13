@@ -147,6 +147,11 @@ export const projectIssueColumnsSettingsMessages = defineMessages({
     id: "7gM4E5eO9R",
     description: "Title for rename issue column dialog",
   },
+  iconField: {
+    defaultMessage: "Icon",
+    id: "Wt0qOYiWFy",
+    description: "Icon field for a custom issue column",
+  },
   labelField: {
     defaultMessage: "Label",
     id: "z5qDgQyncE",

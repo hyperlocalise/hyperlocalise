@@ -18,6 +18,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { FormattedMessage, useIntl, type IntlShape } from "react-intl";
 import { toast } from "sonner";
 
+import { IssueColumnIconPicker } from "@/components/issue-column-icon/issue-column-icon-picker";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -27,6 +28,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -61,6 +63,7 @@ type IssueSheetColumn = {
   config: { options?: { id: string; label: string; color?: string }[] };
   sortOrder: number;
   hidden?: boolean;
+  icon?: string | null;
 };
 
 type IssueSheetIssue = {
@@ -300,6 +303,7 @@ function CreateColumnDialog({
 }) {
   const intl = useIntl();
   const requestFailed = intl.formatMessage(messages.requestFailed);
+  const [icon, setIcon] = useState<string | null>(null);
 
   const columnTypeItems = columnTypeValues.map((value) => ({
     value,
@@ -322,6 +326,7 @@ function CreateColumnDialog({
           key: formString(formData, "key"),
           label: formString(formData, "label"),
           type,
+          icon,
           config: type === "select" ? { options } : {},
         }),
       });
@@ -330,6 +335,7 @@ function CreateColumnDialog({
     onSuccess: async () => {
       toast.success(intl.formatMessage(messages.columnAdded));
       onOpenChange(false);
+      setIcon(null);
       await onCreated();
     },
     onError: (error) =>
@@ -344,7 +350,15 @@ function CreateColumnDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog
+      open={open}
+      onOpenChange={(nextOpen) => {
+        onOpenChange(nextOpen);
+        if (!nextOpen) {
+          setIcon(null);
+        }
+      }}
+    >
       <DialogContent>
         <form onSubmit={submit} className="space-y-4">
           <DialogHeader>
@@ -355,11 +369,25 @@ function CreateColumnDialog({
               <FormattedMessage {...messages.addColumnDescription} />
             </DialogDescription>
           </DialogHeader>
-          <Input
-            name="label"
-            placeholder={intl.formatMessage(messages.columnLabelPlaceholder)}
-            required
-          />
+          <FieldGroup className="flex-row items-start gap-3">
+            <div className="flex shrink-0 flex-col items-start gap-1.5">
+              <FieldLabel>
+                <FormattedMessage {...messages.columnIconLabel} />
+              </FieldLabel>
+              <IssueColumnIconPicker value={icon} onChange={setIcon} />
+            </div>
+            <Field className="min-w-0 flex-1 gap-1.5">
+              <FieldLabel htmlFor="issue-sheet-column-label">
+                <FormattedMessage {...messages.columnLabelField} />
+              </FieldLabel>
+              <Input
+                id="issue-sheet-column-label"
+                name="label"
+                placeholder={intl.formatMessage(messages.columnLabelPlaceholder)}
+                required
+              />
+            </Field>
+          </FieldGroup>
           <Input
             name="key"
             placeholder={intl.formatMessage(messages.columnKeyPlaceholder)}

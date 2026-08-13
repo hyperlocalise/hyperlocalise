@@ -551,6 +551,13 @@ export function createIssueSheetRoutes() {
               "This column's options cannot be edited",
             );
           }
+          if (error instanceof Error && error.message === "issue_sheet_column_icon_not_editable") {
+            return badRequestResponse(
+              c,
+              "issue_sheet_column_icon_not_editable",
+              "Built-in columns cannot change icon",
+            );
+          }
           throw error;
         }
       },

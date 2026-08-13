@@ -1,5 +1,5 @@
 {
-  "id": "3bf24dfb-a26c-4c05-a8aa-690ee950cfa2",
+  "id": "6d41536d-6074-4781-bfc3-1836e0a189c6",
   "prevId": "1605914b-7fe2-47fd-9050-c867df540f2e",
   "version": "7",
   "dialect": "postgresql",
@@ -15312,6 +15312,12 @@
           "primaryKey": false,
           "notNull": true,
           "default": false
+        },
+        "icon": {
+          "name": "icon",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
         },
         "created_by_user_id": {
           "name": "created_by_user_id",

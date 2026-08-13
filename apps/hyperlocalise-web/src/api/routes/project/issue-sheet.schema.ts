@@ -12,6 +12,7 @@
  */
 import { z } from "zod";
 
+import { ISSUE_SHEET_COLUMN_ICON_IDS } from "@/lib/projects/issue-sheet/issue-sheet-column-icons";
 import { issueSheetImportContentExceedsByteLimit } from "@/lib/projects/issue-sheet/issue-sheet-csv-import";
 
 import { projectIdParamsSchema } from "./project.schema";
@@ -42,6 +43,7 @@ export const issueSheetColumnTypeSchema = z.enum([
   "enrichment",
 ]);
 export const issueSheetColumnLayerSchema = z.enum(["system", "generated", "custom", "enrichment"]);
+export const issueSheetColumnIconIdSchema = z.enum(ISSUE_SHEET_COLUMN_ICON_IDS);
 
 export const issueSheetParamsSchema = projectIdParamsSchema;
 export const issueSheetIssueParamsSchema = projectIdParamsSchema.extend({
@@ -121,6 +123,7 @@ export const issueSheetCreateColumnBodySchema = z.object({
     .regex(/^[a-z][a-z0-9_]*$/, "Use lowercase letters, numbers, and underscores"),
   label: z.string().trim().min(1).max(120),
   type: issueSheetColumnTypeSchema.exclude(["enrichment"]),
+  icon: issueSheetColumnIconIdSchema.nullable().optional(),
   config: z
     .object({
       options: z
@@ -148,6 +151,7 @@ export const issueSheetUpdateColumnBodySchema = z
     label: z.string().trim().min(1).max(120).optional(),
     hidden: z.boolean().optional(),
     sortOrder: z.number().int().min(0).max(100_000).optional(),
+    icon: issueSheetColumnIconIdSchema.nullable().optional(),
     config: z
       .object({
         options: z.array(issueSheetColumnSelectOptionSchema).max(25).optional(),

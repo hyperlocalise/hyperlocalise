@@ -119,6 +119,7 @@ export const issueSheetColumns = pgTable(
       .default(sql`'{}'::jsonb`),
     sortOrder: integer("sort_order").notNull().default(0),
     hidden: boolean("hidden").notNull().default(false),
+    icon: text("icon"),
     createdByUserId: uuid("created_by_user_id").references(() => users.id, {
       onDelete: "set null",
     }),
