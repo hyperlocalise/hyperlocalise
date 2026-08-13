@@ -111,7 +111,6 @@ function MockEditorPreview({
 
   return (
     <div className="flex flex-col">
-      {/* Header — name */}
       <div
         className={cn(
           "flex items-center justify-between gap-3 border-b border-border px-4 py-3 transition-all duration-500",
@@ -140,7 +139,9 @@ function MockEditorPreview({
               title={<FormattedMessage {...automationEditorMockMessages.triggerName} />}
               trailing={
                 <div className="flex flex-wrap items-center gap-1.5">
-                  <Pill><FormattedMessage {...automationEditorMockMessages.branchName} /></Pill>
+                  <Pill>
+                    <FormattedMessage {...automationEditorMockMessages.branchName} />
+                  </Pill>
                 </div>
               }
             />
@@ -166,14 +167,24 @@ function MockEditorPreview({
             <MockRow
               icon={<HugeiconsIcon icon={SecurityCheckIcon} strokeWidth={1.8} className="size-4" />}
               title={<FormattedMessage {...automationEditorMockMessages.githubToolName} />}
-              description={<FormattedMessage {...automationEditorMockMessages.githubToolDescription} />}
+              description={
+                <FormattedMessage {...automationEditorMockMessages.githubToolDescription} />
+              }
             />
             <MockRow
               icon={
-                <Image src="/images/slack-logo.svg" alt="Slack" width={16} height={16} className="size-4" />
+                <Image
+                  src="/images/slack-logo.svg"
+                  alt="Slack"
+                  width={16}
+                  height={16}
+                  className="size-4"
+                />
               }
               title={<FormattedMessage {...automationEditorMockMessages.slackToolName} />}
-              description={<FormattedMessage {...automationEditorMockMessages.slackToolDescription} />}
+              description={
+                <FormattedMessage {...automationEditorMockMessages.slackToolDescription} />
+              }
             />
             <div className="flex items-center gap-2 px-3 py-2.5 text-[0.72rem] font-medium text-muted-foreground">
               <HugeiconsIcon icon={PlusSignIcon} strokeWidth={1.8} className="size-3.5" />
@@ -190,7 +201,7 @@ function VerticalStepper({
   steps,
   current,
   onSelect,
-  onReplay
+  onReplay,
 }: {
   steps: Step[];
   current: number;
@@ -202,12 +213,11 @@ function VerticalStepper({
 
   return (
     <div className="flex h-full flex-col">
-      {/* Steps */}
       <div className="flex flex-1 flex-col">
         {steps.map((step, i) => {
           const isDone = i < current;
           const isActive = i === current;
- 
+
           return (
             <div key={step.id} className="flex gap-3 sm:gap-4">
               <div className="flex flex-col items-center">
@@ -284,11 +294,36 @@ export function AutomationEditorMock() {
   const [isPaused, setIsPaused] = useState(false);
 
   const steps: Step[] = [
-    { id: "name", titleKey: "stepNameTitle", descriptionKey: "stepNameDescription", highlightSection: "name" },
-    { id: "trigger", titleKey: "stepTriggerTitle", descriptionKey: "stepTriggerDescription", highlightSection: "trigger" },
-    { id: "instructions", titleKey: "stepInstructionsTitle", descriptionKey: "stepInstructionsDescription", highlightSection: "instructions" },
-    { id: "tools", titleKey: "stepToolsTitle", descriptionKey: "stepToolsDescription", highlightSection: "tools" },
-    { id: "done", titleKey: "stepDoneTitle", descriptionKey: "stepDoneDescription", highlightSection: "done" },
+    {
+      id: "name",
+      titleKey: "stepNameTitle",
+      descriptionKey: "stepNameDescription",
+      highlightSection: "name",
+    },
+    {
+      id: "trigger",
+      titleKey: "stepTriggerTitle",
+      descriptionKey: "stepTriggerDescription",
+      highlightSection: "trigger",
+    },
+    {
+      id: "instructions",
+      titleKey: "stepInstructionsTitle",
+      descriptionKey: "stepInstructionsDescription",
+      highlightSection: "instructions",
+    },
+    {
+      id: "tools",
+      titleKey: "stepToolsTitle",
+      descriptionKey: "stepToolsDescription",
+      highlightSection: "tools",
+    },
+    {
+      id: "done",
+      titleKey: "stepDoneTitle",
+      descriptionKey: "stepDoneDescription",
+      highlightSection: "done",
+    },
   ];
 
   const isDone = currentStep === steps.length - 1;
@@ -310,23 +345,23 @@ export function AutomationEditorMock() {
   }
 
   useEffect(() => {
-  const el = containerRef.current;
-  if (!el) return;
+    const el = containerRef.current;
+    if (!el) return;
 
-  const observer = new IntersectionObserver(
-    (entries) => {
-      const entry = entries[0];
-      if (entry?.isIntersecting) {
-        setCurrentStep(0);
-        setIsPaused(false);
-      }
-    },
-    { threshold: 0.3 },
-  );
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const entry = entries[0];
+        if (entry?.isIntersecting) {
+          setCurrentStep(0);
+          setIsPaused(false);
+        }
+      },
+      { threshold: 0.3 },
+    );
 
-  observer.observe(el);
-  return () => observer.disconnect();
-}, []);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
 
   return (
     <div ref={containerRef} className="space-y-10">
@@ -344,11 +379,10 @@ export function AutomationEditorMock() {
 
       <div className="overflow-hidden rounded-xl border border-border bg-card shadow-2xl shadow-gray-alpha-100">
         <div className="grid md:grid-cols-[1.4fr_1fr]">
-
           <div className="border-b border-border/60 md:border-b-0 md:border-r">
             <MockEditorPreview
               highlight={steps[currentStep]!.highlightSection}
-              
+
               isDone={isDone}
             />
             <div className="border-t border-border/60 px-4 py-3">
@@ -363,9 +397,13 @@ export function AutomationEditorMock() {
           </div>
 
           <div className="p-6">
-            <VerticalStepper steps={steps} current={currentStep} onSelect={handleSelect} onReplay={handleReplay}/>
+            <VerticalStepper
+              steps={steps}
+              current={currentStep}
+              onSelect={handleSelect}
+              onReplay={handleReplay}
+            />
           </div>
-
         </div>
       </div>
     </div>

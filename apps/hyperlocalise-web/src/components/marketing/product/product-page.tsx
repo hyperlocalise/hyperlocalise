@@ -29,6 +29,7 @@ import { AutomationsMockUI } from "./automations-mock-ui";
 import { productPageMessages, type ProductMessageKey } from "./product-page-content.messages";
 import { AutomationEditorMock } from "./automation-editor-mock";
 import { Globe } from "@/components/ui/globe";
+import { IntegrationStripSection } from "./integration-strip-section";
 
 type ProductPageProps = {
   content: ProductPageContent;
@@ -48,10 +49,10 @@ function ProductEyebrow({ messageKey }: { messageKey: ProductMessageKey }) {
 
 function ProductHero({ content }: ProductPageProps) {
   return (
-    <div className="relative mx-auto flex min-h-[80vh] max-w-6xl items-center">
-      <div className="flex flex-col items-center gap-8 lg:flex-row lg:items-center lg:justify-between">
+    <div className="flex flex-col gap-16">
+      <div className="mx-auto flex w-full max-w-6xl flex-col items-center gap-12 lg:flex-row lg:items-center lg:justify-between">
         <div className="flex max-w-xl flex-col gap-8 text-center lg:text-left">
-          <div className="flex flex-col gap-5">
+          <div className="flex flex-col gap-8">
             <h1 className="font-heading text-[clamp(2.5rem,5vw,4.75rem)] leading-[1] font-semibold tracking-normal text-balance">
               <ProductMessage messageKey={content.hero.headlineKey} />
             </h1>
@@ -76,12 +77,17 @@ function ProductHero({ content }: ProductPageProps) {
             <div className="h-[260px] w-[260px] lg:hidden">
               <Globe className="h-full w-full" />
             </div>
-            <div className="hidden h-[580px] w-[580px] translate-x-16 lg:block">
+            <div className="hidden h-[620px] w-[620px] translate-x-16 lg:block">
               <Globe className="h-full w-full" />
             </div>
           </div>
         )}
       </div>
+      {content.visualKind === "automation" && (
+        <div className="mx-auto w-full max-w-6xl border-t border-border/60 pt-10">
+          <IntegrationStripSection />
+        </div>
+      )}
     </div>
   );
 }
@@ -345,7 +351,7 @@ export function ProductPage({ content }: ProductPageProps) {
   return (
     <div className="min-h-screen bg-background text-foreground">
       <main className="mx-auto max-w-7xl">
-        <section className="px-5 pb-16 pt-14 sm:px-8 sm:pb-20 sm:pt-20 lg:px-10 lg:pt-24">
+        <section className="px-5 py-20 sm:px-8 sm:py-24 lg:px-10 lg:py-20">
           <ProductHero content={content} />
         </section>
 
