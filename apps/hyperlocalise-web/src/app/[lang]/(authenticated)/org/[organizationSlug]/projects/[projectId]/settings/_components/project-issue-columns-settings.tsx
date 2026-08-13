@@ -72,6 +72,7 @@ import {
   useIssueSheetColumnsQuery,
 } from "../../../../_components/issue-detail/use-issue-sheet-columns-query";
 import { ProjectSectionTitle } from "../../_components/project-page-shell";
+import { moveColumnIdInGroup } from "./project-issue-columns-order";
 import {
   mergeSelectOptionsFromLabels,
   optionsToCsv,
@@ -267,16 +268,16 @@ export function ProjectIssueColumnsSettings({
     },
   });
 
-  function moveColumn(columnId: string, direction: -1 | 1) {
-    const orderedIds = columns.map((column) => column.id);
-    const index = orderedIds.indexOf(columnId);
-    const nextIndex = index + direction;
-    if (index < 0 || nextIndex < 0 || nextIndex >= orderedIds.length) {
+  function moveColumn(column: IssueSheetColumn, group: IssueSheetColumn[], direction: -1 | 1) {
+    const next = moveColumnIdInGroup(
+      columns.map((entry) => entry.id),
+      group.map((entry) => entry.id),
+      column.id,
+      direction,
+    );
+    if (!next) {
       return;
     }
-    const next = [...orderedIds];
-    const [removed] = next.splice(index, 1);
-    next.splice(nextIndex, 0, removed);
     reorderColumns.mutate(next);
   }
 
@@ -286,10 +287,10 @@ export function ProjectIssueColumnsSettings({
     removeColumn.isPending ||
     createColumn.isPending;
 
-  function renderColumnRow(column: IssueSheetColumn) {
-    const absoluteIndex = columns.findIndex((entry) => entry.id === column.id);
-    const canMoveUp = absoluteIndex > 0;
-    const canMoveDown = absoluteIndex >= 0 && absoluteIndex < columns.length - 1;
+  function renderColumnRow(column: IssueSheetColumn, group: IssueSheetColumn[]) {
+    const groupIndex = group.findIndex((entry) => entry.id === column.id);
+    const canMoveUp = groupIndex > 0;
+    const canMoveDown = groupIndex >= 0 && groupIndex < group.length - 1;
     const deletable = canDeleteIssueSheetColumn(column);
     const canEditOptions = deletable && column.type === "select";
 
@@ -342,7 +343,7 @@ export function ProjectIssueColumnsSettings({
             variant="ghost"
             disabled={isBusy || !canMoveUp}
             aria-label={intl.formatMessage(messages.moveUp)}
-            onClick={() => moveColumn(column.id, -1)}
+            onClick={() => moveColumn(column, group, -1)}
           >
             <HugeiconsIcon icon={ArrowUp01Icon} strokeWidth={1.8} />
           </Button>
@@ -352,7 +353,7 @@ export function ProjectIssueColumnsSettings({
             variant="ghost"
             disabled={isBusy || !canMoveDown}
             aria-label={intl.formatMessage(messages.moveDown)}
-            onClick={() => moveColumn(column.id, 1)}
+            onClick={() => moveColumn(column, group, 1)}
           >
             <HugeiconsIcon icon={ArrowDown01Icon} strokeWidth={1.8} />
           </Button>
@@ -464,7 +465,9 @@ export function ProjectIssueColumnsSettings({
             <TypographyP className="text-sm font-medium text-foreground">
               <FormattedMessage {...messages.builtInTitle} />
             </TypographyP>
-            <div className="mt-1">{builtInColumns.map((column) => renderColumnRow(column))}</div>
+            <div className="mt-1">
+              {builtInColumns.map((column) => renderColumnRow(column, builtInColumns))}
+            </div>
           </div>
 
           <div>
@@ -476,7 +479,9 @@ export function ProjectIssueColumnsSettings({
                 <FormattedMessage {...messages.emptyCustom} />
               </TypographyP>
             ) : (
-              <div className="mt-1">{customColumns.map((column) => renderColumnRow(column))}</div>
+              <div className="mt-1">
+                {customColumns.map((column) => renderColumnRow(column, customColumns))}
+              </div>
             )}
           </div>
         </div>
