@@ -106,6 +106,7 @@ export async function setLocalisationAuditProgressStep(input: {
 export async function crawlLocalisationAuditStep(input: {
   origin: string;
   sourceUrl: string;
+  focusLocales?: string[];
 }): Promise<LocalisationAuditCrawlResult> {
   "use step";
   return crawlLocalisationAuditSample(input);

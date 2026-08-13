@@ -210,6 +210,42 @@ describe("crawlLocalisationAuditSample", () => {
     expect(result.pages.some((page) => page.url === "https://example.com/fr")).toBe(true);
   });
 
+  it("seeds requested focus locale roots without inventing high-value paths", async () => {
+    const fetchedUrls: string[] = [];
+    withPublicHttpFetchMock.mockImplementation(async (url, _init, handler) => {
+      fetchedUrls.push(url);
+      if (url === "https://example.com/") {
+        return handler(
+          htmlResponse(
+            "<html lang='en'><head><title>Home</title></head><body>Welcome to the homepage content sample.</body></html>",
+          ),
+        );
+      }
+      if (url === "https://example.com/ja") {
+        return handler(
+          htmlResponse(
+            "<html lang='ja'><title>ホーム</title><body>日本語のホームページのサンプルコンテンツです。</body></html>",
+          ),
+        );
+      }
+      return handler(
+        htmlResponse(
+          "<html><body>Secondary page with enough text content for parsing.</body></html>",
+        ),
+      );
+    });
+
+    const result = await crawlLocalisationAuditSample({
+      origin: "https://example.com",
+      sourceUrl: "https://example.com/",
+      focusLocales: ["ja", "x-default"],
+    });
+
+    expect(fetchedUrls).toContain("https://example.com/ja");
+    expect(fetchedUrls).not.toContain("https://example.com/ja/pricing");
+    expect(result.pages.some((page) => page.url === "https://example.com/ja")).toBe(true);
+  });
+
   it("parses robots.txt and sitemap locale URLs without adding them as scored pages", async () => {
     withPublicHttpFetchMock.mockImplementation(async (url, _init, handler) => {
       if (url === "https://example.com/robots.txt") {
@@ -251,5 +287,43 @@ describe("crawlLocalisationAuditSample", () => {
     expect(result.sitemap.sitemapUrls).toContain("https://example.com/sitemap.xml");
     expect(result.sitemap.localizedUrls).toContain("https://example.com/fr/pricing");
     expect(result.pages.some((page) => page.url === "https://example.com/sitemap.xml")).toBe(false);
+  });
+
+  it("does not keep a sitemap URL when robots.txt exists but sitemap.xml cannot be fetched", async () => {
+    withPublicHttpFetchMock.mockImplementation(async (url, _init, handler) => {
+      if (url === "https://example.com/robots.txt") {
+        return handler(
+          new Response("User-agent: *\nDisallow:\n", {
+            status: 200,
+            headers: { "content-type": "text/plain" },
+          }),
+        );
+      }
+      if (url === "https://example.com/sitemap.xml") {
+        return handler(
+          new Response("Not found", { status: 404, headers: { "content-type": "text/plain" } }),
+        );
+      }
+      if (url === "https://example.com/") {
+        return handler(
+          htmlResponse(
+            "<html lang='en'><title>Home</title><body>Welcome to the homepage content sample.</body></html>",
+          ),
+        );
+      }
+      return handler(
+        htmlResponse(
+          "<html><body>Secondary page with enough text content for parsing.</body></html>",
+        ),
+      );
+    });
+
+    const result = await crawlLocalisationAuditSample({
+      origin: "https://example.com",
+      sourceUrl: "https://example.com/",
+    });
+
+    expect(result.sitemap.robotsFound).toBe(true);
+    expect(result.sitemap.sitemapUrls).toEqual([]);
   });
 });

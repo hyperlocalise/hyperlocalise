@@ -125,6 +125,25 @@ describe("technical heuristic credits", () => {
     expect(outcome.status).toBe("na");
   });
 
+  it("marks sitemap N/A when none was fetched, even if robots.txt exists", () => {
+    const outcome = technicalHeuristicScorers.sitemap!(
+      context(
+        [
+          emptyCrawledPage({ url: "https://example.com/", htmlLang: "en" }),
+          emptyCrawledPage({ url: "https://example.com/fr/", htmlLang: "fr" }),
+        ],
+        {
+          sitemap: {
+            robotsFound: true,
+            sitemapUrls: [],
+            localizedUrls: [],
+          },
+        },
+      ),
+    );
+    expect(outcome.status).toBe("na");
+  });
+
   it("scores a sitemap that lists locale URLs", () => {
     const outcome = technicalHeuristicScorers.sitemap!(
       context(

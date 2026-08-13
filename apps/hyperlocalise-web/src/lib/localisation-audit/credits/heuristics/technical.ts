@@ -492,7 +492,7 @@ const scoreLocalizedSeoMetadata: HeuristicScorer = (context) => {
 
 const scoreSitemap: HeuristicScorer = (context) => {
   const { sitemap } = context;
-  if (!sitemap.robotsFound && sitemap.sitemapUrls.length === 0) {
+  if (sitemap.sitemapUrls.length === 0) {
     return { status: "na" };
   }
   if (context.detectedLocales.length <= 1) {

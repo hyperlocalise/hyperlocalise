@@ -24,6 +24,7 @@ import { TypographyH1, TypographyH2, TypographyP } from "@/components/ui/typogra
 import { clientAnalytics } from "@/lib/analytics/client";
 import { LOCALISATION_AUDIT_ANALYTICS_EVENTS, scoreBand } from "@/lib/analytics/events";
 import {
+  formatDimensionScore,
   scoreTone,
   severityTone,
   type LocalisationAuditTone,
@@ -118,16 +119,18 @@ function ScoreValue({
   );
 }
 
-function DimensionScoreCircle({ label, score }: { label: string; score: number }) {
+function DimensionScoreCircle({ label, score }: { label: string; score: number | null }) {
+  const display = formatDimensionScore(score);
   return (
     <div className="flex flex-col items-center gap-2">
       <span
         className={cn(
-          "flex size-16 items-center justify-center rounded-full text-lg font-semibold tabular-nums",
+          "flex size-16 items-center justify-center rounded-full font-semibold tabular-nums",
+          score == null ? "text-sm" : "text-lg",
           auditToneBadgeClass(scoreTone(score)),
         )}
       >
-        {score}
+        {display}
       </span>
       <span className="text-center text-pretty text-sm text-muted-foreground">{label}</span>
     </div>

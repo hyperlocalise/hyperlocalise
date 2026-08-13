@@ -107,10 +107,10 @@ export type LocalisationAuditCreditResult = {
 };
 
 export type LocalisationAuditDimensionScores = {
-  technical: number;
-  linguistic: number;
-  contextual: number;
-  visual: number;
+  technical: number | null;
+  linguistic: number | null;
+  contextual: number | null;
+  visual: number | null;
 };
 
 export type LocalisationAuditTeaser = {

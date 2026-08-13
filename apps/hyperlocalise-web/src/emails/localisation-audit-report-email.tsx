@@ -30,6 +30,7 @@ import { getLocalisationAuditGuideHref } from "@/components/marketing/localisati
 import {
   emailAuditToneColor,
   emailAuditToneFill,
+  formatDimensionScore,
   scoreTone,
   severityTone,
 } from "@/lib/localisation-audit/score-tone";
@@ -56,10 +57,10 @@ export function localisationAuditReportEmailText(props: LocalisationAuditReportE
 
   const dimensions = props.dimensionScores
     ? [
-        `Technical: ${props.dimensionScores.technical}`,
-        `Linguistic: ${props.dimensionScores.linguistic}`,
-        `Contextual: ${props.dimensionScores.contextual}`,
-        `Visual: ${props.dimensionScores.visual}`,
+        `Technical: ${formatDimensionScore(props.dimensionScores.technical)}`,
+        `Linguistic: ${formatDimensionScore(props.dimensionScores.linguistic)}`,
+        `Contextual: ${formatDimensionScore(props.dimensionScores.contextual)}`,
+        `Visual: ${formatDimensionScore(props.dimensionScores.visual)}`,
       ].join(" · ")
     : null;
 
@@ -173,7 +174,7 @@ function localisationAuditGuideUrl() {
   return `${SITE_URL}${getLocalisationAuditGuideHref()}`;
 }
 
-function EmailDimensionCircle({ label, score }: { label: string; score: number }) {
+function EmailDimensionCircle({ label, score }: { label: string; score: number | null }) {
   const tone = scoreTone(score);
   const color = emailAuditToneColor(tone);
   const fill = emailAuditToneFill(tone);
@@ -185,7 +186,15 @@ function EmailDimensionCircle({ label, score }: { label: string; score: number }
           backgroundColor: fill,
         }}
       >
-        <Text style={{ ...dimensionCircleScore, color }}>{score}</Text>
+        <Text
+          style={{
+            ...dimensionCircleScore,
+            color,
+            fontSize: score == null ? "13px" : "18px",
+          }}
+        >
+          {formatDimensionScore(score)}
+        </Text>
       </Section>
       <Text style={dimensionLabel}>{label}</Text>
     </>

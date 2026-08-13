@@ -58,6 +58,21 @@ describe("localisation audit report email", () => {
     expect(text).toContain("Visual: 68");
   });
 
+  it("renders N/A for dimensions without a score", () => {
+    const text = localisationAuditReportEmailText({
+      domainKey: "example.com",
+      score: 60,
+      completedAt: "2026-08-13T00:00:00.000Z",
+      findings: [],
+      verifyUrl: "https://app.example.test/verify",
+      dimensionScores: { technical: 80, linguistic: null, contextual: 40, visual: null },
+    });
+
+    expect(text).toContain("Technical: 80");
+    expect(text).toContain("Linguistic: N/A");
+    expect(text).toContain("Visual: N/A");
+  });
+
   it("colors the HTML score and finding severity", async () => {
     const html = await render(
       LocalisationAuditReportEmail({

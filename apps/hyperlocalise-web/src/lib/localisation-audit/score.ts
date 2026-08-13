@@ -47,14 +47,14 @@ export function aggregateLocalisationAuditCredits(credits: LocalisationAuditCred
   score: number;
   dimensionScores: LocalisationAuditDimensionScores;
 } {
-  const dimensionScores = {
-    technical: 100,
-    linguistic: 100,
-    contextual: 100,
-    visual: 100,
-  } satisfies LocalisationAuditDimensionScores;
+  const dimensionScores: LocalisationAuditDimensionScores = {
+    technical: null,
+    linguistic: null,
+    contextual: null,
+    visual: null,
+  };
 
-  const applicableDimensions: LocalisationAuditDimension[] = [];
+  const applicableScores: number[] = [];
   for (const dimension of DIMENSIONS) {
     const scores = credits
       .filter(
@@ -65,14 +65,12 @@ export function aggregateLocalisationAuditCredits(credits: LocalisationAuditCred
     if (scores.length === 0) {
       continue;
     }
-    dimensionScores[dimension] = roundScore(mean(scores));
-    applicableDimensions.push(dimension);
+    const averaged = roundScore(mean(scores));
+    dimensionScores[dimension] = averaged;
+    applicableScores.push(averaged);
   }
 
-  const overall =
-    applicableDimensions.length === 0
-      ? 0
-      : mean(applicableDimensions.map((dimension) => dimensionScores[dimension]));
+  const overall = applicableScores.length === 0 ? 0 : mean(applicableScores);
 
   return {
     score: roundScore(overall),

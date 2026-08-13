@@ -269,4 +269,4 @@ Traditional website audits measure performance, accessibility, and SEO. Translat
 
 Together, those answers are a more complete picture of localisation health.
 
-If you are building products for more than one market, that picture is worth having before customers find the gaps themselves. [Join the waitlist](/) or read more about [context-aware localisation](/blog/ai-translation-is-not-enough-context-aware-localisation).
+If you are building products for more than one market, that picture is worth having before customers find the gaps themselves. [Run a free localisation audit](/localisation-audit) or read more about [context-aware localisation](/blog/ai-translation-is-not-enough-context-aware-localisation).

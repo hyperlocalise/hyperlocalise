@@ -283,6 +283,20 @@ function localeFromPath(pathname: string): string | null {
   return match ? normalizeLocaleCode(match[1]!) : null;
 }
 
+function seedFocusLocaleRoots(origin: string, focusLocales: string[]): string[] {
+  const urls: string[] = [];
+  for (const raw of focusLocales) {
+    const locale = normalizeLocaleCode(raw);
+    if (!locale) continue;
+    try {
+      urls.push(new URL(`/${locale}`, origin).toString());
+    } catch {
+      // ignore malformed origin or locale path
+    }
+  }
+  return urls;
+}
+
 function scoreCandidate(url: string, origin: string): number {
   try {
     const parsed = new URL(url);
@@ -304,6 +318,7 @@ function scoreCandidate(url: string, origin: string): number {
 export async function crawlLocalisationAuditSample(input: {
   origin: string;
   sourceUrl: string;
+  focusLocales?: string[];
 }): Promise<LocalisationAuditCrawlResult> {
   try {
     return await crawlLocalisationAuditSampleInner(input);
@@ -317,6 +332,7 @@ export async function crawlLocalisationAuditSample(input: {
 async function crawlLocalisationAuditSampleInner(input: {
   origin: string;
   sourceUrl: string;
+  focusLocales?: string[];
 }): Promise<LocalisationAuditCrawlResult> {
   const homeResult = await fetchPageWithAnchors(input.sourceUrl);
   if (homeResult.ok === false) {
@@ -329,6 +345,11 @@ async function crawlLocalisationAuditSampleInner(input: {
   for (const candidate of candidateUrls) {
     if (sameHost(originHost, candidate)) {
       seeded.add(candidate.split("#")[0]!);
+    }
+  }
+  for (const seed of seedFocusLocaleRoots(input.origin, input.focusLocales ?? [])) {
+    if (sameHost(originHost, seed)) {
+      seeded.add(seed);
     }
   }
 

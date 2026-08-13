@@ -61,6 +61,7 @@ export async function localisationAuditWorkflow(event: LocalisationAuditEventDat
       const crawl = await crawlLocalisationAuditStep({
         origin: prepared.origin,
         sourceUrl: prepared.sourceUrl,
+        focusLocales: prepared.focusLocales,
       });
 
       await setLocalisationAuditProgressStep({

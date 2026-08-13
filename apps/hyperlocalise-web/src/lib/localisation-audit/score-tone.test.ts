@@ -12,7 +12,13 @@
  */
 import { describe, expect, it } from "vite-plus/test";
 
-import { emailAuditToneColor, emailAuditToneFill, scoreTone, severityTone } from "./score-tone";
+import {
+  emailAuditToneColor,
+  emailAuditToneFill,
+  formatDimensionScore,
+  scoreTone,
+  severityTone,
+} from "./score-tone";
 
 describe("scoreTone", () => {
   it("maps score bands onto semantic tones", () => {
@@ -23,6 +29,14 @@ describe("scoreTone", () => {
     expect(scoreTone(49)).toBe("risk");
     expect(scoreTone(12)).toBe("risk");
     expect(scoreTone(null)).toBe("neutral");
+  });
+});
+
+describe("formatDimensionScore", () => {
+  it("renders N/A when a dimension was not scored", () => {
+    expect(formatDimensionScore(86)).toBe("86");
+    expect(formatDimensionScore(null)).toBe("N/A");
+    expect(formatDimensionScore(undefined)).toBe("N/A");
   });
 });
 

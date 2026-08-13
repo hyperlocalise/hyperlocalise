@@ -22,6 +22,10 @@ export function scoreTone(score: number | null | undefined): LocalisationAuditTo
   return "risk";
 }
 
+export function formatDimensionScore(score: number | null | undefined): string {
+  return score == null ? "N/A" : String(score);
+}
+
 export function severityTone(severity: LocalisationAuditFindingSeverity): LocalisationAuditTone {
   switch (severity) {
     case "critical":

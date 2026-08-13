@@ -75,8 +75,31 @@ describe("aggregateLocalisationAuditCredits", () => {
     expect(result.score).toBe(80);
   });
 
+  it("leaves dimensions with only N/A credits as null instead of 100", () => {
+    const result = aggregateLocalisationAuditCredits([
+      credit({ id: "hreflang", dimension: "technical", score: 80 }),
+      credit({ id: "fluency", dimension: "linguistic", score: null, method: "na" }),
+      credit({ id: "cta-intent", dimension: "contextual", score: 40 }),
+      credit({ id: "rtl-support", dimension: "visual", score: null, method: "na" }),
+    ]);
+
+    expect(result.dimensionScores).toEqual({
+      technical: 80,
+      linguistic: null,
+      contextual: 40,
+      visual: null,
+    });
+    expect(result.score).toBe(60);
+  });
+
   it("clamps the overall score to [0, 100]", () => {
     expect(aggregateLocalisationAuditCredits([]).score).toBe(0);
+    expect(aggregateLocalisationAuditCredits([]).dimensionScores).toEqual({
+      technical: null,
+      linguistic: null,
+      contextual: null,
+      visual: null,
+    });
     expect(
       aggregateLocalisationAuditCredits([
         credit({ id: "a", dimension: "technical", score: 100 }),
