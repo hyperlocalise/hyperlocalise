@@ -57,7 +57,7 @@ export const WORKSPACE_AUTOMATION_TEMPLATES_BASE: WorkspaceAutomationTemplate[] 
       "- Create a native TMS translation job for the project target locales.",
       "- Assign the job to Translate with agent so localisation starts immediately.",
       "- Preserve keys, placeholders, ICU syntax, glossary terms, and file structure.",
-      "- Summarize the job created and locales started for translation.",
+      "- When Slack is enabled, notify with a scannable Markdown summary: bold automation name + outcome, bullets for job/file/version, locales as a list, and a one-line next step. Do not dump IDs into a single paragraph.",
     ].join("\n"),
     activatable: true,
     defaultForm: {

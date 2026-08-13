@@ -143,8 +143,12 @@ describe("postSlackChannelMessage", () => {
       installationId: "T123",
     });
     expect(postChannelMessageMock).toHaveBeenCalledTimes(2);
-    expect(postChannelMessageMock).toHaveBeenNthCalledWith(1, "slack:C123", "first");
-    expect(postChannelMessageMock).toHaveBeenNthCalledWith(2, "slack:C123", "second");
+    expect(postChannelMessageMock).toHaveBeenNthCalledWith(1, "slack:C123", {
+      markdown: "first",
+    });
+    expect(postChannelMessageMock).toHaveBeenNthCalledWith(2, "slack:C123", {
+      markdown: "second",
+    });
   });
 
   it("fails when the organization has no Slack connector team", async () => {

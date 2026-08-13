@@ -21,9 +21,11 @@ import { env } from "@/lib/env";
 
 type SlackChat = Chat<{ slack: Adapter<unknown, unknown> }>;
 
+type SlackPostableMessage = string | { markdown: string };
+
 type SlackOutboundAdapter = {
   getInstallation: (teamId: string) => Promise<{ botToken?: string } | null>;
-  postChannelMessage: (channelId: string, message: string) => Promise<unknown>;
+  postChannelMessage: (channelId: string, message: SlackPostableMessage) => Promise<unknown>;
   withBotToken: <T>(token: string, fn: () => T, options?: { installationId?: string }) => T;
 };
 
@@ -88,9 +90,11 @@ export async function postSlackChannelMessage(input: {
   }
 
   const channelId = toCanonicalSlackChannelId(input.channelId);
+  // Chat SDK: bare strings post as plain Slack `text` (no markdown). Use
+  // `{ markdown }` so Slack renders via `markdown_text`.
   await adapter.withBotToken(
     installation.botToken,
-    () => adapter.postChannelMessage(channelId, input.text),
+    () => adapter.postChannelMessage(channelId, { markdown: input.text }),
     { installationId: teamId },
   );
 }

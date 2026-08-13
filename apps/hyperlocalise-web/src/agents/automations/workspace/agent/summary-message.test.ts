@@ -1,0 +1,114 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
+import { describe, expect, it } from "vite-plus/test";
+
+import type { WorkspaceOrchestratorSession } from "./context";
+import { buildOrchestratorRunSummaryMessage } from "./summary-message";
+
+function createSession(
+  overrides: Partial<WorkspaceOrchestratorSession> = {},
+): WorkspaceOrchestratorSession {
+  return {
+    organizationId: "org-1",
+    automation: {
+      id: "auto-1",
+      organizationId: "org-1",
+      authorUserId: null,
+      status: "active",
+      name: "Translate on source upload",
+      instructions: "",
+      projectId: "project-1",
+      triggerConfig: { mode: "source_upload" },
+      repositoryTarget: { kind: "none" },
+      toolConfig: {},
+      configVersion: 1,
+      nextRunAt: null,
+      createdAt: "2026-01-01T00:00:00.000Z",
+      updatedAt: "2026-01-01T00:00:00.000Z",
+    },
+    run: {
+      id: "run-1",
+      automationId: "auto-1",
+      organizationId: "org-1",
+      status: "succeeded",
+      triggerSource: "source_upload",
+      idempotencyKey: null,
+      outputSummary: {},
+      inputSnapshot: {},
+      error: null,
+      githubRepositoryAutomationJobId: null,
+      startedAt: null,
+      completedAt: null,
+      createdAt: "2026-01-01T00:00:00.000Z",
+      updatedAt: "2026-01-01T00:00:00.000Z",
+    },
+    plan: { tools: ["create_native_tms_job", "assign_translate_with_agent", "notify_slack"] },
+    repository: null,
+    composedInstructions: "",
+    stepResults: {},
+    terminalStatus: "succeeded",
+    terminalError: null,
+    ...overrides,
+  };
+}
+
+describe("buildOrchestratorRunSummaryMessage", () => {
+  it("formats native TMS runs as scannable markdown", () => {
+    const message = buildOrchestratorRunSummaryMessage(
+      createSession({
+        stepResults: {
+          create_native_tms_job: {
+            jobId: "job_a8e92d25-932f-49f8-b9e3-7143822fcc6e",
+            sourceFileId: "file_3b017712-ec57-448f-8015-ca282a5a103a",
+            sourceFileVersionId: "c349d33c-1605-4d2c-8498-c0468da388ce",
+            targetLocales: ["de-DE", "fr-FR", "vi-VN", "zh-CN"],
+          },
+          assign_translate_with_agent: {
+            jobId: "job_a8e92d25-932f-49f8-b9e3-7143822fcc6e",
+            enqueued: true,
+          },
+        },
+      }),
+    );
+
+    expect(message).toBe(
+      [
+        "**Translate on source upload** completed",
+        "",
+        "- **Job:** `job_a8e92d25-932f-49f8-b9e3-7143822fcc6e`",
+        "- **Source file:** `file_3b017712-ec57-448f-8015-ca282a5a103a`",
+        "- **Version:** `c349d33c-1605-4d2c-8498-c0468da388ce`",
+        "- **Locales:**",
+        "  - de-DE",
+        "  - fr-FR",
+        "  - vi-VN",
+        "  - zh-CN",
+        "- **Next:** Assigned to Translate with agent; localisation enqueued",
+      ].join("\n"),
+    );
+  });
+
+  it("prefers github repository digests when present", () => {
+    const message = buildOrchestratorRunSummaryMessage(
+      createSession({
+        stepResults: {
+          use_github_repository: {
+            digest: "Daily digest: 3 PRs merged.",
+          },
+        },
+      }),
+    );
+
+    expect(message).toBe("Daily digest: 3 PRs merged.");
+  });
+});

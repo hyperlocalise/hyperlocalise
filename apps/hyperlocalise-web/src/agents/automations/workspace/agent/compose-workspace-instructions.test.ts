@@ -37,14 +37,26 @@ describe("composeWorkspaceAutomationInstructions", () => {
     expect(instructions).toContain("save_memory tool");
   });
 
-  it("omits both memory nudges when neither tool is in the plan", () => {
+  it("includes the Slack notifications skill when notify_slack is planned", () => {
     const instructions = composeWorkspaceAutomationInstructions({
       triggerMode: "manual",
       plan: { tools: ["notify_slack"] },
       userOverride: "Notify the team.",
     });
 
+    expect(instructions).toContain("## Slack notifications");
+    expect(instructions).toContain("standard Markdown");
     expect(instructions).not.toContain("recall_memory tool");
     expect(instructions).not.toContain("save_memory tool");
+  });
+
+  it("omits the Slack notifications skill when notify_slack is not planned", () => {
+    const instructions = composeWorkspaceAutomationInstructions({
+      triggerMode: "manual",
+      plan: { tools: ["recall_memory", "save_memory"] },
+      userOverride: "Notify the team.",
+    });
+
+    expect(instructions).not.toContain("## Slack notifications");
   });
 });

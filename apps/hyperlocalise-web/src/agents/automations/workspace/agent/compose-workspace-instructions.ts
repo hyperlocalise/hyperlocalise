@@ -45,9 +45,11 @@ export function composeWorkspaceAutomationInstructions(input: {
   const dynamicSections = [enabledToolsSection];
 
   const skills = input.templateSkillId ? [input.templateSkillId] : [];
+  const sharedSkills = input.plan.tools.includes("notify_slack") ? ["slack-notifications"] : [];
 
   return composeInstructions({
     automationId: "workspace",
+    sharedSkills,
     skills,
     dynamicSections,
     userOverride: input.userOverride,

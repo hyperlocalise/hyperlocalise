@@ -58,6 +58,10 @@ Body content`);
     expect(loadSharedSkill("string-translation")).toContain("localization engine");
   });
 
+  it("loads shared slack-notifications skill", () => {
+    expect(loadSharedSkill("slack-notifications")).toContain("## Slack notifications");
+  });
+
   it("maps tool filenames to runtime names", () => {
     expect(toolNameFromFilename("translate_string.ts")).toBe("translate_string");
   });
