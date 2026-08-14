@@ -229,7 +229,6 @@ func analyzeTags(tags []string) tagAnalysis {
 }
 
 var (
-	bracePlaceholderPattern  = regexp.MustCompile(`\{\s*([A-Za-z_$][A-Za-z0-9_.$-]*)\s*\}`)
 	printfPlaceholderPattern = regexp.MustCompile(`%(?:\[[0-9]+\])?[-+#0 ]*(?:\d+|\*)?(?:\.(?:\d+|\*))?[hlLzjt]*[bcdeEfFgGosxXqvTt]`)
 	htmlTagPattern           = regexp.MustCompile(`</?[A-Za-z][A-Za-z0-9-]*(?:\s+[^>]+)?>`)
 	markdownTokenPattern     = regexp.MustCompile(`(\*\*|__|~~|` + "`" + `|\[[^\]]*\]\([^\)]*\)|#+\s)`)
@@ -518,7 +517,7 @@ func scanBracePlaceholders(s string, fn func(name string)) {
 		}
 
 		c := s[pos]
-		if !((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_' || c == '$') {
+		if (c < 'a' || c > 'z') && (c < 'A' || c > 'Z') && c != '_' && c != '$' {
 			i = start
 			continue
 		}
