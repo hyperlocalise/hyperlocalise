@@ -17,6 +17,8 @@ import { validator } from "hono/validator";
 import { buildAccessibleProjectsWhere } from "@/api/auth/team-access";
 import { workosAuthMiddleware, type ApiAuthContext, type AuthVariables } from "@/api/auth/workos";
 import { conflictResponse } from "@/api/errors";
+import { PRODUCT_USAGE_ANALYTICS_EVENTS } from "@/lib/analytics/events";
+import { serverAnalytics } from "@/lib/analytics/server";
 import { parseCsvRows } from "@/lib/csv/parse-csv-rows";
 import { db, schema } from "@/lib/database";
 import type { Glossary } from "@/lib/database/types";
@@ -129,6 +131,10 @@ const glossaryStore: GlossaryStore = {
       })
       .returning();
 
+    serverAnalytics.track(PRODUCT_USAGE_ANALYTICS_EVENTS.glossaryCreated, {
+      status: "created",
+      source: "glossary",
+    });
     return glossary;
   },
   async getById(auth, glossaryId) {
@@ -248,7 +254,15 @@ async function createGlossaryTerm(
     .onConflictDoNothing()
     .returning();
 
-  return term ?? null;
+  if (!term) {
+    return null;
+  }
+
+  serverAnalytics.track(PRODUCT_USAGE_ANALYTICS_EVENTS.glossaryTermCreated, {
+    status: "created",
+    source: "glossary",
+  });
+  return term;
 }
 
 async function createGlossaryTerms(

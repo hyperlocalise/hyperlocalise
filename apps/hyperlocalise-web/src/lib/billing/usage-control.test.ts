@@ -106,6 +106,37 @@ describe("usage-control", () => {
     expect(rows).toHaveLength(1);
   });
 
+  it("emits product usage analytics when a translation job usage event is first reserved", async () => {
+    const organization = await createOrganization();
+    const operationKey = `usage_${randomUUID()}`;
+    const trackSpy = vi.spyOn(serverAnalytics, "track").mockImplementation(() => {});
+
+    const first = await reserveUsageEvent({
+      organizationId: organization.id,
+      featureId: usageFeatureIds.translationJobs,
+      operationKey,
+      source: "translation_job_create",
+      quantity: 1,
+    });
+    const second = await reserveUsageEvent({
+      organizationId: organization.id,
+      featureId: usageFeatureIds.translationJobs,
+      operationKey,
+      source: "translation_job_create",
+      quantity: 1,
+    });
+
+    if (isErr(first) || isErr(second)) {
+      throw new Error("Expected usage event reservations to succeed");
+    }
+
+    expect(trackSpy).toHaveBeenCalledTimes(1);
+    expect(trackSpy).toHaveBeenCalledWith(PRODUCT_USAGE_ANALYTICS_EVENTS.translationJobCreated, {
+      status: "created",
+      source: "translation_job",
+    });
+  });
+
   it("returns an error when marking a missing usage event succeeded", async () => {
     const operationKey = `missing_${randomUUID()}`;
     const result = await markUsageEventSucceededByOperationKey({ operationKey });

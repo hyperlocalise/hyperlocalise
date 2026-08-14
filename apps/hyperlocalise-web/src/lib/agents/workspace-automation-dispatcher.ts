@@ -10,6 +10,8 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { PRODUCT_USAGE_ANALYTICS_EVENTS } from "@/lib/analytics/events";
+import { serverAnalytics } from "@/lib/analytics/server";
 import { createLogger } from "@/lib/log";
 import { composeWorkspaceAutomationInstructions } from "@/agents/automations/workspace/agent/compose-workspace-instructions";
 import {
@@ -253,10 +255,18 @@ async function dispatchWorkspaceAutomationViaOrchestrator(input: {
     },
   });
 
+  const insertedRun = enqueued ? inserted : false;
+  if (insertedRun) {
+    serverAnalytics.track(PRODUCT_USAGE_ANALYTICS_EVENTS.automationRunStarted, {
+      status: "queued",
+      source: input.triggerSource,
+    });
+  }
+
   return {
     outcome: "enqueued",
     runId: run.id,
-    inserted: enqueued ? inserted : false,
+    inserted: insertedRun,
   };
 }
 

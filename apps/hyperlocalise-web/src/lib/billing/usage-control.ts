@@ -112,7 +112,15 @@ export async function reserveUsageEvent(input: {
     .onConflictDoNothing({ target: schema.usageEvents.operationKey })
     .returning({ id: schema.usageEvents.id });
 
-  if (event) return ok(event);
+  if (event) {
+    if (input.featureId === usageFeatureIds.translationJobs) {
+      serverAnalytics.track(PRODUCT_USAGE_ANALYTICS_EVENTS.translationJobCreated, {
+        status: "created",
+        source: "translation_job",
+      });
+    }
+    return ok(event);
+  }
 
   const [existing] = await database
     .select({ id: schema.usageEvents.id })

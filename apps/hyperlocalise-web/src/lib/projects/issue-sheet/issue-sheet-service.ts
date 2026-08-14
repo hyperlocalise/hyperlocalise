@@ -21,6 +21,8 @@ import {
   type IssueSheetUpdateIssueBody,
 } from "@/api/routes/project/issue-sheet.schema";
 import type { IssueSheetImportBody } from "@/api/routes/project/issue-sheet.schema";
+import { PRODUCT_USAGE_ANALYTICS_EVENTS } from "@/lib/analytics/events";
+import { serverAnalytics } from "@/lib/analytics/server";
 import { db, schema, type DatabaseClient } from "@/lib/database";
 import type { IssueSheetColumnConfig } from "@/lib/database/schema/issue-sheet";
 import type { OrganizationMembershipRole } from "@/lib/database/types";
@@ -1159,6 +1161,10 @@ export class IssueSheetService {
     if (!created) {
       throw new Error("issue_sheet_issue_load_failed");
     }
+    serverAnalytics.track(PRODUCT_USAGE_ANALYTICS_EVENTS.issueCreated, {
+      status: "created",
+      source: "issue_sheet",
+    });
     return created;
   }
 

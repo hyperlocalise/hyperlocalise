@@ -17,6 +17,8 @@ import { testClient } from "hono/testing";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
 import { app } from "@/api/app";
+import { PRODUCT_USAGE_ANALYTICS_EVENTS } from "@/lib/analytics/events";
+import { serverAnalytics } from "@/lib/analytics/server";
 import { db, schema } from "@/lib/database";
 
 import { createProjectTestFixture } from "./project.fixture";
@@ -118,6 +120,7 @@ describe("Issue Sheet routes", () => {
     const { identity, project } = await projectFixture.createStoredProjectFixture();
     const headers = await projectFixture.authHeadersFor(identity);
     const organizationSlug = identity.organization.slug ?? "missing-slug";
+    const trackSpy = vi.spyOn(serverAnalytics, "track").mockImplementation(() => {});
 
     const createResponse = await issueSheet().$post(
       {
@@ -147,6 +150,11 @@ describe("Issue Sheet routes", () => {
       targetLocale: "de-DE",
       values: { priority: "P1" },
     });
+    expect(trackSpy).toHaveBeenCalledWith(PRODUCT_USAGE_ANALYTICS_EVENTS.issueCreated, {
+      status: "created",
+      source: "issue_sheet",
+    });
+    trackSpy.mockRestore();
 
     const listResponse = await issueSheet().$get(
       {

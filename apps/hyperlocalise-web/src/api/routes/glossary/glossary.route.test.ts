@@ -34,6 +34,8 @@ vi.mock("@/api/auth/workos-session", async (importOriginal) => {
 });
 
 import { createApp } from "@/api/app";
+import { PRODUCT_USAGE_ANALYTICS_EVENTS } from "@/lib/analytics/events";
+import { serverAnalytics } from "@/lib/analytics/server";
 import { db, schema } from "@/lib/database";
 
 import { createTeamTestFixture } from "../team/team.fixture";
@@ -285,5 +287,44 @@ describe("glossaryRoutes", () => {
     expect(memberListBody.projects.map((project) => project.projectId)).not.toContain(
       betaProject.id,
     );
+  });
+
+  it("emits product usage analytics when creating a glossary and a term", async () => {
+    const identity = fixture.createWorkosIdentityWithRole("admin");
+    const headers = await fixture.authHeadersFor(identity);
+    const trackSpy = vi.spyOn(serverAnalytics, "track").mockImplementation(() => {});
+
+    const createResponse = await fixture.createGlossaryViaApi(identity, undefined, headers);
+    expect(createResponse.status).toBe(201);
+    expect(trackSpy).toHaveBeenCalledWith(PRODUCT_USAGE_ANALYTICS_EVENTS.glossaryCreated, {
+      status: "created",
+      source: "glossary",
+    });
+
+    const glossaryId = ((await createResponse.json()) as { glossary: { id: string } }).glossary.id;
+    const termResponse = await client.api.orgs[":organizationSlug"].glossaries[
+      ":glossaryId"
+    ].terms.$post(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          glossaryId,
+        },
+        json: {
+          sourceTerm: "Checkout",
+          targetTerm: "Pago",
+          caseSensitive: false,
+          forbidden: false,
+        },
+      },
+      { headers },
+    );
+
+    expect(termResponse.status).toBe(201);
+    expect(trackSpy).toHaveBeenCalledWith(PRODUCT_USAGE_ANALYTICS_EVENTS.glossaryTermCreated, {
+      status: "created",
+      source: "glossary",
+    });
+    trackSpy.mockRestore();
   });
 });

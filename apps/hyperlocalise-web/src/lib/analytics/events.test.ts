@@ -64,6 +64,19 @@ describe("analytics sanitization", () => {
     expect(calls).toEqual([[LOCALISATION_AUDIT_ANALYTICS_EVENTS.start, { outcome: "created" }]]);
   });
 
+  it("keeps CAT source and feature properties", () => {
+    expect(
+      sanitizeAnalyticsProperties({
+        source: "native",
+        feature: "comment",
+        email: "leak@example.com",
+      }),
+    ).toEqual({
+      source: "native",
+      feature: "comment",
+    });
+  });
+
   it("maps token bands without sending raw counts", () => {
     expect(tokenBand(0)).toBe("none");
     expect(tokenBand(12)).toBe("low");

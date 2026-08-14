@@ -33,13 +33,23 @@ export type LocalisationAuditAnalyticsEvent =
 export const PRODUCT_USAGE_ANALYTICS_EVENTS = {
   translationJobCompleted: "translation_job_completed",
   translationJobFailed: "translation_job_failed",
+  translationJobCreated: "translation_job_created",
   agentRunCompleted: "agent_run_completed",
   agentRunFailed: "agent_run_failed",
   aiTokensConsumed: "ai_tokens_consumed",
   projectCreated: "project_created",
   automationCreated: "automation_created",
+  automationRunStarted: "automation_run_started",
   integrationConnected: "integration_connected",
   seatAdded: "seat_added",
+  catSegmentApproved: "cat_segment_approved",
+  catSegmentDraftSaved: "cat_segment_draft_saved",
+  catCommentCreated: "cat_comment_created",
+  catAiRecommendationRequested: "cat_ai_recommendation_requested",
+  issueCreated: "issue_created",
+  glossaryCreated: "glossary_created",
+  glossaryTermCreated: "glossary_term_created",
+  memoryCreated: "memory_created",
 } as const;
 
 export type ProductUsageAnalyticsEvent =

@@ -47,6 +47,8 @@ vi.mock("@/workflows/adapters", async (importOriginal) => {
 
 import { createApp } from "@/api/app";
 import { createAuthTestFixture } from "@/api/test-auth.fixture";
+import { PRODUCT_USAGE_ANALYTICS_EVENTS } from "@/lib/analytics/events";
+import { serverAnalytics } from "@/lib/analytics/server";
 import { db, schema } from "@/lib/database";
 
 const client = testClient(createApp());
@@ -412,6 +414,7 @@ describe("workspace automation routes", () => {
       idempotencyKey: `manual:${created.automation.id}:test-run`,
       inputSnapshot: { reason: "operator_test" },
     };
+    const trackSpy = vi.spyOn(serverAnalytics, "track").mockImplementation(() => {});
     const firstRunResponse = await client.api.orgs[":organizationSlug"].automations[
       ":automationId"
     ].runs.$post(
@@ -448,6 +451,12 @@ describe("workspace automation routes", () => {
     };
     expect(firstRun.dispatch).toMatchObject({ outcome: "enqueued", inserted: true });
     expect(secondRun.dispatch).toMatchObject({ outcome: "enqueued", inserted: false });
+    expect(trackSpy).toHaveBeenCalledTimes(1);
+    expect(trackSpy).toHaveBeenCalledWith(PRODUCT_USAGE_ANALYTICS_EVENTS.automationRunStarted, {
+      status: "queued",
+      source: "manual",
+    });
+    trackSpy.mockRestore();
     expect(firstRun.automationRun.outputSummary.orchestratorEnqueuedAt).toBeTruthy();
     expect(workspaceAutomationExecutionEnqueueMock).toHaveBeenCalledTimes(1);
     expect(secondRun.automationRun).toMatchObject({

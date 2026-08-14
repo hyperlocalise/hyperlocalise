@@ -20,6 +20,8 @@ import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 import { eq } from "drizzle-orm";
 
 import { app } from "@/api/app";
+import { PRODUCT_USAGE_ANALYTICS_EVENTS } from "@/lib/analytics/events";
+import { serverAnalytics } from "@/lib/analytics/server";
 import { db, schema } from "@/lib/database";
 import { ensureRepositorySourceFile } from "@/lib/file-storage/records";
 import { upsertProjectTranslationKeysFromEntries } from "@/lib/projects/translations/project-translation-service";
@@ -391,6 +393,7 @@ describe("project file CAT routes", () => {
         aiReasoning: "Natural French greeting.",
       }),
     );
+    const trackSpy = vi.spyOn(serverAnalytics, "track").mockImplementation(() => {});
 
     const response = await client.api.orgs[":organizationSlug"].projects[
       ":projectId"
@@ -421,6 +424,11 @@ describe("project file CAT routes", () => {
       aiSuggestion: "Bonjour",
       aiReasoning: "Natural French greeting.",
     });
+    expect(trackSpy).toHaveBeenCalledWith(
+      PRODUCT_USAGE_ANALYTICS_EVENTS.catAiRecommendationRequested,
+      { source: "external_tms" },
+    );
+    trackSpy.mockRestore();
     expect(ensureOrganizationProjectRecordMock).toHaveBeenCalledWith(
       expect.objectContaining({
         projectId: "ext:crowdin:42",
@@ -606,6 +614,7 @@ describe("project file CAT routes", () => {
       .limit(1);
     expect(translationKey).toBeDefined();
 
+    const trackSpy = vi.spyOn(serverAnalytics, "track").mockImplementation(() => {});
     const postResponse = await client.api.orgs[":organizationSlug"].projects[
       ":projectId"
     ].files.detail.cat.comments.$post(
@@ -626,6 +635,11 @@ describe("project file CAT routes", () => {
 
     expect(postResponse.status).toBe(200);
     expect(saveTmsProviderLiveCatCommentMock).not.toHaveBeenCalled();
+    expect(trackSpy).toHaveBeenCalledWith(PRODUCT_USAGE_ANALYTICS_EVENTS.catCommentCreated, {
+      source: "native",
+      feature: "comment",
+    });
+    trackSpy.mockRestore();
 
     const response = await client.api.orgs[":organizationSlug"].projects[
       ":projectId"
@@ -686,6 +700,106 @@ describe("project file CAT routes", () => {
       },
     ]);
     expect(commentsBody.comments[0]?.externalCommentId).toBeTruthy();
+  });
+
+  it("emits product usage analytics for native CAT draft, approve, and status updates", async () => {
+    const { identity, project, organization } = await projectFixture.createStoredProjectFixture();
+    const headers = await projectFixture.authHeadersFor(identity);
+    const sourcePath = "locales/en.json";
+    const sourceFile = await ensureRepositorySourceFile({
+      organizationId: organization.id,
+      projectId: project.id,
+      sourcePath,
+    });
+
+    const { imported } = await upsertProjectTranslationKeysFromEntries({
+      organizationId: organization.id,
+      projectId: project.id,
+      repositorySourceFileId: sourceFile.id,
+      entries: [{ key: "greeting", text: "Hello", context: null }],
+    });
+    expect(imported).toBe(1);
+
+    const [translationKey] = await db
+      .select({ id: schema.projectTranslationKeys.id })
+      .from(schema.projectTranslationKeys)
+      .where(eq(schema.projectTranslationKeys.repositorySourceFileId, sourceFile.id))
+      .limit(1);
+    expect(translationKey).toBeDefined();
+
+    const trackSpy = vi.spyOn(serverAnalytics, "track").mockImplementation(() => {});
+    const draftResponse = await client.api.orgs[":organizationSlug"].projects[
+      ":projectId"
+    ].files.detail.cat.translations.$post(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          projectId: project.id,
+        },
+        json: {
+          sourcePath,
+          targetLocale: "fr-FR",
+          externalStringId: translationKey!.id,
+          text: "Bonjour",
+          approve: false,
+        },
+      },
+      { headers },
+    );
+    expect(draftResponse.status).toBe(200);
+    expect(trackSpy).toHaveBeenCalledWith(PRODUCT_USAGE_ANALYTICS_EVENTS.catSegmentDraftSaved, {
+      source: "native",
+      status: "draft",
+    });
+
+    const approveResponse = await client.api.orgs[":organizationSlug"].projects[
+      ":projectId"
+    ].files.detail.cat.translations.$post(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          projectId: project.id,
+        },
+        json: {
+          sourcePath,
+          targetLocale: "fr-FR",
+          externalStringId: translationKey!.id,
+          text: "Bonjour",
+          approve: true,
+        },
+      },
+      { headers },
+    );
+    expect(approveResponse.status).toBe(200);
+    expect(trackSpy).toHaveBeenCalledWith(PRODUCT_USAGE_ANALYTICS_EVENTS.catSegmentApproved, {
+      source: "native",
+      status: "approved",
+    });
+
+    trackSpy.mockClear();
+    const statusResponse = await client.api.orgs[":organizationSlug"].projects[
+      ":projectId"
+    ].files.detail.cat.translations.status.$post(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          projectId: project.id,
+        },
+        json: {
+          sourcePath,
+          targetLocale: "fr-FR",
+          externalStringId: translationKey!.id,
+          status: "approved",
+        },
+      },
+      { headers },
+    );
+    expect(statusResponse.status).toBe(200);
+    expect(trackSpy).toHaveBeenCalledWith(PRODUCT_USAGE_ANALYTICS_EVENTS.catSegmentApproved, {
+      source: "native",
+      status: "approved",
+    });
+    trackSpy.mockRestore();
   });
 
   it("loads native segment targets with All Files sourcePath=*", async () => {
@@ -1681,6 +1795,7 @@ describe("project file CAT routes", () => {
       externalTranslationId: "9001",
       isApproved: false,
     });
+    const trackSpy = vi.spyOn(serverAnalytics, "track").mockImplementation(() => {});
 
     const response = await client.api.orgs[":organizationSlug"].projects[
       ":projectId"
@@ -1711,6 +1826,11 @@ describe("project file CAT routes", () => {
       { targetLocale: "fr", externalStringId: "1001", externalResourceId: "101", text: "Bonjour" },
       expect.objectContaining({ actorUserId: expect.any(String) }),
     );
+    expect(trackSpy).toHaveBeenCalledWith(PRODUCT_USAGE_ANALYTICS_EVENTS.catSegmentDraftSaved, {
+      source: "external_tms",
+      status: "draft",
+    });
+    trackSpy.mockRestore();
   });
 
   it("denies CAT translation saves without write-back permission", async () => {
@@ -1749,6 +1869,7 @@ describe("project file CAT routes", () => {
       locale: "fr",
       author: "Reviewer",
     });
+    const trackSpy = vi.spyOn(serverAnalytics, "track").mockImplementation(() => {});
 
     const response = await client.api.orgs[":organizationSlug"].projects[
       ":projectId"
@@ -1789,6 +1910,11 @@ describe("project file CAT routes", () => {
       },
       expect.objectContaining({ actorUserId: expect.any(String) }),
     );
+    expect(trackSpy).toHaveBeenCalledWith(PRODUCT_USAGE_ANALYTICS_EVENTS.catCommentCreated, {
+      source: "external_tms",
+      feature: "comment",
+    });
+    trackSpy.mockRestore();
   });
 
   it("posts Crowdin CAT issues with issue type for users with write-back permission", async () => {
@@ -1802,6 +1928,7 @@ describe("project file CAT routes", () => {
       locale: "fr",
       author: "Reviewer",
     });
+    const trackSpy = vi.spyOn(serverAnalytics, "track").mockImplementation(() => {});
 
     const response = await client.api.orgs[":organizationSlug"].projects[
       ":projectId"
@@ -1839,6 +1966,11 @@ describe("project file CAT routes", () => {
       },
       expect.objectContaining({ actorUserId: expect.any(String) }),
     );
+    expect(trackSpy).toHaveBeenCalledWith(PRODUCT_USAGE_ANALYTICS_EVENTS.catCommentCreated, {
+      source: "external_tms",
+      feature: "issue",
+    });
+    trackSpy.mockRestore();
   });
 
   it("resolves Crowdin CAT issues for users with write-back permission", async () => {
