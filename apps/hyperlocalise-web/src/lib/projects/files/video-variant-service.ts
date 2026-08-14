@@ -203,18 +203,6 @@ async function loadSourceVideoBytes(input: {
   }
 }
 
-function mapDurationError(
-  duration: ReturnType<typeof assertMp4DurationSupported>,
-): VideoVariantError | null {
-  if (duration.ok) {
-    return null;
-  }
-  if (duration.error.code === "video_duration_unreadable") {
-    return { code: "video_duration_unreadable" };
-  }
-  return { code: "video_duration_unsupported" };
-}
-
 export async function fetchVideoBytesFromUrl(
   url: string,
 ): Promise<Result<{ content: Buffer; contentType: string; filename: string }, VideoVariantError>> {
@@ -327,9 +315,12 @@ export async function localizeAndStoreVideoVariant(input: {
   }
 
   const duration = assertMp4DurationSupported(sourceBytes.content);
-  const durationError = mapDurationError(duration);
-  if (durationError) {
-    return err(durationError);
+  if (!duration.ok) {
+    return err(
+      duration.error.code === "video_duration_unreadable"
+        ? { code: "video_duration_unreadable" }
+        : { code: "video_duration_unsupported" },
+    );
   }
 
   const prompt = buildVideoLocalizationPrompt({
@@ -442,9 +433,12 @@ export async function replaceVideoVariantBytes(input: {
   }
 
   const duration = assertMp4DurationSupported(input.content);
-  const durationError = mapDurationError(duration);
-  if (durationError) {
-    return err(durationError);
+  if (!duration.ok) {
+    return err(
+      duration.error.code === "video_duration_unreadable"
+        ? { code: "video_duration_unreadable" }
+        : { code: "video_duration_unsupported" },
+    );
   }
 
   const stored = await createStoredFile({

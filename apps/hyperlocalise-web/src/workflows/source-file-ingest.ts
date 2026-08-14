@@ -95,7 +95,7 @@ export async function sourceFileIngestWorkflow(event: SourceFileIngestEventData)
       if (isVideoTranslationFileFormat(inferredFormat)) {
         const stored = await getStoredFileContentStep(event.storedFileId, event.organizationId);
         const { assertMp4DurationSupported } = await import("@/lib/translation/mp4-duration");
-        const duration = assertMp4DurationSupported(stored.content);
+        const duration = assertMp4DurationSupported(stored);
         if (!duration.ok) {
           throw new Error(duration.error.code);
         }

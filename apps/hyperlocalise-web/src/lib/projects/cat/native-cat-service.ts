@@ -36,10 +36,7 @@ import {
   IMAGE_URL_CONTENT_KIND,
   isImageUrlContentKind,
 } from "@/lib/projects/files/image-url-translation-service";
-import {
-  getVideoVariant,
-  projectVideoAssetPath,
-} from "@/lib/projects/files/video-variant-service";
+import { getVideoVariant, projectVideoAssetPath } from "@/lib/projects/files/video-variant-service";
 import {
   VIDEO_URL_CONTENT_KIND,
   isVideoUrlContentKind,
@@ -128,12 +125,8 @@ function mapTextSegment(
     ...(contentKind === IMAGE_URL_CONTENT_KIND || contentKind === VIDEO_URL_CONTENT_KIND
       ? { sourceAssetUrl: key.sourceText }
       : {}),
-    ...(looksLikeImage || isImageUrl
-      ? { looksLikeImageUrl: looksLikeImage || isImageUrl }
-      : {}),
-    ...(looksLikeVideo || isVideoUrl
-      ? { looksLikeVideoUrl: looksLikeVideo || isVideoUrl }
-      : {}),
+    ...(looksLikeImage || isImageUrl ? { looksLikeImageUrl: looksLikeImage || isImageUrl } : {}),
+    ...(looksLikeVideo || isVideoUrl ? { looksLikeVideoUrl: looksLikeVideo || isVideoUrl } : {}),
     ...(options?.includeSourcePath && key.sourcePath ? { sourcePath: key.sourcePath } : {}),
   };
 }

@@ -45,9 +45,7 @@ export function CatVideoPreview({
   }
 
   return (
-    <div
-      className={cn("overflow-hidden border border-border bg-muted/20", className)}
-    >
+    <div className={cn("overflow-hidden border border-border bg-muted/20", className)}>
       <video
         src={src}
         controls

@@ -70,10 +70,7 @@ export function buildVideoLocalizationPrompt(input: {
     .join("\n");
 }
 
-export async function localizeVideoBuffer(
-  video: Buffer,
-  input: LocalizeVideoAttachmentInput,
-) {
+export async function localizeVideoBuffer(video: Buffer, input: LocalizeVideoAttachmentInput) {
   const prompt = buildVideoLocalizationPrompt(input);
   const result = await regenerateVideoFromAttachment(
     video,

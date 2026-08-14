@@ -52,7 +52,7 @@ export const useCatMutationsMessages = defineMessages({
   },
   failedToUpdateVideoMode: {
     defaultMessage: "Failed to update video mode",
-    id: "w5gPf0mNqT",
+    id: "VaRVOa2ruT",
     description: "Fallback error when toggling treat-as-video mode fails",
   },
 });

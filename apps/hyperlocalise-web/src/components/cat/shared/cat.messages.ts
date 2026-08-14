@@ -547,12 +547,12 @@ export const catEditorPanelMessages = defineMessages({
   },
   treatAsVideo: {
     defaultMessage: "Treat as video",
-    id: "k2mPq8nRwT",
+    id: "yxHGupHq+k",
     description: "Button to treat a URL source string as a localizable video",
   },
   treatAsVideoTitle: {
     defaultMessage: "Preview and localize this URL as a video",
-    id: "n7sLk4vXcB",
+    id: "z0uvvDTD9z",
     description: "Tooltip for the treat-as-video toggle in CAT",
   },
   regenerateImage: {
@@ -592,27 +592,27 @@ export const catEditorPanelMessages = defineMessages({
   },
   regenerateVideo: {
     defaultMessage: "Regenerate video",
-    id: "p9wQe3zLmN",
+    id: "PgliwXORHi",
     description: "Button to regenerate a localized video with the agent",
   },
   uploadVideo: {
     defaultMessage: "Upload video",
-    id: "r4tYh8bVsC",
+    id: "fCirHpiRXz",
     description: "Button to upload a replacement localized video",
   },
   videoSourceEmpty: {
     defaultMessage: "Source video unavailable",
-    id: "s6uJa1dFkP",
+    id: "k6wO1BhuBw",
     description: "Empty state when the CAT source video cannot be shown",
   },
   videoTargetEmpty: {
     defaultMessage: "No localized video yet",
-    id: "t8cMb5gHnQ",
+    id: "24tcVtmHO9",
     description: "Empty state when the CAT target video has not been created",
   },
   videoEmpty: {
     defaultMessage: "No video yet",
-    id: "u1eNd7iJoR",
+    id: "0Y2PNYvVoj",
     description: "Fallback empty state when a CAT video preview has no source URL",
   },
   segmentPosition: {
@@ -940,7 +940,7 @@ export const catSideBySidePanelMessages = defineMessages({
   },
   clickToLocalizeVideo: {
     defaultMessage: "Click to localize video",
-    id: "v3fOe9kLpS",
+    id: "mz+/0gx1Ho",
     description: "Placeholder when a side-by-side video row has no localized video yet",
   },
   formatCheckFail: {

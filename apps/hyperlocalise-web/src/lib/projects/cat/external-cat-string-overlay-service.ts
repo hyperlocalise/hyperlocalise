@@ -194,7 +194,13 @@ export async function enrichExternalCatFileImageFields<
     segments: Array<{
       externalStringId: string;
       sourceText: string;
-      contentKind?: "text" | "image_file" | "image_url" | "video_file" | "video_url" | "office_file";
+      contentKind?:
+        | "text"
+        | "image_file"
+        | "image_url"
+        | "video_file"
+        | "video_url"
+        | "office_file";
       sourceAssetUrl?: string | null;
       looksLikeImageUrl?: boolean;
     }>;
