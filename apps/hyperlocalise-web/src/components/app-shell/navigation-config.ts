@@ -32,6 +32,7 @@ import {
   File01Icon,
   LanguageCircleIcon,
   FolderKanbanIcon,
+  Globe02Icon,
   InboxIcon,
   LinkSquare02Icon,
   Settings01Icon,
@@ -175,6 +176,20 @@ export function buildGlobalNavigationGroups(
           }),
           href: org("projects"),
           icon: FolderKanbanIcon,
+        },
+        {
+          label: intl.formatMessage({
+            defaultMessage: "Domains",
+            id: "DomNavSidebar",
+            description: "Sidebar navigation item for linked domains",
+          }),
+          href: org("domains"),
+          icon: Globe02Icon,
+          description: intl.formatMessage({
+            defaultMessage: "Claimed sites and localisation audit reports",
+            id: "DomNavSidebarDesc",
+            description: "Sidebar description for the Domains navigation item",
+          }),
         },
         {
           label: intl.formatMessage({

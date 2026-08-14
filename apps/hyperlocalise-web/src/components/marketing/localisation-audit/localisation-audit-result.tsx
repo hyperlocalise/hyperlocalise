@@ -73,6 +73,8 @@ type LocalisationAuditResultProps = {
   domainSlug: string;
   initialAudit: AuditPayload;
   standing: LocalisationAuditStanding | null;
+  /** Workspace embeds hide marketing unlock/share/claim chrome. */
+  variant?: "public" | "workspace";
 };
 
 const PROGRESS_STAGES = ["queued", "preparing", "crawling", "analyzing", "scoring"] as const;
@@ -349,8 +351,16 @@ export function LocalisationAuditResult({
   domainSlug,
   initialAudit,
   standing,
+  variant = "public",
 }: LocalisationAuditResultProps) {
   const copy = getLocalisationAuditResultCopy(locale);
+  const isWorkspace = variant === "workspace";
+  const sectionClassName = isWorkspace
+    ? "border-t border-border px-0 py-10 first:border-t-0 first:pt-0"
+    : "border-t border-border px-5 py-16 sm:px-8 lg:px-10";
+  const heroClassName = isWorkspace
+    ? "px-0 pb-8 pt-0"
+    : "px-5 pt-16 pb-12 sm:px-8 sm:pt-20 lg:px-10";
   const [audit, setAudit] = useState(initialAudit);
   const [email, setEmail] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -593,9 +603,9 @@ export function LocalisationAuditResult({
 
   return (
     <>
-      <section className="px-5 pt-16 pb-12 sm:px-8 sm:pt-20 lg:px-10">
-        <p className="text-sm text-muted-foreground">{audit.domainKey}</p>
-        <TypographyH1 className="mt-3 text-balance">
+      <section className={heroClassName}>
+        {isWorkspace ? null : <p className="text-sm text-muted-foreground">{audit.domainKey}</p>}
+        <TypographyH1 className={cn("text-balance", isWorkspace ? "mt-0" : "mt-3")}>
           {copy.scoreLabel}: <ScoreValue score={score} />
           <span className="text-muted-foreground">{copy.scoreOutOf}</span>
         </TypographyH1>
@@ -657,8 +667,8 @@ export function LocalisationAuditResult({
         </TypographyP>
       </section>
 
-      {standing ? (
-        <section className="border-t border-border px-5 py-16 sm:px-8 lg:px-10">
+      {standing && !isWorkspace ? (
+        <section className={sectionClassName}>
           <TypographyH2 className="pb-0">{copy.standingHeading}</TypographyH2>
           <TypographyP className="mt-4 max-w-2xl text-lg text-muted-foreground">
             {formatCopy(copy.standingRank, { rank: standing.rank, total: standing.total })}
@@ -681,14 +691,14 @@ export function LocalisationAuditResult({
         </section>
       ) : null}
 
-      <section className="border-t border-border px-5 py-16 sm:px-8 lg:px-10">
+      <section className={sectionClassName}>
         <TypographyH2 className="pb-0">{copy.fixFirstHeading}</TypographyH2>
         <div className="mt-8">
           <FindingList findings={fixFirst} copy={copy} domainKey={audit.domainKey} />
         </div>
       </section>
 
-      <section className="border-t border-border px-5 py-16 sm:px-8 lg:px-10">
+      <section className={sectionClassName}>
         <TypographyH2 className="pb-0">{copy.localesHeading}</TypographyH2>
         <div className="mt-6 flex flex-wrap gap-x-6 gap-y-2 text-sm text-muted-foreground">
           {(teaser?.detectedLocales ?? report?.detectedLocales ?? []).map((localeSignal) => (
@@ -700,15 +710,15 @@ export function LocalisationAuditResult({
         </div>
       </section>
 
-      <section className="border-t border-border px-5 py-16 sm:px-8 lg:px-10">
+      <section className={sectionClassName}>
         <TypographyH2 className="pb-0">{copy.findingsHeading}</TypographyH2>
         <div className="mt-8">
           <FindingList findings={headlineFindings} copy={copy} domainKey={audit.domainKey} />
         </div>
       </section>
 
-      {!audit.unlocked ? (
-        <section className="border-t border-border px-5 py-16 sm:px-8 lg:px-10">
+      {!audit.unlocked && !isWorkspace ? (
+        <section className={sectionClassName}>
           <TypographyH2 className="pb-0">{copy.unlockHeading}</TypographyH2>
           <TypographyP className="mt-4 max-w-2xl text-muted-foreground">
             {copy.unlockBody}
@@ -742,20 +752,22 @@ export function LocalisationAuditResult({
         </section>
       ) : null}
 
-      <section className="border-t border-border px-5 py-16 sm:px-8 lg:px-10">
-        <TypographyH2 className="pb-0">{copy.shareHeading}</TypographyH2>
-        <TypographyP className="mt-4 max-w-2xl text-muted-foreground">{copy.shareBody}</TypographyP>
-        <div className="mt-6 flex flex-wrap items-center gap-3">
-          <Button type="button" variant="outline" onClick={copyShareLink}>
-            {copy.shareCopyLink}
-          </Button>
-          {shareMessage ? <p className="text-sm text-muted-foreground">{shareMessage}</p> : null}
-        </div>
-      </section>
+      {isWorkspace ? null : (
+        <section className={sectionClassName}>
+          <TypographyH2 className="pb-0">{copy.shareHeading}</TypographyH2>
+          <TypographyP className="mt-4 max-w-2xl text-muted-foreground">{copy.shareBody}</TypographyP>
+          <div className="mt-6 flex flex-wrap items-center gap-3">
+            <Button type="button" variant="outline" onClick={copyShareLink}>
+              {copy.shareCopyLink}
+            </Button>
+            {shareMessage ? <p className="text-sm text-muted-foreground">{shareMessage}</p> : null}
+          </div>
+        </section>
+      )}
 
       {report ? (
         <>
-          <section className="border-t border-border px-5 py-16 sm:px-8 lg:px-10">
+          <section className={sectionClassName}>
             <TypographyH2 className="pb-0">{copy.fullFindingsHeading}</TypographyH2>
             <div className="mt-8">
               <FindingList findings={report.findings} copy={copy} domainKey={audit.domainKey} />
@@ -763,7 +775,7 @@ export function LocalisationAuditResult({
           </section>
 
           {report.credits && report.credits.length > 0 ? (
-            <section className="border-t border-border px-5 py-16 sm:px-8 lg:px-10">
+            <section className={sectionClassName}>
               <TypographyH2 className="pb-0">{copy.creditsHeading}</TypographyH2>
               <ul className="mt-8 space-y-3 text-sm">
                 {report.credits.map((credit) => (
@@ -792,7 +804,7 @@ export function LocalisationAuditResult({
           ) : null}
 
           {report.linguisticNotes.length > 0 ? (
-            <section className="border-t border-border px-5 py-16 sm:px-8 lg:px-10">
+            <section className={sectionClassName}>
               <TypographyH2 className="pb-0">{copy.linguisticHeading}</TypographyH2>
               <ul className="mt-8 space-y-8">
                 {report.linguisticNotes.map((note) => (
@@ -813,7 +825,7 @@ export function LocalisationAuditResult({
             </section>
           ) : null}
 
-          <section className="border-t border-border px-5 py-16 sm:px-8 lg:px-10">
+          <section className={sectionClassName}>
             <TypographyH2 className="pb-0">{copy.pagesHeading}</TypographyH2>
             <ul className="mt-8 space-y-3 text-sm text-muted-foreground">
               {report.pages.map((page) => (
@@ -827,76 +839,78 @@ export function LocalisationAuditResult({
         </>
       ) : null}
 
-      <section className="border-t border-border px-5 py-16 sm:px-8 lg:px-10">
-        <TypographyH2 className="pb-0">{copy.reauditHeading}</TypographyH2>
-        <TypographyP className="mt-4 max-w-2xl text-muted-foreground">{ctaBody}</TypographyP>
-        <div className="mt-6 flex flex-wrap gap-3">
-          {audit.rerunnable ? (
+      {isWorkspace ? null : (
+        <section className={sectionClassName}>
+          <TypographyH2 className="pb-0">{copy.reauditHeading}</TypographyH2>
+          <TypographyP className="mt-4 max-w-2xl text-muted-foreground">{ctaBody}</TypographyP>
+          <div className="mt-6 flex flex-wrap gap-3">
+            {audit.rerunnable ? (
+              <Button
+                onClick={() => restartAudit("Could not re-run the audit.")}
+                disabled={rerunPending}
+              >
+                {rerunPending ? copy.rerunning : copy.rerun}
+              </Button>
+            ) : null}
+            {audit.claimed ? (
+              <Button
+                nativeButton={false}
+                render={
+                  <Link
+                    href={`/claim-domain/${domainSlug}`}
+                    onClick={() => trackCta("open_claimed_domain")}
+                  />
+                }
+              >
+                {copy.openInWorkspace}
+              </Button>
+            ) : (
+              <Button
+                nativeButton={false}
+                render={
+                  <Link
+                    href={`/auth/sign-in?returnTo=${encodeURIComponent(`/claim-domain/${domainSlug}`)}`}
+                    onClick={() => trackCta("claim_domain")}
+                  />
+                }
+              >
+                {copy.claimDomain}
+              </Button>
+            )}
             <Button
-              onClick={() => restartAudit("Could not re-run the audit.")}
-              disabled={rerunPending}
+              variant="outline"
+              nativeButton={false}
+              render={<Link href="/auth/sign-in" onClick={() => trackCta("create_workspace")} />}
             >
-              {rerunPending ? copy.rerunning : copy.rerun}
+              {band === "low" ? copy.createWorkspace : copy.deeperAudit}
             </Button>
+            <Button
+              variant="outline"
+              nativeButton={false}
+              render={
+                <a
+                  href={REQUEST_DEMO_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={() => trackCta("book_review")}
+                />
+              }
+            >
+              {copy.bookReview}
+            </Button>
+          </div>
+          {!audit.rerunnable && audit.rerunAvailableAt ? (
+            <p className="mt-4 text-sm text-muted-foreground">
+              {formatCopy(copy.rerunCooldown, {
+                when: new Date(audit.rerunAvailableAt).toLocaleString(locale, {
+                  dateStyle: "medium",
+                  timeStyle: "short",
+                }),
+              })}
+            </p>
           ) : null}
-          {audit.claimed ? (
-            <Button
-              nativeButton={false}
-              render={
-                <Link
-                  href={`/claim-domain/${domainSlug}`}
-                  onClick={() => trackCta("open_claimed_domain")}
-                />
-              }
-            >
-              {copy.openInWorkspace}
-            </Button>
-          ) : (
-            <Button
-              nativeButton={false}
-              render={
-                <Link
-                  href={`/auth/sign-in?returnTo=${encodeURIComponent(`/claim-domain/${domainSlug}`)}`}
-                  onClick={() => trackCta("claim_domain")}
-                />
-              }
-            >
-              {copy.claimDomain}
-            </Button>
-          )}
-          <Button
-            variant="outline"
-            nativeButton={false}
-            render={<Link href="/auth/sign-in" onClick={() => trackCta("create_workspace")} />}
-          >
-            {band === "low" ? copy.createWorkspace : copy.deeperAudit}
-          </Button>
-          <Button
-            variant="outline"
-            nativeButton={false}
-            render={
-              <a
-                href={REQUEST_DEMO_URL}
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={() => trackCta("book_review")}
-              />
-            }
-          >
-            {copy.bookReview}
-          </Button>
-        </div>
-        {!audit.rerunnable && audit.rerunAvailableAt ? (
-          <p className="mt-4 text-sm text-muted-foreground">
-            {formatCopy(copy.rerunCooldown, {
-              when: new Date(audit.rerunAvailableAt).toLocaleString(locale, {
-                dateStyle: "medium",
-                timeStyle: "short",
-              }),
-            })}
-          </p>
-        ) : null}
-      </section>
+        </section>
+      )}
     </>
   );
 }

@@ -24,6 +24,7 @@ import {
 import {
   cancelPendingLinkedDomainClaim,
   getLinkedDomain,
+  getLinkedDomainAudit,
   listLinkedDomains,
   startLinkedDomainClaim,
   verifyAndClaimLinkedDomain,
@@ -155,6 +156,23 @@ export function createLinkedDomainRoutes() {
       }
 
       return c.json({ linkedDomain }, 200);
+    })
+    .get("/:linkedDomainId/audit", validateLinkedDomainParams, async (c) => {
+      if (!canReadLinkedDomains(c.var.auth.membership.role)) {
+        return forbiddenResponse(c);
+      }
+
+      const { linkedDomainId } = c.req.valid("param");
+      const result = await getLinkedDomainAudit({
+        organizationId: c.var.auth.organization.localOrganizationId,
+        linkedDomainId,
+      });
+
+      if (isErr(result)) {
+        return mapLinkedDomainError(c, result.error);
+      }
+
+      return c.json({ audit: result.value }, 200);
     })
     .post("/:linkedDomainId/verify", validateLinkedDomainParams, validateVerifyBody, async (c) => {
       if (!canWriteLinkedDomains(c.var.auth.membership.role)) {

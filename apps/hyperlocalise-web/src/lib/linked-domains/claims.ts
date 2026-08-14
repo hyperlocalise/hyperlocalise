@@ -12,7 +12,7 @@
  */
 import { randomUUID } from "node:crypto";
 
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, inArray } from "drizzle-orm";
 
 import { db, schema, type DatabaseClient } from "@/lib/database";
 import type {
@@ -24,12 +24,12 @@ import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
 import { ensureDefaultWorkspaceTeam } from "@/lib/teams/default-workspace-team";
 
 import { buildLinkedDomainChallenges, mintLinkedDomainVerificationToken } from "./challenges";
-import type { LinkedDomainError, LinkedDomainPublic } from "./types";
+import type { LinkedDomainError, LinkedDomainAuditDetail, LinkedDomainPublic } from "./types";
 import { verifyLinkedDomainChallenge, type PublicFetchFn, type ResolveTxtFn } from "./verify";
 
 export type LinkedDomainRow = typeof schema.linkedDomains.$inferSelect;
 
-function toPublic(row: LinkedDomainRow): LinkedDomainPublic {
+function toPublic(row: LinkedDomainRow, auditScore: number | null = null): LinkedDomainPublic {
   return {
     id: row.id,
     organizationId: row.organizationId,
@@ -49,7 +49,31 @@ function toPublic(row: LinkedDomainRow): LinkedDomainPublic {
       sourceUrl: row.sourceUrl,
       token: row.verificationToken,
     }),
+    auditScore,
   };
+}
+
+async function auditScoreByIds(
+  auditIds: string[],
+  database: DatabaseClient,
+): Promise<Map<string, number | null>> {
+  const scores = new Map<string, number | null>();
+  if (auditIds.length === 0) {
+    return scores;
+  }
+
+  const rows = await database
+    .select({
+      id: schema.localisationAudits.id,
+      score: schema.localisationAudits.score,
+    })
+    .from(schema.localisationAudits)
+    .where(inArray(schema.localisationAudits.id, auditIds));
+
+  for (const row of rows) {
+    scores.set(row.id, row.score);
+  }
+  return scores;
 }
 
 export async function listLinkedDomains(input: {
@@ -62,7 +86,15 @@ export async function listLinkedDomains(input: {
     .from(schema.linkedDomains)
     .where(eq(schema.linkedDomains.organizationId, input.organizationId))
     .orderBy(desc(schema.linkedDomains.createdAt));
-  return rows.map(toPublic);
+
+  const auditIds = rows
+    .map((row) => row.localisationAuditId)
+    .filter((id): id is string => typeof id === "string" && id.length > 0);
+  const scores = await auditScoreByIds(auditIds, database);
+
+  return rows.map((row) =>
+    toPublic(row, row.localisationAuditId ? (scores.get(row.localisationAuditId) ?? null) : null),
+  );
 }
 
 export async function getLinkedDomain(input: {
@@ -81,7 +113,68 @@ export async function getLinkedDomain(input: {
       ),
     )
     .limit(1);
-  return row ? toPublic(row) : null;
+  if (!row) {
+    return null;
+  }
+
+  let auditScore: number | null = null;
+  if (row.localisationAuditId) {
+    const scores = await auditScoreByIds([row.localisationAuditId], database);
+    auditScore = scores.get(row.localisationAuditId) ?? null;
+  }
+
+  return toPublic(row, auditScore);
+}
+
+export async function getLinkedDomainAudit(input: {
+  organizationId: string;
+  linkedDomainId: string;
+  database?: DatabaseClient;
+}): Promise<Result<LinkedDomainAuditDetail, LinkedDomainError>> {
+  const database = input.database ?? db;
+  const linkedDomain = await getLinkedDomain({
+    organizationId: input.organizationId,
+    linkedDomainId: input.linkedDomainId,
+    database,
+  });
+
+  if (!linkedDomain) {
+    return err({ code: "linked_domain_not_found", message: "Linked domain was not found." });
+  }
+
+  if (!linkedDomain.localisationAuditId) {
+    return err({
+      code: "audit_not_found",
+      message: "No localisation audit is attached to this linked domain.",
+    });
+  }
+
+  const [audit] = await database
+    .select()
+    .from(schema.localisationAudits)
+    .where(eq(schema.localisationAudits.id, linkedDomain.localisationAuditId))
+    .limit(1);
+
+  if (!audit) {
+    return err({ code: "audit_not_found", message: "Localisation audit was not found." });
+  }
+
+  // Claimed domains may only expose the audit to the owning org.
+  if (audit.organizationId && audit.organizationId !== input.organizationId) {
+    return err({ code: "linked_domain_not_found", message: "Linked domain was not found." });
+  }
+
+  return ok({
+    id: audit.id,
+    domainKey: audit.domainKey,
+    domainSlug: audit.domainSlug,
+    sourceUrl: audit.sourceUrl,
+    status: audit.status,
+    score: audit.score,
+    completedAt: audit.completedAt?.toISOString() ?? null,
+    teaser: audit.teaser,
+    report: audit.report,
+  });
 }
 
 export async function findVerifiedLinkedDomainByDomainKey(

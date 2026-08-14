@@ -10,13 +10,17 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { redirect } from "next/navigation";
+import { requireAppCapability } from "@/lib/workos/app-auth";
 
-export default async function LinkedDomainsSettingsPage({
+import { DomainsPageContent } from "./_components/domains-page-content";
+
+export default async function DomainsPage({
   params,
 }: {
   params: Promise<{ organizationSlug: string }>;
 }) {
   const { organizationSlug } = await params;
-  redirect(`/org/${organizationSlug}/domains`);
+  await requireAppCapability("projects:read", { organizationSlug });
+
+  return <DomainsPageContent organizationSlug={organizationSlug} />;
 }

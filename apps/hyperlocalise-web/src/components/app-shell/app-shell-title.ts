@@ -25,6 +25,7 @@ type RouteTitleKey =
   | "api-keys"
   | "billing"
   | "dashboard"
+  | "domains"
   | "files"
   | "glossaries"
   | "inbox"
@@ -69,6 +70,7 @@ function isRouteTitleKey(value: string): value is RouteTitleKey {
     value === "api-keys" ||
     value === "billing" ||
     value === "dashboard" ||
+    value === "domains" ||
     value === "files" ||
     value === "glossaries" ||
     value === "inbox" ||
@@ -170,6 +172,12 @@ function formatRouteTitle(intl: IntlShape, key: RouteTitleKey): string {
         defaultMessage: "Overview",
         id: "cQIBb8VVUr",
         description: "App shell breadcrumb title for the workspace overview page",
+      });
+    case "domains":
+      return intl.formatMessage({
+        defaultMessage: "Domains",
+        id: "DomCrumbTitle",
+        description: "App shell breadcrumb title for the domains page",
       });
     case "files":
       return intl.formatMessage({
@@ -329,6 +337,20 @@ export function getAppShellBreadcrumbs(
 
     return [
       { label: formatRouteTitle(intl, "teams"), href: buildOrgPath(organizationSlug, "teams") },
+      { label: decodePathSegment(subsection) },
+    ];
+  }
+
+  if (section === "domains") {
+    if (!subsection) {
+      return [{ label: formatRouteTitle(intl, "domains") }];
+    }
+
+    return [
+      {
+        label: formatRouteTitle(intl, "domains"),
+        href: buildOrgPath(organizationSlug, "domains"),
+      },
       { label: decodePathSegment(subsection) },
     ];
   }

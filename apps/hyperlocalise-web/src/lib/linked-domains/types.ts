@@ -11,6 +11,10 @@
  * Version 2.0 or later.
  */
 import type {
+  LocalisationAuditReport,
+  LocalisationAuditTeaser,
+} from "@/lib/localisation-audit/types";
+import type {
   LinkedDomainStatus,
   LinkedDomainVerificationMethod,
 } from "@/lib/database/schema/linked-domains";
@@ -49,6 +53,20 @@ export type LinkedDomainPublic = {
   createdAt: string;
   updatedAt: string;
   challenges: LinkedDomainChallenges;
+  /** Present when the linked domain has an attached localisation audit. */
+  auditScore: number | null;
+};
+
+export type LinkedDomainAuditDetail = {
+  id: string;
+  domainKey: string;
+  domainSlug: string;
+  sourceUrl: string;
+  status: string;
+  score: number | null;
+  completedAt: string | null;
+  teaser: LocalisationAuditTeaser | null;
+  report: LocalisationAuditReport | null;
 };
 
 export type LinkedDomainChallenges = {

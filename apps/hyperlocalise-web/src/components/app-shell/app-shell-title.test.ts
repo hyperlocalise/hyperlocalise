@@ -38,6 +38,8 @@ describe("getAppShellTitle", () => {
     ["/org/acme/my-work", "My Jobs"],
     ["/org/acme/my-jobs", "My Jobs"],
     ["/org/acme/knowledge", "Knowledge"],
+    ["/org/acme/domains", "Domains"],
+    ["/org/acme/domains/ld_1", "ld_1"],
     ["/org/acme/glossaries", "Glossaries"],
     ["/org/acme/translation-memories", "Translation Memories"],
     ["/org/acme/integrations", "Integrations"],
@@ -91,6 +93,14 @@ describe("getAppShellBreadcrumbs", () => {
     expect(getAppShellBreadcrumbs("/org/acme/teams/team_1", intl)).toEqual([
       { label: "Teams", href: "/org/acme/teams" },
       { label: "team_1" },
+    ]);
+  });
+
+  it("returns domains breadcrumbs for domain detail pages", () => {
+    expect(getAppShellBreadcrumbs("/org/acme/domains", intl)).toEqual([{ label: "Domains" }]);
+    expect(getAppShellBreadcrumbs("/org/acme/domains/ld_1", intl)).toEqual([
+      { label: "Domains", href: "/org/acme/domains" },
+      { label: "ld_1" },
     ]);
   });
 

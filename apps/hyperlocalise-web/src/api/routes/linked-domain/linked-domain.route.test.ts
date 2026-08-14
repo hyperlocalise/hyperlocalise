@@ -172,6 +172,28 @@ describe("linkedDomainRoutes", () => {
       throw new Error("expected linkedDomains in list response");
     }
     expect(listed.linkedDomains.some((row) => row.id === linkedDomainId)).toBe(true);
+    const listedDomain = listed.linkedDomains.find((row) => row.id === linkedDomainId);
+    expect(listedDomain?.auditScore).toBe(72);
+
+    const auditResponse = await client.api.orgs[":organizationSlug"]["linked-domains"][
+      ":linkedDomainId"
+    ].audit.$get(
+      {
+        param: { organizationSlug, linkedDomainId },
+      },
+      { headers },
+    );
+    expect(auditResponse.status).toBe(200);
+    const auditBody = await auditResponse.json();
+    if (!("audit" in auditBody)) {
+      throw new Error("expected audit in audit response");
+    }
+    expect(auditBody.audit).toMatchObject({
+      id: audit.id,
+      domainKey,
+      score: 72,
+    });
+    expect(auditBody.audit.report).not.toBeNull();
 
     await db.delete(schema.localisationAudits).where(eq(schema.localisationAudits.id, audit.id));
   });

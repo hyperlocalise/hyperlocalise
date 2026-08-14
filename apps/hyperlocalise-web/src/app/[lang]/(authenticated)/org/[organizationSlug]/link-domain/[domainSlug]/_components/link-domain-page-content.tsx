@@ -170,10 +170,19 @@ export function LinkDomainPageContent({
           <Button
             variant="outline"
             nativeButton={false}
-            render={<Link href={`/org/${organizationSlug}/settings/linked-domains`} />}
+            render={<Link href={`/org/${organizationSlug}/domains`} />}
           >
-            View linked domains
+            View domains
           </Button>
+          {linkedDomain.id ? (
+            <Button
+              variant="outline"
+              nativeButton={false}
+              render={<Link href={`/org/${organizationSlug}/domains/${linkedDomain.id}`} />}
+            >
+              View report
+            </Button>
+          ) : null}
         </div>
       </div>
     );

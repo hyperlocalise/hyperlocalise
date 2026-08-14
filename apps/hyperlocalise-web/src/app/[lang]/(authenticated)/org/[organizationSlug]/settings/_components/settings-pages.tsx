@@ -64,9 +64,13 @@ type SettingsRowConfig = {
   icon: ComponentProps<typeof HugeiconsIcon>["icon"];
   label: string;
   requiredCapability?: OrganizationCapability;
+  absoluteHref?: boolean;
 };
 
-function buildSettingsRows(intl: IntlShape): readonly SettingsRowConfig[] {
+function buildSettingsRows(
+  intl: IntlShape,
+  organizationSlug: string,
+): readonly SettingsRowConfig[] {
   return [
     {
       label: intl.formatMessage({
@@ -100,16 +104,17 @@ function buildSettingsRows(intl: IntlShape): readonly SettingsRowConfig[] {
     },
     {
       label: intl.formatMessage({
-        defaultMessage: "Linked domains",
-        id: "FAihJosO63",
-        description: "Settings hub row label for linked domains",
+        defaultMessage: "Domains",
+        id: "SetHubDomains",
+        description: "Settings hub row label for workspace domains",
       }),
       description: intl.formatMessage({
-        defaultMessage: "Verify and manage domains claimed from localisation audits.",
-        id: "Ha1Hw9vNG9",
-        description: "Settings hub row description for linked domains",
+        defaultMessage: "View verified domains and attached localisation audit reports.",
+        id: "SetHubDomDesc",
+        description: "Settings hub row description for workspace domains",
       }),
-      href: "linked-domains",
+      href: `/org/${organizationSlug}/domains`,
+      absoluteHref: true,
       icon: LinkSquare02Icon,
       requiredCapability: "projects:read",
     },
@@ -211,7 +216,7 @@ function ReadonlyField({ label, value }: { label: string; value: string }) {
 export async function SettingsPageContent({ organizationSlug, capabilities }: SettingsPageProps) {
   const intl = getIntlShape(await getAppLocale());
   const baseHref = `/org/${organizationSlug}/settings`;
-  const settingsRows = buildSettingsRows(intl);
+  const settingsRows = buildSettingsRows(intl, organizationSlug);
   const visibleRows = settingsRows.filter(
     (row) => !row.requiredCapability || capabilities.includes(row.requiredCapability),
   );
@@ -249,7 +254,7 @@ export async function SettingsPageContent({ organizationSlug, capabilities }: Se
             <SettingsRow
               key={row.href}
               description={row.description}
-              href={`${baseHref}/${row.href}`}
+              href={row.absoluteHref ? row.href : `${baseHref}/${row.href}`}
               icon={row.icon}
               isLast={index === visibleRows.length - 1}
               label={row.label}
