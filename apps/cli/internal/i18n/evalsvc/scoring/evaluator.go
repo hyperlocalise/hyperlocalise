@@ -484,10 +484,12 @@ func placeholderTokenCounts(s string, inv icuparser.Invariant, err error) (map[s
 	}
 	// BOLT OPTIMIZATION: Avoid running regex if the signal characters are not present.
 	if strings.Contains(s, "{") {
-		for _, match := range bracePlaceholderPattern.FindAllStringSubmatch(s, -1) {
-			tokens["brace:"+match[1]]++
+		// BOLT OPTIMIZATION: Replace regex FindAllStringSubmatch with a zero-allocation byte scanner
+		// to extract brace placeholders without intermediate slice/match allocations.
+		scanBracePlaceholders(s, func(name string) {
+			tokens["brace:"+name]++
 			total++
-		}
+		})
 	}
 	if strings.Contains(s, "%") {
 		for _, match := range printfPlaceholderPattern.FindAllString(s, -1) {
@@ -496,6 +498,55 @@ func placeholderTokenCounts(s string, inv icuparser.Invariant, err error) (map[s
 		}
 	}
 	return tokens, total
+}
+
+func scanBracePlaceholders(s string, fn func(name string)) {
+	i := 0
+	for i < len(s) {
+		idx := strings.IndexByte(s[i:], '{')
+		if idx == -1 {
+			break
+		}
+		start := i + idx + 1
+		pos := start
+
+		for pos < len(s) && (s[pos] == ' ' || s[pos] == '\t' || s[pos] == '\n' || s[pos] == '\r' || s[pos] == '\f' || s[pos] == '\v') {
+			pos++
+		}
+		if pos >= len(s) {
+			break
+		}
+
+		c := s[pos]
+		if !((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_' || c == '$') {
+			i = start
+			continue
+		}
+
+		idStart := pos
+		pos++
+
+		for pos < len(s) {
+			loopC := s[pos]
+			if (loopC >= 'a' && loopC <= 'z') || (loopC >= 'A' && loopC <= 'Z') || (loopC >= '0' && loopC <= '9') || loopC == '_' || loopC == '.' || loopC == '$' || loopC == '-' {
+				pos++
+			} else {
+				break
+			}
+		}
+		idEnd := pos
+
+		for pos < len(s) && (s[pos] == ' ' || s[pos] == '\t' || s[pos] == '\n' || s[pos] == '\r' || s[pos] == '\f' || s[pos] == '\v') {
+			pos++
+		}
+
+		if pos < len(s) && s[pos] == '}' {
+			fn(s[idStart:idEnd])
+			i = pos + 1
+		} else {
+			i = start
+		}
+	}
 }
 
 func sameBlocks(a, b []icuparser.BlockSignature) bool {
