@@ -184,7 +184,9 @@ describe("createAuditBrowserSession", () => {
 
     const error = await createAuditBrowserSession().catch((caught: unknown) => caught);
     expect(error).toBeInstanceOf(AuditBrowserSetupError);
-    expect(error).toEqual(expect.objectContaining({ message: expect.stringMatching(/missing Playwright/) }));
+    expect(error).toEqual(
+      expect.objectContaining({ message: expect.stringMatching(/missing Playwright/) }),
+    );
     expect(sandboxMocks.stop).toHaveBeenCalled();
   });
 
