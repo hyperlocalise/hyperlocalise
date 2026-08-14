@@ -118,5 +118,65 @@ describe("localisation audit report email", () => {
     expect(html).toContain("Document head ·");
     expect(html).toContain("Add reciprocal hreflang");
     expect(html).toContain("/en/blog/what-is-a-website-localisation-audit");
+    expect(html).toContain('href="https://example.com/fr"');
+  });
+
+  it("does not render unsafe or off-domain finding URLs as links", async () => {
+    const html = await render(
+      LocalisationAuditReportEmail({
+        domainKey: "example.com",
+        score: 64,
+        completedAt: "2026-08-13T00:00:00.000Z",
+        findings: [
+          {
+            id: "f1",
+            category: "technical",
+            severity: "critical",
+            title: "Unsafe locator",
+            summary: "Model copied a hostile URL.",
+            where: "Hero · heading",
+            url: "javascript:alert(1)",
+          },
+          {
+            id: "f2",
+            category: "contextual",
+            severity: "high",
+            title: "Off-site locator",
+            summary: "Model copied a third-party URL.",
+            url: "https://evil.example/phish",
+          },
+        ],
+        verifyUrl: "https://app.example.test/verify",
+      }),
+    );
+    const text = localisationAuditReportEmailText({
+      domainKey: "example.com",
+      score: 64,
+      completedAt: "2026-08-13T00:00:00.000Z",
+      findings: [
+        {
+          id: "f1",
+          category: "technical",
+          severity: "critical",
+          title: "Unsafe locator",
+          summary: "Model copied a hostile URL.",
+          url: "javascript:alert(1)",
+        },
+        {
+          id: "f2",
+          category: "contextual",
+          severity: "high",
+          title: "Off-site locator",
+          summary: "Model copied a third-party URL.",
+          url: "https://evil.example/phish",
+        },
+      ],
+      verifyUrl: "https://app.example.test/verify",
+    });
+
+    expect(html).not.toContain("javascript:");
+    expect(html).not.toContain("evil.example");
+    expect(text).not.toContain("javascript:");
+    expect(text).not.toContain("evil.example");
   });
 });

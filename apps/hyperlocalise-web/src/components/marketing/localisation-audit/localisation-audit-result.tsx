@@ -24,6 +24,7 @@ import { Label } from "@/components/ui/label";
 import { TypographyH1, TypographyH2, TypographyP } from "@/components/ui/typography";
 import { clientAnalytics } from "@/lib/analytics/client";
 import { LOCALISATION_AUDIT_ANALYTICS_EVENTS, scoreBand } from "@/lib/analytics/events";
+import { sanitizeLocalisationAuditFindingUrl } from "@/lib/localisation-audit/finding-url";
 import {
   formatDimensionScore,
   scoreTone,
@@ -158,9 +159,11 @@ function FindingDetail({ label, children }: { label: string; children: ReactNode
 function FindingList({
   findings,
   copy,
+  domainKey,
 }: {
   findings: LocalisationAuditFinding[];
   copy: ReturnType<typeof getLocalisationAuditResultCopy>;
+  domainKey: string;
 }) {
   if (findings.length === 0) {
     return <p className="text-muted-foreground">No findings in this section.</p>;
@@ -172,6 +175,7 @@ function FindingList({
         const tone = severityTone(finding.severity);
         const evidenceLooksLikeMarkup =
           finding.evidence != null && looksLikeMarkup(finding.evidence);
+        const findingHref = sanitizeLocalisationAuditFindingUrl(finding.url, domainKey);
         return (
           <li key={finding.id} className="border-t border-border pt-6 first:border-t-0 first:pt-0">
             <div className="flex flex-wrap items-center gap-2">
@@ -185,17 +189,17 @@ function FindingList({
             </div>
             <p className="mt-2 text-lg font-medium">{finding.title}</p>
             <p className="mt-1 text-pretty text-muted-foreground">{finding.summary}</p>
-            {finding.where || finding.url ? (
+            {finding.where || findingHref ? (
               <FindingDetail label={copy.findingWhereLabel}>
                 {finding.where ? <p className="text-sm">{finding.where}</p> : null}
-                {finding.url ? (
+                {findingHref ? (
                   <a
-                    href={finding.url}
+                    href={findingHref}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="mt-1 block break-all text-sm text-muted-foreground underline underline-offset-2"
                   >
-                    {finding.url}
+                    {findingHref}
                   </a>
                 ) : null}
               </FindingDetail>
@@ -679,7 +683,7 @@ export function LocalisationAuditResult({
       <section className="border-t border-border px-5 py-16 sm:px-8 lg:px-10">
         <TypographyH2 className="pb-0">{copy.fixFirstHeading}</TypographyH2>
         <div className="mt-8">
-          <FindingList findings={fixFirst} copy={copy} />
+          <FindingList findings={fixFirst} copy={copy} domainKey={audit.domainKey} />
         </div>
       </section>
 
@@ -698,7 +702,7 @@ export function LocalisationAuditResult({
       <section className="border-t border-border px-5 py-16 sm:px-8 lg:px-10">
         <TypographyH2 className="pb-0">{copy.findingsHeading}</TypographyH2>
         <div className="mt-8">
-          <FindingList findings={headlineFindings} copy={copy} />
+          <FindingList findings={headlineFindings} copy={copy} domainKey={audit.domainKey} />
         </div>
       </section>
 
@@ -753,7 +757,7 @@ export function LocalisationAuditResult({
           <section className="border-t border-border px-5 py-16 sm:px-8 lg:px-10">
             <TypographyH2 className="pb-0">{copy.fullFindingsHeading}</TypographyH2>
             <div className="mt-8">
-              <FindingList findings={report.findings} copy={copy} />
+              <FindingList findings={report.findings} copy={copy} domainKey={audit.domainKey} />
             </div>
           </section>
 

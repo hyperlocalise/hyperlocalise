@@ -30,6 +30,7 @@ import {
   getLocalisationAuditGuideHref,
   getLocalisationAuditResultCopy,
 } from "@/components/marketing/localisation-audit/localisation-audit-page-content";
+import { sanitizeLocalisationAuditFindingUrl } from "@/lib/localisation-audit/finding-url";
 import {
   emailAuditToneColor,
   emailAuditToneFill,
@@ -54,7 +55,11 @@ export type LocalisationAuditReportEmailProps = {
 
 const reportCopy = getLocalisationAuditResultCopy("en");
 
-function formatFindingPlainText(finding: LocalisationAuditFinding, index: number) {
+function formatFindingPlainText(
+  finding: LocalisationAuditFinding,
+  index: number,
+  domainKey: string,
+) {
   const lines = [`${index + 1}. [${finding.severity}] ${finding.title}`];
   if (finding.summary) {
     lines.push(finding.summary);
@@ -62,8 +67,9 @@ function formatFindingPlainText(finding: LocalisationAuditFinding, index: number
   if (finding.where) {
     lines.push(`${reportCopy.findingWhereLabel}: ${finding.where}`);
   }
-  if (finding.url) {
-    lines.push(finding.url);
+  const findingHref = sanitizeLocalisationAuditFindingUrl(finding.url, domainKey);
+  if (findingHref) {
+    lines.push(findingHref);
   }
   if (finding.evidence) {
     lines.push(`${reportCopy.findingEvidenceLabel}: ${finding.evidence}`);
@@ -77,7 +83,7 @@ function formatFindingPlainText(finding: LocalisationAuditFinding, index: number
 export function localisationAuditReportEmailText(props: LocalisationAuditReportEmailProps) {
   const findings = props.findings
     .slice(0, 3)
-    .map((finding, index) => formatFindingPlainText(finding, index))
+    .map((finding, index) => formatFindingPlainText(finding, index, props.domainKey))
     .join("\n\n");
 
   const dimensions = props.dimensionScores
@@ -157,6 +163,7 @@ export function LocalisationAuditReportEmail(props: LocalisationAuditReportEmail
           </Heading>
           {props.findings.slice(0, 3).map((finding) => {
             const toneColor = emailAuditToneColor(severityTone(finding.severity));
+            const findingHref = sanitizeLocalisationAuditFindingUrl(finding.url, props.domainKey);
             return (
               <Section
                 key={finding.id}
@@ -172,13 +179,13 @@ export function LocalisationAuditReportEmail(props: LocalisationAuditReportEmail
                   {finding.title}
                 </Text>
                 <Text style={muted}>{finding.summary}</Text>
-                {finding.where || finding.url ? (
+                {finding.where || findingHref ? (
                   <>
                     <Text style={detailLabel}>{reportCopy.findingWhereLabel}</Text>
                     {finding.where ? <Text style={detailBody}>{finding.where}</Text> : null}
-                    {finding.url ? (
-                      <Link href={finding.url} style={findingUrl}>
-                        {finding.url}
+                    {findingHref ? (
+                      <Link href={findingHref} style={findingUrl}>
+                        {findingHref}
                       </Link>
                     ) : null}
                   </>
