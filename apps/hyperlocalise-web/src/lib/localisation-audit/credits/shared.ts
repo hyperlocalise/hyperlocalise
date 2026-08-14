@@ -212,6 +212,10 @@ export function detectLocales(
   focusLocales: string[],
 ): LocalisationAuditLocaleSignal[] {
   const byLocale = new Map<string, LocalisationAuditLocaleSignal>();
+  /** Bare language tags that appear as their own URL/subdomain market prefixes. */
+  const bareLanguagesFromRouting = new Set<string>();
+  /** Languages that have a language-region tag from URL/subdomain routing. */
+  const languagesWithRegionFromRouting = new Set<string>();
 
   const add = (
     locale: string,
@@ -222,6 +226,14 @@ export function detectLocales(
     if (!key || key === "x-default" || !LOCALE_CODE.test(key)) return;
     if (!byLocale.has(key)) {
       byLocale.set(key, { locale: key, source, sampleUrl });
+    }
+  };
+
+  const noteRoutingLocale = (canonical: string) => {
+    if (canonical.includes("-")) {
+      languagesWithRegionFromRouting.add(languageOf(canonical));
+    } else {
+      bareLanguagesFromRouting.add(canonical);
     }
   };
 
@@ -238,34 +250,50 @@ export function detectLocales(
     }
     const pathLocale = pathLocaleFromUrl(page.url);
     if (pathLocale) {
-      add(canonicalPathLocale(pathLocale), "url_prefix", page.url);
+      const canonical = canonicalPathLocale(pathLocale);
+      add(canonical, "url_prefix", page.url);
+      noteRoutingLocale(canonical);
     }
     try {
       const host = new URL(page.url).hostname;
       const hostMatch = host.match(/^([a-z]{2}(?:-[a-z]{2})?)\./i);
       if (hostMatch?.[1] && hostMatch[1].toLowerCase() !== "www") {
-        add(hostMatch[1], "url_subdomain", page.url);
+        const hostLocale = canonicalPathLocale(hostMatch[1]);
+        add(hostLocale, "url_subdomain", page.url);
+        noteRoutingLocale(hostLocale);
       }
     } catch {
       // ignore bad URLs
     }
   }
 
-  return collapseLanguageRegionSignals([...byLocale.values()]).toSorted((a, b) =>
-    a.locale.localeCompare(b.locale),
-  );
+  return collapseLanguageRegionSignals(
+    [...byLocale.values()],
+    bareLanguagesFromRouting,
+    languagesWithRegionFromRouting,
+  ).toSorted((a, b) => a.locale.localeCompare(b.locale));
 }
 
-/** Prefer `en-au` over bare `en` when both signals describe the same language. */
+/**
+ * Prefer `en-au` over bare `en` when the bare tag is only a redundant html/hreflang
+ * annotation. Keep bare `en` when URL routing also has both `/en/` and a region
+ * market like `/au/` (distinct markets, same language).
+ */
 function collapseLanguageRegionSignals(
   signals: LocalisationAuditLocaleSignal[],
+  bareLanguagesFromRouting: Set<string>,
+  languagesWithRegionFromRouting: Set<string>,
 ): LocalisationAuditLocaleSignal[] {
   const languagesWithRegion = new Set(
     signals.filter((entry) => entry.locale.includes("-")).map((entry) => languageOf(entry.locale)),
   );
-  return signals.filter(
-    (entry) => entry.locale.includes("-") || !languagesWithRegion.has(entry.locale),
-  );
+  return signals.filter((entry) => {
+    if (entry.locale.includes("-")) return true;
+    if (!languagesWithRegion.has(entry.locale)) return true;
+    return (
+      bareLanguagesFromRouting.has(entry.locale) && languagesWithRegionFromRouting.has(entry.locale)
+    );
+  });
 }
 
 export function groupPagesByLanguage(

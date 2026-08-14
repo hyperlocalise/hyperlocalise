@@ -12,6 +12,7 @@
  */
 import type { LocalisationAuditCrawledPage, LocalisationAuditFinding } from "../../types";
 import {
+  canonicalPathLocale,
   clampScore,
   clipFindingEvidence,
   creditFinding,
@@ -232,7 +233,8 @@ const scoreLanguageSwitcher: HeuristicScorer = (context) => {
       } catch {
         continue;
       }
-      const targetLocale = pathLocaleFromUrl(href.toString());
+      const targetPathLocale = pathLocaleFromUrl(href.toString());
+      const targetLocale = targetPathLocale ? canonicalPathLocale(targetPathLocale) : null;
       const looksLikeSwitcher =
         Boolean(targetLocale) ||
         LANGUAGE_NAME.test(anchor.text.trim()) ||
@@ -479,7 +481,8 @@ const scoreCanonicalUrls: HeuristicScorer = (context) => {
       );
       continue;
     }
-    const canonicalLocale = pathLocaleFromUrl(canonicalUrl.toString());
+    const canonicalPathToken = pathLocaleFromUrl(canonicalUrl.toString());
+    const canonicalLocale = canonicalPathToken ? canonicalPathLocale(canonicalPathToken) : null;
     if (pageLoc && canonicalLocale && languageOf(pageLoc) !== languageOf(canonicalLocale)) {
       score -= 30;
       findings.push(

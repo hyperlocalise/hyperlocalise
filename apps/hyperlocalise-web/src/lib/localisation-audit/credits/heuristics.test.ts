@@ -172,6 +172,56 @@ describe("technical heuristic credits", () => {
     expect(outcome.score).toBeLessThan(80);
   });
 
+  it("does not flag same-region canonical URLs as cross-locale", () => {
+    const outcome = technicalHeuristicScorers["canonical-urls"]!(
+      context([
+        emptyCrawledPage({
+          url: "https://example.com/au/pricing",
+          htmlLang: "en-AU",
+          canonical: "https://example.com/au/pricing",
+        }),
+      ]),
+    );
+
+    expect(outcome.status).toBe("scored");
+    if (outcome.status !== "scored") return;
+    expect(outcome.findings.some((finding) => finding.id.startsWith("canonical-locale-"))).toBe(
+      false,
+    );
+    expect(outcome.score).toBe(100);
+  });
+
+  it("does not treat same-region nav links as language switchers", () => {
+    const outcome = technicalHeuristicScorers["language-switcher"]!(
+      context([
+        emptyCrawledPage({
+          url: "https://example.com/au/pricing",
+          htmlLang: "en-AU",
+          anchors: [
+            { href: "/au/", text: "Home" },
+            { href: "/au/about", text: "About" },
+            { href: "/fr/pricing", text: "Français" },
+          ],
+        }),
+        emptyCrawledPage({
+          url: "https://example.com/fr/pricing",
+          htmlLang: "fr",
+          anchors: [
+            { href: "/fr/", text: "Accueil" },
+            { href: "/au/pricing", text: "English" },
+          ],
+        }),
+      ]),
+    );
+
+    expect(outcome.status).toBe("scored");
+    if (outcome.status !== "scored") return;
+    expect(outcome.score).toBeGreaterThanOrEqual(75);
+    expect(outcome.findings.some((finding) => finding.id === "language-switcher-homepage")).toBe(
+      false,
+    );
+  });
+
   it("fails like Lighthouse when no valid sitemap is discoverable", () => {
     const outcome = technicalHeuristicScorers.sitemap!(
       context([emptyCrawledPage({ url: "https://example.com/", htmlLang: "en" })]),
@@ -324,6 +374,17 @@ describe("technical heuristic credits", () => {
     );
     expect(locales.map((entry) => entry.locale)).toEqual(["en-au"]);
     expect(locales[0]?.source).toBe("url_prefix");
+  });
+
+  it("keeps bare language and region markets as distinct locales", () => {
+    const locales = detectLocales(
+      [
+        emptyCrawledPage({ url: "https://example.com/en/pricing", htmlLang: "en" }),
+        emptyCrawledPage({ url: "https://example.com/au/pricing", htmlLang: "en" }),
+      ],
+      [],
+    );
+    expect(locales.map((entry) => entry.locale).toSorted()).toEqual(["en", "en-au"]);
   });
 
   it("marks cross-page consistency N/A so noisy nav labels are skipped", () => {
