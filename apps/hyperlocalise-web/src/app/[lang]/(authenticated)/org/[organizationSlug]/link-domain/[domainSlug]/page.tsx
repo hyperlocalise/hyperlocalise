@@ -11,7 +11,6 @@
  * Version 2.0 or later.
  */
 import { requireAppCapability } from "@/lib/workos/app-auth";
-import { clearClaimDomainIntent } from "@/lib/linked-domains/claim-intent";
 
 import { LinkDomainPageContent } from "./_components/link-domain-page-content";
 
@@ -22,7 +21,6 @@ export default async function LinkDomainPage({
 }) {
   const { organizationSlug, domainSlug } = await params;
   await requireAppCapability("projects:create", { organizationSlug });
-  await clearClaimDomainIntent();
 
   return <LinkDomainPageContent organizationSlug={organizationSlug} domainSlug={domainSlug} />;
 }
