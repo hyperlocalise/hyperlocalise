@@ -46,7 +46,9 @@ export const Default: Story = {
     ).toBeInTheDocument();
     await expect(canvas.getByRole("button", { name: "See my score" })).toBeInTheDocument();
     await expect(canvas.getByRole("heading", { name: "What we notice" })).toBeInTheDocument();
-    await expect(canvas.getByRole("heading", { name: "How other sites score" })).toBeInTheDocument();
+    await expect(
+      canvas.getByRole("heading", { name: "How other sites score" }),
+    ).toBeInTheDocument();
     await expect(canvas.queryByText("hreflang")).not.toBeInTheDocument();
     await expect(canvas.queryByText(/SSRF/)).not.toBeInTheDocument();
   },

@@ -19,7 +19,7 @@ Offer a public localisation health check as a lead magnet. Visitors paste a URL,
 Deterministic Vercel workflow (`"use workflow"` + `"use step"`):
 
 1. Claim audit for the current attempt / mark running
-2. Crawl smart sample (~10–15 URLs: homepage, locale roots, high-value nav targets)
+2. Crawl smart sample (~10–15 URLs: homepage, locale roots, high-value nav targets). HTML pages render in a Vercel sandbox with Playwright so JavaScript sites are visible; robots.txt and sitemaps still use the SSRF-guarded HTTP fetch.
 3. Technical checks (hreflang, lang mismatches, locale URL discovery, mixed language signals)
 4. Light LLM linguistic review on focus locales (sampled strings) when `OPENAI_API_KEY` is set; otherwise heuristics only
 5. Score + persist teaser + full report (attempt-guarded writes)

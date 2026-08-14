@@ -12,7 +12,6 @@
  */
 import { LOCALISATION_AUDIT_ANALYTICS_EVENTS, scoreBand } from "@/lib/analytics/events";
 import { serverAnalytics } from "@/lib/analytics/server";
-import { crawlLocalisationAuditSample } from "@/lib/localisation-audit/crawl";
 import { runLocalisationAuditCredits } from "@/lib/localisation-audit/credits/runner";
 import {
   aggregateLocalisationAuditCredits,
@@ -109,6 +108,7 @@ export async function crawlLocalisationAuditStep(input: {
   focusLocales?: string[];
 }): Promise<LocalisationAuditCrawlResult> {
   "use step";
+  const { crawlLocalisationAuditSample } = await import("@/lib/localisation-audit/crawl");
   return crawlLocalisationAuditSample(input);
 }
 

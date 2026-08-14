@@ -10,16 +10,23 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { mapWithConcurrency } from "@/lib/primitives/map-with-concurrency/map-with-concurrency";
 import { readBoundedResponseBody, withPublicHttpFetch } from "@/lib/security/public-http-fetch";
 
-import { crawledPageFromSignals, emptyParsedPage, parsePageSignals } from "./html-parse";
+import type { CrawlLocalisationAuditSampleOptions, HtmlPageRenderer } from "./crawl-renderer";
+import { crawledPageFromSignals, parsePageSignals } from "./html-parse";
+import { AuditBrowserSetupError } from "./sandbox-browser-error";
 import type {
   LocalisationAuditCrawledPage,
   LocalisationAuditCrawlResult,
   LocalisationAuditSitemapSignal,
 } from "./types";
 import { EMPTY_SITEMAP_SIGNAL } from "./types";
+
+export type {
+  CrawlLocalisationAuditSampleOptions,
+  HtmlPageRenderer,
+  RenderedHtmlPage,
+} from "./crawl-renderer";
 
 const USER_AGENT = "HyperlocaliseLocalisationAudit/1.0 (+https://hyperlocalise.com)";
 const MAX_PAGES = 15;
@@ -29,12 +36,6 @@ const REDIRECT_STATUSES = new Set([301, 302, 303, 307, 308]);
 
 const LOCALE_PREFIX = /^\/([a-z]{2}(?:-[a-z]{2})?)(\/|$)/i;
 const LOCALE_CODE = /^[a-z]{2}(?:-[a-z]{2})?$/i;
-
-const FETCH_HEADERS: Record<string, string> = {
-  "User-Agent": USER_AGENT,
-  Accept: "text/html,application/xhtml+xml;q=0.9,*/*;q=0.1",
-  "Accept-Language": "en-US,en;q=0.9",
-};
 
 const FETCH_TEXT_HEADERS: Record<string, string> = {
   "User-Agent": USER_AGENT,
@@ -74,20 +75,12 @@ type SafeFetchResult<T> = { ok: true; value: T } | { ok: false };
 
 /**
  * Follow redirects manually so each hop is re-validated by withPublicHttpFetch.
- * Never use redirect:"follow" — undici can connect to IP-literal Location targets
- * without the DNS pin, bypassing the SSRF guard.
- *
- * One AbortController + FETCH_TIMEOUT_MS deadline covers the whole redirect chain
- * (not a fresh 12s budget per hop).
- *
- * Returns a discriminated result (not `T | null`) so Turbopack cannot DCE the
- * failure branch after await — it has been observed to strip `if (!home)` as
- * "compile-time falsy" when the helper returned null.
+ * Used for robots.txt and sitemaps only — HTML pages render in Playwright.
  */
 async function fetchPublicWithSafeRedirects<T>(
   startUrl: string,
   handler: (response: Response, finalUrl: string) => Promise<T>,
-  headers: Record<string, string> = FETCH_HEADERS,
+  headers: Record<string, string> = FETCH_TEXT_HEADERS,
 ): Promise<SafeFetchResult<T>> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
@@ -139,17 +132,13 @@ async function fetchPublicWithSafeRedirects<T>(
 }
 
 async function fetchText(url: string): Promise<string | null> {
-  const result = await fetchPublicWithSafeRedirects(
-    url,
-    async (response) => {
-      if (response.status < 200 || response.status >= 400) {
-        return null;
-      }
-      const body = await readBoundedResponseBody(response);
-      return new TextDecoder("utf-8", { fatal: false }).decode(body);
-    },
-    FETCH_TEXT_HEADERS,
-  );
+  const result = await fetchPublicWithSafeRedirects(url, async (response) => {
+    if (response.status < 200 || response.status >= 400) {
+      return null;
+    }
+    const body = await readBoundedResponseBody(response);
+    return new TextDecoder("utf-8", { fatal: false }).decode(body);
+  });
   return result.ok ? result.value : null;
 }
 
@@ -237,47 +226,6 @@ async function fetchSitemapSignals(origin: string): Promise<LocalisationAuditSit
   };
 }
 
-async function fetchPage(url: string): Promise<LocalisationAuditCrawledPage | null> {
-  const result = await fetchPublicWithSafeRedirects(url, async (response, finalUrl) => {
-    const contentType = response.headers.get("content-type") ?? "";
-    if (!contentType.includes("text/html") && !contentType.includes("application/xhtml")) {
-      return emptyParsedPage(finalUrl, response.status);
-    }
-
-    const body = await readBoundedResponseBody(response);
-    const html = new TextDecoder("utf-8", { fatal: false }).decode(body);
-    return crawledPageFromSignals({
-      url: finalUrl,
-      status: response.status,
-      signals: parsePageSignals(html),
-    });
-  });
-  return result.ok ? result.value : null;
-}
-
-async function fetchPageWithAnchors(url: string): Promise<
-  SafeFetchResult<{
-    page: LocalisationAuditCrawledPage;
-    candidateUrls: string[];
-  }>
-> {
-  return fetchPublicWithSafeRedirects(url, async (response, finalUrl) => {
-    const body = await readBoundedResponseBody(response);
-    const html = new TextDecoder("utf-8", { fatal: false }).decode(body);
-    const signals = parsePageSignals(html);
-    const page = crawledPageFromSignals({
-      url: finalUrl,
-      status: response.status,
-      signals,
-    });
-    const candidateUrls = [
-      ...signals.hreflang.map((entry) => toAbsoluteUrl(finalUrl, entry.href)).filter(Boolean),
-      ...signals.anchors.map((anchor) => toAbsoluteUrl(finalUrl, anchor.href)).filter(Boolean),
-    ] as string[];
-    return { page, candidateUrls };
-  });
-}
-
 function normalizeLocaleCode(value: string): string | null {
   const normalized = value.trim().replaceAll("_", "-").toLowerCase();
   if (normalized === "x-default" || !LOCALE_CODE.test(normalized)) {
@@ -323,62 +271,103 @@ function scoreCandidate(url: string, origin: string): number {
   }
 }
 
-export async function crawlLocalisationAuditSample(input: {
-  origin: string;
-  sourceUrl: string;
-  focusLocales?: string[];
-}): Promise<LocalisationAuditCrawlResult> {
+function pageFromRendered(html: string, url: string, status: number): LocalisationAuditCrawledPage {
+  return crawledPageFromSignals({
+    url,
+    status,
+    signals: parsePageSignals(html),
+  });
+}
+
+async function defaultCreateRenderer(): Promise<HtmlPageRenderer> {
+  const { createAuditBrowserSession } = await import("./sandbox-browser");
+  return createAuditBrowserSession();
+}
+
+export async function crawlLocalisationAuditSample(
+  input: {
+    origin: string;
+    sourceUrl: string;
+    focusLocales?: string[];
+  },
+  options?: CrawlLocalisationAuditSampleOptions,
+): Promise<LocalisationAuditCrawlResult> {
   try {
-    return await crawlLocalisationAuditSampleInner(input);
-  } catch {
-    // Soft-fail unexpected errors (and any remaining Turbopack null-guard DCE)
-    // so the workflow step does not retry forever on an empty crawl.
+    return await crawlLocalisationAuditSampleInner(input, options);
+  } catch (error) {
+    if (error instanceof AuditBrowserSetupError) {
+      throw error;
+    }
     return { pages: [], sitemap: EMPTY_SITEMAP_SIGNAL };
   }
 }
 
-async function crawlLocalisationAuditSampleInner(input: {
-  origin: string;
-  sourceUrl: string;
-  focusLocales?: string[];
-}): Promise<LocalisationAuditCrawlResult> {
-  const homeResult = await fetchPageWithAnchors(input.sourceUrl);
-  if (homeResult.ok === false) {
-    return { pages: [], sitemap: EMPTY_SITEMAP_SIGNAL };
-  }
-
-  const { page: homePage, candidateUrls } = homeResult.value;
-  const originHost = new URL(input.origin).hostname;
-  const seeded = new Set<string>([homePage.url]);
-  for (const candidate of candidateUrls) {
-    if (sameHost(originHost, candidate)) {
-      seeded.add(candidate.split("#")[0]!);
+async function crawlLocalisationAuditSampleInner(
+  input: {
+    origin: string;
+    sourceUrl: string;
+    focusLocales?: string[];
+  },
+  options?: CrawlLocalisationAuditSampleOptions,
+): Promise<LocalisationAuditCrawlResult> {
+  const createRenderer = options?.createRenderer ?? defaultCreateRenderer;
+  const renderer = await createRenderer();
+  try {
+    const homeRendered = (await renderer.render([input.sourceUrl]))[0];
+    if (!homeRendered) {
+      return { pages: [], sitemap: EMPTY_SITEMAP_SIGNAL };
     }
-  }
-  for (const seed of seedFocusLocaleRoots(input.origin, input.focusLocales ?? [])) {
-    if (sameHost(originHost, seed)) {
-      seeded.add(seed);
-    }
-  }
 
-  const ranked = [...seeded]
-    .map((url) => ({ url, score: scoreCandidate(url, input.origin) }))
-    .filter((entry) => entry.score >= 0)
-    .toSorted((a, b) => b.score - a.score)
-    .slice(0, MAX_PAGES);
-
-  const [pages, sitemap] = await Promise.all([
-    mapWithConcurrency(ranked, 4, async (entry) => {
-      if (entry.url === homePage.url) {
-        return homePage;
+    const homePage = pageFromRendered(homeRendered.html, homeRendered.url, homeRendered.status);
+    const signals = parsePageSignals(homeRendered.html);
+    const originHost = new URL(input.origin).hostname;
+    const seeded = new Set<string>([homePage.url]);
+    const candidateUrls = [
+      ...signals.hreflang
+        .map((entry) => toAbsoluteUrl(homeRendered.url, entry.href))
+        .filter(Boolean),
+      ...signals.anchors
+        .map((anchor) => toAbsoluteUrl(homeRendered.url, anchor.href))
+        .filter(Boolean),
+    ] as string[];
+    for (const candidate of candidateUrls) {
+      if (sameHost(originHost, candidate)) {
+        seeded.add(candidate.split("#")[0]!);
       }
-      return fetchPage(entry.url);
-    }),
-    fetchSitemapSignals(input.origin),
-  ]);
+    }
+    for (const seed of seedFocusLocaleRoots(input.origin, input.focusLocales ?? [])) {
+      if (sameHost(originHost, seed)) {
+        seeded.add(seed);
+      }
+    }
 
-  return {
-    pages: pages.filter((page): page is LocalisationAuditCrawledPage => page != null),
-    sitemap,
-  };
+    const ranked = [...seeded]
+      .map((url) => ({ url, score: scoreCandidate(url, input.origin) }))
+      .filter((entry) => entry.score >= 0)
+      .toSorted((a, b) => b.score - a.score)
+      .slice(0, MAX_PAGES);
+
+    const otherUrls = ranked
+      .filter((entry) => entry.url !== homePage.url)
+      .map((entry) => entry.url);
+    const [otherRendered, sitemap] = await Promise.all([
+      otherUrls.length > 0 ? renderer.render(otherUrls) : Promise.resolve([]),
+      fetchSitemapSignals(input.origin),
+    ]);
+
+    const pagesByUrl = new Map<string, LocalisationAuditCrawledPage>();
+    pagesByUrl.set(homePage.url, homePage);
+    for (const rendered of otherRendered) {
+      pagesByUrl.set(rendered.url, pageFromRendered(rendered.html, rendered.url, rendered.status));
+    }
+
+    return {
+      pages: ranked
+        .map((entry) => pagesByUrl.get(entry.url))
+        .filter((page): page is LocalisationAuditCrawledPage => page != null),
+      sitemap,
+    };
+  } finally {
+    await renderer.close().catch(() => undefined);
+  }
 }

@@ -84,10 +84,7 @@ export function LocalisationAuditForm({ locale, tone = "default" }: Localisation
   return (
     <form onSubmit={onSubmit} className="max-w-xl space-y-6">
       <div className="space-y-2">
-        <Label
-          htmlFor="localisation-audit-url"
-          className={onMesh ? "text-white" : undefined}
-        >
+        <Label htmlFor="localisation-audit-url" className={onMesh ? "text-white" : undefined}>
           {copy.urlLabel}
         </Label>
         <Input
@@ -104,10 +101,7 @@ export function LocalisationAuditForm({ locale, tone = "default" }: Localisation
         />
       </div>
       <div className="space-y-2">
-        <Label
-          htmlFor="localisation-audit-focus"
-          className={onMesh ? "text-white" : undefined}
-        >
+        <Label htmlFor="localisation-audit-focus" className={onMesh ? "text-white" : undefined}>
           {copy.focusLabel}
         </Label>
         <Input
@@ -131,9 +125,7 @@ export function LocalisationAuditForm({ locale, tone = "default" }: Localisation
           size="lg"
           disabled={pending}
           className={
-            onMesh
-              ? "bg-white text-neutral-950 hover:bg-white/90 disabled:bg-white/70"
-              : undefined
+            onMesh ? "bg-white text-neutral-950 hover:bg-white/90 disabled:bg-white/70" : undefined
           }
         >
           {pending ? copy.submitting : copy.submit}
