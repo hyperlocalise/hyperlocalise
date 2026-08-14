@@ -150,10 +150,7 @@ describe("proxy", () => {
   it("redirects claim-domain paths without a locale prefix", async () => {
     authkitProxyMock.mockReset();
 
-    const response = await proxy(
-      createRequest("/claim-domain/tourfinder-au-kidldm"),
-      {} as never,
-    );
+    const response = await proxy(createRequest("/claim-domain/tourfinder-au-kidldm"), {} as never);
 
     expect(response?.status).toBe(307);
     expect(response?.headers.get("location")).toBe(
