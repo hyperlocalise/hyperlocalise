@@ -24,42 +24,40 @@ export function getLocalisationAuditGuideHref(): string {
 
 export function getLocalisationAuditPageCopy(_locale: string) {
   return {
-    headline: "Localisation health check",
+    headline: "See how your brand travels.",
     subcopy:
-      "Paste a URL. Get a public score, see how you rank against other domains, and unlock the full report with your work email.",
-    urlLabel: "Website URL",
-    urlPlaceholder: "https://example.com",
-    focusLabel: "Focus markets (optional)",
-    focusPlaceholder: "fr, de",
-    focusHint: "Up to two locales for a deeper linguistic pass.",
-    submit: "Run free audit",
-    submitting: "Starting audit…",
-    onePerDomain:
-      "One free audit per domain, and 10 audits a day across all sites. If we already audited it, you will see the public teaser report.",
-    methodologyHeading: "What we check",
-    technicalChecks: [
-      "Locale detection, routing, language switcher, hreflang, and canonicals",
-      "Localized metadata, sitemaps, structured data, and formatting",
-      "Accessibility localisation on sampled pages",
+      "Enter a URL. We'll read a few public pages and tell you how the site feels in other languages.",
+    urlLabel: "Website",
+    urlPlaceholder: "https://your-site.com",
+    focusLabel: "Languages to look at (optional)",
+    focusPlaceholder: "French, German",
+    focusHint: "We'll look more closely at up to two.",
+    submit: "See my score",
+    submitting: "Looking now…",
+    onePerDomain: "One free look per site. Ten a day across all sites.",
+    methodologyHeading: "What we notice",
+    notices: [
+      {
+        title: "Voice",
+        body: "Does the writing still sound like you, once the language changes?",
+      },
+      {
+        title: "Presence",
+        body: "Do pages still feel considered — layout, images, and all?",
+      },
+      {
+        title: "Discovery",
+        body: "Can visitors find the right version of the site?",
+      },
     ],
-    linguisticChecks: [
-      "Translation completeness, terminology, and cross-page consistency",
-      "Accuracy, fluency, brand voice, and grammar when heuristics are inconclusive",
-      "Contextual and visual credits on the same sampled pages",
-    ],
-    crawlLimits:
-      "Smart sample of about 10–15 public pages. We do not log in, submit forms, or crawl private areas.",
-    privacyNote:
-      "Safe crawl only: public HTML over HTTPS, SSRF-guarded fetches, and no credentialed access.",
-    disclosure:
-      "Successful teaser reports are public and indexable. Email verification unlocks the full report for that domain.",
-    sampleFindingTitle: "Sample finding",
+    scopeNote: "We only read public pages. We never sign in or fill in forms.",
+    disclosure: "Scores are public. Use your work email to see the full report.",
+    sampleFindingTitle: "A typical note",
     sampleFindingBody:
-      "Critical · Missing hreflang return tags between EN and FR can split SEO equity across locales.",
-    leaderboardHeading: "Public localisation leaderboard",
-    leaderboardSubcopy:
-      "Teaser scores are public. Compare domains, then run your own audit to see where you rank.",
-    leaderboardEmpty: "No public audits yet. Run the first health check and claim the top spot.",
+      "French and English pages don't point to each other, so visitors can miss the other language entirely.",
+    leaderboardHeading: "How other sites score",
+    leaderboardSubcopy: "Public scores, side by side. Check yours to see where you stand.",
+    leaderboardEmpty: "No public scores yet. Be the first.",
   };
 }
 

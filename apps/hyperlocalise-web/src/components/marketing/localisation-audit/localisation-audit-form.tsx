@@ -18,14 +18,19 @@ import { useState, type FormEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { cn } from "@/lib/primitives/cn";
 
 import { getLocalisationAuditPageCopy } from "./localisation-audit-page-content";
 
+const MESH_INPUT_CLASS =
+  "h-11 border-white/25 bg-white/15 text-white placeholder:text-white/55 focus-visible:border-white/60 focus-visible:ring-white/30";
+
 type LocalisationAuditFormProps = {
   locale: string;
+  tone?: "default" | "mesh";
 };
 
-export function LocalisationAuditForm({ locale }: LocalisationAuditFormProps) {
+export function LocalisationAuditForm({ locale, tone = "default" }: LocalisationAuditFormProps) {
   const copy = getLocalisationAuditPageCopy(locale);
   const router = useRouter();
   const [url, setUrl] = useState("");
@@ -74,10 +79,17 @@ export function LocalisationAuditForm({ locale }: LocalisationAuditFormProps) {
     }
   }
 
+  const onMesh = tone === "mesh";
+
   return (
-    <form onSubmit={onSubmit} className="mt-10 max-w-xl space-y-6">
+    <form onSubmit={onSubmit} className="max-w-xl space-y-6">
       <div className="space-y-2">
-        <Label htmlFor="localisation-audit-url">{copy.urlLabel}</Label>
+        <Label
+          htmlFor="localisation-audit-url"
+          className={onMesh ? "text-white" : undefined}
+        >
+          {copy.urlLabel}
+        </Label>
         <Input
           id="localisation-audit-url"
           name="url"
@@ -88,25 +100,47 @@ export function LocalisationAuditForm({ locale }: LocalisationAuditFormProps) {
           placeholder={copy.urlPlaceholder}
           value={url}
           onChange={(event) => setUrl(event.target.value)}
+          className={onMesh ? MESH_INPUT_CLASS : undefined}
         />
       </div>
       <div className="space-y-2">
-        <Label htmlFor="localisation-audit-focus">{copy.focusLabel}</Label>
+        <Label
+          htmlFor="localisation-audit-focus"
+          className={onMesh ? "text-white" : undefined}
+        >
+          {copy.focusLabel}
+        </Label>
         <Input
           id="localisation-audit-focus"
           name="focusLocales"
           placeholder={copy.focusPlaceholder}
           value={focusLocales}
           onChange={(event) => setFocusLocales(event.target.value)}
+          className={onMesh ? MESH_INPUT_CLASS : undefined}
         />
-        <p className="text-sm text-muted-foreground">{copy.focusHint}</p>
+        <p className={cn("text-sm", onMesh ? "text-white/70" : "text-muted-foreground")}>
+          {copy.focusHint}
+        </p>
       </div>
-      {error ? <p className="text-sm text-destructive">{error}</p> : null}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-        <Button type="submit" size="lg" disabled={pending}>
+      {error ? (
+        <p className={cn("text-sm", onMesh ? "text-red-200" : "text-destructive")}>{error}</p>
+      ) : null}
+      <div className="flex flex-col gap-3">
+        <Button
+          type="submit"
+          size="lg"
+          disabled={pending}
+          className={
+            onMesh
+              ? "bg-white text-neutral-950 hover:bg-white/90 disabled:bg-white/70"
+              : undefined
+          }
+        >
           {pending ? copy.submitting : copy.submit}
         </Button>
-        <p className="text-sm text-muted-foreground">{copy.onePerDomain}</p>
+        <p className={cn("text-sm", onMesh ? "text-white/70" : "text-muted-foreground")}>
+          {copy.onePerDomain}
+        </p>
       </div>
     </form>
   );

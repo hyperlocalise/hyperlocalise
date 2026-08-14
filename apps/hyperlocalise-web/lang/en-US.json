@@ -9016,7 +9016,7 @@
     "description": "Label for the target locale radio list in the download dialog"
   },
   "Xr/7GtH4gF": {
-    "defaultMessage": "Run a free localisation health check on any website. Score technical and linguistic readiness, then unlock the full report.",
+    "defaultMessage": "Enter a URL to see how your site feels in other languages. A clear score, then the full report by email.",
     "description": "Meta description for the public localisation audit landing page"
   },
   "Xs0cc+EY83": {
