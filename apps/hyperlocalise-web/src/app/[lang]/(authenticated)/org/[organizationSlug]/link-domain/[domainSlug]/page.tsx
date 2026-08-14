@@ -24,7 +24,5 @@ export default async function LinkDomainPage({
   await requireAppCapability("projects:create", { organizationSlug });
   await clearClaimDomainIntent();
 
-  return (
-    <LinkDomainPageContent organizationSlug={organizationSlug} domainSlug={domainSlug} />
-  );
+  return <LinkDomainPageContent organizationSlug={organizationSlug} domainSlug={domainSlug} />;
 }

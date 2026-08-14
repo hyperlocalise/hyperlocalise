@@ -14,10 +14,7 @@ import { resolveTxt } from "node:dns/promises";
 
 import type { LinkedDomainVerificationMethod } from "@/lib/database/schema/linked-domains";
 import { err, ok, type Result } from "@/lib/primitives/result/results";
-import {
-  readBoundedResponseBody,
-  withPublicHttpFetch,
-} from "@/lib/security/public-http-fetch";
+import { readBoundedResponseBody, withPublicHttpFetch } from "@/lib/security/public-http-fetch";
 
 import {
   dnsTxtRecordMatchesToken,

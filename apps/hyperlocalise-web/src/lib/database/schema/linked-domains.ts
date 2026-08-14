@@ -11,24 +11,13 @@
  * Version 2.0 or later.
  */
 import { sql } from "drizzle-orm";
-import {
-  index,
-  pgTable,
-  text,
-  timestamp,
-  uniqueIndex,
-  uuid,
-} from "drizzle-orm/pg-core";
+import { index, pgTable, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
 
 import { localisationAudits } from "./localisation-audits";
 import { organizations, users } from "./organizations";
 import { projects } from "./projects";
 
-export type LinkedDomainStatus =
-  | "pending_verification"
-  | "verified"
-  | "failed"
-  | "revoked";
+export type LinkedDomainStatus = "pending_verification" | "verified" | "failed" | "revoked";
 
 export type LinkedDomainVerificationMethod = "dns_txt" | "html_file" | "meta_tag";
 

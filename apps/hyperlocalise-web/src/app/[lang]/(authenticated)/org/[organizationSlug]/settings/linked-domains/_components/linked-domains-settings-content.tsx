@@ -101,9 +101,7 @@ export function LinkedDomainsSettingsContent({
                   size="sm"
                   nativeButton={false}
                   render={
-                    <Link
-                      href={`/org/${organizationSlug}/link-domain/${domain.domainSlug}`}
-                    />
+                    <Link href={`/org/${organizationSlug}/link-domain/${domain.domainSlug}`} />
                   }
                 >
                   Continue verification
@@ -114,9 +112,7 @@ export function LinkedDomainsSettingsContent({
                   size="sm"
                   variant="outline"
                   nativeButton={false}
-                  render={
-                    <Link href={`/org/${organizationSlug}/projects/${domain.projectId}`} />
-                  }
+                  render={<Link href={`/org/${organizationSlug}/projects/${domain.projectId}`} />}
                 >
                   Open project
                 </Button>

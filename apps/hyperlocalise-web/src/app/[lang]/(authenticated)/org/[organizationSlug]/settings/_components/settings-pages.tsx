@@ -101,12 +101,12 @@ function buildSettingsRows(intl: IntlShape): readonly SettingsRowConfig[] {
     {
       label: intl.formatMessage({
         defaultMessage: "Linked domains",
-        id: "LdHubRowLabel",
+        id: "FAihJosO63",
         description: "Settings hub row label for linked domains",
       }),
       description: intl.formatMessage({
         defaultMessage: "Verify and manage domains claimed from localisation audits.",
-        id: "LdHubRowDesc",
+        id: "Ha1Hw9vNG9",
         description: "Settings hub row description for linked domains",
       }),
       href: "linked-domains",

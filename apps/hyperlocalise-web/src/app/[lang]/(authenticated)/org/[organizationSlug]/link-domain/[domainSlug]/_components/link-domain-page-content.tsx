@@ -123,9 +123,7 @@ export function LinkDomainPageContent({
           {linkedDomain.projectId ? (
             <Button
               nativeButton={false}
-              render={
-                <Link href={`/org/${organizationSlug}/projects/${linkedDomain.projectId}`} />
-              }
+              render={<Link href={`/org/${organizationSlug}/projects/${linkedDomain.projectId}`} />}
             >
               Open project
             </Button>

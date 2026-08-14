@@ -40,6 +40,8 @@ function audit(overrides: Partial<LocalisationAuditRow> = {}): LocalisationAudit
     report: { score: 72 } as LocalisationAuditRow["report"],
     errorCode: null,
     errorMessage: null,
+    organizationId: null,
+    linkedDomainId: null,
     startedAt: timestamp,
     completedAt: timestamp,
     createdAt: timestamp,

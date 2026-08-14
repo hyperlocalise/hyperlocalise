@@ -53,6 +53,7 @@ const fixture = createAuthTestFixture();
 
 async function insertSucceededAudit(domainKey: string) {
   const domainSlug = hostnameToDomainSlug(domainKey);
+  const completedAt = new Date().toISOString();
   const [audit] = await db
     .insert(schema.localisationAudits)
     .values({
@@ -63,24 +64,26 @@ async function insertSucceededAudit(domainKey: string) {
       score: 72,
       teaser: {
         score: 72,
-        summary: "ok",
-        localeSignals: [],
-        topFindings: [],
+        domainKey,
+        domainSlug,
+        detectedLocales: [],
+        headlineFindings: [],
+        findingsCount: 0,
+        pagesCrawled: 1,
+        completedAt,
       },
       report: {
         score: 72,
-        summary: "ok",
+        domainKey,
+        domainSlug,
+        sourceUrl: `https://${domainKey}/`,
+        focusLocales: [],
+        detectedLocales: [],
         findings: [],
-        localeSignals: [],
         pages: [],
-        dimensionScores: {
-          technical: 70,
-          linguistic: 70,
-          contextual: 70,
-          visual: 70,
-        },
-        credits: [],
         linguisticNotes: [],
+        pagesCrawled: 1,
+        completedAt,
       },
       completedAt: new Date(),
     })
@@ -126,6 +129,9 @@ describe("linkedDomainRoutes", () => {
         localisationAuditId: audit.id,
       },
     });
+    if (!("linkedDomain" in created)) {
+      throw new Error("expected linkedDomain in create response");
+    }
 
     const linkedDomainId = created.linkedDomain.id;
 
@@ -141,6 +147,9 @@ describe("linkedDomainRoutes", () => {
 
     expect(verifyResponse.status).toBe(200);
     const verified = await verifyResponse.json();
+    if (!("linkedDomain" in verified)) {
+      throw new Error("expected linkedDomain in verify response");
+    }
     expect(verified.linkedDomain.status).toBe("verified");
     expect(verified.linkedDomain.projectId).toMatch(/^project_/);
     expect(verified.linkedDomain.verifiedMethod).toBe("dns_txt");
@@ -159,9 +168,10 @@ describe("linkedDomainRoutes", () => {
     );
     expect(listResponse.status).toBe(200);
     const listed = await listResponse.json();
-    expect(listed.linkedDomains.some((row: { id: string }) => row.id === linkedDomainId)).toBe(
-      true,
-    );
+    if (!("linkedDomains" in listed)) {
+      throw new Error("expected linkedDomains in list response");
+    }
+    expect(listed.linkedDomains.some((row) => row.id === linkedDomainId)).toBe(true);
 
     await db.delete(schema.localisationAudits).where(eq(schema.localisationAudits.id, audit.id));
   });
@@ -187,6 +197,9 @@ describe("linkedDomainRoutes", () => {
     );
     expect(createFirst.status).toBe(201);
     const firstClaim = await createFirst.json();
+    if (!("linkedDomain" in firstClaim)) {
+      throw new Error("expected linkedDomain in create response");
+    }
 
     const verifyFirst = await client.api.orgs[":organizationSlug"]["linked-domains"][
       ":linkedDomainId"
@@ -208,6 +221,9 @@ describe("linkedDomainRoutes", () => {
     );
     expect(createSecond.status).toBe(409);
     const body = await createSecond.json();
+    if (!("error" in body)) {
+      throw new Error("expected error in conflict response");
+    }
     expect(body.error).toBe("domain_already_claimed");
 
     await db.delete(schema.localisationAudits).where(eq(schema.localisationAudits.id, audit.id));
@@ -228,6 +244,9 @@ describe("linkedDomainRoutes", () => {
       { headers },
     );
     const created = await createResponse.json();
+    if (!("linkedDomain" in created)) {
+      throw new Error("expected linkedDomain in create response");
+    }
 
     const deleteResponse = await client.api.orgs[":organizationSlug"]["linked-domains"][
       ":linkedDomainId"

@@ -155,40 +155,35 @@ export function createLinkedDomainRoutes() {
 
       return c.json({ linkedDomain }, 200);
     })
-    .post(
-      "/:linkedDomainId/verify",
-      validateLinkedDomainParams,
-      validateVerifyBody,
-      async (c) => {
-        if (!canWriteLinkedDomains(c.var.auth.membership.role)) {
-          return forbiddenResponse(c);
-        }
+    .post("/:linkedDomainId/verify", validateLinkedDomainParams, validateVerifyBody, async (c) => {
+      if (!canWriteLinkedDomains(c.var.auth.membership.role)) {
+        return forbiddenResponse(c);
+      }
 
-        const { linkedDomainId } = c.req.valid("param");
-        const body = c.req.valid("json");
-        const result = await verifyAndClaimLinkedDomain({
-          organizationId: c.var.auth.organization.localOrganizationId,
-          userId: c.var.auth.user.localUserId,
-          linkedDomainId,
-          method: body.method,
-        });
+      const { linkedDomainId } = c.req.valid("param");
+      const body = c.req.valid("json");
+      const result = await verifyAndClaimLinkedDomain({
+        organizationId: c.var.auth.organization.localOrganizationId,
+        userId: c.var.auth.user.localUserId,
+        linkedDomainId,
+        method: body.method,
+      });
 
-        if (isErr(result)) {
-          serverAnalytics.track(LOCALISATION_AUDIT_ANALYTICS_EVENTS.ctaClick, {
-            cta: "claim_domain_verify_failed",
-            status: result.error.code,
-          });
-          return mapLinkedDomainError(c, result.error);
-        }
-
+      if (isErr(result)) {
         serverAnalytics.track(LOCALISATION_AUDIT_ANALYTICS_EVENTS.ctaClick, {
-          cta: "claim_domain_verified",
-          status: result.value.status,
+          cta: "claim_domain_verify_failed",
+          status: result.error.code,
         });
+        return mapLinkedDomainError(c, result.error);
+      }
 
-        return c.json({ linkedDomain: result.value }, 200);
-      },
-    )
+      serverAnalytics.track(LOCALISATION_AUDIT_ANALYTICS_EVENTS.ctaClick, {
+        cta: "claim_domain_verified",
+        status: result.value.status,
+      });
+
+      return c.json({ linkedDomain: result.value }, 200);
+    })
     .delete("/:linkedDomainId", validateLinkedDomainParams, async (c) => {
       if (!canWriteLinkedDomains(c.var.auth.membership.role)) {
         return forbiddenResponse(c);

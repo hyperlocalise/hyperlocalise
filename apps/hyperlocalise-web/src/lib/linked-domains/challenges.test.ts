@@ -41,9 +41,7 @@ describe("linked domain challenges", () => {
 
   it("matches DNS TXT records with or without the prefix", () => {
     expect(dnsTxtRecordMatchesToken("abc123", "abc123")).toBe(true);
-    expect(dnsTxtRecordMatchesToken('hyperlocalise-site-verification=abc123', "abc123")).toBe(
-      true,
-    );
+    expect(dnsTxtRecordMatchesToken("hyperlocalise-site-verification=abc123", "abc123")).toBe(true);
     expect(dnsTxtRecordMatchesToken('"hyperlocalise-site-verification=abc123"', "abc123")).toBe(
       true,
     );
