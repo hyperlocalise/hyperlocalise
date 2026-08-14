@@ -1175,7 +1175,10 @@ function AddToolMenu({
                 <DropdownMenuItem
                   disabled={form.githubEnabled || !githubConnected}
                   onClick={() => {
-                    const defaultRepositoryId = resolveDefaultGithubRepositoryId(form, repositories);
+                    const defaultRepositoryId = resolveDefaultGithubRepositoryId(
+                      form,
+                      repositories,
+                    );
 
                     onChange({
                       ...form,
@@ -1204,7 +1207,10 @@ function AddToolMenu({
                 <DropdownMenuItem
                   disabled={form.githubEnabled || !githubConnected}
                   onClick={() => {
-                    const defaultRepositoryId = resolveDefaultGithubRepositoryId(form, repositories);
+                    const defaultRepositoryId = resolveDefaultGithubRepositoryId(
+                      form,
+                      repositories,
+                    );
 
                     onChange({
                       ...form,
@@ -1304,7 +1310,8 @@ function AddToolMenu({
                       ...form,
                       createNativeTmsJobEnabled: true,
                       createNativeTmsJobUseProjectTargetLocales: true,
-                      triggerMode: form.triggerMode === "manual" ? "source_upload" : form.triggerMode,
+                      triggerMode:
+                        form.triggerMode === "manual" ? "source_upload" : form.triggerMode,
                     })
                   }
                 >
@@ -1326,7 +1333,8 @@ function AddToolMenu({
                         ? form.createNativeTmsJobUseProjectTargetLocales
                         : true,
                       assignTranslateWithAgentEnabled: true,
-                      triggerMode: form.triggerMode === "manual" ? "source_upload" : form.triggerMode,
+                      triggerMode:
+                        form.triggerMode === "manual" ? "source_upload" : form.triggerMode,
                     })
                   }
                 >
