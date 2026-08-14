@@ -316,6 +316,10 @@ export async function claimOrReuseLocalisationAudit(input: {
       const dailyRerunCutoff = new Date(Date.now() - LOCALISATION_AUDIT_RERUN_MS);
       const focusLocales =
         input.focusLocales.length > 0 ? input.focusLocales : (existing.focusLocales ?? []);
+      // Daily re-runs must keep the last good public/unlocked payload until a new
+      // attempt completes. Eager wipe + a later fail permanently destroys the only
+      // report row for the domain.
+      const preservePriorSuccess = existing.status === "succeeded" && existing.report != null;
 
       const [claimed] = await tx
         .update(schema.localisationAudits)
@@ -328,13 +332,13 @@ export async function claimOrReuseLocalisationAudit(input: {
           statusUpdatedAt: timestamp,
           lastAttemptAt: timestamp,
           workflowRunId: null,
-          score: null,
-          teaser: null,
-          report: null,
+          score: preservePriorSuccess ? existing.score : null,
+          teaser: preservePriorSuccess ? existing.teaser : null,
+          report: preservePriorSuccess ? existing.report : null,
           errorCode: null,
           errorMessage: null,
           startedAt: null,
-          completedAt: null,
+          completedAt: preservePriorSuccess ? existing.completedAt : null,
         })
         .where(
           and(
@@ -478,6 +482,30 @@ export async function failLocalisationAudit(input: {
   errorMessage: string;
 }) {
   const timestamp = now();
+  // A daily re-run that kept the prior report must not end as failed with a
+  // usable report stuck behind unlock/leaderboard gates. Restore the last good
+  // succeeded snapshot instead of permanently dropping the domain's only result.
+  const [restored] = await db
+    .update(schema.localisationAudits)
+    .set({
+      status: "succeeded" satisfies LocalisationAuditStatus,
+      progressStage: "completed" satisfies LocalisationAuditProgressStage,
+      errorCode: null,
+      errorMessage: null,
+      statusUpdatedAt: timestamp,
+    })
+    .where(
+      and(
+        eq(schema.localisationAudits.id, input.auditId),
+        eq(schema.localisationAudits.attemptNumber, input.attemptNumber),
+        isNotNull(schema.localisationAudits.report),
+      ),
+    )
+    .returning();
+  if (restored) {
+    return restored;
+  }
+
   const [row] = await db
     .update(schema.localisationAudits)
     .set({
@@ -492,6 +520,7 @@ export async function failLocalisationAudit(input: {
       and(
         eq(schema.localisationAudits.id, input.auditId),
         eq(schema.localisationAudits.attemptNumber, input.attemptNumber),
+        isNull(schema.localisationAudits.report),
       ),
     )
     .returning();

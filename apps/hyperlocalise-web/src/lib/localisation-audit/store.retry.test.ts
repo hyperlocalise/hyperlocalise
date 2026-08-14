@@ -248,6 +248,43 @@ describe("localisation audit claim/retry", () => {
     expect(reclaimed.audit.attemptNumber).toBe(2);
     expect(reclaimed.audit.status).toBe("queued");
     expect(reclaimed.audit.focusLocales).toEqual(["fr"]);
+    expect(reclaimed.audit.report?.score).toBe(72);
+    expect(reclaimed.audit.score).toBe(72);
+    expect(reclaimed.audit.teaser?.score).toBe(72);
+    expect(reclaimed.audit.completedAt?.getTime()).toBe(aged!.completedAt!.getTime());
+
+    const restored = await failLocalisationAudit({
+      auditId: reclaimed.audit.id,
+      attemptNumber: 2,
+      errorCode: "crawl_failed",
+      errorMessage: "No pages could be crawled for this domain.",
+    });
+    expect(restored?.status).toBe("succeeded");
+    expect(restored?.progressStage).toBe("completed");
+    expect(restored?.report?.score).toBe(72);
+    expect(restored?.score).toBe(72);
+    expect(restored?.errorCode).toBeNull();
+    expect(restored?.completedAt?.getTime()).toBe(aged!.completedAt!.getTime());
+  });
+
+  it("marks first-run failures as failed when no prior report exists", async () => {
+    const created = await claimOrReuseLocalisationAudit({
+      domainKey,
+      domainSlug,
+      sourceUrl: `https://${domainKey}/`,
+      focusLocales: [],
+    });
+
+    const failed = await failLocalisationAudit({
+      auditId: created.audit.id,
+      attemptNumber: 1,
+      errorCode: "localisation_audit_enqueue_failed",
+      errorMessage: "Audit could not be queued. You can retry shortly.",
+    });
+    expect(failed?.status).toBe("failed");
+    expect(failed?.progressStage).toBe("failed");
+    expect(failed?.report).toBeNull();
+    expect(failed?.errorCode).toBe("localisation_audit_enqueue_failed");
   });
 
   it("handles concurrent lead upserts idempotently", async () => {
