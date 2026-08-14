@@ -246,7 +246,6 @@ type SourceStringsUpload struct {
 	Attributes struct {
 		BranchID      int    `json:"branchId,omitempty"`
 		DirectoryID   int    `json:"directoryId,omitempty"`
-		FileID        int    `json:"fileId,omitempty"`
 		StorageID     int    `json:"storageId"`
 		FileType      string `json:"fileType"`
 		ParserVersion int    `json:"parserVersion"`
@@ -256,7 +255,6 @@ type SourceStringsUpload struct {
 			ImportTranslations      bool           `json:"importTranslations"`
 			Scheme                  map[string]int `json:"scheme"`
 		} `json:"importOptions"`
-		MaxLen        int          `json:"maxLen,omitempty"`
 		UpdateStrings bool         `json:"updateStrings"`
 		UpdateOption  UpdateOption `json:"updateOption,omitempty"`
 		CleanupMode   bool         `json:"cleanupMode"`

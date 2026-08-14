@@ -762,7 +762,6 @@ func TestSourceStringsService_GetUploadStatus(t *testing.T) {
 				"progress": 100,
 				"attributes": {
 					"branchId": 38,
-					"fileId": 12,
 					"storageId": 38,
 					"fileType": "android",
 					"parserVersion": 8,
@@ -777,7 +776,6 @@ func TestSourceStringsService_GetUploadStatus(t *testing.T) {
 							"de": 3
 						}
 					},
-					"maxLen": 255,
 					"updateStrings": true,
 					"updateOption": "keep_translations",
 					"cleanupMode": false
@@ -802,7 +800,6 @@ func TestSourceStringsService_GetUploadStatus(t *testing.T) {
 		Attributes: struct {
 			BranchID      int    `json:"branchId,omitempty"`
 			DirectoryID   int    `json:"directoryId,omitempty"`
-			FileID        int    `json:"fileId,omitempty"`
 			StorageID     int    `json:"storageId"`
 			FileType      string `json:"fileType"`
 			ParserVersion int    `json:"parserVersion"`
@@ -812,13 +809,11 @@ func TestSourceStringsService_GetUploadStatus(t *testing.T) {
 				ImportTranslations      bool           `json:"importTranslations"`
 				Scheme                  map[string]int `json:"scheme"`
 			} `json:"importOptions"`
-			MaxLen        int                `json:"maxLen,omitempty"`
 			UpdateStrings bool               `json:"updateStrings"`
 			UpdateOption  model.UpdateOption `json:"updateOption,omitempty"`
 			CleanupMode   bool               `json:"cleanupMode"`
 		}{
 			BranchID:      38,
-			FileID:        12,
 			StorageID:     38,
 			FileType:      "android",
 			ParserVersion: 8,
@@ -837,7 +832,6 @@ func TestSourceStringsService_GetUploadStatus(t *testing.T) {
 					"de":           3,
 				},
 			},
-			MaxLen:        255,
 			UpdateStrings: true,
 			UpdateOption:  model.UpdateOptionKeepTranslations,
 			CleanupMode:   false,
@@ -870,7 +864,6 @@ func TestSourceStringsService_Upload(t *testing.T) {
 				"progress": 100,
 				"attributes": {
 					"branchId": 38,
-					"fileId": 12,
 					"storageId": 38,
 					"fileType": "android",
 					"parserVersion": 8,
@@ -885,7 +878,6 @@ func TestSourceStringsService_Upload(t *testing.T) {
 							"de": 3
 						}
 					},
-					"maxLen": 255,
 					"updateStrings": true,
 					"updateOption": "keep_translations",
 					"cleanupMode": false
@@ -936,7 +928,6 @@ func TestSourceStringsService_Upload(t *testing.T) {
 		Attributes: struct {
 			BranchID      int    `json:"branchId,omitempty"`
 			DirectoryID   int    `json:"directoryId,omitempty"`
-			FileID        int    `json:"fileId,omitempty"`
 			StorageID     int    `json:"storageId"`
 			FileType      string `json:"fileType"`
 			ParserVersion int    `json:"parserVersion"`
@@ -946,13 +937,11 @@ func TestSourceStringsService_Upload(t *testing.T) {
 				ImportTranslations      bool           `json:"importTranslations"`
 				Scheme                  map[string]int `json:"scheme"`
 			} `json:"importOptions"`
-			MaxLen        int                `json:"maxLen,omitempty"`
 			UpdateStrings bool               `json:"updateStrings"`
 			UpdateOption  model.UpdateOption `json:"updateOption,omitempty"`
 			CleanupMode   bool               `json:"cleanupMode"`
 		}{
 			BranchID:      38,
-			FileID:        12,
 			StorageID:     38,
 			FileType:      "android",
 			ParserVersion: 8,
@@ -971,7 +960,6 @@ func TestSourceStringsService_Upload(t *testing.T) {
 					"de":           3,
 				},
 			},
-			MaxLen:        255,
 			UpdateStrings: true,
 			UpdateOption:  model.UpdateOptionKeepTranslations,
 			CleanupMode:   false,
