@@ -13,7 +13,11 @@
 import { NextResponse } from "next/server";
 
 import { isValidDomainSlug } from "@/lib/localisation-audit/domain-slug";
-import { claimDomainPathForOrg, setClaimDomainIntent } from "@/lib/linked-domains/claim-intent";
+import {
+  claimDomainPathForOrg,
+  clearClaimDomainIntent,
+  setClaimDomainIntent,
+} from "@/lib/linked-domains/claim-intent";
 import { requireAppAuthContext } from "@/lib/workos/app-auth";
 
 export async function GET(request: Request, context: { params: Promise<{ domainSlug: string }> }) {
@@ -36,6 +40,7 @@ export async function GET(request: Request, context: { params: Promise<{ domainS
     );
   }
 
+  await clearClaimDomainIntent();
   const path = claimDomainPathForOrg(organizationSlug, domainSlug);
   return NextResponse.redirect(new URL(path, requestUrl.origin));
 }
