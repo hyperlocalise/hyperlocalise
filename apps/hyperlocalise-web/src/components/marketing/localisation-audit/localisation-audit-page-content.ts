@@ -151,6 +151,8 @@ export function getLocalisationAuditResultCopy(_locale: string) {
       "Strong localisation signals. Create a workspace to keep locales healthy as you ship, or book a deeper review.",
     createWorkspace: "Create a workspace",
     deeperAudit: "Run a deeper registered audit",
+    claimDomain: "Claim this domain",
+    openInWorkspace: "Open in workspace",
     bookReview: "Book an audit review",
     scoreInterpretationExcellent: "The localised experience is in strong shape.",
     scoreInterpretationGood:

@@ -62,6 +62,7 @@ type AuditPayload = {
   retryable?: boolean;
   rerunnable?: boolean;
   rerunAvailableAt?: string | null;
+  claimed?: boolean;
   errorCode: string | null;
   errorMessage?: string | null;
   completedAt?: string | null;
@@ -838,7 +839,33 @@ export function LocalisationAuditResult({
               {rerunPending ? copy.rerunning : copy.rerun}
             </Button>
           ) : null}
+          {audit.claimed ? (
+            <Button
+              nativeButton={false}
+              render={
+                <Link
+                  href={`/claim-domain/${domainSlug}`}
+                  onClick={() => trackCta("open_claimed_domain")}
+                />
+              }
+            >
+              {copy.openInWorkspace}
+            </Button>
+          ) : (
+            <Button
+              nativeButton={false}
+              render={
+                <Link
+                  href={`/auth/sign-in?returnTo=${encodeURIComponent(`/claim-domain/${domainSlug}`)}`}
+                  onClick={() => trackCta("claim_domain")}
+                />
+              }
+            >
+              {copy.claimDomain}
+            </Button>
+          )}
           <Button
+            variant="outline"
             nativeButton={false}
             render={<Link href="/auth/sign-in" onClick={() => trackCta("create_workspace")} />}
           >

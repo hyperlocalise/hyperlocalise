@@ -85,6 +85,7 @@ function publicAuditView(audit: LocalisationAuditRow) {
     retryable,
     rerunnable: isLocalisationAuditRerunnable(audit),
     rerunAvailableAt: localisationAuditRerunAvailableAt(audit)?.toISOString() ?? null,
+    claimed: audit.organizationId != null && audit.linkedDomainId != null,
     createdAt: audit.createdAt.toISOString(),
     completedAt: audit.completedAt?.toISOString() ?? null,
     statusUpdatedAt: audit.statusUpdatedAt?.toISOString() ?? null,

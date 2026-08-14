@@ -30,6 +30,11 @@ import {
   clearStoredOnboardingState,
   setStoredOnboardingState,
 } from "@/lib/workos/onboarding-state";
+import {
+  claimDomainPathForOrg,
+  clearClaimDomainIntent,
+  getClaimDomainIntent,
+} from "@/lib/linked-domains/claim-intent";
 
 export type CreateWorkspaceActionState = {
   error?: string;
@@ -57,6 +62,15 @@ function getOrganizationDashboardPath(slug: string | null | undefined) {
   }
 
   return `/org/${slug}/dashboard`;
+}
+
+async function resolvePostOnboardingPath(organizationSlug: string) {
+  const intent = await getClaimDomainIntent();
+  if (intent) {
+    await clearClaimDomainIntent();
+    return claimDomainPathForOrg(organizationSlug, intent.domainSlug);
+  }
+  return getOrganizationDashboardPath(organizationSlug);
 }
 
 export async function createWorkspaceAction(
@@ -144,7 +158,7 @@ export async function createWorkspaceAction(
   await setStoredActiveOrganizationSlug(organization.slug);
   await clearStoredOnboardingState();
 
-  redirect(getOrganizationDashboardPath(organization.slug));
+  redirect(await resolvePostOnboardingPath(organization.slug));
 }
 
 export async function saveProviderCredentialAction(
@@ -281,5 +295,5 @@ export async function finishOnboardingAction() {
   }
 
   await clearStoredOnboardingState();
-  redirect(getOrganizationDashboardPath(auth.activeOrganization.slug));
+  redirect(await resolvePostOnboardingPath(auth.activeOrganization.slug ?? ""));
 }

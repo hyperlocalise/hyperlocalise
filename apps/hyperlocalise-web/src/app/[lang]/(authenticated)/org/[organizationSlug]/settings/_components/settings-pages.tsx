@@ -17,6 +17,7 @@ import {
   ArrowRight01Icon,
   Key01Icon,
   CreditCardIcon,
+  LinkSquare02Icon,
   Settings01Icon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
@@ -96,6 +97,21 @@ function buildSettingsRows(intl: IntlShape): readonly SettingsRowConfig[] {
       href: "api-keys",
       icon: Key01Icon,
       requiredCapability: "api_keys:read",
+    },
+    {
+      label: intl.formatMessage({
+        defaultMessage: "Linked domains",
+        id: "LdHubRowLabel",
+        description: "Settings hub row label for linked domains",
+      }),
+      description: intl.formatMessage({
+        defaultMessage: "Verify and manage domains claimed from localisation audits.",
+        id: "LdHubRowDesc",
+        description: "Settings hub row description for linked domains",
+      }),
+      href: "linked-domains",
+      icon: LinkSquare02Icon,
+      requiredCapability: "projects:read",
     },
     {
       label: intl.formatMessage({

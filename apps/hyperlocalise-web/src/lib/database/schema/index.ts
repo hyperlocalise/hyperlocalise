@@ -38,3 +38,4 @@ export * from "./project-file-string-contexts";
 export * from "./project-cat-string-overlays";
 export * from "./billing";
 export * from "./localisation-audits";
+export * from "./linked-domains";

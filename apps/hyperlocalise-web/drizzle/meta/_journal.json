@@ -575,6 +575,13 @@
       "when": 1786665421089,
       "tag": "0081_even_amazoness",
       "breakpoints": true
+    },
+    {
+      "idx": 82,
+      "version": "7",
+      "when": 1786714528883,
+      "tag": "0082_watery_thaddeus_ross",
+      "breakpoints": true
     }
   ]
 }
