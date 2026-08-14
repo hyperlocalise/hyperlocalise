@@ -30,7 +30,9 @@ const lunaFindingSchema = z.object({
   title: z.string().trim().min(1),
   summary: z.string().trim().min(1),
   // OpenAI json_schema requires every property key in `required`. Use null, not omit.
+  where: z.string().trim().nullable(),
   evidence: z.string().trim().nullable(),
+  advice: z.string().trim().nullable(),
   url: z.string().trim().nullable(),
 });
 
@@ -106,7 +108,11 @@ export async function scoreCreditsWithLuna(input: {
         "Return one result per credit id. Prefer fewer, concrete findings (max 3 per credit).",
         "For visual credits without screenshots, treat overflow/layout/responsive as informed estimates and keep confidence at or below 74.",
         "High-confidence only when the evidence is explicit.",
-        "Always include every schema field. Use null for evidence or url when you have no quote or page.",
+        "Always include every schema field. Use null for where, evidence, advice, or url when unknown.",
+        "where is the page section and HTML tag, like 'Hero · <h1>' or 'Header · <nav>'. Not the page URL.",
+        "evidence is a verbatim quote or markup fragment with enough context to verify the claim.",
+        "advice is a concrete fix for this finding (one or two imperative sentences), not a restatement of the summary.",
+        "url is the page URL. Use null when you have no page.",
         "Return notes as an empty array when there are no linguistic notes.",
         JSON.stringify(payload),
       ].join("\n\n"),
@@ -131,8 +137,10 @@ export async function scoreCreditsWithLuna(input: {
           severity: finding.severity as LocalisationAuditFindingSeverity,
           title: finding.title,
           summary: finding.summary,
+          where: finding.where?.trim() || undefined,
           url: finding.url?.trim() || undefined,
           evidence: finding.evidence?.trim() || undefined,
+          advice: finding.advice?.trim() || undefined,
           confidence,
         })),
       });

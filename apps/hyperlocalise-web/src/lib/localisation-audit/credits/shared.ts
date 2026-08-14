@@ -206,6 +206,18 @@ export function sourceLanguage(detectedLocales: LocalisationAuditLocaleSignal[])
   return locales[0] ?? "en";
 }
 
+export const FINDING_EVIDENCE_MAX_CHARS = 400;
+
+export function formatFindingWhere(input: { section: string; tag: string }): string {
+  return `${input.section} · ${input.tag}`;
+}
+
+export function clipFindingEvidence(value: string, max = FINDING_EVIDENCE_MAX_CHARS): string {
+  const trimmed = value.trim();
+  if (trimmed.length <= max) return trimmed;
+  return `${trimmed.slice(0, max - 1)}…`;
+}
+
 export function creditFinding(input: {
   id: string;
   creditId: string;
@@ -213,8 +225,10 @@ export function creditFinding(input: {
   severity: LocalisationAuditFindingSeverity;
   title: string;
   summary: string;
+  where?: string;
   url?: string;
   evidence?: string;
+  advice?: string;
   confidence?: number;
 }): LocalisationAuditFinding {
   return {
@@ -224,8 +238,10 @@ export function creditFinding(input: {
     severity: input.severity,
     title: input.title,
     summary: input.summary,
+    where: input.where,
     url: input.url,
     evidence: input.evidence,
+    advice: input.advice,
     confidence: input.confidence ?? 95,
   };
 }

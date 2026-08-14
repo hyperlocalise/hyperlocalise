@@ -13,8 +13,10 @@
 import type { LocalisationAuditFinding } from "../../types";
 import {
   clampScore,
+  clipFindingEvidence,
   creditFinding,
   dominantScript,
+  formatFindingWhere,
   groupPagesByLanguage,
   isCjkLanguage,
   isLatinScriptLanguage,
@@ -69,8 +71,10 @@ const scoreTranslationCompleteness: HeuristicScorer = (context) => {
             severity: "critical",
             title: "Locale URL still looks English",
             summary: `Content on a ${locale} URL appears primarily English in the sampled text.`,
+            where: formatFindingWhere({ section: "Page body", tag: "sampled copy" }),
             url: page.url,
-            evidence: text.slice(0, 180),
+            evidence: clipFindingEvidence(text),
+            advice: `Translate the leftover English copy on this ${locale} page.`,
             confidence: 96,
           }),
         );
@@ -84,8 +88,10 @@ const scoreTranslationCompleteness: HeuristicScorer = (context) => {
             severity: "high",
             title: "Page script does not match the locale",
             summary: `A ${locale} page is dominated by Latin-script copy.`,
+            where: formatFindingWhere({ section: "Page body", tag: "sampled copy" }),
             url: page.url,
-            evidence: text.slice(0, 180),
+            evidence: clipFindingEvidence(text),
+            advice: `Write this ${locale} page in the expected script instead of leftover Latin-script copy.`,
           }),
         );
       }
@@ -114,8 +120,10 @@ const scoreTranslationCompleteness: HeuristicScorer = (context) => {
             severity: "high",
             title: "Untranslated call to action",
             summary: `A ${locale} page still uses source-language CTA copy.`,
+            where: formatFindingWhere({ section: "Pricing hero", tag: "<button>" }),
             url: page.url,
-            evidence: overlap[0],
+            evidence: `Primary CTA: "${overlap[0]}"`,
+            advice: "Translate leftover source-language CTAs to match the surrounding locale copy.",
             confidence: 92,
           }),
         );
@@ -182,7 +190,10 @@ const scoreTerminologyConsistency: HeuristicScorer = (context) => {
             severity: "medium",
             title: "Terminology inconsistency",
             summary: `"${sourceTerm}" appears both untranslated and translated across ${language} pages.`,
-            evidence: sourceTerm,
+            where: formatFindingWhere({ section: "Header", tag: "<nav> or <button>" }),
+            url: pages[0]?.url,
+            evidence: `"${sourceTerm}" appears untranslated on some ${language} pages and translated on others`,
+            advice: `Use one translated label for "${sourceTerm}" across ${language} pages.`,
           }),
         );
       }
@@ -219,7 +230,10 @@ const scoreCrossPageConsistency: HeuristicScorer = (context) => {
             severity: "medium",
             title: "Inconsistent navigation labels",
             summary: `The same ${language} destination is labelled in ${labels.size} different ways.`,
+            where: formatFindingWhere({ section: "Header", tag: "<nav> or <a>" }),
+            url: pages[0]?.url,
             evidence: `${href}: ${[...labels].slice(0, 3).join(" / ")}`,
+            advice: "Use one translated label for the same destination across pages.",
           }),
         );
       }

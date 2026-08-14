@@ -13,7 +13,9 @@
 import type { LocalisationAuditCrawledPage, LocalisationAuditFinding } from "../../types";
 import {
   clampScore,
+  clipFindingEvidence,
   creditFinding,
+  formatFindingWhere,
   languageOf,
   looksPrimarilyEnglish,
   normalizeLocale,
@@ -44,6 +46,9 @@ const scoreLocaleDetection: HeuristicScorer = (context) => {
         severity: "critical",
         title: "Could not inspect page language",
         summary: "No successful HTML pages were available to check html lang.",
+        where: formatFindingWhere({ section: "Document head", tag: "<html lang>" }),
+        evidence: "The crawl returned no successful HTML pages to inspect.",
+        advice: "Make the sampled localisation URLs return 200 HTML so html lang can be checked.",
         confidence: 100,
       }),
     ]);
@@ -63,7 +68,10 @@ const scoreLocaleDetection: HeuristicScorer = (context) => {
             title: "Missing language declaration",
             summary:
               "The page does not set html lang, so browsers and assistive tech cannot identify the locale.",
+            where: formatFindingWhere({ section: "Document head", tag: "<html lang>" }),
             url: page.url,
+            evidence: "html lang is missing",
+            advice: "Set html lang to the page locale on this URL.",
           }),
         );
       }
@@ -77,8 +85,10 @@ const scoreLocaleDetection: HeuristicScorer = (context) => {
           severity: "medium",
           title: "Incorrect language code",
           summary: `html lang "${page.htmlLang}" is not a well-formed language or locale tag.`,
+          where: formatFindingWhere({ section: "Document head", tag: "<html lang>" }),
           url: page.url,
-          evidence: page.htmlLang,
+          evidence: `<html lang="${page.htmlLang}">`,
+          advice: "Use a well-formed BCP 47 language tag, such as en or fr-FR.",
         }),
       );
     }
@@ -98,8 +108,10 @@ const scoreLocaleDetection: HeuristicScorer = (context) => {
           severity: "high",
           title: "URL locale and html lang disagree",
           summary: `Path suggests ${pathLocale} but html lang is ${page.htmlLang}.`,
+          where: formatFindingWhere({ section: "Document head", tag: "<html lang>" }),
           url: page.url,
-          evidence: `path=${pathLocale}; lang=${page.htmlLang}`,
+          evidence: `<html lang="${page.htmlLang}"> while the path locale is ${pathLocale}`,
+          advice: `Set html lang="${pathLocale}" so it matches this page’s URL locale.`,
         }),
       );
     }
@@ -126,7 +138,10 @@ const scoreLocaleRouting: HeuristicScorer = (context) => {
         severity: critical ? "critical" : "high",
         title: `Page returned HTTP ${page.status}`,
         summary: "A sampled localisation URL did not return a successful HTML response.",
+        where: formatFindingWhere({ section: "Sampled page", tag: "document" }),
         url: page.url,
+        evidence: `HTTP ${page.status}`,
+        advice: "Fix the localized URL so it returns a successful HTML response.",
         confidence: 100,
       }),
     );
@@ -154,6 +169,10 @@ const scoreLocaleRouting: HeuristicScorer = (context) => {
         severity: "medium",
         title: "Inconsistent URL structures",
         summary: "The sample mixes locale prefixes and locale subdomains.",
+        where: formatFindingWhere({ section: "Sampled pages", tag: "document" }),
+        url: context.pages[0]?.url,
+        evidence: `URL strategies in the sample: ${[...strategies].join(" and ")}`,
+        advice: "Pick one locale URL pattern (prefix or subdomain) and use it consistently.",
       }),
     );
   }
@@ -169,7 +188,11 @@ const scoreLocaleRouting: HeuristicScorer = (context) => {
         title: "Only one locale signal detected",
         summary:
           "The sample found little evidence of multi-locale routing (hreflang, locale prefixes, or html lang variety).",
+        where: formatFindingWhere({ section: "Sampled pages", tag: "document" }),
         url: context.pages[0]?.url,
+        evidence: `Detected locale signals: ${context.detectedLocales.map((entry) => entry.locale).join(", ") || "none"}`,
+        advice:
+          "Expose additional locales through hreflang, locale prefixes, or html lang variety.",
         confidence: 90,
       }),
     );
@@ -190,6 +213,7 @@ const scoreLanguageSwitcher: HeuristicScorer = (context) => {
   let preservesPath = 0;
   let localeRootOnly = 0;
   let found = 0;
+  let droppedSwitcher: { pageUrl: string; href: string; text: string } | null = null;
 
   for (const page of context.pages.filter(isSuccessful)) {
     const currentPath = pathWithoutLocale(page.url);
@@ -218,6 +242,11 @@ const scoreLanguageSwitcher: HeuristicScorer = (context) => {
         (targetPath && targetPath.split("/").filter(Boolean).length <= 1)
       ) {
         localeRootOnly += 1;
+        droppedSwitcher ??= {
+          pageUrl: page.url,
+          href: href.toString(),
+          text: anchor.text.trim() || href.toString(),
+        };
       }
     }
   }
@@ -238,6 +267,13 @@ const scoreLanguageSwitcher: HeuristicScorer = (context) => {
         severity: "high",
         title: "Language links return to the homepage",
         summary: "Locale links were found, but they appear to drop the current page path.",
+        where: formatFindingWhere({ section: "Header", tag: "<nav> language links" }),
+        url: droppedSwitcher?.pageUrl ?? context.pages[0]?.url,
+        evidence: droppedSwitcher
+          ? `<a href="${droppedSwitcher.href}">${droppedSwitcher.text}</a> drops the current page path`
+          : "Locale links point at locale homepages instead of the equivalent path.",
+        advice:
+          "Point language-switcher links at the equivalent localized path, not the locale homepage.",
       }),
     );
     return scored(58, findings);
@@ -264,7 +300,13 @@ const scoreHreflang: HeuristicScorer = (context) => {
         title: "No hreflang annotations found",
         summary:
           "Multiple locale signals were detected, but sampled pages did not expose hreflang alternate links.",
+        where: formatFindingWhere({
+          section: "Document head",
+          tag: '<link rel="alternate" hreflang>',
+        }),
         url: okPages[0]?.url,
+        evidence: 'No <link rel="alternate" hreflang> tags were found on sampled pages.',
+        advice: "Add reciprocal hreflang alternate links, including self and x-default.",
         confidence: 100,
       }),
     ]);
@@ -292,7 +334,18 @@ const scoreHreflang: HeuristicScorer = (context) => {
           severity: "medium",
           title: "Missing hreflang self-reference",
           summary: "The page lists hreflang alternates but does not include itself.",
+          where: formatFindingWhere({
+            section: "Document head",
+            tag: '<link rel="alternate" hreflang>',
+          }),
           url: page.url,
+          evidence: page.hreflang
+            .slice(0, 4)
+            .map(
+              (entry) => `<link rel="alternate" hreflang="${entry.locale}" href="${entry.href}">`,
+            )
+            .join("\n"),
+          advice: "Add a self-referencing hreflang alternate for this page.",
         }),
       );
     }
@@ -306,7 +359,13 @@ const scoreHreflang: HeuristicScorer = (context) => {
           severity: "low",
           title: "Missing x-default hreflang",
           summary: "hreflang is present but does not declare an x-default fallback.",
+          where: formatFindingWhere({
+            section: "Document head",
+            tag: '<link rel="alternate" hreflang>',
+          }),
           url: page.url,
+          evidence: 'hreflang is present but none of the alternates use hreflang="x-default".',
+          advice: "Add an x-default hreflang fallback for users whose locale is not listed.",
         }),
       );
     }
@@ -326,8 +385,13 @@ const scoreHreflang: HeuristicScorer = (context) => {
             severity: "high",
             title: "Invalid hreflang URL",
             summary: `Alternate link for ${entry.locale} is not a valid URL.`,
+            where: formatFindingWhere({
+              section: "Document head",
+              tag: '<link rel="alternate" hreflang>',
+            }),
             url: page.url,
-            evidence: entry.href,
+            evidence: `<link rel="alternate" hreflang="${entry.locale}" href="${entry.href}">`,
+            advice: `Use an absolute, valid URL for the ${entry.locale} hreflang alternate.`,
           }),
         );
         continue;
@@ -345,8 +409,13 @@ const scoreHreflang: HeuristicScorer = (context) => {
             severity: "critical",
             title: `hreflang target returns HTTP ${target.status}`,
             summary: `Alternate link for ${entry.locale} points to a failing URL.`,
+            where: formatFindingWhere({
+              section: "Document head",
+              tag: '<link rel="alternate" hreflang>',
+            }),
             url: absolute,
-            evidence: entry.locale,
+            evidence: `<link rel="alternate" hreflang="${entry.locale}" href="${absolute}"> returns HTTP ${target.status}`,
+            advice: `Fix the ${entry.locale} hreflang target so it returns a successful HTML response.`,
             confidence: 100,
           }),
         );
@@ -371,7 +440,10 @@ const scoreCanonicalUrls: HeuristicScorer = (context) => {
         severity: "medium",
         title: "Canonical URLs are missing",
         summary: "Sampled pages did not declare a canonical URL.",
+        where: formatFindingWhere({ section: "Document head", tag: '<link rel="canonical">' }),
         url: okPages[0]?.url,
+        evidence: 'No <link rel="canonical"> was found on sampled pages.',
+        advice: "Add a canonical URL that points at this locale’s own page.",
       }),
     ]);
   }
@@ -391,8 +463,10 @@ const scoreCanonicalUrls: HeuristicScorer = (context) => {
           severity: "medium",
           title: "Canonical URL is invalid",
           summary: "The canonical href could not be parsed as a URL.",
+          where: formatFindingWhere({ section: "Document head", tag: '<link rel="canonical">' }),
           url: page.url,
-          evidence: page.canonical ?? undefined,
+          evidence: `<link rel="canonical" href="${page.canonical ?? ""}">`,
+          advice: "Use an absolute, valid canonical URL for this page.",
         }),
       );
       continue;
@@ -408,8 +482,10 @@ const scoreCanonicalUrls: HeuristicScorer = (context) => {
           severity: "high",
           title: "Canonical points at another locale",
           summary: `This ${pageLoc} page canonicalises to a ${canonicalLocale} URL.`,
+          where: formatFindingWhere({ section: "Document head", tag: '<link rel="canonical">' }),
           url: page.url,
-          evidence: canonicalUrl.toString(),
+          evidence: `<link rel="canonical" href="${canonicalUrl.toString()}"> on a ${pageLoc} page`,
+          advice: "Canonicalize this page to its own localized URL, not another locale.",
           confidence: 98,
         }),
       );
@@ -448,7 +524,10 @@ const scoreLocalizedSeoMetadata: HeuristicScorer = (context) => {
         severity: "medium",
         title: "Page titles are not localized",
         summary: "Sampled locales share the same document title.",
-        evidence: titles[0],
+        where: formatFindingWhere({ section: "Document head", tag: "<title>" }),
+        url: [...byLanguage.values()][0]?.[0]?.url,
+        evidence: `<title>${titles[0]}</title> is reused across sampled locales`,
+        advice: "Localize the document title for each page locale.",
       }),
     );
   }
@@ -464,6 +543,13 @@ const scoreLocalizedSeoMetadata: HeuristicScorer = (context) => {
         severity: "medium",
         title: "Meta descriptions are not localized",
         summary: "Sampled locales share the same meta description.",
+        where: formatFindingWhere({
+          section: "Document head",
+          tag: '<meta name="description">',
+        }),
+        url: [...byLanguage.values()][0]?.[0]?.url,
+        evidence: `<meta name="description" content="${descriptions[0]}"> is reused across sampled locales`,
+        advice: "Localize the meta description for each page locale.",
       }),
     );
   }
@@ -480,8 +566,13 @@ const scoreLocalizedSeoMetadata: HeuristicScorer = (context) => {
           severity: "medium",
           title: "og:locale does not match the page",
           summary: `og:locale is ${page.ogLocale} on a ${language} page.`,
+          where: formatFindingWhere({
+            section: "Document head",
+            tag: '<meta property="og:locale">',
+          }),
           url: page.url,
-          evidence: page.ogLocale,
+          evidence: `<meta property="og:locale" content="${page.ogLocale}"> on a ${language} page`,
+          advice: `Set og:locale to match the ${language} page locale.`,
         }),
       );
     }
@@ -507,6 +598,12 @@ const scoreSitemap: HeuristicScorer = (context) => {
         severity: "medium",
         title: "Sitemap is missing localized URLs",
         summary: "A sitemap was found, but sampled entries do not include locale-prefixed URLs.",
+        where: formatFindingWhere({ section: "Sitemap", tag: "sitemap.xml" }),
+        url: sitemap.sitemapUrls[0],
+        evidence: sitemap.sitemapUrls[0]
+          ? `Sitemap ${sitemap.sitemapUrls[0]} has no locale-prefixed URLs in the sample`
+          : "A sitemap was found, but sampled entries have no locale-prefixed URLs.",
+        advice: "Include localized URLs in the sitemap for every published locale.",
         confidence: 90,
       }),
     ]);
@@ -538,8 +635,13 @@ const scoreStructuredData: HeuristicScorer = (context) => {
             severity: "medium",
             title: "Structured data language mismatch",
             summary: `${node.type} inLanguage is ${node.inLanguage} on a ${locale} page.`,
+            where: formatFindingWhere({
+              section: "JSON-LD",
+              tag: '<script type="application/ld+json">',
+            }),
             url: page.url,
-            evidence: node.inLanguage,
+            evidence: `${node.type} inLanguage="${node.inLanguage}" on a ${locale} page`,
+            advice: `Set JSON-LD inLanguage to the ${locale} page locale.`,
           }),
         );
       }
@@ -554,7 +656,13 @@ const scoreStructuredData: HeuristicScorer = (context) => {
         severity: "low",
         title: "Structured data omits inLanguage",
         summary: "JSON-LD is present but does not declare inLanguage on sampled pages.",
+        where: formatFindingWhere({
+          section: "JSON-LD",
+          tag: '<script type="application/ld+json">',
+        }),
         url: pages[0]?.url,
+        evidence: `${pages[0]?.jsonLd[0]?.type ?? "JSON-LD"} is present but inLanguage is missing`,
+        advice: "Set JSON-LD inLanguage to match each page locale.",
       }),
     );
   }
@@ -596,8 +704,10 @@ const scoreInternationalFormatting: HeuristicScorer = (context) => {
           severity: "high",
           title: "Currency does not match the locale",
           summary: `A ${language} page still shows dollar amounts without a local currency.`,
+          where: formatFindingWhere({ section: "Page body", tag: "sampled copy" }),
           url: page.url,
-          evidence: text.match(/\$\d[\d,.]*/)?.[0],
+          evidence: clipFindingEvidence(text.match(/\$\d[\d,.]*/)?.[0] ?? "$ amount on page"),
+          advice: `Use a ${language}-appropriate currency instead of unlocalized dollar amounts.`,
         }),
       );
     }
@@ -636,8 +746,13 @@ const scoreAccessibilityLocalisation: HeuristicScorer = (context) => {
           severity: "medium",
           title: "Accessible names look untranslated",
           summary: `aria-label or alt text on a ${locale} page still looks English.`,
+          where: formatFindingWhere({
+            section: "Accessible name",
+            tag: page.ariaLabels.includes(englishSamples[0]!) ? "[aria-label]" : "<img alt>",
+          }),
           url: page.url,
-          evidence: englishSamples[0],
+          evidence: clipFindingEvidence(englishSamples[0] ?? ""),
+          advice: "Translate accessible names together with the visible UI.",
         }),
       );
     }

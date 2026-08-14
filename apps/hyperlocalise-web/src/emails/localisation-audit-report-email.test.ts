@@ -31,6 +31,10 @@ describe("localisation audit report email", () => {
           severity: "critical",
           title: "Missing hreflang returns",
           summary: "FR pages do not point back to EN.",
+          where: 'Document head · <link rel="alternate" hreflang>',
+          url: "https://example.com/fr",
+          evidence: "FR /fr has no reciprocal EN alternate",
+          advice: "Add reciprocal hreflang (including self and x-default) between EN and FR.",
         },
       ],
       verifyUrl: "https://app.example.test/api/localisation-audit/example-com/verify?token=abc",
@@ -39,6 +43,12 @@ describe("localisation audit report email", () => {
     expect(text).toContain("64/100");
     expect(text).toContain("Missing hreflang returns");
     expect(text).toContain("[critical]");
+    expect(text).toContain('Found here: Document head · <link rel="alternate" hreflang>');
+    expect(text).toContain("https://example.com/fr");
+    expect(text).toContain("What we saw: FR /fr has no reciprocal EN alternate");
+    expect(text).toContain(
+      "How to fix it: Add reciprocal hreflang (including self and x-default) between EN and FR.",
+    );
     expect(text).toContain("verify?token=abc");
     expect(text).toContain("example.com");
     expect(text).toContain("/en/blog/what-is-a-website-localisation-audit");
@@ -86,6 +96,10 @@ describe("localisation audit report email", () => {
             severity: "critical",
             title: "Missing hreflang returns",
             summary: "FR pages do not point back to EN.",
+            where: 'Document head · <link rel="alternate" hreflang>',
+            url: "https://example.com/fr",
+            evidence: "FR /fr has no reciprocal EN alternate",
+            advice: "Add reciprocal hreflang (including self and x-default) between EN and FR.",
           },
         ],
         verifyUrl: "https://app.example.test/verify",
@@ -98,6 +112,11 @@ describe("localisation audit report email", () => {
     expect(html).toContain("#107d32");
     expect(html).toContain("#ecfdec");
     expect(html).toContain("#ffeeef");
+    expect(html).toContain("Found here");
+    expect(html).toContain("What we saw");
+    expect(html).toContain("How to fix it");
+    expect(html).toContain("Document head ·");
+    expect(html).toContain("Add reciprocal hreflang");
     expect(html).toContain("/en/blog/what-is-a-website-localisation-audit");
   });
 });

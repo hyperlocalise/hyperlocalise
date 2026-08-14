@@ -13,7 +13,9 @@
 import type { LocalisationAuditFinding } from "../../types";
 import {
   clampScore,
+  clipFindingEvidence,
   creditFinding,
+  formatFindingWhere,
   groupPagesByLanguage,
   languageOf,
   pageLocale,
@@ -68,7 +70,15 @@ const scoreCulturalAdaptation: HeuristicScorer = (context) => {
           severity: "medium",
           title: "Possible cultural adaptation gap",
           summary: `A ${language} page still uses US-style currency or contact details.`,
+          where: formatFindingWhere({ section: "Page body", tag: "sampled copy" }),
           url: page.url,
+          evidence: clipFindingEvidence(
+            text.match(/\$\d[\d,.]*/)?.[0] ??
+              text.match(/\+?1[\s.-]?\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4}/)?.[0] ??
+              text.slice(0, 200),
+          ),
+          advice:
+            "Use locale-appropriate currency and contact formats instead of US-style defaults.",
           confidence: 78,
         }),
       );

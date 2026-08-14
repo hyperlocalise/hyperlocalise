@@ -13,8 +13,10 @@
 import type { LocalisationAuditFinding } from "../../types";
 import {
   clampScore,
+  clipFindingEvidence,
   creditFinding,
   dominantScript,
+  formatFindingWhere,
   groupPagesByLanguage,
   isCjkLanguage,
   isLatinScriptLanguage,
@@ -47,13 +49,22 @@ const scoreTextExpansion: HeuristicScorer = (context) => {
     for (const page of pages) {
       const sibling = sourceByPath.get(pathWithoutLocale(page.url) ?? "");
       if (!sibling) continue;
-      const pairs = [
-        ...zip(sibling.buttons, page.buttons),
-        ...zip(sibling.headings, page.headings),
+      const pairs: Array<{ sourceText: string; targetText: string; tag: string }> = [
+        ...zip(sibling.buttons, page.buttons).map(([sourceText, targetText]) => ({
+          sourceText,
+          targetText,
+          tag: "<button>",
+        })),
+        ...zip(sibling.headings, page.headings).map(([sourceText, targetText]) => ({
+          sourceText,
+          targetText,
+          tag: "heading",
+        })),
       ];
-      for (const [sourceText, targetText] of pairs) {
+      for (const { sourceText, targetText, tag } of pairs) {
         if (sourceText.length < 8 || targetText.length < 8) continue;
-        if (targetText.length / sourceText.length >= 1.6) {
+        const percent = Math.round((targetText.length / sourceText.length) * 100);
+        if (percent >= 160) {
           findings.push(
             creditFinding({
               id: `expansion-${findings.length}`,
@@ -61,9 +72,17 @@ const scoreTextExpansion: HeuristicScorer = (context) => {
               category: "visual",
               severity: "medium",
               title: "Localized text is much longer than the source",
-              summary: `A ${language} string is ${Math.round((targetText.length / sourceText.length) * 100)}% the length of the source, which often causes overflow.`,
+              summary: `A ${language} string is ${percent}% the length of the source, which often causes overflow.`,
+              where: formatFindingWhere({
+                section: tag === "<button>" ? "Control" : "Heading",
+                tag,
+              }),
               url: page.url,
-              evidence: `${sourceText} → ${targetText}`,
+              evidence: clipFindingEvidence(
+                `${source.toUpperCase()} "${sourceText}" → ${language.toUpperCase()} "${targetText}" (${percent}%)`,
+              ),
+              advice:
+                "Shorten the translation or give the control more room so the longer copy does not overflow.",
               confidence: 88,
             }),
           );
@@ -96,6 +115,8 @@ const scoreRtlSupport: HeuristicScorer = (context) => {
   }
   const missingDir = rtlPages.filter((page) => page.dir !== "rtl");
   if (missingDir.length > 0) {
+    const sample = missingDir[0]!;
+    const lang = sample.htmlLang ?? pageLocale(sample) ?? "ar";
     return scored(28, [
       creditFinding({
         id: "rtl-missing-dir",
@@ -104,7 +125,10 @@ const scoreRtlSupport: HeuristicScorer = (context) => {
         severity: "critical",
         title: "RTL pages do not set dir=rtl",
         summary: "Arabic, Hebrew, or other RTL locales were sampled without a root dir=rtl.",
-        url: missingDir[0]?.url,
+        where: formatFindingWhere({ section: "Document root", tag: "<html dir>" }),
+        url: sample.url,
+        evidence: `<html lang="${lang}"> without dir="rtl"`,
+        advice: 'Set dir="rtl" on RTL pages.',
         confidence: 98,
       }),
     ]);
@@ -141,8 +165,10 @@ const scoreFontAndScript: HeuristicScorer = (context) => {
           severity: "medium",
           title: "Typography may not support the target script",
           summary: `A ${locale} page only declares generic fallback fonts.`,
+          where: formatFindingWhere({ section: "Page body", tag: "font-family" }),
           url: page.url,
-          evidence: page.fontFamilies.join(", "),
+          evidence: `font-family: ${page.fontFamilies.join(", ")}`,
+          advice: "Ship a font that covers the target script instead of a generic fallback stack.",
         }),
       );
     }
@@ -160,7 +186,6 @@ const scoreLocalizedImages: HeuristicScorer = (context) => {
     const locale = pageLocale(page);
     if (!locale || languageOf(locale) === "en") continue;
     for (const image of page.altTexts) {
-      const haystack = `${image.alt} ${image.src}`;
       if (isCjkLanguage(locale) || isRtlLanguage(locale)) {
         if (looksPrimarilyEnglish(image.alt) || /[-_/](en|english)[-_./]/i.test(image.src)) {
           findings.push(
@@ -171,8 +196,10 @@ const scoreLocalizedImages: HeuristicScorer = (context) => {
               severity: "medium",
               title: "Image still looks like the source locale",
               summary: `Alt text or filename on a ${locale} page appears to be English.`,
+              where: formatFindingWhere({ section: "Page body", tag: "<img alt>" }),
               url: page.url,
-              evidence: haystack.slice(0, 160),
+              evidence: clipFindingEvidence(`alt="${image.alt}" src="${image.src}"`),
+              advice: "Localize the image asset and alt text for this page locale.",
             }),
           );
         }
@@ -203,8 +230,10 @@ const scoreVisualHierarchy: HeuristicScorer = (context) => {
             severity: "low",
             title: "Heading is excessively long",
             summary: "A localized heading may crowd the visual hierarchy.",
+            where: formatFindingWhere({ section: "Page body", tag: "heading" }),
             url: page.url,
-            evidence: heading.slice(0, 160),
+            evidence: clipFindingEvidence(heading),
+            advice: "Shorten the heading so it does not crowd the visual hierarchy.",
             confidence: 80,
           }),
         );
@@ -236,6 +265,10 @@ const scoreComponentConsistency: HeuristicScorer = (context) => {
           severity: "low",
           title: "Repeated components differ across locales",
           summary: `Button counts differ between the source locale and ${language}.`,
+          where: formatFindingWhere({ section: "Page body", tag: "<button>" }),
+          url: pages[0]?.url,
+          evidence: `Source locale has ${sourceCount} buttons; ${language} has ${count}.`,
+          advice: "Keep the same repeated controls across locales, or drop unused ones on purpose.",
         }),
       ]);
     }

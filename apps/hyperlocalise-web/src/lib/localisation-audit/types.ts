@@ -41,8 +41,12 @@ export type LocalisationAuditFinding = {
   severity: LocalisationAuditFindingSeverity;
   title: string;
   summary: string;
+  /** Page section and HTML tag, e.g. "Document head · <html lang>". */
+  where?: string;
   url?: string;
   evidence?: string;
+  /** Concrete fix for this finding; not a restatement of the summary. */
+  advice?: string;
   confidence?: number;
   creditId?: string;
 };

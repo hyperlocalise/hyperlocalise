@@ -43,7 +43,7 @@ describe("lunaOutputSchema", () => {
     assertOpenAiRequired(jsonSchema, "root");
   });
 
-  it("accepts null evidence and url on findings", () => {
+  it("accepts null where, evidence, advice, and url on findings", () => {
     const parsed = lunaOutputSchema.parse({
       credits: [
         {
@@ -55,7 +55,9 @@ describe("lunaOutputSchema", () => {
               severity: "low",
               title: "Awkward phrasing",
               summary: "Slightly literal.",
+              where: null,
               evidence: null,
+              advice: null,
               url: null,
             },
           ],
@@ -68,7 +70,9 @@ describe("lunaOutputSchema", () => {
       severity: "low",
       title: "Awkward phrasing",
       summary: "Slightly literal.",
+      where: null,
       evidence: null,
+      advice: null,
       url: null,
     });
   });
