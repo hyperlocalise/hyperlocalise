@@ -863,7 +863,8 @@ const scoreInternationalFormatting: HeuristicScorer = (context) => {
               text.match(/[\u0660-\u0669\u06F0-\u06F9][\u0660-\u0669\u06F0-\u06F9\s.,/-]*/)?.[0] ??
                 "Eastern Arabic-Indic digits",
             ),
-            advice: "Use Western digits (0-9) on Arabic pages unless the market explicitly requires Eastern numerals.",
+            advice:
+              "Use Western digits (0-9) on Arabic pages unless the market explicitly requires Eastern numerals.",
             confidence: 90,
           }),
         );
@@ -886,7 +887,8 @@ const scoreInternationalFormatting: HeuristicScorer = (context) => {
             where: formatFindingWhere({ section: "Page body", tag: "sampled copy" }),
             url: page.url,
             evidence: clipFindingEvidence(text.slice(0, 220)),
-            advice: "Show Gregorian calendar dates on Arabic product pages (optionally offer Hijri as a secondary format).",
+            advice:
+              "Show Gregorian calendar dates on Arabic product pages (optionally offer Hijri as a secondary format).",
             confidence: 82,
           }),
         );
