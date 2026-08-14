@@ -23,6 +23,47 @@ export const LOCALE_CODE = /^[a-z]{2}(?:-[a-z]{2})?$/i;
 const RTL_LANGUAGES = new Set(["ar", "he", "fa", "ur", "ps", "yi"]);
 const CJK_LANGUAGES = new Set(["zh", "ja", "ko"]);
 
+/** English language display names → ISO 639-1, for focus inputs like "French". */
+const ENGLISH_LANGUAGE_NAME_TO_CODE: ReadonlyMap<string, string> = (() => {
+  const map = new Map<string, string>();
+  if (typeof Intl === "undefined" || !("DisplayNames" in Intl)) {
+    return map;
+  }
+  const displayNames = new Intl.DisplayNames(["en"], { type: "language" });
+  for (let a = 97; a <= 122; a += 1) {
+    for (let b = 97; b <= 122; b += 1) {
+      const code = String.fromCharCode(a, b);
+      try {
+        const name = displayNames.of(code);
+        if (!name) continue;
+        const key = name.trim().toLowerCase();
+        if (!key || key === code || LOCALE_CODE.test(key)) continue;
+        if (!map.has(key)) {
+          map.set(key, code);
+        }
+      } catch {
+        // skip invalid/unsupported language codes
+      }
+    }
+  }
+  return map;
+})();
+
+/**
+ * Accepts BCP 47-style codes (`fr`, `pt-BR`) or English language names (`French`).
+ * Returns a lowercase canonical code, or null when the value is not a focus locale.
+ */
+export function resolveFocusLocaleCode(value: string): string | null {
+  const normalized = normalizeLocale(value);
+  if (!normalized || normalized === "x-default") {
+    return null;
+  }
+  if (LOCALE_CODE.test(normalized)) {
+    return normalized;
+  }
+  return ENGLISH_LANGUAGE_NAME_TO_CODE.get(normalized) ?? null;
+}
+
 /**
  * URL path prefixes that are market/region codes, not ISO 639 language tags.
  * Mapped to the BCP 47 html lang value sites should declare.
@@ -299,7 +340,10 @@ export function detectLocales(
   };
 
   for (const focus of focusLocales) {
-    add(focus, "focus");
+    const code = resolveFocusLocaleCode(focus);
+    if (code) {
+      add(code, "focus");
+    }
   }
 
   for (const page of pages) {

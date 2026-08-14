@@ -88,6 +88,11 @@ describe("audit Playwright script", () => {
     expect(script).toContain("page.route");
     expect(script).toContain("isBlockedNavigationUrl");
     expect(script).toContain("HyperlocaliseLocalisationAudit/1.0");
+    expect(script).toContain("isBlockedIpv4Address");
+    expect(script).toContain("isBlockedIpv6Address");
+    expect(script).toContain('hostname.startsWith("::ffff:")');
+    expect(script).toContain("first === 192 && second === 0");
+    expect(script).toContain("second === 18 || second === 19");
     expect(prepareAuditBrowserRuntimeCommand()).toContain("browser_runtime_missing");
     expect(prepareAuditBrowserRuntimeCommand()).not.toContain("npm ");
     expect(prepareAuditBrowserRuntimeCommand()).not.toContain("install chromium");

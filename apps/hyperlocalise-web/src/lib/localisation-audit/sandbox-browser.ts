@@ -94,22 +94,77 @@ const navTimeoutMs = ${AUDIT_BROWSER_NAV_TIMEOUT_MS};
 const networkIdleTimeoutMs = ${AUDIT_BROWSER_NETWORKIDLE_TIMEOUT_MS};
 const settleMs = ${AUDIT_BROWSER_SETTLE_MS};
 
+function parseIpv4Octets(hostname) {
+  const octets = hostname.split(".");
+  if (octets.length !== 4) return null;
+  const bytes = octets.map((octet) => Number(octet));
+  if (bytes.some((byte, index) => !Number.isInteger(byte) || byte < 0 || byte > 255 || octets[index] === "")) {
+    return null;
+  }
+  return bytes;
+}
+
+function isBlockedIpv4Address(hostname) {
+  const bytes = parseIpv4Octets(hostname);
+  if (!bytes) return false;
+  const [first, second, third] = bytes;
+  return (
+    first === 0 ||
+    first === 10 ||
+    first === 127 ||
+    first >= 224 ||
+    (first === 100 && second >= 64 && second <= 127) ||
+    (first === 169 && second === 254) ||
+    (first === 172 && second >= 16 && second <= 31) ||
+    (first === 192 && second === 0) ||
+    (first === 192 && second === 168) ||
+    (first === 198 && (second === 18 || second === 19 || (second === 51 && third === 100))) ||
+    (first === 203 && second === 0 && third === 113)
+  );
+}
+
+function ipv4FromIpv4MappedIpv6(hostname) {
+  if (!/^::ffff:/i.test(hostname)) return null;
+  const rest = hostname.slice(7);
+  if (rest.includes(".")) return rest;
+  const [highPart, lowPart] = rest.split(":");
+  if (!highPart || !lowPart) return null;
+  const high = Number.parseInt(highPart, 16);
+  const low = Number.parseInt(lowPart, 16);
+  if (Number.isNaN(high) || Number.isNaN(low)) return null;
+  return ((high >> 8) & 0xff) + "." + (high & 0xff) + "." + ((low >> 8) & 0xff) + "." + (low & 0xff);
+}
+
+function isBlockedIpv6Address(hostname) {
+  if (!hostname.includes(":")) return false;
+  if (
+    hostname === "::" ||
+    hostname === "::1" ||
+    hostname.startsWith("::ffff:") ||
+    hostname.startsWith("64:ff9b:") ||
+    hostname.startsWith("100:") ||
+    hostname.startsWith("2001:2:") ||
+    hostname.startsWith("2001:db8:") ||
+    hostname.startsWith("fc") ||
+    hostname.startsWith("fd") ||
+    hostname.startsWith("fe80:") ||
+    hostname.startsWith("fe8") ||
+    hostname.startsWith("fe9") ||
+    hostname.startsWith("fea") ||
+    hostname.startsWith("feb")
+  ) {
+    return true;
+  }
+  const mappedIpv4 = ipv4FromIpv4MappedIpv6(hostname);
+  if (mappedIpv4 && isBlockedIpv4Address(mappedIpv4)) return true;
+  return false;
+}
+
 function isBlockedHost(hostname) {
   const host = String(hostname || "").toLowerCase().replace(/^\\[|\\]$/g, "").replace(/\\.$/, "");
   if (!host || host === "localhost" || host.endsWith(".localhost")) return true;
-  if (host === "::1" || host === "127.0.0.1" || host === "0.0.0.0") return true;
-  if (host === "169.254.169.254" || host.startsWith("169.254.")) return true;
-  const ipv4 = host.split(".");
-  if (ipv4.length === 4 && ipv4.every((part) => /^\\d+$/.test(part))) {
-    const [a, b] = ipv4.map((part) => Number(part));
-    if (a === 0 || a === 10 || a === 127 || a >= 224) return true;
-    if (a === 172 && b >= 16 && b <= 31) return true;
-    if (a === 192 && b === 168) return true;
-    if (a === 100 && b >= 64 && b <= 127) return true;
-  }
-  if (host.includes(":")) {
-    if (host.startsWith("fe80:") || host.startsWith("fc") || host.startsWith("fd")) return true;
-  }
+  if (parseIpv4Octets(host)) return isBlockedIpv4Address(host);
+  if (host.includes(":")) return isBlockedIpv6Address(host);
   return false;
 }
 

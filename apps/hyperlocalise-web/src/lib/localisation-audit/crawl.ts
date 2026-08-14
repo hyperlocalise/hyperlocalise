@@ -13,6 +13,7 @@
 import { readBoundedResponseBody, withPublicHttpFetch } from "@/lib/security/public-http-fetch";
 
 import type { CrawlLocalisationAuditSampleOptions, HtmlPageRenderer } from "./crawl-renderer";
+import { resolveFocusLocaleCode } from "./credits/shared";
 import { crawledPageFromSignals, parsePageSignals } from "./html-parse";
 import { AuditBrowserSetupError } from "./sandbox-browser-error";
 import type {
@@ -242,7 +243,7 @@ function localeFromPath(pathname: string): string | null {
 function seedFocusLocaleRoots(origin: string, focusLocales: string[]): string[] {
   const urls: string[] = [];
   for (const raw of focusLocales) {
-    const locale = normalizeLocaleCode(raw);
+    const locale = resolveFocusLocaleCode(raw);
     if (!locale) continue;
     try {
       urls.push(new URL(`/${locale}`, origin).toString());
@@ -358,7 +359,10 @@ async function crawlLocalisationAuditSampleInner(
     const pagesByUrl = new Map<string, LocalisationAuditCrawledPage>();
     pagesByUrl.set(homePage.url, homePage);
     for (const rendered of otherRendered) {
-      pagesByUrl.set(rendered.url, pageFromRendered(rendered.html, rendered.url, rendered.status));
+      const page = pageFromRendered(rendered.html, rendered.url, rendered.status);
+      // Ranked seeds use pre-render URLs; Playwright may land on a redirected final URL.
+      pagesByUrl.set(rendered.requestedUrl, page);
+      pagesByUrl.set(rendered.url, page);
     }
 
     return {

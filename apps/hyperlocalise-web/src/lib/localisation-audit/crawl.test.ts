@@ -129,6 +129,55 @@ describe("crawlLocalisationAuditSample", () => {
     expect(result.pages.find((page) => page.url === "https://example.com/en")?.title).toBe("EN");
   });
 
+  it("keeps redirected secondary pages in the sample via requested URL", async () => {
+    const { createRenderer } = mockBrowser([
+      htmlPage(
+        "https://example.com/",
+        `<html lang="en"><head><title>Home</title><link rel="alternate" hreflang="fr" href="/fr" /></head><body>Welcome to the homepage content sample.</body></html>`,
+      ),
+      htmlPage(
+        "https://example.com/fr",
+        "<html lang='fr'><title>Accueil</title><body>Page d accueil francaise avec contenu.</body></html>",
+        { url: "https://example.com/fr/" },
+      ),
+    ]);
+
+    const result = await crawlLocalisationAuditSample(
+      { origin: "https://example.com", sourceUrl: "https://example.com/" },
+      { createRenderer },
+    );
+
+    expect(result.pages.some((page) => page.url === "https://example.com/fr/")).toBe(true);
+    expect(result.pages.find((page) => page.url === "https://example.com/fr/")?.title).toBe(
+      "Accueil",
+    );
+  });
+
+  it("seeds focus locale roots from English language names", async () => {
+    const { createRenderer, renderedUrls } = mockBrowser([
+      htmlPage(
+        "https://example.com/",
+        "<html lang='en'><head><title>Home</title></head><body>Welcome to the homepage content sample.</body></html>",
+      ),
+      htmlPage(
+        "https://example.com/fr",
+        "<html lang='fr'><title>Accueil</title><body>Page d accueil francaise avec contenu.</body></html>",
+      ),
+    ]);
+
+    const result = await crawlLocalisationAuditSample(
+      {
+        origin: "https://example.com",
+        sourceUrl: "https://example.com/",
+        focusLocales: ["French"],
+      },
+      { createRenderer },
+    );
+
+    expect(renderedUrls).toContain("https://example.com/fr");
+    expect(result.pages.some((page) => page.url === "https://example.com/fr")).toBe(true);
+  });
+
   it("returns an empty sample when the home page render fails instead of throwing", async () => {
     const result = await crawlLocalisationAuditSample(
       { origin: "https://example.com", sourceUrl: "https://example.com/" },
