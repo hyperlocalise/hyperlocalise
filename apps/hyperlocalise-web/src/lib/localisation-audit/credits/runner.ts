@@ -29,6 +29,7 @@ import type {
   HeuristicScorer,
   LunaCreditInput,
 } from "./types";
+import { collapseRepeatedFindings } from "../score";
 
 const heuristicScorers: Record<string, HeuristicScorer> = {
   ...technicalHeuristicScorers,
@@ -141,7 +142,7 @@ export async function runLocalisationAuditCredits(input: {
 
   return {
     credits,
-    findings,
+    findings: collapseRepeatedFindings(findings),
     detectedLocales,
     linguisticNotes: luna.linguisticNotes,
   };

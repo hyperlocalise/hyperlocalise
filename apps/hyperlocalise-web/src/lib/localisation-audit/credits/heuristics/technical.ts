@@ -16,9 +16,10 @@ import {
   clipFindingEvidence,
   creditFinding,
   formatFindingWhere,
+  htmlLangMatchesPathLocale,
+  htmlLangSuggestionForPathLocale,
   languageOf,
   looksPrimarilyEnglish,
-  normalizeLocale,
   pageLocale,
   pathLocaleFromUrl,
   pathWithoutLocale,
@@ -54,27 +55,10 @@ const scoreLocaleDetection: HeuristicScorer = (context) => {
     ]);
   }
 
-  let missingLang = 0;
+  const missingLangPages: LocalisationAuditCrawledPage[] = [];
   for (const page of okPages) {
     if (!page.htmlLang) {
-      missingLang += 1;
-      if (findings.length < 5) {
-        findings.push(
-          creditFinding({
-            id: `locale-detection-missing-${findings.length}`,
-            creditId: "locale-detection",
-            category: "technical",
-            severity: "high",
-            title: "Missing language declaration",
-            summary:
-              "The page does not set html lang, so browsers and assistive tech cannot identify the locale.",
-            where: formatFindingWhere({ section: "Document head", tag: "<html lang>" }),
-            url: page.url,
-            evidence: "html lang is missing",
-            advice: "Set html lang to the page locale on this URL.",
-          }),
-        );
-      }
+      missingLangPages.push(page);
     } else if (!/^[a-z]{2}(?:-[A-Za-z]{2})?$/.test(page.htmlLang.trim())) {
       score -= 12;
       findings.push(
@@ -94,11 +78,8 @@ const scoreLocaleDetection: HeuristicScorer = (context) => {
     }
 
     const pathLocale = pathLocaleFromUrl(page.url);
-    if (
-      pathLocale &&
-      page.htmlLang &&
-      normalizeLocale(pathLocale) !== normalizeLocale(page.htmlLang)
-    ) {
+    if (pathLocale && page.htmlLang && !htmlLangMatchesPathLocale(page.htmlLang, pathLocale)) {
+      const suggested = htmlLangSuggestionForPathLocale(pathLocale);
       score -= 18;
       findings.push(
         creditFinding({
@@ -107,18 +88,43 @@ const scoreLocaleDetection: HeuristicScorer = (context) => {
           category: "technical",
           severity: "high",
           title: "URL locale and html lang disagree",
-          summary: `Path suggests ${pathLocale} but html lang is ${page.htmlLang}.`,
+          summary: `Path locale ${pathLocale} expects html lang ${suggested}, but the page declares ${page.htmlLang}.`,
           where: formatFindingWhere({ section: "Document head", tag: "<html lang>" }),
           url: page.url,
           evidence: `<html lang="${page.htmlLang}"> while the path locale is ${pathLocale}`,
-          advice: `Set html lang="${pathLocale}" so it matches this page’s URL locale.`,
+          advice: `Set html lang="${suggested}" so it matches this page’s URL locale.`,
         }),
       );
     }
   }
 
-  if (missingLang > 0) {
+  if (missingLangPages.length > 0) {
+    const missingLang = missingLangPages.length;
     score -= Math.min(60, missingLang * 20);
+    const sampleUrls = missingLangPages
+      .slice(0, 3)
+      .map((page) => page.url)
+      .join(", ");
+    findings.push(
+      creditFinding({
+        id: "locale-detection-missing",
+        creditId: "locale-detection",
+        category: "technical",
+        severity: "high",
+        title: "Missing language declaration",
+        summary:
+          missingLang === 1
+            ? "The page does not set html lang, so browsers and assistive tech cannot identify the locale."
+            : `${missingLang} sampled pages do not set html lang, so browsers and assistive tech cannot identify the locale.`,
+        where: formatFindingWhere({ section: "Document head", tag: "<html lang>" }),
+        url: missingLangPages[0]?.url,
+        evidence:
+          missingLang === 1
+            ? "html lang is missing"
+            : `html lang is missing on ${missingLang} pages, e.g. ${sampleUrls}`,
+        advice: "Set html lang to a BCP 47 language tag for each page locale, such as en or fr-FR.",
+      }),
+    );
   }
   return scored(score, findings);
 };
@@ -178,13 +184,13 @@ const scoreLocaleRouting: HeuristicScorer = (context) => {
   }
 
   if (context.detectedLocales.length <= 1) {
-    score -= 8;
+    score -= 28;
     findings.push(
       creditFinding({
         id: "locale-routing-single-locale",
         creditId: "locale-routing",
         category: "technical",
-        severity: "info",
+        severity: "medium",
         title: "Only one locale signal detected",
         summary:
           "The sample found little evidence of multi-locale routing (hreflang, locale prefixes, or html lang variety).",
@@ -192,10 +198,12 @@ const scoreLocaleRouting: HeuristicScorer = (context) => {
         url: context.pages[0]?.url,
         evidence: `Detected locale signals: ${context.detectedLocales.map((entry) => entry.locale).join(", ") || "none"}`,
         advice:
-          "Expose additional locales through hreflang, locale prefixes, or html lang variety.",
+          "Publish additional locales through locale URL prefixes, hreflang alternates, and matching html lang tags.",
         confidence: 90,
       }),
     );
+  } else if (context.detectedLocales.length === 2) {
+    score -= 8;
   }
 
   return scored(score, findings);

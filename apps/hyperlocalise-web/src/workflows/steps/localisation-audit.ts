@@ -149,7 +149,9 @@ export async function analyzeLocalisationAuditStep(input: {
     focusLocales: input.focusLocales,
     sitemap: input.sitemap,
   });
-  const { score, dimensionScores } = aggregateLocalisationAuditCredits(scored.credits);
+  const { score, dimensionScores } = aggregateLocalisationAuditCredits(scored.credits, {
+    localeCount: scored.detectedLocales.length,
+  });
   const completedAt = new Date().toISOString();
 
   const report: LocalisationAuditReport = {

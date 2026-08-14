@@ -47,6 +47,60 @@ describe("technical heuristic credits", () => {
     if (outcome.status !== "scored") return;
     expect(outcome.score).toBeLessThan(100);
     expect(outcome.findings.some((finding) => finding.id.includes("mismatch"))).toBe(true);
+    expect(outcome.findings.find((finding) => finding.id.includes("mismatch"))?.advice).toContain(
+      'html lang="fr"',
+    );
+  });
+
+  it("maps region path prefixes to BCP 47 html lang suggestions", () => {
+    const outcome = technicalHeuristicScorers["locale-detection"]!(
+      context([
+        emptyCrawledPage({
+          url: "https://example.com/au/services",
+          htmlLang: "fr",
+        }),
+      ]),
+    );
+
+    expect(outcome.status).toBe("scored");
+    if (outcome.status !== "scored") return;
+    const mismatch = outcome.findings.find((finding) => finding.id.includes("mismatch"));
+    expect(mismatch?.advice).toBe('Set html lang="en-AU" so it matches this page’s URL locale.');
+    expect(mismatch?.advice).not.toContain('html lang="au"');
+  });
+
+  it("does not flag en html lang on an /au/ path as a mismatch", () => {
+    const outcome = technicalHeuristicScorers["locale-detection"]!(
+      context([
+        emptyCrawledPage({
+          url: "https://example.com/au/services",
+          htmlLang: "en",
+        }),
+      ]),
+    );
+
+    expect(outcome.status).toBe("scored");
+    if (outcome.status !== "scored") return;
+    expect(outcome.findings.some((finding) => finding.id.includes("mismatch"))).toBe(false);
+    expect(outcome.score).toBe(100);
+  });
+
+  it("emits one missing-language finding for many pages", () => {
+    const outcome = technicalHeuristicScorers["locale-detection"]!(
+      context([
+        emptyCrawledPage({ url: "https://example.com/", htmlLang: null }),
+        emptyCrawledPage({ url: "https://example.com/about", htmlLang: null }),
+        emptyCrawledPage({ url: "https://example.com/pricing", htmlLang: null }),
+      ]),
+    );
+
+    expect(outcome.status).toBe("scored");
+    if (outcome.status !== "scored") return;
+    const missing = outcome.findings.filter(
+      (finding) => finding.title === "Missing language declaration",
+    );
+    expect(missing).toHaveLength(1);
+    expect(missing[0]?.summary).toContain("3 sampled pages");
   });
 
   it("scores missing hreflang as high severity when multiple locales exist", () => {
@@ -174,9 +228,45 @@ describe("technical heuristic credits", () => {
       ],
       ["pt_BR"],
     );
-    expect(locales.map((entry) => entry.locale).toSorted()).toEqual(["fr", "fr-fr", "pt-br"]);
-    expect(locales.find((entry) => entry.locale === "fr")?.source).toBe("url_subdomain");
+    expect(locales.map((entry) => entry.locale).toSorted()).toEqual(["fr-fr", "pt-br"]);
+    expect(locales.find((entry) => entry.locale === "fr-fr")?.source).toBe("html_lang");
     expect(locales.some((entry) => entry.locale === "x-default")).toBe(false);
+  });
+
+  it("keeps subdomain language when html lang is absent", () => {
+    const locales = detectLocales(
+      [emptyCrawledPage({ url: "https://fr.example.com/", htmlLang: null })],
+      [],
+    );
+    expect(locales.map((entry) => entry.locale)).toEqual(["fr"]);
+    expect(locales[0]?.source).toBe("url_subdomain");
+  });
+
+  it("maps region URL prefixes to language-region locale signals", () => {
+    const locales = detectLocales(
+      [emptyCrawledPage({ url: "https://example.com/au/pricing", htmlLang: "en" })],
+      [],
+    );
+    expect(locales.map((entry) => entry.locale)).toEqual(["en-au"]);
+    expect(locales[0]?.source).toBe("url_prefix");
+  });
+
+  it("marks cross-page consistency N/A so noisy nav labels are skipped", () => {
+    const outcome = linguisticHeuristicScorers["cross-page-consistency"]!(
+      context([
+        emptyCrawledPage({
+          url: "https://example.com/en/a",
+          htmlLang: "en",
+          anchors: [{ href: "/intl-en/digital-gov", text: "Digital gov" }],
+        }),
+        emptyCrawledPage({
+          url: "https://example.com/en/b",
+          htmlLang: "en",
+          anchors: [{ href: "/intl-en/digital-gov", text: "Digital GOV" }],
+        }),
+      ]),
+    );
+    expect(outcome.status).toBe("na");
   });
 });
 

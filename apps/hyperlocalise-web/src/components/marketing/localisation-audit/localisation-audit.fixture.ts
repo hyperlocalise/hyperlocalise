@@ -298,7 +298,9 @@ const linguisticNotes: LocalisationAuditReport["linguisticNotes"] = [
 
 function createReport(scoreBand: LocalisationAuditFixtureScoreBand): LocalisationAuditReport {
   const credits = createLocalisationAuditCredits(scoreBand);
-  const { score, dimensionScores } = aggregateLocalisationAuditCredits(credits);
+  const { score, dimensionScores } = aggregateLocalisationAuditCredits(credits, {
+    localeCount: detectedLocales.length,
+  });
   const findings = createLocalisationAuditFindings();
   return {
     score,

@@ -206,46 +206,11 @@ const scoreTerminologyConsistency: HeuristicScorer = (context) => {
   return scored(Math.max(40, 88 - findings.length * 12), findings);
 };
 
-const scoreCrossPageConsistency: HeuristicScorer = (context) => {
-  const findings: LocalisationAuditFinding[] = [];
-  for (const [language, pages] of groupPagesByLanguage(context.pages)) {
-    if (pages.length < 2) continue;
-    const byHref = new Map<string, Set<string>>();
-    for (const page of pages) {
-      for (const anchor of page.anchors) {
-        const key = anchor.href.replace(LOCALE_IN_PATH, "/");
-        if (!anchor.text || anchor.text.length < 2) continue;
-        const labels = byHref.get(key) ?? new Set();
-        labels.add(anchor.text.trim());
-        byHref.set(key, labels);
-      }
-    }
-    for (const [href, labels] of byHref) {
-      if (labels.size > 1) {
-        findings.push(
-          creditFinding({
-            id: `cross-page-${findings.length}`,
-            creditId: "cross-page-consistency",
-            category: "linguistic",
-            severity: "medium",
-            title: "Inconsistent navigation labels",
-            summary: `The same ${language} destination is labelled in ${labels.size} different ways.`,
-            where: formatFindingWhere({ section: "Header", tag: "<nav> or <a>" }),
-            url: pages[0]?.url,
-            evidence: `${href}: ${[...labels].slice(0, 3).join(" / ")}`,
-            advice: "Use one translated label for the same destination across pages.",
-          }),
-        );
-      }
-    }
-  }
-  if (findings.length === 0) {
-    return { status: "inconclusive", evidence: { reason: "no_repeated_nav" } };
-  }
-  return scored(Math.max(45, 90 - findings.length * 10), findings);
+const scoreCrossPageConsistency: HeuristicScorer = () => {
+  // Nav-label variance across pages is usually noise for lead-gen audits
+  // (e.g. "Digital gov" vs "Digital GOV") and is not scored here.
+  return { status: "na" };
 };
-
-const LOCALE_IN_PATH = /\/[a-z]{2}(?:-[a-z]{2})?(?=\/|$)/i;
 
 const lunaOnly: HeuristicScorer = () => ({ status: "inconclusive" });
 

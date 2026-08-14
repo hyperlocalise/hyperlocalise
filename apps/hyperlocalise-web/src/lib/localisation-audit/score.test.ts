@@ -12,7 +12,12 @@
  */
 import { describe, expect, it } from "vite-plus/test";
 
-import { aggregateLocalisationAuditCredits, pickHeadlineFindings } from "./score";
+import {
+  aggregateLocalisationAuditCredits,
+  collapseRepeatedFindings,
+  localeCoverageFactor,
+  pickHeadlineFindings,
+} from "./score";
 import type { LocalisationAuditCreditResult, LocalisationAuditFinding } from "./types";
 
 function credit(
@@ -29,13 +34,17 @@ function credit(
 function finding(
   severity: LocalisationAuditFinding["severity"],
   id: string,
+  extras?: Partial<LocalisationAuditFinding>,
 ): LocalisationAuditFinding {
   return {
     id,
     category: "technical",
     severity,
-    title: id,
-    summary: id,
+    title: extras?.title ?? id,
+    summary: extras?.summary ?? id,
+    creditId: extras?.creditId,
+    url: extras?.url,
+    evidence: extras?.evidence,
   };
 }
 
@@ -108,6 +117,47 @@ describe("aggregateLocalisationAuditCredits", () => {
         credit({ id: "d", dimension: "visual", score: 100 }),
       ]).score,
     ).toBe(100);
+  });
+
+  it("scales the overall score so more locales rank higher", () => {
+    const credits = [
+      credit({ id: "a", dimension: "technical", score: 100 }),
+      credit({ id: "b", dimension: "linguistic", score: 100 }),
+      credit({ id: "c", dimension: "contextual", score: 100 }),
+      credit({ id: "d", dimension: "visual", score: 100 }),
+    ];
+    const single = aggregateLocalisationAuditCredits(credits, { localeCount: 1 });
+    const multi = aggregateLocalisationAuditCredits(credits, { localeCount: 4 });
+    expect(single.score).toBe(72);
+    expect(multi.score).toBe(100);
+    expect(multi.score).toBeGreaterThan(single.score);
+    expect(localeCoverageFactor(0)).toBe(0.55);
+    expect(localeCoverageFactor(2)).toBe(0.86);
+  });
+});
+
+describe("collapseRepeatedFindings", () => {
+  it("merges same-title findings across pages into one", () => {
+    const collapsed = collapseRepeatedFindings([
+      finding("high", "m1", {
+        creditId: "locale-detection",
+        title: "Missing language declaration",
+        summary: "The page does not set html lang.",
+        url: "https://example.com/a",
+        evidence: "html lang is missing",
+      }),
+      finding("high", "m2", {
+        creditId: "locale-detection",
+        title: "Missing language declaration",
+        summary: "The page does not set html lang.",
+        url: "https://example.com/b",
+        evidence: "html lang is missing",
+      }),
+    ]);
+
+    expect(collapsed).toHaveLength(1);
+    expect(collapsed[0]?.summary).toContain("Affects 2 sampled pages");
+    expect(collapsed[0]?.evidence).toContain("Seen on 2 pages");
   });
 });
 

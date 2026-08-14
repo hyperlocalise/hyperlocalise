@@ -103,8 +103,9 @@ export const LOCALISATION_AUDIT_CREDITS: LocalisationAuditCreditDefinition[] = [
     id: "cross-page-consistency",
     dimension: "linguistic",
     title: "Cross-page consistency",
-    mode: "hybrid",
-    rubric: "Related navigation and messaging should stay consistent across the locale.",
+    mode: "na",
+    rubric:
+      "Related navigation and messaging should stay consistent across the locale. Skipped in the public audit because label variance is usually noise.",
   },
   {
     id: "translation-accuracy",

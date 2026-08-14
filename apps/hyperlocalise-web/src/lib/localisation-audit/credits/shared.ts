@@ -23,12 +23,81 @@ export const LOCALE_CODE = /^[a-z]{2}(?:-[a-z]{2})?$/i;
 const RTL_LANGUAGES = new Set(["ar", "he", "fa", "ur", "ps", "yi"]);
 const CJK_LANGUAGES = new Set(["zh", "ja", "ko"]);
 
+/**
+ * URL path prefixes that are market/region codes, not ISO 639 language tags.
+ * Mapped to the BCP 47 html lang value sites should declare.
+ */
+const PATH_REGION_TO_HTML_LANG: Record<string, string> = {
+  au: "en-AU",
+  us: "en-US",
+  nz: "en-NZ",
+  gb: "en-GB",
+  /** Corporate sites use /uk/ for United Kingdom English; ISO 639 `uk` is Ukrainian. */
+  uk: "en-GB",
+  jp: "ja-JP",
+  kr: "ko-KR",
+  cn: "zh-CN",
+  tw: "zh-TW",
+  hk: "zh-HK",
+  mx: "es-MX",
+  in: "en-IN",
+  za: "en-ZA",
+  ph: "en-PH",
+};
+
 export function normalizeLocale(value: string): string {
   return value.trim().replaceAll("_", "-").toLowerCase();
 }
 
 export function languageOf(locale: string): string {
   return normalizeLocale(locale).split("-")[0] ?? "";
+}
+
+/** Format a normalized locale as a conventional BCP 47 tag (e.g. en-AU). */
+export function formatBcp47Locale(locale: string): string {
+  const normalized = normalizeLocale(locale);
+  const [language, region] = normalized.split("-");
+  if (!language) return normalized;
+  if (!region) return language;
+  return `${language}-${region.toUpperCase()}`;
+}
+
+/**
+ * Path locale token → suggested `html lang` value.
+ * Region-only prefixes like `au` map to `en-AU`, not the invalid tag `au`.
+ */
+export function htmlLangSuggestionForPathLocale(pathLocale: string): string {
+  const normalized = normalizeLocale(pathLocale);
+  if (normalized.includes("-")) {
+    return formatBcp47Locale(normalized);
+  }
+  const regionMapped = PATH_REGION_TO_HTML_LANG[normalized];
+  if (regionMapped) return regionMapped;
+  return normalized;
+}
+
+/** Canonical locale signal for a URL path prefix (region paths become language-region tags). */
+export function canonicalPathLocale(pathLocale: string): string {
+  return normalizeLocale(htmlLangSuggestionForPathLocale(pathLocale));
+}
+
+/**
+ * Whether declared html lang agrees with the URL path locale.
+ * `en` matches path `/au/` (suggested `en-AU`); `fr` on `/au/` does not.
+ */
+export function htmlLangMatchesPathLocale(htmlLang: string, pathLocale: string): boolean {
+  const html = normalizeLocale(htmlLang);
+  const suggested = normalizeLocale(htmlLangSuggestionForPathLocale(pathLocale));
+  if (html === suggested) return true;
+  if (languageOf(html) !== languageOf(suggested)) return false;
+  // Bare language tag matches a language-region suggestion for the same language.
+  if (!html.includes("-") && suggested.includes("-")) return true;
+  // Language-region path matches a bare html lang for the same language.
+  if (html.includes("-") && !suggested.includes("-") && languageOf(html) === suggested) {
+    return true;
+  }
+  // Same language-region family (en-AU vs en-au already normalized; en-GB vs en-AU disagree on region)
+  return html === suggested;
 }
 
 export function isRtlLanguage(locale: string): boolean {
@@ -66,7 +135,9 @@ export function pathLocaleFromUrl(url: string): string | null {
 }
 
 export function pageLocale(page: LocalisationAuditCrawledPage): string | null {
-  return pathLocaleFromUrl(page.url) ?? (page.htmlLang ? normalizeLocale(page.htmlLang) : null);
+  const pathLocale = pathLocaleFromUrl(page.url);
+  if (pathLocale) return canonicalPathLocale(pathLocale);
+  return page.htmlLang ? normalizeLocale(page.htmlLang) : null;
 }
 
 export function pathWithoutLocale(url: string): string | null {
@@ -169,7 +240,7 @@ export function detectLocales(
     }
     const pathLocale = pathLocaleFromUrl(page.url);
     if (pathLocale) {
-      add(pathLocale, "url_prefix", page.url);
+      add(canonicalPathLocale(pathLocale), "url_prefix", page.url);
     }
     try {
       const host = new URL(page.url).hostname;
@@ -182,7 +253,21 @@ export function detectLocales(
     }
   }
 
-  return [...byLocale.values()].toSorted((a, b) => a.locale.localeCompare(b.locale));
+  return collapseLanguageRegionSignals([...byLocale.values()]).toSorted((a, b) =>
+    a.locale.localeCompare(b.locale),
+  );
+}
+
+/** Prefer `en-au` over bare `en` when both signals describe the same language. */
+function collapseLanguageRegionSignals(
+  signals: LocalisationAuditLocaleSignal[],
+): LocalisationAuditLocaleSignal[] {
+  const languagesWithRegion = new Set(
+    signals.filter((entry) => entry.locale.includes("-")).map((entry) => languageOf(entry.locale)),
+  );
+  return signals.filter(
+    (entry) => entry.locale.includes("-") || !languagesWithRegion.has(entry.locale),
+  );
 }
 
 export function groupPagesByLanguage(

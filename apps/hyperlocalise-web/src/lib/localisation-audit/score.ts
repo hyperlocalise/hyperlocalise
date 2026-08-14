@@ -43,7 +43,22 @@ function roundScore(value: number): number {
   return Math.max(0, Math.min(100, Math.round(value)));
 }
 
-export function aggregateLocalisationAuditCredits(credits: LocalisationAuditCreditResult[]): {
+/**
+ * Multi-locale sites should outrank single-locale samples on the leaderboard.
+ * Coverage scales the dimension mean so thin locale footprints cannot top the board.
+ */
+export function localeCoverageFactor(localeCount: number): number {
+  if (localeCount <= 0) return 0.55;
+  if (localeCount === 1) return 0.72;
+  if (localeCount === 2) return 0.86;
+  if (localeCount === 3) return 0.94;
+  return 1;
+}
+
+export function aggregateLocalisationAuditCredits(
+  credits: LocalisationAuditCreditResult[],
+  options?: { localeCount?: number },
+): {
   score: number;
   dimensionScores: LocalisationAuditDimensionScores;
 } {
@@ -70,12 +85,58 @@ export function aggregateLocalisationAuditCredits(credits: LocalisationAuditCred
     applicableScores.push(averaged);
   }
 
-  const overall = applicableScores.length === 0 ? 0 : mean(applicableScores);
+  const base = applicableScores.length === 0 ? 0 : mean(applicableScores);
+  const coverage =
+    options?.localeCount === undefined ? 1 : localeCoverageFactor(options.localeCount);
 
   return {
-    score: roundScore(overall),
+    score: roundScore(base * coverage),
     dimensionScores,
   };
+}
+
+/**
+ * Collapse repeated same-title findings (e.g. missing lang on every page) into one lead-gen item.
+ */
+export function collapseRepeatedFindings(
+  findings: LocalisationAuditFinding[],
+): LocalisationAuditFinding[] {
+  const groups = new Map<string, LocalisationAuditFinding[]>();
+  for (const finding of findings) {
+    const key = `${finding.creditId ?? ""}::${finding.title}`;
+    const list = groups.get(key) ?? [];
+    list.push(finding);
+    groups.set(key, list);
+  }
+
+  const collapsed: LocalisationAuditFinding[] = [];
+  for (const group of groups.values()) {
+    if (group.length === 1) {
+      collapsed.push(group[0]!);
+      continue;
+    }
+
+    const primary = group.toSorted(
+      (a, b) => SEVERITY_RANK[a.severity] - SEVERITY_RANK[b.severity],
+    )[0]!;
+    const urls = [
+      ...new Set(group.map((item) => item.url).filter((url): url is string => Boolean(url))),
+    ];
+    const count = Math.max(group.length, urls.length);
+    collapsed.push({
+      ...primary,
+      summary:
+        count > 1 && !/\d+\s+sampled pages/i.test(primary.summary)
+          ? `${primary.summary} Affects ${count} sampled pages.`
+          : primary.summary,
+      evidence:
+        urls.length > 1
+          ? `${primary.evidence ? `${primary.evidence}\n` : ""}Seen on ${urls.length} pages, e.g. ${urls.slice(0, 3).join(", ")}`
+          : primary.evidence,
+      url: primary.url ?? urls[0],
+    });
+  }
+  return collapsed;
 }
 
 export function pickHeadlineFindings(
