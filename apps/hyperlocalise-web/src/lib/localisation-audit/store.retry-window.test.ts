@@ -12,6 +12,7 @@
  */
 import { describe, expect, it } from "vite-plus/test";
 
+import { localisationAuditRunConsumesDailyQuota } from "./daily-quota";
 import {
   isLocalisationAuditRerunnable,
   isLocalisationAuditRetryable,
@@ -71,5 +72,15 @@ describe("localisation audit daily re-run window", () => {
     expect(isLocalisationAuditRetryable(audit({ report: null }))).toBe(true);
     expect(isLocalisationAuditRerunnable(audit({ status: "failed", report: null }))).toBe(false);
     expect(localisationAuditRerunAvailableAt(audit({ status: "failed", report: null }))).toBeNull();
+  });
+
+  it("counts first runs and aged re-runs toward the daily cap, not same-day retries", () => {
+    expect(localisationAuditRunConsumesDailyQuota(null)).toBe(true);
+    expect(localisationAuditRunConsumesDailyQuota(new Date())).toBe(false);
+    expect(
+      localisationAuditRunConsumesDailyQuota(
+        new Date(Date.now() - LOCALISATION_AUDIT_RERUN_MS - 1_000),
+      ),
+    ).toBe(true);
   });
 });

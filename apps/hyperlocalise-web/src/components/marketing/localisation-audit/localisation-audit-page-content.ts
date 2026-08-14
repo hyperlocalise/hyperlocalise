@@ -35,7 +35,7 @@ export function getLocalisationAuditPageCopy(_locale: string) {
     submit: "Run free audit",
     submitting: "Starting audit…",
     onePerDomain:
-      "One free audit per domain. If we already audited it, you will see the public teaser report.",
+      "One free audit per domain, and 10 audits a day across all sites. If we already audited it, you will see the public teaser report.",
     methodologyHeading: "What we check",
     technicalChecks: [
       "Locale detection, routing, language switcher, hreflang, and canonicals",

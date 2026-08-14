@@ -10,11 +10,16 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { and, eq } from "drizzle-orm";
-import { afterEach, describe, expect, it } from "vite-plus/test";
+import { and, eq, gte, sql } from "drizzle-orm";
+import { afterEach, beforeEach, describe, expect, it } from "vite-plus/test";
 
 import { db, schema } from "@/lib/database";
 
+import {
+  LocalisationAuditDailyQuotaExceededError,
+  setLocalisationAuditDailyRunLimitForTests,
+} from "./daily-quota";
+import { hostnameToDomainSlug } from "./domain-slug";
 import {
   claimOrReuseLocalisationAudit,
   completeLocalisationAudit,
@@ -29,6 +34,7 @@ import {
   verifyLocalisationAuditReportToken,
 } from "./store";
 import {
+  LOCALISATION_AUDIT_DAILY_RUN_LIMIT,
   LOCALISATION_AUDIT_EMAIL_RESEND_COOLDOWN_MS,
   LOCALISATION_AUDIT_RERUN_MS,
   LOCALISATION_AUDIT_STALE_MS,
@@ -44,7 +50,12 @@ describe("localisation audit claim/retry", () => {
   const domainKey = `retry-${Date.now()}.example`;
   const domainSlug = `retry-${Date.now()}-example`;
 
+  beforeEach(() => {
+    setLocalisationAuditDailyRunLimitForTests(10_000);
+  });
+
   afterEach(async () => {
+    setLocalisationAuditDailyRunLimitForTests(LOCALISATION_AUDIT_DAILY_RUN_LIMIT);
     await cleanup(domainKey);
   });
 
@@ -365,10 +376,79 @@ describe("localisation audit claim/retry", () => {
   });
 });
 
+describe("localisation audit daily run quota", () => {
+  const stamp = Date.now();
+  const firstKey = `quota-a-${stamp}.example`;
+  const secondKey = `quota-b-${stamp}.example`;
+
+  afterEach(async () => {
+    setLocalisationAuditDailyRunLimitForTests(LOCALISATION_AUDIT_DAILY_RUN_LIMIT);
+    await cleanup(firstKey);
+    await cleanup(secondKey);
+  });
+
+  it("caps new runs system-wide and still retries a same-day failure", async () => {
+    const cutoff = new Date(Date.now() - LOCALISATION_AUDIT_RERUN_MS);
+    const [usage] = await db
+      .select({ count: sql<number>`count(*)`.mapWith(Number) })
+      .from(schema.localisationAudits)
+      .where(gte(schema.localisationAudits.lastAttemptAt, cutoff));
+    const used = usage?.count ?? 0;
+    setLocalisationAuditDailyRunLimitForTests(used + 1);
+
+    const created = await claimOrReuseLocalisationAudit({
+      domainKey: firstKey,
+      domainSlug: hostnameToDomainSlug(firstKey),
+      sourceUrl: `https://${firstKey}/`,
+      focusLocales: [],
+    });
+    expect(created.outcome).toBe("created");
+
+    await expect(
+      claimOrReuseLocalisationAudit({
+        domainKey: secondKey,
+        domainSlug: hostnameToDomainSlug(secondKey),
+        sourceUrl: `https://${secondKey}/`,
+        focusLocales: [],
+      }),
+    ).rejects.toBeInstanceOf(LocalisationAuditDailyQuotaExceededError);
+
+    await failLocalisationAudit({
+      auditId: created.audit.id,
+      attemptNumber: created.audit.attemptNumber,
+      errorCode: "crawl_failed",
+      errorMessage: "no pages",
+    });
+
+    const retried = await claimOrReuseLocalisationAudit({
+      domainKey: firstKey,
+      domainSlug: hostnameToDomainSlug(firstKey),
+      sourceUrl: `https://${firstKey}/`,
+      focusLocales: [],
+    });
+    expect(retried.outcome).toBe("reclaimed");
+    expect(retried.audit.attemptNumber).toBe(created.audit.attemptNumber + 1);
+
+    await expect(
+      claimOrReuseLocalisationAudit({
+        domainKey: secondKey,
+        domainSlug: hostnameToDomainSlug(secondKey),
+        sourceUrl: `https://${secondKey}/`,
+        focusLocales: [],
+      }),
+    ).rejects.toBeInstanceOf(LocalisationAuditDailyQuotaExceededError);
+  });
+});
+
 describe("localisation audit leaderboard", () => {
   const keys = [`lb-a-${Date.now()}.example`, `lb-b-${Date.now()}.example`];
 
+  beforeEach(() => {
+    setLocalisationAuditDailyRunLimitForTests(10_000);
+  });
+
   afterEach(async () => {
+    setLocalisationAuditDailyRunLimitForTests(LOCALISATION_AUDIT_DAILY_RUN_LIMIT);
     for (const domainKey of keys) {
       await cleanup(domainKey);
     }

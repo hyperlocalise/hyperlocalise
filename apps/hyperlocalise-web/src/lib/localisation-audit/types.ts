@@ -175,6 +175,8 @@ export type LocalisationAuditLeadDeliveryStatus =
 
 export const LOCALISATION_AUDIT_STALE_MS = 15 * 60 * 1000;
 export const LOCALISATION_AUDIT_RERUN_MS = 24 * 60 * 60 * 1000;
+/** Rolling 24h cap on new runs and daily re-runs across every domain. */
+export const LOCALISATION_AUDIT_DAILY_RUN_LIMIT = 10;
 export const LOCALISATION_AUDIT_EMAIL_RESEND_COOLDOWN_MS = 60 * 1000;
 export const LOCALISATION_AUDIT_REPORT_TOKEN_TTL_MS = 24 * 60 * 60 * 1000;
 

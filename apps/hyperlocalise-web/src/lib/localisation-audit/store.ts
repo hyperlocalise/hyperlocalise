@@ -10,9 +10,15 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { and, asc, desc, eq, inArray, isNotNull, isNull, lt, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray, isNotNull, isNull, lt, or, sql } from "drizzle-orm";
 
-import { db, schema } from "@/lib/database";
+import { db, schema, type DatabaseClient } from "@/lib/database";
+
+import {
+  LocalisationAuditDailyQuotaExceededError,
+  localisationAuditDailyRunLimit,
+  localisationAuditRunConsumesDailyQuota,
+} from "./daily-quota";
 
 import { hashLocalisationAuditReportToken, mintLocalisationAuditReportToken } from "./email-unlock";
 import type {
@@ -84,8 +90,11 @@ export async function findLocalisationAuditBySlug(domainSlug: string) {
   return row ?? null;
 }
 
-export async function findLocalisationAuditByDomainKey(domainKey: string) {
-  const [row] = await db
+export async function findLocalisationAuditByDomainKey(
+  domainKey: string,
+  client: DatabaseClient = db,
+) {
+  const [row] = await client
     .select()
     .from(schema.localisationAudits)
     .where(eq(schema.localisationAudits.domainKey, domainKey))
@@ -213,14 +222,41 @@ export async function getLocalisationAuditStanding(input: {
   };
 }
 
-async function createLocalisationAudit(input: {
-  domainKey: string;
-  domainSlug: string;
-  sourceUrl: string;
-  focusLocales: string[];
-}) {
+async function lockLocalisationAuditDailyQuota(client: DatabaseClient) {
+  await client.execute(
+    sql`select pg_advisory_xact_lock(hashtextextended(${"localisation_audit_daily_runs"}, 0))`,
+  );
+}
+
+async function assertLocalisationAuditDailyQuotaAvailable(
+  client: DatabaseClient,
+  lastAttemptAt?: Date | null,
+) {
+  if (!localisationAuditRunConsumesDailyQuota(lastAttemptAt)) {
+    return;
+  }
+  const cutoff = new Date(Date.now() - LOCALISATION_AUDIT_RERUN_MS);
+  const [row] = await client
+    .select({ count: sql<number>`count(*)`.mapWith(Number) })
+    .from(schema.localisationAudits)
+    .where(gte(schema.localisationAudits.lastAttemptAt, cutoff));
+  const used = row?.count ?? 0;
+  if (used >= localisationAuditDailyRunLimit()) {
+    throw new LocalisationAuditDailyQuotaExceededError();
+  }
+}
+
+async function createLocalisationAudit(
+  input: {
+    domainKey: string;
+    domainSlug: string;
+    sourceUrl: string;
+    focusLocales: string[];
+  },
+  client: DatabaseClient = db,
+) {
   const timestamp = now();
-  const [row] = await db
+  const [row] = await client
     .insert(schema.localisationAudits)
     .values({
       domainKey: input.domainKey,
@@ -242,112 +278,104 @@ async function createLocalisationAudit(input: {
 
 /**
  * Atomically reuse a successful/active audit or reclaim a failed/stale one for a new attempt.
+ * New runs and 24h re-runs share a system-wide daily cap; same-day failed/stale retries do not.
  */
 export async function claimOrReuseLocalisationAudit(input: {
   domainKey: string;
   domainSlug: string;
   sourceUrl: string;
   focusLocales: string[];
-  /** Internal retry budget after reclaim races. */
-  _reclaimAttempts?: number;
 }): Promise<{ audit: LocalisationAuditRow; outcome: ClaimLocalisationAuditOutcome }> {
-  const reclaimAttempts = input._reclaimAttempts ?? 0;
-  const existing = await findLocalisationAuditByDomainKey(input.domainKey);
-  if (!existing) {
-    try {
-      const created = await createLocalisationAudit(input);
-      return { audit: created, outcome: "created" };
-    } catch {
-      const raced = await findLocalisationAuditByDomainKey(input.domainKey);
-      if (!raced) {
-        throw new Error("failed to create localisation audit");
+  return db.transaction(async (tx) => {
+    await lockLocalisationAuditDailyQuota(tx);
+
+    for (let reclaimAttempts = 0; reclaimAttempts < 4; reclaimAttempts++) {
+      const existing = await findLocalisationAuditByDomainKey(input.domainKey, tx);
+      if (!existing) {
+        await assertLocalisationAuditDailyQuotaAvailable(tx);
+        const created = await createLocalisationAudit(input, tx);
+        return { audit: created, outcome: "created" as const };
       }
-      return claimOrReuseLocalisationAudit(input);
-    }
-  }
 
-  if (
-    existing.status === "succeeded" &&
-    existing.report &&
-    !isLocalisationAuditRerunnable(existing)
-  ) {
-    return { audit: existing, outcome: "reused_success" };
-  }
+      if (
+        existing.status === "succeeded" &&
+        existing.report &&
+        !isLocalisationAuditRerunnable(existing)
+      ) {
+        return { audit: existing, outcome: "reused_success" as const };
+      }
 
-  if (isActiveAudit(existing)) {
-    return { audit: existing, outcome: "reused_active" };
-  }
+      if (isActiveAudit(existing)) {
+        return { audit: existing, outcome: "reused_active" as const };
+      }
 
-  const timestamp = now();
-  const staleCutoff = new Date(Date.now() - LOCALISATION_AUDIT_STALE_MS);
-  const dailyRerunCutoff = new Date(Date.now() - LOCALISATION_AUDIT_RERUN_MS);
-  const focusLocales =
-    input.focusLocales.length > 0 ? input.focusLocales : (existing.focusLocales ?? []);
+      await assertLocalisationAuditDailyQuotaAvailable(tx, existing.lastAttemptAt);
 
-  const [claimed] = await db
-    .update(schema.localisationAudits)
-    .set({
-      sourceUrl: input.sourceUrl,
-      focusLocales,
-      status: "queued" satisfies LocalisationAuditStatus,
-      attemptNumber: sql`${schema.localisationAudits.attemptNumber} + 1`,
-      progressStage: "queued" satisfies LocalisationAuditProgressStage,
-      statusUpdatedAt: timestamp,
-      lastAttemptAt: timestamp,
-      workflowRunId: null,
-      score: null,
-      teaser: null,
-      report: null,
-      errorCode: null,
-      errorMessage: null,
-      startedAt: null,
-      completedAt: null,
-    })
-    .where(
-      and(
-        eq(schema.localisationAudits.id, existing.id),
-        or(
-          eq(schema.localisationAudits.status, "failed"),
+      const timestamp = now();
+      const staleCutoff = new Date(Date.now() - LOCALISATION_AUDIT_STALE_MS);
+      const dailyRerunCutoff = new Date(Date.now() - LOCALISATION_AUDIT_RERUN_MS);
+      const focusLocales =
+        input.focusLocales.length > 0 ? input.focusLocales : (existing.focusLocales ?? []);
+
+      const [claimed] = await tx
+        .update(schema.localisationAudits)
+        .set({
+          sourceUrl: input.sourceUrl,
+          focusLocales,
+          status: "queued" satisfies LocalisationAuditStatus,
+          attemptNumber: sql`${schema.localisationAudits.attemptNumber} + 1`,
+          progressStage: "queued" satisfies LocalisationAuditProgressStage,
+          statusUpdatedAt: timestamp,
+          lastAttemptAt: timestamp,
+          workflowRunId: null,
+          score: null,
+          teaser: null,
+          report: null,
+          errorCode: null,
+          errorMessage: null,
+          startedAt: null,
+          completedAt: null,
+        })
+        .where(
           and(
-            eq(schema.localisationAudits.status, "succeeded"),
-            isNull(schema.localisationAudits.report),
-          ),
-          and(
-            eq(schema.localisationAudits.status, "succeeded"),
-            isNotNull(schema.localisationAudits.report),
-            lt(
-              sql`coalesce(${schema.localisationAudits.completedAt}, ${schema.localisationAudits.statusUpdatedAt})`,
-              dailyRerunCutoff,
+            eq(schema.localisationAudits.id, existing.id),
+            or(
+              eq(schema.localisationAudits.status, "failed"),
+              and(
+                eq(schema.localisationAudits.status, "succeeded"),
+                isNull(schema.localisationAudits.report),
+              ),
+              and(
+                eq(schema.localisationAudits.status, "succeeded"),
+                isNotNull(schema.localisationAudits.report),
+                lt(
+                  sql`coalesce(${schema.localisationAudits.completedAt}, ${schema.localisationAudits.statusUpdatedAt})`,
+                  dailyRerunCutoff,
+                ),
+              ),
+              and(
+                inArray(schema.localisationAudits.status, ["queued", "running"]),
+                lt(schema.localisationAudits.statusUpdatedAt, staleCutoff),
+              ),
             ),
           ),
-          and(
-            inArray(schema.localisationAudits.status, ["queued", "running"]),
-            lt(schema.localisationAudits.statusUpdatedAt, staleCutoff),
-          ),
-        ),
-      ),
-    )
-    .returning();
+        )
+        .returning();
 
-  if (claimed) {
-    return { audit: claimed, outcome: "reclaimed" };
-  }
+      if (claimed) {
+        return { audit: claimed, outcome: "reclaimed" as const };
+      }
+    }
 
-  const fresh = await findLocalisationAuditByDomainKey(input.domainKey);
-  if (!fresh) {
-    throw new Error("localisation audit disappeared during claim");
-  }
-  if (fresh.status === "succeeded" && fresh.report && !isLocalisationAuditRerunnable(fresh)) {
-    return { audit: fresh, outcome: "reused_success" };
-  }
-  // Retryable or rerunnable states must not stick as "active".
-  if (
-    (isLocalisationAuditRetryable(fresh) || isLocalisationAuditRerunnable(fresh)) &&
-    reclaimAttempts < 3
-  ) {
-    return claimOrReuseLocalisationAudit({ ...input, _reclaimAttempts: reclaimAttempts + 1 });
-  }
-  return { audit: fresh, outcome: "reused_active" };
+    const fresh = await findLocalisationAuditByDomainKey(input.domainKey, tx);
+    if (!fresh) {
+      throw new Error("localisation audit disappeared during claim");
+    }
+    if (fresh.status === "succeeded" && fresh.report && !isLocalisationAuditRerunnable(fresh)) {
+      return { audit: fresh, outcome: "reused_success" as const };
+    }
+    return { audit: fresh, outcome: "reused_active" as const };
+  });
 }
 
 export async function attachLocalisationAuditWorkflowRun(input: {

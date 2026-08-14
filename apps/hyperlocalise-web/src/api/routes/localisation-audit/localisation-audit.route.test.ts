@@ -13,6 +13,7 @@
 import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
 import { createApp } from "@/api/app";
+import { LocalisationAuditDailyQuotaExceededError } from "@/lib/localisation-audit/daily-quota";
 import { ok } from "@/lib/primitives/result/results";
 
 const {
@@ -216,6 +217,27 @@ describe("localisation audit routes", () => {
     expect(response.status).toBe(200);
     expect(enqueue).toHaveBeenCalledWith({ auditId: "audit-1", attemptNumber: 2 });
     expect(attachWorkflowMock).toHaveBeenCalled();
+  });
+
+  it("rejects new runs when the daily quota is exhausted", async () => {
+    claimOrReuseMock.mockRejectedValue(new LocalisationAuditDailyQuotaExceededError(10));
+
+    const app = createApp({
+      localisationAuditQueue: {
+        enqueue: vi.fn(async () => ({ ids: ["run-1"] })),
+      },
+    });
+
+    const response = await app.request("/api/localisation-audit", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ url: "https://example.com" }),
+    });
+
+    expect(response.status).toBe(429);
+    const body = await response.json();
+    expect(body.error).toBe("localisation_audit_daily_quota");
+    expect(body.message).toContain("10 audits");
   });
 
   it("marks enqueue failures as retryable failed audits", async () => {
