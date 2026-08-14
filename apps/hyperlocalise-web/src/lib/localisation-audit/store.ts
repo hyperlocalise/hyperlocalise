@@ -316,10 +316,11 @@ export async function claimOrReuseLocalisationAudit(input: {
       const dailyRerunCutoff = new Date(Date.now() - LOCALISATION_AUDIT_RERUN_MS);
       const focusLocales =
         input.focusLocales.length > 0 ? input.focusLocales : (existing.focusLocales ?? []);
-      // Daily re-runs must keep the last good public/unlocked payload until a new
-      // attempt completes. Eager wipe + a later fail permanently destroys the only
-      // report row for the domain.
-      const preservePriorSuccess = existing.status === "succeeded" && existing.report != null;
+      // Keep any existing public/unlocked payload across reclaim. That covers both
+      // daily re-runs (status still succeeded) and later stale reclaim of a
+      // queued/running row that already preserved the prior report. Eager wipe + a
+      // later fail permanently destroys the only report row for the domain.
+      const preservePriorReport = existing.report != null;
 
       const [claimed] = await tx
         .update(schema.localisationAudits)
@@ -332,13 +333,13 @@ export async function claimOrReuseLocalisationAudit(input: {
           statusUpdatedAt: timestamp,
           lastAttemptAt: timestamp,
           workflowRunId: null,
-          score: preservePriorSuccess ? existing.score : null,
-          teaser: preservePriorSuccess ? existing.teaser : null,
-          report: preservePriorSuccess ? existing.report : null,
+          score: preservePriorReport ? existing.score : null,
+          teaser: preservePriorReport ? existing.teaser : null,
+          report: preservePriorReport ? existing.report : null,
           errorCode: null,
           errorMessage: null,
           startedAt: null,
-          completedAt: preservePriorSuccess ? existing.completedAt : null,
+          completedAt: preservePriorReport ? existing.completedAt : null,
         })
         .where(
           and(
