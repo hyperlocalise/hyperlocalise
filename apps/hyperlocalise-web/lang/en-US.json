@@ -371,6 +371,10 @@
     "defaultMessage": "Error banner",
     "description": "Segment context label for error banner strings in the CAT mock"
   },
+  "/VCDNxDquX": {
+    "defaultMessage": "Save",
+    "description": "Save button for issue column edit dialogs"
+  },
   "/WFoDeqxe7": {
     "defaultMessage": "Upload a spreadsheet export, map columns to Issue Sheet fields, preview the result, then import.",
     "description": "Description of the Issue Sheet CSV import dialog"
@@ -503,6 +507,10 @@
     "defaultMessage": "Context of {source}",
     "description": "Suggested prompt chip for the currently selected CAT segment source string"
   },
+  "04BDy8jZlJ": {
+    "defaultMessage": "Read Issue Sheet issues for the selected project during this automation.",
+    "description": "Description for the List issues automation tool"
+  },
   "04TH5FBW4Q": {
     "defaultMessage": "Connect CLI & CI",
     "description": "Heading for the native project CLI and CI connection panel"
@@ -518,6 +526,10 @@
   "087Hwu4wFp": {
     "defaultMessage": "Built for support content at scale",
     "description": "Capabilities section title for the help-center-localisation use case"
+  },
+  "08MZDEQo7n": {
+    "defaultMessage": "Search icons",
+    "description": "Placeholder for searching the custom issue column icon catalog"
   },
   "093XtFZn8Y": {
     "defaultMessage": "Monitor throughput and locale health",
@@ -635,6 +647,10 @@
     "defaultMessage": "Friday",
     "description": "Weekday option for scheduled automation"
   },
+  "0Y2PNYvVoj": {
+    "defaultMessage": "No video yet",
+    "description": "Fallback empty state when a CAT video preview has no source URL"
+  },
   "0YNeNLXRIW": {
     "defaultMessage": "Language",
     "description": "Accessible label for the language selection radio group"
@@ -658,6 +674,10 @@
   "0bJOTNMqb9": {
     "defaultMessage": "Avoid wording that implies public customer reviews.",
     "description": "Intent for the QA banner segment in the hero CAT mock"
+  },
+  "0bO6ZigdQm": {
+    "defaultMessage": "Choose icon",
+    "description": "Title of the custom issue column icon picker popover"
   },
   "0bdrX6gjre": {
     "defaultMessage": "Workspace",
@@ -891,6 +911,10 @@
     "defaultMessage": "Fixed and committed to this branch.",
     "description": "Success title after the agent commits the PR fix"
   },
+  "1XhleWdrNP": {
+    "defaultMessage": "Loading columns...",
+    "description": "Loading state for issue columns settings"
+  },
   "1XoRKevTzz": {
     "defaultMessage": "Role",
     "description": "Team members table column header for role"
@@ -1043,6 +1067,10 @@
     "defaultMessage": "Workspace",
     "description": "Automations page header eyebrow label"
   },
+  "24tcVtmHO9": {
+    "defaultMessage": "No localized video yet",
+    "description": "Empty state when the CAT target video has not been created"
+  },
   "27Ij3QBoyk": {
     "defaultMessage": "Add photos and files",
     "description": "Accessible label and tooltip for attaching files in the reply composer"
@@ -1086,6 +1114,10 @@
   "2Gq43ufxii": {
     "defaultMessage": "Norwegian Bokmål (Norway)",
     "description": "Display name for BCP-47 locale nb-NO"
+  },
+  "2IB+W+9a77": {
+    "defaultMessage": "Use default",
+    "description": "Action that clears a custom issue column icon back to the default"
   },
   "2IX5Zk4LCM": {
     "defaultMessage": "Show secret",
@@ -1342,6 +1374,10 @@
   "3BQQgDQPHy": {
     "defaultMessage": "Failed to load provider credentials ({status})",
     "description": "Error when TMS provider credentials fail to load"
+  },
+  "3DGUvjJg6U": {
+    "defaultMessage": "Cancel",
+    "description": "Cancel button for issue column dialogs"
   },
   "3EJ5L34UDR": {
     "defaultMessage": "The CAT workspace is not available for this provider file type yet.",
@@ -1755,6 +1791,10 @@
     "defaultMessage": "Translation exceeds the recommended {maxLength} characters.",
     "description": "Format check message when translation exceeds length limits"
   },
+  "4rjsoyM0nm": {
+    "defaultMessage": "User",
+    "description": "Issue column type label for user"
+  },
   "4tP9x2ODN4": {
     "defaultMessage": "Connect your Anthropic account",
     "description": "Anthropic BYOK provider description on the integrations page"
@@ -1851,6 +1891,10 @@
     "defaultMessage": "Last delivery: {timestamp}",
     "description": "Shows when the Contentful webhook last delivered an event"
   },
+  "5LcEkHs40U": {
+    "defaultMessage": "Failed to approve video",
+    "description": "Fallback error when approving a video translation fails"
+  },
   "5Mjf4nqDKl": {
     "defaultMessage": "{region} · token ending in {suffix}",
     "description": "Hint that an Intercom access token is stored, with region"
@@ -1946,6 +1990,10 @@
   "5fiIL1R9JM": {
     "defaultMessage": "Description",
     "description": "Label for the glossary description field"
+  },
+  "5jQwn2vYQM": {
+    "defaultMessage": "No custom columns yet.",
+    "description": "Empty state when the project has no custom columns"
   },
   "5jY+nVchEw": {
     "defaultMessage": "{value}% complete",
@@ -2150,6 +2198,10 @@
   "6fRdYraA0j": {
     "defaultMessage": "Loading jobs board",
     "description": "Accessible label while the kanban board skeleton is shown"
+  },
+  "6fr/i0ftu1": {
+    "defaultMessage": "Options (comma-separated)",
+    "description": "Options field for a select issue column"
   },
   "6g9RHsjL+m": {
     "defaultMessage": "Reduce review churn",
@@ -2431,6 +2483,10 @@
     "defaultMessage": "{count, plural, one {# missing} other {# missing}}",
     "description": "Locale readiness summary segment for missing or stale locales"
   },
+  "7gM4E5eO9R": {
+    "defaultMessage": "Rename column",
+    "description": "Title for rename issue column dialog"
+  },
   "7h7yO8hu3a": {
     "defaultMessage": "User",
     "description": "Fallback display name when a conversation participant has no name or email"
@@ -2583,9 +2639,17 @@
     "defaultMessage": "Import translations",
     "description": "Context menu action to import translations for a project file"
   },
+  "8CUaNB5YrW": {
+    "defaultMessage": "Text",
+    "description": "Issue column type label for text"
+  },
   "8DwB2zNR0Z": {
     "defaultMessage": "External TMS",
     "description": "Source label for external TMS translation memories without a provider badge"
+  },
+  "8Fr9Wuahxt": {
+    "defaultMessage": "Type",
+    "description": "Type field for a new issue column"
   },
   "8FzJDvElQ4": {
     "defaultMessage": "Free",
@@ -2642,6 +2706,10 @@
   "8Tp9Y/Dgx2": {
     "defaultMessage": "Translation intelligence",
     "description": "Heading for the bottom intelligence panel in side-by-side CAT view"
+  },
+  "8Uj/LcQ4Dh": {
+    "defaultMessage": "Saving...",
+    "description": "Save button label while saving an issue column"
   },
   "8UnBVLcjgq": {
     "defaultMessage": "{position} / {total}",
@@ -2746,6 +2814,10 @@
   "8nYNjmNA8P": {
     "defaultMessage": "Disabled",
     "description": "Slack agent status title when connected but disabled"
+  },
+  "8nhfCkb631": {
+    "defaultMessage": "Edit options",
+    "description": "Button to edit select options for an issue column"
   },
   "8pW28B/viJ": {
     "defaultMessage": "Remove Contentful translate",
@@ -2854,6 +2926,10 @@
   "97U6IP2zpL": {
     "defaultMessage": "Regression eval",
     "description": "Workflow step 3 label for the localisation-quality-monitoring use case"
+  },
+  "98krmAHTt0": {
+    "defaultMessage": "Column created",
+    "description": "Toast after creating an issue column"
   },
   "98mLYv90ox": {
     "defaultMessage": "Hide API key",
@@ -3491,6 +3567,10 @@
     "defaultMessage": "Connect {provider} to view provider {resource}.",
     "description": "Error heading when TMS provider data cannot load because the user has not connected their account"
   },
+  "BgwxUGlOoU": {
+    "defaultMessage": "System",
+    "description": "Heading for core system issue fields"
+  },
   "Bgy156rCP9": {
     "defaultMessage": "Enterprise",
     "description": "Enterprise plan name on the pricing page"
@@ -3519,6 +3599,10 @@
     "defaultMessage": "Key",
     "description": "Column header for translation keys in the source strings preview table"
   },
+  "BlBj/2poZ0": {
+    "defaultMessage": "Unable to update columns",
+    "description": "Toast when an issue column mutation fails"
+  },
   "BnZ3uPwDP7": {
     "defaultMessage": "Look up where this string appears in the connected repository",
     "description": "Tooltip for the find repository context button when available"
@@ -3530,6 +3614,10 @@
   "BntV+FD+ax": {
     "defaultMessage": "Connection",
     "description": "Label for the Contentful connection select"
+  },
+  "BoSN5gM5EB": {
+    "defaultMessage": "Built-in",
+    "description": "Badge for built-in issue columns"
   },
   "BpWRJW/l3A": {
     "defaultMessage": "API keys",
@@ -3638,6 +3726,10 @@
   "CDHpNJeAfK": {
     "defaultMessage": "All caught up",
     "description": "Overview hero badge when there are no pending actions"
+  },
+  "CE2lOIg1r+": {
+    "defaultMessage": "These fields are always available on issues.",
+    "description": "Description for core system issue fields"
   },
   "CFMr/AO+mA": {
     "defaultMessage": "Translate Task",
@@ -4067,6 +4159,10 @@
     "defaultMessage": "Send terminal run summaries to specific recipients.",
     "description": "Description for email notifications when email is enabled"
   },
+  "DeCrAOQFGT": {
+    "defaultMessage": "List issues",
+    "description": "Menu item and tool title for listing Issue Sheet issues"
+  },
   "DeMAC4mdid": {
     "defaultMessage": "Connect a Slack workspace to let Hyperlocalise respond to mentions, DMs, and subscribed threads.",
     "description": "Slack integration description before OAuth connection"
@@ -4102,6 +4198,10 @@
   "DtRFjTA7Kk": {
     "defaultMessage": "{actor} assigned to {assignee}",
     "description": "Activity line when an issue is assigned to another user"
+  },
+  "DtVOLEpfXB": {
+    "defaultMessage": "Long text",
+    "description": "Issue column type label for long text"
   },
   "DwOm/o1t0O": {
     "defaultMessage": "Coming soon",
@@ -4230,6 +4330,10 @@
   "EMm+gaNq/8": {
     "defaultMessage": "Set source path",
     "description": "More menu action to set source path"
+  },
+  "EMwUmCsnLL": {
+    "defaultMessage": "Create",
+    "description": "Submit button for create issue column dialog"
   },
   "ENDjImu9Gr": {
     "defaultMessage": "Latest jobs",
@@ -4699,6 +4803,10 @@
     "defaultMessage": "Search title, description, or source path",
     "description": "Default placeholder for the issue list search input"
   },
+  "GQCiwmNekJ": {
+    "defaultMessage": "Creating...",
+    "description": "Submit button label while creating an issue column"
+  },
   "GRJxQXl5PH": {
     "defaultMessage": "Registered in Contentful",
     "description": "Webhook registration status when registered"
@@ -4806,6 +4914,10 @@
   "Gq3EWF71If": {
     "defaultMessage": "Keep support articles translated and fresh across locales. Connect CMS updates to review workflows and freshness monitoring without support content lag.",
     "description": "Meta description for the help-center-localisation use case"
+  },
+  "GqNUBHyk8j": {
+    "defaultMessage": "No icons match",
+    "description": "Empty state when the icon picker search has no results"
   },
   "GqfMhL6Yw/": {
     "defaultMessage": "Users",
@@ -5131,6 +5243,10 @@
     "defaultMessage": "Name, project, or external ID...",
     "description": "Placeholder for the glossaries search field"
   },
+  "IH9MgEJ3zF": {
+    "defaultMessage": "Rename",
+    "description": "Button to rename an issue column"
+  },
   "IHNG6SIjSG": {
     "defaultMessage": "Bad translations reach production because there is no automated regression layer.",
     "description": "Problem pain point 5 for the github-release-localisation use case"
@@ -5178,6 +5294,10 @@
   "ISCo8PAGGI": {
     "defaultMessage": "No screenshots are attached to this string in the provider.",
     "description": "Empty state when a TMS string has no screenshot context"
+  },
+  "IVUthO1+r5": {
+    "defaultMessage": "Move down",
+    "description": "Button to move an issue column later in sort order"
   },
   "IW+967m+1e": {
     "defaultMessage": "Thought for a few seconds",
@@ -5354,6 +5474,10 @@
   "JEdlCIcj1G": {
     "defaultMessage": "Disconnecting…",
     "description": "Disconnect button label while GitHub is being disconnected"
+  },
+  "JHFSIHw0S8": {
+    "defaultMessage": "Custom",
+    "description": "Badge for custom issue columns"
   },
   "JIuT2aW94P": {
     "defaultMessage": "Up to date",
@@ -5727,9 +5851,17 @@
     "defaultMessage": "Usage",
     "description": "Pricing matrix section title for usage quotas"
   },
+  "KzbmFnFtRO": {
+    "defaultMessage": "Column shown",
+    "description": "Toast after showing an issue column"
+  },
   "KzyWBbcmTH": {
     "defaultMessage": "Could not update watch settings",
     "description": "Toast shown when watch or unwatch fails"
+  },
+  "L0cbBkfUu2": {
+    "defaultMessage": "Label",
+    "description": "Label field in the add Issue Sheet column dialog"
   },
   "L0g+No60zf": {
     "defaultMessage": "Context needed: {key}",
@@ -6151,6 +6283,10 @@
     "defaultMessage": "Pull request",
     "description": "Workflow step 1 label for the github-release-localisation use case"
   },
+  "MweQRnF9MU": {
+    "defaultMessage": "File Issue Sheet issues for the selected project from automation findings.",
+    "description": "Description for the Create issue automation tool"
+  },
   "MwxM6cb/1r": {
     "defaultMessage": "Priority",
     "description": "Label for issue priority field"
@@ -6198,6 +6334,10 @@
   "N6O6G8ZqRN": {
     "defaultMessage": "now",
     "description": "Relative timestamp when an inbox event happened less than a minute ago"
+  },
+  "N7Y/6FnTVv": {
+    "defaultMessage": "Remove List issues tool",
+    "description": "Accessible label to remove the List issues tool"
   },
   "N9BYBbfFW0": {
     "defaultMessage": "Succeeded",
@@ -6402,6 +6542,10 @@
   "NxMkWJ+eS3": {
     "defaultMessage": "Choose a Hyperlocalise project for pull translations.",
     "description": "Validation error when pull translations workflow has no project selected"
+  },
+  "Nywsookzn6": {
+    "defaultMessage": "Configure fields shown on issues in this project. Hidden fields keep their values.",
+    "description": "Description for the project issue columns settings section"
   },
   "O+Rhddgv8v": {
     "defaultMessage": "Descending",
@@ -6715,6 +6859,10 @@
     "defaultMessage": "Cancel",
     "description": "Cancel button in the workspace issues import project picker"
   },
+  "PIElwfqIXr": {
+    "defaultMessage": "Show",
+    "description": "Accessibility label to show a hidden issue column"
+  },
   "PJ5XoQURG9": {
     "defaultMessage": "Submit",
     "description": "Accessible label for submitting the prompt"
@@ -6806,6 +6954,10 @@
   "Pele5LgqUl": {
     "defaultMessage": "Turn campaign briefs into brand-safe, locale-adapted marketing copy with review workflows and asset delivery built in. Keep global messaging consistent without slowing launches.",
     "description": "Meta description for the marketing-localisation use case"
+  },
+  "PgliwXORHi": {
+    "defaultMessage": "Regenerate video",
+    "description": "Button to regenerate a localized video with the agent"
   },
   "Pgxv//ij4N": {
     "defaultMessage": "Workspace",
@@ -7287,6 +7439,10 @@
     "defaultMessage": "Failed to start {provider} connection",
     "description": "Toast error when starting a TMS OAuth connection fails"
   },
+  "RX7jcy2gor": {
+    "defaultMessage": "Add column",
+    "description": "Title for create issue column dialog"
+  },
   "RXXOOcxbRk": {
     "defaultMessage": "Applying for the Growth plan",
     "description": "Startup program eligibility: Growth plan"
@@ -7447,6 +7603,10 @@
     "defaultMessage": "Warning type",
     "description": "Placeholder for the proposal warning-type filter"
   },
+  "SCwFU6O6EH": {
+    "defaultMessage": "Enable first",
+    "description": "Shortcut shown when workspace Issues is not enabled for the organization"
+  },
   "SEclZdUwgN": {
     "defaultMessage": "Create more",
     "description": "Checkbox label to keep the create issue dialog open after submit"
@@ -7454,6 +7614,10 @@
   "SFMLZ4RNJi": {
     "defaultMessage": "Team",
     "description": "Eyebrow label above the team detail page title"
+  },
+  "SGKONsO7tY": {
+    "defaultMessage": "Create issue",
+    "description": "Menu item and tool title for creating Issue Sheet issues"
   },
   "SGPPXTsltm": {
     "defaultMessage": "Message #launch-ops",
@@ -7570,6 +7734,10 @@
   "ShnGyATeRG": {
     "defaultMessage": "Next file",
     "description": "Accessible label for next-file navigation in CAT File view"
+  },
+  "SlLtLEkppm": {
+    "defaultMessage": "Delete column?",
+    "description": "Title for delete issue column confirmation dialog"
   },
   "SlPmp40QPZ": {
     "defaultMessage": "Every hour · {timezone}",
@@ -7726,6 +7894,10 @@
   "TG1FpMpW2X": {
     "defaultMessage": "Switch workspace",
     "description": "Submenu trigger to switch between workspaces"
+  },
+  "TGxX41HjAL": {
+    "defaultMessage": "Column hidden",
+    "description": "Toast after hiding an issue column"
   },
   "THoRXiMHfa": {
     "defaultMessage": "Could not load notification preferences.",
@@ -8091,6 +8263,10 @@
     "defaultMessage": "Optionally describe what changed for version history.",
     "description": "Description in the global guidance save dialog"
   },
+  "Uq3Txt1tW6": {
+    "defaultMessage": "Key",
+    "description": "Key field for a new issue column"
+  },
   "UqeBgW87bt": {
     "defaultMessage": "Remove team member",
     "description": "Title of the remove team member confirmation dialog"
@@ -8231,6 +8407,10 @@
     "defaultMessage": "Sync with your TMS instead of replacing it",
     "description": "Capability 5 title for the product-localisation use case"
   },
+  "VQrFBtzNZC": {
+    "defaultMessage": "Column updated",
+    "description": "Toast after updating an issue column"
+  },
   "VR+xvnXyUj": {
     "defaultMessage": "Leave without saving",
     "description": "Confirm button to navigate away without saving target edits"
@@ -8274,6 +8454,10 @@
   "VZ/tPAEVdg": {
     "defaultMessage": "API Keys",
     "description": "API keys settings page heading"
+  },
+  "VaRVOa2ruT": {
+    "defaultMessage": "Failed to update video mode",
+    "description": "Fallback error when toggling treat-as-video mode fails"
   },
   "VaaPQXovs9": {
     "defaultMessage": "Role",
@@ -8598,6 +8782,10 @@
   "WsiwWcs52J": {
     "defaultMessage": "Supported tools",
     "description": "Dropdown section label for available automation tools"
+  },
+  "Wt0qOYiWFy": {
+    "defaultMessage": "Icon",
+    "description": "Icon field for a custom issue column"
   },
   "Wtnws5pYza": {
     "defaultMessage": "Failed to load provider files",
@@ -9147,6 +9335,10 @@
     "defaultMessage": "© {year} Hyperlocalise Pty Ltd - ACN 698 557 667",
     "description": "Copyright notice in the marketing footer with the current year"
   },
+  "Z0zZRENUvf": {
+    "defaultMessage": "Failed to load issue columns.",
+    "description": "Error state when issue columns fail to load"
+  },
   "Z39eNFe81L": {
     "defaultMessage": "Tools",
     "description": "Section heading for automation tool settings"
@@ -9210,6 +9402,10 @@
   "ZFNYMG0eSQ": {
     "defaultMessage": "Workspace memory for agents and teams",
     "description": "Sidebar description for the Knowledge navigation item"
+  },
+  "ZG+BNMFwQl": {
+    "defaultMessage": "Enrichment",
+    "description": "Issue column type label for enrichment"
   },
   "ZH8KR1tpOB": {
     "defaultMessage": "#{name}",
@@ -9591,6 +9787,10 @@
     "defaultMessage": "Name the project and capture operational notes for the team.",
     "description": "Description for the general project settings section"
   },
+  "ap7pcG+5Mr": {
+    "defaultMessage": "Column order saved",
+    "description": "Toast after reordering issue columns"
+  },
   "arfFDZqrYl": {
     "defaultMessage": "Failed to run QA checks",
     "description": "Toast and error fallback when running QA checks fails"
@@ -9766,6 +9966,10 @@
   "basdUhXB4X": {
     "defaultMessage": "SEO tools",
     "description": "Category label for SEO tool connections on the Integrations page"
+  },
+  "bc/4smjeQZ": {
+    "defaultMessage": "Add column",
+    "description": "Button to add a custom issue column"
   },
   "bc6k5kD1Ao": {
     "defaultMessage": "Translation draft",
@@ -10391,6 +10595,10 @@
     "defaultMessage": "Approvals and status live in the TMS while context lives elsewhere.",
     "description": "Problem pain point 4 for the localisation-operations use case"
   },
+  "eD/50+uzSI": {
+    "defaultMessage": "Choose column icon",
+    "description": "Accessible label for the custom issue column icon picker trigger"
+  },
   "eE1yzdT/dq": {
     "defaultMessage": "Hyperlocalise connects quality checks to the workflows where content is created, reviewed, and synced. Your TMS stays the system of record; Hyperlocalise makes quality visible at every step.",
     "description": "Differentiator section description for the localisation-quality-monitoring use case"
@@ -10474,6 +10682,10 @@
   "eWpSMqLEvC": {
     "defaultMessage": "Repository + Provider",
     "description": "Workspace files origin badge when a file comes from both repository and provider"
+  },
+  "eWt/E3rn/c": {
+    "defaultMessage": "Delete",
+    "description": "Button to delete a custom issue column"
   },
   "eXEsN78hyb": {
     "defaultMessage": "Loading CAT workspace",
@@ -10635,6 +10847,10 @@
     "defaultMessage": "Source upload · project required",
     "description": "Header summary for a source upload trigger when no project is selected"
   },
+  "fCirHpiRXz": {
+    "defaultMessage": "Upload video",
+    "description": "Button to upload a replacement localized video"
+  },
   "fDDlPiv7w9": {
     "defaultMessage": "A glossary update needs to propagate across three content types",
     "description": "Scenario section title for the localisation-quality-monitoring use case"
@@ -10703,6 +10919,10 @@
     "defaultMessage": "External task ID",
     "description": "Secondary job property row label for external task ID"
   },
+  "fVOROtw+GW": {
+    "defaultMessage": "Issues",
+    "description": "Submenu label grouping Issues automation tools"
+  },
   "fWWcDn9s5p": {
     "defaultMessage": "Startups",
     "description": "Marketing footer resource link label for the startups program page"
@@ -10710,6 +10930,10 @@
   "fXIJvHCrL6": {
     "defaultMessage": "Previous segment",
     "description": "Accessible label for the previous segment navigation button"
+  },
+  "fZ6vM82PvA": {
+    "defaultMessage": "Delete “{label}”? Values stored for this column on existing issues will be removed.",
+    "description": "Description for delete issue column confirmation dialog"
   },
   "faIh9KrPi/": {
     "defaultMessage": "Create first-party workspace glossaries or sync provider term bases. Provider glossaries stay read-only.",
@@ -10787,6 +11011,10 @@
     "defaultMessage": "All changes saved",
     "description": "Status shown when global guidance matches the saved version"
   },
+  "fyM/dYzEbh": {
+    "defaultMessage": "Jobs",
+    "description": "Submenu label grouping native TMS job automation tools"
+  },
   "fyUzKxz7yZ": {
     "defaultMessage": "Checking linked jobs",
     "description": "Conversation header status while linked jobs are loading"
@@ -10838,6 +11066,10 @@
   "g4IjA7F0HP": {
     "defaultMessage": "Failed to regenerate image",
     "description": "Fallback error when regenerating a CAT image translation fails"
+  },
+  "g4VoT0162y": {
+    "defaultMessage": "GitHub",
+    "description": "Submenu label grouping GitHub automation tools"
   },
   "g5YfEeVlsF": {
     "defaultMessage": "Remove {branch}",
@@ -11423,6 +11655,10 @@
     "defaultMessage": "Base URL (optional)",
     "description": "Label for the optional API base URL field"
   },
+  "iIHDh1dH3y": {
+    "defaultMessage": "Remove Create issue tool",
+    "description": "Accessible label to remove the Create issue tool"
+  },
   "iL0uh6nGuj": {
     "defaultMessage": "Branch patterns",
     "description": "Dropdown label for branch pattern management"
@@ -11911,6 +12147,10 @@
     "defaultMessage": "Jobs created and tracked in this workspace.",
     "description": "Description under the native jobs section title"
   },
+  "k6wO1BhuBw": {
+    "defaultMessage": "Source video unavailable",
+    "description": "Empty state when the CAT source video cannot be shown"
+  },
   "k7+7pXhrLD": {
     "defaultMessage": "No locales listed",
     "description": "Fallback when a translation memory has no locale coverage"
@@ -11926,6 +12166,10 @@
   "k8esVDxjx3": {
     "defaultMessage": "Yes. Once billing is available you will be able to move between plans as your usage grows. Enterprise changes are handled with your account contact.",
     "description": "Pricing FAQ answer about changing plans"
+  },
+  "k8haXRuhS3": {
+    "defaultMessage": "Move up",
+    "description": "Button to move an issue column earlier in sort order"
   },
   "k9uRw1QXC6": {
     "defaultMessage": "No messages yet",
@@ -11994,6 +12238,10 @@
   "kJE4wAhywD": {
     "defaultMessage": "Billing request failed. Try again in a moment.",
     "description": "Generic fallback error for billing requests"
+  },
+  "kLjTn4JPez": {
+    "defaultMessage": "Hide",
+    "description": "Accessibility label to hide an issue column"
   },
   "kO32zaHAd6": {
     "defaultMessage": "Couldn't save title",
@@ -12619,6 +12867,10 @@
     "defaultMessage": "e.g. de-DE",
     "description": "Placeholder for the target locale input"
   },
+  "mz+/0gx1Ho": {
+    "defaultMessage": "Click to localize video",
+    "description": "Placeholder when a side-by-side video row has no localized video yet"
+  },
   "mz8uQYwH0G": {
     "defaultMessage": "Agent assignment",
     "description": "Workflow step 3 label for the localisation-operations use case"
@@ -12782,6 +13034,10 @@
   "ne4Ygl2/V7": {
     "defaultMessage": "No comments yet.",
     "description": "Empty state when a task has no comments"
+  },
+  "ng9pGPnTZ/": {
+    "defaultMessage": "Issue columns",
+    "description": "Heading for the project issue columns settings section"
   },
   "nkAooS6hll": {
     "defaultMessage": "Sort",
@@ -12963,6 +13219,10 @@
     "defaultMessage": "Next open",
     "description": "Keyboard shortcut hint for jumping to the next unfinished string"
   },
+  "od4AanOJNW": {
+    "defaultMessage": "Built-in",
+    "description": "Heading for seeded built-in issue columns"
+  },
   "oeVZ6ETPjK": {
     "defaultMessage": "Select a member",
     "description": "Placeholder for the member select"
@@ -13106,6 +13366,10 @@
   "pCwlsos9AL": {
     "defaultMessage": "Choose a day of the week for weekly schedules.",
     "description": "API error when weekly schedule has an invalid day of week"
+  },
+  "pEbaKtKcj3": {
+    "defaultMessage": "Custom",
+    "description": "Heading for user-created custom issue columns"
   },
   "pF/btP7bSZ": {
     "defaultMessage": "Failed to update job",
@@ -13891,6 +14155,10 @@
     "defaultMessage": "Remember your rules",
     "description": "AI feature capability title: organization memory"
   },
+  "sWeXphmV4h": {
+    "defaultMessage": "Column deleted",
+    "description": "Toast after deleting an issue column"
+  },
   "sZ3Qm/SOaW": {
     "defaultMessage": "Numbered list",
     "description": "Slash menu item for a numbered list"
@@ -14251,6 +14519,10 @@
     "defaultMessage": "The most recently updated work across this workspace.",
     "description": "Dashboard panel description for latest jobs"
   },
+  "u7sdfAXaot": {
+    "defaultMessage": "Icon",
+    "description": "Icon field label in the add Issue Sheet column dialog"
+  },
   "u8IfkaHCSY": {
     "defaultMessage": "Translate with agent",
     "description": "Title of the create translation job dialog"
@@ -14498,6 +14770,10 @@
   "uycq9iF49K": {
     "defaultMessage": "GitHub push",
     "description": "Trigger label for a GitHub push automation in the list"
+  },
+  "uyibAnXll7": {
+    "defaultMessage": "Enable workspace Issues before using Issue Sheet tools in automations.",
+    "description": "Description when workspace Issues feature flag is off"
   },
   "uzkJ9jkLaR": {
     "defaultMessage": "Upload source files, then open one in the CAT workspace to review and edit translations.",
@@ -14774,6 +15050,10 @@
   "vvty9tJfmx": {
     "defaultMessage": "Sort by",
     "description": "Label for the issue list sort field select"
+  },
+  "vwPIIQYtBh": {
+    "defaultMessage": "Edit options",
+    "description": "Title for edit select options dialog"
   },
   "vyiCHg90XK": {
     "defaultMessage": "Reset",
@@ -15090,6 +15370,10 @@
   "x6PqOisw0g": {
     "defaultMessage": "Translation Memories",
     "description": "Sidebar navigation item for translation memories"
+  },
+  "x7Zo60FQJD": {
+    "defaultMessage": "Select",
+    "description": "Issue column type label for select"
   },
   "x86tb6Gc1r": {
     "defaultMessage": "Open in Claude",
@@ -15579,6 +15863,10 @@
     "defaultMessage": "Comment on selected ({count})",
     "description": "Button to leave provider comments on selected findings"
   },
+  "yxHGupHq+k": {
+    "defaultMessage": "Treat as video",
+    "description": "Button to treat a URL source string as a localizable video"
+  },
   "z+yNDK6TMM": {
     "defaultMessage": "Comfortable",
     "description": "CAT workspace view mode with queue, editor, and intelligence panels"
@@ -15590,6 +15878,10 @@
   "z/ihJvUUcu": {
     "defaultMessage": "Localisation managers coordinate across TMS tools, model providers, vendors, and engineering — with no unified view of what is in flight.",
     "description": "Problem section description for the localisation-operations use case"
+  },
+  "z0uvvDTD9z": {
+    "defaultMessage": "Preview and localize this URL as a video",
+    "description": "Tooltip for the treat-as-video toggle in CAT"
   },
   "z45OPLD254": {
     "defaultMessage": "Ask the localisation agent to prepare work",
@@ -15618,6 +15910,10 @@
   "z5k8iKEIXN": {
     "defaultMessage": "Created",
     "description": "Automations list column header for created date"
+  },
+  "z5qDgQyncE": {
+    "defaultMessage": "Label",
+    "description": "Label field for an issue column"
   },
   "z6J/H68BKd": {
     "defaultMessage": "Source control",
@@ -15662,6 +15958,10 @@
   "zGlv2WTv64": {
     "defaultMessage": "Semrush connection saved.",
     "description": "Toast when Semrush connection is saved"
+  },
+  "zGwBrW7HVT": {
+    "defaultMessage": "Deleting...",
+    "description": "Delete button label while deleting an issue column"
   },
   "zHmiYq4Tm1": {
     "defaultMessage": "Translation Memories",
