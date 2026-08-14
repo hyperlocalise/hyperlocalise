@@ -32,8 +32,6 @@ const PATH_REGION_TO_HTML_LANG: Record<string, string> = {
   us: "en-US",
   nz: "en-NZ",
   gb: "en-GB",
-  /** Corporate sites use /uk/ for United Kingdom English; ISO 639 `uk` is Ukrainian. */
-  uk: "en-GB",
   jp: "ja-JP",
   kr: "ko-KR",
   cn: "zh-CN",
