@@ -153,7 +153,7 @@ describe("crawlLocalisationAuditSample", () => {
         { origin: "https://example.com", sourceUrl: "https://example.com/" },
         {
           createRenderer: async () => {
-            throw new AuditBrowserSetupError("audit browser runtime install failed");
+            throw new AuditBrowserSetupError("sandbox image is missing Playwright");
           },
         },
       ),

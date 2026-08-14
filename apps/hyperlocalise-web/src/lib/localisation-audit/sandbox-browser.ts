@@ -18,11 +18,7 @@ import {
   MAX_PUBLIC_HTTP_RESPONSE_BYTES,
 } from "@/lib/security/public-http-fetch";
 import { isBlockedHost, isPublicHttpUrl } from "@/lib/security/ssrf-guard";
-import {
-  createConfiguredVercelSandbox,
-  installChromiumSystemDependenciesFunction,
-  sandboxPlaywrightVersion,
-} from "@/lib/vercel-sandbox-config";
+import { createConfiguredVercelSandbox } from "@/lib/vercel-sandbox-config";
 
 import type { HtmlPageRenderer, RenderedHtmlPage } from "./crawl-renderer";
 import { AuditBrowserSetupError } from "./sandbox-browser-error";
@@ -37,9 +33,13 @@ export const AUDIT_BROWSER_NETWORKIDLE_TIMEOUT_MS = 4_000;
 export const AUDIT_BROWSER_SETTLE_MS = 400;
 export const AUDIT_BROWSER_VIEWPORT = { width: 1440, height: 1000 } as const;
 
-const MANAGED_PLAYWRIGHT_VERSION = sandboxPlaywrightVersion;
-const MANAGED_BROWSER_RUNTIME_DIR = "/tmp/hyperlocalise-browser-runtime";
-const MANAGED_PLAYWRIGHT_MODULE = `${MANAGED_BROWSER_RUNTIME_DIR}/node_modules/playwright`;
+/**
+ * Playwright + Chromium baked into the hyperlocalise-sandbox VCR image.
+ * Same path the agent screenshot tool uses. Do not install at crawl time.
+ */
+const SANDBOX_BROWSER_RUNTIME_DIR = "/tmp/hyperlocalise-browser-runtime";
+const SANDBOX_PLAYWRIGHT_MODULE = `${SANDBOX_BROWSER_RUNTIME_DIR}/node_modules/playwright`;
+const SANDBOX_PLAYWRIGHT_BROWSERS_DIR = `${SANDBOX_BROWSER_RUNTIME_DIR}/ms-playwright`;
 const AUDIT_BROWSER_DIR = "/tmp/hl-audit-browser";
 const AUDIT_BROWSER_SCRIPT_PATH = `${AUDIT_BROWSER_DIR}/render.cjs`;
 const AUDIT_BROWSER_INPUT_PATH = `${AUDIT_BROWSER_DIR}/urls.json`;
@@ -62,40 +62,17 @@ function shellQuote(value: string) {
   return `'${value.replaceAll("'", "'\\''")}'`;
 }
 
-export function managedAuditBrowserRuntimeCommand() {
-  const runtimeDir = shellQuote(MANAGED_BROWSER_RUNTIME_DIR);
-  const playwrightVersion = shellQuote(`playwright@${MANAGED_PLAYWRIGHT_VERSION}`);
-  const browsersPath = shellQuote(`${MANAGED_BROWSER_RUNTIME_DIR}/ms-playwright`);
-  const playwrightBin = shellQuote(`${MANAGED_BROWSER_RUNTIME_DIR}/node_modules/.bin/playwright`);
+export function prepareAuditBrowserRuntimeCommand() {
+  const playwrightModule = shellQuote(SANDBOX_PLAYWRIGHT_MODULE);
+  const browsersPath = shellQuote(SANDBOX_PLAYWRIGHT_BROWSERS_DIR);
   const auditDir = shellQuote(AUDIT_BROWSER_DIR);
 
   return [
     "set -euo pipefail",
-    `mkdir -p ${runtimeDir} ${auditDir}`,
-    "if ! command -v npm >/dev/null 2>&1; then",
-    `  echo "${ERROR_CODE_PREFIX}package_manager_unavailable" >&2`,
-    "  exit 86",
-    "fi",
-    `if [ ! -d ${shellQuote(MANAGED_PLAYWRIGHT_MODULE)} ]; then`,
-    `  npm --prefix ${runtimeDir} init -y >/dev/null 2>&1 || true`,
-    `  if ! npm --prefix ${runtimeDir} install --no-audit --no-fund ${playwrightVersion} >/tmp/hyperlocalise-playwright-install.log 2>&1; then`,
-    `    cat /tmp/hyperlocalise-playwright-install.log >&2 || true`,
-    `    echo "${ERROR_CODE_PREFIX}browser_runtime_install_failed" >&2`,
-    "    exit 87",
-    "  fi",
-    "fi",
-    installChromiumSystemDependenciesFunction,
-    "if command -v ldconfig >/dev/null 2>&1 && ! ldconfig -p 2>/dev/null | grep -q 'libnspr4\\.so'; then",
-    "  if ! install_chromium_system_dependencies >/tmp/hyperlocalise-chromium-deps.log 2>&1; then",
-    "    cat /tmp/hyperlocalise-chromium-deps.log >&2 || true",
-    `    echo "${ERROR_CODE_PREFIX}browser_system_deps_unavailable" >&2`,
-    "    exit 89",
-    "  fi",
-    "fi",
-    `if ! PLAYWRIGHT_BROWSERS_PATH=${browsersPath} ${playwrightBin} install chromium >/tmp/hyperlocalise-chromium-install.log 2>&1; then`,
-    `  cat /tmp/hyperlocalise-chromium-install.log >&2 || true`,
-    `  echo "${ERROR_CODE_PREFIX}browser_binary_unavailable" >&2`,
-    "  exit 88",
+    `mkdir -p ${auditDir}`,
+    `if [ ! -d ${playwrightModule} ] || [ ! -d ${browsersPath} ]; then`,
+    `  echo "${ERROR_CODE_PREFIX}browser_runtime_missing" >&2`,
+    "  exit 87",
     "fi",
   ].join("\n");
 }
@@ -106,7 +83,7 @@ export function managedAuditBrowserRuntimeCommand() {
  */
 export function buildAuditPlaywrightScript() {
   return `
-const { chromium } = require(${JSON.stringify(MANAGED_PLAYWRIGHT_MODULE)});
+const { chromium } = require(${JSON.stringify(SANDBOX_PLAYWRIGHT_MODULE)});
 const fs = require("node:fs");
 const path = require("node:path");
 
@@ -242,22 +219,23 @@ export async function createAuditBrowserSession(): Promise<HtmlPageRenderer> {
     timeout: AUDIT_BROWSER_SANDBOX_TIMEOUT_MS,
   });
 
-  const install = await sandbox.runCommand({
+  const prepare = await sandbox.runCommand({
     cmd: "bash",
-    args: ["-lc", managedAuditBrowserRuntimeCommand()],
-    sudo: true,
+    args: ["-lc", prepareAuditBrowserRuntimeCommand()],
   });
-  if (install.exitCode !== 0) {
-    const output = await install.output("both");
+  if (prepare.exitCode !== 0) {
+    const output = await prepare.output("both");
     await sandbox.stop().catch(() => undefined);
-    throw new AuditBrowserSetupError(`audit browser runtime install failed: ${output}`);
+    throw new AuditBrowserSetupError(
+      `sandbox image is missing Playwright at ${SANDBOX_BROWSER_RUNTIME_DIR}: ${output}`,
+    );
   }
 
   await sandbox.writeFiles([
     { path: AUDIT_BROWSER_SCRIPT_PATH, content: Buffer.from(buildAuditPlaywrightScript(), "utf8") },
   ]);
 
-  const browsersPath = shellQuote(`${MANAGED_BROWSER_RUNTIME_DIR}/ms-playwright`);
+  const browsersPath = shellQuote(SANDBOX_PLAYWRIGHT_BROWSERS_DIR);
 
   return {
     async render(urls: string[]): Promise<RenderedHtmlPage[]> {

@@ -63,7 +63,7 @@ import {
   buildAuditPlaywrightScript,
   createAuditBrowserSession,
   isBlockedBrowserNavigationUrl,
-  managedAuditBrowserRuntimeCommand,
+  prepareAuditBrowserRuntimeCommand,
 } from "./sandbox-browser";
 import { AuditBrowserSetupError } from "./sandbox-browser-error";
 
@@ -88,7 +88,9 @@ describe("audit Playwright script", () => {
     expect(script).toContain("page.route");
     expect(script).toContain("isBlockedNavigationUrl");
     expect(script).toContain("HyperlocaliseLocalisationAudit/1.0");
-    expect(managedAuditBrowserRuntimeCommand()).toContain("install chromium");
+    expect(prepareAuditBrowserRuntimeCommand()).toContain("browser_runtime_missing");
+    expect(prepareAuditBrowserRuntimeCommand()).not.toContain("npm ");
+    expect(prepareAuditBrowserRuntimeCommand()).not.toContain("install chromium");
   });
 });
 
@@ -118,7 +120,7 @@ describe("createAuditBrowserSession", () => {
     assertResolvablePublicHttpUrlMock.mockImplementation(async (url: string) => ok(new URL(url)));
   });
 
-  it("installs Playwright once, then renders vetted URLs from the sandbox", async () => {
+  it("uses the sandbox image Playwright, then renders vetted URLs", async () => {
     sandboxMocks.readFileToBuffer.mockImplementation(async ({ path }: { path: string }) => {
       if (path.endsWith("manifest.json")) {
         return Buffer.from(
@@ -154,6 +156,16 @@ describe("createAuditBrowserSession", () => {
     ]);
     expect(assertResolvablePublicHttpUrlMock).toHaveBeenCalledWith("https://example.com/");
     expect(assertResolvablePublicHttpUrlMock).not.toHaveBeenCalledWith("http://127.0.0.1/secret");
+    expect(sandboxMocks.create).toHaveBeenCalledWith({
+      timeout: 10 * 60 * 1000,
+    });
+    expect(sandboxMocks.runCommand.mock.calls[0]?.[0]).toEqual(
+      expect.objectContaining({
+        cmd: "bash",
+        args: ["-lc", expect.stringContaining("browser_runtime_missing")],
+      }),
+    );
+    expect(sandboxMocks.runCommand.mock.calls[0]?.[0].args[1]).not.toContain("install chromium");
     expect(sandboxMocks.writeFiles).toHaveBeenCalledWith([
       expect.objectContaining({
         path: "/tmp/hl-audit-browser/urls.json",
@@ -163,14 +175,16 @@ describe("createAuditBrowserSession", () => {
     expect(sandboxMocks.stop).toHaveBeenCalled();
   });
 
-  it("throws a setup error when Playwright cannot be installed", async () => {
+  it("throws a setup error when the sandbox image is missing Playwright", async () => {
     sandboxMocks.runCommand.mockResolvedValueOnce({
       exitCode: 87,
       output: sandboxMocks.output,
     });
-    sandboxMocks.output.mockResolvedValueOnce("browser_runtime_install_failed");
+    sandboxMocks.output.mockResolvedValueOnce("browser_runtime_missing");
 
-    await expect(createAuditBrowserSession()).rejects.toThrow(AuditBrowserSetupError);
+    const error = await createAuditBrowserSession().catch((caught: unknown) => caught);
+    expect(error).toBeInstanceOf(AuditBrowserSetupError);
+    expect(error).toEqual(expect.objectContaining({ message: expect.stringMatching(/missing Playwright/) }));
     expect(sandboxMocks.stop).toHaveBeenCalled();
   });
 
