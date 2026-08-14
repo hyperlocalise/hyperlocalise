@@ -113,6 +113,27 @@ describe("parsePageSignals", () => {
     expect(signals.textSample).toContain("□");
   });
 
+  it("extracts RTL direction and physical horizontal CSS", () => {
+    const signals = parsePageSignals(`
+      <html lang="ar" dir="rtl">
+        <head>
+          <style>
+            .nav { direction: rtl; }
+            .bad { direction: ltr; float: left; margin-left: 12px; text-align: left; }
+            .ok { margin-inline-start: 12px; text-align: start; }
+          </style>
+        </head>
+        <body><p>مرحبا</p></body>
+      </html>
+    `);
+
+    expect(signals.directionValues).toEqual(expect.arrayContaining(["rtl", "ltr"]));
+    expect(signals.physicalHorizontalCss.some((value) => value.includes("float: left"))).toBe(true);
+    expect(
+      signals.logicalHorizontalCss.some((value) => value.includes("margin-inline-start")),
+    ).toBe(true);
+  });
+
   it("truncates long text samples with an ellipsis", () => {
     const longText = "word ".repeat(1_200);
     const signals = parsePageSignals(`<html><body><p>${longText}</p></body></html>`);

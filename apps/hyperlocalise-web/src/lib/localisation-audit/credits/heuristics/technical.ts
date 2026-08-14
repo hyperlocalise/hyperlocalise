@@ -24,6 +24,10 @@ import {
   pageLocale,
   pathLocaleFromUrl,
   pathWithoutLocale,
+  textHasEasternArabicDigits,
+  textHasGregorianCalendarSignals,
+  textHasHijriCalendarSignals,
+  textHasWesternDigits,
 } from "../shared";
 import type { HeuristicCreditOutcome, HeuristicScorer } from "../types";
 
@@ -839,11 +843,62 @@ const scoreInternationalFormatting: HeuristicScorer = (context) => {
         }),
       );
     }
+
+    if (language === "ar") {
+      if (textHasEasternArabicDigits(text)) {
+        sawPattern = true;
+        mismatches += 1;
+        findings.push(
+          creditFinding({
+            id: `formatting-arabic-numerals-${findings.length}`,
+            creditId: "international-formatting",
+            category: "technical",
+            severity: "medium",
+            title: "Arabic page uses Eastern Arabic-Indic numerals",
+            summary:
+              "Sampled copy uses Eastern Arabic-Indic digits; Western digits (0-9) are preferred for most product UIs.",
+            where: formatFindingWhere({ section: "Page body", tag: "sampled copy" }),
+            url: page.url,
+            evidence: clipFindingEvidence(
+              text.match(/[\u0660-\u0669\u06F0-\u06F9][\u0660-\u0669\u06F0-\u06F9\s.,/-]*/)?.[0] ??
+                "Eastern Arabic-Indic digits",
+            ),
+            advice: "Use Western digits (0-9) on Arabic pages unless the market explicitly requires Eastern numerals.",
+            confidence: 90,
+          }),
+        );
+      } else if (textHasWesternDigits(text)) {
+        sawPattern = true;
+      }
+
+      if (textHasHijriCalendarSignals(text) && !textHasGregorianCalendarSignals(text)) {
+        sawPattern = true;
+        mismatches += 1;
+        findings.push(
+          creditFinding({
+            id: `formatting-hijri-calendar-${findings.length}`,
+            creditId: "international-formatting",
+            category: "technical",
+            severity: "medium",
+            title: "Arabic page appears to use Hijri calendar dates",
+            summary:
+              "Hijri month names were found without clear Gregorian date signals; product UIs usually keep Gregorian calendars.",
+            where: formatFindingWhere({ section: "Page body", tag: "sampled copy" }),
+            url: page.url,
+            evidence: clipFindingEvidence(text.slice(0, 220)),
+            advice: "Show Gregorian calendar dates on Arabic product pages (optionally offer Hijri as a secondary format).",
+            confidence: 82,
+          }),
+        );
+      } else if (textHasGregorianCalendarSignals(text)) {
+        sawPattern = true;
+      }
+    }
   }
   if (!sawPattern) {
     return { status: "inconclusive", evidence: { reason: "no_formatting_examples" } };
   }
-  return scored(mismatches > 0 ? 48 : 90, findings);
+  return scored(mismatches > 0 ? Math.max(40, 90 - mismatches * 14) : 90, findings);
 };
 
 const scoreAccessibilityLocalisation: HeuristicScorer = (context) => {

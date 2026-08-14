@@ -38,6 +38,9 @@ export type ParsedPageSignals = {
   fontFamilies: string[];
   wordBreakValues: string[];
   lineBreakValues: string[];
+  directionValues: string[];
+  physicalHorizontalCss: string[];
+  logicalHorizontalCss: string[];
   formFieldLabels: string[];
 };
 
@@ -51,11 +54,18 @@ const MAX_JSON_LD = 8;
 const MAX_FONT_FAMILIES = 12;
 const MAX_WORD_BREAK_VALUES = 8;
 const MAX_LINE_BREAK_VALUES = 8;
+const MAX_DIRECTION_VALUES = 8;
+const MAX_HORIZONTAL_CSS = 12;
 const MAX_FORM_FIELD_LABELS = 40;
 
 const FONT_FAMILY_RE = /font-family\s*:\s*([^;}{]+)/gi;
 const WORD_BREAK_RE = /word-break\s*:\s*([^;}{]+)/gi;
 const LINE_BREAK_RE = /line-break\s*:\s*([^;}{]+)/gi;
+const DIRECTION_RE = /(?:^|[;{\s])direction\s*:\s*([^;}{]+)/gi;
+const PHYSICAL_HORIZONTAL_RE =
+  /(?:float\s*:\s*(?:left|right)|(?:margin|padding)-(?:left|right)\s*:\s*[^;}{]+|(?:^|[;{\s])(?:left|right)\s*:\s*[^;}{]+|text-align\s*:\s*(?:left|right))/gi;
+const LOGICAL_HORIZONTAL_RE =
+  /(?:margin|padding|inset)-inline(?:-start|-end)?\s*:\s*[^;}{]+|text-align\s*:\s*(?:start|end)|inline-(?:start|end)\s*:\s*[^;}{]+/gi;
 
 function pushUnique(list: string[], value: string, max: number) {
   const trimmed = value.replace(/\s+/g, " ").trim();
@@ -77,6 +87,15 @@ function collectCssProperty(css: string, pattern: RegExp, values: string[], max:
   }
 }
 
+function collectCssSnippets(css: string, pattern: RegExp, values: string[], max: number) {
+  pattern.lastIndex = 0;
+  let match: RegExpExecArray | null = pattern.exec(css);
+  while (match) {
+    pushUnique(values, match[0]!.replace(/\s+/g, " ").trim().toLowerCase(), max);
+    match = pattern.exec(css);
+  }
+}
+
 function collectFontFamilies(css: string, fontFamilies: string[]) {
   FONT_FAMILY_RE.lastIndex = 0;
   let match: RegExpExecArray | null = FONT_FAMILY_RE.exec(css);
@@ -94,10 +113,16 @@ function collectCssSignals(
   fontFamilies: string[],
   wordBreakValues: string[],
   lineBreakValues: string[],
+  directionValues: string[],
+  physicalHorizontalCss: string[],
+  logicalHorizontalCss: string[],
 ) {
   collectFontFamilies(css, fontFamilies);
   collectCssProperty(css, WORD_BREAK_RE, wordBreakValues, MAX_WORD_BREAK_VALUES);
   collectCssProperty(css, LINE_BREAK_RE, lineBreakValues, MAX_LINE_BREAK_VALUES);
+  collectCssProperty(css, DIRECTION_RE, directionValues, MAX_DIRECTION_VALUES);
+  collectCssSnippets(css, PHYSICAL_HORIZONTAL_RE, physicalHorizontalCss, MAX_HORIZONTAL_CSS);
+  collectCssSnippets(css, LOGICAL_HORIZONTAL_RE, logicalHorizontalCss, MAX_HORIZONTAL_CSS);
 }
 
 function pushFormFieldLabel(labels: string[], ...candidates: Array<string | undefined>) {
@@ -179,6 +204,9 @@ export function parsePageSignals(html: string): ParsedPageSignals {
   const fontFamilies: string[] = [];
   const wordBreakValues: string[] = [];
   const lineBreakValues: string[] = [];
+  const directionValues: string[] = [];
+  const physicalHorizontalCss: string[] = [];
+  const logicalHorizontalCss: string[] = [];
   const formFieldLabels: string[] = [];
   let inLabel = false;
   let labelBuffer = "";
@@ -202,7 +230,15 @@ export function parsePageSignals(html: string): ParsedPageSignals {
           pushUnique(ariaLabels, attributes["aria-label"], MAX_ARIA_LABELS);
         }
         if (attributes.style) {
-          collectCssSignals(attributes.style, fontFamilies, wordBreakValues, lineBreakValues);
+          collectCssSignals(
+            attributes.style,
+            fontFamilies,
+            wordBreakValues,
+            lineBreakValues,
+            directionValues,
+            physicalHorizontalCss,
+            logicalHorizontalCss,
+          );
         }
         if (tag === "script") {
           const type = (attributes.type ?? "").toLowerCase();
@@ -338,7 +374,15 @@ export function parsePageSignals(html: string): ParsedPageSignals {
           inScriptOrStyle = false;
         }
         if (tag === "style") {
-          collectCssSignals(styleBuffer, fontFamilies, wordBreakValues, lineBreakValues);
+          collectCssSignals(
+            styleBuffer,
+            fontFamilies,
+            wordBreakValues,
+            lineBreakValues,
+            directionValues,
+            physicalHorizontalCss,
+            logicalHorizontalCss,
+          );
           inStyle = false;
           styleBuffer = "";
           inScriptOrStyle = false;
@@ -405,6 +449,9 @@ export function parsePageSignals(html: string): ParsedPageSignals {
     fontFamilies,
     wordBreakValues,
     lineBreakValues,
+    directionValues,
+    physicalHorizontalCss,
+    logicalHorizontalCss,
     formFieldLabels,
   };
 }
@@ -435,6 +482,9 @@ export function crawledPageFromSignals(input: {
     fontFamilies: input.signals.fontFamilies,
     wordBreakValues: input.signals.wordBreakValues,
     lineBreakValues: input.signals.lineBreakValues,
+    directionValues: input.signals.directionValues,
+    physicalHorizontalCss: input.signals.physicalHorizontalCss,
+    logicalHorizontalCss: input.signals.logicalHorizontalCss,
     formFieldLabels: input.signals.formFieldLabels,
     anchors: input.signals.anchors,
   };
@@ -464,6 +514,9 @@ export function emptyParsedPage(url: string, status: number): LocalisationAuditC
       fontFamilies: [],
       wordBreakValues: [],
       lineBreakValues: [],
+      directionValues: [],
+      physicalHorizontalCss: [],
+      logicalHorizontalCss: [],
       formFieldLabels: [],
     },
   });

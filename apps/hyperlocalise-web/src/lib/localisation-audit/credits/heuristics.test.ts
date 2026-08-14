@@ -404,6 +404,44 @@ describe("technical heuristic credits", () => {
     );
     expect(outcome.status).toBe("na");
   });
+
+  it("flags Eastern Arabic-Indic numerals and Hijri-only dates on Arabic pages", () => {
+    const outcome = technicalHeuristicScorers["international-formatting"]!(
+      context([
+        emptyCrawledPage({
+          url: "https://example.com/ar/pricing",
+          htmlLang: "ar",
+          textSample: "السعر ١٢٣ ر.س. تاريخ الإطلاق: ١٥ رمضان ١٤٤٦",
+        }),
+      ]),
+    );
+
+    expect(outcome.status).toBe("scored");
+    if (outcome.status !== "scored") return;
+    expect(outcome.findings.map((finding) => finding.id)).toEqual(
+      expect.arrayContaining([
+        expect.stringMatching(/^formatting-arabic-numerals-/),
+        expect.stringMatching(/^formatting-hijri-calendar-/),
+      ]),
+    );
+  });
+
+  it("accepts Western digits and Gregorian Arabic month names", () => {
+    const outcome = technicalHeuristicScorers["international-formatting"]!(
+      context([
+        emptyCrawledPage({
+          url: "https://example.com/ar/blog",
+          htmlLang: "ar",
+          textSample: "نشر في 14 أغسطس 2026 بسعر 99 ر.س.",
+        }),
+      ]),
+    );
+
+    expect(outcome.status).toBe("scored");
+    if (outcome.status !== "scored") return;
+    expect(outcome.score).toBeGreaterThanOrEqual(90);
+    expect(outcome.findings).toHaveLength(0);
+  });
 });
 
 describe("linguistic heuristic credits", () => {
@@ -466,8 +504,32 @@ describe("visual heuristic credits", () => {
 
     expect(outcome.status).toBe("scored");
     if (outcome.status !== "scored") return;
-    expect(outcome.score).toBe(28);
+    expect(outcome.score).toBeLessThan(60);
     expect(outcome.findings[0]?.severity).toBe("critical");
+    expect(outcome.findings[0]?.id).toBe("rtl-missing-dir");
+  });
+
+  it("flags RTL CSS direction:ltr and physical left/right properties", () => {
+    const outcome = visualHeuristicScorers["rtl-support"]!(
+      context([
+        emptyCrawledPage({
+          url: "https://example.com/ar",
+          htmlLang: "ar",
+          dir: "rtl",
+          directionValues: ["ltr"],
+          physicalHorizontalCss: ["float: left", "margin-left: 16px"],
+          logicalHorizontalCss: [],
+        }),
+      ]),
+    );
+    expect(outcome.status).toBe("scored");
+    if (outcome.status !== "scored") return;
+    expect(outcome.findings.map((finding) => finding.id)).toEqual(
+      expect.arrayContaining([
+        expect.stringMatching(/^rtl-css-direction-ltr-/),
+        expect.stringMatching(/^rtl-css-physical-/),
+      ]),
+    );
   });
 
   it("marks RTL support N/A when no RTL locale is present", () => {

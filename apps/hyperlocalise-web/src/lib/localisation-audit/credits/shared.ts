@@ -138,6 +138,35 @@ export function westernNameFields(labels: string[]): string[] {
   return labels.filter((label) => WESTERN_NAME_FIELD_RE.test(label));
 }
 
+/** Eastern Arabic-Indic (U+0660–U+0669) and Extended Arabic-Indic / Persian (U+06F0–U+06F9). */
+export const EASTERN_ARABIC_DIGIT_RE = /[\u0660-\u0669\u06F0-\u06F9]/u;
+export const WESTERN_DIGIT_RE = /[0-9]/u;
+
+const HIJRI_MONTH_RE =
+  /محرم|صفر|ربيع(?:\s*الأول|\s*الثاني)?|جمادى(?:\s*الأولى|\s*الآخرة)?|رجب|شعبان|رمضان|شوال|ذو\s*القعدة|ذو\s*الحجة|muharram|safar|rabi[a']?\s*(?:al-?)?awwal|rabi[a']?\s*(?:al-?)?thani|jumada|rajab|sha'?ban|ramadan|shawwal|dhul[-\s]?qi'?dah|dhul[-\s]?hijjah/iu;
+
+const GREGORIAN_ARABIC_MONTH_RE =
+  /يناير|فبراير|مارس|أبريل|ابريل|مايو|يونيو|يوليو|أغسطس|اغسطس|سبتمبر|أكتوبر|اكتوبر|نوفمبر|ديسمبر/u;
+
+const GREGORIAN_LATIN_DATE_RE =
+  /\b(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\b|\b(?:20\d{2}|19\d{2})\b/i;
+
+export function textHasEasternArabicDigits(text: string): boolean {
+  return EASTERN_ARABIC_DIGIT_RE.test(text);
+}
+
+export function textHasWesternDigits(text: string): boolean {
+  return WESTERN_DIGIT_RE.test(text);
+}
+
+export function textHasHijriCalendarSignals(text: string): boolean {
+  return HIJRI_MONTH_RE.test(text);
+}
+
+export function textHasGregorianCalendarSignals(text: string): boolean {
+  return GREGORIAN_ARABIC_MONTH_RE.test(text) || GREGORIAN_LATIN_DATE_RE.test(text);
+}
+
 export function isLatinScriptLanguage(locale: string): boolean {
   const language = languageOf(locale);
   return (

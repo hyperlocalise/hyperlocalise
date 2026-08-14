@@ -118,11 +118,16 @@ const scoreRtlSupport: HeuristicScorer = (context) => {
   if (rtlPages.length === 0) {
     return { status: "na" };
   }
+
+  const findings: LocalisationAuditFinding[] = [];
+  let score = 100;
+
   const missingDir = rtlPages.filter((page) => page.dir !== "rtl");
   if (missingDir.length > 0) {
     const sample = missingDir[0]!;
     const lang = sample.htmlLang ?? pageLocale(sample) ?? "ar";
-    return scored(28, [
+    score -= 45;
+    findings.push(
       creditFinding({
         id: "rtl-missing-dir",
         creditId: "rtl-support",
@@ -136,15 +141,60 @@ const scoreRtlSupport: HeuristicScorer = (context) => {
         advice: 'Set dir="rtl" on RTL pages.',
         confidence: 98,
       }),
-    ]);
+    );
   }
-  return {
-    status: "inconclusive",
-    evidence: {
-      reason: "dir_present_layout_mirroring_unknown",
-      urls: rtlPages.map((page) => page.url),
-    },
-  };
+
+  for (const page of rtlPages) {
+    const directions = page.directionValues.map((value) => value.toLowerCase());
+    if (directions.some((value) => value.includes("ltr"))) {
+      score -= 30;
+      findings.push(
+        creditFinding({
+          id: `rtl-css-direction-ltr-${findings.length}`,
+          creditId: "rtl-support",
+          category: "visual",
+          severity: "high",
+          title: "RTL page CSS forces direction: ltr",
+          summary: "Sampled CSS sets direction: ltr on an RTL locale page.",
+          where: formatFindingWhere({ section: "CSS", tag: "direction" }),
+          url: page.url,
+          evidence: `direction: ${page.directionValues.join(", ")}`,
+          advice: "Use direction: rtl (or rely on html dir=rtl) instead of forcing LTR in CSS.",
+          confidence: 95,
+        }),
+      );
+    }
+
+    if (
+      page.physicalHorizontalCss.length > 0 &&
+      page.logicalHorizontalCss.length === 0 &&
+      !directions.some((value) => value.includes("rtl"))
+    ) {
+      score -= 18;
+      findings.push(
+        creditFinding({
+          id: `rtl-css-physical-${findings.length}`,
+          creditId: "rtl-support",
+          category: "visual",
+          severity: "medium",
+          title: "RTL page uses physical left/right CSS",
+          summary:
+            "Sampled CSS uses float/margin/padding/left/right without logical inline properties, so layout may not mirror in RTL.",
+          where: formatFindingWhere({ section: "CSS", tag: "margin/float/text-align" }),
+          url: page.url,
+          evidence: clipFindingEvidence(page.physicalHorizontalCss.slice(0, 4).join("; ")),
+          advice:
+            "Prefer logical properties such as margin-inline-start, inset-inline, and text-align: start for RTL layouts.",
+          confidence: 84,
+        }),
+      );
+    }
+  }
+
+  if (findings.length === 0) {
+    return scored(92, []);
+  }
+  return scored(score, findings);
 };
 
 const GENERIC_FONTS = new Set(["arial", "helvetica", "sans-serif", "serif", "system-ui", "tahoma"]);

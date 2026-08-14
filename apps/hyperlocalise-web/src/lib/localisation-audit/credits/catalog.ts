@@ -76,7 +76,8 @@ export const LOCALISATION_AUDIT_CREDITS: LocalisationAuditCreditDefinition[] = [
     dimension: "technical",
     title: "International formatting",
     mode: "hybrid",
-    rubric: "Dates, numbers, and currency should match locale conventions.",
+    rubric:
+      "Dates, numbers, currency, Arabic Western digits, and Gregorian calendars should match locale conventions.",
   },
   {
     id: "accessibility-localisation",
@@ -206,7 +207,8 @@ export const LOCALISATION_AUDIT_CREDITS: LocalisationAuditCreditDefinition[] = [
     dimension: "visual",
     title: "RTL support",
     mode: "hybrid",
-    rubric: "RTL locales should set dir and mirror layout, navigation, and forms.",
+    rubric:
+      "RTL locales should set dir=rtl, avoid direction:ltr overrides, and prefer logical CSS over physical left/right properties.",
   },
   {
     id: "font-and-script",
