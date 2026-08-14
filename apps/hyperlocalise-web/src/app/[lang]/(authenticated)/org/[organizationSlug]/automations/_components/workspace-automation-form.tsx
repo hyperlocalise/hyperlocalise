@@ -30,6 +30,7 @@ import { ClockIcon, MailIcon, SearchIcon, Trash2Icon } from "lucide-react";
 import { FormattedMessage, useIntl, type IntlShape } from "react-intl";
 import type { SimpleIcon } from "simple-icons";
 import {
+  siGithub,
   siGoogle,
   siGoogleads,
   siGoogleanalytics,
@@ -1163,65 +1164,75 @@ function AddToolMenu({
             <DropdownMenuLabel>
               <FormattedMessage {...workspaceAutomationFormMessages.supportedTools} />
             </DropdownMenuLabel>
-            <DropdownMenuItem
-              disabled={form.githubEnabled || !githubConnected}
-              onClick={() => {
-                const defaultRepositoryId = resolveDefaultGithubRepositoryId(form, repositories);
+            <DropdownMenuSub>
+              <DropdownMenuSubTrigger>
+                <AutomationToolMenuIcon icon={siGithub} />
+                <span className="min-w-0 flex-1">
+                  <FormattedMessage {...workspaceAutomationFormMessages.githubToolsMenu} />
+                </span>
+              </DropdownMenuSubTrigger>
+              <DropdownMenuSubContent className="min-w-56">
+                <DropdownMenuItem
+                  disabled={form.githubEnabled || !githubConnected}
+                  onClick={() => {
+                    const defaultRepositoryId = resolveDefaultGithubRepositoryId(form, repositories);
 
-                onChange({
-                  ...form,
-                  githubEnabled: true,
-                  githubMode: "agent",
-                  repositoryTargetKind: "github",
-                  githubInstallationRepositoryId: defaultRepositoryId,
-                  pushSourceEnabled: false,
-                  pullTranslationsEnabled: false,
-                  validationEnabled: false,
-                });
-              }}
-            >
-              <HugeiconsIcon icon={GitBranchIcon} strokeWidth={1.8} className="size-4" />
-              <FormattedMessage {...workspaceAutomationFormMessages.useGithubRepo} />
-              {form.githubEnabled && form.githubMode === "agent" ? (
-                <DropdownMenuShortcut>
-                  <FormattedMessage {...workspaceAutomationFormMessages.addedShortcut} />
-                </DropdownMenuShortcut>
-              ) : !githubConnected ? (
-                <DropdownMenuShortcut>
-                  <FormattedMessage {...workspaceAutomationFormMessages.connectFirstShortcut} />
-                </DropdownMenuShortcut>
-              ) : null}
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              disabled={form.githubEnabled || !githubConnected}
-              onClick={() => {
-                const defaultRepositoryId = resolveDefaultGithubRepositoryId(form, repositories);
+                    onChange({
+                      ...form,
+                      githubEnabled: true,
+                      githubMode: "agent",
+                      repositoryTargetKind: "github",
+                      githubInstallationRepositoryId: defaultRepositoryId,
+                      pushSourceEnabled: false,
+                      pullTranslationsEnabled: false,
+                      validationEnabled: false,
+                    });
+                  }}
+                >
+                  <HugeiconsIcon icon={GitBranchIcon} strokeWidth={1.8} className="size-4" />
+                  <FormattedMessage {...workspaceAutomationFormMessages.useGithubRepo} />
+                  {form.githubEnabled && form.githubMode === "agent" ? (
+                    <DropdownMenuShortcut>
+                      <FormattedMessage {...workspaceAutomationFormMessages.addedShortcut} />
+                    </DropdownMenuShortcut>
+                  ) : !githubConnected ? (
+                    <DropdownMenuShortcut>
+                      <FormattedMessage {...workspaceAutomationFormMessages.connectFirstShortcut} />
+                    </DropdownMenuShortcut>
+                  ) : null}
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  disabled={form.githubEnabled || !githubConnected}
+                  onClick={() => {
+                    const defaultRepositoryId = resolveDefaultGithubRepositoryId(form, repositories);
 
-                onChange({
-                  ...form,
-                  githubEnabled: true,
-                  githubMode: "sync",
-                  repositoryTargetKind: "github",
-                  githubInstallationRepositoryId: defaultRepositoryId,
-                  validationEnabled:
-                    form.pushSourceEnabled || form.pullTranslationsEnabled
-                      ? form.validationEnabled
-                      : true,
-                });
-              }}
-            >
-              <HugeiconsIcon icon={GitBranchIcon} strokeWidth={1.8} className="size-4" />
-              <FormattedMessage {...workspaceAutomationFormMessages.githubSyncWorkflows} />
-              {form.githubEnabled && form.githubMode === "sync" ? (
-                <DropdownMenuShortcut>
-                  <FormattedMessage {...workspaceAutomationFormMessages.addedShortcut} />
-                </DropdownMenuShortcut>
-              ) : !githubConnected ? (
-                <DropdownMenuShortcut>
-                  <FormattedMessage {...workspaceAutomationFormMessages.connectFirstShortcut} />
-                </DropdownMenuShortcut>
-              ) : null}
-            </DropdownMenuItem>
+                    onChange({
+                      ...form,
+                      githubEnabled: true,
+                      githubMode: "sync",
+                      repositoryTargetKind: "github",
+                      githubInstallationRepositoryId: defaultRepositoryId,
+                      validationEnabled:
+                        form.pushSourceEnabled || form.pullTranslationsEnabled
+                          ? form.validationEnabled
+                          : true,
+                    });
+                  }}
+                >
+                  <HugeiconsIcon icon={GitBranchIcon} strokeWidth={1.8} className="size-4" />
+                  <FormattedMessage {...workspaceAutomationFormMessages.githubSyncWorkflows} />
+                  {form.githubEnabled && form.githubMode === "sync" ? (
+                    <DropdownMenuShortcut>
+                      <FormattedMessage {...workspaceAutomationFormMessages.addedShortcut} />
+                    </DropdownMenuShortcut>
+                  ) : !githubConnected ? (
+                    <DropdownMenuShortcut>
+                      <FormattedMessage {...workspaceAutomationFormMessages.connectFirstShortcut} />
+                    </DropdownMenuShortcut>
+                  ) : null}
+                </DropdownMenuItem>
+              </DropdownMenuSubContent>
+            </DropdownMenuSub>
             <DropdownMenuItem
               disabled={form.slackEnabled || !slackConnected}
               onClick={() => onChange({ ...form, slackEnabled: true })}
@@ -1278,83 +1289,103 @@ function AddToolMenu({
                 </DropdownMenuShortcut>
               ) : null}
             </DropdownMenuItem>
-            <DropdownMenuItem
-              disabled={form.createNativeTmsJobEnabled}
-              onClick={() =>
-                onChange({
-                  ...form,
-                  createNativeTmsJobEnabled: true,
-                  createNativeTmsJobUseProjectTargetLocales: true,
-                  triggerMode: form.triggerMode === "manual" ? "source_upload" : form.triggerMode,
-                })
-              }
-            >
-              <HugeiconsIcon icon={Upload01Icon} strokeWidth={1.8} className="size-4" />
-              <FormattedMessage {...workspaceAutomationFormMessages.createJob} />
-              {form.createNativeTmsJobEnabled ? (
-                <DropdownMenuShortcut>
-                  <FormattedMessage {...workspaceAutomationFormMessages.addedShortcut} />
-                </DropdownMenuShortcut>
-              ) : null}
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              disabled={form.assignTranslateWithAgentEnabled}
-              onClick={() =>
-                onChange({
-                  ...form,
-                  createNativeTmsJobEnabled: true,
-                  createNativeTmsJobUseProjectTargetLocales: form.createNativeTmsJobEnabled
-                    ? form.createNativeTmsJobUseProjectTargetLocales
-                    : true,
-                  assignTranslateWithAgentEnabled: true,
-                  triggerMode: form.triggerMode === "manual" ? "source_upload" : form.triggerMode,
-                })
-              }
-            >
-              <HugeiconsIcon icon={BrainCircuitIcon} strokeWidth={1.8} className="size-4" />
-              <FormattedMessage {...workspaceAutomationFormMessages.translateWithAgent} />
-              {form.assignTranslateWithAgentEnabled ? (
-                <DropdownMenuShortcut>
-                  <FormattedMessage {...workspaceAutomationFormMessages.addedShortcut} />
-                </DropdownMenuShortcut>
-              ) : null}
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              disabled={form.listIssuesEnabled || !issuesAvailable}
-              onClick={() => onChange({ ...form, listIssuesEnabled: true })}
-            >
-              <HugeiconsIcon icon={Task01Icon} strokeWidth={1.8} className="size-4" />
-              <FormattedMessage {...workspaceAutomationFormMessages.listIssues} />
-              {form.listIssuesEnabled ? (
-                <DropdownMenuShortcut>
-                  <FormattedMessage {...workspaceAutomationFormMessages.addedShortcut} />
-                </DropdownMenuShortcut>
-              ) : !issuesAvailable ? (
-                <DropdownMenuShortcut>
-                  <FormattedMessage
-                    {...workspaceAutomationFormMessages.enableIssuesFirstShortcut}
-                  />
-                </DropdownMenuShortcut>
-              ) : null}
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              disabled={form.createIssueEnabled || !issuesAvailable}
-              onClick={() => onChange({ ...form, createIssueEnabled: true })}
-            >
-              <HugeiconsIcon icon={Task01Icon} strokeWidth={1.8} className="size-4" />
-              <FormattedMessage {...workspaceAutomationFormMessages.createIssue} />
-              {form.createIssueEnabled ? (
-                <DropdownMenuShortcut>
-                  <FormattedMessage {...workspaceAutomationFormMessages.addedShortcut} />
-                </DropdownMenuShortcut>
-              ) : !issuesAvailable ? (
-                <DropdownMenuShortcut>
-                  <FormattedMessage
-                    {...workspaceAutomationFormMessages.enableIssuesFirstShortcut}
-                  />
-                </DropdownMenuShortcut>
-              ) : null}
-            </DropdownMenuItem>
+            <DropdownMenuSub>
+              <DropdownMenuSubTrigger>
+                <HugeiconsIcon icon={Upload01Icon} strokeWidth={1.8} className="size-4" />
+                <span className="min-w-0 flex-1">
+                  <FormattedMessage {...workspaceAutomationFormMessages.jobsToolsMenu} />
+                </span>
+              </DropdownMenuSubTrigger>
+              <DropdownMenuSubContent className="min-w-56">
+                <DropdownMenuItem
+                  disabled={form.createNativeTmsJobEnabled}
+                  onClick={() =>
+                    onChange({
+                      ...form,
+                      createNativeTmsJobEnabled: true,
+                      createNativeTmsJobUseProjectTargetLocales: true,
+                      triggerMode: form.triggerMode === "manual" ? "source_upload" : form.triggerMode,
+                    })
+                  }
+                >
+                  <HugeiconsIcon icon={Upload01Icon} strokeWidth={1.8} className="size-4" />
+                  <FormattedMessage {...workspaceAutomationFormMessages.createJob} />
+                  {form.createNativeTmsJobEnabled ? (
+                    <DropdownMenuShortcut>
+                      <FormattedMessage {...workspaceAutomationFormMessages.addedShortcut} />
+                    </DropdownMenuShortcut>
+                  ) : null}
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  disabled={form.assignTranslateWithAgentEnabled}
+                  onClick={() =>
+                    onChange({
+                      ...form,
+                      createNativeTmsJobEnabled: true,
+                      createNativeTmsJobUseProjectTargetLocales: form.createNativeTmsJobEnabled
+                        ? form.createNativeTmsJobUseProjectTargetLocales
+                        : true,
+                      assignTranslateWithAgentEnabled: true,
+                      triggerMode: form.triggerMode === "manual" ? "source_upload" : form.triggerMode,
+                    })
+                  }
+                >
+                  <HugeiconsIcon icon={BrainCircuitIcon} strokeWidth={1.8} className="size-4" />
+                  <FormattedMessage {...workspaceAutomationFormMessages.translateWithAgent} />
+                  {form.assignTranslateWithAgentEnabled ? (
+                    <DropdownMenuShortcut>
+                      <FormattedMessage {...workspaceAutomationFormMessages.addedShortcut} />
+                    </DropdownMenuShortcut>
+                  ) : null}
+                </DropdownMenuItem>
+              </DropdownMenuSubContent>
+            </DropdownMenuSub>
+            <DropdownMenuSub>
+              <DropdownMenuSubTrigger>
+                <HugeiconsIcon icon={Task01Icon} strokeWidth={1.8} className="size-4" />
+                <span className="min-w-0 flex-1">
+                  <FormattedMessage {...workspaceAutomationFormMessages.issuesToolsMenu} />
+                </span>
+              </DropdownMenuSubTrigger>
+              <DropdownMenuSubContent className="min-w-56">
+                <DropdownMenuItem
+                  disabled={form.listIssuesEnabled || !issuesAvailable}
+                  onClick={() => onChange({ ...form, listIssuesEnabled: true })}
+                >
+                  <HugeiconsIcon icon={Task01Icon} strokeWidth={1.8} className="size-4" />
+                  <FormattedMessage {...workspaceAutomationFormMessages.listIssues} />
+                  {form.listIssuesEnabled ? (
+                    <DropdownMenuShortcut>
+                      <FormattedMessage {...workspaceAutomationFormMessages.addedShortcut} />
+                    </DropdownMenuShortcut>
+                  ) : !issuesAvailable ? (
+                    <DropdownMenuShortcut>
+                      <FormattedMessage
+                        {...workspaceAutomationFormMessages.enableIssuesFirstShortcut}
+                      />
+                    </DropdownMenuShortcut>
+                  ) : null}
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  disabled={form.createIssueEnabled || !issuesAvailable}
+                  onClick={() => onChange({ ...form, createIssueEnabled: true })}
+                >
+                  <HugeiconsIcon icon={Task01Icon} strokeWidth={1.8} className="size-4" />
+                  <FormattedMessage {...workspaceAutomationFormMessages.createIssue} />
+                  {form.createIssueEnabled ? (
+                    <DropdownMenuShortcut>
+                      <FormattedMessage {...workspaceAutomationFormMessages.addedShortcut} />
+                    </DropdownMenuShortcut>
+                  ) : !issuesAvailable ? (
+                    <DropdownMenuShortcut>
+                      <FormattedMessage
+                        {...workspaceAutomationFormMessages.enableIssuesFirstShortcut}
+                      />
+                    </DropdownMenuShortcut>
+                  ) : null}
+                </DropdownMenuItem>
+              </DropdownMenuSubContent>
+            </DropdownMenuSub>
             <DropdownMenuItem
               disabled={form.mcpEnabled || !mcpConnected}
               onClick={() => onChange({ ...form, mcpEnabled: true })}

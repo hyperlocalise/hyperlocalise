@@ -280,6 +280,21 @@ export const workspaceAutomationFormMessages = defineMessages({
     id: "WsiwWcs52J",
     description: "Dropdown section label for available automation tools",
   },
+  githubToolsMenu: {
+    defaultMessage: "GitHub",
+    id: "gH8kQm2nXp",
+    description: "Submenu label grouping GitHub automation tools",
+  },
+  jobsToolsMenu: {
+    defaultMessage: "Jobs",
+    id: "j0b5Tm9kLw",
+    description: "Submenu label grouping native TMS job automation tools",
+  },
+  issuesToolsMenu: {
+    defaultMessage: "Issues",
+    id: "iS5uEs7mNu",
+    description: "Submenu label grouping Issues automation tools",
+  },
   memories: {
     defaultMessage: "Use organization memory",
     id: "4QiNYfF++j",
