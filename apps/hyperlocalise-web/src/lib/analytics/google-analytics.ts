@@ -10,18 +10,6 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-"use client";
 
-import { sendGAEvent } from "@next/third-parties/google";
-import { track } from "@vercel/analytics";
-
-import { Analytics } from "./analytics";
-
-export const clientAnalytics = new Analytics([
-  (name, properties) => {
-    track(name, properties);
-  },
-  (name, properties) => {
-    sendGAEvent("event", name, properties ?? {});
-  },
-]);
+/** GA4 measurement ID used by the layout snippet and Measurement Protocol. */
+export const GA_MEASUREMENT_ID = "G-ET30XL0TE6";

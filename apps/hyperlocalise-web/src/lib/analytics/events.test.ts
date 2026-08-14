@@ -15,8 +15,12 @@ import { describe, expect, it } from "vite-plus/test";
 import { Analytics } from "./analytics";
 import {
   LOCALISATION_AUDIT_ANALYTICS_EVENTS,
+  PRODUCT_USAGE_ANALYTICS_EVENTS,
+  productUsageEventForAutumnEventName,
+  productUsageSourceForMeterSource,
   sanitizeAnalyticsProperties,
   scoreBand,
+  tokenBand,
 } from "./events";
 
 describe("analytics sanitization", () => {
@@ -58,5 +62,49 @@ describe("analytics sanitization", () => {
     });
 
     expect(calls).toEqual([[LOCALISATION_AUDIT_ANALYTICS_EVENTS.start, { outcome: "created" }]]);
+  });
+
+  it("maps token bands without sending raw counts", () => {
+    expect(tokenBand(0)).toBe("none");
+    expect(tokenBand(12)).toBe("low");
+    expect(tokenBand(1000)).toBe("mid");
+    expect(tokenBand(10_000)).toBe("high");
+  });
+
+  it("maps Autumn meter names onto product usage events", () => {
+    expect(productUsageEventForAutumnEventName("translation_job.completed")).toBe(
+      PRODUCT_USAGE_ANALYTICS_EVENTS.translationJobCompleted,
+    );
+    expect(productUsageEventForAutumnEventName("agent_run.completed")).toBe(
+      PRODUCT_USAGE_ANALYTICS_EVENTS.agentRunCompleted,
+    );
+    expect(productUsageEventForAutumnEventName("ai_tokens.consumed")).toBe(
+      PRODUCT_USAGE_ANALYTICS_EVENTS.aiTokensConsumed,
+    );
+    expect(productUsageEventForAutumnEventName("unknown")).toBeNull();
+    expect(productUsageSourceForMeterSource("translation_job_complete")).toBe("translation_job");
+    expect(productUsageSourceForMeterSource("agent_runtime_complete")).toBe("agent_run");
+  });
+
+  it("fans out to every adapter and isolates provider failures", () => {
+    const calls: string[] = [];
+    const analytics = new Analytics([
+      (name) => {
+        calls.push(`first:${name}`);
+      },
+      () => {
+        throw new Error("provider down");
+      },
+      (name) => {
+        calls.push(`third:${name}`);
+      },
+    ]);
+
+    analytics.track(PRODUCT_USAGE_ANALYTICS_EVENTS.projectCreated, { status: "created" });
+
+    expect(calls).toEqual([
+      `first:${PRODUCT_USAGE_ANALYTICS_EVENTS.projectCreated}`,
+      `third:${PRODUCT_USAGE_ANALYTICS_EVENTS.projectCreated}`,
+    ]);
   });
 });

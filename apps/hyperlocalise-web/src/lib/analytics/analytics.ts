@@ -19,13 +19,24 @@ export type AnalyticsTrackFn = (
 ) => void | Promise<void>;
 
 /**
- * Provider-neutral analytics facade. Adapters wrap @vercel/analytics client/server.
+ * Provider-neutral analytics facade. Client/server adapters wrap Vercel Analytics
+ * and Google Analytics (gtag on the client, Measurement Protocol on the server).
  */
 export class Analytics {
-  constructor(private readonly trackFn: AnalyticsTrackFn) {}
+  private readonly trackFns: AnalyticsTrackFn[];
+
+  constructor(trackFn: AnalyticsTrackFn | AnalyticsTrackFn[]) {
+    this.trackFns = Array.isArray(trackFn) ? trackFn : [trackFn];
+  }
 
   track(name: string, properties?: AnalyticsProperties): void {
     const sanitized = sanitizeAnalyticsProperties(properties);
-    void this.trackFn(name, sanitized);
+    for (const trackFn of this.trackFns) {
+      try {
+        void trackFn(name, sanitized);
+      } catch {
+        // A failing provider must not block other providers or the product path.
+      }
+    }
   }
 }

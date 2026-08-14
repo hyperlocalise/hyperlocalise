@@ -63,7 +63,7 @@ Public Hono routes under `/api/localisation-audit` start/retry runs, expose teas
 
 ## Analytics
 
-- Typed `Analytics` class under `src/lib/analytics` wraps `@vercel/analytics` (client) and `@vercel/analytics/server`.
+- Typed `Analytics` class under `src/lib/analytics` wraps `@vercel/analytics` (client/server) and Google Analytics (`sendGAEvent` on the client, Measurement Protocol on the server).
 - Funnel events: start, reuse, retry, completed, failed, teaser view, report-email request/sent, email verified, CTA click.
 - Properties are limited to two low-cardinality, non-PII keys. Never send email, domain, URL, free text, or raw findings.
 - Authoritative outcomes emit from the server; client emits teaser view and CTA intent only.

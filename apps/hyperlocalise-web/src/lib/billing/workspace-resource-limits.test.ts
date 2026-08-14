@@ -14,9 +14,11 @@ import "dotenv/config";
 
 import { randomUUID } from "node:crypto";
 
-import { beforeAll, describe, expect, it, afterEach } from "vite-plus/test";
+import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 
 import { createAuthTestFixture } from "@/api/test-auth.fixture";
+import { PRODUCT_USAGE_ANALYTICS_EVENTS } from "@/lib/analytics/events";
+import { serverAnalytics } from "@/lib/analytics/server";
 import { db, schema } from "@/lib/database";
 import { isErr } from "@/lib/primitives/result/results";
 import {
@@ -33,6 +35,7 @@ beforeAll(async () => {
 });
 
 afterEach(async () => {
+  vi.restoreAllMocks();
   await authFixture.cleanup();
 });
 
@@ -156,6 +159,42 @@ describe("workspace resource limits", () => {
         currentUsage: 1,
         requestedUsage: 2,
       },
+    });
+  });
+
+  it("emits product usage analytics when a workspace resource is created", async () => {
+    const { organization, user } = await createOrganization();
+    const trackSpy = vi.spyOn(serverAnalytics, "track").mockImplementation(() => {});
+
+    const result = await withWorkspaceResourceLimit(
+      {
+        organizationId: organization.id,
+        featureId: workspaceResourceFeatureIds.projects,
+        autumnApiKey: "",
+      },
+      async (tx) => {
+        const [project] = await tx
+          .insert(schema.projects)
+          .values({
+            id: `project_${randomUUID()}`,
+            organizationId: organization.id,
+            createdByUserId: user.id,
+            name: "Analytics project",
+            description: "",
+            translationContext: "",
+            source: "native",
+            sourceLocale: "en",
+            targetLocales: ["fr"],
+          })
+          .returning();
+        return project;
+      },
+    );
+
+    expect(result.ok).toBe(true);
+    expect(trackSpy).toHaveBeenCalledWith(PRODUCT_USAGE_ANALYTICS_EVENTS.projectCreated, {
+      status: "created",
+      source: workspaceResourceFeatureIds.projects,
     });
   });
 });

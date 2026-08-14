@@ -24,6 +24,7 @@ import { getAppLocale } from "@/lib/app-i18n/server-locale";
 import type { AppLocale } from "@/lib/app-i18n/locales";
 import { SITE_URL } from "@/lib/seo/site-url";
 import { GoogleAnalytics } from "@next/third-parties/google";
+import { GA_MEASUREMENT_ID } from "@/lib/analytics/google-analytics";
 import { cn } from "@/lib/primitives/cn";
 import "./globals.css";
 
@@ -117,7 +118,7 @@ export default async function RootLayout({
         </AuthKitProvider>
       </body>
 
-      <GoogleAnalytics gaId="G-ET30XL0TE6" />
+      <GoogleAnalytics gaId={GA_MEASUREMENT_ID} />
     </html>
   );
 }

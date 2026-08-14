@@ -18,6 +18,8 @@ import { eq } from "drizzle-orm";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 
 import { createAuthTestFixture } from "@/api/test-auth.fixture";
+import { serverAnalytics } from "@/lib/analytics/server";
+import { PRODUCT_USAGE_ANALYTICS_EVENTS } from "@/lib/analytics/events";
 import { db, schema } from "@/lib/database";
 import { isErr } from "@/lib/primitives/result/results";
 import {
@@ -240,6 +242,34 @@ describe("usage-control", () => {
       feature_id: "ai_tokens",
       value: 100,
       idempotency_key: `${operationKey}:ai_tokens`,
+    });
+  });
+
+  it("emits product usage analytics when a billed feature completes", async () => {
+    const { operationKey, organization } = await reservedUsageEvent();
+    const trackSpy = vi.spyOn(serverAnalytics, "track").mockImplementation(() => {});
+    const fetchFn = vi
+      .fn()
+      .mockResolvedValue(new Response("{}", { status: 200 })) as unknown as typeof fetch;
+
+    await completeAndTrackBillableUsage({
+      organizationId: organization.id,
+      operationKey,
+      autumnEventName: "translation_job.completed",
+      unit: "job",
+      tokenUsage: { inputTokens: 10, outputTokens: 20, totalTokens: 30 },
+      aiCreditSource: "translation_job_complete",
+      autumnApiKey: "am_sk_test",
+      fetchFn,
+    });
+
+    expect(trackSpy).toHaveBeenCalledWith(PRODUCT_USAGE_ANALYTICS_EVENTS.translationJobCompleted, {
+      status: "succeeded",
+      source: "translation_job",
+    });
+    expect(trackSpy).toHaveBeenCalledWith(PRODUCT_USAGE_ANALYTICS_EVENTS.aiTokensConsumed, {
+      source: "translation_job",
+      token_band: "low",
     });
   });
 

@@ -58,7 +58,9 @@ go build -o $(go env GOPATH)/bin/golangci-lint github.com/golangci/golangci-lint
   WORKOS_REDIRECT_URI=http://localhost:3000/auth/callback
   NEXT_PUBLIC_WORKOS_REDIRECT_URI=http://localhost:3000/auth/callback
  WORKOS_COOKIE_PASSWORD=this-is-a-test-cookie-password-at-least-32-characters
- AUTUMN_API_KEY=am_sk_test_placeholder
+  AUTUMN_API_KEY=am_sk_test_placeholder
+  # Optional. Enables server-side GA4 custom events via Measurement Protocol.
+  # GA_MEASUREMENT_PROTOCOL_API_SECRET=
  ```
 - Run `vp run db:migrate` after starting Postgres to apply Drizzle migrations.
 - The `make test` target uses coverage flags that may warn about a missing `covdata` tool — all actual tests still pass. Use `go test ./...` if you want a clean exit code without coverage.

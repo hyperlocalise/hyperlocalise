@@ -13,6 +13,8 @@
 import { and, eq, isNull, or } from "drizzle-orm";
 
 import { stringTranslationJobInputSchema } from "@/api/routes/project/job.schema";
+import { PRODUCT_USAGE_ANALYTICS_EVENTS } from "@/lib/analytics/events";
+import { serverAnalytics } from "@/lib/analytics/server";
 import { db, schema } from "@/lib/database";
 import type { TranslationJobEventData } from "@/lib/workflow/types";
 import { persistStringJobTranslations } from "@/lib/projects/translations/project-translation-service";
@@ -463,6 +465,11 @@ class TranslationJobCompletionService {
         `translation job ${input.jobId} is not owned by workflow run ${input.workflowRunId}`,
       );
     }
+
+    serverAnalytics.track(PRODUCT_USAGE_ANALYTICS_EVENTS.translationJobFailed, {
+      status: "failed",
+      source: "translation_job",
+    });
 
     const failedJob = await this.repository.getStored(input.jobId, input.projectId);
     if (!failedJob) {

@@ -17,6 +17,14 @@ import type { DatabaseClient } from "@/lib/database";
 import { db, schema } from "@/lib/database";
 import { env } from "@/lib/env";
 import { err, ok, type Result } from "@/lib/primitives/result/results";
+import {
+  PRODUCT_USAGE_ANALYTICS_EVENTS,
+  productUsageEventForAutumnEventName,
+  productUsageSourceForAutumnEventName,
+  productUsageSourceForMeterSource,
+  tokenBand,
+} from "@/lib/analytics/events";
+import { serverAnalytics } from "@/lib/analytics/server";
 
 const AUTUMN_API_VERSION = "2.2.0";
 const AUTUMN_TRACK_USAGE_URL = "https://api.useautumn.com/v1/balances.track";
@@ -281,6 +289,11 @@ export async function trackAiCreditUsageInAutumn(input: {
     return markResult;
   }
 
+  serverAnalytics.track(PRODUCT_USAGE_ANALYTICS_EVENTS.aiTokensConsumed, {
+    source: productUsageSourceForMeterSource(input.source),
+    token_band: tokenBand(input.tokenUsage.totalTokens),
+  });
+
   return trackUsageEventInAutumnByOperationKey({
     db: input.db,
     operationKey,
@@ -407,6 +420,14 @@ export async function completeAndTrackBillableUsage(input: {
 
   if (!markUsageResult.ok) {
     return markUsageResult;
+  }
+
+  const productEvent = productUsageEventForAutumnEventName(input.autumnEventName);
+  if (productEvent) {
+    serverAnalytics.track(productEvent, {
+      status: "succeeded",
+      source: productUsageSourceForAutumnEventName(input.autumnEventName),
+    });
   }
 
   const trackUsageResult = await trackUsageEventInAutumnByOperationKey({

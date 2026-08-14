@@ -199,6 +199,13 @@ export async function markEmailTranslationJobFailed(input: {
       .set({ outcomeKind: "error" })
       .where(eq(schema.translationJobDetails.jobId, input.jobId));
   });
+
+  const { PRODUCT_USAGE_ANALYTICS_EVENTS } = await import("@/lib/analytics/events");
+  const { serverAnalytics } = await import("@/lib/analytics/server");
+  serverAnalytics.track(PRODUCT_USAGE_ANALYTICS_EVENTS.translationJobFailed, {
+    status: "failed",
+    source: "email_translation_job",
+  });
 }
 
 export async function getProjectOrganizationStep(projectId: string): Promise<string> {
