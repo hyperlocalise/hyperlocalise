@@ -122,7 +122,7 @@ const PUBLIC_LOCALIZED_PATHS = new Set([
   "/startups",
   "/localisation-audit",
 ]);
-const PROTECTED_LOCALIZED_PREFIXES = ["/dashboard", "/org"];
+const PROTECTED_LOCALIZED_PREFIXES = ["/dashboard", "/org", "/claim-domain"];
 const NON_LOCALE_ROOT_PREFIXES = ["/auth", "/install", "/api", "/crowdin-app"];
 // BotID (and similar) use opaque UUID first segments; locales never do.
 const UUID_PATH_SEGMENT_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;

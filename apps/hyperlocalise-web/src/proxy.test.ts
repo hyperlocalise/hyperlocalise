@@ -79,6 +79,8 @@ describe("isUnsupportedLocalePath", () => {
     expect(isUnsupportedLocalePath("/startups")).toBe(false);
     expect(isUnsupportedLocalePath("/localisation-audit")).toBe(false);
     expect(isUnsupportedLocalePath("/localisation-audit/stripe-com")).toBe(false);
+    expect(isUnsupportedLocalePath("/dashboard")).toBe(false);
+    expect(isUnsupportedLocalePath("/claim-domain/stripe-com-abcdef")).toBe(false);
   });
 
   it("allows the site root", () => {
@@ -141,6 +143,21 @@ describe("proxy", () => {
     expect(response?.status).toBe(307);
     expect(response?.headers.get("location")).toBe(
       "https://www.hyperlocalise.com/en/product/agents-automation",
+    );
+    expect(authkitProxyMock).not.toHaveBeenCalled();
+  });
+
+  it("redirects claim-domain paths without a locale prefix", async () => {
+    authkitProxyMock.mockReset();
+
+    const response = await proxy(
+      createRequest("/claim-domain/tourfinder-au-kidldm"),
+      {} as never,
+    );
+
+    expect(response?.status).toBe(307);
+    expect(response?.headers.get("location")).toBe(
+      "https://www.hyperlocalise.com/en/claim-domain/tourfinder-au-kidldm",
     );
     expect(authkitProxyMock).not.toHaveBeenCalled();
   });
