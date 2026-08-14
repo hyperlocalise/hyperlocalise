@@ -144,9 +144,7 @@ export function DomainsPageContent({ organizationSlug }: { organizationSlug: str
                     size="sm"
                     variant="outline"
                     nativeButton={false}
-                    render={
-                      <Link href={`/org/${organizationSlug}/projects/${domain.projectId}`} />
-                    }
+                    render={<Link href={`/org/${organizationSlug}/projects/${domain.projectId}`} />}
                   >
                     <FormattedMessage {...messages.openProject} />
                   </Button>

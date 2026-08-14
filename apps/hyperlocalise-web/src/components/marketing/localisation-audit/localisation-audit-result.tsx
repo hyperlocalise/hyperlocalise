@@ -755,7 +755,9 @@ export function LocalisationAuditResult({
       {isWorkspace ? null : (
         <section className={sectionClassName}>
           <TypographyH2 className="pb-0">{copy.shareHeading}</TypographyH2>
-          <TypographyP className="mt-4 max-w-2xl text-muted-foreground">{copy.shareBody}</TypographyP>
+          <TypographyP className="mt-4 max-w-2xl text-muted-foreground">
+            {copy.shareBody}
+          </TypographyP>
           <div className="mt-6 flex flex-wrap items-center gap-3">
             <Button type="button" variant="outline" onClick={copyShareLink}>
               {copy.shareCopyLink}

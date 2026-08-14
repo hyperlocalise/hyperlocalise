@@ -180,14 +180,14 @@ export function buildGlobalNavigationGroups(
         {
           label: intl.formatMessage({
             defaultMessage: "Domains",
-            id: "DomNavSidebar",
+            id: "sHQ6RKFJ37",
             description: "Sidebar navigation item for linked domains",
           }),
           href: org("domains"),
           icon: Globe02Icon,
           description: intl.formatMessage({
             defaultMessage: "Claimed sites and localisation audit reports",
-            id: "DomNavSidebarDesc",
+            id: "B3yFCBQLDF",
             description: "Sidebar description for the Domains navigation item",
           }),
         },

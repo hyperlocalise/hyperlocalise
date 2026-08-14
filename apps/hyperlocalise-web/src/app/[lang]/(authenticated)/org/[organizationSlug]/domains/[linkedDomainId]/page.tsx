@@ -23,9 +23,6 @@ export default async function DomainDetailPage({
   await requireAppCapability("projects:read", { organizationSlug });
 
   return (
-    <DomainDetailPageContent
-      organizationSlug={organizationSlug}
-      linkedDomainId={linkedDomainId}
-    />
+    <DomainDetailPageContent organizationSlug={organizationSlug} linkedDomainId={linkedDomainId} />
   );
 }

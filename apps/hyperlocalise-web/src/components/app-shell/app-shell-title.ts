@@ -176,7 +176,7 @@ function formatRouteTitle(intl: IntlShape, key: RouteTitleKey): string {
     case "domains":
       return intl.formatMessage({
         defaultMessage: "Domains",
-        id: "DomCrumbTitle",
+        id: "GuSsVpTTay",
         description: "App shell breadcrumb title for the domains page",
       });
     case "files":

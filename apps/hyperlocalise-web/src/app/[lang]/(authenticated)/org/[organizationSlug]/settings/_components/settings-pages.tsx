@@ -105,12 +105,12 @@ function buildSettingsRows(
     {
       label: intl.formatMessage({
         defaultMessage: "Domains",
-        id: "SetHubDomains",
+        id: "UFpFmP3uvn",
         description: "Settings hub row label for workspace domains",
       }),
       description: intl.formatMessage({
         defaultMessage: "View verified domains and attached localisation audit reports.",
-        id: "SetHubDomDesc",
+        id: "gqCGKqkwz/",
         description: "Settings hub row description for workspace domains",
       }),
       href: `/org/${organizationSlug}/domains`,

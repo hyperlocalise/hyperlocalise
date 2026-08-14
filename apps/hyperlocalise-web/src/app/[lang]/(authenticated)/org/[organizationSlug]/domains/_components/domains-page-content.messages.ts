@@ -16,67 +16,68 @@ export const domainsPageContentMessages = defineMessages({
   pageDescription: {
     defaultMessage:
       "Domains verified for this workspace, with linked projects and localisation audit reports.",
-    id: "DomPageDesc01",
+    id: "lZrVrk7oZs",
     description: "Domains workspace page description",
   },
   loadError: {
     defaultMessage: "Could not load linked domains.",
-    id: "DomPageLoadErr",
+    id: "BBrh+7z4Oj",
     description: "Error when the domains list fails to load",
   },
   loading: {
     defaultMessage: "Loading domains…",
-    id: "DomPageLoading",
+    id: "0cJX5jLe/m",
     description: "Loading state for the domains list",
   },
   empty: {
-    defaultMessage: "No linked domains yet. Claim a domain from a localisation audit to get started.",
-    id: "DomPageEmpty01",
+    defaultMessage:
+      "No linked domains yet. Claim a domain from a localisation audit to get started.",
+    id: "blgD4379yD",
     description: "Empty state for the domains list",
   },
   statusPending: {
     defaultMessage: "Pending verification",
-    id: "DomStatusPend",
+    id: "M9l7nT/Rpj",
     description: "Linked domain status label for pending verification",
   },
   statusVerified: {
     defaultMessage: "Verified",
-    id: "DomStatusVeri",
+    id: "3GLhqP/R2l",
     description: "Linked domain status label for verified",
   },
   statusFailed: {
     defaultMessage: "Failed",
-    id: "DomStatusFail",
+    id: "LRZ3vQhI80",
     description: "Linked domain status label for failed",
   },
   statusRevoked: {
     defaultMessage: "Revoked",
-    id: "DomStatusRevk",
+    id: "i9wq9AC2+9",
     description: "Linked domain status label for revoked",
   },
   scoreLabel: {
     defaultMessage: "Score {score}",
-    id: "DomScoreLabel",
+    id: "Xg01khiunA",
     description: "Audit score label on a domain list row",
   },
   scoreUnavailable: {
     defaultMessage: "No score yet",
-    id: "DomScoreNone",
+    id: "8UNQ0H4OW1",
     description: "Shown when a linked domain has no audit score",
   },
   viewReport: {
     defaultMessage: "View report",
-    id: "DomViewReport",
+    id: "KRbtCrnBZw",
     description: "Link to open a linked domain audit report",
   },
   continueVerification: {
     defaultMessage: "Continue verification",
-    id: "DomContinueVer",
+    id: "k3MhPbqttd",
     description: "Link to continue verifying a pending linked domain",
   },
   openProject: {
     defaultMessage: "Open project",
-    id: "DomOpenProject",
+    id: "greERnCNu1",
     description: "Link to open the project attached to a linked domain",
   },
 });
