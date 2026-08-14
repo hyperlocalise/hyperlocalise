@@ -87,6 +87,12 @@ export type LocalisationAuditCrawledPage = {
   buttons: string[];
   headings: string[];
   fontFamilies: string[];
+  /** word-break values from inline/embedded CSS. */
+  wordBreakValues: string[];
+  /** line-break values from inline/embedded CSS. */
+  lineBreakValues: string[];
+  /** Form label / placeholder / name / autocomplete samples for naming checks. */
+  formFieldLabels: string[];
   anchors: Array<{ href: string; text: string }>;
 };
 
@@ -214,6 +220,9 @@ export function emptyCrawledPage(
     buttons: [],
     headings: [],
     fontFamilies: [],
+    wordBreakValues: [],
+    lineBreakValues: [],
+    formFieldLabels: [],
     anchors: [],
     ...partial,
   };

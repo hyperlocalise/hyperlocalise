@@ -86,6 +86,33 @@ describe("parsePageSignals", () => {
     expect(signals.fontFamilies).toContain("Noto Sans");
   });
 
+  it("extracts word-break CSS and Western name form fields", () => {
+    const signals = parsePageSignals(`
+      <html lang="ko">
+        <head>
+          <style>
+            body { font-family: "Malgun Gothic", sans-serif; word-break: break-all; }
+            p { line-break: strict; }
+          </style>
+        </head>
+        <body>
+          <label>First name</label>
+          <input name="last_name" placeholder="Last name" autocomplete="family-name" />
+          <p>한국어 본문 □</p>
+        </body>
+      </html>
+    `);
+
+    expect(signals.wordBreakValues).toContain("break-all");
+    expect(signals.lineBreakValues).toContain("strict");
+    expect(signals.fontFamilies).toContain("Malgun Gothic");
+    expect(signals.formFieldLabels).toEqual(
+      expect.arrayContaining(["First name", "last_name", "Last name", "family-name"]),
+    );
+    expect(signals.textSample).toContain("한국어");
+    expect(signals.textSample).toContain("□");
+  });
+
   it("truncates long text samples with an ellipsis", () => {
     const longText = "word ".repeat(1_200);
     const signals = parsePageSignals(`<html><body><p>${longText}</p></body></html>`);

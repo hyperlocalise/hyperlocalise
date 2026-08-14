@@ -476,4 +476,58 @@ describe("visual heuristic credits", () => {
     );
     expect(outcome.status).toBe("na");
   });
+
+  it("flags Korean break-all, Western name fields, and tofu glyphs", () => {
+    const wordBreak = visualHeuristicScorers["cjk-typography"]!(
+      context([
+        emptyCrawledPage({
+          url: "https://example.com/ko",
+          htmlLang: "ko",
+          textSample: "한국어 본문 예시입니다. 더 많은 한글 텍스트가 필요합니다.",
+          wordBreakValues: ["break-all"],
+          formFieldLabels: ["First name", "last_name"],
+          fontFamilies: ["Arial"],
+        }),
+      ]),
+    );
+    expect(wordBreak.status).toBe("scored");
+    if (wordBreak.status !== "scored") return;
+    expect(wordBreak.findings.map((finding) => finding.id)).toEqual(
+      expect.arrayContaining([
+        expect.stringMatching(/^cjk-wordbreak-breakall-/),
+        expect.stringMatching(/^cjk-naming-/),
+      ]),
+    );
+
+    const fonts = visualHeuristicScorers["font-and-script"]!(
+      context([
+        emptyCrawledPage({
+          url: "https://example.com/ko",
+          htmlLang: "ko",
+          textSample: "한글과 tofu □ 가 함께 있습니다.",
+          fontFamilies: ["Arial", "sans-serif"],
+        }),
+      ]),
+    );
+    expect(fonts.status).toBe("scored");
+    if (fonts.status !== "scored") return;
+    expect(fonts.findings.some((finding) => finding.id.startsWith("font-tofu-"))).toBe(true);
+    expect(fonts.findings.some((finding) => finding.title.includes("CJK-capable"))).toBe(true);
+  });
+
+  it("passes Korean pages with keep-all and a CJK font", () => {
+    const outcome = visualHeuristicScorers["cjk-typography"]!(
+      context([
+        emptyCrawledPage({
+          url: "https://example.com/ko",
+          htmlLang: "ko",
+          textSample: "한국어 본문 예시입니다. 더 많은 한글 텍스트가 필요합니다.",
+          wordBreakValues: ["keep-all"],
+          formFieldLabels: ["성", "이름"],
+          fontFamilies: ["Noto Sans KR"],
+        }),
+      ]),
+    );
+    expect(outcome).toEqual({ status: "scored", score: 92, findings: [] });
+  });
 });

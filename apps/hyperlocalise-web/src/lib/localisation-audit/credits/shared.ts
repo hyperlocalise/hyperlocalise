@@ -106,6 +106,38 @@ export function isCjkLanguage(locale: string): boolean {
   return CJK_LANGUAGES.has(languageOf(locale));
 }
 
+/** Replacement / empty-box glyphs that often indicate missing font coverage ("tofu"). */
+export const TOFU_GLYPH_RE = /[\uFFFD\u25A1\u25A0\u25AF□�]/u;
+export const HANGUL_RE = /[\uAC00-\uD7AF]/u;
+export const CJK_IDEOGRAPH_RE = /[\u4E00-\u9FFF]/u;
+export const KANA_RE = /[\u3040-\u30FF]/u;
+
+const CJK_FONT_HINT_RE =
+  /noto\s*sans\s*cjk|noto\s*serif\s*cjk|source\s*han|malgun|gulim|batang|dotum|nanum|apple\s*sd\s*gothic|apple\s*gothic|hiragino|yu\s*gothic|yu\s*mincho|meiryo|ms\s*p?gothic|ms\s*p?mincho|pingfang|heiti|songti|stsong|microsoft\s*yahei|simsun|simhei|dengxian|wenquanyi|sarasa|ibm\s*plex\s*sans\s*(jp|kr|sc|tc)|pretendard|spoqa|kopub|apple\s*myungjo|noto\s*sans\s*kr|noto\s*sans\s*jp|noto\s*sans\s*sc|noto\s*sans\s*tc/i;
+
+const WESTERN_NAME_FIELD_RE =
+  /\b(first[\s_-]?name|last[\s_-]?name|given[\s_-]?name|family[\s_-]?name|surname|forename)\b/i;
+
+export function textHasHangul(text: string): boolean {
+  return HANGUL_RE.test(text);
+}
+
+export function textHasCjkScript(text: string): boolean {
+  return HANGUL_RE.test(text) || CJK_IDEOGRAPH_RE.test(text) || KANA_RE.test(text);
+}
+
+export function findTofuGlyphs(text: string): string[] {
+  return [...new Set(text.match(new RegExp(TOFU_GLYPH_RE.source, "gu")) ?? [])];
+}
+
+export function fontStackLooksCjkCapable(fontFamilies: string[]): boolean {
+  return fontFamilies.some((family) => CJK_FONT_HINT_RE.test(family));
+}
+
+export function westernNameFields(labels: string[]): string[] {
+  return labels.filter((label) => WESTERN_NAME_FIELD_RE.test(label));
+}
+
 export function isLatinScriptLanguage(locale: string): boolean {
   const language = languageOf(locale);
   return (

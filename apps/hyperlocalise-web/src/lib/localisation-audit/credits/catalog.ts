@@ -213,7 +213,16 @@ export const LOCALISATION_AUDIT_CREDITS: LocalisationAuditCreditDefinition[] = [
     dimension: "visual",
     title: "Font and script support",
     mode: "heuristic",
-    rubric: "Typography should support the target script without generic fallback-only stacks.",
+    rubric:
+      "Typography should support the target script without generic fallback-only stacks, tofu glyphs, or missing CJK fonts.",
+  },
+  {
+    id: "cjk-typography",
+    dimension: "visual",
+    title: "CJK typography",
+    mode: "heuristic",
+    rubric:
+      "Korean pages should avoid word-break: break-all and prefer word-break: keep-all; CJK forms should use local name-field conventions.",
   },
   {
     id: "localized-images",
