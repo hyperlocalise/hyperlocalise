@@ -131,7 +131,13 @@ describe("crawlLocalisationAuditSample", () => {
       }),
     ).resolves.toEqual({
       pages: [],
-      sitemap: { robotsFound: false, sitemapUrls: [], localizedUrls: [] },
+      sitemap: {
+        robotsFound: false,
+        robotsSitemapDirectives: [],
+        robotsHasRelativeSitemapDirective: false,
+        sitemapUrls: [],
+        localizedUrls: [],
+      },
     });
   });
 
@@ -284,9 +290,52 @@ describe("crawlLocalisationAuditSample", () => {
     });
 
     expect(result.sitemap.robotsFound).toBe(true);
+    expect(result.sitemap.robotsSitemapDirectives).toContain("https://example.com/sitemap.xml");
+    expect(result.sitemap.robotsHasRelativeSitemapDirective).toBe(false);
     expect(result.sitemap.sitemapUrls).toContain("https://example.com/sitemap.xml");
     expect(result.sitemap.localizedUrls).toContain("https://example.com/fr/pricing");
     expect(result.pages.some((page) => page.url === "https://example.com/sitemap.xml")).toBe(false);
+  });
+
+  it("records relative Sitemap directives from robots.txt", async () => {
+    withPublicHttpFetchMock.mockImplementation(async (url, _init, handler) => {
+      if (url === "https://example.com/robots.txt") {
+        return handler(
+          new Response("Sitemap: /sitemap.xml\n", {
+            status: 200,
+            headers: { "content-type": "text/plain" },
+          }),
+        );
+      }
+      if (url === "https://example.com/sitemap.xml") {
+        return handler(
+          new Response(
+            `<?xml version="1.0"?><urlset><loc>https://example.com/about</loc></urlset>`,
+            { status: 200, headers: { "content-type": "application/xml" } },
+          ),
+        );
+      }
+      if (url === "https://example.com/") {
+        return handler(
+          htmlResponse(
+            "<html lang='en'><title>Home</title><body>Welcome to the homepage content sample.</body></html>",
+          ),
+        );
+      }
+      return handler(
+        htmlResponse(
+          "<html><body>Secondary page with enough text content for parsing.</body></html>",
+        ),
+      );
+    });
+
+    const result = await crawlLocalisationAuditSample({
+      origin: "https://example.com",
+      sourceUrl: "https://example.com/",
+    });
+
+    expect(result.sitemap.robotsHasRelativeSitemapDirective).toBe(true);
+    expect(result.sitemap.robotsSitemapDirectives).toContain("https://example.com/sitemap.xml");
   });
 
   it("does not keep a sitemap URL when robots.txt exists but sitemap.xml cannot be fetched", async () => {
@@ -324,6 +373,7 @@ describe("crawlLocalisationAuditSample", () => {
     });
 
     expect(result.sitemap.robotsFound).toBe(true);
+    expect(result.sitemap.robotsSitemapDirectives).toEqual([]);
     expect(result.sitemap.sitemapUrls).toEqual([]);
   });
 });

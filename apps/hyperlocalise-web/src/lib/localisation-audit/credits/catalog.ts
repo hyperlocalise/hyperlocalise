@@ -61,7 +61,8 @@ export const LOCALISATION_AUDIT_CREDITS: LocalisationAuditCreditDefinition[] = [
     dimension: "technical",
     title: "Sitemap",
     mode: "heuristic",
-    rubric: "Localized URLs should appear in the sitemap when a sitemap is published.",
+    rubric:
+      "Like Lighthouse: a valid XML sitemap must be discoverable, robots.txt should reference it with an absolute Sitemap: URL, and localized URLs should appear for published locales.",
   },
   {
     id: "structured-data",

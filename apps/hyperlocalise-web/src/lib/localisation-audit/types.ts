@@ -92,6 +92,11 @@ export type LocalisationAuditCrawledPage = {
 
 export type LocalisationAuditSitemapSignal = {
   robotsFound: boolean;
+  /** Absolute Sitemap: URLs declared in robots.txt (relative refs are resolved). */
+  robotsSitemapDirectives: string[];
+  /** True when robots.txt used a relative Sitemap: URL (Lighthouse expects absolute). */
+  robotsHasRelativeSitemapDirective: boolean;
+  /** Successfully fetched sitemap documents that contained <loc> entries. */
   sitemapUrls: string[];
   localizedUrls: string[];
 };
@@ -182,6 +187,8 @@ export const LOCALISATION_AUDIT_REPORT_TOKEN_TTL_MS = 24 * 60 * 60 * 1000;
 
 export const EMPTY_SITEMAP_SIGNAL: LocalisationAuditSitemapSignal = {
   robotsFound: false,
+  robotsSitemapDirectives: [],
+  robotsHasRelativeSitemapDirective: false,
   sitemapUrls: [],
   localizedUrls: [],
 };

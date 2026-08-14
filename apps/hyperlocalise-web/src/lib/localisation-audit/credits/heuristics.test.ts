@@ -172,33 +172,25 @@ describe("technical heuristic credits", () => {
     expect(outcome.score).toBeLessThan(80);
   });
 
-  it("marks sitemap N/A when none was found", () => {
+  it("fails like Lighthouse when no valid sitemap is discoverable", () => {
     const outcome = technicalHeuristicScorers.sitemap!(
       context([emptyCrawledPage({ url: "https://example.com/", htmlLang: "en" })]),
     );
-    expect(outcome.status).toBe("na");
-  });
-
-  it("marks sitemap N/A when none was fetched, even if robots.txt exists", () => {
-    const outcome = technicalHeuristicScorers.sitemap!(
-      context(
-        [
-          emptyCrawledPage({ url: "https://example.com/", htmlLang: "en" }),
-          emptyCrawledPage({ url: "https://example.com/fr/", htmlLang: "fr" }),
+    expect(outcome).toEqual(
+      expect.objectContaining({
+        status: "scored",
+        score: 18,
+        findings: [
+          expect.objectContaining({
+            id: "sitemap-missing",
+            severity: "high",
+          }),
         ],
-        {
-          sitemap: {
-            robotsFound: true,
-            sitemapUrls: [],
-            localizedUrls: [],
-          },
-        },
-      ),
+      }),
     );
-    expect(outcome.status).toBe("na");
   });
 
-  it("scores a sitemap that lists locale URLs", () => {
+  it("flags a reachable sitemap that robots.txt does not reference", () => {
     const outcome = technicalHeuristicScorers.sitemap!(
       context(
         [
@@ -208,13 +200,96 @@ describe("technical heuristic credits", () => {
         {
           sitemap: {
             robotsFound: true,
+            robotsSitemapDirectives: [],
+            robotsHasRelativeSitemapDirective: false,
             sitemapUrls: ["https://example.com/sitemap.xml"],
             localizedUrls: ["https://example.com/fr/pricing"],
           },
         },
       ),
     );
-    expect(outcome).toEqual({ status: "scored", score: 92, findings: [] });
+    expect(outcome.status).toBe("scored");
+    if (outcome.status !== "scored") return;
+    expect(outcome.findings).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: "sitemap-robots-unreferenced",
+          severity: "high",
+        }),
+      ]),
+    );
+    expect(outcome.score).toBeLessThan(80);
+  });
+
+  it("flags missing localized URLs when robots.txt references the sitemap", () => {
+    const outcome = technicalHeuristicScorers.sitemap!(
+      context(
+        [
+          emptyCrawledPage({ url: "https://example.com/", htmlLang: "en" }),
+          emptyCrawledPage({ url: "https://example.com/fr/", htmlLang: "fr" }),
+        ],
+        {
+          sitemap: {
+            robotsFound: true,
+            robotsSitemapDirectives: ["https://example.com/sitemap.xml"],
+            robotsHasRelativeSitemapDirective: false,
+            sitemapUrls: ["https://example.com/sitemap.xml"],
+            localizedUrls: [],
+          },
+        },
+      ),
+    );
+    expect(outcome.status).toBe("scored");
+    if (outcome.status !== "scored") return;
+    expect(outcome.findings.some((finding) => finding.id === "sitemap-missing-locales")).toBe(true);
+    expect(outcome.score).toBeLessThan(70);
+  });
+
+  it("scores a sitemap that lists locale URLs and is referenced from robots.txt", () => {
+    const outcome = technicalHeuristicScorers.sitemap!(
+      context(
+        [
+          emptyCrawledPage({ url: "https://example.com/", htmlLang: "en" }),
+          emptyCrawledPage({ url: "https://example.com/fr/", htmlLang: "fr" }),
+        ],
+        {
+          sitemap: {
+            robotsFound: true,
+            robotsSitemapDirectives: ["https://example.com/sitemap.xml"],
+            robotsHasRelativeSitemapDirective: false,
+            sitemapUrls: ["https://example.com/sitemap.xml"],
+            localizedUrls: ["https://example.com/fr/pricing"],
+          },
+        },
+      ),
+    );
+    expect(outcome).toEqual({ status: "scored", score: 100, findings: [] });
+  });
+
+  it("flags relative Sitemap directives and incomplete locale coverage", () => {
+    const outcome = technicalHeuristicScorers.sitemap!(
+      context(
+        [
+          emptyCrawledPage({ url: "https://example.com/en/", htmlLang: "en" }),
+          emptyCrawledPage({ url: "https://example.com/fr/", htmlLang: "fr" }),
+        ],
+        {
+          sitemap: {
+            robotsFound: true,
+            robotsSitemapDirectives: ["https://example.com/sitemap.xml"],
+            robotsHasRelativeSitemapDirective: true,
+            sitemapUrls: ["https://example.com/sitemap.xml"],
+            localizedUrls: ["https://example.com/fr/pricing"],
+          },
+        },
+      ),
+    );
+    expect(outcome.status).toBe("scored");
+    if (outcome.status !== "scored") return;
+    expect(outcome.findings.map((finding) => finding.id).toSorted()).toEqual([
+      "sitemap-incomplete-locales",
+      "sitemap-robots-relative",
+    ]);
   });
 
   it("detects subdomain locale signals and normalizes underscore locale tags", () => {

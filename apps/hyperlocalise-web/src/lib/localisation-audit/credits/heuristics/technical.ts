@@ -591,32 +591,149 @@ const scoreLocalizedSeoMetadata: HeuristicScorer = (context) => {
 
 const scoreSitemap: HeuristicScorer = (context) => {
   const { sitemap } = context;
+  const findings: LocalisationAuditFinding[] = [];
+  let score = 100;
+
+  // Lighthouse-style: a valid, fetchable sitemap is required (not N/A when missing).
   if (sitemap.sitemapUrls.length === 0) {
-    return { status: "na" };
-  }
-  if (context.detectedLocales.length <= 1) {
-    return sitemap.sitemapUrls.length > 0 ? scored(90, []) : { status: "na" };
-  }
-  if (sitemap.localizedUrls.length === 0) {
-    return scored(42, [
+    return scored(18, [
       creditFinding({
-        id: "sitemap-missing-locales",
+        id: "sitemap-missing",
         creditId: "sitemap",
         category: "technical",
-        severity: "medium",
-        title: "Sitemap is missing localized URLs",
-        summary: "A sitemap was found, but sampled entries do not include locale-prefixed URLs.",
+        severity: "high",
+        title: "Valid sitemap not found",
+        summary:
+          "No fetchable XML sitemap with URL entries was found at /sitemap.xml or via robots.txt.",
         where: formatFindingWhere({ section: "Sitemap", tag: "sitemap.xml" }),
-        url: sitemap.sitemapUrls[0],
-        evidence: sitemap.sitemapUrls[0]
-          ? `Sitemap ${sitemap.sitemapUrls[0]} has no locale-prefixed URLs in the sample`
-          : "A sitemap was found, but sampled entries have no locale-prefixed URLs.",
-        advice: "Include localized URLs in the sitemap for every published locale.",
-        confidence: 90,
+        url: sitemap.robotsSitemapDirectives[0],
+        evidence: sitemap.robotsFound
+          ? sitemap.robotsSitemapDirectives.length > 0
+            ? `robots.txt references ${sitemap.robotsSitemapDirectives.join(", ")}, but no sitemap returned usable <loc> entries`
+            : "robots.txt was found, but it does not reference a sitemap and /sitemap.xml was missing or empty"
+          : "robots.txt was missing and /sitemap.xml was missing or empty",
+        advice:
+          "Publish a valid XML sitemap and reference it from robots.txt with an absolute Sitemap: URL.",
+        confidence: 100,
       }),
     ]);
   }
-  return scored(92, []);
+
+  if (!sitemap.robotsFound) {
+    score -= 18;
+    findings.push(
+      creditFinding({
+        id: "sitemap-robots-missing",
+        creditId: "sitemap",
+        category: "technical",
+        severity: "medium",
+        title: "robots.txt is missing",
+        summary: "A sitemap was found, but robots.txt is missing so crawlers may not discover it.",
+        where: formatFindingWhere({ section: "robots.txt", tag: "Sitemap:" }),
+        url: sitemap.sitemapUrls[0],
+        evidence: `Sitemap ${sitemap.sitemapUrls[0]} is reachable, but /robots.txt was not found`,
+        advice:
+          "Add a robots.txt that includes an absolute Sitemap: directive for the sitemap URL.",
+        confidence: 95,
+      }),
+    );
+  } else if (sitemap.robotsSitemapDirectives.length === 0) {
+    score -= 28;
+    findings.push(
+      creditFinding({
+        id: "sitemap-robots-unreferenced",
+        creditId: "sitemap",
+        category: "technical",
+        severity: "high",
+        title: "robots.txt does not reference the sitemap",
+        summary:
+          "A sitemap is reachable, but robots.txt does not include a Sitemap: directive pointing to it.",
+        where: formatFindingWhere({ section: "robots.txt", tag: "Sitemap:" }),
+        url: sitemap.sitemapUrls[0],
+        evidence: `Reachable sitemap ${sitemap.sitemapUrls[0]} is not listed in robots.txt`,
+        advice: `Add "Sitemap: ${sitemap.sitemapUrls[0]}" to robots.txt.`,
+        confidence: 100,
+      }),
+    );
+  }
+
+  if (sitemap.robotsHasRelativeSitemapDirective) {
+    score -= 12;
+    findings.push(
+      creditFinding({
+        id: "sitemap-robots-relative",
+        creditId: "sitemap",
+        category: "technical",
+        severity: "medium",
+        title: "Sitemap directive uses a relative URL",
+        summary: "robots.txt should declare Sitemap: with a fully qualified absolute URL.",
+        where: formatFindingWhere({ section: "robots.txt", tag: "Sitemap:" }),
+        url: sitemap.sitemapUrls[0],
+        evidence: "At least one Sitemap: directive in robots.txt is relative rather than absolute",
+        advice: "Use an absolute Sitemap: URL, for example https://example.com/sitemap.xml.",
+        confidence: 98,
+      }),
+    );
+  }
+
+  if (context.detectedLocales.length > 1) {
+    if (sitemap.localizedUrls.length === 0) {
+      score -= 40;
+      findings.push(
+        creditFinding({
+          id: "sitemap-missing-locales",
+          creditId: "sitemap",
+          category: "technical",
+          severity: "medium",
+          title: "Sitemap is missing localized URLs",
+          summary: "A sitemap was found, but sampled entries do not include locale-prefixed URLs.",
+          where: formatFindingWhere({ section: "Sitemap", tag: "sitemap.xml" }),
+          url: sitemap.sitemapUrls[0],
+          evidence: sitemap.sitemapUrls[0]
+            ? `Sitemap ${sitemap.sitemapUrls[0]} has no locale-prefixed URLs in the sample`
+            : "A sitemap was found, but sampled entries have no locale-prefixed URLs.",
+          advice: "Include localized URLs in the sitemap for every published locale.",
+          confidence: 90,
+        }),
+      );
+    } else {
+      const pathLanguagesOnSite = new Set(
+        context.pages.flatMap((page) => {
+          const pathLocale = pathLocaleFromUrl(page.url);
+          return pathLocale ? [languageOf(pathLocale)] : [];
+        }),
+      );
+      const languagesInSitemap = new Set(
+        sitemap.localizedUrls.flatMap((url) => {
+          const pathLocale = pathLocaleFromUrl(url);
+          return pathLocale ? [languageOf(pathLocale)] : [];
+        }),
+      );
+      const missingLanguages = [...pathLanguagesOnSite].filter(
+        (language) => !languagesInSitemap.has(language),
+      );
+      if (missingLanguages.length > 0) {
+        score -= Math.min(30, missingLanguages.length * 12);
+        findings.push(
+          creditFinding({
+            id: "sitemap-incomplete-locales",
+            creditId: "sitemap",
+            category: "technical",
+            severity: "medium",
+            title: "Sitemap omits some published locales",
+            summary: `Locale-prefixed pages for ${missingLanguages.join(", ")} do not appear in sampled sitemap URLs.`,
+            where: formatFindingWhere({ section: "Sitemap", tag: "sitemap.xml" }),
+            url: sitemap.sitemapUrls[0],
+            evidence: `Sitemap locales in sample: ${[...languagesInSitemap].join(", ") || "none"}; missing: ${missingLanguages.join(", ")}`,
+            advice: "Include URLs for every published locale prefix in the sitemap.",
+            confidence: 88,
+          }),
+        );
+      }
+    }
+  }
+
+  return scored(score, findings);
 };
 
 const scoreStructuredData: HeuristicScorer = (context) => {

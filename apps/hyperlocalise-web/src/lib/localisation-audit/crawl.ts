@@ -176,10 +176,16 @@ async function fetchSitemapSignals(origin: string): Promise<LocalisationAuditSit
   const robots = await fetchText(robotsUrl);
   const robotsFound = robots != null;
   const sitemapUrls = new Set<string>();
+  const robotsSitemapDirectives: string[] = [];
+  let robotsHasRelativeSitemapDirective = false;
   if (robots) {
     for (const raw of parseRobotsSitemaps(robots)) {
+      if (!/^https?:\/\//i.test(raw.trim())) {
+        robotsHasRelativeSitemapDirective = true;
+      }
       const absolute = toAbsoluteUrl(origin, raw);
       if (absolute) {
+        robotsSitemapDirectives.push(absolute);
         sitemapUrls.add(absolute);
       }
     }
@@ -224,6 +230,8 @@ async function fetchSitemapSignals(origin: string): Promise<LocalisationAuditSit
 
   return {
     robotsFound,
+    robotsSitemapDirectives,
+    robotsHasRelativeSitemapDirective,
     sitemapUrls: [...sitemapUrls],
     localizedUrls,
   };
