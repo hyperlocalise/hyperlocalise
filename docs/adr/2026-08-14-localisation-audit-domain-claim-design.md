@@ -52,8 +52,10 @@ Happy path:
    verification token plus instructions for all three methods.
 4. User picks a method and verifies. The server checks DNS or fetches HTML/meta
    with the same SSRF-safe hostname rules as the audit crawler.
-5. On success, one transaction: mark verified, enforce exclusive ownership,
-   attach the audit to the org, seed a native project, redirect into the app.
+5. Before verify, the user chooses **create a new project** or **use an existing
+   workspace project**.
+6. On success, one transaction: mark verified, enforce exclusive ownership,
+   attach the audit to the org, link or create the project, redirect into the app.
 
 Public teaser pages stay public and indexable after claim.
 
@@ -111,7 +113,7 @@ Org-scoped routes behind WorkOS auth:
 |----------|----------|
 | `POST /api/orgs/:orgId/linked-domains` | Start claim from `domainSlug` / audit; create pending row + token |
 | `GET /api/orgs/:orgId/linked-domains/:id` | Status + challenge instructions |
-| `POST /api/orgs/:orgId/linked-domains/:id/verify` | Body `{ method }`; check challenge; on success attach audit + seed project |
+| `POST /api/orgs/:orgId/linked-domains/:id/verify` | Body `{ method, projectId? \| createProject? }`; check challenge; on success attach audit and link to an existing project or create one |
 | `GET /api/orgs/:orgId/linked-domains` | List for settings |
 | `DELETE` (optional in v1) | Cancel **pending** claim only |
 

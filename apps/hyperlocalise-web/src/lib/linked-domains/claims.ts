@@ -255,11 +255,23 @@ export async function verifyAndClaimLinkedDomain(input: {
   userId: string;
   linkedDomainId: string;
   method: LinkedDomainVerificationMethod;
+  /** When set, attach the verified domain to this existing org project. */
+  projectId?: string;
+  /** When true (or when projectId is omitted), create a new native project. */
+  createProject?: boolean;
   resolveTxt?: ResolveTxtFn;
   fetchPublic?: PublicFetchFn;
   database?: DatabaseClient;
 }): Promise<Result<LinkedDomainPublic, LinkedDomainError>> {
   const database = input.database ?? db;
+  const shouldCreateProject = input.createProject === true || !input.projectId;
+
+  if (!shouldCreateProject && !input.projectId) {
+    return err({
+      code: "project_not_found",
+      message: "Select an existing project or create a new one.",
+    });
+  }
 
   const [row] = await database
     .select()
@@ -295,6 +307,25 @@ export async function verifyAndClaimLinkedDomain(input: {
     });
   }
 
+  if (!shouldCreateProject && input.projectId) {
+    const [existingProject] = await database
+      .select({ id: schema.projects.id })
+      .from(schema.projects)
+      .where(
+        and(
+          eq(schema.projects.id, input.projectId),
+          eq(schema.projects.organizationId, input.organizationId),
+        ),
+      )
+      .limit(1);
+    if (!existingProject) {
+      return err({
+        code: "project_not_found",
+        message: "Selected project was not found in this workspace.",
+      });
+    }
+  }
+
   await database
     .update(schema.linkedDomains)
     .set({ preferredMethod: input.method })
@@ -324,24 +355,46 @@ export async function verifyAndClaimLinkedDomain(input: {
         throw new Error("domain_already_claimed");
       }
 
-      const team = await ensureDefaultWorkspaceTeam(input.organizationId, tx);
-      const projectId = `project_${randomUUID()}`;
-      const [project] = await tx
-        .insert(schema.projects)
-        .values({
-          id: projectId,
-          organizationId: input.organizationId,
-          teamId: team.id,
-          createdByUserId: input.userId,
-          name: row.domainKey,
-          description: `Linked from localisation audit for ${row.domainKey}`,
-          source: "native",
-          sourceLocale: "en",
-          targetLocales: [],
-        })
-        .returning();
+      let projectId = input.projectId ?? null;
+      if (shouldCreateProject) {
+        const team = await ensureDefaultWorkspaceTeam(input.organizationId, tx);
+        const newProjectId = `project_${randomUUID()}`;
+        const [project] = await tx
+          .insert(schema.projects)
+          .values({
+            id: newProjectId,
+            organizationId: input.organizationId,
+            teamId: team.id,
+            createdByUserId: input.userId,
+            name: row.domainKey,
+            description: `Linked from localisation audit for ${row.domainKey}`,
+            source: "native",
+            sourceLocale: "en",
+            targetLocales: [],
+          })
+          .returning();
 
-      if (!project) {
+        if (!project) {
+          throw new Error("project_create_failed");
+        }
+        projectId = project.id;
+      } else if (projectId) {
+        const [existingProject] = await tx
+          .select({ id: schema.projects.id })
+          .from(schema.projects)
+          .where(
+            and(
+              eq(schema.projects.id, projectId),
+              eq(schema.projects.organizationId, input.organizationId),
+            ),
+          )
+          .limit(1);
+        if (!existingProject) {
+          throw new Error("project_not_found");
+        }
+      }
+
+      if (!projectId) {
         throw new Error("project_create_failed");
       }
 
@@ -352,7 +405,7 @@ export async function verifyAndClaimLinkedDomain(input: {
           verifiedMethod: check.value.method,
           verifiedAt: new Date(),
           preferredMethod: input.method,
-          projectId: project.id,
+          projectId,
         })
         .where(eq(schema.linkedDomains.id, row.id))
         .returning();
@@ -377,6 +430,12 @@ export async function verifyAndClaimLinkedDomain(input: {
       return err({
         code: "domain_already_claimed",
         message: "This domain is already linked to another workspace.",
+      });
+    }
+    if (message === "project_not_found") {
+      return err({
+        code: "project_not_found",
+        message: "Selected project was not found in this workspace.",
       });
     }
     if (message.includes("uq_linked_domains_verified_domain_key")) {

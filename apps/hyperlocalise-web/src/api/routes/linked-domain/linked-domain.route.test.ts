@@ -140,7 +140,7 @@ describe("linkedDomainRoutes", () => {
     ].verify.$post(
       {
         param: { organizationSlug, linkedDomainId },
-        json: { method: "dns_txt" },
+        json: { method: "dns_txt", createProject: true },
       },
       { headers },
     );
@@ -206,7 +206,7 @@ describe("linkedDomainRoutes", () => {
     ].verify.$post(
       {
         param: { organizationSlug: firstSlug, linkedDomainId: firstClaim.linkedDomain.id },
-        json: { method: "html_file" },
+        json: { method: "html_file", createProject: true },
       },
       { headers: firstHeaders },
     );
@@ -225,6 +225,65 @@ describe("linkedDomainRoutes", () => {
       throw new Error("expected error in conflict response");
     }
     expect(body.error).toBe("domain_already_claimed");
+
+    await db.delete(schema.localisationAudits).where(eq(schema.localisationAudits.id, audit.id));
+  });
+
+  it("attaches a verified domain to an existing project", async () => {
+    const identity = fixture.createWorkosIdentityWithRole("admin");
+    const headers = await fixture.authHeadersFor(identity);
+    const organizationSlug = identity.organization.slug ?? "missing-slug";
+    const organizationId = globalThis.__testApiAuthContext?.organization.localOrganizationId;
+    expect(organizationId).toBeTruthy();
+    const userId = globalThis.__testApiAuthContext?.user.localUserId;
+    expect(userId).toBeTruthy();
+
+    const { ensureDefaultWorkspaceTeam } = await import("@/lib/teams/default-workspace-team");
+    const team = await ensureDefaultWorkspaceTeam(organizationId!);
+    const existingProjectId = `project_${crypto.randomUUID()}`;
+    await db.insert(schema.projects).values({
+      id: existingProjectId,
+      organizationId: organizationId!,
+      teamId: team.id,
+      createdByUserId: userId!,
+      name: "Existing project",
+      source: "native",
+      sourceLocale: "en",
+      targetLocales: [],
+    });
+
+    const domainKey = `existing-${crypto.randomUUID().slice(0, 8)}.example`;
+    const audit = await insertSucceededAudit(domainKey);
+    mocks.verifyLinkedDomainChallengeMock.mockResolvedValue(ok({ method: "meta_tag" }));
+
+    const createResponse = await client.api.orgs[":organizationSlug"]["linked-domains"].$post(
+      {
+        param: { organizationSlug },
+        json: { domainSlug: audit.domainSlug },
+      },
+      { headers },
+    );
+    expect(createResponse.status).toBe(201);
+    const created = await createResponse.json();
+    if (!("linkedDomain" in created)) {
+      throw new Error("expected linkedDomain in create response");
+    }
+
+    const verifyResponse = await client.api.orgs[":organizationSlug"]["linked-domains"][
+      ":linkedDomainId"
+    ].verify.$post(
+      {
+        param: { organizationSlug, linkedDomainId: created.linkedDomain.id },
+        json: { method: "meta_tag", projectId: existingProjectId },
+      },
+      { headers },
+    );
+    expect(verifyResponse.status).toBe(200);
+    const verified = await verifyResponse.json();
+    if (!("linkedDomain" in verified)) {
+      throw new Error("expected linkedDomain in verify response");
+    }
+    expect(verified.linkedDomain.projectId).toBe(existingProjectId);
 
     await db.delete(schema.localisationAudits).where(eq(schema.localisationAudits.id, audit.id));
   });

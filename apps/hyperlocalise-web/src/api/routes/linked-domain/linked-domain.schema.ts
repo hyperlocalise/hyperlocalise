@@ -20,6 +20,19 @@ export const linkedDomainIdParamSchema = z.object({
   linkedDomainId: z.string().uuid(),
 });
 
-export const verifyLinkedDomainBodySchema = z.object({
-  method: z.enum(["dns_txt", "html_file", "meta_tag"]),
-});
+export const verifyLinkedDomainBodySchema = z
+  .object({
+    method: z.enum(["dns_txt", "html_file", "meta_tag"]),
+    /** Attach to an existing workspace project. Omit (or set createProject) to seed a new one. */
+    projectId: z.string().trim().min(1).max(128).optional(),
+    createProject: z.boolean().optional(),
+  })
+  .superRefine((value, ctx) => {
+    if (value.projectId && value.createProject === true) {
+      ctx.addIssue({
+        code: "custom",
+        message: "Provide either projectId or createProject, not both.",
+        path: ["projectId"],
+      });
+    }
+  });

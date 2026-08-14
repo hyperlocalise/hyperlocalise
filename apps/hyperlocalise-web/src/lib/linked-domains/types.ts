@@ -26,6 +26,7 @@ export type LinkedDomainErrorCode =
   | "verification_fetch_failed"
   | "verification_mismatch"
   | "invalid_domain_slug"
+  | "project_not_found"
   | "project_create_failed";
 
 export type LinkedDomainError = {

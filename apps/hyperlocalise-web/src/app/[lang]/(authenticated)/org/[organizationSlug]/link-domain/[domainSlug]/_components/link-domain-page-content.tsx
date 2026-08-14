@@ -16,9 +16,10 @@ import Link from "next/link";
 import { useEffect, useState, useTransition } from "react";
 
 import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
 import { TypographyH1, TypographyH2, TypographyP } from "@/components/ui/typography";
-import type { LinkedDomainPublic } from "@/lib/linked-domains/types";
 import type { LinkedDomainVerificationMethod } from "@/lib/database/schema/linked-domains";
+import type { LinkedDomainPublic } from "@/lib/linked-domains/types";
 
 type LinkDomainPageContentProps = {
   organizationSlug: string;
@@ -30,11 +31,21 @@ type ApiErrorBody = {
   message?: string;
 };
 
+type ProjectOption = {
+  id: string;
+  name: string;
+};
+
+type ProjectLinkMode = "create" | "existing";
+
 export function LinkDomainPageContent({
   organizationSlug,
   domainSlug,
 }: LinkDomainPageContentProps) {
   const [linkedDomain, setLinkedDomain] = useState<LinkedDomainPublic | null>(null);
+  const [projects, setProjects] = useState<ProjectOption[]>([]);
+  const [projectMode, setProjectMode] = useState<ProjectLinkMode>("create");
+  const [selectedProjectId, setSelectedProjectId] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
   const [method, setMethod] = useState<LinkedDomainVerificationMethod>("dns_txt");
   const [pending, startTransition] = useTransition();
@@ -44,29 +55,48 @@ export function LinkDomainPageContent({
     startTransition(async () => {
       setError(null);
       try {
-        const response = await fetch(
-          `/api/orgs/${encodeURIComponent(organizationSlug)}/linked-domains`,
-          {
+        const [claimResponse, projectsResponse] = await Promise.all([
+          fetch(`/api/orgs/${encodeURIComponent(organizationSlug)}/linked-domains`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ domainSlug }),
-          },
-        );
-        const body = (await response.json().catch(() => ({}))) as
+          }),
+          fetch(`/api/orgs/${encodeURIComponent(organizationSlug)}/projects`),
+        ]);
+
+        const claimBody = (await claimResponse.json().catch(() => ({}))) as
           | { linkedDomain?: LinkedDomainPublic }
           | ApiErrorBody;
-        if (!response.ok) {
+        if (!claimResponse.ok) {
           if (!cancelled) {
             setError(
-              ("message" in body && body.message) ||
-                ("error" in body && body.error) ||
+              ("message" in claimBody && claimBody.message) ||
+                ("error" in claimBody && claimBody.error) ||
                 "Could not start domain claim.",
             );
           }
           return;
         }
-        if (!cancelled && "linkedDomain" in body && body.linkedDomain) {
-          setLinkedDomain(body.linkedDomain);
+        if (!cancelled && "linkedDomain" in claimBody && claimBody.linkedDomain) {
+          setLinkedDomain(claimBody.linkedDomain);
+        }
+
+        if (projectsResponse.ok) {
+          const projectsBody = (await projectsResponse.json().catch(() => ({}))) as {
+            projects?: Array<{ id: string; name: string }>;
+          };
+          const options = (projectsBody.projects ?? []).map((project) => ({
+            id: project.id,
+            name: project.name,
+          }));
+          if (!cancelled) {
+            setProjects(options);
+            if (options.length > 0) {
+              setSelectedProjectId(options[0].id);
+            } else {
+              setProjectMode("create");
+            }
+          }
         }
       } catch {
         if (!cancelled) {
@@ -81,6 +111,11 @@ export function LinkDomainPageContent({
 
   function verify() {
     if (!linkedDomain) return;
+    if (projectMode === "existing" && !selectedProjectId) {
+      setError("Select a project to link this domain to.");
+      return;
+    }
+
     startTransition(async () => {
       setError(null);
       try {
@@ -89,7 +124,11 @@ export function LinkDomainPageContent({
           {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ method }),
+            body: JSON.stringify(
+              projectMode === "existing"
+                ? { method, projectId: selectedProjectId }
+                : { method, createProject: true },
+            ),
           },
         );
         const body = (await response.json().catch(() => ({}))) as
@@ -145,8 +184,8 @@ export function LinkDomainPageContent({
       <div>
         <TypographyH1>Link domain</TypographyH1>
         <TypographyP className="mt-3 text-muted-foreground">
-          Prove you control this domain to attach the localisation audit to your workspace and
-          create a project for deeper work.
+          Prove you control this domain to attach the localisation audit to your workspace, then
+          link it to a project for deeper work.
         </TypographyP>
       </div>
 
@@ -163,6 +202,54 @@ export function LinkDomainPageContent({
             <p className="text-sm text-muted-foreground">
               Status: {linkedDomain.status.replaceAll("_", " ")}
             </p>
+          </section>
+
+          <section className="space-y-4">
+            <TypographyH2 className="pb-0 text-lg">Project</TypographyH2>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                type="button"
+                variant={projectMode === "create" ? "default" : "outline"}
+                onClick={() => setProjectMode("create")}
+              >
+                Create new project
+              </Button>
+              <Button
+                type="button"
+                variant={projectMode === "existing" ? "default" : "outline"}
+                onClick={() => setProjectMode("existing")}
+                disabled={projects.length === 0}
+              >
+                Use existing project
+              </Button>
+            </div>
+            {projectMode === "create" ? (
+              <p className="text-sm text-muted-foreground">
+                Creates a native project named{" "}
+                <span className="font-medium">{linkedDomain.domainKey}</span>.
+              </p>
+            ) : (
+              <div className="space-y-2">
+                <Label htmlFor="linked-domain-project">Project</Label>
+                <select
+                  id="linked-domain-project"
+                  className="flex h-9 w-full max-w-md rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                  value={selectedProjectId}
+                  onChange={(event) => setSelectedProjectId(event.currentTarget.value)}
+                >
+                  {projects.map((project) => (
+                    <option key={project.id} value={project.id}>
+                      {project.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+            {projects.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                No projects in this workspace yet — a new project will be created.
+              </p>
+            ) : null}
           </section>
 
           <section className="space-y-4">

@@ -88,6 +88,7 @@ function mapLinkedDomainError(
   switch (error.code) {
     case "audit_not_found":
     case "linked_domain_not_found":
+    case "project_not_found":
       return notFoundResponse(c, error.code, error.message);
     case "domain_already_claimed":
     case "claim_pending_exists":
@@ -167,6 +168,8 @@ export function createLinkedDomainRoutes() {
         userId: c.var.auth.user.localUserId,
         linkedDomainId,
         method: body.method,
+        projectId: body.projectId,
+        createProject: body.createProject ?? (!body.projectId ? true : undefined),
       });
 
       if (isErr(result)) {
