@@ -26,6 +26,8 @@ import {
   findLocalisationAuditBySlug,
   getLocalisationAuditStanding,
   isLocalisationAuditRetryable,
+  isLocalisationAuditRerunnable,
+  localisationAuditRerunAvailableAt,
 } from "@/lib/localisation-audit/store";
 import { getLocalizedAlternates } from "@/lib/seo/localized-alternates";
 
@@ -116,6 +118,8 @@ export default async function LocalisationAuditResultRoutePage({
         report: unlocked ? audit.report : null,
         unlocked,
         retryable: isLocalisationAuditRetryable(audit),
+        rerunnable: isLocalisationAuditRerunnable(audit),
+        rerunAvailableAt: localisationAuditRerunAvailableAt(audit)?.toISOString() ?? null,
         errorCode: audit.errorCode,
         errorMessage: audit.errorMessage,
         completedAt: audit.completedAt?.toISOString() ?? null,

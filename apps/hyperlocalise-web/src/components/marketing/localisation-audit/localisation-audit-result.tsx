@@ -59,6 +59,8 @@ type AuditPayload = {
   report: LocalisationAuditReport | null;
   unlocked: boolean;
   retryable?: boolean;
+  rerunnable?: boolean;
+  rerunAvailableAt?: string | null;
   errorCode: string | null;
   errorMessage?: string | null;
   completedAt?: string | null;
@@ -348,7 +350,7 @@ export function LocalisationAuditResult({
   const [email, setEmail] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
-  const [retryPending, setRetryPending] = useState(false);
+  const [rerunPending, setRerunPending] = useState(false);
   const [deliveryMessage, setDeliveryMessage] = useState<string | null>(null);
   const [shareMessage, setShareMessage] = useState<string | null>(null);
   const teaserTracked = useRef(false);
@@ -413,9 +415,9 @@ export function LocalisationAuditResult({
     }
   }
 
-  async function onRetry() {
+  async function restartAudit(failureMessage: string) {
     setError(null);
-    setRetryPending(true);
+    setRerunPending(true);
     try {
       const response = await fetch("/api/localisation-audit", {
         method: "POST",
@@ -427,14 +429,14 @@ export function LocalisationAuditResult({
         message?: string;
       } | null;
       if (!response.ok || !body?.audit) {
-        setError(body?.message ?? "Could not retry the audit.");
+        setError(body?.message ?? failureMessage);
         return;
       }
       setAudit(body.audit);
     } catch {
-      setError("Could not retry the audit.");
+      setError(failureMessage);
     } finally {
-      setRetryPending(false);
+      setRerunPending(false);
     }
   }
 
@@ -465,8 +467,12 @@ export function LocalisationAuditResult({
         </TypographyP>
         <p className="mt-6 text-sm text-muted-foreground">{audit.domainKey}</p>
         {error ? <p className="mt-4 text-sm text-destructive">{error}</p> : null}
-        <Button className="mt-8" onClick={onRetry} disabled={retryPending}>
-          {retryPending ? copy.retrying : copy.retry}
+        <Button
+          className="mt-8"
+          onClick={() => restartAudit("Could not retry the audit.")}
+          disabled={rerunPending}
+        >
+          {rerunPending ? copy.retrying : copy.retry}
         </Button>
       </section>
     );
@@ -527,8 +533,12 @@ export function LocalisationAuditResult({
           {audit.errorMessage ?? audit.errorCode ?? "The audit could not finish for this domain."}
         </TypographyP>
         {error ? <p className="mt-4 text-sm text-destructive">{error}</p> : null}
-        <Button className="mt-8" onClick={onRetry} disabled={retryPending}>
-          {retryPending ? copy.retrying : copy.retry}
+        <Button
+          className="mt-8"
+          onClick={() => restartAudit("Could not retry the audit.")}
+          disabled={rerunPending}
+        >
+          {rerunPending ? copy.retrying : copy.retry}
         </Button>
       </section>
     );
@@ -816,6 +826,14 @@ export function LocalisationAuditResult({
         <TypographyH2 className="pb-0">{copy.reauditHeading}</TypographyH2>
         <TypographyP className="mt-4 max-w-2xl text-muted-foreground">{ctaBody}</TypographyP>
         <div className="mt-6 flex flex-wrap gap-3">
+          {audit.rerunnable ? (
+            <Button
+              onClick={() => restartAudit("Could not re-run the audit.")}
+              disabled={rerunPending}
+            >
+              {rerunPending ? copy.rerunning : copy.rerun}
+            </Button>
+          ) : null}
           <Button
             nativeButton={false}
             render={<Link href="/auth/sign-in" onClick={() => trackCta("create_workspace")} />}
@@ -837,6 +855,16 @@ export function LocalisationAuditResult({
             {copy.bookReview}
           </Button>
         </div>
+        {!audit.rerunnable && audit.rerunAvailableAt ? (
+          <p className="mt-4 text-sm text-muted-foreground">
+            {formatCopy(copy.rerunCooldown, {
+              when: new Date(audit.rerunAvailableAt).toLocaleString(locale, {
+                dateStyle: "medium",
+                timeStyle: "short",
+              }),
+            })}
+          </p>
+        ) : null}
       </section>
     </>
   );

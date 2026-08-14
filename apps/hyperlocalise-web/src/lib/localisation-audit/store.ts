@@ -22,7 +22,11 @@ import type {
   LocalisationAuditStatus,
   LocalisationAuditTeaser,
 } from "./types";
-import { LOCALISATION_AUDIT_EMAIL_RESEND_COOLDOWN_MS, LOCALISATION_AUDIT_STALE_MS } from "./types";
+import {
+  LOCALISATION_AUDIT_EMAIL_RESEND_COOLDOWN_MS,
+  LOCALISATION_AUDIT_RERUN_MS,
+  LOCALISATION_AUDIT_STALE_MS,
+} from "./types";
 
 export type LocalisationAuditRow = typeof schema.localisationAudits.$inferSelect;
 export type LocalisationAuditLeadRow = typeof schema.localisationAuditLeads.$inferSelect;
@@ -44,6 +48,22 @@ function isActiveAudit(audit: LocalisationAuditRow, staleMs = LOCALISATION_AUDIT
   const reference =
     audit.statusUpdatedAt ?? audit.lastAttemptAt ?? audit.updatedAt ?? audit.createdAt;
   return Date.now() - reference.getTime() < staleMs;
+}
+
+function localisationAuditRerunReference(audit: LocalisationAuditRow) {
+  return audit.completedAt ?? audit.statusUpdatedAt ?? audit.lastAttemptAt ?? audit.createdAt;
+}
+
+export function localisationAuditRerunAvailableAt(audit: LocalisationAuditRow): Date | null {
+  if (audit.status !== "succeeded" || audit.report == null) {
+    return null;
+  }
+  return new Date(localisationAuditRerunReference(audit).getTime() + LOCALISATION_AUDIT_RERUN_MS);
+}
+
+export function isLocalisationAuditRerunnable(audit: LocalisationAuditRow) {
+  const availableAt = localisationAuditRerunAvailableAt(audit);
+  return availableAt != null && Date.now() >= availableAt.getTime();
 }
 
 export function isLocalisationAuditRetryable(audit: LocalisationAuditRow) {
@@ -246,7 +266,11 @@ export async function claimOrReuseLocalisationAudit(input: {
     }
   }
 
-  if (existing.status === "succeeded" && existing.report) {
+  if (
+    existing.status === "succeeded" &&
+    existing.report &&
+    !isLocalisationAuditRerunnable(existing)
+  ) {
     return { audit: existing, outcome: "reused_success" };
   }
 
@@ -256,6 +280,7 @@ export async function claimOrReuseLocalisationAudit(input: {
 
   const timestamp = now();
   const staleCutoff = new Date(Date.now() - LOCALISATION_AUDIT_STALE_MS);
+  const dailyRerunCutoff = new Date(Date.now() - LOCALISATION_AUDIT_RERUN_MS);
   const focusLocales =
     input.focusLocales.length > 0 ? input.focusLocales : (existing.focusLocales ?? []);
 
@@ -288,6 +313,14 @@ export async function claimOrReuseLocalisationAudit(input: {
             isNull(schema.localisationAudits.report),
           ),
           and(
+            eq(schema.localisationAudits.status, "succeeded"),
+            isNotNull(schema.localisationAudits.report),
+            lt(
+              sql`coalesce(${schema.localisationAudits.completedAt}, ${schema.localisationAudits.statusUpdatedAt})`,
+              dailyRerunCutoff,
+            ),
+          ),
+          and(
             inArray(schema.localisationAudits.status, ["queued", "running"]),
             lt(schema.localisationAudits.statusUpdatedAt, staleCutoff),
           ),
@@ -304,11 +337,14 @@ export async function claimOrReuseLocalisationAudit(input: {
   if (!fresh) {
     throw new Error("localisation audit disappeared during claim");
   }
-  if (fresh.status === "succeeded" && fresh.report) {
+  if (fresh.status === "succeeded" && fresh.report && !isLocalisationAuditRerunnable(fresh)) {
     return { audit: fresh, outcome: "reused_success" };
   }
-  // Succeeded-without-report (or other retryable states) must not stick as "active".
-  if (isLocalisationAuditRetryable(fresh) && reclaimAttempts < 3) {
+  // Retryable or rerunnable states must not stick as "active".
+  if (
+    (isLocalisationAuditRetryable(fresh) || isLocalisationAuditRerunnable(fresh)) &&
+    reclaimAttempts < 3
+  ) {
     return claimOrReuseLocalisationAudit({ ...input, _reclaimAttempts: reclaimAttempts + 1 });
   }
   return { audit: fresh, outcome: "reused_active" };

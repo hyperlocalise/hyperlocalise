@@ -59,6 +59,11 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 export const UnlockedFullReport: Story = {
+  parameters: {
+    msw: {
+      handlers: localisationAuditRetryMswHandlers,
+    },
+  },
   play: async ({ canvas }) => {
     const heading = canvas.getByRole("heading", { name: "Credit scores" });
     await expect(heading).toBeInTheDocument();
@@ -71,6 +76,7 @@ export const UnlockedFullReport: Story = {
     await expect(canvas.getAllByText("What we saw").length).toBeGreaterThan(0);
     await expect(canvas.getAllByText("How to fix it").length).toBeGreaterThan(0);
     await expect(canvas.getByText("Document head · <html lang>")).toBeInTheDocument();
+    await expect(canvas.getByRole("button", { name: "Re-run audit" })).toBeInTheDocument();
   },
 };
 

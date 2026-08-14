@@ -77,6 +77,8 @@ vi.mock("@/lib/localisation-audit/store", () => ({
   failLocalisationAudit: failAuditMock,
   findLocalisationAuditBySlug: findBySlugMock,
   isLocalisationAuditRetryable: (audit: { status: string }) => audit.status === "failed",
+  isLocalisationAuditRerunnable: () => false,
+  localisationAuditRerunAvailableAt: () => null,
   upsertLocalisationAuditLeadForDelivery: upsertLeadMock,
   markLocalisationAuditLeadEmailQueued: markLeadQueuedMock,
   markLocalisationAuditLeadEmailFailed: markLeadFailedMock,

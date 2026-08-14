@@ -20,6 +20,7 @@ import {
   completeLocalisationAudit,
   failLocalisationAudit,
   getLocalisationAuditStanding,
+  isLocalisationAuditRerunnable,
   isLocalisationAuditRetryable,
   listLocalisationAuditLeaderboard,
   listPendingLocalisationAuditLeads,
@@ -27,7 +28,11 @@ import {
   upsertLocalisationAuditLeadForDelivery,
   verifyLocalisationAuditReportToken,
 } from "./store";
-import { LOCALISATION_AUDIT_EMAIL_RESEND_COOLDOWN_MS, LOCALISATION_AUDIT_STALE_MS } from "./types";
+import {
+  LOCALISATION_AUDIT_EMAIL_RESEND_COOLDOWN_MS,
+  LOCALISATION_AUDIT_RERUN_MS,
+  LOCALISATION_AUDIT_STALE_MS,
+} from "./types";
 
 async function cleanup(domainKey: string) {
   await db
@@ -151,6 +156,87 @@ describe("localisation audit claim/retry", () => {
     });
     expect(incompleteSuccessReclaim.outcome).toBe("reclaimed");
     expect(incompleteSuccessReclaim.audit.attemptNumber).toBe(4);
+  });
+
+  it("reuses a successful audit until the daily re-run window, then reclaims it", async () => {
+    const created = await claimOrReuseLocalisationAudit({
+      domainKey,
+      domainSlug,
+      sourceUrl: `https://${domainKey}/`,
+      focusLocales: [],
+    });
+
+    await completeLocalisationAudit({
+      auditId: created.audit.id,
+      attemptNumber: 1,
+      score: 72,
+      teaser: {
+        score: 72,
+        domainKey,
+        domainSlug,
+        detectedLocales: [],
+        headlineFindings: [],
+        findingsCount: 0,
+        pagesCrawled: 1,
+        completedAt: new Date().toISOString(),
+      },
+      report: {
+        score: 72,
+        domainKey,
+        domainSlug,
+        sourceUrl: `https://${domainKey}/`,
+        focusLocales: [],
+        detectedLocales: [],
+        findings: [],
+        pages: [],
+        linguisticNotes: [],
+        pagesCrawled: 1,
+        completedAt: new Date().toISOString(),
+      },
+    });
+
+    const [fresh] = await db
+      .select()
+      .from(schema.localisationAudits)
+      .where(eq(schema.localisationAudits.id, created.audit.id))
+      .limit(1);
+    expect(isLocalisationAuditRetryable(fresh!)).toBe(false);
+    expect(isLocalisationAuditRerunnable(fresh!)).toBe(false);
+
+    const reused = await claimOrReuseLocalisationAudit({
+      domainKey,
+      domainSlug,
+      sourceUrl: `https://${domainKey}/`,
+      focusLocales: [],
+    });
+    expect(reused.outcome).toBe("reused_success");
+    expect(reused.audit.attemptNumber).toBe(1);
+
+    await db
+      .update(schema.localisationAudits)
+      .set({
+        completedAt: new Date(Date.now() - LOCALISATION_AUDIT_RERUN_MS - 1_000),
+      })
+      .where(eq(schema.localisationAudits.id, created.audit.id));
+
+    const [aged] = await db
+      .select()
+      .from(schema.localisationAudits)
+      .where(eq(schema.localisationAudits.id, created.audit.id))
+      .limit(1);
+    expect(isLocalisationAuditRetryable(aged!)).toBe(false);
+    expect(isLocalisationAuditRerunnable(aged!)).toBe(true);
+
+    const reclaimed = await claimOrReuseLocalisationAudit({
+      domainKey,
+      domainSlug,
+      sourceUrl: `https://${domainKey}/pricing`,
+      focusLocales: ["fr"],
+    });
+    expect(reclaimed.outcome).toBe("reclaimed");
+    expect(reclaimed.audit.attemptNumber).toBe(2);
+    expect(reclaimed.audit.status).toBe("queued");
+    expect(reclaimed.audit.focusLocales).toEqual(["fr"]);
   });
 
   it("handles concurrent lead upserts idempotently", async () => {

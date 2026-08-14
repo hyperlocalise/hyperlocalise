@@ -45,6 +45,8 @@ export type LocalisationAuditStoryAudit = {
   report: LocalisationAuditReport | null;
   unlocked: boolean;
   retryable?: boolean;
+  rerunnable?: boolean;
+  rerunAvailableAt?: string | null;
   errorCode: string | null;
   errorMessage?: string | null;
   completedAt?: string | null;
@@ -361,6 +363,8 @@ export function createSucceededAudit({
     report: unlocked ? report : null,
     unlocked,
     retryable: false,
+    rerunnable: true,
+    rerunAvailableAt: localisationAuditCompletedAt,
     errorCode: null,
     errorMessage: null,
     completedAt: localisationAuditCompletedAt,
