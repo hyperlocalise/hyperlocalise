@@ -87,6 +87,9 @@ export const PublicFullReport: Story = {
     await expect(canvas.getAllByText("What we saw").length).toBeGreaterThan(0);
     await expect(canvas.getAllByText("How to fix it").length).toBeGreaterThan(0);
     await expect(canvas.getByText("Document head · <html lang>")).toBeInTheDocument();
+    await expect(
+      canvas.getByText(/src="\/_next\/image\?url=%2Fimages%2Fgame%2Fmath-sudoku\.png/),
+    ).toBeInTheDocument();
     await expect(canvas.getByRole("heading", { name: "Full findings" })).toBeInTheDocument();
     await expect(canvas.getByRole("heading", { name: "Email me a summary" })).toBeInTheDocument();
     await expect(canvas.getByRole("button", { name: "Re-run audit" })).toBeInTheDocument();
