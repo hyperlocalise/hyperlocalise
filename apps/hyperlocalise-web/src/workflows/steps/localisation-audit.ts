@@ -185,6 +185,7 @@ export async function analyzeLocalisationAuditStep(input: {
     pagesCrawled: input.pages.length,
     completedAt,
     dimensionScores,
+    credits: scored.credits,
   };
 
   const completed = await completeLocalisationAudit({

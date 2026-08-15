@@ -145,6 +145,8 @@ export type LocalisationAuditTeaser = {
   pagesCrawled: number;
   completedAt: string;
   dimensionScores?: LocalisationAuditDimensionScores;
+  /** Credit scores for the public Lighthouse-style pass/fail checklist. */
+  credits?: LocalisationAuditCreditResult[];
 };
 
 export type LocalisationAuditReport = {
