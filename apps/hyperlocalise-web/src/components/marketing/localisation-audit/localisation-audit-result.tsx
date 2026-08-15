@@ -13,6 +13,7 @@
  * Version 2.0 or later.
  */
 import Link from "next/link";
+import { useAuth } from "@workos-inc/authkit-nextjs/components";
 import { CheckIcon } from "lucide-react";
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 
@@ -24,6 +25,7 @@ import { Label } from "@/components/ui/label";
 import { TypographyH1, TypographyH2, TypographyP } from "@/components/ui/typography";
 import { clientAnalytics } from "@/lib/analytics/client";
 import { LOCALISATION_AUDIT_ANALYTICS_EVENTS, scoreBand } from "@/lib/analytics/events";
+import { isLocalisationAuditSignInCtaEnabled } from "@/lib/flags/localisation-audit-sign-in-ctas";
 import { sanitizeLocalisationAuditFindingUrl } from "@/lib/localisation-audit/finding-url";
 import {
   formatDimensionScore,
@@ -354,6 +356,12 @@ export function LocalisationAuditResult({
   variant = "public",
 }: LocalisationAuditResultProps) {
   const copy = getLocalisationAuditResultCopy(locale);
+  const { user, loading: authLoading, featureFlags } = useAuth();
+  const showSignInCtas = isLocalisationAuditSignInCtaEnabled({
+    loading: authLoading,
+    user,
+    featureFlags,
+  });
   const isWorkspace = variant === "workspace";
   const sectionClassName = isWorkspace
     ? "border-t border-border px-0 py-10 first:border-t-0 first:pt-0"
@@ -854,38 +862,42 @@ export function LocalisationAuditResult({
                 {rerunPending ? copy.rerunning : copy.rerun}
               </Button>
             ) : null}
-            {audit.claimed ? (
+            {showSignInCtas ? (
+              audit.claimed ? (
+                <Button
+                  nativeButton={false}
+                  render={
+                    <Link
+                      href={`/claim-domain/${domainSlug}`}
+                      onClick={() => trackCta("open_claimed_domain")}
+                    />
+                  }
+                >
+                  {copy.openInWorkspace}
+                </Button>
+              ) : (
+                <Button
+                  nativeButton={false}
+                  render={
+                    <Link
+                      href={`/auth/sign-in?returnTo=${encodeURIComponent(`/claim-domain/${domainSlug}`)}`}
+                      onClick={() => trackCta("claim_domain")}
+                    />
+                  }
+                >
+                  {copy.claimDomain}
+                </Button>
+              )
+            ) : null}
+            {showSignInCtas ? (
               <Button
+                variant="outline"
                 nativeButton={false}
-                render={
-                  <Link
-                    href={`/claim-domain/${domainSlug}`}
-                    onClick={() => trackCta("open_claimed_domain")}
-                  />
-                }
+                render={<Link href="/auth/sign-in" onClick={() => trackCta("create_workspace")} />}
               >
-                {copy.openInWorkspace}
+                {band === "low" ? copy.createWorkspace : copy.deeperAudit}
               </Button>
-            ) : (
-              <Button
-                nativeButton={false}
-                render={
-                  <Link
-                    href={`/auth/sign-in?returnTo=${encodeURIComponent(`/claim-domain/${domainSlug}`)}`}
-                    onClick={() => trackCta("claim_domain")}
-                  />
-                }
-              >
-                {copy.claimDomain}
-              </Button>
-            )}
-            <Button
-              variant="outline"
-              nativeButton={false}
-              render={<Link href="/auth/sign-in" onClick={() => trackCta("create_workspace")} />}
-            >
-              {band === "low" ? copy.createWorkspace : copy.deeperAudit}
-            </Button>
+            ) : null}
             <Button
               variant="outline"
               nativeButton={false}
