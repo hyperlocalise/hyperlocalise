@@ -54,10 +54,12 @@ describe("creditCriterionStatus", () => {
   });
 
   it("marks N/A credits as na", () => {
-    expect(creditCriterionStatus(credit({ id: "glossary-compliance", score: null, method: "na" }))).toBe(
+    expect(
+      creditCriterionStatus(credit({ id: "glossary-compliance", score: null, method: "na" })),
+    ).toBe("na");
+    expect(creditCriterionStatus(credit({ id: "fluency", score: null, method: "luna" }))).toBe(
       "na",
     );
-    expect(creditCriterionStatus(credit({ id: "fluency", score: null, method: "luna" }))).toBe("na");
   });
 });
 
@@ -95,9 +97,9 @@ describe("buildLocalisationAuditCriteria", () => {
   });
 
   it("skips unknown credit ids", () => {
-    expect(buildLocalisationAuditCriteria([credit({ id: "not-a-real-credit", score: 50 })])).toEqual(
-      [],
-    );
+    expect(
+      buildLocalisationAuditCriteria([credit({ id: "not-a-real-credit", score: 50 })]),
+    ).toEqual([]);
   });
 });
 

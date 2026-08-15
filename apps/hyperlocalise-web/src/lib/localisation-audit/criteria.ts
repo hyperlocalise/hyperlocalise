@@ -62,7 +62,9 @@ export function buildLocalisationAuditCriteria(
     findingsByCredit.set(finding.creditId, list);
   }
 
-  const catalogOrder = new Map(LOCALISATION_AUDIT_CREDITS.map((credit, index) => [credit.id, index]));
+  const catalogOrder = new Map(
+    LOCALISATION_AUDIT_CREDITS.map((credit, index) => [credit.id, index]),
+  );
 
   return credits
     .flatMap((credit) => {
