@@ -23,9 +23,7 @@ const DEFAULT_LIMITS: Record<LocalisationAuditRunSource, number> = {
 
 let dailyRunLimits: Record<LocalisationAuditRunSource, number> = { ...DEFAULT_LIMITS };
 
-export function localisationAuditDailyRunLimit(
-  runSource: LocalisationAuditRunSource = "user",
-) {
+export function localisationAuditDailyRunLimit(runSource: LocalisationAuditRunSource = "user") {
   return dailyRunLimits[runSource];
 }
 

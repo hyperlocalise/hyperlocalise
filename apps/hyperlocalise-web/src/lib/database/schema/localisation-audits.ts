@@ -81,7 +81,10 @@ export const localisationAudits = pgTable(
     index("idx_localisation_audits_score").on(table.score),
     index("idx_localisation_audits_organization_id").on(table.organizationId),
     index("idx_localisation_audits_linked_domain_id").on(table.linkedDomainId),
-    index("idx_localisation_audits_run_source_last_attempt").on(table.runSource, table.lastAttemptAt),
+    index("idx_localisation_audits_run_source_last_attempt").on(
+      table.runSource,
+      table.lastAttemptAt,
+    ),
   ],
 );
 
