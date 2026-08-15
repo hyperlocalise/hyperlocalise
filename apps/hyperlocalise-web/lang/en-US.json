@@ -91,6 +91,10 @@
     "defaultMessage": "API key",
     "description": "Label for Semrush API key field"
   },
+  "+GWoQaCIDa": {
+    "defaultMessage": "Where the approved term is defined (glossary or style guide)",
+    "description": "Description skeleton heading for the glossary violation issue template"
+  },
   "+Gpj/X++wo": {
     "defaultMessage": "Running…",
     "description": "Button label while QA checks are running"
@@ -218,6 +222,10 @@
   "+xuw6xgQgo": {
     "defaultMessage": "Get review notifications and agent handoffs in Slack.",
     "description": "Slack integration description on the dashboard"
+  },
+  "+y1tBCWC43": {
+    "defaultMessage": "Suggested correction",
+    "description": "Description skeleton heading for the translation mistake issue template"
   },
   "+y5oYiRfPw": {
     "defaultMessage": "Shared tone and terminology so agents stay consistent.",
@@ -438,6 +446,10 @@
   "/iIPpWEOXd": {
     "defaultMessage": "Finding {detail}",
     "description": "Live explore status when the agent is listing files with a pattern"
+  },
+  "/n68ooQLr1": {
+    "defaultMessage": "Issue template settings saved",
+    "description": "Toast after issue template settings save successfully"
   },
   "/nzPUPTay3": {
     "defaultMessage": "Environment Variables",
@@ -687,6 +699,10 @@
     "defaultMessage": "Coordinate localization reviews from Slack mentions, DMs, and subscribed threads.",
     "description": "Slack integration description before OAuth connection"
   },
+  "0cJX5jLe/m": {
+    "defaultMessage": "Loading domains…",
+    "description": "Loading state for the domains list"
+  },
   "0czRTKBGYl": {
     "defaultMessage": "Delete",
     "description": "Delete Intercom connection button"
@@ -742,6 +758,10 @@
   "0su3rYbABy": {
     "defaultMessage": "Latest job · {status}",
     "description": "Badge showing the latest translation job status for a native file"
+  },
+  "0uC+32o+7p": {
+    "defaultMessage": "Verify this domain to unlock the full localisation audit report.",
+    "description": "Message when domain detail cannot show the report until verification succeeds"
   },
   "0uQydL2hST": {
     "defaultMessage": "Email notifications",
@@ -947,6 +967,10 @@
     "defaultMessage": "Cancel",
     "description": "Cancel button in the create job dialog footer"
   },
+  "1eMnlR8DFD": {
+    "defaultMessage": "Which check failed",
+    "description": "Description skeleton heading for the QA failure issue template"
+  },
   "1enwJ9gKTA": {
     "defaultMessage": "Operate across Crowdin, Lokalise, Phrase, Smartling, and other TMS tools from one workflow layer.",
     "description": "Capability 4 description for the localisation-operations use case"
@@ -1046,6 +1070,10 @@
   "2+doJ4Hdy3": {
     "defaultMessage": "Headers (JSON object)",
     "description": "Label for MCP custom headers JSON field"
+  },
+  "2/EGe6eITS": {
+    "defaultMessage": "Actual result",
+    "description": "Description skeleton heading for the QA failure issue template"
   },
   "2/tGcgvmb8": {
     "defaultMessage": "No projects match your search. <clear>Clear search</clear>",
@@ -1387,6 +1415,10 @@
     "defaultMessage": "Project",
     "description": "Label for the issue list project filter"
   },
+  "3GLhqP/R2l": {
+    "defaultMessage": "Verified",
+    "description": "Linked domain status label for verified"
+  },
   "3H5mLoNldT": {
     "defaultMessage": "All open",
     "description": "Issue list view preset showing all open issues"
@@ -1394,6 +1426,10 @@
   "3IdHhp9gvF": {
     "defaultMessage": "Why this is different",
     "description": "Use case page differentiator section label"
+  },
+  "3J/2hNdEQN": {
+    "defaultMessage": "QA failure",
+    "description": "Label for the QA failure issue template"
   },
   "3K/+e2NRMM": {
     "defaultMessage": "Hyperlocalise is an AI workforce that helps teams launch globally in days — with market nuance, translation, and first-class human review.",
@@ -1494,6 +1530,10 @@
   "3kjfANjxLP": {
     "defaultMessage": "Triggers",
     "description": "Section heading for automation trigger settings"
+  },
+  "3kmGzc1eFE": {
+    "defaultMessage": "Default template",
+    "description": "Label for the default template select"
   },
   "3lnMAqI5qB": {
     "defaultMessage": "Advanced settings",
@@ -1870,6 +1910,10 @@
   "5Eha9aNTjn": {
     "defaultMessage": "Built for teams scaling into new markets",
     "description": "Heading for the why-startups benefits section"
+  },
+  "5EvVEEZZG4": {
+    "defaultMessage": "Locales already translated from this source",
+    "description": "Description skeleton heading for the source mistake issue template"
   },
   "5FDuQWvCGc": {
     "defaultMessage": "Preview import",
@@ -2419,6 +2463,10 @@
     "defaultMessage": "Content Management API token",
     "description": "Label for the Contentful Management API token field"
   },
+  "7RTYPONjFh": {
+    "defaultMessage": "Save template settings",
+    "description": "Button to save issue template settings"
+  },
   "7RXGOrYinp": {
     "defaultMessage": "Sync",
     "description": "Label for the workspace files sync state filter"
@@ -2706,6 +2754,10 @@
   "8Tp9Y/Dgx2": {
     "defaultMessage": "Translation intelligence",
     "description": "Heading for the bottom intelligence panel in side-by-side CAT view"
+  },
+  "8UNQ0H4OW1": {
+    "defaultMessage": "No score yet",
+    "description": "Shown when a linked domain has no audit score"
   },
   "8Uj/LcQ4Dh": {
     "defaultMessage": "Saving...",
@@ -3411,6 +3463,10 @@
     "defaultMessage": "sync push docs",
     "description": "Link to sync push documentation from the native project settings panel"
   },
+  "B3yFCBQLDF": {
+    "defaultMessage": "Claimed sites and localisation audit reports",
+    "description": "Sidebar description for the Domains navigation item"
+  },
   "B49vrN6vd7": {
     "defaultMessage": "Trigger",
     "description": "Run history column header for trigger source"
@@ -3418,6 +3474,10 @@
   "B4Gf1Duzbc": {
     "defaultMessage": "New columns: {columns}",
     "description": "Lists new Issue Sheet columns that will be created by the import"
+  },
+  "B8H5qyHiWy": {
+    "defaultMessage": "Translation mistake",
+    "description": "Label for the translation mistake issue template"
   },
   "B8cDvM1Ftb": {
     "defaultMessage": "Alert when locales fall behind source",
@@ -3430,6 +3490,10 @@
   "BBge+5Sj1e": {
     "defaultMessage": "$0",
     "description": "Free plan price on the pricing page"
+  },
+  "BBrh+7z4Oj": {
+    "defaultMessage": "Could not load linked domains.",
+    "description": "Error when the domains list fails to load"
   },
   "BCYAAWW4I+": {
     "defaultMessage": "Update payment methods, review invoices, and manage subscription billing details.",
@@ -3902,6 +3966,10 @@
   "Cp3xy0MA7p": {
     "defaultMessage": "Reporter",
     "description": "Label for issue reporter field"
+  },
+  "Cpqhu+50JL": {
+    "defaultMessage": "Source text as written",
+    "description": "Description skeleton heading for the source mistake issue template"
   },
   "CpwA2GAYax": {
     "defaultMessage": "Stale",
@@ -4543,6 +4611,10 @@
     "defaultMessage": "Context",
     "description": "Column header for string context in the source strings preview table"
   },
+  "FAiaLlxyiD": {
+    "defaultMessage": "Approved glossary term",
+    "description": "Description skeleton heading for the glossary violation issue template"
+  },
   "FCCakqtYG4": {
     "defaultMessage": "Couldn’t load plan usage. Open billing to try again.",
     "description": "Error message when plan usage data fails to load"
@@ -4554,6 +4626,10 @@
   "FDx1dPH6dv": {
     "defaultMessage": "Hey {mention} can we localize the Canva spring campaign board for FR, DE, and JA by Friday?",
     "description": "Marketing teammate message asking to localize a Canva campaign"
+  },
+  "FExdwoMXgT": {
+    "defaultMessage": "Where this string appears in the product (screen, button, dialog)",
+    "description": "Description skeleton heading for the context request issue template"
   },
   "FF6P5p7LKO": {
     "defaultMessage": "{count} need attention",
@@ -4791,6 +4867,10 @@
     "defaultMessage": "Email agent settings unavailable",
     "description": "Placeholder when email agent settings failed to load"
   },
+  "GMwM1mRHd4": {
+    "defaultMessage": "Expected result",
+    "description": "Description skeleton heading for the QA failure issue template"
+  },
   "GOImV2QS+V": {
     "defaultMessage": "Unable to delete project",
     "description": "Fallback error when deleting a project fails"
@@ -4931,6 +5011,10 @@
     "defaultMessage": "Overwrite targets",
     "description": "Toggle label for overwriting Contentful target locales"
   },
+  "GuSsVpTTay": {
+    "defaultMessage": "Domains",
+    "description": "App shell breadcrumb title for the domains page"
+  },
   "GuYiT4dWiy": {
     "defaultMessage": "{count} duplicates skipped",
     "description": "Badge showing how many duplicate rows will be skipped"
@@ -5034,6 +5118,10 @@
   "HETvCDj5wB": {
     "defaultMessage": "No findings match the current filters. <clear>Clear filters</clear>",
     "description": "Empty state when filters hide all findings, with a clear-filters action"
+  },
+  "HEmDtrKdrX": {
+    "defaultMessage": "Suggested source correction",
+    "description": "Description skeleton heading for the source mistake issue template"
   },
   "HGHGAGahop": {
     "defaultMessage": "Team role updated",
@@ -5599,6 +5687,10 @@
     "defaultMessage": "Jobs, providers, locales, assignees...",
     "description": "Placeholder text in the jobs search field"
   },
+  "JpBSOLxq+p": {
+    "defaultMessage": "Glossary violation",
+    "description": "Label for the glossary violation issue template"
+  },
   "JpCXnGpMeh": {
     "defaultMessage": "Project",
     "description": "Detail row label for the job project name"
@@ -5734,6 +5826,10 @@
   "KRRKR3H/tH": {
     "defaultMessage": "Close",
     "description": "Accessible label for closing the image lightbox"
+  },
+  "KRbtCrnBZw": {
+    "defaultMessage": "View report",
+    "description": "Link to open a linked domain audit report"
   },
   "KSyo1/QjAo": {
     "defaultMessage": "Try signing in again or contact support if this continues.",
@@ -5963,9 +6059,17 @@
     "defaultMessage": "This glossary is used only by the projects listed here.",
     "description": "Section description for projects assigned to a glossary"
   },
+  "LNnC/DWQXp": {
+    "defaultMessage": "What is wrong with it",
+    "description": "Description skeleton heading for the source mistake issue template"
+  },
   "LOKE6DdX5z": {
     "defaultMessage": "Just now",
     "description": "Timestamp label for a comment added moments ago"
+  },
+  "LRZ3vQhI80": {
+    "defaultMessage": "Failed",
+    "description": "Linked domain status label for failed"
   },
   "LRlVY40lAz": {
     "defaultMessage": "Account",
@@ -6023,6 +6127,10 @@
     "defaultMessage": "{title} ({name})",
     "description": "Branch option showing display title and branch name"
   },
+  "LjtXYDMMAO": {
+    "defaultMessage": "Could not load the localisation audit report.",
+    "description": "Error when the attached audit report fails to load"
+  },
   "Ll8TcrApq9": {
     "defaultMessage": "{count, plural, one {# pending action across your workspace.} other {# pending actions across your workspace.}}",
     "description": "Dashboard hero description with pending action count"
@@ -6075,6 +6183,10 @@
     "defaultMessage": "Loading progress…",
     "description": "Metric and property value while locale readiness is loading"
   },
+  "M/3YJiyMT3": {
+    "defaultMessage": "Enter a URL to see how your site feels in other languages. A clear score, then the full report by email.",
+    "description": "Meta description for the public localisation audit landing page"
+  },
   "M09MwVsnwY": {
     "defaultMessage": "Search",
     "description": "Label for the projects search field"
@@ -6122,6 +6234,10 @@
   "M7pTNyMB/G": {
     "defaultMessage": "{count, plural, one {# proposal} other {# proposals}}",
     "description": "Count of reviewable proposals on an agent run"
+  },
+  "M9l7nT/Rpj": {
+    "defaultMessage": "Pending verification",
+    "description": "Linked domain status label for pending verification"
   },
   "MB3Jte6am8": {
     "defaultMessage": "{count}/{maxLength} characters",
@@ -6407,6 +6523,10 @@
     "defaultMessage": "Load team membership and roles.",
     "description": "Team detail page description while the team is loading"
   },
+  "NW5w/HG5/G": {
+    "defaultMessage": "Status",
+    "description": "Label for linked domain status on the detail page"
+  },
   "NWBLW7QFvn": {
     "defaultMessage": "Tourfinder",
     "description": "Alt text for the Tourfinder logo on the startups page"
@@ -6430,6 +6550,10 @@
   "NZgVd5LQvT": {
     "defaultMessage": "Failed to load projects",
     "description": "Fallback error when projects fail to load on the glossaries page"
+  },
+  "Na/bufJX8b": {
+    "defaultMessage": "Context request",
+    "description": "Label for the context request issue template"
   },
   "NagMPC+eb9": {
     "defaultMessage": "https://yourorg.api.crowdin.com/api/v2",
@@ -8135,9 +8259,21 @@
     "defaultMessage": "Close",
     "description": "Decorative close control label in the chat dock mock"
   },
+  "UE1Umv7eEm": {
+    "defaultMessage": "What is wrong (meaning, tone, grammar, or style)",
+    "description": "Description skeleton heading for the translation mistake issue template"
+  },
   "UFI0ojyOjH": {
     "defaultMessage": "Send",
     "description": "Visible label on the inbox reply composer send button"
+  },
+  "UFpFmP3uvn": {
+    "defaultMessage": "Domains",
+    "description": "Settings hub row label for workspace domains"
+  },
+  "UKFf8HWVZX": {
+    "defaultMessage": "Loading domain…",
+    "description": "Loading state for linked domain detail"
   },
   "UL3odPVruI": {
     "defaultMessage": "Markup order",
@@ -8647,6 +8783,10 @@
     "defaultMessage": "Save",
     "description": "Button to save an edited issue comment"
   },
+  "WIwcX3Fw30": {
+    "defaultMessage": "Current translation",
+    "description": "Description skeleton heading for the translation mistake issue template"
+  },
   "WKx3yZHQjo": {
     "defaultMessage": "Loading intelligence",
     "description": "Accessible label while the CAT intelligence panel skeleton is shown"
@@ -8851,6 +8991,10 @@
     "defaultMessage": "Select at least one valid target locale.",
     "description": "Validation error when no valid target locales are selected"
   },
+  "X9s4kh3gLN": {
+    "defaultMessage": "Localisation audit report",
+    "description": "Heading above the attached audit report on domain detail"
+  },
   "XBvYNdWRjl": {
     "defaultMessage": "Group by",
     "description": "Placeholder for the findings group-by select"
@@ -8987,6 +9131,10 @@
     "defaultMessage": "Status",
     "description": "Column header for membership status"
   },
+  "Xg01khiunA": {
+    "defaultMessage": "Score {score}",
+    "description": "Audit score label on a domain list row"
+  },
   "XhZzwexSlh": {
     "defaultMessage": "Hyperlocalise is working…",
     "description": "Status marker shown while the inbox assistant response is still streaming"
@@ -9014,10 +9162,6 @@
   "XqfvXT5zJ1": {
     "defaultMessage": "Target locale",
     "description": "Label for the target locale radio list in the download dialog"
-  },
-  "M/3YJiyMT3": {
-    "defaultMessage": "Enter a URL to see how your site feels in other languages. A clear score, then the full report by email.",
-    "description": "Meta description for the public localisation audit landing page"
   },
   "Xs0cc+EY83": {
     "defaultMessage": "Agent Actions",
@@ -9054,6 +9198,10 @@
   "Y19LAzxjpx": {
     "defaultMessage": "Weekly",
     "description": "Scheduled cadence option for weekly runs"
+  },
+  "Y1DzYaPZ4D": {
+    "defaultMessage": "Continue verification",
+    "description": "Button to continue verifying this domain"
   },
   "Y2hMRmZ+Nf": {
     "defaultMessage": "{actor} created the issue",
@@ -9739,6 +9887,10 @@
     "defaultMessage": "{memoryName} · {sourceText} → {targetText}",
     "description": "Tooltip title for a TM match badge without a match score"
   },
+  "acYdm9AkSl": {
+    "defaultMessage": "No longer has access",
+    "description": "Badge shown next to a template's default assignee when that person can no longer be assigned issues in this project"
+  },
   "ad1N8PatES": {
     "defaultMessage": "Resolved",
     "description": "Issue Sheet status option when an issue is resolved"
@@ -10003,6 +10155,10 @@
     "defaultMessage": "Invite people and manage workspace roles",
     "description": "Sidebar description for the Members navigation item"
   },
+  "blgD4379yD": {
+    "defaultMessage": "No linked domains yet. Claim a domain from a localisation audit to get started.",
+    "description": "Empty state for the domains list"
+  },
   "boIAKxOC7q": {
     "defaultMessage": "Free includes 1 project, 1 seat, and 2 integrations so you can evaluate the workspace. Paid usage quotas start on Starter and Growth.",
     "description": "Pricing FAQ answer about Free plan limits"
@@ -10079,6 +10235,10 @@
     "defaultMessage": "Sync",
     "description": "Section heading for native sync status on project overview"
   },
+  "cHNG0eH0rr": {
+    "defaultMessage": "No localisation audit is attached to this domain yet.",
+    "description": "Empty state when a linked domain has no audit"
+  },
   "cHvtlHrefQ": {
     "defaultMessage": "Source image",
     "description": "Alt text for the CAT source image preview"
@@ -10122,6 +10282,10 @@
   "cQwXYuUd6c": {
     "defaultMessage": "Translation intent",
     "description": "Accessible label for translation intent markdown content"
+  },
+  "cT0FEm6nil": {
+    "defaultMessage": "Unable to save issue template settings",
+    "description": "Fallback toast when saving issue template settings fails"
   },
   "cT5B3xRjNb": {
     "defaultMessage": "Are prices billed monthly?",
@@ -10811,6 +10975,10 @@
     "defaultMessage": "Sync localized strings and run validation on push.",
     "description": "GitHub integration description on the dashboard"
   },
+  "f+hW3BNp2e": {
+    "defaultMessage": "Issue templates",
+    "description": "Title of the project issue templates settings section"
+  },
   "f/05CSI/5H": {
     "defaultMessage": "Generate locale drafts with your LLM",
     "description": "Workflow step 3 description for the github-release-localisation use case"
@@ -10871,6 +11039,10 @@
     "defaultMessage": "Checking git history",
     "description": "Live explore status when the agent inspects git history"
   },
+  "fHo3lZ3Ncd": {
+    "defaultMessage": "What you need in order to translate it (audience, tone, who is speaking)",
+    "description": "Description skeleton heading for the context request issue template"
+  },
   "fIcVSh09FH": {
     "defaultMessage": "Words to do",
     "description": "Detail row label for remaining words to translate"
@@ -10882,6 +11054,10 @@
   "fM2wynVWWB": {
     "defaultMessage": "Search members…",
     "description": "Placeholder in the Crowdin assignee picker search field"
+  },
+  "fMYUxCt5P0": {
+    "defaultMessage": "How to reproduce",
+    "description": "Description skeleton heading for the QA failure issue template"
   },
   "fMyeM5BW3s": {
     "defaultMessage": "Custom",
@@ -10963,6 +11139,10 @@
     "defaultMessage": "Could not save changes.",
     "description": "Toast when issue detail update fails"
   },
+  "fiJRizjueJ": {
+    "defaultMessage": "Could not load this linked domain.",
+    "description": "Error when a linked domain detail page fails to load"
+  },
   "fj5dhgmhYc": {
     "defaultMessage": "Unable to validate the credential.",
     "description": "Generic error when provider credential validation fails during onboarding"
@@ -11030,6 +11210,10 @@
   "g++q7Fa3R5": {
     "defaultMessage": "Retrying…",
     "description": "Button label while a job retry is in progress"
+  },
+  "g+hqtBNXIJ": {
+    "defaultMessage": "Open project",
+    "description": "Button to open the project linked to this domain"
   },
   "g/8r2PHmy4": {
     "defaultMessage": "Where/how it shows",
@@ -11231,6 +11415,10 @@
     "defaultMessage": "ICU structure",
     "description": "Format check label for ICU structure in the hero CAT mock"
   },
+  "geFmDsE0aZ": {
+    "defaultMessage": "Source:",
+    "description": "Heading above the quoted CAT segment source text appended below a template's description skeleton"
+  },
   "gesmb9XaV+": {
     "defaultMessage": "Teams group workspace members and scope which projects they can access.",
     "description": "Description of the create team dialog"
@@ -11279,6 +11467,10 @@
     "defaultMessage": "Enabled",
     "description": "Slack agent status title when connected and enabled"
   },
+  "gqCGKqkwz/": {
+    "defaultMessage": "View verified domains and attached localisation audit reports.",
+    "description": "Settings hub row description for workspace domains"
+  },
   "gr/+9uTU/3": {
     "defaultMessage": "This workspace is archived and can no longer be opened.",
     "description": "Access denied page summary when the workspace is archived"
@@ -11290,6 +11482,10 @@
   "grODyw1HO9": {
     "defaultMessage": "Each market brings different customer expectations, language, and compliance requirements. Expansion only works when your product still feels right locally.",
     "description": "Story beat body: markets need local fit and compliance"
+  },
+  "greERnCNu1": {
+    "defaultMessage": "Open project",
+    "description": "Link to open the project attached to a linked domain"
   },
   "gso6nAA1gq": {
     "defaultMessage": "Slack agent disabled",
@@ -11575,6 +11771,10 @@
     "defaultMessage": "Clear filters",
     "description": "Button to reset glossary list filters"
   },
+  "hrkn2K1Geg": {
+    "defaultMessage": "Saving…",
+    "description": "Button label while issue template settings are saving"
+  },
   "hsNMISsI79": {
     "defaultMessage": "80% off Growth to launch globally in days.",
     "description": "Offer line under the startups page headline"
@@ -11630,6 +11830,10 @@
   "i9ZZoI20Cm": {
     "defaultMessage": "Display name",
     "description": "Label for the Contentful connection display name field"
+  },
+  "i9wq9AC2+9": {
+    "defaultMessage": "Revoked",
+    "description": "Linked domain status label for revoked"
   },
   "iCizofrwwK": {
     "defaultMessage": "Unable to save term",
@@ -12143,6 +12347,10 @@
     "defaultMessage": "Maya Chen",
     "description": "Marketing teammate name in the Slack launch intake mock"
   },
+  "k3MhPbqttd": {
+    "defaultMessage": "Continue verification",
+    "description": "Link to continue verifying a pending linked domain"
+  },
   "k3TrZpmKkB": {
     "defaultMessage": "Jobs created and tracked in this workspace.",
     "description": "Description under the native jobs section title"
@@ -12427,6 +12635,10 @@
     "defaultMessage": "Failed to load Semrush connections.",
     "description": "Error when Semrush connections cannot be loaded"
   },
+  "l0LaeWZhOk": {
+    "defaultMessage": "Term used instead",
+    "description": "Description skeleton heading for the glossary violation issue template"
+  },
   "l0d6YXPPZ9": {
     "defaultMessage": "Google Gemini",
     "description": "Google Gemini BYOK provider name on the integrations page"
@@ -12563,6 +12775,10 @@
     "defaultMessage": "High-visibility marketing claim — confirm tone and glossary before approve.",
     "description": "Review reason for the hero title segment in the CAT mock"
   },
+  "lZrVrk7oZs": {
+    "defaultMessage": "Domains verified for this workspace, with linked projects and localisation audit reports.",
+    "description": "Domains workspace page description"
+  },
   "laNyhZRg9B": {
     "defaultMessage": "View in project files",
     "description": "Link from a finding or thread to the project files view"
@@ -12619,6 +12835,10 @@
     "defaultMessage": "LLM agnostic",
     "description": "Differentiator point 2 for the localisation-quality-monitoring use case"
   },
+  "lv1AQlJPi4": {
+    "defaultMessage": "Set template",
+    "description": "More menu action to apply an issue template"
+  },
   "lvwFhMaVAT": {
     "defaultMessage": "Coming soon",
     "description": "Dropdown section label for tools that are not yet available"
@@ -12630,6 +12850,10 @@
   "m1KcvYGLt0": {
     "defaultMessage": "Entry deleted",
     "description": "Toast after a translation memory entry is deleted successfully"
+  },
+  "m2LULYgKKY": {
+    "defaultMessage": "Source mistake",
+    "description": "Label for the source mistake issue template"
   },
   "m34LPH+M7Z": {
     "defaultMessage": "Comment on pull requests with localisation status",
@@ -12919,6 +13143,10 @@
     "defaultMessage": "Monitor locale coverage across all content types",
     "description": "Capability 1 title for the localisation-quality-monitoring use case"
   },
+  "nBWhU6jbvc": {
+    "defaultMessage": "Template",
+    "description": "Label for the read-only issue template provenance field"
+  },
   "nDPeOs1MH9": {
     "defaultMessage": "{displayName} settings saved",
     "description": "Toast after saving TMS OAuth or PAT settings"
@@ -13202,6 +13430,10 @@
   "oU0PK0wDMT": {
     "defaultMessage": "Connect a TMS provider to browse live provider projects here.",
     "description": "Section description prompting the user to connect a TMS provider"
+  },
+  "oV922EjrKR": {
+    "defaultMessage": "Default assignee by template",
+    "description": "Label for the per-template default assignee list"
   },
   "oY/dfpDvR7": {
     "defaultMessage": "No segments match this filter.",
@@ -14111,6 +14343,10 @@
     "defaultMessage": "Teams",
     "description": "Teams page title"
   },
+  "sHQ6RKFJ37": {
+    "defaultMessage": "Domains",
+    "description": "Sidebar navigation item for linked domains"
+  },
   "sHrPdefvvp": {
     "defaultMessage": "Search microphones...",
     "description": "Placeholder for the microphone search input"
@@ -14635,6 +14871,10 @@
     "defaultMessage": "Workspace managed",
     "description": "Capability badge for native workspace translation memories"
   },
+  "uY0scW79py": {
+    "defaultMessage": "Choose the template preselected when someone creates an issue for this project, and who each template should default to assigning. CAT always preselects Context request, regardless of this setting.",
+    "description": "Description of the project issue templates settings section"
+  },
   "uYFDr/Lkl1": {
     "defaultMessage": "UTF-8 CSV up to 2 MB and 2,000 rows",
     "description": "Helper text describing CSV size and row limits for import"
@@ -14646,6 +14886,10 @@
   "uZ8yLsRfe5": {
     "defaultMessage": "{localePair} · Updated {timestamp}",
     "description": "Source detail line under a workspace glossary name"
+  },
+  "uZHj88pUeq": {
+    "defaultMessage": "Back to domains",
+    "description": "Link back to the workspace domains list"
   },
   "uZYZ3PYM7b": {
     "defaultMessage": "Canva · Spring campaign board (6 frames)",
@@ -15750,6 +15994,14 @@
   "yU1JjWL9rR": {
     "defaultMessage": "{providerName} task",
     "description": "Metric label identifying a TMS provider-backed job task"
+  },
+  "yUJq1o3T8y": {
+    "defaultMessage": "No template",
+    "description": "Label for clearing the issue template selection in the create issue dialog"
+  },
+  "yUi5e+hJXv": {
+    "defaultMessage": "What is ambiguous or unclear",
+    "description": "Description skeleton heading for the context request issue template"
   },
   "yV9kjoqQN1": {
     "defaultMessage": "Secret ending in {suffix}",
