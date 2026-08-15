@@ -116,11 +116,11 @@ func TestPlaceholderTokenCountsSignalFastPath(t *testing.T) {
 		t.Fatalf("expected icu:name token from ParseInvariant, got %v", braceCounts)
 	}
 	if braceCounts["brace:name"] != 1 {
-		t.Fatalf("expected brace:name token from brace-regex path, got %v", braceCounts)
+		t.Fatalf("expected brace:name token from brace scanner path, got %v", braceCounts)
 	}
 
 	// ICU parse fails on the trailing unclosed brace, so icu:* tokens are
-	// skipped; brace-regex must still recover the closed {name} placeholder.
+	// skipped; brace scanner must still recover the closed {name} placeholder.
 	withBraceFallback := "Hello {name} {"
 	fallbackInv, fallbackErr := icuparser.ParseInvariant(withBraceFallback)
 	if fallbackErr == nil {
@@ -128,7 +128,7 @@ func TestPlaceholderTokenCountsSignalFastPath(t *testing.T) {
 	}
 	fallbackCounts, fallbackTotal := placeholderTokenCounts(withBraceFallback, fallbackInv, fallbackErr)
 	if fallbackTotal == 0 || fallbackCounts["brace:name"] != 1 {
-		t.Fatalf("expected brace-regex fallback token, got total=%d counts=%v", fallbackTotal, fallbackCounts)
+		t.Fatalf("expected brace-scanner fallback token, got total=%d counts=%v", fallbackTotal, fallbackCounts)
 	}
 	if fallbackCounts["icu:name"] != 0 {
 		t.Fatalf("expected no icu:name when ParseInvariant fails, got %v", fallbackCounts)
