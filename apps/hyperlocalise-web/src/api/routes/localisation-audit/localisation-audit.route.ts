@@ -11,7 +11,6 @@
  * Version 2.0 or later.
  */
 import { Hono } from "hono";
-import { setCookie } from "hono/cookie";
 
 import {
   badRequestResponse,
@@ -26,10 +25,6 @@ import { DEFAULT_APP_LOCALE, normalizeAppLocale } from "@/lib/app-i18n/locales";
 import { rejectLocalisationAuditBot } from "@/lib/localisation-audit/bot-protection";
 import { LocalisationAuditDailyQuotaExceededError } from "@/lib/localisation-audit/daily-quota";
 import { resolveDomainIdentity, isValidDomainSlug } from "@/lib/localisation-audit/domain-slug";
-import {
-  localisationAuditUnlockCookieName,
-  signLocalisationAuditUnlock,
-} from "@/lib/localisation-audit/email-unlock";
 import {
   attachLocalisationAuditWorkflowRun,
   claimOrReuseLocalisationAudit,
@@ -335,7 +330,7 @@ export function createLocalisationAuditRoutes(options: LocalisationAuditRouteOpt
         return badRequestResponse(c, "invalid_token", "A report token is required");
       }
 
-      // Token stays valid until expiry so email link-previews cannot burn a one-click unlock.
+      // Token stays valid until expiry so email link-previews do not consume the link.
       const verified = await verifyLocalisationAuditReportToken({ domainSlug, token });
       if (!verified) {
         return forbiddenResponse(
@@ -344,18 +339,6 @@ export function createLocalisationAuditRoutes(options: LocalisationAuditRouteOpt
           "This report link is invalid or expired.",
         );
       }
-
-      const cookieValue = signLocalisationAuditUnlock({
-        domainSlug,
-        email: verified.lead.email,
-      });
-      setCookie(c, localisationAuditUnlockCookieName(domainSlug), cookieValue, {
-        httpOnly: true,
-        sameSite: "Lax",
-        secure: process.env.NODE_ENV === "production",
-        path: "/",
-        maxAge: 60 * 60 * 24 * 180,
-      });
 
       serverAnalytics.track(LOCALISATION_AUDIT_ANALYTICS_EVENTS.emailVerified, {
         delivery: "verified",

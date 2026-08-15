@@ -105,7 +105,7 @@ export function localisationAuditReportEmailText(props: LocalisationAuditReportE
     "Top findings:",
     findings || "No headline findings.",
     "",
-    "Open your full report (link expires in 24 hours):",
+    "Open your public report (link expires in 24 hours):",
     props.verifyUrl,
     "",
     "How we score localisation audits:",
@@ -210,10 +210,7 @@ export function LocalisationAuditReportEmail(props: LocalisationAuditReportEmail
               Open full report
             </Button>
           </Section>
-          <Text style={muted}>
-            This link verifies your email and unlocks the full report. It expires in 24 hours and
-            can be used once.
-          </Text>
+          <Text style={muted}>This link opens your public report. It expires in 24 hours.</Text>
           <Text style={muted}>
             <Link href={localisationAuditGuideUrl()} style={link}>
               How we score localisation audits

@@ -385,7 +385,7 @@ describe("localisation audit routes", () => {
     expect(upsertLeadMock).not.toHaveBeenCalled();
   });
 
-  it("verifies token, sets per-domain cookie, and redirects", async () => {
+  it("verifies token and redirects without setting an unlock cookie", async () => {
     verifyTokenMock.mockResolvedValue({
       lead: { id: "lead-1", email: "lead@example.com" },
       audit: succeededAudit(),
@@ -399,8 +399,7 @@ describe("localisation audit routes", () => {
 
     expect(response.status).toBe(302);
     expect(response.headers.get("location")).toBe("/en/localisation-audit/example-com");
-    const setCookie = response.headers.get("set-cookie") ?? "";
-    expect(setCookie).toContain("hl_la_unlock_example-com=");
+    expect(response.headers.get("set-cookie")).toBeNull();
   });
 
   it("normalizes unsupported verify locales instead of open-redirecting", async () => {

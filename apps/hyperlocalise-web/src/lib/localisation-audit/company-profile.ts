@@ -96,8 +96,10 @@ export function pickCompanyLogoUrl(page: LocalisationAuditCrawledPage): string |
 
 function stripTitleNoise(title: string | null): string | null {
   if (!title) return null;
+  // Split on title separators (|, en/em dash) or spaced ASCII hyphens (" - ").
+  // Do not split on bare hyphens so names like "Coca-Cola" stay intact.
   const cleaned = title
-    .split(/\s*[|\u2013\u2014-]\s*/)[0]
+    .split(/\s*[|\u2013\u2014]\s*|\s+-\s+/)[0]
     ?.replace(/\s+/g, " ")
     .trim();
   return cleaned || null;

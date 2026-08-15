@@ -61,6 +61,24 @@ describe("buildHeuristicCompanyProfile", () => {
     expect(profile.industry).toBeNull();
     expect(profile.confidence).toBeGreaterThan(0);
   });
+
+  it("keeps hyphenated brand names while still stripping spaced title separators", () => {
+    const hyphenated = emptyCrawledPage({
+      url: "https://coca-cola.example/",
+      title: "Coca-Cola | Soft drinks",
+    });
+    expect(
+      buildHeuristicCompanyProfile({ domainKey: "coca-cola.example", page: hyphenated }).name,
+    ).toBe("Coca-Cola");
+
+    const spacedHyphen = emptyCrawledPage({
+      url: "https://acme.example/",
+      title: "Acme - Global billing",
+    });
+    expect(
+      buildHeuristicCompanyProfile({ domainKey: "acme.example", page: spacedHyphen }).name,
+    ).toBe("Acme");
+  });
 });
 
 describe("collectCompanyProfileEvidence", () => {
