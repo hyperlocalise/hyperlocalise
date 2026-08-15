@@ -26,6 +26,7 @@ import type {
   LocalisationAuditLeadDeliveryStatus,
   LocalisationAuditProgressStage,
   LocalisationAuditReport,
+  LocalisationAuditRunSource,
   LocalisationAuditStatus,
   LocalisationAuditTeaser,
 } from "./types";
@@ -231,6 +232,7 @@ async function lockLocalisationAuditDailyQuota(client: DatabaseClient) {
 
 async function assertLocalisationAuditDailyQuotaAvailable(
   client: DatabaseClient,
+  runSource: LocalisationAuditRunSource,
   lastAttemptAt?: Date | null,
 ) {
   if (!localisationAuditRunConsumesDailyQuota(lastAttemptAt)) {
@@ -240,10 +242,15 @@ async function assertLocalisationAuditDailyQuotaAvailable(
   const [row] = await client
     .select({ count: sql<number>`count(*)`.mapWith(Number) })
     .from(schema.localisationAudits)
-    .where(gte(schema.localisationAudits.lastAttemptAt, cutoff));
+    .where(
+      and(
+        eq(schema.localisationAudits.runSource, runSource),
+        gte(schema.localisationAudits.lastAttemptAt, cutoff),
+      ),
+    );
   const used = row?.count ?? 0;
-  if (used >= localisationAuditDailyRunLimit()) {
-    throw new LocalisationAuditDailyQuotaExceededError();
+  if (used >= localisationAuditDailyRunLimit(runSource)) {
+    throw new LocalisationAuditDailyQuotaExceededError(runSource);
   }
 }
 
@@ -253,6 +260,7 @@ async function createLocalisationAudit(
     domainSlug: string;
     sourceUrl: string;
     focusLocales: string[];
+    runSource: LocalisationAuditRunSource;
   },
   client: DatabaseClient = db,
 ) {
@@ -264,6 +272,7 @@ async function createLocalisationAudit(
       domainSlug: input.domainSlug,
       sourceUrl: input.sourceUrl,
       focusLocales: input.focusLocales,
+      runSource: input.runSource,
       status: "queued",
       attemptNumber: 1,
       progressStage: "queued",
@@ -279,22 +288,25 @@ async function createLocalisationAudit(
 
 /**
  * Atomically reuse a successful/active audit or reclaim a failed/stale one for a new attempt.
- * New runs and 24h re-runs share a system-wide daily cap; same-day failed/stale retries do not.
+ * New runs and 24h re-runs share a per-source daily cap; same-day failed/stale retries do not.
  */
 export async function claimOrReuseLocalisationAudit(input: {
   domainKey: string;
   domainSlug: string;
   sourceUrl: string;
   focusLocales: string[];
+  /** Defaults to visitor submissions. Pass `scheduled` for cron / internal starts. */
+  runSource?: LocalisationAuditRunSource;
 }): Promise<{ audit: LocalisationAuditRow; outcome: ClaimLocalisationAuditOutcome }> {
+  const runSource = input.runSource ?? "user";
   return db.transaction(async (tx) => {
     await lockLocalisationAuditDailyQuota(tx);
 
     for (let reclaimAttempts = 0; reclaimAttempts < 4; reclaimAttempts++) {
       const existing = await findLocalisationAuditByDomainKey(input.domainKey, tx);
       if (!existing) {
-        await assertLocalisationAuditDailyQuotaAvailable(tx);
-        const created = await createLocalisationAudit(input, tx);
+        await assertLocalisationAuditDailyQuotaAvailable(tx, runSource);
+        const created = await createLocalisationAudit({ ...input, runSource }, tx);
         return { audit: created, outcome: "created" as const };
       }
 
@@ -310,7 +322,8 @@ export async function claimOrReuseLocalisationAudit(input: {
         return { audit: existing, outcome: "reused_active" as const };
       }
 
-      await assertLocalisationAuditDailyQuotaAvailable(tx, existing.lastAttemptAt);
+      const consumesQuota = localisationAuditRunConsumesDailyQuota(existing.lastAttemptAt);
+      await assertLocalisationAuditDailyQuotaAvailable(tx, runSource, existing.lastAttemptAt);
 
       const timestamp = now();
       const staleCutoff = new Date(Date.now() - LOCALISATION_AUDIT_STALE_MS);
@@ -333,6 +346,8 @@ export async function claimOrReuseLocalisationAudit(input: {
           progressStage: "queued" satisfies LocalisationAuditProgressStage,
           statusUpdatedAt: timestamp,
           lastAttemptAt: timestamp,
+          // Same-day retries do not take a new slot; keep the prior bucket attribution.
+          ...(consumesQuota ? { runSource } : {}),
           workflowRunId: null,
           score: preservePriorReport ? existing.score : null,
           teaser: preservePriorReport ? existing.teaser : null,

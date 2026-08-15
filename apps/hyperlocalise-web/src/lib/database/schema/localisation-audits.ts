@@ -25,6 +25,7 @@ import type {
   LocalisationAuditLeadDeliveryStatus,
   LocalisationAuditProgressStage,
   LocalisationAuditReport,
+  LocalisationAuditRunSource,
   LocalisationAuditTeaser,
 } from "@/lib/localisation-audit/types";
 import { organizations } from "./organizations";
@@ -45,6 +46,11 @@ export const localisationAudits = pgTable(
     progressStage: text("progress_stage").$type<LocalisationAuditProgressStage>(),
     statusUpdatedAt: timestamp("status_updated_at", { withTimezone: true }).notNull().defaultNow(),
     lastAttemptAt: timestamp("last_attempt_at", { withTimezone: true }),
+    /**
+     * Who started the latest quota-consuming attempt. User form starts and
+     * scheduled/internal starts each have a separate daily cap.
+     */
+    runSource: text("run_source").$type<LocalisationAuditRunSource>().notNull().default("user"),
     workflowRunId: text("workflow_run_id"),
     focusLocales: jsonb("focus_locales").$type<string[]>().notNull().default([]),
     score: integer("score"),
@@ -75,6 +81,7 @@ export const localisationAudits = pgTable(
     index("idx_localisation_audits_score").on(table.score),
     index("idx_localisation_audits_organization_id").on(table.organizationId),
     index("idx_localisation_audits_linked_domain_id").on(table.linkedDomainId),
+    index("idx_localisation_audits_run_source_last_attempt").on(table.runSource, table.lastAttemptAt),
   ],
 );
 

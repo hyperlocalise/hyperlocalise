@@ -1,0 +1,2 @@
+ALTER TABLE "localisation_audits" ADD COLUMN "run_source" text DEFAULT 'user' NOT NULL;--> statement-breakpoint
+CREATE INDEX "idx_localisation_audits_run_source_last_attempt" ON "localisation_audits" USING btree ("run_source","last_attempt_at");

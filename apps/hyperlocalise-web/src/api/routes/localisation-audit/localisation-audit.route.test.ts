@@ -220,7 +220,7 @@ describe("localisation audit routes", () => {
   });
 
   it("rejects new runs when the daily quota is exhausted", async () => {
-    claimOrReuseMock.mockRejectedValue(new LocalisationAuditDailyQuotaExceededError(10));
+    claimOrReuseMock.mockRejectedValue(new LocalisationAuditDailyQuotaExceededError("user", 10));
 
     const app = createApp({
       localisationAuditQueue: {
@@ -237,7 +237,7 @@ describe("localisation audit routes", () => {
     expect(response.status).toBe(429);
     const body = await response.json();
     expect(body.error).toBe("localisation_audit_daily_quota");
-    expect(body.message).toContain("10 audits");
+    expect(body.message).toContain("10 visitor audits");
   });
 
   it("marks enqueue failures as retryable failed audits", async () => {

@@ -10,25 +10,50 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { LOCALISATION_AUDIT_DAILY_RUN_LIMIT, LOCALISATION_AUDIT_RERUN_MS } from "./types";
+import {
+  LOCALISATION_AUDIT_DAILY_RUN_LIMIT,
+  LOCALISATION_AUDIT_RERUN_MS,
+  type LocalisationAuditRunSource,
+} from "./types";
 
-let dailyRunLimit = LOCALISATION_AUDIT_DAILY_RUN_LIMIT;
+const DEFAULT_LIMITS: Record<LocalisationAuditRunSource, number> = {
+  user: LOCALISATION_AUDIT_DAILY_RUN_LIMIT,
+  scheduled: LOCALISATION_AUDIT_DAILY_RUN_LIMIT,
+};
 
-export function localisationAuditDailyRunLimit() {
-  return dailyRunLimit;
+let dailyRunLimits: Record<LocalisationAuditRunSource, number> = { ...DEFAULT_LIMITS };
+
+export function localisationAuditDailyRunLimit(
+  runSource: LocalisationAuditRunSource = "user",
+) {
+  return dailyRunLimits[runSource];
 }
 
-/** Test-only: raise the cap so claim tests do not collide with leftover rows. */
+/** Test-only: set both buckets so claim tests do not collide with leftover rows. */
 export function setLocalisationAuditDailyRunLimitForTests(limit: number) {
-  dailyRunLimit = limit;
+  dailyRunLimits = { user: limit, scheduled: limit };
+}
+
+/** Test-only: set one bucket without changing the other. */
+export function setLocalisationAuditDailyRunLimitForSourceForTests(
+  runSource: LocalisationAuditRunSource,
+  limit: number,
+) {
+  dailyRunLimits = { ...dailyRunLimits, [runSource]: limit };
 }
 
 export class LocalisationAuditDailyQuotaExceededError extends Error {
   readonly code = "localisation_audit_daily_quota";
+  readonly runSource: LocalisationAuditRunSource;
 
-  constructor(limit = localisationAuditDailyRunLimit()) {
-    super(`We've reached today's limit of ${limit} audits. Try again tomorrow.`);
+  constructor(
+    runSource: LocalisationAuditRunSource = "user",
+    limit = localisationAuditDailyRunLimit(runSource),
+  ) {
+    const audience = runSource === "scheduled" ? "scheduled" : "visitor";
+    super(`We've reached today's limit of ${limit} ${audience} audits. Try again tomorrow.`);
     this.name = "LocalisationAuditDailyQuotaExceededError";
+    this.runSource = runSource;
   }
 }
 

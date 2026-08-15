@@ -132,6 +132,7 @@ export function createLocalisationAuditRoutes(options: LocalisationAuditRouteOpt
           domainSlug: identity.value.domainSlug,
           sourceUrl: identity.value.sourceUrl,
           focusLocales,
+          runSource: "user",
         });
       } catch (error) {
         if (error instanceof LocalisationAuditDailyQuotaExceededError) {

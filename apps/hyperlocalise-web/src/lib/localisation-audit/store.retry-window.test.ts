@@ -33,6 +33,7 @@ function audit(overrides: Partial<LocalisationAuditRow> = {}): LocalisationAudit
     progressStage: "completed",
     statusUpdatedAt: timestamp,
     lastAttemptAt: timestamp,
+    runSource: "user",
     workflowRunId: null,
     focusLocales: [],
     score: 72,

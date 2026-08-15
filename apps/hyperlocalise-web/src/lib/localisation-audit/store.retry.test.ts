@@ -17,6 +17,7 @@ import { db, schema } from "@/lib/database";
 
 import {
   LocalisationAuditDailyQuotaExceededError,
+  setLocalisationAuditDailyRunLimitForSourceForTests,
   setLocalisationAuditDailyRunLimitForTests,
 } from "./daily-quota";
 import { hostnameToDomainSlug } from "./domain-slug";
@@ -602,19 +603,26 @@ describe("localisation audit daily run quota", () => {
   const stamp = Date.now();
   const firstKey = `quota-a-${stamp}.example`;
   const secondKey = `quota-b-${stamp}.example`;
+  const scheduledKey = `quota-sched-${stamp}.example`;
 
   afterEach(async () => {
     setLocalisationAuditDailyRunLimitForTests(LOCALISATION_AUDIT_DAILY_RUN_LIMIT);
     await cleanup(firstKey);
     await cleanup(secondKey);
+    await cleanup(scheduledKey);
   });
 
-  it("caps new runs system-wide and still retries a same-day failure", async () => {
+  it("caps new runs per source and still retries a same-day failure", async () => {
     const cutoff = new Date(Date.now() - LOCALISATION_AUDIT_RERUN_MS);
     const [usage] = await db
       .select({ count: sql<number>`count(*)`.mapWith(Number) })
       .from(schema.localisationAudits)
-      .where(gte(schema.localisationAudits.lastAttemptAt, cutoff));
+      .where(
+        and(
+          eq(schema.localisationAudits.runSource, "user"),
+          gte(schema.localisationAudits.lastAttemptAt, cutoff),
+        ),
+      );
     const used = usage?.count ?? 0;
     setLocalisationAuditDailyRunLimitForTests(used + 1);
 
@@ -623,8 +631,10 @@ describe("localisation audit daily run quota", () => {
       domainSlug: hostnameToDomainSlug(firstKey),
       sourceUrl: `https://${firstKey}/`,
       focusLocales: [],
+      runSource: "user",
     });
     expect(created.outcome).toBe("created");
+    expect(created.audit.runSource).toBe("user");
 
     await expect(
       claimOrReuseLocalisationAudit({
@@ -632,6 +642,7 @@ describe("localisation audit daily run quota", () => {
         domainSlug: hostnameToDomainSlug(secondKey),
         sourceUrl: `https://${secondKey}/`,
         focusLocales: [],
+        runSource: "user",
       }),
     ).rejects.toBeInstanceOf(LocalisationAuditDailyQuotaExceededError);
 
@@ -647,9 +658,11 @@ describe("localisation audit daily run quota", () => {
       domainSlug: hostnameToDomainSlug(firstKey),
       sourceUrl: `https://${firstKey}/`,
       focusLocales: [],
+      runSource: "user",
     });
     expect(retried.outcome).toBe("reclaimed");
     expect(retried.audit.attemptNumber).toBe(created.audit.attemptNumber + 1);
+    expect(retried.audit.runSource).toBe("user");
 
     await expect(
       claimOrReuseLocalisationAudit({
@@ -657,8 +670,57 @@ describe("localisation audit daily run quota", () => {
         domainSlug: hostnameToDomainSlug(secondKey),
         sourceUrl: `https://${secondKey}/`,
         focusLocales: [],
+        runSource: "user",
       }),
     ).rejects.toBeInstanceOf(LocalisationAuditDailyQuotaExceededError);
+  });
+
+  it("keeps user and scheduled daily caps independent", async () => {
+    const cutoff = new Date(Date.now() - LOCALISATION_AUDIT_RERUN_MS);
+    const [userUsage] = await db
+      .select({ count: sql<number>`count(*)`.mapWith(Number) })
+      .from(schema.localisationAudits)
+      .where(
+        and(
+          eq(schema.localisationAudits.runSource, "user"),
+          gte(schema.localisationAudits.lastAttemptAt, cutoff),
+        ),
+      );
+    const usedUser = userUsage?.count ?? 0;
+    setLocalisationAuditDailyRunLimitForTests(LOCALISATION_AUDIT_DAILY_RUN_LIMIT);
+    setLocalisationAuditDailyRunLimitForSourceForTests("user", usedUser + 1);
+
+    const userCreated = await claimOrReuseLocalisationAudit({
+      domainKey: firstKey,
+      domainSlug: hostnameToDomainSlug(firstKey),
+      sourceUrl: `https://${firstKey}/`,
+      focusLocales: [],
+      runSource: "user",
+    });
+    expect(userCreated.outcome).toBe("created");
+
+    await expect(
+      claimOrReuseLocalisationAudit({
+        domainKey: secondKey,
+        domainSlug: hostnameToDomainSlug(secondKey),
+        sourceUrl: `https://${secondKey}/`,
+        focusLocales: [],
+        runSource: "user",
+      }),
+    ).rejects.toMatchObject({
+      code: "localisation_audit_daily_quota",
+      runSource: "user",
+    });
+
+    const scheduled = await claimOrReuseLocalisationAudit({
+      domainKey: scheduledKey,
+      domainSlug: hostnameToDomainSlug(scheduledKey),
+      sourceUrl: `https://${scheduledKey}/`,
+      focusLocales: [],
+      runSource: "scheduled",
+    });
+    expect(scheduled.outcome).toBe("created");
+    expect(scheduled.audit.runSource).toBe("scheduled");
   });
 });
 
