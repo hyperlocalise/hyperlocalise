@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"mime"
-	"net/url"
 	"os"
 	"path/filepath"
 
@@ -40,7 +39,7 @@ func (s *StorageService) Add(ctx context.Context, file *os.File) (*model.Storage
 	resp, err := s.client.Upload(
 		ctx, "/api/v2/storages", file, res,
 		Header("Content-Type", mime.TypeByExtension(filepath.Ext(file.Name()))),
-		Header("Crowdin-API-FileName", url.QueryEscape(filepath.Base(file.Name()))),
+		Header("Crowdin-API-FileName", filepath.Base(file.Name())),
 	)
 
 	return res.Data, resp, err

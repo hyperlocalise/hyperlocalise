@@ -124,6 +124,7 @@ func TestStorageService_Add(t *testing.T) {
 		expectedMediaType string
 	}{
 		{"upload.txt", "text/plain; charset=utf-8"},
+		{"upload file with spaces.txt", "text/plain; charset=utf-8"},
 		// No media type for unknown file types
 		{"upload.xlif", defaultMediaType},
 	}

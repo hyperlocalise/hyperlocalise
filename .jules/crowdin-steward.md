@@ -1,5 +1,11 @@
 # Crowdin Steward's Journal
 
+## 2026-12-27 - Preserve exact Crowdin-API-FileName header without query escaping
+
+**Learning:** In Crowdin API v2, uploading files to storage (`POST /api/v2/storages`) passes the filename via the `Crowdin-API-FileName` HTTP header. The Go SDK previously wrapped the filename in `url.QueryEscape`, which incorrectly modified filenames containing spaces (converting spaces to `+` signs) or other special characters, resulting in mangled filenames stored in Crowdin storage.
+
+**Action:** Updated `StorageService.Add` in `crowdin/storage.go` to pass raw `filepath.Base(file.Name())` directly to `Crowdin-API-FileName` without `url.QueryEscape`. Updated `TestStorageService_Add` in `crowdin/storage_test.go` to cover filenames with spaces.
+
 ## 2026-12-26 - Add FileID and MaxLen parity for SourceStringsUpload attributes
 
 **Learning:** In Crowdin API v2, the Upload Source Strings background job response contains `fileId` and `maxLen` fields inside its `attributes` object when uploading strings for a specific file or with length restrictions. The SDK previously omitted `FileID` and `MaxLen` from `SourceStringsUpload.Attributes`, preventing callers from verifying file targeting or maximum length configurations in upload job status responses.
