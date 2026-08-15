@@ -305,12 +305,7 @@ function CriterionRow({
               {statusLabel}
             </Badge>
             {criterion.status !== "na" && criterion.score != null ? (
-              <span
-                className={cn(
-                  "text-sm tabular-nums",
-                  auditToneTextClass(scoreTone(criterion.score)),
-                )}
-              >
+              <span className={cn("text-sm tabular-nums", auditToneTextClass(badgeTone))}>
                 {criterion.score}
               </span>
             ) : null}
