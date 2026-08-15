@@ -369,6 +369,8 @@ const evidenceBody = {
   fontFamily:
     'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
   whiteSpace: "pre-wrap" as const,
+  wordBreak: "break-word" as const,
+  overflowWrap: "anywhere" as const,
 };
 
 const findingUrl = {

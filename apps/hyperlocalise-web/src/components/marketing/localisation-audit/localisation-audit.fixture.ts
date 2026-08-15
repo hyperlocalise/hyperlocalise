@@ -151,6 +151,18 @@ const FINDING_SEEDS: Array<{
     confidence: 90,
   },
   {
+    creditId: "localized-images",
+    severity: "medium",
+    title: "Image still looks like the source locale",
+    summary: "Alt text or filename on a ja-jp page appears to be English.",
+    where: "Page body · <img alt>",
+    url: "https://acme.example/ja-JP",
+    evidence:
+      'alt="5 New Games to Play in March 2026 (Under 5 Minutes)" src="/_next/image?url=%2Fimages%2Fgame%2Fmath-sudoku.png&w=3840&q=75&dpl=dpl_EPL3L2dMJPgnPiUChJy6wt58CTGu"',
+    advice: "Localize the image asset and alt text for this page locale.",
+    confidence: 95,
+  },
+  {
     creditId: "text-overflow",
     severity: "medium",
     title: "German nav labels clip at tablet width",

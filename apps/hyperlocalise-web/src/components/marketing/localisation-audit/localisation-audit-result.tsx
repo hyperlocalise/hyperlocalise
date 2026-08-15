@@ -153,17 +153,13 @@ function DimensionScoreCircle({
   );
 }
 
-function looksLikeMarkup(value: string) {
-  return value.includes("<") && value.includes(">");
-}
-
 function FindingDetail({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <div className="mt-3">
+    <div className="mt-3 min-w-0">
       <p className="text-xs font-medium tracking-[0.14em] text-muted-foreground uppercase">
         {label}
       </p>
-      <div className="mt-1">{children}</div>
+      <div className="mt-1.5 min-w-0">{children}</div>
     </div>
   );
 }
@@ -182,14 +178,15 @@ function FindingList({
   }
 
   return (
-    <ul className="space-y-6">
+    <ul className="min-w-0 space-y-6">
       {findings.map((finding) => {
         const tone = severityTone(finding.severity);
-        const evidenceLooksLikeMarkup =
-          finding.evidence != null && looksLikeMarkup(finding.evidence);
         const findingHref = sanitizeLocalisationAuditFindingUrl(finding.url, domainKey);
         return (
-          <li key={finding.id} className="border-t border-border pt-6 first:border-t-0 first:pt-0">
+          <li
+            key={finding.id}
+            className="min-w-0 border-t border-border pt-6 first:border-t-0 first:pt-0"
+          >
             <div className="flex flex-wrap items-center gap-2">
               <Badge variant="outline" className={cn("capitalize", auditToneBadgeClass(tone))}>
                 {finding.severity}
@@ -199,11 +196,11 @@ function FindingList({
                 {finding.confidence != null ? ` · ${finding.confidence}% confidence` : ""}
               </span>
             </div>
-            <p className="mt-2 text-lg font-medium">{finding.title}</p>
+            <p className="mt-2 text-lg font-medium text-pretty">{finding.title}</p>
             <p className="mt-1 text-pretty text-muted-foreground">{finding.summary}</p>
             {finding.where || findingHref ? (
               <FindingDetail label={copy.findingWhereLabel}>
-                {finding.where ? <p className="text-sm">{finding.where}</p> : null}
+                {finding.where ? <p className="text-sm wrap-break-word">{finding.where}</p> : null}
                 {findingHref ? (
                   <a
                     href={findingHref}
@@ -218,19 +215,14 @@ function FindingList({
             ) : null}
             {finding.evidence ? (
               <FindingDetail label={copy.findingEvidenceLabel}>
-                <p
-                  className={cn(
-                    "whitespace-pre-wrap text-sm text-muted-foreground",
-                    evidenceLooksLikeMarkup ? "font-mono" : "italic",
-                  )}
-                >
-                  {evidenceLooksLikeMarkup ? finding.evidence : `“${finding.evidence}”`}
+                <p className="min-w-0 font-mono text-sm wrap-break-word whitespace-pre-wrap text-muted-foreground">
+                  {finding.evidence}
                 </p>
               </FindingDetail>
             ) : null}
             {finding.advice ? (
               <FindingDetail label={copy.findingAdviceLabel}>
-                <p className="text-pretty text-sm">{finding.advice}</p>
+                <p className="text-pretty text-sm wrap-break-word">{finding.advice}</p>
               </FindingDetail>
             ) : null}
           </li>
