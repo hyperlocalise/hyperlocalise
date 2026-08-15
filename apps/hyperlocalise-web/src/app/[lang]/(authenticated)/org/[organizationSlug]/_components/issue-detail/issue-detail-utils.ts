@@ -49,6 +49,10 @@ export type IssueDetailIssue = {
   linkKind: string | null;
   linkLabel: string | null;
   linkUrl: string | null;
+  // Which static issue template (if any) prefilled this issue at creation. Provenance only, may
+  // reference a template key that no longer exists — render through issueSheetTemplateLabel,
+  // which falls back to a formatted version of the raw key.
+  templateKey: string | null;
   assigneeUserId: string | null;
   reporter: string | null;
   assignee: string | null;

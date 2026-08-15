@@ -56,6 +56,7 @@ import {
   IssueColumnIcon,
   resolveIssueSheetColumnIcon,
 } from "@/components/issue-column-icon/issue-column-icon";
+import { issueSheetTemplateLabel } from "@/lib/projects/issue-sheet/issue-sheet-templates";
 import { cn } from "@/lib/primitives/cn";
 
 import { IssueCustomColumnField } from "./issue-custom-column-field";
@@ -977,6 +978,19 @@ export const IssueDetailPanel = forwardRef<
               >
                 <ReadOnlyValue value={issue.reporter} empty={emptyValue} className="truncate" />
               </PropertyRow>
+
+              {issue.templateKey ? (
+                <PropertyRow
+                  icon={Tag01Icon}
+                  label={<FormattedMessage {...messages.fieldTemplate} />}
+                >
+                  <ReadOnlyValue
+                    value={issueSheetTemplateLabel(intl, issue.templateKey)}
+                    empty={emptyValue}
+                    className="truncate"
+                  />
+                </PropertyRow>
+              ) : null}
 
               <PropertyRow
                 icon={LanguageCircleIcon}

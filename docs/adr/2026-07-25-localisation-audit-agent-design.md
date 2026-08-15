@@ -10,9 +10,9 @@ Offer a public localisation health check as a lead magnet. Visitors paste a URL,
 - Result: `/[lang]/localisation-audit/[domainSlug]`
 - `domainSlug` is `[a-z]+(?:-[a-z]+)*` only (dots and other hostname chars become hyphens; digits stripped), plus a short stable a-z hash suffix so collapses cannot collide (`web3.io` ≠ `web.io`). Example: `stripe.com` → `stripe-com-<hash>`.
 - Domain identity uses normalized hostname (lowercase, strip `www.`).
-- Public page shows teaser (score `/100`, locale map, prioritized “Fix first” findings). Full report unlocks only after email verification.
+- Public result pages show the full report (score, company profile, findings, credits, linguistic notes, sampled pages). Email capture is optional for a summary delivery, not an unlock gate.
 - Optional focus locales (1–2) deepen the linguistic pass when provided on first run.
-- Successful teaser reports are public and indexable; full reports stay cookie-gated per domain.
+- Successful reports are public and indexable.
 
 ## Architecture
 

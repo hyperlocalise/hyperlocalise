@@ -67,8 +67,16 @@ type IssueResponse = {
     linkKind: string | null;
     key: string | null;
     sourceText: string | null;
+    templateKey: string | null;
     values: Record<string, unknown>;
     isWatching: boolean;
+  };
+};
+
+type TemplateConfigResponse = {
+  templateConfig: {
+    defaultTemplateKey: string | null;
+    assigneeByTemplate: { templateKey: string; userId: string; assignable: boolean }[];
   };
 };
 
@@ -2099,5 +2107,134 @@ Second import issue,Done,EXT-2,P2`;
     expect(subscribersBody.subscribers).toHaveLength(1);
     expect(subscribersBody.subscribers[0]?.userId).toBeTruthy();
     expect(subscribersBody.subscribers[0]?.displayName).toBeTruthy();
+  });
+
+  it("manages the project issue template config, gated by project mutation permission for writes", async () => {
+    const { identity, user, project } = await projectFixture.createStoredProjectFixture();
+    const headers = await projectFixture.authHeadersFor(identity);
+    const organizationSlug = identity.organization.slug ?? "missing-slug";
+
+    const initialGet = await issueSheet()["template-config"].$get(
+      { param: { organizationSlug: organizationSlug, projectId: project.id } } as never,
+      { headers: headers },
+    );
+    expect(initialGet.status).toBe(200);
+    const initialBody = (await initialGet.json()) as TemplateConfigResponse;
+    expect(initialBody.templateConfig).toEqual({
+      defaultTemplateKey: null,
+      assigneeByTemplate: [],
+    });
+
+    // The fixture's owning identity is "admin", which has teams:write and is always assignable.
+    const putResponse = await issueSheet()["template-config"].$put(
+      {
+        param: { organizationSlug: organizationSlug, projectId: project.id },
+        json: {
+          defaultTemplateKey: "tpl_context_request",
+          assigneeByTemplate: { tpl_qa_failure: user.id },
+        },
+      } as never,
+      { headers: headers },
+    );
+    expect(putResponse.status).toBe(200);
+    const putBody = (await putResponse.json()) as TemplateConfigResponse;
+    expect(putBody.templateConfig).toEqual({
+      defaultTemplateKey: "tpl_context_request",
+      assigneeByTemplate: [{ templateKey: "tpl_qa_failure", userId: user.id, assignable: true }],
+    });
+
+    const invalidAssigneeResponse = await issueSheet()["template-config"].$put(
+      {
+        param: { organizationSlug: organizationSlug, projectId: project.id },
+        json: {
+          defaultTemplateKey: null,
+          assigneeByTemplate: { tpl_qa_failure: crypto.randomUUID() },
+        },
+      } as never,
+      { headers: headers },
+    );
+    expect(invalidAssigneeResponse.status).toBe(400);
+    await expect(invalidAssigneeResponse.json()).resolves.toMatchObject({
+      error: "assignee_not_assignable",
+    });
+
+    const translatorIdentity = projectFixture.createWorkosIdentityForOrganization(
+      identity.organization,
+      "translator",
+    );
+    const translatorHeaders = await projectFixture.authHeadersFor(translatorIdentity);
+    const translatorLocalId = await projectFixture.getLocalUserId(
+      translatorIdentity.user.workosUserId,
+    );
+    // Team membership, not just an org role, is what grants project visibility (see
+    // canAccessProject/getVisibleTeamIds in team-access.ts) — a translator with no team
+    // membership on this project would correctly get 404, same as the "outsider" case
+    // covered elsewhere in this file.
+    await db.insert(schema.teamMemberships).values({
+      teamId: project.teamId!,
+      userId: translatorLocalId,
+      role: "member",
+    });
+
+    const translatorGet = await issueSheet()["template-config"].$get(
+      { param: { organizationSlug: organizationSlug, projectId: project.id } } as never,
+      { headers: translatorHeaders },
+    );
+    expect(translatorGet.status).toBe(200);
+    const translatorGetBody = (await translatorGet.json()) as TemplateConfigResponse;
+    expect(translatorGetBody.templateConfig.defaultTemplateKey).toBe("tpl_context_request");
+
+    const translatorPut = await issueSheet()["template-config"].$put(
+      {
+        param: { organizationSlug: organizationSlug, projectId: project.id },
+        json: { defaultTemplateKey: null, assigneeByTemplate: {} },
+      } as never,
+      { headers: translatorHeaders },
+    );
+    expect(translatorPut.status).toBe(403);
+  });
+
+  it("records which template created an issue and preserves it through dedupe", async () => {
+    const { identity, project } = await projectFixture.createStoredProjectFixture();
+    const headers = await projectFixture.authHeadersFor(identity);
+    const organizationSlug = identity.organization.slug ?? "missing-slug";
+
+    const created = await issueSheet().$post(
+      {
+        param: { organizationSlug: organizationSlug, projectId: project.id },
+        json: {
+          title: "Template-created issue",
+          issueType: "context_request",
+          templateKey: "tpl_context_request",
+          externalRef: "cat:template-dedupe:1",
+          status: "open",
+        },
+      } as never,
+      { headers: headers },
+    );
+    expect(created.status).toBe(201);
+    const createdBody = (await created.json()) as IssueResponse;
+    expect(createdBody.issue.templateKey).toBe("tpl_context_request");
+
+    // Same externalRef hits the open-issue dedupe path (createIssue -> findExistingLinkedIssue)
+    // and must return the existing row untouched, including its original template_key, even
+    // though this second request names a different template.
+    const deduped = await issueSheet().$post(
+      {
+        param: { organizationSlug: organizationSlug, projectId: project.id },
+        json: {
+          title: "Template-created issue",
+          issueType: "context_request",
+          templateKey: "tpl_qa_failure",
+          externalRef: "cat:template-dedupe:1",
+          status: "open",
+        },
+      } as never,
+      { headers: headers },
+    );
+    expect(deduped.status).toBe(201);
+    const dedupedBody = (await deduped.json()) as IssueResponse;
+    expect(dedupedBody.issue.id).toBe(createdBody.issue.id);
+    expect(dedupedBody.issue.templateKey).toBe("tpl_context_request");
   });
 });

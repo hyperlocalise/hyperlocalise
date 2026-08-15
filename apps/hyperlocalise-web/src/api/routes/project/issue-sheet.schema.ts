@@ -26,6 +26,21 @@ export const issueSheetIssueTypeSchema = z.enum([
   "glossary_violation",
   "qa_failure",
 ]);
+export type IssueSheetIssueType = z.infer<typeof issueSheetIssueTypeSchema>;
+
+// Issue template keys, deliberately distinct strings from IssueSheetIssueType values so the two
+// literal unions are disjoint and a mix-up is a type error. Provenance only: `template_key` on an
+// issue records which template created it, independent of the issue's own (mutable) issueType.
+// Definitions (label, linked type, default priority, description skeleton) are static code in
+// lib/projects/issue-sheet/issue-sheet-templates.ts, not stored here or in the database.
+export const issueSheetTemplateKeySchema = z.enum([
+  "tpl_translation_mistake",
+  "tpl_source_mistake",
+  "tpl_context_request",
+  "tpl_glossary_violation",
+  "tpl_qa_failure",
+]);
+export type IssueSheetTemplateKey = z.infer<typeof issueSheetTemplateKeySchema>;
 export const issueSheetLinkKindSchema = z.enum([
   "cat_segment",
   "native_issue",
@@ -56,6 +71,7 @@ export const issueSheetColumnParamsSchema = projectIdParamsSchema.extend({
 export const issueSheetSortSchema = z.enum(["updated_at", "created_at", "priority", "status"]);
 export const issueSheetSortDirSchema = z.enum(["asc", "desc"]);
 export const issueSheetPrioritySchema = z.enum(["P0", "P1", "P2"]);
+export type IssueSheetPriority = z.infer<typeof issueSheetPrioritySchema>;
 
 export const issueSheetQuerySchema = z.object({
   view: z.enum(["my_work", "qa_triage", "source_context", "all_open"]).optional(),
@@ -80,6 +96,10 @@ export const issueSheetCreateIssueBodySchema = z.object({
   description: z.string().max(20_000).optional(),
   issueType: issueSheetIssueTypeSchema.optional(),
   status: issueSheetIssueStatusSchema.optional(),
+  // Provenance only: which static template (if any) the client applied to prefill this issue.
+  // The client is responsible for having already copied the template's type/priority/description
+  // into the fields above; the server does not resolve or apply template content itself.
+  templateKey: issueSheetTemplateKeySchema.optional(),
   targetLocale: z.string().trim().min(1).max(32).optional(),
   sourcePath: z.string().trim().min(1).max(2048).optional(),
   segmentId: z.string().trim().min(1).max(512).optional(),
@@ -170,6 +190,28 @@ export const issueSheetSetValueBodySchema = z.object({
   columnKey: z.string().trim().min(1).max(64),
   value: z.unknown(),
 });
+
+// Full-object replace: PUT /template-config always overwrites both fields, so a client that only
+// intends to change the default must still resend its current assigneeByTemplate, or those
+// bindings are cleared. Keys of assigneeByTemplate are validated against issueSheetTemplateKeySchema
+// via superRefine rather than z.record(issueSheetTemplateKeySchema, ...), since a record keyed by
+// a zod enum is exhaustive (requires every key present) rather than partial.
+export const issueSheetTemplateConfigBodySchema = z.object({
+  defaultTemplateKey: issueSheetTemplateKeySchema.nullable(),
+  assigneeByTemplate: z.record(z.string(), z.string().uuid()).superRefine((value, ctx) => {
+    for (const key of Object.keys(value)) {
+      if (!issueSheetTemplateKeySchema.safeParse(key).success) {
+        ctx.addIssue({ code: "custom", path: [key], message: "Unknown template key" });
+      }
+    }
+  }),
+});
+export type IssueSheetTemplateConfigBody = z.infer<typeof issueSheetTemplateConfigBodySchema>;
+
+export type IssueSheetTemplateConfig = {
+  defaultTemplateKey: string | null;
+  assigneeByTemplate: { templateKey: string; userId: string; assignable: boolean }[];
+};
 
 export const issueSheetFeedQuerySchema = z
   .object({

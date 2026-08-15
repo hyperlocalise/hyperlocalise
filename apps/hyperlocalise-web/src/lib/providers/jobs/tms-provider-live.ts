@@ -646,6 +646,9 @@ function buildLiveProviderProject(input: {
     lastSyncErrorAt: null,
     lastSyncErrorMessage: null,
     providerMetadata: {},
+    // Live provider projects aren't rows in the projects table, so there's no per-project
+    // template config to read — same empty default as an unconfigured native project.
+    issueTemplateConfig: {},
     createdAt: now,
     updatedAt: now,
   };

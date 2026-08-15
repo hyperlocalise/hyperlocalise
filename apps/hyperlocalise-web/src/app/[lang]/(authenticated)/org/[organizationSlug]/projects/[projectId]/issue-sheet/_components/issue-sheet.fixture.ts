@@ -53,6 +53,7 @@ export type IssueSheetIssueFixture = {
   linkKind: string | null;
   linkLabel: string | null;
   linkUrl: string | null;
+  templateKey: string | null;
   assigneeUserId: string | null;
   reporter: string | null;
   assignee: string | null;
@@ -209,6 +210,7 @@ export function createIssueSheetIssue(
     linkKind: "cat_segment",
     linkLabel: null,
     linkUrl: null,
+    templateKey: "tpl_context_request",
     assigneeUserId: "user_otto",
     reporter: "Mina Chen",
     assignee: "Otto Klein",
@@ -244,6 +246,7 @@ export const issueSheetIssuesFixture: IssueSheetIssueFixture[] = [
     segmentId: "checkout.pay",
     key: "checkout.pay",
     sourceText: "Pay now",
+    templateKey: "tpl_translation_mistake",
     values: {
       priority: "P2",
       owner_note: "Shorten to fit mobile layout.",
@@ -266,6 +269,8 @@ export const issueSheetIssuesFixture: IssueSheetIssueFixture[] = [
     segmentId: "hero.title",
     key: "hero.title",
     sourceText: "Welcome back",
+    // No template — demonstrates the read-only Template row correctly staying hidden.
+    templateKey: null,
     reporter: "QA Bot",
     assignee: "Aiko Tanaka",
     assigneeUserId: "user_aiko",

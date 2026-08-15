@@ -154,6 +154,13 @@ export async function analyzeLocalisationAuditStep(input: {
   });
   const completedAt = new Date().toISOString();
 
+  const { buildLocalisationAuditCompanyProfile } =
+    await import("@/lib/localisation-audit/company-profile");
+  const companyProfile = await buildLocalisationAuditCompanyProfile({
+    domainKey: input.domainKey,
+    pages: input.pages,
+  });
+
   const report: LocalisationAuditReport = {
     score,
     domainKey: input.domainKey,
@@ -173,6 +180,7 @@ export async function analyzeLocalisationAuditStep(input: {
     completedAt,
     dimensionScores,
     credits: scored.credits,
+    companyProfile,
   };
 
   const teaser: LocalisationAuditTeaser = {
@@ -186,6 +194,7 @@ export async function analyzeLocalisationAuditStep(input: {
     completedAt,
     dimensionScores,
     credits: scored.credits,
+    companyProfile,
   };
 
   const completed = await completeLocalisationAudit({

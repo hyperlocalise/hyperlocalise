@@ -18,6 +18,8 @@ import {
   type IssueSheetCreateIssueBody,
   type IssueSheetQuery,
   type IssueSheetSetValueBody,
+  type IssueSheetTemplateConfig,
+  type IssueSheetTemplateConfigBody,
   type IssueSheetUpdateIssueBody,
 } from "@/api/routes/project/issue-sheet.schema";
 import type { IssueSheetImportBody } from "@/api/routes/project/issue-sheet.schema";
@@ -31,6 +33,7 @@ import { isErr } from "@/lib/primitives/result/results";
 
 import {
   assertAssignableIssueAssignee,
+  filterAssignableAssigneeUserIds,
   listAssignableIssueMembers,
   type AssignableIssueMember,
 } from "./issue-sheet-assignee";
@@ -234,6 +237,9 @@ export type IssueSheetIssue = {
   linkLabel: string | null;
   linkUrl: string | null;
   externalRef: string | null;
+  // Which static issue template (if any) prefilled this issue at creation. Provenance only; may
+  // reference a template key that no longer exists, or diverge from the current issueType.
+  templateKey: string | null;
   reporter: string | null;
   assignee: string | null;
   assigneeUserId: string | null;
@@ -310,6 +316,7 @@ type IssueRow = {
   linkLabel: string | null;
   linkUrl: string | null;
   externalRef: string | null;
+  templateKey: string | null;
   assigneeUserId: string | null;
   reporterFirstName: string | null;
   reporterLastName: string | null;
@@ -357,6 +364,7 @@ function mapIssueRow(
     linkLabel: row.linkLabel,
     linkUrl: row.linkUrl,
     externalRef: row.externalRef,
+    templateKey: row.templateKey,
     assigneeUserId: row.assigneeUserId,
     reporter: formatUser({
       firstName: row.reporterFirstName,
@@ -664,6 +672,95 @@ export class IssueSheetService {
       actorUserId: input.actorUserId,
       database: this.database,
     });
+  }
+
+  /**
+   * Reads the project's issue template config. `assigneeByTemplate` bindings are filtered against
+   * current assignability (departed members, teams:write role changes) rather than dropped: the
+   * `assignable` flag lets the settings panel show the admin *why* a binding no longer applies,
+   * instead of silently doing nothing. No extra capability gate — readable by translators and
+   * reviewers, the primary users of the default (see route).
+   */
+  async getTemplateConfig(input: {
+    organizationId: string;
+    projectId: string;
+  }): Promise<IssueSheetTemplateConfig> {
+    const [project] = await this.database
+      .select({ issueTemplateConfig: schema.projects.issueTemplateConfig })
+      .from(schema.projects)
+      .where(
+        and(
+          eq(schema.projects.organizationId, input.organizationId),
+          eq(schema.projects.id, input.projectId),
+        ),
+      )
+      .limit(1);
+
+    const config = project?.issueTemplateConfig ?? {};
+    const assigneeEntries = Object.entries(config.assigneeByTemplate ?? {});
+    const assignableUserIds = await filterAssignableAssigneeUserIds({
+      organizationId: input.organizationId,
+      projectId: input.projectId,
+      userIds: assigneeEntries.map(([, userId]) => userId),
+      database: this.database,
+    });
+
+    return {
+      defaultTemplateKey: config.defaultTemplateKey ?? null,
+      assigneeByTemplate: assigneeEntries.map(([templateKey, userId]) => ({
+        templateKey,
+        userId,
+        assignable: assignableUserIds.has(userId),
+      })),
+    };
+  }
+
+  /**
+   * Full-object replace (see issueSheetTemplateConfigBodySchema): the caller must resend the
+   * complete config, or bindings it omits are cleared. Validates every bound assignee with the
+   * same check the create/update routes use, so a config saved here can never later hand a create
+   * route the `assignee_not_assignable` error for a value the user never chose.
+   */
+  async setTemplateConfig(input: {
+    organizationId: string;
+    projectId: string;
+    body: IssueSheetTemplateConfigBody;
+  }): Promise<IssueSheetTemplateConfig> {
+    // Batched, not one assertAssignableIssueAssignee call per template: that would be up to 5
+    // sequential round trips (each re-running its own project/membership/team lookups) to
+    // validate one settings save. filterAssignableAssigneeUserIds computes assignability for
+    // every requested user in a constant number of queries.
+    const assigneeUserIds = Object.values(input.body.assigneeByTemplate);
+    if (assigneeUserIds.length > 0) {
+      const assignableUserIds = await filterAssignableAssigneeUserIds({
+        organizationId: input.organizationId,
+        projectId: input.projectId,
+        userIds: assigneeUserIds,
+        database: this.database,
+      });
+      if (assigneeUserIds.some((userId) => !assignableUserIds.has(userId))) {
+        throw new Error("assignee_not_assignable");
+      }
+    }
+
+    await this.database
+      .update(schema.projects)
+      .set({
+        issueTemplateConfig: {
+          ...(input.body.defaultTemplateKey
+            ? { defaultTemplateKey: input.body.defaultTemplateKey }
+            : {}),
+          assigneeByTemplate: input.body.assigneeByTemplate,
+        },
+      })
+      .where(
+        and(
+          eq(schema.projects.organizationId, input.organizationId),
+          eq(schema.projects.id, input.projectId),
+        ),
+      );
+
+    return this.getTemplateConfig(input);
   }
 
   async listFeed(input: {
@@ -1054,6 +1151,7 @@ export class IssueSheetService {
           linkLabel: input.body.linkLabel ?? null,
           linkUrl: input.body.linkUrl ?? null,
           externalRef: input.body.externalRef ?? null,
+          templateKey: input.body.templateKey ?? null,
           reporterUserId: input.actorUserId,
           assigneeUserId,
           resolvedAt:
@@ -1765,6 +1863,7 @@ export class IssueSheetService {
         linkLabel: schema.issueSheetIssues.linkLabel,
         linkUrl: schema.issueSheetIssues.linkUrl,
         externalRef: schema.issueSheetIssues.externalRef,
+        templateKey: schema.issueSheetIssues.templateKey,
         assigneeUserId: schema.issueSheetIssues.assigneeUserId,
         reporterFirstName: schema.users.firstName,
         reporterLastName: schema.users.lastName,

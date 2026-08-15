@@ -1,6 +1,6 @@
 {
-  "id": "48a67594-fd39-4d17-983d-6530f26b325f",
-  "prevId": "f070892b-6c8b-4734-ab03-6fce09331097",
+  "id": "753230c0-eff2-40aa-b850-0c9e2993abcf",
+  "prevId": "48a67594-fd39-4d17-983d-6530f26b325f",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -17997,6 +17997,18 @@
           "primaryKey": false,
           "notNull": false
         },
+        "organization_id": {
+          "name": "organization_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "linked_domain_id": {
+          "name": "linked_domain_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
         "started_at": {
           "name": "started_at",
           "type": "timestamp with time zone",
@@ -18114,9 +18126,311 @@
           "concurrently": false,
           "method": "btree",
           "with": {}
+        },
+        "idx_localisation_audits_organization_id": {
+          "name": "idx_localisation_audits_organization_id",
+          "columns": [
+            {
+              "expression": "organization_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "idx_localisation_audits_linked_domain_id": {
+          "name": "idx_localisation_audits_linked_domain_id",
+          "columns": [
+            {
+              "expression": "linked_domain_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
         }
       },
-      "foreignKeys": {},
+      "foreignKeys": {
+        "localisation_audits_organization_id_organizations_id_fk": {
+          "name": "localisation_audits_organization_id_organizations_id_fk",
+          "tableFrom": "localisation_audits",
+          "tableTo": "organizations",
+          "columnsFrom": [
+            "organization_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.linked_domains": {
+      "name": "linked_domains",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "organization_id": {
+          "name": "organization_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_by_user_id": {
+          "name": "created_by_user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "domain_key": {
+          "name": "domain_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "domain_slug": {
+          "name": "domain_slug",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "source_url": {
+          "name": "source_url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'pending_verification'"
+        },
+        "verification_token": {
+          "name": "verification_token",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "preferred_method": {
+          "name": "preferred_method",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "verified_method": {
+          "name": "verified_method",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "verified_at": {
+          "name": "verified_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "localisation_audit_id": {
+          "name": "localisation_audit_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "project_id": {
+          "name": "project_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "uq_linked_domains_org_domain_key": {
+          "name": "uq_linked_domains_org_domain_key",
+          "columns": [
+            {
+              "expression": "organization_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "domain_key",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "uq_linked_domains_verified_domain_key": {
+          "name": "uq_linked_domains_verified_domain_key",
+          "columns": [
+            {
+              "expression": "domain_key",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "\"linked_domains\".\"status\" = 'verified'",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "idx_linked_domains_org": {
+          "name": "idx_linked_domains_org",
+          "columns": [
+            {
+              "expression": "organization_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "idx_linked_domains_domain_slug": {
+          "name": "idx_linked_domains_domain_slug",
+          "columns": [
+            {
+              "expression": "domain_slug",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "idx_linked_domains_status": {
+          "name": "idx_linked_domains_status",
+          "columns": [
+            {
+              "expression": "status",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "idx_linked_domains_localisation_audit_id": {
+          "name": "idx_linked_domains_localisation_audit_id",
+          "columns": [
+            {
+              "expression": "localisation_audit_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "linked_domains_organization_id_organizations_id_fk": {
+          "name": "linked_domains_organization_id_organizations_id_fk",
+          "tableFrom": "linked_domains",
+          "tableTo": "organizations",
+          "columnsFrom": [
+            "organization_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "linked_domains_created_by_user_id_users_id_fk": {
+          "name": "linked_domains_created_by_user_id_users_id_fk",
+          "tableFrom": "linked_domains",
+          "tableTo": "users",
+          "columnsFrom": [
+            "created_by_user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "linked_domains_localisation_audit_id_localisation_audits_id_fk": {
+          "name": "linked_domains_localisation_audit_id_localisation_audits_id_fk",
+          "tableFrom": "linked_domains",
+          "tableTo": "localisation_audits",
+          "columnsFrom": [
+            "localisation_audit_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "linked_domains_project_id_projects_id_fk": {
+          "name": "linked_domains_project_id_projects_id_fk",
+          "tableFrom": "linked_domains",
+          "tableTo": "projects",
+          "columnsFrom": [
+            "project_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},

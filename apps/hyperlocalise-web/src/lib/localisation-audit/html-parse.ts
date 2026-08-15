@@ -28,7 +28,9 @@ export type ParsedPageSignals = {
   metaDescription: string | null;
   ogTitle: string | null;
   ogDescription: string | null;
+  ogImage: string | null;
   ogLocale: string | null;
+  iconHrefs: string[];
   dir: string | null;
   jsonLd: LocalisationAuditJsonLd[];
   ariaLabels: string[];
@@ -57,6 +59,7 @@ const MAX_LINE_BREAK_VALUES = 8;
 const MAX_DIRECTION_VALUES = 8;
 const MAX_HORIZONTAL_CSS = 12;
 const MAX_FORM_FIELD_LABELS = 40;
+const MAX_ICON_HREFS = 8;
 
 const FONT_FAMILY_RE = /font-family\s*:\s*([^;}{]+)/gi;
 const WORD_BREAK_RE = /word-break\s*:\s*([^;}{]+)/gi;
@@ -194,7 +197,9 @@ export function parsePageSignals(html: string): ParsedPageSignals {
   let metaDescription: string | null = null;
   let ogTitle: string | null = null;
   let ogDescription: string | null = null;
+  let ogImage: string | null = null;
   let ogLocale: string | null = null;
+  const iconHrefs: string[] = [];
   let dir: string | null = null;
   const jsonLd: LocalisationAuditJsonLd[] = [];
   const ariaLabels: string[] = [];
@@ -273,6 +278,14 @@ export function parsePageSignals(html: string): ParsedPageSignals {
           if (relTokens.includes("canonical") && attributes.href && !canonical) {
             canonical = attributes.href.trim();
           }
+          const isIcon =
+            relTokens.includes("icon") ||
+            relTokens.includes("shortcut") ||
+            relTokens.includes("apple-touch-icon") ||
+            relTokens.includes("apple-touch-icon-precomposed");
+          if (isIcon && attributes.href) {
+            pushUnique(iconHrefs, attributes.href.trim(), MAX_ICON_HREFS);
+          }
         }
         if (tag === "meta") {
           const key = (attributes.name ?? attributes.property ?? "").toLowerCase();
@@ -288,6 +301,9 @@ export function parsePageSignals(html: string): ParsedPageSignals {
           }
           if (key === "og:description" && !ogDescription) {
             ogDescription = content;
+          }
+          if (key === "og:image" && !ogImage) {
+            ogImage = content;
           }
           if (key === "og:locale" && !ogLocale) {
             ogLocale = content;
@@ -439,7 +455,9 @@ export function parsePageSignals(html: string): ParsedPageSignals {
     metaDescription,
     ogTitle,
     ogDescription,
+    ogImage,
     ogLocale,
+    iconHrefs,
     dir,
     jsonLd,
     ariaLabels,
@@ -472,7 +490,9 @@ export function crawledPageFromSignals(input: {
     metaDescription: input.signals.metaDescription,
     ogTitle: input.signals.ogTitle,
     ogDescription: input.signals.ogDescription,
+    ogImage: input.signals.ogImage,
     ogLocale: input.signals.ogLocale,
+    iconHrefs: input.signals.iconHrefs,
     dir: input.signals.dir,
     jsonLd: input.signals.jsonLd,
     ariaLabels: input.signals.ariaLabels,
@@ -504,7 +524,9 @@ export function emptyParsedPage(url: string, status: number): LocalisationAuditC
       metaDescription: null,
       ogTitle: null,
       ogDescription: null,
+      ogImage: null,
       ogLocale: null,
+      iconHrefs: [],
       dir: null,
       jsonLd: [],
       ariaLabels: [],

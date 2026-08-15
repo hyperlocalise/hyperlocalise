@@ -51,6 +51,13 @@ function issueWithWatchState(issue: (typeof issueSheetIssuesFixture)[number]) {
   };
 }
 
+// The create-issue dialog always fetches this when open, regardless of which story mounts it —
+// without a handler the request goes unhandled, templateConfigQuery.isError becomes true, and
+// the project-default-template resolution this endpoint backs silently never runs in any story.
+const emptyTemplateConfigHandler = http.get(`${issueSheetBasePath}/template-config`, () =>
+  HttpResponse.json({ templateConfig: { defaultTemplateKey: null, assigneeByTemplate: [] } }),
+);
+
 const issueSubscriptionHandlers = [
   http.get(`${issueSheetBasePath}/:issueId/subscriptions`, ({ params }) => {
     const issue = issueSheetIssuesFixture.find((row) => row.id === params.issueId);
@@ -96,6 +103,7 @@ export const issueSheetMswHandlers = [
   http.get(`${issueSheetBasePath}/assignable-members`, () =>
     HttpResponse.json({ members: issueSheetAssignableMembersFixture }),
   ),
+  emptyTemplateConfigHandler,
   http.get(`${issueSheetBasePath}/:issueId`, ({ params }) => {
     const issue = issueSheetIssuesFixture.find((row) => row.id === params.issueId);
     if (!issue) {
@@ -273,6 +281,7 @@ export const issueSheetEmptyMswHandlers = [
       },
     }),
   ),
+  emptyTemplateConfigHandler,
 ];
 
 export const issueSheetLoadingMswHandlers = [
@@ -284,6 +293,7 @@ export const issueSheetLoadingMswHandlers = [
     await delay("infinite");
     return HttpResponse.json(issueSheetResponseFixture);
   }),
+  emptyTemplateConfigHandler,
 ];
 
 export const issueSheetErrorMswHandlers = [
@@ -293,6 +303,7 @@ export const issueSheetErrorMswHandlers = [
   http.get(issueSheetBasePath, () =>
     HttpResponse.json({ error: "issue_sheet_load_failed" }, { status: 500 }),
   ),
+  emptyTemplateConfigHandler,
 ];
 
 export const issueDetailColumnsErrorMswHandlers = [
@@ -315,6 +326,7 @@ export const issueDetailColumnsErrorMswHandlers = [
     }
     return HttpResponse.json({ issue: issueWithWatchState(issue) });
   }),
+  emptyTemplateConfigHandler,
   ...issueSubscriptionHandlers,
 ];
 
@@ -339,6 +351,7 @@ export const issueDetailLoadingMswHandlers = [
     await delay("infinite");
     return HttpResponse.json({ items: [], total: 0, nextCursor: null });
   }),
+  emptyTemplateConfigHandler,
 ];
 
 export const issueDetailNotFoundMswHandlers = [
@@ -354,6 +367,7 @@ export const issueDetailNotFoundMswHandlers = [
   http.get(`${issueSheetBasePath}/:issueId`, () =>
     HttpResponse.json({ error: "issue_not_found" }, { status: 404 }),
   ),
+  emptyTemplateConfigHandler,
 ];
 
 export const issueDetailUnavailableMswHandlers = [

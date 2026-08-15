@@ -11,7 +11,6 @@
  * Version 2.0 or later.
  */
 import { Hono } from "hono";
-import { getCookie, setCookie } from "hono/cookie";
 
 import {
   badRequestResponse,
@@ -26,11 +25,6 @@ import { DEFAULT_APP_LOCALE, normalizeAppLocale } from "@/lib/app-i18n/locales";
 import { rejectLocalisationAuditBot } from "@/lib/localisation-audit/bot-protection";
 import { LocalisationAuditDailyQuotaExceededError } from "@/lib/localisation-audit/daily-quota";
 import { resolveDomainIdentity, isValidDomainSlug } from "@/lib/localisation-audit/domain-slug";
-import {
-  localisationAuditUnlockCookieName,
-  signLocalisationAuditUnlock,
-  verifyLocalisationAuditUnlock,
-} from "@/lib/localisation-audit/email-unlock";
 import {
   attachLocalisationAuditWorkflowRun,
   claimOrReuseLocalisationAudit,
@@ -90,11 +84,6 @@ function publicAuditView(audit: LocalisationAuditRow) {
     completedAt: audit.completedAt?.toISOString() ?? null,
     statusUpdatedAt: audit.statusUpdatedAt?.toISOString() ?? null,
   };
-}
-
-function readUnlockCookie(c: Parameters<typeof getCookie>[0], domainSlug: string) {
-  const named = getCookie(c, localisationAuditUnlockCookieName(domainSlug));
-  return verifyLocalisationAuditUnlock(named, domainSlug);
 }
 
 export function createLocalisationAuditRoutes(options: LocalisationAuditRouteOptions = {}) {
@@ -223,14 +212,13 @@ export function createLocalisationAuditRoutes(options: LocalisationAuditRouteOpt
         return notFoundResponse(c, "localisation_audit_not_found");
       }
 
-      const unlock = readUnlockCookie(c, domainSlug);
-      const unlocked = unlock != null && audit.status === "succeeded";
+      const publicReport = audit.status === "succeeded";
 
       return c.json({
         audit: {
           ...publicAuditView(audit),
-          unlocked,
-          report: unlocked ? audit.report : null,
+          unlocked: publicReport,
+          report: publicReport ? audit.report : null,
         },
       });
     })
@@ -284,6 +272,8 @@ export function createLocalisationAuditRoutes(options: LocalisationAuditRouteOpt
         status: audit.status,
       });
 
+      const publicReport = audit.status === "succeeded";
+
       if (audit.status === "succeeded" && audit.report) {
         await markLocalisationAuditLeadEmailQueued(upsert.lead.id);
         try {
@@ -306,12 +296,12 @@ export function createLocalisationAuditRoutes(options: LocalisationAuditRouteOpt
         return c.json({
           audit: {
             ...publicAuditView(audit),
-            unlocked: false,
-            report: null,
+            unlocked: publicReport,
+            report: audit.report,
           },
           delivery: {
             status: "queued",
-            message: "Check your inbox for a verified link to the full report.",
+            message: "Check your inbox for a summary of this report.",
           },
         });
       }
@@ -319,12 +309,12 @@ export function createLocalisationAuditRoutes(options: LocalisationAuditRouteOpt
       return c.json({
         audit: {
           ...publicAuditView(audit),
-          unlocked: false,
-          report: null,
+          unlocked: publicReport,
+          report: publicReport ? audit.report : null,
         },
         delivery: {
           status: "pending",
-          message: "We will email your verified report link when the audit finishes.",
+          message: "We will email you a summary when the audit finishes.",
         },
       });
     })
@@ -341,7 +331,7 @@ export function createLocalisationAuditRoutes(options: LocalisationAuditRouteOpt
         return badRequestResponse(c, "invalid_token", "A report token is required");
       }
 
-      // Token stays valid until expiry so email link-previews cannot burn a one-click unlock.
+      // Token stays valid until expiry so email link-previews do not consume the link.
       const verified = await verifyLocalisationAuditReportToken({ domainSlug, token });
       if (!verified) {
         return forbiddenResponse(
@@ -350,18 +340,6 @@ export function createLocalisationAuditRoutes(options: LocalisationAuditRouteOpt
           "This report link is invalid or expired.",
         );
       }
-
-      const cookieValue = signLocalisationAuditUnlock({
-        domainSlug,
-        email: verified.lead.email,
-      });
-      setCookie(c, localisationAuditUnlockCookieName(domainSlug), cookieValue, {
-        httpOnly: true,
-        sameSite: "Lax",
-        secure: process.env.NODE_ENV === "production",
-        path: "/",
-        maxAge: 60 * 60 * 24 * 180,
-      });
 
       serverAnalytics.track(LOCALISATION_AUDIT_ANALYTICS_EVENTS.emailVerified, {
         delivery: "verified",
