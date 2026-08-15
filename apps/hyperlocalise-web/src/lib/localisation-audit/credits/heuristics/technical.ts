@@ -19,7 +19,9 @@ import {
   formatFindingWhere,
   htmlLangMatchesPathLocale,
   htmlLangSuggestionForPathLocale,
+  isWellFormedHtmlLang,
   languageOf,
+  LOCALE_SUBDOMAIN,
   looksPrimarilyEnglish,
   pageLocale,
   pathLocaleFromUrl,
@@ -64,7 +66,7 @@ const scoreLocaleDetection: HeuristicScorer = (context) => {
   for (const page of okPages) {
     if (!page.htmlLang) {
       missingLangPages.push(page);
-    } else if (!/^[a-z]{2}(?:-[A-Za-z]{2})?$/.test(page.htmlLang.trim())) {
+    } else if (!isWellFormedHtmlLang(page.htmlLang)) {
       score -= 12;
       findings.push(
         creditFinding({
@@ -77,7 +79,7 @@ const scoreLocaleDetection: HeuristicScorer = (context) => {
           where: formatFindingWhere({ section: "Document head", tag: "<html lang>" }),
           url: page.url,
           evidence: `<html lang="${page.htmlLang}">`,
-          advice: "Use a well-formed BCP 47 language tag, such as en or fr-FR.",
+          advice: "Use a well-formed BCP 47 language tag, such as en, fr-FR, or es-419.",
         }),
       );
     }
@@ -127,7 +129,8 @@ const scoreLocaleDetection: HeuristicScorer = (context) => {
           missingLang === 1
             ? "html lang is missing"
             : `html lang is missing on ${missingLang} pages, e.g. ${sampleUrls}`,
-        advice: "Set html lang to a BCP 47 language tag for each page locale, such as en or fr-FR.",
+        advice:
+          "Set html lang to a BCP 47 language tag for each page locale, such as en, fr-FR, or es-419.",
       }),
     );
   }
@@ -163,7 +166,7 @@ const scoreLocaleRouting: HeuristicScorer = (context) => {
     if (pathLocaleFromUrl(page.url)) strategies.add("prefix");
     try {
       const host = new URL(page.url).hostname;
-      if (/^[a-z]{2}(?:-[a-z]{2})?\./i.test(host) && !host.toLowerCase().startsWith("www.")) {
+      if (LOCALE_SUBDOMAIN.test(host) && !host.toLowerCase().startsWith("www.")) {
         strategies.add("subdomain");
       }
     } catch {
@@ -249,11 +252,12 @@ const scoreLanguageSwitcher: HeuristicScorer = (context) => {
       }
       found += 1;
       const targetPath = pathWithoutLocale(href.toString());
-      if (currentPath && targetPath && currentPath !== "/" && targetPath === currentPath) {
+      if (currentPath && targetPath && currentPath === targetPath) {
         preservesPath += 1;
       } else if (
-        targetPath === "/" ||
-        (targetPath && targetPath.split("/").filter(Boolean).length <= 1)
+        currentPath &&
+        currentPath !== "/" &&
+        (targetPath === "/" || (targetPath && targetPath.split("/").filter(Boolean).length <= 1))
       ) {
         localeRootOnly += 1;
         droppedSwitcher ??= {
@@ -898,7 +902,7 @@ const scoreInternationalFormatting: HeuristicScorer = (context) => {
     }
   }
   if (!sawPattern) {
-    return { status: "inconclusive", evidence: { reason: "no_formatting_examples" } };
+    return { status: "na" };
   }
   return scored(mismatches > 0 ? Math.max(40, 90 - mismatches * 14) : 90, findings);
 };

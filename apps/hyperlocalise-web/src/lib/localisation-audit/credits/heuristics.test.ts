@@ -85,6 +85,41 @@ describe("technical heuristic credits", () => {
     expect(outcome.score).toBe(100);
   });
 
+  it("accepts UN M.49 html lang tags such as es-419", () => {
+    const outcome = technicalHeuristicScorers["locale-detection"]!(
+      context([
+        emptyCrawledPage({
+          url: "https://www.dropbox.com/es/",
+          htmlLang: "es-419",
+        }),
+      ]),
+    );
+
+    expect(outcome.status).toBe("scored");
+    if (outcome.status !== "scored") return;
+    expect(outcome.findings.some((finding) => finding.id.includes("invalid"))).toBe(false);
+    expect(outcome.findings.some((finding) => finding.id.includes("mismatch"))).toBe(false);
+    expect(outcome.score).toBe(100);
+  });
+
+  it("still flags html lang values that are not BCP 47 tags", () => {
+    const outcome = technicalHeuristicScorers["locale-detection"]!(
+      context([
+        emptyCrawledPage({
+          url: "https://example.com/",
+          htmlLang: "espanol",
+        }),
+      ]),
+    );
+
+    expect(outcome.status).toBe("scored");
+    if (outcome.status !== "scored") return;
+    expect(outcome.findings.some((finding) => finding.title === "Incorrect language code")).toBe(
+      true,
+    );
+    expect(outcome.score).toBeLessThan(100);
+  });
+
   it("emits one missing-language finding for many pages", () => {
     const outcome = technicalHeuristicScorers["locale-detection"]!(
       context([
@@ -220,6 +255,60 @@ describe("technical heuristic credits", () => {
     expect(outcome.findings.some((finding) => finding.id === "language-switcher-homepage")).toBe(
       false,
     );
+  });
+
+  it("treats locale-root links as the same page when already on a locale homepage", () => {
+    const outcome = technicalHeuristicScorers["language-switcher"]!(
+      context([
+        emptyCrawledPage({
+          url: "https://www.dropbox.com/de/",
+          htmlLang: "de",
+          anchors: [
+            { href: "https://www.dropbox.com/es/", text: "Español" },
+            { href: "https://www.dropbox.com/fr/", text: "Français" },
+          ],
+        }),
+        emptyCrawledPage({
+          url: "https://www.dropbox.com/es/",
+          htmlLang: "es-419",
+          anchors: [
+            { href: "https://www.dropbox.com/de/", text: "Deutsch" },
+            { href: "https://www.dropbox.com/fr/", text: "Français" },
+          ],
+        }),
+      ]),
+    );
+
+    expect(outcome.status).toBe("scored");
+    if (outcome.status !== "scored") return;
+    expect(outcome.score).toBeGreaterThanOrEqual(90);
+    expect(outcome.findings.some((finding) => finding.id === "language-switcher-homepage")).toBe(
+      false,
+    );
+  });
+
+  it("still flags language links that drop a nested path to the locale homepage", () => {
+    const outcome = technicalHeuristicScorers["language-switcher"]!(
+      context([
+        emptyCrawledPage({
+          url: "https://www.dropbox.com/de/business",
+          htmlLang: "de",
+          anchors: [{ href: "https://www.dropbox.com/es/", text: "Español" }],
+        }),
+        emptyCrawledPage({
+          url: "https://www.dropbox.com/es/business",
+          htmlLang: "es",
+          anchors: [{ href: "https://www.dropbox.com/de/", text: "Deutsch" }],
+        }),
+      ]),
+    );
+
+    expect(outcome.status).toBe("scored");
+    if (outcome.status !== "scored") return;
+    expect(outcome.findings.some((finding) => finding.id === "language-switcher-homepage")).toBe(
+      true,
+    );
+    expect(outcome.score).toBeLessThan(75);
   });
 
   it("fails like Lighthouse when no valid sitemap is discoverable", () => {
@@ -382,6 +471,15 @@ describe("technical heuristic credits", () => {
     expect(locales[0]?.source).toBe("url_prefix");
   });
 
+  it("keeps UN M.49 html lang tags such as es-419", () => {
+    const locales = detectLocales(
+      [emptyCrawledPage({ url: "https://www.dropbox.com/es/", htmlLang: "es-419" })],
+      [],
+    );
+    expect(locales.map((entry) => entry.locale)).toEqual(["es-419"]);
+    expect(locales[0]?.source).toBe("html_lang");
+  });
+
   it("keeps bare language and region markets as distinct locales", () => {
     const locales = detectLocales(
       [
@@ -447,6 +545,29 @@ describe("technical heuristic credits", () => {
     if (outcome.status !== "scored") return;
     expect(outcome.score).toBeGreaterThanOrEqual(90);
     expect(outcome.findings).toHaveLength(0);
+  });
+
+  it("does not score international formatting when the sample has no dates, numbers, or currency", () => {
+    const outcome = technicalHeuristicScorers["international-formatting"]!(
+      context([
+        emptyCrawledPage({
+          url: "https://www.dropbox.com/es/",
+          htmlLang: "es-419",
+          headings: ["Almacena, comparte y accede a tus archivos"],
+          textSample:
+            "Dropbox te permite almacenar fotos, documentos y videos. Comparte carpetas y colabora en archivos.",
+        }),
+        emptyCrawledPage({
+          url: "https://www.dropbox.com/de/",
+          htmlLang: "de",
+          headings: ["Dateien speichern, teilen und darauf zugreifen"],
+          textSample:
+            "Mit Dropbox kannst du Fotos, Dokumente und Videos speichern. Teile Ordner und arbeite an Dateien zusammen.",
+        }),
+      ]),
+    );
+
+    expect(outcome.status).toBe("na");
   });
 });
 

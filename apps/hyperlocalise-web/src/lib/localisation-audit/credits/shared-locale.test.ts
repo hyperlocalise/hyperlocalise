@@ -19,7 +19,9 @@ import {
   htmlLangSuggestionForPathLocale,
   isCjkLanguage,
   isRtlLanguage,
+  isWellFormedHtmlLang,
   pageLocale,
+  pathLocaleFromUrl,
   textHasEasternArabicDigits,
   textHasGregorianCalendarSignals,
   textHasHijriCalendarSignals,
@@ -39,6 +41,7 @@ describe("htmlLangSuggestionForPathLocale", () => {
     expect(htmlLangSuggestionForPathLocale("en_AU")).toBe("en-AU");
     expect(htmlLangSuggestionForPathLocale("FR")).toBe("fr");
     expect(htmlLangSuggestionForPathLocale("pt-br")).toBe("pt-BR");
+    expect(htmlLangSuggestionForPathLocale("es-419")).toBe("es-419");
   });
 });
 
@@ -57,6 +60,7 @@ describe("htmlLangMatchesPathLocale", () => {
   it("accepts language-region html lang when the path is a bare language", () => {
     expect(htmlLangMatchesPathLocale("en-AU", "en")).toBe(true);
     expect(htmlLangMatchesPathLocale("fr-CA", "fr")).toBe(true);
+    expect(htmlLangMatchesPathLocale("es-419", "es")).toBe(true);
     expect(htmlLangMatchesPathLocale("en-AU", "fr")).toBe(false);
   });
 });
@@ -66,6 +70,7 @@ describe("canonicalPathLocale and pageLocale", () => {
     expect(canonicalPathLocale("au")).toBe("en-au");
     expect(canonicalPathLocale("JP")).toBe("ja-jp");
     expect(formatBcp47Locale("en_au")).toBe("en-AU");
+    expect(formatBcp47Locale("es-419")).toBe("es-419");
   });
 
   it("prefers canonical path locale over html lang when both are present", () => {
@@ -77,6 +82,31 @@ describe("canonicalPathLocale and pageLocale", () => {
         }),
       ),
     ).toBe("en-au");
+  });
+});
+
+describe("isWellFormedHtmlLang", () => {
+  it("accepts UN M.49 regions and other well-formed BCP 47 tags", () => {
+    expect(isWellFormedHtmlLang("es-419")).toBe(true);
+    expect(isWellFormedHtmlLang("zh-Hans")).toBe(true);
+    expect(isWellFormedHtmlLang("en-US")).toBe(true);
+    expect(isWellFormedHtmlLang("fr")).toBe(true);
+  });
+
+  it("rejects tags that are not well-formed BCP 47", () => {
+    expect(isWellFormedHtmlLang("english")).toBe(false);
+    expect(isWellFormedHtmlLang("espanol")).toBe(false);
+    expect(isWellFormedHtmlLang("en-U")).toBe(false);
+    expect(isWellFormedHtmlLang("x-default")).toBe(false);
+    expect(isWellFormedHtmlLang("")).toBe(false);
+  });
+});
+
+describe("pathLocaleFromUrl", () => {
+  it("reads UN M.49 locale prefixes from the path", () => {
+    expect(pathLocaleFromUrl("https://www.dropbox.com/es-419/")).toBe("es-419");
+    expect(pathLocaleFromUrl("https://www.dropbox.com/es/")).toBe("es");
+    expect(pathLocaleFromUrl("https://www.dropbox.com/de/")).toBe("de");
   });
 });
 

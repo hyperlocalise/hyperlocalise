@@ -13,7 +13,7 @@
 import { readBoundedResponseBody, withPublicHttpFetch } from "@/lib/security/public-http-fetch";
 
 import type { CrawlLocalisationAuditSampleOptions, HtmlPageRenderer } from "./crawl-renderer";
-import { resolveFocusLocaleCode } from "./credits/shared";
+import { LOCALE_PREFIX, pathLocaleFromUrl, resolveFocusLocaleCode } from "./credits/shared";
 import { crawledPageFromSignals, parsePageSignals } from "./html-parse";
 import { AuditBrowserSetupError } from "./sandbox-browser-error";
 import type {
@@ -34,9 +34,6 @@ const MAX_PAGES = 15;
 const FETCH_TIMEOUT_MS = 12_000;
 const MAX_REDIRECTS = 5;
 const REDIRECT_STATUSES = new Set([301, 302, 303, 307, 308]);
-
-const LOCALE_PREFIX = /^\/([a-z]{2}(?:-[a-z]{2})?)(\/|$)/i;
-const LOCALE_CODE = /^[a-z]{2}(?:-[a-z]{2})?$/i;
 
 const FETCH_TEXT_HEADERS: Record<string, string> = {
   "User-Agent": USER_AGENT,
@@ -209,7 +206,7 @@ async function fetchSitemapSignals(origin: string): Promise<LocalisationAuditSit
         continue;
       }
       try {
-        if (localeFromPath(new URL(absolute).pathname) && localizedUrls.length < MAX_SITEMAP_URLS) {
+        if (pathLocaleFromUrl(absolute) && localizedUrls.length < MAX_SITEMAP_URLS) {
           localizedUrls.push(absolute);
         }
       } catch {
@@ -225,19 +222,6 @@ async function fetchSitemapSignals(origin: string): Promise<LocalisationAuditSit
     sitemapUrls: [...sitemapUrls],
     localizedUrls,
   };
-}
-
-function normalizeLocaleCode(value: string): string | null {
-  const normalized = value.trim().replaceAll("_", "-").toLowerCase();
-  if (normalized === "x-default" || !LOCALE_CODE.test(normalized)) {
-    return null;
-  }
-  return normalized;
-}
-
-function localeFromPath(pathname: string): string | null {
-  const match = pathname.match(LOCALE_PREFIX);
-  return match ? normalizeLocaleCode(match[1]!) : null;
 }
 
 function seedFocusLocaleRoots(origin: string, focusLocales: string[]): string[] {

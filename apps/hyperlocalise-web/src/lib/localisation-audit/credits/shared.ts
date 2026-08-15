@@ -18,8 +18,11 @@ import type {
   LocalisationAuditLocaleSignal,
 } from "../types";
 
-export const LOCALE_PREFIX = /^\/([a-z]{2}(?:-[a-z]{2})?)(\/|$)/i;
-export const LOCALE_CODE = /^[a-z]{2}(?:-[a-z]{2})?$/i;
+/** ISO 639-1 plus optional script (ISO 15924) and region (ISO 3166-1 or UN M.49). */
+const LOCALE_TOKEN = "[a-z]{2}(?:-[a-z]{4})?(?:-[a-z]{2}|-[0-9]{3})?";
+export const LOCALE_PREFIX = new RegExp(`^/(${LOCALE_TOKEN})(/|$)`, "i");
+export const LOCALE_CODE = new RegExp(`^${LOCALE_TOKEN}$`, "i");
+export const LOCALE_SUBDOMAIN = new RegExp(`^(${LOCALE_TOKEN})\\.`, "i");
 const RTL_LANGUAGES = new Set(["ar", "he", "fa", "ur", "ps", "yi"]);
 const CJK_LANGUAGES = new Set(["zh", "ja", "ko"]);
 
@@ -92,13 +95,45 @@ export function languageOf(locale: string): string {
   return normalizeLocale(locale).split("-")[0] ?? "";
 }
 
-/** Format a normalized locale as a conventional BCP 47 tag (e.g. en-AU). */
+/**
+ * Whether a value is a structurally valid BCP 47 language tag for `html lang`.
+ * Accepts UN M.49 regions such as `es-419` (Latin America) and scripts such as `zh-Hans`.
+ */
+export function isWellFormedHtmlLang(value: string): boolean {
+  const trimmed = value.trim().replaceAll("_", "-");
+  if (!trimmed || normalizeLocale(trimmed) === "x-default") {
+    return false;
+  }
+  const language = languageOf(trimmed);
+  if (!/^[a-z]{2,3}$/.test(language)) {
+    return false;
+  }
+  try {
+    return Intl.getCanonicalLocales(trimmed).length > 0;
+  } catch {
+    return false;
+  }
+}
+
+/** Format a normalized locale as a conventional BCP 47 tag (e.g. en-AU, es-419). */
 export function formatBcp47Locale(locale: string): string {
   const normalized = normalizeLocale(locale);
-  const [language, region] = normalized.split("-");
-  if (!language) return normalized;
-  if (!region) return language;
-  return `${language}-${region.toUpperCase()}`;
+  try {
+    return Intl.getCanonicalLocales(normalized)[0] ?? normalized;
+  } catch {
+    const parts = normalized.split("-").filter(Boolean);
+    const language = parts[0];
+    if (!language) return normalized;
+    return [
+      language,
+      ...parts.slice(1).map((part) => {
+        if (/^\d{3}$/.test(part)) return part;
+        if (part.length === 4) return `${part[0]?.toUpperCase() ?? ""}${part.slice(1)}`;
+        if (part.length === 2) return part.toUpperCase();
+        return part;
+      }),
+    ].join("-");
+  }
 }
 
 /**
@@ -325,7 +360,7 @@ export function detectLocales(
     sampleUrl?: string,
   ) => {
     const key = normalizeLocale(locale);
-    if (!key || key === "x-default" || !LOCALE_CODE.test(key)) return;
+    if (!key || key === "x-default" || !isWellFormedHtmlLang(key)) return;
     if (!byLocale.has(key)) {
       byLocale.set(key, { locale: key, source, sampleUrl });
     }
@@ -361,7 +396,7 @@ export function detectLocales(
     }
     try {
       const host = new URL(page.url).hostname;
-      const hostMatch = host.match(/^([a-z]{2}(?:-[a-z]{2})?)\./i);
+      const hostMatch = host.match(LOCALE_SUBDOMAIN);
       if (hostMatch?.[1] && hostMatch[1].toLowerCase() !== "www") {
         const hostLocale = canonicalPathLocale(hostMatch[1]);
         add(hostLocale, "url_subdomain", page.url);

@@ -108,6 +108,8 @@ export async function scoreCreditsWithLuna(input: {
         "Return one result per credit id. Prefer fewer, concrete findings (max 3 per credit).",
         "For visual credits without screenshots, treat overflow/layout/responsive as informed estimates and keep confidence at or below 74.",
         "High-confidence only when the evidence is explicit.",
+        "Locale-prefixed URLs that share the same path after the locale, including homepages such as /de/ and /es/, are equivalent pages. Do not treat that as dropping the current path.",
+        "If the evidence has no dates, numbers, or currency, do not score or penalize international formatting.",
         "Always include every schema field. Use null for where, evidence, advice, or url when unknown.",
         "where is the page section and HTML tag, like 'Hero · <h1>' or 'Header · <nav>'. Not the page URL.",
         "evidence is a verbatim quote or markup fragment with enough context to verify the claim.",
