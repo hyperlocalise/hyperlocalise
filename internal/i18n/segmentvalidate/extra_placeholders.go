@@ -27,11 +27,16 @@ func extractExtraPlaceholders(text string) []string {
 		return nil
 	}
 
-	// BOLT OPTIMIZATION: Estimate slice capacity from % and $ counts to avoid slice re-allocations.
-	capHint := strings.Count(text, "%") + strings.Count(text, "$")
-	out := make([]string, 0, capHint)
 	// BOLT OPTIMIZATION: Use a single pass FindAllStringIndex on the combined pattern.
-	for _, loc := range combinedPlaceholderPattern.FindAllStringIndex(text, -1) {
+	// Size the output from actual matches so marker-heavy literal text (e.g. "50% off",
+	// "$5") does not allocate a large unused []string backing array.
+	locs := combinedPlaceholderPattern.FindAllStringIndex(text, -1)
+	if len(locs) == 0 {
+		return nil
+	}
+
+	out := make([]string, 0, len(locs))
+	for _, loc := range locs {
 		match := text[loc[0]:loc[1]]
 		// BOLT OPTIMIZATION: Defined patterns are self-delimiting; TrimSpace is redundant.
 
