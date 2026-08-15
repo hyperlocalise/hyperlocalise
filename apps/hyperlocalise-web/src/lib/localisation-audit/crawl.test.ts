@@ -305,6 +305,43 @@ describe("crawlLocalisationAuditSample", () => {
     expect(result.pages.some((page) => page.url === "https://example.com/sitemap.xml")).toBe(false);
   });
 
+  it("keeps UN M.49 locale prefixes such as es-419 in sitemap localizedUrls", async () => {
+    withPublicHttpFetchMock.mockImplementation(async (url, _init, handler) => {
+      if (url === "https://example.com/robots.txt") {
+        return handler(
+          new Response("Sitemap: https://example.com/sitemap.xml\n", {
+            status: 200,
+            headers: { "content-type": "text/plain" },
+          }),
+        );
+      }
+      if (url === "https://example.com/sitemap.xml") {
+        return handler(
+          new Response(
+            `<?xml version="1.0"?><urlset><loc>https://example.com/es-419/pricing</loc><loc>https://example.com/about</loc></urlset>`,
+            { status: 200, headers: { "content-type": "application/xml" } },
+          ),
+        );
+      }
+      throw new Error(`unexpected fetch: ${url}`);
+    });
+
+    const { createRenderer } = mockBrowser([
+      htmlPage(
+        "https://example.com/",
+        "<html lang='en'><title>Home</title><body>Welcome to the homepage content sample.</body></html>",
+      ),
+    ]);
+
+    const result = await crawlLocalisationAuditSample(
+      { origin: "https://example.com", sourceUrl: "https://example.com/" },
+      { createRenderer },
+    );
+
+    expect(result.sitemap.localizedUrls).toContain("https://example.com/es-419/pricing");
+    expect(result.sitemap.localizedUrls).not.toContain("https://example.com/about");
+  });
+
   it("records relative Sitemap directives from robots.txt", async () => {
     withPublicHttpFetchMock.mockImplementation(async (url, _init, handler) => {
       if (url === "https://example.com/robots.txt") {
