@@ -12,6 +12,12 @@
  */
 import { LOCALISATION_AUDIT_ANALYTICS_EVENTS, scoreBand } from "@/lib/analytics/events";
 import { serverAnalytics } from "@/lib/analytics/server";
+import {
+  buildLocalisationAuditCompanyProfile,
+  companyProfileFromAuditPayloads,
+  isCompanyProfileIncomplete,
+  mergeCompanyProfiles,
+} from "@/lib/localisation-audit/company-profile";
 import { runLocalisationAuditCredits } from "@/lib/localisation-audit/credits/runner";
 import {
   aggregateLocalisationAuditCredits,
@@ -26,6 +32,7 @@ import {
   markLocalisationAuditLeadEmailQueued,
   markLocalisationAuditProgress,
   markLocalisationAuditRunning,
+  patchLocalisationAuditCompanyProfile,
   upsertLocalisationAuditLeadForDelivery,
 } from "@/lib/localisation-audit/store";
 import type {
@@ -138,6 +145,27 @@ export async function analyzeLocalisationAuditStep(input: {
     return { ok: false as const, code: "crawl_failed" as const };
   }
 
+  const audit = await findLocalisationAuditById(input.auditId);
+  const existingProfile = companyProfileFromAuditPayloads({
+    teaser: audit?.teaser,
+    report: audit?.report,
+  });
+  const inferredProfile = await buildLocalisationAuditCompanyProfile({
+    domainKey: input.domainKey,
+    pages: input.pages,
+  });
+  const companyProfile = mergeCompanyProfiles(existingProfile, inferredProfile);
+
+  // Persist cover fields before scoring so a failed re-run still updates
+  // legacy rows that never stored a logo or product summary.
+  if (isCompanyProfileIncomplete(existingProfile)) {
+    await patchLocalisationAuditCompanyProfile({
+      auditId: input.auditId,
+      attemptNumber: input.attemptNumber,
+      companyProfile,
+    });
+  }
+
   await markLocalisationAuditProgress({
     auditId: input.auditId,
     attemptNumber: input.attemptNumber,
@@ -153,13 +181,6 @@ export async function analyzeLocalisationAuditStep(input: {
     localeCount: scored.detectedLocales.length,
   });
   const completedAt = new Date().toISOString();
-
-  const { buildLocalisationAuditCompanyProfile } =
-    await import("@/lib/localisation-audit/company-profile");
-  const companyProfile = await buildLocalisationAuditCompanyProfile({
-    domainKey: input.domainKey,
-    pages: input.pages,
-  });
 
   const report: LocalisationAuditReport = {
     score,

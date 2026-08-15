@@ -30,6 +30,7 @@ import {
   listLocalisationAuditLeaderboard,
   listPendingLocalisationAuditLeads,
   markLocalisationAuditLeadEmailQueued,
+  patchLocalisationAuditCompanyProfile,
   upsertLocalisationAuditLeadForDelivery,
   verifyLocalisationAuditReportToken,
 } from "./store";
@@ -380,6 +381,95 @@ describe("localisation audit claim/retry", () => {
     expect(failed?.progressStage).toBe("failed");
     expect(failed?.report).toBeNull();
     expect(failed?.errorCode).toBe("localisation_audit_enqueue_failed");
+  });
+
+  it("patches a missing company profile onto a preserved re-run report", async () => {
+    const created = await claimOrReuseLocalisationAudit({
+      domainKey,
+      domainSlug,
+      sourceUrl: `https://${domainKey}/`,
+      focusLocales: [],
+    });
+
+    await completeLocalisationAudit({
+      auditId: created.audit.id,
+      attemptNumber: 1,
+      score: 64,
+      teaser: {
+        score: 64,
+        domainKey,
+        domainSlug,
+        detectedLocales: [],
+        headlineFindings: [],
+        findingsCount: 0,
+        pagesCrawled: 1,
+        completedAt: new Date().toISOString(),
+      },
+      report: {
+        score: 64,
+        domainKey,
+        domainSlug,
+        sourceUrl: `https://${domainKey}/`,
+        focusLocales: [],
+        detectedLocales: [],
+        findings: [],
+        pages: [],
+        linguisticNotes: [],
+        pagesCrawled: 1,
+        completedAt: new Date().toISOString(),
+      },
+    });
+
+    await db
+      .update(schema.localisationAudits)
+      .set({
+        completedAt: new Date(Date.now() - LOCALISATION_AUDIT_RERUN_MS - 1_000),
+      })
+      .where(eq(schema.localisationAudits.id, created.audit.id));
+
+    const rerun = await claimOrReuseLocalisationAudit({
+      domainKey,
+      domainSlug,
+      sourceUrl: `https://${domainKey}/`,
+      focusLocales: [],
+    });
+    expect(rerun.outcome).toBe("reclaimed");
+    expect(rerun.audit.report?.companyProfile).toBeUndefined();
+
+    const profile = {
+      name: "Acme",
+      logoUrl: "https://acme.example/logo.png",
+      productSummary: "Payments for global teams.",
+      brandVoice: "calm, precise",
+      industry: "Fintech",
+      confidence: 80,
+    };
+    const patched = await patchLocalisationAuditCompanyProfile({
+      auditId: rerun.audit.id,
+      attemptNumber: rerun.audit.attemptNumber,
+      companyProfile: profile,
+    });
+    expect(patched?.teaser?.companyProfile).toEqual(profile);
+    expect(patched?.report?.companyProfile).toEqual(profile);
+    expect(patched?.status).toBe("queued");
+    expect(patched?.score).toBe(64);
+
+    const stale = await patchLocalisationAuditCompanyProfile({
+      auditId: rerun.audit.id,
+      attemptNumber: rerun.audit.attemptNumber - 1,
+      companyProfile: { ...profile, name: "Stale" },
+    });
+    expect(stale).toBeNull();
+
+    const restored = await failLocalisationAudit({
+      auditId: rerun.audit.id,
+      attemptNumber: rerun.audit.attemptNumber,
+      errorCode: "localisation_audit_failed",
+      errorMessage: "scoring failed",
+    });
+    expect(restored?.status).toBe("succeeded");
+    expect(restored?.report?.companyProfile).toEqual(profile);
+    expect(restored?.teaser?.companyProfile).toEqual(profile);
   });
 
   it("handles concurrent lead upserts idempotently", async () => {

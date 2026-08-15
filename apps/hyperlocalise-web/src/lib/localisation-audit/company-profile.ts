@@ -240,3 +240,52 @@ export async function buildLocalisationAuditCompanyProfile(input: {
   }
   return inferCompanyProfileWithLuna(evidence);
 }
+
+function nonEmpty(value: string | null | undefined): string | null {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed : null;
+}
+
+/** True when the cover is missing logo, summary, or other profile fields. */
+export function isCompanyProfileIncomplete(
+  profile: LocalisationAuditCompanyProfile | null | undefined,
+): boolean {
+  if (!profile) {
+    return true;
+  }
+  return (
+    nonEmpty(profile.name) == null ||
+    nonEmpty(profile.logoUrl) == null ||
+    nonEmpty(profile.productSummary) == null ||
+    nonEmpty(profile.brandVoice) == null ||
+    nonEmpty(profile.industry) == null
+  );
+}
+
+/**
+ * Prefer freshly inferred values when present; keep stored values for gaps.
+ * A re-run can fill a legacy row without wiping a logo the new crawl missed.
+ */
+export function mergeCompanyProfiles(
+  existing: LocalisationAuditCompanyProfile | null | undefined,
+  incoming: LocalisationAuditCompanyProfile,
+): LocalisationAuditCompanyProfile {
+  if (!existing) {
+    return incoming;
+  }
+  return {
+    name: nonEmpty(incoming.name) ?? existing.name,
+    logoUrl: nonEmpty(incoming.logoUrl) ?? existing.logoUrl,
+    productSummary: nonEmpty(incoming.productSummary) ?? existing.productSummary,
+    brandVoice: nonEmpty(incoming.brandVoice) ?? existing.brandVoice,
+    industry: nonEmpty(incoming.industry) ?? existing.industry,
+    confidence: Math.max(existing.confidence, incoming.confidence),
+  };
+}
+
+export function companyProfileFromAuditPayloads(input: {
+  teaser?: { companyProfile?: LocalisationAuditCompanyProfile | null } | null;
+  report?: { companyProfile?: LocalisationAuditCompanyProfile | null } | null;
+}): LocalisationAuditCompanyProfile | null {
+  return input.report?.companyProfile ?? input.teaser?.companyProfile ?? null;
+}

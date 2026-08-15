@@ -22,6 +22,7 @@ import {
 
 import { hashLocalisationAuditReportToken, mintLocalisationAuditReportToken } from "./email-unlock";
 import type {
+  LocalisationAuditCompanyProfile,
   LocalisationAuditLeadDeliveryStatus,
   LocalisationAuditProgressStage,
   LocalisationAuditReport,
@@ -443,6 +444,43 @@ export async function markLocalisationAuditRunning(input: {
     progressStage: "preparing",
     status: "running",
   });
+}
+
+/**
+ * Write a company profile onto a preserved teaser/report without changing
+ * status. Used on re-runs so a later scoring failure still keeps logo/summary.
+ */
+export async function patchLocalisationAuditCompanyProfile(input: {
+  auditId: string;
+  attemptNumber: number;
+  companyProfile: LocalisationAuditCompanyProfile;
+}) {
+  const audit = await findLocalisationAuditById(input.auditId);
+  if (!audit || audit.attemptNumber !== input.attemptNumber) {
+    return null;
+  }
+  if (!audit.teaser && !audit.report) {
+    return null;
+  }
+
+  const [row] = await db
+    .update(schema.localisationAudits)
+    .set({
+      teaser: audit.teaser
+        ? { ...audit.teaser, companyProfile: input.companyProfile }
+        : audit.teaser,
+      report: audit.report
+        ? { ...audit.report, companyProfile: input.companyProfile }
+        : audit.report,
+    })
+    .where(
+      and(
+        eq(schema.localisationAudits.id, input.auditId),
+        eq(schema.localisationAudits.attemptNumber, input.attemptNumber),
+      ),
+    )
+    .returning();
+  return row ?? null;
 }
 
 export async function completeLocalisationAudit(input: {

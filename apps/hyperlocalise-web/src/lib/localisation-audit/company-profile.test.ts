@@ -15,6 +15,9 @@ import { describe, expect, it } from "vite-plus/test";
 import {
   buildHeuristicCompanyProfile,
   collectCompanyProfileEvidence,
+  companyProfileFromAuditPayloads,
+  isCompanyProfileIncomplete,
+  mergeCompanyProfiles,
   pickCompanyLogoUrl,
 } from "./company-profile";
 import { emptyCrawledPage } from "./types";
@@ -104,5 +107,70 @@ describe("collectCompanyProfileEvidence", () => {
     expect(evidence?.pageUrl).toBe("https://acme.example/");
     expect(evidence?.title).toBe("Acme");
     expect(evidence?.logoUrl).toBe("https://acme.example/logo.png");
+  });
+});
+
+const completeProfile = {
+  name: "Acme",
+  logoUrl: "https://acme.example/logo.png",
+  productSummary: "Payments for global teams.",
+  brandVoice: "calm, precise",
+  industry: "Fintech",
+  confidence: 80,
+};
+
+describe("isCompanyProfileIncomplete", () => {
+  it("treats a missing profile and any blank cover field as incomplete", () => {
+    expect(isCompanyProfileIncomplete(null)).toBe(true);
+    expect(isCompanyProfileIncomplete(completeProfile)).toBe(false);
+    expect(isCompanyProfileIncomplete({ ...completeProfile, logoUrl: null })).toBe(true);
+    expect(isCompanyProfileIncomplete({ ...completeProfile, productSummary: "  " })).toBe(true);
+    expect(isCompanyProfileIncomplete({ ...completeProfile, brandVoice: null })).toBe(true);
+  });
+});
+
+describe("mergeCompanyProfiles", () => {
+  it("fills gaps from the incoming profile and keeps stored values when the crawl misses them", () => {
+    expect(mergeCompanyProfiles(null, completeProfile)).toEqual(completeProfile);
+
+    const merged = mergeCompanyProfiles(
+      {
+        name: "Acme",
+        logoUrl: "https://acme.example/old-logo.png",
+        productSummary: null,
+        brandVoice: null,
+        industry: "Fintech",
+        confidence: 40,
+      },
+      {
+        name: "Acme Inc",
+        logoUrl: null,
+        productSummary: "Payments for global teams.",
+        brandVoice: "calm, precise",
+        industry: null,
+        confidence: 70,
+      },
+    );
+
+    expect(merged).toEqual({
+      name: "Acme Inc",
+      logoUrl: "https://acme.example/old-logo.png",
+      productSummary: "Payments for global teams.",
+      brandVoice: "calm, precise",
+      industry: "Fintech",
+      confidence: 70,
+    });
+  });
+});
+
+describe("companyProfileFromAuditPayloads", () => {
+  it("prefers the full report profile over the teaser", () => {
+    expect(
+      companyProfileFromAuditPayloads({
+        teaser: { companyProfile: { ...completeProfile, name: "Teaser" } },
+        report: { companyProfile: completeProfile },
+      }),
+    ).toEqual(completeProfile);
+    expect(companyProfileFromAuditPayloads({ teaser: null, report: null })).toBeNull();
   });
 });
