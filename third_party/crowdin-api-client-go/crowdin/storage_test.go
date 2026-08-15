@@ -121,12 +121,14 @@ func TestStorageService_Add(t *testing.T) {
 	defaultMediaType := "application/octet-stream"
 	uploads := []struct {
 		fileName          string
+		expectedHeader    string
 		expectedMediaType string
 	}{
-		{"upload.txt", "text/plain; charset=utf-8"},
-		{"upload file with spaces.txt", "text/plain; charset=utf-8"},
+		{"upload.txt", "upload.txt", "text/plain; charset=utf-8"},
+		// Spaces must be %20 (PathEscape), not QueryEscape's +, and not sent raw.
+		{"upload file with spaces.txt", "upload%20file%20with%20spaces.txt", "text/plain; charset=utf-8"},
 		// No media type for unknown file types
-		{"upload.xlif", defaultMediaType},
+		{"upload.xlif", "upload.xlif", defaultMediaType},
 	}
 
 	for _, tt := range uploads {
@@ -137,7 +139,7 @@ func TestStorageService_Add(t *testing.T) {
 			testMethod(t, r, "POST")
 			testURL(t, r, "/api/v2/storages")
 			testHeader(t, r, "Content-Type", tt.expectedMediaType)
-			testHeader(t, r, "Crowdin-API-FileName", tt.fileName)
+			testHeader(t, r, "Crowdin-API-FileName", tt.expectedHeader)
 
 			fmt.Fprint(w, `{
 				"data": {
