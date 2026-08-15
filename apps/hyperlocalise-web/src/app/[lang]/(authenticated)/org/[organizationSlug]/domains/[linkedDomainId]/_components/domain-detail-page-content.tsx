@@ -64,7 +64,8 @@ export function DomainDetailPageContent({
 
   const auditQuery = useQuery({
     queryKey: ["linked-domain-audit", organizationSlug, linkedDomainId],
-    enabled: Boolean(domainQuery.data?.localisationAuditId),
+    enabled:
+      Boolean(domainQuery.data?.localisationAuditId) && domainQuery.data?.status === "verified",
     queryFn: async () => {
       const response = await fetch(
         `/api/orgs/${encodeURIComponent(organizationSlug)}/linked-domains/${encodeURIComponent(linkedDomainId)}/audit`,
@@ -174,6 +175,12 @@ export function DomainDetailPageContent({
               </TypographyP>
             ) : null}
 
+            {linkedDomain.localisationAuditId && linkedDomain.status !== "verified" ? (
+              <TypographyP className="text-sm text-muted-foreground">
+                <FormattedMessage {...messages.verifyPending} />
+              </TypographyP>
+            ) : null}
+
             {auditQuery.isLoading ? (
               <TypographyP className="text-sm text-muted-foreground">
                 <FormattedMessage {...messages.loading} />
@@ -203,7 +210,7 @@ export function DomainDetailPageContent({
                   score: auditQuery.data.score,
                   teaser: auditQuery.data.teaser,
                   report: auditQuery.data.report,
-                  unlocked: true,
+                  unlocked: auditQuery.data.report != null,
                   claimed: true,
                   errorCode: null,
                   completedAt: auditQuery.data.completedAt,

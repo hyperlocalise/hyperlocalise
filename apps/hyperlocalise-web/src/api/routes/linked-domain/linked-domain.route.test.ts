@@ -198,6 +198,47 @@ describe("linkedDomainRoutes", () => {
     await db.delete(schema.localisationAudits).where(eq(schema.localisationAudits.id, audit.id));
   });
 
+  it("does not return the full audit report for a pending claim", async () => {
+    const identity = fixture.createWorkosIdentityWithRole("admin");
+    const headers = await fixture.authHeadersFor(identity);
+    const organizationSlug = identity.organization.slug ?? "missing-slug";
+    const domainKey = `pending-audit-${crypto.randomUUID().slice(0, 8)}.example`;
+    const audit = await insertSucceededAudit(domainKey);
+
+    const createResponse = await client.api.orgs[":organizationSlug"]["linked-domains"].$post(
+      {
+        param: { organizationSlug },
+        json: { domainSlug: audit.domainSlug },
+      },
+      { headers },
+    );
+    expect(createResponse.status).toBe(201);
+    const created = await createResponse.json();
+    if (!("linkedDomain" in created)) {
+      throw new Error("expected linkedDomain in create response");
+    }
+    expect(created.linkedDomain.status).toBe("pending_verification");
+
+    const auditResponse = await client.api.orgs[":organizationSlug"]["linked-domains"][
+      ":linkedDomainId"
+    ].audit.$get(
+      {
+        param: { organizationSlug, linkedDomainId: created.linkedDomain.id },
+      },
+      { headers },
+    );
+    expect(auditResponse.status).toBe(200);
+    const auditBody = await auditResponse.json();
+    if (!("audit" in auditBody)) {
+      throw new Error("expected audit in audit response");
+    }
+    expect(auditBody.audit.id).toBe(audit.id);
+    expect(auditBody.audit.teaser).not.toBeNull();
+    expect(auditBody.audit.report).toBeNull();
+
+    await db.delete(schema.localisationAudits).where(eq(schema.localisationAudits.id, audit.id));
+  });
+
   it("rejects a second org claiming an already verified domain", async () => {
     const first = fixture.createWorkosIdentityWithRole("admin");
     const second = fixture.createWorkosIdentityWithRole("admin");

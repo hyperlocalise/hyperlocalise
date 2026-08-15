@@ -164,6 +164,10 @@ export async function getLinkedDomainAudit(input: {
     return err({ code: "linked_domain_not_found", message: "Linked domain was not found." });
   }
 
+  // Full report requires successful domain verification. Pending claims must not
+  // bypass the public email-unlock gate or ownership proof.
+  const verified = linkedDomain.status === "verified";
+
   return ok({
     id: audit.id,
     domainKey: audit.domainKey,
@@ -173,7 +177,7 @@ export async function getLinkedDomainAudit(input: {
     score: audit.score,
     completedAt: audit.completedAt?.toISOString() ?? null,
     teaser: audit.teaser,
-    report: audit.report,
+    report: verified ? audit.report : null,
   });
 }
 

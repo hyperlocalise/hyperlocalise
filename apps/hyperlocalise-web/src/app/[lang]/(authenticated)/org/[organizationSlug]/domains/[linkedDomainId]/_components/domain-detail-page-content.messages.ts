@@ -53,6 +53,11 @@ export const domainDetailPageContentMessages = defineMessages({
     id: "NW5w/HG5/G",
     description: "Label for linked domain status on the detail page",
   },
+  verifyPending: {
+    defaultMessage: "Verify this domain to unlock the full localisation audit report.",
+    id: "0uC+32o+7p",
+    description: "Message when domain detail cannot show the report until verification succeeds",
+  },
   reportHeading: {
     defaultMessage: "Localisation audit report",
     id: "X9s4kh3gLN",
