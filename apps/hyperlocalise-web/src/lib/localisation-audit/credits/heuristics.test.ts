@@ -12,6 +12,7 @@
  */
 import { describe, expect, it } from "vite-plus/test";
 
+import { contextualHeuristicScorers } from "./heuristics/contextual";
 import { linguisticHeuristicScorers } from "./heuristics/linguistic";
 import { technicalHeuristicScorers } from "./heuristics/technical";
 import { visualHeuristicScorers } from "./heuristics/visual";
@@ -569,6 +570,20 @@ describe("technical heuristic credits", () => {
 
     expect(outcome.status).toBe("na");
   });
+
+  it("does not score accessibility localisation when there are no accessible names", () => {
+    const outcome = technicalHeuristicScorers["accessibility-localisation"]!(
+      context([
+        emptyCrawledPage({
+          url: "https://www.dropbox.com/es/",
+          htmlLang: "es-419",
+          textSample: "Almacena fotos, documentos y videos.",
+        }),
+      ]),
+    );
+
+    expect(outcome.status).toBe("na");
+  });
 });
 
 describe("linguistic heuristic credits", () => {
@@ -614,6 +629,45 @@ describe("linguistic heuristic credits", () => {
     );
 
     expect(outcome.status).toBe("inconclusive");
+  });
+});
+
+describe("contextual heuristic credits", () => {
+  it("does not score cultural adaptation when the sample has no currency or contact details", () => {
+    const outcome = contextualHeuristicScorers["cultural-adaptation"]!(
+      context([
+        emptyCrawledPage({
+          url: "https://www.dropbox.com/es/",
+          htmlLang: "es-419",
+          headings: ["Almacena y comparte archivos"],
+          textSample: "Almacena fotos, documentos y videos. Comparte carpetas con tu equipo.",
+        }),
+        emptyCrawledPage({
+          url: "https://www.dropbox.com/de/",
+          htmlLang: "de",
+          headings: ["Dateien speichern und teilen"],
+          textSample: "Speichere Fotos, Dokumente und Videos. Teile Ordner mit deinem Team.",
+        }),
+      ]),
+    );
+
+    expect(outcome.status).toBe("na");
+  });
+
+  it("still flags US-style dollar amounts on a non-English page", () => {
+    const outcome = contextualHeuristicScorers["cultural-adaptation"]!(
+      context([
+        emptyCrawledPage({
+          url: "https://example.com/de/pricing",
+          htmlLang: "de",
+          textSample: "Pläne ab $12 pro Monat für Teams.",
+        }),
+      ]),
+    );
+
+    expect(outcome.status).toBe("scored");
+    if (outcome.status !== "scored") return;
+    expect(outcome.findings.some((finding) => finding.id.startsWith("cultural-"))).toBe(true);
   });
 });
 
@@ -718,5 +772,58 @@ describe("visual heuristic credits", () => {
       ]),
     );
     expect(outcome).toEqual({ status: "scored", score: 92, findings: [] });
+  });
+
+  it("does not score visual hierarchy when headings are not excessively long", () => {
+    const outcome = visualHeuristicScorers["visual-hierarchy"]!(
+      context([
+        emptyCrawledPage({
+          url: "https://www.dropbox.com/es/",
+          htmlLang: "es-419",
+          headings: ["Almacena, comparte y accede a tus archivos"],
+        }),
+      ]),
+    );
+
+    expect(outcome.status).toBe("na");
+  });
+
+  it("still flags headings that are excessively long", () => {
+    const outcome = visualHeuristicScorers["visual-hierarchy"]!(
+      context([
+        emptyCrawledPage({
+          url: "https://example.com/de/",
+          htmlLang: "de",
+          headings: [
+            "Speichere, teile und greife von jedem Gerät aus auf alle deine Dateien, Fotos und Dokumente zu, jederzeit und überall",
+          ],
+        }),
+      ]),
+    );
+
+    expect(outcome.status).toBe("scored");
+    if (outcome.status !== "scored") return;
+    expect(outcome.findings.some((finding) => finding.id.startsWith("hierarchy-heading-"))).toBe(
+      true,
+    );
+  });
+
+  it("does not score component consistency when button counts match across locales", () => {
+    const outcome = visualHeuristicScorers["component-consistency"]!(
+      context([
+        emptyCrawledPage({
+          url: "https://www.dropbox.com/en/",
+          htmlLang: "en",
+          buttons: ["Get started", "Sign in"],
+        }),
+        emptyCrawledPage({
+          url: "https://www.dropbox.com/es/",
+          htmlLang: "es-419",
+          buttons: ["Comenzar", "Iniciar sesión"],
+        }),
+      ]),
+    );
+
+    expect(outcome.status).toBe("na");
   });
 });

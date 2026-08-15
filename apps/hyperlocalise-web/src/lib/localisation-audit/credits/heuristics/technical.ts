@@ -947,7 +947,7 @@ const scoreAccessibilityLocalisation: HeuristicScorer = (context) => {
     }
   }
   if (inspected === 0) {
-    return { status: "inconclusive", evidence: { reason: "no_accessible_names" } };
+    return { status: "na" };
   }
   return scored(score, findings);
 };

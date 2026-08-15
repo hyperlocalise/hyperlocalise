@@ -91,7 +91,7 @@ const scoreCulturalAdaptation: HeuristicScorer = (context) => {
     return scored(Math.max(50, 80 - findings.length * 10), findings);
   }
   if (!sawSignal) {
-    return { status: "inconclusive", evidence: { reason: "no_cultural_signals" } };
+    return { status: "na" };
   }
   return scored(88, findings);
 };

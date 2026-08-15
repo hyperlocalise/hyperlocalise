@@ -434,7 +434,7 @@ const scoreVisualHierarchy: HeuristicScorer = (context) => {
   if (findings.length > 0) {
     return scored(Math.max(55, 82 - findings.length * 6), findings);
   }
-  return { status: "inconclusive", evidence: { reason: "no_long_headings" } };
+  return { status: "na" };
 };
 
 const scoreComponentConsistency: HeuristicScorer = (context) => {
@@ -464,7 +464,7 @@ const scoreComponentConsistency: HeuristicScorer = (context) => {
       ]);
     }
   }
-  return { status: "inconclusive", evidence: { reason: "no_component_drift" } };
+  return { status: "na" };
 };
 
 const lunaProxy: HeuristicScorer = () => ({
