@@ -306,7 +306,10 @@ function CriterionRow({
             </Badge>
             {criterion.status !== "na" && criterion.score != null ? (
               <span
-                className={cn("text-sm tabular-nums", auditToneTextClass(scoreTone(criterion.score)))}
+                className={cn(
+                  "text-sm tabular-nums",
+                  auditToneTextClass(scoreTone(criterion.score)),
+                )}
               >
                 {criterion.score}
               </span>
@@ -407,10 +410,10 @@ function AuditCriteriaList({
     buildLocalisationAuditCriteria(credits, findings),
   );
   const dimensionLabels = {
-    technical: copy.dimensionTechnical,
-    linguistic: copy.dimensionLinguistic,
-    contextual: copy.dimensionContextual,
-    visual: copy.dimensionVisual,
+    technical: "technical",
+    linguistic: "linguistic",
+    contextual: "contextual",
+    visual: "visual",
   } as const;
 
   return (

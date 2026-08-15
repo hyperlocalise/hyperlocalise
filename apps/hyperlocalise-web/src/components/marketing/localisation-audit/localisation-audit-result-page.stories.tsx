@@ -74,12 +74,11 @@ export const UnlockedFullReport: Story = {
     await expect(section).toHaveTextContent("Passed audits");
     await expect(section).toHaveTextContent("Pass");
     await expect(section).toHaveTextContent("Fail");
+    const showPassed = canvas.queryByRole("button", { name: "Show passed audits" });
+    if (showPassed) {
+      await userEvent.click(showPassed);
+    }
     for (const credit of LOCALISATION_AUDIT_CREDITS.filter((item) => item.mode !== "na")) {
-      // Passed audits start collapsed when failures exist; expand to assert titles.
-      const showPassed = canvas.queryByRole("button", { name: "Show passed audits" });
-      if (showPassed) {
-        await userEvent.click(showPassed);
-      }
       await expect(section).toHaveTextContent(credit.title);
     }
     await expect(canvas.getAllByText("Found here").length).toBeGreaterThan(0);
