@@ -17,6 +17,7 @@ import {
   LOCALISATION_AUDIT_ANALYTICS_EVENTS,
   PRODUCT_USAGE_ANALYTICS_EVENTS,
   productUsageEventForAutumnEventName,
+  productUsageSourceForAutumnEventName,
   productUsageSourceForMeterSource,
   sanitizeAnalyticsProperties,
   scoreBand,
@@ -95,8 +96,15 @@ describe("analytics sanitization", () => {
       PRODUCT_USAGE_ANALYTICS_EVENTS.aiTokensConsumed,
     );
     expect(productUsageEventForAutumnEventName("unknown")).toBeNull();
+    expect(productUsageSourceForAutumnEventName("translation_job.completed")).toBe(
+      "translation_job",
+    );
+    expect(productUsageSourceForAutumnEventName("agent_run.completed")).toBe("agent_run");
+    expect(productUsageSourceForAutumnEventName("ai_tokens.consumed")).toBe("ai_tokens");
+    expect(productUsageSourceForAutumnEventName("unknown")).toBe("other");
     expect(productUsageSourceForMeterSource("translation_job_complete")).toBe("translation_job");
     expect(productUsageSourceForMeterSource("agent_runtime_complete")).toBe("agent_run");
+    expect(productUsageSourceForMeterSource("seat_added")).toBe("other");
   });
 
   it("fans out to every adapter and isolates provider failures", () => {

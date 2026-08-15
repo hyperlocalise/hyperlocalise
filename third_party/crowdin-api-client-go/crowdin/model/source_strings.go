@@ -244,8 +244,8 @@ type SourceStringsUpload struct {
 	Status     string `json:"status"`
 	Progress   int    `json:"progress"`
 	Attributes struct {
-		BranchID      int    `json:"branchId"`
-		DirectoryID   int    `json:"directoryId"`
+		BranchID      int    `json:"branchId,omitempty"`
+		DirectoryID   int    `json:"directoryId,omitempty"`
 		StorageID     int    `json:"storageId"`
 		FileType      string `json:"fileType"`
 		ParserVersion int    `json:"parserVersion"`

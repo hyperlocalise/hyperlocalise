@@ -64,13 +64,22 @@ export const UnlockedFullReport: Story = {
       handlers: localisationAuditRetryMswHandlers,
     },
   },
-  play: async ({ canvas }) => {
-    const heading = canvas.getByRole("heading", { name: "Credit scores" });
+  play: async ({ canvas, userEvent }) => {
+    const heading = canvas.getByRole("heading", { name: "Audit criteria" });
     await expect(heading).toBeInTheDocument();
     const section = heading.closest("section");
     await expect(section).not.toBeNull();
-    for (const credit of LOCALISATION_AUDIT_CREDITS) {
-      await expect(section).toHaveTextContent(credit.id);
+    await expect(section).toHaveTextContent(/passed · .+ to fix · .+ not applicable/);
+    await expect(section).toHaveTextContent("Needs attention");
+    await expect(section).toHaveTextContent("Passed audits");
+    await expect(section).toHaveTextContent("Pass");
+    await expect(section).toHaveTextContent("Fail");
+    const showPassed = canvas.queryByRole("button", { name: "Show passed audits" });
+    if (showPassed) {
+      await userEvent.click(showPassed);
+    }
+    for (const credit of LOCALISATION_AUDIT_CREDITS.filter((item) => item.mode !== "na")) {
+      await expect(section).toHaveTextContent(credit.title);
     }
     await expect(canvas.getAllByText("Found here").length).toBeGreaterThan(0);
     await expect(canvas.getAllByText("What we saw").length).toBeGreaterThan(0);
@@ -94,7 +103,9 @@ export const LockedTeaser: Story = {
     await expect(
       canvas.getByRole("heading", { name: "Get the full report by email" }),
     ).toBeInTheDocument();
-    await expect(canvas.queryByRole("heading", { name: "Credit scores" })).not.toBeInTheDocument();
+    await expect(canvas.getByRole("heading", { name: "Audit criteria" })).toBeInTheDocument();
+    await expect(canvas.getByText(/passed · .+ to fix · .+ not applicable/)).toBeInTheDocument();
+    await expect(canvas.queryByRole("heading", { name: "Full findings" })).not.toBeInTheDocument();
   },
 };
 

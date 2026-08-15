@@ -248,6 +248,138 @@ describe("localisation audit claim/retry", () => {
     expect(reclaimed.audit.attemptNumber).toBe(2);
     expect(reclaimed.audit.status).toBe("queued");
     expect(reclaimed.audit.focusLocales).toEqual(["fr"]);
+    expect(reclaimed.audit.report?.score).toBe(72);
+    expect(reclaimed.audit.score).toBe(72);
+    expect(reclaimed.audit.teaser?.score).toBe(72);
+    expect(reclaimed.audit.completedAt?.getTime()).toBe(aged!.completedAt!.getTime());
+
+    const restored = await failLocalisationAudit({
+      auditId: reclaimed.audit.id,
+      attemptNumber: 2,
+      errorCode: "crawl_failed",
+      errorMessage: "No pages could be crawled for this domain.",
+    });
+    expect(restored?.status).toBe("succeeded");
+    expect(restored?.progressStage).toBe("completed");
+    expect(restored?.report?.score).toBe(72);
+    expect(restored?.score).toBe(72);
+    expect(restored?.errorCode).toBeNull();
+    expect(restored?.completedAt?.getTime()).toBe(aged!.completedAt!.getTime());
+  });
+
+  it("preserves a prior report across stale reclaim of a daily re-run", async () => {
+    const created = await claimOrReuseLocalisationAudit({
+      domainKey,
+      domainSlug,
+      sourceUrl: `https://${domainKey}/`,
+      focusLocales: [],
+    });
+
+    await completeLocalisationAudit({
+      auditId: created.audit.id,
+      attemptNumber: 1,
+      score: 81,
+      teaser: {
+        score: 81,
+        domainKey,
+        domainSlug,
+        detectedLocales: [],
+        headlineFindings: [],
+        findingsCount: 0,
+        pagesCrawled: 1,
+        completedAt: new Date().toISOString(),
+      },
+      report: {
+        score: 81,
+        domainKey,
+        domainSlug,
+        sourceUrl: `https://${domainKey}/`,
+        focusLocales: [],
+        detectedLocales: [],
+        findings: [],
+        pages: [],
+        linguisticNotes: [],
+        pagesCrawled: 1,
+        completedAt: new Date().toISOString(),
+      },
+    });
+
+    await db
+      .update(schema.localisationAudits)
+      .set({
+        completedAt: new Date(Date.now() - LOCALISATION_AUDIT_RERUN_MS - 1_000),
+      })
+      .where(eq(schema.localisationAudits.id, created.audit.id));
+
+    const [aged] = await db
+      .select()
+      .from(schema.localisationAudits)
+      .where(eq(schema.localisationAudits.id, created.audit.id))
+      .limit(1);
+
+    const dailyRerun = await claimOrReuseLocalisationAudit({
+      domainKey,
+      domainSlug,
+      sourceUrl: `https://${domainKey}/pricing`,
+      focusLocales: ["de"],
+    });
+    expect(dailyRerun.outcome).toBe("reclaimed");
+    expect(dailyRerun.audit.status).toBe("queued");
+    expect(dailyRerun.audit.report?.score).toBe(81);
+    expect(dailyRerun.audit.completedAt?.getTime()).toBe(aged!.completedAt!.getTime());
+
+    await db
+      .update(schema.localisationAudits)
+      .set({
+        status: "running",
+        statusUpdatedAt: new Date(Date.now() - LOCALISATION_AUDIT_STALE_MS - 1_000),
+      })
+      .where(eq(schema.localisationAudits.id, created.audit.id));
+
+    const staleReclaim = await claimOrReuseLocalisationAudit({
+      domainKey,
+      domainSlug,
+      sourceUrl: `https://${domainKey}/`,
+      focusLocales: [],
+    });
+    expect(staleReclaim.outcome).toBe("reclaimed");
+    expect(staleReclaim.audit.attemptNumber).toBe(3);
+    expect(staleReclaim.audit.status).toBe("queued");
+    expect(staleReclaim.audit.report?.score).toBe(81);
+    expect(staleReclaim.audit.score).toBe(81);
+    expect(staleReclaim.audit.teaser?.score).toBe(81);
+    expect(staleReclaim.audit.completedAt?.getTime()).toBe(aged!.completedAt!.getTime());
+
+    const restored = await failLocalisationAudit({
+      auditId: staleReclaim.audit.id,
+      attemptNumber: 3,
+      errorCode: "crawl_failed",
+      errorMessage: "No pages could be crawled for this domain.",
+    });
+    expect(restored?.status).toBe("succeeded");
+    expect(restored?.report?.score).toBe(81);
+    expect(restored?.errorCode).toBeNull();
+    expect(restored?.completedAt?.getTime()).toBe(aged!.completedAt!.getTime());
+  });
+
+  it("marks first-run failures as failed when no prior report exists", async () => {
+    const created = await claimOrReuseLocalisationAudit({
+      domainKey,
+      domainSlug,
+      sourceUrl: `https://${domainKey}/`,
+      focusLocales: [],
+    });
+
+    const failed = await failLocalisationAudit({
+      auditId: created.audit.id,
+      attemptNumber: 1,
+      errorCode: "localisation_audit_enqueue_failed",
+      errorMessage: "Audit could not be queued. You can retry shortly.",
+    });
+    expect(failed?.status).toBe("failed");
+    expect(failed?.progressStage).toBe("failed");
+    expect(failed?.report).toBeNull();
+    expect(failed?.errorCode).toBe("localisation_audit_enqueue_failed");
   });
 
   it("handles concurrent lead upserts idempotently", async () => {

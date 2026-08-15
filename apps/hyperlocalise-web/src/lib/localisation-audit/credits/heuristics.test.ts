@@ -358,6 +358,12 @@ describe("technical heuristic credits", () => {
     expect(locales.some((entry) => entry.locale === "x-default")).toBe(false);
   });
 
+  it("resolves English language names in focus locales", () => {
+    const locales = detectLocales([], ["French", "German"]);
+    expect(locales.map((entry) => entry.locale).toSorted()).toEqual(["de", "fr"]);
+    expect(locales.every((entry) => entry.source === "focus")).toBe(true);
+  });
+
   it("keeps subdomain language when html lang is absent", () => {
     const locales = detectLocales(
       [emptyCrawledPage({ url: "https://fr.example.com/", htmlLang: null })],

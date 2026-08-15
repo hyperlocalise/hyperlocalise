@@ -8,6 +8,7 @@ import (
 
 	"github.com/openai/openai-go/v3"
 	"github.com/openai/openai-go/v3/option"
+	"github.com/openai/openai-go/v3/packages/respjson"
 )
 
 type fakeProvider struct {
@@ -272,6 +273,29 @@ func TestResponseText(t *testing.T) {
 			wantErr: true,
 		},
 		{
+			name: "rejects tool_calls finish reason with partial content",
+			resp: &openai.ChatCompletion{Choices: []openai.ChatCompletionChoice{{
+				FinishReason: "tool_calls",
+				Message:      openai.ChatCompletionMessage{Content: `{"greeting": "bon`},
+			}}},
+			wantErr: true,
+		},
+		{
+			name: "rejects function_call finish reason with partial content",
+			resp: &openai.ChatCompletion{Choices: []openai.ChatCompletionChoice{{
+				FinishReason: "function_call",
+				Message:      openai.ChatCompletionMessage{Content: "partial-out"},
+			}}},
+			wantErr: true,
+		},
+		{
+			name: "rejects choice-level provider error even when finish_reason is stop",
+			resp: &openai.ChatCompletion{Choices: []openai.ChatCompletionChoice{
+				choiceWithProviderError("stop", "half-translated {", `{"code":503,"message":"Provider disconnected"}`),
+			}},
+			wantErr: true,
+		},
+		{
 			name:    "empty content",
 			resp:    &openai.ChatCompletion{},
 			want:    "",
@@ -304,6 +328,96 @@ func TestResponseText(t *testing.T) {
 				t.Fatalf("responseText = %q, want %q", got, tc.want)
 			}
 		})
+	}
+}
+
+func choiceWithProviderError(finishReason, content, errorJSON string) openai.ChatCompletionChoice {
+	choice := openai.ChatCompletionChoice{
+		FinishReason: finishReason,
+		Message:      openai.ChatCompletionMessage{Content: content},
+	}
+	choice.JSON.ExtraFields = map[string]respjson.Field{
+		"error": respjson.NewField(errorJSON),
+	}
+	return choice
+}
+
+func TestFormatChoiceProviderError(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		raw  string
+		want string
+	}{
+		{
+			name: "empty payload",
+			raw:  "   ",
+			want: "provider reported an error in the completion choice",
+		},
+		{
+			name: "non-json payload",
+			raw:  "upstream blew up",
+			want: "provider reported an error in the completion choice: upstream blew up",
+		},
+		{
+			name: "numeric code and message include retryable status phrase",
+			raw:  `{"code":502,"message":"Provider disconnected mid-stream"}`,
+			want: "provider reported an error in the completion choice (status code 502): Provider disconnected mid-stream",
+		},
+		{
+			name: "string code is normalized for retry heuristics",
+			raw:  `{"code":"503","message":"Temporary upstream failure"}`,
+			want: "provider reported an error in the completion choice (status code 503): Temporary upstream failure",
+		},
+		{
+			name: "code only",
+			raw:  `{"code":504}`,
+			want: "provider reported an error in the completion choice (status code 504)",
+		},
+		{
+			name: "message only",
+			raw:  `{"message":"model overloaded"}`,
+			want: "provider reported an error in the completion choice: model overloaded",
+		},
+		{
+			name: "zero and null codes are ignored",
+			raw:  `{"code":0,"message":"ignored code"}`,
+			want: "provider reported an error in the completion choice: ignored code",
+		},
+		{
+			name: "null code falls back to message",
+			raw:  `{"code":null,"message":"no code"}`,
+			want: "provider reported an error in the completion choice: no code",
+		},
+	}
+
+	for _, tt := range tests {
+		tc := tt
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got := formatChoiceProviderError(tc.raw)
+			if got != tc.want {
+				t.Fatalf("formatChoiceProviderError = %q, want %q", got, tc.want)
+			}
+		})
+	}
+}
+
+func TestResponseTextChoiceProviderErrorIncludesStatusCode(t *testing.T) {
+	t.Parallel()
+
+	_, err := responseText(&openai.ChatCompletion{Choices: []openai.ChatCompletionChoice{
+		choiceWithProviderError("error", "partial-out", `{"code":"502","message":"bad gateway"}`),
+	}})
+	if err == nil {
+		t.Fatal("expected choice provider error")
+	}
+	if !strings.Contains(err.Error(), "status code 502") {
+		t.Fatalf("error %q does not include status code 502 for retry heuristics", err.Error())
+	}
+	if !strings.Contains(err.Error(), "bad gateway") {
+		t.Fatalf("error %q does not include provider message", err.Error())
 	}
 }
 

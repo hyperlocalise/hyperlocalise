@@ -330,6 +330,7 @@ function createTeaser(report: LocalisationAuditReport): LocalisationAuditTeaser 
     pagesCrawled: report.pagesCrawled,
     completedAt: report.completedAt,
     dimensionScores: report.dimensionScores,
+    credits: report.credits,
   };
 }
 

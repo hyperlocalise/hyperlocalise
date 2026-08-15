@@ -1,5 +1,11 @@
 # Crowdin Steward's Journal
 
+## 2026-12-26 - Add FileID and MaxLen parity for SourceStringsUpload attributes
+
+**Learning:** In Crowdin API v2, the Upload Source Strings background job response contains `fileId` and `maxLen` fields inside its `attributes` object when uploading strings for a specific file or with length restrictions. The SDK previously omitted `FileID` and `MaxLen` from `SourceStringsUpload.Attributes`, preventing callers from verifying file targeting or maximum length configurations in upload job status responses.
+
+**Action:** Added `FileID int json:"fileId,omitempty"` and `MaxLen int json:"maxLen,omitempty"` to `SourceStringsUpload.Attributes` in `model/source_strings.go`, and added `omitempty` tags to `BranchID` and `DirectoryID` attributes. Updated response fixtures and struct assertions in `TestSourceStringsService_Upload` and `TestSourceStringsService_GetUploadStatus` in `source_strings_test.go`.
+
 ## 2026-12-25 - Improve error visibility and align notification role validations
 
 **Learning:**

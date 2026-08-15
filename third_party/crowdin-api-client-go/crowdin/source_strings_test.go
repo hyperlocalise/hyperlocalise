@@ -798,8 +798,8 @@ func TestSourceStringsService_GetUploadStatus(t *testing.T) {
 		Status:     "finished",
 		Progress:   100,
 		Attributes: struct {
-			BranchID      int    `json:"branchId"`
-			DirectoryID   int    `json:"directoryId"`
+			BranchID      int    `json:"branchId,omitempty"`
+			DirectoryID   int    `json:"directoryId,omitempty"`
 			StorageID     int    `json:"storageId"`
 			FileType      string `json:"fileType"`
 			ParserVersion int    `json:"parserVersion"`
@@ -926,8 +926,8 @@ func TestSourceStringsService_Upload(t *testing.T) {
 		Status:     "finished",
 		Progress:   100,
 		Attributes: struct {
-			BranchID      int    `json:"branchId"`
-			DirectoryID   int    `json:"directoryId"`
+			BranchID      int    `json:"branchId,omitempty"`
+			DirectoryID   int    `json:"directoryId,omitempty"`
 			StorageID     int    `json:"storageId"`
 			FileType      string `json:"fileType"`
 			ParserVersion int    `json:"parserVersion"`

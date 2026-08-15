@@ -14,18 +14,24 @@
  */
 import Link from "next/link";
 import { useAuth } from "@workos-inc/authkit-nextjs/components";
-import { CheckIcon } from "lucide-react";
+import { CheckIcon, ChevronDownIcon, XIcon } from "lucide-react";
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 
 import { REQUEST_DEMO_URL } from "@/components/marketing/request-demo";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { TypographyH1, TypographyH2, TypographyP } from "@/components/ui/typography";
 import { clientAnalytics } from "@/lib/analytics/client";
 import { LOCALISATION_AUDIT_ANALYTICS_EVENTS, scoreBand } from "@/lib/analytics/events";
 import { isLocalisationAuditSignInCtaEnabled } from "@/lib/flags/localisation-audit-sign-in-ctas";
+import {
+  buildLocalisationAuditCriteria,
+  groupLocalisationAuditCriteria,
+  type LocalisationAuditCriterion,
+} from "@/lib/localisation-audit/criteria";
 import { sanitizeLocalisationAuditFindingUrl } from "@/lib/localisation-audit/finding-url";
 import {
   formatDimensionScore,
@@ -35,6 +41,7 @@ import {
 } from "@/lib/localisation-audit/score-tone";
 import type { LocalisationAuditStanding } from "@/lib/localisation-audit/store";
 import type {
+  LocalisationAuditCreditResult,
   LocalisationAuditFinding,
   LocalisationAuditProgressStage,
   LocalisationAuditReport,
@@ -230,6 +237,229 @@ function FindingList({
         );
       })}
     </ul>
+  );
+}
+
+function CriterionStatusIcon({ status }: { status: LocalisationAuditCriterion["status"] }) {
+  if (status === "pass") {
+    return (
+      <span
+        className={cn(
+          "flex size-6 shrink-0 items-center justify-center rounded-full",
+          auditToneBadgeClass("safe"),
+        )}
+        aria-hidden
+      >
+        <CheckIcon className="size-3.5" />
+      </span>
+    );
+  }
+  if (status === "fail") {
+    return (
+      <span
+        className={cn(
+          "flex size-6 shrink-0 items-center justify-center rounded-full",
+          auditToneBadgeClass("risk"),
+        )}
+        aria-hidden
+      >
+        <XIcon className="size-3.5" />
+      </span>
+    );
+  }
+  return (
+    <span
+      className="flex size-6 shrink-0 items-center justify-center rounded-full border border-border text-xs text-muted-foreground"
+      aria-hidden
+    >
+      —
+    </span>
+  );
+}
+
+function CriterionRow({
+  criterion,
+  copy,
+  showFindings,
+  domainKey,
+  dimensionLabel,
+}: {
+  criterion: LocalisationAuditCriterion;
+  copy: ReturnType<typeof getLocalisationAuditResultCopy>;
+  showFindings: boolean;
+  domainKey: string;
+  dimensionLabel: string;
+}) {
+  const statusLabel =
+    criterion.status === "pass"
+      ? copy.criteriaPassLabel
+      : criterion.status === "fail"
+        ? copy.criteriaFailLabel
+        : copy.criteriaNaLabel;
+  const badgeTone =
+    criterion.status === "pass" ? "safe" : criterion.status === "fail" ? "risk" : "neutral";
+
+  return (
+    <li className="border-t border-border pt-4 first:border-t-0 first:pt-0">
+      <div className="flex items-start gap-3">
+        <CriterionStatusIcon status={criterion.status} />
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="font-medium">{criterion.title}</p>
+            <Badge variant="outline" className={cn(auditToneBadgeClass(badgeTone))}>
+              {statusLabel}
+            </Badge>
+            {criterion.status !== "na" && criterion.score != null ? (
+              <span className={cn("text-sm tabular-nums", auditToneTextClass(badgeTone))}>
+                {criterion.score}
+              </span>
+            ) : null}
+            <span className="text-xs font-medium tracking-[0.14em] text-muted-foreground uppercase">
+              {dimensionLabel}
+            </span>
+          </div>
+          <p className="mt-1 text-pretty text-sm text-muted-foreground">{criterion.rubric}</p>
+          {showFindings && criterion.findings.length > 0 ? (
+            <div className="mt-4">
+              <FindingList findings={criterion.findings} copy={copy} domainKey={domainKey} />
+            </div>
+          ) : null}
+        </div>
+      </div>
+    </li>
+  );
+}
+
+function CriteriaGroup({
+  heading,
+  criteria,
+  copy,
+  showFindings,
+  domainKey,
+  dimensionLabels,
+  defaultOpen,
+  expandLabel,
+  collapseLabel,
+}: {
+  heading: string;
+  criteria: LocalisationAuditCriterion[];
+  copy: ReturnType<typeof getLocalisationAuditResultCopy>;
+  showFindings: boolean;
+  domainKey: string;
+  dimensionLabels: Record<LocalisationAuditCriterion["dimension"], string>;
+  defaultOpen: boolean;
+  expandLabel?: string;
+  collapseLabel?: string;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
+
+  if (criteria.length === 0) return null;
+
+  const list = (
+    <ul className="mt-4 space-y-4">
+      {criteria.map((criterion) => (
+        <CriterionRow
+          key={criterion.id}
+          criterion={criterion}
+          copy={copy}
+          showFindings={showFindings}
+          domainKey={domainKey}
+          dimensionLabel={dimensionLabels[criterion.dimension]}
+        />
+      ))}
+    </ul>
+  );
+
+  if (!expandLabel || !collapseLabel) {
+    return (
+      <div className="mt-10 first:mt-0">
+        <h3 className="text-lg font-medium">{heading}</h3>
+        {list}
+      </div>
+    );
+  }
+
+  return (
+    <Collapsible open={open} onOpenChange={setOpen} className="mt-10 first:mt-0">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h3 className="text-lg font-medium">{heading}</h3>
+        <CollapsibleTrigger className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground">
+          {open ? collapseLabel : expandLabel}
+          <ChevronDownIcon className={cn("size-4 transition-transform", open && "rotate-180")} />
+        </CollapsibleTrigger>
+      </div>
+      <CollapsibleContent>{list}</CollapsibleContent>
+    </Collapsible>
+  );
+}
+
+function AuditCriteriaList({
+  credits,
+  findings,
+  copy,
+  domainKey,
+  unlocked,
+}: {
+  credits: LocalisationAuditCreditResult[];
+  findings: LocalisationAuditFinding[];
+  copy: ReturnType<typeof getLocalisationAuditResultCopy>;
+  domainKey: string;
+  unlocked: boolean;
+}) {
+  const { passed, failed, notApplicable } = groupLocalisationAuditCriteria(
+    buildLocalisationAuditCriteria(credits, findings),
+  );
+  const dimensionLabels = {
+    technical: "technical",
+    linguistic: "linguistic",
+    contextual: "contextual",
+    visual: "visual",
+  } as const;
+
+  return (
+    <div>
+      <TypographyP className="mt-4 max-w-2xl text-muted-foreground">
+        {formatCopy(copy.criteriaSummary, {
+          passed: passed.length,
+          failed: failed.length,
+          na: notApplicable.length,
+        })}
+      </TypographyP>
+
+      <CriteriaGroup
+        heading={formatCopy(copy.criteriaNeedsAttentionHeading, { count: failed.length })}
+        criteria={failed}
+        copy={copy}
+        showFindings={unlocked}
+        domainKey={domainKey}
+        dimensionLabels={dimensionLabels}
+        defaultOpen
+      />
+
+      <CriteriaGroup
+        heading={formatCopy(copy.criteriaPassedHeading, { count: passed.length })}
+        criteria={passed}
+        copy={copy}
+        showFindings={false}
+        domainKey={domainKey}
+        dimensionLabels={dimensionLabels}
+        defaultOpen={failed.length === 0}
+        expandLabel={copy.criteriaExpandPassed}
+        collapseLabel={copy.criteriaCollapsePassed}
+      />
+
+      <CriteriaGroup
+        heading={formatCopy(copy.criteriaNotApplicableHeading, { count: notApplicable.length })}
+        criteria={notApplicable}
+        copy={copy}
+        showFindings={false}
+        domainKey={domainKey}
+        dimensionLabels={dimensionLabels}
+        defaultOpen={false}
+        expandLabel={copy.criteriaExpandNa}
+        collapseLabel={copy.criteriaCollapseNa}
+      />
+    </div>
   );
 }
 
@@ -608,6 +838,8 @@ export function LocalisationAuditResult({
         ? copy.reauditBodyMid
         : copy.reauditBodyLow;
   const freshness = audit.completedAt ?? teaser?.completedAt ?? null;
+  const credits = teaser?.credits ?? report?.credits ?? [];
+  const criteriaFindings = report?.findings ?? teaser?.headlineFindings ?? [];
 
   return (
     <>
@@ -706,6 +938,19 @@ export function LocalisationAuditResult({
         </div>
       </section>
 
+      {credits.length > 0 ? (
+        <section className={sectionClassName}>
+          <TypographyH2 className="pb-0">{copy.creditsHeading}</TypographyH2>
+          <AuditCriteriaList
+            credits={credits}
+            findings={criteriaFindings}
+            copy={copy}
+            domainKey={audit.domainKey}
+            unlocked={audit.unlocked}
+          />
+        </section>
+      ) : null}
+
       <section className={sectionClassName}>
         <TypographyH2 className="pb-0">{copy.localesHeading}</TypographyH2>
         <div className="mt-6 flex flex-wrap gap-x-6 gap-y-2 text-sm text-muted-foreground">
@@ -783,35 +1028,6 @@ export function LocalisationAuditResult({
               <FindingList findings={report.findings} copy={copy} domainKey={audit.domainKey} />
             </div>
           </section>
-
-          {report.credits && report.credits.length > 0 ? (
-            <section className={sectionClassName}>
-              <TypographyH2 className="pb-0">{copy.creditsHeading}</TypographyH2>
-              <ul className="mt-8 space-y-3 text-sm">
-                {report.credits.map((credit) => (
-                  <li
-                    key={credit.id}
-                    className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 border-t border-border pt-3 first:border-t-0 first:pt-0"
-                  >
-                    <span>
-                      {credit.id}
-                      <span className="text-muted-foreground"> · {credit.dimension}</span>
-                    </span>
-                    <span className="tabular-nums">
-                      {credit.method === "na" || credit.score == null ? (
-                        <span className="text-muted-foreground">N/A</span>
-                      ) : (
-                        <ScoreValue score={credit.score} />
-                      )}
-                      {credit.method !== "na" ? (
-                        <span className="text-muted-foreground"> · {credit.method}</span>
-                      ) : null}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            </section>
-          ) : null}
 
           {report.linguisticNotes.length > 0 ? (
             <section className={sectionClassName}>

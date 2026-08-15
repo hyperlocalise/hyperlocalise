@@ -21,8 +21,8 @@ export function getLocalisationAuditRouteMetadata(intl: IntlShape) {
     }),
     description: intl.formatMessage({
       defaultMessage:
-        "Run a free localisation health check on any website. Score technical and linguistic readiness, then unlock the full report.",
-      id: "Xr/7GtH4gF",
+        "Enter a URL to see how your site feels in other languages. A clear score, then the full report by email.",
+      id: "M/3YJiyMT3",
       description: "Meta description for the public localisation audit landing page",
     }),
   };
