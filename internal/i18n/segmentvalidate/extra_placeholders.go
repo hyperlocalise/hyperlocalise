@@ -27,7 +27,9 @@ func extractExtraPlaceholders(text string) []string {
 		return nil
 	}
 
-	var out []string
+	// BOLT OPTIMIZATION: Estimate slice capacity from % and $ counts to avoid slice re-allocations.
+	capHint := strings.Count(text, "%") + strings.Count(text, "$")
+	out := make([]string, 0, capHint)
 	// BOLT OPTIMIZATION: Use a single pass FindAllStringIndex on the combined pattern.
 	for _, loc := range combinedPlaceholderPattern.FindAllStringIndex(text, -1) {
 		match := text[loc[0]:loc[1]]
@@ -73,6 +75,11 @@ func validateExtraPlaceholderParity(source, translated string) error {
 }
 
 func validateExtraPlaceholderParityWithTokens(source, translated string) (bool, error) {
+	// BOLT OPTIMIZATION: Dual-string fast-path when neither source nor translated contains
+	// placeholder signal characters (% or $).
+	if !strings.ContainsAny(source, "%$") && !strings.ContainsAny(translated, "%$") {
+		return false, nil
+	}
 	expected := extractExtraPlaceholders(source)
 	got := extractExtraPlaceholders(translated)
 	if stringSlicesEqual(expected, got) {

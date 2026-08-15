@@ -149,6 +149,11 @@ func validateSpecialCharParity(source, translated string) error {
 }
 
 func validateSpecialCharParityWithTokens(source, translated string) (bool, error) {
+	// BOLT OPTIMIZATION: Dual-string fast-path when neither source nor translated contains
+	// backslash escape signal character (\).
+	if !strings.Contains(source, "\\") && !strings.Contains(translated, "\\") {
+		return false, nil
+	}
 	expected := extractSpecialCharLiterals(source)
 	got := extractSpecialCharLiterals(translated)
 	if stringSlicesEqual(expected, got) {
