@@ -121,26 +121,22 @@ function createDependencies() {
         inboundEmailAddress: "example-org@inbox.hyperlocalise.com",
       }),
     ),
-    interpretEmailRequest: vi.fn(
-      async (): Promise<EmailRequestIntent> => ({
-        kind: "translate",
-        sourceLocale: "en",
-        targetLocale: "fr",
-        instructions: "Keep it formal.",
-        confidence: 0.96,
-        missingFields: [],
-      }),
-    ),
-    interpretClarificationReply: vi.fn(
-      async (): Promise<EmailRequestIntent> => ({
-        kind: "translate",
-        sourceLocale: "en-US",
-        targetLocale: "fr-FR",
-        instructions: null,
-        confidence: 0.94,
-        missingFields: [],
-      }),
-    ),
+    interpretEmailRequest: vi.fn(async (): Promise<EmailRequestIntent> => ({
+      kind: "translate",
+      sourceLocale: "en",
+      targetLocale: "fr",
+      instructions: "Keep it formal.",
+      confidence: 0.96,
+      missingFields: [],
+    })),
+    interpretClarificationReply: vi.fn(async (): Promise<EmailRequestIntent> => ({
+      kind: "translate",
+      sourceLocale: "en-US",
+      targetLocale: "fr-FR",
+      instructions: null,
+      confidence: 0.94,
+      missingFields: [],
+    })),
     fetchAttachmentDownloadUrls: vi.fn(async () => [
       {
         id: "att_123",

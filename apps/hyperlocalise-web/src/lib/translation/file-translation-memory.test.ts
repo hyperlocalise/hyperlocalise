@@ -49,12 +49,10 @@ const {
     onConflictDoUpdate: onConflictDoUpdateMock,
   }));
   const insertMock = vi.fn(() => ({ values: valuesMock }));
-  const whereMock = vi.fn(
-    async (): Promise<ReusableMemoryEntryRow[]> => [
-      { memoryId: "memory_1" },
-      { memoryId: "memory_2" },
-    ],
-  );
+  const whereMock = vi.fn(async (): Promise<ReusableMemoryEntryRow[]> => [
+    { memoryId: "memory_1" },
+    { memoryId: "memory_2" },
+  ]);
   const fromMock = vi.fn(() => ({ where: whereMock }));
   const selectMock = vi.fn(() => ({ from: fromMock }));
 
