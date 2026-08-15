@@ -277,6 +277,18 @@ describe("localisation audit routes", () => {
     );
   });
 
+  it("returns the full report publicly for succeeded audits", async () => {
+    findBySlugMock.mockResolvedValue(succeededAudit());
+    const { createLocalisationAuditRoutes } = await import("./localisation-audit.route");
+    const routes = createLocalisationAuditRoutes();
+
+    const response = await routes.request("/example-com");
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.audit.unlocked).toBe(true);
+    expect(body.audit.report).toEqual(expect.objectContaining({ score: 82 }));
+  });
+
   it("queues report email instead of unlocking immediately", async () => {
     findBySlugMock.mockResolvedValue(succeededAudit());
     upsertLeadMock.mockResolvedValue({
@@ -305,7 +317,8 @@ describe("localisation audit routes", () => {
 
     expect(response.status).toBe(200);
     const body = await response.json();
-    expect(body.audit.unlocked).toBe(false);
+    expect(body.audit.unlocked).toBe(true);
+    expect(body.audit.report).toEqual(expect.objectContaining({ score: 82 }));
     expect(body.delivery.status).toBe("queued");
     expect(emailEnqueue).toHaveBeenCalledWith({
       leadId: "lead-1",

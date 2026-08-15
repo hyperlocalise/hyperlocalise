@@ -11,17 +11,12 @@
  * Version 2.0 or later.
  */
 import type { Metadata } from "next";
-import { cookies } from "next/headers";
 import { notFound } from "next/navigation";
 
 import { LocalisationAuditResultPage } from "@/components/marketing/localisation-audit/localisation-audit-result-page";
 import { getIntlShape } from "@/lib/app-i18n/intl";
 import { DEFAULT_APP_LOCALE, normalizeAppLocale } from "@/lib/app-i18n/locales";
 import { isValidDomainSlug } from "@/lib/localisation-audit/domain-slug";
-import {
-  localisationAuditUnlockCookieName,
-  verifyLocalisationAuditUnlock,
-} from "@/lib/localisation-audit/email-unlock";
 import {
   findLocalisationAuditBySlug,
   getLocalisationAuditStanding,
@@ -86,12 +81,7 @@ export default async function LocalisationAuditResultRoutePage({
     notFound();
   }
 
-  const cookieStore = await cookies();
-  const unlock = verifyLocalisationAuditUnlock(
-    cookieStore.get(localisationAuditUnlockCookieName(domainSlug))?.value,
-    domainSlug,
-  );
-  const unlocked = unlock != null && audit.status === "succeeded";
+  const publicReport = audit.status === "succeeded";
   const standing =
     audit.status === "succeeded" && audit.score != null
       ? await getLocalisationAuditStanding({
@@ -115,8 +105,8 @@ export default async function LocalisationAuditResultRoutePage({
         progressStage: audit.progressStage,
         score: audit.score,
         teaser: audit.teaser,
-        report: unlocked ? audit.report : null,
-        unlocked,
+        report: publicReport ? audit.report : null,
+        unlocked: publicReport,
         retryable: isLocalisationAuditRetryable(audit),
         rerunnable: isLocalisationAuditRerunnable(audit),
         rerunAvailableAt: localisationAuditRerunAvailableAt(audit)?.toISOString() ?? null,

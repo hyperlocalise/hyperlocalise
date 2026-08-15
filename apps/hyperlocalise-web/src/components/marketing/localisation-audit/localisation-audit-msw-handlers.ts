@@ -26,10 +26,10 @@ export const localisationAuditProgressMswHandlers = [
 export const localisationAuditUnlockMswHandlers = [
   http.post("/api/localisation-audit/:domainSlug/unlock", async () => {
     return HttpResponse.json({
-      audit: createSucceededAudit({ unlocked: false }),
+      audit: createSucceededAudit(),
       delivery: {
         status: "queued",
-        message: "Check your inbox for a verified link to unlock the full report.",
+        message: "Check your inbox for a summary of this report.",
       },
     });
   }),

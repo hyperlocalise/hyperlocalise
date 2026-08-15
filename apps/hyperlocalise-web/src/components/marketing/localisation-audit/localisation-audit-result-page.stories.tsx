@@ -29,10 +29,9 @@ import {
   localisationAuditStanding,
 } from "./localisation-audit.fixture";
 
-const unlockedAudit = createSucceededAudit({ unlocked: true });
-const lockedAudit = createSucceededAudit({ unlocked: false });
-const excellentAudit = createSucceededAudit({ unlocked: true, scoreBand: "excellent" });
-const criticalAudit = createSucceededAudit({ unlocked: true, scoreBand: "critical" });
+const publicAudit = createSucceededAudit();
+const excellentAudit = createSucceededAudit({ scoreBand: "excellent" });
+const criticalAudit = createSucceededAudit({ scoreBand: "critical" });
 const crawlingAudit = createRunningAudit({ progressStage: "crawling" });
 const failedAudit = createFailedAudit();
 
@@ -50,21 +49,24 @@ const meta = {
   args: {
     locale: "en",
     domainSlug: localisationAuditDomainSlug,
-    standing: localisationAuditStanding(unlockedAudit.score ?? 0),
-    audit: unlockedAudit,
+    standing: localisationAuditStanding(publicAudit.score ?? 0),
+    audit: publicAudit,
   },
 } satisfies Meta<typeof LocalisationAuditResultPage>;
 
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-export const UnlockedFullReport: Story = {
+export const PublicFullReport: Story = {
   parameters: {
     msw: {
       handlers: localisationAuditRetryMswHandlers,
     },
   },
   play: async ({ canvas, userEvent }) => {
+    await expect(canvas.getByRole("heading", { name: "Acme" })).toBeInTheDocument();
+    await expect(canvas.getByText("Fintech")).toBeInTheDocument();
+    await expect(canvas.getByRole("button", { name: "Copy report link" })).toBeInTheDocument();
     const heading = canvas.getByRole("heading", { name: "Audit criteria" });
     await expect(heading).toBeInTheDocument();
     const section = heading.closest("section");
@@ -85,14 +87,16 @@ export const UnlockedFullReport: Story = {
     await expect(canvas.getAllByText("What we saw").length).toBeGreaterThan(0);
     await expect(canvas.getAllByText("How to fix it").length).toBeGreaterThan(0);
     await expect(canvas.getByText("Document head · <html lang>")).toBeInTheDocument();
+    await expect(canvas.getByRole("heading", { name: "Full findings" })).toBeInTheDocument();
+    await expect(canvas.getByRole("heading", { name: "Email me a summary" })).toBeInTheDocument();
     await expect(canvas.getByRole("button", { name: "Re-run audit" })).toBeInTheDocument();
   },
 };
 
-export const LockedTeaser: Story = {
+export const EmailSummary: Story = {
   args: {
-    audit: lockedAudit,
-    standing: localisationAuditStanding(lockedAudit.score ?? 0),
+    audit: publicAudit,
+    standing: localisationAuditStanding(publicAudit.score ?? 0),
   },
   parameters: {
     msw: {
@@ -100,12 +104,9 @@ export const LockedTeaser: Story = {
     },
   },
   play: async ({ canvas }) => {
-    await expect(
-      canvas.getByRole("heading", { name: "Get the full report by email" }),
-    ).toBeInTheDocument();
-    await expect(canvas.getByRole("heading", { name: "Audit criteria" })).toBeInTheDocument();
-    await expect(canvas.getByText(/passed · .+ to fix · .+ not applicable/)).toBeInTheDocument();
-    await expect(canvas.queryByRole("heading", { name: "Full findings" })).not.toBeInTheDocument();
+    await expect(canvas.getByRole("heading", { name: "Email me a summary" })).toBeInTheDocument();
+    await expect(canvas.getByRole("heading", { name: "Full findings" })).toBeInTheDocument();
+    await expect(canvas.getByRole("button", { name: "Email me a summary" })).toBeInTheDocument();
   },
 };
 

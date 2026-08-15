@@ -11,7 +11,7 @@
  * Version 2.0 or later.
  */
 import { Hono } from "hono";
-import { getCookie, setCookie } from "hono/cookie";
+import { setCookie } from "hono/cookie";
 
 import {
   badRequestResponse,
@@ -29,7 +29,6 @@ import { resolveDomainIdentity, isValidDomainSlug } from "@/lib/localisation-aud
 import {
   localisationAuditUnlockCookieName,
   signLocalisationAuditUnlock,
-  verifyLocalisationAuditUnlock,
 } from "@/lib/localisation-audit/email-unlock";
 import {
   attachLocalisationAuditWorkflowRun,
@@ -89,11 +88,6 @@ function publicAuditView(audit: LocalisationAuditRow) {
     completedAt: audit.completedAt?.toISOString() ?? null,
     statusUpdatedAt: audit.statusUpdatedAt?.toISOString() ?? null,
   };
-}
-
-function readUnlockCookie(c: Parameters<typeof getCookie>[0], domainSlug: string) {
-  const named = getCookie(c, localisationAuditUnlockCookieName(domainSlug));
-  return verifyLocalisationAuditUnlock(named, domainSlug);
 }
 
 export function createLocalisationAuditRoutes(options: LocalisationAuditRouteOptions = {}) {
@@ -222,14 +216,13 @@ export function createLocalisationAuditRoutes(options: LocalisationAuditRouteOpt
         return notFoundResponse(c, "localisation_audit_not_found");
       }
 
-      const unlock = readUnlockCookie(c, domainSlug);
-      const unlocked = unlock != null && audit.status === "succeeded";
+      const publicReport = audit.status === "succeeded";
 
       return c.json({
         audit: {
           ...publicAuditView(audit),
-          unlocked,
-          report: unlocked ? audit.report : null,
+          unlocked: publicReport,
+          report: publicReport ? audit.report : null,
         },
       });
     })
@@ -283,6 +276,8 @@ export function createLocalisationAuditRoutes(options: LocalisationAuditRouteOpt
         status: audit.status,
       });
 
+      const publicReport = audit.status === "succeeded";
+
       if (audit.status === "succeeded" && audit.report) {
         await markLocalisationAuditLeadEmailQueued(upsert.lead.id);
         try {
@@ -305,12 +300,12 @@ export function createLocalisationAuditRoutes(options: LocalisationAuditRouteOpt
         return c.json({
           audit: {
             ...publicAuditView(audit),
-            unlocked: false,
-            report: null,
+            unlocked: publicReport,
+            report: audit.report,
           },
           delivery: {
             status: "queued",
-            message: "Check your inbox for a verified link to the full report.",
+            message: "Check your inbox for a summary of this report.",
           },
         });
       }
@@ -318,12 +313,12 @@ export function createLocalisationAuditRoutes(options: LocalisationAuditRouteOpt
       return c.json({
         audit: {
           ...publicAuditView(audit),
-          unlocked: false,
-          report: null,
+          unlocked: publicReport,
+          report: publicReport ? audit.report : null,
         },
         delivery: {
           status: "pending",
-          message: "We will email your verified report link when the audit finishes.",
+          message: "We will email you a summary when the audit finishes.",
         },
       });
     })

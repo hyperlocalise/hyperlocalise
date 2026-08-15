@@ -79,7 +79,10 @@ export type LocalisationAuditCrawledPage = {
   metaDescription: string | null;
   ogTitle: string | null;
   ogDescription: string | null;
+  ogImage: string | null;
   ogLocale: string | null;
+  /** Absolute or page-relative icon hrefs from link[rel~=icon] / apple-touch-icon. */
+  iconHrefs: string[];
   dir: string | null;
   jsonLd: LocalisationAuditJsonLd[];
   ariaLabels: string[];
@@ -134,19 +137,30 @@ export type LocalisationAuditDimensionScores = {
   visual: number | null;
 };
 
+/** Brand identity inferred from crawl + Luna for the public report cover. */
+export type LocalisationAuditCompanyProfile = {
+  name: string | null;
+  logoUrl: string | null;
+  productSummary: string | null;
+  brandVoice: string | null;
+  industry: string | null;
+  confidence: number;
+};
+
 export type LocalisationAuditTeaser = {
   score: number;
   domainKey: string;
   domainSlug: string;
   detectedLocales: LocalisationAuditLocaleSignal[];
   headlineFindings: LocalisationAuditFinding[];
-  /** Total findings in the full report; used to tease locked depth on public pages. */
+  /** Total findings in the full report; used for report depth on public pages. */
   findingsCount: number;
   pagesCrawled: number;
   completedAt: string;
   dimensionScores?: LocalisationAuditDimensionScores;
   /** Credit scores for the public Lighthouse-style pass/fail checklist. */
   credits?: LocalisationAuditCreditResult[];
+  companyProfile?: LocalisationAuditCompanyProfile | null;
 };
 
 export type LocalisationAuditReport = {
@@ -172,6 +186,7 @@ export type LocalisationAuditReport = {
   completedAt: string;
   dimensionScores?: LocalisationAuditDimensionScores;
   credits?: LocalisationAuditCreditResult[];
+  companyProfile?: LocalisationAuditCompanyProfile | null;
 };
 
 export type LocalisationAuditEventData = {
@@ -220,7 +235,9 @@ export function emptyCrawledPage(
     metaDescription: null,
     ogTitle: null,
     ogDescription: null,
+    ogImage: null,
     ogLocale: null,
+    iconHrefs: [],
     dir: null,
     jsonLd: [],
     ariaLabels: [],

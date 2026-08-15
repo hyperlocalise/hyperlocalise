@@ -86,6 +86,23 @@ describe("parsePageSignals", () => {
     expect(signals.fontFamilies).toContain("Noto Sans");
   });
 
+  it("extracts favicon, apple-touch-icon, and og:image", () => {
+    const signals = parsePageSignals(`
+      <html lang="en">
+        <head>
+          <title>Acme</title>
+          <link rel="icon" href="/favicon.ico" />
+          <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+          <meta property="og:image" content="https://cdn.example/og.png" />
+        </head>
+        <body><h1>Hello</h1></body>
+      </html>
+    `);
+
+    expect(signals.iconHrefs).toEqual(["/favicon.ico", "/apple-touch-icon.png"]);
+    expect(signals.ogImage).toBe("https://cdn.example/og.png");
+  });
+
   it("extracts word-break CSS and Western name form fields", () => {
     const signals = parsePageSignals(`
       <html lang="ko">

@@ -296,12 +296,24 @@ const linguisticNotes: LocalisationAuditReport["linguisticNotes"] = [
   },
 ];
 
+function createCompanyProfile(): NonNullable<LocalisationAuditReport["companyProfile"]> {
+  return {
+    name: "Acme",
+    logoUrl: null,
+    productSummary: "Acme helps product teams take payments and expand into new markets.",
+    brandVoice: "Confident, clear, and quietly premium",
+    industry: "Fintech",
+    confidence: 78,
+  };
+}
+
 function createReport(scoreBand: LocalisationAuditFixtureScoreBand): LocalisationAuditReport {
   const credits = createLocalisationAuditCredits(scoreBand);
   const { score, dimensionScores } = aggregateLocalisationAuditCredits(credits, {
     localeCount: detectedLocales.length,
   });
   const findings = createLocalisationAuditFindings();
+  const companyProfile = createCompanyProfile();
   return {
     score,
     domainKey: localisationAuditDomainKey,
@@ -316,6 +328,7 @@ function createReport(scoreBand: LocalisationAuditFixtureScoreBand): Localisatio
     completedAt: localisationAuditCompletedAt,
     dimensionScores,
     credits,
+    companyProfile,
   };
 }
 
@@ -331,6 +344,7 @@ function createTeaser(report: LocalisationAuditReport): LocalisationAuditTeaser 
     completedAt: report.completedAt,
     dimensionScores: report.dimensionScores,
     credits: report.credits,
+    companyProfile: report.companyProfile,
   };
 }
 
@@ -345,7 +359,6 @@ export function localisationAuditStanding(score: number): LocalisationAuditStand
 }
 
 export function createSucceededAudit({
-  unlocked = true,
   scoreBand = "mixed",
 }: {
   unlocked?: boolean;
@@ -363,8 +376,8 @@ export function createSucceededAudit({
     progressStage: "completed",
     score: report.score,
     teaser,
-    report: unlocked ? report : null,
-    unlocked,
+    report,
+    unlocked: true,
     retryable: false,
     rerunnable: true,
     rerunAvailableAt: localisationAuditCompletedAt,
