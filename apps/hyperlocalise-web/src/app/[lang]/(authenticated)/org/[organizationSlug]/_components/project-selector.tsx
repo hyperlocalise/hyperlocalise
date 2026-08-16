@@ -29,10 +29,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 
-import {
-  resolveChatProjectLabel,
-  type ChatProjectOption,
-} from "./project-selector-model";
+import { resolveChatProjectLabel, type ChatProjectOption } from "./project-selector-model";
 import { projectSelectorMessages as messages } from "./project-selector.messages";
 
 type ProjectSelectorTriggerStyle = "button" | "prompt-input";

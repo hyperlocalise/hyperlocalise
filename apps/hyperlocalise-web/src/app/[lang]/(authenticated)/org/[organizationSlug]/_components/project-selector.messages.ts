@@ -17,27 +17,27 @@ import { defineMessages } from "react-intl";
 export const projectSelectorMessages = defineMessages({
   projectsUnavailable: {
     defaultMessage: "Projects unavailable",
-    id: "chatProjectSelUnavailable",
+    id: "cv2g6Sf3ye",
     description: "Project selector label when workspace projects failed to load",
   },
   noProjects: {
     defaultMessage: "No projects",
-    id: "chatProjectSelEmpty",
+    id: "h1hScUfLYO",
     description: "Project selector label when the workspace has no selectable projects",
   },
   projectPlaceholder: {
     defaultMessage: "Project",
-    id: "chatProjectSelPlaceholder",
+    id: "3qpoJUP9OU",
     description: "Project selector placeholder when no project is selected yet",
   },
   nativeGroup: {
     defaultMessage: "Hyperlocalise",
-    id: "chatProjectSelNativeGroup",
+    id: "OQ8wr0lFpw",
     description: "Dropdown group label for native Hyperlocalise projects",
   },
   tmsGroup: {
     defaultMessage: "TMS",
-    id: "chatProjectSelTmsGroup",
+    id: "cgUwgiYYdC",
     description: "Dropdown group label for live TMS provider projects",
   },
 });
