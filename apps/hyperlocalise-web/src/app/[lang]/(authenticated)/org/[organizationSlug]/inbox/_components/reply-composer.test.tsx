@@ -44,6 +44,9 @@ function DraftBackedComposer({
           onDraftChange?.(next);
         }}
         onSend={vi.fn()}
+        projects={[]}
+        projectsIsError={false}
+        projectsIsLoading={false}
         repositories={repositoriesFixture}
         repositoriesIsError={false}
         repositoriesIsLoading={false}
@@ -94,6 +97,9 @@ describe("ReplyComposerView draft sync", () => {
                 setRerenderCount((count) => count + 1);
               }}
               onSend={vi.fn()}
+              projects={[]}
+              projectsIsError={false}
+              projectsIsLoading={false}
               repositories={repositoriesFixture}
               repositoriesIsError={false}
               repositoriesIsLoading={false}
@@ -122,6 +128,9 @@ describe("ReplyComposerView draft sync", () => {
           disabled={false}
           isStreaming={false}
           onSend={vi.fn()}
+          projects={[]}
+          projectsIsError={false}
+          projectsIsLoading={false}
           repositories={repositoriesFixture}
           repositoriesIsError={false}
           repositoriesIsLoading={false}
@@ -153,6 +162,9 @@ describe("ReplyComposerView draft sync", () => {
               isStreaming={false}
               onDraftChange={setDraft}
               onSend={vi.fn()}
+              projects={[]}
+              projectsIsError={false}
+              projectsIsLoading={false}
               repositories={repositoriesFixture}
               repositoriesIsError={false}
               repositoriesIsLoading={false}

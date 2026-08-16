@@ -39,8 +39,17 @@ import {
   Attachments,
 } from "@/components/ai-elements/attachments";
 import { apiClient } from "@/lib/api-client-instance";
+import { readApiResponseError } from "@/lib/api-error";
 
 import { RepositorySelector } from "../../_components/repository-selector";
+import { ProjectSelector } from "../../_components/project-selector";
+import {
+  buildChatProjectOptions,
+  resolveChatProjectSelection,
+  type ChatProjectOption,
+} from "../../_components/project-selector-model";
+import { useTmsLiveProjects } from "../../_hooks/use-tms-live-projects";
+import type { ApiProject } from "../../projects/_components/project-list";
 import { createInboxApi, type InboxApi, type InboxGithubRepository } from "./inbox-api";
 import { replyComposerMessages } from "./reply-composer.messages";
 
@@ -64,7 +73,10 @@ function dataUrlToFile(dataUrl: string, filename: string, mediaType?: string): F
 type ReplyComposerViewProps = {
   disabled: boolean;
   draft?: string;
+  initialProjectId?: string | null;
   isStreaming: boolean;
+  lockedProjectId?: string | null;
+  lockedProjectName?: string | null;
   onDraftChange?: (draft: string) => void;
   onSend: (
     text: string,
@@ -72,6 +84,9 @@ type ReplyComposerViewProps = {
     options?: { projectId?: string; repositoryFullName?: string },
   ) => void | Promise<void>;
   placeholder?: string;
+  projects: ChatProjectOption[];
+  projectsIsError: boolean;
+  projectsIsLoading: boolean;
   repositories: InboxGithubRepository[];
   repositoriesIsError: boolean;
   repositoriesIsLoading: boolean;
@@ -81,10 +96,16 @@ type ReplyComposerViewProps = {
 export function ReplyComposerView({
   disabled,
   draft = "",
+  initialProjectId = null,
   isStreaming,
+  lockedProjectId = null,
+  lockedProjectName = null,
   onDraftChange,
   onSend,
   placeholder,
+  projects,
+  projectsIsError,
+  projectsIsLoading,
   repositories,
   repositoriesIsError,
   repositoriesIsLoading,
@@ -93,6 +114,7 @@ export function ReplyComposerView({
   const intl = useIntl();
   const [replyText, setReplyText] = useState(draft);
   const [selectedRepositoryFullName, setSelectedRepositoryFullName] = useState("");
+  const [selectedProjectId, setSelectedProjectId] = useState("");
   const promptInputController = usePromptInputController();
   // Stable across keystrokes; the controller object itself is recreated whenever
   // textInput changes, so it must not be an effect dependency.
@@ -117,8 +139,21 @@ export function ReplyComposerView({
     }
   }, [repositories, selectedRepositoryFullName]);
 
+  useEffect(() => {
+    if (selectedProjectId && !projects.some((project) => project.id === selectedProjectId)) {
+      setSelectedProjectId("");
+    }
+  }, [projects, selectedProjectId]);
+
   const resolvedRepositoryFullName =
     selectedRepositoryFullName || (repositories.length === 1 ? repositories[0]?.fullName : "");
+  const resolvedProjectId = resolveChatProjectSelection({
+    projects,
+    selectedProjectId,
+    lockedProjectId,
+    initialProjectId,
+  });
+  const projectLocked = Boolean(lockedProjectId) || projects.length === 1;
 
   const attachments = usePromptInputAttachments();
 
@@ -135,6 +170,7 @@ export function ReplyComposerView({
     );
 
     await onSend(trimmedText, fileObjects, {
+      projectId: resolvedProjectId || undefined,
       repositoryFullName: resolvedRepositoryFullName || undefined,
     });
     setReplyText("");
@@ -217,6 +253,16 @@ export function ReplyComposerView({
             </PromptInputTools>
 
             <PromptInputTools className="flex-wrap justify-end gap-2 text-sm text-muted-foreground">
+              <ProjectSelector
+                projects={projects}
+                projectsIsError={projectsIsError}
+                projectsIsLoading={projectsIsLoading}
+                selectedProjectId={resolvedProjectId}
+                locked={projectLocked}
+                lockedProjectName={lockedProjectName}
+                onSelectProject={setSelectedProjectId}
+                triggerStyle="prompt-input"
+              />
               <RepositorySelector
                 repositories={repositories}
                 repositoriesIsError={repositoriesIsError}
@@ -248,7 +294,12 @@ export function ReplyComposerView({
 
 type ReplyComposerProps = Omit<
   ReplyComposerViewProps,
-  "repositories" | "repositoriesIsError" | "repositoriesIsLoading"
+  | "repositories"
+  | "repositoriesIsError"
+  | "repositoriesIsLoading"
+  | "projects"
+  | "projectsIsError"
+  | "projectsIsLoading"
 > & {
   organizationSlug: string;
   inboxApi?: InboxApi;
@@ -264,12 +315,35 @@ export const ReplyComposer = memo(function ReplyComposer({
     queryKey: ["github-repositories", organizationSlug],
     queryFn: () => injectedInboxApi.listGithubRepositories(organizationSlug),
   });
+  const nativeProjectsQuery = useQuery({
+    queryKey: ["chat-composer-projects", organizationSlug, "native"],
+    queryFn: async () => {
+      const response = await apiClient.api.orgs[":organizationSlug"].projects.$get({
+        param: { organizationSlug },
+      });
+      if (!response.ok) {
+        throw await readApiResponseError(response, "Failed to load projects");
+      }
+      const body = (await response.json()) as { projects: ApiProject[] };
+      return body.projects;
+    },
+  });
+  const tmsProjectsQuery = useTmsLiveProjects(organizationSlug);
+  const projects = buildChatProjectOptions({
+    nativeProjects: nativeProjectsQuery.data ?? [],
+    tmsProjects: tmsProjectsQuery.data ?? [],
+  });
+  const projectsIsLoading = nativeProjectsQuery.isLoading || tmsProjectsQuery.isLoading;
+  const projectsIsError = nativeProjectsQuery.isError;
 
   return (
     <PromptInputProvider initialInput={draft ?? ""}>
       <ReplyComposerView
         {...viewProps}
         draft={draft}
+        projects={projects}
+        projectsIsError={projectsIsError}
+        projectsIsLoading={projectsIsLoading}
         repositories={repositoriesQuery.data ?? []}
         repositoriesIsError={repositoriesQuery.isError}
         repositoriesIsLoading={repositoriesQuery.isLoading}

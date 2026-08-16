@@ -399,7 +399,12 @@ export const ChatDockPanel = observer(function ChatDockPanel({
           key={tab.id}
           disabled={isBusy}
           draft={tab.draft}
+          initialProjectId={tab.isPending ? (store.pageContext?.projectId ?? null) : null}
           isStreaming={isTabStreaming}
+          lockedProjectId={!tab.isPending ? (persistedConversation?.projectId ?? null) : null}
+          lockedProjectName={
+            tab.isPending ? (store.pageContext?.projectName ?? null) : null
+          }
           onDraftChange={(nextDraft) => store.setDraft(tab.id, nextDraft)}
           onSend={onSendMessage}
           organizationSlug={organizationSlug}

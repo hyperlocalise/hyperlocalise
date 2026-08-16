@@ -104,6 +104,7 @@ export function ConversationPanel({
             <ReplyComposer
               disabled={composerDisabled}
               isStreaming={isStreaming}
+              lockedProjectId={conversation.projectId}
               onSend={onSendMessage}
               organizationSlug={organizationSlug}
             />
