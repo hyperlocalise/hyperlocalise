@@ -65,7 +65,7 @@ export function StartupsPage({ locale }: StartupsPageProps) {
           fill
           priority
           sizes="100vw"
-          className="object-cover object-[center_40%]"
+          className="object-cover object-[center_35%]"
         />
         <div
           className="absolute inset-0 bg-gradient-to-b from-black/50 via-black/45 to-black/85"

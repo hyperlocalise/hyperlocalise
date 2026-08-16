@@ -13,7 +13,7 @@
 import type { HomepageFaqItem } from "@/components/marketing/homepage-faq-content";
 import { getIntlShape } from "@/lib/app-i18n/intl";
 
-export const startupsHeroImageSrc = "/images/vimal-s-GBg3jyGS-Ug-unsplash.jpg";
+export const startupsHeroImageSrc = "/images/nasa-Q1p7bh3SHj8-unsplash.jpg";
 export const startmateUrl = "https://www.startmate.com";
 export const startmateLogoSrc = "/images/startmate-logo.svg";
 export const slatorUrl = "https://slator.com/2026-slator-language-ai-50-under-50/";
