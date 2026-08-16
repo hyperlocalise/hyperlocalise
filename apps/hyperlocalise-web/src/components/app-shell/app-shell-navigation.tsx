@@ -40,6 +40,10 @@ import {
 
 import { appShellNavigationMessages } from "./app-shell-navigation.messages";
 import { filterNavigationItemsByWorkspaceFlags } from "@/lib/flags/workspace-flag-navigation";
+import {
+  formatInboxUnreadBadgeLabel,
+  inboxUnreadBadgeClassName,
+} from "./inbox-unread-badge";
 
 import {
   buildOrganizationPath,
@@ -262,7 +266,7 @@ function NavigationGroupItems({
     refetchInterval: 45_000,
   });
   const unreadCount = unreadCountQuery.data ?? 0;
-  const unreadBadgeLabel = unreadCount > 99 ? "99+" : unreadCount > 0 ? String(unreadCount) : null;
+  const unreadBadgeLabel = formatInboxUnreadBadgeLabel(unreadCount);
 
   return (
     <SidebarGroupContent>
@@ -303,7 +307,7 @@ function NavigationGroupItems({
                 ) : null}
               </SidebarMenuButton>
               {dynamicBadge ? (
-                <SidebarMenuBadge className="pointer-events-none peer-hover/menu-button:text-sidebar-accent-foreground">
+                <SidebarMenuBadge className={inboxUnreadBadgeClassName}>
                   {dynamicBadge}
                 </SidebarMenuBadge>
               ) : null}
