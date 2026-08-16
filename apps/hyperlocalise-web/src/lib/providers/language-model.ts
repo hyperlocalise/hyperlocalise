@@ -19,6 +19,8 @@ import type { LlmProvider } from "@/lib/database/types";
 import { env } from "@/lib/env";
 
 export const hyperlocaliseManagedGatewayModelId = `openai/${hyperlocaliseAgentModelId}`;
+export const hyperlocaliseImageModelId = "openai/gpt-image-2";
+export const hyperlocaliseVideoModelId = "google/gemini-omni-flash-preview";
 
 export type AgentLanguageModelSource = LlmProvider | "gateway";
 
@@ -42,13 +44,24 @@ export function isManagedLanguageModelAvailable() {
   return managedLanguageModelDeps.isAvailable();
 }
 
-export function getManagedLanguageModel(): LanguageModel {
+export function getManagedGateway() {
   if (!env.AI_GATEWAY_API_KEY) {
     throw new Error("AI_GATEWAY_API_KEY is not configured");
   }
 
-  const provider = createGateway({ apiKey: env.AI_GATEWAY_API_KEY });
-  return provider(hyperlocaliseManagedGatewayModelId);
+  return createGateway({ apiKey: env.AI_GATEWAY_API_KEY });
+}
+
+export function getManagedLanguageModel(): LanguageModel {
+  return getManagedGateway()(hyperlocaliseManagedGatewayModelId);
+}
+
+export function getManagedImageModel() {
+  return getManagedGateway().image(hyperlocaliseImageModelId);
+}
+
+export function getManagedVideoModel() {
+  return getManagedGateway().video(hyperlocaliseVideoModelId);
 }
 
 export function resolveProviderLanguageModel(input: {

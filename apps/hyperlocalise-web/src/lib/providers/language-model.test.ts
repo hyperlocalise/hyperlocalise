@@ -13,7 +13,13 @@
 import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
 const { createGatewayMock, createOpenAIMock, createAnthropicMock, envState } = vi.hoisted(() => ({
-  createGatewayMock: vi.fn(() => (modelId: string) => ({ kind: "gateway", modelId })),
+  createGatewayMock: vi.fn(() => {
+    const gateway = Object.assign((modelId: string) => ({ kind: "gateway", modelId }), {
+      image: (modelId: string) => ({ kind: "gateway-image", modelId }),
+      video: (modelId: string) => ({ kind: "gateway-video", modelId }),
+    });
+    return gateway;
+  }),
   createOpenAIMock: vi.fn((options: { apiKey: string; baseURL?: string }) => {
     return (modelId: string) => ({ kind: "openai", modelId, options });
   }),
@@ -45,8 +51,12 @@ vi.mock("@/lib/env", () => ({
 
 import {
   getAgentProviderOptions,
+  getManagedImageModel,
   getManagedLanguageModel,
+  getManagedVideoModel,
+  hyperlocaliseImageModelId,
   hyperlocaliseManagedGatewayModelId,
+  hyperlocaliseVideoModelId,
   isManagedLanguageModelAvailable,
   resolveProviderLanguageModel,
 } from "./language-model";
@@ -70,6 +80,21 @@ describe("managed language model", () => {
     envState.AI_GATEWAY_API_KEY = undefined;
     expect(isManagedLanguageModelAvailable()).toBe(false);
     expect(() => getManagedLanguageModel()).toThrow("AI_GATEWAY_API_KEY is not configured");
+  });
+
+  it("routes image and video localization through the managed Gateway", () => {
+    expect(getManagedImageModel()).toEqual({
+      kind: "gateway-image",
+      modelId: hyperlocaliseImageModelId,
+    });
+    expect(getManagedVideoModel()).toEqual({
+      kind: "gateway-video",
+      modelId: hyperlocaliseVideoModelId,
+    });
+    expect(hyperlocaliseImageModelId).toBe("openai/gpt-image-2");
+    expect(hyperlocaliseVideoModelId).toBe("google/gemini-omni-flash-preview");
+    expect(createGatewayMock).toHaveBeenCalledWith({ apiKey: "gw-key" });
+    expect(createOpenAIMock).not.toHaveBeenCalled();
   });
 });
 

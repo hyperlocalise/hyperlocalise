@@ -27,10 +27,10 @@ export const env = createEnv({
     /** Postgres connection string for Drizzle ORM. */
     DATABASE_URL: z.string().min(1),
 
-    /** OpenAI API key used for image generation and CLI sandbox translation. Optional when those features are disabled. */
+    /** OpenAI API key used for CLI sandbox translation. Optional when that feature is disabled. */
     OPENAI_API_KEY: z.string().min(1).optional(),
 
-    /** Vercel AI Gateway key for the managed agent, translation, and video localization. Optional when AI features are disabled. */
+    /** Vercel AI Gateway key for the managed agent, translation, image, and video localization. Optional when AI features are disabled. */
     AI_GATEWAY_API_KEY: z.string().min(1).optional(),
 
     /** Master encryption key for provider credentials. Must be a high-entropy 32-byte base64 value. */

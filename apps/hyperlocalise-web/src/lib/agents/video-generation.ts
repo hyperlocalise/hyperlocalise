@@ -10,12 +10,16 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { createGateway, experimental_generateVideo as generateVideo } from "ai";
+import { experimental_generateVideo as generateVideo } from "ai";
 
 import { withAgentRuntimeUsageMetering } from "@/lib/billing/agent-runtime-usage";
-import { env } from "@/lib/env";
+import {
+  getManagedVideoModel,
+  hyperlocaliseVideoModelId,
+  isManagedLanguageModelAvailable,
+} from "@/lib/providers/language-model";
 
-export const hyperlocaliseVideoModelId = "google/gemini-omni-flash-preview";
+export { hyperlocaliseVideoModelId };
 
 export type VideoGenerationResult = {
   video: Buffer;
@@ -47,14 +51,13 @@ export class VideoLocalizationError extends Error {
 }
 
 function getVideoModel() {
-  if (!env.AI_GATEWAY_API_KEY) {
+  if (!isManagedLanguageModelAvailable()) {
     throw new VideoLocalizationError(
       "video_model_unavailable",
       "AI_GATEWAY_API_KEY is not configured",
     );
   }
-  const provider = createGateway({ apiKey: env.AI_GATEWAY_API_KEY });
-  return provider.video(hyperlocaliseVideoModelId);
+  return getManagedVideoModel();
 }
 
 function isRegionBlockedMessage(message: string) {

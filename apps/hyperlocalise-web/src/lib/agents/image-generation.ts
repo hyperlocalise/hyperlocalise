@@ -10,11 +10,10 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { createOpenAI } from "@ai-sdk/openai";
 import { generateImage } from "ai";
 
 import { withAgentRuntimeUsageMetering } from "@/lib/billing/agent-runtime-usage";
-import { env } from "@/lib/env";
+import { getManagedImageModel, isManagedLanguageModelAvailable } from "@/lib/providers/language-model";
 
 export type ImageGenerationResult = {
   image: Buffer;
@@ -31,11 +30,10 @@ export type ImageGenerationBilling = {
 };
 
 function getImageModel() {
-  if (!env.OPENAI_API_KEY) {
-    throw new Error("OPENAI_API_KEY is not configured");
+  if (!isManagedLanguageModelAvailable()) {
+    throw new Error("AI_GATEWAY_API_KEY is not configured");
   }
-  const provider = createOpenAI({ apiKey: env.OPENAI_API_KEY });
-  return provider.image("gpt-image-2-2026-04-21");
+  return getManagedImageModel();
 }
 
 /**
