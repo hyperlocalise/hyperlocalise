@@ -41,6 +41,9 @@
   "+5c87/Ii+m": {
     "defaultMessage": "En pause"
   },
+  "+6k/AAnIp9": {
+    "defaultMessage": "Découvrez comment votre marque voyage."
+  },
   "+6nLERHfAh": {
     "defaultMessage": "Échec de l’enregistrement de la connexion Ahrefs."
   },
@@ -57,7 +60,7 @@
     "defaultMessage": "Exécutez GitHub Actions pour détecter les écarts de localisation, comparez les résultats et gardez les vérifications de publication visibles dans les pull requests avant que des synchronisations défectueuses n’atteignent la production."
   },
   "+BzVn5MdKT": {
-    "defaultMessage": "Connect this Crowdin project in Hyperlocalise so conversations can stay project-scoped."
+    "defaultMessage": "Connectez ce projet Crowdin dans Hyperlocalise afin que les conversations restent limitées au projet."
   },
   "+CvStp9tzG": {
     "defaultMessage": "Connexion Intercom supprimée."
@@ -77,6 +80,9 @@
   "+Gpj/X++wo": {
     "defaultMessage": "En cours…"
   },
+  "+HGkRuvHRM": {
+    "defaultMessage": "Progression de l’audit"
+  },
   "+HZaUMLm0i": {
     "defaultMessage": "Enregistrer les modifications"
   },
@@ -87,7 +93,7 @@
     "defaultMessage": "Ajouter un membre"
   },
   "+J3cetpwAk": {
-    "defaultMessage": "Provider title"
+    "defaultMessage": "Titre du prestataire"
   },
   "+KUpBJ/DPe": {
     "defaultMessage": "Les tâches de l’espace de travail natif n’ont pas pu être chargées."
@@ -108,7 +114,7 @@
     "defaultMessage": "Détecter la dérive terminologique et les violations du glossaire"
   },
   "+UD+5d3g3H": {
-    "defaultMessage": "repository required"
+    "defaultMessage": "dépôt requis"
   },
   "+VZ90aAk+9": {
     "defaultMessage": "Ligne {row} : {message}"
@@ -117,7 +123,7 @@
     "defaultMessage": "Demandez à l’administrateur de votre organisation de confirmer votre adhésion à WorkOS, choisissez une autre organisation, ou déconnectez-vous et réessayez avec un autre compte."
   },
   "+WPReqq8Dt": {
-    "defaultMessage": "Optional. Native jobs currently support one assignee."
+    "defaultMessage": "Facultatif. Les tâches natives prennent actuellement en charge un seul responsable."
   },
   "+WcpU6CzaH": {
     "defaultMessage": "Affiche l’état de l’automatisation de la localisation dans les vérifications GitHub."
@@ -153,19 +159,19 @@
     "defaultMessage": "Certains segments de cette page comportent des modifications non enregistrées. Changer de page sans enregistrer ?"
   },
   "+rMSGgCA8X": {
-    "defaultMessage": "TMS project"
+    "defaultMessage": "Projet TMS"
   },
   "+rmN8L+YLt": {
-    "defaultMessage": "Open in {providerKind}"
+    "defaultMessage": "Ouvrir dans {providerKind}"
   },
   "+sh3FsSzlz": {
-    "defaultMessage": "Keep job"
+    "defaultMessage": "Conserver la tâche"
   },
   "+t9Xh+JbAF": {
     "defaultMessage": "{passed}/{total} tests réussis"
   },
   "+ufsbqnrz9": {
-    "defaultMessage": "Agent Activity"
+    "defaultMessage": "Activité de l’agent"
   },
   "+vyGacg35N": {
     "defaultMessage": "Traduction par IA + relecture"
@@ -187,6 +193,9 @@
   },
   "+zez4H8ovm": {
     "defaultMessage": "Révision"
+  },
+  "/+gVj3qXhZ": {
+    "defaultMessage": "Comment les autres sites sont notés"
   },
   "/+sp7OInTO": {
     "defaultMessage": "Échec du chargement des membres du projet"
@@ -216,7 +225,7 @@
     "defaultMessage": "Retour au site"
   },
   "/2wzw7IAoz": {
-    "defaultMessage": "Unable to open Hyperlocalise"
+    "defaultMessage": "Impossible d’ouvrir Hyperlocalise"
   },
   "/5pMziffIK": {
     "defaultMessage": "La connexion à l’application GitHub a échoué. Essayez de vous reconnecter."
@@ -234,7 +243,7 @@
     "defaultMessage": "Blocage"
   },
   "/9wc0MhkMd": {
-    "defaultMessage": "No translation context"
+    "defaultMessage": "Aucun contexte de traduction"
   },
   "/AAFYQZiFS": {
     "defaultMessage": "Citation"
@@ -255,7 +264,10 @@
     "defaultMessage": "Demander une démonstration"
   },
   "/HYQsZiVvN": {
-    "defaultMessage": "Plan usage"
+    "defaultMessage": "Utilisation du forfait"
+  },
+  "/IhENYYsH/": {
+    "defaultMessage": "Copier le lien du rapport"
   },
   "/J5AwJIXis": {
     "defaultMessage": "Adapter le texte à la nuance régionale"
@@ -273,7 +285,7 @@
     "defaultMessage": "Trouver le contexte"
   },
   "/N1d6Fnf0y": {
-    "defaultMessage": "Connect Crowdin, Phrase, Smartling, or Lokalise from Integrations to sync glossaries into this workspace."
+    "defaultMessage": "Connectez Crowdin, Phrase, Smartling ou Lokalise depuis les intégrations pour synchroniser les glossaires avec cet espace de travail."
   },
   "/O89M/pt0V": {
     "defaultMessage": "Les pages de destination et les publicités dérivent d’une locale à l’autre après la première phase de lancement."
@@ -288,7 +300,7 @@
     "defaultMessage": "Impossible de charger les projets"
   },
   "/S7W2Oty8S": {
-    "defaultMessage": "Review: {criteria}"
+    "defaultMessage": "Révision : {criteria}"
   },
   "/SBgalTEEE": {
     "defaultMessage": "Demander une démo"
@@ -306,7 +318,7 @@
     "defaultMessage": "Annulé"
   },
   "/UqhyMEBOR": {
-    "defaultMessage": "Error banner"
+    "defaultMessage": "Bannière d’erreur"
   },
   "/VCDNxDquX": {
     "defaultMessage": "Enregistrer"
@@ -318,7 +330,7 @@
     "defaultMessage": "Enregistrement…"
   },
   "/X6DitE9lx": {
-    "defaultMessage": "All sync states"
+    "defaultMessage": "Tous les états de synchronisation"
   },
   "/ZyYtiK1Js": {
     "defaultMessage": "Filtres"
@@ -330,7 +342,7 @@
     "defaultMessage": "Preferred"
   },
   "/bDXY5b2qg": {
-    "defaultMessage": "Invitation revoked"
+    "defaultMessage": "Invitation révoquée"
   },
   "/bH75mQmVa": {
     "defaultMessage": "Mercredi"
@@ -345,13 +357,13 @@
     "defaultMessage": "Dépôts"
   },
   "/enSUmEMs6": {
-    "defaultMessage": "Add aligned source and target examples manually or import CSV/TMX files."
+    "defaultMessage": "Ajoutez manuellement des exemples de source et de cible alignés, ou importez des fichiers CSV/TMX."
   },
   "/fPQAQsNlu": {
     "defaultMessage": "Repository"
   },
   "/fmhRd2i7v": {
-    "defaultMessage": "Remove email notifications"
+    "defaultMessage": "Supprimer les notifications par e-mail"
   },
   "/hT2cIKUSb": {
     "defaultMessage": "Ajoutez des paramètres régionaux cibles dans les paramètres du projet avant de créer des tâches de traduction."
@@ -387,7 +399,7 @@
     "defaultMessage": "Guidance"
   },
   "/ujbXfoTfW": {
-    "defaultMessage": "Keeps both plural branches and the required count placeholder."
+    "defaultMessage": "Conserve les deux branches du pluriel et l’espace réservé obligatoire pour le nombre."
   },
   "/vxavoK/xz": {
     "defaultMessage": "LinkedIn"
@@ -426,13 +438,13 @@
     "defaultMessage": "Lisez les problèmes de la feuille des problèmes pour le projet sélectionné pendant cette automatisation."
   },
   "04TH5FBW4Q": {
-    "defaultMessage": "Connect CLI & CI"
+    "defaultMessage": "Connecter la CLI et la CI"
   },
   "06dt5VSN/y": {
     "defaultMessage": "Image de produit de remplacement"
   },
   "07NPIW0cJ3": {
-    "defaultMessage": "Clear filters"
+    "defaultMessage": "Effacer les filtres"
   },
   "07pTu6Ro98": {
     "defaultMessage": "Unlimited"
@@ -453,7 +465,7 @@
     "defaultMessage": "Responsables"
   },
   "0AIuIWXaN7": {
-    "defaultMessage": "Open link"
+    "defaultMessage": "Ouvrir le lien"
   },
   "0DSwLmDrDB": {
     "defaultMessage": "Aucun fichier pour le moment"
@@ -464,17 +476,20 @@
   "0DwOCagj+y": {
     "defaultMessage": "Adaptation locale"
   },
+  "0Fkv13W/rO": {
+    "defaultMessage": "Excellent"
+  },
   "0G0Gi8OsmJ": {
     "defaultMessage": "Aucune chaîne prévisualisable dans ce fichier pour le moment."
   },
   "0GW7ilY3Dj": {
-    "defaultMessage": "This feature is not available for your workspace yet."
+    "defaultMessage": "Cette fonctionnalité n’est pas encore disponible pour votre espace de travail."
   },
   "0HGkduChrS": {
     "defaultMessage": "Projets, sièges et outils connectés pour votre équipe."
   },
   "0Jtniw8gvd": {
-    "defaultMessage": "Try refreshing the page."
+    "defaultMessage": "Essayez d’actualiser la page."
   },
   "0JvtLHpNGT": {
     "defaultMessage": "Aucun job Hyperlocalise créé par vous trouvé."
@@ -489,7 +504,7 @@
     "defaultMessage": "néerlandais (Pays-Bas)"
   },
   "0LWDKXES/c": {
-    "defaultMessage": "Add a first-party memory library. You can import and edit entries after creation."
+    "defaultMessage": "Ajoutez une bibliothèque de mémoires propriétaire. Vous pouvez importer et modifier des entrées après sa création."
   },
   "0M4iVzJdHy": {
     "defaultMessage": "Suivez le contenu source, la responsabilité des versions et le contexte de traduction avant que le travail ne passe aux tâches de traduction."
@@ -510,7 +525,7 @@
     "defaultMessage": "Recherche : {scope}"
   },
   "0Qa7RnRI7o": {
-    "defaultMessage": "Job queued for retry"
+    "defaultMessage": "Tâche mise en file d’attente pour une nouvelle tentative"
   },
   "0RE4Gn7dt1": {
     "defaultMessage": "Détectez les mauvaises traductions avant la mise en production"
@@ -519,7 +534,7 @@
     "defaultMessage": "Neutre vis-à-vis du TMS"
   },
   "0T9ea5Y0Fl": {
-    "defaultMessage": "Failed to search glossary and TM"
+    "defaultMessage": "Échec de la recherche dans le glossaire et la mémoire de traduction"
   },
   "0TnAd5e2Yn": {
     "defaultMessage": "Utilisez différents modèles pour différents types de contenu tout en conservant une logique de révision et de synchronisation cohérente."
@@ -540,7 +555,7 @@
     "defaultMessage": "{count, plural, one {# problème importé} other {# problèmes importés}}"
   },
   "0WjkA7ZIo0": {
-    "defaultMessage": "{count, plural, one {# comment in this thread} other {# comments in this thread}}"
+    "defaultMessage": "{count, plural, one {# commentaire dans ce fil} other {# commentaires dans ce fil}}"
   },
   "0XCfYzdREi": {
     "defaultMessage": "Vendredi"
@@ -564,7 +579,7 @@
     "defaultMessage": "URL du serveur"
   },
   "0bJOTNMqb9": {
-    "defaultMessage": "Avoid wording that implies public customer reviews."
+    "defaultMessage": "Évitez toute formulation laissant entendre l’existence d’avis clients publics."
   },
   "0bO6ZigdQm": {
     "defaultMessage": "Choisir une icône"
@@ -574,6 +589,9 @@
   },
   "0bosLZsKFI": {
     "defaultMessage": "Coordonnez les revues de localisation à partir des mentions Slack, des messages directs et des fils de discussion auxquels vous êtes abonné."
+  },
+  "0cJX5jLe/m": {
+    "defaultMessage": "Chargement des domaines…"
   },
   "0czRTKBGYl": {
     "defaultMessage": "Supprimer"
@@ -600,16 +618,16 @@
     "defaultMessage": "Open AI"
   },
   "0l4RNVGmUQ": {
-    "defaultMessage": "Find your key in the Semrush API settings. Automations authenticate with Authorization: Apikey."
+    "defaultMessage": "Trouvez votre clé dans les paramètres de l’API Semrush. Les automatisations s’authentifient avec Authorization: Apikey."
   },
   "0lByDvasg5": {
-    "defaultMessage": "Queue banner for translation reviews that still need human approval."
+    "defaultMessage": "Bannière de file d’attente pour les révisions de traduction qui nécessitent encore une approbation humaine."
   },
   "0nNAqN4Vgj": {
-    "defaultMessage": "Sources failed to render"
+    "defaultMessage": "Échec du rendu des sources"
   },
   "0oWOPc6WxE": {
-    "defaultMessage": "resolved the thread"
+    "defaultMessage": "fil résolu"
   },
   "0pVEMuUCAh": {
     "defaultMessage": "Paramètres régionaux"
@@ -623,6 +641,9 @@
   "0su3rYbABy": {
     "defaultMessage": "Dernier traitement · {status}"
   },
+  "0uC+32o+7p": {
+    "defaultMessage": "Vérifiez ce domaine pour déverrouiller le rapport complet d’audit de localisation."
+  },
   "0uQydL2hST": {
     "defaultMessage": "Notifications par e-mail"
   },
@@ -630,7 +651,7 @@
     "defaultMessage": "Définissez le playbook une seule fois. Les agents s’occupent des tâches répétitives afin que vous puissiez couvrir davantage de marchés sans agrandir l’équipe — les réviseurs n’interviennent que pour les décisions nécessitant un jugement."
   },
   "0vM9ZUQzKc": {
-    "defaultMessage": "Contribute to jobs and run AI actions; approve reviews and write-back. No organization administration."
+    "defaultMessage": "Contribuez aux tâches et exécutez des actions d’IA ; approuvez les révisions et effectuez des écritures rétrospectives. Aucune administration de l’organisation."
   },
   "0vuUDWBSZZ": {
     "defaultMessage": "Hyperlocalise"
@@ -642,7 +663,7 @@
     "defaultMessage": "{position}+"
   },
   "0xVoz6BUOo": {
-    "defaultMessage": "Group by severity"
+    "defaultMessage": "Regrouper par gravité"
   },
   "0xs+BR2vTX": {
     "defaultMessage": "Impossible d'enregistrer les paramètres d'automatisation."
@@ -651,13 +672,13 @@
     "defaultMessage": "Justification :"
   },
   "1+8q1G++3Q": {
-    "defaultMessage": "Unable to load source files."
+    "defaultMessage": "Impossible de charger les fichiers source."
   },
   "1+xLWJmFpS": {
-    "defaultMessage": "Loading billing"
+    "defaultMessage": "Chargement des informations de facturation"
   },
   "1/Eg78Gi+a": {
-    "defaultMessage": "Open jobs"
+    "defaultMessage": "Emplois ouverts"
   },
   "1/O6U8eZiP": {
     "defaultMessage": "Terminal"
@@ -669,7 +690,7 @@
     "defaultMessage": "Gérer l’annulation de l’abonnement de cet espace de travail."
   },
   "118lC+/u/6": {
-    "defaultMessage": "Member added to team"
+    "defaultMessage": "Membre ajouté à l’équipe"
   },
   "11wuxnX/XF": {
     "defaultMessage": "Déclencheurs"
@@ -687,7 +708,7 @@
     "defaultMessage": "Queue translation jobs for uploaded source files in the project selected above."
   },
   "1Ax42ak5yi": {
-    "defaultMessage": "This file can’t be opened in the CAT workspace."
+    "defaultMessage": "Ce fichier ne peut pas être ouvert dans l’espace de travail CAT."
   },
   "1Do2u8ufv7": {
     "defaultMessage": "Aucun projet natif pour le moment. Créez un projet pour commencer."
@@ -720,7 +741,7 @@
     "defaultMessage": "Cible ({locale})"
   },
   "1QEv3c/AxW": {
-    "defaultMessage": "Runs when a source file is uploaded to the project selected above."
+    "defaultMessage": "S’exécute lorsqu’un fichier source est importé dans le projet sélectionné ci-dessus."
   },
   "1QS1K/UCvi": {
     "defaultMessage": "Héros de la page d’accueil · Ordinateur"
@@ -744,7 +765,7 @@
     "defaultMessage": "Fichiers"
   },
   "1UF6LNQQqI": {
-    "defaultMessage": "Hero fit"
+    "defaultMessage": "Adaptation du héros"
   },
   "1V22/7VZBT": {
     "defaultMessage": "Quotidien"
@@ -756,7 +777,7 @@
     "defaultMessage": "Anthropic"
   },
   "1X7DOlRyIy": {
-    "defaultMessage": "Fixed and committed to this branch."
+    "defaultMessage": "Corrigé et validé sur cette branche."
   },
   "1XhleWdrNP": {
     "defaultMessage": "Chargement des colonnes..."
@@ -795,10 +816,10 @@
     "defaultMessage": "Connecter {provider}"
   },
   "1fSQakBNGg": {
-    "defaultMessage": "Next slide"
+    "defaultMessage": "Diapositive suivante"
   },
   "1fbz+5ygrq": {
-    "defaultMessage": "Open file"
+    "defaultMessage": "Ouvrir le fichier"
   },
   "1fxDZQx14T": {
     "defaultMessage": "Fermer le chat"
@@ -807,7 +828,7 @@
     "defaultMessage": "Échec du chargement de la liste des conversations"
   },
   "1iMVYFQbGc": {
-    "defaultMessage": "Unable to remove project"
+    "defaultMessage": "Impossible de supprimer le projet"
   },
   "1ij8kHzcbw": {
     "defaultMessage": "Enregistrer"
@@ -855,13 +876,13 @@
     "defaultMessage": "Schéma de sortie"
   },
   "2+26W6yyOs": {
-    "defaultMessage": "Site navigation"
+    "defaultMessage": "Navigation du site"
   },
   "2+En/9xBc0": {
     "defaultMessage": "Members"
   },
   "2+doJ4Hdy3": {
-    "defaultMessage": "Headers (JSON object)"
+    "defaultMessage": "En-têtes (objet JSON)"
   },
   "2/EGe6eITS": {
     "defaultMessage": "Résultat réel"
@@ -874,6 +895,9 @@
   },
   "20dqsvqz/x": {
     "defaultMessage": "Santé des paramètres régionaux"
+  },
+  "20wJJveUDM": {
+    "defaultMessage": "Étape suivante"
   },
   "21hoHKkPQz": {
     "defaultMessage": "Toast"
@@ -893,6 +917,9 @@
   "24tcVtmHO9": {
     "defaultMessage": "Aucune vidéo localisée pour le moment"
   },
+  "26uyfoaW4I": {
+    "defaultMessage": "Français, allemand"
+  },
   "27Ij3QBoyk": {
     "defaultMessage": "Ajouter des photos et des fichiers"
   },
@@ -903,10 +930,10 @@
     "defaultMessage": "Chargement de la vue d’ensemble de l’espace de travail"
   },
   "2AHzit242a": {
-    "defaultMessage": "Unable to create translation memory"
+    "defaultMessage": "Impossible de créer la mémoire de traduction"
   },
   "2AqSyPCt6M": {
-    "defaultMessage": "Due date"
+    "defaultMessage": "Date d’échéance"
   },
   "2BaYUyVX1c": {
     "defaultMessage": "Afficher la clé API"
@@ -922,6 +949,9 @@
   },
   "2Ce/RC/wfJ": {
     "defaultMessage": "Italique"
+  },
+  "2E7H5Qc2gc": {
+    "defaultMessage": "Des lacunes importantes en matière de localisation affectent l’expérience."
   },
   "2EB3wgNEGj": {
     "defaultMessage": "Generate an MCP key in Ahrefs Account Settings → API Keys. Automations authenticate with Authorization: Bearer."
@@ -945,7 +975,10 @@
     "defaultMessage": "Extraire le contexte produit là où le travail se fait"
   },
   "2L6MEhuN0z": {
-    "defaultMessage": "Available plans"
+    "defaultMessage": "Forfaits disponibles"
+  },
+  "2Ma/LzB+bC": {
+    "defaultMessage": "Produit"
   },
   "2N/8jZzb94": {
     "defaultMessage": "Phrase"
@@ -954,7 +987,7 @@
     "defaultMessage": "Quitter le segment avec des modifications non enregistrées ?"
   },
   "2OwyLgvXmq": {
-    "defaultMessage": "Add server"
+    "defaultMessage": "Ajouter un serveur"
   },
   "2Oxmu0zqx8": {
     "defaultMessage": "Extraire l’intention du message, les notes sur l’audience et la direction créative à partir des outils que les équipes marketing utilisent déjà."
@@ -972,7 +1005,7 @@
     "defaultMessage": "Outil CAT nouvelle génération"
   },
   "2RA1MDUmR3": {
-    "defaultMessage": "Source locale: {locale}"
+    "defaultMessage": "Locale source : {locale}"
   },
   "2VWwjqjclF": {
     "defaultMessage": "Responsable"
@@ -993,13 +1026,13 @@
     "defaultMessage": "Votre abonnement reste actif jusqu’à la fin de la période de facturation en cours."
   },
   "2bzJ4YBqX2": {
-    "defaultMessage": "Source term"
+    "defaultMessage": "Terme source"
   },
   "2c+GvUZLgD": {
     "defaultMessage": "Voir les offres d’emploi"
   },
   "2eSDKs0tvs": {
-    "defaultMessage": "Select at least one finding"
+    "defaultMessage": "Sélectionnez au moins un constat"
   },
   "2eU5akyXs2": {
     "defaultMessage": "Vous êtes à jour"
@@ -1023,7 +1056,7 @@
     "defaultMessage": "Espace réservé pour l’illustration"
   },
   "2kOCRzFsZo": {
-    "defaultMessage": "All states"
+    "defaultMessage": "Tous les états"
   },
   "2kT6l4vS6b": {
     "defaultMessage": "Lors d’un push"
@@ -1044,10 +1077,10 @@
     "defaultMessage": "Aucune action en attente pour le moment. Commencez une nouvelle demande ou parcourez les projets lorsque vous serez prêt à continuer."
   },
   "2n+HKSvXeZ": {
-    "defaultMessage": "Translation exceeds {maxLength} characters."
+    "defaultMessage": "La traduction dépasse {maxLength} caractères."
   },
   "2ngWiLidNE": {
-    "defaultMessage": "Search key, message, or string id"
+    "defaultMessage": "Rechercher une clé, un message ou un identifiant de chaîne"
   },
   "2o5nZo9c+I": {
     "defaultMessage": "Hyperlocalise fonctionne-t-il avec GitHub ?"
@@ -1056,7 +1089,7 @@
     "defaultMessage": "Question générale"
   },
   "2p0kb15yT7": {
-    "defaultMessage": "Failed to delete job ({status})"
+    "defaultMessage": "Échec de la suppression de la tâche ({status})"
   },
   "2qzhln+URv": {
     "defaultMessage": "Ouvrir dans T3 Chat"
@@ -1085,6 +1118,9 @@
   "2ynzQ185js": {
     "defaultMessage": "Email"
   },
+  "2z7JtO63bq": {
+    "defaultMessage": "E-mail professionnel"
+  },
   "2zhZzc+gaw": {
     "defaultMessage": "Autorisations OAuth requises"
   },
@@ -1107,7 +1143,7 @@
     "defaultMessage": "La meilleure plateforme de localisation agentique pour vous lancer à l’international en quelques jours"
   },
   "33PBu8aQXh": {
-    "defaultMessage": "Enable first"
+    "defaultMessage": "Activer d’abord"
   },
   "33ZcrkXcDM": {
     "defaultMessage": "Ouvre une pull request avec les fichiers de traduction mis à jour lorsque la synchronisation réussit."
@@ -1143,19 +1179,22 @@
     "defaultMessage": "Utilisez des motifs glob tels que <mainExample>main</mainExample> ou <releaseExample>release/*</releaseExample>. Jusqu’à 32 motifs."
   },
   "3BQQgDQPHy": {
-    "defaultMessage": "Failed to load provider credentials ({status})"
+    "defaultMessage": "Échec du chargement des identifiants du fournisseur ({status})"
   },
   "3DGUvjJg6U": {
     "defaultMessage": "Annuler"
   },
   "3EJ5L34UDR": {
-    "defaultMessage": "The CAT workspace is not available for this provider file type yet."
+    "defaultMessage": "L’espace de travail CAT n’est pas encore disponible pour ce type de fichier du fournisseur."
   },
   "3GD144jdIF": {
     "defaultMessage": "Project"
   },
+  "3GLhqP/R2l": {
+    "defaultMessage": "Vérifié"
+  },
   "3H5mLoNldT": {
-    "defaultMessage": "All open"
+    "defaultMessage": "Tous les problèmes ouverts"
   },
   "3IdHhp9gvF": {
     "defaultMessage": "Pourquoi est-ce différent"
@@ -1179,7 +1218,7 @@
     "defaultMessage": "Download"
   },
   "3RQjQSebWm": {
-    "defaultMessage": "Members failed to load."
+    "defaultMessage": "Échec du chargement des membres."
   },
   "3Td/QL9gLC": {
     "defaultMessage": "Des captures d’écran sont jointes dans votre TMS pour cette chaîne."
@@ -1200,19 +1239,19 @@
     "defaultMessage": "Intégrations"
   },
   "3aTLgL6EAQ": {
-    "defaultMessage": "Hero title · Max 2 lines on tablet"
+    "defaultMessage": "Titre principal · 2 lignes max. sur tablette"
   },
   "3bgw2z94hj": {
     "defaultMessage": "Commentaires"
   },
   "3c3ZHFWngv": {
-    "defaultMessage": "Role updated"
+    "defaultMessage": "Rôle mis à jour"
   },
   "3cDDnXngWu": {
     "defaultMessage": "Paramètres"
   },
   "3cr478PtNy": {
-    "defaultMessage": "Remove {label}"
+    "defaultMessage": "Supprimer {label}"
   },
   "3cyl65gUFm": {
     "defaultMessage": "Vérification de la conformité des dispositifs médicaux"
@@ -1227,7 +1266,7 @@
     "defaultMessage": "Conseil"
   },
   "3ggwxElkQA": {
-    "defaultMessage": "Display name"
+    "defaultMessage": "Nom d’affichage"
   },
   "3hTiwfSSe8": {
     "defaultMessage": "Saisissez une clé API MCP Ahrefs."
@@ -1239,7 +1278,10 @@
     "defaultMessage": "Une force de travail IA qui agit comme votre équipe d’experts locaux.<desktopOnly><lineBreak></lineBreak>Elle comprend les nuances du marché, puis traduit et transcrée.</desktopOnly>"
   },
   "3iZn32bnuU": {
-    "defaultMessage": "Team members"
+    "defaultMessage": "Membres de l’équipe"
+  },
+  "3ji5Nvlz3D": {
+    "defaultMessage": "Le site web est généralement bien localisé, avec quelques points à améliorer."
   },
   "3jvYXfkLHR": {
     "defaultMessage": "Annuler"
@@ -1263,7 +1305,7 @@
     "defaultMessage": "Espace de travail"
   },
   "3nF563bLtD": {
-    "defaultMessage": "Registration: {status}"
+    "defaultMessage": "Enregistrement : {status}"
   },
   "3nHm7zuXbR": {
     "defaultMessage": "Traduire l’article Contentful"
@@ -1277,11 +1319,14 @@
   "3rELHi7DJJ": {
     "defaultMessage": "Actions"
   },
+  "3sSVTCWzgg": {
+    "defaultMessage": "Langues à examiner (facultatif)"
+  },
   "3tBZU7JUcu": {
     "defaultMessage": "Membre"
   },
   "3tXI2g+04n": {
-    "defaultMessage": "Signed in with an active workspace membership."
+    "defaultMessage": "Connecté avec une adhésion active à l’espace de travail."
   },
   "3u+0/ub7YY": {
     "defaultMessage": "Exécuter le contexte plus tard"
@@ -1329,7 +1374,7 @@
     "defaultMessage": "Locale"
   },
   "41LGUaV8nc": {
-    "defaultMessage": "Create team"
+    "defaultMessage": "Créer une équipe"
   },
   "42c6ojjeBO": {
     "defaultMessage": "Illustration future : carte de l'écosystème montrant les dépôts, les fournisseurs de LLM, les outils TMS et le contrôle des versions."
@@ -1342,6 +1387,9 @@
   },
   "45uXWs1VTb": {
     "defaultMessage": "Langues cibles"
+  },
+  "46WEusZVEg": {
+    "defaultMessage": "Audit contextuel"
   },
   "477uPaXfz1": {
     "defaultMessage": "Bloquer en cas d’échec"
@@ -1383,7 +1431,7 @@
     "defaultMessage": "Semaine"
   },
   "4JNFWAJU6o": {
-    "defaultMessage": "Assigned projects"
+    "defaultMessage": "Projets attribués"
   },
   "4Jm91tEu1i": {
     "defaultMessage": "Conserver notre TMS tout en ajoutant des workflows agents, c’est ce qui fait la différence."
@@ -1440,10 +1488,13 @@
     "defaultMessage": "Traductions / mois"
   },
   "4WxpcyFNqc": {
-    "defaultMessage": "Reject selected"
+    "defaultMessage": "Rejeter les éléments sélectionnés"
   },
   "4Xya9zkpLQ": {
     "defaultMessage": "Évaluez Hyperlocalise avec un espace de travail pour un seul utilisateur."
+  },
+  "4XzQKxM2MY": {
+    "defaultMessage": "Aucun score public pour le moment. Soyez le premier."
   },
   "4aYY8lTBYg": {
     "defaultMessage": "Les travaux de traduction commencent trop tard dans le cycle de publication, de sorte que les paramètres régionaux bloquent les lancements ou sont livrés avec des lacunes."
@@ -1467,7 +1518,7 @@
     "defaultMessage": "Projet"
   },
   "4km4YTRiRQ": {
-    "defaultMessage": "Pending: {count}"
+    "defaultMessage": "En attente : {count}"
   },
   "4lhHg5n2pX": {
     "defaultMessage": "Contexte de l’agent"
@@ -1488,7 +1539,7 @@
     "defaultMessage": "Launch product localisation with context-aware translation and review"
   },
   "4rKdbq38y5": {
-    "defaultMessage": "Translation exceeds the recommended {maxLength} characters."
+    "defaultMessage": "La traduction dépasse les {maxLength} caractères recommandés."
   },
   "4rjsoyM0nm": {
     "defaultMessage": "Utilisateur"
@@ -1511,8 +1562,11 @@
   "4x93Ph/+pf": {
     "defaultMessage": "Échec du chargement des projets."
   },
+  "4yCkDpHN88": {
+    "defaultMessage": "https://your-site.com"
+  },
   "4zEqWvETM+": {
-    "defaultMessage": "Locale: {value}"
+    "defaultMessage": "Paramètres régionaux : {value}"
   },
   "5+ZicYt+Yo": {
     "defaultMessage": "Résultats du contrôle de la localisation pour {domain}."
@@ -1542,7 +1596,7 @@
     "defaultMessage": "{count} total"
   },
   "58A3bF+CPb": {
-    "defaultMessage": "Accept selected"
+    "defaultMessage": "Accepter les éléments sélectionnés"
   },
   "58cCDSy73h": {
     "defaultMessage": "Tourfinder launched Vietnamese and Japanese marketing in days, not months."
@@ -1577,6 +1631,9 @@
   "5H2Xr7AzgM": {
     "defaultMessage": "Canevas d’aperçu du site Web"
   },
+  "5JYazrmkXn": {
+    "defaultMessage": "Ce rapport est public. Partagez-le avec votre équipe ou publiez-le pour lancer une comparaison."
+  },
   "5KdZWVlAAs": {
     "defaultMessage": "Dernière livraison : {timestamp}"
   },
@@ -1587,10 +1644,10 @@
     "defaultMessage": "{region} · jeton se terminant par {suffix}"
   },
   "5N0h/1bean": {
-    "defaultMessage": "Group by check type"
+    "defaultMessage": "Regrouper par type de contrôle"
   },
   "5N7UDRdane": {
-    "defaultMessage": "Connect a Semrush API key for SEO and traffic data in automations."
+    "defaultMessage": "Connectez une clé API Semrush pour accéder aux données SEO et de trafic dans les automatisations."
   },
   "5OJwSyhCmS": {
     "defaultMessage": "Projects"
@@ -1599,7 +1656,7 @@
     "defaultMessage": "https://…"
   },
   "5P6X7lQjQL": {
-    "defaultMessage": "CAT workspace / Review queue"
+    "defaultMessage": "Espace de travail CAT / File de révision"
   },
   "5PG+VBWgIw": {
     "defaultMessage": "Impossible de charger les membres assignables"
@@ -1635,7 +1692,7 @@
     "defaultMessage": "Dépôt inconnu"
   },
   "5YusqFJjvU": {
-    "defaultMessage": "Refresh the page to try again."
+    "defaultMessage": "Actualisez la page pour réessayer."
   },
   "5atqmuSxdx": {
     "defaultMessage": "Outils"
@@ -1652,11 +1709,14 @@
   "5dpVYaBmRK": {
     "defaultMessage": "Coût total"
   },
+  "5eDm4m1RNJ": {
+    "defaultMessage": "Nous vous enverrons par e-mail un récapitulatif lorsque cet audit sera terminé."
+  },
   "5eoi21fmqC": {
     "defaultMessage": "Copier"
   },
   "5f3K9erV3R": {
-    "defaultMessage": "Manage translation examples and assign this memory to projects."
+    "defaultMessage": "Gérez les exemples de traduction et attribuez cette mémoire à des projets."
   },
   "5fiIL1R9JM": {
     "defaultMessage": "Description"
@@ -1665,7 +1725,7 @@
     "defaultMessage": "Aucune colonne personnalisée pour le moment."
   },
   "5jY+nVchEw": {
-    "defaultMessage": "{value}% complete"
+    "defaultMessage": "{value}% terminé"
   },
   "5lnOyXIzKl": {
     "defaultMessage": "Demander une démo"
@@ -1686,13 +1746,13 @@
     "defaultMessage": "Workspace"
   },
   "5qhRiOc85b": {
-    "defaultMessage": "Clarifies this is an internal translation review queue."
+    "defaultMessage": "Précise qu’il s’agit d’une file d’attente interne de révision des traductions."
   },
   "5qiaSV4RG8": {
-    "defaultMessage": "Manage API keys for programmatic access to translation jobs and workspace data."
+    "defaultMessage": "Gérez les clés API pour accéder de manière programmatique aux tâches de traduction et aux données de l’espace de travail."
   },
   "5r0yAGU35E": {
-    "defaultMessage": "Locales are managed by the connected TMS provider."
+    "defaultMessage": "Les paramètres régionaux sont gérés par le fournisseur TMS connecté."
   },
   "5wR0b8PqT0": {
     "defaultMessage": "Segment introuvable."
@@ -1704,25 +1764,25 @@
     "defaultMessage": "De nouvel article à couverture linguistique surveillée"
   },
   "6/4F992ZiW": {
-    "defaultMessage": "Unable to remove project"
+    "defaultMessage": "Impossible de supprimer le projet"
   },
   "60PQQ7C+fN": {
-    "defaultMessage": "Last used {date}"
+    "defaultMessage": "Dernière utilisation : {date}"
   },
   "60tUDKEOmt": {
     "defaultMessage": "Could not load notification preferences."
   },
   "61uI/yL9TQ": {
-    "defaultMessage": "Updated {timestamp}"
+    "defaultMessage": "Mis à jour {timestamp}"
   },
   "61v3qyuVPR": {
-    "defaultMessage": "Use native sync to push source files and pull translations without creating jobs from the CLI."
+    "defaultMessage": "Utilisez la synchronisation native pour envoyer les fichiers source et récupérer les traductions sans créer de tâches depuis l’interface CLI."
   },
   "62dvy/V1Tw": {
-    "defaultMessage": "Layout length"
+    "defaultMessage": "Longueur de mise en page"
   },
   "62pAZqbZzL": {
-    "defaultMessage": "Unable to load entries"
+    "defaultMessage": "Impossible de charger les entrées"
   },
   "63np7ewMDD": {
     "defaultMessage": "Détectez les changements de contenu source, orientez le travail de localisation, rassemblez le contexte et gardez la révision humaine sous contrôle dans l’ensemble de vos outils existants."
@@ -1734,10 +1794,10 @@
     "defaultMessage": "Surveillez la santé des paramètres régionaux, passez en revue le backlog et les tendances de qualité sans exporter depuis trois systèmes."
   },
   "6AKflqYexI": {
-    "defaultMessage": "Selected findings already have provider comments"
+    "defaultMessage": "Les résultats sélectionnés comportent déjà des commentaires du prestataire"
   },
   "6BAhCIK1FN": {
-    "defaultMessage": "No file selected"
+    "defaultMessage": "Aucun fichier sélectionné"
   },
   "6CddYQ5t2q": {
     "defaultMessage": "Faire défiler jusqu’en bas"
@@ -1746,7 +1806,7 @@
     "defaultMessage": "Webhook"
   },
   "6E7bAH/1Ep": {
-    "defaultMessage": "Select a project above to load live translation memories from your connected provider."
+    "defaultMessage": "Sélectionnez un projet ci-dessus pour charger les mémoires de traduction en temps réel depuis votre fournisseur connecté."
   },
   "6ETzpV6b95": {
     "defaultMessage": "Apprentissage"
@@ -1755,7 +1815,7 @@
     "defaultMessage": "Conseils généraux"
   },
   "6HzYk6HNlZ": {
-    "defaultMessage": "scroll area"
+    "defaultMessage": "zone de défilement"
   },
   "6IYfhafec6": {
     "defaultMessage": "name@company.com"
@@ -1785,7 +1845,7 @@
     "defaultMessage": "Le panneau de l’éditeur n’a pas pu se charger"
   },
   "6QF9Hq+l1/": {
-    "defaultMessage": "Provider glossaries and term bases appear here after sync. Connect or resync a TMS provider from Integrations if you expected to see one."
+    "defaultMessage": "Les glossaires et bases terminologiques du fournisseur apparaîtront ici après la synchronisation. Connectez ou resynchronisez un fournisseur TMS depuis Intégrations si vous pensiez en voir un."
   },
   "6QWIzhr7Co": {
     "defaultMessage": "Stale"
@@ -1797,7 +1857,7 @@
     "defaultMessage": "E-mail"
   },
   "6Rp9Bt8T/L": {
-    "defaultMessage": "Select project"
+    "defaultMessage": "Sélectionner un projet"
   },
   "6RuyJHJCyu": {
     "defaultMessage": "Révoquer"
@@ -1814,11 +1874,20 @@
   "6YRqpDlcKq": {
     "defaultMessage": "Push GitHub"
   },
+  "6YovIP6EMt": {
+    "defaultMessage": "Résultats complets"
+  },
   "6ZyNhsk6BY": {
     "defaultMessage": "Hyperlocalise aide les équipes à déployer du contenu produit à l’échelle mondiale, en tenant compte des spécificités de chaque marché, grâce à la traduction et à une révision humaine de premier ordre."
   },
+  "6c1dq311jJ": {
+    "defaultMessage": "Vous pouvez relancer cet audit une fois par jour. Prochaine exécution : {when}."
+  },
+  "6d57osIkxk": {
+    "defaultMessage": "S/O"
+  },
   "6euABf86mn": {
-    "defaultMessage": "No target locale is available for this task file."
+    "defaultMessage": "Aucune langue cible n’est disponible pour ce fichier de tâche."
   },
   "6eyR0nBKXG": {
     "defaultMessage": "Échec de la connexion à Crowdin"
@@ -1829,6 +1898,9 @@
   "6fr/i0ftu1": {
     "defaultMessage": "Options (séparées par des virgules)"
   },
+  "6ftVCF2cNF": {
+    "defaultMessage": "Rapport de localisation"
+  },
   "6g9RHsjL+m": {
     "defaultMessage": "Réduire les allers-retours de relecture"
   },
@@ -1836,10 +1908,13 @@
     "defaultMessage": "Inactif"
   },
   "6ieanONu91": {
-    "defaultMessage": "Import CSV"
+    "defaultMessage": "Importer un fichier CSV"
   },
   "6ilKS2sOmJ": {
     "defaultMessage": "Échec de la récupération des connexions Contentful"
+  },
+  "6jGL8gGwLP": {
+    "defaultMessage": "Bon"
   },
   "6k5g5rQjwO": {
     "defaultMessage": "Progression de la traduction"
@@ -1851,13 +1926,13 @@
     "defaultMessage": "One markdown document for localization rules, glossary notes, brand guidance, and things to avoid."
   },
   "6mapr/tpq/": {
-    "defaultMessage": "Unable to import entries"
+    "defaultMessage": "Impossible d’importer les entrées"
   },
   "6oNxokQZCy": {
     "defaultMessage": "Échec du chargement de l’aperçu contextuel"
   },
   "6oebBi3G9m": {
-    "defaultMessage": "View strings"
+    "defaultMessage": "Afficher les chaînes"
   },
   "6p1y0a4MjE": {
     "defaultMessage": "Project"
@@ -1866,7 +1941,7 @@
     "defaultMessage": "URL"
   },
   "6qCT8hQ6y+": {
-    "defaultMessage": "Keep the signed-in user and workspace identity easy to verify before agents act on releases."
+    "defaultMessage": "Gardez l’identité de l’utilisateur connecté et de l’espace de travail facilement vérifiables avant que les agents n’agissent sur les versions."
   },
   "6qYMXPCPow": {
     "defaultMessage": "Workspace"
@@ -1902,7 +1977,7 @@
     "defaultMessage": "{count, plural, one {# outil} other {# outils}}"
   },
   "6zAmu9E3FT": {
-    "defaultMessage": "Unable to queue a manual run right now"
+    "defaultMessage": "Impossible de mettre en file d’attente une exécution manuelle pour le moment"
   },
   "7+3fNQzUpN": {
     "defaultMessage": "Seuls les administrateurs de l’espace de travail peuvent modifier les forfaits ou ouvrir le portail de facturation."
@@ -1917,16 +1992,19 @@
     "defaultMessage": "Jeton …{suffix}"
   },
   "70dqPfaXJS": {
-    "defaultMessage": "Failed to delete job"
+    "defaultMessage": "Échec de la suppression de la tâche"
   },
   "712aIFkBYq": {
     "defaultMessage": "Demandez un accès anticipé à Hyperlocalise."
+  },
+  "731nFVbbU3": {
+    "defaultMessage": "Les pages semblent-elles toujours soignées — mise en page, images et tout le reste ?"
   },
   "73DwGFhZM/": {
     "defaultMessage": "1 projet"
   },
   "73LPD0D66t": {
-    "defaultMessage": "Reject all pending"
+    "defaultMessage": "Rejeter toutes les propositions en attente"
   },
   "73NN5BdVas": {
     "defaultMessage": "Name"
@@ -1953,7 +2031,7 @@
     "defaultMessage": "Copié !"
   },
   "78OEnC/JOf": {
-    "defaultMessage": "Workspace slug"
+    "defaultMessage": "Identifiant de l’espace de travail"
   },
   "79OV0Q8xnc": {
     "defaultMessage": "La remise maximale est de 80 % sur le tarif catalogue Growth. Le montant final dépend du stade, du périmètre et de l’adéquation. Nous vous communiquons un montant clair lors de la démonstration — rien ne vous est facturé tant que vous n’avez pas donné votre accord."
@@ -1969,6 +2047,9 @@
   },
   "7BA/WdUPFq": {
     "defaultMessage": "L’intégration de l’application GitHub n’est pas configurée pour cet environnement."
+  },
+  "7CPu6D68D+": {
+    "defaultMessage": "Score de localisation"
   },
   "7EM7rmfbAT": {
     "defaultMessage": "Placeholder"
@@ -1986,7 +2067,7 @@
     "defaultMessage": "Due {due} · Synced {synced}"
   },
   "7MZqOWE2cs": {
-    "defaultMessage": "Failed to load provider job ({status})"
+    "defaultMessage": "Échec du chargement de la tâche du fournisseur ({status})"
   },
   "7MaLlZw62e": {
     "defaultMessage": "Votre compte est connecté, mais nous n’avons pas pu joindre WorkOS pour confirmer votre appartenance à l’organisation."
@@ -1998,7 +2079,7 @@
     "defaultMessage": "Échec du chargement des fichiers"
   },
   "7OOuogoYcn": {
-    "defaultMessage": "Show less"
+    "defaultMessage": "Afficher moins"
   },
   "7QPFtqQQDE": {
     "defaultMessage": "Gratuit"
@@ -2028,7 +2109,7 @@
     "defaultMessage": "Collectez les demandes de localisation depuis GitHub, Slack, les plateformes CMS et votre TMS dans une seule file d’attente."
   },
   "7WTIzTDLbF": {
-    "defaultMessage": "Create job"
+    "defaultMessage": "Créer une tâche"
   },
   "7WrG5oy0+1": {
     "defaultMessage": "Afficher les chaînes"
@@ -2043,7 +2124,7 @@
     "defaultMessage": "Provider"
   },
   "7YA8COINzJ": {
-    "defaultMessage": "Project {projectId}"
+    "defaultMessage": "Projet {projectId}"
   },
   "7YQmBHx9HV": {
     "defaultMessage": "Chargement des intégrations"
@@ -2052,7 +2133,7 @@
     "defaultMessage": "L’un d’entre nous a eu le privilège de voir la localisation à son meilleur."
   },
   "7bYNDVM57F": {
-    "defaultMessage": "is replying"
+    "defaultMessage": "répond velb"
   },
   "7bhDbepHzq": {
     "defaultMessage": "Lokalise"
@@ -2061,7 +2142,7 @@
     "defaultMessage": "Updated"
   },
   "7cvqogiF4e": {
-    "defaultMessage": "{count, plural, one {# missing} other {# missing}}"
+    "defaultMessage": "{count, plural, one {# manquante} other {# manquantes}}"
   },
   "7gM4E5eO9R": {
     "defaultMessage": "Renommer la colonne"
@@ -2079,7 +2160,7 @@
     "defaultMessage": "Reviewer"
   },
   "7kqErlPE9+": {
-    "defaultMessage": "All locales"
+    "defaultMessage": "Tous les paramètres régionaux"
   },
   "7lRnvA2tB9": {
     "defaultMessage": "Sync"
@@ -2102,6 +2183,9 @@
   "7qpCwZIaq2": {
     "defaultMessage": "Traduction cible"
   },
+  "7r56c37km5": {
+    "defaultMessage": "Audit de localisation en cours"
+  },
   "7rANseAJ23": {
     "defaultMessage": "Enregistrer auprès du fournisseur"
   },
@@ -2121,7 +2205,7 @@
     "defaultMessage": "Locale"
   },
   "7z1XK9p1bT": {
-    "defaultMessage": "Sync error"
+    "defaultMessage": "Erreur de synchronisation"
   },
   "7zCB6p8hxw": {
     "defaultMessage": "Libellé de colonne, p. ex. Sprint"
@@ -2136,7 +2220,7 @@
     "defaultMessage": "Conscient du contexte à travers toutes les sources de contenu"
   },
   "8+q5tY0yg1": {
-    "defaultMessage": "No proposals match the current filters."
+    "defaultMessage": "Aucune proposition ne correspond aux filtres actuels."
   },
   "80QeJXvhPz": {
     "defaultMessage": "{count, plural, one {# fichier sélectionné} other {# fichiers sélectionnés}}"
@@ -2154,10 +2238,13 @@
     "defaultMessage": "Image source"
   },
   "87YejAyMlf": {
-    "defaultMessage": "Loading issue…"
+    "defaultMessage": "Chargement du problème…"
   },
   "87mk4HgY5S": {
     "defaultMessage": "Automations"
+  },
+  "88Bc6aFgMg": {
+    "defaultMessage": "Exploration en cours"
   },
   "88gAEWUFj7": {
     "defaultMessage": "Liste à puces"
@@ -2172,7 +2259,7 @@
     "defaultMessage": "Les nouveaux marchés ne sont pas transposables tels quels"
   },
   "8Aop7svU4q": {
-    "defaultMessage": "Loading file…"
+    "defaultMessage": "Chargement du fichier…"
   },
   "8BNWbIB542": {
     "defaultMessage": "Échec du chargement des connexions aux serveurs MCP."
@@ -2181,13 +2268,13 @@
     "defaultMessage": "Conformité au glossaire"
   },
   "8C/ND9Is/i": {
-    "defaultMessage": "Import translations"
+    "defaultMessage": "Importer des traductions"
   },
   "8CUaNB5YrW": {
     "defaultMessage": "Texte"
   },
   "8DwB2zNR0Z": {
-    "defaultMessage": "External TMS"
+    "defaultMessage": "TMS externe"
   },
   "8Fr9Wuahxt": {
     "defaultMessage": "Type"
@@ -2229,7 +2316,7 @@
     "defaultMessage": "Terme de glossaire interdit"
   },
   "8QNV5JFMzw": {
-    "defaultMessage": "Manage workspace access, invitations, and localization roles."
+    "defaultMessage": "Gérez les accès à l’espace de travail, les invitations et les rôles de localisation."
   },
   "8QnsMQk5Mf": {
     "defaultMessage": "hindi (Inde)"
@@ -2242,6 +2329,9 @@
   },
   "8TtvvjSylP": {
     "defaultMessage": "Clé de recherche ou texte…"
+  },
+  "8UNQ0H4OW1": {
+    "defaultMessage": "Aucun score pour le moment"
   },
   "8Uj/LcQ4Dh": {
     "defaultMessage": "Enregistrement…"
@@ -2265,7 +2355,7 @@
     "defaultMessage": "Jeton Bearer"
   },
   "8ZSRxiImW7": {
-    "defaultMessage": "Hide secondary task properties"
+    "defaultMessage": "Masquer les propriétés secondaires de la tâche"
   },
   "8aMYTx5g7o": {
     "defaultMessage": "Priority"
@@ -2274,7 +2364,7 @@
     "defaultMessage": "Le programme Startup s’adresse aux équipes en phase de démarrage. Les grandes entreprises peuvent tout de même demander une démonstration : nous pouvons discuter des offres Growth ou Enterprise adaptées à votre organisation."
   },
   "8akVFVMFrZ": {
-    "defaultMessage": "Expand Sidebar"
+    "defaultMessage": "Développer la barre latérale"
   },
   "8bSWL8zHiO": {
     "defaultMessage": "Revue et approbation"
@@ -2286,7 +2376,7 @@
     "defaultMessage": "Méthode d'authentification"
   },
   "8cCnIQ+Lhz": {
-    "defaultMessage": "Unable to update project"
+    "defaultMessage": "Impossible de mettre à jour le projet"
   },
   "8cIXg7FjMX": {
     "defaultMessage": "Statut"
@@ -2295,7 +2385,7 @@
     "defaultMessage": "Chaque {weekday} à {time} · {timezone}"
   },
   "8dycmh+dlE": {
-    "defaultMessage": "Source locale"
+    "defaultMessage": "Locale source"
   },
   "8eFLCTVPnq": {
     "defaultMessage": "{count} caractères utilisés"
@@ -2304,13 +2394,13 @@
     "defaultMessage": "Échec de la recherche du contexte du référentiel"
   },
   "8h06kh0ScV": {
-    "defaultMessage": "Won’t fix"
+    "defaultMessage": "Ne sera pas corrigé"
   },
   "8ibz5Pm78D": {
     "defaultMessage": "Précédent"
   },
   "8jmFMvrCLC": {
-    "defaultMessage": "revision {revision}"
+    "defaultMessage": "révision {revision}"
   },
   "8juGL005+Y": {
     "defaultMessage": "{done} / {total} approuvées"
@@ -2340,7 +2430,7 @@
     "defaultMessage": "Supprimer la traduction Contentful"
   },
   "8pfmpD7Pez": {
-    "defaultMessage": "Glossary created"
+    "defaultMessage": "Glossaire créé"
   },
   "8pg1Ysbsbk": {
     "defaultMessage": "Choose whether Issue Sheet Inbox updates are also delivered to your email."
@@ -2358,7 +2448,7 @@
     "defaultMessage": "Created"
   },
   "8rom3KX2rX": {
-    "defaultMessage": "Send email"
+    "defaultMessage": "Envoyer un e-mail"
   },
   "8rr2LhuMpW": {
     "defaultMessage": "En file d’attente"
@@ -2376,7 +2466,7 @@
     "defaultMessage": "Paramètres"
   },
   "8v+mC3u50P": {
-    "defaultMessage": "Review state"
+    "defaultMessage": "État de l’examen"
   },
   "8vYRLImWYG": {
     "defaultMessage": "Inscription :"
@@ -2415,13 +2505,13 @@
     "defaultMessage": "Vérifier"
   },
   "93RU1YIXH5": {
-    "defaultMessage": "This source file is not in the project file list anymore."
+    "defaultMessage": "Ce fichier source ne figure plus dans la liste des fichiers du projet."
   },
   "94S5baAyIV": {
-    "defaultMessage": "Failed to update workspace"
+    "defaultMessage": "Échec de la mise à jour de l’espace de travail"
   },
   "97QPUPg5qr": {
-    "defaultMessage": "Loading projects…"
+    "defaultMessage": "Chargement des projets…"
   },
   "97U6IP2zpL": {
     "defaultMessage": "Évaluation des régressions"
@@ -2446,6 +2536,9 @@
   },
   "9FhGZjmVTF": {
     "defaultMessage": "Impossible de lier le ticket."
+  },
+  "9GZfIBGhFw": {
+    "defaultMessage": "Des lacunes critiques ont été détectées. Créez un espace de travail pour effectuer un audit enregistré plus approfondi, ou réservez une revue avec notre équipe."
   },
   "9GZvF1K90w": {
     "defaultMessage": "Voir les fichiers"
@@ -2496,7 +2589,7 @@
     "defaultMessage": "Workspace"
   },
   "9VhQMBmSnO": {
-    "defaultMessage": "Unable to load job"
+    "defaultMessage": "Impossible de charger l’offre d’emploi"
   },
   "9WGORyVfVo": {
     "defaultMessage": "allemand (Allemagne)"
@@ -2532,7 +2625,7 @@
     "defaultMessage": "Ajouter un commentaire..."
   },
   "9bfhz1vEcj": {
-    "defaultMessage": "Provider link"
+    "defaultMessage": "Lien du prestataire"
   },
   "9c0o1d89j+": {
     "defaultMessage": "Les dépôts GitHub n’ont pas pu être chargés. La recherche du contexte du dépôt n’est pas disponible."
@@ -2541,13 +2634,13 @@
     "defaultMessage": "path/to/file.json"
   },
   "9cLIkDwKkC": {
-    "defaultMessage": "Homepage hero"
+    "defaultMessage": "Héros de la page d’accueil"
   },
   "9cZeDO5aVi": {
-    "defaultMessage": "Fix selected ({count})"
+    "defaultMessage": "Corriger les éléments sélectionnés ({count})"
   },
   "9crjwN89e0": {
-    "defaultMessage": "Failed to load files."
+    "defaultMessage": "Échec du chargement des fichiers."
   },
   "9glYgHRgqB": {
     "defaultMessage": "Intégrations"
@@ -2577,7 +2670,7 @@
     "defaultMessage": "Héros de la page d’accueil · FR"
   },
   "9n4esczT5X": {
-    "defaultMessage": "Workspace teams"
+    "defaultMessage": "Équipes de l’espace de travail"
   },
   "9phIm1BV0j": {
     "defaultMessage": "GitHub"
@@ -2592,7 +2685,7 @@
     "defaultMessage": "Supprimer le projet ?"
   },
   "9uLeJ8mf3J": {
-    "defaultMessage": "All priorities"
+    "defaultMessage": "Toutes les priorités"
   },
   "9uVn8mc+mK": {
     "defaultMessage": "p. ex. CI de production"
@@ -2606,6 +2699,9 @@
   "9xPbF7DCJr": {
     "defaultMessage": "Automatisez les tâches répétitives grâce à des workflows permanents qui réagissent aux planifications et aux poussées GitHub."
   },
+  "9yTBmhhxTz": {
+    "defaultMessage": "technique"
+  },
   "9yja2gkowg": {
     "defaultMessage": "anglais (États-Unis)"
   },
@@ -2613,10 +2709,10 @@
     "defaultMessage": "Mode d’affichage des tâches"
   },
   "9z1rlSegXU": {
-    "defaultMessage": "Waitlist CTA button label on the marketing homepage."
+    "defaultMessage": "Libellé du bouton d’appel à l’action de la liste d’attente sur la page d’accueil marketing."
   },
   "9z3NnjcCwB": {
-    "defaultMessage": "Create glossary"
+    "defaultMessage": "Créer un glossaire"
   },
   "A+IsVf0TGL": {
     "defaultMessage": "Centre d’aide Contentful"
@@ -2634,10 +2730,10 @@
     "defaultMessage": "Demandes Slack"
   },
   "A1hnwLDiLO": {
-    "defaultMessage": "Queue an AI translation agent for {path}."
+    "defaultMessage": "Mettre en file d’attente un agent de traduction IA pour {path}."
   },
   "A24FO+oAD8": {
-    "defaultMessage": "Target locale"
+    "defaultMessage": "Paramètres régionaux cibles"
   },
   "A28XuP7g0c": {
     "defaultMessage": "Contact"
@@ -2661,7 +2757,10 @@
     "defaultMessage": "Intelligence de traduction pour le marketing — pas un TMS générique"
   },
   "A7MsbubEL0": {
-    "defaultMessage": "Unknown locale"
+    "defaultMessage": "Paramètres régionaux inconnus"
+  },
+  "A7ZIFME2xj": {
+    "defaultMessage": "Confiance"
   },
   "A7gp0wsRN6": {
     "defaultMessage": "Format"
@@ -2673,13 +2772,13 @@
     "defaultMessage": "TMS"
   },
   "AARt6Fk4fm": {
-    "defaultMessage": "Missing accent changes the French noun"
+    "defaultMessage": "Accent manquant qui change le nom français"
   },
   "AAnhNKa9eI": {
     "defaultMessage": "Espaces réservés manquants"
   },
   "ABTbyceqH3": {
-    "defaultMessage": "Run checks now"
+    "defaultMessage": "Exécuter les vérifications maintenant"
   },
   "ACud1VtN9i": {
     "defaultMessage": "Nom d’affichage"
@@ -2691,7 +2790,7 @@
     "defaultMessage": "Ajouté à la feuille des problèmes"
   },
   "AGTfsc7LIQ": {
-    "defaultMessage": "Failed to resolve issue"
+    "defaultMessage": "Échec de la résolution du problème"
   },
   "AGdZtMgStX": {
     "defaultMessage": "Progression"
@@ -2703,10 +2802,13 @@
     "defaultMessage": "Peut ajouter ou supprimer des personnes et modifier les rôles des membres de l’équipe."
   },
   "AHsrowfXdB": {
-    "defaultMessage": "Change language"
+    "defaultMessage": "Changer de langue"
+  },
+  "AJbIBJ8rQ5": {
+    "defaultMessage": "À examiner ({count})"
   },
   "AK+FWYZO89": {
-    "defaultMessage": "MCP server connection saved."
+    "defaultMessage": "Connexion au serveur MCP enregistrée."
   },
   "AKtzAy5jSx": {
     "defaultMessage": "Itinéraire"
@@ -2740,6 +2842,9 @@
   },
   "AXYd5YvGYL": {
     "defaultMessage": "Tourfinder"
+  },
+  "AZ/tuZUJoO": {
+    "defaultMessage": "Audit technique"
   },
   "Aa0lbVkG8M": {
     "defaultMessage": "Connecter {provider}"
@@ -2778,19 +2883,19 @@
     "defaultMessage": "Échec du rendu du bloc de code"
   },
   "AnTkr06Fzd": {
-    "defaultMessage": "Preserve ICU syntax exactly."
+    "defaultMessage": "Veuillez fournir le texte source à traduire."
   },
   "ApamhQbkDH": {
     "defaultMessage": "ID de segment"
   },
   "ArlyHj1L4U": {
-    "defaultMessage": "Import issues"
+    "defaultMessage": "Importer des problèmes"
   },
   "AvXpNmaez+": {
     "defaultMessage": "Système de gestion de la traduction"
   },
   "AxfK8LOKrc": {
-    "defaultMessage": "Billing / Usage meter"
+    "defaultMessage": "Facturation / Compteur d’utilisation"
   },
   "AyLloycARU": {
     "defaultMessage": "Save"
@@ -2802,7 +2907,10 @@
     "defaultMessage": "{locales} +{count}"
   },
   "B3vlmNRWNz": {
-    "defaultMessage": "sync push docs"
+    "defaultMessage": "Documentation sur la synchronisation des poussées"
+  },
+  "B3yFCBQLDF": {
+    "defaultMessage": "Sites revendiqués et rapports d’audit de localisation"
   },
   "B49vrN6vd7": {
     "defaultMessage": "Déclencheur"
@@ -2819,8 +2927,14 @@
   "B9aG0nitRg": {
     "defaultMessage": "fichier"
   },
+  "BBEyVbRR3L": {
+    "defaultMessage": "Impossible de demander l’e-mail du rapport."
+  },
   "BBge+5Sj1e": {
     "defaultMessage": "0 $"
+  },
+  "BBrh+7z4Oj": {
+    "defaultMessage": "Impossible de charger les domaines associés."
   },
   "BCYAAWW4I+": {
     "defaultMessage": "Mettez à jour vos modes de paiement, consultez vos factures et gérez les détails de facturation de votre abonnement."
@@ -2835,25 +2949,25 @@
     "defaultMessage": "{days} j"
   },
   "BGQKZth3v0": {
-    "defaultMessage": "String editing is only available for supported provider task files."
+    "defaultMessage": "La modification des chaînes n’est disponible que pour les fichiers de tâches des fournisseurs pris en charge."
   },
   "BGfQ06k8Pb": {
     "defaultMessage": "Échec de la recherche du contexte du dépôt."
   },
   "BHCGhKF/Fb": {
-    "defaultMessage": "Projects created and managed in this workspace."
+    "defaultMessage": "Projets créés et gérés dans cet espace de travail."
   },
   "BJ6vl2NzEe": {
     "defaultMessage": "Ouvrir dans le chat"
   },
   "BJVuvQezV6": {
-    "defaultMessage": "Unable to assign project"
+    "defaultMessage": "Impossible d’attribuer le projet"
   },
   "BMoL51WOJW": {
-    "defaultMessage": "Provider status: {status}"
+    "defaultMessage": "Statut du fournisseur : {status}"
   },
   "BNLTXT9U9i": {
-    "defaultMessage": "Banner label for pending translation approvals in the review queue."
+    "defaultMessage": "Libellé de bannière pour les approbations de traduction en attente dans la file d’attente de révision."
   },
   "BNfqWKjFzB": {
     "defaultMessage": "Blog"
@@ -2865,7 +2979,10 @@
     "defaultMessage": "{sourceLocale} → {targetLocale}"
   },
   "BQ2Um1RaCK": {
-    "defaultMessage": "Use approved medical terminology and regulatory glossary as guidance."
+    "defaultMessage": "Please provide the source text to translate."
+  },
+  "BQRFXv8ABR": {
+    "defaultMessage": "Afficher les audits réussis"
   },
   "BUGP6fk/PM": {
     "defaultMessage": "En cours de révision"
@@ -2889,22 +3006,22 @@
     "defaultMessage": "Déconnecter {providerName} ?"
   },
   "BYP7UvhVPD": {
-    "defaultMessage": "Provider review threads"
+    "defaultMessage": "Fils de discussion d’évaluation du fournisseur"
   },
   "BZE2c4wFg4": {
     "defaultMessage": "Version {version}"
   },
   "BZlqrTwEjY": {
-    "defaultMessage": "Bottom-right of Settings → Account, beside Cancel. Evidence: account-form.tsx:84 and account.settings.save."
+    "defaultMessage": "En bas à droite de Paramètres → Compte, à côté de Annuler."
   },
   "Ba3w87XTBS": {
-    "defaultMessage": "Failed to update proposal review"
+    "defaultMessage": "Échec de la mise à jour de la revue de la proposition"
   },
   "BavpDSRiE2": {
     "defaultMessage": "Supprimer l’équipe"
   },
   "Bb2DHr7bXd": {
-    "defaultMessage": "Job cancelled"
+    "defaultMessage": "Tâche annulée"
   },
   "Bbj2MTjXFz": {
     "defaultMessage": "Les mauvaises traductions commencent rarement par une mauvaise langue. Elles commencent par un manque de contexte."
@@ -2958,7 +3075,7 @@
     "defaultMessage": "Consultez où cette chaîne apparaît dans le dépôt connecté"
   },
   "BnlCirDHql": {
-    "defaultMessage": "Failed to load task files ({status})"
+    "defaultMessage": "Échec du chargement des fichiers de tâche ({status})"
   },
   "BntV+FD+ax": {
     "defaultMessage": "Connection"
@@ -2967,7 +3084,7 @@
     "defaultMessage": "Intégré"
   },
   "BpWRJW/l3A": {
-    "defaultMessage": "API keys"
+    "defaultMessage": "Clés API"
   },
   "BrXfVaiNs0": {
     "defaultMessage": "Forfait d’abonnement Workspace"
@@ -2991,7 +3108,7 @@
     "defaultMessage": "Trust Center"
   },
   "BuGVGob/k5": {
-    "defaultMessage": "Read workspace, project, team, glossary, memory, and job surfaces."
+    "defaultMessage": "Lisez les surfaces de l’espace de travail, du projet, de l’équipe, du glossaire, de la mémoire et de la tâche."
   },
   "BuW96vtm0m": {
     "defaultMessage": "Clés API"
@@ -3000,7 +3117,7 @@
     "defaultMessage": "Type"
   },
   "BxEHMhUBpO": {
-    "defaultMessage": "Team updated"
+    "defaultMessage": "Équipe mise à jour"
   },
   "BxrsOsytU2": {
     "defaultMessage": "Modifier"
@@ -3018,7 +3135,7 @@
     "defaultMessage": "Connecter Crowdin à Hyperlocalise"
   },
   "C31IoV3z9k": {
-    "defaultMessage": "Load more"
+    "defaultMessage": "Charger plus"
   },
   "C3tn66TqXh": {
     "defaultMessage": "Collez un objet JSON associant les noms des en-têtes à leurs valeurs"
@@ -3039,16 +3156,19 @@
     "defaultMessage": "Conçu pour les opérations d’assistance et de localisation"
   },
   "C8gkhCv/cQ": {
-    "defaultMessage": "Workspace people"
+    "defaultMessage": "Personnes de l’espace de travail"
   },
   "C8r3kP1Ub3": {
     "defaultMessage": "Extraire les briefs, les glossaires et les contraintes UI"
   },
   "C8yvKuxtRj": {
-    "defaultMessage": "File preview failed to load."
+    "defaultMessage": "Échec du chargement de l’aperçu du fichier."
   },
   "CACMLylIOq": {
     "defaultMessage": "Appliquer le glossaire, le ton et les contraintes d’interface utilisateur avant la relecture"
+  },
+  "CBECdPWm0s": {
+    "defaultMessage": "Nouvelle tentative…"
   },
   "CDHpNJeAfK": {
     "defaultMessage": "Tout est à jour"
@@ -3057,7 +3177,7 @@
     "defaultMessage": "Ces champs sont toujours disponibles sur les problèmes."
   },
   "CFMr/AO+mA": {
-    "defaultMessage": "Translate Task"
+    "defaultMessage": "Traduire une tâche"
   },
   "CGcIng445f": {
     "defaultMessage": "https://"
@@ -3066,7 +3186,7 @@
     "defaultMessage": "Fichiers"
   },
   "CHjEMV0nUm": {
-    "defaultMessage": "Showing {pageStart}–{pageEnd} of {memoryTotal} translation memories"
+    "defaultMessage": "Affichage de {pageStart}–{pageEnd} sur {memoryTotal} mémoires de traduction"
   },
   "CHs2ugz7iN": {
     "defaultMessage": "Modifications non enregistrées"
@@ -3099,7 +3219,7 @@
     "defaultMessage": "Synced"
   },
   "CQAPVFsXtD": {
-    "defaultMessage": "Select project"
+    "defaultMessage": "Sélectionner un projet"
   },
   "CQCxmYWm3f": {
     "defaultMessage": "Mettre à jour la connexion"
@@ -3132,13 +3252,13 @@
     "defaultMessage": "Chaînes"
   },
   "CXxeX4tNjR": {
-    "defaultMessage": "Push source"
+    "defaultMessage": "Source push"
   },
   "CYGau9cDQe": {
     "defaultMessage": "La meilleure plateforme de localisation agentique"
   },
   "CdzuFVCOvh": {
-    "defaultMessage": "Unable to load projects"
+    "defaultMessage": "Impossible de charger les projets"
   },
   "CfAFoekPz1": {
     "defaultMessage": "Projets de {providerName}"
@@ -3150,19 +3270,22 @@
     "defaultMessage": "Indépendant du TMS"
   },
   "Cgi0SFaOp5": {
-    "defaultMessage": "Issues could not be loaded."
+    "defaultMessage": "Impossible de charger les problèmes."
   },
   "ChA2eL6U9Z": {
     "defaultMessage": "La localisation met à jour le glossaire du produit après un changement de marque. Hyperlocalise analyse les chaînes de produit, les pages d’accueil marketing et les articles du centre d’aide afin de repérer la terminologie qui ne correspond plus, exécute des évaluations de régression par rapport aux bases de référence approuvées, achemine les chaînes signalées vers les réviseurs, bloque la synchronisation TMS pour les locales qui n’atteignent pas le seuil, et continue de surveiller le contenu publié pour détecter toute dérive au cours des deux semaines suivantes."
   },
+  "Chmxs2/LX8": {
+    "defaultMessage": "Échantillonnage des pages et vérification des signaux techniques et linguistiques. Vous pouvez quitter cet onglet sans risque : la progression est enregistrée."
+  },
   "CiJvOvyPyH": {
-    "defaultMessage": "Add a first-party terminology library. You can import and edit terms after creation."
+    "defaultMessage": "Ajoutez une bibliothèque terminologique propriétaire. Vous pouvez importer et modifier des termes après sa création."
   },
   "Cidmm9AU9i": {
     "defaultMessage": "Joindre des glossaires, des briefs et l’historique"
   },
   "Cjv9CLDaoR": {
-    "defaultMessage": "Review findings"
+    "defaultMessage": "Conclusions de l’examen"
   },
   "CkQ3yx9NoL": {
     "defaultMessage": "Knowledge"
@@ -3177,7 +3300,7 @@
     "defaultMessage": "Relecture humaine"
   },
   "CnZV1EVZQu": {
-    "defaultMessage": "Product terminology"
+    "defaultMessage": "Terminologie du produit"
   },
   "Co6OZgcHjk": {
     "defaultMessage": "Aucun dépôt ne correspond à cette recherche."
@@ -3201,7 +3324,7 @@
     "defaultMessage": "Copier le lien vers ce segment"
   },
   "CrBQt1oY62": {
-    "defaultMessage": "Hyperlocalise logo"
+    "defaultMessage": "Logo Hyperlocalise"
   },
   "Csa9NF0Qo2": {
     "defaultMessage": "Créez un jeton d’accès dans l’Intercom Developer Hub pour votre espace de travail."
@@ -3219,7 +3342,7 @@
     "defaultMessage": "Nous n’avons pas pu charger les tâches pour ce projet."
   },
   "Cw9DS+v8+l": {
-    "defaultMessage": "Run QA checks or an agent review on this TMS job to surface placeholder, ICU, glossary, and translation issues here. When checks pass, this section will show a clear no-issues state."
+    "defaultMessage": "Exécutez des contrôles qualité ou une révision par un agent sur cette tâche TMS afin de détecter ici les problèmes liés aux espaces réservés, à ICU, au glossaire et à la traduction. Une fois les contrôles réussis, cette section indiquera clairement qu’aucun problème n’a été détecté."
   },
   "CyLUFnbRQ7": {
     "defaultMessage": "Assignees"
@@ -3258,7 +3381,7 @@
     "defaultMessage": "Actif"
   },
   "D6n7dSmFc7": {
-    "defaultMessage": "Working ..."
+    "defaultMessage": "En cours..."
   },
   "D6uFQeF0q1": {
     "defaultMessage": "Aucune tâche TMS n’a été renvoyée par l’API du fournisseur en temps réel."
@@ -3276,7 +3399,7 @@
     "defaultMessage": "View"
   },
   "DBBFqQ55km": {
-    "defaultMessage": "Your provider connection is active, but no projects were returned from the live API."
+    "defaultMessage": "Votre connexion au fournisseur est active, mais aucun projet n’a été renvoyé par l’API en direct."
   },
   "DBLlz9lyki": {
     "defaultMessage": "Changed files"
@@ -3297,10 +3420,10 @@
     "defaultMessage": "Thème de couleur"
   },
   "DFBLmXNHC6": {
-    "defaultMessage": "This permanently deletes the task in Crowdin. This cannot be undone from Hyperlocalise."
+    "defaultMessage": "Cela supprime définitivement la tâche dans Crowdin. Cette action ne peut pas être annulée depuis Hyperlocalise."
   },
   "DFNppqOCak": {
-    "defaultMessage": "Create project"
+    "defaultMessage": "Créer un projet"
   },
   "DGx/LlMkDv": {
     "defaultMessage": "Ajouter des consignes de traduction"
@@ -3339,7 +3462,7 @@
     "defaultMessage": "Conseils généraux"
   },
   "DR8B4GRFYT": {
-    "defaultMessage": "Shared instructions for tone, terminology, formatting, and product context."
+    "defaultMessage": "Instructions communes concernant le ton, la terminologie, la mise en forme et le contexte du produit."
   },
   "DRRpzdvulu": {
     "defaultMessage": "GitHub"
@@ -3360,7 +3483,7 @@
     "defaultMessage": "Key: {key}"
   },
   "DSm/l7fomX": {
-    "defaultMessage": "Revoke API key"
+    "defaultMessage": "Révoquer la clé API"
   },
   "DTYOuQdye9": {
     "defaultMessage": "Automatisation sans titre"
@@ -3375,7 +3498,7 @@
     "defaultMessage": "Outils"
   },
   "DXhIxcX2oM": {
-    "defaultMessage": "Context request"
+    "defaultMessage": "Demande de contexte"
   },
   "DYLD1YkZo6": {
     "defaultMessage": "Format d’e-mail"
@@ -3387,7 +3510,7 @@
     "defaultMessage": "Les problèmes liés n’ont pas pu être chargés."
   },
   "Dcqju+Z+Wb": {
-    "defaultMessage": "No conversations yet."
+    "defaultMessage": "Aucune conversation pour le moment."
   },
   "Dd7B9s1kqD": {
     "defaultMessage": "Syncing"
@@ -3408,7 +3531,7 @@
     "defaultMessage": "Conçu pour une mise en production en toute confiance"
   },
   "DkpXUR9fM4": {
-    "defaultMessage": "Files failed to load."
+    "defaultMessage": "Échec du chargement des fichiers."
   },
   "Dnd66cVwTk": {
     "defaultMessage": "Exécutez des évaluations de régression avant la synchronisation et la mise en production"
@@ -3417,7 +3540,7 @@
     "defaultMessage": "FR, DE, JA en attente du périmètre"
   },
   "Doht/xtgVL": {
-    "defaultMessage": "{count, plural, one {# glossary match} other {# glossary matches}}"
+    "defaultMessage": "{count, plural, one {# correspondance du glossaire} other {# correspondances du glossaire}}"
   },
   "DpY33A3BZz": {
     "defaultMessage": "Eval Trend"
@@ -3436,6 +3559,9 @@
   },
   "DwOm/o1t0O": {
     "defaultMessage": "Bientôt disponible"
+  },
+  "DwkdN4lm3s": {
+    "defaultMessage": "Critique"
   },
   "Dwu72TwwL/": {
     "defaultMessage": "Chargement des offres…"
@@ -3456,7 +3582,7 @@
     "defaultMessage": "Demander une démo"
   },
   "E/rfTTHsFg": {
-    "defaultMessage": "Has warnings"
+    "defaultMessage": "A des avertissements"
   },
   "E0jx/ueMaN": {
     "defaultMessage": "Ajouter une connexion"
@@ -3483,7 +3609,7 @@
     "defaultMessage": "Code en ligne"
   },
   "E7wP6qIlhP": {
-    "defaultMessage": "Failed to start agent run"
+    "defaultMessage": "Échec du démarrage de l’exécution de l’agent"
   },
   "E8+2wxkeue": {
     "defaultMessage": "Diff de la pull request avec des commentaires de révision Hyperlocalise mettant en évidence les erreurs de traduction avant la fusion."
@@ -3567,10 +3693,10 @@
     "defaultMessage": "Impossible d’enregistrer la connexion Contentful"
   },
   "EReC/afPt5": {
-    "defaultMessage": "Source files"
+    "defaultMessage": "Fichiers source"
   },
   "ERiH8D9Q+l": {
-    "defaultMessage": "What's the context of \"{source}\"?"
+    "defaultMessage": "Quel est le contexte de « {source} » ?"
   },
   "ESaaPFjV43": {
     "defaultMessage": "Hyperlocalise"
@@ -3600,7 +3726,7 @@
     "defaultMessage": "Synchronisation TMS"
   },
   "EbEk2WHyNY": {
-    "defaultMessage": "Stop listening"
+    "defaultMessage": "Arrêter l’écoute"
   },
   "Eecec2KI1k": {
     "defaultMessage": "Annuler"
@@ -3615,13 +3741,13 @@
     "defaultMessage": "Instructions pour l’agent"
   },
   "EjuRj4Zd6r": {
-    "defaultMessage": "Failed to update role"
+    "defaultMessage": "Échec de la mise à jour du rôle"
   },
   "EkIRMNMq59": {
     "defaultMessage": "Côte à côte"
   },
   "EoUUnxtgJ8": {
-    "defaultMessage": "Pricing CTA"
+    "defaultMessage": "CTA de tarification"
   },
   "EraI1sZNxF": {
     "defaultMessage": "Source text"
@@ -3665,6 +3791,9 @@
   "F/BtD1KZKq": {
     "defaultMessage": "{hours}h"
   },
+  "F0U2CC+DdD": {
+    "defaultMessage": "Top {percentile} % des domaines audités"
+  },
   "F1DLNy4mAV": {
     "defaultMessage": "Requests arrive with urgency."
   },
@@ -3675,7 +3804,7 @@
     "defaultMessage": "Tous"
   },
   "F4De2ityOJ": {
-    "defaultMessage": "Column type"
+    "defaultMessage": "Type de colonne"
   },
   "F4v+IVXT0a": {
     "defaultMessage": "Admin"
@@ -3696,7 +3825,7 @@
     "defaultMessage": "La Translation Intelligence est l’approche d’Hyperlocalise pour fournir à l’IA et aux réviseurs le contexte dont ils ont besoin afin de prendre de meilleures décisions de localisation. Au lieu de traduire des chaînes isolées, Hyperlocalise met automatiquement en évidence le contexte du dépôt, la terminologie, les décisions précédentes et les connaissances sur le produit."
   },
   "F6jskX12It": {
-    "defaultMessage": "Save changes"
+    "defaultMessage": "Enregistrer les modifications"
   },
   "F7I6G7lNye": {
     "defaultMessage": "Impossible de charger les fichiers du projet."
@@ -3714,7 +3843,7 @@
     "defaultMessage": "Terme approuvé du glossaire"
   },
   "FCCakqtYG4": {
-    "defaultMessage": "Couldn’t load plan usage. Open billing to try again."
+    "defaultMessage": "Impossible de charger l’utilisation du forfait. Ouvrez la facturation pour réessayer."
   },
   "FCdijMuIQ9": {
     "defaultMessage": "Ajouter un outil"
@@ -3737,26 +3866,29 @@
   "FHqHBUJ88J": {
     "defaultMessage": "Échec du chargement des offres d’emploi."
   },
+  "FJYljr7sSS": {
+    "defaultMessage": "visuel"
+  },
   "FKwIhQa4ff": {
     "defaultMessage": "Les problèmes de qualité apparaissent après le lancement, pas avant"
   },
   "FL4JOA6ty3": {
-    "defaultMessage": "Failed to load task comments ({status})"
+    "defaultMessage": "Échec du chargement des commentaires de la tâche ({status})"
   },
   "FLl4UNTozx": {
-    "defaultMessage": "What's the context of"
+    "defaultMessage": "Quel est le contexte de"
   },
   "FMJWoiFuqB": {
-    "defaultMessage": "When this memory should be used"
+    "defaultMessage": "Quand cette mémoire doit être utilisée"
   },
   "FMmgKTpwGA": {
     "defaultMessage": "Glissez-déposez ou {chooseFiles} pour téléverser."
   },
   "FMwo8I+LLV": {
-    "defaultMessage": "Retry job"
+    "defaultMessage": "Réessayer la tâche"
   },
   "FN9IFyAQ4Q": {
-    "defaultMessage": "Your role cannot resolve issues in the provider."
+    "defaultMessage": "Votre rôle ne peut pas résoudre les problèmes dans le fournisseur."
   },
   "FNTVTGlcTd": {
     "defaultMessage": "{triggerSource} · en cours"
@@ -3776,17 +3908,20 @@
   "FVAIUC0HI7": {
     "defaultMessage": "Contexte requis : {key}"
   },
+  "FVIz6ikiua": {
+    "defaultMessage": "Voix"
+  },
   "FVe674aA/n": {
     "defaultMessage": "Heidi Health"
   },
   "FZJSisAX7z": {
-    "defaultMessage": "{hours} hr {minutes} min"
+    "defaultMessage": "{hours} h {minutes} min"
   },
   "FZR01zQdR+": {
     "defaultMessage": "Statut"
   },
   "Fa2m2wwKio": {
-    "defaultMessage": "Features section"
+    "defaultMessage": "Section des fonctionnalités"
   },
   "FcadZC4Ojx": {
     "defaultMessage": "Réussi"
@@ -3795,7 +3930,7 @@
     "defaultMessage": "Copié !"
   },
   "FdB4nFTP4P": {
-    "defaultMessage": "Review queue"
+    "defaultMessage": "File d’attente de révision"
   },
   "FeC29AzS2o": {
     "defaultMessage": "Logo Hyperlocalise"
@@ -3837,7 +3972,7 @@
     "defaultMessage": "Échec de l’importation des traductions"
   },
   "Fqhf+2LVu/": {
-    "defaultMessage": "No projects assigned yet."
+    "defaultMessage": "Aucun projet n’est encore attribué."
   },
   "FrF4P2cRG5": {
     "defaultMessage": "Chargement des membres…"
@@ -3846,7 +3981,7 @@
     "defaultMessage": "Réessayer"
   },
   "FtS1qUeQJM": {
-    "defaultMessage": "{progress}% translated"
+    "defaultMessage": "{progress} % traduit"
   },
   "Fu+Wp27gS1": {
     "defaultMessage": "Hyperlocalise connecte les signaux de changement produit au flux de travail de révision et de synchronisation que votre équipe utilise déjà."
@@ -3858,7 +3993,7 @@
     "defaultMessage": "API key ending in {suffix}"
   },
   "FxGatVHbDJ": {
-    "defaultMessage": "Translation memories"
+    "defaultMessage": "Mémoires de traduction"
   },
   "G+Z7c9Efva": {
     "defaultMessage": "Conçu pour les opérations de localisation à la vitesse des mises en production"
@@ -3876,13 +4011,13 @@
     "defaultMessage": "Cliquez pour traduire"
   },
   "G4hd1copw0": {
-    "defaultMessage": "Scroll to end"
+    "defaultMessage": "Faire défiler jusqu’à la fin"
   },
   "G5X9k5HMha": {
     "defaultMessage": "Oui. Les modifications de dépôts, les pull requests et les workflows de publication peuvent automatiquement devenir des tâches de localisation. Hyperlocalise ajoute également des vérifications de localisation à votre pipeline CI/CD avant que le code n’arrive en production."
   },
   "G6UECKdIQ0": {
-    "defaultMessage": "Translation mistake"
+    "defaultMessage": "Erreur de traduction"
   },
   "G8MBSDjILS": {
     "defaultMessage": "Cela efface les workflows, déclencheurs et paramètres de vérification d’état enregistrés pour ce dépôt. La synchronisation des métadonnées GitHub n’est pas affectée."
@@ -3900,13 +4035,16 @@
     "defaultMessage": "Indépendant du TMS"
   },
   "GE8cIcFElD": {
-    "defaultMessage": "Error action"
+    "defaultMessage": "Action d’erreur"
   },
   "GERghL+Meu": {
     "defaultMessage": "Historique des exécutions"
   },
   "GJZJnd3J8t": {
     "defaultMessage": "Obtenez la signification, découvrez où il apparaît dans le produit et comment le traduire."
+  },
+  "GLCtWIg6Sl": {
+    "defaultMessage": "Revendiquer ce domaine"
   },
   "GM92+KcSLv": {
     "defaultMessage": "Paramètres de l’agent de messagerie indisponibles"
@@ -3915,13 +4053,13 @@
     "defaultMessage": "Résultat attendu"
   },
   "GOImV2QS+V": {
-    "defaultMessage": "Unable to delete project"
+    "defaultMessage": "Impossible de supprimer le projet"
   },
   "GOx0phpLcM": {
-    "defaultMessage": "Operate projects, integrations, credentials, teams, and knowledge resources; approve reviews and write-back."
+    "defaultMessage": "Gérer les projets, intégrations, identifiants, équipes et ressources de connaissances, approuver les révisions et effectuer les réécritures."
   },
   "GPvLe8OXlJ": {
-    "defaultMessage": "Search title, description, or source path"
+    "defaultMessage": "Rechercher dans le titre, la description ou le chemin source"
   },
   "GQCiwmNekJ": {
     "defaultMessage": "Création..."
@@ -3959,11 +4097,14 @@
   "Ga0sjgCRoD": {
     "defaultMessage": "Cliquez pour localiser l’image"
   },
+  "GausSgRE+l": {
+    "defaultMessage": "Combinaison des crédits dans les scores des quatre modules."
+  },
   "GautEjzI3s": {
-    "defaultMessage": "Translating en/pricing.json for 38 locales"
+    "defaultMessage": "Traduction de en/pricing.json pour 38 langues locales"
   },
   "Gb58W+mbDk": {
-    "defaultMessage": "Public workspace identifiers used in app navigation."
+    "defaultMessage": "Identifiants d’espace de travail public utilisés dans la navigation de l’application."
   },
   "Gb5iBYRxAb": {
     "defaultMessage": "{current} / {max}"
@@ -4028,6 +4169,9 @@
   "GuEU+qQCHt": {
     "defaultMessage": "Écraser les cibles"
   },
+  "GuSsVpTTay": {
+    "defaultMessage": "Domaines"
+  },
   "GuYiT4dWiy": {
     "defaultMessage": "{count} doublons ignorés"
   },
@@ -4038,7 +4182,7 @@
     "defaultMessage": "Could not save notification preferences."
   },
   "GwX/prLtJh": {
-    "defaultMessage": "Connect Semrush with an API key in Integrations before using this tool."
+    "defaultMessage": "Connectez Semrush avec une clé API dans les intégrations avant d’utiliser cet outil."
   },
   "GwjIMiu8Y+": {
     "defaultMessage": "Hyperlocalise is operated by Hyperlocalise Pty Ltd, ACN 698 557 667, ABN 87698557667."
@@ -4086,7 +4230,7 @@
     "defaultMessage": "Aucun contexte n’est associé à cette chaîne dans le fichier source."
   },
   "H5jj/DvcV9": {
-    "defaultMessage": "Show source files"
+    "defaultMessage": "Afficher les fichiers source"
   },
   "H5oPOOVIIl": {
     "defaultMessage": "GitHub"
@@ -4098,7 +4242,7 @@
     "defaultMessage": "Copié !"
   },
   "HA9fSDFTe4": {
-    "defaultMessage": "Replaced <wrong>marches</wrong> with <right>marchés</right> so the French pricing copy is spelled correctly."
+    "defaultMessage": "Remplacé <wrong>marches</wrong> par <right>marchés</right> afin que le texte français sur les tarifs soit correctement orthographié."
   },
   "HAhLpB+d2h": {
     "defaultMessage": "Détails"
@@ -4110,10 +4254,10 @@
     "defaultMessage": "Les chaînes de produit évoluent plus vite que la localisation ne peut suivre"
   },
   "HDO9bAX2qb": {
-    "defaultMessage": "Open in CAT"
+    "defaultMessage": "Ouvrir dans la CAT"
   },
   "HETvCDj5wB": {
-    "defaultMessage": "No findings match the current filters. <clear>Clear filters</clear>"
+    "defaultMessage": "Aucun résultat ne correspond aux filtres actuels. <clear>Effacer les filtres</clear>"
   },
   "HEmDtrKdrX": {
     "defaultMessage": "Correction suggérée de la source"
@@ -4125,13 +4269,16 @@
     "defaultMessage": "Une erreur s’est produite lors de la finalisation de la connexion."
   },
   "HHzUD/7JQL": {
-    "defaultMessage": "Select page"
+    "defaultMessage": "Sélectionner la page"
   },
   "HJHu415ivO": {
-    "defaultMessage": "No preferred"
+    "defaultMessage": "Aucune préférence"
   },
   "HJp07FJaQu": {
     "defaultMessage": "Échec du chargement des détails du fichier"
+  },
+  "HK97A4xbg9": {
+    "defaultMessage": "Prévenez-moi"
   },
   "HKYPjt1anz": {
     "defaultMessage": "Acheminer vers les relecteurs dans votre workflow TMS"
@@ -4149,16 +4296,16 @@
     "defaultMessage": "Politique de confidentialité"
   },
   "HQcx54morj": {
-    "defaultMessage": "Project removed"
+    "defaultMessage": "Projet supprimé"
   },
   "HS6xLp94fT": {
     "defaultMessage": "Téléversement de la source"
   },
   "HTsdqd2HP4": {
-    "defaultMessage": "Start from a curated workflow. Templates prefill the creation form with instructions, triggers, and tools."
+    "defaultMessage": "Commencez avec un workflow sélectionné. Les modèles préremplissent le formulaire de création avec des instructions, des déclencheurs et des outils."
   },
   "HWn4sCtDpN": {
-    "defaultMessage": "Billing usage meter string with ICU plural branches."
+    "defaultMessage": "Veuillez fournir le texte source à traduire."
   },
   "HWwdf4dk7T": {
     "defaultMessage": "La plupart des cycles de relecture s’enlisent parce que le traducteur ne peut pas voir l’écran, le glossaire, l’intention ni les nuances du produit. Hyperlocalise place ce contexte à côté de la chaîne."
@@ -4173,7 +4320,7 @@
     "defaultMessage": "Contexte joint dans le fichier"
   },
   "HaSFPe1Hc9": {
-    "defaultMessage": "All severities"
+    "defaultMessage": "Toutes les sévérités"
   },
   "HbZmRDMHs3": {
     "defaultMessage": "Ouverture de l’espace de travail…"
@@ -4185,7 +4332,7 @@
     "defaultMessage": "Demander une démonstration"
   },
   "Hemunr1kUc": {
-    "defaultMessage": "Refresh the page to try again."
+    "defaultMessage": "Actualisez la page pour réessayer."
   },
   "HljRytS7qm": {
     "defaultMessage": "Vous n’avez pas l’autorisation de consulter la facturation de cet espace de travail."
@@ -4224,7 +4371,7 @@
     "defaultMessage": "Brèves Claude"
   },
   "HwI92QKVOs": {
-    "defaultMessage": "No glossaries match your filters. <clear>Clear filters</clear>"
+    "defaultMessage": "Aucun glossaire ne correspond à vos filtres. <clear>Effacer les filtres</clear>"
   },
   "Hx0PS0s7+N": {
     "defaultMessage": "Adapté au contexte à partir des briefs et des guides de marque"
@@ -4233,16 +4380,16 @@
     "defaultMessage": "Statut"
   },
   "HzU2+Sm7bp": {
-    "defaultMessage": "Agentic workflow"
+    "defaultMessage": "Flux de travail agentique"
   },
   "HznKjevFZV": {
-    "defaultMessage": "Failed to post comment"
+    "defaultMessage": "Échec de la publication du commentaire"
   },
   "I/DICv+jfP": {
     "defaultMessage": "La plateforme de localisation pour un lancement mondial en quelques jours"
   },
   "I1+Lm6XV/X": {
-    "defaultMessage": "The latest QA run completed without findings. Re-run checks after content changes to refresh this view."
+    "defaultMessage": "La dernière vérification QA s’est terminée sans aucun problème. Relancez les vérifications après toute modification du contenu pour actualiser cette vue."
   },
   "I20YdH4MBB": {
     "defaultMessage": "Créé avec ♥ depuis Sydney, en Australie"
@@ -4275,7 +4422,7 @@
     "defaultMessage": "Problèmes"
   },
   "IC06cS9nUd": {
-    "defaultMessage": "Agent fixing"
+    "defaultMessage": "Agent en cours de correction"
   },
   "IC7HPRYydx": {
     "defaultMessage": "Toutes les branches"
@@ -4284,7 +4431,7 @@
     "defaultMessage": "Conçu pour des campagnes mondiales conformes à l’image de marque"
   },
   "IGfRG2bCrY": {
-    "defaultMessage": "Name, project, or external ID..."
+    "defaultMessage": "Nom, projet ou identifiant externe..."
   },
   "IH9MgEJ3zF": {
     "defaultMessage": "Renommer"
@@ -4293,22 +4440,22 @@
     "defaultMessage": "De mauvaises traductions atteignent la production parce qu’il n’y a pas de couche de régression automatisée."
   },
   "IJ3WXU/p3C": {
-    "defaultMessage": "CAT action"
+    "defaultMessage": "Action CAT"
   },
   "IJ657tMK8/": {
-    "defaultMessage": "Agent proposal"
+    "defaultMessage": "Proposition de l’agent"
   },
   "IJDgzVk+ER": {
-    "defaultMessage": "Create API key"
+    "defaultMessage": "Créer une clé API"
   },
   "IKolF7Cd7w": {
-    "defaultMessage": "Projects list"
+    "defaultMessage": "Liste des projets"
   },
   "IKqMePX2fP": {
     "defaultMessage": "Aucun fichier source n’est disponible au téléchargement."
   },
   "IKxY25Mtmd": {
-    "defaultMessage": "Loading issue"
+    "defaultMessage": "Chargement du problème"
   },
   "IMr6sfD/7/": {
     "defaultMessage": "Fichiers"
@@ -4317,7 +4464,7 @@
     "defaultMessage": "{count} ouvertes"
   },
   "IQiUadYsfM": {
-    "defaultMessage": "Projects you opened recently, followed by active workspace projects."
+    "defaultMessage": "Projets que vous avez ouverts récemment, suivis des projets actifs de l’espace de travail."
   },
   "IRhB9WkxFD": {
     "defaultMessage": "danois (Danemark)"
@@ -4362,16 +4509,16 @@
     "defaultMessage": "{count} ouverts"
   },
   "Il904Owiy9": {
-    "defaultMessage": "Failed to load CAT workspace."
+    "defaultMessage": "Échec du chargement de l’espace de travail CAT."
   },
   "Ilx4ITrXQ9": {
-    "defaultMessage": "Proposal review saved"
+    "defaultMessage": "Revue de la proposition enregistrée"
   },
   "ImJlsQdxZz": {
     "defaultMessage": "Failed"
   },
   "ImR4b9kD2P": {
-    "defaultMessage": "Add a note for the issue owner…"
+    "defaultMessage": "Ajoutez une note à l’auteur du problème…"
   },
   "In9Z4CgwLT": {
     "defaultMessage": "{count, plural, one {# tâche créée} other {# tâches créées}} avant l’erreur. Actualisez la liste des tâches avant de réessayer pour éviter les doublons."
@@ -4380,10 +4527,13 @@
     "defaultMessage": "Responsable d'ingénierie"
   },
   "Io0khnUDZT": {
-    "defaultMessage": "French requires “marchés” with an acute accent. Without it, the line reads like the verb “marches” instead of “markets” in customer-facing pricing copy."
+    "defaultMessage": "Le français exige « marchés » avec un accent aigu. Sans cet accent, la ligne se lit comme le verbe « marches » au lieu de « markets » dans un texte tarifaire destiné aux clients."
   },
   "Io7rn4BKyF": {
     "defaultMessage": "Agnostique au LLM"
+  },
+  "IoY6mjCVOS": {
+    "defaultMessage": "{passed} réussis · {failed} à corriger · {na} non applicable"
   },
   "IqLI+2o8dz": {
     "defaultMessage": "Soutenu par"
@@ -4392,7 +4542,7 @@
     "defaultMessage": "Cancel"
   },
   "IrBIXRrQQ2": {
-    "defaultMessage": "QA failure"
+    "defaultMessage": "Échec de l’assurance qualité"
   },
   "IsIHLHu2zb": {
     "defaultMessage": "Navigation"
@@ -4404,10 +4554,13 @@
     "defaultMessage": "Ajouter un commentaire"
   },
   "IvJHA03tAg": {
-    "defaultMessage": "Status: {value}"
+    "defaultMessage": "Statut : {value}"
   },
   "IvJJwlEgW1": {
-    "defaultMessage": "{title} could not be loaded."
+    "defaultMessage": "{title} n’a pas pu être chargé."
+  },
+  "IwWn3c1LU2": {
+    "defaultMessage": "En file d’attente"
   },
   "Ix3K4U4BqM": {
     "defaultMessage": "Trouvez des réponses."
@@ -4422,7 +4575,7 @@
     "defaultMessage": "L’URL de base de l’API est enregistrée pour cet espace de travail. Chaque membre se connecte avec son propre jeton d’accès personnel Crowdin — aucune application OAuth n’est requise."
   },
   "J0zJVMmJUF": {
-    "defaultMessage": "Create a token in Crowdin under Account Settings → API, or in Crowdin Enterprise under your account or Organization Settings → User Access Tokens."
+    "defaultMessage": "Créez un jeton dans Crowdin sous Paramètres du compte → API, ou dans Crowdin Enterprise sous les paramètres de votre compte ou de votre organisation → Jetons d’accès utilisateur."
   },
   "J3in5zOVha": {
     "defaultMessage": "Langue, par ex. de-DE"
@@ -4437,7 +4590,7 @@
     "defaultMessage": "Structure ICU"
   },
   "J7Yta0PrqK": {
-    "defaultMessage": "Select channel"
+    "defaultMessage": "Sélectionner un canal"
   },
   "J9N0QX7lou": {
     "defaultMessage": "{value} {unit}"
@@ -4455,7 +4608,7 @@
     "defaultMessage": "Opérations de localisation"
   },
   "JB6oDpJ4ax": {
-    "defaultMessage": "Select a project above to load live glossaries and term bases from your connected provider."
+    "defaultMessage": "Sélectionnez un projet ci-dessus pour charger les glossaires et bases terminologiques en temps réel depuis votre fournisseur connecté."
   },
   "JBzesbmAoL": {
     "defaultMessage": "Slug"
@@ -4473,7 +4626,7 @@
     "defaultMessage": "Que faut-il contextualiser, revoir ou corriger ?"
   },
   "JIuT2aW94P": {
-    "defaultMessage": "Up to date"
+    "defaultMessage": "À jour"
   },
   "JKFwC5ViAc": {
     "defaultMessage": "{projectName} sera définitivement supprimé. Les tâches, les fichiers et le contexte partagé qui lui sont associés perdront leur association avec le projet."
@@ -4508,6 +4661,9 @@
   "JSKKU7Lpex": {
     "defaultMessage": "Translator"
   },
+  "JSylA1G/ba": {
+    "defaultMessage": "Scores publics, côte à côte. Consultez le vôtre pour voir où vous vous situez."
+  },
   "JUWqOD5PWj": {
     "defaultMessage": "Activez ce dépôt pour configurer l’automatisation de la traduction."
   },
@@ -4524,25 +4680,25 @@
     "defaultMessage": "Sélectionnez une langue cible."
   },
   "JaX2Kyy6KI": {
-    "defaultMessage": "Double-click a file or use View strings to open the CAT workspace for {targetLocale}."
+    "defaultMessage": "Double-cliquez sur un fichier ou utilisez Afficher les chaînes pour ouvrir l’espace de travail CAT pour {targetLocale}."
   },
   "JbcBwrXofR": {
-    "defaultMessage": "Search for a command to run..."
+    "defaultMessage": "Recherchez une commande à exécuter…"
   },
   "JcGQchl/ia": {
     "defaultMessage": "Espace de travail Slack"
   },
   "Jea+rLOA7K": {
-    "defaultMessage": "No source files linked to this job."
+    "defaultMessage": "Aucun fichier source n’est associé à cette tâche."
   },
   "JemgHUamHh": {
-    "defaultMessage": "Unable to load terms"
+    "defaultMessage": "Impossible de charger les termes"
   },
   "JfbQQEL9oW": {
     "defaultMessage": "Définir le type"
   },
   "JhA3QIY56T": {
-    "defaultMessage": "Displays the mobile sidebar."
+    "defaultMessage": "Affiche la barre latérale mobile."
   },
   "JhSEFQy5g1": {
     "defaultMessage": "Entreprise"
@@ -4560,10 +4716,10 @@
     "defaultMessage": "• {cost}"
   },
   "JmbIxnhLVK": {
-    "defaultMessage": "Review the core controls for this workspace and jump into the area you need to update."
+    "defaultMessage": "Examinez les commandes principales de cet espace de travail et accédez directement à la section que vous devez mettre à jour."
   },
   "Jn7HxCPE6L": {
-    "defaultMessage": "All types"
+    "defaultMessage": "Tous les types"
   },
   "JnBi/qJh07": {
     "defaultMessage": "Emplois, prestataires, zones géographiques, personnes assignées..."
@@ -4584,16 +4740,16 @@
     "defaultMessage": "Projet"
   },
   "JqZe/Pxka2": {
-    "defaultMessage": "Sample i18n.yml"
+    "defaultMessage": "Exemple de i18n.yml"
   },
   "JrFNiTkZaR": {
     "defaultMessage": "Ce format de fichier n’est pas pris en charge pour l’importation de traductions."
   },
   "Jtv0kZNXI2": {
-    "defaultMessage": "Workspace updated"
+    "defaultMessage": "Espace de travail mis à jour"
   },
   "JuVYR2r3yd": {
-    "defaultMessage": "Navigation menu"
+    "defaultMessage": "Menu de navigation"
   },
   "JwC3NaQtN9": {
     "defaultMessage": "Hyperlocalise"
@@ -4605,7 +4761,7 @@
     "defaultMessage": "Nécessite votre attention"
   },
   "JxSxJmFns3": {
-    "defaultMessage": "Loading issue..."
+    "defaultMessage": "Chargement du problème..."
   },
   "JzWvMRP2Wi": {
     "defaultMessage": "Effacer"
@@ -4617,16 +4773,19 @@
     "defaultMessage": "Demandez une démonstration depuis cette page. Lors de l’appel, nous examinons votre stade de développement, votre flux de travail produit et vos besoins en localisation, puis nous confirmons si la tarification pour les startups s’applique."
   },
   "K0I+hdjpXe": {
-    "defaultMessage": "Plan usage, payment method, invoices, and billing contacts."
+    "defaultMessage": "Gérez l’utilisation du forfait, le mode de paiement, les factures et les contacts de facturation."
   },
   "K0Maj++lc6": {
     "defaultMessage": "Aucune clé API pour le moment"
   },
   "K2pfDUwhXq": {
-    "defaultMessage": "Account settings"
+    "defaultMessage": "Paramètres du compte"
   },
   "K2qrpmrlsF": {
     "defaultMessage": "{minutes} min"
+  },
+  "K3Hic0nQfc": {
+    "defaultMessage": "Aucun progrès depuis un moment. Vous pouvez réessayer en toute sécurité : nous récupérerons l’exécution bloquée et lancerons une nouvelle tentative."
   },
   "K3dTcxv8UP": {
     "defaultMessage": "Ce rôle peut consulter les chaînes, mais ne peut pas réécrire les traductions."
@@ -4641,7 +4800,7 @@
     "defaultMessage": "Les fichiers de traduction divergent des chaînes source entre les versions."
   },
   "K99IJACIpb": {
-    "defaultMessage": "The rest of your workspace is still available. Try loading this chat again."
+    "defaultMessage": "Le reste de votre espace de travail est toujours disponible. Essayez de charger à nouveau cette conversation."
   },
   "KC1mEy5GJx": {
     "defaultMessage": "Uploaded"
@@ -4665,13 +4824,13 @@
     "defaultMessage": "Problème ajouté"
   },
   "KJHAVDuUjG": {
-    "defaultMessage": "Priority: {value}"
+    "defaultMessage": "Priorité : {value}"
   },
   "KLP0H0Bm8w": {
     "defaultMessage": "Ahrefs"
   },
   "KMxAKNLBFq": {
-    "defaultMessage": "{countLabel} terms"
+    "defaultMessage": "{countLabel} termes"
   },
   "KOI3KSEDDk": {
     "defaultMessage": "Emplois Hyperlocalise"
@@ -4682,8 +4841,14 @@
   "KQDlfibJWf": {
     "defaultMessage": "Ajoutez des membres de l’espace de travail pour commencer à attribuer des projets et des tâches à cette équipe."
   },
+  "KQZH+TKXlh": {
+    "defaultMessage": "Moyenne publique : {average}/100"
+  },
   "KRRKR3H/tH": {
     "defaultMessage": "Fermer"
+  },
+  "KRbtCrnBZw": {
+    "defaultMessage": "Voir le rapport"
   },
   "KSyo1/QjAo": {
     "defaultMessage": "Essayez de vous reconnecter ou contactez le support si cela continue."
@@ -4692,7 +4857,7 @@
     "defaultMessage": "Les campagnes mondiales échouent lorsque le contexte reste dans le brief"
   },
   "KWzlpvb4xC": {
-    "defaultMessage": "Loading files..."
+    "defaultMessage": "Chargement des fichiers…"
   },
   "KXkRSMd8ip": {
     "defaultMessage": "Correctif"
@@ -4727,14 +4892,20 @@
   "Khk1oUs6TP": {
     "defaultMessage": "En file d’attente"
   },
+  "KigHdi8k7w": {
+    "defaultMessage": "Nous examinerons de plus près jusqu’à deux éléments."
+  },
   "KjJZbmRFki": {
     "defaultMessage": "Impossible de charger les détails du projet. Actualisez la page ou réessayez dans un instant."
   },
   "Kjim0yzISM": {
     "defaultMessage": "Rechercher des segments par clé, texte source ou traduction"
   },
+  "KjvUYZIXbF": {
+    "defaultMessage": "Rang #{rank} sur {total} audits publics"
+  },
   "KkmE6ygIj4": {
-    "defaultMessage": "Task type"
+    "defaultMessage": "Type de tâche"
   },
   "KmO8v/yN7F": {
     "defaultMessage": "Écrivez ou saisissez / pour insérer des blocs…"
@@ -4743,7 +4914,7 @@
     "defaultMessage": "Mapper les différences aux paramètres régionaux et à l’impact du glossaire"
   },
   "KoWP5ExqQO": {
-    "defaultMessage": "Page {page} of {totalPages}"
+    "defaultMessage": "Page {page} sur {totalPages}"
   },
   "Kp+e7u3nEc": {
     "defaultMessage": "Apprentissage des performances"
@@ -4767,7 +4938,7 @@
     "defaultMessage": "Aucune personne ni aucun problème correspondant."
   },
   "Kx/HoZ+1yJ": {
-    "defaultMessage": "Enter a job title."
+    "defaultMessage": "Saisissez un titre de mission."
   },
   "Kxj1NjlA8v": {
     "defaultMessage": "Utilisation"
@@ -4788,7 +4959,7 @@
     "defaultMessage": "Contexte requis : {key}"
   },
   "L0gachMRlZ": {
-    "defaultMessage": "Term base"
+    "defaultMessage": "Base de termes"
   },
   "L1RgoMJkc1": {
     "defaultMessage": "Illustration d’accueil"
@@ -4809,7 +4980,7 @@
     "defaultMessage": "Prochaine exécution planifiée : <time>{nextRunAt}</time>"
   },
   "L80pAvj6yJ": {
-    "defaultMessage": "Unable to load task files"
+    "defaultMessage": "Impossible de charger les fichiers de tâche"
   },
   "LAx6QaaPwX": {
     "defaultMessage": "Sélectionner"
@@ -4836,7 +5007,7 @@
     "defaultMessage": "—"
   },
   "LEfQSRZ7Vt": {
-    "defaultMessage": "Showing {filteredCount} of {totalCount} · {filtersCount, plural, one {# filter active} other {# filters active}}"
+    "defaultMessage": "Affichage de {filteredCount} sur {totalCount} · {filtersCount, plural, one {# filtre actif} other {# filtres actifs}}"
   },
   "LEiYIE9PIq": {
     "defaultMessage": "Conçu pour les opérations de marketing et de localisation"
@@ -4851,7 +5022,7 @@
     "defaultMessage": "Paramètres régionaux"
   },
   "LJSVMM6T2P": {
-    "defaultMessage": "{name} (disabled)"
+    "defaultMessage": "{name} (désactivé)"
   },
   "LKQXtMkDON": {
     "defaultMessage": "GitHub"
@@ -4863,7 +5034,10 @@
     "defaultMessage": "Boîte de réception"
   },
   "LMGo1sN8VQ": {
-    "defaultMessage": "This glossary is used only by the projects listed here."
+    "defaultMessage": "Ce glossaire est utilisé uniquement par les projets répertoriés ici."
+  },
+  "LMJfi53KSl": {
+    "defaultMessage": "Vérification du domaine et ouverture d’une exploration sécurisée."
   },
   "LMW/LqnbFb": {
     "defaultMessage": "Erreur dans la source"
@@ -4873,6 +5047,9 @@
   },
   "LOKE6DdX5z": {
     "defaultMessage": "À l’instant"
+  },
+  "LRZ3vQhI80": {
+    "defaultMessage": "Échec"
   },
   "LRlVY40lAz": {
     "defaultMessage": "Account"
@@ -4895,8 +5072,11 @@
   "LZCFkSSHP6": {
     "defaultMessage": "Source ({locale})"
   },
+  "Ldkvycssco": {
+    "defaultMessage": "Nous lisons uniquement les pages publiques. Nous ne nous connectons jamais et ne remplissons jamais de formulaires."
+  },
   "LeSdkdB/lW": {
-    "defaultMessage": "Previous slide"
+    "defaultMessage": "Diapositive précédente"
   },
   "LgRbsjVF3G": {
     "defaultMessage": "Connectez des serveurs MCP distants pour les outils d’automatisation."
@@ -4908,7 +5088,7 @@
     "defaultMessage": "La plupart des équipes peuvent connecter leurs dépôts, leurs fournisseurs d’IA et leur TMS existant sans modifier leur façon actuelle de gérer la localisation."
   },
   "LhocbJWKLx": {
-    "defaultMessage": "All providers"
+    "defaultMessage": "Tous les fournisseurs"
   },
   "Ljk3e3F6pc": {
     "defaultMessage": "Automatisez les vérifications de localisation dans CI/CD. Détectez les modifications de chaînes dans les pull requests, générez des traductions provisoires et bloquez les mises en production avant que de mauvaises traductions n’atteignent la production."
@@ -4916,8 +5096,11 @@
   "LjtFEh0HMb": {
     "defaultMessage": "{title} ({name})"
   },
+  "LjtXYDMMAO": {
+    "defaultMessage": "Impossible de charger le rapport d’audit de localisation."
+  },
   "Ll8TcrApq9": {
-    "defaultMessage": "{count, plural, one {# pending action across your workspace.} other {# pending actions across your workspace.}}"
+    "defaultMessage": "{count, plural, one {# action en attente dans votre espace de travail.} other {# actions en attente dans votre espace de travail.}}"
   },
   "Lmup4mp1Uh": {
     "defaultMessage": "Fonctionnalités d’IA"
@@ -4926,7 +5109,7 @@
     "defaultMessage": "Se désabonner"
   },
   "Lod4vy7+T/": {
-    "defaultMessage": "{email} will no longer be able to accept this workspace invitation."
+    "defaultMessage": "{email} ne pourra plus accepter cette invitation à l’espace de travail."
   },
   "Lps9d8jAkf": {
     "defaultMessage": "Activer {count}"
@@ -4935,7 +5118,7 @@
     "defaultMessage": "Ouvrir l’équipe"
   },
   "LskMKNMd3j": {
-    "defaultMessage": "No TMS projects found"
+    "defaultMessage": "Aucun projet TMS trouvé"
   },
   "LwpJvfb74D": {
     "defaultMessage": "Afficher les clés ajoutées, modifiées et supprimées avec le contexte de la description de la pull request et des tickets associés."
@@ -4953,7 +5136,7 @@
     "defaultMessage": "Approuver enregistre le texte cible actuel."
   },
   "M+N6SmzTI9": {
-    "defaultMessage": "Loading progress…"
+    "defaultMessage": "Progression du chargement…"
   },
   "M/3YJiyMT3": {
     "defaultMessage": "Saisissez une URL pour découvrir à quoi ressemble votre site dans d’autres langues. Un score clair, puis le rapport complet par e-mail."
@@ -4971,7 +5154,7 @@
     "defaultMessage": "Action"
   },
   "M1rJJm5ext": {
-    "defaultMessage": "Loading settings..."
+    "defaultMessage": "Chargement des paramètres..."
   },
   "M2ZOmyFhbv": {
     "defaultMessage": "Réduire le panneau"
@@ -4986,7 +5169,7 @@
     "defaultMessage": "Libellé"
   },
   "M4Yv0ZhXGX": {
-    "defaultMessage": "Marketing site / Hero / CTA"
+    "defaultMessage": "Site marketing / Bannière principale / Appel à l’action"
   },
   "M4h3UcxULX": {
     "defaultMessage": "Paramètres"
@@ -4998,10 +5181,13 @@
     "defaultMessage": "Tâches indisponibles"
   },
   "M7pTNyMB/G": {
-    "defaultMessage": "{count, plural, one {# proposal} other {# proposals}}"
+    "defaultMessage": "{count, plural, one {# proposition} other {# propositions}}"
   },
   "M8WTB2rTQG": {
     "defaultMessage": "Traduisez les champs, effectuez le contrôle qualité et rédigez des brouillons pour révision."
+  },
+  "M9l7nT/Rpj": {
+    "defaultMessage": "Vérification en attente"
   },
   "MB3Jte6am8": {
     "defaultMessage": "{count}/{maxLength} caractères"
@@ -5018,8 +5204,11 @@
   "MFbCLmGBYA": {
     "defaultMessage": "Rapport des opérations"
   },
+  "MHGSRfE0a7": {
+    "defaultMessage": "Échec de l’audit"
+  },
   "MHiaxGXuxI": {
-    "defaultMessage": "Button label · Must stay compact on mobile"
+    "defaultMessage": "Libellé du bouton · Doit rester compact sur mobile"
   },
   "MHo9JPmBmB": {
     "defaultMessage": "Critical blockers"
@@ -5034,7 +5223,7 @@
     "defaultMessage": "Signaler les locales non résolues avant l’expédition"
   },
   "MKqk5CAbrB": {
-    "defaultMessage": "Back to integrations"
+    "defaultMessage": "Retour aux intégrations"
   },
   "MN2GW5Szxo": {
     "defaultMessage": "Obtenir une recommandation"
@@ -5048,6 +5237,9 @@
   "MOJri1ONT9": {
     "defaultMessage": "Parcourez les projets {providerName} en ligne et gérez les projets de l’espace de travail Hyperlocalise."
   },
+  "MPNpD0t4eB": {
+    "defaultMessage": "Relancer l’audit"
+  },
   "MQK2DQjTRa": {
     "defaultMessage": "Créer : {label}"
   },
@@ -5058,10 +5250,10 @@
     "defaultMessage": "Paramètres d’automatisation réinitialisés"
   },
   "MRWPAMp/Eg": {
-    "defaultMessage": "All types"
+    "defaultMessage": "Tous les types"
   },
   "MUU0MB1WKf": {
-    "defaultMessage": "Translation jobs"
+    "defaultMessage": "Tâches de traduction"
   },
   "MXyOWGXSz8": {
     "defaultMessage": "Planifiée"
@@ -5072,14 +5264,17 @@
   "MZotM1J5qc": {
     "defaultMessage": "{enabledCount} sur {totalCount} dépôts activés."
   },
+  "MasHu7akaE": {
+    "defaultMessage": "Pages échantillonnées"
+  },
   "Mb+6tFSPF+": {
-    "defaultMessage": "Load more"
+    "defaultMessage": "Charger plus"
   },
   "McBaOEOgmY": {
     "defaultMessage": "Modifier l’équipe"
   },
   "McaXYZeuHm": {
-    "defaultMessage": "Target locale"
+    "defaultMessage": "Langue cible"
   },
   "MfPM1Yvb1Y": {
     "defaultMessage": "48 calques de texte extraits avec le contexte de la frame"
@@ -5088,7 +5283,7 @@
     "defaultMessage": "—"
   },
   "MhMxp1C3z+": {
-    "defaultMessage": "What it is"
+    "defaultMessage": "Ce que c’est"
   },
   "Mi/WO+7gIT": {
     "defaultMessage": "Détecter le contenu d’assistance publié ou mis à jour"
@@ -5102,6 +5297,9 @@
   "MjW+xFl6ux": {
     "defaultMessage": "Transformez les nouveaux articles d’aide et les articles mis à jour en traductions relues, synchronisez-les avec votre CMS et surveillez leur fraîcheur afin que les clients ne lisent jamais de conseils obsolètes."
   },
+  "MlXu9cA5kU": {
+    "defaultMessage": "Une note typique"
+  },
   "MlaMWBdPiE": {
     "defaultMessage": "Définir les paramètres régionaux"
   },
@@ -5112,7 +5310,7 @@
     "defaultMessage": "Non connecté"
   },
   "ModLI3ew1I": {
-    "defaultMessage": "No glossaries yet"
+    "defaultMessage": "Aucun glossaire pour le moment"
   },
   "Mojh5Scg1j": {
     "defaultMessage": "Choisissez la région dans laquelle votre espace de travail Intercom est hébergé."
@@ -5154,22 +5352,22 @@
     "defaultMessage": "Read-only"
   },
   "N1gb0F1ogJ": {
-    "defaultMessage": "Pull translations"
+    "defaultMessage": "Récupérer les traductions"
   },
   "N2xYep+Crq": {
     "defaultMessage": "Docs CLI"
   },
   "N3sBMgFSjL": {
-    "defaultMessage": "Translate {filename} into {targetLocale}."
+    "defaultMessage": "Traduire {filename} en {targetLocale}."
   },
   "N564Eak7tL": {
     "defaultMessage": "Installée sur {workspace}"
   },
   "N5PxPZjCVW": {
-    "defaultMessage": "Search key, locale, or text"
+    "defaultMessage": "Rechercher une clé, une langue ou un texte"
   },
   "N69cU9WO/g": {
-    "defaultMessage": "Assign to..."
+    "defaultMessage": "Attribuer à..."
   },
   "N6O6G8ZqRN": {
     "defaultMessage": "à l’instant"
@@ -5179,6 +5377,9 @@
   },
   "N83FNjAdU2": {
     "defaultMessage": "Quelles chaînes de localisation ont changé récemment ?"
+  },
+  "N8ghyZ/Xzt": {
+    "defaultMessage": "Vérification des éléments techniques, linguistiques, contextuels et visuels."
   },
   "N8kCP/hYym": {
     "defaultMessage": "A practical view of how Hyperlocalise handles security, subprocessors, and certification work while the formal trust program matures."
@@ -5196,7 +5397,7 @@
     "defaultMessage": "{actor} vous a mentionné(e) dans {issueTitle}"
   },
   "NEC/JxS1Sr": {
-    "defaultMessage": "Words to do"
+    "defaultMessage": "Mots à faire"
   },
   "NERy9XM6Cd": {
     "defaultMessage": "Agrandir l’image"
@@ -5205,10 +5406,10 @@
     "defaultMessage": "Synced"
   },
   "NIQqFjDS2n": {
-    "defaultMessage": "Loading memory..."
+    "defaultMessage": "Chargement de la mémoire…"
   },
   "NITlc8aQr0": {
-    "defaultMessage": "Unable to load task comments."
+    "defaultMessage": "Impossible de charger les commentaires de la tâche."
   },
   "NIwDVdLvI2": {
     "defaultMessage": "Impossible de créer une URL d’espace de travail unique pour le moment. Veuillez réessayer."
@@ -5238,25 +5439,28 @@
     "defaultMessage": "Réduire {status}"
   },
   "NTnOgDMsrG": {
-    "defaultMessage": "Load team membership and roles."
+    "defaultMessage": "Charger les membres et les rôles de l’équipe."
+  },
+  "NW5w/HG5/G": {
+    "defaultMessage": "Statut"
   },
   "NWBLW7QFvn": {
     "defaultMessage": "Tourfinder"
   },
   "NX9i6pdgvw": {
-    "defaultMessage": "Created {date}"
+    "defaultMessage": "Créée le {date}"
   },
   "NXryL5pUgk": {
     "defaultMessage": "Approuver"
   },
   "NYa08Ow2+o": {
-    "defaultMessage": "Check type"
+    "defaultMessage": "Type de contrôle"
   },
   "NZeEWnotlt": {
-    "defaultMessage": "Glossary not found."
+    "defaultMessage": "Glossaire introuvable."
   },
   "NZgVd5LQvT": {
-    "defaultMessage": "Failed to load projects"
+    "defaultMessage": "Échec du chargement des projets"
   },
   "NZyLH6QByp": {
     "defaultMessage": "Une main-d’œuvre IA qui agit comme votre équipe d’experts locaux."
@@ -5268,7 +5472,7 @@
     "defaultMessage": "https://yourorg.api.crowdin.com/api/v2"
   },
   "NanjjZ6X+o": {
-    "defaultMessage": "No translation memories match your filters. <clear>Clear filters</clear>"
+    "defaultMessage": "Aucune mémoire de traduction ne correspond à vos filtres. <clear>Effacer les filtres</clear>"
   },
   "NbLadz5lws": {
     "defaultMessage": "Propriétés"
@@ -5280,13 +5484,13 @@
     "defaultMessage": "Problème créé"
   },
   "Nf+4tJMRVh": {
-    "defaultMessage": "All locales"
+    "defaultMessage": "Toutes les langues locales"
   },
   "NfaH4ei+PF": {
     "defaultMessage": "Répondre à {name}…"
   },
   "NfnpZsFAE9": {
-    "defaultMessage": "Could not load this issue."
+    "defaultMessage": "Impossible de charger ce problème."
   },
   "NglzlEjVxr": {
     "defaultMessage": "Télécharger le fichier traduit"
@@ -5304,10 +5508,10 @@
     "defaultMessage": "Enregistrement…"
   },
   "Nk/Q6qJpTk": {
-    "defaultMessage": "Launch tone"
+    "defaultMessage": "Ton de lancement"
   },
   "Nke6y6zMfg": {
-    "defaultMessage": "No terms yet."
+    "defaultMessage": "Aucun terme pour le moment."
   },
   "NkvwsDHwcu": {
     "defaultMessage": "Créer une équipe"
@@ -5316,7 +5520,7 @@
     "defaultMessage": "Chargement des problèmes…"
   },
   "Npxt3sLoB0": {
-    "defaultMessage": "{count, plural, one {# changed} other {# changed}}"
+    "defaultMessage": "{count, plural, one {# modifiée} other {# modifiées}}"
   },
   "NqAGQvs7qB": {
     "defaultMessage": "anglais (Australie)"
@@ -5340,7 +5544,7 @@
     "defaultMessage": "Demandez à Hyperlocalise…"
   },
   "Nw/qZUdZvV": {
-    "defaultMessage": "Owner note"
+    "defaultMessage": "Note du responsable"
   },
   "NwyqQCxTLG": {
     "defaultMessage": "Oui. Hyperlocalise est compatible avec tous les LLM. Utilisez OpenAI, Anthropic, Gemini ou votre fournisseur préféré, et changez de modèle sans modifier votre flux de travail."
@@ -5358,13 +5562,13 @@
     "defaultMessage": "Descending"
   },
   "O/cMSd1B4R": {
-    "defaultMessage": "Inspect issues from agent review or QA checks before writing back to the TMS. Filter by locale or check type, then act on selected findings."
+    "defaultMessage": "Examinez les problèmes détectés lors de la revue par les agents ou des contrôles qualité avant de les réinjecter dans le TMS. Filtrez par paramètre régional ou type de contrôle, puis intervenez sur les résultats sélectionnés."
   },
   "O1hmkcilYp": {
     "defaultMessage": "Aperçus sur l'hyperlocalisation, l'intelligence de la traduction et la création de workflows de localisation pour les équipes internationales."
   },
   "O2AgYH2fic": {
-    "defaultMessage": "Inspect agent-proposed translations before pushing approved changes back to the provider."
+    "defaultMessage": "Inspectez les traductions proposées par l’agent avant de repousser les modifications approuvées vers le fournisseur."
   },
   "O368wEYD1O": {
     "defaultMessage": "B"
@@ -5373,7 +5577,7 @@
     "defaultMessage": "Aucun travail"
   },
   "O3OXLAres/": {
-    "defaultMessage": "Source text"
+    "defaultMessage": "Texte source"
   },
   "O3w0wyu0VQ": {
     "defaultMessage": "Impossible de charger les conversations."
@@ -5385,7 +5589,7 @@
     "defaultMessage": "Hyperlocalise n’est pas un autre outil de centre d’aide. Il ajoute une couche de workflow native à l’IA qui permet au contenu d’assistance de rester aligné sur les évolutions du produit, les règles du glossaire et les normes de relecture."
   },
   "O4mWh8yd0e": {
-    "defaultMessage": "Sync progress"
+    "defaultMessage": "Progression de la synchronisation"
   },
   "O5xNL1bDk3": {
     "defaultMessage": "Subprocessor"
@@ -5414,6 +5618,9 @@
   "OHKDUsYT8n": {
     "defaultMessage": "Conserver la décision"
   },
+  "OJQchlMSC5": {
+    "defaultMessage": "Paramètres régionaux détectés"
+  },
   "OJm01EvxZW": {
     "defaultMessage": "Échec de la création des tâches Crowdin"
   },
@@ -5427,13 +5634,13 @@
     "defaultMessage": "Contexte produit"
   },
   "OPbww1wvuh": {
-    "defaultMessage": "Team settings"
+    "defaultMessage": "Paramètres de l’équipe"
   },
   "OQRAAutFV6": {
     "defaultMessage": "En attente d’approbation"
   },
   "OROpfMaGFB": {
-    "defaultMessage": "Reply composer failed to load"
+    "defaultMessage": "Échec du chargement du champ de réponse"
   },
   "OS+T5iqT3s": {
     "defaultMessage": "Définissez HYPERLOCALISE_PUBLIC_APP_URL"
@@ -5451,7 +5658,7 @@
     "defaultMessage": "Enregistré à {timestamp}"
   },
   "OXTjKr806t": {
-    "defaultMessage": "Choose a CSV file"
+    "defaultMessage": "Choisissez un fichier CSV"
   },
   "OXxWMckqBr": {
     "defaultMessage": "Lorsque les connaissances sont partagées plutôt que recherchées, les équipes de localisation peuvent se concentrer sur ce que les humains font de mieux : rendre les produits véritablement locaux, culturellement pertinents et dignes de confiance."
@@ -5460,7 +5667,7 @@
     "defaultMessage": "Mise à jour…"
   },
   "OYqtJuYY8f": {
-    "defaultMessage": "Gathering glossary, translation memory, and release context"
+    "defaultMessage": "Rassemblement du glossaire, de la mémoire de traduction et du contexte de publication"
   },
   "OZfnTzJi03": {
     "defaultMessage": "Membre"
@@ -5469,7 +5676,7 @@
     "defaultMessage": "Configurez des vérifications qui empêchent la fusion lorsque des paramètres régionaux critiques sont manquants ou que les seuils de régression sont dépassés."
   },
   "ObwCSlFgt9": {
-    "defaultMessage": "Query Semrush SEO and traffic data through your connected API key."
+    "defaultMessage": "Interrogez les données SEO et de trafic de Semrush via votre clé API connectée."
   },
   "OcLmphgOVD": {
     "defaultMessage": "Agent"
@@ -5499,13 +5706,13 @@
     "defaultMessage": "Code"
   },
   "OnxK2+x1Hn": {
-    "defaultMessage": "External project {projectId}"
+    "defaultMessage": "Projet externe {projectId}"
   },
   "OoB/oKq2Hs": {
     "defaultMessage": "Ouvrir dans Cursor"
   },
   "OoS6vfJVMn": {
-    "defaultMessage": "Primary submit label for the account settings form. It commits profile edits the user already made on the page."
+    "defaultMessage": "Libellé principal de soumission du formulaire des paramètres du compte. Il enregistre les modifications du profil déjà effectuées par l’utilisateur sur la page."
   },
   "OpaDn2OQOK": {
     "defaultMessage": "Deleting…"
@@ -5523,13 +5730,13 @@
     "defaultMessage": "Glossaries"
   },
   "OxbEfuCKvL": {
-    "defaultMessage": "Failed to load project settings."
+    "defaultMessage": "Échec du chargement des paramètres du projet."
   },
   "Oxu+yRmzWu": {
     "defaultMessage": "Heidi Health"
   },
   "Oyb9LX/sl2": {
-    "defaultMessage": "Coming soon"
+    "defaultMessage": "Bientôt disponible"
   },
   "OzDfve+0GF": {
     "defaultMessage": "Pull request diffs arrive with file context intact."
@@ -5541,13 +5748,13 @@
     "defaultMessage": "Hyperlocalise n’est pas un remplacement de TMS. C’est la couche de workflow que les équipes d’opérations de localisation utilisent pour orchestrer des agents, des humains, des modèles et des plateformes sans migration de remplacement intégral."
   },
   "P1Kmf2k4/K": {
-    "defaultMessage": "Choose a TMS project"
+    "defaultMessage": "Choisissez un projet TMS"
   },
   "P4BtYAEPF2": {
     "defaultMessage": "L’organisation correspondant à cette demande d’installation est introuvable."
   },
   "P5XQbf/8AX": {
-    "defaultMessage": "Comment on line <line></line>"
+    "defaultMessage": "Commentaire sur la ligne <line></line>"
   },
   "P5eC/nlEOZ": {
     "defaultMessage": "Exécuter maintenant"
@@ -5559,10 +5766,10 @@
     "defaultMessage": "Échec du chargement des référentiels GitHub"
   },
   "P8FDaqATCf": {
-    "defaultMessage": "External TMS projects inherit source data and locales from the connected provider."
+    "defaultMessage": "Les projets TMS externes héritent des données source et des paramètres régionaux du fournisseur connecté."
   },
   "P8KTrbj6Tz": {
-    "defaultMessage": "Import translations"
+    "defaultMessage": "Importer des traductions"
   },
   "P8buB19/yY": {
     "defaultMessage": "Clés API"
@@ -5571,7 +5778,7 @@
     "defaultMessage": "Workspace"
   },
   "P9C1n98DZ2": {
-    "defaultMessage": "Provider file"
+    "defaultMessage": "Fichier du fournisseur"
   },
   "PACHUU2LVi": {
     "defaultMessage": "Documentation CLI"
@@ -5583,13 +5790,13 @@
     "defaultMessage": "Suivi de la qualité de la localisation | Hyperlocalise"
   },
   "PDy7PaVKiz": {
-    "defaultMessage": "QA checks are running. Results will refresh when the agent run completes."
+    "defaultMessage": "Les vérifications d’assurance qualité sont en cours. Les résultats seront actualisés lorsque l’exécution de l’agent sera terminée."
   },
   "PEOKvIZPuS": {
     "defaultMessage": "Créer un problème"
   },
   "PEkJb1qGtI": {
-    "defaultMessage": "Prefer concise French that still feels executive."
+    "defaultMessage": "Veuillez fournir le texte à traduire."
   },
   "PEy6fPw+25": {
     "defaultMessage": "Open"
@@ -5603,6 +5810,9 @@
   "PHMdvgtkrp": {
     "defaultMessage": "Enabled"
   },
+  "PHgeGQnTFw": {
+    "defaultMessage": "Recherche en cours…"
+  },
   "PIElwfqIXr": {
     "defaultMessage": "Afficher"
   },
@@ -5613,7 +5823,7 @@
     "defaultMessage": "Déconnecter"
   },
   "PKEVEWrTkb": {
-    "defaultMessage": "Create a workspace glossary, import terms, then assign it to the projects that should use it."
+    "defaultMessage": "Créez un glossaire d’espace de travail, importez des termes, puis attribuez-le aux projets qui doivent l’utiliser."
   },
   "PLM8yKkR8+": {
     "defaultMessage": "Générez automatiquement des brouillons de localisation lorsque les chaînes changent, en utilisant le glossaire et le contexte TM."
@@ -5622,7 +5832,7 @@
     "defaultMessage": "Lecture seule"
   },
   "PLgCHGSCvk": {
-    "defaultMessage": "Target locales"
+    "defaultMessage": "Paramètres régionaux cibles"
   },
   "PLo1RAn/cQ": {
     "defaultMessage": "Tâches créées pour les trois paramètres régionaux. Le brief de marque est joint à titre de contexte ; je contacterai les réviseurs lorsque les brouillons seront prêts."
@@ -5651,6 +5861,9 @@
   "PVpHHcgxIZ": {
     "defaultMessage": "{actor} a modifié le statut de {issueTitle}"
   },
+  "PX+2a63Sck": {
+    "defaultMessage": "Un aperçu gratuit par site. {limit} par jour sur l’ensemble des sites."
+  },
   "PXc6nRCKjm": {
     "defaultMessage": "Privilégiez des expressions idiomatiques propres au marché pour les CTA d’intégration, mais conservez les termes produit au sens littéral."
   },
@@ -5658,16 +5871,19 @@
     "defaultMessage": "Tout le monde dans cet espace de travail fait déjà partie de l’équipe."
   },
   "PXuChOiobc": {
-    "defaultMessage": "Agent run queued"
+    "defaultMessage": "Exécution de l’agent mise en file d’attente"
   },
   "PYB6jMwARG": {
     "defaultMessage": "#{name} (privé)"
+  },
+  "PYVkjgnEZG": {
+    "defaultMessage": "Consultez votre boîte de réception pour obtenir un résumé de ce rapport."
   },
   "PZP/M3m1NM": {
     "defaultMessage": "Mes tâches"
   },
   "PapSWiA4OI": {
-    "defaultMessage": "Loading progress..."
+    "defaultMessage": "Progression du chargement..."
   },
   "Pd3edSzEYJ": {
     "defaultMessage": "Projets"
@@ -5676,7 +5892,7 @@
     "defaultMessage": "Authentification"
   },
   "Ped2s5KX7Z": {
-    "defaultMessage": "Repos unavailable"
+    "defaultMessage": "Dépôts indisponibles"
   },
   "Pele5LgqUl": {
     "defaultMessage": "Transformez les briefs de campagne en contenus marketing conformes à la marque et adaptés au marché local, avec des workflows de relecture et la livraison des assets intégrés. Maintenez la cohérence du message global sans ralentir les lancements."
@@ -5697,7 +5913,7 @@
     "defaultMessage": "Conçu pour les équipes de localisation. Disponible bientôt."
   },
   "PnVI3u5zSd": {
-    "defaultMessage": "Profile details and workspace identity."
+    "defaultMessage": "Détails du profil et identité de l’espace de travail."
   },
   "PoNN6ffaMf": {
     "defaultMessage": "Source {locale}"
@@ -5724,13 +5940,13 @@
     "defaultMessage": "{count, plural, one {# fichier ouvert} other {# fichiers ouverts}}"
   },
   "PtTtkKUG7c": {
-    "defaultMessage": "Loading project…"
+    "defaultMessage": "Chargement du projet…"
   },
   "PtbJHeHRh5": {
     "defaultMessage": "Tarification de la plateforme de localisation agentique | Hyperlocalise"
   },
   "PtdBUhTKib": {
-    "defaultMessage": "Select project"
+    "defaultMessage": "Sélectionner un projet"
   },
   "Pu5h/suwW5": {
     "defaultMessage": "Les fichiers dont les traductions sont manquantes ou modifiées apparaîtront ici."
@@ -5742,7 +5958,7 @@
     "defaultMessage": "Aucune langue cible pour le moment"
   },
   "PxhmMvItIU": {
-    "defaultMessage": "Full workspace control including billing and organization settings."
+    "defaultMessage": "Contrôle complet de l’espace de travail, y compris la facturation et les paramètres de l’organisation."
   },
   "PzDClqsKFJ": {
     "defaultMessage": "Assurez une localisation du support qui reste connectée au produit"
@@ -5760,7 +5976,7 @@
     "defaultMessage": "Chemin source"
   },
   "Q1hlIZF0/5": {
-    "defaultMessage": "Translation agent is running"
+    "defaultMessage": "L’agent de traduction est en cours d’exécution"
   },
   "Q26vSR4mR9": {
     "defaultMessage": "Code en ligne"
@@ -5787,28 +6003,31 @@
     "defaultMessage": "L’agent de traduction est en cours d’exécution"
   },
   "Q6oQuKFEbX": {
-    "defaultMessage": "Bring your own model stack"
+    "defaultMessage": "Apportez votre propre stack de modèles"
   },
   "QAVlGw1a6j": {
     "defaultMessage": "Source"
   },
+  "QAZYQBBFd9": {
+    "defaultMessage": "Nouvelle exécution…"
+  },
   "QC53J43wn0": {
-    "defaultMessage": "Coming soon"
+    "defaultMessage": "Bientôt disponible"
   },
   "QCQEKXAzmZ": {
-    "defaultMessage": "Issue not found or you do not have access."
+    "defaultMessage": "Problème introuvable ou vous n’y avez pas accès."
   },
   "QDxYX6HLaI": {
     "defaultMessage": "Aucun fichier ne correspond aux types acceptés."
   },
   "QFfnQnu5uG": {
-    "defaultMessage": "Add terms manually or import CSV/TBX files."
+    "defaultMessage": "Ajoutez des termes manuellement ou importez des fichiers CSV/TBX."
   },
   "QFkKzM5E7a": {
-    "defaultMessage": "Manage projects and technical jobs (sync, repositories); read integrations. No review approval or org admin."
+    "defaultMessage": "Gérer les projets et les tâches techniques (synchronisation, référentiels) ; lire les intégrations. Aucune approbation de révision ni administration de l’organisation."
   },
   "QHSMConoTh": {
-    "defaultMessage": "Refresh the page to try again."
+    "defaultMessage": "Actualisez la page pour réessayer."
   },
   "QHWzXoDsKo": {
     "defaultMessage": "{count} min"
@@ -5817,7 +6036,7 @@
     "defaultMessage": "Produit"
   },
   "QIfhx7Pg8A": {
-    "defaultMessage": "Failed to load translation memories ({status})"
+    "defaultMessage": "Échec du chargement des mémoires de traduction ({status})"
   },
   "QJw7pPDuxB": {
     "defaultMessage": "Tâche de traduction"
@@ -5826,7 +6045,7 @@
     "defaultMessage": "Issue"
   },
   "QL/gA8x5xr": {
-    "defaultMessage": "Add at least one supported tool to activate this automation."
+    "defaultMessage": "Ajoutez au moins un outil pris en charge pour activer cette automatisation."
   },
   "QNkL8EdZgQ": {
     "defaultMessage": "Actif"
@@ -5838,7 +6057,7 @@
     "defaultMessage": "N’importe quelle langue régionale"
   },
   "QR/HxiItgI": {
-    "defaultMessage": "Term base"
+    "defaultMessage": "Base terminologique"
   },
   "QTY8pCBi2f": {
     "defaultMessage": "Faites en sorte que chaque avis améliore le suivant."
@@ -5850,13 +6069,13 @@
     "defaultMessage": "Conservez les affectations de révision, les approbations et les commentaires dans le TMS que votre équipe de localisation utilise déjà."
   },
   "QUaCchKL7u": {
-    "defaultMessage": "Open in {providerKind}"
+    "defaultMessage": "Ouvrir dans {providerKind}"
   },
   "QUgt69cPVZ": {
     "defaultMessage": "Échec de la génération de la recommandation de traduction par IA."
   },
   "QVweQ7BzMt": {
-    "defaultMessage": "Native issue"
+    "defaultMessage": "Problème natif"
   },
   "QZITZRdJzR": {
     "defaultMessage": "Qualité"
@@ -5868,7 +6087,7 @@
     "defaultMessage": "Voir toutes les offres d’emploi"
   },
   "Qao/O64dbg": {
-    "defaultMessage": "No Crowdin project members found."
+    "defaultMessage": "Aucun membre du projet Crowdin trouvé."
   },
   "QbB9yIc9Ea": {
     "defaultMessage": "Colonne"
@@ -5901,13 +6120,13 @@
     "defaultMessage": "Status"
   },
   "QhAcz8vXW1": {
-    "defaultMessage": "Select a valid source locale."
+    "defaultMessage": "Sélectionnez une langue source valide."
   },
   "QhgL5ysg0T": {
     "defaultMessage": "Logo Hyperlocalise"
   },
   "Qiz/awCu+C": {
-    "defaultMessage": "Semrush connection deleted."
+    "defaultMessage": "Connexion Semrush supprimée."
   },
   "Qj9S5injry": {
     "defaultMessage": "Key"
@@ -5946,7 +6165,7 @@
     "defaultMessage": "Insérer"
   },
   "QoBU315wiz": {
-    "defaultMessage": "Glossary violation"
+    "defaultMessage": "Violation du glossaire"
   },
   "QoSDgiiNvY": {
     "defaultMessage": "Score de localisation de {score}/100 pour {domain}. Résultats techniques et linguistiques de Hyperlocalise."
@@ -6015,25 +6234,25 @@
     "defaultMessage": "Smartling"
   },
   "RBrBoi9ilw": {
-    "defaultMessage": "Link kind"
+    "defaultMessage": "Type de lien"
   },
   "RBvXfLqDOK": {
     "defaultMessage": "Désactiver"
   },
   "RDClJmugvf": {
-    "defaultMessage": "Marketing hero headline shown above the primary waitlist call to action."
+    "defaultMessage": "Titre principal marketing affiché au-dessus de l’appel à l’action principal d’inscription sur la liste d’attente."
   },
   "RDYoEaU2oe": {
     "defaultMessage": "Contentful"
   },
   "REOBtpoOI7": {
-    "defaultMessage": "No Semrush connections yet."
+    "defaultMessage": "Aucune connexion Semrush pour le moment."
   },
   "RHVJ0v0DYf": {
     "defaultMessage": "Les exécutions d’automatisation n’ont pas pu être chargées."
   },
   "RHfBrqrbnQ": {
-    "defaultMessage": "Add connection"
+    "defaultMessage": "Ajouter une connexion"
   },
   "RKI1ij45Ie": {
     "defaultMessage": "Aucun message pour le moment"
@@ -6047,11 +6266,14 @@
   "RMs2g4acgN": {
     "defaultMessage": "Qui devrait choisir Starter plutôt que Growth ?"
   },
+  "RQHyujQ0I4": {
+    "defaultMessage": "{count} pages échantillonnées parmi les crédits de localisation techniques, linguistiques, contextuels et visuels."
+  },
   "RQpMZIFSEX": {
-    "defaultMessage": "Loading Issue Sheet..."
+    "defaultMessage": "Chargement de la fiche d’incident…"
   },
   "RQv/LERmVL": {
-    "defaultMessage": "Create job"
+    "defaultMessage": "Créer un job"
   },
   "RSCu8OSDph": {
     "defaultMessage": "Pas encore de description"
@@ -6080,6 +6302,9 @@
   "RXXOOcxbRk": {
     "defaultMessage": "Demande d’adhésion au forfait Growth"
   },
+  "RYfCDsRyCY": {
+    "defaultMessage": "Nous avons atteint la limite de {limit} audits planifiés pour aujourd’hui. Réessayez demain."
+  },
   "RZBs1fe1V3": {
     "defaultMessage": "Hyperlocaliser | Plateforme de localisation pour l’ère agentique"
   },
@@ -6099,7 +6324,7 @@
     "defaultMessage": "Jamais"
   },
   "RdktJbaSwg": {
-    "defaultMessage": "{count, plural, one {Import # issue} other {Import # issues}}"
+    "defaultMessage": "{count, plural, one {Importer # problème} other {Importer # problèmes}}"
   },
   "ReZgZHvqUS": {
     "defaultMessage": "Correspondance approximative"
@@ -6117,13 +6342,13 @@
     "defaultMessage": "E-mail de campagne de lancement"
   },
   "RiqlM9/Nv4": {
-    "defaultMessage": "Create first-party workspace memories or sync provider translation memories. Provider memories stay read-only."
+    "defaultMessage": "Créez des mémoires d’espace de travail internes ou synchronisez des mémoires de traduction de fournisseurs. Les mémoires des fournisseurs restent en lecture seule."
   },
   "RjFpl2Iinv": {
     "defaultMessage": "{count, plural, one {# fichier} other {# fichiers}}"
   },
   "Rlnuzntk1P": {
-    "defaultMessage": "Cancel edit"
+    "defaultMessage": "Annuler la modification"
   },
   "Rn6kkInOe/": {
     "defaultMessage": "Facturation"
@@ -6146,6 +6371,9 @@
   "RsZZrwZXV+": {
     "defaultMessage": "Copié !"
   },
+  "RseiYzhfDo": {
+    "defaultMessage": "Échec"
+  },
   "RsvatD0q4G": {
     "defaultMessage": "Provider"
   },
@@ -6153,10 +6381,10 @@
     "defaultMessage": "Problèmes"
   },
   "RtU7kH2epq": {
-    "defaultMessage": "Select a project"
+    "defaultMessage": "Sélectionnez un projet"
   },
   "RtWhSzVewJ": {
-    "defaultMessage": "Assign to project"
+    "defaultMessage": "Attribuer au projet"
   },
   "RuN49xBd1k": {
     "defaultMessage": "La cible inclut {tokens} qui ne figure pas dans la chaîne source."
@@ -6168,10 +6396,13 @@
     "defaultMessage": "Cette session Crowdin n’a pas pu être vérifiée. Rouvrez l’onglet Hyperlocalise."
   },
   "S+TiK8YOJV": {
-    "defaultMessage": "QA checks finished with {count, plural, one {# finding} other {# findings}}"
+    "defaultMessage": "Contrôles QA terminés avec {count, plural, one {# anomalie} other {# anomalies}}"
   },
   "S+mzU53tQz": {
     "defaultMessage": "Ajout…"
+  },
+  "S+w63pqvse": {
+    "defaultMessage": "Envoyez-moi un récapitulatif par e-mail"
   },
   "S/Jvw/IvO5": {
     "defaultMessage": "Chaîne de pensée"
@@ -6186,13 +6417,13 @@
     "defaultMessage": "Days, not months"
   },
   "S62HZ0fFCx": {
-    "defaultMessage": "External TMS"
+    "defaultMessage": "TMS externe"
   },
   "S6HxrO1rRD": {
-    "defaultMessage": "Revoke invitation"
+    "defaultMessage": "Révoquer l’invitation"
   },
   "S7DZvtatya": {
-    "defaultMessage": "ICU plural · Preserve '{'count'}'"
+    "defaultMessage": "Please provide the source text to translate."
   },
   "S7JuKVNtvx": {
     "defaultMessage": "Destinataires"
@@ -6204,7 +6435,7 @@
     "defaultMessage": "GitHub a renvoyé un code OAuth utilisateur au lieu d’un ID d’installation. Dans les paramètres de l’application GitHub, désactivez « Demander l’autorisation de l’utilisateur (OAuth) pendant l’installation » et définissez l’URL de configuration sur /auth/github/callback de cette application."
   },
   "SCoaZFO7Pm": {
-    "defaultMessage": "Warning type"
+    "defaultMessage": "Type d’avertissement"
   },
   "SCwFU6O6EH": {
     "defaultMessage": "Activer d'abord"
@@ -6261,10 +6492,10 @@
     "defaultMessage": "M'attribuer la tâche"
   },
   "SSDdQ9eeIj": {
-    "defaultMessage": "All sync states"
+    "defaultMessage": "Tous les états de synchronisation"
   },
   "SUOtzGbVxd": {
-    "defaultMessage": "review translation updates"
+    "defaultMessage": "examiner les mises à jour de traduction"
   },
   "SUXI1fXBfn": {
     "defaultMessage": "Tous les projets"
@@ -6288,7 +6519,7 @@
     "defaultMessage": "Enregistrez les identifiants pour vous connecter à {providerName}. Le secret est chiffré au repos et utilisé pour les appels d’API en direct aux projets, fichiers et tâches."
   },
   "ScCeTTRmLH": {
-    "defaultMessage": "Open in provider"
+    "defaultMessage": "Ouvrir dans le fournisseur"
   },
   "ScESvsRyBk": {
     "defaultMessage": "Hyperlocalise se situe entre les fournisseurs de LLM et les outils TMS, offrant aux équipes un seul workflow même lorsque les modèles, les fournisseurs et les systèmes de révision évoluent en dessous."
@@ -6311,6 +6542,9 @@
   "SiPCg9X6AE": {
     "defaultMessage": "Preview"
   },
+  "SjHx8vM/dA": {
+    "defaultMessage": "Évaluation"
+  },
   "SlLtLEkppm": {
     "defaultMessage": "Supprimer la colonne ?"
   },
@@ -6330,7 +6564,7 @@
     "defaultMessage": "Enregistrement…"
   },
   "StSqQpNlpj": {
-    "defaultMessage": "Checking format & QA"
+    "defaultMessage": "Vérification du format et de l’assurance qualité"
   },
   "StXIOq7nWw": {
     "defaultMessage": "Connectez GitHub pour choisir un dépôt"
@@ -6354,10 +6588,10 @@
     "defaultMessage": "Ouvrez les tâches de relecture dans votre TMS"
   },
   "SzY95cmXPi": {
-    "defaultMessage": "Assigned projects"
+    "defaultMessage": "Projets attribués"
   },
   "SzamN21gnS": {
-    "defaultMessage": "No QA findings yet"
+    "defaultMessage": "Aucun résultat d’assurance qualité pour le moment"
   },
   "Szu3mcKAYD": {
     "defaultMessage": "Hash {hash}"
@@ -6369,7 +6603,7 @@
     "defaultMessage": "Basculer le forfait"
   },
   "T+85xLIwTA": {
-    "defaultMessage": "{translatedPercent}% translated · {approvedPercent}% approved"
+    "defaultMessage": "{translatedPercent} % traduit · {approvedPercent} % approuvé"
   },
   "T+lSNezp+m": {
     "defaultMessage": "Supprimer"
@@ -6387,7 +6621,7 @@
     "defaultMessage": "Actions"
   },
   "T2Xmxy54ip": {
-    "defaultMessage": "Configure translation automation for {repositoryFullName}. This is separate from refreshing repository metadata from GitHub."
+    "defaultMessage": "Configurez l’automatisation des traductions pour {repositoryFullName}. Cela est distinct de l’actualisation des métadonnées du dépôt depuis GitHub."
   },
   "T67SNUNeWw": {
     "defaultMessage": "Connectez Ahrefs avec une clé API MCP dans les intégrations avant d’utiliser cet outil."
@@ -6420,7 +6654,10 @@
     "defaultMessage": "Aucun fichier pris en charge n’a été sélectionné."
   },
   "TE3bLZyBSZ": {
-    "defaultMessage": "<b>Reasoning:</b> {reasoning}"
+    "defaultMessage": "<b>Raisonnement :</b> {reasoning}"
+  },
+  "TEByVD08L+": {
+    "defaultMessage": "Présence"
   },
   "TEXn81XSVY": {
     "defaultMessage": "Chaque jour à {time} · {timezone}"
@@ -6441,19 +6678,22 @@
     "defaultMessage": "Impossible de charger les préférences de notification."
   },
   "TIsb5WlP88": {
-    "defaultMessage": "Something went wrong in this panel. You can retry or keep working in the other panels."
+    "defaultMessage": "Un problème est survenu dans ce panneau. Vous pouvez réessayer ou continuer à travailler dans les autres panneaux."
   },
   "TKS/jcVkYV": {
-    "defaultMessage": "Sync error"
+    "defaultMessage": "Erreur de synchronisation"
   },
   "TKbQtKFrh9": {
     "defaultMessage": "Le nom de l’équipe est obligatoire."
   },
   "TKlxwbN5s5": {
-    "defaultMessage": "All check types"
+    "defaultMessage": "Tous les types de contrôles"
   },
   "TKzoXsQ+7N": {
     "defaultMessage": "{count, plural, one {# tâche} other {# tâches}}"
+  },
+  "TMD1+Kb+4i": {
+    "defaultMessage": "L’expérience localisée est en très bonne forme."
   },
   "TMJ+v5h6o1": {
     "defaultMessage": "Commentaire mis à jour"
@@ -6474,7 +6714,7 @@
     "defaultMessage": "Toutes les heures"
   },
   "TRXXor6TdH": {
-    "defaultMessage": "Display name"
+    "defaultMessage": "Nom d’affichage"
   },
   "TRlFNEhzfJ": {
     "defaultMessage": "Postulez au tarif startup"
@@ -6485,11 +6725,17 @@
   "TTwT8pJqTJ": {
     "defaultMessage": "Loading"
   },
+  "TU09/PYmBW": {
+    "defaultMessage": "Voir le classement complet"
+  },
   "TUvTVcL3il": {
     "defaultMessage": "Ouvrir dans Hyperlocalise"
   },
   "TVxvj2B1bk": {
     "defaultMessage": "Aucun avis en attente"
+  },
+  "TWWOWkYG7q": {
+    "defaultMessage": "Étape {current} sur {total}"
   },
   "TYuiCQUYlI": {
     "defaultMessage": "Choisissez un modèle pris en charge pour le fournisseur sélectionné."
@@ -6501,7 +6747,7 @@
     "defaultMessage": "Connect Ahrefs with an MCP API key in Integrations before using this tool."
   },
   "TcPLZlmUn0": {
-    "defaultMessage": "No plans are configured in Autumn yet."
+    "defaultMessage": "Aucun plan n’est encore configuré dans Autumn."
   },
   "TdSqSMSpF8": {
     "defaultMessage": "Tous les fichiers dépassent la taille maximale."
@@ -6510,7 +6756,7 @@
     "defaultMessage": "Hyperlocalise relie les signaux de changement du CMS à la traduction, aux vérifications terminologiques et à la surveillance continue de l’actualité du contenu."
   },
   "TfjiaDPI2s": {
-    "defaultMessage": "French launch"
+    "defaultMessage": "Lancement français"
   },
   "Th3qMjLdD4": {
     "defaultMessage": "Sélectionnez au moins un fichier."
@@ -6522,13 +6768,13 @@
     "defaultMessage": "Impossible de charger les fichiers"
   },
   "TiFchnoh6y": {
-    "defaultMessage": "Unable to assign project"
+    "defaultMessage": "Impossible d’attribuer le projet"
   },
   "TiPe1DO4xa": {
     "defaultMessage": "Collez votre jeton Crowdin"
   },
   "Tm/8Q9uIIU": {
-    "defaultMessage": "No branches added"
+    "defaultMessage": "Aucune branche ajoutée"
   },
   "TmvQ63+NJ8": {
     "defaultMessage": "localisation Acme"
@@ -6552,7 +6798,7 @@
     "defaultMessage": "Réinitialiser les paramètres d’automatisation ?"
   },
   "TpepILtGKC": {
-    "defaultMessage": "This issue could not be found."
+    "defaultMessage": "Ce problème est introuvable."
   },
   "TqKPfOkj7i": {
     "defaultMessage": "Automatisation mise à jour"
@@ -6564,7 +6810,7 @@
     "defaultMessage": "Échec de la copie dans le presse-papiers"
   },
   "Ts8Uopd5oT": {
-    "defaultMessage": "Position speed as release confidence, not shortcut automation."
+    "defaultMessage": "Présentez la rapidité comme un gage de confiance dans les mises en production, et non comme un raccourci vers l’automatisation."
   },
   "TtLubrrGZM": {
     "defaultMessage": "Téléchargement de l’image…"
@@ -6593,6 +6839,9 @@
   "U+tI5HA1qo": {
     "defaultMessage": "Présente des problèmes"
   },
+  "U0PoyhfZi2": {
+    "defaultMessage": "Les pages en français et en anglais ne renvoient pas l’une vers l’autre, si bien que les visiteurs peuvent passer complètement à côté de l’autre langue."
+  },
   "U1qJ2BS3gD": {
     "defaultMessage": "agnostique au TMS"
   },
@@ -6612,7 +6861,7 @@
     "defaultMessage": "En cours…"
   },
   "UA3ioLbPld": {
-    "defaultMessage": "{count} invalid skipped"
+    "defaultMessage": "{count} invalides ignorés"
   },
   "UAMQfqPAzo": {
     "defaultMessage": "Identifiant utilisateur"
@@ -6638,17 +6887,29 @@
   "UFI0ojyOjH": {
     "defaultMessage": "Envoyer"
   },
+  "UFpFmP3uvn": {
+    "defaultMessage": "Domaines"
+  },
+  "UIH0t2l1Rg": {
+    "defaultMessage": "À améliorer"
+  },
+  "UKFf8HWVZX": {
+    "defaultMessage": "Chargement du domaine…"
+  },
   "UL3odPVruI": {
     "defaultMessage": "Ordre du balisage"
   },
   "ULAiYLTSMp": {
     "defaultMessage": "Les dépôts archivés ne peuvent pas utiliser l’automatisation de la traduction."
   },
+  "ULcCfIfBDx": {
+    "defaultMessage": "Est-ce que le texte vous ressemble toujours une fois la langue changée ?"
+  },
   "UO1B3Nh+0U": {
     "defaultMessage": "Outils"
   },
   "UOISryu9xO": {
-    "defaultMessage": "All projects"
+    "defaultMessage": "Tous les projets"
   },
   "UOrQi3aNyW": {
     "defaultMessage": "Les tâches TMS en direct n’ont pas pu être chargées."
@@ -6663,7 +6924,7 @@
     "defaultMessage": "Chef de produit"
   },
   "US//RTOcgM": {
-    "defaultMessage": "Job created"
+    "defaultMessage": "Tâche créée"
   },
   "USEpvu/QYB": {
     "defaultMessage": "GitHub"
@@ -6678,10 +6939,10 @@
     "defaultMessage": "À quelle vitesse pouvons-nous commencer ?"
   },
   "UXqIGtslvw": {
-    "defaultMessage": "Load linked source files when you are ready to review or open them."
+    "defaultMessage": "Chargez les fichiers source liés lorsque vous êtes prêt à les examiner ou à les ouvrir."
   },
   "UZWbgJ+bye": {
-    "defaultMessage": "Source locale"
+    "defaultMessage": "Locale source"
   },
   "UbVHwBap7q": {
     "defaultMessage": "Fixing"
@@ -6696,7 +6957,7 @@
     "defaultMessage": "Developer"
   },
   "Uey+g5GKxu": {
-    "defaultMessage": "Repository search"
+    "defaultMessage": "Recherche dans le dépôt"
   },
   "UfX+B2NG5i": {
     "defaultMessage": "Unassigned"
@@ -6720,10 +6981,10 @@
     "defaultMessage": "Une mise à jour de la FAQ de facturation doit atteindre douze langues locales"
   },
   "UoWZO/Gkq4": {
-    "defaultMessage": "Page {currentPage} of {totalPages}"
+    "defaultMessage": "Page {currentPage} sur {totalPages}"
   },
   "Up5yLUnVpF": {
-    "defaultMessage": "No locales configured"
+    "defaultMessage": "Aucun paramètre régional configuré"
   },
   "Up6UMTbrGA": {
     "defaultMessage": "Planifié"
@@ -6741,7 +7002,7 @@
     "defaultMessage": "Supprimer le membre de l’équipe"
   },
   "Uv4fMm9uKS": {
-    "defaultMessage": "Review proposals"
+    "defaultMessage": "Examiner les propositions"
   },
   "UvLPwAuWGw": {
     "defaultMessage": "Nouveau problème"
@@ -6765,7 +7026,7 @@
     "defaultMessage": "Créez une clé pour authentifier les scripts, les tâches CI et les intégrations auprès de cet espace de travail."
   },
   "V/nJMxzENN": {
-    "defaultMessage": "No Hyperlocalise jobs found for this workspace."
+    "defaultMessage": "Aucun job Hyperlocalise trouvé pour cet espace de travail."
   },
   "V04dsqCSZQ": {
     "defaultMessage": "Aucune image localisée pour le moment"
@@ -6804,10 +7065,10 @@
     "defaultMessage": "Informations sur la sécurité, les sous-traitants, la confidentialité et l’état des certifications de Hyperlocalise."
   },
   "VCIZRHU93Q": {
-    "defaultMessage": "Failed to load job ({status})"
+    "defaultMessage": "Échec du chargement de l’offre d’emploi ({status})"
   },
   "VCwqO4O4KD": {
-    "defaultMessage": "{matchScore}% match"
+    "defaultMessage": "{matchScore}% de correspondance"
   },
   "VDktuK9D7C": {
     "defaultMessage": "Provider"
@@ -6827,17 +7088,20 @@
   "VH9bOCu5nr": {
     "defaultMessage": "Créer une clé API"
   },
+  "VHfMEbrDRM": {
+    "defaultMessage": "Site web"
+  },
   "VK45xdmq69": {
     "defaultMessage": "Syncing"
   },
   "VKDvjxl+TJ": {
-    "defaultMessage": "View strings"
+    "defaultMessage": "Afficher les chaînes"
   },
   "VKjWHU/QDH": {
     "defaultMessage": "Que signifie cette chaîne et où est-elle utilisée ?"
   },
   "VLSdATui0m": {
-    "defaultMessage": "Member removed"
+    "defaultMessage": "Membre supprimé"
   },
   "VLmrLDJXnd": {
     "defaultMessage": "Remove"
@@ -6867,7 +7131,7 @@
     "defaultMessage": "Masquer le secret"
   },
   "VTNiq0wxG3": {
-    "defaultMessage": "Choose a TMS project"
+    "defaultMessage": "Choisissez un projet TMS"
   },
   "VTQVrhBIAm": {
     "defaultMessage": "Ouvrir dans v0"
@@ -6885,7 +7149,7 @@
     "defaultMessage": "Télécharger"
   },
   "VXMF06lvLo": {
-    "defaultMessage": "Failed to upload files"
+    "defaultMessage": "Échec du téléversement des fichiers"
   },
   "VZ/tPAEVdg": {
     "defaultMessage": "Clés API"
@@ -6912,7 +7176,7 @@
     "defaultMessage": "Obtenez une démonstration"
   },
   "VkNsZOH7xT": {
-    "defaultMessage": "Choose an organization"
+    "defaultMessage": "Choisissez une organisation"
   },
   "VkWvhhKis5": {
     "defaultMessage": "Traduit ({locale})"
@@ -6927,10 +7191,10 @@
     "defaultMessage": "Glossaries"
   },
   "Vq0Rk5ZFcw": {
-    "defaultMessage": "Failed to load project"
+    "defaultMessage": "Échec du chargement du projet"
   },
   "Vqng5hm3eU": {
-    "defaultMessage": "View linked project"
+    "defaultMessage": "Voir le projet lié"
   },
   "VreTPRoxTI": {
     "defaultMessage": "Les tâches en file d’attente, en cours d’exécution et en cours de révision apparaîtront ici."
@@ -6951,7 +7215,7 @@
     "defaultMessage": "Read-only"
   },
   "VwBtOss3uh": {
-    "defaultMessage": "View strings"
+    "defaultMessage": "Afficher les chaînes"
   },
   "VwOY5uI6LH": {
     "defaultMessage": "GitHub"
@@ -6966,13 +7230,13 @@
     "defaultMessage": "Détecter les chaînes modifiées et recueillir le contexte de la PR"
   },
   "VyUTnEU0ZM": {
-    "defaultMessage": "Try refreshing the page."
+    "defaultMessage": "Essayez d’actualiser la page."
   },
   "VylAO2QrNw": {
     "defaultMessage": "Traduire par ses propres traducteurs"
   },
   "VzdHtrwQej": {
-    "defaultMessage": "Send an invitation by email. They join after accepting through your identity provider."
+    "defaultMessage": "Envoyez une invitation par e-mail. Ils rejoindront votre organisation après l’avoir acceptée via votre fournisseur d’identité."
   },
   "VzzqUlIKvt": {
     "defaultMessage": "Choisissez une langue cible pour ouvrir ce fichier dans l’espace de travail CAT."
@@ -7008,7 +7272,7 @@
     "defaultMessage": "Aucune langue cible n’est disponible pour ce fichier."
   },
   "W87BMcVF5T": {
-    "defaultMessage": "Optional notes for translators"
+    "defaultMessage": "Notes facultatives pour les traducteurs"
   },
   "W8paQ6RjZy": {
     "defaultMessage": "À quoi ressemble l’avancement de la localisation dans les projets TMS associés ?"
@@ -7029,7 +7293,7 @@
     "defaultMessage": "Modifier les connaissances partagées de l’organisation utilisées par cette automatisation."
   },
   "WBydLHnyW0": {
-    "defaultMessage": "Glossary terms used"
+    "defaultMessage": "Termes du glossaire utilisés"
   },
   "WCzohOaFyx": {
     "defaultMessage": "mardi"
@@ -7038,7 +7302,7 @@
     "defaultMessage": "Next"
   },
   "WDmTfqzG7L": {
-    "defaultMessage": "No agent runs yet."
+    "defaultMessage": "Aucune exécution d’agent pour le moment."
   },
   "WDpl42Ocu7": {
     "defaultMessage": "Du contenu d’assistance toujours à jour dans toutes les langues"
@@ -7065,13 +7329,13 @@
     "defaultMessage": "Annuler"
   },
   "WNMfw+TYVj": {
-    "defaultMessage": "Keeps terminology, placeholders, and layout constraints aligned with the source."
+    "defaultMessage": "Veuillez fournir le texte source à traduire."
   },
   "WNUkfqHAtJ": {
     "defaultMessage": "Gérer"
   },
   "WO7W6p2kV8": {
-    "defaultMessage": "Glossary name is required."
+    "defaultMessage": "Le nom du glossaire est obligatoire."
   },
   "WPDWJsbAQo": {
     "defaultMessage": "Status"
@@ -7100,8 +7364,11 @@
   "WUqvqtUFLC": {
     "defaultMessage": "Transport"
   },
+  "WW5Wdugy4j": {
+    "defaultMessage": "Enregistrement…"
+  },
   "WWNLOhw0a6": {
-    "defaultMessage": "All sources"
+    "defaultMessage": "Toutes les sources"
   },
   "WX/L/z1wMm": {
     "defaultMessage": "{percent} % traduit"
@@ -7137,7 +7404,7 @@
     "defaultMessage": "Paramètres régionaux : fr-FR, de-DE, ja-JP · échéance vendredi"
   },
   "WjVOOBdiGx": {
-    "defaultMessage": "Job marked as failed"
+    "defaultMessage": "Tâche marquée comme échouée"
   },
   "Wk16E7zAqa": {
     "defaultMessage": "Rechercher des segments par clé ou texte source"
@@ -7185,7 +7452,7 @@
     "defaultMessage": "Déclencheur"
   },
   "Ww6hf/sreW": {
-    "defaultMessage": "Translation memories failed to load."
+    "defaultMessage": "Échec du chargement des mémoires de traduction."
   },
   "WzPTL0QId6": {
     "defaultMessage": "Emplois"
@@ -7194,10 +7461,13 @@
     "defaultMessage": "En cours"
   },
   "Wzlq8Ew/Ii": {
-    "defaultMessage": "API Keys"
+    "defaultMessage": "Clés API"
   },
   "X+GHkBiDyV": {
-    "defaultMessage": "Loading issues..."
+    "defaultMessage": "Chargement des problèmes…"
+  },
+  "X/5lAUS4wm": {
+    "defaultMessage": "/100"
   },
   "X1RIo1R/Sz": {
     "defaultMessage": "Placeholders"
@@ -7209,13 +7479,16 @@
     "defaultMessage": "Annuler"
   },
   "X69pKW667o": {
-    "defaultMessage": "No issues found"
+    "defaultMessage": "Aucun problème détecté"
   },
   "X6g1omP0I1": {
     "defaultMessage": "Notifier #compliance lorsque les résultats nécessitent un examen."
   },
   "X7qkN/IoEW": {
     "defaultMessage": "Comment puis-je vous aider aujourd’hui ?"
+  },
+  "X9+GfdK3RZ": {
+    "defaultMessage": "Portée"
   },
   "X96S8fajCU": {
     "defaultMessage": "Sièges"
@@ -7226,23 +7499,26 @@
   "X9X74tk3Lj": {
     "defaultMessage": "Sélectionnez au moins une langue cible valide."
   },
+  "X9s4kh3gLN": {
+    "defaultMessage": "Rapport d’audit de localisation"
+  },
   "XAPcmSCzyq": {
     "defaultMessage": "Human review workflows"
   },
   "XBvYNdWRjl": {
-    "defaultMessage": "Group by"
+    "defaultMessage": "Regrouper par"
   },
   "XEC4R2CUep": {
     "defaultMessage": "Copier la commande d’exportation"
   },
   "XFpqPsul6Y": {
-    "defaultMessage": "Changed: {fields}"
+    "defaultMessage": "Modifié : {fields}"
   },
   "XHI21GKve1": {
     "defaultMessage": "Entrer sur un nouveau marché doit être synonyme de croissance, et non d’un deuxième lancement de produit qui met l’entreprise à l’arrêt."
   },
   "XHTRGbNDAl": {
-    "defaultMessage": "Personal access token"
+    "defaultMessage": "Jeton d’accès personnel"
   },
   "XIKJG5Q5Cf": {
     "defaultMessage": "Enregistrer les paramètres de {providerName}"
@@ -7257,25 +7533,28 @@
     "defaultMessage": "Ranked by impact across current release checks"
   },
   "XJe/aHS1LC": {
-    "defaultMessage": "Failed to load members"
+    "defaultMessage": "Échec du chargement des membres"
   },
   "XLWvL1I9Sv": {
     "defaultMessage": "Rechercher des problèmes…"
   },
   "XLbc3ZzNpD": {
-    "defaultMessage": "All sources"
+    "defaultMessage": "Toutes les sources"
   },
   "XMHsfUaoDt": {
     "defaultMessage": "Fuseau horaire"
   },
   "XMW6IBe3PH": {
-    "defaultMessage": "Refresh the page to try again."
+    "defaultMessage": "Actualisez la page pour réessayer."
   },
   "XMud6JNFWG": {
-    "defaultMessage": "Could not post provider comment"
+    "defaultMessage": "Impossible de publier le commentaire du fournisseur"
   },
   "XN1TGsoctn": {
     "defaultMessage": "Échec du chargement des détails du fichier."
+  },
+  "XN2gagpvC2": {
+    "defaultMessage": "Critères d’audit"
   },
   "XOLvGAW68Q": {
     "defaultMessage": "Intégrations"
@@ -7293,7 +7572,7 @@
     "defaultMessage": "Affectez des agents pour rédiger, réviser et synchroniser, tandis que les réviseurs humains restent dans le TMS auquel votre équipe fait déjà confiance."
   },
   "XUGFGcmuvI": {
-    "defaultMessage": "Loading segments"
+    "defaultMessage": "Chargement des segments"
   },
   "XUqaK3JKIx": {
     "defaultMessage": "Connexion à Ahrefs enregistrée."
@@ -7302,7 +7581,7 @@
     "defaultMessage": "Localisation de campagnes qui protège la voix de la marque sur tous les marchés"
   },
   "XVkuBQ3TjB": {
-    "defaultMessage": "Team slug must be 120 characters or fewer."
+    "defaultMessage": "Le slug de l’équipe doit comporter 120 caractères ou moins."
   },
   "XXixo4/l3k": {
     "defaultMessage": "Workspace"
@@ -7311,7 +7590,7 @@
     "defaultMessage": "Automatisation des agents"
   },
   "XYe4THixuv": {
-    "defaultMessage": "Unable to load projects"
+    "defaultMessage": "Impossible de charger les projets"
   },
   "XahS11XRb2": {
     "defaultMessage": "Suivez quels articles n’ont pas de traductions ou accusent un retard par rapport à la source anglaise après des modifications du produit."
@@ -7334,11 +7613,17 @@
   "XeOh0cpTI1": {
     "defaultMessage": "Status"
   },
+  "Xg01khiunA": {
+    "defaultMessage": "Score {score}"
+  },
   "XhZzwexSlh": {
     "defaultMessage": "Hyperlocalise est en cours…"
   },
   "XifoTZH6H7": {
     "defaultMessage": "Les étapes de validation des mises en production dépendent de vérifications manuelles du TMS qui bloquent les déploiements de manière imprévisible."
+  },
+  "Xl40fdGnlz": {
+    "defaultMessage": "vous@entreprise.com"
   },
   "XlCqTK9P8L": {
     "defaultMessage": "File"
@@ -7365,10 +7650,10 @@
     "defaultMessage": "Effectuez gratuitement un audit de localisation sur n’importe quel site web. Évaluez sa préparation technique et linguistique, puis déverrouillez le rapport complet."
   },
   "Xs0cc+EY83": {
-    "defaultMessage": "Agent Actions"
+    "defaultMessage": "Actions de l’agent"
   },
   "XuLNOM8/60": {
-    "defaultMessage": "Updated date unavailable"
+    "defaultMessage": "Date de mise à jour indisponible"
   },
   "Xucm4d5P0P": {
     "defaultMessage": "Enter an Ahrefs MCP API key."
@@ -7380,19 +7665,22 @@
     "defaultMessage": "Les équipes perdent du temps à expliquer les mêmes termes produit, règles de ton et préférences de marché à chaque lancement. Hyperlocalise transforme ces décisions en contexte réutilisable."
   },
   "XvnWp/L4sW": {
-    "defaultMessage": "sync pull docs"
+    "defaultMessage": "Documentation de synchronisation des extractions"
   },
   "Xx/womTY6W": {
-    "defaultMessage": "No forbidden"
+    "defaultMessage": "Aucun interdit"
   },
   "XzH5GON6Rv": {
-    "defaultMessage": "No teams yet"
+    "defaultMessage": "Aucune équipe pour le moment"
   },
   "Y+UFarvRd2": {
     "defaultMessage": "Copier l'adresse e-mail"
   },
   "Y19LAzxjpx": {
     "defaultMessage": "Hebdomadaire"
+  },
+  "Y1DzYaPZ4D": {
+    "defaultMessage": "Poursuivre la vérification"
   },
   "Y2hMRmZ+Nf": {
     "defaultMessage": "{actor} a créé le problème"
@@ -7410,16 +7698,16 @@
     "defaultMessage": "Les problèmes de qualité sont découverts par les clients, les tickets d’assistance ou les avis sur les boutiques d’applications."
   },
   "Y89oWQA4Iq": {
-    "defaultMessage": "Run QA"
+    "defaultMessage": "Exécuter l’AQ"
   },
   "Y9q11GovtH": {
     "defaultMessage": "Les équipes marketing avancent vite. La localisation devient un goulot d’étranglement lorsque les subtilités de la marque et l’intention régionale n’atteignent jamais le traducteur."
   },
   "YApKomjAhZ": {
-    "defaultMessage": "Short label · Avoid ambiguity around reviews"
+    "defaultMessage": "Libellé court · Éviter toute ambiguïté concernant les avis"
   },
   "YDQwelYneJ": {
-    "defaultMessage": "Contentful entry ID"
+    "defaultMessage": "ID d’entrée Contentful"
   },
   "YDpITGOpDT": {
     "defaultMessage": "Non assigné"
@@ -7431,25 +7719,25 @@
     "defaultMessage": "Chargement des problèmes"
   },
   "YGyu9mb0BB": {
-    "defaultMessage": "Loading automation..."
+    "defaultMessage": "Chargement de l’automatisation…"
   },
   "YH85ceiP7j": {
     "defaultMessage": "Choisissez un fichier dans la liste pour afficher ses métadonnées et les tâches associées."
   },
   "YIQiU/g1Q3": {
-    "defaultMessage": "All warnings"
+    "defaultMessage": "Tous les avertissements"
   },
   "YIX0kOlYt0": {
     "defaultMessage": "Non. Hyperlocalise fonctionne avec votre TMS existant. Continuez à utiliser Phrase, Lokalise, Crowdin ou Smartling, tandis que Hyperlocalise orchestre les agents d’IA, les workflows de révision, la découverte du contexte et les contrôles qualité."
   },
   "YJJ6zC95OW": {
-    "defaultMessage": "Push source, pull translations, and validation checks."
+    "defaultMessage": "Pousser la source, récupérer les traductions et effectuer les vérifications de validation."
   },
   "YJhLdtyhdj": {
     "defaultMessage": "Assistance dédiée"
   },
   "YM1jd5PwaY": {
-    "defaultMessage": "My Jobs"
+    "defaultMessage": "Mes tâches"
   },
   "YM9k2kDsM2": {
     "defaultMessage": "Titre de la carte de démarrage rapide du tableau de bord"
@@ -7470,16 +7758,16 @@
     "defaultMessage": "Locale"
   },
   "YPT/4ux3Z/": {
-    "defaultMessage": "Manual only"
+    "defaultMessage": "Manuel uniquement"
   },
   "YPUY3Uik30": {
     "defaultMessage": "Réessayer"
   },
   "YQqA4dnF4n": {
-    "defaultMessage": "Select at least one target locale."
+    "defaultMessage": "Sélectionnez au moins une langue cible."
   },
   "YTRbiRB1qL": {
-    "defaultMessage": "No assigned Hyperlocalise jobs found."
+    "defaultMessage": "Aucun travail Hyperlocalise attribué trouvé."
   },
   "YUeo87Wdbn": {
     "defaultMessage": "Projets récents"
@@ -7688,6 +7976,9 @@
   "ZLaHigyIGc": {
     "defaultMessage": "Unable to load task files."
   },
+  "ZNAwtFUkzx": {
+    "defaultMessage": "Audited"
+  },
   "ZNq2uixHCz": {
     "defaultMessage": "Launch copy"
   },
@@ -7708,6 +7999,12 @@
   },
   "ZSs7hAN64v": {
     "defaultMessage": "Supprimer le commentaire"
+  },
+  "ZT0ZLYbp16": {
+    "defaultMessage": "Could not retry the audit."
+  },
+  "ZT4A78YiXg": {
+    "defaultMessage": "Can visitors find the right version of the site?"
   },
   "ZV3TeuXtMA": {
     "defaultMessage": "Contexte"
@@ -8114,6 +8411,9 @@
   "bOxmqF5fsc": {
     "defaultMessage": "Threads"
   },
+  "bSoPJAmJQC": {
+    "defaultMessage": "This audit is queued and will start shortly."
+  },
   "bUBd4XGtBI": {
     "defaultMessage": "Fonctionnalités d’IA"
   },
@@ -8173,6 +8473,9 @@
   },
   "blLcFpSkB4": {
     "defaultMessage": "Invitez des personnes et gérez les rôles dans l’espace de travail"
+  },
+  "blgD4379yD": {
+    "defaultMessage": "No linked domains yet. Claim a domain from a localisation audit to get started."
   },
   "boIAKxOC7q": {
     "defaultMessage": "L’offre gratuite inclut 1 projet, 1 siège et 2 intégrations pour vous permettre d’évaluer l’espace de travail. Les quotas d’utilisation payants commencent avec les forfaits Starter et Growth."
@@ -8240,6 +8543,9 @@
   "cGZAPE84bW": {
     "defaultMessage": "Organization memory"
   },
+  "cHNG0eH0rr": {
+    "defaultMessage": "No localisation audit is attached to this domain yet."
+  },
   "cHvtlHrefQ": {
     "defaultMessage": "Image source"
   },
@@ -8264,6 +8570,9 @@
   "cOeHLAqsSE": {
     "defaultMessage": "ID du webhook Contentful : {webhookId}"
   },
+  "cQ32lI4seX": {
+    "defaultMessage": "How you compare"
+  },
   "cQIBb8VVUr": {
     "defaultMessage": "Vue d’ensemble"
   },
@@ -8273,6 +8582,9 @@
   "cQwXYuUd6c": {
     "defaultMessage": "Intention de traduction"
   },
+  "cRg9/fMFSw": {
+    "defaultMessage": "Something went wrong while auditing this domain. You can retry safely."
+  },
   "cT0FEm6nil": {
     "defaultMessage": "Impossible d’enregistrer les paramètres du modèle de problème"
   },
@@ -8281,6 +8593,9 @@
   },
   "cTTX9n9kbk": {
     "defaultMessage": "20 $"
+  },
+  "cUEs5UweV5": {
+    "defaultMessage": "Passed audits ({count})"
   },
   "cVbj5KLUfe": {
     "defaultMessage": "Afficher les chaînes"
@@ -8344,6 +8659,9 @@
   },
   "crhiHIjb38": {
     "defaultMessage": "{count}/{limit} characters"
+  },
+  "cwqeMFXYQC": {
+    "defaultMessage": "Pass"
   },
   "cx00LgHL3+": {
     "defaultMessage": "Point de terminaison REST"
@@ -8410,6 +8728,9 @@
   },
   "dHB1MtjiIw": {
     "defaultMessage": "Unknown"
+  },
+  "dIHTtzU056": {
+    "defaultMessage": "The audit could not finish for this domain."
   },
   "dIgSyZztAu": {
     "defaultMessage": "Sélecteur de modèle"
@@ -8618,6 +8939,9 @@
   "e7p8bFrcw5": {
     "defaultMessage": "Une erreur s’est produite dans cette partie de l’outil. Vous pouvez réessayer ou continuer à travailler dans les autres panneaux."
   },
+  "e7tTJ8gdLB": {
+    "defaultMessage": "Indicative health check from sampled pages — not a full site crawl."
+  },
   "e8ygO/tdr3": {
     "defaultMessage": "Chargement des fichiers…"
   },
@@ -8678,6 +9002,9 @@
   "eKYKN2COzf": {
     "defaultMessage": "People assigned to this team can access its projects and jobs. Need someone new in the workspace? <invite>Invite a member</invite>."
   },
+  "eKfFOCj/Jd": {
+    "defaultMessage": "Public smart sample · technical, linguistic, contextual, and visual credits"
+  },
   "eKl5zUCITU": {
     "defaultMessage": "Fichiers sources"
   },
@@ -8704,6 +9031,9 @@
   },
   "eV8dpp9Cb+": {
     "defaultMessage": "Cancel edit"
+  },
+  "eVmVzJRp/f": {
+    "defaultMessage": "Run a deeper registered audit"
   },
   "eW2eLsJu8K": {
     "defaultMessage": "Invite member"
@@ -8734,6 +9064,9 @@
   },
   "ecG+jsddyC": {
     "defaultMessage": "Email support"
+  },
+  "ecuiDTvUrZ": {
+    "defaultMessage": "Poor"
   },
   "ed4/NRs4Oy": {
     "defaultMessage": "Img"
@@ -8870,6 +9203,9 @@
   "fHo3lZ3Ncd": {
     "defaultMessage": "Ce dont vous avez besoin pour le traduire (public cible, ton, identité de la personne qui s’exprime)"
   },
+  "fHty0SN0KU": {
+    "defaultMessage": "Create a workspace"
+  },
   "fIXR+y8rly": {
     "defaultMessage": "Failed to load project files"
   },
@@ -8930,6 +9266,9 @@
   "fXIJvHCrL6": {
     "defaultMessage": "Segment précédent"
   },
+  "fZ/p4nukUo": {
+    "defaultMessage": "See my score"
+  },
   "fZ6vM82PvA": {
     "defaultMessage": "Supprimer « {label} » ? Les valeurs stockées pour cette colonne dans les problèmes existants seront supprimées."
   },
@@ -8960,11 +9299,17 @@
   "fhtliL5Eg6": {
     "defaultMessage": "Could not save changes."
   },
+  "fiJRizjueJ": {
+    "defaultMessage": "Could not load this linked domain."
+  },
   "fj5dhgmhYc": {
     "defaultMessage": "Impossible de valider l’identifiant."
   },
   "fjjjlNCOer": {
     "defaultMessage": "Écrivez ou saisissez / pour afficher les blocs…"
+  },
+  "flUWk1JFBu": {
+    "defaultMessage": "Hide passed audits"
   },
   "flbKXaq8uE": {
     "defaultMessage": "Synchronisez les chaînes approuvées vers votre TMS"
@@ -9002,6 +9347,9 @@
   "fyUzKxz7yZ": {
     "defaultMessage": "Vérification des tâches liées"
   },
+  "fyhM45TkNF": {
+    "defaultMessage": "What we notice"
+  },
   "fzSGIYfOgO": {
     "defaultMessage": "slide"
   },
@@ -9010,6 +9358,9 @@
   },
   "g++q7Fa3R5": {
     "defaultMessage": "Retrying…"
+  },
+  "g+hqtBNXIJ": {
+    "defaultMessage": "Open project"
   },
   "g/8r2PHmy4": {
     "defaultMessage": "Where/how it shows"
@@ -9061,6 +9412,9 @@
   },
   "gAtWW1Oa92": {
     "defaultMessage": "Intégrez l’intelligence de traduction à votre flux de travail de localisation"
+  },
+  "gCHirWHVff": {
+    "defaultMessage": "Users may encounter noticeable localisation problems."
   },
   "gCJJUH5CEa": {
     "defaultMessage": "Use this for project scope, release, and ownership notes."
@@ -9209,6 +9563,9 @@
   "gq9Z4S47VX": {
     "defaultMessage": "Activé"
   },
+  "gqCGKqkwz/": {
+    "defaultMessage": "View verified domains and attached localisation audit reports."
+  },
   "gr/+9uTU/3": {
     "defaultMessage": "Cet espace de travail est archivé et ne peut plus être ouvert."
   },
@@ -9217,6 +9574,9 @@
   },
   "grODyw1HO9": {
     "defaultMessage": "Chaque marché implique des attentes clients, une langue et des exigences de conformité différentes. Une expansion ne fonctionne que si votre produit reste adapté aux spécificités locales."
+  },
+  "greERnCNu1": {
+    "defaultMessage": "Open project"
   },
   "gso6nAA1gq": {
     "defaultMessage": "Agent Slack désactivé"
@@ -9395,6 +9755,9 @@
   "haASfbpIl3": {
     "defaultMessage": "Synced import"
   },
+  "haSTp/OWTR": {
+    "defaultMessage": "Share this report"
+  },
   "hamQyEil8d": {
     "defaultMessage": "Automatisation des agents"
   },
@@ -9409,6 +9772,9 @@
   },
   "heSbClUFGX": {
     "defaultMessage": "Sélectionnez un projet"
+  },
+  "heyfa1q/+8": {
+    "defaultMessage": "Headline findings"
   },
   "hf0JjIrtpG": {
     "defaultMessage": "All providers"
@@ -9505,6 +9871,12 @@
   },
   "i9ZZoI20Cm": {
     "defaultMessage": "Nom affiché"
+  },
+  "i9vIaD8Yuc": {
+    "defaultMessage": "No findings in this section."
+  },
+  "i9wq9AC2+9": {
+    "defaultMessage": "Revoked"
   },
   "iC/MBnVVSN": {
     "defaultMessage": "Nouvelle demande"
@@ -9629,6 +10001,12 @@
   "igB297V19V": {
     "defaultMessage": "Révision du routage"
   },
+  "igisWP9I+4": {
+    "defaultMessage": "{confidence}% confidence"
+  },
+  "ih/69cODWD": {
+    "defaultMessage": "Sending…"
+  },
   "ihYGlJZXjP": {
     "defaultMessage": "Action GitHub"
   },
@@ -9670,6 +10048,9 @@
   },
   "is1xcsCexC": {
     "defaultMessage": "Need hero copy and pricing updates translated for the Friday campaign launch."
+  },
+  "is2cQ1v97u": {
+    "defaultMessage": "What we saw"
   },
   "isRKrk8w8z": {
     "defaultMessage": "Term deleted"
@@ -9947,8 +10328,14 @@
   "k2mhvldg9T": {
     "defaultMessage": "Maya Chen"
   },
+  "k3MhPbqttd": {
+    "defaultMessage": "Continue verification"
+  },
   "k3TrZpmKkB": {
     "defaultMessage": "Jobs created and tracked in this workspace."
+  },
+  "k5atS7Ij0F": {
+    "defaultMessage": "Usually finishes in 1–3 minutes."
   },
   "k6wO1BhuBw": {
     "defaultMessage": "Vidéo source indisponible"
@@ -9970,6 +10357,9 @@
   },
   "k9uRw1QXC6": {
     "defaultMessage": "Aucun message pour le moment"
+  },
+  "k9uqhd9OgG": {
+    "defaultMessage": "contextual"
   },
   "kA73rJ1hM2": {
     "defaultMessage": "Cancel"
@@ -10139,6 +10529,9 @@
   "ksrwIvV64s": {
     "defaultMessage": "Paramètres de l’espace de travail"
   },
+  "ktH+IvcapS": {
+    "defaultMessage": "Industry"
+  },
   "kupHE+YuT1": {
     "defaultMessage": "No description"
   },
@@ -10295,6 +10688,9 @@
   "lZ8dN9JqyV": {
     "defaultMessage": "Affirmation marketing à forte visibilité — confirmez le ton et le glossaire avant de l’approuver."
   },
+  "lZrVrk7oZs": {
+    "defaultMessage": "Domains verified for this workspace, with linked projects and localisation audit reports."
+  },
   "laNyhZRg9B": {
     "defaultMessage": "View in project files"
   },
@@ -10376,6 +10772,12 @@
   "m4T47CFq5h": {
     "defaultMessage": "Started {date}"
   },
+  "m4T5sYEFR7": {
+    "defaultMessage": "Preparing"
+  },
+  "m4m7Z9SYlx": {
+    "defaultMessage": "Optional. We will send a summary of the report to your inbox when the audit completes."
+  },
   "m56uSee40N": {
     "defaultMessage": "Contribute to assigned jobs, run AI actions, and push draft translations. No approvals or org administration."
   },
@@ -10430,6 +10832,9 @@
   "mKEoYdlq74": {
     "defaultMessage": "Les développeurs fusionnent des modifications de chaînes quotidiennement. La qualité de la localisation dépend de quelqu’un qui se souvient de vérifier avant la mise en production."
   },
+  "mKyo1eMyN6": {
+    "defaultMessage": "Fix first"
+  },
   "mL4jmlzo/F": {
     "defaultMessage": "Choose which project should receive the imported Issue Sheet rows."
   },
@@ -10459,6 +10864,9 @@
   },
   "mRvhPlspGD": {
     "defaultMessage": "Quand ai-je besoin de l’offre Enterprise ?"
+  },
+  "mS/hL9d9Ru": {
+    "defaultMessage": "Solid baseline with room to improve. Create a workspace for continuous locale monitoring, or book an audit review."
   },
   "mSR1oODTzi": {
     "defaultMessage": "Zoom arrière"
@@ -10529,6 +10937,9 @@
   "mmfrG6qsJL": {
     "defaultMessage": "Assign to project"
   },
+  "mnZVrr1EzK": {
+    "defaultMessage": "How to fix it"
+  },
   "mnlYeyj08E": {
     "defaultMessage": "Tourmatic"
   },
@@ -10537,6 +10948,9 @@
   },
   "mqqP30mDIQ": {
     "defaultMessage": "Localisation du centre d’aide"
+  },
+  "mrmSpANeux": {
+    "defaultMessage": "Discovery"
   },
   "mrsptKTM1v": {
     "defaultMessage": "Décrivez ce dont vous avez besoin en matière de traduction, de recherche ou de révision, et Hyperlocalise préparera le travail."
@@ -10589,6 +11003,9 @@
   "n2pk6Y4oGA": {
     "defaultMessage": "Si la dernière revue a appris quelque chose à l’équipe, le prochain flux de travail devrait le savoir."
   },
+  "n3G74L1ESt": {
+    "defaultMessage": "This audit looks stuck"
+  },
   "n3a+6mF2IX": {
     "defaultMessage": "Recherche en cours"
   },
@@ -10598,11 +11015,17 @@
   "n8LjMOVBA2": {
     "defaultMessage": "In progress"
   },
+  "n9PAvhdA7/": {
+    "defaultMessage": "Open in workspace"
+  },
   "nA1Lv0wxJn": {
     "defaultMessage": "Surveiller la couverture linguistique de tous les types de contenu"
   },
   "nBWhU6jbvc": {
     "defaultMessage": "Modèle"
+  },
+  "nCmj3mv2tP": {
+    "defaultMessage": "We've reached today's limit of {limit} visitor audits. Try again tomorrow."
   },
   "nDPeOs1MH9": {
     "defaultMessage": "Paramètres de {displayName} enregistrés"
@@ -10723,6 +11146,9 @@
   },
   "ng9pGPnTZ/": {
     "defaultMessage": "Colonnes des problèmes"
+  },
+  "nglFeiQ7o8": {
+    "defaultMessage": "The localised experience has major problems that should be addressed."
   },
   "nkAooS6hll": {
     "defaultMessage": "Sort"
@@ -10952,6 +11378,9 @@
   "p/PBwViDjv": {
     "defaultMessage": "Team updated"
   },
+  "p/RwNTcexb": {
+    "defaultMessage": "Brand voice"
+  },
   "p/sianUEpZ": {
     "defaultMessage": "Translation memories"
   },
@@ -10993,6 +11422,9 @@
   },
   "pCwlsos9AL": {
     "defaultMessage": "Choisissez un jour de la semaine pour les plannings hebdomadaires."
+  },
+  "pDMtFvmk4c": {
+    "defaultMessage": "Analyzing"
   },
   "pEbaKtKcj3": {
     "defaultMessage": "Personnalisé"
@@ -11147,6 +11579,9 @@
   "puXgWXUT2y": {
     "defaultMessage": "Deleting…"
   },
+  "pw9PHi/ZLr": {
+    "defaultMessage": "Hide not applicable"
+  },
   "pwC137Rvv4": {
     "defaultMessage": "—"
   },
@@ -11179,6 +11614,9 @@
   },
   "q3g6c65hVD": {
     "defaultMessage": "Uploading…"
+  },
+  "q4MSNg1UjH": {
+    "defaultMessage": "Strong localisation signals. Create a workspace to keep locales healthy as you ship, or book a deeper review."
   },
   "q4SZlpG/03": {
     "defaultMessage": "Purpose"
@@ -11243,6 +11681,9 @@
   "qHxiBnE/J7": {
     "defaultMessage": "Ask about strings, context, progress, or translations"
   },
+  "qIu/YA1mT+": {
+    "defaultMessage": "Link copied"
+  },
   "qJTopaPNOi": {
     "defaultMessage": "Unable to delete entry"
   },
@@ -11269,6 +11710,9 @@
   },
   "qSJAyVlIfJ": {
     "defaultMessage": "Ahrefs connection deleted."
+  },
+  "qSi5mzrfOt": {
+    "defaultMessage": "Retry audit"
   },
   "qU7FzWhWvd": {
     "defaultMessage": "Description"
@@ -11341,6 +11785,9 @@
   },
   "qlu/Ts2pCg": {
     "defaultMessage": "Ask, search, or make anything…"
+  },
+  "qoKQfRLzE9": {
+    "defaultMessage": "Sampling public pages and locale roots."
   },
   "qoKaksFa9x": {
     "defaultMessage": "Open jobs"
@@ -11498,6 +11945,9 @@
   "rcdU5+Pv4r": {
     "defaultMessage": "Utilisez la mémoire de connaissances de l’organisation comme guide pour cette automatisation."
   },
+  "re+MJ8bLl3": {
+    "defaultMessage": "Optional. Enter your work email and we will send a concise summary of this public report."
+  },
   "ree/WWv9H5": {
     "defaultMessage": "Préparez votre espace de travail"
   },
@@ -11620,6 +12070,9 @@
   },
   "sGkYArMEbA": {
     "defaultMessage": "Teams"
+  },
+  "sHQ6RKFJ37": {
+    "defaultMessage": "Domains"
   },
   "sHrPdefvvp": {
     "defaultMessage": "Rechercher des microphones..."
@@ -11786,6 +12239,9 @@
   "t9u0C/3PvD": {
     "defaultMessage": "Réservez une démo. Nous confirmerons votre éligibilité et vous présenterons le tarif startup, avec 80 % de réduction sur Growth."
   },
+  "tBmWE9rsb2": {
+    "defaultMessage": "Could not start the audit. Check the URL and try again."
+  },
   "tCUf/LZUI9": {
     "defaultMessage": "Transformez les demandes Slack et les tableaux Canva en travaux de localisation cadrés, avec le contexte joint dès le départ."
   },
@@ -11807,6 +12263,9 @@
   "tHTaRJpN/S": {
     "defaultMessage": "Write drafts"
   },
+  "tIYDgjN4kT": {
+    "defaultMessage": "Enter a URL. We'll read a few public pages and tell you how the site feels in other languages."
+  },
   "tJ4ESqRDu1": {
     "defaultMessage": "Reconnectez-vous pour gérer la facturation."
   },
@@ -11821,6 +12280,9 @@
   },
   "tMPM8tkhJg": {
     "defaultMessage": "Compte"
+  },
+  "tP1cicvIzZ": {
+    "defaultMessage": "Linguistic notes"
   },
   "tQNKmwbVHc": {
     "defaultMessage": "Reconnectez-vous avec une autre application OAuth"
@@ -11924,6 +12386,9 @@
   "tsN6wGlUZC": {
     "defaultMessage": "La structure ICU cible doit correspondre à {tokens} de la chaîne source."
   },
+  "tsmydNZ+N6": {
+    "defaultMessage": "Found here"
+  },
   "tuH9VcQWRE": {
     "defaultMessage": "Failed to load jobs"
   },
@@ -12005,6 +12470,9 @@
   "uNxjflTYdv": {
     "defaultMessage": "Keep editing"
   },
+  "uP6J0sc7cw": {
+    "defaultMessage": "Show not applicable"
+  },
   "uPLvPG1gYg": {
     "defaultMessage": "Copié !"
   },
@@ -12049,6 +12517,9 @@
   },
   "uZ8yLsRfe5": {
     "defaultMessage": "{localePair} · Updated {timestamp}"
+  },
+  "uZHj88pUeq": {
+    "defaultMessage": "Back to domains"
   },
   "uZYZ3PYM7b": {
     "defaultMessage": "Canva · Tableau de campagne de printemps (6 cadres)"
@@ -12119,6 +12590,9 @@
   "uqGZNAVfVF": {
     "defaultMessage": "Add"
   },
+  "uqqnJ1ACdX": {
+    "defaultMessage": "linguistic"
+  },
   "usZU30knmw": {
     "defaultMessage": "Cadence"
   },
@@ -12179,6 +12653,9 @@
   "v2pt3KFC6s": {
     "defaultMessage": "Translation guidance"
   },
+  "v32CGJfAAS": {
+    "defaultMessage": "Linguistic Audit"
+  },
   "v4h0afylvD": {
     "defaultMessage": "Choose source file"
   },
@@ -12215,6 +12692,9 @@
   "vGGfZ3wAHV": {
     "defaultMessage": "Loading projects"
   },
+  "vGQC+xjlop": {
+    "defaultMessage": "How we score localisation audits"
+  },
   "vGwY2igpU6": {
     "defaultMessage": "Title"
   },
@@ -12235,6 +12715,9 @@
   },
   "vKq2ly7dxU": {
     "defaultMessage": "New request"
+  },
+  "vLOvG+Aj8h": {
+    "defaultMessage": "Scores and full reports are public. Optionally email yourself a summary."
   },
   "vLTwfBOTEg": {
     "defaultMessage": "URL de rappel OAuth"
@@ -12259,6 +12742,9 @@
   },
   "vUMdCurROo": {
     "defaultMessage": "Échec"
+  },
+  "vUbkXURPep": {
+    "defaultMessage": "Visual Audit"
   },
   "vUbrtmWuOu": {
     "defaultMessage": "Create a team to group workspace members and scope project access. Invite people on the <members>Members</members> page first if your workspace is still empty."
@@ -12635,8 +13121,14 @@
   "x6PqOisw0g": {
     "defaultMessage": "Mémoires de traduction"
   },
+  "x7NBkHXEme": {
+    "defaultMessage": "Email me a summary"
+  },
   "x7Zo60FQJD": {
     "defaultMessage": "Sélectionner"
+  },
+  "x7lBWitDFc": {
+    "defaultMessage": "Could not re-run the audit."
   },
   "x86tb6Gc1r": {
     "defaultMessage": "Ouvrir dans Claude"
@@ -12716,11 +13208,17 @@
   "xTMvZyc/zN": {
     "defaultMessage": "Aucun problème correspondant."
   },
+  "xTNiGIIXkt": {
+    "defaultMessage": "Email me a summary when ready"
+  },
   "xTYiHfPy3g": {
     "defaultMessage": "Workspace"
   },
   "xTpbtPORei": {
     "defaultMessage": "Link this Crowdin project"
+  },
+  "xUdbOFsZxg": {
+    "defaultMessage": "Book an audit review"
   },
   "xVvlWpH5FH": {
     "defaultMessage": "Régénérer"
@@ -13048,6 +13546,9 @@
   },
   "z/ihJvUUcu": {
     "defaultMessage": "Les responsables de la localisation coordonnent les outils TMS, les fournisseurs de modèles, les prestataires et l’ingénierie, sans vue unifiée de ce qui est en cours."
+  },
+  "z0l+gEjl9l": {
+    "defaultMessage": "Not applicable ({count})"
   },
   "z0uvvDTD9z": {
     "defaultMessage": "Prévisualiser et localiser cette URL comme une vidéo"

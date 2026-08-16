@@ -55,6 +55,10 @@
     "defaultMessage": "Paused",
     "description": "Badge label when an automation is paused"
   },
+  "+6k/AAnIp9": {
+    "defaultMessage": "See how your brand travels.",
+    "description": "Primary headline on the public localisation audit landing page"
+  },
   "+6nLERHfAh": {
     "defaultMessage": "Failed to save Ahrefs connection.",
     "description": "Error when Ahrefs connection save fails"
@@ -98,6 +102,10 @@
   "+Gpj/X++wo": {
     "defaultMessage": "Running…",
     "description": "Button label while QA checks are running"
+  },
+  "+HGkRuvHRM": {
+    "defaultMessage": "Audit progress",
+    "description": "Accessible label for the localisation audit progress tracker"
   },
   "+HZaUMLm0i": {
     "defaultMessage": "Save changes",
@@ -239,6 +247,10 @@
     "defaultMessage": "review",
     "description": "Job kind label for review jobs"
   },
+  "/+gVj3qXhZ": {
+    "defaultMessage": "How other sites score",
+    "description": "Heading for the public localisation audit leaderboard"
+  },
   "/+sp7OInTO": {
     "defaultMessage": "Failed to load project members",
     "description": "Fallback error when Crowdin project members fail to load"
@@ -318,6 +330,10 @@
   "/HYQsZiVvN": {
     "defaultMessage": "Plan usage",
     "description": "Plan usage card title on billing settings"
+  },
+  "/IhENYYsH/": {
+    "defaultMessage": "Copy report link",
+    "description": "Button to copy a public localisation audit report link"
   },
   "/J5AwJIXis": {
     "defaultMessage": "Adapt copy for regional nuance",
@@ -562,6 +578,10 @@
   "0DwOCagj+y": {
     "defaultMessage": "Locale adaptation",
     "description": "Workflow step 3 label for the marketing-localisation use case"
+  },
+  "0Fkv13W/rO": {
+    "defaultMessage": "Excellent",
+    "description": "Rating label for an excellent localisation audit score"
   },
   "0G0Gi8OsmJ": {
     "defaultMessage": "No previewable strings in this file yet.",
@@ -1083,6 +1103,10 @@
     "defaultMessage": "Select a project",
     "description": "Validation error when creating an issue without a selected project"
   },
+  "20wJJveUDM": {
+    "defaultMessage": "Next step",
+    "description": "Heading for the next-step CTA section on a localisation audit result"
+  },
   "21hoHKkPQz": {
     "defaultMessage": "Toast",
     "description": "Segment context label for toast strings in the CAT mock"
@@ -1098,6 +1122,10 @@
   "24tcVtmHO9": {
     "defaultMessage": "No localized video yet",
     "description": "Empty state when the CAT target video has not been created"
+  },
+  "26uyfoaW4I": {
+    "defaultMessage": "French, German",
+    "description": "Placeholder for optional focus languages on the localisation audit form"
   },
   "27Ij3QBoyk": {
     "defaultMessage": "Add photos and files",
@@ -1139,6 +1167,10 @@
     "defaultMessage": "Italic",
     "description": "Tooltip and accessible label for the italic formatting toolbar button"
   },
+  "2E7H5Qc2gc": {
+    "defaultMessage": "Significant localisation gaps are affecting the experience.",
+    "description": "Score interpretation for a poor localisation audit"
+  },
   "2Gq43ufxii": {
     "defaultMessage": "Norwegian Bokmål (Norway)",
     "description": "Display name for BCP-47 locale nb-NO"
@@ -1166,6 +1198,10 @@
   "2L6MEhuN0z": {
     "defaultMessage": "Available plans",
     "description": "Available plans card title on billing settings"
+  },
+  "2Ma/LzB+bC": {
+    "defaultMessage": "Product",
+    "description": "Label for the company product summary on a localisation audit result"
   },
   "2N/8jZzb94": {
     "defaultMessage": "Phrase",
@@ -1330,6 +1366,10 @@
   "2ynzQ185js": {
     "defaultMessage": "Email",
     "description": "Label for the readonly user email field on account settings"
+  },
+  "2z7JtO63bq": {
+    "defaultMessage": "Work email",
+    "description": "Label for the work email field on a localisation audit result"
   },
   "2zhZzc+gaw": {
     "defaultMessage": "Required OAuth scopes",
@@ -1523,6 +1563,10 @@
     "defaultMessage": "Team members",
     "description": "Accessible label for the team members section"
   },
+  "3ji5Nvlz3D": {
+    "defaultMessage": "The website is generally well localised, with some issues to improve.",
+    "description": "Score interpretation for a good localisation audit"
+  },
   "3jvYXfkLHR": {
     "defaultMessage": "Cancel",
     "description": "Cancel adding MCP server connection"
@@ -1566,6 +1610,10 @@
   "3rELHi7DJJ": {
     "defaultMessage": "Actions",
     "description": "Screen-reader label for the teams table actions column"
+  },
+  "3sSVTCWzgg": {
+    "defaultMessage": "Languages to look at (optional)",
+    "description": "Label for optional focus languages on the localisation audit form"
   },
   "3tBZU7JUcu": {
     "defaultMessage": "Member",
@@ -1646,6 +1694,10 @@
   "45uXWs1VTb": {
     "defaultMessage": "Target locales",
     "description": "Label for the target locales picker"
+  },
+  "46WEusZVEg": {
+    "defaultMessage": "Contextual Audit",
+    "description": "Label for the contextual dimension on a localisation audit result"
   },
   "477uPaXfz1": {
     "defaultMessage": "Block on failure",
@@ -1779,6 +1831,10 @@
     "defaultMessage": "Evaluate Hyperlocalise with a single-seat workspace.",
     "description": "Free plan description on the pricing page"
   },
+  "4XzQKxM2MY": {
+    "defaultMessage": "No public scores yet. Be the first.",
+    "description": "Empty state for the public localisation audit leaderboard"
+  },
   "4aYY8lTBYg": {
     "defaultMessage": "Translation work starts too late in the release cycle, so locales block launches or ship with gaps.",
     "description": "Problem pain point 3 for the product-localisation use case"
@@ -1859,6 +1915,10 @@
     "defaultMessage": "Projects failed to load.",
     "description": "Error title when the projects list fails to load"
   },
+  "4yCkDpHN88": {
+    "defaultMessage": "https://your-site.com",
+    "description": "Placeholder for the website URL field on the localisation audit form"
+  },
   "4zEqWvETM+": {
     "defaultMessage": "Locale: {value}",
     "description": "Active issue filter chip showing the selected locale"
@@ -1930,6 +1990,10 @@
   "5H2Xr7AzgM": {
     "defaultMessage": "Website preview canvas",
     "description": "Aria label for the visual editor live preview region"
+  },
+  "5JYazrmkXn": {
+    "defaultMessage": "This report is public. Share it with your team or post it to start a comparison.",
+    "description": "Body for sharing a public localisation audit report"
   },
   "5KdZWVlAAs": {
     "defaultMessage": "Last delivery: {timestamp}",
@@ -2022,6 +2086,10 @@
   "5dpVYaBmRK": {
     "defaultMessage": "Total cost",
     "description": "Label for total token usage cost in the context hover card footer"
+  },
+  "5eDm4m1RNJ": {
+    "defaultMessage": "We will email you a summary when this audit finishes.",
+    "description": "Success message after requesting a running-audit email notification"
   },
   "5eoi21fmqC": {
     "defaultMessage": "Copy",
@@ -2227,9 +2295,21 @@
     "defaultMessage": "GitHub push",
     "description": "Label for the GitHub push trigger"
   },
+  "6YovIP6EMt": {
+    "defaultMessage": "Full findings",
+    "description": "Heading for the full findings list on a localisation audit result"
+  },
   "6ZyNhsk6BY": {
     "defaultMessage": "Hyperlocalise helps teams launch product content globally with market nuance, translation, and first-class human review.",
     "description": "Supporting copy under the company page headline"
+  },
+  "6c1dq311jJ": {
+    "defaultMessage": "You can re-run this audit once a day. Next run {when}.",
+    "description": "Cooldown note when a localisation audit cannot be re-run yet"
+  },
+  "6d57osIkxk": {
+    "defaultMessage": "N/A",
+    "description": "Status badge for a not-applicable localisation audit criterion"
   },
   "6euABf86mn": {
     "defaultMessage": "No target locale is available for this task file.",
@@ -2247,6 +2327,10 @@
     "defaultMessage": "Options (comma-separated)",
     "description": "Options field for a select issue column"
   },
+  "6ftVCF2cNF": {
+    "defaultMessage": "Localisation report",
+    "description": "Eyebrow above a public localisation audit company report"
+  },
   "6g9RHsjL+m": {
     "defaultMessage": "Reduce review churn",
     "description": "Proof point 3 title for the self-evolving knowledge product page"
@@ -2262,6 +2346,10 @@
   "6ilKS2sOmJ": {
     "defaultMessage": "Failed to fetch Contentful connections",
     "description": "Error when the Contentful connections list fails to load"
+  },
+  "6jGL8gGwLP": {
+    "defaultMessage": "Good",
+    "description": "Rating label for a good localisation audit score"
   },
   "6k5g5rQjwO": {
     "defaultMessage": "Translation progress",
@@ -2363,6 +2451,10 @@
     "defaultMessage": "Request early access to Hyperlocalise.",
     "description": "CTA section description for the marketing-localisation use case"
   },
+  "731nFVbbU3": {
+    "defaultMessage": "Do pages still feel considered — layout, images, and all?",
+    "description": "Body of the presence methodology card on the localisation audit landing page"
+  },
   "73DwGFhZM/": {
     "defaultMessage": "1 project",
     "description": "Free plan feature: project limit"
@@ -2418,6 +2510,10 @@
   "7BA/WdUPFq": {
     "defaultMessage": "GitHub App integration is not configured for this environment.",
     "description": "GitHub connect error when GitHub App credentials are not configured"
+  },
+  "7CPu6D68D+": {
+    "defaultMessage": "Localisation score",
+    "description": "Label above the overall localisation audit score"
   },
   "7EM7rmfbAT": {
     "defaultMessage": "Placeholder",
@@ -2579,6 +2675,10 @@
     "defaultMessage": "Target translation",
     "description": "Accessible label for the CAT target translation editor"
   },
+  "7r56c37km5": {
+    "defaultMessage": "Running localisation audit",
+    "description": "Title shown while a public localisation audit is in progress"
+  },
   "7rANseAJ23": {
     "defaultMessage": "Save to provider",
     "description": "Primary CAT action label when saving translations back to a TMS provider"
@@ -2654,6 +2754,10 @@
   "87mk4HgY5S": {
     "defaultMessage": "Automations",
     "description": "Sidebar navigation item for workspace automations"
+  },
+  "88Bc6aFgMg": {
+    "defaultMessage": "Crawling",
+    "description": "Progress step label when a localisation audit is crawling pages"
   },
   "88gAEWUFj7": {
     "defaultMessage": "Bullet list",
@@ -3007,6 +3111,10 @@
     "defaultMessage": "Issue could not be linked.",
     "description": "Toast when linking an existing issue fails"
   },
+  "9GZfIBGhFw": {
+    "defaultMessage": "Critical gaps showed up. Create a workspace to run a deeper registered audit, or book a review with our team.",
+    "description": "Next-step body for a low localisation audit score"
+  },
   "9GZvF1K90w": {
     "defaultMessage": "View files",
     "description": "Button linking to the project files page"
@@ -3219,6 +3327,10 @@
     "defaultMessage": "Automate repetitive tasks with always-on workflows that respond to schedules and GitHub pushes.",
     "description": "Automations page description under the heading"
   },
+  "9yTBmhhxTz": {
+    "defaultMessage": "technical",
+    "description": "Short dimension label for a technical localisation audit criterion"
+  },
   "9yja2gkowg": {
     "defaultMessage": "English (United States)",
     "description": "Display name for BCP-47 locale en-US"
@@ -3287,6 +3399,10 @@
     "defaultMessage": "Unknown locale",
     "description": "Group label when a QA finding has no locale"
   },
+  "A7ZIFME2xj": {
+    "defaultMessage": "Confidence",
+    "description": "Label for the confidence note on a localisation audit result"
+  },
   "A7gp0wsRN6": {
     "defaultMessage": "Format",
     "description": "Filter option for format warnings"
@@ -3339,6 +3455,10 @@
     "defaultMessage": "Change language",
     "description": "Accessible label and tooltip for the app language toggle button"
   },
+  "AJbIBJ8rQ5": {
+    "defaultMessage": "Needs attention ({count})",
+    "description": "Heading for failed localisation audit criteria"
+  },
   "AK+FWYZO89": {
     "defaultMessage": "MCP server connection saved.",
     "description": "Toast when MCP server connection is saved"
@@ -3378,6 +3498,10 @@
   "AXYd5YvGYL": {
     "defaultMessage": "Tourfinder",
     "description": "Alt text for the Tourfinder logo in the case study section"
+  },
+  "AZ/tuZUJoO": {
+    "defaultMessage": "Technical Audit",
+    "description": "Label for the technical dimension on a localisation audit result"
   },
   "Aa0lbVkG8M": {
     "defaultMessage": "Connect {provider}",
@@ -3487,6 +3611,10 @@
     "defaultMessage": "file",
     "description": "Fallback label when a provider task file has no format metadata"
   },
+  "BBEyVbRR3L": {
+    "defaultMessage": "Could not request the report email.",
+    "description": "Error shown when requesting a localisation audit summary email fails"
+  },
   "BBge+5Sj1e": {
     "defaultMessage": "$0",
     "description": "Free plan price on the pricing page"
@@ -3554,6 +3682,10 @@
   "BQ2Um1RaCK": {
     "defaultMessage": "Use approved medical terminology and regulatory glossary as guidance.",
     "description": "Knowledge memories tool description in the marketing automation editor mock"
+  },
+  "BQRFXv8ABR": {
+    "defaultMessage": "Show passed audits",
+    "description": "Control to expand passed localisation audit criteria"
   },
   "BUGP6fk/PM": {
     "defaultMessage": "In review",
@@ -3787,6 +3919,10 @@
     "defaultMessage": "Apply glossary, tone, and UI constraints before review",
     "description": "Capability 3 title for the product-localisation use case"
   },
+  "CBECdPWm0s": {
+    "defaultMessage": "Retrying…",
+    "description": "Button label while retrying a localisation audit"
+  },
   "CDHpNJeAfK": {
     "defaultMessage": "All caught up",
     "description": "Overview hero badge when there are no pending actions"
@@ -3918,6 +4054,10 @@
   "ChA2eL6U9Z": {
     "defaultMessage": "Localisation updates the product glossary after a rebrand. Hyperlocalise scans product strings, marketing landing pages, and help center articles for terminology that no longer matches, runs regression evals against approved baselines, routes flagged strings to reviewers, blocks TMS sync for locales that fail the threshold, and continues monitoring published content for drift over the following two weeks.",
     "description": "Scenario narrative for the localisation-quality-monitoring use case"
+  },
+  "Chmxs2/LX8": {
+    "defaultMessage": "Sampling pages and checking technical and linguistic signals. Safe to leave this tab — progress is saved.",
+    "description": "Body shown while a public localisation audit is in progress"
   },
   "CiJvOvyPyH": {
     "defaultMessage": "Add a first-party terminology library. You can import and edit terms after creation.",
@@ -4275,6 +4415,10 @@
     "defaultMessage": "Coming soon",
     "description": "Disabled CTA label on Free, Starter, and Growth pricing cards"
   },
+  "DwkdN4lm3s": {
+    "defaultMessage": "Critical",
+    "description": "Rating label for a critical localisation audit score"
+  },
   "Dwu72TwwL/": {
     "defaultMessage": "Loading jobs…",
     "description": "Loading state while the jobs list is fetching"
@@ -4555,6 +4699,10 @@
     "defaultMessage": "{hours}h",
     "description": "Relative age of an automation created less than a day ago"
   },
+  "F0U2CC+DdD": {
+    "defaultMessage": "Top {percentile}% of audited domains",
+    "description": "Percentile line on a localisation audit result standing section"
+  },
   "F1KUlqpyf6": {
     "defaultMessage": "Error",
     "description": "Tool status badge when the tool returned an error"
@@ -4647,6 +4795,10 @@
     "defaultMessage": "Jobs failed to load.",
     "description": "Error title when the jobs list request fails"
   },
+  "FJYljr7sSS": {
+    "defaultMessage": "visual",
+    "description": "Short dimension label for a visual localisation audit criterion"
+  },
   "FKwIhQa4ff": {
     "defaultMessage": "Quality issues surface after launch, not before",
     "description": "Problem section title for the localisation-quality-monitoring use case"
@@ -4694,6 +4846,10 @@
   "FVAIUC0HI7": {
     "defaultMessage": "Context needed: {key}",
     "description": "Issue sheet title when requesting context for a CAT segment key"
+  },
+  "FVIz6ikiua": {
+    "defaultMessage": "Voice",
+    "description": "Title of the voice methodology card on the localisation audit landing page"
   },
   "FVe674aA/n": {
     "defaultMessage": "Heidi Health",
@@ -4863,6 +5019,10 @@
     "defaultMessage": "Get meaning, where it appears in the product, and how to translate it.",
     "description": "AI feature capability body: ask about strings"
   },
+  "GLCtWIg6Sl": {
+    "defaultMessage": "Claim this domain",
+    "description": "CTA to claim a domain from a public localisation audit result"
+  },
   "GM92+KcSLv": {
     "defaultMessage": "Email agent settings unavailable",
     "description": "Placeholder when email agent settings failed to load"
@@ -4922,6 +5082,10 @@
   "Ga0sjgCRoD": {
     "defaultMessage": "Click to localize image",
     "description": "Placeholder when a side-by-side image row has no localized image yet"
+  },
+  "GausSgRE+l": {
+    "defaultMessage": "Combining credits into the four module scores.",
+    "description": "Detail text when a localisation audit is scoring"
   },
   "GautEjzI3s": {
     "defaultMessage": "Translating en/pricing.json for 38 locales",
@@ -5142,6 +5306,10 @@
   "HJp07FJaQu": {
     "defaultMessage": "Failed to load file details",
     "description": "Fallback API error when project file details fail to load"
+  },
+  "HK97A4xbg9": {
+    "defaultMessage": "Notify me",
+    "description": "Submit button for the notify-me form on a running localisation audit"
   },
   "HKYPjt1anz": {
     "defaultMessage": "Route to reviewers in your TMS workflow",
@@ -5463,6 +5631,10 @@
     "defaultMessage": "LLM agnostic",
     "description": "Differentiator point 2 for the help-center-localisation use case"
   },
+  "IoY6mjCVOS": {
+    "defaultMessage": "{passed} passed · {failed} to fix · {na} not applicable",
+    "description": "Summary counts above localisation audit criteria groups"
+  },
   "IqLI+2o8dz": {
     "defaultMessage": "Backed by",
     "description": "Heading above investor logos on the company page"
@@ -5494,6 +5666,10 @@
   "IvJJwlEgW1": {
     "defaultMessage": "{title} could not be loaded.",
     "description": "Generic error when a dashboard panel fails to load"
+  },
+  "IwWn3c1LU2": {
+    "defaultMessage": "Queued",
+    "description": "Progress step label when a localisation audit is queued"
   },
   "Ix3K4U4BqM": {
     "defaultMessage": "Find answers.",
@@ -5614,6 +5790,10 @@
   "JSKKU7Lpex": {
     "defaultMessage": "Translator",
     "description": "Organization membership role label for translators"
+  },
+  "JSylA1G/ba": {
+    "defaultMessage": "Public scores, side by side. Check yours to see where you stand.",
+    "description": "Supporting copy for the public localisation audit leaderboard"
   },
   "JUWqOD5PWj": {
     "defaultMessage": "Enable this repository to configure translation automation.",
@@ -5759,6 +5939,10 @@
     "defaultMessage": "{minutes} min",
     "description": "Time spent on a comment when under one hour"
   },
+  "K3Hic0nQfc": {
+    "defaultMessage": "No progress for a while. You can safely retry — we will reclaim the stalled run and start a fresh attempt.",
+    "description": "Body when a public localisation audit appears stalled"
+  },
   "K3dTcxv8UP": {
     "defaultMessage": "This role can inspect strings but cannot write translations back.",
     "description": "Reviewer preference note when the user cannot edit translations"
@@ -5822,6 +6006,10 @@
   "KQDlfibJWf": {
     "defaultMessage": "Add workspace members to start scoping projects and jobs to this team.",
     "description": "Empty state description when a team has no members"
+  },
+  "KQZH+TKXlh": {
+    "defaultMessage": "Public average: {average}/100",
+    "description": "Average-score line on a localisation audit result standing section"
   },
   "KRRKR3H/tH": {
     "defaultMessage": "Close",
@@ -5887,6 +6075,10 @@
     "defaultMessage": "Queued",
     "description": "Automation run status badge for queued runs"
   },
+  "KigHdi8k7w": {
+    "defaultMessage": "We'll look more closely at up to two.",
+    "description": "Hint under the optional focus languages field on the localisation audit form"
+  },
   "KjJZbmRFki": {
     "defaultMessage": "Unable to load project details. Refresh the page or try again in a moment.",
     "description": "Error message when project overview details fail to load"
@@ -5894,6 +6086,10 @@
   "Kjim0yzISM": {
     "defaultMessage": "Search segments by key, source text, or translation",
     "description": "Accessible label for CAT queue search input"
+  },
+  "KjvUYZIXbF": {
+    "defaultMessage": "Rank #{rank} of {total} public audits",
+    "description": "Rank line on a localisation audit result standing section"
   },
   "KkmE6ygIj4": {
     "defaultMessage": "Task type",
@@ -6059,6 +6255,10 @@
     "defaultMessage": "This glossary is used only by the projects listed here.",
     "description": "Section description for projects assigned to a glossary"
   },
+  "LMJfi53KSl": {
+    "defaultMessage": "Checking the domain and opening a safe crawl.",
+    "description": "Detail text when a localisation audit is preparing"
+  },
   "LNnC/DWQXp": {
     "defaultMessage": "What is wrong with it",
     "description": "Description skeleton heading for the source mistake issue template"
@@ -6098,6 +6298,10 @@
   "LZCFkSSHP6": {
     "defaultMessage": "Source ({locale})",
     "description": "Heading for the source file pane in CAT File view"
+  },
+  "Ldkvycssco": {
+    "defaultMessage": "We only read public pages. We never sign in or fill in forms.",
+    "description": "Scope note on the localisation audit landing page"
   },
   "LeSdkdB/lW": {
     "defaultMessage": "Previous slide",
@@ -6259,6 +6463,10 @@
     "defaultMessage": "Operations report",
     "description": "Workflow step 6 label for the localisation-operations use case"
   },
+  "MHGSRfE0a7": {
+    "defaultMessage": "Audit failed",
+    "description": "Title when a public localisation audit fails"
+  },
   "MHiaxGXuxI": {
     "defaultMessage": "Button label · Must stay compact on mobile",
     "description": "Constraints for the CTA segment in the hero CAT mock"
@@ -6291,6 +6499,10 @@
     "defaultMessage": "Browse live {providerName} projects and manage Hyperlocalise workspace projects.",
     "description": "Projects page description when a TMS provider is connected"
   },
+  "MPNpD0t4eB": {
+    "defaultMessage": "Re-run audit",
+    "description": "Button to re-run a completed localisation audit"
+  },
   "MQK2DQjTRa": {
     "defaultMessage": "Create: {label}",
     "description": "Mapping option to create a new Issue Sheet column from a CSV header"
@@ -6322,6 +6534,10 @@
   "MZotM1J5qc": {
     "defaultMessage": "{enabledCount} of {totalCount} repositories enabled.",
     "description": "Summary of enabled vs total GitHub repositories"
+  },
+  "MasHu7akaE": {
+    "defaultMessage": "Pages sampled",
+    "description": "Heading for sampled pages on a localisation audit result"
   },
   "Mb+6tFSPF+": {
     "defaultMessage": "Load more",
@@ -6362,6 +6578,10 @@
   "MjW+xFl6ux": {
     "defaultMessage": "Turn new and updated help articles into reviewed translations, sync them to your CMS, and monitor freshness so customers never read stale guidance.",
     "description": "Hero subheadline for the help-center-localisation use case"
+  },
+  "MlXu9cA5kU": {
+    "defaultMessage": "A typical note",
+    "description": "Eyebrow above the sample finding on the localisation audit landing page"
   },
   "MlaMWBdPiE": {
     "defaultMessage": "Set locale",
@@ -6454,6 +6674,10 @@
   "N7Y/6FnTVv": {
     "defaultMessage": "Remove List issues tool",
     "description": "Accessible label to remove the List issues tool"
+  },
+  "N8ghyZ/Xzt": {
+    "defaultMessage": "Checking technical, linguistic, contextual, and visual signals.",
+    "description": "Detail text when a localisation audit is analyzing"
   },
   "N9BYBbfFW0": {
     "defaultMessage": "Succeeded",
@@ -6743,6 +6967,10 @@
     "defaultMessage": "Keep the decision",
     "description": "Proof point 1 title for the self-evolving knowledge product page"
   },
+  "OJQchlMSC5": {
+    "defaultMessage": "Detected locales",
+    "description": "Heading for detected locales on a localisation audit result"
+  },
   "OJm01EvxZW": {
     "defaultMessage": "Failed to create Crowdin jobs",
     "description": "Fallback error when Crowdin job creation fails without a server message"
@@ -6983,6 +7211,10 @@
     "defaultMessage": "Cancel",
     "description": "Cancel button in the workspace issues import project picker"
   },
+  "PHgeGQnTFw": {
+    "defaultMessage": "Looking now…",
+    "description": "Submit button label while the localisation audit is starting"
+  },
   "PIElwfqIXr": {
     "defaultMessage": "Show",
     "description": "Accessibility label to show a hidden issue column"
@@ -7039,6 +7271,10 @@
     "defaultMessage": "{actor} changed status of {issueTitle}",
     "description": "Inbox notification preview for an issue status change"
   },
+  "PX+2a63Sck": {
+    "defaultMessage": "One free look per site. {limit} a day across all sites.",
+    "description": "Rate-limit note under the localisation audit landing form"
+  },
   "PXc6nRCKjm": {
     "defaultMessage": "Prefer market-specific idioms for onboarding CTAs, but keep product terms literal.",
     "description": "Knowledge product visual decision panel example text"
@@ -7054,6 +7290,10 @@
   "PYB6jMwARG": {
     "defaultMessage": "#{name} (private)",
     "description": "Slack channel option label for a private channel"
+  },
+  "PYVkjgnEZG": {
+    "defaultMessage": "Check your inbox for a summary of this report.",
+    "description": "Success message after requesting a completed-audit summary email"
   },
   "PZP/M3m1NM": {
     "defaultMessage": "My jobs",
@@ -7214,6 +7454,10 @@
   "QAVlGw1a6j": {
     "defaultMessage": "Source",
     "description": "Label for the glossary source filter"
+  },
+  "QAZYQBBFd9": {
+    "defaultMessage": "Re-running…",
+    "description": "Button label while re-running a localisation audit"
   },
   "QC53J43wn0": {
     "defaultMessage": "Coming soon",
@@ -7527,6 +7771,10 @@
     "defaultMessage": "Who should choose Starter vs Growth?",
     "description": "Pricing FAQ question comparing Starter and Growth"
   },
+  "RQHyujQ0I4": {
+    "defaultMessage": "Sampled {count} pages across technical, linguistic, contextual, and visual localisation credits.",
+    "description": "Summary of how many pages a localisation audit sampled"
+  },
   "RQpMZIFSEX": {
     "defaultMessage": "Loading Issue Sheet...",
     "description": "Suspense fallback while Issue Sheet content loads"
@@ -7570,6 +7818,10 @@
   "RXXOOcxbRk": {
     "defaultMessage": "Applying for the Growth plan",
     "description": "Startup program eligibility: Growth plan"
+  },
+  "RYfCDsRyCY": {
+    "defaultMessage": "We've reached today's limit of {limit} scheduled audits. Try again tomorrow.",
+    "description": "Error when the scheduled localisation audit daily quota is exhausted"
   },
   "RZNls0g+WM": {
     "defaultMessage": "Project",
@@ -7651,6 +7903,10 @@
     "defaultMessage": "Copied!",
     "description": "Tooltip after an environment variable value is copied"
   },
+  "RseiYzhfDo": {
+    "defaultMessage": "Fail",
+    "description": "Status badge for a failed localisation audit criterion"
+  },
   "RsvatD0q4G": {
     "defaultMessage": "Provider",
     "description": "Badge for a provider-managed glossary"
@@ -7686,6 +7942,10 @@
   "S+mzU53tQz": {
     "defaultMessage": "Adding...",
     "description": "Submit button label while a member is being added"
+  },
+  "S+w63pqvse": {
+    "defaultMessage": "Email me a summary",
+    "description": "Heading for the email-summary form on a localisation audit result"
   },
   "S/Jvw/IvO5": {
     "defaultMessage": "Chain of Thought",
@@ -7859,6 +8119,10 @@
     "defaultMessage": "Next file",
     "description": "Accessible label for next-file navigation in CAT File view"
   },
+  "SjHx8vM/dA": {
+    "defaultMessage": "Scoring",
+    "description": "Progress step label when a localisation audit is scoring results"
+  },
   "SlLtLEkppm": {
     "defaultMessage": "Delete column?",
     "description": "Title for delete issue column confirmation dialog"
@@ -8003,6 +8267,10 @@
     "defaultMessage": "<b>Reasoning:</b> {reasoning}",
     "description": "AI recommendation reasoning with bold label prefix; b wraps the label"
   },
+  "TEByVD08L+": {
+    "defaultMessage": "Presence",
+    "description": "Title of the presence methodology card on the localisation audit landing page"
+  },
   "TEXn81XSVY": {
     "defaultMessage": "Every day at {time} · {timezone}",
     "description": "Summary for a scheduled automation that runs daily at a specific hour"
@@ -8047,6 +8315,10 @@
     "defaultMessage": "{count, plural, one {# job} other {# jobs}}",
     "description": "Count of open jobs on a project card"
   },
+  "TMD1+Kb+4i": {
+    "defaultMessage": "The localised experience is in strong shape.",
+    "description": "Score interpretation for an excellent localisation audit"
+  },
   "TMJ+v5h6o1": {
     "defaultMessage": "Comment updated",
     "description": "Toast after updating an issue comment"
@@ -8083,6 +8355,10 @@
     "defaultMessage": "Loading",
     "description": "Accessible label for the loading spinner"
   },
+  "TU09/PYmBW": {
+    "defaultMessage": "See the full leaderboard",
+    "description": "CTA linking from a localisation audit result to the public leaderboard"
+  },
   "TUvTVcL3il": {
     "defaultMessage": "Open in Hyperlocalise",
     "description": "Deep link to the same conversation in the main app"
@@ -8090,6 +8366,10 @@
   "TVxvj2B1bk": {
     "defaultMessage": "No reviews waiting",
     "description": "Title when the triage band has no urgent items"
+  },
+  "TWWOWkYG7q": {
+    "defaultMessage": "Step {current} of {total}",
+    "description": "Progress counter for a running localisation audit"
   },
   "TYuiCQUYlI": {
     "defaultMessage": "Choose a supported model for the selected provider.",
@@ -8219,6 +8499,10 @@
     "defaultMessage": "Has issues",
     "description": "CAT queue filter option for segments with open issue comments"
   },
+  "U0PoyhfZi2": {
+    "defaultMessage": "French and English pages don't point to each other, so visitors can miss the other language entirely.",
+    "description": "Sample finding body on the localisation audit landing page"
+  },
   "U1qJ2BS3gD": {
     "defaultMessage": "TMS agnostic",
     "description": "Differentiator point 1 for the localisation-quality-monitoring use case"
@@ -8271,6 +8555,10 @@
     "defaultMessage": "Domains",
     "description": "Settings hub row label for workspace domains"
   },
+  "UIH0t2l1Rg": {
+    "defaultMessage": "Needs improvement",
+    "description": "Rating label for a localisation audit score that needs improvement"
+  },
   "UKFf8HWVZX": {
     "defaultMessage": "Loading domain…",
     "description": "Loading state for linked domain detail"
@@ -8282,6 +8570,10 @@
   "ULAiYLTSMp": {
     "defaultMessage": "Archived repositories cannot use translation automation.",
     "description": "API error when configuring automation on an archived repository"
+  },
+  "ULcCfIfBDx": {
+    "defaultMessage": "Does the writing still sound like you, once the language changes?",
+    "description": "Body of the voice methodology card on the localisation audit landing page"
   },
   "UO1B3Nh+0U": {
     "defaultMessage": "Tools",
@@ -8510,6 +8802,10 @@
   "VH9bOCu5nr": {
     "defaultMessage": "Create API key",
     "description": "Button to open the create API key dialog"
+  },
+  "VHfMEbrDRM": {
+    "defaultMessage": "Website",
+    "description": "Label for the website URL field on the localisation audit form"
   },
   "VK45xdmq69": {
     "defaultMessage": "Syncing",
@@ -8835,6 +9131,10 @@
     "defaultMessage": "Transport",
     "description": "Label for MCP transport select"
   },
+  "WW5Wdugy4j": {
+    "defaultMessage": "Saving…",
+    "description": "Pending label for the notify-me form on a running localisation audit"
+  },
   "WWNLOhw0a6": {
     "defaultMessage": "All sources",
     "description": "Source filter option for all translation memory sources"
@@ -8955,6 +9255,10 @@
     "defaultMessage": "Loading issues...",
     "description": "Suspense fallback while workspace issues content loads"
   },
+  "X/5lAUS4wm": {
+    "defaultMessage": "/100",
+    "description": "Suffix after the overall localisation audit score"
+  },
   "X1RIo1R/Sz": {
     "defaultMessage": "Placeholders",
     "description": "Format check label for placeholders in the hero CAT mock"
@@ -8978,6 +9282,10 @@
   "X7qkN/IoEW": {
     "defaultMessage": "How can I help you today?",
     "description": "Empty-state heading inside the marketing chat dock mock"
+  },
+  "X9+GfdK3RZ": {
+    "defaultMessage": "Scope",
+    "description": "Label for the scope note on a localisation audit result"
   },
   "X96S8fajCU": {
     "defaultMessage": "Seats",
@@ -9054,6 +9362,10 @@
   "XN1TGsoctn": {
     "defaultMessage": "Failed to load file details.",
     "description": "Fallback error when project file details fail to load"
+  },
+  "XN2gagpvC2": {
+    "defaultMessage": "Audit criteria",
+    "description": "Heading for the criteria list on a localisation audit result"
   },
   "XOLvGAW68Q": {
     "defaultMessage": "Integrations",
@@ -9142,6 +9454,10 @@
   "XifoTZH6H7": {
     "defaultMessage": "Release gates depend on manual TMS checks that block deploys unpredictably.",
     "description": "Problem pain point 4 for the github-release-localisation use case"
+  },
+  "Xl40fdGnlz": {
+    "defaultMessage": "you@company.com",
+    "description": "Placeholder for the work email field on a localisation audit result"
   },
   "XlVRjq3zhp": {
     "defaultMessage": "Self-evolving Knowledge",
@@ -9575,6 +9891,10 @@
     "defaultMessage": "Unable to load task files.",
     "description": "Fallback error when job CAT task files fail to load"
   },
+  "ZNAwtFUkzx": {
+    "defaultMessage": "Audited",
+    "description": "Label for the completed-at date on a localisation audit result"
+  },
   "ZNrsvoazsU": {
     "defaultMessage": "Hyperlocalise created the Contentful webhook automatically. Save the secret below if you need to re-register manually.",
     "description": "Toast description when a Contentful webhook is created"
@@ -9590,6 +9910,14 @@
   "ZSs7hAN64v": {
     "defaultMessage": "Delete comment",
     "description": "Confirm button to permanently delete an issue comment"
+  },
+  "ZT0ZLYbp16": {
+    "defaultMessage": "Could not retry the audit.",
+    "description": "Error shown when retrying a localisation audit fails"
+  },
+  "ZT4A78YiXg": {
+    "defaultMessage": "Can visitors find the right version of the site?",
+    "description": "Body of the discovery methodology card on the localisation audit landing page"
   },
   "ZZsyqRkYsB": {
     "defaultMessage": "Display name",
@@ -10083,6 +10411,10 @@
     "defaultMessage": "Threads",
     "description": "Summary chip label for total provider review threads"
   },
+  "bSoPJAmJQC": {
+    "defaultMessage": "This audit is queued and will start shortly.",
+    "description": "Detail text when a localisation audit is queued"
+  },
   "bUBd4XGtBI": {
     "defaultMessage": "AI features",
     "description": "Pricing matrix row label for AI features"
@@ -10271,6 +10603,10 @@
     "defaultMessage": "Contentful webhook ID: {webhookId}",
     "description": "Displays the provider-assigned Contentful webhook ID"
   },
+  "cQ32lI4seX": {
+    "defaultMessage": "How you compare",
+    "description": "Heading for leaderboard standing on a localisation audit result"
+  },
   "cQIBb8VVUr": {
     "defaultMessage": "Overview",
     "description": "App shell breadcrumb title for the workspace overview page"
@@ -10283,6 +10619,10 @@
     "defaultMessage": "Translation intent",
     "description": "Accessible label for translation intent markdown content"
   },
+  "cRg9/fMFSw": {
+    "defaultMessage": "Something went wrong while auditing this domain. You can retry safely.",
+    "description": "Body when a public localisation audit fails"
+  },
   "cT0FEm6nil": {
     "defaultMessage": "Unable to save issue template settings",
     "description": "Fallback toast when saving issue template settings fails"
@@ -10294,6 +10634,10 @@
   "cTTX9n9kbk": {
     "defaultMessage": "$20",
     "description": "Starter plan price on the pricing page"
+  },
+  "cUEs5UweV5": {
+    "defaultMessage": "Passed audits ({count})",
+    "description": "Heading for passed localisation audit criteria"
   },
   "cVbj5KLUfe": {
     "defaultMessage": "View strings",
@@ -10374,6 +10718,10 @@
   "crhiHIjb38": {
     "defaultMessage": "{count}/{limit} characters",
     "description": "Character count for the organization knowledge memory editor"
+  },
+  "cwqeMFXYQC": {
+    "defaultMessage": "Pass",
+    "description": "Status badge for a passed localisation audit criterion"
   },
   "cx00LgHL3+": {
     "defaultMessage": "REST endpoint",
@@ -10458,6 +10806,10 @@
   "dHB1MtjiIw": {
     "defaultMessage": "Unknown",
     "description": "Fallback when a translation memory segment count is unavailable"
+  },
+  "dIHTtzU056": {
+    "defaultMessage": "The audit could not finish for this domain.",
+    "description": "Fallback error when a failed localisation audit has no error message"
   },
   "dIgSyZztAu": {
     "defaultMessage": "Model Selector",
@@ -10727,6 +11079,10 @@
     "defaultMessage": "Something went wrong in this part of the tool. You can retry or keep working in the other panels.",
     "description": "Error boundary description shown when a CAT panel crashes"
   },
+  "e7tTJ8gdLB": {
+    "defaultMessage": "Indicative health check from sampled pages — not a full site crawl.",
+    "description": "Confidence description on a localisation audit result"
+  },
   "e8ygO/tdr3": {
     "defaultMessage": "Loading files…",
     "description": "Loading state body while project files are fetched"
@@ -10803,6 +11159,10 @@
     "defaultMessage": "People assigned to this team can access its projects and jobs. Need someone new in the workspace? <invite>Invite a member</invite>.",
     "description": "Description under the members heading with an invite link"
   },
+  "eKfFOCj/Jd": {
+    "defaultMessage": "Public smart sample · technical, linguistic, contextual, and visual credits",
+    "description": "Scope description on a localisation audit result"
+  },
   "eKl5zUCITU": {
     "defaultMessage": "Source files",
     "description": "Label for the source files checklist in the download dialog"
@@ -10838,6 +11198,10 @@
   "eV8dpp9Cb+": {
     "defaultMessage": "Cancel edit",
     "description": "Button to cancel editing a glossary term"
+  },
+  "eVmVzJRp/f": {
+    "defaultMessage": "Run a deeper registered audit",
+    "description": "CTA to start a deeper registered audit from a localisation audit result"
   },
   "eW2eLsJu8K": {
     "defaultMessage": "Invite member",
@@ -10878,6 +11242,10 @@
   "ecG+jsddyC": {
     "defaultMessage": "Email support",
     "description": "Accessible label for the support email button in the app shell footer"
+  },
+  "ecuiDTvUrZ": {
+    "defaultMessage": "Poor",
+    "description": "Rating label for a poor localisation audit score"
   },
   "ed4/NRs4Oy": {
     "defaultMessage": "Img",
@@ -11043,6 +11411,10 @@
     "defaultMessage": "What you need in order to translate it (audience, tone, who is speaking)",
     "description": "Description skeleton heading for the context request issue template"
   },
+  "fHty0SN0KU": {
+    "defaultMessage": "Create a workspace",
+    "description": "CTA to create a workspace from a low-scoring localisation audit"
+  },
   "fIcVSh09FH": {
     "defaultMessage": "Words to do",
     "description": "Detail row label for remaining words to translate"
@@ -11107,6 +11479,10 @@
     "defaultMessage": "Previous segment",
     "description": "Accessible label for the previous segment navigation button"
   },
+  "fZ/p4nukUo": {
+    "defaultMessage": "See my score",
+    "description": "Submit button on the localisation audit landing form"
+  },
   "fZ6vM82PvA": {
     "defaultMessage": "Delete “{label}”? Values stored for this column on existing issues will be removed.",
     "description": "Description for delete issue column confirmation dialog"
@@ -11150,6 +11526,10 @@
   "fjjjlNCOer": {
     "defaultMessage": "Write, or type / for blocks…",
     "description": "Placeholder shown in an empty markdown description editor"
+  },
+  "flUWk1JFBu": {
+    "defaultMessage": "Hide passed audits",
+    "description": "Control to collapse passed localisation audit criteria"
   },
   "flbKXaq8uE": {
     "defaultMessage": "Sync approved strings to your TMS",
@@ -11198,6 +11578,10 @@
   "fyUzKxz7yZ": {
     "defaultMessage": "Checking linked jobs",
     "description": "Conversation header status while linked jobs are loading"
+  },
+  "fyhM45TkNF": {
+    "defaultMessage": "What we notice",
+    "description": "Heading for the methodology section on the localisation audit landing page"
   },
   "fzSGIYfOgO": {
     "defaultMessage": "slide",
@@ -11278,6 +11662,10 @@
   "gAtWW1Oa92": {
     "defaultMessage": "Bring translation intelligence into your localisation workflow",
     "description": "CTA section headline for the marketing-localisation use case"
+  },
+  "gCHirWHVff": {
+    "defaultMessage": "Users may encounter noticeable localisation problems.",
+    "description": "Score interpretation for a needs-improvement localisation audit"
   },
   "gCJJUH5CEa": {
     "defaultMessage": "Use this for project scope, release, and ownership notes.",
@@ -11707,6 +12095,10 @@
     "defaultMessage": "Synced import",
     "description": "Capability badge for translation memories imported via sync"
   },
+  "haSTp/OWTR": {
+    "defaultMessage": "Share this report",
+    "description": "Heading for sharing a public localisation audit report"
+  },
   "hdt51o9xzu": {
     "defaultMessage": "Copy OAuth callback URL",
     "description": "Tooltip for the copy OAuth callback URL button"
@@ -11718,6 +12110,10 @@
   "heSbClUFGX": {
     "defaultMessage": "Select a project",
     "description": "Placeholder for Hyperlocalise project select fields"
+  },
+  "heyfa1q/+8": {
+    "defaultMessage": "Headline findings",
+    "description": "Heading for headline findings on a localisation audit result"
   },
   "hf0JjIrtpG": {
     "defaultMessage": "All providers",
@@ -11830,6 +12226,10 @@
   "i9ZZoI20Cm": {
     "defaultMessage": "Display name",
     "description": "Label for the Contentful connection display name field"
+  },
+  "i9vIaD8Yuc": {
+    "defaultMessage": "No findings in this section.",
+    "description": "Empty state when a localisation audit finding list has no items"
   },
   "i9wq9AC2+9": {
     "defaultMessage": "Revoked",
@@ -11975,6 +12375,14 @@
     "defaultMessage": "Review routing",
     "description": "Workflow step 4 label for the localisation-quality-monitoring use case"
   },
+  "igisWP9I+4": {
+    "defaultMessage": "{confidence}% confidence",
+    "description": "Confidence suffix on a localisation audit finding"
+  },
+  "ih/69cODWD": {
+    "defaultMessage": "Sending…",
+    "description": "Pending label while requesting a localisation audit summary email"
+  },
   "ihYGlJZXjP": {
     "defaultMessage": "GitHub Action",
     "description": "Marketing footer resource link label"
@@ -12018,6 +12426,10 @@
   "irvEuLEEdu": {
     "defaultMessage": "untitled",
     "description": "Fallback filename when an attached file has no name"
+  },
+  "is2cQ1v97u": {
+    "defaultMessage": "What we saw",
+    "description": "Label for evidence on a localisation audit finding"
   },
   "isRKrk8w8z": {
     "defaultMessage": "Term deleted",
@@ -12355,6 +12767,10 @@
     "defaultMessage": "Jobs created and tracked in this workspace.",
     "description": "Description under the native jobs section title"
   },
+  "k5atS7Ij0F": {
+    "defaultMessage": "Usually finishes in 1–3 minutes.",
+    "description": "Expected duration note while a localisation audit is running"
+  },
   "k6wO1BhuBw": {
     "defaultMessage": "Source video unavailable",
     "description": "Empty state when the CAT source video cannot be shown"
@@ -12382,6 +12798,10 @@
   "k9uRw1QXC6": {
     "defaultMessage": "No messages yet",
     "description": "Preview text when a conversation in the inbox list has no messages"
+  },
+  "k9uqhd9OgG": {
+    "defaultMessage": "contextual",
+    "description": "Short dimension label for a contextual localisation audit criterion"
   },
   "kA73rJ1hM2": {
     "defaultMessage": "Cancel",
@@ -12582,6 +13002,10 @@
   "ksrwIvV64s": {
     "defaultMessage": "Workspace settings",
     "description": "Breadcrumb-style label above the API keys page title"
+  },
+  "ktH+IvcapS": {
+    "defaultMessage": "Industry",
+    "description": "Label for the company industry on a localisation audit result"
   },
   "kupHE+YuT1": {
     "defaultMessage": "No description",
@@ -12863,6 +13287,14 @@
     "defaultMessage": "Started {date}",
     "description": "Timestamp line for when an agent run started"
   },
+  "m4T5sYEFR7": {
+    "defaultMessage": "Preparing",
+    "description": "Progress step label when a localisation audit is preparing"
+  },
+  "m4m7Z9SYlx": {
+    "defaultMessage": "Optional. We will send a summary of the report to your inbox when the audit completes.",
+    "description": "Body for the notify-me form on a running localisation audit"
+  },
   "m56uSee40N": {
     "defaultMessage": "Contribute to assigned jobs, run AI actions, and push draft translations. No approvals or org administration.",
     "description": "Description of the translator role"
@@ -12931,6 +13363,10 @@
     "defaultMessage": "Developers merge string changes daily. Localisation quality depends on someone remembering to check before ship.",
     "description": "Problem section description for the github-release-localisation use case"
   },
+  "mKyo1eMyN6": {
+    "defaultMessage": "Fix first",
+    "description": "Heading for the top findings to fix on a localisation audit result"
+  },
   "mL4jmlzo/F": {
     "defaultMessage": "Choose which project should receive the imported Issue Sheet rows.",
     "description": "Description of the workspace issues CSV import project picker dialog"
@@ -12962,6 +13398,10 @@
   "mRvhPlspGD": {
     "defaultMessage": "When do I need Enterprise?",
     "description": "Pricing FAQ question about Enterprise fit"
+  },
+  "mS/hL9d9Ru": {
+    "defaultMessage": "Solid baseline with room to improve. Create a workspace for continuous locale monitoring, or book an audit review.",
+    "description": "Next-step body for a mid localisation audit score"
   },
   "mSR1oODTzi": {
     "defaultMessage": "Zoom out",
@@ -13055,6 +13495,10 @@
     "defaultMessage": "Assign to project",
     "description": "Button to assign a project to a glossary"
   },
+  "mnZVrr1EzK": {
+    "defaultMessage": "How to fix it",
+    "description": "Label for advice on a localisation audit finding"
+  },
   "mnlYeyj08E": {
     "defaultMessage": "Tourmatic",
     "description": "Alt text for the Tourmatic logo on the startups page"
@@ -13066,6 +13510,10 @@
   "mqqP30mDIQ": {
     "defaultMessage": "Help center localisation",
     "description": "Hero eyebrow for the help-center-localisation use case"
+  },
+  "mrmSpANeux": {
+    "defaultMessage": "Discovery",
+    "description": "Title of the discovery methodology card on the localisation audit landing page"
   },
   "mrsptKTM1v": {
     "defaultMessage": "Describe what you need translated, researched, or reviewed and Hyperlocalise will prepare the work.",
@@ -13127,6 +13575,10 @@
     "defaultMessage": "If the last review taught the team something, the next workflow should know it.",
     "description": "Details section headline for the self-evolving knowledge product page"
   },
+  "n3G74L1ESt": {
+    "defaultMessage": "This audit looks stuck",
+    "description": "Title when a public localisation audit appears stalled"
+  },
   "n3a+6mF2IX": {
     "defaultMessage": "Searching",
     "description": "Live explore status when the agent is searching without a subject"
@@ -13139,6 +13591,10 @@
     "defaultMessage": "In progress",
     "description": "Issue status filter option when an issue is in progress"
   },
+  "n9PAvhdA7/": {
+    "defaultMessage": "Open in workspace",
+    "description": "CTA to open a claimed domain from a localisation audit result"
+  },
   "nA1Lv0wxJn": {
     "defaultMessage": "Monitor locale coverage across all content types",
     "description": "Capability 1 title for the localisation-quality-monitoring use case"
@@ -13146,6 +13602,10 @@
   "nBWhU6jbvc": {
     "defaultMessage": "Template",
     "description": "Label for the read-only issue template provenance field"
+  },
+  "nCmj3mv2tP": {
+    "defaultMessage": "We've reached today's limit of {limit} visitor audits. Try again tomorrow.",
+    "description": "Error when the public localisation audit daily quota is exhausted"
   },
   "nDPeOs1MH9": {
     "defaultMessage": "{displayName} settings saved",
@@ -13266,6 +13726,10 @@
   "ng9pGPnTZ/": {
     "defaultMessage": "Issue columns",
     "description": "Heading for the project issue columns settings section"
+  },
+  "nglFeiQ7o8": {
+    "defaultMessage": "The localised experience has major problems that should be addressed.",
+    "description": "Score interpretation for a critical localisation audit"
   },
   "nkAooS6hll": {
     "defaultMessage": "Sort",
@@ -13551,6 +14015,10 @@
     "defaultMessage": "Team updated",
     "description": "Toast after team details are updated from the detail page"
   },
+  "p/RwNTcexb": {
+    "defaultMessage": "Brand voice",
+    "description": "Label for the company brand voice on a localisation audit result"
+  },
   "p/sianUEpZ": {
     "defaultMessage": "Translation memories",
     "description": "Back link from translation memory detail to the list page"
@@ -13598,6 +14066,10 @@
   "pCwlsos9AL": {
     "defaultMessage": "Choose a day of the week for weekly schedules.",
     "description": "API error when weekly schedule has an invalid day of week"
+  },
+  "pDMtFvmk4c": {
+    "defaultMessage": "Analyzing",
+    "description": "Progress step label when a localisation audit is analyzing signals"
   },
   "pEbaKtKcj3": {
     "defaultMessage": "Custom",
@@ -13795,6 +14267,10 @@
     "defaultMessage": "Deleting…",
     "description": "Button label while deleting a live provider task"
   },
+  "pw9PHi/ZLr": {
+    "defaultMessage": "Hide not applicable",
+    "description": "Control to collapse not-applicable localisation audit criteria"
+  },
   "pwrS5bq0q7": {
     "defaultMessage": "Create key",
     "description": "Submit button to create an API key"
@@ -13830,6 +14306,10 @@
   "q3g6c65hVD": {
     "defaultMessage": "Uploading…",
     "description": "Upload button label while files are uploading"
+  },
+  "q4MSNg1UjH": {
+    "defaultMessage": "Strong localisation signals. Create a workspace to keep locales healthy as you ship, or book a deeper review.",
+    "description": "Next-step body for a high localisation audit score"
   },
   "q4WpE1QriH": {
     "defaultMessage": "URL",
@@ -13907,6 +14387,10 @@
     "defaultMessage": "Ask about strings, context, progress, or translations",
     "description": "Empty-state subtitle inside the marketing chat dock mock"
   },
+  "qIu/YA1mT+": {
+    "defaultMessage": "Link copied",
+    "description": "Confirmation after copying a localisation audit report link"
+  },
   "qJTopaPNOi": {
     "defaultMessage": "Unable to delete entry",
     "description": "Fallback error when deleting a translation memory entry fails"
@@ -13934,6 +14418,10 @@
   "qSH0vWKsTL": {
     "defaultMessage": "Filter queue",
     "description": "Accessible label for the queue filter button"
+  },
+  "qSi5mzrfOt": {
+    "defaultMessage": "Retry audit",
+    "description": "Button to retry a failed or stalled localisation audit"
   },
   "qU7FzWhWvd": {
     "defaultMessage": "Description",
@@ -14022,6 +14510,10 @@
   "qlu/Ts2pCg": {
     "defaultMessage": "Ask, search, or make anything…",
     "description": "Placeholder shown in the marketing chat dock mock composer"
+  },
+  "qoKQfRLzE9": {
+    "defaultMessage": "Sampling public pages and locale roots.",
+    "description": "Detail text when a localisation audit is crawling"
   },
   "qqo0mtljp2": {
     "defaultMessage": "From intake to orchestrated delivery",
@@ -14194,6 +14686,10 @@
   "rcdU5+Pv4r": {
     "defaultMessage": "Use organization knowledge memory as guidance for this automation.",
     "description": "Description for the knowledge memories automation tool"
+  },
+  "re+MJ8bLl3": {
+    "defaultMessage": "Optional. Enter your work email and we will send a concise summary of this public report.",
+    "description": "Body for the email-summary form on a localisation audit result"
   },
   "ree/WWv9H5": {
     "defaultMessage": "Get your workspace ready",
@@ -14551,6 +15047,10 @@
     "defaultMessage": "Book a demo. We'll confirm eligibility and show you startup pricing at 80% off Growth.",
     "description": "Final CTA supporting copy on the startups page"
   },
+  "tBmWE9rsb2": {
+    "defaultMessage": "Could not start the audit. Check the URL and try again.",
+    "description": "Error shown when the localisation audit form fails to start an audit"
+  },
   "tCUf/LZUI9": {
     "defaultMessage": "Turn Slack requests and Canva boards into scoped localization work with context attached from the start.",
     "description": "Feature card body for Slack and design-tool intake"
@@ -14579,6 +15079,10 @@
     "defaultMessage": "Write drafts",
     "description": "Toggle label for writing Contentful drafts"
   },
+  "tIYDgjN4kT": {
+    "defaultMessage": "Enter a URL. We'll read a few public pages and tell you how the site feels in other languages.",
+    "description": "Supporting copy under the localisation audit landing headline"
+  },
   "tJ4ESqRDu1": {
     "defaultMessage": "Sign in again to manage billing.",
     "description": "Error when the billing session is unauthorized"
@@ -14598,6 +15102,10 @@
   "tMPM8tkhJg": {
     "defaultMessage": "Account",
     "description": "App shell breadcrumb title for the account settings page"
+  },
+  "tP1cicvIzZ": {
+    "defaultMessage": "Linguistic notes",
+    "description": "Heading for linguistic notes on a localisation audit result"
   },
   "tQNKmwbVHc": {
     "defaultMessage": "Reconnect with a different OAuth app",
@@ -14719,6 +15227,10 @@
     "defaultMessage": "Target ICU structure must match {tokens} from the source string.",
     "description": "CAT format check message listing ICU blocks missing from the target"
   },
+  "tsmydNZ+N6": {
+    "defaultMessage": "Found here",
+    "description": "Label for where a localisation audit finding was observed"
+  },
   "tuH9VcQWRE": {
     "defaultMessage": "Failed to load jobs",
     "description": "Fallback error when native jobs fail to load"
@@ -14826,6 +15338,10 @@
   "uNxjflTYdv": {
     "defaultMessage": "Keep editing",
     "description": "Cancel close and keep editing button on unsaved changes dialog"
+  },
+  "uP6J0sc7cw": {
+    "defaultMessage": "Show not applicable",
+    "description": "Control to expand not-applicable localisation audit criteria"
   },
   "uPLvPG1gYg": {
     "defaultMessage": "Copied!",
@@ -14983,6 +15499,10 @@
     "defaultMessage": "Add",
     "description": "Button to add a branch pattern"
   },
+  "uqqnJ1ACdX": {
+    "defaultMessage": "linguistic",
+    "description": "Short dimension label for a linguistic localisation audit criterion"
+  },
   "usZU30knmw": {
     "defaultMessage": "Cadence",
     "description": "Label for scheduled automation cadence select"
@@ -15059,6 +15579,10 @@
     "defaultMessage": "Translation guidance",
     "description": "Section label for translation guidance in the chat dock mock answer"
   },
+  "v32CGJfAAS": {
+    "defaultMessage": "Linguistic Audit",
+    "description": "Label for the linguistic dimension on a localisation audit result"
+  },
   "v4h0afylvD": {
     "defaultMessage": "Choose source file",
     "description": "Title of the CAT header dialog for picking a source file"
@@ -15103,6 +15627,10 @@
     "defaultMessage": "Loading projects",
     "description": "Accessible label while project cards are loading"
   },
+  "vGQC+xjlop": {
+    "defaultMessage": "How we score localisation audits",
+    "description": "Link to the blog guide explaining localisation audit scoring"
+  },
   "vGwY2igpU6": {
     "defaultMessage": "Title",
     "description": "Label for the job title field"
@@ -15126,6 +15654,10 @@
   "vKq2ly7dxU": {
     "defaultMessage": "New request",
     "description": "Button to start a new localization request from the dashboard"
+  },
+  "vLOvG+Aj8h": {
+    "defaultMessage": "Scores and full reports are public. Optionally email yourself a summary.",
+    "description": "Public-report disclosure on the localisation audit landing page"
   },
   "vLTwfBOTEg": {
     "defaultMessage": "OAuth callback URL",
@@ -15154,6 +15686,10 @@
   "vTmDsNkKes": {
     "defaultMessage": "Support tickets spike in non-English locales when guidance is outdated or missing.",
     "description": "Problem pain point 5 for the help-center-localisation use case"
+  },
+  "vUbkXURPep": {
+    "defaultMessage": "Visual Audit",
+    "description": "Label for the visual dimension on a localisation audit result"
   },
   "vUbrtmWuOu": {
     "defaultMessage": "Create a team to group workspace members and scope project access. Invite people on the <members>Members</members> page first if your workspace is still empty.",
@@ -15615,9 +16151,17 @@
     "defaultMessage": "Translation Memories",
     "description": "Sidebar navigation item for translation memories"
   },
+  "x7NBkHXEme": {
+    "defaultMessage": "Email me a summary",
+    "description": "Submit button for the email-summary form on a completed localisation audit"
+  },
   "x7Zo60FQJD": {
     "defaultMessage": "Select",
     "description": "Issue column type label for select"
+  },
+  "x7lBWitDFc": {
+    "defaultMessage": "Could not re-run the audit.",
+    "description": "Error shown when re-running a localisation audit fails"
   },
   "x86tb6Gc1r": {
     "defaultMessage": "Open in Claude",
@@ -15711,6 +16255,10 @@
     "defaultMessage": "No matching issues.",
     "description": "Empty state when issue search returns no results"
   },
+  "xTNiGIIXkt": {
+    "defaultMessage": "Email me a summary when ready",
+    "description": "Heading for the notify-me form on a running localisation audit"
+  },
   "xTYiHfPy3g": {
     "defaultMessage": "Workspace",
     "description": "Breadcrumb-style label above the members page title"
@@ -15718,6 +16266,10 @@
   "xTpbtPORei": {
     "defaultMessage": "Link this Crowdin project",
     "description": "Title when Crowdin project is not linked in Hyperlocalise"
+  },
+  "xUdbOFsZxg": {
+    "defaultMessage": "Book an audit review",
+    "description": "CTA to book a localisation audit review with the Hyperlocalise team"
   },
   "xVvlWpH5FH": {
     "defaultMessage": "Regenerate",
@@ -16130,6 +16682,10 @@
   "z/ihJvUUcu": {
     "defaultMessage": "Localisation managers coordinate across TMS tools, model providers, vendors, and engineering — with no unified view of what is in flight.",
     "description": "Problem section description for the localisation-operations use case"
+  },
+  "z0l+gEjl9l": {
+    "defaultMessage": "Not applicable ({count})",
+    "description": "Heading for not-applicable localisation audit criteria"
   },
   "z0uvvDTD9z": {
     "defaultMessage": "Preview and localize this URL as a video",
