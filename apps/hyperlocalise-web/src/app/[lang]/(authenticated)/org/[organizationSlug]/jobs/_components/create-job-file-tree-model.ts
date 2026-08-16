@@ -119,6 +119,25 @@ export function collectCreateJobFileIds(node: CreateJobFileTreeNode): string[] {
   return node.children.flatMap(collectCreateJobFileIds);
 }
 
+export function folderFileIdsByPath(nodes: CreateJobFileTreeNode[]): Map<string, string[]> {
+  const idsByPath = new Map<string, string[]>();
+
+  function walk(node: CreateJobFileTreeNode) {
+    if (node.type === "file") {
+      return;
+    }
+    idsByPath.set(node.path, collectCreateJobFileIds(node));
+    for (const child of node.children) {
+      walk(child);
+    }
+  }
+
+  for (const node of nodes) {
+    walk(node);
+  }
+  return idsByPath;
+}
+
 export function folderSelectionState(
   fileIds: string[],
   selectedIds: ReadonlySet<string>,

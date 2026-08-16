@@ -17,6 +17,7 @@ import {
   buildCreateJobFileTree,
   collectCreateJobFileIds,
   filterCreateJobFileTree,
+  folderFileIdsByPath,
   folderSelectionState,
   topLevelFolderPaths,
 } from "./create-job-file-tree-model";
@@ -96,6 +97,11 @@ describe("buildCreateJobFileTree", () => {
     expect(collectCreateJobFileIds(marketing!)).toEqual(["spring", "home", "pricing"]);
     expect(topLevelFolderPaths(tree)).toEqual(["legal", "marketing"]);
     expect(allFolderPaths(tree)).toEqual(["legal", "marketing", "marketing/campaigns"]);
+    expect(Object.fromEntries(folderFileIdsByPath(tree))).toEqual({
+      legal: ["terms"],
+      marketing: ["spring", "home", "pricing"],
+      "marketing/campaigns": ["spring"],
+    });
   });
 });
 

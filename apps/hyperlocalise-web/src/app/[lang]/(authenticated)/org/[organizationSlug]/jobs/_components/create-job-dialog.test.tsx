@@ -284,6 +284,60 @@ describe("CreateJobDialog", () => {
     expect(screen.queryByRole("checkbox", { name: "marketing/home.json" })).not.toBeInTheDocument();
   });
 
+  it("selects every file in a folder even when search hides some of them", async () => {
+    const user = userEvent.setup();
+    renderDialog();
+
+    await screen.findByRole("group", { name: "Files" });
+    await user.type(screen.getByLabelText("Search files…"), "pricing");
+    const marketingFolder = screen.getByRole("checkbox", { name: "Select all files in marketing" });
+    const pricingFile = screen.getByRole("checkbox", { name: "marketing/pricing.json" });
+
+    await user.click(pricingFile);
+    expect(pricingFile).toBeChecked();
+    expect(marketingFolder).not.toBeChecked();
+    expect(marketingFolder).toHaveProperty("indeterminate", true);
+    expect(screen.getByText("1 file")).toBeInTheDocument();
+
+    await user.click(marketingFolder);
+    expect(pricingFile).toBeChecked();
+    expect(marketingFolder).toBeChecked();
+    expect(screen.getByText("3 files")).toBeInTheDocument();
+
+    await user.clear(screen.getByLabelText("Search files…"));
+    expect(screen.getByRole("checkbox", { name: "marketing/home.json" })).toBeChecked();
+    expect(screen.getByRole("checkbox", { name: "marketing/pricing.json" })).toBeChecked();
+    expect(screen.getByRole("checkbox", { name: "Select all files in marketing" })).toBeChecked();
+  });
+
+  it("exposes the native assignee selection when the picker is reopened", async () => {
+    const user = userEvent.setup();
+    renderDialog();
+
+    await user.click(screen.getByLabelText("Assignee"));
+    const assigneeList = await screen.findByRole("listbox", { name: "Assignee" });
+    expect(assigneeList).not.toHaveAttribute("aria-multiselectable");
+    expect(screen.getByRole("option", { name: "Unassigned" })).toHaveAttribute(
+      "aria-checked",
+      "true",
+    );
+    const mina = await screen.findByRole("option", { name: /Mina Chen/ });
+    expect(mina).toHaveAttribute("aria-checked", "false");
+
+    await user.click(mina);
+    expect(screen.getByLabelText("Assignee")).toHaveTextContent("Mina Chen");
+
+    await user.click(screen.getByLabelText("Assignee"));
+    expect(await screen.findByRole("option", { name: /Mina Chen/ })).toHaveAttribute(
+      "aria-checked",
+      "true",
+    );
+    expect(screen.getByRole("option", { name: "Unassigned" })).toHaveAttribute(
+      "aria-checked",
+      "false",
+    );
+  });
+
   it("exposes Crowdin assignee multi-select state when the picker is reopened", async () => {
     const user = userEvent.setup();
     renderDialog({

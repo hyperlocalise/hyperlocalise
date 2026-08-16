@@ -34,6 +34,7 @@ import {
   buildCreateJobFileTree,
   collectCreateJobFileIds,
   filterCreateJobFileTree,
+  folderFileIdsByPath,
   folderSelectionState,
   topLevelFolderPaths,
   type CreateJobFileTreeFolder,
@@ -89,23 +90,26 @@ function FolderCheckbox({
 
 function FileTreeFolder({
   folder,
+  fileIds,
   depth,
   selectedIds,
   expandedPaths,
   disabled,
   onToggleIds,
   onExpandedChange,
+  folderIdsByPath,
 }: {
   folder: CreateJobFileTreeFolder;
+  fileIds: string[];
   depth: number;
   selectedIds: string[];
   expandedPaths: Set<string>;
   disabled?: boolean;
   onToggleIds: (ids: string[], shouldSelect: boolean) => void;
   onExpandedChange: (path: string, open: boolean) => void;
+  folderIdsByPath: ReadonlyMap<string, string[]>;
 }) {
   const intl = useIntl();
-  const fileIds = useMemo(() => collectCreateJobFileIds(folder), [folder]);
   const selectedSet = useMemo(() => new Set(selectedIds), [selectedIds]);
   const state = folderSelectionState(fileIds, selectedSet);
   const open = expandedPaths.has(folder.path);
@@ -167,6 +171,7 @@ function FileTreeFolder({
               disabled={disabled}
               onToggleIds={onToggleIds}
               onExpandedChange={onExpandedChange}
+              folderIdsByPath={folderIdsByPath}
             />
           ))}
         </div>
@@ -183,6 +188,7 @@ function FileTreeNode({
   disabled,
   onToggleIds,
   onExpandedChange,
+  folderIdsByPath,
 }: {
   node: CreateJobFileTreeNode;
   depth: number;
@@ -191,17 +197,20 @@ function FileTreeNode({
   disabled?: boolean;
   onToggleIds: (ids: string[], shouldSelect: boolean) => void;
   onExpandedChange: (path: string, open: boolean) => void;
+  folderIdsByPath: ReadonlyMap<string, string[]>;
 }) {
   if (node.type === "folder") {
     return (
       <FileTreeFolder
         folder={node}
+        fileIds={folderIdsByPath.get(node.path) ?? collectCreateJobFileIds(node)}
         depth={depth}
         selectedIds={selectedIds}
         expandedPaths={expandedPaths}
         disabled={disabled}
         onToggleIds={onToggleIds}
         onExpandedChange={onExpandedChange}
+        folderIdsByPath={folderIdsByPath}
       />
     );
   }
@@ -246,6 +255,7 @@ export function CreateJobFileTree({
   const intl = useIntl();
   const [query, setQuery] = useState("");
   const tree = useMemo(() => buildCreateJobFileTree(files), [files]);
+  const folderIdsByPath = useMemo(() => folderFileIdsByPath(tree), [tree]);
   const filteredTree = useMemo(() => filterCreateJobFileTree(tree, query), [query, tree]);
   const defaultExpanded = useMemo(() => topLevelFolderPaths(tree), [tree]);
   const [expandedPaths, setExpandedPaths] = useState<Set<string>>(() => new Set(defaultExpanded));
@@ -362,6 +372,7 @@ export function CreateJobFileTree({
                   disabled={disabled}
                   onToggleIds={handleToggleIds}
                   onExpandedChange={handleExpandedChange}
+                  folderIdsByPath={folderIdsByPath}
                 />
               ))}
             </div>

@@ -219,6 +219,7 @@ function CreateJobPropertyPicker({
                   <CommandItem
                     value={`${intl.formatMessage(createJobDialogMessages.unassigned)} unassigned`}
                     data-checked={selectedIds.length === 0 || undefined}
+                    aria-checked={selectedIds.length === 0}
                     onSelect={() => {
                       onClear?.();
                       setOpen(false);
@@ -238,7 +239,7 @@ function CreateJobPropertyPicker({
                     key={item.id}
                     value={item.searchValue ?? `${item.id} ${item.label} ${item.secondary ?? ""}`}
                     data-checked={checked || undefined}
-                    aria-checked={multiple ? checked : undefined}
+                    aria-checked={checked}
                     onSelect={() => {
                       onToggle(item.id);
                       if (!multiple) {
