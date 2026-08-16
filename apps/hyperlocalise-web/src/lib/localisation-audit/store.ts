@@ -171,8 +171,12 @@ export async function listLocalisationAuditLeaderboard(limit = 25) {
       domainSlug: schema.localisationAudits.domainSlug,
       score: schema.localisationAudits.score,
       completedAt: schema.localisationAudits.completedAt,
-      companyName: sql<string | null>`nullif(${schema.localisationAudits.teaser}->'companyProfile'->>'name', '')`,
-      logoUrl: sql<string | null>`nullif(${schema.localisationAudits.teaser}->'companyProfile'->>'logoUrl', '')`,
+      companyName: sql<
+        string | null
+      >`nullif(${schema.localisationAudits.teaser}->'companyProfile'->>'name', '')`,
+      logoUrl: sql<
+        string | null
+      >`nullif(${schema.localisationAudits.teaser}->'companyProfile'->>'logoUrl', '')`,
     })
     .from(schema.localisationAudits)
     .where(

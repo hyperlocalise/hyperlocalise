@@ -172,19 +172,19 @@ export function getLocalisationAuditPageCopy(locale: string) {
     }),
     leaderboardSiteColumn: intl.formatMessage({
       defaultMessage: "Site",
-      id: "rK9mQ2nL8x",
+      id: "mHZZxFedL8",
       description: "Column heading for site names on the localisation audit leaderboard",
     }),
     leaderboardScoreColumn: intl.formatMessage({
       defaultMessage: "Score",
-      id: "tB4pW7cH1z",
+      id: "MrZ8+8I97E",
       description: "Column heading for scores on the localisation audit leaderboard",
     }),
     leaderboardScoreLabel: (values: { score: number }) =>
       intl.formatMessage(
         {
           defaultMessage: "Score {score} out of 100",
-          id: "uN6dF3sJ5q",
+          id: "dbtTNEaJX2",
           description: "Accessible label for a localisation audit leaderboard score bar",
         },
         values,
