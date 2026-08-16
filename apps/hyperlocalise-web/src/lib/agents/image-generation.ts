@@ -13,7 +13,10 @@
 import { generateImage } from "ai";
 
 import { withAgentRuntimeUsageMetering } from "@/lib/billing/agent-runtime-usage";
-import { getManagedImageModel, isManagedLanguageModelAvailable } from "@/lib/providers/language-model";
+import {
+  getManagedImageModel,
+  isManagedLanguageModelAvailable,
+} from "@/lib/providers/language-model";
 
 export type ImageGenerationResult = {
   image: Buffer;
