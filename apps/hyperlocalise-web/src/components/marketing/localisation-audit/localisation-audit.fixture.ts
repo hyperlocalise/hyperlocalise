@@ -15,7 +15,10 @@ import {
   aggregateLocalisationAuditCredits,
   pickHeadlineFindings,
 } from "@/lib/localisation-audit/score";
-import type { LocalisationAuditStanding } from "@/lib/localisation-audit/store";
+import type {
+  LocalisationAuditLeaderboardEntry,
+  LocalisationAuditStanding,
+} from "@/lib/localisation-audit/store";
 import type {
   LocalisationAuditCreditMethod,
   LocalisationAuditCreditResult,
@@ -368,6 +371,57 @@ export function localisationAuditStanding(score: number): LocalisationAuditStand
     percentile: 14,
     averageScore: 61,
   };
+}
+
+export function localisationAuditLeaderboardEntries(): LocalisationAuditLeaderboardEntry[] {
+  const completedAt = new Date(localisationAuditCompletedAt);
+  return [
+    {
+      rank: 1,
+      domainKey: "northstar.example",
+      domainSlug: "northstar-example",
+      score: 91,
+      completedAt,
+      companyName: "Northstar",
+      logoUrl: "/images/logo.png",
+    },
+    {
+      rank: 2,
+      domainKey: localisationAuditDomainKey,
+      domainSlug: localisationAuditDomainSlug,
+      score: 86,
+      completedAt,
+      companyName: "Acme",
+      logoUrl: "/images/logo.png",
+    },
+    {
+      rank: 3,
+      domainKey: "atlas.example",
+      domainSlug: "atlas-example",
+      score: 72,
+      completedAt,
+      companyName: "Atlas",
+      logoUrl: "/images/logo.png",
+    },
+    {
+      rank: 4,
+      domainKey: "harbor.example",
+      domainSlug: "harbor-example",
+      score: 68,
+      completedAt,
+      companyName: "Harbor",
+      logoUrl: null,
+    },
+    {
+      rank: 5,
+      domainKey: "bramble.example",
+      domainSlug: "bramble-example",
+      score: 52,
+      completedAt,
+      companyName: null,
+      logoUrl: null,
+    },
+  ];
 }
 
 export function createSucceededAudit({

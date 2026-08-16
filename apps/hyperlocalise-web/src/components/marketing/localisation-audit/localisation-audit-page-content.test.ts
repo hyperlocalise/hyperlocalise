@@ -32,6 +32,9 @@ describe("localisation audit page content", () => {
     expect(copy.notices).toHaveLength(3);
     expect(copy.notices[0]?.title).toBe("Voice");
     expect(copy.leaderboardHeading).toBe("How other sites score");
+    expect(copy.leaderboardSiteColumn).toBe("Site");
+    expect(copy.leaderboardScoreColumn).toBe("Score");
+    expect(copy.leaderboardScoreLabel({ score: 86 })).toBe("Score 86 out of 100");
     expect(copy.startError).toContain("Check the URL");
     expect(copy.onePerDomain({ limit: LOCALISATION_AUDIT_DAILY_RUN_LIMIT })).toBe(
       `One free look per site. ${LOCALISATION_AUDIT_DAILY_RUN_LIMIT} a day across all sites.`,

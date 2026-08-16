@@ -16,6 +16,7 @@ import {
   emailAuditToneColor,
   emailAuditToneFill,
   formatDimensionScore,
+  leaderboardScoreTone,
   scoreTone,
   severityTone,
 } from "./score-tone";
@@ -29,6 +30,17 @@ describe("scoreTone", () => {
     expect(scoreTone(49)).toBe("risk");
     expect(scoreTone(12)).toBe("risk");
     expect(scoreTone(null)).toBe("neutral");
+  });
+});
+
+describe("leaderboardScoreTone", () => {
+  it("colors bars green above 75, yellow above 65, and red otherwise", () => {
+    expect(leaderboardScoreTone(100)).toBe("safe");
+    expect(leaderboardScoreTone(76)).toBe("safe");
+    expect(leaderboardScoreTone(75)).toBe("watch");
+    expect(leaderboardScoreTone(66)).toBe("watch");
+    expect(leaderboardScoreTone(65)).toBe("risk");
+    expect(leaderboardScoreTone(12)).toBe("risk");
   });
 });
 

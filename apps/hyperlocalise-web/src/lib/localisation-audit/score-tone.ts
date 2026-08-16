@@ -22,6 +22,15 @@ export function scoreTone(score: number | null | undefined): LocalisationAuditTo
   return "risk";
 }
 
+/** Leaderboard bar colors: green above 75, yellow above 65, red otherwise. */
+export function leaderboardScoreTone(
+  score: number,
+): Extract<LocalisationAuditTone, "safe" | "watch" | "risk"> {
+  if (score > 75) return "safe";
+  if (score > 65) return "watch";
+  return "risk";
+}
+
 export function formatDimensionScore(score: number | null | undefined): string {
   return score == null ? "N/A" : String(score);
 }

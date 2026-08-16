@@ -49,6 +49,25 @@ function now() {
   return new Date();
 }
 
+function jsonText(value: string | null | undefined): string | null {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed : null;
+}
+
+function httpUrl(value: string | null | undefined): string | null {
+  const candidate = jsonText(value);
+  if (!candidate) return null;
+  try {
+    const parsed = new URL(candidate);
+    if (parsed.protocol === "http:" || parsed.protocol === "https:") {
+      return candidate;
+    }
+  } catch {
+    return null;
+  }
+  return null;
+}
+
 function isActiveAudit(audit: LocalisationAuditRow, staleMs = LOCALISATION_AUDIT_STALE_MS) {
   if (audit.status !== "queued" && audit.status !== "running") {
     return false;
@@ -137,11 +156,13 @@ export type LocalisationAuditLeaderboardEntry = {
   domainSlug: string;
   score: number;
   completedAt: Date | null;
+  companyName: string | null;
+  logoUrl: string | null;
 };
 
 /**
  * Public leaderboard of succeeded teaser scores (highest first).
- * Only exposes domain identity + score — never emails or full reports.
+ * Only exposes domain identity, logo, and score — never emails or full reports.
  */
 export async function listLocalisationAuditLeaderboard(limit = 25) {
   const rows = await db
@@ -150,6 +171,8 @@ export async function listLocalisationAuditLeaderboard(limit = 25) {
       domainSlug: schema.localisationAudits.domainSlug,
       score: schema.localisationAudits.score,
       completedAt: schema.localisationAudits.completedAt,
+      companyName: sql<string | null>`nullif(${schema.localisationAudits.teaser}->'companyProfile'->>'name', '')`,
+      logoUrl: sql<string | null>`nullif(${schema.localisationAudits.teaser}->'companyProfile'->>'logoUrl', '')`,
     })
     .from(schema.localisationAudits)
     .where(
@@ -175,6 +198,8 @@ export async function listLocalisationAuditLeaderboard(limit = 25) {
         domainSlug: row.domainSlug,
         score: row.score,
         completedAt: row.completedAt,
+        companyName: jsonText(row.companyName),
+        logoUrl: httpUrl(row.logoUrl),
       } satisfies LocalisationAuditLeaderboardEntry,
     ];
   });

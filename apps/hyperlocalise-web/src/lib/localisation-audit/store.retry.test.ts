@@ -765,6 +765,14 @@ describe("localisation audit leaderboard", () => {
         findingsCount: 2,
         pagesCrawled: 8,
         completedAt: new Date().toISOString(),
+        companyProfile: {
+          name: "Northstar",
+          logoUrl: "https://northstar.example/logo.png",
+          productSummary: "Ops software",
+          brandVoice: "Direct",
+          industry: "SaaS",
+          confidence: 80,
+        },
       },
       report: {
         score: 91,
@@ -793,6 +801,14 @@ describe("localisation audit leaderboard", () => {
         findingsCount: 4,
         pagesCrawled: 8,
         completedAt: new Date().toISOString(),
+        companyProfile: {
+          name: "  ",
+          logoUrl: "javascript:alert(1)",
+          productSummary: null,
+          brandVoice: null,
+          industry: null,
+          confidence: 10,
+        },
       },
       report: {
         score: 62,
@@ -813,7 +829,11 @@ describe("localisation audit leaderboard", () => {
     const ranks = leaderboard.filter((entry) => keys.includes(entry.domainKey));
     expect(ranks[0]?.domainKey).toBe(keys[0]);
     expect(ranks[0]?.score).toBe(91);
+    expect(ranks[0]?.companyName).toBe("Northstar");
+    expect(ranks[0]?.logoUrl).toBe("https://northstar.example/logo.png");
     expect(ranks[1]?.domainKey).toBe(keys[1]);
+    expect(ranks[1]?.companyName).toBeNull();
+    expect(ranks[1]?.logoUrl).toBeNull();
 
     const standing = await getLocalisationAuditStanding({
       domainSlug: second.audit.domainSlug,

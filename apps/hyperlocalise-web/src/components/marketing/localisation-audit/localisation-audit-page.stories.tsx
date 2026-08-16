@@ -14,7 +14,7 @@ import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { expect } from "storybook/test";
 
 import { LocalisationAuditPage } from "./localisation-audit-page";
-import { localisationAuditDomainSlug } from "./localisation-audit.fixture";
+import { localisationAuditLeaderboardEntries } from "./localisation-audit.fixture";
 
 const meta = {
   title: "Marketing/LocalisationAudit/Landing",
@@ -24,15 +24,7 @@ const meta = {
   },
   args: {
     locale: "en",
-    leaderboard: [
-      {
-        rank: 1,
-        domainKey: "acme.example",
-        domainSlug: localisationAuditDomainSlug,
-        score: 86,
-        completedAt: new Date("2026-08-01T12:00:00.000Z"),
-      },
-    ],
+    leaderboard: localisationAuditLeaderboardEntries(),
   },
 } satisfies Meta<typeof LocalisationAuditPage>;
 
@@ -49,6 +41,13 @@ export const Default: Story = {
     await expect(
       canvas.getByRole("heading", { name: "How other sites score" }),
     ).toBeInTheDocument();
+    await expect(canvas.getByText("Site")).toBeInTheDocument();
+    await expect(canvas.getByText("Score")).toBeInTheDocument();
+    await expect(canvas.getByRole("meter", { name: "Score 91 out of 100" })).toBeInTheDocument();
+    await expect(canvas.getByRole("meter", { name: "Score 72 out of 100" })).toBeInTheDocument();
+    await expect(canvas.getByRole("meter", { name: "Score 52 out of 100" })).toBeInTheDocument();
+    await expect(canvas.getByText("Northstar")).toBeInTheDocument();
+    await expect(canvas.getByText("bramble.example")).toBeInTheDocument();
     await expect(canvas.queryByText("hreflang")).not.toBeInTheDocument();
     await expect(canvas.queryByText(/SSRF/)).not.toBeInTheDocument();
   },
