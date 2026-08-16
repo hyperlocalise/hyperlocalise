@@ -98,7 +98,7 @@ describe("runLocalisationAuditCredits", () => {
       focusLocales: ["fr"],
     });
 
-    expect(generateTextMock).not.toHaveBeenCalled();
+    expect(generateTextMock).toHaveBeenCalledOnce();
     expect(result.credits.find((credit) => credit.id === "fluency")?.method).toBe("na");
     expect(result.credits.find((credit) => credit.id === "fluency")?.score).toBeNull();
     expect(result.credits.find((credit) => credit.id === "glossary-compliance")?.method).toBe("na");
