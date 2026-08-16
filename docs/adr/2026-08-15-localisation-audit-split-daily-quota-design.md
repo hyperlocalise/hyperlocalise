@@ -13,13 +13,13 @@ seed day can block users and a busy visitor day can block the schedule.
 
 ## Decision
 
-Keep the same per-bucket size of **10**, but count **user** and
-**scheduled** runs separately.
+Keep a shared per-bucket size via `LOCALISATION_AUDIT_DAILY_RUN_LIMIT`,
+but count **user** and **scheduled** runs separately.
 
 | Bucket | Cap | Who consumes it |
 |--------|-----|-----------------|
-| `user` | 10 | `POST /api/localisation-audit` and other visitor starts |
-| `scheduled` | 10 | Cron / internal starts that pass `runSource: "scheduled"` |
+| `user` | `LOCALISATION_AUDIT_DAILY_RUN_LIMIT` | `POST /api/localisation-audit` and other visitor starts |
+| `scheduled` | `LOCALISATION_AUDIT_DAILY_RUN_LIMIT` | Cron / internal starts that pass `runSource: "scheduled"` |
 
 Rules:
 
@@ -45,3 +45,9 @@ Rules:
 - Exhausting the user bucket does not block a scheduled claim, and the
   reverse.
 - Same-day retry after a failed user run still skips another user slot.
+
+## Update
+
+2026-08-16: raised `LOCALISATION_AUDIT_DAILY_RUN_LIMIT` from 10 to 20.
+User and scheduled buckets still split; each now allows 20 quota-consuming
+runs per rolling 24h.

@@ -10,6 +10,8 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { getIntlShape } from "@/lib/app-i18n/intl";
+
 import {
   LOCALISATION_AUDIT_DAILY_RUN_LIMIT,
   LOCALISATION_AUDIT_RERUN_MS,
@@ -48,8 +50,28 @@ export class LocalisationAuditDailyQuotaExceededError extends Error {
     runSource: LocalisationAuditRunSource = "user",
     limit = localisationAuditDailyRunLimit(runSource),
   ) {
-    const audience = runSource === "scheduled" ? "scheduled" : "visitor";
-    super(`We've reached today's limit of ${limit} ${audience} audits. Try again tomorrow.`);
+    const intl = getIntlShape();
+    const message =
+      runSource === "scheduled"
+        ? intl.formatMessage(
+            {
+              defaultMessage:
+                "We've reached today's limit of {limit} scheduled audits. Try again tomorrow.",
+              id: "RYfCDsRyCY",
+              description: "Error when the scheduled localisation audit daily quota is exhausted",
+            },
+            { limit },
+          )
+        : intl.formatMessage(
+            {
+              defaultMessage:
+                "We've reached today's limit of {limit} visitor audits. Try again tomorrow.",
+              id: "nCmj3mv2tP",
+              description: "Error when the public localisation audit daily quota is exhausted",
+            },
+            { limit },
+          );
+    super(message);
     this.name = "LocalisationAuditDailyQuotaExceededError";
     this.runSource = runSource;
   }

@@ -18,6 +18,7 @@ import { useState, type FormEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { LOCALISATION_AUDIT_DAILY_RUN_LIMIT } from "@/lib/localisation-audit/types";
 import { cn } from "@/lib/primitives/cn";
 
 import { getLocalisationAuditPageCopy } from "./localisation-audit-page-content";
@@ -131,7 +132,7 @@ export function LocalisationAuditForm({ locale, tone = "default" }: Localisation
           {pending ? copy.submitting : copy.submit}
         </Button>
         <p className={cn("text-sm", onMesh ? "text-white/70" : "text-muted-foreground")}>
-          {copy.onePerDomain}
+          {copy.onePerDomain({ limit: LOCALISATION_AUDIT_DAILY_RUN_LIMIT })}
         </p>
       </div>
     </form>

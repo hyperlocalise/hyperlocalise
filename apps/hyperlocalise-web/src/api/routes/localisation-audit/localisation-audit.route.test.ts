@@ -14,6 +14,7 @@ import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
 import { createApp } from "@/api/app";
 import { LocalisationAuditDailyQuotaExceededError } from "@/lib/localisation-audit/daily-quota";
+import { LOCALISATION_AUDIT_DAILY_RUN_LIMIT } from "@/lib/localisation-audit/types";
 import { ok } from "@/lib/primitives/result/results";
 
 const {
@@ -220,7 +221,9 @@ describe("localisation audit routes", () => {
   });
 
   it("rejects new runs when the daily quota is exhausted", async () => {
-    claimOrReuseMock.mockRejectedValue(new LocalisationAuditDailyQuotaExceededError("user", 10));
+    claimOrReuseMock.mockRejectedValue(
+      new LocalisationAuditDailyQuotaExceededError("user", LOCALISATION_AUDIT_DAILY_RUN_LIMIT),
+    );
 
     const app = createApp({
       localisationAuditQueue: {
@@ -237,7 +240,7 @@ describe("localisation audit routes", () => {
     expect(response.status).toBe(429);
     const body = await response.json();
     expect(body.error).toBe("localisation_audit_daily_quota");
-    expect(body.message).toContain("10 visitor audits");
+    expect(body.message).toContain(`${LOCALISATION_AUDIT_DAILY_RUN_LIMIT} visitor audits`);
   });
 
   it("marks enqueue failures as retryable failed audits", async () => {

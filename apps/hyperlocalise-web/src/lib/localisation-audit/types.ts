@@ -217,7 +217,7 @@ export type LocalisationAuditRunSource = "user" | "scheduled";
  * Rolling 24h cap on new runs and daily re-runs, per run source.
  * User submissions and scheduled audits each get their own bucket of this size.
  */
-export const LOCALISATION_AUDIT_DAILY_RUN_LIMIT = 10;
+export const LOCALISATION_AUDIT_DAILY_RUN_LIMIT = 20;
 export const LOCALISATION_AUDIT_EMAIL_RESEND_COOLDOWN_MS = 60 * 1000;
 export const LOCALISATION_AUDIT_REPORT_TOKEN_TTL_MS = 24 * 60 * 60 * 1000;
 

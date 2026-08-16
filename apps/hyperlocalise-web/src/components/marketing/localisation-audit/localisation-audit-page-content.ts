@@ -73,11 +73,15 @@ export function getLocalisationAuditPageCopy(locale: string) {
       id: "PHgeGQnTFw",
       description: "Submit button label while the localisation audit is starting",
     }),
-    onePerDomain: intl.formatMessage({
-      defaultMessage: "One free look per site. Ten a day across all sites.",
-      id: "Pk/NpM4S0S",
-      description: "Rate-limit note under the localisation audit landing form",
-    }),
+    onePerDomain: (values: { limit: number }) =>
+      intl.formatMessage(
+        {
+          defaultMessage: "One free look per site. {limit} a day across all sites.",
+          id: "PX+2a63Sck",
+          description: "Rate-limit note under the localisation audit landing form",
+        },
+        values,
+      ),
     startError: intl.formatMessage({
       defaultMessage: "Could not start the audit. Check the URL and try again.",
       id: "tBmWE9rsb2",

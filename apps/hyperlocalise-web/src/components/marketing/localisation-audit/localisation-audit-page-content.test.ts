@@ -12,6 +12,8 @@
  */
 import { describe, expect, it } from "vite-plus/test";
 
+import { LOCALISATION_AUDIT_DAILY_RUN_LIMIT } from "@/lib/localisation-audit/types";
+
 import {
   getLocalisationAuditGuideHref,
   getLocalisationAuditPageCopy,
@@ -31,6 +33,9 @@ describe("localisation audit page content", () => {
     expect(copy.notices[0]?.title).toBe("Voice");
     expect(copy.leaderboardHeading).toBe("How other sites score");
     expect(copy.startError).toContain("Check the URL");
+    expect(copy.onePerDomain({ limit: LOCALISATION_AUDIT_DAILY_RUN_LIMIT })).toBe(
+      `One free look per site. ${LOCALISATION_AUDIT_DAILY_RUN_LIMIT} a day across all sites.`,
+    );
   });
 
   it("returns result copy and interpolates ICU values", () => {
