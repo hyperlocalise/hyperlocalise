@@ -21,6 +21,7 @@ import {
   htmlLangSuggestionForPathLocale,
   isWellFormedHtmlLang,
   languageOf,
+  languagesMatch,
   LOCALE_SUBDOMAIN,
   looksPrimarilyEnglish,
   pageLocale,
@@ -247,7 +248,7 @@ const scoreLanguageSwitcher: HeuristicScorer = (context) => {
         LANGUAGE_NAME.test(anchor.text.trim()) ||
         LANGUAGE_NAME.test(anchor.href);
       if (!looksLikeSwitcher || !targetLocale) continue;
-      if (pageLocale(page) && languageOf(targetLocale) === languageOf(pageLocale(page)!)) {
+      if (pageLocale(page) && languagesMatch(targetLocale, pageLocale(page)!)) {
         continue;
       }
       found += 1;
@@ -491,7 +492,7 @@ const scoreCanonicalUrls: HeuristicScorer = (context) => {
     }
     const canonicalPathToken = pathLocaleFromUrl(canonicalUrl.toString());
     const canonicalLocale = canonicalPathToken ? canonicalPathLocale(canonicalPathToken) : null;
-    if (pageLoc && canonicalLocale && languageOf(pageLoc) !== languageOf(canonicalLocale)) {
+    if (pageLoc && canonicalLocale && !languagesMatch(pageLoc, canonicalLocale)) {
       score -= 30;
       findings.push(
         creditFinding({
@@ -575,7 +576,7 @@ const scoreLocalizedSeoMetadata: HeuristicScorer = (context) => {
 
   for (const [language, pages] of byLanguage) {
     const page = pages[0]!;
-    if (page.ogLocale && languageOf(page.ogLocale) !== language) {
+    if (page.ogLocale && !languagesMatch(page.ogLocale, language)) {
       score -= 12;
       findings.push(
         creditFinding({
@@ -761,7 +762,7 @@ const scoreStructuredData: HeuristicScorer = (context) => {
         score -= 8;
         continue;
       }
-      if (locale && languageOf(node.inLanguage) !== languageOf(locale)) {
+      if (locale && !languagesMatch(node.inLanguage, locale)) {
         score -= 18;
         findings.push(
           creditFinding({

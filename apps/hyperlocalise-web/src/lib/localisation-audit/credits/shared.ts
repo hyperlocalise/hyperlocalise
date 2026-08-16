@@ -95,6 +95,53 @@ export function languageOf(locale: string): string {
   return normalizeLocale(locale).split("-")[0] ?? "";
 }
 
+function localeRegion(locale: string): string {
+  return normalizeLocale(locale).split("-").slice(1).join("-");
+}
+
+/**
+ * Deprecated ISO 639-1 aliases still seen in html lang and og:locale.
+ * Mapped to the current preferred language subtag.
+ */
+const LANGUAGE_ALIASES: ReadonlyMap<string, string> = new Map([
+  ["iw", "he"],
+  ["in", "id"],
+  ["ji", "yi"],
+  ["jw", "jv"],
+  ["mo", "ro"],
+  ["tl", "fil"],
+]);
+
+/**
+ * Individual ISO 639 languages → their macrolanguage.
+ * `no` is Norwegian; `nb` is Bokmål and `nn` is Nynorsk. Open Graph uses
+ * `nb_NO` for Norwegian, so a `/no/` page with og:locale=nb_NO is correct.
+ */
+const LANGUAGE_MACROLANGUAGE: ReadonlyMap<string, string> = new Map([
+  ["nb", "no"],
+  ["nn", "no"],
+]);
+
+function canonicalLanguage(locale: string): string {
+  const language = languageOf(locale);
+  return LANGUAGE_ALIASES.get(language) ?? language;
+}
+
+/**
+ * Whether two locale tags refer to the same language family.
+ * Matches `nb`/`nn` to macrolanguage `no`, and deprecated aliases such as
+ * `iw`→`he`. Sibling individual languages (`nb` vs `nn`) do not match.
+ */
+export function languagesMatch(left: string, right: string): boolean {
+  const leftLanguage = canonicalLanguage(left);
+  const rightLanguage = canonicalLanguage(right);
+  if (!leftLanguage || !rightLanguage) return false;
+  if (leftLanguage === rightLanguage) return true;
+  const leftMacro = LANGUAGE_MACROLANGUAGE.get(leftLanguage) ?? leftLanguage;
+  const rightMacro = LANGUAGE_MACROLANGUAGE.get(rightLanguage) ?? rightLanguage;
+  return leftLanguage === rightMacro || rightLanguage === leftMacro;
+}
+
 /**
  * Whether a value is a structurally valid BCP 47 language tag for `html lang`.
  * Accepts UN M.49 regions such as `es-419` (Latin America) and scripts such as `zh-Hans`.
@@ -158,20 +205,18 @@ export function canonicalPathLocale(pathLocale: string): string {
 /**
  * Whether declared html lang agrees with the URL path locale.
  * `en` matches path `/au/` (suggested `en-AU`); `fr` on `/au/` does not.
+ * `nb-NO` matches path `/no/` (Norwegian Bokmål under macrolanguage `no`).
  */
 export function htmlLangMatchesPathLocale(htmlLang: string, pathLocale: string): boolean {
   const html = normalizeLocale(htmlLang);
   const suggested = normalizeLocale(htmlLangSuggestionForPathLocale(pathLocale));
   if (html === suggested) return true;
-  if (languageOf(html) !== languageOf(suggested)) return false;
-  // Bare language tag matches a language-region suggestion for the same language.
-  if (!html.includes("-") && suggested.includes("-")) return true;
-  // Language-region path matches a bare html lang for the same language.
-  if (html.includes("-") && !suggested.includes("-") && languageOf(html) === suggested) {
-    return true;
-  }
-  // Same language-region family (en-AU vs en-au already normalized; en-GB vs en-AU disagree on region)
-  return html === suggested;
+  if (!languagesMatch(html, suggested)) return false;
+  const htmlRegion = localeRegion(html);
+  const suggestedRegion = localeRegion(suggested);
+  // Bare language (or equivalent, e.g. nb vs no) matches a language-region tag.
+  if (!htmlRegion || !suggestedRegion) return true;
+  return htmlRegion === suggestedRegion;
 }
 
 export function isRtlLanguage(locale: string): boolean {

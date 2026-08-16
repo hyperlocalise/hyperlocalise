@@ -70,6 +70,22 @@ describe("technical heuristic credits", () => {
     expect(mismatch?.advice).not.toContain('html lang="au"');
   });
 
+  it("does not flag nb-NO html lang on a /no/ path as a mismatch", () => {
+    const outcome = technicalHeuristicScorers["locale-detection"]!(
+      context([
+        emptyCrawledPage({
+          url: "https://example.com/no/tjenester",
+          htmlLang: "nb-NO",
+        }),
+      ]),
+    );
+
+    expect(outcome.status).toBe("scored");
+    if (outcome.status !== "scored") return;
+    expect(outcome.findings.some((finding) => finding.id.includes("mismatch"))).toBe(false);
+    expect(outcome.score).toBe(100);
+  });
+
   it("does not flag en html lang on an /au/ path as a mismatch", () => {
     const outcome = technicalHeuristicScorers["locale-detection"]!(
       context([
@@ -222,6 +238,75 @@ describe("technical heuristic credits", () => {
     expect(outcome.status).toBe("scored");
     if (outcome.status !== "scored") return;
     expect(outcome.findings.some((finding) => finding.id.startsWith("canonical-locale-"))).toBe(
+      false,
+    );
+    expect(outcome.score).toBe(100);
+  });
+
+  it("accepts og:locale nb_NO on a Norwegian /no/ page", () => {
+    const outcome = technicalHeuristicScorers["localized-seo-metadata"]!(
+      context([
+        emptyCrawledPage({
+          url: "https://example.com/en/pricing",
+          htmlLang: "en",
+          title: "Pricing",
+          metaDescription: "Plans for teams",
+          ogLocale: "en_US",
+        }),
+        emptyCrawledPage({
+          url: "https://example.com/no/pricing",
+          htmlLang: "no",
+          title: "Priser",
+          metaDescription: "Planer for team",
+          ogLocale: "nb_NO",
+        }),
+      ]),
+    );
+
+    expect(outcome.status).toBe("scored");
+    if (outcome.status !== "scored") return;
+    expect(outcome.findings.some((finding) => finding.id.startsWith("seo-og-locale-"))).toBe(false);
+    expect(outcome.score).toBe(100);
+  });
+
+  it("still flags og:locale that is a different language", () => {
+    const outcome = technicalHeuristicScorers["localized-seo-metadata"]!(
+      context([
+        emptyCrawledPage({
+          url: "https://example.com/en/pricing",
+          htmlLang: "en",
+          title: "Pricing",
+          ogLocale: "en_US",
+        }),
+        emptyCrawledPage({
+          url: "https://example.com/no/pricing",
+          htmlLang: "no",
+          title: "Priser",
+          ogLocale: "sv_SE",
+        }),
+      ]),
+    );
+
+    expect(outcome.status).toBe("scored");
+    if (outcome.status !== "scored") return;
+    expect(outcome.findings.some((finding) => finding.id.startsWith("seo-og-locale-"))).toBe(true);
+    expect(outcome.score).toBeLessThan(100);
+  });
+
+  it("accepts JSON-LD inLanguage nb on a /no/ page", () => {
+    const outcome = technicalHeuristicScorers["structured-data"]!(
+      context([
+        emptyCrawledPage({
+          url: "https://example.com/no/pricing",
+          htmlLang: "no",
+          jsonLd: [{ type: "WebPage", inLanguage: "nb" }],
+        }),
+      ]),
+    );
+
+    expect(outcome.status).toBe("scored");
+    if (outcome.status !== "scored") return;
+    expect(outcome.findings.some((finding) => finding.id.startsWith("jsonld-language-"))).toBe(
       false,
     );
     expect(outcome.score).toBe(100);

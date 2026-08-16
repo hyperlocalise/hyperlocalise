@@ -18,6 +18,7 @@ import {
   htmlLangMatchesPathLocale,
   htmlLangSuggestionForPathLocale,
   isCjkLanguage,
+  languagesMatch,
   isPlausibleCtaCopy,
   isRtlLanguage,
   isWellFormedHtmlLang,
@@ -64,6 +65,30 @@ describe("htmlLangMatchesPathLocale", () => {
     expect(htmlLangMatchesPathLocale("fr-CA", "fr")).toBe(true);
     expect(htmlLangMatchesPathLocale("es-419", "es")).toBe(true);
     expect(htmlLangMatchesPathLocale("en-AU", "fr")).toBe(false);
+  });
+
+  it("accepts Norwegian Bokmål html lang on a /no/ macrolanguage path", () => {
+    expect(htmlLangMatchesPathLocale("nb", "no")).toBe(true);
+    expect(htmlLangMatchesPathLocale("nb-NO", "no")).toBe(true);
+    expect(htmlLangMatchesPathLocale("nn-NO", "no")).toBe(true);
+    expect(htmlLangMatchesPathLocale("nb-NO", "nn")).toBe(false);
+    expect(htmlLangMatchesPathLocale("sv", "no")).toBe(false);
+  });
+});
+
+describe("languagesMatch", () => {
+  it("treats Norwegian Bokmål and Nynorsk as the no macrolanguage", () => {
+    expect(languagesMatch("nb_NO", "no")).toBe(true);
+    expect(languagesMatch("nn-NO", "no")).toBe(true);
+    expect(languagesMatch("nb", "nb-NO")).toBe(true);
+    expect(languagesMatch("nb", "nn")).toBe(false);
+    expect(languagesMatch("fr_FR", "no")).toBe(false);
+  });
+
+  it("treats deprecated language aliases as the current ISO code", () => {
+    expect(languagesMatch("iw", "he")).toBe(true);
+    expect(languagesMatch("in_ID", "id")).toBe(true);
+    expect(languagesMatch("tl", "fil")).toBe(true);
   });
 });
 
