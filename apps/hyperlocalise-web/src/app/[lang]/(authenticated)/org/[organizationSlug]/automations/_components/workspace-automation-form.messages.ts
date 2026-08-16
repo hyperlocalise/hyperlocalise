@@ -474,38 +474,38 @@ export const workspaceAutomationFormMessages = defineMessages({
   },
   webSearch: {
     defaultMessage: "Web Search",
-    id: "k8Wm2nQp4R",
+    id: "DwaD/cBlPO",
     description: "Menu item and tool title for live web search",
   },
   webSearchDescription: {
     defaultMessage:
       "Search the live web through AI Gateway. Auto lets the agent pick Perplexity or Exa.",
-    id: "pL3x9vBq2T",
+    id: "SnTFQm1KyV",
     description: "Description for the Web Search automation tool",
   },
   removeWebSearchTool: {
     defaultMessage: "Remove Web Search tool",
-    id: "nR7c4hYs1K",
+    id: "YOVFvt60oU",
     description: "Accessible label to remove the Web Search tool",
   },
   webSearchProvider: {
     defaultMessage: "Search provider",
-    id: "aF2d8mQw6E",
+    id: "6Nr6tK1aoh",
     description: "Label for the Web Search provider picker",
   },
   webSearchProviderAuto: {
     defaultMessage: "Auto",
-    id: "bH5t1kZp9C",
+    id: "y6su8h1cH4",
     description: "Web Search provider option that lets the agent choose Perplexity or Exa",
   },
   webSearchProviderPerplexity: {
     defaultMessage: "Perplexity",
-    id: "cJ6u2lXq0D",
+    id: "Uuw7RsxOWd",
     description: "Web Search provider option for Perplexity Search",
   },
   webSearchProviderExa: {
     defaultMessage: "Exa",
-    id: "dK7v3mYr1E",
+    id: "P5KI62Z4os",
     description: "Web Search provider option for Exa Search",
   },
   comingSoon: {

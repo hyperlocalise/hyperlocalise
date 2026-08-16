@@ -2434,7 +2434,9 @@ function ToolsSettings({
                 <SelectTrigger className="w-full">
                   <SelectValue>
                     {form.webSearchProvider === "perplexity"
-                      ? intl.formatMessage(workspaceAutomationFormMessages.webSearchProviderPerplexity)
+                      ? intl.formatMessage(
+                          workspaceAutomationFormMessages.webSearchProviderPerplexity,
+                        )
                       : form.webSearchProvider === "exa"
                         ? intl.formatMessage(workspaceAutomationFormMessages.webSearchProviderExa)
                         : intl.formatMessage(workspaceAutomationFormMessages.webSearchProviderAuto)}

@@ -22,8 +22,8 @@ import { createUseWebSearchTool, resolveWorkspaceWebSearchGatewayTools } from ".
 
 const mocks = vi.hoisted(() => ({
   generate: vi.fn(),
-  withAgentRuntimeUsageMetering: vi.fn(
-    async (input: { run: () => Promise<unknown> }) => input.run(),
+  withAgentRuntimeUsageMetering: vi.fn(async (input: { run: () => Promise<unknown> }) =>
+    input.run(),
   ),
 }));
 
@@ -40,8 +40,7 @@ vi.mock("ai", async () => {
 
 vi.mock("@/lib/billing/agent-runtime-usage", () => ({
   extractGenerateResultTokenUsage: vi.fn(),
-  withAgentRuntimeUsageMetering: (...args: unknown[]) =>
-    mocks.withAgentRuntimeUsageMetering(...args),
+  withAgentRuntimeUsageMetering: mocks.withAgentRuntimeUsageMetering,
 }));
 
 function session(

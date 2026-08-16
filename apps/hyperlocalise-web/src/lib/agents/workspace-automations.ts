@@ -185,11 +185,7 @@ const ahrefsToolConfigSchema = z
   })
   .default({ enabled: false });
 
-export const workspaceAutomationWebSearchProviderSchema = z.enum([
-  "auto",
-  "perplexity",
-  "exa",
-]);
+export const workspaceAutomationWebSearchProviderSchema = z.enum(["auto", "perplexity", "exa"]);
 
 const webSearchToolConfigSchema = z
   .object({
