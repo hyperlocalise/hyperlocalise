@@ -182,7 +182,7 @@ function CreateJobPropertyPicker({
       <PopoverContent align="start" className="w-80 p-0" sideOffset={6}>
         <Command>
           <CommandInput placeholder={searchPlaceholder} />
-          <CommandList>
+          <CommandList label={ariaLabel} aria-multiselectable={multiple ? true : undefined}>
             <CommandEmpty>
               {isLoading ? <FormattedMessage {...createJobDialogMessages.loading} /> : emptyLabel}
             </CommandEmpty>
@@ -238,6 +238,7 @@ function CreateJobPropertyPicker({
                     key={item.id}
                     value={item.searchValue ?? `${item.id} ${item.label} ${item.secondary ?? ""}`}
                     data-checked={checked || undefined}
+                    aria-checked={multiple ? checked : undefined}
                     onSelect={() => {
                       onToggle(item.id);
                       if (!multiple) {

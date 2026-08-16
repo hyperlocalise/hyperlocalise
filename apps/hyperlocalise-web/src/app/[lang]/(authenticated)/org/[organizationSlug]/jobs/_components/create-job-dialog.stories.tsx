@@ -58,12 +58,16 @@ export const Native: Story = {
     await expect(canvas.getByRole("button", { name: "Create job" })).toBeInTheDocument();
 
     await userEvent.click(canvas.getByLabelText("Files"));
-    await expect(
-      await body.findByRole("option", { name: /marketing\/home\.json/ }),
-    ).toBeInTheDocument();
-    await expect(
-      body.getByRole("option", { name: /marketing\/pricing\.json/ }),
-    ).toBeInTheDocument();
+    const homeFile = await body.findByRole("option", { name: /marketing\/home\.json/ });
+    await expect(homeFile).toHaveAttribute("aria-checked", "false");
+    await expect(body.getByRole("option", { name: /marketing\/pricing\.json/ })).toHaveAttribute(
+      "aria-checked",
+      "false",
+    );
+    await expect(body.getByRole("listbox", { name: "Files" })).toHaveAttribute(
+      "aria-multiselectable",
+      "true",
+    );
   },
 };
 
@@ -82,14 +86,24 @@ export const Crowdin: Story = {
     await expect(canvas.queryByLabelText("Source locale")).not.toBeInTheDocument();
 
     await userEvent.click(canvas.getByLabelText("Files"));
-    await expect(
-      await body.findByRole("option", { name: /locales\/home\.json/ }),
-    ).toBeInTheDocument();
-    await expect(body.getByRole("option", { name: /locales\/pricing\.json/ })).toBeInTheDocument();
+    const homeFile = await body.findByRole("option", { name: /locales\/home\.json/ });
+    await expect(homeFile).toHaveAttribute("aria-checked", "false");
+    await expect(body.getByRole("option", { name: /locales\/pricing\.json/ })).toHaveAttribute(
+      "aria-checked",
+      "false",
+    );
     await userEvent.keyboard("{Escape}");
 
     await userEvent.click(canvas.getByLabelText("Assignees"));
-    await expect(await body.findByRole("option", { name: /Mina Chen/ })).toBeInTheDocument();
-    await expect(body.getByRole("option", { name: /Otto Berg/ })).toBeInTheDocument();
+    const mina = await body.findByRole("option", { name: /Mina Chen/ });
+    await expect(mina).toHaveAttribute("aria-checked", "false");
+    await expect(body.getByRole("option", { name: /Otto Berg/ })).toHaveAttribute(
+      "aria-checked",
+      "false",
+    );
+    await expect(body.getByRole("listbox", { name: "Assignees" })).toHaveAttribute(
+      "aria-multiselectable",
+      "true",
+    );
   },
 };

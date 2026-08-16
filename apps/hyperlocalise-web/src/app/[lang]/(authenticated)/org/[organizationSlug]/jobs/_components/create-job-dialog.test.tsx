@@ -192,6 +192,94 @@ describe("CreateJobDialog", () => {
     await waitFor(() => expect(apiMocks.nativeFilesGet).toHaveBeenCalled());
   });
 
+  it("exposes locale and file membership to assistive technologies", async () => {
+    const user = userEvent.setup();
+    renderDialog();
+
+    await user.click(screen.getByLabelText("Target locales"));
+    const localeList = await screen.findByRole("listbox", { name: "Target locales" });
+    expect(localeList).toHaveAttribute("aria-multiselectable", "true");
+    expect(screen.getByRole("option", { name: /French \(France\)/ })).toHaveAttribute(
+      "aria-checked",
+      "true",
+    );
+    expect(screen.getByRole("option", { name: /German \(Germany\)/ })).toHaveAttribute(
+      "aria-checked",
+      "true",
+    );
+
+    await user.click(screen.getByRole("option", { name: /French \(France\)/ }));
+    expect(screen.getByRole("option", { name: /French \(France\)/ })).toHaveAttribute(
+      "aria-checked",
+      "false",
+    );
+    expect(screen.getByRole("option", { name: /German \(Germany\)/ })).toHaveAttribute(
+      "aria-checked",
+      "true",
+    );
+    await user.keyboard("{Escape}");
+
+    await user.click(screen.getByLabelText("Target locales"));
+    expect(screen.getByRole("option", { name: /French \(France\)/ })).toHaveAttribute(
+      "aria-checked",
+      "false",
+    );
+    expect(screen.getByRole("option", { name: /German \(Germany\)/ })).toHaveAttribute(
+      "aria-checked",
+      "true",
+    );
+    await user.keyboard("{Escape}");
+
+    await user.click(screen.getByLabelText("Files"));
+    const fileList = await screen.findByRole("listbox", { name: "Files" });
+    expect(fileList).toHaveAttribute("aria-multiselectable", "true");
+    const homeFile = await screen.findByRole("option", { name: /marketing\/home\.json/ });
+    const pricingFile = screen.getByRole("option", { name: /marketing\/pricing\.json/ });
+    expect(homeFile).toHaveAttribute("aria-checked", "false");
+    expect(pricingFile).toHaveAttribute("aria-checked", "false");
+
+    await user.click(homeFile);
+    expect(homeFile).toHaveAttribute("aria-checked", "true");
+    expect(pricingFile).toHaveAttribute("aria-checked", "false");
+    await user.keyboard("{Escape}");
+
+    await user.click(screen.getByLabelText("Files"));
+    expect(await screen.findByRole("option", { name: /marketing\/home\.json/ })).toHaveAttribute(
+      "aria-checked",
+      "true",
+    );
+    expect(screen.getByRole("option", { name: /marketing\/pricing\.json/ })).toHaveAttribute(
+      "aria-checked",
+      "false",
+    );
+  });
+
+  it("exposes Crowdin assignee multi-select state when the picker is reopened", async () => {
+    const user = userEvent.setup();
+    renderDialog({
+      projectId: encodeProviderProjectId({
+        providerKind: "crowdin",
+        externalProjectId: "902807",
+      }),
+    });
+
+    await user.click(screen.getByLabelText("Assignees"));
+    const assigneeList = await screen.findByRole("listbox", { name: "Assignees" });
+    expect(assigneeList).toHaveAttribute("aria-multiselectable", "true");
+    const mina = await screen.findByRole("option", { name: /Mina Chen/ });
+    expect(mina).toHaveAttribute("aria-checked", "false");
+
+    await user.click(mina);
+    expect(mina).toHaveAttribute("aria-checked", "true");
+    await user.keyboard("{Escape}");
+
+    await user.click(screen.getByLabelText("Assignees"));
+    expect(await screen.findByRole("option", { name: /Mina Chen/ })).toHaveAttribute(
+      "aria-checked",
+      "true",
+    );
+  });
+
   it("creates a native job from the composer", async () => {
     const user = userEvent.setup();
     const onOpenChange = vi.fn();
