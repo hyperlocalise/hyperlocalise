@@ -40,10 +40,7 @@ import {
 
 import { appShellNavigationMessages } from "./app-shell-navigation.messages";
 import { filterNavigationItemsByWorkspaceFlags } from "@/lib/flags/workspace-flag-navigation";
-import {
-  formatInboxUnreadBadgeLabel,
-  inboxUnreadBadgeClassName,
-} from "./inbox-unread-badge";
+import { formatInboxUnreadBadgeLabel, inboxUnreadBadgeClassName } from "./inbox-unread-badge";
 
 import {
   buildOrganizationPath,
