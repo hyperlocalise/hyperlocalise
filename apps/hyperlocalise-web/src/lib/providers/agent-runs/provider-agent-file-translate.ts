@@ -264,6 +264,7 @@ async function runMultiFileTranslationInSandbox(input: {
   targetLocales: string[];
   context: SandboxTranslationContext;
   prefilledByLocale: Record<string, Record<string, string>>;
+  organizationId: string;
 }) {
   const {
     buildMultiFileMultiLocaleTempConfig,
@@ -273,6 +274,8 @@ async function runMultiFileTranslationInSandbox(input: {
     writeFileToSandbox,
     writeTempConfig,
   } = await import("@/lib/translation/sandbox");
+  const { loadSandboxByokCredential } = await import("@/lib/translation/sandbox-byok");
+  const byok = await loadSandboxByokCredential(input.organizationId);
 
   const config = buildMultiFileMultiLocaleTempConfig(
     input.files,
@@ -280,6 +283,7 @@ async function runMultiFileTranslationInSandbox(input: {
     input.targetLocales,
     null,
     input.context,
+    byok,
   );
   await writeTempConfig(input.sandboxId, config, sandboxI18nConfigPath);
 
@@ -312,7 +316,7 @@ async function runMultiFileTranslationInSandbox(input: {
       "-lc",
       `hl run --config '${shellSingleQuote(sandboxI18nConfigPath)}' ${localeFlags} --force --progress off${prefilledFlags}`,
     ],
-    { env: getSandboxTranslationEnv() },
+    { env: getSandboxTranslationEnv(byok) },
   );
 
   if (translation.exitCode !== 0) {
@@ -780,6 +784,7 @@ export async function translateProviderJobFiles(input: {
             targetLocales: localesToRun,
             context: batchContext,
             prefilledByLocale,
+            organizationId: input.organizationId,
           });
         } catch (error) {
           warnings.push(

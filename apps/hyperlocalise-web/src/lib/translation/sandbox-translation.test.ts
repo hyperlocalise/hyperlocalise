@@ -12,23 +12,26 @@
  */
 import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
-const sandboxMocks = vi.hoisted(() => {
+const { envMock, sandboxMocks } = vi.hoisted(() => {
   const create = vi.fn();
   const output = vi.fn();
   const runCommand = vi.fn();
   const get = vi.fn();
 
-  return { create, get, output, runCommand };
+  return {
+    envMock: {
+      OPENAI_API_KEY: "test-openai-api-key" as string | undefined,
+      AI_GATEWAY_API_KEY: undefined as string | undefined,
+      AI_GATEWAY_BASE_URL: undefined as string | undefined,
+      FILE_STORAGE_PROVIDER: "vercel_blob",
+      FILE_STORAGE_ACCESS: "private",
+    },
+    sandboxMocks: { create, get, output, runCommand },
+  };
 });
 
 vi.mock("@/lib/env", () => ({
-  env: {
-    OPENAI_API_KEY: "test-openai-api-key",
-    AI_GATEWAY_API_KEY: undefined as string | undefined,
-    AI_GATEWAY_BASE_URL: undefined as string | undefined,
-    FILE_STORAGE_PROVIDER: "vercel_blob",
-    FILE_STORAGE_ACCESS: "private",
-  },
+  env: envMock,
 }));
 
 vi.mock("@vercel/sandbox", () => ({
@@ -48,7 +51,6 @@ vi.mock("@vercel/sandbox", () => ({
   },
 }));
 
-import { env } from "@/lib/env";
 import {
   buildCrowdinFileSandboxConfig,
   buildCrowdinTranslationPath,
@@ -566,11 +568,34 @@ describe("sandbox translation temporary config", () => {
     expect(config).toContain('- "fr-FR"');
   });
 
+  it("writes the organization BYOK profile when a credential is provided", () => {
+    const byok = {
+      provider: "gemini" as const,
+      apiKey: "gem-org",
+      model: "gemini-3.5-flash",
+    };
+    const config = buildTempConfig(
+      "source.json",
+      "target.json",
+      "en-US",
+      "fr-FR",
+      null,
+      null,
+      byok,
+    );
+
+    expect(config).toContain("provider: gemini");
+    expect(config).toContain("model: gemini-3.5-flash");
+    expect(getSandboxTranslationEnv(byok)).toEqual({
+      GEMINI_API_KEY: "gem-org",
+    });
+  });
+
   it("writes an ai_gateway profile and passes the Gateway key when that env var is set", () => {
-    const previousKey = env.AI_GATEWAY_API_KEY;
-    const previousBaseUrl = env.AI_GATEWAY_BASE_URL;
-    env.AI_GATEWAY_API_KEY = "vck_test_key";
-    env.AI_GATEWAY_BASE_URL = "https://ai-gateway.example.test/v1";
+    const previousKey = envMock.AI_GATEWAY_API_KEY;
+    const previousBaseUrl = envMock.AI_GATEWAY_BASE_URL;
+    envMock.AI_GATEWAY_API_KEY = "vck_test_key";
+    envMock.AI_GATEWAY_BASE_URL = "https://ai-gateway.example.test/v1";
     try {
       const config = buildTempConfig("source.json", "target.json", "en-US", "fr-FR", null);
 
@@ -582,8 +607,8 @@ describe("sandbox translation temporary config", () => {
         AI_GATEWAY_BASE_URL: "https://ai-gateway.example.test/v1",
       });
     } finally {
-      env.AI_GATEWAY_API_KEY = previousKey;
-      env.AI_GATEWAY_BASE_URL = previousBaseUrl;
+      envMock.AI_GATEWAY_API_KEY = previousKey;
+      envMock.AI_GATEWAY_BASE_URL = previousBaseUrl;
     }
   });
 });

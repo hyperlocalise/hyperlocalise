@@ -16,12 +16,21 @@ export const sandboxOpenAiApiKeyEnv = "OPENAI_API_KEY";
 export const sandboxAiGatewayApiKeyEnv = "AI_GATEWAY_API_KEY";
 export const sandboxAiGatewayBaseUrlEnv = "AI_GATEWAY_BASE_URL";
 
-export type SandboxLlmProvider = "ai_gateway" | "openai";
+export const sandboxByokProviders = ["openai", "anthropic", "gemini", "groq", "mistral"] as const;
+
+export type SandboxByokProvider = (typeof sandboxByokProviders)[number];
+export type SandboxLlmProvider = SandboxByokProvider | "ai_gateway";
 
 export type SandboxTranslationEnvSource = {
-  OPENAI_API_KEY?: string;
-  AI_GATEWAY_API_KEY?: string;
-  AI_GATEWAY_BASE_URL?: string;
+  OPENAI_API_KEY?: string | undefined;
+  AI_GATEWAY_API_KEY?: string | undefined;
+  AI_GATEWAY_BASE_URL?: string | undefined;
+};
+
+export type SandboxByokCredential = {
+  provider: SandboxByokProvider;
+  apiKey: string;
+  model: string;
 };
 
 export type SandboxLlmProfile = {
@@ -29,15 +38,36 @@ export type SandboxLlmProfile = {
   model: string;
 };
 
+export const sandboxApiKeyEnvByByokProvider = {
+  openai: "OPENAI_API_KEY",
+  anthropic: "ANTHROPIC_API_KEY",
+  gemini: "GEMINI_API_KEY",
+  groq: "GROQ_API_KEY",
+  mistral: "MISTRAL_API_KEY",
+} as const satisfies Record<SandboxByokProvider, string>;
+
+function readEnvValue(source: object, key: keyof SandboxTranslationEnvSource): string | undefined {
+  const value = (source as SandboxTranslationEnvSource)[key];
+  return typeof value === "string" ? value : undefined;
+}
+
 function trimEnvValue(value: string | undefined): string | undefined {
   const trimmed = value?.trim();
   return trimmed ? trimmed : undefined;
 }
 
 export function resolveSandboxLlmProfile(
-  source: SandboxTranslationEnvSource,
+  source: object,
+  byok?: SandboxByokCredential | null,
 ): SandboxLlmProfile {
-  if (trimEnvValue(source.AI_GATEWAY_API_KEY)) {
+  if (byok) {
+    return {
+      provider: byok.provider,
+      model: byok.model,
+    };
+  }
+
+  if (trimEnvValue(readEnvValue(source, "AI_GATEWAY_API_KEY"))) {
     return {
       provider: "ai_gateway",
       model: `openai/${hyperlocaliseAgentModelId}`,
@@ -51,11 +81,23 @@ export function resolveSandboxLlmProfile(
 }
 
 export function resolveSandboxTranslationEnv(
-  source: SandboxTranslationEnvSource,
+  source: object,
+  byok?: SandboxByokCredential | null,
 ): Record<string, string> {
-  const openaiApiKey = trimEnvValue(source.OPENAI_API_KEY);
-  const aiGatewayApiKey = trimEnvValue(source.AI_GATEWAY_API_KEY);
-  const aiGatewayBaseUrl = trimEnvValue(source.AI_GATEWAY_BASE_URL);
+  if (byok) {
+    const apiKey = trimEnvValue(byok.apiKey);
+    if (!apiKey) {
+      throw new Error("organization provider credential is incomplete");
+    }
+
+    return {
+      [sandboxApiKeyEnvByByokProvider[byok.provider]]: apiKey,
+    };
+  }
+
+  const openaiApiKey = trimEnvValue(readEnvValue(source, "OPENAI_API_KEY"));
+  const aiGatewayApiKey = trimEnvValue(readEnvValue(source, "AI_GATEWAY_API_KEY"));
+  const aiGatewayBaseUrl = trimEnvValue(readEnvValue(source, "AI_GATEWAY_BASE_URL"));
 
   if (!openaiApiKey && !aiGatewayApiKey) {
     throw new Error("OPENAI_API_KEY or AI_GATEWAY_API_KEY is not configured");

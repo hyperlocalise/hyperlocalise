@@ -60,6 +60,24 @@ describe("resolveSandboxTranslationEnv", () => {
       "OPENAI_API_KEY or AI_GATEWAY_API_KEY is not configured",
     );
   });
+
+  it("passes only the BYOK provider key when an organization credential is present", () => {
+    expect(
+      resolveSandboxTranslationEnv(
+        {
+          OPENAI_API_KEY: "sk-platform",
+          AI_GATEWAY_API_KEY: "vck_platform",
+        },
+        {
+          provider: "anthropic",
+          apiKey: "sk-ant-org",
+          model: "claude-sonnet-4-6",
+        },
+      ),
+    ).toEqual({
+      ANTHROPIC_API_KEY: "sk-ant-org",
+    });
+  });
 });
 
 describe("resolveSandboxLlmProfile", () => {
@@ -74,6 +92,22 @@ describe("resolveSandboxLlmProfile", () => {
     expect(resolveSandboxLlmProfile({ OPENAI_API_KEY: "sk-openai" })).toEqual({
       provider: "openai",
       model: hyperlocaliseAgentModelId,
+    });
+  });
+
+  it("uses the organization BYOK provider and model when a credential is present", () => {
+    expect(
+      resolveSandboxLlmProfile(
+        { AI_GATEWAY_API_KEY: "vck_test" },
+        {
+          provider: "gemini",
+          apiKey: "gem-org",
+          model: "gemini-3.5-flash",
+        },
+      ),
+    ).toEqual({
+      provider: "gemini",
+      model: "gemini-3.5-flash",
     });
   });
 });

@@ -121,6 +121,26 @@ describe("email translation temporary config", () => {
       expect(config).toContain("model: openai/gpt-5.6-luna");
     });
   });
+
+  it("writes the organization BYOK profile when a credential is provided", () => {
+    withSandboxLlmEnv({ AI_GATEWAY_API_KEY: "vck_test_key" }, () => {
+      const byok = {
+        provider: "anthropic" as const,
+        apiKey: "sk-ant-org",
+        model: "claude-sonnet-4-6",
+      };
+
+      expect(buildTempConfig("source.json", "target.json", "en", "fr", null, byok)).toContain(
+        "provider: anthropic",
+      );
+      expect(buildTempConfig("source.json", "target.json", "en", "fr", null, byok)).toContain(
+        "model: claude-sonnet-4-6",
+      );
+      expect(getSandboxTranslationEnv(byok)).toEqual({
+        ANTHROPIC_API_KEY: "sk-ant-org",
+      });
+    });
+  });
 });
 
 describe("translated file diagnostics", () => {

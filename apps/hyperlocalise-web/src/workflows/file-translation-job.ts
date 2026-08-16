@@ -107,7 +107,14 @@ function classifyCliFailureKind(output: string): string {
   if (output.includes("escapes root")) {
     return "path_escapes_root";
   }
-  if (output.includes("OPENAI_API_KEY") || output.includes("AI_GATEWAY_API_KEY")) {
+  if (
+    output.includes("OPENAI_API_KEY") ||
+    output.includes("AI_GATEWAY_API_KEY") ||
+    output.includes("ANTHROPIC_API_KEY") ||
+    output.includes("GEMINI_API_KEY") ||
+    output.includes("GROQ_API_KEY") ||
+    output.includes("MISTRAL_API_KEY")
+  ) {
     return "missing_openai_api_key";
   }
   if (output.includes("planning tasks")) {
@@ -308,7 +315,7 @@ async function runTranslationStep(
   instructions: string | null,
   context: SandboxTranslationContext,
   prefilledByLocale: Record<string, Record<string, string>>,
-  options?: { force?: boolean; maxTranslations?: number },
+  options?: { force?: boolean; maxTranslations?: number; organizationId?: string },
 ) {
   "use step";
 
@@ -322,6 +329,10 @@ async function runTranslationStep(
     writeFileToSandbox,
     writeTempConfig,
   } = await import("@/lib/translation/sandbox");
+  const { loadSandboxByokCredential } = await import("@/lib/translation/sandbox-byok");
+  const byok = options?.organizationId
+    ? await loadSandboxByokCredential(options.organizationId)
+    : null;
 
   const config = buildMultiLocaleTempConfig(
     inputFile,
@@ -330,6 +341,7 @@ async function runTranslationStep(
     targetLocales,
     instructions,
     context,
+    byok,
   );
   await writeTempConfig(sandboxId, config, sandboxI18nConfigPath);
 
@@ -370,7 +382,7 @@ async function runTranslationStep(
         `hl run --config '${shellSingleQuote(sandboxI18nConfigPath)}'${localeArg}${forceFlag}${maxTranslationsFlag} --progress off${prefilledFlags}`,
       ],
       {
-        env: getSandboxTranslationEnv(),
+        env: getSandboxTranslationEnv(byok),
       },
     );
   } catch (error) {
@@ -982,7 +994,7 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
               .filter((locale) => prefilledByLocale[locale])
               .map((locale) => [locale, prefilledByLocale[locale]]),
           ),
-          { force: runForce, maxTranslations },
+          { force: runForce, maxTranslations, organizationId },
         );
 
       let translation: Awaited<ReturnType<typeof runTranslationStep>>;

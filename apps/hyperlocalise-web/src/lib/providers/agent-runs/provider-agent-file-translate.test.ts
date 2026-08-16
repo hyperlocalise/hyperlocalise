@@ -102,6 +102,11 @@ vi.mock("@/lib/database", () => ({
   },
 }));
 
+vi.mock("@/lib/translation/sandbox-byok", () => ({
+  loadSandboxByokCredential: vi.fn(async () => null),
+  loadSandboxByokCredentialForJob: vi.fn(async () => null),
+}));
+
 vi.mock("@/lib/translation/sandbox", () => ({
   createTranslationSandbox: (...args: unknown[]) => createTranslationSandboxMock(...args),
   prepareSandbox: (...args: unknown[]) => prepareSandboxMock(...args),
@@ -483,6 +488,7 @@ describe("translateProviderJobFiles", () => {
       ["fr"],
       null,
       expect.objectContaining({ projectName: "Demo" }),
+      null,
     );
     expect(runSandboxCommandMock).toHaveBeenCalledTimes(1);
     expect(result.filesProcessed).toBe(2);
@@ -713,6 +719,7 @@ describe("translateProviderJobFiles", () => {
       ["fr"],
       null,
       expect.any(Object),
+      null,
     );
     expect(result.filesProcessed).toBe(1);
     expect(result.skippedExistingLocales).toBe(1);
@@ -868,6 +875,7 @@ describe("translateProviderJobFiles", () => {
       ["fr"],
       null,
       expect.any(Object),
+      null,
     );
     expect(result.warnings.some((warning) => warning.includes("Skipped file a.json"))).toBe(true);
     expect(result.changedItems).toEqual([expect.objectContaining({ key: "bye", to: "Au revoir" })]);
