@@ -16,6 +16,7 @@ import type {
   WorkspaceAutomationRepositoryTarget,
   WorkspaceAutomationToolConfig,
   WorkspaceAutomationTriggerConfig,
+  WorkspaceAutomationWebSearchProvider,
 } from "./workspace-automations";
 import {
   getWorkspaceAutomationTemplate,
@@ -75,6 +76,8 @@ export type WorkspaceAutomationFormState = {
   semrushConnectionId: string;
   ahrefsEnabled: boolean;
   ahrefsConnectionId: string;
+  webSearchEnabled: boolean;
+  webSearchProvider: WorkspaceAutomationWebSearchProvider;
 };
 
 function workspaceAutomationFormNeedsProject(form: WorkspaceAutomationFormState): boolean {
@@ -126,7 +129,7 @@ export const WORKSPACE_AUTOMATION_API_ERROR_MESSAGES: Record<string, string> = {
     "Use GitHub repo automations with a scheduled or manual trigger, not GitHub push.",
   github_push_branches_required: "Add at least one branch pattern for GitHub push triggers.",
   scheduled_workflow_required:
-    "Scheduled automations require at least one GitHub, Contentful, or Issues workflow tool.",
+    "Scheduled automations require at least one GitHub, Contentful, Issues, or Web Search workflow tool.",
   slack_not_connected: "Connect Slack in Integrations before enabling Slack notifications.",
   slack_channel_required: "Choose a Slack channel for notifications.",
   email_not_connected: "Enable the email agent in Integrations before using email notifications.",
@@ -202,6 +205,8 @@ export function createDefaultWorkspaceAutomationFormState(): WorkspaceAutomation
     semrushConnectionId: "",
     ahrefsEnabled: false,
     ahrefsConnectionId: "",
+    webSearchEnabled: false,
+    webSearchProvider: "auto",
   };
 }
 
@@ -220,6 +225,7 @@ export function createWorkspaceAutomationFormStateFromRecord(
   const mcp = automation.toolConfig.mcp;
   const semrush = automation.toolConfig.semrush;
   const ahrefs = automation.toolConfig.ahrefs;
+  const webSearch = automation.toolConfig.webSearch;
 
   return {
     name: automation.name,
@@ -285,6 +291,8 @@ export function createWorkspaceAutomationFormStateFromRecord(
     semrushConnectionId: semrush?.connectionId ?? "",
     ahrefsEnabled: Boolean(ahrefs?.enabled),
     ahrefsConnectionId: ahrefs?.connectionId ?? "",
+    webSearchEnabled: Boolean(webSearch?.enabled),
+    webSearchProvider: webSearch?.provider ?? "auto",
   };
 }
 
@@ -491,6 +499,14 @@ export function formStateToWorkspaceAutomationPayload(form: WorkspaceAutomationF
           },
         }
       : {}),
+    ...(form.webSearchEnabled
+      ? {
+          webSearch: {
+            enabled: true,
+            provider: form.webSearchProvider,
+          },
+        }
+      : {}),
   };
 
   const projectId = form.projectId.trim() || undefined;
@@ -667,6 +683,7 @@ export function workspaceAutomationFormCanActivate(form: WorkspaceAutomationForm
     form.createIssueEnabled ||
     form.mcpEnabled ||
     form.semrushEnabled ||
-    form.ahrefsEnabled
+    form.ahrefsEnabled ||
+    form.webSearchEnabled
   );
 }

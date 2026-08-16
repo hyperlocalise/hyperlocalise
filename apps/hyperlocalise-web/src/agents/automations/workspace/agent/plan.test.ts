@@ -179,6 +179,19 @@ describe("buildWorkspaceOrchestratorPlan", () => {
     expect(plan.tools).toEqual(["use_ahrefs", "notify_slack"]);
   });
 
+  it("includes use_web_search when Web Search is enabled", () => {
+    const plan = buildWorkspaceOrchestratorPlan(
+      automation({
+        toolConfig: {
+          webSearch: { enabled: true, provider: "auto" },
+          slack: { enabled: true, channelId: "C123" },
+        },
+      }),
+    );
+
+    expect(plan.tools).toEqual(["use_web_search", "notify_slack"]);
+  });
+
   it("does not plan recall_memory when knowledge is enabled", () => {
     const plan = buildWorkspaceOrchestratorPlan(
       automation({

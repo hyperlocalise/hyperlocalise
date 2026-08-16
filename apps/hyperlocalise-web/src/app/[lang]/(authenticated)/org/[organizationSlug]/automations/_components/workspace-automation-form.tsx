@@ -26,7 +26,7 @@ import {
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useQuery } from "@tanstack/react-query";
-import { ClockIcon, MailIcon, SearchIcon, Trash2Icon } from "lucide-react";
+import { ClockIcon, GlobeIcon, MailIcon, SearchIcon, Trash2Icon } from "lucide-react";
 import { FormattedMessage, useIntl, type IntlShape } from "react-intl";
 import type { SimpleIcon } from "simple-icons";
 import {
@@ -342,7 +342,8 @@ function toolCount(form: WorkspaceAutomationFormState) {
     Number(form.knowledgeEnabled) +
     Number(form.mcpEnabled) +
     Number(form.semrushEnabled) +
-    Number(form.ahrefsEnabled)
+    Number(form.ahrefsEnabled) +
+    Number(form.webSearchEnabled)
   );
 }
 
@@ -1428,6 +1429,18 @@ function AddToolMenu({
                 </DropdownMenuShortcut>
               ) : null}
             </DropdownMenuItem>
+            <DropdownMenuItem
+              disabled={form.webSearchEnabled}
+              onClick={() => onChange({ ...form, webSearchEnabled: true })}
+            >
+              <GlobeIcon className="size-4" />
+              <FormattedMessage {...workspaceAutomationFormMessages.webSearch} />
+              {form.webSearchEnabled ? (
+                <DropdownMenuShortcut>
+                  <FormattedMessage {...workspaceAutomationFormMessages.addedShortcut} />
+                </DropdownMenuShortcut>
+              ) : null}
+            </DropdownMenuItem>
           </DropdownMenuGroup>
           <DropdownMenuSeparator />
           <DropdownMenuGroup>
@@ -2381,6 +2394,66 @@ function ToolsSettings({
                 </SelectContent>
               </Select>
               <FieldError message={errors.ahrefsConnectionId} />
+            </div>
+          </EditorRow>
+        ) : null}
+
+        {form.webSearchEnabled ? (
+          <EditorRow
+            icon={<GlobeIcon className="size-4" />}
+            title={<FormattedMessage {...workspaceAutomationFormMessages.webSearch} />}
+            description={intl.formatMessage(workspaceAutomationFormMessages.webSearchDescription)}
+            action={
+              <DeleteToolButton
+                disabled={disabled}
+                label={intl.formatMessage(workspaceAutomationFormMessages.removeWebSearchTool)}
+                onClick={() =>
+                  onChange({
+                    ...form,
+                    webSearchEnabled: false,
+                    webSearchProvider: "auto",
+                  })
+                }
+              />
+            }
+          >
+            <div className="grid gap-1.5">
+              <Label className="text-xs text-muted-foreground">
+                <FormattedMessage {...workspaceAutomationFormMessages.webSearchProvider} />
+              </Label>
+              <Select
+                value={form.webSearchProvider}
+                disabled={disabled}
+                onValueChange={(value) => {
+                  if (value !== "auto" && value !== "perplexity" && value !== "exa") {
+                    return;
+                  }
+                  onChange({ ...form, webSearchProvider: value });
+                }}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue>
+                    {form.webSearchProvider === "perplexity"
+                      ? intl.formatMessage(workspaceAutomationFormMessages.webSearchProviderPerplexity)
+                      : form.webSearchProvider === "exa"
+                        ? intl.formatMessage(workspaceAutomationFormMessages.webSearchProviderExa)
+                        : intl.formatMessage(workspaceAutomationFormMessages.webSearchProviderAuto)}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="auto">
+                    <FormattedMessage {...workspaceAutomationFormMessages.webSearchProviderAuto} />
+                  </SelectItem>
+                  <SelectItem value="perplexity">
+                    <FormattedMessage
+                      {...workspaceAutomationFormMessages.webSearchProviderPerplexity}
+                    />
+                  </SelectItem>
+                  <SelectItem value="exa">
+                    <FormattedMessage {...workspaceAutomationFormMessages.webSearchProviderExa} />
+                  </SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </EditorRow>
         ) : null}

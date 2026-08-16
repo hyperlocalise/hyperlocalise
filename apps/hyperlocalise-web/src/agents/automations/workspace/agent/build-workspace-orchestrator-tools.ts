@@ -27,6 +27,7 @@ import { createSaveMemoryTool } from "./tools/save_memory";
 import { createUseAhrefsTool } from "./tools/use_ahrefs";
 import { createUseGithubRepositoryTool } from "./tools/use_github_repository";
 import { createUseSemrushTool } from "./tools/use_semrush";
+import { createUseWebSearchTool } from "./tools/use_web_search";
 
 const TOOL_BUILDERS: Record<
   WorkspaceOrchestratorToolName,
@@ -41,6 +42,7 @@ const TOOL_BUILDERS: Record<
   create_issue: createCreateIssueTool,
   use_semrush: createUseSemrushTool,
   use_ahrefs: createUseAhrefsTool,
+  use_web_search: createUseWebSearchTool,
   notify_slack: createNotifySlackTool,
   notify_email: createNotifyEmailTool,
   recall_memory: createRecallMemoryTool,

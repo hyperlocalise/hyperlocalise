@@ -472,6 +472,42 @@ export const workspaceAutomationFormMessages = defineMessages({
     id: "CKjsX01Ql/",
     description: "Accessible label to remove the Ahrefs tool",
   },
+  webSearch: {
+    defaultMessage: "Web Search",
+    id: "k8Wm2nQp4R",
+    description: "Menu item and tool title for live web search",
+  },
+  webSearchDescription: {
+    defaultMessage:
+      "Search the live web through AI Gateway. Auto lets the agent pick Perplexity or Exa.",
+    id: "pL3x9vBq2T",
+    description: "Description for the Web Search automation tool",
+  },
+  removeWebSearchTool: {
+    defaultMessage: "Remove Web Search tool",
+    id: "nR7c4hYs1K",
+    description: "Accessible label to remove the Web Search tool",
+  },
+  webSearchProvider: {
+    defaultMessage: "Search provider",
+    id: "aF2d8mQw6E",
+    description: "Label for the Web Search provider picker",
+  },
+  webSearchProviderAuto: {
+    defaultMessage: "Auto",
+    id: "bH5t1kZp9C",
+    description: "Web Search provider option that lets the agent choose Perplexity or Exa",
+  },
+  webSearchProviderPerplexity: {
+    defaultMessage: "Perplexity",
+    id: "cJ6u2lXq0D",
+    description: "Web Search provider option for Perplexity Search",
+  },
+  webSearchProviderExa: {
+    defaultMessage: "Exa",
+    id: "dK7v3mYr1E",
+    description: "Web Search provider option for Exa Search",
+  },
   comingSoon: {
     defaultMessage: "Coming soon",
     id: "lvwFhMaVAT",

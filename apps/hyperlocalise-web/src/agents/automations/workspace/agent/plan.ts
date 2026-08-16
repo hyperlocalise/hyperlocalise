@@ -20,6 +20,7 @@ import {
   hasWorkspaceAutomationCreateIssueTool,
   hasWorkspaceAutomationCreateNativeTmsJobTool,
   hasWorkspaceAutomationListIssuesTool,
+  hasWorkspaceAutomationWebSearchTool,
   type WorkspaceAutomationRecord,
   type WorkspaceAutomationToolConfig,
 } from "@/lib/agents/workspace-automations";
@@ -36,6 +37,7 @@ export const WORKSPACE_ORCHESTRATOR_TOOL_NAMES = [
   "create_issue",
   "use_semrush",
   "use_ahrefs",
+  "use_web_search",
   "notify_slack",
   "notify_email",
   "recall_memory",
@@ -62,6 +64,7 @@ const WORKFLOW_TOOLS: WorkspaceOrchestratorToolName[] = [
   "create_issue",
   "use_semrush",
   "use_ahrefs",
+  "use_web_search",
 ];
 
 const NOTIFICATION_TOOLS: WorkspaceOrchestratorToolName[] = ["notify_slack", "notify_email"];
@@ -95,6 +98,8 @@ function workflowToolEnabled(
       return Boolean(toolConfig.semrush?.enabled && toolConfig.semrush.connectionId);
     case "use_ahrefs":
       return Boolean(toolConfig.ahrefs?.enabled && toolConfig.ahrefs.connectionId);
+    case "use_web_search":
+      return hasWorkspaceAutomationWebSearchTool(toolConfig);
     default:
       return false;
   }
@@ -142,6 +147,7 @@ function orderWorkflowTools(input: {
       ...enabled.filter((tool) => tool === "create_issue"),
       ...enabled.filter((tool) => tool === "use_semrush"),
       ...enabled.filter((tool) => tool === "use_ahrefs"),
+      ...enabled.filter((tool) => tool === "use_web_search"),
     ];
   }
 
@@ -155,6 +161,7 @@ function orderWorkflowTools(input: {
     ...enabled.filter((tool) => tool === "create_issue"),
     ...enabled.filter((tool) => tool === "use_semrush"),
     ...enabled.filter((tool) => tool === "use_ahrefs"),
+    ...enabled.filter((tool) => tool === "use_web_search"),
   ];
 }
 

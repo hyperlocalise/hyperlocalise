@@ -166,6 +166,16 @@ describe("workspace automation view model", () => {
     expect(state.knowledgeAllowUpdates).toBe(true);
   });
 
+  it("hydrates Web Search provider from an existing automation record", () => {
+    const state = createWorkspaceAutomationFormStateFromRecord({
+      ...createAutomationSummary(),
+      toolConfig: { webSearch: { enabled: true, provider: "exa" } },
+    });
+
+    expect(state.webSearchEnabled).toBe(true);
+    expect(state.webSearchProvider).toBe("exa");
+  });
+
   it("prefills the Contentful translation template", () => {
     const form = createWorkspaceAutomationFormStateFromTemplate(
       "translate-contentful-article",
@@ -374,6 +384,21 @@ describe("workspace automation view model", () => {
 
     expect(validateWorkspaceAutomationFormState(form)).toMatchObject({
       form: "Translate with agent requires Create job to be enabled.",
+    });
+  });
+
+  it("maps Web Search provider into the API payload", () => {
+    const form = {
+      ...createDefaultWorkspaceAutomationFormState(),
+      name: "Market research",
+      instructions: "Search live SERPs for the target market.",
+      webSearchEnabled: true,
+      webSearchProvider: "perplexity" as const,
+    };
+
+    expect(validateWorkspaceAutomationFormState(form)).toEqual({});
+    expect(formStateToWorkspaceAutomationPayload(form).toolConfig).toEqual({
+      webSearch: { enabled: true, provider: "perplexity" },
     });
   });
 

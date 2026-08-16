@@ -767,6 +767,10 @@ export function getWorkspaceAutomationTemplateFlow(
     tools.push({ id: "contentful", label: "Contentful" });
   }
 
+  if (form.webSearchEnabled) {
+    tools.push({ id: "web-search", label: "Web Search" });
+  }
+
   return { trigger, tools };
 }
 

@@ -114,6 +114,28 @@ async function seedWorkspaceAutomationScope() {
   };
 }
 
+describe("workspaceAutomationConfigSchema web search", () => {
+  it("defaults the provider to auto and accepts perplexity or exa", () => {
+    expect(
+      workspaceAutomationConfigSchema.parse({
+        toolConfig: { webSearch: { enabled: true } },
+      }).toolConfig.webSearch,
+    ).toEqual({ enabled: true, provider: "auto" });
+
+    expect(
+      workspaceAutomationConfigSchema.parse({
+        toolConfig: { webSearch: { enabled: true, provider: "perplexity" } },
+      }).toolConfig.webSearch,
+    ).toEqual({ enabled: true, provider: "perplexity" });
+
+    expect(
+      workspaceAutomationConfigSchema.parse({
+        toolConfig: { webSearch: { enabled: true, provider: "exa" } },
+      }).toolConfig.webSearch,
+    ).toEqual({ enabled: true, provider: "exa" });
+  });
+});
+
 describe("workspaceAutomationConfigSchema native TMS tools", () => {
   it("migrates legacy translation toolConfig into create and assign tools", () => {
     const config = workspaceAutomationConfigSchema.parse({
@@ -356,7 +378,28 @@ describe("workspace automations", () => {
     expect(notificationOnlySchedule.error).toMatchObject({
       code: "scheduled_workflow_required",
       message:
-        "Scheduled automations require at least one GitHub, Contentful, or Issues workflow tool.",
+        "Scheduled automations require at least one GitHub, Contentful, Issues, or Web Search workflow tool.",
+    });
+
+    const scheduledWebSearch = expectOk(
+      await createWorkspaceAutomation({
+        organizationId: scope.organizationId,
+        authorUserId: scope.userId,
+        name: "Daily web research",
+        instructions: "Search the live web for competitor changes.",
+        triggerConfig,
+        toolConfig: {
+          webSearch: { enabled: true, provider: "auto" },
+          slack: {
+            enabled: true,
+            channelId: "C123",
+          },
+        },
+      }),
+    );
+    expect(scheduledWebSearch.toolConfig.webSearch).toEqual({
+      enabled: true,
+      provider: "auto",
     });
 
     const manualNotification = expectOk(
@@ -385,7 +428,7 @@ describe("workspace automations", () => {
     expect(scheduledUpdate.error).toMatchObject({
       code: "scheduled_workflow_required",
       message:
-        "Scheduled automations require at least one GitHub, Contentful, or Issues workflow tool.",
+        "Scheduled automations require at least one GitHub, Contentful, Issues, or Web Search workflow tool.",
     });
   });
 

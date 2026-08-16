@@ -185,6 +185,19 @@ const ahrefsToolConfigSchema = z
   })
   .default({ enabled: false });
 
+export const workspaceAutomationWebSearchProviderSchema = z.enum([
+  "auto",
+  "perplexity",
+  "exa",
+]);
+
+const webSearchToolConfigSchema = z
+  .object({
+    enabled: z.boolean().default(false),
+    provider: workspaceAutomationWebSearchProviderSchema.default("auto"),
+  })
+  .default({ enabled: false, provider: "auto" });
+
 function migrateLegacyTranslationToolConfig(
   value: Record<string, unknown>,
 ): Record<string, unknown> {
@@ -242,6 +255,7 @@ const toolConfigObjectSchema = z
     mcp: mcpToolConfigSchema.optional(),
     semrush: semrushToolConfigSchema.optional(),
     ahrefs: ahrefsToolConfigSchema.optional(),
+    webSearch: webSearchToolConfigSchema.optional(),
   })
   .default({});
 
@@ -281,6 +295,10 @@ export type WorkspaceAutomationKnowledgeToolConfig = z.infer<typeof knowledgeToo
 export type WorkspaceAutomationMcpToolConfig = z.infer<typeof mcpToolConfigSchema>;
 export type WorkspaceAutomationSemrushToolConfig = z.infer<typeof semrushToolConfigSchema>;
 export type WorkspaceAutomationAhrefsToolConfig = z.infer<typeof ahrefsToolConfigSchema>;
+export type WorkspaceAutomationWebSearchProvider = z.infer<
+  typeof workspaceAutomationWebSearchProviderSchema
+>;
+export type WorkspaceAutomationWebSearchToolConfig = z.infer<typeof webSearchToolConfigSchema>;
 export type WorkspaceAutomationToolConfig = z.infer<typeof toolConfigObjectSchema>;
 
 export type WorkspaceAutomationConfigValidationError =
@@ -306,7 +324,7 @@ export type WorkspaceAutomationConfigValidationError =
     }
   | {
       code: "scheduled_workflow_required";
-      message: "Scheduled automations require at least one GitHub, Contentful, or Issues workflow tool.";
+      message: "Scheduled automations require at least one GitHub, Contentful, Issues, or Web Search workflow tool.";
     }
   | {
       code: "contentful_connection_required";
@@ -435,6 +453,10 @@ export function hasWorkspaceAutomationSemrushTool(toolConfig: WorkspaceAutomatio
 
 export function hasWorkspaceAutomationAhrefsTool(toolConfig: WorkspaceAutomationToolConfig) {
   return Boolean(toolConfig.ahrefs?.enabled);
+}
+
+export function hasWorkspaceAutomationWebSearchTool(toolConfig: WorkspaceAutomationToolConfig) {
+  return Boolean(toolConfig.webSearch?.enabled);
 }
 
 export type WorkspaceAutomationRecord = {
@@ -606,12 +628,13 @@ function validateWorkspaceAutomationConfig(input: {
     !hasWorkspaceAutomationGithubWorkflow(input.toolConfig) &&
     !hasWorkspaceAutomationContentfulWorkflow(input.toolConfig) &&
     !hasWorkspaceAutomationListIssuesTool(input.toolConfig) &&
-    !hasWorkspaceAutomationCreateIssueTool(input.toolConfig)
+    !hasWorkspaceAutomationCreateIssueTool(input.toolConfig) &&
+    !hasWorkspaceAutomationWebSearchTool(input.toolConfig)
   ) {
     return err({
       code: "scheduled_workflow_required",
       message:
-        "Scheduled automations require at least one GitHub, Contentful, or Issues workflow tool.",
+        "Scheduled automations require at least one GitHub, Contentful, Issues, or Web Search workflow tool.",
     });
   }
 
