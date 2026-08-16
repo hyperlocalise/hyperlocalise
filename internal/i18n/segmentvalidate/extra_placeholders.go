@@ -27,25 +27,42 @@ func extractExtraPlaceholders(text string) []string {
 		return nil
 	}
 
-	// BOLT OPTIMIZATION: Use a single pass FindAllStringIndex on the combined pattern.
-	// Size the output from actual matches so marker-heavy literal text (e.g. "50% off",
-	// "$5") does not allocate a large unused []string backing array.
-	locs := combinedPlaceholderPattern.FindAllStringIndex(text, -1)
-	if len(locs) == 0 {
-		return nil
-	}
+	// BOLT OPTIMIZATION: Iterate using strings.IndexAny to fast-skip plain text and
+	// FindStringIndex to match regex incrementally, avoiding [][]int slice allocations
+	// from FindAllStringIndex. All alternations in combinedPlaceholderPattern start with
+	// '%' or '$'. Slice capacity is lazily allocated on first match.
+	var out []string
 
-	out := make([]string, 0, len(locs))
-	for _, loc := range locs {
-		match := text[loc[0]:loc[1]]
-		// BOLT OPTIMIZATION: Defined patterns are self-delimiting; TrimSpace is redundant.
+	pos := 0
+	for pos < len(text) {
+		idx := strings.IndexAny(text[pos:], "%$")
+		if idx < 0 {
+			break
+		}
+		curr := pos + idx
+		loc := combinedPlaceholderPattern.FindStringIndex(text[curr:])
+		if loc == nil {
+			break
+		}
+
+		matchStart := curr + loc[0]
+		matchEnd := curr + loc[1]
+		match := text[matchStart:matchEnd]
 
 		// Printf-style %% escapes a literal percent. Skip matches whose
 		// leading '%' is the second half of an escape pair (e.g. %%@).
-		if match[0] == '%' && isEscapedPercentAt(text, loc[0]) {
-			continue
+		if match[0] != '%' || !isEscapedPercentAt(text, matchStart) {
+			if out == nil {
+				out = make([]string, 0, 4)
+			}
+			out = append(out, match)
 		}
-		out = append(out, match)
+
+		if matchEnd <= pos {
+			pos++
+		} else {
+			pos = matchEnd
+		}
 	}
 
 	if len(out) == 0 {
