@@ -12,7 +12,10 @@
  */
 import { describe, expect, it } from "vite-plus/test";
 
-import { shouldRetrySameAsSourcePrefill } from "./should-retry-same-as-source-prefill";
+import {
+  mergeTranslationPrefills,
+  shouldRetrySameAsSourcePrefill,
+} from "./should-retry-same-as-source-prefill";
 
 describe("shouldRetrySameAsSourcePrefill", () => {
   it("retries needs-review copies of multi-word source text", () => {
@@ -73,5 +76,41 @@ describe("shouldRetrySameAsSourcePrefill", () => {
         status: "needs_review",
       }),
     ).toBe(true);
+  });
+});
+
+describe("mergeTranslationPrefills", () => {
+  it("lets project translations override matching TM values", () => {
+    expect(
+      mergeTranslationPrefills({
+        tmPrefilled: {
+          greeting: "Bonjour",
+          farewell: "Au revoir",
+        },
+        projectPrefilled: {
+          greeting: "Salut",
+        },
+      }),
+    ).toEqual({
+      greeting: "Salut",
+      farewell: "Au revoir",
+    });
+  });
+
+  it("drops TM copies for keys marked for same-as-source retry", () => {
+    expect(
+      mergeTranslationPrefills({
+        tmPrefilled: {
+          workspace_knowledge: "Enable workspace knowledge",
+          brand: "Hyperlocalise",
+        },
+        projectPrefilled: {
+          brand: "Hyperlocalise",
+        },
+        retryKeys: ["workspace_knowledge"],
+      }),
+    ).toEqual({
+      brand: "Hyperlocalise",
+    });
   });
 });

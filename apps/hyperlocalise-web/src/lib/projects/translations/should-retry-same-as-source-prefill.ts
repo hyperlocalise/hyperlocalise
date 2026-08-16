@@ -43,3 +43,23 @@ export function shouldRetrySameAsSourcePrefill(input: {
 
   return countSourceWords(sourceText) >= MIN_SOURCE_WORDS_FOR_SAME_AS_SOURCE_RETRY;
 }
+
+export function mergeTranslationPrefills(input: {
+  tmPrefilled: Record<string, string>;
+  projectPrefilled: Record<string, string>;
+  retryKeys?: Iterable<string>;
+}): Record<string, string> {
+  const retryKeys = new Set(input.retryKeys ?? []);
+  const merged = { ...input.tmPrefilled, ...input.projectPrefilled };
+  if (retryKeys.size === 0) {
+    return merged;
+  }
+
+  const next: Record<string, string> = {};
+  for (const [key, value] of Object.entries(merged)) {
+    if (!retryKeys.has(key)) {
+      next[key] = value;
+    }
+  }
+  return next;
+}

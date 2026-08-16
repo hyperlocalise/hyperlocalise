@@ -16,6 +16,7 @@ import {
   sourceContainsTerm,
   validateGlossaryTermsInTranslation,
 } from "@/lib/glossary/validate-glossary-terms-in-translation";
+import { mergeTranslationPrefills } from "@/lib/projects/translations/should-retry-same-as-source-prefill";
 import {
   inferSupportedFileTranslationFileFormat,
   isImageTranslationFileFormat,
@@ -826,6 +827,7 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
       }
 
       let existingPrefilled: Record<string, string> = {};
+      let retryKeys: string[] = [];
       if (repositorySourcePath) {
         const projectPrefill = await loadProjectTranslationsAsPrefilledEntriesStep({
           organizationId,
@@ -834,6 +836,7 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
           targetLocale,
         });
         existingPrefilled = projectPrefill.prefilled;
+        retryKeys = projectPrefill.retryKeys;
         if (projectPrefill.truncated) {
           console.warn("[file-translation-workflow] project translation prefill truncated", {
             jobId: claim.job.id,
@@ -851,9 +854,21 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
             prefilledEntryCount: Object.keys(existingPrefilled).length,
           });
         }
+        if (retryKeys.length > 0) {
+          console.info("[file-translation-workflow] omitted same-as-source review prefills", {
+            jobId: claim.job.id,
+            projectId: claim.job.projectId,
+            targetLocale,
+            omittedKeyCount: retryKeys.length,
+          });
+        }
       }
 
-      const merged = { ...tmPrefilled, ...existingPrefilled };
+      const merged = mergeTranslationPrefills({
+        tmPrefilled,
+        projectPrefilled: existingPrefilled,
+        retryKeys,
+      });
       if (Object.keys(merged).length > 0) {
         prefilledByLocale[targetLocale] = merged;
       }

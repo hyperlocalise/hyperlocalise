@@ -499,6 +499,7 @@ export class ProjectTranslationService extends ProjectServiceBase {
     includeAllSourceKeys?: boolean;
   }): Promise<{
     prefilled: Record<string, string>;
+    retryKeys: string[];
     truncated: boolean;
     loadedKeyCount: number;
     maxKeyCount: number;
@@ -513,6 +514,7 @@ export class ProjectTranslationService extends ProjectServiceBase {
     if (!sourceFile) {
       return {
         prefilled: {},
+        retryKeys: [],
         truncated: false,
         loadedKeyCount: 0,
         maxKeyCount: maxKeysPerImport,
@@ -521,6 +523,7 @@ export class ProjectTranslationService extends ProjectServiceBase {
     }
 
     const prefilled: Record<string, string> = {};
+    const retryKeys: string[] = [];
     let loadedKeyCount = 0;
     let translatedKeyCount = 0;
     let offset = 0;
@@ -562,6 +565,10 @@ export class ProjectTranslationService extends ProjectServiceBase {
             status: translation!.status,
           });
 
+        if (retrySameAsSource) {
+          retryKeys.push(key.key);
+        }
+
         if (hasValidTranslation && !retrySameAsSource) {
           prefilled[key.key] = translation!.text;
           translatedKeyCount += 1;
@@ -583,6 +590,7 @@ export class ProjectTranslationService extends ProjectServiceBase {
 
     return {
       prefilled,
+      retryKeys,
       truncated: false,
       loadedKeyCount,
       maxKeyCount: maxKeysPerImport,

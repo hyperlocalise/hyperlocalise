@@ -91,6 +91,7 @@ describe("loadProjectTranslationsAsPrefilledEntries", () => {
 
     expect(result).toEqual({
       prefilled: {},
+      retryKeys: [],
       truncated: false,
       loadedKeyCount: 0,
       maxKeyCount: 5_000,
@@ -136,6 +137,7 @@ describe("loadProjectTranslationsAsPrefilledEntries", () => {
         greeting: "Bonjour",
         farewell: "Au revoir",
       },
+      retryKeys: [],
       truncated: false,
       loadedKeyCount: 3,
       maxKeyCount: 5_000,
@@ -195,6 +197,7 @@ describe("loadProjectTranslationsAsPrefilledEntries", () => {
       brand: "Hyperlocalise",
       view_automations: "Xem tự động hóa",
     });
+    expect(result.retryKeys).toEqual(["workspace_knowledge"]);
     expect(result.translatedKeyCount).toBe(2);
     expect(result.loadedKeyCount).toBe(3);
   });
@@ -235,6 +238,7 @@ describe("loadProjectTranslationsAsPrefilledEntries", () => {
     expect(result.prefilled).toEqual({
       view_automations: "View automations",
     });
+    expect(result.retryKeys).toEqual([]);
     expect(result.translatedKeyCount).toBe(1);
   });
 
@@ -270,6 +274,7 @@ describe("loadProjectTranslationsAsPrefilledEntries", () => {
     });
 
     expect(result.prefilled).toEqual({});
+    expect(result.retryKeys).toEqual([]);
     expect(result.truncated).toBe(false);
     expect(result.loadedKeyCount).toBe(1);
     expect(result.translatedKeyCount).toBe(0);
@@ -311,6 +316,7 @@ describe("loadProjectTranslationsAsPrefilledEntries", () => {
       farewell: "Goodbye",
       empty: "Pending",
     });
+    expect(result.retryKeys).toEqual([]);
     expect(result.translatedKeyCount).toBe(1);
   });
 
@@ -351,6 +357,7 @@ describe("loadProjectTranslationsAsPrefilledEntries", () => {
     expect(result.prefilled).toEqual({
       workspace_knowledge: "Enable workspace knowledge",
     });
+    expect(result.retryKeys).toEqual(["workspace_knowledge"]);
     expect(result.translatedKeyCount).toBe(0);
   });
 
@@ -390,6 +397,7 @@ describe("loadProjectTranslationsAsPrefilledEntries", () => {
         greeting: "Hello",
         farewell: "Goodbye",
       },
+      retryKeys: [],
       truncated: false,
       loadedKeyCount: 2,
       maxKeyCount: 5_000,
