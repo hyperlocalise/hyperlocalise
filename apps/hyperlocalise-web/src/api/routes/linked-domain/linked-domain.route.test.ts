@@ -14,7 +14,7 @@ import "dotenv/config";
 
 import { eq } from "drizzle-orm";
 import { testClient } from "hono/testing";
-import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
 const mocks = vi.hoisted(() => ({
   resolveApiAuthContextFromSessionMock: vi.fn(
@@ -24,6 +24,7 @@ const mocks = vi.hoisted(() => ({
       null,
   ),
   verifyLinkedDomainChallengeMock: vi.fn(),
+  workspaceDomainsFlagRunMock: vi.fn(async () => true),
 }));
 
 vi.mock("@/api/auth/workos-session", async (importOriginal) => {
@@ -39,6 +40,14 @@ vi.mock("@/lib/linked-domains/verify", async (importOriginal) => {
   return {
     ...actual,
     verifyLinkedDomainChallenge: mocks.verifyLinkedDomainChallengeMock,
+  };
+});
+
+vi.mock("@/lib/flags/workspace-flags", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/flags/workspace-flags")>();
+  return {
+    ...actual,
+    workspaceDomainsFlag: { run: mocks.workspaceDomainsFlagRunMock },
   };
 });
 
@@ -96,9 +105,30 @@ describe("linkedDomainRoutes", () => {
     await db.$client.query("select 1");
   });
 
+  beforeEach(() => {
+    mocks.workspaceDomainsFlagRunMock.mockResolvedValue(true);
+  });
+
   afterEach(async () => {
     vi.clearAllMocks();
     await fixture.cleanup();
+  });
+
+  it("denies linked domain access when the feature flag is disabled", async () => {
+    mocks.workspaceDomainsFlagRunMock.mockResolvedValue(false);
+    const identity = fixture.createWorkosIdentityWithRole("admin");
+    const headers = await fixture.authHeadersFor(identity);
+    const organizationSlug = identity.organization.slug ?? "missing-slug";
+
+    const response = await client.api.orgs[":organizationSlug"]["linked-domains"].$get(
+      { param: { organizationSlug } },
+      { headers },
+    );
+
+    expect(response.status).toBe(403);
+    await expect(response.json()).resolves.toMatchObject({
+      error: "feature_unavailable",
+    });
   });
 
   it("starts verifies and lists a linked domain claim", async () => {

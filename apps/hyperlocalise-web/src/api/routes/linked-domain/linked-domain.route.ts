@@ -15,12 +15,16 @@ import { validator } from "hono/validator";
 
 import { hasCapability } from "@/api/auth/policy";
 import { workosAuthMiddleware, type AuthVariables } from "@/api/auth/workos";
+import { createWorkspaceFeatureFlagMiddleware } from "@/api/middleware/workspace-feature-flag";
 import {
   badRequestResponse,
   conflictResponse,
   forbiddenResponse,
   notFoundResponse,
 } from "@/api/response.schema";
+import { LOCALISATION_AUDIT_ANALYTICS_EVENTS } from "@/lib/analytics/events";
+import { serverAnalytics } from "@/lib/analytics/server";
+import { workspaceDomainsFlag } from "@/lib/flags/workspace-flags";
 import {
   cancelPendingLinkedDomainClaim,
   getLinkedDomain,
@@ -30,8 +34,6 @@ import {
   verifyAndClaimLinkedDomain,
 } from "@/lib/linked-domains/claims";
 import type { LinkedDomainError } from "@/lib/linked-domains/types";
-import { LOCALISATION_AUDIT_ANALYTICS_EVENTS } from "@/lib/analytics/events";
-import { serverAnalytics } from "@/lib/analytics/server";
 import { isErr } from "@/lib/primitives/result/results";
 
 import {
@@ -82,6 +84,11 @@ function canWriteLinkedDomains(role: AuthVariables["auth"]["membership"]["role"]
   return hasCapability(role, "projects:create");
 }
 
+const requireWorkspaceDomainsFeature = createWorkspaceFeatureFlagMiddleware(
+  workspaceDomainsFlag,
+  "Workspace domains is not enabled for this organization",
+);
+
 function mapLinkedDomainError(
   c: Parameters<typeof badRequestResponse>[0],
   error: LinkedDomainError,
@@ -102,6 +109,7 @@ function mapLinkedDomainError(
 export function createLinkedDomainRoutes() {
   return new Hono<{ Variables: AuthVariables }>()
     .use("*", workosAuthMiddleware)
+    .use("*", requireWorkspaceDomainsFeature)
     .get("/", async (c) => {
       if (!canReadLinkedDomains(c.var.auth.membership.role)) {
         return forbiddenResponse(c);

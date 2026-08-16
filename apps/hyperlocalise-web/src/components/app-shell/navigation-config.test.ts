@@ -17,6 +17,7 @@ import { getIntlShape } from "@/lib/app-i18n/intl";
 
 import {
   WORKSPACE_AUTOMATIONS_FLAG,
+  WORKSPACE_DOMAINS_FLAG,
   WORKSPACE_ISSUES_FLAG,
   WORKSPACE_KNOWLEDGE_FLAG,
 } from "@/lib/flags/workos-flag-entities";
@@ -178,6 +179,7 @@ describe("path builders", () => {
     expect(byLabel.get("Automations")?.featureFlagKey).toBe(WORKSPACE_AUTOMATIONS_FLAG);
     expect(byLabel.get("Knowledge")?.featureFlagKey).toBe(WORKSPACE_KNOWLEDGE_FLAG);
     expect(byLabel.get("Issues")?.featureFlagKey).toBe(WORKSPACE_ISSUES_FLAG);
+    expect(byLabel.get("Domains")?.featureFlagKey).toBe(WORKSPACE_DOMAINS_FLAG);
   });
 
   it("builds project navigation items scoped to the project", () => {

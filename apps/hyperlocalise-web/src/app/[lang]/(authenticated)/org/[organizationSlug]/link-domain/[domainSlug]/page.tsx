@@ -10,6 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { requireWorkspaceFeatureFlag, workspaceDomainsFlag } from "@/lib/flags/workspace-flags";
 import { requireAppCapability } from "@/lib/workos/app-auth";
 
 import { LinkDomainPageContent } from "./_components/link-domain-page-content";
@@ -20,7 +21,8 @@ export default async function LinkDomainPage({
   params: Promise<{ organizationSlug: string; domainSlug: string }>;
 }) {
   const { organizationSlug, domainSlug } = await params;
-  await requireAppCapability("projects:create", { organizationSlug });
+  const auth = await requireAppCapability("projects:create", { organizationSlug });
+  await requireWorkspaceFeatureFlag(workspaceDomainsFlag, auth);
 
   return <LinkDomainPageContent organizationSlug={organizationSlug} domainSlug={domainSlug} />;
 }

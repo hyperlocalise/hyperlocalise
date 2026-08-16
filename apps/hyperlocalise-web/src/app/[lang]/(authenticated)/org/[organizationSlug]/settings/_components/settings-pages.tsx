@@ -39,6 +39,7 @@ import { NotificationPreferencesSection } from "./notification-preferences-secti
 type SettingsPageProps = {
   organizationSlug: string;
   capabilities: OrganizationCapability[];
+  domainsEnabled: boolean;
 };
 
 type AccountPageProps = {
@@ -65,6 +66,7 @@ type SettingsRowConfig = {
   label: string;
   requiredCapability?: OrganizationCapability;
   absoluteHref?: boolean;
+  requiresDomainsFeature?: boolean;
 };
 
 function buildSettingsRows(
@@ -117,6 +119,7 @@ function buildSettingsRows(
       absoluteHref: true,
       icon: LinkSquare02Icon,
       requiredCapability: "projects:read",
+      requiresDomainsFeature: true,
     },
     {
       label: intl.formatMessage({
@@ -213,13 +216,23 @@ function ReadonlyField({ label, value }: { label: string; value: string }) {
   );
 }
 
-export async function SettingsPageContent({ organizationSlug, capabilities }: SettingsPageProps) {
+export async function SettingsPageContent({
+  organizationSlug,
+  capabilities,
+  domainsEnabled,
+}: SettingsPageProps) {
   const intl = getIntlShape(await getAppLocale());
   const baseHref = `/org/${organizationSlug}/settings`;
   const settingsRows = buildSettingsRows(intl, organizationSlug);
-  const visibleRows = settingsRows.filter(
-    (row) => !row.requiredCapability || capabilities.includes(row.requiredCapability),
-  );
+  const visibleRows = settingsRows.filter((row) => {
+    if (row.requiredCapability && !capabilities.includes(row.requiredCapability)) {
+      return false;
+    }
+    if (row.requiresDomainsFeature && !domainsEnabled) {
+      return false;
+    }
+    return true;
+  });
   const openLabel = intl.formatMessage({
     defaultMessage: "Open",
     id: "PEy6fPw+25",

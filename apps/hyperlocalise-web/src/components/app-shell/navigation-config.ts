@@ -17,6 +17,7 @@ import { normalizeAppLocale } from "@/lib/app-i18n/locales";
 import { RELEASE_CAT_ALL_FILES_FLAG } from "@/lib/flags/release-flag-keys";
 import {
   WORKSPACE_AUTOMATIONS_FLAG,
+  WORKSPACE_DOMAINS_FLAG,
   WORKSPACE_ISSUES_FLAG,
   WORKSPACE_KNOWLEDGE_FLAG,
 } from "@/lib/flags/workos-flag-entities";
@@ -58,6 +59,7 @@ export type NavigationItem = {
     | typeof WORKSPACE_AUTOMATIONS_FLAG
     | typeof WORKSPACE_KNOWLEDGE_FLAG
     | typeof WORKSPACE_ISSUES_FLAG
+    | typeof WORKSPACE_DOMAINS_FLAG
     | typeof RELEASE_CAT_ALL_FILES_FLAG;
 };
 
@@ -190,6 +192,7 @@ export function buildGlobalNavigationGroups(
             id: "B3yFCBQLDF",
             description: "Sidebar description for the Domains navigation item",
           }),
+          featureFlagKey: WORKSPACE_DOMAINS_FLAG,
         },
         {
           label: intl.formatMessage({

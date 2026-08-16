@@ -14,6 +14,7 @@ export const WORKSPACE_AUTOMATIONS_FLAG = "workspace-automations";
 export const WORKSPACE_KNOWLEDGE_FLAG = "workspace-knowledge";
 export const WORKSPACE_VISUAL_MOCK_FLAG = "workspace-visual-mock";
 export const WORKSPACE_ISSUES_FLAG = "workspace-issues";
+export const WORKSPACE_DOMAINS_FLAG = "workspace-domains";
 export const WORKSPACE_GLOSSARY_SEARCH_FLAG = "workspace-glossary-search";
 export const WORKSPACE_FEATURE_UNAVAILABLE_REASON = "feature-unavailable";
 
@@ -27,6 +28,7 @@ export type WorkspaceFeatureFlagState = {
   knowledge: boolean;
   visualMock: boolean;
   issues: boolean;
+  domains: boolean;
   glossarySearch: boolean;
 };
 
@@ -35,5 +37,6 @@ export const DISABLED_WORKSPACE_FEATURE_FLAGS: WorkspaceFeatureFlagState = {
   knowledge: false,
   visualMock: false,
   issues: false,
+  domains: false,
   glossarySearch: false,
 };
