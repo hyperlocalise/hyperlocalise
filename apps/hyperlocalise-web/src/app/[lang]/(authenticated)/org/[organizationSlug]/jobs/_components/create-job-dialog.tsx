@@ -12,14 +12,38 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { useEffect, useMemo, useState } from "react";
+import {
+  useEffect,
+  useMemo,
+  useState,
+  type FormEvent,
+  type KeyboardEvent,
+  type ReactNode,
+} from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { FormattedMessage, useIntl } from "react-intl";
+import {
+  CheckListIcon,
+  File01Icon,
+  LanguageCircleIcon,
+  TranslateIcon,
+  UserIcon,
+} from "@hugeicons/core-free-icons";
+import { HugeiconsIcon, type IconSvgElement } from "@hugeicons/react";
 import { toast } from "sonner";
 
 import type { ProjectFileRecord } from "@/api/routes/project/project.schema";
 import { MarkdownEditor } from "@/components/markdown-editor/markdown-editor";
 import { Button } from "@/components/ui/button";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+  CommandSeparator,
+} from "@/components/ui/command";
 import {
   Dialog,
   DialogContent,
@@ -29,18 +53,21 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
   SelectTrigger,
-  SelectValue,
 } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
 import { readApiResponseError } from "@/lib/api-error";
 import { apiClient } from "@/lib/api-client-instance";
+import {
+  formatLocaleDisplayName,
+  formatLocaleOptionLabel,
+} from "@/lib/i18n/locale-display-names.messages";
 import { parseProviderProjectId } from "@/lib/providers/jobs/tms-provider-resource-id";
 import {
   inferSupportedTranslationFileFormat,
@@ -83,62 +110,157 @@ type FileOption = {
   fileFormat?: SupportedTranslationFileFormat | null;
 };
 
+type PropertyPickerItem = {
+  id: string;
+  label: string;
+  secondary?: string | null;
+  searchValue?: string;
+};
+
+const propertyTriggerClassName =
+  "h-7 gap-1.5 rounded-md border-0 bg-transparent px-1.5 text-xs font-normal text-muted-foreground shadow-none hover:bg-muted/60 hover:text-foreground";
+
 function toggleValue(values: string[], value: string) {
   return values.includes(value)
     ? values.filter((entry) => entry !== value)
     : [...values, value].toSorted((a, b) => a.localeCompare(b));
 }
 
-function SelectionList({
+function CreateJobPropertyPicker({
+  icon,
+  ariaLabel,
+  triggerLabel,
   items,
-  selected,
+  selectedIds,
   onToggle,
+  onSelectAll,
+  onClear,
   emptyLabel,
+  searchPlaceholder,
+  isLoading,
   disabled,
+  multiple = true,
 }: {
-  items: { id: string; label: string; secondary?: string | null }[];
-  selected: string[];
+  icon: IconSvgElement;
+  ariaLabel: string;
+  triggerLabel: string;
+  items: PropertyPickerItem[];
+  selectedIds: string[];
   onToggle: (id: string) => void;
+  onSelectAll?: () => void;
+  onClear?: () => void;
   emptyLabel: string;
+  searchPlaceholder: string;
+  isLoading?: boolean;
   disabled?: boolean;
+  multiple?: boolean;
 }) {
-  if (items.length === 0) {
-    return <p className="text-sm text-muted-foreground">{emptyLabel}</p>;
-  }
+  const intl = useIntl();
+  const [open, setOpen] = useState(false);
+  const selectedSet = useMemo(() => new Set(selectedIds), [selectedIds]);
 
   return (
-    <ScrollArea className="h-40 rounded-md border border-border">
-      <div className="space-y-1 p-2">
-        {items.map((item) => {
-          const checked = selected.includes(item.id);
-          return (
-            <label
-              key={item.id}
-              className={cn(
-                "flex cursor-pointer items-start gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-muted/60",
-                disabled && "pointer-events-none opacity-60",
-              )}
-            >
-              <input
-                type="checkbox"
-                className="mt-0.5 size-4 rounded border border-input accent-primary"
-                checked={checked}
-                disabled={disabled}
-                onChange={() => onToggle(item.id)}
-              />
-              <span className="min-w-0">
-                <span className="block truncate font-medium text-foreground">{item.label}</span>
-                {item.secondary ? (
-                  <span className="block truncate text-xs text-muted-foreground">
-                    {item.secondary}
-                  </span>
-                ) : null}
-              </span>
-            </label>
-          );
-        })}
-      </div>
-    </ScrollArea>
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger
+        render={
+          <Button
+            type="button"
+            variant="ghost"
+            disabled={disabled || isLoading}
+            aria-label={ariaLabel}
+            className={cn(propertyTriggerClassName, "max-w-48")}
+          />
+        }
+      >
+        {isLoading ? (
+          <Spinner data-icon="inline-start" />
+        ) : (
+          <HugeiconsIcon icon={icon} strokeWidth={1.8} data-icon="inline-start" />
+        )}
+        <span className="min-w-0 truncate">{triggerLabel}</span>
+      </PopoverTrigger>
+      <PopoverContent align="start" className="w-80 p-0" sideOffset={6}>
+        <Command>
+          <CommandInput placeholder={searchPlaceholder} />
+          <CommandList>
+            <CommandEmpty>
+              {isLoading ? <FormattedMessage {...createJobDialogMessages.loading} /> : emptyLabel}
+            </CommandEmpty>
+            {multiple && items.length > 0 ? (
+              <>
+                <CommandGroup>
+                  {onSelectAll ? (
+                    <CommandItem
+                      value="select-all"
+                      onSelect={() => {
+                        onSelectAll();
+                      }}
+                    >
+                      <FormattedMessage {...createJobDialogMessages.selectAll} />
+                    </CommandItem>
+                  ) : null}
+                  {onClear && selectedIds.length > 0 ? (
+                    <CommandItem
+                      value="clear-all"
+                      onSelect={() => {
+                        onClear();
+                      }}
+                    >
+                      <FormattedMessage {...createJobDialogMessages.clear} />
+                    </CommandItem>
+                  ) : null}
+                </CommandGroup>
+                <CommandSeparator />
+              </>
+            ) : null}
+            {!multiple ? (
+              <>
+                <CommandGroup>
+                  <CommandItem
+                    value={`${intl.formatMessage(createJobDialogMessages.unassigned)} unassigned`}
+                    data-checked={selectedIds.length === 0 || undefined}
+                    onSelect={() => {
+                      onClear?.();
+                      setOpen(false);
+                    }}
+                  >
+                    <FormattedMessage {...createJobDialogMessages.unassigned} />
+                  </CommandItem>
+                </CommandGroup>
+                <CommandSeparator />
+              </>
+            ) : null}
+            <CommandGroup>
+              {items.map((item) => {
+                const checked = selectedSet.has(item.id);
+                return (
+                  <CommandItem
+                    key={item.id}
+                    value={item.searchValue ?? `${item.id} ${item.label} ${item.secondary ?? ""}`}
+                    data-checked={checked || undefined}
+                    onSelect={() => {
+                      onToggle(item.id);
+                      if (!multiple) {
+                        setOpen(false);
+                      }
+                    }}
+                  >
+                    <span className="min-w-0 flex-1 truncate">
+                      <span className="block truncate">{item.label}</span>
+                      {item.secondary ? (
+                        <span className="block truncate text-xs text-muted-foreground">
+                          {item.secondary}
+                        </span>
+                      ) : null}
+                    </span>
+                  </CommandItem>
+                );
+              })}
+            </CommandGroup>
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
   );
 }
 
@@ -340,6 +462,76 @@ export function CreateJobDialog({
     ? providerAssigneesQuery.isLoading
     : nativeAssigneesQuery.isLoading;
 
+  const kindItems = useMemo(
+    () => [
+      {
+        value: "translation",
+        label: intl.formatMessage(createJobDialogMessages.taskTypeTranslation),
+      },
+      {
+        value: "proofread",
+        label: intl.formatMessage(createJobDialogMessages.taskTypeProofread),
+      },
+    ],
+    [intl],
+  );
+
+  const localeItems = useMemo(
+    () =>
+      targetLocales.map((locale) => ({
+        id: locale,
+        label: formatLocaleDisplayName(intl, locale),
+        secondary: locale,
+        searchValue: formatLocaleOptionLabel(intl, locale),
+      })),
+    [intl, targetLocales],
+  );
+
+  const localeTriggerLabel = useMemo(() => {
+    if (selectedLocales.length === 0) {
+      return intl.formatMessage(createJobDialogMessages.localesPlaceholder);
+    }
+    if (targetLocales.length > 0 && selectedLocales.length === targetLocales.length) {
+      return intl.formatMessage(createJobDialogMessages.allLocales);
+    }
+    if (selectedLocales.length === 1) {
+      return formatLocaleDisplayName(intl, selectedLocales[0]);
+    }
+    return intl.formatMessage(createJobDialogMessages.localeCount, {
+      count: selectedLocales.length,
+    });
+  }, [intl, selectedLocales, targetLocales.length]);
+
+  const fileTriggerLabel = useMemo(() => {
+    if (selectedFileIds.length === 0) {
+      return intl.formatMessage(createJobDialogMessages.filesLabel);
+    }
+    if (selectedFileIds.length === 1) {
+      return (
+        fileOptions.find((file) => file.id === selectedFileIds[0])?.label ??
+        intl.formatMessage(createJobDialogMessages.filesSelectedCount, { count: 1 })
+      );
+    }
+    return intl.formatMessage(createJobDialogMessages.filesSelectedCount, {
+      count: selectedFileIds.length,
+    });
+  }, [fileOptions, intl, selectedFileIds]);
+
+  const assigneeTriggerLabel = useMemo(() => {
+    if (selectedAssignees.length === 0) {
+      return intl.formatMessage(createJobDialogMessages.unassigned);
+    }
+    if (selectedAssignees.length === 1) {
+      return (
+        assigneeOptions.find((assignee) => assignee.id === selectedAssignees[0])?.label ??
+        intl.formatMessage(createJobDialogMessages.assigneeCount, { count: 1 })
+      );
+    }
+    return intl.formatMessage(createJobDialogMessages.assigneeCount, {
+      count: selectedAssignees.length,
+    });
+  }, [assigneeOptions, intl, selectedAssignees]);
+
   const createJob = useMutation({
     mutationFn: async () => {
       if (!title.trim()) {
@@ -491,178 +683,191 @@ export function CreateJobDialog({
     },
   });
 
+  const canSubmit =
+    !createJob.isPending &&
+    Boolean(title.trim()) &&
+    selectedLocales.length > 0 &&
+    selectedFileIds.length > 0 &&
+    targetLocales.length > 0;
+
+  function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!canSubmit) {
+      return;
+    }
+    createJob.mutate();
+  }
+
+  function handleFormKeyDown(event: KeyboardEvent<HTMLFormElement>) {
+    if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
+      event.preventDefault();
+      if (canSubmit) {
+        createJob.mutate();
+      }
+    }
+  }
+
+  const sourceLocaleChip: ReactNode = (
+    <span
+      className={cn(
+        propertyTriggerClassName,
+        "inline-flex max-w-48 items-center pointer-events-none hover:bg-transparent",
+      )}
+      aria-label={intl.formatMessage(createJobDialogMessages.sourceLocaleAria)}
+    >
+      <HugeiconsIcon icon={LanguageCircleIcon} strokeWidth={1.8} className="size-3.5" />
+      <FormattedMessage
+        {...createJobDialogMessages.sourceLocale}
+        values={{ locale: formatLocaleDisplayName(intl, sourceLocale) }}
+      />
+    </span>
+  );
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="flex max-h-[90vh] flex-col gap-0 overflow-hidden p-0 sm:max-w-xl">
-        <DialogHeader className="border-b border-border px-6 py-4">
-          <DialogTitle>
-            <FormattedMessage {...createJobDialogMessages.title} />
-          </DialogTitle>
-          <DialogDescription>
-            {isProviderProject ? (
-              <FormattedMessage {...createJobDialogMessages.descriptionProvider} />
-            ) : (
-              <FormattedMessage {...createJobDialogMessages.descriptionNative} />
-            )}
-          </DialogDescription>
-        </DialogHeader>
+        <form
+          onSubmit={submit}
+          onKeyDown={handleFormKeyDown}
+          className="flex min-h-0 flex-1 flex-col"
+        >
+          <DialogHeader className="px-5 pt-4 pb-2">
+            <DialogTitle className="text-sm font-medium text-muted-foreground">
+              <FormattedMessage {...createJobDialogMessages.title} />
+            </DialogTitle>
+            <DialogDescription className="sr-only">
+              {isProviderProject ? (
+                <FormattedMessage {...createJobDialogMessages.descriptionProvider} />
+              ) : (
+                <FormattedMessage {...createJobDialogMessages.descriptionNative} />
+              )}
+            </DialogDescription>
+          </DialogHeader>
 
-        <div className="space-y-5 overflow-y-auto px-6 py-4">
-          <div className="space-y-2">
-            <Label htmlFor="create-job-title">
-              <FormattedMessage {...createJobDialogMessages.titleLabel} />
-            </Label>
+          <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-5 pb-3">
             <Input
               id="create-job-title"
+              name="title"
               value={title}
-              onChange={(event) => setTitle(event.target.value)}
+              onChange={(event) => setTitle(event.currentTarget.value)}
               placeholder={intl.formatMessage(createJobDialogMessages.titlePlaceholder)}
+              aria-label={intl.formatMessage(createJobDialogMessages.titleLabel)}
+              required
+              autoFocus
               maxLength={256}
+              className="h-auto rounded-none border-0 bg-transparent px-0 py-1 text-base font-medium shadow-none focus-visible:ring-0 md:text-lg"
             />
-          </div>
 
-          {isProviderProject ? (
-            <div className="space-y-5">
-              <div className="space-y-2">
-                <Label>
-                  <FormattedMessage {...createJobDialogMessages.taskTypeLabel} />
-                </Label>
+            {isProviderProject ? (
+              <MarkdownEditor
+                value={description}
+                onChange={setDescription}
+                disabled={createJob.isPending}
+                placeholder={intl.formatMessage(createJobDialogMessages.descriptionPlaceholder)}
+                ariaLabel={intl.formatMessage(createJobDialogMessages.descriptionLabel)}
+                chrome="minimal"
+                imageUpload={{ organizationSlug, projectId }}
+                className="min-h-28 bg-transparent px-0"
+              />
+            ) : null}
+
+            <div className="flex flex-wrap items-center gap-0.5 pt-1">
+              {isProviderProject ? (
                 <Select
                   value={kind}
+                  items={kindItems}
                   onValueChange={(value) => {
                     if (value === "translation" || value === "proofread") {
                       setKind(value);
                     }
                   }}
+                  disabled={createJob.isPending}
                 >
-                  <SelectTrigger className="w-full">
-                    <SelectValue>
+                  <SelectTrigger
+                    aria-label={intl.formatMessage(createJobDialogMessages.taskTypeLabel)}
+                    showIcon={false}
+                    className={propertyTriggerClassName}
+                  >
+                    <span className="flex items-center gap-1.5">
+                      <HugeiconsIcon
+                        icon={kind === "proofread" ? CheckListIcon : TranslateIcon}
+                        strokeWidth={1.8}
+                        className="size-3.5"
+                      />
                       {intl.formatMessage(
                         kind === "proofread"
                           ? createJobDialogMessages.taskTypeProofread
                           : createJobDialogMessages.taskTypeTranslation,
                       )}
-                    </SelectValue>
+                    </span>
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem
-                      value="translation"
-                      label={intl.formatMessage(createJobDialogMessages.taskTypeTranslation)}
-                    >
-                      <FormattedMessage {...createJobDialogMessages.taskTypeTranslation} />
-                    </SelectItem>
-                    <SelectItem
-                      value="proofread"
-                      label={intl.formatMessage(createJobDialogMessages.taskTypeProofread)}
-                    >
-                      <FormattedMessage {...createJobDialogMessages.taskTypeProofread} />
-                    </SelectItem>
+                    <SelectGroup>
+                      {kindItems.map((item) => (
+                        <SelectItem key={item.value} value={item.value} label={item.label}>
+                          <span className="flex items-center gap-2">
+                            <HugeiconsIcon
+                              icon={item.value === "proofread" ? CheckListIcon : TranslateIcon}
+                              strokeWidth={1.8}
+                            />
+                            {item.label}
+                          </span>
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
                   </SelectContent>
                 </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>
-                  <FormattedMessage {...createJobDialogMessages.descriptionLabel} />
-                </Label>
-                <MarkdownEditor
-                  value={description}
-                  onChange={setDescription}
-                  disabled={createJob.isPending}
-                  placeholder={intl.formatMessage(createJobDialogMessages.descriptionPlaceholder)}
-                  imageUpload={{ organizationSlug, projectId }}
-                />
-              </div>
-            </div>
-          ) : (
-            <p className="text-sm text-muted-foreground">
-              <FormattedMessage
-                {...createJobDialogMessages.sourceLocale}
-                values={{
-                  locale: <span className="font-medium text-foreground">{sourceLocale}</span>,
-                }}
-              />
-            </p>
-          )}
-
-          <div className="space-y-2">
-            <div className="flex items-center justify-between gap-2">
-              <Label>
-                <FormattedMessage {...createJobDialogMessages.targetLocalesLabel} />
-              </Label>
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className="h-7 px-2 text-xs"
-                onClick={() =>
-                  setSelectedLocales(
-                    selectedLocales.length === targetLocales.length ? [] : targetLocales,
-                  )
-                }
-              >
-                {selectedLocales.length === targetLocales.length ? (
-                  <FormattedMessage {...createJobDialogMessages.clear} />
-                ) : (
-                  <FormattedMessage {...createJobDialogMessages.selectAll} />
-                )}
-              </Button>
-            </div>
-            {targetLocales.length === 0 ? (
-              <p className="text-sm text-muted-foreground">
-                <FormattedMessage {...createJobDialogMessages.noTargetLocalesConfigured} />
-              </p>
-            ) : (
-              <SelectionList
-                items={targetLocales.map((locale) => ({ id: locale, label: locale }))}
-                selected={selectedLocales}
-                onToggle={(locale) => setSelectedLocales((current) => toggleValue(current, locale))}
-                emptyLabel={intl.formatMessage(createJobDialogMessages.noLocalesAvailable)}
-              />
-            )}
-          </div>
-
-          <div className="space-y-2">
-            <div className="flex items-center justify-between gap-2">
-              <Label>
-                <FormattedMessage {...createJobDialogMessages.filesLabel} />
-              </Label>
-              <span className="text-xs text-muted-foreground">
-                <FormattedMessage
-                  {...createJobDialogMessages.filesSelectedCount}
-                  values={{ count: selectedFileIds.length }}
-                />
-              </span>
-            </div>
-            {filesLoading ? (
-              <div className="flex h-40 items-center justify-center rounded-md border border-border">
-                <Spinner className="size-4" />
-              </div>
-            ) : (
-              <SelectionList
-                items={fileOptions.map((file) => ({ id: file.id, label: file.label }))}
-                selected={selectedFileIds}
-                onToggle={(fileId) => setSelectedFileIds((current) => toggleValue(current, fileId))}
-                emptyLabel={intl.formatMessage(createJobDialogMessages.noFilesAvailable)}
-              />
-            )}
-          </div>
-
-          <div className="space-y-2">
-            <Label>
-              {isProviderProject ? (
-                <FormattedMessage {...createJobDialogMessages.assigneesLabel} />
               ) : (
-                <FormattedMessage {...createJobDialogMessages.assigneeLabel} />
+                sourceLocaleChip
               )}
-            </Label>
-            {assigneesLoading ? (
-              <div className="flex h-40 items-center justify-center rounded-md border border-border">
-                <Spinner className="size-4" />
-              </div>
-            ) : (
-              <SelectionList
-                items={assigneeOptions}
-                selected={selectedAssignees}
+
+              <CreateJobPropertyPicker
+                icon={LanguageCircleIcon}
+                ariaLabel={intl.formatMessage(createJobDialogMessages.targetLocalesLabel)}
+                triggerLabel={localeTriggerLabel}
+                items={localeItems}
+                selectedIds={selectedLocales}
+                onToggle={(locale) => setSelectedLocales((current) => toggleValue(current, locale))}
+                onSelectAll={() => setSelectedLocales(targetLocales)}
+                onClear={() => setSelectedLocales([])}
+                emptyLabel={intl.formatMessage(
+                  targetLocales.length === 0
+                    ? createJobDialogMessages.noTargetLocalesConfigured
+                    : createJobDialogMessages.noLocalesAvailable,
+                )}
+                searchPlaceholder={intl.formatMessage(createJobDialogMessages.searchLocales)}
+                disabled={createJob.isPending}
+              />
+
+              <CreateJobPropertyPicker
+                icon={File01Icon}
+                ariaLabel={intl.formatMessage(createJobDialogMessages.filesLabel)}
+                triggerLabel={fileTriggerLabel}
+                items={fileOptions.map((file) => ({ id: file.id, label: file.label }))}
+                selectedIds={selectedFileIds}
+                onToggle={(fileId) => setSelectedFileIds((current) => toggleValue(current, fileId))}
+                onSelectAll={() => setSelectedFileIds(fileOptions.map((file) => file.id))}
+                onClear={() => setSelectedFileIds([])}
+                emptyLabel={intl.formatMessage(createJobDialogMessages.noFilesAvailable)}
+                searchPlaceholder={intl.formatMessage(createJobDialogMessages.searchFiles)}
+                isLoading={filesLoading}
+                disabled={createJob.isPending}
+              />
+
+              <CreateJobPropertyPicker
+                icon={UserIcon}
+                ariaLabel={intl.formatMessage(
+                  isProviderProject
+                    ? createJobDialogMessages.assigneesLabel
+                    : createJobDialogMessages.assigneeLabel,
+                )}
+                triggerLabel={assigneeTriggerLabel}
+                items={assigneeOptions.map((assignee) => ({
+                  id: assignee.id,
+                  label: assignee.label,
+                  secondary: assignee.secondary,
+                }))}
+                selectedIds={selectedAssignees}
                 onToggle={(assigneeId) => {
                   if (isProviderProject) {
                     setSelectedAssignees((current) => toggleValue(current, assigneeId));
@@ -672,40 +877,40 @@ export function CreateJobDialog({
                     current.includes(assigneeId) ? [] : [assigneeId],
                   );
                 }}
+                onSelectAll={
+                  isProviderProject
+                    ? () => setSelectedAssignees(assigneeOptions.map((assignee) => assignee.id))
+                    : undefined
+                }
+                onClear={() => setSelectedAssignees([])}
                 emptyLabel={intl.formatMessage(
                   isProviderProject
                     ? createJobDialogMessages.noCrowdinMembers
                     : createJobDialogMessages.noOrgMembers,
                 )}
+                searchPlaceholder={intl.formatMessage(createJobDialogMessages.searchAssignees)}
+                isLoading={assigneesLoading}
+                disabled={createJob.isPending}
+                multiple={isProviderProject}
               />
-            )}
-            {!isProviderProject ? (
-              <p className="text-xs text-muted-foreground">
-                <FormattedMessage {...createJobDialogMessages.assigneeHintNative} />
-              </p>
-            ) : null}
+            </div>
           </div>
-        </div>
 
-        <DialogFooter className="border-t border-border px-6 py-4">
-          <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-            <FormattedMessage {...createJobDialogMessages.cancel} />
-          </Button>
-          <Button
-            type="button"
-            disabled={
-              createJob.isPending ||
-              !title.trim() ||
-              selectedLocales.length === 0 ||
-              selectedFileIds.length === 0 ||
-              targetLocales.length === 0
-            }
-            onClick={() => createJob.mutate()}
-          >
-            {createJob.isPending ? <Spinner className="size-4" /> : null}
-            <FormattedMessage {...createJobDialogMessages.submit} />
-          </Button>
-        </DialogFooter>
+          <DialogFooter className="flex-row items-center justify-end gap-2 border-t border-border px-5 py-3 sm:justify-end">
+            <Button
+              type="button"
+              variant="outline"
+              disabled={createJob.isPending}
+              onClick={() => onOpenChange(false)}
+            >
+              <FormattedMessage {...createJobDialogMessages.cancel} />
+            </Button>
+            <Button type="submit" disabled={!canSubmit}>
+              {createJob.isPending ? <Spinner data-icon="inline-start" /> : null}
+              <FormattedMessage {...createJobDialogMessages.submit} />
+            </Button>
+          </DialogFooter>
+        </form>
       </DialogContent>
     </Dialog>
   );
