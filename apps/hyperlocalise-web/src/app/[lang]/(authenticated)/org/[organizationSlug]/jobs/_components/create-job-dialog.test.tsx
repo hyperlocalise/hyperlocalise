@@ -186,7 +186,7 @@ describe("CreateJobDialog", () => {
 
     expect(screen.getByRole("dialog", { name: "New job" })).toBeInTheDocument();
     expect(screen.getByLabelText("Title")).toBeInTheDocument();
-    expect(screen.getByLabelText("Source locale")).toHaveTextContent(/English/);
+    expect(screen.queryByLabelText("Source locale")).not.toBeInTheDocument();
     expect(screen.getByLabelText("Target locales")).toHaveTextContent("All locales");
     expect(screen.getByLabelText("Assignee")).toHaveTextContent("Unassigned");
     expect(screen.queryByLabelText("Task type")).not.toBeInTheDocument();

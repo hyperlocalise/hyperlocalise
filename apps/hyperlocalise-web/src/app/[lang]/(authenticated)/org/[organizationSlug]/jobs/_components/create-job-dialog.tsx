@@ -12,14 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import {
-  useEffect,
-  useMemo,
-  useState,
-  type FormEvent,
-  type KeyboardEvent,
-  type ReactNode,
-} from "react";
+import { useEffect, useMemo, useState, type FormEvent, type KeyboardEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { FormattedMessage, useIntl } from "react-intl";
 import {
@@ -694,22 +687,6 @@ export function CreateJobDialog({
     }
   }
 
-  const sourceLocaleChip: ReactNode = (
-    <span
-      className={cn(
-        propertyTriggerClassName,
-        "inline-flex max-w-48 items-center pointer-events-none hover:bg-transparent",
-      )}
-      aria-label={intl.formatMessage(createJobDialogMessages.sourceLocaleAria)}
-    >
-      <HugeiconsIcon icon={LanguageCircleIcon} strokeWidth={1.8} className="size-3.5" />
-      <FormattedMessage
-        {...createJobDialogMessages.sourceLocale}
-        values={{ locale: formatLocaleDisplayName(intl, sourceLocale) }}
-      />
-    </span>
-  );
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="flex max-h-[90vh] flex-col gap-0 overflow-hidden p-0 sm:max-w-xl">
@@ -812,9 +789,7 @@ export function CreateJobDialog({
                     </SelectGroup>
                   </SelectContent>
                 </Select>
-              ) : (
-                sourceLocaleChip
-              )}
+              ) : null}
 
               <CreateJobPropertyPicker
                 icon={LanguageCircleIcon}

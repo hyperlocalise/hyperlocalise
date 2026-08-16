@@ -48,7 +48,7 @@ export const Native: Story = {
   play: async ({ canvas }) => {
     await expect(canvas.getByRole("dialog", { name: "New job" })).toBeInTheDocument();
     await expect(canvas.getByLabelText("Title")).toBeInTheDocument();
-    await expect(canvas.getByLabelText("Source locale")).toHaveTextContent(/English/);
+    await expect(canvas.queryByLabelText("Source locale")).not.toBeInTheDocument();
     await expect(canvas.getByLabelText("Target locales")).toHaveTextContent("All locales");
     await expect(canvas.getByLabelText("Assignee")).toHaveTextContent("Unassigned");
     await expect(canvas.queryByLabelText("Task type")).not.toBeInTheDocument();

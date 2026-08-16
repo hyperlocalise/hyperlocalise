@@ -65,16 +65,6 @@ export const createJobDialogMessages = defineMessages({
     id: "Ml4FXbhH7X",
     description: "Placeholder for the optional job description field",
   },
-  sourceLocale: {
-    defaultMessage: "Source {locale}",
-    id: "bYcr+0cE/T",
-    description: "Shows the project source locale in the create job dialog",
-  },
-  sourceLocaleAria: {
-    defaultMessage: "Source locale",
-    id: "mBvpGTXpPk",
-    description: "Accessible label for the read-only source locale chip",
-  },
   targetLocalesLabel: {
     defaultMessage: "Target locales",
     id: "zedkthWR8N",
