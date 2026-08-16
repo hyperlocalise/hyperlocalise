@@ -658,10 +658,10 @@ describe("linguistic heuristic credits", () => {
     );
 
     expect(outcome.status).toBe("inconclusive");
-    if (outcome.status === "na") return;
-    expect(outcome.findings.some((finding) => finding.title === "Untranslated call to action")).toBe(
-      false,
-    );
+    if (outcome.status !== "inconclusive") return;
+    expect(
+      (outcome.findings ?? []).some((finding) => finding.title === "Untranslated call to action"),
+    ).toBe(false);
   });
 
   it("still flags leftover source-language CTA copy on Latin-script locale pages", () => {
@@ -670,19 +670,13 @@ describe("linguistic heuristic credits", () => {
         emptyCrawledPage({
           url: "https://example.com/en/pricing",
           htmlLang: "en",
-          buttons: [
-            "@keyframes shimmer { 0% { background-position: 250% 0; } }",
-            "Get started",
-          ],
+          buttons: ["@keyframes shimmer { 0% { background-position: 250% 0; } }", "Get started"],
           textSample: "Welcome to our pricing page for growing product teams worldwide.",
         }),
         emptyCrawledPage({
           url: "https://example.com/vi/pricing",
           htmlLang: "vi",
-          buttons: [
-            "@keyframes shimmer { 0% { background-position: 250% 0; } }",
-            "Get started",
-          ],
+          buttons: ["@keyframes shimmer { 0% { background-position: 250% 0; } }", "Get started"],
           textSample: "Chào mừng đến trang giá dành cho các nhóm sản phẩm đang phát triển.",
         }),
       ]),
