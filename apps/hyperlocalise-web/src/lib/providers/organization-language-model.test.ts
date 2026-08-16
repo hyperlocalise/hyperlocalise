@@ -12,13 +12,32 @@
  */
 import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
-const { selectMock, decryptProviderCredentialMock, getManagedLanguageModelMock } = vi.hoisted(
-  () => ({
-    selectMock: vi.fn(),
-    decryptProviderCredentialMock: vi.fn(),
-    getManagedLanguageModelMock: vi.fn(() => ({ kind: "gateway", modelId: "openai/gpt-5.6-luna" })),
-  }),
-);
+const {
+  selectMock,
+  decryptProviderCredentialMock,
+  getManagedLanguageModelMock,
+  resolveProviderLanguageModelMock,
+} = vi.hoisted(() => ({
+  selectMock: vi.fn(),
+  decryptProviderCredentialMock: vi.fn(),
+  getManagedLanguageModelMock: vi.fn(() => ({ kind: "gateway", modelId: "openai/gpt-5.6-luna" })),
+  resolveProviderLanguageModelMock: vi.fn(
+    (input: { provider: string; apiKey: string; model: string }) => ({
+      kind: input.provider,
+      modelId: input.model,
+      apiKey: input.apiKey,
+    }),
+  ),
+}));
+
+vi.mock("@/lib/env", () => ({
+  env: {
+    AI_GATEWAY_API_KEY: "gw-key",
+    DATABASE_URL: "postgresql://hyperlocalise:hyperlocalise@localhost:5432/hyperlocalise",
+    PROVIDER_CREDENTIALS_MASTER_KEY: "MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=",
+    NEXT_PUBLIC_WAITLIST_URL: "https://example.com/waitlist",
+  },
+}));
 
 vi.mock("@/lib/database", () => ({
   db: {
@@ -52,15 +71,11 @@ vi.mock("@/lib/security/provider-credential-crypto", () => ({
   unwrapProviderCredentialCrypto: (value: unknown) => value,
 }));
 
-vi.mock("@/lib/providers/language-model", async () => {
-  const actual = await vi.importActual<typeof import("@/lib/providers/language-model")>(
-    "@/lib/providers/language-model",
-  );
-  return {
-    ...actual,
-    getManagedLanguageModel: getManagedLanguageModelMock,
-  };
-});
+vi.mock("@/lib/providers/language-model", () => ({
+  getManagedLanguageModel: getManagedLanguageModelMock,
+  hyperlocaliseManagedGatewayModelId: "openai/gpt-5.6-luna",
+  resolveProviderLanguageModel: resolveProviderLanguageModelMock,
+}));
 
 import { resolveHyperlocaliseAgentLanguageModel } from "./organization-language-model";
 
@@ -95,10 +110,22 @@ describe("resolveHyperlocaliseAgentLanguageModel", () => {
     ]);
     decryptProviderCredentialMock.mockReturnValue("sk-ant");
 
-    const resolved = await resolveHyperlocaliseAgentLanguageModel({ organizationId: "org_1" });
-
-    expect(resolved.source).toBe("anthropic");
-    expect(resolved.modelId).toBe("claude-sonnet-4-6");
+    await expect(
+      resolveHyperlocaliseAgentLanguageModel({ organizationId: "org_1" }),
+    ).resolves.toEqual({
+      model: {
+        kind: "anthropic",
+        modelId: "claude-sonnet-4-6",
+        apiKey: "sk-ant",
+      },
+      source: "anthropic",
+      modelId: "claude-sonnet-4-6",
+    });
     expect(getManagedLanguageModelMock).not.toHaveBeenCalled();
+    expect(resolveProviderLanguageModelMock).toHaveBeenCalledWith({
+      provider: "anthropic",
+      apiKey: "sk-ant",
+      model: "claude-sonnet-4-6",
+    });
   });
 });

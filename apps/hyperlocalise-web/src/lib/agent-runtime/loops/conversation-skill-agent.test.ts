@@ -18,11 +18,17 @@ const { isStepCountMock, toolLoopAgentMock, resolveHyperlocaliseAgentLanguageMod
     toolLoopAgentMock: vi.fn(function ToolLoopAgent(settings: unknown) {
       return { settings };
     }),
-    resolveHyperlocaliseAgentLanguageModelMock: vi.fn(async () => ({
-      model: "mock-model",
-      source: "gateway" as const,
-      modelId: "openai/gpt-5.6-luna",
-    })),
+    resolveHyperlocaliseAgentLanguageModelMock: vi.fn(
+      async (): Promise<{
+        model: string;
+        source: "gateway" | "openai" | "anthropic" | "gemini" | "groq" | "mistral";
+        modelId: string;
+      }> => ({
+        model: "mock-model",
+        source: "gateway",
+        modelId: "openai/gpt-5.6-luna",
+      }),
+    ),
   }));
 
 vi.mock("ai", async () => {
@@ -36,7 +42,7 @@ vi.mock("ai", async () => {
 });
 
 vi.mock("@/lib/providers/language-model", () => ({
-  getAgentProviderOptions: (source: "gateway" | "openai" | string) =>
+  getAgentProviderOptions: (source: string) =>
     source === "openai" || source === "gateway"
       ? { openai: { reasoningSummary: "auto" as const } }
       : undefined,
