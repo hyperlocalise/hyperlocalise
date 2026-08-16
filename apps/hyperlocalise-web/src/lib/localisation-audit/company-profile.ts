@@ -14,7 +14,7 @@ import { generateText, Output } from "ai";
 import { z } from "zod";
 
 import { getHyperlocaliseAgentModel } from "@/lib/agent-runtime/loops/model";
-import { env } from "@/lib/env";
+import { isManagedLanguageModelAvailable } from "@/lib/providers/language-model";
 import { createLogger } from "@/lib/log";
 
 import type { LocalisationAuditCompanyProfile, LocalisationAuditCrawledPage } from "./types";
@@ -193,7 +193,7 @@ export async function inferCompanyProfileWithLuna(
   });
   heuristic.logoUrl = evidence.logoUrl;
 
-  if (!env.OPENAI_API_KEY) {
+  if (!isManagedLanguageModelAvailable()) {
     return heuristic;
   }
 

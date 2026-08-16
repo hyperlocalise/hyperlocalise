@@ -114,6 +114,7 @@ vi.mock("@/lib/env", () => ({
     GITHUB_APP_PRIVATE_KEY: "private-key",
     GITHUB_APP_WEBHOOK_SECRET: "secret",
     OPENAI_API_KEY: "openai-key",
+    AI_GATEWAY_API_KEY: "test-ai-gateway-key",
   },
 }));
 

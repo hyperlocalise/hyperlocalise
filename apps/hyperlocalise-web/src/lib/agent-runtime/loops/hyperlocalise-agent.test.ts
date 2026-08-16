@@ -12,16 +12,12 @@
  */
 import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
-const { openaiMock, isStepCountMock, toolLoopAgentMock } = vi.hoisted(() => ({
-  openaiMock: vi.fn(() => "mock-model"),
+const { createGatewayMock, isStepCountMock, toolLoopAgentMock } = vi.hoisted(() => ({
+  createGatewayMock: vi.fn(() => (modelId: string) => `gateway:${modelId}`),
   isStepCountMock: vi.fn((count: number) => ({ stepLimit: count })),
   toolLoopAgentMock: vi.fn(function ToolLoopAgent(settings: unknown) {
     return { settings };
   }),
-}));
-
-vi.mock("@ai-sdk/openai", () => ({
-  openai: openaiMock,
 }));
 
 vi.mock("ai", async () => {
@@ -29,6 +25,7 @@ vi.mock("ai", async () => {
 
   return {
     ...actual,
+    createGateway: createGatewayMock,
     isStepCount: isStepCountMock,
     ToolLoopAgent: toolLoopAgentMock,
   };
@@ -36,7 +33,7 @@ vi.mock("ai", async () => {
 
 vi.mock("@/lib/env", () => ({
   env: {
-    OPENAI_API_KEY: "test-openai-key",
+    AI_GATEWAY_API_KEY: "test-ai-gateway-key",
   },
 }));
 
@@ -59,11 +56,11 @@ vi.mock("@/lib/agent-runtime/loops/conversation-skill-agent", () => ({
   })),
 }));
 
+import { hyperlocaliseManagedGatewayModelId } from "@/lib/providers/language-model";
 import {
   buildHyperlocaliseAgentInstructions,
   createConversationToolLoopAgent,
   createHyperlocaliseAgent,
-  hyperlocaliseAgentModelId,
   hyperlocaliseAgentStepLimit,
   prepareConversationSkillStep,
   replaceLastUserMessage,
@@ -125,11 +122,11 @@ describe("hyperlocalise agent core", () => {
       activeTools: ["example"],
     });
 
-    expect(openaiMock).toHaveBeenCalledWith(hyperlocaliseAgentModelId);
+    expect(createGatewayMock).toHaveBeenCalledWith({ apiKey: "test-ai-gateway-key" });
     expect(isStepCountMock).toHaveBeenCalledWith(hyperlocaliseAgentStepLimit);
     expect(toolLoopAgentMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        model: "mock-model",
+        model: `gateway:${hyperlocaliseManagedGatewayModelId}`,
         tools,
         activeTools: ["example"],
         timeout: DEFAULT_AGENT_TIMEOUT,
@@ -148,8 +145,8 @@ describe("hyperlocalise agent core", () => {
     });
   });
 
-  it("creates a skill-based conversation agent from runtime context", () => {
-    createConversationToolLoopAgent({
+  it("creates a skill-based conversation agent from runtime context", async () => {
+    await createConversationToolLoopAgent({
       surface: "web",
       hasTmsIntegration: false,
       toolContext: {

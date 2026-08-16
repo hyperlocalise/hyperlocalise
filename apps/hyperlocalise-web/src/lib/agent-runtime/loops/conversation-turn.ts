@@ -356,7 +356,7 @@ export type PrepareConversationAgentTurnInput = {
 
 export type PrepareConversationAgentTurnResult = {
   classification: ConversationClassification;
-  agent: ReturnType<typeof createConversationToolLoopAgent>;
+  agent: Awaited<ReturnType<typeof createConversationToolLoopAgent>>;
   chatMessages: ModelMessage[];
   clarificationFollowUp: string | null;
   updatedRepositorySession: ConversationRepositorySession | null;
@@ -448,7 +448,7 @@ export async function prepareConversationAgentTurn(
 
   const preparedMessages = replaceLastUserMessage(chatMessages, input.messageText);
 
-  const agent = createConversationToolLoopAgent({
+  const agent = await createConversationToolLoopAgent({
     surface: input.surface,
     toolContext: {
       conversationId: input.conversationId,

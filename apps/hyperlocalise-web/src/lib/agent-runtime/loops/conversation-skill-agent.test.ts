@@ -12,16 +12,18 @@
  */
 import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
-const { isStepCountMock, toolLoopAgentMock } = vi.hoisted(() => ({
-  isStepCountMock: vi.fn((count: number) => ({ stepLimit: count })),
-  toolLoopAgentMock: vi.fn(function ToolLoopAgent(settings: unknown) {
-    return { settings };
-  }),
-}));
-
-vi.mock("@ai-sdk/openai", () => ({
-  openai: vi.fn(() => "mock-model"),
-}));
+const { isStepCountMock, toolLoopAgentMock, resolveHyperlocaliseAgentLanguageModelMock } =
+  vi.hoisted(() => ({
+    isStepCountMock: vi.fn((count: number) => ({ stepLimit: count })),
+    toolLoopAgentMock: vi.fn(function ToolLoopAgent(settings: unknown) {
+      return { settings };
+    }),
+    resolveHyperlocaliseAgentLanguageModelMock: vi.fn(async () => ({
+      model: "mock-model",
+      source: "gateway" as const,
+      modelId: "openai/gpt-5.6-luna",
+    })),
+  }));
 
 vi.mock("ai", async () => {
   const actual = await vi.importActual<typeof import("ai")>("ai");
@@ -33,10 +35,15 @@ vi.mock("ai", async () => {
   };
 });
 
-vi.mock("@/lib/env", () => ({
-  env: {
-    OPENAI_API_KEY: "test-openai-key",
-  },
+vi.mock("@/lib/providers/language-model", () => ({
+  getAgentProviderOptions: (source: "gateway" | "openai" | string) =>
+    source === "openai" || source === "gateway"
+      ? { openai: { reasoningSummary: "auto" as const } }
+      : undefined,
+}));
+
+vi.mock("@/lib/providers/organization-language-model", () => ({
+  resolveHyperlocaliseAgentLanguageModel: resolveHyperlocaliseAgentLanguageModelMock,
 }));
 
 import { clearAgentManifestCache } from "@/agents/_runtime/loader";
@@ -60,8 +67,8 @@ describe("conversation skill agent", () => {
     vi.clearAllMocks();
   });
 
-  it("exposes project and translation tools without TMS integration", () => {
-    createConversationSkillAgent({
+  it("exposes project and translation tools without TMS integration", async () => {
+    await createConversationSkillAgent({
       surface: "slack",
       hasFileAttachments: false,
       hasTmsIntegration: false,
@@ -113,8 +120,8 @@ describe("conversation skill agent", () => {
     });
   });
 
-  it("adds Knowledge Memory read and write tools for an enabled web admin", () => {
-    createConversationSkillAgent({
+  it("adds Knowledge Memory read and write tools for an enabled web admin", async () => {
+    await createConversationSkillAgent({
       surface: "web",
       hasFileAttachments: false,
       hasTmsIntegration: false,
@@ -136,8 +143,8 @@ describe("conversation skill agent", () => {
     );
   });
 
-  it("keeps Knowledge Memory read-only for an enabled reviewer", () => {
-    createConversationSkillAgent({
+  it("keeps Knowledge Memory read-only for an enabled reviewer", async () => {
+    await createConversationSkillAgent({
       surface: "web",
       hasFileAttachments: false,
       hasTmsIntegration: false,
@@ -158,8 +165,8 @@ describe("conversation skill agent", () => {
     expect(settings.tools.update_knowledge_memory).toBeUndefined();
   });
 
-  it("adds TMS tools when integration is available", () => {
-    createConversationSkillAgent({
+  it("adds TMS tools when integration is available", async () => {
+    await createConversationSkillAgent({
       surface: "slack",
       hasFileAttachments: false,
       hasTmsIntegration: true,
@@ -191,8 +198,8 @@ describe("conversation skill agent", () => {
     );
   });
 
-  it("omits glossary search tools when the feature flag is off", () => {
-    createConversationSkillAgent({
+  it("omits glossary search tools when the feature flag is off", async () => {
+    await createConversationSkillAgent({
       surface: "web",
       hasFileAttachments: false,
       hasTmsIntegration: true,
@@ -213,8 +220,8 @@ describe("conversation skill agent", () => {
     );
   });
 
-  it("adds repo and file job tools when runtime context allows them", () => {
-    createConversationSkillAgent({
+  it("adds repo and file job tools when runtime context allows them", async () => {
+    await createConversationSkillAgent({
       surface: "slack",
       hasFileAttachments: true,
       hasTmsIntegration: true,
@@ -240,8 +247,8 @@ describe("conversation skill agent", () => {
     expect(settings.instructions).toContain("exist in the current source files now");
   });
 
-  it("exposes todoWrite in both tools and activeTools for repo skills", () => {
-    createConversationSkillAgent({
+  it("exposes todoWrite in both tools and activeTools for repo skills", async () => {
+    await createConversationSkillAgent({
       surface: "web",
       hasFileAttachments: false,
       hasTmsIntegration: false,
@@ -274,5 +281,27 @@ describe("conversation skill agent", () => {
     for (const toolName of settings.activeTools) {
       expect(settings.tools[toolName]).toBeDefined();
     }
+  });
+
+  it("omits OpenAI provider options when the organization uses Anthropic BYOK", async () => {
+    resolveHyperlocaliseAgentLanguageModelMock.mockResolvedValueOnce({
+      model: "anthropic-model",
+      source: "anthropic",
+      modelId: "claude-sonnet-4-6",
+    });
+
+    await createConversationSkillAgent({
+      surface: "web",
+      hasFileAttachments: false,
+      hasTmsIntegration: false,
+      toolContext: baseToolContext,
+    });
+
+    expect(toolLoopAgentMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        model: "anthropic-model",
+        providerOptions: undefined,
+      }),
+    );
   });
 });

@@ -31,7 +31,7 @@ vi.mock("ai", async () => {
 
 vi.mock("@/lib/env", () => ({
   env: {
-    OPENAI_API_KEY: "test-openai-api-key",
+    AI_GATEWAY_API_KEY: "test-ai-gateway-api-key",
   },
 }));
 

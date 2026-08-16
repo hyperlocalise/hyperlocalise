@@ -427,7 +427,7 @@ async function processSlackMessage(
       }),
     ]);
 
-    const agent = createConversationToolLoopAgent({
+    const agent = await createConversationToolLoopAgent({
       surface: "slack",
       toolContext: {
         conversationId: interactionId,

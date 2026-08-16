@@ -173,7 +173,7 @@ export {
   type ConversationClassification,
 } from "./conversation-classifier";
 
-export function createConversationToolLoopAgent({
+export async function createConversationToolLoopAgent({
   surface,
   toolContext,
   attachedProject = null,

@@ -10,7 +10,6 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { openai } from "@ai-sdk/openai";
 import { generateText, Output, type LanguageModel } from "ai";
 import type { Message, Thread } from "chat";
 import { z } from "zod";
@@ -20,8 +19,8 @@ import {
   localizeImageAttachment,
   type ImageLocalizationAttachment,
 } from "@/lib/agents/image-localization";
-import { hyperlocaliseAgentModelId } from "@/lib/agent-runtime/loops/model";
-import { env } from "@/lib/env";
+import { getHyperlocaliseAgentModel } from "@/lib/agent-runtime/loops/model";
+import { isManagedLanguageModelAvailable } from "@/lib/providers/language-model";
 
 import {
   createStoredSlackImageAttachment,
@@ -65,10 +64,10 @@ type SlackImageStorageContext = {
 };
 
 function getSlackImageIntentModel() {
-  if (!env.OPENAI_API_KEY) {
-    throw new Error("OPENAI_API_KEY is not configured");
+  if (!isManagedLanguageModelAvailable()) {
+    throw new Error("AI_GATEWAY_API_KEY is not configured");
   }
-  return openai(hyperlocaliseAgentModelId);
+  return getHyperlocaliseAgentModel();
 }
 
 function normalizeLocale(locale: string) {

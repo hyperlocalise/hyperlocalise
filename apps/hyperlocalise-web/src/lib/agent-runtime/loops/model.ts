@@ -10,18 +10,14 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { openai } from "@ai-sdk/openai";
-
-import { env } from "@/lib/env";
-
-import { hyperlocaliseAgentModelId } from "./model-id";
+import { getManagedLanguageModel } from "@/lib/providers/language-model";
 
 export { hyperlocaliseAgentModelId } from "./model-id";
+export {
+  getAgentProviderOptions,
+  hyperlocaliseManagedGatewayModelId,
+} from "@/lib/providers/language-model";
 
 export function getHyperlocaliseAgentModel() {
-  if (!env.OPENAI_API_KEY) {
-    throw new Error("OPENAI_API_KEY is not configured");
-  }
-
-  return openai(hyperlocaliseAgentModelId);
+  return getManagedLanguageModel();
 }

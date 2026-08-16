@@ -45,8 +45,10 @@ const toolCallInfo = { toolCallId: "test-tool-call", messages: [], context: {} }
 
 describe("redact", () => {
   it("redacts env var lines", () => {
-    const input = "OPENAI_API_KEY=sk-12345\nPATH=/usr/bin";
-    expect(redact(input)).toBe("OPENAI_API_KEY=***REDACTED***\nPATH=/usr/bin");
+    const input = "OPENAI_API_KEY=sk-12345\nAI_GATEWAY_API_KEY=gw-12345\nPATH=/usr/bin";
+    expect(redact(input)).toBe(
+      "OPENAI_API_KEY=***REDACTED***\nAI_GATEWAY_API_KEY=***REDACTED***\nPATH=/usr/bin",
+    );
   });
 
   it("redacts token key=value patterns", () => {

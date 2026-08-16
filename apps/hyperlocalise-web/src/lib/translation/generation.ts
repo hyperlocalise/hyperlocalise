@@ -10,21 +10,19 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { createAnthropic } from "@ai-sdk/anthropic";
-import { createOpenAI, openai } from "@ai-sdk/openai";
 import { generateText, Output, type LanguageModel } from "ai";
-import { desc, eq } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { z } from "zod";
 
 import { DEFAULT_APP_LOCALE, normalizeAppLocale } from "@/lib/app-i18n/locales";
 import { db, schema } from "@/lib/database";
 import type { LlmProvider } from "@/lib/database/types";
-import { hyperlocaliseAgentModelId } from "@/lib/agent-runtime/loops/model";
-import { env } from "@/lib/env";
 import {
-  decryptProviderCredential,
-  unwrapProviderCredentialCrypto,
-} from "@/lib/security/provider-credential-crypto";
+  getManagedLanguageModel,
+  isManagedLanguageModelAvailable,
+  resolveProviderLanguageModel,
+} from "@/lib/providers/language-model";
+import { loadLatestOrganizationProviderCredential } from "@/lib/providers/organization-language-model";
 import type {
   CatAiRecommendationInput,
   CatAiRecommendationResult,
@@ -325,41 +323,10 @@ function normalizeAiSdkTokenUsage(
   return parsedUsage.success ? parsedUsage.data : undefined;
 }
 
-const openAiCompatibleBaseUrlByProvider = {
-  gemini: "https://generativelanguage.googleapis.com/v1beta/openai",
-  groq: "https://api.groq.com/openai/v1",
-  mistral: "https://api.mistral.ai/v1",
-} as const satisfies Partial<Record<LlmProvider, string>>;
-
-export function resolveProviderLanguageModel(input: {
-  provider: LlmProvider;
-  apiKey: string;
-  model: string;
-}): LanguageModel {
-  switch (input.provider) {
-    case "anthropic": {
-      const provider = createAnthropic({ apiKey: input.apiKey });
-      return provider(input.model);
-    }
-    case "openai": {
-      const provider = createOpenAI({ apiKey: input.apiKey });
-      return provider(input.model);
-    }
-    case "gemini":
-    case "groq":
-    case "mistral": {
-      const baseURL = openAiCompatibleBaseUrlByProvider[input.provider];
-      const provider = createOpenAI({
-        apiKey: input.apiKey,
-        ...(baseURL ? { baseURL } : {}),
-      });
-      return provider(input.model);
-    }
-  }
-}
+export { resolveProviderLanguageModel } from "@/lib/providers/language-model";
 
 export const organizationTranslationGeneratorDeps = {
-  isManagedTranslationModelAvailable: (): boolean => Boolean(env.OPENAI_API_KEY),
+  isManagedTranslationModelAvailable: (): boolean => isManagedLanguageModelAvailable(),
 };
 
 export function isManagedTranslationModelAvailable() {
@@ -386,56 +353,25 @@ export class OrganizationModelResolver {
       };
     }
 
-    const [credential] = await db
-      .select({
-        provider: schema.organizationLlmProviderCredentials.provider,
-        defaultModel: schema.organizationLlmProviderCredentials.defaultModel,
-        encryptionAlgorithm: schema.organizationLlmProviderCredentials.encryptionAlgorithm,
-        ciphertext: schema.organizationLlmProviderCredentials.ciphertext,
-        iv: schema.organizationLlmProviderCredentials.iv,
-        authTag: schema.organizationLlmProviderCredentials.authTag,
-        keyVersion: schema.organizationLlmProviderCredentials.keyVersion,
-      })
-      .from(schema.organizationLlmProviderCredentials)
-      .where(eq(schema.organizationLlmProviderCredentials.organizationId, project.organizationId))
-      .orderBy(desc(schema.organizationLlmProviderCredentials.updatedAt))
-      .limit(1);
-
+    const loadedCredential = await loadLatestOrganizationProviderCredential(project.organizationId);
     const projectContext = {
       name: project.name,
       translationContext: project.translationContext,
     };
 
-    if (credential) {
-      if (
-        !credential.defaultModel ||
-        !credential.encryptionAlgorithm ||
-        !credential.ciphertext ||
-        !credential.iv ||
-        !credential.authTag ||
-        credential.keyVersion === null
-      ) {
-        return {
-          ok: false as const,
-          code: "provider_credential_invalid" as const,
-          message: "organization provider credential is incomplete",
-        };
-      }
+    if (!loadedCredential.ok) {
+      return {
+        ok: false as const,
+        code: loadedCredential.code,
+        message: loadedCredential.message,
+      };
+    }
 
-      const apiKey = unwrapProviderCredentialCrypto(
-        decryptProviderCredential({
-          algorithm: credential.encryptionAlgorithm,
-          keyVersion: credential.keyVersion,
-          ciphertext: credential.ciphertext,
-          iv: credential.iv,
-          authTag: credential.authTag,
-        }),
-      );
-
+    if (loadedCredential.credential) {
       const model = resolveProviderLanguageModel({
-        provider: credential.provider,
-        apiKey,
-        model: credential.defaultModel,
+        provider: loadedCredential.credential.provider,
+        apiKey: loadedCredential.credential.apiKey,
+        model: loadedCredential.credential.model,
       });
 
       return {
@@ -604,11 +540,7 @@ export function createOpenAIStringTranslationGenerator(input: {
 }
 
 export function getManagedTranslationLanguageModel(): LanguageModel {
-  if (!env.OPENAI_API_KEY) {
-    throw new Error("OPENAI_API_KEY is not configured");
-  }
-
-  return openai(hyperlocaliseAgentModelId);
+  return getManagedLanguageModel();
 }
 
 export function createManagedStringTranslationGenerator(): StringTranslationGenerator {
@@ -616,11 +548,7 @@ export function createManagedStringTranslationGenerator(): StringTranslationGene
 }
 
 export const translateStringJobWithOpenAI: StringTranslationGenerator = async (input) => {
-  if (!env.OPENAI_API_KEY) {
-    throw new Error("OPENAI_API_KEY is not configured");
-  }
-
-  return createStringTranslationGenerator({ model: openai(hyperlocaliseAgentModelId) })(input);
+  return createStringTranslationGenerator({ model: getManagedLanguageModel() })(input);
 };
 
 const defaultModelResolver = new OrganizationModelResolver();
