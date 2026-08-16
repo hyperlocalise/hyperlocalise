@@ -2,8 +2,8 @@
 
 Superseded for the model id by
 [2026-08-16-video-seedance-model-design.md](./2026-08-16-video-seedance-model-design.md).
-The dual-entry CAT paths, duration gates, and error codes in this note still
-apply.
+The dual-entry CAT paths and error codes in this note still apply. Duration
+gates are now 3–30 seconds; see the Seedance note.
 
 ## Date
 
@@ -91,5 +91,5 @@ No live Omni calls in `vp test`.
 
 ## Follow-ups
 
-webm, captions/SRT, CLI sync, Slack/email/Contentful, YouTube/Vimeo, clips over
-10s, org BYOK for video, Gateway cutover for images.
+webm, captions/SRT, CLI sync, Slack/email/Contentful, YouTube/Vimeo, org BYOK
+for video, Gateway cutover for images.

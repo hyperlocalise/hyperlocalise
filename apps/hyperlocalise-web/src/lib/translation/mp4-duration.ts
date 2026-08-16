@@ -13,7 +13,7 @@
 import { err, ok, type Result } from "@/lib/primitives/result/results";
 
 export const VIDEO_LOCALIZATION_MIN_DURATION_SECONDS = 3;
-export const VIDEO_LOCALIZATION_MAX_DURATION_SECONDS = 10;
+export const VIDEO_LOCALIZATION_MAX_DURATION_SECONDS = 30;
 
 export type Mp4DurationError =
   | { code: "video_duration_unreadable" }

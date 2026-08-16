@@ -59,13 +59,20 @@ describe("mp4 duration probe", () => {
     expect(readMp4DurationSeconds(bytes)).toBeNull();
   });
 
-  it("accepts clips between 3 and 10 seconds", () => {
-    const result = assertMp4DurationSupported(buildMp4WithDuration(5));
-    expect(isOk(result)).toBe(true);
-    if (isErr(result)) {
+  it("accepts clips between 3 and 30 seconds", () => {
+    const shortResult = assertMp4DurationSupported(buildMp4WithDuration(5));
+    expect(isOk(shortResult)).toBe(true);
+    if (isErr(shortResult)) {
       throw new Error("expected 5s clip to be supported");
     }
-    expect(result.value.durationSeconds).toBe(5);
+    expect(shortResult.value.durationSeconds).toBe(5);
+
+    const longResult = assertMp4DurationSupported(buildMp4WithDuration(30));
+    expect(isOk(longResult)).toBe(true);
+    if (isErr(longResult)) {
+      throw new Error("expected 30s clip to be supported");
+    }
+    expect(longResult.value.durationSeconds).toBe(30);
   });
 
   it("rejects clips shorter than 3 seconds", () => {
@@ -77,13 +84,13 @@ describe("mp4 duration probe", () => {
     expect(result.error).toEqual({ code: "video_duration_unsupported", durationSeconds: 2 });
   });
 
-  it("rejects clips longer than 10 seconds", () => {
-    const result = assertMp4DurationSupported(buildMp4WithDuration(11));
+  it("rejects clips longer than 30 seconds", () => {
+    const result = assertMp4DurationSupported(buildMp4WithDuration(31));
     expect(isErr(result)).toBe(true);
     if (isOk(result)) {
-      throw new Error("expected 11s clip to be rejected");
+      throw new Error("expected 31s clip to be rejected");
     }
-    expect(result.error).toEqual({ code: "video_duration_unsupported", durationSeconds: 11 });
+    expect(result.error).toEqual({ code: "video_duration_unsupported", durationSeconds: 31 });
   });
 
   it("rejects unreadable mp4 buffers", () => {

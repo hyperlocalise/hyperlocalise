@@ -34,6 +34,10 @@ import {
 } from "@/lib/agent-runtime/workspaces/repository-sandbox";
 import { parseProviderProjectId } from "@/lib/providers/jobs/tms-provider-resource-id";
 import { supportedFileTranslationFileFormats } from "@/lib/translation/file-formats";
+import {
+  VIDEO_LOCALIZATION_MAX_DURATION_SECONDS,
+  VIDEO_LOCALIZATION_MIN_DURATION_SECONDS,
+} from "@/lib/translation/mp4-duration";
 import { createLogger, serializeErrorForLog } from "@/lib/log";
 
 import {
@@ -65,7 +69,7 @@ export function buildFileTranslationInstructions() {
     'Use sourceLocale "auto" if the user did not specify a source locale.',
     `Supported file job formats: ${supportedFileTranslationFileFormats.join(", ")}.`,
     "For png, jpeg, webp, and mp4 attachments, still create a file translation job — the workflow localizes the image or video asset for each target locale.",
-    "mp4 clips should typically be short (about 3–10 seconds).",
+    `mp4 clips should typically be ${VIDEO_LOCALIZATION_MIN_DURATION_SECONDS}–${VIDEO_LOCALIZATION_MAX_DURATION_SECONDS} seconds.`,
   ].join(" ");
 }
 

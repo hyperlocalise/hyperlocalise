@@ -23,9 +23,9 @@ existing Gateway call: source MP4 bytes in `inputReferences`,
 `aspectRatio: "adaptive"`, `generateAudio: true`, and the source clip
 duration. Name the source as `[Video 1]` in the localization prompt.
 
-Duration gates stay 3–10 seconds. File-backed and URL-backed CAT paths do
-not change. Image and video jobs stay on the managed Gateway and do not
-use org BYOK.
+Duration gates are 3–30 seconds, matching Seedance's clip length. File-backed
+and URL-backed CAT paths do not change. Image and video jobs stay on the
+managed Gateway and do not use org BYOK.
 
 ## Consequences
 
@@ -35,9 +35,7 @@ use org BYOK.
 - Seedance documents URL references. Gateway still accepts the current
   buffer `inputReferences` used for Omni. Switch to hosted URLs only if
   buffer uploads fail in production.
-- Seedance can generate up to 30 seconds. Raising the 10s ingest cap is a
-  follow-up.
 
 ## Follow-ups
 
-Clips over 10s, hosted URL references if buffers fail, org BYOK for video.
+Hosted URL references if buffers fail, org BYOK for video.

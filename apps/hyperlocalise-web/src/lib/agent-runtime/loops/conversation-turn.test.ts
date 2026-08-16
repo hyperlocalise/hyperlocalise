@@ -137,6 +137,7 @@ describe("buildFileTranslationInstructions", () => {
     expect(instructions).toContain("webp");
     expect(instructions).toContain("mp4");
     expect(instructions).toContain("localizes the image or video asset");
+    expect(instructions).toContain("3–30 seconds");
   });
 });
 
