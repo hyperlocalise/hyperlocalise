@@ -19,6 +19,7 @@ import type {
 } from "@/api/routes/project/project.schema";
 import { db, schema } from "@/lib/database";
 import { ProjectServiceBase } from "@/lib/projects/project-service-base";
+import { shouldRetrySameAsSourcePrefill } from "@/lib/projects/translations/should-retry-same-as-source-prefill";
 import { normalizeTranslationMemorySourceText } from "@/lib/translation/normalizeTranslationMemorySourceText";
 
 type ProjectKeysScopeInput = {
@@ -551,8 +552,17 @@ export class ProjectTranslationService extends ProjectServiceBase {
         const translation = translationByKeyId.get(key.id);
         const hasValidTranslation =
           Boolean(translation?.text?.trim()) && translation?.status !== "rejected";
+        // Leave multi-word needs-review copies out of prefill so a later
+        // translate-with-agent run can try them again. Single-word copies stay.
+        const retrySameAsSource =
+          hasValidTranslation &&
+          shouldRetrySameAsSourcePrefill({
+            sourceText: key.sourceText,
+            targetText: translation!.text,
+            status: translation!.status,
+          });
 
-        if (hasValidTranslation) {
+        if (hasValidTranslation && !retrySameAsSource) {
           prefilled[key.key] = translation!.text;
           translatedKeyCount += 1;
           continue;
