@@ -14,8 +14,11 @@ import { randomUUID } from "node:crypto";
 
 import { Sandbox, StreamError } from "@vercel/sandbox";
 
-import { hyperlocaliseAgentModelId } from "@/lib/agent-runtime/loops/model-id";
 import { env } from "@/lib/env";
+import {
+  resolveSandboxLlmProfile,
+  resolveSandboxTranslationEnv,
+} from "@/lib/translation/sandbox-llm";
 import { createConfiguredVercelSandbox } from "@/lib/vercel-sandbox-config";
 import {
   inferSupportedFileTranslationFileFormat,
@@ -470,6 +473,7 @@ export class HyperlocaliseCliConfigBuilder {
       `      - from: ${yamlString(file.from)}`,
       `        to: ${yamlString(file.to)}`,
     ]);
+    const llmProfile = resolveSandboxLlmProfile(env);
 
     return [
       "locales:",
@@ -485,8 +489,8 @@ export class HyperlocaliseCliConfigBuilder {
       "llm:",
       "  profiles:",
       "    default:",
-      "      provider: openai",
-      `      model: ${hyperlocaliseAgentModelId}`,
+      `      provider: ${llmProfile.provider}`,
+      `      model: ${llmProfile.model}`,
       `      system_prompt: ${yamlString(systemPrompt)}`,
       `      user_prompt: ${yamlString(userPrompt)}`,
     ].join("\n");
@@ -819,11 +823,7 @@ const defaultLifecycle = new SandboxLifecycle();
 const defaultRunner = new HyperlocaliseCliRunner(defaultLifecycle);
 
 export function getSandboxTranslationEnv(): Record<string, string> {
-  if (!env.OPENAI_API_KEY) {
-    throw new Error("OPENAI_API_KEY is not configured");
-  }
-
-  return { OPENAI_API_KEY: env.OPENAI_API_KEY };
+  return resolveSandboxTranslationEnv(env);
 }
 
 export function getOutputFilename(inputFilename: string, targetLocale: string): string {

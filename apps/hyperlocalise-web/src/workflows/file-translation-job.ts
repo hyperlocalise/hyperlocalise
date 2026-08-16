@@ -107,7 +107,7 @@ function classifyCliFailureKind(output: string): string {
   if (output.includes("escapes root")) {
     return "path_escapes_root";
   }
-  if (output.includes("OPENAI_API_KEY")) {
+  if (output.includes("OPENAI_API_KEY") || output.includes("AI_GATEWAY_API_KEY")) {
     return "missing_openai_api_key";
   }
   if (output.includes("planning tasks")) {

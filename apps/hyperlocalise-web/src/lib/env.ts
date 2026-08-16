@@ -27,8 +27,14 @@ export const env = createEnv({
     /** Postgres connection string for Drizzle ORM. */
     DATABASE_URL: z.string().min(1),
 
-    /** OpenAI API key used for CLI sandbox translation. Optional when that feature is disabled. */
+    /** OpenAI API key used for CLI sandbox translation. Optional when AI Gateway or that feature is unused. */
     OPENAI_API_KEY: z.string().min(1).optional(),
+
+    /** Vercel AI Gateway API key used for CLI sandbox translation. Optional when OpenAI is configured. */
+    AI_GATEWAY_API_KEY: z.string().min(1).optional(),
+
+    /** Optional Vercel AI Gateway base URL override for CLI sandbox translation. */
+    AI_GATEWAY_BASE_URL: z.string().min(1).optional(),
 
     /** Master encryption key for provider credentials. Must be a high-entropy 32-byte base64 value. */
     PROVIDER_CREDENTIALS_MASTER_KEY: z.string().min(1),
@@ -248,6 +254,8 @@ export const env = createEnv({
     NEXT_PUBLIC_APP_ENV: process.env.NEXT_PUBLIC_APP_ENV,
     DATABASE_URL: process.env.DATABASE_URL,
     OPENAI_API_KEY: process.env.OPENAI_API_KEY ?? (isTestEnv ? "test-openai-api-key" : undefined),
+    AI_GATEWAY_API_KEY: process.env.AI_GATEWAY_API_KEY,
+    AI_GATEWAY_BASE_URL: process.env.AI_GATEWAY_BASE_URL,
     PROVIDER_CREDENTIALS_MASTER_KEY:
       process.env.PROVIDER_CREDENTIALS_MASTER_KEY ??
       (isTestEnv ? "MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=" : undefined),

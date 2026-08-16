@@ -42,7 +42,9 @@ BYOK:
 | Image translation | `openai/gpt-image-2` | OpenAI image model through Vercel AI Gateway |
 | Video translation | `google/gemini-omni-flash-preview` | Gemini Omni through the same Gateway |
 
-File-translation sandboxes and the Go CLI still use `OPENAI_API_KEY`.
+File-translation sandboxes use `ai_gateway` and pass `AI_GATEWAY_API_KEY` when
+that env var is set. Otherwise they keep `openai` and `OPENAI_API_KEY`. The Go
+CLI supports both providers.
 
 OpenAI `reasoningSummary` options apply only for Gateway and OpenAI BYOK.
 

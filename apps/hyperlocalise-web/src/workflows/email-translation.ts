@@ -12,7 +12,10 @@
  */
 import { getWorkflowMetadata } from "workflow";
 
-import { hyperlocaliseAgentModelId } from "@/lib/agent-runtime/loops/model-id";
+import {
+  resolveSandboxLlmProfile,
+  resolveSandboxTranslationEnv,
+} from "@/lib/translation/sandbox-llm";
 import type { EmailAgentTask, EmailAgentTaskAttachment } from "@/lib/workflow/types";
 import {
   markEmailTranslationJobFailed,
@@ -99,6 +102,7 @@ export function buildTempConfig(
     .filter((line): line is string => line !== null)
     .join("\n");
   const userPrompt = ["Translate from {{source}} to {{target}}.", "", "{{input}}"].join("\n");
+  const llmProfile = resolveSandboxLlmProfile(process.env);
 
   return [
     "locales:",
@@ -115,8 +119,8 @@ export function buildTempConfig(
     "llm:",
     "  profiles:",
     "    default:",
-    "      provider: openai",
-    `      model: ${hyperlocaliseAgentModelId}`,
+    `      provider: ${llmProfile.provider}`,
+    `      model: ${llmProfile.model}`,
     `      system_prompt: ${yamlString(systemPrompt)}`,
     `      user_prompt: ${yamlString(userPrompt)}`,
   ].join("\n");
@@ -200,14 +204,7 @@ function shellQuote(value: string): string {
 export function getSandboxTranslationEnv(): Record<string, string> {
   // Read process.env directly so this workflow module never static-imports `@/lib/env`
   // (t3 env + Next helpers are unsafe in the Workflow DevKit sandbox).
-  const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey) {
-    throw new Error("OPENAI_API_KEY is not configured");
-  }
-
-  return {
-    OPENAI_API_KEY: apiKey,
-  };
+  return resolveSandboxTranslationEnv(process.env);
 }
 
 async function sendReplyEmail(
