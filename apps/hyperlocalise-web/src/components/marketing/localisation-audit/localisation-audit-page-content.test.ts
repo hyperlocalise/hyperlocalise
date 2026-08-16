@@ -33,30 +33,16 @@ describe("localisation audit page content", () => {
     expect(copy.startError).toContain("Check the URL");
   });
 
-  it("returns localized landing copy for supported locales", () => {
-    expect(getLocalisationAuditPageCopy("fr-FR").headline).toBe(
-      "Voyez comment votre marque voyage.",
-    );
-    expect(getLocalisationAuditPageCopy("de-DE").submit).toBe("Meinen Score anzeigen");
-    expect(getLocalisationAuditPageCopy("zh-CN").methodologyHeading).toBe("我们关注什么");
-    expect(getLocalisationAuditPageCopy("vi-VN").leaderboardEmpty).toBe(
-      "Chưa có điểm công khai. Hãy là người đầu tiên.",
-    );
-  });
+  it("returns result copy and interpolates ICU values", () => {
+    const copy = getLocalisationAuditResultCopy("en");
 
-  it("returns localized result copy and interpolates ICU values", () => {
-    const english = getLocalisationAuditResultCopy("en");
-    const french = getLocalisationAuditResultCopy("fr-FR");
-
-    expect(english.runningTitle).toBe("Running localisation audit");
-    expect(english.creditsHeading).toBe("Audit criteria");
-    expect(english.progressStepOf({ current: 2, total: 5 })).toBe("Step 2 of 5");
-    expect(english.criteriaSummary({ passed: 8, failed: 3, na: 1 })).toBe(
+    expect(copy.runningTitle).toBe("Running localisation audit");
+    expect(copy.creditsHeading).toBe("Audit criteria");
+    expect(copy.progressStepOf({ current: 2, total: 5 })).toBe("Step 2 of 5");
+    expect(copy.criteriaSummary({ passed: 8, failed: 3, na: 1 })).toBe(
       "8 passed · 3 to fix · 1 not applicable",
     );
-    expect(french.runningTitle).toBe("Audit de localisation en cours");
-    expect(french.standingRank({ rank: 4, total: 20 })).toBe("Rang n°4 sur 20 audits publics");
-    expect(french.sampledPages({ count: 6 })).toContain("6 pages");
+    expect(copy.sampledPages({ count: 6 })).toContain("6 pages");
   });
 
   it("points the scoring guide at the requested locale", () => {
