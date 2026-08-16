@@ -12,11 +12,10 @@
  */
 import { createAnthropic } from "@ai-sdk/anthropic";
 import { createOpenAI } from "@ai-sdk/openai";
-import { createGateway, type LanguageModel } from "ai";
+import type { LanguageModel } from "ai";
 
 import { hyperlocaliseAgentModelId } from "@/lib/agent-runtime/loops/model-id";
 import type { LlmProvider } from "@/lib/database/types";
-import { env } from "@/lib/env";
 
 export const hyperlocaliseManagedGatewayModelId = `openai/${hyperlocaliseAgentModelId}`;
 export const hyperlocaliseImageModelId = "openai/gpt-image-2";
@@ -36,32 +35,16 @@ const openAiCompatibleBaseUrlByProvider = {
   mistral: "https://api.mistral.ai/v1",
 } as const satisfies Partial<Record<LlmProvider, string>>;
 
-export const managedLanguageModelDeps = {
-  isAvailable: (): boolean => Boolean(env.AI_GATEWAY_API_KEY),
-};
-
-export function isManagedLanguageModelAvailable() {
-  return managedLanguageModelDeps.isAvailable();
-}
-
-export function getManagedGateway() {
-  if (!env.AI_GATEWAY_API_KEY) {
-    throw new Error("AI_GATEWAY_API_KEY is not configured");
-  }
-
-  return createGateway({ apiKey: env.AI_GATEWAY_API_KEY });
-}
-
 export function getManagedLanguageModel(): LanguageModel {
-  return getManagedGateway()(hyperlocaliseManagedGatewayModelId);
+  return hyperlocaliseManagedGatewayModelId;
 }
 
 export function getManagedImageModel() {
-  return getManagedGateway().image(hyperlocaliseImageModelId);
+  return hyperlocaliseImageModelId;
 }
 
 export function getManagedVideoModel() {
-  return getManagedGateway().video(hyperlocaliseVideoModelId);
+  return hyperlocaliseVideoModelId;
 }
 
 export function resolveProviderLanguageModel(input: {

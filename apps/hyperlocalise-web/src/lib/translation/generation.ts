@@ -19,7 +19,6 @@ import { db, schema } from "@/lib/database";
 import type { LlmProvider } from "@/lib/database/types";
 import {
   getManagedLanguageModel,
-  isManagedLanguageModelAvailable,
   resolveProviderLanguageModel,
 } from "@/lib/providers/language-model";
 import { loadLatestOrganizationProviderCredential } from "@/lib/providers/organization-language-model";
@@ -325,14 +324,6 @@ function normalizeAiSdkTokenUsage(
 
 export { resolveProviderLanguageModel } from "@/lib/providers/language-model";
 
-export const organizationTranslationGeneratorDeps = {
-  isManagedTranslationModelAvailable: (): boolean => isManagedLanguageModelAvailable(),
-};
-
-export function isManagedTranslationModelAvailable() {
-  return organizationTranslationGeneratorDeps.isManagedTranslationModelAvailable();
-}
-
 export class OrganizationModelResolver {
   async resolve(projectId: string) {
     const [project] = await db
@@ -379,14 +370,6 @@ export class OrganizationModelResolver {
         project: projectContext,
         model,
         translateStringJob: createStringTranslationGenerator({ model }),
-      };
-    }
-
-    if (!organizationTranslationGeneratorDeps.isManagedTranslationModelAvailable()) {
-      return {
-        ok: false as const,
-        code: "provider_credential_missing" as const,
-        message: "no organization provider credential or managed translation model is configured",
       };
     }
 

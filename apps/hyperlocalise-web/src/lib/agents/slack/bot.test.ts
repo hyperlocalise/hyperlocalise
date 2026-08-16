@@ -90,7 +90,6 @@ vi.mock("@/lib/env", () => ({
     SLACK_CLIENT_ID: "test-client-id",
     SLACK_CLIENT_SECRET: "test-client-secret",
     OPENAI_API_KEY: "test-openai-key",
-    AI_GATEWAY_API_KEY: "test-ai-gateway-key",
   },
 }));
 

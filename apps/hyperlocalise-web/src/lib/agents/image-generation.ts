@@ -13,10 +13,7 @@
 import { generateImage } from "ai";
 
 import { withAgentRuntimeUsageMetering } from "@/lib/billing/agent-runtime-usage";
-import {
-  getManagedImageModel,
-  isManagedLanguageModelAvailable,
-} from "@/lib/providers/language-model";
+import { getManagedImageModel } from "@/lib/providers/language-model";
 
 export type ImageGenerationResult = {
   image: Buffer;
@@ -33,9 +30,6 @@ export type ImageGenerationBilling = {
 };
 
 function getImageModel() {
-  if (!isManagedLanguageModelAvailable()) {
-    throw new Error("AI_GATEWAY_API_KEY is not configured");
-  }
   return getManagedImageModel();
 }
 

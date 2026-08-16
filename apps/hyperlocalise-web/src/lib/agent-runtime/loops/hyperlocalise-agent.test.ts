@@ -12,8 +12,7 @@
  */
 import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
-const { createGatewayMock, isStepCountMock, toolLoopAgentMock } = vi.hoisted(() => ({
-  createGatewayMock: vi.fn(() => (modelId: string) => `gateway:${modelId}`),
+const { isStepCountMock, toolLoopAgentMock } = vi.hoisted(() => ({
   isStepCountMock: vi.fn((count: number) => ({ stepLimit: count })),
   toolLoopAgentMock: vi.fn(function ToolLoopAgent(settings: unknown) {
     return { settings };
@@ -25,17 +24,10 @@ vi.mock("ai", async () => {
 
   return {
     ...actual,
-    createGateway: createGatewayMock,
     isStepCount: isStepCountMock,
     ToolLoopAgent: toolLoopAgentMock,
   };
 });
-
-vi.mock("@/lib/env", () => ({
-  env: {
-    AI_GATEWAY_API_KEY: "test-ai-gateway-key",
-  },
-}));
 
 vi.mock("@/lib/database", () => ({
   db: {},
@@ -122,11 +114,10 @@ describe("hyperlocalise agent core", () => {
       activeTools: ["example"],
     });
 
-    expect(createGatewayMock).toHaveBeenCalledWith({ apiKey: "test-ai-gateway-key" });
     expect(isStepCountMock).toHaveBeenCalledWith(hyperlocaliseAgentStepLimit);
     expect(toolLoopAgentMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        model: `gateway:${hyperlocaliseManagedGatewayModelId}`,
+        model: hyperlocaliseManagedGatewayModelId,
         tools,
         activeTools: ["example"],
         timeout: DEFAULT_AGENT_TIMEOUT,

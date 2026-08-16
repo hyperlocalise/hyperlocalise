@@ -17,8 +17,9 @@ supported; other languages are unevaluated. Uploaded-video edit is unavailable
 in the EEA, Switzerland, and the United Kingdom. Voice editing is not
 supported. Captions, CLI sync, Slack, email, Contentful, YouTube, and webm wait.
 
-The app does not use AI Gateway today. Image regen uses a platform
-`OPENAI_API_KEY`. Video follows that shape with a platform `AI_GATEWAY_API_KEY`.
+Image regen and video both use Vercel AI Gateway model strings. Vercel
+authenticates those calls with OIDC. File-translation sandboxes still use
+`OPENAI_API_KEY`.
 
 ## Decision
 
@@ -63,7 +64,8 @@ does.
 File jobs add a video branch next to images. Approved variants stay locked
 without force. Usage metering source is `video_localization`.
 
-The model id is `google/gemini-omni-flash-preview` through `createGateway`. The
+The model id is `google/gemini-omni-flash-preview` through the AI SDK Gateway
+default provider. The
 prompt keeps composition and localizes on-screen text and speech. Generation
 runs in workflow steps, not the HTTP handler.
 

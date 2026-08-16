@@ -12,30 +12,14 @@
  */
 import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
-const { createGatewayMock, createOpenAIMock, createAnthropicMock, envState } = vi.hoisted(() => ({
-  createGatewayMock: vi.fn(() => {
-    const gateway = Object.assign((modelId: string) => ({ kind: "gateway", modelId }), {
-      image: (modelId: string) => ({ kind: "gateway-image", modelId }),
-      video: (modelId: string) => ({ kind: "gateway-video", modelId }),
-    });
-    return gateway;
-  }),
+const { createOpenAIMock, createAnthropicMock } = vi.hoisted(() => ({
   createOpenAIMock: vi.fn((options: { apiKey: string; baseURL?: string }) => {
     return (modelId: string) => ({ kind: "openai", modelId, options });
   }),
   createAnthropicMock: vi.fn((options: { apiKey: string }) => {
     return (modelId: string) => ({ kind: "anthropic", modelId, options });
   }),
-  envState: { AI_GATEWAY_API_KEY: "gw-key" as string | undefined },
 }));
-
-vi.mock("ai", async () => {
-  const actual = await vi.importActual<typeof import("ai")>("ai");
-  return {
-    ...actual,
-    createGateway: createGatewayMock,
-  };
-});
 
 vi.mock("@ai-sdk/openai", () => ({
   createOpenAI: createOpenAIMock,
@@ -43,10 +27,6 @@ vi.mock("@ai-sdk/openai", () => ({
 
 vi.mock("@ai-sdk/anthropic", () => ({
   createAnthropic: createAnthropicMock,
-}));
-
-vi.mock("@/lib/env", () => ({
-  env: envState,
 }));
 
 import {
@@ -57,44 +37,19 @@ import {
   hyperlocaliseImageModelId,
   hyperlocaliseManagedGatewayModelId,
   hyperlocaliseVideoModelId,
-  isManagedLanguageModelAvailable,
   resolveProviderLanguageModel,
 } from "./language-model";
 
 describe("managed language model", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    envState.AI_GATEWAY_API_KEY = "gw-key";
-  });
-
-  it("uses Vercel AI Gateway when the platform key is configured", () => {
-    expect(isManagedLanguageModelAvailable()).toBe(true);
-    expect(getManagedLanguageModel()).toEqual({
-      kind: "gateway",
-      modelId: hyperlocaliseManagedGatewayModelId,
-    });
-    expect(createGatewayMock).toHaveBeenCalledWith({ apiKey: "gw-key" });
-  });
-
-  it("throws when the Gateway key is missing", () => {
-    envState.AI_GATEWAY_API_KEY = undefined;
-    expect(isManagedLanguageModelAvailable()).toBe(false);
-    expect(() => getManagedLanguageModel()).toThrow("AI_GATEWAY_API_KEY is not configured");
-  });
-
-  it("routes image and video localization through the managed Gateway", () => {
-    expect(getManagedImageModel()).toEqual({
-      kind: "gateway-image",
-      modelId: hyperlocaliseImageModelId,
-    });
-    expect(getManagedVideoModel()).toEqual({
-      kind: "gateway-video",
-      modelId: hyperlocaliseVideoModelId,
-    });
+  it("uses Vercel AI Gateway model strings", () => {
+    expect(getManagedLanguageModel()).toBe(hyperlocaliseManagedGatewayModelId);
+    expect(getManagedImageModel()).toBe(hyperlocaliseImageModelId);
+    expect(getManagedVideoModel()).toBe(hyperlocaliseVideoModelId);
+    expect(hyperlocaliseManagedGatewayModelId).toBe("openai/gpt-5.6-luna");
     expect(hyperlocaliseImageModelId).toBe("openai/gpt-image-2");
     expect(hyperlocaliseVideoModelId).toBe("google/gemini-omni-flash-preview");
-    expect(createGatewayMock).toHaveBeenCalledWith({ apiKey: "gw-key" });
     expect(createOpenAIMock).not.toHaveBeenCalled();
+    expect(createAnthropicMock).not.toHaveBeenCalled();
   });
 });
 

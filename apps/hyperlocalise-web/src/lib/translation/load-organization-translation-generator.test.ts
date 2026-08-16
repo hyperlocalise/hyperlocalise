@@ -23,10 +23,7 @@ import {
 } from "@/lib/security/provider-credential-crypto";
 
 import { createProjectTestFixture } from "../../api/routes/project/project.fixture";
-import {
-  loadOrganizationTranslationGenerator,
-  organizationTranslationGeneratorDeps,
-} from "./generation";
+import { loadOrganizationTranslationGenerator } from "./generation";
 
 const projectFixture = createProjectTestFixture();
 
@@ -97,22 +94,6 @@ describe("loadOrganizationTranslationGenerator", () => {
     }
 
     expect(typeof result.translateStringJob).toBe("function");
-  });
-
-  it("fails when neither BYOK nor managed translation is available", async () => {
-    vi.spyOn(
-      organizationTranslationGeneratorDeps,
-      "isManagedTranslationModelAvailable",
-    ).mockReturnValue(false);
-    const { project } = await projectFixture.createStoredProjectFixture();
-
-    const result = await loadOrganizationTranslationGenerator(project.id);
-
-    expect(result).toEqual({
-      ok: false,
-      code: "provider_credential_missing",
-      message: "no organization provider credential or managed translation model is configured",
-    });
   });
 
   it("fails when the project does not exist", async () => {

@@ -30,9 +30,7 @@ vi.mock("ai", async () => {
 });
 
 vi.mock("@/lib/env", () => ({
-  env: {
-    AI_GATEWAY_API_KEY: "test-ai-gateway-api-key",
-  },
+  env: {},
 }));
 
 function expectGenerateTextUsesInstructions(expectedInstructions: string) {

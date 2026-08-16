@@ -14,7 +14,6 @@ import { generateText, Output } from "ai";
 import { z } from "zod";
 
 import { getHyperlocaliseAgentModel } from "@/lib/agent-runtime/loops/model";
-import { isManagedLanguageModelAvailable } from "@/lib/providers/language-model";
 import { createLogger } from "@/lib/log";
 
 import type { LocalisationAuditCompanyProfile, LocalisationAuditCrawledPage } from "./types";
@@ -192,10 +191,6 @@ export async function inferCompanyProfileWithLuna(
     page: homepage,
   });
   heuristic.logoUrl = evidence.logoUrl;
-
-  if (!isManagedLanguageModelAvailable()) {
-    return heuristic;
-  }
 
   try {
     const { output } = await generateText({

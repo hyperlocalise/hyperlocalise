@@ -20,7 +20,6 @@ import {
   type ImageLocalizationAttachment,
 } from "@/lib/agents/image-localization";
 import { getHyperlocaliseAgentModel } from "@/lib/agent-runtime/loops/model";
-import { isManagedLanguageModelAvailable } from "@/lib/providers/language-model";
 
 import {
   createStoredSlackImageAttachment,
@@ -64,9 +63,6 @@ type SlackImageStorageContext = {
 };
 
 function getSlackImageIntentModel() {
-  if (!isManagedLanguageModelAvailable()) {
-    throw new Error("AI_GATEWAY_API_KEY is not configured");
-  }
   return getHyperlocaliseAgentModel();
 }
 

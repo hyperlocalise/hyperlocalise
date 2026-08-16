@@ -30,9 +30,6 @@ export const env = createEnv({
     /** OpenAI API key used for CLI sandbox translation. Optional when that feature is disabled. */
     OPENAI_API_KEY: z.string().min(1).optional(),
 
-    /** Vercel AI Gateway key for the managed agent, translation, image, and video localization. Optional when AI features are disabled. */
-    AI_GATEWAY_API_KEY: z.string().min(1).optional(),
-
     /** Master encryption key for provider credentials. Must be a high-entropy 32-byte base64 value. */
     PROVIDER_CREDENTIALS_MASTER_KEY: z.string().min(1),
 
@@ -251,8 +248,6 @@ export const env = createEnv({
     NEXT_PUBLIC_APP_ENV: process.env.NEXT_PUBLIC_APP_ENV,
     DATABASE_URL: process.env.DATABASE_URL,
     OPENAI_API_KEY: process.env.OPENAI_API_KEY ?? (isTestEnv ? "test-openai-api-key" : undefined),
-    AI_GATEWAY_API_KEY:
-      process.env.AI_GATEWAY_API_KEY ?? (isTestEnv ? "test-ai-gateway-api-key" : undefined),
     PROVIDER_CREDENTIALS_MASTER_KEY:
       process.env.PROVIDER_CREDENTIALS_MASTER_KEY ??
       (isTestEnv ? "MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=" : undefined),

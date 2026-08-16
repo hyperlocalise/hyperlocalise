@@ -24,7 +24,6 @@ vi.mock("@/lib/env", () => ({
     RESEND_FROM_ADDRESS: "agent@example.com",
     RESEND_FROM_NAME: "Hyperlocalise",
     OPENAI_API_KEY: "test-openai-api-key",
-    AI_GATEWAY_API_KEY: "test-ai-gateway-api-key",
   },
 }));
 

@@ -12,10 +12,9 @@
  */
 import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
-const { generateTextMock, envState, getHyperlocaliseAgentModelMock } = vi.hoisted(() => ({
+const { generateTextMock, getHyperlocaliseAgentModelMock } = vi.hoisted(() => ({
   generateTextMock: vi.fn(),
   getHyperlocaliseAgentModelMock: vi.fn(() => ({ modelId: "test-model" })),
-  envState: { AI_GATEWAY_API_KEY: "test-ai-gateway-api-key" as string | undefined },
 }));
 
 vi.mock("ai", async (importOriginal) => {
@@ -25,10 +24,6 @@ vi.mock("ai", async (importOriginal) => {
     generateText: (...args: unknown[]) => generateTextMock(...args),
   };
 });
-
-vi.mock("@/lib/env", () => ({
-  env: envState,
-}));
 
 vi.mock("@/lib/agent-runtime/loops/model", () => ({
   getHyperlocaliseAgentModel: () => getHyperlocaliseAgentModelMock(),
@@ -50,7 +45,6 @@ import { emptyCrawledPage } from "../types";
 describe("runLocalisationAuditCredits", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    envState.AI_GATEWAY_API_KEY = "test-ai-gateway-api-key";
   });
 
   it("does not call Luna for credits the heuristic already scored", async () => {
@@ -83,8 +77,8 @@ describe("runLocalisationAuditCredits", () => {
     }
   });
 
-  it("batches remaining credits to Luna and marks them N/A when the API key is missing", async () => {
-    envState.AI_GATEWAY_API_KEY = undefined;
+  it("batches remaining credits to Luna and marks them N/A when scoring fails", async () => {
+    generateTextMock.mockRejectedValue(new Error("gateway unavailable"));
 
     const result = await runLocalisationAuditCredits({
       pages: [

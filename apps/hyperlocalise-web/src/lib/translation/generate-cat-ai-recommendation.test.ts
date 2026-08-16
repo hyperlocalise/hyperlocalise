@@ -169,8 +169,8 @@ describe("generateCatAiRecommendation", () => {
   it("maps model setup failures to a result error", async () => {
     loadOrganizationTranslationModelMock.mockResolvedValue({
       ok: false,
-      code: "provider_credential_missing",
-      message: "no organization provider credential or managed translation model is configured",
+      code: "translation_project_not_found",
+      message: "translation project proj_1 was not found",
     });
 
     const result = await generateCatAiRecommendation({
@@ -187,8 +187,8 @@ describe("generateCatAiRecommendation", () => {
     expect(result).toEqual({
       ok: false,
       error: {
-        code: "provider_credential_missing",
-        message: "no organization provider credential or managed translation model is configured",
+        code: "translation_project_not_found",
+        message: "translation project proj_1 was not found",
       },
     });
   });

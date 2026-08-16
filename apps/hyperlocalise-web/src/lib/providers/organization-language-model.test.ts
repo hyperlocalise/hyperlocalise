@@ -32,7 +32,6 @@ const {
 
 vi.mock("@/lib/env", () => ({
   env: {
-    AI_GATEWAY_API_KEY: "gw-key",
     DATABASE_URL: "postgresql://hyperlocalise:hyperlocalise@localhost:5432/hyperlocalise",
     PROVIDER_CREDENTIALS_MASTER_KEY: "MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=",
     NEXT_PUBLIC_WAITLIST_URL: "https://example.com/waitlist",

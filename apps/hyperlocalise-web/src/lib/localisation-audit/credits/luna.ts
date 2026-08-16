@@ -14,7 +14,6 @@ import { generateText, Output } from "ai";
 import { z } from "zod";
 
 import { getHyperlocaliseAgentModel } from "@/lib/agent-runtime/loops/model";
-import { isManagedLanguageModelAvailable } from "@/lib/providers/language-model";
 import { createLogger } from "@/lib/log";
 
 import type { LocalisationAuditFinding, LocalisationAuditFindingSeverity } from "../types";
@@ -86,7 +85,7 @@ function compactEvidence(evidence: Record<string, unknown>): Record<string, unkn
 export async function scoreCreditsWithLuna(input: {
   credits: LunaCreditInput[];
 }): Promise<LunaBatchResult> {
-  if (input.credits.length === 0 || !isManagedLanguageModelAvailable()) {
+  if (input.credits.length === 0) {
     return { credits: [], linguisticNotes: [] };
   }
 
