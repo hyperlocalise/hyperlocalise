@@ -57,7 +57,7 @@ describe("translation file formats", () => {
     expect(inferSupportedTranslationFileFormat("banner.jpg")).toBe("jpeg");
     expect(inferSupportedTranslationFileFormat("banner.jpeg")).toBe("jpeg");
     expect(inferSupportedTranslationFileFormat("banner.webp")).toBe("webp");
-    expect(inferSupportedFileTranslationFileFormat("banner.png")).toBeNull();
+    expect(inferSupportedFileTranslationFileFormat("banner.png")).toBe("png");
     expect(inferSupportedSourceUploadFormat("banner.png")).toBe("png");
     expect(inferSupportedImageTranslationFileFormat("banner.jpg")).toBe("jpeg");
     expect(isSupportedSourceUploadFormat("banner.webp")).toBe(true);
@@ -67,7 +67,7 @@ describe("translation file formats", () => {
 
   it("infers CLI-supported video formats separately", () => {
     expect(inferSupportedTranslationFileFormat("clip.mp4")).toBe("mp4");
-    expect(inferSupportedFileTranslationFileFormat("clip.mp4")).toBeNull();
+    expect(inferSupportedFileTranslationFileFormat("clip.mp4")).toBe("mp4");
     expect(inferSupportedSourceUploadFormat("clip.mp4")).toBe("mp4");
     expect(isSupportedSourceUploadFormat("hero.mp4")).toBe(true);
     expect(isVideoTranslationFileFormat("mp4")).toBe(true);

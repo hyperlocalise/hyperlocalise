@@ -12,20 +12,20 @@
  */
 import type { Message } from "chat";
 
+import {
+  appendStoredFileContext,
+  buildStoredFileContext,
+  type StoredTranslationFileRef,
+} from "@/lib/conversations/stored-file-context";
 import { createStoredFile } from "@/lib/file-storage/records";
 import {
   inferSupportedFileTranslationFileFormat,
   supportedFileTranslationFileFormats,
-  type SupportedFileTranslationFileFormat,
 } from "@/lib/translation/file-formats";
 
 type SlackAttachment = NonNullable<Message["attachments"]>[number];
 
-export type StoredSlackFileAttachment = {
-  id: string;
-  filename: string;
-  contentType: string;
-  fileFormat: SupportedFileTranslationFileFormat;
+export type StoredSlackFileAttachment = StoredTranslationFileRef & {
   url: string;
 };
 
@@ -131,27 +131,11 @@ export async function storeSlackFileAttachments(input: StoreSlackFileAttachments
 }
 
 export function buildSlackStoredFileContext(files: StoredSlackFileAttachment[]) {
-  if (files.length === 0) {
-    return null;
-  }
-
-  return [
-    "Attached translation source files are already stored and ready for file translation jobs:",
-    ...files.map(
-      (file) =>
-        `- ${file.filename}: sourceFileId=${file.id}, fileFormat=${file.fileFormat}, contentType=${file.contentType}`,
-    ),
-    "Use these sourceFileId values when creating file translation jobs.",
-  ].join("\n");
+  return buildStoredFileContext(files);
 }
 
 export function appendSlackStoredFileContext(text: string, files: StoredSlackFileAttachment[]) {
-  const fileContext = buildSlackStoredFileContext(files);
-  if (!fileContext) {
-    return text;
-  }
-
-  return [text.trim() || "Please translate the attached source file.", "", fileContext].join("\n");
+  return appendStoredFileContext(text, files);
 }
 
 export function buildUnsupportedSlackFilesMessage(attachments: SlackAttachment[]) {

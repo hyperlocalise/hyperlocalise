@@ -58,13 +58,23 @@ export const chatDockMessages = defineMessages({
   },
   emptySubtitle: {
     id: "w2b0cdIV3S",
-    defaultMessage: "Ask about strings, context, or anything else",
+    defaultMessage: "Ask about strings, localize images or short videos, or anything else",
     description: "Empty state subtitle describing chat capabilities",
   },
   suggestionFindContext: {
     id: "pehDkakH9A",
     defaultMessage: "What's the context of a string",
     description: "Suggested prompt chip to find localisation context",
+  },
+  suggestionLocalizeImage: {
+    defaultMessage: "Localize an image",
+    id: "k2Wm9pQxR7",
+    description: "Suggested prompt chip to localize an attached image via a file translation job",
+  },
+  suggestionLocalizeVideo: {
+    defaultMessage: "Localize a short video",
+    id: "n8Tv4cLmB1",
+    description: "Suggested prompt chip to localize an attached short video via a file translation job",
   },
   suggestionSegmentContext: {
     id: "01h5d0m29X",
@@ -76,6 +86,18 @@ export const chatDockMessages = defineMessages({
     defaultMessage: "What's the context of",
     description:
       "Prefilled prompt stem when choosing the find-context chip without a selected string",
+  },
+  promptLocalizeImage: {
+    defaultMessage: "Localize the attached image to",
+    id: "p5Hs6yKdE3",
+    description:
+      "Prefilled prompt stem when choosing the localize-image chip; trailing space lets the user add a target language",
+  },
+  promptLocalizeVideo: {
+    defaultMessage: "Localize the attached video to",
+    id: "q9Jr2uFaW0",
+    description:
+      "Prefilled prompt stem when choosing the localize-video chip; trailing space lets the user add a target language",
   },
   promptSegmentContext: {
     id: "ERiH8D9Q+l",

@@ -212,6 +212,38 @@ describe("conversation creation", () => {
         url: `/api/orgs/${encodeURIComponent(identity.organization.slug)}/files/${body.files[0]!.id}`,
       }),
     ]);
+    expect(message?.text).toContain(`sourceFileId=${body.files[0]!.id}`);
+    expect(message?.text).toContain("fileFormat=json");
+  });
+
+  it("appends image sourceFileId markers so chat can create localization jobs", async () => {
+    const identity = createWorkosIdentity();
+    const headers = await authHeadersFor(identity);
+    const formData = new FormData();
+    formData.set("text", "Localize the attached image to ja-JP");
+    formData.append(
+      "files",
+      new File([Uint8Array.from([137, 80, 78, 71])], "banner.png", {
+        type: "image/png",
+      }),
+    );
+
+    const response = await app.request(`/api/orgs/${identity.organization.slug}/conversations`, {
+      method: "POST",
+      headers,
+      body: formData,
+    });
+
+    expect(response.status).toBe(201);
+    const body = (await response.json()) as {
+      conversation: { id: string };
+      files: Array<{ id: string; filename: string }>;
+      message: { text: string };
+    };
+    expect(body.files[0]).toMatchObject({ filename: "banner.png" });
+    expect(body.message.text).toContain("Localize the attached image to ja-JP");
+    expect(body.message.text).toContain(`sourceFileId=${body.files[0]!.id}`);
+    expect(body.message.text).toContain("fileFormat=png");
   });
 
   it("seeds selected GitHub repository context when creating a chat UI conversation", async () => {

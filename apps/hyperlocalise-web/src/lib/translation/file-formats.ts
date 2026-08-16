@@ -50,6 +50,10 @@ export const supportedFileTranslationFileFormats = [
   "stringsdict",
   "xcstrings",
   "csv",
+  "png",
+  "jpeg",
+  "webp",
+  "mp4",
 ] as const;
 
 export type SupportedFileTranslationFileFormat =

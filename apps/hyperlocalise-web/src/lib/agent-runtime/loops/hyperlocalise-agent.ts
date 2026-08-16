@@ -85,8 +85,10 @@ export function buildTranslationAttachmentRequiredMessage(surface: Hyperlocalise
     "Attach a file with a target language to create a translation job, or ask me to find text in a repo enabled under Agent → GitHub.",
   ];
 
-  if (surface === "slack") {
-    lines.push("Supported file types include JSON, CSV, XLIFF, and other localization formats.");
+  if (surface === "slack" || surface === "web") {
+    lines.push(
+      "Supported file types include JSON, CSV, XLIFF, images (PNG, JPEG, WebP), short MP4 videos, and other localization formats.",
+    );
   }
 
   return lines.join(" ");

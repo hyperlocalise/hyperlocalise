@@ -27,12 +27,20 @@ function formatMessage(descriptor: MessageDescriptor, values?: Record<string, st
 }
 
 describe("buildChatDockSuggestions", () => {
-  it("shows only the find-context chip without page context", () => {
+  it("shows find-context and media localization chips without page context", () => {
     const suggestions = buildChatDockSuggestions(null, formatMessage);
 
-    expect(suggestions.map((suggestion) => suggestion.id)).toEqual(["find-context"]);
+    expect(suggestions.map((suggestion) => suggestion.id)).toEqual([
+      "find-context",
+      "localize-image",
+      "localize-video",
+    ]);
     expect(suggestions[0]?.label).toBe("What's the context of a string");
     expect(suggestions[0]?.prompt).toBe("What's the context of ");
+    expect(suggestions[1]?.label).toBe("Localize an image");
+    expect(suggestions[1]?.prompt).toBe("Localize the attached image to ");
+    expect(suggestions[2]?.label).toBe("Localize a short video");
+    expect(suggestions[2]?.prompt).toBe("Localize the attached video to ");
   });
 
   it("shows only the selected segment chip using the source string", () => {
