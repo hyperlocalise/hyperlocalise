@@ -14,7 +14,6 @@ import { and, asc, desc, eq, isNotNull, isNull, lte, or, sql } from "drizzle-orm
 import { z } from "zod";
 
 import { db, schema, type DatabaseClient } from "@/lib/database";
-import { resolveWorkspaceIssuesFlag } from "@/lib/flags/workspace-flags";
 import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
 import { optionalProjectIdSchema } from "@/lib/projects/identity/project-id";
 import { lockAhrefsConnectionForUpdate } from "@/lib/ahrefs/connections";
@@ -384,10 +383,6 @@ export type WorkspaceAutomationConfigValidationError =
   | {
       code: "ahrefs_not_connected";
       message: "Enable the selected Ahrefs connection in Integrations before using it.";
-    }
-  | {
-      code: "issues_feature_unavailable";
-      message: "Enable workspace Issues before using Issue Sheet automation tools.";
     };
 
 type AutomationRow = typeof schema.workspaceAutomations.$inferSelect;
@@ -905,22 +900,6 @@ export async function validateWorkspaceAutomationIntegrations(input: {
       return err({
         code: "ahrefs_not_connected",
         message: "Enable the selected Ahrefs connection in Integrations before using it.",
-      });
-    }
-  }
-
-  if (
-    hasWorkspaceAutomationListIssuesTool(input.toolConfig) ||
-    hasWorkspaceAutomationCreateIssueTool(input.toolConfig)
-  ) {
-    const issuesEnabled = await resolveWorkspaceIssuesFlag({
-      organizationId: input.organizationId,
-      dbClient: database,
-    });
-    if (!issuesEnabled) {
-      return err({
-        code: "issues_feature_unavailable",
-        message: "Enable workspace Issues before using Issue Sheet automation tools.",
       });
     }
   }

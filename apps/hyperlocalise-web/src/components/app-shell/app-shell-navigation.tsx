@@ -253,13 +253,12 @@ function NavigationGroupItems({
   projectId?: string;
 }) {
   const intl = useIntl();
-  const { chatDock, workspaceFeatureFlags } = useAppShellStore();
+  const { chatDock } = useAppShellStore();
   const inboxHref = buildOrganizationPath(organizationSlug, "inbox");
-  const issuesEnabled = workspaceFeatureFlags.issues;
   const unreadCountQuery = useQuery({
     queryKey: notificationsUnreadCountQueryKey(organizationSlug),
     queryFn: () => inboxNotificationsApi.unreadCount(organizationSlug),
-    enabled: Boolean(organizationSlug) && issuesEnabled,
+    enabled: Boolean(organizationSlug),
     refetchInterval: 45_000,
   });
   const unreadCount = unreadCountQuery.data ?? 0;

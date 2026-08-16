@@ -15,7 +15,6 @@ import { Suspense } from "react";
 import { TypographyP } from "@/components/ui/typography";
 import { getIntlShape } from "@/lib/app-i18n/intl";
 import { getAppLocale } from "@/lib/app-i18n/server-locale";
-import { requireWorkspaceFeatureFlag, workspaceIssuesFlag } from "@/lib/flags/workspace-flags";
 import { normalizeProjectId } from "@/lib/projects/identity/project-id";
 import { requireAppAuthContext } from "@/lib/workos/app-auth";
 
@@ -28,8 +27,7 @@ export default async function IssueDetailPage({
 }) {
   const { organizationSlug, projectId: rawProjectId, issueId } = await params;
   const projectId = normalizeProjectId(rawProjectId);
-  const auth = await requireAppAuthContext({ organizationSlug });
-  await requireWorkspaceFeatureFlag(workspaceIssuesFlag, auth);
+  await requireAppAuthContext({ organizationSlug });
   const intl = getIntlShape(await getAppLocale());
 
   return (

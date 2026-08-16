@@ -22,17 +22,12 @@ import { createListIssuesTool } from "./list_issues";
 
 const mocks = vi.hoisted(() => ({
   listIssues: vi.fn(),
-  resolveWorkspaceIssuesFlag: vi.fn(),
 }));
 
 vi.mock("@/lib/projects/issue-sheet/issue-sheet-service", () => ({
   IssueSheetService: class {
     listIssues = mocks.listIssues;
   },
-}));
-
-vi.mock("@/lib/flags/workspace-flags", () => ({
-  resolveWorkspaceIssuesFlag: (...args: unknown[]) => mocks.resolveWorkspaceIssuesFlag(...args),
 }));
 
 function session(
@@ -92,7 +87,6 @@ function session(
 describe("createListIssuesTool", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mocks.resolveWorkspaceIssuesFlag.mockResolvedValue(true);
     mocks.listIssues.mockResolvedValue({
       total: 1,
       summary: { total: 1, open: 1, inProgress: 0, resolved: 0, wontFix: 0 },
@@ -174,13 +168,5 @@ describe("createListIssuesTool", () => {
     await expect(
       tool.execute!({}, { toolCallId: "call-1", messages: [], context: {} }),
     ).rejects.toThrow("automation_author_required");
-  });
-
-  it("rejects when workspace Issues is disabled", async () => {
-    mocks.resolveWorkspaceIssuesFlag.mockResolvedValue(false);
-    const tool = createListIssuesTool(session());
-    await expect(
-      tool.execute!({}, { toolCallId: "call-1", messages: [], context: {} }),
-    ).rejects.toThrow("issues_feature_unavailable");
   });
 });

@@ -121,8 +121,6 @@ export function ProjectIssueTemplatesPanel({
     },
   });
 
-  // No feature flag on this page to check directly; a config load failure (most commonly the
-  // workspace issues flag being off for this org) just means there is nothing to configure here.
   if (configQuery.isError) {
     return null;
   }

@@ -33,13 +33,11 @@ import { WorkspaceAutomationEditor } from "./workspace-automation-form";
 export function AutomationDetailPageContent({
   organizationSlug,
   automationId,
-  issuesAvailable = false,
   knowledgeAvailable = false,
   canUpdateKnowledgeMemory = false,
 }: {
   organizationSlug: string;
   automationId: string;
-  issuesAvailable?: boolean;
   knowledgeAvailable?: boolean;
   canUpdateKnowledgeMemory?: boolean;
 }) {
@@ -166,7 +164,6 @@ export function AutomationDetailPageContent({
         organizationSlug={organizationSlug}
         form={form}
         errors={errors}
-        issuesAvailable={issuesAvailable}
         knowledgeAvailable={knowledgeAvailable}
         canUpdateKnowledgeMemory={canUpdateKnowledgeMemory}
         onChange={setForm}

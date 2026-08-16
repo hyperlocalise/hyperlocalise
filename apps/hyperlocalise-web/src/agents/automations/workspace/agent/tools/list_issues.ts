@@ -18,7 +18,6 @@ import {
   issueSheetIssueTypeSchema,
   issueSheetPrioritySchema,
 } from "@/api/routes/project/issue-sheet.schema";
-import { resolveWorkspaceIssuesFlag } from "@/lib/flags/workspace-flags";
 import { IssueSheetService } from "@/lib/projects/issue-sheet/issue-sheet-service";
 
 import type { WorkspaceOrchestratorSession } from "../context";
@@ -72,13 +71,6 @@ export function createListIssuesTool(session: WorkspaceOrchestratorSession) {
       const listConfig = session.automation.toolConfig.listIssues;
       if (!listConfig?.enabled) {
         throw new Error("list_issues_not_configured");
-      }
-
-      const issuesFeatureEnabled = await resolveWorkspaceIssuesFlag({
-        organizationId: session.organizationId,
-      });
-      if (!issuesFeatureEnabled) {
-        throw new Error("issues_feature_unavailable");
       }
 
       const projectId = session.automation.projectId?.trim() || null;

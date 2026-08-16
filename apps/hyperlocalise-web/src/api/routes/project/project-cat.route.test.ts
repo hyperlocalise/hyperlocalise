@@ -54,7 +54,6 @@ const {
   createStoredFileMock,
   deleteStoredFileMock,
   isReleaseCatAllFilesEnabledMock,
-  workspaceIssuesFlagRunMock,
 } = vi.hoisted(() => ({
   getTmsProviderConnectionMock: vi.fn(),
   getTmsProviderLiveCatFileMock: vi.fn(),
@@ -69,21 +68,12 @@ const {
   createStoredFileMock: vi.fn(),
   deleteStoredFileMock: vi.fn(),
   isReleaseCatAllFilesEnabledMock: vi.fn(async () => false),
-  workspaceIssuesFlagRunMock: vi.fn(async () => true),
 }));
 
 vi.mock("@/lib/flags/release-flags", () => ({
   isReleaseCatAllFilesEnabled: isReleaseCatAllFilesEnabledMock,
   RELEASE_CAT_ALL_FILES_FLAG: "release-cat-all-files",
 }));
-
-vi.mock("@/lib/flags/workspace-flags", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/lib/flags/workspace-flags")>();
-  return {
-    ...actual,
-    workspaceIssuesFlag: { run: workspaceIssuesFlagRunMock },
-  };
-});
 
 vi.mock("@/lib/translation/cat", () => ({
   loadCatSegmentConcordance: (...args: unknown[]) => loadCatSegmentConcordanceMock(...args),
@@ -149,7 +139,6 @@ beforeAll(async () => {
 afterEach(async () => {
   vi.clearAllMocks();
   isReleaseCatAllFilesEnabledMock.mockResolvedValue(false);
-  workspaceIssuesFlagRunMock.mockResolvedValue(true);
   await projectFixture.cleanup();
 });
 
@@ -1503,57 +1492,6 @@ describe("project file CAT routes", () => {
       comment: { externalCommentId: legacyIssue!.id, status: "resolved" },
     });
     expect(resolveTmsProviderLiveCatCommentMock).not.toHaveBeenCalled();
-  });
-
-  it("still rejects native CAT issue posts when the workspace flag is off", async () => {
-    workspaceIssuesFlagRunMock.mockResolvedValue(false);
-    const { identity, project, organization } = await projectFixture.createStoredProjectFixture();
-    const headers = await projectFixture.authHeadersFor(identity);
-    const sourcePath = "locales/en.json";
-    const sourceFile = await ensureRepositorySourceFile({
-      organizationId: organization.id,
-      projectId: project.id,
-      sourcePath,
-    });
-
-    await upsertProjectTranslationKeysFromEntries({
-      organizationId: organization.id,
-      projectId: project.id,
-      repositorySourceFileId: sourceFile.id,
-      entries: [{ key: "greeting", text: "Hello", context: null }],
-    });
-
-    const keys = await db
-      .select({ id: schema.projectTranslationKeys.id })
-      .from(schema.projectTranslationKeys)
-      .where(eq(schema.projectTranslationKeys.repositorySourceFileId, sourceFile.id))
-      .limit(1);
-    const translationKeyId = keys[0]!.id;
-
-    const postResponse = await client.api.orgs[":organizationSlug"].projects[
-      ":projectId"
-    ].files.detail.cat.comments.$post(
-      {
-        param: {
-          organizationSlug: identity.organization.slug ?? "missing-slug",
-          projectId: project.id,
-        },
-        json: {
-          sourcePath,
-          targetLocale: "fr-FR",
-          externalStringId: translationKeyId,
-          text: "Still wrong tone.",
-          type: "issue",
-          issueType: "translation_mistake",
-        },
-      },
-      { headers },
-    );
-
-    expect(postResponse.status).toBe(400);
-    expect(await postResponse.json()).toMatchObject({
-      error: "native_cat_issue_unsupported",
-    });
   });
 
   it("returns Crowdin CAT content for an encoded provider project", async () => {

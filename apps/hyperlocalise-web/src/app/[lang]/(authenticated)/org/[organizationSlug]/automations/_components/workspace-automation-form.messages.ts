@@ -402,16 +402,6 @@ export const workspaceAutomationFormMessages = defineMessages({
     id: "MweQRnF9MU",
     description: "Description for the Create issue automation tool",
   },
-  issuesUnavailableDescription: {
-    defaultMessage: "Enable workspace Issues before using Issue Sheet tools in automations.",
-    id: "uyibAnXll7",
-    description: "Description when workspace Issues feature flag is off",
-  },
-  enableIssuesFirstShortcut: {
-    defaultMessage: "Enable first",
-    id: "SCwFU6O6EH",
-    description: "Shortcut shown when workspace Issues is not enabled for the organization",
-  },
   removeListIssues: {
     defaultMessage: "Remove List issues tool",
     id: "N7Y/6FnTVv",

@@ -69,8 +69,7 @@ export const InboxPageContent = observer(function InboxPageContent({
   const queryClient = useQueryClient();
   const urlConversationId = params?.conversationId as string | undefined;
   const urlNotificationId = params?.notificationId as string | undefined;
-  const { chatDock, workspaceFeatureFlags } = useAppShellStore();
-  const issuesEnabled = workspaceFeatureFlags.issues;
+  const { chatDock } = useAppShellStore();
   const streamManager = getChatStreamManager(organizationSlug, chatDock);
 
   const conversationsQuery = useQuery({
@@ -80,7 +79,6 @@ export const InboxPageContent = observer(function InboxPageContent({
 
   const notificationsQuery = useInfiniteQuery({
     queryKey: notificationsQueryKey(organizationSlug),
-    enabled: issuesEnabled,
     initialPageParam: 0,
     queryFn: async ({ pageParam }) => {
       const result = await injectedNotificationsApi.list(organizationSlug, {
@@ -98,7 +96,6 @@ export const InboxPageContent = observer(function InboxPageContent({
   const unreadCountQuery = useQuery({
     queryKey: notificationsUnreadCountQueryKey(organizationSlug),
     queryFn: () => injectedNotificationsApi.unreadCount(organizationSlug),
-    enabled: issuesEnabled,
     refetchInterval: 45_000,
   });
 
@@ -140,7 +137,6 @@ export const InboxPageContent = observer(function InboxPageContent({
     queryKey: notificationDetailQueryKey(organizationSlug, selectedNotificationId),
     queryFn: () => injectedNotificationsApi.getById(organizationSlug, selectedNotificationId),
     enabled:
-      issuesEnabled &&
       selection?.kind === "notification" &&
       !!selectedNotificationId &&
       !selectedNotificationFromList,
@@ -267,7 +263,7 @@ export const InboxPageContent = observer(function InboxPageContent({
     !notificationsQuery.isLoading &&
     conversations.length + notifications.length <= 1;
   const hasMoreNotifications =
-    issuesEnabled && notifications.length < notificationsTotal && notificationsQuery.hasNextPage;
+    notifications.length < notificationsTotal && notificationsQuery.hasNextPage;
 
   useEffect(() => {
     if (
@@ -322,8 +318,8 @@ export const InboxPageContent = observer(function InboxPageContent({
       messages={messages}
       messagesIsLoading={messagesQuery.isLoading}
       notifications={notifications}
-      notificationsIsError={issuesEnabled && notificationsQuery.isError}
-      notificationsIsLoading={issuesEnabled && notificationsQuery.isLoading}
+      notificationsIsError={notificationsQuery.isError}
+      notificationsIsLoading={notificationsQuery.isLoading}
       onLoadMoreNotifications={onLoadMoreNotifications}
       onMarkAllRead={onMarkAllRead}
       onSelectConversation={onSelectConversation}

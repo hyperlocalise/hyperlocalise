@@ -62,7 +62,6 @@ import {
   readCatWorkspaceViewMode,
 } from "@/components/cat/workspace/cat-workspace-view-mode";
 
-import { useOptionalAppShellStore } from "@/components/app-shell/store/app-shell-store-context";
 import { resolveCatLinkedIssueTranslationKeyId } from "@/components/cat/issues/cat-linked-issue-translation-key";
 import {
   CatLinkedIssuesDialog,
@@ -121,8 +120,6 @@ export function ProjectFileCatWorkspace({
   pageNavigationGuardRef?: CatPageNavigationGuardRef;
 }) {
   const intl = useIntl();
-  const appShellStore = useOptionalAppShellStore();
-  const issuesEnabled = appShellStore?.workspaceFeatureFlags.issues ?? false;
   const [linkedIssuesOpen, setLinkedIssuesOpen] = useState(false);
   const [linkedIssuesSegment, setLinkedIssuesSegment] =
     useState<CatLinkedIssueSegmentContext | null>(null);
@@ -697,7 +694,7 @@ export function ProjectFileCatWorkspace({
           onApprove: handleApprove,
           onSaveDraft: isNativeProject ? handleSaveDraft : undefined,
           onAddComment: handleAddComment,
-          onAddToIssueSheet: issuesEnabled ? handleAddToIssueSheet : undefined,
+          onAddToIssueSheet: handleAddToIssueSheet,
           onResolveComment:
             catFile?.provider?.kind === "crowdin" ? handleResolveComment : undefined,
         }}
@@ -717,17 +714,15 @@ export function ProjectFileCatWorkspace({
         hasMoreQueue={pagination?.hasMore ?? false}
         canLookupFreshContext={canLookupFreshContext}
         onPageLimitChange={setPageLimit}
-        nativeIssuesEnabled={issuesEnabled && isNativeProject}
+        nativeIssuesEnabled={isNativeProject}
       />
-      {issuesEnabled ? (
-        <CatLinkedIssuesDialog
-          open={linkedIssuesOpen}
-          onOpenChange={setLinkedIssuesOpen}
-          organizationSlug={organizationSlug}
-          projectId={projectId}
-          segment={linkedIssuesSegment}
-        />
-      ) : null}
+      <CatLinkedIssuesDialog
+        open={linkedIssuesOpen}
+        onOpenChange={setLinkedIssuesOpen}
+        organizationSlug={organizationSlug}
+        projectId={projectId}
+        segment={linkedIssuesSegment}
+      />
     </div>
   );
 }

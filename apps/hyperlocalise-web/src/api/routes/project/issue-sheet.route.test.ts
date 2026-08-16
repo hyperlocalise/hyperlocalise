@@ -14,7 +14,7 @@ import "dotenv/config";
 
 import { and, eq } from "drizzle-orm";
 import { testClient } from "hono/testing";
-import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vite-plus/test";
+import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 
 import { app } from "@/api/app";
 import { PRODUCT_USAGE_ANALYTICS_EVENTS } from "@/lib/analytics/events";
@@ -23,14 +23,13 @@ import { db, schema } from "@/lib/database";
 
 import { createProjectTestFixture } from "./project.fixture";
 
-const { resolveApiAuthContextFromSessionMock, workspaceIssuesFlagRunMock } = vi.hoisted(() => ({
+const { resolveApiAuthContextFromSessionMock } = vi.hoisted(() => ({
   resolveApiAuthContextFromSessionMock: vi.fn(
     (options) =>
       globalThis.__resolveTestApiAuthContextFromSession?.(options) ??
       globalThis.__testApiAuthContext ??
       null,
   ),
-  workspaceIssuesFlagRunMock: vi.fn(async () => true),
 }));
 
 vi.mock("@/api/auth/workos-session", async (importOriginal) => {
@@ -38,14 +37,6 @@ vi.mock("@/api/auth/workos-session", async (importOriginal) => {
   return {
     ...actual,
     resolveApiAuthContextFromSession: resolveApiAuthContextFromSessionMock,
-  };
-});
-
-vi.mock("@/lib/flags/workspace-flags", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/lib/flags/workspace-flags")>();
-  return {
-    ...actual,
-    workspaceIssuesFlag: { run: workspaceIssuesFlagRunMock },
   };
 });
 
@@ -97,33 +88,12 @@ beforeAll(async () => {
   await db.$client.query("select 1");
 });
 
-beforeEach(() => {
-  workspaceIssuesFlagRunMock.mockResolvedValue(true);
-});
-
 afterEach(async () => {
   vi.clearAllMocks();
   await projectFixture.cleanup();
 });
 
 describe("Issue Sheet routes", () => {
-  it("denies issue sheet access when the feature flag is disabled", async () => {
-    workspaceIssuesFlagRunMock.mockResolvedValue(false);
-    const { identity, project } = await projectFixture.createStoredProjectFixture();
-    const headers = await projectFixture.authHeadersFor(identity);
-    const organizationSlug = identity.organization.slug ?? "missing-slug";
-
-    const response = await issueSheet().$get(
-      { param: { organizationSlug: organizationSlug, projectId: project.id } } as never,
-      { headers: headers },
-    );
-
-    expect(response.status).toBe(403);
-    await expect(response.json()).resolves.toMatchObject({
-      error: "feature_unavailable",
-    });
-  });
-
   it("creates, lists, updates, and enriches generic issue rows", async () => {
     const { identity, project } = await projectFixture.createStoredProjectFixture();
     const headers = await projectFixture.authHeadersFor(identity);

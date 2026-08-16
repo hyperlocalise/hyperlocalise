@@ -24,7 +24,6 @@ import {
   WORKSPACE_DOMAINS_FLAG,
   WORKSPACE_FEATURE_UNAVAILABLE_REASON,
   WORKSPACE_GLOSSARY_SEARCH_FLAG,
-  WORKSPACE_ISSUES_FLAG,
   WORKSPACE_KNOWLEDGE_FLAG,
   WORKSPACE_VISUAL_MOCK_FLAG,
   type WorkosFlagEntities,
@@ -57,13 +56,6 @@ export const workspaceVisualMockFlag = flag<boolean, WorkosFlagEntities>({
   adapter: workosAdapter(),
 });
 
-export const workspaceIssuesFlag = flag<boolean, WorkosFlagEntities>({
-  key: WORKSPACE_ISSUES_FLAG,
-  defaultValue: false,
-  description: "Workspace issues and project Issue Sheet for localization issue tracking.",
-  adapter: workosAdapter(),
-});
-
 export const workspaceDomainsFlag = flag<boolean, WorkosFlagEntities>({
   key: WORKSPACE_DOMAINS_FLAG,
   defaultValue: false,
@@ -84,16 +76,15 @@ export async function evaluateWorkspaceFeatureFlags(
 ): Promise<WorkspaceFeatureFlagState> {
   const identify = () => createWorkosIdentify(auth);
 
-  const [automations, knowledge, visualMock, issues, domains, glossarySearch] = await Promise.all([
+  const [automations, knowledge, visualMock, domains, glossarySearch] = await Promise.all([
     workspaceAutomationsFlag.run({ identify }),
     workspaceKnowledgeFlag.run({ identify }),
     workspaceVisualMockFlag.run({ identify }),
-    workspaceIssuesFlag.run({ identify }),
     workspaceDomainsFlag.run({ identify }),
     workspaceGlossarySearchFlag.run({ identify }),
   ]);
 
-  return { automations, knowledge, visualMock, issues, domains, glossarySearch };
+  return { automations, knowledge, visualMock, domains, glossarySearch };
 }
 
 export async function resolveWorkspaceVisualMockFlag(input: {
@@ -176,43 +167,6 @@ export async function resolveWorkspaceKnowledgeFlag(input: {
 
     return (
       (await workspaceKnowledgeFlag.run({
-        identify: () => ({ organization: { id: organization.workosOrganizationId } }),
-      })) === true
-    );
-  } catch {
-    return false;
-  }
-}
-
-/**
- * Resolves workspaceIssuesFlag from an internal organizationId for callers without a live HTTP
- * auth context — workspace-automation tool execution and config validation. Mirrors
- * resolveWorkspaceKnowledgeFlag: Issue Sheet HTTP routes already reject when the flag is off, but
- * automation create/update and orchestrator tools can still reach IssueSheetService unless we
- * re-check here.
- */
-export async function resolveWorkspaceIssuesFlag(input: {
-  organizationId: string;
-  dbClient?: Pick<typeof db, "select">;
-}): Promise<boolean> {
-  const dbClient = input.dbClient ?? db;
-  if (typeof dbClient.select !== "function") {
-    return false;
-  }
-
-  try {
-    const [organization] = await dbClient
-      .select({ workosOrganizationId: schema.organizations.workosOrganizationId })
-      .from(schema.organizations)
-      .where(eq(schema.organizations.id, input.organizationId))
-      .limit(1);
-
-    if (!organization) {
-      return false;
-    }
-
-    return (
-      (await workspaceIssuesFlag.run({
         identify: () => ({ organization: { id: organization.workosOrganizationId } }),
       })) === true
     );

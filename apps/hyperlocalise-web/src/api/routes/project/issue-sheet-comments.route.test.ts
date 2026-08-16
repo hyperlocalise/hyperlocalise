@@ -12,7 +12,7 @@
  */
 import "dotenv/config";
 
-import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vite-plus/test";
+import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 
 import { app } from "@/api/app";
 import { db, schema } from "@/lib/database";
@@ -20,14 +20,13 @@ import { eq } from "drizzle-orm";
 
 import { createProjectTestFixture } from "./project.fixture";
 
-const { resolveApiAuthContextFromSessionMock, workspaceIssuesFlagRunMock } = vi.hoisted(() => ({
+const { resolveApiAuthContextFromSessionMock } = vi.hoisted(() => ({
   resolveApiAuthContextFromSessionMock: vi.fn(
     (options) =>
       globalThis.__resolveTestApiAuthContextFromSession?.(options) ??
       globalThis.__testApiAuthContext ??
       null,
   ),
-  workspaceIssuesFlagRunMock: vi.fn(async () => true),
 }));
 
 vi.mock("@/api/auth/workos-session", async (importOriginal) => {
@@ -35,14 +34,6 @@ vi.mock("@/api/auth/workos-session", async (importOriginal) => {
   return {
     ...actual,
     resolveApiAuthContextFromSession: resolveApiAuthContextFromSessionMock,
-  };
-});
-
-vi.mock("@/lib/flags/workspace-flags", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/lib/flags/workspace-flags")>();
-  return {
-    ...actual,
-    workspaceIssuesFlag: { run: workspaceIssuesFlagRunMock },
   };
 });
 
@@ -65,10 +56,6 @@ type CommentResponse = {
 
 beforeAll(async () => {
   await db.$client.query("select 1");
-});
-
-beforeEach(() => {
-  workspaceIssuesFlagRunMock.mockResolvedValue(true);
 });
 
 afterEach(async () => {
@@ -119,27 +106,6 @@ async function createIssue(organizationSlug: string, projectId: string, headers:
 }
 
 describe("Issue sheet comment routes", () => {
-  it("denies comment access when the feature flag is disabled", async () => {
-    workspaceIssuesFlagRunMock.mockResolvedValue(false);
-    const { identity, project } = await projectFixture.createStoredProjectFixture();
-    const headers = await projectFixture.authHeadersFor(identity);
-    const organizationSlug = identity.organization.slug ?? "missing-slug";
-
-    const response = await requestJson(
-      commentsUrl(organizationSlug, project.id, "00000000-0000-4000-8000-000000000000"),
-      {
-        method: "POST",
-        headers,
-        body: { body: "Blocked" },
-      },
-    );
-
-    expect(response.status).toBe(403);
-    await expect(response.json()).resolves.toMatchObject({
-      error: "feature_unavailable",
-    });
-  });
-
   it("creates, updates, replies, and deletes comments", async () => {
     const { identity, project } = await projectFixture.createStoredProjectFixture();
     const headers = await projectFixture.authHeadersFor(identity);
