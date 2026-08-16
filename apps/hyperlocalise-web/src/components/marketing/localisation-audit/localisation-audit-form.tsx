@@ -67,13 +67,13 @@ export function LocalisationAuditForm({ locale, tone = "default" }: Localisation
       } | null;
 
       if (!response.ok || !body?.audit?.domainSlug) {
-        setError(body?.message ?? "Could not start the audit. Check the URL and try again.");
+        setError(body?.message ?? copy.startError);
         return;
       }
 
       router.push(`/${locale}/localisation-audit/${body.audit.domainSlug}`);
     } catch {
-      setError("Could not start the audit. Check the URL and try again.");
+      setError(copy.startError);
     } finally {
       setPending(false);
     }

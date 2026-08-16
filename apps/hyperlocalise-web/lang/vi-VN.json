@@ -13279,5 +13279,416 @@
   },
   "zztNzAuBoJ": {
     "defaultMessage": "Đã bật"
+  },
+  "+6k/AAnIp9": {
+    "defaultMessage": "Xem thương hiệu của bạn đi xa đến đâu."
+  },
+  "tIYDgjN4kT": {
+    "defaultMessage": "Nhập một URL. Chúng tôi sẽ đọc vài trang công khai và cho bạn biết trang web cảm giác thế nào ở ngôn ngữ khác."
+  },
+  "VHfMEbrDRM": {
+    "defaultMessage": "Trang web"
+  },
+  "4yCkDpHN88": {
+    "defaultMessage": "https://trang-cua-ban.com"
+  },
+  "3sSVTCWzgg": {
+    "defaultMessage": "Ngôn ngữ cần xem (tuỳ chọn)"
+  },
+  "26uyfoaW4I": {
+    "defaultMessage": "Tiếng Pháp, tiếng Đức"
+  },
+  "KigHdi8k7w": {
+    "defaultMessage": "Chúng tôi sẽ xem kỹ tối đa hai ngôn ngữ."
+  },
+  "fZ/p4nukUo": {
+    "defaultMessage": "Xem điểm của tôi"
+  },
+  "PHgeGQnTFw": {
+    "defaultMessage": "Đang xem…"
+  },
+  "Pk/NpM4S0S": {
+    "defaultMessage": "Mỗi trang được xem miễn phí một lần. Mười lần mỗi ngày cho tất cả các trang."
+  },
+  "tBmWE9rsb2": {
+    "defaultMessage": "Không thể bắt đầu kiểm tra. Hãy kiểm tra URL và thử lại."
+  },
+  "fyhM45TkNF": {
+    "defaultMessage": "Những gì chúng tôi để ý"
+  },
+  "FVIz6ikiua": {
+    "defaultMessage": "Giọng điệu"
+  },
+  "ULcCfIfBDx": {
+    "defaultMessage": "Khi đổi ngôn ngữ, cách viết vẫn nghe giống bạn chứ?"
+  },
+  "TEByVD08L+": {
+    "defaultMessage": "Hiện diện"
+  },
+  "731nFVbbU3": {
+    "defaultMessage": "Các trang vẫn được chăm chút chứ — bố cục, hình ảnh, tất cả?"
+  },
+  "mrmSpANeux": {
+    "defaultMessage": "Khám phá"
+  },
+  "ZT4A78YiXg": {
+    "defaultMessage": "Khách truy cập có tìm được đúng phiên bản của trang không?"
+  },
+  "Ldkvycssco": {
+    "defaultMessage": "Chúng tôi chỉ đọc trang công khai. Không bao giờ đăng nhập hay điền biểu mẫu."
+  },
+  "vLOvG+Aj8h": {
+    "defaultMessage": "Điểm số và báo cáo đầy đủ là công khai. Bạn có thể gửi tóm tắt về email của mình."
+  },
+  "MlXu9cA5kU": {
+    "defaultMessage": "Một ghi chú điển hình"
+  },
+  "U0PoyhfZi2": {
+    "defaultMessage": "Trang tiếng Pháp và tiếng Anh không trỏ tới nhau, nên khách có thể bỏ sót hẳn ngôn ngữ còn lại."
+  },
+  "/+gVj3qXhZ": {
+    "defaultMessage": "Điểm của các trang khác"
+  },
+  "JSylA1G/ba": {
+    "defaultMessage": "Điểm công khai, đặt cạnh nhau. Kiểm tra điểm của bạn để biết mình đang ở đâu."
+  },
+  "4XzQKxM2MY": {
+    "defaultMessage": "Chưa có điểm công khai. Hãy là người đầu tiên."
+  },
+  "7r56c37km5": {
+    "defaultMessage": "Đang chạy kiểm tra bản địa hoá"
+  },
+  "Chmxs2/LX8": {
+    "defaultMessage": "Đang lấy mẫu trang và kiểm tra tín hiệu kỹ thuật lẫn ngôn ngữ. Bạn có thể rời tab này — tiến trình được lưu."
+  },
+  "k5atS7Ij0F": {
+    "defaultMessage": "Thường xong trong 1–3 phút."
+  },
+  "xTNiGIIXkt": {
+    "defaultMessage": "Gửi tóm tắt cho tôi khi xong"
+  },
+  "m4m7Z9SYlx": {
+    "defaultMessage": "Tuỳ chọn. Chúng tôi sẽ gửi tóm tắt báo cáo vào hộp thư khi kiểm tra xong."
+  },
+  "HK97A4xbg9": {
+    "defaultMessage": "Báo cho tôi"
+  },
+  "WW5Wdugy4j": {
+    "defaultMessage": "Đang lưu…"
+  },
+  "5eDm4m1RNJ": {
+    "defaultMessage": "Chúng tôi sẽ gửi tóm tắt qua email khi kiểm tra này xong."
+  },
+  "IwWn3c1LU2": {
+    "defaultMessage": "Đang chờ"
+  },
+  "m4T5sYEFR7": {
+    "defaultMessage": "Đang chuẩn bị"
+  },
+  "88Bc6aFgMg": {
+    "defaultMessage": "Đang quét"
+  },
+  "pDMtFvmk4c": {
+    "defaultMessage": "Đang phân tích"
+  },
+  "SjHx8vM/dA": {
+    "defaultMessage": "Đang chấm điểm"
+  },
+  "TWWOWkYG7q": {
+    "defaultMessage": "Bước {current} / {total}"
+  },
+  "+HGkRuvHRM": {
+    "defaultMessage": "Tiến trình kiểm tra"
+  },
+  "bSoPJAmJQC": {
+    "defaultMessage": "Kiểm tra này đang chờ và sẽ bắt đầu sớm."
+  },
+  "LMJfi53KSl": {
+    "defaultMessage": "Đang kiểm tra tên miền và mở phiên quét an toàn."
+  },
+  "qoKQfRLzE9": {
+    "defaultMessage": "Đang lấy mẫu trang công khai và gốc locale."
+  },
+  "N8ghyZ/Xzt": {
+    "defaultMessage": "Đang kiểm tra tín hiệu kỹ thuật, ngôn ngữ, ngữ cảnh và hình ảnh."
+  },
+  "GausSgRE+l": {
+    "defaultMessage": "Đang gộp các tiêu chí thành bốn điểm module."
+  },
+  "n3G74L1ESt": {
+    "defaultMessage": "Kiểm tra này có vẻ bị kẹt"
+  },
+  "K3Hic0nQfc": {
+    "defaultMessage": "Đã một lúc không có tiến triển. Bạn có thể thử lại an toàn — chúng tôi sẽ thu hồi lần chạy bị kẹt và bắt đầu lại."
+  },
+  "MHGSRfE0a7": {
+    "defaultMessage": "Kiểm tra thất bại"
+  },
+  "cRg9/fMFSw": {
+    "defaultMessage": "Có lỗi khi kiểm tra tên miền này. Bạn có thể thử lại an toàn."
+  },
+  "dIHTtzU056": {
+    "defaultMessage": "Không thể hoàn tất kiểm tra cho tên miền này."
+  },
+  "qSi5mzrfOt": {
+    "defaultMessage": "Thử lại kiểm tra"
+  },
+  "CBECdPWm0s": {
+    "defaultMessage": "Đang thử lại…"
+  },
+  "ZT0ZLYbp16": {
+    "defaultMessage": "Không thể thử lại kiểm tra."
+  },
+  "MPNpD0t4eB": {
+    "defaultMessage": "Chạy lại kiểm tra"
+  },
+  "QAZYQBBFd9": {
+    "defaultMessage": "Đang chạy lại…"
+  },
+  "x7lBWitDFc": {
+    "defaultMessage": "Không thể chạy lại kiểm tra."
+  },
+  "6c1dq311jJ": {
+    "defaultMessage": "Bạn có thể chạy lại kiểm tra này một lần mỗi ngày. Lần tới {when}."
+  },
+  "7CPu6D68D+": {
+    "defaultMessage": "Điểm bản địa hoá"
+  },
+  "X/5lAUS4wm": {
+    "defaultMessage": "/100"
+  },
+  "0Fkv13W/rO": {
+    "defaultMessage": "Xuất sắc"
+  },
+  "6jGL8gGwLP": {
+    "defaultMessage": "Tốt"
+  },
+  "UIH0t2l1Rg": {
+    "defaultMessage": "Cần cải thiện"
+  },
+  "ecuiDTvUrZ": {
+    "defaultMessage": "Yếu"
+  },
+  "DwkdN4lm3s": {
+    "defaultMessage": "Nghiêm trọng"
+  },
+  "AZ/tuZUJoO": {
+    "defaultMessage": "Kiểm tra kỹ thuật"
+  },
+  "v32CGJfAAS": {
+    "defaultMessage": "Kiểm tra ngôn ngữ"
+  },
+  "46WEusZVEg": {
+    "defaultMessage": "Kiểm tra ngữ cảnh"
+  },
+  "vUbkXURPep": {
+    "defaultMessage": "Kiểm tra hình ảnh"
+  },
+  "9yTBmhhxTz": {
+    "defaultMessage": "kỹ thuật"
+  },
+  "uqqnJ1ACdX": {
+    "defaultMessage": "ngôn ngữ"
+  },
+  "k9uqhd9OgG": {
+    "defaultMessage": "ngữ cảnh"
+  },
+  "FJYljr7sSS": {
+    "defaultMessage": "hình ảnh"
+  },
+  "ZNAwtFUkzx": {
+    "defaultMessage": "Đã kiểm tra"
+  },
+  "X9+GfdK3RZ": {
+    "defaultMessage": "Phạm vi"
+  },
+  "eKfFOCj/Jd": {
+    "defaultMessage": "Mẫu thông minh công khai · tiêu chí kỹ thuật, ngôn ngữ, ngữ cảnh và hình ảnh"
+  },
+  "A7ZIFME2xj": {
+    "defaultMessage": "Độ tin cậy"
+  },
+  "e7tTJ8gdLB": {
+    "defaultMessage": "Kiểm tra sức khoẻ mang tính tham khảo từ các trang lấy mẫu — không phải quét toàn site."
+  },
+  "mKyo1eMyN6": {
+    "defaultMessage": "Sửa trước"
+  },
+  "OJQchlMSC5": {
+    "defaultMessage": "Locale đã phát hiện"
+  },
+  "heyfa1q/+8": {
+    "defaultMessage": "Phát hiện nổi bật"
+  },
+  "S+w63pqvse": {
+    "defaultMessage": "Gửi tóm tắt cho tôi"
+  },
+  "re+MJ8bLl3": {
+    "defaultMessage": "Tuỳ chọn. Nhập email công việc và chúng tôi sẽ gửi tóm tắt ngắn của báo cáo công khai này."
+  },
+  "cQ32lI4seX": {
+    "defaultMessage": "Bạn so với người khác"
+  },
+  "KjvUYZIXbF": {
+    "defaultMessage": "Hạng #{rank} trong {total} kiểm tra công khai"
+  },
+  "F0U2CC+DdD": {
+    "defaultMessage": "Top {percentile}% tên miền đã kiểm tra"
+  },
+  "KQZH+TKXlh": {
+    "defaultMessage": "Trung bình công khai: {average}/100"
+  },
+  "TU09/PYmBW": {
+    "defaultMessage": "Xem bảng xếp hạng đầy đủ"
+  },
+  "haSTp/OWTR": {
+    "defaultMessage": "Chia sẻ báo cáo này"
+  },
+  "5JYazrmkXn": {
+    "defaultMessage": "Báo cáo này là công khai. Hãy chia sẻ với nhóm hoặc đăng lên để so sánh."
+  },
+  "/IhENYYsH/": {
+    "defaultMessage": "Sao chép liên kết báo cáo"
+  },
+  "qIu/YA1mT+": {
+    "defaultMessage": "Đã sao chép liên kết"
+  },
+  "2z7JtO63bq": {
+    "defaultMessage": "Email công việc"
+  },
+  "Xl40fdGnlz": {
+    "defaultMessage": "ban@congty.com"
+  },
+  "x7NBkHXEme": {
+    "defaultMessage": "Gửi tóm tắt cho tôi"
+  },
+  "ih/69cODWD": {
+    "defaultMessage": "Đang gửi…"
+  },
+  "PYVkjgnEZG": {
+    "defaultMessage": "Hãy kiểm tra hộp thư để xem tóm tắt báo cáo này."
+  },
+  "BBEyVbRR3L": {
+    "defaultMessage": "Không thể yêu cầu email báo cáo."
+  },
+  "ktH+IvcapS": {
+    "defaultMessage": "Ngành"
+  },
+  "2Ma/LzB+bC": {
+    "defaultMessage": "Sản phẩm"
+  },
+  "p/RwNTcexb": {
+    "defaultMessage": "Giọng thương hiệu"
+  },
+  "6ftVCF2cNF": {
+    "defaultMessage": "Báo cáo bản địa hoá"
+  },
+  "tsmydNZ+N6": {
+    "defaultMessage": "Tìm thấy ở đây"
+  },
+  "is2cQ1v97u": {
+    "defaultMessage": "Những gì chúng tôi thấy"
+  },
+  "mnZVrr1EzK": {
+    "defaultMessage": "Cách sửa"
+  },
+  "igisWP9I+4": {
+    "defaultMessage": "{confidence}% độ tin cậy"
+  },
+  "i9vIaD8Yuc": {
+    "defaultMessage": "Không có phát hiện trong phần này."
+  },
+  "6YovIP6EMt": {
+    "defaultMessage": "Toàn bộ phát hiện"
+  },
+  "XN2gagpvC2": {
+    "defaultMessage": "Tiêu chí kiểm tra"
+  },
+  "IoY6mjCVOS": {
+    "defaultMessage": "{passed} đạt · {failed} cần sửa · {na} không áp dụng"
+  },
+  "AJbIBJ8rQ5": {
+    "defaultMessage": "Cần chú ý ({count})"
+  },
+  "cUEs5UweV5": {
+    "defaultMessage": "Kiểm tra đạt ({count})"
+  },
+  "z0l+gEjl9l": {
+    "defaultMessage": "Không áp dụng ({count})"
+  },
+  "cwqeMFXYQC": {
+    "defaultMessage": "Đạt"
+  },
+  "RseiYzhfDo": {
+    "defaultMessage": "Không đạt"
+  },
+  "6d57osIkxk": {
+    "defaultMessage": "N/A"
+  },
+  "BQRFXv8ABR": {
+    "defaultMessage": "Hiện kiểm tra đạt"
+  },
+  "flUWk1JFBu": {
+    "defaultMessage": "Ẩn kiểm tra đạt"
+  },
+  "uP6J0sc7cw": {
+    "defaultMessage": "Hiện không áp dụng"
+  },
+  "pw9PHi/ZLr": {
+    "defaultMessage": "Ẩn không áp dụng"
+  },
+  "tP1cicvIzZ": {
+    "defaultMessage": "Ghi chú ngôn ngữ"
+  },
+  "MasHu7akaE": {
+    "defaultMessage": "Trang đã lấy mẫu"
+  },
+  "RQHyujQ0I4": {
+    "defaultMessage": "Đã lấy mẫu {count} trang cho các tiêu chí bản địa hoá kỹ thuật, ngôn ngữ, ngữ cảnh và hình ảnh."
+  },
+  "20wJJveUDM": {
+    "defaultMessage": "Bước tiếp theo"
+  },
+  "9GZfIBGhFw": {
+    "defaultMessage": "Xuất hiện khoảng trống nghiêm trọng. Tạo workspace để chạy kiểm tra đăng ký sâu hơn, hoặc đặt lịch xem xét với nhóm chúng tôi."
+  },
+  "mS/hL9d9Ru": {
+    "defaultMessage": "Nền tảng vững, vẫn còn chỗ cải thiện. Tạo workspace để theo dõi locale liên tục, hoặc đặt lịch xem xét kiểm tra."
+  },
+  "q4MSNg1UjH": {
+    "defaultMessage": "Tín hiệu bản địa hoá mạnh. Tạo workspace để giữ locale khoẻ khi bạn ship, hoặc đặt lịch xem xét sâu hơn."
+  },
+  "fHty0SN0KU": {
+    "defaultMessage": "Tạo workspace"
+  },
+  "eVmVzJRp/f": {
+    "defaultMessage": "Chạy kiểm tra đăng ký sâu hơn"
+  },
+  "GLCtWIg6Sl": {
+    "defaultMessage": "Nhận tên miền này"
+  },
+  "n9PAvhdA7/": {
+    "defaultMessage": "Mở trong workspace"
+  },
+  "xUdbOFsZxg": {
+    "defaultMessage": "Đặt lịch xem xét kiểm tra"
+  },
+  "TMD1+Kb+4i": {
+    "defaultMessage": "Trải nghiệm bản địa hoá đang ở trạng thái tốt."
+  },
+  "3ji5Nvlz3D": {
+    "defaultMessage": "Trang web nhìn chung bản địa hoá tốt, còn vài vấn đề cần cải thiện."
+  },
+  "gCHirWHVff": {
+    "defaultMessage": "Người dùng có thể gặp vấn đề bản địa hoá đáng chú ý."
+  },
+  "2E7H5Qc2gc": {
+    "defaultMessage": "Khoảng trống bản địa hoá lớn đang ảnh hưởng trải nghiệm."
+  },
+  "nglFeiQ7o8": {
+    "defaultMessage": "Trải nghiệm bản địa hoá có vấn đề lớn cần xử lý."
+  },
+  "vGQC+xjlop": {
+    "defaultMessage": "Cách chúng tôi chấm điểm kiểm tra bản địa hoá"
   }
 }

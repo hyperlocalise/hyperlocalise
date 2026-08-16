@@ -174,7 +174,7 @@ function FindingList({
   domainKey: string;
 }) {
   if (findings.length === 0) {
-    return <p className="text-muted-foreground">No findings in this section.</p>;
+    return <p className="text-muted-foreground">{copy.noFindings}</p>;
   }
 
   return (
@@ -193,7 +193,9 @@ function FindingList({
               </Badge>
               <span className="text-xs font-medium tracking-[0.14em] text-muted-foreground uppercase">
                 {finding.category}
-                {finding.confidence != null ? ` · ${finding.confidence}% confidence` : ""}
+                {finding.confidence != null
+                  ? ` · ${copy.findingConfidence({ confidence: finding.confidence })}`
+                  : ""}
               </span>
             </div>
             <p className="mt-2 text-lg font-medium text-pretty">{finding.title}</p>
@@ -402,16 +404,16 @@ function AuditCriteriaList({
     buildLocalisationAuditCriteria(credits, findings),
   );
   const dimensionLabels = {
-    technical: "technical",
-    linguistic: "linguistic",
-    contextual: "contextual",
-    visual: "visual",
+    technical: copy.dimensionTechnicalShort,
+    linguistic: copy.dimensionLinguisticShort,
+    contextual: copy.dimensionContextualShort,
+    visual: copy.dimensionVisualShort,
   } as const;
 
   return (
     <div>
       <TypographyP className="mt-4 max-w-2xl text-muted-foreground">
-        {formatCopy(copy.criteriaSummary, {
+        {copy.criteriaSummary({
           passed: passed.length,
           failed: failed.length,
           na: notApplicable.length,
@@ -419,7 +421,7 @@ function AuditCriteriaList({
       </TypographyP>
 
       <CriteriaGroup
-        heading={formatCopy(copy.criteriaNeedsAttentionHeading, { count: failed.length })}
+        heading={copy.criteriaNeedsAttentionHeading({ count: failed.length })}
         criteria={failed}
         copy={copy}
         showFindings={unlocked}
@@ -429,7 +431,7 @@ function AuditCriteriaList({
       />
 
       <CriteriaGroup
-        heading={formatCopy(copy.criteriaPassedHeading, { count: passed.length })}
+        heading={copy.criteriaPassedHeading({ count: passed.length })}
         criteria={passed}
         copy={copy}
         showFindings={false}
@@ -441,7 +443,7 @@ function AuditCriteriaList({
       />
 
       <CriteriaGroup
-        heading={formatCopy(copy.criteriaNotApplicableHeading, { count: notApplicable.length })}
+        heading={copy.criteriaNotApplicableHeading({ count: notApplicable.length })}
         criteria={notApplicable}
         copy={copy}
         showFindings={false}
@@ -493,7 +495,7 @@ function AuditProgressTrack({
       <div className="flex items-baseline justify-between gap-3">
         <p className="text-pretty text-sm font-medium">{labels[currentStage]}</p>
         <p className="text-sm text-muted-foreground tabular-nums">
-          {formatCopy(copy.progressStepOf, { current: currentStep, total })}
+          {copy.progressStepOf({ current: currentStep, total })}
         </p>
       </div>
 
@@ -561,13 +563,6 @@ function AuditProgressTrack({
 function prioritizeFindings(findings: LocalisationAuditFinding[]) {
   const weight = { critical: 0, high: 1, warning: 1, medium: 2, low: 3, info: 4 } as const;
   return findings.toSorted((a, b) => weight[a.severity] - weight[b.severity]).slice(0, 3);
-}
-
-function formatCopy(template: string, values: Record<string, string | number>) {
-  return Object.entries(values).reduce(
-    (text, [key, value]) => text.replaceAll(`{${key}}`, String(value)),
-    template,
-  );
 }
 
 function companyMonogram(name: string | null | undefined, domainKey: string) {
@@ -693,7 +688,7 @@ export function LocalisationAuditResult({
         message?: string;
       } | null;
       if (!response.ok) {
-        setError(body?.message ?? "Could not request the report email.");
+        setError(body?.message ?? copy.requestEmailError);
         return;
       }
       if (body?.audit) setAudit(body.audit);
@@ -702,7 +697,7 @@ export function LocalisationAuditResult({
           (audit.status === "succeeded" ? copy.unlockQueued : copy.emailWhenReadyQueued),
       );
     } catch {
-      setError("Could not request the report email.");
+      setError(copy.requestEmailError);
     } finally {
       setPending(false);
     }
@@ -760,7 +755,7 @@ export function LocalisationAuditResult({
         {error ? <p className="mt-4 text-sm text-red-200">{error}</p> : null}
         <Button
           className="mt-8 bg-white text-black hover:bg-white/90"
-          onClick={() => restartAudit("Could not retry the audit.")}
+          onClick={() => restartAudit(copy.retryError)}
           disabled={rerunPending}
         >
           {rerunPending ? copy.retrying : copy.retry}
@@ -824,12 +819,12 @@ export function LocalisationAuditResult({
           {copy.failedBody}
         </TypographyP>
         <TypographyP className="mt-2 max-w-2xl text-white/70">
-          {audit.errorMessage ?? audit.errorCode ?? "The audit could not finish for this domain."}
+          {audit.errorMessage ?? audit.errorCode ?? copy.failedFallback}
         </TypographyP>
         {error ? <p className="mt-4 text-sm text-red-200">{error}</p> : null}
         <Button
           className="mt-8 bg-white text-black hover:bg-white/90"
-          onClick={() => restartAudit("Could not retry the audit.")}
+          onClick={() => restartAudit(copy.retryError)}
           disabled={rerunPending}
         >
           {rerunPending ? copy.retrying : copy.retry}
@@ -1000,10 +995,11 @@ export function LocalisationAuditResult({
           </div>
           {shareMessage ? <p className="mt-4 text-sm text-white/70">{shareMessage}</p> : null}
           <TypographyP className="mt-4 max-w-2xl text-white/70">
-            Sampled {teaser?.pagesCrawled ?? report?.pagesCrawled ?? 0} pages across technical,
-            linguistic, contextual, and visual localisation credits.{" "}
+            {copy.sampledPages({
+              count: teaser?.pagesCrawled ?? report?.pagesCrawled ?? 0,
+            })}{" "}
             <Link
-              href={getLocalisationAuditGuideHref()}
+              href={getLocalisationAuditGuideHref(locale)}
               className="font-medium text-white underline-offset-4 hover:underline"
             >
               {copy.methodologyLink}
@@ -1016,12 +1012,12 @@ export function LocalisationAuditResult({
         <section className={sectionClassName}>
           <TypographyH2 className="pb-0">{copy.standingHeading}</TypographyH2>
           <TypographyP className="mt-4 max-w-2xl text-lg text-muted-foreground">
-            {formatCopy(copy.standingRank, { rank: standing.rank, total: standing.total })}
+            {copy.standingRank({ rank: standing.rank, total: standing.total })}
           </TypographyP>
           <div className="mt-4 flex flex-wrap gap-x-8 gap-y-2 text-sm text-muted-foreground">
-            <span>{formatCopy(copy.standingPercentile, { percentile: standing.percentile })}</span>
+            <span>{copy.standingPercentile({ percentile: standing.percentile })}</span>
             {standing.averageScore != null ? (
-              <span>{formatCopy(copy.standingAverage, { average: standing.averageScore })}</span>
+              <span>{copy.standingAverage({ average: standing.averageScore })}</span>
             ) : null}
           </div>
           <div className="mt-6">
@@ -1147,10 +1143,7 @@ export function LocalisationAuditResult({
           <TypographyP className="mt-4 max-w-2xl text-muted-foreground">{ctaBody}</TypographyP>
           <div className="mt-6 flex flex-wrap gap-3">
             {audit.rerunnable ? (
-              <Button
-                onClick={() => restartAudit("Could not re-run the audit.")}
-                disabled={rerunPending}
-              >
+              <Button onClick={() => restartAudit(copy.rerunError)} disabled={rerunPending}>
                 {rerunPending ? copy.rerunning : copy.rerun}
               </Button>
             ) : null}
@@ -1207,7 +1200,7 @@ export function LocalisationAuditResult({
           </div>
           {!audit.rerunnable && audit.rerunAvailableAt ? (
             <p className="mt-4 text-sm text-muted-foreground">
-              {formatCopy(copy.rerunCooldown, {
+              {copy.rerunCooldown({
                 when: new Date(audit.rerunAvailableAt).toLocaleString(locale, {
                   dateStyle: "medium",
                   timeStyle: "short",
