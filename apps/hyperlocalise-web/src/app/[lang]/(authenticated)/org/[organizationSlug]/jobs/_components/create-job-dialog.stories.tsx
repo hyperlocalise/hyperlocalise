@@ -45,29 +45,24 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 export const Native: Story = {
-  play: async ({ canvas, canvasElement }) => {
-    const body = within(canvasElement.ownerDocument.body);
+  play: async ({ canvas }) => {
     await expect(canvas.getByRole("dialog", { name: "New job" })).toBeInTheDocument();
     await expect(canvas.getByLabelText("Title")).toBeInTheDocument();
     await expect(canvas.getByLabelText("Source locale")).toHaveTextContent(/English/);
     await expect(canvas.getByLabelText("Target locales")).toHaveTextContent("All locales");
-    await expect(canvas.getByLabelText("Files")).toBeInTheDocument();
     await expect(canvas.getByLabelText("Assignee")).toHaveTextContent("Unassigned");
     await expect(canvas.queryByLabelText("Task type")).not.toBeInTheDocument();
     await expect(canvas.queryByLabelText("Description")).not.toBeInTheDocument();
     await expect(canvas.getByRole("button", { name: "Create job" })).toBeInTheDocument();
 
-    await userEvent.click(canvas.getByLabelText("Files"));
-    const homeFile = await body.findByRole("option", { name: /marketing\/home\.json/ });
-    await expect(homeFile).toHaveAttribute("aria-checked", "false");
-    await expect(body.getByRole("option", { name: /marketing\/pricing\.json/ })).toHaveAttribute(
-      "aria-checked",
-      "false",
-    );
-    await expect(body.getByRole("listbox", { name: "Files" })).toHaveAttribute(
-      "aria-multiselectable",
-      "true",
-    );
+    const files = await canvas.findByRole("group", { name: "Files" });
+    await expect(files).toBeInTheDocument();
+    await expect(canvas.getByRole("checkbox", { name: "marketing/home.json" })).not.toBeChecked();
+    await expect(canvas.getByRole("checkbox", { name: "marketing/pricing.json" })).not.toBeChecked();
+    await expect(canvas.getByRole("button", { name: "Collapse marketing" })).toBeInTheDocument();
+    await expect(
+      canvas.queryByRole("checkbox", { name: "marketing/campaigns/spring.json" }),
+    ).not.toBeInTheDocument();
   },
 };
 
@@ -85,14 +80,12 @@ export const Crowdin: Story = {
     await expect(canvas.getByLabelText("Assignees")).toHaveTextContent("Unassigned");
     await expect(canvas.queryByLabelText("Source locale")).not.toBeInTheDocument();
 
-    await userEvent.click(canvas.getByLabelText("Files"));
-    const homeFile = await body.findByRole("option", { name: /locales\/home\.json/ });
-    await expect(homeFile).toHaveAttribute("aria-checked", "false");
-    await expect(body.getByRole("option", { name: /locales\/pricing\.json/ })).toHaveAttribute(
-      "aria-checked",
-      "false",
-    );
-    await userEvent.keyboard("{Escape}");
+    await expect(await canvas.findByRole("group", { name: "Files" })).toBeInTheDocument();
+    await expect(canvas.getByRole("checkbox", { name: "locales/home.json" })).not.toBeChecked();
+    await expect(canvas.getByRole("checkbox", { name: "locales/pricing.json" })).not.toBeChecked();
+    await expect(
+      canvas.queryByRole("checkbox", { name: "locales/emails/welcome.json" }),
+    ).not.toBeInTheDocument();
 
     await userEvent.click(canvas.getByLabelText("Assignees"));
     const mina = await body.findByRole("option", { name: /Mina Chen/ });

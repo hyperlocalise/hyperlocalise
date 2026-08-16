@@ -135,6 +135,26 @@ export const createJobDialogMessages = defineMessages({
     id: "hZtUjyTrTe",
     description: "Search placeholder in the files picker",
   },
+  filesSearchEmpty: {
+    defaultMessage: "No files match this search.",
+    id: "nF4kG8pW2c",
+    description: "Empty state when the create job file tree search has no matches",
+  },
+  expandFolder: {
+    defaultMessage: "Expand {folder}",
+    id: "pH6mJ1rY4d",
+    description: "Accessible label to expand a folder in the create job file tree",
+  },
+  collapseFolder: {
+    defaultMessage: "Collapse {folder}",
+    id: "qK7nL2sZ5e",
+    description: "Accessible label to collapse a folder in the create job file tree",
+  },
+  selectFolder: {
+    defaultMessage: "Select all files in {folder}",
+    id: "rM8oN3tA6f",
+    description: "Accessible label to select every file in a folder",
+  },
   noFilesAvailable: {
     defaultMessage: "No files available in this project.",
     id: "izy21loiHb",

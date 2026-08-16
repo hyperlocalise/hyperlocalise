@@ -24,7 +24,6 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { FormattedMessage, useIntl } from "react-intl";
 import {
   CheckListIcon,
-  File01Icon,
   LanguageCircleIcon,
   TranslateIcon,
   UserIcon,
@@ -76,6 +75,7 @@ import {
 import { cn } from "@/lib/primitives/cn";
 
 import { createJobDialogMessages } from "./create-job-dialog.messages";
+import { CreateJobFileTree } from "./create-job-file-tree";
 
 class PartialCreateJobsError extends Error {
   readonly createdCount: number;
@@ -503,21 +503,6 @@ export function CreateJobDialog({
     });
   }, [intl, selectedLocales, targetLocales.length]);
 
-  const fileTriggerLabel = useMemo(() => {
-    if (selectedFileIds.length === 0) {
-      return intl.formatMessage(createJobDialogMessages.filesLabel);
-    }
-    if (selectedFileIds.length === 1) {
-      return (
-        fileOptions.find((file) => file.id === selectedFileIds[0])?.label ??
-        intl.formatMessage(createJobDialogMessages.filesSelectedCount, { count: 1 })
-      );
-    }
-    return intl.formatMessage(createJobDialogMessages.filesSelectedCount, {
-      count: selectedFileIds.length,
-    });
-  }, [fileOptions, intl, selectedFileIds]);
-
   const assigneeTriggerLabel = useMemo(() => {
     if (selectedAssignees.length === 0) {
       return intl.formatMessage(createJobDialogMessages.unassigned);
@@ -772,6 +757,14 @@ export function CreateJobDialog({
               />
             ) : null}
 
+            <CreateJobFileTree
+              files={fileOptions}
+              selectedIds={selectedFileIds}
+              onSelectedIdsChange={setSelectedFileIds}
+              isLoading={filesLoading}
+              disabled={createJob.isPending}
+            />
+
             <div className="flex flex-wrap items-center gap-0.5 pt-1">
               {isProviderProject ? (
                 <Select
@@ -837,21 +830,6 @@ export function CreateJobDialog({
                     : createJobDialogMessages.noLocalesAvailable,
                 )}
                 searchPlaceholder={intl.formatMessage(createJobDialogMessages.searchLocales)}
-                disabled={createJob.isPending}
-              />
-
-              <CreateJobPropertyPicker
-                icon={File01Icon}
-                ariaLabel={intl.formatMessage(createJobDialogMessages.filesLabel)}
-                triggerLabel={fileTriggerLabel}
-                items={fileOptions.map((file) => ({ id: file.id, label: file.label }))}
-                selectedIds={selectedFileIds}
-                onToggle={(fileId) => setSelectedFileIds((current) => toggleValue(current, fileId))}
-                onSelectAll={() => setSelectedFileIds(fileOptions.map((file) => file.id))}
-                onClear={() => setSelectedFileIds([])}
-                emptyLabel={intl.formatMessage(createJobDialogMessages.noFilesAvailable)}
-                searchPlaceholder={intl.formatMessage(createJobDialogMessages.searchFiles)}
-                isLoading={filesLoading}
                 disabled={createJob.isPending}
               />
 

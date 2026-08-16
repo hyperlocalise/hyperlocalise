@@ -25,6 +25,16 @@ export const createJobDialogNativeFiles = [
     storedFileId: "file_pricing_json",
     filename: "pricing.json",
   }),
+  createProjectFileRecord({
+    sourcePath: "marketing/campaigns/spring.json",
+    storedFileId: "file_spring_json",
+    filename: "spring.json",
+  }),
+  createProjectFileRecord({
+    sourcePath: "legal/terms.json",
+    storedFileId: "file_terms_json",
+    filename: "terms.json",
+  }),
 ];
 
 export const createJobDialogNativeMembers = [
@@ -52,6 +62,16 @@ export const createJobDialogProviderFiles = [
     sourcePath: "locales/pricing.json",
     filename: "pricing.json",
     provider: { externalResourceId: "crowdin_file_pricing", resourceType: "file" },
+  },
+  {
+    sourcePath: "locales/emails/welcome.json",
+    filename: "welcome.json",
+    provider: { externalResourceId: "crowdin_file_welcome", resourceType: "file" },
+  },
+  {
+    sourcePath: "legal/terms.json",
+    filename: "terms.json",
+    provider: { externalResourceId: "crowdin_file_terms", resourceType: "file" },
   },
 ];
 

@@ -102,6 +102,11 @@ const nativeFiles = [
     storedFileId: "file_pricing_json",
     filename: "pricing.json",
   }),
+  createProjectFileRecord({
+    sourcePath: "marketing/campaigns/spring.json",
+    storedFileId: "file_spring_json",
+    filename: "spring.json",
+  }),
 ];
 
 const nativeMembers = [
@@ -183,13 +188,15 @@ describe("CreateJobDialog", () => {
     expect(screen.getByLabelText("Title")).toBeInTheDocument();
     expect(screen.getByLabelText("Source locale")).toHaveTextContent(/English/);
     expect(screen.getByLabelText("Target locales")).toHaveTextContent("All locales");
-    expect(screen.getByLabelText("Files")).toBeInTheDocument();
     expect(screen.getByLabelText("Assignee")).toHaveTextContent("Unassigned");
     expect(screen.queryByLabelText("Task type")).not.toBeInTheDocument();
     expect(screen.queryByLabelText("Description")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Create job" })).toBeDisabled();
 
-    await waitFor(() => expect(apiMocks.nativeFilesGet).toHaveBeenCalled());
+    expect(await screen.findByRole("group", { name: "Files" })).toBeInTheDocument();
+    expect(screen.getByRole("checkbox", { name: "marketing/home.json" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Collapse marketing" })).toBeInTheDocument();
+    expect(screen.queryByRole("checkbox", { name: "marketing/campaigns/spring.json" })).not.toBeInTheDocument();
   });
 
   it("exposes locale and file membership to assistive technologies", async () => {
@@ -230,28 +237,47 @@ describe("CreateJobDialog", () => {
     );
     await user.keyboard("{Escape}");
 
-    await user.click(screen.getByLabelText("Files"));
-    const fileList = await screen.findByRole("listbox", { name: "Files" });
-    expect(fileList).toHaveAttribute("aria-multiselectable", "true");
-    const homeFile = await screen.findByRole("option", { name: /marketing\/home\.json/ });
-    const pricingFile = screen.getByRole("option", { name: /marketing\/pricing\.json/ });
-    expect(homeFile).toHaveAttribute("aria-checked", "false");
-    expect(pricingFile).toHaveAttribute("aria-checked", "false");
+    const files = await screen.findByRole("group", { name: "Files" });
+    const homeFile = within(files).getByRole("checkbox", { name: "marketing/home.json" });
+    const pricingFile = within(files).getByRole("checkbox", { name: "marketing/pricing.json" });
+    const marketingFolder = screen.getByRole("checkbox", { name: "Select all files in marketing" });
+    expect(homeFile).not.toBeChecked();
+    expect(pricingFile).not.toBeChecked();
+    expect(marketingFolder).not.toBeChecked();
 
     await user.click(homeFile);
-    expect(homeFile).toHaveAttribute("aria-checked", "true");
-    expect(pricingFile).toHaveAttribute("aria-checked", "false");
-    await user.keyboard("{Escape}");
+    expect(homeFile).toBeChecked();
+    expect(pricingFile).not.toBeChecked();
+    expect(marketingFolder).toHaveProperty("indeterminate", true);
+  });
 
-    await user.click(screen.getByLabelText("Files"));
-    expect(await screen.findByRole("option", { name: /marketing\/home\.json/ })).toHaveAttribute(
-      "aria-checked",
-      "true",
-    );
-    expect(screen.getByRole("option", { name: /marketing\/pricing\.json/ })).toHaveAttribute(
-      "aria-checked",
-      "false",
-    );
+  it("selects a folder, collapses nested files, and filters the tree by search", async () => {
+    const user = userEvent.setup();
+    renderDialog();
+
+    const files = await screen.findByRole("group", { name: "Files" });
+    expect(within(files).queryByRole("checkbox", { name: "marketing/campaigns/spring.json" })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Expand campaigns" }));
+    const springFile = await screen.findByRole("checkbox", {
+      name: "marketing/campaigns/spring.json",
+    });
+    expect(springFile).toBeInTheDocument();
+
+    await user.click(screen.getByRole("checkbox", { name: "Select all files in marketing" }));
+    expect(within(files).getByRole("checkbox", { name: "marketing/home.json" })).toBeChecked();
+    expect(within(files).getByRole("checkbox", { name: "marketing/pricing.json" })).toBeChecked();
+    expect(springFile).toBeChecked();
+    expect(screen.getByText("3 files")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Collapse marketing" }));
+    expect(screen.queryByRole("checkbox", { name: "marketing/home.json" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Expand marketing" })).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Expand marketing" }));
+    await user.type(screen.getByLabelText("Search files…"), "pricing");
+    expect(screen.getByRole("checkbox", { name: "marketing/pricing.json" })).toBeInTheDocument();
+    expect(screen.queryByRole("checkbox", { name: "marketing/home.json" })).not.toBeInTheDocument();
   });
 
   it("exposes Crowdin assignee multi-select state when the picker is reopened", async () => {
@@ -287,9 +313,7 @@ describe("CreateJobDialog", () => {
     renderDialog({ onOpenChange, onCreated });
 
     await user.type(screen.getByLabelText("Title"), "Release notes");
-    await user.click(screen.getByLabelText("Files"));
-    await user.click(await screen.findByRole("option", { name: /marketing\/home\.json/ }));
-    await user.keyboard("{Escape}");
+    await user.click(await screen.findByRole("checkbox", { name: "marketing/home.json" }));
     await user.click(screen.getByRole("button", { name: "Create job" }));
 
     await waitFor(() => expect(apiMocks.nativeJobsPost).toHaveBeenCalledTimes(1));
@@ -342,9 +366,7 @@ describe("CreateJobDialog", () => {
 
     await user.type(screen.getByLabelText("Title"), "Homepage");
     await user.type(screen.getByLabelText("Description"), "Ship the homepage first.");
-    await user.click(screen.getByLabelText("Files"));
-    await user.click(await screen.findByRole("option", { name: /locales\/home\.json/ }));
-    await user.keyboard("{Escape}");
+    await user.click(await screen.findByRole("checkbox", { name: "locales/home.json" }));
     await user.click(screen.getByRole("button", { name: "Create job" }));
 
     await waitFor(() => expect(apiMocks.providerJobsPost).toHaveBeenCalledTimes(1));
