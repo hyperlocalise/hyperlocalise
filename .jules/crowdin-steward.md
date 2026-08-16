@@ -1,5 +1,11 @@
 # Crowdin Steward's Journal
 
+## 2026-12-28 - Use pointer representation for FieldAddRequest Config field
+
+**Learning:** In Crowdin API v2, the `config` field in `POST /api/v2/fields` requests is optional. When typed as a non-pointer struct (`FieldConfig`), Go's standard `json.Marshal` serializes an uninitialized struct as `{}` even with `json:"config,omitempty"`, sending an empty object payload to Crowdin instead of omitting the parameter. Typing `Config` as `*FieldConfig` ensures proper parameter omission when `nil`.
+
+**Action:** Updated `FieldAddRequest.Config` in `crowdin/model/fields.go` to `*FieldConfig` with `json:"config,omitempty"`. Updated call sites and test assertions in `fields_test.go` and `model/fields_test.go`, including a unit test asserting JSON omission behavior when `Config` is `nil`.
+
 ## 2026-12-27 - Preserve exact Crowdin-API-FileName header without query escaping
 
 **Learning:** In Crowdin API v2, uploading files to storage (`POST /api/v2/storages`) passes the filename via the `Crowdin-API-FileName` HTTP header. The Go SDK previously wrapped the filename in `url.QueryEscape`, which incorrectly modified filenames containing spaces (converting spaces to `+` signs) or other special characters, resulting in mangled filenames stored in Crowdin storage.

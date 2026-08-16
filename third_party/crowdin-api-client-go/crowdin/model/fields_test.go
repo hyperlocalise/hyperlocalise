@@ -1,6 +1,7 @@
 package model
 
 import (
+	"encoding/json"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -92,7 +93,7 @@ func TestFieldAddRequestValidate(t *testing.T) {
 			name: "valid request",
 			req: &FieldAddRequest{
 				Name: "Custom field", Slug: "custom-field", Type: TypeSelect,
-				Entities: []FieldEntity{EntityTask}, Description: "Custom field description", Config: FieldConfig{},
+				Entities: []FieldEntity{EntityTask}, Description: "Custom field description", Config: &FieldConfig{},
 			},
 			valid: true,
 		},
@@ -107,4 +108,31 @@ func TestFieldAddRequestValidate(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestFieldAddRequest_MarshalJSON(t *testing.T) {
+	t.Run("omits config when nil", func(t *testing.T) {
+		req := &FieldAddRequest{
+			Name:     "Custom field",
+			Slug:     "custom-field",
+			Type:     TypeText,
+			Entities: []FieldEntity{EntityProject},
+		}
+		data, err := json.Marshal(req)
+		assert.NoError(t, err)
+		assert.NotContains(t, string(data), `"config"`)
+	})
+
+	t.Run("includes config when non-nil", func(t *testing.T) {
+		req := &FieldAddRequest{
+			Name:     "Custom field",
+			Slug:     "custom-field",
+			Type:     TypeText,
+			Entities: []FieldEntity{EntityProject},
+			Config:   &FieldConfig{Units: "px"},
+		}
+		data, err := json.Marshal(req)
+		assert.NoError(t, err)
+		assert.Contains(t, string(data), `"config":{"units":"px"}`)
+	})
 }
