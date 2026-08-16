@@ -40,6 +40,7 @@ export default async function Image({ params }: LocalisationAuditResultOgImagePr
         id: "CYGau9cDQe",
         description: "Open Graph fallback description for unknown pages",
       }),
+      locale: lang,
     });
   }
 
@@ -52,6 +53,7 @@ export default async function Image({ params }: LocalisationAuditResultOgImagePr
         id: "CYGau9cDQe",
         description: "Open Graph fallback description for unknown pages",
       }),
+      locale: lang,
     });
   }
 

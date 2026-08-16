@@ -44,5 +44,6 @@ export default async function Image({ params }: TermsOgImageProps) {
   return createMarketingOgImage({
     heading,
     description,
+    locale: lang,
   });
 }

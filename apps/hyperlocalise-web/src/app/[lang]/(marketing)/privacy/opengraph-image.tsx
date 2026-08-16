@@ -43,5 +43,6 @@ export default async function Image({ params }: PrivacyOgImageProps) {
   return createMarketingOgImage({
     heading,
     description,
+    locale: lang,
   });
 }

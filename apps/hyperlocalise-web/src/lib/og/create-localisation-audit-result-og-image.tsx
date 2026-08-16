@@ -24,6 +24,7 @@ import {
 import type { LocalisationAuditDimensionScores } from "@/lib/localisation-audit/types";
 
 import { marketingOgImageContentType, marketingOgImageSize } from "./create-marketing-og-image";
+import { loadMarketingOgFonts } from "./load-marketing-og-fonts";
 
 export { marketingOgImageContentType, marketingOgImageSize };
 
@@ -32,10 +33,6 @@ const AUDIT_RESULT_OG_MESH_SRC = "images/mesh/mesh-gradient-1784864073608.jpg";
 
 const logoPromise = readFile(join(process.cwd(), "public/images/logo.png"));
 const meshPromise = readFile(join(process.cwd(), "public", AUDIT_RESULT_OG_MESH_SRC));
-const domineFontPromise = readFile(
-  join(process.cwd(), "public/fonts/domine-latin-700-normal.woff"),
-);
-const interFontPromise = readFile(join(process.cwd(), "public/fonts/inter-latin-400-normal.ttf"));
 
 const DIMENSIONS = [
   { key: "technical", label: "Technical" },
@@ -65,11 +62,10 @@ export async function createLocalisationAuditResultOgImage({
   dimensionScores = null,
   size = marketingOgImageSize,
 }: CreateLocalisationAuditResultOgImageOptions) {
-  const [logo, mesh, domineFont, interFont] = await Promise.all([
+  const [logo, mesh, ogFonts] = await Promise.all([
     logoPromise,
     meshPromise,
-    domineFontPromise,
-    interFontPromise,
+    loadMarketingOgFonts("en"),
   ]);
 
   const logoSrc = `data:image/png;base64,${logo.toString("base64")}`;
@@ -139,7 +135,7 @@ export async function createLocalisationAuditResultOgImage({
           <div
             style={{
               color: "#ffffff",
-              fontFamily: "Domine",
+              fontFamily: ogFonts.headingFontFamily,
               fontSize: 30,
               fontWeight: 700,
               letterSpacing: "-0.02em",
@@ -160,7 +156,7 @@ export async function createLocalisationAuditResultOgImage({
           <div
             style={{
               color: "rgba(255, 255, 255, 0.78)",
-              fontFamily: "Inter",
+              fontFamily: ogFonts.bodyFontFamily,
               fontSize: 22,
               fontWeight: 400,
               letterSpacing: "0.04em",
@@ -172,7 +168,7 @@ export async function createLocalisationAuditResultOgImage({
           <div
             style={{
               color: "#ffffff",
-              fontFamily: "Domine",
+              fontFamily: ogFonts.headingFontFamily,
               fontSize: domainFontSize(domainKey),
               fontWeight: 700,
               letterSpacing: "-0.03em",
@@ -216,7 +212,7 @@ export async function createLocalisationAuditResultOgImage({
                     borderRadius: 999,
                     backgroundColor: fill,
                     color,
-                    fontFamily: "Domine",
+                    fontFamily: ogFonts.headingFontFamily,
                     fontSize: score == null ? 22 : 30,
                     fontWeight: 700,
                   }}
@@ -226,7 +222,7 @@ export async function createLocalisationAuditResultOgImage({
                 <div
                   style={{
                     color: "rgba(255, 255, 255, 0.88)",
-                    fontFamily: "Inter",
+                    fontFamily: ogFonts.bodyFontFamily,
                     fontSize: 20,
                     fontWeight: 400,
                     textAlign: "center",
@@ -242,10 +238,7 @@ export async function createLocalisationAuditResultOgImage({
     </div>,
     {
       ...size,
-      fonts: [
-        { name: "Domine", data: domineFont, weight: 700, style: "normal" },
-        { name: "Inter", data: interFont, weight: 400, style: "normal" },
-      ],
+      fonts: ogFonts.fonts,
     },
   );
 }

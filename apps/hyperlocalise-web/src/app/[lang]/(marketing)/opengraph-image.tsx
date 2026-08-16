@@ -45,5 +45,6 @@ export default async function Image({ params }: HomeOgImageProps) {
   return createMarketingOgImage({
     heading: toMarketingOgHeading(title),
     description,
+    locale: lang,
   });
 }
