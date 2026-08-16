@@ -175,7 +175,7 @@ Operational notes:
 
 ## Supported integrations
 
-LLM providers are documented in the docs site and currently include `openai`, `azure_openai`, `anthropic`, `lmstudio`, `groq`, `mistral`, `ollama`, `gemini`, `bedrock`, and `openrouter`.
+LLM providers are documented in the docs site and currently include `openai`, `azure_openai`, `anthropic`, `lmstudio`, `groq`, `mistral`, `ollama`, `gemini`, `bedrock`, `openrouter`, and `ai_gateway`.
 
 Storage adapters are documented in the docs site and in `internal/i18n/storage/`, with support for `crowdin`, `lilt`, `lokalise`, `phrase`, `poeditor`, and `smartling`.
 

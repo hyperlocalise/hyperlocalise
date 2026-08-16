@@ -205,6 +205,14 @@ func TestNewRegistersDefaultProviders(t *testing.T) {
 	if _, ok := tool.providers[ProviderBedrock]; !ok {
 		t.Fatalf("expected %q provider to be registered", ProviderBedrock)
 	}
+
+	if _, ok := tool.providers[ProviderOpenRouter]; !ok {
+		t.Fatalf("expected %q provider to be registered", ProviderOpenRouter)
+	}
+
+	if _, ok := tool.providers[ProviderAIGateway]; !ok {
+		t.Fatalf("expected %q provider to be registered", ProviderAIGateway)
+	}
 }
 
 func TestResponseText(t *testing.T) {

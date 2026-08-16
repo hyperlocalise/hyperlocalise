@@ -22,6 +22,7 @@ func TestRegisterBuiltinsRegistersExpectedProviders(t *testing.T) {
 	}
 	slices.Sort(got)
 	want := []string{
+		ProviderAIGateway,
 		ProviderAnthropic,
 		ProviderAzureOpenAI,
 		ProviderBedrock,

@@ -87,7 +87,8 @@
               "providers/lmstudio",
               "providers/groq",
               "providers/ollama",
-              "providers/openrouter"
+              "providers/openrouter",
+              "providers/ai-gateway"
             ]
           },
           {

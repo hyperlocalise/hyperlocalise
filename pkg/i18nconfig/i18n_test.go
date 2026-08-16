@@ -155,6 +155,15 @@ func TestLoad(t *testing.T) {
 			}`,
 		},
 		{
+			name: "valid llm provider ai_gateway",
+			content: `{
+			  "locales": {"source": "en-US", "targets": ["es-ES"]},
+			  "buckets": {"ui": {"files": [{"from": "a", "to": "b"}]}},
+			  "groups": {"g": {"targets": ["es-ES"], "buckets": ["ui"]}},
+			  "llm": {"profiles": {"default": {"provider": "ai_gateway", "model": "x", "prompt": "p"}}}
+			}`,
+		},
+		{
 			name: "valid llm provider ollama",
 			content: `{
 			  "locales": {"source": "en-US", "targets": ["es-ES"]},
