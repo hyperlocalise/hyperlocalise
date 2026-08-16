@@ -20,6 +20,7 @@ import {
   groupPagesByLanguage,
   isCjkLanguage,
   isLatinScriptLanguage,
+  isPlausibleCtaCopy,
   isRtlLanguage,
   languageOf,
   looksLikeUrlOrEmail,
@@ -31,6 +32,28 @@ import type { HeuristicCreditOutcome, HeuristicScorer } from "../types";
 
 function scored(score: number, findings: LocalisationAuditFinding[]): HeuristicCreditOutcome {
   return { status: "scored", score: clampScore(score), findings };
+}
+
+function ctaCandidates(page: { buttons: string[]; anchors: Array<{ text: string }> }): Array<{
+  text: string;
+  tag: "<button>" | "<a>";
+}> {
+  const seen = new Set<string>();
+  const candidates: Array<{ text: string; tag: "<button>" | "<a>" }> = [];
+  const push = (text: string, tag: "<button>" | "<a>") => {
+    if (!isPlausibleCtaCopy(text) || seen.has(text)) {
+      return;
+    }
+    seen.add(text);
+    candidates.push({ text, tag });
+  };
+  for (const text of page.buttons) {
+    push(text, "<button>");
+  }
+  for (const anchor of page.anchors) {
+    push(anchor.text, "<a>");
+  }
+  return candidates;
 }
 
 const scoreTranslationCompleteness: HeuristicScorer = (context) => {
@@ -100,17 +123,12 @@ const scoreTranslationCompleteness: HeuristicScorer = (context) => {
 
     if (isLatinScriptLanguage(locale)) {
       const sourcePages = groupPagesByLanguage(context.pages).get(source) ?? [];
-      const sourceCtas = sourcePages.flatMap((item) => [
-        ...item.buttons,
-        ...item.anchors.map((a) => a.text),
-      ]);
-      const overlap = [...page.buttons, ...page.anchors.map((anchor) => anchor.text)].filter(
-        (textValue) =>
-          textValue.length >= 8 &&
-          sourceCtas.includes(textValue) &&
-          !looksLikeUrlOrEmail(textValue),
+      const sourceCtas = new Set(
+        sourcePages.flatMap((item) => ctaCandidates(item).map((cta) => cta.text)),
       );
+      const overlap = ctaCandidates(page).filter((cta) => sourceCtas.has(cta.text));
       if (overlap.length > 0) {
+        const primary = overlap[0]!;
         score -= 22;
         findings.push(
           creditFinding({
@@ -120,9 +138,12 @@ const scoreTranslationCompleteness: HeuristicScorer = (context) => {
             severity: "high",
             title: "Untranslated call to action",
             summary: `A ${locale} page still uses source-language CTA copy.`,
-            where: formatFindingWhere({ section: "Pricing hero", tag: "<button>" }),
+            where: formatFindingWhere({
+              section: primary.tag === "<button>" ? "Primary action" : "Link",
+              tag: primary.tag,
+            }),
             url: page.url,
-            evidence: `Primary CTA: "${overlap[0]}"`,
+            evidence: clipFindingEvidence(`Primary CTA: "${primary.text}"`),
             advice: "Translate leftover source-language CTAs to match the surrounding locale copy.",
             confidence: 92,
           }),

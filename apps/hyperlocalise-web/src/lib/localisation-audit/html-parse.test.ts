@@ -170,4 +170,29 @@ describe("parsePageSignals", () => {
     expect(signals.anchors[0]).toEqual({ href: "/p/0", text: "P0" });
     expect(signals.anchors[79]).toEqual({ href: "/p/79", text: "P79" });
   });
+
+  it("does not treat style or script text inside buttons as the button label", () => {
+    const signals = parsePageSignals(`
+      <html lang="vi">
+        <body>
+          <button>
+            Đăng ký
+            <style>@keyframes shimmer { 0% { background-position: 250% 0; } 100% { background-position: -250% 0; } }</style>
+          </button>
+          <button>
+            <style>@keyframes pulse { from { opacity: 0; } to { opacity: 1; } }</style>
+          </button>
+          <a href="/signup">
+            Bắt đầu
+            <script>window.__cta = true</script>
+          </a>
+        </body>
+      </html>
+    `);
+
+    expect(signals.buttons).toEqual(["Đăng ký"]);
+    expect(signals.anchors).toEqual([{ href: "/signup", text: "Bắt đầu" }]);
+    expect(signals.buttons.join(" ")).not.toContain("@keyframes");
+    expect(signals.anchors.map((anchor) => anchor.text).join(" ")).not.toContain("__cta");
+  });
 });

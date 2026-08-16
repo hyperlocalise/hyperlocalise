@@ -358,17 +358,19 @@ export function parsePageSignals(html: string): ParsedPageSignals {
         if (inStyle) {
           styleBuffer += text;
         }
-        if (currentAnchor) {
-          currentAnchor.textParts.push(text);
-        }
-        if (inButton) {
-          buttonBuffer += text;
-        }
-        if (inLabel) {
-          labelBuffer += text;
-        }
-        if (headingTag) {
-          headingBuffer += text;
+        if (!inScriptOrStyle) {
+          if (currentAnchor) {
+            currentAnchor.textParts.push(text);
+          }
+          if (inButton) {
+            buttonBuffer += text;
+          }
+          if (inLabel) {
+            labelBuffer += text;
+          }
+          if (headingTag) {
+            headingBuffer += text;
+          }
         }
         if (!inScriptOrStyle && !inTitle && !inJsonLd) {
           const cleaned = text.replace(/\s+/g, " ").trim();

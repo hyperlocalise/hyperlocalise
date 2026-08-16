@@ -18,8 +18,10 @@ import {
   htmlLangMatchesPathLocale,
   htmlLangSuggestionForPathLocale,
   isCjkLanguage,
+  isPlausibleCtaCopy,
   isRtlLanguage,
   isWellFormedHtmlLang,
+  looksLikeCssOrCode,
   pageLocale,
   pathLocaleFromUrl,
   textHasEasternArabicDigits,
@@ -129,5 +131,23 @@ describe("script and calendar helpers", () => {
     expect(textHasGregorianCalendarSignals("15 يناير 2024")).toBe(true);
     expect(textHasGregorianCalendarSignals("January 2024")).toBe(true);
     expect(textHasGregorianCalendarSignals("1 رمضان 1446")).toBe(false);
+  });
+});
+
+describe("CTA copy filters", () => {
+  it("rejects CSS keyframes and other non-copy leaked into controls", () => {
+    const shimmer =
+      "@keyframes shimmer { 0% { background-position: 250% 0; } 100% { background-position: -250% 0; } }";
+    expect(looksLikeCssOrCode(shimmer)).toBe(true);
+    expect(isPlausibleCtaCopy(shimmer)).toBe(false);
+    expect(isPlausibleCtaCopy("color: red; width: 12px;")).toBe(false);
+    expect(isPlausibleCtaCopy("https://example.com/signup")).toBe(false);
+  });
+
+  it("accepts short human CTA labels", () => {
+    expect(isPlausibleCtaCopy("Get started")).toBe(true);
+    expect(isPlausibleCtaCopy("Start free trial")).toBe(true);
+    expect(isPlausibleCtaCopy("Bắt đầu ngay")).toBe(true);
+    expect(isPlausibleCtaCopy("OK")).toBe(false);
   });
 });

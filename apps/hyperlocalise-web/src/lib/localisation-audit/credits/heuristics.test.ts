@@ -630,6 +630,71 @@ describe("linguistic heuristic credits", () => {
 
     expect(outcome.status).toBe("inconclusive");
   });
+
+  it("does not treat shared CSS leaked into buttons as an untranslated CTA", () => {
+    const shimmer =
+      "@keyframes shimmer { 0% { background-position: 250% 0; } 100% { background-position: -250% 0; } }";
+    const outcome = linguisticHeuristicScorers["translation-completeness"]!(
+      context([
+        emptyCrawledPage({
+          url: "https://www.weex.com/",
+          htmlLang: "en",
+          buttons: [shimmer, "Get started"],
+          textSample: "Trade crypto with a global exchange built for growing teams worldwide.",
+        }),
+        emptyCrawledPage({
+          url: "https://www.weex.com/vi",
+          htmlLang: "vi",
+          buttons: [shimmer, "Bắt đầu ngay"],
+          textSample: "Giao dịch tiền mã hóa trên sàn toàn cầu dành cho các nhóm đang phát triển.",
+        }),
+        emptyCrawledPage({
+          url: "https://www.weex.com/de",
+          htmlLang: "de",
+          buttons: [shimmer, "Jetzt starten"],
+          textSample: "Handle Krypto auf einer globalen Börse für wachsende Teams weltweit.",
+        }),
+      ]),
+    );
+
+    expect(outcome.status).toBe("inconclusive");
+    if (outcome.status === "na") return;
+    expect(outcome.findings.some((finding) => finding.title === "Untranslated call to action")).toBe(
+      false,
+    );
+  });
+
+  it("still flags leftover source-language CTA copy on Latin-script locale pages", () => {
+    const outcome = linguisticHeuristicScorers["translation-completeness"]!(
+      context([
+        emptyCrawledPage({
+          url: "https://example.com/en/pricing",
+          htmlLang: "en",
+          buttons: [
+            "@keyframes shimmer { 0% { background-position: 250% 0; } }",
+            "Get started",
+          ],
+          textSample: "Welcome to our pricing page for growing product teams worldwide.",
+        }),
+        emptyCrawledPage({
+          url: "https://example.com/vi/pricing",
+          htmlLang: "vi",
+          buttons: [
+            "@keyframes shimmer { 0% { background-position: 250% 0; } }",
+            "Get started",
+          ],
+          textSample: "Chào mừng đến trang giá dành cho các nhóm sản phẩm đang phát triển.",
+        }),
+      ]),
+    );
+
+    expect(outcome.status).toBe("scored");
+    if (outcome.status !== "scored") return;
+    const cta = outcome.findings.find((finding) => finding.title === "Untranslated call to action");
+    expect(cta?.evidence).toBe('Primary CTA: "Get started"');
+    expect(cta?.where).toBe("Primary action · <button>");
+    expect(cta?.evidence).not.toContain("@keyframes");
+  });
 });
 
 describe("contextual heuristic credits", () => {

@@ -288,6 +288,35 @@ export function looksLikeUrlOrEmail(text: string): boolean {
   return /https?:\/\/|www\.|@[\w.-]+\.\w{2,}/i.test(text);
 }
 
+const CTA_COPY_MIN_CHARS = 8;
+const CTA_COPY_MAX_CHARS = 72;
+const CSS_AT_RULE_RE = /@(?:keyframes|media|font-face|import|supports|layer)\b/i;
+const CSS_DECLARATION_RE = /[a-z-]+\s*:\s*[^:;{}]+;/i;
+const CSS_VALUE_HINT_RE = /--|px|%|rgb|hsl|#[0-9a-f]{3,8}/i;
+
+/** Inline CSS, keyframes, or other non-copy leaked into button/anchor text. */
+export function looksLikeCssOrCode(text: string): boolean {
+  if (CSS_AT_RULE_RE.test(text) || /[{}]/.test(text)) {
+    return true;
+  }
+  return CSS_DECLARATION_RE.test(text) && CSS_VALUE_HINT_RE.test(text);
+}
+
+/**
+ * Whether a button or link label is short human copy that can be compared
+ * across locales. Rejects CSS, URLs, and other non-CTA noise.
+ */
+export function isPlausibleCtaCopy(text: string): boolean {
+  const trimmed = text.replace(/\s+/g, " ").trim();
+  if (trimmed.length < CTA_COPY_MIN_CHARS || trimmed.length > CTA_COPY_MAX_CHARS) {
+    return false;
+  }
+  if (looksLikeUrlOrEmail(trimmed) || looksLikeCssOrCode(trimmed)) {
+    return false;
+  }
+  return /\p{L}/u.test(trimmed);
+}
+
 export function looksPrimarilyEnglish(text: string): boolean {
   const sample = text.slice(0, 800);
   if (sample.length < 40) return false;
