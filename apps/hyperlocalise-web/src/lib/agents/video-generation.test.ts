@@ -14,7 +14,7 @@ import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
 const { generateVideoMock, getManagedVideoModelMock } = vi.hoisted(() => ({
   generateVideoMock: vi.fn(),
-  getManagedVideoModelMock: vi.fn(() => "google/gemini-omni-flash-preview"),
+  getManagedVideoModelMock: vi.fn(() => "bytedance/seedance-2.5"),
 }));
 
 vi.mock("ai", async () => {
@@ -27,7 +27,7 @@ vi.mock("ai", async () => {
 
 vi.mock("@/lib/providers/language-model", () => ({
   getManagedVideoModel: getManagedVideoModelMock,
-  hyperlocaliseVideoModelId: "google/gemini-omni-flash-preview",
+  hyperlocaliseVideoModelId: "bytedance/seedance-2.5",
 }));
 
 vi.mock("@/lib/billing/agent-runtime-usage", () => ({
@@ -44,7 +44,7 @@ describe("video generation", () => {
     });
   });
 
-  it("generates localized videos through the managed Omni Gateway model", async () => {
+  it("generates localized videos through the managed Seedance Gateway model", async () => {
     const result = await regenerateVideoFromAttachment(
       Buffer.from("source-video"),
       "video/mp4",
@@ -54,8 +54,14 @@ describe("video generation", () => {
     expect(getManagedVideoModelMock).toHaveBeenCalledOnce();
     expect(generateVideoMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        model: "google/gemini-omni-flash-preview",
+        model: "bytedance/seedance-2.5",
         prompt: "Localize this clip into Spanish",
+        generateAudio: true,
+        providerOptions: {
+          bytedance: {
+            pollTimeoutMs: 600_000,
+          },
+        },
       }),
     );
     expect(result).toEqual({

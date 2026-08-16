@@ -40,7 +40,7 @@ BYOK:
 | Media | Gateway model | Why |
 |-------|---------------|-----|
 | Image translation | `openai/gpt-image-2` | OpenAI image model through Vercel AI Gateway |
-| Video translation | `google/gemini-omni-flash-preview` | Gemini Omni through the same Gateway |
+| Video translation | `bytedance/seedance-2.5` | Seedance 2.5 through the same Gateway |
 
 File-translation sandboxes follow the same BYOK-then-managed order as string
 jobs. When the organization has a stored provider credential, the sandbox CLI

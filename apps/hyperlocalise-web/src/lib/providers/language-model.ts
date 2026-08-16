@@ -19,7 +19,7 @@ import type { LlmProvider } from "@/lib/database/types";
 
 export const hyperlocaliseManagedGatewayModelId = `openai/${hyperlocaliseAgentModelId}`;
 export const hyperlocaliseImageModelId = "openai/gpt-image-2";
-export const hyperlocaliseVideoModelId = "google/gemini-omni-flash-preview";
+export const hyperlocaliseVideoModelId = "bytedance/seedance-2.5";
 
 export type AgentLanguageModelSource = LlmProvider | "gateway";
 

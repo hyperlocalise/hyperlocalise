@@ -21,7 +21,7 @@ describe("video localization helpers", () => {
     expect(localizedVideoOutputFilename(undefined, "de")).toBe("video-de.mp4");
   });
 
-  it("includes source and target locale in the Omni prompt", () => {
+  it("includes source and target locale in the Seedance prompt", () => {
     const prompt = buildVideoLocalizationPrompt({
       filename: "hero.mp4",
       sourceLocale: "en-US",
@@ -29,6 +29,7 @@ describe("video localization helpers", () => {
       instructions: "Keep the logo.",
     });
 
+    expect(prompt).toContain("Use [Video 1] as the source");
     expect(prompt).toContain("Source locale: en-US");
     expect(prompt).toContain("Target locale: fr-FR");
     expect(prompt).toContain("User instructions: Keep the logo.");

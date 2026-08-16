@@ -1,5 +1,10 @@
 # Video localization with Gemini Omni Flash
 
+Superseded for the model id by
+[2026-08-16-video-seedance-model-design.md](./2026-08-16-video-seedance-model-design.md).
+The dual-entry CAT paths, duration gates, and error codes in this note still
+apply.
+
 ## Date
 
 2026-08-13
@@ -87,4 +92,4 @@ No live Omni calls in `vp test`.
 ## Follow-ups
 
 webm, captions/SRT, CLI sync, Slack/email/Contentful, YouTube/Vimeo, clips over
-10s, org BYOK for Omni, Gateway cutover for images.
+10s, org BYOK for video, Gateway cutover for images.

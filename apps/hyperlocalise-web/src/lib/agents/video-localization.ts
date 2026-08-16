@@ -57,7 +57,7 @@ export function buildVideoLocalizationPrompt(input: {
   contextLines?: Array<string | null | undefined>;
 }) {
   return [
-    "Use the attached video as the source and generate a localized version.",
+    "Use [Video 1] as the source and generate a localized version.",
     "Preserve the original layout, style, composition, motion, brand treatment, and visual hierarchy unless the user explicitly asks for a change.",
     "Localize on-screen text and spoken audio into the target locale. Keep everything else the same.",
     input.sourceLocale ? `Source locale: ${input.sourceLocale}` : "Source locale: auto-detect",

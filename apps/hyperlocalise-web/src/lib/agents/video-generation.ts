@@ -87,6 +87,11 @@ async function generateVideoFromPrompt(
     aspectRatio: "adaptive",
     generateAudio: true,
     ...(durationSeconds != null ? { duration: durationSeconds } : {}),
+    providerOptions: {
+      bytedance: {
+        pollTimeoutMs: 600_000,
+      },
+    },
   });
 
   const generatedVideo = result.video;
@@ -102,7 +107,7 @@ async function generateVideoFromPrompt(
 
 /**
  * End-to-end video regeneration pipeline:
- * 1. Send the source video and localization prompt to Gemini Omni via AI Gateway
+ * 1. Send the source video and localization prompt to Seedance 2.5 via AI Gateway
  * 2. Return the generated video buffer and the prompt used
  */
 export async function regenerateVideoFromAttachment(
