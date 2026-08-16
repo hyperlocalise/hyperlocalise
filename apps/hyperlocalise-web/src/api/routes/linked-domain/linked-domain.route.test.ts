@@ -412,4 +412,117 @@ describe("linkedDomainRoutes", () => {
 
     await db.delete(schema.localisationAudits).where(eq(schema.localisationAudits.id, audit.id));
   });
+
+  it("rejects claiming a domain slug that is not a valid audit slug", async () => {
+    const identity = fixture.createWorkosIdentityWithRole("admin");
+    const headers = await fixture.authHeadersFor(identity);
+    const organizationSlug = identity.organization.slug ?? "missing-slug";
+
+    const response = await client.api.orgs[":organizationSlug"]["linked-domains"].$post(
+      {
+        param: { organizationSlug },
+        json: { domainSlug: "Example.COM" },
+      },
+      { headers },
+    );
+    expect(response.status).toBe(400);
+    const body = await response.json();
+    if (!("error" in body)) {
+      throw new Error("expected error in invalid slug response");
+    }
+    expect(body.error).toBe("invalid_domain_slug");
+  });
+
+  it("rejects claiming an audit that has not succeeded yet", async () => {
+    const identity = fixture.createWorkosIdentityWithRole("admin");
+    const headers = await fixture.authHeadersFor(identity);
+    const organizationSlug = identity.organization.slug ?? "missing-slug";
+    const domainKey = `pending-audit-${crypto.randomUUID().slice(0, 8)}.example`;
+    const domainSlug = hostnameToDomainSlug(domainKey);
+    const [audit] = await db
+      .insert(schema.localisationAudits)
+      .values({
+        domainKey,
+        domainSlug,
+        sourceUrl: `https://${domainKey}/`,
+        status: "running",
+        score: null,
+        teaser: null,
+        report: null,
+      })
+      .returning();
+
+    const response = await client.api.orgs[":organizationSlug"]["linked-domains"].$post(
+      {
+        param: { organizationSlug },
+        json: { domainSlug },
+      },
+      { headers },
+    );
+    expect(response.status).toBe(400);
+    const body = await response.json();
+    if (!("error" in body)) {
+      throw new Error("expected error in audit_not_ready response");
+    }
+    expect(body.error).toBe("audit_not_ready");
+
+    await db.delete(schema.localisationAudits).where(eq(schema.localisationAudits.id, audit.id));
+  });
+
+  it("revives a failed claim with a fresh verification token", async () => {
+    const identity = fixture.createWorkosIdentityWithRole("admin");
+    const headers = await fixture.authHeadersFor(identity);
+    const organizationSlug = identity.organization.slug ?? "missing-slug";
+    const organizationId = globalThis.__testApiAuthContext?.organization.localOrganizationId;
+    const userId = globalThis.__testApiAuthContext?.user.localUserId;
+    expect(organizationId).toBeTruthy();
+    expect(userId).toBeTruthy();
+
+    const domainKey = `revive-${crypto.randomUUID().slice(0, 8)}.example`;
+    const audit = await insertSucceededAudit(domainKey);
+    const staleToken = "stale-verification-token";
+    const [failedClaim] = await db
+      .insert(schema.linkedDomains)
+      .values({
+        organizationId: organizationId!,
+        createdByUserId: userId!,
+        domainKey: audit.domainKey,
+        domainSlug: audit.domainSlug,
+        sourceUrl: audit.sourceUrl,
+        status: "failed",
+        verificationToken: staleToken,
+        localisationAuditId: audit.id,
+      })
+      .returning();
+
+    const response = await client.api.orgs[":organizationSlug"]["linked-domains"].$post(
+      {
+        param: { organizationSlug },
+        json: { domainSlug: audit.domainSlug },
+      },
+      { headers },
+    );
+    expect(response.status).toBe(201);
+    const body = await response.json();
+    if (!("linkedDomain" in body)) {
+      throw new Error("expected linkedDomain in revive response");
+    }
+    expect(body.linkedDomain.id).toBe(failedClaim.id);
+    expect(body.linkedDomain.status).toBe("pending_verification");
+    expect(body.linkedDomain.challenges.token).not.toBe(staleToken);
+    expect(body.linkedDomain.challenges.htmlFile.body).toBe(body.linkedDomain.challenges.token);
+    expect(body.linkedDomain.challenges.dnsTxt.value).toContain(body.linkedDomain.challenges.token);
+
+    const [revived] = await db
+      .select()
+      .from(schema.linkedDomains)
+      .where(eq(schema.linkedDomains.id, failedClaim.id))
+      .limit(1);
+    expect(revived?.status).toBe("pending_verification");
+    expect(revived?.verificationToken).not.toBe(staleToken);
+    expect(revived?.verificationToken.length).toBeGreaterThan(0);
+
+    await db.delete(schema.linkedDomains).where(eq(schema.linkedDomains.id, failedClaim.id));
+    await db.delete(schema.localisationAudits).where(eq(schema.localisationAudits.id, audit.id));
+  });
 });
