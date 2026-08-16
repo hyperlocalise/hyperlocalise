@@ -289,6 +289,31 @@ describe("conversation skill agent", () => {
     }
   });
 
+  it("reuses a resolved language model without calling the org resolver again", async () => {
+    await createConversationSkillAgent(
+      {
+        surface: "web",
+        hasFileAttachments: false,
+        hasTmsIntegration: false,
+        toolContext: baseToolContext,
+      },
+      undefined,
+      {
+        model: "passed-model" as never,
+        source: "openai",
+        modelId: "gpt-5.6-luna",
+      },
+    );
+
+    expect(resolveHyperlocaliseAgentLanguageModelMock).not.toHaveBeenCalled();
+    expect(toolLoopAgentMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        model: "passed-model",
+        providerOptions: { openai: { reasoningSummary: "auto" } },
+      }),
+    );
+  });
+
   it("omits OpenAI provider options when the organization uses Anthropic BYOK", async () => {
     resolveHyperlocaliseAgentLanguageModelMock.mockResolvedValueOnce({
       model: "anthropic-model",

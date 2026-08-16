@@ -25,10 +25,6 @@ vi.mock("ai", async () => {
   };
 });
 
-vi.mock("@/lib/agent-runtime/loops/model", () => ({
-  getHyperlocaliseAgentModel: vi.fn(() => "mock-model"),
-}));
-
 import {
   classifyConversation,
   fallbackConversationClassification,
@@ -130,6 +126,7 @@ describe("conversation classifier", () => {
         hasFileAttachments: false,
         hasStoredRepositoryContext: true,
         surface: "slack",
+        model: "org-model",
       }),
     ).resolves.toEqual(
       expect.objectContaining({
@@ -141,6 +138,7 @@ describe("conversation classifier", () => {
     expect(generateTextMock).toHaveBeenCalledOnce();
     expect(generateTextMock).toHaveBeenCalledWith(
       expect.objectContaining({
+        model: "org-model",
         instructions: expect.stringContaining("localization agent"),
       }),
     );
@@ -161,6 +159,7 @@ describe("conversation classifier", () => {
         hasFileAttachments: false,
         hasStoredRepositoryContext: false,
         surface: "slack",
+        model: "org-model",
       }),
     ).resolves.toEqual(
       expect.objectContaining({
@@ -205,6 +204,7 @@ describe("conversation classifier", () => {
       hasStoredRepositoryContext: true,
       knowledgeMemoryEnabled: true,
       surface: "web",
+      model: "org-model",
     });
 
     expect(classification).toMatchObject({
@@ -242,6 +242,7 @@ describe("conversation classifier", () => {
         hasFileAttachments: false,
         hasStoredRepositoryContext: true,
         surface: "slack",
+        model: "org-model",
       }),
     ).resolves.toEqual(
       expect.objectContaining({
@@ -264,6 +265,7 @@ describe("conversation classifier", () => {
         hasFileAttachments: false,
         hasStoredRepositoryContext: false,
         surface: "web",
+        model: "org-model",
       }),
     ).resolves.toEqual(
       fallbackConversationClassification({

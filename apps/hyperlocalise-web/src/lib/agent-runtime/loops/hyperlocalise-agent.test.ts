@@ -168,6 +168,7 @@ describe("hyperlocalise agent core", () => {
         toolContext: expect.objectContaining({ projectId: "proj_123" }),
       }),
       undefined,
+      undefined,
     );
   });
 });

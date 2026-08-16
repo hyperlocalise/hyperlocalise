@@ -41,6 +41,7 @@ import {
 import { db } from "@/lib/database";
 import { env } from "@/lib/env";
 import { resolveWorkspaceVisualMockFlag } from "@/lib/flags/workspace-flags";
+import { resolveHyperlocaliseAgentLanguageModel } from "@/lib/providers/organization-language-model";
 import { createChatLogger, createLogger, serializeErrorForLog } from "@/lib/log";
 import {
   addInteractionMessage,
@@ -306,12 +307,16 @@ async function processSlackMessage(
       return [{ role: chatMessage.role, content: chatMessage.content }];
     });
     const storedRepositoryContext = threadState?.repositoryGitHubContext ?? null;
+    const languageModel = await resolveHyperlocaliseAgentLanguageModel({
+      organizationId,
+    });
     const classification = await classifyConversation({
       currentMessage: message.text,
       conversationText,
       hasFileAttachments: hasTranslationAttachments,
       hasStoredRepositoryContext: Boolean(storedRepositoryContext),
       surface: "slack",
+      model: languageModel.model,
     });
     log.info(
       {
@@ -456,6 +461,7 @@ async function processSlackMessage(
       additionalInstructions: [buildFileTranslationInstructions(), repositoryContextInstructions]
         .filter((instruction): instruction is string => instruction !== null)
         .join("\n\n"),
+      languageModel,
     });
     log.info(
       {

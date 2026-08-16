@@ -22,6 +22,7 @@ const {
   resolveOrganizationHasTmsIntegrationMock,
   resolveWorkspaceVisualMockFlagMock,
   getOrganizationRepositoryConnectorConfigMock,
+  resolveHyperlocaliseAgentLanguageModelMock,
 } = vi.hoisted(() => ({
   classifyConversationMock: vi.fn(),
   createConversationToolLoopAgentMock: vi.fn(() => ({ stream: vi.fn() })),
@@ -34,6 +35,11 @@ const {
   getOrganizationRepositoryConnectorConfigMock: vi.fn(
     async (): Promise<Record<string, unknown> | null> => null,
   ),
+  resolveHyperlocaliseAgentLanguageModelMock: vi.fn(async () => ({
+    model: "org-model",
+    source: "gateway" as const,
+    modelId: "openai/gpt-5.6-luna",
+  })),
 }));
 
 vi.mock("@/lib/env", () => ({
@@ -69,6 +75,10 @@ vi.mock("./hyperlocalise-agent", () => ({
       (input?.repositoryContextStatus === "unresolved" && classification.needsRepositoryTools) ||
       classification.shouldAskForRepositoryClarification,
   ),
+}));
+
+vi.mock("@/lib/providers/organization-language-model", () => ({
+  resolveHyperlocaliseAgentLanguageModel: resolveHyperlocaliseAgentLanguageModelMock,
 }));
 
 vi.mock("@/lib/agents/repository-context", () => ({
@@ -238,14 +248,26 @@ describe("conversation turn preparation", () => {
     });
 
     expect(result.clarificationFollowUp).toBeNull();
+    expect(resolveHyperlocaliseAgentLanguageModelMock).toHaveBeenCalledOnce();
+    expect(resolveHyperlocaliseAgentLanguageModelMock).toHaveBeenCalledWith({
+      organizationId: "org_123",
+    });
     expect(classifyConversationMock).toHaveBeenCalledWith(
-      expect.objectContaining({ knowledgeMemoryEnabled: true }),
+      expect.objectContaining({
+        knowledgeMemoryEnabled: true,
+        model: "org-model",
+      }),
     );
     expect(createConversationToolLoopAgentMock).toHaveBeenCalledWith(
       expect.objectContaining({
         surface: "web",
         hasFileAttachments: false,
         hasTmsIntegration: true,
+        languageModel: {
+          model: "org-model",
+          source: "gateway",
+          modelId: "openai/gpt-5.6-luna",
+        },
         toolContext: expect.objectContaining({
           reportToolProgress,
           knowledgeMemoryEnabled: true,

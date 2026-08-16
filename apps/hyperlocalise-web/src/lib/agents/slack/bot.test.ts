@@ -46,6 +46,7 @@ const {
   loadMessagesMock,
   resolveOrganizationHasTmsIntegrationMock,
   resolveSlackRepositoryGitHubContextMock,
+  resolveHyperlocaliseAgentLanguageModelMock,
 } = vi.hoisted(() => ({
   agentGenerateMock: vi.fn(),
   classifyConversationMock: vi.fn(async () => createMockClassification()),
@@ -55,6 +56,11 @@ const {
   loadMessagesMock: vi.fn(async () => []),
   resolveOrganizationHasTmsIntegrationMock: vi.fn(async () => false),
   resolveSlackRepositoryGitHubContextMock: vi.fn(),
+  resolveHyperlocaliseAgentLanguageModelMock: vi.fn(async () => ({
+    model: "org-model",
+    source: "gateway" as const,
+    modelId: "openai/gpt-5.6-luna",
+  })),
 }));
 
 const { enqueueRepositoryTaskMock } = vi.hoisted(() => ({
@@ -113,6 +119,10 @@ vi.mock("@/lib/agent-runtime/loops/hyperlocalise-agent", () => {
       },
     }));
 });
+
+vi.mock("@/lib/providers/organization-language-model", () => ({
+  resolveHyperlocaliseAgentLanguageModel: resolveHyperlocaliseAgentLanguageModelMock,
+}));
 
 vi.mock("@/lib/agent-runtime/skills/conversation-tms-integration", () => ({
   resolveOrganizationHasTmsIntegration: resolveOrganizationHasTmsIntegrationMock,
@@ -1710,11 +1720,13 @@ describe("handleSubscribedMessage", () => {
     expect(classifyConversationMock).toHaveBeenCalledWith(
       expect.objectContaining({
         hasFileAttachments: true,
+        model: "org-model",
       }),
     );
     expect(createConversationToolLoopAgentMock).toHaveBeenCalledWith(
       expect.objectContaining({
         hasFileAttachments: true,
+        languageModel: expect.objectContaining({ model: "org-model" }),
       }),
     );
     expect(posts[0]).toEqual(SLACK_PROCESSING_ACK_POST);

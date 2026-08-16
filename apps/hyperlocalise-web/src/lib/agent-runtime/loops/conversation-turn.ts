@@ -52,6 +52,7 @@ import {
   type ConversationRepositorySession,
 } from "./conversation-repository-session";
 import { resolveWorkspaceVisualMockFlag } from "@/lib/flags/workspace-flags";
+import { resolveHyperlocaliseAgentLanguageModel } from "@/lib/providers/organization-language-model";
 
 const logger = createLogger("conversation-turn");
 
@@ -380,6 +381,9 @@ export async function prepareConversationAgentTurn(
   const chatMessages = await loadInteractionModelMessages(input.conversationId);
   const conversationText = getRecentUserConversationText(chatMessages, input.messageText);
   const storedRepositoryContext = input.repositorySession?.repositoryGitHubContext ?? null;
+  const languageModel = await resolveHyperlocaliseAgentLanguageModel({
+    organizationId: input.organizationId,
+  });
 
   const classification = await classifyConversation({
     currentMessage: input.messageText,
@@ -388,6 +392,7 @@ export async function prepareConversationAgentTurn(
     hasStoredRepositoryContext: Boolean(storedRepositoryContext),
     knowledgeMemoryEnabled: input.knowledgeMemoryEnabled === true,
     surface: input.surface,
+    model: languageModel.model,
   });
 
   const repositoryResolution = await resolveConversationRepositoryContext({
@@ -477,6 +482,7 @@ export async function prepareConversationAgentTurn(
     additionalInstructions: [buildFileTranslationInstructions(), repositoryInstructions]
       .filter((instruction): instruction is string => instruction !== null)
       .join("\n\n"),
+    languageModel,
   });
 
   return {
