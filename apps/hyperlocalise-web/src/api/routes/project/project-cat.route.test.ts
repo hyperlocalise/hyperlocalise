@@ -77,9 +77,13 @@ vi.mock("@/lib/flags/release-flags", () => ({
   RELEASE_CAT_ALL_FILES_FLAG: "release-cat-all-files",
 }));
 
-vi.mock("@/lib/flags/workspace-flags", () => ({
-  workspaceIssuesFlag: { run: workspaceIssuesFlagRunMock },
-}));
+vi.mock("@/lib/flags/workspace-flags", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/flags/workspace-flags")>();
+  return {
+    ...actual,
+    workspaceIssuesFlag: { run: workspaceIssuesFlagRunMock },
+  };
+});
 
 vi.mock("@/lib/translation/cat", () => ({
   loadCatSegmentConcordance: (...args: unknown[]) => loadCatSegmentConcordanceMock(...args),
