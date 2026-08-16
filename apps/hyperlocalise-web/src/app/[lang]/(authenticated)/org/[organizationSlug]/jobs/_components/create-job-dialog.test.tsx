@@ -196,7 +196,9 @@ describe("CreateJobDialog", () => {
     expect(await screen.findByRole("group", { name: "Files" })).toBeInTheDocument();
     expect(screen.getByRole("checkbox", { name: "marketing/home.json" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Collapse marketing" })).toBeInTheDocument();
-    expect(screen.queryByRole("checkbox", { name: "marketing/campaigns/spring.json" })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("checkbox", { name: "marketing/campaigns/spring.json" }),
+    ).not.toBeInTheDocument();
   });
 
   it("exposes locale and file membership to assistive technologies", async () => {
@@ -256,7 +258,9 @@ describe("CreateJobDialog", () => {
     renderDialog();
 
     const files = await screen.findByRole("group", { name: "Files" });
-    expect(within(files).queryByRole("checkbox", { name: "marketing/campaigns/spring.json" })).not.toBeInTheDocument();
+    expect(
+      within(files).queryByRole("checkbox", { name: "marketing/campaigns/spring.json" }),
+    ).not.toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Expand campaigns" }));
     const springFile = await screen.findByRole("checkbox", {

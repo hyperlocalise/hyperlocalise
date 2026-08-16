@@ -46,7 +46,9 @@ const ROW_CLASS =
 
 function toggleIds(selectedIds: string[], ids: string[], shouldSelect: boolean) {
   if (shouldSelect) {
-    return [...new Set([...selectedIds, ...ids])].toSorted((left, right) => left.localeCompare(right));
+    return [...new Set([...selectedIds, ...ids])].toSorted((left, right) =>
+      left.localeCompare(right),
+    );
   }
   const remove = new Set(ids);
   return selectedIds.filter((id) => !remove.has(id));
@@ -112,14 +114,8 @@ function FileTreeFolder({
   });
 
   return (
-    <Collapsible
-      open={open}
-      onOpenChange={(nextOpen) => onExpandedChange(folder.path, nextOpen)}
-    >
-      <div
-        style={{ paddingInlineStart: depth * 12 }}
-        className={ROW_CLASS}
-      >
+    <Collapsible open={open} onOpenChange={(nextOpen) => onExpandedChange(folder.path, nextOpen)}>
+      <div style={{ paddingInlineStart: depth * 12 }} className={ROW_CLASS}>
         <CollapsibleTrigger
           render={
             <Button

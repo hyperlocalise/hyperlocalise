@@ -58,7 +58,9 @@ export const Native: Story = {
     const files = await canvas.findByRole("group", { name: "Files" });
     await expect(files).toBeInTheDocument();
     await expect(canvas.getByRole("checkbox", { name: "marketing/home.json" })).not.toBeChecked();
-    await expect(canvas.getByRole("checkbox", { name: "marketing/pricing.json" })).not.toBeChecked();
+    await expect(
+      canvas.getByRole("checkbox", { name: "marketing/pricing.json" }),
+    ).not.toBeChecked();
     await expect(canvas.getByRole("button", { name: "Collapse marketing" })).toBeInTheDocument();
     await expect(
       canvas.queryByRole("checkbox", { name: "marketing/campaigns/spring.json" }),
