@@ -28,6 +28,7 @@ import type { WorkspaceAutomationWebSearchProvider } from "@/lib/agents/workspac
 import { assertNever } from "@/lib/primitives/assert-never/assert-never";
 
 import type { WorkspaceOrchestratorSession } from "../context";
+import { mergeToolOutputSummaryIntoSessionRun } from "../workspace-orchestrator-output-summary";
 
 const WEB_SEARCH_TOOL_STEP_LIMIT = 8;
 
@@ -143,7 +144,16 @@ export function createUseWebSearchTool(session: WorkspaceOrchestratorSession) {
         provider,
         toolNames,
       };
-      session.stepResults.use_web_search = payload;
+
+      // Record only provider/status/count metadata in stepResults. The summary can echo
+      // customer-identifying details from the search objective or automation instructions,
+      // and run-workspace-orchestrator logs session.stepResults wholesale.
+      session.stepResults.use_web_search = {
+        provider,
+        toolCount: toolNames.length,
+        status: "completed",
+      };
+      mergeToolOutputSummaryIntoSessionRun(session, { webSearch: payload });
       return payload;
     },
   });

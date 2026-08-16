@@ -141,7 +141,13 @@ describe("createUseWebSearchTool", () => {
       provider: "exa",
       toolNames: ["exa_search"],
     });
-    expect(current.stepResults.use_web_search).toEqual(result);
+    expect(current.stepResults.use_web_search).toEqual({
+      provider: "exa",
+      toolCount: 1,
+      status: "completed",
+    });
+    expect(JSON.stringify(current.stepResults)).not.toContain("Found three local competitors.");
+    expect(current.run.outputSummary.webSearch).toEqual(result);
     expect(mocks.generate).toHaveBeenCalledOnce();
   });
 });
