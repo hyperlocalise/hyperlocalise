@@ -61,7 +61,7 @@ export const REPOSITORY_ACCESS_CONTENTION_FOLLOW_UP =
 
 export function buildFileTranslationInstructions() {
   return [
-    "When a message includes stored source file IDs, create file translation jobs with type \"file\", the provided sourceFileId and fileFormat, targetLocales, and sourceLocale.",
+    'When a message includes stored source file IDs, create file translation jobs with type "file", the provided sourceFileId and fileFormat, targetLocales, and sourceLocale.',
     'Use sourceLocale "auto" if the user did not specify a source locale.',
     `Supported file job formats: ${supportedFileTranslationFileFormats.join(", ")}.`,
     "For png, jpeg, webp, and mp4 attachments, still create a file translation job — the workflow localizes the image or video asset for each target locale.",

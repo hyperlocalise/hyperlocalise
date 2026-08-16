@@ -57,7 +57,7 @@ export const chatDockMessages = defineMessages({
     description: "Empty state title for a new chat dock conversation",
   },
   emptySubtitle: {
-    id: "w2b0cdIV3S",
+    id: "v3BuukETY6",
     defaultMessage: "Ask about strings, localize images or short videos, or anything else",
     description: "Empty state subtitle describing chat capabilities",
   },
@@ -68,13 +68,14 @@ export const chatDockMessages = defineMessages({
   },
   suggestionLocalizeImage: {
     defaultMessage: "Localize an image",
-    id: "k2Wm9pQxR7",
+    id: "6ofd3aj3i1",
     description: "Suggested prompt chip to localize an attached image via a file translation job",
   },
   suggestionLocalizeVideo: {
     defaultMessage: "Localize a short video",
-    id: "n8Tv4cLmB1",
-    description: "Suggested prompt chip to localize an attached short video via a file translation job",
+    id: "Thq8Nht0hH",
+    description:
+      "Suggested prompt chip to localize an attached short video via a file translation job",
   },
   suggestionSegmentContext: {
     id: "01h5d0m29X",
@@ -89,13 +90,13 @@ export const chatDockMessages = defineMessages({
   },
   promptLocalizeImage: {
     defaultMessage: "Localize the attached image to",
-    id: "p5Hs6yKdE3",
+    id: "9xLYM1kt9j",
     description:
       "Prefilled prompt stem when choosing the localize-image chip; trailing space lets the user add a target language",
   },
   promptLocalizeVideo: {
     defaultMessage: "Localize the attached video to",
-    id: "q9Jr2uFaW0",
+    id: "0w8pdWYmk/",
     description:
       "Prefilled prompt stem when choosing the localize-video chip; trailing space lets the user add a target language",
   },
