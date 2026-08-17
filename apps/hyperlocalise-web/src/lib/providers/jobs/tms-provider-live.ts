@@ -1345,11 +1345,7 @@ async function setCrowdinLiveCatStringsHidden(input: {
   });
 
   try {
-    const updated = await client.batchSetSourceStringsHidden(
-      projectId,
-      stringIds,
-      input.isHidden,
-    );
+    const updated = await client.batchSetSourceStringsHidden(projectId, stringIds, input.isHidden);
     return {
       updatedCount: updated.length > 0 ? updated.length : stringIds.length,
       isHidden: input.isHidden,

@@ -622,11 +622,15 @@ describe("CrowdinApiClient", () => {
   });
 
   it("chunks source-string batch patches at the Crowdin limit", async () => {
-    const fetchMock = vi.fn(async () => {
+    const patchBodies: unknown[] = [];
+    const fetchMock = vi.fn(async (_url: string, init?: RequestInit) => {
+      if (typeof init?.body === "string") {
+        patchBodies.push(JSON.parse(init.body));
+      }
       return new Response(JSON.stringify({ data: [] }), { status: 200 });
-    }) as unknown as typeof fetch;
+    });
 
-    const client = createClient(fetchMock);
+    const client = createClient(fetchMock as unknown as typeof fetch);
     const stringIds = Array.from(
       { length: CROWDIN_SOURCE_STRING_BATCH_PATCH_LIMIT + 1 },
       (_, index) => index + 1,
@@ -635,10 +639,8 @@ describe("CrowdinApiClient", () => {
     await client.batchSetSourceStringsHidden(1, stringIds, false);
 
     expect(fetchMock).toHaveBeenCalledTimes(2);
-    const firstBody = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body));
-    const secondBody = JSON.parse(String(fetchMock.mock.calls[1]?.[1]?.body));
-    expect(firstBody).toHaveLength(CROWDIN_SOURCE_STRING_BATCH_PATCH_LIMIT);
-    expect(secondBody).toEqual([{ op: "replace", path: "/501/isHidden", value: false }]);
+    expect(patchBodies[0]).toHaveLength(CROWDIN_SOURCE_STRING_BATCH_PATCH_LIMIT);
+    expect(patchBodies[1]).toEqual([{ op: "replace", path: "/501/isHidden", value: false }]);
   });
 
   it("lists source strings by taskId", async () => {
