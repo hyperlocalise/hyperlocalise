@@ -25,6 +25,7 @@ import { DEFAULT_APP_LOCALE, normalizeAppLocale } from "@/lib/app-i18n/locales";
 import { rejectLocalisationAuditBot } from "@/lib/localisation-audit/bot-protection";
 import { LocalisationAuditDailyQuotaExceededError } from "@/lib/localisation-audit/daily-quota";
 import { resolveDomainIdentity, isValidDomainSlug } from "@/lib/localisation-audit/domain-slug";
+import { LOCALISATION_AUDIT_USER_AGENT_NAME } from "@/lib/localisation-audit/user-agent";
 import {
   attachLocalisationAuditWorkflowRun,
   claimOrReuseLocalisationAudit,
@@ -63,6 +64,7 @@ type LocalisationAuditRouteOptions = {
 
 function publicAuditView(audit: LocalisationAuditRow) {
   const retryable = isLocalisationAuditRetryable(audit);
+  const blocked = audit.status === "blocked";
   return {
     id: audit.id,
     domainKey: audit.domainKey,
@@ -71,9 +73,9 @@ function publicAuditView(audit: LocalisationAuditRow) {
     status: audit.status,
     attemptNumber: audit.attemptNumber,
     progressStage: audit.progressStage,
-    score: audit.score,
+    score: blocked ? null : audit.score,
     focusLocales: audit.focusLocales,
-    teaser: audit.teaser,
+    teaser: blocked ? null : audit.teaser,
     errorCode: audit.errorCode,
     errorMessage: audit.errorMessage,
     retryable,
@@ -249,6 +251,13 @@ export function createLocalisationAuditRoutes(options: LocalisationAuditRouteOpt
           c,
           "localisation_audit_failed",
           "This audit failed. Retry the audit before requesting a report email.",
+        );
+      }
+      if (audit.status === "blocked") {
+        return conflictResponse(
+          c,
+          "localisation_audit_blocked",
+          `This audit was blocked by the domain. Allow ${LOCALISATION_AUDIT_USER_AGENT_NAME}, then start a new audit before requesting a report email.`,
         );
       }
 

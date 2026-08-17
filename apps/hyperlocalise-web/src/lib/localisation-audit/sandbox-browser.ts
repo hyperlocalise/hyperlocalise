@@ -22,12 +22,12 @@ import { createConfiguredVercelSandbox } from "@/lib/vercel-sandbox-config";
 
 import type { HtmlPageRenderer, RenderedHtmlPage } from "./crawl-renderer";
 import { AuditBrowserSetupError } from "./sandbox-browser-error";
+import { LOCALISATION_AUDIT_USER_AGENT } from "./user-agent";
 
 export { AuditBrowserSetupError } from "./sandbox-browser-error";
 
 export const AUDIT_BROWSER_SANDBOX_TIMEOUT_MS = 10 * 60 * 1000;
-export const AUDIT_BROWSER_USER_AGENT =
-  "HyperlocaliseLocalisationAudit/1.0 (+https://hyperlocalise.com)";
+export const AUDIT_BROWSER_USER_AGENT = LOCALISATION_AUDIT_USER_AGENT;
 export const AUDIT_BROWSER_NAV_TIMEOUT_MS = 20_000;
 export const AUDIT_BROWSER_NETWORKIDLE_TIMEOUT_MS = 4_000;
 export const AUDIT_BROWSER_SETTLE_MS = 400;

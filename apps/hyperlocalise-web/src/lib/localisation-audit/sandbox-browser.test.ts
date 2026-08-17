@@ -87,7 +87,7 @@ describe("audit Playwright script", () => {
     expect(script).toContain('waitForLoadState("networkidle"');
     expect(script).toContain("page.route");
     expect(script).toContain("isBlockedNavigationUrl");
-    expect(script).toContain("HyperlocaliseLocalisationAudit/1.0");
+    expect(script).toContain("HyperlocaliseAuditBot/1.0 (+https://hyperlocalise.com)");
     expect(script).toContain("isBlockedIpv4Address");
     expect(script).toContain("isBlockedIpv6Address");
     expect(script).toContain('hostname.startsWith("::ffff:")');

@@ -34,6 +34,7 @@ import {
   type LocalisationAuditCriterion,
 } from "@/lib/localisation-audit/criteria";
 import { sanitizeLocalisationAuditFindingUrl } from "@/lib/localisation-audit/finding-url";
+import { LOCALISATION_AUDIT_USER_AGENT } from "@/lib/localisation-audit/user-agent";
 import {
   formatDimensionScore,
   scoreTone,
@@ -653,7 +654,7 @@ export function LocalisationAuditResult({
   }, [audit.score, audit.status]);
 
   useEffect(() => {
-    if (audit.status === "succeeded" || audit.status === "failed") {
+    if (audit.status === "succeeded" || audit.status === "failed" || audit.status === "blocked") {
       return;
     }
 
@@ -828,6 +829,30 @@ export function LocalisationAuditResult({
           disabled={rerunPending}
         >
           {rerunPending ? copy.retrying : copy.retry}
+        </Button>
+      </MeshWash>
+    );
+  }
+
+  if (audit.status === "blocked") {
+    return (
+      <MeshWash>
+        <TypographyH1 className="border-none text-white">{copy.blockedTitle}</TypographyH1>
+        <TypographyP className="mt-4 max-w-2xl text-lg text-white/80">
+          {copy.blockedBody}
+        </TypographyP>
+        <TypographyP className="mt-2 max-w-2xl text-white/70">{copy.blockedGuidance}</TypographyP>
+        <p className="mt-5 max-w-2xl text-sm text-white/75">
+          <span className="text-white/55">{copy.blockedUserAgent}: </span>
+          <code className="break-all text-white">{LOCALISATION_AUDIT_USER_AGENT}</code>
+        </p>
+        {error ? <p className="mt-4 text-sm text-red-200">{error}</p> : null}
+        <Button
+          nativeButton={false}
+          render={<Link href={`/${locale}/localisation-audit`} />}
+          className="mt-8 bg-white text-black hover:bg-white/90"
+        >
+          {copy.startNewAudit}
         </Button>
       </MeshWash>
     );

@@ -502,3 +502,24 @@ export function createFailedAudit({
     completedAt: null,
   };
 }
+
+export function createBlockedAudit(): LocalisationAuditStoryAudit {
+  return {
+    id: localisationAuditId,
+    domainKey: localisationAuditDomainKey,
+    domainSlug: localisationAuditDomainSlug,
+    sourceUrl: localisationAuditSourceUrl,
+    status: "blocked",
+    attemptNumber: 2,
+    progressStage: "blocked",
+    score: null,
+    teaser: null,
+    report: null,
+    unlocked: false,
+    retryable: false,
+    rerunnable: false,
+    errorCode: "crawl_blocked",
+    errorMessage: "This domain blocked HyperlocaliseAuditBot/1.0.",
+    completedAt: null,
+  };
+}

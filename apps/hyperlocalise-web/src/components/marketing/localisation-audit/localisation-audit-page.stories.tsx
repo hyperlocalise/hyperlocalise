@@ -43,6 +43,12 @@ export const Default: Story = {
       canvas.getByRole("heading", { name: "See how your brand travels." }),
     ).toBeInTheDocument();
     await expect(canvas.getByRole("button", { name: "See my score" })).toBeInTheDocument();
+    const crawlNote = canvas.getByRole("complementary", { name: "Site owner note" });
+    await expect(crawlNote).toBeInTheDocument();
+    await expect(crawlNote.closest("section")?.textContent).toContain("What we notice");
+    await expect(
+      canvas.getByText("HyperlocaliseAuditBot/1.0 (+https://hyperlocalise.com)"),
+    ).toBeInTheDocument();
     await expect(canvas.getByRole("heading", { name: "What we notice" })).toBeInTheDocument();
     await expect(
       canvas.getByRole("heading", { name: "How other sites score" }),

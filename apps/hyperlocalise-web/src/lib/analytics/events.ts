@@ -20,6 +20,7 @@ export const LOCALISATION_AUDIT_ANALYTICS_EVENTS = {
   retry: "localisation_audit_retry",
   completed: "localisation_audit_completed",
   failed: "localisation_audit_failed",
+  blocked: "localisation_audit_blocked",
   teaserView: "localisation_audit_teaser_view",
   reportEmailRequest: "localisation_audit_report_email_request",
   reportEmailSent: "localisation_audit_report_email_sent",

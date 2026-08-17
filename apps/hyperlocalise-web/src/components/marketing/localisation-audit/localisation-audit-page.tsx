@@ -15,6 +15,7 @@ import { MarketingFooter } from "@/components/marketing/marketing-footer";
 import { footerColumns } from "@/components/marketing/marketing-page-content";
 import { TypographyH1, TypographyH2, TypographyH3, TypographyP } from "@/components/ui/typography";
 import type { LocalisationAuditLeaderboardEntry } from "@/lib/localisation-audit/store";
+import { LOCALISATION_AUDIT_USER_AGENT } from "@/lib/localisation-audit/user-agent";
 
 import { LocalisationAuditForm } from "./localisation-audit-form";
 import { LocalisationAuditLeaderboard } from "./localisation-audit-leaderboard";
@@ -70,6 +71,24 @@ export function LocalisationAuditPage({ locale, leaderboard }: LocalisationAudit
               </div>
             ))}
           </div>
+          <aside
+            aria-labelledby="localisation-audit-crawl-note"
+            className="mt-12 max-w-2xl space-y-2 rounded-xl border border-border bg-muted/30 p-6 text-sm text-muted-foreground"
+          >
+            <h3
+              id="localisation-audit-crawl-note"
+              className="text-balance font-medium text-foreground"
+            >
+              {copy.crawlAccessNoteHeading}
+            </h3>
+            <p className="text-pretty">{copy.crawlAccessNoteBody}</p>
+            <p className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+              <span>{copy.crawlAccessNoteUserAgent}:</span>
+              <code className="break-all rounded bg-black/10 px-1.5 py-0.5 text-xs text-foreground">
+                {LOCALISATION_AUDIT_USER_AGENT}
+              </code>
+            </p>
+          </aside>
           <TypographyP className="mt-12 max-w-2xl text-muted-foreground">
             {copy.scopeNote}
           </TypographyP>

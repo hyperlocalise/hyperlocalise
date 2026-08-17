@@ -79,6 +79,7 @@ export async function localisationAuditWorkflow(event: LocalisationAuditEventDat
         focusLocales: prepared.focusLocales,
         pages: crawl.pages,
         sitemap: crawl.sitemap,
+        blockedReason: crawl.blockedReason,
       });
 
       if (!analyzedResult.ok) {

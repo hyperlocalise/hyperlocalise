@@ -11,7 +11,7 @@
  * Version 2.0 or later.
  */
 
-export type LocalisationAuditStatus = "queued" | "running" | "succeeded" | "failed";
+export type LocalisationAuditStatus = "queued" | "running" | "succeeded" | "failed" | "blocked";
 
 export type LocalisationAuditProgressStage =
   | "queued"
@@ -20,7 +20,8 @@ export type LocalisationAuditProgressStage =
   | "analyzing"
   | "scoring"
   | "completed"
-  | "failed";
+  | "failed"
+  | "blocked";
 
 /** `warning` is a legacy stored-report value; treat it as `high`. */
 export type LocalisationAuditFindingSeverity =
@@ -116,9 +117,12 @@ export type LocalisationAuditSitemapSignal = {
   localizedUrls: string[];
 };
 
+export type LocalisationAuditCrawlBlockReason = "bot_protection";
+
 export type LocalisationAuditCrawlResult = {
   pages: LocalisationAuditCrawledPage[];
   sitemap: LocalisationAuditSitemapSignal;
+  blockedReason?: LocalisationAuditCrawlBlockReason;
 };
 
 export type LocalisationAuditCreditMethod = "heuristic" | "luna" | "na";

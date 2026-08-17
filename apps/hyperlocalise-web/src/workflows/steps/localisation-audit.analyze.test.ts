@@ -14,6 +14,7 @@ import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
 const {
   buildProfileMock,
+  blockMock,
   completeMock,
   creditsMock,
   failMock,
@@ -23,6 +24,7 @@ const {
   trackMock,
 } = vi.hoisted(() => ({
   buildProfileMock: vi.fn(),
+  blockMock: vi.fn(),
   completeMock: vi.fn(),
   creditsMock: vi.fn(),
   failMock: vi.fn(),
@@ -49,6 +51,7 @@ vi.mock("@/lib/localisation-audit/credits/runner", () => ({
 }));
 
 vi.mock("@/lib/localisation-audit/store", () => ({
+  blockLocalisationAudit: blockMock,
   completeLocalisationAudit: completeMock,
   failLocalisationAudit: failMock,
   findLocalisationAuditById: findAuditMock,
@@ -86,6 +89,7 @@ const pages = [
 describe("analyzeLocalisationAuditStep company profile", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    blockMock.mockResolvedValue({ id: "audit-1", status: "blocked" });
     buildProfileMock.mockResolvedValue(inferredProfile);
     completeMock.mockResolvedValue({ id: "audit-1" });
     creditsMock.mockResolvedValue({
@@ -227,5 +231,30 @@ describe("analyzeLocalisationAuditStep company profile", () => {
 
     expect(patchProfileMock).not.toHaveBeenCalled();
     expect(completeMock.mock.calls[0]?.[0].report.companyProfile).toEqual(inferredProfile);
+  });
+
+  it("blocks the audit before profile inference or scoring when the domain blocks the crawl", async () => {
+    const result = await analyzeLocalisationAuditStep({
+      auditId: "audit-1",
+      attemptNumber: 2,
+      domainKey: "acme.example",
+      domainSlug: "acme-example",
+      sourceUrl: "https://acme.example/",
+      focusLocales: [],
+      pages: [],
+      sitemap: EMPTY_SITEMAP_SIGNAL,
+      blockedReason: "bot_protection",
+    });
+
+    expect(result).toEqual({ ok: false, code: "localisation_audit_blocked" });
+    expect(blockMock).toHaveBeenCalledWith({
+      auditId: "audit-1",
+      attemptNumber: 2,
+      errorCode: "crawl_blocked",
+      errorMessage: expect.stringContaining("HyperlocaliseAuditBot/1.0"),
+    });
+    expect(buildProfileMock).not.toHaveBeenCalled();
+    expect(creditsMock).not.toHaveBeenCalled();
+    expect(completeMock).not.toHaveBeenCalled();
   });
 });

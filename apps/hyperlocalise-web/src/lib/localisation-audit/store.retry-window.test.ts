@@ -77,6 +77,20 @@ describe("localisation audit daily re-run window", () => {
     expect(localisationAuditRerunAvailableAt(audit({ status: "failed", report: null }))).toBeNull();
   });
 
+  it("keeps blocked audits terminal until a new audit is claimed", () => {
+    const blocked = audit({
+      status: "blocked",
+      progressStage: "blocked",
+      score: null,
+      teaser: null,
+      report: null,
+    });
+
+    expect(isLocalisationAuditRetryable(blocked)).toBe(false);
+    expect(isLocalisationAuditRerunnable(blocked)).toBe(false);
+    expect(localisationAuditRerunAvailableAt(blocked)).toBeNull();
+  });
+
   it("counts first runs and aged re-runs toward the daily cap, not same-day retries", () => {
     expect(localisationAuditRunConsumesDailyQuota(null)).toBe(true);
     expect(localisationAuditRunConsumesDailyQuota(new Date())).toBe(false);

@@ -23,7 +23,9 @@ import {
   aggregateLocalisationAuditCredits,
   pickHeadlineFindings,
 } from "@/lib/localisation-audit/score";
+import { LOCALISATION_AUDIT_USER_AGENT_NAME } from "@/lib/localisation-audit/user-agent";
 import {
+  blockLocalisationAudit,
   completeLocalisationAudit,
   failLocalisationAudit,
   findLocalisationAuditById,
@@ -128,8 +130,26 @@ export async function analyzeLocalisationAuditStep(input: {
   focusLocales: string[];
   pages: LocalisationAuditCrawlResult["pages"];
   sitemap: LocalisationAuditCrawlResult["sitemap"];
+  blockedReason?: LocalisationAuditCrawlResult["blockedReason"];
 }) {
   "use step";
+
+  if (input.blockedReason) {
+    const blocked = await blockLocalisationAudit({
+      auditId: input.auditId,
+      attemptNumber: input.attemptNumber,
+      errorCode: "crawl_blocked",
+      errorMessage: `This domain blocked ${LOCALISATION_AUDIT_USER_AGENT_NAME}. Allow it through your firewall, CDN, bot protection, or login wall, then start a new audit.`,
+    });
+    if (!blocked) {
+      return { ok: false as const, code: "stale_attempt" as const };
+    }
+    serverAnalytics.track(LOCALISATION_AUDIT_ANALYTICS_EVENTS.blocked, {
+      status: "blocked",
+      outcome: input.blockedReason,
+    });
+    return { ok: false as const, code: "localisation_audit_blocked" as const };
+  }
 
   if (input.pages.length === 0) {
     await failLocalisationAudit({

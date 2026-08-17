@@ -103,6 +103,24 @@ describe("crawlLocalisationAuditSample", () => {
     ).toBe(true);
   });
 
+  it("returns a blocked result when the homepage denies the crawler", async () => {
+    const { createRenderer } = mockBrowser([
+      htmlPage(
+        "https://example.com/",
+        "<html><title>Access denied</title><body>Request blocked.</body></html>",
+        { status: 403 },
+      ),
+    ]);
+
+    const result = await crawlLocalisationAuditSample(
+      { origin: "https://example.com", sourceUrl: "https://example.com/" },
+      { createRenderer },
+    );
+
+    expect(result.pages).toEqual([]);
+    expect(result.blockedReason).toBe("bot_protection");
+  });
+
   it("follows a rendered homepage redirect and crawls the final URL", async () => {
     const { createRenderer } = mockBrowser([
       htmlPage(

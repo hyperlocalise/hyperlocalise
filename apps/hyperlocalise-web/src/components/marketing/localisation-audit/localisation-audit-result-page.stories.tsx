@@ -22,6 +22,7 @@ import {
 } from "./localisation-audit-msw-handlers";
 import { LocalisationAuditResultPage } from "./localisation-audit-result-page";
 import {
+  createBlockedAudit,
   createFailedAudit,
   createRunningAudit,
   createSucceededAudit,
@@ -34,6 +35,7 @@ const excellentAudit = createSucceededAudit({ scoreBand: "excellent" });
 const criticalAudit = createSucceededAudit({ scoreBand: "critical" });
 const crawlingAudit = createRunningAudit({ progressStage: "crawling" });
 const failedAudit = createFailedAudit();
+const blockedAudit = createBlockedAudit();
 
 const meta = {
   title: "Marketing/LocalisationAudit/Result",
@@ -172,5 +174,18 @@ export const FailedRetryable: Story = {
   play: async ({ canvas }) => {
     await expect(canvas.getByRole("heading", { name: "Audit failed" })).toBeInTheDocument();
     await expect(canvas.getByRole("button", { name: "Retry audit" })).toBeInTheDocument();
+  },
+};
+
+export const BlockedByDomain: Story = {
+  args: {
+    audit: blockedAudit,
+    standing: null,
+  },
+  play: async ({ canvas }) => {
+    await expect(canvas.getByRole("heading", { name: "Audit blocked" })).toBeInTheDocument();
+    await expect(canvas.getByText(/HyperlocaliseAuditBot\/1\.0/)).toBeInTheDocument();
+    await expect(canvas.getByRole("link", { name: "Start a new audit" })).toBeInTheDocument();
+    await expect(canvas.queryByRole("button", { name: "Retry audit" })).not.toBeInTheDocument();
   },
 };

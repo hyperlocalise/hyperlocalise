@@ -403,6 +403,7 @@ export async function claimOrReuseLocalisationAudit(input: {
                   dailyRerunCutoff,
                 ),
               ),
+              eq(schema.localisationAudits.status, "blocked"),
               and(
                 inArray(schema.localisationAudits.status, ["queued", "running"]),
                 lt(schema.localisationAudits.statusUpdatedAt, staleCutoff),
@@ -547,6 +548,33 @@ export async function completeLocalisationAudit(input: {
       statusUpdatedAt: timestamp,
       errorCode: null,
       errorMessage: null,
+    })
+    .where(
+      and(
+        eq(schema.localisationAudits.id, input.auditId),
+        eq(schema.localisationAudits.attemptNumber, input.attemptNumber),
+      ),
+    )
+    .returning();
+  return row ?? null;
+}
+
+export async function blockLocalisationAudit(input: {
+  auditId: string;
+  attemptNumber: number;
+  errorCode: string;
+  errorMessage: string;
+}) {
+  const timestamp = now();
+  const [row] = await db
+    .update(schema.localisationAudits)
+    .set({
+      status: "blocked" satisfies LocalisationAuditStatus,
+      progressStage: "blocked" satisfies LocalisationAuditProgressStage,
+      errorCode: input.errorCode,
+      errorMessage: input.errorMessage,
+      completedAt: timestamp,
+      statusUpdatedAt: timestamp,
     })
     .where(
       and(

@@ -14,8 +14,10 @@ import { readBoundedResponseBody, withPublicHttpFetch } from "@/lib/security/pub
 
 import type { CrawlLocalisationAuditSampleOptions, HtmlPageRenderer } from "./crawl-renderer";
 import { LOCALE_PREFIX, pathLocaleFromUrl, resolveFocusLocaleCode } from "./credits/shared";
+import { detectLocalisationAuditCrawlBlock } from "./crawl-block";
 import { crawledPageFromSignals, parsePageSignals } from "./html-parse";
 import { AuditBrowserSetupError } from "./sandbox-browser-error";
+import { LOCALISATION_AUDIT_USER_AGENT } from "./user-agent";
 import type {
   LocalisationAuditCrawledPage,
   LocalisationAuditCrawlResult,
@@ -29,14 +31,13 @@ export type {
   RenderedHtmlPage,
 } from "./crawl-renderer";
 
-const USER_AGENT = "HyperlocaliseLocalisationAudit/1.0 (+https://hyperlocalise.com)";
 const MAX_PAGES = 15;
 const FETCH_TIMEOUT_MS = 12_000;
 const MAX_REDIRECTS = 5;
 const REDIRECT_STATUSES = new Set([301, 302, 303, 307, 308]);
 
 const FETCH_TEXT_HEADERS: Record<string, string> = {
-  "User-Agent": USER_AGENT,
+  "User-Agent": LOCALISATION_AUDIT_USER_AGENT,
   Accept: "text/plain,application/xml,text/xml,application/xhtml+xml;q=0.9,*/*;q=0.1",
 };
 
@@ -303,6 +304,18 @@ async function crawlLocalisationAuditSampleInner(
       return { pages: [], sitemap: EMPTY_SITEMAP_SIGNAL };
     }
 
+    const homeBlockedReason = detectLocalisationAuditCrawlBlock(
+      homeRendered.status,
+      homeRendered.html,
+    );
+    if (homeBlockedReason) {
+      return {
+        pages: [],
+        sitemap: EMPTY_SITEMAP_SIGNAL,
+        blockedReason: homeBlockedReason,
+      };
+    }
+
     const homePage = pageFromRendered(homeRendered.html, homeRendered.url, homeRendered.status);
     const signals = parsePageSignals(homeRendered.html);
     const originHost = new URL(input.origin).hostname;
@@ -339,6 +352,16 @@ async function crawlLocalisationAuditSampleInner(
       otherUrls.length > 0 ? renderer.render(otherUrls) : Promise.resolve([]),
       fetchSitemapSignals(input.origin),
     ]);
+
+    const blockedReason = otherRendered
+      .map((rendered) => detectLocalisationAuditCrawlBlock(rendered.status, rendered.html))
+      .find(
+        (reason): reason is NonNullable<LocalisationAuditCrawlResult["blockedReason"]> =>
+          reason != null,
+      );
+    if (blockedReason) {
+      return { pages: [], sitemap, blockedReason };
+    }
 
     const pagesByUrl = new Map<string, LocalisationAuditCrawledPage>();
     pagesByUrl.set(homePage.url, homePage);

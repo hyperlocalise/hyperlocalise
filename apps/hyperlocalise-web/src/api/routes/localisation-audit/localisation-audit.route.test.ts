@@ -292,6 +292,30 @@ describe("localisation audit routes", () => {
     expect(body.audit.report).toEqual(expect.objectContaining({ score: 82 }));
   });
 
+  it("does not expose a prior score while an audit is blocked", async () => {
+    findBySlugMock.mockResolvedValue(
+      succeededAudit({
+        status: "blocked",
+        progressStage: "blocked",
+        errorCode: "crawl_blocked",
+        errorMessage: "This domain blocked HyperlocaliseAuditBot/1.0.",
+      }),
+    );
+    const { createLocalisationAuditRoutes } = await import("./localisation-audit.route");
+    const routes = createLocalisationAuditRoutes();
+
+    const response = await routes.request("/example-com");
+
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.audit.status).toBe("blocked");
+    expect(body.audit.score).toBeNull();
+    expect(body.audit.teaser).toBeNull();
+    expect(body.audit.unlocked).toBe(false);
+    expect(body.audit.report).toBeNull();
+    expect(body.audit.retryable).toBe(false);
+  });
+
   it("queues report email instead of unlocking immediately", async () => {
     findBySlugMock.mockResolvedValue(succeededAudit());
     upsertLeadMock.mockResolvedValue({
@@ -328,6 +352,32 @@ describe("localisation audit routes", () => {
       token: "opaque-token",
     });
     expect(app).toBeTruthy();
+  });
+
+  it("does not accept report email requests for blocked audits", async () => {
+    findBySlugMock.mockResolvedValue(
+      succeededAudit({
+        status: "blocked",
+        progressStage: "blocked",
+        score: 82,
+        teaser: { score: 82, headlineFindings: [], findingsCount: 0 },
+        errorCode: "crawl_blocked",
+        errorMessage: "This domain blocked HyperlocaliseAuditBot/1.0.",
+      }),
+    );
+    const { createLocalisationAuditRoutes } = await import("./localisation-audit.route");
+    const routes = createLocalisationAuditRoutes();
+
+    const response = await routes.request("/example-com/unlock", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: "lead@example.com", locale: "en" }),
+    });
+
+    expect(response.status).toBe(409);
+    const body = await response.json();
+    expect(body.error).toBe("localisation_audit_blocked");
+    expect(upsertLeadMock).not.toHaveBeenCalled();
   });
 
   it("stores pending lead while audit is still running", async () => {

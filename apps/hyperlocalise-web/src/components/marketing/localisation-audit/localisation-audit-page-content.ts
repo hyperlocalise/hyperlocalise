@@ -63,6 +63,22 @@ export function getLocalisationAuditPageCopy(locale: string) {
       id: "KigHdi8k7w",
       description: "Hint under the optional focus languages field on the localisation audit form",
     }),
+    crawlAccessNoteHeading: intl.formatMessage({
+      defaultMessage: "Site owner note",
+      id: "9/2rO3b/i4",
+      description: "Heading for the crawl access note on the localisation audit form",
+    }),
+    crawlAccessNoteBody: intl.formatMessage({
+      defaultMessage:
+        "If your site uses a firewall, CDN, bot check, or login wall, allow this user agent to access public pages so we can complete the audit.",
+      id: "ndyP1whnV+",
+      description: "Guidance for site owners to allow the localisation audit crawler",
+    }),
+    crawlAccessNoteUserAgent: intl.formatMessage({
+      defaultMessage: "User agent",
+      id: "gyNaN2JbUy",
+      description: "Label for the localisation audit crawler user agent",
+    }),
     submit: intl.formatMessage({
       defaultMessage: "See my score",
       id: "fZ/p4nukUo",
@@ -327,6 +343,32 @@ export function getLocalisationAuditResultCopy(locale: string) {
       defaultMessage: "The audit could not finish for this domain.",
       id: "dIHTtzU056",
       description: "Fallback error when a failed localisation audit has no error message",
+    }),
+    blockedTitle: intl.formatMessage({
+      defaultMessage: "Audit blocked",
+      id: "fU9GF3etrw",
+      description: "Title when a domain blocks the public localisation audit crawler",
+    }),
+    blockedBody: intl.formatMessage({
+      defaultMessage: "This domain blocked the crawler, so we did not score the site.",
+      id: "i/10E+WnLM",
+      description: "Body explaining that a blocked crawl did not produce a localisation score",
+    }),
+    blockedGuidance: intl.formatMessage({
+      defaultMessage:
+        "Allow the user agent below through your firewall, CDN, bot protection, or login wall, then start a new audit.",
+      id: "FvGsFbmiod",
+      description: "Guidance for a site owner whose domain blocked the localisation audit crawler",
+    }),
+    blockedUserAgent: intl.formatMessage({
+      defaultMessage: "User agent",
+      id: "ryGOjbG4Wd",
+      description: "Label for the blocked localisation audit crawler user agent",
+    }),
+    startNewAudit: intl.formatMessage({
+      defaultMessage: "Start a new audit",
+      id: "k3eu1T7STw",
+      description: "Button to start a fresh localisation audit after a domain block",
     }),
     retry: intl.formatMessage({
       defaultMessage: "Retry audit",
