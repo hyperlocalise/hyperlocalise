@@ -96,16 +96,20 @@ func (d markdownDocument) keyContexts() []markdownKeyContext {
 
 func markdownSegmentKey(segment string, occurrences map[string]int) string {
 	sum := sha256.Sum256([]byte(segment))
-	// BOLT OPTIMIZATION: Encode only the first 8 bytes of the hash to produce
-	// the required 16-character hex string, reducing encoding overhead.
-	hash := hex.EncodeToString(sum[:8])
-	count := occurrences[hash]
-	occurrences[hash] = count + 1
+	// BOLT OPTIMIZATION: Format the 16-hex-char digest into a stack buffer to bypass
+	// hex.EncodeToString heap allocations.
+	var hexBuf [16]byte
+	hex.Encode(hexBuf[:], sum[:8])
+
+	count := occurrences[string(hexBuf[:])]
 	if count == 0 {
-		// BOLT OPTIMIZATION: Use string concatenation and strconv.Itoa instead of fmt.Sprintf
-		return "md." + hash
+		key := "md." + string(hexBuf[:])
+		// Store a sliced view of key into the map so map storage reuses key's string buffer.
+		occurrences[key[3:]] = 1
+		return key
 	}
-	return "md." + hash + "." + strconv.Itoa(count+1)
+	occurrences[string(hexBuf[:])] = count + 1
+	return "md." + string(hexBuf[:]) + "." + strconv.Itoa(count+1)
 }
 
 func emitMarkdownLineParts(line string, doc *markdownDocument, appendKey func(markdownPart), state *markdownParseState, path string) {
