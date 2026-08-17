@@ -108,10 +108,7 @@ describe("segmentMatchesQueueFilter", () => {
   });
 
   it("filters hidden segments", () => {
-    const segments = [
-      createSegment({ id: "a", isHidden: true }),
-      createSegment({ id: "b" }),
-    ];
+    const segments = [createSegment({ id: "a", isHidden: true }), createSegment({ id: "b" })];
 
     expect(filterCatQueueSegments(segments, "hidden").map((segment) => segment.id)).toEqual(["a"]);
   });

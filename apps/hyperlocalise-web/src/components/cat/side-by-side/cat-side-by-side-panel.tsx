@@ -61,6 +61,7 @@ const queueFilterMessageByValue: Record<
   reviewed: catQueuePanelMessages.filterReviewed,
   has_issues: catQueuePanelMessages.filterHasIssues,
   skipped: catQueuePanelMessages.filterSkipped,
+  hidden: catQueuePanelMessages.filterHidden,
 };
 
 export const CatSideBySidePanel = observer(function CatSideBySidePanel({

@@ -329,10 +329,7 @@ export class ProjectTranslationService extends ProjectServiceBase {
           eq(schema.projectTranslationKeys.projectId, input.projectId),
           inArray(schema.projectTranslationKeys.id, translationKeyIds),
           input.repositorySourceFileId
-            ? eq(
-                schema.projectTranslationKeys.repositorySourceFileId,
-                input.repositorySourceFileId,
-              )
+            ? eq(schema.projectTranslationKeys.repositorySourceFileId, input.repositorySourceFileId)
             : undefined,
         ),
       )

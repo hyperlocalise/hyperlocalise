@@ -121,7 +121,7 @@ export const catQueuePanelMessages = defineMessages({
   },
   filterHidden: {
     defaultMessage: "Hidden",
-    id: "nTmsFltHid",
+    id: "FEprezMr/U",
     description: "CAT queue filter option for hidden source strings",
   },
   emptyFilterResults: {
@@ -141,13 +141,14 @@ export const catQueuePanelMessages = defineMessages({
   },
   bulkHide: {
     defaultMessage: "Hide selected",
-    id: "nTmsHideSel",
+    id: "wz/8hP0meZ",
     description: "Bulk action to hide selected native CAT source strings from translation jobs",
   },
   bulkUnhide: {
     defaultMessage: "Unhide selected",
-    id: "nTmsUnhdSel",
-    description: "Bulk action to make selected native CAT source strings visible to translation jobs",
+    id: "/CNawd2WG2",
+    description:
+      "Bulk action to make selected native CAT source strings visible to translation jobs",
   },
   bulkSelectAll: {
     defaultMessage: "Select all visible",

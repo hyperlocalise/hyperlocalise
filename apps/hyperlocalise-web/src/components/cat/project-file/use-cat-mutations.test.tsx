@@ -332,9 +332,7 @@ describe("useCatMutations", () => {
   });
 
   it("hides native source strings and invalidates the queue", async () => {
-    catStringsHiddenPostMock.mockResolvedValue(
-      jsonResponse({ updatedCount: 2, isHidden: true }),
-    );
+    catStringsHiddenPostMock.mockResolvedValue(jsonResponse({ updatedCount: 2, isHidden: true }));
 
     const nativeFile = {
       ...createCatFileResponse().catFile,

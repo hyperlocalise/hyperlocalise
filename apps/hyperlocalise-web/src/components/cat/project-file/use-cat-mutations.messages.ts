@@ -57,7 +57,7 @@ export const useCatMutationsMessages = defineMessages({
   },
   failedToUpdateHiddenStrings: {
     defaultMessage: "Failed to update hidden strings",
-    id: "nTmsHidErr",
+    id: "1BOxhADmQk",
     description: "Fallback error when hiding or unhiding native CAT source strings fails",
   },
 });
