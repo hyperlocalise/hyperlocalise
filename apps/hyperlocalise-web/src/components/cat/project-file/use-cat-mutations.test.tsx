@@ -359,4 +359,42 @@ describe("useCatMutations", () => {
     );
     expect(invalidateQueue).toHaveBeenCalled();
   });
+
+  it("chunks hidden-string updates to the native batch limit", async () => {
+    catStringsHiddenPostMock.mockImplementation(() =>
+      jsonResponse({ updatedCount: 200, isHidden: true }),
+    );
+
+    const nativeFile = {
+      ...createCatFileResponse().catFile,
+      provider: null,
+    };
+    const { result } = renderCatMutations(nativeFile);
+    const externalStringIds = Array.from({ length: 201 }, (_, index) => `segment-${index + 1}`);
+
+    await act(async () => {
+      await result.current.setStringsHidden({
+        externalStringIds,
+        isHidden: true,
+      });
+    });
+
+    expect(catStringsHiddenPostMock).toHaveBeenCalledTimes(2);
+    expect(catStringsHiddenPostMock.mock.calls[0]?.[0]).toEqual(
+      expect.objectContaining({
+        json: expect.objectContaining({
+          externalStringIds: externalStringIds.slice(0, 200),
+          isHidden: true,
+        }),
+      }),
+    );
+    expect(catStringsHiddenPostMock.mock.calls[1]?.[0]).toEqual(
+      expect.objectContaining({
+        json: expect.objectContaining({
+          externalStringIds: ["segment-201"],
+          isHidden: true,
+        }),
+      }),
+    );
+  });
 });

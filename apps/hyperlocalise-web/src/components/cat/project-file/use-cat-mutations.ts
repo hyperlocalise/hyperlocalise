@@ -15,10 +15,11 @@
 import { useMutation } from "@tanstack/react-query";
 import { useIntl, type IntlShape } from "react-intl";
 
-import type {
-  ProjectFileCatComment,
-  ProjectFileCatQueueFile,
-  ProjectFileCatTranslation,
+import {
+  maxNativeCatHiddenStringBatch,
+  type ProjectFileCatComment,
+  type ProjectFileCatQueueFile,
+  type ProjectFileCatTranslation,
 } from "@/api/routes/project/project.schema";
 import { readApiError } from "@/lib/api-error";
 import { apiClient } from "@/lib/api-client-instance";
@@ -61,6 +62,14 @@ function resolveCatMutationFileIdentity(
   const resourceType = segment?.resourceType ?? input.catFile?.provider?.resourceType;
 
   return { sourcePath, externalResourceId, resourceType };
+}
+
+function chunkItems<T>(items: T[], size: number): T[][] {
+  const chunks: T[][] = [];
+  for (let index = 0; index < items.length; index += size) {
+    chunks.push(items.slice(index, index + size));
+  }
+  return chunks;
 }
 
 export function useCatMutations(input: {
@@ -480,30 +489,39 @@ export function useCatMutations(input: {
 
   const hiddenStringsMutation = useMutation({
     mutationFn: async (mutationInput: { externalStringIds: string[]; isHidden: boolean }) => {
-      const response = await apiClient.api.orgs[":organizationSlug"].projects[
-        ":projectId"
-      ].files.detail.cat.strings.hidden.$post({
-        param: {
-          organizationSlug: input.organizationSlug,
-          projectId: input.projectId,
-        },
-        json: {
-          sourcePath: input.sourcePath,
-          externalStringIds: mutationInput.externalStringIds,
-          isHidden: mutationInput.isHidden,
-        },
-      });
+      const uniqueIds = [...new Set(mutationInput.externalStringIds)];
+      const chunks = chunkItems(uniqueIds, maxNativeCatHiddenStringBatch);
+      let updatedCount = 0;
 
-      if (!response.ok) {
-        throw new Error(
-          await readApiError(
-            response,
-            intl.formatMessage(useCatMutationsMessages.failedToUpdateHiddenStrings),
-          ),
-        );
+      for (const externalStringIds of chunks) {
+        const response = await apiClient.api.orgs[":organizationSlug"].projects[
+          ":projectId"
+        ].files.detail.cat.strings.hidden.$post({
+          param: {
+            organizationSlug: input.organizationSlug,
+            projectId: input.projectId,
+          },
+          json: {
+            sourcePath: input.sourcePath,
+            externalStringIds,
+            isHidden: mutationInput.isHidden,
+          },
+        });
+
+        if (!response.ok) {
+          throw new Error(
+            await readApiError(
+              response,
+              intl.formatMessage(useCatMutationsMessages.failedToUpdateHiddenStrings),
+            ),
+          );
+        }
+
+        const body = (await response.json()) as { updatedCount: number; isHidden: boolean };
+        updatedCount += body.updatedCount;
       }
 
-      return response.json() as Promise<{ updatedCount: number; isHidden: boolean }>;
+      return { updatedCount, isHidden: mutationInput.isHidden };
     },
     onSuccess: async () => {
       await input.invalidateQueue();

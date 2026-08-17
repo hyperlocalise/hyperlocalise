@@ -18,6 +18,11 @@ import { and, eq } from "drizzle-orm";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 
 import { db, schema } from "@/lib/database";
+import { ensureRepositorySourceFile } from "@/lib/file-storage/records";
+import {
+  setProjectTranslationKeysHidden,
+  upsertProjectTranslationKeysFromEntries,
+} from "@/lib/projects/translations/project-translation-service";
 import {
   formatUsageControlError,
   reserveUsageEvent,
@@ -496,6 +501,74 @@ describe("translation job workflow helpers", () => {
         outcomePayload: {
           code: "invalid_string_translation_job_input",
           message: "invalid stored string translation job input",
+        },
+      }),
+    );
+    expect(translateStringJob).not.toHaveBeenCalled();
+  });
+
+  it("fails hidden string jobs before invoking the model", async () => {
+    const { organization, project, user } = await projectFixture.createStoredProjectFixture();
+    const sourceFile = await ensureRepositorySourceFile({
+      organizationId: organization.id,
+      projectId: project.id,
+      sourcePath: "locales/en.json",
+    });
+    await upsertProjectTranslationKeysFromEntries({
+      organizationId: organization.id,
+      projectId: project.id,
+      repositorySourceFileId: sourceFile.id,
+      entries: [{ key: "greeting", text: "Hello", context: null }],
+    });
+    const [key] = await db
+      .select({ id: schema.projectTranslationKeys.id })
+      .from(schema.projectTranslationKeys)
+      .where(eq(schema.projectTranslationKeys.repositorySourceFileId, sourceFile.id))
+      .limit(1);
+    expect(key).toBeDefined();
+    await setProjectTranslationKeysHidden({
+      organizationId: organization.id,
+      projectId: project.id,
+      translationKeyIds: [key!.id],
+      isHidden: true,
+    });
+
+    const job = await insertJob({
+      organizationId: organization.id,
+      projectId: project.id,
+      createdByUserId: user.id,
+      type: "string",
+      status: "queued",
+      inputPayload: {
+        sourceText: "Hello",
+        sourceLocale: "en-US",
+        targetLocales: ["fr-FR"],
+        translationKeyId: key!.id,
+      },
+    });
+
+    const translateStringJob = vi.fn(async () => ({
+      translations: [{ locale: "fr-FR", text: "Bonjour" }],
+    }));
+    const result = await executeTranslationJob({
+      runId: `run_${randomUUID()}`,
+      event: {
+        kind: "translation",
+        jobId: job.id,
+        projectId: project.id,
+        type: "string",
+      },
+      translateStringJob,
+    });
+
+    expect(result).toEqual(
+      expect.objectContaining({
+        id: job.id,
+        status: "failed",
+        outcomeKind: "error",
+        outcomePayload: {
+          code: "translation_key_hidden",
+          message: "Hidden source strings are skipped by translation jobs",
         },
       }),
     );

@@ -62,7 +62,10 @@ import {
   readCatWorkspaceViewMode,
 } from "@/components/cat/workspace/cat-workspace-view-mode";
 
-import { resolveCatLinkedIssueTranslationKeyId } from "@/components/cat/issues/cat-linked-issue-translation-key";
+import {
+  isFileBackedCatSegment,
+  resolveCatLinkedIssueTranslationKeyId,
+} from "@/components/cat/issues/cat-linked-issue-translation-key";
 import {
   CatLinkedIssuesDialog,
   type CatLinkedIssueSegmentContext,
@@ -260,6 +263,9 @@ export function ProjectFileCatWorkspace({
   );
 
   const isNativeProject = !catFile?.provider;
+  const canHideNativeStrings =
+    isNativeProject &&
+    Boolean(catFile?.segments.some((segment) => !isFileBackedCatSegment(segment.contentKind)));
 
   const handleApprove = useCallback(
     async (segmentId: string, targetText: string) => {
@@ -373,12 +379,26 @@ export function ProjectFileCatWorkspace({
         );
       }
 
+      const translationKeyIds = segmentIds.filter((segmentId) => {
+        const segment = catFile.segments.find((item) => item.externalStringId === segmentId);
+        return (
+          resolveCatLinkedIssueTranslationKeyId({
+            isNativeProject: true,
+            segmentId,
+            contentKind: segment?.contentKind,
+          }) != null
+        );
+      });
+      if (translationKeyIds.length === 0) {
+        return;
+      }
+
       await setStringsHidden({
-        externalStringIds: segmentIds,
+        externalStringIds: translationKeyIds,
         isHidden,
       });
     },
-    [catFile?.canEditTranslations, intl, setStringsHidden],
+    [catFile?.canEditTranslations, catFile?.segments, intl, setStringsHidden],
   );
 
   const handleAddToIssueSheet = useCallback(
@@ -714,7 +734,7 @@ export function ProjectFileCatWorkspace({
           onAddToIssueSheet: handleAddToIssueSheet,
           onResolveComment:
             catFile?.provider?.kind === "crowdin" ? handleResolveComment : undefined,
-          ...(isNativeProject
+          ...(canHideNativeStrings
             ? {
                 onBulkHide: (segmentIds: string[]) => handleSetStringsHidden(segmentIds, true),
                 onBulkUnhide: (segmentIds: string[]) => handleSetStringsHidden(segmentIds, false),

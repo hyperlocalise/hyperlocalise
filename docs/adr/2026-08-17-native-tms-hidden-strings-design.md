@@ -12,7 +12,7 @@ Add a persistent `isHidden` flag on native source keys and expose Hide / Unhide 
 2. Map `isHidden` into native CAT segments so the existing Hidden badge appears.
 3. Add a native-only CAT bulk action pair: Hide selected and Unhide selected. Hidden remains a source-key property, not per locale.
 4. Keep hidden strings visible in the manager CAT queue. Add a Hidden queue filter for native projects.
-5. Translation and review jobs skip hidden keys. File-translation prefills copy existing target text or source so the agent does not spend work on them; job persistence does not write new translations for hidden keys.
+5. Translation and review jobs skip hidden keys. File-translation prefills copy existing target text or source so the agent does not spend work on them; job persistence does not write new translations for hidden keys, and file-job memory persistence excludes them so source-equals-target placeholders cannot overwrite reusable memory.
 
 Do not block editing hidden strings in CAT. Native TMS users are managers; the badge is informational, as with Crowdin credentials.
 

@@ -349,6 +349,61 @@ export class ProjectTranslationService extends ProjectServiceBase {
     return { updatedCount: updated.length };
   }
 
+  async isKeyHidden(input: { projectId: string; translationKeyId: string }): Promise<boolean> {
+    const [key] = await this.database
+      .select({ isHidden: schema.projectTranslationKeys.isHidden })
+      .from(schema.projectTranslationKeys)
+      .where(
+        and(
+          eq(schema.projectTranslationKeys.id, input.translationKeyId),
+          eq(schema.projectTranslationKeys.projectId, input.projectId),
+        ),
+      )
+      .limit(1);
+
+    return Boolean(key?.isHidden);
+  }
+
+  async listHiddenKeysForSourcePath(input: {
+    projectId: string;
+    sourcePath: string;
+    keys: string[];
+  }): Promise<string[]> {
+    const keys = [...new Set(input.keys.filter((key) => key.trim().length > 0))];
+    if (keys.length === 0) {
+      return [];
+    }
+
+    const [sourceFile] = await this.database
+      .select({ id: schema.repositorySourceFiles.id })
+      .from(schema.repositorySourceFiles)
+      .where(
+        and(
+          eq(schema.repositorySourceFiles.projectId, input.projectId),
+          eq(schema.repositorySourceFiles.sourcePath, input.sourcePath),
+        ),
+      )
+      .limit(1);
+
+    if (!sourceFile) {
+      return [];
+    }
+
+    const hiddenKeys = await this.database
+      .select({ key: schema.projectTranslationKeys.key })
+      .from(schema.projectTranslationKeys)
+      .where(
+        and(
+          eq(schema.projectTranslationKeys.projectId, input.projectId),
+          eq(schema.projectTranslationKeys.repositorySourceFileId, sourceFile.id),
+          eq(schema.projectTranslationKeys.isHidden, true),
+          inArray(schema.projectTranslationKeys.key, keys),
+        ),
+      );
+
+    return hiddenKeys.map((row) => row.key);
+  }
+
   async countKeysForFile(input: {
     organizationId: string;
     projectId: string;
@@ -1115,6 +1170,14 @@ export const upsertProjectTranslationKeysFromEntries = (
 export const setProjectTranslationKeysHidden = (
   input: Parameters<ProjectTranslationService["setKeysHidden"]>[0],
 ) => projectTranslationService.setKeysHidden(input);
+
+export const isProjectTranslationKeyHidden = (
+  input: Parameters<ProjectTranslationService["isKeyHidden"]>[0],
+) => projectTranslationService.isKeyHidden(input);
+
+export const listHiddenProjectTranslationKeysForSourcePath = (
+  input: Parameters<ProjectTranslationService["listHiddenKeysForSourcePath"]>[0],
+) => projectTranslationService.listHiddenKeysForSourcePath(input);
 
 export const countProjectTranslationKeysForFile = (
   input: Parameters<ProjectTranslationService["countKeysForFile"]>[0],

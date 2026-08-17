@@ -17,7 +17,10 @@ import { PRODUCT_USAGE_ANALYTICS_EVENTS } from "@/lib/analytics/events";
 import { serverAnalytics } from "@/lib/analytics/server";
 import { db, schema } from "@/lib/database";
 import type { TranslationJobEventData } from "@/lib/workflow/types";
-import { persistStringJobTranslations } from "@/lib/projects/translations/project-translation-service";
+import {
+  isProjectTranslationKeyHidden,
+  persistStringJobTranslations,
+} from "@/lib/projects/translations/project-translation-service";
 import {
   completeAndTrackBillableUsage,
   formatUsageControlError,
@@ -247,6 +250,20 @@ class TranslationJobExecutor {
         code: "invalid_string_translation_job_input",
         message: "invalid stored string translation job input",
       };
+    }
+
+    if (parsedInput.data.translationKeyId) {
+      const isHidden = await isProjectTranslationKeyHidden({
+        projectId: claimedJob.projectId,
+        translationKeyId: parsedInput.data.translationKeyId,
+      });
+      if (isHidden) {
+        return {
+          ok: false,
+          code: "translation_key_hidden",
+          message: "Hidden source strings are skipped by translation jobs",
+        };
+      }
     }
 
     const contextResult = await this.contextBuilder.build(
