@@ -72,8 +72,14 @@ describe("CatQueuePanel bulk hide", () => {
     await user.click(screen.getByRole("checkbox", { name: "Show bulk selection checkboxes" }));
     await user.click(screen.getByRole("button", { name: "Queue actions" }));
 
-    expect(screen.getByRole("menuitem", { name: "Hide selected" })).toBeDisabled();
-    expect(screen.getByRole("menuitem", { name: "Unhide selected" })).toBeDisabled();
+    expect(screen.getByRole("menuitem", { name: "Hide selected" })).toHaveAttribute(
+      "aria-disabled",
+      "true",
+    );
+    expect(screen.getByRole("menuitem", { name: "Unhide selected" })).toHaveAttribute(
+      "aria-disabled",
+      "true",
+    );
   });
 
   it("includes Hidden in the Crowdin queue filter menu", async () => {
