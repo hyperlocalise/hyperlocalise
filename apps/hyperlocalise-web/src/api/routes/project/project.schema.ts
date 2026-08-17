@@ -321,7 +321,10 @@ export const maxCatHiddenStringBatch = maxNativeCatHiddenStringBatch;
 
 export const projectFileCatHiddenStringsBodySchema = z.object({
   sourcePath: z.string().trim().min(1).max(2048),
-  externalStringIds: z.array(z.string().trim().min(1).max(128)).min(1).max(maxNativeCatHiddenStringBatch),
+  externalStringIds: z
+    .array(z.string().trim().min(1).max(128))
+    .min(1)
+    .max(maxNativeCatHiddenStringBatch),
   isHidden: z.boolean(),
 });
 
