@@ -10,12 +10,13 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import type { AuthVariables } from "@/api/middleware/auth-variables";
+import type { AuthVariables } from "@/api/auth/workos";
 import type {
   ProjectFileCatQuery,
   ProjectFileCatQueueFile,
   ProjectFileCatSegment,
 } from "@/api/routes/project/project.schema";
+import type { ProjectResourceTarget } from "@/api/routes/project/project.shared";
 import { maxProjectFileCatPageLimit } from "@/api/routes/project/project.schema";
 import { mapWithConcurrency } from "@/lib/primitives/map-with-concurrency/map-with-concurrency";
 import { getProjectTranslationsByKeyIds } from "@/lib/projects/translations/project-translation-service";
@@ -32,7 +33,10 @@ import {
 export type CatQueueLoaderResult =
   | { kind: "ok"; catQueue: ProjectFileCatQueueFile }
   | { kind: "feature_unavailable" }
-  | { kind: "provider_unavailable"; target: unknown }
+  | {
+      kind: "provider_unavailable";
+      target: Extract<ProjectResourceTarget, { kind: "provider_unavailable" }>;
+    }
   | { kind: "project_not_found" }
   | { kind: "source_file_not_found" }
   | { kind: "provider_error"; error: unknown };
@@ -69,22 +73,26 @@ async function loadProviderTargets(input: {
   actorUserId?: string | null;
   segments: ProjectFileCatSegment[];
 }) {
-  const targets = await mapWithConcurrency(input.segments, PROVIDER_TARGET_CONCURRENCY, async (segment) => {
-    const target = await getTmsProviderLiveCatSegmentTarget(
-      input.organizationId,
-      input.externalProjectId,
-      segment.sourcePath ?? input.sourcePath,
-      input.targetLocale,
-      segment.externalStringId,
-      {
-        actorUserId: input.actorUserId,
-        externalResourceId: segment.externalResourceId,
-        resourceType: segment.resourceType,
-      },
-    );
-    const text = target && target !== "not_found" ? (target.text ?? "") : "";
-    return [segment.externalStringId, text] as const;
-  });
+  const targets = await mapWithConcurrency(
+    input.segments,
+    PROVIDER_TARGET_CONCURRENCY,
+    async (segment) => {
+      const target = await getTmsProviderLiveCatSegmentTarget(
+        input.organizationId,
+        input.externalProjectId,
+        segment.sourcePath ?? input.sourcePath,
+        input.targetLocale,
+        segment.externalStringId,
+        {
+          actorUserId: input.actorUserId,
+          externalResourceId: segment.externalResourceId,
+          resourceType: segment.resourceType,
+        },
+      );
+      const text = target && target !== "not_found" ? (target.text ?? "") : "";
+      return [segment.externalStringId, text] as const;
+    },
+  );
 
   return new Map(targets);
 }

@@ -54,7 +54,7 @@ describe("serializeCatFilteredExportXliff", () => {
   it("emits XLIFF 1.2 units for both xlf and xliff", () => {
     const xliff = serializeCatFilteredExportXliff(sampleRows);
     expect(xliff).toContain('<xliff version="1.2"');
-    expect(xliff).toContain("<seg>".replace("seg", "source"));
+    expect(xliff).toContain('source-language="en"');
     expect(xliff).toContain("Xin chào");
     expect(serializeCatFilteredExport("xlf", sampleRows).extension).toBe("xlf");
     expect(serializeCatFilteredExport("xliff", sampleRows).extension).toBe("xliff");

@@ -40,9 +40,7 @@ import {
   resolveProjectFileCatTargetLocaleResolution,
   resolveProjectFileCatTargetLocales,
 } from "@/lib/projects/project-file-cat-routing";
-import {
-  buildCatNavigationSearchParams,
-} from "@/lib/projects/cat/cat-workspace-query-params";
+import { buildCatNavigationSearchParams } from "@/lib/projects/cat/cat-workspace-query-params";
 import type { CatQueueFilter } from "@/components/cat/queue/cat-queue-filter";
 
 import { ProjectPageShell, useProjectPageQuery } from "../../_components/project-page-shell";

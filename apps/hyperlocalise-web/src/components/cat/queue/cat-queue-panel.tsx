@@ -163,10 +163,7 @@ export function CatQueuePanel({
                       <FormattedMessage {...catQueuePanelMessages.downloadFilteredFormatLabel} />
                     </DropdownMenuLabel>
                     {(["csv", "tmx", "xlf", "xliff"] as const).map((format) => (
-                      <DropdownMenuItem
-                        key={format}
-                        onClick={() => onDownloadFilteredView(format)}
-                      >
+                      <DropdownMenuItem key={format} onClick={() => onDownloadFilteredView(format)}>
                         {format.toUpperCase()}
                       </DropdownMenuItem>
                     ))}

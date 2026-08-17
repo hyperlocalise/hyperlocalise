@@ -37,15 +37,8 @@ export default async function ProjectJobStringsPage({
   }>;
 }) {
   const { organizationSlug, projectId, jobId } = await params;
-  const {
-    sourcePath,
-    storedFileId,
-    sourcePaths,
-    targetLocale,
-    segment,
-    queueFilter,
-    search,
-  } = await searchParams;
+  const { sourcePath, storedFileId, sourcePaths, targetLocale, segment, queueFilter, search } =
+    await searchParams;
   const auth = await requireAppAuthContext({ organizationSlug });
   const target = await resolveProjectResourceTarget(auth, projectId);
   const catAllFilesEnabled = await isReleaseCatAllFilesEnabled(

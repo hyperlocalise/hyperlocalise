@@ -43,7 +43,14 @@ function escapeXml(value: string) {
 }
 
 export function serializeCatFilteredExportCsv(rows: readonly CatFilteredExportRow[]) {
-  const header = ["key", "source_locale", "target_locale", "source_text", "target_text", "source_path"];
+  const header = [
+    "key",
+    "source_locale",
+    "target_locale",
+    "source_text",
+    "target_text",
+    "source_path",
+  ];
   const lines = [
     header.join(","),
     ...rows.map((row) =>
@@ -157,6 +164,9 @@ export function buildCatFilteredExportFilename(input: {
   const base =
     input.sourcePath === "*"
       ? "all-files"
-      : (input.sourcePath.split("/").pop()?.replace(/\.[^.]+$/, "") ?? "cat-export");
+      : (input.sourcePath
+          .split("/")
+          .pop()
+          ?.replace(/\.[^.]+$/, "") ?? "cat-export");
   return `${base}-${input.targetLocale}.${input.extension}`;
 }

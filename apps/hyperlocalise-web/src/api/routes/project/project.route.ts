@@ -933,7 +933,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
           if (target.kind === "provider") {
             sourceLocale = "en";
           } else {
-            const project = await getOwnedProject(c.var.auth, params.projectId);
+            const project = await getOwnedProjectRecord(c.var.auth, params.projectId);
             if (!project) {
               return projectNotFoundResponse(c);
             }

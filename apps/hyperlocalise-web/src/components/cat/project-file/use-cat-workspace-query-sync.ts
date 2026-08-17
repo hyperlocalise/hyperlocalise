@@ -48,11 +48,5 @@ export function useCatWorkspaceQuerySync(input: {
     }
 
     router.replace(nextString ? `${pathname}?${nextString}` : pathname, { scroll: false });
-  }, [
-    input.debouncedSearch,
-    input.queueFilter,
-    pathname,
-    router,
-    searchParamsString,
-  ]);
+  }, [input.debouncedSearch, input.queueFilter, pathname, router, searchParamsString]);
 }
