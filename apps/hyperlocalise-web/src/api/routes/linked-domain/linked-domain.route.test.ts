@@ -413,6 +413,73 @@ describe("linkedDomainRoutes", () => {
     await db.delete(schema.localisationAudits).where(eq(schema.localisationAudits.id, audit.id));
   });
 
+  it("rejects canceling a verified claim and unknown linked domain ids", async () => {
+    const identity = fixture.createWorkosIdentityWithRole("admin");
+    const headers = await fixture.authHeadersFor(identity);
+    const organizationSlug = identity.organization.slug ?? "missing-slug";
+    const organizationId = globalThis.__testApiAuthContext?.organization.localOrganizationId;
+    const userId = globalThis.__testApiAuthContext?.user.localUserId;
+    expect(organizationId).toBeTruthy();
+    expect(userId).toBeTruthy();
+
+    const domainKey = `cancel-verified-${crypto.randomUUID().slice(0, 8)}.example`;
+    const audit = await insertSucceededAudit(domainKey);
+    const [verifiedClaim] = await db
+      .insert(schema.linkedDomains)
+      .values({
+        organizationId: organizationId!,
+        createdByUserId: userId!,
+        domainKey: audit.domainKey,
+        domainSlug: audit.domainSlug,
+        sourceUrl: audit.sourceUrl,
+        status: "verified",
+        verificationToken: "verified-token",
+        localisationAuditId: audit.id,
+        verifiedAt: new Date(),
+        verifiedMethod: "dns_txt",
+      })
+      .returning();
+
+    const verifiedDelete = await client.api.orgs[":organizationSlug"]["linked-domains"][
+      ":linkedDomainId"
+    ].$delete(
+      {
+        param: { organizationSlug, linkedDomainId: verifiedClaim.id },
+      },
+      { headers },
+    );
+    expect(verifiedDelete.status).toBe(400);
+    await expect(verifiedDelete.json()).resolves.toMatchObject({
+      error: "linked_domain_not_pending",
+    });
+
+    const missingDelete = await client.api.orgs[":organizationSlug"]["linked-domains"][
+      ":linkedDomainId"
+    ].$delete(
+      {
+        param: {
+          organizationSlug,
+          linkedDomainId: "00000000-0000-4000-8000-000000000099",
+        },
+      },
+      { headers },
+    );
+    expect(missingDelete.status).toBe(404);
+    await expect(missingDelete.json()).resolves.toMatchObject({
+      error: "linked_domain_not_found",
+    });
+
+    const [stillPresent] = await db
+      .select({ id: schema.linkedDomains.id, status: schema.linkedDomains.status })
+      .from(schema.linkedDomains)
+      .where(eq(schema.linkedDomains.id, verifiedClaim.id))
+      .limit(1);
+    expect(stillPresent).toEqual({ id: verifiedClaim.id, status: "verified" });
+
+    await db.delete(schema.linkedDomains).where(eq(schema.linkedDomains.id, verifiedClaim.id));
+    await db.delete(schema.localisationAudits).where(eq(schema.localisationAudits.id, audit.id));
+  });
+
   it("rejects claiming a domain slug that is not a valid audit slug", async () => {
     const identity = fixture.createWorkosIdentityWithRole("admin");
     const headers = await fixture.authHeadersFor(identity);
