@@ -22,17 +22,17 @@ export const conversationPanelMessages = defineMessages({
   },
   newRequestTitle: {
     defaultMessage: "New Request",
-    id: "nR4q2mLw8K",
+    id: "XJxHCpyMN1",
     description: "Header title for a dedicated new localisation request chat",
   },
   newRequestSubtitle: {
     defaultMessage: "Ask the localisation agent to prepare work",
-    id: "sT7p1cVn3D",
+    id: "DSb2QBD50S",
     description: "Header subtitle for a dedicated new localisation request chat",
   },
   createFailed: {
     defaultMessage: "Could not start this chat. Try again.",
-    id: "bH6w9fQr2M",
+    id: "kFMJ/YkEV9",
     description: "Error when creating a conversation from the inbox New Request page fails",
   },
   createdAt: {

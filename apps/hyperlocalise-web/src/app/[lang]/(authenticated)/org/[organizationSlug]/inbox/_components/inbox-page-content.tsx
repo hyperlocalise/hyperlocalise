@@ -255,15 +255,7 @@ export const InboxPageContent = observer(function InboxPageContent({
 
       await mutateAsync({ text, files, ...options });
     },
-    [
-      composeNew,
-      createConversationAsync,
-      intl,
-      mutateAsync,
-      organizationSlug,
-      queryClient,
-      router,
-    ],
+    [composeNew, createConversationAsync, intl, mutateAsync, organizationSlug, queryClient, router],
   );
 
   const onSelectConversation = useCallback(

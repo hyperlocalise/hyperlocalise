@@ -377,9 +377,7 @@ export function isInboxNewRequestPath(pathname: string | null | undefined, inbox
   const normalizedPathname = stripAppLocalePrefix(pathname ?? "");
   if (inboxHref) {
     const inboxNewHref = `${inboxHref.replace(/\/+$/, "")}/new`;
-    return (
-      normalizedPathname === inboxNewHref || normalizedPathname.startsWith(`${inboxNewHref}/`)
-    );
+    return normalizedPathname === inboxNewHref || normalizedPathname.startsWith(`${inboxNewHref}/`);
   }
 
   return /\/org\/[^/]+\/inbox\/new\/?$/.test(normalizedPathname);

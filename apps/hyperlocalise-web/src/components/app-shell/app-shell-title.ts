@@ -325,7 +325,7 @@ export function getAppShellBreadcrumbs(
       {
         label: intl.formatMessage({
           defaultMessage: "New Request",
-          id: "qL8n2wPk5R",
+          id: "dKBR5NGh7M",
           description: "App shell breadcrumb title for the inbox New Request compose page",
         }),
       },

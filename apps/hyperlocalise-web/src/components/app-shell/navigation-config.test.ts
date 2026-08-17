@@ -293,9 +293,9 @@ describe("isNavigationItemActive", () => {
   it("keeps Inbox inactive on the dedicated New Request compose route", () => {
     expect(isNavigationItemActive("/org/acme/inbox/new", "/org/acme/inbox")).toBe(false);
     expect(isNavigationItemActive("/en/org/acme/inbox/new", "/org/acme/inbox")).toBe(false);
-    expect(isNavigationItemActive("/org/acme/inbox/new", "/org/acme/inbox/new", { exact: true })).toBe(
-      true,
-    );
+    expect(
+      isNavigationItemActive("/org/acme/inbox/new", "/org/acme/inbox/new", { exact: true }),
+    ).toBe(true);
   });
 
   it("ignores the hash fragment on the item href", () => {

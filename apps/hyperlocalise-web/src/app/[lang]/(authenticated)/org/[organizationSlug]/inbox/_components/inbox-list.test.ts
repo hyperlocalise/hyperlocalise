@@ -12,7 +12,11 @@
  */
 import { describe, expect, it } from "vite-plus/test";
 
-import { buildInboxIndexItems, notificationSecondaryText, resolveInboxSelection } from "./inbox-list";
+import {
+  buildInboxIndexItems,
+  notificationSecondaryText,
+  resolveInboxSelection,
+} from "./inbox-list";
 import type { InboxIssueNotification } from "./inbox-notifications-api";
 import type { Conversation } from "./inbox-types";
 

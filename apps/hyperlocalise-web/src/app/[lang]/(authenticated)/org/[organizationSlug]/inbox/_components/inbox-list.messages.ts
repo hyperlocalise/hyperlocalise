@@ -32,12 +32,12 @@ export const inboxListMessages = defineMessages({
   },
   newRequestTitle: {
     defaultMessage: "New Request",
-    id: "k3nR8qLw2P",
+    id: "sHACVcApZT",
     description: "Inbox list row title for a dedicated new localisation request chat",
   },
   newRequestPreview: {
     defaultMessage: "Start a localisation request",
-    id: "p9mT4vHc1B",
+    id: "Leoig5Z0u9",
     description: "Inbox list row preview for a dedicated new localisation request chat",
   },
 });

@@ -33,7 +33,10 @@ export type InboxApi = {
   createConversation(
     organizationSlug: string,
     input: SendConversationMessageInput,
-  ): Promise<{ conversation: { id: string; title?: string }; message?: { id: string; text: string } }>;
+  ): Promise<{
+    conversation: { id: string; title?: string };
+    message?: { id: string; text: string };
+  }>;
   sendMessage(
     organizationSlug: string,
     conversationId: string,
