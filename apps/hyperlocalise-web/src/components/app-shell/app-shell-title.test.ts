@@ -23,6 +23,7 @@ describe("getAppShellTitle", () => {
   it.each([
     ["/org/acme/dashboard", "Overview"],
     ["/org/acme/inbox", "Inbox"],
+    ["/org/acme/inbox/new", "New Request"],
     ["/org/acme/projects", "Projects"],
     ["/org/acme/projects/proj_1", "proj_1"],
     ["/org/acme/projects/proj_1/files", "Files"],
@@ -79,6 +80,17 @@ describe("getAppShellTitle", () => {
 describe("getAppShellBreadcrumbs", () => {
   it("returns a single crumb for top-level routes", () => {
     expect(getAppShellBreadcrumbs("/org/acme/inbox", intl)).toEqual([{ label: "Inbox" }]);
+  });
+
+  it("returns New Request breadcrumbs for the inbox compose page", () => {
+    expect(getAppShellBreadcrumbs("/org/acme/inbox/new", intl)).toEqual([
+      { label: "Inbox", href: "/org/acme/inbox" },
+      { label: "New Request" },
+    ]);
+    expect(getAppShellBreadcrumbs("/en/org/acme/inbox/new", intl)).toEqual([
+      { label: "Inbox", href: "/org/acme/inbox" },
+      { label: "New Request" },
+    ]);
   });
 
   it("returns settings breadcrumbs for settings subpages", () => {

@@ -12,10 +12,13 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { BubbleChatNotificationIcon } from "@hugeicons/core-free-icons";
+import { useRef } from "react";
+import { BubbleChatNotificationIcon, Chat01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { FormattedMessage, useIntl } from "react-intl";
 
+import { ChatDockEmptyState } from "@/components/app-shell/chat-dock/chat-dock-empty-state";
+import { chatDockMessages } from "@/components/app-shell/chat-dock/chat-dock.messages";
 import { Badge } from "@/components/ui/badge";
 import { TypographyH4, TypographyMuted } from "@/components/ui/typography";
 
@@ -38,24 +41,30 @@ import { ReplyComposer } from "./reply-composer";
 export function ConversationPanel({
   conversation,
   currentUser,
+  draft = "",
+  isComposingNew = false,
   isSending,
   isStreaming,
   jobs,
   jobsIsLoading,
   messages,
   messagesIsLoading,
+  onDraftChange,
   onSendMessage,
   organizationSlug,
   streamedAssistant,
 }: {
   conversation: Conversation | undefined;
   currentUser: InboxCurrentUser;
+  draft?: string;
+  isComposingNew?: boolean;
   isSending: boolean;
   isStreaming: boolean;
   jobs: LinkedJob[];
   jobsIsLoading: boolean;
   messages: ConversationMessage[];
   messagesIsLoading: boolean;
+  onDraftChange?: (draft: string) => void;
   onSendMessage: (
     text: string,
     files: File[],
@@ -64,6 +73,66 @@ export function ConversationPanel({
   organizationSlug: string;
   streamedAssistant: StreamedAssistantMessage | null;
 }) {
+  const intl = useIntl();
+  const panelRef = useRef<HTMLElement>(null);
+
+  if (isComposingNew) {
+    const composerDisabled = isSending || isStreaming;
+
+    return (
+      <section
+        ref={panelRef}
+        className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-background"
+      >
+        <header className="flex min-h-16 items-center border-b border-border px-4 py-3 sm:px-6">
+          <div className="flex min-w-0 flex-1 items-start gap-3">
+            <HugeiconsIcon
+              icon={Chat01Icon}
+              strokeWidth={1.8}
+              className="mt-0.5 size-5 shrink-0 text-muted-foreground"
+            />
+            <div className="min-w-0">
+              <TypographyH4 className="truncate text-base">
+                <FormattedMessage {...conversationPanelMessages.newRequestTitle} />
+              </TypographyH4>
+              <TypographyMuted className="mt-1.5 text-xs">
+                <FormattedMessage {...conversationPanelMessages.newRequestSubtitle} />
+              </TypographyMuted>
+            </div>
+          </div>
+        </header>
+
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+          <ChatDockEmptyState
+            onSelectSuggestion={(prompt) => {
+              onDraftChange?.(prompt);
+              requestAnimationFrame(() => {
+                const textarea = panelRef.current?.querySelector("textarea");
+                if (!textarea) {
+                  return;
+                }
+                textarea.focus();
+                const cursor = textarea.value.length;
+                textarea.setSelectionRange(cursor, cursor);
+              });
+            }}
+          />
+          <InboxPanelErrorBoundary scope="composer" resetKeys={[composerDisabled, draft]}>
+            <ReplyComposer
+              disabled={composerDisabled}
+              draft={draft}
+              isStreaming={isStreaming}
+              onDraftChange={onDraftChange}
+              onSend={onSendMessage}
+              organizationSlug={organizationSlug}
+              placeholder={intl.formatMessage(chatDockMessages.emptyComposer)}
+            />
+          </InboxPanelErrorBoundary>
+        </div>
+      </section>
+    );
+  }
+
   if (!conversation) {
     return (
       <section className="flex min-h-0 min-w-0 flex-col overflow-hidden bg-background">

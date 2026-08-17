@@ -13,6 +13,8 @@
  * Version 2.0 or later.
  */
 import { memo, useMemo } from "react";
+import { Chat01Icon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import { FormattedMessage, useIntl, type MessageDescriptor } from "react-intl";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -40,7 +42,33 @@ export type InboxIndexItem =
 export type InboxSelection =
   | { kind: "conversation"; id: string }
   | { kind: "notification"; id: string }
+  | { kind: "new" }
   | null;
+
+export function resolveInboxSelection(input: {
+  composeNew: boolean;
+  urlConversationId?: string;
+  urlNotificationId?: string;
+  firstConversationId?: string;
+  firstNotificationId?: string;
+}): InboxSelection {
+  if (input.composeNew) {
+    return { kind: "new" };
+  }
+  if (input.urlNotificationId) {
+    return { kind: "notification", id: input.urlNotificationId };
+  }
+  if (input.urlConversationId) {
+    return { kind: "conversation", id: input.urlConversationId };
+  }
+  if (input.firstConversationId) {
+    return { kind: "conversation", id: input.firstConversationId };
+  }
+  if (input.firstNotificationId) {
+    return { kind: "notification", id: input.firstNotificationId };
+  }
+  return null;
+}
 
 /** Plain-text secondary line for notification rows (strips mention markdown etc.). */
 export function notificationSecondaryText(excerpt: string | undefined, fallback: string): string {
@@ -127,6 +155,8 @@ export const InboxList = memo(function InboxList({
     [conversations, notifications],
   );
 
+  const isComposingNew = selection?.kind === "new";
+
   return (
     <section className="flex max-h-[40svh] min-h-0 shrink-0 flex-col overflow-hidden border-border lg:h-full lg:max-h-none lg:shrink lg:border-r">
       {unreadNotificationCount > 0 && onMarkAllRead ? (
@@ -143,12 +173,13 @@ export const InboxList = memo(function InboxList({
           <TypographyMuted className="px-3 py-4">
             <FormattedMessage {...inboxNotificationsMessages.loadError} />
           </TypographyMuted>
-        ) : items.length === 0 ? (
+        ) : items.length === 0 && !isComposingNew ? (
           <TypographyMuted className="px-3 py-4">
             <FormattedMessage {...inboxNotificationsMessages.empty} />
           </TypographyMuted>
         ) : (
           <div className="flex flex-col gap-1">
+            {isComposingNew ? <NewRequestListItem /> : null}
             {items.map((item) =>
               item.kind === "conversation" ? (
                 <ConversationListItem
@@ -189,6 +220,34 @@ export const InboxList = memo(function InboxList({
         )}
       </div>
     </section>
+  );
+});
+
+function listItemClassName(isSelected: boolean) {
+  return cn(
+    "grid w-full text-left transition-colors",
+    "grid-cols-[2rem_minmax(0,1fr)] gap-2 rounded-md px-2 py-2.5",
+    isSelected
+      ? "bg-accent text-foreground"
+      : "text-foreground hover:bg-muted hover:text-foreground",
+  );
+}
+
+const NewRequestListItem = memo(function NewRequestListItem() {
+  return (
+    <div aria-current="page" className={listItemClassName(true)}>
+      <div className="flex size-8 items-center justify-center rounded-full bg-muted text-muted-foreground">
+        <HugeiconsIcon icon={Chat01Icon} strokeWidth={2} className="size-4" />
+      </div>
+      <div className="min-w-0">
+        <TypographySmall className="truncate">
+          <FormattedMessage {...inboxListMessages.newRequestTitle} />
+        </TypographySmall>
+        <TypographyMuted className="mt-1 truncate">
+          <FormattedMessage {...inboxListMessages.newRequestPreview} />
+        </TypographyMuted>
+      </div>
+    </div>
   );
 });
 
@@ -234,13 +293,7 @@ const ConversationListItem = memo(function ConversationListItem({
       type="button"
       aria-pressed={isSelected}
       onClick={() => onSelect(conversation.id)}
-      className={cn(
-        "grid w-full text-left transition-colors",
-        "grid-cols-[2rem_minmax(0,1fr)] gap-2 rounded-md px-2 py-2.5",
-        isSelected
-          ? "bg-accent text-foreground"
-          : "text-foreground hover:bg-muted hover:text-foreground",
-      )}
+      className={listItemClassName(isSelected)}
     >
       <Avatar className="size-8 bg-muted">
         {participantAvatar.imageUrl ? (

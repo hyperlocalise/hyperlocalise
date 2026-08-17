@@ -44,25 +44,20 @@ import type { HugeiconsIcon } from "@hugeicons/react";
 
 export type NavigationIcon = ComponentProps<typeof HugeiconsIcon>["icon"];
 
-export type NavigationItemAction = "open-chat-dock";
-
 export type NavigationItem = {
   label: string;
   href: string;
   icon: NavigationIcon;
   description?: string;
   badge?: string;
-  /** Non-route action; when set, the sidebar renders a button instead of a link. */
-  action?: NavigationItemAction;
+  /** When true, only the exact href is active (not nested paths). */
+  exact?: boolean;
   featureFlagKey?:
     | typeof WORKSPACE_AUTOMATIONS_FLAG
     | typeof WORKSPACE_KNOWLEDGE_FLAG
     | typeof WORKSPACE_DOMAINS_FLAG
     | typeof RELEASE_CAT_ALL_FILES_FLAG;
 };
-
-/** Sentinel href for the New Request sidebar action (never navigated). */
-export const OPEN_CHAT_DOCK_HREF = "#open-chat-dock";
 
 export type NavigationGroup = {
   label?: string;
@@ -93,8 +88,8 @@ export function buildGlobalNavigationGroups(
             id: "VtO24sqmBM",
             description: "Sidebar navigation item to start a new localisation request",
           }),
-          href: OPEN_CHAT_DOCK_HREF,
-          action: "open-chat-dock",
+          href: org("inbox/new"),
+          exact: true,
           icon: Chat01Icon,
           description: intl.formatMessage({
             defaultMessage: "Ask the localisation agent to prepare work",
@@ -378,6 +373,18 @@ function decodePathSegment(value: string) {
   }
 }
 
+export function isInboxNewRequestPath(pathname: string | null | undefined, inboxHref?: string) {
+  const normalizedPathname = stripAppLocalePrefix(pathname ?? "");
+  if (inboxHref) {
+    const inboxNewHref = `${inboxHref.replace(/\/+$/, "")}/new`;
+    return (
+      normalizedPathname === inboxNewHref || normalizedPathname.startsWith(`${inboxNewHref}/`)
+    );
+  }
+
+  return /\/org\/[^/]+\/inbox\/new\/?$/.test(normalizedPathname);
+}
+
 export function isNavigationItemActive(
   pathname: string | null | undefined,
   href: string,
@@ -407,6 +414,11 @@ export function isNavigationItemActive(
 
   if (normalizedPathname === itemPathname) {
     return true;
+  }
+
+  // New Request lives under /inbox/new; keep the Inbox item inactive there.
+  if (itemPathname.endsWith("/inbox") && isInboxNewRequestPath(normalizedPathname, itemPathname)) {
+    return false;
   }
 
   if (itemPathname.endsWith("/projects")) {

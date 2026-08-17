@@ -254,7 +254,6 @@ function NavigationGroupItems({
   projectId?: string;
 }) {
   const intl = useIntl();
-  const { chatDock } = useAppShellStore();
   const inboxHref = buildOrganizationPath(organizationSlug, "inbox");
   const unreadCountQuery = useQuery({
     queryKey: notificationsUnreadCountQueryKey(organizationSlug),
@@ -269,13 +268,11 @@ function NavigationGroupItems({
     <SidebarGroupContent>
       <SidebarMenu className="gap-1">
         {group.items.map((item) => {
-          const isActionItem = item.action === "open-chat-dock";
-          const isActive = isActionItem
-            ? false
-            : isNavigationItemActive(pathname, item.href, {
-                projectId,
-                organizationSlug,
-              });
+          const isActive = isNavigationItemActive(pathname, item.href, {
+            exact: item.exact,
+            projectId,
+            organizationSlug,
+          });
           const isInboxItem = item.href === inboxHref;
           const dynamicBadge = isInboxItem ? unreadBadgeLabel : null;
           const badge = dynamicBadge ?? item.badge;
@@ -289,11 +286,10 @@ function NavigationGroupItems({
           return (
             <SidebarMenuItem key={item.href}>
               <SidebarMenuButton
-                render={isActionItem ? undefined : <Link href={item.href} />}
+                render={<Link href={item.href} />}
                 isActive={isActive}
                 tooltip={tooltip}
                 className={navigationButtonClass(isActive)}
-                onClick={isActionItem ? () => chatDock.openNewTab() : undefined}
               >
                 <HugeiconsIcon icon={item.icon} strokeWidth={2} className="size-4" />
                 <span className="min-w-0 flex-1 truncate">{item.label}</span>

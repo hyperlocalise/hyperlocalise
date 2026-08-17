@@ -35,6 +35,7 @@ export function InboxPageView({
   conversationsIsError,
   conversationsIsLoading,
   currentUser,
+  draft = "",
   hasMoreNotifications,
   isLoadingMoreNotifications,
   isSending,
@@ -47,6 +48,7 @@ export function InboxPageView({
   notifications,
   notificationsIsError,
   notificationsIsLoading,
+  onDraftChange,
   onLoadMoreNotifications,
   onMarkAllRead,
   onSelectConversation,
@@ -64,6 +66,7 @@ export function InboxPageView({
   conversationsIsError: boolean;
   conversationsIsLoading: boolean;
   currentUser: InboxCurrentUser;
+  draft?: string;
   hasMoreNotifications: boolean;
   isLoadingMoreNotifications: boolean;
   isSending: boolean;
@@ -76,6 +79,7 @@ export function InboxPageView({
   notifications: InboxIssueNotification[];
   notificationsIsError: boolean;
   notificationsIsLoading: boolean;
+  onDraftChange?: (draft: string) => void;
   onLoadMoreNotifications: () => void;
   onMarkAllRead: () => void;
   onSelectConversation: (conversationId: string) => void;
@@ -100,7 +104,9 @@ export function InboxPageView({
       ? `conversation:${selection.id}`
       : selection?.kind === "notification"
         ? `notification:${selection.id}`
-        : "none";
+        : selection?.kind === "new"
+          ? "new"
+          : "none";
 
   return (
     <main
@@ -165,12 +171,15 @@ export function InboxPageView({
           <ConversationPanel
             conversation={selectedConversation}
             currentUser={currentUser}
+            draft={draft}
+            isComposingNew={selection?.kind === "new"}
             isSending={isSending}
             isStreaming={isStreaming}
             jobs={jobs}
             jobsIsLoading={jobsIsLoading}
             messages={messages}
             messagesIsLoading={messagesIsLoading}
+            onDraftChange={onDraftChange}
             onSendMessage={onSendMessage}
             organizationSlug={organizationSlug}
             streamedAssistant={streamedAssistant}

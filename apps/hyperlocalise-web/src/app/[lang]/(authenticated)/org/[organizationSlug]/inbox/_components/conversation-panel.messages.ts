@@ -20,6 +20,21 @@ export const conversationPanelMessages = defineMessages({
     id: "iUA2MassCX",
     description: "Empty state when no inbox conversation is selected",
   },
+  newRequestTitle: {
+    defaultMessage: "New Request",
+    id: "nR4q2mLw8K",
+    description: "Header title for a dedicated new localisation request chat",
+  },
+  newRequestSubtitle: {
+    defaultMessage: "Ask the localisation agent to prepare work",
+    id: "sT7p1cVn3D",
+    description: "Header subtitle for a dedicated new localisation request chat",
+  },
+  createFailed: {
+    defaultMessage: "Could not start this chat. Try again.",
+    id: "bH6w9fQr2M",
+    description: "Error when creating a conversation from the inbox New Request page fails",
+  },
   createdAt: {
     defaultMessage: "Created {relativeTime}",
     id: "oKnUPzABxE",

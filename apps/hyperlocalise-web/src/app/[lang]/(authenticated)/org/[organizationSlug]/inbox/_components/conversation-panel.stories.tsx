@@ -71,6 +71,18 @@ export const NoSelection: Story = {
   },
 };
 
+export const NewRequest: Story = {
+  args: {
+    conversation: undefined,
+    isComposingNew: true,
+  },
+  play: async ({ canvas }) => {
+    await expect(canvas.getByRole("heading", { name: "New Request" })).toBeInTheDocument();
+    await expect(canvas.getByText("Welcome to Hyperlocalise")).toBeInTheDocument();
+    await expect(canvas.getByPlaceholderText("Ask Hyperlocalise…")).toBeInTheDocument();
+  },
+};
+
 export const LoadingMessages: Story = {
   args: {
     messages: [],

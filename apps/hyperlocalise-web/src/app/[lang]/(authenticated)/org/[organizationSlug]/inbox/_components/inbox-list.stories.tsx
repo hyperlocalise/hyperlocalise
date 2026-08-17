@@ -144,6 +144,17 @@ export const Empty: Story = {
   },
 };
 
+export const NewRequest: Story = {
+  args: {
+    selection: { kind: "new" },
+  },
+  play: async ({ canvas }) => {
+    await expect(canvas.getByText("New Request")).toBeInTheDocument();
+    await expect(canvas.getByText("Start a localisation request")).toBeInTheDocument();
+    await expect(canvas.getByText("Translate homepage hero copy")).toBeInTheDocument();
+  },
+};
+
 export const Error: Story = {
   args: {
     conversations: [],

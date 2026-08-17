@@ -316,6 +316,22 @@ export function getAppShellBreadcrumbs(
   const { organizationSlug, routeSegments } = orgRoute;
   const [section, subsection, projectSection] = routeSegments;
 
+  if (section === "inbox" && subsection === "new") {
+    return [
+      {
+        label: formatRouteTitle(intl, "inbox"),
+        href: buildOrgPath(organizationSlug, "inbox"),
+      },
+      {
+        label: intl.formatMessage({
+          defaultMessage: "New Request",
+          id: "qL8n2wPk5R",
+          description: "App shell breadcrumb title for the inbox New Request compose page",
+        }),
+      },
+    ];
+  }
+
   if (section === "settings") {
     if (!subsection) {
       return [{ label: formatRouteTitle(intl, "settings") }];

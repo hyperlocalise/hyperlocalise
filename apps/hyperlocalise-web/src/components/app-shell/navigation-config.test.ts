@@ -28,6 +28,7 @@ import {
   buildOrganizationPath,
   buildProjectNavigationItems,
   buildProjectPath,
+  isInboxNewRequestPath,
   isNavigationItemActive,
   parseProjectRoute,
   stripAppLocalePrefix,
@@ -172,8 +173,8 @@ describe("path builders", () => {
     expect(byLabel.get("Inbox")?.href).toBe("/org/acme/inbox");
     expect(byLabel.get("Projects")?.href).toBe("/org/acme/projects");
     expect(byLabel.get("New Request")).toMatchObject({
-      href: "#open-chat-dock",
-      action: "open-chat-dock",
+      href: "/org/acme/inbox/new",
+      exact: true,
     });
     expect(byLabel.get("Automations")?.featureFlagKey).toBe(WORKSPACE_AUTOMATIONS_FLAG);
     expect(byLabel.get("Knowledge")?.featureFlagKey).toBe(WORKSPACE_KNOWLEDGE_FLAG);
@@ -289,6 +290,14 @@ describe("isNavigationItemActive", () => {
     expect(isNavigationItemActive("/org/acme/inbox/thread_1", "/org/acme/inbox")).toBe(true);
   });
 
+  it("keeps Inbox inactive on the dedicated New Request compose route", () => {
+    expect(isNavigationItemActive("/org/acme/inbox/new", "/org/acme/inbox")).toBe(false);
+    expect(isNavigationItemActive("/en/org/acme/inbox/new", "/org/acme/inbox")).toBe(false);
+    expect(isNavigationItemActive("/org/acme/inbox/new", "/org/acme/inbox/new", { exact: true })).toBe(
+      true,
+    );
+  });
+
   it("ignores the hash fragment on the item href", () => {
     expect(isNavigationItemActive("/org/acme/settings", "/org/acme/settings#profile")).toBe(true);
   });
@@ -309,5 +318,14 @@ describe("isNavigationItemActive", () => {
     expect(isNavigationItemActive("/org/acme/my-jobs/job_1", myWorkHref)).toBe(true);
     expect(isNavigationItemActive("/en/org/acme/my-jobs", myWorkHref)).toBe(true);
     expect(isNavigationItemActive("/org/acme/inbox", myWorkHref)).toBe(false);
+  });
+});
+
+describe("isInboxNewRequestPath", () => {
+  it("matches locale-prefixed and bare inbox compose paths", () => {
+    expect(isInboxNewRequestPath("/org/acme/inbox/new")).toBe(true);
+    expect(isInboxNewRequestPath("/en/org/acme/inbox/new")).toBe(true);
+    expect(isInboxNewRequestPath("/org/acme/inbox")).toBe(false);
+    expect(isInboxNewRequestPath("/org/acme/inbox/thread_1")).toBe(false);
   });
 });
