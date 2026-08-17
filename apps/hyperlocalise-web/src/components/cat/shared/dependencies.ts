@@ -70,6 +70,8 @@ export interface CatWorkspaceReview {
   onSkip: (segmentId: string) => void;
   onBulkApprove?: (segmentIds: string[]) => void | Promise<void>;
   onBulkSkip?: (segmentIds: string[]) => void | Promise<void>;
+  onBulkHide?: (segmentIds: string[]) => void | Promise<void>;
+  onBulkUnhide?: (segmentIds: string[]) => void | Promise<void>;
 }
 
 export interface CatWorkspaceServices {
@@ -159,6 +161,8 @@ export interface CatWorkspaceViewProps {
   onClearChecked?: () => void;
   onBulkApprove?: () => void;
   onBulkSkip?: () => void;
+  onBulkHide?: () => void;
+  onBulkUnhide?: () => void;
   isBulkActionPending?: boolean;
   buildSegmentShareUrl?: (segment: CatSegment) => string | null;
   onIntelligencePanelVisible?: (segmentId: string) => void;

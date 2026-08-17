@@ -197,6 +197,7 @@ export function ProjectFileCatWorkspace({
     uploadImage,
     treatAsImage,
     treatAsVideo,
+    setStringsHidden,
     isImageBusy,
   } = useCatMutations({
     organizationSlug,
@@ -362,6 +363,22 @@ export function ProjectFileCatWorkspace({
       await resolveComment({ externalStringId: segmentId, externalCommentId: commentId });
     },
     [catFile?.canEditTranslations, intl, resolveComment],
+  );
+
+  const handleSetStringsHidden = useCallback(
+    async (segmentIds: string[], isHidden: boolean) => {
+      if (!catFile?.canEditTranslations) {
+        throw new Error(
+          intl.formatMessage(projectFileCatWorkspaceMessages.cannotWriteTranslations),
+        );
+      }
+
+      await setStringsHidden({
+        externalStringIds: segmentIds,
+        isHidden,
+      });
+    },
+    [catFile?.canEditTranslations, intl, setStringsHidden],
   );
 
   const handleAddToIssueSheet = useCallback(
@@ -697,6 +714,12 @@ export function ProjectFileCatWorkspace({
           onAddToIssueSheet: handleAddToIssueSheet,
           onResolveComment:
             catFile?.provider?.kind === "crowdin" ? handleResolveComment : undefined,
+          ...(isNativeProject
+            ? {
+                onBulkHide: (segmentIds: string[]) => handleSetStringsHidden(segmentIds, true),
+                onBulkUnhide: (segmentIds: string[]) => handleSetStringsHidden(segmentIds, false),
+              }
+            : {}),
         }}
         initialSegmentKeyOrId={initialSegmentKey}
         buildSegmentShareUrl={buildSegmentShareUrl}

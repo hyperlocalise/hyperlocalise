@@ -70,6 +70,7 @@ import {
   resolveNativeProjectCatLegacyIssueComment,
   saveNativeProjectCatComment,
   saveNativeProjectCatTranslation,
+  setNativeProjectCatStringsHidden,
   updateNativeProjectTranslationStatus,
 } from "@/lib/projects/cat/native-cat-service";
 import {
@@ -138,6 +139,7 @@ import {
   projectFileCatConcordanceBodySchema,
   projectFileCatCommentBodySchema,
   projectFileCatCommentResolveBodySchema,
+  projectFileCatHiddenStringsBodySchema,
   projectFileCatImageRegenerateBodySchema,
   projectFileCatImageStatusBodySchema,
   projectFileCatRecommendationBodySchema,
@@ -555,6 +557,16 @@ const validateProjectFileCatRecommendationBody = validator("json", (value, c) =>
 
 const validateProjectFileCatStatusBody = validator("json", (value, c) => {
   const parsed = projectFileCatStatusBodySchema.safeParse(value);
+
+  if (!parsed.success) {
+    return invalidProjectPayloadResponse(c);
+  }
+
+  return parsed.data;
+});
+
+const validateProjectFileCatHiddenStringsBody = validator("json", (value, c) => {
+  const parsed = projectFileCatHiddenStringsBodySchema.safeParse(value);
 
   if (!parsed.success) {
     return invalidProjectPayloadResponse(c);
@@ -1499,6 +1511,52 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
         }
 
         return c.json({ translation }, 200);
+      },
+    )
+    .post(
+      "/:projectId/files/detail/cat/strings/hidden",
+      validateProjectParams,
+      validateProjectFileCatHiddenStringsBody,
+      async (c) => {
+        if (!isWriteBackTranslationAllowed(c.var.auth.membership.role)) {
+          return projectForbiddenResponse(c);
+        }
+
+        const params = c.req.valid("param");
+        const body = c.req.valid("json");
+        const target = await resolveProjectResourceTarget(c.var.auth, params.projectId);
+        if (target.kind === "provider_unavailable") {
+          return providerProjectUnavailableResponse(c, target);
+        }
+
+        if (target.kind === "provider") {
+          return badRequestResponse(
+            c,
+            "provider_cat_unsupported",
+            "Hidden strings can only be updated for workspace files.",
+          );
+        }
+
+        const project = await getOwnedProject(c.var.auth, params.projectId);
+        if (!project) {
+          return projectNotFoundResponse(c);
+        }
+
+        const result = await setNativeProjectCatStringsHidden({
+          organizationId: c.var.auth.organization.localOrganizationId,
+          projectId: params.projectId,
+          translationKeyIds: body.externalStringIds,
+          isHidden: body.isHidden,
+          sourcePath: body.sourcePath,
+        });
+
+        return c.json(
+          {
+            updatedCount: result.updatedCount,
+            isHidden: body.isHidden,
+          },
+          200,
+        );
       },
     )
     .post(

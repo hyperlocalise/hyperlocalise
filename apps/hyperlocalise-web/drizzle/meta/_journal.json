@@ -603,6 +603,13 @@
       "when": 1786849910062,
       "tag": "0085_dizzy_patch",
       "breakpoints": true
+    },
+    {
+      "idx": 86,
+      "version": "7",
+      "when": 1786959895945,
+      "tag": "0086_fearless_king_cobra",
+      "breakpoints": true
     }
   ]
 }

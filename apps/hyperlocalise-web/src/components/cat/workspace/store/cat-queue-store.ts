@@ -71,6 +71,23 @@ export class CatQueueStore {
     this.checkedSegmentIds.clear();
   }
 
+  setHidden(segmentIds: string[], isHidden: boolean) {
+    for (const segmentId of segmentIds) {
+      const existing = this.segmentMeta.get(segmentId);
+      if (!existing) {
+        continue;
+      }
+
+      if (isHidden) {
+        this.segmentMeta.set(segmentId, { ...existing, isHidden: true });
+        continue;
+      }
+
+      const { isHidden: _ignored, ...rest } = existing;
+      this.segmentMeta.set(segmentId, rest);
+    }
+  }
+
   reconcileVisibleIds(visibleIds: ReadonlySet<string>) {
     this.checkedSegmentIds = new Set(
       [...this.checkedSegmentIds].filter((segmentId) => visibleIds.has(segmentId)),

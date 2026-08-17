@@ -55,4 +55,9 @@ export const useCatMutationsMessages = defineMessages({
     id: "VaRVOa2ruT",
     description: "Fallback error when toggling treat-as-video mode fails",
   },
+  failedToUpdateHiddenStrings: {
+    defaultMessage: "Failed to update hidden strings",
+    id: "nTmsHidErr",
+    description: "Fallback error when hiding or unhiding native CAT source strings fails",
+  },
 });

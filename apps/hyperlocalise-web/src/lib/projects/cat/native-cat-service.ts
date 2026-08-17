@@ -100,6 +100,7 @@ function mapTextSegment(
     type: string | null;
     maxLength: number | null;
     metadata: Record<string, unknown> | null;
+    isHidden?: boolean;
     sourcePath?: string;
   },
   options?: { includeSourcePath?: boolean },
@@ -121,6 +122,7 @@ function mapTextSegment(
     context: key.context,
     type: key.type,
     ...(key.maxLength != null && key.maxLength > 0 ? { maxLength: key.maxLength } : {}),
+    ...(key.isHidden ? { isHidden: true as const } : {}),
     ...(contentKind ? { contentKind } : {}),
     ...(contentKind === IMAGE_URL_CONTENT_KIND || contentKind === VIDEO_URL_CONTENT_KIND
       ? { sourceAssetUrl: key.sourceText }
@@ -548,6 +550,35 @@ export class NativeCatService extends ProjectServiceBase {
     };
   }
 
+  async setKeysHidden(input: {
+    organizationId: string;
+    projectId: string;
+    translationKeyIds: string[];
+    isHidden: boolean;
+    sourcePath?: string;
+  }) {
+    let repositorySourceFileId: string | undefined;
+    if (input.sourcePath && !isCatAllFilesSourcePath(input.sourcePath)) {
+      const sourceFile = await this.translations.getRepositorySourceFileByPath({
+        organizationId: input.organizationId,
+        projectId: input.projectId,
+        sourcePath: input.sourcePath,
+      });
+      if (!sourceFile) {
+        return { updatedCount: 0 };
+      }
+      repositorySourceFileId = sourceFile.id;
+    }
+
+    return this.translations.setKeysHidden({
+      organizationId: input.organizationId,
+      projectId: input.projectId,
+      translationKeyIds: input.translationKeyIds,
+      isHidden: input.isHidden,
+      repositorySourceFileId,
+    });
+  }
+
   async saveComment(input: Parameters<NativeCatCommentService["save"]>[0]) {
     return this.comments.save(input);
   }
@@ -954,3 +985,7 @@ export const resolveNativeProjectCatLegacyIssueComment = (
 export const updateNativeProjectTranslationStatus = (
   input: Parameters<NativeCatService["updateTranslationStatus"]>[0],
 ) => nativeCatService.updateTranslationStatus(input);
+
+export const setNativeProjectCatStringsHidden = (
+  input: Parameters<NativeCatService["setKeysHidden"]>[0],
+) => nativeCatService.setKeysHidden(input);

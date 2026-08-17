@@ -354,6 +354,8 @@ export function useCatWorkspaceRuntime({
 
   const handleBulkApprove = useCallback(() => reviewController.bulkApprove(), [reviewController]);
   const handleBulkSkip = useCallback(() => reviewController.bulkSkip(), [reviewController]);
+  const handleBulkHide = useCallback(() => reviewController.bulkHide(), [reviewController]);
+  const handleBulkUnhide = useCallback(() => reviewController.bulkUnhide(), [reviewController]);
 
   const resolvedBuildSegmentShareUrl = useMemo(() => {
     if (buildSegmentShareUrl) {
@@ -382,6 +384,8 @@ export function useCatWorkspaceRuntime({
     handleQueueFilterChange,
     handleBulkApprove,
     handleBulkSkip,
+    handleBulkHide,
+    handleBulkUnhide,
     resolvedBuildSegmentShareUrl,
     canLookupContext,
     canLoadVisualContext,

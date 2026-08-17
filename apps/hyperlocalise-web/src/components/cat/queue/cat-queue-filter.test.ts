@@ -107,22 +107,20 @@ describe("segmentMatchesQueueFilter", () => {
     expect(segmentMatchesQueueFilter(withResolvedIssue, "needs_review")).toBe(true);
   });
 
-  it("filters segment lists", () => {
+  it("filters hidden segments", () => {
     const segments = [
-      createSegment({ id: "a", status: "pending" }),
-      createSegment({ id: "b", status: "reviewed" }),
-      createSegment({ id: "c", status: "skipped" }),
+      createSegment({ id: "a", isHidden: true }),
+      createSegment({ id: "b" }),
     ];
 
-    expect(filterCatQueueSegments(segments, "reviewed").map((segment) => segment.id)).toEqual([
-      "b",
-    ]);
+    expect(filterCatQueueSegments(segments, "hidden").map((segment) => segment.id)).toEqual(["a"]);
   });
 });
 
 describe("resolveAvailableCatQueueFilters", () => {
-  it("includes has issues for native projects", () => {
-    expect(resolveAvailableCatQueueFilters(null)).toContain("has_issues");
+  it("includes hidden for native projects only", () => {
+    expect(resolveAvailableCatQueueFilters(null)).toContain("hidden");
+    expect(resolveAvailableCatQueueFilters("crowdin")).not.toContain("hidden");
   });
 
   it("includes has issues for Crowdin projects", () => {

@@ -43,6 +43,7 @@ describe("NativeCatService.getCatFile", () => {
   const listKeysForFile = vi.fn();
   const countKeysForFile = vi.fn();
   const getTranslationsByKeyIds = vi.fn();
+  const setKeysHidden = vi.fn();
   let service: NativeCatService;
 
   beforeEach(() => {
@@ -73,6 +74,7 @@ describe("NativeCatService.getCatFile", () => {
       listKeysForFile,
       countKeysForFile,
       getTranslationsByKeyIds,
+      setKeysHidden,
     } as unknown as ProjectTranslationService;
 
     service = new NativeCatService(undefined as never, translations, {} as NativeCatCommentService);
@@ -197,6 +199,46 @@ describe("NativeCatService.getCatFile", () => {
     });
 
     expect(result?.segments[0]?.maxLength).toBeUndefined();
+  });
+
+  it("maps isHidden onto CAT segments when the translation key is hidden", async () => {
+    listKeysForFile.mockResolvedValue([
+      {
+        id: "key_hidden",
+        key: "debug.id",
+        sourceText: "Internal id",
+        context: null,
+        type: "text",
+        maxLength: null,
+        metadata: {},
+        isHidden: true,
+      },
+      {
+        id: "key_visible",
+        key: "hero.title",
+        sourceText: "Welcome",
+        context: null,
+        type: "text",
+        maxLength: null,
+        metadata: {},
+        isHidden: false,
+      },
+    ]);
+
+    const result = await service.getCatFile({
+      organizationId: "org_1",
+      projectId: "project_1",
+      sourcePath: "locales/en.json",
+      targetLocale: "fr",
+      canEditTranslations: true,
+      organizationSlug: "acme",
+    });
+
+    expect(result?.segments[0]).toMatchObject({
+      externalStringId: "key_hidden",
+      isHidden: true,
+    });
+    expect(result?.segments[1]).not.toHaveProperty("isHidden");
   });
 
   it("returns a synthetic image_file segment for png sources", async () => {
@@ -352,5 +394,46 @@ describe("NativeCatService.getCatFile", () => {
       sourceAssetUrl: "https://cdn.example.com/banner.mp4",
       looksLikeVideoUrl: true,
     });
+  });
+
+  it("scopes hidden updates to the source file when sourcePath is provided", async () => {
+    setKeysHidden.mockResolvedValue({ updatedCount: 1 });
+
+    await service.setKeysHidden({
+      organizationId: "org_1",
+      projectId: "project_1",
+      translationKeyIds: ["key_1", "key_2"],
+      isHidden: true,
+      sourcePath: "locales/en.json",
+    });
+
+    expect(getRepositorySourceFileByPath).toHaveBeenCalledWith({
+      organizationId: "org_1",
+      projectId: "project_1",
+      sourcePath: "locales/en.json",
+    });
+    expect(setKeysHidden).toHaveBeenCalledWith({
+      organizationId: "org_1",
+      projectId: "project_1",
+      translationKeyIds: ["key_1", "key_2"],
+      isHidden: true,
+      repositorySourceFileId: "file_1",
+    });
+  });
+
+  it("does not update hidden state when the source file is missing", async () => {
+    getRepositorySourceFileByPath.mockResolvedValueOnce(null);
+
+    await expect(
+      service.setKeysHidden({
+        organizationId: "org_1",
+        projectId: "project_1",
+        translationKeyIds: ["key_1"],
+        isHidden: true,
+        sourcePath: "locales/missing.json",
+      }),
+    ).resolves.toEqual({ updatedCount: 0 });
+
+    expect(setKeysHidden).not.toHaveBeenCalled();
   });
 });

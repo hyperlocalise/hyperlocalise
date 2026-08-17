@@ -30,6 +30,7 @@ const {
   catTranslationsPostMock,
   catCommentsPostMock,
   catCommentResolvePatchMock,
+  catStringsHiddenPostMock,
   invalidateSegmentTargetMock,
   syncSegmentTargetAfterSaveMock,
   invalidateSegmentCommentsMock,
@@ -37,6 +38,7 @@ const {
   catTranslationsPostMock: vi.fn(),
   catCommentsPostMock: vi.fn(),
   catCommentResolvePatchMock: vi.fn(),
+  catStringsHiddenPostMock: vi.fn(),
   invalidateSegmentTargetMock: vi.fn(),
   syncSegmentTargetAfterSaveMock: vi.fn(),
   invalidateSegmentCommentsMock: vi.fn(),
@@ -54,6 +56,11 @@ vi.mock("@/lib/api-client-instance", () => ({
                   cat: {
                     translations: {
                       $post: (...args: unknown[]) => catTranslationsPostMock(...args),
+                    },
+                    strings: {
+                      hidden: {
+                        $post: (...args: unknown[]) => catStringsHiddenPostMock(...args),
+                      },
                     },
                     comments: {
                       $post: (...args: unknown[]) => catCommentsPostMock(...args),
@@ -322,5 +329,36 @@ describe("useCatMutations", () => {
     });
 
     await waitFor(() => expect(result.current.isSaving).toBe(false));
+  });
+
+  it("hides native source strings and invalidates the queue", async () => {
+    catStringsHiddenPostMock.mockResolvedValue(
+      jsonResponse({ updatedCount: 2, isHidden: true }),
+    );
+
+    const nativeFile = {
+      ...createCatFileResponse().catFile,
+      provider: null,
+    };
+    const { result } = renderCatMutations(nativeFile);
+
+    await act(async () => {
+      const response = await result.current.setStringsHidden({
+        externalStringIds: ["segment-1", "segment-2"],
+        isHidden: true,
+      });
+      expect(response).toEqual({ updatedCount: 2, isHidden: true });
+    });
+
+    expect(catStringsHiddenPostMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        json: expect.objectContaining({
+          sourcePath: catApiTestContext.sourcePath,
+          externalStringIds: ["segment-1", "segment-2"],
+          isHidden: true,
+        }),
+      }),
+    );
+    expect(invalidateQueue).toHaveBeenCalled();
   });
 });

@@ -478,6 +478,38 @@ export function useCatMutations(input: {
     },
   });
 
+  const hiddenStringsMutation = useMutation({
+    mutationFn: async (mutationInput: { externalStringIds: string[]; isHidden: boolean }) => {
+      const response = await apiClient.api.orgs[":organizationSlug"].projects[
+        ":projectId"
+      ].files.detail.cat.strings.hidden.$post({
+        param: {
+          organizationSlug: input.organizationSlug,
+          projectId: input.projectId,
+        },
+        json: {
+          sourcePath: input.sourcePath,
+          externalStringIds: mutationInput.externalStringIds,
+          isHidden: mutationInput.isHidden,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(
+          await readApiError(
+            response,
+            intl.formatMessage(useCatMutationsMessages.failedToUpdateHiddenStrings),
+          ),
+        );
+      }
+
+      return response.json() as Promise<{ updatedCount: number; isHidden: boolean }>;
+    },
+    onSuccess: async () => {
+      await input.invalidateQueue();
+    },
+  });
+
   return {
     saveMutation,
     saveTranslation: saveMutation.mutateAsync,
@@ -493,6 +525,7 @@ export function useCatMutations(input: {
     treatAsImage: treatAsImageMutation.mutateAsync,
     treatAsVideoMutation,
     treatAsVideo: treatAsVideoMutation.mutateAsync,
+    setStringsHidden: hiddenStringsMutation.mutateAsync,
     isSaving: saveMutation.isPending,
     isPostingComment: commentMutation.isPending,
     isResolvingComment: resolveCommentMutation.isPending,

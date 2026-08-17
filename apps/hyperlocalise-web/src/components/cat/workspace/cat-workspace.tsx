@@ -102,6 +102,8 @@ export const CatWorkspaceView = observer(function CatWorkspaceView({
   onClearChecked,
   onBulkApprove,
   onBulkSkip,
+  onBulkHide,
+  onBulkUnhide,
   isBulkActionPending = false,
   buildSegmentShareUrl,
   onIntelligencePanelVisible,
@@ -205,6 +207,8 @@ export const CatWorkspaceView = observer(function CatWorkspaceView({
             onClearChecked={onClearChecked}
             onBulkApprove={onBulkApprove}
             onBulkSkip={onBulkSkip}
+            onBulkHide={onBulkHide}
+            onBulkUnhide={onBulkUnhide}
             isBulkActionPending={isBulkActionPending}
             isFetchingPage={isQueueFetchingPage}
             isQueueLoading={isQueueLoading}
@@ -617,6 +621,8 @@ export const CatWorkspaceView = observer(function CatWorkspaceView({
           onClearChecked={onClearChecked}
           onBulkApprove={onBulkApprove}
           onBulkSkip={onBulkSkip}
+          onBulkHide={onBulkHide}
+          onBulkUnhide={onBulkUnhide}
           isBulkActionPending={isBulkActionPending}
           isFetchingPage={isQueueFetchingPage}
           isQueueLoading={isQueueLoading}

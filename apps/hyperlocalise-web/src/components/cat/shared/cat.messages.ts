@@ -119,6 +119,11 @@ export const catQueuePanelMessages = defineMessages({
     id: "75tLVTlfqV",
     description: "CAT queue filter option for skipped segments",
   },
+  filterHidden: {
+    defaultMessage: "Hidden",
+    id: "nTmsFltHid",
+    description: "CAT queue filter option for hidden source strings",
+  },
   emptyFilterResults: {
     defaultMessage: "No segments match this filter.",
     id: "oY/dfpDvR7",
@@ -133,6 +138,16 @@ export const catQueuePanelMessages = defineMessages({
     defaultMessage: "Skip selected",
     id: "zCn3UqvqWI",
     description: "Bulk action to skip all selected CAT segments",
+  },
+  bulkHide: {
+    defaultMessage: "Hide selected",
+    id: "nTmsHideSel",
+    description: "Bulk action to hide selected native CAT source strings from translation jobs",
+  },
+  bulkUnhide: {
+    defaultMessage: "Unhide selected",
+    id: "nTmsUnhdSel",
+    description: "Bulk action to make selected native CAT source strings visible to translation jobs",
   },
   bulkSelectAll: {
     defaultMessage: "Select all visible",

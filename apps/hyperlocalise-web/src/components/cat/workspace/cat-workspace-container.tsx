@@ -206,6 +206,8 @@ const CatWorkspaceContainerObserver = observer(function CatWorkspaceContainerObs
           onClearChecked={() => store.clearChecked()}
           onBulkApprove={() => void controller.handleBulkApprove()}
           onBulkSkip={() => void controller.handleBulkSkip()}
+          onBulkHide={review?.onBulkHide ? () => void controller.handleBulkHide() : undefined}
+          onBulkUnhide={review?.onBulkUnhide ? () => void controller.handleBulkUnhide() : undefined}
           isBulkActionPending={store.isBulkActionPending}
           buildSegmentShareUrl={controller.resolvedBuildSegmentShareUrl}
           onIntelligencePanelVisible={controller.handleIntelligencePanelVisible}

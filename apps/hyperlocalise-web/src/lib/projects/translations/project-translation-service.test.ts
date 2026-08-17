@@ -56,6 +56,7 @@ vi.mock("@/lib/database", () => ({
       context: "context",
       type: "type",
       maxLength: "maxLength",
+      isHidden: "isHidden",
       organizationId: "organizationId",
       projectId: "projectId",
       repositorySourceFileId: "repositorySourceFileId",
@@ -278,6 +279,50 @@ describe("loadProjectTranslationsAsPrefilledEntries", () => {
     expect(result.truncated).toBe(false);
     expect(result.loadedKeyCount).toBe(1);
     expect(result.translatedKeyCount).toBe(0);
+  });
+
+  it("prefills hidden keys with existing translation or source and omits them from retryKeys", async () => {
+    repoLimitMock.mockResolvedValueOnce([{ id: "repo_file_1", sourcePath: "locales/en.json" }]);
+    offsetMock.mockResolvedValueOnce([
+      { id: "key_1", key: "debug.id", sourceText: "Internal id", isHidden: true },
+      { id: "key_2", key: "hidden.copy", sourceText: "Do not translate", isHidden: true },
+      { id: "key_3", key: "greeting", sourceText: "Hello", isHidden: false },
+    ]);
+
+    whereMock.mockImplementationOnce(() => ({
+      limit: repoLimitMock,
+      orderBy: orderByMock,
+    }));
+    whereMock.mockImplementationOnce(() => ({
+      limit: repoLimitMock,
+      orderBy: orderByMock,
+    }));
+    whereMock.mockImplementationOnce(
+      () =>
+        Promise.resolve([
+          {
+            id: "translation_1",
+            translationKeyId: "key_1",
+            text: "Id interne",
+            status: "approved",
+          },
+        ]) as unknown as { limit: typeof repoLimitMock; orderBy: typeof orderByMock },
+    );
+
+    const result = await loadProjectTranslationsAsPrefilledEntries({
+      organizationId: "org_1",
+      projectId: "project_1",
+      sourcePath: "locales/en.json",
+      targetLocale: "fr",
+    });
+
+    expect(result.prefilled).toEqual({
+      "debug.id": "Id interne",
+      "hidden.copy": "Do not translate",
+    });
+    expect(result.retryKeys).toEqual([]);
+    expect(result.loadedKeyCount).toBe(3);
+    expect(result.translatedKeyCount).toBe(1);
   });
 
   it("exports every source key with source fallback when includeAllSourceKeys is enabled", async () => {

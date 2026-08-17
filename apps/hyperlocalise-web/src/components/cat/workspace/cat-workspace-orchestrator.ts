@@ -1122,6 +1122,10 @@ export class CatWorkspaceOrchestrator {
     this.queue.clearChecked();
   }
 
+  setSegmentsHidden(segmentIds: string[], isHidden: boolean) {
+    this.queue.setHidden(segmentIds, isHidden);
+  }
+
   pruneCheckedToVisible(visibleIds: ReadonlySet<string>) {
     const next = new Set([...this.checkedSegmentIds].filter((id) => visibleIds.has(id)));
     if (next.size !== this.checkedSegmentIds.size) {

@@ -177,6 +177,8 @@ function translationKeysQueueFilterCondition(input: {
             )
         )
       )`;
+    case "hidden":
+      return eq(schema.projectTranslationKeys.isHidden, true);
     default:
       return undefined;
   }
@@ -303,6 +305,53 @@ export class ProjectTranslationService extends ProjectServiceBase {
     return { imported, updated };
   }
 
+  async setKeysHidden(input: {
+    organizationId: string;
+    projectId: string;
+    translationKeyIds: string[];
+    isHidden: boolean;
+    repositorySourceFileId?: string;
+  }): Promise<{ updatedCount: number }> {
+    const translationKeyIds = [...new Set(input.translationKeyIds)];
+    if (translationKeyIds.length === 0) {
+      return { updatedCount: 0 };
+    }
+
+    const updated = await this.database
+      .update(schema.projectTranslationKeys)
+      .set({
+        isHidden: input.isHidden,
+        updatedAt: new Date(),
+      })
+      .where(
+        and(
+          eq(schema.projectTranslationKeys.organizationId, input.organizationId),
+          eq(schema.projectTranslationKeys.projectId, input.projectId),
+          inArray(schema.projectTranslationKeys.id, translationKeyIds),
+          input.repositorySourceFileId
+            ? eq(
+                schema.projectTranslationKeys.repositorySourceFileId,
+                input.repositorySourceFileId,
+              )
+            : undefined,
+        ),
+      )
+      .returning({ id: schema.projectTranslationKeys.id });
+
+    this.log.info(
+      {
+        organizationId: input.organizationId,
+        projectId: input.projectId,
+        requestedCount: translationKeyIds.length,
+        updatedCount: updated.length,
+        isHidden: input.isHidden,
+      },
+      "updated native translation key hidden state",
+    );
+
+    return { updatedCount: updated.length };
+  }
+
   async countKeysForFile(input: {
     organizationId: string;
     projectId: string;
@@ -354,6 +403,7 @@ export class ProjectTranslationService extends ProjectServiceBase {
         type: schema.projectTranslationKeys.type,
         maxLength: schema.projectTranslationKeys.maxLength,
         metadata: schema.projectTranslationKeys.metadata,
+        isHidden: schema.projectTranslationKeys.isHidden,
       })
       .from(schema.projectTranslationKeys)
       .where(
@@ -431,6 +481,7 @@ export class ProjectTranslationService extends ProjectServiceBase {
         type: schema.projectTranslationKeys.type,
         maxLength: schema.projectTranslationKeys.maxLength,
         metadata: schema.projectTranslationKeys.metadata,
+        isHidden: schema.projectTranslationKeys.isHidden,
         sourcePath: schema.repositorySourceFiles.sourcePath,
       })
       .from(schema.projectTranslationKeys)
@@ -555,6 +606,17 @@ export class ProjectTranslationService extends ProjectServiceBase {
         const translation = translationByKeyId.get(key.id);
         const hasValidTranslation =
           Boolean(translation?.text?.trim()) && translation?.status !== "rejected";
+
+        if (key.isHidden) {
+          if (hasValidTranslation) {
+            prefilled[key.key] = translation!.text;
+            translatedKeyCount += 1;
+          } else {
+            prefilled[key.key] = key.sourceText;
+          }
+          continue;
+        }
+
         // Leave multi-word needs-review copies out of prefill so a later
         // translate-with-agent run can try them again. Single-word copies stay.
         const retrySameAsSource =
@@ -787,6 +849,7 @@ export class ProjectTranslationService extends ProjectServiceBase {
     const [key] = await this.database
       .select({
         id: schema.projectTranslationKeys.id,
+        isHidden: schema.projectTranslationKeys.isHidden,
       })
       .from(schema.projectTranslationKeys)
       .where(
@@ -798,7 +861,7 @@ export class ProjectTranslationService extends ProjectServiceBase {
       )
       .limit(1);
 
-    if (!key) {
+    if (!key || key.isHidden) {
       return;
     }
 
@@ -867,6 +930,7 @@ export class ProjectTranslationService extends ProjectServiceBase {
       .select({
         id: schema.projectTranslationKeys.id,
         key: schema.projectTranslationKeys.key,
+        isHidden: schema.projectTranslationKeys.isHidden,
       })
       .from(schema.projectTranslationKeys)
       .where(
@@ -878,6 +942,10 @@ export class ProjectTranslationService extends ProjectServiceBase {
       );
 
     const translationValues = keys.flatMap((key) => {
+      if (key.isHidden) {
+        return [];
+      }
+
       const targetText = input.targetEntries[key.key];
       if (!targetText?.trim()) {
         return [];
@@ -1046,6 +1114,10 @@ export const getRepositorySourceFileByPath = (
 export const upsertProjectTranslationKeysFromEntries = (
   input: Parameters<ProjectTranslationService["upsertKeysFromEntries"]>[0],
 ) => projectTranslationService.upsertKeysFromEntries(input);
+
+export const setProjectTranslationKeysHidden = (
+  input: Parameters<ProjectTranslationService["setKeysHidden"]>[0],
+) => projectTranslationService.setKeysHidden(input);
 
 export const countProjectTranslationKeysForFile = (
   input: Parameters<ProjectTranslationService["countKeysForFile"]>[0],
