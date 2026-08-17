@@ -121,6 +121,29 @@ describe("crawlLocalisationAuditSample", () => {
     expect(result.blockedReason).toBe("bot_protection");
   });
 
+  it("keeps a successful homepage when a secondary seed is bot-blocked", async () => {
+    const { createRenderer } = mockBrowser([
+      htmlPage(
+        "https://example.com/",
+        `<html lang="en"><head><title>Home</title><link rel="alternate" hreflang="fr" href="/fr" /></head><body>Welcome to the homepage content sample.</body></html>`,
+      ),
+      htmlPage(
+        "https://example.com/fr",
+        "<html><title>Just a moment...</title><body>Checking your browser before accessing.</body></html>",
+        { status: 403 },
+      ),
+    ]);
+
+    const result = await crawlLocalisationAuditSample(
+      { origin: "https://example.com", sourceUrl: "https://example.com/" },
+      { createRenderer },
+    );
+
+    expect(result.blockedReason).toBeUndefined();
+    expect(result.pages.some((page) => page.url === "https://example.com/")).toBe(true);
+    expect(result.pages.some((page) => page.url.includes("/fr"))).toBe(false);
+  });
+
   it("follows a rendered homepage redirect and crawls the final URL", async () => {
     const { createRenderer } = mockBrowser([
       htmlPage(

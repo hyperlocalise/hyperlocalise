@@ -353,19 +353,15 @@ async function crawlLocalisationAuditSampleInner(
       fetchSitemapSignals(input.origin),
     ]);
 
-    const blockedReason = otherRendered
-      .map((rendered) => detectLocalisationAuditCrawlBlock(rendered.status, rendered.html))
-      .find(
-        (reason): reason is NonNullable<LocalisationAuditCrawlResult["blockedReason"]> =>
-          reason != null,
-      );
-    if (blockedReason) {
-      return { pages: [], sitemap, blockedReason };
-    }
-
+    // Terminal blocked status is homepage-only (see ADR 2026-08-17 blocked-domain).
+    // A 403/challenge on a seeded secondary URL must not discard a successful home
+    // crawl or hide a prior report after reclaim — skip those pages instead.
     const pagesByUrl = new Map<string, LocalisationAuditCrawledPage>();
     pagesByUrl.set(homePage.url, homePage);
     for (const rendered of otherRendered) {
+      if (detectLocalisationAuditCrawlBlock(rendered.status, rendered.html)) {
+        continue;
+      }
       const page = pageFromRendered(rendered.html, rendered.url, rendered.status);
       // Ranked seeds use pre-render URLs; Playwright may land on a redirected final URL.
       pagesByUrl.set(rendered.requestedUrl, page);
