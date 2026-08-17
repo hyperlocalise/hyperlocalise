@@ -19,6 +19,7 @@ export type CatQueueFilter = ProjectFileCatQueueFilter | "skipped";
 export type CatSegmentFilterInput = {
   status: CatSegment["status"];
   hasOpenIssues?: boolean;
+  isHidden?: boolean;
 };
 
 export const catQueueFilterValues: CatQueueFilter[] = [
@@ -119,7 +120,8 @@ export function segmentMatchesQueueFilterFromInput(
     case "all":
       return true;
     case "untranslated":
-      return input.status === "pending";
+      // Hidden TMS strings are not translator queue work.
+      return input.status === "pending" && !input.isHidden;
     case "needs_review":
       return input.status === "needs_review" && !segmentHasOpenIssuesFromInput(input);
     case "reviewed":
@@ -138,6 +140,7 @@ export function segmentMatchesQueueFilter(segment: CatSegment, filter: CatQueueF
     {
       status: segment.status,
       hasOpenIssues: segmentHasOpenIssues(segment),
+      isHidden: segment.isHidden,
     },
     filter,
   );

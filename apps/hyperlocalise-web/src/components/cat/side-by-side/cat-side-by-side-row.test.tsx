@@ -85,6 +85,21 @@ describe("CatSideBySideRow", () => {
     expect(screen.queryByText("Needs review")).not.toBeInTheDocument();
   });
 
+  it("shows Hidden instead of Untranslated for hidden pending segments", () => {
+    const state = createCatWorkspaceState({ selectedSegmentId: "seg-02" });
+    const segment = {
+      ...state.segments!.find((item) => item.id === "seg-02")!,
+      status: "pending" as const,
+      targetText: "",
+      isHidden: true,
+    };
+
+    renderRow({ segment, isDirty: false });
+
+    expect(screen.getByText("Hidden")).toBeInTheDocument();
+    expect(screen.queryByText("Untranslated")).not.toBeInTheDocument();
+  });
+
   it("shows the share link button when focused with a share url", async () => {
     const user = userEvent.setup();
     const writeText = vi.fn().mockResolvedValue(undefined);

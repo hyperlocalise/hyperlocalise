@@ -46,6 +46,18 @@ describe("segmentMatchesQueueFilter", () => {
     ).toBe(false);
   });
 
+  it("does not treat hidden pending segments as untranslated work", () => {
+    expect(
+      segmentMatchesQueueFilter(
+        createSegment({ status: "pending", isHidden: true }),
+        "untranslated",
+      ),
+    ).toBe(false);
+    expect(
+      segmentMatchesQueueFilter(createSegment({ status: "pending", isHidden: true }), "all"),
+    ).toBe(true);
+  });
+
   it("matches reviewed segments", () => {
     expect(segmentMatchesQueueFilter(createSegment({ status: "reviewed" }), "reviewed")).toBe(true);
   });

@@ -107,7 +107,10 @@ export function buildCrowdinFileQueueCroql(input: {
 
   switch (input.queueFilter) {
     case "untranslated":
+      // Hidden strings are withheld from translators; do not list them as
+      // untranslated work (Crowdin's editor keeps Hidden as its own filter).
       parts.push(`count of languages summary where (${languageSummary} and is translated) = 0`);
+      parts.push("not is hidden");
       break;
     case "needs_review":
       parts.push(

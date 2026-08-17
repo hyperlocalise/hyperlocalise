@@ -20,7 +20,11 @@ import { Loader2, RefreshCw, Upload } from "lucide-react";
 import { FormattedMessage, useIntl } from "react-intl";
 
 import { CatWorkspaceViewSwitcherConnected } from "@/components/cat/workspace/cat-workspace-view-switcher-connected";
-import { SegmentStatusBadge } from "@/components/cat/segment/cat-segment-status";
+import { CatHiddenStringBadge } from "@/components/cat/segment/cat-hidden-string-badge";
+import {
+  SegmentStatusBadge,
+  shouldShowSegmentStatusBadge,
+} from "@/components/cat/segment/cat-segment-status";
 import type { CatSegment } from "@/components/cat/shared/types";
 import type { CatFileViewerId } from "@/components/cat/workspace/cat-file-view-capabilities";
 import { Button } from "@/components/ui/button";
@@ -116,7 +120,10 @@ export function CatFileViewPanel({
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3 lg:px-5">
         <div className="min-w-0 space-y-1">
           <div className="flex flex-wrap items-center gap-2">
-            <SegmentStatusBadge status={segment.status} />
+            {shouldShowSegmentStatusBadge(segment.status, segment.isHidden) ? (
+              <SegmentStatusBadge status={segment.status} />
+            ) : null}
+            {segment.isHidden ? <CatHiddenStringBadge /> : null}
             <p className="truncate font-mono text-xs text-muted-foreground">{displayName}</p>
           </div>
           <p className="text-sm text-muted-foreground">

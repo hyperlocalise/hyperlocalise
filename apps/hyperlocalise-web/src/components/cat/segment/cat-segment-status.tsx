@@ -56,6 +56,14 @@ function segmentStatusBadgeVariant(status: CatSegmentStatus) {
   return "outline" as const;
 }
 
+/**
+ * Hidden TMS strings are not translator work. Prefer the Hidden badge over
+ * the Untranslated (pending) status label so they are not confused.
+ */
+export function shouldShowSegmentStatusBadge(status: CatSegmentStatus, isHidden?: boolean) {
+  return !(isHidden === true && status === "pending");
+}
+
 export function QueueStatusDot({ status }: { status: CatSegmentStatus }) {
   const intl = useIntl();
   const statusLabel = intl.formatMessage(getSegmentStatusMessage(status));

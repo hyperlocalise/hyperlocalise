@@ -30,7 +30,7 @@ describe("buildCrowdinFileQueueCroql", () => {
         queueFilter: "untranslated",
       }),
     ).toBe(
-      'id of file = 101 and count of languages summary where (language = @language:"fr" and is translated) = 0',
+      'id of file = 101 and count of languages summary where (language = @language:"fr" and is translated) = 0 and not is hidden',
     );
   });
 
@@ -65,7 +65,9 @@ describe("buildCrowdinFileQueueCroql", () => {
         targetLocale: "fr",
         queueFilter: "untranslated",
       }),
-    ).toBe('count of languages summary where (language = @language:"fr" and is translated) = 0');
+    ).toBe(
+      'count of languages summary where (language = @language:"fr" and is translated) = 0 and not is hidden',
+    );
   });
 
   it("scopes to multiple file ids with or", () => {

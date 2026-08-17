@@ -20,7 +20,10 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
 import { CatHiddenStringBadge } from "@/components/cat/segment/cat-hidden-string-badge";
-import { SegmentStatusBadge } from "@/components/cat/segment/cat-segment-status";
+import {
+  SegmentStatusBadge,
+  shouldShowSegmentStatusBadge,
+} from "@/components/cat/segment/cat-segment-status";
 import { CatShareSegmentButton } from "@/components/cat/segment/cat-share-segment-button";
 import { catEditorPanelMessages } from "@/components/cat/shared/cat.messages";
 import type { CatSegment } from "@/components/cat/shared/types";
@@ -64,7 +67,9 @@ export function CatEditorHeader({
             }}
           />
         </span>
-        <SegmentStatusBadge status={segment.status} />
+        {shouldShowSegmentStatusBadge(segment.status, segment.isHidden) ? (
+          <SegmentStatusBadge status={segment.status} />
+        ) : null}
         {segment.isHidden ? <CatHiddenStringBadge /> : null}
         {isTargetDirty ? (
           <Badge variant="outline" className="border-bud-500/40 bg-bud-500/10 text-bud-300">
