@@ -45,6 +45,7 @@ const {
   getTmsProviderLiveCatFileMock,
   getTmsProviderLiveCatAllFilesMock,
   saveTmsProviderLiveCatTranslationMock,
+  setTmsProviderLiveCatStringsHiddenMock,
   saveTmsProviderLiveCatCommentMock,
   resolveTmsProviderLiveCatCommentMock,
   loadCatSegmentConcordanceMock,
@@ -59,6 +60,7 @@ const {
   getTmsProviderLiveCatFileMock: vi.fn(),
   getTmsProviderLiveCatAllFilesMock: vi.fn(),
   saveTmsProviderLiveCatTranslationMock: vi.fn(),
+  setTmsProviderLiveCatStringsHiddenMock: vi.fn(),
   saveTmsProviderLiveCatCommentMock: vi.fn(),
   resolveTmsProviderLiveCatCommentMock: vi.fn(),
   loadCatSegmentConcordanceMock: vi.fn(),
@@ -105,6 +107,8 @@ vi.mock("@/lib/providers/jobs/tms-provider-live", async (importOriginal) => {
       getTmsProviderLiveCatAllFilesMock(...args),
     saveTmsProviderLiveCatTranslation: (...args: unknown[]) =>
       saveTmsProviderLiveCatTranslationMock(...args),
+    setTmsProviderLiveCatStringsHidden: (...args: unknown[]) =>
+      setTmsProviderLiveCatStringsHiddenMock(...args),
     saveTmsProviderLiveCatComment: (...args: unknown[]) =>
       saveTmsProviderLiveCatCommentMock(...args),
     resolveTmsProviderLiveCatComment: (...args: unknown[]) =>
@@ -2206,13 +2210,17 @@ describe("project file CAT routes", () => {
     ]);
   });
 
-  it("rejects hidden-string updates for external TMS projects", async () => {
+  it("hides Crowdin CAT strings for users with write-back permission", async () => {
     const translator = projectFixture.createWorkosIdentityWithRole("translator");
     getTmsProviderConnectionMock.mockResolvedValue({
       providerKind: "crowdin",
       displayName: "Crowdin",
       validationStatus: "valid",
       validationMessage: null,
+    });
+    setTmsProviderLiveCatStringsHiddenMock.mockResolvedValue({
+      updatedCount: 2,
+      isHidden: true,
     });
 
     const response = await client.api.orgs[":organizationSlug"].projects[
@@ -2225,6 +2233,66 @@ describe("project file CAT routes", () => {
         },
         json: {
           sourcePath: "crowdin/home.json",
+          externalStringIds: ["1001", "1002"],
+          isHidden: true,
+        },
+      },
+      { headers: await projectFixture.authHeadersFor(translator) },
+    );
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ updatedCount: 2, isHidden: true });
+    expect(setTmsProviderLiveCatStringsHiddenMock).toHaveBeenCalledWith(
+      expect.any(String),
+      "42",
+      { externalStringIds: ["1001", "1002"], isHidden: true },
+      expect.objectContaining({ actorUserId: expect.any(String) }),
+    );
+  });
+
+  it("denies CAT hidden-string updates without write-back permission", async () => {
+    const member = projectFixture.createWorkosIdentityWithRole("member");
+
+    const response = await client.api.orgs[":organizationSlug"].projects[
+      ":projectId"
+    ].files.detail.cat.strings.hidden.$post(
+      {
+        param: {
+          organizationSlug: member.organization.slug ?? "missing-slug",
+          projectId: "ext:crowdin:42",
+        },
+        json: {
+          sourcePath: "crowdin/home.json",
+          externalStringIds: ["1001"],
+          isHidden: true,
+        },
+      },
+      { headers: await projectFixture.authHeadersFor(member) },
+    );
+
+    expect(response.status).toBe(403);
+    expect(setTmsProviderLiveCatStringsHiddenMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects CAT hidden-string updates for non-Crowdin providers", async () => {
+    const translator = projectFixture.createWorkosIdentityWithRole("translator");
+    getTmsProviderConnectionMock.mockResolvedValue({
+      providerKind: "phrase",
+      displayName: "Phrase",
+      validationStatus: "valid",
+      validationMessage: null,
+    });
+
+    const response = await client.api.orgs[":organizationSlug"].projects[
+      ":projectId"
+    ].files.detail.cat.strings.hidden.$post(
+      {
+        param: {
+          organizationSlug: translator.organization.slug ?? "missing-slug",
+          projectId: "ext:phrase:42",
+        },
+        json: {
+          sourcePath: "phrase/home.json",
           externalStringIds: ["1001"],
           isHidden: true,
         },
@@ -2234,5 +2302,6 @@ describe("project file CAT routes", () => {
 
     expect(response.status).toBe(400);
     expect(await response.json()).toMatchObject({ error: "provider_cat_unsupported" });
+    expect(setTmsProviderLiveCatStringsHiddenMock).not.toHaveBeenCalled();
   });
 });

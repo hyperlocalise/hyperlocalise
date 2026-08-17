@@ -317,6 +317,7 @@ export const projectFileCatStatusBodySchema = z.object({
 });
 
 export const maxNativeCatHiddenStringBatch = 200;
+export const maxCatHiddenStringBatch = maxNativeCatHiddenStringBatch;
 
 export const projectFileCatHiddenStringsBodySchema = z.object({
   sourcePath: z.string().trim().min(1).max(2048),

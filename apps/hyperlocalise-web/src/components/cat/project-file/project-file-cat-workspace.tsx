@@ -443,26 +443,28 @@ export function ProjectFileCatWorkspace({
         );
       }
 
-      const translationKeyIds = segmentIds.filter((segmentId) => {
-        const segment = catFile.segments.find((item) => item.externalStringId === segmentId);
-        return (
-          resolveCatLinkedIssueTranslationKeyId({
-            isNativeProject: true,
-            segmentId,
-            contentKind: segment?.contentKind,
-          }) != null
-        );
-      });
-      if (translationKeyIds.length === 0) {
+      const externalStringIds = isNativeProject
+        ? segmentIds.filter((segmentId) => {
+            const segment = catFile.segments.find((item) => item.externalStringId === segmentId);
+            return (
+              resolveCatLinkedIssueTranslationKeyId({
+                isNativeProject: true,
+                segmentId,
+                contentKind: segment?.contentKind,
+              }) != null
+            );
+          })
+        : segmentIds;
+      if (externalStringIds.length === 0) {
         return;
       }
 
       await setStringsHidden({
-        externalStringIds: translationKeyIds,
+        externalStringIds,
         isHidden,
       });
     },
-    [catFile?.canEditTranslations, catFile?.segments, intl, setStringsHidden],
+    [catFile?.canEditTranslations, catFile?.segments, intl, isNativeProject, setStringsHidden],
   );
 
   const handleAddToIssueSheet = useCallback(
@@ -798,7 +800,7 @@ export function ProjectFileCatWorkspace({
           onAddToIssueSheet: handleAddToIssueSheet,
           onResolveComment:
             catFile?.provider?.kind === "crowdin" ? handleResolveComment : undefined,
-          ...(canHideNativeStrings
+          ...(canHideNativeStrings || catFile?.provider?.kind === "crowdin"
             ? {
                 onBulkHide: (segmentIds: string[]) => handleSetStringsHidden(segmentIds, true),
                 onBulkUnhide: (segmentIds: string[]) => handleSetStringsHidden(segmentIds, false),

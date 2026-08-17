@@ -88,6 +88,16 @@ describe("buildCrowdinFileQueueCroql", () => {
       }),
     ).toBeUndefined();
   });
+
+  it("filters hidden strings with is hidden", () => {
+    expect(
+      buildCrowdinFileQueueCroql({
+        fileId: 101,
+        targetLocale: "fr",
+        queueFilter: "hidden",
+      }),
+    ).toBe("id of file = 101 and is hidden");
+  });
 });
 
 describe("Crowdin CROQL size limits", () => {

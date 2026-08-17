@@ -60,6 +60,7 @@ import {
   listTmsProviderLiveProjectBranches,
   saveTmsProviderLiveCatTranslation,
   saveTmsProviderLiveCatComment,
+  setTmsProviderLiveCatStringsHidden,
   resolveTmsProviderLiveCatComment,
 } from "@/lib/providers/jobs/tms-provider-live";
 import { listOrganizationProjects } from "@/lib/projects/organization/organization-project-service";
@@ -1627,11 +1628,35 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
         }
 
         if (target.kind === "provider") {
-          return badRequestResponse(
-            c,
-            "provider_cat_unsupported",
-            "Hidden strings can only be updated for workspace files.",
-          );
+          if (target.providerKind !== "crowdin") {
+            return badRequestResponse(
+              c,
+              "provider_cat_unsupported",
+              "Hidden strings can only be updated for Crowdin CAT.",
+            );
+          }
+
+          try {
+            const result = await setTmsProviderLiveCatStringsHidden(
+              c.var.auth.organization.localOrganizationId,
+              target.externalProjectId,
+              {
+                externalStringIds: body.externalStringIds,
+                isHidden: body.isHidden,
+              },
+              { actorUserId: c.var.auth.user.localUserId },
+            );
+
+            return c.json(
+              {
+                updatedCount: result.updatedCount,
+                isHidden: result.isHidden,
+              },
+              200,
+            );
+          } catch (error) {
+            return tmsProviderLiveErrorResponse(c, error);
+          }
         }
 
         const project = await getOwnedProject(c.var.auth, params.projectId);

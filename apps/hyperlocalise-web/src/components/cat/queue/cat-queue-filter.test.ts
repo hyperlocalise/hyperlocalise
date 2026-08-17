@@ -124,12 +124,20 @@ describe("segmentMatchesQueueFilter", () => {
 
     expect(filterCatQueueSegments(segments, "hidden").map((segment) => segment.id)).toEqual(["a"]);
   });
+
+  it("matches hidden source strings", () => {
+    expect(segmentMatchesQueueFilter(createSegment({ isHidden: true }), "hidden")).toBe(true);
+    expect(segmentMatchesQueueFilter(createSegment(), "hidden")).toBe(false);
+  });
 });
 
 describe("resolveAvailableCatQueueFilters", () => {
-  it("includes hidden for native projects only", () => {
+  it("includes hidden for native and Crowdin projects", () => {
     expect(resolveAvailableCatQueueFilters(null)).toContain("hidden");
-    expect(resolveAvailableCatQueueFilters("crowdin")).not.toContain("hidden");
+    expect(resolveAvailableCatQueueFilters("crowdin")).toContain("hidden");
+    expect(resolveAvailableCatQueueFilters("phrase")).not.toContain("hidden");
+    expect(resolveAvailableCatQueueFilters("lokalise")).not.toContain("hidden");
+    expect(resolveAvailableCatQueueFilters("smartling")).not.toContain("hidden");
   });
 
   it("includes has issues for Crowdin projects", () => {

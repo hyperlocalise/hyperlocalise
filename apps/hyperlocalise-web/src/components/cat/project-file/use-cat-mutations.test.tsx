@@ -262,6 +262,51 @@ describe("useCatMutations", () => {
     expect(invalidateSegmentCommentsMock).toHaveBeenCalled();
   });
 
+  it("hides strings and invalidates the queue on success", async () => {
+    catStringsHiddenPostMock.mockResolvedValue(jsonResponse({ updatedCount: 2, isHidden: true }));
+
+    const { result } = renderCatMutations();
+
+    await act(async () => {
+      const saved = await result.current.setStringsHidden({
+        externalStringIds: ["segment-1", "segment-2"],
+        isHidden: true,
+      });
+      expect(saved).toEqual({ updatedCount: 2, isHidden: true });
+    });
+
+    expect(catStringsHiddenPostMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        json: expect.objectContaining({
+          sourcePath: catApiTestContext.sourcePath,
+          externalStringIds: ["segment-1", "segment-2"],
+          isHidden: true,
+        }),
+      }),
+    );
+    expect(invalidateQueue).toHaveBeenCalled();
+  });
+
+  it("surfaces API errors when hiding strings fails", async () => {
+    catStringsHiddenPostMock.mockResolvedValue(
+      errorResponse(
+        "crowdin_hidden_strings_forbidden",
+        "Crowdin did not allow updating hidden strings.",
+        400,
+      ),
+    );
+
+    const { result } = renderCatMutations();
+
+    await expect(
+      result.current.setStringsHidden({
+        externalStringIds: ["segment-1"],
+        isHidden: true,
+      }),
+    ).rejects.toThrow("Crowdin did not allow updating hidden strings.");
+    expect(invalidateQueue).not.toHaveBeenCalled();
+  });
+
   it("omits externalResourceId for native projects without a provider", async () => {
     const translation = createCatTranslation();
     catTranslationsPostMock.mockResolvedValue(jsonResponse({ translation }));

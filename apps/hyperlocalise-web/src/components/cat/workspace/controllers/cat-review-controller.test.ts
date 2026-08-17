@@ -663,11 +663,12 @@ describe("CatReviewController", () => {
   describe("bulkHide", () => {
     it("delegates to onBulkHide and marks selected segments hidden", async () => {
       const onBulkHide = vi.fn().mockResolvedValue(undefined);
-      const { controller, workspace } = createController(undefined, {
-        review: { onBulkHide },
-      });
+      const workspace = createTestWorkspace();
       workspace.toggleSegmentChecked("seg-02", true);
       workspace.toggleSegmentChecked("seg-03", true);
+      const { controller } = createController(workspace, {
+        review: { onBulkHide },
+      });
 
       await controller.bulkHide();
 
@@ -685,6 +686,18 @@ describe("CatReviewController", () => {
       await controller.bulkHide();
 
       expect(workspace.getSegmentView("seg-02")?.isHidden).toBeUndefined();
+      expect(workspace.isBulkActionPending).toBe(false);
+    });
+
+    it("no-ops when no segments are checked", async () => {
+      const onBulkHide = vi.fn();
+      const { controller, workspace } = createController(undefined, {
+        review: { onBulkHide },
+      });
+
+      await controller.bulkHide();
+
+      expect(onBulkHide).not.toHaveBeenCalled();
       expect(workspace.isBulkActionPending).toBe(false);
     });
   });
@@ -707,10 +720,10 @@ describe("CatReviewController", () => {
           },
         ],
       });
+      workspace.toggleSegmentChecked("seg-02", true);
       const { controller } = createController(workspace, {
         review: { onBulkUnhide },
       });
-      workspace.toggleSegmentChecked("seg-02", true);
 
       await controller.bulkUnhide();
 

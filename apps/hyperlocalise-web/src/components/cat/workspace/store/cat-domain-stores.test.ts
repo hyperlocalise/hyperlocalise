@@ -78,6 +78,17 @@ describe("CatQueueStore", () => {
     expect(queue.checkedSegmentIds.size).toBe(0);
   });
 
+  it("toggles hidden metadata on queue segments", () => {
+    const queue = new CatQueueStore();
+    queue.replace([...queueSegments]);
+
+    queue.setHidden(["seg-02"], true);
+    expect(queue.segments.find((segment) => segment.id === "seg-02")?.isHidden).toBe(true);
+
+    queue.setHidden(["seg-02"], false);
+    expect(queue.segments.find((segment) => segment.id === "seg-02")?.isHidden).toBeUndefined();
+  });
+
   it("falls back to the first visible segment when the selected segment disappears", () => {
     const queue = new CatQueueStore();
     queue.replace([...queueSegments]);

@@ -26,6 +26,7 @@ import {
   getTmsProviderLiveCatSegmentComments,
   getTmsProviderLiveCatSegmentTarget,
   saveTmsProviderLiveCatTranslation,
+  setTmsProviderLiveCatStringsHidden,
 } from "./tms-provider-live";
 
 const fixture = createAuthTestFixture();
@@ -2002,6 +2003,145 @@ describe("getTmsProviderLiveCatAllFiles", () => {
       name: "TmsProviderLiveError",
       code: "crowdin_cat_all_files_query_too_large",
       message: CROWDIN_CAT_ALL_FILES_QUERY_TOO_LARGE_MESSAGE,
+    });
+  });
+});
+
+describe("setTmsProviderLiveCatStringsHidden", () => {
+  let originalFetch: typeof fetch;
+
+  beforeAll(async () => {
+    await db.$client.query("select 1");
+  });
+
+  beforeEach(() => {
+    originalFetch = globalThis.fetch;
+  });
+
+  afterEach(async () => {
+    globalThis.fetch = originalFetch;
+    vi.clearAllMocks();
+    await fixture.cleanup();
+  });
+
+  it("hides Crowdin strings with JSON Patch replace on isHidden", async () => {
+    const { organization, user } = await fixture.createLocalWorkosIdentity(
+      fixture.createWorkosIdentityWithRole("admin"),
+    );
+    await setupCrowdinPatCredential({
+      organizationId: organization.id,
+      userId: user.id,
+    });
+
+    const fetchMock = vi.fn(async (url, init) => {
+      const path = String(url);
+      if (path.endsWith("/projects/42/strings") && init?.method === "PATCH") {
+        return new Response(
+          JSON.stringify({
+            data: [
+              {
+                data: {
+                  id: 1001,
+                  projectId: 42,
+                  fileId: 101,
+                  identifier: "hello",
+                  text: "Hello",
+                  type: "text",
+                  context: null,
+                  isHidden: true,
+                  labelIds: null,
+                },
+              },
+              {
+                data: {
+                  id: 1002,
+                  projectId: 42,
+                  fileId: 101,
+                  identifier: "bye",
+                  text: "Bye",
+                  type: "text",
+                  context: null,
+                  isHidden: true,
+                  labelIds: null,
+                },
+              },
+            ],
+          }),
+          { status: 200 },
+        );
+      }
+
+      return new Response(JSON.stringify({ error: { message: path } }), { status: 404 });
+    });
+    globalThis.fetch = fetchMock as typeof fetch;
+
+    const result = await setTmsProviderLiveCatStringsHidden(
+      organization.id,
+      "42",
+      { externalStringIds: ["1001", "1002", "1001"], isHidden: true },
+      { actorUserId: user.id },
+    );
+
+    expect(result).toEqual({ updatedCount: 2, isHidden: true });
+    const patchCall = fetchMock.mock.calls.find(
+      ([url, init]) => String(url).endsWith("/projects/42/strings") && init?.method === "PATCH",
+    );
+    expect(JSON.parse(String(patchCall?.[1]?.body))).toEqual([
+      { op: "replace", path: "/1001/isHidden", value: true },
+      { op: "replace", path: "/1002/isHidden", value: true },
+    ]);
+  });
+
+  it("maps Crowdin 403 hide failures to a forbidden error", async () => {
+    const { organization, user } = await fixture.createLocalWorkosIdentity(
+      fixture.createWorkosIdentityWithRole("admin"),
+    );
+    await setupCrowdinPatCredential({
+      organizationId: organization.id,
+      userId: user.id,
+    });
+
+    const fetchMock = vi.fn(async (url, init) => {
+      if (String(url).endsWith("/projects/42/strings") && init?.method === "PATCH") {
+        return new Response(JSON.stringify({ error: { message: "Forbidden" } }), { status: 403 });
+      }
+
+      return new Response(JSON.stringify({ error: { message: String(url) } }), { status: 404 });
+    });
+    globalThis.fetch = fetchMock as typeof fetch;
+
+    await expect(
+      setTmsProviderLiveCatStringsHidden(
+        organization.id,
+        "42",
+        { externalStringIds: ["1001"], isHidden: true },
+        { actorUserId: user.id },
+      ),
+    ).rejects.toMatchObject({
+      name: "TmsProviderLiveError",
+      code: "crowdin_hidden_strings_forbidden",
+    });
+  });
+
+  it("rejects non-numeric Crowdin string ids", async () => {
+    const { organization, user } = await fixture.createLocalWorkosIdentity(
+      fixture.createWorkosIdentityWithRole("admin"),
+    );
+    await setupCrowdinPatCredential({
+      organizationId: organization.id,
+      userId: user.id,
+    });
+
+    await expect(
+      setTmsProviderLiveCatStringsHidden(
+        organization.id,
+        "42",
+        { externalStringIds: ["not-a-number"], isHidden: true },
+        { actorUserId: user.id },
+      ),
+    ).rejects.toMatchObject({
+      name: "TmsProviderLiveError",
+      code: "invalid_crowdin_project_or_string_id",
     });
   });
 });

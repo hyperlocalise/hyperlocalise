@@ -1296,6 +1296,69 @@ async function saveCrowdinLiveCatTranslation(input: {
   }
 }
 
+function mapCrowdinHiddenStringError(error: unknown): never {
+  if (error instanceof CrowdinApiError && error.status === 401) {
+    throw new TmsProviderLiveError("crowdin_auth_invalid", "Crowdin credentials are invalid.");
+  }
+
+  if (error instanceof CrowdinApiError && (error.status === 403 || error.status === 400)) {
+    throw new TmsProviderLiveError(
+      "crowdin_hidden_strings_forbidden",
+      "Crowdin did not allow updating hidden strings. Managers can hide strings.",
+    );
+  }
+
+  throw error;
+}
+
+async function setCrowdinLiveCatStringsHidden(input: {
+  context: ActiveTmsProviderContext;
+  externalProjectId: string;
+  externalStringIds: string[];
+  isHidden: boolean;
+}): Promise<{ updatedCount: number; isHidden: boolean }> {
+  const projectId = Number(input.externalProjectId);
+  if (Number.isNaN(projectId)) {
+    throw new TmsProviderLiveError(
+      "invalid_crowdin_project_or_string_id",
+      "Crowdin project or string identifier is invalid.",
+    );
+  }
+
+  const stringIds = [
+    ...new Set(
+      input.externalStringIds
+        .map((externalStringId) => Number(externalStringId))
+        .filter((stringId) => Number.isInteger(stringId) && stringId > 0),
+    ),
+  ];
+  if (stringIds.length === 0) {
+    throw new TmsProviderLiveError(
+      "invalid_crowdin_project_or_string_id",
+      "Crowdin project or string identifier is invalid.",
+    );
+  }
+
+  const client = new CrowdinApiClient({
+    token: input.context.secretMaterial,
+    baseUrl: input.context.credential.baseUrl ?? undefined,
+  });
+
+  try {
+    const updated = await client.batchSetSourceStringsHidden(
+      projectId,
+      stringIds,
+      input.isHidden,
+    );
+    return {
+      updatedCount: updated.length > 0 ? updated.length : stringIds.length,
+      isHidden: input.isHidden,
+    };
+  } catch (error) {
+    mapCrowdinHiddenStringError(error);
+  }
+}
+
 async function buildCrowdinLiveCatSegmentComments(input: {
   context: ActiveTmsProviderContext;
   file: TmsProviderLiveFile;
@@ -2722,6 +2785,34 @@ export async function saveTmsProviderLiveCatTranslation(
     targetLocale: input.targetLocale,
     externalStringId: input.externalStringId,
     text: input.text,
+  });
+}
+
+export async function setTmsProviderLiveCatStringsHidden(
+  organizationId: string,
+  externalProjectId: string,
+  input: {
+    externalStringIds: string[];
+    isHidden: boolean;
+  },
+  options?: { actorUserId?: string | null },
+): Promise<{ updatedCount: number; isHidden: boolean }> {
+  const context = await loadActiveTmsProviderContext(organizationId, {
+    actorUserId: options?.actorUserId,
+  });
+
+  if (context.providerKind !== "crowdin") {
+    throw new TmsProviderLiveError(
+      "provider_cat_unsupported",
+      "Hidden strings can only be updated for Crowdin CAT.",
+    );
+  }
+
+  return setCrowdinLiveCatStringsHidden({
+    context,
+    externalProjectId,
+    externalStringIds: input.externalStringIds,
+    isHidden: input.isHidden,
   });
 }
 

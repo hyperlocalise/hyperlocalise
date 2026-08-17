@@ -536,6 +536,7 @@ export class CatWorkspaceOrchestrator {
       {
         status: draft?.status ?? "pending",
         hasOpenIssues: this.segmentHasOpenIssues(segmentId),
+        isHidden: this.segmentMeta.get(segmentId)?.isHidden,
       },
       filter,
     );

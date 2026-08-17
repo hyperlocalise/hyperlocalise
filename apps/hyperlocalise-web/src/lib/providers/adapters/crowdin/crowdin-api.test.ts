@@ -26,7 +26,11 @@ vi.mock("@/lib/log", () => ({
   })),
 }));
 
-import { CrowdinApiClient, CrowdinApiError } from "./crowdin-api";
+import {
+  CrowdinApiClient,
+  CrowdinApiError,
+  CROWDIN_SOURCE_STRING_BATCH_PATCH_LIMIT,
+} from "./crowdin-api";
 
 describe("CrowdinApiClient", () => {
   beforeEach(() => {
@@ -565,6 +569,76 @@ describe("CrowdinApiClient", () => {
       fileId: 101,
       isHidden: false,
     });
+  });
+
+  it("batch-hides source strings with JSON Patch replace on isHidden", async () => {
+    const fetchMock = vi.fn(async (url, init) => {
+      expect(String(url)).toBe("https://api.crowdin.test/api/v2/projects/1/strings");
+      expect(init?.method).toBe("PATCH");
+      expect(JSON.parse(String(init?.body))).toEqual([
+        { op: "replace", path: "/1001/isHidden", value: true },
+        { op: "replace", path: "/1002/isHidden", value: true },
+      ]);
+      return new Response(
+        JSON.stringify({
+          data: [
+            {
+              data: {
+                id: 1001,
+                projectId: 1,
+                fileId: 101,
+                identifier: "hello",
+                text: "Hello",
+                type: "text",
+                context: null,
+                isHidden: true,
+                labelIds: null,
+              },
+            },
+            {
+              data: {
+                id: 1002,
+                projectId: 1,
+                fileId: 101,
+                identifier: "bye",
+                text: "Bye",
+                type: "text",
+                context: null,
+                isHidden: true,
+                labelIds: null,
+              },
+            },
+          ],
+        }),
+        { status: 200 },
+      );
+    }) as unknown as typeof fetch;
+
+    const client = createClient(fetchMock);
+    const strings = await client.batchSetSourceStringsHidden(1, [1001, 1002, 1001], true);
+
+    expect(strings).toHaveLength(2);
+    expect(strings.map((string) => string.isHidden)).toEqual([true, true]);
+  });
+
+  it("chunks source-string batch patches at the Crowdin limit", async () => {
+    const fetchMock = vi.fn(async () => {
+      return new Response(JSON.stringify({ data: [] }), { status: 200 });
+    }) as unknown as typeof fetch;
+
+    const client = createClient(fetchMock);
+    const stringIds = Array.from(
+      { length: CROWDIN_SOURCE_STRING_BATCH_PATCH_LIMIT + 1 },
+      (_, index) => index + 1,
+    );
+
+    await client.batchSetSourceStringsHidden(1, stringIds, false);
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    const firstBody = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body));
+    const secondBody = JSON.parse(String(fetchMock.mock.calls[1]?.[1]?.body));
+    expect(firstBody).toHaveLength(CROWDIN_SOURCE_STRING_BATCH_PATCH_LIMIT);
+    expect(secondBody).toEqual([{ op: "replace", path: "/501/isHidden", value: false }]);
   });
 
   it("lists source strings by taskId", async () => {

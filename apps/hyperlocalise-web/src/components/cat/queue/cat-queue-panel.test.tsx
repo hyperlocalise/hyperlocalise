@@ -49,3 +49,52 @@ describe("CatQueuePanel pagination", () => {
     expect(onLoadMoreQueue).toHaveBeenCalledTimes(1);
   });
 });
+
+describe("CatQueuePanel bulk hide", () => {
+  it("offers Hide and Unhide when those bulk handlers are provided", async () => {
+    window.localStorage.setItem("cat-queue:selection-mode:v1", "false");
+    const user = userEvent.setup();
+    const onBulkHide = vi.fn();
+    const onBulkUnhide = vi.fn();
+    const segments = catSegmentsFixture.slice(0, 3);
+
+    renderWithCatProviders(
+      <CatQueuePanel
+        segments={segments}
+        selectedSegmentId={segments[0]!.id}
+        onSelectSegment={vi.fn()}
+        onToggleSegmentChecked={vi.fn()}
+        onBulkHide={onBulkHide}
+        onBulkUnhide={onBulkUnhide}
+      />,
+    );
+
+    await user.click(screen.getByRole("checkbox", { name: "Show bulk selection checkboxes" }));
+    await user.click(screen.getByRole("button", { name: "Queue actions" }));
+
+    expect(screen.getByRole("menuitem", { name: "Hide selected" })).toBeDisabled();
+    expect(screen.getByRole("menuitem", { name: "Unhide selected" })).toBeDisabled();
+  });
+
+  it("includes Hidden in the Crowdin queue filter menu", async () => {
+    const user = userEvent.setup();
+    const onQueueFilterChange = vi.fn();
+    const segments = catSegmentsFixture.slice(0, 3);
+
+    renderWithCatProviders(
+      <CatQueuePanel
+        segments={segments}
+        selectedSegmentId={segments[0]!.id}
+        onSelectSegment={vi.fn()}
+        queueFilter="all"
+        onQueueFilterChange={onQueueFilterChange}
+        availableQueueFilters={["all", "hidden"]}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Filter queue" }));
+    await user.click(screen.getByRole("menuitemradio", { name: "Hidden" }));
+
+    expect(onQueueFilterChange).toHaveBeenCalledWith("hidden");
+  });
+});

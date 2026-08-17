@@ -61,6 +61,24 @@ describe("toQueueSegment", () => {
       sourcePath: "locales/en.json",
     });
   });
+
+  it("preserves hidden source-string state", () => {
+    expect(
+      toQueueSegment({
+        id: "seg-01",
+        index: 1,
+        key: "hero.title",
+        sourceText: "Hello",
+        isHidden: true,
+      }),
+    ).toEqual({
+      id: "seg-01",
+      index: 1,
+      key: "hero.title",
+      sourceText: "Hello",
+      isHidden: true,
+    });
+  });
 });
 
 describe("composeSegmentView", () => {

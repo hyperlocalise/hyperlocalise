@@ -124,6 +124,9 @@ export function buildCrowdinFileQueueCroql(input: {
     case "has_issues":
       parts.push("count of comments where (has unresolved issue) > 0");
       break;
+    case "hidden":
+      parts.push("is hidden");
+      break;
     case "all":
     default:
       break;
@@ -136,6 +139,8 @@ export function buildCrowdinFileSearchCroql(fileId: number, search: string) {
   const escaped = escapeCrowdinCroqlString(search.trim());
   return `id of file = ${fileId} and (identifier contains "${escaped}" or text contains "${escaped}")`;
 }
+
+export const CROWDIN_SOURCE_STRING_BATCH_PATCH_LIMIT = 500;
 
 export const CROWDIN_LIVE_TASK_LIST_LIMIT = 50;
 export const CROWDIN_LIVE_TASK_LIST_ORDER_BY = "createdAt desc";
@@ -955,6 +960,59 @@ export class CrowdinApiClient {
       }
       throw error;
     }
+  }
+
+  /**
+   * Bulk-update source string fields via JSON Patch.
+   *
+   * Crowdin documents replace on `/{stringId}/isHidden`. Requests larger than
+   * {@link CROWDIN_SOURCE_STRING_BATCH_PATCH_LIMIT} are sent in chunks.
+   *
+   * @see https://support.crowdin.com/developer/api/v2/#operation/api.projects.strings.batchPatch
+   */
+  async batchUpdateSourceStrings(
+    projectId: number,
+    operations: CrowdinPatchOperation[],
+  ): Promise<CrowdinSourceString[]> {
+    if (operations.length === 0) {
+      return [];
+    }
+
+    const updated: CrowdinSourceString[] = [];
+    for (
+      let index = 0;
+      index < operations.length;
+      index += CROWDIN_SOURCE_STRING_BATCH_PATCH_LIMIT
+    ) {
+      const chunk = operations.slice(index, index + CROWDIN_SOURCE_STRING_BATCH_PATCH_LIMIT);
+      const response = await this.patch<CrowdinListResponse<CrowdinSourceString>>(
+        `/projects/${projectId}/strings`,
+        chunk,
+      );
+      updated.push(...(response.data ?? []).map((item) => item.data));
+    }
+
+    return updated;
+  }
+
+  async batchSetSourceStringsHidden(
+    projectId: number,
+    stringIds: number[],
+    isHidden: boolean,
+  ): Promise<CrowdinSourceString[]> {
+    const uniqueIds = [...new Set(stringIds)];
+    if (uniqueIds.length === 0) {
+      return [];
+    }
+
+    return this.batchUpdateSourceStrings(
+      projectId,
+      uniqueIds.map((stringId) => ({
+        op: "replace" as const,
+        path: `/${stringId}/isHidden`,
+        value: isHidden,
+      })),
+    );
   }
 
   async getSourceStringsByIds(
