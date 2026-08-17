@@ -29,6 +29,11 @@ func TestInstallApplicationRequestValidate(t *testing.T) {
 			req:   &InstallApplicationRequest{URL: "https://example.com/app/install"},
 			valid: true,
 		},
+		{
+			name:  "valid request with force",
+			req:   &InstallApplicationRequest{URL: "https://example.com/app/install", Force: toPtr(true)},
+			valid: true,
+		},
 	}
 
 	for _, tt := range tests {

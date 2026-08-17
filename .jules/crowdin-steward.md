@@ -1,5 +1,11 @@
 # Crowdin Steward's Journal
 
+## 2026-12-29 - Add Force option to InstallApplicationRequest
+
+**Learning:** In Crowdin API v2, installing applications (`POST /api/v2/applications/installations`) supports an optional `force` boolean flag (`force: true`) to force re-installing an application if it is already installed. The SDK previously omitted `Force` from `InstallApplicationRequest`, preventing callers from specifying force installation behavior.
+
+**Action:** Added `Force *bool json:"force,omitempty"` to `InstallApplicationRequest` in `crowdin/model/applications.go`. Added unit test assertions for JSON serialization with `Force` set or omitted in `crowdin/applications_test.go` and `crowdin/model/applications_test.go`.
+
 ## 2026-12-28 - Use pointer representation for FieldAddRequest Config field
 
 **Learning:** In Crowdin API v2, the `config` field in `POST /api/v2/fields` requests is optional. When typed as a non-pointer struct (`FieldConfig`), Go's standard `json.Marshal` serializes an uninitialized struct as `{}` even with `json:"config,omitempty"`, sending an empty object payload to Crowdin instead of omitting the parameter. Typing `Config` as `*FieldConfig` ensures proper parameter omission when `nil`.
