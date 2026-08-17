@@ -135,6 +135,10 @@
     "defaultMessage": "Semrush",
     "description": "Menu item and tool title for Semrush SEO data"
   },
+  "+Qv1Pt0/I9": {
+    "defaultMessage": "{actor} marked this as no longer a duplicate of {relatedIssue}",
+    "description": "Activity line when a duplicate_of relationship is removed"
+  },
   "+R091fatkR": {
     "defaultMessage": "Can I change plans later?",
     "description": "Pricing FAQ question about changing plans"
@@ -475,6 +479,10 @@
     "defaultMessage": "Hyperlocalise combines AI with human review, regression evaluations, terminology checks and release gates so localisation quality doesn’t silently drift over time.",
     "description": "Homepage FAQ answer about AI translation quality"
   },
+  "/ptCxvciMe": {
+    "defaultMessage": "Blocks",
+    "description": "Relationship kind: this issue blocks another"
+  },
   "/q4p5ii/gC": {
     "defaultMessage": "Push translations to Crowdin, Lokalise, Phrase, or Smartling without leaving the release flow.",
     "description": "Capability 5 description for the github-release-localisation use case"
@@ -774,6 +782,10 @@
   "0su3rYbABy": {
     "defaultMessage": "Latest job · {status}",
     "description": "Badge showing the latest translation job status for a native file"
+  },
+  "0tcV3U/r5g": {
+    "defaultMessage": "Failed to download filtered view",
+    "description": "Fallback error when downloading the filtered CAT queue export fails"
   },
   "0uC+32o+7p": {
     "defaultMessage": "Verify this domain to unlock the full localisation audit report.",
@@ -1146,6 +1158,10 @@
   "2AqSyPCt6M": {
     "defaultMessage": "Due date",
     "description": "Job property row label for due date"
+  },
+  "2B2vocYfiC": {
+    "defaultMessage": "Download filtered view",
+    "description": "Accessible label for downloading the filtered CAT queue"
   },
   "2BaYUyVX1c": {
     "defaultMessage": "Show API key",
@@ -2531,9 +2547,17 @@
     "defaultMessage": "Placeholder",
     "description": "Warning type label for placeholder issues on an agent proposal"
   },
+  "7GXNJdLyH7": {
+    "defaultMessage": "No issues found",
+    "description": "Shown when the relationship target search returns no results"
+  },
   "7HFUiy2BCU": {
     "defaultMessage": "Processing speech",
     "description": "Accessible label for the speech input button while transcribing audio"
+  },
+  "7Hd4+o+eaU": {
+    "defaultMessage": "Search issues…",
+    "description": "Placeholder for the issue search input in the relationship picker"
   },
   "7L1IE082cR": {
     "defaultMessage": "Approve with confidence",
@@ -2582,6 +2606,10 @@
   "7SvzEySkCN": {
     "defaultMessage": "Thinking...",
     "description": "Label shown while the model is actively reasoning"
+  },
+  "7UoNPs2uZA": {
+    "defaultMessage": "Related",
+    "description": "Relationship kind: symmetric related issue"
   },
   "7VRqQJwWUI": {
     "defaultMessage": "My Jobs",
@@ -3067,6 +3095,10 @@
     "defaultMessage": "For teams running localisation in production every week.",
     "description": "Growth plan description on the pricing page"
   },
+  "9/2rO3b/i4": {
+    "defaultMessage": "Site owner note",
+    "description": "Heading for the crawl access note on the localisation audit form"
+  },
   "90L8I4Y/Gl": {
     "defaultMessage": "{label} · {badge}",
     "description": "Sidebar tooltip combining a navigation item label and its badge"
@@ -3451,6 +3483,10 @@
     "defaultMessage": "Display name",
     "description": "Label for the TMS provider credential display name field"
   },
+  "AE4hE6vozP": {
+    "defaultMessage": "This issue is a duplicate",
+    "description": "Title of the banner shown when an issue is marked as a duplicate"
+  },
   "AEwGvK/0C4": {
     "defaultMessage": "Workspace",
     "description": "Source label for workspace-native translation memories in the list"
@@ -3506,6 +3542,10 @@
   "ASS0MwMBvQ": {
     "defaultMessage": "Release gate",
     "description": "Workflow step 6 label for the github-release-localisation use case"
+  },
+  "ASfBsxAsy6": {
+    "defaultMessage": "Searching…",
+    "description": "Shown while the relationship target search is in flight"
   },
   "AUcojcp0lZ": {
     "defaultMessage": "Service-level agreement",
@@ -3638,6 +3678,10 @@
   "B9aG0nitRg": {
     "defaultMessage": "file",
     "description": "Fallback label when a provider task file has no format metadata"
+  },
+  "B9k45Fzigm": {
+    "defaultMessage": "{actor} unmarked {relatedIssue} as a duplicate of this issue",
+    "description": "Activity line when the inverse duplicate relationship is removed"
   },
   "BBEyVbRR3L": {
     "defaultMessage": "Could not request the report email.",
@@ -3898,6 +3942,10 @@
   "C0+hlj1Es4": {
     "defaultMessage": "Could not start this chat. Try again.",
     "description": "Error when creating a conversation from the chat dock fails"
+  },
+  "C0LtvlP3Fa": {
+    "defaultMessage": "View original issue",
+    "description": "Link to the canonical issue this one is a duplicate of"
   },
   "C1WvaRKpWU": {
     "defaultMessage": "Connect Crowdin in Hyperlocalise",
@@ -4191,6 +4239,10 @@
     "defaultMessage": "Provider key",
     "description": "Metadata label for a TMS provider key resource in the files tree"
   },
+  "D/arw4JcTP": {
+    "defaultMessage": "Format",
+    "description": "Label above download format options in the CAT queue"
+  },
   "D0mCtflyKZ": {
     "defaultMessage": "Loading channels...",
     "description": "Placeholder while Slack channels are loading"
@@ -4318,6 +4370,10 @@
   "DQ07Hv8A9f": {
     "defaultMessage": "This project does not have a source locale.",
     "description": "Error when the project has no configured source locale for CAT"
+  },
+  "DQnt+zm1/q": {
+    "defaultMessage": "No relationships yet",
+    "description": "Shown when an issue has no relationships"
   },
   "DR05xC0qfm": {
     "defaultMessage": "Global guidance",
@@ -4470,6 +4526,10 @@
   "Dz+BYN4QJV": {
     "defaultMessage": "Remove GitHub repo tool",
     "description": "Accessible label to remove the GitHub agent repository tool"
+  },
+  "DzV7NQXkgD": {
+    "defaultMessage": "{actor} marked this as no longer blocked by {relatedIssue}",
+    "description": "Activity line when a blocked-by relationship is removed"
   },
   "E+xT1YvnbH": {
     "defaultMessage": "Request a Demo",
@@ -4991,6 +5051,10 @@
     "defaultMessage": "Description",
     "description": "Detail row label for the Crowdin task description"
   },
+  "FvGsFbmiod": {
+    "defaultMessage": "Allow the user agent below through your firewall, CDN, bot protection, or login wall, then start a new audit.",
+    "description": "Guidance for a site owner whose domain blocked the localisation audit crawler"
+  },
   "FxGatVHbDJ": {
     "defaultMessage": "Translation memories",
     "description": "Accessible label for the translation memories list section"
@@ -5002,6 +5066,10 @@
   "G0DAu7HpBC": {
     "defaultMessage": "Won’t fix",
     "description": "Issue Sheet status option when an issue will not be fixed"
+  },
+  "G1T9+1x7MC": {
+    "defaultMessage": "{actor} related this to {relatedIssue}",
+    "description": "Activity line when a related-issue relationship is added"
   },
   "G1is+5n2E6": {
     "defaultMessage": "Capture reviewer corrections, glossary decisions, product context, and market preferences so every localisation workflow starts smarter.",
@@ -5406,6 +5474,10 @@
   "HcFGSr9o03": {
     "defaultMessage": "Do I need to migrate my existing translations?",
     "description": "Homepage FAQ question about migrating existing translations"
+  },
+  "HcfE0xA2HB": {
+    "defaultMessage": "Duplicate of",
+    "description": "Relationship kind: this issue is a duplicate of another"
   },
   "HdyjqIAIyn": {
     "defaultMessage": "Request a demo",
@@ -6006,6 +6078,10 @@
   "KCoITTErMU": {
     "defaultMessage": "Built for localisation teams. Available soon.",
     "description": "Marketing homepage final call-to-action section headline"
+  },
+  "KDIMmNPAxL": {
+    "defaultMessage": "{actor} marked this as a duplicate of {relatedIssue}",
+    "description": "Activity line when a duplicate_of relationship is added"
   },
   "KFoEqCEp2d": {
     "defaultMessage": "{actor} unassigned",
@@ -6650,6 +6726,10 @@
   "Mq9r073tq8": {
     "defaultMessage": "Proofread by vendor",
     "description": "Crowdin task type label for vendor proofreading"
+  },
+  "MrZ8+8I97E": {
+    "defaultMessage": "Score",
+    "description": "Column heading for scores on the localisation audit leaderboard"
   },
   "Mubi5jvzbc": {
     "defaultMessage": "Description",
@@ -9255,6 +9335,10 @@
     "defaultMessage": "Reject",
     "description": "Button to reject a single agent proposal"
   },
+  "WphtFQWMLA": {
+    "defaultMessage": "Could not add relationship",
+    "description": "Fallback toast when creating a relationship fails"
+  },
   "Wq2O6lVhWX": {
     "defaultMessage": "Translate with agent",
     "description": "Button to open the translate-with-agent dialog from file details"
@@ -9786,6 +9870,10 @@
   "YrE1KC753H": {
     "defaultMessage": "Our AI agents search your repository, documentation, translation memory and terminology to attach relevant context before translation begins. Translators and reviewers spend less time asking questions and more time shipping.",
     "description": "Homepage FAQ answer about automatic context discovery"
+  },
+  "YreYFnwbaP": {
+    "defaultMessage": "Duplicates",
+    "description": "Relationship kind: another issue is a duplicate of this one"
   },
   "YsUGw6nQKk": {
     "defaultMessage": "Resolved",
@@ -10587,6 +10675,10 @@
     "defaultMessage": "No target locale is available for this task file.",
     "description": "Empty state when a native job CAT file has no target locale"
   },
+  "c0wyG2sMeU": {
+    "defaultMessage": "Remove relationship",
+    "description": "Accessible label for the remove-relationship button"
+  },
   "c3ROZAXotz": {
     "defaultMessage": "{providerName} projects",
     "description": "Section title for live TMS provider projects"
@@ -10982,6 +11074,10 @@
   "dakChM2xsG": {
     "defaultMessage": "Provider status",
     "description": "Row label for the external provider status"
+  },
+  "dbtTNEaJX2": {
+    "defaultMessage": "Score {score} out of 100",
+    "description": "Accessible label for a localisation audit leaderboard score bar"
   },
   "dcbWLpn6f2": {
     "defaultMessage": "Updated date unavailable",
@@ -11527,6 +11623,10 @@
     "defaultMessage": "{percent}%",
     "description": "Percentage of tests passed in the test results summary"
   },
+  "fU9GF3etrw": {
+    "defaultMessage": "Audit blocked",
+    "description": "Title when a domain blocks the public localisation audit crawler"
+  },
   "fUTALFqIcb": {
     "defaultMessage": "Loading glossaries...",
     "description": "Loading state for the glossaries list"
@@ -11831,6 +11931,10 @@
     "defaultMessage": "No Ahrefs connections yet.",
     "description": "Empty state when no Ahrefs connections exist"
   },
+  "gTVgkDcRK6": {
+    "defaultMessage": "{actor} marked this as no longer blocking {relatedIssue}",
+    "description": "Activity line when a blocks relationship is removed"
+  },
   "gUXo9+5beH": {
     "defaultMessage": "Unable to create glossary",
     "description": "Fallback error when creating a glossary fails"
@@ -11974,6 +12078,10 @@
   "gyGnNuR5md": {
     "defaultMessage": "Required",
     "description": "Badge label for a required environment variable"
+  },
+  "gyNaN2JbUy": {
+    "defaultMessage": "User agent",
+    "description": "Label for the localisation audit crawler user agent"
   },
   "gyVhBvCqLP": {
     "defaultMessage": "Add sources",
@@ -12274,6 +12382,10 @@
   "hz8O9/ilG1": {
     "defaultMessage": "Use the model you prefer",
     "description": "AI feature capability title: bring your own LLM"
+  },
+  "i/10E+WnLM": {
+    "defaultMessage": "This domain blocked the crawler, so we did not score the site.",
+    "description": "Body explaining that a blocked crawl did not produce a localisation score"
   },
   "i0qX7/ht0A": {
     "defaultMessage": "Invite teammates to assign localization ownership before work moves through the workspace.",
@@ -12711,6 +12823,10 @@
     "defaultMessage": "{usage} / {granted} used",
     "description": "Usage row showing consumed versus granted amount"
   },
+  "jYCKNw+LDl": {
+    "defaultMessage": "{actor} marked this as blocking {relatedIssue}",
+    "description": "Activity line when a blocks relationship is added"
+  },
   "jYLCUCpCv3": {
     "defaultMessage": "Visit tourfinder.vn",
     "description": "Link label to the Tourfinder website from the case study section"
@@ -12851,6 +12967,10 @@
     "defaultMessage": "Jobs created and tracked in this workspace.",
     "description": "Description under the native jobs section title"
   },
+  "k3eu1T7STw": {
+    "defaultMessage": "Start a new audit",
+    "description": "Button to start a fresh localisation audit after a domain block"
+  },
   "k5atS7Ij0F": {
     "defaultMessage": "Usually finishes in 1–3 minutes.",
     "description": "Expected duration note while a localisation audit is running"
@@ -12902,6 +13022,10 @@
   "kAj/pNbn2C": {
     "defaultMessage": "Description",
     "description": "System field mapping label for issue description"
+  },
+  "kBB5urcgnt": {
+    "defaultMessage": "another issue",
+    "description": "Fallback name for a related issue when its title isn't available (cross-project)"
   },
   "kBjfpWlIHs": {
     "defaultMessage": "Running",
@@ -12978,6 +13102,10 @@
   "kU9ZZlDF/l": {
     "defaultMessage": "Who is Hyperlocalise built for?",
     "description": "Homepage FAQ question about the target audience"
+  },
+  "kUl1Jpz/6B": {
+    "defaultMessage": "Download",
+    "description": "Button label to download the filtered CAT queue view"
   },
   "kUu0YJ4PK9": {
     "defaultMessage": "Issue linked",
@@ -13275,6 +13403,10 @@
     "defaultMessage": "Inbound address ready. Send files or images with a target language to translate by email.",
     "description": "Email integration description when an inbound address exists"
   },
+  "lXuIhCcGl8": {
+    "defaultMessage": "Marked as a duplicate of {title}",
+    "description": "Description of the duplicate banner, {title} is the canonical issue's title"
+  },
   "lYqcYOvV+9": {
     "defaultMessage": "Choose a plan",
     "description": "Plan name shown on the footer control when no plan is active"
@@ -13447,6 +13579,10 @@
     "defaultMessage": "Source file",
     "description": "Accessible label for the CAT header source file picker trigger"
   },
+  "mHZZxFedL8": {
+    "defaultMessage": "Site",
+    "description": "Column heading for site names on the localisation audit leaderboard"
+  },
   "mHk95Qw98g": {
     "defaultMessage": "Updating the string to use the correct accented French noun.",
     "description": "Body shown while the agent is applying a fix in the PR thread"
@@ -13586,6 +13722,10 @@
   "mmfrG6qsJL": {
     "defaultMessage": "Assign to project",
     "description": "Button to assign a project to a glossary"
+  },
+  "mnQrjAyyw8": {
+    "defaultMessage": "Relationships",
+    "description": "Heading for the issue relationships section in the issue detail panel"
   },
   "mnZVrr1EzK": {
     "defaultMessage": "How to fix it",
@@ -13810,6 +13950,10 @@
   "naWIsHiFkQ": {
     "defaultMessage": "Copied OAuth callback URL",
     "description": "Aria label after copying the OAuth callback URL"
+  },
+  "ndyP1whnV+": {
+    "defaultMessage": "If your site uses a firewall, CDN, bot check, or login wall, allow this user agent to access public pages so we can complete the audit.",
+    "description": "Guidance for site owners to allow the localisation audit crawler"
   },
   "ne4Ygl2/V7": {
     "defaultMessage": "No comments yet.",
@@ -14123,6 +14267,10 @@
     "defaultMessage": "Agent Instructions",
     "description": "Agent instructions section heading in the marketing automation editor mock"
   },
+  "p22y6wrB6M": {
+    "defaultMessage": "Could not remove relationship",
+    "description": "Fallback toast when removing a relationship fails"
+  },
   "p2ZEW4INMa": {
     "defaultMessage": "Glossaries",
     "description": "Sidebar navigation item for glossaries"
@@ -14350,6 +14498,10 @@
   "pryVUr/AGB": {
     "defaultMessage": "Create a native TMS translation job for uploaded source files in the project selected above.",
     "description": "Description for the Create job automation tool"
+  },
+  "psXoqti6i8": {
+    "defaultMessage": "{actor} removed the related link to {relatedIssue}",
+    "description": "Activity line when a related-issue relationship is removed"
   },
   "puXgWXUT2y": {
     "defaultMessage": "Deleting…",
@@ -14635,9 +14787,17 @@
     "defaultMessage": "No conversations or notifications yet.",
     "description": "Empty state when the inbox has neither conversations nor notifications"
   },
+  "r0jIUbQa43": {
+    "defaultMessage": "Blocked by",
+    "description": "Relationship kind: this issue is blocked by another"
+  },
   "r1aEK84u1V": {
     "defaultMessage": "Part of speech",
     "description": "Label for the part of speech field on a glossary term form"
+  },
+  "r3j9bzJdAk": {
+    "defaultMessage": "Could not load relationships",
+    "description": "Shown when the relationships list fails to load"
   },
   "r6Ldwc5qHk": {
     "defaultMessage": "Russian (Russia)",
@@ -14851,6 +15011,10 @@
     "defaultMessage": "Send to Slack",
     "description": "Menu item and tool title for Slack notifications"
   },
+  "ryGOjbG4Wd": {
+    "defaultMessage": "User agent",
+    "description": "Label for the blocked localisation audit crawler user agent"
+  },
   "rywDd6XWpM": {
     "defaultMessage": "Workspace level",
     "description": "Badge indicating integrations apply to the whole workspace"
@@ -14878,6 +15042,10 @@
   "s1gl7VHrHd": {
     "defaultMessage": "Accept",
     "description": "Button to accept a single agent proposal"
+  },
+  "s1stMk8yBo": {
+    "defaultMessage": "Add relationship",
+    "description": "Button that opens the relationship picker popover"
   },
   "s2RbfpSnxA": {
     "defaultMessage": "Failed to upload image",
@@ -16666,6 +16834,10 @@
   "yWct5TBmd2": {
     "defaultMessage": "Raw error",
     "description": "Row label for the last provider error message"
+  },
+  "yWn40N8bPb": {
+    "defaultMessage": "{actor} marked this as blocked by {relatedIssue}",
+    "description": "Activity line when a blocked-by relationship is added"
   },
   "yX53I7eVol": {
     "defaultMessage": "Workspace setup · {completedCount} of {totalCount} complete",

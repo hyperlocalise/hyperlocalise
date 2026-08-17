@@ -104,6 +104,9 @@
   "+Pn3eYONmL": {
     "defaultMessage": "Semrush"
   },
+  "+Qv1Pt0/I9": {
+    "defaultMessage": "{actor} a indiqué qu’il ne s’agissait plus d’un doublon de {relatedIssue}"
+  },
   "+R091fatkR": {
     "defaultMessage": "Puis-je changer de forfait ultérieurement ?"
   },
@@ -386,6 +389,9 @@
   "/powsKQ55L": {
     "defaultMessage": "Hyperlocalise combine l’IA avec une relecture humaine, des évaluations de régression, des vérifications terminologiques et des étapes de validation de mise en production afin que la qualité de la localisation ne se dégrade pas insidieusement au fil du temps."
   },
+  "/ptCxvciMe": {
+    "defaultMessage": "Bloque"
+  },
   "/q4p5ii/gC": {
     "defaultMessage": "Poussez les traductions vers Crowdin, Lokalise, Phrase ou Smartling sans quitter le flux de publication."
   },
@@ -655,6 +661,9 @@
   },
   "0vuUDWBSZZ": {
     "defaultMessage": "Hyperlocalise"
+  },
+  "0w8pdWYmk/": {
+    "defaultMessage": "Localisez la vidéo jointe enеце"
   },
   "0wt+Elr1cE": {
     "defaultMessage": "Nom de l’automatisation"
@@ -1313,6 +1322,9 @@
   "3poXpaPEFu": {
     "defaultMessage": "Saisissez l’URL"
   },
+  "3qpoJUP9OU": {
+    "defaultMessage": "Projet"
+  },
   "3r10YA/kX+": {
     "defaultMessage": "Version de configuration : <version>{configVersion}</version>"
   },
@@ -1838,6 +1850,9 @@
   "6N3tTQGcSO": {
     "defaultMessage": "Quelqu’un"
   },
+  "6Nr6tK1aoh": {
+    "defaultMessage": "Fournisseur de recherche"
+  },
   "6OBycEw5vD": {
     "defaultMessage": "Échec de la requête"
   },
@@ -1933,6 +1948,9 @@
   },
   "6oebBi3G9m": {
     "defaultMessage": "Afficher les chaînes"
+  },
+  "6ofd3aj3i1": {
+    "defaultMessage": "Localiser une image"
   },
   "6p1y0a4MjE": {
     "defaultMessage": "Project"
@@ -2054,8 +2072,14 @@
   "7EM7rmfbAT": {
     "defaultMessage": "Placeholder"
   },
+  "7GXNJdLyH7": {
+    "defaultMessage": "Aucun problème trouvé"
+  },
   "7HFUiy2BCU": {
     "defaultMessage": "Traitement de la parole"
+  },
+  "7Hd4+o+eaU": {
+    "defaultMessage": "Rechercher des problèmes…"
   },
   "7L1IE082cR": {
     "defaultMessage": "Approuver en toute confiance"
@@ -2098,6 +2122,9 @@
   },
   "7TGGy8pVdX": {
     "defaultMessage": "Historique des évaluations"
+  },
+  "7UoNPs2uZA": {
+    "defaultMessage": "Associé"
   },
   "7VKhjntXa1": {
     "defaultMessage": "Primary processing location"
@@ -2290,6 +2317,9 @@
   },
   "8HNfmSDv7C": {
     "defaultMessage": "Tâches"
+  },
+  "8HnJuAO7Ry": {
+    "defaultMessage": "Sélectionner tous les fichiers dans {folder}"
   },
   "8HqELsDVf0": {
     "defaultMessage": "{used} / {total}"
@@ -2696,6 +2726,9 @@
   "9wiaS9Svb/": {
     "defaultMessage": "Les vérifications de régression sont effectuées manuellement — ou pas du tout — avant les versions majeures."
   },
+  "9xLYM1kt9j": {
+    "defaultMessage": "Localisez l’image jointe en񟿿"
+  },
   "9xPbF7DCJr": {
     "defaultMessage": "Automatisez les tâches répétitives grâce à des workflows permanents qui réagissent aux planifications et aux poussées GitHub."
   },
@@ -2783,6 +2816,9 @@
   "ACud1VtN9i": {
     "defaultMessage": "Nom d’affichage"
   },
+  "AE4hE6vozP": {
+    "defaultMessage": "Ce problème est un doublon"
+  },
   "AEwGvK/0C4": {
     "defaultMessage": "Workspace"
   },
@@ -2813,6 +2849,9 @@
   "AKtzAy5jSx": {
     "defaultMessage": "Itinéraire"
   },
+  "AKyH88ZuDN": {
+    "defaultMessage": "Rechercher des langues…"
+  },
   "ALRaijWLiy": {
     "defaultMessage": "Réinitialisation..."
   },
@@ -2824,6 +2863,9 @@
   },
   "ASS0MwMBvQ": {
     "defaultMessage": "Porte de sortie de publication"
+  },
+  "ASfBsxAsy6": {
+    "defaultMessage": "Recherche…"
   },
   "AUY6LRuqkn": {
     "defaultMessage": "En cours"
@@ -2882,6 +2924,9 @@
   "AkuhSH8rwy": {
     "defaultMessage": "Échec du rendu du bloc de code"
   },
+  "AlWYFrRq+B": {
+    "defaultMessage": "Rechercher des personnes…"
+  },
   "AnTkr06Fzd": {
     "defaultMessage": "Veuillez fournir le texte source à traduire."
   },
@@ -2926,6 +2971,9 @@
   },
   "B9aG0nitRg": {
     "defaultMessage": "fichier"
+  },
+  "B9k45Fzigm": {
+    "defaultMessage": "{actor} a retiré la mention indiquant que {relatedIssue} était un doublon de ce ticket"
   },
   "BBEyVbRR3L": {
     "defaultMessage": "Impossible de demander l’e-mail du rapport."
@@ -3127,6 +3175,9 @@
   },
   "C0+hlj1Es4": {
     "defaultMessage": "Impossible de démarrer cette conversation. Réessayez."
+  },
+  "C0LtvlP3Fa": {
+    "defaultMessage": "Voir le problème d’origine"
   },
   "C1FbXuFTUH": {
     "defaultMessage": "Commencer une traduction"
@@ -3458,6 +3509,9 @@
   "DQ07Hv8A9f": {
     "defaultMessage": "Ce projet n’a pas de langue source configurée."
   },
+  "DQnt+zm1/q": {
+    "defaultMessage": "Aucune relation pour le moment"
+  },
   "DR05xC0qfm": {
     "defaultMessage": "Conseils généraux"
   },
@@ -3560,6 +3614,9 @@
   "DwOm/o1t0O": {
     "defaultMessage": "Bientôt disponible"
   },
+  "DwaD/cBlPO": {
+    "defaultMessage": "Recherche sur le Web"
+  },
   "DwkdN4lm3s": {
     "defaultMessage": "Critique"
   },
@@ -3577,6 +3634,9 @@
   },
   "Dz+BYN4QJV": {
     "defaultMessage": "Supprimer l’outil de dépôt GitHub"
+  },
+  "DzV7NQXkgD": {
+    "defaultMessage": "{actor} a indiqué que ceci n’est plus bloqué par {relatedIssue}"
   },
   "E+xT1YvnbH": {
     "defaultMessage": "Demander une démo"
@@ -3947,6 +4007,9 @@
   "FiNdNgLOfB": {
     "defaultMessage": "Parce que chaque langue est une nouvelle occasion de rapprocher les gens."
   },
+  "FjJpQAXPiH": {
+    "defaultMessage": "{count, plural, one {# locale} other {# locales}}"
+  },
   "FkLEYWNws0": {
     "defaultMessage": "Contexte"
   },
@@ -4000,6 +4063,9 @@
   },
   "G0DAu7HpBC": {
     "defaultMessage": "Ne sera pas corrigé"
+  },
+  "G1T9+1x7MC": {
+    "defaultMessage": "{actor} a associé ceci à {relatedIssue}"
   },
   "G1is+5n2E6": {
     "defaultMessage": "Capturez les corrections des relecteurs, les décisions du glossaire, le contexte du produit et les préférences du marché afin que chaque flux de travail de localisation démarre plus intelligemment."
@@ -4327,6 +4393,9 @@
   },
   "HcFGSr9o03": {
     "defaultMessage": "Dois-je migrer mes traductions existantes ?"
+  },
+  "HcfE0xA2HB": {
+    "defaultMessage": "Doublon de"
   },
   "HdyjqIAIyn": {
     "defaultMessage": "Demander une démonstration"
@@ -4807,6 +4876,9 @@
   },
   "KCoITTErMU": {
     "defaultMessage": "Conçu pour les équipes de localisation. Bientôt disponible."
+  },
+  "KDIMmNPAxL": {
+    "defaultMessage": "{actor} a marqué ceci comme un doublon de {relatedIssue}"
   },
   "KFoEqCEp2d": {
     "defaultMessage": "{actor} a retiré l’assignation"
@@ -5297,6 +5369,9 @@
   "MjW+xFl6ux": {
     "defaultMessage": "Transformez les nouveaux articles d’aide et les articles mis à jour en traductions relues, synchronisez-les avec votre CMS et surveillez leur fraîcheur afin que les clients ne lisent jamais de conseils obsolètes."
   },
+  "Ml4FXbhH7X": {
+    "defaultMessage": "Ajoutez du contexte pour les traducteurs…"
+  },
   "MlXu9cA5kU": {
     "defaultMessage": "Une note typique"
   },
@@ -5320,6 +5395,9 @@
   },
   "Mq9r073tq8": {
     "defaultMessage": "Relu par le fournisseur"
+  },
+  "MrZ8+8I97E": {
+    "defaultMessage": "Score"
   },
   "MtSPbgepa5": {
     "defaultMessage": "Nous n’avons pas pu charger les fichiers du projet."
@@ -5636,6 +5714,9 @@
   "OPbww1wvuh": {
     "defaultMessage": "Paramètres de l’équipe"
   },
+  "OQ8wr0lFpw": {
+    "defaultMessage": "Hyperlocalise"
+  },
   "OQRAAutFV6": {
     "defaultMessage": "En attente d’approbation"
   },
@@ -5752,6 +5833,9 @@
   },
   "P4BtYAEPF2": {
     "defaultMessage": "L’organisation correspondant à cette demande d’installation est introuvable."
+  },
+  "P5KI62Z4os": {
+    "defaultMessage": "Exa"
   },
   "P5XQbf/8AX": {
     "defaultMessage": "Commentaire sur la ligne <line></line>"
@@ -6560,6 +6644,9 @@
   "SmMQDr7bGf": {
     "defaultMessage": "Les corrections, les choix terminologiques et le contexte produit cessent de disparaître dans les anciens commentaires."
   },
+  "SnTFQm1KyV": {
+    "defaultMessage": "Recherchez sur le Web en direct via AI Gateway. Auto permet à l’agent de choisir entre Perplexity et Exa."
+  },
   "SrLx97k5Qr": {
     "defaultMessage": "Enregistrement…"
   },
@@ -6763,6 +6850,9 @@
   },
   "ThGy8XF2yq": {
     "defaultMessage": "Notifications"
+  },
+  "Thq8Nht0hH": {
+    "defaultMessage": "Localiser une courte vidéo"
   },
   "Ti9Gb8n4Gh": {
     "defaultMessage": "Impossible de charger les fichiers"
@@ -7000,6 +7090,9 @@
   },
   "UqeBgW87bt": {
     "defaultMessage": "Supprimer le membre de l’équipe"
+  },
+  "Uuw7RsxOWd": {
+    "defaultMessage": "Perplexity"
   },
   "Uv4fMm9uKS": {
     "defaultMessage": "Examiner les propositions"
@@ -7430,6 +7523,9 @@
   "WpH+qSKfNZ": {
     "defaultMessage": "Reject"
   },
+  "WphtFQWMLA": {
+    "defaultMessage": "Impossible d’ajouter la relation"
+  },
   "Wq2O6lVhWX": {
     "defaultMessage": "Traduire avec l’agent"
   },
@@ -7754,6 +7850,9 @@
   "YOCao9EtJ4": {
     "defaultMessage": "Enregistrer les identifiants pour connecter {providerName}. Le secret est chiffré au repos et utilisé pour synchroniser les projets, les fichiers et les tâches dans l’espace de travail."
   },
+  "YOVFvt60oU": {
+    "defaultMessage": "Supprimer l’outil de recherche Web"
+  },
   "YOYL3H2qOe": {
     "defaultMessage": "Locale"
   },
@@ -7852,6 +7951,9 @@
   },
   "YrE1KC753H": {
     "defaultMessage": "Nos agents IA recherchent dans votre dépôt, votre documentation, votre mémoire de traduction et votre terminologie afin d’ajouter un contexte pertinent avant le début de la traduction. Les traducteurs et les réviseurs passent moins de temps à poser des questions et davantage à livrer."
+  },
+  "YreYFnwbaP": {
+    "defaultMessage": "Doublons"
   },
   "YsUGw6nQKk": {
     "defaultMessage": "Resolved"
@@ -8360,6 +8462,9 @@
   "b7cQsDBNuy": {
     "defaultMessage": "Format"
   },
+  "b7iFjKUEa6": {
+    "defaultMessage": "Réduire {folder}"
+  },
   "b7wwLWokOY": {
     "defaultMessage": "Member"
   },
@@ -8507,6 +8612,9 @@
   "c0YVbiffzK": {
     "defaultMessage": "Aucun paramètre régional cible n’est disponible pour ce fichier de tâche."
   },
+  "c0wyG2sMeU": {
+    "defaultMessage": "Supprimer la relation"
+  },
   "c3ROZAXotz": {
     "defaultMessage": "Projets {providerName}"
   },
@@ -8621,6 +8729,9 @@
   "cgByBDP5Dl": {
     "defaultMessage": "Projet mis à jour"
   },
+  "cgUwgiYYdC": {
+    "defaultMessage": "TMS"
+  },
   "cgWE890bnd": {
     "defaultMessage": "Fournisseurs"
   },
@@ -8659,6 +8770,9 @@
   },
   "crhiHIjb38": {
     "defaultMessage": "{count}/{limit} caractères"
+  },
+  "cv2g6Sf3ye": {
+    "defaultMessage": "Projets indisponibles"
   },
   "cwqeMFXYQC": {
     "defaultMessage": "Réussi"
@@ -8813,6 +8927,9 @@
   "dakChM2xsG": {
     "defaultMessage": "Statut du fournisseur"
   },
+  "dbtTNEaJX2": {
+    "defaultMessage": "Score de {score} sur 100"
+  },
   "dcbWLpn6f2": {
     "defaultMessage": "Date de mise à jour indisponible"
   },
@@ -8899,6 +9016,9 @@
   },
   "e+qzXq1bUT": {
     "defaultMessage": "Project"
+  },
+  "e/0aPM+6Iw": {
+    "defaultMessage": "{count, plural, one {# fichier} other {# fichiers}}"
   },
   "e18M4A0kqC": {
     "defaultMessage": "Tarification"
@@ -9491,6 +9611,9 @@
   "gSujo7PJIL": {
     "defaultMessage": "Aucune connexion Ahrefs pour le moment."
   },
+  "gTVgkDcRK6": {
+    "defaultMessage": "{actor} a indiqué que ceci ne bloquait plus {relatedIssue}"
+  },
   "gUXo9+5beH": {
     "defaultMessage": "Impossible de créer le glossaire"
   },
@@ -9629,6 +9752,9 @@
   "h1E2anIfFR": {
     "defaultMessage": "Surveillez le contenu en direct pour détecter les ruptures de terminologie, les mises à jour manquantes et les lacunes de localisation après la mise en production."
   },
+  "h1hScUfLYO": {
+    "defaultMessage": "Aucun projet"
+  },
   "h1w+zE8OFG": {
     "defaultMessage": "Project"
   },
@@ -9728,6 +9854,9 @@
   "hTbl8aKMIU": {
     "defaultMessage": "{operation} {assetType}"
   },
+  "hTvi2pxcky": {
+    "defaultMessage": "{count, plural, one {# assignataire} other {# assignataires}}"
+  },
   "hU16et2xGh": {
     "defaultMessage": "Traduit"
   },
@@ -9751,6 +9880,9 @@
   },
   "hZ+ve9l5zX": {
     "defaultMessage": "Choisissez un fichier de traduction à importer."
+  },
+  "hZtUjyTrTe": {
+    "defaultMessage": "Rechercher des fichiers…"
   },
   "haASfbpIl3": {
     "defaultMessage": "Importation synchronisée"
@@ -9884,6 +10016,9 @@
   "iCizofrwwK": {
     "defaultMessage": "Impossible d’enregistrer le terme"
   },
+  "iD0GLTqlIQ": {
+    "defaultMessage": "Chargement…"
+  },
   "iEwQSllTi8": {
     "defaultMessage": "Saisissez l’URL"
   },
@@ -9961,6 +10096,9 @@
   },
   "iVNWaz9pgs": {
     "defaultMessage": "Date de création indisponible"
+  },
+  "iVnVwwFFdq": {
+    "defaultMessage": "Locales"
   },
   "iX/gIwfgxF": {
     "defaultMessage": "Blocked"
@@ -10211,6 +10349,9 @@
   "jXIBasnzrF": {
     "defaultMessage": "{usage} / {granted} utilisés"
   },
+  "jYCKNw+LDl": {
+    "defaultMessage": "{actor} a marqué ceci comme bloquant {relatedIssue}"
+  },
   "jYLCUCpCv3": {
     "defaultMessage": "Visitez tourfinder.vn"
   },
@@ -10375,6 +10516,9 @@
   },
   "kB+yrXhyLX": {
     "defaultMessage": "Localisation du centre d’aide | Hyperlocalise"
+  },
+  "kBB5urcgnt": {
+    "defaultMessage": "un autre problème"
   },
   "kBSyk8lLco": {
     "defaultMessage": "Review"
@@ -10679,6 +10823,9 @@
   "lWsEWOz8r0": {
     "defaultMessage": "Adresse entrante prête. Envoyez des fichiers ou des images avec une langue cible à traduire par e-mail."
   },
+  "lXuIhCcGl8": {
+    "defaultMessage": "Marqué comme doublon de {title}"
+  },
   "lYqcYOvV+9": {
     "defaultMessage": "Choisissez un forfait"
   },
@@ -10747,6 +10894,9 @@
   },
   "lvwFhMaVAT": {
     "defaultMessage": "Bientôt disponible"
+  },
+  "lwgrrpA8Lf": {
+    "defaultMessage": "Développer {folder}"
   },
   "lySN7MFYwz": {
     "defaultMessage": "Modifier le projet"
@@ -10817,6 +10967,9 @@
   "mFfweL99wM": {
     "defaultMessage": "Dashboard"
   },
+  "mFzR+186UW": {
+    "defaultMessage": "Tous les paramètres régionaux"
+  },
   "mG1/3d7d9k": {
     "defaultMessage": "Type"
   },
@@ -10825,6 +10978,9 @@
   },
   "mGMHPd7U67": {
     "defaultMessage": "Fichier source"
+  },
+  "mHZZxFedL8": {
+    "defaultMessage": "Site"
   },
   "mHk95Qw98g": {
     "defaultMessage": "Mise à jour de la chaîne pour utiliser le nom français correctement accentué."
@@ -10936,6 +11092,9 @@
   },
   "mmfrG6qsJL": {
     "defaultMessage": "Attribuer au projet"
+  },
+  "mnQrjAyyw8": {
+    "defaultMessage": "Relations"
   },
   "mnZVrr1EzK": {
     "defaultMessage": "Comment le corriger"
@@ -11390,6 +11549,9 @@
   "p15YTH6+4S": {
     "defaultMessage": "Instructions de l’agent"
   },
+  "p22y6wrB6M": {
+    "defaultMessage": "Impossible de supprimer la relation"
+  },
   "p2ZEW4INMa": {
     "defaultMessage": "Glossaires"
   },
@@ -11576,6 +11738,9 @@
   "pryVUr/AGB": {
     "defaultMessage": "Créez une tâche de traduction TMS native pour les fichiers source importés dans le projet sélectionné ci-dessus."
   },
+  "psXoqti6i8": {
+    "defaultMessage": "{actor} a supprimé le lien associé vers {relatedIssue}"
+  },
   "puXgWXUT2y": {
     "defaultMessage": "Deleting…"
   },
@@ -11602,6 +11767,9 @@
   },
   "q+3+ldE+Vn": {
     "defaultMessage": "Accord de niveau de service"
+  },
+  "q0vQCpRAVI": {
+    "defaultMessage": "Aucun fichier ne correspond à cette recherche."
   },
   "q1SUe75H6g": {
     "defaultMessage": "Majeure"
@@ -11819,8 +11987,14 @@
   "r0gMCcsbGC": {
     "defaultMessage": "Aucune conversation ni notification pour le moment."
   },
+  "r0jIUbQa43": {
+    "defaultMessage": "Bloqué par"
+  },
   "r1aEK84u1V": {
     "defaultMessage": "Catégorie grammaticale"
+  },
+  "r3j9bzJdAk": {
+    "defaultMessage": "Impossible de charger les relations"
   },
   "r6HEWfXC5D": {
     "defaultMessage": "Connect an Ahrefs MCP API key for SEO data in automations."
@@ -12019,6 +12193,9 @@
   },
   "s1gl7VHrHd": {
     "defaultMessage": "Accept"
+  },
+  "s1stMk8yBo": {
+    "defaultMessage": "Ajouter une relation"
   },
   "s2RbfpSnxA": {
     "defaultMessage": "Échec du téléchargement de l’image"
@@ -12656,6 +12833,9 @@
   "v32CGJfAAS": {
     "defaultMessage": "Audit linguistique"
   },
+  "v3BuukETY6": {
+    "defaultMessage": "Posez des questions sur les chaînes, localisez des images ou de courtes vidéos, ou sur tout autre sujet"
+  },
   "v4h0afylvD": {
     "defaultMessage": "Choisir le fichier source"
   },
@@ -12847,6 +13027,9 @@
   },
   "vuJalRUhn9": {
     "defaultMessage": "Conversations de chat"
+  },
+  "vuk3bDm+PN": {
+    "defaultMessage": "Non assigné"
   },
   "vv8/iiR38E": {
     "defaultMessage": "Paramètres régionaux cibles"
@@ -13361,6 +13544,9 @@
   "y6fEOvlovF": {
     "defaultMessage": "Provider"
   },
+  "y6su8h1cH4": {
+    "defaultMessage": "Automatique"
+  },
   "y7TyDgtZHB": {
     "defaultMessage": "https://api.lokalise.com/api2"
   },
@@ -13433,6 +13619,9 @@
   "yRRevnNvnn": {
     "defaultMessage": "Syntaxe du message स्रोत"
   },
+  "yRg4x8kKbX": {
+    "defaultMessage": "Nouveau travail"
+  },
   "yRk3vbJPiR": {
     "defaultMessage": "Request"
   },
@@ -13453,6 +13642,9 @@
   },
   "yWct5TBmd2": {
     "defaultMessage": "Erreur brute"
+  },
+  "yWn40N8bPb": {
+    "defaultMessage": "{actor} a indiqué que ceci est bloqué par {relatedIssue}"
   },
   "yX53I7eVol": {
     "defaultMessage": "Configuration de l’espace de travail · {completedCount} sur {totalCount} terminées"
