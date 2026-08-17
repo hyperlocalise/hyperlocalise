@@ -59,6 +59,7 @@ export const ChatConversation: Story = {
       canvas.getByRole("heading", { name: "Translate homepage hero copy" }),
     ).toBeInTheDocument();
     await expect(canvas.getByPlaceholderText("Ask Hyperlocalise…")).toBeInTheDocument();
+    await expect(canvas.getByRole("button", { name: "Send reply" })).toBeInTheDocument();
   },
 };
 
@@ -80,6 +81,7 @@ export const NewRequest: Story = {
     await expect(canvas.getByRole("heading", { name: "New Request" })).toBeInTheDocument();
     await expect(canvas.getByText("Welcome to Hyperlocalise")).toBeInTheDocument();
     await expect(canvas.getByPlaceholderText("Ask Hyperlocalise…")).toBeInTheDocument();
+    await expect(canvas.getByRole("button", { name: "Send reply" })).toBeInTheDocument();
   },
 };
 

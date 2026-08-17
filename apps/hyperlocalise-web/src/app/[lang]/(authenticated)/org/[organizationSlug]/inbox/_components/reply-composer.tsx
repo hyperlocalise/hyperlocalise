@@ -90,7 +90,6 @@ type ReplyComposerViewProps = {
   repositories: InboxGithubRepository[];
   repositoriesIsError: boolean;
   repositoriesIsLoading: boolean;
-  variant?: "default" | "compact";
 };
 
 export function ReplyComposerView({
@@ -109,7 +108,6 @@ export function ReplyComposerView({
   repositories,
   repositoriesIsError,
   repositoriesIsLoading,
-  variant = "default",
 }: ReplyComposerViewProps) {
   const intl = useIntl();
   const [replyText, setReplyText] = useState(draft);
@@ -179,25 +177,15 @@ export function ReplyComposerView({
   };
 
   return (
-    <section
-      className={
-        variant === "compact"
-          ? "sticky bottom-0 z-20 shrink-0 border-t border-border bg-background p-3"
-          : "sticky bottom-0 z-20 shrink-0 border-t border-border bg-background/95 px-4 py-4 backdrop-blur sm:px-6"
-      }
-    >
+    <section className="sticky bottom-0 z-20 shrink-0 border-t border-border bg-background p-3">
       <div className="mx-auto w-full max-w-4xl">
         <PromptInput
           onSubmit={({ text, files }) => sendReply(text, files)}
-          className={
-            variant === "compact"
-              ? "overflow-hidden rounded-xl border border-border bg-muted/30 text-foreground shadow-sm [&_[data-slot=input-group]]:h-auto [&_[data-slot=input-group]]:rounded-xl [&_[data-slot=input-group]]:border-0 [&_[data-slot=input-group]]:bg-transparent"
-              : "overflow-hidden rounded-[1.35rem] border border-border bg-background text-foreground shadow-2xl shadow-black/10 [&_[data-slot=input-group]]:h-auto [&_[data-slot=input-group]]:rounded-[1.35rem] [&_[data-slot=input-group]]:border-0 [&_[data-slot=input-group]]:bg-transparent"
-          }
+          className="overflow-hidden rounded-xl border border-border bg-muted/30 text-foreground shadow-sm [&_[data-slot=input-group]]:h-auto [&_[data-slot=input-group]]:rounded-xl [&_[data-slot=input-group]]:border-0 [&_[data-slot=input-group]]:bg-transparent"
         >
           <PromptInputBody>
             {attachments.files.length > 0 && (
-              <div className="px-4 pt-3 sm:px-6">
+              <div className="px-3 pt-3">
                 <Attachments variant="inline">
                   {attachments.files.map((file) => (
                     <Attachment
@@ -220,11 +208,7 @@ export function ReplyComposerView({
                 setReplyText(next);
                 onDraftChange?.(next);
               }}
-              className={
-                variant === "compact"
-                  ? "min-h-12 max-h-28 px-3 py-3 text-sm leading-5"
-                  : "min-h-24 px-4 py-4 text-base leading-6 sm:px-6 sm:py-5"
-              }
+              className="min-h-12 max-h-28 px-3 py-3 text-sm leading-5"
               placeholder={
                 isStreaming
                   ? intl.formatMessage(replyComposerMessages.streamingPlaceholder)
@@ -233,14 +217,8 @@ export function ReplyComposerView({
               rows={1}
             />
           </PromptInputBody>
-          <PromptInputFooter
-            className={
-              variant === "compact"
-                ? "min-h-10 flex-wrap gap-2 border-0 bg-transparent px-2 pb-2 sm:flex-nowrap"
-                : "flex-wrap gap-3 border-t border-border bg-muted px-4 py-3 sm:px-5"
-            }
-          >
-            <PromptInputTools className="flex-wrap gap-2 text-sm text-muted-foreground">
+          <PromptInputFooter className="min-h-10 flex-wrap gap-2 border-0 bg-transparent px-2 pb-2 sm:flex-nowrap">
+            <PromptInputTools className="gap-2 text-sm text-muted-foreground">
               <PromptInputButton
                 className="inline-flex size-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-accent/20 hover:text-foreground"
                 size="icon-sm"
@@ -252,7 +230,7 @@ export function ReplyComposerView({
               </PromptInputButton>
             </PromptInputTools>
 
-            <PromptInputTools className="flex-wrap justify-end gap-2 text-sm text-muted-foreground">
+            <PromptInputTools className="min-w-0 flex-1 flex-wrap justify-end gap-2 text-sm text-muted-foreground sm:flex-nowrap">
               <ProjectSelector
                 projects={projects}
                 projectsIsError={projectsIsError}
@@ -274,7 +252,7 @@ export function ReplyComposerView({
               <PromptInputSubmit
                 size="sm"
                 disabled={(!replyText.trim() && attachments.files.length === 0) || disabled}
-                className="rounded-full bg-primary text-primary-foreground hover:bg-primary/90"
+                className="shrink-0 rounded-full bg-primary text-primary-foreground hover:bg-primary/90"
                 aria-label={sendReplyLabel}
                 tooltip={{
                   content: sendReplyLabel,

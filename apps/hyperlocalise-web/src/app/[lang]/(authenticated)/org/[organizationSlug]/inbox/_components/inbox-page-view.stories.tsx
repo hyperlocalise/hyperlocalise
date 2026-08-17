@@ -237,5 +237,6 @@ export const NewRequest: Story = {
     await expect(canvas.getByText("Start a localisation request")).toBeInTheDocument();
     await expect(canvas.getByText("Welcome to Hyperlocalise")).toBeInTheDocument();
     await expect(canvas.getByPlaceholderText("Ask Hyperlocalise…")).toBeInTheDocument();
+    await expect(canvas.getByRole("button", { name: "Send reply" })).toBeInTheDocument();
   },
 };

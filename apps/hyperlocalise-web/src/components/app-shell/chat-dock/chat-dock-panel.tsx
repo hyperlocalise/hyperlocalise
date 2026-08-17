@@ -378,7 +378,6 @@ export const ChatDockPanel = observer(function ChatDockPanel({
           onSend={onSendMessage}
           organizationSlug={organizationSlug}
           placeholder={intl.formatMessage(chatDockMessages.emptyComposer)}
-          variant="compact"
         />
       </div>
     </section>
