@@ -69,6 +69,21 @@ export const catQueuePanelMessages = defineMessages({
     id: "Kjim0yzISM",
     description: "Accessible label for CAT queue search input",
   },
+  downloadFiltered: {
+    defaultMessage: "Download",
+    id: "catDlBtn01",
+    description: "Button label to download the filtered CAT queue view",
+  },
+  downloadFilteredAria: {
+    defaultMessage: "Download filtered view",
+    id: "catDlAria1",
+    description: "Accessible label for downloading the filtered CAT queue",
+  },
+  downloadFilteredFormatLabel: {
+    defaultMessage: "Format",
+    id: "catDlFmt01",
+    description: "Label above download format options in the CAT queue",
+  },
   emptySearchResults: {
     defaultMessage: "No segments match your search.",
     id: "ypyJIGOXrt",

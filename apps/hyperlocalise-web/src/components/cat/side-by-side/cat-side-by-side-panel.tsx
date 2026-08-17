@@ -14,6 +14,7 @@
  */
 import { FilterIcon, SearchIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
+import { DownloadIcon } from "lucide-react";
 import { observer } from "mobx-react-lite";
 import { useCallback, useMemo } from "react";
 import { FormattedMessage, useIntl } from "react-intl";
@@ -22,6 +23,9 @@ import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuLabel,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
   DropdownMenuTrigger,
@@ -106,6 +110,8 @@ export const CatSideBySidePanel = observer(function CatSideBySidePanel({
   pagination = null,
   hasMoreQueue = false,
   onLoadMoreQueue,
+  onDownloadFilteredView,
+  isDownloadingFilteredView = false,
   onFocusSegment,
   onTargetChange,
   onApprove,
@@ -175,6 +181,8 @@ export const CatSideBySidePanel = observer(function CatSideBySidePanel({
   pagination?: CatQueuePagination | null;
   hasMoreQueue?: boolean;
   onLoadMoreQueue?: () => void;
+  onDownloadFilteredView?: (format: "csv" | "tmx" | "xlf" | "xliff") => void;
+  isDownloadingFilteredView?: boolean;
   onFocusSegment: (segmentId: string) => void;
   onTargetChange: (segmentId: string, value: string) => void;
   onApprove?: (segmentId: string) => void;
@@ -310,6 +318,47 @@ export const CatSideBySidePanel = observer(function CatSideBySidePanel({
                         </DropdownMenuRadioItem>
                       ))}
                     </DropdownMenuRadioGroup>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              ) : null}
+
+              {onDownloadFilteredView ? (
+                <DropdownMenu>
+                  <DropdownMenuTrigger
+                    render={
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="h-9 gap-1.5 px-2.5"
+                        disabled={isDownloadingFilteredView}
+                        aria-label={intl.formatMessage(catQueuePanelMessages.downloadFilteredAria)}
+                      />
+                    }
+                  >
+                    {isDownloadingFilteredView ? (
+                      <Spinner className="size-4" />
+                    ) : (
+                      <DownloadIcon className="size-4" />
+                    )}
+                    <span className="hidden text-xs sm:inline">
+                      <FormattedMessage {...catQueuePanelMessages.downloadFiltered} />
+                    </span>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-40">
+                    <DropdownMenuGroup>
+                      <DropdownMenuLabel>
+                        <FormattedMessage {...catQueuePanelMessages.downloadFilteredFormatLabel} />
+                      </DropdownMenuLabel>
+                      {(["csv", "tmx", "xlf", "xliff"] as const).map((format) => (
+                        <DropdownMenuItem
+                          key={format}
+                          onClick={() => onDownloadFilteredView(format)}
+                        >
+                          {format.toUpperCase()}
+                        </DropdownMenuItem>
+                      ))}
+                    </DropdownMenuGroup>
                   </DropdownMenuContent>
                 </DropdownMenu>
               ) : null}

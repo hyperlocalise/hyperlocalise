@@ -165,6 +165,8 @@ export interface CatWorkspaceViewProps {
   organizationSlug?: string;
   projectId?: string;
   nativeIssuesEnabled?: boolean;
+  onDownloadFilteredView?: (format: "csv" | "tmx" | "xlf" | "xliff") => void;
+  isDownloadingFilteredView?: boolean;
 }
 
 export const noopCatDependencies: CatWorkspaceDependencies = {

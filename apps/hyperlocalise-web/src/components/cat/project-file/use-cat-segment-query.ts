@@ -57,12 +57,13 @@ export function useCatSegmentQuery(input: {
   targetLocale: string;
   enabled?: boolean;
   initialQueueFilter?: CatQueueFilter;
+  initialSearch?: string;
   pageLimit?: number;
   sourcePaths?: string | null;
 }) {
   const intl = useIntl();
   const queryClient = useQueryClient();
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useState(() => input.initialSearch ?? "");
   const [queueFilter, setQueueFilter] = useState<CatQueueFilter>(
     () => input.initialQueueFilter ?? "all",
   );

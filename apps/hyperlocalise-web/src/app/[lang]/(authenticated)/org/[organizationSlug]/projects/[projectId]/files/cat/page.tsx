@@ -12,6 +12,10 @@
  */
 import { requireAppAuthContext } from "@/lib/workos/app-auth";
 import { isReleaseCatAllFilesEnabled } from "@/lib/flags/release-flags";
+import {
+  parseCatWorkspaceQueueFilterParam,
+  parseCatWorkspaceSearchParam,
+} from "@/lib/projects/cat/cat-workspace-query-params";
 import { parseProjectFileCatSearchParams } from "@/lib/projects/project-file-cat-routing";
 import {
   catAllFilesProviderKindFromTarget,
@@ -33,10 +37,13 @@ export default async function ProjectFileCatPage({
     resourceType?: string;
     branch?: string;
     sourcePaths?: string;
+    queueFilter?: string;
+    search?: string;
   }>;
 }) {
   const { organizationSlug, projectId } = await params;
-  const parsedSearchParams = parseProjectFileCatSearchParams(await searchParams);
+  const rawSearchParams = await searchParams;
+  const parsedSearchParams = parseProjectFileCatSearchParams(rawSearchParams);
   const auth = await requireAppAuthContext({ organizationSlug });
   const target = await resolveProjectResourceTarget(auth, projectId);
   const catAllFilesEnabled = await isReleaseCatAllFilesEnabled(
@@ -52,6 +59,8 @@ export default async function ProjectFileCatPage({
       catAllFilesEnabled={catAllFilesEnabled}
       highlightLocale={parsedSearchParams.highlightLocale}
       initialSegmentKey={parsedSearchParams.initialSegmentKey}
+      initialQueueFilter={parseCatWorkspaceQueueFilterParam(rawSearchParams.queueFilter) ?? "all"}
+      initialSearch={parseCatWorkspaceSearchParam(rawSearchParams.search)}
       externalResourceId={parsedSearchParams.externalResourceId}
       resourceType={parsedSearchParams.resourceType}
       branch={parsedSearchParams.branch}

@@ -108,6 +108,8 @@ export const CatWorkspaceView = observer(function CatWorkspaceView({
   organizationSlug,
   projectId,
   nativeIssuesEnabled = false,
+  onDownloadFilteredView,
+  isDownloadingFilteredView = false,
 }: CatWorkspaceViewProps) {
   const store = useCatWorkspace();
   const viewMode = store.ui.viewMode;
@@ -174,6 +176,8 @@ export const CatWorkspaceView = observer(function CatWorkspaceView({
             pagination={queuePagination}
             hasMoreQueue={hasMoreQueue}
             onLoadMoreQueue={onLoadMoreQueue}
+            onDownloadFilteredView={onDownloadFilteredView}
+            isDownloadingFilteredView={isDownloadingFilteredView}
           />
         </CatPanelErrorBoundary>
       </div>
@@ -211,6 +215,8 @@ export const CatWorkspaceView = observer(function CatWorkspaceView({
             pagination={queuePagination}
             hasMoreQueue={hasMoreQueue}
             onLoadMoreQueue={onLoadMoreQueue}
+            onDownloadFilteredView={onDownloadFilteredView}
+            isDownloadingFilteredView={isDownloadingFilteredView}
           />
         </CatPanelErrorBoundary>
       </div>
@@ -357,6 +363,8 @@ export const CatWorkspaceView = observer(function CatWorkspaceView({
           pagination={queuePagination}
           hasMoreQueue={hasMoreQueue}
           onLoadMoreQueue={onLoadMoreQueue}
+          onDownloadFilteredView={onDownloadFilteredView}
+          isDownloadingFilteredView={isDownloadingFilteredView}
           onFocusSegment={dependencies.navigation.onSelectSegment}
           onTargetChange={(segmentId, value) => editing.onTargetChange(segmentId, value)}
           onApprove={(segmentId) => {
@@ -623,6 +631,8 @@ export const CatWorkspaceView = observer(function CatWorkspaceView({
           pagination={queuePagination}
           hasMoreQueue={hasMoreQueue}
           onLoadMoreQueue={onLoadMoreQueue}
+          onDownloadFilteredView={onDownloadFilteredView}
+          isDownloadingFilteredView={isDownloadingFilteredView}
         />
       </CatPanelErrorBoundary>
     );

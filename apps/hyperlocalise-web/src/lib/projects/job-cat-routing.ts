@@ -19,6 +19,7 @@ import {
 import { resolveJobProjectId } from "@/lib/providers/jobs/tms-provider-resource-id";
 
 export const jobCatQueueFilterParam = "queueFilter";
+export const jobCatSearchParam = "search";
 
 export type JobCatTarget = {
   id: string;

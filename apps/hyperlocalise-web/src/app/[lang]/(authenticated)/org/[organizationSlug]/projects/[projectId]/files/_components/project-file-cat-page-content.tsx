@@ -40,6 +40,10 @@ import {
   resolveProjectFileCatTargetLocaleResolution,
   resolveProjectFileCatTargetLocales,
 } from "@/lib/projects/project-file-cat-routing";
+import {
+  buildCatNavigationSearchParams,
+} from "@/lib/projects/cat/cat-workspace-query-params";
+import type { CatQueueFilter } from "@/components/cat/queue/cat-queue-filter";
 
 import { ProjectPageShell, useProjectPageQuery } from "../../_components/project-page-shell";
 import {
@@ -83,6 +87,8 @@ export function ProjectFileCatPageContent({
   catAllFilesEnabled = false,
   highlightLocale,
   initialSegmentKey = null,
+  initialQueueFilter = "all",
+  initialSearch = "",
   externalResourceId = null,
   resourceType = null,
   branch = null,
@@ -95,6 +101,8 @@ export function ProjectFileCatPageContent({
   catAllFilesEnabled?: boolean;
   highlightLocale: string | null;
   initialSegmentKey?: string | null;
+  initialQueueFilter?: CatQueueFilter;
+  initialSearch?: string;
   externalResourceId?: string | null;
   resourceType?: "file" | "key" | null;
   branch?: string | null;
@@ -491,12 +499,13 @@ export function ProjectFileCatPageContent({
 
     const navigate = () => {
       if (allFiles) {
+        const params = buildCatNavigationSearchParams(window.location.search, {
+          locale: nextLocale,
+          sourcePath: CAT_ALL_FILES_SOURCE_PATH,
+        });
+        const section = "strings";
         router.push(
-          buildProjectFileCatAllFilesHref(organizationSlug, projectId, nextLocale, {
-            branch,
-            sourcePaths: sourcePaths ? sourcePaths.split(",") : null,
-            basePath: "strings",
-          }),
+          `/org/${organizationSlug}/projects/${encodeURIComponent(projectId)}/${section}?${params.toString()}`,
         );
         return;
       }
@@ -505,22 +514,14 @@ export function ProjectFileCatPageContent({
         return;
       }
 
-      const params = new URLSearchParams({
+      const params = buildCatNavigationSearchParams(window.location.search, {
         sourcePath,
         locale: nextLocale,
+        externalResourceId: resolvedExternalResourceId,
+        resourceType:
+          resolvedResourceType && resolvedResourceType !== "file" ? resolvedResourceType : null,
+        branch,
       });
-
-      if (resolvedExternalResourceId) {
-        params.set("externalResourceId", resolvedExternalResourceId);
-      }
-
-      if (resolvedResourceType && resolvedResourceType !== "file") {
-        params.set("resourceType", resolvedResourceType);
-      }
-
-      if (branch) {
-        params.set("branch", branch);
-      }
 
       router.push(
         `/org/${organizationSlug}/projects/${encodeURIComponent(projectId)}/files/cat?${params.toString()}`,
@@ -626,6 +627,8 @@ export function ProjectFileCatPageContent({
             selectedRepositoryFullName,
           )}
           initialSegmentKey={initialSegmentKey}
+          initialQueueFilter={initialQueueFilter}
+          initialSearch={initialSearch}
           sourcePathsFilter={sourcePaths}
           layout="fullscreen"
           className="min-h-0 flex-1"

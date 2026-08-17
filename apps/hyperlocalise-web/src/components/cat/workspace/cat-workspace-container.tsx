@@ -88,6 +88,8 @@ export interface CatWorkspaceContainerProps {
   onPageLimitChange?: (pageLimit: number) => void;
   pageNavigationGuardRef?: CatPageNavigationGuardRef;
   nativeIssuesEnabled?: boolean;
+  onDownloadFilteredView?: (format: "csv" | "tmx" | "xlf" | "xliff") => void;
+  isDownloadingFilteredView?: boolean;
 }
 
 const CatWorkspaceContainerObserver = observer(function CatWorkspaceContainerObserver({
@@ -117,6 +119,8 @@ const CatWorkspaceContainerObserver = observer(function CatWorkspaceContainerObs
   canLookupFreshContext,
   onPageLimitChange,
   nativeIssuesEnabled = false,
+  onDownloadFilteredView,
+  isDownloadingFilteredView = false,
 }: CatWorkspaceContainerProps & { store: CatWorkspaceOrchestrator }) {
   const controller = useCatWorkspaceRuntime({
     store,
@@ -212,6 +216,8 @@ const CatWorkspaceContainerObserver = observer(function CatWorkspaceContainerObs
           organizationSlug={lazySegment?.organizationSlug}
           projectId={lazySegment?.projectId}
           nativeIssuesEnabled={nativeIssuesEnabled}
+          onDownloadFilteredView={onDownloadFilteredView}
+          isDownloadingFilteredView={isDownloadingFilteredView}
         />
       </CatPanelErrorBoundary>
 

@@ -274,6 +274,15 @@ export const projectFileCatQuerySchema = z.object({
   phraseScanSkip: z.coerce.number().int().min(0).optional(),
 });
 
+export const projectFileCatExportFormatSchema = z.enum(["csv", "tmx", "xlf", "xliff"]);
+
+export const projectFileCatExportQuerySchema = projectFileCatQuerySchema
+  .omit({ offset: true, limit: true, phraseScanPage: true, phraseScanSkip: true })
+  .extend({
+    format: projectFileCatExportFormatSchema,
+    sourceLocale: z.string().trim().min(1).max(32).optional(),
+  });
+
 export const projectFileCatPaginationSchema = z.object({
   offset: z.number().int().min(0),
   limit: z.number().int().min(1),
@@ -702,6 +711,7 @@ export type ProjectFilesQuery = z.infer<typeof projectFilesQuerySchema>;
 export type ProjectProviderBranchesResponse = z.infer<typeof projectProviderBranchesResponseSchema>;
 export type ProjectFileDetailQuery = z.infer<typeof projectFileDetailQuerySchema>;
 export type ProjectFileCatQuery = z.infer<typeof projectFileCatQuerySchema>;
+export type ProjectFileCatExportQuery = z.infer<typeof projectFileCatExportQuerySchema>;
 export type ProjectFileCatQueueFilter = z.infer<typeof projectFileCatQueueFilterSchema>;
 export type ProjectFileCatTranslationBody = z.infer<typeof projectFileCatTranslationBodySchema>;
 export type ProjectFileCatImageRegenerateBody = z.infer<

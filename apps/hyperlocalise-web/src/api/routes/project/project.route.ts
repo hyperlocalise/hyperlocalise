@@ -82,6 +82,11 @@ import {
 } from "@/lib/projects/cat/external-cat-string-overlay-service";
 import { resolveProjectFileCatPagination } from "@/lib/projects/cat/project-file-cat-pagination";
 import {
+  buildCatFilteredExportPayload,
+  collectCatFilteredExportRows,
+} from "@/lib/projects/cat/cat-filtered-export-service";
+import { maxCatFilteredExportSegments } from "@/lib/projects/cat/cat-filtered-export";
+import {
   getProjectFileDetail,
   listFilteredProjectFiles,
 } from "@/lib/projects/files/project-file-service";
@@ -135,6 +140,7 @@ import {
   projectFileCatSegmentParamsSchema,
   projectFileCatSegmentQuerySchema,
   projectFileCatQuerySchema,
+  projectFileCatExportQuerySchema,
   projectFileCatConcordanceBodySchema,
   projectFileCatCommentBodySchema,
   projectFileCatCommentResolveBodySchema,
@@ -493,6 +499,16 @@ const validateProjectFileCatQuery = validator("query", (value, c) => {
   return parsed.data;
 });
 
+const validateProjectFileCatExportQuery = validator("query", (value, c) => {
+  const parsed = projectFileCatExportQuerySchema.safeParse(value);
+
+  if (!parsed.success) {
+    return invalidProjectPayloadResponse(c);
+  }
+
+  return parsed.data;
+});
+
 const validateProjectFileCatTranslationBody = validator("json", (value, c) => {
   const parsed = projectFileCatTranslationBodySchema.safeParse(value);
 
@@ -715,7 +731,7 @@ type CreateProjectRoutesOptions = {
   translationFileImportQueue?: TranslationFileImportQueue;
 };
 
-async function loadProjectFileCatQueue(
+export async function loadProjectFileCatQueue(
   auth: AuthVariables["auth"],
   projectId: string,
   query: ProjectFileCatQuery,
@@ -898,6 +914,87 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
         }
 
         return c.json({ catQueue: result.catQueue }, 200);
+      },
+    )
+    .get(
+      "/:projectId/files/detail/cat/export",
+      validateProjectParams,
+      validateProjectFileCatExportQuery,
+      async (c) => {
+        const params = c.req.valid("param");
+        const query = c.req.valid("query");
+        const target = await resolveProjectResourceTarget(c.var.auth, params.projectId);
+        if (target.kind === "provider_unavailable") {
+          return providerProjectUnavailableResponse(c, target);
+        }
+
+        let sourceLocale = query.sourceLocale?.trim() || "";
+        if (!sourceLocale) {
+          if (target.kind === "provider") {
+            sourceLocale = "en";
+          } else {
+            const project = await getOwnedProject(c.var.auth, params.projectId);
+            if (!project) {
+              return projectNotFoundResponse(c);
+            }
+            sourceLocale = project.sourceLocale?.trim() || "en";
+          }
+        }
+
+        const { format, sourceLocale: _sourceLocale, ...catQuery } = query;
+        const collected = await collectCatFilteredExportRows({
+          auth: c.var.auth,
+          projectId: params.projectId,
+          query: catQuery,
+          sourceLocale,
+          loadCatQueue: loadProjectFileCatQueue,
+          externalProjectId: target.kind === "provider" ? target.externalProjectId : null,
+        });
+
+        if (collected.kind === "feature_unavailable") {
+          return sharedForbiddenResponse(
+            c,
+            "feature_unavailable",
+            "All Files CAT is not enabled for this organization",
+          );
+        }
+        if (collected.kind === "provider_unavailable") {
+          return providerProjectUnavailableResponse(c, collected.target);
+        }
+        if (collected.kind === "project_not_found") {
+          return projectNotFoundResponse(c);
+        }
+        if (collected.kind === "source_file_not_found") {
+          return badRequestResponse(
+            c,
+            "source_file_not_found",
+            "Source file not found for the given path",
+          );
+        }
+        if (collected.kind === "provider_error") {
+          return tmsProviderLiveErrorResponse(c, collected.error);
+        }
+        if (collected.kind === "empty") {
+          return notFoundResponse(c, "cat_export_empty", "No segments match the current filters.");
+        }
+
+        const payload = buildCatFilteredExportPayload({
+          format,
+          rows: collected.rows,
+          sourcePath: query.sourcePath,
+          targetLocale: query.targetLocale,
+        });
+
+        return c.body(payload.body, 200, {
+          "Content-Type": payload.contentType,
+          "Content-Disposition": `attachment; filename*=UTF-8''${encodeURIComponent(payload.filename)}`,
+          ...(collected.truncated
+            ? {
+                "X-Hyperlocalise-Export-Truncated": "true",
+                "X-Hyperlocalise-Export-Limit": String(maxCatFilteredExportSegments),
+              }
+            : {}),
+        });
       },
     )
     .get(

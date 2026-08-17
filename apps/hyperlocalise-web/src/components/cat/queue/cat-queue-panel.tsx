@@ -14,6 +14,7 @@
  */
 import { FilterIcon, MoreHorizontalCircle01Icon, SearchIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
+import { DownloadIcon } from "lucide-react";
 import { FormattedMessage, useIntl } from "react-intl";
 
 import { Button } from "@/components/ui/button";
@@ -83,6 +84,8 @@ export function CatQueuePanel({
   pagination = null,
   hasMoreQueue = false,
   onLoadMoreQueue,
+  onDownloadFilteredView,
+  isDownloadingFilteredView = false,
 }: {
   segments: CatSegment[];
   selectedSegmentId: string;
@@ -106,6 +109,8 @@ export function CatQueuePanel({
   pagination?: CatQueuePagination | null;
   hasMoreQueue?: boolean;
   onLoadMoreQueue?: () => void;
+  onDownloadFilteredView?: (format: "csv" | "tmx" | "xlf" | "xliff") => void;
+  isDownloadingFilteredView?: boolean;
 }) {
   const intl = useIntl();
   const [selectionMode, setSelectionMode] = useCatQueueSelectionMode();
@@ -128,7 +133,49 @@ export function CatQueuePanel({
           <h2 className="text-sm font-semibold text-foreground">
             <FormattedMessage {...catQueuePanelMessages.queueTitle} />
           </h2>
-          <CatWorkspaceViewSwitcherConnected />
+          <div className="flex items-center gap-1">
+            {onDownloadFilteredView ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  render={
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-8 gap-1.5 font-normal"
+                      disabled={isDownloadingFilteredView}
+                      aria-label={intl.formatMessage(catQueuePanelMessages.downloadFilteredAria)}
+                    />
+                  }
+                >
+                  {isDownloadingFilteredView ? (
+                    <Spinner className="size-3.5" />
+                  ) : (
+                    <DownloadIcon className="size-3.5" />
+                  )}
+                  <span className="text-xs">
+                    <FormattedMessage {...catQueuePanelMessages.downloadFiltered} />
+                  </span>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-40">
+                  <DropdownMenuGroup>
+                    <DropdownMenuLabel>
+                      <FormattedMessage {...catQueuePanelMessages.downloadFilteredFormatLabel} />
+                    </DropdownMenuLabel>
+                    {(["csv", "tmx", "xlf", "xliff"] as const).map((format) => (
+                      <DropdownMenuItem
+                        key={format}
+                        onClick={() => onDownloadFilteredView(format)}
+                      >
+                        {format.toUpperCase()}
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuGroup>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : null}
+            <CatWorkspaceViewSwitcherConnected />
+          </div>
         </div>
 
         {onSearchChange ? (
