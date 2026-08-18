@@ -13,7 +13,8 @@
  * Version 2.0 or later.
  */
 
-import { ClockIcon, MailIcon } from "lucide-react";
+import { Clock01Icon, Mail01Icon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import { siGithub } from "simple-icons";
 import Image from "next/image";
 
@@ -58,7 +59,7 @@ function FlowIcon({ bucket }: { bucket: IconBucket }) {
         <Image src="/images/slack-logo.svg" alt="Slack" width={16} height={16} className="size-4" />
       );
     case "email":
-      return <MailIcon className="size-4" />;
+      return <HugeiconsIcon icon={Mail01Icon} className="size-4" />;
     case "contentful":
       return (
         <Image
@@ -70,7 +71,7 @@ function FlowIcon({ bucket }: { bucket: IconBucket }) {
         />
       );
     case "schedule":
-      return <ClockIcon className="size-4" strokeWidth={1.8} />;
+      return <HugeiconsIcon icon={Clock01Icon} className="size-4" strokeWidth={1.8} />;
   }
 }
 

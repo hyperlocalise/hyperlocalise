@@ -14,9 +14,13 @@
  */
 import { useEffect, useLayoutEffect, useState, type CSSProperties } from "react";
 import { createPortal } from "react-dom";
-import { Download01Icon, TranslateIcon, Upload01Icon } from "@hugeicons/core-free-icons";
+import {
+  Download01Icon,
+  LeftToRightListBulletIcon,
+  TranslateIcon,
+  Upload01Icon,
+} from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { ListIcon } from "lucide-react";
 
 import { FormattedMessage } from "react-intl";
 
@@ -144,7 +148,7 @@ export function ProjectFileTreeContextMenu({
           }
         }}
       >
-        <ListIcon />
+        <HugeiconsIcon icon={LeftToRightListBulletIcon} />
         <FormattedMessage {...messages.viewStrings} />
       </Button>
       {capabilities.isNativeFile ? (

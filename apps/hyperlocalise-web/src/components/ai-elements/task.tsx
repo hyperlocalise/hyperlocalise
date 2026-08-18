@@ -12,9 +12,10 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { ArrowDown01Icon, SearchIcon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { cn } from "@/lib/primitives/cn";
-import { ChevronDownIcon, SearchIcon } from "lucide-react";
 import type { ComponentProps } from "react";
 import { TypographyP } from "@/components/ui/typography";
 
@@ -54,9 +55,12 @@ export const TaskTrigger = ({ children, className, title, ...props }: TaskTrigge
   <CollapsibleTrigger className={cn("group", className)} {...props}>
     {children ?? (
       <div className="flex w-full cursor-pointer items-center gap-2 text-muted-foreground text-sm transition-colors hover:text-foreground">
-        <SearchIcon className="size-4" />
+        <HugeiconsIcon icon={SearchIcon} className="size-4" />
         <TypographyP className="text-sm">{title}</TypographyP>
-        <ChevronDownIcon className="size-4 transition-transform group-data-[state=open]:rotate-180" />
+        <HugeiconsIcon
+          icon={ArrowDown01Icon}
+          className="size-4 transition-transform group-data-[state=open]:rotate-180"
+        />
       </div>
     )}
   </CollapsibleTrigger>

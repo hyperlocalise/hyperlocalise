@@ -12,6 +12,8 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { Download01Icon, File01Icon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import type {
   DynamicToolUIPart,
   ReasoningUIPart,
@@ -20,7 +22,6 @@ import type {
   ToolUIPart,
   UIMessage,
 } from "ai";
-import { DownloadIcon, FileTextIcon } from "lucide-react";
 import { memo, useState, type ReactNode } from "react";
 import { FormattedMessage, useIntl, type IntlShape } from "react-intl";
 
@@ -274,9 +275,9 @@ function MessageAttachments({ attachments }: { attachments: ConversationMessage[
           rel="noreferrer"
           className="flex max-w-full items-center gap-2 rounded-md border border-border bg-muted/35 px-3 py-2 text-sm text-foreground hover:bg-muted"
         >
-          <FileTextIcon className="size-4 shrink-0 text-muted-foreground" />
+          <HugeiconsIcon icon={File01Icon} className="size-4 shrink-0 text-muted-foreground" />
           <span className="min-w-0 flex-1 truncate">{attachment.filename}</span>
-          <DownloadIcon className="size-4 shrink-0 text-muted-foreground" />
+          <HugeiconsIcon icon={Download01Icon} className="size-4 shrink-0 text-muted-foreground" />
         </a>
       ))}
     </div>

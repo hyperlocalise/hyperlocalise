@@ -12,9 +12,9 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { HugeiconsIcon } from "@hugeicons/react";
 import { type FormEvent, useEffect, useState } from "react";
-import { Settings01Icon } from "@hugeicons/core-free-icons";
-import { SaveIcon } from "lucide-react";
+import { SaveIcon, Settings01Icon } from "@hugeicons/core-free-icons";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { FormattedMessage, useIntl } from "react-intl";
 import { toast } from "sonner";
@@ -204,7 +204,11 @@ export function ProjectSettingsPageContent({
     visible: Boolean(settingsEditable),
     render: () => (
       <Button type="submit" form="project-settings-form" disabled={isSaving}>
-        {isSaving ? <Spinner /> : <SaveIcon className="size-4" strokeWidth={2} />}
+        {isSaving ? (
+          <Spinner />
+        ) : (
+          <HugeiconsIcon icon={SaveIcon} className="size-4" strokeWidth={2} />
+        )}
         {isSaving ? (
           <FormattedMessage {...projectSettingsPageContentMessages.saving} />
         ) : (

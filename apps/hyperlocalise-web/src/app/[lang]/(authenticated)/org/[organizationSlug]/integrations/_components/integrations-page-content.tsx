@@ -15,8 +15,15 @@
 import { useEffect, useId, useMemo, useState, type ReactNode } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { Alert02Icon, Delete02Icon, Key01Icon, SaveIcon } from "@hugeicons/core-free-icons";
-import { ChevronDownIcon, EyeIcon, EyeOffIcon } from "lucide-react";
+import {
+  Alert02Icon,
+  ArrowDown01Icon,
+  Delete02Icon,
+  Key01Icon,
+  SaveIcon,
+  ViewIcon,
+  ViewOffSlashIcon,
+} from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import type { SimpleIcon } from "simple-icons";
 import { siAnthropic, siContentful, siCrowdin, siGooglegemini } from "simple-icons";
@@ -743,7 +750,8 @@ function TmsIntegrationRow({
                   ) : (
                     <FormattedMessage {...integrationRowMessages.connect} />
                   )}
-                  <ChevronDownIcon
+                  <HugeiconsIcon
+                    icon={ArrowDown01Icon}
                     className={cn("size-3.5 transition-transform", expanded && "rotate-180")}
                     strokeWidth={2}
                   />
@@ -834,7 +842,8 @@ function CmsIntegrationRow({
                   ) : (
                     <FormattedMessage {...integrationRowMessages.connect} />
                   )}
-                  <ChevronDownIcon
+                  <HugeiconsIcon
+                    icon={ArrowDown01Icon}
                     className={cn("size-3.5 transition-transform", expanded && "rotate-180")}
                     strokeWidth={2}
                   />
@@ -1597,7 +1606,11 @@ export function IntegrationsPageContent({
                             : integrationsPageContentMessages.showApiKeyAriaLabel,
                         )}
                       >
-                        {showApiKey ? <EyeOffIcon size={16} /> : <EyeIcon size={16} />}
+                        {showApiKey ? (
+                          <HugeiconsIcon icon={ViewOffSlashIcon} size={16} />
+                        ) : (
+                          <HugeiconsIcon icon={ViewIcon} size={16} />
+                        )}
                       </button>
                     </div>
                   </Field>

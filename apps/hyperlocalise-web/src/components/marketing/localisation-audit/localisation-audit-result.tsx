@@ -12,9 +12,10 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { ArrowDown01Icon, Cancel01Icon, Share08Icon, Tick02Icon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import Link from "next/link";
 import { useAuth } from "@workos-inc/authkit-nextjs/components";
-import { CheckIcon, ChevronDownIcon, Share2Icon, XIcon } from "lucide-react";
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 
 import { MeshStage, SAGE_MESH_GRADIENT_SRC } from "@/components/marketing/hero-frame-mesh-stage";
@@ -245,7 +246,7 @@ function CriterionStatusIcon({ status }: { status: LocalisationAuditCriterion["s
         )}
         aria-hidden
       >
-        <CheckIcon className="size-3.5" />
+        <HugeiconsIcon icon={Tick02Icon} className="size-3.5" />
       </span>
     );
   }
@@ -258,7 +259,7 @@ function CriterionStatusIcon({ status }: { status: LocalisationAuditCriterion["s
         )}
         aria-hidden
       >
-        <XIcon className="size-3.5" />
+        <HugeiconsIcon icon={Cancel01Icon} className="size-3.5" />
       </span>
     );
   }
@@ -380,7 +381,10 @@ function CriteriaGroup({
         <h3 className="text-lg font-medium">{heading}</h3>
         <CollapsibleTrigger className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground">
           {open ? collapseLabel : expandLabel}
-          <ChevronDownIcon className={cn("size-4 transition-transform", open && "rotate-180")} />
+          <HugeiconsIcon
+            icon={ArrowDown01Icon}
+            className={cn("size-4 transition-transform", open && "rotate-180")}
+          />
         </CollapsibleTrigger>
       </div>
       <CollapsibleContent>{list}</CollapsibleContent>
@@ -528,7 +532,7 @@ function AuditProgressTrack({
                   !done && !current && "border border-border bg-background",
                 )}
               >
-                {done ? <CheckIcon className="size-3.5" aria-hidden /> : null}
+                {done ? <HugeiconsIcon icon={Tick02Icon} className="size-3.5" aria-hidden /> : null}
                 {current ? (
                   <span className="size-2 rounded-full bg-foreground motion-safe:animate-pulse" />
                 ) : null}
@@ -918,7 +922,7 @@ export function LocalisationAuditResult({
               className="border-white/25 bg-white/10 text-white hover:bg-white/15 hover:text-white"
               onClick={copyShareLink}
             >
-              <Share2Icon className="size-3.5" aria-hidden />
+              <HugeiconsIcon icon={Share08Icon} className="size-3.5" aria-hidden />
               {copy.shareCopyLink}
             </Button>
           )}

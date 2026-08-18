@@ -12,12 +12,12 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { Bookmark01Icon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon, type HugeiconsProps } from "@hugeicons/react";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/primitives/cn";
-import type { LucideProps } from "lucide-react";
-import { BookmarkIcon } from "lucide-react";
 import type { ComponentProps, HTMLAttributes } from "react";
 
 export type CheckpointProps = HTMLAttributes<HTMLDivElement>;
@@ -32,10 +32,12 @@ export const Checkpoint = ({ className, children, ...props }: CheckpointProps) =
   </div>
 );
 
-export type CheckpointIconProps = LucideProps;
+export type CheckpointIconProps = Omit<HugeiconsProps, "icon">;
 
 export const CheckpointIcon = ({ className, children, ...props }: CheckpointIconProps) =>
-  children ?? <BookmarkIcon className={cn("size-4 shrink-0", className)} {...props} />;
+  children ?? (
+    <HugeiconsIcon icon={Bookmark01Icon} className={cn("size-4 shrink-0", className)} {...props} />
+  );
 
 export type CheckpointTriggerProps = ComponentProps<typeof Button> & {
   tooltip?: string;

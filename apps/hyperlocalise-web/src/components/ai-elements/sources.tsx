@@ -12,9 +12,10 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { ArrowDown01Icon, BookOpen01Icon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { cn } from "@/lib/primitives/cn";
-import { BookIcon, ChevronDownIcon } from "lucide-react";
 import type { ComponentProps } from "react";
 import { FormattedMessage } from "react-intl";
 import { TypographyP } from "@/components/ui/typography";
@@ -38,7 +39,7 @@ export const SourcesTrigger = ({ className, count, children, ...props }: Sources
         <TypographyP className="font-medium">
           <FormattedMessage {...sourcesMessages.usedSources} values={{ count }} />
         </TypographyP>
-        <ChevronDownIcon className="h-4 w-4" />
+        <HugeiconsIcon icon={ArrowDown01Icon} className="h-4 w-4" />
       </>
     )}
   </CollapsibleTrigger>
@@ -69,7 +70,7 @@ export const Source = ({ href, title, children, ...props }: SourceProps) => (
   >
     {children ?? (
       <>
-        <BookIcon className="h-4 w-4" />
+        <HugeiconsIcon icon={BookOpen01Icon} className="h-4 w-4" />
         <span className="block font-medium">{title}</span>
       </>
     )}

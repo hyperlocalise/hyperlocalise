@@ -12,9 +12,15 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import {
+  ArrowRight01Icon,
+  File01Icon,
+  Folder01Icon,
+  FolderOpenIcon,
+} from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { cn } from "@/lib/primitives/cn";
-import { ChevronRightIcon, FileIcon, FolderIcon, FolderOpenIcon } from "lucide-react";
 import type { HTMLAttributes, ReactNode } from "react";
 import { createContext, useCallback, useContext, useMemo, useState } from "react";
 
@@ -160,7 +166,8 @@ export const FileTreeFolder = ({
                 />
               }
             >
-              <ChevronRightIcon
+              <HugeiconsIcon
+                icon={ArrowRight01Icon}
                 className={cn(
                   "size-4 shrink-0 text-muted-foreground transition-transform",
                   isExpanded && "rotate-90",
@@ -174,9 +181,9 @@ export const FileTreeFolder = ({
             >
               <FileTreeIcon>
                 {isExpanded ? (
-                  <FolderOpenIcon className="size-4 text-blue-500" />
+                  <HugeiconsIcon icon={FolderOpenIcon} className="size-4 text-blue-500" />
                 ) : (
-                  <FolderIcon className="size-4 text-blue-500" />
+                  <HugeiconsIcon icon={Folder01Icon} className="size-4 text-blue-500" />
                 )}
               </FileTreeIcon>
               <FileTreeName>{name}</FileTreeName>
@@ -252,7 +259,7 @@ export const FileTreeFile = ({
             {/* Spacer for alignment */}
             <span className="size-4 shrink-0" />
             <FileTreeIcon>
-              {icon ?? <FileIcon className="size-4 text-muted-foreground" />}
+              {icon ?? <HugeiconsIcon icon={File01Icon} className="size-4 text-muted-foreground" />}
             </FileTreeIcon>
             <FileTreeName>{name}</FileTreeName>
           </>

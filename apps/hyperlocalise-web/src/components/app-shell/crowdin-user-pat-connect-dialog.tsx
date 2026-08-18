@@ -13,9 +13,8 @@
  * Version 2.0 or later.
  */
 import { useId, useState } from "react";
-import { Key01Icon } from "@hugeicons/core-free-icons";
+import { Key01Icon, ViewIcon, ViewOffSlashIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { EyeIcon, EyeOffIcon } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { FormattedMessage, useIntl } from "react-intl";
 import { toast } from "sonner";
@@ -172,7 +171,11 @@ export function CrowdinUserPatConnectDialog({
                   : crowdinUserPatConnectDialogMessages.showToken,
               )}
             >
-              {showToken ? <EyeOffIcon size={16} /> : <EyeIcon size={16} />}
+              {showToken ? (
+                <HugeiconsIcon icon={ViewOffSlashIcon} size={16} />
+              ) : (
+                <HugeiconsIcon icon={ViewIcon} size={16} />
+              )}
             </button>
           </div>
         </Field>

@@ -18,13 +18,13 @@ import { ImageLightbox } from "@/components/ui/image-lightbox/image-lightbox";
 import { cn } from "@/lib/primitives/cn";
 import type { DynamicToolUIPart, ToolUIPart } from "ai";
 import {
+  ArrowRight01Icon,
   CheckmarkCircle02Icon,
   CircleIcon,
   Clock01Icon,
   MultiplicationSignCircleIcon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { ChevronRightIcon } from "lucide-react";
 import type { ComponentProps, ReactNode } from "react";
 import { isValidElement } from "react";
 import { FormattedMessage, useIntl } from "react-intl";
@@ -261,7 +261,10 @@ function ToolJsonSection({
   return (
     <Collapsible defaultOpen={defaultOpen} className={cn("overflow-hidden", className)}>
       <CollapsibleTrigger className="group flex w-full cursor-pointer items-center gap-1.5 py-0.5 text-start">
-        <ChevronRightIcon className="size-3.5 shrink-0 text-muted-foreground transition-transform group-data-[state=open]:rotate-90" />
+        <HugeiconsIcon
+          icon={ArrowRight01Icon}
+          className="size-3.5 shrink-0 text-muted-foreground transition-transform group-data-[state=open]:rotate-90"
+        />
         <span className="font-medium text-muted-foreground text-xs uppercase tracking-wide">
           {label}
         </span>

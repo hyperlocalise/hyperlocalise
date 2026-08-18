@@ -12,8 +12,9 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { ArrowDown01Icon, ArrowUpRight01Icon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import type { ReactNode } from "react";
-import { ArrowUpRightIcon, ChevronDownIcon } from "lucide-react";
 import { FormattedMessage } from "react-intl";
 
 import { integrationRowMessages } from "./integration-row.messages";
@@ -144,14 +145,15 @@ export function IntegrationRow({
               ) : (
                 <FormattedMessage {...integrationRowMessages.connect} />
               )}
-              <ArrowUpRightIcon className="size-3.5" strokeWidth={2} />
+              <HugeiconsIcon icon={ArrowUpRight01Icon} className="size-3.5" strokeWidth={2} />
             </Button>
           ) : showPanel ? (
             <CollapsibleTrigger
               render={
                 <Button type="button" variant="outline" size="sm">
                   <FormattedMessage {...integrationRowMessages.manage} />
-                  <ChevronDownIcon
+                  <HugeiconsIcon
+                    icon={ArrowDown01Icon}
                     className={cn("size-3.5 transition-transform", expanded && "rotate-180")}
                     strokeWidth={2}
                   />

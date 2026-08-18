@@ -12,6 +12,8 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { UnfoldMoreIcon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -24,7 +26,6 @@ import {
 } from "@/components/ui/card";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { cn } from "@/lib/primitives/cn";
-import { ChevronsUpDownIcon } from "lucide-react";
 import type { ComponentProps } from "react";
 import { createContext, useContext, useMemo } from "react";
 import { FormattedMessage } from "react-intl";
@@ -144,7 +145,7 @@ export const PlanTrigger = ({ className, children, ...props }: PlanTriggerProps)
   >
     {children ?? (
       <>
-        <ChevronsUpDownIcon className="size-4" />
+        <HugeiconsIcon icon={UnfoldMoreIcon} className="size-4" />
         <span className="sr-only">
           <FormattedMessage {...planMessages.togglePlanAria} />
         </span>

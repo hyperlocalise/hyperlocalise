@@ -12,6 +12,8 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { Robot01Icon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import {
   Accordion,
   AccordionContent,
@@ -21,7 +23,6 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/primitives/cn";
 import type { Tool } from "ai";
-import { BotIcon } from "lucide-react";
 import type { ComponentProps } from "react";
 import { memo } from "react";
 import { FormattedMessage } from "react-intl";
@@ -44,7 +45,7 @@ export type AgentHeaderProps = ComponentProps<"div"> & {
 export const AgentHeader = memo(({ className, name, model, ...props }: AgentHeaderProps) => (
   <div className={cn("flex w-full items-center justify-between gap-4 p-3", className)} {...props}>
     <div className="flex items-center gap-2">
-      <BotIcon className="size-4 text-muted-foreground" />
+      <HugeiconsIcon icon={Robot01Icon} className="size-4 text-muted-foreground" />
       <span className="font-medium text-sm">{name}</span>
       {model && (
         <Badge className="font-mono text-xs" variant="secondary">

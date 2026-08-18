@@ -12,6 +12,18 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import {
+  CircleSmallIcon,
+  FemaleSymbolIcon,
+  Male02Icon,
+  MaleSymbolIcon,
+  PauseIcon,
+  PlayIcon,
+  UserIcon,
+  UserMultiple02Icon,
+  UserSwitchIcon,
+} from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import { useControllableState } from "@radix-ui/react-use-controllable-state";
 import { Button } from "@/components/ui/button";
 import {
@@ -28,17 +40,6 @@ import {
 import { Dialog, DialogContent, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Spinner } from "@/components/ui/spinner";
 import { cn } from "@/lib/primitives/cn";
-import {
-  CircleSmallIcon,
-  MarsIcon,
-  MarsStrokeIcon,
-  NonBinaryIcon,
-  PauseIcon,
-  PlayIcon,
-  TransgenderIcon,
-  VenusAndMarsIcon,
-  VenusIcon,
-} from "lucide-react";
 import type { ComponentProps, ReactNode } from "react";
 import { createContext, useCallback, useContext, useMemo } from "react";
 import { useIntl } from "react-intl";
@@ -194,31 +195,31 @@ export const VoiceSelectorGender = ({
 
   switch (value) {
     case "male": {
-      icon = <MarsIcon className="size-4" />;
+      icon = <HugeiconsIcon icon={MaleSymbolIcon} className="size-4" />;
       break;
     }
     case "female": {
-      icon = <VenusIcon className="size-4" />;
+      icon = <HugeiconsIcon icon={FemaleSymbolIcon} className="size-4" />;
       break;
     }
     case "transgender": {
-      icon = <TransgenderIcon className="size-4" />;
+      icon = <HugeiconsIcon icon={UserSwitchIcon} className="size-4" />;
       break;
     }
     case "androgyne": {
-      icon = <MarsStrokeIcon className="size-4" />;
+      icon = <HugeiconsIcon icon={Male02Icon} className="size-4" />;
       break;
     }
     case "non-binary": {
-      icon = <NonBinaryIcon className="size-4" />;
+      icon = <HugeiconsIcon icon={UserIcon} className="size-4" />;
       break;
     }
     case "intersex": {
-      icon = <VenusAndMarsIcon className="size-4" />;
+      icon = <HugeiconsIcon icon={UserMultiple02Icon} className="size-4" />;
       break;
     }
     default: {
-      icon = <CircleSmallIcon className="size-4" />;
+      icon = <HugeiconsIcon icon={CircleSmallIcon} className="size-4" />;
     }
   }
 
@@ -442,12 +443,12 @@ export const VoiceSelectorPreview = ({
     [onClick, onPlay],
   );
 
-  let icon = <PlayIcon className="size-3" />;
+  let icon = <HugeiconsIcon icon={PlayIcon} className="size-3" />;
 
   if (loading) {
     icon = <Spinner className="size-3" />;
   } else if (playing) {
-    icon = <PauseIcon className="size-3" />;
+    icon = <HugeiconsIcon icon={PauseIcon} className="size-3" />;
   }
 
   return (

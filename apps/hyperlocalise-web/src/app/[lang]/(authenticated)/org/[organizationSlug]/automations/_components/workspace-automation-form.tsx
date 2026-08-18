@@ -18,15 +18,19 @@ import {
   Add01Icon,
   ArrowDown01Icon,
   BrainCircuitIcon,
+  Clock01Icon,
+  Delete02Icon,
   FolderLibraryIcon,
   GitBranchIcon,
+  Globe02Icon,
+  Mail01Icon,
+  SearchIcon,
   SlackIcon,
   Task01Icon,
   Upload01Icon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useQuery } from "@tanstack/react-query";
-import { ClockIcon, GlobeIcon, MailIcon, SearchIcon, Trash2Icon } from "lucide-react";
 import { FormattedMessage, useIntl, type IntlShape } from "react-intl";
 import type { SimpleIcon } from "simple-icons";
 import {
@@ -166,7 +170,7 @@ function AutomationToolMenuIcon({ icon }: { icon?: SimpleIcon }) {
     return <SimpleBrandIcon icon={icon} colored={false} className="size-4" />;
   }
 
-  return <SearchIcon className="size-4" />;
+  return <HugeiconsIcon icon={SearchIcon} className="size-4" />;
 }
 
 function FieldError({ message }: { message?: string }) {
@@ -254,7 +258,7 @@ function DeleteToolButton({
       onClick={onClick}
       className="size-8 rounded-lg text-muted-foreground hover:text-foreground"
     >
-      <Trash2Icon className="size-4" />
+      <HugeiconsIcon icon={Delete02Icon} className="size-4" />
     </Button>
   );
 }
@@ -744,7 +748,7 @@ function AddTriggerMenu({
               disabled={form.triggerMode === "manual"}
               onClick={() => onChange({ ...form, triggerMode: "manual" })}
             >
-              <ClockIcon className="size-4" />
+              <HugeiconsIcon icon={Clock01Icon} className="size-4" />
               <FormattedMessage {...workspaceAutomationFormMessages.manualRun} />
               {form.triggerMode === "manual" ? (
                 <DropdownMenuShortcut>
@@ -756,7 +760,7 @@ function AddTriggerMenu({
               disabled={form.triggerMode === "scheduled"}
               onClick={() => onChange({ ...form, triggerMode: "scheduled" })}
             >
-              <ClockIcon className="size-4" />
+              <HugeiconsIcon icon={Clock01Icon} className="size-4" />
               <FormattedMessage {...workspaceAutomationFormMessages.scheduled} />
               {form.triggerMode === "scheduled" ? (
                 <DropdownMenuShortcut>
@@ -816,7 +820,7 @@ function AddTriggerMenu({
                 })
               }
             >
-              <SearchIcon className="size-4" />
+              <HugeiconsIcon icon={SearchIcon} className="size-4" />
               <FormattedMessage {...workspaceAutomationFormMessages.contentfulWebhook} />
               {form.triggerMode === "contentful" ? (
                 <DropdownMenuShortcut>
@@ -879,7 +883,7 @@ function TriggerSettings({
       <EditorPanel>
         {form.triggerMode === "scheduled" ? (
           <EditorRow
-            icon={<ClockIcon className="size-4" />}
+            icon={<HugeiconsIcon icon={Clock01Icon} className="size-4" />}
             title={
               <>
                 <span>
@@ -1036,7 +1040,7 @@ function TriggerSettings({
 
         {form.triggerMode === "manual" ? (
           <EditorRow
-            icon={<ClockIcon className="size-4" />}
+            icon={<HugeiconsIcon icon={Clock01Icon} className="size-4" />}
             title={<FormattedMessage {...workspaceAutomationFormMessages.manualOnlyTitle} />}
             description={
               <FormattedMessage {...workspaceAutomationFormMessages.manualOnlyDescription} />
@@ -1046,7 +1050,7 @@ function TriggerSettings({
 
         {form.triggerMode === "contentful" ? (
           <EditorRow
-            icon={<SearchIcon className="size-4" />}
+            icon={<HugeiconsIcon icon={SearchIcon} className="size-4" />}
             title={<FormattedMessage {...workspaceAutomationFormMessages.contentfulWebhook} />}
             description={
               contentfulConnected ? (
@@ -1258,7 +1262,7 @@ function AddToolMenu({
               disabled={form.emailEnabled || !emailConnected}
               onClick={() => onChange({ ...form, emailEnabled: true })}
             >
-              <MailIcon className="size-4" />
+              <HugeiconsIcon icon={Mail01Icon} className="size-4" />
               <FormattedMessage {...workspaceAutomationFormMessages.sendEmail} />
               {form.emailEnabled ? (
                 <DropdownMenuShortcut>
@@ -1282,7 +1286,7 @@ function AddToolMenu({
                 })
               }
             >
-              <SearchIcon className="size-4" />
+              <HugeiconsIcon icon={SearchIcon} className="size-4" />
               <FormattedMessage {...workspaceAutomationFormMessages.contentfulTranslate} />
               {form.contentfulEnabled ? (
                 <DropdownMenuShortcut>
@@ -1433,7 +1437,7 @@ function AddToolMenu({
               disabled={form.webSearchEnabled}
               onClick={() => onChange({ ...form, webSearchEnabled: true })}
             >
-              <GlobeIcon className="size-4" />
+              <HugeiconsIcon icon={Globe02Icon} className="size-4" />
               <FormattedMessage {...workspaceAutomationFormMessages.webSearch} />
               {form.webSearchEnabled ? (
                 <DropdownMenuShortcut>
@@ -1852,7 +1856,7 @@ function ToolsSettings({
 
         {form.emailEnabled ? (
           <EditorRow
-            icon={<MailIcon className="size-4" />}
+            icon={<HugeiconsIcon icon={Mail01Icon} className="size-4" />}
             title={
               <>
                 <span>
@@ -1911,7 +1915,7 @@ function ToolsSettings({
 
         {form.contentfulEnabled ? (
           <EditorRow
-            icon={<SearchIcon className="size-4" />}
+            icon={<HugeiconsIcon icon={SearchIcon} className="size-4" />}
             title={
               <>
                 <span>
@@ -2400,7 +2404,7 @@ function ToolsSettings({
 
         {form.webSearchEnabled ? (
           <EditorRow
-            icon={<GlobeIcon className="size-4" />}
+            icon={<HugeiconsIcon icon={Globe02Icon} className="size-4" />}
             title={<FormattedMessage {...workspaceAutomationFormMessages.webSearch} />}
             description={intl.formatMessage(workspaceAutomationFormMessages.webSearchDescription)}
             action={

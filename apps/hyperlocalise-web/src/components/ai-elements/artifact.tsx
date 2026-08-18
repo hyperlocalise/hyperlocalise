@@ -12,11 +12,11 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { Cancel01Icon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon, type IconSvgElement } from "@hugeicons/react";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/primitives/cn";
-import type { LucideIcon } from "lucide-react";
-import { XIcon } from "lucide-react";
 import type { ComponentProps, HTMLAttributes } from "react";
 import { FormattedMessage } from "react-intl";
 import { TypographyP } from "@/components/ui/typography";
@@ -63,7 +63,7 @@ export const ArtifactClose = ({
           variant={variant}
           {...props}
         >
-          {children ?? <XIcon className="size-4" />}
+          {children ?? <HugeiconsIcon icon={Cancel01Icon} className="size-4" />}
           <span className="sr-only">
             <FormattedMessage {...artifactMessages.close} />
           </span>
@@ -97,7 +97,7 @@ export const ArtifactActions = ({ className, ...props }: ArtifactActionsProps) =
 export type ArtifactActionProps = ComponentProps<typeof Button> & {
   tooltip?: string;
   label?: string;
-  icon?: LucideIcon;
+  icon?: IconSvgElement;
 };
 
 export const ArtifactAction = ({
@@ -127,7 +127,7 @@ export const ArtifactAction = ({
               variant={variant}
               {...props}
             >
-              {Icon ? <Icon className="size-4" /> : children}
+              {Icon ? <HugeiconsIcon icon={Icon} className="size-4" /> : children}
               <span className="sr-only">{label || tooltip}</span>
             </Button>
           }
@@ -145,7 +145,7 @@ export const ArtifactAction = ({
       variant={variant}
       {...props}
     >
-      {Icon ? <Icon className="size-4" /> : children}
+      {Icon ? <HugeiconsIcon icon={Icon} className="size-4" /> : children}
       <span className="sr-only">{label || tooltip}</span>
     </Button>
   );

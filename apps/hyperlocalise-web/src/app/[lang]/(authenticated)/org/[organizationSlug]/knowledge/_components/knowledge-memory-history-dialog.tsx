@@ -12,8 +12,9 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { HistoryIcon, ReloadIcon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import { useMemo, useState } from "react";
-import { HistoryIcon, RotateCcwIcon } from "lucide-react";
 import { MultiFileDiff, type FileContents } from "@pierre/diffs/react";
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTheme } from "next-themes";
@@ -313,7 +314,7 @@ export function KnowledgeMemoryHistoryDialog({
         <DialogContent className="flex h-[min(85dvh,52rem)] flex-col gap-0 overflow-hidden p-0 sm:max-w-6xl">
           <DialogHeader className="border-b border-border px-6 py-5 pe-14">
             <DialogTitle className="flex items-center gap-2">
-              <HistoryIcon className="size-4" />
+              <HugeiconsIcon icon={HistoryIcon} className="size-4" />
               Global guidance history
             </DialogTitle>
             <DialogDescription>
@@ -414,7 +415,7 @@ export function KnowledgeMemoryHistoryDialog({
                           }
                           onClick={() => setRestoreRevision(selectedDetail)}
                         >
-                          <RotateCcwIcon className="size-4" />
+                          <HugeiconsIcon icon={ReloadIcon} className="size-4" />
                           Restore
                         </Button>
                       ) : null}

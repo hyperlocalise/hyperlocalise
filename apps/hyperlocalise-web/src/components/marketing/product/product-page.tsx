@@ -12,8 +12,9 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { ArrowRight01Icon, CheckmarkCircle02Icon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import Link from "next/link";
-import { ArrowRightIcon, CheckCircle2Icon } from "lucide-react";
 import { FormattedMessage } from "react-intl";
 
 import { HeroFrameMeshStage } from "@/components/marketing/hero-frame-mesh-stage";
@@ -60,7 +61,7 @@ function ProductHero({ content }: ProductPageProps) {
           render={<a href={REQUEST_DEMO_URL} target="_blank" rel="noopener noreferrer" />}
         >
           <ProductMessage messageKey="ctaJoinWaitlist" />
-          <ArrowRightIcon data-icon="inline-end" className="size-4" />
+          <HugeiconsIcon icon={ArrowRight01Icon} data-icon="inline-end" className="size-4" />
         </Button>
       </div>
     </div>
@@ -130,7 +131,7 @@ function AutomationPrimaryVisual() {
                 key={taskKey}
                 className="flex items-center gap-2 rounded-md bg-background/80 px-3 py-2 text-xs"
               >
-                <CheckCircle2Icon className="size-3.5 text-primary" />
+                <HugeiconsIcon icon={CheckmarkCircle02Icon} className="size-3.5 text-primary" />
                 <ProductMessage messageKey={taskKey} />
               </div>
             ))}
@@ -286,7 +287,11 @@ function ProductDetailsSection({ content }: ProductPageProps) {
                 render={<Link href={link.href} />}
               >
                 <ProductMessage messageKey={link.labelKey} />
-                <ArrowRightIcon data-icon="inline-end" className="size-3.5" />
+                <HugeiconsIcon
+                  icon={ArrowRight01Icon}
+                  data-icon="inline-end"
+                  className="size-3.5"
+                />
               </Button>
             ))}
           </div>

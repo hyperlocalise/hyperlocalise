@@ -12,6 +12,8 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { Copy01Icon, Tick02Icon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -22,7 +24,6 @@ import {
 } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/primitives/cn";
-import { CheckIcon, CopyIcon } from "lucide-react";
 import type { ComponentProps, CSSProperties, HTMLAttributes } from "react";
 import {
   createContext,
@@ -494,7 +495,7 @@ export const CodeBlockCopyButton = ({
     [],
   );
 
-  const Icon = isCopied ? CheckIcon : CopyIcon;
+  const Icon = isCopied ? Tick02Icon : Copy01Icon;
   const tooltipText = isCopied
     ? intl.formatMessage(codeBlockMessages.copied)
     : intl.formatMessage(codeBlockMessages.copyCode);
@@ -511,7 +512,7 @@ export const CodeBlockCopyButton = ({
             variant="ghost"
             {...props}
           >
-            {children ?? <Icon size={14} />}
+            {children ?? <HugeiconsIcon icon={Icon} size={14} />}
           </Button>
         }
       />
