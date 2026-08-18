@@ -1165,3 +1165,53 @@ describe("CatWorkspaceOrchestrator ui state", () => {
     expect([...store.loadingSegmentIds]).toEqual(["seg-03"]);
   });
 });
+
+describe("CatWorkspaceOrchestrator queue snapshot ingest", () => {
+  it("treats a missing snapshot as already ingested", () => {
+    const store = createCatWorkspace(
+      createCatWorkspaceState({
+        selectedSegmentId: "seg-01",
+        queueSegments: [{ id: "seg-01", index: 1, key: "first", sourceText: "First" }],
+      }),
+    );
+
+    expect(store.hasIngestedQueueSnapshot(null)).toBe(true);
+  });
+
+  it("reports a different queue as not ingested until hydrate runs", () => {
+    const store = createCatWorkspace(
+      createCatWorkspaceState({
+        selectedSegmentId: "seg-01",
+        queueSegments: [
+          { id: "seg-01", index: 1, key: "first", sourceText: "First" },
+          { id: "seg-02", index: 2, key: "second", sourceText: "Second" },
+        ],
+      }),
+    );
+    const nextSnapshot = createCatWorkspaceState({
+      selectedSegmentId: "seg-01",
+      queueSegments: [{ id: "seg-01", index: 1, key: "first", sourceText: "First" }],
+    });
+
+    expect(store.hasIngestedQueueSnapshot(nextSnapshot)).toBe(false);
+
+    store.ingestQueue(nextSnapshot);
+
+    expect(store.hasIngestedQueueSnapshot(nextSnapshot)).toBe(true);
+  });
+
+  it("treats a new object with the same queue ids as already ingested", () => {
+    const store = createCatWorkspace(
+      createCatWorkspaceState({
+        selectedSegmentId: "seg-01",
+        queueSegments: [{ id: "seg-01", index: 1, key: "first", sourceText: "First" }],
+      }),
+    );
+    const sameIds = createCatWorkspaceState({
+      selectedSegmentId: "seg-01",
+      queueSegments: [{ id: "seg-01", index: 1, key: "first", sourceText: "First" }],
+    });
+
+    expect(store.hasIngestedQueueSnapshot(sameIds)).toBe(true);
+  });
+});

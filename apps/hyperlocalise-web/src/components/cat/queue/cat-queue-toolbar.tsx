@@ -118,9 +118,9 @@ export function CatQueueToolbar({
   onBulkUnhide?: () => void;
   isBulkActionPending?: boolean;
   /**
-   * When the queue query is showing placeholder data (filter/sort/search change),
-   * visible segments may still be from the previous page. Bulk select/mutate must
-   * wait until the real page lands.
+   * When the queue query is showing placeholder data, or the store has not
+   * ingested the current snapshot yet, visible segments may still be from the
+   * previous page. Bulk select/mutate must wait until both are ready.
    */
   isQueueLoading?: boolean;
   onDownloadFilteredView?: (format: "csv" | "tmx" | "xlf" | "xliff") => void;
@@ -133,8 +133,9 @@ export function CatQueueToolbar({
   const hasActiveFilter = queueFilter !== "all";
   const hasActiveSort = queueSort !== "file_order";
   const showSort = Boolean(onQueueSortChange) && availableQueueSorts.includes("untranslated_first");
-  // Placeholder reuse keeps chrome mounted across filter/sort/search, but the
-  // store still holds the previous page — never treat those ids as bulk targets.
+  // Placeholder reuse or a not-yet-ingested cache hit can keep chrome mounted
+  // while the store still holds the previous page — never treat those ids as
+  // bulk targets.
   const bulkTargetsReady = !isQueueLoading;
   const selectableVisibleCount = bulkTargetsReady ? visibleCount : 0;
 

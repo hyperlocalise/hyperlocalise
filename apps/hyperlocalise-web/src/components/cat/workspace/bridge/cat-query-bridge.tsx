@@ -12,7 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { useEffect } from "react";
+import { useLayoutEffect } from "react";
 
 import type { CatWorkspaceState } from "@/components/cat/shared/types";
 
@@ -27,7 +27,9 @@ export function CatQueryBridge({
 }) {
   const store = useCatWorkspace();
 
-  useEffect(() => {
+  // Cache hits clear isPlaceholderData on the same render the new snapshot
+  // arrives. Ingest before paint so the store cannot lag that flag.
+  useLayoutEffect(() => {
     if (!snapshot) {
       return;
     }

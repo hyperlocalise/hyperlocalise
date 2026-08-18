@@ -96,8 +96,8 @@ function catQueuePlaceholderIdentity(key: readonly unknown[]) {
 
 /**
  * Placeholder reuse keeps the CAT chrome mounted when search / filter / sort /
- * page size change. Callers must not treat placeholder segments as bulk-action
- * targets (see CatQueueToolbar `isQueueLoading`).
+ * page size change. Callers must not treat placeholder or not-yet-ingested
+ * segments as bulk-action targets (see CatQueueToolbar `isQueueLoading`).
  */
 export function canReuseCatQueuePlaceholderData(
   previousKey: readonly unknown[],

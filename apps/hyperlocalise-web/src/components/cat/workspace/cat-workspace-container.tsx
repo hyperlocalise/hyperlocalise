@@ -162,6 +162,11 @@ const CatWorkspaceContainerObserver = observer(function CatWorkspaceContainerObs
     }
   }, [queueSearch, store]);
 
+  // Cache hits make the query look ready before CatQueryBridge writes the
+  // snapshot. Block bulk targets until both the query and the store agree.
+  const isQueueBulkBlocked =
+    Boolean(isQueueLoading) || !store.hasIngestedQueueSnapshot(queueSnapshot ?? null);
+
   return (
     <>
       <CatChatDockPageContextBridge projectId={lazySegment?.projectId} />
@@ -182,23 +187,24 @@ const CatWorkspaceContainerObserver = observer(function CatWorkspaceContainerObs
         onQueueSortChange={onQueueSortChange}
         availableQueueSorts={availableQueueSorts}
         isSearching={isQueueSearchPending}
-        isQueueLoading={isQueueLoading}
-        visibleCount={controller.queueSegments.length}
+        isQueueLoading={isQueueBulkBlocked}
+        visibleCount={isQueueBulkBlocked ? 0 : controller.queueSegments.length}
         onSelectAllVisible={() => {
-          // Placeholder pages still expose the previous filter's segment ids.
-          if (isQueueLoading) {
+          // Placeholder or not-yet-ingested pages still expose the previous
+          // filter's segment ids.
+          if (isQueueBulkBlocked) {
             return;
           }
           store.selectAllVisible(controller.queueSegments.map((segment) => segment.id));
         }}
         onBulkApprove={() => {
-          if (isQueueLoading) {
+          if (isQueueBulkBlocked) {
             return;
           }
           void controller.handleBulkApprove();
         }}
         onBulkSkip={() => {
-          if (isQueueLoading) {
+          if (isQueueBulkBlocked) {
             return;
           }
           void controller.handleBulkSkip();
@@ -206,7 +212,7 @@ const CatWorkspaceContainerObserver = observer(function CatWorkspaceContainerObs
         onBulkHide={
           review?.onBulkHide
             ? () => {
-                if (isQueueLoading) {
+                if (isQueueBulkBlocked) {
                   return;
                 }
                 void controller.handleBulkHide();
@@ -216,7 +222,7 @@ const CatWorkspaceContainerObserver = observer(function CatWorkspaceContainerObs
         onBulkUnhide={
           review?.onBulkUnhide
             ? () => {
-                if (isQueueLoading) {
+                if (isQueueBulkBlocked) {
                   return;
                 }
                 void controller.handleBulkUnhide();

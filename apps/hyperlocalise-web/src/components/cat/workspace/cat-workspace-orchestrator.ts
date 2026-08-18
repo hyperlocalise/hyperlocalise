@@ -95,6 +95,14 @@ function normalizeSnapshot(state: CatWorkspaceState): CatWorkspaceState {
   };
 }
 
+function queueSnapshotIdentity(state: CatWorkspaceState): string {
+  const queueSegments =
+    state.queueSegments.length > 0
+      ? state.queueSegments
+      : (state.segments ?? []).map((segment) => ({ id: segment.id }));
+  return queueSegments.map((segment) => segment.id).join("\0");
+}
+
 export function resolveFileContext(state: CatWorkspaceState): CatFileContext {
   if (state.fileContext) {
     return state.fileContext;
@@ -189,6 +197,7 @@ export class CatWorkspaceOrchestrator {
   unsavedNavigationPrompt: UnsavedNavigationPrompt | null = null;
 
   private lastHydratedSnapshot: CatWorkspaceState | null = null;
+  private lastHydratedQueueIdentity = "";
   private initialSegmentJumpApplied = false;
   /** Segment ids whose lazy (or snapshot) target payload has been applied at least once. */
   hydratedTargetSegmentIds = new Set<string>();
@@ -674,6 +683,7 @@ export class CatWorkspaceOrchestrator {
 
   reset(initialState: CatWorkspaceState, initialSegmentKeyOrId?: string | null) {
     this.lastHydratedSnapshot = null;
+    this.lastHydratedQueueIdentity = "";
     this.initialSegmentJumpApplied = false;
     this.hydratedTargetSegmentIds = new Set();
     this.locallyCommittedTargetTexts = new Map();
@@ -688,6 +698,18 @@ export class CatWorkspaceOrchestrator {
 
   ingestQueue(nextInitialState: CatWorkspaceState, initialSegmentKeyOrId?: string | null) {
     this.hydrateFromServerSnapshot(nextInitialState, initialSegmentKeyOrId);
+  }
+
+  /**
+   * Query loading flags go false on a cache hit before CatQueryBridge writes
+   * this snapshot. Bulk actions must wait until the identities match.
+   */
+  hasIngestedQueueSnapshot(snapshot: CatWorkspaceState | null): boolean {
+    if (!snapshot) {
+      return true;
+    }
+
+    return this.lastHydratedQueueIdentity === queueSnapshotIdentity(snapshot);
   }
 
   hydrateFromServerSnapshot(
@@ -771,6 +793,7 @@ export class CatWorkspaceOrchestrator {
       ]);
 
       this.lastHydratedSnapshot = normalizedNext;
+      this.lastHydratedQueueIdentity = queueSnapshotIdentity(normalizedNext);
     });
   }
 
