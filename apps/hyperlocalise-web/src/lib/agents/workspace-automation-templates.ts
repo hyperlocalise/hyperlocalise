@@ -45,14 +45,16 @@ export function formatWorkspaceAutomationTemplateInstructions(input: {
     `You are ${input.role}.`,
     "",
     "What you can do:",
+    "",
     ...input.capabilities.map((item) => `- ${item}`),
     "",
     "Goal:",
+    "",
     `- ${input.goal}`,
   ];
 
   for (const extra of input.extraSections ?? []) {
-    sections.push("", `${extra.heading}:`, ...extra.items.map((item) => `- ${item}`));
+    sections.push("", `${extra.heading}:`, "", ...extra.items.map((item) => `- ${item}`));
   }
 
   return sections.join("\n");
