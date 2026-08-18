@@ -264,20 +264,28 @@ export function ProjectFileCatWorkspace({
   );
 
   useEffect(() => {
+    if (!catFile) {
+      return;
+    }
+
     if (availableQueueFilters.includes(queueFilter)) {
       return;
     }
 
     setQueueFilter("all");
-  }, [availableQueueFilters, queueFilter, setQueueFilter]);
+  }, [availableQueueFilters, catFile, queueFilter, setQueueFilter]);
 
   useEffect(() => {
+    if (!catFile) {
+      return;
+    }
+
     if (availableQueueSorts.includes(queueSort)) {
       return;
     }
 
     setQueueSort("file_order");
-  }, [availableQueueSorts, queueSort, setQueueSort]);
+  }, [availableQueueSorts, catFile, queueSort, setQueueSort]);
 
   const {
     saveTranslation,

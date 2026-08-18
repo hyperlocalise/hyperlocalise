@@ -79,6 +79,8 @@ function queuePage(input: {
   returnedCount?: number;
   nextPhraseScanPage?: number;
   nextPhraseScanSkip?: number;
+  nextSortBucket?: number;
+  nextSortBucketOffset?: number;
 }): ProjectFileCatQueueFile {
   const returnedCount = input.returnedCount ?? input.segments.length;
   return {
@@ -97,6 +99,8 @@ function queuePage(input: {
       hasMore: input.hasMore,
       nextPhraseScanPage: input.nextPhraseScanPage,
       nextPhraseScanSkip: input.nextPhraseScanSkip,
+      nextSortBucket: input.nextSortBucket,
+      nextSortBucketOffset: input.nextSortBucketOffset,
     },
   };
 }
@@ -190,6 +194,52 @@ describe("collectCatFilteredExportRows", () => {
       phraseScanSkip: 4,
     });
     expect(getTmsProviderLiveCatSegmentTargetMock).not.toHaveBeenCalled();
+  });
+
+  it("forwards Crowdin sort-bucket cursors between export pages", async () => {
+    const loadCatQueue = vi
+      .fn<CatQueueLoader>()
+      .mockResolvedValueOnce({
+        kind: "ok",
+        catQueue: queuePage({
+          segments: [segment({ externalStringId: "k1", key: "hello", sourceText: "Hello" })],
+          hasMore: true,
+          offset: 0,
+          nextSortBucket: 0,
+          nextSortBucketOffset: 10,
+        }),
+      })
+      .mockResolvedValueOnce({
+        kind: "ok",
+        catQueue: queuePage({
+          segments: [segment({ externalStringId: "k2", key: "bye", sourceText: "Bye" })],
+          hasMore: false,
+          offset: 1,
+        }),
+      });
+
+    const result = await collectCatFilteredExportRows({
+      auth,
+      projectId: "project_1",
+      query: { ...baseQuery, queueSort: "untranslated_first" },
+      sourceLocale: "en",
+      loadCatQueue,
+    });
+
+    expect(result.kind).toBe("ok");
+    expect(loadCatQueue).toHaveBeenCalledTimes(2);
+    expect(loadCatQueue.mock.calls[0]?.[2]).toMatchObject({
+      offset: 0,
+      queueSort: "untranslated_first",
+    });
+    expect(loadCatQueue.mock.calls[0]?.[2]?.sortBucket).toBeUndefined();
+    expect(loadCatQueue.mock.calls[0]?.[2]?.sortBucketOffset).toBeUndefined();
+    expect(loadCatQueue.mock.calls[1]?.[2]).toMatchObject({
+      offset: 1,
+      queueSort: "untranslated_first",
+      sortBucket: 0,
+      sortBucketOffset: 10,
+    });
   });
 
   it("marks truncated when the export cap is hit while more pages remain", async () => {

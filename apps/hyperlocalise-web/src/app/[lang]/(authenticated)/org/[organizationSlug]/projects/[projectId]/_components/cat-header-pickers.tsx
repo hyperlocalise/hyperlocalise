@@ -38,6 +38,8 @@ import {
   formatLocaleOptionLabel,
 } from "@/lib/i18n/locale-display-names.messages";
 
+import { CAT_ALL_FILES_SOURCE_PATH } from "@/lib/projects/cat-all-files";
+
 import { ProjectFilesTree } from "../files/_components/project-files-tree";
 import { catHeaderPickersMessages } from "./cat-header-pickers.messages";
 
@@ -111,7 +113,7 @@ export function CatFileTreePicker({
   onSelectAllFiles?: () => void;
   repositoryFullNames?: readonly string[];
   selectedRepositoryFullName?: string | null;
-  onRepositoryChange?: (repositoryFullName: string) => void;
+  onRepositoryChange?: (repositoryFullName: string, destinationSourcePath: string) => void;
 }) {
   const intl = useIntl();
   const [open, setOpen] = useState(false);
@@ -135,20 +137,17 @@ export function CatFileTreePicker({
     }
   }, [allFilesSelected, open, selectedRepositoryFullName, selectedSourcePath]);
 
-  const commitRepositorySelection = () => {
+  const commitRepositorySelection = (destinationSourcePath: string) => {
     if (!onRepositoryChange || !dialogRepositoryFullName) {
       return;
     }
 
-    if (dialogRepositoryFullName !== (selectedRepositoryFullName ?? "")) {
-      onRepositoryChange(dialogRepositoryFullName);
-    }
+    onRepositoryChange(dialogRepositoryFullName, destinationSourcePath);
   };
 
   const handleOpenSelectedFile = () => {
-    commitRepositorySelection();
-
     if (dialogAllFiles) {
+      commitRepositorySelection(CAT_ALL_FILES_SOURCE_PATH);
       onSelectAllFiles?.();
       setOpen(false);
       return;
@@ -158,12 +157,13 @@ export function CatFileTreePicker({
       return;
     }
 
+    commitRepositorySelection(selectedFile.sourcePath);
     onSelectFile(selectedFile.sourcePath);
     setOpen(false);
   };
 
   const handleActivateFile = (sourcePath: string) => {
-    commitRepositorySelection();
+    commitRepositorySelection(sourcePath);
     setDialogAllFiles(false);
     onSelectFile(sourcePath);
     setOpen(false);

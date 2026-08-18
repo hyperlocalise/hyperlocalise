@@ -110,9 +110,11 @@ export async function collectCatFilteredExportRows(input: {
   | Exclude<CatQueueLoaderResult, { kind: "ok" }>
 > {
   const rows: CatFilteredExportRow[] = [];
-  let offset = 0;
+  let offset = input.query.offset ?? 0;
   let phraseScanPage = input.query.phraseScanPage;
   let phraseScanSkip = input.query.phraseScanSkip;
+  let sortBucket = input.query.sortBucket;
+  let sortBucketOffset = input.query.sortBucketOffset;
   let truncated = false;
   const isProvider = Boolean(input.externalProjectId);
 
@@ -125,6 +127,8 @@ export async function collectCatFilteredExportRows(input: {
       limit,
       phraseScanPage,
       phraseScanSkip,
+      sortBucket,
+      sortBucketOffset,
     });
 
     if (pageResult.kind !== "ok") {
@@ -171,6 +175,8 @@ export async function collectCatFilteredExportRows(input: {
     offset = pagination.offset + pagination.returnedCount;
     phraseScanPage = pagination.nextPhraseScanPage;
     phraseScanSkip = pagination.nextPhraseScanSkip;
+    sortBucket = pagination.nextSortBucket;
+    sortBucketOffset = pagination.nextSortBucketOffset;
 
     if (rows.length >= maxCatFilteredExportSegments && pagination.hasMore) {
       truncated = true;

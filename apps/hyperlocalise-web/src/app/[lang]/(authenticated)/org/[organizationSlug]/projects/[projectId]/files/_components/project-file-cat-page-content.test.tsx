@@ -105,6 +105,26 @@ vi.mock("@/components/cat/project-file/project-file-cat-workspace", () => ({
   }) => ProjectFileCatWorkspaceMock(props),
 }));
 
+vi.mock("./project-files-tree", () => ({
+  ProjectFilesTree: ({
+    files,
+    onSelectFile,
+  }: {
+    files: Array<{ sourcePath: string; filename: string }>;
+    onSelectFile: (sourcePath: string) => void;
+  }) => (
+    <ul>
+      {files.map((file) => (
+        <li key={file.sourcePath}>
+          <button type="button" onClick={() => onSelectFile(file.sourcePath)}>
+            {file.filename}
+          </button>
+        </li>
+      ))}
+    </ul>
+  ),
+}));
+
 import { ProjectFileCatPageContent } from "./project-file-cat-page-content";
 
 const enUsFile = createProjectFileRecord({
@@ -397,5 +417,32 @@ describe("ProjectFileCatPageContent CAT shell", () => {
       expect(screen.getByTestId("cat-workspace")).toHaveAttribute("data-repo", "acme/web");
     });
     expect(screen.queryByLabelText("GitHub repository")).not.toBeInTheDocument();
+  });
+
+  it("saves the chosen repository under the destination file preference key", async () => {
+    const user = userEvent.setup();
+
+    render(
+      <CatTestProviders>
+        <ProjectFileCatPageContent
+          organizationSlug="acme"
+          projectId="proj_1"
+          sourcePath="en-US.json"
+          highlightLocale="vi"
+          catAllFilesEnabled
+        />
+      </CatTestProviders>,
+    );
+
+    await user.click(await screen.findByLabelText("Source file"));
+    await user.click(await screen.findByLabelText("GitHub repository"));
+    await user.click(await screen.findByRole("option", { name: "acme/docs" }));
+    await user.click(screen.getByRole("button", { name: "pricing.json" }));
+    await user.click(screen.getByRole("button", { name: "Open file" }));
+
+    expect(localStorage.getItem("job-cat-repository:acme:proj_1:marketing/pricing.json")).toBe(
+      "acme/docs",
+    );
+    expect(localStorage.getItem("job-cat-repository:acme:proj_1:en-US.json")).toBeNull();
   });
 });

@@ -494,12 +494,20 @@ export function ProjectFileCatPageContent({
     );
   };
 
-  const handleRepositoryChange = (nextRepositoryFullName: string) => {
-    if (!repositoryPreferenceKey) {
+  const handleRepositoryChange = (
+    nextRepositoryFullName: string,
+    destinationSourcePath?: string,
+  ) => {
+    const preferencePath =
+      destinationSourcePath ?? (allFiles ? CAT_ALL_FILES_SOURCE_PATH : sourcePath);
+    if (!preferencePath) {
       return;
     }
 
-    writeCatFileRepositoryPreference(repositoryPreferenceKey, nextRepositoryFullName);
+    writeCatFileRepositoryPreference(
+      catFileRepositoryPreferenceKey(organizationSlug, projectId, preferencePath),
+      nextRepositoryFullName,
+    );
     setRepositoryOverride(nextRepositoryFullName);
   };
 
