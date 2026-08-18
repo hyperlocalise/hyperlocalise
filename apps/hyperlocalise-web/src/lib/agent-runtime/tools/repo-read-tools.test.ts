@@ -1395,10 +1395,7 @@ describe("createRunHyperlocaliseCliTool", () => {
     );
 
     const t = createRunHyperlocaliseCliTool(ctx);
-    const result = await t.execute!(
-      { subcommand: "check", boolFlags: ["fix"] },
-      toolCallInfo,
-    );
+    const result = await t.execute!({ subcommand: "check", boolFlags: ["fix"] }, toolCallInfo);
     expect(result).toMatchObject({ success: false, error: expect.stringContaining("fix") });
     expect(invoked).toBe(false);
   });
@@ -1453,19 +1450,16 @@ describe("buildHlArgs", () => {
     });
   });
 
-  it.each(["fix", "out-file", "output-file", "json-report"])(
-    "rejects write flag %s",
-    (flag) => {
-      expect(buildHlArgs({ subcommand: "check", boolFlags: [flag] })).toMatchObject({
-        ok: false,
-        error: { code: "flag_not_allowed", name: flag },
-      });
-      expect(buildHlArgs({ subcommand: "check", flags: { [flag]: "pwned.txt" } })).toMatchObject({
-        ok: false,
-        error: { code: "flag_not_allowed", name: flag },
-      });
-    },
-  );
+  it.each(["fix", "out-file", "output-file", "json-report"])("rejects write flag %s", (flag) => {
+    expect(buildHlArgs({ subcommand: "check", boolFlags: [flag] })).toMatchObject({
+      ok: false,
+      error: { code: "flag_not_allowed", name: flag },
+    });
+    expect(buildHlArgs({ subcommand: "check", flags: { [flag]: "pwned.txt" } })).toMatchObject({
+      ok: false,
+      error: { code: "flag_not_allowed", name: flag },
+    });
+  });
 
   it("allows fix-dry-run", () => {
     const result = buildHlArgs({ subcommand: "check", boolFlags: ["fix-dry-run"] });
