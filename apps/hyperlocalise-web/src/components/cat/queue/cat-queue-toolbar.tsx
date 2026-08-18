@@ -93,6 +93,7 @@ export function CatQueueToolbar({
   onBulkHide,
   onBulkUnhide,
   isBulkActionPending = false,
+  isQueueLoading = false,
   onDownloadFilteredView,
   isDownloadingFilteredView = false,
 }: {
@@ -116,6 +117,12 @@ export function CatQueueToolbar({
   onBulkHide?: () => void;
   onBulkUnhide?: () => void;
   isBulkActionPending?: boolean;
+  /**
+   * When the queue query is showing placeholder data (filter/sort/search change),
+   * visible segments may still be from the previous page. Bulk select/mutate must
+   * wait until the real page lands.
+   */
+  isQueueLoading?: boolean;
   onDownloadFilteredView?: (format: "csv" | "tmx" | "xlf" | "xliff") => void;
   isDownloadingFilteredView?: boolean;
 }) {
@@ -126,6 +133,10 @@ export function CatQueueToolbar({
   const hasActiveFilter = queueFilter !== "all";
   const hasActiveSort = queueSort !== "file_order";
   const showSort = Boolean(onQueueSortChange) && availableQueueSorts.includes("untranslated_first");
+  // Placeholder reuse keeps chrome mounted across filter/sort/search, but the
+  // store still holds the previous page — never treat those ids as bulk targets.
+  const bulkTargetsReady = !isQueueLoading;
+  const selectableVisibleCount = bulkTargetsReady ? visibleCount : 0;
 
   return (
     <div className="flex min-w-0 flex-1 flex-wrap items-center justify-end gap-2">
@@ -317,7 +328,10 @@ export function CatQueueToolbar({
                   )}
                 </DropdownMenuLabel>
                 {onSelectAllVisible ? (
-                  <DropdownMenuItem onClick={onSelectAllVisible} disabled={visibleCount === 0}>
+                  <DropdownMenuItem
+                    onClick={onSelectAllVisible}
+                    disabled={selectableVisibleCount === 0}
+                  >
                     <FormattedMessage {...catQueuePanelMessages.bulkSelectAll} />
                   </DropdownMenuItem>
                 ) : null}
@@ -330,22 +344,34 @@ export function CatQueueToolbar({
               <DropdownMenuSeparator />
               <DropdownMenuGroup>
                 {onBulkApprove ? (
-                  <DropdownMenuItem onClick={onBulkApprove} disabled={selectedCount === 0}>
+                  <DropdownMenuItem
+                    onClick={onBulkApprove}
+                    disabled={!bulkTargetsReady || selectedCount === 0}
+                  >
                     <FormattedMessage {...catQueuePanelMessages.bulkApprove} />
                   </DropdownMenuItem>
                 ) : null}
                 {onBulkSkip ? (
-                  <DropdownMenuItem onClick={onBulkSkip} disabled={selectedCount === 0}>
+                  <DropdownMenuItem
+                    onClick={onBulkSkip}
+                    disabled={!bulkTargetsReady || selectedCount === 0}
+                  >
                     <FormattedMessage {...catQueuePanelMessages.bulkSkip} />
                   </DropdownMenuItem>
                 ) : null}
                 {onBulkHide ? (
-                  <DropdownMenuItem onClick={onBulkHide} disabled={selectedCount === 0}>
+                  <DropdownMenuItem
+                    onClick={onBulkHide}
+                    disabled={!bulkTargetsReady || selectedCount === 0}
+                  >
                     <FormattedMessage {...catQueuePanelMessages.bulkHide} />
                   </DropdownMenuItem>
                 ) : null}
                 {onBulkUnhide ? (
-                  <DropdownMenuItem onClick={onBulkUnhide} disabled={selectedCount === 0}>
+                  <DropdownMenuItem
+                    onClick={onBulkUnhide}
+                    disabled={!bulkTargetsReady || selectedCount === 0}
+                  >
                     <FormattedMessage {...catQueuePanelMessages.bulkUnhide} />
                   </DropdownMenuItem>
                 ) : null}

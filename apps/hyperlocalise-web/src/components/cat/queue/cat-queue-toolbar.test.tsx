@@ -113,4 +113,42 @@ describe("CatQueueToolbar", () => {
       "true",
     );
   });
+
+  it("disables select-all and bulk mutate while the queue is still loading placeholder data", async () => {
+    const user = userEvent.setup();
+    const onSelectAllVisible = vi.fn();
+    const onBulkHide = vi.fn();
+    const onBulkApprove = vi.fn();
+
+    renderWithCatProviders(
+      <CatQueueToolbar
+        selectionMode
+        onSelectionModeChange={vi.fn()}
+        visibleCount={12}
+        selectedCount={3}
+        isQueueLoading
+        onSelectAllVisible={onSelectAllVisible}
+        onBulkHide={onBulkHide}
+        onBulkApprove={onBulkApprove}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Queue actions" }));
+
+    const selectAll = screen.getByRole("menuitem", { name: "Select all visible" });
+    const hideSelected = screen.getByRole("menuitem", { name: "Hide selected" });
+    const approveSelected = screen.getByRole("menuitem", { name: "Approve selected" });
+
+    expect(selectAll).toHaveAttribute("aria-disabled", "true");
+    expect(hideSelected).toHaveAttribute("aria-disabled", "true");
+    expect(approveSelected).toHaveAttribute("aria-disabled", "true");
+
+    await user.click(selectAll);
+    await user.click(hideSelected);
+    await user.click(approveSelected);
+
+    expect(onSelectAllVisible).not.toHaveBeenCalled();
+    expect(onBulkHide).not.toHaveBeenCalled();
+    expect(onBulkApprove).not.toHaveBeenCalled();
+  });
 });

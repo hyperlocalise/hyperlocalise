@@ -182,14 +182,47 @@ const CatWorkspaceContainerObserver = observer(function CatWorkspaceContainerObs
         onQueueSortChange={onQueueSortChange}
         availableQueueSorts={availableQueueSorts}
         isSearching={isQueueSearchPending}
+        isQueueLoading={isQueueLoading}
         visibleCount={controller.queueSegments.length}
-        onSelectAllVisible={() =>
-          store.selectAllVisible(controller.queueSegments.map((segment) => segment.id))
+        onSelectAllVisible={() => {
+          // Placeholder pages still expose the previous filter's segment ids.
+          if (isQueueLoading) {
+            return;
+          }
+          store.selectAllVisible(controller.queueSegments.map((segment) => segment.id));
+        }}
+        onBulkApprove={() => {
+          if (isQueueLoading) {
+            return;
+          }
+          void controller.handleBulkApprove();
+        }}
+        onBulkSkip={() => {
+          if (isQueueLoading) {
+            return;
+          }
+          void controller.handleBulkSkip();
+        }}
+        onBulkHide={
+          review?.onBulkHide
+            ? () => {
+                if (isQueueLoading) {
+                  return;
+                }
+                void controller.handleBulkHide();
+              }
+            : undefined
         }
-        onBulkApprove={() => void controller.handleBulkApprove()}
-        onBulkSkip={() => void controller.handleBulkSkip()}
-        onBulkHide={review?.onBulkHide ? () => void controller.handleBulkHide() : undefined}
-        onBulkUnhide={review?.onBulkUnhide ? () => void controller.handleBulkUnhide() : undefined}
+        onBulkUnhide={
+          review?.onBulkUnhide
+            ? () => {
+                if (isQueueLoading) {
+                  return;
+                }
+                void controller.handleBulkUnhide();
+              }
+            : undefined
+        }
         onDownloadFilteredView={onDownloadFilteredView}
         isDownloadingFilteredView={isDownloadingFilteredView}
       />

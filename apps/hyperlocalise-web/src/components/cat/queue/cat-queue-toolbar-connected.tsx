@@ -29,6 +29,7 @@ export const CatQueueToolbarConnected = observer(function CatQueueToolbarConnect
   onQueueSortChange,
   availableQueueSorts,
   isSearching = false,
+  isQueueLoading = false,
   visibleCount = 0,
   onSelectAllVisible,
   onBulkApprove,
@@ -45,6 +46,7 @@ export const CatQueueToolbarConnected = observer(function CatQueueToolbarConnect
   onQueueSortChange?: (sort: CatQueueSort) => void;
   availableQueueSorts?: CatQueueSort[];
   isSearching?: boolean;
+  isQueueLoading?: boolean;
   visibleCount?: number;
   onSelectAllVisible?: () => void;
   onBulkApprove?: () => void;
@@ -95,6 +97,7 @@ export const CatQueueToolbarConnected = observer(function CatQueueToolbarConnect
       search={store.queueSearch}
       onSearchChange={onQueueSearchChange ? handleSearchChange : undefined}
       isSearching={isSearching}
+      isQueueLoading={isQueueLoading}
       queueFilter={store.queueFilter}
       onQueueFilterChange={handleFilterChange}
       availableQueueFilters={availableQueueFilters}

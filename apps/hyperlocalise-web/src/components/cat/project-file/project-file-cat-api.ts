@@ -94,6 +94,11 @@ function catQueuePlaceholderIdentity(key: readonly unknown[]) {
   return [key[0], key[1], key[2], key[3], key[4], key[5], key[6], key[11]] as const;
 }
 
+/**
+ * Placeholder reuse keeps the CAT chrome mounted when search / filter / sort /
+ * page size change. Callers must not treat placeholder segments as bulk-action
+ * targets (see CatQueueToolbar `isQueueLoading`).
+ */
 export function canReuseCatQueuePlaceholderData(
   previousKey: readonly unknown[],
   nextKey: readonly unknown[],
