@@ -47,7 +47,7 @@ func (v *poValue) Reset() {
 }
 
 func (p POFileParser) Parse(content []byte) (map[string]string, error) {
-	out := map[string]string{}
+	out := make(map[string]string, len(content)/40)
 
 	var currentMsgID poValue
 	var currentMsgStr poValue
@@ -116,16 +116,16 @@ func consumePOLine(
 		reset()
 		return nil
 	}
-	if strings.HasPrefix(line, "#") {
+	if line[0] == '#' {
 		*activeField = ""
 		return nil
 	}
 
 	switch {
 	case strings.HasPrefix(line, "msgid "):
-		return handlePOMsgID(lineNumber, line, currentMsgID, activeField, seenMsgID, flush, reset)
+		return handlePOMsgID(lineNumber, line[6:], currentMsgID, activeField, seenMsgID, flush, reset)
 	case strings.HasPrefix(line, "msgstr "):
-		return handlePOMsgStr(lineNumber, strings.TrimPrefix(line, "msgstr "), currentMsgStr, activeField, seenMsgStr)
+		return handlePOMsgStr(lineNumber, line[7:], currentMsgStr, activeField, seenMsgStr)
 	case strings.HasPrefix(line, "msgstr["):
 		return handlePOIndexedMsgStr(lineNumber, line, currentMsgStr, activeField, seenMsgStr)
 	case strings.HasPrefix(line, "msgid_plural "):
@@ -135,7 +135,7 @@ func consumePOLine(
 		// Context is currently ignored by the map[string]string strategy output.
 		*activeField = ""
 		return nil
-	case strings.HasPrefix(line, "\""):
+	case line[0] == '"':
 		return handlePOContinuation(lineNumber, line, currentMsgID, currentMsgStr, *activeField)
 	default:
 		*activeField = ""
@@ -143,10 +143,10 @@ func consumePOLine(
 	}
 }
 
-func handlePOMsgID(lineNumber int, line string, currentMsgID *poValue, activeField *string, seenMsgID *bool, flush, reset func()) error {
+func handlePOMsgID(lineNumber int, raw string, currentMsgID *poValue, activeField *string, seenMsgID *bool, flush, reset func()) error {
 	flush()
 	reset()
-	v, err := parsePOQuoted(strings.TrimPrefix(line, "msgid "))
+	v, err := parsePOQuoted(raw)
 	if err != nil {
 		return fmt.Errorf("line %d: parse msgid: %w", lineNumber, err)
 	}
@@ -202,15 +202,20 @@ func handlePOContinuation(lineNumber int, line string, currentMsgID, currentMsgS
 }
 
 func parsePOQuoted(raw string) (string, error) {
-	raw = strings.TrimSpace(raw)
-	if len(raw) < 2 || raw[0] != '"' || raw[len(raw)-1] != '"' {
-		return "", fmt.Errorf("expected quoted string, got %q", raw)
-	}
-
-	// BOLT OPTIMIZATION: Fast-path for simple quoted strings to avoid strconv.Unquote allocations.
-	inner := raw[1 : len(raw)-1]
-	if !strings.ContainsAny(inner, "\\\"") {
-		return inner, nil
+	if len(raw) >= 2 && raw[0] == '"' && raw[len(raw)-1] == '"' {
+		inner := raw[1 : len(raw)-1]
+		if !strings.ContainsAny(inner, "\\\"") {
+			return inner, nil
+		}
+	} else {
+		raw = strings.TrimSpace(raw)
+		if len(raw) < 2 || raw[0] != '"' || raw[len(raw)-1] != '"' {
+			return "", fmt.Errorf("expected quoted string, got %q", raw)
+		}
+		inner := raw[1 : len(raw)-1]
+		if !strings.ContainsAny(inner, "\\\"") {
+			return inner, nil
+		}
 	}
 
 	unquoted, err := strconv.Unquote(raw)
@@ -249,7 +254,7 @@ func MarshalPOFile(template []byte, values map[string]string) ([]byte, error) {
 		case strings.HasPrefix(trimmed, "#"):
 			// skip
 		case strings.HasPrefix(trimmed, "msgid "):
-			v, err := parsePOQuoted(strings.TrimPrefix(trimmed, "msgid "))
+			v, err := parsePOQuoted(trimmed[6:])
 			if err != nil {
 				return nil, fmt.Errorf("line %d: parse msgid: %w", lineNumber, err)
 			}
@@ -320,6 +325,21 @@ func writePOQuotedSuffix(w *strings.Builder, raw, field, value string) {
 }
 
 func canWriteSimplePOQuoted(value string) bool {
+	// BOLT OPTIMIZATION: Single-pass ASCII byte scanner bypasses utf8 decoding
+	// and strconv.IsPrint unicode lookups for standard printable text.
+	asciiOnly := true
+	for i := 0; i < len(value); i++ {
+		b := value[i]
+		if b < 0x20 || b == 0x7f || b == '\\' || b == '"' {
+			return false
+		}
+		if b >= 0x80 {
+			asciiOnly = false
+		}
+	}
+	if asciiOnly {
+		return true
+	}
 	if !utf8.ValidString(value) {
 		return false
 	}
