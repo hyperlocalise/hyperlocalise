@@ -13,7 +13,8 @@
  * Version 2.0 or later.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { AlertCircleIcon } from "lucide-react";
+import { AlertCircleIcon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import { FormattedMessage, useIntl } from "react-intl";
 
 import type {
@@ -40,8 +41,10 @@ import { cn } from "@/lib/primitives/cn";
 
 import {
   resolveAvailableCatQueueFilters,
+  resolveAvailableCatQueueSorts,
   isServerQueueFilter,
   type CatQueueFilter,
+  type CatQueueSort,
 } from "@/components/cat/queue/cat-queue-filter";
 import { glossaryFormatChecksForSegment } from "@/components/cat/intelligence/cat-glossary-checks";
 import { buildCatSegmentShareUrl } from "@/components/cat/segment/cat-segment-share-link";
@@ -107,6 +110,7 @@ export function ProjectFileCatWorkspace({
   canLookupFreshContext = true,
   initialSegmentKey = null,
   initialQueueFilter = "all",
+  initialQueueSort = "file_order",
   initialSearch = "",
   sourcePathsFilter = null,
   layout = "default",
@@ -126,6 +130,7 @@ export function ProjectFileCatWorkspace({
   canLookupFreshContext?: boolean;
   initialSegmentKey?: string | null;
   initialQueueFilter?: CatQueueFilter;
+  initialQueueSort?: CatQueueSort;
   initialSearch?: string;
   sourcePathsFilter?: string | null;
   layout?: "default" | "fullscreen";
@@ -171,6 +176,8 @@ export function ProjectFileCatWorkspace({
     setSearch,
     queueFilter,
     setQueueFilter,
+    queueSort,
+    setQueueSort,
     debouncedSearch,
     isSearchPending,
     pagination,
@@ -186,6 +193,7 @@ export function ProjectFileCatWorkspace({
     targetLocale,
     enabled: Boolean(targetLocale),
     initialQueueFilter,
+    initialQueueSort,
     initialSearch,
     pageLimit,
     sourcePaths: sourcePathsFilter,
@@ -193,6 +201,7 @@ export function ProjectFileCatWorkspace({
 
   useCatWorkspaceQuerySync({
     queueFilter,
+    queueSort,
     search,
     debouncedSearch,
   });
@@ -216,6 +225,7 @@ export function ProjectFileCatWorkspace({
           format,
           search: debouncedSearch,
           queueFilter: toServerQueueFilterForExport(queueFilter),
+          queueSort,
           externalResourceId,
           resourceType,
           sourcePaths: sourcePathsFilter,
@@ -236,6 +246,7 @@ export function ProjectFileCatWorkspace({
       organizationSlug,
       projectId,
       queueFilter,
+      queueSort,
       resourceType,
       sourceLocale,
       sourcePath,
@@ -247,6 +258,10 @@ export function ProjectFileCatWorkspace({
     () => resolveAvailableCatQueueFilters(catFile?.provider?.kind),
     [catFile?.provider?.kind],
   );
+  const availableQueueSorts = useMemo(
+    () => resolveAvailableCatQueueSorts(catFile?.provider?.kind),
+    [catFile?.provider?.kind],
+  );
 
   useEffect(() => {
     if (availableQueueFilters.includes(queueFilter)) {
@@ -255,6 +270,14 @@ export function ProjectFileCatWorkspace({
 
     setQueueFilter("all");
   }, [availableQueueFilters, queueFilter, setQueueFilter]);
+
+  useEffect(() => {
+    if (availableQueueSorts.includes(queueSort)) {
+      return;
+    }
+
+    setQueueSort("file_order");
+  }, [availableQueueSorts, queueSort, setQueueSort]);
 
   const {
     saveTranslation,
@@ -672,7 +695,7 @@ export function ProjectFileCatWorkspace({
   if (catQuery.isError) {
     return (
       <div className="flex min-h-0 flex-1 items-center justify-center gap-2 text-flame-100">
-        <AlertCircleIcon className="size-4" />
+        <HugeiconsIcon icon={AlertCircleIcon} className="size-4" />
         <TypographyP className="text-sm">
           {catQuery.error instanceof Error
             ? catQuery.error.message
@@ -815,6 +838,9 @@ export function ProjectFileCatWorkspace({
         queueFilter={queueFilter}
         onQueueFilterChange={setQueueFilter}
         availableQueueFilters={availableQueueFilters}
+        queueSort={queueSort}
+        onQueueSortChange={setQueueSort}
+        availableQueueSorts={availableQueueSorts}
         isQueueSearchPending={isSearchPending}
         isQueueFetchingPage={isFetchingNextPage}
         isQueueLoading={isQueueLoading}

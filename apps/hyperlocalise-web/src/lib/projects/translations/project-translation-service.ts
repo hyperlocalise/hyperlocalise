@@ -10,15 +10,17 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { and, asc, count, eq, ilike, inArray, or, sql } from "drizzle-orm";
+import { and, count, eq, ilike, inArray, or, sql } from "drizzle-orm";
 import { createHash } from "node:crypto";
 
 import type {
   ProjectFileCatQueueFilter,
+  ProjectFileCatQueueSort,
   ProjectSourceStringEntry,
 } from "@/api/routes/project/project.schema";
 import { db, schema } from "@/lib/database";
 import { ProjectServiceBase } from "@/lib/projects/project-service-base";
+import { translationKeysQueueOrderBy } from "@/lib/projects/translations/project-translation-queue-order";
 import { shouldRetrySameAsSourcePrefill } from "@/lib/projects/translations/should-retry-same-as-source-prefill";
 import { normalizeTranslationMemorySourceText } from "@/lib/translation/normalizeTranslationMemorySourceText";
 
@@ -442,6 +444,7 @@ export class ProjectTranslationService extends ProjectServiceBase {
     offset?: number;
     search?: string;
     queueFilter?: ProjectFileCatQueueFilter;
+    queueSort?: ProjectFileCatQueueSort;
   }) {
     const limit = input.limit ?? 2_000;
     const offset = input.offset ?? 0;
@@ -472,7 +475,14 @@ export class ProjectTranslationService extends ProjectServiceBase {
             : undefined,
         ),
       )
-      .orderBy(asc(schema.projectTranslationKeys.key), asc(schema.projectTranslationKeys.id))
+      .orderBy(
+        ...translationKeysQueueOrderBy({
+          organizationId: input.organizationId,
+          projectId: input.projectId,
+          targetLocale: input.targetLocale,
+          queueSort: input.queueSort,
+        }),
+      )
       .limit(limit)
       .offset(offset);
   }
@@ -519,6 +529,7 @@ export class ProjectTranslationService extends ProjectServiceBase {
     offset?: number;
     search?: string;
     queueFilter?: ProjectFileCatQueueFilter;
+    queueSort?: ProjectFileCatQueueSort;
     sourcePaths?: readonly string[] | null;
   }) {
     const limit = input.limit ?? 2_000;
@@ -557,9 +568,13 @@ export class ProjectTranslationService extends ProjectServiceBase {
         ),
       )
       .orderBy(
-        asc(schema.repositorySourceFiles.sourcePath),
-        asc(schema.projectTranslationKeys.key),
-        asc(schema.projectTranslationKeys.id),
+        ...translationKeysQueueOrderBy({
+          organizationId: input.organizationId,
+          projectId: input.projectId,
+          targetLocale: input.targetLocale,
+          queueSort: input.queueSort,
+          includeSourcePath: true,
+        }),
       )
       .limit(limit)
       .offset(offset);

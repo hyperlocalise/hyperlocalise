@@ -12,9 +12,10 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { FloppyDiskIcon, Loading03Icon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import { useEffect, useEffectEvent, useRef, useState } from "react";
 import { FormattedMessage, useIntl } from "react-intl";
-import { Loader2, Save } from "lucide-react";
 
 import {
   emptyOfficeSnapshot,
@@ -159,9 +160,9 @@ export function CatOfficeFileViewerPane({
             onClick={() => void handleSave()}
           >
             {isSaving ? (
-              <Loader2 className="size-3 animate-spin" aria-hidden />
+              <HugeiconsIcon icon={Loading03Icon} className="size-3 animate-spin" aria-hidden />
             ) : (
-              <Save className="size-3" aria-hidden />
+              <HugeiconsIcon icon={FloppyDiskIcon} className="size-3" aria-hidden />
             )}
             <FormattedMessage {...catFileViewMessages.saveEdits} />
           </Button>

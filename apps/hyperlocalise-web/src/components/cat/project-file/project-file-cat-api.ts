@@ -13,6 +13,7 @@
 import type {
   ProjectFileCatQueueFilter,
   ProjectFileCatQueueResponse,
+  ProjectFileCatQueueSort,
 } from "@/api/routes/project/project.schema";
 import { defaultProjectFileCatPageLimit } from "@/api/routes/project/project.schema";
 import type { CatFormatMessageIntl } from "@/components/cat/message-format/cat-message-format-i18n";
@@ -32,6 +33,7 @@ export function projectFileCatQueryKey(input: {
   targetLocale: string;
   search: string;
   queueFilter: ProjectFileCatQueueFilter;
+  queueSort: ProjectFileCatQueueSort;
   limit: number;
   offset: number;
   sourcePaths?: string | null;
@@ -46,6 +48,7 @@ export function projectFileCatQueryKey(input: {
     input.targetLocale,
     input.search,
     input.queueFilter,
+    input.queueSort,
     input.limit,
     input.offset,
     input.sourcePaths ?? null,
@@ -61,6 +64,7 @@ export function projectFileCatBaseQueryKey(input: {
   targetLocale: string;
   search: string;
   queueFilter: ProjectFileCatQueueFilter;
+  queueSort: ProjectFileCatQueueSort;
   limit: number;
   sourcePaths?: string | null;
 }) {
@@ -74,19 +78,20 @@ export function projectFileCatBaseQueryKey(input: {
     input.targetLocale,
     input.search,
     input.queueFilter,
+    input.queueSort,
     input.limit,
     input.sourcePaths ?? null,
   ] as const;
 }
 
-const CAT_QUEUE_BASE_QUERY_KEY_LENGTH = 11;
+const CAT_QUEUE_BASE_QUERY_KEY_LENGTH = 12;
 
 function catQueuePlaceholderIdentity(key: readonly unknown[]) {
   if (key.length !== CAT_QUEUE_BASE_QUERY_KEY_LENGTH || key[0] !== "project-file-cat-queue") {
     return null;
   }
 
-  return [key[0], key[1], key[2], key[3], key[4], key[5], key[6], key[10]] as const;
+  return [key[0], key[1], key[2], key[3], key[4], key[5], key[6], key[11]] as const;
 }
 
 export function canReuseCatQueuePlaceholderData(
@@ -106,6 +111,8 @@ export type ProjectFileCatQueuePageParam = {
   offset: number;
   phraseScanPage?: number;
   phraseScanSkip?: number;
+  sortBucket?: number;
+  sortBucketOffset?: number;
 };
 
 export async function fetchProjectFileCatQueuePage(input: {
@@ -117,10 +124,13 @@ export async function fetchProjectFileCatQueuePage(input: {
   targetLocale: string;
   search: string;
   queueFilter: ProjectFileCatQueueFilter;
+  queueSort: ProjectFileCatQueueSort;
   limit: number;
   offset: number;
   phraseScanPage?: number;
   phraseScanSkip?: number;
+  sortBucket?: number;
+  sortBucketOffset?: number;
   sourcePaths?: string | null;
   intl: CatFormatMessageIntl;
 }) {
@@ -138,8 +148,11 @@ export async function fetchProjectFileCatQueuePage(input: {
       limit: input.limit,
       ...(input.search ? { search: input.search } : {}),
       ...(input.queueFilter !== "all" ? { queueFilter: input.queueFilter } : {}),
+      ...(input.queueSort !== "file_order" ? { queueSort: input.queueSort } : {}),
       ...(input.phraseScanPage != null ? { phraseScanPage: input.phraseScanPage } : {}),
       ...(input.phraseScanSkip != null ? { phraseScanSkip: input.phraseScanSkip } : {}),
+      ...(input.sortBucket != null ? { sortBucket: input.sortBucket } : {}),
+      ...(input.sortBucketOffset != null ? { sortBucketOffset: input.sortBucketOffset } : {}),
     },
   });
 

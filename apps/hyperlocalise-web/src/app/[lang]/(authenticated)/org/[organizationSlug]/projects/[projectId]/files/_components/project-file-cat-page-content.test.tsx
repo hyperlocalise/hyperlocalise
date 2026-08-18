@@ -13,6 +13,7 @@
 // @vitest-environment happy-dom
 
 import { render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
 import { CatTestProviders } from "@/components/cat/shared/cat-test-utils";
@@ -225,7 +226,9 @@ describe("ProjectFileCatPageContent CAT shell", () => {
     vi.unstubAllGlobals();
   });
 
-  it("renders source file and GitHub repository selectors in the CAT header", async () => {
+  it("renders source file and locale selectors in the CAT header", async () => {
+    const user = userEvent.setup();
+
     render(
       <CatTestProviders>
         <ProjectFileCatPageContent
@@ -239,8 +242,12 @@ describe("ProjectFileCatPageContent CAT shell", () => {
 
     await waitFor(() => {
       expect(screen.getByLabelText("Source file")).toBeInTheDocument();
-      expect(screen.getByLabelText("GitHub repository")).toBeInTheDocument();
+      expect(screen.getByLabelText("Target locale")).toBeInTheDocument();
     });
+    expect(screen.queryByLabelText("GitHub repository")).not.toBeInTheDocument();
+
+    await user.click(screen.getByLabelText("Source file"));
+    expect(await screen.findByLabelText("GitHub repository")).toBeInTheDocument();
   });
 
   it("passes a saved repository preference into the CAT workspace", async () => {
@@ -314,7 +321,9 @@ describe("ProjectFileCatPageContent CAT shell", () => {
 
     await waitFor(() => {
       expect(
-        screen.getByText("Select a GitHub repository to look up string context."),
+        screen.getByText(
+          "Choose a GitHub repository in the source file picker to look up string context.",
+        ),
       ).toBeInTheDocument();
     });
     expect(screen.getByTestId("cat-workspace")).toHaveAttribute("data-repo", "");
@@ -338,7 +347,9 @@ describe("ProjectFileCatPageContent CAT shell", () => {
       expect(screen.getByTestId("cat-workspace")).toHaveAttribute("data-repo", "acme/web");
     });
     expect(
-      screen.queryByText("Select a GitHub repository to look up string context."),
+      screen.queryByText(
+        "Choose a GitHub repository in the source file picker to look up string context.",
+      ),
     ).not.toBeInTheDocument();
   });
 
@@ -359,11 +370,11 @@ describe("ProjectFileCatPageContent CAT shell", () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByLabelText("GitHub repository")).toBeInTheDocument();
       expect(screen.getByTestId("cat-workspace")).toHaveAttribute("data-repo", "acme/docs");
       expect(screen.getByTestId("cat-workspace")).toHaveAttribute("data-source-path", "*");
     });
     expect(screen.getByLabelText("Source file")).toHaveTextContent("All Files");
+    expect(screen.queryByLabelText("GitHub repository")).not.toBeInTheDocument();
   });
 
   it("auto-selects the only enabled repository when viewing All Files", async () => {
@@ -383,8 +394,8 @@ describe("ProjectFileCatPageContent CAT shell", () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByLabelText("GitHub repository")).toBeInTheDocument();
       expect(screen.getByTestId("cat-workspace")).toHaveAttribute("data-repo", "acme/web");
     });
+    expect(screen.queryByLabelText("GitHub repository")).not.toBeInTheDocument();
   });
 });

@@ -29,6 +29,10 @@ import {
   buildCatFilePagination,
   type ProjectFileCatPaginationInput,
 } from "@/lib/projects/cat/project-file-cat-pagination";
+import {
+  paginateCatQueueSortBuckets,
+  shouldPaginateCrowdinUntranslatedFirst,
+} from "@/lib/projects/cat/cat-queue-sort-buckets";
 import { legacyProviderCatSegmentLimit } from "@/api/routes/project/project.schema";
 import {
   buildCrowdinFileQueueCroql,
@@ -37,6 +41,7 @@ import {
   isCrowdinCroqlWithinLimit,
   type CrowdinProject,
   type CrowdinLanguageTranslation,
+  type CrowdinQueueStatusBand,
   type CrowdinSourceString,
   type CrowdinStringComment,
 } from "@/lib/providers/adapters/crowdin/crowdin-api";
@@ -1109,6 +1114,7 @@ async function buildCrowdinLiveCatFile(input: {
       limit: legacyProviderCatSegmentLimit,
       search: undefined,
       queueFilter: "all",
+      queueSort: "file_order",
       paginated: false,
     };
 
@@ -1123,6 +1129,43 @@ async function buildCrowdinLiveCatFile(input: {
       });
       truncated = strings.length > legacyProviderCatSegmentLimit;
       visibleStrings = truncated ? strings.slice(0, legacyProviderCatSegmentLimit) : strings;
+    } else if (shouldPaginateCrowdinUntranslatedFirst(paginationInput)) {
+      const bucketPage = await paginateCatQueueSortBuckets({
+        startBucketIndex: paginationInput.sortBucket,
+        startBucketOffset: paginationInput.sortBucketOffset,
+        limit: paginationInput.limit,
+        fetchBand: async (band, offset, limit) => {
+          const croql = buildCrowdinFileQueueCroql({
+            fileId,
+            targetLocale: input.targetLocale,
+            queueFilter: paginationInput.queueFilter,
+            search: paginationInput.search,
+            statusBand: band,
+          });
+          const page = await client.listSourceStringsPage(projectId, {
+            fileId: croql ? undefined : fileId,
+            croql: croql ?? undefined,
+            offset,
+            limit,
+          });
+          return { items: page.strings, hasMore: page.hasMore };
+        },
+      });
+
+      visibleStrings = bucketPage.items;
+      const totalCount = bucketPage.hasMore
+        ? paginationInput.offset + visibleStrings.length + 1
+        : paginationInput.offset + visibleStrings.length;
+      pagination = buildCatFilePagination({
+        offset: paginationInput.offset,
+        limit: paginationInput.limit,
+        returnedCount: visibleStrings.length,
+        totalCount,
+        hasMore: bucketPage.hasMore,
+        nextSortBucket: bucketPage.nextSortBucket,
+        nextSortBucketOffset: bucketPage.nextSortBucketOffset,
+      });
+      truncated = pagination.hasMore;
     } else {
       const croql =
         paginationInput.search?.trim() ||
@@ -2382,6 +2425,7 @@ async function buildCrowdinLiveCatAllFiles(input: {
     limit: legacyProviderCatSegmentLimit,
     search: undefined,
     queueFilter: "all",
+    queueSort: "file_order",
     paginated: true,
   };
 
@@ -2415,54 +2459,51 @@ async function buildCrowdinLiveCatAllFiles(input: {
     baseUrl: input.context.credential.baseUrl ?? undefined,
   });
 
-  const croqlWithFiles = buildCrowdinFileQueueCroql({
-    fileIds,
-    targetLocale: input.targetLocale,
-    queueFilter: paginationInput.queueFilter,
-    search: paginationInput.search,
-  });
-  const croqlProjectWide = buildCrowdinFileQueueCroql({
-    targetLocale: input.targetLocale,
-    queueFilter: paginationInput.queueFilter,
-    search: paginationInput.search,
-  });
-
-  const useFileScopedCroql = croqlWithFiles != null && isCrowdinCroqlWithinLimit(croqlWithFiles);
-
-  if (!useFileScopedCroql && isNarrowedSourcePathFilter) {
-    throw new TmsProviderLiveError(
-      "crowdin_cat_all_files_query_too_large",
-      CROWDIN_CAT_ALL_FILES_QUERY_TOO_LARGE_MESSAGE,
-    );
-  }
-
-  const croql = useFileScopedCroql ? croqlWithFiles : croqlProjectWide;
-
-  if (croql && !isCrowdinCroqlWithinLimit(croql)) {
-    throw new TmsProviderLiveError(
-      "crowdin_cat_all_files_query_too_large",
-      CROWDIN_CAT_ALL_FILES_QUERY_TOO_LARGE_MESSAGE,
-    );
-  }
-
   const allowedFileIds = new Set(fileIds);
 
-  try {
-    // Pass offset/limit straight through (Crowdin caps page size at 500).
-    const page = await client.listSourceStringsPage(projectId, {
-      croql: croql ?? undefined,
-      offset,
-      limit,
+  const resolveAllFilesCroql = (statusBand?: CrowdinQueueStatusBand) => {
+    const croqlWithFiles = buildCrowdinFileQueueCroql({
+      fileIds,
+      targetLocale: input.targetLocale,
+      queueFilter: paginationInput.queueFilter,
+      search: paginationInput.search,
+      statusBand,
     });
+    const croqlProjectWide = buildCrowdinFileQueueCroql({
+      targetLocale: input.targetLocale,
+      queueFilter: paginationInput.queueFilter,
+      search: paginationInput.search,
+      statusBand,
+    });
+    const useFileScopedCroql = croqlWithFiles != null && isCrowdinCroqlWithinLimit(croqlWithFiles);
 
+    if (!useFileScopedCroql && isNarrowedSourcePathFilter) {
+      throw new TmsProviderLiveError(
+        "crowdin_cat_all_files_query_too_large",
+        CROWDIN_CAT_ALL_FILES_QUERY_TOO_LARGE_MESSAGE,
+      );
+    }
+
+    const croql = useFileScopedCroql ? croqlWithFiles : croqlProjectWide;
+    if (croql && !isCrowdinCroqlWithinLimit(croql)) {
+      throw new TmsProviderLiveError(
+        "crowdin_cat_all_files_query_too_large",
+        CROWDIN_CAT_ALL_FILES_QUERY_TOO_LARGE_MESSAGE,
+      );
+    }
+
+    return croql;
+  };
+
+  const mapAllFilesStrings = (strings: CrowdinSourceString[]) => {
     const segments: TmsProviderLiveCatFile["segments"] = [];
-    for (const sourceString of page.strings) {
-      const fileId = sourceString.fileId;
-      if (fileId == null || !allowedFileIds.has(fileId)) {
+    for (const sourceString of strings) {
+      const mappedFileId = sourceString.fileId;
+      if (mappedFileId == null || !allowedFileIds.has(mappedFileId)) {
         continue;
       }
 
-      const file = fileById.get(fileId);
+      const file = fileById.get(mappedFileId);
       if (!file) {
         continue;
       }
@@ -2479,6 +2520,63 @@ async function buildCrowdinLiveCatAllFiles(input: {
       );
     }
 
+    return segments;
+  };
+
+  try {
+    if (shouldPaginateCrowdinUntranslatedFirst(paginationInput)) {
+      const bucketPage = await paginateCatQueueSortBuckets({
+        startBucketIndex: paginationInput.sortBucket,
+        startBucketOffset: paginationInput.sortBucketOffset,
+        limit,
+        fetchBand: async (band, bandOffset, bandLimit) => {
+          const croql = resolveAllFilesCroql(band);
+          const page = await client.listSourceStringsPage(projectId, {
+            croql: croql ?? undefined,
+            offset: bandOffset,
+            limit: bandLimit,
+          });
+          return { items: mapAllFilesStrings(page.strings), hasMore: page.hasMore };
+        },
+      });
+
+      const totalCount = bucketPage.hasMore
+        ? offset + bucketPage.items.length + 1
+        : offset + bucketPage.items.length;
+      const pagination = paginationInput.paginated
+        ? buildCatFilePagination({
+            offset,
+            limit,
+            returnedCount: bucketPage.items.length,
+            totalCount,
+            hasMore: bucketPage.hasMore,
+            nextSortBucket: bucketPage.nextSortBucket,
+            nextSortBucketOffset: bucketPage.nextSortBucketOffset,
+          })
+        : undefined;
+
+      return {
+        sourcePath: CAT_ALL_FILES_SOURCE_PATH,
+        filename: CAT_ALL_FILES_FILENAME,
+        provider: catFiles[0]?.provider ?? null,
+        targetLocale: input.targetLocale,
+        canEditTranslations: input.canEditTranslations,
+        truncated: pagination?.hasMore ?? false,
+        pagination,
+        segments: bucketPage.items,
+      };
+    }
+
+    const croql = resolveAllFilesCroql();
+
+    // Pass offset/limit straight through (Crowdin caps page size at 500).
+    const page = await client.listSourceStringsPage(projectId, {
+      croql: croql ?? undefined,
+      offset,
+      limit,
+    });
+
+    const segments = mapAllFilesStrings(page.strings);
     const totalCount = page.hasMore ? offset + segments.length + 1 : offset + segments.length;
 
     const pagination = paginationInput.paginated

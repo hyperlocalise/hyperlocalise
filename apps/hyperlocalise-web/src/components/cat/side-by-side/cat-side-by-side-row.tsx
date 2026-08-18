@@ -12,7 +12,14 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { CopyIcon, EraserIcon, ImageIcon, LanguagesIcon, Video } from "lucide-react";
+import {
+  Copy01Icon,
+  EraserIcon,
+  Image01Icon,
+  TranslateIcon,
+  Video01Icon,
+} from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import { useMemo } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 import { FormattedMessage, useIntl } from "react-intl";
@@ -250,7 +257,7 @@ export function CatSideBySideRow({
         aria-label={copySourceLabel}
         title={copySourceLabel}
       >
-        <CopyIcon aria-hidden />
+        <HugeiconsIcon icon={Copy01Icon} aria-hidden />
       </Button>
       <Button
         type="button"
@@ -261,7 +268,7 @@ export function CatSideBySideRow({
         aria-label={clearTargetLabel}
         title={clearTargetLabel}
       >
-        <EraserIcon aria-hidden />
+        <HugeiconsIcon icon={EraserIcon} aria-hidden />
       </Button>
     </div>
   ) : null;
@@ -406,7 +413,7 @@ export function CatSideBySideRow({
                   onClick={() => onTreatAsVideo?.(!treatAsVideo)}
                   title={intl.formatMessage(catEditorPanelMessages.treatAsVideoTitle)}
                 >
-                  <Video className="size-3" aria-hidden />
+                  <HugeiconsIcon icon={Video01Icon} className="size-3" aria-hidden />
                   <FormattedMessage
                     {...(treatAsVideo
                       ? catEditorPanelMessages.treatAsText
@@ -441,7 +448,7 @@ export function CatSideBySideRow({
                   onClick={() => onTreatAsImage?.(!treatAsImage)}
                   title={intl.formatMessage(catEditorPanelMessages.treatAsImageTitle)}
                 >
-                  <ImageIcon className="size-3" aria-hidden />
+                  <HugeiconsIcon icon={Image01Icon} className="size-3" aria-hidden />
                   <FormattedMessage
                     {...(treatAsImage
                       ? catEditorPanelMessages.treatAsText
@@ -469,7 +476,7 @@ export function CatSideBySideRow({
                     onClick={() => onTreatAsImage?.(!treatAsImage)}
                     title={intl.formatMessage(catEditorPanelMessages.treatAsImageTitle)}
                   >
-                    <ImageIcon className="size-3" aria-hidden />
+                    <HugeiconsIcon icon={Image01Icon} className="size-3" aria-hidden />
                     <FormattedMessage
                       {...(treatAsImage
                         ? catEditorPanelMessages.treatAsText
@@ -486,7 +493,7 @@ export function CatSideBySideRow({
                     onClick={() => onTreatAsVideo?.(!treatAsVideo)}
                     title={intl.formatMessage(catEditorPanelMessages.treatAsVideoTitle)}
                   >
-                    <Video className="size-3" aria-hidden />
+                    <HugeiconsIcon icon={Video01Icon} className="size-3" aria-hidden />
                     <FormattedMessage
                       {...(treatAsVideo
                         ? catEditorPanelMessages.treatAsText
@@ -573,7 +580,7 @@ export function CatSideBySideRow({
                     />
                   ) : (
                     <p className="flex items-center gap-2 text-sm text-muted-foreground italic">
-                      <Video className="size-4" aria-hidden />
+                      <HugeiconsIcon icon={Video01Icon} className="size-4" aria-hidden />
                       <FormattedMessage {...catSideBySidePanelMessages.clickToLocalizeVideo} />
                     </p>
                   )
@@ -595,7 +602,7 @@ export function CatSideBySideRow({
                     />
                   ) : (
                     <p className="flex items-center gap-2 text-sm text-muted-foreground italic">
-                      <ImageIcon className="size-4" aria-hidden />
+                      <HugeiconsIcon icon={Image01Icon} className="size-4" aria-hidden />
                       <FormattedMessage {...catSideBySidePanelMessages.clickToLocalizeImage} />
                     </p>
                   )
@@ -607,7 +614,7 @@ export function CatSideBySideRow({
                   </p>
                 ) : (
                   <p className="flex items-center gap-2 text-sm text-muted-foreground italic">
-                    <LanguagesIcon className="size-4" aria-hidden />
+                    <HugeiconsIcon icon={TranslateIcon} className="size-4" aria-hidden />
                     <FormattedMessage
                       defaultMessage="Click to translate"
                       id="G3IbmWT2r1"

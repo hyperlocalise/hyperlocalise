@@ -14,9 +14,14 @@
  */
 import type { ReactNode } from "react";
 import dynamic from "next/dynamic";
-import { ArrowLeft01Icon, ArrowRight01Icon } from "@hugeicons/core-free-icons";
+import {
+  ArrowLeft01Icon,
+  ArrowRight01Icon,
+  Loading03Icon,
+  RefreshIcon,
+  Upload01Icon,
+} from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { Loader2, RefreshCw, Upload } from "lucide-react";
 import { FormattedMessage, useIntl } from "react-intl";
 
 import { CatWorkspaceViewSwitcherConnected } from "@/components/cat/workspace/cat-workspace-view-switcher-connected";
@@ -183,9 +188,13 @@ export function CatFileViewPanel({
                     onClick={onRegenerate}
                   >
                     {isImageBusy ? (
-                      <Loader2 className="size-3 animate-spin" aria-hidden />
+                      <HugeiconsIcon
+                        icon={Loading03Icon}
+                        className="size-3 animate-spin"
+                        aria-hidden
+                      />
                     ) : (
-                      <RefreshCw className="size-3" aria-hidden />
+                      <HugeiconsIcon icon={RefreshIcon} className="size-3" aria-hidden />
                     )}
                     <FormattedMessage {...catFileViewMessages.regenerate} />
                   </Button>
@@ -197,7 +206,7 @@ export function CatFileViewPanel({
                       !canEdit || isImageBusy ? "pointer-events-none opacity-50" : "",
                     )}
                   >
-                    <Upload className="size-3" aria-hidden />
+                    <HugeiconsIcon icon={Upload01Icon} className="size-3" aria-hidden />
                     <FormattedMessage {...catFileViewMessages.uploadFile} />
                     <input
                       type="file"

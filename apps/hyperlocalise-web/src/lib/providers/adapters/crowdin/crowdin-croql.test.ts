@@ -98,6 +98,82 @@ describe("buildCrowdinFileQueueCroql", () => {
       }),
     ).toBe("id of file = 101 and is hidden");
   });
+
+  it("filters QA issues for the target language", () => {
+    expect(
+      buildCrowdinFileQueueCroql({
+        fileId: 101,
+        targetLocale: "fr",
+        queueFilter: "qa_issues",
+      }),
+    ).toBe(
+      'id of file = 101 and count of languages summary where (language = @language:"fr" and has qa issues) > 0',
+    );
+  });
+
+  it("filters machine translations as pre-translated for the target language", () => {
+    expect(
+      buildCrowdinFileQueueCroql({
+        fileId: 101,
+        targetLocale: "fr",
+        queueFilter: "machine_translated",
+      }),
+    ).toBe(
+      'id of file = 101 and count of translations where (language = @language:"fr" and is pre translated) > 0',
+    );
+  });
+
+  it("filters strings with comments", () => {
+    expect(
+      buildCrowdinFileQueueCroql({
+        fileId: 101,
+        targetLocale: "fr",
+        queueFilter: "with_comments",
+        search: "hero",
+      }),
+    ).toBe(
+      'id of file = 101 and (identifier contains "hero" or text contains "hero") and count of comments > 0',
+    );
+  });
+
+  it("composes a status band without hiding strings in All + untranslated-first", () => {
+    expect(
+      buildCrowdinFileQueueCroql({
+        fileId: 101,
+        targetLocale: "fr",
+        queueFilter: "all",
+        statusBand: "untranslated",
+      }),
+    ).toBe(
+      'id of file = 101 and count of languages summary where (language = @language:"fr" and is translated) = 0',
+    );
+  });
+
+  it("composes has issues with a not-approved status band", () => {
+    expect(
+      buildCrowdinFileQueueCroql({
+        fileId: 9,
+        targetLocale: "fr",
+        queueFilter: "has_issues",
+        statusBand: "needs_review",
+      }),
+    ).toBe(
+      'id of file = 9 and count of comments where (has unresolved issue) > 0 and count of languages summary where (language = @language:"fr" and is translated and not is approved) > 0',
+    );
+  });
+
+  it("does not duplicate a status band that matches the queue filter", () => {
+    expect(
+      buildCrowdinFileQueueCroql({
+        fileId: 101,
+        targetLocale: "fr",
+        queueFilter: "untranslated",
+        statusBand: "untranslated",
+      }),
+    ).toBe(
+      'id of file = 101 and count of languages summary where (language = @language:"fr" and is translated) = 0 and not is hidden',
+    );
+  });
 });
 
 describe("Crowdin CROQL size limits", () => {

@@ -12,7 +12,8 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { Video } from "lucide-react";
+import { Video01Icon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import { FormattedMessage } from "react-intl";
 
 import { cn } from "@/lib/primitives/cn";
@@ -37,7 +38,7 @@ export function CatVideoPreview({
         )}
       >
         <div className="flex flex-col items-center gap-2 px-4 text-center">
-          <Video className="size-6 opacity-60" aria-hidden />
+          <HugeiconsIcon icon={Video01Icon} className="size-6 opacity-60" aria-hidden />
           <span>{emptyLabel ?? <FormattedMessage {...catEditorPanelMessages.videoEmpty} />}</span>
         </div>
       </div>

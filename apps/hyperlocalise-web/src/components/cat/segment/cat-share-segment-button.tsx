@@ -12,9 +12,8 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { LinkSquare02Icon } from "@hugeicons/core-free-icons";
+import { LinkSquare02Icon, Tick02Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { CheckIcon } from "lucide-react";
 import { useState } from "react";
 import { useIntl } from "react-intl";
 
@@ -64,7 +63,7 @@ export function CatShareSegmentButton({
       }
     >
       {shareLinkState === "copied" ? (
-        <CheckIcon className="size-4" />
+        <HugeiconsIcon icon={Tick02Icon} className="size-4" />
       ) : (
         <HugeiconsIcon icon={LinkSquare02Icon} className="size-4" />
       )}

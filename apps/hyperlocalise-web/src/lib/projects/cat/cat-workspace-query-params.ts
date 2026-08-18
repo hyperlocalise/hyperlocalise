@@ -10,13 +10,20 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import type { ProjectFileCatQueueFilter } from "@/api/routes/project/project.schema";
-import { projectFileCatQueueFilterSchema } from "@/api/routes/project/project.schema";
-import type { CatQueueFilter } from "@/components/cat/queue/cat-queue-filter";
+import type {
+  ProjectFileCatQueueFilter,
+  ProjectFileCatQueueSort,
+} from "@/api/routes/project/project.schema";
+import {
+  projectFileCatQueueFilterSchema,
+  projectFileCatQueueSortSchema,
+} from "@/api/routes/project/project.schema";
+import type { CatQueueFilter, CatQueueSort } from "@/components/cat/queue/cat-queue-filter";
 import { isServerQueueFilter } from "@/components/cat/queue/cat-queue-filter";
 
-/** Shared CAT workspace query keys for filter + segment search. */
+/** Shared CAT workspace query keys for filter + sort + segment search. */
 export const catWorkspaceQueueFilterParam = "queueFilter";
+export const catWorkspaceQueueSortParam = "queueSort";
 export const catWorkspaceSearchParam = "search";
 
 export function parseCatWorkspaceQueueFilterParam(
@@ -30,6 +37,17 @@ export function parseCatWorkspaceQueueFilterParam(
   return result.success ? result.data : undefined;
 }
 
+export function parseCatWorkspaceQueueSortParam(
+  value: string | undefined | null,
+): ProjectFileCatQueueSort | undefined {
+  if (!value) {
+    return undefined;
+  }
+
+  const result = projectFileCatQueueSortSchema.safeParse(value);
+  return result.success ? result.data : undefined;
+}
+
 export function parseCatWorkspaceSearchParam(value: string | undefined | null): string {
   return value?.trim() ? value.trim() : "";
 }
@@ -38,6 +56,7 @@ export function applyCatWorkspaceQueryParams(
   params: URLSearchParams,
   input: {
     queueFilter?: CatQueueFilter | null;
+    queueSort?: CatQueueSort | null;
     search?: string | null;
   },
 ) {
@@ -48,6 +67,14 @@ export function applyCatWorkspaceQueryParams(
       next.delete(catWorkspaceQueueFilterParam);
     } else {
       next.set(catWorkspaceQueueFilterParam, input.queueFilter);
+    }
+  }
+
+  if (input.queueSort != null) {
+    if (input.queueSort === "file_order") {
+      next.delete(catWorkspaceQueueSortParam);
+    } else {
+      next.set(catWorkspaceQueueSortParam, input.queueSort);
     }
   }
 
@@ -65,7 +92,7 @@ export function applyCatWorkspaceQueryParams(
 
 /**
  * Clone the current browser search params and apply locale/file updates while
- * preserving queueFilter + search (and any other unrelated params).
+ * preserving queueFilter + queueSort + search (and any other unrelated params).
  */
 export function buildCatNavigationSearchParams(
   currentSearch: string | URLSearchParams,

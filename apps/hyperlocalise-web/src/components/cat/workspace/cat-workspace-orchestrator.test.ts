@@ -772,6 +772,80 @@ describe("CatWorkspaceOrchestrator hydration", () => {
     ]);
   });
 
+  it("filters the queue to unsaved drafts from local dirty state", () => {
+    const store = createCatWorkspace(
+      createCatWorkspaceState({
+        selectedSegmentId: "seg-01",
+        segments: [
+          {
+            id: "seg-01",
+            index: 1,
+            key: "first",
+            sourceText: "First",
+            targetText: "Premier",
+            sourceLocale: "en-US",
+            targetLocale: "fr",
+            status: "needs_review",
+          },
+          {
+            id: "seg-02",
+            index: 2,
+            key: "second",
+            sourceText: "Second",
+            targetText: "",
+            sourceLocale: "en-US",
+            targetLocale: "fr",
+            status: "pending",
+          },
+        ],
+      }),
+    );
+
+    store.setTargetText("seg-02", "Deuxième");
+
+    expect(store.getFilteredQueueSegments("unsaved", false).map((segment) => segment.id)).toEqual([
+      "seg-02",
+    ]);
+  });
+
+  it("puts skipped segments last for untranslated-first sort", () => {
+    const store = createCatWorkspace(
+      createCatWorkspaceState({
+        selectedSegmentId: "seg-01",
+        segments: [
+          {
+            id: "seg-01",
+            index: 1,
+            key: "first",
+            sourceText: "First",
+            targetText: "",
+            sourceLocale: "en-US",
+            targetLocale: "fr",
+            status: "pending",
+          },
+          {
+            id: "seg-02",
+            index: 2,
+            key: "second",
+            sourceText: "Second",
+            targetText: "",
+            sourceLocale: "en-US",
+            targetLocale: "fr",
+            status: "pending",
+          },
+        ],
+      }),
+    );
+
+    store.setQueueSort("untranslated_first");
+    store.setSegmentStatus("seg-01", "skipped");
+
+    expect(store.getFilteredQueueSegments("all", false).map((segment) => segment.id)).toEqual([
+      "seg-02",
+      "seg-01",
+    ]);
+  });
+
   it("returns composed target text for side-by-side queue rows", () => {
     const store = createCatWorkspace(
       createCatWorkspaceState({

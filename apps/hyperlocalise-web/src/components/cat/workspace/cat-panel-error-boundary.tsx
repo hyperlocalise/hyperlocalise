@@ -12,7 +12,8 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { AlertCircleIcon } from "lucide-react";
+import { AlertCircleIcon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import { type ErrorInfo, type ReactNode } from "react";
 import { ErrorBoundary, type FallbackProps } from "react-error-boundary";
 import { FormattedMessage } from "react-intl";
@@ -65,7 +66,7 @@ function CatPanelErrorFallback({
       role="alert"
     >
       <Alert variant="destructive" className="max-w-md">
-        <AlertCircleIcon />
+        <HugeiconsIcon icon={AlertCircleIcon} />
         <AlertTitle>
           <FormattedMessage {...panelTitleMessageByScope[scope]} />
         </AlertTitle>

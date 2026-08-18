@@ -16,7 +16,7 @@ import { observer } from "mobx-react-lite";
 import { useCallback, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 
-import { catQueueFilterValues, type CatQueueFilter } from "./cat-queue-filter";
+import { catQueueFilterValues, type CatQueueFilter, type CatQueueSort } from "./cat-queue-filter";
 import { CatQueueToolbar } from "./cat-queue-toolbar";
 import { CAT_QUEUE_TOOLBAR_HOST_ID } from "./cat-queue-toolbar-host";
 import { useCatWorkspace } from "@/components/cat/workspace/cat-workspace-context";
@@ -25,6 +25,9 @@ export const CatQueueToolbarConnected = observer(function CatQueueToolbarConnect
   onQueueSearchChange,
   onQueueFilterChange,
   availableQueueFilters = catQueueFilterValues,
+  queueSort = "file_order",
+  onQueueSortChange,
+  availableQueueSorts,
   isSearching = false,
   visibleCount = 0,
   onSelectAllVisible,
@@ -38,6 +41,9 @@ export const CatQueueToolbarConnected = observer(function CatQueueToolbarConnect
   onQueueSearchChange?: (value: string) => void;
   onQueueFilterChange?: (filter: CatQueueFilter) => void;
   availableQueueFilters?: CatQueueFilter[];
+  queueSort?: CatQueueSort;
+  onQueueSortChange?: (sort: CatQueueSort) => void;
+  availableQueueSorts?: CatQueueSort[];
   isSearching?: boolean;
   visibleCount?: number;
   onSelectAllVisible?: () => void;
@@ -76,6 +82,14 @@ export const CatQueueToolbarConnected = observer(function CatQueueToolbarConnect
     [onQueueFilterChange, store],
   );
 
+  const handleSortChange = useCallback(
+    (sort: CatQueueSort) => {
+      store.queue.setSort(sort);
+      onQueueSortChange?.(sort);
+    },
+    [onQueueSortChange, store],
+  );
+
   const toolbar = (
     <CatQueueToolbar
       search={store.queueSearch}
@@ -84,6 +98,9 @@ export const CatQueueToolbarConnected = observer(function CatQueueToolbarConnect
       queueFilter={store.queueFilter}
       onQueueFilterChange={handleFilterChange}
       availableQueueFilters={availableQueueFilters}
+      queueSort={queueSort}
+      onQueueSortChange={onQueueSortChange ? handleSortChange : undefined}
+      availableQueueSorts={availableQueueSorts}
       selectionMode={store.selectionMode}
       onSelectionModeChange={(enabled) => store.setSelectionMode(enabled)}
       selectedCount={store.checkedSegmentIds.size}

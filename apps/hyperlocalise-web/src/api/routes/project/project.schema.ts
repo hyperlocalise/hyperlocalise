@@ -253,7 +253,12 @@ export const projectFileCatQueueFilterSchema = z.enum([
   "reviewed",
   "has_issues",
   "hidden",
+  "qa_issues",
+  "machine_translated",
+  "with_comments",
 ]);
+
+export const projectFileCatQueueSortSchema = z.enum(["file_order", "untranslated_first"]);
 
 export const projectFileCatQuerySchema = z.object({
   /** Use `"*"` to load strings across every file in scope. */
@@ -269,16 +274,26 @@ export const projectFileCatQuerySchema = z.object({
   sourcePaths: z.string().trim().max(32_768).optional(),
   search: z.string().trim().max(256).optional(),
   queueFilter: projectFileCatQueueFilterSchema.optional(),
+  queueSort: projectFileCatQueueSortSchema.optional(),
   offset: z.coerce.number().int().min(0).optional(),
   limit: z.coerce.number().int().min(1).max(100).optional(),
   phraseScanPage: z.coerce.number().int().min(1).optional(),
   phraseScanSkip: z.coerce.number().int().min(0).optional(),
+  sortBucket: z.coerce.number().int().min(0).max(2).optional(),
+  sortBucketOffset: z.coerce.number().int().min(0).optional(),
 });
 
 export const projectFileCatExportFormatSchema = z.enum(["csv", "tmx", "xlf", "xliff"]);
 
 export const projectFileCatExportQuerySchema = projectFileCatQuerySchema
-  .omit({ offset: true, limit: true, phraseScanPage: true, phraseScanSkip: true })
+  .omit({
+    offset: true,
+    limit: true,
+    phraseScanPage: true,
+    phraseScanSkip: true,
+    sortBucket: true,
+    sortBucketOffset: true,
+  })
   .extend({
     format: projectFileCatExportFormatSchema,
     sourceLocale: z.string().trim().min(1).max(32).optional(),
@@ -292,6 +307,8 @@ export const projectFileCatPaginationSchema = z.object({
   hasMore: z.boolean(),
   nextPhraseScanPage: z.number().int().min(1).optional(),
   nextPhraseScanSkip: z.number().int().min(0).optional(),
+  nextSortBucket: z.number().int().min(0).max(2).optional(),
+  nextSortBucketOffset: z.number().int().min(0).optional(),
 });
 
 export const defaultProjectFileCatPageLimit = 50;
@@ -731,6 +748,7 @@ export type ProjectFileDetailQuery = z.infer<typeof projectFileDetailQuerySchema
 export type ProjectFileCatQuery = z.infer<typeof projectFileCatQuerySchema>;
 export type ProjectFileCatExportQuery = z.infer<typeof projectFileCatExportQuerySchema>;
 export type ProjectFileCatQueueFilter = z.infer<typeof projectFileCatQueueFilterSchema>;
+export type ProjectFileCatQueueSort = z.infer<typeof projectFileCatQueueSortSchema>;
 export type ProjectFileCatTranslationBody = z.infer<typeof projectFileCatTranslationBodySchema>;
 export type ProjectFileCatHiddenStringsBody = z.infer<typeof projectFileCatHiddenStringsBodySchema>;
 export type ProjectFileCatHiddenStringsResponse = z.infer<

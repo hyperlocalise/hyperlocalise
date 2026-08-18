@@ -12,7 +12,10 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import type { ProjectFileCatQueueFilter } from "@/api/routes/project/project.schema";
+import type {
+  ProjectFileCatQueueFilter,
+  ProjectFileCatQueueSort,
+} from "@/api/routes/project/project.schema";
 import type { CatFormatMessageIntl } from "@/components/cat/message-format/cat-message-format-i18n";
 import { readApiError } from "@/lib/api-error";
 import { apiClient } from "@/lib/api-client-instance";
@@ -47,6 +50,7 @@ export async function downloadProjectFileCatExport(input: {
   format: CatFilteredExportFormat;
   search: string;
   queueFilter: ProjectFileCatQueueFilter;
+  queueSort?: ProjectFileCatQueueSort;
   externalResourceId?: string | null;
   resourceType?: "file" | "key";
   sourcePaths?: string | null;
@@ -66,6 +70,9 @@ export async function downloadProjectFileCatExport(input: {
       ...(input.sourcePaths ? { sourcePaths: input.sourcePaths } : {}),
       ...(input.search ? { search: input.search } : {}),
       ...(input.queueFilter !== "all" ? { queueFilter: input.queueFilter } : {}),
+      ...(input.queueSort && input.queueSort !== "file_order"
+        ? { queueSort: input.queueSort }
+        : {}),
     },
   });
 

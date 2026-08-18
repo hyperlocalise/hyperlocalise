@@ -1122,6 +1122,118 @@ describe("getTmsProviderLiveCatFile", () => {
     expect(stringsRequests.length).toBe(1);
   });
 
+  it("walks Crowdin status bands for untranslated-first sort", async () => {
+    const { organization, user } = await fixture.createLocalWorkosIdentity(
+      fixture.createWorkosIdentityWithRole("admin"),
+    );
+    await setupCrowdinPatCredential({
+      organizationId: organization.id,
+      userId: user.id,
+    });
+
+    const croqlRequests: string[] = [];
+    const fetchMock = vi.fn(async (url) => {
+      const path = String(url);
+
+      if (isCrowdinGetProjectRequest(path)) {
+        return mockCrowdinProject42Response();
+      }
+
+      if (path.includes("/projects/42/branches?")) {
+        return new Response(JSON.stringify({ data: [] }), { status: 200 });
+      }
+
+      if (path.includes("/projects/42/directories?")) {
+        return new Response(JSON.stringify({ data: [] }), { status: 200 });
+      }
+
+      if (path.includes("/projects/42/files?")) {
+        return new Response(
+          JSON.stringify({
+            data: [
+              {
+                data: {
+                  id: 101,
+                  branchId: null,
+                  directoryId: null,
+                  name: "home.json",
+                  title: "home.json",
+                  type: "json",
+                  path: "/home.json",
+                  status: "active",
+                  revisionId: 7,
+                },
+              },
+            ],
+          }),
+          { status: 200 },
+        );
+      }
+
+      if (path.includes("/projects/42/files/101/revisions?")) {
+        return new Response(JSON.stringify({ data: [] }), { status: 200 });
+      }
+
+      if (path.includes("/projects/42/strings?") && path.includes("croql=")) {
+        const croql = new URL(path).searchParams.get("croql") ?? "";
+        croqlRequests.push(croql);
+
+        const stringId = croql.includes("not is approved") ? 1002 : 1001;
+        const identifier = stringId === 1001 ? "homepage.hero.title" : "homepage.hero.cta";
+        return new Response(
+          JSON.stringify({
+            data: [
+              {
+                data: {
+                  id: stringId,
+                  projectId: 42,
+                  fileId: 101,
+                  branchId: null,
+                  directoryId: null,
+                  identifier,
+                  text: identifier,
+                  type: "text",
+                  context: null,
+                  labelIds: null,
+                },
+              },
+            ],
+          }),
+          { status: 200 },
+        );
+      }
+
+      return new Response(JSON.stringify({ data: [] }), { status: 200 });
+    });
+    globalThis.fetch = fetchMock as typeof fetch;
+
+    const catFile = await getTmsProviderLiveCatFile(organization.id, "42", "home.json", "fr", {
+      actorUserId: user.id,
+      canEditTranslations: true,
+      pagination: {
+        offset: 0,
+        limit: 2,
+        paginated: true,
+        queueFilter: "all",
+        queueSort: "untranslated_first",
+      },
+    });
+
+    expect(croqlRequests).toHaveLength(2);
+    expect(croqlRequests[0]).toContain("is translated) = 0");
+    expect(croqlRequests[0]).not.toContain("not is hidden");
+    expect(croqlRequests[1]).toContain("not is approved");
+    expect(catFile?.segments.map((segment) => segment.externalStringId)).toEqual(["1001", "1002"]);
+    expect(catFile?.pagination).toMatchObject({
+      offset: 0,
+      limit: 2,
+      returnedCount: 2,
+      hasMore: true,
+      nextSortBucket: 2,
+      nextSortBucketOffset: 0,
+    });
+  });
+
   it("marks every visible has_issues segment with unresolved issue flags without per-string comment calls", async () => {
     const { organization, user } = await fixture.createLocalWorkosIdentity(
       fixture.createWorkosIdentityWithRole("admin"),

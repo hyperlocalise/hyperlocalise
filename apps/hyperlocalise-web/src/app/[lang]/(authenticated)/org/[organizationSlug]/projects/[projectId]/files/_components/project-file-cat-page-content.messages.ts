@@ -63,8 +63,9 @@ export const projectFileCatPageContentMessages = defineMessages({
     description: "Banner when GitHub repositories fail to load on the project file CAT page",
   },
   selectRepositoryForContext: {
-    defaultMessage: "Select a GitHub repository to look up string context.",
-    id: "GnhXacyqeM",
+    defaultMessage:
+      "Choose a GitHub repository in the source file picker to look up string context.",
+    id: "f22yrNzzSr",
     description: "Banner prompting the user to pick a repository for CAT context lookup",
   },
   localeFallback: {

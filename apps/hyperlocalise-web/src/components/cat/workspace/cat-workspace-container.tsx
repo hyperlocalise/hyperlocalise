@@ -33,7 +33,7 @@ import type {
   CatWorkspaceViewProps,
   PartialCatWorkspaceDependencies,
 } from "@/components/cat/shared/dependencies";
-import type { CatQueueFilter } from "@/components/cat/queue/cat-queue-filter";
+import type { CatQueueFilter, CatQueueSort } from "@/components/cat/queue/cat-queue-filter";
 import { CatQueueToolbarConnected } from "@/components/cat/queue/cat-queue-toolbar-connected";
 import { catWorkspaceContainerMessages } from "@/components/cat/shared/cat.messages";
 import type { CatSegment, CatWorkspaceState } from "@/components/cat/shared/types";
@@ -76,6 +76,9 @@ export interface CatWorkspaceContainerProps {
   queueFilter?: CatQueueFilter;
   onQueueFilterChange?: (filter: CatQueueFilter) => void;
   availableQueueFilters?: CatQueueFilter[];
+  queueSort?: CatQueueSort;
+  onQueueSortChange?: (sort: CatQueueSort) => void;
+  availableQueueSorts?: CatQueueSort[];
   isQueueSearchPending?: boolean;
   isQueueFetchingPage?: boolean;
   isQueueLoading?: boolean;
@@ -109,6 +112,9 @@ const CatWorkspaceContainerObserver = observer(function CatWorkspaceContainerObs
   queueFilter,
   onQueueFilterChange,
   availableQueueFilters,
+  queueSort,
+  onQueueSortChange,
+  availableQueueSorts,
   isQueueSearchPending,
   isQueueFetchingPage,
   isQueueLoading,
@@ -145,6 +151,12 @@ const CatWorkspaceContainerObserver = observer(function CatWorkspaceContainerObs
   }, [queueFilter, store]);
 
   useEffect(() => {
+    if (queueSort !== undefined && store.queue.sort !== queueSort) {
+      store.queue.setSort(queueSort);
+    }
+  }, [queueSort, store]);
+
+  useEffect(() => {
     if (queueSearch !== undefined && store.queue.search !== queueSearch) {
       store.queue.setSearch(queueSearch);
     }
@@ -166,6 +178,9 @@ const CatWorkspaceContainerObserver = observer(function CatWorkspaceContainerObs
         onQueueSearchChange={onQueueSearchChange}
         onQueueFilterChange={controller.handleQueueFilterChange}
         availableQueueFilters={availableQueueFilters}
+        queueSort={queueSort}
+        onQueueSortChange={onQueueSortChange}
+        availableQueueSorts={availableQueueSorts}
         isSearching={isQueueSearchPending}
         visibleCount={controller.queueSegments.length}
         onSelectAllVisible={() =>
@@ -277,6 +292,7 @@ export function CatWorkspaceContainer({
   initialViewMode,
   queueFilter,
   queueSearch,
+  queueSort,
   ...props
 }: CatWorkspaceContainerProps) {
   return (
@@ -285,6 +301,7 @@ export function CatWorkspaceContainer({
       initialSegmentKeyOrId={initialSegmentKeyOrId}
       initialViewMode={initialViewMode}
       initialQueueFilter={queueFilter}
+      initialQueueSort={queueSort}
       initialSearch={queueSearch}
     >
       <CatWorkspaceContainerInner
@@ -293,6 +310,7 @@ export function CatWorkspaceContainer({
         initialViewMode={initialViewMode}
         queueFilter={queueFilter}
         queueSearch={queueSearch}
+        queueSort={queueSort}
         {...props}
       />
     </CatWorkspaceProvider>

@@ -14,13 +14,14 @@
  */
 import { useState, type ReactNode } from "react";
 import {
-  BulbIcon,
   AlertCircleIcon,
+  BulbIcon,
   CheckmarkCircle02Icon,
+  Copy01Icon,
   RefreshIcon,
+  Tick02Icon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { CheckIcon, CopyIcon } from "lucide-react";
 import { FormattedMessage, useIntl } from "react-intl";
 
 import { formatInternalMarkupForDisplay } from "@/components/cat/message-format/cat-internal-markup";
@@ -169,14 +170,14 @@ function GlossaryTermRow({ term, targetText }: { term: CatGlossaryTerm; targetTe
           >
             {copyState === "copied" ? (
               <>
-                <CheckIcon className="size-3" aria-hidden />
+                <HugeiconsIcon icon={Tick02Icon} className="size-3" aria-hidden />
                 <FormattedMessage {...catIntelligencePanelMessages.glossaryTermCopied} />
               </>
             ) : copyState === "error" ? (
               <FormattedMessage {...catIntelligencePanelMessages.glossaryTermCopyFailed} />
             ) : (
               <>
-                <CopyIcon className="size-3" aria-hidden />
+                <HugeiconsIcon icon={Copy01Icon} className="size-3" aria-hidden />
                 <FormattedMessage {...catIntelligencePanelMessages.copyGlossaryTerm} />
               </>
             )}

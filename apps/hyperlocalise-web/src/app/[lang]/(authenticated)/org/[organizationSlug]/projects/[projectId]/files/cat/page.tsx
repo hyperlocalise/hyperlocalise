@@ -14,6 +14,7 @@ import { requireAppAuthContext } from "@/lib/workos/app-auth";
 import { isReleaseCatAllFilesEnabled } from "@/lib/flags/release-flags";
 import {
   parseCatWorkspaceQueueFilterParam,
+  parseCatWorkspaceQueueSortParam,
   parseCatWorkspaceSearchParam,
 } from "@/lib/projects/cat/cat-workspace-query-params";
 import { parseProjectFileCatSearchParams } from "@/lib/projects/project-file-cat-routing";
@@ -38,6 +39,7 @@ export default async function ProjectFileCatPage({
     branch?: string;
     sourcePaths?: string;
     queueFilter?: string;
+    queueSort?: string;
     search?: string;
   }>;
 }) {
@@ -60,6 +62,7 @@ export default async function ProjectFileCatPage({
       highlightLocale={parsedSearchParams.highlightLocale}
       initialSegmentKey={parsedSearchParams.initialSegmentKey}
       initialQueueFilter={parseCatWorkspaceQueueFilterParam(rawSearchParams.queueFilter) ?? "all"}
+      initialQueueSort={parseCatWorkspaceQueueSortParam(rawSearchParams.queueSort) ?? "file_order"}
       initialSearch={parseCatWorkspaceSearchParam(rawSearchParams.search)}
       externalResourceId={parsedSearchParams.externalResourceId}
       resourceType={parsedSearchParams.resourceType}

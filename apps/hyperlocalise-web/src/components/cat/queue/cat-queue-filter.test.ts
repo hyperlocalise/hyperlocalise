@@ -15,10 +15,13 @@ import { describe, expect, it } from "vite-plus/test";
 import {
   filterCatQueueSegments,
   findSegmentIdByKeyOrId,
+  orderCatQueueSegmentsSkippedLast,
   resolveAvailableCatQueueFilters,
+  resolveAvailableCatQueueSorts,
   resolveSelectedSegmentId,
   resolveVisibleQueueSegments,
   segmentMatchesQueueFilter,
+  segmentMatchesQueueFilterFromInput,
 } from "./cat-queue-filter";
 import type { CatSegment } from "@/components/cat/shared/types";
 
@@ -129,6 +132,15 @@ describe("segmentMatchesQueueFilter", () => {
     expect(segmentMatchesQueueFilter(createSegment({ isHidden: true }), "hidden")).toBe(true);
     expect(segmentMatchesQueueFilter(createSegment(), "hidden")).toBe(false);
   });
+
+  it("matches unsaved drafts from isDirty", () => {
+    expect(
+      segmentMatchesQueueFilterFromInput({ status: "needs_review", isDirty: true }, "unsaved"),
+    ).toBe(true);
+    expect(
+      segmentMatchesQueueFilterFromInput({ status: "needs_review", isDirty: false }, "unsaved"),
+    ).toBe(false);
+  });
 });
 
 describe("resolveAvailableCatQueueFilters", () => {
@@ -159,11 +171,25 @@ describe("resolveAvailableCatQueueFilters", () => {
     expect(resolveAvailableCatQueueFilters("smartling")).toContain("has_issues");
   });
 
-  it("omits translation status filters for Smartling projects", () => {
-    const filters = resolveAvailableCatQueueFilters("smartling");
-    expect(filters).not.toContain("untranslated");
-    expect(filters).not.toContain("needs_review");
-    expect(filters).not.toContain("reviewed");
+  it("includes Crowdin extra filters only for Crowdin", () => {
+    expect(resolveAvailableCatQueueFilters("crowdin")).toEqual(
+      expect.arrayContaining(["unsaved", "qa_issues", "machine_translated", "with_comments"]),
+    );
+    expect(resolveAvailableCatQueueFilters("native")).not.toContain("qa_issues");
+    expect(resolveAvailableCatQueueFilters("phrase")).not.toContain("machine_translated");
+    expect(resolveAvailableCatQueueFilters(null)).toContain("unsaved");
+    expect(resolveAvailableCatQueueFilters(null)).not.toContain("with_comments");
+  });
+});
+
+describe("resolveAvailableCatQueueSorts", () => {
+  it("offers untranslated first for native and Crowdin only", () => {
+    expect(resolveAvailableCatQueueSorts("crowdin")).toContain("untranslated_first");
+    expect(resolveAvailableCatQueueSorts("native")).toContain("untranslated_first");
+    expect(resolveAvailableCatQueueSorts(null)).toContain("untranslated_first");
+    expect(resolveAvailableCatQueueSorts("phrase")).toEqual(["file_order"]);
+    expect(resolveAvailableCatQueueSorts("lokalise")).toEqual(["file_order"]);
+    expect(resolveAvailableCatQueueSorts("smartling")).toEqual(["file_order"]);
   });
 });
 
@@ -186,6 +212,35 @@ describe("resolveVisibleQueueSegments", () => {
     expect(
       resolveVisibleQueueSegments(segments, "skipped", true).map((segment) => segment.id),
     ).toEqual(["a"]);
+  });
+});
+
+describe("orderCatQueueSegmentsSkippedLast", () => {
+  it("moves skipped segments to the end for untranslated first", () => {
+    const ordered = orderCatQueueSegmentsSkippedLast(
+      [
+        { id: "a", status: "skipped" },
+        { id: "b", status: "pending" },
+        { id: "c", status: "reviewed" },
+      ],
+      "untranslated_first",
+      (segment) => segment.status === "skipped",
+    );
+
+    expect(ordered.map((segment) => segment.id)).toEqual(["b", "c", "a"]);
+  });
+
+  it("keeps file order when sort is file order", () => {
+    const ordered = orderCatQueueSegmentsSkippedLast(
+      [
+        { id: "a", status: "skipped" },
+        { id: "b", status: "pending" },
+      ],
+      "file_order",
+      (segment) => segment.status === "skipped",
+    );
+
+    expect(ordered.map((segment) => segment.id)).toEqual(["a", "b"]);
   });
 });
 

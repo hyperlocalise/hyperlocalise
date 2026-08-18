@@ -88,37 +88,66 @@ function LocaleIcon({ className }: { className?: string }) {
   );
 }
 
+export function catSourcePathDisplayName(sourcePath: string): string {
+  const normalized = sourcePath.replaceAll("\\", "/").replace(/\/+$/, "");
+  const segments = normalized.split("/").filter(Boolean);
+  return segments.at(-1) ?? sourcePath;
+}
+
 export function CatFileTreePicker({
   files,
   selectedSourcePath,
   onSelectFile,
   allFilesSelected = false,
   onSelectAllFiles,
+  repositoryFullNames,
+  selectedRepositoryFullName = null,
+  onRepositoryChange,
 }: {
   files: ProjectFileRecord[];
   selectedSourcePath: string;
   onSelectFile: (sourcePath: string) => void;
   allFilesSelected?: boolean;
   onSelectAllFiles?: () => void;
+  repositoryFullNames?: readonly string[];
+  selectedRepositoryFullName?: string | null;
+  onRepositoryChange?: (repositoryFullName: string) => void;
 }) {
   const intl = useIntl();
   const [open, setOpen] = useState(false);
   const [dialogSourcePath, setDialogSourcePath] = useState(selectedSourcePath);
   const [dialogAllFiles, setDialogAllFiles] = useState(allFilesSelected);
+  const [dialogRepositoryFullName, setDialogRepositoryFullName] = useState(
+    selectedRepositoryFullName ?? "",
+  );
   const selectedFile = useMemo(
     () =>
       dialogAllFiles ? null : (files.find((file) => file.sourcePath === dialogSourcePath) ?? null),
     [dialogAllFiles, dialogSourcePath, files],
   );
+  const showRepositorySelect = Boolean(repositoryFullNames && repositoryFullNames.length > 0);
 
   useEffect(() => {
     if (open) {
       setDialogSourcePath(selectedSourcePath);
       setDialogAllFiles(allFilesSelected);
+      setDialogRepositoryFullName(selectedRepositoryFullName ?? "");
     }
-  }, [allFilesSelected, open, selectedSourcePath]);
+  }, [allFilesSelected, open, selectedRepositoryFullName, selectedSourcePath]);
+
+  const commitRepositorySelection = () => {
+    if (!onRepositoryChange || !dialogRepositoryFullName) {
+      return;
+    }
+
+    if (dialogRepositoryFullName !== (selectedRepositoryFullName ?? "")) {
+      onRepositoryChange(dialogRepositoryFullName);
+    }
+  };
 
   const handleOpenSelectedFile = () => {
+    commitRepositorySelection();
+
     if (dialogAllFiles) {
       onSelectAllFiles?.();
       setOpen(false);
@@ -134,6 +163,7 @@ export function CatFileTreePicker({
   };
 
   const handleActivateFile = (sourcePath: string) => {
+    commitRepositorySelection();
     setDialogAllFiles(false);
     onSelectFile(sourcePath);
     setOpen(false);
@@ -141,7 +171,8 @@ export function CatFileTreePicker({
 
   const triggerLabel = allFilesSelected
     ? intl.formatMessage(catHeaderPickersMessages.allFiles)
-    : selectedSourcePath;
+    : catSourcePathDisplayName(selectedSourcePath);
+  const triggerTitle = allFilesSelected ? triggerLabel : selectedSourcePath;
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -150,7 +181,8 @@ export function CatFileTreePicker({
           <Button
             variant="outline"
             size="sm"
-            className="h-8 min-w-0 flex-1 basis-40 justify-start font-mono text-xs sm:max-w-xs"
+            className="h-8 max-w-44 shrink-0 justify-start font-mono text-xs"
+            title={triggerTitle}
             aria-label={intl.formatMessage(catHeaderPickersMessages.sourceFileAriaLabel)}
           />
         }
@@ -181,6 +213,19 @@ export function CatFileTreePicker({
             >
               <FormattedMessage {...catHeaderPickersMessages.allFiles} />
             </Button>
+          ) : null}
+
+          {showRepositorySelect && repositoryFullNames ? (
+            <div className="flex shrink-0 flex-col gap-1.5">
+              <p className="text-[10px] font-medium tracking-wide text-muted-foreground uppercase">
+                <FormattedMessage {...catHeaderPickersMessages.githubRepositoryDialogLabel} />
+              </p>
+              <CatRepositorySelect
+                repositoryFullNames={repositoryFullNames}
+                selectedRepositoryFullName={dialogRepositoryFullName || null}
+                onRepositoryChange={setDialogRepositoryFullName}
+              />
+            </div>
           ) : null}
 
           <div className="min-h-0 flex-1 overflow-hidden rounded-lg border border-border bg-background">
@@ -231,12 +276,14 @@ export function CatLocaleSelect({
   return (
     <Select value={selectedTargetLocale} onValueChange={handleValueChange}>
       <SelectTrigger
-        className="h-8 min-w-0 flex-1 basis-28 text-xs sm:max-w-48"
+        className="h-8 w-auto max-w-36 shrink-0 font-mono text-xs"
         aria-label={intl.formatMessage(catHeaderPickersMessages.targetLocaleAriaLabel)}
         disabled={targetLocales.length <= 1}
       >
         <LocaleIcon className="size-4 text-muted-foreground" />
-        <SelectValue placeholder={intl.formatMessage(catHeaderPickersMessages.localePlaceholder)} />
+        <SelectValue placeholder={intl.formatMessage(catHeaderPickersMessages.localePlaceholder)}>
+          {selectedTargetLocale}
+        </SelectValue>
       </SelectTrigger>
       <SelectContent
         align="start"
@@ -262,7 +309,7 @@ export function CatRepositorySelect({
   selectedRepositoryFullName,
   onRepositoryChange,
 }: {
-  repositoryFullNames: string[];
+  repositoryFullNames: readonly string[];
   selectedRepositoryFullName: string | null;
   onRepositoryChange: (repositoryFullName: string) => void;
 }) {
@@ -275,9 +322,13 @@ export function CatRepositorySelect({
   };
 
   return (
-    <Select value={selectedRepositoryFullName ?? ""} onValueChange={handleValueChange}>
+    <Select
+      value={selectedRepositoryFullName ?? ""}
+      onValueChange={handleValueChange}
+      disabled={repositoryFullNames.length <= 1}
+    >
       <SelectTrigger
-        className="h-8 min-w-0 flex-1 basis-40 font-mono text-xs sm:max-w-xs"
+        className="h-8 w-full min-w-0 font-mono text-xs"
         aria-label={intl.formatMessage(catHeaderPickersMessages.githubRepositoryAriaLabel)}
       >
         <GitHubMark className="size-4 text-muted-foreground" />

@@ -16,14 +16,26 @@ import {
   applyCatWorkspaceQueryParams,
   buildCatNavigationSearchParams,
   parseCatWorkspaceQueueFilterParam,
+  parseCatWorkspaceQueueSortParam,
   parseCatWorkspaceSearchParam,
 } from "./cat-workspace-query-params";
 
 describe("parseCatWorkspaceQueueFilterParam", () => {
   it("accepts known filters and rejects unknown values", () => {
     expect(parseCatWorkspaceQueueFilterParam("needs_review")).toBe("needs_review");
+    expect(parseCatWorkspaceQueueFilterParam("qa_issues")).toBe("qa_issues");
+    expect(parseCatWorkspaceQueueFilterParam("unsaved")).toBeUndefined();
     expect(parseCatWorkspaceQueueFilterParam("skipped")).toBeUndefined();
     expect(parseCatWorkspaceQueueFilterParam(undefined)).toBeUndefined();
+  });
+});
+
+describe("parseCatWorkspaceQueueSortParam", () => {
+  it("accepts untranslated first and rejects unknown values", () => {
+    expect(parseCatWorkspaceQueueSortParam("untranslated_first")).toBe("untranslated_first");
+    expect(parseCatWorkspaceQueueSortParam("file_order")).toBe("file_order");
+    expect(parseCatWorkspaceQueueSortParam("alpha")).toBeUndefined();
+    expect(parseCatWorkspaceQueueSortParam(undefined)).toBeUndefined();
   });
 });
 
@@ -47,10 +59,17 @@ describe("applyCatWorkspaceQueryParams", () => {
 
     const withValues = applyCatWorkspaceQueryParams(params, {
       queueFilter: "needs_review",
+      queueSort: "untranslated_first",
       search: "checkout",
     });
     expect(withValues.get("queueFilter")).toBe("needs_review");
+    expect(withValues.get("queueSort")).toBe("untranslated_first");
     expect(withValues.get("search")).toBe("checkout");
+
+    const clearedSort = applyCatWorkspaceQueryParams(withValues, {
+      queueSort: "file_order",
+    });
+    expect(clearedSort.get("queueSort")).toBeNull();
   });
 });
 
@@ -64,5 +83,16 @@ describe("buildCatNavigationSearchParams", () => {
     expect(next.get("queueFilter")).toBe("untranslated");
     expect(next.get("search")).toBe("save");
     expect(next.get("sourcePath")).toBe("a.json");
+  });
+
+  it("preserves queue sort when only the file changes", () => {
+    const next = buildCatNavigationSearchParams(
+      "locale=fr&queueFilter=qa_issues&queueSort=untranslated_first&sourcePath=a.json&segment=hero.title",
+      { sourcePath: "b.json", segment: null },
+    );
+    expect(next.get("sourcePath")).toBe("b.json");
+    expect(next.get("queueFilter")).toBe("qa_issues");
+    expect(next.get("queueSort")).toBe("untranslated_first");
+    expect(next.get("segment")).toBeNull();
   });
 });

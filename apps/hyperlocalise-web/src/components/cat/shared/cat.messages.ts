@@ -139,6 +139,41 @@ export const catQueuePanelMessages = defineMessages({
     id: "FEprezMr/U",
     description: "CAT queue filter option for hidden source strings",
   },
+  filterUnsaved: {
+    defaultMessage: "Unsaved translations",
+    id: "HxWBdm4nhz",
+    description: "CAT queue filter option for segments with unsaved drafts in this session",
+  },
+  filterQaIssues: {
+    defaultMessage: "QA issues",
+    id: "a8SQvqjTx9",
+    description: "CAT queue filter option for Crowdin strings with QA issues",
+  },
+  filterMachineTranslated: {
+    defaultMessage: "Machine translations",
+    id: "p/GrdJcH5A",
+    description: "CAT queue filter option for Crowdin pre-translated strings",
+  },
+  filterWithComments: {
+    defaultMessage: "With comments",
+    id: "DU3T9+E0+x",
+    description: "CAT queue filter option for Crowdin strings that have comments",
+  },
+  sortQueueAria: {
+    defaultMessage: "Sort queue",
+    id: "F9y826AvJs",
+    description: "Accessible label for the CAT queue sort menu",
+  },
+  sortFileOrder: {
+    defaultMessage: "File order",
+    id: "O3nJ0XBCbB",
+    description: "CAT queue sort option that keeps file or key order",
+  },
+  sortUntranslatedFirst: {
+    defaultMessage: "Untranslated first",
+    id: "UWZ1G1FSvB",
+    description: "CAT queue sort option that shows untranslated segments first",
+  },
   emptyFilterResults: {
     defaultMessage: "No segments match this filter.",
     id: "oY/dfpDvR7",

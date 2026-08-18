@@ -75,12 +75,69 @@ export function isCrowdinCroqlWithinLimit(croql: string): boolean {
   return getCrowdinCroqlEncodedLength(croql) <= CROWDIN_CROQL_MAX_ENCODED_LENGTH;
 }
 
+export type CrowdinQueueStatusBand = "untranslated" | "needs_review" | "reviewed";
+
+function crowdinLanguageSummaryPredicate(locale: string) {
+  return `language = @language:"${locale}"`;
+}
+
+function crowdinQueueFilterPredicates(
+  queueFilter: ProjectFileCatQueueFilter | undefined,
+  languageSummary: string,
+  locale: string,
+) {
+  switch (queueFilter) {
+    case "untranslated":
+      // Hidden strings are withheld from translators; do not list them as
+      // untranslated work (Crowdin's editor keeps Hidden as its own filter).
+      return [
+        `count of languages summary where (${languageSummary} and is translated) = 0`,
+        "not is hidden",
+      ];
+    case "needs_review":
+      return [
+        `count of languages summary where (${languageSummary} and is translated and not is approved) > 0`,
+        "count of comments where (has unresolved issue) = 0",
+      ];
+    case "reviewed":
+      return [`count of languages summary where (${languageSummary} and is approved) > 0`];
+    case "has_issues":
+      return ["count of comments where (has unresolved issue) > 0"];
+    case "hidden":
+      return ["is hidden"];
+    case "qa_issues":
+      return [`count of languages summary where (${languageSummary} and has qa issues) > 0`];
+    case "machine_translated":
+      return [
+        `count of translations where (language = @language:"${locale}" and is pre translated) > 0`,
+      ];
+    case "with_comments":
+      return ["count of comments > 0"];
+    case "all":
+    default:
+      return [];
+  }
+}
+
+function crowdinStatusBandPredicate(band: CrowdinQueueStatusBand, languageSummary: string) {
+  switch (band) {
+    case "untranslated":
+      // Sort bands keep hidden strings inside All + untranslated-first.
+      return `count of languages summary where (${languageSummary} and is translated) = 0`;
+    case "needs_review":
+      return `count of languages summary where (${languageSummary} and is translated and not is approved) > 0`;
+    case "reviewed":
+      return `count of languages summary where (${languageSummary} and is approved) > 0`;
+  }
+}
+
 export function buildCrowdinFileQueueCroql(input: {
   fileId?: number;
   fileIds?: readonly number[];
   targetLocale: string;
   queueFilter?: ProjectFileCatQueueFilter;
   search?: string;
+  statusBand?: CrowdinQueueStatusBand;
 }) {
   const parts: string[] = [];
 
@@ -103,33 +160,11 @@ export function buildCrowdinFileQueueCroql(input: {
   }
 
   const locale = escapeCrowdinCroqlString(input.targetLocale);
-  const languageSummary = `language = @language:"${locale}"`;
+  const languageSummary = crowdinLanguageSummaryPredicate(locale);
+  parts.push(...crowdinQueueFilterPredicates(input.queueFilter, languageSummary, locale));
 
-  switch (input.queueFilter) {
-    case "untranslated":
-      // Hidden strings are withheld from translators; do not list them as
-      // untranslated work (Crowdin's editor keeps Hidden as its own filter).
-      parts.push(`count of languages summary where (${languageSummary} and is translated) = 0`);
-      parts.push("not is hidden");
-      break;
-    case "needs_review":
-      parts.push(
-        `count of languages summary where (${languageSummary} and is translated and not is approved) > 0`,
-      );
-      parts.push("count of comments where (has unresolved issue) = 0");
-      break;
-    case "reviewed":
-      parts.push(`count of languages summary where (${languageSummary} and is approved) > 0`);
-      break;
-    case "has_issues":
-      parts.push("count of comments where (has unresolved issue) > 0");
-      break;
-    case "hidden":
-      parts.push("is hidden");
-      break;
-    case "all":
-    default:
-      break;
+  if (input.statusBand && input.statusBand !== input.queueFilter) {
+    parts.push(crowdinStatusBandPredicate(input.statusBand, languageSummary));
   }
 
   return parts.length > 0 ? parts.join(" and ") : undefined;

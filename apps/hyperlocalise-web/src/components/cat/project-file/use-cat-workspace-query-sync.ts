@@ -15,14 +15,15 @@
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef } from "react";
 
-import type { CatQueueFilter } from "@/components/cat/queue/cat-queue-filter";
+import type { CatQueueFilter, CatQueueSort } from "@/components/cat/queue/cat-queue-filter";
 import { applyCatWorkspaceQueryParams } from "@/lib/projects/cat/cat-workspace-query-params";
 
 /**
- * Keeps queueFilter + search in the URL so locale/file remounts restore them.
+ * Keeps queueFilter + queueSort + search in the URL so locale/file remounts restore them.
  */
 export function useCatWorkspaceQuerySync(input: {
   queueFilter: CatQueueFilter;
+  queueSort: CatQueueSort;
   search: string;
   debouncedSearch: string;
 }) {
@@ -40,6 +41,7 @@ export function useCatWorkspaceQuerySync(input: {
 
     const next = applyCatWorkspaceQueryParams(new URLSearchParams(searchParamsString), {
       queueFilter: input.queueFilter,
+      queueSort: input.queueSort,
       search: input.debouncedSearch,
     });
     const nextString = next.toString();
@@ -48,5 +50,12 @@ export function useCatWorkspaceQuerySync(input: {
     }
 
     router.replace(nextString ? `${pathname}?${nextString}` : pathname, { scroll: false });
-  }, [input.debouncedSearch, input.queueFilter, pathname, router, searchParamsString]);
+  }, [
+    input.debouncedSearch,
+    input.queueFilter,
+    input.queueSort,
+    pathname,
+    router,
+    searchParamsString,
+  ]);
 }

@@ -39,6 +39,55 @@ describe("CatQueueToolbar", () => {
     expect(onQueueFilterChange).toHaveBeenCalledWith("hidden");
   });
 
+  it("shows Crowdin extra filters and the sort menu", async () => {
+    const user = userEvent.setup();
+    const onQueueFilterChange = vi.fn();
+    const onQueueSortChange = vi.fn();
+
+    renderWithCatProviders(
+      <CatQueueToolbar
+        queueFilter="all"
+        onQueueFilterChange={onQueueFilterChange}
+        availableQueueFilters={[
+          "all",
+          "unsaved",
+          "qa_issues",
+          "machine_translated",
+          "with_comments",
+        ]}
+        queueSort="file_order"
+        onQueueSortChange={onQueueSortChange}
+        availableQueueSorts={["file_order", "untranslated_first"]}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Filter queue" }));
+    expect(screen.getByRole("menuitemradio", { name: "Unsaved translations" })).toBeInTheDocument();
+    expect(screen.getByRole("menuitemradio", { name: "QA issues" })).toBeInTheDocument();
+    expect(screen.getByRole("menuitemradio", { name: "Machine translations" })).toBeInTheDocument();
+    expect(screen.getByRole("menuitemradio", { name: "With comments" })).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Sort queue" }));
+    await user.click(screen.getByRole("menuitemradio", { name: "Untranslated first" }));
+
+    expect(onQueueSortChange).toHaveBeenCalledWith("untranslated_first");
+  });
+
+  it("hides sort when untranslated first is not available", () => {
+    renderWithCatProviders(
+      <CatQueueToolbar
+        queueFilter="all"
+        onQueueFilterChange={vi.fn()}
+        availableQueueFilters={["all"]}
+        queueSort="file_order"
+        onQueueSortChange={vi.fn()}
+        availableQueueSorts={["file_order"]}
+      />,
+    );
+
+    expect(screen.queryByRole("button", { name: "Sort queue" })).not.toBeInTheDocument();
+  });
+
   it("offers Hide and Unhide when those bulk handlers are provided", async () => {
     const user = userEvent.setup();
     const onBulkHide = vi.fn();

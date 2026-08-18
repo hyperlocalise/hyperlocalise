@@ -12,7 +12,7 @@
  */
 import { makeAutoObservable } from "mobx";
 
-import type { CatQueueFilter } from "@/components/cat/queue/cat-queue-filter";
+import type { CatQueueFilter, CatQueueSort } from "@/components/cat/queue/cat-queue-filter";
 import {
   readCatQueueSelectionModePreference,
   writeCatQueueSelectionModePreference,
@@ -22,6 +22,7 @@ import type { CatQueueSegment } from "@/components/cat/shared/types";
 export class CatQueueStore {
   selectedSegmentId = "";
   filter: CatQueueFilter = "all";
+  sort: CatQueueSort = "file_order";
   search = "";
   selectionMode = readCatQueueSelectionModePreference();
   checkedSegmentIds = new Set<string>();
@@ -58,6 +59,11 @@ export class CatQueueStore {
 
   setFilter(filter: CatQueueFilter) {
     this.filter = filter;
+    this.clearChecked();
+  }
+
+  setSort(sort: CatQueueSort) {
+    this.sort = sort;
     this.clearChecked();
   }
 

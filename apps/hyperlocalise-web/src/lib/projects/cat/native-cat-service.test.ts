@@ -151,6 +151,38 @@ describe("NativeCatService.getCatFile", () => {
     expect(result?.segments[0]?.maxLength).toBeUndefined();
   });
 
+  it("forwards untranslated-first sort to the key listing query", async () => {
+    listKeysForFile.mockResolvedValue([]);
+
+    await service.getCatFile({
+      organizationId: "org_1",
+      projectId: "project_1",
+      sourcePath: "locales/en.json",
+      targetLocale: "fr",
+      canEditTranslations: true,
+      organizationSlug: "acme",
+      pagination: {
+        offset: 0,
+        limit: 50,
+        paginated: true,
+        queueSort: "untranslated_first",
+      },
+    });
+
+    expect(listKeysForFile).toHaveBeenCalledWith(
+      expect.objectContaining({
+        queueSort: "untranslated_first",
+        targetLocale: "fr",
+      }),
+    );
+    expect(countKeysForFile).toHaveBeenCalledWith(
+      expect.objectContaining({
+        targetLocale: "fr",
+      }),
+    );
+    expect(countKeysForFile.mock.calls[0]?.[0]).not.toHaveProperty("queueSort");
+  });
+
   it("includes maxLength on segments when the translation key has one", async () => {
     listKeysForFile.mockResolvedValue([
       {

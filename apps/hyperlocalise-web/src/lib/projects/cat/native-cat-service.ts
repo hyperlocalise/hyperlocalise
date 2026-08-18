@@ -197,6 +197,7 @@ export class NativeCatService extends ProjectServiceBase {
       limit: legacyNativeCatSegmentLimit,
       search: undefined,
       queueFilter: "all",
+      queueSort: "file_order",
       paginated: false,
     };
 
@@ -237,6 +238,7 @@ export class NativeCatService extends ProjectServiceBase {
         offset: paginationInput.offset,
         search: paginationInput.search,
         queueFilter: paginationInput.queueFilter,
+        queueSort: paginationInput.queueSort,
       }),
     ]);
 
@@ -469,6 +471,7 @@ export class NativeCatService extends ProjectServiceBase {
       limit: legacyNativeCatSegmentLimit,
       search: undefined,
       queueFilter: "all",
+      queueSort: "file_order",
       paginated: true,
     };
 
@@ -494,6 +497,7 @@ export class NativeCatService extends ProjectServiceBase {
         offset,
         search: paginationInput.search,
         queueFilter: paginationInput.queueFilter,
+        queueSort: paginationInput.queueSort,
         sourcePaths: input.sourcePaths,
       }),
     ]);

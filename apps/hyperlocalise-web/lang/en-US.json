@@ -4415,6 +4415,10 @@
     "defaultMessage": "{count} to import",
     "description": "Badge showing how many issues will be created by the import"
   },
+  "DU3T9+E0+x": {
+    "defaultMessage": "With comments",
+    "description": "CAT queue filter option for Crowdin strings that have comments"
+  },
   "DUUeZdS8h4": {
     "defaultMessage": "Route to support and localisation reviewers",
     "description": "Capability 4 title for the help-center-localisation use case"
@@ -4851,6 +4855,10 @@
     "defaultMessage": "Context",
     "description": "Column header for string context in the source strings preview table"
   },
+  "F9y826AvJs": {
+    "defaultMessage": "Sort queue",
+    "description": "Accessible label for the CAT queue sort menu"
+  },
   "FAiaLlxyiD": {
     "defaultMessage": "Approved glossary term",
     "description": "Description skeleton heading for the glossary violation issue template"
@@ -5240,7 +5248,7 @@
     "description": "Accessible label for expanding the chat dock panel"
   },
   "GnhXacyqeM": {
-    "defaultMessage": "Select a GitHub repository to look up string context.",
+    "defaultMessage": "Choose a GitHub repository in the source file picker to look up string context.",
     "description": "Banner prompting the user to pick a repository for CAT context lookup"
   },
   "GomMnQmb4q": {
@@ -5534,6 +5542,10 @@
   "Hx0PS0s7+N": {
     "defaultMessage": "Context-aware from briefs and brand guides",
     "description": "Differentiator point 4 for the marketing-localisation use case"
+  },
+  "HxWBdm4nhz": {
+    "defaultMessage": "Unsaved translations",
+    "description": "CAT queue filter option for segments with unsaved drafts in this session"
   },
   "HxcjgjcAgw": {
     "defaultMessage": "Status",
@@ -7042,6 +7054,10 @@
   "O3OXLAres/": {
     "defaultMessage": "Source text",
     "description": "Label for the source text field on a translation memory entry form"
+  },
+  "O3nJ0XBCbB": {
+    "defaultMessage": "File order",
+    "description": "CAT queue sort option that keeps file or key order"
   },
   "O3w0wyu0VQ": {
     "defaultMessage": "Unable to load conversations.",
@@ -8739,6 +8755,10 @@
     "defaultMessage": "Task description",
     "description": "Accessible label for the markdown description editor field"
   },
+  "UWZ1G1FSvB": {
+    "defaultMessage": "Untranslated first",
+    "description": "CAT queue sort option that shows untranslated segments first"
+  },
   "UWtBPjqoSn": {
     "defaultMessage": "Done",
     "description": "Button to close the Issue Sheet import dialog after success"
@@ -10246,6 +10266,10 @@
   "a74JhYiAwS": {
     "defaultMessage": "Name",
     "description": "Label for the team name field"
+  },
+  "a8SQvqjTx9": {
+    "defaultMessage": "QA issues",
+    "description": "CAT queue filter option for Crowdin strings with QA issues"
   },
   "a8cGGx+QlX": {
     "defaultMessage": "Ship apps that speak every market from day one",
@@ -14247,6 +14271,10 @@
     "defaultMessage": "Translation memory name is required.",
     "description": "Validation error when the create translation memory name field is empty"
   },
+  "p/GrdJcH5A": {
+    "defaultMessage": "Machine translations",
+    "description": "CAT queue filter option for Crowdin pre-translated strings"
+  },
   "p/PBwViDjv": {
     "defaultMessage": "Team updated",
     "description": "Toast after team details are updated from the detail page"
@@ -14290,6 +14318,10 @@
   "p7RJtpKZ+J": {
     "defaultMessage": "Call tools from a connected remote MCP server during this automation.",
     "description": "Description for the MCP Server automation tool when a connection exists"
+  },
+  "p8LwK2nQ1R": {
+    "defaultMessage": "GitHub repository",
+    "description": "Visible label for the GitHub repository select in the CAT source file dialog"
   },
   "p8Xes8vaYS": {
     "defaultMessage": "Source & context",

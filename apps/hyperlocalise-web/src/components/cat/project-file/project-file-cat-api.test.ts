@@ -85,6 +85,7 @@ describe("fetchProjectFileCatQueuePage", () => {
       ...catApiTestContext,
       search: "",
       queueFilter: "all",
+      queueSort: "file_order",
       limit: 50,
       offset: 0,
       intl: testIntl,
@@ -114,6 +115,7 @@ describe("fetchProjectFileCatQueuePage", () => {
       ...catApiTestContext,
       search: "hero",
       queueFilter: "needs_review",
+      queueSort: "file_order",
       limit: 25,
       offset: 50,
       phraseScanPage: 2,
@@ -137,6 +139,33 @@ describe("fetchProjectFileCatQueuePage", () => {
     );
   });
 
+  it("forwards untranslated-first sort and bucket cursors", async () => {
+    catQueueGetMock.mockResolvedValue(jsonResponse(createCatQueueResponse()));
+
+    await fetchProjectFileCatQueuePage({
+      ...catApiTestContext,
+      search: "",
+      queueFilter: "has_issues",
+      queueSort: "untranslated_first",
+      limit: 50,
+      offset: 50,
+      sortBucket: 1,
+      sortBucketOffset: 10,
+      intl: testIntl,
+    });
+
+    expect(catQueueGetMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        query: expect.objectContaining({
+          queueFilter: "has_issues",
+          queueSort: "untranslated_first",
+          sortBucket: 1,
+          sortBucketOffset: 10,
+        }),
+      }),
+    );
+  });
+
   it("throws a readable error when the queue request fails", async () => {
     catQueueGetMock.mockResolvedValue(
       errorResponse("provider_cat_unavailable", "CAT queue is unavailable.", 503),
@@ -147,6 +176,7 @@ describe("fetchProjectFileCatQueuePage", () => {
         ...catApiTestContext,
         search: "",
         queueFilter: "all",
+        queueSort: "file_order",
         limit: 50,
         offset: 0,
         intl: testIntl,
@@ -256,6 +286,7 @@ describe("projectFileCatQueryKey", () => {
         targetLocale: "fr",
         search: "hero",
         queueFilter: "needs_review",
+        queueSort: "file_order",
         limit: 50,
         offset: 50,
       }),
@@ -269,6 +300,7 @@ describe("projectFileCatQueryKey", () => {
       "fr",
       "hero",
       "needs_review",
+      "file_order",
       50,
       50,
       null,
@@ -283,6 +315,7 @@ describe("projectFileCatQueryKey", () => {
       targetLocale: "fr",
       search: "",
       queueFilter: "all" as const,
+      queueSort: "file_order" as const,
       limit: 50,
     };
 
@@ -300,6 +333,7 @@ describe("projectFileCatBaseQueryKey", () => {
       ...catApiTestContext,
       search: "",
       queueFilter: "all",
+      queueSort: "file_order",
       limit: 50,
     });
 
@@ -313,6 +347,7 @@ describe("projectFileCatBaseQueryKey", () => {
       "fr",
       "",
       "all",
+      "file_order",
       50,
       null,
     ]);
@@ -325,10 +360,11 @@ describe("canReuseCatQueuePlaceholderData", () => {
     ...catApiTestContext,
     search: "",
     queueFilter: "all" as const,
+    queueSort: "file_order" as const,
     limit: 50,
   };
 
-  it("reuses previous data when only search, filter, or page size change", () => {
+  it("reuses previous data when only search, filter, sort, or page size change", () => {
     const previousKey = projectFileCatBaseQueryKey(baseKeyInput);
 
     expect(
@@ -341,6 +377,12 @@ describe("canReuseCatQueuePlaceholderData", () => {
       canReuseCatQueuePlaceholderData(
         previousKey,
         projectFileCatBaseQueryKey({ ...baseKeyInput, queueFilter: "needs_review" }),
+      ),
+    ).toBe(true);
+    expect(
+      canReuseCatQueuePlaceholderData(
+        previousKey,
+        projectFileCatBaseQueryKey({ ...baseKeyInput, queueSort: "untranslated_first" }),
       ),
     ).toBe(true);
     expect(

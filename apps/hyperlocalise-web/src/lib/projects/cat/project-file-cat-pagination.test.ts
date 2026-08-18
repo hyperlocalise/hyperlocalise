@@ -24,6 +24,7 @@ describe("resolveProjectFileCatPagination", () => {
       limit: 50,
       search: undefined,
       queueFilter: "all",
+      queueSort: "file_order",
       paginated: true,
     });
   });
@@ -34,6 +35,7 @@ describe("resolveProjectFileCatPagination", () => {
       limit: 25,
       search: undefined,
       queueFilter: "all",
+      queueSort: "file_order",
       paginated: true,
     });
   });
@@ -48,10 +50,19 @@ describe("resolveProjectFileCatPagination", () => {
   });
 
   it("enables paginated mode when queueFilter is provided", () => {
-    expect(resolveProjectFileCatPagination({ queueFilter: "needs_review" })).toMatchObject({
+    expect(resolveProjectFileCatPagination({ queueFilter: "untranslated" })).toMatchObject({
       offset: 0,
       limit: 50,
-      queueFilter: "needs_review",
+      queueFilter: "untranslated",
+      paginated: true,
+    });
+  });
+
+  it("enables paginated mode when queueSort is provided", () => {
+    expect(resolveProjectFileCatPagination({ queueSort: "untranslated_first" })).toMatchObject({
+      offset: 0,
+      limit: 50,
+      queueSort: "untranslated_first",
       paginated: true,
     });
   });
@@ -85,5 +96,23 @@ describe("buildCatFilePagination", () => {
         hasMore: true,
       }),
     ).toMatchObject({ hasMore: true });
+  });
+
+  it("forwards Crowdin untranslated-first bucket cursors", () => {
+    expect(
+      buildCatFilePagination({
+        offset: 50,
+        limit: 50,
+        returnedCount: 50,
+        totalCount: 101,
+        hasMore: true,
+        nextSortBucket: 1,
+        nextSortBucketOffset: 10,
+      }),
+    ).toMatchObject({
+      hasMore: true,
+      nextSortBucket: 1,
+      nextSortBucketOffset: 10,
+    });
   });
 });

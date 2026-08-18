@@ -14,7 +14,7 @@
  */
 import { createContext, useContext, useMemo, type ReactNode } from "react";
 
-import type { CatQueueFilter } from "@/components/cat/queue/cat-queue-filter";
+import type { CatQueueFilter, CatQueueSort } from "@/components/cat/queue/cat-queue-filter";
 import type { CatWorkspaceState } from "@/components/cat/shared/types";
 
 import {
@@ -31,6 +31,7 @@ export function CatWorkspaceProvider({
   initialSegmentKeyOrId,
   initialViewMode,
   initialQueueFilter,
+  initialQueueSort,
   initialSearch,
   children,
 }: {
@@ -38,16 +39,18 @@ export function CatWorkspaceProvider({
   initialSegmentKeyOrId?: string | null;
   initialViewMode?: CatWorkspaceViewMode;
   initialQueueFilter?: CatQueueFilter;
+  initialQueueSort?: CatQueueSort;
   initialSearch?: string;
   children: ReactNode;
 }) {
   const store = useMemo(
     () => {
       const options: CreateCatWorkspaceOptions | undefined =
-        initialViewMode || initialQueueFilter || initialSearch
+        initialViewMode || initialQueueFilter || initialQueueSort || initialSearch
           ? {
               ...(initialViewMode ? { initialViewMode } : {}),
               ...(initialQueueFilter ? { initialQueueFilter } : {}),
+              ...(initialQueueSort ? { initialQueueSort } : {}),
               ...(initialSearch ? { initialSearch } : {}),
             }
           : undefined;

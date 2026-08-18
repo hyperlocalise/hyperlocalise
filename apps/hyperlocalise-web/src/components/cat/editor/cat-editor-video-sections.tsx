@@ -12,7 +12,8 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { Loader2, RefreshCw, Upload, Video } from "lucide-react";
+import { Loading03Icon, RefreshIcon, Upload01Icon, Video01Icon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import { FormattedMessage, useIntl } from "react-intl";
 
 import { Button } from "@/components/ui/button";
@@ -86,7 +87,7 @@ export function CatEditorVideoSourceSection({
             onClick={() => onTreatAsVideo?.(!treatAsVideo)}
             title={intl.formatMessage(catEditorPanelMessages.treatAsVideoTitle)}
           >
-            <Video className="size-3" aria-hidden />
+            <HugeiconsIcon icon={Video01Icon} className="size-3" aria-hidden />
             <FormattedMessage
               {...(treatAsVideo
                 ? catEditorPanelMessages.treatAsText
@@ -104,9 +105,9 @@ export function CatEditorVideoSourceSection({
             onClick={onRegenerate}
           >
             {isBusy ? (
-              <Loader2 className="size-3 animate-spin" aria-hidden />
+              <HugeiconsIcon icon={Loading03Icon} className="size-3 animate-spin" aria-hidden />
             ) : (
-              <RefreshCw className="size-3" aria-hidden />
+              <HugeiconsIcon icon={RefreshIcon} className="size-3" aria-hidden />
             )}
             <FormattedMessage {...catEditorPanelMessages.regenerateVideo} />
           </Button>
@@ -149,7 +150,7 @@ export function CatEditorVideoTargetSection({
 
       {isLoading ? (
         <div className="flex min-h-40 items-center justify-center border border-dashed border-border text-sm text-muted-foreground">
-          <Loader2 className="size-5 animate-spin" aria-hidden />
+          <HugeiconsIcon icon={Loading03Icon} className="size-5 animate-spin" aria-hidden />
         </div>
       ) : (
         <CatVideoPreview
@@ -168,9 +169,9 @@ export function CatEditorVideoTargetSection({
             onClick={onRegenerate}
           >
             {isBusy ? (
-              <Loader2 className="size-3 animate-spin" aria-hidden />
+              <HugeiconsIcon icon={Loading03Icon} className="size-3 animate-spin" aria-hidden />
             ) : (
-              <RefreshCw className="size-3" aria-hidden />
+              <HugeiconsIcon icon={RefreshIcon} className="size-3" aria-hidden />
             )}
             <FormattedMessage {...catEditorPanelMessages.regenerateVideo} />
           </Button>
@@ -182,7 +183,7 @@ export function CatEditorVideoTargetSection({
               !canEdit || isBusy ? "pointer-events-none opacity-50" : ""
             }`}
           >
-            <Upload className="size-3" aria-hidden />
+            <HugeiconsIcon icon={Upload01Icon} className="size-3" aria-hidden />
             <FormattedMessage {...catEditorPanelMessages.uploadVideo} />
             <input
               type="file"

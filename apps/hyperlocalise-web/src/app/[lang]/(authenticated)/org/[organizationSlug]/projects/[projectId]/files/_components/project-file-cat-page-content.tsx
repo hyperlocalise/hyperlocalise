@@ -15,7 +15,8 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ArrowLeftIcon } from "lucide-react";
+import { ArrowLeft01Icon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { FormattedMessage, useIntl } from "react-intl";
 
@@ -38,11 +39,12 @@ import {
   canOpenProjectFileCat,
   hasProjectFileCatIdentityFromUrl,
   resolveProjectCatTargetLocale,
+  resolveProjectFileCatTargetLocale,
   resolveProjectFileCatTargetLocaleResolution,
   resolveProjectFileCatTargetLocales,
 } from "@/lib/projects/project-file-cat-routing";
 import { buildCatNavigationSearchParams } from "@/lib/projects/cat/cat-workspace-query-params";
-import type { CatQueueFilter } from "@/components/cat/queue/cat-queue-filter";
+import type { CatQueueFilter, CatQueueSort } from "@/components/cat/queue/cat-queue-filter";
 
 import { ProjectPageShell, useProjectPageQuery } from "../../_components/project-page-shell";
 import {
@@ -62,11 +64,7 @@ import {
   sortFilesByPath,
 } from "./project-files-tree-panel";
 import { projectFileCatPageContentMessages as messages } from "./project-file-cat-page-content.messages";
-import {
-  CatFileTreePicker,
-  CatLocaleSelect,
-  CatRepositorySelect,
-} from "../../_components/cat-header-pickers";
+import { CatFileTreePicker, CatLocaleSelect } from "../../_components/cat-header-pickers";
 
 type ProjectFileCatGithubRepository = {
   fullName: string;
@@ -87,6 +85,7 @@ export function ProjectFileCatPageContent({
   highlightLocale,
   initialSegmentKey = null,
   initialQueueFilter = "all",
+  initialQueueSort = "file_order",
   initialSearch = "",
   externalResourceId = null,
   resourceType = null,
@@ -101,6 +100,7 @@ export function ProjectFileCatPageContent({
   highlightLocale: string | null;
   initialSegmentKey?: string | null;
   initialQueueFilter?: CatQueueFilter;
+  initialQueueSort?: CatQueueSort;
   initialSearch?: string;
   externalResourceId?: string | null;
   resourceType?: "file" | "key" | null;
@@ -285,7 +285,7 @@ export function ProjectFileCatPageContent({
             <FormattedMessage {...messages.chooseSourceFile} />
           </TypographyP>
           <Button className="mt-4" variant="outline" size="sm" render={<Link href={filesHref} />}>
-            <ArrowLeftIcon />
+            <HugeiconsIcon icon={ArrowLeft01Icon} />
             <FormattedMessage {...messages.files} />
           </Button>
         </div>
@@ -318,7 +318,7 @@ export function ProjectFileCatPageContent({
                 : intl.formatMessage(messages.unableToLoad)}
           </TypographyP>
           <Button className="mt-4" variant="outline" size="sm" render={<Link href={filesHref} />}>
-            <ArrowLeftIcon />
+            <HugeiconsIcon icon={ArrowLeft01Icon} />
             <FormattedMessage {...messages.files} />
           </Button>
         </div>
@@ -347,7 +347,7 @@ export function ProjectFileCatPageContent({
             <FormattedMessage {...messages.sourceFileMissing} />
           </TypographyP>
           <Button className="mt-4" variant="outline" size="sm" render={<Link href={filesHref} />}>
-            <ArrowLeftIcon />
+            <HugeiconsIcon icon={ArrowLeft01Icon} />
             <FormattedMessage {...messages.files} />
           </Button>
         </div>
@@ -363,7 +363,7 @@ export function ProjectFileCatPageContent({
             <FormattedMessage {...messages.providerTypeUnsupported} />
           </TypographyP>
           <Button className="mt-4" variant="outline" size="sm" render={<Link href={filesHref} />}>
-            <ArrowLeftIcon />
+            <HugeiconsIcon icon={ArrowLeft01Icon} />
             <FormattedMessage {...messages.files} />
           </Button>
         </div>
@@ -415,7 +415,7 @@ export function ProjectFileCatPageContent({
             <FormattedMessage {...messages.chooseTargetLocale} />
           </TypographyP>
           <Button className="mt-4" variant="outline" size="sm" render={<Link href={filesHref} />}>
-            <ArrowLeftIcon />
+            <HugeiconsIcon icon={ArrowLeft01Icon} />
             <FormattedMessage {...messages.files} />
           </Button>
         </div>
@@ -459,27 +459,39 @@ export function ProjectFileCatPageContent({
       return;
     }
 
-    const href = buildProjectFileCatHref(
-      organizationSlug,
-      projectId,
+    const nextLocale = resolveProjectFileCatTargetLocale(
       nextFile,
       targetLocale ?? highlightLocale,
-      branch,
       projectTargetLocales,
     );
-    if (href) {
-      router.push(href);
-    }
+    const params = buildCatNavigationSearchParams(window.location.search, {
+      sourcePath: nextFile.sourcePath,
+      locale: nextLocale,
+      externalResourceId: nextFile.provider?.externalResourceId ?? null,
+      resourceType:
+        nextFile.provider?.resourceType && nextFile.provider.resourceType !== "file"
+          ? nextFile.provider.resourceType
+          : null,
+      branch,
+      segment: null,
+    });
+    router.push(
+      `/org/${organizationSlug}/projects/${encodeURIComponent(projectId)}/files/cat?${params.toString()}`,
+    );
   };
 
   const handleSelectAllFiles = () => {
-    const href = buildProjectFileCatAllFilesHref(
-      organizationSlug,
-      projectId,
-      targetLocale ?? highlightLocale,
-      { branch, basePath: "strings" },
+    const params = buildCatNavigationSearchParams(window.location.search, {
+      sourcePath: CAT_ALL_FILES_SOURCE_PATH,
+      locale: targetLocale ?? highlightLocale,
+      externalResourceId: null,
+      resourceType: null,
+      branch,
+      segment: null,
+    });
+    router.push(
+      `/org/${organizationSlug}/projects/${encodeURIComponent(projectId)}/strings?${params.toString()}`,
     );
-    router.push(href);
   };
 
   const handleRepositoryChange = (nextRepositoryFullName: string) => {
@@ -533,56 +545,41 @@ export function ProjectFileCatPageContent({
   return (
     <main className="-mx-4 -my-5 flex h-[var(--app-shell-content-height)] min-h-0 flex-col overflow-hidden bg-background sm:-mx-6 lg:-mx-8">
       <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-border px-3 py-2 sm:px-4 lg:px-6">
-        <Button
-          variant="outline"
-          size="icon-sm"
-          className="size-8 shrink-0"
-          render={<Link href={filesHref} />}
-        >
-          <ArrowLeftIcon className="size-4" />
-        </Button>
+        <div className="flex min-w-0 shrink-0 items-center gap-2">
+          <Button
+            variant="outline"
+            size="icon-sm"
+            className="size-8 shrink-0"
+            render={<Link href={filesHref} />}
+          >
+            <HugeiconsIcon icon={ArrowLeft01Icon} className="size-4" />
+          </Button>
 
-        {catFiles.length > 0 || allFiles ? (
-          <CatFileTreePicker
-            files={catFiles}
-            selectedSourcePath={sourcePath ?? ""}
-            onSelectFile={handleFileChange}
-            allFilesSelected={allFiles}
-            onSelectAllFiles={canUseAllFiles ? handleSelectAllFiles : undefined}
-          />
-        ) : (
-          <TypographyP className="min-w-0 truncate font-mono text-xs text-muted-foreground">
-            {sourcePath}
-          </TypographyP>
-        )}
-
-        {enabledRepositoryFullNames.length > 0 ? (
-          <CatRepositorySelect
-            repositoryFullNames={enabledRepositoryFullNames}
-            selectedRepositoryFullName={selectedRepositoryFullName}
-            onRepositoryChange={handleRepositoryChange}
-          />
-        ) : null}
-
-        {workspaceTargetLocales.length > 0 ? (
-          <CatLocaleSelect
-            targetLocales={workspaceTargetLocales}
-            selectedTargetLocale={targetLocale}
-            onTargetLocaleChange={handleLocaleChange}
-          />
-        ) : null}
-
-        {file?.provider ? (
-          <TypographyP className="hidden min-w-0 truncate text-xs text-muted-foreground sm:block lg:max-w-48">
-            <FormattedMessage
-              {...messages.providerKindAndFormat}
-              values={{
-                kind: file.provider.kind,
-                format: file.provider.format ?? intl.formatMessage(messages.providerFormatFallback),
-              }}
+          {catFiles.length > 0 || allFiles ? (
+            <CatFileTreePicker
+              files={catFiles}
+              selectedSourcePath={sourcePath ?? ""}
+              onSelectFile={handleFileChange}
+              allFilesSelected={allFiles}
+              onSelectAllFiles={canUseAllFiles ? handleSelectAllFiles : undefined}
+              repositoryFullNames={enabledRepositoryFullNames}
+              selectedRepositoryFullName={selectedRepositoryFullName}
+              onRepositoryChange={handleRepositoryChange}
             />
-          </TypographyP>
-        ) : null}
+          ) : (
+            <TypographyP className="max-w-44 truncate font-mono text-xs text-muted-foreground">
+              {sourcePath}
+            </TypographyP>
+          )}
+
+          {workspaceTargetLocales.length > 0 ? (
+            <CatLocaleSelect
+              targetLocales={workspaceTargetLocales}
+              selectedTargetLocale={targetLocale}
+              onTargetLocaleChange={handleLocaleChange}
+            />
+          ) : null}
+        </div>
 
         <CatQueueToolbarHost />
       </div>
@@ -629,6 +626,7 @@ export function ProjectFileCatPageContent({
           )}
           initialSegmentKey={initialSegmentKey}
           initialQueueFilter={initialQueueFilter}
+          initialQueueSort={initialQueueSort}
           initialSearch={initialSearch}
           sourcePathsFilter={sourcePaths}
           layout="fullscreen"
