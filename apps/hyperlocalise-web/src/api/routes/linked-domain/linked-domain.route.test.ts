@@ -322,6 +322,80 @@ describe("linkedDomainRoutes", () => {
     await db.delete(schema.localisationAudits).where(eq(schema.localisationAudits.id, audit.id));
   });
 
+  it("fails verify when another workspace wins the domain mid-challenge", async () => {
+    const challenger = fixture.createWorkosIdentityWithRole("admin");
+    const winner = fixture.createWorkosIdentityWithRole("admin");
+    const challengerHeaders = await fixture.authHeadersFor(challenger);
+    const challengerSlug = challenger.organization.slug ?? "missing-slug";
+    const domainKey = `race-${crypto.randomUUID().slice(0, 8)}.example`;
+    const audit = await insertSucceededAudit(domainKey);
+
+    const createChallenger = await client.api.orgs[":organizationSlug"]["linked-domains"].$post(
+      {
+        param: { organizationSlug: challengerSlug },
+        json: { domainSlug: audit.domainSlug },
+      },
+      { headers: challengerHeaders },
+    );
+    expect(createChallenger.status).toBe(201);
+    const challengerClaim = await createChallenger.json();
+    if (!("linkedDomain" in challengerClaim)) {
+      throw new Error("expected linkedDomain in create response");
+    }
+
+    // Resolve winner auth so local org/user ids exist, then insert a verified
+    // claim during the challenger's challenge check to exercise the in-tx race path.
+    await fixture.authHeadersFor(winner);
+    const winnerOrganizationId = globalThis.__testApiAuthContext?.organization.localOrganizationId;
+    const winnerUserId = globalThis.__testApiAuthContext?.user.localUserId;
+    expect(winnerOrganizationId).toBeTruthy();
+    expect(winnerUserId).toBeTruthy();
+
+    mocks.verifyLinkedDomainChallengeMock.mockImplementation(async () => {
+      await db.insert(schema.linkedDomains).values({
+        organizationId: winnerOrganizationId!,
+        createdByUserId: winnerUserId!,
+        domainKey,
+        domainSlug: audit.domainSlug,
+        sourceUrl: audit.sourceUrl,
+        status: "verified",
+        verificationToken: `winner_${crypto.randomUUID()}`,
+        verifiedMethod: "dns_txt",
+        verifiedAt: new Date(),
+        localisationAuditId: audit.id,
+      });
+      return ok({ method: "dns_txt" as const });
+    });
+
+    const verifyResponse = await client.api.orgs[":organizationSlug"]["linked-domains"][
+      ":linkedDomainId"
+    ].verify.$post(
+      {
+        param: {
+          organizationSlug: challengerSlug,
+          linkedDomainId: challengerClaim.linkedDomain.id,
+        },
+        json: { method: "dns_txt", createProject: true },
+      },
+      { headers: challengerHeaders },
+    );
+    expect(verifyResponse.status).toBe(409);
+    const body = await verifyResponse.json();
+    if (!("error" in body)) {
+      throw new Error("expected error in race verify response");
+    }
+    expect(body.error).toBe("domain_already_claimed");
+
+    const [challengerRow] = await db
+      .select({ status: schema.linkedDomains.status })
+      .from(schema.linkedDomains)
+      .where(eq(schema.linkedDomains.id, challengerClaim.linkedDomain.id))
+      .limit(1);
+    expect(challengerRow?.status).not.toBe("verified");
+
+    await db.delete(schema.localisationAudits).where(eq(schema.localisationAudits.id, audit.id));
+  });
+
   it("attaches a verified domain to an existing project", async () => {
     const identity = fixture.createWorkosIdentityWithRole("admin");
     const headers = await fixture.authHeadersFor(identity);

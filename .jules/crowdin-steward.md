@@ -1,5 +1,11 @@
 # Crowdin Steward's Journal
 
+## 2026-12-30 - Add FileID/MaxLen parity and fix root upload validation in SourceStringsUploadRequest
+
+**Learning:** In Crowdin API v2, uploading source strings (`POST /api/v2/projects/{projectId}/strings/uploads`) accepts optional `fileId` and `maxLen` parameters in the request body. Furthermore, `branchId`, `directoryId`, and `fileId` are all optional (uploading without any targets the project root) but mutually exclusive. The SDK's `SourceStringsUploadRequest` previously lacked `FileID` and `MaxLen`, and its `Validate()` method incorrectly enforced that `branchId` or `directoryId` be non-zero, rejecting valid uploads targeting a `fileId` or uploading to the project root.
+
+**Action:** Added `FileID int json:"fileId,omitempty"` and `MaxLen int json:"maxLen,omitempty"` to `SourceStringsUploadRequest` in `crowdin/model/source_strings.go`. Updated `Validate()` to make target identifiers optional while enforcing mutual exclusivity (at most one of `branchId`, `directoryId`, or `fileId` set). Added comprehensive unit and contract tests in `crowdin/model/source_strings_test.go` and `crowdin/source_strings_test.go`.
+
 ## 2026-12-29 - Add Force option to InstallApplicationRequest
 
 **Learning:** In Crowdin API v2, installing applications (`POST /api/v2/applications/installations`) supports an optional `force` boolean flag (`force: true`) to force re-installing an application if it is already installed. The SDK previously omitted `Force` from `InstallApplicationRequest`, preventing callers from specifying force installation behavior.

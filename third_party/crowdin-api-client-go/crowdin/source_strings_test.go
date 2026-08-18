@@ -979,14 +979,15 @@ func TestSourceStringsService_UploadWithRequiredFields(t *testing.T) {
 	defer teardown()
 
 	mux.HandleFunc("/api/v2/projects/2/strings/uploads", func(w http.ResponseWriter, r *http.Request) {
-		testBody(t, r, `{"storageId":61,"branchId":34}`+"\n")
+		testBody(t, r, `{"storageId":61,"fileId":48,"maxLen":100}`+"\n")
 
 		fmt.Fprint(w, `{}`)
 	})
 
 	_, _, err := client.SourceStrings.Upload(context.Background(), 2, &model.SourceStringsUploadRequest{
 		StorageID: 61,
-		BranchID:  34,
+		FileID:    48,
+		MaxLen:    100,
 	})
 	if err != nil {
 		t.Errorf("SourceStrings.Upload returned error: %v", err)
@@ -1004,8 +1005,8 @@ func TestSourceStringsService_UploadWithValidationError(t *testing.T) {
 	}{
 		{"nil request", nil, "request cannot be nil"},
 		{"empty storageId", &model.SourceStringsUploadRequest{BranchID: 34}, "storageId is required"},
-		{"empty branchId and directoryId", &model.SourceStringsUploadRequest{StorageID: 61}, "branchId or directoryId is required"},
-		{"both branchId and directoryId", &model.SourceStringsUploadRequest{StorageID: 61, BranchID: 34, DirectoryID: 12}, "only one of branchId or directoryId may be set"},
+		{"both branchId and directoryId", &model.SourceStringsUploadRequest{StorageID: 61, BranchID: 34, DirectoryID: 12}, "only one of branchId, directoryId or fileId may be set"},
+		{"both branchId and fileId", &model.SourceStringsUploadRequest{StorageID: 61, BranchID: 34, FileID: 48}, "only one of branchId, directoryId or fileId may be set"},
 		{"misconfigured updateStrings for non-empty updateOption", &model.SourceStringsUploadRequest{BranchID: 34, StorageID: 61, UpdateStrings: ToPtr(false), UpdateOption: model.UpdateOptionClearTranslationsAndApprovals}, "updateStrings must be set to true to use updateOption"},
 		{"nil updateStrings for non-empty updateOption", &model.SourceStringsUploadRequest{BranchID: 34, StorageID: 61, UpdateStrings: nil, UpdateOption: model.UpdateOptionClearTranslationsAndApprovals}, "updateStrings must be set to true to use updateOption"},
 	}

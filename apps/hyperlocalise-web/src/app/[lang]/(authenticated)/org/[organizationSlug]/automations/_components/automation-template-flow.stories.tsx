@@ -85,3 +85,17 @@ export const ScheduledSummary: Story = {
     await expect(canvas.getByLabelText("Daily → GitHub → Slack")).toBeInTheDocument();
   },
 };
+
+export const DailyCodeReview: Story = {
+  ...templateStory("review-code-daily"),
+  play: async ({ canvas }) => {
+    await expect(canvas.getByLabelText("Daily → GitHub → Slack")).toBeInTheDocument();
+  },
+};
+
+export const DailyWebResearch: Story = {
+  ...templateStory("daily-web-research"),
+  play: async ({ canvas }) => {
+    await expect(canvas.getByLabelText("Daily → Slack → Web Search")).toBeInTheDocument();
+  },
+};

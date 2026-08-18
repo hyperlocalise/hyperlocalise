@@ -11,10 +11,12 @@
  * Version 2.0 or later.
  */
 import {
+  applyTemplateToWorkspaceAutomationFormState,
   createDefaultWorkspaceAutomationFormState,
   createWorkspaceAutomationFormStateFromRecord,
   createWorkspaceAutomationFormStateFromTemplate,
 } from "@/lib/agents/workspace-automation-view-model";
+import { getWorkspaceAutomationTemplate } from "@/lib/agents/workspace-automation-templates";
 import type { WorkspaceAutomationRunRecord } from "@/lib/agents/workspace-automations";
 
 import { createAutomationSummary } from "./automations.fixture";
@@ -121,12 +123,15 @@ export const automationRunsFixture: WorkspaceAutomationRunRecord[] = [
 export const createEmptyAutomationFormFixture = () => createDefaultWorkspaceAutomationFormState();
 
 export const createGithubAutomationFormFixture = () => {
-  const form = createWorkspaceAutomationFormStateFromTemplate("validate-localisation-on-push");
-  if (!form) {
+  const template = getWorkspaceAutomationTemplate("validate-localisation-on-push");
+  if (!template) {
     throw new Error("validate-localisation-on-push template is missing");
   }
 
-  return form;
+  return applyTemplateToWorkspaceAutomationFormState(
+    createDefaultWorkspaceAutomationFormState(),
+    template,
+  );
 };
 
 export const createContentfulAutomationFormFixture = () => {
