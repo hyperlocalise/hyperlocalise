@@ -52,6 +52,7 @@ import {
 } from "./select-job-cat-repository";
 import { jobCatPageContentMessages } from "./job-cat-page-content.messages";
 import { ProjectFileCatWorkspace } from "@/components/cat/project-file/project-file-cat-workspace";
+import { CatQueueToolbarHost } from "@/components/cat/queue/cat-queue-toolbar-host";
 import {
   attemptCatPageNavigation,
   type CatPageNavigationGuardRef,
@@ -618,6 +619,8 @@ export function JobCatPageContent({
               onTargetLocaleChange={handleAllFilesLocaleChange}
             />
           ) : null}
+
+          <CatQueueToolbarHost />
         </div>
 
         {repositoryBanner}
@@ -794,6 +797,8 @@ export function JobCatPageContent({
               onRepositoryChange={handleRepositoryChange}
             />
           ) : null}
+
+          <CatQueueToolbarHost />
         </div>
 
         {repositoryBanner}
@@ -942,6 +947,8 @@ export function JobCatPageContent({
               intl.formatMessage(jobCatPageContentMessages.fileFormatFallback),
           })}
         </TypographyP>
+
+        <CatQueueToolbarHost />
       </div>
 
       {repositoryBanner}

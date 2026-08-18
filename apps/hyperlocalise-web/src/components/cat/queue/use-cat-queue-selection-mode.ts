@@ -1,5 +1,3 @@
-"use client";
-
 /*
  * Copyright (c) 2026 Hyperlocalise Pty Ltd
  *
@@ -12,11 +10,14 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { useCallback, useState } from "react";
 
 const STORAGE_KEY = "cat-queue:selection-mode:v1";
 
-function readSelectionModePreference() {
+export function readCatQueueSelectionModePreference() {
+  if (typeof window === "undefined") {
+    return false;
+  }
+
   try {
     return localStorage.getItem(STORAGE_KEY) === "true";
   } catch {
@@ -24,19 +25,10 @@ function readSelectionModePreference() {
   }
 }
 
-export function useCatQueueSelectionMode() {
-  const [selectionMode, setSelectionMode] = useState(() =>
-    typeof window !== "undefined" ? readSelectionModePreference() : false,
-  );
-
-  const setSelectionModePersisted = useCallback((value: boolean) => {
-    setSelectionMode(value);
-    try {
-      localStorage.setItem(STORAGE_KEY, String(value));
-    } catch {
-      // Ignore storage failures in private browsing or restricted contexts.
-    }
-  }, []);
-
-  return [selectionMode, setSelectionModePersisted] as const;
+export function writeCatQueueSelectionModePreference(value: boolean) {
+  try {
+    localStorage.setItem(STORAGE_KEY, String(value));
+  } catch {
+    // Ignore storage failures in private browsing or restricted contexts.
+  }
 }

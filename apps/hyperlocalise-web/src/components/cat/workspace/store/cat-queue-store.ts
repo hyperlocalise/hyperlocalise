@@ -13,11 +13,17 @@
 import { makeAutoObservable } from "mobx";
 
 import type { CatQueueFilter } from "@/components/cat/queue/cat-queue-filter";
+import {
+  readCatQueueSelectionModePreference,
+  writeCatQueueSelectionModePreference,
+} from "@/components/cat/queue/use-cat-queue-selection-mode";
 import type { CatQueueSegment } from "@/components/cat/shared/types";
 
 export class CatQueueStore {
   selectedSegmentId = "";
   filter: CatQueueFilter = "all";
+  search = "";
+  selectionMode = readCatQueueSelectionModePreference();
   checkedSegmentIds = new Set<string>();
   segmentMeta = new Map<string, CatQueueSegment>();
 
@@ -53,6 +59,18 @@ export class CatQueueStore {
   setFilter(filter: CatQueueFilter) {
     this.filter = filter;
     this.clearChecked();
+  }
+
+  setSearch(search: string) {
+    this.search = search;
+  }
+
+  setSelectionMode(enabled: boolean) {
+    this.selectionMode = enabled;
+    writeCatQueueSelectionModePreference(enabled);
+    if (!enabled) {
+      this.clearChecked();
+    }
   }
 
   toggleChecked(segmentId: string, checked: boolean) {

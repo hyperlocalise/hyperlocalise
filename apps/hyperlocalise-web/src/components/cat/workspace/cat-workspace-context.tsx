@@ -14,6 +14,7 @@
  */
 import { createContext, useContext, useMemo, type ReactNode } from "react";
 
+import type { CatQueueFilter } from "@/components/cat/queue/cat-queue-filter";
 import type { CatWorkspaceState } from "@/components/cat/shared/types";
 
 import {
@@ -29,18 +30,27 @@ export function CatWorkspaceProvider({
   initialState,
   initialSegmentKeyOrId,
   initialViewMode,
+  initialQueueFilter,
+  initialSearch,
   children,
 }: {
   initialState: CatWorkspaceState;
   initialSegmentKeyOrId?: string | null;
   initialViewMode?: CatWorkspaceViewMode;
+  initialQueueFilter?: CatQueueFilter;
+  initialSearch?: string;
   children: ReactNode;
 }) {
   const store = useMemo(
     () => {
-      const options: CreateCatWorkspaceOptions | undefined = initialViewMode
-        ? { initialViewMode }
-        : undefined;
+      const options: CreateCatWorkspaceOptions | undefined =
+        initialViewMode || initialQueueFilter || initialSearch
+          ? {
+              ...(initialViewMode ? { initialViewMode } : {}),
+              ...(initialQueueFilter ? { initialQueueFilter } : {}),
+              ...(initialSearch ? { initialSearch } : {}),
+            }
+          : undefined;
       return createCatWorkspace(initialState, initialSegmentKeyOrId, options);
     },
     // Store is scoped to workspace mount; parent key handles remounts.

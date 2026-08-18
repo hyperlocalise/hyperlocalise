@@ -654,7 +654,8 @@ export function ProjectFileCatWorkspace({
 
   const isFullscreen = layout === "fullscreen";
 
-  const isQueueLoading = isSearchPending || (catQuery.isLoading && !catFile);
+  const isQueueLoading =
+    isSearchPending || (catQuery.isLoading && !catFile) || catQuery.isPlaceholderData;
 
   if (catQuery.isLoading && !catFile) {
     return (

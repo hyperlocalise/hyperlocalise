@@ -136,8 +136,6 @@ export interface CatWorkspaceViewProps {
   dirtySegmentIds?: ReadonlySet<string>;
   className?: string;
   queueSearch?: string;
-  onQueueSearchChange?: (value: string) => void;
-  isQueueSearchPending?: boolean;
   isQueueFetchingPage?: boolean;
   isQueueLoading?: boolean;
   queuePagination?: {
@@ -153,24 +151,13 @@ export interface CatWorkspaceViewProps {
   isSegmentTargetLoading?: boolean;
   isImageBusy?: boolean;
   queueFilter?: CatQueueFilter;
-  onQueueFilterChange?: (filter: CatQueueFilter) => void;
-  availableQueueFilters?: CatQueueFilter[];
   checkedSegmentIds?: ReadonlySet<string>;
   onToggleSegmentChecked?: (segmentId: string, checked: boolean) => void;
-  onSelectAllVisible?: () => void;
-  onClearChecked?: () => void;
-  onBulkApprove?: () => void;
-  onBulkSkip?: () => void;
-  onBulkHide?: () => void;
-  onBulkUnhide?: () => void;
-  isBulkActionPending?: boolean;
   buildSegmentShareUrl?: (segment: CatSegment) => string | null;
   onIntelligencePanelVisible?: (segmentId: string) => void;
   organizationSlug?: string;
   projectId?: string;
   nativeIssuesEnabled?: boolean;
-  onDownloadFilteredView?: (format: "csv" | "tmx" | "xlf" | "xliff") => void;
-  isDownloadingFilteredView?: boolean;
 }
 
 export const noopCatDependencies: CatWorkspaceDependencies = {

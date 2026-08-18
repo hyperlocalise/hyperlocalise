@@ -33,9 +33,10 @@ import type {
   CatWorkspaceViewProps,
   PartialCatWorkspaceDependencies,
 } from "@/components/cat/shared/dependencies";
+import type { CatQueueFilter } from "@/components/cat/queue/cat-queue-filter";
+import { CatQueueToolbarConnected } from "@/components/cat/queue/cat-queue-toolbar-connected";
 import { catWorkspaceContainerMessages } from "@/components/cat/shared/cat.messages";
 import type { CatSegment, CatWorkspaceState } from "@/components/cat/shared/types";
-import type { CatQueueFilter } from "@/components/cat/queue/cat-queue-filter";
 
 import { CatQueryBridge } from "./bridge/cat-query-bridge";
 import { CatChatDockPageContextBridge } from "./cat-chat-dock-page-context-bridge";
@@ -137,6 +138,18 @@ const CatWorkspaceContainerObserver = observer(function CatWorkspaceContainerObs
     onLoadMoreQueue,
   });
 
+  useEffect(() => {
+    if (queueFilter !== undefined && store.queue.filter !== queueFilter) {
+      store.queue.setFilter(queueFilter);
+    }
+  }, [queueFilter, store]);
+
+  useEffect(() => {
+    if (queueSearch !== undefined && store.queue.search !== queueSearch) {
+      store.queue.setSearch(queueSearch);
+    }
+  }, [queueSearch, store]);
+
   return (
     <>
       <CatChatDockPageContextBridge projectId={lazySegment?.projectId} />
@@ -148,6 +161,23 @@ const CatWorkspaceContainerObserver = observer(function CatWorkspaceContainerObs
         initialSegmentKeyOrId={initialSegmentKeyOrId}
       />
       {lazySegment ? <CatWorkspaceLazySegmentSync {...lazySegment} /> : null}
+
+      <CatQueueToolbarConnected
+        onQueueSearchChange={onQueueSearchChange}
+        onQueueFilterChange={controller.handleQueueFilterChange}
+        availableQueueFilters={availableQueueFilters}
+        isSearching={isQueueSearchPending}
+        visibleCount={controller.queueSegments.length}
+        onSelectAllVisible={() =>
+          store.selectAllVisible(controller.queueSegments.map((segment) => segment.id))
+        }
+        onBulkApprove={() => void controller.handleBulkApprove()}
+        onBulkSkip={() => void controller.handleBulkSkip()}
+        onBulkHide={review?.onBulkHide ? () => void controller.handleBulkHide() : undefined}
+        onBulkUnhide={review?.onBulkUnhide ? () => void controller.handleBulkUnhide() : undefined}
+        onDownloadFilteredView={onDownloadFilteredView}
+        isDownloadingFilteredView={isDownloadingFilteredView}
+      />
 
       <CatPanelErrorBoundary
         scope="workspace"
@@ -187,8 +217,6 @@ const CatWorkspaceContainerObserver = observer(function CatWorkspaceContainerObs
           canUseAiRecommendation={controller.canUseAiRecommendation}
           className={className}
           queueSearch={queueSearch}
-          onQueueSearchChange={onQueueSearchChange}
-          isQueueSearchPending={isQueueSearchPending}
           isQueueFetchingPage={isQueueFetchingPage}
           isQueueLoading={isQueueLoading}
           isCommentsLoading={store.isCommentsLoading}
@@ -198,28 +226,15 @@ const CatWorkspaceContainerObserver = observer(function CatWorkspaceContainerObs
           hasMoreQueue={hasMoreQueue}
           onLoadMoreQueue={onLoadMoreQueue}
           queueFilter={controller.queueFilter}
-          onQueueFilterChange={controller.handleQueueFilterChange}
-          availableQueueFilters={availableQueueFilters}
           checkedSegmentIds={store.checkedSegmentIds}
           onToggleSegmentChecked={(segmentId, checked) =>
             store.toggleSegmentChecked(segmentId, checked)
           }
-          onSelectAllVisible={() =>
-            store.selectAllVisible(controller.queueSegments.map((segment) => segment.id))
-          }
-          onClearChecked={() => store.clearChecked()}
-          onBulkApprove={() => void controller.handleBulkApprove()}
-          onBulkSkip={() => void controller.handleBulkSkip()}
-          onBulkHide={review?.onBulkHide ? () => void controller.handleBulkHide() : undefined}
-          onBulkUnhide={review?.onBulkUnhide ? () => void controller.handleBulkUnhide() : undefined}
-          isBulkActionPending={store.isBulkActionPending}
           buildSegmentShareUrl={controller.resolvedBuildSegmentShareUrl}
           onIntelligencePanelVisible={controller.handleIntelligencePanelVisible}
           organizationSlug={lazySegment?.organizationSlug}
           projectId={lazySegment?.projectId}
           nativeIssuesEnabled={nativeIssuesEnabled}
-          onDownloadFilteredView={onDownloadFilteredView}
-          isDownloadingFilteredView={isDownloadingFilteredView}
         />
       </CatPanelErrorBoundary>
 
@@ -260,6 +275,8 @@ export function CatWorkspaceContainer({
   initialState,
   initialSegmentKeyOrId,
   initialViewMode,
+  queueFilter,
+  queueSearch,
   ...props
 }: CatWorkspaceContainerProps) {
   return (
@@ -267,11 +284,15 @@ export function CatWorkspaceContainer({
       initialState={initialState}
       initialSegmentKeyOrId={initialSegmentKeyOrId}
       initialViewMode={initialViewMode}
+      initialQueueFilter={queueFilter}
+      initialSearch={queueSearch}
     >
       <CatWorkspaceContainerInner
         initialState={initialState}
         initialSegmentKeyOrId={initialSegmentKeyOrId}
         initialViewMode={initialViewMode}
+        queueFilter={queueFilter}
+        queueSearch={queueSearch}
         {...props}
       />
     </CatWorkspaceProvider>

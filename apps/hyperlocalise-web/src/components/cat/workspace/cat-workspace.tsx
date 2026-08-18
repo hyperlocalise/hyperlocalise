@@ -83,8 +83,6 @@ export const CatWorkspaceView = observer(function CatWorkspaceView({
   dirtySegmentIds,
   className,
   queueSearch,
-  onQueueSearchChange,
-  isQueueSearchPending = false,
   isQueueFetchingPage = false,
   isQueueLoading = false,
   isCommentsLoading = false,
@@ -94,24 +92,13 @@ export const CatWorkspaceView = observer(function CatWorkspaceView({
   hasMoreQueue = false,
   onLoadMoreQueue,
   queueFilter,
-  onQueueFilterChange,
-  availableQueueFilters,
   checkedSegmentIds,
   onToggleSegmentChecked,
-  onSelectAllVisible,
-  onClearChecked,
-  onBulkApprove,
-  onBulkSkip,
-  onBulkHide,
-  onBulkUnhide,
-  isBulkActionPending = false,
   buildSegmentShareUrl,
   onIntelligencePanelVisible,
   organizationSlug,
   projectId,
   nativeIssuesEnabled = false,
-  onDownloadFilteredView,
-  isDownloadingFilteredView = false,
 }: CatWorkspaceViewProps) {
   const store = useCatWorkspace();
   const viewMode = store.ui.viewMode;
@@ -168,18 +155,13 @@ export const CatWorkspaceView = observer(function CatWorkspaceView({
             selectedSegmentId=""
             onSelectSegment={() => undefined}
             search={queueSearch}
-            onSearchChange={onQueueSearchChange}
-            isSearching={isQueueSearchPending}
             queueFilter={queueFilter}
-            onQueueFilterChange={onQueueFilterChange}
-            availableQueueFilters={availableQueueFilters}
+            showSelection={store.selectionMode}
             isFetchingPage={isQueueFetchingPage}
             isQueueLoading
             pagination={queuePagination}
             hasMoreQueue={hasMoreQueue}
             onLoadMoreQueue={onLoadMoreQueue}
-            onDownloadFilteredView={onDownloadFilteredView}
-            isDownloadingFilteredView={isDownloadingFilteredView}
           />
         </CatPanelErrorBoundary>
       </div>
@@ -200,27 +182,15 @@ export const CatWorkspaceView = observer(function CatWorkspaceView({
             selectedSegmentId=""
             onSelectSegment={dependencies.navigation.onSelectSegment}
             search={queueSearch}
-            onSearchChange={onQueueSearchChange}
-            isSearching={isQueueSearchPending}
             queueFilter={queueFilter}
-            onQueueFilterChange={onQueueFilterChange}
-            availableQueueFilters={availableQueueFilters}
             checkedSegmentIds={checkedSegmentIds}
             onToggleSegmentChecked={onToggleSegmentChecked}
-            onSelectAllVisible={onSelectAllVisible}
-            onClearChecked={onClearChecked}
-            onBulkApprove={onBulkApprove}
-            onBulkSkip={onBulkSkip}
-            onBulkHide={onBulkHide}
-            onBulkUnhide={onBulkUnhide}
-            isBulkActionPending={isBulkActionPending}
+            showSelection={store.selectionMode}
             isFetchingPage={isQueueFetchingPage}
             isQueueLoading={isQueueLoading}
             pagination={queuePagination}
             hasMoreQueue={hasMoreQueue}
             onLoadMoreQueue={onLoadMoreQueue}
-            onDownloadFilteredView={onDownloadFilteredView}
-            isDownloadingFilteredView={isDownloadingFilteredView}
           />
         </CatPanelErrorBoundary>
       </div>
@@ -357,18 +327,12 @@ export const CatWorkspaceView = observer(function CatWorkspaceView({
           showVisualContext={showVisualContext}
           canLookupFreshContext={canLookupContext}
           search={queueSearch}
-          onSearchChange={onQueueSearchChange}
-          isSearching={isQueueSearchPending}
           queueFilter={queueFilter}
-          onQueueFilterChange={onQueueFilterChange}
-          availableQueueFilters={availableQueueFilters}
           isFetchingPage={isQueueFetchingPage}
           isQueueLoading={isQueueLoading}
           pagination={queuePagination}
           hasMoreQueue={hasMoreQueue}
           onLoadMoreQueue={onLoadMoreQueue}
-          onDownloadFilteredView={onDownloadFilteredView}
-          isDownloadingFilteredView={isDownloadingFilteredView}
           onFocusSegment={dependencies.navigation.onSelectSegment}
           onTargetChange={(segmentId, value) => editing.onTargetChange(segmentId, value)}
           onApprove={(segmentId) => {
@@ -618,27 +582,15 @@ export const CatWorkspaceView = observer(function CatWorkspaceView({
             }
           }}
           search={queueSearch}
-          onSearchChange={onQueueSearchChange}
-          isSearching={isQueueSearchPending}
           queueFilter={queueFilter}
-          onQueueFilterChange={onQueueFilterChange}
-          availableQueueFilters={availableQueueFilters}
           checkedSegmentIds={checkedSegmentIds}
           onToggleSegmentChecked={onToggleSegmentChecked}
-          onSelectAllVisible={onSelectAllVisible}
-          onClearChecked={onClearChecked}
-          onBulkApprove={onBulkApprove}
-          onBulkSkip={onBulkSkip}
-          onBulkHide={onBulkHide}
-          onBulkUnhide={onBulkUnhide}
-          isBulkActionPending={isBulkActionPending}
+          showSelection={store.selectionMode}
           isFetchingPage={isQueueFetchingPage}
           isQueueLoading={isQueueLoading}
           pagination={queuePagination}
           hasMoreQueue={hasMoreQueue}
           onLoadMoreQueue={onLoadMoreQueue}
-          onDownloadFilteredView={onDownloadFilteredView}
-          isDownloadingFilteredView={isDownloadingFilteredView}
         />
       </CatPanelErrorBoundary>
     );

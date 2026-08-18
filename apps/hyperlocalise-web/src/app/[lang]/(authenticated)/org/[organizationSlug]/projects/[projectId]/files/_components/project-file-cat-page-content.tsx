@@ -23,6 +23,7 @@ import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { TypographyP } from "@/components/ui/typography";
 import { ProjectFileCatWorkspace } from "@/components/cat/project-file/project-file-cat-workspace";
+import { CatQueueToolbarHost } from "@/components/cat/queue/cat-queue-toolbar-host";
 import {
   attemptCatPageNavigation,
   type CatPageNavigationGuardRef,
@@ -582,6 +583,8 @@ export function ProjectFileCatPageContent({
             />
           </TypographyP>
         ) : null}
+
+        <CatQueueToolbarHost />
       </div>
 
       {(repositoriesQuery.isError ||

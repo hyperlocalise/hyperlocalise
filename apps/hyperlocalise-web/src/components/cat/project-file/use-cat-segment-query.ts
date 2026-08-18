@@ -12,7 +12,12 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { useInfiniteQuery, useQueryClient, type InfiniteData } from "@tanstack/react-query";
+import {
+  keepPreviousData,
+  useInfiniteQuery,
+  useQueryClient,
+  type InfiniteData,
+} from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useIntl } from "react-intl";
 
@@ -118,6 +123,7 @@ export function useCatSegmentQuery(input: {
   >({
     queryKey: baseQueryKey,
     enabled: input.enabled !== false && Boolean(input.targetLocale) && Boolean(input.sourcePath),
+    placeholderData: keepPreviousData,
     initialPageParam: { offset: 0 },
     getNextPageParam: (lastPage) => {
       const pagePagination = lastPage.pagination;

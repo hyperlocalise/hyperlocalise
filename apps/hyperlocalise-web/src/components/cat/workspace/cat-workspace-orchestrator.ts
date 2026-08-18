@@ -55,6 +55,8 @@ import {
 
 export type CreateCatWorkspaceOptions = {
   initialViewMode?: CatWorkspaceViewMode;
+  initialQueueFilter?: CatQueueFilter;
+  initialSearch?: string;
 };
 
 type UnsavedNavigationPrompt = {
@@ -212,6 +214,8 @@ export class CatWorkspaceOrchestrator {
 
   constructor(options?: CreateCatWorkspaceOptions) {
     this.ui = new CatWorkspaceUiStore(options?.initialViewMode);
+    this.queue.filter = options?.initialQueueFilter ?? "all";
+    this.queue.search = options?.initialSearch ?? "";
     makeAutoObservable(
       this,
       {
@@ -279,6 +283,18 @@ export class CatWorkspaceOrchestrator {
 
   set queueFilter(value: CatQueueFilter) {
     this.queue.filter = value;
+  }
+
+  get queueSearch() {
+    return this.queue.search;
+  }
+
+  set queueSearch(value: string) {
+    this.queue.search = value;
+  }
+
+  get selectionMode() {
+    return this.queue.selectionMode;
   }
 
   get checkedSegmentIds() {
@@ -1144,6 +1160,14 @@ export class CatWorkspaceOrchestrator {
     if (selectionWillChange) {
       this.setSelectedSegmentId(filtered[0]?.id ?? "");
     }
+  }
+
+  setQueueSearch(search: string) {
+    this.queue.setSearch(search);
+  }
+
+  setSelectionMode(enabled: boolean) {
+    this.queue.setSelectionMode(enabled);
   }
 
   attemptPageNavigation(proceed: () => void) {
