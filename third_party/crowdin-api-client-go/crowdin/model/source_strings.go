@@ -282,6 +282,9 @@ type SourceStringsUploadRequest struct {
 	// Directory Identifier.
 	// Defines directory to which file will be added.
 	DirectoryID int `json:"directoryId,omitempty"`
+	// File Identifier.
+	// Defines file to which strings will be added.
+	FileID int `json:"fileId,omitempty"`
 	// Default: auto
 	// Enum: auto, android, macosx, arb, csv, json, xlsx, xliff, xliff_two
 	// - empty value or `auto` — Try to detect file type by extension or MIME type
@@ -310,6 +313,8 @@ type SourceStringsUploadRequest struct {
 	// Enum: "clear_translations_and_approvals" "keep_translations" "keep_translations_and_approvals"
 	// Must be used together with updateStrings = true
 	UpdateOption UpdateOption `json:"updateOption,omitempty"`
+	// Max. length of translated text (0 – unlimited).
+	MaxLen int `json:"maxLen,omitempty"`
 }
 
 // SourceStringsImportOptions defines the options for importing strings.
@@ -333,11 +338,18 @@ func (o *SourceStringsUploadRequest) Validate() error {
 	if o.StorageID == 0 {
 		return errors.New("storageId is required")
 	}
-	if o.BranchID == 0 && o.DirectoryID == 0 {
-		return errors.New("branchId or directoryId is required")
+	count := 0
+	if o.BranchID > 0 {
+		count++
 	}
-	if o.BranchID != 0 && o.DirectoryID != 0 {
-		return errors.New("only one of branchId or directoryId may be set")
+	if o.DirectoryID > 0 {
+		count++
+	}
+	if o.FileID > 0 {
+		count++
+	}
+	if count > 1 {
+		return errors.New("only one of branchId, directoryId or fileId may be set")
 	}
 	if o.UpdateOption != "" && (o.UpdateStrings == nil || !(*o.UpdateStrings)) {
 		return errors.New("updateStrings must be set to true to use updateOption")
