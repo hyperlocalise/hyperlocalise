@@ -1,11 +1,19 @@
 package translationfileparser
 
 import (
+	"bytes"
 	"fmt"
 	"strconv"
 	"strings"
 	"unicode/utf8"
 )
+
+const (
+	poParseMapMinCapacity = 4
+	poParseMapMaxCapacity = 1 << 16
+)
+
+var poMsgIDFieldPrefix = []byte("msgid ")
 
 // POFileParser parses GNU gettext .po translation files.
 type POFileParser struct{}
@@ -46,8 +54,22 @@ func (v *poValue) Reset() {
 	}
 }
 
+func poOutputMapCapacity(content []byte) int {
+	// Count msgid field markers instead of using raw byte length. Comment-heavy
+	// or long-msgstr files can be huge while containing only a few map entries.
+	n := bytes.Count(content, poMsgIDFieldPrefix)
+	switch {
+	case n < poParseMapMinCapacity:
+		return poParseMapMinCapacity
+	case n > poParseMapMaxCapacity:
+		return poParseMapMaxCapacity
+	default:
+		return n
+	}
+}
+
 func (p POFileParser) Parse(content []byte) (map[string]string, error) {
-	out := make(map[string]string, len(content)/40)
+	out := make(map[string]string, poOutputMapCapacity(content))
 
 	var currentMsgID poValue
 	var currentMsgStr poValue
