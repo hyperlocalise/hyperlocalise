@@ -32,9 +32,9 @@ describe("workspace template manifest", () => {
       activatable: true,
     });
     expect(validateTemplate?.description).toBe(
-      "Validate localisation on every push to protected branches. Run repository checks and optional agent review when validation is enabled.",
+      "Check localisation changes on every push and notify the team when blockers are found.",
     );
-    expect(validateTemplate?.instructions).toContain("protected branches");
+    expect(validateTemplate?.instructions).toContain("You are a localisation quality reviewer");
   });
 
   it("merges translate-on-source-upload skill onto the gallery template", () => {
@@ -54,7 +54,7 @@ describe("workspace template manifest", () => {
       },
     });
     expect(template?.description).toContain("native translation job");
-    expect(template?.instructions).toContain("Translate with agent");
+    expect(template?.instructions).toContain("You are a native TMS intake agent");
   });
 
   it("reads executor agent and category from skill frontmatter", () => {
@@ -81,6 +81,25 @@ describe("workspace template manifest", () => {
       }),
     });
     expect(template?.description).toContain("GitHub repository");
-    expect(template?.instructions).toContain("daily engineering digest");
+    expect(template?.instructions).toContain("You are a daily engineering briefing agent");
+  });
+
+  it("merges daily code-review and web-research skills onto gallery templates", () => {
+    const merged = mergeWorkspaceTemplateSkills(WORKSPACE_AUTOMATION_TEMPLATES_BASE);
+    const review = merged.find((entry) => entry.id === "review-code-daily");
+    const research = merged.find((entry) => entry.id === "daily-web-research");
+
+    expect(review).toMatchObject({
+      name: "Review code daily",
+      category: "popular",
+      activatable: true,
+    });
+    expect(review?.instructions).toContain("You are a staff code reviewer");
+    expect(research).toMatchObject({
+      name: "Daily web research",
+      category: "popular",
+      activatable: true,
+    });
+    expect(research?.instructions).toContain("You are a localisation research analyst");
   });
 });

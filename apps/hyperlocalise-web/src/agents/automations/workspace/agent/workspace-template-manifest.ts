@@ -35,10 +35,12 @@ export function mergeWorkspaceTemplateSkills(
       category,
       name: skill.frontmatter.name || template.name,
       description:
+        skill.frontmatter.description?.trim() ||
         skill.body
           .split("\n")
           .find((line) => line.trim().length > 0)
-          ?.trim() ?? template.description,
+          ?.trim() ||
+        template.description,
       instructions: skill.body.trim() || template.instructions,
       activatable: skill.frontmatter.activatable !== "false" ? template.activatable : false,
     };

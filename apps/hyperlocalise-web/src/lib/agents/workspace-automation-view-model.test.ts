@@ -50,7 +50,7 @@ describe("workspace automation view model", () => {
       validationEnabled: true,
       slackEnabled: true,
     });
-    expect(form?.instructions).toContain("protected branches");
+    expect(form?.instructions).toContain("You are a localisation quality reviewer");
   });
 
   it("does not prefill coming-soon templates", () => {
@@ -189,7 +189,7 @@ describe("workspace automation view model", () => {
       contentfulRunQa: true,
       contentfulWriteDrafts: true,
     });
-    expect(form?.instructions).toContain("Contentful help center article");
+    expect(form?.instructions).toContain("You are a Contentful localisation editor");
   });
 
   it("prefills the summarize changes daily template", () => {
@@ -209,7 +209,54 @@ describe("workspace automation view model", () => {
       pullTranslationsEnabled: false,
       validationEnabled: false,
     });
-    expect(form?.instructions).toContain("daily engineering digest");
+    expect(form?.instructions).toContain("You are a daily engineering briefing agent");
+  });
+
+  it("prefills the daily code-review template", () => {
+    const form = createWorkspaceAutomationFormStateFromTemplate(
+      "review-code-daily",
+      mergedTemplates,
+    );
+
+    expect(form).toMatchObject({
+      name: "Review code daily",
+      triggerMode: "scheduled",
+      scheduledCadence: "daily",
+      githubEnabled: true,
+      githubMode: "agent",
+      slackEnabled: true,
+      webSearchEnabled: false,
+    });
+    expect(form?.instructions).toContain("You are a staff code reviewer");
+    expect(
+      validateWorkspaceAutomationFormState({
+        ...form!,
+        githubInstallationRepositoryId: "11111111-1111-4111-8111-111111111111",
+        slackChannelId: "C123",
+      }),
+    ).toEqual({});
+  });
+
+  it("prefills the daily web-research template", () => {
+    const form = createWorkspaceAutomationFormStateFromTemplate(
+      "daily-web-research",
+      mergedTemplates,
+    );
+
+    expect(form).toMatchObject({
+      name: "Daily web research",
+      triggerMode: "scheduled",
+      scheduledCadence: "daily",
+      webSearchEnabled: true,
+      webSearchProvider: "auto",
+      slackEnabled: true,
+      githubEnabled: false,
+    });
+    expect(form?.instructions).toContain("You are a localisation research analyst");
+    expect(formStateToWorkspaceAutomationPayload(form!).toolConfig.webSearch).toEqual({
+      enabled: true,
+      provider: "auto",
+    });
   });
 
   it("validates GitHub agent mode without a Hyperlocalise project", () => {
