@@ -385,6 +385,248 @@ describe("Organization issues bulk actions", () => {
       error: "invalid_issue_bulk_action",
     });
   });
+
+  it("dedupes duplicate bulk targets and covers assign, priority, and issue type", async () => {
+    const { identity, project, user } = await projectFixture.createStoredProjectFixture();
+    const headers = await projectFixture.authHeadersFor(identity);
+    const organizationSlug = identity.organization.slug ?? "missing-slug";
+
+    const createResponse = await requestJson(issueSheetUrl(organizationSlug, project.id), {
+      method: "POST",
+      headers,
+      body: {
+        title: "Bulk multi-field",
+        issueType: "general_question",
+        status: "open",
+        priority: "P2",
+      },
+    });
+    expect(createResponse.status).toBe(201);
+    const created = (await createResponse.json()) as {
+      issue: { id: string; values?: { priority?: string } };
+    };
+    expect(created.issue.values?.priority).toBe("P2");
+
+    const target = { projectId: project.id, issueId: created.issue.id };
+
+    const assignResponse = await requestJson(organizationIssuesBulkUrl(organizationSlug), {
+      method: "POST",
+      headers,
+      body: {
+        action: "assign",
+        assigneeUserId: user.id,
+        issues: [target, target],
+      },
+    });
+    expect(assignResponse.status).toBe(200);
+    const assignBody = (await assignResponse.json()) as {
+      bulkAction: {
+        requested: number;
+        succeeded: number;
+        results: Array<{ outcome: string; issue?: { assigneeUserId: string | null } }>;
+      };
+    };
+    expect(assignBody.bulkAction.requested).toBe(1);
+    expect(assignBody.bulkAction.succeeded).toBe(1);
+    expect(assignBody.bulkAction.results).toHaveLength(1);
+    expect(assignBody.bulkAction.results[0]?.issue?.assigneeUserId).toBe(user.id);
+
+    const priorityResponse = await requestJson(organizationIssuesBulkUrl(organizationSlug), {
+      method: "POST",
+      headers,
+      body: {
+        action: "set_priority",
+        priority: "P0",
+        issues: [target],
+      },
+    });
+    expect(priorityResponse.status).toBe(200);
+    const priorityBody = (await priorityResponse.json()) as {
+      bulkAction: {
+        succeeded: number;
+        unchanged: number;
+        results: Array<{ outcome: string; issue?: { values?: { priority?: string } } }>;
+      };
+    };
+    expect(priorityBody.bulkAction.succeeded).toBe(1);
+    expect(priorityBody.bulkAction.results[0]?.issue?.values?.priority).toBe("P0");
+
+    const priorityUnchanged = await requestJson(organizationIssuesBulkUrl(organizationSlug), {
+      method: "POST",
+      headers,
+      body: {
+        action: "set_priority",
+        priority: "P0",
+        issues: [target],
+      },
+    });
+    expect(priorityUnchanged.status).toBe(200);
+    const priorityUnchangedBody = (await priorityUnchanged.json()) as {
+      bulkAction: { unchanged: number; succeeded: number };
+    };
+    expect(priorityUnchangedBody.bulkAction.unchanged).toBe(1);
+    expect(priorityUnchangedBody.bulkAction.succeeded).toBe(0);
+
+    const issueTypeResponse = await requestJson(organizationIssuesBulkUrl(organizationSlug), {
+      method: "POST",
+      headers,
+      body: {
+        action: "set_issue_type",
+        issueType: "qa_failure",
+        issues: [target],
+      },
+    });
+    expect(issueTypeResponse.status).toBe(200);
+    const issueTypeBody = (await issueTypeResponse.json()) as {
+      bulkAction: {
+        succeeded: number;
+        results: Array<{ outcome: string; issue?: { issueType: string } }>;
+      };
+    };
+    expect(issueTypeBody.bulkAction.succeeded).toBe(1);
+    expect(issueTypeBody.bulkAction.results[0]?.issue?.issueType).toBe("qa_failure");
+
+    const feedResponse = await requestJson(
+      `${issueSheetUrl(organizationSlug, project.id)}/${created.issue.id}/feed`,
+      { headers },
+    );
+    expect(feedResponse.status).toBe(200);
+    const feedBody = (await feedResponse.json()) as {
+      items: Array<
+        | {
+            kind: "activity";
+            activity: {
+              type: string;
+              previousPriority?: string | null;
+              nextPriority?: string;
+              previousIssueType?: string;
+              nextIssueType?: string;
+            };
+          }
+        | { kind: "comment_thread" }
+      >;
+    };
+    const activityTypes = feedBody.items
+      .filter((item): item is Extract<(typeof feedBody.items)[number], { kind: "activity" }> => {
+        return item.kind === "activity";
+      })
+      .map((item) => item.activity.type);
+    expect(activityTypes).toContain("priority_changed");
+    expect(activityTypes).toContain("issue_type_changed");
+    expect(activityTypes).toContain("assignee_changed");
+
+    const unassignResponse = await requestJson(organizationIssuesBulkUrl(organizationSlug), {
+      method: "POST",
+      headers,
+      body: {
+        action: "unassign",
+        issues: [target],
+      },
+    });
+    expect(unassignResponse.status).toBe(200);
+    const unassignBody = (await unassignResponse.json()) as {
+      bulkAction: {
+        succeeded: number;
+        results: Array<{ issue?: { assigneeUserId: string | null } }>;
+      };
+    };
+    expect(unassignBody.bulkAction.succeeded).toBe(1);
+    expect(unassignBody.bulkAction.results[0]?.issue?.assigneeUserId).toBeNull();
+  });
+
+  it("maps assignee_not_assignable on bulk assign without aborting siblings", async () => {
+    const { identity, project, user } = await projectFixture.createStoredProjectFixture();
+    const headers = await projectFixture.authHeadersFor(identity);
+    const organizationSlug = identity.organization.slug ?? "missing-slug";
+
+    const outsider = projectFixture.createWorkosIdentityForOrganization(
+      identity.organization,
+      "translator",
+    );
+    await projectFixture.authHeadersFor(outsider);
+    const outsiderUserId = await projectFixture.getLocalUserId(outsider.user.workosUserId);
+
+    const createAssignable = await requestJson(issueSheetUrl(organizationSlug, project.id), {
+      method: "POST",
+      headers,
+      body: { title: "Assignable bulk", issueType: "general_question" },
+    });
+    expect(createAssignable.status).toBe(201);
+    const assignableIssue = (await createAssignable.json()) as { issue: { id: string } };
+
+    const createRejected = await requestJson(issueSheetUrl(organizationSlug, project.id), {
+      method: "POST",
+      headers,
+      body: { title: "Rejected bulk", issueType: "general_question" },
+    });
+    expect(createRejected.status).toBe(201);
+    const rejectedIssue = (await createRejected.json()) as { issue: { id: string } };
+
+    const bulkResponse = await requestJson(organizationIssuesBulkUrl(organizationSlug), {
+      method: "POST",
+      headers,
+      body: {
+        action: "assign",
+        assigneeUserId: outsiderUserId,
+        issues: [
+          { projectId: project.id, issueId: assignableIssue.issue.id },
+          { projectId: project.id, issueId: rejectedIssue.issue.id },
+        ],
+      },
+    });
+    expect(bulkResponse.status).toBe(200);
+    const bulkBody = (await bulkResponse.json()) as {
+      bulkAction: {
+        succeeded: number;
+        failed: number;
+        results: Array<{ issueId: string; outcome: string; error?: { code: string } }>;
+      };
+    };
+    expect(bulkBody.bulkAction.succeeded).toBe(0);
+    expect(bulkBody.bulkAction.failed).toBe(2);
+    expect(bulkBody.bulkAction.results.every((result) => result.outcome === "failed")).toBe(true);
+    expect(
+      bulkBody.bulkAction.results.every(
+        (result) => result.error?.code === "assignee_not_assignable",
+      ),
+    ).toBe(true);
+
+    const validAssign = await requestJson(organizationIssuesBulkUrl(organizationSlug), {
+      method: "POST",
+      headers,
+      body: {
+        action: "assign",
+        assigneeUserId: user.id,
+        issues: [
+          { projectId: project.id, issueId: assignableIssue.issue.id },
+          { projectId: project.id, issueId: "00000000-0000-4000-8000-000000000099" },
+        ],
+      },
+    });
+    expect(validAssign.status).toBe(200);
+    const validAssignBody = (await validAssign.json()) as {
+      bulkAction: {
+        succeeded: number;
+        failed: number;
+        results: Array<{ issueId: string; outcome: string; error?: { code: string } }>;
+      };
+    };
+    expect(validAssignBody.bulkAction.succeeded).toBe(1);
+    expect(validAssignBody.bulkAction.failed).toBe(1);
+    expect(
+      validAssignBody.bulkAction.results.find(
+        (result) => result.issueId === assignableIssue.issue.id,
+      ),
+    ).toMatchObject({ outcome: "updated" });
+    expect(
+      validAssignBody.bulkAction.results.find(
+        (result) => result.issueId === "00000000-0000-4000-8000-000000000099",
+      ),
+    ).toMatchObject({
+      outcome: "failed",
+      error: { code: "issue_not_found" },
+    });
+  });
 });
 
 describe("Organization issue-sheet GET", () => {
