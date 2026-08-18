@@ -315,6 +315,10 @@
     "defaultMessage": "Source",
     "description": "Label for the translation memory source filter"
   },
+  "/CNawd2WG2": {
+    "defaultMessage": "Unhide selected",
+    "description": "Bulk action to make selected native CAT source strings visible to translation jobs"
+  },
   "/E/r2gr9Yu": {
     "defaultMessage": "Approve",
     "description": "Primary action label in the marketing hero CAT workspace mock"
@@ -582,6 +586,10 @@
   "0DwOCagj+y": {
     "defaultMessage": "Locale adaptation",
     "description": "Workflow step 3 label for the marketing-localisation use case"
+  },
+  "0Ec7pW0RQ5": {
+    "defaultMessage": "GitHub repository",
+    "description": "Visible label for the GitHub repository select in the CAT source file dialog"
   },
   "0Fkv13W/rO": {
     "defaultMessage": "Excellent",
@@ -870,6 +878,10 @@
   "1Ax42ak5yi": {
     "defaultMessage": "This file can’t be opened in the CAT workspace.",
     "description": "Error when a selected source file cannot be opened in CAT"
+  },
+  "1BOxhADmQk": {
+    "defaultMessage": "Failed to update hidden strings",
+    "description": "Fallback error when hiding or unhiding native CAT source strings fails"
   },
   "1Do2u8ufv7": {
     "defaultMessage": "No native projects yet. Create a project to get started.",
@@ -4403,6 +4415,10 @@
     "defaultMessage": "Tourfinder",
     "description": "Alt text for the Tourfinder logo in the hero trusted-by strip"
   },
+  "DSb2QBD50S": {
+    "defaultMessage": "Ask the localisation agent to prepare work",
+    "description": "Header subtitle for a dedicated new localisation request chat"
+  },
   "DSm/l7fomX": {
     "defaultMessage": "Revoke API key",
     "description": "Title of the revoke API key confirmation dialog"
@@ -4875,6 +4891,10 @@
     "defaultMessage": "Hey {mention} can we localize the Canva spring campaign board for FR, DE, and JA by Friday?",
     "description": "Marketing teammate message asking to localize a Canva campaign"
   },
+  "FEprezMr/U": {
+    "defaultMessage": "Hidden",
+    "description": "CAT queue filter option for hidden source strings"
+  },
   "FExdwoMXgT": {
     "defaultMessage": "Where this string appears in the product (screen, button, dialog)",
     "description": "Description skeleton heading for the context request issue template"
@@ -5246,10 +5266,6 @@
   "GmObeT3Tn1": {
     "defaultMessage": "Expand chat",
     "description": "Accessible label for expanding the chat dock panel"
-  },
-  "GnhXacyqeM": {
-    "defaultMessage": "Choose a GitHub repository in the source file picker to look up string context.",
-    "description": "Banner prompting the user to pick a repository for CAT context lookup"
   },
   "GomMnQmb4q": {
     "defaultMessage": "Choose source files and a target locale to export translated content.",
@@ -6430,6 +6446,10 @@
   "LeSdkdB/lW": {
     "defaultMessage": "Previous slide",
     "description": "Accessible label for the carousel previous-slide control"
+  },
+  "Leoig5Z0u9": {
+    "defaultMessage": "Start a localisation request",
+    "description": "Inbox list row preview for a dedicated new localisation request chat"
   },
   "LgRbsjVF3G": {
     "defaultMessage": "Connect remote MCP servers for automation tools.",
@@ -9491,6 +9511,10 @@
     "defaultMessage": "Failed to load members",
     "description": "Error when the workspace members list request fails"
   },
+  "XJxHCpyMN1": {
+    "defaultMessage": "New Request",
+    "description": "Header title for a dedicated new localisation request chat"
+  },
   "XLWvL1I9Sv": {
     "defaultMessage": "Search issues…",
     "description": "Placeholder for searching project issues to link"
@@ -10999,6 +11023,10 @@
     "defaultMessage": "Contentful webhook needs attention",
     "description": "Toast title when Contentful webhook registration failed"
   },
+  "dKBR5NGh7M": {
+    "defaultMessage": "New Request",
+    "description": "App shell breadcrumb title for the inbox New Request compose page"
+  },
   "dKFcqbEe+1": {
     "defaultMessage": "We need one workflow across AI drafts, TMS review, and release checks.",
     "description": "Marketing homepage testimonial quote"
@@ -11550,6 +11578,10 @@
   "f0pASu5TFR": {
     "defaultMessage": "Search repositories",
     "description": "Placeholder for the GitHub repository search input"
+  },
+  "f22yrNzzSr": {
+    "defaultMessage": "Choose a GitHub repository in the source file picker to look up string context.",
+    "description": "Banner prompting the user to pick a repository for CAT context lookup"
   },
   "f3IEqEzc4J": {
     "defaultMessage": "Image must be 10 MB or smaller.",
@@ -13067,6 +13099,10 @@
     "defaultMessage": "Tourmatic",
     "description": "Alt text for the Tourmatic logo in the hero trusted-by strip"
   },
+  "kFMJ/YkEV9": {
+    "defaultMessage": "Could not start this chat. Try again.",
+    "description": "Error when creating a conversation from the inbox New Request page fails"
+  },
   "kG2XpVKA8Z": {
     "defaultMessage": "Scope, context, route",
     "description": "Automation product visual agent panel subtitle"
@@ -14319,10 +14355,6 @@
     "defaultMessage": "Call tools from a connected remote MCP server during this automation.",
     "description": "Description for the MCP Server automation tool when a connection exists"
   },
-  "p8LwK2nQ1R": {
-    "defaultMessage": "GitHub repository",
-    "description": "Visible label for the GitHub repository select in the CAT source file dialog"
-  },
   "p8Xes8vaYS": {
     "defaultMessage": "Source & context",
     "description": "Issue list view preset for source and context issues"
@@ -15130,6 +15162,10 @@
   "sGkYArMEbA": {
     "defaultMessage": "Teams",
     "description": "Teams page title"
+  },
+  "sHACVcApZT": {
+    "defaultMessage": "New Request",
+    "description": "Inbox list row title for a dedicated new localisation request chat"
   },
   "sHQ6RKFJ37": {
     "defaultMessage": "Domains",
@@ -16406,6 +16442,10 @@
   "wyGp5zCVTb": {
     "defaultMessage": "Cancel",
     "description": "Cancel button in the create translation memory dialog"
+  },
+  "wz/8hP0meZ": {
+    "defaultMessage": "Hide selected",
+    "description": "Bulk action to hide selected native CAT source strings from translation jobs"
   },
   "x+tic2aBLP": {
     "defaultMessage": "Live search",

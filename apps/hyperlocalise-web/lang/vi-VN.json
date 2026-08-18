@@ -257,6 +257,9 @@
   "/C52lRfZjE": {
     "defaultMessage": "Tham gia danh sách chờ"
   },
+  "/CNawd2WG2": {
+    "defaultMessage": "Bỏ ẩn các mục đã chọn"
+  },
   "/E/r2gr9Yu": {
     "defaultMessage": "Approve"
   },
@@ -647,6 +650,9 @@
   "0su3rYbABy": {
     "defaultMessage": "Công việc mới nhất · {status}"
   },
+  "0tcV3U/r5g": {
+    "defaultMessage": "Không thể tải xuống chế độ xem đã lọc"
+  },
   "0uC+32o+7p": {
     "defaultMessage": "Xác minh miền này để mở khóa báo cáo kiểm tra bản địa hóa đầy đủ."
   },
@@ -718,6 +724,9 @@
   },
   "1Ax42ak5yi": {
     "defaultMessage": "Không thể mở tệp này trong không gian làm việc CAT."
+  },
+  "1BOxhADmQk": {
+    "defaultMessage": "Không thể cập nhật các chuỗi bị ẩn"
   },
   "1Do2u8ufv7": {
     "defaultMessage": "Chưa có dự án gốc nào. Hãy tạo một dự án để bắt đầu."
@@ -943,6 +952,9 @@
   },
   "2AqSyPCt6M": {
     "defaultMessage": "Ngày đến hạn"
+  },
+  "2B2vocYfiC": {
+    "defaultMessage": "Tải xuống chế độ xem đã lọc"
   },
   "2BaYUyVX1c": {
     "defaultMessage": "Hiển thị khóa API"
@@ -2519,6 +2531,9 @@
   "8yfcbh9AO6": {
     "defaultMessage": "Dành cho các nhóm thực hiện bản địa hóa trong môi trường production hàng tuần."
   },
+  "9/2rO3b/i4": {
+    "defaultMessage": "Ghi chú của chủ sở hữu trang web"
+  },
   "9/pQQpDU+H": {
     "defaultMessage": "Phân công các tác nhân AI để dịch, rà soát và đồng bộ nội dung trong khi vẫn giữ việc xem xét của con người ở vị trí ưu tiên hàng đầu. Duy trì tính linh hoạt trên các nhà cung cấp LLM và các nền tảng TMS."
   },
@@ -3407,6 +3422,9 @@
   "D/ZccJ6VSq": {
     "defaultMessage": "Khóa nhà cung cấp"
   },
+  "D/arw4JcTP": {
+    "defaultMessage": "Định dạng"
+  },
   "D0mCtflyKZ": {
     "defaultMessage": "Đang tải các kênh..."
   },
@@ -3535,6 +3553,9 @@
   },
   "DSKOYVYVQJ": {
     "defaultMessage": "Key: {key}"
+  },
+  "DSb2QBD50S": {
+    "defaultMessage": "Đề nghị chuyên viên bản địa hóa chuẩn bị công việc"
   },
   "DSm/l7fomX": {
     "defaultMessage": "Thu hồi khóa API"
@@ -3911,6 +3932,9 @@
   "FDx1dPH6dv": {
     "defaultMessage": "Chào {mention}, chúng ta có thể bản địa hóa bảng chiến dịch mùa xuân của Canva cho FR, DE và JA trước thứ Sáu không?"
   },
+  "FEprezMr/U": {
+    "defaultMessage": "Ẩn"
+  },
   "FExdwoMXgT": {
     "defaultMessage": "Chuỗi này xuất hiện ở đâu trong sản phẩm (màn hình, nút, hộp thoại)"
   },
@@ -4051,6 +4075,9 @@
   },
   "FuoKPzKv08": {
     "defaultMessage": "Description"
+  },
+  "FvGsFbmiod": {
+    "defaultMessage": "Cho phép user agent bên dưới vượt qua tường lửa, CDN, tính năng bảo vệ bot hoặc màn hình đăng nhập của bạn, sau đó bắt đầu một cuộc kiểm tra mới."
   },
   "Fw-DAiV4t2": {
     "defaultMessage": "API key ending in {suffix}"
@@ -5149,6 +5176,9 @@
   },
   "LeSdkdB/lW": {
     "defaultMessage": "Trang trước"
+  },
+  "Leoig5Z0u9": {
+    "defaultMessage": "Bắt đầu một yêu cầu bản địa hóa"
   },
   "LgRbsjVF3G": {
     "defaultMessage": "Kết nối các máy chủ MCP từ xa cho các công cụ tự động hóa."
@@ -7631,6 +7661,9 @@
   "XJe/aHS1LC": {
     "defaultMessage": "Không thể tải danh sách thành viên"
   },
+  "XJxHCpyMN1": {
+    "defaultMessage": "Yêu cầu mới"
+  },
   "XLWvL1I9Sv": {
     "defaultMessage": "Tìm kiếm vấn đề…"
   },
@@ -8852,6 +8885,9 @@
   "dJURPyuGPM": {
     "defaultMessage": "Webhook Contentful cần được chú ý"
   },
+  "dKBR5NGh7M": {
+    "defaultMessage": "Yêu cầu mới"
+  },
   "dKFcqbEe+1": {
     "defaultMessage": "Chúng tôi cần một quy trình làm việc thống nhất giữa bản nháp AI, kiểm duyệt TMS và kiểm tra phát hành."
   },
@@ -9368,6 +9404,9 @@
   "fT5jl51yo3": {
     "defaultMessage": "{percent}%"
   },
+  "fU9GF3etrw": {
+    "defaultMessage": "Kiểm tra bị chặn"
+  },
   "fUTALFqIcb": {
     "defaultMessage": "Đang tải bảng thuật ngữ..."
   },
@@ -9728,6 +9767,9 @@
   "gyGnNuR5md": {
     "defaultMessage": "Bắt buộc"
   },
+  "gyNaN2JbUy": {
+    "defaultMessage": "Tác nhân người dùng"
+  },
   "gyVhBvCqLP": {
     "defaultMessage": "Thêm nguồn"
   },
@@ -9976,6 +10018,9 @@
   },
   "hz8O9/ilG1": {
     "defaultMessage": "Sử dụng mô hình bạn thích"
+  },
+  "i/10E+WnLM": {
+    "defaultMessage": "Miền này đã chặn trình thu thập dữ liệu, nên chúng tôi không chấm điểm trang web."
   },
   "i0qX7/ht0A": {
     "defaultMessage": "Mời các thành viên trong nhóm để phân công người phụ trách bản địa hóa trước khi công việc được chuyển qua không gian làm việc."
@@ -10475,6 +10520,9 @@
   "k3TrZpmKkB": {
     "defaultMessage": "Các công việc được tạo và theo dõi trong không gian làm việc này."
   },
+  "k3eu1T7STw": {
+    "defaultMessage": "Bắt đầu một đợt kiểm tra mới"
+  },
   "k5atS7Ij0F": {
     "defaultMessage": "Thường hoàn tất trong 1–3 phút."
   },
@@ -10535,6 +10583,9 @@
   "kFLYRBqx6+": {
     "defaultMessage": "Tourmatic"
   },
+  "kFMJ/YkEV9": {
+    "defaultMessage": "Không thể bắt đầu cuộc trò chuyện này. Vui lòng thử lại."
+  },
   "kG2XpVKA8Z": {
     "defaultMessage": "Phạm vi, ngữ cảnh, tuyến đường"
   },
@@ -10579,6 +10630,9 @@
   },
   "kU9ZZlDF/l": {
     "defaultMessage": "Hyperlocalise được xây dựng cho ai?"
+  },
+  "kUl1Jpz/6B": {
+    "defaultMessage": "Tải xuống"
   },
   "kUmtRmvwMN": {
     "defaultMessage": "Xem xét PR và các hồi quy dịch thuật trước khi hợp nhất"
@@ -11296,6 +11350,9 @@
   },
   "naWIsHiFkQ": {
     "defaultMessage": "Đã sao chép URL callback OAuth"
+  },
+  "ndyP1whnV+": {
+    "defaultMessage": "Nếu trang web của bạn sử dụng tường lửa, CDN, tính năng kiểm tra bot hoặc yêu cầu đăng nhập, hãy cho phép user agent này truy cập các trang công khai để chúng tôi có thể hoàn tất quá trình kiểm tra."
   },
   "ne4Ygl2/V7": {
     "defaultMessage": "Chưa có bình luận nào."
@@ -12173,6 +12230,9 @@
   "rxbmdOIAMH": {
     "defaultMessage": "Gửi tới Slack"
   },
+  "ryGOjbG4Wd": {
+    "defaultMessage": "Tác nhân người dùng"
+  },
   "rywDd6XWpM": {
     "defaultMessage": "Cấp độ không gian làm việc"
   },
@@ -12247,6 +12307,9 @@
   },
   "sGkYArMEbA": {
     "defaultMessage": "Teams"
+  },
+  "sHACVcApZT": {
+    "defaultMessage": "Yêu cầu mới"
   },
   "sHQ6RKFJ37": {
     "defaultMessage": "Domains"
@@ -13273,6 +13336,9 @@
   },
   "wyGp5zCVTb": {
     "defaultMessage": "Cancel"
+  },
+  "wz/8hP0meZ": {
+    "defaultMessage": "Ẩn các mục đã chọn"
   },
   "x+tic2aBLP": {
     "defaultMessage": "Tìm kiếm trực tiếp"

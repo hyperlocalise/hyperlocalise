@@ -257,6 +257,9 @@
   "/C52lRfZjE": {
     "defaultMessage": "Auf die Warteliste setzen"
   },
+  "/CNawd2WG2": {
+    "defaultMessage": "Ausgewählte einblenden"
+  },
   "/E/r2gr9Yu": {
     "defaultMessage": "Genehmigen"
   },
@@ -647,6 +650,9 @@
   "0su3rYbABy": {
     "defaultMessage": "Neuster Auftrag · {status}"
   },
+  "0tcV3U/r5g": {
+    "defaultMessage": "Der Download der gefilterten Ansicht ist fehlgeschlagen"
+  },
   "0uC+32o+7p": {
     "defaultMessage": "Verifizieren Sie diese Domain, um den vollständigen Lokalisierungsprüfbericht freizuschalten."
   },
@@ -718,6 +724,9 @@
   },
   "1Ax42ak5yi": {
     "defaultMessage": "Diese Datei kann im CAT-Arbeitsbereich nicht geöffnet werden."
+  },
+  "1BOxhADmQk": {
+    "defaultMessage": "Ausgeblendete Zeichenfolgen konnten nicht aktualisiert werden."
   },
   "1Do2u8ufv7": {
     "defaultMessage": "Noch keine nativen Projekte vorhanden. Erstelle ein Projekt, um zu beginnen."
@@ -943,6 +952,9 @@
   },
   "2AqSyPCt6M": {
     "defaultMessage": "Fälligkeitsdatum"
+  },
+  "2B2vocYfiC": {
+    "defaultMessage": "Gefilterte Ansicht herunterladen"
   },
   "2BaYUyVX1c": {
     "defaultMessage": "API-Schlüssel anzeigen"
@@ -2519,6 +2531,9 @@
   "8yfcbh9AO6": {
     "defaultMessage": "Für Teams, die jede Woche Lokalisierungen in der Produktion durchführen."
   },
+  "9/2rO3b/i4": {
+    "defaultMessage": "Hinweis für Website-Betreiber"
+  },
   "9/pQQpDU+H": {
     "defaultMessage": "Weisen Sie KI-Agenten zu, Inhalte zu übersetzen, zu prüfen und zu synchronisieren, während die menschliche Prüfung weiterhin oberste Priorität hat. Bleiben Sie flexibel über verschiedene LLM-Anbieter und TMS-Plattformen hinweg."
   },
@@ -3407,6 +3422,9 @@
   "D/ZccJ6VSq": {
     "defaultMessage": "Anbieterschlüssel"
   },
+  "D/arw4JcTP": {
+    "defaultMessage": "Format"
+  },
   "D0mCtflyKZ": {
     "defaultMessage": "Kanäle werden geladen ..."
   },
@@ -3535,6 +3553,9 @@
   },
   "DSKOYVYVQJ": {
     "defaultMessage": "Schlüssel: {key}"
+  },
+  "DSb2QBD50S": {
+    "defaultMessage": "Bitten Sie den Lokalisierungsagenten, die Arbeit vorzubereiten"
   },
   "DSm/l7fomX": {
     "defaultMessage": "API-Schlüssel widerrufen"
@@ -3911,6 +3932,9 @@
   "FDx1dPH6dv": {
     "defaultMessage": "Hey {mention}, können wir das Canva-Board der Frühjahrskampagne bis Freitag für FR, DE und JA lokalisieren?"
   },
+  "FEprezMr/U": {
+    "defaultMessage": "Ausgeblendet"
+  },
   "FExdwoMXgT": {
     "defaultMessage": "Wo diese Zeichenfolge im Produkt erscheint (Bildschirm, Schaltfläche, Dialog)"
   },
@@ -4051,6 +4075,9 @@
   },
   "FuoKPzKv08": {
     "defaultMessage": "Beschreibung"
+  },
+  "FvGsFbmiod": {
+    "defaultMessage": "Lassen Sie den unten aufgeführten User-Agent durch Ihre Firewall, Ihr CDN, Ihren Bot-Schutz oder Ihre Anmeldesperre und starten Sie anschließend ein neues Audit."
   },
   "Fw-DAiV4t2": {
     "defaultMessage": "API key ending in {suffix}"
@@ -5149,6 +5176,9 @@
   },
   "LeSdkdB/lW": {
     "defaultMessage": "Vorherige Folie"
+  },
+  "Leoig5Z0u9": {
+    "defaultMessage": "Lokalisierungsanfrage starten"
   },
   "LgRbsjVF3G": {
     "defaultMessage": "Verbinden Sie entfernte MCP-Server für Automatisierungstools."
@@ -7631,6 +7661,9 @@
   "XJe/aHS1LC": {
     "defaultMessage": "Mitglieder konnten nicht geladen werden"
   },
+  "XJxHCpyMN1": {
+    "defaultMessage": "Neue Anfrage"
+  },
   "XLWvL1I9Sv": {
     "defaultMessage": "Issues durchsuchen…"
   },
@@ -8852,6 +8885,9 @@
   "dJURPyuGPM": {
     "defaultMessage": "Contentful-Webhook benötigt Aufmerksamkeit"
   },
+  "dKBR5NGh7M": {
+    "defaultMessage": "Neue Anfrage"
+  },
   "dKFcqbEe+1": {
     "defaultMessage": "Wir benötigen einen einzigen Workflow für KI-Entwürfe, TMS-Prüfung und Freigabekontrollen."
   },
@@ -9368,6 +9404,9 @@
   "fT5jl51yo3": {
     "defaultMessage": "{percent}%"
   },
+  "fU9GF3etrw": {
+    "defaultMessage": "Audit blockiert"
+  },
   "fUTALFqIcb": {
     "defaultMessage": "Glossare werden geladen ..."
   },
@@ -9728,6 +9767,9 @@
   "gyGnNuR5md": {
     "defaultMessage": "Erforderlich"
   },
+  "gyNaN2JbUy": {
+    "defaultMessage": "Benutzeragent"
+  },
   "gyVhBvCqLP": {
     "defaultMessage": "Quellen hinzufügen"
   },
@@ -9976,6 +10018,9 @@
   },
   "hz8O9/ilG1": {
     "defaultMessage": "Verwende das von dir bevorzugte Modell"
+  },
+  "i/10E+WnLM": {
+    "defaultMessage": "Diese Domain hat den Crawler blockiert, daher haben wir die Website nicht bewertet."
   },
   "i0qX7/ht0A": {
     "defaultMessage": "Lade Teammitglieder ein, um die Zuständigkeit für die Lokalisierung festzulegen, bevor die Arbeit im Arbeitsbereich fortschreitet."
@@ -10475,6 +10520,9 @@
   "k3TrZpmKkB": {
     "defaultMessage": "In diesem Arbeitsbereich erstellte und nachverfolgte Jobs."
   },
+  "k3eu1T7STw": {
+    "defaultMessage": "Neue Prüfung starten"
+  },
   "k5atS7Ij0F": {
     "defaultMessage": "Normalerweise in 1–3 Minuten abgeschlossen."
   },
@@ -10535,6 +10583,9 @@
   "kFLYRBqx6+": {
     "defaultMessage": "Tourmatic"
   },
+  "kFMJ/YkEV9": {
+    "defaultMessage": "Dieser Chat konnte nicht gestartet werden. Bitte versuche es erneut."
+  },
   "kG2XpVKA8Z": {
     "defaultMessage": "Bereich, Kontext, Route"
   },
@@ -10579,6 +10630,9 @@
   },
   "kU9ZZlDF/l": {
     "defaultMessage": "Für wen wurde Hyperlocalise entwickelt?"
+  },
+  "kUl1Jpz/6B": {
+    "defaultMessage": "Herunterladen"
   },
   "kUmtRmvwMN": {
     "defaultMessage": "PRs und Übersetzungsregressionen vor dem Merge überprüfen"
@@ -11296,6 +11350,9 @@
   },
   "naWIsHiFkQ": {
     "defaultMessage": "OAuth-Callback-URL kopiert"
+  },
+  "ndyP1whnV+": {
+    "defaultMessage": "Wenn Ihre Website eine Firewall, ein CDN, eine Bot-Prüfung oder eine Anmeldesperre verwendet, erlauben Sie diesem User-Agent, auf öffentliche Seiten zuzugreifen, damit wir das Audit abschließen können."
   },
   "ne4Ygl2/V7": {
     "defaultMessage": "Noch keine Kommentare."
@@ -12173,6 +12230,9 @@
   "rxbmdOIAMH": {
     "defaultMessage": "An Slack senden"
   },
+  "ryGOjbG4Wd": {
+    "defaultMessage": "Benutzeragent"
+  },
   "rywDd6XWpM": {
     "defaultMessage": "Auf Arbeitsbereichsebene"
   },
@@ -12247,6 +12307,9 @@
   },
   "sGkYArMEbA": {
     "defaultMessage": "Teams"
+  },
+  "sHACVcApZT": {
+    "defaultMessage": "Neue Anfrage"
   },
   "sHQ6RKFJ37": {
     "defaultMessage": "Domains"
@@ -13273,6 +13336,9 @@
   },
   "wyGp5zCVTb": {
     "defaultMessage": "Abbrechen"
+  },
+  "wz/8hP0meZ": {
+    "defaultMessage": "Ausgewählte ausblenden"
   },
   "x+tic2aBLP": {
     "defaultMessage": "Live-Suche"

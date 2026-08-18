@@ -257,6 +257,9 @@
   "/C52lRfZjE": {
     "defaultMessage": "加入候补名单"
   },
+  "/CNawd2WG2": {
+    "defaultMessage": "取消隐藏所选内容"
+  },
   "/E/r2gr9Yu": {
     "defaultMessage": "Approve"
   },
@@ -647,6 +650,9 @@
   "0su3rYbABy": {
     "defaultMessage": "最新任务 · {status}"
   },
+  "0tcV3U/r5g": {
+    "defaultMessage": "下载筛选视图失败"
+  },
   "0uC+32o+7p": {
     "defaultMessage": "验证此域名以解锁完整的本地化审核报告。"
   },
@@ -718,6 +724,9 @@
   },
   "1Ax42ak5yi": {
     "defaultMessage": "无法在 CAT 工作区中打开此文件。"
+  },
+  "1BOxhADmQk": {
+    "defaultMessage": "更新隐藏字符串失败"
   },
   "1Do2u8ufv7": {
     "defaultMessage": "还没有原生项目。创建一个项目即可开始。"
@@ -943,6 +952,9 @@
   },
   "2AqSyPCt6M": {
     "defaultMessage": "截止日期"
+  },
+  "2B2vocYfiC": {
+    "defaultMessage": "下载筛选后的视图"
   },
   "2BaYUyVX1c": {
     "defaultMessage": "显示 API 密钥"
@@ -2519,6 +2531,9 @@
   "8yfcbh9AO6": {
     "defaultMessage": "适用于每周在生产环境中运行本地化的团队。"
   },
+  "9/2rO3b/i4": {
+    "defaultMessage": "站点所有者备注"
+  },
   "9/pQQpDU+H": {
     "defaultMessage": "分配 AI 代理来翻译、审核和同步内容，同时将人工审核置于首要位置。保持在不同的 LLM 提供商和 TMS 平台之间的灵活性。"
   },
@@ -3407,6 +3422,9 @@
   "D/ZccJ6VSq": {
     "defaultMessage": "提供商密钥"
   },
+  "D/arw4JcTP": {
+    "defaultMessage": "格式"
+  },
   "D0mCtflyKZ": {
     "defaultMessage": "正在加载频道……"
   },
@@ -3535,6 +3553,9 @@
   },
   "DSKOYVYVQJ": {
     "defaultMessage": "Key: {key}"
+  },
+  "DSb2QBD50S": {
+    "defaultMessage": "请本地化代理准备工作"
   },
   "DSm/l7fomX": {
     "defaultMessage": "撤销 API 密钥"
@@ -3911,6 +3932,9 @@
   "FDx1dPH6dv": {
     "defaultMessage": "嘿 {mention}，我们能在周五前将 Canva 春季宣传活动看板本地化为法语、德语和日语吗？"
   },
+  "FEprezMr/U": {
+    "defaultMessage": "隐藏"
+  },
   "FExdwoMXgT": {
     "defaultMessage": "此字符串在产品中的显示位置（页面、按钮、对话框）"
   },
@@ -4051,6 +4075,9 @@
   },
   "FuoKPzKv08": {
     "defaultMessage": "Description"
+  },
+  "FvGsFbmiod": {
+    "defaultMessage": "请在防火墙、CDN、机器人防护或登录墙中允许以下用户代理通过，然后开始新的审计。"
   },
   "Fw-DAiV4t2": {
     "defaultMessage": "API key ending in {suffix}"
@@ -5149,6 +5176,9 @@
   },
   "LeSdkdB/lW": {
     "defaultMessage": "上一张幻灯片"
+  },
+  "Leoig5Z0u9": {
+    "defaultMessage": "发起本地化请求"
   },
   "LgRbsjVF3G": {
     "defaultMessage": "连接远程 MCP 服务器以使用自动化工具。"
@@ -7631,6 +7661,9 @@
   "XJe/aHS1LC": {
     "defaultMessage": "加载成员失败"
   },
+  "XJxHCpyMN1": {
+    "defaultMessage": "新请求"
+  },
   "XLWvL1I9Sv": {
     "defaultMessage": "搜索问题…"
   },
@@ -8852,6 +8885,9 @@
   "dJURPyuGPM": {
     "defaultMessage": "Contentful webhook 需要注意"
   },
+  "dKBR5NGh7M": {
+    "defaultMessage": "新建请求"
+  },
   "dKFcqbEe+1": {
     "defaultMessage": "我们需要在 AI 草稿、TMS 审核和发布检查之间实现一个统一的工作流程。"
   },
@@ -9368,6 +9404,9 @@
   "fT5jl51yo3": {
     "defaultMessage": "{percent}%"
   },
+  "fU9GF3etrw": {
+    "defaultMessage": "审计已被阻止"
+  },
   "fUTALFqIcb": {
     "defaultMessage": "正在加载术语表……"
   },
@@ -9728,6 +9767,9 @@
   "gyGnNuR5md": {
     "defaultMessage": "必填"
   },
+  "gyNaN2JbUy": {
+    "defaultMessage": "用户代理"
+  },
   "gyVhBvCqLP": {
     "defaultMessage": "添加来源"
   },
@@ -9976,6 +10018,9 @@
   },
   "hz8O9/ilG1": {
     "defaultMessage": "使用您偏好的模型"
+  },
+  "i/10E+WnLM": {
+    "defaultMessage": "该域名阻止了爬虫，因此我们未对该网站进行评分。"
   },
   "i0qX7/ht0A": {
     "defaultMessage": "邀请团队成员分配本地化负责人，以便工作在工作区中推进。"
@@ -10475,6 +10520,9 @@
   "k3TrZpmKkB": {
     "defaultMessage": "在此工作区创建和跟踪的作业。"
   },
+  "k3eu1T7STw": {
+    "defaultMessage": "开始新的审核"
+  },
   "k5atS7Ij0F": {
     "defaultMessage": "通常需要 1–3 分钟完成。"
   },
@@ -10535,6 +10583,9 @@
   "kFLYRBqx6+": {
     "defaultMessage": "Tourmatic"
   },
+  "kFMJ/YkEV9": {
+    "defaultMessage": "无法开始此聊天。请重试。"
+  },
   "kG2XpVKA8Z": {
     "defaultMessage": "范围、上下文、路由"
   },
@@ -10579,6 +10630,9 @@
   },
   "kU9ZZlDF/l": {
     "defaultMessage": "Hyperlocalise 是为谁打造的？"
+  },
+  "kUl1Jpz/6B": {
+    "defaultMessage": "下载"
   },
   "kUmtRmvwMN": {
     "defaultMessage": "在合并前审核 PR 和翻译回归问题"
@@ -11296,6 +11350,9 @@
   },
   "naWIsHiFkQ": {
     "defaultMessage": "已复制 OAuth 回调 URL"
+  },
+  "ndyP1whnV+": {
+    "defaultMessage": "如果您的网站使用防火墙、CDN、机器人检查或登录墙，请允许此用户代理访问公开页面，以便我们完成审核。"
   },
   "ne4Ygl2/V7": {
     "defaultMessage": "暂无评论。"
@@ -12173,6 +12230,9 @@
   "rxbmdOIAMH": {
     "defaultMessage": "发送到 Slack"
   },
+  "ryGOjbG4Wd": {
+    "defaultMessage": "用户代理"
+  },
   "rywDd6XWpM": {
     "defaultMessage": "工作区级别"
   },
@@ -12247,6 +12307,9 @@
   },
   "sGkYArMEbA": {
     "defaultMessage": "Teams"
+  },
+  "sHACVcApZT": {
+    "defaultMessage": "新请求"
   },
   "sHQ6RKFJ37": {
     "defaultMessage": "Domains"
@@ -13273,6 +13336,9 @@
   },
   "wyGp5zCVTb": {
     "defaultMessage": "Cancel"
+  },
+  "wz/8hP0meZ": {
+    "defaultMessage": "隐藏所选项"
   },
   "x+tic2aBLP": {
     "defaultMessage": "实时搜索"
