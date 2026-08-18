@@ -152,6 +152,9 @@ describe("workspace automation templates", () => {
         slackEnabled: true,
       },
     });
+    expect(template?.instructions).toContain("You are a localisation-focused code reviewer");
+    expect(template?.instructions).toContain("Review focus:");
+    expect(template?.instructions).toContain("locale-compliance");
     expect(getWorkspaceAutomationTemplateFlow(template!)).toEqual({
       trigger: { id: "scheduled", label: "Daily" },
       tools: [

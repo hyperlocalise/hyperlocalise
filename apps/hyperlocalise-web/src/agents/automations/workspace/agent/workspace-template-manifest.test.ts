@@ -94,7 +94,8 @@ describe("workspace template manifest", () => {
       category: "popular",
       activatable: true,
     });
-    expect(review?.instructions).toContain("You are a staff code reviewer");
+    expect(review?.description).toContain("localisation and translation risk");
+    expect(review?.instructions).toContain("You are a localisation-focused code reviewer");
     expect(research).toMatchObject({
       name: "Daily web research",
       category: "popular",

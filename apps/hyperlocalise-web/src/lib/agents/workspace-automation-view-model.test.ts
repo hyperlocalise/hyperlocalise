@@ -229,7 +229,8 @@ describe("workspace automation view model", () => {
       slackEnabled: true,
       webSearchEnabled: false,
     });
-    expect(form?.instructions).toContain("You are a staff code reviewer");
+    expect(form?.instructions).toContain("You are a localisation-focused code reviewer");
+    expect(form?.instructions).toContain("Review focus:");
     expect(
       validateWorkspaceAutomationFormState({
         ...form!,
