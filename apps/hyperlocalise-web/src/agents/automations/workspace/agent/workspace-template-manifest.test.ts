@@ -29,7 +29,7 @@ describe("workspace template manifest", () => {
     expect(validateTemplate).toMatchObject({
       name: "Validate localisation on push",
       category: "quality",
-      activatable: true,
+      activatable: false,
     });
     expect(validateTemplate?.description).toBe(
       "Check localisation changes on every push and notify the team when blockers are found.",
@@ -73,7 +73,7 @@ describe("workspace template manifest", () => {
     expect(template).toMatchObject({
       name: "Summarize changes daily",
       category: "popular",
-      activatable: true,
+      activatable: false,
       defaultForm: expect.objectContaining({
         githubMode: "agent",
         triggerMode: "scheduled",
@@ -101,5 +101,18 @@ describe("workspace template manifest", () => {
       activatable: true,
     });
     expect(research?.instructions).toContain("You are a localisation research analyst");
+  });
+
+  it("keeps untested templates coming soon after skill merge", () => {
+    const activatableIds = mergeWorkspaceTemplateSkills(WORKSPACE_AUTOMATION_TEMPLATES_BASE)
+      .filter((template) => template.activatable)
+      .map((template) => template.id);
+
+    expect(activatableIds).toEqual([
+      "translate-on-source-upload",
+      "translate-contentful-article",
+      "review-code-daily",
+      "daily-web-research",
+    ]);
   });
 });

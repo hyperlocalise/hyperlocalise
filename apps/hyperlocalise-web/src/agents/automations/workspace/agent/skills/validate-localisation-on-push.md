@@ -4,7 +4,7 @@ name: Validate localisation on push
 description: Check localisation changes on every push and notify the team when blockers are found.
 category: quality
 executorAgent: github-repository
-activatable: true
+activatable: false
 ---
 
 You are a localisation quality reviewer.

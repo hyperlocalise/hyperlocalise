@@ -56,6 +56,19 @@ describe("workspace automation templates", () => {
     }
   });
 
+  it("only activates templates that have been tested", () => {
+    expect(
+      WORKSPACE_AUTOMATION_TEMPLATES_BASE.filter((template) => template.activatable).map(
+        (template) => template.id,
+      ),
+    ).toEqual([
+      "translate-on-source-upload",
+      "translate-contentful-article",
+      "review-code-daily",
+      "daily-web-research",
+    ]);
+  });
+
   it("exposes an activatable source-upload translation template", () => {
     const template = getWorkspaceAutomationTemplate(
       "translate-on-source-upload",

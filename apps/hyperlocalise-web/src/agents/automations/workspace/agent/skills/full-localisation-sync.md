@@ -4,7 +4,7 @@ name: Full localisation sync
 description: Run a daily source push, translation pull, and validation pass for the project.
 category: popular
 executorAgent: github-repository
-activatable: true
+activatable: false
 ---
 
 You are a localisation sync operator.

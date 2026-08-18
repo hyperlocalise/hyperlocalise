@@ -144,7 +144,7 @@ export const WORKSPACE_AUTOMATION_TEMPLATES_BASE: WorkspaceAutomationTemplate[] 
       ],
       goal: "Stop localisation defects from reaching production.",
     }),
-    activatable: true,
+    activatable: false,
     defaultForm: {
       name: "Validate localisation on push",
       triggerMode: "github",
@@ -172,7 +172,7 @@ export const WORKSPACE_AUTOMATION_TEMPLATES_BASE: WorkspaceAutomationTemplate[] 
       ],
       goal: "Post a concise digest of what changed so the team can stay aligned without reading every commit.",
     }),
-    activatable: true,
+    activatable: false,
     defaultForm: {
       name: "Summarize changes daily",
       triggerMode: "scheduled",
@@ -285,7 +285,7 @@ export const WORKSPACE_AUTOMATION_TEMPLATES_BASE: WorkspaceAutomationTemplate[] 
       ],
       goal: "Keep source strings, translations, and validation in sync every day.",
     }),
-    activatable: true,
+    activatable: false,
     defaultForm: {
       name: "Full localisation sync",
       triggerMode: "scheduled",
@@ -315,7 +315,7 @@ export const WORKSPACE_AUTOMATION_TEMPLATES_BASE: WorkspaceAutomationTemplate[] 
       ],
       goal: "Get new source copy into translation as soon as localisation files change.",
     }),
-    activatable: true,
+    activatable: false,
     defaultForm: {
       name: "Push source strings",
       triggerMode: "github",
@@ -340,7 +340,7 @@ export const WORKSPACE_AUTOMATION_TEMPLATES_BASE: WorkspaceAutomationTemplate[] 
       ],
       goal: "Bring finished translations back into the repository every day without noisy diffs.",
     }),
-    activatable: true,
+    activatable: false,
     defaultForm: {
       name: "Pull translations daily",
       triggerMode: "scheduled",
@@ -367,7 +367,7 @@ export const WORKSPACE_AUTOMATION_TEMPLATES_BASE: WorkspaceAutomationTemplate[] 
       ],
       goal: "Catch localisation gaps before a release branch ships.",
     }),
-    activatable: true,
+    activatable: false,
     defaultForm: {
       name: "Release localisation check",
       triggerMode: "github",
@@ -393,7 +393,7 @@ export const WORKSPACE_AUTOMATION_TEMPLATES_BASE: WorkspaceAutomationTemplate[] 
       ],
       goal: "Give stakeholders a weekly picture of localisation progress and remaining risk.",
     }),
-    activatable: true,
+    activatable: false,
     defaultForm: {
       name: "Weekly localisation summary",
       triggerMode: "scheduled",
@@ -421,7 +421,7 @@ export const WORKSPACE_AUTOMATION_TEMPLATES_BASE: WorkspaceAutomationTemplate[] 
       ],
       goal: "Keep message syntax and placeholders safe on every push to main.",
     }),
-    activatable: true,
+    activatable: false,
     defaultForm: {
       name: "ICU and placeholder audit",
       triggerMode: "github",
@@ -446,7 +446,7 @@ export const WORKSPACE_AUTOMATION_TEMPLATES_BASE: WorkspaceAutomationTemplate[] 
       ],
       goal: "Block merges when required locales drop below coverage on protected branches.",
     }),
-    activatable: true,
+    activatable: false,
     defaultForm: {
       name: "Missing translation gate",
       triggerMode: "github",
@@ -470,7 +470,7 @@ export const WORKSPACE_AUTOMATION_TEMPLATES_BASE: WorkspaceAutomationTemplate[] 
       ],
       goal: "Give the team a daily view of coverage gaps before they become release blockers.",
     }),
-    activatable: true,
+    activatable: false,
     defaultForm: {
       name: "Daily locale coverage check",
       triggerMode: "scheduled",
@@ -496,7 +496,7 @@ export const WORKSPACE_AUTOMATION_TEMPLATES_BASE: WorkspaceAutomationTemplate[] 
       ],
       goal: "Start translation on feature work before it lands on main.",
     }),
-    activatable: true,
+    activatable: false,
     defaultForm: {
       name: "Push source on feature branches",
       triggerMode: "github",
@@ -520,7 +520,7 @@ export const WORKSPACE_AUTOMATION_TEMPLATES_BASE: WorkspaceAutomationTemplate[] 
       ],
       goal: "Land finished translations on main as soon as they are ready.",
     }),
-    activatable: true,
+    activatable: false,
     defaultForm: {
       name: "Pull translations on merge",
       triggerMode: "github",
@@ -544,7 +544,7 @@ export const WORKSPACE_AUTOMATION_TEMPLATES_BASE: WorkspaceAutomationTemplate[] 
       ],
       goal: "Keep the repository current with completed translations throughout the day.",
     }),
-    activatable: true,
+    activatable: false,
     defaultForm: {
       name: "Hourly translation pull",
       triggerMode: "scheduled",
@@ -569,7 +569,7 @@ export const WORKSPACE_AUTOMATION_TEMPLATES_BASE: WorkspaceAutomationTemplate[] 
       ],
       goal: "Keep stakeholders informed of translation delivery status each week.",
     }),
-    activatable: true,
+    activatable: false,
     defaultForm: {
       name: "Email release digest",
       triggerMode: "scheduled",
@@ -597,7 +597,7 @@ export const WORKSPACE_AUTOMATION_TEMPLATES_BASE: WorkspaceAutomationTemplate[] 
       ],
       goal: "Catch release-blocking localisation issues while the branch is still being stabilized.",
     }),
-    activatable: true,
+    activatable: false,
     defaultForm: {
       name: "Pre-release validation",
       triggerMode: "scheduled",
@@ -623,7 +623,7 @@ export const WORKSPACE_AUTOMATION_TEMPLATES_BASE: WorkspaceAutomationTemplate[] 
       ],
       goal: "Alert the team only when a push introduces localisation blockers.",
     }),
-    activatable: true,
+    activatable: false,
     defaultForm: {
       name: "Notify on push blockers",
       triggerMode: "github",

@@ -32,31 +32,35 @@ const mergedTemplates = mergeWorkspaceTemplateSkills(WORKSPACE_AUTOMATION_TEMPLA
 
 describe("workspace automation view model", () => {
   it("prefills the form from a template", () => {
-    const template = getWorkspaceAutomationTemplate(
-      "validate-localisation-on-push",
-      mergedTemplates,
-    );
+    const template = getWorkspaceAutomationTemplate("translate-on-source-upload", mergedTemplates);
     expect(template).not.toBeNull();
 
     const form = createWorkspaceAutomationFormStateFromTemplate(
-      "validate-localisation-on-push",
+      "translate-on-source-upload",
       mergedTemplates,
     );
     expect(form).toMatchObject({
-      name: "Validate localisation on push",
-      triggerMode: "github",
-      pushBranches: ["main"],
-      githubEnabled: true,
-      validationEnabled: true,
-      slackEnabled: true,
+      name: "Translate on source upload",
+      triggerMode: "source_upload",
+      createNativeTmsJobEnabled: true,
+      assignTranslateWithAgentEnabled: true,
     });
-    expect(form?.instructions).toContain("You are a localisation quality reviewer");
+    expect(form?.instructions).toContain("You are a native TMS intake agent");
   });
 
   it("does not prefill coming-soon templates", () => {
     expect(
-      getWorkspaceAutomationTemplate("create-localisation-job-brief", mergedTemplates)?.activatable,
+      getWorkspaceAutomationTemplate("validate-localisation-on-push", mergedTemplates)?.activatable,
     ).toBe(false);
+    expect(
+      createWorkspaceAutomationFormStateFromTemplate(
+        "validate-localisation-on-push",
+        mergedTemplates,
+      ),
+    ).toBe(null);
+    expect(
+      createWorkspaceAutomationFormStateFromTemplate("summarize-changes-daily", mergedTemplates),
+    ).toBe(null);
     expect(
       createWorkspaceAutomationFormStateFromTemplate(
         "create-localisation-job-brief",
@@ -192,24 +196,17 @@ describe("workspace automation view model", () => {
     expect(form?.instructions).toContain("You are a Contentful localisation editor");
   });
 
-  it("prefills the summarize changes daily template", () => {
-    const form = createWorkspaceAutomationFormStateFromTemplate(
-      "summarize-changes-daily",
-      mergedTemplates,
-    );
-
-    expect(form).toMatchObject({
+  it("keeps summarize changes daily as coming soon", () => {
+    const template = getWorkspaceAutomationTemplate("summarize-changes-daily", mergedTemplates);
+    expect(template).toMatchObject({
       name: "Summarize changes daily",
-      triggerMode: "scheduled",
-      scheduledCadence: "daily",
-      githubEnabled: true,
-      githubMode: "agent",
-      slackEnabled: true,
-      pushSourceEnabled: false,
-      pullTranslationsEnabled: false,
-      validationEnabled: false,
+      activatable: false,
+      defaultForm: {
+        triggerMode: "scheduled",
+        githubMode: "agent",
+      },
     });
-    expect(form?.instructions).toContain("You are a daily engineering briefing agent");
+    expect(template?.instructions).toContain("You are a daily engineering briefing agent");
   });
 
   it("prefills the daily code-review template", () => {
