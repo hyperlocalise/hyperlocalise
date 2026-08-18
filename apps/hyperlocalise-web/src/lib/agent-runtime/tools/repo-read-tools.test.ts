@@ -1383,6 +1383,25 @@ describe("createRunHyperlocaliseCliTool", () => {
     expect(stdout).toContain("***REDACTED***");
     expect(stdout).not.toContain("abcdefghijklmnopqrstuvwxyz12345");
   });
+
+  it("rejects write flags without invoking hl", async () => {
+    const ctx = createTestContext();
+    let invoked = false;
+    ctx.bash.registerCommand(
+      defineCommand("hl", async () => {
+        invoked = true;
+        return { stdout: "", stderr: "", exitCode: 0 };
+      }),
+    );
+
+    const t = createRunHyperlocaliseCliTool(ctx);
+    const result = await t.execute!(
+      { subcommand: "check", boolFlags: ["fix"] },
+      toolCallInfo,
+    );
+    expect(result).toMatchObject({ success: false, error: expect.stringContaining("fix") });
+    expect(invoked).toBe(false);
+  });
 });
 
 describe("buildHlArgs", () => {
@@ -1432,6 +1451,25 @@ describe("buildHlArgs", () => {
       ok: false,
       error: { code: "flag_not_allowed" },
     });
+  });
+
+  it.each(["fix", "out-file", "output-file", "json-report"])(
+    "rejects write flag %s",
+    (flag) => {
+      expect(buildHlArgs({ subcommand: "check", boolFlags: [flag] })).toMatchObject({
+        ok: false,
+        error: { code: "flag_not_allowed", name: flag },
+      });
+      expect(buildHlArgs({ subcommand: "check", flags: { [flag]: "pwned.txt" } })).toMatchObject({
+        ok: false,
+        error: { code: "flag_not_allowed", name: flag },
+      });
+    },
+  );
+
+  it("allows fix-dry-run", () => {
+    const result = buildHlArgs({ subcommand: "check", boolFlags: ["fix-dry-run"] });
+    expect(isOk(result)).toBe(true);
   });
 
   it("rejects $ in flag value", () => {

@@ -51,6 +51,38 @@ describe("isAllowedBashCommand", () => {
   it("allows benign find without destructive flags", () => {
     expect(isAllowedBashCommand("find . -type f")).toBe(true);
   });
+
+  it("blocks find -fprintf file writes", () => {
+    expect(isAllowedBashCommand("find . -type f -fprintf pwned.txt attacker")).toBe(false);
+  });
+
+  it("blocks quoted find -fprintf", () => {
+    expect(isAllowedBashCommand(`find . -type f "-fprintf" pwned.txt attacker`)).toBe(false);
+  });
+
+  it("blocks find -fprint0 and -printf", () => {
+    expect(isAllowedBashCommand("find . -type f -fprint0 pwned.txt")).toBe(false);
+    expect(isAllowedBashCommand("find . -type f -printf %p")).toBe(false);
+  });
+
+  it("allows hl check without write flags", () => {
+    expect(isAllowedBashCommand("hl check --format json --quiet")).toBe(true);
+  });
+
+  it("allows hl check --fix-dry-run", () => {
+    expect(isAllowedBashCommand("hl check --fix-dry-run")).toBe(true);
+  });
+
+  it.each([
+    "hl check --fix",
+    "hl check --fix=true",
+    "hl check --output-file report.json",
+    "hl check --json-report=report.json",
+    "hl extract --out-file stolen.json",
+    `hl check "--output-file" pwned.txt`,
+  ])("blocks hl write flag in %s", (command) => {
+    expect(isAllowedBashCommand(command)).toBe(false);
+  });
 });
 
 describe("createBashTool", () => {
@@ -63,6 +95,21 @@ describe("createBashTool", () => {
   it("rejects disallowed commands", async () => {
     const tool = createBashTool(createTestContext());
     const result = await tool.execute!({ command: "curl https://example.com" }, toolCallInfo);
+    expect(result).toMatchObject({ success: false });
+  });
+
+  it("rejects find -fprintf before execution", async () => {
+    const tool = createBashTool(createTestContext());
+    const result = await tool.execute!(
+      { command: "find . -type f -fprintf pwned.txt attacker" },
+      toolCallInfo,
+    );
+    expect(result).toMatchObject({ success: false });
+  });
+
+  it("rejects hl check --fix before execution", async () => {
+    const tool = createBashTool(createTestContext());
+    const result = await tool.execute!({ command: "hl check --fix" }, toolCallInfo);
     expect(result).toMatchObject({ success: false });
   });
 });

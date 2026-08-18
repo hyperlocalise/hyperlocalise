@@ -14,10 +14,12 @@ import { tool } from "ai";
 import type { Bash } from "just-bash";
 import { z } from "zod";
 
-import { DEFAULT_MAX_OUTPUT_BYTES, redact, truncate, type RepoToolContext } from "./workspace";
-import { normalizeWorkspacePath } from "./workspace/path";
+import { isHlWriteFlagName } from "@/lib/agent-runtime/tools/hl-write-flags";
 import { normalizeJsonc } from "@/lib/i18n/parse-jsonc-config";
 import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
+
+import { DEFAULT_MAX_OUTPUT_BYTES, redact, truncate, type RepoToolContext } from "./workspace";
+import { normalizeWorkspacePath } from "./workspace/path";
 
 export type { RepoToolContext } from "./workspace";
 export { redact, truncate, DEFAULT_MAX_OUTPUT_BYTES } from "./workspace";
@@ -1134,7 +1136,8 @@ export function buildHlArgs(input: {
 }
 
 function validateFlag(name: string): Result<void, HyperlocaliseCliArgsError> {
-  if (DANGEROUS_FLAGS.has(name)) {
+  const normalized = name.replace(/^-+/, "").toLowerCase();
+  if (DANGEROUS_FLAGS.has(normalized) || isHlWriteFlagName(normalized)) {
     return err({ code: "flag_not_allowed", name });
   }
   if (name.includes("$") || name.includes("`")) {

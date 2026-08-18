@@ -13,6 +13,7 @@
 import { tool } from "ai";
 import { z } from "zod";
 
+import { flagBasename, HL_WRITE_FLAG_NAMES } from "@/lib/agent-runtime/tools/hl-write-flags";
 import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
 
 import { normalizeWorkspacePath } from "./path";
@@ -20,9 +21,26 @@ import { DEFAULT_MAX_OUTPUT_BYTES, redact, truncate } from "./redact";
 import type { RepoToolContext } from "./types";
 
 const DISALLOWED_SUBSTRINGS = [";", "&&", "||", "|", ">", "<", "`", "$(", "${", "-exec"];
-// \b does not work before hyphen-prefixed flags; anchor after whitespace/start instead.
-const DISALLOWED_FLAGS =
-  /(^|(?<=\s))(--no-index|--in-place|-delete|-fprint|-fls|-execdir|-okdir|-ok|-i)(?=\s|$)/i;
+
+// GNU find file-writing actions plus other mutating flags. Tokenized so
+// quoted forms like `"-fprintf"` cannot bypass the deny list. `-fprint`
+// is not a prefix match for `-fprintf`/`-fprint0`; each is listed.
+const DISALLOWED_FLAG_NAMES = new Set([
+  "no-index",
+  "in-place",
+  "delete",
+  "fprint",
+  "fprint0",
+  "fprintf",
+  "printf",
+  "fls",
+  "exec",
+  "execdir",
+  "okdir",
+  "ok",
+  "i",
+  ...HL_WRITE_FLAG_NAMES,
+]);
 
 const ALLOWED_COMMAND_PATTERNS = [
   /^git\s+(status|log|diff|rev-parse|show)\b/i,
@@ -34,6 +52,10 @@ const ALLOWED_COMMAND_PATTERNS = [
 const ABSOLUTE_PATH_PATTERN = /(^|\s)\/(?!\.)(?!\s|$)/;
 const PARENT_TRAVERSAL_PATTERN = /(^|\s)\.\.(\/|\s|$)/;
 
+function isDisallowedFlagToken(token: string): boolean {
+  return token.startsWith("-") && DISALLOWED_FLAG_NAMES.has(flagBasename(token));
+}
+
 export function isAllowedBashCommand(command: string): boolean {
   const trimmed = command.trim();
   if (!trimmed) {
@@ -44,15 +66,21 @@ export function isAllowedBashCommand(command: string): boolean {
     return false;
   }
 
-  if (DISALLOWED_FLAGS.test(trimmed)) {
-    return false;
-  }
-
   if (/\b(rm|curl|wget|chmod|chown|mv|cp|tee|dd|shred|mkfs|jq|yq|env|printenv)\b/i.test(trimmed)) {
     return false;
   }
 
   if (ABSOLUTE_PATH_PATTERN.test(trimmed) || PARENT_TRAVERSAL_PATTERN.test(trimmed)) {
+    return false;
+  }
+
+  const splitResult = splitCommand(trimmed);
+  if (isErr(splitResult)) {
+    return false;
+  }
+
+  const tokens = [splitResult.value.bin, ...splitResult.value.args];
+  if (tokens.some(isDisallowedFlagToken)) {
     return false;
   }
 
