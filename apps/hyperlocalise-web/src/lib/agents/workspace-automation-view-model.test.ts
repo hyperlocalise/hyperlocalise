@@ -59,9 +59,6 @@ describe("workspace automation view model", () => {
       ),
     ).toBe(null);
     expect(
-      createWorkspaceAutomationFormStateFromTemplate("summarize-changes-daily", mergedTemplates),
-    ).toBe(null);
-    expect(
       createWorkspaceAutomationFormStateFromTemplate(
         "create-localisation-job-brief",
         mergedTemplates,
@@ -196,17 +193,25 @@ describe("workspace automation view model", () => {
     expect(form?.instructions).toContain("You are a Contentful localisation editor");
   });
 
-  it("keeps summarize changes daily as coming soon", () => {
-    const template = getWorkspaceAutomationTemplate("summarize-changes-daily", mergedTemplates);
-    expect(template).toMatchObject({
+  it("prefills the summarize changes daily template", () => {
+    const form = createWorkspaceAutomationFormStateFromTemplate(
+      "summarize-changes-daily",
+      mergedTemplates,
+    );
+
+    expect(form).toMatchObject({
       name: "Summarize changes daily",
-      activatable: false,
-      defaultForm: {
-        triggerMode: "scheduled",
-        githubMode: "agent",
-      },
+      triggerMode: "scheduled",
+      scheduledCadence: "daily",
+      githubEnabled: true,
+      githubMode: "agent",
+      slackEnabled: true,
+      pushSourceEnabled: false,
+      pullTranslationsEnabled: false,
+      validationEnabled: false,
     });
-    expect(template?.instructions).toContain("You are a daily engineering briefing agent");
+    expect(form?.instructions).toContain("You are a daily localisation briefing agent");
+    expect(form?.instructions).toContain("Digest focus:");
   });
 
   it("prefills the daily code-review template", () => {

@@ -65,7 +65,7 @@ describe("workspace template manifest", () => {
     expect(getTemplateCategoryFromSkill("translate-on-source-upload")).toBe("popular");
   });
 
-  it("keeps summarize changes daily template content from base definition", () => {
+  it("merges summarize changes daily skill onto the gallery template", () => {
     const [template] = mergeWorkspaceTemplateSkills(WORKSPACE_AUTOMATION_TEMPLATES_BASE).filter(
       (entry) => entry.id === "summarize-changes-daily",
     );
@@ -73,15 +73,15 @@ describe("workspace template manifest", () => {
     expect(template).toMatchObject({
       name: "Summarize changes daily",
       category: "popular",
-      activatable: false,
+      activatable: true,
       defaultForm: expect.objectContaining({
         githubMode: "agent",
         triggerMode: "scheduled",
         scheduledCadence: "daily",
       }),
     });
-    expect(template?.description).toContain("GitHub repository");
-    expect(template?.instructions).toContain("You are a daily engineering briefing agent");
+    expect(template?.description).toContain("localisation-related changes");
+    expect(template?.instructions).toContain("You are a daily localisation briefing agent");
   });
 
   it("merges daily code-review and web-research skills onto gallery templates", () => {
@@ -111,6 +111,7 @@ describe("workspace template manifest", () => {
     expect(activatableIds).toEqual([
       "translate-on-source-upload",
       "translate-contentful-article",
+      "summarize-changes-daily",
       "review-code-daily",
       "daily-web-research",
     ]);

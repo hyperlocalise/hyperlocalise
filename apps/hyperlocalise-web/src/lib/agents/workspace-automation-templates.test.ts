@@ -64,6 +64,7 @@ describe("workspace automation templates", () => {
     ).toEqual([
       "translate-on-source-upload",
       "translate-contentful-article",
+      "summarize-changes-daily",
       "review-code-daily",
       "daily-web-research",
     ]);
@@ -100,6 +101,35 @@ describe("workspace automation templates", () => {
       tools: [
         { id: "create-job", label: "Create job" },
         { id: "translate-with-agent", label: "Translate with agent" },
+      ],
+    });
+  });
+
+  it("exposes an activatable daily localisation digest template", () => {
+    const template = getWorkspaceAutomationTemplate(
+      "summarize-changes-daily",
+      WORKSPACE_AUTOMATION_TEMPLATES_BASE,
+    );
+
+    expect(template).toMatchObject({
+      id: "summarize-changes-daily",
+      category: "popular",
+      activatable: true,
+      defaultForm: {
+        triggerMode: "scheduled",
+        scheduledCadence: "daily",
+        githubEnabled: true,
+        githubMode: "agent",
+        slackEnabled: true,
+      },
+    });
+    expect(template?.instructions).toContain("You are a daily localisation briefing agent");
+    expect(template?.instructions).toContain("Digest focus:");
+    expect(getWorkspaceAutomationTemplateFlow(template!)).toEqual({
+      trigger: { id: "scheduled", label: "Daily" },
+      tools: [
+        { id: "github", label: "GitHub" },
+        { id: "slack", label: "Slack" },
       ],
     });
   });

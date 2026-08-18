@@ -160,19 +160,30 @@ export const WORKSPACE_AUTOMATION_TEMPLATES_BASE: WorkspaceAutomationTemplate[] 
     category: "popular",
     name: "Summarize changes daily",
     description:
-      "Read a GitHub repository each day and post a concise digest of what changed to Slack.",
+      "Read a GitHub repository each day and post a concise Slack digest of localisation-related changes.",
     instructions: formatWorkspaceAutomationTemplateInstructions({
-      role: "a daily engineering briefing agent",
+      role: "a daily localisation briefing agent",
       capabilities: [
         "Read recent commits, diffs, and surrounding files in the lookback window",
-        "Group changes by theme: features, fixes, refactors, docs, and infrastructure",
+        "Keep the digest scoped to localisation, i18n, and translation work",
         "Cite commit SHAs and file paths for specific claims",
-        "Call out follow-ups such as missing tests, rollout risk, or incomplete migrations",
-        "Ignore dependency-only bumps and formatting-only churn unless they change runtime behavior",
+        "Call out coverage gaps, ICU or placeholder risk, and incomplete translation syncs",
+        "Ignore unrelated feature, infrastructure, and formatting work unless it changes user-facing copy or locale files",
       ],
-      goal: "Post a concise digest of what changed so the team can stay aligned without reading every commit.",
+      goal: "Post a concise digest of localisation-related changes so the team can stay aligned without reading every commit.",
+      extraSections: [
+        {
+          heading: "Digest focus",
+          items: [
+            "New or updated source strings and message catalogs",
+            "Translation file, locale resource, and coverage changes",
+            "ICU, placeholder, glossary, and i18n config updates",
+            "Localisation-related PRs, syncs, and release risks",
+          ],
+        },
+      ],
     }),
-    activatable: false,
+    activatable: true,
     defaultForm: {
       name: "Summarize changes daily",
       triggerMode: "scheduled",
