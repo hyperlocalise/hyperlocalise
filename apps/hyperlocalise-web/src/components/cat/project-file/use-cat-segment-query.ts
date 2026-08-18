@@ -12,12 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import {
-  keepPreviousData,
-  useInfiniteQuery,
-  useQueryClient,
-  type InfiniteData,
-} from "@tanstack/react-query";
+import { useInfiniteQuery, useQueryClient, type InfiniteData } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useIntl } from "react-intl";
 
@@ -28,6 +23,7 @@ import { isServerQueueFilter, type CatQueueFilter } from "@/components/cat/queue
 import { mergeCatQueuePages } from "@/components/cat/queue/merge-cat-queue-pages";
 
 import {
+  canReuseCatQueuePlaceholderData,
   defaultCatPageLimit,
   fetchProjectFileCatQueuePage,
   projectFileCatBaseQueryKey,
@@ -123,7 +119,17 @@ export function useCatSegmentQuery(input: {
   >({
     queryKey: baseQueryKey,
     enabled: input.enabled !== false && Boolean(input.targetLocale) && Boolean(input.sourcePath),
-    placeholderData: keepPreviousData,
+    placeholderData: (previousData, previousQuery) => {
+      if (
+        previousData === undefined ||
+        previousQuery === undefined ||
+        !canReuseCatQueuePlaceholderData(previousQuery.queryKey, baseQueryKey)
+      ) {
+        return undefined;
+      }
+
+      return previousData;
+    },
     initialPageParam: { offset: 0 },
     getNextPageParam: (lastPage) => {
       const pagePagination = lastPage.pagination;

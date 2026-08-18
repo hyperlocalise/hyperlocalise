@@ -79,6 +79,29 @@ export function projectFileCatBaseQueryKey(input: {
   ] as const;
 }
 
+const CAT_QUEUE_BASE_QUERY_KEY_LENGTH = 11;
+
+function catQueuePlaceholderIdentity(key: readonly unknown[]) {
+  if (key.length !== CAT_QUEUE_BASE_QUERY_KEY_LENGTH || key[0] !== "project-file-cat-queue") {
+    return null;
+  }
+
+  return [key[0], key[1], key[2], key[3], key[4], key[5], key[6], key[10]] as const;
+}
+
+export function canReuseCatQueuePlaceholderData(
+  previousKey: readonly unknown[],
+  nextKey: readonly unknown[],
+) {
+  const previousIdentity = catQueuePlaceholderIdentity(previousKey);
+  const nextIdentity = catQueuePlaceholderIdentity(nextKey);
+  if (!previousIdentity || !nextIdentity) {
+    return false;
+  }
+
+  return previousIdentity.every((value, index) => Object.is(value, nextIdentity[index]));
+}
+
 export type ProjectFileCatQueuePageParam = {
   offset: number;
   phraseScanPage?: number;

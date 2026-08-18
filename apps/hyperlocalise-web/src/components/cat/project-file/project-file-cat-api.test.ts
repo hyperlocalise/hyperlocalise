@@ -64,6 +64,7 @@ vi.mock("@/lib/api-client-instance", () => ({
 }));
 
 import {
+  canReuseCatQueuePlaceholderData,
   fetchProjectFileCatQueuePage,
   projectFileCatBaseQueryKey,
   projectFileCatQueryKey,
@@ -316,5 +317,69 @@ describe("projectFileCatBaseQueryKey", () => {
       null,
     ]);
     expect(key).not.toContain(0);
+  });
+});
+
+describe("canReuseCatQueuePlaceholderData", () => {
+  const baseKeyInput = {
+    ...catApiTestContext,
+    search: "",
+    queueFilter: "all" as const,
+    limit: 50,
+  };
+
+  it("reuses previous data when only search, filter, or page size change", () => {
+    const previousKey = projectFileCatBaseQueryKey(baseKeyInput);
+
+    expect(
+      canReuseCatQueuePlaceholderData(
+        previousKey,
+        projectFileCatBaseQueryKey({ ...baseKeyInput, search: "hero" }),
+      ),
+    ).toBe(true);
+    expect(
+      canReuseCatQueuePlaceholderData(
+        previousKey,
+        projectFileCatBaseQueryKey({ ...baseKeyInput, queueFilter: "needs_review" }),
+      ),
+    ).toBe(true);
+    expect(
+      canReuseCatQueuePlaceholderData(
+        previousKey,
+        projectFileCatBaseQueryKey({ ...baseKeyInput, limit: 25 }),
+      ),
+    ).toBe(true);
+  });
+
+  it("does not reuse previous data when the target locale or file identity changes", () => {
+    const previousKey = projectFileCatBaseQueryKey(baseKeyInput);
+
+    expect(
+      canReuseCatQueuePlaceholderData(
+        previousKey,
+        projectFileCatBaseQueryKey({ ...baseKeyInput, targetLocale: "de" }),
+      ),
+    ).toBe(false);
+    expect(
+      canReuseCatQueuePlaceholderData(
+        previousKey,
+        projectFileCatBaseQueryKey({ ...baseKeyInput, sourcePath: "locales/other.json" }),
+      ),
+    ).toBe(false);
+    expect(
+      canReuseCatQueuePlaceholderData(
+        previousKey,
+        projectFileCatBaseQueryKey({
+          ...baseKeyInput,
+          sourcePaths: "locales/en.json,locales/de.json",
+        }),
+      ),
+    ).toBe(false);
+    expect(
+      canReuseCatQueuePlaceholderData(
+        previousKey,
+        projectFileCatBaseQueryKey({ ...baseKeyInput, projectId: "project_2" }),
+      ),
+    ).toBe(false);
   });
 });
