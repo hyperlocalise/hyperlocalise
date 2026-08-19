@@ -92,7 +92,7 @@ describe("searchSlackChannels", () => {
           { id: "C1", name: "alerts" },
           { id: "C2", name: "l10n-reviews" },
         ],
-        response_metadata: { next_cursor: "page-2" },
+        response_metadata: {},
       }),
     );
 
@@ -140,7 +140,9 @@ describe("searchSlackChannels", () => {
       { id: "slack:C_PUBLIC", name: "localization", private: false },
       { id: "slack:C_SELECTED", name: "release-updates", private: true },
     ]);
-    expect(String(fetchMock.mock.calls[0]?.[0])).toContain("https://slack.com/api/conversations.info");
+    expect(String(fetchMock.mock.calls[0]?.[0])).toContain(
+      "https://slack.com/api/conversations.info",
+    );
     expect(String(fetchMock.mock.calls[0]?.[0])).toContain("channel=C_SELECTED");
   });
 
@@ -149,7 +151,10 @@ describe("searchSlackChannels", () => {
     const sleep = vi.fn().mockResolvedValue(undefined);
     fetchMock
       .mockResolvedValueOnce(
-        jsonResponse({ ok: false, error: "ratelimited" }, { status: 429, headers: { "retry-after": "1" } }),
+        jsonResponse(
+          { ok: false, error: "ratelimited" },
+          { status: 429, headers: { "retry-after": "1" } },
+        ),
       )
       .mockResolvedValueOnce(
         jsonResponse({

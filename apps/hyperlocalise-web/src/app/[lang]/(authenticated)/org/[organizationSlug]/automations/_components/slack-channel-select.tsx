@@ -109,7 +109,8 @@ export function SlackChannelSelect({
 
   const channels = channelsQuery.data ?? [];
   const selectedChannel = channels.find((channel) => channel.id === value);
-  const triggerDisabled = disabled || !slackConnected || (channelsQuery.isLoading && !selectedChannel);
+  const triggerDisabled =
+    disabled || !slackConnected || (channelsQuery.isLoading && !selectedChannel);
 
   return (
     <div className="grid gap-1.5">
@@ -142,7 +143,9 @@ export function SlackChannelSelect({
         <PopoverContent align="start" className="w-80 p-0" sideOffset={4}>
           <Command shouldFilter={false}>
             <CommandInput
-              placeholder={intl.formatMessage(workspaceAutomationFormMessages.searchChannelPlaceholder)}
+              placeholder={intl.formatMessage(
+                workspaceAutomationFormMessages.searchChannelPlaceholder,
+              )}
               value={query}
               onValueChange={setQuery}
             />

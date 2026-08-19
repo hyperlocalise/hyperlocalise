@@ -219,6 +219,7 @@ describe("agentSlackRoutes", () => {
     const response = await client.api.orgs[":organizationSlug"]["agent-slack"].channels.$get(
       {
         param: { organizationSlug },
+        query: {},
       },
       { headers },
     );
@@ -297,6 +298,7 @@ describe("agentSlackRoutes", () => {
     const response = await client.api.orgs[":organizationSlug"]["agent-slack"].channels.$get(
       {
         param: { organizationSlug },
+        query: {},
       },
       { headers },
     );
@@ -316,6 +318,7 @@ describe("agentSlackRoutes", () => {
     const response = await client.api.orgs[":organizationSlug"]["agent-slack"].channels.$get(
       {
         param: { organizationSlug },
+        query: {},
       },
       { headers },
     );
@@ -343,6 +346,7 @@ describe("agentSlackRoutes", () => {
     const response = await client.api.orgs[":organizationSlug"]["agent-slack"].channels.$get(
       {
         param: { organizationSlug },
+        query: {},
       },
       { headers },
     );
@@ -367,6 +371,7 @@ describe("agentSlackRoutes", () => {
     const response = await client.api.orgs[":organizationSlug"]["agent-slack"].channels.$get(
       {
         param: { organizationSlug },
+        query: {},
       },
       { headers },
     );
@@ -391,6 +396,7 @@ describe("agentSlackRoutes", () => {
     const response = await client.api.orgs[":organizationSlug"]["agent-slack"].channels.$get(
       {
         param: { organizationSlug },
+        query: {},
       },
       {
         headers: await fixture.authHeadersFor(identity),

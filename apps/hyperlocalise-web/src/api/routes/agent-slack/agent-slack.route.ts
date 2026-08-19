@@ -52,9 +52,7 @@ import { searchSlackChannelsQuerySchema, updateSlackAgentBodySchema } from "./ag
 
 type SlackConnectorConfig = { teamId?: string; teamName?: string };
 type SlackInstallation = { botToken: string };
-type SlackChannelListError =
-  | { code: "installation_not_found" }
-  | SlackChannelSearchError;
+type SlackChannelListError = { code: "installation_not_found" } | SlackChannelSearchError;
 
 const logger = createLogger("agent-slack");
 

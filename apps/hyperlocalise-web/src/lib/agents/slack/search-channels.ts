@@ -247,14 +247,16 @@ export async function searchSlackChannels(input: {
   const sleep = input.sleep ?? defaultSleep;
   const query = input.query?.trim() ?? "";
 
-  const selectedResult = input.selectedChannelId
-    ? await loadSelectedSlackChannel(input.botToken, input.selectedChannelId, {
-        signal: input.signal,
-        sleep,
-      })
-    : ok(null);
-  if (isErr(selectedResult)) {
-    return selectedResult;
+  let selectedChannel: SlackChannelListItem | null = null;
+  if (input.selectedChannelId) {
+    const selectedResult = await loadSelectedSlackChannel(input.botToken, input.selectedChannelId, {
+      signal: input.signal,
+      sleep,
+    });
+    if (isErr(selectedResult)) {
+      return selectedResult;
+    }
+    selectedChannel = selectedResult.value;
   }
 
   if (!query) {
@@ -267,7 +269,7 @@ export async function searchSlackChannels(input: {
       return pageResult;
     }
 
-    return ok(mergeSlackChannels(selectedResult.value, pageResult.value.channels));
+    return ok(mergeSlackChannels(selectedChannel, pageResult.value.channels));
   }
 
   const matches: SlackChannelListItem[] = [];
@@ -288,7 +290,7 @@ export async function searchSlackChannels(input: {
       if (channelMatchesQuery(channel, query)) {
         matches.push(channel);
         if (matches.length >= SLACK_CHANNEL_SEARCH_MAX_RESULTS) {
-          return ok(mergeSlackChannels(selectedResult.value, matches));
+          return ok(mergeSlackChannels(selectedChannel, matches));
         }
       }
     }
@@ -299,5 +301,5 @@ export async function searchSlackChannels(input: {
     }
   }
 
-  return ok(mergeSlackChannels(selectedResult.value, matches));
+  return ok(mergeSlackChannels(selectedChannel, matches));
 }

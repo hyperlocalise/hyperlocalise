@@ -600,9 +600,9 @@ describe("workspace automation view model", () => {
       { id: "archived", fullName: "acme/archive", enabled: true, archived: true },
     ];
 
-    expect(selectableAutomationRepositories(repositories).map((repository) => repository.id)).toEqual(
-      ["enabled"],
-    );
+    expect(
+      selectableAutomationRepositories(repositories).map((repository) => repository.id),
+    ).toEqual(["enabled"]);
     expect(
       selectableAutomationRepositories(repositories, "disabled").map((repository) => repository.id),
     ).toEqual(["enabled", "disabled"]);
