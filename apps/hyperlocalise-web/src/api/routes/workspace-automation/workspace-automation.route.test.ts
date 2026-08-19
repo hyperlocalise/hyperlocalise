@@ -264,7 +264,7 @@ describe("workspace automation routes", () => {
         json: {
           name: "Invalid model",
           instructions: "Reject unknown models.",
-          model: "openai/gpt-4o",
+          model: "openai/gpt-4o" as never,
           triggerConfig: { mode: "manual" },
           repositoryTarget: { kind: "none" },
           toolConfig: {},

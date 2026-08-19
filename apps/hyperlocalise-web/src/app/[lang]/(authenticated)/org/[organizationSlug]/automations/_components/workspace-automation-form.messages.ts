@@ -929,42 +929,42 @@ export const workspaceAutomationFormMessages = defineMessages({
   },
   modelSection: {
     defaultMessage: "Model",
-    id: "k3nQ8wR2tA",
+    id: "XCYkEzJaA9",
     description: "Section heading for the automation language model selector",
   },
   modelLabel: {
     defaultMessage: "Model",
-    id: "p7L2mN9sXc",
+    id: "yKlYrz3iYw",
     description: "Label for the automation language model select",
   },
   modelDescription: {
     defaultMessage: "This model runs the automation and its nested agents.",
-    id: "b4H6yU1qWe",
+    id: "4/w2RcdLUO",
     description: "Helper text for the automation language model select",
   },
   modelGpt56Luna: {
     defaultMessage: "GPT-5.6 Luna",
-    id: "a1C3dE5fGh",
+    id: "IrSQ6vE36K",
     description: "Label for the OpenAI GPT-5.6 Luna automation model",
   },
   modelGpt56Terra: {
     defaultMessage: "GPT-5.6 Terra",
-    id: "i8J0kL2mNo",
+    id: "DIWOumxoRD",
     description: "Label for the OpenAI GPT-5.6 Terra automation model",
   },
   modelGpt56Sol: {
     defaultMessage: "GPT-5.6 Sol",
-    id: "p9Q1rS3tUv",
+    id: "f7G04QgkqV",
     description: "Label for the OpenAI GPT-5.6 Sol automation model",
   },
   modelClaudeSonnet5: {
     defaultMessage: "Claude Sonnet 5",
-    id: "w4X6yZ8aBc",
+    id: "4b7EZj4onr",
     description: "Label for the Anthropic Claude Sonnet 5 automation model",
   },
   modelClaudeOpus5: {
     defaultMessage: "Claude Opus 5",
-    id: "d7E9fG1hIj",
+    id: "hGgsaGVVDY",
     description: "Label for the Anthropic Claude Opus 5 automation model",
   },
   instructionsPlaceholder: {

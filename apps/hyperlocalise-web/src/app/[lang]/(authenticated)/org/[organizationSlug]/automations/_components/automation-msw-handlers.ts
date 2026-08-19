@@ -172,8 +172,9 @@ export function createAutomationDetailMswHandlers(automation: WorkspaceAutomatio
         { status: 202 },
       ),
     ),
-    http.delete("/api/orgs/:organizationSlug/automations/:automationId", () =>
-      new HttpResponse(null, { status: 204 }),
+    http.delete(
+      "/api/orgs/:organizationSlug/automations/:automationId",
+      () => new HttpResponse(null, { status: 204 }),
     ),
   ];
 }
