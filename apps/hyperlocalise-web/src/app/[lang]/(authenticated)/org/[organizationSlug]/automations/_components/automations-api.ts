@@ -10,7 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import type { WorkspaceAutomationRecord } from "@/lib/agents/workspace-automations";
+import type { WorkspaceAutomationRecord } from "@/lib/agents/workspace-automation-types";
 import type { createApiClient } from "@/lib/api-client";
 import { readApiResponseError } from "@/lib/api-error";
 

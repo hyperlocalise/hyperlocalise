@@ -19,7 +19,7 @@ import { workspaceAutomationToGithubSettings } from "./workspace-automation-gith
 import {
   hasWorkspaceAutomationContentfulWorkflow,
   type WorkspaceAutomationRecord,
-} from "./workspace-automations";
+} from "./workspace-automation-types";
 
 export function resolveNextRunAtForWorkspaceAutomation(
   automation: WorkspaceAutomationRecord,

@@ -17,7 +17,7 @@ import {
   createWorkspaceAutomationFormStateFromTemplate,
 } from "@/lib/agents/workspace-automation-view-model";
 import { getWorkspaceAutomationTemplate } from "@/lib/agents/workspace-automation-templates";
-import type { WorkspaceAutomationRunRecord } from "@/lib/agents/workspace-automations";
+import type { WorkspaceAutomationRunRecord } from "@/lib/agents/workspace-automation-types";
 
 import { createAutomationSummary } from "./automations.fixture";
 

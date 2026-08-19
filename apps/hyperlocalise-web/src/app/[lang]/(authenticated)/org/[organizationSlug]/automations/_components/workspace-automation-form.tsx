@@ -104,7 +104,7 @@ import {
   selectableAutomationRepositories,
   workspaceAutomationFormCanActivate,
 } from "@/lib/agents/workspace-automation-view-model";
-import type { WorkspaceAutomationRunRecord } from "@/lib/agents/workspace-automations";
+import type { WorkspaceAutomationRunRecord } from "@/lib/agents/workspace-automation-types";
 import { cn } from "@/lib/primitives/cn";
 import type { ApiProject } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/projects/_components/project-list";
 

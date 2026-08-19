@@ -28,7 +28,7 @@ import type {
   WorkspaceAutomationTemplate,
   WorkspaceAutomationTemplateCategory,
 } from "@/lib/agents/workspace-automation-templates";
-import type { WorkspaceAutomationRecord } from "@/lib/agents/workspace-automations";
+import type { WorkspaceAutomationRecord } from "@/lib/agents/workspace-automation-types";
 
 import { PageHeader, WorkspacePageShell } from "../../_components/workspace-resource-shared";
 import { AutomationTemplateFlow } from "./automation-template-flow";

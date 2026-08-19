@@ -12,7 +12,7 @@
  */
 import { http, HttpResponse } from "msw";
 
-import type { WorkspaceAutomationRecord } from "@/lib/agents/workspace-automations";
+import type { WorkspaceAutomationRecord } from "@/lib/agents/workspace-automation-types";
 
 import {
   automationEditorContentfulConnectionsFixture,
