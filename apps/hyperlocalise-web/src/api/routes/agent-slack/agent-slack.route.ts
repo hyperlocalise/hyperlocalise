@@ -126,6 +126,7 @@ async function loadSlackChannelsForTeam(
 
   return searchSlackChannels({
     botToken: installationResult.value.botToken,
+    cacheKey: teamId,
     query: input.query,
     selectedChannelId: input.selectedChannelId,
     signal: input.signal,

@@ -91,8 +91,8 @@ export const workspaceAutomationFormMessages = defineMessages({
     description: "Placeholder when no Slack channel is selected",
   },
   searchChannelPlaceholder: {
-    defaultMessage: "Search channels",
-    id: "ipTMc2bEYF",
+    defaultMessage: "Search by name or paste a channel ID",
+    id: "EnR+0v6FUm",
     description: "Placeholder for Slack channel search input",
   },
   selectConnection: {
@@ -641,6 +641,13 @@ export const workspaceAutomationFormMessages = defineMessages({
     defaultMessage: "No channels found",
     id: "AiZ8NmX54q",
     description: "Empty state when no Slack channels are available",
+  },
+  noMatchingChannels: {
+    defaultMessage:
+      "Can't find that channel. If it's private, invite the Hyperlocalise app, then search again. You can also paste the channel ID from Slack.",
+    id: "vLWybE+AOt",
+    description:
+      "Empty state when a typed Slack channel name or ID does not match visible channels",
   },
   privateChannelSuffix: {
     defaultMessage: "#{name} (private)",

@@ -19,6 +19,7 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vite
 import { app } from "@/api/app";
 import { createProjectTestFixture } from "@/api/routes/project/project.fixture";
 import { verifySlackState } from "@/lib/agents/slack/oauth-state";
+import { clearSlackChannelListCache } from "@/lib/agents/slack/search-channels";
 import { db, schema } from "@/lib/database";
 import { env } from "@/lib/env";
 
@@ -141,6 +142,7 @@ describe("agentSlackRoutes", () => {
   afterEach(async () => {
     vi.resetAllMocks();
     vi.unstubAllGlobals();
+    clearSlackChannelListCache();
     await fixture.cleanup();
   });
 

@@ -150,10 +150,12 @@ export function SlackChannelSelect({
               onValueChange={setQuery}
             />
             <CommandList>
-              <CommandEmpty>
+              <CommandEmpty className="px-3 text-pretty">
                 {channelsQuery.isFetching
                   ? intl.formatMessage(workspaceAutomationFormMessages.loadingChannels)
-                  : intl.formatMessage(workspaceAutomationFormMessages.noChannelsFound)}
+                  : query.trim()
+                    ? intl.formatMessage(workspaceAutomationFormMessages.noMatchingChannels)
+                    : intl.formatMessage(workspaceAutomationFormMessages.noChannelsFound)}
               </CommandEmpty>
               <CommandGroup>
                 {channels.map((channel) => (
