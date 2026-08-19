@@ -5,6 +5,7 @@ go_library(
     srcs = [
         "icu.go",
         "markup.go",
+        "tokenizer.go",
         "words.go",
     ],
     importpath = "github.com/hyperlocalise/hyperlocalise/internal/i18n/spellcheck",
@@ -20,6 +21,7 @@ go_test(
     srcs = [
         "icu_test.go",
         "markup_test.go",
+        "tokenizer_test.go",
         "words_test.go",
     ],
     embed = [":spellcheck"],
