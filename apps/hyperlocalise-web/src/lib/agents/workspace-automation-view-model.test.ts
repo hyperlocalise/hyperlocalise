@@ -233,7 +233,9 @@ describe("workspace automation view model", () => {
       webSearchEnabled: false,
     });
     expect(form?.instructions).toContain("You are a localisation-focused code reviewer");
-    expect(form?.instructions).toContain("Review focus:");
+    expect(form?.instructions).toContain(
+      "Code-layer review focus (in addition to translation review):",
+    );
     expect(
       validateWorkspaceAutomationFormState({
         ...form!,
@@ -282,7 +284,9 @@ describe("workspace automation view model", () => {
       validationEnabled: false,
     });
     expect(form?.instructions).toContain("You are a localisation-focused code reviewer");
-    expect(form?.instructions).toContain("Review focus:");
+    expect(form?.instructions).toContain(
+      "Code-layer review focus (in addition to translation review):",
+    );
     expect(
       validateWorkspaceAutomationFormState({
         ...form!,
