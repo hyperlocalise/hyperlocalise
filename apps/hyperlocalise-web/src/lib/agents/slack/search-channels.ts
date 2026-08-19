@@ -20,6 +20,24 @@ import {
   type Result,
 } from "@/lib/primitives/result/results";
 
+import {
+  fromCanonicalSlackChannelId,
+  isExactSlackChannelMatch,
+  normalizeSlackChannelQuery,
+  parseSlackConversationId,
+  SLACK_CHANNEL_NAME_PATTERN,
+  slackChannelMatchKeys,
+  slackChannelMatchesQuery,
+  toCanonicalSlackChannelId,
+} from "./channel-query";
+
+export {
+  fromCanonicalSlackChannelId,
+  normalizeSlackChannelQuery,
+  parseSlackConversationId,
+  toCanonicalSlackChannelId,
+} from "./channel-query";
+
 export const SLACK_CHANNEL_LIST_PAGE_LIMIT = 200;
 export const SLACK_CHANNEL_BROWSE_LIMIT = SLACK_CHANNEL_LIST_PAGE_LIMIT;
 export const SLACK_CHANNEL_SEARCH_PAGE_LIMIT = SLACK_CHANNEL_LIST_PAGE_LIMIT;
@@ -31,10 +49,6 @@ export const SLACK_CHANNEL_RATE_LIMIT_MAX_WAIT_MS = 2000;
 export const SLACK_CHANNEL_LIST_CACHE_TTL_MS = 60_000;
 const SLACK_CHANNEL_LIST_CACHE_MAX_ENTRIES = 50;
 
-const SLACK_CONVERSATION_ID_PATTERN = /^(?:slack:)?[CGD][A-Z0-9]{8,}$/i;
-const SLACK_ARCHIVE_CHANNEL_PATTERN = /\/archives\/([CGD][A-Z0-9]{8,})/i;
-const SLACK_MENTION_CHANNEL_PATTERN = /<#([CGD][A-Z0-9]{8,})(?:\|[^>]*)?>/i;
-const SLACK_CHANNEL_NAME_PATTERN = /^[a-z0-9][a-z0-9_-]{0,79}$/;
 const SLACK_CHANNEL_LOOKUP_MISS_ERRORS = new Set([
   "channel_not_found",
   "invalid_arguments",
@@ -77,54 +91,6 @@ type SlackRequestOptions = {
   sleep: (ms: number) => Promise<void>;
 };
 
-export function toCanonicalSlackChannelId(channelId: string) {
-  return channelId.startsWith("slack:") ? channelId : `slack:${channelId}`;
-}
-
-export function fromCanonicalSlackChannelId(channelId: string) {
-  return channelId.startsWith("slack:") ? channelId.slice("slack:".length) : channelId;
-}
-
-export function normalizeSlackChannelQuery(query: string) {
-  return query.trim().replace(/^#/, "").toLowerCase();
-}
-
-export function parseSlackConversationId(query: string) {
-  const trimmed = query.trim();
-  if (!trimmed) {
-    return null;
-  }
-
-  if (SLACK_CONVERSATION_ID_PATTERN.test(trimmed)) {
-    return fromCanonicalSlackChannelId(trimmed);
-  }
-
-  const archiveMatch = trimmed.match(SLACK_ARCHIVE_CHANNEL_PATTERN);
-  if (archiveMatch?.[1]) {
-    return archiveMatch[1];
-  }
-
-  const mentionMatch = trimmed.match(SLACK_MENTION_CHANNEL_PATTERN);
-  if (mentionMatch?.[1]) {
-    return mentionMatch[1];
-  }
-
-  return null;
-}
-
-function slackChannelMatchKeys(value: string) {
-  const normalized = normalizeSlackChannelQuery(value);
-  if (!normalized) {
-    return [];
-  }
-
-  const keys = [normalized];
-  if (/\s/u.test(normalized)) {
-    keys.push(normalized.replace(/\s+/g, "-"), normalized.replace(/\s+/g, "_"));
-  }
-  return keys;
-}
-
 function defaultSleep(ms: number) {
   return new Promise<void>((resolve) => {
     setTimeout(resolve, ms);
@@ -156,32 +122,6 @@ function toChannelListItem(channel: SlackChannel): SlackChannelListItem | null {
     name,
     private: Boolean(channel.is_private),
   };
-}
-
-function isExactChannelMatch(channel: SlackChannelListItem, query: string) {
-  const queryKeys = slackChannelMatchKeys(query);
-  if (queryKeys.length === 0) {
-    return false;
-  }
-
-  const name = channel.name.toLowerCase();
-  const id = fromCanonicalSlackChannelId(channel.id).toLowerCase();
-  return queryKeys.includes(name) || queryKeys.includes(id);
-}
-
-function channelMatchesQuery(channel: SlackChannelListItem, query: string) {
-  if (isExactChannelMatch(channel, query)) {
-    return true;
-  }
-
-  const normalizedQuery = normalizeSlackChannelQuery(query);
-  if (!normalizedQuery) {
-    return true;
-  }
-
-  const name = channel.name.toLowerCase();
-  const id = fromCanonicalSlackChannelId(channel.id).toLowerCase();
-  return slackChannelMatchKeys(query).some((key) => name.includes(key) || id.includes(key));
 }
 
 function slackChannelLookupKeys(query: string) {
@@ -456,8 +396,8 @@ function mergeSlackChannels(
   const normalizedQuery = normalizeSlackChannelQuery(query);
   return [...merged.values()].sort((left, right) => {
     if (normalizedQuery) {
-      const leftExact = isExactChannelMatch(left, normalizedQuery);
-      const rightExact = isExactChannelMatch(right, normalizedQuery);
+      const leftExact = isExactSlackChannelMatch(left, normalizedQuery);
+      const rightExact = isExactSlackChannelMatch(right, normalizedQuery);
       if (leftExact !== rightExact) {
         return leftExact ? -1 : 1;
       }
@@ -581,7 +521,7 @@ export async function searchSlackChannels(input: {
       return;
     }
     if (
-      !isExactChannelMatch(channel, query) &&
+      !isExactSlackChannelMatch(channel, query) &&
       matches.length >= SLACK_CHANNEL_SEARCH_MAX_RESULTS
     ) {
       return;
@@ -594,12 +534,12 @@ export async function searchSlackChannels(input: {
     pushMatch(lookupResult.value);
   }
   for (const channel of snapshot?.channels ?? []) {
-    if (channelMatchesQuery(channel, query)) {
+    if (slackChannelMatchesQuery(channel, query)) {
       pushMatch(channel);
     }
   }
 
-  const hasExactMatch = () => matches.some((channel) => isExactChannelMatch(channel, query));
+  const hasExactMatch = () => matches.some((channel) => isExactSlackChannelMatch(channel, query));
 
   for (let page = 1; page < SLACK_CHANNEL_SEARCH_EXACT_MAX_PAGES; page += 1) {
     if (hasExactMatch() || !snapshot?.nextCursor || !canPageFurther) {
@@ -612,7 +552,7 @@ export async function searchSlackChannels(input: {
     }
 
     for (const channel of snapshot?.channels ?? []) {
-      if (channelMatchesQuery(channel, query)) {
+      if (slackChannelMatchesQuery(channel, query)) {
         pushMatch(channel);
       }
     }

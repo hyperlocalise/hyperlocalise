@@ -30,12 +30,36 @@ import {
 } from "@/components/ui/command";
 import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  mergeVisibleSlackChannels,
+  type SlackChannelQueryTarget,
+} from "@/lib/agents/slack/channel-query";
 import { createApiClient } from "@/lib/api-client";
 import { cn } from "@/lib/primitives/cn";
 
 const api = createApiClient();
+const SLACK_CHANNEL_SEARCH_DEBOUNCE_MS = 300;
 
-type SlackChannelOption = { id: string; name: string; private: boolean };
+type SlackChannelOption = SlackChannelQueryTarget & { private: boolean };
+
+async function fetchSlackChannels(input: {
+  channelId?: string;
+  organizationSlug: string;
+  query?: string;
+}) {
+  const response = await api.api.orgs[":organizationSlug"]["agent-slack"].channels.$get({
+    param: { organizationSlug: input.organizationSlug },
+    query: {
+      q: input.query || undefined,
+      channelId: input.channelId || undefined,
+    },
+  });
+  if (response.status !== 200) {
+    throw new Error("Failed to load Slack channels");
+  }
+  const body = await response.json();
+  return body.channels as SlackChannelOption[];
+}
 
 function useDebouncedValue<T>(value: T, delayMs: number) {
   const [debouncedValue, setDebouncedValue] = useState(value);
@@ -86,38 +110,57 @@ export function SlackChannelSelect({
   const intl = useIntl();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
-  const debouncedQuery = useDebouncedValue(query, 300);
+  const debouncedQuery = useDebouncedValue(query, SLACK_CHANNEL_SEARCH_DEBOUNCE_MS);
+  const trimmedQuery = query.trim();
+  const trimmedDebouncedQuery = debouncedQuery.trim();
 
-  const channelsQuery = useQuery({
-    queryKey: ["slack-agent-channels", organizationSlug, debouncedQuery, value],
-    queryFn: async () => {
-      const response = await api.api.orgs[":organizationSlug"]["agent-slack"].channels.$get({
-        param: { organizationSlug },
-        query: {
-          q: debouncedQuery || undefined,
-          channelId: value || undefined,
-        },
-      });
-      if (response.status !== 200) {
-        throw new Error("Failed to load Slack channels");
-      }
-      const body = await response.json();
-      return body.channels;
-    },
+  const browseQuery = useQuery({
+    queryKey: ["slack-agent-channels", organizationSlug, value],
+    queryFn: () =>
+      fetchSlackChannels({
+        organizationSlug,
+        channelId: value || undefined,
+      }),
     enabled: slackConnected,
   });
 
-  const channels = channelsQuery.data ?? [];
-  const selectedChannel = channels.find((channel) => channel.id === value);
-  const triggerDisabled =
-    disabled || !slackConnected || (channelsQuery.isLoading && !selectedChannel);
+  const searchQuery = useQuery({
+    queryKey: ["slack-agent-channels-search", organizationSlug, trimmedDebouncedQuery],
+    queryFn: () =>
+      fetchSlackChannels({
+        organizationSlug,
+        query: trimmedDebouncedQuery,
+      }),
+    enabled: slackConnected && open && Boolean(trimmedDebouncedQuery),
+  });
+
+  const browseChannels = browseQuery.data ?? [];
+  const remoteChannels = trimmedQuery ? (searchQuery.data ?? []) : [];
+  const visibleChannels = mergeVisibleSlackChannels(browseChannels, remoteChannels, query);
+  const selectedChannel =
+    browseChannels.find((channel) => channel.id === value) ??
+    remoteChannels.find((channel) => channel.id === value);
+  const isBrowseLoading = browseQuery.isLoading && browseQuery.data === undefined;
+  const isRemoteSearchPending =
+    Boolean(trimmedQuery) &&
+    visibleChannels.length === 0 &&
+    (searchQuery.isFetching || trimmedDebouncedQuery !== trimmedQuery);
+  const triggerDisabled = disabled || !slackConnected || (isBrowseLoading && !selectedChannel);
 
   return (
     <div className="grid gap-1.5">
       <Label className="text-xs text-muted-foreground">
         <FormattedMessage {...workspaceAutomationFormMessages.channelLabel} />
       </Label>
-      <Popover open={open} onOpenChange={setOpen}>
+      <Popover
+        open={open}
+        onOpenChange={(nextOpen) => {
+          setOpen(nextOpen);
+          if (!nextOpen) {
+            setQuery("");
+          }
+        }}
+      >
         <PopoverTrigger
           disabled={triggerDisabled}
           render={
@@ -130,7 +173,7 @@ export function SlackChannelSelect({
           }
         >
           <span className="min-w-0 truncate">
-            {channelsQuery.isLoading && !selectedChannel && !value
+            {isBrowseLoading && !selectedChannel && !value
               ? intl.formatMessage(workspaceAutomationFormMessages.loadingChannels)
               : slackChannelLabel(intl, selectedChannel, value)}
           </span>
@@ -143,6 +186,7 @@ export function SlackChannelSelect({
         <PopoverContent align="start" className="w-80 p-0" sideOffset={4}>
           <Command shouldFilter={false}>
             <CommandInput
+              autoFocus
               placeholder={intl.formatMessage(
                 workspaceAutomationFormMessages.searchChannelPlaceholder,
               )}
@@ -151,21 +195,22 @@ export function SlackChannelSelect({
             />
             <CommandList>
               <CommandEmpty className="px-3 text-pretty">
-                {channelsQuery.isFetching
+                {isBrowseLoading || isRemoteSearchPending
                   ? intl.formatMessage(workspaceAutomationFormMessages.loadingChannels)
-                  : query.trim()
+                  : trimmedQuery
                     ? intl.formatMessage(workspaceAutomationFormMessages.noMatchingChannels)
                     : intl.formatMessage(workspaceAutomationFormMessages.noChannelsFound)}
               </CommandEmpty>
               <CommandGroup>
-                {channels.map((channel) => (
+                {visibleChannels.map((channel) => (
                   <CommandItem
                     key={channel.id}
-                    value={channel.id}
+                    value={`${channel.name} ${channel.id}`}
                     data-checked={value === channel.id || undefined}
                     onSelect={() => {
                       onChange(channel.id);
                       setOpen(false);
+                      setQuery("");
                     }}
                   >
                     <span className={cn("min-w-0 flex-1 truncate")}>
