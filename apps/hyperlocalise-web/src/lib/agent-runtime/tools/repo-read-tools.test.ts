@@ -1102,7 +1102,7 @@ describe("createGitHistoryTool", () => {
       files: ["src/messages.json"],
       truncated: true,
     });
-    expect(gitCalls[0]).toContain("--max-count=3");
+    expect(gitCalls.find((args) => args[0] === "log")).toContain("--max-count=3");
   });
 
   it("reports unresolved Phrase placeholders as skipped diagnostics", async () => {
@@ -1168,6 +1168,9 @@ describe("createGitHistoryTool", () => {
     const ctx = createTestContext();
     ctx.bash.registerCommand(
       defineCommand("git", async (args) => {
+        if (args[0] === "rev-parse") {
+          return { stdout: "", stderr: "fatal: not a git repository", exitCode: 128 };
+        }
         expect(args).toEqual(["diff", "main..HEAD", "--", "lang/en.json"]);
         return { stdout: "A".repeat(200_000), stderr: "", exitCode: 0 };
       }),
@@ -1181,6 +1184,136 @@ describe("createGitHistoryTool", () => {
 
     expect(result).toMatchObject({ success: true, mode: "fileDiff", truncated: true });
     expect((result as { diff: string }).diff.length).toBeLessThan(200_000);
+  });
+
+  it("returns the patch when ranged git diff exits 1", async () => {
+    const patch =
+      'diff --git a/lang/en.json b/lang/en.json\n--- a/lang/en.json\n+++ b/lang/en.json\n@@ -1,3 +1,3 @@\n-  "save": "Save"\n+  "save": "Save changes"\n';
+    const ctx = createTestContext();
+    ctx.bash.registerCommand(
+      defineCommand("git", async (args) => {
+        if (args[0] === "rev-parse") {
+          return { stdout: "", stderr: "fatal: not a git repository", exitCode: 128 };
+        }
+        expect(args).toEqual(["diff", "abc^..abc", "--", "lang/en.json"]);
+        return { stdout: patch, stderr: "", exitCode: 1 };
+      }),
+    );
+
+    const t = createGitHistoryTool(ctx);
+    const result = await t.execute!(
+      { mode: "fileDiff", paths: ["lang/en.json"], range: "abc^..abc" },
+      toolCallInfo,
+    );
+
+    expect(result).toMatchObject({ success: true, mode: "fileDiff", diff: patch });
+  });
+
+  it("fails ranged git diff on exit 2+ and surfaces stdout when stderr is empty", async () => {
+    const ctx = createTestContext();
+    ctx.bash.registerCommand(
+      defineCommand("git", async (args) => {
+        if (args[0] === "rev-parse") {
+          return { stdout: "", stderr: "fatal: not a git repository", exitCode: 128 };
+        }
+        expect(args).toEqual(["diff", "abc^..abc", "--", "lang/en.json"]);
+        return { stdout: "usage: git diff [<options>]", stderr: "", exitCode: 129 };
+      }),
+    );
+
+    const t = createGitHistoryTool(ctx);
+    const result = await t.execute!(
+      { mode: "fileDiff", paths: ["lang/en.json"], range: "abc^..abc" },
+      toolCallInfo,
+    );
+
+    expect(result).toMatchObject({
+      success: false,
+      error: "usage: git diff [<options>]",
+    });
+  });
+
+  it("runs git from a nested clone and strips a repo-name path prefix", async () => {
+    const patch =
+      'diff --git a/src/locales/en/messages.json b/src/locales/en/messages.json\n+  "save": "Save"\n';
+    const ctx = createTestContext({
+      "/home/user/project/scribe-fe-v2/src/locales/en/messages.json": '{"save":"Save"}\n',
+    });
+    const gitCalls: string[][] = [];
+    ctx.bash.registerCommand(
+      defineCommand("ls", async () => ({ stdout: "scribe-fe-v2\n", stderr: "", exitCode: 0 })),
+    );
+    ctx.bash.registerCommand(
+      defineCommand("test", async (args) => ({
+        stdout: "",
+        stderr: "",
+        exitCode: args[0] === "-d" && args[1] === "scribe-fe-v2" ? 0 : 1,
+      })),
+    );
+    ctx.bash.registerCommand(
+      defineCommand("git", async (args) => {
+        gitCalls.push(args);
+        if (args[0] === "rev-parse") {
+          return { stdout: "", stderr: "fatal: not a git repository", exitCode: 128 };
+        }
+        if (args[0] === "-C" && args[1] === "scribe-fe-v2" && args[2] === "rev-parse") {
+          return { stdout: "true\n", stderr: "", exitCode: 0 };
+        }
+        if (args[0] === "-C" && args[1] === "scribe-fe-v2" && args[2] === "log") {
+          expect(args).toEqual(expect.arrayContaining(["--", "src/locales/en/messages.json"]));
+          expect(args).not.toContain("scribe-fe-v2/src/locales/en/messages.json");
+          return {
+            stdout:
+              "abc\t2026-07-01T00:00:00Z\tMina\tUpdate strings\nsrc/locales/en/messages.json\n",
+            stderr: "",
+            exitCode: 0,
+          };
+        }
+        if (args[0] === "-C" && args[1] === "scribe-fe-v2" && args[2] === "diff") {
+          expect(args).toEqual([
+            "-C",
+            "scribe-fe-v2",
+            "diff",
+            "abc^..abc",
+            "--",
+            "src/locales/en/messages.json",
+          ]);
+          return { stdout: patch, stderr: "", exitCode: 1 };
+        }
+        return { stdout: "", stderr: "", exitCode: 1 };
+      }),
+    );
+
+    const t = createGitHistoryTool(ctx);
+    const changed = await t.execute!(
+      {
+        mode: "changedFiles",
+        paths: ["scribe-fe-v2/src/locales/en/messages.json"],
+        since: "24 hours ago",
+      },
+      toolCallInfo,
+    );
+    expect(changed).toMatchObject({
+      success: true,
+      mode: "changedFiles",
+      files: ["scribe-fe-v2/src/locales/en/messages.json"],
+    });
+
+    const diff = await t.execute!(
+      {
+        mode: "fileDiff",
+        paths: ["scribe-fe-v2/src/locales/en/messages.json"],
+        range: "abc^..abc",
+      },
+      toolCallInfo,
+    );
+    expect(diff).toMatchObject({
+      success: true,
+      mode: "fileDiff",
+      paths: ["scribe-fe-v2/src/locales/en/messages.json"],
+      diff: patch,
+    });
+    expect(gitCalls.some((args) => args[0] === "-C" && args[1] === "scribe-fe-v2")).toBe(true);
   });
 
   it("rejects option-like git revision ranges", async () => {
@@ -1201,6 +1334,9 @@ describe("createGitHistoryTool", () => {
     const ctx = createTestContext();
     ctx.bash.registerCommand(
       defineCommand("git", async (args) => {
+        if (args[0] === "rev-parse") {
+          return { stdout: "", stderr: "fatal: not a git repository", exitCode: 128 };
+        }
         expect(args).toEqual(
           expect.arrayContaining(["--patch", "--unified=3", "-SSave", "--", "lang/en.json"]),
         );
@@ -1256,6 +1392,9 @@ describe("createGitHistoryTool", () => {
     });
     ctx.bash.registerCommand(
       defineCommand("git", async (args) => {
+        if (args[0] === "rev-parse") {
+          return { stdout: "", stderr: "fatal: not a git repository", exitCode: 128 };
+        }
         expect(args).toEqual(["blame", "--line-porcelain", "-L2,2", "--", "lang/en.json"]);
         return {
           stdout:

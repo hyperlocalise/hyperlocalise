@@ -19,6 +19,15 @@ export { createGrepTool } from "./grep";
 export { createFuzzySearchTool } from "./fuzzy-search";
 export { createGlobTool } from "./glob";
 export { createBashTool, isAllowedBashCommand } from "./bash";
+export { isGitDiffCommand, isSuccessfulAllowlistedExit, gitSubcommand } from "./git-exit";
+export {
+  bindGitClone,
+  resolveGitCloneRoot,
+  toGitPath,
+  toWorkspacePath,
+  withGitRootArgs,
+  type GitCloneRoot,
+} from "./git-clone-root";
 export { createWriteTool } from "./write";
 export { createApplyPatchTool } from "./apply-patch";
 export { createCaptureScreenshotTool } from "./capture-screenshot";

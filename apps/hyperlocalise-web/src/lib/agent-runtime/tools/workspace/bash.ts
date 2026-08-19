@@ -16,6 +16,7 @@ import { z } from "zod";
 import { flagBasename, HL_WRITE_FLAG_NAMES } from "@/lib/agent-runtime/tools/hl-write-flags";
 import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
 
+import { isSuccessfulAllowlistedExit } from "./git-exit";
 import { normalizeWorkspacePath } from "./path";
 import { DEFAULT_MAX_OUTPUT_BYTES, redact, truncate } from "./redact";
 import type { RepoToolContext } from "./types";
@@ -173,7 +174,11 @@ IMPORTANT:
         const stderr = truncate(redact(result.stderr), DEFAULT_MAX_OUTPUT_BYTES);
 
         return {
-          success: result.exitCode === 0,
+          success: isSuccessfulAllowlistedExit({
+            bin,
+            args: execArgs,
+            exitCode: result.exitCode,
+          }),
           exitCode: result.exitCode,
           stdout: stdout.text,
           stderr: stderr.text,

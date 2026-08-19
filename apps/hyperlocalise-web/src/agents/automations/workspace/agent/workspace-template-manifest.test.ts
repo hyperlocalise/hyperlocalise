@@ -18,6 +18,7 @@ import {
   getTemplateCategoryFromSkill,
   getTemplateExecutorAgent,
   mergeWorkspaceTemplateSkills,
+  composeGithubRepoInstructions,
 } from "./workspace-template-manifest";
 
 describe("workspace template manifest", () => {
@@ -96,6 +97,10 @@ describe("workspace template manifest", () => {
     });
     expect(review?.description).toContain("localisation and translation risk");
     expect(review?.instructions).toContain("You are a localisation-focused code reviewer");
+    expect(review?.instructions).toContain("key/value changelog");
+    expect(review?.instructions).toContain(
+      "Do **not** use it when translation JSON/YAML files changed",
+    );
     expect(research).toMatchObject({
       name: "Daily web research",
       category: "popular",
@@ -136,5 +141,15 @@ describe("workspace template manifest", () => {
       "daily-web-research",
       "notify-on-push-blockers",
     ]);
+  });
+
+  it("composes github repo instructions with the recent source-change procedure", () => {
+    const instructions = composeGithubRepoInstructions({});
+
+    expect(instructions).toContain("gitHistory");
+    expect(instructions).toContain('mode: "changedFiles"');
+    expect(instructions).toContain("fileDiff");
+    expect(instructions).toContain("`git diff` exit code 1");
+    expect(instructions).toContain('Do not report "no localisation findings"');
   });
 });
