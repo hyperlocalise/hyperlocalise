@@ -152,6 +152,53 @@ describe("crowdinTmsProvider.searchConcordanceForAgent", () => {
     }
     expect(result.error.code).toBe("crowdin_not_configured");
   });
+
+  it("passes the abort signal to Crowdin fetches", async () => {
+    const abortSignal = new AbortController().signal;
+    loadProjectCredentialMock.mockResolvedValue({
+      externalProjectId: "42",
+      credential: baseCredential,
+    });
+    fetchMock.mockResolvedValue(new Response(JSON.stringify({ data: [] }), { status: 200 }));
+
+    await crowdinTmsProvider.searchConcordanceForAgent({
+      organizationId: "org-1",
+      projectId: "ext:crowdin:42",
+      sourceLocale: "en",
+      targetLocale: "de",
+      expressions: ["Save"],
+      signal: abortSignal,
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining("/glossaries/concordance"),
+      expect.objectContaining({ signal: abortSignal }),
+    );
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining("/tms/concordance"),
+      expect.objectContaining({ signal: abortSignal }),
+    );
+  });
+
+  it("rethrows abort errors instead of mapping them to API failures", async () => {
+    loadProjectCredentialMock.mockResolvedValue({
+      externalProjectId: "42",
+      credential: baseCredential,
+    });
+    const abortError = Object.assign(new Error("aborted"), { name: "AbortError" });
+    fetchMock.mockRejectedValue(abortError);
+
+    await expect(
+      crowdinTmsProvider.searchConcordanceForAgent({
+        organizationId: "org-1",
+        projectId: "ext:crowdin:42",
+        sourceLocale: "en",
+        targetLocale: "de",
+        expressions: ["Save"],
+        signal: new AbortController().signal,
+      }),
+    ).rejects.toMatchObject({ name: "AbortError" });
+  });
 });
 
 describe("crowdinTmsProvider.loadStyleGuideForAgent", () => {
@@ -237,5 +284,22 @@ describe("crowdinTmsProvider.loadStyleGuideForAgent", () => {
       return;
     }
     expect(result.value.prompts).toEqual([]);
+  });
+
+  it("rethrows abort errors instead of returning an empty prompt list", async () => {
+    loadProjectCredentialMock.mockResolvedValue({
+      externalProjectId: "42",
+      credential: baseCredential,
+    });
+    const abortError = Object.assign(new Error("aborted"), { name: "AbortError" });
+    fetchMock.mockRejectedValue(abortError);
+
+    await expect(
+      crowdinTmsProvider.loadStyleGuideForAgent({
+        organizationId: "org-1",
+        projectId: "ext:crowdin:42",
+        signal: new AbortController().signal,
+      }),
+    ).rejects.toMatchObject({ name: "AbortError" });
   });
 });

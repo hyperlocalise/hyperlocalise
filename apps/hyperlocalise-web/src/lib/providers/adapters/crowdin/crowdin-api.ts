@@ -197,6 +197,7 @@ export interface CrowdinApiClientOptions {
   token: string;
   baseUrl?: string;
   fetchFn?: typeof fetch;
+  signal?: AbortSignal;
 }
 
 export interface CrowdinProject {
@@ -678,11 +679,13 @@ export class CrowdinApiClient {
   private readonly token: string;
   private readonly baseUrl: string;
   private readonly fetchFn: typeof fetch;
+  private readonly signal?: AbortSignal;
 
   constructor(options: CrowdinApiClientOptions) {
     this.token = options.token;
     this.baseUrl = resolveCrowdinApiBaseUrl(options.baseUrl);
     this.fetchFn = options.fetchFn ?? defaultCrowdinFetch;
+    this.signal = options.signal;
   }
 
   /**
@@ -1692,16 +1695,18 @@ export class CrowdinApiClient {
   async addStorage(input: { fileName: string; content: Uint8Array; contentType?: string }) {
     const url = `${this.baseUrl}/storages`;
     this.logRequest("POST", url);
-    const response = await this.fetchFn(url, {
-      method: "POST",
-      redirect: "error",
-      headers: {
-        Authorization: `Bearer ${this.token}`,
-        "Content-Type": input.contentType ?? "application/octet-stream",
-        "Crowdin-API-FileName": encodeURIComponent(input.fileName),
-      },
-      body: input.content as BodyInit,
-    });
+    const response = await this.fetchFn(
+      url,
+      this.fetchInit({
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${this.token}`,
+          "Content-Type": input.contentType ?? "application/octet-stream",
+          "Crowdin-API-FileName": encodeURIComponent(input.fileName),
+        },
+        body: input.content as BodyInit,
+      }),
+    );
 
     if (!response.ok) {
       let body: unknown;
@@ -1803,15 +1808,17 @@ export class CrowdinApiClient {
   async exportTaskStrings(projectId: number, taskId: number): Promise<CrowdinDownloadLink | null> {
     const url = `${this.baseUrl}/projects/${projectId}/tasks/${taskId}/exports`;
     this.logRequest("POST", url);
-    const response = await this.fetchFn(url, {
-      method: "POST",
-      redirect: "error",
-      headers: {
-        Authorization: `Bearer ${this.token}`,
-        "Content-Type": "application/json",
-      },
-      body: "",
-    });
+    const response = await this.fetchFn(
+      url,
+      this.fetchInit({
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${this.token}`,
+          "Content-Type": "application/json",
+        },
+        body: "",
+      }),
+    );
 
     if (response.status === 204) {
       return null;
@@ -1846,7 +1853,7 @@ export class CrowdinApiClient {
     }
 
     this.logRequest("GET", safeUrl);
-    const response = await this.fetchFn(safeUrl, { method: "GET", redirect: "error" });
+    const response = await this.fetchFn(safeUrl, this.fetchInit({ method: "GET" }));
     if (!response.ok) {
       throw new CrowdinApiError(
         `Crowdin download returned HTTP ${response.status}`,
@@ -2131,10 +2138,18 @@ export class CrowdinApiClient {
     logger.info({ method, endpoint }, "Crowdin API request");
   }
 
+  private fetchInit(init: RequestInit): RequestInit {
+    return {
+      ...init,
+      redirect: "error",
+      ...(this.signal && !init.signal ? { signal: this.signal } : {}),
+    };
+  }
+
   private async request<T>(path: string, init: RequestInit): Promise<T> {
     const url = `${this.baseUrl}${path}`;
     this.logRequest(String(init.method ?? "GET"), url);
-    const response = await this.fetchFn(url, { ...init, redirect: "error" });
+    const response = await this.fetchFn(url, this.fetchInit(init));
 
     if (!response.ok) {
       let body: unknown;

@@ -417,6 +417,7 @@ export async function loadCatSegmentVisualContext(
 
 export async function generateCatAiRecommendation(
   input: CatAiRecommendationInput,
+  options?: { signal?: AbortSignal },
 ): Promise<Result<CatAiRecommendationResult, CatAiRecommendationError>> {
   const modelResult = await loadOrganizationTranslationModel(input.projectId);
   if (!modelResult.ok) {
@@ -456,17 +457,25 @@ export async function generateCatAiRecommendation(
   }
 
   try {
-    const recommendation = await new CatRecommendationEngine(modelResult.model).recommend(input, {
-      projectName: contextResult.snapshot.project.name,
-      projectTranslationContext: contextResult.snapshot.project.translationContext,
-      knowledgeMemory: contextResult.snapshot.knowledgeMemory ?? undefined,
-      glossaryTerms: input.glossaryTerms ?? contextResult.snapshot.glossaryTerms ?? [],
-      translationMemoryMatches:
-        input.translationMemoryMatches ?? contextResult.snapshot.translationMemoryMatches ?? [],
-    });
+    const recommendation = await new CatRecommendationEngine(modelResult.model).recommend(
+      input,
+      {
+        projectName: contextResult.snapshot.project.name,
+        projectTranslationContext: contextResult.snapshot.project.translationContext,
+        knowledgeMemory: contextResult.snapshot.knowledgeMemory ?? undefined,
+        glossaryTerms: input.glossaryTerms ?? contextResult.snapshot.glossaryTerms ?? [],
+        translationMemoryMatches:
+          input.translationMemoryMatches ?? contextResult.snapshot.translationMemoryMatches ?? [],
+      },
+      { signal: options?.signal },
+    );
 
     return ok(recommendation);
   } catch (error) {
+    if (error instanceof Error && error.name === "AbortError") {
+      throw error;
+    }
+
     return err({
       code: "ai_recommendation_failed",
       message:

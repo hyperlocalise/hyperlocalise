@@ -17,6 +17,7 @@ import type { ToolSet } from "ai";
 import { defineAgentTool } from "@/agents/_runtime/define-agent-tool";
 import { db, schema } from "@/lib/database";
 import { isErr } from "@/lib/primitives/result/results";
+import { ensureOrganizationProjectRecord } from "@/lib/projects/organization/organization-project-service";
 import { crowdinTmsProvider } from "@/lib/providers/adapters/crowdin/crowdin-provider";
 import { generateCatAiRecommendation } from "@/lib/translation/cat";
 
@@ -86,7 +87,7 @@ export function createCrowdinReviewTools(input: {
       description:
         "Search Crowdin glossary and translation memory for source expressions in a locale pair.",
       inputSchema: searchConcordanceInputSchema,
-      execute: async ({ expressions, sourceLocale, targetLocale }) => {
+      execute: async ({ expressions, sourceLocale, targetLocale }, { abortSignal } = {}) => {
         const result = await crowdinTmsProvider.searchConcordanceForAgent({
           organizationId: input.organizationId,
           actorUserId: input.actorUserId,
@@ -94,6 +95,7 @@ export function createCrowdinReviewTools(input: {
           sourceLocale,
           targetLocale,
           expressions,
+          signal: abortSignal,
         });
         if (isErr(result)) {
           return {
@@ -114,7 +116,7 @@ export function createCrowdinReviewTools(input: {
       description:
         "Load Hyperlocalise project translation context and Crowdin AI style prompts that apply to this project.",
       inputSchema: z.object({}),
-      execute: async () => {
+      execute: async (_input, { abortSignal } = {}) => {
         const [project] = await db
           .select({
             name: schema.projects.name,
@@ -133,6 +135,7 @@ export function createCrowdinReviewTools(input: {
           organizationId: input.organizationId,
           actorUserId: input.actorUserId,
           projectId: input.projectId,
+          signal: abortSignal,
         });
         if (isErr(styleResult)) {
           return {
@@ -156,30 +159,45 @@ export function createCrowdinReviewTools(input: {
       description:
         "Recommend a translation grounded in Crowdin concordance, project context, and style guidance. Read-only; does not write back to Crowdin.",
       inputSchema: recommendTranslationInputSchema,
-      execute: async (recommendationInput) => {
-        const result = await generateCatAiRecommendation({
-          projectId: input.projectId,
+      execute: async (recommendationInput, { abortSignal } = {}) => {
+        const ensured = await ensureOrganizationProjectRecord({
           organizationId: input.organizationId,
-          sourcePath: "automation-review",
-          filename: "review",
-          sourceLocale: recommendationInput.sourceLocale,
-          targetLocale: recommendationInput.targetLocale,
-          key: recommendationInput.key?.trim() || recommendationInput.sourceText.slice(0, 120),
-          sourceText: recommendationInput.sourceText,
-          context: recommendationInput.context ?? null,
-          glossaryTerms: recommendationInput.glossaryTerms?.map((term) => ({
-            sourceTerm: term.sourceTerm,
-            targetTerm: term.targetTerm,
-            targetLocale: recommendationInput.targetLocale,
-            forbidden: term.status === "forbidden",
-            description: term.description,
-          })),
-          translationMemoryMatches: recommendationInput.translationMemoryMatches?.map((match) => ({
-            sourceText: match.sourceText,
-            targetText: match.targetText,
-            targetLocale: recommendationInput.targetLocale,
-          })),
+          projectId: input.projectId,
+          userId: input.actorUserId,
         });
+        if (isErr(ensured)) {
+          return {
+            success: false,
+            error: "The selected Crowdin project is not available for translation recommendations.",
+          };
+        }
+
+        const result = await generateCatAiRecommendation(
+          {
+            projectId: ensured.value,
+            organizationId: input.organizationId,
+            sourcePath: "automation-review",
+            filename: "review",
+            sourceLocale: recommendationInput.sourceLocale,
+            targetLocale: recommendationInput.targetLocale,
+            key: recommendationInput.key?.trim() || recommendationInput.sourceText.slice(0, 120),
+            sourceText: recommendationInput.sourceText,
+            context: recommendationInput.context ?? null,
+            glossaryTerms: recommendationInput.glossaryTerms?.map((term) => ({
+              sourceTerm: term.sourceTerm,
+              targetTerm: term.targetTerm,
+              targetLocale: recommendationInput.targetLocale,
+              forbidden: term.status === "forbidden",
+              description: term.description,
+            })),
+            translationMemoryMatches: recommendationInput.translationMemoryMatches?.map((match) => ({
+              sourceText: match.sourceText,
+              targetText: match.targetText,
+              targetLocale: recommendationInput.targetLocale,
+            })),
+          },
+          { signal: abortSignal },
+        );
         if (isErr(result)) {
           return {
             success: false,

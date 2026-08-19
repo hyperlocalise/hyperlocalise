@@ -1531,6 +1531,26 @@ describe("CrowdinApiClient", () => {
     );
   });
 
+  it("passes the client abort signal to fetches", async () => {
+    const abortSignal = new AbortController().signal;
+    const fetchMock = vi.fn(async () => {
+      return new Response(JSON.stringify({ data: [] }), { status: 200 });
+    }) as unknown as typeof fetch;
+
+    const client = new CrowdinApiClient({
+      token: "test-token",
+      baseUrl: "https://api.crowdin.test/api/v2",
+      fetchFn: fetchMock,
+      signal: abortSignal,
+    });
+    await client.listAiPrompts({ projectId: 42 });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://api.crowdin.test/api/v2/ai/prompts?projectId=42&limit=500&offset=0",
+      expect.objectContaining({ method: "GET", redirect: "error", signal: abortSignal }),
+    );
+  });
+
   it("lists AI prompts from /users/{id}/ai/prompts on Crowdin.com", async () => {
     const fetchMock = vi.fn(async (url) => {
       const href = String(url);

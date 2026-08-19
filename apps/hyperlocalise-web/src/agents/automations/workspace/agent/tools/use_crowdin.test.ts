@@ -136,9 +136,10 @@ describe("createUseCrowdinTool", () => {
       },
     });
 
+    const abortSignal = new AbortController().signal;
     const payload = await createUseCrowdinTool(current).execute!(
       { objective: "Review Save in German" },
-      { toolCallId: "call-1", messages: [], context: {} },
+      { toolCallId: "call-1", messages: [], context: {}, abortSignal },
     );
 
     expect(mocks.createCrowdinReviewTools).toHaveBeenCalledWith({
@@ -151,5 +152,10 @@ describe("createUseCrowdinTool", () => {
       projectId: "ext:crowdin:42",
     });
     expect(current.stepResults.use_crowdin).toEqual(payload);
+    expect(mocks.generate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        abortSignal,
+      }),
+    );
   });
 });

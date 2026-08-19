@@ -12,7 +12,7 @@
  */
 import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
-import { ok } from "@/lib/primitives/result/results";
+import { err, ok } from "@/lib/primitives/result/results";
 
 import { createCrowdinReviewTools } from "./crowdin-review-tools";
 
@@ -20,6 +20,7 @@ const mocks = vi.hoisted(() => ({
   searchConcordanceForAgent: vi.fn(),
   loadStyleGuideForAgent: vi.fn(),
   generateCatAiRecommendation: vi.fn(),
+  ensureOrganizationProjectRecord: vi.fn(),
   select: vi.fn(),
   from: vi.fn(),
   where: vi.fn(),
@@ -35,6 +36,11 @@ vi.mock("@/lib/providers/adapters/crowdin/crowdin-provider", () => ({
 
 vi.mock("@/lib/translation/cat", () => ({
   generateCatAiRecommendation: (...args: unknown[]) => mocks.generateCatAiRecommendation(...args),
+}));
+
+vi.mock("@/lib/projects/organization/organization-project-service", () => ({
+  ensureOrganizationProjectRecord: (...args: unknown[]) =>
+    mocks.ensureOrganizationProjectRecord(...args),
 }));
 
 vi.mock("@/lib/database", () => ({
@@ -60,6 +66,7 @@ describe("createCrowdinReviewTools", () => {
     mocks.limit.mockResolvedValue([
       { name: "Marketing", translationContext: "Use sentence case." },
     ]);
+    mocks.ensureOrganizationProjectRecord.mockResolvedValue(ok("proj_materialized"));
   });
 
   it("searches concordance through the Crowdin provider", async () => {
@@ -76,13 +83,14 @@ describe("createCrowdinReviewTools", () => {
       actorUserId: "user-1",
     });
 
+    const abortSignal = new AbortController().signal;
     const result = await tools.search_concordance.execute!(
       {
         expressions: ["Save"],
         sourceLocale: "en",
         targetLocale: "de",
       },
-      { toolCallId: "call-1", messages: [], context: {} },
+      { toolCallId: "call-1", messages: [], context: {}, abortSignal },
     );
 
     expect(mocks.searchConcordanceForAgent).toHaveBeenCalledWith({
@@ -92,6 +100,7 @@ describe("createCrowdinReviewTools", () => {
       sourceLocale: "en",
       targetLocale: "de",
       expressions: ["Save"],
+      signal: abortSignal,
     });
     expect(result).toMatchObject({ success: true, crowdinProjectId: 42 });
   });
@@ -109,10 +118,18 @@ describe("createCrowdinReviewTools", () => {
       actorUserId: "user-1",
     });
 
+    const abortSignal = new AbortController().signal;
     const result = await tools.get_style_guide.execute!(
       {},
-      { toolCallId: "call-2", messages: [], context: {} },
+      { toolCallId: "call-2", messages: [], context: {}, abortSignal },
     );
+
+    expect(mocks.loadStyleGuideForAgent).toHaveBeenCalledWith({
+      organizationId: "org-1",
+      actorUserId: "user-1",
+      projectId: "ext:crowdin:42",
+      signal: abortSignal,
+    });
 
     expect(result).toMatchObject({
       success: true,
@@ -132,28 +149,66 @@ describe("createCrowdinReviewTools", () => {
       actorUserId: "user-1",
     });
 
+    const abortSignal = new AbortController().signal;
     const result = await tools.recommend_translation.execute!(
       {
         sourceText: "Save",
         sourceLocale: "en",
         targetLocale: "de",
       },
-      { toolCallId: "call-3", messages: [], context: {} },
+      { toolCallId: "call-3", messages: [], context: {}, abortSignal },
     );
 
+    expect(mocks.ensureOrganizationProjectRecord).toHaveBeenCalledWith({
+      organizationId: "org-1",
+      projectId: "ext:crowdin:42",
+      userId: "user-1",
+    });
     expect(mocks.generateCatAiRecommendation).toHaveBeenCalledWith(
       expect.objectContaining({
-        projectId: "ext:crowdin:42",
+        projectId: "proj_materialized",
         organizationId: "org-1",
         sourceText: "Save",
         sourceLocale: "en",
         targetLocale: "de",
       }),
+      { signal: abortSignal },
     );
     expect(result).toEqual({
       success: true,
       suggestion: "Speichern",
       reasoning: "Glossary prefers Speichern.",
+    });
+  });
+
+  it("returns a project error when an encoded Crowdin ID cannot be materialized", async () => {
+    mocks.ensureOrganizationProjectRecord.mockResolvedValue(
+      err({
+        code: "project_not_found",
+        reason: "external_project_unavailable",
+        organizationId: "org-1",
+        projectId: "ext:crowdin:42",
+      }),
+    );
+    const tools = createCrowdinReviewTools({
+      organizationId: "org-1",
+      projectId: "ext:crowdin:42",
+      actorUserId: "user-1",
+    });
+
+    const result = await tools.recommend_translation.execute!(
+      {
+        sourceText: "Save",
+        sourceLocale: "en",
+        targetLocale: "de",
+      },
+      { toolCallId: "call-4", messages: [], context: {} },
+    );
+
+    expect(mocks.generateCatAiRecommendation).not.toHaveBeenCalled();
+    expect(result).toEqual({
+      success: false,
+      error: "The selected Crowdin project is not available for translation recommendations.",
     });
   });
 });

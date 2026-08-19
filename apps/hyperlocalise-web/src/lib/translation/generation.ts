@@ -449,9 +449,11 @@ export class CatRecommendationEngine {
       glossaryTerms: PromptGlossaryTerm[];
       translationMemoryMatches: PromptTranslationMemoryMatch[];
     },
+    options?: { signal?: AbortSignal },
   ): Promise<CatAiRecommendationResult> {
     const { output } = await generateText({
       model: this.model,
+      abortSignal: options?.signal,
       output: Output.object({ schema: catAiRecommendationOutputSchema }),
       instructions: this.promptPolicy.buildSystemInstructions({
         mode: "cat-suggest",

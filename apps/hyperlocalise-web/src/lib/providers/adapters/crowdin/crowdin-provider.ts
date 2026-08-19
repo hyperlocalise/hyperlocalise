@@ -111,6 +111,11 @@ export {
 
 const implemented = { state: "implemented" } as const satisfies TmsProviderFeature;
 const logger = createLogger("crowdin-provider");
+
+function isAbortError(error: unknown): boolean {
+  return error instanceof Error && error.name === "AbortError";
+}
+
 const CROWDIN_GLOSSARY_FETCH_CONCURRENCY = 5;
 const CROWDIN_TM_FETCH_CONCURRENCY = 5;
 const MAX_SEGMENTS_PER_MEMORY = 2_000;
@@ -297,11 +302,13 @@ export class CrowdinTmsProvider extends TmsProvider {
     credential: { baseUrl?: string | null };
     secretMaterial: string;
     fetchFn?: typeof fetch;
+    signal?: AbortSignal;
   }) {
     return new CrowdinApiClient({
       token: input.secretMaterial,
       baseUrl: input.credential.baseUrl ?? undefined,
       fetchFn: input.fetchFn,
+      signal: input.signal,
     });
   }
 
@@ -1866,6 +1873,7 @@ export class CrowdinTmsProvider extends TmsProvider {
     expressions: string[];
     glossaryLimit?: number;
     translationMemoryLimit?: number;
+    signal?: AbortSignal;
   }): Promise<Result<SearchCrowdinConcordanceResult, CrowdinReviewLookupError>> {
     const expressions = [
       ...new Set(input.expressions.map((expression) => expression.trim()).filter(Boolean)),
@@ -1877,6 +1885,7 @@ export class CrowdinTmsProvider extends TmsProvider {
       organizationId: input.organizationId,
       projectId: input.projectId,
       actorUserId: input.actorUserId,
+      signal: input.signal,
     });
     if (isErr(clientResult)) {
       return err({
@@ -1962,6 +1971,10 @@ export class CrowdinTmsProvider extends TmsProvider {
         translationMemoryMatches,
       });
     } catch (error) {
+      if (isAbortError(error)) {
+        throw error;
+      }
+
       if (error instanceof CrowdinApiError && error.status === 401) {
         return err({
           code: "crowdin_api_error",
@@ -1984,11 +1997,13 @@ export class CrowdinTmsProvider extends TmsProvider {
     organizationId: string;
     actorUserId?: string | null;
     projectId: string;
+    signal?: AbortSignal;
   }): Promise<Result<LoadCrowdinStyleGuideResult, CrowdinReviewLookupError>> {
     const clientResult = await this.createProgressClient({
       organizationId: input.organizationId,
       projectId: input.projectId,
       actorUserId: input.actorUserId,
+      signal: input.signal,
     });
     if (isErr(clientResult)) {
       return err({
@@ -2008,6 +2023,10 @@ export class CrowdinTmsProvider extends TmsProvider {
         prompts: this.mapEnabledStylePrompts(prompts, crowdinProjectId),
       });
     } catch (error) {
+      if (isAbortError(error)) {
+        throw error;
+      }
+
       if (error instanceof CrowdinApiError && (error.status === 401 || error.status === 403)) {
         return err({
           code: "crowdin_api_error",
@@ -2301,6 +2320,7 @@ export class CrowdinTmsProvider extends TmsProvider {
     organizationId: string;
     projectId: string;
     actorUserId?: string | null;
+    signal?: AbortSignal;
   }): Promise<
     Result<
       { client: CrowdinApiClient; crowdinProjectId: number },
@@ -2348,6 +2368,7 @@ export class CrowdinTmsProvider extends TmsProvider {
     const client = this.createClient({
       credential: projectCredential.credential,
       secretMaterial: token,
+      signal: input.signal,
     });
     return ok({ client, crowdinProjectId });
   }
