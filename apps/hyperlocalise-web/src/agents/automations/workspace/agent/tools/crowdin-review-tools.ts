@@ -190,11 +190,13 @@ export function createCrowdinReviewTools(input: {
               forbidden: term.status === "forbidden",
               description: term.description,
             })),
-            translationMemoryMatches: recommendationInput.translationMemoryMatches?.map((match) => ({
-              sourceText: match.sourceText,
-              targetText: match.targetText,
-              targetLocale: recommendationInput.targetLocale,
-            })),
+            translationMemoryMatches: recommendationInput.translationMemoryMatches?.map(
+              (match) => ({
+                sourceText: match.sourceText,
+                targetText: match.targetText,
+                targetLocale: recommendationInput.targetLocale,
+              }),
+            ),
           },
           { signal: abortSignal },
         );
