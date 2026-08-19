@@ -92,6 +92,10 @@ export function createUseGithubRepositoryTool(session: WorkspaceOrchestratorSess
         (typeof session.run.inputSnapshot.instructions === "string"
           ? session.run.inputSnapshot.instructions.trim() || undefined
           : undefined);
+      const templateSkillId =
+        typeof session.run.inputSnapshot.templateSkillId === "string"
+          ? session.run.inputSnapshot.templateSkillId
+          : null;
 
       let sandboxId: string | null = null;
 
@@ -105,6 +109,7 @@ export function createUseGithubRepositoryTool(session: WorkspaceOrchestratorSess
 
         const composedInstructions = composeGithubRepoInstructions({
           userOverride: userInstructions,
+          templateSkillId,
           dynamicSections: [
             "This is an automated read-only GitHub repository task.",
             `Repository: ${repositoryRow.fullName}.`,
@@ -155,7 +160,9 @@ export function createUseGithubRepositoryTool(session: WorkspaceOrchestratorSess
             ? `Review the localisation impact of this push (${lookbackLabel}).`
             : `Review changes from the last ${lookbackLabel}.`,
           "Use repository tools to inspect git history and relevant files.",
-          "Return the final digest as plain text for automation delivery.",
+          "Follow the customer's required report sections exactly (including P0/P1/P2 blockers and per-key changelog when specified).",
+          "Review every changed translation key individually; do not output vague overall-risk summaries.",
+          "Return the final digest as Markdown plain text for automation delivery.",
         ].join("\n");
 
         const result = await withAgentRuntimeUsageMetering({

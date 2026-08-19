@@ -19,6 +19,8 @@ import {
   getTemplateExecutorAgent,
   mergeWorkspaceTemplateSkills,
   composeGithubRepoInstructions,
+  listWorkspaceTemplateSkills,
+  resolveWorkspaceOrchestratorSharedSkills,
 } from "./workspace-template-manifest";
 
 describe("workspace template manifest", () => {
@@ -97,10 +99,12 @@ describe("workspace template manifest", () => {
     });
     expect(review?.description).toContain("localisation and translation risk");
     expect(review?.instructions).toContain("You are a localisation-focused code reviewer");
-    expect(review?.instructions).toContain("key/value changelog");
-    expect(review?.instructions).toContain(
-      "Do **not** use it when translation JSON/YAML files changed",
-    );
+    expect(review?.instructions).toContain("Translation review");
+    expect(review?.instructions).toContain("Slack delivery");
+    expect(
+      listWorkspaceTemplateSkills().find((skill) => skill.id === "review-code-daily")?.frontmatter
+        .sharedSkills,
+    ).toBe("translation-review");
     expect(research).toMatchObject({
       name: "Daily web research",
       category: "popular",
@@ -126,6 +130,7 @@ describe("workspace template manifest", () => {
     });
     expect(template?.description).toContain("comment on the pull request");
     expect(template?.instructions).toContain("sticky GitHub pull request comment");
+    expect(template?.instructions).toContain("Translation review");
   });
 
   it("keeps untested templates coming soon after skill merge", () => {
@@ -150,6 +155,25 @@ describe("workspace template manifest", () => {
     expect(instructions).toContain('mode: "changedFiles"');
     expect(instructions).toContain("fileDiff");
     expect(instructions).toContain("`git diff` exit code 1");
-    expect(instructions).toContain('Do not report "no localisation findings"');
+    expect(instructions).not.toContain("Blockers (P0)");
+  });
+
+  it("composes translation review for review templates", () => {
+    const instructions = composeGithubRepoInstructions({
+      templateSkillId: "review-code-daily",
+    });
+
+    expect(instructions).toContain("Blockers (P0)");
+    expect(instructions).toContain("Keys OK");
+    expect(instructions).toContain("One line per key");
+  });
+
+  it("adds Crowdin concordance review to orchestrator skills when Crowdin is planned", () => {
+    expect(
+      resolveWorkspaceOrchestratorSharedSkills({
+        templateSkillId: "review-code-daily",
+        planTools: ["use_github_repository", "use_crowdin", "notify_slack"],
+      }),
+    ).toEqual(["slack-notifications", "translation-review", "crowdin-concordance-review"]);
   });
 });

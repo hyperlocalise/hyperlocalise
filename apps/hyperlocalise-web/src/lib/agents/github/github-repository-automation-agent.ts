@@ -71,10 +71,12 @@ export async function runRepositoryLocalisationAgentForCommit(input: {
     timeout: WORKFLOW_AGENT_TIMEOUT,
     instructions: composeInstructions({
       automationId: "github-repository",
+      sharedSkills: ["recent-source-changes", "translation-review"],
+      skills: ["github-repo-agent"],
       dynamicSections: [
         "This is an automated read-only localization review for a single commit.",
         "Do not modify files, commit, push, or create external effects.",
-        "Summarize risks, missing translations, and suggested fixes based on the diff context.",
+        "Follow the Translation review procedure for per-key P0/P1/P2 output.",
         `Sandbox id: ${input.sandboxId}. Use repository tools to inspect files when needed.`,
       ],
     }),
@@ -87,7 +89,7 @@ export async function runRepositoryLocalisationAgentForCommit(input: {
     `Changed localization paths: ${input.changedPaths.join(", ") || "(none)"}`,
     "Unified diff excerpt:",
     input.diffExcerpt.slice(0, 12_000),
-    "Return a concise summary for automation logs: findings, likely fixes, and whether the change looks safe to merge from a localization perspective.",
+    "Return Markdown using the Translation review report sections from your instructions.",
   ].join("\n\n");
 
   const result = await withAgentRuntimeUsageMetering({

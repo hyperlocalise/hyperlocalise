@@ -218,29 +218,17 @@ export const WORKSPACE_AUTOMATION_TEMPLATES_BASE: WorkspaceAutomationTemplate[] 
       goal: "Surface localisation and translation risks from the last day so the team can act before they ship further.",
       extraSections: [
         {
-          heading: "Review procedure",
+          heading: "Review scope",
           items: [
-            "Follow gitHistory changedFiles → fileDiff → extract keys. Prefer gitHistory over raw git",
-            "Collect added and updated keys from catalog diffs with old → new values",
-            "Also review localisation logic changes: i18n APIs, locale routing, fallback, formatters, and writeback",
+            "Follow the Translation review shared procedure for per-key findings and P0/P1/P2 output",
+            "Also review code-adjacent localisation: hard-coded copy, i18n APIs, locale routing, fallback, and writeback",
           ],
         },
         {
-          heading: "Review focus",
+          heading: "Slack delivery",
           items: [
-            "Hard-coded copy, missing keys, and source strings that cannot be translated",
-            "Broken ICU, placeholders, plurals, and locale-sensitive formatting",
-            "Translation coverage, fallback, and writeback regressions",
-            "Localisation compliance: locale, RTL, legal, and market-language constraints",
-            "Changed catalog values that look wrong, truncated, or inconsistent with nearby keys",
-          ],
-        },
-        {
-          heading: "Slack report",
-          items: [
-            "If locale catalogs or source strings changed, lead with a key/value changelog, then defects",
-            "Do not post no localisation findings when translation JSON/YAML files changed",
-            "If catalogs changed and there are no defects, include the changelog and then No blocking localisation defects",
+            "Post Translation review report sections as the Slack message body",
+            "When P0 blockers exist, they must appear first",
           ],
         },
       ],

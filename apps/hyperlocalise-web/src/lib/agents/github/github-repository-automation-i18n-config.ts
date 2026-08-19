@@ -29,6 +29,81 @@ export type DiscoveredI18nConfig = {
 
 const CONFIG_CANDIDATES = ["i18n.yml", "i18n.jsonc"] as const;
 
+function compareConfigPathDepth(left: string, right: string): number {
+  const leftDepth = left.split("/").length;
+  const rightDepth = right.split("/").length;
+  if (leftDepth !== rightDepth) {
+    return leftDepth - rightDepth;
+  }
+  return left.localeCompare(right);
+}
+
+function rankConfigPath(path: string): number {
+  if (path.endsWith("i18n.yml")) {
+    return 0;
+  }
+  if (path.endsWith("i18n.jsonc")) {
+    return 1;
+  }
+  return 2;
+}
+
+async function listTrackedI18nConfigPaths(sandboxId: string): Promise<string[]> {
+  const listed = await runSandboxCommand(sandboxId, "bash", [
+    "-lc",
+    "git ls-files -z -- i18n.yml i18n.jsonc ':(glob)**/i18n.yml' ':(glob)**/i18n.jsonc'",
+  ]);
+  if (listed.exitCode !== 0 || listed.output.length === 0) {
+    return [...CONFIG_CANDIDATES];
+  }
+
+  const paths = listed.output
+    .split("\0")
+    .map((entry) => entry.trim())
+    .filter((entry) => entry.endsWith("i18n.yml") || entry.endsWith("i18n.jsonc"));
+
+  if (paths.length === 0) {
+    return [...CONFIG_CANDIDATES];
+  }
+
+  return [...paths].sort((left, right) => {
+    const leftRank = rankConfigPath(left);
+    const rightRank = rankConfigPath(right);
+    if (leftRank !== rightRank) {
+      return leftRank - rightRank;
+    }
+    return compareConfigPathDepth(left, right);
+  });
+}
+
+async function loadDiscoveredI18nConfig(
+  sandboxId: string,
+  configPath: string,
+): Promise<DiscoveredI18nConfig | null> {
+  const configText = await readConfigTextFromSandbox(sandboxId, configPath);
+  if (!configText) {
+    return null;
+  }
+
+  if (configPath.endsWith(".yml") || configPath.endsWith(".yaml")) {
+    const parsed = safeJsonParse(configText);
+    if (isErr(parsed)) {
+      return null;
+    }
+    return {
+      configPath,
+      patterns: extractI18nBucketFilePatternsFromConfigJson(parsed.value as Record<string, unknown>),
+    };
+  }
+
+  const patterns = extractI18nBucketFilePatternsFromConfigText(configText, configPath);
+  if (!patterns) {
+    return null;
+  }
+
+  return { configPath, patterns };
+}
+
 async function readConfigTextFromSandbox(
   sandboxId: string,
   configPath: string,
@@ -57,36 +132,17 @@ export async function discoverI18nConfigInSandbox(
 ): Promise<DiscoveredI18nConfig | null> {
   await prepareSandbox(sandboxId);
 
-  for (const candidate of CONFIG_CANDIDATES) {
+  const candidates = await listTrackedI18nConfigPaths(sandboxId);
+  for (const candidate of candidates) {
     const exists = await runSandboxCommand(sandboxId, "test", ["-f", candidate]);
     if (exists.exitCode !== 0) {
       continue;
     }
 
-    const configText = await readConfigTextFromSandbox(sandboxId, candidate);
-    if (!configText) {
-      continue;
+    const discovered = await loadDiscoveredI18nConfig(sandboxId, candidate);
+    if (discovered) {
+      return discovered;
     }
-
-    if (candidate.endsWith(".yml") || candidate.endsWith(".yaml")) {
-      const parsed = safeJsonParse(configText);
-      if (isErr(parsed)) {
-        continue;
-      }
-      return {
-        configPath: candidate,
-        patterns: extractI18nBucketFilePatternsFromConfigJson(
-          parsed.value as Record<string, unknown>,
-        ),
-      };
-    }
-
-    const patterns = extractI18nBucketFilePatternsFromConfigText(configText, candidate);
-    if (!patterns) {
-      continue;
-    }
-
-    return { configPath: candidate, patterns };
   }
 
   return null;
