@@ -210,7 +210,7 @@ export function createWebChatAgentUIStreamResponse(input: {
                 automationId: input.automation.id,
               }),
             }
-          : {};
+          : undefined;
 
       await reserveAgentRuntimeUsage({
         organizationId: input.automation.organizationId,

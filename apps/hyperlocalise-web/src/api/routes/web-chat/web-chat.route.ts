@@ -18,11 +18,7 @@ import { createMiddleware } from "hono/factory";
 
 import { createWebChatAgentUIStreamResponse } from "@/agents/automations/workspace/agent/channels/web-chat";
 import { extractLastUserMessage } from "@/api/routes/conversation/chat-stream-message";
-import {
-  badRequestResponse,
-  forbiddenResponse,
-  notFoundResponse,
-} from "@/api/response.schema";
+import { badRequestResponse, forbiddenResponse, notFoundResponse } from "@/api/response.schema";
 import { rejectWebChatBot } from "@/lib/agents/web-chat-bot-protection";
 import {
   WEB_CHAT_MAX_IMAGE_BYTES,
@@ -75,7 +71,7 @@ function storeVisitorCookie(c: Parameters<typeof setCookie>[0], visitorId: strin
   });
 }
 
-function readVisitorId(c: { req: { raw: Request } }) {
+function readVisitorId(c: Parameters<typeof getCookie>[0]) {
   const existing = getCookie(c, WEB_CHAT_VISITOR_COOKIE_NAME)?.trim();
   if (existing && UUID_RE.test(existing)) {
     return existing;
@@ -162,117 +158,113 @@ export function createWebChatRoutes(options: CreateWebChatRoutesOptions = {}) {
         200,
       );
     })
-    .post(
-      "/:organizationSlug/:automationId/messages",
-      imageUploadBodyLimit,
-      async (c) => {
-        const botRejection = await rejectWebChatBot(c);
-        if (botRejection) {
-          return botRejection;
-        }
+    .post("/:organizationSlug/:automationId/messages", imageUploadBodyLimit, async (c) => {
+      const botRejection = await rejectWebChatBot(c);
+      if (botRejection) {
+        return botRejection;
+      }
 
-        const parsed = webChatAgentParamsSchema.safeParse(c.req.param());
-        if (!parsed.success) {
-          return notFoundResponse(c, "web_chat_not_found");
-        }
+      const parsed = webChatAgentParamsSchema.safeParse(c.req.param());
+      if (!parsed.success) {
+        return notFoundResponse(c, "web_chat_not_found");
+      }
 
-        const agent = await resolvePublicWebChatAgent(parsed.data);
-        if (!agent) {
-          return notFoundResponse(c, "web_chat_not_found");
-        }
-        if (agent.automation.status !== "active") {
-          return forbiddenResponse(c, "web_chat_unavailable", "This chat is currently unavailable.");
-        }
+      const agent = await resolvePublicWebChatAgent(parsed.data);
+      if (!agent) {
+        return notFoundResponse(c, "web_chat_not_found");
+      }
+      if (agent.automation.status !== "active") {
+        return forbiddenResponse(c, "web_chat_unavailable", "This chat is currently unavailable.");
+      }
 
-        const visitorId = readVisitorId(c);
-        storeVisitorCookie(c, visitorId);
+      const visitorId = readVisitorId(c);
+      storeVisitorCookie(c, visitorId);
 
-        const body = await c.req.parseBody({ all: true });
-        const text = (asString(body.text) ?? "").trim();
-        const files = asFiles(body.files);
-        if (!text && files.length === 0) {
-          return badRequestResponse(c, "invalid_chat_payload", "A message or image is required.");
-        }
-        if (files.length > WEB_CHAT_MAX_IMAGE_FILES) {
-          return badRequestResponse(c, "too_many_files", undefined, {
-            maxFiles: WEB_CHAT_MAX_IMAGE_FILES,
+      const body = await c.req.parseBody({ all: true });
+      const text = (asString(body.text) ?? "").trim();
+      const files = asFiles(body.files);
+      if (!text && files.length === 0) {
+        return badRequestResponse(c, "invalid_chat_payload", "A message or image is required.");
+      }
+      if (files.length > WEB_CHAT_MAX_IMAGE_FILES) {
+        return badRequestResponse(c, "too_many_files", undefined, {
+          maxFiles: WEB_CHAT_MAX_IMAGE_FILES,
+        });
+      }
+
+      for (const file of files) {
+        if (!isWebChatImageContentType(file.type)) {
+          return badRequestResponse(c, "unsupported_image_type", undefined, {
+            filename: file.name,
           });
         }
-
-        for (const file of files) {
-          if (!isWebChatImageContentType(file.type)) {
-            return badRequestResponse(c, "unsupported_image_type", undefined, {
-              filename: file.name,
-            });
-          }
-          if (file.size > WEB_CHAT_MAX_IMAGE_BYTES) {
-            return c.json({ error: "upload_too_large" }, 413);
-          }
+        if (file.size > WEB_CHAT_MAX_IMAGE_BYTES) {
+          return c.json({ error: "upload_too_large" }, 413);
         }
+      }
 
-        const adapter = options.fileStorageAdapter ?? getFileStorageAdapter();
-        let interaction = await findWebChatInteraction({
+      const adapter = options.fileStorageAdapter ?? getFileStorageAdapter();
+      let interaction = await findWebChatInteraction({
+        organizationId: agent.organization.id,
+        automationId: agent.automation.id,
+        visitorId,
+      });
+      if (!interaction) {
+        interaction = await createInteraction({
           organizationId: agent.organization.id,
-          automationId: agent.automation.id,
-          visitorId,
+          source: "web_chat",
+          title: (text || "Image").slice(0, 120),
+          sourceThreadId: buildWebChatSourceThreadId({
+            automationId: agent.automation.id,
+            visitorId,
+          }),
         });
-        if (!interaction) {
-          interaction = await createInteraction({
+      }
+
+      const storedFiles = await Promise.all(
+        files.map(async (file) =>
+          createStoredFile({
             organizationId: agent.organization.id,
-            source: "web_chat",
-            title: (text || "Image").slice(0, 120),
-            sourceThreadId: buildWebChatSourceThreadId({
+            createdByUserId: null,
+            role: "asset",
+            sourceKind: "chat_upload",
+            sourceInteractionId: interaction.id,
+            filename: file.name,
+            contentType: file.type,
+            content: Buffer.from(await file.arrayBuffer()),
+            metadata: {
+              uploadSurface: "web_chat",
               automationId: agent.automation.id,
-              visitorId,
-            }),
-          });
-        }
+            },
+            adapter,
+          }),
+        ),
+      );
 
-        const storedFiles = await Promise.all(
-          files.map((file) =>
-            createStoredFile({
-              organizationId: agent.organization.id,
-              createdByUserId: null,
-              role: "asset",
-              sourceKind: "chat_upload",
-              sourceInteractionId: interaction.id,
-              filename: file.name,
-              contentType: file.type,
-              content: Buffer.from(await file.arrayBuffer()),
-              metadata: {
-                uploadSurface: "web_chat",
-                automationId: agent.automation.id,
-              },
-              adapter,
-            }),
-          ),
-        );
+      const message = await addInteractionMessage({
+        interactionId: interaction.id,
+        senderType: "user",
+        text: text || "Attached an image.",
+        attachments: storedFiles.map((file) => ({
+          id: file.id,
+          filename: file.filename,
+          contentType: file.contentType,
+          url: publicWebChatFileUrl({
+            organizationSlug: parsed.data.organizationSlug,
+            automationId: parsed.data.automationId,
+            fileId: file.id,
+          }),
+        })),
+      });
 
-        const message = await addInteractionMessage({
-          interactionId: interaction.id,
-          senderType: "user",
-          text: text || "Attached an image.",
-          attachments: storedFiles.map((file) => ({
-            id: file.id,
-            filename: file.filename,
-            contentType: file.contentType,
-            url: publicWebChatFileUrl({
-              organizationSlug: parsed.data.organizationSlug,
-              automationId: parsed.data.automationId,
-              fileId: file.id,
-            }),
-          })),
-        });
-
-        return c.json(
-          {
-            conversation: { id: interaction.id, title: interaction.title },
-            message: serializeMessage(message, parsed.data),
-          },
-          201,
-        );
-      },
-    )
+      return c.json(
+        {
+          conversation: { id: interaction.id, title: interaction.title },
+          message: serializeMessage(message, parsed.data),
+        },
+        201,
+      );
+    })
     .post("/:organizationSlug/:automationId/conversations/:conversationId/chat", async (c) => {
       const botRejection = await rejectWebChatBot(c);
       if (botRejection) {

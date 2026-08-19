@@ -52,7 +52,7 @@ export function isSupportedWorkspaceAutomationKnowledgeFilename(filename: string
 }
 
 function truncateExtractedText(text: string): { text: string; truncated: boolean } {
-  const normalized = text.replace(/\u0000/g, "").trim();
+  const normalized = text.split("\0").join("").trim();
   if (normalized.length <= WORKSPACE_AUTOMATION_KNOWLEDGE_MAX_EXTRACTED_CHARS) {
     return { text: normalized, truncated: false };
   }
@@ -66,13 +66,7 @@ function truncateExtractedText(text: string): { text: string; truncated: boolean
 async function extractPdfText(buffer: Buffer): Promise<string> {
   const { extractText } = await import("unpdf");
   const extracted = await extractText(new Uint8Array(buffer), { mergePages: true });
-  if (typeof extracted.text === "string") {
-    return extracted.text;
-  }
-  if (Array.isArray(extracted.text)) {
-    return extracted.text.join("\n\n");
-  }
-  return "";
+  return extracted.text;
 }
 
 export async function extractWorkspaceAutomationKnowledgeText(input: {
@@ -83,7 +77,11 @@ export async function extractWorkspaceAutomationKnowledgeText(input: {
   const extension = filenameExtension(input.filename);
   const contentType = (input.contentType ?? "").toLowerCase();
 
-  if (TEXT_EXTENSIONS.has(extension) || contentType.startsWith("text/") || contentType.includes("json")) {
+  if (
+    TEXT_EXTENSIONS.has(extension) ||
+    contentType.startsWith("text/") ||
+    contentType.includes("json")
+  ) {
     const { text, truncated } = truncateExtractedText(input.content.toString("utf8"));
     return { text, truncated, format: "text" };
   }

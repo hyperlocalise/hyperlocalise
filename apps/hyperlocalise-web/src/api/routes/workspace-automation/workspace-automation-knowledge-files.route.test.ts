@@ -15,6 +15,23 @@ import "dotenv/config";
 import { eq } from "drizzle-orm";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 
+const { resolveApiAuthContextFromSessionMock } = vi.hoisted(() => ({
+  resolveApiAuthContextFromSessionMock: vi.fn(
+    (options) =>
+      globalThis.__resolveTestApiAuthContextFromSession?.(options) ??
+      globalThis.__testApiAuthContext ??
+      null,
+  ),
+}));
+
+vi.mock("@/api/auth/workos-session", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/api/auth/workos-session")>();
+  return {
+    ...actual,
+    resolveApiAuthContextFromSession: resolveApiAuthContextFromSessionMock,
+  };
+});
+
 import { createApp } from "@/api/app";
 import { createAuthTestFixture } from "@/api/test-auth.fixture";
 import { db, schema } from "@/lib/database";
@@ -42,7 +59,7 @@ describe("workspace automation knowledge files", () => {
     const createdResponse = await app.request(`/api/orgs/${organizationSlug}/automations`, {
       method: "POST",
       headers: {
-        ...headers,
+        cookie: headers.cookie,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
@@ -110,7 +127,7 @@ describe("workspace automation knowledge files", () => {
     const createdResponse = await app.request(`/api/orgs/${organizationSlug}/automations`, {
       method: "POST",
       headers: {
-        ...headers,
+        cookie: headers.cookie,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({

@@ -1123,10 +1123,7 @@ function TriggerSettings({
         ) : null}
 
         {form.triggerMode === "web_chat" ? (
-          <WebChatTriggerRow
-            automationId={automationId}
-            organizationSlug={organizationSlug}
-          />
+          <WebChatTriggerRow automationId={automationId} organizationSlug={organizationSlug} />
         ) : null}
 
         <AddTriggerMenu

@@ -322,4 +322,9 @@ export const dashboardPageViewMessages = defineMessages({
     id: "h3/Sx/1Xgp",
     description: "Automation run trigger source label for source-upload-triggered runs",
   },
+  triggerWebChat: {
+    defaultMessage: "Web chat",
+    id: "KCMz//p+DR",
+    description: "Automation run trigger source label for web-chat-triggered runs",
+  },
 });

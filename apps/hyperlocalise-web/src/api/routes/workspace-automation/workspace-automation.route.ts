@@ -353,9 +353,11 @@ function mapWorkspaceResourceLimitError(
   );
 }
 
-export function createWorkspaceAutomationRoutes(options: {
-  fileStorageAdapter?: FileStorageAdapter;
-} = {}) {
+export function createWorkspaceAutomationRoutes(
+  options: {
+    fileStorageAdapter?: FileStorageAdapter;
+  } = {},
+) {
   return new Hono<{ Variables: AuthVariables }>()
     .use("*", workosAuthMiddleware)
     .use("*", async (c, next) => {

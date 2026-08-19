@@ -897,8 +897,8 @@ export function getWorkspaceAutomationTemplateFlow(
           : triggerMode === "web_chat"
             ? { id: "web-chat", label: "Web chat" }
             : triggerMode === "scheduled"
-            ? { id: "scheduled", label: scheduledTriggerLabel(form) }
-            : { id: "manual", label: "Manual" };
+              ? { id: "scheduled", label: scheduledTriggerLabel(form) }
+              : { id: "manual", label: "Manual" };
 
   const tools: WorkspaceAutomationTemplateFlowNode[] = [];
 

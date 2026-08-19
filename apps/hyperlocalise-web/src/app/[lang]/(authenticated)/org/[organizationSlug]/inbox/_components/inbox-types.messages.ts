@@ -42,7 +42,7 @@ export const inboxTypesMessages = defineMessages({
   },
   sourceWebChat: {
     defaultMessage: "Web chat",
-    id: "wchSrcLbl01",
+    id: "k4KpJNxaEK",
     description: "Inbox conversation source label for public web chat",
   },
   statusActive: {

@@ -23,7 +23,10 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { isApiResponseErrorCode, readApiResponseError } from "@/lib/api-error";
-import { WEB_CHAT_IMAGE_CONTENT_TYPES, WEB_CHAT_MAX_IMAGE_FILES } from "@/lib/agents/workspace-automation-web-chat";
+import {
+  WEB_CHAT_IMAGE_CONTENT_TYPES,
+  WEB_CHAT_MAX_IMAGE_FILES,
+} from "@/lib/agents/workspace-automation-web-chat";
 import { cn } from "@/lib/primitives/cn";
 
 import { webChatPageMessages } from "./web-chat-page.messages";
@@ -229,7 +232,10 @@ export function WebChatPage({
             ) : null}
             {messages.length === 0 && !streamingText ? (
               <p className="text-sm text-muted-foreground">
-                <FormattedMessage {...webChatPageMessages.emptyState} values={{ name: agentName }} />
+                <FormattedMessage
+                  {...webChatPageMessages.emptyState}
+                  values={{ name: agentName }}
+                />
               </p>
             ) : null}
             {messages.map((message) => (
@@ -349,9 +355,7 @@ export function WebChatPage({
                 type="submit"
                 size="icon"
                 className="size-10 shrink-0"
-                disabled={
-                  sendMutation.isPending || (!draft.trim() && pendingFiles.length === 0)
-                }
+                disabled={sendMutation.isPending || (!draft.trim() && pendingFiles.length === 0)}
                 aria-label={intl.formatMessage(
                   sendMutation.isPending ? webChatPageMessages.sending : webChatPageMessages.send,
                 )}

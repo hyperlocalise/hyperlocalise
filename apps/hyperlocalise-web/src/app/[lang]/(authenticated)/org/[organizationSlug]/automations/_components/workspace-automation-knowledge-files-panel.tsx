@@ -143,7 +143,7 @@ export function WorkspaceAutomationKnowledgeFilesPanel({
       ][":knowledgeFileId"].$delete({
         param: { organizationSlug, automationId, knowledgeFileId },
       });
-      if (!response.ok && response.status !== 204) {
+      if (!response.ok) {
         throw await readApiResponseError(response, "Failed to delete knowledge file");
       }
     },
@@ -242,9 +242,12 @@ export function WorkspaceAutomationKnowledgeFilesPanel({
                 size="icon-sm"
                 className="size-8 rounded-lg text-muted-foreground hover:text-foreground"
                 disabled={disabled || deleteMutation.isPending}
-                aria-label={intl.formatMessage(workspaceAutomationFormMessages.removeKnowledgeFile, {
-                  filename: file.filename,
-                })}
+                aria-label={intl.formatMessage(
+                  workspaceAutomationFormMessages.removeKnowledgeFile,
+                  {
+                    filename: file.filename,
+                  },
+                )}
                 onClick={() => deleteMutation.mutate(file.id)}
               >
                 <HugeiconsIcon icon={Delete02Icon} className="size-4" />

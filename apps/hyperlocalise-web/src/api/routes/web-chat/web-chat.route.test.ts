@@ -14,13 +14,27 @@ import "dotenv/config";
 
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
-const { checkBotIdMock } = vi.hoisted(() => ({
+const { checkBotIdMock, resolveApiAuthContextFromSessionMock } = vi.hoisted(() => ({
   checkBotIdMock: vi.fn(),
+  resolveApiAuthContextFromSessionMock: vi.fn(
+    (options) =>
+      globalThis.__resolveTestApiAuthContextFromSession?.(options) ??
+      globalThis.__testApiAuthContext ??
+      null,
+  ),
 }));
 
 vi.mock("botid/server", () => ({
   checkBotId: checkBotIdMock,
 }));
+
+vi.mock("@/api/auth/workos-session", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/api/auth/workos-session")>();
+  return {
+    ...actual,
+    resolveApiAuthContextFromSession: resolveApiAuthContextFromSessionMock,
+  };
+});
 
 import { createApp } from "@/api/app";
 import { createAuthTestFixture } from "@/api/test-auth.fixture";
@@ -44,11 +58,14 @@ afterEach(async () => {
   await fixture.cleanup();
 });
 
-async function createWebChatAutomation(input: { organizationSlug: string; headers: HeadersInit }) {
+async function createWebChatAutomation(input: {
+  organizationSlug: string;
+  headers: { cookie: string };
+}) {
   const createdResponse = await app.request(`/api/orgs/${input.organizationSlug}/automations`, {
     method: "POST",
     headers: {
-      ...input.headers,
+      cookie: input.headers.cookie,
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
@@ -171,7 +188,7 @@ describe("public web chat routes", () => {
     const createdResponse = await app.request(`/api/orgs/${organizationSlug}/automations`, {
       method: "POST",
       headers: {
-        ...headers,
+        cookie: headers.cookie,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({

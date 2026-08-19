@@ -14,7 +14,10 @@ import { and, eq } from "drizzle-orm";
 
 import { db, schema } from "@/lib/database";
 
-import { getWorkspaceAutomationById, type WorkspaceAutomationRecord } from "./workspace-automations";
+import {
+  getWorkspaceAutomationById,
+  type WorkspaceAutomationRecord,
+} from "./workspace-automations";
 
 export const WEB_CHAT_VISITOR_COOKIE_NAME = "hl_web_chat_visitor";
 export const WEB_CHAT_MAX_IMAGE_FILES = 4;
@@ -34,10 +37,7 @@ export function buildWorkspaceAutomationWebChatPath(input: {
   return `/chat/${encodeURIComponent(input.organizationSlug)}/${encodeURIComponent(input.automationId)}`;
 }
 
-export function buildWebChatSourceThreadId(input: {
-  automationId: string;
-  visitorId: string;
-}) {
+export function buildWebChatSourceThreadId(input: { automationId: string; visitorId: string }) {
   return `web-chat:${input.automationId}:${input.visitorId}`;
 }
 
@@ -69,7 +69,7 @@ export async function resolvePublicWebChatAgent(input: {
   automationId: string;
 }): Promise<PublicWebChatAgent | null> {
   const organization = await findOrganizationBySlug(input.organizationSlug);
-  if (!organization) {
+  if (!organization?.slug) {
     return null;
   }
 
@@ -85,7 +85,14 @@ export async function resolvePublicWebChatAgent(input: {
     return null;
   }
 
-  return { organization, automation };
+  return {
+    organization: {
+      id: organization.id,
+      slug: organization.slug,
+      name: organization.name,
+    },
+    automation,
+  };
 }
 
 export async function findWebChatInteraction(input: {
