@@ -161,10 +161,7 @@ describe("createBashTool", () => {
         readFile: async () => "",
       },
     });
-    const result = await tool.execute!(
-      { command: "git log --output=package.json" },
-      toolCallInfo,
-    );
+    const result = await tool.execute!({ command: "git log --output=package.json" }, toolCallInfo);
     expect(result).toMatchObject({ success: false });
   });
 
