@@ -16,7 +16,7 @@ import {
   buildWorkspaceAutomationWebChatHref,
   buildWorkspaceAutomationWebChatPath,
   buildWorkspaceAutomationWebChatUrl,
-} from "./workspace-automation-web-chat";
+} from "./workspace-automation-web-chat-url";
 
 describe("workspace automation web chat URLs", () => {
   it("builds a public chat path from the organization and automation ids", () => {

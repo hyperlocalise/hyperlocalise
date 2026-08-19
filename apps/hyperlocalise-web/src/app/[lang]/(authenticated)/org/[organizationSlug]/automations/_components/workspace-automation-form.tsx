@@ -99,7 +99,7 @@ import {
   workspaceAutomationFormCanActivate,
 } from "@/lib/agents/workspace-automation-view-model";
 import type { WorkspaceAutomationRunRecord } from "@/lib/agents/workspace-automations";
-import { buildWorkspaceAutomationWebChatHref } from "@/lib/agents/workspace-automation-web-chat";
+import { buildWorkspaceAutomationWebChatHref } from "@/lib/agents/workspace-automation-web-chat-url";
 import { parseProviderProjectId } from "@/lib/providers/jobs/tms-provider-resource-id";
 import { cn } from "@/lib/primitives/cn";
 

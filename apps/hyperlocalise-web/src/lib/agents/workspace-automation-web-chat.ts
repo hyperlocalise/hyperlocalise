@@ -15,9 +15,20 @@ import { and, eq } from "drizzle-orm";
 import { db, schema } from "@/lib/database";
 
 import {
+  buildWorkspaceAutomationWebChatHref,
+  buildWorkspaceAutomationWebChatPath,
+  buildWorkspaceAutomationWebChatUrl,
+} from "./workspace-automation-web-chat-url";
+import {
   getWorkspaceAutomationById,
   type WorkspaceAutomationRecord,
 } from "./workspace-automations";
+
+export {
+  buildWorkspaceAutomationWebChatHref,
+  buildWorkspaceAutomationWebChatPath,
+  buildWorkspaceAutomationWebChatUrl,
+};
 
 export const WEB_CHAT_VISITOR_COOKIE_NAME = "hl_web_chat_visitor";
 export const WEB_CHAT_MAX_IMAGE_FILES = 4;
@@ -29,30 +40,6 @@ export const WEB_CHAT_IMAGE_CONTENT_TYPES = new Set([
   "image/webp",
   "image/gif",
 ]);
-
-export function buildWorkspaceAutomationWebChatPath(input: {
-  organizationSlug: string;
-  automationId: string;
-}) {
-  return `/chat/${encodeURIComponent(input.organizationSlug)}/${encodeURIComponent(input.automationId)}`;
-}
-
-export function buildWorkspaceAutomationWebChatHref(input: {
-  organizationSlug: string;
-  automationId: string;
-  locale: string;
-}) {
-  return `/${input.locale}${buildWorkspaceAutomationWebChatPath(input)}`;
-}
-
-export function buildWorkspaceAutomationWebChatUrl(input: {
-  organizationSlug: string;
-  automationId: string;
-  locale: string;
-  origin: string;
-}) {
-  return new URL(buildWorkspaceAutomationWebChatHref(input), input.origin).toString();
-}
 
 export function buildWebChatSourceThreadId(input: { automationId: string; visitorId: string }) {
   return `web-chat:${input.automationId}:${input.visitorId}`;

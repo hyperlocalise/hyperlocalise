@@ -15,7 +15,7 @@
 import { useEffect, useState } from "react";
 import { useIntl } from "react-intl";
 
-import { workspaceAutomationFormMessages } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/automations/_components/workspace-automation-form.messages";
+import { workspaceAutomationFormMessages } from "./workspace-automation-form.messages";
 import {
   Snippet,
   SnippetAddon,
@@ -25,7 +25,7 @@ import {
 import {
   buildWorkspaceAutomationWebChatHref,
   buildWorkspaceAutomationWebChatUrl,
-} from "@/lib/agents/workspace-automation-web-chat";
+} from "@/lib/agents/workspace-automation-web-chat-url";
 
 export function WebChatUrlCopyField({
   automationId,
