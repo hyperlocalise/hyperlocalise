@@ -197,7 +197,7 @@ describe("workspace automation templates", () => {
     });
   });
 
-  it("exposes an activatable push localisation-review template", () => {
+  it("exposes an activatable pull request localisation-review template", () => {
     const template = getWorkspaceAutomationTemplate(
       "notify-on-push-blockers",
       WORKSPACE_AUTOMATION_TEMPLATES_BASE,
