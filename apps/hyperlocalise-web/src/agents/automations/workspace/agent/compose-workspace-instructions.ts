@@ -45,7 +45,12 @@ export function composeWorkspaceAutomationInstructions(input: {
   const dynamicSections = [enabledToolsSection];
 
   const skills = input.templateSkillId ? [input.templateSkillId] : [];
-  const sharedSkills = input.plan.tools.includes("notify_slack") ? ["slack-notifications"] : [];
+  const sharedSkills = [
+    ...(input.plan.tools.includes("notify_slack") ? (["slack-notifications"] as const) : []),
+    ...(input.plan.tools.includes("notify_github_comment")
+      ? (["github-comment-notifications"] as const)
+      : []),
+  ];
 
   return composeInstructions({
     automationId: "workspace",

@@ -55,6 +55,11 @@ export const automationsPageViewModelMessages = defineMessages({
     id: "6QqDATp4yt",
     description: "Tool badge when an automation uses email",
   },
+  toolGithubComment: {
+    defaultMessage: "PR comment",
+    id: "pRc0mB4dge",
+    description: "Tool badge when an automation posts GitHub pull request comments",
+  },
   toolMcpServer: {
     defaultMessage: "MCP Server",
     id: "RLPdxshxAq",

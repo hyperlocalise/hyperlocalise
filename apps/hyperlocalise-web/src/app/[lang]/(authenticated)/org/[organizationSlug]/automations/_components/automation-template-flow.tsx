@@ -32,6 +32,7 @@ function iconBucketForNode(node: WorkspaceAutomationTemplateFlowNode): IconBucke
   switch (node.id) {
     case "github-push":
     case "github":
+    case "github-comment":
     case "push-source":
     case "pull-translations":
     case "validation":

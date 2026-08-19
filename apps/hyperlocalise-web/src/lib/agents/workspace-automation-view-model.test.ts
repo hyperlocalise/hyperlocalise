@@ -256,6 +256,68 @@ describe("workspace automation view model", () => {
     });
   });
 
+  it("prefills the notify on push blockers template", () => {
+    const form = createWorkspaceAutomationFormStateFromTemplate(
+      "notify-on-push-blockers",
+      mergedTemplates,
+    );
+
+    expect(form).toMatchObject({
+      name: "Notify on push blockers",
+      triggerMode: "github",
+      pushBranches: ["main"],
+      githubEnabled: true,
+      githubMode: "agent",
+      githubCommentEnabled: true,
+      slackEnabled: false,
+      validationEnabled: false,
+    });
+    expect(form?.instructions).toContain("You are a localisation-focused code reviewer");
+    expect(form?.instructions).toContain("Review focus:");
+    expect(
+      validateWorkspaceAutomationFormState({
+        ...form!,
+        githubInstallationRepositoryId: "11111111-1111-4111-8111-111111111111",
+      }),
+    ).toEqual({});
+    expect(formStateToWorkspaceAutomationPayload(form!).toolConfig.githubComment).toEqual({
+      enabled: true,
+    });
+  });
+
+  it("allows GitHub agent mode with a GitHub push trigger", () => {
+    const form = {
+      ...createDefaultWorkspaceAutomationFormState(),
+      name: "Notify on push blockers",
+      instructions: "Review localisation risk on this push.",
+      triggerMode: "github" as const,
+      pushBranches: ["main"],
+      githubEnabled: true,
+      githubMode: "agent" as const,
+      githubInstallationRepositoryId: "11111111-1111-4111-8111-111111111111",
+      githubCommentEnabled: true,
+    };
+
+    expect(validateWorkspaceAutomationFormState(form)).toEqual({});
+    expect(formStateToWorkspaceAutomationPayload(form)).toMatchObject({
+      triggerConfig: { mode: "github", branches: ["main"] },
+      repositoryTarget: {
+        kind: "github",
+        githubInstallationRepositoryId: "11111111-1111-4111-8111-111111111111",
+      },
+      toolConfig: {
+        github: {
+          enabled: true,
+          mode: "agent",
+          pushSource: false,
+          pullTranslations: false,
+          validation: false,
+        },
+        githubComment: { enabled: true },
+      },
+    });
+  });
+
   it("validates GitHub agent mode without a Hyperlocalise project", () => {
     const form = {
       ...createDefaultWorkspaceAutomationFormState(),

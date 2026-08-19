@@ -81,12 +81,37 @@ export function buildWorkspaceOrchestratorUserMessage(input: {
     }
   }
 
+  if (input.triggerSource === "github") {
+    const pushBranch =
+      typeof input.inputSnapshot.pushBranch === "string" ? input.inputSnapshot.pushBranch.trim() : "";
+    const commitBefore =
+      typeof input.inputSnapshot.commitBefore === "string"
+        ? input.inputSnapshot.commitBefore.trim()
+        : "";
+    const commitAfter =
+      typeof input.inputSnapshot.commitAfter === "string"
+        ? input.inputSnapshot.commitAfter.trim()
+        : "";
+    if (pushBranch) {
+      lines.push(`GitHub push branch: ${pushBranch}.`);
+    }
+    if (commitBefore && commitAfter) {
+      lines.push(`GitHub push commits: ${commitBefore}..${commitAfter}.`);
+    } else if (commitAfter) {
+      lines.push(`GitHub push commit: ${commitAfter}.`);
+    }
+  }
+
   lines.push("Apply customer instructions when running workflow tools.");
   return lines.join("\n");
 }
 
 function collectNotificationWarnings(session: WorkspaceOrchestratorSession) {
-  const warnings: Array<{ channel: "slack" | "email"; code: string; message: string }> = [];
+  const warnings: Array<{
+    channel: "slack" | "email" | "github_comment";
+    code: string;
+    message: string;
+  }> = [];
 
   const slackResult = session.stepResults.notify_slack;
   if (slackResult && slackResult.sent === false) {
@@ -109,6 +134,25 @@ function collectNotificationWarnings(session: WorkspaceOrchestratorSession) {
         typeof emailResult.message === "string"
           ? emailResult.message
           : "Email notification failed.",
+    });
+  }
+
+  const githubCommentResult = session.stepResults.notify_github_comment;
+  if (
+    githubCommentResult &&
+    githubCommentResult.posted === false &&
+    githubCommentResult.skipped !== true
+  ) {
+    warnings.push({
+      channel: "github_comment",
+      code:
+        typeof githubCommentResult.code === "string"
+          ? githubCommentResult.code
+          : "github_comment_send_failed",
+      message:
+        typeof githubCommentResult.message === "string"
+          ? githubCommentResult.message
+          : "GitHub comment failed.",
     });
   }
 

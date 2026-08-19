@@ -107,6 +107,9 @@ export function resolveAutomationTools(intl: IntlShape, automation: WorkspaceAut
   if (automation.toolConfig.email?.enabled) {
     tools.push(intl.formatMessage(automationsPageViewModelMessages.toolEmail));
   }
+  if (automation.toolConfig.githubComment?.enabled) {
+    tools.push(intl.formatMessage(automationsPageViewModelMessages.toolGithubComment));
+  }
   if (automation.toolConfig.mcp?.enabled) {
     tools.push(intl.formatMessage(automationsPageViewModelMessages.toolMcpServer));
   }

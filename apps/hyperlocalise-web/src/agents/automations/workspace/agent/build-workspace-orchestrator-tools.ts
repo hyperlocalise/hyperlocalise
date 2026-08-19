@@ -19,6 +19,7 @@ import { createCreateIssueTool } from "./tools/create_issue";
 import { createNativeTmsJobTool } from "./tools/create_native_tms_job";
 import { createListIssuesTool } from "./tools/list_issues";
 import { createNotifyEmailTool } from "./tools/notify_email";
+import { createNotifyGithubCommentTool } from "./tools/notify_github_comment";
 import { createNotifySlackTool } from "./tools/notify_slack";
 import { createRecallMemoryTool } from "./tools/recall_memory";
 import { createRunContentfulTranslationTool } from "./tools/run_contentful_translation";
@@ -45,6 +46,7 @@ const TOOL_BUILDERS: Record<
   use_web_search: createUseWebSearchTool,
   notify_slack: createNotifySlackTool,
   notify_email: createNotifyEmailTool,
+  notify_github_comment: createNotifyGithubCommentTool,
   recall_memory: createRecallMemoryTool,
   save_memory: createSaveMemoryTool,
 };

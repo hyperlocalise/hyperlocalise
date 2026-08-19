@@ -58,6 +58,31 @@ export function hasWorkspaceAutomationGithubTool(
   );
 }
 
+export function hasWorkspaceAutomationGithubCommentTool(
+  toolConfig: WorkspaceAutomationToolConfig,
+): boolean {
+  return Boolean(toolConfig.githubComment?.enabled);
+}
+
+export function workspaceAutomationShouldDispatchOnGithubPush(
+  automation: WorkspaceAutomationRecord,
+  branch: string,
+): boolean {
+  if (automation.repositoryTarget.kind !== "github") {
+    return false;
+  }
+
+  if (!workspaceAutomationMatchesPushBranch(automation, branch)) {
+    return false;
+  }
+
+  return (
+    hasWorkspaceAutomationGithubWorkflow(automation.toolConfig) ||
+    hasWorkspaceAutomationGithubAgentTool(automation.toolConfig) ||
+    hasWorkspaceAutomationGithubCommentTool(automation.toolConfig)
+  );
+}
+
 export function workspaceAutomationToGithubSettings(
   automation: WorkspaceAutomationRecord,
 ): GithubRepositoryAutomationSettings | null {

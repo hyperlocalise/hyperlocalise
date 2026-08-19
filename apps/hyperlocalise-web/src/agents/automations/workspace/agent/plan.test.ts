@@ -192,6 +192,29 @@ describe("buildWorkspaceOrchestratorPlan", () => {
     expect(plan.tools).toEqual(["use_web_search", "notify_slack"]);
   });
 
+  it("includes notify_github_comment when GitHub comments are enabled", () => {
+    const plan = buildWorkspaceOrchestratorPlan(
+      automation({
+        repositoryTarget: {
+          kind: "github",
+          githubInstallationRepositoryId: "repo-1",
+        },
+        toolConfig: {
+          github: {
+            enabled: true,
+            mode: "agent",
+            pushSource: false,
+            pullTranslations: false,
+            validation: false,
+          },
+          githubComment: { enabled: true },
+        },
+      }),
+    );
+
+    expect(plan.tools).toEqual(["use_github_repository", "notify_github_comment"]);
+  });
+
   it("does not plan recall_memory when knowledge is enabled", () => {
     const plan = buildWorkspaceOrchestratorPlan(
       automation({

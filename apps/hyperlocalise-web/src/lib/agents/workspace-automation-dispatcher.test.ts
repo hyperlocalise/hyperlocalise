@@ -840,6 +840,67 @@ describe("workspace automation dispatcher", () => {
     });
   });
 
+  it("dispatches GitHub agent automations on matching pushes", async () => {
+    const scope = await seedDispatchScope();
+    const matching = expectOk(
+      await createWorkspaceAutomation({
+        organizationId: scope.organizationId,
+        authorUserId: scope.userId,
+        name: "Notify on push blockers",
+        instructions: "Review localisation risk on this push.",
+        triggerConfig: { mode: "github", branches: ["main"] },
+        repositoryTarget: {
+          kind: "github",
+          githubInstallationRepositoryId: scope.repository.id,
+        },
+        toolConfig: {
+          github: {
+            enabled: true,
+            mode: "agent",
+            pushSource: false,
+            pullTranslations: false,
+            validation: false,
+          },
+          githubComment: { enabled: true },
+        },
+      }),
+    );
+
+    const enqueued: Array<{ workspaceAutomationRunId: string; organizationId: string }> = [];
+    const queue = {
+      async enqueue(event: { workspaceAutomationRunId: string; organizationId: string }) {
+        enqueued.push(event);
+        return { ids: ["workflow-1"] };
+      },
+    };
+
+    const results = await dispatchWorkspaceAutomationsForGithubPush({
+      deliveryId: "delivery-github-agent-1",
+      organizationId: scope.organizationId,
+      githubInstallationRepositoryId: scope.repository.id,
+      branch: "main",
+      commitBefore: "aaa111",
+      commitAfter: "bbb222",
+      queue,
+    });
+
+    expect(results).toHaveLength(1);
+    expect(results[0]?.outcome).toBe("enqueued");
+    expect(enqueued).toHaveLength(1);
+
+    const runs = await listWorkspaceAutomationRuns({
+      automationId: matching.id,
+      organizationId: scope.organizationId,
+    });
+    expect(runs).toHaveLength(1);
+    expect(runs[0]?.inputSnapshot).toMatchObject({
+      githubDeliveryId: "delivery-github-agent-1",
+      pushBranch: "main",
+      commitBefore: "aaa111",
+      commitAfter: "bbb222",
+    });
+  });
+
   it("dispatches source-upload automations scoped to the matching project", async () => {
     const scope = await seedDispatchScope();
     const otherProjectId = `project-other-${scope.organizationId.slice(0, 8)}`;

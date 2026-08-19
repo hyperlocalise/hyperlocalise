@@ -52,6 +52,7 @@ export type WorkspaceAutomationFormState = {
   slackChannelId: string;
   emailEnabled: boolean;
   emailRecipients: string[];
+  githubCommentEnabled: boolean;
   contentfulEnabled: boolean;
   contentfulConnectionId: string;
   contentfulSourceLocale: string;
@@ -126,7 +127,7 @@ export const WORKSPACE_AUTOMATION_API_ERROR_MESSAGES: Record<string, string> = {
   translation_project_required: "Choose a Hyperlocalise project for this automation.",
   github_trigger_required: "Choose a schedule or GitHub push trigger for GitHub workflows.",
   github_agent_trigger_required:
-    "Use GitHub repo automations with a scheduled or manual trigger, not GitHub push.",
+    "Use GitHub repo automations with a scheduled, manual, or GitHub push trigger.",
   github_push_branches_required: "Add at least one branch pattern for GitHub push triggers.",
   scheduled_workflow_required:
     "Scheduled automations require at least one GitHub, Contentful, Issues, or Web Search workflow tool.",
@@ -181,6 +182,7 @@ export function createDefaultWorkspaceAutomationFormState(): WorkspaceAutomation
     slackChannelId: "",
     emailEnabled: false,
     emailRecipients: [],
+    githubCommentEnabled: false,
     contentfulEnabled: false,
     contentfulConnectionId: "",
     contentfulSourceLocale: "en",
@@ -265,6 +267,7 @@ export function createWorkspaceAutomationFormStateFromRecord(
     slackChannelId: slack?.channelId ?? "",
     emailEnabled: Boolean(email?.enabled),
     emailRecipients: email?.recipients ? [...email.recipients] : [],
+    githubCommentEnabled: Boolean(automation.toolConfig.githubComment?.enabled),
     contentfulEnabled: Boolean(contentful?.enabled),
     contentfulConnectionId: contentful?.connectionId ?? "",
     contentfulSourceLocale: contentful?.sourceLocale ?? "en",
@@ -382,7 +385,7 @@ export function formStateToWorkspaceAutomationPayload(form: WorkspaceAutomationF
             : { mode: "manual" };
 
   const repositoryTarget: WorkspaceAutomationRepositoryTarget =
-    form.githubEnabled && form.githubInstallationRepositoryId
+    (form.githubEnabled || form.githubCommentEnabled) && form.githubInstallationRepositoryId
       ? {
           kind: "github",
           githubInstallationRepositoryId: form.githubInstallationRepositoryId,
@@ -414,6 +417,13 @@ export function formStateToWorkspaceAutomationPayload(form: WorkspaceAutomationF
           email: {
             enabled: true,
             recipients: form.emailRecipients,
+          },
+        }
+      : {}),
+    ...(form.githubCommentEnabled
+      ? {
+          githubComment: {
+            enabled: true,
           },
         }
       : {}),
@@ -551,13 +561,13 @@ export function validateWorkspaceAutomationFormState(
       if (form.triggerMode === "manual") {
         errors.trigger = "Choose a schedule or GitHub push trigger.";
       }
-      if (form.triggerMode === "github" && form.pushBranches.length === 0) {
-        errors.pushBranches = "Add at least one branch pattern.";
-      }
-    } else if (form.triggerMode === "github") {
-      errors.trigger =
-        "Use GitHub repo automations with a scheduled or manual trigger, not GitHub push.";
     }
+  } else if (form.githubCommentEnabled && !form.githubInstallationRepositoryId) {
+    errors.githubRepository = "Choose a GitHub repository.";
+  }
+
+  if (form.triggerMode === "github" && form.pushBranches.length === 0) {
+    errors.pushBranches = "Add at least one branch pattern.";
   }
 
   if (form.slackEnabled && !form.slackChannelId.trim()) {
@@ -676,6 +686,7 @@ export function workspaceAutomationFormCanActivate(form: WorkspaceAutomationForm
     form.githubEnabled ||
     form.slackEnabled ||
     form.emailEnabled ||
+    form.githubCommentEnabled ||
     form.contentfulEnabled ||
     form.createNativeTmsJobEnabled ||
     form.assignTranslateWithAgentEnabled ||

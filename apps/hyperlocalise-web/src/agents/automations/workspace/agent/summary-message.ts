@@ -27,7 +27,7 @@ function asStringArray(value: unknown): string[] {
 }
 
 /**
- * `notify_slack` / `notify_email` run inside the tool loop, before
+ * `notify_slack` / `notify_email` / `notify_github_comment` run inside the tool loop, before
  * `deriveTerminalStatus` persists the final run status. Prefer explicit
  * terminal signals; treat still-queued/running as completed for the summary.
  */

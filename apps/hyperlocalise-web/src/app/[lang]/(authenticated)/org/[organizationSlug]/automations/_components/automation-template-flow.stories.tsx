@@ -99,3 +99,12 @@ export const DailyWebResearch: Story = {
     await expect(canvas.getByLabelText("Daily → Slack → Web Search")).toBeInTheDocument();
   },
 };
+
+export const NotifyOnPushBlockers: Story = {
+  ...templateStory("notify-on-push-blockers"),
+  play: async ({ canvas }) => {
+    await expect(
+      canvas.getByLabelText("GitHub push → GitHub → GitHub comment"),
+    ).toBeInTheDocument();
+  },
+};
