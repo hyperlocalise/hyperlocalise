@@ -19,24 +19,30 @@ After `use_github_repository`, before notify. Pass each changed key with source,
 
 ### `use_crowdin` response shape
 
-**One line per key.** No sub-bullets, no prose summary.
+One entry per queried key. Use the same description + recommendation shape as **Translation review**:
 
-`- \`key\` · locale — what's wrong — why → verdict/fix`
+```markdown
+- **`key` · locale** — Brief description (include why)
+  > Recommendation: verdict or fix
+```
 
 Examples:
 
-- `- \`btn.save\` · de-DE — glossary Speichern ≠ repo Sichern — breaks approved terminology → P1 use Speichern`
-- `- \`nav.home\` · fr-FR — TM matches Accueil — consistent with prior UI copy → OK`
+- **`btn.save` · de-DE** — glossary `Speichern` ≠ repo `Sichern` — breaks approved terminology
+  > Recommendation: P1 — use `Speichern`
+
+- **`nav.home` · fr-FR** — TM matches `Accueil` — consistent with prior UI copy
+  > Recommendation: OK — no change
 
 Omit keys not queried.
 
 ### Merge into the final report
 
-- **Conflict** → fold into the P1/P2 one-liner: include what's wrong, **why** (glossary rule, TM precedent, style constraint), and fix.
+- **Conflict** → fold into the P1/P2 entry under **Translation Review Results**: description cites Crowdin evidence; recommendation gives the fix.
 - **Supports repo** → key stays in **Keys OK**; no extra Crowdin line needed.
-- **No hit** → omit unless terminology was ambiguous; then `→ P2 review terminology` on one line.
+- **No hit** → omit unless terminology was ambiguous; then add under **Low Priority (P2)** with recommendation `Review terminology with locale owner`.
 
-Do **not** duplicate: if P1 already says `glossary Speichern`, do not also list the key under Keys OK with a Crowdin note.
+Do **not** duplicate: if P1 already cites glossary `Speichern`, do not also list the key under Keys OK with a Crowdin note.
 
 ### Banned
 

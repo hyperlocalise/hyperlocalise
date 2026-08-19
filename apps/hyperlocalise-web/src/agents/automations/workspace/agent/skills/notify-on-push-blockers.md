@@ -32,4 +32,4 @@ PR comment delivery:
 
 - Post the **Translation review** report sections as the sticky PR comment body.
 - Update the existing sticky comment in place on later pushes; do not spam new comments.
-- When P0 blockers exist, lead with the Blockers section.
+- When P0 blockers exist, lead with the **High Priority (P0)** section.

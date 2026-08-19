@@ -7,7 +7,7 @@ name: Translation review
 
 Use this procedure when reviewing localisation or translation changes in a repository. Pair with **Recent source-content changes** to gather diffs, then review **every changed key** individually.
 
-Keep output **scannable**. One line per key. Do not repeat the same key in multiple sections.
+Keep output **scannable**. One entry per key. Do not repeat the same key in multiple sections.
 
 ### Per-key review
 
@@ -17,40 +17,57 @@ Keep output **scannable**. One line per key. Do not repeat the same key in multi
 
 ### Priority tiers
 
-- **P0 (blocker):** Missing keys, broken ICU/placeholders, placeholder mismatch, untranslated shipped-locale copy, wrong locale file, RTL-breaking markup, runtime formatting breakage.
-- **P1 (should fix):** Terminology/glossary conflict, ambiguous source, truncated values, gender/agreement issues, TM/glossary mismatch.
-- **P2 (follow-up):** Style polish, optional terminology alignment, human review with no proven defect.
+- **P0 (high):** Missing keys, broken ICU/placeholders, placeholder mismatch, untranslated shipped-locale copy, wrong locale file, RTL-breaking markup, runtime formatting breakage.
+- **P1 (medium):** Terminology/glossary conflict, ambiguous source, truncated values, gender/agreement issues, TM/glossary mismatch.
+- **P2 (low):** Style polish, optional terminology alignment, human review with no proven defect.
 - **OK:** Changed value looks correct; note only if something non-obvious was checked (ICU, placeholders).
 
-### Required report sections
+### Required report format
 
-Use these sections **in this order**.
+Start with a results header, then priority sections. Match the code-review results shape.
 
-#### Blockers (P0)
+#### Header
 
-One line per finding. Format:
+```markdown
+## Translation Review Results
 
-`- \`key\` · locale · file — what's wrong — why fix is needed → fix`
+**Keys reviewed**: N
+**Issues found**: X high priority / Y medium priority / Z low priority
+```
 
-The **why** is one short clause: user impact, runtime risk, glossary/compliance rule, or locale rule broken. Do not skip it.
+`N` = all changed keys reviewed. Counts must match the sections below.
 
-If none: `None.`
+#### Finding entry shape
 
-#### Should fix (P1)
+Each P0/P1/P2 entry is a bullet plus a recommendation blockquote:
 
-Same one-line format. If none: `None.`
+```markdown
+- **`key` · locale · `file`** — Brief description (include why it matters)
+  > Recommendation: How to fix
+```
 
-#### Follow-ups (P2)
+- **Description** — what's wrong and **why** (user impact, runtime risk, glossary rule, locale rule). One sentence.
+- **Recommendation** — concrete fix: target string, file edit, glossary term, or follow-up action.
 
-Same one-line format. If none: `None.`
+If a section has no findings, write `None.` under the heading.
+
+#### Section order
+
+Use these sections **in this order**:
+
+1. `### High Priority (P0)`
+2. `### Medium Priority (P1)`
+3. `### Low Priority (P2)`
+4. `### Keys OK`
+5. `### Tooling`
 
 #### Keys OK
 
-Changed keys with **no** P0/P1/P2. One line each. Do **not** list keys already under P0/P1/P2.
+Changed keys with **no** P0/P1/P2. One line each. Do **not** list keys already under a priority section.
 
-`- \`key\` · locale — old→new` or `- \`key\` · locale — added "…"`
+`- **`key` · locale** — old→new` or `- **`key` · locale** — added "…"`
 
-If every changed key has a finding, write `None.` If no catalog changes: `No locale catalog changes in this window.`
+If every changed key has a finding: `None.` If no catalog changes: `No locale catalog changes in this window.`
 
 #### Tooling
 
@@ -60,43 +77,49 @@ One line each:
 - **Crowdin concordance:** ran (N keys) | skipped | not configured
 - **Coverage:** N keys · N locales · N commits
 
-#### Summary
-
-`P0: N · P1: N · P2: N · OK: N`
-
 ### Compact example
 
 ```markdown
-## Blockers (P0)
+## Translation Review Results
+
+**Keys reviewed**: 4
+**Issues found**: 0 high priority / 1 medium priority / 1 low priority
+
+### High Priority (P0)
+
 None.
 
-## Should fix (P1)
-- `btn.save` · de-DE · lang/de-DE.json — `Sichern` ≠ glossary `Speichern` — breaks approved DE product terminology → use `Speichern`
+### Medium Priority (P1)
 
-## Follow-ups (P2)
-- `onboarding.title` · de-DE · lang/de-DE.json — informal "du" in heading — tone may clash with formal settings copy elsewhere → align with Sie/register
+- **`btn.save` · de-DE · `lang/de-DE.json`** — `Sichern` conflicts with approved glossary term `Speichern` — breaks consistent DE product terminology
+  > Recommendation: Replace with `Speichern`
 
-## Keys OK
-- `nav.home` · fr-FR — "Home"→"Accueil"
-- `nav.back` · fr-FR — added "Retour"
+### Low Priority (P2)
 
-## Tooling
+- **`onboarding.title` · de-DE · `lang/de-DE.json`** — informal "du" in heading — tone may clash with formal settings copy elsewhere
+  > Recommendation: Align with Sie/register used in settings strings
+
+### Keys OK
+
+- **`nav.home` · fr-FR** — "Home"→"Accueil"
+- **`nav.back` · fr-FR** — added "Retour"
+
+### Tooling
+
 - **Hyperlocalise validation:** ran — scribe-fe-v2/i18n.yml
 - **Crowdin concordance:** ran (2 keys)
-- **Coverage:** 3 keys · 2 locales · 1 commit
-
-## Summary
-P0: 0 · P1: 1 · P2: 1 · OK: 2
+- **Coverage:** 4 keys · 2 locales · 1 commit
 ```
 
 ### Output rules
 
-- **One line per key.** Format for findings: `what's wrong — why fix is needed → fix`. No Issue/Recommendation sub-blocks.
+- **Description + recommendation.** Do not collapse into one line with `→`. Use the blockquote for the fix.
 - **No duplication.** A key appears in P0/P1/P2 **or** Keys OK, never both.
 - Do **not** write "Overall risk: Low/Medium/High" or file-level summaries instead of keys.
 - Do **not** append standalone Crowdin sections.
 - Always include every section above, even when empty (`None.`).
+- When P0 blockers exist, they must appear under **High Priority** first so readers see them immediately.
 
 ### Crowdin concordance (when available)
 
-When `use_crowdin` is enabled, follow **Crowdin concordance review**. Fold glossary/TM/style into the **same one-line** P1/P2 entry (for conflicts) or omit from Keys OK when OK. Never a second Crowdin block.
+When `use_crowdin` is enabled, follow **Crowdin concordance review**. Fold glossary/TM/style into the **same** P1/P2 entry (description + recommendation). Never a second Crowdin block.
