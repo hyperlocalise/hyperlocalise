@@ -88,10 +88,7 @@ function buildJsonMap(
 }
 
 function yamlScalar(value: string): string {
-  if (
-    /^[A-Za-z0-9_./-]+$/.test(value) &&
-    !/^(?:true|false|null|yes|no|on|off)$/i.test(value)
-  ) {
+  if (/^[A-Za-z0-9_./-]+$/.test(value) && !/^(?:true|false|null|yes|no|on|off)$/i.test(value)) {
     return value;
   }
   return JSON.stringify(value);

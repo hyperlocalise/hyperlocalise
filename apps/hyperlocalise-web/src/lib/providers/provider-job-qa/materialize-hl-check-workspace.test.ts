@@ -17,7 +17,7 @@ import { hyperlocaliseAgentModelId } from "@/lib/agent-runtime/loops/model-id";
 import { buildHlCheckWorkspaceBundle } from "./materialize-hl-check-workspace";
 
 describe("buildHlCheckWorkspaceBundle", () => {
-    20|  it("writes i18n.yml instead of i18n.jsonc", () => {
+  it("writes an i18n.yml workspace config", () => {
     const bundle = buildHlCheckWorkspaceBundle(
       {
         externalJobId: "job-1",

@@ -1576,10 +1576,7 @@ describe("createRunHyperlocaliseCliTool", () => {
     );
 
     const t = createRunHyperlocaliseCliTool(ctx);
-    await t.execute!(
-      { subcommand: "check", flags: { config: "custom/i18n.yml" } },
-      toolCallInfo,
-    );
+    await t.execute!({ subcommand: "check", flags: { config: "custom/i18n.yml" } }, toolCallInfo);
 
     expect(hlArgs).toEqual(["check", "--config=custom/i18n.yml"]);
   });
