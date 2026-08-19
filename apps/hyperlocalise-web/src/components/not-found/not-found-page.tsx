@@ -35,15 +35,18 @@ export async function NotFoundPage() {
   const copy = getNotFoundCopy(getIntlShape(locale));
 
   return (
-    <NotFoundRecovery
-      statusCode={copy.statusCode}
-      title={copy.title}
-      description={copy.description}
-      homeLabel={copy.homeLabel}
-      dashboardLabel={copy.dashboardLabel}
-      supportLabel={copy.supportLabel}
-      homeHref="/"
-      dashboardHref="/dashboard"
-    />
+    <>
+      <title>{copy.documentTitle}</title>
+      <NotFoundRecovery
+        statusCode={copy.statusCode}
+        title={copy.title}
+        description={copy.description}
+        homeLabel={copy.homeLabel}
+        dashboardLabel={copy.dashboardLabel}
+        supportLabel={copy.supportLabel}
+        homeHref="/"
+        dashboardHref="/dashboard"
+      />
+    </>
   );
 }
