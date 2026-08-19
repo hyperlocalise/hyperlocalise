@@ -104,6 +104,9 @@
   "+Pn3eYONmL": {
     "defaultMessage": "Semrush"
   },
+  "+Q1YYBcFG/": {
+    "defaultMessage": "优先级"
+  },
   "+Qv1Pt0/I9": {
     "defaultMessage": "{actor} 将此标记为不再是 {relatedIssue} 的重复问题"
   },
@@ -484,6 +487,9 @@
   },
   "0DwOCagj+y": {
     "defaultMessage": "区域适配"
+  },
+  "0Ec7pW0RQ5": {
+    "defaultMessage": "GitHub 仓库"
   },
   "0Fkv13W/rO": {
     "defaultMessage": "Excellent"
@@ -1334,6 +1340,9 @@
   "3poXpaPEFu": {
     "defaultMessage": "输入 URL"
   },
+  "3ql4zcu6fu": {
+    "defaultMessage": "{count, plural, one {已选择 # 个问题} other {已选择 # 个问题}}"
+  },
   "3qpoJUP9OU": {
     "defaultMessage": "项目"
   },
@@ -1615,6 +1624,9 @@
   },
   "54uRAqIrYn": {
     "defaultMessage": "来自 GitHub 和产品简介的上下文感知"
+  },
+  "576RCOuTLO": {
+    "defaultMessage": "已更新 {updated} 个问题。"
   },
   "57OPGCpQ8o": {
     "defaultMessage": "{count} total"
@@ -2270,6 +2282,9 @@
   "81SMUge/HF": {
     "defaultMessage": "AI 草稿会遗漏 UI 约束、术语表规则，以及拉取请求中实际发生了哪些更改。"
   },
+  "82drjDfpox": {
+    "defaultMessage": "选择问题 {title}"
+  },
   "85veKzf/Q7": {
     "defaultMessage": "打开“文件”查看覆盖率，或者准备好后创建任务。"
   },
@@ -2909,6 +2924,9 @@
   "Ab8vwYJKWj": {
     "defaultMessage": "审阅者"
   },
+  "AbZsOtFk+H": {
+    "defaultMessage": "为此次推送在拉取请求上发布一条置顶评审评论。后续运行会更新同一条评论。"
+  },
   "AcfkWiaJBh": {
     "defaultMessage": "已复制！"
   },
@@ -3185,6 +3203,9 @@
   "BxrsOsytU2": {
     "defaultMessage": "编辑"
   },
+  "ByKnEF5329": {
+    "defaultMessage": "{actor} 将优先级从 {previousPriority} 更改为 {nextPriority}"
+  },
   "C+9nUAd/Jd": {
     "defaultMessage": "{displayName}已保存。连接您的 Crowdin 账户以继续。"
   },
@@ -3407,6 +3428,9 @@
   "CvYNnC7KYY": {
     "defaultMessage": "我们无法加载此项目的任务。"
   },
+  "CvmC1QddwG": {
+    "defaultMessage": "PR 评论"
+  },
   "Cw9DS+v8+l": {
     "defaultMessage": "在此 TMS 任务上运行 QA 检查或代理审核，以发现占位符、ICU、术语表和翻译问题。检查通过后，此部分将显示明确的无问题状态。"
   },
@@ -3565,6 +3589,9 @@
   },
   "DTZcGNPK0v": {
     "defaultMessage": "待导入 {count} 个"
+  },
+  "DU3T9+E0+x": {
+    "defaultMessage": "有评论"
   },
   "DUUeZdS8h4": {
     "defaultMessage": "面向支持和本地化审核员的路线"
@@ -3830,6 +3857,9 @@
   "EoUUnxtgJ8": {
     "defaultMessage": "定价行动号召"
   },
+  "EqlihiOWKx": {
+    "defaultMessage": "所选问题属于同一个项目时可以进行分配"
+  },
   "EraI1sZNxF": {
     "defaultMessage": "Source text"
   },
@@ -3920,6 +3950,9 @@
   "F8EegdWpYQ": {
     "defaultMessage": "Context"
   },
+  "F9y826AvJs": {
+    "defaultMessage": "排序队列"
+  },
   "FAiaLlxyiD": {
     "defaultMessage": "已批准的术语表术语"
   },
@@ -4003,6 +4036,9 @@
   },
   "FZR01zQdR+": {
     "defaultMessage": "Status"
+  },
+  "FZh9zX9beA": {
+    "defaultMessage": "连接 Crowdin 并同步项目后，再使用此审核工具。"
   },
   "Fa2m2wwKio": {
     "defaultMessage": "功能部分"
@@ -4256,6 +4292,9 @@
   "GqfMhL6Yw/": {
     "defaultMessage": "用户"
   },
+  "Gsz+RNFKoM": {
+    "defaultMessage": "在 <link>集成</link> 中连接 GitHub，以便对拉取请求发表评论。"
+  },
   "GuBuwlp/SU": {
     "defaultMessage": "停止重复相同的本地化反馈"
   },
@@ -4471,6 +4510,9 @@
   },
   "Hx0PS0s7+N": {
     "defaultMessage": "能够根据简报和品牌指南感知上下文"
+  },
+  "HxWBdm4nhz": {
+    "defaultMessage": "未保存的翻译"
   },
   "HxcjgjcAgw": {
     "defaultMessage": "Status"
@@ -5196,7 +5238,7 @@
     "defaultMessage": "在 CI/CD 中自动化本地化检查。检测拉取请求中的字符串变更，起草翻译，并在不良翻译进入生产环境之前阻止发布。"
   },
   "LjtFEh0HMb": {
-    "defaultMessage": "{title} ({name})"
+    "defaultMessage": "{title}（{name}）"
   },
   "LjtXYDMMAO": {
     "defaultMessage": "无法加载本地化审核报告。"
@@ -5293,6 +5335,9 @@
   },
   "MB3Jte6am8": {
     "defaultMessage": "{count}/{maxLength} 个字符"
+  },
+  "MBw6r00XBp": {
+    "defaultMessage": "选择所有已加载的内容"
   },
   "MCViSbp0Sq": {
     "defaultMessage": "对医疗器械标签和 IFU 翻译执行计划合规检查。将各语言区域与已批准术语进行比较，标记受监管市场中缺失的翻译，检查计量单位和警告语的一致性，然后报告需要审核的阻塞项。不要发布。"
@@ -5687,6 +5732,9 @@
   "O3OXLAres/": {
     "defaultMessage": "源文本"
   },
+  "O3nJ0XBCbB": {
+    "defaultMessage": "文件顺序"
+  },
   "O3w0wyu0VQ": {
     "defaultMessage": "无法加载对话。"
   },
@@ -5854,6 +5902,9 @@
   },
   "P+9nP38ODj": {
     "defaultMessage": "正在连接…"
+  },
+  "P/9I6WaWRN": {
+    "defaultMessage": "正在更新问题..."
   },
   "P0cpKEoGJ1": {
     "defaultMessage": "Hyperlocalise 不是 TMS 的替代品。它是本地化运营团队用来编排代理、人工、模型和平台的工作流层，无需进行大规模替换式迁移。"
@@ -7051,6 +7102,9 @@
   },
   "UU5/+HYaD2": {
     "defaultMessage": "任务描述"
+  },
+  "UWZ1G1FSvB": {
+    "defaultMessage": "未翻译优先"
   },
   "UWtBPjqoSn": {
     "defaultMessage": "Done"
@@ -8264,6 +8318,9 @@
   "a0yFgx40Tg": {
     "defaultMessage": "由供应商翻译"
   },
+  "a44831XqpD": {
+    "defaultMessage": "搜索语料库，加载风格指南，并为待审核的字符串推荐翻译。"
+  },
   "a4IAS0WZRR": {
     "defaultMessage": "Glossaries"
   },
@@ -8299,6 +8356,9 @@
   },
   "a74JhYiAwS": {
     "defaultMessage": "Name"
+  },
+  "a8SQvqjTx9": {
+    "defaultMessage": "质量检查问题"
   },
   "a8cGGx+QlX": {
     "defaultMessage": "从第一天起，打造适应每个市场的应用"
@@ -8365,6 +8425,12 @@
   },
   "aMf9NbDyem": {
     "defaultMessage": "暂无图片"
+  },
+  "aQKVpqRw8t": {
+    "defaultMessage": "移除 Crowdin 工具"
+  },
+  "aQgD9ppYhP": {
+    "defaultMessage": "取消分配"
   },
   "aRsl7fqj3D": {
     "defaultMessage": "Comment"
@@ -8503,6 +8569,9 @@
   },
   "b7yQjQkzcS": {
     "defaultMessage": "翻译"
+  },
+  "b9pqYzF7KI": {
+    "defaultMessage": "{actor} 将类型从 {previousIssueType} 更改为 {nextIssueType}"
   },
   "bAOOxyyl8P": {
     "defaultMessage": "请求演示"
@@ -8737,6 +8806,9 @@
   },
   "cUEs5UweV5": {
     "defaultMessage": "已通过的审核（{count}）"
+  },
+  "cVNMp4yAc9": {
+    "defaultMessage": "{actor} 将优先级设置为 {nextPriority}"
   },
   "cVbj5KLUfe": {
     "defaultMessage": "查看字符串"
@@ -9170,6 +9242,9 @@
   "eNvHcnzBfE": {
     "defaultMessage": "跟踪实时活动中的偏差"
   },
+  "eOsFs4OoCj": {
+    "defaultMessage": "无法更新选定的问题"
+  },
   "ePmyaYpkGS": {
     "defaultMessage": "还没有工作区成员"
   },
@@ -9319,6 +9394,9 @@
   },
   "f0pASu5TFR": {
     "defaultMessage": "搜索仓库"
+  },
+  "f22yrNzzSr": {
+    "defaultMessage": "在源文件选择器中选择一个 GitHub 仓库，以查找字符串上下文。"
   },
   "f2cTOkA6mx": {
     "defaultMessage": "Create a generic Issue Sheet row. Link it to CAT or another issue tracker when useful."
@@ -9487,6 +9565,9 @@
   },
   "frCipQZwRu": {
     "defaultMessage": "Pending"
+  },
+  "frNSjho/8d": {
+    "defaultMessage": "已更新 {requested} 个问题中的 {updated} 个。{failed} 个失败。"
   },
   "fsj2SHFeSt": {
     "defaultMessage": "文件加载失败。"
@@ -10352,6 +10433,9 @@
   "jLjTPaf/u5": {
     "defaultMessage": "连接"
   },
+  "jMXm5EYCQP": {
+    "defaultMessage": "清除选择"
+  },
   "jNNp9OLKEA": {
     "defaultMessage": "TMS 项目"
   },
@@ -10426,6 +10510,9 @@
   },
   "jfJtnvEq80": {
     "defaultMessage": "正在加载编辑器"
+  },
+  "jgR+WtYIxe": {
+    "defaultMessage": "移除 GitHub 评论通知"
   },
   "jgZ/X83sNj": {
     "defaultMessage": "无法加载文件"
@@ -10512,7 +10599,7 @@
     "defaultMessage": "Remove Ahrefs tool"
   },
   "k2mhvldg9T": {
-    "defaultMessage": "Maya Chen"
+    "defaultMessage": "玛雅·陈"
   },
   "k3MhPbqttd": {
     "defaultMessage": "继续验证"
@@ -11591,6 +11678,9 @@
   "p+mx30+l3M": {
     "defaultMessage": "翻译记忆库名称为必填项。"
   },
+  "p/GrdJcH5A": {
+    "defaultMessage": "机器翻译"
+  },
   "p/PBwViDjv": {
     "defaultMessage": "团队已更新"
   },
@@ -11683,6 +11773,9 @@
   },
   "pMpF//U8ui": {
     "defaultMessage": "Remove"
+  },
+  "pNAbj0ztLi": {
+    "defaultMessage": "分配"
   },
   "pOCBt3fv7m": {
     "defaultMessage": "该计划面向 Hyperlocalise 的新客户，适合处于早期阶段的企业——通常员工人数少于 50 人或尚未完成 B 轮融资——并有意选择 Growth 计划。如果您不确定是否符合条件，请申请演示，我们会确认是否适合。"
@@ -11824,6 +11917,9 @@
   },
   "q+3+ldE+Vn": {
     "defaultMessage": "服务级别协议"
+  },
+  "q+vOWtU/QG": {
+    "defaultMessage": "类型"
   },
   "q0vQCpRAVI": {
     "defaultMessage": "没有文件匹配此搜索。"
@@ -12368,6 +12464,9 @@
   "saGDzW8Kz5": {
     "defaultMessage": "每月 2,000 次代理运行"
   },
+  "sbdvj0ZEFg": {
+    "defaultMessage": "您最多可以选择 {max} 个问题"
+  },
   "sbr8qd8WgZ": {
     "defaultMessage": "Manual"
   },
@@ -12652,6 +12751,9 @@
   },
   "u5hy7XQ9he": {
     "defaultMessage": "此空间中未找到内容类型。"
+  },
+  "u6BhbzsvPa": {
+    "defaultMessage": "评论拉取请求"
   },
   "u7mPxFIRkS": {
     "defaultMessage": "此工作区中最近更新的工作。"
@@ -13445,6 +13547,9 @@
   "xQCn9y4Cu3": {
     "defaultMessage": "格式和质量检查失败（{count, plural, one {# 个问题} other {# 个问题}}）"
   },
+  "xRY53GWVL8": {
+    "defaultMessage": "状态"
+  },
   "xSPEc7l3cj": {
     "defaultMessage": "前往仪表板"
   },
@@ -13637,6 +13742,9 @@
   "yCJFX2pnZO": {
     "defaultMessage": "Tourfinder homepage localised in Vietnamese with Japan travel campaigns"
   },
+  "yD2L9eM3l9": {
+    "defaultMessage": "选择所有已加载的问题"
+  },
   "yDYJAjyOdb": {
     "defaultMessage": "Search"
   },
@@ -13681,6 +13789,9 @@
   },
   "yPsLdM5F3Q": {
     "defaultMessage": "CAT 工作区目前尚不支持此文件。"
+  },
+  "yQ7T8Cq+ij": {
+    "defaultMessage": "Crowdin"
   },
   "yRRevnNvnn": {
     "defaultMessage": "源消息语法"

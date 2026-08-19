@@ -104,6 +104,9 @@
   "+Pn3eYONmL": {
     "defaultMessage": "Semrush"
   },
+  "+Q1YYBcFG/": {
+    "defaultMessage": "Mức độ ưu tiên"
+  },
   "+Qv1Pt0/I9": {
     "defaultMessage": "{actor} đã đánh dấu rằng mục này không còn trùng lặp với {relatedIssue}"
   },
@@ -484,6 +487,9 @@
   },
   "0DwOCagj+y": {
     "defaultMessage": "Thích ứng ngôn ngữ và vùng miền"
+  },
+  "0Ec7pW0RQ5": {
+    "defaultMessage": "Kho lưu trữ GitHub"
   },
   "0Fkv13W/rO": {
     "defaultMessage": "Xuất sắc"
@@ -1334,6 +1340,9 @@
   "3poXpaPEFu": {
     "defaultMessage": "Nhập URL"
   },
+  "3ql4zcu6fu": {
+    "defaultMessage": "{count, plural, one {Đã chọn # vấn đề} other {Đã chọn # vấn đề}}"
+  },
   "3qpoJUP9OU": {
     "defaultMessage": "Dự án"
   },
@@ -1615,6 +1624,9 @@
   },
   "54uRAqIrYn": {
     "defaultMessage": "Nhận biết ngữ cảnh từ GitHub và bản tóm tắt sản phẩm"
+  },
+  "576RCOuTLO": {
+    "defaultMessage": "Đã cập nhật {updated} vấn đề."
   },
   "57OPGCpQ8o": {
     "defaultMessage": "{count} total"
@@ -2270,6 +2282,9 @@
   "81SMUge/HF": {
     "defaultMessage": "Bản nháp AI bỏ sót các ràng buộc giao diện người dùng, các quy tắc trong bảng thuật ngữ, và những gì thực sự đã thay đổi trong pull request."
   },
+  "82drjDfpox": {
+    "defaultMessage": "Chọn vấn đề {title}"
+  },
   "85veKzf/Q7": {
     "defaultMessage": "Mở Files để xem phạm vi hoặc tạo một job khi bạn sẵn sàng."
   },
@@ -2909,6 +2924,9 @@
   "Ab8vwYJKWj": {
     "defaultMessage": "Người đánh giá"
   },
+  "AbZsOtFk+H": {
+    "defaultMessage": "Đăng một nhận xét đánh giá được ghim trên pull request cho lần push này. Các lần chạy sau sẽ cập nhật cùng nhận xét đó."
+  },
   "AcfkWiaJBh": {
     "defaultMessage": "Đã sao chép!"
   },
@@ -3185,6 +3203,9 @@
   "BxrsOsytU2": {
     "defaultMessage": "Chỉnh sửa"
   },
+  "ByKnEF5329": {
+    "defaultMessage": "{actor} đã thay đổi mức độ ưu tiên từ {previousPriority} thành {nextPriority}"
+  },
   "C+9nUAd/Jd": {
     "defaultMessage": "{displayName} đã được lưu. Kết nối tài khoản Crowdin của bạn để tiếp tục."
   },
@@ -3407,6 +3428,9 @@
   "CvYNnC7KYY": {
     "defaultMessage": "Chúng tôi không thể tải các công việc cho dự án này."
   },
+  "CvmC1QddwG": {
+    "defaultMessage": "Bình luận PR"
+  },
   "Cw9DS+v8+l": {
     "defaultMessage": "Chạy kiểm tra QA hoặc đánh giá bằng tác nhân trên công việc TMS này để phát hiện các vấn đề về placeholder, ICU, thuật ngữ và bản dịch tại đây. Khi các kiểm tra đạt yêu cầu, phần này sẽ hiển thị trạng thái không có vấn đề rõ ràng."
   },
@@ -3565,6 +3589,9 @@
   },
   "DTZcGNPK0v": {
     "defaultMessage": "{count} cần nhập"
+  },
+  "DU3T9+E0+x": {
+    "defaultMessage": "Có bình luận"
   },
   "DUUeZdS8h4": {
     "defaultMessage": "Định tuyến đến nhóm hỗ trợ và người xem xét bản địa hóa"
@@ -3830,6 +3857,9 @@
   "EoUUnxtgJ8": {
     "defaultMessage": "CTA về giá cả"
   },
+  "EqlihiOWKx": {
+    "defaultMessage": "Tính năng phân công hoạt động khi các issue được chọn thuộc cùng một dự án"
+  },
   "EraI1sZNxF": {
     "defaultMessage": "Source text"
   },
@@ -3920,6 +3950,9 @@
   "F8EegdWpYQ": {
     "defaultMessage": "Context"
   },
+  "F9y826AvJs": {
+    "defaultMessage": "Sắp xếp hàng đợi"
+  },
   "FAiaLlxyiD": {
     "defaultMessage": "Thuật ngữ trong bảng thuật ngữ đã được phê duyệt"
   },
@@ -4003,6 +4036,9 @@
   },
   "FZR01zQdR+": {
     "defaultMessage": "Status"
+  },
+  "FZh9zX9beA": {
+    "defaultMessage": "Kết nối Crowdin và đồng bộ hóa một dự án trước khi sử dụng công cụ xem xét này."
   },
   "Fa2m2wwKio": {
     "defaultMessage": "Phần tính năng"
@@ -4256,6 +4292,9 @@
   "GqfMhL6Yw/": {
     "defaultMessage": "Người dùng"
   },
+  "Gsz+RNFKoM": {
+    "defaultMessage": "Kết nối GitHub trong <link>Tích hợp</link> để bình luận về các yêu cầu kéo."
+  },
   "GuBuwlp/SU": {
     "defaultMessage": "Đừng lặp lại cùng một phản hồi bản địa hóa nữa"
   },
@@ -4471,6 +4510,9 @@
   },
   "Hx0PS0s7+N": {
     "defaultMessage": "Nhận biết ngữ cảnh từ brief và hướng dẫn thương hiệu"
+  },
+  "HxWBdm4nhz": {
+    "defaultMessage": "Bản dịch chưa lưu"
   },
   "HxcjgjcAgw": {
     "defaultMessage": "Status"
@@ -5294,6 +5336,9 @@
   "MB3Jte6am8": {
     "defaultMessage": "{count}/{maxLength} ký tự"
   },
+  "MBw6r00XBp": {
+    "defaultMessage": "Chọn tất cả mục đã tải."
+  },
   "MCViSbp0Sq": {
     "defaultMessage": "Chạy kiểm tra tuân thủ theo lịch đối với nhãn thiết bị y tế và các bản dịch IFU. So sánh các locale với thuật ngữ đã được phê duyệt, đánh dấu các bản dịch bị thiếu tại những thị trường được quản lý, kiểm tra tính nhất quán của đơn vị và cụm từ cảnh báo, sau đó báo cáo các mục gây cản trở để xem xét. Không xuất bản."
   },
@@ -5687,6 +5732,9 @@
   "O3OXLAres/": {
     "defaultMessage": "Văn bản nguồn"
   },
+  "O3nJ0XBCbB": {
+    "defaultMessage": "Thứ tự tệp"
+  },
   "O3w0wyu0VQ": {
     "defaultMessage": "Không thể tải các cuộc trò chuyện."
   },
@@ -5854,6 +5902,9 @@
   },
   "P+9nP38ODj": {
     "defaultMessage": "Đang kết nối..."
+  },
+  "P/9I6WaWRN": {
+    "defaultMessage": "Đang cập nhật các vấn đề..."
   },
   "P0cpKEoGJ1": {
     "defaultMessage": "Hyperlocalise không phải là sự thay thế cho TMS. Đây là lớp quy trình mà các nhóm vận hành bản địa hóa sử dụng để điều phối tác nhân, con người, mô hình và nền tảng mà không cần chuyển đổi toàn bộ hệ thống."
@@ -7051,6 +7102,9 @@
   },
   "UU5/+HYaD2": {
     "defaultMessage": "Mô tả tác vụ"
+  },
+  "UWZ1G1FSvB": {
+    "defaultMessage": "Chưa dịch trước"
   },
   "UWtBPjqoSn": {
     "defaultMessage": "Done"
@@ -8264,6 +8318,9 @@
   "a0yFgx40Tg": {
     "defaultMessage": "Dịch bởi nhà cung cấp"
   },
+  "a44831XqpD": {
+    "defaultMessage": "Tra cứu đối chiếu, tải hướng dẫn phong cách và đề xuất bản dịch cho các chuỗi đang được xem xét."
+  },
   "a4IAS0WZRR": {
     "defaultMessage": "Glossaries"
   },
@@ -8299,6 +8356,9 @@
   },
   "a74JhYiAwS": {
     "defaultMessage": "Name"
+  },
+  "a8SQvqjTx9": {
+    "defaultMessage": "Các vấn đề QA"
   },
   "a8cGGx+QlX": {
     "defaultMessage": "Ra mắt ứng dụng hỗ trợ mọi thị trường ngay từ ngày đầu tiên"
@@ -8365,6 +8425,12 @@
   },
   "aMf9NbDyem": {
     "defaultMessage": "Chưa có hình ảnh"
+  },
+  "aQKVpqRw8t": {
+    "defaultMessage": "Xóa công cụ Crowdin"
+  },
+  "aQgD9ppYhP": {
+    "defaultMessage": "Bỏ gán"
   },
   "aRsl7fqj3D": {
     "defaultMessage": "Comment"
@@ -8503,6 +8569,9 @@
   },
   "b7yQjQkzcS": {
     "defaultMessage": "Bản dịch"
+  },
+  "b9pqYzF7KI": {
+    "defaultMessage": "{actor} đã thay đổi loại từ {previousIssueType} thành {nextIssueType}"
   },
   "bAOOxyyl8P": {
     "defaultMessage": "Yêu cầu dùng thử bản demo"
@@ -8737,6 +8806,9 @@
   },
   "cUEs5UweV5": {
     "defaultMessage": "Các kiểm tra đã đạt ({count})"
+  },
+  "cVNMp4yAc9": {
+    "defaultMessage": "{actor} đã đặt mức độ ưu tiên thành {nextPriority}"
   },
   "cVbj5KLUfe": {
     "defaultMessage": "View strings"
@@ -9170,6 +9242,9 @@
   "eNvHcnzBfE": {
     "defaultMessage": "Theo dõi độ lệch trên các chiến dịch đang chạy"
   },
+  "eOsFs4OoCj": {
+    "defaultMessage": "Không thể cập nhật các vấn đề đã chọn"
+  },
   "ePmyaYpkGS": {
     "defaultMessage": "Chưa có thành viên nào trong không gian làm việc"
   },
@@ -9319,6 +9394,9 @@
   },
   "f0pASu5TFR": {
     "defaultMessage": "Tìm kiếm kho lưu trữ"
+  },
+  "f22yrNzzSr": {
+    "defaultMessage": "Chọn một kho lưu trữ GitHub trong trình chọn tệp nguồn để tra cứu ngữ cảnh chuỗi."
   },
   "f2cTOkA6mx": {
     "defaultMessage": "Create a generic Issue Sheet row. Link it to CAT or another issue tracker when useful."
@@ -9487,6 +9565,9 @@
   },
   "frCipQZwRu": {
     "defaultMessage": "Pending"
+  },
+  "frNSjho/8d": {
+    "defaultMessage": "Đã cập nhật {updated} trong tổng số {requested} vấn đề. {failed} vấn đề không thành công."
   },
   "fsj2SHFeSt": {
     "defaultMessage": "Không thể tải tệp."
@@ -10352,6 +10433,9 @@
   "jLjTPaf/u5": {
     "defaultMessage": "Kết nối"
   },
+  "jMXm5EYCQP": {
+    "defaultMessage": "Bỏ chọn"
+  },
   "jNNp9OLKEA": {
     "defaultMessage": "Các dự án TMS"
   },
@@ -10426,6 +10510,9 @@
   },
   "jfJtnvEq80": {
     "defaultMessage": "Đang tải trình chỉnh sửa"
+  },
+  "jgR+WtYIxe": {
+    "defaultMessage": "Xóa thông báo nhận xét trên GitHub"
   },
   "jgZ/X83sNj": {
     "defaultMessage": "Không thể tải các tệpૅ"
@@ -11591,6 +11678,9 @@
   "p+mx30+l3M": {
     "defaultMessage": "Tên bộ nhớ dịch là bắt buộc."
   },
+  "p/GrdJcH5A": {
+    "defaultMessage": "Bản dịch máy"
+  },
   "p/PBwViDjv": {
     "defaultMessage": "Đã cập nhật nhóm"
   },
@@ -11683,6 +11773,9 @@
   },
   "pMpF//U8ui": {
     "defaultMessage": "Remove"
+  },
+  "pNAbj0ztLi": {
+    "defaultMessage": "Gán"
   },
   "pOCBt3fv7m": {
     "defaultMessage": "Chương trình dành cho các khách hàng mới của Hyperlocalise đang ở giai đoạn đầu — thường có dưới 50 nhân viên hoặc chưa gọi vốn Series B — và đang cân nhắc gói Growth. Nếu không chắc chắn, hãy đăng ký nhận bản demo và chúng tôi sẽ xác nhận mức độ phù hợp."
@@ -11824,6 +11917,9 @@
   },
   "q+3+ldE+Vn": {
     "defaultMessage": "Thỏa thuận mức dịch vụ"
+  },
+  "q+vOWtU/QG": {
+    "defaultMessage": "Loại"
   },
   "q0vQCpRAVI": {
     "defaultMessage": "Không có tệp nào khớp với tìm kiếm này."
@@ -12368,6 +12464,9 @@
   "saGDzW8Kz5": {
     "defaultMessage": "2.000 lượt chạy tác vụ mỗi tháng"
   },
+  "sbdvj0ZEFg": {
+    "defaultMessage": "Bạn chỉ có thể chọn tối đa {max} vấn đề"
+  },
   "sbr8qd8WgZ": {
     "defaultMessage": "Manual"
   },
@@ -12652,6 +12751,9 @@
   },
   "u5hy7XQ9he": {
     "defaultMessage": "Không tìm thấy loại nội dung nào trong không gian này."
+  },
+  "u6BhbzsvPa": {
+    "defaultMessage": "Bình luận về pull request"
   },
   "u7mPxFIRkS": {
     "defaultMessage": "Các công việc được cập nhật gần đây nhất trong toàn bộ không gian làm việc này."
@@ -13445,6 +13547,9 @@
   "xQCn9y4Cu3": {
     "defaultMessage": "Định dạng & QA không thành công ({count, plural, one {# vấn đề} other {# vấn đề}})"
   },
+  "xRY53GWVL8": {
+    "defaultMessage": "Trạng thái"
+  },
   "xSPEc7l3cj": {
     "defaultMessage": "Đi đến trang tổng quan"
   },
@@ -13637,6 +13742,9 @@
   "yCJFX2pnZO": {
     "defaultMessage": "Tourfinder homepage localised in Vietnamese with Japan travel campaigns"
   },
+  "yD2L9eM3l9": {
+    "defaultMessage": "Chọn tất cả các vấn đề đã tải svi."
+  },
   "yDYJAjyOdb": {
     "defaultMessage": "Search"
   },
@@ -13681,6 +13789,9 @@
   },
   "yPsLdM5F3Q": {
     "defaultMessage": "Không gian làm việc CAT chưa khả dụng cho tệp này."
+  },
+  "yQ7T8Cq+ij": {
+    "defaultMessage": "Crowdin"
   },
   "yRRevnNvnn": {
     "defaultMessage": "Cú pháp thông báo nguồn"

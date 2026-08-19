@@ -135,6 +135,10 @@
     "defaultMessage": "Semrush",
     "description": "Menu item and tool title for Semrush SEO data"
   },
+  "+Q1YYBcFG/": {
+    "defaultMessage": "Priority",
+    "description": "Bulk action menu label to change priority on selected issues"
+  },
   "+Qv1Pt0/I9": {
     "defaultMessage": "{actor} marked this as no longer a duplicate of {relatedIssue}",
     "description": "Activity line when a duplicate_of relationship is removed"
@@ -294,6 +298,10 @@
   "/63lbQkEU8": {
     "defaultMessage": "No single view of locale health across product strings, marketing copy, and support articles.",
     "description": "Problem pain point 1 for the localisation-quality-monitoring use case"
+  },
+  "/69jKTmJ4I": {
+    "defaultMessage": "C0123456789",
+    "description": "Placeholder for the Slack channel ID input"
   },
   "/6fsn0aQ6k": {
     "defaultMessage": "See who approved what, when, and with what context — across agents and human reviewers.",
@@ -579,6 +587,10 @@
     "defaultMessage": "Open link",
     "description": "Button to open a custom issue link"
   },
+  "0AwFQKS1li": {
+    "defaultMessage": "Verifying channel...",
+    "description": "Status while a Slack channel ID is being verified"
+  },
   "0DSwLmDrDB": {
     "defaultMessage": "No files yet",
     "description": "Empty-state title when the project has no files"
@@ -803,6 +815,10 @@
     "defaultMessage": "Email notifications",
     "description": "Label for enabling Issue Sheet email notifications"
   },
+  "0udJ5Zg8a7": {
+    "defaultMessage": "Search concordance, load style guidance, and recommend translations for strings under review.",
+    "description": "Description for the Crowdin automation tool when Crowdin is connected"
+  },
   "0ug9As7ELn": {
     "defaultMessage": "Set the playbook once. Agents handle the busywork so you cover more markets without growing the team — reviewers only step in for judgment calls.",
     "description": "Feature card body for agent automation workflows"
@@ -974,6 +990,10 @@
   "1X7DOlRyIy": {
     "defaultMessage": "Fixed and committed to this branch.",
     "description": "Success title after the agent commits the PR fix"
+  },
+  "1XPTC/SDY9": {
+    "defaultMessage": "{title} | Hyperlocalise",
+    "description": "Browser tab title for the application 404 page"
   },
   "1XhleWdrNP": {
     "defaultMessage": "Loading columns...",
@@ -1631,6 +1651,10 @@
     "defaultMessage": "Enter URL",
     "description": "Dialog action to switch to entering an image URL"
   },
+  "3ql4zcu6fu": {
+    "defaultMessage": "{count, plural, one {# issue selected} other {# issues selected}}",
+    "description": "Summary of how many issues are selected for bulk actions"
+  },
   "3qpoJUP9OU": {
     "defaultMessage": "Project",
     "description": "Project selector placeholder when no project is selected yet"
@@ -1642,6 +1666,10 @@
   "3rELHi7DJJ": {
     "defaultMessage": "Actions",
     "description": "Screen-reader label for the teams table actions column"
+  },
+  "3rvYG+2rma": {
+    "defaultMessage": "Page not found",
+    "description": "Heading on the application 404 page"
   },
   "3sSVTCWzgg": {
     "defaultMessage": "Languages to look at (optional)",
@@ -1978,6 +2006,10 @@
   "54uRAqIrYn": {
     "defaultMessage": "Context-aware from GitHub and product briefs",
     "description": "Differentiator point 4 for the product-localisation use case"
+  },
+  "576RCOuTLO": {
+    "defaultMessage": "Updated {updated} issue(s)",
+    "description": "Toast after a fully successful issue bulk action"
   },
   "58A3bF+CPb": {
     "defaultMessage": "Accept selected",
@@ -2743,6 +2775,10 @@
     "defaultMessage": "Notify a channel when runs reach a terminal state.",
     "description": "Description for Slack notifications when Slack is connected"
   },
+  "7w0EIy2MLW": {
+    "defaultMessage": "Paste the channel ID from Slack. Open the channel, click the channel name, then copy the ID at the bottom of the About tab. The app must be invited to private channels.",
+    "description": "Help text for entering a Slack channel ID"
+  },
   "7wIRX6GiLH": {
     "defaultMessage": "Text",
     "description": "Column header for source text in the source strings preview table"
@@ -2790,6 +2826,10 @@
   "81SMUge/HF": {
     "defaultMessage": "AI drafts miss UI constraints, glossary rules, and what actually changed in the pull request.",
     "description": "Problem pain point 2 for the product-localisation use case"
+  },
+  "82drjDfpox": {
+    "defaultMessage": "Select issue {title}",
+    "description": "Accessible label for selecting an issue row for bulk actions"
   },
   "85veKzf/Q7": {
     "defaultMessage": "Open Files for coverage, or create a job when you are ready.",
@@ -3587,6 +3627,10 @@
     "defaultMessage": "Reviewers",
     "description": "Knowledge product visual memory node label"
   },
+  "AbZsOtFk+H": {
+    "defaultMessage": "Post a sticky review comment on the pull request for this push. Later runs update the same comment.",
+    "description": "Description for GitHub pull request comment notifications when GitHub is connected"
+  },
   "AcfkWiaJBh": {
     "defaultMessage": "Copied!",
     "description": "Tooltip after commit hash is copied to the clipboard"
@@ -3618,10 +3662,6 @@
   "AfdTJhl3I7": {
     "defaultMessage": "Source",
     "description": "Label for the workspace files source origin filter"
-  },
-  "AiZ8NmX54q": {
-    "defaultMessage": "No channels found",
-    "description": "Empty state when no Slack channels are available"
   },
   "AkuhSH8rwy": {
     "defaultMessage": "Code block failed to render",
@@ -3947,6 +3987,10 @@
     "defaultMessage": "Edit",
     "description": "Button to edit an issue comment"
   },
+  "ByKnEF5329": {
+    "defaultMessage": "{actor} changed priority from {previousPriority} to {nextPriority}",
+    "description": "Activity line when an issue priority changes"
+  },
   "C+9nUAd/Jd": {
     "defaultMessage": "{displayName} saved. Connect your Crowdin account to continue.",
     "description": "Toast after saving Crowdin OAuth app when user OAuth is still required"
@@ -4231,6 +4275,10 @@
     "defaultMessage": "We could not load jobs for this project.",
     "description": "Empty-state description when project jobs fail to load"
   },
+  "CvmC1QddwG": {
+    "defaultMessage": "PR comment",
+    "description": "Tool badge when an automation posts GitHub pull request comments"
+  },
   "Cw9DS+v8+l": {
     "defaultMessage": "Run QA checks or an agent review on this TMS job to surface placeholder, ICU, glossary, and translation issues here. When checks pass, this section will show a clear no-issues state.",
     "description": "Empty state description when no QA report exists yet"
@@ -4254,10 +4302,6 @@
   "D/arw4JcTP": {
     "defaultMessage": "Format",
     "description": "Label above download format options in the CAT queue"
-  },
-  "D0mCtflyKZ": {
-    "defaultMessage": "Loading channels...",
-    "description": "Placeholder while Slack channels are loading"
   },
   "D2Iw7bGHIc": {
     "defaultMessage": "Issues",
@@ -4755,9 +4799,17 @@
     "defaultMessage": "Side by side",
     "description": "CAT workspace view mode with source and translation columns"
   },
+  "EnR+0v6FUm": {
+    "defaultMessage": "Search by name or paste a channel ID",
+    "description": "Placeholder for Slack channel search input"
+  },
   "EoUUnxtgJ8": {
     "defaultMessage": "Pricing CTA",
     "description": "Segment context label for pricing CTA strings in the CAT mock"
+  },
+  "EqlihiOWKx": {
+    "defaultMessage": "Assign works when selected issues belong to one project",
+    "description": "Tooltip when bulk assign is disabled for a multi-project selection"
   },
   "Erp8YPXBb/": {
     "defaultMessage": "{count} rows",
@@ -5087,6 +5139,10 @@
     "defaultMessage": "Translation memories",
     "description": "Accessible label for the translation memories list section"
   },
+  "FxNFbqpNBI": {
+    "defaultMessage": "Channel ID",
+    "description": "Label for the Slack channel ID input"
+  },
   "G+Z7c9Efva": {
     "defaultMessage": "Built for localisation operations at release speed",
     "description": "Differentiator point 5 for the product-localisation use case"
@@ -5294,6 +5350,10 @@
   "GqfMhL6Yw/": {
     "defaultMessage": "Users",
     "description": "Section header for people in the @ mention popover"
+  },
+  "Gsz+RNFKoM": {
+    "defaultMessage": "Connect GitHub in <link>Integrations</link> to comment on pull requests.",
+    "description": "Description for GitHub comment notifications when GitHub is not connected"
   },
   "GuBuwlp/SU": {
     "defaultMessage": "Stop repeating the same localisation feedback",
@@ -6027,6 +6087,10 @@
     "defaultMessage": "This file format is not supported for translation import.",
     "description": "Validation error when the source file format cannot be imported"
   },
+  "Jsu6BbXJ5w": {
+    "defaultMessage": "Enter a valid Slack channel ID, such as C0123456789.",
+    "description": "Error when the Slack channel ID format is invalid"
+  },
   "Jtv0kZNXI2": {
     "defaultMessage": "Workspace updated",
     "description": "Success toast after workspace settings are saved"
@@ -6186,6 +6250,10 @@
   "KYOkDtqOsb": {
     "defaultMessage": "Select locale",
     "description": "Placeholder for the issue locale picker"
+  },
+  "Ka+KmK/Z9+": {
+    "defaultMessage": "Connect Crowdin in <link>Integrations</link> to use this tool.",
+    "description": "Description when Crowdin is not connected"
   },
   "Ka+dKs8Zz9": {
     "defaultMessage": "Join the Hyperlocalise waitlist and bring localisation checks into your release pipeline.",
@@ -6590,6 +6658,10 @@
   "MB3Jte6am8": {
     "defaultMessage": "{count}/{maxLength} characters",
     "description": "Live character count for the CAT target translation against a max length limit"
+  },
+  "MBw6r00XBp": {
+    "defaultMessage": "Select all loaded",
+    "description": "Bulk action to select every issue in the current loaded list"
   },
   "MCViSbp0Sq": {
     "defaultMessage": "Run a scheduled compliance check on medical device labelling and IFU translations. Compare locales against approved terminology, flag missing translations for regulated markets, check unit and warning phrase consistency, then report blockers for review. Do not publish.",
@@ -7051,6 +7123,10 @@
     "defaultMessage": "Descending",
     "description": "Issue list sort direction descending"
   },
+  "O+ldw8Aj3z": {
+    "defaultMessage": "Unknown",
+    "description": "Fallback label when an automation has no creator name"
+  },
   "O/cMSd1B4R": {
     "defaultMessage": "Inspect issues from agent review or QA checks before writing back to the TMS. Filter by locale or check type, then act on selected findings.",
     "description": "Description under the review findings section heading"
@@ -7290,6 +7366,10 @@
   "P+9nP38ODj": {
     "defaultMessage": "Connecting...",
     "description": "Pending label while a TMS OAuth connection is starting"
+  },
+  "P/9I6WaWRN": {
+    "defaultMessage": "Updating issues...",
+    "description": "Accessible label while a bulk issue action is running"
   },
   "P0cpKEoGJ1": {
     "defaultMessage": "Hyperlocalise is not a TMS replacement. It is the workflow layer localisation operations teams use to orchestrate agents, humans, models, and platforms without a rip-and-replace migration.",
@@ -7830,10 +7910,6 @@
   "Qpt4IfmhcE": {
     "defaultMessage": "CSV column",
     "description": "Table header for the CSV column name in the mapping step"
-  },
-  "Qr6HIhIqfm": {
-    "defaultMessage": "Sync only",
-    "description": "Shortcut hint when GitHub push is unavailable because agent mode is enabled"
   },
   "QrUlBs3ARV": {
     "defaultMessage": "No value",
@@ -8398,10 +8474,6 @@
   "T7ugA9R5a+": {
     "defaultMessage": "—",
     "description": "Placeholder when current provider target text is empty"
-  },
-  "T8F8lD+KK1": {
-    "defaultMessage": "Channel",
-    "description": "Label for the Slack channel select"
   },
   "T8Ggt03ksb": {
     "defaultMessage": "Couldn't explore {subject}",
@@ -9206,6 +9278,10 @@
   "WAOAGxwy+L": {
     "defaultMessage": "Customer story",
     "description": "Eyebrow label above the Tourfinder case study section"
+  },
+  "WAbDlyKYQP": {
+    "defaultMessage": "Channel not found or the app is not a member. For private channels, invite the Hyperlocalise app first.",
+    "description": "Error when conversations.info does not resolve the channel ID"
   },
   "WAtboHlCdj": {
     "defaultMessage": "Errors",
@@ -10075,6 +10151,10 @@
     "defaultMessage": "Unable to load task files.",
     "description": "Fallback error when job CAT task files fail to load"
   },
+  "ZM4eC/SiqK": {
+    "defaultMessage": "Unable to verify this channel right now. Try again.",
+    "description": "Error when Slack channel verification fails unexpectedly"
+  },
   "ZNAwtFUkzx": {
     "defaultMessage": "Audited",
     "description": "Label for the completed-at date on a localisation audit result"
@@ -10178,6 +10258,10 @@
   "ZrPoXNY4JN": {
     "defaultMessage": "Priority",
     "description": "Issue list sort option by priority"
+  },
+  "Zs0OvEkqcZ": {
+    "defaultMessage": "Creator",
+    "description": "Automations list column header for creator"
   },
   "ZsYP7x8uWu": {
     "defaultMessage": "Search files",
@@ -10379,6 +10463,14 @@
     "defaultMessage": "No image yet",
     "description": "Fallback empty state when a CAT image preview has no source URL"
   },
+  "aQKVpqRw8t": {
+    "defaultMessage": "Remove Crowdin tool",
+    "description": "Accessible label to remove the Crowdin tool"
+  },
+  "aQgD9ppYhP": {
+    "defaultMessage": "Unassign",
+    "description": "Bulk action to unassign selected issues"
+  },
   "aRsl7fqj3D": {
     "defaultMessage": "Comment",
     "description": "Button to submit the mock PR comment in the review illustration"
@@ -10499,6 +10591,10 @@
     "defaultMessage": "Email",
     "description": "Email agent integration name on the integrations page"
   },
+  "b/LOcyQLjC": {
+    "defaultMessage": "Back to homepage",
+    "description": "Link from the 404 page to the marketing homepage"
+  },
   "b/QXf7p3ev": {
     "defaultMessage": "Review current usage here or open billing for complete plan details.",
     "description": "Dialog description for the plan usage summary"
@@ -10546,6 +10642,10 @@
   "b7yQjQkzcS": {
     "defaultMessage": "Translations",
     "description": "Knowledge product visual memory node label"
+  },
+  "b9pqYzF7KI": {
+    "defaultMessage": "{actor} changed type from {previousIssueType} to {nextIssueType}",
+    "description": "Activity line when an issue type changes"
   },
   "bAOcwldO3V": {
     "defaultMessage": "Hyperlocalise",
@@ -10834,6 +10934,10 @@
   "cUEs5UweV5": {
     "defaultMessage": "Passed audits ({count})",
     "description": "Heading for passed localisation audit criteria"
+  },
+  "cVNMp4yAc9": {
+    "defaultMessage": "{actor} set priority to {nextPriority}",
+    "description": "Activity line when an issue priority is set for the first time"
   },
   "cVbj5KLUfe": {
     "defaultMessage": "View strings",
@@ -11391,6 +11495,14 @@
     "defaultMessage": "Track drift across live campaigns",
     "description": "Capability 6 title for the marketing-localisation use case"
   },
+  "eOj0ETOfEV": {
+    "defaultMessage": "Contact support",
+    "description": "Link from the 404 page to email customer support"
+  },
+  "eOsFs4OoCj": {
+    "defaultMessage": "Could not update selected issues",
+    "description": "Toast when every issue in a bulk action failed"
+  },
   "ePmyaYpkGS": {
     "defaultMessage": "No workspace members yet",
     "description": "Empty state title when the workspace has no members"
@@ -11778,6 +11890,10 @@
   "frCipQZwRu": {
     "defaultMessage": "Pending",
     "description": "Workspace files sync state when a sync is pending"
+  },
+  "frNSjho/8d": {
+    "defaultMessage": "Updated {updated} of {requested} issue(s). {failed} failed.",
+    "description": "Toast after a partially successful issue bulk action"
   },
   "fsj2SHFeSt": {
     "defaultMessage": "Files failed to load.",
@@ -12835,6 +12951,10 @@
     "defaultMessage": "Connect",
     "description": "Button label to start connecting an integration"
   },
+  "jMXm5EYCQP": {
+    "defaultMessage": "Clear selection",
+    "description": "Bulk action to clear the current issue selection"
+  },
   "jNNp9OLKEA": {
     "defaultMessage": "TMS projects",
     "description": "Section title prompting the user to connect a TMS provider"
@@ -12922,6 +13042,10 @@
   "jfJtnvEq80": {
     "defaultMessage": "Loading editor",
     "description": "Accessible label while the CAT editor panel skeleton is shown"
+  },
+  "jgR+WtYIxe": {
+    "defaultMessage": "Remove GitHub comment notifications",
+    "description": "Accessible label to remove GitHub pull request comment notifications"
   },
   "jgZ/X83sNj": {
     "defaultMessage": "Could not load files",
@@ -13510,6 +13634,10 @@
   "ljEJGwxPd/": {
     "defaultMessage": "Disconnect",
     "description": "Button label to disconnect GitHub"
+  },
+  "lmLPnsMyhs": {
+    "defaultMessage": "Go to dashboard",
+    "description": "Link from the 404 page to the workspace dashboard"
   },
   "lmsnisjyr6": {
     "defaultMessage": "Publish a check run so teams can see localization results on commits and pull requests.",
@@ -14427,6 +14555,10 @@
     "defaultMessage": "Remove",
     "description": "Button to remove a staged file from the upload list"
   },
+  "pNAbj0ztLi": {
+    "defaultMessage": "Assign",
+    "description": "Bulk action to assign selected issues"
+  },
   "pOCBt3fv7m": {
     "defaultMessage": "The program is designed for new Hyperlocalise customers that are early-stage — typically under 50 employees or pre-Series B — and looking at the Growth plan. If you are unsure, apply for a demo and we will confirm fit.",
     "description": "Startups FAQ answer about eligibility"
@@ -14598,6 +14730,10 @@
   "q+3+ldE+Vn": {
     "defaultMessage": "Service-level agreement",
     "description": "Pricing matrix row label for SLA"
+  },
+  "q+vOWtU/QG": {
+    "defaultMessage": "Type",
+    "description": "Bulk action menu label to change issue type on selected issues"
   },
   "q0vQCpRAVI": {
     "defaultMessage": "No files match this search.",
@@ -15239,6 +15375,10 @@
     "defaultMessage": "2,000 agent runs per month",
     "description": "Growth plan feature: agent run quota"
   },
+  "sbdvj0ZEFg": {
+    "defaultMessage": "You can select at most {max} issues",
+    "description": "Shown when the issue bulk selection limit is reached"
+  },
   "sbr8qd8WgZ": {
     "defaultMessage": "Manual",
     "description": "Trigger label for a manual automation in the list"
@@ -15254,6 +15394,10 @@
   "secVzHMFB2": {
     "defaultMessage": "Reset",
     "description": "Button to reset an edited job description to the saved value"
+  },
+  "sfQrLcactN": {
+    "defaultMessage": "Hidden strings can't be edited from the CAT. Unhide the string in Crowdin first.",
+    "description": "Error when saving a translation for a hidden string"
   },
   "shk3PWB9yz": {
     "defaultMessage": "Targets {locales}",
@@ -15590,6 +15734,10 @@
   "u5hy7XQ9he": {
     "defaultMessage": "No content types found in this space.",
     "description": "Empty state when Contentful returns no content types"
+  },
+  "u6BhbzsvPa": {
+    "defaultMessage": "Comment on pull request",
+    "description": "Menu item and tool title for GitHub pull request comments"
   },
   "u7mPxFIRkS": {
     "defaultMessage": "The most recently updated work across this workspace.",
@@ -16571,6 +16719,10 @@
     "defaultMessage": "Format & QA failed ({count, plural, one {# issue} other {# issues}})",
     "description": "Accessible label for side-by-side format check failure icon"
   },
+  "xRY53GWVL8": {
+    "defaultMessage": "Status",
+    "description": "Bulk action menu label to change status on selected issues"
+  },
   "xSPEc7l3cj": {
     "defaultMessage": "Go to dashboard",
     "description": "Link from a route error to the workspace dashboard"
@@ -16819,6 +16971,10 @@
     "defaultMessage": "at",
     "description": "Preposition between cadence and time in the schedule row"
   },
+  "yD2L9eM3l9": {
+    "defaultMessage": "Select all loaded issues",
+    "description": "Accessible label for the select-all-loaded checkbox"
+  },
   "yDYJAjyOdb": {
     "defaultMessage": "Search",
     "description": "Label for the glossaries search field"
@@ -16874,6 +17030,10 @@
   "yPsLdM5F3Q": {
     "defaultMessage": "The CAT workspace is not available for this file yet.",
     "description": "Helper text when the selected file cannot open in the CAT workspace"
+  },
+  "yQ7T8Cq+ij": {
+    "defaultMessage": "Crowdin",
+    "description": "Menu item and tool title for Crowdin translation review"
   },
   "yRRevnNvnn": {
     "defaultMessage": "Source message syntax",
@@ -17226,6 +17386,10 @@
   "zf/XYl5KpE": {
     "defaultMessage": "View row",
     "description": "Toast action to open the issue sheet row that was just created"
+  },
+  "zfBUiflpJx": {
+    "defaultMessage": "This address does not match a page. Return home, or open your dashboard.",
+    "description": "Guidance on the application 404 page"
   },
   "zfKDF52Xgo": {
     "defaultMessage": "Time spent: {duration}",
