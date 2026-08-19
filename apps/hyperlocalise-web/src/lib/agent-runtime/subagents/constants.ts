@@ -42,8 +42,7 @@ const WORKFLOW_AGENT_STEP_TIMEOUT_MS = 5 * 60 * 1000;
 
 export const WORKFLOW_AGENT_TIMEOUT = {
   totalMs: WORKFLOW_AGENT_TOTAL_TIMEOUT_MS,
-  // Tighter than totalMs so a hung model/tool round aborts before the whole
-  // nested agent (GitHub, Semrush, Ahrefs, Crowdin) burns its 10-minute budget.
+  // Hung model/tool round aborts before the nested agent burns its whole budget.
   stepMs: WORKFLOW_AGENT_STEP_TIMEOUT_MS,
 } as const;
 
@@ -51,7 +50,8 @@ export const WORKFLOW_AGENT_TIMEOUT = {
 export const WORKSPACE_ORCHESTRATOR_STEP_LIMIT = 6;
 
 export const WORKSPACE_ORCHESTRATOR_TIMEOUT = {
-  totalMs: 25 * 60 * 1000,
+  // Two nested specialist runs (each up to totalMs) plus one parent model step.
+  totalMs: 2 * WORKFLOW_AGENT_TOTAL_TIMEOUT_MS + WORKFLOW_AGENT_STEP_TIMEOUT_MS,
   // One orchestrator step can be a nested agent. Match that agent's total
   // budget or the parent aborts it first.
   stepMs: WORKFLOW_AGENT_TOTAL_TIMEOUT_MS,
