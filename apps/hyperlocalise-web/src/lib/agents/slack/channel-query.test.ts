@@ -13,8 +13,8 @@
 import { describe, expect, it } from "vite-plus/test";
 
 import {
+  filterVisibleSlackChannels,
   isExactSlackChannelMatch,
-  mergeVisibleSlackChannels,
   normalizeSlackChannelQuery,
   parseSlackConversationId,
   slackChannelMatchesQuery,
@@ -47,10 +47,9 @@ describe("channel-query", () => {
     expect(isExactSlackChannelMatch(releaseNotes, "rel")).toBe(false);
   });
 
-  it("keeps the loaded list and merges extra remote matches", () => {
-    const visible = mergeVisibleSlackChannels(
-      [general, releaseNotes],
-      [{ id: "slack:C99999999", name: "release-notes-eu" }],
+  it("filters the loaded list by typed query", () => {
+    const visible = filterVisibleSlackChannels(
+      [general, releaseNotes, { id: "slack:C99999999", name: "release-notes-eu" }],
       "release notes",
     );
 

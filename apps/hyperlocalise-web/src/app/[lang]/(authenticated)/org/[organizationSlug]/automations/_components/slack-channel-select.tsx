@@ -12,7 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { ArrowDown01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useQuery } from "@tanstack/react-query";
@@ -31,26 +31,20 @@ import {
 import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
-  mergeVisibleSlackChannels,
+  filterVisibleSlackChannels,
   type SlackChannelQueryTarget,
 } from "@/lib/agents/slack/channel-query";
 import { createApiClient } from "@/lib/api-client";
 import { cn } from "@/lib/primitives/cn";
 
 const api = createApiClient();
-const SLACK_CHANNEL_SEARCH_DEBOUNCE_MS = 300;
 
 type SlackChannelOption = SlackChannelQueryTarget & { private: boolean };
 
-async function fetchSlackChannels(input: {
-  channelId?: string;
-  organizationSlug: string;
-  query?: string;
-}) {
+async function fetchSlackChannels(input: { channelId?: string; organizationSlug: string }) {
   const response = await api.api.orgs[":organizationSlug"]["agent-slack"].channels.$get({
     param: { organizationSlug: input.organizationSlug },
     query: {
-      q: input.query || undefined,
       channelId: input.channelId || undefined,
     },
   });
@@ -59,17 +53,6 @@ async function fetchSlackChannels(input: {
   }
   const body = await response.json();
   return body.channels as SlackChannelOption[];
-}
-
-function useDebouncedValue<T>(value: T, delayMs: number) {
-  const [debouncedValue, setDebouncedValue] = useState(value);
-
-  useEffect(() => {
-    const timeout = window.setTimeout(() => setDebouncedValue(value), delayMs);
-    return () => window.clearTimeout(timeout);
-  }, [delayMs, value]);
-
-  return debouncedValue;
 }
 
 function slackChannelLabel(
@@ -110,11 +93,9 @@ export function SlackChannelSelect({
   const intl = useIntl();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
-  const debouncedQuery = useDebouncedValue(query, SLACK_CHANNEL_SEARCH_DEBOUNCE_MS);
   const trimmedQuery = query.trim();
-  const trimmedDebouncedQuery = debouncedQuery.trim();
 
-  const browseQuery = useQuery({
+  const channelsQuery = useQuery({
     queryKey: ["slack-agent-channels", organizationSlug, value],
     queryFn: () =>
       fetchSlackChannels({
@@ -124,28 +105,11 @@ export function SlackChannelSelect({
     enabled: slackConnected,
   });
 
-  const searchQuery = useQuery({
-    queryKey: ["slack-agent-channels-search", organizationSlug, trimmedDebouncedQuery],
-    queryFn: () =>
-      fetchSlackChannels({
-        organizationSlug,
-        query: trimmedDebouncedQuery,
-      }),
-    enabled: slackConnected && open && Boolean(trimmedDebouncedQuery),
-  });
-
-  const browseChannels = browseQuery.data ?? [];
-  const remoteChannels = trimmedQuery ? (searchQuery.data ?? []) : [];
-  const visibleChannels = mergeVisibleSlackChannels(browseChannels, remoteChannels, query);
-  const selectedChannel =
-    browseChannels.find((channel) => channel.id === value) ??
-    remoteChannels.find((channel) => channel.id === value);
-  const isBrowseLoading = browseQuery.isLoading && browseQuery.data === undefined;
-  const isRemoteSearchPending =
-    Boolean(trimmedQuery) &&
-    visibleChannels.length === 0 &&
-    (searchQuery.isFetching || trimmedDebouncedQuery !== trimmedQuery);
-  const triggerDisabled = disabled || !slackConnected || (isBrowseLoading && !selectedChannel);
+  const channels = channelsQuery.data ?? [];
+  const visibleChannels = filterVisibleSlackChannels(channels, query);
+  const selectedChannel = channels.find((channel) => channel.id === value);
+  const isChannelsLoading = channelsQuery.isLoading && channelsQuery.data === undefined;
+  const triggerDisabled = disabled || !slackConnected || (isChannelsLoading && !selectedChannel);
 
   return (
     <div className="grid gap-1.5">
@@ -173,7 +137,7 @@ export function SlackChannelSelect({
           }
         >
           <span className="min-w-0 truncate">
-            {isBrowseLoading && !selectedChannel && !value
+            {isChannelsLoading && !selectedChannel && !value
               ? intl.formatMessage(workspaceAutomationFormMessages.loadingChannels)
               : slackChannelLabel(intl, selectedChannel, value)}
           </span>
@@ -195,7 +159,7 @@ export function SlackChannelSelect({
             />
             <CommandList>
               <CommandEmpty className="px-3 text-pretty">
-                {isBrowseLoading || isRemoteSearchPending
+                {isChannelsLoading
                   ? intl.formatMessage(workspaceAutomationFormMessages.loadingChannels)
                   : trimmedQuery
                     ? intl.formatMessage(workspaceAutomationFormMessages.noMatchingChannels)
