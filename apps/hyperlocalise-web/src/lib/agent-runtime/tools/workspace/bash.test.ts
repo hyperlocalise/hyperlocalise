@@ -96,6 +96,11 @@ describe("isAllowedBashCommand", () => {
     expect(isAllowedBashCommand("git log --oneline")).toBe(true);
   });
 
+  it("allows git revision ranges that use ..", () => {
+    expect(isAllowedBashCommand("git log HEAD..main")).toBe(true);
+    expect(isAllowedBashCommand("git diff main...HEAD")).toBe(true);
+  });
+
   it.each([
     "git log --output=package.json",
     "git log --output package.json",
