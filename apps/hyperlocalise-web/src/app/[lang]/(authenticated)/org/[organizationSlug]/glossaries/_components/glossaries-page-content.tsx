@@ -115,7 +115,7 @@ function createEmptyGlossaryForm(): GlossaryCreateForm {
     name: "",
     description: "",
     sourceLocale: "en-US",
-    targetLocales: ["fr-FR"],
+    projectIds: [],
   };
 }
 
@@ -202,7 +202,7 @@ export function GlossariesPageContent({
   const [page, setPage] = useState(1);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [createForm, setCreateForm] = useState<GlossaryCreateForm>(() => createEmptyGlossaryForm());
-  const [createErrors, setCreateErrors] = useState<{ name?: string; targetLocales?: string }>({});
+  const [createErrors, setCreateErrors] = useState<{ name?: string }>({});
   const [selectedExternalProjectId, setSelectedExternalProjectId] = useState("");
   const { data: activeTmsProvider } = useActiveTmsProvider(organizationSlug);
   const useLiveProviderGlossaries = Boolean(activeTmsProvider);
@@ -352,7 +352,7 @@ export function GlossariesPageContent({
           name: values.name.trim(),
           description: values.description.trim(),
           sourceLocale: values.sourceLocale,
-          targetLocale: values.targetLocales[0] ?? "",
+          projectIds: values.projectIds,
         },
       });
 
@@ -440,12 +440,9 @@ export function GlossariesPageContent({
     : credentialsQuery.isSuccess && connectedCredentials.length > 0;
 
   function submitCreateGlossary() {
-    const errors: { name?: string; targetLocales?: string } = {};
+    const errors: { name?: string } = {};
     if (!createForm.name.trim()) {
       errors.name = intl.formatMessage(glossariesPageContentMessages.nameRequired);
-    }
-    if (createForm.targetLocales.length === 0) {
-      errors.targetLocales = intl.formatMessage(glossariesPageContentMessages.targetLocaleRequired);
     }
     setCreateErrors(errors);
     if (Object.keys(errors).length > 0) {
@@ -493,6 +490,9 @@ export function GlossariesPageContent({
       onCreateDialogOpenChange={setCreateDialogOpen}
       createForm={createForm}
       onCreateFormChange={setCreateForm}
+      projects={(projectsQuery.data ?? []).flatMap(({ id, name, sourceLocale }) =>
+        sourceLocale ? [{ id, name, sourceLocale }] : [],
+      )}
       createErrors={createErrors}
       isCreating={createGlossary.isPending}
       onSubmitCreateGlossary={submitCreateGlossary}

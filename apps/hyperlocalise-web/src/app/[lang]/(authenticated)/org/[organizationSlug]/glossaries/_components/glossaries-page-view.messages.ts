@@ -231,6 +231,31 @@ export const glossariesPageViewMessages = defineMessages({
     id: "zA979oY1xH",
     description: "Placeholder for the glossary description field",
   },
+  projectLabel: {
+    defaultMessage: "Assign glossary to the following projects:",
+    id: "cnWyuPT5ua",
+    description: "Label for the project multi-select on glossary creation",
+  },
+  projectPlaceholder: {
+    defaultMessage: "Select projects",
+    id: "yt3gzzy/zO",
+    description: "Placeholder for the project multi-select",
+  },
+  projectSearchPlaceholder: {
+    defaultMessage: "Search projects",
+    id: "jTZSup9Rup",
+    description: "Search placeholder for the project multi-select",
+  },
+  projectSelectionEmpty: {
+    defaultMessage: "No projects use this source locale.",
+    id: "wUXhMGSGlH",
+    description: "Empty state for the project multi-select",
+  },
+  projectOptional: {
+    defaultMessage: "Optional. You can attach projects from the glossary detail page later.",
+    id: "Ddq6ZN19JX",
+    description: "Help text explaining that glossary project attachment can happen later",
+  },
   cancel: {
     defaultMessage: "Cancel",
     id: "Ir9T3sKw7D",

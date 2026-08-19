@@ -60,6 +60,7 @@ const meta = {
     onCreateDialogOpenChange: fn(),
     createForm: createEmptyGlossaryFormFixture(),
     onCreateFormChange: fn(),
+    projects: [],
     createErrors: {},
     isCreating: false,
     onSubmitCreateGlossary: fn(),
@@ -73,6 +74,9 @@ export const Default: Story = {
   play: async ({ canvas }) => {
     await expect(canvas.getByRole("heading", { name: "Glossaries" })).toBeInTheDocument();
     await expect(canvas.getByText("Product UI")).toBeInTheDocument();
+    await expect(
+      canvas.getByText("American English (en-US), Vietnamese (vi-VN)"),
+    ).toBeInTheDocument();
     await expect(canvas.getByText("Phrase Term Base")).toBeInTheDocument();
     await expect(canvas.getByText("Crowdin Glossary")).toBeInTheDocument();
   },
@@ -145,9 +149,21 @@ export const ReadOnly: Story = {
 export const CreateDialogOpen: Story = {
   args: {
     createDialogOpen: true,
+    projects: [
+      { id: "project-native-1", name: "Product app", sourceLocale: "en-US" },
+      { id: "project-native-2", name: "Marketing site", sourceLocale: "en-US" },
+    ],
   },
-  play: async ({ canvas }) => {
+  play: async ({ canvas, userEvent }) => {
     await expect(canvas.getByRole("dialog", { name: "Create glossary" })).toBeInTheDocument();
+    await expect(
+      canvas.getByText("Assign glossary to the following projects:"),
+    ).toBeInTheDocument();
+    await userEvent.click(
+      canvas.getByRole("button", { name: "Assign glossary to the following projects:" }),
+    );
+    await expect(canvas.getByText("Product app")).toBeInTheDocument();
+    await expect(canvas.getByText("Marketing site")).toBeInTheDocument();
   },
 };
 

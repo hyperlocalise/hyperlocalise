@@ -68,7 +68,6 @@ describe("glossaryRoutes", () => {
           name: "Marketing Glossary",
           description: "Marketing terminology",
           sourceLocale: "en",
-          targetLocale: "es",
         },
       },
       { headers },

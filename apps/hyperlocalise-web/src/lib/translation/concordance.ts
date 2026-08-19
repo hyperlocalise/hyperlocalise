@@ -304,7 +304,7 @@ class GlossaryConcordancePipeline extends ConcordancePipeline<
         externalGlossaryId: schema.glossaries.externalGlossaryId,
         externalProviderCredentialId: schema.glossaries.externalProviderCredentialId,
         externalProjectId: schema.glossaries.externalProjectId,
-        targetLocale: schema.glossaries.targetLocale,
+        targetLocale: sql<string>`${schema.glossaries.targetLocale}`,
         termCapabilities: schema.glossaries.termCapabilities,
       })
       .from(schema.projectGlossaries)
@@ -333,7 +333,7 @@ class GlossaryConcordancePipeline extends ConcordancePipeline<
         sourceTerm: schema.glossaryTerms.sourceTerm,
         targetTerm: schema.glossaryTerms.targetTerm,
         sourceLocale: schema.glossaries.sourceLocale,
-        targetLocale: schema.glossaries.targetLocale,
+        targetLocale: sql<string>`${schema.glossaries.targetLocale}`,
         description: schema.glossaryTerms.description,
         forbidden: schema.glossaryTerms.forbidden,
         caseSensitive: schema.glossaryTerms.caseSensitive,

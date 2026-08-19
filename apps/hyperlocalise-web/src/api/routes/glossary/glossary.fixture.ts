@@ -20,7 +20,6 @@ type CreateGlossaryInput = Partial<{
   name: string;
   description: string;
   sourceLocale: string;
-  targetLocale: string;
 }>;
 
 type Client = ReturnType<typeof testClient<AppType>>;
@@ -44,7 +43,6 @@ export function createGlossaryTestFixture(client?: Client) {
           name: input?.name ?? "Marketing Glossary",
           description: input?.description ?? "Marketing terminology",
           sourceLocale: input?.sourceLocale ?? "en",
-          targetLocale: input?.targetLocale ?? "es",
         },
       },
       {

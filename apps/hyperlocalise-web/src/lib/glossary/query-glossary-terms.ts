@@ -10,7 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, isNull, sql } from "drizzle-orm";
 
 import { db, schema } from "@/lib/database";
 
@@ -41,7 +41,7 @@ export async function listGlossaryTermsByGlossaryId(input: {
       glossaryName: schema.glossaries.name,
       sourceTerm: schema.glossaryTerms.sourceTerm,
       targetTerm: schema.glossaryTerms.targetTerm,
-      targetLocale: schema.glossaries.targetLocale,
+      targetLocale: sql<string>`${schema.glossaries.targetLocale}`,
       description: schema.glossaryTerms.description,
       partOfSpeech: schema.glossaryTerms.partOfSpeech,
       forbidden: schema.glossaryTerms.forbidden,
@@ -56,6 +56,7 @@ export async function listGlossaryTermsByGlossaryId(input: {
       and(
         eq(schema.glossaries.organizationId, input.organizationId),
         eq(schema.glossaryTerms.glossaryId, input.glossaryId),
+        isNull(schema.glossaryTerms.conceptId),
         eq(schema.glossaries.status, "active"),
       ),
     );
@@ -91,7 +92,7 @@ export async function listGlossaryTermsForProject(input: {
       glossaryName: schema.glossaries.name,
       sourceTerm: schema.glossaryTerms.sourceTerm,
       targetTerm: schema.glossaryTerms.targetTerm,
-      targetLocale: schema.glossaries.targetLocale,
+      targetLocale: sql<string>`${schema.glossaries.targetLocale}`,
       description: schema.glossaryTerms.description,
       partOfSpeech: schema.glossaryTerms.partOfSpeech,
       forbidden: schema.glossaryTerms.forbidden,
@@ -105,6 +106,7 @@ export async function listGlossaryTermsForProject(input: {
     .where(
       and(
         inArray(schema.glossaryTerms.glossaryId, glossaryIds),
+        isNull(schema.glossaryTerms.conceptId),
         eq(schema.glossaries.organizationId, input.organizationId),
         eq(schema.glossaries.sourceLocale, input.sourceLocale),
         inArray(schema.glossaries.targetLocale, input.targetLocales),
