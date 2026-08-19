@@ -92,6 +92,15 @@ export function useCatMutations(input: {
       text: string;
       approve?: boolean;
     }) => {
+      const segment = input.catFile?.segments.find(
+        (entry) => entry.externalStringId === mutationInput.externalStringId,
+      );
+      if (segment?.isHidden) {
+        throw new Error(
+          intl.formatMessage(useCatMutationsMessages.cannotEditHiddenStringTranslation),
+        );
+      }
+
       const { sourcePath, externalResourceId } = resolveCatMutationFileIdentity(
         input,
         mutationInput.externalStringId,

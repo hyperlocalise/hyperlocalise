@@ -882,7 +882,7 @@ describe("getTmsProviderLiveCatFile", () => {
     );
     expect(patchCall).toBeDefined();
     expect(JSON.parse(String(patchCall?.[1]?.body))).toEqual([
-      { op: "replace", path: "/9002/text", value: "Bonjour amélioré" },
+      { op: "replace", path: "/9002", value: { text: "Bonjour amélioré" } },
     ]);
     expect(
       fetchMock.mock.calls.some(
@@ -890,6 +890,363 @@ describe("getTmsProviderLiveCatFile", () => {
           String(url).includes("/projects/42/translations") && init?.method === "POST",
       ),
     ).toBe(false);
+  });
+
+  function createCrowdinCatFileResolution(): (
+    url: unknown,
+    init?: RequestInit,
+  ) => Promise<Response> {
+    return async (url: unknown) => {
+      const path = String(url);
+
+      if (isCrowdinGetProjectRequest(path)) {
+        return mockCrowdinProject42Response();
+      }
+
+      if (path.includes("/projects/42/branches?")) {
+        return new Response(JSON.stringify({ data: [] }), { status: 200 });
+      }
+
+      if (path.includes("/projects/42/directories?")) {
+        return new Response(JSON.stringify({ data: [] }), { status: 200 });
+      }
+
+      if (path.includes("/projects/42/files?")) {
+        return new Response(
+          JSON.stringify({
+            data: [
+              {
+                data: {
+                  id: 101,
+                  branchId: null,
+                  directoryId: null,
+                  name: "home.json",
+                  title: "home.json",
+                  type: "json",
+                  path: "/home.json",
+                  status: "active",
+                  revisionId: 7,
+                },
+              },
+            ],
+          }),
+          { status: 200 },
+        );
+      }
+
+      if (path.includes("/projects/42/files/101/revisions?")) {
+        return new Response(JSON.stringify({ data: [] }), { status: 200 });
+      }
+
+      return new Response(JSON.stringify({ data: [] }), { status: 200 });
+    };
+  }
+
+  it("clears an existing unapproved Crowdin translation by deleting it", async () => {
+    const { organization, user } = await fixture.createLocalWorkosIdentity(
+      fixture.createWorkosIdentityWithRole("admin"),
+    );
+    await setupCrowdinPatCredential({
+      organizationId: organization.id,
+      userId: user.id,
+    });
+
+    const resolveFile = createCrowdinCatFileResolution();
+    const fetchMock = vi.fn(async (url: unknown, init?: RequestInit) => {
+      const path = String(url);
+
+      if (
+        path.includes("/projects/42/languages/fr/translations?") &&
+        path.includes("stringIds=1001")
+      ) {
+        return new Response(
+          JSON.stringify({
+            data: [
+              {
+                data: {
+                  stringId: 1001,
+                  contentType: "text",
+                  translationId: 9002,
+                  text: "Salut",
+                  createdAt: "2026-06-09T00:00:00Z",
+                },
+              },
+            ],
+          }),
+          { status: 200 },
+        );
+      }
+
+      if (
+        path.includes("/projects/42/approvals?") &&
+        path.includes("languageId=fr") &&
+        path.includes("fileId=101")
+      ) {
+        return new Response(JSON.stringify({ data: [] }), { status: 200 });
+      }
+
+      if (path.includes("/projects/42/translations/9002") && init?.method === "DELETE") {
+        return new Response(null, { status: 204 });
+      }
+
+      if (
+        path.includes("/projects/42/translations") &&
+        (init?.method === "PATCH" || init?.method === "POST")
+      ) {
+        throw new Error(`Unexpected translation write: ${init.method} ${path}`);
+      }
+
+      return resolveFile(url, init);
+    });
+    globalThis.fetch = fetchMock as typeof fetch;
+
+    const translation = await saveTmsProviderLiveCatTranslation(
+      organization.id,
+      "42",
+      "home.json",
+      {
+        targetLocale: "fr",
+        externalStringId: "1001",
+        text: "   ",
+      },
+      { actorUserId: user.id },
+    );
+
+    expect(translation).toEqual({ text: "", externalTranslationId: null, isApproved: false });
+    expect(
+      fetchMock.mock.calls.some(
+        ([url, init]) =>
+          String(url).includes("/projects/42/translations/9002") && init?.method === "DELETE",
+      ),
+    ).toBe(true);
+    expect(
+      fetchMock.mock.calls.some(
+        ([url, init]) =>
+          String(url).includes("/projects/42/translations") && init?.method === "PATCH",
+      ),
+    ).toBe(false);
+  });
+
+  it("removes the approval before clearing an approved Crowdin translation", async () => {
+    const { organization, user } = await fixture.createLocalWorkosIdentity(
+      fixture.createWorkosIdentityWithRole("admin"),
+    );
+    await setupCrowdinPatCredential({
+      organizationId: organization.id,
+      userId: user.id,
+    });
+
+    const resolveFile = createCrowdinCatFileResolution();
+    const fetchMock = vi.fn(async (url: unknown, init?: RequestInit) => {
+      const path = String(url);
+
+      if (
+        path.includes("/projects/42/languages/fr/translations?") &&
+        path.includes("stringIds=1001")
+      ) {
+        return new Response(
+          JSON.stringify({
+            data: [
+              {
+                data: {
+                  stringId: 1001,
+                  contentType: "text",
+                  translationId: 9002,
+                  text: "Salut",
+                  createdAt: "2026-06-09T00:00:00Z",
+                },
+              },
+            ],
+          }),
+          { status: 200 },
+        );
+      }
+
+      if (
+        path.includes("/projects/42/approvals?") &&
+        path.includes("languageId=fr") &&
+        path.includes("fileId=101")
+      ) {
+        return new Response(
+          JSON.stringify({
+            data: [{ data: { id: 7001, translationId: 9002, stringId: 1001, languageId: "fr" } }],
+          }),
+          { status: 200 },
+        );
+      }
+
+      if (init?.method === "DELETE") {
+        return new Response(null, { status: 204 });
+      }
+
+      return resolveFile(url, init);
+    });
+    globalThis.fetch = fetchMock as typeof fetch;
+
+    const translation = await saveTmsProviderLiveCatTranslation(
+      organization.id,
+      "42",
+      "home.json",
+      {
+        targetLocale: "fr",
+        externalStringId: "1001",
+        text: "",
+      },
+      { actorUserId: user.id },
+    );
+
+    expect(translation).toEqual({ text: "", externalTranslationId: null, isApproved: false });
+    const deleteCalls = fetchMock.mock.calls
+      .filter(([url, init]) => init?.method === "DELETE")
+      .map(([url]) => String(url));
+    expect(deleteCalls).toEqual([
+      expect.stringContaining("/projects/42/approvals/7001"),
+      expect.stringContaining("/projects/42/translations/9002"),
+    ]);
+  });
+
+  it("skips writes when clearing a translation that does not exist", async () => {
+    const { organization, user } = await fixture.createLocalWorkosIdentity(
+      fixture.createWorkosIdentityWithRole("admin"),
+    );
+    await setupCrowdinPatCredential({
+      organizationId: organization.id,
+      userId: user.id,
+    });
+
+    const resolveFile = createCrowdinCatFileResolution();
+    const fetchMock = vi.fn(async (url: unknown, init?: RequestInit) => {
+      const path = String(url);
+
+      if (
+        path.includes("/projects/42/languages/fr/translations?") &&
+        path.includes("stringIds=1001")
+      ) {
+        return new Response(JSON.stringify({ data: [] }), { status: 200 });
+      }
+
+      if (
+        path.includes("/projects/42/approvals?") &&
+        path.includes("languageId=fr") &&
+        path.includes("fileId=101")
+      ) {
+        return new Response(JSON.stringify({ data: [] }), { status: 200 });
+      }
+
+      if (path.includes("/projects/42/translations") && init?.method !== undefined) {
+        throw new Error(`Unexpected translation write: ${init.method} ${path}`);
+      }
+
+      return resolveFile(url, init);
+    });
+    globalThis.fetch = fetchMock as typeof fetch;
+
+    const translation = await saveTmsProviderLiveCatTranslation(
+      organization.id,
+      "42",
+      "home.json",
+      {
+        targetLocale: "fr",
+        externalStringId: "1001",
+        text: "",
+      },
+      { actorUserId: user.id },
+    );
+
+    expect(translation).toEqual({ text: "", externalTranslationId: null, isApproved: false });
+    expect(
+      fetchMock.mock.calls.some(
+        ([url, init]) =>
+          String(url).includes("/projects/42/translations") &&
+          (init?.method === "PATCH" || init?.method === "POST" || init?.method === "DELETE"),
+      ),
+    ).toBe(false);
+  });
+
+  it("maps Crowdin 400 translation update rejections to a client error", async () => {
+    const { organization, user } = await fixture.createLocalWorkosIdentity(
+      fixture.createWorkosIdentityWithRole("admin"),
+    );
+    await setupCrowdinPatCredential({
+      organizationId: organization.id,
+      userId: user.id,
+    });
+
+    const resolveFile = createCrowdinCatFileResolution();
+    const fetchMock = vi.fn(async (url: unknown, init?: RequestInit) => {
+      const path = String(url);
+
+      if (
+        path.includes("/projects/42/languages/fr/translations?") &&
+        path.includes("stringIds=1001")
+      ) {
+        return new Response(
+          JSON.stringify({
+            data: [
+              {
+                data: {
+                  stringId: 1001,
+                  contentType: "text",
+                  translationId: 9002,
+                  text: "Salut",
+                  createdAt: "2026-06-09T00:00:00Z",
+                },
+              },
+            ],
+          }),
+          { status: 200 },
+        );
+      }
+
+      if (
+        path.includes("/projects/42/approvals?") &&
+        path.includes("languageId=fr") &&
+        path.includes("fileId=101")
+      ) {
+        return new Response(JSON.stringify({ data: [] }), { status: 200 });
+      }
+
+      if (path.includes("/projects/42/translations") && init?.method === "PATCH") {
+        return new Response(
+          JSON.stringify({
+            errors: [
+              {
+                index: 0,
+                errors: [
+                  {
+                    error: {
+                      key: "text",
+                      errors: [{ code: "validation_error", message: "Invalid request parameters" }],
+                    },
+                  },
+                ],
+              },
+            ],
+          }),
+          { status: 400 },
+        );
+      }
+
+      return resolveFile(url, init);
+    });
+    globalThis.fetch = fetchMock as typeof fetch;
+
+    await expect(
+      saveTmsProviderLiveCatTranslation(
+        organization.id,
+        "42",
+        "home.json",
+        {
+          targetLocale: "fr",
+          externalStringId: "1001",
+          text: "Bonjour amélioré",
+        },
+        { actorUserId: user.id },
+      ),
+    ).rejects.toMatchObject({
+      name: "TmsProviderLiveError",
+      code: "crowdin_translation_update_rejected",
+    });
   });
 
   it("loads paginated Crowdin queue pages without walking the full file for totals", async () => {

@@ -60,4 +60,10 @@ export const useCatMutationsMessages = defineMessages({
     id: "1BOxhADmQk",
     description: "Fallback error when hiding or unhiding native CAT source strings fails",
   },
+  cannotEditHiddenStringTranslation: {
+    defaultMessage:
+      "Hidden strings can't be edited from the CAT. Unhide the string in Crowdin first.",
+    id: "sfQrLcactN",
+    description: "Error when saving a translation for a hidden string",
+  },
 });
