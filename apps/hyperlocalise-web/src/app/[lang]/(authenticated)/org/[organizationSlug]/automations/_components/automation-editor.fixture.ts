@@ -154,6 +154,30 @@ export const createContentfulAutomationFormFixture = () => {
 export const createDetailAutomationFormFixture = () =>
   createWorkspaceAutomationFormStateFromRecord(createAutomationSummary());
 
+export const createScheduledAutomationFormFixture = () =>
+  createWorkspaceAutomationFormStateFromRecord(
+    createAutomationSummary({
+      name: "Weekly translation sync",
+      triggerConfig: {
+        mode: "scheduled",
+        schedule: {
+          cadence: "weekly",
+          hourUtc: 9,
+          dayOfWeek: 1,
+          timezone: "UTC",
+        },
+      },
+    }),
+  );
+
+export const createManualAutomationFormFixture = () =>
+  createWorkspaceAutomationFormStateFromRecord(
+    createAutomationSummary({
+      name: "Manual release checklist",
+      triggerConfig: { mode: "manual" },
+    }),
+  );
+
 export const createMemoriesAutomationFormFixture = () => ({
   ...createGithubAutomationFormFixture(),
   knowledgeEnabled: true,

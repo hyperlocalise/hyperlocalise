@@ -25,6 +25,8 @@ import {
   formStateToWorkspaceAutomationPayload,
   mapWorkspaceAutomationApiErrorToFieldErrors,
   validateWorkspaceAutomationFormState,
+  workspaceAutomationFormHasChanges,
+  workspaceAutomationFormSupportsOnDemandRun,
 } from "@/lib/agents/workspace-automation-view-model";
 import { WorkspacePageShell } from "../../_components/workspace-resource-shared";
 import { automationDetailPageContentMessages } from "./automation-detail-page-content.messages";
@@ -157,6 +159,10 @@ export function AutomationDetailPageContent({
     );
   }
 
+  const savedForm = createWorkspaceAutomationFormStateFromRecord(automation);
+  const hasChanges = workspaceAutomationFormHasChanges(form, savedForm);
+  const showRunButton = workspaceAutomationFormSupportsOnDemandRun(form.triggerMode);
+
   return (
     <WorkspacePageShell className="max-w-5xl">
       <WorkspaceAutomationEditor
@@ -170,14 +176,19 @@ export function AutomationDetailPageContent({
         runHistory={recentRuns}
         actions={
           <div className="flex gap-2">
+            {showRunButton ? (
+              <Button
+                variant="outline"
+                onClick={() => runMutation.mutate()}
+                disabled={runMutation.isPending || automation.status !== "active"}
+              >
+                <FormattedMessage {...automationDetailPageContentMessages.runNow} />
+              </Button>
+            ) : null}
             <Button
-              variant="outline"
-              onClick={() => runMutation.mutate()}
-              disabled={runMutation.isPending || automation.status !== "active"}
+              onClick={() => saveMutation.mutate()}
+              disabled={saveMutation.isPending || !hasChanges}
             >
-              <FormattedMessage {...automationDetailPageContentMessages.runNow} />
-            </Button>
-            <Button onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending}>
               {saveMutation.isPending ? (
                 <FormattedMessage {...automationDetailPageContentMessages.saving} />
               ) : (

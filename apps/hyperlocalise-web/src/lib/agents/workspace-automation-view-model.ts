@@ -721,6 +721,19 @@ export function mapWorkspaceAutomationApiErrorToFieldErrors(
   }
 }
 
+export function workspaceAutomationFormSupportsOnDemandRun(
+  triggerMode: WorkspaceAutomationTriggerMode,
+) {
+  return triggerMode === "manual" || triggerMode === "scheduled";
+}
+
+export function workspaceAutomationFormHasChanges(
+  current: WorkspaceAutomationFormState,
+  saved: WorkspaceAutomationFormState,
+) {
+  return JSON.stringify(current) !== JSON.stringify(saved);
+}
+
 export function workspaceAutomationFormCanActivate(form: WorkspaceAutomationFormState) {
   return (
     form.githubEnabled ||

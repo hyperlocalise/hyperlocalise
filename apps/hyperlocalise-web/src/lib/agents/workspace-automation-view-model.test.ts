@@ -27,6 +27,8 @@ import {
   mapWorkspaceAutomationApiErrorToFieldErrors,
   selectableAutomationRepositories,
   validateWorkspaceAutomationFormState,
+  workspaceAutomationFormHasChanges,
+  workspaceAutomationFormSupportsOnDemandRun,
 } from "./workspace-automation-view-model";
 
 const mergedTemplates = mergeWorkspaceTemplateSkills(WORKSPACE_AUTOMATION_TEMPLATES_BASE);
@@ -606,5 +608,21 @@ describe("workspace automation view model", () => {
     expect(
       selectableAutomationRepositories(repositories, "disabled").map((repository) => repository.id),
     ).toEqual(["enabled", "disabled"]);
+  });
+
+  it("shows on-demand runs for scheduled and manual triggers only", () => {
+    expect(workspaceAutomationFormSupportsOnDemandRun("manual")).toBe(true);
+    expect(workspaceAutomationFormSupportsOnDemandRun("scheduled")).toBe(true);
+    expect(workspaceAutomationFormSupportsOnDemandRun("github")).toBe(false);
+    expect(workspaceAutomationFormSupportsOnDemandRun("contentful")).toBe(false);
+    expect(workspaceAutomationFormSupportsOnDemandRun("source_upload")).toBe(false);
+  });
+
+  it("detects unsaved automation form changes", () => {
+    const saved = createWorkspaceAutomationFormStateFromRecord(createAutomationSummary());
+    expect(workspaceAutomationFormHasChanges(saved, saved)).toBe(false);
+    expect(workspaceAutomationFormHasChanges({ ...saved, name: "Renamed automation" }, saved)).toBe(
+      true,
+    );
   });
 });
