@@ -1,67 +1,84 @@
+"use client";
 /*
  * Copyright (c) 2026 Hyperlocalise Pty Ltd
- * ...
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
  */
 import Image from "next/image";
-import { siGithub } from "simple-icons";
-import { FormattedMessage, defineMessages } from "react-intl";
+import { FormattedMessage, defineMessages, useIntl } from "react-intl";
+
+import { heroSectionMessages } from "@/components/marketing/hero-section.messages";
 
 const messages = defineMessages({
   label: {
-    defaultMessage: "Works with your existing tools",
-    id: "Fmf1wikCZt",
+    defaultMessage: "Trusted by teams at",
+    id: "2MAdJ856yN",
     description: "Integration strip label on the agents-automation hero",
   },
 });
 
-const INTEGRATIONS = [
+const TRUSTED_BY_LOGOS = [
   {
-    id: "github",
-    label: "GitHub",
-    type: "simple-icon" as const,
-    icon: siGithub,
+    id: "heidi-health",
+    href: "https://www.heidihealth.com",
+    src: "/images/customers/heidi-health-logo.png",
+    altKey: "heidiHealthAlt" as const,
+    width: 800,
+    height: 332,
+    className: "h-7 sm:h-8",
   },
   {
-    id: "slack",
-    label: "Slack",
-    type: "image" as const,
-    src: "/images/slack-logo.svg",
+    id: "tourfinder",
+    href: "https://tourfinder.vn",
+    src: "/images/customers/tourfinder-logo.png",
+    altKey: "tourfinderAlt" as const,
+    width: 1177,
+    height: 294,
+    className: "h-6 sm:h-7",
   },
   {
-    id: "contentful",
-    label: "Contentful",
-    type: "image" as const,
-    src: "/images/contentful-logo.svg",
+    id: "tourmatic",
+    href: "https://tourmatic.io",
+    src: "/images/customers/tourmatic-logo.svg",
+    altKey: "tourmaticAlt" as const,
+    width: 315,
+    height: 58,
+    className: "h-6 sm:h-7",
   },
-];
+] as const;
 
 export function IntegrationStripSection() {
+  const intl = useIntl();
+
   return (
     <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-      <p className="text-[0.68rem] font-semibold uppercase tracking-[0.22em] text-muted-foreground whitespace-nowrap">
+      <p className="shrink-0 whitespace-nowrap text-[0.68rem] font-semibold uppercase tracking-[0.22em] text-muted-foreground">
         <FormattedMessage {...messages.label} />
       </p>
-      <div className="flex items-center gap-6">
-        {INTEGRATIONS.map((integration) => (
-          <div
-            key={integration.id}
-            className="flex items-center gap-2 opacity-60 grayscale transition-all hover:opacity-100 hover:grayscale-0"
+      <div className="flex flex-wrap items-center gap-6">
+        {TRUSTED_BY_LOGOS.map((logo) => (
+          <a
+            key={logo.id}
+            href={logo.href}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="opacity-50 grayscale-[80%] transition-all duration-300 hover:opacity-100 hover:grayscale-0 hover:scale-105 dark:invert dark:opacity-40 dark:hover:opacity-80"
           >
-            {integration.type === "simple-icon" ? (
-              <svg role="img" viewBox="0 0 24 24" className="h-5 w-5 fill-foreground">
-                <path d={integration.icon.path} />
-              </svg>
-            ) : (
-              <Image
-                src={integration.src}
-                alt={integration.label}
-                width={80}
-                height={24}
-                className="h-5 w-auto object-contain"
-              />
-            )}
-            <span className="text-sm font-medium text-muted-foreground">{integration.label}</span>
-          </div>
+            <Image
+              src={logo.src}
+              alt={intl.formatMessage(heroSectionMessages[logo.altKey])}
+              width={logo.width}
+              height={logo.height}
+              className={logo.className + " w-auto object-contain"}
+            />
+          </a>
         ))}
       </div>
     </div>

@@ -28,8 +28,8 @@ import type { ProductPageContent, ProductVisualKind } from "./product-page-conte
 import { AutomationsMockUI } from "./automations-mock-ui";
 import { productPageMessages, type ProductMessageKey } from "./product-page-content.messages";
 import { AutomationEditorMock } from "./automation-editor-mock";
-import { Globe } from "@/components/ui/globe";
 import { IntegrationStripSection } from "./integration-strip-section";
+import { GlobeHeroVisual } from "./globe-hero-visual";
 
 type ProductPageProps = {
   content: ProductPageContent;
@@ -48,6 +48,8 @@ function ProductEyebrow({ messageKey }: { messageKey: ProductMessageKey }) {
 }
 
 function ProductHero({ content }: ProductPageProps) {
+  const isAutomation = content.visualKind === "automation";
+
   return (
     <div className="flex flex-col gap-16">
       <div className="mx-auto flex w-full max-w-6xl flex-col items-center gap-12 lg:flex-row lg:items-center lg:justify-between">
@@ -56,7 +58,7 @@ function ProductHero({ content }: ProductPageProps) {
             <h1 className="font-heading text-[clamp(2.5rem,5vw,4.75rem)] leading-[1] font-semibold tracking-normal text-balance">
               <ProductMessage messageKey={content.hero.headlineKey} />
             </h1>
-            <p className="max-w-lg text-lg leading-8 text-muted-foreground text-balance sm:text-xl">
+            <p className="max-w-lg text-md leading-8 text-muted-foreground text-balance sm:text-lg">
               <ProductMessage messageKey={content.hero.subcopyKey} />
             </p>
           </div>
@@ -72,18 +74,9 @@ function ProductHero({ content }: ProductPageProps) {
           </div>
         </div>
 
-        {content.visualKind === "automation" && (
-          <div className="shrink-0">
-            <div className="h-[260px] w-[260px] lg:hidden">
-              <Globe className="h-full w-full" />
-            </div>
-            <div className="hidden h-[620px] w-[620px] translate-x-16 lg:block">
-              <Globe className="h-full w-full" />
-            </div>
-          </div>
-        )}
+        {isAutomation && <GlobeHeroVisual />}
       </div>
-      {content.visualKind === "automation" && (
+      {isAutomation && (
         <div className="mx-auto w-full max-w-6xl border-t border-border/60 pt-10">
           <IntegrationStripSection />
         </div>
