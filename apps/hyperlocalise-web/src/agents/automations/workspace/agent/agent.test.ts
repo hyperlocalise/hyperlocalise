@@ -112,7 +112,7 @@ describe("workspace orchestrator agent", () => {
     // least that many steps even though plannedToolCount + 1 (3) is smaller.
     expect(isStepCountMock).toHaveBeenCalledWith(WORKSPACE_ORCHESTRATOR_STEP_LIMIT);
     expect(WORKSPACE_ORCHESTRATOR_TIMEOUT.stepMs).toBe(WORKFLOW_AGENT_TIMEOUT.totalMs);
-    expect(WORKFLOW_AGENT_TIMEOUT.stepMs).toBe(WORKFLOW_AGENT_TIMEOUT.totalMs);
+    expect(WORKFLOW_AGENT_TIMEOUT.stepMs).toBeLessThan(WORKFLOW_AGENT_TIMEOUT.totalMs);
     expect(toolLoopAgentMock).toHaveBeenCalledWith(
       expect.objectContaining({
         activeTools: ["run_github_workflows", "notify_slack"],
