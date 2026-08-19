@@ -20,7 +20,7 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { apiClient } from "@/lib/api-client-instance";
-import { buildWorkspaceAutomationWebChatPath } from "@/lib/agents/workspace-automation-web-chat";
+import { buildWorkspaceAutomationWebChatHref } from "@/lib/agents/workspace-automation-web-chat";
 import {
   createWorkspaceAutomationFormStateFromRecord,
   formStateToWorkspaceAutomationPayload,
@@ -29,6 +29,7 @@ import {
 } from "@/lib/agents/workspace-automation-view-model";
 import { WorkspacePageShell } from "../../_components/workspace-resource-shared";
 import { automationDetailPageContentMessages } from "./automation-detail-page-content.messages";
+import { WebChatUrlCopyField } from "./web-chat-url-copy-field";
 import { WorkspaceAutomationEditor } from "./workspace-automation-form";
 
 export function AutomationDetailPageContent({
@@ -173,23 +174,32 @@ export function AutomationDetailPageContent({
         actions={
           <div className="flex gap-2">
             {form.triggerMode === "web_chat" ? (
-              <Button
-                variant="outline"
-                nativeButton={false}
-                render={
-                  <Link
-                    href={buildWorkspaceAutomationWebChatPath({
-                      organizationSlug,
-                      automationId,
-                    })}
-                    target="_blank"
-                    rel="noreferrer"
+              <>
+                <div className="hidden min-w-0 max-w-xs md:block">
+                  <WebChatUrlCopyField
+                    automationId={automationId}
+                    organizationSlug={organizationSlug}
                   />
-                }
-                disabled={automation.status !== "active"}
-              >
-                <FormattedMessage {...automationDetailPageContentMessages.openChat} />
-              </Button>
+                </div>
+                <Button
+                  variant="outline"
+                  nativeButton={false}
+                  render={
+                    <Link
+                      href={buildWorkspaceAutomationWebChatHref({
+                        organizationSlug,
+                        automationId,
+                        locale: intl.locale,
+                      })}
+                      target="_blank"
+                      rel="noreferrer"
+                    />
+                  }
+                  disabled={automation.status !== "active"}
+                >
+                  <FormattedMessage {...automationDetailPageContentMessages.openChat} />
+                </Button>
+              </>
             ) : (
               <Button
                 variant="outline"

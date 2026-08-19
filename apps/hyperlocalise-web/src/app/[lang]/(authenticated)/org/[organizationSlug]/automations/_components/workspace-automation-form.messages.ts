@@ -911,6 +911,11 @@ export const workspaceAutomationFormMessages = defineMessages({
     id: "AuCHneqNSE",
     description: "Hint shown before a web chat automation has been saved",
   },
+  chatUrl: {
+    defaultMessage: "Public chat URL",
+    id: "n8QwK2vLpR",
+    description: "Accessible label for the read-only public web chat URL field",
+  },
   copyChatUrl: {
     defaultMessage: "Copy chat URL",
     id: "iMohNHospZ",

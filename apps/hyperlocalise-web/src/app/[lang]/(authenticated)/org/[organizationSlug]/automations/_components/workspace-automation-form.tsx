@@ -20,7 +20,6 @@ import {
   BrainCircuitIcon,
   Clock01Icon,
   Comment01Icon,
-  Copy01Icon,
   Delete02Icon,
   FolderLibraryIcon,
   GitBranchIcon,
@@ -29,7 +28,6 @@ import {
   SearchIcon,
   SlackIcon,
   Task01Icon,
-  Tick02Icon,
   Upload01Icon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
@@ -101,10 +99,11 @@ import {
   workspaceAutomationFormCanActivate,
 } from "@/lib/agents/workspace-automation-view-model";
 import type { WorkspaceAutomationRunRecord } from "@/lib/agents/workspace-automations";
-import { buildWorkspaceAutomationWebChatPath } from "@/lib/agents/workspace-automation-web-chat";
+import { buildWorkspaceAutomationWebChatHref } from "@/lib/agents/workspace-automation-web-chat";
 import { parseProviderProjectId } from "@/lib/providers/jobs/tms-provider-resource-id";
 import { cn } from "@/lib/primitives/cn";
 
+import { WebChatUrlCopyField } from "./web-chat-url-copy-field";
 import { WorkspaceAutomationKnowledgeFilesPanel } from "./workspace-automation-knowledge-files-panel";
 
 const api = createApiClient();
@@ -2791,21 +2790,13 @@ function WebChatTriggerRow({
   organizationSlug: string;
 }) {
   const intl = useIntl();
-  const [copied, setCopied] = useState(false);
-  const chatPath = automationId
-    ? buildWorkspaceAutomationWebChatPath({ organizationSlug, automationId })
+  const chatHref = automationId
+    ? buildWorkspaceAutomationWebChatHref({
+        organizationSlug,
+        automationId,
+        locale: intl.locale,
+      })
     : null;
-  const chatHref = chatPath ? `/${intl.locale}${chatPath}` : null;
-
-  async function copyChatUrl() {
-    if (!chatHref || typeof window === "undefined") {
-      return;
-    }
-    const url = new URL(chatHref, window.location.origin).toString();
-    await navigator.clipboard.writeText(url);
-    setCopied(true);
-    window.setTimeout(() => setCopied(false), 1500);
-  }
 
   return (
     <EditorRow
@@ -2814,37 +2805,21 @@ function WebChatTriggerRow({
       description={<FormattedMessage {...workspaceAutomationFormMessages.webChatDescription} />}
       action={
         chatHref ? (
-          <>
-            <Button
-              type="button"
-              variant="secondary"
-              size="sm"
-              className="h-8 rounded-full px-3"
-              onClick={() => void copyChatUrl()}
-            >
-              <HugeiconsIcon
-                icon={copied ? Tick02Icon : Copy01Icon}
-                strokeWidth={1.8}
-                className="size-3.5"
-              />
-              <FormattedMessage {...workspaceAutomationFormMessages.copyChatUrl} />
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="h-8 rounded-full px-3"
-              nativeButton={false}
-              render={<Link href={chatHref} target="_blank" rel="noreferrer" />}
-            >
-              <FormattedMessage {...workspaceAutomationFormMessages.openChat} />
-            </Button>
-          </>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-8 rounded-full px-3"
+            nativeButton={false}
+            render={<Link href={chatHref} target="_blank" rel="noreferrer" />}
+          >
+            <FormattedMessage {...workspaceAutomationFormMessages.openChat} />
+          </Button>
         ) : null
       }
     >
-      {chatHref ? (
-        <p className="truncate font-mono text-xs text-muted-foreground">{chatHref}</p>
+      {automationId ? (
+        <WebChatUrlCopyField automationId={automationId} organizationSlug={organizationSlug} />
       ) : (
         <p className="text-xs text-muted-foreground">
           <FormattedMessage {...workspaceAutomationFormMessages.webChatUrlPending} />

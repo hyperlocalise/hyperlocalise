@@ -37,6 +37,23 @@ export function buildWorkspaceAutomationWebChatPath(input: {
   return `/chat/${encodeURIComponent(input.organizationSlug)}/${encodeURIComponent(input.automationId)}`;
 }
 
+export function buildWorkspaceAutomationWebChatHref(input: {
+  organizationSlug: string;
+  automationId: string;
+  locale: string;
+}) {
+  return `/${input.locale}${buildWorkspaceAutomationWebChatPath(input)}`;
+}
+
+export function buildWorkspaceAutomationWebChatUrl(input: {
+  organizationSlug: string;
+  automationId: string;
+  locale: string;
+  origin: string;
+}) {
+  return new URL(buildWorkspaceAutomationWebChatHref(input), input.origin).toString();
+}
+
 export function buildWebChatSourceThreadId(input: { automationId: string; visitorId: string }) {
   return `web-chat:${input.automationId}:${input.visitorId}`;
 }
