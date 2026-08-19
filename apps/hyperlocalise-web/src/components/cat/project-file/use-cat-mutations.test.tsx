@@ -20,6 +20,7 @@ import {
   createCatComment,
   createCatFileResponse,
   createCatProviderMeta,
+  createCatSegment,
   createCatTranslation,
   errorResponse,
   jsonResponse,
@@ -167,6 +168,22 @@ describe("useCatMutations", () => {
     ).rejects.toThrow("Provider rejected the update.");
     expect(onTranslationSaved).not.toHaveBeenCalled();
     expect(invalidateQueue).not.toHaveBeenCalled();
+  });
+
+  it("blocks saving translations for hidden segments", async () => {
+    const { result } = renderCatMutations({
+      ...createCatFileResponse().catFile,
+      segments: [createCatSegment({ isHidden: true })],
+    });
+
+    await expect(
+      result.current.saveTranslation({
+        externalStringId: "segment-1",
+        text: "Bonjour",
+      }),
+    ).rejects.toThrow("Hidden strings can't be edited from the CAT.");
+    expect(catTranslationsPostMock).not.toHaveBeenCalled();
+    expect(onTranslationSaved).not.toHaveBeenCalled();
   });
 
   it("throws when saving with a provider record missing an external resource id", async () => {

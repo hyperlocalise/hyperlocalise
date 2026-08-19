@@ -83,6 +83,18 @@ export function formatAutomationRelativeTimestamp(
   });
 }
 
+export function resolveAutomationCreatorName(
+  intl: Pick<IntlShape, "formatMessage">,
+  automation: WorkspaceAutomationRecord,
+) {
+  const name = automation.authorName?.trim();
+  if (name) {
+    return name;
+  }
+
+  return intl.formatMessage(automationsPageViewModelMessages.unknownCreator);
+}
+
 export function resolveAutomationTriggerLabel(
   intl: IntlShape,
   triggerConfig: WorkspaceAutomationTriggerConfig,

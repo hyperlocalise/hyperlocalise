@@ -38,6 +38,7 @@ import {
   buildCrowdinFileQueueCroql,
   CrowdinApiClient,
   CrowdinApiError,
+  extractCrowdinApiErrorSummary,
   isCrowdinCroqlWithinLimit,
   type CrowdinProject,
   type CrowdinLanguageTranslation,
@@ -1308,6 +1309,20 @@ async function saveCrowdinLiveCatTranslation(input: {
     const approvedTranslationIds = new Set(approvals.map((approval) => approval.translationId));
     const existing = preferredLanguageTranslation(translations, approvedTranslationIds);
     const existingTranslationId = existing?.translationId;
+
+    if (input.text.trim().length === 0) {
+      if (existingTranslationId == null) {
+        return { text: "", externalTranslationId: null, isApproved: false };
+      }
+
+      const approval = approvals.find((item) => item.translationId === existingTranslationId);
+      if (approval) {
+        await client.removeTranslationApproval(projectId, approval.id);
+      }
+      await client.removeTranslation(projectId, existingTranslationId);
+      return { text: "", externalTranslationId: null, isApproved: false };
+    }
+
     const saved =
       existingTranslationId != null && approvedTranslationIds.has(existingTranslationId)
         ? await client.replaceApprovedTranslation(projectId, {
@@ -1333,6 +1348,22 @@ async function saveCrowdinLiveCatTranslation(input: {
   } catch (error) {
     if (error instanceof CrowdinApiError && error.status === 401) {
       throw new TmsProviderLiveError("crowdin_auth_invalid", "Crowdin credentials are invalid.");
+    }
+
+    if (error instanceof CrowdinApiError && (error.status === 400 || error.status === 403)) {
+      logger.warn(
+        {
+          providerProjectId: projectId,
+          providerStringId: stringId,
+          status: error.status,
+          providerError: extractCrowdinApiErrorSummary(error.responseBody),
+        },
+        "Crowdin rejected translation save",
+      );
+      throw new TmsProviderLiveError(
+        "crowdin_translation_update_rejected",
+        "Crowdin rejected the translation update. The string may be hidden or the connection may lack permission to edit it.",
+      );
     }
 
     throw error;

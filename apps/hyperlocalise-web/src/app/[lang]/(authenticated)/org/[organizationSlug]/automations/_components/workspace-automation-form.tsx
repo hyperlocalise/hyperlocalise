@@ -91,11 +91,13 @@ import {
   addBranchPattern,
 } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/integrations/_components/github-repository-automation-view-model";
 import { AUTOMATION_WEEKDAY_MESSAGE_BY_VALUE } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/integrations/_components/github-repository-automation-view-model.messages";
+import { SlackChannelSelect } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/automations/_components/slack-channel-select";
 import { workspaceAutomationFormMessages } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/automations/_components/workspace-automation-form.messages";
 import { getLocaleLabel } from "@/lib/i18n/locales";
 import type { WorkspaceAutomationFormState } from "@/lib/agents/workspace-automation-view-model";
 import {
   applyWorkspaceAutomationProjectSelection,
+  selectableAutomationRepositories,
   workspaceAutomationFormCanActivate,
 } from "@/lib/agents/workspace-automation-view-model";
 import type { WorkspaceAutomationRunRecord } from "@/lib/agents/workspace-automations";
@@ -122,7 +124,6 @@ type GithubRepositoryOption = {
   archived: boolean;
   defaultBranch: string | null;
 };
-type SlackChannelOption = { id: string; name: string; private: boolean };
 type McpServerConnectionOption = {
   id: string;
   displayName: string;
@@ -424,7 +425,7 @@ function resolveDefaultGithubRepositoryId(
     return form.githubInstallationRepositoryId;
   }
 
-  return repositories.find((repository) => repository.enabled)?.id ?? repositories[0]?.id ?? "";
+  return repositories.find((repository) => repository.enabled && !repository.archived)?.id ?? "";
 }
 
 function GithubRepositorySelect({
@@ -479,29 +480,6 @@ function GithubRepositorySelect({
       <FieldError message={error} />
     </div>
   );
-}
-
-function selectedSlackChannelLabel(
-  intl: IntlShape,
-  channelId: string,
-  channels: SlackChannelOption[],
-) {
-  if (!channelId) {
-    return intl.formatMessage(workspaceAutomationFormMessages.selectChannel);
-  }
-
-  const channel = channels.find((entry) => entry.id === channelId);
-  if (!channel) {
-    return channelId;
-  }
-
-  return channel.private
-    ? intl.formatMessage(workspaceAutomationFormMessages.privateChannelSuffix, {
-        name: channel.name,
-      })
-    : intl.formatMessage(workspaceAutomationFormMessages.publicChannelLabel, {
-        name: channel.name,
-      });
 }
 
 function selectedContentfulConnectionLabel(
@@ -1682,8 +1660,6 @@ function ToolsSettings({
   repositories,
   ahrefsConnections,
   semrushConnections,
-  slackChannels,
-  slackChannelsLoading,
   slackConnected,
 }: {
   automationId?: string;
@@ -1702,8 +1678,6 @@ function ToolsSettings({
   repositories: GithubRepositoryOption[];
   ahrefsConnections: AhrefsConnectionOption[];
   semrushConnections: SemrushConnectionOption[];
-  slackChannels: SlackChannelOption[];
-  slackChannelsLoading: boolean;
   slackConnected: boolean;
 }) {
   const contentfulConnected = contentfulConnections.length > 0;
@@ -2010,48 +1984,14 @@ function ToolsSettings({
               />
             }
           >
-            <div className="grid gap-1.5">
-              <Label className="text-xs text-muted-foreground">
-                <FormattedMessage {...workspaceAutomationFormMessages.channelLabel} />
-              </Label>
-              <Select
-                value={form.slackChannelId || undefined}
-                onValueChange={(value) => {
-                  if (!value) {
-                    return;
-                  }
-                  onChange({ ...form, slackChannelId: value });
-                }}
-                disabled={disabled || !slackConnected || slackChannelsLoading}
-              >
-                <SelectTrigger className="h-8 w-full rounded-lg">
-                  <span className="truncate">
-                    {slackChannelsLoading
-                      ? intl.formatMessage(workspaceAutomationFormMessages.loadingChannels)
-                      : selectedSlackChannelLabel(intl, form.slackChannelId, slackChannels)}
-                  </span>
-                </SelectTrigger>
-                <SelectContent>
-                  {!slackChannelsLoading && slackChannels.length === 0 ? (
-                    <SelectItem value="__no_slack_channels" disabled>
-                      {intl.formatMessage(workspaceAutomationFormMessages.noChannelsFound)}
-                    </SelectItem>
-                  ) : null}
-                  {slackChannels.map((channel) => (
-                    <SelectItem key={channel.id} value={channel.id}>
-                      {channel.private
-                        ? intl.formatMessage(workspaceAutomationFormMessages.privateChannelSuffix, {
-                            name: channel.name,
-                          })
-                        : intl.formatMessage(workspaceAutomationFormMessages.publicChannelLabel, {
-                            name: channel.name,
-                          })}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <FieldError message={errors.slackChannelId} />
-            </div>
+            <SlackChannelSelect
+              disabled={disabled}
+              error={errors.slackChannelId}
+              organizationSlug={organizationSlug}
+              slackConnected={slackConnected}
+              value={form.slackChannelId}
+              onChange={(slackChannelId) => onChange({ ...form, slackChannelId })}
+            />
           </EditorRow>
         ) : null}
 
@@ -3004,21 +2944,6 @@ export function WorkspaceAutomationEditor({
     },
   });
 
-  const slackChannelsQuery = useQuery({
-    queryKey: ["slack-agent-channels", organizationSlug],
-    queryFn: async () => {
-      const response = await api.api.orgs[":organizationSlug"]["agent-slack"].channels.$get({
-        param: { organizationSlug },
-      });
-      if (!response.ok) {
-        throw new Error("Failed to load Slack channels");
-      }
-      const body = await response.json();
-      return body.channels as SlackChannelOption[];
-    },
-    enabled: Boolean(slackQuery.data?.enabled),
-  });
-
   const emailQuery = useQuery({
     queryKey: ["email-agent", organizationSlug],
     queryFn: async () => {
@@ -3090,8 +3015,12 @@ export function WorkspaceAutomationEditor({
   });
 
   const repositories = useMemo(
-    () => (repositoriesQuery.data ?? []).filter((repository) => !repository.archived),
-    [repositoriesQuery.data],
+    () =>
+      selectableAutomationRepositories(
+        repositoriesQuery.data ?? [],
+        form.githubInstallationRepositoryId,
+      ),
+    [form.githubInstallationRepositoryId, repositoriesQuery.data],
   );
   const canActivate = workspaceAutomationFormCanActivate(form);
   const slackConnected = Boolean(slackQuery.data?.enabled);
@@ -3251,8 +3180,6 @@ export function WorkspaceAutomationEditor({
             repositories={repositories}
             ahrefsConnections={ahrefsConnections}
             semrushConnections={semrushConnections}
-            slackChannels={slackChannelsQuery.data ?? []}
-            slackChannelsLoading={slackChannelsQuery.isLoading}
             slackConnected={slackConnected}
           />
         </TabsContent>

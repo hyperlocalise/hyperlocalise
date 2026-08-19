@@ -10,13 +10,5 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { z } from "zod";
-
-export const updateSlackAgentBodySchema = z.object({
-  enabled: z.boolean(),
-});
-
-export const searchSlackChannelsQuerySchema = z.object({
-  q: z.string().max(512).optional(),
-  channelId: z.string().max(128).optional(),
-});
+export { generateNotFoundMetadata as generateMetadata } from "@/components/not-found/not-found-page";
+export { NotFoundPage as default } from "@/components/not-found/not-found-page";

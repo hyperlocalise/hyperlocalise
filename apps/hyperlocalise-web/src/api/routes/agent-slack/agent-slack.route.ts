@@ -42,24 +42,17 @@ import { createLogger, serializeErrorForLog } from "@/lib/log";
 import { err, fromThrowableAsync, isErr, ok, type Result } from "@/lib/primitives/result/results";
 import { assertProviderCredentialAdmin } from "@/lib/providers/credentials/organization-provider-credentials";
 
-import { updateSlackAgentBodySchema } from "./agent-slack.schema";
+import {
+  searchSlackChannels,
+  type SlackChannelListItem,
+  type SlackChannelSearchError,
+} from "@/lib/agents/slack/search-channels";
+
+import { searchSlackChannelsQuerySchema, updateSlackAgentBodySchema } from "./agent-slack.schema";
 
 type SlackConnectorConfig = { teamId?: string; teamName?: string };
 type SlackInstallation = { botToken: string };
-type SlackChannel = { id?: string; name?: string; is_private?: boolean; is_archived?: boolean };
-type SlackConversationsListResponse = {
-  ok?: boolean;
-  error?: string;
-  channels?: SlackChannel[];
-  response_metadata?: { next_cursor?: string };
-};
-
-type SlackChannelListItem = { id: string; name: string; private: boolean };
-type SlackChannelListError =
-  | { code: "installation_not_found" }
-  | { code: "bot_unavailable"; cause: unknown }
-  | { code: "slack_http_error"; status: number }
-  | { code: "slack_api_error"; slackError: string };
+type SlackChannelListError = { code: "installation_not_found" } | SlackChannelSearchError;
 
 const logger = createLogger("agent-slack");
 
@@ -72,9 +65,14 @@ const validateUpdateSlackAgentBody = validator("json", (value, c) => {
   return parsed.data;
 });
 
-function toCanonicalSlackChannelId(channelId: string) {
-  return channelId.startsWith("slack:") ? channelId : `slack:${channelId}`;
-}
+const validateSearchSlackChannelsQuery = validator("query", (value, c) => {
+  const parsed = searchSlackChannelsQuerySchema.safeParse(value);
+  if (!parsed.success) {
+    return c.json({ error: "invalid_slack_channel_query" as const }, 400);
+  }
+
+  return parsed.data;
+});
 
 async function getSlackConnector(organizationId: string) {
   const [connector] = await db
@@ -117,79 +115,27 @@ async function getSlackInstallation(
   return ok(installationResult.value);
 }
 
-async function listSlackChannels(
-  botToken: string,
-): Promise<Result<SlackChannelListItem[], SlackChannelListError>> {
-  const channels: SlackChannelListItem[] = [];
-  let cursor = "";
-
-  do {
-    const url = new URL("https://slack.com/api/conversations.list");
-    url.searchParams.set("exclude_archived", "true");
-    url.searchParams.set("limit", "1000");
-    url.searchParams.set("types", "public_channel,private_channel");
-    if (cursor) {
-      url.searchParams.set("cursor", cursor);
-    }
-
-    const responseResult = await fromThrowableAsync(
-      fetch(url, {
-        headers: { authorization: `Bearer ${botToken}` },
-        redirect: "error",
-      }),
-    );
-    if (isErr(responseResult)) {
-      return err({ code: "bot_unavailable", cause: responseResult.error });
-    }
-
-    const response = responseResult.value;
-    if (!response.ok) {
-      return err({ code: "slack_http_error", status: response.status });
-    }
-
-    const bodyResult = await fromThrowableAsync(
-      response.json() as Promise<SlackConversationsListResponse>,
-    );
-    if (isErr(bodyResult)) {
-      return err({ code: "bot_unavailable", cause: bodyResult.error });
-    }
-
-    const body = bodyResult.value;
-    if (!body.ok) {
-      return err({ code: "slack_api_error", slackError: body.error ?? "unknown" });
-    }
-
-    for (const channel of body.channels ?? []) {
-      if (!channel.id || !channel.name || channel.is_archived) {
-        continue;
-      }
-      channels.push({
-        id: toCanonicalSlackChannelId(channel.id),
-        name: channel.name,
-        private: Boolean(channel.is_private),
-      });
-    }
-
-    cursor = body.response_metadata?.next_cursor ?? "";
-  } while (cursor);
-
-  return ok(channels.sort((left, right) => left.name.localeCompare(right.name)));
-}
-
 async function loadSlackChannelsForTeam(
   teamId: string,
+  input: { query?: string; selectedChannelId?: string; signal?: AbortSignal },
 ): Promise<Result<SlackChannelListItem[], SlackChannelListError>> {
   const installationResult = await getSlackInstallation(teamId);
   if (isErr(installationResult)) {
     return installationResult;
   }
 
-  return listSlackChannels(installationResult.value.botToken);
+  return searchSlackChannels({
+    botToken: installationResult.value.botToken,
+    query: input.query,
+    selectedChannelId: input.selectedChannelId,
+    signal: input.signal,
+  });
 }
 
 function slackChannelListErrorLogFields(error: SlackChannelListError) {
   switch (error.code) {
     case "installation_not_found":
+    case "slack_rate_limited":
       return {};
     case "slack_api_error":
       return { slackError: error.slackError };
@@ -224,7 +170,7 @@ export function createAgentSlackRoutes() {
         200,
       );
     })
-    .get("/channels", async (c) => {
+    .get("/channels", validateSearchSlackChannelsQuery, async (c) => {
       if (!isIntegrationsReadAllowed(c.var.auth.membership.role)) {
         return forbiddenResponse(c);
       }
@@ -235,7 +181,12 @@ export function createAgentSlackRoutes() {
         return c.json({ channels: [] }, 200);
       }
 
-      const channelsResult = await loadSlackChannelsForTeam(config.teamId);
+      const query = c.req.valid("query");
+      const channelsResult = await loadSlackChannelsForTeam(config.teamId, {
+        query: query.q,
+        selectedChannelId: query.channelId,
+        signal: c.req.raw.signal,
+      });
       if (isErr(channelsResult)) {
         if (channelsResult.error.code === "installation_not_found") {
           return c.json({ error: "slack_installation_not_found" as const }, 404);

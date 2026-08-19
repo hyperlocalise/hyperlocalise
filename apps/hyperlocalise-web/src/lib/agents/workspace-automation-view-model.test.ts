@@ -25,6 +25,7 @@ import {
   createWorkspaceAutomationFormStateFromTemplate,
   formStateToWorkspaceAutomationPayload,
   mapWorkspaceAutomationApiErrorToFieldErrors,
+  selectableAutomationRepositories,
   validateWorkspaceAutomationFormState,
   workspaceAutomationFormCanActivate,
 } from "./workspace-automation-view-model";
@@ -621,5 +622,20 @@ describe("workspace automation view model", () => {
 
     expect(form.triggerMode).toBe("web_chat");
     expect(form.knowledgeFilesEnabled).toBe(true);
+  });
+
+  it("offers only enabled repositories, keeping a selected disabled repository visible", () => {
+    const repositories = [
+      { id: "enabled", fullName: "acme/web", enabled: true, archived: false },
+      { id: "disabled", fullName: "acme/old", enabled: false, archived: false },
+      { id: "archived", fullName: "acme/archive", enabled: true, archived: true },
+    ];
+
+    expect(
+      selectableAutomationRepositories(repositories).map((repository) => repository.id),
+    ).toEqual(["enabled"]);
+    expect(
+      selectableAutomationRepositories(repositories, "disabled").map((repository) => repository.id),
+    ).toEqual(["enabled", "disabled"]);
   });
 });

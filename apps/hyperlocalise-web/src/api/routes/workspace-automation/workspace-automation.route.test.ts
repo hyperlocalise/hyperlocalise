@@ -164,7 +164,12 @@ describe("workspace automation routes", () => {
     );
     expect(listedResponse.status).toBe(200);
     await expect(listedResponse.json()).resolves.toMatchObject({
-      automations: [{ id: createdBody.automation.id }],
+      automations: [
+        {
+          id: createdBody.automation.id,
+          authorName: identity.user.email,
+        },
+      ],
     });
 
     const updatedResponse = await client.api.orgs[":organizationSlug"].automations[

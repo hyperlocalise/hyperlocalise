@@ -71,6 +71,11 @@ export const automationsPageViewMessages = defineMessages({
     id: "g/SyG0phTI",
     description: "Automations list column header for status",
   },
+  columnCreator: {
+    defaultMessage: "Creator",
+    id: "Zs0OvEkqcZ",
+    description: "Automations list column header for creator",
+  },
   columnCreated: {
     defaultMessage: "Created",
     id: "z5k8iKEIXN",

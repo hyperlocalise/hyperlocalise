@@ -85,4 +85,9 @@ export const automationsPageViewModelMessages = defineMessages({
     id: "RLPdxshxAq",
     description: "Tool badge when an automation uses an MCP server",
   },
+  unknownCreator: {
+    defaultMessage: "Unknown",
+    id: "O+ldw8Aj3z",
+    description: "Fallback label when an automation has no creator name",
+  },
 });

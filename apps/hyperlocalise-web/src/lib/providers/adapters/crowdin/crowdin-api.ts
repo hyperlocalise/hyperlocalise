@@ -675,6 +675,87 @@ export class CrowdinApiError extends Error {
   }
 }
 
+const MAX_CROWDIN_ERROR_SUMMARY_ENTRIES = 5;
+const MAX_CROWDIN_ERROR_SUMMARY_MESSAGE_LENGTH = 200;
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function readCrowdinErrorSummaryEntry(entry: unknown): {
+  index?: number;
+  code?: string;
+  message?: string;
+} | null {
+  if (!isRecord(entry)) {
+    return null;
+  }
+
+  const summary: { index?: number; code?: string; message?: string } = {};
+  if (typeof entry.index === "number") {
+    summary.index = entry.index;
+  }
+
+  const nestedErrors = entry.errors;
+  if (Array.isArray(nestedErrors)) {
+    const firstNested = nestedErrors.find(isRecord);
+    const error = firstNested?.error;
+    if (isRecord(error) && Array.isArray(error.errors)) {
+      const firstDetail = error.errors.find(isRecord);
+      if (firstDetail && typeof firstDetail.code === "string") {
+        summary.code = firstDetail.code;
+      }
+      if (firstDetail && typeof firstDetail.message === "string") {
+        summary.message = firstDetail.message.slice(0, MAX_CROWDIN_ERROR_SUMMARY_MESSAGE_LENGTH);
+      }
+    }
+  }
+
+  return Object.keys(summary).length > 0 ? summary : null;
+}
+
+/**
+ * Extracts a small, provider-generated error summary from a Crowdin error
+ * response body for logging. Never includes request or translation content.
+ */
+export function extractCrowdinApiErrorSummary(responseBody: unknown): {
+  code?: string | number;
+  message?: string;
+  errors?: Array<{ index?: number; code?: string; message?: string }>;
+} | null {
+  if (!isRecord(responseBody)) {
+    return null;
+  }
+
+  const summary: {
+    code?: string | number;
+    message?: string;
+    errors?: Array<{ index?: number; code?: string; message?: string }>;
+  } = {};
+
+  const error = responseBody.error;
+  if (isRecord(error)) {
+    if (typeof error.code === "string" || typeof error.code === "number") {
+      summary.code = error.code;
+    }
+    if (typeof error.message === "string") {
+      summary.message = error.message.slice(0, MAX_CROWDIN_ERROR_SUMMARY_MESSAGE_LENGTH);
+    }
+  }
+
+  if (Array.isArray(responseBody.errors)) {
+    const entries = responseBody.errors
+      .slice(0, MAX_CROWDIN_ERROR_SUMMARY_ENTRIES)
+      .map(readCrowdinErrorSummaryEntry)
+      .filter((entry): entry is NonNullable<typeof entry> => entry !== null);
+    if (entries.length > 0) {
+      summary.errors = entries;
+    }
+  }
+
+  return Object.keys(summary).length > 0 ? summary : null;
+}
+
 export class CrowdinApiClient {
   private readonly token: string;
   private readonly baseUrl: string;
@@ -1551,7 +1632,7 @@ export class CrowdinApiClient {
   ): Promise<CrowdinStringTranslation> {
     const response = await this.patch<CrowdinListResponse<CrowdinStringTranslation>>(
       `/projects/${projectId}/translations`,
-      [{ op: "replace", path: `/${translationId}/text`, value: text }],
+      [{ op: "replace", path: `/${translationId}`, value: { text } }],
     );
     const updatedTranslation = response.data[0]?.data;
     if (!updatedTranslation) {
@@ -1559,6 +1640,14 @@ export class CrowdinApiClient {
     }
 
     return updatedTranslation;
+  }
+
+  async removeTranslation(projectId: number, translationId: number): Promise<void> {
+    await this.delete(`/projects/${projectId}/translations/${translationId}`);
+  }
+
+  async removeTranslationApproval(projectId: number, approvalId: number): Promise<void> {
+    await this.delete(`/projects/${projectId}/approvals/${approvalId}`);
   }
 
   async replaceApprovedTranslation(

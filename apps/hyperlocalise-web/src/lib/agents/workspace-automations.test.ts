@@ -29,6 +29,7 @@ import { claimGithubRepositoryAutomationJob } from "./github/github-repository-a
 import {
   createWorkspaceAutomation,
   createWorkspaceAutomationRun,
+  formatWorkspaceAutomationAuthorName,
   getWorkspaceAutomationById,
   hoistLegacyWorkspaceAutomationProjectId,
   listDueContentfulWorkspaceAutomations,
@@ -72,6 +73,8 @@ async function seedWorkspaceAutomationScope() {
     id: userId,
     workosUserId: `user_${userId}`,
     email: `${userId}@example.test`,
+    firstName: "Ada",
+    lastName: "Lovelace",
   });
 
   await db.insert(schema.projects).values({
@@ -200,6 +203,33 @@ describe("hoistLegacyWorkspaceAutomationProjectId", () => {
   });
 });
 
+describe("formatWorkspaceAutomationAuthorName", () => {
+  it("prefers a full name, then email, then null", () => {
+    expect(
+      formatWorkspaceAutomationAuthorName({
+        firstName: "Ada",
+        lastName: "Lovelace",
+        email: "ada@example.test",
+      }),
+    ).toBe("Ada Lovelace");
+    expect(
+      formatWorkspaceAutomationAuthorName({
+        firstName: null,
+        lastName: null,
+        email: "hopper@example.test",
+      }),
+    ).toBe("hopper@example.test");
+    expect(
+      formatWorkspaceAutomationAuthorName({
+        firstName: "  ",
+        lastName: "",
+        email: "  ",
+      }),
+    ).toBeNull();
+    expect(formatWorkspaceAutomationAuthorName(null)).toBeNull();
+  });
+});
+
 describe("workspace automations", () => {
   beforeAll(async () => {
     await db.$client.query("select 1");
@@ -282,6 +312,7 @@ describe("workspace automations", () => {
     expect(automation).toMatchObject({
       organizationId: scope.organizationId,
       authorUserId: scope.userId,
+      authorName: "Ada Lovelace",
       status: "active",
       name: "Refresh repository translations",
       triggerConfig: { mode: "manual" },
@@ -293,6 +324,7 @@ describe("workspace automations", () => {
 
     const [listed] = await listWorkspaceAutomations({ organizationId: scope.organizationId });
     expect(listed?.id).toBe(automation.id);
+    expect(listed?.authorName).toBe("Ada Lovelace");
   });
 
   it("rejects enabled GitHub tools without project and repository config", async () => {
@@ -743,6 +775,54 @@ describe("workspace automations", () => {
 
     expect(firstPage.map((item) => item.name)).toEqual(["Automation 3", "Automation 2"]);
     expect(secondPage.map((item) => item.name)).toEqual(["Automation 1"]);
+  });
+
+  it("falls back to email for author names and omits missing authors", async () => {
+    const scope = await seedWorkspaceAutomationScope();
+    const emailOnlyUserId = crypto.randomUUID();
+    await db.insert(schema.users).values({
+      id: emailOnlyUserId,
+      workosUserId: `user_${emailOnlyUserId}`,
+      email: `${emailOnlyUserId}@example.test`,
+    });
+
+    const namedAutomation = expectOk(
+      await createWorkspaceAutomation({
+        organizationId: scope.organizationId,
+        authorUserId: scope.userId,
+        name: "Named author automation",
+        instructions: "Created by a named user.",
+      }),
+    );
+    const emailAutomation = expectOk(
+      await createWorkspaceAutomation({
+        organizationId: scope.organizationId,
+        authorUserId: emailOnlyUserId,
+        name: "Email author automation",
+        instructions: "Created by an email-only user.",
+      }),
+    );
+    const anonymousAutomation = expectOk(
+      await createWorkspaceAutomation({
+        organizationId: scope.organizationId,
+        authorUserId: null,
+        name: "Anonymous automation",
+        instructions: "Created without an author.",
+      }),
+    );
+
+    const listed = await listWorkspaceAutomations({ organizationId: scope.organizationId });
+    const listedById = new Map(listed.map((item) => [item.id, item]));
+
+    expect(listedById.get(namedAutomation.id)?.authorName).toBe("Ada Lovelace");
+    expect(listedById.get(emailAutomation.id)?.authorName).toBe(`${emailOnlyUserId}@example.test`);
+    expect(listedById.get(anonymousAutomation.id)?.authorName).toBeNull();
+
+    const loadedEmail = await getWorkspaceAutomationById({
+      automationId: emailAutomation.id,
+      organizationId: scope.organizationId,
+    });
+    expect(loadedEmail?.authorName).toBe(`${emailOnlyUserId}@example.test`);
   });
 
   it("creates and serializes run history with optional GitHub job links", async () => {

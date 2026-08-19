@@ -41,6 +41,9 @@ export const Default: Story = {
     await expect(canvas.getByRole("heading", { name: "Automations" })).toBeInTheDocument();
     await expect(canvas.getByText("Validate localisation on push")).toBeInTheDocument();
     await expect(canvas.getByText("Weekly translation sync")).toBeInTheDocument();
+    await expect(canvas.getByText("Ada Lovelace")).toBeInTheDocument();
+    await expect(canvas.getByText("Grace Hopper")).toBeInTheDocument();
+    await expect(canvas.getByText("Unknown")).toBeInTheDocument();
     await expect(canvas.getByText("Translate Contentful article")).toBeInTheDocument();
   },
 };

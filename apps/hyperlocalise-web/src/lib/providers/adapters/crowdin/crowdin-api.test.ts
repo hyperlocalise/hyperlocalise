@@ -30,6 +30,7 @@ import {
   CrowdinApiClient,
   CrowdinApiError,
   CROWDIN_SOURCE_STRING_BATCH_PATCH_LIMIT,
+  extractCrowdinApiErrorSummary,
 } from "./crowdin-api";
 
 describe("CrowdinApiClient", () => {
@@ -1181,7 +1182,7 @@ describe("CrowdinApiClient", () => {
 
       if (path.endsWith("/projects/1/translations") && init?.method === "PATCH") {
         expect(JSON.parse(String(init.body))).toEqual([
-          { op: "replace", path: "/9001/text", value: "Salut" },
+          { op: "replace", path: "/9001", value: { text: "Salut" } },
         ]);
         return new Response(
           JSON.stringify({
@@ -1227,6 +1228,34 @@ describe("CrowdinApiClient", () => {
       status: 502,
     });
     expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("removes translations with DELETE", async () => {
+    const fetchMock = vi.fn(
+      async () => new Response(null, { status: 204 }),
+    ) as unknown as typeof fetch;
+    const client = createClient(fetchMock);
+
+    await client.removeTranslation(1, 9001);
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://api.crowdin.test/api/v2/projects/1/translations/9001",
+      expect.objectContaining({ method: "DELETE" }),
+    );
+  });
+
+  it("removes translation approvals with DELETE", async () => {
+    const fetchMock = vi.fn(
+      async () => new Response(null, { status: 204 }),
+    ) as unknown as typeof fetch;
+    const client = createClient(fetchMock);
+
+    await client.removeTranslationApproval(1, 7001);
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://api.crowdin.test/api/v2/projects/1/approvals/7001",
+      expect.objectContaining({ method: "DELETE" }),
+    );
   });
 
   it("fails approved translation replacements when response text does not match", async () => {
@@ -1587,5 +1616,49 @@ describe("CrowdinApiClient", () => {
       "https://api.crowdin.com/api/v2/users/99/ai/prompts?projectId=42&limit=500&offset=0",
       expect.objectContaining({ method: "GET" }),
     );
+  });
+});
+
+describe("extractCrowdinApiErrorSummary", () => {
+  it("returns null for non-object bodies", () => {
+    expect(extractCrowdinApiErrorSummary(null)).toBeNull();
+    expect(extractCrowdinApiErrorSummary("oops")).toBeNull();
+    expect(extractCrowdinApiErrorSummary([1, 2])).toBeNull();
+  });
+
+  it("extracts top-level error code and message", () => {
+    expect(extractCrowdinApiErrorSummary({ error: { message: "Forbidden", code: 403 } })).toEqual({
+      code: 403,
+      message: "Forbidden",
+    });
+  });
+
+  it("extracts JSON Patch error entries with codes", () => {
+    expect(
+      extractCrowdinApiErrorSummary({
+        errors: [
+          {
+            index: 0,
+            errors: [
+              {
+                error: {
+                  key: "value",
+                  errors: [{ code: "validation_error", message: "Invalid request parameters" }],
+                },
+              },
+            ],
+          },
+        ],
+      }),
+    ).toEqual({
+      errors: [{ index: 0, code: "validation_error", message: "Invalid request parameters" }],
+    });
+  });
+
+  it("truncates long messages and ignores non-string codes", () => {
+    const summary = extractCrowdinApiErrorSummary({
+      error: { message: "x".repeat(500), code: null },
+    });
+    expect(summary).toEqual({ message: "x".repeat(200) });
   });
 });

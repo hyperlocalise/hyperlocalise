@@ -517,6 +517,7 @@ export type WorkspaceAutomationRecord = {
   id: string;
   organizationId: string;
   authorUserId: string | null;
+  authorName?: string | null;
   status: WorkspaceAutomationStatus;
   name: string;
   instructions: string;
@@ -529,6 +530,28 @@ export type WorkspaceAutomationRecord = {
   createdAt: string;
   updatedAt: string;
 };
+
+type AutomationAuthor = {
+  firstName: string | null;
+  lastName: string | null;
+  email: string | null;
+};
+
+export function formatWorkspaceAutomationAuthorName(
+  author: AutomationAuthor | null | undefined,
+): string | null {
+  if (!author) {
+    return null;
+  }
+
+  const name = [author.firstName, author.lastName].filter(Boolean).join(" ").trim();
+  if (name.length > 0) {
+    return name;
+  }
+
+  const email = author.email?.trim();
+  return email && email.length > 0 ? email : null;
+}
 
 function readOptionalProjectId(value: unknown): string | null {
   if (typeof value !== "string") {
@@ -1042,12 +1065,16 @@ export async function validateWorkspaceAutomationIntegrations(input: {
   return ok(undefined);
 }
 
-function serializeAutomation(row: AutomationRow): WorkspaceAutomationRecord {
+function serializeAutomation(
+  row: AutomationRow,
+  author?: AutomationAuthor | null,
+): WorkspaceAutomationRecord {
   const rawToolConfig = (row.toolConfig ?? {}) as Record<string, unknown>;
   return {
     id: row.id,
     organizationId: row.organizationId,
     authorUserId: row.authorUserId,
+    authorName: formatWorkspaceAutomationAuthorName(author),
     status: row.status,
     name: row.name,
     instructions: row.instructions,
@@ -1062,6 +1089,47 @@ function serializeAutomation(row: AutomationRow): WorkspaceAutomationRecord {
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   };
+}
+
+function serializeAutomationWithAuthor(row: {
+  automation: AutomationRow;
+  authorFirstName: string | null;
+  authorLastName: string | null;
+  authorEmail: string | null;
+}): WorkspaceAutomationRecord {
+  return serializeAutomation(row.automation, {
+    firstName: row.authorFirstName,
+    lastName: row.authorLastName,
+    email: row.authorEmail,
+  });
+}
+
+const automationAuthorSelect = {
+  automation: schema.workspaceAutomations,
+  authorFirstName: schema.users.firstName,
+  authorLastName: schema.users.lastName,
+  authorEmail: schema.users.email,
+};
+
+async function loadAutomationAuthor(
+  userId: string | null,
+  database: DatabaseClient = db,
+): Promise<AutomationAuthor | null> {
+  if (!userId) {
+    return null;
+  }
+
+  const [user] = await database
+    .select({
+      firstName: schema.users.firstName,
+      lastName: schema.users.lastName,
+      email: schema.users.email,
+    })
+    .from(schema.users)
+    .where(eq(schema.users.id, userId))
+    .limit(1);
+
+  return user ?? null;
 }
 
 function serializeAutomationRun(row: AutomationRunRow): WorkspaceAutomationRunRecord {
@@ -1129,6 +1197,7 @@ export async function createWorkspaceAutomation(input: {
     id: crypto.randomUUID(),
     organizationId: input.organizationId,
     authorUserId: input.authorUserId ?? null,
+    authorName: null,
     status: input.status ?? "active",
     name: input.name,
     instructions: input.instructions,
@@ -1188,7 +1257,7 @@ export async function createWorkspaceAutomation(input: {
       throw new Error("failed_to_create_workspace_automation");
     }
 
-    return ok(serializeAutomation(row));
+    return ok(serializeAutomation(row, await loadAutomationAuthor(row.authorUserId, database)));
   };
 
   if (input.db) {
@@ -1347,7 +1416,9 @@ export async function updateWorkspaceAutomation(input: {
       .where(and(...updateConditions))
       .returning();
 
-    return ok(row ? serializeAutomation(row) : null);
+    return ok(
+      row ? serializeAutomation(row, await loadAutomationAuthor(row.authorUserId, database)) : null,
+    );
   };
 
   if (input.db) {
@@ -1387,8 +1458,9 @@ export async function getWorkspaceAutomationById(input: {
   organizationId: string;
 }): Promise<WorkspaceAutomationRecord | null> {
   const [row] = await db
-    .select()
+    .select(automationAuthorSelect)
     .from(schema.workspaceAutomations)
+    .leftJoin(schema.users, eq(schema.workspaceAutomations.authorUserId, schema.users.id))
     .where(
       and(
         eq(schema.workspaceAutomations.id, input.automationId),
@@ -1397,7 +1469,7 @@ export async function getWorkspaceAutomationById(input: {
     )
     .limit(1);
 
-  return row ? serializeAutomation(row) : null;
+  return row ? serializeAutomationWithAuthor(row) : null;
 }
 
 export async function listWorkspaceAutomations(input: {
@@ -1446,14 +1518,15 @@ export async function listWorkspaceAutomations(input: {
   ];
 
   const rows = await db
-    .select()
+    .select(automationAuthorSelect)
     .from(schema.workspaceAutomations)
+    .leftJoin(schema.users, eq(schema.workspaceAutomations.authorUserId, schema.users.id))
     .where(and(...conditions))
     .orderBy(desc(schema.workspaceAutomations.createdAt))
     .limit(input.limit ?? 50)
     .offset(input.offset ?? 0);
 
-  return rows.map(serializeAutomation);
+  return rows.map(serializeAutomationWithAuthor);
 }
 
 export async function listSourceUploadWorkspaceAutomations(input: {
@@ -1488,7 +1561,7 @@ export async function listSourceUploadWorkspaceAutomations(input: {
     .orderBy(desc(schema.workspaceAutomations.createdAt))
     .limit(input.limit ?? 20);
 
-  return rows.map(serializeAutomation);
+  return rows.map((row) => serializeAutomation(row));
 }
 
 export type DueWorkspaceAutomation = {
@@ -1561,7 +1634,7 @@ export async function listDueContentfulWorkspaceAutomations(input: {
     .limit(limit);
 
   return rows
-    .map(serializeAutomation)
+    .map((row) => serializeAutomation(row))
     .filter(
       (automation) =>
         automation.triggerConfig.mode === "scheduled" &&
