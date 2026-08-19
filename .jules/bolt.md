@@ -367,3 +367,7 @@
 ## 2027-06-15 - Fast-path ASCII byte scanning and map pre-allocation in GNU Gettext PO parser
 **Learning:** In GNU Gettext PO file parsing and marshalling, `strconv.IsPrint` and `utf8.ValidString` perform full UTF-8 rune decoding for every string value being written. A single-pass ASCII byte scanner bypasses rune decoding and unicode table checks for standard printable text. Additionally, pre-allocating the results map capacity using template file size hints and eliminating redundant `strings.TrimPrefix` / `strings.TrimSpace` operations reduces allocations by ~48% and improves parsing and marshalling speeds by ~17%.
 **Action:** Use byte-level ASCII fast-paths for string escaping/quoting checks and pre-allocate result maps based on content size hints in translation file parsers.
+
+## 2027-06-20 - Single-Line Fast Paths and Single-Pass Line Scanning in Prompt Context Sanitization
+**Learning:** Functions that clean and truncate multiline prompt contexts (like `sanitizePromptContext`) often perform multiple allocation passes (`ReplaceAll`, `Split`, `TrimSpace`, `Join`, `[]rune`). A fast path for single-line inputs without newlines (`!strings.ContainsAny(value, "\r\n")`) achieves 0 heap allocations. For multiline strings, single-pass line boundary scanning with a pre-allocated `strings.Builder` and byte/rune decoding (`utf8.DecodeRuneInString`) for truncation avoids all intermediate slice allocations.
+**Action:** Use single-line fast-paths and single-pass `strings.Builder` line boundary scanning for prompt and context sanitization functions.
