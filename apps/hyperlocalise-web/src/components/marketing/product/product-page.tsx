@@ -69,7 +69,7 @@ function ProductHero({ content }: ProductPageProps) {
               render={<a href={REQUEST_DEMO_URL} target="_blank" rel="noopener noreferrer" />}
             >
               <ProductMessage messageKey="ctaJoinWaitlist" />
-              <ArrowRightIcon data-icon="inline-end" className="size-4" />
+              <HugeiconsIcon icon={ArrowRight01Icon} data-icon="inline-end" className="size-4" />
             </Button>
           </div>
         </div>
