@@ -68,7 +68,7 @@ export function createUseCrowdinTool(session: WorkspaceOrchestratorSession) {
           "Use get_style_guide for project translation context and Crowdin AI style prompts.",
           "Use recommend_translation only when repo values conflict with glossary/TM or wording is ambiguous.",
           "Stay read-only. Do not write translations back to Crowdin.",
-          "Return one line per key (`key · locale — what's wrong — why → verdict/fix`). No sub-bullets, no standalone Crowdin section.",
+          "Return one entry per queried key: bullet with `key · locale` and description, then `> Recommendation:` blockquote. No sub-bullets, no standalone Crowdin section.",
           SUBAGENT_NO_QUESTIONS_RULES,
           SUBAGENT_RESPONSE_FORMAT,
         ].join("\n"),

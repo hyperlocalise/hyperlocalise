@@ -59,7 +59,7 @@ describe("composeWorkspaceAutomationInstructions", () => {
     });
 
     expect(instructions).toContain("No separate Crowdin section");
-    expect(instructions).toContain("One line per key");
+    expect(instructions).toContain("> Recommendation:");
   });
 
   it("omits Crowdin concordance review when use_crowdin is not planned", () => {

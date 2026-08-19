@@ -155,7 +155,7 @@ describe("workspace template manifest", () => {
     expect(instructions).toContain('mode: "changedFiles"');
     expect(instructions).toContain("fileDiff");
     expect(instructions).toContain("`git diff` exit code 1");
-    expect(instructions).not.toContain("Blockers (P0)");
+    expect(instructions).not.toContain("Translation Review Results");
   });
 
   it("composes translation review for review templates", () => {
@@ -163,9 +163,10 @@ describe("workspace template manifest", () => {
       templateSkillId: "review-code-daily",
     });
 
-    expect(instructions).toContain("Blockers (P0)");
+    expect(instructions).toContain("Translation Review Results");
+    expect(instructions).toContain("High Priority (P0)");
     expect(instructions).toContain("Keys OK");
-    expect(instructions).toContain("One line per key");
+    expect(instructions).toContain("> Recommendation:");
   });
 
   it("adds Crowdin concordance review to orchestrator skills when Crowdin is planned", () => {

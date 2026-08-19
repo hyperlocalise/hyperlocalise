@@ -160,7 +160,7 @@ export function createUseGithubRepositoryTool(session: WorkspaceOrchestratorSess
             ? `Review the localisation impact of this push (${lookbackLabel}).`
             : `Review changes from the last ${lookbackLabel}.`,
           "Use repository tools to inspect git history and relevant files.",
-          "Follow the customer's required report sections exactly (including P0/P1/P2 blockers and per-key changelog when specified).",
+          "Follow the customer's required report sections exactly (including Translation Review Results, priority sections, and per-key entries when specified).",
           "Review every changed translation key individually; do not output vague overall-risk summaries.",
           "Return the final digest as Markdown plain text for automation delivery.",
         ].join("\n");
