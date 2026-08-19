@@ -55,7 +55,7 @@ export type I18NConfigSummary = {
 export function createDetectRepoConfigTool(ctx: RepoToolContext) {
   return tool({
     description:
-      "Detect whether a Hyperlocalise i18n configuration file (i18n.yml or i18n.jsonc) exists in the repository and return a secret-free summary.",
+      "Detect whether a Hyperlocalise i18n.yml configuration file exists in the repository and return a secret-free summary. Falls back to i18n.jsonc only for legacy configs.",
     inputSchema: z.object({
       path: z.string().optional().describe("Directory to check. Defaults to repo root."),
     }),
@@ -1040,11 +1040,43 @@ export type RunHyperlocaliseCliOutput = {
 };
 
 const HL_SUBCOMMANDS = ["check", "status", "extract"] as const;
+const HL_YAML_CONFIG_NAME = "i18n.yml";
+
+function hasConfigFlag(flags?: Record<string, string>): boolean {
+  if (!flags) {
+    return false;
+  }
+  return Object.keys(flags).some((key) => key.replace(/^-+/, "").toLowerCase() === "config");
+}
+
+async function resolveDefaultHlYamlConfigPath(ctx: RepoToolContext): Promise<string | null> {
+  const clone = await resolveGitCloneRoot(ctx);
+  const bound = bindGitClone(ctx, clone);
+  const listed = await bound.bash.exec("git", {
+    args: ["ls-files", "-z", "--", HL_YAML_CONFIG_NAME, `**/${HL_YAML_CONFIG_NAME}`],
+  });
+
+  if (listed.exitCode === 0) {
+    const paths = uniqueNullSeparatedLines(listed.stdout)
+      .map((line) => normalizeSourcePath(line))
+      .filter((line): line is string => Boolean(line))
+      .filter((line) => basenameMatches(line, HL_YAML_CONFIG_NAME))
+      .sort(compareConfigPaths);
+    const first = paths[0];
+    if (first) {
+      return toWorkspacePath(first, clone);
+    }
+  }
+
+  const fallbackPath = toWorkspacePath(HL_YAML_CONFIG_NAME, clone);
+  const exists = await ctx.bash.exec("test", { args: ["-f", fallbackPath] });
+  return exists.exitCode === 0 ? fallbackPath : null;
+}
 
 export function createRunHyperlocaliseCliTool(ctx: RepoToolContext) {
   return tool({
     description:
-      "Run an allowlisted hyperlocalise CLI subcommand for read-only repository checks. Does not expose arbitrary shell execution.",
+      "Run an allowlisted hyperlocalise CLI subcommand for read-only repository checks. When --config is omitted, uses a tracked i18n.yml (including nested paths). Does not expose arbitrary shell execution.",
     inputSchema: z.object({
       subcommand: z.enum(HL_SUBCOMMANDS).describe("The subcommand to run."),
       args: z.array(z.string()).optional().describe("Positional arguments."),
@@ -1052,7 +1084,20 @@ export function createRunHyperlocaliseCliTool(ctx: RepoToolContext) {
       boolFlags: z.array(z.string()).optional().describe("Boolean flags (--flag)."),
     }),
     execute: async ({ subcommand, args, flags, boolFlags }) => {
-      const commandArgsResult = buildHlArgs({ subcommand, args, flags, boolFlags });
+      const resolvedFlags = { ...flags };
+      if (!hasConfigFlag(resolvedFlags)) {
+        const configPath = await resolveDefaultHlYamlConfigPath(ctx);
+        if (configPath) {
+          resolvedFlags.config = configPath;
+        }
+      }
+
+      const commandArgsResult = buildHlArgs({
+        subcommand,
+        args,
+        flags: Object.keys(resolvedFlags).length > 0 ? resolvedFlags : undefined,
+        boolFlags,
+      });
       if (isErr(commandArgsResult)) {
         return {
           success: false,

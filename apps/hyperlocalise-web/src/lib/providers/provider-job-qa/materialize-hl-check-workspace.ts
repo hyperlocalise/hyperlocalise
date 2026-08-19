@@ -87,19 +87,49 @@ function buildJsonMap(
   return { payload, manifest };
 }
 
+function yamlScalar(value: string): string {
+  if (
+    /^[A-Za-z0-9_./-]+$/.test(value) &&
+    !/^(?:true|false|null|yes|no|on|off)$/i.test(value)
+  ) {
+    return value;
+  }
+  return JSON.stringify(value);
+}
+
+function yamlList(values: string[], indent: string): string {
+  return values.map((value) => `${indent}- ${yamlScalar(value)}`).join("\n");
+}
+
 function buildCheckConfigContent(
   sourcePath: string,
   targetPathTemplate: string,
   sourceLocale: string,
   targetLocales: string[],
 ) {
-  const quotedLocales = targetLocales.map((locale) => JSON.stringify(locale));
-  return `{
-  "locales": {"source":${JSON.stringify(sourceLocale)},"targets":[${quotedLocales.join(",")}]},
-  "buckets": {"provider":{"files":[{"from":${JSON.stringify(sourcePath)},"to":${JSON.stringify(targetPathTemplate)}}]}},
-  "groups": {"default":{"targets":[${quotedLocales.join(",")}],"buckets":["provider"]}},
-  "llm": {"profiles":{"default":{"provider":"openai","model":${JSON.stringify(hyperlocaliseAgentModelId)},"prompt":"Translate {{input}}"}}}
-}`;
+  const targets = yamlList(targetLocales, "    ");
+  return `locales:
+  source: ${yamlScalar(sourceLocale)}
+  targets:
+${targets}
+buckets:
+  provider:
+    files:
+      - from: ${yamlScalar(sourcePath)}
+        to: ${yamlScalar(targetPathTemplate)}
+groups:
+  default:
+    targets:
+${targets}
+    buckets:
+      - provider
+llm:
+  profiles:
+    default:
+      provider: openai
+      model: ${yamlScalar(hyperlocaliseAgentModelId)}
+      prompt: ${yamlScalar("Translate {{input}}")}
+`;
 }
 
 export function buildHlCheckWorkspaceBundle(
@@ -110,7 +140,7 @@ export function buildHlCheckWorkspaceBundle(
   const sourceLocale = content.sourceLocale?.trim() || "en";
   const sourceRelative = path.join("content", sourceLocale, STRINGS_FILE).replaceAll("\\", "/");
   const targetTemplate = path.join("content", "{{target}}", STRINGS_FILE).replaceAll("\\", "/");
-  const configPath = path.join(workspaceRoot, "i18n.jsonc").replaceAll("\\", "/");
+  const configPath = path.join(workspaceRoot, "i18n.yml").replaceAll("\\", "/");
   const reportPath = path.join(workspaceRoot, "report.json").replaceAll("\\", "/");
 
   const sourceBundle = buildJsonMap(content.units, (unit) => unit.sourceText ?? "");

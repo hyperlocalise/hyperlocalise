@@ -125,7 +125,7 @@ type CacheConfig struct {
 }
 
 // Load parses and validates i18n configuration from path.
-// When path is empty, it prefers i18n.yml and falls back to i18n.jsonc in the current working directory.
+// When path is empty, it prefers i18n.yml and falls back to i18n.jsonc only when that file exists.
 func Load(path string) (*I18NConfig, error) {
 	if strings.TrimSpace(path) == "" {
 		path = resolveDefaultPath()
@@ -185,8 +185,11 @@ func resolveDefaultPath() string {
 	if _, err := os.Stat(defaultConfigYAMLPath); err == nil {
 		return defaultConfigYAMLPath
 	}
+	if _, err := os.Stat(defaultConfigJSONCPath); err == nil {
+		return defaultConfigJSONCPath
+	}
 
-	return defaultConfigJSONCPath
+	return defaultConfigYAMLPath
 }
 
 func normalizeConfigContent(path string, content []byte) ([]byte, error) {
