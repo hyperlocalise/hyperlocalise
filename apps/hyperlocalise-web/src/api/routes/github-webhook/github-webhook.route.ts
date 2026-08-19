@@ -107,7 +107,10 @@ async function findInstallationRepository(input: {
   githubRepositoryId: string;
 }) {
   const [installationRepository] = await db
-    .select({ id: schema.githubInstallationRepositories.id })
+    .select({
+      id: schema.githubInstallationRepositories.id,
+      fullName: schema.githubInstallationRepositories.fullName,
+    })
     .from(schema.githubInstallationRepositories)
     .where(
       and(
@@ -363,8 +366,10 @@ export function createGithubWebhookRoutes(options: CreateGithubWebhookRoutesOpti
         const pullRequestResult = await handleGithubPullRequestWebhook({
           deliveryId: delivery,
           organizationId: installation.organizationId,
+          githubInstallationId: installation.githubInstallationId,
           githubInstallationRepositoryId: installationRepository.id,
           githubRepositoryId: String(payload.repository.id),
+          repositoryFullName: installationRepository.fullName,
           payload: payload as GitHubPullRequestWebhookPayload,
         });
 

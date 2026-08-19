@@ -12,12 +12,17 @@
  */
 import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
-const { dispatchWorkspaceAutomationsForGithubPullRequestMock, loggerErrorMock, loggerInfoMock } =
-  vi.hoisted(() => ({
-    dispatchWorkspaceAutomationsForGithubPullRequestMock: vi.fn(),
-    loggerErrorMock: vi.fn(),
-    loggerInfoMock: vi.fn(),
-  }));
+const {
+  dispatchWorkspaceAutomationsForGithubPullRequestMock,
+  loggerErrorMock,
+  loggerInfoMock,
+  resolveGithubPullRequestMergeBaseShaMock,
+} = vi.hoisted(() => ({
+  dispatchWorkspaceAutomationsForGithubPullRequestMock: vi.fn(),
+  loggerErrorMock: vi.fn(),
+  loggerInfoMock: vi.fn(),
+  resolveGithubPullRequestMergeBaseShaMock: vi.fn(),
+}));
 
 vi.mock("@/lib/log", () => ({
   createLogger: vi.fn(() => ({
@@ -29,6 +34,10 @@ vi.mock("@/lib/log", () => ({
 vi.mock("../workspace-automation-dispatcher", () => ({
   dispatchWorkspaceAutomationsForGithubPullRequest:
     dispatchWorkspaceAutomationsForGithubPullRequestMock,
+}));
+
+vi.mock("./github-pull-request-merge-base", () => ({
+  resolveGithubPullRequestMergeBaseSha: resolveGithubPullRequestMergeBaseShaMock,
 }));
 
 import {
@@ -56,6 +65,7 @@ describe("handleGithubPullRequestWebhook", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     dispatchWorkspaceAutomationsForGithubPullRequestMock.mockResolvedValue([]);
+    resolveGithubPullRequestMergeBaseShaMock.mockResolvedValue("merge111");
   });
 
   it("dispatches workspace automations for an opened pull request against main", async () => {
@@ -63,8 +73,10 @@ describe("handleGithubPullRequestWebhook", () => {
       handleGithubPullRequestWebhook({
         deliveryId: "delivery-pr-1",
         organizationId: "org_123",
+        githubInstallationId: "123",
         githubInstallationRepositoryId: "installation-repo-123",
         githubRepositoryId: "repo-123",
+        repositoryFullName: "acme/app",
         payload: {
           action: "opened",
           pull_request: {
@@ -78,6 +90,12 @@ describe("handleGithubPullRequestWebhook", () => {
       }),
     ).resolves.toEqual({ ignored: false });
 
+    expect(resolveGithubPullRequestMergeBaseShaMock).toHaveBeenCalledWith({
+      githubInstallationId: "123",
+      repositoryFullName: "acme/app",
+      base: "main",
+      head: "bbb222",
+    });
     expect(dispatchWorkspaceAutomationsForGithubPullRequestMock).toHaveBeenCalledWith({
       deliveryId: "delivery-pr-1",
       organizationId: "org_123",
@@ -87,9 +105,40 @@ describe("handleGithubPullRequestWebhook", () => {
       pullRequestUrl: "https://github.com/acme/app/pull/42",
       baseBranch: "main",
       headBranch: "feature/review",
-      commitBefore: "aaa111",
+      commitBefore: "merge111",
       commitAfter: "bbb222",
     });
+  });
+
+  it("falls back to the base tip when the merge base cannot be resolved", async () => {
+    resolveGithubPullRequestMergeBaseShaMock.mockResolvedValueOnce(null);
+
+    await expect(
+      handleGithubPullRequestWebhook({
+        deliveryId: "delivery-pr-fallback",
+        organizationId: "org_123",
+        githubInstallationId: "123",
+        githubInstallationRepositoryId: "installation-repo-123",
+        githubRepositoryId: "repo-123",
+        repositoryFullName: "acme/app",
+        payload: {
+          action: "opened",
+          pull_request: {
+            number: 8,
+            draft: false,
+            base: { ref: "main", sha: "aaa111" },
+            head: { ref: "feature/x", sha: "bbb222" },
+          },
+        },
+      }),
+    ).resolves.toEqual({ ignored: false });
+
+    expect(dispatchWorkspaceAutomationsForGithubPullRequestMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        commitBefore: "aaa111",
+        commitAfter: "bbb222",
+      }),
+    );
   });
 
   it("ignores draft pull requests without failing the webhook", async () => {
@@ -97,8 +146,10 @@ describe("handleGithubPullRequestWebhook", () => {
       handleGithubPullRequestWebhook({
         deliveryId: "delivery-pr-draft",
         organizationId: "org_123",
+        githubInstallationId: "123",
         githubInstallationRepositoryId: "installation-repo-123",
         githubRepositoryId: "repo-123",
+        repositoryFullName: "acme/app",
         payload: {
           action: "opened",
           pull_request: {
@@ -123,8 +174,10 @@ describe("handleGithubPullRequestWebhook", () => {
       handleGithubPullRequestWebhook({
         deliveryId: "delivery-pr-2",
         organizationId: "org_123",
+        githubInstallationId: "123",
         githubInstallationRepositoryId: "installation-repo-123",
         githubRepositoryId: "repo-123",
+        repositoryFullName: "acme/app",
         payload: {
           action: "opened",
           pull_request: {

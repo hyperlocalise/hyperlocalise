@@ -11,6 +11,7 @@
  * Version 2.0 or later.
  */
 import { createLogger } from "@/lib/log";
+import { resolveGithubPullRequestMergeBaseSha } from "./github-pull-request-merge-base";
 
 const logger = createLogger("github-pull-request-webhook");
 
@@ -31,8 +32,10 @@ export type GitHubPullRequestWebhookPayload = {
 export type HandleGithubPullRequestWebhookInput = {
   deliveryId: string;
   organizationId: string;
+  githubInstallationId: string;
   githubInstallationRepositoryId: string;
   githubRepositoryId: string;
+  repositoryFullName?: string;
   payload: GitHubPullRequestWebhookPayload;
 };
 
@@ -84,6 +87,7 @@ export async function handleGithubPullRequestWebhook(
   const baseBranch = readBranchName(pullRequest?.base?.ref);
   const headBranch = readBranchName(pullRequest?.head?.ref);
   const commitAfter = pullRequest?.head?.sha?.trim() ?? "";
+  const baseTipSha = pullRequest?.base?.sha?.trim() ?? "";
   if (!pullRequestNumber || !baseBranch || !headBranch || !commitAfter) {
     logger.info(
       {
@@ -94,6 +98,16 @@ export async function handleGithubPullRequestWebhook(
     );
     return { ignored: true };
   }
+
+  const mergeBaseSha = input.repositoryFullName
+    ? await resolveGithubPullRequestMergeBaseSha({
+        githubInstallationId: input.githubInstallationId,
+        repositoryFullName: input.repositoryFullName,
+        base: baseBranch,
+        head: commitAfter,
+      })
+    : null;
+  const commitBefore = mergeBaseSha ?? baseTipSha;
 
   try {
     const { dispatchWorkspaceAutomationsForGithubPullRequest } =
@@ -107,7 +121,7 @@ export async function handleGithubPullRequestWebhook(
       pullRequestUrl: pullRequest?.html_url,
       baseBranch,
       headBranch,
-      commitBefore: pullRequest?.base?.sha?.trim() ?? "",
+      commitBefore,
       commitAfter,
     });
   } catch (error) {

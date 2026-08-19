@@ -1091,7 +1091,7 @@ describe("workspace automation dispatcher", () => {
       pullRequestNumber: 42,
       baseBranch: "main",
       headBranch: "feature/review",
-      pushBranch: "feature/review",
+      pushBranch: "main",
       commitBefore: "aaa111",
       commitAfter: "bbb222",
     });

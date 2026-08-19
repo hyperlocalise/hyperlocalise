@@ -476,7 +476,7 @@ export async function dispatchWorkspaceAutomationsForGithubPullRequest(input: {
           pullRequestUrl: input.pullRequestUrl,
           baseBranch: input.baseBranch,
           headBranch: input.headBranch,
-          pushBranch: input.headBranch,
+          pushBranch: input.baseBranch,
           commitBefore: input.commitBefore,
           commitAfter: input.commitAfter,
         },

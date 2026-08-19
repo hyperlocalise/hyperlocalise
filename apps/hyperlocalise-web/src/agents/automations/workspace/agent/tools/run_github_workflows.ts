@@ -29,6 +29,7 @@ import {
 } from "@/lib/agent-runtime/subagents/constants";
 
 import type { WorkspaceOrchestratorSession } from "../context";
+import { resolveGithubWorkflowTriggerBranch } from "./resolve-github-repo-lookback";
 import { resolveGithubWorkflowsIdempotencyKey } from "./resolve-github-workflows-idempotency-key";
 
 function isTerminalGithubJobStatus(status: GithubRepositoryAutomationJobStatus) {
@@ -81,7 +82,7 @@ export function createRunGithubWorkflowsTool(session: WorkspaceOrchestratorSessi
       }
 
       const snapshot = session.run.inputSnapshot;
-      const pushBranch = typeof snapshot.pushBranch === "string" ? snapshot.pushBranch : undefined;
+      const pushBranch = resolveGithubWorkflowTriggerBranch(snapshot);
       const dispatchPayload = buildGithubRepoAutomationDispatchPayload({
         configVersion: session.automation.configVersion,
         githubInstallationRepositoryId: session.repository.id,
