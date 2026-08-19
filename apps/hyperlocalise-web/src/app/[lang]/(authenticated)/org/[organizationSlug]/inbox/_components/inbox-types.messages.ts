@@ -40,6 +40,11 @@ export const inboxTypesMessages = defineMessages({
     id: "6Su/xhxJZL",
     description: "Inbox conversation source label for the Slack agent",
   },
+  sourceWebChat: {
+    defaultMessage: "Web chat",
+    id: "wchSrcLbl01",
+    description: "Inbox conversation source label for public web chat",
+  },
   statusActive: {
     defaultMessage: "Active",
     id: "QNkL8EdZgQ",

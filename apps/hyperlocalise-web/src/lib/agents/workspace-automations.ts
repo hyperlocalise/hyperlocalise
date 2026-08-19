@@ -42,6 +42,7 @@ export const workspaceAutomationRunTriggerSourceSchema = z.enum([
   "github",
   "contentful",
   "source_upload",
+  "web_chat",
 ]);
 
 const branchPatternSchema = z
@@ -54,7 +55,7 @@ const branchPatternSchema = z
 const triggerConfigSchema = z
   .object({
     mode: z
-      .enum(["manual", "scheduled", "github", "contentful", "source_upload"])
+      .enum(["manual", "scheduled", "github", "contentful", "source_upload", "web_chat"])
       .default("manual"),
     schedule: z
       .object({
@@ -172,6 +173,12 @@ const knowledgeToolConfigSchema = z
   })
   .default({ enabled: false, allowUpdates: false });
 
+const knowledgeFilesToolConfigSchema = z
+  .object({
+    enabled: z.boolean().default(false),
+  })
+  .default({ enabled: false });
+
 const mcpToolConfigSchema = z
   .object({
     enabled: z.boolean().default(false),
@@ -264,6 +271,7 @@ const toolConfigObjectSchema = z
     listIssues: listIssuesToolConfigSchema.optional(),
     createIssue: createIssueToolConfigSchema.optional(),
     knowledge: knowledgeToolConfigSchema.optional(),
+    knowledgeFiles: knowledgeFilesToolConfigSchema.optional(),
     mcp: mcpToolConfigSchema.optional(),
     semrush: semrushToolConfigSchema.optional(),
     ahrefs: ahrefsToolConfigSchema.optional(),
@@ -308,6 +316,9 @@ export type WorkspaceAutomationAssignTranslateWithAgentToolConfig = z.infer<
 export type WorkspaceAutomationListIssuesToolConfig = z.infer<typeof listIssuesToolConfigSchema>;
 export type WorkspaceAutomationCreateIssueToolConfig = z.infer<typeof createIssueToolConfigSchema>;
 export type WorkspaceAutomationKnowledgeToolConfig = z.infer<typeof knowledgeToolConfigSchema>;
+export type WorkspaceAutomationKnowledgeFilesToolConfig = z.infer<
+  typeof knowledgeFilesToolConfigSchema
+>;
 export type WorkspaceAutomationMcpToolConfig = z.infer<typeof mcpToolConfigSchema>;
 export type WorkspaceAutomationSemrushToolConfig = z.infer<typeof semrushToolConfigSchema>;
 export type WorkspaceAutomationAhrefsToolConfig = z.infer<typeof ahrefsToolConfigSchema>;
@@ -467,6 +478,12 @@ export function hasWorkspaceAutomationCreateIssueTool(toolConfig: WorkspaceAutom
 
 export function hasWorkspaceAutomationKnowledgeTool(toolConfig: WorkspaceAutomationToolConfig) {
   return Boolean(toolConfig.knowledge?.enabled);
+}
+
+export function hasWorkspaceAutomationKnowledgeFilesTool(
+  toolConfig: WorkspaceAutomationToolConfig,
+) {
+  return Boolean(toolConfig.knowledgeFiles?.enabled);
 }
 
 // Meaningless without hasWorkspaceAutomationKnowledgeTool — callers must check both, not just this.

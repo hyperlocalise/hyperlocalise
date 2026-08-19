@@ -40,6 +40,26 @@ export const automationsPageViewModelMessages = defineMessages({
     id: "sbr8qd8WgZ",
     description: "Trigger label for a manual automation in the list",
   },
+  triggerContentful: {
+    defaultMessage: "Contentful webhook",
+    id: "wchLstCf01",
+    description: "Trigger label for a Contentful webhook automation in the list",
+  },
+  triggerSourceUpload: {
+    defaultMessage: "Source upload",
+    id: "wchLstSu01",
+    description: "Trigger label for a source upload automation in the list",
+  },
+  triggerWebChat: {
+    defaultMessage: "Web chat",
+    id: "wchLstWc01",
+    description: "Trigger label for a web chat automation in the list",
+  },
+  toolKnowledgeFiles: {
+    defaultMessage: "Knowledge files",
+    id: "wchLstKf01",
+    description: "Tool badge when an automation uses uploaded knowledge files",
+  },
   toolGithub: {
     defaultMessage: "GitHub",
     id: "LKQXtMkDON",

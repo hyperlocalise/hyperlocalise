@@ -19,7 +19,7 @@ const sourceFileIdPattern = /\bsourceFileId=/;
 
 type CreateInteractionInput = {
   organizationId: string;
-  source: "chat_ui" | "email_agent" | "github_agent" | "slack_agent";
+  source: "chat_ui" | "email_agent" | "github_agent" | "slack_agent" | "web_chat";
   title: string;
   projectId?: string;
   sourceThreadId?: string;
@@ -159,7 +159,7 @@ export async function linkJobToInteraction(input: {
 
 export async function findInteractionBySourceThreadId(input: {
   organizationId: string;
-  source: "chat_ui" | "email_agent" | "github_agent" | "slack_agent";
+  source: "chat_ui" | "email_agent" | "github_agent" | "slack_agent" | "web_chat";
   sourceThreadId: string;
 }) {
   const [interaction] = await db

@@ -885,4 +885,131 @@ export const workspaceAutomationFormMessages = defineMessages({
     id: "rkQ7AmKMrt",
     description: "Placeholder for the automation instructions textarea",
   },
+  webChat: {
+    defaultMessage: "Web chat",
+    id: "wchTrgLbl01",
+    description: "Menu item and label for the public web chat trigger",
+  },
+  webChatSummary: {
+    defaultMessage: "Web chat",
+    id: "wchTrgSum01",
+    description: "Header summary for a web chat trigger",
+  },
+  webChatDescription: {
+    defaultMessage:
+      "Anyone with the link can chat with this agent. Traffic is protected with BotID. Visitors can attach images.",
+    id: "wchTrgDsc01",
+    description: "Description of the public web chat trigger",
+  },
+  webChatUrlPending: {
+    defaultMessage: "Save this automation to get a public chat URL.",
+    id: "wchUrlPnd01",
+    description: "Hint shown before a web chat automation has been saved",
+  },
+  copyChatUrl: {
+    defaultMessage: "Copy chat URL",
+    id: "wchCpyUrl01",
+    description: "Button to copy the public web chat URL",
+  },
+  chatUrlCopied: {
+    defaultMessage: "Chat URL copied",
+    id: "wchCpyOk01",
+    description: "Toast after copying the public web chat URL",
+  },
+  openChat: {
+    defaultMessage: "Open chat",
+    id: "wchOpnBtn01",
+    description: "Button to open the public web chat page",
+  },
+  knowledgeFiles: {
+    defaultMessage: "Knowledge files",
+    id: "wchKnwLbl01",
+    description: "Menu item and tool title for per-agent knowledge file uploads",
+  },
+  knowledgeFilesDescription: {
+    defaultMessage:
+      "Upload PDFs and documents this agent can search during web chat. Files stay scoped to this automation.",
+    id: "wchKnwDsc01",
+    description: "Description of the knowledge files automation tool",
+  },
+  removeKnowledgeFilesTool: {
+    defaultMessage: "Remove knowledge files",
+    id: "wchKnwRmv01",
+    description: "Accessible label to remove the knowledge files tool",
+  },
+  knowledgeFilesSaveFirst: {
+    defaultMessage: "Save this automation to upload knowledge files.",
+    id: "wchKnwSav01",
+    description: "Hint shown before knowledge files can be uploaded",
+  },
+  knowledgeFilesCount: {
+    defaultMessage: "{count, number} of {max, number} files",
+    id: "wchKnwCnt01",
+    description: "Count of uploaded knowledge files versus the maximum",
+  },
+  uploadKnowledgeFile: {
+    defaultMessage: "Upload file",
+    id: "wchKnwUpl01",
+    description: "Button to upload a knowledge file for an automation",
+  },
+  knowledgeFilesEmpty: {
+    defaultMessage: "No files yet. PDF, Word, markdown, CSV, JSON, and text are supported.",
+    id: "wchKnwEmp01",
+    description: "Empty state for automation knowledge files",
+  },
+  knowledgeFilesLoadError: {
+    defaultMessage: "Unable to load knowledge files.",
+    id: "wchKnwLdE01",
+    description: "Error when knowledge files fail to load",
+  },
+  knowledgeFileUploaded: {
+    defaultMessage: "Knowledge file uploaded",
+    id: "wchKnwOk01",
+    description: "Toast after a knowledge file is uploaded",
+  },
+  knowledgeFileUploadError: {
+    defaultMessage: "Unable to upload that file right now.",
+    id: "wchKnwEr01",
+    description: "Toast when knowledge file upload fails",
+  },
+  knowledgeFileTooLarge: {
+    defaultMessage: "Knowledge files must be 25 MB or smaller.",
+    id: "wchKnwBig01",
+    description: "Toast when a knowledge file exceeds the size limit",
+  },
+  knowledgeFileUnsupported: {
+    defaultMessage: "Upload a PDF, Word, markdown, CSV, JSON, or text file.",
+    id: "wchKnwUns01",
+    description: "Toast when a knowledge file type is not supported",
+  },
+  knowledgeFileLimitReached: {
+    defaultMessage: "This automation already has the maximum number of knowledge files.",
+    id: "wchKnwMax01",
+    description: "Toast when the knowledge file count limit is reached",
+  },
+  knowledgeFileDeleteError: {
+    defaultMessage: "Unable to remove that file right now.",
+    id: "wchKnwDel01",
+    description: "Toast when deleting a knowledge file fails",
+  },
+  removeKnowledgeFile: {
+    defaultMessage: "Remove {filename}",
+    id: "wchKnwRmF01",
+    description: "Accessible label to delete one knowledge file",
+  },
+  knowledgeFileExtracted: {
+    defaultMessage: "{count, number} characters extracted",
+    id: "wchKnwExt01",
+    description: "Extracted text size for a knowledge file",
+  },
+  knowledgeFileNoText: {
+    defaultMessage: "No searchable text extracted",
+    id: "wchKnwNoT01",
+    description: "Shown when a knowledge file has no extracted text",
+  },
+  triggerSourceWebChat: {
+    defaultMessage: "Web chat",
+    id: "wchRunSrc01",
+    description: "Run history trigger source for web chat",
+  },
 });

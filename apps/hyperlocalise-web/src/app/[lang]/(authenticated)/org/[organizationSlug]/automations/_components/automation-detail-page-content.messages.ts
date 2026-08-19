@@ -45,6 +45,11 @@ export const automationDetailPageContentMessages = defineMessages({
     id: "P5eC/nlEOZ",
     description: "Button to queue a manual automation run",
   },
+  openChat: {
+    defaultMessage: "Open chat",
+    id: "wchDtlOpn1",
+    description: "Button to open the public web chat for this automation",
+  },
   saving: {
     defaultMessage: "Saving...",
     id: "4mzmyHsHW0",

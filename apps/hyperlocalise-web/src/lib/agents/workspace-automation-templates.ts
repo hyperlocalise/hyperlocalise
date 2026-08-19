@@ -894,7 +894,9 @@ export function getWorkspaceAutomationTemplateFlow(
         ? { id: "contentful-webhook", label: "Contentful webhook" }
         : triggerMode === "source_upload"
           ? { id: "source-upload", label: "Source upload" }
-          : triggerMode === "scheduled"
+          : triggerMode === "web_chat"
+            ? { id: "web-chat", label: "Web chat" }
+            : triggerMode === "scheduled"
             ? { id: "scheduled", label: scheduledTriggerLabel(form) }
             : { id: "manual", label: "Manual" };
 
@@ -940,6 +942,10 @@ export function getWorkspaceAutomationTemplateFlow(
 
   if (form.webSearchEnabled) {
     tools.push({ id: "web-search", label: "Web Search" });
+  }
+
+  if (form.knowledgeFilesEnabled) {
+    tools.push({ id: "knowledge-files", label: "Knowledge files" });
   }
 
   return { trigger, tools };

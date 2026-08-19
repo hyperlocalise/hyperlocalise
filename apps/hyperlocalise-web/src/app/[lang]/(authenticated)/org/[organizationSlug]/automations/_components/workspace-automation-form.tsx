@@ -20,6 +20,7 @@ import {
   BrainCircuitIcon,
   Clock01Icon,
   Comment01Icon,
+  Copy01Icon,
   Delete02Icon,
   FolderLibraryIcon,
   GitBranchIcon,
@@ -28,6 +29,7 @@ import {
   SearchIcon,
   SlackIcon,
   Task01Icon,
+  Tick02Icon,
   Upload01Icon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
@@ -97,8 +99,11 @@ import {
   workspaceAutomationFormCanActivate,
 } from "@/lib/agents/workspace-automation-view-model";
 import type { WorkspaceAutomationRunRecord } from "@/lib/agents/workspace-automations";
+import { buildWorkspaceAutomationWebChatPath } from "@/lib/agents/workspace-automation-web-chat";
 import { parseProviderProjectId } from "@/lib/providers/jobs/tms-provider-resource-id";
 import { cn } from "@/lib/primitives/cn";
+
+import { WorkspaceAutomationKnowledgeFilesPanel } from "./workspace-automation-knowledge-files-panel";
 
 const api = createApiClient();
 
@@ -354,6 +359,10 @@ function triggerSummary(
       : intl.formatMessage(workspaceAutomationFormMessages.sourceUploadProjectRequired);
   }
 
+  if (form.triggerMode === "web_chat") {
+    return intl.formatMessage(workspaceAutomationFormMessages.webChatSummary);
+  }
+
   return "";
 }
 
@@ -370,6 +379,7 @@ function toolCount(form: WorkspaceAutomationFormState) {
     Number(form.listIssuesEnabled) +
     Number(form.createIssueEnabled) +
     Number(form.knowledgeEnabled) +
+    Number(form.knowledgeFilesEnabled) +
     Number(form.mcpEnabled) +
     Number(form.semrushEnabled) +
     Number(form.ahrefsEnabled) +
@@ -872,6 +882,18 @@ function AddTriggerMenu({
                 </DropdownMenuShortcut>
               ) : null}
             </DropdownMenuItem>
+            <DropdownMenuItem
+              disabled={form.triggerMode === "web_chat"}
+              onClick={() => onChange({ ...form, triggerMode: "web_chat" })}
+            >
+              <HugeiconsIcon icon={Comment01Icon} strokeWidth={1.8} className="size-4" />
+              <FormattedMessage {...workspaceAutomationFormMessages.webChat} />
+              {form.triggerMode === "web_chat" ? (
+                <DropdownMenuShortcut>
+                  <FormattedMessage {...workspaceAutomationFormMessages.addedShortcut} />
+                </DropdownMenuShortcut>
+              ) : null}
+            </DropdownMenuItem>
           </DropdownMenuGroup>
         </DropdownMenuContent>
       </DropdownMenu>
@@ -880,20 +902,24 @@ function AddTriggerMenu({
 }
 
 function TriggerSettings({
+  automationId,
   contentfulConnected,
   disabled,
   errors,
   form,
   githubConnected,
   onChange,
+  organizationSlug,
   repositories,
 }: {
+  automationId?: string;
   contentfulConnected: boolean;
   disabled?: boolean;
   errors: Record<string, string | undefined>;
   form: WorkspaceAutomationFormState;
   githubConnected: boolean;
   onChange: (next: WorkspaceAutomationFormState) => void;
+  organizationSlug: string;
   repositories: GithubRepositoryOption[];
 }) {
   const intl = useIntl();
@@ -1096,6 +1122,13 @@ function TriggerSettings({
           />
         ) : null}
 
+        {form.triggerMode === "web_chat" ? (
+          <WebChatTriggerRow
+            automationId={automationId}
+            organizationSlug={organizationSlug}
+          />
+        ) : null}
+
         <AddTriggerMenu
           contentfulConnected={contentfulConnected}
           disabled={disabled}
@@ -1182,6 +1215,18 @@ function AddToolMenu({
                   <FormattedMessage
                     {...workspaceAutomationFormMessages.enableKnowledgeFirstShortcut}
                   />
+                </DropdownMenuShortcut>
+              ) : null}
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              disabled={form.knowledgeFilesEnabled}
+              onClick={() => onChange({ ...form, knowledgeFilesEnabled: true })}
+            >
+              <HugeiconsIcon icon={FolderLibraryIcon} strokeWidth={1.8} className="size-4" />
+              <FormattedMessage {...workspaceAutomationFormMessages.knowledgeFiles} />
+              {form.knowledgeFilesEnabled ? (
+                <DropdownMenuShortcut>
+                  <FormattedMessage {...workspaceAutomationFormMessages.addedShortcut} />
                 </DropdownMenuShortcut>
               ) : null}
             </DropdownMenuItem>
@@ -1624,6 +1669,7 @@ function ContentfulTargetLocalesPicker({
 }
 
 function ToolsSettings({
+  automationId,
   canUpdateKnowledgeMemory,
   contentfulConnections,
   disabled,
@@ -1643,6 +1689,7 @@ function ToolsSettings({
   slackChannelsLoading,
   slackConnected,
 }: {
+  automationId?: string;
   canUpdateKnowledgeMemory: boolean;
   contentfulConnections: ContentfulConnectionOption[];
   disabled?: boolean;
@@ -1736,6 +1783,29 @@ function ToolsSettings({
                 <FormattedMessage {...workspaceAutomationFormMessages.allowMemoryUpdatesWarning} />
               </p>
             ) : null}
+          </EditorRow>
+        ) : null}
+
+        {form.knowledgeFilesEnabled ? (
+          <EditorRow
+            icon={<HugeiconsIcon icon={FolderLibraryIcon} strokeWidth={1.8} className="size-4" />}
+            title={<FormattedMessage {...workspaceAutomationFormMessages.knowledgeFiles} />}
+            description={
+              <FormattedMessage {...workspaceAutomationFormMessages.knowledgeFilesDescription} />
+            }
+            action={
+              <DeleteToolButton
+                disabled={disabled}
+                label={intl.formatMessage(workspaceAutomationFormMessages.removeKnowledgeFilesTool)}
+                onClick={() => onChange({ ...form, knowledgeFilesEnabled: false })}
+              />
+            }
+          >
+            <WorkspaceAutomationKnowledgeFilesPanel
+              automationId={automationId}
+              disabled={disabled}
+              organizationSlug={organizationSlug}
+            />
           </EditorRow>
         ) : null}
 
@@ -2717,6 +2787,7 @@ function formatTriggerSource(intl: IntlShape, triggerSource: string) {
     github: workspaceAutomationFormMessages.triggerSourceGithub,
     contentful: workspaceAutomationFormMessages.triggerSourceContentful,
     source_upload: workspaceAutomationFormMessages.triggerSourceSourceUpload,
+    web_chat: workspaceAutomationFormMessages.triggerSourceWebChat,
   } as const;
 
   const message = triggerMessages[triggerSource as keyof typeof triggerMessages];
@@ -2775,8 +2846,80 @@ function RunHistoryTable({ runs }: { runs: WorkspaceAutomationRunRecord[] }) {
   );
 }
 
+function WebChatTriggerRow({
+  automationId,
+  organizationSlug,
+}: {
+  automationId?: string;
+  organizationSlug: string;
+}) {
+  const intl = useIntl();
+  const [copied, setCopied] = useState(false);
+  const chatPath = automationId
+    ? buildWorkspaceAutomationWebChatPath({ organizationSlug, automationId })
+    : null;
+  const chatHref = chatPath ? `/${intl.locale}${chatPath}` : null;
+
+  async function copyChatUrl() {
+    if (!chatHref || typeof window === "undefined") {
+      return;
+    }
+    const url = new URL(chatHref, window.location.origin).toString();
+    await navigator.clipboard.writeText(url);
+    setCopied(true);
+    window.setTimeout(() => setCopied(false), 1500);
+  }
+
+  return (
+    <EditorRow
+      icon={<HugeiconsIcon icon={Comment01Icon} strokeWidth={1.8} className="size-4" />}
+      title={<FormattedMessage {...workspaceAutomationFormMessages.webChat} />}
+      description={<FormattedMessage {...workspaceAutomationFormMessages.webChatDescription} />}
+      action={
+        chatHref ? (
+          <>
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              className="h-8 rounded-full px-3"
+              onClick={() => void copyChatUrl()}
+            >
+              <HugeiconsIcon
+                icon={copied ? Tick02Icon : Copy01Icon}
+                strokeWidth={1.8}
+                className="size-3.5"
+              />
+              <FormattedMessage {...workspaceAutomationFormMessages.copyChatUrl} />
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-8 rounded-full px-3"
+              nativeButton={false}
+              render={<Link href={chatHref} target="_blank" rel="noreferrer" />}
+            >
+              <FormattedMessage {...workspaceAutomationFormMessages.openChat} />
+            </Button>
+          </>
+        ) : null
+      }
+    >
+      {chatHref ? (
+        <p className="truncate font-mono text-xs text-muted-foreground">{chatHref}</p>
+      ) : (
+        <p className="text-xs text-muted-foreground">
+          <FormattedMessage {...workspaceAutomationFormMessages.webChatUrlPending} />
+        </p>
+      )}
+    </EditorRow>
+  );
+}
+
 export function WorkspaceAutomationEditor({
   actions,
+  automationId,
   canUpdateKnowledgeMemory = false,
   disabled,
   errors,
@@ -2788,6 +2931,7 @@ export function WorkspaceAutomationEditor({
   runHistory,
 }: {
   actions?: ReactNode;
+  automationId?: string;
   canUpdateKnowledgeMemory?: boolean;
   disabled?: boolean;
   errors: Record<string, string | undefined>;
@@ -3060,12 +3204,14 @@ export function WorkspaceAutomationEditor({
 
         <TabsContent value="settings" className="mt-4 flex flex-col gap-6">
           <TriggerSettings
+            automationId={automationId}
             contentfulConnected={contentfulConnected}
             disabled={disabled}
             errors={errors}
             form={form}
             githubConnected={githubConnected}
             onChange={onChange}
+            organizationSlug={organizationSlug}
             repositories={repositories}
           />
 
@@ -3092,6 +3238,7 @@ export function WorkspaceAutomationEditor({
           </EditorSection>
 
           <ToolsSettings
+            automationId={automationId}
             canUpdateKnowledgeMemory={canUpdateKnowledgeMemory}
             contentfulConnections={contentfulConnections}
             disabled={disabled}

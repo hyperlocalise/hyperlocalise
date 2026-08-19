@@ -10,25 +10,8 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { initBotId } from "botid/client/core";
+import type { ReactNode } from "react";
 
-initBotId({
-  protect: [
-    {
-      path: "/api/localisation-audit",
-      method: "POST",
-    },
-    {
-      path: "/api/localisation-audit/*/unlock",
-      method: "POST",
-    },
-    {
-      path: "/api/public/web-chat/*/*/messages",
-      method: "POST",
-    },
-    {
-      path: "/api/public/web-chat/*/*/conversations/*/chat",
-      method: "POST",
-    },
-  ],
-});
+export default function PublicChatLayout({ children }: { children: ReactNode }) {
+  return <main className="min-h-svh bg-background">{children}</main>;
+}

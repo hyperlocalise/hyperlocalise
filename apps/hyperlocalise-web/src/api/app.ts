@@ -69,6 +69,7 @@ import { createSlackWebhookRoutes } from "./routes/slack-webhook/slack-webhook.r
 import { createFileRoutes } from "./routes/file/file.route";
 import { createWorkspaceFilesRoutes } from "./routes/workspace-files/workspace-files.route";
 import { createWorkspaceAutomationRoutes } from "./routes/workspace-automation/workspace-automation.route";
+import { createWebChatRoutes } from "./routes/web-chat/web-chat.route";
 import { createExternalTmsProviderCredentialRoutes } from "./routes/external-tms-provider-credential/external-tms-provider-credential.route";
 import { createTmsProviderRoutes } from "./routes/tms-provider/tms-provider.route";
 import { createTmsAgentAutomationRoutes } from "./routes/tms-agent-automation/tms-agent-automation.route";
@@ -148,6 +149,10 @@ export function createApp(options: CreateAppOptions = {}) {
     .route(
       "/public/media",
       createPublicMediaRoutes({ fileStorageAdapter: options.fileStorageAdapter }),
+    )
+    .route(
+      "/public/web-chat",
+      createWebChatRoutes({ fileStorageAdapter: options.fileStorageAdapter }),
     )
     .route("/integrations/canva", createCanvaIntegrationRoutes({ ...options, jobQueue }))
     .route("/crowdin-app", createCrowdinAppRoutes())
@@ -229,7 +234,10 @@ function createOrgScopedAppRoutes(
     .route("/teams", createTeamRoutes())
     .route("/files", createFileRoutes({ fileStorageAdapter: options.fileStorageAdapter }))
     .route("/workspace-files", createWorkspaceFilesRoutes())
-    .route("/automations", createWorkspaceAutomationRoutes())
+    .route(
+      "/automations",
+      createWorkspaceAutomationRoutes({ fileStorageAdapter: options.fileStorageAdapter }),
+    )
     .route(
       "/conversations",
       createConversationRoutes({ fileStorageAdapter: options.fileStorageAdapter }),

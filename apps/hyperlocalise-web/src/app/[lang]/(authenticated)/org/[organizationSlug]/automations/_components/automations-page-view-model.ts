@@ -93,6 +93,15 @@ export function resolveAutomationTriggerLabel(
   if (triggerConfig.mode === "github") {
     return intl.formatMessage(automationsPageViewModelMessages.triggerGithub);
   }
+  if (triggerConfig.mode === "contentful") {
+    return intl.formatMessage(automationsPageViewModelMessages.triggerContentful);
+  }
+  if (triggerConfig.mode === "source_upload") {
+    return intl.formatMessage(automationsPageViewModelMessages.triggerSourceUpload);
+  }
+  if (triggerConfig.mode === "web_chat") {
+    return intl.formatMessage(automationsPageViewModelMessages.triggerWebChat);
+  }
   return intl.formatMessage(automationsPageViewModelMessages.triggerManual);
 }
 
@@ -112,6 +121,9 @@ export function resolveAutomationTools(intl: IntlShape, automation: WorkspaceAut
   }
   if (automation.toolConfig.mcp?.enabled) {
     tools.push(intl.formatMessage(automationsPageViewModelMessages.toolMcpServer));
+  }
+  if (automation.toolConfig.knowledgeFiles?.enabled) {
+    tools.push(intl.formatMessage(automationsPageViewModelMessages.toolKnowledgeFiles));
   }
   return tools;
 }

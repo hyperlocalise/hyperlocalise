@@ -20,6 +20,7 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { apiClient } from "@/lib/api-client-instance";
+import { buildWorkspaceAutomationWebChatPath } from "@/lib/agents/workspace-automation-web-chat";
 import {
   createWorkspaceAutomationFormStateFromRecord,
   formStateToWorkspaceAutomationPayload,
@@ -162,6 +163,7 @@ export function AutomationDetailPageContent({
       <WorkspaceAutomationEditor
         mode="detail"
         organizationSlug={organizationSlug}
+        automationId={automationId}
         form={form}
         errors={errors}
         knowledgeAvailable={knowledgeAvailable}
@@ -170,13 +172,33 @@ export function AutomationDetailPageContent({
         runHistory={recentRuns}
         actions={
           <div className="flex gap-2">
-            <Button
-              variant="outline"
-              onClick={() => runMutation.mutate()}
-              disabled={runMutation.isPending || automation.status !== "active"}
-            >
-              <FormattedMessage {...automationDetailPageContentMessages.runNow} />
-            </Button>
+            {form.triggerMode === "web_chat" ? (
+              <Button
+                variant="outline"
+                nativeButton={false}
+                render={
+                  <Link
+                    href={buildWorkspaceAutomationWebChatPath({
+                      organizationSlug,
+                      automationId,
+                    })}
+                    target="_blank"
+                    rel="noreferrer"
+                  />
+                }
+                disabled={automation.status !== "active"}
+              >
+                <FormattedMessage {...automationDetailPageContentMessages.openChat} />
+              </Button>
+            ) : (
+              <Button
+                variant="outline"
+                onClick={() => runMutation.mutate()}
+                disabled={runMutation.isPending || automation.status !== "active"}
+              >
+                <FormattedMessage {...automationDetailPageContentMessages.runNow} />
+              </Button>
+            )}
             <Button onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending}>
               {saveMutation.isPending ? (
                 <FormattedMessage {...automationDetailPageContentMessages.saving} />

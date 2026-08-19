@@ -26,6 +26,7 @@ import {
   formStateToWorkspaceAutomationPayload,
   mapWorkspaceAutomationApiErrorToFieldErrors,
   validateWorkspaceAutomationFormState,
+  workspaceAutomationFormCanActivate,
 } from "./workspace-automation-view-model";
 
 const mergedTemplates = mergeWorkspaceTemplateSkills(WORKSPACE_AUTOMATION_TEMPLATES_BASE);
@@ -590,5 +591,35 @@ describe("workspace automation view model", () => {
     expect(formStateToWorkspaceAutomationPayload(form).toolConfig).toEqual({
       crowdin: { enabled: true, projectId: "ext:crowdin:42" },
     });
+  });
+
+  it("activates web chat with instructions only and maps knowledge files", () => {
+    const form = {
+      ...createDefaultWorkspaceAutomationFormState(),
+      name: "Support chat",
+      instructions: "Answer visitors about our product.",
+      triggerMode: "web_chat" as const,
+      knowledgeFilesEnabled: true,
+    };
+
+    expect(workspaceAutomationFormCanActivate(form)).toBe(true);
+    expect(validateWorkspaceAutomationFormState(form)).toEqual({});
+    expect(formStateToWorkspaceAutomationPayload(form)).toMatchObject({
+      triggerConfig: { mode: "web_chat" },
+      toolConfig: {
+        knowledgeFiles: { enabled: true },
+      },
+    });
+  });
+
+  it("hydrates web chat and knowledge files from a saved automation", () => {
+    const form = createWorkspaceAutomationFormStateFromRecord({
+      ...createAutomationSummary(),
+      triggerConfig: { mode: "web_chat" },
+      toolConfig: { knowledgeFiles: { enabled: true } },
+    });
+
+    expect(form.triggerMode).toBe("web_chat");
+    expect(form.knowledgeFilesEnabled).toBe(true);
   });
 });

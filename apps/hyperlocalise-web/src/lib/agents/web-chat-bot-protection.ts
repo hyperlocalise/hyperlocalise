@@ -10,25 +10,19 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { initBotId } from "botid/client/core";
+import { checkBotId } from "botid/server";
+import type { Context } from "hono";
 
-initBotId({
-  protect: [
-    {
-      path: "/api/localisation-audit",
-      method: "POST",
-    },
-    {
-      path: "/api/localisation-audit/*/unlock",
-      method: "POST",
-    },
-    {
-      path: "/api/public/web-chat/*/*/messages",
-      method: "POST",
-    },
-    {
-      path: "/api/public/web-chat/*/*/conversations/*/chat",
-      method: "POST",
-    },
-  ],
-});
+import { forbiddenResponse } from "@/api/response.schema";
+
+export async function rejectWebChatBot(c: Context) {
+  const verification = await checkBotId();
+  if (verification.isBot) {
+    return forbiddenResponse(
+      c,
+      "bot_detected",
+      "Automated traffic is not allowed for this endpoint",
+    );
+  }
+  return null;
+}
