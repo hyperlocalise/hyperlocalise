@@ -563,11 +563,6 @@ export async function handleNewConversation(thread: Thread<SlackBotState>, messa
     message.text.slice(0, 100) || "Slack conversation",
   );
 
-  if (isNew) {
-    wrapThreadPost(thread, interaction.id);
-    await thread.subscribe();
-  }
-
   await processSlackMessage(
     thread,
     message,
@@ -579,49 +574,20 @@ export async function handleNewConversation(thread: Thread<SlackBotState>, messa
   );
 }
 
+async function stopWatchingSlackThread(thread: Thread<SlackBotState>) {
+  await thread.unsubscribe().catch(() => {
+    // Ignore unsubscribe failures; mention gating still prevents replies.
+  });
+}
+
 export async function handleSubscribedMessage(thread: Thread<SlackBotState>, message: Message) {
-  if (message.author.isBot) {
+  await stopWatchingSlackThread(thread);
+
+  if (!message.isMention) {
     return;
   }
 
-  const teamId = extractTeamId(message);
-  if (!teamId) {
-    return;
-  }
-
-  const connector = await findSlackConnector(teamId);
-  if (!connector) {
-    return;
-  }
-
-  const slackUser = await getSlackUser(thread, message.author.userId);
-  const membership = slackUser?.email
-    ? await lookupMembership({ email: slackUser.email, organizationId: connector.organizationId })
-    : null;
-  if (!membership) {
-    await warnUnauthorizedSlackSender(
-      thread,
-      message,
-      logger.child({ slackThreadId: thread.id, organizationId: connector.organizationId }),
-    );
-    return;
-  }
-
-  const { interaction } = await getOrCreateInteraction(
-    connector.organizationId,
-    thread.id,
-    message.text.slice(0, 100) || "Slack conversation",
-  );
-
-  await processSlackMessage(
-    thread,
-    message,
-    interaction.id,
-    connector.organizationId,
-    interaction.projectId,
-    (connector.config ?? null) as Record<string, unknown> | null,
-    { isNewInteraction: false },
-  );
+  await handleNewConversation(thread, message);
 }
 
 export async function getSlackBot() {
@@ -650,6 +616,8 @@ export async function getSlackBot() {
 
   botInstance.onNewMention(handleNewConversation);
   botInstance.onDirectMessage(handleNewConversation);
+  // Legacy subscribed channel threads still receive every message. Only @mentions
+  // are processed, and the thread is unsubscribed so later untagged messages stay silent.
   botInstance.onSubscribedMessage(handleSubscribedMessage);
 
   return botInstance;

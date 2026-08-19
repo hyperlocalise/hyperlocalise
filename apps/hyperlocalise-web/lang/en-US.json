@@ -744,7 +744,7 @@
     "description": "Fallback project name when a job has no project"
   },
   "0bosLZsKFI": {
-    "defaultMessage": "Coordinate localization reviews from Slack mentions, DMs, and subscribed threads.",
+    "defaultMessage": "Coordinate localization reviews from Slack mentions and DMs.",
     "description": "Slack integration description before OAuth connection"
   },
   "0cJX5jLe/m": {
@@ -4524,7 +4524,7 @@
     "description": "Menu item and tool title for listing Issue Sheet issues"
   },
   "DeMAC4mdid": {
-    "defaultMessage": "Connect a Slack workspace to let Hyperlocalise respond to mentions, DMs, and subscribed threads.",
+    "defaultMessage": "Connect a Slack workspace to let Hyperlocalise respond when tagged in channels or messaged in DMs.",
     "description": "Slack integration description before OAuth connection"
   },
   "DeRSeFizML": {

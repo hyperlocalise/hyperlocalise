@@ -67,6 +67,9 @@ describe("getSlackAgentViewModel", () => {
     expect(viewModel.enabled).toBe(false);
     expect(viewModel.badgeLabel).toBe("Available");
     expect(viewModel.statusTitle).toBe("Not connected");
+    expect(viewModel.statusDescription).toBe(
+      "Connect a Slack workspace to let Hyperlocalise respond when tagged in channels or messaged in DMs.",
+    );
     expect(viewModel.primaryActionLabel).toBe("Connect Slack");
     expect(viewModel.toggleDisabled).toBe(true);
   });

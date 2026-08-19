@@ -27,7 +27,7 @@ export const slackIntegrationRowMessages = defineMessages({
   },
   disconnectedDescription: {
     defaultMessage:
-      "Coordinate localization reviews from Slack mentions, DMs, and subscribed threads.",
+      "Coordinate localization reviews from Slack mentions and DMs.",
     id: "0bosLZsKFI",
     description: "Slack integration description before OAuth connection",
   },
