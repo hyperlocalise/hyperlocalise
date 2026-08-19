@@ -10,13 +10,15 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import type {
-  WorkspaceAutomationGithubToolMode,
-  WorkspaceAutomationRecord,
-  WorkspaceAutomationRepositoryTarget,
-  WorkspaceAutomationToolConfig,
-  WorkspaceAutomationTriggerConfig,
-  WorkspaceAutomationWebSearchProvider,
+import {
+  resolveWorkspaceAutomationGithubEvents,
+  type WorkspaceAutomationGithubToolMode,
+  type WorkspaceAutomationGithubTriggerEvent,
+  type WorkspaceAutomationRecord,
+  type WorkspaceAutomationRepositoryTarget,
+  type WorkspaceAutomationToolConfig,
+  type WorkspaceAutomationTriggerConfig,
+  type WorkspaceAutomationWebSearchProvider,
 } from "./workspace-automation-types";
 import { parseSlackConversationId } from "./slack/channel-query";
 import {
@@ -38,6 +40,7 @@ export type WorkspaceAutomationFormState = {
   projectId: string;
   triggerMode: WorkspaceAutomationTriggerMode;
   pushBranches: string[];
+  githubEvents: WorkspaceAutomationGithubTriggerEvent[];
   scheduledCadence: "hourly" | "daily" | "weekly";
   scheduledHourUtc: number;
   scheduledDayOfWeek: number;
@@ -108,6 +111,7 @@ export type WorkspaceAutomationFieldErrors = Partial<
     | "githubRepository"
     | "trigger"
     | "pushBranches"
+    | "githubEvents"
     | "slackChannelId"
     | "emailRecipients"
     | "contentfulConnectionId"
@@ -132,7 +136,8 @@ export const WORKSPACE_AUTOMATION_API_ERROR_MESSAGES: Record<string, string> = {
   github_trigger_required: "Choose a schedule or GitHub push trigger for GitHub workflows.",
   github_agent_trigger_required:
     "Use GitHub repo automations with a scheduled, manual, or GitHub push trigger.",
-  github_push_branches_required: "Add at least one branch pattern for GitHub push triggers.",
+  github_push_branches_required: "Add at least one branch pattern for GitHub triggers.",
+  github_events_required: "Choose at least one GitHub event.",
   scheduled_workflow_required:
     "Scheduled automations require at least one GitHub, Contentful, Issues, Web Search, or Crowdin workflow tool.",
   slack_not_connected: "Connect Slack in Integrations before enabling Slack notifications.",
@@ -186,6 +191,7 @@ export function createDefaultWorkspaceAutomationFormState(): WorkspaceAutomation
     projectId: "",
     triggerMode: "manual",
     pushBranches: ["main"],
+    githubEvents: ["push"],
     scheduledCadence: "daily",
     scheduledHourUtc: 22,
     scheduledDayOfWeek: 1,
@@ -261,6 +267,9 @@ export function createWorkspaceAutomationFormStateFromRecord(
       automation.triggerConfig.mode === "github" && automation.triggerConfig.branches?.length
         ? [...automation.triggerConfig.branches]
         : ["main"],
+    githubEvents: resolveWorkspaceAutomationGithubEvents(
+      automation.triggerConfig.mode === "github" ? automation.triggerConfig.events : undefined,
+    ),
     scheduledCadence:
       automation.triggerConfig.mode === "scheduled" && automation.triggerConfig.schedule
         ? automation.triggerConfig.schedule.cadence
@@ -348,6 +357,7 @@ export function applyTemplateToWorkspaceAutomationFormState(
     name: template.defaultForm.name ?? template.name,
     instructions: template.defaultForm.instructions ?? template.instructions,
     pushBranches: template.defaultForm.pushBranches ?? base.pushBranches,
+    githubEvents: template.defaultForm.githubEvents ?? base.githubEvents,
     emailRecipients: template.defaultForm.emailRecipients ?? base.emailRecipients,
     contentfulContentTypeIds:
       template.defaultForm.contentfulContentTypeIds ?? base.contentfulContentTypeIds,
@@ -401,6 +411,7 @@ export function formStateToWorkspaceAutomationPayload(form: WorkspaceAutomationF
         ? {
             mode: "github",
             branches: form.pushBranches,
+            events: resolveWorkspaceAutomationGithubEvents(form.githubEvents),
           }
         : form.triggerMode === "contentful"
           ? { mode: "contentful" }
@@ -602,6 +613,10 @@ export function validateWorkspaceAutomationFormState(
     errors.pushBranches = "Add at least one branch pattern.";
   }
 
+  if (form.triggerMode === "github" && form.githubEvents.length === 0) {
+    errors.githubEvents = "Choose at least one GitHub event.";
+  }
+
   if (form.slackEnabled && !parseSlackConversationId(form.slackChannelId)) {
     errors.slackChannelId = "Enter a valid Slack channel ID.";
   }
@@ -684,6 +699,8 @@ export function mapWorkspaceAutomationApiErrorToFieldErrors(
       return { trigger: message };
     case "github_push_branches_required":
       return { pushBranches: message };
+    case "github_events_required":
+      return { githubEvents: message };
     case "slack_not_connected":
     case "slack_channel_required":
       return { slackChannelId: message };

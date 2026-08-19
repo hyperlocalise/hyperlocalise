@@ -35,6 +35,26 @@ export const workspaceAutomationFormMessages = defineMessages({
     id: "feBDOpIUbJ",
     description: "Header summary for a GitHub push trigger",
   },
+  githubPullRequestSummary: {
+    defaultMessage: "GitHub pull request · {repository} · {branches}",
+    id: "uI2rwqO19R",
+    description: "Header summary for a GitHub pull request trigger",
+  },
+  githubPushAndPullRequestSummary: {
+    defaultMessage: "GitHub push and pull request · {repository} · {branches}",
+    id: "/2DsRIRpZu",
+    description: "Header summary for a GitHub trigger that runs on push and pull request",
+  },
+  githubEventPush: {
+    defaultMessage: "Push",
+    id: "k2PKKnD3GN",
+    description: "Toggle label for GitHub push trigger events",
+  },
+  githubEventPullRequest: {
+    defaultMessage: "Pull request opened",
+    id: "2C7ykfN2tG",
+    description: "Toggle label for GitHub pull request opened trigger events",
+  },
   repositoryRequired: {
     defaultMessage: "repository required",
     id: "+UD+5d3g3H",
@@ -607,8 +627,8 @@ export const workspaceAutomationFormMessages = defineMessages({
   },
   githubCommentConnectedDescription: {
     defaultMessage:
-      "Post a sticky review comment on the pull request for this push. Later runs update the same comment.",
-    id: "AbZsOtFk+H",
+      "Post a sticky review comment on the matching pull request. Later runs update the same comment.",
+    id: "tp0Edn/npM",
     description:
       "Description for GitHub pull request comment notifications when GitHub is connected",
   },

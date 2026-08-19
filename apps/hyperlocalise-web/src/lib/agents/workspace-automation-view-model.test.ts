@@ -278,6 +278,7 @@ describe("workspace automation view model", () => {
       name: "Notify on push blockers",
       triggerMode: "github",
       pushBranches: ["main"],
+      githubEvents: ["pull_request"],
       githubEnabled: true,
       githubMode: "agent",
       githubCommentEnabled: true,
@@ -297,6 +298,11 @@ describe("workspace automation view model", () => {
     expect(formStateToWorkspaceAutomationPayload(form!).toolConfig.githubComment).toEqual({
       enabled: true,
     });
+    expect(formStateToWorkspaceAutomationPayload(form!).triggerConfig).toEqual({
+      mode: "github",
+      branches: ["main"],
+      events: ["pull_request"],
+    });
   });
 
   it("allows GitHub agent mode with a GitHub push trigger", () => {
@@ -314,7 +320,7 @@ describe("workspace automation view model", () => {
 
     expect(validateWorkspaceAutomationFormState(form)).toEqual({});
     expect(formStateToWorkspaceAutomationPayload(form)).toMatchObject({
-      triggerConfig: { mode: "github", branches: ["main"] },
+      triggerConfig: { mode: "github", branches: ["main"], events: ["push"] },
       repositoryTarget: {
         kind: "github",
         githubInstallationRepositoryId: "11111111-1111-4111-8111-111111111111",
@@ -632,10 +638,18 @@ describe("workspace automation view model", () => {
   });
 
   it("does not import the drizzle automation store", () => {
-    const source = readFileSync(
+    const viewModelSource = readFileSync(
       new URL("./workspace-automation-view-model.ts", import.meta.url),
       "utf8",
     );
-    expect(source).not.toMatch(/from ["']\.\/workspace-automations["']/);
+    const formSource = readFileSync(
+      new URL(
+        "../../app/[lang]/(authenticated)/org/[organizationSlug]/automations/_components/workspace-automation-form.tsx",
+        import.meta.url,
+      ),
+      "utf8",
+    );
+    expect(viewModelSource).not.toMatch(/from ["']\.\/workspace-automations["']/);
+    expect(formSource).not.toMatch(/from ["']@\/lib\/agents\/workspace-automations["']/);
   });
 });

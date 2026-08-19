@@ -128,7 +128,18 @@ function validateWorkspaceAutomationConfig(input: {
   ) {
     return err({
       code: "github_push_branches_required",
-      message: "GitHub push triggers require at least one branch pattern.",
+      message: "GitHub triggers require at least one branch pattern.",
+    });
+  }
+
+  if (
+    input.triggerConfig.mode === "github" &&
+    input.triggerConfig.events &&
+    input.triggerConfig.events.length === 0
+  ) {
+    return err({
+      code: "github_events_required",
+      message: "GitHub triggers require at least one event.",
     });
   }
 

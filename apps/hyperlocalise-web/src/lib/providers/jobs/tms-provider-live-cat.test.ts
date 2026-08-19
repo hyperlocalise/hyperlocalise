@@ -1097,7 +1097,7 @@ describe("getTmsProviderLiveCatFile", () => {
 
     expect(translation).toEqual({ text: "", externalTranslationId: null, isApproved: false });
     const deleteCalls = fetchMock.mock.calls
-      .filter(([url, init]) => init?.method === "DELETE")
+      .filter(([, init]) => init?.method === "DELETE")
       .map(([url]) => String(url));
     expect(deleteCalls).toEqual([
       expect.stringContaining("/projects/42/approvals/7001"),

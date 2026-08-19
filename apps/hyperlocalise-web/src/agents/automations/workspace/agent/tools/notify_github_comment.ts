@@ -68,12 +68,20 @@ export function createNotifyGithubCommentTool(session: WorkspaceOrchestratorSess
       }
 
       const commitSha = readSnapshotString(session.run.inputSnapshot, "commitAfter");
+      const pullRequestNumberRaw = session.run.inputSnapshot.pullRequestNumber;
+      const pullRequestNumber =
+        typeof pullRequestNumberRaw === "number" &&
+        Number.isInteger(pullRequestNumberRaw) &&
+        pullRequestNumberRaw > 0
+          ? pullRequestNumberRaw
+          : undefined;
       const text = message?.trim() || buildOrchestratorRunSummaryMessage(session);
       const result = await upsertWorkspaceAutomationPullRequestComment({
         installationId: repositoryRow.githubInstallationId,
         repositoryFullName: repositoryRow.fullName,
         automationId: session.automation.id,
         commitSha: commitSha ?? "",
+        pullRequestNumber,
         message: text,
       });
 

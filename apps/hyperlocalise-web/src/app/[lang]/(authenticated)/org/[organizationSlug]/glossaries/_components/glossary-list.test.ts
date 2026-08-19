@@ -44,6 +44,10 @@ describe("glossary-list", () => {
         externalResourceType: null,
         externalGlossaryId: null,
         localeCoverage: ["en", "de"],
+        languages: [
+          { locale: "en", name: "English", isSource: true },
+          { locale: "de", name: "German", isSource: false },
+        ],
         termCount: 120,
         syncState: null,
         termCapabilities: {},
@@ -73,6 +77,7 @@ describe("glossary-list", () => {
         externalResourceType: "term_base",
         externalGlossaryId: "tb-42",
         localeCoverage: ["en", "fr", "de", "es"],
+        languages: [],
         termCount: 4_200,
         syncState: "synced",
         termCapabilities: { preferredTerms: true, forbiddenTerms: true },
@@ -88,7 +93,7 @@ describe("glossary-list", () => {
 
     expect(native.resourceTypeLabel).toBe("Workspace glossary");
     expect(native.termCapabilityLabel).toBe("Preferred · Forbidden");
-    expect(native.localeSummary).toBe("en, de");
+    expect(native.localeSummary).toBe("English (en), German (de)");
     expect(native.termCountLabel).toBe("120");
     expect(provider.resourceTypeLabel).toBe("Term base");
     expect(provider.localeSummary).toBe("en, fr, de +1");

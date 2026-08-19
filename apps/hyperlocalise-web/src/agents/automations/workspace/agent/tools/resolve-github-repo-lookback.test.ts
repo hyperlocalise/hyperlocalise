@@ -15,8 +15,10 @@ import { describe, expect, it } from "vite-plus/test";
 import {
   formatGithubPushRangeLabel,
   isGithubNullOid,
+  resolveGithubPullRequestNumber,
   resolveGithubPushRange,
   resolveGithubRepoLookbackHours,
+  resolveGithubWorkflowTriggerBranch,
 } from "./resolve-github-repo-lookback";
 
 describe("resolveGithubPushRange", () => {
@@ -72,6 +74,45 @@ describe("resolveGithubPushRange", () => {
         },
       }),
     ).toBeNull();
+  });
+
+  it("prefers the pull request head branch for inspection", () => {
+    expect(
+      resolveGithubPushRange({
+        triggerSource: "github",
+        inputSnapshot: {
+          pushBranch: "main",
+          headBranch: "feature/review",
+          commitBefore: "merge111",
+          commitAfter: "bbb222",
+        },
+      }),
+    ).toEqual({
+      branch: "feature/review",
+      commitBefore: "merge111",
+      commitAfter: "bbb222",
+    });
+  });
+
+  it("reads a pull request number from the GitHub trigger snapshot", () => {
+    expect(resolveGithubPullRequestNumber({ pullRequestNumber: 42 })).toBe(42);
+    expect(resolveGithubPullRequestNumber({ pullRequestNumber: 0 })).toBeNull();
+    expect(resolveGithubPullRequestNumber({})).toBeNull();
+  });
+
+  it("uses the pull request base branch for GitHub workflow dispatch", () => {
+    expect(
+      resolveGithubWorkflowTriggerBranch({
+        githubEvent: "pull_request",
+        baseBranch: "main",
+        pushBranch: "feature/review",
+      }),
+    ).toBe("main");
+    expect(
+      resolveGithubWorkflowTriggerBranch({
+        pushBranch: "main",
+      }),
+    ).toBe("main");
   });
 });
 

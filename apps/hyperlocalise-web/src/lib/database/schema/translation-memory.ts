@@ -60,7 +60,7 @@ export const glossaries = pgTable(
     description: text("description").notNull().default(""),
     // Locale pair that the glossary terms apply to.
     sourceLocale: text("source_locale").notNull(),
-    targetLocale: text("target_locale").notNull(),
+    targetLocale: text("target_locale"),
     // Lifecycle state for draft, active, and archived libraries.
     status: assetStatusEnum("status").notNull().default("active"),
     // Where this glossary originated from.
@@ -140,7 +140,46 @@ export const glossaries = pgTable(
 );
 
 /**
- * Stores individual terminology entries inside a glossary, including matching behavior, target terms, provenance, review status, metadata, and a lexical search vector.
+ * Stores language-neutral native terminology concepts inside a glossary.
+ */
+export const glossaryConcepts = pgTable(
+  "glossary_concepts",
+  {
+    // Stable concept identifier.
+    id: uuid("id").defaultRandom().primaryKey(),
+    // Parent glossary library that owns the concept.
+    glossaryId: uuid("glossary_id")
+      .notNull()
+      .references(() => glossaries.id, { onDelete: "cascade" }),
+    // Primary source-language term mirrored by the source-locale term row.
+    primaryTerm: text("primary_term").notNull(),
+    // Optional domain or subject classification.
+    subject: text("subject").notNull().default(""),
+    // Optional language-neutral definition.
+    definition: text("definition").notNull().default(""),
+    // Whether the concept should be translated.
+    translatable: boolean("translatable").notNull().default(true),
+    // Optional translator-facing note.
+    note: text("note").notNull().default(""),
+    // Optional reference URL.
+    url: text("url"),
+    // When the concept was first created.
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    // When the concept last changed.
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdateFn(() => new Date()),
+  },
+  (table) => [
+    index("idx_glossary_concepts_glossary_created_at").on(table.glossaryId, table.createdAt),
+  ],
+);
+
+/**
+ * Stores individual terminology entries inside a glossary, including native concept fields,
+ * provider-compatible source/target fields, provenance, review status, metadata, and a lexical
+ * search vector.
  */
 export const glossaryTerms = pgTable(
   "glossary_terms",
@@ -151,6 +190,12 @@ export const glossaryTerms = pgTable(
     glossaryId: uuid("glossary_id")
       .notNull()
       .references(() => glossaries.id, { onDelete: "cascade" }),
+    // Native concept parent. Null identifies retained provider-compatible rows.
+    conceptId: uuid("concept_id").references(() => glossaryConcepts.id, { onDelete: "cascade" }),
+    // Canonical locale for native concept terms.
+    locale: text("locale"),
+    // Canonical native term used for matching and display.
+    term: text("term"),
     // Source-side term to match against translation input.
     sourceTerm: text("source_term").notNull(),
     // Preferred target-side rendering for the source term.
@@ -159,6 +204,12 @@ export const glossaryTerms = pgTable(
     description: text("description").notNull().default(""),
     // Optional grammatical hint for the term.
     partOfSpeech: text("part_of_speech").notNull().default(""),
+    // Optional grammatical gender for native concept terms.
+    gender: text("gender"),
+    // Optional curated term type for native concept terms.
+    termType: text("term_type"),
+    // Native concept term status.
+    status: text("status").notNull().default("preferred"),
     // Whether source term matching should preserve case sensitivity.
     caseSensitive: boolean("case_sensitive").notNull().default(false),
     // Whether the source term is explicitly forbidden in output.
@@ -190,12 +241,20 @@ export const glossaryTerms = pgTable(
       .$onUpdateFn(() => new Date()),
   },
   (table) => [
-    uniqueIndex("glossary_terms_glossary_source_term_key").on(table.glossaryId, table.sourceTerm),
-    uniqueIndex("glossary_terms_glossary_source_term_ci_key")
-      .on(table.glossaryId, sql`lower(${table.sourceTerm})`)
-      .where(sql`${table.caseSensitive} = false`),
+    index("idx_glossary_terms_glossary_source_term").on(table.glossaryId, table.sourceTerm),
+    index("idx_glossary_terms_glossary_source_term_ci").on(
+      table.glossaryId,
+      sql`lower(${table.sourceTerm})`,
+    ),
     uniqueIndex("glossary_terms_glossary_external_key").on(table.glossaryId, table.externalKey),
+    uniqueIndex("glossary_terms_concept_locale_term_key")
+      .on(table.conceptId, table.locale, table.term)
+      .where(
+        sql`${table.conceptId} is not null and ${table.locale} is not null and ${table.term} is not null`,
+      ),
     index("idx_glossary_terms_glossary_created_at").on(table.glossaryId, table.createdAt),
+    index("idx_glossary_terms_concept_id").on(table.conceptId),
+    index("idx_glossary_terms_concept_locale").on(table.conceptId, table.locale),
     index("idx_glossary_terms_external_key").on(table.externalKey),
     index("idx_glossary_terms_search_vector").using("gin", table.searchVector),
   ],

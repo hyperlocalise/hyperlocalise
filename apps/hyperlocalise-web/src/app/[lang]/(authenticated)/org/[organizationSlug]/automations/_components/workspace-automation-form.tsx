@@ -98,13 +98,16 @@ import {
 import { SlackChannelSelect } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/automations/_components/slack-channel-select";
 import { workspaceAutomationFormMessages } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/automations/_components/workspace-automation-form.messages";
 import { getLocaleLabel } from "@/lib/i18n/locales";
+import type {
+  WorkspaceAutomationGithubTriggerEvent,
+  WorkspaceAutomationRunRecord,
+} from "@/lib/agents/workspace-automation-types";
 import type { WorkspaceAutomationFormState } from "@/lib/agents/workspace-automation-view-model";
 import {
   applyWorkspaceAutomationProjectSelection,
   selectableAutomationRepositories,
   workspaceAutomationFormCanActivate,
 } from "@/lib/agents/workspace-automation-view-model";
-import type { WorkspaceAutomationRunRecord } from "@/lib/agents/workspace-automation-types";
 import { cn } from "@/lib/primitives/cn";
 import type { ApiProject } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/projects/_components/project-list";
 
@@ -214,6 +217,37 @@ function FieldError({ message }: { message?: string }) {
   }
 
   return <p className="text-xs text-destructive">{message}</p>;
+}
+
+function toggleGithubEvent(
+  events: WorkspaceAutomationGithubTriggerEvent[],
+  event: WorkspaceAutomationGithubTriggerEvent,
+  enabled: boolean,
+): WorkspaceAutomationGithubTriggerEvent[] {
+  if (enabled) {
+    return events.includes(event) ? events : [...events, event];
+  }
+
+  return events.filter((value) => value !== event);
+}
+
+function GithubEventSwitch({
+  checked,
+  disabled,
+  label,
+  onCheckedChange,
+}: {
+  checked: boolean;
+  disabled?: boolean;
+  label: ReactNode;
+  onCheckedChange: (checked: boolean) => void;
+}) {
+  return (
+    <label className="flex items-center gap-2 text-xs text-foreground">
+      <Switch size="sm" checked={checked} disabled={disabled} onCheckedChange={onCheckedChange} />
+      <span>{label}</span>
+    </label>
+  );
 }
 
 function EditorSection({ title, children }: { title: string; children: ReactNode }) {
@@ -346,7 +380,15 @@ function triggerSummary(
     const branchLabel =
       form.pushBranches.join(", ") ||
       intl.formatMessage(workspaceAutomationFormMessages.branchesRequired);
-    return intl.formatMessage(workspaceAutomationFormMessages.githubPushSummary, {
+    const listensToPush = form.githubEvents.includes("push");
+    const listensToPullRequest = form.githubEvents.includes("pull_request");
+    const summaryMessage =
+      listensToPush && listensToPullRequest
+        ? workspaceAutomationFormMessages.githubPushAndPullRequestSummary
+        : listensToPullRequest
+          ? workspaceAutomationFormMessages.githubPullRequestSummary
+          : workspaceAutomationFormMessages.githubPushSummary;
+    return intl.formatMessage(summaryMessage, {
       repository: repositoryLabel,
       branches: branchLabel,
     });
@@ -795,6 +837,7 @@ function AddTriggerMenu({
                   ...form,
                   triggerMode: "github",
                   githubEnabled: true,
+                  githubEvents: form.githubEvents.length > 0 ? form.githubEvents : ["push"],
                   repositoryTargetKind: "github",
                   githubInstallationRepositoryId: defaultRepositoryId,
                   validationEnabled:
@@ -1041,7 +1084,34 @@ function TriggerSettings({
                   onChange={(pushBranches) => onChange({ ...form, pushBranches })}
                 />
               </div>
+              <div className="flex flex-wrap items-center gap-3">
+                <GithubEventSwitch
+                  checked={form.githubEvents.includes("push")}
+                  disabled={disabled}
+                  label={<FormattedMessage {...workspaceAutomationFormMessages.githubEventPush} />}
+                  onCheckedChange={(checked) =>
+                    onChange({
+                      ...form,
+                      githubEvents: toggleGithubEvent(form.githubEvents, "push", checked),
+                    })
+                  }
+                />
+                <GithubEventSwitch
+                  checked={form.githubEvents.includes("pull_request")}
+                  disabled={disabled}
+                  label={
+                    <FormattedMessage {...workspaceAutomationFormMessages.githubEventPullRequest} />
+                  }
+                  onCheckedChange={(checked) =>
+                    onChange({
+                      ...form,
+                      githubEvents: toggleGithubEvent(form.githubEvents, "pull_request", checked),
+                    })
+                  }
+                />
+              </div>
               <FieldError message={errors.githubRepository} />
+              <FieldError message={errors.githubEvents} />
             </div>
           </EditorRow>
         ) : null}

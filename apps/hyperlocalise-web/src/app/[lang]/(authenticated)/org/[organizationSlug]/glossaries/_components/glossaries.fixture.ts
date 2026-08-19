@@ -36,14 +36,18 @@ function createApiGlossary(overrides: Partial<GlossaryRecord> = {}): GlossaryRec
     name: "Product UI",
     description: "Core product terminology",
     sourceLocale: "en-US",
-    targetLocale: "fr-FR",
+    targetLocale: null,
     status: "active",
     source: "native",
     externalProviderKind: null,
     externalProjectId: null,
     externalResourceType: null,
     externalGlossaryId: null,
-    localeCoverage: ["en-US", "fr-FR"],
+    localeCoverage: ["en-US", "vi-VN"],
+    languages: [
+      { locale: "en-US", name: "American English", isSource: true },
+      { locale: "vi-VN", name: "Vietnamese (Vietnam)", isSource: false },
+    ],
     termCount: 120,
     syncState: null,
     termCapabilities: { preferredTerms: true, forbiddenTerms: true },
@@ -109,6 +113,6 @@ export function createEmptyGlossaryFormFixture() {
     name: "",
     description: "",
     sourceLocale: "en-US",
-    targetLocales: ["fr-FR"],
+    projectIds: [],
   };
 }

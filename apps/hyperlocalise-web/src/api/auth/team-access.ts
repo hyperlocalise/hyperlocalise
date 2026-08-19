@@ -222,7 +222,7 @@ export async function buildProjectLinkedGlossaryWhere(auth: ApiAuthContext): Pro
 
   const accessibleProjectIds = await getAccessibleProjectIds(auth);
   if (accessibleProjectIds.length === 0) {
-    return sql`false`;
+    return and(organizationScope, eq(schema.glossaries.createdByUserId, auth.user.localUserId))!;
   }
 
   const linkedGlossaryIds = db
@@ -230,7 +230,13 @@ export async function buildProjectLinkedGlossaryWhere(auth: ApiAuthContext): Pro
     .from(schema.projectGlossaries)
     .where(inArray(schema.projectGlossaries.projectId, accessibleProjectIds));
 
-  return and(organizationScope, inArray(schema.glossaries.id, linkedGlossaryIds))!;
+  return and(
+    organizationScope,
+    or(
+      eq(schema.glossaries.createdByUserId, auth.user.localUserId),
+      inArray(schema.glossaries.id, linkedGlossaryIds),
+    ),
+  )!;
 }
 
 export async function buildProjectLinkedMemoryWhere(auth: ApiAuthContext): Promise<SQL> {
@@ -338,13 +344,24 @@ export async function canAccessGlossary(auth: ApiAuthContext, glossaryId: string
 
   const accessibleProjectIds = await getAccessibleProjectIds(auth);
   if (accessibleProjectIds.length === 0) {
-    return null;
+    const [glossary] = await db
+      .select({ id: schema.glossaries.id })
+      .from(schema.glossaries)
+      .where(
+        and(
+          eq(schema.glossaries.id, glossaryId),
+          eq(schema.glossaries.organizationId, auth.organization.localOrganizationId),
+          eq(schema.glossaries.createdByUserId, auth.user.localUserId),
+        ),
+      )
+      .limit(1);
+    return glossary ?? null;
   }
 
   const [glossary] = await db
     .select({ id: schema.glossaries.id })
     .from(schema.glossaries)
-    .innerJoin(
+    .leftJoin(
       schema.projectGlossaries,
       eq(schema.projectGlossaries.glossaryId, schema.glossaries.id),
     )
@@ -352,7 +369,10 @@ export async function canAccessGlossary(auth: ApiAuthContext, glossaryId: string
       and(
         eq(schema.glossaries.id, glossaryId),
         eq(schema.glossaries.organizationId, auth.organization.localOrganizationId),
-        inArray(schema.projectGlossaries.projectId, accessibleProjectIds),
+        or(
+          eq(schema.glossaries.createdByUserId, auth.user.localUserId),
+          inArray(schema.projectGlossaries.projectId, accessibleProjectIds),
+        ),
       ),
     )
     .limit(1);

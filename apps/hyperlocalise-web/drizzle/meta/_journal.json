@@ -610,6 +610,13 @@
       "when": 1786959895945,
       "tag": "0086_fearless_king_cobra",
       "breakpoints": true
+    },
+    {
+      "idx": 87,
+      "version": "7",
+      "when": 1787145730003,
+      "tag": "0087_perfect_professor_monster",
+      "breakpoints": true
     }
   ]
 }
