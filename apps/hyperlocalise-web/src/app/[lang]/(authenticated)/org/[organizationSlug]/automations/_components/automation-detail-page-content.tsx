@@ -14,17 +14,22 @@
  */
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { PlayIcon, SaveIcon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { FormattedMessage, useIntl } from "react-intl";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 import { apiClient } from "@/lib/api-client-instance";
 import {
   createWorkspaceAutomationFormStateFromRecord,
   formStateToWorkspaceAutomationPayload,
   mapWorkspaceAutomationApiErrorToFieldErrors,
   validateWorkspaceAutomationFormState,
+  workspaceAutomationFormHasChanges,
+  workspaceAutomationFormSupportsOnDemandRun,
 } from "@/lib/agents/workspace-automation-view-model";
 import { WorkspacePageShell } from "../../_components/workspace-resource-shared";
 import { automationDetailPageContentMessages } from "./automation-detail-page-content.messages";
@@ -157,6 +162,12 @@ export function AutomationDetailPageContent({
     );
   }
 
+  const savedForm = createWorkspaceAutomationFormStateFromRecord(automation);
+  const hasChanges = workspaceAutomationFormHasChanges(form, savedForm);
+  const showRunButton =
+    workspaceAutomationFormSupportsOnDemandRun(form.triggerMode) &&
+    workspaceAutomationFormSupportsOnDemandRun(savedForm.triggerMode);
+
   return (
     <WorkspacePageShell className="max-w-5xl">
       <WorkspaceAutomationEditor
@@ -170,14 +181,29 @@ export function AutomationDetailPageContent({
         runHistory={recentRuns}
         actions={
           <div className="flex gap-2">
+            {showRunButton ? (
+              <Button
+                variant="outline"
+                onClick={() => runMutation.mutate()}
+                disabled={runMutation.isPending || automation.status !== "active"}
+              >
+                {runMutation.isPending ? (
+                  <Spinner data-icon="inline-start" />
+                ) : (
+                  <HugeiconsIcon icon={PlayIcon} strokeWidth={1.8} data-icon="inline-start" />
+                )}
+                <FormattedMessage {...automationDetailPageContentMessages.runNow} />
+              </Button>
+            ) : null}
             <Button
-              variant="outline"
-              onClick={() => runMutation.mutate()}
-              disabled={runMutation.isPending || automation.status !== "active"}
+              onClick={() => saveMutation.mutate()}
+              disabled={saveMutation.isPending || !hasChanges}
             >
-              <FormattedMessage {...automationDetailPageContentMessages.runNow} />
-            </Button>
-            <Button onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending}>
+              {saveMutation.isPending ? (
+                <Spinner data-icon="inline-start" />
+              ) : (
+                <HugeiconsIcon icon={SaveIcon} strokeWidth={1.8} data-icon="inline-start" />
+              )}
               {saveMutation.isPending ? (
                 <FormattedMessage {...automationDetailPageContentMessages.saving} />
               ) : (

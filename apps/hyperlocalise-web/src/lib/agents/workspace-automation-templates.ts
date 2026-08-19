@@ -209,6 +209,7 @@ export const WORKSPACE_AUTOMATION_TEMPLATES_BASE: WorkspaceAutomationTemplate[] 
       role: "a localisation-focused code reviewer for this repository",
       capabilities: [
         "Read recent commits, diffs, and surrounding code in the lookback window",
+        "Extract changed translation keys and review old vs new values in locale catalogs",
         "Judge localisation, translation, and locale-compliance risk in the changed code",
         "Cite commit SHAs and file paths for each finding",
         "Separate blocking localisation defects from non-blocking follow-ups",
@@ -217,12 +218,29 @@ export const WORKSPACE_AUTOMATION_TEMPLATES_BASE: WorkspaceAutomationTemplate[] 
       goal: "Surface localisation and translation risks from the last day so the team can act before they ship further.",
       extraSections: [
         {
+          heading: "Review procedure",
+          items: [
+            "Follow gitHistory changedFiles → fileDiff → extract keys. Prefer gitHistory over raw git",
+            "Collect added and updated keys from catalog diffs with old → new values",
+            "Also review localisation logic changes: i18n APIs, locale routing, fallback, formatters, and writeback",
+          ],
+        },
+        {
           heading: "Review focus",
           items: [
             "Hard-coded copy, missing keys, and source strings that cannot be translated",
             "Broken ICU, placeholders, plurals, and locale-sensitive formatting",
             "Translation coverage, fallback, and writeback regressions",
             "Localisation compliance: locale, RTL, legal, and market-language constraints",
+            "Changed catalog values that look wrong, truncated, or inconsistent with nearby keys",
+          ],
+        },
+        {
+          heading: "Slack report",
+          items: [
+            "If locale catalogs or source strings changed, lead with a key/value changelog, then defects",
+            "Do not post no localisation findings when translation JSON/YAML files changed",
+            "If catalogs changed and there are no defects, include the changelog and then No blocking localisation defects",
           ],
         },
       ],

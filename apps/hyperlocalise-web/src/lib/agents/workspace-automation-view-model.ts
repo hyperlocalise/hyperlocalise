@@ -167,6 +167,16 @@ export const WORKSPACE_AUTOMATION_API_ERROR_MESSAGES: Record<string, string> = {
   project_not_found: "The selected project could not be found.",
 };
 
+export function selectableAutomationRepositories<
+  T extends { id: string; enabled: boolean; archived: boolean },
+>(repositories: T[], selectedId = ""): T[] {
+  return repositories.filter(
+    (repository) =>
+      (repository.enabled && !repository.archived) ||
+      (selectedId.length > 0 && repository.id === selectedId),
+  );
+}
+
 export function createDefaultWorkspaceAutomationFormState(): WorkspaceAutomationFormState {
   return {
     name: "",
@@ -709,6 +719,19 @@ export function mapWorkspaceAutomationApiErrorToFieldErrors(
     default:
       return { form: message };
   }
+}
+
+export function workspaceAutomationFormSupportsOnDemandRun(
+  triggerMode: WorkspaceAutomationTriggerMode,
+) {
+  return triggerMode === "manual" || triggerMode === "scheduled";
+}
+
+export function workspaceAutomationFormHasChanges(
+  current: WorkspaceAutomationFormState,
+  saved: WorkspaceAutomationFormState,
+) {
+  return JSON.stringify(current) !== JSON.stringify(saved);
 }
 
 export function workspaceAutomationFormCanActivate(form: WorkspaceAutomationFormState) {

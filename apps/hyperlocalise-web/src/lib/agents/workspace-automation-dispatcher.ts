@@ -280,7 +280,10 @@ export async function dispatchManualWorkspaceAutomationRun(input: {
     return null;
   }
 
-  if (input.automation.triggerConfig.mode !== "manual") {
+  if (
+    input.automation.triggerConfig.mode !== "manual" &&
+    input.automation.triggerConfig.mode !== "scheduled"
+  ) {
     return null;
   }
 

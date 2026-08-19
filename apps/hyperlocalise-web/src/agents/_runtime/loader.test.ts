@@ -68,6 +68,12 @@ Body content`);
     );
   });
 
+  it("loads shared recent-source-changes skill", () => {
+    expect(loadSharedSkill("recent-source-changes")).toContain("gitHistory");
+    expect(loadSharedSkill("recent-source-changes")).toContain("changedFiles");
+    expect(loadSharedSkill("recent-source-changes")).toContain("`git diff` exit code 1");
+  });
+
   it("maps tool filenames to runtime names", () => {
     expect(toolNameFromFilename("translate_string.ts")).toBe("translate_string");
   });

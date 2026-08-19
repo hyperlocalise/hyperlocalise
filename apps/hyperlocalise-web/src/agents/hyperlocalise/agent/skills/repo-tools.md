@@ -21,7 +21,7 @@ Use these tools for read-only inspection of the connected GitHub repository.
 
 ## Recent source-content changes (`gitHistory`)
 
-Use `gitHistory` when the request asks what changed recently, asks for history/provenance, asks about "new translations" / new source copy in the repo, or asks for context for strings changed in a time window such as "last week".
+Use `gitHistory` when the request asks what changed recently, asks for history/provenance, asks about "new translations" / new source copy in the repo, or asks for context for strings changed in a time window such as "last week". Prefer `gitHistory` over raw `git log` / `git diff`. `gitHistory` runs git from the clone root and strips a repo-name path prefix such as `repo/src/locales/en.json`. `git diff` exit code 1 means differences were found — that is success and the patch is in the tool output.
 
 ### Procedure
 
@@ -31,7 +31,7 @@ Use `gitHistory` when the request asks what changed recently, asks for history/p
    - Use `detectRepoConfig` and/or `glob`/`grep` to find likely source locale files (for example `**/en*.json`, `**/en-US/**`, `**/locales/**`, `**/messages/**`, `**/i18n/**`, `**/*.messages.ts`, `**/lang/**`).
    - Call `gitHistory` again with `mode: "changedFiles"` and those discovered `paths`.
    - If still empty, broaden with common localization directories as `paths`, or use `mode: "fileDiff"` / `mode: "entryLog"` once you have candidate paths.
-4. For files that changed, use `mode: "fileDiff"` to inspect source entries. Collect only keys/source strings that **still exist now** (added or updated at HEAD). **Ignore deleted keys and deleted source content** from `-` diff lines.
+4. For files that changed, use `mode: "fileDiff"` to inspect source entries. Collect only keys/source strings that **still exist now** (added or updated at HEAD). **Ignore deleted keys and deleted source content** from `-` diff lines. Also read localisation logic changes (i18n API usage, locale routing, fallback, formatters, writeback) when those files changed — not only catalogs.
 5. Use `mode: "entryLog"` or `mode: "blame"` only when a specific currently present key/source string needs more provenance.
 
 ### After discovery

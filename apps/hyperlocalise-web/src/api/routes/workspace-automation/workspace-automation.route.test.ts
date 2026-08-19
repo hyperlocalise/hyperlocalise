@@ -484,4 +484,66 @@ describe("workspace automation routes", () => {
       automationRuns: [{ id: firstRun.automationRun.id, triggerSource: "manual" }],
     });
   });
+
+  it("queues on-demand runs for scheduled automations", async () => {
+    const identity = fixture.createWorkosIdentityWithRole("admin");
+    const headers = await fixture.authHeadersFor(identity);
+    const organizationId = await getOrganizationId(identity.organization.workosOrganizationId);
+    const projectId = await seedProject({ organizationId });
+    const repository = await seedGithubRepository({ organizationId });
+    const organizationSlug = identity.organization.slug ?? "missing-slug";
+
+    const createdResponse = await client.api.orgs[":organizationSlug"].automations.$post(
+      {
+        param: { organizationSlug },
+        json: {
+          name: "Scheduled repository automation",
+          instructions: "Run scheduled automation.",
+          projectId,
+          triggerConfig: {
+            mode: "scheduled",
+            schedule: {
+              cadence: "daily",
+              hourUtc: 8,
+              timezone: "UTC",
+            },
+          },
+          repositoryTarget: {
+            kind: "github",
+            githubInstallationRepositoryId: repository.id,
+          },
+          toolConfig: {
+            github: {
+              enabled: true,
+              mode: "sync",
+              pushSource: true,
+              pullTranslations: false,
+              validation: false,
+            },
+          },
+        },
+      },
+      { headers },
+    );
+    expect(createdResponse.status).toBe(201);
+    const created = (await createdResponse.json()) as { automation: { id: string } };
+
+    const runResponse = await client.api.orgs[":organizationSlug"].automations[
+      ":automationId"
+    ].runs.$post(
+      {
+        param: { organizationSlug, automationId: created.automation.id },
+        json: {
+          idempotencyKey: `manual:${created.automation.id}:scheduled-run`,
+        },
+      },
+      { headers },
+    );
+
+    expect(runResponse.status).toBe(202);
+    await expect(runResponse.json()).resolves.toMatchObject({
+      dispatch: { outcome: "enqueued", inserted: true },
+      automationRun: { triggerSource: "manual" },
+    });
+  });
 });

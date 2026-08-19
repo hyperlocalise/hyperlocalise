@@ -25,7 +25,10 @@ import {
   createWorkspaceAutomationFormStateFromTemplate,
   formStateToWorkspaceAutomationPayload,
   mapWorkspaceAutomationApiErrorToFieldErrors,
+  selectableAutomationRepositories,
   validateWorkspaceAutomationFormState,
+  workspaceAutomationFormHasChanges,
+  workspaceAutomationFormSupportsOnDemandRun,
 } from "./workspace-automation-view-model";
 
 const mergedTemplates = mergeWorkspaceTemplateSkills(WORKSPACE_AUTOMATION_TEMPLATES_BASE);
@@ -590,5 +593,36 @@ describe("workspace automation view model", () => {
     expect(formStateToWorkspaceAutomationPayload(form).toolConfig).toEqual({
       crowdin: { enabled: true, projectId: "ext:crowdin:42" },
     });
+  });
+
+  it("offers only enabled repositories, keeping a selected disabled repository visible", () => {
+    const repositories = [
+      { id: "enabled", fullName: "acme/web", enabled: true, archived: false },
+      { id: "disabled", fullName: "acme/old", enabled: false, archived: false },
+      { id: "archived", fullName: "acme/archive", enabled: true, archived: true },
+    ];
+
+    expect(
+      selectableAutomationRepositories(repositories).map((repository) => repository.id),
+    ).toEqual(["enabled"]);
+    expect(
+      selectableAutomationRepositories(repositories, "disabled").map((repository) => repository.id),
+    ).toEqual(["enabled", "disabled"]);
+  });
+
+  it("shows on-demand runs for scheduled and manual triggers only", () => {
+    expect(workspaceAutomationFormSupportsOnDemandRun("manual")).toBe(true);
+    expect(workspaceAutomationFormSupportsOnDemandRun("scheduled")).toBe(true);
+    expect(workspaceAutomationFormSupportsOnDemandRun("github")).toBe(false);
+    expect(workspaceAutomationFormSupportsOnDemandRun("contentful")).toBe(false);
+    expect(workspaceAutomationFormSupportsOnDemandRun("source_upload")).toBe(false);
+  });
+
+  it("detects unsaved automation form changes", () => {
+    const saved = createWorkspaceAutomationFormStateFromRecord(createAutomationSummary());
+    expect(workspaceAutomationFormHasChanges(saved, saved)).toBe(false);
+    expect(workspaceAutomationFormHasChanges({ ...saved, name: "Renamed automation" }, saved)).toBe(
+      true,
+    );
   });
 });

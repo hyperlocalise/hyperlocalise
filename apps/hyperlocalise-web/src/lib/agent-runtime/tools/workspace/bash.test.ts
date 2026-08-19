@@ -112,4 +112,70 @@ describe("createBashTool", () => {
     const result = await tool.execute!({ command: "hl check --fix" }, toolCallInfo);
     expect(result).toMatchObject({ success: false });
   });
+
+  it("treats git diff exit 1 as success and returns the patch", async () => {
+    const patch =
+      'diff --git a/src/locales/en/messages.json b/src/locales/en/messages.json\n+  "save": "Save"\n';
+    const tool = createBashTool({
+      bash: {
+        exec: async (bin, options) => {
+          expect(bin).toBe("git");
+          expect(options?.args).toEqual(["diff", "HEAD^", "HEAD"]);
+          return { stdout: patch, stderr: "", exitCode: 1, env: {} };
+        },
+        readFile: async () => "",
+      },
+    });
+
+    const result = await tool.execute!({ command: "git diff HEAD^ HEAD" }, toolCallInfo);
+
+    expect(result).toMatchObject({
+      success: true,
+      exitCode: 1,
+      stdout: patch,
+    });
+  });
+
+  it("treats git diff exit 1 as success after injecting -C", async () => {
+    const patch = "diff --git a/messages.json b/messages.json\n";
+    const tool = createBashTool({
+      bash: {
+        exec: async (bin, options) => {
+          expect(bin).toBe("git");
+          expect(options?.args).toEqual(["-C", "scribe-fe-v2", "diff", "HEAD^", "HEAD"]);
+          return { stdout: patch, stderr: "", exitCode: 1, env: {} };
+        },
+        readFile: async () => "",
+      },
+    });
+
+    const result = await tool.execute!(
+      { command: "git diff HEAD^ HEAD", cwd: "scribe-fe-v2" },
+      toolCallInfo,
+    );
+
+    expect(result).toMatchObject({ success: true, exitCode: 1, stdout: patch });
+  });
+
+  it("fails git diff on exit codes of 2 or higher", async () => {
+    const tool = createBashTool({
+      bash: {
+        exec: async () => ({
+          stdout: "usage: git diff [<options>]",
+          stderr: "",
+          exitCode: 129,
+          env: {},
+        }),
+        readFile: async () => "",
+      },
+    });
+
+    const result = await tool.execute!({ command: "git diff HEAD^ HEAD" }, toolCallInfo);
+
+    expect(result).toMatchObject({
+      success: false,
+      exitCode: 129,
+      stdout: "usage: git diff [<options>]",
+    });
+  });
 });

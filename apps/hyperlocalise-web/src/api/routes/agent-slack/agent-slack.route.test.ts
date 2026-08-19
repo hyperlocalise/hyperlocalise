@@ -219,6 +219,7 @@ describe("agentSlackRoutes", () => {
     const response = await client.api.orgs[":organizationSlug"]["agent-slack"].channels.$get(
       {
         param: { organizationSlug },
+        query: {},
       },
       { headers },
     );
@@ -239,6 +240,55 @@ describe("agentSlackRoutes", () => {
         headers: { authorization: "Bearer xoxb-token" },
       }),
     );
+    const listUrl = mocks.fetchMock.mock.calls[0]?.[0] as URL;
+    expect(listUrl.searchParams.get("limit")).toBe("200");
+    expect(listUrl.searchParams.get("cursor")).toBeNull();
+  });
+
+  it("searches Slack channels by name", async () => {
+    const { organizationSlug, headers } = await setupEnabledSlackConnector();
+
+    mocks.fetchMock.mockResolvedValue({
+      ok: true,
+      headers: { get: () => null },
+      json: vi.fn().mockResolvedValue({
+        ok: true,
+        channels: [
+          { id: "C_PUBLIC", name: "localization", is_private: false },
+          { id: "C_PRIVATE", name: "team-l10n", is_private: true },
+        ],
+        response_metadata: {},
+      }),
+    } as unknown as Response);
+
+    const response = await client.api.orgs[":organizationSlug"]["agent-slack"].channels.$get(
+      {
+        param: { organizationSlug },
+        query: { q: "l10n" },
+      },
+      { headers },
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({
+      channels: [{ id: "slack:C_PRIVATE", name: "team-l10n", private: true }],
+    });
+  });
+
+  it("rejects an oversized Slack channel search query", async () => {
+    const { organizationSlug, headers } = await setupEnabledSlackConnector();
+
+    const response = await client.api.orgs[":organizationSlug"]["agent-slack"].channels.$get(
+      {
+        param: { organizationSlug },
+        query: { q: "a".repeat(513) },
+      },
+      { headers },
+    );
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({ error: "invalid_slack_channel_query" });
+    expect(mocks.fetchMock).not.toHaveBeenCalled();
   });
 
   it("returns 404 when the Slack installation is missing", async () => {
@@ -248,6 +298,7 @@ describe("agentSlackRoutes", () => {
     const response = await client.api.orgs[":organizationSlug"]["agent-slack"].channels.$get(
       {
         param: { organizationSlug },
+        query: {},
       },
       { headers },
     );
@@ -267,6 +318,7 @@ describe("agentSlackRoutes", () => {
     const response = await client.api.orgs[":organizationSlug"]["agent-slack"].channels.$get(
       {
         param: { organizationSlug },
+        query: {},
       },
       { headers },
     );
@@ -294,6 +346,7 @@ describe("agentSlackRoutes", () => {
     const response = await client.api.orgs[":organizationSlug"]["agent-slack"].channels.$get(
       {
         param: { organizationSlug },
+        query: {},
       },
       { headers },
     );
@@ -318,6 +371,7 @@ describe("agentSlackRoutes", () => {
     const response = await client.api.orgs[":organizationSlug"]["agent-slack"].channels.$get(
       {
         param: { organizationSlug },
+        query: {},
       },
       { headers },
     );
@@ -342,6 +396,7 @@ describe("agentSlackRoutes", () => {
     const response = await client.api.orgs[":organizationSlug"]["agent-slack"].channels.$get(
       {
         param: { organizationSlug },
+        query: {},
       },
       {
         headers: await fixture.authHeadersFor(identity),

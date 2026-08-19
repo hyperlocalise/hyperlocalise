@@ -69,6 +69,7 @@ export function composeGithubRepoInstructions(input: {
 }) {
   return composeInstructions({
     automationId: "github-repository",
+    sharedSkills: ["recent-source-changes"],
     skills: ["github-repo-agent"],
     dynamicSections: input.dynamicSections,
     userOverride: input.userOverride,

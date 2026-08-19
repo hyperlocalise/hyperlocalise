@@ -43,7 +43,7 @@ import {
   resolveGithubRepoLookbackHours,
 } from "./resolve-github-repo-lookback";
 
-const GITHUB_REPO_AGENT_STEP_LIMIT = 12;
+const GITHUB_REPO_AGENT_STEP_LIMIT = 16;
 
 export function createUseGithubRepositoryTool(session: WorkspaceOrchestratorSession) {
   return defineAgentTool({

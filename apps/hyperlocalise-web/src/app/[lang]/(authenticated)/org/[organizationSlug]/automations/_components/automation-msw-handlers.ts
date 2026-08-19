@@ -12,6 +12,8 @@
  */
 import { http, HttpResponse } from "msw";
 
+import type { WorkspaceAutomationRecord } from "@/lib/agents/workspace-automations";
+
 import {
   automationEditorContentfulConnectionsFixture,
   automationEditorCrowdinProjectsFixture,
@@ -131,3 +133,36 @@ export const automationEditorDisconnectedMswHandlers = [
     HttpResponse.json({ contentfulConnections: [] }),
   ),
 ];
+
+export function createAutomationDetailMswHandlers(automation: WorkspaceAutomationRecord) {
+  return [
+    ...automationEditorMswHandlers,
+    http.get("/api/orgs/:organizationSlug/automations/:automationId", () =>
+      HttpResponse.json({ automation, recentRuns: [] }),
+    ),
+    http.patch("/api/orgs/:organizationSlug/automations/:automationId", async ({ request }) => {
+      const body = (await request.json()) as Record<string, unknown>;
+      return HttpResponse.json({
+        automation: {
+          ...automation,
+          ...body,
+        },
+        recentRuns: [],
+      });
+    }),
+    http.post("/api/orgs/:organizationSlug/automations/:automationId/runs", () =>
+      HttpResponse.json(
+        {
+          automationRun: {
+            id: "run_manual_001",
+            automationId: automation.id,
+            triggerSource: "manual",
+            status: "queued",
+          },
+          dispatch: { outcome: "enqueued", inserted: true },
+        },
+        { status: 202 },
+      ),
+    ),
+  ];
+}
