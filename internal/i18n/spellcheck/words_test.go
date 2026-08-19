@@ -82,6 +82,16 @@ func TestScanWords(t *testing.T) {
 			want: []string{"well-known", "really"},
 		},
 		{
+			name: "unicode HYPHEN (U+2010) is word-internal, same as ASCII hyphen",
+			in:   "co\u2010operate",
+			want: []string{"co\u2010operate"},
+		},
+		{
+			name: "unicode HYPHEN (U+2010) surrounded by spaces is not word-internal",
+			in:   "well\u2010known \u2010 really",
+			want: []string{"well\u2010known", "really"},
+		},
+		{
 			name: "soft hyphen is excluded from the hyphen class and splits the word",
 			in:   "wor\u00ADd",
 			want: []string{"wor", "d"},
@@ -155,6 +165,21 @@ func TestScanWords(t *testing.T) {
 			name: "reference-style link",
 			in:   "[Click here][ref]",
 			want: []string{"Click", "here"},
+		},
+		{
+			name: "link destination with a nested balanced parenthetical is skipped in full",
+			in:   "[docs](https://example.com/a_(b)tail)",
+			want: []string{"docs"},
+		},
+		{
+			name: "reference label with a nested balanced bracket is skipped in full",
+			in:   "[docs][a[nested]tail]",
+			want: []string{"docs"},
+		},
+		{
+			name: "link destination with an escaped close paren is skipped past it",
+			in:   `[docs](url\)stillurl) after`,
+			want: []string{"docs", "after"},
 		},
 		{
 			name: "documented limitation: adjacent bracket groups misread as a reference link",

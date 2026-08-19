@@ -98,20 +98,32 @@ func scanMarkdownLinkTail(fragment string, start int) (int, bool) {
 	}
 	switch fragment[start] {
 	case '(':
-		return scanBalancedTail(fragment, start, ')')
+		return scanBalancedTail(fragment, start, '(', ')')
 	case '[':
-		return scanBalancedTail(fragment, start, ']')
+		return scanBalancedTail(fragment, start, '[', ']')
 	default:
 		return 0, false
 	}
 }
 
-func scanBalancedTail(fragment string, start int, close byte) (int, bool) {
-	idx := strings.IndexByte(fragment[start+1:], close)
-	if idx < 0 {
-		return 0, false
+func scanBalancedTail(fragment string, start int, open, close byte) (int, bool) {
+	depth := 1
+	for i := start + 1; i < len(fragment); i++ {
+		switch fragment[i] {
+		case '\\':
+			if i+1 < len(fragment) {
+				i++
+			}
+		case open:
+			depth++
+		case close:
+			depth--
+			if depth == 0 {
+				return i + 1, true
+			}
+		}
 	}
-	return start + 1 + idx + 1, true
+	return 0, false
 }
 
 func isWordChar(r rune) bool {
@@ -129,7 +141,7 @@ func isApostrophe(r rune) bool {
 
 func isHyphen(r rune) bool {
 	switch r {
-	case '-', '\u2011':
+	case '-', '\u2010', '\u2011':
 		return true
 	default:
 		return false
