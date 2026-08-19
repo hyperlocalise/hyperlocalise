@@ -2,15 +2,9 @@ package spellcheck
 
 import "strings"
 
-// stripMarkup replaces Hyperlocalise/Liquid internal placeholder sentinels,
-// HTML tags and attributes, and Markdown code spans with a single space
-// each, leaving everything else (including the text inside HTML elements)
-// untouched. Replacing a matched span with exactly one space, regardless of
-// its length, prevents words on either side of the removed span from being
-// glued together.
+// stripMarkup replaces internal placeholder sentinels, HTML tags, and
+// Markdown code spans with spaces so adjacent words remain separated.
 func stripMarkup(s string) string {
-	// BOLT OPTIMIZATION: Fast-path strings that contain none of the
-	// trigger bytes to avoid allocating a builder for plain text.
 	if !strings.ContainsAny(s, "\x1e<`") {
 		return s
 	}
@@ -45,12 +39,8 @@ func stripMarkup(s string) string {
 	return b.String()
 }
 
-// scanSentinel reports whether s[start:] begins a Hyperlocalise/Liquid
-// internal placeholder sentinel, delimited by ASCII RS (\x1e) and US (\x1f)
-// control bytes. It matches any \x1e...\x1f span generically (covering
-// HLMDPH_, HLLQPH_, HLHTPH_, and any future HL*PH_ prefix) since these
-// control bytes don't otherwise appear in translation content. On success it
-// returns the index immediately after the closing \x1f.
+// scanSentinel matches an internal placeholder delimited by ASCII
+// record separator (\x1e) and unit separator (\x1f).
 func scanSentinel(s string, start int) (int, bool) {
 	end := strings.IndexByte(s[start+1:], '\x1f')
 	if end < 0 {
@@ -59,18 +49,9 @@ func scanSentinel(s string, start int) (int, bool) {
 	return start + 1 + end + 1, true
 }
 
-// scanHTMLTag reports whether s[start:] begins an HTML-tag-shaped span:
-// '<' followed by a letter (opening tag), '/' then a letter (closing tag),
-// '!' (comment/doctype), or '?' (processing instruction). It scans to the
-// matching unquoted '>', respecting quoted attribute values the same way
-// htmltagparity.collectMarkupTags does, so a '>' inside a quoted attribute
-// value does not terminate the tag early. On success it returns the index
-// immediately after the matching '>'.
-//
-// This incidentally also matches Markdown autolinks (<https://example.com>)
-// since they share the same "< followed by a letter" shape, and it removes
-// any ICU-look-alike placeholder embedded inside an attribute value (e.g.
-// href="/{lang}/page") since the whole tag span is dropped.
+// scanHTMLTag matches an HTML-tag-shaped span through its unquoted closing
+// '>', so '>' inside quoted attribute values does not terminate the tag.
+// This also strips Markdown autolinks such as <https://example.com>.
 func scanHTMLTag(s string, start int) (int, bool) {
 	i := start + 1
 	if i >= len(s) {
@@ -111,12 +92,8 @@ func isHTMLTagLead(ch byte) bool {
 	return (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || ch == '!' || ch == '?'
 }
 
-// scanCodeSpan reports whether s[start:] begins a Markdown code span: a run
-// of one or more backticks with a later run of exactly the same length
-// (the CommonMark code-span rule — a longer or shorter run of backticks
-// does not close the span). On success it returns the index immediately
-// after the closing backtick run. If no matching closing run exists, the
-// opening backticks are left in place as ordinary, non-word punctuation.
+// scanCodeSpan matches a Markdown code span whose closing backtick run has
+// the same length as its opening run.
 func scanCodeSpan(s string, start int) (int, bool) {
 	i := start
 	for i < len(s) && s[i] == '`' {

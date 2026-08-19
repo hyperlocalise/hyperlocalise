@@ -2,13 +2,20 @@ load("@rules_go//go:def.bzl", "go_library", "go_test")
 
 go_library(
     name = "spellcheck",
-    srcs = ["markup.go"],
+    srcs = [
+        "icu.go",
+        "markup.go",
+    ],
     importpath = "github.com/hyperlocalise/hyperlocalise/internal/i18n/spellcheck",
     visibility = ["//visibility:public"],
+    deps = ["//internal/i18n/icuparser"],
 )
 
 go_test(
     name = "spellcheck_test",
-    srcs = ["markup_test.go"],
+    srcs = [
+        "icu_test.go",
+        "markup_test.go",
+    ],
     embed = [":spellcheck"],
 )
