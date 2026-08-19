@@ -65,7 +65,9 @@ describe("crowdinTmsProvider.searchConcordanceForAgent", () => {
                 data: {
                   glossary: { id: 9, name: "Product glossary" },
                   sourceTerms: [{ id: 1, languageId: "en", text: "Save", status: "preferred" }],
-                  targetTerms: [{ id: 2, languageId: "de", text: "Speichern", status: "preferred" }],
+                  targetTerms: [
+                    { id: 2, languageId: "de", text: "Speichern", status: "preferred" },
+                  ],
                 },
               },
             ],

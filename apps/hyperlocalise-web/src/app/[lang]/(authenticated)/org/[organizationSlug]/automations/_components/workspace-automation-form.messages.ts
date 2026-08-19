@@ -454,23 +454,23 @@ export const workspaceAutomationFormMessages = defineMessages({
   },
   crowdin: {
     defaultMessage: "Crowdin",
-    id: "cR0wDinRv1",
+    id: "yQ7T8Cq+ij",
     description: "Menu item and tool title for Crowdin translation review",
   },
   crowdinDescription: {
     defaultMessage:
       "Search concordance, load style guidance, and recommend translations for strings under review.",
-    id: "cR0wDinDs2",
+    id: "a44831XqpD",
     description: "Description for the Crowdin automation tool when a linked project exists",
   },
   crowdinDisconnectedDescription: {
     defaultMessage: "Connect Crowdin and sync a project before using this review tool.",
-    id: "cR0wDinDc3",
+    id: "FZh9zX9beA",
     description: "Description when no Crowdin-linked project is available",
   },
   removeCrowdinTool: {
     defaultMessage: "Remove Crowdin tool",
-    id: "cR0wDinRm4",
+    id: "aQKVpqRw8t",
     description: "Accessible label to remove the Crowdin tool",
   },
   ahrefs: {

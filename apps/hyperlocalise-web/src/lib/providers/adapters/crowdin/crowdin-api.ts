@@ -617,7 +617,6 @@ export interface CrowdinAiPrompt {
   enabledProjectIds?: number[] | null;
   config?: CrowdinAiPromptConfig | null;
 }
-}
 
 export interface CrowdinGlossaryConcordanceSearchRequest {
   sourceLanguageId: string;

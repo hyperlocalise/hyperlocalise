@@ -2176,8 +2176,8 @@ function ToolsSettings({
                   <SelectValue
                     placeholder={intl.formatMessage(workspaceAutomationFormMessages.selectProject)}
                   >
-                    {crowdinProjects.find((project) => project.id === form.crowdinProjectId)?.name ??
-                      intl.formatMessage(workspaceAutomationFormMessages.selectProject)}
+                    {crowdinProjects.find((project) => project.id === form.crowdinProjectId)
+                      ?.name ?? intl.formatMessage(workspaceAutomationFormMessages.selectProject)}
                   </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
