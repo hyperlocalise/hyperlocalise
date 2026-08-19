@@ -14,12 +14,6 @@ CREATE TABLE "glossary_concepts" (
 DROP INDEX "glossary_terms_glossary_source_term_key";--> statement-breakpoint
 DROP INDEX "glossary_terms_glossary_source_term_ci_key";--> statement-breakpoint
 ALTER TABLE "glossaries" ALTER COLUMN "target_locale" DROP NOT NULL;--> statement-breakpoint
-ALTER TABLE "glossary_terms" drop column "search_vector";--> statement-breakpoint
-ALTER TABLE "glossary_terms" ADD COLUMN "search_vector" "tsvector" GENERATED ALWAYS AS (
-      setweight(to_tsvector('simple', coalesce(term, source_term, '')), 'A') ||
-      setweight(to_tsvector('simple', coalesce(target_term, '')), 'B') ||
-      setweight(to_tsvector('simple', coalesce(description, '')), 'C')
-    ) STORED;--> statement-breakpoint
 ALTER TABLE "glossary_terms" ADD COLUMN "concept_id" uuid;--> statement-breakpoint
 ALTER TABLE "glossary_terms" ADD COLUMN "locale" text;--> statement-breakpoint
 ALTER TABLE "glossary_terms" ADD COLUMN "term" text;--> statement-breakpoint

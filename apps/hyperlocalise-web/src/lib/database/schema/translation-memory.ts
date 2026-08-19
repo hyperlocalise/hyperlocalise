@@ -228,7 +228,7 @@ export const glossaryTerms = pgTable(
     // Generated Postgres full-text document used for fast lexical glossary retrieval.
     // `to_tsvector` lowercases tokens, so callers must still post-filter case-sensitive terms.
     searchVector: tsvector("search_vector").generatedAlwaysAs(sql`
-      setweight(to_tsvector('simple', coalesce(term, source_term, '')), 'A') ||
+      setweight(to_tsvector('simple', coalesce(source_term, '')), 'A') ||
       setweight(to_tsvector('simple', coalesce(target_term, '')), 'B') ||
       setweight(to_tsvector('simple', coalesce(description, '')), 'C')
     `),

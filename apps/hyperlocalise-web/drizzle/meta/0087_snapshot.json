@@ -1,5 +1,5 @@
 {
-  "id": "1d969046-12a9-4599-bb14-19cb021de07f",
+  "id": "cd5791b9-6fe6-49ff-bfbc-a41484ba2710",
   "prevId": "f185572c-c9bc-4fd1-8fac-a7cd2e8ebd93",
   "version": "7",
   "dialect": "postgresql",
@@ -4758,7 +4758,7 @@
           "primaryKey": false,
           "notNull": false,
           "generated": {
-            "as": "\n      setweight(to_tsvector('simple', coalesce(term, source_term, '')), 'A') ||\n      setweight(to_tsvector('simple', coalesce(target_term, '')), 'B') ||\n      setweight(to_tsvector('simple', coalesce(description, '')), 'C')\n    ",
+            "as": "\n      setweight(to_tsvector('simple', coalesce(source_term, '')), 'A') ||\n      setweight(to_tsvector('simple', coalesce(target_term, '')), 'B') ||\n      setweight(to_tsvector('simple', coalesce(description, '')), 'C')\n    ",
             "type": "stored"
           }
         },

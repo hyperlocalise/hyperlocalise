@@ -12,6 +12,7 @@
  */
 import { and, asc, desc, eq, inArray, ne, sql } from "drizzle-orm";
 import { Hono } from "hono";
+import { DomUtils, parseDocument } from "htmlparser2";
 import { validator } from "hono/validator";
 
 import { conflictResponse, badRequestResponse } from "@/api/errors";
@@ -119,13 +120,6 @@ function toConceptRecord(
   };
 }
 
-// Native concept matching uses locale and term. Keep the retained non-null
-// source_term column collision-safe while older installations still have its
-// historical glossary-level unique index.
-function legacyConceptSourceTerm(conceptId: string, locale: string) {
-  return `__concept__${conceptId}__${locale}`;
-}
-
 async function loadConcept(glossaryId: string, conceptId: string) {
   const [concept] = await db
     .select()
@@ -195,7 +189,7 @@ function nativeTermValues(
     conceptId,
     locale,
     term: input.term,
-    sourceTerm: legacyConceptSourceTerm(conceptId, locale),
+    sourceTerm: input.term,
     targetTerm: input.term,
     description: input.description ?? "",
     partOfSpeech: input.partOfSpeech ?? "",
@@ -306,13 +300,12 @@ type ConceptImportEntry = {
 };
 
 function decodeXml(value: string) {
-  return value
-    .replace(/&amp;/g, "&")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
-    .trim();
+  return DomUtils.textContent(
+    parseDocument(value, {
+      decodeEntities: true,
+      xmlMode: true,
+    }),
+  ).trim();
 }
 
 function parseConceptImport(content: string, format: "csv" | "tbx"): ConceptImportEntry[] {
@@ -392,8 +385,8 @@ function parseConceptImport(content: string, format: "csv" | "tbx"): ConceptImpo
                 conceptKey: conceptKey || decodedTerm,
                 locale: decodeXml(locale),
                 term: decodedTerm,
-                subject: subject ? decodeXml(subject.replace(/<[^>]+>/g, "")) : undefined,
-                definition: definition ? decodeXml(definition.replace(/<[^>]+>/g, "")) : undefined,
+                subject: subject ? decodeXml(subject) : undefined,
+                definition: definition ? decodeXml(definition) : undefined,
               } satisfies ConceptImportEntry,
             ]
           : [];
@@ -470,7 +463,7 @@ async function importConcepts(
           conceptId: concept.id,
           locale: entry.locale,
           term: entry.term,
-          sourceTerm: legacyConceptSourceTerm(concept.id, entry.locale),
+          sourceTerm: entry.term,
           targetTerm: entry.term,
           description: entry.definition ?? "",
           partOfSpeech: entry.partOfSpeech ?? "",
@@ -648,6 +641,7 @@ export function createGlossaryConceptRoutes() {
               .update(schema.glossaryTerms)
               .set({
                 term: nextPrimaryTerm,
+                sourceTerm: nextPrimaryTerm,
                 targetTerm: nextPrimaryTerm,
               })
               .where(
@@ -697,7 +691,7 @@ export function createGlossaryConceptRoutes() {
               await tx.insert(schema.glossaryTerms).values({
                 glossaryId,
                 conceptId,
-                sourceTerm: legacyConceptSourceTerm(conceptId, termInput.locale),
+                sourceTerm: nextTerm,
                 ...termValues,
               });
             }
@@ -811,6 +805,7 @@ export function createGlossaryConceptRoutes() {
         }
         const setValues = {
           ...payload,
+          sourceTerm: nextTerm,
           targetTerm: nextTerm,
         };
         const term = await db.transaction(async (tx) => {
@@ -821,6 +816,7 @@ export function createGlossaryConceptRoutes() {
               and(
                 eq(schema.glossaryTerms.id, termId),
                 eq(schema.glossaryTerms.conceptId, conceptId),
+                eq(schema.glossaryTerms.glossaryId, glossaryId),
               ),
             )
             .returning();
@@ -852,7 +848,11 @@ export function createGlossaryConceptRoutes() {
           .select({ locale: schema.glossaryTerms.locale })
           .from(schema.glossaryTerms)
           .where(
-            and(eq(schema.glossaryTerms.id, termId), eq(schema.glossaryTerms.conceptId, conceptId)),
+            and(
+              eq(schema.glossaryTerms.id, termId),
+              eq(schema.glossaryTerms.conceptId, conceptId),
+              eq(schema.glossaryTerms.glossaryId, glossaryId),
+            ),
           )
           .limit(1);
         if (!term) return glossaryNotFoundResponse(c);
@@ -863,7 +863,15 @@ export function createGlossaryConceptRoutes() {
             "A concept must keep its primary source term",
           );
         }
-        await db.delete(schema.glossaryTerms).where(eq(schema.glossaryTerms.id, termId));
+        await db
+          .delete(schema.glossaryTerms)
+          .where(
+            and(
+              eq(schema.glossaryTerms.id, termId),
+              eq(schema.glossaryTerms.conceptId, conceptId),
+              eq(schema.glossaryTerms.glossaryId, glossaryId),
+            ),
+          );
         return c.body(null, 204);
       },
     );
