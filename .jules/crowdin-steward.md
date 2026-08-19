@@ -1,5 +1,11 @@
 # Crowdin Steward's Journal
 
+## 2026-12-31 - Add LabelIDs parity to BuildProjectFileTranslationRequest
+
+**Learning:** In Crowdin API v2, the Build Project File Translation endpoint (`POST /api/v2/projects/{projectId}/translations/builds/files/{fileId}`) accepts an optional `labelIds` array in the request body to filter builds by label identifiers. While `BuildProjectRequest` and `BuildProjectDirectoryTranslationRequest` included `labelIds`, `BuildProjectFileTranslationRequest` was missing `LabelIDs`, and its custom `MarshalJSON()` method omitted `labelIds` from serialized JSON payloads.
+
+**Action:** Added `LabelIDs []int json:"labelIds,omitempty"` to `BuildProjectFileTranslationRequest` and updated its custom `MarshalJSON()` method in `crowdin/model/translations.go`. Updated unit and contract tests in `crowdin/model/translations_test.go` and `crowdin/translations_test.go` to assert `LabelIDs` JSON marshaling and API endpoint execution.
+
 ## 2026-12-30 - Add FileID/MaxLen parity and fix root upload validation in SourceStringsUploadRequest
 
 **Learning:** In Crowdin API v2, uploading source strings (`POST /api/v2/projects/{projectId}/strings/uploads`) accepts optional `fileId` and `maxLen` parameters in the request body. Furthermore, `branchId`, `directoryId`, and `fileId` are all optional (uploading without any targets the project root) but mutually exclusive. The SDK's `SourceStringsUploadRequest` previously lacked `FileID` and `MaxLen`, and its `Validate()` method incorrectly enforced that `branchId` or `directoryId` be non-zero, rejecting valid uploads targeting a `fileId` or uploading to the project root.
