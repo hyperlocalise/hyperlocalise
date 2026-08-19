@@ -480,16 +480,17 @@ export async function searchSlackChannels(input: {
   const options: SlackRequestOptions = { signal: input.signal, sleep };
   const query = input.query?.trim() ?? "";
 
-  const selectedPromise = input.selectedChannelId
-    ? loadSlackChannelByKey(
-        input.botToken,
-        fromCanonicalSlackChannelId(input.selectedChannelId),
-        options,
-      )
-    : Promise.resolve(ok(null));
-  const lookupPromise = query
+  const selectedPromise: Promise<Result<SlackChannelListItem | null, SlackChannelSearchError>> =
+    input.selectedChannelId
+      ? loadSlackChannelByKey(
+          input.botToken,
+          fromCanonicalSlackChannelId(input.selectedChannelId),
+          options,
+        )
+      : Promise.resolve(ok<SlackChannelListItem | null, SlackChannelSearchError>(null));
+  const lookupPromise: Promise<Result<SlackChannelListItem | null, SlackChannelSearchError>> = query
     ? lookupSlackChannelByQuery(input.botToken, query, options)
-    : Promise.resolve(ok(null));
+    : Promise.resolve(ok<SlackChannelListItem | null, SlackChannelSearchError>(null));
   const listPromise = loadCompleteSlackChannelList({
     botToken: input.botToken,
     cacheKey: input.cacheKey,
