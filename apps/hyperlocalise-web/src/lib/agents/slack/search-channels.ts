@@ -68,7 +68,6 @@ type SlackChannel = {
   name?: string;
   name_normalized?: string;
   is_private?: boolean;
-  is_archived?: boolean;
 };
 
 type SlackConversationsListResponse = {
