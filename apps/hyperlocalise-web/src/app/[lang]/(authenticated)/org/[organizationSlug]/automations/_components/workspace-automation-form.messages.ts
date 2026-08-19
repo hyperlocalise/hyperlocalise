@@ -913,7 +913,7 @@ export const workspaceAutomationFormMessages = defineMessages({
   },
   chatUrl: {
     defaultMessage: "Public chat URL",
-    id: "n8QwK2vLpR",
+    id: "T+paKHNF/O",
     description: "Accessible label for the read-only public web chat URL field",
   },
   copyChatUrl: {
