@@ -21,16 +21,13 @@ const intl = createIntl({ locale: "en", messages: {} });
 describe("resolveAutomationCreatorName", () => {
   it("uses the author display name when present", () => {
     expect(
-      resolveAutomationCreatorName(
-        intl,
-        createAutomationSummary({ authorName: "Ada Lovelace" }),
-      ),
+      resolveAutomationCreatorName(intl, createAutomationSummary({ authorName: "Ada Lovelace" })),
     ).toBe("Ada Lovelace");
   });
 
   it("falls back to Unknown when the author is missing", () => {
-    expect(
-      resolveAutomationCreatorName(intl, createAutomationSummary({ authorName: null })),
-    ).toBe("Unknown");
+    expect(resolveAutomationCreatorName(intl, createAutomationSummary({ authorName: null }))).toBe(
+      "Unknown",
+    );
   });
 });

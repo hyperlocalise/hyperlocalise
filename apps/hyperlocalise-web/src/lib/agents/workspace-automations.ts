@@ -1447,7 +1447,7 @@ export async function listSourceUploadWorkspaceAutomations(input: {
     .orderBy(desc(schema.workspaceAutomations.createdAt))
     .limit(input.limit ?? 20);
 
-  return rows.map(serializeAutomation);
+  return rows.map((row) => serializeAutomation(row));
 }
 
 export type DueWorkspaceAutomation = {
@@ -1520,7 +1520,7 @@ export async function listDueContentfulWorkspaceAutomations(input: {
     .limit(limit);
 
   return rows
-    .map(serializeAutomation)
+    .map((row) => serializeAutomation(row))
     .filter(
       (automation) =>
         automation.triggerConfig.mode === "scheduled" &&

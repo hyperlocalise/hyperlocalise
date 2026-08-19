@@ -772,13 +772,13 @@ describe("workspace automations", () => {
     expect(secondPage.map((item) => item.name)).toEqual(["Automation 1"]);
   });
 
-  it("falls back to email for author names and omits deleted authors", async () => {
+  it("falls back to email for author names and omits missing authors", async () => {
     const scope = await seedWorkspaceAutomationScope();
     const emailOnlyUserId = crypto.randomUUID();
     await db.insert(schema.users).values({
       id: emailOnlyUserId,
       workosUserId: `user_${emailOnlyUserId}`,
-      email: "hopper@example.test",
+      email: `${emailOnlyUserId}@example.test`,
     });
 
     const namedAutomation = expectOk(
@@ -810,14 +810,14 @@ describe("workspace automations", () => {
     const listedById = new Map(listed.map((item) => [item.id, item]));
 
     expect(listedById.get(namedAutomation.id)?.authorName).toBe("Ada Lovelace");
-    expect(listedById.get(emailAutomation.id)?.authorName).toBe("hopper@example.test");
+    expect(listedById.get(emailAutomation.id)?.authorName).toBe(`${emailOnlyUserId}@example.test`);
     expect(listedById.get(anonymousAutomation.id)?.authorName).toBeNull();
 
     const loadedEmail = await getWorkspaceAutomationById({
       automationId: emailAutomation.id,
       organizationId: scope.organizationId,
     });
-    expect(loadedEmail?.authorName).toBe("hopper@example.test");
+    expect(loadedEmail?.authorName).toBe(`${emailOnlyUserId}@example.test`);
   });
 
   it("creates and serializes run history with optional GitHub job links", async () => {

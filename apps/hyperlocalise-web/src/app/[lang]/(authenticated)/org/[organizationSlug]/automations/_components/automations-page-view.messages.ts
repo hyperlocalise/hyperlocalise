@@ -73,7 +73,7 @@ export const automationsPageViewMessages = defineMessages({
   },
   columnCreator: {
     defaultMessage: "Creator",
-    id: "n4qR8kLm2P",
+    id: "Zs0OvEkqcZ",
     description: "Automations list column header for creator",
   },
   columnCreated: {
