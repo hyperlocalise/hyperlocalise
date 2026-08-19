@@ -161,7 +161,9 @@ export function AutomationDetailPageContent({
 
   const savedForm = createWorkspaceAutomationFormStateFromRecord(automation);
   const hasChanges = workspaceAutomationFormHasChanges(form, savedForm);
-  const showRunButton = workspaceAutomationFormSupportsOnDemandRun(form.triggerMode);
+  const showRunButton =
+    workspaceAutomationFormSupportsOnDemandRun(form.triggerMode) &&
+    workspaceAutomationFormSupportsOnDemandRun(savedForm.triggerMode);
 
   return (
     <WorkspacePageShell className="max-w-5xl">
