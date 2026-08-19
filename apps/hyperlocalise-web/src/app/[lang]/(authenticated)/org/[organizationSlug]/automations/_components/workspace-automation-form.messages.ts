@@ -90,6 +90,11 @@ export const workspaceAutomationFormMessages = defineMessages({
     id: "J7Yta0PrqK",
     description: "Placeholder when no Slack channel is selected",
   },
+  searchChannelPlaceholder: {
+    defaultMessage: "Search channels",
+    id: "n4Q2kL8mVx",
+    description: "Placeholder for Slack channel search input",
+  },
   selectConnection: {
     defaultMessage: "Select connection",
     id: "x6H592pqcv",
