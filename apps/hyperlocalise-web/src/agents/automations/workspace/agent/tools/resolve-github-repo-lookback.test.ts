@@ -53,11 +53,13 @@ describe("resolveGithubPushRange", () => {
       commitBefore: null,
       commitAfter: "ccc333",
     });
-    expect(formatGithubPushRangeLabel({
-      branch: "feature/x",
-      commitBefore: null,
-      commitAfter: "ccc333",
-    })).toContain("new branch");
+    expect(
+      formatGithubPushRangeLabel({
+        branch: "feature/x",
+        commitBefore: null,
+        commitAfter: "ccc333",
+      }),
+    ).toContain("new branch");
   });
 
   it("ignores non-GitHub triggers", () => {

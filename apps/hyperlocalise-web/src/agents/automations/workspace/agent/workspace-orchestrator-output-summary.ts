@@ -140,7 +140,11 @@ export function buildWorkspaceOrchestratorOutputSummary(
   base: Record<string, unknown>,
   stepResults: Partial<Record<WorkspaceOrchestratorToolName, Record<string, unknown>>>,
   options?: {
-    notificationWarnings?: Array<{ channel: "slack" | "email"; code: string; message: string }>;
+    notificationWarnings?: Array<{
+      channel: "slack" | "email" | "github_comment";
+      code: string;
+      message: string;
+    }>;
   },
 ): Record<string, unknown> {
   const contentfulTranslationRunId = readContentfulTranslationRunId(base, stepResults);
