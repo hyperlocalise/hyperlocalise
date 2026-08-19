@@ -16,7 +16,8 @@ var bareURLPattern = regexp.MustCompile(`(?i)^(?:https?://|www\.)\S+`)
 
 const urlTrailingCutset = ".,;:!?\"')]"
 
-// scanWords appends spell-checkable words in source order, preserving their exact spelling.
+// scanWords appends user-visible words in source order, using rendered
+// spelling for decoded entities.
 func scanWords(fragment string, out []string) []string {
 	for i := 0; i < len(fragment); {
 		ch := fragment[i]
@@ -29,6 +30,17 @@ func scanWords(fragment string, out []string) []string {
 			}
 		case ']':
 			if end, ok := scanMarkdownLinkTail(fragment, i+1); ok {
+				i = end
+				continue
+			}
+		case '&':
+			if decoded, end, ok := scanEntity(fragment, i); ok {
+				if isAllWordChars(decoded) {
+					token, runEnd := scanWordRun(fragment, i)
+					out = append(out, token)
+					i = runEnd
+					continue
+				}
 				i = end
 				continue
 			}
@@ -49,8 +61,8 @@ func scanWords(fragment string, out []string) []string {
 
 		r, size := utf8.DecodeRuneInString(fragment[i:])
 		if isWordChar(r) {
-			end := scanWordRun(fragment, i)
-			out = append(out, fragment[i:end])
+			token, end := scanWordRun(fragment, i)
+			out = append(out, token)
 			i = end
 			continue
 		}
@@ -90,8 +102,6 @@ func scanBareURL(fragment string, start int) (int, bool) {
 	return start + len(trimmed), true
 }
 
-// scanMarkdownLinkTail skips a Markdown link destination or reference label
-// immediately following ']'.
 func scanMarkdownLinkTail(fragment string, start int) (int, bool) {
 	if start >= len(fragment) {
 		return 0, false
@@ -152,11 +162,41 @@ func isHexDigitByte(ch byte) bool {
 	return (ch >= '0' && ch <= '9') || (ch >= 'a' && ch <= 'f') || (ch >= 'A' && ch <= 'F')
 }
 
-// scanWordRun includes apostrophes and hyphens only when they occur
-// between word characters.
-func scanWordRun(fragment string, start int) int {
+// scanWordRun returns one maximal word token, decoding recognized entities
+// that form part of the word.
+func scanWordRun(fragment string, start int) (string, int) {
 	i := start
+	litStart := start
+	var b strings.Builder
+
 	for i < len(fragment) {
+		if fragment[i] == '&' {
+			decoded, end, ok := scanEntity(fragment, i)
+			if !ok {
+				break
+			}
+			if isAllWordChars(decoded) {
+				b.WriteString(fragment[litStart:i])
+				b.WriteString(decoded)
+				i = end
+				litStart = i
+				continue
+			}
+			if i > start {
+				if r, single := decodedSingleRune(decoded); single && (isApostrophe(r) || isHyphen(r)) {
+					nr, nsize := utf8.DecodeRuneInString(fragment[end:])
+					if nsize > 0 && isWordChar(nr) {
+						b.WriteString(fragment[litStart:i])
+						b.WriteRune(r)
+						i = end
+						litStart = i
+						continue
+					}
+				}
+			}
+			break
+		}
+
 		r, size := utf8.DecodeRuneInString(fragment[i:])
 		if isWordChar(r) {
 			i += size
@@ -171,5 +211,10 @@ func scanWordRun(fragment string, start int) int {
 		}
 		break
 	}
-	return i
+
+	if litStart == start {
+		return fragment[start:i], i
+	}
+	b.WriteString(fragment[litStart:i])
+	return b.String(), i
 }

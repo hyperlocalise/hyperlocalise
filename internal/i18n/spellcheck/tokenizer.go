@@ -2,7 +2,8 @@
 package spellcheck
 
 // Tokenize returns user-visible words in source order, preserving their
-// original spelling. Callers are responsible for deduplication.
+// rendered spelling. Recognized escapes and entities are decoded.
+// Callers are responsible for deduplication.
 func Tokenize(s string) []string {
 	cleaned := stripMarkup(s)
 	fragments := splitICULiterals(cleaned)

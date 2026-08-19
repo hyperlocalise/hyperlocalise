@@ -205,6 +205,12 @@ func TestTokenize(t *testing.T) {
 		},
 
 		{
+			name: "HTML entity decoded inside an ICU plural literal, alongside real markup",
+			in:   "<p>caf&eacute; {count, plural, one{cup} other{cups}}</p>",
+			want: []string{"café", "cup", "cups"},
+		},
+
+		{
 			name: "empty string",
 			in:   "",
 			want: nil,
