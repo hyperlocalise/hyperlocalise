@@ -117,9 +117,9 @@ func TestScanWords(t *testing.T) {
 			want: []string{"discount"},
 		},
 		{
-			name: "balanced non-ICU curly content is skipped wholesale",
+			name: "braces are ordinary punctuation, not a placeholder skip",
 			in:   "{{mustache}} style",
-			want: []string{"style"},
+			want: []string{"mustache", "style"},
 		},
 		{
 			name: "canonical UUID is skipped wholesale, not fragmented",

@@ -27,11 +27,6 @@ func scanWords(fragment string, out []string) []string {
 				i = end
 				continue
 			}
-		case '{':
-			if end, ok := scanStrayBraces(fragment, i); ok {
-				i = end
-				continue
-			}
 		case ']':
 			if end, ok := scanMarkdownLinkTail(fragment, i+1); ok {
 				i = end
@@ -73,23 +68,6 @@ func scanPrintfPlaceholder(fragment string, start int) (int, bool) {
 		return 0, false
 	}
 	return start + loc[1], true
-}
-
-// scanStrayBraces skips a balanced {...} span.
-func scanStrayBraces(fragment string, start int) (int, bool) {
-	depth := 0
-	for i := start; i < len(fragment); i++ {
-		switch fragment[i] {
-		case '{':
-			depth++
-		case '}':
-			depth--
-			if depth == 0 {
-				return i + 1, true
-			}
-		}
-	}
-	return 0, false
 }
 
 func scanUUID(fragment string, start int) (int, bool) {
