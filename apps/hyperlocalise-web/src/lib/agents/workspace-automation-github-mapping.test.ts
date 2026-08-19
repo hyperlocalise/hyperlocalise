@@ -264,7 +264,7 @@ describe("workspace automation GitHub mapping", () => {
 
   it("dispatches GitHub agent automations on matching pull request base branches", () => {
     const agentAutomation = automation({
-      triggerConfig: { mode: "github", branches: ["main"], events: ["push", "pull_request"] },
+      triggerConfig: { mode: "github", branches: ["main"], events: ["pull_request"] },
       toolConfig: {
         github: {
           enabled: true,
@@ -280,6 +280,7 @@ describe("workspace automation GitHub mapping", () => {
     expect(workspaceAutomationShouldDispatchOnGithubPullRequest(agentAutomation, "main")).toBe(
       true,
     );
+    expect(workspaceAutomationShouldDispatchOnGithubPush(agentAutomation, "main")).toBe(false);
     expect(workspaceAutomationShouldDispatchOnGithubPullRequest(agentAutomation, "feature/x")).toBe(
       false,
     );
@@ -292,5 +293,14 @@ describe("workspace automation GitHub mapping", () => {
         "main",
       ),
     ).toBe(false);
+    expect(
+      workspaceAutomationShouldDispatchOnGithubPullRequest(
+        automation({
+          triggerConfig: { mode: "github", branches: ["main"], events: ["push", "pull_request"] },
+          toolConfig: agentAutomation.toolConfig,
+        }),
+        "main",
+      ),
+    ).toBe(true);
   });
 });

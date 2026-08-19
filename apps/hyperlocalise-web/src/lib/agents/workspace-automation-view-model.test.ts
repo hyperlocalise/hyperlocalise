@@ -277,7 +277,7 @@ describe("workspace automation view model", () => {
       name: "Notify on push blockers",
       triggerMode: "github",
       pushBranches: ["main"],
-      githubEvents: ["push", "pull_request"],
+      githubEvents: ["pull_request"],
       githubEnabled: true,
       githubMode: "agent",
       githubCommentEnabled: true,
@@ -300,7 +300,7 @@ describe("workspace automation view model", () => {
     expect(formStateToWorkspaceAutomationPayload(form!).triggerConfig).toEqual({
       mode: "github",
       branches: ["main"],
-      events: ["push", "pull_request"],
+      events: ["pull_request"],
     });
   });
 

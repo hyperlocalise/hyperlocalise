@@ -210,7 +210,7 @@ describe("workspace automation templates", () => {
       defaultForm: {
         triggerMode: "github",
         pushBranches: ["main"],
-        githubEvents: ["push", "pull_request"],
+        githubEvents: ["pull_request"],
         githubEnabled: true,
         githubMode: "agent",
         githubCommentEnabled: true,
@@ -223,7 +223,7 @@ describe("workspace automation templates", () => {
     expect(template?.instructions).toContain("Review focus:");
     expect(template?.instructions).toContain("i18n.yml");
     expect(getWorkspaceAutomationTemplateFlow(template!)).toEqual({
-      trigger: { id: "github-push", label: "GitHub push and pull request" },
+      trigger: { id: "github-pull-request", label: "GitHub pull request" },
       tools: [
         { id: "github", label: "GitHub" },
         { id: "github-comment", label: "GitHub comment" },

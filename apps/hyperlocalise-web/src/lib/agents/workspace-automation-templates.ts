@@ -633,19 +633,19 @@ export const WORKSPACE_AUTOMATION_TEMPLATES_BASE: WorkspaceAutomationTemplate[] 
     category: "popular",
     name: "Notify on push blockers",
     description:
-      "Review GitHub pushes and pull requests opened against main for localisation and translation risk, then comment on the pull request.",
+      "Review pull requests opened against main for localisation and translation risk, then comment on the pull request.",
     instructions: formatWorkspaceAutomationTemplateInstructions({
       role: "a localisation-focused code reviewer for this repository",
       capabilities: [
-        "Read the pushed commits, pull request diffs, and surrounding code",
+        "Read the pull request diffs and surrounding code",
         "If i18n.yml exists, run Hyperlocalise validation (hl check) against the translation files it maps",
         "Judge localisation, translation, and locale-compliance risk in the changed code",
         "Cite commit SHAs and file paths for each finding",
         "Separate blocking localisation defects from non-blocking follow-ups",
         "Ignore unrelated logic, security, and formatting issues unless they affect user-facing copy or locale behavior",
-        "Post findings as a sticky GitHub pull request comment and update it on later pushes",
+        "Post findings as a sticky GitHub pull request comment and update it when the pull request changes",
       ],
-      goal: "Surface localisation and translation risks from this push or pull request before they merge.",
+      goal: "Surface localisation and translation risks on this pull request before it merges.",
       extraSections: [
         {
           heading: "Review focus",
@@ -663,7 +663,7 @@ export const WORKSPACE_AUTOMATION_TEMPLATES_BASE: WorkspaceAutomationTemplate[] 
       name: "Notify on push blockers",
       triggerMode: "github",
       pushBranches: ["main"],
-      githubEvents: ["push", "pull_request"],
+      githubEvents: ["pull_request"],
       githubEnabled: true,
       githubMode: "agent",
       repositoryTargetKind: "github",

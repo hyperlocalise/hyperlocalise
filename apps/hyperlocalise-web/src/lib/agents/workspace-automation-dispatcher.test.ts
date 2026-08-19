@@ -1012,7 +1012,7 @@ describe("workspace automation dispatcher", () => {
         authorUserId: scope.userId,
         name: "Notify on push blockers",
         instructions: "Review localisation risk on this pull request.",
-        triggerConfig: { mode: "github", branches: ["main"], events: ["push", "pull_request"] },
+        triggerConfig: { mode: "github", branches: ["main"], events: ["pull_request"] },
         repositoryTarget: {
           kind: "github",
           githubInstallationRepositoryId: scope.repository.id,
