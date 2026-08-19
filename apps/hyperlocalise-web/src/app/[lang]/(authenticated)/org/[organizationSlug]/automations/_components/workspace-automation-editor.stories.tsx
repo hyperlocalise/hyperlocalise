@@ -11,6 +11,8 @@
  * Version 2.0 or later.
  */
 import { useState, type ReactNode } from "react";
+import { PlayIcon, SaveIcon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { expect, fn } from "storybook/test";
 
@@ -184,6 +186,7 @@ export const DetailDefault: Story = {
     form: createDetailAutomationFormFixture(),
     actions: (
       <Button type="button" disabled>
+        <HugeiconsIcon icon={SaveIcon} strokeWidth={1.8} data-icon="inline-start" />
         Save changes
       </Button>
     ),
@@ -203,9 +206,11 @@ export const DetailScheduled: Story = {
     actions: (
       <>
         <Button type="button" variant="outline" onClick={fn()}>
+          <HugeiconsIcon icon={PlayIcon} strokeWidth={1.8} data-icon="inline-start" />
           Run now
         </Button>
         <Button type="button" disabled>
+          <HugeiconsIcon icon={SaveIcon} strokeWidth={1.8} data-icon="inline-start" />
           Save changes
         </Button>
       </>
@@ -225,9 +230,11 @@ export const DetailManual: Story = {
     actions: (
       <>
         <Button type="button" variant="outline" onClick={fn()}>
+          <HugeiconsIcon icon={PlayIcon} strokeWidth={1.8} data-icon="inline-start" />
           Run now
         </Button>
         <Button type="button" disabled>
+          <HugeiconsIcon icon={SaveIcon} strokeWidth={1.8} data-icon="inline-start" />
           Save changes
         </Button>
       </>
@@ -249,6 +256,7 @@ export const DetailPaused: Story = {
     },
     actions: (
       <Button type="button" disabled>
+        <HugeiconsIcon icon={SaveIcon} strokeWidth={1.8} data-icon="inline-start" />
         Save changes
       </Button>
     ),
@@ -265,6 +273,7 @@ export const DetailRunHistory: Story = {
     runHistory: automationRunsFixture,
     actions: (
       <Button type="button" disabled>
+        <HugeiconsIcon icon={SaveIcon} strokeWidth={1.8} data-icon="inline-start" />
         Save changes
       </Button>
     ),
@@ -284,6 +293,7 @@ export const DetailRunHistoryEmpty: Story = {
     runHistory: [],
     actions: (
       <Button type="button" disabled>
+        <HugeiconsIcon icon={SaveIcon} strokeWidth={1.8} data-icon="inline-start" />
         Save changes
       </Button>
     ),
@@ -301,6 +311,7 @@ export const ReadOnly: Story = {
     disabled: true,
     actions: (
       <Button type="button" disabled>
+        <HugeiconsIcon icon={SaveIcon} strokeWidth={1.8} data-icon="inline-start" />
         Save changes
       </Button>
     ),
