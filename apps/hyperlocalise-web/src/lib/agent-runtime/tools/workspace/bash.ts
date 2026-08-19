@@ -119,7 +119,7 @@ export function createBashTool(ctx: RepoToolContext) {
 WHEN TO USE:
 - git status, git log, git diff
 - ls or find for directory discovery when glob is insufficient
-- hl check/status/extract for Hyperlocalise CLI read-only checks
+- hl check/status/extract for Hyperlocalise CLI read-only checks against i18n.yml
 
 WHEN NOT TO USE:
 - Reading files (use read)

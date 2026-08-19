@@ -1506,6 +1506,81 @@ describe("createRunHyperlocaliseCliTool", () => {
     expect((result as { stdout: string }).stdout).toContain("subcommand=check");
   });
 
+  it("passes a tracked i18n.yml as --config when the agent omits config", async () => {
+    const ctx = createTestContext({
+      "/home/user/project/apps/web/i18n.yml": "locales:\n  source: en-US\n",
+    });
+    let hlArgs: string[] = [];
+    ctx.bash.registerCommand(
+      defineCommand("git", async (args) => {
+        if (args[0] === "rev-parse") {
+          return { stdout: "true\n", stderr: "", exitCode: 0 };
+        }
+        if (args[0] === "ls-files") {
+          return { stdout: "apps/web/i18n.yml\0", stderr: "", exitCode: 0 };
+        }
+        return { stdout: "", stderr: "", exitCode: 0 };
+      }),
+    );
+    ctx.bash.registerCommand(
+      defineCommand("hl", async (args) => {
+        hlArgs = args;
+        return { stdout: "", stderr: "", exitCode: 0 };
+      }),
+    );
+
+    const t = createRunHyperlocaliseCliTool(ctx);
+    await t.execute!({ subcommand: "check", boolFlags: ["quiet"] }, toolCallInfo);
+
+    expect(hlArgs).toEqual(["check", "--quiet", "--config=apps/web/i18n.yml"]);
+  });
+
+  it("does not fall back to i18n.jsonc when no i18n.yml exists", async () => {
+    const ctx = createTestContext({
+      "/home/user/project/i18n.jsonc": '{"locales":{"source":"en-US"}}',
+    });
+    let hlArgs: string[] = [];
+    ctx.bash.registerCommand(
+      defineCommand("git", async (args) => {
+        if (args[0] === "rev-parse") {
+          return { stdout: "true\n", stderr: "", exitCode: 0 };
+        }
+        if (args[0] === "ls-files") {
+          return { stdout: "i18n.jsonc\0", stderr: "", exitCode: 0 };
+        }
+        return { stdout: "", stderr: "", exitCode: 0 };
+      }),
+    );
+    ctx.bash.registerCommand(
+      defineCommand("hl", async (args) => {
+        hlArgs = args;
+        return { stdout: "", stderr: "", exitCode: 0 };
+      }),
+    );
+
+    const t = createRunHyperlocaliseCliTool(ctx);
+    await t.execute!({ subcommand: "check" }, toolCallInfo);
+
+    expect(hlArgs).toEqual(["check"]);
+    expect(hlArgs.join(" ")).not.toContain("i18n.jsonc");
+  });
+
+  it("keeps an explicit --config path", async () => {
+    const ctx = createTestContext();
+    let hlArgs: string[] = [];
+    ctx.bash.registerCommand(
+      defineCommand("hl", async (args) => {
+        hlArgs = args;
+        return { stdout: "", stderr: "", exitCode: 0 };
+      }),
+    );
+
+    const t = createRunHyperlocaliseCliTool(ctx);
+    await t.execute!({ subcommand: "check", flags: { config: "custom/i18n.yml" } }, toolCallInfo);
+
+    expect(hlArgs).toEqual(["check", "--config=custom/i18n.yml"]);
+  });
+
   it.each(["phrase", "crowdin", "lokalise"] as const)(
     "rejects provider/TMS actions for %s for now",
     async (provider) => {

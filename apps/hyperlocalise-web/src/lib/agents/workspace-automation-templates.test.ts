@@ -126,6 +126,8 @@ describe("workspace automation templates", () => {
     });
     expect(template?.instructions).toContain("You are a daily localisation briefing agent");
     expect(template?.instructions).toContain("Digest focus:");
+    expect(template?.instructions).toContain("last 24 hours");
+    expect(template?.instructions).toContain("i18n.yml");
     expect(getWorkspaceAutomationTemplateFlow(template!)).toEqual({
       trigger: { id: "scheduled", label: "Daily" },
       tools: [
@@ -157,6 +159,8 @@ describe("workspace automation templates", () => {
     expect(template?.instructions).toContain("Review scope");
     expect(template?.instructions).toContain("Translation review");
     expect(template?.instructions).toContain("Slack delivery");
+    expect(template?.instructions).toContain("last 24 hours");
+    expect(template?.instructions).toContain("i18n.yml");
     expect(getWorkspaceAutomationTemplateFlow(template!)).toEqual({
       trigger: { id: "scheduled", label: "Daily" },
       tools: [
@@ -216,6 +220,7 @@ describe("workspace automation templates", () => {
     expect(template?.instructions).toContain("You are a localisation-focused code reviewer");
     expect(template?.instructions).toContain("sticky GitHub pull request comment");
     expect(template?.instructions).toContain("Review focus:");
+    expect(template?.instructions).toContain("i18n.yml");
     expect(getWorkspaceAutomationTemplateFlow(template!)).toEqual({
       trigger: { id: "github-push", label: "GitHub push" },
       tools: [

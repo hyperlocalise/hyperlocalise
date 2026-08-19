@@ -39,11 +39,7 @@ export {
 } from "./channel-query";
 
 export const SLACK_CHANNEL_LIST_PAGE_LIMIT = 200;
-export const SLACK_CHANNEL_BROWSE_LIMIT = SLACK_CHANNEL_LIST_PAGE_LIMIT;
-export const SLACK_CHANNEL_SEARCH_PAGE_LIMIT = SLACK_CHANNEL_LIST_PAGE_LIMIT;
-export const SLACK_CHANNEL_SEARCH_MAX_PAGES = 3;
-export const SLACK_CHANNEL_SEARCH_EXACT_MAX_PAGES = 10;
-export const SLACK_CHANNEL_SEARCH_MAX_RESULTS = 50;
+export const SLACK_CHANNEL_LIST_MAX_PAGES = 50;
 export const SLACK_CHANNEL_RATE_LIMIT_RETRIES = 3;
 export const SLACK_CHANNEL_RATE_LIMIT_MAX_WAIT_MS = 2000;
 export const SLACK_CHANNEL_LIST_CACHE_TTL_MS = 60_000;
@@ -306,7 +302,8 @@ type SlackChannelListSnapshot = {
 
 // In-memory conversations.list snapshot keyed by Slack team id. Do not store
 // this in Postgres: names and private membership change, and a DB row would
-// still miss the first fetch that 429s. A 60s TTL absorbs picker typing.
+// still miss the first fetch that 429s. A 60s TTL absorbs picker remounts
+// after the full list is fetched.
 const slackChannelListCache = new Map<string, SlackChannelListSnapshot>();
 
 export function clearSlackChannelListCache() {
@@ -405,30 +402,25 @@ function mergeSlackChannels(
   });
 }
 
-export async function searchSlackChannels(input: {
+async function loadCompleteSlackChannelList(input: {
   botToken: string;
   cacheKey?: string;
-  query?: string;
-  selectedChannelId?: string;
   signal?: AbortSignal;
-  sleep?: (ms: number) => Promise<void>;
-}): Promise<Result<SlackChannelListItem[], SlackChannelSearchError>> {
-  const sleep = input.sleep ?? defaultSleep;
-  const options: SlackRequestOptions = { signal: input.signal, sleep };
-  const query = input.query?.trim() ?? "";
+  sleep: (ms: number) => Promise<void>;
+}): Promise<Result<SlackChannelListSnapshot, SlackChannelSearchError>> {
   const now = Date.now();
   let snapshot = readSlackChannelListCache(input.cacheKey, now, false);
   let canPageFurther = true;
+  let pagesFetched = 0;
 
   const fetchListPage = async (
     cursor: string | undefined,
-    limit: number,
   ): Promise<Result<void, SlackChannelSearchError>> => {
     const pageResult = await listSlackChannelPage(input.botToken, {
       cursor,
-      limit,
+      limit: SLACK_CHANNEL_LIST_PAGE_LIMIT,
       signal: input.signal,
-      sleep,
+      sleep: input.sleep,
     });
     if (isErr(pageResult)) {
       if (pageResult.error.code === "slack_rate_limited") {
@@ -447,114 +439,89 @@ export async function searchSlackChannels(input: {
     }
     appendSlackChannelListPage(snapshot, pageResult.value, Date.now());
     writeSlackChannelListCache(input.cacheKey, snapshot);
+    pagesFetched += 1;
     return ok(undefined);
   };
 
-  let selectedChannel: SlackChannelListItem | null = null;
-  if (input.selectedChannelId) {
-    const selectedResult = await loadSlackChannelByKey(
-      input.botToken,
-      fromCanonicalSlackChannelId(input.selectedChannelId),
-      options,
-    );
-    if (isErr(selectedResult)) {
-      return selectedResult;
+  if (!snapshot) {
+    const firstPageResult = await fetchListPage(undefined);
+    if (isErr(firstPageResult)) {
+      return firstPageResult;
     }
-    selectedChannel = selectedResult.value;
   }
 
-  if (!query) {
-    if (!snapshot) {
-      const browseResult = await fetchListPage(undefined, SLACK_CHANNEL_LIST_PAGE_LIMIT);
-      if (isErr(browseResult)) {
-        return browseResult;
-      }
+  while (snapshot?.nextCursor && canPageFurther && pagesFetched < SLACK_CHANNEL_LIST_MAX_PAGES) {
+    const cursor = snapshot.nextCursor;
+    const pageResult = await fetchListPage(cursor);
+    if (isErr(pageResult)) {
+      return pageResult;
     }
-
-    for (let page = 1; page < SLACK_CHANNEL_SEARCH_EXACT_MAX_PAGES; page += 1) {
-      if (
-        (snapshot?.channels.length ?? 0) >= SLACK_CHANNEL_BROWSE_LIMIT ||
-        !snapshot?.nextCursor ||
-        !canPageFurther
-      ) {
-        break;
-      }
-
-      const moreResult = await fetchListPage(snapshot.nextCursor, SLACK_CHANNEL_LIST_PAGE_LIMIT);
-      if (isErr(moreResult)) {
-        return moreResult;
-      }
+    if (snapshot.nextCursor === cursor) {
+      snapshot.nextCursor = "";
+      writeSlackChannelListCache(input.cacheKey, snapshot);
+      break;
     }
-
-    return ok(
-      mergeSlackChannels(
-        selectedChannel,
-        (snapshot?.channels ?? []).slice(0, SLACK_CHANNEL_BROWSE_LIMIT),
-      ),
-    );
   }
 
-  const lookupPromise = lookupSlackChannelByQuery(input.botToken, query, options);
-  const firstPagePromise: Promise<Result<void, SlackChannelSearchError>> = snapshot
-    ? Promise.resolve(ok(undefined))
-    : fetchListPage(undefined, SLACK_CHANNEL_LIST_PAGE_LIMIT);
-  const [lookupResult, firstPageResult] = await Promise.all([lookupPromise, firstPagePromise]);
+  return ok(snapshot ?? { channels: [], nextCursor: "", fetchedAt: Date.now() });
+}
+
+export async function searchSlackChannels(input: {
+  botToken: string;
+  cacheKey?: string;
+  query?: string;
+  selectedChannelId?: string;
+  signal?: AbortSignal;
+  sleep?: (ms: number) => Promise<void>;
+}): Promise<Result<SlackChannelListItem[], SlackChannelSearchError>> {
+  const sleep = input.sleep ?? defaultSleep;
+  const options: SlackRequestOptions = { signal: input.signal, sleep };
+  const query = input.query?.trim() ?? "";
+
+  const selectedPromise: Promise<Result<SlackChannelListItem | null, SlackChannelSearchError>> =
+    input.selectedChannelId
+      ? loadSlackChannelByKey(
+          input.botToken,
+          fromCanonicalSlackChannelId(input.selectedChannelId),
+          options,
+        )
+      : Promise.resolve(ok<SlackChannelListItem | null, SlackChannelSearchError>(null));
+  const lookupPromise: Promise<Result<SlackChannelListItem | null, SlackChannelSearchError>> = query
+    ? lookupSlackChannelByQuery(input.botToken, query, options)
+    : Promise.resolve(ok<SlackChannelListItem | null, SlackChannelSearchError>(null));
+  const listPromise = loadCompleteSlackChannelList({
+    botToken: input.botToken,
+    cacheKey: input.cacheKey,
+    signal: input.signal,
+    sleep,
+  });
+
+  const [selectedResult, lookupResult, listResult] = await Promise.all([
+    selectedPromise,
+    lookupPromise,
+    listPromise,
+  ]);
+  if (isErr(selectedResult)) {
+    return selectedResult;
+  }
+  if (isErr(listResult)) {
+    return listResult;
+  }
   if (isErr(lookupResult)) {
     if (
       lookupResult.error.code !== "slack_rate_limited" ||
-      !snapshot ||
-      snapshot.channels.length === 0
+      listResult.value.channels.length === 0
     ) {
       return lookupResult;
     }
   }
-  if (isErr(firstPageResult)) {
-    return firstPageResult;
-  }
 
-  const matches: SlackChannelListItem[] = [];
-  const seenIds = new Set<string>();
-  const pushMatch = (channel: SlackChannelListItem) => {
-    if (seenIds.has(channel.id)) {
-      return;
-    }
-    if (
-      !isExactSlackChannelMatch(channel, query) &&
-      matches.length >= SLACK_CHANNEL_SEARCH_MAX_RESULTS
-    ) {
-      return;
-    }
-    seenIds.add(channel.id);
-    matches.push(channel);
-  };
-
+  const matches = query
+    ? listResult.value.channels.filter((channel) => slackChannelMatchesQuery(channel, query))
+    : [...listResult.value.channels];
   if (isOk(lookupResult) && lookupResult.value) {
-    pushMatch(lookupResult.value);
-  }
-  for (const channel of snapshot?.channels ?? []) {
-    if (slackChannelMatchesQuery(channel, query)) {
-      pushMatch(channel);
-    }
+    matches.push(lookupResult.value);
   }
 
-  const hasExactMatch = () => matches.some((channel) => isExactSlackChannelMatch(channel, query));
-
-  for (let page = 1; page < SLACK_CHANNEL_SEARCH_EXACT_MAX_PAGES; page += 1) {
-    if (hasExactMatch() || !snapshot?.nextCursor || !canPageFurther) {
-      break;
-    }
-
-    const pageResult = await fetchListPage(snapshot.nextCursor, SLACK_CHANNEL_LIST_PAGE_LIMIT);
-    if (isErr(pageResult)) {
-      return pageResult;
-    }
-
-    for (const channel of snapshot?.channels ?? []) {
-      if (slackChannelMatchesQuery(channel, query)) {
-        pushMatch(channel);
-      }
-    }
-  }
-
-  return ok(mergeSlackChannels(selectedChannel, matches, query));
+  return ok(mergeSlackChannels(selectedResult.value, matches, query));
 }

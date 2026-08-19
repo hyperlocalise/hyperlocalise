@@ -85,6 +85,8 @@ describe("workspace template manifest", () => {
     });
     expect(template?.description).toContain("localisation-related changes");
     expect(template?.instructions).toContain("You are a daily localisation briefing agent");
+    expect(template?.instructions).toContain("last 24 hours");
+    expect(template?.instructions).toContain("i18n.yml");
   });
 
   it("merges daily code-review and web-research skills onto gallery templates", () => {
@@ -101,6 +103,8 @@ describe("workspace template manifest", () => {
     expect(review?.instructions).toContain("You are a localisation-focused code reviewer");
     expect(review?.instructions).toContain("Translation review");
     expect(review?.instructions).toContain("Slack delivery");
+    expect(review?.instructions).toContain("last 24 hours");
+    expect(review?.instructions).toContain("i18n.yml");
     expect(
       listWorkspaceTemplateSkills().find((skill) => skill.id === "review-code-daily")?.frontmatter
         .sharedSkills,
@@ -131,6 +135,7 @@ describe("workspace template manifest", () => {
     expect(template?.description).toContain("comment on the pull request");
     expect(template?.instructions).toContain("sticky GitHub pull request comment");
     expect(template?.instructions).toContain("Translation review");
+    expect(template?.instructions).toContain("i18n.yml");
   });
 
   it("keeps untested templates coming soon after skill merge", () => {
@@ -155,6 +160,8 @@ describe("workspace template manifest", () => {
     expect(instructions).toContain('mode: "changedFiles"');
     expect(instructions).toContain("fileDiff");
     expect(instructions).toContain("`git diff` exit code 1");
+    expect(instructions).toContain("last 24 hours");
+    expect(instructions).toContain("i18n.yml");
     expect(instructions).not.toContain("Translation Review Results");
   });
 

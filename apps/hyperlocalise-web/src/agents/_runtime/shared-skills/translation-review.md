@@ -7,6 +7,8 @@ name: Translation review
 
 Use this procedure when reviewing localisation or translation changes in a repository. Pair with **Recent source-content changes** to gather diffs, then review **every changed key** individually.
 
+If `i18n.yml` exists, run Hyperlocalise validation with `runHyperlocaliseCli` (`hl check`) against the translation files it maps. Skip that step when no `i18n.yml` is present. Do not look for `i18n.jsonc`.
+
 Keep output **scannable**. One entry per key. Do not repeat the same key in multiple sections.
 
 ### Per-key review
@@ -73,7 +75,7 @@ If every changed key has a finding: `None.` If no catalog changes: `No locale ca
 
 One line each:
 
-- **Hyperlocalise validation:** ran | skipped | failed — config path and reason when not run
+- **Hyperlocalise validation:** ran | skipped | failed — `i18n.yml` path and reason when not run
 - **Crowdin concordance:** ran (N keys) | skipped | not configured
 - **Coverage:** N keys · N locales · N commits
 

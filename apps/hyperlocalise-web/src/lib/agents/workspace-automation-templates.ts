@@ -136,6 +136,7 @@ export const WORKSPACE_AUTOMATION_TEMPLATES_BASE: WorkspaceAutomationTemplate[] 
       role: "a localisation quality reviewer",
       capabilities: [
         "Inspect changed source strings and translations on protected-branch pushes",
+        "If i18n.yml exists, run Hyperlocalise validation (hl check) against the translation files it maps",
         "Flag missing context, unstable copy, and accidental key churn",
         "Flag missing translations, broken ICU syntax, mismatched placeholders, and unsafe HTML",
         "Treat locale coverage regressions as blocking findings",
@@ -164,7 +165,8 @@ export const WORKSPACE_AUTOMATION_TEMPLATES_BASE: WorkspaceAutomationTemplate[] 
     instructions: formatWorkspaceAutomationTemplateInstructions({
       role: "a daily localisation briefing agent",
       capabilities: [
-        "Read recent commits, diffs, and surrounding files in the lookback window",
+        "Read recent commits, diffs, and surrounding files from the last 24 hours",
+        "If i18n.yml exists, run Hyperlocalise validation (hl check) against the translation files it maps",
         "Keep the digest scoped to localisation, i18n, and translation work",
         "Cite commit SHAs and file paths for specific claims",
         "Call out coverage gaps, ICU or placeholder risk, and incomplete translation syncs",
@@ -208,7 +210,8 @@ export const WORKSPACE_AUTOMATION_TEMPLATES_BASE: WorkspaceAutomationTemplate[] 
     instructions: formatWorkspaceAutomationTemplateInstructions({
       role: "a localisation-focused code reviewer for this repository",
       capabilities: [
-        "Read recent commits, diffs, and surrounding code in the lookback window",
+        "Read recent commits, diffs, and surrounding code from the last 24 hours",
+        "If i18n.yml exists, run Hyperlocalise validation (hl check) against the translation files it maps",
         "Extract changed translation keys and review old vs new values in locale catalogs",
         "Judge localisation, translation, and locale-compliance risk in the changed code",
         "Cite commit SHAs and file paths for each finding",
@@ -635,6 +638,7 @@ export const WORKSPACE_AUTOMATION_TEMPLATES_BASE: WorkspaceAutomationTemplate[] 
       role: "a localisation-focused code reviewer for this repository",
       capabilities: [
         "Read the pushed commits, diffs, and surrounding code",
+        "If i18n.yml exists, run Hyperlocalise validation (hl check) against the translation files it maps",
         "Judge localisation, translation, and locale-compliance risk in the changed code",
         "Cite commit SHAs and file paths for each finding",
         "Separate blocking localisation defects from non-blocking follow-ups",

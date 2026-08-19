@@ -108,24 +108,15 @@ export function slackChannelMatchesQuery(channel: SlackChannelQueryTarget, query
   return slackChannelMatchKeys(query).some((key) => name.includes(key) || id.includes(key));
 }
 
-export function mergeVisibleSlackChannels<T extends SlackChannelQueryTarget>(
-  browse: T[],
-  remote: T[],
+export function filterVisibleSlackChannels<T extends SlackChannelQueryTarget>(
+  channels: T[],
   query: string,
 ): T[] {
-  const merged = new Map<string, T>();
-  for (const channel of browse) {
-    if (slackChannelMatchesQuery(channel, query)) {
-      merged.set(channel.id, channel);
-    }
-  }
-  for (const channel of remote) {
-    if (slackChannelMatchesQuery(channel, query)) {
-      merged.set(channel.id, channel);
-    }
-  }
+  const matched = query.trim()
+    ? channels.filter((channel) => slackChannelMatchesQuery(channel, query))
+    : [...channels];
 
-  return [...merged.values()].toSorted((left, right) => {
+  return matched.toSorted((left, right) => {
     if (query.trim()) {
       const leftExact = isExactSlackChannelMatch(left, query);
       const rightExact = isExactSlackChannelMatch(right, query);
