@@ -150,7 +150,8 @@ describe("buildOrchestratorRunSummaryMessage", () => {
       createSession({
         stepResults: {
           use_github_repository: {
-            digest: "## Translation Review Results\n\n**Keys reviewed**: 0\n**Issues found**: 0 high priority / 0 medium priority / 0 low priority\n\n### High Priority (P0)\n\nNone.",
+            digest:
+              "## Translation Review Results\n\n**Keys reviewed**: 0\n**Issues found**: 0 high priority / 0 medium priority / 0 low priority\n\n### High Priority (P0)\n\nNone.",
           },
           use_crowdin: {
             summary: "### `btn.save` · `de-DE`\n- **Glossary:** Save → Speichern",
@@ -159,7 +160,9 @@ describe("buildOrchestratorRunSummaryMessage", () => {
       }),
     );
 
-    expect(message).toBe("## Translation Review Results\n\n**Keys reviewed**: 0\n**Issues found**: 0 high priority / 0 medium priority / 0 low priority\n\n### High Priority (P0)\n\nNone.");
+    expect(message).toBe(
+      "## Translation Review Results\n\n**Keys reviewed**: 0\n**Issues found**: 0 high priority / 0 medium priority / 0 low priority\n\n### High Priority (P0)\n\nNone.",
+    );
   });
 
   it("returns the Crowdin summary when there is no GitHub digest", () => {

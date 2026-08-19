@@ -29,6 +29,7 @@ One entry per queried key. Use the same description + recommendation shape as **
 Examples:
 
 - **`btn.save` · de-DE** — glossary `Speichern` ≠ repo `Sichern` — breaks approved terminology
+
   > Recommendation: P1 — use `Speichern`
 
 - **`nav.home` · fr-FR** — TM matches `Accueil` — consistent with prior UI copy

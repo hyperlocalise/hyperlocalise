@@ -92,7 +92,9 @@ async function loadDiscoveredI18nConfig(
     }
     return {
       configPath,
-      patterns: extractI18nBucketFilePatternsFromConfigJson(parsed.value as Record<string, unknown>),
+      patterns: extractI18nBucketFilePatternsFromConfigJson(
+        parsed.value as Record<string, unknown>,
+      ),
     };
   }
 
