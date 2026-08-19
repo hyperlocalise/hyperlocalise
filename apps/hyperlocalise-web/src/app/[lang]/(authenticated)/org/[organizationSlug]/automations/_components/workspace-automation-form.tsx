@@ -1828,10 +1828,7 @@ function ToolsSettings({
                     workspaceAutomationFormMessages.githubCommentDisconnectedDescription,
                     {
                       link: (chunks) => (
-                        <Link
-                          href={`/org/${organizationSlug}/integrations`}
-                          className="underline"
-                        >
+                        <Link href={`/org/${organizationSlug}/integrations`} className="underline">
                           {chunks}
                         </Link>
                       ),

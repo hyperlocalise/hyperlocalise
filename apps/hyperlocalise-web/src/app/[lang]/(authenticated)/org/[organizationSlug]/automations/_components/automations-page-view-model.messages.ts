@@ -57,7 +57,7 @@ export const automationsPageViewModelMessages = defineMessages({
   },
   toolGithubComment: {
     defaultMessage: "PR comment",
-    id: "pRc0mB4dge",
+    id: "CvmC1QddwG",
     description: "Tool badge when an automation posts GitHub pull request comments",
   },
   toolMcpServer: {

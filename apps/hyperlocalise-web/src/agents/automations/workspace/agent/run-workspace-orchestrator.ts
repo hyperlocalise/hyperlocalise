@@ -83,7 +83,9 @@ export function buildWorkspaceOrchestratorUserMessage(input: {
 
   if (input.triggerSource === "github") {
     const pushBranch =
-      typeof input.inputSnapshot.pushBranch === "string" ? input.inputSnapshot.pushBranch.trim() : "";
+      typeof input.inputSnapshot.pushBranch === "string"
+        ? input.inputSnapshot.pushBranch.trim()
+        : "";
     const commitBefore =
       typeof input.inputSnapshot.commitBefore === "string"
         ? input.inputSnapshot.commitBefore.trim()

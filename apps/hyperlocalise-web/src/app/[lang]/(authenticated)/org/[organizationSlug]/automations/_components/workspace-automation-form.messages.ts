@@ -354,7 +354,7 @@ export const workspaceAutomationFormMessages = defineMessages({
   },
   commentOnPullRequest: {
     defaultMessage: "Comment on pull request",
-    id: "nPrC0mM3nt",
+    id: "u6BhbzsvPa",
     description: "Menu item and tool title for GitHub pull request comments",
   },
   sendToSlack: {
@@ -582,17 +582,18 @@ export const workspaceAutomationFormMessages = defineMessages({
   githubCommentConnectedDescription: {
     defaultMessage:
       "Post a sticky review comment on the pull request for this push. Later runs update the same comment.",
-    id: "gHc0mD3sc1",
-    description: "Description for GitHub pull request comment notifications when GitHub is connected",
+    id: "AbZsOtFk+H",
+    description:
+      "Description for GitHub pull request comment notifications when GitHub is connected",
   },
   githubCommentDisconnectedDescription: {
     defaultMessage: "Connect GitHub in <link>Integrations</link> to comment on pull requests.",
-    id: "gHc0mD3sc0",
+    id: "Gsz+RNFKoM",
     description: "Description for GitHub comment notifications when GitHub is not connected",
   },
   removeGithubCommentNotifications: {
     defaultMessage: "Remove GitHub comment notifications",
-    id: "gHc0mRm0v1",
+    id: "jgR+WtYIxe",
     description: "Accessible label to remove GitHub pull request comment notifications",
   },
   removeSlackNotifications: {

@@ -118,4 +118,35 @@ describe("buildWorkspaceOrchestratorOutputSummary", () => {
 
     expect(outputSummary.contentfulTranslationRunId).toBe("contentful-run-1");
   });
+
+  it("records GitHub comment notification warnings", () => {
+    const outputSummary = buildWorkspaceOrchestratorOutputSummary(
+      { orchestratorEnqueuedAt: "2026-06-24T00:00:00.000Z" },
+      {
+        notify_github_comment: {
+          posted: false,
+          skipped: false,
+          code: "github_comment_send_failed",
+          message: "GitHub comment failed.",
+        },
+      },
+      {
+        notificationWarnings: [
+          {
+            channel: "github_comment",
+            code: "github_comment_send_failed",
+            message: "GitHub comment failed.",
+          },
+        ],
+      },
+    );
+
+    expect(outputSummary.notificationWarnings).toEqual([
+      {
+        channel: "github_comment",
+        code: "github_comment_send_failed",
+        message: "GitHub comment failed.",
+      },
+    ]);
+  });
 });
