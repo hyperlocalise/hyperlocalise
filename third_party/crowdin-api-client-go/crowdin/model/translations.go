@@ -272,6 +272,8 @@ type BuildProjectFileTranslationRequest struct {
 	SkipUntranslatedFiles *bool `json:"skipUntranslatedFiles,omitempty"`
 	// Defines whether to export only approved strings. Default: false.
 	ExportApprovedOnly *bool `json:"exportApprovedOnly,omitempty"`
+	// Label Identifiers.
+	LabelIDs []int `json:"labelIds,omitempty"`
 
 	// Defines whether to export only approved strings.
 	// Note: value greater than 0 can't be used with `exportStringsThatPassedWorkflow=true`
@@ -289,6 +291,7 @@ func (r *BuildProjectFileTranslationRequest) MarshalJSON() ([]byte, error) {
 		TargetLanguageID                string `json:"targetLanguageId"`
 		SkipUntranslatedStrings         *bool  `json:"skipUntranslatedStrings,omitempty"`
 		SkipUntranslatedFiles           *bool  `json:"skipUntranslatedFiles,omitempty"`
+		LabelIDs                        []int  `json:"labelIds,omitempty"`
 		ExportWithMinApprovalsCount     *int   `json:"exportWithMinApprovalsCount,omitempty"`
 		ExportStringsThatPassedWorkflow *bool  `json:"exportStringsThatPassedWorkflow,omitempty"`
 	}
@@ -303,6 +306,7 @@ func (r *BuildProjectFileTranslationRequest) MarshalJSON() ([]byte, error) {
 		TargetLanguageID:                r.TargetLanguageID,
 		SkipUntranslatedStrings:         r.SkipUntranslatedStrings,
 		SkipUntranslatedFiles:           r.SkipUntranslatedFiles,
+		LabelIDs:                        r.LabelIDs,
 		ExportWithMinApprovalsCount:     exportWithMinApprovalsCount,
 		ExportStringsThatPassedWorkflow: r.ExportStringsThatPassedWorkflow,
 	})

@@ -14,7 +14,7 @@ import {
   WORKSPACE_AUTOMATION_TEMPLATES_BASE,
   type WorkspaceAutomationTemplate,
 } from "@/lib/agents/workspace-automation-templates";
-import type { WorkspaceAutomationRecord } from "@/lib/agents/workspace-automations";
+import type { WorkspaceAutomationRecord } from "@/lib/agents/workspace-automation-types";
 
 /** Client-safe template data for Storybook and component tests. */
 export const automationTemplatesFixture: WorkspaceAutomationTemplate[] =

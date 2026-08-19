@@ -737,3 +737,20 @@ func TestSanitizePromptContext(t *testing.T) {
 		t.Fatalf("sanitizePromptContext() = %q, want %q", got, "line 1\nline 2")
 	}
 }
+
+func BenchmarkSanitizePromptContext(b *testing.B) {
+	b.Run("Multiline", func(b *testing.B) {
+		input := "  Header title for button \r\n\r\n Line 2 description of UI element \n  Line 3 extra details here  \n"
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			_ = sanitizePromptContext(input, 800)
+		}
+	})
+	b.Run("SingleLine", func(b *testing.B) {
+		input := "Header title for button description"
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			_ = sanitizePromptContext(input, 800)
+		}
+	})
+}

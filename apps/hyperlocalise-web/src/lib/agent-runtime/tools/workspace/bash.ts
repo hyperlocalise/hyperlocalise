@@ -43,6 +43,10 @@ const DISALLOWED_FLAG_NAMES = new Set([
   ...HL_WRITE_FLAG_NAMES,
 ]);
 
+// git log/diff/show `--output`/`-o` writes a file. Keep these git-only:
+// `find -o` is OR, and `hl status --output csv` is a format, not a path.
+const DISALLOWED_GIT_OUTPUT_FLAG_NAMES = new Set(["output", "o"]);
+
 const ALLOWED_COMMAND_PATTERNS = [
   /^git\s+(status|log|diff|rev-parse|show)\b/i,
   /^ls(\s+|$)/,
@@ -50,11 +54,47 @@ const ALLOWED_COMMAND_PATTERNS = [
   /^hl\s+(check|status|extract)\b/i,
 ];
 
-const ABSOLUTE_PATH_PATTERN = /(^|\s)\/(?!\.)(?!\s|$)/;
-const PARENT_TRAVERSAL_PATTERN = /(^|\s)\.\.(\/|\s|$)/;
+// Also match paths glued onto `--flag=` / `-o=` so `--output=/tmp/x` and
+// `--output=../../outside.txt` cannot skip the whitespace-bounded heuristics.
+const ABSOLUTE_PATH_PATTERN = /(^|[\s="'])\/(?!\.)(?!\s|$)/;
+const PARENT_TRAVERSAL_PATTERN = /(^|[\s="'])\.\.(\/|[\s"']|$)/;
 
-function isDisallowedFlagToken(token: string): boolean {
-  return token.startsWith("-") && DISALLOWED_FLAG_NAMES.has(flagBasename(token));
+function unquoteFlagValue(value: string): string {
+  return value.replace(/^['"]|['"]$/g, "");
+}
+
+function attachedFlagValueEscapesWorkspace(token: string): boolean {
+  const separator = token.indexOf("=");
+  if (separator === -1) {
+    return false;
+  }
+  const value = unquoteFlagValue(token.slice(separator + 1));
+  if (!value) {
+    return false;
+  }
+  return value.startsWith("/") || value.split("/").includes("..");
+}
+
+function isDisallowedGitOutputFlag(token: string): boolean {
+  if (!token.startsWith("-")) {
+    return false;
+  }
+  const name = flagBasename(token);
+  if (DISALLOWED_GIT_OUTPUT_FLAG_NAMES.has(name)) {
+    return true;
+  }
+  // git accepts `-ofile` as `-o` with an attached filename.
+  return /^-o./i.test(token) && !token.startsWith("--");
+}
+
+function isDisallowedFlagToken(token: string, bin: string): boolean {
+  if (!token.startsWith("-")) {
+    return false;
+  }
+  if (DISALLOWED_FLAG_NAMES.has(flagBasename(token))) {
+    return true;
+  }
+  return bin === "git" && isDisallowedGitOutputFlag(token);
 }
 
 export function isAllowedBashCommand(command: string): boolean {
@@ -80,8 +120,12 @@ export function isAllowedBashCommand(command: string): boolean {
     return false;
   }
 
-  const tokens = [splitResult.value.bin, ...splitResult.value.args];
-  if (tokens.some(isDisallowedFlagToken)) {
+  const { bin, args } = splitResult.value;
+  const tokens = [bin, ...args];
+  if (tokens.some((token) => isDisallowedFlagToken(token, bin))) {
+    return false;
+  }
+  if (tokens.some(attachedFlagValueEscapesWorkspace)) {
     return false;
   }
 

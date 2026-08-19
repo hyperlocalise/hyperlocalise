@@ -195,3 +195,7 @@
 ## 2026-11-21 - [Env Loader Edge Case Verification]
 **Learning:** CLI environment loading functions can fail or behave unexpectedly if `.env` files are directories, contain syntax syntax errors (e.g. unclosed quotes), or contain complex values with equals signs and comments. Testing `LoadProjectFiles` with `t.TempDir()` and `os.Chdir` while safely unsetting environment variables ensures deterministic environment isolation without mutating host process environment variables.
 **Action:** When testing environment file loaders or working-directory-dependent CLI utilities, isolate working directory changes with `t.Cleanup` and verify directory/syntax boundary error states.
+
+## 2026-11-22 - [Spellcheck Markup Stripping and Word Tokenization Boundaries]
+**Learning:** In localized spellchecking, `stripMarkup` and `scanWords` must handle HTML attributes containing angle brackets (e.g. `<a title="A > B">`), Markdown code spans with variable backtick fence lengths (where inner backticks only close if the fence length matches), ICU plural/select literals, and mid-word HTML entities (`Fran&ccedil;ais`, `don&rsquo;t`). Additionally, bare URLs trimmed of trailing sentence punctuation and UUIDs must be skipped without fragmenting into individual hex words.
+**Action:** Always include complex mixed-markup test cases (combining HTML, Markdown links, ICU branches, entities, printf specifiers, and bare URLs) when verifying spellcheck tokenization to protect user-visible word extraction.

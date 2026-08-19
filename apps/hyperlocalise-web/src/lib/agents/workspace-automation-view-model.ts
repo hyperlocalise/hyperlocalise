@@ -19,7 +19,7 @@ import {
   type WorkspaceAutomationToolConfig,
   type WorkspaceAutomationTriggerConfig,
   type WorkspaceAutomationWebSearchProvider,
-} from "./workspace-automations";
+} from "./workspace-automation-types";
 import { parseSlackConversationId } from "./slack/channel-query";
 import {
   getWorkspaceAutomationTemplate,

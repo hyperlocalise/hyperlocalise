@@ -20,7 +20,7 @@ import {
   type WorkspaceAutomationRecord,
   type WorkspaceAutomationToolConfig,
   type WorkspaceAutomationTriggerConfig,
-} from "./workspace-automations";
+} from "./workspace-automation-types";
 
 export function resolveWorkspaceAutomationGithubMode(
   toolConfig: WorkspaceAutomationToolConfig,

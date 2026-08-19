@@ -98,14 +98,16 @@ import {
 import { SlackChannelSelect } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/automations/_components/slack-channel-select";
 import { workspaceAutomationFormMessages } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/automations/_components/workspace-automation-form.messages";
 import { getLocaleLabel } from "@/lib/i18n/locales";
+import type {
+  WorkspaceAutomationGithubTriggerEvent,
+  WorkspaceAutomationRunRecord,
+} from "@/lib/agents/workspace-automation-types";
 import type { WorkspaceAutomationFormState } from "@/lib/agents/workspace-automation-view-model";
-import type { WorkspaceAutomationGithubTriggerEvent } from "@/lib/agents/workspace-automations";
 import {
   applyWorkspaceAutomationProjectSelection,
   selectableAutomationRepositories,
   workspaceAutomationFormCanActivate,
 } from "@/lib/agents/workspace-automation-view-model";
-import type { WorkspaceAutomationRunRecord } from "@/lib/agents/workspace-automations";
 import { cn } from "@/lib/primitives/cn";
 import type { ApiProject } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/projects/_components/project-list";
 
