@@ -35,6 +35,7 @@ import { AutomationTemplateFlow } from "./automation-template-flow";
 import { automationsPageViewMessages } from "./automations-page-view.messages";
 import {
   formatAutomationRelativeTimestamp,
+  resolveAutomationCreatorName,
   resolveAutomationPageStats,
   resolveAutomationTools,
   resolveAutomationTriggerLabel,
@@ -47,7 +48,7 @@ const TEMPLATE_FILTER_TABS_CLASS =
   "h-auto flex-none rounded-full border-transparent px-3 py-1.5 text-muted-foreground shadow-none after:hidden hover:text-foreground data-active:bg-accent data-active:text-foreground dark:data-active:border-transparent dark:data-active:bg-accent";
 
 const AUTOMATION_LIST_GRID_CLASS =
-  "grid grid-cols-[minmax(0,1.6fr)_minmax(0,0.8fr)_minmax(0,0.8fr)_minmax(0,0.5fr)] gap-4";
+  "grid min-w-[52rem] grid-cols-[minmax(0,1.5fr)_minmax(0,0.8fr)_minmax(0,0.55fr)_minmax(0,0.8fr)_minmax(0,0.45fr)] gap-4";
 
 const TEMPLATE_CATEGORY_MESSAGES = {
   popular: automationsPageViewMessages.categoryPopular,
@@ -80,6 +81,7 @@ function AutomationListSkeleton() {
             <Skeleton className="h-5 w-12 rounded-full bg-muted" />
           </div>
           <Skeleton className="h-5 w-16 rounded-full bg-muted" />
+          <Skeleton className="h-4 w-24 rounded-full bg-muted" />
           <Skeleton className="h-4 w-8 rounded-full bg-muted" />
         </div>
       ))}
@@ -224,7 +226,7 @@ export function AutomationsPageView({
       </section>
 
       <section className="flex flex-col gap-4">
-        <div className="overflow-hidden rounded-xl border border-border">
+        <div className="overflow-x-auto rounded-xl border border-border">
           <div
             className={`${AUTOMATION_LIST_GRID_CLASS} border-b border-border px-4 py-3 text-xs font-medium text-muted-foreground`}
           >
@@ -236,6 +238,9 @@ export function AutomationsPageView({
             </span>
             <span>
               <FormattedMessage {...automationsPageViewMessages.columnStatus} />
+            </span>
+            <span>
+              <FormattedMessage {...automationsPageViewMessages.columnCreator} />
             </span>
             <span>
               <FormattedMessage {...automationsPageViewMessages.columnCreated} />
@@ -280,6 +285,9 @@ export function AutomationsPageView({
                           <FormattedMessage {...automationsPageViewMessages.statusPaused} />
                         )}
                       </Badge>
+                      <span className="truncate text-sm text-muted-foreground">
+                        {resolveAutomationCreatorName(intl, automation)}
+                      </span>
                       <span className="text-sm text-muted-foreground">
                         {formatAutomationRelativeTimestamp(intl, automation.createdAt, now)}
                       </span>
