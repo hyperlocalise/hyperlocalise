@@ -53,7 +53,7 @@ export const slackAgentViewModelMessages = defineMessages({
   statusDescriptionNotConnected: {
     defaultMessage:
       "Connect a Slack workspace to let Hyperlocalise respond when tagged in channels or messaged in DMs.",
-    id: "DeMAC4mdid",
+    id: "1/qid1Sj8f",
     description: "Slack integration description before OAuth connection",
   },
   reconnectSlack: {
