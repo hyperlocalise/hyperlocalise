@@ -10,6 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vite-plus/test";
 
 import { mergeWorkspaceTemplateSkills } from "@/agents/automations/workspace/agent/workspace-template-manifest";
@@ -628,5 +629,13 @@ describe("workspace automation view model", () => {
     expect(workspaceAutomationFormHasChanges({ ...saved, name: "Renamed automation" }, saved)).toBe(
       true,
     );
+  });
+
+  it("does not import the drizzle automation store", () => {
+    const source = readFileSync(
+      new URL("./workspace-automation-view-model.ts", import.meta.url),
+      "utf8",
+    );
+    expect(source).not.toMatch(/from ["']\.\/workspace-automations["']/);
   });
 });
