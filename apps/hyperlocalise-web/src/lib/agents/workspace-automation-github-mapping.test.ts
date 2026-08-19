@@ -23,6 +23,7 @@ import {
   hasWorkspaceAutomationGithubWorkflow,
   resolveWorkspaceAutomationGithubMode,
   workspaceAutomationMatchesPushBranch,
+  workspaceAutomationShouldDispatchOnGithubPush,
   workspaceAutomationToGithubSettings,
 } from "./workspace-automation-github-mapping";
 
@@ -215,6 +216,42 @@ describe("workspace automation GitHub mapping", () => {
         automation({
           triggerConfig: { mode: "manual" },
           toolConfig: toolConfig(syncWorkflow),
+        }),
+        "main",
+      ),
+    ).toBe(false);
+  });
+
+  it("dispatches GitHub agent and comment automations on matching pushes", () => {
+    const agentAutomation = automation({
+      triggerConfig: { mode: "github", branches: ["main"] },
+      toolConfig: {
+        github: {
+          enabled: true,
+          mode: "agent",
+          pushSource: false,
+          pullTranslations: false,
+          validation: false,
+        },
+        githubComment: { enabled: true },
+      },
+    });
+
+    expect(workspaceAutomationShouldDispatchOnGithubPush(agentAutomation, "main")).toBe(true);
+    expect(workspaceAutomationShouldDispatchOnGithubPush(agentAutomation, "feature/x")).toBe(false);
+    expect(
+      workspaceAutomationShouldDispatchOnGithubPush(
+        automation({
+          triggerConfig: { mode: "manual" },
+          toolConfig: {
+            github: {
+              enabled: true,
+              mode: "agent",
+              pushSource: false,
+              pullTranslations: false,
+              validation: false,
+            },
+          },
         }),
         "main",
       ),

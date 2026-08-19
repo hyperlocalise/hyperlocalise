@@ -67,6 +67,7 @@ describe("workspace automation templates", () => {
       "summarize-changes-daily",
       "review-code-daily",
       "daily-web-research",
+      "notify-on-push-blockers",
     ]);
   });
 
@@ -187,6 +188,38 @@ describe("workspace automation templates", () => {
       tools: [
         { id: "slack", label: "Slack" },
         { id: "web-search", label: "Web Search" },
+      ],
+    });
+  });
+
+  it("exposes an activatable push localisation-review template", () => {
+    const template = getWorkspaceAutomationTemplate(
+      "notify-on-push-blockers",
+      WORKSPACE_AUTOMATION_TEMPLATES_BASE,
+    );
+
+    expect(template).toMatchObject({
+      id: "notify-on-push-blockers",
+      category: "popular",
+      activatable: true,
+      defaultForm: {
+        triggerMode: "github",
+        pushBranches: ["main"],
+        githubEnabled: true,
+        githubMode: "agent",
+        githubCommentEnabled: true,
+        validationEnabled: false,
+      },
+    });
+    expect(template?.defaultForm.slackEnabled).toBeUndefined();
+    expect(template?.instructions).toContain("You are a localisation-focused code reviewer");
+    expect(template?.instructions).toContain("sticky GitHub pull request comment");
+    expect(template?.instructions).toContain("Review focus:");
+    expect(getWorkspaceAutomationTemplateFlow(template!)).toEqual({
+      trigger: { id: "github-push", label: "GitHub push" },
+      tools: [
+        { id: "github", label: "GitHub" },
+        { id: "github-comment", label: "GitHub comment" },
       ],
     });
   });

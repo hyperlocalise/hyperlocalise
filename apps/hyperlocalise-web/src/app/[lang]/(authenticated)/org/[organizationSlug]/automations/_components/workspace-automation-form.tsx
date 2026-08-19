@@ -19,6 +19,7 @@ import {
   ArrowDown01Icon,
   BrainCircuitIcon,
   Clock01Icon,
+  Comment01Icon,
   Delete02Icon,
   FolderLibraryIcon,
   GitBranchIcon,
@@ -338,6 +339,7 @@ function toolCount(form: WorkspaceAutomationFormState) {
     Number(form.githubEnabled) +
     Number(form.slackEnabled) +
     Number(form.emailEnabled) +
+    Number(form.githubCommentEnabled) +
     Number(form.contentfulEnabled) +
     Number(form.createNativeTmsJobEnabled) +
     Number(form.assignTranslateWithAgentEnabled) +
@@ -769,11 +771,7 @@ function AddTriggerMenu({
               ) : null}
             </DropdownMenuItem>
             <DropdownMenuItem
-              disabled={
-                form.triggerMode === "github" ||
-                !githubConnected ||
-                (form.githubEnabled && form.githubMode === "agent")
-              }
+              disabled={form.triggerMode === "github" || !githubConnected}
               onClick={() => {
                 const defaultRepositoryId =
                   form.githubInstallationRepositoryId ||
@@ -788,9 +786,11 @@ function AddTriggerMenu({
                   repositoryTargetKind: "github",
                   githubInstallationRepositoryId: defaultRepositoryId,
                   validationEnabled:
-                    form.pushSourceEnabled || form.pullTranslationsEnabled
+                    form.githubMode === "agent"
                       ? form.validationEnabled
-                      : true,
+                      : form.pushSourceEnabled || form.pullTranslationsEnabled
+                        ? form.validationEnabled
+                        : true,
                 });
               }}
             >
@@ -803,10 +803,6 @@ function AddTriggerMenu({
               ) : !githubConnected ? (
                 <DropdownMenuShortcut>
                   <FormattedMessage {...workspaceAutomationFormMessages.connectFirstShortcut} />
-                </DropdownMenuShortcut>
-              ) : form.githubEnabled && form.githubMode === "agent" ? (
-                <DropdownMenuShortcut>
-                  <FormattedMessage {...workspaceAutomationFormMessages.syncOnlyShortcut} />
                 </DropdownMenuShortcut>
               ) : null}
             </DropdownMenuItem>
@@ -1231,6 +1227,34 @@ function AddToolMenu({
                   <HugeiconsIcon icon={GitBranchIcon} strokeWidth={1.8} className="size-4" />
                   <FormattedMessage {...workspaceAutomationFormMessages.githubSyncWorkflows} />
                   {form.githubEnabled && form.githubMode === "sync" ? (
+                    <DropdownMenuShortcut>
+                      <FormattedMessage {...workspaceAutomationFormMessages.addedShortcut} />
+                    </DropdownMenuShortcut>
+                  ) : !githubConnected ? (
+                    <DropdownMenuShortcut>
+                      <FormattedMessage {...workspaceAutomationFormMessages.connectFirstShortcut} />
+                    </DropdownMenuShortcut>
+                  ) : null}
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  disabled={form.githubCommentEnabled || !githubConnected}
+                  onClick={() => {
+                    const defaultRepositoryId = resolveDefaultGithubRepositoryId(
+                      form,
+                      repositories,
+                    );
+
+                    onChange({
+                      ...form,
+                      githubCommentEnabled: true,
+                      repositoryTargetKind: "github",
+                      githubInstallationRepositoryId: defaultRepositoryId,
+                    });
+                  }}
+                >
+                  <HugeiconsIcon icon={Comment01Icon} strokeWidth={1.8} className="size-4" />
+                  <FormattedMessage {...workspaceAutomationFormMessages.commentOnPullRequest} />
+                  {form.githubCommentEnabled ? (
                     <DropdownMenuShortcut>
                       <FormattedMessage {...workspaceAutomationFormMessages.addedShortcut} />
                     </DropdownMenuShortcut>
@@ -1678,8 +1702,10 @@ function ToolsSettings({
                   onChange({
                     ...form,
                     githubEnabled: false,
-                    repositoryTargetKind: "none",
-                    githubInstallationRepositoryId: "",
+                    repositoryTargetKind: form.githubCommentEnabled ? "github" : "none",
+                    githubInstallationRepositoryId: form.githubCommentEnabled
+                      ? form.githubInstallationRepositoryId
+                      : "",
                   })
                 }
               />
@@ -1714,7 +1740,10 @@ function ToolsSettings({
                   onChange({
                     ...form,
                     githubEnabled: false,
-                    repositoryTargetKind: "none",
+                    repositoryTargetKind: form.githubCommentEnabled ? "github" : "none",
+                    githubInstallationRepositoryId: form.githubCommentEnabled
+                      ? form.githubInstallationRepositoryId
+                      : "",
                     pushSourceEnabled: false,
                     pullTranslationsEnabled: false,
                     validationEnabled: false,
@@ -1772,6 +1801,62 @@ function ToolsSettings({
                 </label>
               </div>
             </div>
+          </EditorRow>
+        ) : null}
+
+        {form.githubCommentEnabled ? (
+          <EditorRow
+            icon={<HugeiconsIcon icon={Comment01Icon} strokeWidth={1.8} className="size-4" />}
+            title={
+              <>
+                <span>
+                  <FormattedMessage {...workspaceAutomationFormMessages.commentOnPullRequest} />
+                </span>
+                {!githubConnected ? (
+                  <Badge variant="secondary">
+                    <FormattedMessage {...workspaceAutomationFormMessages.connectFirstBadge} />
+                  </Badge>
+                ) : null}
+              </>
+            }
+            description={
+              githubConnected
+                ? intl.formatMessage(
+                    workspaceAutomationFormMessages.githubCommentConnectedDescription,
+                  )
+                : intl.formatMessage(
+                    workspaceAutomationFormMessages.githubCommentDisconnectedDescription,
+                    {
+                      link: (chunks) => (
+                        <Link
+                          href={`/org/${organizationSlug}/integrations`}
+                          className="underline"
+                        >
+                          {chunks}
+                        </Link>
+                      ),
+                    },
+                  )
+            }
+            action={
+              <DeleteToolButton
+                disabled={disabled}
+                label={intl.formatMessage(
+                  workspaceAutomationFormMessages.removeGithubCommentNotifications,
+                )}
+                onClick={() => onChange({ ...form, githubCommentEnabled: false })}
+              />
+            }
+          >
+            {!form.githubEnabled ? (
+              <GithubRepositorySelect
+                disabled={disabled}
+                error={errors.githubRepository}
+                form={form}
+                onChange={onChange}
+                repositories={repositories}
+              />
+            ) : null}
           </EditorRow>
         ) : null}
 

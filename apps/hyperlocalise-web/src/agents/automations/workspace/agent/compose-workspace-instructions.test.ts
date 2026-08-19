@@ -59,4 +59,16 @@ describe("composeWorkspaceAutomationInstructions", () => {
 
     expect(instructions).not.toContain("## Slack notifications");
   });
+
+  it("includes the GitHub comment skill when notify_github_comment is planned", () => {
+    const instructions = composeWorkspaceAutomationInstructions({
+      triggerMode: "github",
+      plan: { tools: ["use_github_repository", "notify_github_comment"] },
+      userOverride: "Comment on the pull request.",
+    });
+
+    expect(instructions).toContain("## GitHub pull request comments");
+    expect(instructions).toContain("sticky pull request comment");
+    expect(instructions).not.toContain("## Slack notifications");
+  });
 });

@@ -62,6 +62,12 @@ Body content`);
     expect(loadSharedSkill("slack-notifications")).toContain("## Slack notifications");
   });
 
+  it("loads shared github-comment-notifications skill", () => {
+    expect(loadSharedSkill("github-comment-notifications")).toContain(
+      "## GitHub pull request comments",
+    );
+  });
+
   it("maps tool filenames to runtime names", () => {
     expect(toolNameFromFilename("translate_string.ts")).toBe("translate_string");
   });

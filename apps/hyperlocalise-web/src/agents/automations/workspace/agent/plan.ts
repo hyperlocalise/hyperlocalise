@@ -40,6 +40,7 @@ export const WORKSPACE_ORCHESTRATOR_TOOL_NAMES = [
   "use_web_search",
   "notify_slack",
   "notify_email",
+  "notify_github_comment",
   "recall_memory",
   "save_memory",
 ] as const;
@@ -67,7 +68,11 @@ const WORKFLOW_TOOLS: WorkspaceOrchestratorToolName[] = [
   "use_web_search",
 ];
 
-const NOTIFICATION_TOOLS: WorkspaceOrchestratorToolName[] = ["notify_slack", "notify_email"];
+const NOTIFICATION_TOOLS: WorkspaceOrchestratorToolName[] = [
+  "notify_slack",
+  "notify_email",
+  "notify_github_comment",
+];
 
 // Memory tools remain in the tool-name union while the retrieval redesign is pending, but they
 // must not be added to execution plans. The orchestrator forces every planned tool, so planning
@@ -118,6 +123,8 @@ function notificationToolEnabled(
         toolConfig.email.recipients &&
         toolConfig.email.recipients.length > 0,
       );
+    case "notify_github_comment":
+      return Boolean(toolConfig.githubComment?.enabled);
     default:
       return false;
   }

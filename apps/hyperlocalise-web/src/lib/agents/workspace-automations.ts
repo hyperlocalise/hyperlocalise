@@ -105,6 +105,12 @@ const emailToolConfigSchema = z
   })
   .default({ enabled: false });
 
+const githubCommentToolConfigSchema = z
+  .object({
+    enabled: z.boolean().default(false),
+  })
+  .default({ enabled: false });
+
 const contentfulToolConfigSchema = z
   .object({
     enabled: z.boolean().default(false),
@@ -242,6 +248,7 @@ const toolConfigObjectSchema = z
     github: githubToolConfigSchema.optional(),
     slack: slackToolConfigSchema.optional(),
     email: emailToolConfigSchema.optional(),
+    githubComment: githubCommentToolConfigSchema.optional(),
     contentful: contentfulToolConfigSchema.optional(),
     createNativeTmsJob: createNativeTmsJobToolConfigSchema.optional(),
     assignTranslateWithAgent: assignTranslateWithAgentToolConfigSchema.optional(),
@@ -278,6 +285,9 @@ export type WorkspaceAutomationTriggerConfig = z.infer<typeof triggerConfigSchem
 export type WorkspaceAutomationRepositoryTarget = z.infer<typeof repositoryTargetSchema>;
 export type WorkspaceAutomationSlackToolConfig = z.infer<typeof slackToolConfigSchema>;
 export type WorkspaceAutomationEmailToolConfig = z.infer<typeof emailToolConfigSchema>;
+export type WorkspaceAutomationGithubCommentToolConfig = z.infer<
+  typeof githubCommentToolConfigSchema
+>;
 export type WorkspaceAutomationContentfulToolConfig = z.infer<typeof contentfulToolConfigSchema>;
 export type WorkspaceAutomationCreateNativeTmsJobToolConfig = z.infer<
   typeof createNativeTmsJobToolConfigSchema
@@ -587,7 +597,8 @@ function validateWorkspaceAutomationConfig(input: {
   }
 
   const githubTools = input.toolConfig.github;
-  if (githubTools?.enabled) {
+  const githubCommentEnabled = Boolean(input.toolConfig.githubComment?.enabled);
+  if (githubTools?.enabled || githubCommentEnabled) {
     if (
       input.repositoryTarget.kind !== "github" ||
       !input.repositoryTarget.githubInstallationRepositoryId
@@ -597,25 +608,16 @@ function validateWorkspaceAutomationConfig(input: {
         message: "Enabled GitHub tools require a GitHub repository target.",
       });
     }
+  }
 
-    const githubMode = githubTools.mode ?? "sync";
-
-    if (githubMode === "agent") {
-      if (input.triggerConfig.mode === "github") {
-        return err({
-          code: "github_agent_trigger_required",
-          message: "GitHub repo agent automations support scheduled or manual triggers only.",
-        });
-      }
-    } else if (
-      input.triggerConfig.mode === "github" &&
-      (!input.triggerConfig.branches || input.triggerConfig.branches.length === 0)
-    ) {
-      return err({
-        code: "github_push_branches_required",
-        message: "GitHub push triggers require at least one branch pattern.",
-      });
-    }
+  if (
+    input.triggerConfig.mode === "github" &&
+    (!input.triggerConfig.branches || input.triggerConfig.branches.length === 0)
+  ) {
+    return err({
+      code: "github_push_branches_required",
+      message: "GitHub push triggers require at least one branch pattern.",
+    });
   }
 
   if (

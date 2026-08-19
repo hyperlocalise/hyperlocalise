@@ -195,11 +195,6 @@ export const workspaceAutomationFormMessages = defineMessages({
     id: "dYlXc1BTpY",
     description: "Shortcut hint when an integration must be connected first",
   },
-  syncOnlyShortcut: {
-    defaultMessage: "Sync only",
-    id: "Qr6HIhIqfm",
-    description: "Shortcut hint when GitHub push is unavailable because agent mode is enabled",
-  },
   enableFirstShortcut: {
     defaultMessage: "Enable first",
     id: "ZQbvwhJWXn",
@@ -356,6 +351,11 @@ export const workspaceAutomationFormMessages = defineMessages({
     defaultMessage: "GitHub sync workflows",
     id: "wewNVYT5+w",
     description: "Menu item and tool title for GitHub sync workflows",
+  },
+  commentOnPullRequest: {
+    defaultMessage: "Comment on pull request",
+    id: "nPrC0mM3nt",
+    description: "Menu item and tool title for GitHub pull request comments",
   },
   sendToSlack: {
     defaultMessage: "Send to Slack",
@@ -578,6 +578,22 @@ export const workspaceAutomationFormMessages = defineMessages({
     defaultMessage: "Connect Slack in <link>Integrations</link> to use this tool.",
     id: "so9cmZxAcw",
     description: "Description for Slack notifications when Slack is not connected",
+  },
+  githubCommentConnectedDescription: {
+    defaultMessage:
+      "Post a sticky review comment on the pull request for this push. Later runs update the same comment.",
+    id: "gHc0mD3sc1",
+    description: "Description for GitHub pull request comment notifications when GitHub is connected",
+  },
+  githubCommentDisconnectedDescription: {
+    defaultMessage: "Connect GitHub in <link>Integrations</link> to comment on pull requests.",
+    id: "gHc0mD3sc0",
+    description: "Description for GitHub comment notifications when GitHub is not connected",
+  },
+  removeGithubCommentNotifications: {
+    defaultMessage: "Remove GitHub comment notifications",
+    id: "gHc0mRm0v1",
+    description: "Accessible label to remove GitHub pull request comment notifications",
   },
   removeSlackNotifications: {
     defaultMessage: "Remove Slack notifications",

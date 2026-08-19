@@ -12,6 +12,51 @@
  */
 import type { WorkspaceAutomationRecord } from "@/lib/agents/workspace-automations";
 
+function readSnapshotString(snapshot: Record<string, unknown>, key: string): string | null {
+  const value = snapshot[key];
+  return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
+export function isGithubNullOid(sha: string | null | undefined): boolean {
+  return !sha || /^0+$/.test(sha);
+}
+
+export type GithubPushInspectionRange = {
+  branch: string;
+  commitBefore: string | null;
+  commitAfter: string;
+};
+
+export function resolveGithubPushRange(input: {
+  triggerSource: string;
+  inputSnapshot: Record<string, unknown>;
+}): GithubPushInspectionRange | null {
+  if (input.triggerSource !== "github") {
+    return null;
+  }
+
+  const branch = readSnapshotString(input.inputSnapshot, "pushBranch");
+  const commitAfter = readSnapshotString(input.inputSnapshot, "commitAfter");
+  if (!branch || !commitAfter || isGithubNullOid(commitAfter)) {
+    return null;
+  }
+
+  const commitBeforeRaw = readSnapshotString(input.inputSnapshot, "commitBefore");
+  return {
+    branch,
+    commitBefore: commitBeforeRaw && !isGithubNullOid(commitBeforeRaw) ? commitBeforeRaw : null,
+    commitAfter,
+  };
+}
+
+export function formatGithubPushRangeLabel(range: GithubPushInspectionRange): string {
+  if (!range.commitBefore) {
+    return `new branch ${range.branch} at ${range.commitAfter}`;
+  }
+
+  return `${range.commitBefore}..${range.commitAfter} on ${range.branch}`;
+}
+
 export function resolveGithubRepoLookbackHours(input: {
   automation: WorkspaceAutomationRecord;
   triggerSource: string;

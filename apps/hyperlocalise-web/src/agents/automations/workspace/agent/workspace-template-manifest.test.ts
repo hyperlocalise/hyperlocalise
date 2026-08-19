@@ -104,6 +104,25 @@ describe("workspace template manifest", () => {
     expect(research?.instructions).toContain("You are a localisation research analyst");
   });
 
+  it("merges notify-on-push-blockers skill onto the gallery template", () => {
+    const [template] = mergeWorkspaceTemplateSkills(WORKSPACE_AUTOMATION_TEMPLATES_BASE).filter(
+      (entry) => entry.id === "notify-on-push-blockers",
+    );
+
+    expect(template).toMatchObject({
+      name: "Notify on push blockers",
+      category: "popular",
+      activatable: true,
+      defaultForm: expect.objectContaining({
+        githubMode: "agent",
+        triggerMode: "github",
+        githubCommentEnabled: true,
+      }),
+    });
+    expect(template?.description).toContain("comment on the pull request");
+    expect(template?.instructions).toContain("sticky GitHub pull request comment");
+  });
+
   it("keeps untested templates coming soon after skill merge", () => {
     const activatableIds = mergeWorkspaceTemplateSkills(WORKSPACE_AUTOMATION_TEMPLATES_BASE)
       .filter((template) => template.activatable)
@@ -115,6 +134,7 @@ describe("workspace template manifest", () => {
       "summarize-changes-daily",
       "review-code-daily",
       "daily-web-research",
+      "notify-on-push-blockers",
     ]);
   });
 });

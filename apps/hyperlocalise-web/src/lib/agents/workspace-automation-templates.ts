@@ -623,25 +623,43 @@ export const WORKSPACE_AUTOMATION_TEMPLATES_BASE: WorkspaceAutomationTemplate[] 
     id: "notify-on-push-blockers",
     category: "popular",
     name: "Notify on push blockers",
-    description: "Validate every push and ping Slack when localisation blockers are found.",
+    description:
+      "Review each GitHub push for localisation and translation risk, then comment on the pull request.",
     instructions: formatWorkspaceAutomationTemplateInstructions({
-      role: "a localisation incident notifier",
+      role: "a localisation-focused code reviewer for this repository",
       capabilities: [
-        "Validate localisation changes on every push",
-        "Notify Slack when required locales lose coverage",
-        "Notify Slack when placeholders, ICU syntax, or unsafe markup fail validation",
-        "Skip notifications for clean runs unless configured otherwise",
+        "Read the pushed commits, diffs, and surrounding code",
+        "Judge localisation, translation, and locale-compliance risk in the changed code",
+        "Cite commit SHAs and file paths for each finding",
+        "Separate blocking localisation defects from non-blocking follow-ups",
+        "Ignore unrelated logic, security, and formatting issues unless they affect user-facing copy or locale behavior",
+        "Post findings as a sticky GitHub pull request comment and update it on later pushes",
       ],
-      goal: "Alert the team only when a push introduces localisation blockers.",
+      goal: "Surface localisation and translation risks from this push on the pull request before they merge.",
+      extraSections: [
+        {
+          heading: "Review focus",
+          items: [
+            "Hard-coded copy, missing keys, and source strings that cannot be translated",
+            "Broken ICU, placeholders, plurals, and locale-sensitive formatting",
+            "Translation coverage, fallback, and writeback regressions",
+            "Localisation compliance: locale, RTL, legal, and market-language constraints",
+          ],
+        },
+      ],
     }),
-    activatable: false,
+    activatable: true,
     defaultForm: {
       name: "Notify on push blockers",
       triggerMode: "github",
       pushBranches: ["main"],
       githubEnabled: true,
-      validationEnabled: true,
-      slackEnabled: true,
+      githubMode: "agent",
+      repositoryTargetKind: "github",
+      pushSourceEnabled: false,
+      pullTranslationsEnabled: false,
+      validationEnabled: false,
+      githubCommentEnabled: true,
     },
   },
   {
@@ -910,6 +928,10 @@ export function getWorkspaceAutomationTemplateFlow(
 
   if (form.emailEnabled) {
     tools.push({ id: "email", label: "Email" });
+  }
+
+  if (form.githubCommentEnabled) {
+    tools.push({ id: "github-comment", label: "GitHub comment" });
   }
 
   if (form.contentfulEnabled) {

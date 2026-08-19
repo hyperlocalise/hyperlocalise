@@ -43,6 +43,23 @@ describe("buildWorkspaceOrchestratorUserMessage", () => {
     expect(message).not.toContain("Contentful entry ID");
   });
 
+  it("includes GitHub push context in the orchestrator prompt", () => {
+    const message = buildWorkspaceOrchestratorUserMessage({
+      automationName: "Notify on push blockers",
+      triggerSource: "github",
+      inputSnapshot: {
+        pushBranch: "main",
+        commitBefore: "aaa111",
+        commitAfter: "bbb222",
+      },
+    });
+
+    expect(message).toContain('Execute automation "Notify on push blockers"');
+    expect(message).toContain("Trigger source: github.");
+    expect(message).toContain("GitHub push branch: main.");
+    expect(message).toContain("GitHub push commits: aaa111..bbb222.");
+  });
+
   it("omits Contentful entry context when the snapshot has no entry ID", () => {
     const message = buildWorkspaceOrchestratorUserMessage({
       automationName: "Translate Contentful article",

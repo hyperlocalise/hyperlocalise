@@ -37,7 +37,9 @@ import {
 
 import type { WorkspaceOrchestratorSession } from "../context";
 import {
+  formatGithubPushRangeLabel,
   formatGithubRepoLookbackLabel,
+  resolveGithubPushRange,
   resolveGithubRepoLookbackHours,
 } from "./resolve-github-repo-lookback";
 
@@ -72,12 +74,19 @@ export function createUseGithubRepositoryTool(session: WorkspaceOrchestratorSess
         throw new Error("github_repository_not_found");
       }
 
-      const branch = repositoryRow.defaultBranch?.trim() || "main";
+      const pushRange = resolveGithubPushRange({
+        triggerSource: session.run.triggerSource,
+        inputSnapshot: session.run.inputSnapshot,
+      });
+      const branch = pushRange?.branch || repositoryRow.defaultBranch?.trim() || "main";
+      const revision = pushRange?.commitAfter || branch;
       const lookbackHours = resolveGithubRepoLookbackHours({
         automation: session.automation,
         triggerSource: session.run.triggerSource,
       });
-      const lookbackLabel = formatGithubRepoLookbackLabel(lookbackHours);
+      const lookbackLabel = pushRange
+        ? formatGithubPushRangeLabel(pushRange)
+        : formatGithubRepoLookbackLabel(lookbackHours);
       const userInstructions =
         session.automation.instructions.trim() ||
         (typeof session.run.inputSnapshot.instructions === "string"
@@ -90,7 +99,7 @@ export function createUseGithubRepositoryTool(session: WorkspaceOrchestratorSess
         sandboxId = await createGithubRepositoryAutomationSandbox({
           installationId: repositoryRow.githubInstallationId,
           repositoryFullName: repositoryRow.fullName,
-          revision: branch,
+          revision,
           cloneDepth: 50,
         });
 
@@ -100,7 +109,9 @@ export function createUseGithubRepositoryTool(session: WorkspaceOrchestratorSess
             "This is an automated read-only GitHub repository task.",
             `Repository: ${repositoryRow.fullName}.`,
             `Branch: ${branch}.`,
-            `Lookback window: ${lookbackLabel}.`,
+            pushRange
+              ? `Inspect this push: ${lookbackLabel}.`
+              : `Lookback window: ${lookbackLabel}.`,
             `Sandbox id: ${sandboxId}.`,
           ],
         });
@@ -140,7 +151,9 @@ export function createUseGithubRepositoryTool(session: WorkspaceOrchestratorSess
 
         const prompt = [
           `Execute the customer task for ${repositoryRow.fullName} on branch ${branch}.`,
-          `Review changes from the last ${lookbackLabel}.`,
+          pushRange
+            ? `Review the localisation impact of this push (${lookbackLabel}).`
+            : `Review changes from the last ${lookbackLabel}.`,
           "Use repository tools to inspect git history and relevant files.",
           "Return the final digest as plain text for automation delivery.",
         ].join("\n");
@@ -169,7 +182,13 @@ export function createUseGithubRepositoryTool(session: WorkspaceOrchestratorSess
           digest,
           repositoryFullName: repositoryRow.fullName,
           branch,
-          lookbackHours,
+          lookbackHours: pushRange ? null : lookbackHours,
+          ...(pushRange
+            ? {
+                commitBefore: pushRange.commitBefore,
+                commitAfter: pushRange.commitAfter,
+              }
+            : {}),
         };
         session.stepResults.use_github_repository = payload;
 

@@ -28,7 +28,7 @@ import {
 } from "./workspace-automation-idempotency";
 import {
   hasWorkspaceAutomationGithubWorkflow,
-  workspaceAutomationMatchesPushBranch,
+  workspaceAutomationShouldDispatchOnGithubPush,
 } from "./workspace-automation-github-mapping";
 import {
   advanceWorkspaceAutomationNextRun,
@@ -384,9 +384,7 @@ export async function dispatchWorkspaceAutomationsForGithubPush(input: {
       automation.repositoryTarget.kind === "github" &&
       automation.repositoryTarget.githubInstallationRepositoryId ===
         input.githubInstallationRepositoryId &&
-      automation.triggerConfig.mode === "github" &&
-      workspaceAutomationMatchesPushBranch(automation, input.branch) &&
-      hasWorkspaceAutomationGithubWorkflow(automation.toolConfig),
+      workspaceAutomationShouldDispatchOnGithubPush(automation, input.branch),
   );
 
   const results: WorkspaceAutomationDispatchResult[] = [];
