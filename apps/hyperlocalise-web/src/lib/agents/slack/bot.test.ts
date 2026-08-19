@@ -244,6 +244,7 @@ vi.mock("@/lib/database", () => {
         interactionId: "interactionId",
         createdAt: "createdAt",
       },
+      glossaryTerms: {},
     },
   };
 });
