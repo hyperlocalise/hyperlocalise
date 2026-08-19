@@ -37,9 +37,11 @@ export const ORCHESTRATOR_AGENT_TIMEOUT = {
   stepMs: AGENT_STEP_TIMEOUT_MS,
 } as const;
 
+const WORKFLOW_AGENT_STEP_TIMEOUT_MS = 10 * 60 * 1000;
+
 export const WORKFLOW_AGENT_TIMEOUT = {
-  totalMs: 10 * 60 * 1000,
-  stepMs: 90 * 1000,
+  totalMs: WORKFLOW_AGENT_STEP_TIMEOUT_MS,
+  stepMs: WORKFLOW_AGENT_STEP_TIMEOUT_MS,
 } as const;
 
 /** Maximum tool steps for workspace automation orchestrator (workflows + notifications + summary). */
@@ -47,7 +49,10 @@ export const WORKSPACE_ORCHESTRATOR_STEP_LIMIT = 6;
 
 export const WORKSPACE_ORCHESTRATOR_TIMEOUT = {
   totalMs: 25 * 60 * 1000,
-  stepMs: 90 * 1000,
+  // One orchestrator step can be a nested GitHub/Semrush/Ahrefs agent. Those
+  // tools already budget 10 minutes, so the parent step has to match or it
+  // aborts them first.
+  stepMs: WORKFLOW_AGENT_STEP_TIMEOUT_MS,
 } as const;
 
 /** Poll interval while waiting for a GitHub repository automation job to finish. */

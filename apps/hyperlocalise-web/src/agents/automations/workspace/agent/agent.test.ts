@@ -33,7 +33,11 @@ vi.mock("@/lib/agent-runtime/loops/model", () => ({
   getHyperlocaliseAgentModel: vi.fn(() => "mock-model"),
 }));
 
-import { WORKSPACE_ORCHESTRATOR_STEP_LIMIT } from "@/lib/agent-runtime/subagents/constants";
+import {
+  WORKFLOW_AGENT_TIMEOUT,
+  WORKSPACE_ORCHESTRATOR_STEP_LIMIT,
+  WORKSPACE_ORCHESTRATOR_TIMEOUT,
+} from "@/lib/agent-runtime/subagents/constants";
 import type {
   WorkspaceAutomationRecord,
   WorkspaceAutomationRunRecord,
@@ -107,9 +111,12 @@ describe("workspace orchestrator agent", () => {
     // WORKSPACE_ORCHESTRATOR_STEP_LIMIT (6) is a floor, not a ceiling: a 2-tool plan still gets at
     // least that many steps even though plannedToolCount + 1 (3) is smaller.
     expect(isStepCountMock).toHaveBeenCalledWith(WORKSPACE_ORCHESTRATOR_STEP_LIMIT);
+    expect(WORKSPACE_ORCHESTRATOR_TIMEOUT.stepMs).toBe(WORKFLOW_AGENT_TIMEOUT.totalMs);
+    expect(WORKFLOW_AGENT_TIMEOUT.stepMs).toBe(WORKFLOW_AGENT_TIMEOUT.totalMs);
     expect(toolLoopAgentMock).toHaveBeenCalledWith(
       expect.objectContaining({
         activeTools: ["run_github_workflows", "notify_slack"],
+        timeout: WORKSPACE_ORCHESTRATOR_TIMEOUT,
         prepareStep: expect.any(Function),
       }),
     );
