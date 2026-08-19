@@ -20,7 +20,7 @@ import {
   normalizeSlackChannelQuery,
   parseSlackConversationId,
   searchSlackChannels,
-  SLACK_CHANNEL_BROWSE_LIMIT,
+  SLACK_CHANNEL_LIST_PAGE_LIMIT,
   toCanonicalSlackChannelId,
 } from "./search-channels";
 
@@ -75,7 +75,7 @@ describe("searchSlackChannels", () => {
     expect(parseSlackConversationId("release-notes")).toBeNull();
   });
 
-  it("browses a single page and ignores further cursors", async () => {
+  it("browses a single page when Slack has no further cursor", async () => {
     vi.stubGlobal("fetch", fetchMock);
     fetchMock.mockResolvedValue(
       jsonResponse({
@@ -85,7 +85,7 @@ describe("searchSlackChannels", () => {
           { id: "C_PRIVATE", name: "team-l10n", is_private: true },
           { id: "C_ARCHIVED", name: "old", is_archived: true },
         ],
-        response_metadata: { next_cursor: "page-2" },
+        response_metadata: {},
       }),
     );
 
@@ -102,14 +102,57 @@ describe("searchSlackChannels", () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
     const url = requestUrl(fetchMock.mock.calls[0]?.[0]);
     expect(url.origin + url.pathname).toBe("https://slack.com/api/conversations.list");
-    expect(url.searchParams.get("limit")).toBe(String(SLACK_CHANNEL_BROWSE_LIMIT));
+    expect(url.searchParams.get("limit")).toBe(String(SLACK_CHANNEL_LIST_PAGE_LIMIT));
+    expect(url.searchParams.get("exclude_archived")).toBe("true");
     expect(url.searchParams.get("cursor")).toBeNull();
+  });
+
+  it("keeps paging when exclude_archived shrinks a virtual page below limit", async () => {
+    vi.stubGlobal("fetch", fetchMock);
+    let listPages = 0;
+    mockSlack((url) => {
+      expect(url.searchParams.get("limit")).toBe(String(SLACK_CHANNEL_LIST_PAGE_LIMIT));
+      expect(url.searchParams.get("exclude_archived")).toBe("true");
+      listPages += 1;
+      if (url.searchParams.get("cursor") === "page-2") {
+        return {
+          body: {
+            ok: true,
+            channels: [{ id: "C_TARGET", name: "release-notes" }],
+          },
+        };
+      }
+
+      return {
+        body: {
+          ok: true,
+          channels: [{ id: "C_PUBLIC", name: "localization" }],
+          response_metadata: { next_cursor: "page-2" },
+        },
+      };
+    });
+
+    const result = await searchSlackChannels({ botToken: "xoxb-token" });
+
+    expect(isOk(result)).toBe(true);
+    if (!isOk(result)) {
+      throw new Error("expected browse to follow next_cursor after a short page");
+    }
+    expect(result.value.map((channel) => channel.id)).toEqual(["slack:C_PUBLIC", "slack:C_TARGET"]);
+    expect(listPages).toBe(2);
   });
 
   it("searches channel names without listing every page after an exact match", async () => {
     vi.stubGlobal("fetch", fetchMock);
     mockSlack((url) => {
-      expect(url.pathname.endsWith("/conversations.list")).toBe(true);
+      if (url.pathname.endsWith("/conversations.info")) {
+        return {
+          body: { ok: false, error: "channel_not_found" },
+        };
+      }
+
+      expect(url.searchParams.get("limit")).toBe(String(SLACK_CHANNEL_LIST_PAGE_LIMIT));
+      expect(url.searchParams.get("exclude_archived")).toBe("true");
       return {
         body: {
           ok: true,
@@ -136,7 +179,7 @@ describe("searchSlackChannels", () => {
       fetchMock.mock.calls.some((call) =>
         String(call[0]).includes("https://slack.com/api/conversations.info"),
       ),
-    ).toBe(false);
+    ).toBe(true);
     expect(
       fetchMock.mock.calls.filter((call) =>
         String(call[0]).includes("https://slack.com/api/conversations.list"),
@@ -169,14 +212,20 @@ describe("searchSlackChannels", () => {
       fetchMock.mock.calls.some((call) =>
         String(call[0]).includes("https://slack.com/api/conversations.info"),
       ),
-    ).toBe(false);
+    ).toBe(true);
   });
 
-  it("does not resolve channel names through conversations.info", async () => {
+  it("resolves a typed channel name via conversations.info when list search would miss it", async () => {
     vi.stubGlobal("fetch", fetchMock);
     mockSlack((url) => {
       if (url.pathname.endsWith("/conversations.info")) {
-        throw new Error("conversations.info must not be called for channel names");
+        expect(url.searchParams.get("channel")).toBe("#release-notes");
+        return {
+          body: {
+            ok: true,
+            channel: { id: "C_RELEASE", name: "release-notes", is_private: false },
+          },
+        };
       }
 
       return {
@@ -190,21 +239,32 @@ describe("searchSlackChannels", () => {
 
     const result = await searchSlackChannels({
       botToken: "xoxb-token",
-      query: "release-notes",
+      query: "Release Notes",
     });
 
     expect(isOk(result)).toBe(true);
     if (!isOk(result)) {
-      throw new Error("expected named channel search to ignore conversations.info");
+      throw new Error("expected named channel lookup to succeed");
     }
-    expect(result.value).toEqual([]);
+    expect(result.value[0]).toEqual({
+      id: "slack:C_RELEASE",
+      name: "release-notes",
+      private: false,
+    });
+    expect(result.value.map((channel) => channel.id)).toContain("slack:C_RELEASE");
   });
 
   it("scans later list pages until an exact channel name matches", async () => {
     vi.stubGlobal("fetch", fetchMock);
     let listPages = 0;
     mockSlack((url) => {
-      expect(url.pathname.endsWith("/conversations.info")).toBe(false);
+      if (url.pathname.endsWith("/conversations.info")) {
+        return {
+          body: { ok: false, error: "channel_not_found" },
+        };
+      }
+
+      expect(url.pathname.endsWith("/conversations.list")).toBe(true);
       listPages += 1;
       if (url.searchParams.get("cursor") === "page-2") {
         return {
@@ -428,14 +488,29 @@ describe("searchSlackChannels", () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-08-19T00:00:00.000Z"));
     vi.stubGlobal("fetch", fetchMock);
-    fetchMock
-      .mockResolvedValueOnce(
-        jsonResponse({
-          ok: true,
-          channels: [{ id: "C_RELEASE", name: "release-notes" }],
-        }),
-      )
-      .mockResolvedValue(jsonResponse({ ok: false, error: "ratelimited" }, { status: 429 }));
+    let listCalls = 0;
+    mockSlack((url) => {
+      if (url.pathname.endsWith("/conversations.info")) {
+        return {
+          body: { ok: false, error: "channel_not_found" },
+        };
+      }
+
+      listCalls += 1;
+      if (listCalls === 1) {
+        return {
+          body: {
+            ok: true,
+            channels: [{ id: "C_RELEASE", name: "release-notes" }],
+          },
+        };
+      }
+
+      return {
+        body: { ok: false, error: "ratelimited" },
+        init: { status: 429 },
+      };
+    });
 
     const first = await searchSlackChannels({
       botToken: "xoxb-token",

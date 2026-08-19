@@ -20,8 +20,9 @@ import {
   type Result,
 } from "@/lib/primitives/result/results";
 
-export const SLACK_CHANNEL_BROWSE_LIMIT = 200;
-export const SLACK_CHANNEL_SEARCH_PAGE_LIMIT = 1000;
+export const SLACK_CHANNEL_LIST_PAGE_LIMIT = 200;
+export const SLACK_CHANNEL_BROWSE_LIMIT = SLACK_CHANNEL_LIST_PAGE_LIMIT;
+export const SLACK_CHANNEL_SEARCH_PAGE_LIMIT = SLACK_CHANNEL_LIST_PAGE_LIMIT;
 export const SLACK_CHANNEL_SEARCH_MAX_PAGES = 3;
 export const SLACK_CHANNEL_SEARCH_EXACT_MAX_PAGES = 10;
 export const SLACK_CHANNEL_SEARCH_MAX_RESULTS = 50;
@@ -33,6 +34,7 @@ const SLACK_CHANNEL_LIST_CACHE_MAX_ENTRIES = 50;
 const SLACK_CONVERSATION_ID_PATTERN = /^(?:slack:)?[CGD][A-Z0-9]{8,}$/i;
 const SLACK_ARCHIVE_CHANNEL_PATTERN = /\/archives\/([CGD][A-Z0-9]{8,})/i;
 const SLACK_MENTION_CHANNEL_PATTERN = /<#([CGD][A-Z0-9]{8,})(?:\|[^>]*)?>/i;
+const SLACK_CHANNEL_NAME_PATTERN = /^[a-z0-9][a-z0-9_-]{0,79}$/;
 const SLACK_CHANNEL_LOOKUP_MISS_ERRORS = new Set([
   "channel_not_found",
   "invalid_arguments",
@@ -184,7 +186,20 @@ function channelMatchesQuery(channel: SlackChannelListItem, query: string) {
 
 function slackChannelLookupKeys(query: string) {
   const channelId = parseSlackConversationId(query);
-  return channelId ? [channelId] : [];
+  if (channelId) {
+    return [channelId];
+  }
+
+  const keys: string[] = [];
+  const seen = new Set<string>();
+  for (const name of slackChannelMatchKeys(query)) {
+    if (!SLACK_CHANNEL_NAME_PATTERN.test(name) || seen.has(name)) {
+      continue;
+    }
+    seen.add(name);
+    keys.push(`#${name}`);
+  }
+  return keys;
 }
 
 function isSlackChannelLookupMiss(error: SlackChannelSearchError) {
@@ -258,8 +273,6 @@ async function loadSlackChannelByKey(
     return ok(null);
   }
 
-  // conversations.info only accepts a conversation ID (C…, G…, D…). A channel
-  // name always returns channel_not_found, even when that channel exists.
   const url = new URL("https://slack.com/api/conversations.info");
   url.searchParams.set("channel", channelKey);
 
@@ -287,7 +300,7 @@ async function lookupSlackChannelByQuery(
   for (const key of keys) {
     const lookupResult = await loadSlackChannelByKey(botToken, key, options);
     if (isErr(lookupResult)) {
-      // Speculative id lookup must not fail the search; list scan can still match.
+      // Speculative name/id lookup must not fail the search; list scan can still match.
       if (
         lookupResult.error.code === "slack_rate_limited" ||
         lookupResult.error.code === "bot_unavailable"
@@ -316,6 +329,8 @@ async function listSlackChannelPage(
   Result<{ channels: SlackChannelListItem[]; nextCursor: string }, SlackChannelSearchError>
 > {
   const url = new URL("https://slack.com/api/conversations.list");
+  // Slack applies exclude_archived after filling a virtual page of `limit`, so a
+  // page can return fewer than `limit` channels while next_cursor still has more.
   url.searchParams.set("exclude_archived", "true");
   url.searchParams.set("limit", String(input.limit));
   url.searchParams.set("types", "public_channel,private_channel");
@@ -512,9 +527,24 @@ export async function searchSlackChannels(input: {
 
   if (!query) {
     if (!snapshot) {
-      const browseResult = await fetchListPage(undefined, SLACK_CHANNEL_BROWSE_LIMIT);
+      const browseResult = await fetchListPage(undefined, SLACK_CHANNEL_LIST_PAGE_LIMIT);
       if (isErr(browseResult)) {
         return browseResult;
+      }
+    }
+
+    for (let page = 1; page < SLACK_CHANNEL_SEARCH_EXACT_MAX_PAGES; page += 1) {
+      if (
+        (snapshot?.channels.length ?? 0) >= SLACK_CHANNEL_BROWSE_LIMIT ||
+        !snapshot?.nextCursor ||
+        !canPageFurther
+      ) {
+        break;
+      }
+
+      const moreResult = await fetchListPage(snapshot.nextCursor, SLACK_CHANNEL_LIST_PAGE_LIMIT);
+      if (isErr(moreResult)) {
+        return moreResult;
       }
     }
 
@@ -529,7 +559,7 @@ export async function searchSlackChannels(input: {
   const lookupPromise = lookupSlackChannelByQuery(input.botToken, query, options);
   const firstPagePromise: Promise<Result<void, SlackChannelSearchError>> = snapshot
     ? Promise.resolve(ok(undefined))
-    : fetchListPage(undefined, SLACK_CHANNEL_SEARCH_PAGE_LIMIT);
+    : fetchListPage(undefined, SLACK_CHANNEL_LIST_PAGE_LIMIT);
   const [lookupResult, firstPageResult] = await Promise.all([lookupPromise, firstPagePromise]);
   if (isErr(lookupResult)) {
     if (
@@ -576,7 +606,7 @@ export async function searchSlackChannels(input: {
       break;
     }
 
-    const pageResult = await fetchListPage(snapshot.nextCursor, SLACK_CHANNEL_SEARCH_PAGE_LIMIT);
+    const pageResult = await fetchListPage(snapshot.nextCursor, SLACK_CHANNEL_LIST_PAGE_LIMIT);
     if (isErr(pageResult)) {
       return pageResult;
     }
