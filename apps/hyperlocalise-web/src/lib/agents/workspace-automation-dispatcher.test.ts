@@ -1035,6 +1035,7 @@ describe("workspace automation dispatcher", () => {
         authorUserId: scope.userId,
         name: "Push only GitHub automation",
         instructions: "Should not run for pull requests.",
+        projectId: scope.projectId,
         triggerConfig: { mode: "github", branches: ["main"] },
         repositoryTarget: {
           kind: "github",
