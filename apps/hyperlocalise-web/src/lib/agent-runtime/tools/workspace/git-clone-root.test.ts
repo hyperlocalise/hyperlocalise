@@ -46,6 +46,9 @@ describe("git-clone-root path helpers", () => {
       "src/locales/en/messages.json",
     );
     expect(toGitPath("src/locales/en/messages.json", nested)).toBe("src/locales/en/messages.json");
+    expect(toGitPath("scribe-fe-v2/scribe-fe-v2/locales/en.json", nested)).toBe(
+      "scribe-fe-v2/locales/en.json",
+    );
   });
 
   it("maps git paths back to workspace-relative paths", () => {

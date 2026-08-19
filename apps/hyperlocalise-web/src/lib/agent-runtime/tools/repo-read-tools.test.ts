@@ -1316,6 +1316,58 @@ describe("createGitHistoryTool", () => {
     expect(gitCalls.some((args) => args[0] === "-C" && args[1] === "scribe-fe-v2")).toBe(true);
   });
 
+  it("does not strip a nested clone prefix from an already git-relative path", async () => {
+    const patch =
+      'diff --git a/scribe-fe-v2/locales/en.json b/scribe-fe-v2/locales/en.json\n+  "save": "Save"\n';
+    const ctx = createTestContext({
+      "/home/user/project/scribe-fe-v2/scribe-fe-v2/locales/en.json": '{"save":"Save"}\n',
+    });
+    const gitCalls: string[][] = [];
+    ctx.bash.registerCommand(
+      defineCommand("git", async (args) => {
+        gitCalls.push(args);
+        if (args[0] === "rev-parse") {
+          return { stdout: "", stderr: "fatal: not a git repository", exitCode: 128 };
+        }
+        if (args[0] === "-C" && args[1] === "scribe-fe-v2" && args[2] === "rev-parse") {
+          return { stdout: "true\n", stderr: "", exitCode: 0 };
+        }
+        if (args[0] === "-C" && args[1] === "scribe-fe-v2" && args[2] === "diff") {
+          return { stdout: patch, stderr: "", exitCode: 1 };
+        }
+        return { stdout: "", stderr: "", exitCode: 1 };
+      }),
+    );
+
+    const t = createGitHistoryTool(ctx);
+    const result = await t.execute!(
+      {
+        mode: "fileDiff",
+        paths: ["scribe-fe-v2/scribe-fe-v2/locales/en.json"],
+        range: "abc^..abc",
+      },
+      toolCallInfo,
+    );
+
+    expect(gitCalls).toContainEqual([
+      "-C",
+      "scribe-fe-v2",
+      "diff",
+      "abc^..abc",
+      "--",
+      "scribe-fe-v2/locales/en.json",
+    ]);
+    expect(gitCalls.some((args) => args.includes("--") && args.at(-1) === "locales/en.json")).toBe(
+      false,
+    );
+    expect(result).toMatchObject({
+      success: true,
+      mode: "fileDiff",
+      paths: ["scribe-fe-v2/scribe-fe-v2/locales/en.json"],
+      diff: patch,
+    });
+  });
+
   it("rejects option-like git revision ranges", async () => {
     const ctx = createTestContext();
     const t = createGitHistoryTool(ctx);

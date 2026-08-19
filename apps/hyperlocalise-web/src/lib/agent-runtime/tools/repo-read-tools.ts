@@ -270,6 +270,7 @@ async function executeGitHistory(ctx: RepoToolContext, input: GitHistoryInput) {
     };
   }
 
+  // Convert workspace paths once. History helpers must keep these git-relative.
   const gitPaths = normalizedPathsResult.value?.map((path) => toGitPath(path, clone));
 
   try {
@@ -337,7 +338,7 @@ async function changedFilesHistory(
     };
   }
 
-  const paths = (providedPaths ?? discovery?.files ?? []).map((path) => toGitPath(path, clone));
+  const paths = providedPaths ?? discovery?.files ?? [];
   if (paths.length === 0) {
     return {
       success: true as const,
@@ -376,7 +377,6 @@ async function changedFilesHistory(
   const changedFiles = uniqueLines(changedFileLines.join("\n"))
     .map((line) => normalizeSourcePath(line))
     .filter((line): line is string => Boolean(line))
-    .map((line) => toGitPath(line, clone))
     .filter((line) => pathSet.has(line));
   const files = changedFiles.slice(0, maxResults).map((path) => toWorkspacePath(path, clone));
 
@@ -400,13 +400,12 @@ async function fileDiffHistory(
     return { success: false as const, error: "fileDiff requires at least one path." };
   }
 
-  const gitPaths = paths.map((path) => toGitPath(path, clone));
   const args = input.range
-    ? ["diff", input.range, "--", ...gitPaths]
+    ? ["diff", input.range, "--", ...paths]
     : buildGitLogArgs(input, {
         patch: true,
         maxCount: maxResults,
-        paths: gitPaths,
+        paths,
       });
   const result = await ctx.bash.exec("git", { args });
   const diffSucceeded = input.range
@@ -423,7 +422,7 @@ async function fileDiffHistory(
   return {
     success: true as const,
     mode: "fileDiff" as const,
-    paths: gitPaths.map((path) => toWorkspacePath(path, clone)),
+    paths: paths.map((path) => toWorkspacePath(path, clone)),
     diff: output.text,
     truncated: output.truncated,
   };
@@ -441,12 +440,11 @@ async function entryLogHistory(
     return { success: false as const, error: "entryLog requires query." };
   }
 
-  const gitPaths = paths?.map((path) => toGitPath(path, clone));
   const args = buildGitLogArgs(input, {
     patch: true,
     maxCount: maxResults,
     pickaxe: query,
-    paths: gitPaths,
+    paths,
   });
   const result = await ctx.bash.exec("git", { args });
   if (result.exitCode !== 0) {
@@ -461,7 +459,7 @@ async function entryLogHistory(
     success: true as const,
     mode: "entryLog" as const,
     query,
-    paths: (gitPaths ?? []).map((path) => toWorkspacePath(path, clone)),
+    paths: (paths ?? []).map((path) => toWorkspacePath(path, clone)),
     log: output.text,
     truncated: output.truncated,
   };
@@ -483,14 +481,13 @@ async function blameHistory(
     return { success: false as const, error: "blame requires a path." };
   }
 
-  const gitPath = toGitPath(path, clone);
   const query = input.query?.trim();
-  const lineRange = query ? await findLineRangeForQuery(ctx, gitPath, query) : null;
+  const lineRange = query ? await findLineRangeForQuery(ctx, path, query) : null;
   if (query && !lineRange) {
     return {
       success: true as const,
       mode: "blame" as const,
-      path: toWorkspacePath(gitPath, clone),
+      path: toWorkspacePath(path, clone),
       query,
       entries: [],
       truncated: false,
@@ -502,7 +499,7 @@ async function blameHistory(
   if (lineRange) {
     args.push(`-L${lineRange.start},${lineRange.end}`);
   }
-  args.push("--", gitPath);
+  args.push("--", path);
 
   const result = await ctx.bash.exec("git", { args });
   if (result.exitCode !== 0) {
@@ -517,7 +514,7 @@ async function blameHistory(
   return {
     success: true as const,
     mode: "blame" as const,
-    path: toWorkspacePath(gitPath, clone),
+    path: toWorkspacePath(path, clone),
     query,
     entries,
     truncated: entries.length < allEntries.length,
