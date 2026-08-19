@@ -14,14 +14,28 @@ import { http, HttpResponse } from "msw";
 
 import {
   automationEditorContentfulConnectionsFixture,
-  automationEditorProjectsFixture,
+  automationEditorCrowdinProjectsFixture,
+  automationEditorNativeProjectsFixture,
   automationEditorRepositoriesFixture,
   automationEditorSlackChannelsFixture,
 } from "./automation-editor.fixture";
 
 export const automationEditorMswHandlers = [
   http.get("/api/orgs/:organizationSlug/projects", () =>
-    HttpResponse.json({ projects: automationEditorProjectsFixture }),
+    HttpResponse.json({ projects: automationEditorNativeProjectsFixture }),
+  ),
+  http.get("/api/orgs/:organizationSlug/tms-provider/connection", () =>
+    HttpResponse.json({
+      connection: {
+        providerKind: "crowdin",
+        displayName: "Crowdin",
+        validationStatus: "valid",
+        validationMessage: null,
+      },
+    }),
+  ),
+  http.get("/api/orgs/:organizationSlug/tms-provider/projects", () =>
+    HttpResponse.json({ projects: automationEditorCrowdinProjectsFixture }),
   ),
   http.get("/api/orgs/:organizationSlug/github-installation", () =>
     HttpResponse.json({
@@ -79,7 +93,13 @@ export const automationEditorMswHandlers = [
 
 export const automationEditorDisconnectedMswHandlers = [
   http.get("/api/orgs/:organizationSlug/projects", () =>
-    HttpResponse.json({ projects: automationEditorProjectsFixture }),
+    HttpResponse.json({ projects: automationEditorNativeProjectsFixture }),
+  ),
+  http.get("/api/orgs/:organizationSlug/tms-provider/connection", () =>
+    HttpResponse.json({ error: "no_active_tms_provider" }, { status: 404 }),
+  ),
+  http.get("/api/orgs/:organizationSlug/tms-provider/projects", () =>
+    HttpResponse.json({ projects: [] }),
   ),
   http.get("/api/orgs/:organizationSlug/github-installation", () =>
     HttpResponse.json({ installation: null }),

@@ -21,7 +21,7 @@ import type { WorkspaceAutomationRunRecord } from "@/lib/agents/workspace-automa
 
 import { createAutomationSummary } from "./automations.fixture";
 
-export const automationEditorProjectsFixture = [
+export const automationEditorNativeProjectsFixture = [
   {
     id: "project_website",
     name: "Website",
@@ -36,6 +36,9 @@ export const automationEditorProjectsFixture = [
     sourceLocale: "en-US",
     targetLocales: ["es-ES", "pt-BR"],
   },
+];
+
+export const automationEditorCrowdinProjectsFixture = [
   {
     id: "ext:crowdin:42",
     name: "Marketing Crowdin",
@@ -44,6 +47,11 @@ export const automationEditorProjectsFixture = [
     sourceLocale: "en",
     targetLocales: ["de", "fr"],
   },
+];
+
+export const automationEditorProjectsFixture = [
+  ...automationEditorNativeProjectsFixture,
+  ...automationEditorCrowdinProjectsFixture,
 ];
 
 export const automationEditorRepositoriesFixture = [

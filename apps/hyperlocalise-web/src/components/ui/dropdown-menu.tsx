@@ -265,6 +265,19 @@ function DropdownMenuShortcut({ className, ...props }: React.ComponentProps<"spa
   );
 }
 
+function DropdownMenuHint({ className, ...props }: React.ComponentProps<"span">) {
+  return (
+    <span
+      data-slot="dropdown-menu-hint"
+      className={cn(
+        "ms-auto text-xs text-muted-foreground group-focus/dropdown-menu-item:text-accent-foreground",
+        className,
+      )}
+      {...props}
+    />
+  );
+}
+
 export {
   ComingSoonBadge,
   DropdownMenu,
@@ -279,6 +292,7 @@ export {
   DropdownMenuRadioItem,
   DropdownMenuSeparator,
   DropdownMenuShortcut,
+  DropdownMenuHint,
   DropdownMenuSub,
   DropdownMenuSubTrigger,
   DropdownMenuSubContent,

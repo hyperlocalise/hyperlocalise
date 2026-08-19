@@ -12,7 +12,7 @@
  */
 import { useState, type ReactNode } from "react";
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
-import { expect, fn } from "storybook/test";
+import { expect, fn, within } from "storybook/test";
 
 import { Button } from "@/components/ui/button";
 import type { WorkspaceAutomationFormState } from "@/lib/agents/workspace-automation-view-model";
@@ -26,7 +26,10 @@ import {
   createGithubAutomationFormFixture,
   createMemoriesAutomationFormFixture,
 } from "./automation-editor.fixture";
-import { automationEditorMswHandlers } from "./automation-msw-handlers";
+import {
+  automationEditorDisconnectedMswHandlers,
+  automationEditorMswHandlers,
+} from "./automation-msw-handlers";
 import { WorkspaceAutomationEditor } from "./workspace-automation-form";
 
 function WorkspaceAutomationEditorStory({
@@ -112,6 +115,40 @@ export const CreateEmpty: Story = {
     await expect(
       canvas.getByText("Add at least one supported tool to activate this automation."),
     ).toBeInTheDocument();
+  },
+};
+
+export const CreateCrowdinToolConnected: Story = {
+  play: async ({ canvas, canvasElement, userEvent }) => {
+    const body = within(canvasElement.ownerDocument.body);
+    await userEvent.click(canvas.getByRole("button", { name: "Add tool" }));
+    const crowdinItem = await body.findByRole("menuitem", { name: /^Crowdin$/ });
+    await expect(crowdinItem).toBeEnabled();
+    await userEvent.click(crowdinItem);
+    await expect(
+      canvas.getByText(
+        "Search concordance, load style guidance, and recommend translations for strings under review.",
+      ),
+    ).toBeInTheDocument();
+    await userEvent.click(canvas.getByRole("combobox"));
+    await expect(
+      await body.findByRole("option", { name: "Marketing Crowdin" }),
+    ).toBeInTheDocument();
+  },
+};
+
+export const CreateCrowdinToolDisconnected: Story = {
+  parameters: {
+    msw: {
+      handlers: automationEditorDisconnectedMswHandlers,
+    },
+  },
+  play: async ({ canvas, canvasElement, userEvent }) => {
+    const body = within(canvasElement.ownerDocument.body);
+    await userEvent.click(canvas.getByRole("button", { name: "Add tool" }));
+    const crowdinItem = await body.findByRole("menuitem", { name: /Crowdin Connect first/i });
+    await expect(crowdinItem).toHaveAttribute("data-disabled");
+    await expect(crowdinItem).toHaveTextContent("Connect first");
   },
 };
 
