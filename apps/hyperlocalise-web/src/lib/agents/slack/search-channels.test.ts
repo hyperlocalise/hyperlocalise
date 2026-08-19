@@ -190,4 +190,74 @@ describe("verifySlackChannel", () => {
     }
     expect(result.error).toEqual({ code: "slack_rate_limited" });
   });
+
+  it("surfaces permission errors instead of treating them as lookup misses", async () => {
+    vi.stubGlobal("fetch", fetchMock);
+
+    for (const slackError of ["missing_scope", "not_in_channel"] as const) {
+      fetchMock.mockResolvedValueOnce(
+        jsonResponse({
+          ok: false,
+          error: slackError,
+        }),
+      );
+
+      const result = await verifySlackChannel({
+        botToken: "xoxb-token",
+        channelId: "C01234572",
+      });
+
+      expect(isErr(result)).toBe(true);
+      if (!isErr(result)) {
+        throw new Error(`expected ${slackError} to remain an API error`);
+      }
+      expect(result.error).toEqual({ code: "slack_api_error", slackError });
+    }
+  });
+
+  it("falls back to name_normalized when name is absent", async () => {
+    vi.stubGlobal("fetch", fetchMock);
+    fetchMock.mockResolvedValue(
+      jsonResponse({
+        ok: true,
+        channel: { id: "C01234573", name_normalized: "release-notes", is_private: true },
+      }),
+    );
+
+    const result = await verifySlackChannel({
+      botToken: "xoxb-token",
+      channelId: "C01234573",
+    });
+
+    expect(isOk(result)).toBe(true);
+    if (!isOk(result)) {
+      throw new Error("expected name_normalized channel verify to succeed");
+    }
+    expect(result.value).toEqual({
+      id: "slack:C01234573",
+      name: "release-notes",
+      private: true,
+    });
+  });
+
+  it("returns null when the channel payload is missing id or name", async () => {
+    vi.stubGlobal("fetch", fetchMock);
+    fetchMock.mockResolvedValue(
+      jsonResponse({
+        ok: true,
+        channel: { id: "C01234574" },
+      }),
+    );
+
+    const result = await verifySlackChannel({
+      botToken: "xoxb-token",
+      channelId: "C01234574",
+    });
+
+    expect(isOk(result)).toBe(true);
+    if (!isOk(result)) {
+      throw new Error("expected incomplete channel payload to succeed with null");
+    }
+    expect(result.value).toBeNull();
+  });
 });
