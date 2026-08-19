@@ -242,12 +242,7 @@ function GithubEventSwitch({
 }) {
   return (
     <label className="flex items-center gap-2 text-xs text-foreground">
-      <Switch
-        size="sm"
-        checked={checked}
-        disabled={disabled}
-        onCheckedChange={onCheckedChange}
-      />
+      <Switch size="sm" checked={checked} disabled={disabled} onCheckedChange={onCheckedChange} />
       <span>{label}</span>
     </label>
   );
@@ -840,8 +835,7 @@ function AddTriggerMenu({
                   ...form,
                   triggerMode: "github",
                   githubEnabled: true,
-                  githubEvents:
-                    form.githubEvents.length > 0 ? form.githubEvents : ["push"],
+                  githubEvents: form.githubEvents.length > 0 ? form.githubEvents : ["push"],
                   repositoryTargetKind: "github",
                   githubInstallationRepositoryId: defaultRepositoryId,
                   validationEnabled:

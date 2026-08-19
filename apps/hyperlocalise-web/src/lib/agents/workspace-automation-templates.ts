@@ -901,11 +901,12 @@ export function getWorkspaceAutomationTemplateFlow(
   const githubEvents = form.githubEvents ?? ["push"];
   const listensToPush = githubEvents.includes("push");
   const listensToPullRequest = githubEvents.includes("pull_request");
-  const githubTrigger: WorkspaceAutomationTemplateFlowNode = listensToPush && listensToPullRequest
-    ? { id: "github-push", label: "GitHub push and pull request" }
-    : listensToPullRequest
-      ? { id: "github-pull-request", label: "GitHub pull request" }
-      : { id: "github-push", label: "GitHub push" };
+  const githubTrigger: WorkspaceAutomationTemplateFlowNode =
+    listensToPush && listensToPullRequest
+      ? { id: "github-push", label: "GitHub push and pull request" }
+      : listensToPullRequest
+        ? { id: "github-pull-request", label: "GitHub pull request" }
+        : { id: "github-push", label: "GitHub push" };
 
   const trigger: WorkspaceAutomationTemplateFlowNode =
     triggerMode === "github"

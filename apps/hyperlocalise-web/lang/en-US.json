@@ -287,6 +287,10 @@
     "defaultMessage": "Back to site",
     "description": "Button to return to the marketing site from the access denied page"
   },
+  "/2DsRIRpZu": {
+    "defaultMessage": "GitHub push and pull request · {repository} · {branches}",
+    "description": "Header summary for a GitHub trigger that runs on push and pull request"
+  },
   "/2wzw7IAoz": {
     "defaultMessage": "Unable to open Hyperlocalise",
     "description": "Title when Crowdin JWT bootstrap fails"
@@ -1206,6 +1210,10 @@
   "2BoI5eES6X": {
     "defaultMessage": "Validating…",
     "description": "Button label while validating a provider credential"
+  },
+  "2C7ykfN2tG": {
+    "defaultMessage": "Pull request opened",
+    "description": "Toggle label for GitHub pull request opened trigger events"
   },
   "2CcWvThdpB": {
     "defaultMessage": "Vendor and reviewer assignments happen manually across spreadsheets and Slack.",
@@ -3626,10 +3634,6 @@
   "Ab8vwYJKWj": {
     "defaultMessage": "Reviewers",
     "description": "Knowledge product visual memory node label"
-  },
-  "AbZsOtFk+H": {
-    "defaultMessage": "Post a sticky review comment on the pull request for this push. Later runs update the same comment.",
-    "description": "Description for GitHub pull request comment notifications when GitHub is connected"
   },
   "AcfkWiaJBh": {
     "defaultMessage": "Copied!",
@@ -13135,6 +13139,10 @@
     "defaultMessage": "Settings unavailable",
     "description": "Slack agent panel title when settings failed to load"
   },
+  "k2PKKnD3GN": {
+    "defaultMessage": "Push",
+    "description": "Toggle label for GitHub push trigger events"
+  },
   "k2mhvldg9T": {
     "defaultMessage": "Maya Chen",
     "description": "Marketing teammate name in the Slack launch intake mock"
@@ -15687,6 +15695,10 @@
     "defaultMessage": "Show token",
     "description": "Accessible label to reveal the personal access token value"
   },
+  "tp0Edn/npM": {
+    "defaultMessage": "Post a sticky review comment on the matching pull request. Later runs update the same comment.",
+    "description": "Description for GitHub pull request comment notifications when GitHub is connected"
+  },
   "tr/WtfszIz": {
     "defaultMessage": "Every",
     "description": "Prefix label before the schedule cadence select"
@@ -15794,6 +15806,10 @@
   "uHbVM9Pw9Y": {
     "defaultMessage": "Assignees updated",
     "description": "Toast when job assignees are saved"
+  },
+  "uI2rwqO19R": {
+    "defaultMessage": "GitHub pull request · {repository} · {branches}",
+    "description": "Header summary for a GitHub pull request trigger"
   },
   "uIj8uezhZ9": {
     "defaultMessage": "Earth from space",

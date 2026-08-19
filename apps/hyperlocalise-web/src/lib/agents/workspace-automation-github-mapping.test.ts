@@ -280,9 +280,9 @@ describe("workspace automation GitHub mapping", () => {
     expect(workspaceAutomationShouldDispatchOnGithubPullRequest(agentAutomation, "main")).toBe(
       true,
     );
-    expect(
-      workspaceAutomationShouldDispatchOnGithubPullRequest(agentAutomation, "feature/x"),
-    ).toBe(false);
+    expect(workspaceAutomationShouldDispatchOnGithubPullRequest(agentAutomation, "feature/x")).toBe(
+      false,
+    );
     expect(
       workspaceAutomationShouldDispatchOnGithubPullRequest(
         automation({

@@ -12,15 +12,12 @@
  */
 import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
-const {
-  dispatchWorkspaceAutomationsForGithubPullRequestMock,
-  loggerErrorMock,
-  loggerInfoMock,
-} = vi.hoisted(() => ({
-  dispatchWorkspaceAutomationsForGithubPullRequestMock: vi.fn(),
-  loggerErrorMock: vi.fn(),
-  loggerInfoMock: vi.fn(),
-}));
+const { dispatchWorkspaceAutomationsForGithubPullRequestMock, loggerErrorMock, loggerInfoMock } =
+  vi.hoisted(() => ({
+    dispatchWorkspaceAutomationsForGithubPullRequestMock: vi.fn(),
+    loggerErrorMock: vi.fn(),
+    loggerInfoMock: vi.fn(),
+  }));
 
 vi.mock("@/lib/log", () => ({
   createLogger: vi.fn(() => ({

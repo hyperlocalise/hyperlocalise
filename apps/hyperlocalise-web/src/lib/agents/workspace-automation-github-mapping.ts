@@ -65,9 +65,7 @@ export function hasWorkspaceAutomationGithubCommentTool(
   return Boolean(toolConfig.githubComment?.enabled);
 }
 
-function workspaceAutomationHasGithubDispatchTools(
-  automation: WorkspaceAutomationRecord,
-): boolean {
+function workspaceAutomationHasGithubDispatchTools(automation: WorkspaceAutomationRecord): boolean {
   return (
     hasWorkspaceAutomationGithubWorkflow(automation.toolConfig) ||
     hasWorkspaceAutomationGithubAgentTool(automation.toolConfig) ||
