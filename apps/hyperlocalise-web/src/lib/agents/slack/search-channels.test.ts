@@ -97,6 +97,7 @@ describe("searchSlackChannels", () => {
     }
     expect(result.value).toEqual([
       { id: "slack:C_PUBLIC", name: "localization", private: false },
+      { id: "slack:C_ARCHIVED", name: "old", private: false },
       { id: "slack:C_PRIVATE", name: "team-l10n", private: true },
     ]);
     expect(fetchMock).toHaveBeenCalledTimes(1);

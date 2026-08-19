@@ -113,7 +113,7 @@ function parseRetryAfterMs(response: Response) {
 
 function toChannelListItem(channel: SlackChannel): SlackChannelListItem | null {
   const name = channel.name || channel.name_normalized;
-  if (!channel.id || !name || channel.is_archived) {
+  if (!channel.id || !name) {
     return null;
   }
 
@@ -270,8 +270,7 @@ async function listSlackChannelPage(
 > {
   const url = new URL("https://slack.com/api/conversations.list");
   // Omit exclude_archived. Slack applies that filter after filling a virtual page
-  // of `limit`, which can shrink pages and skip later channels. Archived channels
-  // are dropped locally in toChannelListItem.
+  // of `limit`, which can shrink pages and skip later channels.
   url.searchParams.set("limit", String(input.limit));
   url.searchParams.set("types", "public_channel,private_channel");
   if (input.cursor) {
