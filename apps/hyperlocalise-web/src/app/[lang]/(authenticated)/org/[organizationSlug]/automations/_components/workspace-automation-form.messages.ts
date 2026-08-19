@@ -628,26 +628,41 @@ export const workspaceAutomationFormMessages = defineMessages({
     description: "Accessible label to remove Slack notifications",
   },
   channelLabel: {
-    defaultMessage: "Channel",
-    id: "T8F8lD+KK1",
-    description: "Label for the Slack channel select",
+    defaultMessage: "Channel ID",
+    id: "FxNFbqpNBI",
+    description: "Label for the Slack channel ID input",
   },
-  loadingChannels: {
-    defaultMessage: "Loading channels...",
-    id: "D0mCtflyKZ",
-    description: "Placeholder while Slack channels are loading",
+  channelIdPlaceholder: {
+    defaultMessage: "C0123456789",
+    id: "/69jKTmJ4I",
+    description: "Placeholder for the Slack channel ID input",
   },
-  noChannelsFound: {
-    defaultMessage: "No channels found",
-    id: "AiZ8NmX54q",
-    description: "Empty state when no Slack channels are available",
-  },
-  noMatchingChannels: {
+  channelIdHelp: {
     defaultMessage:
-      "Can't find that channel. If it's private, invite the Hyperlocalise app, then search again. You can also paste the channel ID from Slack.",
-    id: "vLWybE+AOt",
-    description:
-      "Empty state when a typed Slack channel name or ID does not match visible channels",
+      "Paste the channel ID from Slack. Open the channel, click the channel name, then copy the ID at the bottom of the About tab. The app must be invited to private channels.",
+    id: "7w0EIy2MLW",
+    description: "Help text for entering a Slack channel ID",
+  },
+  verifyingChannel: {
+    defaultMessage: "Verifying channel...",
+    id: "0AwFQKS1li",
+    description: "Status while a Slack channel ID is being verified",
+  },
+  invalidChannelId: {
+    defaultMessage: "Enter a valid Slack channel ID, such as C0123456789.",
+    id: "Jsu6BbXJ5w",
+    description: "Error when the Slack channel ID format is invalid",
+  },
+  channelNotFound: {
+    defaultMessage:
+      "Channel not found or the app is not a member. For private channels, invite the Hyperlocalise app first.",
+    id: "WAbDlyKYQP",
+    description: "Error when conversations.info does not resolve the channel ID",
+  },
+  slackChannelVerifyFailed: {
+    defaultMessage: "Unable to verify this channel right now. Try again.",
+    id: "ZM4eC/SiqK",
+    description: "Error when Slack channel verification fails unexpectedly",
   },
   privateChannelSuffix: {
     defaultMessage: "#{name} (private)",

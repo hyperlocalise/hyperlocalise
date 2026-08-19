@@ -1,3 +1,5 @@
+// @vitest-environment happy-dom
+
 /*
  * Copyright (c) 2026 Hyperlocalise Pty Ltd
  *
@@ -10,11 +12,9 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-// @vitest-environment happy-dom
-
 import type { ReactElement } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { IntlProvider } from "react-intl";
 import { afterEach, describe, expect, it, vi } from "vite-plus/test";
@@ -22,7 +22,7 @@ import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 import { SlackChannelSelect } from "./slack-channel-select";
 
 const apiMocks = vi.hoisted(() => ({
-  searchChannels: vi.fn(),
+  verifyChannel: vi.fn(),
 }));
 
 vi.mock("@/lib/api-client", () => ({
@@ -31,20 +31,15 @@ vi.mock("@/lib/api-client", () => ({
       orgs: {
         ":organizationSlug": {
           "agent-slack": {
-            channels: { $get: apiMocks.searchChannels },
+            channels: {
+              verify: { $get: apiMocks.verifyChannel },
+            },
           },
         },
       },
     },
   }),
 }));
-
-function jsonResponse(channels: Array<{ id: string; name: string; private: boolean }>) {
-  return {
-    status: 200,
-    json: async () => ({ channels }),
-  };
-}
 
 function renderSelect(ui: ReactElement) {
   const queryClient = new QueryClient({
@@ -62,58 +57,67 @@ function renderSelect(ui: ReactElement) {
 
 describe("SlackChannelSelect", () => {
   afterEach(() => {
-    apiMocks.searchChannels.mockReset();
+    apiMocks.verifyChannel.mockReset();
+    vi.useRealTimers();
   });
 
-  it("filters the loaded channel list as the user types", async () => {
-    const user = userEvent.setup();
-    apiMocks.searchChannels.mockResolvedValue(
-      jsonResponse([
-        { id: "slack:C1", name: "general", private: false },
-        { id: "slack:C2", name: "release-notes", private: false },
-        { id: "slack:C3", name: "release-notes-eu", private: false },
-      ]),
-    );
+  it("verifies a channel ID and shows the resolved channel name", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    apiMocks.verifyChannel.mockResolvedValue({
+      status: 200,
+      json: async () => ({
+        channel: { id: "slack:C01234567", name: "release-notes", private: false },
+      }),
+    });
 
     renderSelect(
       <SlackChannelSelect organizationSlug="acme" slackConnected value="" onChange={vi.fn()} />,
     );
 
-    await user.click(await screen.findByRole("button", { name: /select channel/i }));
-    expect(await screen.findByText("#general")).toBeInTheDocument();
-    expect(screen.getByText("#release-notes")).toBeInTheDocument();
-    expect(screen.getByText("#release-notes-eu")).toBeInTheDocument();
+    await user.type(screen.getByPlaceholderText("C0123456789"), "C01234567");
+    await vi.advanceTimersByTimeAsync(400);
 
-    await user.type(
-      screen.getByPlaceholderText("Search by name or paste a channel ID"),
-      "Release Notes",
-    );
+    await waitFor(() => {
+      expect(apiMocks.verifyChannel).toHaveBeenCalled();
+    });
 
-    expect(screen.queryByText("#general")).not.toBeInTheDocument();
-    expect(screen.getByText("#release-notes")).toBeInTheDocument();
-    expect(screen.getByText("#release-notes-eu")).toBeInTheDocument();
-    expect(apiMocks.searchChannels).toHaveBeenCalledTimes(1);
-    expect(apiMocks.searchChannels.mock.calls[0]?.[0].query?.q).toBeUndefined();
+    expect(await screen.findByText("#release-notes")).toBeInTheDocument();
   });
 
-  it("selects a filtered channel", async () => {
-    const user = userEvent.setup();
-    const onChange = vi.fn();
-    apiMocks.searchChannels.mockResolvedValue(
-      jsonResponse([
-        { id: "slack:C1", name: "general", private: false },
-        { id: "slack:C2", name: "release-notes", private: false },
-      ]),
+  it("shows an error when the channel cannot be verified", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    apiMocks.verifyChannel.mockResolvedValue({
+      status: 404,
+      json: async () => ({ error: "slack_channel_not_found" }),
+    });
+
+    renderSelect(
+      <SlackChannelSelect organizationSlug="acme" slackConnected value="" onChange={vi.fn()} />,
     );
+
+    await user.type(screen.getByPlaceholderText("C0123456789"), "C01234567");
+    await vi.advanceTimersByTimeAsync(400);
+
+    await waitFor(() => {
+      expect(apiMocks.verifyChannel).toHaveBeenCalled();
+    });
+
+    expect(
+      await screen.findByText(/Channel not found or the app is not a member/i),
+    ).toBeInTheDocument();
+  });
+
+  it("calls onChange with the typed channel ID", async () => {
+    const onChange = vi.fn();
 
     renderSelect(
       <SlackChannelSelect organizationSlug="acme" slackConnected value="" onChange={onChange} />,
     );
 
-    await user.click(await screen.findByRole("button", { name: /select channel/i }));
-    await user.type(screen.getByPlaceholderText("Search by name or paste a channel ID"), "rel");
-    await user.click(await screen.findByText("#release-notes"));
+    await userEvent.type(screen.getByPlaceholderText("C0123456789"), "C01234567");
 
-    expect(onChange).toHaveBeenCalledWith("slack:C2");
+    expect(onChange).toHaveBeenLastCalledWith("C01234567");
   });
 });

@@ -18,6 +18,7 @@ import type {
   WorkspaceAutomationTriggerConfig,
   WorkspaceAutomationWebSearchProvider,
 } from "./workspace-automations";
+import { parseSlackConversationId } from "./slack/channel-query";
 import {
   getWorkspaceAutomationTemplate,
   type WorkspaceAutomationTemplate,
@@ -601,8 +602,8 @@ export function validateWorkspaceAutomationFormState(
     errors.pushBranches = "Add at least one branch pattern.";
   }
 
-  if (form.slackEnabled && !form.slackChannelId.trim()) {
-    errors.slackChannelId = "Choose a Slack channel.";
+  if (form.slackEnabled && !parseSlackConversationId(form.slackChannelId)) {
+    errors.slackChannelId = "Enter a valid Slack channel ID.";
   }
 
   if (form.emailEnabled && form.emailRecipients.length === 0) {

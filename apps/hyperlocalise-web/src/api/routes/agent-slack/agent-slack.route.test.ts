@@ -19,7 +19,6 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vite
 import { app } from "@/api/app";
 import { createProjectTestFixture } from "@/api/routes/project/project.fixture";
 import { verifySlackState } from "@/lib/agents/slack/oauth-state";
-import { clearSlackChannelListCache } from "@/lib/agents/slack/search-channels";
 import { db, schema } from "@/lib/database";
 import { env } from "@/lib/env";
 
@@ -142,7 +141,6 @@ describe("agentSlackRoutes", () => {
   afterEach(async () => {
     vi.resetAllMocks();
     vi.unstubAllGlobals();
-    clearSlackChannelListCache();
     await fixture.cleanup();
   });
 
@@ -202,89 +200,85 @@ describe("agentSlackRoutes", () => {
     });
   });
 
-  it("lists Slack channels for an enabled connector", async () => {
+  it("verifies a Slack channel for an enabled connector", async () => {
     const { organizationSlug, headers } = await setupEnabledSlackConnector();
 
     mocks.fetchMock.mockResolvedValue({
       ok: true,
       json: vi.fn().mockResolvedValue({
         ok: true,
-        channels: [
-          { id: "C_PRIVATE", name: "team-l10n", is_private: true },
-          { id: "C_PUBLIC", name: "localization", is_private: false },
-          { id: "C_ARCHIVED", name: "old", is_archived: true },
-        ],
-        response_metadata: {},
+        channel: { id: "C01234567", name: "localization", is_private: false },
       }),
     } as unknown as Response);
 
-    const response = await client.api.orgs[":organizationSlug"]["agent-slack"].channels.$get(
+    const response = await client.api.orgs[":organizationSlug"]["agent-slack"].channels.verify.$get(
       {
         param: { organizationSlug },
-        query: {},
+        query: { channelId: "C01234567" },
       },
       { headers },
     );
 
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toEqual({
-      channels: [
-        { id: "slack:C_PUBLIC", name: "localization", private: false },
-        { id: "slack:C_ARCHIVED", name: "old", private: false },
-        { id: "slack:C_PRIVATE", name: "team-l10n", private: true },
-      ],
+      channel: { id: "slack:C01234567", name: "localization", private: false },
     });
     expect(mocks.getInstallationMock).toHaveBeenCalledWith("T123");
     expect(mocks.fetchMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        href: expect.stringContaining("https://slack.com/api/conversations.list"),
+        href: expect.stringContaining("https://slack.com/api/conversations.info"),
       }),
       expect.objectContaining({
         headers: { authorization: "Bearer xoxb-token" },
       }),
     );
-    const listUrl = mocks.fetchMock.mock.calls[0]?.[0] as URL;
-    expect(listUrl.searchParams.get("limit")).toBe("200");
-    expect(listUrl.searchParams.get("cursor")).toBeNull();
+    const infoUrl = mocks.fetchMock.mock.calls[0]?.[0] as URL;
+    expect(infoUrl.searchParams.get("channel")).toBe("C01234567");
   });
 
-  it("searches Slack channels by name", async () => {
+  it("returns 404 when the channel cannot be verified", async () => {
     const { organizationSlug, headers } = await setupEnabledSlackConnector();
 
     mocks.fetchMock.mockResolvedValue({
       ok: true,
-      headers: { get: () => null },
-      json: vi.fn().mockResolvedValue({
-        ok: true,
-        channels: [
-          { id: "C_PUBLIC", name: "localization", is_private: false },
-          { id: "C_PRIVATE", name: "team-l10n", is_private: true },
-        ],
-        response_metadata: {},
-      }),
+      json: vi.fn().mockResolvedValue({ ok: false, error: "channel_not_found" }),
     } as unknown as Response);
 
-    const response = await client.api.orgs[":organizationSlug"]["agent-slack"].channels.$get(
+    const response = await client.api.orgs[":organizationSlug"]["agent-slack"].channels.verify.$get(
       {
         param: { organizationSlug },
-        query: { q: "l10n" },
+        query: { channelId: "C01234567" },
       },
       { headers },
     );
 
-    expect(response.status).toBe(200);
-    await expect(response.json()).resolves.toEqual({
-      channels: [{ id: "slack:C_PRIVATE", name: "team-l10n", private: true }],
-    });
+    expect(response.status).toBe(404);
+    await expect(response.json()).resolves.toEqual({ error: "slack_channel_not_found" });
   });
 
-  it("rejects an oversized Slack channel search query", async () => {
+  it("rejects a missing channelId query parameter", async () => {
     const { organizationSlug, headers } = await setupEnabledSlackConnector();
 
-    const response = await client.api.orgs[":organizationSlug"]["agent-slack"].channels.$get(
+    const response = await client.api.orgs[":organizationSlug"]["agent-slack"].channels.verify.$get(
       {
         param: { organizationSlug },
-        query: { q: "a".repeat(513) },
+        query: { channelId: "" },
+      },
+      { headers },
+    );
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({ error: "invalid_slack_channel_query" });
+    expect(mocks.fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects an oversized Slack channel id query", async () => {
+    const { organizationSlug, headers } = await setupEnabledSlackConnector();
+
+    const response = await client.api.orgs[":organizationSlug"]["agent-slack"].channels.verify.$get(
+      {
+        param: { organizationSlug },
+        query: { channelId: "C".repeat(129) },
       },
       { headers },
     );
@@ -298,10 +292,10 @@ describe("agentSlackRoutes", () => {
     const { organizationSlug, headers } = await setupEnabledSlackConnector();
     mocks.getInstallationMock.mockResolvedValue(null);
 
-    const response = await client.api.orgs[":organizationSlug"]["agent-slack"].channels.$get(
+    const response = await client.api.orgs[":organizationSlug"]["agent-slack"].channels.verify.$get(
       {
         param: { organizationSlug },
-        query: {},
+        query: { channelId: "C01234567" },
       },
       { headers },
     );
@@ -318,16 +312,16 @@ describe("agentSlackRoutes", () => {
       status: 503,
     } as Response);
 
-    const response = await client.api.orgs[":organizationSlug"]["agent-slack"].channels.$get(
+    const response = await client.api.orgs[":organizationSlug"]["agent-slack"].channels.verify.$get(
       {
         param: { organizationSlug },
-        query: {},
+        query: { channelId: "C01234567" },
       },
       { headers },
     );
 
     expect(response.status).toBe(502);
-    await expect(response.json()).resolves.toEqual({ error: "slack_channels_unavailable" });
+    await expect(response.json()).resolves.toEqual({ error: "slack_channel_unavailable" });
     expect(mocks.loggerErrorMock).toHaveBeenCalledWith(
       expect.objectContaining({
         errorCode: "slack_http_error",
@@ -335,7 +329,7 @@ describe("agentSlackRoutes", () => {
         organizationId: auth.organization.localOrganizationId,
         teamId: "T123",
       }),
-      "slack channel list failed",
+      "slack channel verify failed",
     );
   });
 
@@ -346,16 +340,16 @@ describe("agentSlackRoutes", () => {
       json: vi.fn().mockResolvedValue({ ok: false, error: "invalid_auth" }),
     } as unknown as Response);
 
-    const response = await client.api.orgs[":organizationSlug"]["agent-slack"].channels.$get(
+    const response = await client.api.orgs[":organizationSlug"]["agent-slack"].channels.verify.$get(
       {
         param: { organizationSlug },
-        query: {},
+        query: { channelId: "C01234567" },
       },
       { headers },
     );
 
     expect(response.status).toBe(502);
-    await expect(response.json()).resolves.toEqual({ error: "slack_channels_unavailable" });
+    await expect(response.json()).resolves.toEqual({ error: "slack_channel_unavailable" });
     expect(mocks.loggerErrorMock).toHaveBeenCalledWith(
       expect.objectContaining({
         errorCode: "slack_api_error",
@@ -363,7 +357,7 @@ describe("agentSlackRoutes", () => {
         organizationId: auth.organization.localOrganizationId,
         teamId: "T123",
       }),
-      "slack channel list failed",
+      "slack channel verify failed",
     );
   });
 
@@ -371,16 +365,16 @@ describe("agentSlackRoutes", () => {
     const { organizationSlug, headers, auth } = await setupEnabledSlackConnector();
     mocks.fetchMock.mockRejectedValue(new Error("network unavailable"));
 
-    const response = await client.api.orgs[":organizationSlug"]["agent-slack"].channels.$get(
+    const response = await client.api.orgs[":organizationSlug"]["agent-slack"].channels.verify.$get(
       {
         param: { organizationSlug },
-        query: {},
+        query: { channelId: "C01234567" },
       },
       { headers },
     );
 
     expect(response.status).toBe(502);
-    await expect(response.json()).resolves.toEqual({ error: "slack_channels_unavailable" });
+    await expect(response.json()).resolves.toEqual({ error: "slack_channel_unavailable" });
     expect(mocks.loggerErrorMock).toHaveBeenCalledWith(
       expect.objectContaining({
         errorCode: "bot_unavailable",
@@ -388,26 +382,26 @@ describe("agentSlackRoutes", () => {
         organizationId: auth.organization.localOrganizationId,
         teamId: "T123",
       }),
-      "slack channel list failed",
+      "slack channel verify failed",
     );
   });
 
-  it("returns an empty channel list when Slack is disconnected", async () => {
+  it("returns 404 when Slack is disconnected", async () => {
     const identity = fixture.createWorkosIdentityWithRole("admin");
     const organizationSlug = identity.organization.slug ?? "missing-slug";
 
-    const response = await client.api.orgs[":organizationSlug"]["agent-slack"].channels.$get(
+    const response = await client.api.orgs[":organizationSlug"]["agent-slack"].channels.verify.$get(
       {
         param: { organizationSlug },
-        query: {},
+        query: { channelId: "C01234567" },
       },
       {
         headers: await fixture.authHeadersFor(identity),
       },
     );
 
-    expect(response.status).toBe(200);
-    await expect(response.json()).resolves.toEqual({ channels: [] });
+    expect(response.status).toBe(404);
+    await expect(response.json()).resolves.toEqual({ error: "slack_not_connected" });
   });
 
   it("returns an org-scoped slack install url for admins", async () => {

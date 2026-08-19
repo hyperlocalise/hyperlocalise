@@ -58,9 +58,17 @@ export const automationEditorMswHandlers = [
       },
     }),
   ),
-  http.get("/api/orgs/:organizationSlug/agent-slack/channels", () =>
-    HttpResponse.json({ channels: automationEditorSlackChannelsFixture }),
-  ),
+  http.get("/api/orgs/:organizationSlug/agent-slack/channels/verify", ({ request }) => {
+    const url = new URL(request.url);
+    const channelId = url.searchParams.get("channelId");
+    const channel = automationEditorSlackChannelsFixture.find(
+      (entry) => entry.id === `slack:${channelId}` || entry.id === channelId,
+    );
+    if (!channel) {
+      return HttpResponse.json({ error: "slack_channel_not_found" }, { status: 404 });
+    }
+    return HttpResponse.json({ channel });
+  }),
   http.get("/api/orgs/:organizationSlug/agent-email", () =>
     HttpResponse.json({
       emailAgent: {
@@ -118,8 +126,8 @@ export const automationEditorDisconnectedMswHandlers = [
       },
     }),
   ),
-  http.get("/api/orgs/:organizationSlug/agent-slack/channels", () =>
-    HttpResponse.json({ channels: [] }),
+  http.get("/api/orgs/:organizationSlug/agent-slack/channels/verify", () =>
+    HttpResponse.json({ error: "slack_not_connected" }, { status: 404 }),
   ),
   http.get("/api/orgs/:organizationSlug/agent-email", () =>
     HttpResponse.json({

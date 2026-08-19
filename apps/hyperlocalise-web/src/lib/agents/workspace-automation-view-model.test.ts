@@ -80,7 +80,7 @@ describe("workspace automation view model", () => {
       githubInstallationRepositoryId: "11111111-1111-4111-8111-111111111111",
       validationEnabled: true,
       slackEnabled: true,
-      slackChannelId: "C123",
+      slackChannelId: "C01234567",
       emailEnabled: true,
       emailRecipients: ["ops@example.com"],
     };
@@ -100,7 +100,7 @@ describe("workspace automation view model", () => {
     expect(payload.toolConfig.github).not.toHaveProperty("projectId");
     expect(payload.toolConfig.slack).toEqual({
       enabled: true,
-      channelId: "C123",
+      channelId: "C01234567",
     });
     expect(payload.toolConfig.email).toEqual({
       enabled: true,
@@ -240,7 +240,7 @@ describe("workspace automation view model", () => {
       validateWorkspaceAutomationFormState({
         ...form!,
         githubInstallationRepositoryId: "11111111-1111-4111-8111-111111111111",
-        slackChannelId: "C123",
+        slackChannelId: "C01234567",
       }),
     ).toEqual({});
   });
