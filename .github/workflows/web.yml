@@ -67,7 +67,7 @@ jobs:
 
   web-test-build:
     name: Hyperlocalise Web Test/Build
-    if: github.event_name == 'push' || github.event.pull_request.draft == false
+    if: github.event_name == 'pull_request' && github.event.pull_request.draft == false
     runs-on: blacksmith-4vcpu-ubuntu-2404
     services:
       postgres:
