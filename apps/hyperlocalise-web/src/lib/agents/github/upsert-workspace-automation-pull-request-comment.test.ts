@@ -120,6 +120,39 @@ describe("upsertWorkspaceAutomationPullRequestComment", () => {
     expect(createComment).not.toHaveBeenCalled();
   });
 
+  it("uses an explicit pull request number without looking up associated commits", async () => {
+    paginate.mockResolvedValue([]);
+    createComment.mockResolvedValue({
+      data: { id: 55, html_url: "https://github.com/acme/app/pull/42#issuecomment-55" },
+    });
+
+    const result = await upsertWorkspaceAutomationPullRequestComment({
+      installationId: "1",
+      repositoryFullName: "acme/app",
+      automationId: "auto-1",
+      commitSha: "abc123",
+      pullRequestNumber: 42,
+      message: "PR review",
+    });
+
+    expect(result).toEqual({
+      ok: true,
+      value: {
+        status: "created",
+        pullRequestNumber: 42,
+        commentId: 55,
+        url: "https://github.com/acme/app/pull/42#issuecomment-55",
+      },
+    });
+    expect(listPullRequestsAssociatedWithCommit).not.toHaveBeenCalled();
+    expect(createComment).toHaveBeenCalledWith({
+      owner: "acme",
+      repo: "app",
+      issue_number: 42,
+      body: "<!-- hyperlocalise-automation:auto-1 -->\nPR review",
+    });
+  });
+
   it("creates a sticky comment on the preferred open pull request", async () => {
     listPullRequestsAssociatedWithCommit.mockResolvedValue({
       data: [

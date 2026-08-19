@@ -15,6 +15,7 @@ import { describe, expect, it } from "vite-plus/test";
 import {
   formatGithubPushRangeLabel,
   isGithubNullOid,
+  resolveGithubPullRequestNumber,
   resolveGithubPushRange,
   resolveGithubRepoLookbackHours,
 } from "./resolve-github-repo-lookback";
@@ -72,6 +73,12 @@ describe("resolveGithubPushRange", () => {
         },
       }),
     ).toBeNull();
+  });
+
+  it("reads a pull request number from the GitHub trigger snapshot", () => {
+    expect(resolveGithubPullRequestNumber({ pullRequestNumber: 42 })).toBe(42);
+    expect(resolveGithubPullRequestNumber({ pullRequestNumber: 0 })).toBeNull();
+    expect(resolveGithubPullRequestNumber({})).toBeNull();
   });
 });
 

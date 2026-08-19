@@ -410,6 +410,40 @@ describe("workspace automations", () => {
     expect(automation.toolConfig.githubComment).toEqual({ enabled: true });
   });
 
+  it("creates GitHub agent automations with push and pull request events", async () => {
+    const scope = await seedWorkspaceAutomationScope();
+
+    const automation = expectOk(
+      await createWorkspaceAutomation({
+        organizationId: scope.organizationId,
+        authorUserId: scope.userId,
+        name: "Notify on push blockers",
+        instructions: "Review localisation risk on this pull request.",
+        triggerConfig: { mode: "github", branches: ["main"], events: ["push", "pull_request"] },
+        repositoryTarget: {
+          kind: "github",
+          githubInstallationRepositoryId: scope.githubInstallationRepositoryId,
+        },
+        toolConfig: {
+          github: {
+            enabled: true,
+            mode: "agent",
+            pushSource: false,
+            pullTranslations: false,
+            validation: false,
+          },
+          githubComment: { enabled: true },
+        },
+      }),
+    );
+
+    expect(automation.triggerConfig).toEqual({
+      mode: "github",
+      branches: ["main"],
+      events: ["push", "pull_request"],
+    });
+  });
+
   it("rejects scheduled automations without a GitHub or Contentful workflow", async () => {
     const scope = await seedWorkspaceAutomationScope();
     const triggerConfig = {

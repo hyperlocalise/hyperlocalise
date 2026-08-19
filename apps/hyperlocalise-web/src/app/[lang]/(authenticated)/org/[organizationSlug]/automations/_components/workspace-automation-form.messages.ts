@@ -35,6 +35,26 @@ export const workspaceAutomationFormMessages = defineMessages({
     id: "feBDOpIUbJ",
     description: "Header summary for a GitHub push trigger",
   },
+  githubPullRequestSummary: {
+    defaultMessage: "GitHub pull request · {repository} · {branches}",
+    id: "n7kQ2pLm9A",
+    description: "Header summary for a GitHub pull request trigger",
+  },
+  githubPushAndPullRequestSummary: {
+    defaultMessage: "GitHub push and pull request · {repository} · {branches}",
+    id: "r4Vw8sEt2C",
+    description: "Header summary for a GitHub trigger that runs on push and pull request",
+  },
+  githubEventPush: {
+    defaultMessage: "Push",
+    id: "p1Hx5dUq3B",
+    description: "Toggle label for GitHub push trigger events",
+  },
+  githubEventPullRequest: {
+    defaultMessage: "Pull request opened",
+    id: "w8Jm0cYv6D",
+    description: "Toggle label for GitHub pull request opened trigger events",
+  },
   repositoryRequired: {
     defaultMessage: "repository required",
     id: "+UD+5d3g3H",

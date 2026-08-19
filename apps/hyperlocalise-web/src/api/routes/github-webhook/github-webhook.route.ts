@@ -28,6 +28,10 @@ import {
   handleGithubPushWebhook,
   type GitHubPushWebhookPayload,
 } from "@/lib/agents/github/github-push-webhook";
+import {
+  handleGithubPullRequestWebhook,
+  type GitHubPullRequestWebhookPayload,
+} from "@/lib/agents/github/github-pull-request-webhook";
 import { safeJsonParse } from "@/lib/primitives/safeJsonParse/safeJsonParse";
 
 const logger = createLogger("github-webhook");
@@ -95,6 +99,26 @@ async function findStoredInstallation(githubInstallationId: string) {
     .limit(1);
 
   return installation ?? null;
+}
+
+async function findInstallationRepository(input: {
+  organizationId: string;
+  githubInstallationId: string;
+  githubRepositoryId: string;
+}) {
+  const [installationRepository] = await db
+    .select({ id: schema.githubInstallationRepositories.id })
+    .from(schema.githubInstallationRepositories)
+    .where(
+      and(
+        eq(schema.githubInstallationRepositories.organizationId, input.organizationId),
+        eq(schema.githubInstallationRepositories.githubInstallationId, input.githubInstallationId),
+        eq(schema.githubInstallationRepositories.githubRepositoryId, input.githubRepositoryId),
+      ),
+    )
+    .limit(1);
+
+  return installationRepository ?? null;
 }
 
 async function isRepositoryEnabled(input: {
@@ -273,23 +297,11 @@ export function createGithubWebhookRoutes(options: CreateGithubWebhookRoutesOpti
           return c.json({ error: "missing_github_delivery_id" }, 400);
         }
 
-        const [installationRepository] = await db
-          .select({ id: schema.githubInstallationRepositories.id })
-          .from(schema.githubInstallationRepositories)
-          .where(
-            and(
-              eq(schema.githubInstallationRepositories.organizationId, installation.organizationId),
-              eq(
-                schema.githubInstallationRepositories.githubInstallationId,
-                installation.githubInstallationId,
-              ),
-              eq(
-                schema.githubInstallationRepositories.githubRepositoryId,
-                String(payload.repository.id),
-              ),
-            ),
-          )
-          .limit(1);
+        const installationRepository = await findInstallationRepository({
+          organizationId: installation.organizationId,
+          githubInstallationId: installation.githubInstallationId,
+          githubRepositoryId: String(payload.repository.id),
+        });
 
         if (!installationRepository) {
           log.info(
@@ -323,6 +335,40 @@ export function createGithubWebhookRoutes(options: CreateGithubWebhookRoutesOpti
           },
           200,
         );
+      }
+
+      if (event === "pull_request") {
+        if (!delivery) {
+          log.warn("pull request webhook missing delivery id");
+          return c.json({ error: "missing_github_delivery_id" }, 400);
+        }
+
+        const installationRepository = await findInstallationRepository({
+          organizationId: installation.organizationId,
+          githubInstallationId: installation.githubInstallationId,
+          githubRepositoryId: String(payload.repository.id),
+        });
+
+        if (!installationRepository) {
+          log.info(
+            {
+              installationId: installation.githubInstallationId,
+              repositoryId: payload.repository.id,
+            },
+            "ignoring pull request webhook: installation repository not found",
+          );
+          return c.json({ ok: true, ignored: true }, 200);
+        }
+
+        const pullRequestResult = await handleGithubPullRequestWebhook({
+          deliveryId: delivery,
+          organizationId: installation.organizationId,
+          githubInstallationRepositoryId: installationRepository.id,
+          githubRepositoryId: String(payload.repository.id),
+          payload: payload as GitHubPullRequestWebhookPayload,
+        });
+
+        return c.json({ ok: true, ignored: pullRequestResult.ignored }, 200);
       }
 
       const handler = options.githubWebhookHandler ?? (await defaultGithubWebhookHandler());

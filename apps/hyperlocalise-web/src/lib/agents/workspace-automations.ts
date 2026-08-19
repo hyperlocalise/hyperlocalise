@@ -51,6 +51,31 @@ const branchPatternSchema = z
   .max(255)
   .regex(/^[A-Za-z0-9._\-/*?]+$/, "invalid_branch_pattern");
 
+export const workspaceAutomationGithubTriggerEventSchema = z.enum(["push", "pull_request"]);
+export type WorkspaceAutomationGithubTriggerEvent = z.infer<
+  typeof workspaceAutomationGithubTriggerEventSchema
+>;
+export const DEFAULT_WORKSPACE_AUTOMATION_GITHUB_EVENTS: WorkspaceAutomationGithubTriggerEvent[] = [
+  "push",
+];
+
+export function resolveWorkspaceAutomationGithubEvents(
+  events?: readonly WorkspaceAutomationGithubTriggerEvent[] | null,
+): WorkspaceAutomationGithubTriggerEvent[] {
+  if (!events || events.length === 0) {
+    return [...DEFAULT_WORKSPACE_AUTOMATION_GITHUB_EVENTS];
+  }
+
+  return [...new Set(events)];
+}
+
+export function workspaceAutomationGithubEventsInclude(
+  events: readonly WorkspaceAutomationGithubTriggerEvent[] | undefined,
+  event: WorkspaceAutomationGithubTriggerEvent,
+): boolean {
+  return resolveWorkspaceAutomationGithubEvents(events).includes(event);
+}
+
 const triggerConfigSchema = z
   .object({
     mode: z
@@ -65,6 +90,7 @@ const triggerConfigSchema = z
       })
       .optional(),
     branches: z.array(branchPatternSchema).min(1).max(32).optional(),
+    events: z.array(workspaceAutomationGithubTriggerEventSchema).min(1).max(2).optional(),
   })
   .default({ mode: "manual" });
 
@@ -337,7 +363,11 @@ export type WorkspaceAutomationConfigValidationError =
     }
   | {
       code: "github_push_branches_required";
-      message: "GitHub push triggers require at least one branch pattern.";
+      message: "GitHub triggers require at least one branch pattern.";
+    }
+  | {
+      code: "github_events_required";
+      message: "GitHub triggers require at least one event.";
     }
   | {
       code: "scheduled_workflow_required";
@@ -670,7 +700,18 @@ function validateWorkspaceAutomationConfig(input: {
   ) {
     return err({
       code: "github_push_branches_required",
-      message: "GitHub push triggers require at least one branch pattern.",
+      message: "GitHub triggers require at least one branch pattern.",
+    });
+  }
+
+  if (
+    input.triggerConfig.mode === "github" &&
+    input.triggerConfig.events &&
+    input.triggerConfig.events.length === 0
+  ) {
+    return err({
+      code: "github_events_required",
+      message: "GitHub triggers require at least one event.",
     });
   }
 

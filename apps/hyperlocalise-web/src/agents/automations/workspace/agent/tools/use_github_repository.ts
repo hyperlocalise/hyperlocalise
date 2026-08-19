@@ -39,6 +39,7 @@ import type { WorkspaceOrchestratorSession } from "../context";
 import {
   formatGithubPushRangeLabel,
   formatGithubRepoLookbackLabel,
+  resolveGithubPullRequestNumber,
   resolveGithubPushRange,
   resolveGithubRepoLookbackHours,
 } from "./resolve-github-repo-lookback";
@@ -78,6 +79,7 @@ export function createUseGithubRepositoryTool(session: WorkspaceOrchestratorSess
         triggerSource: session.run.triggerSource,
         inputSnapshot: session.run.inputSnapshot,
       });
+      const pullRequestNumber = resolveGithubPullRequestNumber(session.run.inputSnapshot);
       const branch = pushRange?.branch || repositoryRow.defaultBranch?.trim() || "main";
       const revision = pushRange?.commitAfter || branch;
       const lookbackHours = resolveGithubRepoLookbackHours({
@@ -87,6 +89,9 @@ export function createUseGithubRepositoryTool(session: WorkspaceOrchestratorSess
       const lookbackLabel = pushRange
         ? formatGithubPushRangeLabel(pushRange)
         : formatGithubRepoLookbackLabel(lookbackHours);
+      const inspectionLabel = pullRequestNumber
+        ? `pull request #${pullRequestNumber} (${lookbackLabel})`
+        : lookbackLabel;
       const userInstructions =
         session.automation.instructions.trim() ||
         (typeof session.run.inputSnapshot.instructions === "string"
@@ -115,7 +120,7 @@ export function createUseGithubRepositoryTool(session: WorkspaceOrchestratorSess
             `Repository: ${repositoryRow.fullName}.`,
             `Branch: ${branch}.`,
             pushRange
-              ? `Inspect this push: ${lookbackLabel}.`
+              ? `Inspect this ${pullRequestNumber ? "pull request" : "push"}: ${inspectionLabel}.`
               : `Lookback window: ${lookbackLabel}.`,
             `Sandbox id: ${sandboxId}.`,
           ],
@@ -157,7 +162,7 @@ export function createUseGithubRepositoryTool(session: WorkspaceOrchestratorSess
         const prompt = [
           `Execute the customer task for ${repositoryRow.fullName} on branch ${branch}.`,
           pushRange
-            ? `Review the localisation impact of this push (${lookbackLabel}).`
+            ? `Review the localisation impact of this ${pullRequestNumber ? "pull request" : "push"} (${inspectionLabel}).`
             : `Review changes from the last ${lookbackLabel}.`,
           "Use repository tools to inspect git history and relevant files.",
           "Follow the customer's required report sections exactly (including Translation Review Results, priority sections, and per-key entries when specified).",

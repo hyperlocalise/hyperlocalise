@@ -57,6 +57,13 @@ export function formatGithubPushRangeLabel(range: GithubPushInspectionRange): st
   return `${range.commitBefore}..${range.commitAfter} on ${range.branch}`;
 }
 
+export function resolveGithubPullRequestNumber(
+  inputSnapshot: Record<string, unknown>,
+): number | null {
+  const value = inputSnapshot.pullRequestNumber;
+  return typeof value === "number" && Number.isInteger(value) && value > 0 ? value : null;
+}
+
 export function resolveGithubRepoLookbackHours(input: {
   automation: WorkspaceAutomationRecord;
   triggerSource: string;

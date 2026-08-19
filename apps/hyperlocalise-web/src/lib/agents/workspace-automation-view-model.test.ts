@@ -277,6 +277,7 @@ describe("workspace automation view model", () => {
       name: "Notify on push blockers",
       triggerMode: "github",
       pushBranches: ["main"],
+      githubEvents: ["push", "pull_request"],
       githubEnabled: true,
       githubMode: "agent",
       githubCommentEnabled: true,
@@ -296,6 +297,11 @@ describe("workspace automation view model", () => {
     expect(formStateToWorkspaceAutomationPayload(form!).toolConfig.githubComment).toEqual({
       enabled: true,
     });
+    expect(formStateToWorkspaceAutomationPayload(form!).triggerConfig).toEqual({
+      mode: "github",
+      branches: ["main"],
+      events: ["push", "pull_request"],
+    });
   });
 
   it("allows GitHub agent mode with a GitHub push trigger", () => {
@@ -313,7 +319,7 @@ describe("workspace automation view model", () => {
 
     expect(validateWorkspaceAutomationFormState(form)).toEqual({});
     expect(formStateToWorkspaceAutomationPayload(form)).toMatchObject({
-      triggerConfig: { mode: "github", branches: ["main"] },
+      triggerConfig: { mode: "github", branches: ["main"], events: ["push"] },
       repositoryTarget: {
         kind: "github",
         githubInstallationRepositoryId: "11111111-1111-4111-8111-111111111111",

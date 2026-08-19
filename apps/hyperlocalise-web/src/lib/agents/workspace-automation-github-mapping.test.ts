@@ -23,6 +23,7 @@ import {
   hasWorkspaceAutomationGithubWorkflow,
   resolveWorkspaceAutomationGithubMode,
   workspaceAutomationMatchesPushBranch,
+  workspaceAutomationShouldDispatchOnGithubPullRequest,
   workspaceAutomationShouldDispatchOnGithubPush,
   workspaceAutomationToGithubSettings,
 } from "./workspace-automation-github-mapping";
@@ -239,6 +240,9 @@ describe("workspace automation GitHub mapping", () => {
 
     expect(workspaceAutomationShouldDispatchOnGithubPush(agentAutomation, "main")).toBe(true);
     expect(workspaceAutomationShouldDispatchOnGithubPush(agentAutomation, "feature/x")).toBe(false);
+    expect(workspaceAutomationShouldDispatchOnGithubPullRequest(agentAutomation, "main")).toBe(
+      false,
+    );
     expect(
       workspaceAutomationShouldDispatchOnGithubPush(
         automation({
@@ -252,6 +256,38 @@ describe("workspace automation GitHub mapping", () => {
               validation: false,
             },
           },
+        }),
+        "main",
+      ),
+    ).toBe(false);
+  });
+
+  it("dispatches GitHub agent automations on matching pull request base branches", () => {
+    const agentAutomation = automation({
+      triggerConfig: { mode: "github", branches: ["main"], events: ["push", "pull_request"] },
+      toolConfig: {
+        github: {
+          enabled: true,
+          mode: "agent",
+          pushSource: false,
+          pullTranslations: false,
+          validation: false,
+        },
+        githubComment: { enabled: true },
+      },
+    });
+
+    expect(workspaceAutomationShouldDispatchOnGithubPullRequest(agentAutomation, "main")).toBe(
+      true,
+    );
+    expect(
+      workspaceAutomationShouldDispatchOnGithubPullRequest(agentAutomation, "feature/x"),
+    ).toBe(false);
+    expect(
+      workspaceAutomationShouldDispatchOnGithubPullRequest(
+        automation({
+          triggerConfig: { mode: "github", branches: ["main"], events: ["push"] },
+          toolConfig: agentAutomation.toolConfig,
         }),
         "main",
       ),

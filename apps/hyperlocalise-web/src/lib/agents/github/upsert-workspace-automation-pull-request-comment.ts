@@ -103,6 +103,7 @@ export async function upsertWorkspaceAutomationPullRequestComment(input: {
   repositoryFullName: string;
   automationId: string;
   commitSha: string;
+  pullRequestNumber?: number;
   message: string;
 }): Promise<
   Result<
@@ -111,7 +112,13 @@ export async function upsertWorkspaceAutomationPullRequestComment(input: {
   >
 > {
   const commitSha = input.commitSha.trim();
-  if (!commitSha || isGithubNullOid(commitSha)) {
+  const explicitPullRequestNumber =
+    typeof input.pullRequestNumber === "number" &&
+    Number.isInteger(input.pullRequestNumber) &&
+    input.pullRequestNumber > 0
+      ? input.pullRequestNumber
+      : null;
+  if ((!commitSha || isGithubNullOid(commitSha)) && !explicitPullRequestNumber) {
     return ok({ status: "skipped", code: "github_commit_not_found" });
   }
 
@@ -125,20 +132,24 @@ export async function upsertWorkspaceAutomationPullRequestComment(input: {
 
   try {
     const octokit = await getInstallationOctokit(input.installationId);
-    const associated = await octokit.rest.repos.listPullRequestsAssociatedWithCommit({
-      owner: parsed.owner,
-      repo: parsed.repo,
-      commit_sha: commitSha,
-    });
-    const pullRequest = preferAssociatedPullRequest(associated.data);
-    if (!pullRequest) {
+    const pullRequestNumber =
+      explicitPullRequestNumber ??
+      (await (async () => {
+        const associated = await octokit.rest.repos.listPullRequestsAssociatedWithCommit({
+          owner: parsed.owner,
+          repo: parsed.repo,
+          commit_sha: commitSha,
+        });
+        return preferAssociatedPullRequest(associated.data)?.number ?? null;
+      })());
+    if (!pullRequestNumber) {
       return ok({ status: "skipped", code: "github_pr_not_found" });
     }
 
     const comments = await octokit.paginate(octokit.rest.issues.listComments, {
       owner: parsed.owner,
       repo: parsed.repo,
-      issue_number: pullRequest.number,
+      issue_number: pullRequestNumber,
       per_page: 100,
     });
     const existing = comments.find((comment) =>
@@ -158,7 +169,7 @@ export async function upsertWorkspaceAutomationPullRequestComment(input: {
       });
       return ok({
         status: "updated",
-        pullRequestNumber: pullRequest.number,
+        pullRequestNumber,
         commentId: updated.data.id,
         url: updated.data.html_url,
       });
@@ -167,12 +178,12 @@ export async function upsertWorkspaceAutomationPullRequestComment(input: {
     const created = await octokit.rest.issues.createComment({
       owner: parsed.owner,
       repo: parsed.repo,
-      issue_number: pullRequest.number,
+      issue_number: pullRequestNumber,
       body,
     });
     return ok({
       status: "created",
-      pullRequestNumber: pullRequest.number,
+      pullRequestNumber,
       commentId: created.data.id,
       url: created.data.html_url,
     });
