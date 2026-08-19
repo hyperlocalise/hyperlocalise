@@ -20,6 +20,7 @@ import {
   getWorkspaceAutomationTemplate,
   WORKSPACE_AUTOMATION_TEMPLATES_BASE,
 } from "./workspace-automation-templates";
+import { resolveWorkspaceAutomationModel } from "./workspace-automation-types";
 import {
   createDefaultWorkspaceAutomationFormState,
   createWorkspaceAutomationFormStateFromRecord,
@@ -107,6 +108,23 @@ describe("workspace automation view model", () => {
       enabled: true,
       recipients: ["ops@example.com"],
     });
+    expect(payload.model).toBe("openai/gpt-5.6-luna");
+  });
+
+  it("hydrates and persists a selected automation model", () => {
+    const state = createWorkspaceAutomationFormStateFromRecord({
+      ...createAutomationSummary(),
+      model: "anthropic/claude-sonnet-5",
+    });
+
+    expect(state.model).toBe("anthropic/claude-sonnet-5");
+    expect(formStateToWorkspaceAutomationPayload(state).model).toBe("anthropic/claude-sonnet-5");
+  });
+
+  it("falls back to Luna when an automation model is missing or unknown", () => {
+    expect(resolveWorkspaceAutomationModel(undefined)).toBe("openai/gpt-5.6-luna");
+    expect(resolveWorkspaceAutomationModel("not-a-model")).toBe("openai/gpt-5.6-luna");
+    expect(resolveWorkspaceAutomationModel("openai/gpt-5.6-sol")).toBe("openai/gpt-5.6-sol");
   });
 
   it("maps knowledge memories tool into the API payload", () => {
@@ -635,6 +653,9 @@ describe("workspace automation view model", () => {
     expect(workspaceAutomationFormHasChanges({ ...saved, name: "Renamed automation" }, saved)).toBe(
       true,
     );
+    expect(
+      workspaceAutomationFormHasChanges({ ...saved, model: "anthropic/claude-opus-5" }, saved),
+    ).toBe(true);
   });
 
   it("does not import the drizzle automation store", () => {

@@ -41,7 +41,7 @@ import { jobs } from "./jobs";
 import { projects } from "./projects";
 
 /**
- * Stores persisted workspace automation definitions, including the user-authored guidance, trigger settings, repository target, enabled tools, and scheduling state.
+ * Stores persisted workspace automation definitions, including the user-authored guidance, selected language model, trigger settings, repository target, enabled tools, and scheduling state.
  */
 export const workspaceAutomations = pgTable(
   "workspace_automations",
@@ -54,6 +54,8 @@ export const workspaceAutomations = pgTable(
     status: workspaceAutomationStatusEnum("status").notNull().default("active"),
     name: text("name").notNull(),
     instructions: text("instructions").notNull(),
+    // Gateway model id used when this automation runs (orchestrator and nested agents).
+    model: text("model").notNull().default("openai/gpt-5.6-luna"),
     triggerConfig: jsonb("trigger_config")
       .$type<Record<string, unknown>>()
       .notNull()

@@ -60,4 +60,45 @@ export const automationDetailPageContentMessages = defineMessages({
     id: "aEJ2kyKHZN",
     description: "Link back to the workspace automations list",
   },
+  deleteAutomation: {
+    defaultMessage: "Delete",
+    id: "n2P8qR4sTu",
+    description: "Button to delete a workspace automation",
+  },
+  deleteTitle: {
+    defaultMessage: "Delete automation?",
+    id: "v5W7xY9zAb",
+    description: "Title of the delete automation confirmation dialog",
+  },
+  deleteDescription: {
+    defaultMessage:
+      "{automationName} will be removed from this workspace and will no longer run.",
+    id: "c3D5eF7gHi",
+    description: "Delete automation confirmation describing the selected automation",
+  },
+  deleteCancel: {
+    defaultMessage: "Cancel",
+    id: "j6K8lM0nOp",
+    description: "Cancel button in the delete automation dialog",
+  },
+  deleting: {
+    defaultMessage: "Deleting...",
+    id: "q1R3sT5uVw",
+    description: "Delete button label while an automation is being deleted",
+  },
+  deleteConfirm: {
+    defaultMessage: "Delete",
+    id: "x4Y6zA8bCd",
+    description: "Confirm button to delete a workspace automation",
+  },
+  deleteSuccess: {
+    defaultMessage: "Automation deleted",
+    id: "e7F9gH1iJk",
+    description: "Toast when a workspace automation is deleted successfully",
+  },
+  deleteError: {
+    defaultMessage: "Unable to delete automation right now",
+    id: "l2M4nO6pQr",
+    description: "Toast when deleting a workspace automation fails",
+  },
 });

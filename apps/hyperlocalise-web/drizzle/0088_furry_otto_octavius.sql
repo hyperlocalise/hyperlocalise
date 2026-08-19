@@ -1,0 +1,1 @@
+ALTER TABLE "workspace_automations" ADD COLUMN "model" text DEFAULT 'openai/gpt-5.6-luna' NOT NULL;

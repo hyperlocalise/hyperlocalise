@@ -40,8 +40,10 @@ import {
   normalizeToolConfig,
   normalizeTriggerConfig,
   readOptionalProjectId,
+  resolveWorkspaceAutomationModel,
   workspaceAutomationConfigSchema,
   type WorkspaceAutomationConfigValidationError,
+  type WorkspaceAutomationModel,
   type WorkspaceAutomationRecord,
   type WorkspaceAutomationRepositoryTarget,
   type WorkspaceAutomationRunRecord,
@@ -530,6 +532,7 @@ function serializeAutomation(
     status: row.status,
     name: row.name,
     instructions: row.instructions,
+    model: resolveWorkspaceAutomationModel(row.model),
     projectId:
       readOptionalProjectId(row.projectId) ??
       hoistLegacyWorkspaceAutomationProjectId(rawToolConfig),
@@ -621,6 +624,7 @@ export async function createWorkspaceAutomation(input: {
   status?: WorkspaceAutomationStatus;
   name: string;
   instructions: string;
+  model?: WorkspaceAutomationModel;
   projectId?: string | null;
   triggerConfig?: WorkspaceAutomationTriggerConfig;
   repositoryTarget?: WorkspaceAutomationRepositoryTarget;
@@ -653,6 +657,7 @@ export async function createWorkspaceAutomation(input: {
     status: input.status ?? "active",
     name: input.name,
     instructions: input.instructions,
+    model: resolveWorkspaceAutomationModel(input.model),
     projectId,
     triggerConfig: config.triggerConfig,
     repositoryTarget: config.repositoryTarget,
@@ -693,6 +698,7 @@ export async function createWorkspaceAutomation(input: {
         status: input.status ?? "active",
         name: input.name,
         instructions: input.instructions,
+        model: resolveWorkspaceAutomationModel(input.model),
         projectId,
         triggerConfig: config.triggerConfig,
         githubInstallationRepositoryId:
@@ -727,6 +733,7 @@ export async function updateWorkspaceAutomation(input: {
   status?: WorkspaceAutomationStatus;
   name?: string;
   instructions?: string;
+  model?: WorkspaceAutomationModel;
   projectId?: string | null;
   triggerConfig?: WorkspaceAutomationTriggerConfig;
   repositoryTarget?: WorkspaceAutomationRepositoryTarget;
@@ -784,6 +791,8 @@ export async function updateWorkspaceAutomation(input: {
     status: input.status ?? existing.status,
     name: input.name ?? existing.name,
     instructions: input.instructions ?? existing.instructions,
+    model:
+      input.model !== undefined ? resolveWorkspaceAutomationModel(input.model) : existing.model,
     projectId,
     triggerConfig: config.triggerConfig,
     repositoryTarget: config.repositoryTarget,
@@ -840,6 +849,9 @@ export async function updateWorkspaceAutomation(input: {
         ...(input.status !== undefined ? { status: input.status } : {}),
         ...(input.name !== undefined ? { name: input.name } : {}),
         ...(input.instructions !== undefined ? { instructions: input.instructions } : {}),
+        ...(input.model !== undefined
+          ? { model: resolveWorkspaceAutomationModel(input.model) }
+          : {}),
         ...(configChanged
           ? {
               projectId,

@@ -29,10 +29,6 @@ vi.mock("ai", async () => {
   };
 });
 
-vi.mock("@/lib/agent-runtime/loops/model", () => ({
-  getHyperlocaliseAgentModel: vi.fn(() => "mock-model"),
-}));
-
 import {
   WORKFLOW_AGENT_TIMEOUT,
   WORKSPACE_ORCHESTRATOR_STEP_LIMIT,
@@ -54,6 +50,7 @@ function automation(): WorkspaceAutomationRecord {
     status: "active",
     name: "Test automation",
     instructions: "",
+    model: "openai/gpt-5.6-luna",
     projectId: "project-1",
     triggerConfig: { mode: "manual" },
     repositoryTarget: { kind: "none" },
@@ -118,6 +115,7 @@ describe("workspace orchestrator agent", () => {
     );
     expect(toolLoopAgentMock).toHaveBeenCalledWith(
       expect.objectContaining({
+        model: "openai/gpt-5.6-luna",
         activeTools: ["run_github_workflows", "notify_slack"],
         timeout: WORKSPACE_ORCHESTRATOR_TIMEOUT,
         prepareStep: expect.any(Function),
@@ -142,6 +140,27 @@ describe("workspace orchestrator agent", () => {
     expect(settings.prepareStep({ stepNumber: WORKSPACE_ORCHESTRATOR_STEP_LIMIT })).toEqual({
       toolChoice: "none",
     });
+  });
+
+  it("uses the automation's selected model", () => {
+    const session = createWorkspaceOrchestratorSession({
+      organizationId: "org-1",
+      automation: { ...automation(), model: "anthropic/claude-opus-5" },
+      run: run(),
+      plan: {
+        tools: ["run_github_workflows"],
+      },
+      repository: null,
+      composedInstructions: "Run the automation.",
+    });
+
+    createWorkspaceOrchestratorAgent(session);
+
+    expect(toolLoopAgentMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        model: "anthropic/claude-opus-5",
+      }),
+    );
   });
 
   it("never caps the step count below what a larger plan needs", () => {

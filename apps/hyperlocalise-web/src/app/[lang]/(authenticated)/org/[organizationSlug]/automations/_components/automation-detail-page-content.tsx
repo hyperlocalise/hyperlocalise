@@ -13,13 +13,23 @@
  * Version 2.0 or later.
  */
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { PlayIcon, SaveIcon } from "@hugeicons/core-free-icons";
+import { Delete02Icon, PlayIcon, SaveIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { FormattedMessage, useIntl } from "react-intl";
 import { toast } from "sonner";
 
+import {
+  AlertDialog,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { apiClient } from "@/lib/api-client-instance";
@@ -47,6 +57,7 @@ export function AutomationDetailPageContent({
   canUpdateKnowledgeMemory?: boolean;
 }) {
   const intl = useIntl();
+  const router = useRouter();
   const queryClient = useQueryClient();
 
   const automationQuery = useQuery({
@@ -70,6 +81,7 @@ export function AutomationDetailPageContent({
     typeof createWorkspaceAutomationFormStateFromRecord
   > | null>(null);
   const [errors, setErrors] = useState<Record<string, string | undefined>>({});
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
   useEffect(() => {
     if (automation) {
@@ -152,6 +164,30 @@ export function AutomationDetailPageContent({
     },
   });
 
+  const deleteMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiClient.api.orgs[":organizationSlug"].automations[
+        ":automationId"
+      ].$delete({
+        param: { organizationSlug, automationId },
+      });
+      if (!response.ok) {
+        throw new Error("Failed to delete automation");
+      }
+    },
+    onSuccess: () => {
+      toast.success(intl.formatMessage(automationDetailPageContentMessages.deleteSuccess));
+      void queryClient.invalidateQueries({
+        queryKey: ["workspace-automations", organizationSlug],
+      });
+      setDeleteDialogOpen(false);
+      router.push(`/org/${organizationSlug}/automations`);
+    },
+    onError: () => {
+      toast.error(intl.formatMessage(automationDetailPageContentMessages.deleteError));
+    },
+  });
+
   if (automationQuery.isLoading || !form || !automation) {
     return (
       <WorkspacePageShell>
@@ -181,6 +217,14 @@ export function AutomationDetailPageContent({
         runHistory={recentRuns}
         actions={
           <div className="flex gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setDeleteDialogOpen(true)}
+              disabled={deleteMutation.isPending}
+            >
+              <HugeiconsIcon icon={Delete02Icon} strokeWidth={1.8} data-icon="inline-start" />
+              <FormattedMessage {...automationDetailPageContentMessages.deleteAutomation} />
+            </Button>
             {showRunButton ? (
               <Button
                 variant="outline"
@@ -213,6 +257,42 @@ export function AutomationDetailPageContent({
           </div>
         }
       />
+
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              <FormattedMessage {...automationDetailPageContentMessages.deleteTitle} />
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {intl.formatMessage(automationDetailPageContentMessages.deleteDescription, {
+                automationName: automation.name,
+              })}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleteMutation.isPending}>
+              <FormattedMessage {...automationDetailPageContentMessages.deleteCancel} />
+            </AlertDialogCancel>
+            <Button
+              variant="destructive"
+              disabled={deleteMutation.isPending}
+              onClick={() => deleteMutation.mutate()}
+            >
+              {deleteMutation.isPending ? (
+                <Spinner />
+              ) : (
+                <HugeiconsIcon icon={Delete02Icon} strokeWidth={1.8} />
+              )}
+              {deleteMutation.isPending ? (
+                <FormattedMessage {...automationDetailPageContentMessages.deleting} />
+              ) : (
+                <FormattedMessage {...automationDetailPageContentMessages.deleteConfirm} />
+              )}
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <div className="pt-4">
         <Button

@@ -14,6 +14,7 @@ import { z } from "zod";
 
 import {
   workspaceAutomationConfigSchema,
+  workspaceAutomationModelSchema,
   workspaceAutomationStatusSchema,
 } from "@/lib/agents/workspace-automations";
 
@@ -32,6 +33,7 @@ export const createWorkspaceAutomationBodySchema = workspaceAutomationConfigSche
     status: workspaceAutomationStatusSchema.optional(),
     name: z.string().trim().min(1).max(120),
     instructions: z.string().trim().min(1).max(20_000),
+    model: workspaceAutomationModelSchema.optional(),
     nextRunAt: z.string().datetime().nullable().optional(),
   })
   .strict();
@@ -42,6 +44,7 @@ export const updateWorkspaceAutomationBodySchema = workspaceAutomationConfigSche
     status: workspaceAutomationStatusSchema.optional(),
     name: z.string().trim().min(1).max(120).optional(),
     instructions: z.string().trim().min(1).max(20_000).optional(),
+    model: workspaceAutomationModelSchema.optional(),
     nextRunAt: z.string().datetime().nullable().optional(),
   })
   .strict()

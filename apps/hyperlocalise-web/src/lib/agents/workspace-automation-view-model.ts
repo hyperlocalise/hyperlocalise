@@ -11,9 +11,12 @@
  * Version 2.0 or later.
  */
 import {
+  DEFAULT_WORKSPACE_AUTOMATION_MODEL,
   resolveWorkspaceAutomationGithubEvents,
+  resolveWorkspaceAutomationModel,
   type WorkspaceAutomationGithubToolMode,
   type WorkspaceAutomationGithubTriggerEvent,
+  type WorkspaceAutomationModel,
   type WorkspaceAutomationRecord,
   type WorkspaceAutomationRepositoryTarget,
   type WorkspaceAutomationToolConfig,
@@ -36,6 +39,7 @@ export type WorkspaceAutomationTriggerMode =
 export type WorkspaceAutomationFormState = {
   name: string;
   instructions: string;
+  model: WorkspaceAutomationModel;
   status: "active" | "paused";
   projectId: string;
   triggerMode: WorkspaceAutomationTriggerMode;
@@ -107,6 +111,7 @@ export type WorkspaceAutomationFieldErrors = Partial<
   Record<
     | "name"
     | "instructions"
+    | "model"
     | "projectId"
     | "githubRepository"
     | "trigger"
@@ -187,6 +192,7 @@ export function createDefaultWorkspaceAutomationFormState(): WorkspaceAutomation
   return {
     name: "",
     instructions: "",
+    model: DEFAULT_WORKSPACE_AUTOMATION_MODEL,
     status: "active",
     projectId: "",
     triggerMode: "manual",
@@ -260,6 +266,7 @@ export function createWorkspaceAutomationFormStateFromRecord(
   return {
     name: automation.name,
     instructions: automation.instructions,
+    model: resolveWorkspaceAutomationModel(automation.model),
     status: automation.status === "paused" ? "paused" : "active",
     projectId: automation.projectId ?? "",
     triggerMode: automation.triggerConfig.mode,
@@ -390,6 +397,7 @@ export function applyWorkspaceAutomationProjectSelection(
 export function formStateToWorkspaceAutomationPayload(form: WorkspaceAutomationFormState): {
   name: string;
   instructions: string;
+  model: WorkspaceAutomationModel;
   status: "active" | "paused";
   projectId?: string;
   triggerConfig: WorkspaceAutomationTriggerConfig;
@@ -567,6 +575,7 @@ export function formStateToWorkspaceAutomationPayload(form: WorkspaceAutomationF
   return {
     name: form.name.trim(),
     instructions: form.instructions.trim(),
+    model: resolveWorkspaceAutomationModel(form.model),
     status: form.status,
     ...(projectId ? { projectId } : {}),
     triggerConfig,

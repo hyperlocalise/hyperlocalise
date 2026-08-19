@@ -16,13 +16,13 @@ import { z } from "zod";
 
 import { defineAgentTool } from "@/agents/_runtime/define-agent-tool";
 import { composeGithubRepoInstructions } from "@/agents/automations/workspace/agent/workspace-template-manifest";
-import { getHyperlocaliseAgentModel } from "@/lib/agent-runtime/loops/hyperlocalise-agent";
 import { WORKFLOW_AGENT_TIMEOUT } from "@/lib/agent-runtime/subagents/constants";
 import {
   filterToolSetByNames,
   repositoryWorkflowToolNames,
 } from "@/lib/agent-runtime/tools/manifest";
 import { buildTools } from "@/lib/agent-runtime/tools/registry";
+import { resolveWorkspaceAutomationModel } from "@/lib/agents/workspace-automation-types";
 import {
   extractGenerateResultTokenUsage,
   withAgentRuntimeUsageMetering,
@@ -151,7 +151,7 @@ export function createUseGithubRepositoryTool(session: WorkspaceOrchestratorSess
         ]) as ToolSet;
 
         const agent = new ToolLoopAgent({
-          model: getHyperlocaliseAgentModel(),
+          model: resolveWorkspaceAutomationModel(session.automation.model),
           tools,
           instructions: composedInstructions,
           stopWhen: isStepCount(GITHUB_REPO_AGENT_STEP_LIMIT),

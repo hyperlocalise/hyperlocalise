@@ -154,6 +154,7 @@ describe("workspace automation routes", () => {
     };
     expect(createdBody.automation).toMatchObject({
       name: "Repository translation check",
+      model: "openai/gpt-5.6-luna",
       configVersion: 1,
     });
     expect(createdBody.recentRuns).toEqual([]);
@@ -208,6 +209,70 @@ describe("workspace automation routes", () => {
     );
     expect(deletedResponse.status).toBe(204);
     await expect(deletedResponse.text()).resolves.toBe("");
+  });
+
+  it("creates and updates the selected automation model without versioning config", async () => {
+    const identity = fixture.createWorkosIdentityWithRole("admin");
+    const headers = await fixture.authHeadersFor(identity);
+    const organizationSlug = identity.organization.slug ?? "missing-slug";
+
+    const createdResponse = await client.api.orgs[":organizationSlug"].automations.$post(
+      {
+        param: { organizationSlug },
+        json: {
+          name: "Modelled automation",
+          instructions: "Use the selected model.",
+          model: "anthropic/claude-sonnet-5",
+          triggerConfig: { mode: "manual" },
+          repositoryTarget: { kind: "none" },
+          toolConfig: {},
+        },
+      },
+      { headers },
+    );
+
+    expect(createdResponse.status).toBe(201);
+    const createdBody = (await createdResponse.json()) as {
+      automation: { id: string; model: string; configVersion: number };
+    };
+    expect(createdBody.automation).toMatchObject({
+      model: "anthropic/claude-sonnet-5",
+      configVersion: 1,
+    });
+
+    const updatedResponse = await client.api.orgs[":organizationSlug"].automations[
+      ":automationId"
+    ].$patch(
+      {
+        param: { organizationSlug, automationId: createdBody.automation.id },
+        json: { model: "openai/gpt-5.6-sol" },
+      },
+      { headers },
+    );
+    expect(updatedResponse.status).toBe(200);
+    await expect(updatedResponse.json()).resolves.toMatchObject({
+      automation: {
+        id: createdBody.automation.id,
+        model: "openai/gpt-5.6-sol",
+        configVersion: 1,
+      },
+    });
+
+    const invalidResponse = await client.api.orgs[":organizationSlug"].automations.$post(
+      {
+        param: { organizationSlug },
+        json: {
+          name: "Invalid model",
+          instructions: "Reject unknown models.",
+          model: "openai/gpt-4o",
+          triggerConfig: { mode: "manual" },
+          repositoryTarget: { kind: "none" },
+          toolConfig: {},
+        },
+      },
+      { headers },
+    );
+    expect(invalidResponse.status).toBe(400);
   });
 
   it("denies automation management for non-operators", async () => {
