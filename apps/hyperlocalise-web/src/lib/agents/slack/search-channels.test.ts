@@ -103,16 +103,16 @@ describe("searchSlackChannels", () => {
     const url = requestUrl(fetchMock.mock.calls[0]?.[0]);
     expect(url.origin + url.pathname).toBe("https://slack.com/api/conversations.list");
     expect(url.searchParams.get("limit")).toBe(String(SLACK_CHANNEL_LIST_PAGE_LIMIT));
-    expect(url.searchParams.get("exclude_archived")).toBe("true");
+    expect(url.searchParams.get("exclude_archived")).toBeNull();
     expect(url.searchParams.get("cursor")).toBeNull();
   });
 
-  it("keeps paging when exclude_archived shrinks a virtual page below limit", async () => {
+  it("keeps paging when a list page is shorter than limit", async () => {
     vi.stubGlobal("fetch", fetchMock);
     let listPages = 0;
     mockSlack((url) => {
       expect(url.searchParams.get("limit")).toBe(String(SLACK_CHANNEL_LIST_PAGE_LIMIT));
-      expect(url.searchParams.get("exclude_archived")).toBe("true");
+      expect(url.searchParams.get("exclude_archived")).toBeNull();
       listPages += 1;
       if (url.searchParams.get("cursor") === "page-2") {
         return {
@@ -152,7 +152,7 @@ describe("searchSlackChannels", () => {
       }
 
       expect(url.searchParams.get("limit")).toBe(String(SLACK_CHANNEL_LIST_PAGE_LIMIT));
-      expect(url.searchParams.get("exclude_archived")).toBe("true");
+      expect(url.searchParams.get("exclude_archived")).toBeNull();
       return {
         body: {
           ok: true,
