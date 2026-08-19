@@ -98,7 +98,15 @@ const validateUpdateBody = validator("json", (value, c) => {
       parsed.error.flatten(),
     );
   }
-  return parsed.data;
+  // Config schemas apply defaults for omitted keys. Keep only fields the client sent so a
+  // model- or name-only PATCH does not rewrite trigger/tool config or bump configVersion.
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return parsed.data;
+  }
+  const raw = value as Record<string, unknown>;
+  return Object.fromEntries(
+    Object.entries(parsed.data).filter(([key]) => Object.hasOwn(raw, key)),
+  ) as typeof parsed.data;
 });
 
 const validateRunsQuery = validator("query", (value, c) => {

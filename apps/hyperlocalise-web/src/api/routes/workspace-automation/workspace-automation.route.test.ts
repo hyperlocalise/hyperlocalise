@@ -237,6 +237,7 @@ describe("workspace automation routes", () => {
     };
     expect(createdBody.automation).toMatchObject({
       model: "anthropic/claude-sonnet-5",
+      instructions: "Use the selected model.",
       configVersion: 1,
     });
 
@@ -254,6 +255,8 @@ describe("workspace automation routes", () => {
       automation: {
         id: createdBody.automation.id,
         model: "openai/gpt-5.6-sol",
+        instructions: "Use the selected model.",
+        triggerConfig: { mode: "manual" },
         configVersion: 1,
       },
     });
