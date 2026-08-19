@@ -6,8 +6,10 @@ import (
 	"unicode/utf8"
 )
 
-var namedEntityPattern = regexp.MustCompile(`^&[A-Za-z][A-Za-z0-9]{0,31};`)
-var numericEntityPattern = regexp.MustCompile(`(?i)^&#(?:[0-9]{1,7}|x[0-9a-f]{1,6});`)
+var (
+	namedEntityPattern   = regexp.MustCompile(`^&[A-Za-z][A-Za-z0-9]{0,31};`)
+	numericEntityPattern = regexp.MustCompile(`(?i)^&#(?:[0-9]{1,7}|x[0-9a-f]{1,6});`)
+)
 
 func scanEntity(fragment string, start int) (decoded string, end int, ok bool) {
 	if candidate := namedEntityPattern.FindString(fragment[start:]); candidate != "" {
