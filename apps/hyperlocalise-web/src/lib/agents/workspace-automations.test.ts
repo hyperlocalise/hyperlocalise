@@ -18,6 +18,11 @@ import { afterEach, beforeAll, describe, expect, it } from "vite-plus/test";
 import { createAhrefsConnection } from "@/lib/ahrefs/connections";
 import { db, schema } from "@/lib/database";
 import { type Result } from "@/lib/primitives/result/results";
+import { encodeProviderProjectId } from "@/lib/providers/jobs/tms-provider-resource-id";
+import {
+  encryptProviderCredential,
+  unwrapProviderCredentialCrypto,
+} from "@/lib/security/provider-credential-crypto";
 import { createSemrushConnection } from "@/lib/semrush/connections";
 
 import { claimGithubRepositoryAutomationJob } from "./github/github-repository-automation-jobs";
@@ -378,7 +383,7 @@ describe("workspace automations", () => {
     expect(notificationOnlySchedule.error).toMatchObject({
       code: "scheduled_workflow_required",
       message:
-        "Scheduled automations require at least one GitHub, Contentful, Issues, or Web Search workflow tool.",
+        "Scheduled automations require at least one GitHub, Contentful, Issues, Web Search, or Crowdin workflow tool.",
     });
 
     const scheduledWebSearch = expectOk(
@@ -428,7 +433,7 @@ describe("workspace automations", () => {
     expect(scheduledUpdate.error).toMatchObject({
       code: "scheduled_workflow_required",
       message:
-        "Scheduled automations require at least one GitHub, Contentful, Issues, or Web Search workflow tool.",
+        "Scheduled automations require at least one GitHub, Contentful, Issues, Web Search, or Crowdin workflow tool.",
     });
   });
 
@@ -1106,6 +1111,134 @@ describe("workspace automations", () => {
       throw new Error("expected update-path semrush validation error");
     }
     expect(updateRejected.error.code).toBe("semrush_not_connected");
+  });
+
+  it("rejects Crowdin tools without a linked project or Crowdin connection", async () => {
+    const scope = await seedWorkspaceAutomationScope();
+    const base = {
+      organizationId: scope.organizationId,
+      authorUserId: scope.userId,
+      name: "Crowdin review automation",
+      instructions: "Review strings against Crowdin.",
+      triggerConfig: { mode: "manual" as const },
+      repositoryTarget: { kind: "none" as const },
+    };
+
+    const missingProject = await createWorkspaceAutomation({
+      ...base,
+      toolConfig: {
+        crowdin: { enabled: true },
+      },
+    });
+    expect(missingProject.ok).toBe(false);
+    if (missingProject.ok) {
+      throw new Error("expected crowdin project required error");
+    }
+    expect(missingProject.error.code).toBe("crowdin_project_required");
+
+    const notLinked = await createWorkspaceAutomation({
+      ...base,
+      toolConfig: {
+        crowdin: { enabled: true, projectId: scope.projectId },
+      },
+    });
+    expect(notLinked.ok).toBe(false);
+    if (notLinked.ok) {
+      throw new Error("expected crowdin project not linked error");
+    }
+    expect(notLinked.error.code).toBe("crowdin_project_not_linked");
+
+    const encodedWithoutCredential = await createWorkspaceAutomation({
+      ...base,
+      toolConfig: {
+        crowdin: { enabled: true, projectId: "ext:crowdin:42" },
+      },
+    });
+    expect(encodedWithoutCredential.ok).toBe(false);
+    if (encodedWithoutCredential.ok) {
+      throw new Error("expected crowdin not connected error");
+    }
+    expect(encodedWithoutCredential.error.code).toBe("crowdin_not_connected");
+
+    const encrypted = unwrapProviderCredentialCrypto(encryptProviderCredential("crowdin-token"));
+    await db.insert(schema.organizationExternalTmsProviderCredentials).values({
+      organizationId: scope.organizationId,
+      providerKind: "crowdin",
+      displayName: "Crowdin",
+      authMode: "api_token",
+      encryptionAlgorithm: encrypted.algorithm,
+      ciphertext: encrypted.ciphertext,
+      iv: encrypted.iv,
+      authTag: encrypted.authTag,
+      keyVersion: encrypted.keyVersion,
+      maskedSecretSuffix: "••••ken",
+      validationStatus: "valid",
+      createdByUserId: scope.userId,
+      updatedByUserId: scope.userId,
+    });
+
+    const created = expectOk(
+      await createWorkspaceAutomation({
+        ...base,
+        toolConfig: {
+          crowdin: {
+            enabled: true,
+            projectId: encodeProviderProjectId({
+              providerKind: "crowdin",
+              externalProjectId: "42",
+            }),
+          },
+        },
+      }),
+    );
+    expect(created.toolConfig.crowdin).toEqual({
+      enabled: true,
+      projectId: "ext:crowdin:42",
+    });
+  });
+
+  it("allows scheduled automations that only enable Crowdin review", async () => {
+    const scope = await seedWorkspaceAutomationScope();
+    const encrypted = unwrapProviderCredentialCrypto(encryptProviderCredential("crowdin-token"));
+    await db.insert(schema.organizationExternalTmsProviderCredentials).values({
+      organizationId: scope.organizationId,
+      providerKind: "crowdin",
+      displayName: "Crowdin",
+      authMode: "api_token",
+      encryptionAlgorithm: encrypted.algorithm,
+      ciphertext: encrypted.ciphertext,
+      iv: encrypted.iv,
+      authTag: encrypted.authTag,
+      keyVersion: encrypted.keyVersion,
+      maskedSecretSuffix: "••••ken",
+      validationStatus: "valid",
+      createdByUserId: scope.userId,
+      updatedByUserId: scope.userId,
+    });
+
+    const created = expectOk(
+      await createWorkspaceAutomation({
+        organizationId: scope.organizationId,
+        authorUserId: scope.userId,
+        name: "Daily Crowdin review",
+        instructions: "Review strings against Crowdin.",
+        triggerConfig: {
+          mode: "scheduled",
+          schedule: {
+            cadence: "daily",
+            hourUtc: 8,
+            timezone: "UTC",
+          },
+        },
+        toolConfig: {
+          crowdin: {
+            enabled: true,
+            projectId: "ext:crowdin:42",
+          },
+        },
+      }),
+    );
+    expect(created.toolConfig.crowdin?.enabled).toBe(true);
   });
 
   it("hoists legacy nested project IDs from tool config", () => {

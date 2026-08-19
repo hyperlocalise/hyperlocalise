@@ -36,6 +36,14 @@ export const automationEditorProjectsFixture = [
     sourceLocale: "en-US",
     targetLocales: ["es-ES", "pt-BR"],
   },
+  {
+    id: "ext:crowdin:42",
+    name: "Marketing Crowdin",
+    source: "external_tms",
+    externalProviderKind: "crowdin",
+    sourceLocale: "en",
+    targetLocales: ["de", "fr"],
+  },
 ];
 
 export const automationEditorRepositoriesFixture = [

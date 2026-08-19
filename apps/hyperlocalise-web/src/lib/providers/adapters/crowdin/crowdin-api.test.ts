@@ -1490,4 +1490,82 @@ describe("CrowdinApiClient", () => {
       expect.objectContaining({ method: "GET", redirect: "error" }),
     );
   });
+
+  it("lists AI prompts from /ai/prompts on enterprise hosts", async () => {
+    const fetchMock = vi.fn(async () => {
+      return new Response(
+        JSON.stringify({
+          data: [
+            {
+              data: {
+                id: 7,
+                name: "Brand voice",
+                action: "assist",
+                isEnabled: true,
+                enabledProjectIds: [42],
+                config: { prompt: "Use sentence case." },
+              },
+            },
+          ],
+        }),
+        { status: 200 },
+      );
+    }) as unknown as typeof fetch;
+
+    const client = createClient(fetchMock);
+    const prompts = await client.listAiPrompts({ projectId: 42, action: "assist" });
+
+    expect(prompts).toEqual([
+      {
+        id: 7,
+        name: "Brand voice",
+        action: "assist",
+        isEnabled: true,
+        enabledProjectIds: [42],
+        config: { prompt: "Use sentence case." },
+      },
+    ]);
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://api.crowdin.test/api/v2/ai/prompts?projectId=42&action=assist&limit=500&offset=0",
+      expect.objectContaining({ method: "GET" }),
+    );
+  });
+
+  it("lists AI prompts from /users/{id}/ai/prompts on Crowdin.com", async () => {
+    const fetchMock = vi.fn(async (url) => {
+      const href = String(url);
+      if (href.endsWith("/user")) {
+        return new Response(
+          JSON.stringify({
+            data: {
+              id: 99,
+              username: "tester",
+              email: "tester@example.com",
+            },
+          }),
+          { status: 200 },
+        );
+      }
+
+      return new Response(JSON.stringify({ data: [] }), { status: 200 });
+    }) as unknown as typeof fetch;
+
+    const client = new CrowdinApiClient({
+      token: "test-token",
+      baseUrl: "https://api.crowdin.com/api/v2",
+      fetchFn: fetchMock,
+    });
+    await client.listAiPrompts({ projectId: 42 });
+
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      1,
+      "https://api.crowdin.com/api/v2/user",
+      expect.objectContaining({ method: "GET" }),
+    );
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      2,
+      "https://api.crowdin.com/api/v2/users/99/ai/prompts?projectId=42&limit=500&offset=0",
+      expect.objectContaining({ method: "GET" }),
+    );
+  });
 });

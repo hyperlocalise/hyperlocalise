@@ -179,6 +179,45 @@ describe("buildWorkspaceOrchestratorPlan", () => {
     expect(plan.tools).toEqual(["use_ahrefs", "notify_slack"]);
   });
 
+  it("plans use_crowdin after GitHub tools when a Crowdin project is enabled", () => {
+    const plan = buildWorkspaceOrchestratorPlan(
+      automation({
+        toolConfig: {
+          github: {
+            enabled: true,
+            mode: "agent",
+            pushSource: false,
+            pullTranslations: false,
+            validation: false,
+          },
+          crowdin: {
+            enabled: true,
+            projectId: "ext:crowdin:42",
+          },
+          slack: { enabled: true, channelId: "C123" },
+        },
+      }),
+    );
+
+    expect(plan.tools).toEqual(["use_github_repository", "use_crowdin", "notify_slack"]);
+  });
+
+  it("includes use_crowdin when a Crowdin project is enabled", () => {
+    const plan = buildWorkspaceOrchestratorPlan(
+      automation({
+        toolConfig: {
+          crowdin: {
+            enabled: true,
+            projectId: "ext:crowdin:42",
+          },
+          slack: { enabled: true, channelId: "C123" },
+        },
+      }),
+    );
+
+    expect(plan.tools).toEqual(["use_crowdin", "notify_slack"]);
+  });
+
   it("includes use_web_search when Web Search is enabled", () => {
     const plan = buildWorkspaceOrchestratorPlan(
       automation({

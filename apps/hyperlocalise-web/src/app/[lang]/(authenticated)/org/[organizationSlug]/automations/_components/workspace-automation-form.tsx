@@ -41,6 +41,7 @@ import {
   siLinear,
   siMeta,
   siSemrush,
+  siCrowdin,
 } from "simple-icons";
 
 import { SimpleBrandIcon } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/integrations/_components/simple-brand-icon";
@@ -95,6 +96,7 @@ import {
   workspaceAutomationFormCanActivate,
 } from "@/lib/agents/workspace-automation-view-model";
 import type { WorkspaceAutomationRunRecord } from "@/lib/agents/workspace-automations";
+import { parseProviderProjectId } from "@/lib/providers/jobs/tms-provider-resource-id";
 import { cn } from "@/lib/primitives/cn";
 
 const api = createApiClient();
@@ -103,6 +105,7 @@ type ProjectOption = {
   id: string;
   name: string;
   source?: string;
+  externalProviderKind?: string | null;
   sourceLocale: string | null;
   targetLocales: string[];
 };
@@ -171,6 +174,26 @@ function AutomationToolMenuIcon({ icon }: { icon?: SimpleIcon }) {
   }
 
   return <HugeiconsIcon icon={SearchIcon} className="size-4" />;
+}
+
+function isCrowdinLinkedProject(project: ProjectOption) {
+  if (project.externalProviderKind === "crowdin") {
+    return true;
+  }
+  return parseProviderProjectId(project.id)?.providerKind === "crowdin";
+}
+
+function defaultCrowdinProjectId(
+  form: WorkspaceAutomationFormState,
+  crowdinProjects: ProjectOption[],
+) {
+  if (crowdinProjects.some((project) => project.id === form.projectId)) {
+    return form.projectId;
+  }
+  if (crowdinProjects.some((project) => project.id === form.crowdinProjectId)) {
+    return form.crowdinProjectId;
+  }
+  return crowdinProjects[0]?.id ?? "";
 }
 
 function FieldError({ message }: { message?: string }) {
@@ -339,6 +362,7 @@ function toolCount(form: WorkspaceAutomationFormState) {
     Number(form.slackEnabled) +
     Number(form.emailEnabled) +
     Number(form.contentfulEnabled) +
+    Number(form.crowdinEnabled) +
     Number(form.createNativeTmsJobEnabled) +
     Number(form.assignTranslateWithAgentEnabled) +
     Number(form.listIssuesEnabled) +
@@ -1092,6 +1116,7 @@ function TriggerSettings({
 
 function AddToolMenu({
   contentfulConnected,
+  crowdinConnected,
   disabled,
   emailConnected,
   form,
@@ -1103,8 +1128,10 @@ function AddToolMenu({
   ahrefsConnected,
   semrushConnected,
   slackConnected,
+  crowdinProjects,
 }: {
   contentfulConnected: boolean;
+  crowdinConnected: boolean;
   disabled?: boolean;
   emailConnected: boolean;
   form: WorkspaceAutomationFormState;
@@ -1116,6 +1143,7 @@ function AddToolMenu({
   ahrefsConnected: boolean;
   semrushConnected: boolean;
   slackConnected: boolean;
+  crowdinProjects: ProjectOption[];
 }) {
   return (
     <div className="w-full">
@@ -1293,6 +1321,28 @@ function AddToolMenu({
                   <FormattedMessage {...workspaceAutomationFormMessages.addedShortcut} />
                 </DropdownMenuShortcut>
               ) : !contentfulConnected ? (
+                <DropdownMenuShortcut>
+                  <FormattedMessage {...workspaceAutomationFormMessages.connectFirstShortcut} />
+                </DropdownMenuShortcut>
+              ) : null}
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              disabled={form.crowdinEnabled || !crowdinConnected}
+              onClick={() =>
+                onChange({
+                  ...form,
+                  crowdinEnabled: true,
+                  crowdinProjectId: defaultCrowdinProjectId(form, crowdinProjects),
+                })
+              }
+            >
+              <AutomationToolMenuIcon icon={siCrowdin} />
+              <FormattedMessage {...workspaceAutomationFormMessages.crowdin} />
+              {form.crowdinEnabled ? (
+                <DropdownMenuShortcut>
+                  <FormattedMessage {...workspaceAutomationFormMessages.addedShortcut} />
+                </DropdownMenuShortcut>
+              ) : !crowdinConnected ? (
                 <DropdownMenuShortcut>
                   <FormattedMessage {...workspaceAutomationFormMessages.connectFirstShortcut} />
                 </DropdownMenuShortcut>
@@ -1601,6 +1651,8 @@ function ToolsSettings({
     (connection) => connection.enabled && connection.validationStatus === "valid",
   );
   const ahrefsConnected = enabledAhrefsConnections.length > 0;
+  const crowdinProjects = projects.filter(isCrowdinLinkedProject);
+  const crowdinConnected = crowdinProjects.length > 0;
   const contentfulTargetLocalesFieldId = "contentful-target-locales";
   const selectedProject = projects.find((project) => project.id === form.projectId);
   const contentfulAvailableTargetLocales = selectedProject?.targetLocales ?? [];
@@ -2083,6 +2135,64 @@ function ToolsSettings({
           </EditorRow>
         ) : null}
 
+        {form.crowdinEnabled ? (
+          <EditorRow
+            icon={<AutomationToolMenuIcon icon={siCrowdin} />}
+            title={<FormattedMessage {...workspaceAutomationFormMessages.crowdin} />}
+            description={
+              crowdinConnected
+                ? intl.formatMessage(workspaceAutomationFormMessages.crowdinDescription)
+                : intl.formatMessage(workspaceAutomationFormMessages.crowdinDisconnectedDescription)
+            }
+            action={
+              <DeleteToolButton
+                disabled={disabled}
+                label={intl.formatMessage(workspaceAutomationFormMessages.removeCrowdinTool)}
+                onClick={() =>
+                  onChange({
+                    ...form,
+                    crowdinEnabled: false,
+                    crowdinProjectId: "",
+                  })
+                }
+              />
+            }
+          >
+            <div className="grid gap-1.5">
+              <Label className="text-xs text-muted-foreground">
+                <FormattedMessage {...workspaceAutomationFormMessages.selectProject} />
+              </Label>
+              <Select
+                value={form.crowdinProjectId || undefined}
+                disabled={disabled || !crowdinConnected}
+                onValueChange={(value) => {
+                  if (!value) {
+                    return;
+                  }
+                  onChange({ ...form, crowdinProjectId: value });
+                }}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue
+                    placeholder={intl.formatMessage(workspaceAutomationFormMessages.selectProject)}
+                  >
+                    {crowdinProjects.find((project) => project.id === form.crowdinProjectId)?.name ??
+                      intl.formatMessage(workspaceAutomationFormMessages.selectProject)}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  {crowdinProjects.map((project) => (
+                    <SelectItem key={project.id} value={project.id}>
+                      {project.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <FieldError message={errors.crowdinProjectId} />
+            </div>
+          </EditorRow>
+        ) : null}
+
         {form.createNativeTmsJobEnabled ? (
           <EditorRow
             icon={<HugeiconsIcon icon={Upload01Icon} strokeWidth={1.8} className="size-4" />}
@@ -2466,6 +2576,8 @@ function ToolsSettings({
 
         <AddToolMenu
           contentfulConnected={contentfulConnected}
+          crowdinConnected={crowdinConnected}
+          crowdinProjects={crowdinProjects}
           disabled={disabled}
           emailConnected={emailConnected}
           form={form}

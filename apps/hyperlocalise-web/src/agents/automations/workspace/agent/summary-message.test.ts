@@ -144,4 +144,43 @@ describe("buildOrchestratorRunSummaryMessage", () => {
 
     expect(message).toBe("Daily digest: 3 PRs merged.");
   });
+
+  it("appends Crowdin review under a GitHub digest when both exist", () => {
+    const message = buildOrchestratorRunSummaryMessage(
+      createSession({
+        stepResults: {
+          use_github_repository: {
+            digest: "Daily digest: 3 PRs merged.",
+          },
+          use_crowdin: {
+            summary: "Glossary prefers Speichern for Save.",
+          },
+        },
+      }),
+    );
+
+    expect(message).toBe(
+      [
+        "Daily digest: 3 PRs merged.",
+        "",
+        "## Crowdin review",
+        "",
+        "Glossary prefers Speichern for Save.",
+      ].join("\n"),
+    );
+  });
+
+  it("returns the Crowdin summary when there is no GitHub digest", () => {
+    const message = buildOrchestratorRunSummaryMessage(
+      createSession({
+        stepResults: {
+          use_crowdin: {
+            summary: "Glossary prefers Speichern for Save.",
+          },
+        },
+      }),
+    );
+
+    expect(message).toBe("Glossary prefers Speichern for Save.");
+  });
 });

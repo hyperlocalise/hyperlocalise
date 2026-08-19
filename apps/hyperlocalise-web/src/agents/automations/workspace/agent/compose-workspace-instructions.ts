@@ -37,6 +37,9 @@ export function composeWorkspaceAutomationInstructions(input: {
     hasSaveMemory
       ? "You have a save_memory tool. Use it only when this automation's own instructions say to remember something."
       : null,
+    input.plan.tools.includes("use_crowdin")
+      ? "When calling use_crowdin, pass source strings, source and target locales, and surrounding context from earlier steps (especially use_github_repository). Ask it to search concordance, load style guidance, and recommend translations that help the review."
+      : null,
     "Call each planned tool in order. Use customer instructions when invoking workflow tools.",
   ]
     .filter((line): line is string => Boolean(line))

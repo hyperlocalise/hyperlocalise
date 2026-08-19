@@ -50,6 +50,17 @@ describe("composeWorkspaceAutomationInstructions", () => {
     expect(instructions).not.toContain("save_memory tool");
   });
 
+  it("tells the orchestrator how to call use_crowdin when it is planned", () => {
+    const instructions = composeWorkspaceAutomationInstructions({
+      triggerMode: "scheduled",
+      plan: { tools: ["use_github_repository", "use_crowdin", "notify_slack"] },
+      userOverride: "Review user-facing strings.",
+    });
+
+    expect(instructions).toContain("When calling use_crowdin");
+    expect(instructions).toContain("search concordance");
+  });
+
   it("omits the Slack notifications skill when notify_slack is not planned", () => {
     const instructions = composeWorkspaceAutomationInstructions({
       triggerMode: "manual",

@@ -482,4 +482,45 @@ describe("workspace automation view model", () => {
       ahrefsConnectionId: "Enable the selected Ahrefs connection in Integrations before using it.",
     });
   });
+
+  it("requires a Crowdin project when the Crowdin tool is enabled", () => {
+    const form = {
+      ...createDefaultWorkspaceAutomationFormState(),
+      crowdinEnabled: true,
+    };
+
+    expect(validateWorkspaceAutomationFormState(form)).toMatchObject({
+      crowdinProjectId: "Choose a Crowdin-linked project.",
+    });
+  });
+
+  it("maps Crowdin API errors onto the Crowdin project field", () => {
+    expect(mapWorkspaceAutomationApiErrorToFieldErrors("crowdin_project_required")).toEqual({
+      crowdinProjectId: "Choose a Crowdin-linked project for Crowdin review.",
+    });
+    expect(mapWorkspaceAutomationApiErrorToFieldErrors("crowdin_project_not_found")).toEqual({
+      crowdinProjectId: "The selected Crowdin project was not found. Choose another project.",
+    });
+    expect(mapWorkspaceAutomationApiErrorToFieldErrors("crowdin_project_not_linked")).toEqual({
+      crowdinProjectId: "The selected project is not linked to Crowdin. Choose a Crowdin project.",
+    });
+    expect(mapWorkspaceAutomationApiErrorToFieldErrors("crowdin_not_connected")).toEqual({
+      crowdinProjectId: "Connect Crowdin in Integrations before using Crowdin review tools.",
+    });
+  });
+
+  it("maps Crowdin project into the API payload", () => {
+    const form = {
+      ...createDefaultWorkspaceAutomationFormState(),
+      name: "Code review",
+      instructions: "Review strings against Crowdin.",
+      crowdinEnabled: true,
+      crowdinProjectId: "ext:crowdin:42",
+    };
+
+    expect(validateWorkspaceAutomationFormState(form)).toEqual({});
+    expect(formStateToWorkspaceAutomationPayload(form).toolConfig).toEqual({
+      crowdin: { enabled: true, projectId: "ext:crowdin:42" },
+    });
+  });
 });

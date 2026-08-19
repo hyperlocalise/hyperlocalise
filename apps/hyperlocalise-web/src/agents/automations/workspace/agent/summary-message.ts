@@ -110,8 +110,21 @@ function buildNativeTmsSummary(session: WorkspaceOrchestratorSession): string | 
 
 export function buildOrchestratorRunSummaryMessage(session: WorkspaceOrchestratorSession) {
   const githubAgentResult = session.stepResults.use_github_repository;
-  if (githubAgentResult && typeof githubAgentResult.digest === "string") {
-    return githubAgentResult.digest.trim();
+  const githubDigest =
+    githubAgentResult && typeof githubAgentResult.digest === "string"
+      ? githubAgentResult.digest.trim()
+      : null;
+  const crowdinSummary = asString(session.stepResults.use_crowdin?.summary);
+
+  if (githubDigest) {
+    if (crowdinSummary) {
+      return `${githubDigest}\n\n## Crowdin review\n\n${crowdinSummary}`;
+    }
+    return githubDigest;
+  }
+
+  if (crowdinSummary) {
+    return crowdinSummary;
   }
 
   const nativeTmsSummary = buildNativeTmsSummary(session);

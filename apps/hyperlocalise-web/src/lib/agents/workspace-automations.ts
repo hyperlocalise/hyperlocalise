@@ -18,6 +18,8 @@ import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
 import { optionalProjectIdSchema } from "@/lib/projects/identity/project-id";
 import { lockAhrefsConnectionForUpdate } from "@/lib/ahrefs/connections";
 import { lockSemrushConnectionForUpdate } from "@/lib/semrush/connections";
+import { crowdinAuth } from "@/lib/providers/adapters/crowdin/crowdin-auth";
+import { parseProviderProjectId } from "@/lib/providers/jobs/tms-provider-resource-id";
 
 import {
   hasWorkspaceAutomationGithubAgentTool,
@@ -185,6 +187,13 @@ const ahrefsToolConfigSchema = z
   })
   .default({ enabled: false });
 
+const crowdinToolConfigSchema = z
+  .object({
+    enabled: z.boolean().default(false),
+    projectId: z.string().trim().min(1).max(128).optional(),
+  })
+  .default({ enabled: false });
+
 export const workspaceAutomationWebSearchProviderSchema = z.enum(["auto", "perplexity", "exa"]);
 
 const webSearchToolConfigSchema = z
@@ -251,6 +260,7 @@ const toolConfigObjectSchema = z
     mcp: mcpToolConfigSchema.optional(),
     semrush: semrushToolConfigSchema.optional(),
     ahrefs: ahrefsToolConfigSchema.optional(),
+    crowdin: crowdinToolConfigSchema.optional(),
     webSearch: webSearchToolConfigSchema.optional(),
   })
   .default({});
@@ -291,6 +301,7 @@ export type WorkspaceAutomationKnowledgeToolConfig = z.infer<typeof knowledgeToo
 export type WorkspaceAutomationMcpToolConfig = z.infer<typeof mcpToolConfigSchema>;
 export type WorkspaceAutomationSemrushToolConfig = z.infer<typeof semrushToolConfigSchema>;
 export type WorkspaceAutomationAhrefsToolConfig = z.infer<typeof ahrefsToolConfigSchema>;
+export type WorkspaceAutomationCrowdinToolConfig = z.infer<typeof crowdinToolConfigSchema>;
 export type WorkspaceAutomationWebSearchProvider = z.infer<
   typeof workspaceAutomationWebSearchProviderSchema
 >;
@@ -320,7 +331,8 @@ export type WorkspaceAutomationConfigValidationError =
     }
   | {
       code: "scheduled_workflow_required";
-      message: "Scheduled automations require at least one GitHub, Contentful, Issues, or Web Search workflow tool.";
+      message:
+        "Scheduled automations require at least one GitHub, Contentful, Issues, Web Search, or Crowdin workflow tool.";
     }
   | {
       code: "contentful_connection_required";
@@ -397,6 +409,22 @@ export type WorkspaceAutomationConfigValidationError =
   | {
       code: "ahrefs_not_connected";
       message: "Enable the selected Ahrefs connection in Integrations before using it.";
+    }
+  | {
+      code: "crowdin_project_required";
+      message: "Enabled Crowdin tools require a Crowdin-linked project.";
+    }
+  | {
+      code: "crowdin_project_not_found";
+      message: "The selected Crowdin project was not found. Choose another project.";
+    }
+  | {
+      code: "crowdin_project_not_linked";
+      message: "The selected project is not linked to Crowdin. Choose a Crowdin project.";
+    }
+  | {
+      code: "crowdin_not_connected";
+      message: "Connect Crowdin in Integrations before using Crowdin review tools.";
     };
 
 type AutomationRow = typeof schema.workspaceAutomations.$inferSelect;
@@ -449,6 +477,10 @@ export function hasWorkspaceAutomationSemrushTool(toolConfig: WorkspaceAutomatio
 
 export function hasWorkspaceAutomationAhrefsTool(toolConfig: WorkspaceAutomationToolConfig) {
   return Boolean(toolConfig.ahrefs?.enabled);
+}
+
+export function hasWorkspaceAutomationCrowdinTool(toolConfig: WorkspaceAutomationToolConfig) {
+  return Boolean(toolConfig.crowdin?.enabled);
 }
 
 export function hasWorkspaceAutomationWebSearchTool(toolConfig: WorkspaceAutomationToolConfig) {
@@ -625,12 +657,13 @@ function validateWorkspaceAutomationConfig(input: {
     !hasWorkspaceAutomationContentfulWorkflow(input.toolConfig) &&
     !hasWorkspaceAutomationListIssuesTool(input.toolConfig) &&
     !hasWorkspaceAutomationCreateIssueTool(input.toolConfig) &&
-    !hasWorkspaceAutomationWebSearchTool(input.toolConfig)
+    !hasWorkspaceAutomationWebSearchTool(input.toolConfig) &&
+    !hasWorkspaceAutomationCrowdinTool(input.toolConfig)
   ) {
     return err({
       code: "scheduled_workflow_required",
       message:
-        "Scheduled automations require at least one GitHub, Contentful, Issues, or Web Search workflow tool.",
+        "Scheduled automations require at least one GitHub, Contentful, Issues, Web Search, or Crowdin workflow tool.",
     });
   }
 
@@ -726,6 +759,14 @@ function validateWorkspaceAutomationConfig(input: {
     return err({
       code: "ahrefs_connection_required",
       message: "Enabled Ahrefs tools require an Ahrefs connection.",
+    });
+  }
+
+  const crowdinTools = input.toolConfig.crowdin;
+  if (crowdinTools?.enabled && !readOptionalProjectId(crowdinTools.projectId)) {
+    return err({
+      code: "crowdin_project_required",
+      message: "Enabled Crowdin tools require a Crowdin-linked project.",
     });
   }
 
@@ -919,6 +960,63 @@ export async function validateWorkspaceAutomationIntegrations(input: {
       return err({
         code: "ahrefs_not_connected",
         message: "Enable the selected Ahrefs connection in Integrations before using it.",
+      });
+    }
+  }
+
+  if (input.toolConfig.crowdin?.enabled) {
+    const projectId = readOptionalProjectId(input.toolConfig.crowdin.projectId);
+    if (!projectId) {
+      return err({
+        code: "crowdin_project_required",
+        message: "Enabled Crowdin tools require a Crowdin-linked project.",
+      });
+    }
+
+    const encodedProject = parseProviderProjectId(projectId);
+    if (encodedProject) {
+      if (encodedProject.providerKind !== "crowdin") {
+        return err({
+          code: "crowdin_project_not_linked",
+          message: "The selected project is not linked to Crowdin. Choose a Crowdin project.",
+        });
+      }
+    } else {
+      const [project] = await database
+        .select({
+          id: schema.projects.id,
+          source: schema.projects.source,
+          externalProviderKind: schema.projects.externalProviderKind,
+        })
+        .from(schema.projects)
+        .where(
+          and(
+            eq(schema.projects.organizationId, input.organizationId),
+            eq(schema.projects.id, projectId),
+          ),
+        )
+        .limit(1);
+
+      if (!project) {
+        return err({
+          code: "crowdin_project_not_found",
+          message: "The selected Crowdin project was not found. Choose another project.",
+        });
+      }
+
+      if (project.source !== "external_tms" || project.externalProviderKind !== "crowdin") {
+        return err({
+          code: "crowdin_project_not_linked",
+          message: "The selected project is not linked to Crowdin. Choose a Crowdin project.",
+        });
+      }
+    }
+
+    const credential = await crowdinAuth.loadOrganizationCredential(input.organizationId);
+    if (!credential) {
+      return err({
+        code: "crowdin_not_connected",
+        message: "Connect Crowdin in Integrations before using Crowdin review tools.",
       });
     }
   }

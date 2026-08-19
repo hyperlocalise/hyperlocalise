@@ -599,6 +599,26 @@ export interface CrowdinTmConcordanceSearchResult {
   updatedAt: string;
 }
 
+export type CrowdinAiPromptAction = "pre_translate" | "assist";
+
+export interface CrowdinAiPromptConfig {
+  mode?: string | null;
+  companyDescription?: string | null;
+  projectDescription?: string | null;
+  audienceDescription?: string | null;
+  prompt?: string | null;
+}
+
+export interface CrowdinAiPrompt {
+  id: number;
+  name: string;
+  action: string;
+  isEnabled: boolean;
+  enabledProjectIds?: number[] | null;
+  config?: CrowdinAiPromptConfig | null;
+}
+}
+
 export interface CrowdinGlossaryConcordanceSearchRequest {
   sourceLanguageId: string;
   targetLanguageId: string;
@@ -1956,6 +1976,40 @@ export class CrowdinApiClient {
 
   async listGlossaries(): Promise<CrowdinGlossary[]> {
     return this.listPaginated<CrowdinGlossary>("/glossaries");
+  }
+
+  /**
+   * List Crowdin AI prompts. Enterprise uses `/ai/prompts`; Crowdin.com uses
+   * `/users/{userId}/ai/prompts`.
+   *
+   * @see https://developer.crowdin.com/api/v2/#operation/api.ai.prompts.getMany
+   */
+  async listAiPrompts(options?: {
+    projectId?: number;
+    action?: CrowdinAiPromptAction;
+  }): Promise<CrowdinAiPrompt[]> {
+    const params = new URLSearchParams();
+    if (options?.projectId !== undefined) {
+      params.set("projectId", String(options.projectId));
+    }
+    if (options?.action) {
+      params.set("action", options.action);
+    }
+
+    const collectionPath = await this.aiPromptsCollectionPath();
+    const query = params.toString();
+    return this.listPaginated<CrowdinAiPrompt>(
+      query ? `${collectionPath}?${query}` : collectionPath,
+    );
+  }
+
+  private async aiPromptsCollectionPath(): Promise<string> {
+    if (isCrowdinEnterpriseApiBaseUrl(this.baseUrl)) {
+      return "/ai/prompts";
+    }
+
+    const user = await this.getAuthenticatedUser();
+    return `/users/${user.id}/ai/prompts`;
   }
 
   async listGlossaryTerms(glossaryId: number): Promise<CrowdinGlossaryTerm[]> {
