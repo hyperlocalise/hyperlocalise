@@ -226,6 +226,8 @@ export const glossaryTerms = pgTable(
     targetTerm: text("target_term").notNull(),
     // Optional human-readable explanation for reviewers and prompts.
     description: text("description").notNull().default(""),
+    // Optional term-specific usage note from the glossary provider.
+    note: text("note").notNull().default(""),
     // Optional grammatical hint for the term.
     partOfSpeech: text("part_of_speech").notNull().default(""),
     // Optional grammatical gender for native concept terms.

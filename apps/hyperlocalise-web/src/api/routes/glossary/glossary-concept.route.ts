@@ -35,7 +35,6 @@ import {
   importGlossaryTermsBodySchema,
   updateGlossaryConceptBodySchema,
   updateGlossaryConceptTermBodySchema,
-  type CreateGlossaryConceptBody,
   type CreateGlossaryConceptTermBody,
   type UpdateGlossaryConceptBody,
   type UpdateGlossaryConceptTermBody,
@@ -56,6 +55,8 @@ function crowdinStatus(status: string | undefined) {
       return "preferred";
     case "admitted":
       return "admitted";
+    case "draft":
+      return "draft";
     case "not_recommended":
       return "not recommended";
     case "obsolete":
@@ -72,6 +73,8 @@ function localStatus(status: string | null | undefined) {
       return "preferred";
     case "admitted":
       return "admitted";
+    case "draft":
+      return "draft";
     case "not recommended":
     case "not_recommended":
       return "not_recommended";
@@ -120,6 +123,7 @@ function toCrowdinTermRecord(
     term: term.text,
     isPrimary: term.languageId === glossary.sourceLocale,
     description: term.description ?? "",
+    note: term.note ?? "",
     partOfSpeech: term.partOfSpeech ?? "",
     gender: term.gender ?? null,
     termType: term.type ?? null,
@@ -464,12 +468,12 @@ export function createGlossaryConceptRoutes() {
                     languageId: term.locale,
                     text: term.term,
                     description: term.description ?? existing?.description,
+                    note: term.note ?? existing?.note,
                     partOfSpeech: term.partOfSpeech ?? existing?.partOfSpeech,
                     status: term.status ?? existing?.status,
                     type: term.termType ?? existing?.type,
                     gender:
                       term.gender !== undefined ? (term.gender ?? undefined) : existing?.gender,
-                    note: existing?.note,
                     url: term.url !== undefined ? (term.url ?? undefined) : existing?.url,
                     lemma: term.lemma !== undefined ? (term.lemma ?? undefined) : existing?.lemma,
                   };
@@ -529,6 +533,7 @@ export function createGlossaryConceptRoutes() {
             languageId: payload.locale,
             text: payload.term,
             description: payload.description,
+            note: payload.note,
             partOfSpeech: payload.partOfSpeech,
             status: crowdinStatus(payload.status),
             type: payload.termType ?? undefined,
@@ -583,6 +588,7 @@ export function createGlossaryConceptRoutes() {
             languageId: payload.locale ?? existing.languageId,
             text: payload.term ?? existing.text,
             description: payload.description ?? existing.description ?? "",
+            note: payload.note ?? existing.note ?? "",
             partOfSpeech: nextPartOfSpeech,
             status: crowdinStatus(payload.status ?? localStatus(existing.status)),
             type: payload.termType ?? existing.type ?? "",

@@ -14,9 +14,17 @@ import { z } from "zod";
 
 import { projectIdSchema } from "@/lib/projects/identity/project-id";
 import { localeInputSchema } from "@/lib/i18n/locales";
-import { glossaryPartOfSpeechValues } from "@/lib/glossary/glossary";
+import {
+  glossaryGenderValues,
+  glossaryPartOfSpeechValues,
+  glossaryTermStatusValues,
+  glossaryTermTypeValues,
+} from "@/lib/glossary/glossary";
 
 export const glossaryPartOfSpeechSchema = z.enum(glossaryPartOfSpeechValues);
+export const glossaryGenderSchema = z.enum(glossaryGenderValues);
+export const glossaryTermTypeSchema = z.enum(glossaryTermTypeValues);
+export const glossaryTermStatusSchema = z.enum(glossaryTermStatusValues);
 
 export const glossaryIdParamsSchema = z.object({
   glossaryId: z.string().trim().min(1).max(128),
@@ -117,23 +125,16 @@ export const importGlossaryTermsBodySchema = z.object({
   content: z.string().min(1).max(5_000_000),
 });
 
-const glossaryConceptTermStatusSchema = z.enum([
-  "preferred",
-  "admitted",
-  "draft",
-  "not_recommended",
-  "obsolete",
-]);
-
 export const createGlossaryConceptTermBodySchema = z.object({
   locale: localeInputSchema,
   term: z.string().trim().min(1).max(1_000),
   partOfSpeech: glossaryPartOfSpeechSchema.optional(),
-  gender: z.string().max(100).nullable().optional(),
-  termType: z.string().max(100).nullable().optional(),
+  note: z.string().max(10_000).optional(),
+  gender: glossaryGenderSchema.nullable().optional(),
+  termType: glossaryTermTypeSchema.nullable().optional(),
   url: z.string().url().max(2_000).nullable().optional().or(z.literal("")),
   lemma: z.string().max(1_000).nullable().optional(),
-  status: glossaryConceptTermStatusSchema.optional().default("draft"),
+  status: glossaryTermStatusSchema.optional().default("draft"),
   description: z.string().max(10_000).optional(),
   caseSensitive: z.boolean().optional().default(false),
   forbidden: z.boolean().optional().default(false),
@@ -155,11 +156,12 @@ export const upsertGlossaryConceptTermBodySchema = z.object({
   locale: localeInputSchema,
   term: z.string().trim().min(1).max(1_000),
   partOfSpeech: glossaryPartOfSpeechSchema.optional(),
-  gender: z.string().max(100).nullable().optional(),
-  termType: z.string().max(100).nullable().optional(),
+  note: z.string().max(10_000).optional(),
+  gender: glossaryGenderSchema.nullable().optional(),
+  termType: glossaryTermTypeSchema.nullable().optional(),
   url: z.string().url().max(2_000).nullable().optional().or(z.literal("")),
   lemma: z.string().max(1_000).nullable().optional(),
-  status: glossaryConceptTermStatusSchema.optional(),
+  status: glossaryTermStatusSchema.optional(),
   description: z.string().max(10_000).optional(),
   caseSensitive: z.boolean().optional(),
   forbidden: z.boolean().optional(),
@@ -185,11 +187,12 @@ export const updateGlossaryConceptTermBodySchema = z
     locale: localeInputSchema.optional(),
     term: z.string().trim().min(1).max(1_000).optional(),
     partOfSpeech: glossaryPartOfSpeechSchema.optional(),
-    gender: z.string().max(100).nullable().optional(),
-    termType: z.string().max(100).nullable().optional(),
+    note: z.string().max(10_000).optional(),
+    gender: glossaryGenderSchema.nullable().optional(),
+    termType: glossaryTermTypeSchema.nullable().optional(),
     url: z.string().url().max(2_000).nullable().optional().or(z.literal("")),
     lemma: z.string().max(1_000).nullable().optional(),
-    status: glossaryConceptTermStatusSchema.optional(),
+    status: glossaryTermStatusSchema.optional(),
     description: z.string().max(10_000).optional(),
     caseSensitive: z.boolean().optional(),
     forbidden: z.boolean().optional(),
@@ -262,12 +265,13 @@ export const glossaryConceptTermRecordSchema = z.object({
   term: z.string(),
   isPrimary: z.boolean(),
   description: z.string(),
+  note: z.string(),
   partOfSpeech: z.string(),
-  gender: z.string().nullable(),
-  termType: z.string().nullable(),
+  gender: glossaryGenderSchema.nullable(),
+  termType: glossaryTermTypeSchema.nullable(),
   url: z.string().nullable().optional(),
   lemma: z.string().nullable().optional(),
-  status: glossaryConceptTermStatusSchema,
+  status: glossaryTermStatusSchema,
   caseSensitive: z.boolean(),
   forbidden: z.boolean(),
   provenance: z.string(),

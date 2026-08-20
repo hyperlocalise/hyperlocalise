@@ -26,12 +26,35 @@ export const glossaryPartOfSpeechValues = [
   "numeral",
   "particle",
   "pronoun",
+  "proper noun",
   "subordinating conjunction",
   "verb",
   "other",
 ] as const;
 
 export type GlossaryPartOfSpeech = (typeof glossaryPartOfSpeechValues)[number];
+
+export const glossaryGenderValues = ["masculine", "feminine", "neuter", "other"] as const;
+export type GlossaryGender = (typeof glossaryGenderValues)[number];
+
+export const glossaryTermTypeValues = [
+  "full form",
+  "acronym",
+  "abbreviation",
+  "short form",
+  "phrase",
+  "variant",
+] as const;
+export type GlossaryTermType = (typeof glossaryTermTypeValues)[number];
+
+export const glossaryTermStatusValues = [
+  "preferred",
+  "admitted",
+  "draft",
+  "not_recommended",
+  "obsolete",
+] as const;
+export type GlossaryTermStatus = (typeof glossaryTermStatusValues)[number];
 
 export type GlossaryTermRecord = {
   id: string;
@@ -76,7 +99,7 @@ export type GlossaryConceptImportEntry = {
   partOfSpeech?: string;
   gender?: string | null;
   termType?: string | null;
-  status?: "preferred" | "draft" | "not_recommended";
+  status?: GlossaryTermStatus;
 };
 
 export type NativeGlossaryTermInput = {
@@ -132,6 +155,7 @@ export type GlossaryConceptRequestTerm = {
   locale: string;
   term: string;
   description?: string;
+  note?: string;
   partOfSpeech?: string;
   status?: string;
   termType?: string | null;
@@ -184,6 +208,31 @@ export function normalizeGlossaryPartOfSpeech(
     );
   }
   return aliased as GlossaryPartOfSpeech;
+}
+
+export function normalizeGlossaryGender(
+  value: string | null | undefined,
+): GlossaryGender | undefined {
+  const normalized = value?.trim().toLowerCase() ?? "";
+  return (glossaryGenderValues as readonly string[]).includes(normalized)
+    ? (normalized as GlossaryGender)
+    : undefined;
+}
+
+export function normalizeGlossaryTermType(
+  value: string | null | undefined,
+): GlossaryTermType | undefined {
+  const normalized = value?.trim().toLowerCase() ?? "";
+  return (glossaryTermTypeValues as readonly string[]).includes(normalized)
+    ? (normalized as GlossaryTermType)
+    : undefined;
+}
+
+export function normalizeGlossaryTermStatus(value: string | null | undefined): GlossaryTermStatus {
+  const normalized = value?.trim().toLowerCase().replaceAll(" ", "_") ?? "";
+  return (glossaryTermStatusValues as readonly string[]).includes(normalized)
+    ? (normalized as GlossaryTermStatus)
+    : "draft";
 }
 
 export abstract class Glossary {

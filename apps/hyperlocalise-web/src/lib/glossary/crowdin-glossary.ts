@@ -21,7 +21,10 @@ import { db, schema } from "@/lib/database";
 
 import {
   Glossary,
+  normalizeGlossaryGender,
   normalizeGlossaryPartOfSpeech,
+  normalizeGlossaryTermStatus,
+  normalizeGlossaryTermType,
   type GlossaryConceptImportEntry,
   type GlossaryConcept,
   type GlossaryConceptTerm,
@@ -70,6 +73,7 @@ function toGlossaryConceptInput(
           languageId: term.locale,
           text: term.term,
           description: term.description,
+          note: term.note,
           partOfSpeech: term.partOfSpeech,
           status: term.status,
           type: term.termType ?? undefined,
@@ -134,7 +138,12 @@ function normalizeCrowdinTerm(term: NativeGlossaryTermInput): NativeGlossaryTerm
 export function toGlossaryConcept(concept: CrowdinGlossaryConcept): GlossaryConcept {
   return {
     ...concept,
-    terms: concept.terms.map((term) => ({ ...term })),
+    terms: concept.terms.map((term) => ({
+      ...term,
+      status: normalizeGlossaryTermStatus(term.status),
+      type: normalizeGlossaryTermType(term.type),
+      gender: normalizeGlossaryGender(term.gender),
+    })),
   };
 }
 
