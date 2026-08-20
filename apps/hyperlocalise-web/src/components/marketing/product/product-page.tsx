@@ -17,14 +17,18 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import Link from "next/link";
 import { FormattedMessage } from "react-intl";
 
-import { HeroFrameMeshStage } from "@/components/marketing/hero-frame-mesh-stage";
+import {
+  HeroFrameMeshStage,
+  LAVENDER_MESH_GRADIENT_SRC,
+  MeshStage,
+} from "@/components/marketing/hero-frame-mesh-stage";
 import { MarketingFooter } from "@/components/marketing/marketing-footer";
 import { footerColumns } from "@/components/marketing/marketing-page-content";
 import { REQUEST_DEMO_URL } from "@/components/marketing/request-demo";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/primitives/cn";
 
-import type { ProductPageContent, ProductVisualKind } from "./product-page-content";
+import type { ProductPageContent } from "./product-page-content";
 import { AutomationsMockUI } from "./automations-mock-ui";
 import { productPageMessages, type ProductMessageKey } from "./product-page-content.messages";
 import { AutomationEditorMock } from "./automation-editor-mock";
@@ -231,21 +235,19 @@ function KnowledgePrimaryVisual() {
   );
 }
 
-function ProductVisual({ kind }: { kind: ProductVisualKind }) {
-  if (kind === "automation") {
-    return (
-      <>
-        <AutomationsMockUI />
-      </>
-    );
-  }
-
-  return <KnowledgePrimaryVisual />;
-}
-
 function ProductShowcase({ content }: ProductPageProps) {
   if (content.visualKind === "cat") {
     return <HeroFrameMeshStage priority />;
+  }
+
+  if (content.visualKind === "automation") {
+    return (
+      <div className="mx-auto max-w-6xl">
+        <MeshStage meshSrc={LAVENDER_MESH_GRADIENT_SRC} priority>
+          <AutomationsMockUI />
+        </MeshStage>
+      </div>
+    );
   }
 
   return (
@@ -256,7 +258,7 @@ function ProductShowcase({ content }: ProductPageProps) {
           className="pointer-events-none absolute inset-x-[8%] -top-8 -bottom-10 rounded-lg bg-[radial-gradient(circle_at_top,rgba(96,116,9,0.16),transparent_58%),radial-gradient(circle_at_bottom_right,rgba(9,108,229,0.1),transparent_46%)] blur-3xl"
         />
         <div className="relative grid overflow-hidden rounded-lg border border-border bg-background p-2 shadow-2xl shadow-gray-alpha-100 sm:p-3">
-          <ProductVisual kind={content.visualKind} />
+          <KnowledgePrimaryVisual />
         </div>
       </div>
     </div>

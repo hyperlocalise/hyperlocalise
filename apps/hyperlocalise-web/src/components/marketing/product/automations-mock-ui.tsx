@@ -14,7 +14,7 @@
  */
 import { useEffect, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
-import { Clock01Icon, GitBranchIcon, Upload01Icon } from "@hugeicons/core-free-icons";
+import { Clock01Icon, GitPullRequestIcon, Upload01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { FormattedMessage, useIntl } from "react-intl";
 
@@ -215,6 +215,25 @@ export function AutomationsMockUI() {
 
   const useCases: UseCase[] = [
     {
+      id: "auto-review",
+      title: intl.formatMessage(automationsMockMessages.useCaseAutoReviewTitle),
+      description: intl.formatMessage(automationsMockMessages.useCaseAutoReviewDescription),
+      triggerIcon: (
+        <HugeiconsIcon icon={GitPullRequestIcon} strokeWidth={1.8} className="size-3" />
+      ),
+      triggerLabel: intl.formatMessage(automationsMockMessages.triggerGithubPullRequest),
+      tools: [
+        intl.formatMessage(automationsMockMessages.toolGitHub),
+        intl.formatMessage(automationsMockMessages.toolMentionReview),
+      ],
+      steps: [
+        { label: intl.formatMessage(automationsMockMessages.stepAutoReview1) },
+        { label: intl.formatMessage(automationsMockMessages.stepAutoReview2) },
+        { label: intl.formatMessage(automationsMockMessages.stepAutoReview3) },
+        { label: intl.formatMessage(automationsMockMessages.stepAutoReview4) },
+      ],
+    },
+    {
       id: "auto-translation",
       title: intl.formatMessage(automationsMockMessages.useCaseAutoTranslationTitle),
       description: intl.formatMessage(automationsMockMessages.useCaseAutoTranslationDescription),
@@ -230,24 +249,6 @@ export function AutomationsMockUI() {
         { label: intl.formatMessage(automationsMockMessages.step1Auto3) },
         { label: intl.formatMessage(automationsMockMessages.step1Auto4) },
         { label: intl.formatMessage(automationsMockMessages.step1Auto5) },
-      ],
-    },
-    {
-      id: "review-with-agent",
-      title: intl.formatMessage(automationsMockMessages.useCaseReviewWithAgentTitle),
-      description: intl.formatMessage(automationsMockMessages.useCaseReviewWithAgentDescription),
-      triggerIcon: <HugeiconsIcon icon={GitBranchIcon} strokeWidth={1.8} className="size-3" />,
-      triggerLabel: intl.formatMessage(automationsMockMessages.triggerGithubMain),
-      tools: [
-        intl.formatMessage(automationsMockMessages.toolGitHub),
-        intl.formatMessage(automationsMockMessages.toolValidation),
-        intl.formatMessage(automationsMockMessages.toolSlack),
-      ],
-      steps: [
-        { label: intl.formatMessage(automationsMockMessages.step2Review1) },
-        { label: intl.formatMessage(automationsMockMessages.step2Review2) },
-        { label: intl.formatMessage(automationsMockMessages.step2Review3) },
-        { label: intl.formatMessage(automationsMockMessages.step2Review4) },
       ],
     },
     {
@@ -272,10 +273,7 @@ export function AutomationsMockUI() {
     },
   ];
 
-  const warningSteps = new Set([
-    intl.formatMessage(automationsMockMessages.step2Review4),
-    intl.formatMessage(automationsMockMessages.step3Audit3),
-  ]);
+  const warningSteps = new Set([intl.formatMessage(automationsMockMessages.step3Audit3)]);
 
   const [activeIndex, setActiveIndex] = useState(0);
   const [visibleStepCount, setVisibleStepCount] = useState(1);
