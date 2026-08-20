@@ -17,7 +17,7 @@ func TestKindForSourcePath(t *testing.T) {
 		{"C:\\docs\\en\\x.MDX", FormatMarkdown},
 		{"/srv/page.html", FormatHTML},
 		{"/srv/captions.srt", FormatHTML},
-		{"/srv/captions.vtt", FormatHTML},
+		{"/srv/captions.vtt", FormatWebVTT},
 		{"/srv/sections/header.liquid", FormatLiquid},
 		{"/pkg/messages.json", FormatICUInvariant},
 		{"/pkg/strings.arb", FormatICUInvariant},
@@ -98,6 +98,44 @@ func TestFirstValidationErrorMatrix(t *testing.T) {
 			path:        "/en/a.html",
 			source:      "<p>x</p>",
 			translated:  "x",
+			wantErr:     true,
+			errContains: "html tag",
+		},
+		{
+			name:       "vtt_class_span_ok",
+			path:       "/srv/captions.vtt",
+			source:     "<c.red>Hello</c>",
+			translated: "<c.red>Bonjour</c>",
+			wantErr:    false,
+		},
+		{
+			name:        "vtt_class_span_dropped",
+			path:        "/srv/captions.vtt",
+			source:      "<c.red>Hello</c>",
+			translated:  "Bonjour",
+			wantErr:     true,
+			errContains: "webvtt cue markup",
+		},
+		{
+			name:       "vtt_karaoke_timestamp_ok",
+			path:       "/srv/captions.vtt",
+			source:     "Hello <00:01.000>world",
+			translated: "Bonjour <00:01.000>monde",
+			wantErr:    false,
+		},
+		{
+			name:        "vtt_karaoke_timestamp_dropped",
+			path:        "/srv/captions.vtt",
+			source:      "Hello <00:01.000>world",
+			translated:  "Bonjour",
+			wantErr:     true,
+			errContains: "webvtt cue markup",
+		},
+		{
+			name:        "srt_italic_mismatch",
+			path:        "/srv/captions.srt",
+			source:      "<i>Hello</i>",
+			translated:  "Bonjour",
 			wantErr:     true,
 			errContains: "html tag",
 		},
@@ -297,6 +335,9 @@ func TestValidateForKindDispatches(t *testing.T) {
 		t.Fatalf("unexpected %v", err)
 	}
 	if err := validateForKind(FormatLiquid, "a \x1eHLLQPH_ABCDEF123456_0\x1f", "b \x1eHLLQPH_ABCDEF123456_0\x1f"); err != nil {
+		t.Fatalf("unexpected %v", err)
+	}
+	if err := validateForKind(FormatWebVTT, "<c.red>a</c>", "<c.red>b</c>"); err != nil {
 		t.Fatalf("unexpected %v", err)
 	}
 	if err := validateForKind(FormatICUInvariant, "x {n}", "y {n}"); err != nil {

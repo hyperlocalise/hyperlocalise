@@ -99,7 +99,20 @@ func (s *Service) marshalSourceTemplateTarget(ext, path, sourcePath, sourceLocal
 			// parses cleanly, so locale-specific metadata, translator-added comments,
 			// and existing translations for other keys are preserved even when the key
 			// sets differ. MarshalARB/MarshalXCStrings handle new and removed keys.
-			if ext == ".arb" || ext == ".xcstrings" || hasExactKeySet(targetEntries, values) {
+			// Subtitle keys are sequential, so equal cue counts are not enough: reuse
+			// the target only when cue identifiers and timings still match the source.
+			switch {
+			case ext == ".arb" || ext == ".xcstrings":
+				template = targetTemplate
+			case ext == ".srt":
+				if translationfileparser.SubtitleCueStructureEqual(sourceTemplate, targetTemplate, translationfileparser.SubtitleSRT) {
+					template = targetTemplate
+				}
+			case ext == ".vtt":
+				if translationfileparser.SubtitleCueStructureEqual(sourceTemplate, targetTemplate, translationfileparser.SubtitleVTT) {
+					template = targetTemplate
+				}
+			case hasExactKeySet(targetEntries, values):
 				template = targetTemplate
 			}
 		}

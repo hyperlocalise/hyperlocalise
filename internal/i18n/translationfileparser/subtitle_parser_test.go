@@ -224,3 +224,32 @@ func TestSubtitleParserAcceptsDotMillisecondsAndPositioning(t *testing.T) {
 		t.Fatalf("unexpected context: %q", ctx["srt.0001"])
 	}
 }
+
+func TestSubtitleParserAcceptsWebVTTHoursBeyond99(t *testing.T) {
+	content := []byte("WEBVTT\n\n100:00:00.000 --> 100:00:01.000\nHello\n")
+	values, ctx, err := (SubtitleParser{Kind: SubtitleVTT}).ParseWithContext(content)
+	if err != nil {
+		t.Fatalf("parse vtt: %v", err)
+	}
+	if values["vtt.0001"] != "Hello" {
+		t.Fatalf("unexpected values: %#v", values)
+	}
+	if ctx["vtt.0001"] != "100:00:00.000 --> 100:00:01.000" {
+		t.Fatalf("unexpected context: %q", ctx["vtt.0001"])
+	}
+}
+
+func TestSubtitleCueStructureEqualComparesTimingsNotCounts(t *testing.T) {
+	source := []byte("1\n00:00:00,000 --> 00:00:01,000\nNew intro\n\n2\n00:00:01,000 --> 00:00:02,000\nHello\n\n")
+	staleTarget := []byte("1\n00:00:01,000 --> 00:00:02,000\nSalut\n\n2\n00:00:02,000 --> 00:00:03,000\nBye\n\n")
+	matchingTarget := []byte("1\n00:00:00,000 --> 00:00:01,000\nSalut\n\n2\n00:00:01,000 --> 00:00:02,000\nBonjour\n\n")
+	if SubtitleCueStructureEqual(source, staleTarget, SubtitleSRT) {
+		t.Fatal("expected stale timings to differ")
+	}
+	if !SubtitleCueStructureEqual(source, matchingTarget, SubtitleSRT) {
+		t.Fatal("expected matching timings to be equal")
+	}
+	if SubtitleCueStructureEqual(source, []byte{0xff, 0xfe}, SubtitleSRT) {
+		t.Fatal("invalid target should not match")
+	}
+}

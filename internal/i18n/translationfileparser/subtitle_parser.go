@@ -43,7 +43,11 @@ type subtitleLine struct {
 	text  string
 }
 
-var subtitleTimestampPattern = regexp.MustCompile(`^(?:\d{1,2}:)?\d{1,2}:\d{2}[,.]\d{1,3}\s+-->\s+(?:\d{1,2}:)?\d{1,2}:\d{2}[,.]\d{1,3}(?:\s+\S.*)?$`)
+// SRT hours are 1-2 digits. WebVTT hours may be two or more digits (100:00:00.000).
+var (
+	srtTimestampPattern = regexp.MustCompile(`^(?:\d{1,2}:)?\d{1,2}:\d{2}[,.]\d{1,3}\s+-->\s+(?:\d{1,2}:)?\d{1,2}:\d{2}[,.]\d{1,3}(?:\s+\S.*)?$`)
+	vttTimestampPattern = regexp.MustCompile(`^(?:\d{2,}:)?\d{1,2}:\d{2}[,.]\d{1,3}\s+-->\s+(?:\d{2,}:)?\d{1,2}:\d{2}[,.]\d{1,3}(?:\s+\S.*)?$`)
+)
 
 func (p SubtitleParser) Parse(content []byte) (map[string]string, error) {
 	values, _, err := p.ParseWithContext(content)
@@ -82,6 +86,36 @@ func MarshalSubtitles(template []byte, values map[string]string, kind SubtitleKi
 		return nil, err
 	}
 	return doc.render(values), nil
+}
+
+// SubtitleCueStructureEqual reports whether source and target share the same
+// cue identifiers and timings in document order. Sequential keys such as
+// srt.0001 are ignored, so equal cue counts are not treated as a match.
+func SubtitleCueStructureEqual(source, target []byte, kind SubtitleKind) bool {
+	src, err := parseSubtitleDocument(source, kind)
+	if err != nil {
+		return false
+	}
+	tgt, err := parseSubtitleDocument(target, kind)
+	if err != nil {
+		return false
+	}
+	if len(src.entries) != len(tgt.entries) {
+		return false
+	}
+	for i := range src.entries {
+		if subtitleCueSignature(src.entries[i]) != subtitleCueSignature(tgt.entries[i]) {
+			return false
+		}
+	}
+	return true
+}
+
+func subtitleCueSignature(entry subtitleCue) string {
+	if entry.identifier != "" && !isAllDecimalDigits(entry.identifier) {
+		return entry.identifier + "\n" + entry.timing
+	}
+	return entry.timing
 }
 
 func parseSubtitleDocument(content []byte, kind SubtitleKind) (subtitleDocument, error) {
@@ -169,9 +203,9 @@ func parseSubtitleCue(block []subtitleLine, kind SubtitleKind, cueNumber int) (s
 
 	timingIndex := 0
 	identifier := ""
-	if isSubtitleTimestampLine(block[0].text) {
+	if isSubtitleTimestampLine(block[0].text, kind) {
 		timingIndex = 0
-	} else if len(block) > 1 && isSubtitleTimestampLine(block[1].text) {
+	} else if len(block) > 1 && isSubtitleTimestampLine(block[1].text, kind) {
 		identifier = strings.TrimSpace(block[0].text)
 		timingIndex = 1
 	} else {
@@ -286,8 +320,12 @@ func isWebVTTNonCueBlock(first string) bool {
 	}
 }
 
-func isSubtitleTimestampLine(line string) bool {
-	return subtitleTimestampPattern.MatchString(strings.TrimSpace(line))
+func isSubtitleTimestampLine(line string, kind SubtitleKind) bool {
+	trimmed := strings.TrimSpace(line)
+	if kind == SubtitleVTT {
+		return vttTimestampPattern.MatchString(trimmed)
+	}
+	return srtTimestampPattern.MatchString(trimmed)
 }
 
 func subtitleCueKey(kind SubtitleKind, index int) string {

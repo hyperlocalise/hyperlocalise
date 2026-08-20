@@ -124,6 +124,14 @@ func validateForKindWithTokens(kind FormatKind, source, translated string) (bool
 			return false, fmt.Errorf("raw HTML syntax introduced in translated html")
 		}
 		hasICUTokens, err = validateICUInvariantWithTokens(source, translated)
+	case FormatWebVTT:
+		if webvttCueMarkupMismatch(source, translated) {
+			return false, fmt.Errorf("webvtt cue markup differs from source | %s", formatInvariantDebugContext(source, translated))
+		}
+		if translationfileparser.IntroducesRawHTMLSyntax(translationfileparser.RawHTMLSyntaxStartCount(source), translated) {
+			return false, fmt.Errorf("raw HTML syntax introduced in translated html")
+		}
+		hasICUTokens, err = validateICUInvariantWithTokens(source, translated)
 	case FormatLiquid:
 		if err = translationfileparser.ValidateLiquidInternalPlaceholders(source, translated); err != nil {
 			return false, err

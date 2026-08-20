@@ -631,6 +631,40 @@ func TestMarshalSourceTemplateTargetSubtitles(t *testing.T) {
 	}
 }
 
+func TestMarshalSourceTemplateTargetSubtitlesRejectsStaleTimings(t *testing.T) {
+	dir := t.TempDir()
+	sourcePath := filepath.Join(dir, "source.srt")
+	targetPath := filepath.Join(dir, "target.srt")
+	source := "1\n00:00:00,000 --> 00:00:01,000\nNew intro\n\n2\n00:00:01,000 --> 00:00:02,000\nHello\n\n"
+	target := "1\n00:00:01,000 --> 00:00:02,000\nSalut\n\n2\n00:00:02,000 --> 00:00:03,000\nBye\n\n"
+	if err := os.WriteFile(sourcePath, []byte(source), 0o644); err != nil {
+		t.Fatalf("write source srt: %v", err)
+	}
+	if err := os.WriteFile(targetPath, []byte(target), 0o644); err != nil {
+		t.Fatalf("write target srt: %v", err)
+	}
+
+	svc := newTestService()
+	svc.readFile = os.ReadFile
+	content, err := svc.marshalSourceTemplateTarget(".srt", targetPath, sourcePath, "en", "fr", map[string]string{
+		"srt.0001": "Nouvelle intro",
+		"srt.0002": "Bonjour",
+	})
+	if err != nil {
+		t.Fatalf("marshal srt target: %v", err)
+	}
+	got := string(content)
+	if !strings.Contains(got, "00:00:00,000 --> 00:00:01,000") || !strings.Contains(got, "00:00:01,000 --> 00:00:02,000") {
+		t.Fatalf("expected source timings, got %q", got)
+	}
+	if strings.Contains(got, "00:00:02,000 --> 00:00:03,000") {
+		t.Fatalf("stale target timings should not be reused, got %q", got)
+	}
+	if !strings.Contains(got, "Nouvelle intro") || !strings.Contains(got, "Bonjour") {
+		t.Fatalf("expected translated cues on source timings, got %q", got)
+	}
+}
+
 func TestMarshalTargetFileYAMLUsesTargetTemplate(t *testing.T) {
 	svc := newTestService()
 	svc.readFile = func(path string) ([]byte, error) {

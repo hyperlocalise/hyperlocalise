@@ -132,6 +132,7 @@ For SubRip and WebVTT subtitles (`.srt`, `.vtt`), `run` translates cue payload t
 - cue numbers, timestamps, and positioning or cue settings
 - WebVTT `WEBVTT` headers, `NOTE`, `STYLE`, and `REGION` blocks
 - HTML-like markup inside cues such as `<i>` and `<b>`
+- WebVTT cue spans such as `<c.red>`, `<v Speaker>`, and karaoke timestamps like `<00:01.000>`
 
 Cues are exposed as sequential keys such as `srt.0001` and `vtt.0001`. Timestamp lines are available as entry context. Writeback replaces cue text in place and ignores extra translation keys so cue counts stay aligned with the source file. Blank lines inside translated cue text are dropped so they cannot split cues.
 

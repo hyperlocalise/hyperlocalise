@@ -208,7 +208,9 @@
 - Cue payload text is the translation unit. Multiline cues become a single value joined with `\n`.
 - `ParseWithContext` returns the timestamp line as entry context, including a non-numeric WebVTT cue identifier when present.
 - WebVTT `WEBVTT` headers, `NOTE`, `STYLE`, and `REGION` blocks are preserved verbatim.
+- WebVTT cue timestamps accept an hours field with two or more digits (for example `100:00:00.000`).
 - `MarshalSubtitles(template, values, kind)` replaces cue text in place. Extra translation keys are ignored so cue counts stay aligned with the template. Blank lines inside translated cue text are dropped so they cannot split cues.
+- `SubtitleCueStructureEqual` compares cue identifiers and timings so writeback can reject stale targets that happen to have the same cue count.
 
 ## Minimal usage
 

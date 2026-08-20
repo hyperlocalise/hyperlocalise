@@ -25,8 +25,9 @@ func TestKindForSourcePathExtended(t *testing.T) {
 
 		// Subtitle markup uses HTML-like tags
 		{"file.srt", FormatHTML},
-		{"file.vtt", FormatHTML},
+		{"file.vtt", FormatWebVTT},
 		{"file.SRT", FormatHTML},
+		{"file.VTT", FormatWebVTT},
 
 		// Case sensitivity check for extended
 		{"file.MARKDOWN", FormatMarkdown},

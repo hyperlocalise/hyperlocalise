@@ -17,7 +17,7 @@ func TestTranslationOutputKindForSourcePath(t *testing.T) {
 		{"/srv/page.html", segmentvalidate.FormatHTML},
 		{"file.htm", segmentvalidate.FormatHTML},
 		{"captions.srt", segmentvalidate.FormatHTML},
-		{"captions.vtt", segmentvalidate.FormatHTML},
+		{"captions.vtt", segmentvalidate.FormatWebVTT},
 		{"/srv/sections/header.liquid", segmentvalidate.FormatLiquid},
 		{"/pkg/messages.json", segmentvalidate.FormatICUInvariant},
 	}
