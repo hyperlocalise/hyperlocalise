@@ -10,7 +10,6 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { randomUUID } from "node:crypto";
 import {
   createUIMessageStream,
   createUIMessageStreamResponse,
@@ -29,6 +28,7 @@ import {
 } from "@/lib/agent-runtime/loops/hyperlocalise-agent";
 import { getHyperlocaliseAgentModel } from "@/lib/agent-runtime/loops/model";
 import { listWorkspaceAutomationKnowledgeFileContents } from "@/lib/agents/workspace-automation-knowledge-files";
+import { listRecentWebChatMessages } from "@/lib/agents/workspace-automation-web-chat";
 import {
   hasWorkspaceAutomationKnowledgeFilesTool,
   type WorkspaceAutomationRecord,
@@ -44,8 +44,6 @@ import { bufferFromStream } from "@/lib/primitives/streams";
 import { eq } from "drizzle-orm";
 
 import { createRecallKnowledgeFilesTool } from "../tools/recall_knowledge_files";
-
-const WEB_CHAT_HISTORY_LIMIT = 40;
 
 function textFromParts(parts: UIMessage["parts"]) {
   return parts
@@ -77,17 +75,7 @@ async function loadWebChatModelMessages(input: {
   conversationId: string;
   lastUserMessageId: string;
 }): Promise<ModelMessage[]> {
-  const rows = await db
-    .select({
-      id: schema.interactionMessages.id,
-      senderType: schema.interactionMessages.senderType,
-      text: schema.interactionMessages.text,
-      attachments: schema.interactionMessages.attachments,
-    })
-    .from(schema.interactionMessages)
-    .where(eq(schema.interactionMessages.interactionId, input.conversationId))
-    .orderBy(schema.interactionMessages.createdAt)
-    .limit(WEB_CHAT_HISTORY_LIMIT);
+  const rows = await listRecentWebChatMessages(input.conversationId);
 
   const adapter = getFileStorageAdapter();
   const messages: ModelMessage[] = [];
@@ -182,7 +170,7 @@ export function createWebChatAgentUIStreamResponse(input: {
   abortSignal?: AbortSignal;
 }) {
   let persistedDuringExecute = false;
-  const usageOperationKey = `web-chat-agent-turn:${input.lastUserMessageId}:${randomUUID()}`;
+  const usageOperationKey = `web-chat-agent-turn:${input.lastUserMessageId}:agent_runs`;
   let shouldTrackUsage = false;
 
   const stream = createUIMessageStream<InboxChatUIMessage>({

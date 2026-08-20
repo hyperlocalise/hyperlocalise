@@ -10,7 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { and, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 
 import { db, schema } from "@/lib/database";
 
@@ -31,8 +31,15 @@ export {
 };
 
 export const WEB_CHAT_VISITOR_COOKIE_NAME = "hl_web_chat_visitor";
+export const WEB_CHAT_HISTORY_LIMIT = 40;
 export const WEB_CHAT_MAX_IMAGE_FILES = 4;
 export const WEB_CHAT_MAX_IMAGE_BYTES = 10 * 1024 * 1024;
+/** Multipart framing + text-field headroom beyond the per-file byte cap. */
+export const WEB_CHAT_IMAGE_UPLOAD_MULTIPART_OVERHEAD_BYTES = 64 * 1024;
+/** Request body limit must cover every attached image plus multipart framing. */
+export const WEB_CHAT_MAX_IMAGE_REQUEST_BYTES =
+  WEB_CHAT_MAX_IMAGE_FILES * WEB_CHAT_MAX_IMAGE_BYTES +
+  WEB_CHAT_IMAGE_UPLOAD_MULTIPART_OVERHEAD_BYTES;
 export const WEB_CHAT_IMAGE_CONTENT_TYPES = new Set([
   "image/png",
   "image/jpeg",
@@ -118,4 +125,20 @@ export async function findWebChatInteraction(input: {
     .limit(1);
 
   return interaction ?? null;
+}
+
+export async function listRecentWebChatMessages(conversationId: string) {
+  const rows = await db
+    .select({
+      id: schema.interactionMessages.id,
+      senderType: schema.interactionMessages.senderType,
+      text: schema.interactionMessages.text,
+      attachments: schema.interactionMessages.attachments,
+    })
+    .from(schema.interactionMessages)
+    .where(eq(schema.interactionMessages.interactionId, conversationId))
+    .orderBy(desc(schema.interactionMessages.createdAt), desc(schema.interactionMessages.id))
+    .limit(WEB_CHAT_HISTORY_LIMIT);
+
+  return rows.toReversed();
 }

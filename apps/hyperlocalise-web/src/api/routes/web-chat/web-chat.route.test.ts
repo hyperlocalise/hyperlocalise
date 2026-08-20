@@ -14,7 +14,11 @@ import "dotenv/config";
 
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
-const { checkBotIdMock, resolveApiAuthContextFromSessionMock } = vi.hoisted(() => ({
+const {
+  checkBotIdMock,
+  resolveApiAuthContextFromSessionMock,
+  createWebChatAgentUIStreamResponseMock,
+} = vi.hoisted(() => ({
   checkBotIdMock: vi.fn(),
   resolveApiAuthContextFromSessionMock: vi.fn(
     (options) =>
@@ -22,6 +26,7 @@ const { checkBotIdMock, resolveApiAuthContextFromSessionMock } = vi.hoisted(() =
       globalThis.__testApiAuthContext ??
       null,
   ),
+  createWebChatAgentUIStreamResponseMock: vi.fn(() => new Response("ok", { status: 200 })),
 }));
 
 vi.mock("botid/server", () => ({
@@ -36,9 +41,21 @@ vi.mock("@/api/auth/workos-session", async (importOriginal) => {
   };
 });
 
+vi.mock("@/agents/automations/workspace/agent/channels/web-chat", () => ({
+  createWebChatAgentUIStreamResponse: createWebChatAgentUIStreamResponseMock,
+}));
+
 import { createApp } from "@/api/app";
 import { createAuthTestFixture } from "@/api/test-auth.fixture";
-import { db } from "@/lib/database";
+import { addInteractionMessage } from "@/lib/conversations/interactions";
+import { db, schema } from "@/lib/database";
+import {
+  WEB_CHAT_HISTORY_LIMIT,
+  WEB_CHAT_MAX_IMAGE_BYTES,
+  WEB_CHAT_MAX_IMAGE_FILES,
+  WEB_CHAT_MAX_IMAGE_REQUEST_BYTES,
+  listRecentWebChatMessages,
+} from "@/lib/agents/workspace-automation-web-chat";
 import { createMemoryFileStorageAdapter } from "../file/file.fixture";
 
 const fileStorageAdapter = createMemoryFileStorageAdapter();
@@ -51,6 +68,7 @@ beforeAll(async () => {
 
 beforeEach(() => {
   checkBotIdMock.mockResolvedValue({ isBot: false });
+  createWebChatAgentUIStreamResponseMock.mockReturnValue(new Response("ok", { status: 200 }));
 });
 
 afterEach(async () => {
@@ -79,6 +97,40 @@ async function createWebChatAutomation(input: {
   expect(createdResponse.status).toBe(201);
   const body = (await createdResponse.json()) as { automation: { id: string; name: string } };
   return body.automation;
+}
+
+async function postVisitorMessage(input: {
+  organizationSlug: string;
+  automationId: string;
+  text: string;
+  cookie?: string;
+}) {
+  const formData = new FormData();
+  formData.set("text", input.text);
+  const response = await app.request(
+    `/api/public/web-chat/${input.organizationSlug}/${input.automationId}/messages`,
+    {
+      method: "POST",
+      headers: input.cookie ? { cookie: input.cookie } : undefined,
+      body: formData,
+    },
+  );
+  const body = (await response.json()) as {
+    conversation: { id: string };
+    message: { id: string; text: string };
+    error?: string;
+  };
+  return {
+    response,
+    body,
+    cookie: response.headers.get("set-cookie") ?? input.cookie ?? "",
+  };
+}
+
+function chatRequestBody(messageId: string) {
+  return JSON.stringify({
+    messages: [{ id: messageId, role: "user", parts: [{ type: "text", text: "hello" }] }],
+  });
 }
 
 describe("public web chat routes", () => {
@@ -206,5 +258,163 @@ describe("public web chat routes", () => {
       `/api/public/web-chat/${organizationSlug}/${created.automation.id}`,
     );
     expect(response.status).toBe(404);
+  });
+
+  it("keeps the newest history window in chronological order", async () => {
+    const identity = fixture.createWorkosIdentityWithRole("admin");
+    const headers = await fixture.authHeadersFor(identity);
+    const organizationSlug = identity.organization.slug ?? "missing-slug";
+    const automation = await createWebChatAutomation({ organizationSlug, headers });
+    const created = await postVisitorMessage({
+      organizationSlug,
+      automationId: automation.id,
+      text: "seed",
+    });
+    expect(created.response.status).toBe(201);
+
+    const startedAt = Date.now();
+    const extraCount = WEB_CHAT_HISTORY_LIMIT + 4;
+    await db.insert(schema.interactionMessages).values(
+      Array.from({ length: extraCount }, (_, index) => ({
+        interactionId: created.body.conversation.id,
+        senderType: "user" as const,
+        text: `msg-${index}`,
+        createdAt: new Date(startedAt + index + 1),
+      })),
+    );
+
+    const history = await listRecentWebChatMessages(created.body.conversation.id);
+    expect(history).toHaveLength(WEB_CHAT_HISTORY_LIMIT);
+    expect(history[0]?.text).toBe(`msg-${extraCount - WEB_CHAT_HISTORY_LIMIT}`);
+    expect(history.at(-1)?.text).toBe(`msg-${extraCount - 1}`);
+    expect(history.some((message) => message.text === "seed")).toBe(false);
+  });
+
+  it("streams a turn for the latest unanswered user message", async () => {
+    const identity = fixture.createWorkosIdentityWithRole("admin");
+    const headers = await fixture.authHeadersFor(identity);
+    const organizationSlug = identity.organization.slug ?? "missing-slug";
+    const automation = await createWebChatAutomation({ organizationSlug, headers });
+    const created = await postVisitorMessage({
+      organizationSlug,
+      automationId: automation.id,
+      text: "What is the refund policy?",
+    });
+    expect(created.response.status).toBe(201);
+
+    const response = await app.request(
+      `/api/public/web-chat/${organizationSlug}/${automation.id}/conversations/${created.body.conversation.id}/chat`,
+      {
+        method: "POST",
+        headers: {
+          cookie: created.cookie,
+          "Content-Type": "application/json",
+        },
+        body: chatRequestBody(created.body.message.id),
+      },
+    );
+    expect(response.status).toBe(200);
+    expect(createWebChatAgentUIStreamResponseMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        conversationId: created.body.conversation.id,
+        lastUserMessageId: created.body.message.id,
+      }),
+    );
+  });
+
+  it("rejects a stale user message id before starting a stream", async () => {
+    const identity = fixture.createWorkosIdentityWithRole("admin");
+    const headers = await fixture.authHeadersFor(identity);
+    const organizationSlug = identity.organization.slug ?? "missing-slug";
+    const automation = await createWebChatAutomation({ organizationSlug, headers });
+    const first = await postVisitorMessage({
+      organizationSlug,
+      automationId: automation.id,
+      text: "first",
+    });
+    expect(first.response.status).toBe(201);
+    const second = await postVisitorMessage({
+      organizationSlug,
+      automationId: automation.id,
+      text: "second",
+      cookie: first.cookie,
+    });
+    expect(second.response.status).toBe(201);
+
+    const response = await app.request(
+      `/api/public/web-chat/${organizationSlug}/${automation.id}/conversations/${first.body.conversation.id}/chat`,
+      {
+        method: "POST",
+        headers: {
+          cookie: first.cookie,
+          "Content-Type": "application/json",
+        },
+        body: chatRequestBody(first.body.message.id),
+      },
+    );
+    expect(response.status).toBe(409);
+    await expect(response.json()).resolves.toMatchObject({ error: "stale_user_message" });
+    expect(createWebChatAgentUIStreamResponseMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects a replayed user message after an assistant reply", async () => {
+    const identity = fixture.createWorkosIdentityWithRole("admin");
+    const headers = await fixture.authHeadersFor(identity);
+    const organizationSlug = identity.organization.slug ?? "missing-slug";
+    const automation = await createWebChatAutomation({ organizationSlug, headers });
+    const created = await postVisitorMessage({
+      organizationSlug,
+      automationId: automation.id,
+      text: "Need a recap",
+    });
+    expect(created.response.status).toBe(201);
+
+    await addInteractionMessage({
+      interactionId: created.body.conversation.id,
+      senderType: "agent",
+      text: "Here is the recap.",
+    });
+
+    const response = await app.request(
+      `/api/public/web-chat/${organizationSlug}/${automation.id}/conversations/${created.body.conversation.id}/chat`,
+      {
+        method: "POST",
+        headers: {
+          cookie: created.cookie,
+          "Content-Type": "application/json",
+        },
+        body: chatRequestBody(created.body.message.id),
+      },
+    );
+    expect(response.status).toBe(409);
+    await expect(response.json()).resolves.toMatchObject({ error: "turn_already_processed" });
+    expect(createWebChatAgentUIStreamResponseMock).not.toHaveBeenCalled();
+  });
+
+  it("covers every attached image in the streamed upload limit", () => {
+    expect(WEB_CHAT_MAX_IMAGE_REQUEST_BYTES).toBeGreaterThan(
+      WEB_CHAT_MAX_IMAGE_FILES * WEB_CHAT_MAX_IMAGE_BYTES,
+    );
+  });
+
+  it("rejects oversized uploads from content-length before parsing", async () => {
+    const identity = fixture.createWorkosIdentityWithRole("admin");
+    const headers = await fixture.authHeadersFor(identity);
+    const organizationSlug = identity.organization.slug ?? "missing-slug";
+    const automation = await createWebChatAutomation({ organizationSlug, headers });
+
+    const response = await app.request(
+      `/api/public/web-chat/${organizationSlug}/${automation.id}/messages`,
+      {
+        method: "POST",
+        headers: {
+          "content-length": String(WEB_CHAT_MAX_IMAGE_REQUEST_BYTES + 1),
+          "content-type": "multipart/form-data; boundary=----test",
+        },
+        body: "x",
+      },
+    );
+    expect(response.status).toBe(413);
+    await expect(response.json()).resolves.toMatchObject({ error: "upload_too_large" });
   });
 });

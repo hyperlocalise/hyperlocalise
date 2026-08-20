@@ -11,18 +11,25 @@
  * Version 2.0 or later.
  */
 import { randomUUID } from "node:crypto";
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, desc, eq } from "drizzle-orm";
 import { Hono } from "hono";
 import { getCookie, setCookie } from "hono/cookie";
-import { createMiddleware } from "hono/factory";
 
 import { createWebChatAgentUIStreamResponse } from "@/agents/automations/workspace/agent/channels/web-chat";
+import { createRequestBodyLimitMiddleware } from "@/api/middleware/request-body-limit";
 import { extractLastUserMessage } from "@/api/routes/conversation/chat-stream-message";
-import { badRequestResponse, forbiddenResponse, notFoundResponse } from "@/api/response.schema";
+import {
+  badRequestResponse,
+  conflictResponse,
+  forbiddenResponse,
+  notFoundResponse,
+  payloadTooLargeResponse,
+} from "@/api/response.schema";
 import { rejectWebChatBot } from "@/lib/agents/web-chat-bot-protection";
 import {
   WEB_CHAT_MAX_IMAGE_BYTES,
   WEB_CHAT_MAX_IMAGE_FILES,
+  WEB_CHAT_MAX_IMAGE_REQUEST_BYTES,
   WEB_CHAT_VISITOR_COOKIE_NAME,
   buildWebChatSourceThreadId,
   findWebChatInteraction,
@@ -79,21 +86,9 @@ function readVisitorId(c: Parameters<typeof getCookie>[0]) {
   return randomUUID();
 }
 
-const imageUploadBodyLimit = createMiddleware(async (c, next) => {
-  const rawRequest = c.req.raw;
-  if (!rawRequest.body) {
-    return next();
-  }
-
-  const contentLength = rawRequest.headers.get("content-length");
-  if (contentLength) {
-    const parsedLength = Number.parseInt(contentLength, 10);
-    if (!Number.isNaN(parsedLength) && parsedLength > WEB_CHAT_MAX_IMAGE_BYTES) {
-      return c.json({ error: "upload_too_large" }, 413);
-    }
-  }
-
-  return next();
+const imageUploadBodyLimit = createRequestBodyLimitMiddleware({
+  maxSize: WEB_CHAT_MAX_IMAGE_REQUEST_BYTES,
+  onError: (c) => payloadTooLargeResponse(c, "upload_too_large"),
 });
 
 type CreateWebChatRoutesOptions = {
@@ -304,20 +299,50 @@ export function createWebChatRoutes(options: CreateWebChatRoutesOptions = {}) {
         return badRequestResponse(c, "invalid_chat_payload");
       }
 
-      const [targetUserMessage] = await db
-        .select({ id: schema.interactionMessages.id })
-        .from(schema.interactionMessages)
-        .where(
-          and(
-            eq(schema.interactionMessages.id, requestUserMessage.id),
-            eq(schema.interactionMessages.interactionId, interaction.id),
-            eq(schema.interactionMessages.senderType, "user"),
-          ),
-        )
-        .limit(1);
+      const [[targetUserMessage], [latestUserMessage], [latestMessage]] = await Promise.all([
+        db
+          .select({ id: schema.interactionMessages.id })
+          .from(schema.interactionMessages)
+          .where(
+            and(
+              eq(schema.interactionMessages.id, requestUserMessage.id),
+              eq(schema.interactionMessages.interactionId, interaction.id),
+              eq(schema.interactionMessages.senderType, "user"),
+            ),
+          )
+          .limit(1),
+        db
+          .select({ id: schema.interactionMessages.id })
+          .from(schema.interactionMessages)
+          .where(
+            and(
+              eq(schema.interactionMessages.interactionId, interaction.id),
+              eq(schema.interactionMessages.senderType, "user"),
+            ),
+          )
+          .orderBy(desc(schema.interactionMessages.createdAt), desc(schema.interactionMessages.id))
+          .limit(1),
+        db
+          .select({
+            id: schema.interactionMessages.id,
+            senderType: schema.interactionMessages.senderType,
+          })
+          .from(schema.interactionMessages)
+          .where(eq(schema.interactionMessages.interactionId, interaction.id))
+          .orderBy(desc(schema.interactionMessages.createdAt), desc(schema.interactionMessages.id))
+          .limit(1),
+      ]);
 
       if (!targetUserMessage) {
         return notFoundResponse(c, "user_message_not_found");
+      }
+
+      if (!latestUserMessage || latestUserMessage.id !== targetUserMessage.id) {
+        return conflictResponse(c, "stale_user_message");
+      }
+
+      if (latestMessage?.senderType === "agent") {
+        return conflictResponse(c, "turn_already_processed");
       }
 
       return createWebChatAgentUIStreamResponse({
