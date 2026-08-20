@@ -431,6 +431,7 @@ export function createWorkspaceAutomationRoutes(
       const query = c.req.valid("query");
       const automations = await listWorkspaceAutomations({
         organizationId: c.var.auth.organization.localOrganizationId,
+        projectId: query.projectId,
         status: query.status,
         limit: query.limit,
         offset: query.offset,

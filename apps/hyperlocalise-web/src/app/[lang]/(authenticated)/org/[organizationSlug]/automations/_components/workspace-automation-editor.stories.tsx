@@ -124,6 +124,18 @@ export const CreateEmpty: Story = {
   },
 };
 
+export const ProjectSelectorForScheduledTrigger: Story = {
+  play: async ({ canvas, canvasElement, userEvent }) => {
+    const body = within(canvasElement.ownerDocument.body);
+    await expect(
+      await canvas.findByRole("button", { name: /Select project/i }),
+    ).toBeInTheDocument();
+    await userEvent.click(canvas.getByRole("button", { name: "Add Trigger" }));
+    await userEvent.click(await body.findByRole("menuitem", { name: /^Scheduled/ }));
+    await expect(canvas.getByRole("button", { name: /Select project/i })).toBeInTheDocument();
+  },
+};
+
 export const CreateModelOptions: Story = {
   play: async ({ canvas, canvasElement, userEvent }) => {
     const body = within(canvasElement.ownerDocument.body);

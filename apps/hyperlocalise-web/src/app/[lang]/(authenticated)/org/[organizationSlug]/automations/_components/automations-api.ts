@@ -37,7 +37,10 @@ export type GithubAutoReviewSettingsWrite = {
 };
 
 export type AutomationsApi = {
-  listAutomations(organizationSlug: string): Promise<AutomationSummaryRow[]>;
+  listAutomations(
+    organizationSlug: string,
+    options?: { projectId?: string },
+  ): Promise<AutomationSummaryRow[]>;
   getGithubAutoReviewSettings(organizationSlug: string): Promise<GithubAutoReviewSettingsDto>;
   updateGithubAutoReviewSettings(
     organizationSlug: string,
@@ -51,10 +54,14 @@ export function createAutomationsApi(client: ApiClient): AutomationsApi {
   const automations = client.api.orgs[":organizationSlug"].automations;
 
   return {
-    async listAutomations(organizationSlug) {
+    async listAutomations(organizationSlug, options) {
       const response = await automations.$get({
         param: { organizationSlug },
-        query: { limit: "100", offset: "0" },
+        query: {
+          limit: "100",
+          offset: "0",
+          ...(options?.projectId ? { projectId: options.projectId } : {}),
+        },
       });
       if (!response.ok) {
         throw await readApiResponseError(response, "Failed to load automations");

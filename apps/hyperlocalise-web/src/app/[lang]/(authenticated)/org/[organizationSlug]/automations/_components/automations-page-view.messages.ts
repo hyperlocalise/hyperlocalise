@@ -20,6 +20,11 @@ export const automationsPageViewMessages = defineMessages({
     id: "22cLivfsp0",
     description: "Automations page header eyebrow label",
   },
+  pageLabelProject: {
+    defaultMessage: "Project",
+    id: "+WMW4vljPC",
+    description: "Project automations page header eyebrow label",
+  },
   pageTitle: {
     defaultMessage: "Automations",
     id: "hScQeR54rc",

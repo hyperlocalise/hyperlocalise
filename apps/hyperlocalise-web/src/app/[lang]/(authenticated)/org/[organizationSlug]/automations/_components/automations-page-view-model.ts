@@ -25,8 +25,19 @@ import type {
 
 import { automationsPageViewModelMessages } from "./automations-page-view-model.messages";
 
-export function resolveVisibleAutomations(automations: WorkspaceAutomationRecord[]) {
-  return automations.filter((automation) => automation.status !== "archived");
+export function resolveVisibleAutomations(
+  automations: WorkspaceAutomationRecord[],
+  projectId?: string,
+) {
+  return automations.filter((automation) => {
+    if (automation.status === "archived") {
+      return false;
+    }
+    if (!projectId) {
+      return true;
+    }
+    return automation.projectId === projectId;
+  });
 }
 
 export function resolveAutomationPageStats(automations: WorkspaceAutomationRecord[]) {
