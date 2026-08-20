@@ -3057,23 +3057,15 @@ export function WorkspaceAutomationEditor({
               )}
             </span>
           </label>
-          {form.createNativeTmsJobEnabled ||
-          form.assignTranslateWithAgentEnabled ||
-          form.contentfulEnabled ||
-          (form.githubEnabled && form.githubMode === "sync") ||
-          form.triggerMode === "source_upload" ? (
-            <>
-              <span className="text-border">{METADATA_SEPARATOR}</span>
-              <HeaderProjectSelector
-                disabled={disabled}
-                form={form}
-                isError={projectsQuery.isError}
-                isLoading={projectsQuery.isLoading}
-                onChange={onChange}
-                projects={projectsQuery.data ?? []}
-              />
-            </>
-          ) : null}
+          <span className="text-border">{METADATA_SEPARATOR}</span>
+          <HeaderProjectSelector
+            disabled={disabled}
+            form={form}
+            isError={projectsQuery.isError}
+            isLoading={projectsQuery.isLoading}
+            onChange={onChange}
+            projects={projectsQuery.data ?? []}
+          />
           {form.triggerMode !== "manual" ? (
             <>
               <span className="text-border">{METADATA_SEPARATOR}</span>
