@@ -117,9 +117,6 @@ export function buildOrchestratorRunSummaryMessage(session: WorkspaceOrchestrato
   const crowdinSummary = asString(session.stepResults.use_crowdin?.summary);
 
   if (githubDigest) {
-    if (crowdinSummary) {
-      return `${githubDigest}\n\n## Crowdin review\n\n${crowdinSummary}`;
-    }
     return githubDigest;
   }
 

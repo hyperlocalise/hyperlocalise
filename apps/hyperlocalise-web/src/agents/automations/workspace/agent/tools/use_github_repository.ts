@@ -16,13 +16,13 @@ import { z } from "zod";
 
 import { defineAgentTool } from "@/agents/_runtime/define-agent-tool";
 import { composeGithubRepoInstructions } from "@/agents/automations/workspace/agent/workspace-template-manifest";
-import { getHyperlocaliseAgentModel } from "@/lib/agent-runtime/loops/hyperlocalise-agent";
 import { WORKFLOW_AGENT_TIMEOUT } from "@/lib/agent-runtime/subagents/constants";
 import {
   filterToolSetByNames,
   repositoryWorkflowToolNames,
 } from "@/lib/agent-runtime/tools/manifest";
 import { buildTools } from "@/lib/agent-runtime/tools/registry";
+import { resolveWorkspaceAutomationModel } from "@/lib/agents/workspace-automation-types";
 import {
   extractGenerateResultTokenUsage,
   withAgentRuntimeUsageMetering,
@@ -39,11 +39,12 @@ import type { WorkspaceOrchestratorSession } from "../context";
 import {
   formatGithubPushRangeLabel,
   formatGithubRepoLookbackLabel,
+  resolveGithubPullRequestNumber,
   resolveGithubPushRange,
   resolveGithubRepoLookbackHours,
 } from "./resolve-github-repo-lookback";
 
-const GITHUB_REPO_AGENT_STEP_LIMIT = 12;
+const GITHUB_REPO_AGENT_STEP_LIMIT = 16;
 
 export function createUseGithubRepositoryTool(session: WorkspaceOrchestratorSession) {
   return defineAgentTool({
@@ -78,6 +79,7 @@ export function createUseGithubRepositoryTool(session: WorkspaceOrchestratorSess
         triggerSource: session.run.triggerSource,
         inputSnapshot: session.run.inputSnapshot,
       });
+      const pullRequestNumber = resolveGithubPullRequestNumber(session.run.inputSnapshot);
       const branch = pushRange?.branch || repositoryRow.defaultBranch?.trim() || "main";
       const revision = pushRange?.commitAfter || branch;
       const lookbackHours = resolveGithubRepoLookbackHours({
@@ -87,11 +89,18 @@ export function createUseGithubRepositoryTool(session: WorkspaceOrchestratorSess
       const lookbackLabel = pushRange
         ? formatGithubPushRangeLabel(pushRange)
         : formatGithubRepoLookbackLabel(lookbackHours);
+      const inspectionLabel = pullRequestNumber
+        ? `pull request #${pullRequestNumber} (${lookbackLabel})`
+        : lookbackLabel;
       const userInstructions =
         session.automation.instructions.trim() ||
         (typeof session.run.inputSnapshot.instructions === "string"
           ? session.run.inputSnapshot.instructions.trim() || undefined
           : undefined);
+      const templateSkillId =
+        typeof session.run.inputSnapshot.templateSkillId === "string"
+          ? session.run.inputSnapshot.templateSkillId
+          : null;
 
       let sandboxId: string | null = null;
 
@@ -105,12 +114,13 @@ export function createUseGithubRepositoryTool(session: WorkspaceOrchestratorSess
 
         const composedInstructions = composeGithubRepoInstructions({
           userOverride: userInstructions,
+          templateSkillId,
           dynamicSections: [
             "This is an automated read-only GitHub repository task.",
             `Repository: ${repositoryRow.fullName}.`,
             `Branch: ${branch}.`,
             pushRange
-              ? `Inspect this push: ${lookbackLabel}.`
+              ? `Inspect this ${pullRequestNumber ? "pull request" : "push"}: ${inspectionLabel}.`
               : `Lookback window: ${lookbackLabel}.`,
             `Sandbox id: ${sandboxId}.`,
           ],
@@ -141,7 +151,7 @@ export function createUseGithubRepositoryTool(session: WorkspaceOrchestratorSess
         ]) as ToolSet;
 
         const agent = new ToolLoopAgent({
-          model: getHyperlocaliseAgentModel(),
+          model: resolveWorkspaceAutomationModel(session.automation.model),
           tools,
           instructions: composedInstructions,
           stopWhen: isStepCount(GITHUB_REPO_AGENT_STEP_LIMIT),
@@ -152,10 +162,12 @@ export function createUseGithubRepositoryTool(session: WorkspaceOrchestratorSess
         const prompt = [
           `Execute the customer task for ${repositoryRow.fullName} on branch ${branch}.`,
           pushRange
-            ? `Review the localisation impact of this push (${lookbackLabel}).`
+            ? `Review the localisation impact of this ${pullRequestNumber ? "pull request" : "push"} (${inspectionLabel}).`
             : `Review changes from the last ${lookbackLabel}.`,
           "Use repository tools to inspect git history and relevant files.",
-          "Return the final digest as plain text for automation delivery.",
+          "Follow the customer's required report sections exactly (including Translation Review Results, priority sections, and per-key entries when specified).",
+          "Review every changed translation key individually; do not output vague overall-risk summaries.",
+          "Return the final digest as Markdown plain text for automation delivery.",
         ].join("\n");
 
         const result = await withAgentRuntimeUsageMetering({

@@ -244,6 +244,7 @@ vi.mock("@/lib/database", () => {
         interactionId: "interactionId",
         createdAt: "createdAt",
       },
+      glossaryTerms: {},
     },
   };
 });
@@ -267,6 +268,7 @@ function createMessage(
   input: {
     text?: string;
     isBot?: boolean;
+    isMention?: boolean;
     raw?: Record<string, unknown>;
     attachments?: Message["attachments"];
   } = {},
@@ -283,6 +285,7 @@ function createMessage(
       isBot: input.isBot ?? false,
       isMe: false,
     },
+    isMention: input.isMention ?? true,
     metadata: { dateSent: new Date(), edited: false },
     formatted: { type: "root", children: [] },
     attachments: input.attachments ?? [],
@@ -304,6 +307,9 @@ function createThread(initialState?: Record<string, unknown>) {
     }),
     subscribe: vi.fn(async () => {
       subscribed = true;
+    }),
+    unsubscribe: vi.fn(async () => {
+      subscribed = false;
     }),
     adapter: {
       getUser: vi.fn(async (userId: string) => ({
@@ -513,7 +519,7 @@ describe("handleNewConversation", () => {
     expect(thread.subscribe).not.toHaveBeenCalled();
   });
 
-  it("creates interaction, persists message, subscribes, and posts AI response", async () => {
+  it("creates interaction, persists message, and posts AI response without subscribing", async () => {
     const { thread, posts, getSubscribed } = createThread();
     const message = createMessage({ text: "Help me translate" });
 
@@ -553,7 +559,9 @@ describe("handleNewConversation", () => {
       text: "Help me translate",
       senderEmail: "alice@example.com",
     });
-    expect(getSubscribed()).toBe(true);
+    expect(getSubscribed()).toBe(false);
+    // eslint-disable-next-line @typescript-eslint/unbound-method
+    expect(thread.subscribe).not.toHaveBeenCalled();
     expect(createConversationToolLoopAgentMock).toHaveBeenCalled();
     expect(agentGenerateMock).toHaveBeenCalled();
     expect(posts).toEqual([SLACK_PROCESSING_ACK_POST, { markdown: "AI response" }]);
@@ -1489,6 +1497,23 @@ describe("handleSubscribedMessage", () => {
     expect(findSlackConnector).not.toHaveBeenCalled();
   });
 
+  it("ignores untagged messages and unsubscribes the thread", async () => {
+    const { thread, posts } = createThread();
+    const message = createMessage({
+      text: "Just chatting in the thread",
+      isMention: false,
+    });
+
+    await handleSubscribedMessage(thread, message);
+
+    expect(findSlackConnector).not.toHaveBeenCalled();
+    expect(lookupMembership).not.toHaveBeenCalled();
+    expect(agentGenerateMock).not.toHaveBeenCalled();
+    expect(posts).toEqual([]);
+    // eslint-disable-next-line @typescript-eslint/unbound-method
+    expect(thread.unsubscribe).toHaveBeenCalledOnce();
+  });
+
   it("creates or resumes interaction and posts AI response", async () => {
     const { thread, posts } = createThread();
     const message = createMessage({
@@ -1530,6 +1555,8 @@ describe("handleSubscribedMessage", () => {
     expect(createConversationToolLoopAgentMock).toHaveBeenCalled();
     expect(agentGenerateMock).toHaveBeenCalled();
     expect(posts).toEqual([SLACK_PROCESSING_ACK_POST, { markdown: "AI response" }]);
+    // eslint-disable-next-line @typescript-eslint/unbound-method
+    expect(thread.unsubscribe).toHaveBeenCalledOnce();
 
     // Agent reply should also be persisted
     expect(addInteractionMessage).toHaveBeenLastCalledWith({

@@ -10,6 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vite-plus/test";
 
 import { mergeWorkspaceTemplateSkills } from "@/agents/automations/workspace/agent/workspace-template-manifest";
@@ -19,6 +20,7 @@ import {
   getWorkspaceAutomationTemplate,
   WORKSPACE_AUTOMATION_TEMPLATES_BASE,
 } from "./workspace-automation-templates";
+import { resolveWorkspaceAutomationModel } from "./workspace-automation-types";
 import {
   createDefaultWorkspaceAutomationFormState,
   createWorkspaceAutomationFormStateFromRecord,
@@ -28,6 +30,8 @@ import {
   selectableAutomationRepositories,
   validateWorkspaceAutomationFormState,
   workspaceAutomationFormCanActivate,
+  workspaceAutomationFormHasChanges,
+  workspaceAutomationFormSupportsOnDemandRun,
 } from "./workspace-automation-view-model";
 
 const mergedTemplates = mergeWorkspaceTemplateSkills(WORKSPACE_AUTOMATION_TEMPLATES_BASE);
@@ -79,7 +83,7 @@ describe("workspace automation view model", () => {
       githubInstallationRepositoryId: "11111111-1111-4111-8111-111111111111",
       validationEnabled: true,
       slackEnabled: true,
-      slackChannelId: "C123",
+      slackChannelId: "C01234567",
       emailEnabled: true,
       emailRecipients: ["ops@example.com"],
     };
@@ -99,12 +103,29 @@ describe("workspace automation view model", () => {
     expect(payload.toolConfig.github).not.toHaveProperty("projectId");
     expect(payload.toolConfig.slack).toEqual({
       enabled: true,
-      channelId: "C123",
+      channelId: "C01234567",
     });
     expect(payload.toolConfig.email).toEqual({
       enabled: true,
       recipients: ["ops@example.com"],
     });
+    expect(payload.model).toBe("openai/gpt-5.6-luna");
+  });
+
+  it("hydrates and persists a selected automation model", () => {
+    const state = createWorkspaceAutomationFormStateFromRecord({
+      ...createAutomationSummary(),
+      model: "anthropic/claude-sonnet-5",
+    });
+
+    expect(state.model).toBe("anthropic/claude-sonnet-5");
+    expect(formStateToWorkspaceAutomationPayload(state).model).toBe("anthropic/claude-sonnet-5");
+  });
+
+  it("falls back to Luna when an automation model is missing or unknown", () => {
+    expect(resolveWorkspaceAutomationModel(undefined)).toBe("openai/gpt-5.6-luna");
+    expect(resolveWorkspaceAutomationModel("not-a-model")).toBe("openai/gpt-5.6-luna");
+    expect(resolveWorkspaceAutomationModel("openai/gpt-5.6-sol")).toBe("openai/gpt-5.6-sol");
   });
 
   it("maps knowledge memories tool into the API payload", () => {
@@ -232,12 +253,14 @@ describe("workspace automation view model", () => {
       webSearchEnabled: false,
     });
     expect(form?.instructions).toContain("You are a localisation-focused code reviewer");
-    expect(form?.instructions).toContain("Review focus:");
+    expect(form?.instructions).toContain(
+      "Code-layer review focus (in addition to translation review):",
+    );
     expect(
       validateWorkspaceAutomationFormState({
         ...form!,
         githubInstallationRepositoryId: "11111111-1111-4111-8111-111111111111",
-        slackChannelId: "C123",
+        slackChannelId: "C01234567",
       }),
     ).toEqual({});
   });
@@ -274,6 +297,7 @@ describe("workspace automation view model", () => {
       name: "Notify on push blockers",
       triggerMode: "github",
       pushBranches: ["main"],
+      githubEvents: ["pull_request"],
       githubEnabled: true,
       githubMode: "agent",
       githubCommentEnabled: true,
@@ -281,7 +305,9 @@ describe("workspace automation view model", () => {
       validationEnabled: false,
     });
     expect(form?.instructions).toContain("You are a localisation-focused code reviewer");
-    expect(form?.instructions).toContain("Review focus:");
+    expect(form?.instructions).toContain(
+      "Code-layer review focus (in addition to translation review):",
+    );
     expect(
       validateWorkspaceAutomationFormState({
         ...form!,
@@ -290,6 +316,11 @@ describe("workspace automation view model", () => {
     ).toEqual({});
     expect(formStateToWorkspaceAutomationPayload(form!).toolConfig.githubComment).toEqual({
       enabled: true,
+    });
+    expect(formStateToWorkspaceAutomationPayload(form!).triggerConfig).toEqual({
+      mode: "github",
+      branches: ["main"],
+      events: ["pull_request"],
     });
   });
 
@@ -308,7 +339,7 @@ describe("workspace automation view model", () => {
 
     expect(validateWorkspaceAutomationFormState(form)).toEqual({});
     expect(formStateToWorkspaceAutomationPayload(form)).toMatchObject({
-      triggerConfig: { mode: "github", branches: ["main"] },
+      triggerConfig: { mode: "github", branches: ["main"], events: ["push"] },
       repositoryTarget: {
         kind: "github",
         githubInstallationRepositoryId: "11111111-1111-4111-8111-111111111111",
@@ -637,5 +668,41 @@ describe("workspace automation view model", () => {
     expect(
       selectableAutomationRepositories(repositories, "disabled").map((repository) => repository.id),
     ).toEqual(["enabled", "disabled"]);
+  });
+
+  it("shows on-demand runs for scheduled and manual triggers only", () => {
+    expect(workspaceAutomationFormSupportsOnDemandRun("manual")).toBe(true);
+    expect(workspaceAutomationFormSupportsOnDemandRun("scheduled")).toBe(true);
+    expect(workspaceAutomationFormSupportsOnDemandRun("github")).toBe(false);
+    expect(workspaceAutomationFormSupportsOnDemandRun("contentful")).toBe(false);
+    expect(workspaceAutomationFormSupportsOnDemandRun("source_upload")).toBe(false);
+    expect(workspaceAutomationFormSupportsOnDemandRun("web_chat")).toBe(false);
+  });
+
+  it("detects unsaved automation form changes", () => {
+    const saved = createWorkspaceAutomationFormStateFromRecord(createAutomationSummary());
+    expect(workspaceAutomationFormHasChanges(saved, saved)).toBe(false);
+    expect(workspaceAutomationFormHasChanges({ ...saved, name: "Renamed automation" }, saved)).toBe(
+      true,
+    );
+    expect(
+      workspaceAutomationFormHasChanges({ ...saved, model: "anthropic/claude-opus-5" }, saved),
+    ).toBe(true);
+  });
+
+  it("does not import the drizzle automation store", () => {
+    const viewModelSource = readFileSync(
+      new URL("./workspace-automation-view-model.ts", import.meta.url),
+      "utf8",
+    );
+    const formSource = readFileSync(
+      new URL(
+        "../../app/[lang]/(authenticated)/org/[organizationSlug]/automations/_components/workspace-automation-form.tsx",
+        import.meta.url,
+      ),
+      "utf8",
+    );
+    expect(viewModelSource).not.toMatch(/from ["']\.\/workspace-automations["']/);
+    expect(formSource).not.toMatch(/from ["']@\/lib\/agents\/workspace-automations["']/);
   });
 });

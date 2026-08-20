@@ -18,6 +18,9 @@ import {
   getTemplateCategoryFromSkill,
   getTemplateExecutorAgent,
   mergeWorkspaceTemplateSkills,
+  composeGithubRepoInstructions,
+  listWorkspaceTemplateSkills,
+  resolveWorkspaceOrchestratorSharedSkills,
 } from "./workspace-template-manifest";
 
 describe("workspace template manifest", () => {
@@ -82,6 +85,8 @@ describe("workspace template manifest", () => {
     });
     expect(template?.description).toContain("localisation-related changes");
     expect(template?.instructions).toContain("You are a daily localisation briefing agent");
+    expect(template?.instructions).toContain("last 24 hours");
+    expect(template?.instructions).toContain("i18n.yml");
   });
 
   it("merges daily code-review and web-research skills onto gallery templates", () => {
@@ -96,6 +101,14 @@ describe("workspace template manifest", () => {
     });
     expect(review?.description).toContain("localisation and translation risk");
     expect(review?.instructions).toContain("You are a localisation-focused code reviewer");
+    expect(review?.instructions).toContain("Translation review");
+    expect(review?.instructions).toContain("Slack delivery");
+    expect(review?.instructions).toContain("last 24 hours");
+    expect(review?.instructions).toContain("i18n.yml");
+    expect(
+      listWorkspaceTemplateSkills().find((skill) => skill.id === "review-code-daily")?.frontmatter
+        .sharedSkills,
+    ).toBe("translation-review");
     expect(research).toMatchObject({
       name: "Daily web research",
       category: "popular",
@@ -121,6 +134,8 @@ describe("workspace template manifest", () => {
     });
     expect(template?.description).toContain("comment on the pull request");
     expect(template?.instructions).toContain("sticky GitHub pull request comment");
+    expect(template?.instructions).toContain("Translation review");
+    expect(template?.instructions).toContain("i18n.yml");
   });
 
   it("keeps untested templates coming soon after skill merge", () => {
@@ -136,5 +151,37 @@ describe("workspace template manifest", () => {
       "daily-web-research",
       "notify-on-push-blockers",
     ]);
+  });
+
+  it("composes github repo instructions with the recent source-change procedure", () => {
+    const instructions = composeGithubRepoInstructions({});
+
+    expect(instructions).toContain("gitHistory");
+    expect(instructions).toContain('mode: "changedFiles"');
+    expect(instructions).toContain("fileDiff");
+    expect(instructions).toContain("`git diff` exit code 1");
+    expect(instructions).toContain("last 24 hours");
+    expect(instructions).toContain("i18n.yml");
+    expect(instructions).not.toContain("Translation Review Results");
+  });
+
+  it("composes translation review for review templates", () => {
+    const instructions = composeGithubRepoInstructions({
+      templateSkillId: "review-code-daily",
+    });
+
+    expect(instructions).toContain("Translation Review Results");
+    expect(instructions).toContain("High Priority (P0)");
+    expect(instructions).toContain("Keys OK");
+    expect(instructions).toContain("> Recommendation:");
+  });
+
+  it("adds Crowdin concordance review to orchestrator skills when Crowdin is planned", () => {
+    expect(
+      resolveWorkspaceOrchestratorSharedSkills({
+        templateSkillId: "review-code-daily",
+        planTools: ["use_github_repository", "use_crowdin", "notify_slack"],
+      }),
+    ).toEqual(["slack-notifications", "translation-review", "crowdin-concordance-review"]);
   });
 });

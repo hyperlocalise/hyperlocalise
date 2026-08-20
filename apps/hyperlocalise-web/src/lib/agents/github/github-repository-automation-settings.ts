@@ -12,6 +12,7 @@
  */
 import { z } from "zod";
 
+import { isValidAutomationTimeZone } from "@/lib/agents/automation-time-zones";
 import { optionalProjectIdSchema } from "@/lib/projects/identity/project-id";
 
 const branchPatternSchema = z
@@ -226,15 +227,6 @@ export function validateGithubRepositoryAutomationSettings(
   return null;
 }
 
-function isValidAutomationTimeZone(timeZone: string) {
-  try {
-    Intl.DateTimeFormat("en-US", { timeZone });
-    return true;
-  } catch {
-    return false;
-  }
-}
-
 type ZonedDateTimeParts = {
   year: number;
   month: number;
@@ -302,18 +294,84 @@ function nextTopOfHourUtc(from: Date): Date {
   return next;
 }
 
-function nextDailyRunUtc(from: Date, hourUtc: number): Date {
-  const next = new Date(from);
-  next.setUTCHours(hourUtc, 0, 0, 0);
-
-  if (next.getTime() <= from.getTime()) {
-    next.setUTCDate(next.getUTCDate() + 1);
-  }
-
-  return next;
+function isExactZonedWallHour(
+  parts: ZonedDateTimeParts,
+  year: number,
+  month: number,
+  day: number,
+  hour: number,
+) {
+  return (
+    parts.year === year &&
+    parts.month === month &&
+    parts.day === day &&
+    parts.hour === hour &&
+    parts.minute === 0 &&
+    parts.second === 0
+  );
 }
 
-function nextWeeklyRunUtc(from: Date, timeZone: string, hourUtc: number, dayOfWeek: number): Date {
+function approximateZonedWallTimeToUtc(
+  year: number,
+  month: number,
+  day: number,
+  hour: number,
+  timeZone: string,
+): Date {
+  const desiredAsUtcMs = Date.UTC(year, month - 1, day, hour, 0, 0, 0);
+
+  const shift = (instantMs: number) => {
+    const parts = getZonedDateTimeParts(new Date(instantMs), timeZone);
+    const mappedAsUtcMs = Date.UTC(
+      parts.year,
+      parts.month - 1,
+      parts.day,
+      parts.hour,
+      parts.minute,
+      parts.second,
+    );
+    return instantMs + (desiredAsUtcMs - mappedAsUtcMs);
+  };
+
+  return new Date(shift(shift(desiredAsUtcMs)));
+}
+
+function zonedWallTimeToUtc(
+  year: number,
+  month: number,
+  day: number,
+  hour: number,
+  timeZone: string,
+): Date {
+  const candidate = approximateZonedWallTimeToUtc(year, month, day, hour, timeZone);
+  if (isExactZonedWallHour(getZonedDateTimeParts(candidate, timeZone), year, month, day, hour)) {
+    return candidate;
+  }
+
+  for (let nextHour = hour + 1; nextHour < 24; nextHour++) {
+    const later = approximateZonedWallTimeToUtc(year, month, day, nextHour, timeZone);
+    if (isExactZonedWallHour(getZonedDateTimeParts(later, timeZone), year, month, day, nextHour)) {
+      return later;
+    }
+  }
+
+  const nextDay = addDaysToLocalDate(year, month, day, 1);
+  return zonedWallTimeToUtc(nextDay.year, nextDay.month, nextDay.day, 0, timeZone);
+}
+
+function nextDailyRun(from: Date, hour: number, timeZone: string): Date {
+  const zoned = getZonedDateTimeParts(from, timeZone);
+  let candidate = zonedWallTimeToUtc(zoned.year, zoned.month, zoned.day, hour, timeZone);
+
+  if (candidate.getTime() <= from.getTime()) {
+    const nextDay = addDaysToLocalDate(zoned.year, zoned.month, zoned.day, 1);
+    candidate = zonedWallTimeToUtc(nextDay.year, nextDay.month, nextDay.day, hour, timeZone);
+  }
+
+  return candidate;
+}
+
+function nextWeeklyRun(from: Date, timeZone: string, hour: number, dayOfWeek: number): Date {
   const zoned = getZonedDateTimeParts(from, timeZone);
   let { year, month, day } = zoned;
 
@@ -322,11 +380,11 @@ function nextWeeklyRunUtc(from: Date, timeZone: string, hourUtc: number, dayOfWe
     ({ year, month, day } = addDaysToLocalDate(year, month, day, daysUntil));
   }
 
-  let candidate = new Date(Date.UTC(year, month - 1, day, hourUtc, 0, 0));
+  let candidate = zonedWallTimeToUtc(year, month, day, hour, timeZone);
 
   if (candidate.getTime() <= from.getTime()) {
     ({ year, month, day } = addDaysToLocalDate(year, month, day, 7));
-    candidate = new Date(Date.UTC(year, month - 1, day, hourUtc, 0, 0));
+    candidate = zonedWallTimeToUtc(year, month, day, hour, timeZone);
   }
 
   return candidate;
@@ -340,12 +398,13 @@ export function computeNextScheduledRunAt(
     return nextTopOfHourUtc(from);
   }
 
-  const hourUtc = trigger.hourUtc;
+  const timeZone = isValidAutomationTimeZone(trigger.timezone) ? trigger.timezone : "UTC";
+  const hour = trigger.hourUtc;
   if (trigger.cadence === "daily") {
-    return nextDailyRunUtc(from, hourUtc);
+    return nextDailyRun(from, hour, timeZone);
   }
 
-  return nextWeeklyRunUtc(from, trigger.timezone, hourUtc, trigger.dayOfWeek ?? 1);
+  return nextWeeklyRun(from, timeZone, hour, trigger.dayOfWeek ?? 1);
 }
 
 export function resolveNextRunAtForSettings(

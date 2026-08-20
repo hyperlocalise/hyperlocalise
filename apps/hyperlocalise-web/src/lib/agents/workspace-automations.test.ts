@@ -33,6 +33,7 @@ import {
   getWorkspaceAutomationById,
   hoistLegacyWorkspaceAutomationProjectId,
   listDueContentfulWorkspaceAutomations,
+  listDueWorkspaceAutomations,
   listWorkspaceAutomations,
   listWorkspaceAutomationRuns,
   pauseWorkspaceAutomation,
@@ -315,6 +316,7 @@ describe("workspace automations", () => {
       authorName: "Ada Lovelace",
       status: "active",
       name: "Refresh repository translations",
+      model: "openai/gpt-5.6-luna",
       triggerConfig: { mode: "manual" },
       repositoryTarget: { kind: "none" },
       toolConfig: {},
@@ -408,6 +410,40 @@ describe("workspace automations", () => {
     expect(automation.triggerConfig).toEqual({ mode: "github", branches: ["main"] });
     expect(automation.toolConfig.github).toMatchObject({ enabled: true, mode: "agent" });
     expect(automation.toolConfig.githubComment).toEqual({ enabled: true });
+  });
+
+  it("creates GitHub agent automations with push and pull request events", async () => {
+    const scope = await seedWorkspaceAutomationScope();
+
+    const automation = expectOk(
+      await createWorkspaceAutomation({
+        organizationId: scope.organizationId,
+        authorUserId: scope.userId,
+        name: "Notify on push blockers",
+        instructions: "Review localisation risk on this pull request.",
+        triggerConfig: { mode: "github", branches: ["main"], events: ["push", "pull_request"] },
+        repositoryTarget: {
+          kind: "github",
+          githubInstallationRepositoryId: scope.githubInstallationRepositoryId,
+        },
+        toolConfig: {
+          github: {
+            enabled: true,
+            mode: "agent",
+            pushSource: false,
+            pullTranslations: false,
+            validation: false,
+          },
+          githubComment: { enabled: true },
+        },
+      }),
+    );
+
+    expect(automation.triggerConfig).toEqual({
+      mode: "github",
+      branches: ["main"],
+      events: ["push", "pull_request"],
+    });
   });
 
   it("rejects scheduled automations without a GitHub or Contentful workflow", async () => {
@@ -715,6 +751,32 @@ describe("workspace automations", () => {
     expect(paused?.status).toBe("paused");
     expect(paused?.configVersion).toBe(2);
     expect(paused?.nextRunAt).toBeNull();
+  });
+
+  it("persists the selected language model without versioning config", async () => {
+    const scope = await seedWorkspaceAutomationScope();
+    const automation = expectOk(
+      await createWorkspaceAutomation({
+        organizationId: scope.organizationId,
+        authorUserId: scope.userId,
+        name: "Model selection",
+        instructions: "Use a stronger model.",
+        model: "anthropic/claude-opus-5",
+      }),
+    );
+
+    expect(automation.model).toBe("anthropic/claude-opus-5");
+
+    const updated = expectOk(
+      await updateWorkspaceAutomation({
+        automationId: automation.id,
+        organizationId: scope.organizationId,
+        model: "openai/gpt-5.6-sol",
+      }),
+    );
+
+    expect(updated?.model).toBe("openai/gpt-5.6-sol");
+    expect(updated?.configVersion).toBe(1);
   });
 
   it("does not pause archived automations", async () => {
@@ -1351,6 +1413,78 @@ describe("workspace automations", () => {
       }),
     );
     expect(created.toolConfig.crowdin?.enabled).toBe(true);
+    expect(created.nextRunAt).not.toBeNull();
+  });
+
+  it("computes nextRunAt for GitHub agent schedules and lists due automations without a repository join", async () => {
+    const scope = await seedWorkspaceAutomationScope();
+    const dueAt = new Date("2026-06-01T01:00:00.000Z");
+
+    const githubAgent = expectOk(
+      await createWorkspaceAutomation({
+        organizationId: scope.organizationId,
+        authorUserId: scope.userId,
+        name: "Nightly GitHub agent",
+        instructions: "Review localisation changes.",
+        repositoryTarget: {
+          kind: "github",
+          githubInstallationRepositoryId: scope.githubInstallationRepositoryId,
+        },
+        triggerConfig: {
+          mode: "scheduled",
+          schedule: {
+            cadence: "daily",
+            hourUtc: 1,
+            timezone: "UTC",
+          },
+        },
+        toolConfig: {
+          github: {
+            enabled: true,
+            mode: "agent",
+            pushSource: false,
+            pullTranslations: false,
+            validation: false,
+          },
+        },
+      }),
+    );
+    expect(githubAgent.nextRunAt).not.toBeNull();
+
+    const webSearch = expectOk(
+      await createWorkspaceAutomation({
+        organizationId: scope.organizationId,
+        authorUserId: scope.userId,
+        name: "Nightly web search",
+        instructions: "Search the live web.",
+        triggerConfig: {
+          mode: "scheduled",
+          schedule: {
+            cadence: "daily",
+            hourUtc: 1,
+            timezone: "UTC",
+          },
+        },
+        toolConfig: {
+          webSearch: { enabled: true, provider: "auto" },
+        },
+        nextRunAt: dueAt,
+      }),
+    );
+
+    await db
+      .update(schema.workspaceAutomations)
+      .set({ nextRunAt: dueAt })
+      .where(eq(schema.workspaceAutomations.id, githubAgent.id));
+
+    const due = await listDueWorkspaceAutomations({
+      now: new Date("2026-06-01T01:05:00.000Z"),
+      organizationId: scope.organizationId,
+    });
+
+    expect(due.map((automation) => automation.id).sort()).toEqual(
+      [githubAgent.id, webSearch.id].sort(),
+    );
   });
 
   it("hoists legacy nested project IDs from tool config", () => {

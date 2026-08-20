@@ -68,7 +68,6 @@ describe("glossaryRoutes", () => {
           name: "Marketing Glossary",
           description: "Marketing terminology",
           sourceLocale: "en",
-          targetLocale: "es",
         },
       },
       { headers },
@@ -152,6 +151,97 @@ describe("glossaryRoutes", () => {
       ]),
     );
     expect(importBody.glossaryTerms).toHaveLength(2);
+  });
+
+  it("creates a concept with additional terms atomically", async () => {
+    const identity = fixture.createWorkosIdentityWithRole("admin");
+    const headers = await fixture.authHeadersFor(identity);
+    const organizationSlug = identity.organization.slug ?? "missing-slug";
+    const glossaryResponse = await fixture.createGlossaryViaApi(identity, undefined, headers);
+    const glossaryId = ((await glossaryResponse.json()) as { glossary: { id: string } }).glossary
+      .id;
+
+    const response = await client.api.orgs[":organizationSlug"].glossaries[
+      ":glossaryId"
+    ].concepts.$post(
+      {
+        param: { organizationSlug, glossaryId },
+        json: {
+          primaryTerm: "Checkout",
+          subject: "Commerce",
+          translatable: true,
+          terms: [
+            {
+              locale: "vi-VN",
+              term: "Thanh toán",
+              status: "draft",
+              caseSensitive: false,
+              forbidden: false,
+            },
+            {
+              locale: "en-US",
+              term: "Check-out",
+              status: "draft",
+              caseSensitive: false,
+              forbidden: false,
+            },
+          ],
+        },
+      },
+      { headers },
+    );
+
+    expect(response.status).toBe(201);
+    const body = (await response.json()) as {
+      concept: {
+        primaryTerm: string;
+        terms: Array<{ locale: string; term: string; status: string }>;
+      };
+    };
+    expect(body.concept).toMatchObject({ primaryTerm: "Checkout" });
+    expect(body.concept.terms).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ locale: "en", term: "Checkout", status: "preferred" }),
+        expect.objectContaining({ locale: "vi-VN", term: "Thanh toán", status: "draft" }),
+        expect.objectContaining({ locale: "en-US", term: "Check-out", status: "draft" }),
+      ]),
+    );
+  });
+
+  it("rejects duplicate terms when creating a concept", async () => {
+    const identity = fixture.createWorkosIdentityWithRole("admin");
+    const headers = await fixture.authHeadersFor(identity);
+    const organizationSlug = identity.organization.slug ?? "missing-slug";
+    const glossaryResponse = await fixture.createGlossaryViaApi(identity, undefined, headers);
+    const glossaryId = ((await glossaryResponse.json()) as { glossary: { id: string } }).glossary
+      .id;
+
+    const response = await client.api.orgs[":organizationSlug"].glossaries[
+      ":glossaryId"
+    ].concepts.$post(
+      {
+        param: { organizationSlug, glossaryId },
+        json: {
+          primaryTerm: "Checkout",
+          translatable: true,
+          terms: [
+            {
+              locale: "en",
+              term: "checkout",
+              status: "draft",
+              caseSensitive: false,
+              forbidden: false,
+            },
+          ],
+        },
+      },
+      { headers },
+    );
+
+    expect(response.status).toBe(409);
+    await expect(response.json()).resolves.toMatchObject({
+      error: "duplicate_glossary_concept_term",
+    });
   });
 
   it("rejects term mutations for externally managed glossaries", async () => {

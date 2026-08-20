@@ -57,7 +57,7 @@ import {
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
-  DropdownMenuShortcut,
+  DropdownMenuHint,
   DropdownMenuSub,
   DropdownMenuSubContent,
   DropdownMenuSubTrigger,
@@ -89,19 +89,31 @@ import {
   addBranchPattern,
 } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/integrations/_components/github-repository-automation-view-model";
 import { AUTOMATION_WEEKDAY_MESSAGE_BY_VALUE } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/integrations/_components/github-repository-automation-view-model.messages";
+import { useActiveTmsProvider } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/_hooks/use-active-tms-provider";
+import { useTmsLiveProjects } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/_hooks/use-tms-live-projects";
+import {
+  collectCrowdinProjects,
+  isCrowdinAutomationConnected,
+} from "@/app/[lang]/(authenticated)/org/[organizationSlug]/automations/_components/workspace-automation-crowdin";
 import { SlackChannelSelect } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/automations/_components/slack-channel-select";
+import { AutomationTimeZoneSelect } from "@/components/automation/automation-time-zone-select";
 import { workspaceAutomationFormMessages } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/automations/_components/workspace-automation-form.messages";
 import { getLocaleLabel } from "@/lib/i18n/locales";
+import {
+  WORKSPACE_AUTOMATION_MODELS,
+  type WorkspaceAutomationGithubTriggerEvent,
+  type WorkspaceAutomationModel,
+  type WorkspaceAutomationRunRecord,
+} from "@/lib/agents/workspace-automation-types";
 import type { WorkspaceAutomationFormState } from "@/lib/agents/workspace-automation-view-model";
 import {
   applyWorkspaceAutomationProjectSelection,
   selectableAutomationRepositories,
   workspaceAutomationFormCanActivate,
 } from "@/lib/agents/workspace-automation-view-model";
-import type { WorkspaceAutomationRunRecord } from "@/lib/agents/workspace-automations";
 import { buildWorkspaceAutomationWebChatHref } from "@/lib/agents/workspace-automation-web-chat-url";
-import { parseProviderProjectId } from "@/lib/providers/jobs/tms-provider-resource-id";
 import { cn } from "@/lib/primitives/cn";
+import type { ApiProject } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/projects/_components/project-list";
 
 import { WebChatUrlCopyField } from "./web-chat-url-copy-field";
 import { WorkspaceAutomationKnowledgeFilesPanel } from "./workspace-automation-knowledge-files-panel";
@@ -174,6 +186,14 @@ const COMING_SOON_GOOGLE_TOOLS: readonly ComingSoonAutomationTool[] = [
   { id: "google-trends", name: "Trends" },
 ] as const;
 
+const AUTOMATION_MODEL_MESSAGES = {
+  "openai/gpt-5.6-luna": workspaceAutomationFormMessages.modelGpt56Luna,
+  "openai/gpt-5.6-terra": workspaceAutomationFormMessages.modelGpt56Terra,
+  "openai/gpt-5.6-sol": workspaceAutomationFormMessages.modelGpt56Sol,
+  "anthropic/claude-sonnet-5": workspaceAutomationFormMessages.modelClaudeSonnet5,
+  "anthropic/claude-opus-5": workspaceAutomationFormMessages.modelClaudeOpus5,
+} as const;
+
 function AutomationToolMenuIcon({ icon }: { icon?: SimpleIcon }) {
   if (icon) {
     return <SimpleBrandIcon icon={icon} colored={false} className="size-4" />;
@@ -182,11 +202,15 @@ function AutomationToolMenuIcon({ icon }: { icon?: SimpleIcon }) {
   return <HugeiconsIcon icon={SearchIcon} className="size-4" />;
 }
 
-function isCrowdinLinkedProject(project: ProjectOption) {
-  if (project.externalProviderKind === "crowdin") {
-    return true;
-  }
-  return parseProviderProjectId(project.id)?.providerKind === "crowdin";
+function toCrowdinProjectOption(project: ApiProject): ProjectOption {
+  return {
+    id: project.id,
+    name: project.name,
+    source: project.source,
+    externalProviderKind: project.externalProviderKind,
+    sourceLocale: project.sourceLocale ?? null,
+    targetLocales: project.targetLocales ?? [],
+  };
 }
 
 function defaultCrowdinProjectId(
@@ -208,6 +232,37 @@ function FieldError({ message }: { message?: string }) {
   }
 
   return <p className="text-xs text-destructive">{message}</p>;
+}
+
+function toggleGithubEvent(
+  events: WorkspaceAutomationGithubTriggerEvent[],
+  event: WorkspaceAutomationGithubTriggerEvent,
+  enabled: boolean,
+): WorkspaceAutomationGithubTriggerEvent[] {
+  if (enabled) {
+    return events.includes(event) ? events : [...events, event];
+  }
+
+  return events.filter((value) => value !== event);
+}
+
+function GithubEventSwitch({
+  checked,
+  disabled,
+  label,
+  onCheckedChange,
+}: {
+  checked: boolean;
+  disabled?: boolean;
+  label: ReactNode;
+  onCheckedChange: (checked: boolean) => void;
+}) {
+  return (
+    <label className="flex items-center gap-2 text-xs text-foreground">
+      <Switch size="sm" checked={checked} disabled={disabled} onCheckedChange={onCheckedChange} />
+      <span>{label}</span>
+    </label>
+  );
 }
 
 function EditorSection({ title, children }: { title: string; children: ReactNode }) {
@@ -340,7 +395,15 @@ function triggerSummary(
     const branchLabel =
       form.pushBranches.join(", ") ||
       intl.formatMessage(workspaceAutomationFormMessages.branchesRequired);
-    return intl.formatMessage(workspaceAutomationFormMessages.githubPushSummary, {
+    const listensToPush = form.githubEvents.includes("push");
+    const listensToPullRequest = form.githubEvents.includes("pull_request");
+    const summaryMessage =
+      listensToPush && listensToPullRequest
+        ? workspaceAutomationFormMessages.githubPushAndPullRequestSummary
+        : listensToPullRequest
+          ? workspaceAutomationFormMessages.githubPullRequestSummary
+          : workspaceAutomationFormMessages.githubPushSummary;
+    return intl.formatMessage(summaryMessage, {
       repository: repositoryLabel,
       branches: branchLabel,
     });
@@ -578,9 +641,9 @@ function HeaderProjectSelector({
               <HugeiconsIcon icon={FolderLibraryIcon} strokeWidth={1.8} className="size-4" />
               {project.name}
               {activeProjectId === project.id ? (
-                <DropdownMenuShortcut>
+                <DropdownMenuHint>
                   <FormattedMessage {...workspaceAutomationFormMessages.selectedShortcut} />
-                </DropdownMenuShortcut>
+                </DropdownMenuHint>
               ) : null}
             </DropdownMenuItem>
           ))}
@@ -669,9 +732,9 @@ function BranchPatternSelector({
                   onClick={() => onChange(branches.filter((value) => value !== branch))}
                 >
                   <span className="min-w-0 flex-1 truncate">{branch}</span>
-                  <DropdownMenuShortcut>
+                  <DropdownMenuHint>
                     <FormattedMessage {...workspaceAutomationFormMessages.removeShortcut} />
-                  </DropdownMenuShortcut>
+                  </DropdownMenuHint>
                 </DropdownMenuItem>
               ))
             )}
@@ -764,9 +827,9 @@ function AddTriggerMenu({
               <HugeiconsIcon icon={Clock01Icon} className="size-4" />
               <FormattedMessage {...workspaceAutomationFormMessages.manualRun} />
               {form.triggerMode === "manual" ? (
-                <DropdownMenuShortcut>
+                <DropdownMenuHint>
                   <FormattedMessage {...workspaceAutomationFormMessages.addedShortcut} />
-                </DropdownMenuShortcut>
+                </DropdownMenuHint>
               ) : null}
             </DropdownMenuItem>
             <DropdownMenuItem
@@ -776,9 +839,9 @@ function AddTriggerMenu({
               <HugeiconsIcon icon={Clock01Icon} className="size-4" />
               <FormattedMessage {...workspaceAutomationFormMessages.scheduled} />
               {form.triggerMode === "scheduled" ? (
-                <DropdownMenuShortcut>
+                <DropdownMenuHint>
                   <FormattedMessage {...workspaceAutomationFormMessages.addedShortcut} />
-                </DropdownMenuShortcut>
+                </DropdownMenuHint>
               ) : null}
             </DropdownMenuItem>
             <DropdownMenuItem
@@ -794,6 +857,7 @@ function AddTriggerMenu({
                   ...form,
                   triggerMode: "github",
                   githubEnabled: true,
+                  githubEvents: form.githubEvents.length > 0 ? form.githubEvents : ["push"],
                   repositoryTargetKind: "github",
                   githubInstallationRepositoryId: defaultRepositoryId,
                   validationEnabled:
@@ -808,13 +872,13 @@ function AddTriggerMenu({
               <HugeiconsIcon icon={GitBranchIcon} strokeWidth={1.8} className="size-4" />
               <FormattedMessage {...workspaceAutomationFormMessages.githubPush} />
               {form.triggerMode === "github" ? (
-                <DropdownMenuShortcut>
+                <DropdownMenuHint>
                   <FormattedMessage {...workspaceAutomationFormMessages.addedShortcut} />
-                </DropdownMenuShortcut>
+                </DropdownMenuHint>
               ) : !githubConnected ? (
-                <DropdownMenuShortcut>
+                <DropdownMenuHint>
                   <FormattedMessage {...workspaceAutomationFormMessages.connectFirstShortcut} />
-                </DropdownMenuShortcut>
+                </DropdownMenuHint>
               ) : null}
             </DropdownMenuItem>
             <DropdownMenuItem
@@ -830,13 +894,13 @@ function AddTriggerMenu({
               <HugeiconsIcon icon={SearchIcon} className="size-4" />
               <FormattedMessage {...workspaceAutomationFormMessages.contentfulWebhook} />
               {form.triggerMode === "contentful" ? (
-                <DropdownMenuShortcut>
+                <DropdownMenuHint>
                   <FormattedMessage {...workspaceAutomationFormMessages.addedShortcut} />
-                </DropdownMenuShortcut>
+                </DropdownMenuHint>
               ) : !contentfulConnected ? (
-                <DropdownMenuShortcut>
+                <DropdownMenuHint>
                   <FormattedMessage {...workspaceAutomationFormMessages.connectFirstShortcut} />
-                </DropdownMenuShortcut>
+                </DropdownMenuHint>
               ) : null}
             </DropdownMenuItem>
             <DropdownMenuItem
@@ -854,9 +918,9 @@ function AddTriggerMenu({
               <HugeiconsIcon icon={Upload01Icon} strokeWidth={1.8} className="size-4" />
               <FormattedMessage {...workspaceAutomationFormMessages.sourceUpload} />
               {form.triggerMode === "source_upload" ? (
-                <DropdownMenuShortcut>
+                <DropdownMenuHint>
                   <FormattedMessage {...workspaceAutomationFormMessages.addedShortcut} />
-                </DropdownMenuShortcut>
+                </DropdownMenuHint>
               ) : null}
             </DropdownMenuItem>
             <DropdownMenuItem
@@ -988,17 +1052,18 @@ function TriggerSettings({
                     </Select>
                   </>
                 ) : null}
-                <Input
+                <AutomationTimeZoneSelect
+                  size="sm"
                   aria-label={intl.formatMessage(
                     workspaceAutomationFormMessages.scheduleTimezoneAriaLabel,
                   )}
                   value={form.scheduledTimezone}
                   disabled={disabled}
-                  className="h-8 w-32 rounded-lg px-2 text-sm"
-                  onChange={(event) =>
+                  className="h-8 min-w-52"
+                  onValueChange={(value) =>
                     onChange({
                       ...form,
-                      scheduledTimezone: event.target.value,
+                      scheduledTimezone: value,
                     })
                   }
                 />
@@ -1056,7 +1121,34 @@ function TriggerSettings({
                   onChange={(pushBranches) => onChange({ ...form, pushBranches })}
                 />
               </div>
+              <div className="flex flex-wrap items-center gap-3">
+                <GithubEventSwitch
+                  checked={form.githubEvents.includes("push")}
+                  disabled={disabled}
+                  label={<FormattedMessage {...workspaceAutomationFormMessages.githubEventPush} />}
+                  onCheckedChange={(checked) =>
+                    onChange({
+                      ...form,
+                      githubEvents: toggleGithubEvent(form.githubEvents, "push", checked),
+                    })
+                  }
+                />
+                <GithubEventSwitch
+                  checked={form.githubEvents.includes("pull_request")}
+                  disabled={disabled}
+                  label={
+                    <FormattedMessage {...workspaceAutomationFormMessages.githubEventPullRequest} />
+                  }
+                  onCheckedChange={(checked) =>
+                    onChange({
+                      ...form,
+                      githubEvents: toggleGithubEvent(form.githubEvents, "pull_request", checked),
+                    })
+                  }
+                />
+              </div>
               <FieldError message={errors.githubRepository} />
+              <FieldError message={errors.githubEvents} />
             </div>
           </EditorRow>
         ) : null}
@@ -1181,15 +1273,15 @@ function AddToolMenu({
               <HugeiconsIcon icon={BrainCircuitIcon} strokeWidth={1.8} className="size-4" />
               <FormattedMessage {...workspaceAutomationFormMessages.memories} />
               {form.knowledgeEnabled ? (
-                <DropdownMenuShortcut>
+                <DropdownMenuHint>
                   <FormattedMessage {...workspaceAutomationFormMessages.addedShortcut} />
-                </DropdownMenuShortcut>
+                </DropdownMenuHint>
               ) : !knowledgeAvailable ? (
-                <DropdownMenuShortcut>
+                <DropdownMenuHint>
                   <FormattedMessage
                     {...workspaceAutomationFormMessages.enableKnowledgeFirstShortcut}
                   />
-                </DropdownMenuShortcut>
+                </DropdownMenuHint>
               ) : null}
             </DropdownMenuItem>
             <DropdownMenuItem
@@ -1241,13 +1333,13 @@ function AddToolMenu({
                   <HugeiconsIcon icon={GitBranchIcon} strokeWidth={1.8} className="size-4" />
                   <FormattedMessage {...workspaceAutomationFormMessages.useGithubRepo} />
                   {form.githubEnabled && form.githubMode === "agent" ? (
-                    <DropdownMenuShortcut>
+                    <DropdownMenuHint>
                       <FormattedMessage {...workspaceAutomationFormMessages.addedShortcut} />
-                    </DropdownMenuShortcut>
+                    </DropdownMenuHint>
                   ) : !githubConnected ? (
-                    <DropdownMenuShortcut>
+                    <DropdownMenuHint>
                       <FormattedMessage {...workspaceAutomationFormMessages.connectFirstShortcut} />
-                    </DropdownMenuShortcut>
+                    </DropdownMenuHint>
                   ) : null}
                 </DropdownMenuItem>
                 <DropdownMenuItem
@@ -1274,13 +1366,13 @@ function AddToolMenu({
                   <HugeiconsIcon icon={GitBranchIcon} strokeWidth={1.8} className="size-4" />
                   <FormattedMessage {...workspaceAutomationFormMessages.githubSyncWorkflows} />
                   {form.githubEnabled && form.githubMode === "sync" ? (
-                    <DropdownMenuShortcut>
+                    <DropdownMenuHint>
                       <FormattedMessage {...workspaceAutomationFormMessages.addedShortcut} />
-                    </DropdownMenuShortcut>
+                    </DropdownMenuHint>
                   ) : !githubConnected ? (
-                    <DropdownMenuShortcut>
+                    <DropdownMenuHint>
                       <FormattedMessage {...workspaceAutomationFormMessages.connectFirstShortcut} />
-                    </DropdownMenuShortcut>
+                    </DropdownMenuHint>
                   ) : null}
                 </DropdownMenuItem>
                 <DropdownMenuItem
@@ -1302,13 +1394,13 @@ function AddToolMenu({
                   <HugeiconsIcon icon={Comment01Icon} strokeWidth={1.8} className="size-4" />
                   <FormattedMessage {...workspaceAutomationFormMessages.commentOnPullRequest} />
                   {form.githubCommentEnabled ? (
-                    <DropdownMenuShortcut>
+                    <DropdownMenuHint>
                       <FormattedMessage {...workspaceAutomationFormMessages.addedShortcut} />
-                    </DropdownMenuShortcut>
+                    </DropdownMenuHint>
                   ) : !githubConnected ? (
-                    <DropdownMenuShortcut>
+                    <DropdownMenuHint>
                       <FormattedMessage {...workspaceAutomationFormMessages.connectFirstShortcut} />
-                    </DropdownMenuShortcut>
+                    </DropdownMenuHint>
                   ) : null}
                 </DropdownMenuItem>
               </DropdownMenuSubContent>
@@ -1320,13 +1412,13 @@ function AddToolMenu({
               <HugeiconsIcon icon={SlackIcon} strokeWidth={1.8} className="size-4" />
               <FormattedMessage {...workspaceAutomationFormMessages.sendToSlack} />
               {form.slackEnabled ? (
-                <DropdownMenuShortcut>
+                <DropdownMenuHint>
                   <FormattedMessage {...workspaceAutomationFormMessages.addedShortcut} />
-                </DropdownMenuShortcut>
+                </DropdownMenuHint>
               ) : !slackConnected ? (
-                <DropdownMenuShortcut>
+                <DropdownMenuHint>
                   <FormattedMessage {...workspaceAutomationFormMessages.connectFirstShortcut} />
-                </DropdownMenuShortcut>
+                </DropdownMenuHint>
               ) : null}
             </DropdownMenuItem>
             <DropdownMenuItem
@@ -1336,13 +1428,13 @@ function AddToolMenu({
               <HugeiconsIcon icon={Mail01Icon} className="size-4" />
               <FormattedMessage {...workspaceAutomationFormMessages.sendEmail} />
               {form.emailEnabled ? (
-                <DropdownMenuShortcut>
+                <DropdownMenuHint>
                   <FormattedMessage {...workspaceAutomationFormMessages.addedShortcut} />
-                </DropdownMenuShortcut>
+                </DropdownMenuHint>
               ) : !emailConnected ? (
-                <DropdownMenuShortcut>
+                <DropdownMenuHint>
                   <FormattedMessage {...workspaceAutomationFormMessages.enableFirstShortcut} />
-                </DropdownMenuShortcut>
+                </DropdownMenuHint>
               ) : null}
             </DropdownMenuItem>
             <DropdownMenuItem
@@ -1360,13 +1452,13 @@ function AddToolMenu({
               <HugeiconsIcon icon={SearchIcon} className="size-4" />
               <FormattedMessage {...workspaceAutomationFormMessages.contentfulTranslate} />
               {form.contentfulEnabled ? (
-                <DropdownMenuShortcut>
+                <DropdownMenuHint>
                   <FormattedMessage {...workspaceAutomationFormMessages.addedShortcut} />
-                </DropdownMenuShortcut>
+                </DropdownMenuHint>
               ) : !contentfulConnected ? (
-                <DropdownMenuShortcut>
+                <DropdownMenuHint>
                   <FormattedMessage {...workspaceAutomationFormMessages.connectFirstShortcut} />
-                </DropdownMenuShortcut>
+                </DropdownMenuHint>
               ) : null}
             </DropdownMenuItem>
             <DropdownMenuItem
@@ -1382,13 +1474,13 @@ function AddToolMenu({
               <AutomationToolMenuIcon icon={siCrowdin} />
               <FormattedMessage {...workspaceAutomationFormMessages.crowdin} />
               {form.crowdinEnabled ? (
-                <DropdownMenuShortcut>
+                <DropdownMenuHint>
                   <FormattedMessage {...workspaceAutomationFormMessages.addedShortcut} />
-                </DropdownMenuShortcut>
+                </DropdownMenuHint>
               ) : !crowdinConnected ? (
-                <DropdownMenuShortcut>
+                <DropdownMenuHint>
                   <FormattedMessage {...workspaceAutomationFormMessages.connectFirstShortcut} />
-                </DropdownMenuShortcut>
+                </DropdownMenuHint>
               ) : null}
             </DropdownMenuItem>
             <DropdownMenuSub>
@@ -1414,9 +1506,9 @@ function AddToolMenu({
                   <HugeiconsIcon icon={Upload01Icon} strokeWidth={1.8} className="size-4" />
                   <FormattedMessage {...workspaceAutomationFormMessages.createJob} />
                   {form.createNativeTmsJobEnabled ? (
-                    <DropdownMenuShortcut>
+                    <DropdownMenuHint>
                       <FormattedMessage {...workspaceAutomationFormMessages.addedShortcut} />
-                    </DropdownMenuShortcut>
+                    </DropdownMenuHint>
                   ) : null}
                 </DropdownMenuItem>
                 <DropdownMenuItem
@@ -1437,9 +1529,9 @@ function AddToolMenu({
                   <HugeiconsIcon icon={BrainCircuitIcon} strokeWidth={1.8} className="size-4" />
                   <FormattedMessage {...workspaceAutomationFormMessages.translateWithAgent} />
                   {form.assignTranslateWithAgentEnabled ? (
-                    <DropdownMenuShortcut>
+                    <DropdownMenuHint>
                       <FormattedMessage {...workspaceAutomationFormMessages.addedShortcut} />
-                    </DropdownMenuShortcut>
+                    </DropdownMenuHint>
                   ) : null}
                 </DropdownMenuItem>
               </DropdownMenuSubContent>
@@ -1459,9 +1551,9 @@ function AddToolMenu({
                   <HugeiconsIcon icon={Task01Icon} strokeWidth={1.8} className="size-4" />
                   <FormattedMessage {...workspaceAutomationFormMessages.listIssues} />
                   {form.listIssuesEnabled ? (
-                    <DropdownMenuShortcut>
+                    <DropdownMenuHint>
                       <FormattedMessage {...workspaceAutomationFormMessages.addedShortcut} />
-                    </DropdownMenuShortcut>
+                    </DropdownMenuHint>
                   ) : null}
                 </DropdownMenuItem>
                 <DropdownMenuItem
@@ -1471,9 +1563,9 @@ function AddToolMenu({
                   <HugeiconsIcon icon={Task01Icon} strokeWidth={1.8} className="size-4" />
                   <FormattedMessage {...workspaceAutomationFormMessages.createIssue} />
                   {form.createIssueEnabled ? (
-                    <DropdownMenuShortcut>
+                    <DropdownMenuHint>
                       <FormattedMessage {...workspaceAutomationFormMessages.addedShortcut} />
-                    </DropdownMenuShortcut>
+                    </DropdownMenuHint>
                   ) : null}
                 </DropdownMenuItem>
               </DropdownMenuSubContent>
@@ -1485,13 +1577,13 @@ function AddToolMenu({
               <HugeiconsIcon icon={FolderLibraryIcon} strokeWidth={1.8} className="size-4" />
               <FormattedMessage {...workspaceAutomationFormMessages.mcpServer} />
               {form.mcpEnabled ? (
-                <DropdownMenuShortcut>
+                <DropdownMenuHint>
                   <FormattedMessage {...workspaceAutomationFormMessages.addedShortcut} />
-                </DropdownMenuShortcut>
+                </DropdownMenuHint>
               ) : !mcpConnected ? (
-                <DropdownMenuShortcut>
+                <DropdownMenuHint>
                   <FormattedMessage {...workspaceAutomationFormMessages.connectFirstShortcut} />
-                </DropdownMenuShortcut>
+                </DropdownMenuHint>
               ) : null}
             </DropdownMenuItem>
             <DropdownMenuItem
@@ -1501,13 +1593,13 @@ function AddToolMenu({
               <AutomationToolMenuIcon icon={siSemrush} />
               <FormattedMessage {...workspaceAutomationFormMessages.semrush} />
               {form.semrushEnabled ? (
-                <DropdownMenuShortcut>
+                <DropdownMenuHint>
                   <FormattedMessage {...workspaceAutomationFormMessages.addedShortcut} />
-                </DropdownMenuShortcut>
+                </DropdownMenuHint>
               ) : !semrushConnected ? (
-                <DropdownMenuShortcut>
+                <DropdownMenuHint>
                   <FormattedMessage {...workspaceAutomationFormMessages.connectFirstShortcut} />
-                </DropdownMenuShortcut>
+                </DropdownMenuHint>
               ) : null}
             </DropdownMenuItem>
             <DropdownMenuItem
@@ -1517,13 +1609,13 @@ function AddToolMenu({
               <AutomationToolMenuIcon />
               <FormattedMessage {...workspaceAutomationFormMessages.ahrefs} />
               {form.ahrefsEnabled ? (
-                <DropdownMenuShortcut>
+                <DropdownMenuHint>
                   <FormattedMessage {...workspaceAutomationFormMessages.addedShortcut} />
-                </DropdownMenuShortcut>
+                </DropdownMenuHint>
               ) : !ahrefsConnected ? (
-                <DropdownMenuShortcut>
+                <DropdownMenuHint>
                   <FormattedMessage {...workspaceAutomationFormMessages.connectFirstShortcut} />
-                </DropdownMenuShortcut>
+                </DropdownMenuHint>
               ) : null}
             </DropdownMenuItem>
             <DropdownMenuItem
@@ -1533,9 +1625,9 @@ function AddToolMenu({
               <HugeiconsIcon icon={Globe02Icon} className="size-4" />
               <FormattedMessage {...workspaceAutomationFormMessages.webSearch} />
               {form.webSearchEnabled ? (
-                <DropdownMenuShortcut>
+                <DropdownMenuHint>
                   <FormattedMessage {...workspaceAutomationFormMessages.addedShortcut} />
-                </DropdownMenuShortcut>
+                </DropdownMenuHint>
               ) : null}
             </DropdownMenuItem>
           </DropdownMenuGroup>
@@ -1646,6 +1738,8 @@ function ToolsSettings({
   automationId,
   canUpdateKnowledgeMemory,
   contentfulConnections,
+  crowdinConnected,
+  crowdinLiveProjects,
   disabled,
   emailConnected,
   errors,
@@ -1664,6 +1758,8 @@ function ToolsSettings({
   automationId?: string;
   canUpdateKnowledgeMemory: boolean;
   contentfulConnections: ContentfulConnectionOption[];
+  crowdinConnected: boolean;
+  crowdinLiveProjects: ProjectOption[];
   disabled?: boolean;
   emailConnected: boolean;
   errors: Record<string, string | undefined>;
@@ -1692,8 +1788,7 @@ function ToolsSettings({
     (connection) => connection.enabled && connection.validationStatus === "valid",
   );
   const ahrefsConnected = enabledAhrefsConnections.length > 0;
-  const crowdinProjects = projects.filter(isCrowdinLinkedProject);
-  const crowdinConnected = crowdinProjects.length > 0;
+  const crowdinProjects = collectCrowdinProjects(projects, crowdinLiveProjects);
   const contentfulTargetLocalesFieldId = "contentful-target-locales";
   const selectedProject = projects.find((project) => project.id === form.projectId);
   const contentfulAvailableTargetLocales = selectedProject?.targetLocales ?? [];
@@ -2226,11 +2321,31 @@ function ToolsSettings({
         {form.crowdinEnabled ? (
           <EditorRow
             icon={<AutomationToolMenuIcon icon={siCrowdin} />}
-            title={<FormattedMessage {...workspaceAutomationFormMessages.crowdin} />}
+            title={
+              <>
+                <span>
+                  <FormattedMessage {...workspaceAutomationFormMessages.crowdin} />
+                </span>
+                {!crowdinConnected ? (
+                  <Badge variant="secondary">
+                    <FormattedMessage {...workspaceAutomationFormMessages.connectFirstBadge} />
+                  </Badge>
+                ) : null}
+              </>
+            }
             description={
               crowdinConnected
                 ? intl.formatMessage(workspaceAutomationFormMessages.crowdinDescription)
-                : intl.formatMessage(workspaceAutomationFormMessages.crowdinDisconnectedDescription)
+                : intl.formatMessage(
+                    workspaceAutomationFormMessages.crowdinDisconnectedDescription,
+                    {
+                      link: (chunks) => (
+                        <Link href={`/org/${organizationSlug}/integrations`} className="underline">
+                          {chunks}
+                        </Link>
+                      ),
+                    },
+                  )
             }
             action={
               <DeleteToolButton
@@ -2886,6 +3001,11 @@ export function WorkspaceAutomationEditor({
   });
 
   const githubConnected = Boolean(githubInstallationQuery.data);
+  const tmsProviderQuery = useActiveTmsProvider(organizationSlug);
+  const crowdinConnected = isCrowdinAutomationConnected(tmsProviderQuery.data?.providerKind);
+  const tmsLiveProjectsQuery = useTmsLiveProjects(organizationSlug, {
+    enabled: crowdinConnected,
+  });
 
   const repositoriesQuery = useQuery({
     queryKey: ["github-installation-repositories", organizationSlug],
@@ -3005,6 +3125,7 @@ export function WorkspaceAutomationEditor({
   const mcpServerConnections = mcpServerConnectionsQuery.data ?? [];
   const semrushConnections = semrushConnectionsQuery.data ?? [];
   const ahrefsConnections = ahrefsConnectionsQuery.data ?? [];
+  const crowdinLiveProjects = (tmsLiveProjectsQuery.data ?? []).map(toCrowdinProjectOption);
   const hasHistory = mode === "detail";
 
   return (
@@ -3116,6 +3237,46 @@ export function WorkspaceAutomationEditor({
             repositories={repositories}
           />
 
+          <EditorSection title={intl.formatMessage(workspaceAutomationFormMessages.modelSection)}>
+            <EditorPanel>
+              <EditorRow
+                icon={<HugeiconsIcon icon={BrainCircuitIcon} className="size-4" />}
+                title={<FormattedMessage {...workspaceAutomationFormMessages.modelLabel} />}
+                description={
+                  <FormattedMessage {...workspaceAutomationFormMessages.modelDescription} />
+                }
+              >
+                <Select
+                  value={form.model}
+                  onValueChange={(value) => {
+                    if (!value) {
+                      return;
+                    }
+                    onChange({
+                      ...form,
+                      model: value as WorkspaceAutomationModel,
+                    });
+                  }}
+                  disabled={disabled}
+                >
+                  <SelectTrigger
+                    aria-label={intl.formatMessage(workspaceAutomationFormMessages.modelLabel)}
+                    className="h-8 w-full rounded-lg md:min-w-44 md:max-w-xs"
+                  >
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {WORKSPACE_AUTOMATION_MODELS.map((model) => (
+                      <SelectItem key={model} value={model}>
+                        <FormattedMessage {...AUTOMATION_MODEL_MESSAGES[model]} />
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </EditorRow>
+            </EditorPanel>
+          </EditorSection>
+
           <EditorSection
             title={intl.formatMessage(workspaceAutomationFormMessages.agentInstructionsSection)}
           >
@@ -3142,6 +3303,8 @@ export function WorkspaceAutomationEditor({
             automationId={automationId}
             canUpdateKnowledgeMemory={canUpdateKnowledgeMemory}
             contentfulConnections={contentfulConnections}
+            crowdinConnected={crowdinConnected}
+            crowdinLiveProjects={crowdinLiveProjects}
             disabled={disabled}
             emailConnected={emailConnected}
             errors={errors}

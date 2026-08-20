@@ -17,11 +17,11 @@ import {
   createWorkspaceAutomationFormStateFromTemplate,
 } from "@/lib/agents/workspace-automation-view-model";
 import { getWorkspaceAutomationTemplate } from "@/lib/agents/workspace-automation-templates";
-import type { WorkspaceAutomationRunRecord } from "@/lib/agents/workspace-automations";
+import type { WorkspaceAutomationRunRecord } from "@/lib/agents/workspace-automation-types";
 
 import { createAutomationSummary } from "./automations.fixture";
 
-export const automationEditorProjectsFixture = [
+export const automationEditorNativeProjectsFixture = [
   {
     id: "project_website",
     name: "Website",
@@ -36,6 +36,9 @@ export const automationEditorProjectsFixture = [
     sourceLocale: "en-US",
     targetLocales: ["es-ES", "pt-BR"],
   },
+];
+
+export const automationEditorCrowdinProjectsFixture = [
   {
     id: "ext:crowdin:42",
     name: "Marketing Crowdin",
@@ -44,6 +47,11 @@ export const automationEditorProjectsFixture = [
     sourceLocale: "en",
     targetLocales: ["de", "fr"],
   },
+];
+
+export const automationEditorProjectsFixture = [
+  ...automationEditorNativeProjectsFixture,
+  ...automationEditorCrowdinProjectsFixture,
 ];
 
 export const automationEditorRepositoriesFixture = [
@@ -153,6 +161,30 @@ export const createContentfulAutomationFormFixture = () => {
 
 export const createDetailAutomationFormFixture = () =>
   createWorkspaceAutomationFormStateFromRecord(createAutomationSummary());
+
+export const createScheduledAutomationFormFixture = () =>
+  createWorkspaceAutomationFormStateFromRecord(
+    createAutomationSummary({
+      name: "Weekly translation sync",
+      triggerConfig: {
+        mode: "scheduled",
+        schedule: {
+          cadence: "weekly",
+          hourUtc: 9,
+          dayOfWeek: 1,
+          timezone: "UTC",
+        },
+      },
+    }),
+  );
+
+export const createManualAutomationFormFixture = () =>
+  createWorkspaceAutomationFormStateFromRecord(
+    createAutomationSummary({
+      name: "Manual release checklist",
+      triggerConfig: { mode: "manual" },
+    }),
+  );
 
 export const createMemoriesAutomationFormFixture = () => ({
   ...createGithubAutomationFormFixture(),

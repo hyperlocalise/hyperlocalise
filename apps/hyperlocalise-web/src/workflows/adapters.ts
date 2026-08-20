@@ -35,6 +35,7 @@ import type {
   TranslationFileImportQueue,
   WorkspaceAutomationExecutionQueue,
   RepositoryAgentTaskQueue,
+  GithubPullRequestReviewQueue,
 } from "@/lib/workflow/types";
 
 const providerAgentTranslationQueueLogger = createLogger("provider-agent-translation-queue");
@@ -96,6 +97,16 @@ export function createRepositoryAgentTaskQueue(): RepositoryAgentTaskQueue {
   return {
     async enqueue(task) {
       const run = await start(repositoryAgentWorkflow, [task]);
+      return { ids: [run.runId] };
+    },
+  };
+}
+
+export function createGithubPullRequestReviewQueue(): GithubPullRequestReviewQueue {
+  return {
+    async enqueue(task) {
+      const { githubPullRequestReviewWorkflow } = await import("./github-pull-request-review");
+      const run = await start(githubPullRequestReviewWorkflow, [task]);
       return { ids: [run.runId] };
     },
   };

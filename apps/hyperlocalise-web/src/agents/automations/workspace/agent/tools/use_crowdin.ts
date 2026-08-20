@@ -14,12 +14,12 @@ import { isStepCount, ToolLoopAgent } from "ai";
 import { z } from "zod";
 
 import { defineAgentTool } from "@/agents/_runtime/define-agent-tool";
-import { getHyperlocaliseAgentModel } from "@/lib/agent-runtime/loops/model";
 import {
   SUBAGENT_NO_QUESTIONS_RULES,
   SUBAGENT_RESPONSE_FORMAT,
   WORKFLOW_AGENT_TIMEOUT,
 } from "@/lib/agent-runtime/subagents/constants";
+import { resolveWorkspaceAutomationModel } from "@/lib/agents/workspace-automation-types";
 import {
   extractGenerateResultTokenUsage,
   withAgentRuntimeUsageMetering,
@@ -60,15 +60,15 @@ export function createUseCrowdinTool(session: WorkspaceOrchestratorSession) {
       });
 
       const agent = new ToolLoopAgent({
-        model: getHyperlocaliseAgentModel(),
+        model: resolveWorkspaceAutomationModel(session.automation.model),
         tools,
         instructions: [
           "You are gathering Crowdin evidence for a workspace automation translation review.",
-          "Use search_concordance for glossary and translation-memory matches.",
+          "Use search_concordance for glossary and translation-memory matches per changed key.",
           "Use get_style_guide for project translation context and Crowdin AI style prompts.",
-          "Use recommend_translation when the objective asks for suggested wording.",
+          "Use recommend_translation only when repo values conflict with glossary/TM or wording is ambiguous.",
           "Stay read-only. Do not write translations back to Crowdin.",
-          "Return a concise factual summary: matches, style constraints, and any recommended translations with reasoning.",
+          "Return one entry per queried key: bullet with `key · locale` and description, then `> Recommendation:` blockquote. No sub-bullets, no standalone Crowdin section.",
           SUBAGENT_NO_QUESTIONS_RULES,
           SUBAGENT_RESPONSE_FORMAT,
         ].join("\n"),

@@ -61,12 +61,15 @@ vi.mock("@/lib/database", () => ({
     },
     glossaryTerms: {
       id: "glossary_terms.id",
+      term: "glossary_terms.term",
       sourceTerm: "glossary_terms.source_term",
       targetTerm: "glossary_terms.target_term",
       description: "glossary_terms.description",
       forbidden: "glossary_terms.forbidden",
       caseSensitive: "glossary_terms.case_sensitive",
       glossaryId: "glossary_terms.glossary_id",
+      conceptId: "glossary_terms.concept_id",
+      locale: "glossary_terms.locale",
       searchVector: "glossary_terms.search_vector",
       reviewStatus: "glossary_terms.review_status",
     },
@@ -235,7 +238,8 @@ describe("createSearchNativeGlossaryTool", () => {
             rank: 0.4,
           },
         ]),
-      );
+      )
+      .mockImplementationOnce(() => createSelectBuilder([]));
 
     sourceContainsTermMock.mockImplementation((_source: string, term: { sourceTerm: string }) => {
       return term.sourceTerm === "Login";

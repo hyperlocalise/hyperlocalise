@@ -43,12 +43,12 @@ import { err, fromThrowableAsync, isErr, ok, type Result } from "@/lib/primitive
 import { assertProviderCredentialAdmin } from "@/lib/providers/credentials/organization-provider-credentials";
 
 import {
-  searchSlackChannels,
+  verifySlackChannel,
   type SlackChannelListItem,
   type SlackChannelSearchError,
 } from "@/lib/agents/slack/search-channels";
 
-import { searchSlackChannelsQuerySchema, updateSlackAgentBodySchema } from "./agent-slack.schema";
+import { updateSlackAgentBodySchema, verifySlackChannelQuerySchema } from "./agent-slack.schema";
 
 type SlackConnectorConfig = { teamId?: string; teamName?: string };
 type SlackInstallation = { botToken: string };
@@ -65,8 +65,8 @@ const validateUpdateSlackAgentBody = validator("json", (value, c) => {
   return parsed.data;
 });
 
-const validateSearchSlackChannelsQuery = validator("query", (value, c) => {
-  const parsed = searchSlackChannelsQuerySchema.safeParse(value);
+const validateVerifySlackChannelQuery = validator("query", (value, c) => {
+  const parsed = verifySlackChannelQuerySchema.safeParse(value);
   if (!parsed.success) {
     return c.json({ error: "invalid_slack_channel_query" as const }, 400);
   }
@@ -115,19 +115,18 @@ async function getSlackInstallation(
   return ok(installationResult.value);
 }
 
-async function loadSlackChannelsForTeam(
+async function verifySlackChannelForTeam(
   teamId: string,
-  input: { query?: string; selectedChannelId?: string; signal?: AbortSignal },
-): Promise<Result<SlackChannelListItem[], SlackChannelListError>> {
+  input: { channelId: string; signal?: AbortSignal },
+): Promise<Result<SlackChannelListItem | null, SlackChannelListError>> {
   const installationResult = await getSlackInstallation(teamId);
   if (isErr(installationResult)) {
     return installationResult;
   }
 
-  return searchSlackChannels({
+  return verifySlackChannel({
     botToken: installationResult.value.botToken,
-    query: input.query,
-    selectedChannelId: input.selectedChannelId,
+    channelId: input.channelId,
     signal: input.signal,
   });
 }
@@ -170,7 +169,7 @@ export function createAgentSlackRoutes() {
         200,
       );
     })
-    .get("/channels", validateSearchSlackChannelsQuery, async (c) => {
+    .get("/channels/verify", validateVerifySlackChannelQuery, async (c) => {
       if (!isIntegrationsReadAllowed(c.var.auth.membership.role)) {
         return forbiddenResponse(c);
       }
@@ -178,33 +177,36 @@ export function createAgentSlackRoutes() {
       const connector = await getSlackConnector(c.var.auth.organization.localOrganizationId);
       const config = (connector?.config ?? {}) as SlackConnectorConfig;
       if (!connector?.enabled || !config.teamId) {
-        return c.json({ channels: [] }, 200);
+        return c.json({ error: "slack_not_connected" as const }, 404);
       }
 
       const query = c.req.valid("query");
-      const channelsResult = await loadSlackChannelsForTeam(config.teamId, {
-        query: query.q,
-        selectedChannelId: query.channelId,
+      const channelResult = await verifySlackChannelForTeam(config.teamId, {
+        channelId: query.channelId,
         signal: c.req.raw.signal,
       });
-      if (isErr(channelsResult)) {
-        if (channelsResult.error.code === "installation_not_found") {
+      if (isErr(channelResult)) {
+        if (channelResult.error.code === "installation_not_found") {
           return c.json({ error: "slack_installation_not_found" as const }, 404);
         }
 
         logger.error(
           {
-            ...slackChannelListErrorLogFields(channelsResult.error),
+            ...slackChannelListErrorLogFields(channelResult.error),
             organizationId: c.var.auth.organization.localOrganizationId,
             teamId: config.teamId,
-            errorCode: channelsResult.error.code,
+            errorCode: channelResult.error.code,
           },
-          "slack channel list failed",
+          "slack channel verify failed",
         );
-        return c.json({ error: "slack_channels_unavailable" as const }, 502);
+        return c.json({ error: "slack_channel_unavailable" as const }, 502);
       }
 
-      return c.json({ channels: channelsResult.value }, 200);
+      if (!channelResult.value) {
+        return c.json({ error: "slack_channel_not_found" as const }, 404);
+      }
+
+      return c.json({ channel: channelResult.value }, 200);
     })
     .get("/install-url", async (c) => {
       try {

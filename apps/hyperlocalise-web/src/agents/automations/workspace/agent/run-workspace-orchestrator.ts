@@ -82,6 +82,18 @@ export function buildWorkspaceOrchestratorUserMessage(input: {
   }
 
   if (input.triggerSource === "github") {
+    const pullRequestNumber =
+      typeof input.inputSnapshot.pullRequestNumber === "number"
+        ? input.inputSnapshot.pullRequestNumber
+        : null;
+    const baseBranch =
+      typeof input.inputSnapshot.baseBranch === "string"
+        ? input.inputSnapshot.baseBranch.trim()
+        : "";
+    const headBranch =
+      typeof input.inputSnapshot.headBranch === "string"
+        ? input.inputSnapshot.headBranch.trim()
+        : "";
     const pushBranch =
       typeof input.inputSnapshot.pushBranch === "string"
         ? input.inputSnapshot.pushBranch.trim()
@@ -94,13 +106,26 @@ export function buildWorkspaceOrchestratorUserMessage(input: {
       typeof input.inputSnapshot.commitAfter === "string"
         ? input.inputSnapshot.commitAfter.trim()
         : "";
-    if (pushBranch) {
+    if (pullRequestNumber) {
+      lines.push(`GitHub pull request: #${pullRequestNumber}.`);
+      if (baseBranch && headBranch) {
+        lines.push(`GitHub pull request branches: ${headBranch} into ${baseBranch}.`);
+      }
+    } else if (pushBranch) {
       lines.push(`GitHub push branch: ${pushBranch}.`);
     }
     if (commitBefore && commitAfter) {
-      lines.push(`GitHub push commits: ${commitBefore}..${commitAfter}.`);
+      lines.push(
+        pullRequestNumber
+          ? `GitHub pull request commits: ${commitBefore}..${commitAfter}.`
+          : `GitHub push commits: ${commitBefore}..${commitAfter}.`,
+      );
     } else if (commitAfter) {
-      lines.push(`GitHub push commit: ${commitAfter}.`);
+      lines.push(
+        pullRequestNumber
+          ? `GitHub pull request commit: ${commitAfter}.`
+          : `GitHub push commit: ${commitAfter}.`,
+      );
     }
   }
 

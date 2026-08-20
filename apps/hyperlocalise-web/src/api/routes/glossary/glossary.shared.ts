@@ -13,6 +13,7 @@
 import { and, eq, sql } from "drizzle-orm";
 
 import {
+  badRequestResponse,
   forbiddenResponse as sharedForbiddenResponse,
   notFoundResponse,
   validationErrorResponse,
@@ -40,6 +41,14 @@ export function externalTmsGlossaryImmutableResponse(c: { json: JsonContext["jso
     c,
     "external_tms_glossary_immutable",
     "This glossary is managed by an external TMS and cannot be edited directly",
+  );
+}
+
+export function nativeGlossaryConceptsOnlyResponse(c: { json: JsonContext["json"] }) {
+  return badRequestResponse(
+    c,
+    "native_glossary_concepts_only",
+    "Native glossary terms must be managed through concepts",
   );
 }
 

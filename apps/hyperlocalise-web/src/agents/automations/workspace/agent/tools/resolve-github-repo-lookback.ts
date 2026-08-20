@@ -35,7 +35,9 @@ export function resolveGithubPushRange(input: {
     return null;
   }
 
-  const branch = readSnapshotString(input.inputSnapshot, "pushBranch");
+  const branch =
+    readSnapshotString(input.inputSnapshot, "headBranch") ??
+    readSnapshotString(input.inputSnapshot, "pushBranch");
   const commitAfter = readSnapshotString(input.inputSnapshot, "commitAfter");
   if (!branch || !commitAfter || isGithubNullOid(commitAfter)) {
     return null;
@@ -55,6 +57,26 @@ export function formatGithubPushRangeLabel(range: GithubPushInspectionRange): st
   }
 
   return `${range.commitBefore}..${range.commitAfter} on ${range.branch}`;
+}
+
+export function resolveGithubWorkflowTriggerBranch(
+  inputSnapshot: Record<string, unknown>,
+): string | undefined {
+  const githubEvent = readSnapshotString(inputSnapshot, "githubEvent");
+  const baseBranch = readSnapshotString(inputSnapshot, "baseBranch");
+  const pushBranch = readSnapshotString(inputSnapshot, "pushBranch");
+  if (githubEvent === "pull_request" && baseBranch) {
+    return baseBranch;
+  }
+
+  return pushBranch ?? undefined;
+}
+
+export function resolveGithubPullRequestNumber(
+  inputSnapshot: Record<string, unknown>,
+): number | null {
+  const value = inputSnapshot.pullRequestNumber;
+  return typeof value === "number" && Number.isInteger(value) && value > 0 ? value : null;
 }
 
 export function resolveGithubRepoLookbackHours(input: {

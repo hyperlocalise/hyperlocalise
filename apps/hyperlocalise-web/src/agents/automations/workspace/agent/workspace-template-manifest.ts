@@ -63,12 +63,54 @@ export function composeContentfulAutomationInstructions(input: {
   });
 }
 
+export function resolveWorkspaceTemplateSharedSkills(templateSkillId: string | null): string[] {
+  if (!templateSkillId) {
+    return [];
+  }
+
+  const raw = getAgentManifest({ automationId: "workspace" }).skills[templateSkillId]?.frontmatter
+    .sharedSkills;
+  if (!raw?.trim()) {
+    return [];
+  }
+
+  return raw
+    .split(",")
+    .map((entry) => entry.trim())
+    .filter(Boolean);
+}
+
+export function resolveWorkspaceOrchestratorSharedSkills(input: {
+  templateSkillId?: string | null;
+  planTools: readonly string[];
+}): string[] {
+  const fromTemplate = resolveWorkspaceTemplateSharedSkills(input.templateSkillId ?? null);
+  const skills: string[] = [
+    ...(input.planTools.includes("notify_slack") ? ["slack-notifications"] : []),
+    ...(input.planTools.includes("notify_github_comment") ? ["github-comment-notifications"] : []),
+    ...fromTemplate,
+  ];
+
+  if (input.planTools.includes("use_crowdin") && fromTemplate.includes("translation-review")) {
+    skills.push("crowdin-concordance-review");
+  }
+
+  return [...new Set(skills)];
+}
+
 export function composeGithubRepoInstructions(input: {
   userOverride?: string | null;
   dynamicSections?: string[];
+  templateSkillId?: string | null;
 }) {
+  const sharedSkills = [
+    "recent-source-changes",
+    ...resolveWorkspaceTemplateSharedSkills(input.templateSkillId ?? null),
+  ];
+
   return composeInstructions({
     automationId: "github-repository",
+    sharedSkills: [...new Set(sharedSkills)],
     skills: ["github-repo-agent"],
     dynamicSections: input.dynamicSections,
     userOverride: input.userOverride,

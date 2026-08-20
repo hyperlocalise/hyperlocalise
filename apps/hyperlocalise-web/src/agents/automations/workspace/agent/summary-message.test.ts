@@ -31,6 +31,7 @@ function createSession(
       triggerConfig: { mode: "source_upload" },
       repositoryTarget: { kind: "none" },
       toolConfig: {},
+      model: "openai/gpt-5.6-luna",
       configVersion: 1,
       nextRunAt: null,
       createdAt: "2026-01-01T00:00:00.000Z",
@@ -145,28 +146,23 @@ describe("buildOrchestratorRunSummaryMessage", () => {
     expect(message).toBe("Daily digest: 3 PRs merged.");
   });
 
-  it("appends Crowdin review under a GitHub digest when both exist", () => {
+  it("prefers the github digest alone when Crowdin also ran", () => {
     const message = buildOrchestratorRunSummaryMessage(
       createSession({
         stepResults: {
           use_github_repository: {
-            digest: "Daily digest: 3 PRs merged.",
+            digest:
+              "## Translation Review Results\n\n**Keys reviewed**: 0\n**Issues found**: 0 high priority / 0 medium priority / 0 low priority\n\n### High Priority (P0)\n\nNone.",
           },
           use_crowdin: {
-            summary: "Glossary prefers Speichern for Save.",
+            summary: "### `btn.save` · `de-DE`\n- **Glossary:** Save → Speichern",
           },
         },
       }),
     );
 
     expect(message).toBe(
-      [
-        "Daily digest: 3 PRs merged.",
-        "",
-        "## Crowdin review",
-        "",
-        "Glossary prefers Speichern for Save.",
-      ].join("\n"),
+      "## Translation Review Results\n\n**Keys reviewed**: 0\n**Issues found**: 0 high priority / 0 medium priority / 0 low priority\n\n### High Priority (P0)\n\nNone.",
     );
   });
 

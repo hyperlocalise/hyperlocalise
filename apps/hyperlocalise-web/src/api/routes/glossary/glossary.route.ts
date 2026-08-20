@@ -10,13 +10,13 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { and, count, desc, eq, ne, sql } from "drizzle-orm";
+import { and, count, desc, eq, isNull, ne, sql } from "drizzle-orm";
 import { Hono } from "hono";
 import { validator } from "hono/validator";
 
 import { buildAccessibleProjectsWhere } from "@/api/auth/team-access";
 import { workosAuthMiddleware, type ApiAuthContext, type AuthVariables } from "@/api/auth/workos";
-import { conflictResponse } from "@/api/errors";
+import { badRequestResponse, conflictResponse } from "@/api/errors";
 import { PRODUCT_USAGE_ANALYTICS_EVENTS } from "@/lib/analytics/events";
 import { serverAnalytics } from "@/lib/analytics/server";
 import { parseCsvRows } from "@/lib/csv/parse-csv-rows";
@@ -25,8 +25,18 @@ import type { Glossary } from "@/lib/database/types";
 import { createGlossaryTermDuplicateTracker } from "@/lib/glossary/glossary-term-dedupe";
 import { toGlossaryRecord } from "@/lib/glossary/glossary-records";
 import { listGlossaryTermsByGlossaryId } from "@/lib/glossary/query-glossary-terms";
+import {
+  queryNativeGlossaryLanguages,
+  queryNativeGlossaryLanguagesForGlossary,
+} from "@/lib/glossary/query-glossary-languages";
+import { mapWithConcurrency } from "@/lib/primitives/map-with-concurrency/map-with-concurrency";
 
-import { getOwnedProject, projectNotFoundResponse } from "../project/project.shared";
+import {
+  getOwnedProjectRecord,
+  getOwnedProject,
+  projectNotFoundResponse,
+} from "../project/project.shared";
+import { createGlossaryConceptRoutes } from "./glossary-concept.route";
 import { buildGlossaryListWhere } from "./glossary-list-filters";
 import {
   attachGlossaryProjectBodySchema,
@@ -59,11 +69,16 @@ import {
 type GlossaryListResult = {
   glossaries: Glossary[];
   total: number;
+  languagesByGlossaryId: Map<string, ReturnType<typeof toGlossaryRecord>["languages"]>;
 };
 
 type GlossaryStore = {
   list(auth: ApiAuthContext, query?: ListGlossaryQuery): Promise<GlossaryListResult>;
-  create(auth: ApiAuthContext, payload: CreateGlossaryBody): Promise<Glossary>;
+  create(
+    auth: ApiAuthContext,
+    payload: CreateGlossaryBody,
+    projectIds?: string[],
+  ): Promise<Glossary>;
   getById(auth: ApiAuthContext, glossaryId: string): Promise<Glossary | null>;
   update(
     auth: ApiAuthContext,
@@ -81,7 +96,7 @@ type GlossaryTermRecord = {
   glossaryName: string;
   sourceTerm: string;
   targetTerm: string;
-  targetLocale: string;
+  targetLocale: string | null;
   description: string;
   partOfSpeech: string;
   forbidden: boolean;
@@ -116,20 +131,39 @@ const glossaryStore: GlossaryStore = {
       db.select({ value: count() }).from(schema.glossaries).where(where),
     ]);
 
-    return { glossaries, total: totalRow[0]?.value ?? 0 };
+    return {
+      glossaries,
+      total: totalRow[0]?.value ?? 0,
+      languagesByGlossaryId: await queryNativeGlossaryLanguages(glossaries),
+    };
   },
-  async create(auth, payload) {
-    const [glossary] = await db
-      .insert(schema.glossaries)
-      .values({
-        organizationId: auth.organization.localOrganizationId,
-        createdByUserId: auth.user.localUserId,
-        name: payload.name,
-        description: payload.description ?? "",
-        sourceLocale: payload.sourceLocale,
-        targetLocale: payload.targetLocale,
-      })
-      .returning();
+  async create(auth, payload, projectIds = []) {
+    const glossary = await db.transaction(async (tx) => {
+      const [created] = await tx
+        .insert(schema.glossaries)
+        .values({
+          organizationId: auth.organization.localOrganizationId,
+          createdByUserId: auth.user.localUserId,
+          name: payload.name,
+          description: payload.description ?? "",
+          sourceLocale: payload.sourceLocale,
+          targetLocale: null,
+        })
+        .returning();
+
+      if (projectIds.length > 0) {
+        await tx.insert(schema.projectGlossaries).values(
+          projectIds.map((projectId) => ({
+            organizationId: auth.organization.localOrganizationId,
+            projectId,
+            glossaryId: created.id,
+            priority: 0,
+          })),
+        );
+      }
+
+      return created;
+    });
 
     serverAnalytics.track(PRODUCT_USAGE_ANALYTICS_EVENTS.glossaryCreated, {
       status: "created",
@@ -433,10 +467,22 @@ const validateListGlossaryQuery = validator("query", (value, _c) => {
 export function createGlossaryRoutes() {
   return new Hono<{ Variables: AuthVariables }>()
     .use("*", workosAuthMiddleware)
+    .route("/:glossaryId/concepts", createGlossaryConceptRoutes())
     .get("/", validateListGlossaryQuery, async (c) => {
       const query = c.req.valid("query");
-      const { glossaries, total } = await glossaryStore.list(c.var.auth, query);
-      return c.json({ glossaries: glossaries.map(toGlossaryRecord), total }, 200);
+      const { glossaries, total, languagesByGlossaryId } = await glossaryStore.list(
+        c.var.auth,
+        query,
+      );
+      return c.json(
+        {
+          glossaries: glossaries.map((glossary) =>
+            toGlossaryRecord(glossary, languagesByGlossaryId.get(glossary.id)),
+          ),
+          total,
+        },
+        200,
+      );
     })
     .post("/", validateCreateGlossaryBody, async (c) => {
       if (!isGlossaryMutationAllowed(c.var.auth.membership.role)) {
@@ -444,7 +490,26 @@ export function createGlossaryRoutes() {
       }
 
       const payload = c.req.valid("json");
-      const glossary = await glossaryStore.create(c.var.auth, payload);
+      const requestedProjectIds =
+        payload.projectIds ?? (payload.projectId ? [payload.projectId] : []);
+      const projects = await mapWithConcurrency(requestedProjectIds, 5, (projectId) =>
+        getOwnedProjectRecord(c.var.auth, projectId),
+      );
+      if (projects.some((project) => !project)) {
+        return projectNotFoundResponse(c);
+      }
+      if (projects.some((project) => project?.sourceLocale !== payload.sourceLocale)) {
+        return badRequestResponse(
+          c,
+          "glossary_source_locale_mismatch",
+          "The selected project uses a different source locale",
+        );
+      }
+      const glossary = await glossaryStore.create(
+        c.var.auth,
+        payload,
+        projects.flatMap((project) => (project ? [project.id] : [])),
+      );
       return c.json({ glossary: toGlossaryRecord(glossary) }, 201);
     })
     .get("/:glossaryId", validateGlossaryParams, async (c) => {
@@ -455,7 +520,17 @@ export function createGlossaryRoutes() {
         return glossaryNotFoundResponse(c);
       }
 
-      return c.json({ glossary: toGlossaryRecord(glossary) }, 200);
+      return c.json(
+        {
+          glossary: toGlossaryRecord(
+            glossary,
+            glossary.source === "native"
+              ? await queryNativeGlossaryLanguagesForGlossary(glossary)
+              : undefined,
+          ),
+        },
+        200,
+      );
     })
     .get("/:glossaryId/terms", validateGlossaryParams, async (c) => {
       const params = c.req.valid("param");
@@ -570,6 +645,7 @@ export function createGlossaryRoutes() {
               and(
                 eq(schema.glossaryTerms.glossaryId, glossary.id),
                 ne(schema.glossaryTerms.id, params.termId),
+                isNull(schema.glossaryTerms.conceptId),
                 duplicateCheck,
               ),
             )
@@ -591,6 +667,7 @@ export function createGlossaryRoutes() {
             and(
               eq(schema.glossaryTerms.id, params.termId),
               eq(schema.glossaryTerms.glossaryId, glossary.id),
+              isNull(schema.glossaryTerms.conceptId),
             ),
           )
           .returning();
@@ -623,6 +700,7 @@ export function createGlossaryRoutes() {
           and(
             eq(schema.glossaryTerms.id, params.termId),
             eq(schema.glossaryTerms.glossaryId, glossary.id),
+            isNull(schema.glossaryTerms.conceptId),
           ),
         )
         .returning({ id: schema.glossaryTerms.id });

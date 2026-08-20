@@ -50,6 +50,10 @@ describe("translation file formats", () => {
     expect(inferSupportedTranslationFileFormat("Localizable.xcstrings")).toBe("xcstrings");
     expect(inferSupportedFileTranslationFileFormat("Localizable.xcstrings")).toBe("xcstrings");
     expect(inferSupportedTranslationFileFormat("copy.csv")).toBe("csv");
+    expect(inferSupportedTranslationFileFormat("captions.srt")).toBe("srt");
+    expect(inferSupportedTranslationFileFormat("captions.vtt")).toBe("vtt");
+    expect(inferSupportedFileTranslationFileFormat("captions.srt")).toBe("srt");
+    expect(inferSupportedFileTranslationFileFormat("captions.vtt")).toBe("vtt");
   });
 
   it("infers CLI-supported image formats separately", () => {
@@ -108,7 +112,18 @@ describe("translation file formats", () => {
   it("builds a source-upload accept list including office and images", () => {
     const accept = getSupportedSourceUploadAccept();
     expect(accept.split(",")).toEqual(
-      expect.arrayContaining([".json", ".png", ".mp4", ".docx", ".xlsx", ".xls", ".pptx", ".webp"]),
+      expect.arrayContaining([
+        ".json",
+        ".srt",
+        ".vtt",
+        ".png",
+        ".mp4",
+        ".docx",
+        ".xlsx",
+        ".xls",
+        ".pptx",
+        ".webp",
+      ]),
     );
   });
 
@@ -130,6 +145,8 @@ describe("translation file formats", () => {
         "arb",
         "xcstrings",
         "strings",
+        "srt",
+        "vtt",
       ]),
     );
     expect(getLocaleScanExtensions()).not.toContain("png");

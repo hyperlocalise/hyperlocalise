@@ -16,6 +16,7 @@ export type MarkdownMentionUserSuggestion = {
   id: string;
   userId: string;
   displayName: string;
+  email: string;
   avatarUrl: string | null;
   isAgent?: boolean;
 };

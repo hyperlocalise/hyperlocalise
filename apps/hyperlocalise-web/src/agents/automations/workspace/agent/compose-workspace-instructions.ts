@@ -14,6 +14,7 @@ import { composeInstructions } from "@/agents/_runtime/compose-instructions";
 
 import type { WorkspaceOrchestratorPlan } from "./plan";
 import type { WorkspaceAutomationTriggerConfig } from "@/lib/agents/workspace-automations";
+import { resolveWorkspaceOrchestratorSharedSkills } from "./workspace-template-manifest";
 
 export function composeWorkspaceAutomationInstructions(input: {
   templateSkillId?: string | null;
@@ -38,7 +39,7 @@ export function composeWorkspaceAutomationInstructions(input: {
       ? "You have a save_memory tool. Use it only when this automation's own instructions say to remember something."
       : null,
     input.plan.tools.includes("use_crowdin")
-      ? "When calling use_crowdin, pass source strings, source and target locales, and surrounding context from earlier steps (especially use_github_repository). Ask it to search concordance, load style guidance, and recommend translations that help the review."
+      ? "After use_crowdin, merge per-key Crowdin evidence into the Translation review report before notify. Do not append a separate Crowdin section."
       : null,
     "Call each planned tool in order. Use customer instructions when invoking workflow tools.",
   ]
@@ -48,12 +49,10 @@ export function composeWorkspaceAutomationInstructions(input: {
   const dynamicSections = [enabledToolsSection];
 
   const skills = input.templateSkillId ? [input.templateSkillId] : [];
-  const sharedSkills = [
-    ...(input.plan.tools.includes("notify_slack") ? (["slack-notifications"] as const) : []),
-    ...(input.plan.tools.includes("notify_github_comment")
-      ? (["github-comment-notifications"] as const)
-      : []),
-  ];
+  const sharedSkills = resolveWorkspaceOrchestratorSharedSkills({
+    templateSkillId: input.templateSkillId,
+    planTools: input.plan.tools,
+  });
 
   return composeInstructions({
     automationId: "workspace",

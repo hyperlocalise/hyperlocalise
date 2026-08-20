@@ -16,7 +16,7 @@ When calling `notify_github_comment`, write `message` in **GitHub-flavored Markd
 ### Default shape (when no customer format)
 
 1. **Headline** — bold line with the automation name and outcome (completed, blocked, no localisation findings).
-2. **Key facts** — short bullets for the facts that matter for this push.
+2. **Key facts** — short bullets for the facts that matter for this review.
 3. **Findings** — bullet blocking localisation defects first, then non-blocking follow-ups. Cite commit SHAs and file paths.
 4. **Next step** — one line on what the author should do. Omit if nothing useful.
 
@@ -34,7 +34,7 @@ When calling `notify_github_comment`, write `message` in **GitHub-flavored Markd
 ```markdown
 **Notify on push blockers** completed
 
-- **Push:** `main` `abc1234..def5678`
+- **Pull request:** `#42` `feature/checkout` into `main` (`def5678`)
 - **Blockers:**
   - Hard-coded copy in `src/checkout.ts` (`def5678`)
 - **Follow-ups:**

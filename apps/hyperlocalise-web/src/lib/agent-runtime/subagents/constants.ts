@@ -37,17 +37,24 @@ export const ORCHESTRATOR_AGENT_TIMEOUT = {
   stepMs: AGENT_STEP_TIMEOUT_MS,
 } as const;
 
+const WORKFLOW_AGENT_TOTAL_TIMEOUT_MS = 10 * 60 * 1000;
+const WORKFLOW_AGENT_STEP_TIMEOUT_MS = 5 * 60 * 1000;
+
 export const WORKFLOW_AGENT_TIMEOUT = {
-  totalMs: 10 * 60 * 1000,
-  stepMs: 90 * 1000,
+  totalMs: WORKFLOW_AGENT_TOTAL_TIMEOUT_MS,
+  // Hung model/tool round aborts before the nested agent burns its whole budget.
+  stepMs: WORKFLOW_AGENT_STEP_TIMEOUT_MS,
 } as const;
 
 /** Maximum tool steps for workspace automation orchestrator (workflows + notifications + summary). */
 export const WORKSPACE_ORCHESTRATOR_STEP_LIMIT = 6;
 
 export const WORKSPACE_ORCHESTRATOR_TIMEOUT = {
-  totalMs: 25 * 60 * 1000,
-  stepMs: 90 * 1000,
+  // Two nested specialist runs (each up to totalMs) plus one parent model step.
+  totalMs: 2 * WORKFLOW_AGENT_TOTAL_TIMEOUT_MS + WORKFLOW_AGENT_STEP_TIMEOUT_MS,
+  // One orchestrator step can be a nested agent. Match that agent's total
+  // budget or the parent aborts it first.
+  stepMs: WORKFLOW_AGENT_TOTAL_TIMEOUT_MS,
 } as const;
 
 /** Poll interval while waiting for a GitHub repository automation job to finish. */

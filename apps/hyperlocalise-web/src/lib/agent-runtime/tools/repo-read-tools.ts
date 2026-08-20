@@ -19,6 +19,14 @@ import { normalizeJsonc } from "@/lib/i18n/parse-jsonc-config";
 import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
 
 import { DEFAULT_MAX_OUTPUT_BYTES, redact, truncate, type RepoToolContext } from "./workspace";
+import {
+  bindGitClone,
+  resolveGitCloneRoot,
+  toGitPath,
+  toWorkspacePath,
+  type GitCloneRoot,
+} from "./workspace/git-clone-root";
+import { isSuccessfulAllowlistedExit } from "./workspace/git-exit";
 import { normalizeWorkspacePath } from "./workspace/path";
 
 export type { RepoToolContext } from "./workspace";
@@ -47,7 +55,7 @@ export type I18NConfigSummary = {
 export function createDetectRepoConfigTool(ctx: RepoToolContext) {
   return tool({
     description:
-      "Detect whether a Hyperlocalise i18n configuration file (i18n.yml or i18n.jsonc) exists in the repository and return a secret-free summary.",
+      "Detect whether a Hyperlocalise i18n.yml configuration file exists in the repository and return a secret-free summary. Falls back to i18n.jsonc only for legacy configs.",
     inputSchema: z.object({
       path: z.string().optional().describe("Directory to check. Defaults to repo root."),
     }),
@@ -222,7 +230,7 @@ type GitHistoryInput = {
 export function createGitHistoryTool(ctx: RepoToolContext) {
   return tool({
     description:
-      "Inspect read-only git history for repository localization source content. Use changedFiles for time-window discovery of changed source files, fileDiff for bounded patches of those files, entryLog for commits touching a key/source string, and blame only for current-line provenance. When paths are omitted, discover source files from every tracked i18n.yml/i18n.jsonc/crowdin/phrase config in the repository (not only the repo root). If discovery is empty, find likely source locale files and call again with explicit paths — do not stop at empty discovery.",
+      "Inspect read-only git history for repository localization source content. Runs git from the clone root (auto-detects a nested clone directory) and strips a repo-name path prefix such as `repo/src/locales/en.json`. Use changedFiles for time-window discovery of changed source files, fileDiff for bounded patches of those files, entryLog for commits touching a key/source string, and blame only for current-line provenance. git diff exit 1 is success and returns the patch. When paths are omitted, discover source files from every tracked i18n.yml/i18n.jsonc/crowdin/phrase config in the repository (not only the repo root). If discovery is empty, find likely source locale files and call again with explicit paths — do not stop at empty discovery.",
     inputSchema: z.object({
       mode: z.enum(GIT_HISTORY_MODES).describe("Git history lookup mode."),
       paths: z
@@ -251,6 +259,8 @@ async function executeGitHistory(ctx: RepoToolContext, input: GitHistoryInput) {
     };
   }
 
+  const clone = await resolveGitCloneRoot(ctx);
+  const bound = bindGitClone(ctx, clone);
   const normalizedInput = { ...input, range: rangeResult.value };
   const normalizedPathsResult = normalizeGitHistoryPaths(input.paths);
   if (isErr(normalizedPathsResult)) {
@@ -260,21 +270,19 @@ async function executeGitHistory(ctx: RepoToolContext, input: GitHistoryInput) {
     };
   }
 
+  // Convert workspace paths once. History helpers must keep these git-relative.
+  const gitPaths = normalizedPathsResult.value?.map((path) => toGitPath(path, clone));
+
   try {
     switch (normalizedInput.mode) {
       case "changedFiles":
-        return await changedFilesHistory(
-          ctx,
-          normalizedInput,
-          normalizedPathsResult.value,
-          maxResults,
-        );
+        return await changedFilesHistory(bound, clone, normalizedInput, gitPaths, maxResults);
       case "fileDiff":
-        return await fileDiffHistory(ctx, normalizedInput, normalizedPathsResult.value, maxResults);
+        return await fileDiffHistory(bound, clone, normalizedInput, gitPaths, maxResults);
       case "entryLog":
-        return await entryLogHistory(ctx, normalizedInput, normalizedPathsResult.value, maxResults);
+        return await entryLogHistory(bound, clone, normalizedInput, gitPaths, maxResults);
       case "blame":
-        return await blameHistory(ctx, normalizedInput, normalizedPathsResult.value, maxResults);
+        return await blameHistory(bound, clone, normalizedInput, gitPaths, maxResults);
     }
   } catch (error) {
     return {
@@ -316,6 +324,7 @@ function normalizeGitRevisionRange(range: string | undefined): Result<string | u
 
 async function changedFilesHistory(
   ctx: RepoToolContext,
+  clone: GitCloneRoot,
   input: GitHistoryInput,
   providedPaths: string[] | undefined,
   maxResults: number,
@@ -335,7 +344,7 @@ async function changedFilesHistory(
       success: true as const,
       mode: "changedFiles" as const,
       files: [],
-      discovery,
+      discovery: remapDiscovery(discovery, clone),
       truncated: false,
       diagnostics: [
         "No source files were resolved from localization config.",
@@ -353,8 +362,8 @@ async function changedFilesHistory(
   if (result.exitCode !== 0) {
     return {
       success: false as const,
-      error: redact(result.stderr || "Failed to read git changed files."),
-      discovery,
+      error: redact(result.stderr || result.stdout || "Failed to read git changed files."),
+      discovery: remapDiscovery(discovery, clone),
     };
   }
 
@@ -369,19 +378,20 @@ async function changedFilesHistory(
     .map((line) => normalizeSourcePath(line))
     .filter((line): line is string => Boolean(line))
     .filter((line) => pathSet.has(line));
-  const files = changedFiles.slice(0, maxResults);
+  const files = changedFiles.slice(0, maxResults).map((path) => toWorkspacePath(path, clone));
 
   return {
     success: true as const,
     mode: "changedFiles" as const,
     files,
-    discovery,
+    discovery: remapDiscovery(discovery, clone),
     truncated: commitLimited || files.length < changedFiles.length,
   };
 }
 
 async function fileDiffHistory(
   ctx: RepoToolContext,
+  clone: GitCloneRoot,
   input: GitHistoryInput,
   paths: string[] | undefined,
   maxResults: number,
@@ -398,15 +408,21 @@ async function fileDiffHistory(
         paths,
       });
   const result = await ctx.bash.exec("git", { args });
-  if (result.exitCode !== 0) {
-    return { success: false as const, error: redact(result.stderr || "Failed to read git diff.") };
+  const diffSucceeded = input.range
+    ? isSuccessfulAllowlistedExit({ bin: "git", args, exitCode: result.exitCode })
+    : result.exitCode === 0;
+  if (!diffSucceeded) {
+    return {
+      success: false as const,
+      error: redact(result.stderr || result.stdout || "Failed to read git diff."),
+    };
   }
 
   const output = truncate(redact(result.stdout), DEFAULT_MAX_OUTPUT_BYTES);
   return {
     success: true as const,
     mode: "fileDiff" as const,
-    paths,
+    paths: paths.map((path) => toWorkspacePath(path, clone)),
     diff: output.text,
     truncated: output.truncated,
   };
@@ -414,6 +430,7 @@ async function fileDiffHistory(
 
 async function entryLogHistory(
   ctx: RepoToolContext,
+  clone: GitCloneRoot,
   input: GitHistoryInput,
   paths: string[] | undefined,
   maxResults: number,
@@ -433,7 +450,7 @@ async function entryLogHistory(
   if (result.exitCode !== 0) {
     return {
       success: false as const,
-      error: redact(result.stderr || "Failed to read git entry log."),
+      error: redact(result.stderr || result.stdout || "Failed to read git entry log."),
     };
   }
 
@@ -442,7 +459,7 @@ async function entryLogHistory(
     success: true as const,
     mode: "entryLog" as const,
     query,
-    paths: paths ?? [],
+    paths: (paths ?? []).map((path) => toWorkspacePath(path, clone)),
     log: output.text,
     truncated: output.truncated,
   };
@@ -450,6 +467,7 @@ async function entryLogHistory(
 
 async function blameHistory(
   ctx: RepoToolContext,
+  clone: GitCloneRoot,
   input: GitHistoryInput,
   paths: string[] | undefined,
   maxResults: number,
@@ -469,7 +487,7 @@ async function blameHistory(
     return {
       success: true as const,
       mode: "blame" as const,
-      path,
+      path: toWorkspacePath(path, clone),
       query,
       entries: [],
       truncated: false,
@@ -485,7 +503,10 @@ async function blameHistory(
 
   const result = await ctx.bash.exec("git", { args });
   if (result.exitCode !== 0) {
-    return { success: false as const, error: redact(result.stderr || "Failed to read git blame.") };
+    return {
+      success: false as const,
+      error: redact(result.stderr || result.stdout || "Failed to read git blame."),
+    };
   }
 
   const allEntries = parseBlamePorcelain(result.stdout);
@@ -493,7 +514,7 @@ async function blameHistory(
   return {
     success: true as const,
     mode: "blame" as const,
-    path,
+    path: toWorkspacePath(path, clone),
     query,
     entries,
     truncated: entries.length < allEntries.length,
@@ -889,6 +910,26 @@ function normalizeSourcePath(path: string): string | null {
   return normalizeWorkspacePath(normalized);
 }
 
+function remapDiscovery(
+  discovery: SourceFileDiscovery | null,
+  clone: GitCloneRoot,
+): SourceFileDiscovery | null {
+  if (!discovery) {
+    return discovery;
+  }
+
+  return {
+    ...discovery,
+    configPath: discovery.configPath ? toWorkspacePath(discovery.configPath, clone) : null,
+    files: discovery.files.map((filePath) => toWorkspacePath(filePath, clone)),
+    configs: discovery.configs.map((config) => ({
+      ...config,
+      configPath: toWorkspacePath(config.configPath, clone),
+      files: config.files.map((filePath) => toWorkspacePath(filePath, clone)),
+    })),
+  };
+}
+
 function joinConfigPath(basePath: string | null, path: string): string {
   if (!basePath) return path;
   return `${basePath.replace(/^\/+|\/+$/g, "")}/${path}`;
@@ -999,11 +1040,43 @@ export type RunHyperlocaliseCliOutput = {
 };
 
 const HL_SUBCOMMANDS = ["check", "status", "extract"] as const;
+const HL_YAML_CONFIG_NAME = "i18n.yml";
+
+function hasConfigFlag(flags?: Record<string, string>): boolean {
+  if (!flags) {
+    return false;
+  }
+  return Object.keys(flags).some((key) => key.replace(/^-+/, "").toLowerCase() === "config");
+}
+
+async function resolveDefaultHlYamlConfigPath(ctx: RepoToolContext): Promise<string | null> {
+  const clone = await resolveGitCloneRoot(ctx);
+  const bound = bindGitClone(ctx, clone);
+  const listed = await bound.bash.exec("git", {
+    args: ["ls-files", "-z", "--", HL_YAML_CONFIG_NAME, `**/${HL_YAML_CONFIG_NAME}`],
+  });
+
+  if (listed.exitCode === 0) {
+    const paths = uniqueNullSeparatedLines(listed.stdout)
+      .map((line) => normalizeSourcePath(line))
+      .filter((line): line is string => Boolean(line))
+      .filter((line) => basenameMatches(line, HL_YAML_CONFIG_NAME))
+      .sort(compareConfigPaths);
+    const first = paths[0];
+    if (first) {
+      return toWorkspacePath(first, clone);
+    }
+  }
+
+  const fallbackPath = toWorkspacePath(HL_YAML_CONFIG_NAME, clone);
+  const exists = await ctx.bash.exec("test", { args: ["-f", fallbackPath] });
+  return exists.exitCode === 0 ? fallbackPath : null;
+}
 
 export function createRunHyperlocaliseCliTool(ctx: RepoToolContext) {
   return tool({
     description:
-      "Run an allowlisted hyperlocalise CLI subcommand for read-only repository checks. Does not expose arbitrary shell execution.",
+      "Run an allowlisted hyperlocalise CLI subcommand for read-only repository checks. When --config is omitted, uses a tracked i18n.yml (including nested paths). Does not expose arbitrary shell execution.",
     inputSchema: z.object({
       subcommand: z.enum(HL_SUBCOMMANDS).describe("The subcommand to run."),
       args: z.array(z.string()).optional().describe("Positional arguments."),
@@ -1011,7 +1084,20 @@ export function createRunHyperlocaliseCliTool(ctx: RepoToolContext) {
       boolFlags: z.array(z.string()).optional().describe("Boolean flags (--flag)."),
     }),
     execute: async ({ subcommand, args, flags, boolFlags }) => {
-      const commandArgsResult = buildHlArgs({ subcommand, args, flags, boolFlags });
+      const resolvedFlags = { ...flags };
+      if (!hasConfigFlag(resolvedFlags)) {
+        const configPath = await resolveDefaultHlYamlConfigPath(ctx);
+        if (configPath) {
+          resolvedFlags.config = configPath;
+        }
+      }
+
+      const commandArgsResult = buildHlArgs({
+        subcommand,
+        args,
+        flags: Object.keys(resolvedFlags).length > 0 ? resolvedFlags : undefined,
+        boolFlags,
+      });
       if (isErr(commandArgsResult)) {
         return {
           success: false,

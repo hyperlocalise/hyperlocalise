@@ -8,6 +8,7 @@ import (
 	"net"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/hyperlocalise/hyperlocalise/internal/i18n/segmentvalidate"
 	"github.com/hyperlocalise/hyperlocalise/internal/i18n/translator"
@@ -206,31 +207,70 @@ func translationRetryDelay(attempt int) time.Duration {
 	return delay
 }
 
+// sanitizePromptContext cleans, normalizes, trims, and truncates prompt context strings.
+// It uses a single-pass string builder over line boundaries to eliminate intermediate slice allocations.
 func sanitizePromptContext(value string, maxLen int) string {
-	clean := strings.ReplaceAll(value, "\r", "\n")
-	lines := strings.Split(clean, "\n")
-	out := make([]string, 0, len(lines))
-	for _, line := range lines {
-		trimmed := strings.TrimSpace(line)
-		if trimmed == "" {
-			continue
-		}
-		out = append(out, trimmed)
-	}
-	if len(out) == 0 {
+	if value == "" {
 		return ""
 	}
-	joined := strings.Join(out, "\n")
-	if maxLen > 0 {
-		runes := []rune(joined)
-		if len(runes) > maxLen {
-			const ellipsis = "…"
-			if maxLen <= len([]rune(ellipsis)) {
-				joined = ellipsis
-			} else {
-				joined = strings.TrimSpace(string(runes[:maxLen-len([]rune(ellipsis))])) + ellipsis
-			}
+
+	if !strings.ContainsAny(value, "\r\n") {
+		trimmed := strings.TrimSpace(value)
+		if trimmed == "" {
+			return ""
+		}
+		if maxLen == 0 || utf8.RuneCountInString(trimmed) <= maxLen {
+			return trimmed
 		}
 	}
+
+	var b strings.Builder
+	b.Grow(len(value))
+	first := true
+	n := len(value)
+	start := 0
+
+	for start < n {
+		end := start
+		for end < n && value[end] != '\r' && value[end] != '\n' {
+			end++
+		}
+		line := strings.TrimSpace(value[start:end])
+		if line != "" {
+			if !first {
+				b.WriteByte('\n')
+			}
+			b.WriteString(line)
+			first = false
+		}
+		if end < n {
+			if value[end] == '\r' && end+1 < n && value[end+1] == '\n' {
+				end++
+			}
+			end++
+		}
+		start = end
+	}
+
+	if b.Len() == 0 {
+		return ""
+	}
+
+	joined := b.String()
+	if maxLen > 0 && utf8.RuneCountInString(joined) > maxLen {
+		if maxLen <= 1 {
+			return "…"
+		}
+		targetRunes := maxLen - 1
+		runeCount := 0
+		byteIdx := 0
+		for byteIdx < len(joined) && runeCount < targetRunes {
+			_, size := utf8.DecodeRuneInString(joined[byteIdx:])
+			byteIdx += size
+			runeCount++
+		}
+		return strings.TrimSpace(joined[:byteIdx]) + "…"
+	}
+
 	return joined
 }

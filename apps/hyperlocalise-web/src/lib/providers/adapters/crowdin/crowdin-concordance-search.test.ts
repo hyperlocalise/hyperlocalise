@@ -199,6 +199,226 @@ describe("crowdinTmsProvider.searchConcordanceForAgent", () => {
       }),
     ).rejects.toMatchObject({ name: "AbortError" });
   });
+
+  it("returns empty matches for blank expressions without calling Crowdin search APIs", async () => {
+    loadProjectCredentialMock.mockResolvedValue({
+      externalProjectId: "42",
+      credential: baseCredential,
+    });
+    fetchMock.mockResolvedValue(new Response(JSON.stringify({ data: [] }), { status: 200 }));
+
+    const result = await crowdinTmsProvider.searchConcordanceForAgent({
+      organizationId: "org-1",
+      actorUserId: "user-1",
+      projectId: "ext:crowdin:42",
+      sourceLocale: "en",
+      targetLocale: "de",
+      expressions: ["  ", "", "\t"],
+    });
+
+    expect(isOk(result)).toBe(true);
+    if (!isOk(result)) {
+      return;
+    }
+    expect(result.value).toEqual({
+      crowdinProjectId: 42,
+      glossaryMatches: [],
+      translationMemoryMatches: [],
+    });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("trims, dedupes, and caps expressions before searching", async () => {
+    loadProjectCredentialMock.mockResolvedValue({
+      externalProjectId: "42",
+      credential: baseCredential,
+    });
+    fetchMock.mockResolvedValue(new Response(JSON.stringify({ data: [] }), { status: 200 }));
+
+    const expressions = Array.from({ length: 25 }, (_, index) => ` term-${index} `);
+    expressions.push("term-0", "  ", "term-1");
+
+    await crowdinTmsProvider.searchConcordanceForAgent({
+      organizationId: "org-1",
+      actorUserId: "user-1",
+      projectId: "ext:crowdin:42",
+      sourceLocale: "en",
+      targetLocale: "de",
+      expressions,
+    });
+
+    const glossaryCall = fetchMock.mock.calls.find(([url]) =>
+      String(url).includes("/glossaries/concordance"),
+    );
+    expect(glossaryCall).toBeDefined();
+    const body = JSON.parse(String(glossaryCall?.[1]?.body ?? "{}")) as {
+      expressions?: string[];
+    };
+    expect(body.expressions).toHaveLength(20);
+    expect(body.expressions?.[0]).toBe("term-0");
+    expect(body.expressions?.[19]).toBe("term-19");
+    expect(new Set(body.expressions).size).toBe(20);
+  });
+
+  it("clamps glossary and translation-memory limits and stops glossary cartesian growth", async () => {
+    loadProjectCredentialMock.mockResolvedValue({
+      externalProjectId: "42",
+      credential: baseCredential,
+    });
+    fetchMock.mockImplementation(async (url) => {
+      const href = String(url);
+      if (href.includes("/glossaries/concordance")) {
+        return new Response(
+          JSON.stringify({
+            data: [
+              {
+                data: {
+                  glossary: { id: 9, name: "Product glossary" },
+                  sourceTerms: [
+                    { id: 1, languageId: "en", text: "Save", status: "preferred" },
+                    { id: 3, languageId: "en", text: "Store", status: "preferred" },
+                  ],
+                  targetTerms: [
+                    { id: 2, languageId: "de", text: "Speichern", status: "preferred" },
+                    { id: 4, languageId: "de", text: "Lagern", status: "preferred" },
+                  ],
+                },
+              },
+            ],
+          }),
+          { status: 200 },
+        );
+      }
+
+      return new Response(
+        JSON.stringify({
+          data: Array.from({ length: 5 }, (_, index) => ({
+            data: {
+              tm: { id: 3, name: "Product TM" },
+              recordId: index + 1,
+              source: `Save ${index}`,
+              target: `Speichern ${index}`,
+              relevant: 90 - index,
+              substituted: `Save ${index}`,
+              updatedAt: "2026-08-01T00:00:00.000Z",
+            },
+          })),
+        }),
+        { status: 200 },
+      );
+    });
+
+    const result = await crowdinTmsProvider.searchConcordanceForAgent({
+      organizationId: "org-1",
+      actorUserId: "user-1",
+      projectId: "ext:crowdin:42",
+      sourceLocale: "en",
+      targetLocale: "de",
+      expressions: ["Save"],
+      glossaryLimit: 0,
+      translationMemoryLimit: 100,
+    });
+
+    expect(isOk(result)).toBe(true);
+    if (!isOk(result)) {
+      return;
+    }
+    // glossaryLimit 0 clamps to 1; TM limit 100 clamps to 50 but only 5 rows exist.
+    expect(result.value.glossaryMatches).toHaveLength(1);
+    expect(result.value.translationMemoryMatches).toHaveLength(5);
+  });
+
+  it("skips glossary rows with wrong locales or empty terms", async () => {
+    loadProjectCredentialMock.mockResolvedValue({
+      externalProjectId: "42",
+      credential: baseCredential,
+    });
+    fetchMock.mockImplementation(async (url) => {
+      const href = String(url);
+      if (href.includes("/glossaries/concordance")) {
+        return new Response(
+          JSON.stringify({
+            data: [
+              {
+                data: {
+                  glossary: { id: 1, name: "Wrong locale" },
+                  sourceTerms: [{ id: 1, languageId: "fr", text: "Save" }],
+                  targetTerms: [{ id: 2, languageId: "de", text: "Speichern" }],
+                },
+              },
+              {
+                data: {
+                  glossary: { id: 2, name: "Blank term" },
+                  sourceTerms: [{ id: 3, languageId: "en", text: "  " }],
+                  targetTerms: [{ id: 4, languageId: "de", text: "Speichern" }],
+                },
+              },
+              {
+                data: {
+                  glossary: { id: 3, name: "Valid" },
+                  sourceTerms: [{ id: 5, languageId: "en", text: " Save " }],
+                  targetTerms: [{ id: 6, languageId: "de", text: " Speichern " }],
+                },
+              },
+            ],
+          }),
+          { status: 200 },
+        );
+      }
+
+      return new Response(JSON.stringify({ data: [] }), { status: 200 });
+    });
+
+    const result = await crowdinTmsProvider.searchConcordanceForAgent({
+      organizationId: "org-1",
+      actorUserId: "user-1",
+      projectId: "ext:crowdin:42",
+      sourceLocale: "en",
+      targetLocale: "de",
+      expressions: ["Save"],
+    });
+
+    expect(isOk(result)).toBe(true);
+    if (!isOk(result)) {
+      return;
+    }
+    expect(result.value.glossaryMatches).toEqual([
+      {
+        glossaryId: 3,
+        glossaryName: "Valid",
+        sourceTerm: "Save",
+        targetTerm: "Speichern",
+        status: null,
+        description: null,
+      },
+    ]);
+  });
+
+  it("maps Crowdin 401 responses to a reconnectable API error", async () => {
+    loadProjectCredentialMock.mockResolvedValue({
+      externalProjectId: "42",
+      credential: baseCredential,
+    });
+    fetchMock.mockResolvedValue(new Response("unauthorized", { status: 401 }));
+
+    const result = await crowdinTmsProvider.searchConcordanceForAgent({
+      organizationId: "org-1",
+      actorUserId: "user-1",
+      projectId: "ext:crowdin:42",
+      sourceLocale: "en",
+      targetLocale: "de",
+      expressions: ["Save"],
+    });
+
+    expect(isErr(result)).toBe(true);
+    if (!isErr(result)) {
+      return;
+    }
+    expect(result.error).toEqual({
+      code: "crowdin_api_error",
+      message: "Crowdin authentication failed. Reconnect Crowdin and try again.",
+    });
+  });
 });
 
 describe("crowdinTmsProvider.loadStyleGuideForAgent", () => {

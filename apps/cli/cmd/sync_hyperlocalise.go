@@ -459,6 +459,10 @@ func inferHyperlocaliseFileFormat(path string) string {
 		return "fluent"
 	case ".properties":
 		return "properties"
+	case ".srt":
+		return "srt"
+	case ".vtt":
+		return "vtt"
 	case ".png":
 		return "png"
 	case ".jpg", ".jpeg":
@@ -762,6 +766,10 @@ func contentTypeForPath(path string) string {
 		return "text/markdown"
 	case ".po", ".strings", ".stringsdict", ".ftl", ".properties":
 		return "text/plain"
+	case ".srt":
+		return "application/x-subrip"
+	case ".vtt":
+		return "text/vtt"
 	case ".xcstrings":
 		return "application/json"
 	default:

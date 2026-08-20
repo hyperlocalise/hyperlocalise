@@ -463,7 +463,7 @@ async function assembleFileTranslationContextStep(input: {
 }) {
   "use step";
 
-  const { and, asc, eq, inArray } = await import("drizzle-orm");
+  const { and, asc, eq, inArray, sql } = await import("drizzle-orm");
   const { db, schema } = await import("@/lib/database");
 
   const [project] = await db
@@ -485,7 +485,7 @@ async function assembleFileTranslationContextStep(input: {
     .select({
       sourceTerm: schema.glossaryTerms.sourceTerm,
       targetTerm: schema.glossaryTerms.targetTerm,
-      targetLocale: schema.glossaries.targetLocale,
+      targetLocale: sql<string>`${schema.glossaries.targetLocale}`,
       description: schema.glossaryTerms.description,
       forbidden: schema.glossaryTerms.forbidden,
       caseSensitive: schema.glossaryTerms.caseSensitive,

@@ -13,12 +13,15 @@
 import { describe, expect, it, vi, beforeEach } from "vite-plus/test";
 
 const listDueWorkspaceAutomations = vi.fn();
+const repairMissingScheduledWorkspaceAutomationNextRuns = vi.fn();
 const dispatchDueContentfulWorkspaceAutomations = vi.fn();
 const dispatchWorkspaceAutomationForScheduleAndAdvance = vi.fn();
 const buildWorkspaceOrchestratorPlan = vi.fn();
 
 vi.mock("./workspace-automations", () => ({
   listDueWorkspaceAutomations: (...args: unknown[]) => listDueWorkspaceAutomations(...args),
+  repairMissingScheduledWorkspaceAutomationNextRuns: (...args: unknown[]) =>
+    repairMissingScheduledWorkspaceAutomationNextRuns(...args),
 }));
 
 vi.mock("./workspace-automation-dispatcher", () => ({
@@ -44,6 +47,8 @@ import { runWorkspaceAutomationScheduler } from "./workspace-automation-schedule
 describe("runWorkspaceAutomationScheduler", () => {
   beforeEach(() => {
     listDueWorkspaceAutomations.mockReset();
+    repairMissingScheduledWorkspaceAutomationNextRuns.mockReset();
+    repairMissingScheduledWorkspaceAutomationNextRuns.mockResolvedValue(0);
     dispatchDueContentfulWorkspaceAutomations.mockReset();
     dispatchWorkspaceAutomationForScheduleAndAdvance.mockReset();
     buildWorkspaceOrchestratorPlan.mockReset();
@@ -91,32 +96,14 @@ describe("runWorkspaceAutomationScheduler", () => {
           validation: false,
         },
       },
+      model: "openai/gpt-5.6-luna",
       configVersion: 1,
       nextRunAt: scheduledRunAt.toISOString(),
       createdAt: scheduledRunAt.toISOString(),
       updatedAt: scheduledRunAt.toISOString(),
     };
 
-    listDueWorkspaceAutomations.mockResolvedValue([
-      {
-        automation,
-        repository: {
-          id: "repo-1",
-          organizationId: "org-1",
-          githubInstallationId: "install-1",
-          githubRepositoryId: "12345",
-          owner: "hyperlocalise",
-          name: "web",
-          fullName: "hyperlocalise/web",
-          private: false,
-          archived: false,
-          defaultBranch: "main",
-          enabled: true,
-          createdAt: scheduledRunAt,
-          updatedAt: scheduledRunAt,
-        },
-      },
-    ]);
+    listDueWorkspaceAutomations.mockResolvedValue([automation]);
 
     dispatchWorkspaceAutomationForScheduleAndAdvance.mockResolvedValue({
       outcome: "enqueued",

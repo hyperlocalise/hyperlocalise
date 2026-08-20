@@ -10,18 +10,34 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { http, HttpResponse } from "msw";
+import { delay, http, HttpResponse } from "msw";
+
+import type { WorkspaceAutomationRecord } from "@/lib/agents/workspace-automation-types";
 
 import {
   automationEditorContentfulConnectionsFixture,
-  automationEditorProjectsFixture,
+  automationEditorCrowdinProjectsFixture,
+  automationEditorNativeProjectsFixture,
   automationEditorRepositoriesFixture,
   automationEditorSlackChannelsFixture,
 } from "./automation-editor.fixture";
 
 export const automationEditorMswHandlers = [
   http.get("/api/orgs/:organizationSlug/projects", () =>
-    HttpResponse.json({ projects: automationEditorProjectsFixture }),
+    HttpResponse.json({ projects: automationEditorNativeProjectsFixture }),
+  ),
+  http.get("/api/orgs/:organizationSlug/tms-provider/connection", () =>
+    HttpResponse.json({
+      connection: {
+        providerKind: "crowdin",
+        displayName: "Crowdin",
+        validationStatus: "valid",
+        validationMessage: null,
+      },
+    }),
+  ),
+  http.get("/api/orgs/:organizationSlug/tms-provider/projects", () =>
+    HttpResponse.json({ projects: automationEditorCrowdinProjectsFixture }),
   ),
   http.get("/api/orgs/:organizationSlug/github-installation", () =>
     HttpResponse.json({
@@ -42,9 +58,17 @@ export const automationEditorMswHandlers = [
       },
     }),
   ),
-  http.get("/api/orgs/:organizationSlug/agent-slack/channels", () =>
-    HttpResponse.json({ channels: automationEditorSlackChannelsFixture }),
-  ),
+  http.get("/api/orgs/:organizationSlug/agent-slack/channels/verify", ({ request }) => {
+    const url = new URL(request.url);
+    const channelId = url.searchParams.get("channelId");
+    const channel = automationEditorSlackChannelsFixture.find(
+      (entry) => entry.id === `slack:${channelId}` || entry.id === channelId,
+    );
+    if (!channel) {
+      return HttpResponse.json({ error: "slack_channel_not_found" }, { status: 404 });
+    }
+    return HttpResponse.json({ channel });
+  }),
   http.get("/api/orgs/:organizationSlug/agent-email", () =>
     HttpResponse.json({
       emailAgent: {
@@ -79,7 +103,13 @@ export const automationEditorMswHandlers = [
 
 export const automationEditorDisconnectedMswHandlers = [
   http.get("/api/orgs/:organizationSlug/projects", () =>
-    HttpResponse.json({ projects: automationEditorProjectsFixture }),
+    HttpResponse.json({ projects: automationEditorNativeProjectsFixture }),
+  ),
+  http.get("/api/orgs/:organizationSlug/tms-provider/connection", () =>
+    HttpResponse.json({ error: "no_active_tms_provider" }, { status: 404 }),
+  ),
+  http.get("/api/orgs/:organizationSlug/tms-provider/projects", () =>
+    HttpResponse.json({ projects: [] }),
   ),
   http.get("/api/orgs/:organizationSlug/github-installation", () =>
     HttpResponse.json({ installation: null }),
@@ -96,8 +126,8 @@ export const automationEditorDisconnectedMswHandlers = [
       },
     }),
   ),
-  http.get("/api/orgs/:organizationSlug/agent-slack/channels", () =>
-    HttpResponse.json({ channels: [] }),
+  http.get("/api/orgs/:organizationSlug/agent-slack/channels/verify", () =>
+    HttpResponse.json({ error: "slack_not_connected" }, { status: 404 }),
   ),
   http.get("/api/orgs/:organizationSlug/agent-email", () =>
     HttpResponse.json({
@@ -111,3 +141,51 @@ export const automationEditorDisconnectedMswHandlers = [
     HttpResponse.json({ contentfulConnections: [] }),
   ),
 ];
+
+export function createAutomationDetailMswHandlers(
+  automation: WorkspaceAutomationRecord,
+  options?: {
+    patchDelay?: number | "infinite";
+    deleteDelay?: number | "infinite";
+  },
+) {
+  return [
+    ...automationEditorMswHandlers,
+    http.get("/api/orgs/:organizationSlug/automations/:automationId", () =>
+      HttpResponse.json({ automation, recentRuns: [] }),
+    ),
+    http.patch("/api/orgs/:organizationSlug/automations/:automationId", async ({ request }) => {
+      if (options?.patchDelay !== undefined) {
+        await delay(options.patchDelay);
+      }
+      const body = (await request.json()) as Record<string, unknown>;
+      return HttpResponse.json({
+        automation: {
+          ...automation,
+          ...body,
+        },
+        recentRuns: [],
+      });
+    }),
+    http.post("/api/orgs/:organizationSlug/automations/:automationId/runs", () =>
+      HttpResponse.json(
+        {
+          automationRun: {
+            id: "run_manual_001",
+            automationId: automation.id,
+            triggerSource: "manual",
+            status: "queued",
+          },
+          dispatch: { outcome: "enqueued", inserted: true },
+        },
+        { status: 202 },
+      ),
+    ),
+    http.delete("/api/orgs/:organizationSlug/automations/:automationId", async () => {
+      if (options?.deleteDelay !== undefined) {
+        await delay(options.deleteDelay);
+      }
+      return new HttpResponse(null, { status: 204 });
+    }),
+  ];
+}

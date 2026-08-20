@@ -14,12 +14,12 @@ import { isStepCount, ToolLoopAgent, type ToolSet } from "ai";
 import { z } from "zod";
 
 import { defineAgentTool } from "@/agents/_runtime/define-agent-tool";
-import { getHyperlocaliseAgentModel } from "@/lib/agent-runtime/loops/model";
 import {
   SUBAGENT_NO_QUESTIONS_RULES,
   SUBAGENT_RESPONSE_FORMAT,
   WORKFLOW_AGENT_TIMEOUT,
 } from "@/lib/agent-runtime/subagents/constants";
+import { resolveWorkspaceAutomationModel } from "@/lib/agents/workspace-automation-types";
 import {
   extractGenerateResultTokenUsage,
   withAgentRuntimeUsageMetering,
@@ -100,7 +100,7 @@ export function createUseSemrushTool(session: WorkspaceOrchestratorSession) {
         requestSignal = AbortSignal.timeout(WORKFLOW_AGENT_TIMEOUT.totalMs);
 
         const agent = new ToolLoopAgent({
-          model: getHyperlocaliseAgentModel(),
+          model: resolveWorkspaceAutomationModel(session.automation.model),
           tools,
           instructions: [
             "You are gathering Semrush data for a workspace automation.",

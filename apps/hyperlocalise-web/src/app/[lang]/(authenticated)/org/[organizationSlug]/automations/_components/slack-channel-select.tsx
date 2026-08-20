@@ -13,50 +13,45 @@
  * Version 2.0 or later.
  */
 import { useEffect, useState } from "react";
-import { ArrowDown01Icon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
 import { useQuery } from "@tanstack/react-query";
 import { FormattedMessage, useIntl } from "react-intl";
 
 import { workspaceAutomationFormMessages } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/automations/_components/workspace-automation-form.messages";
-import { Button } from "@/components/ui/button";
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from "@/components/ui/command";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { parseSlackConversationId } from "@/lib/agents/slack/channel-query";
 import { createApiClient } from "@/lib/api-client";
 import { cn } from "@/lib/primitives/cn";
 
 const api = createApiClient();
+const SLACK_CHANNEL_VERIFY_DEBOUNCE_MS = 400;
 
-type SlackChannelOption = { id: string; name: string; private: boolean };
+type VerifiedSlackChannel = { id: string; name: string; private: boolean };
 
-function useDebouncedValue<T>(value: T, delayMs: number) {
-  const [debouncedValue, setDebouncedValue] = useState(value);
-
-  useEffect(() => {
-    const timeout = window.setTimeout(() => setDebouncedValue(value), delayMs);
-    return () => window.clearTimeout(timeout);
-  }, [delayMs, value]);
-
-  return debouncedValue;
+async function fetchVerifiedSlackChannel(input: {
+  channelId: string;
+  organizationSlug: string;
+}): Promise<VerifiedSlackChannel | null> {
+  const response = await api.api.orgs[":organizationSlug"]["agent-slack"].channels.verify.$get({
+    param: { organizationSlug: input.organizationSlug },
+    query: { channelId: input.channelId },
+  });
+  if (response.status === 404) {
+    return null;
+  }
+  if (response.status !== 200) {
+    throw new Error("Failed to verify Slack channel");
+  }
+  const body = await response.json();
+  return body.channel as VerifiedSlackChannel;
 }
 
 function slackChannelLabel(
   intl: ReturnType<typeof useIntl>,
-  channel: SlackChannelOption | undefined,
-  fallbackId: string,
+  channel: VerifiedSlackChannel | undefined,
 ) {
   if (!channel) {
-    return fallbackId
-      ? fallbackId
-      : intl.formatMessage(workspaceAutomationFormMessages.selectChannel);
+    return null;
   }
 
   return channel.private
@@ -84,99 +79,89 @@ export function SlackChannelSelect({
   value: string;
 }) {
   const intl = useIntl();
-  const [open, setOpen] = useState(false);
-  const [query, setQuery] = useState("");
-  const debouncedQuery = useDebouncedValue(query, 300);
+  const [draft, setDraft] = useState(value);
+  const [debouncedDraft, setDebouncedDraft] = useState(value);
 
-  const channelsQuery = useQuery({
-    queryKey: ["slack-agent-channels", organizationSlug, debouncedQuery, value],
-    queryFn: async () => {
-      const response = await api.api.orgs[":organizationSlug"]["agent-slack"].channels.$get({
-        param: { organizationSlug },
-        query: {
-          q: debouncedQuery || undefined,
-          channelId: value || undefined,
-        },
-      });
-      if (response.status !== 200) {
-        throw new Error("Failed to load Slack channels");
-      }
-      const body = await response.json();
-      return body.channels;
-    },
-    enabled: slackConnected,
+  useEffect(() => {
+    setDraft(value);
+    setDebouncedDraft(value);
+  }, [value]);
+
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      setDebouncedDraft(draft);
+    }, SLACK_CHANNEL_VERIFY_DEBOUNCE_MS);
+    return () => clearTimeout(timeout);
+  }, [draft]);
+
+  const parsedChannelId = parseSlackConversationId(debouncedDraft.trim());
+  const verifyQuery = useQuery({
+    queryKey: ["slack-channel-verify", organizationSlug, parsedChannelId],
+    queryFn: () =>
+      fetchVerifiedSlackChannel({
+        channelId: parsedChannelId!,
+        organizationSlug,
+      }),
+    enabled: slackConnected && Boolean(parsedChannelId),
   });
 
-  const channels = channelsQuery.data ?? [];
-  const selectedChannel = channels.find((channel) => channel.id === value);
-  const triggerDisabled =
-    disabled || !slackConnected || (channelsQuery.isLoading && !selectedChannel);
+  const verifiedChannel = verifyQuery.isSuccess ? verifyQuery.data : undefined;
+  const showInvalidFormat = slackConnected && debouncedDraft.trim().length > 0 && !parsedChannelId;
+  const showNotFound =
+    slackConnected &&
+    Boolean(parsedChannelId) &&
+    !verifyQuery.isLoading &&
+    verifyQuery.isSuccess &&
+    verifyQuery.data === null;
+  const verificationError = verifyQuery.isError
+    ? intl.formatMessage(workspaceAutomationFormMessages.slackChannelVerifyFailed)
+    : undefined;
+  const helperError = error ?? verificationError;
+  const verifiedLabel = verifiedChannel === null ? null : slackChannelLabel(intl, verifiedChannel);
 
   return (
     <div className="grid gap-1.5">
       <Label className="text-xs text-muted-foreground">
         <FormattedMessage {...workspaceAutomationFormMessages.channelLabel} />
       </Label>
-      <Popover open={open} onOpenChange={setOpen}>
-        <PopoverTrigger
-          disabled={triggerDisabled}
-          render={
-            <Button
-              type="button"
-              variant="outline"
-              disabled={triggerDisabled}
-              className="h-8 w-full justify-between rounded-lg px-2.5 font-normal"
-            />
-          }
-        >
-          <span className="min-w-0 truncate">
-            {channelsQuery.isLoading && !selectedChannel && !value
-              ? intl.formatMessage(workspaceAutomationFormMessages.loadingChannels)
-              : slackChannelLabel(intl, selectedChannel, value)}
-          </span>
-          <HugeiconsIcon
-            icon={ArrowDown01Icon}
-            strokeWidth={2}
-            className="size-4 shrink-0 text-muted-foreground"
-          />
-        </PopoverTrigger>
-        <PopoverContent align="start" className="w-80 p-0" sideOffset={4}>
-          <Command shouldFilter={false}>
-            <CommandInput
-              placeholder={intl.formatMessage(
-                workspaceAutomationFormMessages.searchChannelPlaceholder,
-              )}
-              value={query}
-              onValueChange={setQuery}
-            />
-            <CommandList>
-              <CommandEmpty>
-                {channelsQuery.isFetching
-                  ? intl.formatMessage(workspaceAutomationFormMessages.loadingChannels)
-                  : intl.formatMessage(workspaceAutomationFormMessages.noChannelsFound)}
-              </CommandEmpty>
-              <CommandGroup>
-                {channels.map((channel) => (
-                  <CommandItem
-                    key={channel.id}
-                    value={channel.id}
-                    data-checked={value === channel.id || undefined}
-                    onSelect={() => {
-                      onChange(channel.id);
-                      setOpen(false);
-                    }}
-                  >
-                    <span className={cn("min-w-0 flex-1 truncate")}>
-                      {slackChannelLabel(intl, channel, channel.id)}
-                    </span>
-                  </CommandItem>
-                ))}
-              </CommandGroup>
-            </CommandList>
-          </Command>
-        </PopoverContent>
-      </Popover>
-      {error ? <p className="text-xs text-destructive">{error}</p> : null}
+      <Input
+        aria-invalid={Boolean(helperError || showInvalidFormat || showNotFound) || undefined}
+        disabled={disabled || !slackConnected}
+        placeholder={intl.formatMessage(workspaceAutomationFormMessages.channelIdPlaceholder)}
+        value={draft}
+        onChange={(event) => {
+          const nextValue = event.currentTarget.value;
+          setDraft(nextValue);
+          onChange(nextValue.trim());
+        }}
+        spellCheck={false}
+        autoComplete="off"
+        className="h-8 font-mono text-sm"
+      />
+      {verifyQuery.isLoading && parsedChannelId ? (
+        <p className="text-xs text-muted-foreground">
+          <FormattedMessage {...workspaceAutomationFormMessages.verifyingChannel} />
+        </p>
+      ) : null}
+      {verifiedLabel ? (
+        <p className={cn("text-xs text-muted-foreground")}>{verifiedLabel}</p>
+      ) : null}
+      {showInvalidFormat ? (
+        <p className="text-xs text-destructive">
+          <FormattedMessage {...workspaceAutomationFormMessages.invalidChannelId} />
+        </p>
+      ) : null}
+      {showNotFound ? (
+        <p className="text-xs text-destructive">
+          <FormattedMessage {...workspaceAutomationFormMessages.channelNotFound} />
+        </p>
+      ) : null}
+      {helperError ? <p className="text-xs text-destructive">{helperError}</p> : null}
+      {!helperError && !showInvalidFormat && !showNotFound && !verifiedLabel ? (
+        <p className="text-xs text-muted-foreground">
+          <FormattedMessage {...workspaceAutomationFormMessages.channelIdHelp} />
+        </p>
+      ) : null}
     </div>
   );
 }

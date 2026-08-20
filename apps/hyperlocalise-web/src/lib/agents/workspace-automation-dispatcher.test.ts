@@ -35,8 +35,10 @@ function expectOk<T, E>(result: Result<T, E>): T {
 import {
   dispatchContentfulWorkspaceAutomationForManual,
   dispatchContentfulWorkspaceAutomationForSchedule,
+  dispatchManualWorkspaceAutomationRun,
   dispatchWorkspaceAutomationForSchedule,
   dispatchWorkspaceAutomationsForContentfulWebhook,
+  dispatchWorkspaceAutomationsForGithubPullRequest,
   dispatchWorkspaceAutomationsForGithubPush,
   dispatchWorkspaceAutomationsForSourceUpload,
 } from "./workspace-automation-dispatcher";
@@ -223,6 +225,107 @@ describe("workspace automation dispatcher", () => {
     });
     expect(runs).toHaveLength(1);
     expect(runs[0]?.outputSummary.orchestratorEnqueuedAt).toBeTruthy();
+  });
+
+  it("queues on-demand runs for scheduled automations", async () => {
+    const scope = await seedDispatchScope();
+    const automation = expectOk(
+      await createWorkspaceAutomation({
+        organizationId: scope.organizationId,
+        authorUserId: scope.userId,
+        name: "Scheduled validation",
+        instructions: "Run validation on a schedule.",
+        projectId: scope.projectId,
+        triggerConfig: {
+          mode: "scheduled",
+          schedule: {
+            cadence: "daily",
+            hourUtc: 8,
+            timezone: "UTC",
+          },
+        },
+        repositoryTarget: {
+          kind: "github",
+          githubInstallationRepositoryId: scope.repository.id,
+        },
+        toolConfig: {
+          github: {
+            enabled: true,
+            mode: "sync",
+            pushSource: false,
+            pullTranslations: false,
+            validation: true,
+          },
+        },
+      }),
+    );
+
+    const enqueued: Array<{ workspaceAutomationRunId: string; organizationId: string }> = [];
+    const result = await dispatchManualWorkspaceAutomationRun({
+      automation,
+      idempotencyKey: `manual:${automation.id}:operator-run`,
+      queue: {
+        async enqueue(event: { workspaceAutomationRunId: string; organizationId: string }) {
+          enqueued.push(event);
+          return { ids: ["workflow-1"] };
+        },
+      },
+    });
+
+    expect(result).toMatchObject({ outcome: "enqueued", inserted: true });
+    expect(enqueued).toHaveLength(1);
+
+    const runs = await listWorkspaceAutomationRuns({
+      automationId: automation.id,
+      organizationId: scope.organizationId,
+    });
+    expect(runs).toHaveLength(1);
+    expect(runs[0]).toMatchObject({
+      triggerSource: "manual",
+      status: "queued",
+    });
+  });
+
+  it("does not queue on-demand runs for GitHub push automations", async () => {
+    const scope = await seedDispatchScope();
+    const automation = expectOk(
+      await createWorkspaceAutomation({
+        organizationId: scope.organizationId,
+        authorUserId: scope.userId,
+        name: "Push validation",
+        instructions: "Run validation on GitHub push.",
+        projectId: scope.projectId,
+        triggerConfig: {
+          mode: "github",
+          branches: ["main"],
+        },
+        repositoryTarget: {
+          kind: "github",
+          githubInstallationRepositoryId: scope.repository.id,
+        },
+        toolConfig: {
+          github: {
+            enabled: true,
+            mode: "sync",
+            pushSource: false,
+            pullTranslations: false,
+            validation: true,
+          },
+        },
+      }),
+    );
+
+    const result = await dispatchManualWorkspaceAutomationRun({
+      automation,
+      idempotencyKey: `manual:${automation.id}:push-run`,
+    });
+
+    expect(result).toBeNull();
+    const runs = await listWorkspaceAutomationRuns({
+      automationId: automation.id,
+      organizationId: scope.organizationId,
+    });
+    expect(runs).toHaveLength(0);
   });
 
   it("dispatches Contentful webhook automation idempotently", async () => {
@@ -895,6 +998,99 @@ describe("workspace automation dispatcher", () => {
     expect(runs).toHaveLength(1);
     expect(runs[0]?.inputSnapshot).toMatchObject({
       githubDeliveryId: "delivery-github-agent-1",
+      pushBranch: "main",
+      commitBefore: "aaa111",
+      commitAfter: "bbb222",
+    });
+  });
+
+  it("dispatches GitHub agent automations on matching pull requests", async () => {
+    const scope = await seedDispatchScope();
+    const matching = expectOk(
+      await createWorkspaceAutomation({
+        organizationId: scope.organizationId,
+        authorUserId: scope.userId,
+        name: "Notify on push blockers",
+        instructions: "Review localisation risk on this pull request.",
+        triggerConfig: { mode: "github", branches: ["main"], events: ["pull_request"] },
+        repositoryTarget: {
+          kind: "github",
+          githubInstallationRepositoryId: scope.repository.id,
+        },
+        toolConfig: {
+          github: {
+            enabled: true,
+            mode: "agent",
+            pushSource: false,
+            pullTranslations: false,
+            validation: false,
+          },
+          githubComment: { enabled: true },
+        },
+      }),
+    );
+    expectOk(
+      await createWorkspaceAutomation({
+        organizationId: scope.organizationId,
+        authorUserId: scope.userId,
+        name: "Push only GitHub automation",
+        instructions: "Should not run for pull requests.",
+        projectId: scope.projectId,
+        triggerConfig: { mode: "github", branches: ["main"] },
+        repositoryTarget: {
+          kind: "github",
+          githubInstallationRepositoryId: scope.repository.id,
+        },
+        toolConfig: {
+          github: {
+            enabled: true,
+            mode: "sync",
+            pushSource: false,
+            pullTranslations: false,
+            validation: true,
+          },
+        },
+      }),
+    );
+
+    const enqueued: Array<{ workspaceAutomationRunId: string; organizationId: string }> = [];
+    const queue = {
+      async enqueue(event: { workspaceAutomationRunId: string; organizationId: string }) {
+        enqueued.push(event);
+        return { ids: ["workflow-1"] };
+      },
+    };
+
+    const results = await dispatchWorkspaceAutomationsForGithubPullRequest({
+      deliveryId: "delivery-github-pr-1",
+      organizationId: scope.organizationId,
+      githubInstallationRepositoryId: scope.repository.id,
+      action: "opened",
+      pullRequestNumber: 42,
+      pullRequestUrl: "https://github.com/acme/app/pull/42",
+      baseBranch: "main",
+      headBranch: "feature/review",
+      commitBefore: "aaa111",
+      commitAfter: "bbb222",
+      queue,
+    });
+
+    expect(results).toHaveLength(1);
+    expect(results[0]?.outcome).toBe("enqueued");
+    expect(enqueued).toHaveLength(1);
+
+    const runs = await listWorkspaceAutomationRuns({
+      automationId: matching.id,
+      organizationId: scope.organizationId,
+    });
+    expect(runs).toHaveLength(1);
+    expect(runs[0]?.inputSnapshot).toMatchObject({
+      githubDeliveryId: "delivery-github-pr-1",
+      githubEvent: "pull_request",
+      githubAction: "opened",
+      pullRequestNumber: 42,
+      baseBranch: "main",
+      headBranch: "feature/review",
       pushBranch: "main",
       commitBefore: "aaa111",
       commitAfter: "bbb222",

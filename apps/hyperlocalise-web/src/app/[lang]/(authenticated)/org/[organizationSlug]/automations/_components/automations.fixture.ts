@@ -14,7 +14,7 @@ import {
   WORKSPACE_AUTOMATION_TEMPLATES_BASE,
   type WorkspaceAutomationTemplate,
 } from "@/lib/agents/workspace-automation-templates";
-import type { WorkspaceAutomationRecord } from "@/lib/agents/workspace-automations";
+import type { WorkspaceAutomationRecord } from "@/lib/agents/workspace-automation-types";
 
 /** Client-safe template data for Storybook and component tests. */
 export const automationTemplatesFixture: WorkspaceAutomationTemplate[] =
@@ -44,6 +44,7 @@ export function createAutomationSummary(
     status: "active",
     name: "Validate localisation on push",
     instructions: "Validate source and translation changes on every push.",
+    model: "openai/gpt-5.6-luna",
     projectId: "project-1",
     triggerConfig: {
       mode: "github",

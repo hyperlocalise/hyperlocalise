@@ -78,12 +78,14 @@ describe("Mention suggestions routes", () => {
     expect(response.status).toBe(200);
     const body = (await response.json()) as {
       mentionSuggestions: {
-        users: { userId: string; displayName: string }[];
+        users: { userId: string; displayName: string; email: string }[];
         issues: { issueId: string; displayKey: string; title: string }[];
       };
     };
 
-    expect(body.mentionSuggestions.users.some((member) => member.userId === user.id)).toBe(true);
+    const actorMember = body.mentionSuggestions.users.find((member) => member.userId === user.id);
+    expect(actorMember).toBeDefined();
+    expect(actorMember?.email).toBe(user.email);
     expect(body.mentionSuggestions.issues).toEqual([
       expect.objectContaining({
         issueId: created.issue.id,

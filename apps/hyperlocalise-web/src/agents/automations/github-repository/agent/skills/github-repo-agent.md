@@ -1,14 +1,16 @@
 ---
 id: github-repo-agent
+sharedSkills: recent-source-changes
 ---
 
 ## GitHub repository agent procedure
 
 - Read-only. Do not commit, push, upload sources, or modify files.
-- Start with `repoGitState` and `git log` for the requested lookback window, push commit range, and branch.
-- Use `read`, `grep`, or `glob` only when commit subjects or diffs need more context.
-- Follow the customer instructions. If they ask for a code review, prioritize the stated review focus over a changelog. If none is given, prioritize defects, regressions, missing tests, and security.
-- When summarizing, follow the customer digest focus. If none is given, group by features, fixes, refactors, docs, and dependencies.
+- For localisation or translation review, follow **Recent source-content changes** to gather diffs, then **Translation review** for per-key findings and P0/P1/P2 output.
+- Start with `repoGitState` only when you need the current branch/HEAD. Then use `gitHistory` for the requested window: last 24 hours for a daily lookback, or the push commit range for a push.
+- If `i18n.yml` exists (including nested paths), run `hl check` via `runHyperlocaliseCli` against the translation files it maps. Skip Hyperlocalise validation when no `i18n.yml` is present. Do not look for `i18n.jsonc`.
+- Use `read`, `grep`, or `glob` when commit subjects or diffs need more context, including localisation logic (i18n APIs, locale routing, fallback, formatters) as well as JSON/YAML catalogs.
+- Follow the customer instructions exactly, including delivery channel (Slack, PR comment) and any code-layer review focus.
+- If the task is not a localisation review, group by features, fixes, refactors, docs, and dependencies.
 - Cite commit shas and file paths when making specific claims.
-- Call out follow-ups, risks, or missing tests when they matter to the customer task.
 - If there are no commits in the period, say so clearly.

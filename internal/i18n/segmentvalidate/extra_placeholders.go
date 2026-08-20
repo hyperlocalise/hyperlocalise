@@ -7,10 +7,15 @@ import (
 	"strings"
 )
 
+// ExtraPlaceholderPattern matches printf-style (%s, %d, %1$s, %(name)s, %@,
+// %{name}) and shell/template-style (${name}, $name$) placeholders. It is
+// exported so other packages (e.g. spellcheck) can recognize the same
+// placeholder syntax without duplicating the regex.
+//
 // BOLT OPTIMIZATION: Combine individual placeholder patterns into a single
 // regex to reduce the number of passes over the input string. The order of
 // alternations is preserved from the original set to maintain priority.
-var combinedPlaceholderPattern = regexp.MustCompile(
+var ExtraPlaceholderPattern = regexp.MustCompile(
 	`%[0-9]+\$[-+ #0]*[0-9]*(?:\.[0-9]*)?(?:ll|l|hh|h)?[diuXxfsSFeEgGcC]|` +
 		`%\([A-Za-z_][\w]*\)[-+ #0]*[0-9]*(?:\.[0-9]*)?(?:ll|l|hh|h)?[diuXxfsSFeEgGcC]|` +
 		`%[-+ #0]*[0-9]*(?:\.[0-9]*)?(?:ll|l|hh|h)?[diuXxfsSFeEgGcC]\b|` +
@@ -29,7 +34,7 @@ func extractExtraPlaceholders(text string) []string {
 
 	// BOLT OPTIMIZATION: Iterate using strings.IndexAny to fast-skip plain text and
 	// FindStringIndex to match regex incrementally, avoiding [][]int slice allocations
-	// from FindAllStringIndex. All alternations in combinedPlaceholderPattern start with
+	// from FindAllStringIndex. All alternations in ExtraPlaceholderPattern start with
 	// '%' or '$'. Slice capacity is lazily allocated on first match.
 	var out []string
 
@@ -40,7 +45,7 @@ func extractExtraPlaceholders(text string) []string {
 			break
 		}
 		curr := pos + idx
-		loc := combinedPlaceholderPattern.FindStringIndex(text[curr:])
+		loc := ExtraPlaceholderPattern.FindStringIndex(text[curr:])
 		if loc == nil {
 			break
 		}
@@ -51,7 +56,7 @@ func extractExtraPlaceholders(text string) []string {
 
 		// Printf-style %% escapes a literal percent. Skip matches whose
 		// leading '%' is the second half of an escape pair (e.g. %%@).
-		if match[0] != '%' || !isEscapedPercentAt(text, matchStart) {
+		if match[0] != '%' || !IsEscapedPercentAt(text, matchStart) {
 			if out == nil {
 				out = make([]string, 0, 4)
 			}
@@ -77,10 +82,10 @@ func extractExtraPlaceholders(text string) []string {
 	return out
 }
 
-// isEscapedPercentAt reports whether text[index] is '%' that belongs to a
+// IsEscapedPercentAt reports whether text[index] is '%' that belongs to a
 // %% escape rather than starting a format placeholder. An odd run of '%'
 // ending at index is a real placeholder; an even run is escaped.
-func isEscapedPercentAt(text string, index int) bool {
+func IsEscapedPercentAt(text string, index int) bool {
 	if index < 0 || index >= len(text) || text[index] != '%' {
 		return false
 	}

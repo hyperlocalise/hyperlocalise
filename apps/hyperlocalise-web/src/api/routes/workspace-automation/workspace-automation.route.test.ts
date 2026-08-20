@@ -154,6 +154,7 @@ describe("workspace automation routes", () => {
     };
     expect(createdBody.automation).toMatchObject({
       name: "Repository translation check",
+      model: "openai/gpt-5.6-luna",
       configVersion: 1,
     });
     expect(createdBody.recentRuns).toEqual([]);
@@ -208,6 +209,73 @@ describe("workspace automation routes", () => {
     );
     expect(deletedResponse.status).toBe(204);
     await expect(deletedResponse.text()).resolves.toBe("");
+  });
+
+  it("creates and updates the selected automation model without versioning config", async () => {
+    const identity = fixture.createWorkosIdentityWithRole("admin");
+    const headers = await fixture.authHeadersFor(identity);
+    const organizationSlug = identity.organization.slug ?? "missing-slug";
+
+    const createdResponse = await client.api.orgs[":organizationSlug"].automations.$post(
+      {
+        param: { organizationSlug },
+        json: {
+          name: "Modelled automation",
+          instructions: "Use the selected model.",
+          model: "anthropic/claude-sonnet-5",
+          triggerConfig: { mode: "manual" },
+          repositoryTarget: { kind: "none" },
+          toolConfig: {},
+        },
+      },
+      { headers },
+    );
+
+    expect(createdResponse.status).toBe(201);
+    const createdBody = (await createdResponse.json()) as {
+      automation: { id: string; model: string; configVersion: number };
+    };
+    expect(createdBody.automation).toMatchObject({
+      model: "anthropic/claude-sonnet-5",
+      instructions: "Use the selected model.",
+      configVersion: 1,
+    });
+
+    const updatedResponse = await client.api.orgs[":organizationSlug"].automations[
+      ":automationId"
+    ].$patch(
+      {
+        param: { organizationSlug, automationId: createdBody.automation.id },
+        json: { model: "openai/gpt-5.6-sol" },
+      },
+      { headers },
+    );
+    expect(updatedResponse.status).toBe(200);
+    await expect(updatedResponse.json()).resolves.toMatchObject({
+      automation: {
+        id: createdBody.automation.id,
+        model: "openai/gpt-5.6-sol",
+        instructions: "Use the selected model.",
+        triggerConfig: { mode: "manual" },
+        configVersion: 1,
+      },
+    });
+
+    const invalidResponse = await client.api.orgs[":organizationSlug"].automations.$post(
+      {
+        param: { organizationSlug },
+        json: {
+          name: "Invalid model",
+          instructions: "Reject unknown models.",
+          model: "openai/gpt-4o" as never,
+          triggerConfig: { mode: "manual" },
+          repositoryTarget: { kind: "none" },
+          toolConfig: {},
+        },
+      },
+      { headers },
+    );
+    expect(invalidResponse.status).toBe(400);
   });
 
   it("denies automation management for non-operators", async () => {
@@ -482,6 +550,68 @@ describe("workspace automation routes", () => {
     expect(runsResponse.status).toBe(200);
     await expect(runsResponse.json()).resolves.toMatchObject({
       automationRuns: [{ id: firstRun.automationRun.id, triggerSource: "manual" }],
+    });
+  });
+
+  it("queues on-demand runs for scheduled automations", async () => {
+    const identity = fixture.createWorkosIdentityWithRole("admin");
+    const headers = await fixture.authHeadersFor(identity);
+    const organizationId = await getOrganizationId(identity.organization.workosOrganizationId);
+    const projectId = await seedProject({ organizationId });
+    const repository = await seedGithubRepository({ organizationId });
+    const organizationSlug = identity.organization.slug ?? "missing-slug";
+
+    const createdResponse = await client.api.orgs[":organizationSlug"].automations.$post(
+      {
+        param: { organizationSlug },
+        json: {
+          name: "Scheduled repository automation",
+          instructions: "Run scheduled automation.",
+          projectId,
+          triggerConfig: {
+            mode: "scheduled",
+            schedule: {
+              cadence: "daily",
+              hourUtc: 8,
+              timezone: "UTC",
+            },
+          },
+          repositoryTarget: {
+            kind: "github",
+            githubInstallationRepositoryId: repository.id,
+          },
+          toolConfig: {
+            github: {
+              enabled: true,
+              mode: "sync",
+              pushSource: true,
+              pullTranslations: false,
+              validation: false,
+            },
+          },
+        },
+      },
+      { headers },
+    );
+    expect(createdResponse.status).toBe(201);
+    const created = (await createdResponse.json()) as { automation: { id: string } };
+
+    const runResponse = await client.api.orgs[":organizationSlug"].automations[
+      ":automationId"
+    ].runs.$post(
+      {
+        param: { organizationSlug, automationId: created.automation.id },
+        json: {
+          idempotencyKey: `manual:${created.automation.id}:scheduled-run`,
+        },
+      },
+      { headers },
+    );
+
+    expect(runResponse.status).toBe(202);
+    await expect(runResponse.json()).resolves.toMatchObject({
+      dispatch: { outcome: "enqueued", inserted: true },
+      automationRun: { triggerSource: "manual" },
     });
   });
 });

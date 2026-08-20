@@ -53,12 +53,25 @@ describe("composeWorkspaceAutomationInstructions", () => {
   it("tells the orchestrator how to call use_crowdin when it is planned", () => {
     const instructions = composeWorkspaceAutomationInstructions({
       triggerMode: "scheduled",
+      templateSkillId: "review-code-daily",
       plan: { tools: ["use_github_repository", "use_crowdin", "notify_slack"] },
       userOverride: "Review user-facing strings.",
     });
 
-    expect(instructions).toContain("When calling use_crowdin");
-    expect(instructions).toContain("search concordance");
+    expect(instructions).toContain("No separate Crowdin section");
+    expect(instructions).toContain("> Recommendation:");
+  });
+
+  it("omits Crowdin concordance review when use_crowdin is not planned", () => {
+    const instructions = composeWorkspaceAutomationInstructions({
+      triggerMode: "scheduled",
+      templateSkillId: "review-code-daily",
+      plan: { tools: ["use_github_repository", "notify_slack"] },
+      userOverride: "Review user-facing strings.",
+    });
+
+    expect(instructions).toContain("Translation review");
+    expect(instructions).not.toContain("search_concordance");
   });
 
   it("omits the Slack notifications skill when notify_slack is not planned", () => {

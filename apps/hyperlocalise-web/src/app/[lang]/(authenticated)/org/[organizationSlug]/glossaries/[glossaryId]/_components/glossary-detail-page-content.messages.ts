@@ -100,6 +100,11 @@ export const glossaryDetailPageContentMessages = defineMessages({
     id: "a4IAS0WZRR",
     description: "Back link from glossary detail to the list page",
   },
+  backToGlossary: {
+    defaultMessage: "Back to glossary",
+    id: "rZcCh1J3Qx",
+    description: "Back link from a concept detail page to its glossary",
+  },
   sourceWorkspace: {
     defaultMessage: "Workspace",
     id: "5orwY/wNVx",
@@ -160,6 +165,16 @@ export const glossaryDetailPageContentMessages = defineMessages({
     id: "inRpXeF/YP",
     description: "Button to add a new glossary term",
   },
+  chooseTermLanguage: {
+    defaultMessage: "Choose a language",
+    id: "ihy++kxglc",
+    description: "Title for the locale picker used when adding a concept term",
+  },
+  chooseTermLanguageDescription: {
+    defaultMessage: "Choose the language for the new term.",
+    id: "75hJUfKEfF",
+    description: "Description for the locale picker used when adding a concept term",
+  },
   cancelEdit: {
     defaultMessage: "Cancel edit",
     id: "eV8dpp9Cb+",
@@ -209,5 +224,190 @@ export const glossaryDetailPageContentMessages = defineMessages({
     defaultMessage: "No projects assigned yet.",
     id: "qhM5Koe951",
     description: "Empty state when no projects are assigned to a glossary",
+  },
+  loadConceptsFailed: {
+    defaultMessage: "Unable to load concepts",
+    id: "ZIg96oUMGy",
+    description: "Fallback error when glossary concepts fail to load",
+  },
+  saveConceptFailed: {
+    defaultMessage: "Unable to save concept",
+    id: "Fn04QYq5Dy",
+    description: "Fallback error when a glossary concept save fails",
+  },
+  deleteConceptFailed: {
+    defaultMessage: "Unable to delete concept",
+    id: "4jUxO+lMSa",
+    description: "Fallback error when a glossary concept deletion fails",
+  },
+  created: {
+    defaultMessage: "Created",
+    id: "ipOUZTrMNl",
+    description: "Created timestamp column in the concept table",
+  },
+  lastModified: {
+    defaultMessage: "Last modified",
+    id: "cE93z6iT3O",
+    description: "Last modified timestamp column in the concept table",
+  },
+  providerReadOnly: {
+    defaultMessage: "This glossary is managed by its provider and is read-only here.",
+    id: "+cqoUEt5BX",
+    description: "Read-only explanation for provider-backed glossary detail",
+  },
+  conceptsTitle: {
+    defaultMessage: "Concepts",
+    id: "jI9SFqJ4/5",
+    description: "Section title for the native glossary concept table",
+  },
+  conceptsDescription: {
+    defaultMessage: "Group terms by meaning, then add locale-specific terms inside each concept.",
+    id: "6PTSot2cji",
+    description: "Description for the native glossary concept table",
+  },
+  addConcept: {
+    defaultMessage: "Add concept",
+    id: "C3/uLnFZyi",
+    description: "Button to add a glossary concept",
+  },
+  filterLanguages: {
+    defaultMessage: "Filter languages...",
+    id: "52PUHNXgoK",
+    description: "Filter input for concept editor language groups",
+  },
+  primaryTermLabel: {
+    defaultMessage: "Primary term",
+    id: "YDRK9UoH9i",
+    description: "Label for the concept primary term",
+  },
+  subjectLabel: {
+    defaultMessage: "Subject",
+    id: "5Bc+gFzN2N",
+    description: "Label for concept subject metadata",
+  },
+  definitionLabel: {
+    defaultMessage: "Definition",
+    id: "hz4nxyNP9X",
+    description: "Label for the concept definition",
+  },
+  translatableLabel: {
+    defaultMessage: "Translatable",
+    id: "BERSauR8KR",
+    description: "Label for the concept translatable toggle",
+  },
+  conceptDetails: {
+    defaultMessage: "Concept details",
+    id: "s7FQK+830n",
+    description: "Expandable section for additional concept metadata",
+  },
+  noteLabel: {
+    defaultMessage: "Note",
+    id: "PO+O1tp1vE",
+    description: "Label for concept notes",
+  },
+  urlLabel: {
+    defaultMessage: "URL",
+    id: "26SC3nQ3ca",
+    description: "Label for concept reference URL",
+  },
+  termLabel: {
+    defaultMessage: "Term",
+    id: "4rrJOrJKWB",
+    description: "Label for a locale-specific term",
+  },
+  genderLabel: {
+    defaultMessage: "Gender",
+    id: "YXXKbKuK0y",
+    description: "Label for term gender metadata",
+  },
+  typeLabel: {
+    defaultMessage: "Type",
+    id: "ZeIi5DDF02",
+    description: "Label for term type metadata",
+  },
+  statusLabel: {
+    defaultMessage: "Status",
+    id: "wMxGDB1lvE",
+    description: "Label for term status metadata",
+  },
+  preferred: {
+    defaultMessage: "Preferred",
+    id: "nAOm8YPSCd",
+    description: "Preferred native glossary term status",
+  },
+  draft: {
+    defaultMessage: "Draft",
+    id: "W8CHLNCqjs",
+    description: "Draft native glossary term status",
+  },
+  notRecommended: {
+    defaultMessage: "Not recommended",
+    id: "tWfjSsUysY",
+    description: "Not recommended native glossary term status",
+  },
+  save: {
+    defaultMessage: "Save",
+    id: "k/ObF2e19m",
+    description: "Save action in the concept editor",
+  },
+  close: {
+    defaultMessage: "Close",
+    id: "9lmMAv+1UD",
+    description: "Close action in the concept editor",
+  },
+  deleteConcept: {
+    defaultMessage: "Delete concept",
+    id: "YhT90BZluB",
+    description: "Destructive action to delete a glossary concept",
+  },
+  confirmDeleteConcept: {
+    defaultMessage: "Delete this concept and all of its terms?",
+    id: "c+Mjo4w0Tb",
+    description: "Confirmation prompt before deleting a concept",
+  },
+  confirmDeleteTerm: {
+    defaultMessage: "Delete this term?",
+    id: "IdceAsRVCE",
+    description: "Confirmation prompt before deleting a term",
+  },
+  noConcepts: {
+    defaultMessage: "No concepts yet.",
+    id: "x34JY9BvGw",
+    description: "Empty state for a glossary with no native concepts",
+  },
+  conceptId: {
+    defaultMessage: "Concept {id}",
+    id: "VIdL/n+uK8",
+    description: "Concept identifier in the editor header",
+  },
+  sourceBadge: {
+    defaultMessage: "SOURCE",
+    id: "GwJAxTSF4k",
+    description: "Badge identifying the glossary source locale",
+  },
+  conceptSaved: {
+    defaultMessage: "Concept saved",
+    id: "6V7dDBU2jk",
+    description: "Toast after a concept is saved",
+  },
+  conceptAdded: {
+    defaultMessage: "Concept added",
+    id: "C8o8YEkGLA",
+    description: "Toast after a concept is created",
+  },
+  conceptDeleted: {
+    defaultMessage: "Concept deleted",
+    id: "Iv8yvtAAwu",
+    description: "Toast after a concept is deleted",
+  },
+  termSaved: {
+    defaultMessage: "Term saved",
+    id: "TmON06MWzq",
+    description: "Toast after a concept term is saved",
+  },
+  termDeletedFromConcept: {
+    defaultMessage: "Term deleted",
+    id: "ECdzHS9iJQ",
+    description: "Toast after a concept term is deleted",
   },
 });

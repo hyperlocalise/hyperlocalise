@@ -10,14 +10,21 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import type {
-  WorkspaceAutomationGithubToolMode,
-  WorkspaceAutomationRecord,
-  WorkspaceAutomationRepositoryTarget,
-  WorkspaceAutomationToolConfig,
-  WorkspaceAutomationTriggerConfig,
-  WorkspaceAutomationWebSearchProvider,
-} from "./workspace-automations";
+import {
+  DEFAULT_WORKSPACE_AUTOMATION_MODEL,
+  resolveWorkspaceAutomationGithubEvents,
+  resolveWorkspaceAutomationModel,
+  type WorkspaceAutomationGithubToolMode,
+  type WorkspaceAutomationGithubTriggerEvent,
+  type WorkspaceAutomationModel,
+  type WorkspaceAutomationRecord,
+  type WorkspaceAutomationRepositoryTarget,
+  type WorkspaceAutomationToolConfig,
+  type WorkspaceAutomationTriggerConfig,
+  type WorkspaceAutomationWebSearchProvider,
+} from "./workspace-automation-types";
+import { parseSlackConversationId } from "./slack/channel-query";
+import { isValidAutomationTimeZone } from "./automation-time-zones";
 import {
   getWorkspaceAutomationTemplate,
   type WorkspaceAutomationTemplate,
@@ -34,10 +41,12 @@ export type WorkspaceAutomationTriggerMode =
 export type WorkspaceAutomationFormState = {
   name: string;
   instructions: string;
+  model: WorkspaceAutomationModel;
   status: "active" | "paused";
   projectId: string;
   triggerMode: WorkspaceAutomationTriggerMode;
   pushBranches: string[];
+  githubEvents: WorkspaceAutomationGithubTriggerEvent[];
   scheduledCadence: "hourly" | "daily" | "weekly";
   scheduledHourUtc: number;
   scheduledDayOfWeek: number;
@@ -105,10 +114,12 @@ export type WorkspaceAutomationFieldErrors = Partial<
   Record<
     | "name"
     | "instructions"
+    | "model"
     | "projectId"
     | "githubRepository"
     | "trigger"
     | "pushBranches"
+    | "githubEvents"
     | "slackChannelId"
     | "emailRecipients"
     | "contentfulConnectionId"
@@ -119,6 +130,7 @@ export type WorkspaceAutomationFieldErrors = Partial<
     | "semrushConnectionId"
     | "ahrefsConnectionId"
     | "crowdinProjectId"
+    | "scheduledTimezone"
     | "form",
     string
   >
@@ -133,9 +145,11 @@ export const WORKSPACE_AUTOMATION_API_ERROR_MESSAGES: Record<string, string> = {
   github_trigger_required: "Choose a schedule or GitHub push trigger for GitHub workflows.",
   github_agent_trigger_required:
     "Use GitHub repo automations with a scheduled, manual, or GitHub push trigger.",
-  github_push_branches_required: "Add at least one branch pattern for GitHub push triggers.",
+  github_push_branches_required: "Add at least one branch pattern for GitHub triggers.",
+  github_events_required: "Choose at least one GitHub event.",
   scheduled_workflow_required:
     "Scheduled automations require at least one GitHub, Contentful, Issues, Web Search, or Crowdin workflow tool.",
+  invalid_automation_timezone: "Choose a valid timezone for the schedule.",
   slack_not_connected: "Connect Slack in Integrations before enabling Slack notifications.",
   slack_channel_required: "Choose a Slack channel for notifications.",
   email_not_connected: "Enable the email agent in Integrations before using email notifications.",
@@ -183,10 +197,12 @@ export function createDefaultWorkspaceAutomationFormState(): WorkspaceAutomation
   return {
     name: "",
     instructions: "",
+    model: DEFAULT_WORKSPACE_AUTOMATION_MODEL,
     status: "active",
     projectId: "",
     triggerMode: "manual",
     pushBranches: ["main"],
+    githubEvents: ["push"],
     scheduledCadence: "daily",
     scheduledHourUtc: 22,
     scheduledDayOfWeek: 1,
@@ -257,6 +273,7 @@ export function createWorkspaceAutomationFormStateFromRecord(
   return {
     name: automation.name,
     instructions: automation.instructions,
+    model: resolveWorkspaceAutomationModel(automation.model),
     status: automation.status === "paused" ? "paused" : "active",
     projectId: automation.projectId ?? "",
     triggerMode: automation.triggerConfig.mode,
@@ -264,6 +281,9 @@ export function createWorkspaceAutomationFormStateFromRecord(
       automation.triggerConfig.mode === "github" && automation.triggerConfig.branches?.length
         ? [...automation.triggerConfig.branches]
         : ["main"],
+    githubEvents: resolveWorkspaceAutomationGithubEvents(
+      automation.triggerConfig.mode === "github" ? automation.triggerConfig.events : undefined,
+    ),
     scheduledCadence:
       automation.triggerConfig.mode === "scheduled" && automation.triggerConfig.schedule
         ? automation.triggerConfig.schedule.cadence
@@ -352,6 +372,7 @@ export function applyTemplateToWorkspaceAutomationFormState(
     name: template.defaultForm.name ?? template.name,
     instructions: template.defaultForm.instructions ?? template.instructions,
     pushBranches: template.defaultForm.pushBranches ?? base.pushBranches,
+    githubEvents: template.defaultForm.githubEvents ?? base.githubEvents,
     emailRecipients: template.defaultForm.emailRecipients ?? base.emailRecipients,
     contentfulContentTypeIds:
       template.defaultForm.contentfulContentTypeIds ?? base.contentfulContentTypeIds,
@@ -384,6 +405,7 @@ export function applyWorkspaceAutomationProjectSelection(
 export function formStateToWorkspaceAutomationPayload(form: WorkspaceAutomationFormState): {
   name: string;
   instructions: string;
+  model: WorkspaceAutomationModel;
   status: "active" | "paused";
   projectId?: string;
   triggerConfig: WorkspaceAutomationTriggerConfig;
@@ -405,6 +427,7 @@ export function formStateToWorkspaceAutomationPayload(form: WorkspaceAutomationF
         ? {
             mode: "github",
             branches: form.pushBranches,
+            events: resolveWorkspaceAutomationGithubEvents(form.githubEvents),
           }
         : form.triggerMode === "contentful"
           ? { mode: "contentful" }
@@ -569,6 +592,7 @@ export function formStateToWorkspaceAutomationPayload(form: WorkspaceAutomationF
   return {
     name: form.name.trim(),
     instructions: form.instructions.trim(),
+    model: resolveWorkspaceAutomationModel(form.model),
     status: form.status,
     ...(projectId ? { projectId } : {}),
     triggerConfig,
@@ -615,8 +639,19 @@ export function validateWorkspaceAutomationFormState(
     errors.pushBranches = "Add at least one branch pattern.";
   }
 
-  if (form.slackEnabled && !form.slackChannelId.trim()) {
-    errors.slackChannelId = "Choose a Slack channel.";
+  if (form.triggerMode === "github" && form.githubEvents.length === 0) {
+    errors.githubEvents = "Choose at least one GitHub event.";
+  }
+
+  if (
+    form.triggerMode === "scheduled" &&
+    !isValidAutomationTimeZone(form.scheduledTimezone.trim() || "UTC")
+  ) {
+    errors.scheduledTimezone = "Choose a valid timezone.";
+  }
+
+  if (form.slackEnabled && !parseSlackConversationId(form.slackChannelId)) {
+    errors.slackChannelId = "Enter a valid Slack channel ID.";
   }
 
   if (form.emailEnabled && form.emailRecipients.length === 0) {
@@ -695,8 +730,12 @@ export function mapWorkspaceAutomationApiErrorToFieldErrors(
     case "scheduled_workflow_required":
     case "source_upload_workflow_required":
       return { trigger: message };
+    case "invalid_automation_timezone":
+      return { scheduledTimezone: message };
     case "github_push_branches_required":
       return { pushBranches: message };
+    case "github_events_required":
+      return { githubEvents: message };
     case "slack_not_connected":
     case "slack_channel_required":
       return { slackChannelId: message };
@@ -733,6 +772,19 @@ export function mapWorkspaceAutomationApiErrorToFieldErrors(
     default:
       return { form: message };
   }
+}
+
+export function workspaceAutomationFormSupportsOnDemandRun(
+  triggerMode: WorkspaceAutomationTriggerMode,
+) {
+  return triggerMode === "manual" || triggerMode === "scheduled";
+}
+
+export function workspaceAutomationFormHasChanges(
+  current: WorkspaceAutomationFormState,
+  saved: WorkspaceAutomationFormState,
+) {
+  return JSON.stringify(current) !== JSON.stringify(saved);
 }
 
 export function workspaceAutomationFormCanActivate(form: WorkspaceAutomationFormState) {

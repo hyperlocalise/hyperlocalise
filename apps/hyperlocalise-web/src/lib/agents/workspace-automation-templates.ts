@@ -136,6 +136,7 @@ export const WORKSPACE_AUTOMATION_TEMPLATES_BASE: WorkspaceAutomationTemplate[] 
       role: "a localisation quality reviewer",
       capabilities: [
         "Inspect changed source strings and translations on protected-branch pushes",
+        "If i18n.yml exists, run Hyperlocalise validation (hl check) against the translation files it maps",
         "Flag missing context, unstable copy, and accidental key churn",
         "Flag missing translations, broken ICU syntax, mismatched placeholders, and unsafe HTML",
         "Treat locale coverage regressions as blocking findings",
@@ -164,7 +165,8 @@ export const WORKSPACE_AUTOMATION_TEMPLATES_BASE: WorkspaceAutomationTemplate[] 
     instructions: formatWorkspaceAutomationTemplateInstructions({
       role: "a daily localisation briefing agent",
       capabilities: [
-        "Read recent commits, diffs, and surrounding files in the lookback window",
+        "Read recent commits, diffs, and surrounding files from the last 24 hours",
+        "If i18n.yml exists, run Hyperlocalise validation (hl check) against the translation files it maps",
         "Keep the digest scoped to localisation, i18n, and translation work",
         "Cite commit SHAs and file paths for specific claims",
         "Call out coverage gaps, ICU or placeholder risk, and incomplete translation syncs",
@@ -208,7 +210,9 @@ export const WORKSPACE_AUTOMATION_TEMPLATES_BASE: WorkspaceAutomationTemplate[] 
     instructions: formatWorkspaceAutomationTemplateInstructions({
       role: "a localisation-focused code reviewer for this repository",
       capabilities: [
-        "Read recent commits, diffs, and surrounding code in the lookback window",
+        "Read recent commits, diffs, and surrounding code from the last 24 hours",
+        "If i18n.yml exists, run Hyperlocalise validation (hl check) against the translation files it maps",
+        "Extract changed translation keys and review old vs new values in locale catalogs",
         "Judge localisation, translation, and locale-compliance risk in the changed code",
         "Cite commit SHAs and file paths for each finding",
         "Separate blocking localisation defects from non-blocking follow-ups",
@@ -217,12 +221,17 @@ export const WORKSPACE_AUTOMATION_TEMPLATES_BASE: WorkspaceAutomationTemplate[] 
       goal: "Surface localisation and translation risks from the last day so the team can act before they ship further.",
       extraSections: [
         {
-          heading: "Review focus",
+          heading: "Review scope",
           items: [
-            "Hard-coded copy, missing keys, and source strings that cannot be translated",
-            "Broken ICU, placeholders, plurals, and locale-sensitive formatting",
-            "Translation coverage, fallback, and writeback regressions",
-            "Localisation compliance: locale, RTL, legal, and market-language constraints",
+            "Follow the Translation review shared procedure for per-key findings and P0/P1/P2 output",
+            "Also review code-adjacent localisation: hard-coded copy, i18n APIs, locale routing, fallback, and writeback",
+          ],
+        },
+        {
+          heading: "Slack delivery",
+          items: [
+            "Post Translation review report sections as the Slack message body",
+            "When P0 blockers exist, they must appear first",
           ],
         },
       ],
@@ -624,18 +633,19 @@ export const WORKSPACE_AUTOMATION_TEMPLATES_BASE: WorkspaceAutomationTemplate[] 
     category: "popular",
     name: "Notify on push blockers",
     description:
-      "Review each GitHub push for localisation and translation risk, then comment on the pull request.",
+      "Review pull requests opened against main for localisation and translation risk, then comment on the pull request.",
     instructions: formatWorkspaceAutomationTemplateInstructions({
       role: "a localisation-focused code reviewer for this repository",
       capabilities: [
-        "Read the pushed commits, diffs, and surrounding code",
+        "Read the pull request diffs and surrounding code",
+        "If i18n.yml exists, run Hyperlocalise validation (hl check) against the translation files it maps",
         "Judge localisation, translation, and locale-compliance risk in the changed code",
         "Cite commit SHAs and file paths for each finding",
         "Separate blocking localisation defects from non-blocking follow-ups",
         "Ignore unrelated logic, security, and formatting issues unless they affect user-facing copy or locale behavior",
-        "Post findings as a sticky GitHub pull request comment and update it on later pushes",
+        "Post findings as a sticky GitHub pull request comment and update it when the pull request changes",
       ],
-      goal: "Surface localisation and translation risks from this push on the pull request before they merge.",
+      goal: "Surface localisation and translation risks on this pull request before it merges.",
       extraSections: [
         {
           heading: "Review focus",
@@ -653,6 +663,7 @@ export const WORKSPACE_AUTOMATION_TEMPLATES_BASE: WorkspaceAutomationTemplate[] 
       name: "Notify on push blockers",
       triggerMode: "github",
       pushBranches: ["main"],
+      githubEvents: ["pull_request"],
       githubEnabled: true,
       githubMode: "agent",
       repositoryTargetKind: "github",
@@ -887,9 +898,19 @@ export function getWorkspaceAutomationTemplateFlow(
   const form = template.defaultForm;
   const triggerMode = form.triggerMode ?? "manual";
 
+  const githubEvents = form.githubEvents ?? ["push"];
+  const listensToPush = githubEvents.includes("push");
+  const listensToPullRequest = githubEvents.includes("pull_request");
+  const githubTrigger: WorkspaceAutomationTemplateFlowNode =
+    listensToPush && listensToPullRequest
+      ? { id: "github-push", label: "GitHub push and pull request" }
+      : listensToPullRequest
+        ? { id: "github-pull-request", label: "GitHub pull request" }
+        : { id: "github-push", label: "GitHub push" };
+
   const trigger: WorkspaceAutomationTemplateFlowNode =
     triggerMode === "github"
-      ? { id: "github-push", label: "GitHub push" }
+      ? githubTrigger
       : triggerMode === "contentful"
         ? { id: "contentful-webhook", label: "Contentful webhook" }
         : triggerMode === "source_upload"

@@ -610,6 +610,7 @@ export function IssueCommentThread({
           users: {
             userId: string;
             displayName: string;
+            email: string;
             avatarUrl: string | null;
             isAgent?: boolean;
           }[];
@@ -628,6 +629,7 @@ export function IssueCommentThread({
           id: `user:${user.userId}`,
           userId: user.userId,
           displayName: user.displayName,
+          email: user.email,
           avatarUrl: user.avatarUrl,
           isAgent: user.isAgent,
         })),

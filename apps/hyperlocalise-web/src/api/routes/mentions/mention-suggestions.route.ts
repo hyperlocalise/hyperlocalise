@@ -128,6 +128,7 @@ export function createMentionSuggestionsRoutes() {
             users: userRows.map((row) => ({
               userId: row.userId,
               displayName: formatDisplayName(row),
+              email: row.email,
               avatarUrl: row.avatarUrl,
             })),
             issues: issueRows.map((row) => ({

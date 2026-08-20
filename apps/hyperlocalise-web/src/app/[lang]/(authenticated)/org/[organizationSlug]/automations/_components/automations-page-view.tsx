@@ -28,10 +28,11 @@ import type {
   WorkspaceAutomationTemplate,
   WorkspaceAutomationTemplateCategory,
 } from "@/lib/agents/workspace-automation-templates";
-import type { WorkspaceAutomationRecord } from "@/lib/agents/workspace-automations";
+import type { WorkspaceAutomationRecord } from "@/lib/agents/workspace-automation-types";
 
 import { PageHeader, WorkspacePageShell } from "../../_components/workspace-resource-shared";
 import { AutomationTemplateFlow } from "./automation-template-flow";
+import type { GithubAutoReviewSettingsDto, GithubAutoReviewSettingsWrite } from "./automations-api";
 import { automationsPageViewMessages } from "./automations-page-view.messages";
 import {
   formatAutomationRelativeTimestamp,
@@ -43,6 +44,7 @@ import {
   resolveTemplateCategoryTabs,
   resolveVisibleAutomations,
 } from "./automations-page-view-model";
+import { GithubAutoReviewCard } from "./github-auto-review-card";
 
 const TEMPLATE_FILTER_TABS_CLASS =
   "h-auto flex-none rounded-full border-transparent px-3 py-1.5 text-muted-foreground shadow-none after:hidden hover:text-foreground data-active:bg-accent data-active:text-foreground dark:data-active:border-transparent dark:data-active:bg-accent";
@@ -151,6 +153,11 @@ export function AutomationsPageView({
   isLoading,
   error,
   now,
+  autoReview,
+  autoReviewLoading = false,
+  autoReviewError,
+  autoReviewSaving = false,
+  onSaveAutoReview,
   renderAutomationLink = defaultRenderAutomationLink,
   renderActionLink = defaultRenderActionLink,
 }: {
@@ -160,6 +167,11 @@ export function AutomationsPageView({
   isLoading: boolean;
   error?: unknown;
   now?: number;
+  autoReview?: GithubAutoReviewSettingsDto | null;
+  autoReviewLoading?: boolean;
+  autoReviewError?: unknown;
+  autoReviewSaving?: boolean;
+  onSaveAutoReview?: (input: GithubAutoReviewSettingsWrite) => Promise<void>;
   renderAutomationLink?: AutomationsLinkRenderer;
   renderActionLink?: AutomationsActionLinkRenderer;
 }) {
@@ -224,6 +236,15 @@ export function AutomationsPageView({
           </CardHeader>
         </Card>
       </section>
+
+      <GithubAutoReviewCard
+        organizationSlug={organizationSlug}
+        settings={autoReview}
+        isLoading={autoReviewLoading}
+        error={autoReviewError}
+        isSaving={autoReviewSaving}
+        onSave={onSaveAutoReview}
+      />
 
       <section className="flex flex-col gap-4">
         <div className="overflow-x-auto rounded-xl border border-border">

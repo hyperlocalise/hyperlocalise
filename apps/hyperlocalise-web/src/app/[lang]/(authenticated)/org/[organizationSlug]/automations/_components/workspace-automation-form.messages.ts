@@ -35,6 +35,26 @@ export const workspaceAutomationFormMessages = defineMessages({
     id: "feBDOpIUbJ",
     description: "Header summary for a GitHub push trigger",
   },
+  githubPullRequestSummary: {
+    defaultMessage: "GitHub pull request · {repository} · {branches}",
+    id: "uI2rwqO19R",
+    description: "Header summary for a GitHub pull request trigger",
+  },
+  githubPushAndPullRequestSummary: {
+    defaultMessage: "GitHub push and pull request · {repository} · {branches}",
+    id: "/2DsRIRpZu",
+    description: "Header summary for a GitHub trigger that runs on push and pull request",
+  },
+  githubEventPush: {
+    defaultMessage: "Push",
+    id: "k2PKKnD3GN",
+    description: "Toggle label for GitHub push trigger events",
+  },
+  githubEventPullRequest: {
+    defaultMessage: "Pull request opened",
+    id: "2C7ykfN2tG",
+    description: "Toggle label for GitHub pull request opened trigger events",
+  },
   repositoryRequired: {
     defaultMessage: "repository required",
     id: "+UD+5d3g3H",
@@ -91,8 +111,8 @@ export const workspaceAutomationFormMessages = defineMessages({
     description: "Placeholder when no Slack channel is selected",
   },
   searchChannelPlaceholder: {
-    defaultMessage: "Search channels",
-    id: "ipTMc2bEYF",
+    defaultMessage: "Search by name or paste a channel ID",
+    id: "EnR+0v6FUm",
     description: "Placeholder for Slack channel search input",
   },
   selectConnection: {
@@ -465,13 +485,13 @@ export const workspaceAutomationFormMessages = defineMessages({
   crowdinDescription: {
     defaultMessage:
       "Search concordance, load style guidance, and recommend translations for strings under review.",
-    id: "a44831XqpD",
-    description: "Description for the Crowdin automation tool when a linked project exists",
+    id: "0udJ5Zg8a7",
+    description: "Description for the Crowdin automation tool when Crowdin is connected",
   },
   crowdinDisconnectedDescription: {
-    defaultMessage: "Connect Crowdin and sync a project before using this review tool.",
-    id: "FZh9zX9beA",
-    description: "Description when no Crowdin-linked project is available",
+    defaultMessage: "Connect Crowdin in <link>Integrations</link> to use this tool.",
+    id: "Ka+KmK/Z9+",
+    description: "Description when Crowdin is not connected",
   },
   removeCrowdinTool: {
     defaultMessage: "Remove Crowdin tool",
@@ -607,8 +627,8 @@ export const workspaceAutomationFormMessages = defineMessages({
   },
   githubCommentConnectedDescription: {
     defaultMessage:
-      "Post a sticky review comment on the pull request for this push. Later runs update the same comment.",
-    id: "AbZsOtFk+H",
+      "Post a sticky review comment on the matching pull request. Later runs update the same comment.",
+    id: "tp0Edn/npM",
     description:
       "Description for GitHub pull request comment notifications when GitHub is connected",
   },
@@ -628,19 +648,41 @@ export const workspaceAutomationFormMessages = defineMessages({
     description: "Accessible label to remove Slack notifications",
   },
   channelLabel: {
-    defaultMessage: "Channel",
-    id: "T8F8lD+KK1",
-    description: "Label for the Slack channel select",
+    defaultMessage: "Channel ID",
+    id: "FxNFbqpNBI",
+    description: "Label for the Slack channel ID input",
   },
-  loadingChannels: {
-    defaultMessage: "Loading channels...",
-    id: "D0mCtflyKZ",
-    description: "Placeholder while Slack channels are loading",
+  channelIdPlaceholder: {
+    defaultMessage: "C0123456789",
+    id: "/69jKTmJ4I",
+    description: "Placeholder for the Slack channel ID input",
   },
-  noChannelsFound: {
-    defaultMessage: "No channels found",
-    id: "AiZ8NmX54q",
-    description: "Empty state when no Slack channels are available",
+  channelIdHelp: {
+    defaultMessage:
+      "Paste the channel ID from Slack. Open the channel, click the channel name, then copy the ID at the bottom of the About tab. The app must be invited to private channels.",
+    id: "7w0EIy2MLW",
+    description: "Help text for entering a Slack channel ID",
+  },
+  verifyingChannel: {
+    defaultMessage: "Verifying channel...",
+    id: "0AwFQKS1li",
+    description: "Status while a Slack channel ID is being verified",
+  },
+  invalidChannelId: {
+    defaultMessage: "Enter a valid Slack channel ID, such as C0123456789.",
+    id: "Jsu6BbXJ5w",
+    description: "Error when the Slack channel ID format is invalid",
+  },
+  channelNotFound: {
+    defaultMessage:
+      "Channel not found or the app is not a member. For private channels, invite the Hyperlocalise app first.",
+    id: "WAbDlyKYQP",
+    description: "Error when conversations.info does not resolve the channel ID",
+  },
+  slackChannelVerifyFailed: {
+    defaultMessage: "Unable to verify this channel right now. Try again.",
+    id: "ZM4eC/SiqK",
+    description: "Error when Slack channel verification fails unexpectedly",
   },
   privateChannelSuffix: {
     defaultMessage: "#{name} (private)",
@@ -884,6 +926,46 @@ export const workspaceAutomationFormMessages = defineMessages({
     defaultMessage: "Agent Instructions",
     id: "Ej5U0a0604",
     description: "Section heading for automation agent instructions",
+  },
+  modelSection: {
+    defaultMessage: "Model",
+    id: "XCYkEzJaA9",
+    description: "Section heading for the automation language model selector",
+  },
+  modelLabel: {
+    defaultMessage: "Model",
+    id: "yKlYrz3iYw",
+    description: "Label for the automation language model select",
+  },
+  modelDescription: {
+    defaultMessage: "This model runs the automation and its nested agents.",
+    id: "4/w2RcdLUO",
+    description: "Helper text for the automation language model select",
+  },
+  modelGpt56Luna: {
+    defaultMessage: "GPT-5.6 Luna",
+    id: "IrSQ6vE36K",
+    description: "Label for the OpenAI GPT-5.6 Luna automation model",
+  },
+  modelGpt56Terra: {
+    defaultMessage: "GPT-5.6 Terra",
+    id: "DIWOumxoRD",
+    description: "Label for the OpenAI GPT-5.6 Terra automation model",
+  },
+  modelGpt56Sol: {
+    defaultMessage: "GPT-5.6 Sol",
+    id: "f7G04QgkqV",
+    description: "Label for the OpenAI GPT-5.6 Sol automation model",
+  },
+  modelClaudeSonnet5: {
+    defaultMessage: "Claude Sonnet 5",
+    id: "4b7EZj4onr",
+    description: "Label for the Anthropic Claude Sonnet 5 automation model",
+  },
+  modelClaudeOpus5: {
+    defaultMessage: "Claude Opus 5",
+    id: "hGgsaGVVDY",
+    description: "Label for the Anthropic Claude Opus 5 automation model",
   },
   instructionsPlaceholder: {
     defaultMessage: "Tell the automation what to do, what to inspect, and what to ignore.",

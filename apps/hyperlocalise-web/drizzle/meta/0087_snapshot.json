@@ -1,5 +1,5 @@
 {
-  "id": "d1cde6a0-804e-4a47-aaf7-25d0cb6a74ee",
+  "id": "cd5791b9-6fe6-49ff-bfbc-a41484ba2710",
   "prevId": "f185572c-c9bc-4fd1-8fac-a7cd2e8ebd93",
   "version": "7",
   "dialect": "postgresql",
@@ -4165,7 +4165,7 @@
           "name": "target_locale",
           "type": "text",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "status": {
           "name": "status",
@@ -4514,6 +4514,122 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
+    "public.glossary_concepts": {
+      "name": "glossary_concepts",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "glossary_id": {
+          "name": "glossary_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "primary_term": {
+          "name": "primary_term",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "subject": {
+          "name": "subject",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "definition": {
+          "name": "definition",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "translatable": {
+          "name": "translatable",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "note": {
+          "name": "note",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "url": {
+          "name": "url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "idx_glossary_concepts_glossary_created_at": {
+          "name": "idx_glossary_concepts_glossary_created_at",
+          "columns": [
+            {
+              "expression": "glossary_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "glossary_concepts_glossary_id_glossaries_id_fk": {
+          "name": "glossary_concepts_glossary_id_glossaries_id_fk",
+          "tableFrom": "glossary_concepts",
+          "tableTo": "glossaries",
+          "columnsFrom": [
+            "glossary_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
     "public.glossary_terms": {
       "name": "glossary_terms",
       "schema": "",
@@ -4530,6 +4646,24 @@
           "type": "uuid",
           "primaryKey": false,
           "notNull": true
+        },
+        "concept_id": {
+          "name": "concept_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "locale": {
+          "name": "locale",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "term": {
+          "name": "term",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
         },
         "source_term": {
           "name": "source_term",
@@ -4556,6 +4690,25 @@
           "primaryKey": false,
           "notNull": true,
           "default": "''"
+        },
+        "gender": {
+          "name": "gender",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "term_type": {
+          "name": "term_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'preferred'"
         },
         "case_sensitive": {
           "name": "case_sensitive",
@@ -4625,8 +4778,8 @@
         }
       },
       "indexes": {
-        "glossary_terms_glossary_source_term_key": {
-          "name": "glossary_terms_glossary_source_term_key",
+        "idx_glossary_terms_glossary_source_term": {
+          "name": "idx_glossary_terms_glossary_source_term",
           "columns": [
             {
               "expression": "glossary_id",
@@ -4641,13 +4794,13 @@
               "nulls": "last"
             }
           ],
-          "isUnique": true,
+          "isUnique": false,
           "concurrently": false,
           "method": "btree",
           "with": {}
         },
-        "glossary_terms_glossary_source_term_ci_key": {
-          "name": "glossary_terms_glossary_source_term_ci_key",
+        "idx_glossary_terms_glossary_source_term_ci": {
+          "name": "idx_glossary_terms_glossary_source_term_ci",
           "columns": [
             {
               "expression": "glossary_id",
@@ -4662,8 +4815,7 @@
               "nulls": "last"
             }
           ],
-          "isUnique": true,
-          "where": "\"glossary_terms\".\"case_sensitive\" = false",
+          "isUnique": false,
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -4689,6 +4841,34 @@
           "method": "btree",
           "with": {}
         },
+        "glossary_terms_concept_locale_term_key": {
+          "name": "glossary_terms_concept_locale_term_key",
+          "columns": [
+            {
+              "expression": "concept_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "locale",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "term",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "\"glossary_terms\".\"concept_id\" is not null and \"glossary_terms\".\"locale\" is not null and \"glossary_terms\".\"term\" is not null",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
         "idx_glossary_terms_glossary_created_at": {
           "name": "idx_glossary_terms_glossary_created_at",
           "columns": [
@@ -4700,6 +4880,42 @@
             },
             {
               "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "idx_glossary_terms_concept_id": {
+          "name": "idx_glossary_terms_concept_id",
+          "columns": [
+            {
+              "expression": "concept_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "idx_glossary_terms_concept_locale": {
+          "name": "idx_glossary_terms_concept_locale",
+          "columns": [
+            {
+              "expression": "concept_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "locale",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -4748,6 +4964,19 @@
           "tableTo": "glossaries",
           "columnsFrom": [
             "glossary_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "glossary_terms_concept_id_glossary_concepts_id_fk": {
+          "name": "glossary_terms_concept_id_glossary_concepts_id_fk",
+          "tableFrom": "glossary_terms",
+          "tableTo": "glossary_concepts",
+          "columnsFrom": [
+            "concept_id"
           ],
           "columnsTo": [
             "id"
@@ -13858,185 +14087,6 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.workspace_automation_knowledge_files": {
-      "name": "workspace_automation_knowledge_files",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "organization_id": {
-          "name": "organization_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "automation_id": {
-          "name": "automation_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "stored_file_id": {
-          "name": "stored_file_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "filename": {
-          "name": "filename",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "content_type": {
-          "name": "content_type",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "byte_size": {
-          "name": "byte_size",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "extracted_text": {
-          "name": "extracted_text",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "''"
-        },
-        "created_by_user_id": {
-          "name": "created_by_user_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "workspace_automation_knowledge_files_stored_file_key": {
-          "name": "workspace_automation_knowledge_files_stored_file_key",
-          "columns": [
-            {
-              "expression": "stored_file_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "idx_workspace_automation_knowledge_files_automation": {
-          "name": "idx_workspace_automation_knowledge_files_automation",
-          "columns": [
-            {
-              "expression": "organization_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "automation_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "created_at",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "workspace_automation_knowledge_files_organization_id_organizations_id_fk": {
-          "name": "workspace_automation_knowledge_files_organization_id_organizations_id_fk",
-          "tableFrom": "workspace_automation_knowledge_files",
-          "tableTo": "organizations",
-          "columnsFrom": [
-            "organization_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "workspace_automation_knowledge_files_automation_id_workspace_automations_id_fk": {
-          "name": "workspace_automation_knowledge_files_automation_id_workspace_automations_id_fk",
-          "tableFrom": "workspace_automation_knowledge_files",
-          "tableTo": "workspace_automations",
-          "columnsFrom": [
-            "automation_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "workspace_automation_knowledge_files_stored_file_id_stored_files_id_fk": {
-          "name": "workspace_automation_knowledge_files_stored_file_id_stored_files_id_fk",
-          "tableFrom": "workspace_automation_knowledge_files",
-          "tableTo": "stored_files",
-          "columnsFrom": [
-            "stored_file_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "workspace_automation_knowledge_files_created_by_user_id_users_id_fk": {
-          "name": "workspace_automation_knowledge_files_created_by_user_id_users_id_fk",
-          "tableFrom": "workspace_automation_knowledge_files",
-          "tableTo": "users",
-          "columnsFrom": [
-            "created_by_user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
     "public.project_translation_comments": {
       "name": "project_translation_comments",
       "schema": "",
@@ -18967,8 +19017,7 @@
         "chat_ui",
         "email_agent",
         "github_agent",
-        "slack_agent",
-        "web_chat"
+        "slack_agent"
       ]
     },
     "public.job_kind": {
@@ -19171,8 +19220,7 @@
         "job_output",
         "repository_file",
         "tms_file",
-        "editor_upload",
-        "automation_knowledge"
+        "editor_upload"
       ]
     },
     "public.team_membership_role": {
@@ -19253,8 +19301,7 @@
         "scheduled",
         "github",
         "contentful",
-        "source_upload",
-        "web_chat"
+        "source_upload"
       ]
     },
     "public.workspace_automation_status": {

@@ -6,12 +6,6 @@ on:
     paths-ignore:
       - apps/hyperlocalise-web/**
       - .github/workflows/web.yml
-  push:
-    branches:
-      - main
-    paths-ignore:
-      - apps/hyperlocalise-web/**
-      - .github/workflows/web.yml
 
 permissions:
   contents: read
@@ -44,7 +38,7 @@ jobs:
 
   action-self-test:
     name: Action Self Test
-    if: github.event_name == 'push' || github.event.pull_request.draft == false
+    if: github.event.pull_request.draft == false
     runs-on: blacksmith-4vcpu-ubuntu-2404
 
     steps:
@@ -84,7 +78,7 @@ jobs:
 
   web-sync-cli-smoke-test:
     name: Web Sync CLI Smoke Test
-    if: github.event_name == 'push' || github.event.pull_request.draft == false
+    if: github.event.pull_request.draft == false
     runs-on: blacksmith-4vcpu-ubuntu-2404
     defaults:
       run:
@@ -113,7 +107,7 @@ jobs:
 
   bazel-build-test:
     name: Bazel Build/Test
-    if: github.event_name == 'push' || github.event.pull_request.draft == false
+    if: github.event.pull_request.draft == false
     runs-on: blacksmith-4vcpu-ubuntu-2404
 
     steps:
@@ -133,7 +127,7 @@ jobs:
 
   go-quality:
     name: Go Quality
-    if: github.event_name == 'push' || github.event.pull_request.draft == false
+    if: github.event.pull_request.draft == false
     runs-on: blacksmith-4vcpu-ubuntu-2404
 
     steps:

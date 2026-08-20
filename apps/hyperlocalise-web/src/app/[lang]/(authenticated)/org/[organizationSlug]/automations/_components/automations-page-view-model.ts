@@ -21,7 +21,7 @@ import {
 import type {
   WorkspaceAutomationRecord,
   WorkspaceAutomationTriggerConfig,
-} from "@/lib/agents/workspace-automations";
+} from "@/lib/agents/workspace-automation-types";
 
 import { automationsPageViewModelMessages } from "./automations-page-view-model.messages";
 
