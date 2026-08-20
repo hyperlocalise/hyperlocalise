@@ -53,7 +53,7 @@ export const knowledgeMemoryEditorMessages = defineMessages({
   },
   overLimitError: {
     defaultMessage: "Guideline must be {limit} characters or less.",
-    id: "e6dWjFyp+5",
+    id: "z5B/SjTaZR",
     description: "Error when the organization guideline exceeds the character limit",
   },
   characterCount: {

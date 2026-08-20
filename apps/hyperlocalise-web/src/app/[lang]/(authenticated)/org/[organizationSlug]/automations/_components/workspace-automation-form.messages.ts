@@ -317,18 +317,18 @@ export const workspaceAutomationFormMessages = defineMessages({
   },
   memories: {
     defaultMessage: "Use workspace guideline",
-    id: "4QiNYfF++j",
+    id: "cTokIumPvG",
     description: "Menu item and tool title for the workspace guideline",
   },
   memoriesDescription: {
     defaultMessage: "Use the workspace guideline as guidance for this automation.",
-    id: "rcdU5+Pv4r",
+    id: "WGmc876gab",
     description: "Description for the workspace guideline automation tool",
   },
   memoriesUnavailableDescription: {
     defaultMessage:
       "Enable the workspace guideline for this organization before using it in automations.",
-    id: "yl7Dzt+xE3",
+    id: "cK7XskRaCj",
     description: "Description when the workspace guideline cannot be used yet",
   },
   manageMemories: {
@@ -338,12 +338,12 @@ export const workspaceAutomationFormMessages = defineMessages({
   },
   manageMemoriesTitle: {
     defaultMessage: "Guideline",
-    id: "W9S7Ht69kS",
+    id: "SiOUPw8jfE",
     description: "Title for the workspace guideline management sheet",
   },
   manageMemoriesDescription: {
     defaultMessage: "Edit the shared workspace guideline used by this automation.",
-    id: "WBqbSdV/u8",
+    id: "rLqAlt6azb",
     description: "Description for the workspace guideline management sheet",
   },
   removeMemoriesTool: {

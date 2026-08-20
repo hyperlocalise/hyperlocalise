@@ -17,22 +17,22 @@ import { defineMessages } from "react-intl";
 export const aiEnginePageContentMessages = defineMessages({
   pageTitle: {
     defaultMessage: "AI Engine",
-    id: "wP3kR8tY1n",
+    id: "YEHmCLlYeR",
     description: "AI Engine page heading",
   },
   pageDescription: {
     defaultMessage: "Choose the model provider agents use in this workspace.",
-    id: "bH6sD2qL9f",
+    id: "vd5foq/6mc",
     description: "AI Engine page description",
   },
   workspaceLevelBadge: {
     defaultMessage: "Workspace level",
-    id: "cK5nM1vE4a",
+    id: "Mbl8Jg/bPv",
     description: "Badge indicating AI Engine settings apply to the whole workspace",
   },
   noAccess: {
     defaultMessage: "You do not have permission to manage AI providers in this workspace.",
-    id: "tJ9pX4wQ7m",
+    id: "rpzNVqnjuM",
     description: "Shown when the current role cannot view AI Engine provider settings",
   },
   hyperlocaliseGoLabel: {
@@ -47,32 +47,32 @@ export const aiEnginePageContentMessages = defineMessages({
   },
   openAiLabel: {
     defaultMessage: "Open AI",
-    id: "0kqhhOMa9k",
+    id: "dm/0dsDRmT",
     description: "OpenAI BYOK provider name on the AI Engine page",
   },
   openAiDescription: {
     defaultMessage: "Connect your OpenAI account",
-    id: "QmXtxyLvCd",
+    id: "Hqa87sQvVP",
     description: "OpenAI BYOK provider description on the AI Engine page",
   },
   anthropicLabel: {
     defaultMessage: "Anthropic",
-    id: "1VNZg9UkcM",
+    id: "3G3Ey6WZkU",
     description: "Anthropic BYOK provider name on the AI Engine page",
   },
   anthropicDescription: {
     defaultMessage: "Connect your Anthropic account",
-    id: "4tP9x2ODN4",
+    id: "wlOEitxlRT",
     description: "Anthropic BYOK provider description on the AI Engine page",
   },
   geminiLabel: {
     defaultMessage: "Google Gemini",
-    id: "l0d6YXPPZ9",
+    id: "xaeNAP8qpf",
     description: "Google Gemini BYOK provider name on the AI Engine page",
   },
   geminiDescription: {
     defaultMessage: "Connect your Gemini account",
-    id: "R+hZLscXuo",
+    id: "3sdI+9Dw/K",
     description: "Google Gemini BYOK provider description on the AI Engine page",
   },
   providerSavedToast: {
@@ -133,12 +133,12 @@ export const aiEnginePageContentMessages = defineMessages({
   },
   disconnecting: {
     defaultMessage: "Disconnecting…",
-    id: "gF2sN8pK4w",
+    id: "JOyIQ9rRB7",
     description: "Button label while disconnecting an AI Engine provider",
   },
   disconnect: {
     defaultMessage: "Disconnect",
-    id: "hD7cR1tL6y",
+    id: "Dt8QOAfnsv",
     description: "Button label to disconnect an AI Engine provider",
   },
   validating: {

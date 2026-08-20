@@ -13,7 +13,13 @@
  * Version 2.0 or later.
  */
 import { useEffect, useId, useMemo, useState } from "react";
-import { Delete02Icon, Key01Icon, SaveIcon, ViewIcon, ViewOffSlashIcon } from "@hugeicons/core-free-icons";
+import {
+  Delete02Icon,
+  Key01Icon,
+  SaveIcon,
+  ViewIcon,
+  ViewOffSlashIcon,
+} from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import type { SimpleIcon } from "simple-icons";
 import { siAnthropic, siGooglegemini } from "simple-icons";
@@ -306,7 +312,9 @@ export function AiEnginePageContent({
                           : intl.formatMessage(aiEnginePageContentMessages.switchToManagedFooter)
                         : intl.formatMessage(aiEnginePageContentMessages.configureFooter)
                     }
-                    disabled={isManaged && isActive ? true : isManaged && deleteCredential.isPending}
+                    disabled={
+                      isManaged && isActive ? true : isManaged && deleteCredential.isPending
+                    }
                     onSelect={() => {
                       if (isManaged) {
                         if (credential) {

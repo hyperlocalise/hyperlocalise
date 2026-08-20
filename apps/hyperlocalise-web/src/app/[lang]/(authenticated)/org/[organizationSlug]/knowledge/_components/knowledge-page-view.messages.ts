@@ -17,12 +17,12 @@ import { defineMessages } from "react-intl";
 export const knowledgePageViewMessages = defineMessages({
   workspace: {
     defaultMessage: "Workspace",
-    id: "viq5/Imoma",
+    id: "1QeX69p2Dj",
     description: "Breadcrumb label above the Guideline page",
   },
   title: {
     defaultMessage: "Guideline",
-    id: "CkQ3yx9NoL",
+    id: "iOunGMNIui",
     description: "Page heading for the organization guideline page",
   },
   description: {

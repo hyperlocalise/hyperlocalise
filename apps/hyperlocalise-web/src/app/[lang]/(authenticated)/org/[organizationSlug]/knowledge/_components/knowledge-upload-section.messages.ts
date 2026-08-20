@@ -17,7 +17,7 @@ import { defineMessages } from "react-intl";
 export const knowledgeUploadSectionMessages = defineMessages({
   title: {
     defaultMessage: "Upload guideline",
-    id: "GWQDU8Wxgx",
+    id: "ctE3s3xZAZ",
     description: "Heading for the guideline upload empty state",
   },
   dropHint: {

@@ -144,7 +144,7 @@ export function buildGlobalNavigationGroups(
     {
       label: intl.formatMessage({
         defaultMessage: "Agents",
-        id: "k8NwQ2pLmA",
+        id: "/EOfWYVF9T",
         description: "Sidebar group label for agent navigation items",
       }),
       items: [
@@ -186,14 +186,14 @@ export function buildGlobalNavigationGroups(
         {
           label: intl.formatMessage({
             defaultMessage: "AI Engine",
-            id: "pR4tE9sVqB",
+            id: "Q8QL+zifeT",
             description: "Sidebar navigation item for workspace AI model providers",
           }),
           href: org("ai-engine"),
           icon: AiChipIcon,
           description: intl.formatMessage({
             defaultMessage: "Choose the model provider agents use",
-            id: "mL7wC3nH8d",
+            id: "ZnnVLUSfjR",
             description: "Sidebar description for the AI Engine navigation item",
           }),
         },
@@ -233,14 +233,14 @@ export function buildGlobalNavigationGroups(
         {
           label: intl.formatMessage({
             defaultMessage: "Guideline",
-            id: "HrKmOaq57x",
+            id: "D6HJDahz6H",
             description: "Sidebar navigation item for workspace guideline",
           }),
           href: org("knowledge"),
           icon: AiBrain01Icon,
           description: intl.formatMessage({
             defaultMessage: "Shared guidance for agents and teams",
-            id: "ZFNYMG0eSQ",
+            id: "dEzuHMWHq4",
             description: "Sidebar description for the Guideline navigation item",
           }),
           featureFlagKey: WORKSPACE_KNOWLEDGE_FLAG,

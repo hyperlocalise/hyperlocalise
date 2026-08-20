@@ -160,7 +160,7 @@ function formatRouteTitle(intl: IntlShape, key: RouteTitleKey): string {
     case "ai-engine":
       return intl.formatMessage({
         defaultMessage: "AI Engine",
-        id: "nQ8vL2wR5c",
+        id: "lfPogGpRYm",
         description: "App shell breadcrumb title for the AI Engine page",
       });
     case "api-keys":
@@ -232,7 +232,7 @@ function formatRouteTitle(intl: IntlShape, key: RouteTitleKey): string {
     case "knowledge":
       return intl.formatMessage({
         defaultMessage: "Guideline",
-        id: "T+wQxH/IG1",
+        id: "1INOkRkMDD",
         description: "App shell breadcrumb title for the guideline page",
       });
     case "locales":
