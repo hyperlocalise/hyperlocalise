@@ -22,7 +22,6 @@ import { MarketingFooter } from "@/components/marketing/marketing-footer";
 import { footerColumns } from "@/components/marketing/marketing-page-content";
 import { REQUEST_DEMO_URL } from "@/components/marketing/request-demo";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/primitives/cn";
 
 import type { ProductPageContent, ProductVisualKind } from "./product-page-content";
 import { AutomationsMockUI } from "./automations-mock-ui";
@@ -86,162 +85,16 @@ function ProductHero({ content }: ProductPageProps) {
   );
 }
 
-function AutomationPrimaryVisual() {
-  const sources: ProductMessageKey[] = [
-    "visualAutomationSourceGitHub",
-    "visualAutomationSourceSlack",
-    "visualAutomationSourceCms",
-  ];
-  const destinations: ProductMessageKey[] = [
-    "visualAutomationDestReviewer",
-    "visualAutomationDestTms",
-    "visualAutomationDestRelease",
-  ];
-  const tasks: ProductMessageKey[] = [
-    "visualAutomationTaskDetectChangedStrings",
-    "visualAutomationTaskAttachProductContext",
-    "visualAutomationTaskCreateReviewerTasks",
-  ];
-
-  return (
-    <div className="relative h-full overflow-hidden rounded-lg border border-border bg-card p-4 shadow-2xl shadow-gray-alpha-100">
-      <div className="mb-4 flex items-center justify-between border-b border-border pb-3">
-        <div>
-          <div className="text-sm font-semibold">
-            <ProductMessage messageKey="visualAutomationLaunchRequest" />
-          </div>
-          <div className="text-xs text-muted-foreground">
-            <ProductMessage messageKey="visualAutomationLocalesWaiting" />
-          </div>
-        </div>
-        <div className="rounded-full bg-success/15 px-3 py-1 text-xs font-medium text-success-foreground dark:text-success">
-          <ProductMessage messageKey="visualAutomationStatusRunning" />
-        </div>
-      </div>
-      <div className="grid h-[calc(100%-4.5rem)] min-h-[24rem] gap-3 md:grid-cols-[0.8fr_1.15fr_0.8fr]">
-        <div className="flex flex-col gap-2">
-          {sources.map((sourceKey) => (
-            <div key={sourceKey} className="rounded-md border border-border bg-background p-3">
-              <div className="text-xs text-muted-foreground">
-                <ProductMessage messageKey="visualAutomationSignalLabel" />
-              </div>
-              <div className="text-sm font-semibold">
-                <ProductMessage messageKey={sourceKey} />
-              </div>
-            </div>
-          ))}
-        </div>
-        <div className="rounded-lg border border-primary/25 bg-primary/8 p-4">
-          <div className="mb-4 flex items-center justify-between">
-            <div>
-              <div className="text-sm font-semibold">
-                <ProductMessage messageKey="visualAutomationHyperlocaliseAgent" />
-              </div>
-              <div className="text-xs text-muted-foreground">
-                <ProductMessage messageKey="visualAutomationScopeContextRoute" />
-              </div>
-            </div>
-            <div className="size-2 rounded-full bg-primary" />
-          </div>
-          <div className="space-y-2">
-            {tasks.map((taskKey) => (
-              <div
-                key={taskKey}
-                className="flex items-center gap-2 rounded-md bg-background/80 px-3 py-2 text-xs"
-              >
-                <HugeiconsIcon icon={CheckmarkCircle02Icon} className="size-3.5 text-primary" />
-                <ProductMessage messageKey={taskKey} />
-              </div>
-            ))}
-          </div>
-        </div>
-        <div className="flex flex-col gap-2">
-          {destinations.map((destinationKey) => (
-            <div key={destinationKey} className="rounded-md border border-border bg-background p-3">
-              <div className="text-xs text-muted-foreground">
-                <ProductMessage messageKey="visualAutomationRouteLabel" />
-              </div>
-              <div className="text-sm font-semibold">
-                <ProductMessage messageKey={destinationKey} />
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function KnowledgePrimaryVisual() {
-  const nodes: ProductMessageKey[] = [
-    "visualKnowledgeNodeProductDocs",
-    "visualKnowledgeNodeGlossary",
-    "visualKnowledgeNodeTranslations",
-    "visualKnowledgeNodeReviewers",
-    "visualKnowledgeNodeMarkets",
-    "visualKnowledgeNodeAgents",
-  ];
-
-  return (
-    <div className="h-full rounded-lg border border-border bg-card p-5 shadow-2xl shadow-gray-alpha-100">
-      <div className="mb-6 flex items-center justify-between border-b border-border pb-4">
-        <div>
-          <div className="text-sm font-semibold">
-            <ProductMessage messageKey="visualKnowledgeMemoryLayerTitle" />
-          </div>
-          <div className="text-xs text-muted-foreground">
-            <ProductMessage messageKey="visualKnowledgeSignalsCaptured" />
-          </div>
-        </div>
-        <div className="rounded-full bg-secondary/25 px-3 py-1 text-xs font-medium">
-          <ProductMessage messageKey="visualKnowledgeStatusLearning" />
-        </div>
-      </div>
-      <div className="grid min-h-[20rem] gap-3 sm:grid-cols-3">
-        {nodes.map((nodeKey, index) => (
-          <div
-            key={nodeKey}
-            className={cn(
-              "rounded-lg border p-4",
-              index === 2 ? "border-primary/35 bg-primary/10" : "border-border bg-background",
-            )}
-          >
-            <div className="mb-8 size-2 rounded-full bg-primary" />
-            <div className="text-sm font-semibold">
-              <ProductMessage messageKey={nodeKey} />
-            </div>
-            <div className="mt-1 text-xs text-muted-foreground">
-              {index === 2 ? (
-                <ProductMessage messageKey="visualKnowledgeApprovedSourceOfTruth" />
-              ) : (
-                <ProductMessage messageKey="visualKnowledgeContextSignal" />
-              )}
-            </div>
-          </div>
-        ))}
-      </div>
-      <div className="mt-4 rounded-lg border border-border bg-muted/25 p-4">
-        <div className="text-xs font-semibold text-muted-foreground uppercase">
-          <ProductMessage messageKey="visualKnowledgeLatestDecision" />
-        </div>
-        <div className="mt-2 text-sm">
-          <ProductMessage messageKey="visualKnowledgeLatestDecisionBody" />
-        </div>
-      </div>
-    </div>
-  );
-}
-
 function ProductVisual({ kind }: { kind: ProductVisualKind }) {
   if (kind === "automation") {
-    return <AutomationsMockUI />
+    return <AutomationsMockUI />;
   }
 
   if (kind === "knowledge") {
     return <KnowledgeMockUI />;
   }
 
-  return;
+  return null;
 }
 
 function ProductShowcase({ content }: ProductPageProps) {
