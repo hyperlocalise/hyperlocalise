@@ -34,7 +34,7 @@
     "@formatjs/icu-messageformat-parser": "^3.5.12",
     "@formatjs/intl": "^4.1.14",
     "@formatjs/intl-localematcher": "^0.8.10",
-    "@hookform/resolvers": "5.8.0",
+    "@hookform/resolvers": "5.9.0",
     "@hugeicons/core-free-icons": "4.2.3",
     "@hugeicons/react": "1.1.9",
     "@inno76/univer-import-export": "^0.2.3",
@@ -129,7 +129,7 @@
     "react-intersection-observer": "11.0.0",
     "react-intl": "^10.1.14",
     "react-jsx-parser": "^2.4.1",
-    "react-resizable-panels": "4.12.2",
+    "react-resizable-panels": "4.12.3",
     "react-use-measure": "2.1.7",
     "recharts": "3.10.1",
     "rehype-sanitize": "^6.0.0",
@@ -189,7 +189,7 @@
     "typescript": "7.0.2",
     "vite-plus": "0.2.9"
   },
-  "packageManager": "pnpm@11.21.0",
+  "packageManager": "pnpm@11.22.0",
   "msw": {
     "workerDirectory": [
       "public"
