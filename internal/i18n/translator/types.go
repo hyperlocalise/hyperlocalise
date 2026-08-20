@@ -16,6 +16,8 @@ const (
 	ProviderOllama      = "ollama"
 	ProviderGemini      = "gemini"
 	ProviderBedrock     = "bedrock"
+	ProviderOpenRouter  = "openrouter"
+	ProviderAIGateway   = "ai_gateway"
 )
 
 const OpenAIImageModel = "gpt-image-2-2026-04-21"

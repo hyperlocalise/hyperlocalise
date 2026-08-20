@@ -13,6 +13,7 @@
 // @vitest-environment happy-dom
 
 import { render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
 import { CatTestProviders } from "@/components/cat/shared/cat-test-utils";
@@ -102,6 +103,26 @@ vi.mock("@/components/cat/project-file/project-file-cat-workspace", () => ({
     targetLocale: string;
     targetLocales?: string[];
   }) => ProjectFileCatWorkspaceMock(props),
+}));
+
+vi.mock("./project-files-tree", () => ({
+  ProjectFilesTree: ({
+    files,
+    onSelectFile,
+  }: {
+    files: Array<{ sourcePath: string; filename: string }>;
+    onSelectFile: (sourcePath: string) => void;
+  }) => (
+    <ul>
+      {files.map((file) => (
+        <li key={file.sourcePath}>
+          <button type="button" onClick={() => onSelectFile(file.sourcePath)}>
+            {file.filename}
+          </button>
+        </li>
+      ))}
+    </ul>
+  ),
 }));
 
 import { ProjectFileCatPageContent } from "./project-file-cat-page-content";
@@ -225,7 +246,9 @@ describe("ProjectFileCatPageContent CAT shell", () => {
     vi.unstubAllGlobals();
   });
 
-  it("renders source file and GitHub repository selectors in the CAT header", async () => {
+  it("renders source file and locale selectors in the CAT header", async () => {
+    const user = userEvent.setup();
+
     render(
       <CatTestProviders>
         <ProjectFileCatPageContent
@@ -239,8 +262,12 @@ describe("ProjectFileCatPageContent CAT shell", () => {
 
     await waitFor(() => {
       expect(screen.getByLabelText("Source file")).toBeInTheDocument();
-      expect(screen.getByLabelText("GitHub repository")).toBeInTheDocument();
+      expect(screen.getByLabelText("Target locale")).toBeInTheDocument();
     });
+    expect(screen.queryByLabelText("GitHub repository")).not.toBeInTheDocument();
+
+    await user.click(screen.getByLabelText("Source file"));
+    expect(await screen.findByLabelText("GitHub repository")).toBeInTheDocument();
   });
 
   it("passes a saved repository preference into the CAT workspace", async () => {
@@ -314,7 +341,9 @@ describe("ProjectFileCatPageContent CAT shell", () => {
 
     await waitFor(() => {
       expect(
-        screen.getByText("Select a GitHub repository to look up string context."),
+        screen.getByText(
+          "Choose a GitHub repository in the source file picker to look up string context.",
+        ),
       ).toBeInTheDocument();
     });
     expect(screen.getByTestId("cat-workspace")).toHaveAttribute("data-repo", "");
@@ -338,7 +367,9 @@ describe("ProjectFileCatPageContent CAT shell", () => {
       expect(screen.getByTestId("cat-workspace")).toHaveAttribute("data-repo", "acme/web");
     });
     expect(
-      screen.queryByText("Select a GitHub repository to look up string context."),
+      screen.queryByText(
+        "Choose a GitHub repository in the source file picker to look up string context.",
+      ),
     ).not.toBeInTheDocument();
   });
 
@@ -359,11 +390,11 @@ describe("ProjectFileCatPageContent CAT shell", () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByLabelText("GitHub repository")).toBeInTheDocument();
       expect(screen.getByTestId("cat-workspace")).toHaveAttribute("data-repo", "acme/docs");
       expect(screen.getByTestId("cat-workspace")).toHaveAttribute("data-source-path", "*");
     });
     expect(screen.getByLabelText("Source file")).toHaveTextContent("All Files");
+    expect(screen.queryByLabelText("GitHub repository")).not.toBeInTheDocument();
   });
 
   it("auto-selects the only enabled repository when viewing All Files", async () => {
@@ -383,8 +414,35 @@ describe("ProjectFileCatPageContent CAT shell", () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByLabelText("GitHub repository")).toBeInTheDocument();
       expect(screen.getByTestId("cat-workspace")).toHaveAttribute("data-repo", "acme/web");
     });
+    expect(screen.queryByLabelText("GitHub repository")).not.toBeInTheDocument();
+  });
+
+  it("saves the chosen repository under the destination file preference key", async () => {
+    const user = userEvent.setup();
+
+    render(
+      <CatTestProviders>
+        <ProjectFileCatPageContent
+          organizationSlug="acme"
+          projectId="proj_1"
+          sourcePath="en-US.json"
+          highlightLocale="vi"
+          catAllFilesEnabled
+        />
+      </CatTestProviders>,
+    );
+
+    await user.click(await screen.findByLabelText("Source file"));
+    await user.click(await screen.findByLabelText("GitHub repository"));
+    await user.click(await screen.findByRole("option", { name: "acme/docs" }));
+    await user.click(screen.getByRole("button", { name: "pricing.json" }));
+    await user.click(screen.getByRole("button", { name: "Open file" }));
+
+    expect(localStorage.getItem("job-cat-repository:acme:proj_1:marketing/pricing.json")).toBe(
+      "acme/docs",
+    );
+    expect(localStorage.getItem("job-cat-repository:acme:proj_1:en-US.json")).toBeNull();
   });
 });

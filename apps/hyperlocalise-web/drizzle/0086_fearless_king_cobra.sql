@@ -1,0 +1,1 @@
+ALTER TABLE "project_translation_keys" ADD COLUMN "is_hidden" boolean DEFAULT false NOT NULL;

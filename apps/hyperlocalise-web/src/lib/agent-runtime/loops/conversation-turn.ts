@@ -34,6 +34,10 @@ import {
 } from "@/lib/agent-runtime/workspaces/repository-sandbox";
 import { parseProviderProjectId } from "@/lib/providers/jobs/tms-provider-resource-id";
 import { supportedFileTranslationFileFormats } from "@/lib/translation/file-formats";
+import {
+  VIDEO_LOCALIZATION_MAX_DURATION_SECONDS,
+  VIDEO_LOCALIZATION_MIN_DURATION_SECONDS,
+} from "@/lib/translation/mp4-duration";
 import { createLogger, serializeErrorForLog } from "@/lib/log";
 
 import {
@@ -52,6 +56,7 @@ import {
   type ConversationRepositorySession,
 } from "./conversation-repository-session";
 import { resolveWorkspaceVisualMockFlag } from "@/lib/flags/workspace-flags";
+import { resolveHyperlocaliseAgentLanguageModel } from "@/lib/providers/organization-language-model";
 
 const logger = createLogger("conversation-turn");
 
@@ -59,7 +64,13 @@ export const REPOSITORY_ACCESS_CONTENTION_FOLLOW_UP =
   "I'm still preparing repository access for this conversation. Please send your message again in a moment.";
 
 export function buildFileTranslationInstructions() {
-  return `When a message includes stored source file IDs, create file translation jobs with type "file", the provided sourceFileId and fileFormat, targetLocales, and sourceLocale. Use sourceLocale "auto" if the user did not specify a source locale. Supported file job formats: ${supportedFileTranslationFileFormats.join(", ")}.`;
+  return [
+    'When a message includes stored source file IDs, create file translation jobs with type "file", the provided sourceFileId and fileFormat, targetLocales, and sourceLocale.',
+    'Use sourceLocale "auto" if the user did not specify a source locale.',
+    `Supported file job formats: ${supportedFileTranslationFileFormats.join(", ")}.`,
+    "For png, jpeg, webp, and mp4 attachments, still create a file translation job — the workflow localizes the image or video asset for each target locale.",
+    `mp4 clips should typically be ${VIDEO_LOCALIZATION_MIN_DURATION_SECONDS}–${VIDEO_LOCALIZATION_MAX_DURATION_SECONDS} seconds.`,
+  ].join(" ");
 }
 
 /**
@@ -356,7 +367,7 @@ export type PrepareConversationAgentTurnInput = {
 
 export type PrepareConversationAgentTurnResult = {
   classification: ConversationClassification;
-  agent: ReturnType<typeof createConversationToolLoopAgent>;
+  agent: Awaited<ReturnType<typeof createConversationToolLoopAgent>>;
   chatMessages: ModelMessage[];
   clarificationFollowUp: string | null;
   updatedRepositorySession: ConversationRepositorySession | null;
@@ -380,6 +391,9 @@ export async function prepareConversationAgentTurn(
   const chatMessages = await loadInteractionModelMessages(input.conversationId);
   const conversationText = getRecentUserConversationText(chatMessages, input.messageText);
   const storedRepositoryContext = input.repositorySession?.repositoryGitHubContext ?? null;
+  const languageModel = await resolveHyperlocaliseAgentLanguageModel({
+    organizationId: input.organizationId,
+  });
 
   const classification = await classifyConversation({
     currentMessage: input.messageText,
@@ -388,6 +402,7 @@ export async function prepareConversationAgentTurn(
     hasStoredRepositoryContext: Boolean(storedRepositoryContext),
     knowledgeMemoryEnabled: input.knowledgeMemoryEnabled === true,
     surface: input.surface,
+    model: languageModel.model,
   });
 
   const repositoryResolution = await resolveConversationRepositoryContext({
@@ -448,7 +463,7 @@ export async function prepareConversationAgentTurn(
 
   const preparedMessages = replaceLastUserMessage(chatMessages, input.messageText);
 
-  const agent = createConversationToolLoopAgent({
+  const agent = await createConversationToolLoopAgent({
     surface: input.surface,
     toolContext: {
       conversationId: input.conversationId,
@@ -477,6 +492,7 @@ export async function prepareConversationAgentTurn(
     additionalInstructions: [buildFileTranslationInstructions(), repositoryInstructions]
       .filter((instruction): instruction is string => instruction !== null)
       .join("\n\n"),
+    languageModel,
   });
 
   return {

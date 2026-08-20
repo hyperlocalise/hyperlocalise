@@ -12,12 +12,13 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { ArrowLeft01Icon, ArrowRight01Icon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import { Badge } from "@/components/ui/badge";
 import type { CarouselApi } from "@/components/ui/carousel";
 import { Carousel, CarouselContent, CarouselItem } from "@/components/ui/carousel";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import { cn } from "@/lib/primitives/cn";
-import { ArrowLeftIcon, ArrowRightIcon } from "lucide-react";
 import type { ComponentProps } from "react";
 import { createContext, useCallback, useContext, useEffect, useState } from "react";
 import { useIntl } from "react-intl";
@@ -207,7 +208,7 @@ export const InlineCitationCarouselPrev = ({
       type="button"
       {...props}
     >
-      <ArrowLeftIcon className="size-4 text-muted-foreground" />
+      <HugeiconsIcon icon={ArrowLeft01Icon} className="size-4 text-muted-foreground" />
     </button>
   );
 };
@@ -235,7 +236,7 @@ export const InlineCitationCarouselNext = ({
       type="button"
       {...props}
     >
-      <ArrowRightIcon className="size-4 text-muted-foreground" />
+      <HugeiconsIcon icon={ArrowRight01Icon} className="size-4 text-muted-foreground" />
     </button>
   );
 };

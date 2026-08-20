@@ -33,6 +33,7 @@ import { resolveCatFileViewCapabilities } from "./cat-file-view-capabilities";
 import { CatPanelErrorBoundary } from "./cat-panel-error-boundary";
 import { useCatWorkspace } from "./cat-workspace-context";
 import { catWorkspaceViewMessages } from "./cat-workspace.messages";
+import { CatComfortableResizableLayout } from "./cat-workspace-resizable-layout";
 import { resolveSegmentIntelligenceForDisplay } from "./store/cat-workspace-store-utils";
 
 const COMPACT_WORKSPACE_QUERY = "(max-width: 1023px)";
@@ -83,8 +84,6 @@ export const CatWorkspaceView = observer(function CatWorkspaceView({
   dirtySegmentIds,
   className,
   queueSearch,
-  onQueueSearchChange,
-  isQueueSearchPending = false,
   isQueueFetchingPage = false,
   isQueueLoading = false,
   isCommentsLoading = false,
@@ -94,15 +93,8 @@ export const CatWorkspaceView = observer(function CatWorkspaceView({
   hasMoreQueue = false,
   onLoadMoreQueue,
   queueFilter,
-  onQueueFilterChange,
-  availableQueueFilters,
   checkedSegmentIds,
   onToggleSegmentChecked,
-  onSelectAllVisible,
-  onClearChecked,
-  onBulkApprove,
-  onBulkSkip,
-  isBulkActionPending = false,
   buildSegmentShareUrl,
   onIntelligencePanelVisible,
   organizationSlug,
@@ -164,11 +156,8 @@ export const CatWorkspaceView = observer(function CatWorkspaceView({
             selectedSegmentId=""
             onSelectSegment={() => undefined}
             search={queueSearch}
-            onSearchChange={onQueueSearchChange}
-            isSearching={isQueueSearchPending}
             queueFilter={queueFilter}
-            onQueueFilterChange={onQueueFilterChange}
-            availableQueueFilters={availableQueueFilters}
+            showSelection={store.selectionMode}
             isFetchingPage={isQueueFetchingPage}
             isQueueLoading
             pagination={queuePagination}
@@ -194,18 +183,10 @@ export const CatWorkspaceView = observer(function CatWorkspaceView({
             selectedSegmentId=""
             onSelectSegment={dependencies.navigation.onSelectSegment}
             search={queueSearch}
-            onSearchChange={onQueueSearchChange}
-            isSearching={isQueueSearchPending}
             queueFilter={queueFilter}
-            onQueueFilterChange={onQueueFilterChange}
-            availableQueueFilters={availableQueueFilters}
             checkedSegmentIds={checkedSegmentIds}
             onToggleSegmentChecked={onToggleSegmentChecked}
-            onSelectAllVisible={onSelectAllVisible}
-            onClearChecked={onClearChecked}
-            onBulkApprove={onBulkApprove}
-            onBulkSkip={onBulkSkip}
-            isBulkActionPending={isBulkActionPending}
+            showSelection={store.selectionMode}
             isFetchingPage={isQueueFetchingPage}
             isQueueLoading={isQueueLoading}
             pagination={queuePagination}
@@ -347,11 +328,7 @@ export const CatWorkspaceView = observer(function CatWorkspaceView({
           showVisualContext={showVisualContext}
           canLookupFreshContext={canLookupContext}
           search={queueSearch}
-          onSearchChange={onQueueSearchChange}
-          isSearching={isQueueSearchPending}
           queueFilter={queueFilter}
-          onQueueFilterChange={onQueueFilterChange}
-          availableQueueFilters={availableQueueFilters}
           isFetchingPage={isQueueFetchingPage}
           isQueueLoading={isQueueLoading}
           pagination={queuePagination}
@@ -391,6 +368,11 @@ export const CatWorkspaceView = observer(function CatWorkspaceView({
           onTreatAsImage={
             editing.onTreatAsImage
               ? (segmentId, treatAsImage) => void editing.onTreatAsImage?.(segmentId, treatAsImage)
+              : undefined
+          }
+          onTreatAsVideo={
+            editing.onTreatAsVideo
+              ? (segmentId, treatAsVideo) => void editing.onTreatAsVideo?.(segmentId, treatAsVideo)
               : undefined
           }
           onRegenerateImage={
@@ -471,7 +453,8 @@ export const CatWorkspaceView = observer(function CatWorkspaceView({
               : undefined
           }
           onRegenerate={
-            capabilities.viewerId === "image" && editing.onRegenerateImage
+            (capabilities.viewerId === "image" || capabilities.viewerId === "video") &&
+            editing.onRegenerateImage
               ? () => void editing.onRegenerateImage?.(editorSegment.id)
               : undefined
           }
@@ -558,6 +541,11 @@ export const CatWorkspaceView = observer(function CatWorkspaceView({
               ? (treatAsImage) => void editing.onTreatAsImage?.(editorSegment.id, treatAsImage)
               : undefined
           }
+          onTreatAsVideo={
+            editing.onTreatAsVideo
+              ? (treatAsVideo) => void editing.onTreatAsVideo?.(editorSegment.id, treatAsVideo)
+              : undefined
+          }
           onRegenerateImage={
             editing.onRegenerateImage
               ? () => void editing.onRegenerateImage?.(editorSegment.id)
@@ -595,18 +583,10 @@ export const CatWorkspaceView = observer(function CatWorkspaceView({
             }
           }}
           search={queueSearch}
-          onSearchChange={onQueueSearchChange}
-          isSearching={isQueueSearchPending}
           queueFilter={queueFilter}
-          onQueueFilterChange={onQueueFilterChange}
-          availableQueueFilters={availableQueueFilters}
           checkedSegmentIds={checkedSegmentIds}
           onToggleSegmentChecked={onToggleSegmentChecked}
-          onSelectAllVisible={onSelectAllVisible}
-          onClearChecked={onClearChecked}
-          onBulkApprove={onBulkApprove}
-          onBulkSkip={onBulkSkip}
-          isBulkActionPending={isBulkActionPending}
+          showSelection={store.selectionMode}
           isFetchingPage={isQueueFetchingPage}
           isQueueLoading={isQueueLoading}
           pagination={queuePagination}
@@ -722,19 +702,11 @@ export const CatWorkspaceView = observer(function CatWorkspaceView({
       ) : isSideBySideDesktop ? (
         renderSideBySidePanel()
       ) : (
-        <div className="grid h-full min-h-0 min-w-0 flex-1 grid-cols-[minmax(0,20rem)_minmax(0,1fr)_minmax(0,22rem)] overflow-hidden">
-          <div className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden">
-            {renderQueuePanel()}
-          </div>
-
-          <div className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden">
-            {renderEditorPanel()}
-          </div>
-
-          <div className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden">
-            {renderIntelligencePanel()}
-          </div>
-        </div>
+        <CatComfortableResizableLayout
+          queue={renderQueuePanel()}
+          editor={renderEditorPanel()}
+          intelligence={renderIntelligencePanel()}
+        />
       )}
     </div>
   );

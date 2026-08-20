@@ -12,8 +12,9 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { Copy01Icon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import { useState } from "react";
-import { CopyIcon } from "lucide-react";
 import { FormattedMessage } from "react-intl";
 import { toast } from "sonner";
 
@@ -77,7 +78,7 @@ export function ProjectNativeConnectCliPanel({
             size="sm"
             onClick={() => copyValue(projectId, "projectId")}
           >
-            <CopyIcon className="size-3.5" />
+            <HugeiconsIcon icon={Copy01Icon} className="size-3.5" />
             {copiedField === "projectId" ? (
               <FormattedMessage {...projectNativeConnectCliPanelMessages.copied} />
             ) : (
@@ -98,7 +99,7 @@ export function ProjectNativeConnectCliPanel({
             size="sm"
             onClick={() => copyValue(sampleConfig, "config")}
           >
-            <CopyIcon className="size-3.5" />
+            <HugeiconsIcon icon={Copy01Icon} className="size-3.5" />
             {copiedField === "config" ? (
               <FormattedMessage {...projectNativeConnectCliPanelMessages.copied} />
             ) : (

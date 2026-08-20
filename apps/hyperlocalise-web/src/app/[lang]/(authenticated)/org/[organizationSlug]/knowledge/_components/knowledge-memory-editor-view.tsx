@@ -13,9 +13,8 @@
  * Version 2.0 or later.
  */
 import { useState } from "react";
-import { FloppyDiskIcon } from "@hugeicons/core-free-icons";
+import { FloppyDiskIcon, HistoryIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { HistoryIcon } from "lucide-react";
 import { FormattedMessage, useIntl } from "react-intl";
 
 import type { KnowledgeMemoryRecord } from "@/api/routes/knowledge-memory/knowledge-memory.schema";
@@ -171,7 +170,7 @@ export function KnowledgeMemoryEditorView({
             </div>
             <div className="flex items-center gap-2">
               <Button type="button" variant="ghost" onClick={onOpenHistory}>
-                <HistoryIcon data-icon="inline-start" />
+                <HugeiconsIcon icon={HistoryIcon} data-icon="inline-start" />
                 <FormattedMessage {...knowledgeMemoryEditorMessages.history} />
               </Button>
               {canUpdateKnowledgeMemory ? (

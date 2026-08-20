@@ -29,6 +29,10 @@ import {
   CatEditorImageSourceSection,
   CatEditorImageTargetSection,
 } from "./cat-editor-image-sections";
+import {
+  CatEditorVideoSourceSection,
+  CatEditorVideoTargetSection,
+} from "./cat-editor-video-sections";
 import type { CatEditorPanelProps } from "./cat-editor-panel.types";
 import { CatEditorSourceSection } from "./cat-editor-source-section";
 import { CatEditorTargetSection } from "./cat-editor-target-section";
@@ -36,6 +40,14 @@ import { CatEditorIssuesSection } from "@/components/cat/issues/cat-editor-issue
 
 function isImageEditorSegment(segment: CatEditorPanelProps["segment"]) {
   return segment.contentKind === "image_file" || segment.contentKind === "image_url";
+}
+
+function isVideoEditorSegment(segment: CatEditorPanelProps["segment"]) {
+  return segment.contentKind === "video_file" || segment.contentKind === "video_url";
+}
+
+function isAssetEditorSegment(segment: CatEditorPanelProps["segment"]) {
+  return isImageEditorSegment(segment) || isVideoEditorSegment(segment);
 }
 
 export function CatEditorPanel({
@@ -90,6 +102,7 @@ export function CatEditorPanel({
   hasNextSegment,
   segmentShareUrl = null,
   onTreatAsImage,
+  onTreatAsVideo,
   onRegenerateImage,
   onUploadImage,
 }: CatEditorPanelProps) {
@@ -109,7 +122,7 @@ export function CatEditorPanel({
       isFormatChecksLoading ||
       isSegmentTargetLoading ||
       isImageBusy;
-    const hasTargetText = isImageEditorSegment(segment)
+    const hasTargetText = isAssetEditorSegment(segment)
       ? Boolean(segment.targetAssetUrl || segment.targetText.trim())
       : segment.targetText.trim().length > 0;
 
@@ -169,7 +182,17 @@ export function CatEditorPanel({
 
       <div className="min-h-0 flex-1 overflow-y-auto">
         <div className="mx-auto max-w-3xl space-y-6 px-4 py-5 sm:px-6 lg:space-y-7 lg:px-8 lg:py-8">
-          {isImageEditorSegment(segment) || segment.looksLikeImageUrl ? (
+          {isVideoEditorSegment(segment) || segment.looksLikeVideoUrl ? (
+            <CatEditorVideoSourceSection
+              segment={segment}
+              canEdit={actionState.canEditTarget}
+              isBusy={isImageBusy}
+              onTreatAsVideo={
+                onTreatAsVideo ? (treatAsVideo) => onTreatAsVideo(treatAsVideo) : undefined
+              }
+              onRegenerate={onRegenerateImage}
+            />
+          ) : isImageEditorSegment(segment) || segment.looksLikeImageUrl ? (
             <CatEditorImageSourceSection
               segment={segment}
               canEdit={actionState.canEditTarget}
@@ -188,7 +211,16 @@ export function CatEditorPanel({
             />
           )}
 
-          {isImageEditorSegment(segment) ? (
+          {isVideoEditorSegment(segment) ? (
+            <CatEditorVideoTargetSection
+              segment={segment}
+              canEdit={actionState.canEditTarget}
+              isBusy={isImageBusy}
+              isLoading={isSegmentTargetLoading}
+              onUpload={onUploadImage}
+              onRegenerate={onRegenerateImage}
+            />
+          ) : isImageEditorSegment(segment) ? (
             <CatEditorImageTargetSection
               segment={segment}
               canEdit={actionState.canEditTarget}
@@ -220,14 +252,14 @@ export function CatEditorPanel({
             hasPreviousSegment={hasPreviousSegment}
             hasNextSegment={hasNextSegment}
             onApprove={onApprove}
-            onSaveDraft={isImageEditorSegment(segment) ? undefined : onSaveDraft}
+            onSaveDraft={isAssetEditorSegment(segment) ? undefined : onSaveDraft}
             onAddToIssueSheet={onAddToIssueSheet}
             onAskQuestion={onAskQuestion}
             onPrevious={onPrevious}
             onNext={onNext}
           />
 
-          {canUseAiRecommendation && !isImageEditorSegment(segment) ? (
+          {canUseAiRecommendation && !isAssetEditorSegment(segment) ? (
             <CatEditorAiRecommendation
               intelligence={intelligence}
               isLoading={isAiSuggestionLoading}
@@ -237,7 +269,7 @@ export function CatEditorPanel({
             />
           ) : null}
 
-          {!isImageEditorSegment(segment) ? (
+          {!isAssetEditorSegment(segment) ? (
             <CatEditorFormatChecksSection
               formatChecks={formatChecks}
               isLoading={isFormatChecksLoading}

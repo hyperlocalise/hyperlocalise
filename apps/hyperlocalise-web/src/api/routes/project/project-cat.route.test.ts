@@ -20,6 +20,8 @@ import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 import { eq } from "drizzle-orm";
 
 import { app } from "@/api/app";
+import { PRODUCT_USAGE_ANALYTICS_EVENTS } from "@/lib/analytics/events";
+import { serverAnalytics } from "@/lib/analytics/server";
 import { db, schema } from "@/lib/database";
 import { ensureRepositorySourceFile } from "@/lib/file-storage/records";
 import { upsertProjectTranslationKeysFromEntries } from "@/lib/projects/translations/project-translation-service";
@@ -43,6 +45,7 @@ const {
   getTmsProviderLiveCatFileMock,
   getTmsProviderLiveCatAllFilesMock,
   saveTmsProviderLiveCatTranslationMock,
+  setTmsProviderLiveCatStringsHiddenMock,
   saveTmsProviderLiveCatCommentMock,
   resolveTmsProviderLiveCatCommentMock,
   loadCatSegmentConcordanceMock,
@@ -52,12 +55,12 @@ const {
   createStoredFileMock,
   deleteStoredFileMock,
   isReleaseCatAllFilesEnabledMock,
-  workspaceIssuesFlagRunMock,
 } = vi.hoisted(() => ({
   getTmsProviderConnectionMock: vi.fn(),
   getTmsProviderLiveCatFileMock: vi.fn(),
   getTmsProviderLiveCatAllFilesMock: vi.fn(),
   saveTmsProviderLiveCatTranslationMock: vi.fn(),
+  setTmsProviderLiveCatStringsHiddenMock: vi.fn(),
   saveTmsProviderLiveCatCommentMock: vi.fn(),
   resolveTmsProviderLiveCatCommentMock: vi.fn(),
   loadCatSegmentConcordanceMock: vi.fn(),
@@ -67,16 +70,11 @@ const {
   createStoredFileMock: vi.fn(),
   deleteStoredFileMock: vi.fn(),
   isReleaseCatAllFilesEnabledMock: vi.fn(async () => false),
-  workspaceIssuesFlagRunMock: vi.fn(async () => true),
 }));
 
 vi.mock("@/lib/flags/release-flags", () => ({
   isReleaseCatAllFilesEnabled: isReleaseCatAllFilesEnabledMock,
   RELEASE_CAT_ALL_FILES_FLAG: "release-cat-all-files",
-}));
-
-vi.mock("@/lib/flags/workspace-flags", () => ({
-  workspaceIssuesFlag: { run: workspaceIssuesFlagRunMock },
 }));
 
 vi.mock("@/lib/translation/cat", () => ({
@@ -109,6 +107,8 @@ vi.mock("@/lib/providers/jobs/tms-provider-live", async (importOriginal) => {
       getTmsProviderLiveCatAllFilesMock(...args),
     saveTmsProviderLiveCatTranslation: (...args: unknown[]) =>
       saveTmsProviderLiveCatTranslationMock(...args),
+    setTmsProviderLiveCatStringsHidden: (...args: unknown[]) =>
+      setTmsProviderLiveCatStringsHiddenMock(...args),
     saveTmsProviderLiveCatComment: (...args: unknown[]) =>
       saveTmsProviderLiveCatCommentMock(...args),
     resolveTmsProviderLiveCatComment: (...args: unknown[]) =>
@@ -143,7 +143,6 @@ beforeAll(async () => {
 afterEach(async () => {
   vi.clearAllMocks();
   isReleaseCatAllFilesEnabledMock.mockResolvedValue(false);
-  workspaceIssuesFlagRunMock.mockResolvedValue(true);
   await projectFixture.cleanup();
 });
 
@@ -391,6 +390,7 @@ describe("project file CAT routes", () => {
         aiReasoning: "Natural French greeting.",
       }),
     );
+    const trackSpy = vi.spyOn(serverAnalytics, "track").mockImplementation(() => {});
 
     const response = await client.api.orgs[":organizationSlug"].projects[
       ":projectId"
@@ -421,6 +421,11 @@ describe("project file CAT routes", () => {
       aiSuggestion: "Bonjour",
       aiReasoning: "Natural French greeting.",
     });
+    expect(trackSpy).toHaveBeenCalledWith(
+      PRODUCT_USAGE_ANALYTICS_EVENTS.catAiRecommendationRequested,
+      { source: "external_tms" },
+    );
+    trackSpy.mockRestore();
     expect(ensureOrganizationProjectRecordMock).toHaveBeenCalledWith(
       expect.objectContaining({
         projectId: "ext:crowdin:42",
@@ -606,6 +611,7 @@ describe("project file CAT routes", () => {
       .limit(1);
     expect(translationKey).toBeDefined();
 
+    const trackSpy = vi.spyOn(serverAnalytics, "track").mockImplementation(() => {});
     const postResponse = await client.api.orgs[":organizationSlug"].projects[
       ":projectId"
     ].files.detail.cat.comments.$post(
@@ -626,6 +632,11 @@ describe("project file CAT routes", () => {
 
     expect(postResponse.status).toBe(200);
     expect(saveTmsProviderLiveCatCommentMock).not.toHaveBeenCalled();
+    expect(trackSpy).toHaveBeenCalledWith(PRODUCT_USAGE_ANALYTICS_EVENTS.catCommentCreated, {
+      source: "native",
+      feature: "comment",
+    });
+    trackSpy.mockRestore();
 
     const response = await client.api.orgs[":organizationSlug"].projects[
       ":projectId"
@@ -686,6 +697,106 @@ describe("project file CAT routes", () => {
       },
     ]);
     expect(commentsBody.comments[0]?.externalCommentId).toBeTruthy();
+  });
+
+  it("emits product usage analytics for native CAT draft, approve, and status updates", async () => {
+    const { identity, project, organization } = await projectFixture.createStoredProjectFixture();
+    const headers = await projectFixture.authHeadersFor(identity);
+    const sourcePath = "locales/en.json";
+    const sourceFile = await ensureRepositorySourceFile({
+      organizationId: organization.id,
+      projectId: project.id,
+      sourcePath,
+    });
+
+    const { imported } = await upsertProjectTranslationKeysFromEntries({
+      organizationId: organization.id,
+      projectId: project.id,
+      repositorySourceFileId: sourceFile.id,
+      entries: [{ key: "greeting", text: "Hello", context: null }],
+    });
+    expect(imported).toBe(1);
+
+    const [translationKey] = await db
+      .select({ id: schema.projectTranslationKeys.id })
+      .from(schema.projectTranslationKeys)
+      .where(eq(schema.projectTranslationKeys.repositorySourceFileId, sourceFile.id))
+      .limit(1);
+    expect(translationKey).toBeDefined();
+
+    const trackSpy = vi.spyOn(serverAnalytics, "track").mockImplementation(() => {});
+    const draftResponse = await client.api.orgs[":organizationSlug"].projects[
+      ":projectId"
+    ].files.detail.cat.translations.$post(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          projectId: project.id,
+        },
+        json: {
+          sourcePath,
+          targetLocale: "fr-FR",
+          externalStringId: translationKey!.id,
+          text: "Bonjour",
+          approve: false,
+        },
+      },
+      { headers },
+    );
+    expect(draftResponse.status).toBe(200);
+    expect(trackSpy).toHaveBeenCalledWith(PRODUCT_USAGE_ANALYTICS_EVENTS.catSegmentDraftSaved, {
+      source: "native",
+      status: "draft",
+    });
+
+    const approveResponse = await client.api.orgs[":organizationSlug"].projects[
+      ":projectId"
+    ].files.detail.cat.translations.$post(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          projectId: project.id,
+        },
+        json: {
+          sourcePath,
+          targetLocale: "fr-FR",
+          externalStringId: translationKey!.id,
+          text: "Bonjour",
+          approve: true,
+        },
+      },
+      { headers },
+    );
+    expect(approveResponse.status).toBe(200);
+    expect(trackSpy).toHaveBeenCalledWith(PRODUCT_USAGE_ANALYTICS_EVENTS.catSegmentApproved, {
+      source: "native",
+      status: "approved",
+    });
+
+    trackSpy.mockClear();
+    const statusResponse = await client.api.orgs[":organizationSlug"].projects[
+      ":projectId"
+    ].files.detail.cat.translations.status.$post(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          projectId: project.id,
+        },
+        json: {
+          sourcePath,
+          targetLocale: "fr-FR",
+          externalStringId: translationKey!.id,
+          status: "approved",
+        },
+      },
+      { headers },
+    );
+    expect(statusResponse.status).toBe(200);
+    expect(trackSpy).toHaveBeenCalledWith(PRODUCT_USAGE_ANALYTICS_EVENTS.catSegmentApproved, {
+      source: "native",
+      status: "approved",
+    });
+    trackSpy.mockRestore();
   });
 
   it("loads native segment targets with All Files sourcePath=*", async () => {
@@ -861,6 +972,121 @@ describe("project file CAT routes", () => {
       contentKind: "image_url",
       looksLikeImageUrl: true,
     });
+  });
+
+  it("toggles treat-as-video metadata on a native CAT segment", async () => {
+    const { identity, project, organization } = await projectFixture.createStoredProjectFixture();
+    const headers = await projectFixture.authHeadersFor(identity);
+    const sourcePath = "locales/en.json";
+    const sourceFile = await ensureRepositorySourceFile({
+      organizationId: organization.id,
+      projectId: project.id,
+      sourcePath,
+    });
+
+    await upsertProjectTranslationKeysFromEntries({
+      organizationId: organization.id,
+      projectId: project.id,
+      repositorySourceFileId: sourceFile.id,
+      entries: [
+        {
+          key: "banner.video",
+          text: "https://cdn.example.com/banner.mp4",
+          context: null,
+        },
+      ],
+    });
+
+    const [translationKey] = await db
+      .select({ id: schema.projectTranslationKeys.id })
+      .from(schema.projectTranslationKeys)
+      .where(eq(schema.projectTranslationKeys.repositorySourceFileId, sourceFile.id))
+      .limit(1);
+    expect(translationKey).toBeDefined();
+
+    const response = await client.api.orgs[":organizationSlug"].projects[
+      ":projectId"
+    ].files.detail.cat.segments[":externalStringId"]["treat-as-video"].$post(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          projectId: project.id,
+          externalStringId: translationKey!.id,
+        },
+        json: {
+          sourcePath,
+          targetLocale: "fr-FR",
+          externalStringId: translationKey!.id,
+          treatAsVideo: true,
+        },
+      },
+      { headers },
+    );
+
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as {
+      segment: {
+        externalStringId: string;
+        contentKind: string;
+        looksLikeVideoUrl: boolean;
+      };
+    };
+    expect(body.segment).toMatchObject({
+      externalStringId: translationKey!.id,
+      contentKind: "video_url",
+      looksLikeVideoUrl: true,
+    });
+
+    const catResponse = await client.api.orgs[":organizationSlug"].projects[
+      ":projectId"
+    ].files.detail.cat.$get(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          projectId: project.id,
+        },
+        query: { sourcePath, targetLocale: "fr-FR" },
+      },
+      { headers },
+    );
+    expect(catResponse.status).toBe(200);
+    const catBody = (await catResponse.json()) as ProjectFileCatResponse;
+    expect(catBody.catFile.segments[0]).toMatchObject({
+      contentKind: "video_url",
+      looksLikeVideoUrl: true,
+    });
+  });
+
+  it("rejects treat-as-video for provider CAT", async () => {
+    const translator = projectFixture.createWorkosIdentityWithRole("translator");
+    getTmsProviderConnectionMock.mockResolvedValue({
+      providerKind: "crowdin",
+      displayName: "Crowdin",
+      validationStatus: "valid",
+      validationMessage: null,
+    });
+
+    const response = await client.api.orgs[":organizationSlug"].projects[
+      ":projectId"
+    ].files.detail.cat.segments[":externalStringId"]["treat-as-video"].$post(
+      {
+        param: {
+          organizationSlug: translator.organization.slug ?? "missing-slug",
+          projectId: "ext:crowdin:42",
+          externalStringId: "string_1",
+        },
+        json: {
+          sourcePath: "crowdin/home.json",
+          targetLocale: "fr",
+          externalStringId: "string_1",
+          treatAsVideo: true,
+        },
+      },
+      { headers: await projectFixture.authHeadersFor(translator) },
+    );
+
+    expect(response.status).toBe(400);
+    expect(await response.json()).toMatchObject({ error: "provider_cat_unsupported" });
   });
 
   it("toggles treat-as-image for external TMS segments and enriches the CAT queue", async () => {
@@ -1272,57 +1498,6 @@ describe("project file CAT routes", () => {
     expect(resolveTmsProviderLiveCatCommentMock).not.toHaveBeenCalled();
   });
 
-  it("still rejects native CAT issue posts when the workspace flag is off", async () => {
-    workspaceIssuesFlagRunMock.mockResolvedValue(false);
-    const { identity, project, organization } = await projectFixture.createStoredProjectFixture();
-    const headers = await projectFixture.authHeadersFor(identity);
-    const sourcePath = "locales/en.json";
-    const sourceFile = await ensureRepositorySourceFile({
-      organizationId: organization.id,
-      projectId: project.id,
-      sourcePath,
-    });
-
-    await upsertProjectTranslationKeysFromEntries({
-      organizationId: organization.id,
-      projectId: project.id,
-      repositorySourceFileId: sourceFile.id,
-      entries: [{ key: "greeting", text: "Hello", context: null }],
-    });
-
-    const keys = await db
-      .select({ id: schema.projectTranslationKeys.id })
-      .from(schema.projectTranslationKeys)
-      .where(eq(schema.projectTranslationKeys.repositorySourceFileId, sourceFile.id))
-      .limit(1);
-    const translationKeyId = keys[0]!.id;
-
-    const postResponse = await client.api.orgs[":organizationSlug"].projects[
-      ":projectId"
-    ].files.detail.cat.comments.$post(
-      {
-        param: {
-          organizationSlug: identity.organization.slug ?? "missing-slug",
-          projectId: project.id,
-        },
-        json: {
-          sourcePath,
-          targetLocale: "fr-FR",
-          externalStringId: translationKeyId,
-          text: "Still wrong tone.",
-          type: "issue",
-          issueType: "translation_mistake",
-        },
-      },
-      { headers },
-    );
-
-    expect(postResponse.status).toBe(400);
-    expect(await postResponse.json()).toMatchObject({
-      error: "native_cat_issue_unsupported",
-    });
-  });
-
   it("returns Crowdin CAT content for an encoded provider project", async () => {
     const translator = projectFixture.createWorkosIdentityWithRole("translator");
     getTmsProviderConnectionMock.mockResolvedValue({
@@ -1681,6 +1856,7 @@ describe("project file CAT routes", () => {
       externalTranslationId: "9001",
       isApproved: false,
     });
+    const trackSpy = vi.spyOn(serverAnalytics, "track").mockImplementation(() => {});
 
     const response = await client.api.orgs[":organizationSlug"].projects[
       ":projectId"
@@ -1711,6 +1887,11 @@ describe("project file CAT routes", () => {
       { targetLocale: "fr", externalStringId: "1001", externalResourceId: "101", text: "Bonjour" },
       expect.objectContaining({ actorUserId: expect.any(String) }),
     );
+    expect(trackSpy).toHaveBeenCalledWith(PRODUCT_USAGE_ANALYTICS_EVENTS.catSegmentDraftSaved, {
+      source: "external_tms",
+      status: "draft",
+    });
+    trackSpy.mockRestore();
   });
 
   it("denies CAT translation saves without write-back permission", async () => {
@@ -1749,6 +1930,7 @@ describe("project file CAT routes", () => {
       locale: "fr",
       author: "Reviewer",
     });
+    const trackSpy = vi.spyOn(serverAnalytics, "track").mockImplementation(() => {});
 
     const response = await client.api.orgs[":organizationSlug"].projects[
       ":projectId"
@@ -1789,6 +1971,11 @@ describe("project file CAT routes", () => {
       },
       expect.objectContaining({ actorUserId: expect.any(String) }),
     );
+    expect(trackSpy).toHaveBeenCalledWith(PRODUCT_USAGE_ANALYTICS_EVENTS.catCommentCreated, {
+      source: "external_tms",
+      feature: "comment",
+    });
+    trackSpy.mockRestore();
   });
 
   it("posts Crowdin CAT issues with issue type for users with write-back permission", async () => {
@@ -1802,6 +1989,7 @@ describe("project file CAT routes", () => {
       locale: "fr",
       author: "Reviewer",
     });
+    const trackSpy = vi.spyOn(serverAnalytics, "track").mockImplementation(() => {});
 
     const response = await client.api.orgs[":organizationSlug"].projects[
       ":projectId"
@@ -1839,6 +2027,11 @@ describe("project file CAT routes", () => {
       },
       expect.objectContaining({ actorUserId: expect.any(String) }),
     );
+    expect(trackSpy).toHaveBeenCalledWith(PRODUCT_USAGE_ANALYTICS_EVENTS.catCommentCreated, {
+      source: "external_tms",
+      feature: "issue",
+    });
+    trackSpy.mockRestore();
   });
 
   it("resolves Crowdin CAT issues for users with write-back permission", async () => {
@@ -1906,5 +2099,209 @@ describe("project file CAT routes", () => {
 
     expect(response.status).toBe(403);
     expect(saveTmsProviderLiveCatCommentMock).not.toHaveBeenCalled();
+  });
+
+  it("hides and unhides native CAT source strings in bulk", async () => {
+    const { identity, project, organization } = await projectFixture.createStoredProjectFixture();
+    const headers = await projectFixture.authHeadersFor(identity);
+    const sourcePath = "locales/en.json";
+    const sourceFile = await ensureRepositorySourceFile({
+      organizationId: organization.id,
+      projectId: project.id,
+      sourcePath,
+    });
+
+    const { imported } = await upsertProjectTranslationKeysFromEntries({
+      organizationId: organization.id,
+      projectId: project.id,
+      repositorySourceFileId: sourceFile.id,
+      entries: [
+        { key: "greeting", text: "Hello", context: null },
+        { key: "farewell", text: "Goodbye", context: null },
+      ],
+    });
+    expect(imported).toBe(2);
+
+    const keys = await db
+      .select({
+        id: schema.projectTranslationKeys.id,
+        key: schema.projectTranslationKeys.key,
+      })
+      .from(schema.projectTranslationKeys)
+      .where(eq(schema.projectTranslationKeys.repositorySourceFileId, sourceFile.id));
+    const greeting = keys.find((row) => row.key === "greeting");
+    const farewell = keys.find((row) => row.key === "farewell");
+    expect(greeting).toBeDefined();
+    expect(farewell).toBeDefined();
+
+    const hideResponse = await client.api.orgs[":organizationSlug"].projects[
+      ":projectId"
+    ].files.detail.cat.strings.hidden.$post(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          projectId: project.id,
+        },
+        json: {
+          sourcePath,
+          externalStringIds: [greeting!.id, farewell!.id],
+          isHidden: true,
+        },
+      },
+      { headers },
+    );
+
+    expect(hideResponse.status).toBe(200);
+    expect(await hideResponse.json()).toEqual({ updatedCount: 2, isHidden: true });
+
+    const hiddenQueue = await client.api.orgs[":organizationSlug"].projects[
+      ":projectId"
+    ].files.detail.cat.queue.$get(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          projectId: project.id,
+        },
+        query: { sourcePath, targetLocale: "fr-FR", queueFilter: "hidden" },
+      },
+      { headers },
+    );
+
+    expect(hiddenQueue.status).toBe(200);
+    const hiddenBody = (await hiddenQueue.json()) as ProjectFileCatQueueResponse;
+    expect(hiddenBody.catQueue.segments).toHaveLength(2);
+    expect(hiddenBody.catQueue.segments.every((segment) => segment.isHidden === true)).toBe(true);
+
+    const unhideResponse = await client.api.orgs[":organizationSlug"].projects[
+      ":projectId"
+    ].files.detail.cat.strings.hidden.$post(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          projectId: project.id,
+        },
+        json: {
+          sourcePath,
+          externalStringIds: [greeting!.id],
+          isHidden: false,
+        },
+      },
+      { headers },
+    );
+
+    expect(unhideResponse.status).toBe(200);
+    expect(await unhideResponse.json()).toEqual({ updatedCount: 1, isHidden: false });
+
+    const remainingHidden = await client.api.orgs[":organizationSlug"].projects[
+      ":projectId"
+    ].files.detail.cat.queue.$get(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          projectId: project.id,
+        },
+        query: { sourcePath, targetLocale: "fr-FR", queueFilter: "hidden" },
+      },
+      { headers },
+    );
+    const remainingBody = (await remainingHidden.json()) as ProjectFileCatQueueResponse;
+    expect(remainingBody.catQueue.segments.map((segment) => segment.externalStringId)).toEqual([
+      farewell!.id,
+    ]);
+  });
+
+  it("hides Crowdin CAT strings for users with write-back permission", async () => {
+    const translator = projectFixture.createWorkosIdentityWithRole("translator");
+    getTmsProviderConnectionMock.mockResolvedValue({
+      providerKind: "crowdin",
+      displayName: "Crowdin",
+      validationStatus: "valid",
+      validationMessage: null,
+    });
+    setTmsProviderLiveCatStringsHiddenMock.mockResolvedValue({
+      updatedCount: 2,
+      isHidden: true,
+    });
+
+    const response = await client.api.orgs[":organizationSlug"].projects[
+      ":projectId"
+    ].files.detail.cat.strings.hidden.$post(
+      {
+        param: {
+          organizationSlug: translator.organization.slug ?? "missing-slug",
+          projectId: "ext:crowdin:42",
+        },
+        json: {
+          sourcePath: "crowdin/home.json",
+          externalStringIds: ["1001", "1002"],
+          isHidden: true,
+        },
+      },
+      { headers: await projectFixture.authHeadersFor(translator) },
+    );
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ updatedCount: 2, isHidden: true });
+    expect(setTmsProviderLiveCatStringsHiddenMock).toHaveBeenCalledWith(
+      expect.any(String),
+      "42",
+      { externalStringIds: ["1001", "1002"], isHidden: true },
+      expect.objectContaining({ actorUserId: expect.any(String) }),
+    );
+  });
+
+  it("denies CAT hidden-string updates without write-back permission", async () => {
+    const member = projectFixture.createWorkosIdentityWithRole("member");
+
+    const response = await client.api.orgs[":organizationSlug"].projects[
+      ":projectId"
+    ].files.detail.cat.strings.hidden.$post(
+      {
+        param: {
+          organizationSlug: member.organization.slug ?? "missing-slug",
+          projectId: "ext:crowdin:42",
+        },
+        json: {
+          sourcePath: "crowdin/home.json",
+          externalStringIds: ["1001"],
+          isHidden: true,
+        },
+      },
+      { headers: await projectFixture.authHeadersFor(member) },
+    );
+
+    expect(response.status).toBe(403);
+    expect(setTmsProviderLiveCatStringsHiddenMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects CAT hidden-string updates for non-Crowdin providers", async () => {
+    const translator = projectFixture.createWorkosIdentityWithRole("translator");
+    getTmsProviderConnectionMock.mockResolvedValue({
+      providerKind: "phrase",
+      displayName: "Phrase",
+      validationStatus: "valid",
+      validationMessage: null,
+    });
+
+    const response = await client.api.orgs[":organizationSlug"].projects[
+      ":projectId"
+    ].files.detail.cat.strings.hidden.$post(
+      {
+        param: {
+          organizationSlug: translator.organization.slug ?? "missing-slug",
+          projectId: "ext:phrase:42",
+        },
+        json: {
+          sourcePath: "phrase/home.json",
+          externalStringIds: ["1001"],
+          isHidden: true,
+        },
+      },
+      { headers: await projectFixture.authHeadersFor(translator) },
+    );
+
+    expect(response.status).toBe(400);
+    expect(await response.json()).toMatchObject({ error: "provider_cat_unsupported" });
+    expect(setTmsProviderLiveCatStringsHiddenMock).not.toHaveBeenCalled();
   });
 });

@@ -49,3 +49,21 @@ describe("CatQueuePanel pagination", () => {
     expect(onLoadMoreQueue).toHaveBeenCalledTimes(1);
   });
 });
+
+describe("CatQueuePanel chrome", () => {
+  it("does not render filter, search, or bulk actions in the queue column", () => {
+    const segments = catSegmentsFixture.slice(0, 3);
+
+    renderWithCatProviders(
+      <CatQueuePanel
+        segments={segments}
+        selectedSegmentId={segments[0]!.id}
+        onSelectSegment={vi.fn()}
+      />,
+    );
+
+    expect(screen.queryByRole("button", { name: "Filter queue" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("searchbox")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Queue actions" })).not.toBeInTheDocument();
+  });
+});

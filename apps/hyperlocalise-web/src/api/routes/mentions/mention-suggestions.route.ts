@@ -17,17 +17,10 @@ import { createZodValidator } from "@/api/errors";
 import { hasCapability } from "@/api/auth/policy";
 import { buildAccessibleProjectsWhere } from "@/api/auth/team-access";
 import { workosAuthMiddleware, type AuthVariables } from "@/api/auth/workos";
-import { createWorkspaceFeatureFlagMiddleware } from "@/api/middleware/workspace-feature-flag";
 import { forbiddenResponse } from "@/api/response.schema";
 import { db, schema } from "@/lib/database";
-import { workspaceIssuesFlag } from "@/lib/flags/workspace-flags";
 
 import { mentionSuggestionsQuerySchema } from "./mention-suggestions.schema";
-
-const requireWorkspaceIssuesFeature = createWorkspaceFeatureFlagMiddleware(
-  workspaceIssuesFlag,
-  "Workspace issues is not enabled for this organization",
-);
 
 const validateMentionSuggestionsQuery = createZodValidator(
   "query",
@@ -54,7 +47,6 @@ function issueDisplayKey(input: { issueId: string; externalRef: string | null })
 export function createMentionSuggestionsRoutes() {
   return new Hono<{ Variables: AuthVariables }>()
     .use("*", workosAuthMiddleware)
-    .use("*", requireWorkspaceIssuesFeature)
     .get("/", validateMentionSuggestionsQuery, async (c) => {
       if (!hasCapability(c.var.auth.membership.role, "projects:read")) {
         return forbiddenResponse(c, "forbidden");
@@ -136,6 +128,7 @@ export function createMentionSuggestionsRoutes() {
             users: userRows.map((row) => ({
               userId: row.userId,
               displayName: formatDisplayName(row),
+              email: row.email,
               avatarUrl: row.avatarUrl,
             })),
             issues: issueRows.map((row) => ({

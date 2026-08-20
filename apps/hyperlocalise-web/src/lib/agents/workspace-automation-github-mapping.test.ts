@@ -23,6 +23,8 @@ import {
   hasWorkspaceAutomationGithubWorkflow,
   resolveWorkspaceAutomationGithubMode,
   workspaceAutomationMatchesPushBranch,
+  workspaceAutomationShouldDispatchOnGithubPullRequest,
+  workspaceAutomationShouldDispatchOnGithubPush,
   workspaceAutomationToGithubSettings,
 } from "./workspace-automation-github-mapping";
 
@@ -44,6 +46,7 @@ function automation(input: {
     status: "active",
     name: "GitHub automation",
     instructions: "Run GitHub workflows.",
+    model: "openai/gpt-5.6-luna",
     projectId: input.projectId ?? "project-1",
     triggerConfig: input.triggerConfig,
     repositoryTarget: {
@@ -219,5 +222,86 @@ describe("workspace automation GitHub mapping", () => {
         "main",
       ),
     ).toBe(false);
+  });
+
+  it("dispatches GitHub agent and comment automations on matching pushes", () => {
+    const agentAutomation = automation({
+      triggerConfig: { mode: "github", branches: ["main"] },
+      toolConfig: {
+        github: {
+          enabled: true,
+          mode: "agent",
+          pushSource: false,
+          pullTranslations: false,
+          validation: false,
+        },
+        githubComment: { enabled: true },
+      },
+    });
+
+    expect(workspaceAutomationShouldDispatchOnGithubPush(agentAutomation, "main")).toBe(true);
+    expect(workspaceAutomationShouldDispatchOnGithubPush(agentAutomation, "feature/x")).toBe(false);
+    expect(workspaceAutomationShouldDispatchOnGithubPullRequest(agentAutomation, "main")).toBe(
+      false,
+    );
+    expect(
+      workspaceAutomationShouldDispatchOnGithubPush(
+        automation({
+          triggerConfig: { mode: "manual" },
+          toolConfig: {
+            github: {
+              enabled: true,
+              mode: "agent",
+              pushSource: false,
+              pullTranslations: false,
+              validation: false,
+            },
+          },
+        }),
+        "main",
+      ),
+    ).toBe(false);
+  });
+
+  it("dispatches GitHub agent automations on matching pull request base branches", () => {
+    const agentAutomation = automation({
+      triggerConfig: { mode: "github", branches: ["main"], events: ["pull_request"] },
+      toolConfig: {
+        github: {
+          enabled: true,
+          mode: "agent",
+          pushSource: false,
+          pullTranslations: false,
+          validation: false,
+        },
+        githubComment: { enabled: true },
+      },
+    });
+
+    expect(workspaceAutomationShouldDispatchOnGithubPullRequest(agentAutomation, "main")).toBe(
+      true,
+    );
+    expect(workspaceAutomationShouldDispatchOnGithubPush(agentAutomation, "main")).toBe(false);
+    expect(workspaceAutomationShouldDispatchOnGithubPullRequest(agentAutomation, "feature/x")).toBe(
+      false,
+    );
+    expect(
+      workspaceAutomationShouldDispatchOnGithubPullRequest(
+        automation({
+          triggerConfig: { mode: "github", branches: ["main"], events: ["push"] },
+          toolConfig: agentAutomation.toolConfig,
+        }),
+        "main",
+      ),
+    ).toBe(false);
+    expect(
+      workspaceAutomationShouldDispatchOnGithubPullRequest(
+        automation({
+          triggerConfig: { mode: "github", branches: ["main"], events: ["push", "pull_request"] },
+          toolConfig: agentAutomation.toolConfig,
+        }),
+        "main",
+      ),
+    ).toBe(true);
   });
 });

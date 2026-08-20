@@ -30,6 +30,8 @@ describe("getTmsProviderLiveErrorStatus", () => {
     ["invalid_encoded_job_id", 400],
     ["invalid_crowdin_assignee_id", 400],
     ["crowdin_cat_all_files_query_too_large", 400],
+    ["crowdin_hidden_strings_forbidden", 400],
+    ["crowdin_translation_update_rejected", 400],
     ["invalid_smartling_project_id", 400],
     ["invalid_smartling_string_id", 400],
     ["smartling_auth_invalid", 401],

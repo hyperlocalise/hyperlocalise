@@ -30,4 +30,9 @@ export const projectFileCatApiMessages = defineMessages({
     id: "4MUAkFDjce",
     description: "Fallback error when loading a CAT segment target translation fails",
   },
+  failedToExportQueue: {
+    defaultMessage: "Failed to download filtered view",
+    id: "0tcV3U/r5g",
+    description: "Fallback error when downloading the filtered CAT queue export fails",
+  },
 });

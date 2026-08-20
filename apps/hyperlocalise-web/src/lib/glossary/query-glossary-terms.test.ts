@@ -158,4 +158,79 @@ describe("listGlossaryTermsForProject", () => {
       targetLocale: "fr",
     });
   });
+
+  it("pairs approved native concept terms by source and target locale", async () => {
+    const organization = await createOrganization();
+    const project = await createProject(organization.id);
+    const [glossary] = await db
+      .insert(schema.glossaries)
+      .values({
+        organizationId: organization.id,
+        name: "Native Concept Glossary",
+        description: "",
+        sourceLocale: "en",
+        targetLocale: null,
+        status: "active",
+      })
+      .returning();
+
+    await db.insert(schema.projectGlossaries).values({
+      organizationId: organization.id,
+      projectId: project.id,
+      glossaryId: glossary.id,
+    });
+
+    const [concept] = await db
+      .insert(schema.glossaryConcepts)
+      .values({
+        glossaryId: glossary.id,
+        primaryTerm: "checkout",
+      })
+      .returning();
+
+    await db.insert(schema.glossaryTerms).values([
+      {
+        glossaryId: glossary.id,
+        conceptId: concept.id,
+        locale: "en",
+        term: "checkout",
+        sourceTerm: "checkout",
+        targetTerm: "checkout",
+        reviewStatus: "approved",
+      },
+      {
+        glossaryId: glossary.id,
+        conceptId: concept.id,
+        locale: "fr",
+        term: "paiement",
+        sourceTerm: "paiement",
+        targetTerm: "paiement",
+        reviewStatus: "approved",
+      },
+      {
+        glossaryId: glossary.id,
+        conceptId: concept.id,
+        locale: "de",
+        term: "zahlung",
+        sourceTerm: "zahlung",
+        targetTerm: "zahlung",
+        reviewStatus: "approved",
+      },
+    ]);
+
+    const terms = await listGlossaryTermsForProject({
+      organizationId: organization.id,
+      projectId: project.id,
+      sourceLocale: "en",
+      targetLocales: ["fr"],
+    });
+
+    expect(terms).toHaveLength(1);
+    expect(terms[0]).toMatchObject({
+      glossaryName: "Native Concept Glossary",
+      sourceTerm: "checkout",
+      targetTerm: "paiement",
+      targetLocale: "fr",
+    });
+  });
 });

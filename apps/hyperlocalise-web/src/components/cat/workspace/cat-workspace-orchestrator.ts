@@ -20,8 +20,10 @@ import {
   findSegmentIdByKeyOrIdInQueue,
   isOpenIssueStatus,
   isServerQueueFilter,
+  orderCatQueueSegmentsSkippedLast,
   segmentMatchesQueueFilterFromInput,
   type CatQueueFilter,
+  type CatQueueSort,
 } from "@/components/cat/queue/cat-queue-filter";
 import type {
   CatFileContext,
@@ -55,6 +57,9 @@ import {
 
 export type CreateCatWorkspaceOptions = {
   initialViewMode?: CatWorkspaceViewMode;
+  initialQueueFilter?: CatQueueFilter;
+  initialQueueSort?: CatQueueSort;
+  initialSearch?: string;
 };
 
 type UnsavedNavigationPrompt = {
@@ -88,6 +93,14 @@ function normalizeSnapshot(state: CatWorkspaceState): CatWorkspaceState {
     fileContext,
     queueSegments,
   };
+}
+
+function queueSnapshotIdentity(state: CatWorkspaceState): string {
+  const queueSegments =
+    state.queueSegments.length > 0
+      ? state.queueSegments
+      : (state.segments ?? []).map((segment) => ({ id: segment.id }));
+  return queueSegments.map((segment) => segment.id).join("\0");
 }
 
 export function resolveFileContext(state: CatWorkspaceState): CatFileContext {
@@ -184,6 +197,7 @@ export class CatWorkspaceOrchestrator {
   unsavedNavigationPrompt: UnsavedNavigationPrompt | null = null;
 
   private lastHydratedSnapshot: CatWorkspaceState | null = null;
+  private lastHydratedQueueIdentity = "";
   private initialSegmentJumpApplied = false;
   /** Segment ids whose lazy (or snapshot) target payload has been applied at least once. */
   hydratedTargetSegmentIds = new Set<string>();
@@ -212,6 +226,9 @@ export class CatWorkspaceOrchestrator {
 
   constructor(options?: CreateCatWorkspaceOptions) {
     this.ui = new CatWorkspaceUiStore(options?.initialViewMode);
+    this.queue.filter = options?.initialQueueFilter ?? "all";
+    this.queue.sort = options?.initialQueueSort ?? "file_order";
+    this.queue.search = options?.initialSearch ?? "";
     makeAutoObservable(
       this,
       {
@@ -279,6 +296,26 @@ export class CatWorkspaceOrchestrator {
 
   set queueFilter(value: CatQueueFilter) {
     this.queue.filter = value;
+  }
+
+  get queueSort() {
+    return this.queue.sort;
+  }
+
+  set queueSort(value: CatQueueSort) {
+    this.queue.sort = value;
+  }
+
+  get queueSearch() {
+    return this.queue.search;
+  }
+
+  set queueSearch(value: string) {
+    this.queue.search = value;
+  }
+
+  get selectionMode() {
+    return this.queue.selectionMode;
   }
 
   get checkedSegmentIds() {
@@ -536,32 +573,39 @@ export class CatWorkspaceOrchestrator {
       {
         status: draft?.status ?? "pending",
         hasOpenIssues: this.segmentHasOpenIssues(segmentId),
+        isHidden: this.segmentMeta.get(segmentId)?.isHidden,
+        isDirty: draft?.isDirty,
       },
       filter,
     );
   }
 
   getFilteredQueueSegments(filter: CatQueueFilter, usesServerQueueFilter: boolean) {
+    let segments: CatQueueSegment[];
+
     if (usesServerQueueFilter && isServerQueueFilter(filter)) {
       if (this.localStatusOverrides.size === 0) {
-        return this.queueSegments;
+        segments = this.queueSegments;
+      } else {
+        // Trust the server page, but hide rows whose session-local status no longer
+        // matches (skip is not persisted; approve may race ahead of refetch).
+        segments = this.queueSegments.filter((meta) => {
+          if (!this.localStatusOverrides.has(meta.id)) {
+            return true;
+          }
+          return this.matchesQueueFilter(meta.id, filter);
+        });
       }
-
-      // Trust the server page, but hide rows whose session-local status no longer
-      // matches (skip is not persisted; approve may race ahead of refetch).
-      return this.queueSegments.filter((meta) => {
-        if (!this.localStatusOverrides.has(meta.id)) {
-          return true;
-        }
-        return this.matchesQueueFilter(meta.id, filter);
-      });
+    } else if (filter === "all") {
+      segments = this.queueSegments;
+    } else {
+      segments = this.queueSegments.filter((meta) => this.matchesQueueFilter(meta.id, filter));
     }
 
-    if (filter === "all") {
-      return this.queueSegments;
-    }
-
-    return this.queueSegments.filter((meta) => this.matchesQueueFilter(meta.id, filter));
+    return orderCatQueueSegmentsSkippedLast(segments, this.queue.sort, (meta) => {
+      const draft = this.drafts.get(meta.id);
+      return (draft?.status ?? "pending") === "skipped";
+    });
   }
 
   getQueuePanelSegments(filter: CatQueueFilter, usesServerQueueFilter: boolean): CatSegment[] {
@@ -639,6 +683,7 @@ export class CatWorkspaceOrchestrator {
 
   reset(initialState: CatWorkspaceState, initialSegmentKeyOrId?: string | null) {
     this.lastHydratedSnapshot = null;
+    this.lastHydratedQueueIdentity = "";
     this.initialSegmentJumpApplied = false;
     this.hydratedTargetSegmentIds = new Set();
     this.locallyCommittedTargetTexts = new Map();
@@ -653,6 +698,18 @@ export class CatWorkspaceOrchestrator {
 
   ingestQueue(nextInitialState: CatWorkspaceState, initialSegmentKeyOrId?: string | null) {
     this.hydrateFromServerSnapshot(nextInitialState, initialSegmentKeyOrId);
+  }
+
+  /**
+   * Query loading flags go false on a cache hit before CatQueryBridge writes
+   * this snapshot. Bulk actions must wait until the identities match.
+   */
+  hasIngestedQueueSnapshot(snapshot: CatWorkspaceState | null): boolean {
+    if (!snapshot) {
+      return true;
+    }
+
+    return this.lastHydratedQueueIdentity === queueSnapshotIdentity(snapshot);
   }
 
   hydrateFromServerSnapshot(
@@ -736,6 +793,7 @@ export class CatWorkspaceOrchestrator {
       ]);
 
       this.lastHydratedSnapshot = normalizedNext;
+      this.lastHydratedQueueIdentity = queueSnapshotIdentity(normalizedNext);
     });
   }
 
@@ -1122,6 +1180,10 @@ export class CatWorkspaceOrchestrator {
     this.queue.clearChecked();
   }
 
+  setSegmentsHidden(segmentIds: string[], isHidden: boolean) {
+    this.queue.setHidden(segmentIds, isHidden);
+  }
+
   pruneCheckedToVisible(visibleIds: ReadonlySet<string>) {
     const next = new Set([...this.checkedSegmentIds].filter((id) => visibleIds.has(id)));
     if (next.size !== this.checkedSegmentIds.size) {
@@ -1139,6 +1201,18 @@ export class CatWorkspaceOrchestrator {
     if (selectionWillChange) {
       this.setSelectedSegmentId(filtered[0]?.id ?? "");
     }
+  }
+
+  setQueueSort(sort: CatQueueSort) {
+    this.queue.setSort(sort);
+  }
+
+  setQueueSearch(search: string) {
+    this.queue.setSearch(search);
+  }
+
+  setSelectionMode(enabled: boolean) {
+    this.queue.setSelectionMode(enabled);
   }
 
   attemptPageNavigation(proceed: () => void) {

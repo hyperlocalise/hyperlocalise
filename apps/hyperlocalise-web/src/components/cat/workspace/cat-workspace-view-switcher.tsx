@@ -76,13 +76,13 @@ export function CatWorkspaceViewSwitcher({
           <Button
             variant="outline"
             size="sm"
-            className={cn("h-8 gap-1.5 px-2.5 font-normal", className)}
+            className={cn("size-8 shrink-0 px-0 font-normal", className)}
             aria-label={intl.formatMessage(catWorkspaceViewModeMessages.viewModeAria)}
           />
         }
       >
         <HugeiconsIcon icon={viewModeIcon(value)} className="size-4" />
-        <span className="hidden text-xs sm:inline">
+        <span className="sr-only">
           <FormattedMessage {...viewModeLabel(value)} />
         </span>
       </DropdownMenuTrigger>

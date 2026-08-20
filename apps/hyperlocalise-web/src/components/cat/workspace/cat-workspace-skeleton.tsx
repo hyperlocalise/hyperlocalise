@@ -128,13 +128,8 @@ function CatQueuePanelSkeleton() {
       aria-busy="true"
       aria-label={intl.formatMessage(catWorkspaceSkeletonMessages.loadingQueue)}
     >
-      <div className="shrink-0 space-y-3 border-b border-border px-4 py-3">
-        <div className="space-y-2">
-          <Skeleton className="h-4 w-16 rounded-full bg-skeleton" />
-          <Skeleton className="h-3 w-full max-w-48 rounded-full bg-skeleton" />
-        </div>
-        <Skeleton className="h-9 w-full rounded-md bg-skeleton" />
-        <Skeleton className="h-8 w-24 rounded-md bg-skeleton" />
+      <div className="shrink-0 border-b border-border px-4 py-3">
+        <Skeleton className="h-4 w-16 rounded-full bg-skeleton" />
       </div>
 
       <div className="shrink-0 px-4 py-3">

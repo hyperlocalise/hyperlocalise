@@ -38,6 +38,7 @@ const {
   eqMock,
   inArrayMock,
   insertMock,
+  listHiddenKeysMock,
   onConflictDoUpdateMock,
   selectMock,
   sqlMock,
@@ -49,20 +50,20 @@ const {
     onConflictDoUpdate: onConflictDoUpdateMock,
   }));
   const insertMock = vi.fn(() => ({ values: valuesMock }));
-  const whereMock = vi.fn(
-    async (): Promise<ReusableMemoryEntryRow[]> => [
-      { memoryId: "memory_1" },
-      { memoryId: "memory_2" },
-    ],
-  );
+  const whereMock = vi.fn(async (): Promise<ReusableMemoryEntryRow[]> => [
+    { memoryId: "memory_1" },
+    { memoryId: "memory_2" },
+  ]);
   const fromMock = vi.fn(() => ({ where: whereMock }));
   const selectMock = vi.fn(() => ({ from: fromMock }));
+  const listHiddenKeysMock = vi.fn(async () => [] as string[]);
 
   return {
     andMock: vi.fn((...conditions: unknown[]) => ["and", conditions]),
     eqMock: vi.fn((field: string, value: unknown) => ["eq", field, value]),
     inArrayMock: vi.fn((field: string, values: unknown[]) => ["inArray", field, values]),
     insertMock,
+    listHiddenKeysMock,
     onConflictDoUpdateMock,
     selectMock,
     sqlMock: vi.fn((strings: TemplateStringsArray) => ({ sql: strings.join("") })),
@@ -76,6 +77,10 @@ vi.mock("drizzle-orm", () => ({
   eq: eqMock,
   inArray: inArrayMock,
   sql: sqlMock,
+}));
+
+vi.mock("@/lib/projects/translations/project-translation-service", () => ({
+  listHiddenProjectTranslationKeysForSourcePath: listHiddenKeysMock,
 }));
 
 vi.mock("@/lib/database", () => ({
@@ -111,6 +116,7 @@ import {
 describe("persistFileTranslationMemoryEntries", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    listHiddenKeysMock.mockResolvedValue([]);
   });
 
   it("dedupes duplicate normalized sources before batch upsert", async () => {
@@ -173,6 +179,54 @@ describe("persistFileTranslationMemoryEntries", () => {
         set: expect.objectContaining({ updatedAt: { sql: "now()" } }),
       }),
     );
+  });
+
+  it("excludes hidden source keys from translation memory persistence", async () => {
+    listHiddenKeysMock.mockResolvedValueOnce(["hidden.copy"]);
+
+    await persistFileTranslationMemoryEntries({
+      jobId: "job_1",
+      projectId: "project_1",
+      sourceEntries: {
+        greeting: "Hello",
+        "hidden.copy": "Hello",
+      },
+      sourceFileHash: "hash_1",
+      sourceLocale: "en",
+      sourcePath: "locales/en.json",
+      targetEntries: {
+        greeting: "Bonjour",
+        "hidden.copy": "Hello",
+      },
+      targetLocale: "fr",
+    });
+
+    expect(listHiddenKeysMock).toHaveBeenCalledWith({
+      projectId: "project_1",
+      sourcePath: "locales/en.json",
+      keys: ["greeting", "hidden.copy"],
+    });
+
+    const [values] = valuesMock.mock.calls[0];
+    expect(values.map((value) => value.metadata.segmentKey)).toEqual(["greeting", "greeting"]);
+    expect(values.every((value) => value.targetText === "Bonjour")).toBe(true);
+  });
+
+  it("does not write memory entries when every source key is hidden", async () => {
+    listHiddenKeysMock.mockResolvedValueOnce(["hidden.copy"]);
+
+    await persistFileTranslationMemoryEntries({
+      jobId: "job_1",
+      projectId: "project_1",
+      sourceEntries: { "hidden.copy": "Hello" },
+      sourceFileHash: "hash_1",
+      sourceLocale: "en",
+      sourcePath: "locales/en.json",
+      targetEntries: { "hidden.copy": "Hello" },
+      targetLocale: "fr",
+    });
+
+    expect(insertMock).not.toHaveBeenCalled();
   });
 });
 

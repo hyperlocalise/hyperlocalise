@@ -96,6 +96,7 @@ export async function sendLocalisationAuditReportEmailStep(input: {
     completedAt: audit.completedAt?.toISOString() ?? audit.report.completedAt,
     findings: audit.teaser?.headlineFindings ?? audit.report.findings.slice(0, 3),
     verifyUrl,
+    dimensionScores: audit.teaser?.dimensionScores ?? audit.report.dimensionScores,
   };
 
   // Transient provider failures must throw so the workflow step retries.

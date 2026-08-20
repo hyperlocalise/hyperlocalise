@@ -45,6 +45,7 @@ export type OrganizationIssueListItem = {
   linkKind: string | null;
   linkLabel: string | null;
   linkUrl: string | null;
+  templateKey: string | null;
   reporter: string | null;
   assignee: string | null;
   assigneeUserId: string | null;
@@ -180,6 +181,7 @@ export class OrganizationIssueService {
         linkKind: schema.issueSheetIssues.linkKind,
         linkLabel: schema.issueSheetIssues.linkLabel,
         linkUrl: schema.issueSheetIssues.linkUrl,
+        templateKey: schema.issueSheetIssues.templateKey,
         assigneeUserId: schema.issueSheetIssues.assigneeUserId,
         reporterFirstName: schema.users.firstName,
         reporterLastName: schema.users.lastName,
@@ -243,6 +245,7 @@ export class OrganizationIssueService {
         linkKind: row.linkKind,
         linkLabel: row.linkLabel,
         linkUrl: row.linkUrl,
+        templateKey: row.templateKey,
         assigneeUserId: row.assigneeUserId,
         reporter: formatUser({
           firstName: row.reporterFirstName,

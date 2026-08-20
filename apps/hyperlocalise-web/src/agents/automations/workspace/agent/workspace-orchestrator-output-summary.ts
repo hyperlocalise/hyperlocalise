@@ -107,22 +107,57 @@ export function readAssignTranslateWithAgent(
   return null;
 }
 
+function isCreateIssueOutput(value: Record<string, unknown>): boolean {
+  return Array.isArray(value.issues) && typeof value.createdCount === "number";
+}
+
+export function readCreateIssue(
+  outputSummary: Record<string, unknown>,
+  stepResults: Partial<Record<WorkspaceOrchestratorToolName, Record<string, unknown>>>,
+): Record<string, unknown> | null {
+  const fromCurrentStep = stepResults.create_issue;
+  if (fromCurrentStep && isCreateIssueOutput(fromCurrentStep)) {
+    return fromCurrentStep;
+  }
+
+  const fromOutput = outputSummary.createIssue;
+  if (fromOutput && typeof fromOutput === "object" && !Array.isArray(fromOutput)) {
+    const record = fromOutput as Record<string, unknown>;
+    if (isCreateIssueOutput(record)) {
+      return record;
+    }
+  }
+
+  const fromPriorStep = readStepResult(outputSummary.orchestratorStepResults, "create_issue");
+  if (fromPriorStep && isCreateIssueOutput(fromPriorStep)) {
+    return fromPriorStep;
+  }
+
+  return null;
+}
+
 export function buildWorkspaceOrchestratorOutputSummary(
   base: Record<string, unknown>,
   stepResults: Partial<Record<WorkspaceOrchestratorToolName, Record<string, unknown>>>,
   options?: {
-    notificationWarnings?: Array<{ channel: "slack" | "email"; code: string; message: string }>;
+    notificationWarnings?: Array<{
+      channel: "slack" | "email" | "github_comment";
+      code: string;
+      message: string;
+    }>;
   },
 ): Record<string, unknown> {
   const contentfulTranslationRunId = readContentfulTranslationRunId(base, stepResults);
   const createNativeTmsJob = readCreateNativeTmsJob(base, stepResults);
   const assignTranslateWithAgent = readAssignTranslateWithAgent(base, stepResults);
+  const createIssue = readCreateIssue(base, stepResults);
 
   return {
     ...base,
     ...(contentfulTranslationRunId ? { contentfulTranslationRunId } : {}),
     ...(createNativeTmsJob ? { createNativeTmsJob } : {}),
     ...(assignTranslateWithAgent ? { assignTranslateWithAgent } : {}),
+    ...(createIssue ? { createIssue } : {}),
     orchestratorStepResults: stepResults,
     ...(options?.notificationWarnings && options.notificationWarnings.length > 0
       ? { notificationWarnings: options.notificationWarnings }

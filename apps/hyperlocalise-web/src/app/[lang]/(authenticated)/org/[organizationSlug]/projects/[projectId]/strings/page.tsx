@@ -15,6 +15,11 @@ import { isReleaseCatAllFilesEnabled } from "@/lib/flags/release-flags";
 import { CAT_ALL_FILES_SOURCE_PATH } from "@/lib/projects/cat-all-files";
 import { parseProjectFileCatSearchParams } from "@/lib/projects/project-file-cat-routing";
 import {
+  parseCatWorkspaceQueueFilterParam,
+  parseCatWorkspaceQueueSortParam,
+  parseCatWorkspaceSearchParam,
+} from "@/lib/projects/cat/cat-workspace-query-params";
+import {
   catAllFilesProviderKindFromTarget,
   resolveProjectResourceTarget,
 } from "@/api/routes/project/project.shared";
@@ -34,6 +39,9 @@ export default async function ProjectStringsPage({
     resourceType?: string;
     branch?: string;
     sourcePaths?: string;
+    queueFilter?: string;
+    queueSort?: string;
+    search?: string;
   }>;
 }) {
   const { organizationSlug, projectId } = await params;
@@ -66,6 +74,9 @@ export default async function ProjectStringsPage({
       catAllFilesEnabled={catAllFilesEnabled}
       highlightLocale={parsedSearchParams.highlightLocale}
       initialSegmentKey={parsedSearchParams.initialSegmentKey}
+      initialQueueFilter={parseCatWorkspaceQueueFilterParam(rawSearchParams.queueFilter) ?? "all"}
+      initialQueueSort={parseCatWorkspaceQueueSortParam(rawSearchParams.queueSort) ?? "file_order"}
+      initialSearch={parseCatWorkspaceSearchParam(rawSearchParams.search)}
       externalResourceId={parsedSearchParams.externalResourceId}
       resourceType={parsedSearchParams.resourceType}
       branch={parsedSearchParams.branch}

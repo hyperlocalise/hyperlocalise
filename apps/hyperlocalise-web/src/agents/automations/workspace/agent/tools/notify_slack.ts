@@ -21,9 +21,16 @@ import { buildOrchestratorRunSummaryMessage } from "../summary-message";
 export function createNotifySlackTool(session: WorkspaceOrchestratorSession) {
   return defineAgentTool({
     description:
-      "Send a Slack notification summarizing this automation run to the configured channel.",
+      "Send a Slack notification summarizing this automation run to the configured channel. Pass `message` as scannable Markdown. Follow any customer-specified Slack format first; otherwise use a bold headline, short bullets, and a next step. Do not send one dense paragraph.",
     inputSchema: z.object({
-      message: z.string().trim().min(1).optional(),
+      message: z
+        .string()
+        .trim()
+        .min(1)
+        .optional()
+        .describe(
+          "Markdown summary for Slack. Prefer the customer's requested format when provided; otherwise a bold headline, short bullets for key facts, and a one-line next step.",
+        ),
     }),
     execute: async ({ message }) => {
       const slack = session.automation.toolConfig.slack;

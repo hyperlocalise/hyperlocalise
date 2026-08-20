@@ -12,10 +12,20 @@
  */
 import { LOCALISATION_AUDIT_ANALYTICS_EVENTS, scoreBand } from "@/lib/analytics/events";
 import { serverAnalytics } from "@/lib/analytics/server";
-import { crawlLocalisationAuditSample } from "@/lib/localisation-audit/crawl";
-import { runLinguisticLocalisationReview } from "@/lib/localisation-audit/linguistic-review";
-import { pickHeadlineFindings, scoreLocalisationAudit } from "@/lib/localisation-audit/score";
 import {
+  buildLocalisationAuditCompanyProfile,
+  companyProfileFromAuditPayloads,
+  isCompanyProfileIncomplete,
+  mergeCompanyProfiles,
+} from "@/lib/localisation-audit/company-profile";
+import { runLocalisationAuditCredits } from "@/lib/localisation-audit/credits/runner";
+import {
+  aggregateLocalisationAuditCredits,
+  pickHeadlineFindings,
+} from "@/lib/localisation-audit/score";
+import { LOCALISATION_AUDIT_USER_AGENT_NAME } from "@/lib/localisation-audit/user-agent";
+import {
+  blockLocalisationAudit,
   completeLocalisationAudit,
   failLocalisationAudit,
   findLocalisationAuditById,
@@ -24,15 +34,16 @@ import {
   markLocalisationAuditLeadEmailQueued,
   markLocalisationAuditProgress,
   markLocalisationAuditRunning,
+  patchLocalisationAuditCompanyProfile,
   upsertLocalisationAuditLeadForDelivery,
 } from "@/lib/localisation-audit/store";
-import { runTechnicalLocalisationChecks } from "@/lib/localisation-audit/technical-checks";
 import type {
-  LocalisationAuditCrawledPage,
+  LocalisationAuditCrawlResult,
   LocalisationAuditProgressStage,
   LocalisationAuditReport,
   LocalisationAuditTeaser,
 } from "@/lib/localisation-audit/types";
+
 export async function prepareLocalisationAuditStep(input: {
   auditId: string;
   attemptNumber: number;
@@ -103,8 +114,10 @@ export async function setLocalisationAuditProgressStep(input: {
 export async function crawlLocalisationAuditStep(input: {
   origin: string;
   sourceUrl: string;
-}): Promise<LocalisationAuditCrawledPage[]> {
+  focusLocales?: string[];
+}): Promise<LocalisationAuditCrawlResult> {
   "use step";
+  const { crawlLocalisationAuditSample } = await import("@/lib/localisation-audit/crawl");
   return crawlLocalisationAuditSample(input);
 }
 
@@ -115,9 +128,28 @@ export async function analyzeLocalisationAuditStep(input: {
   domainSlug: string;
   sourceUrl: string;
   focusLocales: string[];
-  pages: LocalisationAuditCrawledPage[];
+  pages: LocalisationAuditCrawlResult["pages"];
+  sitemap: LocalisationAuditCrawlResult["sitemap"];
+  blockedReason?: LocalisationAuditCrawlResult["blockedReason"];
 }) {
   "use step";
+
+  if (input.blockedReason) {
+    const blocked = await blockLocalisationAudit({
+      auditId: input.auditId,
+      attemptNumber: input.attemptNumber,
+      errorCode: "crawl_blocked",
+      errorMessage: `This domain blocked ${LOCALISATION_AUDIT_USER_AGENT_NAME}. Allow it through your firewall, CDN, bot protection, or login wall, then start a new audit.`,
+    });
+    if (!blocked) {
+      return { ok: false as const, code: "stale_attempt" as const };
+    }
+    serverAnalytics.track(LOCALISATION_AUDIT_ANALYTICS_EVENTS.blocked, {
+      status: "blocked",
+      outcome: input.blockedReason,
+    });
+    return { ok: false as const, code: "localisation_audit_blocked" as const };
+  }
 
   if (input.pages.length === 0) {
     await failLocalisationAudit({
@@ -133,23 +165,41 @@ export async function analyzeLocalisationAuditStep(input: {
     return { ok: false as const, code: "crawl_failed" as const };
   }
 
+  const audit = await findLocalisationAuditById(input.auditId);
+  const existingProfile = companyProfileFromAuditPayloads({
+    teaser: audit?.teaser,
+    report: audit?.report,
+  });
+  const inferredProfile = await buildLocalisationAuditCompanyProfile({
+    domainKey: input.domainKey,
+    pages: input.pages,
+  });
+  const companyProfile = mergeCompanyProfiles(existingProfile, inferredProfile);
+
+  // Persist cover fields before scoring so a failed re-run still updates
+  // legacy rows that never stored a logo or product summary.
+  if (isCompanyProfileIncomplete(existingProfile)) {
+    await patchLocalisationAuditCompanyProfile({
+      auditId: input.auditId,
+      attemptNumber: input.attemptNumber,
+      companyProfile,
+    });
+  }
+
   await markLocalisationAuditProgress({
     auditId: input.auditId,
     attemptNumber: input.attemptNumber,
     progressStage: "scoring",
   });
 
-  const technical = runTechnicalLocalisationChecks({
+  const scored = await runLocalisationAuditCredits({
     pages: input.pages,
     focusLocales: input.focusLocales,
+    sitemap: input.sitemap,
   });
-  const linguistic = await runLinguisticLocalisationReview({
-    pages: input.pages,
-    focusLocales: input.focusLocales,
+  const { score, dimensionScores } = aggregateLocalisationAuditCredits(scored.credits, {
+    localeCount: scored.detectedLocales.length,
   });
-
-  const findings = [...technical.findings, ...linguistic.findings];
-  const score = scoreLocalisationAudit(findings);
   const completedAt = new Date().toISOString();
 
   const report: LocalisationAuditReport = {
@@ -158,28 +208,34 @@ export async function analyzeLocalisationAuditStep(input: {
     domainSlug: input.domainSlug,
     sourceUrl: input.sourceUrl,
     focusLocales: input.focusLocales,
-    detectedLocales: technical.detectedLocales,
-    findings,
+    detectedLocales: scored.detectedLocales,
+    findings: scored.findings,
     pages: input.pages.map((page) => ({
       url: page.url,
       status: page.status,
       htmlLang: page.htmlLang,
       title: page.title,
     })),
-    linguisticNotes: linguistic.linguisticNotes,
+    linguisticNotes: scored.linguisticNotes,
     pagesCrawled: input.pages.length,
     completedAt,
+    dimensionScores,
+    credits: scored.credits,
+    companyProfile,
   };
 
   const teaser: LocalisationAuditTeaser = {
     score,
     domainKey: input.domainKey,
     domainSlug: input.domainSlug,
-    detectedLocales: technical.detectedLocales,
-    headlineFindings: pickHeadlineFindings(findings, 3),
-    findingsCount: findings.length,
+    detectedLocales: scored.detectedLocales,
+    headlineFindings: pickHeadlineFindings(scored.findings, 3),
+    findingsCount: scored.findings.length,
     pagesCrawled: input.pages.length,
     completedAt,
+    dimensionScores,
+    credits: scored.credits,
+    companyProfile,
   };
 
   const completed = await completeLocalisationAudit({

@@ -7,10 +7,15 @@ import (
 	"strings"
 )
 
+// ExtraPlaceholderPattern matches printf-style (%s, %d, %1$s, %(name)s, %@,
+// %{name}) and shell/template-style (${name}, $name$) placeholders. It is
+// exported so other packages (e.g. spellcheck) can recognize the same
+// placeholder syntax without duplicating the regex.
+//
 // BOLT OPTIMIZATION: Combine individual placeholder patterns into a single
 // regex to reduce the number of passes over the input string. The order of
 // alternations is preserved from the original set to maintain priority.
-var combinedPlaceholderPattern = regexp.MustCompile(
+var ExtraPlaceholderPattern = regexp.MustCompile(
 	`%[0-9]+\$[-+ #0]*[0-9]*(?:\.[0-9]*)?(?:ll|l|hh|h)?[diuXxfsSFeEgGcC]|` +
 		`%\([A-Za-z_][\w]*\)[-+ #0]*[0-9]*(?:\.[0-9]*)?(?:ll|l|hh|h)?[diuXxfsSFeEgGcC]|` +
 		`%[-+ #0]*[0-9]*(?:\.[0-9]*)?(?:ll|l|hh|h)?[diuXxfsSFeEgGcC]\b|` +
@@ -27,18 +32,42 @@ func extractExtraPlaceholders(text string) []string {
 		return nil
 	}
 
+	// BOLT OPTIMIZATION: Iterate using strings.IndexAny to fast-skip plain text and
+	// FindStringIndex to match regex incrementally, avoiding [][]int slice allocations
+	// from FindAllStringIndex. All alternations in ExtraPlaceholderPattern start with
+	// '%' or '$'. Slice capacity is lazily allocated on first match.
 	var out []string
-	// BOLT OPTIMIZATION: Use a single pass FindAllStringIndex on the combined pattern.
-	for _, loc := range combinedPlaceholderPattern.FindAllStringIndex(text, -1) {
-		match := text[loc[0]:loc[1]]
-		// BOLT OPTIMIZATION: Defined patterns are self-delimiting; TrimSpace is redundant.
+
+	pos := 0
+	for pos < len(text) {
+		idx := strings.IndexAny(text[pos:], "%$")
+		if idx < 0 {
+			break
+		}
+		curr := pos + idx
+		loc := ExtraPlaceholderPattern.FindStringIndex(text[curr:])
+		if loc == nil {
+			break
+		}
+
+		matchStart := curr + loc[0]
+		matchEnd := curr + loc[1]
+		match := text[matchStart:matchEnd]
 
 		// Printf-style %% escapes a literal percent. Skip matches whose
 		// leading '%' is the second half of an escape pair (e.g. %%@).
-		if match[0] == '%' && isEscapedPercentAt(text, loc[0]) {
-			continue
+		if match[0] != '%' || !IsEscapedPercentAt(text, matchStart) {
+			if out == nil {
+				out = make([]string, 0, 4)
+			}
+			out = append(out, match)
 		}
-		out = append(out, match)
+
+		if matchEnd <= pos {
+			pos++
+		} else {
+			pos = matchEnd
+		}
 	}
 
 	if len(out) == 0 {
@@ -53,10 +82,10 @@ func extractExtraPlaceholders(text string) []string {
 	return out
 }
 
-// isEscapedPercentAt reports whether text[index] is '%' that belongs to a
+// IsEscapedPercentAt reports whether text[index] is '%' that belongs to a
 // %% escape rather than starting a format placeholder. An odd run of '%'
 // ending at index is a real placeholder; an even run is escaped.
-func isEscapedPercentAt(text string, index int) bool {
+func IsEscapedPercentAt(text string, index int) bool {
 	if index < 0 || index >= len(text) || text[index] != '%' {
 		return false
 	}
@@ -73,6 +102,11 @@ func validateExtraPlaceholderParity(source, translated string) error {
 }
 
 func validateExtraPlaceholderParityWithTokens(source, translated string) (bool, error) {
+	// BOLT OPTIMIZATION: Dual-string fast-path when neither source nor translated contains
+	// placeholder signal characters (% or $).
+	if !strings.ContainsAny(source, "%$") && !strings.ContainsAny(translated, "%$") {
+		return false, nil
+	}
 	expected := extractExtraPlaceholders(source)
 	got := extractExtraPlaceholders(translated)
 	if stringSlicesEqual(expected, got) {

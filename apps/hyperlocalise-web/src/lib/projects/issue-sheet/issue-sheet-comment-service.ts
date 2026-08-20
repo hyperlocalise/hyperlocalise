@@ -406,6 +406,7 @@ export class IssueSheetCommentService extends ProjectServiceBase {
       .select({
         id: schema.issueSheetComments.id,
         authorUserId: schema.issueSheetComments.authorUserId,
+        mentionedUserIds: schema.issueSheetComments.mentionedUserIds,
       })
       .from(schema.issueSheetComments)
       .where(
@@ -471,6 +472,23 @@ export class IssueSheetCommentService extends ProjectServiceBase {
       userIds: mentionedUserIds,
       requireProjectAccess: true,
     });
+
+    const previousMentionedUserIds = new Set(toStringArray(existing.mentionedUserIds));
+    const addedMentionedUserIds = mentionedUserIds.filter(
+      (userId) => !previousMentionedUserIds.has(userId),
+    );
+
+    await issueNotificationService.safeFanOut("comment_mentions_added", () =>
+      issueNotificationService.notifyMentions({
+        organizationId: input.organizationId,
+        projectId: input.projectId,
+        issueId: input.issueId,
+        actorUserId: input.actorUserId,
+        commentId: existing.id,
+        commentBody: input.body.body,
+        mentionedUserIds: addedMentionedUserIds,
+      }),
+    );
 
     return {
       ok: true,

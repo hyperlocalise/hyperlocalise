@@ -13,9 +13,14 @@
 import { and, eq, isNull, or } from "drizzle-orm";
 
 import { stringTranslationJobInputSchema } from "@/api/routes/project/job.schema";
+import { PRODUCT_USAGE_ANALYTICS_EVENTS } from "@/lib/analytics/events";
+import { serverAnalytics } from "@/lib/analytics/server";
 import { db, schema } from "@/lib/database";
 import type { TranslationJobEventData } from "@/lib/workflow/types";
-import { persistStringJobTranslations } from "@/lib/projects/translations/project-translation-service";
+import {
+  isProjectTranslationKeyHidden,
+  persistStringJobTranslations,
+} from "@/lib/projects/translations/project-translation-service";
 import {
   completeAndTrackBillableUsage,
   formatUsageControlError,
@@ -247,6 +252,20 @@ class TranslationJobExecutor {
       };
     }
 
+    if (parsedInput.data.translationKeyId) {
+      const isHidden = await isProjectTranslationKeyHidden({
+        projectId: claimedJob.projectId,
+        translationKeyId: parsedInput.data.translationKeyId,
+      });
+      if (isHidden) {
+        return {
+          ok: false,
+          code: "translation_key_hidden",
+          message: "Hidden source strings are skipped by translation jobs",
+        };
+      }
+    }
+
     const contextResult = await this.contextBuilder.build(
       claimedJob.projectId,
       parsedInput.data,
@@ -463,6 +482,11 @@ class TranslationJobCompletionService {
         `translation job ${input.jobId} is not owned by workflow run ${input.workflowRunId}`,
       );
     }
+
+    serverAnalytics.track(PRODUCT_USAGE_ANALYTICS_EVENTS.translationJobFailed, {
+      status: "failed",
+      source: "translation_job",
+    });
 
     const failedJob = await this.repository.getStored(input.jobId, input.projectId);
     if (!failedJob) {

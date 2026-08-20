@@ -1,8 +1,8 @@
-load("@rules_go//go:def.bzl", "go_library")
+load("@rules_go//go:def.bzl", "go_library", "go_test")
 
 go_library(
     name = "cliotel",
-    srcs = glob(["*.go"]),
+    srcs = glob(["*.go"], exclude = ["*_test.go"]),
     importpath = "github.com/hyperlocalise/hyperlocalise/apps/cli/internal/cliotel",
     visibility = ["//visibility:public"],
     deps = [
@@ -13,5 +13,14 @@ go_library(
         "@io_opentelemetry_go_otel_exporters_otlp_otlptrace_otlptracehttp//:otlptracehttp",
         "@io_opentelemetry_go_otel_sdk//resource:resource",
         "@io_opentelemetry_go_otel_sdk//trace:trace",
+    ],
+)
+
+go_test(
+    name = "cliotel_test",
+    srcs = glob(["*_test.go"]),
+    embed = [":cliotel"],
+    deps = [
+        "@com_github_spf13_cobra//:cobra",
     ],
 )

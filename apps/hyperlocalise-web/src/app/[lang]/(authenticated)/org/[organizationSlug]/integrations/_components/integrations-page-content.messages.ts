@@ -45,51 +45,6 @@ export const integrationsPageContentMessages = defineMessages({
     id: "dWHU+zjwUO",
     description: "Integrations page section heading for CMS connectors",
   },
-  modelProviderCategory: {
-    defaultMessage: "Model provider",
-    id: "E6HRzAiOt0",
-    description: "Integrations page section heading for LLM providers",
-  },
-  hyperlocaliseGoLabel: {
-    defaultMessage: "Hyperlocalise GO",
-    id: "Qkra2VNwUo",
-    description: "Managed Hyperlocalise model provider name",
-  },
-  hyperlocaliseGoDescription: {
-    defaultMessage: "Managed by Hyperlocalise",
-    id: "tHJT8VDfIn",
-    description: "Managed Hyperlocalise model provider description",
-  },
-  openAiLabel: {
-    defaultMessage: "Open AI",
-    id: "0kqhhOMa9k",
-    description: "OpenAI BYOK provider name on the integrations page",
-  },
-  openAiDescription: {
-    defaultMessage: "Connect your OpenAI account",
-    id: "QmXtxyLvCd",
-    description: "OpenAI BYOK provider description on the integrations page",
-  },
-  anthropicLabel: {
-    defaultMessage: "Anthropic",
-    id: "1VNZg9UkcM",
-    description: "Anthropic BYOK provider name on the integrations page",
-  },
-  anthropicDescription: {
-    defaultMessage: "Connect your Anthropic account",
-    id: "4tP9x2ODN4",
-    description: "Anthropic BYOK provider description on the integrations page",
-  },
-  geminiLabel: {
-    defaultMessage: "Google Gemini",
-    id: "l0d6YXPPZ9",
-    description: "Google Gemini BYOK provider name on the integrations page",
-  },
-  geminiDescription: {
-    defaultMessage: "Connect your Gemini account",
-    id: "R+hZLscXuo",
-    description: "Google Gemini BYOK provider description on the integrations page",
-  },
   tmsNativeName: {
     defaultMessage: "Hyperlocalise Native",
     id: "Ij4qN1o4kr",
@@ -163,16 +118,6 @@ export const integrationsPageContentMessages = defineMessages({
     id: "tSnciLV1cq",
     description: "Tooltip when another TMS provider blocks connecting this one",
   },
-  providerSavedToast: {
-    defaultMessage: "{providerLabel} provider saved",
-    id: "nmfgIZNX5m",
-    description: "Toast after saving a BYOK LLM provider credential",
-  },
-  llmProviderDisconnectedToast: {
-    defaultMessage: "LLM provider disconnected",
-    id: "kDfywMCo7J",
-    description: "Toast after disconnecting the workspace LLM provider",
-  },
   externalTmsConnectedToast: {
     defaultMessage: "{displayName} connected",
     id: "V1BIkH6W+O",
@@ -208,52 +153,6 @@ export const integrationsPageContentMessages = defineMessages({
     id: "rO3KPnsZEO",
     description: "Toast after disconnecting an external TMS provider",
   },
-  switchToManagedFooter: {
-    defaultMessage: "Switch to managed",
-    id: "CIdkhlQIV6",
-    description: "Footer label on managed model provider card when BYOK is active",
-  },
-  configureFooter: {
-    defaultMessage: "Configure",
-    id: "If/xnDCxst",
-    description: "Footer label on BYOK model provider cards",
-  },
-  configureDialogTitle: {
-    defaultMessage: "Configure {providerLabel}",
-    id: "Y7XT7zpg39",
-    description: "Title for the BYOK model provider configuration dialog",
-  },
-  configureDialogDescription: {
-    defaultMessage:
-      "Save one shared provider key for this workspace. Saving validates the key, encrypts it at rest, and replaces the current provider.",
-    id: "uMS3Md9f77",
-    description: "Description for the BYOK model provider configuration dialog",
-  },
-  defaultModelLabel: {
-    defaultMessage: "Default model",
-    id: "BsIdlB/bdk",
-    description: "Label for the default model select field",
-  },
-  apiKeyLabel: {
-    defaultMessage: "API key",
-    id: "znjMm102W+",
-    description: "Label for the provider API key input",
-  },
-  apiKeyPlaceholder: {
-    defaultMessage: "Enter {providerLabel} API key",
-    id: "tlMl5v6nnm",
-    description: "Placeholder for the provider API key input",
-  },
-  hideApiKeyAriaLabel: {
-    defaultMessage: "Hide API key",
-    id: "98mLYv90ox",
-    description: "Aria label for the button that hides the API key input",
-  },
-  showApiKeyAriaLabel: {
-    defaultMessage: "Show API key",
-    id: "2BaYUyVX1c",
-    description: "Aria label for the button that reveals the API key input",
-  },
   disconnecting: {
     defaultMessage: "Disconnecting…",
     id: "ntvyMHkHZg",
@@ -263,16 +162,6 @@ export const integrationsPageContentMessages = defineMessages({
     defaultMessage: "Disconnect",
     id: "PJoDNnwjRj",
     description: "Button label to disconnect a provider",
-  },
-  validating: {
-    defaultMessage: "Validating…",
-    id: "2BoI5eES6X",
-    description: "Button label while validating a provider credential",
-  },
-  saveProvider: {
-    defaultMessage: "Save provider",
-    id: "NBLnrSCLwC",
-    description: "Button label to save a BYOK provider credential",
   },
   disconnectTmsDialogTitle: {
     defaultMessage: "Disconnect {providerName}?",

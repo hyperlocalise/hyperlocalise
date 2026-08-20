@@ -23,6 +23,7 @@ describe("getAppShellTitle", () => {
   it.each([
     ["/org/acme/dashboard", "Overview"],
     ["/org/acme/inbox", "Inbox"],
+    ["/org/acme/inbox/new", "New Request"],
     ["/org/acme/projects", "Projects"],
     ["/org/acme/projects/proj_1", "proj_1"],
     ["/org/acme/projects/proj_1/files", "Files"],
@@ -37,7 +38,10 @@ describe("getAppShellTitle", () => {
     ["/org/acme/projects/proj_1/settings", "Settings"],
     ["/org/acme/my-work", "My Jobs"],
     ["/org/acme/my-jobs", "My Jobs"],
-    ["/org/acme/knowledge", "Knowledge"],
+    ["/org/acme/knowledge", "Guideline"],
+    ["/org/acme/ai-engine", "AI Engine"],
+    ["/org/acme/domains", "Domains"],
+    ["/org/acme/domains/ld_1", "ld_1"],
     ["/org/acme/glossaries", "Glossaries"],
     ["/org/acme/translation-memories", "Translation Memories"],
     ["/org/acme/integrations", "Integrations"],
@@ -79,6 +83,17 @@ describe("getAppShellBreadcrumbs", () => {
     expect(getAppShellBreadcrumbs("/org/acme/inbox", intl)).toEqual([{ label: "Inbox" }]);
   });
 
+  it("returns New Request breadcrumbs for the inbox compose page", () => {
+    expect(getAppShellBreadcrumbs("/org/acme/inbox/new", intl)).toEqual([
+      { label: "Inbox", href: "/org/acme/inbox" },
+      { label: "New Request" },
+    ]);
+    expect(getAppShellBreadcrumbs("/en/org/acme/inbox/new", intl)).toEqual([
+      { label: "Inbox", href: "/org/acme/inbox" },
+      { label: "New Request" },
+    ]);
+  });
+
   it("returns settings breadcrumbs for settings subpages", () => {
     expect(getAppShellBreadcrumbs("/org/acme/settings/account", intl)).toEqual([
       { label: "Settings", href: "/org/acme/settings" },
@@ -91,6 +106,14 @@ describe("getAppShellBreadcrumbs", () => {
     expect(getAppShellBreadcrumbs("/org/acme/teams/team_1", intl)).toEqual([
       { label: "Teams", href: "/org/acme/teams" },
       { label: "team_1" },
+    ]);
+  });
+
+  it("returns domains breadcrumbs for domain detail pages", () => {
+    expect(getAppShellBreadcrumbs("/org/acme/domains", intl)).toEqual([{ label: "Domains" }]);
+    expect(getAppShellBreadcrumbs("/org/acme/domains/ld_1", intl)).toEqual([
+      { label: "Domains", href: "/org/acme/domains" },
+      { label: "ld_1" },
     ]);
   });
 

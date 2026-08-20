@@ -84,6 +84,10 @@ function sourceContentType(path: string) {
       return "text/markdown";
     case "csv":
       return "text/csv";
+    case "srt":
+      return "application/x-subrip";
+    case "vtt":
+      return "text/vtt";
     case "png":
       return "image/png";
     case "jpeg":

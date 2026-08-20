@@ -12,26 +12,16 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { FilterIcon, SearchIcon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
 import { observer } from "mobx-react-lite";
 import { useCallback, useMemo } from "react";
-import { FormattedMessage, useIntl } from "react-intl";
+import { FormattedMessage } from "react-intl";
 
 import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
 import { cn } from "@/lib/primitives/cn";
 
 import { CatQueueSkeletonList } from "@/components/cat/queue/cat-queue-skeleton-list";
-import { catQueueFilterValues, type CatQueueFilter } from "@/components/cat/queue/cat-queue-filter";
+import type { CatQueueFilter } from "@/components/cat/queue/cat-queue-filter";
 import type { CatQueuePagination } from "@/components/cat/queue/cat-queue-panel";
 import {
   catQueuePanelMessages,
@@ -46,22 +36,10 @@ import type {
   CatTranslationMemoryMatch,
 } from "@/components/cat/shared/types";
 import { useCatWorkspace } from "@/components/cat/workspace/cat-workspace-context";
-import { CatWorkspaceViewSwitcherConnected } from "@/components/cat/workspace/cat-workspace-view-switcher-connected";
+import { CatSideBySideResizableLayout } from "@/components/cat/workspace/cat-workspace-resizable-layout";
 
 import { CatSideBySideIntelligencePanel } from "./cat-side-by-side-intelligence-panel";
 import { CatSideBySideVirtualList } from "./cat-side-by-side-virtual-list";
-
-const queueFilterMessageByValue: Record<
-  CatQueueFilter,
-  (typeof catQueuePanelMessages)[keyof typeof catQueuePanelMessages]
-> = {
-  all: catQueuePanelMessages.filterAll,
-  untranslated: catQueuePanelMessages.filterUntranslated,
-  needs_review: catQueuePanelMessages.filterNeedsReview,
-  reviewed: catQueuePanelMessages.filterReviewed,
-  has_issues: catQueuePanelMessages.filterHasIssues,
-  skipped: catQueuePanelMessages.filterSkipped,
-};
 
 export const CatSideBySidePanel = observer(function CatSideBySidePanel({
   segments,
@@ -96,11 +74,7 @@ export const CatSideBySidePanel = observer(function CatSideBySidePanel({
   showVisualContext,
   canLookupFreshContext,
   search = "",
-  onSearchChange,
-  isSearching = false,
   queueFilter = "all",
-  onQueueFilterChange,
-  availableQueueFilters = catQueueFilterValues,
   isFetchingPage = false,
   isQueueLoading = false,
   pagination = null,
@@ -114,6 +88,7 @@ export const CatSideBySidePanel = observer(function CatSideBySidePanel({
   onUseAiSuggestion,
   onGenerateAiRecommendation,
   onTreatAsImage,
+  onTreatAsVideo,
   onRegenerateImage,
   onUploadImage,
   onAskQuestion,
@@ -164,11 +139,7 @@ export const CatSideBySidePanel = observer(function CatSideBySidePanel({
   showVisualContext: boolean;
   canLookupFreshContext: boolean;
   search?: string;
-  onSearchChange?: (value: string) => void;
-  isSearching?: boolean;
   queueFilter?: CatQueueFilter;
-  onQueueFilterChange?: (filter: CatQueueFilter) => void;
-  availableQueueFilters?: CatQueueFilter[];
   isFetchingPage?: boolean;
   isQueueLoading?: boolean;
   pagination?: CatQueuePagination | null;
@@ -182,6 +153,7 @@ export const CatSideBySidePanel = observer(function CatSideBySidePanel({
   onUseAiSuggestion?: (segmentId: string) => void;
   onGenerateAiRecommendation?: (segmentId: string) => void;
   onTreatAsImage?: (segmentId: string, treatAsImage: boolean) => void;
+  onTreatAsVideo?: (segmentId: string, treatAsVideo: boolean) => void;
   onRegenerateImage?: (segmentId: string) => void;
   onUploadImage?: (segmentId: string, file: File) => void;
   onAskQuestion?: () => void;
@@ -209,7 +181,6 @@ export const CatSideBySidePanel = observer(function CatSideBySidePanel({
   segmentShareUrl?: string | null;
   className?: string;
 }) {
-  const intl = useIntl();
   const store = useCatWorkspace();
   const hoveredSegmentId = store.ui.hoveredSegmentId;
   const intelligenceSegmentId = store.intelligenceSegmentId;
@@ -238,181 +209,109 @@ export const CatSideBySidePanel = observer(function CatSideBySidePanel({
   const totalSegments = hasMoreQueue ? null : (pagination?.totalCount ?? segments.length);
 
   return (
-    <div
-      className={cn(
-        "grid h-full min-h-0 min-w-0 grid-cols-[minmax(0,1fr)_minmax(0,22rem)] overflow-hidden bg-background",
-        className,
-      )}
-    >
-      <div className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden">
-        <div className="shrink-0 space-y-3 border-b border-border px-4 py-3">
-          <div className="flex items-center justify-between gap-3">
-            {onSearchChange ? (
-              <div className="relative min-w-0 flex-1">
-                <HugeiconsIcon
-                  icon={SearchIcon}
-                  className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground"
-                />
-                <Input
-                  value={search}
-                  onChange={(event) => onSearchChange(event.target.value)}
-                  placeholder={intl.formatMessage(catQueuePanelMessages.searchPlaceholder)}
-                  aria-label={intl.formatMessage(catQueuePanelMessages.searchAria)}
-                  className="h-9 pl-9"
-                />
-                {isSearching ? (
-                  <Spinner className="absolute top-1/2 right-2.5 size-4 -translate-y-1/2" />
-                ) : null}
+    <CatSideBySideResizableLayout
+      className={cn("bg-background", className)}
+      editor={
+        <div className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden">
+          <div className="shrink-0 border-b border-border px-4 py-3">
+            <div className="grid grid-cols-2 gap-0 text-xs font-medium tracking-wide text-muted-foreground uppercase">
+              <p className="border-r border-border pr-4">
+                <FormattedMessage {...catSideBySidePanelMessages.sourceColumn} />
+              </p>
+              <p className="pl-4">
+                <FormattedMessage {...catSideBySidePanelMessages.translationColumn} />
+              </p>
+            </div>
+          </div>
+
+          <div className="flex min-h-0 flex-1 flex-col">
+            {isQueueLoading && segments.length === 0 ? (
+              <CatQueueSkeletonList className="px-4 py-3" />
+            ) : segments.length === 0 ? (
+              <div className="flex flex-1 items-center justify-center px-4 py-8 text-sm text-muted-foreground">
+                <FormattedMessage {...emptyMessage} />
               </div>
             ) : (
-              <div className="flex-1" />
+              <CatSideBySideVirtualList
+                segments={segments}
+                focusedSegmentId={focusedSegmentId}
+                hoveredSegmentId={hoveredSegmentId}
+                dirtySegmentIds={dirtySegmentIds}
+                canEdit={canEditTranslations}
+                loadingSegmentIds={loadingSegmentIds}
+                isApproving={isApproving}
+                isSavingDraft={isSavingDraft}
+                isPostingComment={isPostingComment}
+                isLookingUpContext={isLookingUpContext}
+                isAiSuggestionLoading={isAiSuggestionLoading}
+                isFormatChecksLoading={isFormatChecksLoading}
+                isImageBusy={isImageBusy}
+                canUseAiRecommendation={canUseAiRecommendation}
+                focusedIntelligence={focusedIntelligence}
+                aiRecommendationError={aiRecommendationError}
+                formatChecks={formatChecks}
+                segmentFormatChecks={segmentFormatChecks}
+                formatCheckLoadingSegmentIds={formatCheckLoadingSegmentIds}
+                primaryActionLabel={primaryActionLabel}
+                segmentShareUrl={segmentShareUrl}
+                onFocusSegment={onFocusSegment}
+                onHoverSegment={(segmentId) => store.ui.setHoveredSegment(segmentId)}
+                onLeaveSegment={() => store.ui.clearHoveredSegment()}
+                onVisibleSegmentIdsChange={handleVisibleSegmentIdsChange}
+                onTargetChange={onTargetChange}
+                onApprove={onApprove}
+                onSaveDraft={onSaveDraft}
+                onAddToIssueSheet={onAddToIssueSheet}
+                onUseAiSuggestion={onUseAiSuggestion}
+                onGenerateAiRecommendation={onGenerateAiRecommendation}
+                onTreatAsImage={onTreatAsImage}
+                onTreatAsVideo={onTreatAsVideo}
+                onRegenerateImage={onRegenerateImage}
+                onUploadImage={onUploadImage}
+                hasMore={hasMoreQueue}
+                isLoadingMore={isFetchingPage}
+                onNearEnd={onLoadMoreQueue}
+              />
             )}
 
-            <div className="flex shrink-0 items-center gap-2">
-              {onQueueFilterChange ? (
-                <DropdownMenu>
-                  <DropdownMenuTrigger
-                    render={
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="h-9 gap-1.5 px-2.5"
-                        aria-label={intl.formatMessage(catQueuePanelMessages.filterQueueAria)}
-                      />
-                    }
-                  >
-                    <HugeiconsIcon icon={FilterIcon} className="size-4" />
-                    <span className="hidden text-xs sm:inline">
-                      <FormattedMessage {...queueFilterMessageByValue[queueFilter]} />
-                    </span>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="min-w-44">
-                    <DropdownMenuRadioGroup
-                      value={queueFilter}
-                      onValueChange={(value) => {
-                        if (
-                          value === "all" ||
-                          value === "untranslated" ||
-                          value === "needs_review" ||
-                          value === "reviewed" ||
-                          value === "has_issues" ||
-                          value === "skipped"
-                        ) {
-                          onQueueFilterChange(value);
-                        }
-                      }}
-                    >
-                      {availableQueueFilters.map((filter) => (
-                        <DropdownMenuRadioItem key={filter} value={filter}>
-                          <FormattedMessage {...queueFilterMessageByValue[filter]} />
-                        </DropdownMenuRadioItem>
-                      ))}
-                    </DropdownMenuRadioGroup>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              ) : null}
-
-              <CatWorkspaceViewSwitcherConnected />
+            <div className="flex shrink-0 items-center justify-between border-t border-border px-4 py-2 text-xs text-muted-foreground">
+              <p>
+                <FormattedMessage
+                  {...catQueuePanelMessages.paginationSummary}
+                  values={{
+                    count: loadedCount,
+                    more: hasMoreQueue ? "+" : "",
+                  }}
+                />
+              </p>
+              <p className="font-mono tabular-nums">
+                <FormattedMessage
+                  {...catSideBySidePanelMessages.segmentPosition}
+                  values={{
+                    position: segmentPosition,
+                    total: totalSegments ?? `${loadedCount}+`,
+                  }}
+                />
+              </p>
+              {hasMoreQueue && onLoadMoreQueue ? (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 px-2 text-xs"
+                  onClick={onLoadMoreQueue}
+                  disabled={isFetchingPage}
+                >
+                  {isFetchingPage ? <Spinner className="size-3.5" /> : null}
+                  <FormattedMessage {...catQueuePanelMessages.loadMore} />
+                </Button>
+              ) : (
+                <span />
+              )}
             </div>
           </div>
-
-          <div className="grid grid-cols-2 gap-0 text-xs font-medium tracking-wide text-muted-foreground uppercase">
-            <p className="border-r border-border pr-4">
-              <FormattedMessage {...catSideBySidePanelMessages.sourceColumn} />
-            </p>
-            <p className="pl-4">
-              <FormattedMessage {...catSideBySidePanelMessages.translationColumn} />
-            </p>
-          </div>
         </div>
-
-        <div className="flex min-h-0 flex-1 flex-col">
-          {isQueueLoading && segments.length === 0 ? (
-            <CatQueueSkeletonList className="px-4 py-3" />
-          ) : segments.length === 0 ? (
-            <div className="flex flex-1 items-center justify-center px-4 py-8 text-sm text-muted-foreground">
-              <FormattedMessage {...emptyMessage} />
-            </div>
-          ) : (
-            <CatSideBySideVirtualList
-              segments={segments}
-              focusedSegmentId={focusedSegmentId}
-              hoveredSegmentId={hoveredSegmentId}
-              dirtySegmentIds={dirtySegmentIds}
-              canEdit={canEditTranslations}
-              loadingSegmentIds={loadingSegmentIds}
-              isApproving={isApproving}
-              isSavingDraft={isSavingDraft}
-              isPostingComment={isPostingComment}
-              isLookingUpContext={isLookingUpContext}
-              isAiSuggestionLoading={isAiSuggestionLoading}
-              isFormatChecksLoading={isFormatChecksLoading}
-              isImageBusy={isImageBusy}
-              canUseAiRecommendation={canUseAiRecommendation}
-              focusedIntelligence={focusedIntelligence}
-              aiRecommendationError={aiRecommendationError}
-              formatChecks={formatChecks}
-              segmentFormatChecks={segmentFormatChecks}
-              formatCheckLoadingSegmentIds={formatCheckLoadingSegmentIds}
-              primaryActionLabel={primaryActionLabel}
-              segmentShareUrl={segmentShareUrl}
-              onFocusSegment={onFocusSegment}
-              onHoverSegment={(segmentId) => store.ui.setHoveredSegment(segmentId)}
-              onLeaveSegment={() => store.ui.clearHoveredSegment()}
-              onVisibleSegmentIdsChange={handleVisibleSegmentIdsChange}
-              onTargetChange={onTargetChange}
-              onApprove={onApprove}
-              onSaveDraft={onSaveDraft}
-              onAddToIssueSheet={onAddToIssueSheet}
-              onUseAiSuggestion={onUseAiSuggestion}
-              onGenerateAiRecommendation={onGenerateAiRecommendation}
-              onTreatAsImage={onTreatAsImage}
-              onRegenerateImage={onRegenerateImage}
-              onUploadImage={onUploadImage}
-              hasMore={hasMoreQueue}
-              isLoadingMore={isFetchingPage}
-              onNearEnd={onLoadMoreQueue}
-            />
-          )}
-
-          <div className="flex shrink-0 items-center justify-between border-t border-border px-4 py-2 text-xs text-muted-foreground">
-            <p>
-              <FormattedMessage
-                {...catQueuePanelMessages.paginationSummary}
-                values={{
-                  count: loadedCount,
-                  more: hasMoreQueue ? "+" : "",
-                }}
-              />
-            </p>
-            <p className="font-mono tabular-nums">
-              <FormattedMessage
-                {...catSideBySidePanelMessages.segmentPosition}
-                values={{
-                  position: segmentPosition,
-                  total: totalSegments ?? `${loadedCount}+`,
-                }}
-              />
-            </p>
-            {hasMoreQueue && onLoadMoreQueue ? (
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-7 px-2 text-xs"
-                onClick={onLoadMoreQueue}
-                disabled={isFetchingPage}
-              >
-                {isFetchingPage ? <Spinner className="size-3.5" /> : null}
-                <FormattedMessage {...catQueuePanelMessages.loadMore} />
-              </Button>
-            ) : (
-              <span />
-            )}
-          </div>
-        </div>
-      </div>
-
-      <div className="h-full min-h-0 min-w-0">
+      }
+      intelligence={
         <CatSideBySideIntelligencePanel
           segment={intelligenceSegment}
           intelligence={intelligence}
@@ -466,7 +365,7 @@ export const CatSideBySidePanel = observer(function CatSideBySidePanel({
           placement="right"
           className="h-full"
         />
-      </div>
-    </div>
+      }
+    />
   );
 });

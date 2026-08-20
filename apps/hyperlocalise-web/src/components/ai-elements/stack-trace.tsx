@@ -12,12 +12,13 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { Alert02Icon, ArrowDown01Icon, Copy01Icon, Tick02Icon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import { useControllableState } from "@radix-ui/react-use-controllable-state";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/primitives/cn";
-import { AlertTriangleIcon, CheckIcon, ChevronDownIcon, CopyIcon } from "lucide-react";
 import type { ComponentProps } from "react";
 import {
   createContext,
@@ -244,7 +245,7 @@ export type StackTraceErrorProps = ComponentProps<"div">;
 
 export const StackTraceError = memo(({ className, children, ...props }: StackTraceErrorProps) => (
   <div className={cn("flex flex-1 items-center gap-2 overflow-hidden", className)} {...props}>
-    <AlertTriangleIcon className="size-4 shrink-0 text-destructive" />
+    <HugeiconsIcon icon={Alert02Icon} className="size-4 shrink-0 text-destructive" />
     {children}
   </div>
 ));
@@ -343,7 +344,7 @@ export const StackTraceCopyButton = memo(
       [],
     );
 
-    const Icon = isCopied ? CheckIcon : CopyIcon;
+    const Icon = isCopied ? Tick02Icon : Copy01Icon;
     const tooltipText = isCopied
       ? intl.formatMessage(stackTraceMessages.copied)
       : intl.formatMessage(stackTraceMessages.copyStackTrace);
@@ -360,7 +361,7 @@ export const StackTraceCopyButton = memo(
               variant="ghost"
               {...props}
             >
-              {children ?? <Icon size={14} />}
+              {children ?? <HugeiconsIcon icon={Icon} size={14} />}
             </Button>
           }
         />
@@ -378,7 +379,8 @@ export const StackTraceExpandButton = memo(
 
     return (
       <div className={cn("flex size-7 items-center justify-center", className)} {...props}>
-        <ChevronDownIcon
+        <HugeiconsIcon
+          icon={ArrowDown01Icon}
           className={cn(
             "size-4 text-muted-foreground transition-transform",
             isOpen ? "rotate-180" : "rotate-0",

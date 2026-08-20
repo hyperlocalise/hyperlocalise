@@ -26,6 +26,15 @@ import { externalTmsProviderKindEnum, projectSourceEnum } from "./enums";
 import { organizations, teams, users } from "./organizations";
 import { organizationExternalTmsProviderCredentials } from "./providers";
 
+// Keys are static issue template keys (e.g. "tpl_context_request") defined in
+// lib/projects/issue-sheet/issue-sheet-templates.ts. Kept as plain strings here rather than
+// importing that module's union type, since template definitions are app-layer code and this is
+// the database schema layer.
+export type ProjectIssueTemplateConfig = {
+  defaultTemplateKey?: string;
+  assigneeByTemplate?: Record<string, string>;
+};
+
 /**
  * Stores localization projects, whether native or external-TMS-backed. Projects carry translation context, locale metadata, provider links, and ownership information used by jobs and assets.
  */
@@ -84,6 +93,15 @@ export const projects = pgTable(
     // Raw provider metadata for debugging and forward compatibility.
     providerMetadata: jsonb("provider_metadata")
       .$type<Record<string, unknown>>()
+      .notNull()
+      .default(sql`'{}'::jsonb`),
+    // Project-admin-configured issue template defaults. Empty object means "no default", so
+    // existing projects are unaffected until an admin opts in. Template definitions themselves are
+    // static code (see lib/projects/issue-sheet/issue-sheet-templates.ts); this column only stores
+    // the per-project binding of which template (if any) is the default and which assignee (if
+    // any) each template should prefill.
+    issueTemplateConfig: jsonb("issue_template_config")
+      .$type<ProjectIssueTemplateConfig>()
       .notNull()
       .default(sql`'{}'::jsonb`),
     // When the project record was first created.

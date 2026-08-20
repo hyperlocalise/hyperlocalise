@@ -14,21 +14,22 @@ import "dotenv/config";
 
 import { and, eq } from "drizzle-orm";
 import { testClient } from "hono/testing";
-import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vite-plus/test";
+import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 
 import { app } from "@/api/app";
+import { PRODUCT_USAGE_ANALYTICS_EVENTS } from "@/lib/analytics/events";
+import { serverAnalytics } from "@/lib/analytics/server";
 import { db, schema } from "@/lib/database";
 
 import { createProjectTestFixture } from "./project.fixture";
 
-const { resolveApiAuthContextFromSessionMock, workspaceIssuesFlagRunMock } = vi.hoisted(() => ({
+const { resolveApiAuthContextFromSessionMock } = vi.hoisted(() => ({
   resolveApiAuthContextFromSessionMock: vi.fn(
     (options) =>
       globalThis.__resolveTestApiAuthContextFromSession?.(options) ??
       globalThis.__testApiAuthContext ??
       null,
   ),
-  workspaceIssuesFlagRunMock: vi.fn(async () => true),
 }));
 
 vi.mock("@/api/auth/workos-session", async (importOriginal) => {
@@ -36,14 +37,6 @@ vi.mock("@/api/auth/workos-session", async (importOriginal) => {
   return {
     ...actual,
     resolveApiAuthContextFromSession: resolveApiAuthContextFromSessionMock,
-  };
-});
-
-vi.mock("@/lib/flags/workspace-flags", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/lib/flags/workspace-flags")>();
-  return {
-    ...actual,
-    workspaceIssuesFlag: { run: workspaceIssuesFlagRunMock },
   };
 });
 
@@ -65,8 +58,16 @@ type IssueResponse = {
     linkKind: string | null;
     key: string | null;
     sourceText: string | null;
+    templateKey: string | null;
     values: Record<string, unknown>;
     isWatching: boolean;
+  };
+};
+
+type TemplateConfigResponse = {
+  templateConfig: {
+    defaultTemplateKey: string | null;
+    assigneeByTemplate: { templateKey: string; userId: string; assignable: boolean }[];
   };
 };
 
@@ -87,37 +88,17 @@ beforeAll(async () => {
   await db.$client.query("select 1");
 });
 
-beforeEach(() => {
-  workspaceIssuesFlagRunMock.mockResolvedValue(true);
-});
-
 afterEach(async () => {
   vi.clearAllMocks();
   await projectFixture.cleanup();
 });
 
 describe("Issue Sheet routes", () => {
-  it("denies issue sheet access when the feature flag is disabled", async () => {
-    workspaceIssuesFlagRunMock.mockResolvedValue(false);
-    const { identity, project } = await projectFixture.createStoredProjectFixture();
-    const headers = await projectFixture.authHeadersFor(identity);
-    const organizationSlug = identity.organization.slug ?? "missing-slug";
-
-    const response = await issueSheet().$get(
-      { param: { organizationSlug: organizationSlug, projectId: project.id } } as never,
-      { headers: headers },
-    );
-
-    expect(response.status).toBe(403);
-    await expect(response.json()).resolves.toMatchObject({
-      error: "feature_unavailable",
-    });
-  });
-
   it("creates, lists, updates, and enriches generic issue rows", async () => {
     const { identity, project } = await projectFixture.createStoredProjectFixture();
     const headers = await projectFixture.authHeadersFor(identity);
     const organizationSlug = identity.organization.slug ?? "missing-slug";
+    const trackSpy = vi.spyOn(serverAnalytics, "track").mockImplementation(() => {});
 
     const createResponse = await issueSheet().$post(
       {
@@ -147,6 +128,11 @@ describe("Issue Sheet routes", () => {
       targetLocale: "de-DE",
       values: { priority: "P1" },
     });
+    expect(trackSpy).toHaveBeenCalledWith(PRODUCT_USAGE_ANALYTICS_EVENTS.issueCreated, {
+      status: "created",
+      source: "issue_sheet",
+    });
+    trackSpy.mockRestore();
 
     const listResponse = await issueSheet().$get(
       {
@@ -293,6 +279,202 @@ describe("Issue Sheet routes", () => {
       "context",
       "component",
     ]);
+  });
+
+  it("updates, reorders, hides, and deletes custom columns", async () => {
+    const { identity, project } = await projectFixture.createStoredProjectFixture();
+    const headers = await projectFixture.authHeadersFor(identity);
+    const organizationSlug = identity.organization.slug ?? "missing-slug";
+
+    const createColumnResponse = await issueSheet().columns.$post(
+      {
+        param: { organizationSlug, projectId: project.id },
+        json: {
+          key: "component",
+          label: "Component",
+          type: "text",
+          config: {},
+        },
+      } as never,
+      { headers },
+    );
+    expect(createColumnResponse.status).toBe(201);
+    const createdColumn = (await createColumnResponse.json()) as {
+      column: { id: string; key: string; hidden: boolean };
+    };
+
+    const patchResponse = await issueSheet().columns[":columnId"].$patch(
+      {
+        param: {
+          organizationSlug,
+          projectId: project.id,
+          columnId: createdColumn.column.id,
+        },
+        json: { label: "Module", hidden: true },
+      } as never,
+      { headers },
+    );
+    expect(patchResponse.status).toBe(200);
+    const patchedBody = (await patchResponse.json()) as {
+      column: { label: string; hidden: boolean };
+    };
+    expect(patchedBody.column).toMatchObject({ label: "Module", hidden: true });
+
+    const columnsResponse = await issueSheet().columns.$get(
+      { param: { organizationSlug, projectId: project.id } } as never,
+      { headers },
+    );
+    expect(columnsResponse.status).toBe(200);
+    const columnsBody = (await columnsResponse.json()) as {
+      columns: Array<{ id: string; key: string }>;
+    };
+    const reorderedIds = [
+      createdColumn.column.id,
+      ...columnsBody.columns
+        .filter((column) => column.id !== createdColumn.column.id)
+        .map((column) => column.id),
+    ];
+
+    const orderResponse = await issueSheet().columns.order.$put(
+      {
+        param: { organizationSlug, projectId: project.id },
+        json: { columnIds: reorderedIds },
+      } as never,
+      { headers },
+    );
+    expect(orderResponse.status).toBe(200);
+    const orderBody = (await orderResponse.json()) as { columns: Array<{ key: string }> };
+    expect(orderBody.columns.map((column) => column.key)[0]).toBe("component");
+
+    const protectedColumn = columnsBody.columns.find((column) => column.key === "priority");
+    expect(protectedColumn).toBeTruthy();
+    const deleteProtectedResponse = await issueSheet().columns[":columnId"].$delete(
+      {
+        param: {
+          organizationSlug,
+          projectId: project.id,
+          columnId: protectedColumn!.id,
+        },
+      } as never,
+      { headers },
+    );
+    expect(deleteProtectedResponse.status).toBe(400);
+
+    const deleteResponse = await issueSheet().columns[":columnId"].$delete(
+      {
+        param: {
+          organizationSlug,
+          projectId: project.id,
+          columnId: createdColumn.column.id,
+        },
+      } as never,
+      { headers },
+    );
+    expect(deleteResponse.status).toBe(204);
+
+    const columnsAfterDelete = await issueSheet().columns.$get(
+      { param: { organizationSlug, projectId: project.id } } as never,
+      { headers },
+    );
+    const columnsAfterBody = (await columnsAfterDelete.json()) as {
+      columns: Array<{ key: string }>;
+    };
+    expect(columnsAfterBody.columns.map((column) => column.key)).toEqual([
+      "priority",
+      "owner_note",
+      "context",
+    ]);
+  });
+
+  it("persists, updates, and clears a custom column icon", async () => {
+    const { identity, project } = await projectFixture.createStoredProjectFixture();
+    const headers = await projectFixture.authHeadersFor(identity);
+    const organizationSlug = identity.organization.slug ?? "missing-slug";
+
+    const createColumnResponse = await issueSheet().columns.$post(
+      {
+        param: { organizationSlug, projectId: project.id },
+        json: {
+          key: "sprint",
+          label: "Sprint",
+          type: "text",
+          icon: "calendar",
+        },
+      } as never,
+      { headers },
+    );
+    expect(createColumnResponse.status).toBe(201);
+    const createdColumn = (await createColumnResponse.json()) as {
+      column: { id: string; icon: string | null };
+    };
+    expect(createdColumn.column.icon).toBe("calendar");
+
+    const patchResponse = await issueSheet().columns[":columnId"].$patch(
+      {
+        param: {
+          organizationSlug,
+          projectId: project.id,
+          columnId: createdColumn.column.id,
+        },
+        json: { icon: "bug" },
+      } as never,
+      { headers },
+    );
+    expect(patchResponse.status).toBe(200);
+    const patchedBody = (await patchResponse.json()) as { column: { icon: string | null } };
+    expect(patchedBody.column.icon).toBe("bug");
+
+    const clearResponse = await issueSheet().columns[":columnId"].$patch(
+      {
+        param: {
+          organizationSlug,
+          projectId: project.id,
+          columnId: createdColumn.column.id,
+        },
+        json: { icon: null },
+      } as never,
+      { headers },
+    );
+    expect(clearResponse.status).toBe(200);
+    const clearedBody = (await clearResponse.json()) as { column: { icon: string | null } };
+    expect(clearedBody.column.icon).toBeNull();
+
+    const columnsResponse = await issueSheet().columns.$get(
+      { param: { organizationSlug, projectId: project.id } } as never,
+      { headers },
+    );
+    expect(columnsResponse.status).toBe(200);
+    const columnsBody = (await columnsResponse.json()) as {
+      columns: Array<{ id: string; key: string }>;
+    };
+    const protectedColumn = columnsBody.columns.find((column) => column.key === "priority");
+    expect(protectedColumn).toBeTruthy();
+    const protectedIconResponse = await issueSheet().columns[":columnId"].$patch(
+      {
+        param: {
+          organizationSlug,
+          projectId: project.id,
+          columnId: protectedColumn!.id,
+        },
+        json: { icon: "flag" },
+      } as never,
+      { headers },
+    );
+    expect(protectedIconResponse.status).toBe(400);
+
+    const unknownIconResponse = await issueSheet().columns.$post(
+      {
+        param: { organizationSlug, projectId: project.id },
+        json: {
+          key: "invalid_icon",
+          label: "Invalid",
+          type: "text",
+          icon: "not-an-icon",
+        },
+      } as never,
+      { headers },
+    );
+    expect(unknownIconResponse.status).toBe(400);
   });
 
   it("returns custom column values on GET issue", async () => {
@@ -1895,5 +2077,134 @@ Second import issue,Done,EXT-2,P2`;
     expect(subscribersBody.subscribers).toHaveLength(1);
     expect(subscribersBody.subscribers[0]?.userId).toBeTruthy();
     expect(subscribersBody.subscribers[0]?.displayName).toBeTruthy();
+  });
+
+  it("manages the project issue template config, gated by project mutation permission for writes", async () => {
+    const { identity, user, project } = await projectFixture.createStoredProjectFixture();
+    const headers = await projectFixture.authHeadersFor(identity);
+    const organizationSlug = identity.organization.slug ?? "missing-slug";
+
+    const initialGet = await issueSheet()["template-config"].$get(
+      { param: { organizationSlug: organizationSlug, projectId: project.id } } as never,
+      { headers: headers },
+    );
+    expect(initialGet.status).toBe(200);
+    const initialBody = (await initialGet.json()) as TemplateConfigResponse;
+    expect(initialBody.templateConfig).toEqual({
+      defaultTemplateKey: null,
+      assigneeByTemplate: [],
+    });
+
+    // The fixture's owning identity is "admin", which has teams:write and is always assignable.
+    const putResponse = await issueSheet()["template-config"].$put(
+      {
+        param: { organizationSlug: organizationSlug, projectId: project.id },
+        json: {
+          defaultTemplateKey: "tpl_context_request",
+          assigneeByTemplate: { tpl_qa_failure: user.id },
+        },
+      } as never,
+      { headers: headers },
+    );
+    expect(putResponse.status).toBe(200);
+    const putBody = (await putResponse.json()) as TemplateConfigResponse;
+    expect(putBody.templateConfig).toEqual({
+      defaultTemplateKey: "tpl_context_request",
+      assigneeByTemplate: [{ templateKey: "tpl_qa_failure", userId: user.id, assignable: true }],
+    });
+
+    const invalidAssigneeResponse = await issueSheet()["template-config"].$put(
+      {
+        param: { organizationSlug: organizationSlug, projectId: project.id },
+        json: {
+          defaultTemplateKey: null,
+          assigneeByTemplate: { tpl_qa_failure: crypto.randomUUID() },
+        },
+      } as never,
+      { headers: headers },
+    );
+    expect(invalidAssigneeResponse.status).toBe(400);
+    await expect(invalidAssigneeResponse.json()).resolves.toMatchObject({
+      error: "assignee_not_assignable",
+    });
+
+    const translatorIdentity = projectFixture.createWorkosIdentityForOrganization(
+      identity.organization,
+      "translator",
+    );
+    const translatorHeaders = await projectFixture.authHeadersFor(translatorIdentity);
+    const translatorLocalId = await projectFixture.getLocalUserId(
+      translatorIdentity.user.workosUserId,
+    );
+    // Team membership, not just an org role, is what grants project visibility (see
+    // canAccessProject/getVisibleTeamIds in team-access.ts) — a translator with no team
+    // membership on this project would correctly get 404, same as the "outsider" case
+    // covered elsewhere in this file.
+    await db.insert(schema.teamMemberships).values({
+      teamId: project.teamId!,
+      userId: translatorLocalId,
+      role: "member",
+    });
+
+    const translatorGet = await issueSheet()["template-config"].$get(
+      { param: { organizationSlug: organizationSlug, projectId: project.id } } as never,
+      { headers: translatorHeaders },
+    );
+    expect(translatorGet.status).toBe(200);
+    const translatorGetBody = (await translatorGet.json()) as TemplateConfigResponse;
+    expect(translatorGetBody.templateConfig.defaultTemplateKey).toBe("tpl_context_request");
+
+    const translatorPut = await issueSheet()["template-config"].$put(
+      {
+        param: { organizationSlug: organizationSlug, projectId: project.id },
+        json: { defaultTemplateKey: null, assigneeByTemplate: {} },
+      } as never,
+      { headers: translatorHeaders },
+    );
+    expect(translatorPut.status).toBe(403);
+  });
+
+  it("records which template created an issue and preserves it through dedupe", async () => {
+    const { identity, project } = await projectFixture.createStoredProjectFixture();
+    const headers = await projectFixture.authHeadersFor(identity);
+    const organizationSlug = identity.organization.slug ?? "missing-slug";
+
+    const created = await issueSheet().$post(
+      {
+        param: { organizationSlug: organizationSlug, projectId: project.id },
+        json: {
+          title: "Template-created issue",
+          issueType: "context_request",
+          templateKey: "tpl_context_request",
+          externalRef: "cat:template-dedupe:1",
+          status: "open",
+        },
+      } as never,
+      { headers: headers },
+    );
+    expect(created.status).toBe(201);
+    const createdBody = (await created.json()) as IssueResponse;
+    expect(createdBody.issue.templateKey).toBe("tpl_context_request");
+
+    // Same externalRef hits the open-issue dedupe path (createIssue -> findExistingLinkedIssue)
+    // and must return the existing row untouched, including its original template_key, even
+    // though this second request names a different template.
+    const deduped = await issueSheet().$post(
+      {
+        param: { organizationSlug: organizationSlug, projectId: project.id },
+        json: {
+          title: "Template-created issue",
+          issueType: "context_request",
+          templateKey: "tpl_qa_failure",
+          externalRef: "cat:template-dedupe:1",
+          status: "open",
+        },
+      } as never,
+      { headers: headers },
+    );
+    expect(deduped.status).toBe(201);
+    const dedupedBody = (await deduped.json()) as IssueResponse;
+    expect(dedupedBody.issue.id).toBe(createdBody.issue.id);
+    expect(dedupedBody.issue.templateKey).toBe("tpl_context_request");
   });
 });

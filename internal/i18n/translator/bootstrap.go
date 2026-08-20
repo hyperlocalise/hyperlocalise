@@ -18,6 +18,8 @@ func RegisterBuiltins(t *Tool) error {
 		NewOllamaProvider(),
 		NewGeminiProvider(),
 		NewBedrockProvider(),
+		NewOpenRouterProvider(),
+		NewAIGatewayProvider(),
 	}
 
 	for _, provider := range providers {

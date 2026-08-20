@@ -1,0 +1,30 @@
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "spellcheck",
+    srcs = [
+        "entities.go",
+        "icu.go",
+        "markup.go",
+        "tokenizer.go",
+        "words.go",
+    ],
+    importpath = "github.com/hyperlocalise/hyperlocalise/internal/i18n/spellcheck",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//internal/i18n/icuparser",
+        "//internal/i18n/segmentvalidate",
+    ],
+)
+
+go_test(
+    name = "spellcheck_test",
+    srcs = [
+        "entities_test.go",
+        "icu_test.go",
+        "markup_test.go",
+        "tokenizer_test.go",
+        "words_test.go",
+    ],
+    embed = [":spellcheck"],
+)

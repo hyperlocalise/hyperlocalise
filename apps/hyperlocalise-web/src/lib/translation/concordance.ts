@@ -10,7 +10,8 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { and, desc, eq, inArray, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, isNotNull, sql } from "drizzle-orm";
+import { alias } from "drizzle-orm/pg-core";
 
 import { db, schema } from "@/lib/database";
 import { createLogger } from "@/lib/log";
@@ -42,6 +43,8 @@ const glossaryLogger = createLogger("glossary-matches");
 const memoryLogger = createLogger("translation-memory-matches");
 
 const maxContextSearchTerms = 50;
+const concordanceSourceTerms = alias(schema.glossaryTerms, "concordance_source_terms");
+const concordanceTargetTerms = alias(schema.glossaryTerms, "concordance_target_terms");
 
 function buildGlossaryTsQuery(input: string): string | null {
   const tsQuery = input
@@ -304,7 +307,7 @@ class GlossaryConcordancePipeline extends ConcordancePipeline<
         externalGlossaryId: schema.glossaries.externalGlossaryId,
         externalProviderCredentialId: schema.glossaries.externalProviderCredentialId,
         externalProjectId: schema.glossaries.externalProjectId,
-        targetLocale: schema.glossaries.targetLocale,
+        targetLocale: sql<string>`${schema.glossaries.targetLocale}`,
         termCapabilities: schema.glossaries.termCapabilities,
       })
       .from(schema.projectGlossaries)
@@ -325,41 +328,89 @@ class GlossaryConcordancePipeline extends ConcordancePipeline<
     }
 
     const limit = query.limit ?? 20;
-    const dbMatches = await db
-      .select({
-        id: schema.glossaryTerms.id,
-        glossaryId: schema.glossaryTerms.glossaryId,
-        glossaryName: schema.glossaries.name,
-        sourceTerm: schema.glossaryTerms.sourceTerm,
-        targetTerm: schema.glossaryTerms.targetTerm,
-        sourceLocale: schema.glossaries.sourceLocale,
-        targetLocale: schema.glossaries.targetLocale,
-        description: schema.glossaryTerms.description,
-        forbidden: schema.glossaryTerms.forbidden,
-        caseSensitive: schema.glossaryTerms.caseSensitive,
-        externalKey: schema.glossaryTerms.externalKey,
-        externalProviderKind: schema.glossaries.externalProviderKind,
-        externalGlossaryId: schema.glossaries.externalGlossaryId,
-        rank: sql<number>`ts_rank(${schema.glossaryTerms.searchVector}, to_tsquery('simple', ${tsQuery}))`.as(
-          "rank",
-        ),
-      })
-      .from(schema.glossaryTerms)
-      .innerJoin(schema.glossaries, eq(schema.glossaryTerms.glossaryId, schema.glossaries.id))
-      .where(
-        and(
-          inArray(schema.glossaryTerms.glossaryId, glossaryIds),
-          eq(schema.glossaries.sourceLocale, query.sourceLocale),
-          inArray(schema.glossaries.targetLocale, query.targetLocales),
-          eq(schema.glossaries.status, "active"),
-          eq(schema.glossaryTerms.reviewStatus, "approved"),
-          sql`${schema.glossaryTerms.searchVector} @@ to_tsquery('simple', ${tsQuery})`,
-        ),
-      )
-      .orderBy(desc(sql`rank`))
-      .limit(limit);
+    const [dbMatches, conceptDbMatches] = await Promise.all([
+      db
+        .select({
+          id: schema.glossaryTerms.id,
+          glossaryId: schema.glossaryTerms.glossaryId,
+          glossaryName: schema.glossaries.name,
+          sourceTerm: schema.glossaryTerms.sourceTerm,
+          targetTerm: schema.glossaryTerms.targetTerm,
+          sourceLocale: schema.glossaries.sourceLocale,
+          targetLocale: sql<string>`${schema.glossaries.targetLocale}`,
+          description: schema.glossaryTerms.description,
+          forbidden: schema.glossaryTerms.forbidden,
+          caseSensitive: schema.glossaryTerms.caseSensitive,
+          externalKey: sql<string | null>`null`,
+          externalProviderKind: schema.glossaries.externalProviderKind,
+          externalGlossaryId: schema.glossaries.externalGlossaryId,
+          rank: sql<number>`ts_rank(${schema.glossaryTerms.searchVector}, to_tsquery('simple', ${tsQuery}))`.as(
+            "rank",
+          ),
+        })
+        .from(schema.glossaryTerms)
+        .innerJoin(schema.glossaries, eq(schema.glossaryTerms.glossaryId, schema.glossaries.id))
+        .where(
+          and(
+            inArray(schema.glossaryTerms.glossaryId, glossaryIds),
+            eq(schema.glossaries.sourceLocale, query.sourceLocale),
+            inArray(schema.glossaries.targetLocale, query.targetLocales),
+            eq(schema.glossaries.status, "active"),
+            eq(schema.glossaryTerms.reviewStatus, "approved"),
+            sql`${schema.glossaryTerms.searchVector} @@ to_tsquery('simple', ${tsQuery})`,
+          ),
+        )
+        .orderBy(desc(sql`rank`))
+        .limit(limit),
+      db
+        .select({
+          id: concordanceTargetTerms.id,
+          glossaryId: concordanceSourceTerms.glossaryId,
+          glossaryName: schema.glossaries.name,
+          sourceTerm: sql<string>`${concordanceSourceTerms.term}`,
+          targetTerm: sql<string>`${concordanceTargetTerms.term}`,
+          sourceLocale: sql<string>`${concordanceSourceTerms.locale}`,
+          targetLocale: sql<string>`${concordanceTargetTerms.locale}`,
+          description: concordanceSourceTerms.description,
+          forbidden: concordanceSourceTerms.forbidden,
+          caseSensitive: concordanceSourceTerms.caseSensitive,
+          externalKey: sql<string | null>`null`,
+          externalProviderKind: schema.glossaries.externalProviderKind,
+          externalGlossaryId: schema.glossaries.externalGlossaryId,
+          rank: sql<number>`ts_rank(${concordanceSourceTerms.searchVector}, to_tsquery('simple', ${tsQuery}))`.as(
+            "rank",
+          ),
+        })
+        .from(concordanceSourceTerms)
+        .innerJoin(
+          concordanceTargetTerms,
+          and(
+            eq(concordanceSourceTerms.glossaryId, concordanceTargetTerms.glossaryId),
+            eq(concordanceSourceTerms.conceptId, concordanceTargetTerms.conceptId),
+          ),
+        )
+        .innerJoin(schema.glossaries, eq(concordanceSourceTerms.glossaryId, schema.glossaries.id))
+        .where(
+          and(
+            inArray(concordanceSourceTerms.glossaryId, glossaryIds),
+            eq(schema.glossaries.source, "native"),
+            eq(schema.glossaries.sourceLocale, query.sourceLocale),
+            eq(schema.glossaries.status, "active"),
+            eq(concordanceSourceTerms.locale, query.sourceLocale),
+            inArray(concordanceTargetTerms.locale, query.targetLocales),
+            isNotNull(concordanceSourceTerms.conceptId),
+            isNotNull(concordanceSourceTerms.term),
+            isNotNull(concordanceTargetTerms.term),
+            eq(concordanceSourceTerms.reviewStatus, "approved"),
+            eq(concordanceTargetTerms.reviewStatus, "approved"),
+            sql`${concordanceSourceTerms.searchVector} @@ to_tsquery('simple', ${tsQuery})`,
+          ),
+        )
+        .orderBy(desc(sql`rank`))
+        .limit(limit),
+    ]);
 
-    return dbMatches
+    return [...dbMatches, ...conceptDbMatches]
       .filter((entry) =>
         sourceContainsTerm(query.sourceText, {
           sourceTerm: entry.sourceTerm,

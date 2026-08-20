@@ -11,15 +11,18 @@
  * Version 2.0 or later.
  */
 "use client";
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 
 import { readApiResponseError } from "@/lib/api-error";
 
 import { buildIssueDetailHref } from "../../_components/issue-detail/issue-detail-utils";
+import { IssueBulkActionBar } from "../../_components/issue-bulk-action-bar";
 import { IssueListToolbar } from "../../_components/issue-list-toolbar";
 import { issueListStateToApiQuery } from "../../_components/issue-list-url-state";
+import { useIssueBulkActions } from "../../_components/use-issue-bulk-actions";
+import { useIssueListSelection } from "../../_components/use-issue-list-selection";
 import { useIssueListUrlState } from "../../_components/use-issue-list-url-state";
 import { IssuesActions } from "./issues-actions";
 import { ISSUES_PAGE_SIZE, IssuesPageView, type OrganizationIssue } from "./issues-page-view";
@@ -45,7 +48,13 @@ type OrganizationIssuesResponse = {
 
 type ProjectOption = { id: string; name: string; targetLocales?: string[] };
 
-export function IssuesPageContent({ organizationSlug }: { organizationSlug: string }) {
+export function IssuesPageContent({
+  organizationSlug,
+  canEditIssues = false,
+}: {
+  organizationSlug: string;
+  canEditIssues?: boolean;
+}) {
   const router = useRouter();
   const queryClient = useQueryClient();
   const { state, searchDraft, setSearchDraft, updateState, clearFilters } = useIssueListUrlState({
@@ -124,6 +133,40 @@ export function IssuesPageContent({ organizationSlug }: { organizationSlug: stri
     return [...locales].toSorted((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" }));
   }, [projectsQuery.data, state.locale]);
 
+  const listIssues = useMemo(
+    () =>
+      issues.map((issue) => ({
+        id: issue.id,
+        projectId: issue.projectId,
+        projectName: issue.projectName,
+        title: issue.title,
+        status: issue.status,
+        targetLocale: issue.targetLocale,
+        assignee: issue.assignee,
+        assigneeUserId: issue.assigneeUserId,
+        updatedAt: issue.updatedAt,
+        priority: issue.priority ?? null,
+      })),
+    [issues],
+  );
+
+  const selection = useIssueListSelection(listIssues);
+  const filterKey = useMemo(() => JSON.stringify(apiQuery), [apiQuery]);
+  const filterKeyRef = useRef(filterKey);
+  useEffect(() => {
+    if (filterKeyRef.current !== filterKey) {
+      filterKeyRef.current = filterKey;
+      selection.resetSelectionForFilterChange();
+    }
+  }, [filterKey, selection.resetSelectionForFilterChange]);
+
+  const { runBulkAction, isPending: isBulkPending } = useIssueBulkActions({
+    organizationSlug,
+    onSettled: selection.applyBulkResult,
+  });
+
+  const bulkIssues = selection.selectedTargets;
+
   const refreshIssues = async () => {
     await queryClient.invalidateQueries({
       queryKey: ["organization-issues", organizationSlug],
@@ -150,6 +193,39 @@ export function IssuesPageContent({ organizationSlug }: { organizationSlug: stri
       isFetchingMore={issuesQuery.isFetchingNextPage}
       hasMore={hasMore}
       activeStatus={state.status}
+      canEditIssues={canEditIssues}
+      selectionEnabled={canEditIssues}
+      isIssueSelected={(issue) => selection.isIssueSelected(issue)}
+      selectionDisabled={isBulkPending}
+      disableInlineEdits={canEditIssues && (selection.someSelected || isBulkPending)}
+      onIssueSelectionChange={(issue, checked) => selection.toggleIssue(issue, checked)}
+      bulkActionBar={
+        canEditIssues ? (
+          <IssueBulkActionBar
+            organizationSlug={organizationSlug}
+            selectedCount={selection.selectedCount}
+            allLoadedSelected={selection.allLoadedSelected}
+            selectedProjectIds={selection.selectedProjectIds}
+            selectionLimitReached={selection.selectionLimitReached}
+            isPending={isBulkPending}
+            onSelectAllLoaded={selection.selectAllLoaded}
+            onClearSelection={selection.clearSelection}
+            onAssign={(assigneeUserId) =>
+              runBulkAction({ action: "assign", assigneeUserId, issues: bulkIssues })
+            }
+            onUnassign={() => runBulkAction({ action: "unassign", issues: bulkIssues })}
+            onSetStatus={(status) =>
+              runBulkAction({ action: "set_status", status, issues: bulkIssues })
+            }
+            onSetPriority={(priority) =>
+              runBulkAction({ action: "set_priority", priority, issues: bulkIssues })
+            }
+            onSetIssueType={(issueType) =>
+              runBulkAction({ action: "set_issue_type", issueType, issues: bulkIssues })
+            }
+          />
+        ) : null
+      }
       onIssueRowClick={openIssueRow}
       filterBar={
         <IssueListToolbar

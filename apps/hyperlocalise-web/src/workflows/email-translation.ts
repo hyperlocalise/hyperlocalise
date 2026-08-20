@@ -12,7 +12,11 @@
  */
 import { getWorkflowMetadata } from "workflow";
 
-import { hyperlocaliseAgentModelId } from "@/lib/agent-runtime/loops/model-id";
+import {
+  resolveSandboxLlmProfile,
+  resolveSandboxTranslationEnv,
+  type SandboxByokCredential,
+} from "@/lib/translation/sandbox-llm";
 import type { EmailAgentTask, EmailAgentTaskAttachment } from "@/lib/workflow/types";
 import {
   markEmailTranslationJobFailed,
@@ -86,6 +90,7 @@ export function buildTempConfig(
   sourceLocale: string | null,
   targetLocale: string,
   instructions: string | null = null,
+  byok?: SandboxByokCredential | null,
 ): string {
   const yamlString = (value: string) => JSON.stringify(value);
   const normalizedInstructions = instructions?.trim();
@@ -99,6 +104,7 @@ export function buildTempConfig(
     .filter((line): line is string => line !== null)
     .join("\n");
   const userPrompt = ["Translate from {{source}} to {{target}}.", "", "{{input}}"].join("\n");
+  const llmProfile = resolveSandboxLlmProfile(process.env, byok);
 
   return [
     "locales:",
@@ -115,8 +121,8 @@ export function buildTempConfig(
     "llm:",
     "  profiles:",
     "    default:",
-    "      provider: openai",
-    `      model: ${hyperlocaliseAgentModelId}`,
+    `      provider: ${llmProfile.provider}`,
+    `      model: ${llmProfile.model}`,
     `      system_prompt: ${yamlString(systemPrompt)}`,
     `      user_prompt: ${yamlString(userPrompt)}`,
   ].join("\n");
@@ -141,11 +147,21 @@ async function runTranslationCommand(
   sourceLocale: string | null,
   targetLocale: string,
   instructions: string | null,
+  jobId: string,
 ): Promise<{ exitCode: number; output: string }> {
   "use step";
 
   const { sandboxI18nConfigPath } = await import("@/lib/translation/sandbox");
-  const config = buildTempConfig(inputFile, outputFile, sourceLocale, targetLocale, instructions);
+  const { loadSandboxByokCredentialForJob } = await import("@/lib/translation/sandbox-byok");
+  const byok = await loadSandboxByokCredentialForJob(jobId);
+  const config = buildTempConfig(
+    inputFile,
+    outputFile,
+    sourceLocale,
+    targetLocale,
+    instructions,
+    byok,
+  );
   await writeTempConfig(sandboxId, config, sandboxI18nConfigPath);
 
   return runSandboxCommand(
@@ -156,7 +172,7 @@ async function runTranslationCommand(
       `hl run --config ${shellQuote(sandboxI18nConfigPath)} --locale ${shellQuote(targetLocale)} --force --progress off`,
     ],
     {
-      env: getSandboxTranslationEnv(),
+      env: getSandboxTranslationEnv(byok),
     },
   );
 }
@@ -197,17 +213,12 @@ function shellQuote(value: string): string {
   return `'${value.replaceAll("'", "'\\''")}'`;
 }
 
-export function getSandboxTranslationEnv(): Record<string, string> {
+export function getSandboxTranslationEnv(
+  byok?: SandboxByokCredential | null,
+): Record<string, string> {
   // Read process.env directly so this workflow module never static-imports `@/lib/env`
   // (t3 env + Next helpers are unsafe in the Workflow DevKit sandbox).
-  const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey) {
-    throw new Error("OPENAI_API_KEY is not configured");
-  }
-
-  return {
-    OPENAI_API_KEY: apiKey,
-  };
+  return resolveSandboxTranslationEnv(process.env, byok);
 }
 
 async function sendReplyEmail(
@@ -384,6 +395,7 @@ export async function emailTranslationWorkflow(task: EmailAgentTask) {
       sourceLocale,
       targetLocale,
       instructions,
+      task.jobId,
     );
 
     if (translation.exitCode !== 0) {

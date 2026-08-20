@@ -18,5 +18,5 @@ export default async function ChatPage({
   params: Promise<{ organizationSlug: string }>;
 }) {
   const { organizationSlug } = await params;
-  redirect(`/org/${organizationSlug}/dashboard?newRequest=1`);
+  redirect(`/org/${organizationSlug}/inbox/new`);
 }

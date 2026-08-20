@@ -540,6 +540,7 @@ func TestTranslationsService_BuildProjectFileTranslation(t *testing.T) {
 			"targetLanguageId": "uk",
 			"skipUntranslatedStrings": true,
 			"skipUntranslatedFiles": false,
+			"labelIds": [5],
 			"exportWithMinApprovalsCount": 0,
 			"exportStringsThatPassedWorkflow": true
 		}`
@@ -560,6 +561,7 @@ func TestTranslationsService_BuildProjectFileTranslation(t *testing.T) {
 		SkipUntranslatedStrings:         ToPtr(true),
 		SkipUntranslatedFiles:           ToPtr(false),
 		ExportApprovedOnly:              ToPtr(false),
+		LabelIDs:                        []int{5},
 		ExportWithMinApprovalsCount:     ToPtr(0),
 		ExportStringsThatPassedWorkflow: ToPtr(true),
 	}

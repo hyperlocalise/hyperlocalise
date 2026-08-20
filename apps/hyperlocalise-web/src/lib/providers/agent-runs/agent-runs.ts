@@ -18,6 +18,8 @@ import {
   reserveUsageEvent,
   usageFeatureIds,
 } from "@/lib/billing/usage-control";
+import { PRODUCT_USAGE_ANALYTICS_EVENTS } from "@/lib/analytics/events";
+import { serverAnalytics } from "@/lib/analytics/server";
 import { db, schema } from "@/lib/database";
 import type { AgentRunKind, AgentRunStatus } from "@/lib/database/types";
 import { isErr } from "@/lib/primitives/result/results";
@@ -219,7 +221,7 @@ export async function failAgentRun(input: {
   changedItems?: AgentRunChangedItem[];
   warnings?: string[];
 }) {
-  return finishAgentRun({
+  const run = await finishAgentRun({
     runId: input.runId,
     organizationId: input.organizationId,
     status: "failed",
@@ -228,6 +230,11 @@ export async function failAgentRun(input: {
     warnings: input.warnings,
     sourceStatuses: ["queued", "running"],
   });
+  serverAnalytics.track(PRODUCT_USAGE_ANALYTICS_EVENTS.agentRunFailed, {
+    status: "failed",
+    source: run.kind,
+  });
+  return run;
 }
 
 export async function cancelAgentRun(input: { runId: string; organizationId: string }) {

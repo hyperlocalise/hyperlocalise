@@ -12,12 +12,13 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { ArrowLeft01Icon, ArrowRight01Icon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import { Button } from "@/components/ui/button";
 import { ButtonGroup, ButtonGroupText } from "@/components/ui/button-group";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/primitives/cn";
 import type { UIMessage } from "ai";
-import { ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
 import type { ComponentProps, HTMLAttributes, ReactElement } from "react";
 import { createContext, memo, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { FormattedMessage, useIntl } from "react-intl";
@@ -246,7 +247,7 @@ export const MessageBranchPrevious = ({ children, ...props }: MessageBranchPrevi
             variant="ghost"
             {...props}
           >
-            {children ?? <ChevronLeftIcon size={14} />}
+            {children ?? <HugeiconsIcon icon={ArrowLeft01Icon} size={14} />}
           </Button>
         }
       />
@@ -277,7 +278,7 @@ export const MessageBranchNext = ({ children, ...props }: MessageBranchNextProps
             variant="ghost"
             {...props}
           >
-            {children ?? <ChevronRightIcon size={14} />}
+            {children ?? <HugeiconsIcon icon={ArrowRight01Icon} size={14} />}
           </Button>
         }
       />

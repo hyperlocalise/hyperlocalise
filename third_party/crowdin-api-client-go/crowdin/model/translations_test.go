@@ -98,6 +98,19 @@ func TestPreTranslationRequestValidate(t *testing.T) {
 	}
 }
 
+func TestBuildProjectFileTranslationRequestMarshalJSON(t *testing.T) {
+	req := &BuildProjectFileTranslationRequest{
+		TargetLanguageID:        "uk",
+		SkipUntranslatedStrings: toPtr(true),
+		ExportApprovedOnly:      toPtr(true),
+		LabelIDs:                []int{10, 20},
+	}
+
+	b, err := req.MarshalJSON()
+	assert.NoError(t, err)
+	assert.JSONEq(t, `{"targetLanguageId":"uk","skipUntranslatedStrings":true,"labelIds":[10,20],"exportWithMinApprovalsCount":1}`, string(b))
+}
+
 func TestBuildProjectDirectoryTranslationRequestValidate(t *testing.T) {
 	tests := []struct {
 		name  string
@@ -190,7 +203,7 @@ func TestBuildProjectFileTranslationRequestValidate(t *testing.T) {
 			name: "valid request",
 			req: &BuildProjectFileTranslationRequest{
 				TargetLanguageID: "uk", SkipUntranslatedStrings: toPtr(true),
-				ExportApprovedOnly: toPtr(true),
+				ExportApprovedOnly: toPtr(true), LabelIDs: []int{1, 2},
 			},
 			valid: true,
 		},

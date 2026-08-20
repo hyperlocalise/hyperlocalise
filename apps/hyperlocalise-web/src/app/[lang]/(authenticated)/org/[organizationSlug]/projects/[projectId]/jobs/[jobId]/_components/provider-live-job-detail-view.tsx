@@ -15,9 +15,12 @@
 import Link from "next/link";
 import { type ReactNode } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { LinkSquare02Icon, RefreshIcon } from "@hugeicons/core-free-icons";
+import {
+  LeftToRightListBulletIcon,
+  LinkSquare02Icon,
+  RefreshIcon,
+} from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { ListIcon } from "lucide-react";
 import { FormattedMessage, useIntl } from "react-intl";
 import { toast } from "sonner";
 
@@ -236,7 +239,7 @@ export function ProviderLiveJobDetailView({
       ) : null}
       {showViewStrings && catHref ? (
         <Button size="sm" render={<Link href={catHref} />}>
-          <ListIcon />
+          <HugeiconsIcon icon={LeftToRightListBulletIcon} />
           <FormattedMessage {...messages.viewStrings} />
         </Button>
       ) : null}

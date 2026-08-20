@@ -10,16 +10,16 @@ Offer a public localisation health check as a lead magnet. Visitors paste a URL,
 - Result: `/[lang]/localisation-audit/[domainSlug]`
 - `domainSlug` is `[a-z]+(?:-[a-z]+)*` only (dots and other hostname chars become hyphens; digits stripped), plus a short stable a-z hash suffix so collapses cannot collide (`web3.io` ≠ `web.io`). Example: `stripe.com` → `stripe-com-<hash>`.
 - Domain identity uses normalized hostname (lowercase, strip `www.`).
-- Public page shows teaser (score `/100`, locale map, prioritized “Fix first” findings). Full report unlocks only after email verification.
+- Public result pages show the full report (score, company profile, findings, credits, linguistic notes, sampled pages). Email capture is optional for a summary delivery, not an unlock gate.
 - Optional focus locales (1–2) deepen the linguistic pass when provided on first run.
-- Successful teaser reports are public and indexable; full reports stay cookie-gated per domain.
+- Successful reports are public and indexable.
 
 ## Architecture
 
 Deterministic Vercel workflow (`"use workflow"` + `"use step"`):
 
 1. Claim audit for the current attempt / mark running
-2. Crawl smart sample (~10–15 URLs: homepage, locale roots, high-value nav targets)
+2. Crawl smart sample (~10–15 URLs: homepage, locale roots, high-value nav targets). HTML pages render in a Vercel sandbox with Playwright so JavaScript sites are visible; robots.txt and sitemaps still use the SSRF-guarded HTTP fetch. The crawl creates that sandbox through `createConfiguredVercelSandbox`, the same helper as the agent workspace, so it uses the `hyperlocalise-sandbox` VCR image when the release flag and `VERCEL_SANDBOX_IMAGE` are set. Playwright and Chromium come from that image at `/tmp/hyperlocalise-browser-runtime`; the crawl does not install them at runtime.
 3. Technical checks (hreflang, lang mismatches, locale URL discovery, mixed language signals)
 4. Light LLM linguistic review on focus locales (sampled strings) when `OPENAI_API_KEY` is set; otherwise heuristics only
 5. Score + persist teaser + full report (attempt-guarded writes)
@@ -63,7 +63,7 @@ Public Hono routes under `/api/localisation-audit` start/retry runs, expose teas
 
 ## Analytics
 
-- Typed `Analytics` class under `src/lib/analytics` wraps `@vercel/analytics` (client) and `@vercel/analytics/server`.
+- Typed `Analytics` class under `src/lib/analytics` wraps `@vercel/analytics` (client/server) and Google Analytics (`sendGAEvent` on the client, Measurement Protocol on the server).
 - Funnel events: start, reuse, retry, completed, failed, teaser view, report-email request/sent, email verified, CTA click.
 - Properties are limited to two low-cardinality, non-PII keys. Never send email, domain, URL, free text, or raw findings.
 - Authoritative outcomes emit from the server; client emits teaser view and CTA intent only.

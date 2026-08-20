@@ -18,6 +18,17 @@ export type IssueSheetColumn = {
   type: string;
   config: { options?: { id: string; label: string; color?: string }[] };
   sortOrder: number;
+  hidden: boolean;
+  icon: string | null;
 };
 
 export const DETAIL_EXCLUDED_COLUMN_KEYS = ["priority", "owner_note"] as const;
+
+export const ISSUE_SHEET_SYSTEM_FIELD_DEFINITIONS = [
+  { key: "title", label: "Title" },
+  { key: "status", label: "Status" },
+  { key: "issue_type", label: "Type" },
+  { key: "target_locale", label: "Locale" },
+  { key: "assignee", label: "Assignee" },
+  { key: "description", label: "Description" },
+] as const;

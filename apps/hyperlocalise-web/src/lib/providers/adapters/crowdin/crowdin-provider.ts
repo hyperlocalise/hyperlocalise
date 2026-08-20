@@ -34,6 +34,7 @@ import {
   CrowdinApiClient,
   CrowdinApiError,
   escapeCrowdinCroqlString,
+  type CrowdinAiPrompt,
   type CrowdinBranch,
   type CrowdinCreateTaskRequest,
   type CrowdinDirectory,
@@ -45,6 +46,7 @@ import {
   type CrowdinTask,
   type CrowdinTaskComment,
   type CrowdinTaskDetails,
+  type CrowdinGlossaryTerm,
 } from "@/lib/providers/adapters/crowdin/crowdin-api";
 import { crowdinAuth } from "@/lib/providers/adapters/crowdin/crowdin-auth";
 import {
@@ -110,6 +112,11 @@ export {
 
 const implemented = { state: "implemented" } as const satisfies TmsProviderFeature;
 const logger = createLogger("crowdin-provider");
+
+function isAbortError(error: unknown): boolean {
+  return error instanceof Error && error.name === "AbortError";
+}
+
 const CROWDIN_GLOSSARY_FETCH_CONCURRENCY = 5;
 const CROWDIN_TM_FETCH_CONCURRENCY = 5;
 const MAX_SEGMENTS_PER_MEMORY = 2_000;
@@ -194,9 +201,112 @@ export type SearchCrowdinGlossaryResult = {
   matches: CrowdinAgentGlossaryMatch[];
 };
 
+export type CrowdinGlossaryTermInput = {
+  languageId: string;
+  text: string;
+  description?: string;
+  partOfSpeech?: string;
+  status?: string;
+  type?: string;
+  gender?: string;
+  note?: string;
+  url?: string;
+  lemma?: string;
+};
+
+export type CrowdinGlossaryConceptTerm = CrowdinGlossaryTermInput & {
+  id?: number | string;
+  conceptId?: number;
+  userId?: number;
+  type?: string;
+  gender?: string;
+  url?: string;
+  lemma?: string;
+  description?: string;
+  partOfSpeech?: string;
+  status?: string;
+  note?: string;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+export type CrowdinGlossaryLanguageDetails = {
+  languageId: string;
+  userId: number | null;
+  definition: string;
+  note: string;
+  createdAt: string | null;
+  updatedAt: string | null;
+};
+
+export type CrowdinGlossaryConcept = {
+  conceptId?: number;
+  primaryTerm: string;
+  sourceLocale: string;
+  subject?: string;
+  definition?: string;
+  translatable?: boolean;
+  note?: string;
+  url?: string | null;
+  figure?: string | null;
+  externalKey?: string;
+  externalUserId?: string | null;
+  languageDetails?: CrowdinGlossaryLanguageDetails[];
+  externalCreatedAt?: string | null;
+  externalUpdatedAt?: string | null;
+  terms: CrowdinGlossaryConceptTerm[];
+};
+
+type CrowdinLiveGlossaryScope = Pick<
+  TmsProviderProjectScope,
+  "organizationId" | "credential" | "secretMaterial" | "signal"
+> & {
+  projectId: string;
+  externalProjectId: string;
+  sourceLocale: string;
+  fetchFn?: typeof fetch;
+};
+
 type CrowdinGlossarySearchError =
   | { code: "crowdin_not_configured"; message: string }
   | { code: "crowdin_api_error"; message: string };
+
+type CrowdinReviewLookupError =
+  | { code: "crowdin_not_configured"; message: string }
+  | { code: "crowdin_api_error"; message: string };
+
+/** Agent-facing Crowdin TM concordance match. */
+export type CrowdinAgentTranslationMemoryMatch = {
+  memoryId: number;
+  memoryName: string;
+  recordId: number;
+  sourceText: string;
+  targetText: string;
+  matchScore: number;
+};
+
+/** Combined glossary and TM concordance for workspace automation review. */
+export type SearchCrowdinConcordanceResult = {
+  crowdinProjectId: number;
+  glossaryMatches: CrowdinAgentGlossaryMatch[];
+  translationMemoryMatches: CrowdinAgentTranslationMemoryMatch[];
+};
+
+/** Crowdin AI prompt fields that act as a style guide for review. */
+export type CrowdinAgentStylePrompt = {
+  id: number;
+  name: string;
+  action: string;
+  companyDescription: string | null;
+  projectDescription: string | null;
+  audienceDescription: string | null;
+  prompt: string | null;
+};
+
+export type LoadCrowdinStyleGuideResult = {
+  crowdinProjectId: number;
+  prompts: CrowdinAgentStylePrompt[];
+};
 
 /**
  * Crowdin implementation of the shared TMS provider contract.
@@ -259,11 +369,13 @@ export class CrowdinTmsProvider extends TmsProvider {
     credential: { baseUrl?: string | null };
     secretMaterial: string;
     fetchFn?: typeof fetch;
+    signal?: AbortSignal;
   }) {
     return new CrowdinApiClient({
       token: input.secretMaterial,
       baseUrl: input.credential.baseUrl ?? undefined,
       fetchFn: input.fetchFn,
+      signal: input.signal,
     });
   }
 
@@ -543,6 +655,291 @@ export class CrowdinTmsProvider extends TmsProvider {
     );
 
     return results.flat();
+  }
+
+  async fetchLiveGlossary(scope: CrowdinLiveGlossaryScope, glossaryId: number) {
+    return this.createClient(scope).getGlossary(glossaryId);
+  }
+
+  async updateLiveGlossary(
+    scope: CrowdinLiveGlossaryScope,
+    glossaryId: number,
+    patches: Array<{ op: "replace" | "add" | "remove"; path: string; value?: unknown }>,
+  ) {
+    return this.createClient(scope).updateGlossary(glossaryId, patches);
+  }
+
+  async deleteLiveGlossary(scope: CrowdinLiveGlossaryScope, glossaryId: number) {
+    return this.createClient(scope).deleteGlossary(glossaryId);
+  }
+
+  async listLiveGlossaryConcepts(scope: CrowdinLiveGlossaryScope, glossaryId: number) {
+    const client = this.createClient(scope);
+    const sourceLocale = scope.sourceLocale;
+    const [concepts, terms] = await Promise.all([
+      client.listGlossaryConcepts(glossaryId),
+      client.listGlossaryTerms(glossaryId),
+    ]);
+    const termsByConcept = new Map<number, CrowdinGlossaryTerm[]>();
+    for (const term of terms) {
+      const conceptId = term.conceptId || term.id;
+      const current = termsByConcept.get(conceptId) ?? [];
+      current.push(term);
+      termsByConcept.set(conceptId, current);
+    }
+    const mapped: CrowdinGlossaryConcept[] = concepts.map((concept) => ({
+      conceptId: concept.id,
+      primaryTerm:
+        termsByConcept.get(concept.id)?.find((term) => term.languageId === sourceLocale)?.text ??
+        "",
+      sourceLocale,
+      subject: concept.subject,
+      definition: concept.definition,
+      translatable: concept.translatable,
+      note: concept.note,
+      url: concept.url,
+      figure: concept.figure,
+      externalKey: String(concept.id),
+      externalUserId: String(concept.userId),
+      languageDetails: concept.languagesDetails,
+      externalCreatedAt: concept.createdAt,
+      externalUpdatedAt: concept.updatedAt,
+      terms: termsByConcept.get(concept.id) ?? [],
+    }));
+    const knownIds = new Set(concepts.map((concept) => concept.id));
+    for (const [conceptId, conceptTerms] of termsByConcept) {
+      if (knownIds.has(conceptId)) continue;
+      mapped.push({
+        conceptId,
+        primaryTerm: conceptTerms.find((term) => term.languageId === sourceLocale)?.text ?? "",
+        sourceLocale,
+        subject: "",
+        definition: "",
+        translatable: true,
+        note: "",
+        url: "",
+        figure: "",
+        externalKey: String(conceptId),
+        externalUserId: null,
+        languageDetails: [],
+        externalCreatedAt: null,
+        externalUpdatedAt: null,
+        terms: conceptTerms,
+      });
+    }
+    return mapped;
+  }
+
+  async getLiveGlossaryConcept(
+    scope: CrowdinLiveGlossaryScope,
+    glossaryId: number,
+    conceptId: number,
+  ) {
+    const concepts = await this.listLiveGlossaryConcepts(scope, glossaryId);
+    return concepts.find((concept) => concept.externalKey === String(conceptId)) ?? null;
+  }
+
+  async createLiveGlossaryConcept(
+    scope: CrowdinLiveGlossaryScope,
+    glossaryId: number,
+    input: CrowdinGlossaryConcept,
+  ) {
+    const client = this.createClient(scope);
+    const remoteConcept = await client.addGlossaryConcept(glossaryId, {
+      subject: input.subject,
+      definition: input.definition,
+      translatable: input.translatable,
+      note: input.note,
+      url: input.url ?? undefined,
+      figure: input.figure ?? undefined,
+      languagesDetails: input.languageDetails?.map((detail) => ({
+        languageId: detail.languageId,
+        definition: detail.definition,
+        note: detail.note,
+      })),
+    });
+    const source = input.terms.find((term) => term.languageId === input.sourceLocale) ?? {
+      languageId: input.sourceLocale,
+      text: input.primaryTerm,
+    };
+    const createdSource = await client.addGlossaryTerm(glossaryId, {
+      languageId: source.languageId,
+      text: source.text,
+      description: source.description ?? input.definition,
+      partOfSpeech: source.partOfSpeech ?? input.subject,
+      status: source.status ?? "preferred",
+      type: source.type,
+      gender: source.gender,
+      note: source.note ?? input.note,
+      url: source.url,
+      conceptId: remoteConcept.id,
+    });
+    const conceptId = remoteConcept.id || createdSource.conceptId || createdSource.id;
+    for (const term of input.terms.filter((item) => item !== source)) {
+      await client.addGlossaryTerm(glossaryId, {
+        languageId: term.languageId,
+        text: term.text,
+        description: term.description,
+        partOfSpeech: term.partOfSpeech,
+        status: term.status,
+        type: term.type,
+        gender: term.gender,
+        note: term.note,
+        url: term.url,
+        conceptId,
+      });
+    }
+    return this.getLiveGlossaryConcept(scope, glossaryId, conceptId);
+  }
+
+  async updateLiveGlossaryConcept(
+    scope: CrowdinLiveGlossaryScope,
+    glossaryId: number,
+    conceptId: number,
+    input: CrowdinGlossaryConcept,
+  ) {
+    const client = this.createClient(scope);
+    const existing = await this.getLiveGlossaryConcept(scope, glossaryId, conceptId);
+    if (!existing) return null;
+    await client.updateGlossaryConcept(glossaryId, conceptId, {
+      subject: input.subject ?? "",
+      definition: input.definition ?? "",
+      translatable: input.translatable ?? true,
+      note: input.note ?? "",
+      url: input.url ?? "",
+      figure: input.figure ?? "",
+    });
+    const existingById = new Map(existing.terms.map((term) => [String(term.id), term]));
+    for (const term of input.terms) {
+      const existingTerm = term.id ? existingById.get(String(term.id)) : undefined;
+      if (existingTerm && typeof existingTerm.id === "number") {
+        if (term.languageId !== existingTerm.languageId) {
+          await client.addGlossaryTerm(glossaryId, {
+            languageId: term.languageId,
+            text: term.text,
+            description: term.description,
+            partOfSpeech: term.partOfSpeech,
+            status: term.status,
+            type: term.type,
+            gender: term.gender,
+            note: term.note,
+            url: term.url,
+            conceptId,
+          });
+          await client.deleteGlossaryTerm(glossaryId, existingTerm.id);
+          continue;
+        }
+        await client.updateGlossaryTerm(glossaryId, existingTerm.id, [
+          { op: "replace", path: "/text", value: term.text },
+          { op: "replace", path: "/description", value: term.description ?? "" },
+          { op: "replace", path: "/partOfSpeech", value: term.partOfSpeech ?? "" },
+          { op: "replace", path: "/status", value: term.status ?? "draft" },
+          { op: "replace", path: "/type", value: term.type ?? "" },
+          { op: "replace", path: "/gender", value: term.gender ?? "" },
+          { op: "replace", path: "/note", value: term.note ?? "" },
+          { op: "replace", path: "/url", value: term.url ?? "" },
+        ]);
+      } else {
+        await client.addGlossaryTerm(glossaryId, {
+          languageId: term.languageId,
+          text: term.text,
+          description: term.description,
+          partOfSpeech: term.partOfSpeech,
+          status: term.status,
+          type: term.type,
+          gender: term.gender,
+          note: term.note,
+          url: term.url,
+          conceptId,
+        });
+      }
+    }
+    return this.getLiveGlossaryConcept(scope, glossaryId, conceptId);
+  }
+
+  async deleteLiveGlossaryConcept(
+    scope: CrowdinLiveGlossaryScope,
+    glossaryId: number,
+    conceptId: number,
+  ) {
+    const client = this.createClient(scope);
+    const existing = await this.getLiveGlossaryConcept(scope, glossaryId, conceptId);
+    if (!existing) return false;
+    await client.deleteGlossaryConcept(glossaryId, conceptId);
+    return true;
+  }
+
+  async createLiveGlossaryTerm(
+    scope: CrowdinLiveGlossaryScope,
+    glossaryId: number,
+    conceptId: number,
+    input: CrowdinGlossaryTermInput,
+  ) {
+    const client = this.createClient(scope);
+    return client.addGlossaryTerm(glossaryId, {
+      languageId: input.languageId,
+      text: input.text,
+      description: input.description,
+      partOfSpeech: input.partOfSpeech,
+      status: input.status,
+      type: input.type,
+      gender: input.gender,
+      note: input.note,
+      url: input.url,
+      conceptId,
+    });
+  }
+
+  async updateLiveGlossaryTerm(
+    scope: CrowdinLiveGlossaryScope,
+    glossaryId: number,
+    conceptId: number,
+    termId: number,
+    input: CrowdinGlossaryTermInput,
+  ) {
+    const client = this.createClient(scope);
+    const existing = await this.getLiveGlossaryConcept(scope, glossaryId, conceptId);
+    const existingTerm = existing?.terms.find((term) => String(term.id) === String(termId));
+    if (!existingTerm) return null;
+    if (input.languageId !== existingTerm.languageId) {
+      const replacement = await client.addGlossaryTerm(glossaryId, {
+        languageId: input.languageId,
+        text: input.text,
+        description: input.description,
+        partOfSpeech: input.partOfSpeech,
+        status: input.status,
+        type: input.type,
+        gender: input.gender,
+        note: input.note,
+        url: input.url,
+        conceptId,
+      });
+      await client.deleteGlossaryTerm(glossaryId, termId);
+      return replacement;
+    }
+    return client.updateGlossaryTerm(glossaryId, termId, [
+      { op: "replace", path: "/text", value: input.text },
+      { op: "replace", path: "/description", value: input.description ?? "" },
+      { op: "replace", path: "/partOfSpeech", value: input.partOfSpeech ?? "" },
+      { op: "replace", path: "/status", value: input.status ?? "draft" },
+      { op: "replace", path: "/type", value: input.type ?? "" },
+      { op: "replace", path: "/gender", value: input.gender ?? "" },
+      { op: "replace", path: "/note", value: input.note ?? "" },
+      { op: "replace", path: "/url", value: input.url ?? "" },
+    ]);
+  }
+
+  async deleteLiveGlossaryTerm(
+    scope: CrowdinLiveGlossaryScope,
+    glossaryId: number,
+    conceptId: number,
+    termId: number,
+  ) {
+    const existing = await this.getLiveGlossaryConcept(scope, glossaryId, conceptId);
+    if (!existing || !existing.terms.some((term) => String(term.id) === String(termId)))
+      return false;
+    await this.createClient(scope).deleteGlossaryTerm(glossaryId, termId);
+    return true;
   }
 
   /**
@@ -1817,6 +2214,217 @@ export class CrowdinTmsProvider extends TmsProvider {
   }
 
   /**
+   * Agent concordance search: glossary plus translation memory for one or more expressions.
+   */
+  async searchConcordanceForAgent(input: {
+    organizationId: string;
+    actorUserId?: string | null;
+    projectId: string;
+    sourceLocale: string;
+    targetLocale: string;
+    expressions: string[];
+    glossaryLimit?: number;
+    translationMemoryLimit?: number;
+    signal?: AbortSignal;
+  }): Promise<Result<SearchCrowdinConcordanceResult, CrowdinReviewLookupError>> {
+    const expressions = [
+      ...new Set(input.expressions.map((expression) => expression.trim()).filter(Boolean)),
+    ].slice(0, 20);
+    const glossaryLimit = Math.min(Math.max(input.glossaryLimit ?? 20, 1), 50);
+    const translationMemoryLimit = Math.min(Math.max(input.translationMemoryLimit ?? 10, 1), 50);
+
+    const clientResult = await this.createProgressClient({
+      organizationId: input.organizationId,
+      projectId: input.projectId,
+      actorUserId: input.actorUserId,
+      signal: input.signal,
+    });
+    if (isErr(clientResult)) {
+      return err({
+        code:
+          clientResult.error.code === "crowdin_not_configured"
+            ? "crowdin_not_configured"
+            : "crowdin_api_error",
+        message: clientResult.error.message,
+      });
+    }
+
+    const { client, crowdinProjectId } = clientResult.value;
+    if (expressions.length === 0) {
+      return ok({
+        crowdinProjectId,
+        glossaryMatches: [],
+        translationMemoryMatches: [],
+      });
+    }
+
+    try {
+      const [glossaryResults, translationMemoryResults] = await Promise.all([
+        client.glossaryConcordanceSearch(crowdinProjectId, {
+          sourceLanguageId: input.sourceLocale,
+          targetLanguageId: input.targetLocale,
+          expressions,
+        }),
+        client.concordanceSearch(crowdinProjectId, {
+          sourceLanguageId: input.sourceLocale,
+          targetLanguageId: input.targetLocale,
+          expressions,
+          minRelevant: 50,
+          autoSubstitution: false,
+        }),
+      ]);
+
+      const glossaryMatches: CrowdinAgentGlossaryMatch[] = [];
+      resultsLoop: for (const result of glossaryResults) {
+        const sourceTerms = result.sourceTerms
+          .filter((term) => term.languageId === input.sourceLocale)
+          .map((term) => ({ ...term, text: term.text.trim() }))
+          .filter((term) => term.text);
+        const targetTerms = result.targetTerms
+          .filter((term) => term.languageId === input.targetLocale)
+          .map((term) => ({ ...term, text: term.text.trim() }))
+          .filter((term) => term.text);
+        if (sourceTerms.length === 0 || targetTerms.length === 0) {
+          continue;
+        }
+
+        for (const sourceTerm of sourceTerms) {
+          for (const targetTerm of targetTerms) {
+            const description = targetTerm.description ?? sourceTerm.description ?? null;
+            glossaryMatches.push({
+              glossaryId: result.glossary.id,
+              glossaryName: result.glossary.name,
+              sourceTerm: sourceTerm.text,
+              targetTerm: targetTerm.text,
+              status: targetTerm.status ?? sourceTerm.status ?? null,
+              description: description?.trim() ? description.trim() : null,
+            });
+            if (glossaryMatches.length >= glossaryLimit) {
+              break resultsLoop;
+            }
+          }
+        }
+      }
+
+      const translationMemoryMatches = translationMemoryResults
+        .slice(0, translationMemoryLimit)
+        .map((result) => ({
+          memoryId: result.tm.id,
+          memoryName: result.tm.name,
+          recordId: result.recordId,
+          sourceText: result.source,
+          targetText: result.target,
+          matchScore: result.relevant,
+        }));
+
+      return ok({
+        crowdinProjectId,
+        glossaryMatches,
+        translationMemoryMatches,
+      });
+    } catch (error) {
+      if (isAbortError(error)) {
+        throw error;
+      }
+
+      if (error instanceof CrowdinApiError && error.status === 401) {
+        return err({
+          code: "crowdin_api_error",
+          message: "Crowdin authentication failed. Reconnect Crowdin and try again.",
+        });
+      }
+
+      return err({
+        code: "crowdin_api_error",
+        message: error instanceof Error ? error.message : "Crowdin concordance search failed.",
+      });
+    }
+  }
+
+  /**
+   * Agent style-guide lookup: Crowdin AI prompts that apply to the linked project.
+   * Missing AI access returns an empty prompt list rather than failing the review.
+   */
+  async loadStyleGuideForAgent(input: {
+    organizationId: string;
+    actorUserId?: string | null;
+    projectId: string;
+    signal?: AbortSignal;
+  }): Promise<Result<LoadCrowdinStyleGuideResult, CrowdinReviewLookupError>> {
+    const clientResult = await this.createProgressClient({
+      organizationId: input.organizationId,
+      projectId: input.projectId,
+      actorUserId: input.actorUserId,
+      signal: input.signal,
+    });
+    if (isErr(clientResult)) {
+      return err({
+        code:
+          clientResult.error.code === "crowdin_not_configured"
+            ? "crowdin_not_configured"
+            : "crowdin_api_error",
+        message: clientResult.error.message,
+      });
+    }
+
+    const { client, crowdinProjectId } = clientResult.value;
+    try {
+      const prompts = await client.listAiPrompts({ projectId: crowdinProjectId });
+      return ok({
+        crowdinProjectId,
+        prompts: this.mapEnabledStylePrompts(prompts, crowdinProjectId),
+      });
+    } catch (error) {
+      if (isAbortError(error)) {
+        throw error;
+      }
+
+      if (error instanceof CrowdinApiError && (error.status === 401 || error.status === 403)) {
+        return err({
+          code: "crowdin_api_error",
+          message: "Crowdin authentication failed. Reconnect Crowdin and try again.",
+        });
+      }
+
+      logger.info(
+        {
+          organizationId: input.organizationId,
+          crowdinProjectId,
+          status: error instanceof CrowdinApiError ? error.status : null,
+        },
+        "crowdin ai prompt listing unavailable; returning empty style prompts",
+      );
+      return ok({
+        crowdinProjectId,
+        prompts: [],
+      });
+    }
+  }
+
+  private mapEnabledStylePrompts(
+    prompts: CrowdinAiPrompt[],
+    crowdinProjectId: number,
+  ): CrowdinAgentStylePrompt[] {
+    return prompts
+      .filter((prompt) => {
+        if (!prompt.isEnabled) {
+          return false;
+        }
+        const enabledProjectIds = prompt.enabledProjectIds ?? [];
+        return enabledProjectIds.length === 0 || enabledProjectIds.includes(crowdinProjectId);
+      })
+      .map((prompt) => ({
+        id: prompt.id,
+        name: prompt.name,
+        action: prompt.action,
+        companyDescription: prompt.config?.companyDescription?.trim() || null,
+        projectDescription: prompt.config?.projectDescription?.trim() || null,
+        audienceDescription: prompt.config?.audienceDescription?.trim() || null,
+        prompt: prompt.config?.prompt?.trim() || null,
+      }));
+  }
+
+  /**
    * Live CAT concordance: parallel glossary and TM search for a source expression.
    *
    * Throws {@link TmsProviderLiveError} on auth, permission, or fetch failures.
@@ -2064,6 +2672,7 @@ export class CrowdinTmsProvider extends TmsProvider {
     organizationId: string;
     projectId: string;
     actorUserId?: string | null;
+    signal?: AbortSignal;
   }): Promise<
     Result<
       { client: CrowdinApiClient; crowdinProjectId: number },
@@ -2111,6 +2720,7 @@ export class CrowdinTmsProvider extends TmsProvider {
     const client = this.createClient({
       credential: projectCredential.credential,
       secretMaterial: token,
+      signal: input.signal,
     });
     return ok({ client, crowdinProjectId });
   }

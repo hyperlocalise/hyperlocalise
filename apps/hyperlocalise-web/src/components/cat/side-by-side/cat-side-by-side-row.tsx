@@ -12,7 +12,14 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { CopyIcon, EraserIcon, ImageIcon, LanguagesIcon } from "lucide-react";
+import {
+  Copy01Icon,
+  EraserIcon,
+  Image01Icon,
+  TranslateIcon,
+  Video01Icon,
+} from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import { useMemo } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 import { FormattedMessage, useIntl } from "react-intl";
@@ -28,15 +35,24 @@ import {
   CatEditorImageSourceSection,
   CatEditorImageTargetSection,
 } from "@/components/cat/editor/cat-editor-image-sections";
+import {
+  CatEditorVideoSourceSection,
+  CatEditorVideoTargetSection,
+} from "@/components/cat/editor/cat-editor-video-sections";
 import { CatEditorShortcutKbd } from "@/components/cat/editor/cat-editor-shortcut-kbd";
 import { CatImagePreview } from "@/components/cat/editor/cat-image-preview";
+import { CatVideoPreview } from "@/components/cat/editor/cat-video-preview";
 import {
   CatIcuStructureSummary,
   CatMessagePreview,
   CatTargetEditor,
 } from "@/components/cat/editor/cat-target-editor";
 import { analyzeCatMessageFormat } from "@/components/cat/message-format/cat-message-format";
-import { SegmentStatusBadge } from "@/components/cat/segment/cat-segment-status";
+import { CatHiddenStringBadge } from "@/components/cat/segment/cat-hidden-string-badge";
+import {
+  SegmentStatusBadge,
+  shouldShowSegmentStatusBadge,
+} from "@/components/cat/segment/cat-segment-status";
 import { CatSegmentKeyMeta } from "@/components/cat/segment/cat-segment-key-meta";
 import { CatSegmentTags } from "@/components/cat/segment/cat-segment-tags";
 import { CatShareSegmentButton } from "@/components/cat/segment/cat-share-segment-button";
@@ -57,7 +73,15 @@ function isImageEditorSegment(segment: CatSegment) {
   return segment.contentKind === "image_file" || segment.contentKind === "image_url";
 }
 
-function hasImageTarget(segment: CatSegment) {
+function isVideoEditorSegment(segment: CatSegment) {
+  return segment.contentKind === "video_file" || segment.contentKind === "video_url";
+}
+
+function isAssetEditorSegment(segment: CatSegment) {
+  return isImageEditorSegment(segment) || isVideoEditorSegment(segment);
+}
+
+function hasAssetTarget(segment: CatSegment) {
   return Boolean(segment.targetAssetUrl || segment.targetText.trim());
 }
 
@@ -91,6 +115,7 @@ export function CatSideBySideRow({
   onUseAiSuggestion,
   onGenerateAiRecommendation,
   onTreatAsImage,
+  onTreatAsVideo,
   onRegenerateImage,
   onUploadImage,
 }: {
@@ -123,6 +148,7 @@ export function CatSideBySideRow({
   onUseAiSuggestion?: () => void;
   onGenerateAiRecommendation?: () => void;
   onTreatAsImage?: (treatAsImage: boolean) => void;
+  onTreatAsVideo?: (treatAsVideo: boolean) => void;
   onRegenerateImage?: () => void;
   onUploadImage?: (file: File) => void;
 }) {
@@ -132,13 +158,16 @@ export function CatSideBySideRow({
     primaryActionLabel ?? intl.formatMessage(catEditorPanelMessages.approve);
   const isActive = isFocused || isHovered;
   const isImageSegment = isImageEditorSegment(segment);
+  const isVideoSegment = isVideoEditorSegment(segment);
+  const isAssetSegment = isAssetEditorSegment(segment);
+  const showVideoSource = isVideoSegment || Boolean(segment.looksLikeVideoUrl);
   const showImageSource = isImageSegment || Boolean(segment.looksLikeImageUrl);
   const sourceMessageAnalysis = useMemo(
-    () => (isImageSegment ? null : analyzeCatMessageFormat(segment.sourceText)),
-    [isImageSegment, segment.sourceText],
+    () => (isAssetSegment ? null : analyzeCatMessageFormat(segment.sourceText)),
+    [isAssetSegment, segment.sourceText],
   );
-  const hasApprovingTarget = isImageSegment
-    ? hasImageTarget(segment)
+  const hasApprovingTarget = isAssetSegment
+    ? hasAssetTarget(segment)
     : segment.targetText.trim().length > 0;
   const isActionBlocked =
     isApproving ||
@@ -154,20 +183,31 @@ export function CatSideBySideRow({
   const canTriggerApprove = Boolean(onApprove) && canEdit && hasApprovingTarget && !isActionBlocked;
   const showReviewActions = isFocused && canEdit && Boolean(onApprove) && hasApprovingTarget;
   const showIssueSheetAction =
-    isFocused && canEdit && !isImageSegment && Boolean(onAddToIssueSheet);
+    isFocused && canEdit && !isAssetSegment && Boolean(onAddToIssueSheet);
   const canEditTarget = canEdit && !isImageBusy;
-  const showCopyClearActions = canEditTarget && !isImageSegment;
+  const showCopyClearActions = canEditTarget && !isAssetSegment;
   const showTreatAsImageAction = Boolean(
     canEditTarget &&
     onTreatAsImage &&
     segment.contentKind !== "image_file" &&
+    segment.contentKind !== "video_file" &&
+    segment.contentKind !== "video_url" &&
     (segment.contentKind === "image_url" || segment.looksLikeImageUrl),
   );
+  const showTreatAsVideoAction = Boolean(
+    canEditTarget &&
+    onTreatAsVideo &&
+    segment.contentKind !== "video_file" &&
+    segment.contentKind !== "image_file" &&
+    segment.contentKind !== "image_url" &&
+    (segment.contentKind === "video_url" || segment.looksLikeVideoUrl),
+  );
   const treatAsImage = segment.contentKind === "image_url";
+  const treatAsVideo = segment.contentKind === "video_url";
   const showAiRecommendation =
     isFocused &&
     canEditTarget &&
-    !isImageSegment &&
+    !isAssetSegment &&
     canUseAiRecommendation &&
     Boolean(intelligence) &&
     Boolean(onUseAiSuggestion);
@@ -176,7 +216,7 @@ export function CatSideBySideRow({
     [formatChecks],
   );
   const showFormatCheckIcon =
-    !isImageSegment && (isFormatChecksLoading || actionableFormatChecks.length > 0);
+    !isAssetSegment && (isFormatChecksLoading || actionableFormatChecks.length > 0);
   const revealFormatChecks = showFormatCheckIcon && isActive;
   const showActionBar = showReviewActions || showIssueSheetAction;
   const copySourceLabel = intl.formatMessage(catEditorPanelMessages.copySource);
@@ -189,7 +229,10 @@ export function CatSideBySideRow({
     ) : null;
   const statusAndTags = (
     <div className="flex flex-wrap items-center gap-1.5">
-      {isTargetLoading ? null : <SegmentStatusBadge status={segment.status} />}
+      {isTargetLoading || !shouldShowSegmentStatusBadge(segment.status, segment.isHidden) ? null : (
+        <SegmentStatusBadge status={segment.status} />
+      )}
+      {segment.isHidden ? <CatHiddenStringBadge /> : null}
       {segmentTags.length > 0 ? <CatSegmentTags tags={segmentTags} /> : null}
     </div>
   );
@@ -214,7 +257,7 @@ export function CatSideBySideRow({
         aria-label={copySourceLabel}
         title={copySourceLabel}
       >
-        <CopyIcon aria-hidden />
+        <HugeiconsIcon icon={Copy01Icon} aria-hidden />
       </Button>
       <Button
         type="button"
@@ -225,7 +268,7 @@ export function CatSideBySideRow({
         aria-label={clearTargetLabel}
         title={clearTargetLabel}
       >
-        <EraserIcon aria-hidden />
+        <HugeiconsIcon icon={EraserIcon} aria-hidden />
       </Button>
     </div>
   ) : null;
@@ -274,7 +317,7 @@ export function CatSideBySideRow({
               className="bg-primary-foreground/15 text-primary-foreground"
             />
           </Button>
-          {onSaveDraft && !isImageSegment ? (
+          {onSaveDraft && !isAssetSegment ? (
             <Button
               type="button"
               variant="outline"
@@ -316,7 +359,22 @@ export function CatSideBySideRow({
       onFocus={onFocus}
     >
       <div className={cn("min-w-0 border-r border-border px-4", isFocused ? "py-4" : "py-3")}>
-        {isFocused && showImageSource ? (
+        {isFocused && showVideoSource ? (
+          <div className="space-y-2.5">
+            <CatEditorVideoSourceSection
+              segment={segment}
+              canEdit={canEditTarget}
+              isBusy={isImageBusy}
+              onTreatAsVideo={onTreatAsVideo}
+              onRegenerate={onRegenerateImage}
+            />
+            <div className="flex min-w-0 items-start justify-between gap-2">
+              {statusAndTags}
+              {shareButton}
+            </div>
+            {copyClearActions}
+          </div>
+        ) : isFocused && showImageSource ? (
           <div className="space-y-2.5">
             <CatEditorImageSourceSection
               segment={segment}
@@ -330,6 +388,40 @@ export function CatSideBySideRow({
               {shareButton}
             </div>
             {copyClearActions}
+          </div>
+        ) : isVideoSegment ? (
+          <div className="space-y-2.5">
+            <button type="button" className="w-full space-y-2.5 text-left" onClick={onFocus}>
+              <CatVideoPreview
+                src={
+                  segment.contentKind === "video_file"
+                    ? segment.sourceAssetUrl
+                    : (segment.sourceAssetUrl ?? segment.sourceText)
+                }
+                emptyLabel={intl.formatMessage(catEditorPanelMessages.videoSourceEmpty)}
+                className="min-h-24"
+              />
+              {sourceKeyMeta}
+            </button>
+            {showTreatAsVideoAction ? (
+              <div className="flex flex-wrap items-center gap-1.5">
+                <Button
+                  type="button"
+                  variant={treatAsVideo ? "secondary" : "outline"}
+                  size="xs"
+                  disabled={!canEditTarget || isImageBusy}
+                  onClick={() => onTreatAsVideo?.(!treatAsVideo)}
+                  title={intl.formatMessage(catEditorPanelMessages.treatAsVideoTitle)}
+                >
+                  <HugeiconsIcon icon={Video01Icon} className="size-3" aria-hidden />
+                  <FormattedMessage
+                    {...(treatAsVideo
+                      ? catEditorPanelMessages.treatAsText
+                      : catEditorPanelMessages.treatAsVideo)}
+                  />
+                </Button>
+              </div>
+            ) : null}
           </div>
         ) : isImageSegment ? (
           <div className="space-y-2.5">
@@ -356,7 +448,7 @@ export function CatSideBySideRow({
                   onClick={() => onTreatAsImage?.(!treatAsImage)}
                   title={intl.formatMessage(catEditorPanelMessages.treatAsImageTitle)}
                 >
-                  <ImageIcon className="size-3" aria-hidden />
+                  <HugeiconsIcon icon={Image01Icon} className="size-3" aria-hidden />
                   <FormattedMessage
                     {...(treatAsImage
                       ? catEditorPanelMessages.treatAsText
@@ -372,7 +464,7 @@ export function CatSideBySideRow({
               <CatMessagePreview message={segment.sourceText} />
             </p>
             {sourceKeyMeta}
-            {copyClearActions || showTreatAsImageAction ? (
+            {copyClearActions || showTreatAsImageAction || showTreatAsVideoAction ? (
               <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
                 {copyClearActions}
                 {showTreatAsImageAction ? (
@@ -384,11 +476,28 @@ export function CatSideBySideRow({
                     onClick={() => onTreatAsImage?.(!treatAsImage)}
                     title={intl.formatMessage(catEditorPanelMessages.treatAsImageTitle)}
                   >
-                    <ImageIcon className="size-3" aria-hidden />
+                    <HugeiconsIcon icon={Image01Icon} className="size-3" aria-hidden />
                     <FormattedMessage
                       {...(treatAsImage
                         ? catEditorPanelMessages.treatAsText
                         : catEditorPanelMessages.treatAsImage)}
+                    />
+                  </Button>
+                ) : null}
+                {showTreatAsVideoAction ? (
+                  <Button
+                    type="button"
+                    variant={treatAsVideo ? "secondary" : "outline"}
+                    size="xs"
+                    disabled={!canEditTarget || isImageBusy}
+                    onClick={() => onTreatAsVideo?.(!treatAsVideo)}
+                    title={intl.formatMessage(catEditorPanelMessages.treatAsVideoTitle)}
+                  >
+                    <HugeiconsIcon icon={Video01Icon} className="size-3" aria-hidden />
+                    <FormattedMessage
+                      {...(treatAsVideo
+                        ? catEditorPanelMessages.treatAsText
+                        : catEditorPanelMessages.treatAsVideo)}
                     />
                   </Button>
                 ) : null}
@@ -402,7 +511,19 @@ export function CatSideBySideRow({
         <div className="flex items-start gap-2">
           <div className="min-w-0 flex-1">
             {isFocused && canEdit ? (
-              isImageSegment ? (
+              isVideoSegment ? (
+                <div className="space-y-3.5">
+                  <CatEditorVideoTargetSection
+                    segment={segment}
+                    canEdit={canEditTarget}
+                    isBusy={isImageBusy}
+                    isLoading={isTargetLoading}
+                    onUpload={onUploadImage}
+                    onRegenerate={onRegenerateImage}
+                  />
+                  {reviewActions}
+                </div>
+              ) : isImageSegment ? (
                 <div className="space-y-3.5">
                   <CatEditorImageTargetSection
                     segment={segment}
@@ -442,10 +563,31 @@ export function CatSideBySideRow({
               )
             ) : (
               <button type="button" className="w-full bg-transparent text-left" onClick={onFocus}>
-                {isImageSegment ? (
-                  isTargetLoading && !hasImageTarget(segment) ? (
+                {isVideoSegment ? (
+                  isTargetLoading && !hasAssetTarget(segment) ? (
                     <Skeleton className="h-24 w-full rounded-lg" />
-                  ) : hasImageTarget(segment) ? (
+                  ) : hasAssetTarget(segment) ? (
+                    <CatVideoPreview
+                      src={
+                        segment.targetAssetUrl ??
+                        (segment.contentKind === "video_url" &&
+                        /^https?:\/\//i.test(segment.targetText)
+                          ? segment.targetText
+                          : null)
+                      }
+                      emptyLabel={intl.formatMessage(catEditorPanelMessages.videoTargetEmpty)}
+                      className="min-h-24"
+                    />
+                  ) : (
+                    <p className="flex items-center gap-2 text-sm text-muted-foreground italic">
+                      <HugeiconsIcon icon={Video01Icon} className="size-4" aria-hidden />
+                      <FormattedMessage {...catSideBySidePanelMessages.clickToLocalizeVideo} />
+                    </p>
+                  )
+                ) : isImageSegment ? (
+                  isTargetLoading && !hasAssetTarget(segment) ? (
+                    <Skeleton className="h-24 w-full rounded-lg" />
+                  ) : hasAssetTarget(segment) ? (
                     <CatImagePreview
                       src={
                         segment.targetAssetUrl ??
@@ -460,7 +602,7 @@ export function CatSideBySideRow({
                     />
                   ) : (
                     <p className="flex items-center gap-2 text-sm text-muted-foreground italic">
-                      <ImageIcon className="size-4" aria-hidden />
+                      <HugeiconsIcon icon={Image01Icon} className="size-4" aria-hidden />
                       <FormattedMessage {...catSideBySidePanelMessages.clickToLocalizeImage} />
                     </p>
                   )
@@ -472,7 +614,7 @@ export function CatSideBySideRow({
                   </p>
                 ) : (
                   <p className="flex items-center gap-2 text-sm text-muted-foreground italic">
-                    <LanguagesIcon className="size-4" aria-hidden />
+                    <HugeiconsIcon icon={TranslateIcon} className="size-4" aria-hidden />
                     <FormattedMessage
                       defaultMessage="Click to translate"
                       id="G3IbmWT2r1"

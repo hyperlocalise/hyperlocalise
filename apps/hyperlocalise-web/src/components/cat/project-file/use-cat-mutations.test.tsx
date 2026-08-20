@@ -20,6 +20,7 @@ import {
   createCatComment,
   createCatFileResponse,
   createCatProviderMeta,
+  createCatSegment,
   createCatTranslation,
   errorResponse,
   jsonResponse,
@@ -30,6 +31,7 @@ const {
   catTranslationsPostMock,
   catCommentsPostMock,
   catCommentResolvePatchMock,
+  catStringsHiddenPostMock,
   invalidateSegmentTargetMock,
   syncSegmentTargetAfterSaveMock,
   invalidateSegmentCommentsMock,
@@ -37,6 +39,7 @@ const {
   catTranslationsPostMock: vi.fn(),
   catCommentsPostMock: vi.fn(),
   catCommentResolvePatchMock: vi.fn(),
+  catStringsHiddenPostMock: vi.fn(),
   invalidateSegmentTargetMock: vi.fn(),
   syncSegmentTargetAfterSaveMock: vi.fn(),
   invalidateSegmentCommentsMock: vi.fn(),
@@ -54,6 +57,11 @@ vi.mock("@/lib/api-client-instance", () => ({
                   cat: {
                     translations: {
                       $post: (...args: unknown[]) => catTranslationsPostMock(...args),
+                    },
+                    strings: {
+                      hidden: {
+                        $post: (...args: unknown[]) => catStringsHiddenPostMock(...args),
+                      },
                     },
                     comments: {
                       $post: (...args: unknown[]) => catCommentsPostMock(...args),
@@ -162,6 +170,22 @@ describe("useCatMutations", () => {
     expect(invalidateQueue).not.toHaveBeenCalled();
   });
 
+  it("blocks saving translations for hidden segments", async () => {
+    const { result } = renderCatMutations({
+      ...createCatFileResponse().catFile,
+      segments: [createCatSegment({ isHidden: true })],
+    });
+
+    await expect(
+      result.current.saveTranslation({
+        externalStringId: "segment-1",
+        text: "Bonjour",
+      }),
+    ).rejects.toThrow("Hidden strings can't be edited from the CAT.");
+    expect(catTranslationsPostMock).not.toHaveBeenCalled();
+    expect(onTranslationSaved).not.toHaveBeenCalled();
+  });
+
   it("throws when saving with a provider record missing an external resource id", async () => {
     const { result } = renderCatMutations({
       ...createCatFileResponse().catFile,
@@ -255,6 +279,51 @@ describe("useCatMutations", () => {
     expect(invalidateSegmentCommentsMock).toHaveBeenCalled();
   });
 
+  it("hides strings and invalidates the queue on success", async () => {
+    catStringsHiddenPostMock.mockResolvedValue(jsonResponse({ updatedCount: 2, isHidden: true }));
+
+    const { result } = renderCatMutations();
+
+    await act(async () => {
+      const saved = await result.current.setStringsHidden({
+        externalStringIds: ["segment-1", "segment-2"],
+        isHidden: true,
+      });
+      expect(saved).toEqual({ updatedCount: 2, isHidden: true });
+    });
+
+    expect(catStringsHiddenPostMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        json: expect.objectContaining({
+          sourcePath: catApiTestContext.sourcePath,
+          externalStringIds: ["segment-1", "segment-2"],
+          isHidden: true,
+        }),
+      }),
+    );
+    expect(invalidateQueue).toHaveBeenCalled();
+  });
+
+  it("surfaces API errors when hiding strings fails", async () => {
+    catStringsHiddenPostMock.mockResolvedValue(
+      errorResponse(
+        "crowdin_hidden_strings_forbidden",
+        "Crowdin did not allow updating hidden strings.",
+        400,
+      ),
+    );
+
+    const { result } = renderCatMutations();
+
+    await expect(
+      result.current.setStringsHidden({
+        externalStringIds: ["segment-1"],
+        isHidden: true,
+      }),
+    ).rejects.toThrow("Crowdin did not allow updating hidden strings.");
+    expect(invalidateQueue).not.toHaveBeenCalled();
+  });
+
   it("omits externalResourceId for native projects without a provider", async () => {
     const translation = createCatTranslation();
     catTranslationsPostMock.mockResolvedValue(jsonResponse({ translation }));
@@ -322,5 +391,72 @@ describe("useCatMutations", () => {
     });
 
     await waitFor(() => expect(result.current.isSaving).toBe(false));
+  });
+
+  it("hides native source strings and invalidates the queue", async () => {
+    catStringsHiddenPostMock.mockResolvedValue(jsonResponse({ updatedCount: 2, isHidden: true }));
+
+    const nativeFile = {
+      ...createCatFileResponse().catFile,
+      provider: null,
+    };
+    const { result } = renderCatMutations(nativeFile);
+
+    await act(async () => {
+      const response = await result.current.setStringsHidden({
+        externalStringIds: ["segment-1", "segment-2"],
+        isHidden: true,
+      });
+      expect(response).toEqual({ updatedCount: 2, isHidden: true });
+    });
+
+    expect(catStringsHiddenPostMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        json: expect.objectContaining({
+          sourcePath: catApiTestContext.sourcePath,
+          externalStringIds: ["segment-1", "segment-2"],
+          isHidden: true,
+        }),
+      }),
+    );
+    expect(invalidateQueue).toHaveBeenCalled();
+  });
+
+  it("chunks hidden-string updates to the native batch limit", async () => {
+    catStringsHiddenPostMock.mockImplementation(() =>
+      jsonResponse({ updatedCount: 200, isHidden: true }),
+    );
+
+    const nativeFile = {
+      ...createCatFileResponse().catFile,
+      provider: null,
+    };
+    const { result } = renderCatMutations(nativeFile);
+    const externalStringIds = Array.from({ length: 201 }, (_, index) => `segment-${index + 1}`);
+
+    await act(async () => {
+      await result.current.setStringsHidden({
+        externalStringIds,
+        isHidden: true,
+      });
+    });
+
+    expect(catStringsHiddenPostMock).toHaveBeenCalledTimes(2);
+    expect(catStringsHiddenPostMock.mock.calls[0]?.[0]).toEqual(
+      expect.objectContaining({
+        json: expect.objectContaining({
+          externalStringIds: externalStringIds.slice(0, 200),
+          isHidden: true,
+        }),
+      }),
+    );
+    expect(catStringsHiddenPostMock.mock.calls[1]?.[0]).toEqual(
+      expect.objectContaining({
+        json: expect.objectContaining({
+          externalStringIds: ["segment-201"],
+          isHidden: true,
+        }),
+      }),
+    );
   });
 });

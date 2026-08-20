@@ -16,6 +16,8 @@ import { eq } from "drizzle-orm";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
 import { db, schema } from "@/lib/database";
+import { PRODUCT_USAGE_ANALYTICS_EVENTS } from "@/lib/analytics/events";
+import { serverAnalytics } from "@/lib/analytics/server";
 
 import { createProjectTestFixture } from "../../../api/routes/project/project.fixture";
 import {
@@ -45,6 +47,7 @@ beforeEach(() => {
 });
 
 afterEach(async () => {
+  vi.restoreAllMocks();
   vi.unstubAllGlobals();
   await projectFixture.cleanup();
 });
@@ -213,6 +216,7 @@ describe("agent runs", () => {
 
   it("fails a run and preserves partial output", async () => {
     const { project } = await createTestProject();
+    const trackSpy = vi.spyOn(serverAnalytics, "track").mockImplementation(() => {});
 
     const created = await createAgentRun({
       organizationId: project.organizationId,
@@ -237,6 +241,10 @@ describe("agent runs", () => {
     expect(failed.completedAt).toBeTruthy();
     expect(failed.outputSummary).toEqual({ processed: 2 });
     expect(failed.warnings).toEqual(["provider API error after 2 items"]);
+    expect(trackSpy).toHaveBeenCalledWith(PRODUCT_USAGE_ANALYTICS_EVENTS.agentRunFailed, {
+      status: "failed",
+      source: "comment_only",
+    });
   });
 
   it("fails a queued run and preserves provider context", async () => {

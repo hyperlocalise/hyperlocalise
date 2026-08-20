@@ -13,6 +13,8 @@
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { expect } from "storybook/test";
 
+import { inboxUnreadBadgeClassName } from "@/components/app-shell/inbox-unread-badge";
+
 import {
   Sidebar,
   SidebarContent,
@@ -57,8 +59,11 @@ export const Overview: Story = {
             <SidebarGroupContent>
               <SidebarMenu>
                 <SidebarMenuItem>
-                  <SidebarMenuButton isActive>Mobile checkout</SidebarMenuButton>
-                  <SidebarMenuBadge>8</SidebarMenuBadge>
+                  <SidebarMenuButton isActive>Inbox</SidebarMenuButton>
+                  <SidebarMenuBadge className={inboxUnreadBadgeClassName}>9+</SidebarMenuBadge>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                  <SidebarMenuButton>Projects</SidebarMenuButton>
                 </SidebarMenuItem>
                 <SidebarMenuItem>
                   <SidebarMenuButton variant="outline" size="sm">
@@ -91,6 +96,7 @@ export const Overview: Story = {
     </SidebarProvider>
   ),
   play: async ({ canvas }) => {
-    await expect(canvas.getByText("Mobile checkout")).toBeInTheDocument();
+    await expect(canvas.getByText("Inbox")).toBeInTheDocument();
+    await expect(canvas.getByText("9+")).toBeInTheDocument();
   },
 };

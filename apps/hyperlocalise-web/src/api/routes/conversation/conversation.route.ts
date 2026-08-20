@@ -26,6 +26,10 @@ import { getFileStorageAdapter } from "@/lib/file-storage";
 import { createStoredFile } from "@/lib/file-storage/records";
 import { getOwnedProject } from "@/api/routes/project/project.shared";
 import { addInteractionMessage, createInteraction } from "@/lib/conversations/interactions";
+import {
+  appendStoredFileContext,
+  toStoredTranslationFileRef,
+} from "@/lib/conversations/stored-file-context";
 import { inferSupportedSourceUploadFormat } from "@/lib/translation/file-formats";
 import type { RepositoryAgentGitHubContext } from "@/lib/agent-contracts/repository-task";
 import {
@@ -373,7 +377,6 @@ export function createConversationRoutes(options: CreateConversationRoutesOption
       if (!parsed.data.text && files.length === 0) {
         return badRequestResponse(c, "invalid_conversation_payload");
       }
-      const messageText = parsed.data.text || "Please translate the attached source file.";
 
       if (files.length > maxMessageUploadFiles) {
         return tooManyFilesResponse(c);
@@ -456,6 +459,12 @@ export function createConversationRoutes(options: CreateConversationRoutesOption
           : new Error("failed to store uploaded file");
       }
 
+      const translationFileRefs = storedFiles
+        .map((file) => toStoredTranslationFileRef(file))
+        .filter((file): file is NonNullable<typeof file> => file !== null);
+      const userFacingText = parsed.data.text || "Please translate the attached source file.";
+      const messageText = appendStoredFileContext(userFacingText, translationFileRefs);
+
       let conversation: Awaited<ReturnType<typeof createInteraction>> | undefined;
       let responseFiles = storedFiles;
       let message;
@@ -463,7 +472,7 @@ export function createConversationRoutes(options: CreateConversationRoutesOption
         const createdConversation = await createInteraction({
           organizationId: orgId,
           source: "chat_ui",
-          title: messageText.slice(0, 120),
+          title: userFacingText.slice(0, 120),
           projectId,
         });
         conversation = createdConversation;
@@ -590,6 +599,14 @@ export function createConversationRoutes(options: CreateConversationRoutesOption
           return tooManyFilesResponse(c);
         }
 
+        for (const file of files) {
+          if (!inferSupportedSourceUploadFormat(file.name)) {
+            return badRequestResponse(c, "unsupported_translation_source_file", undefined, {
+              filename: file.name,
+            });
+          }
+        }
+
         if (conversation.source !== "chat_ui") {
           return c.json({ error: "conversation_not_replyable" }, 400);
         }
@@ -663,6 +680,14 @@ export function createConversationRoutes(options: CreateConversationRoutesOption
             : new Error("failed to store uploaded file");
         }
 
+        const translationFileRefs = storedFiles
+          .map((file) => toStoredTranslationFileRef(file))
+          .filter((file): file is NonNullable<typeof file> => file !== null);
+        const messageText = appendStoredFileContext(
+          text.trim() || (files.length > 0 ? "Please translate the attached source file." : ""),
+          translationFileRefs,
+        );
+
         if (repositoryGitHubContext) {
           await seedConversationRepositorySession({
             conversationId,
@@ -677,7 +702,7 @@ export function createConversationRoutes(options: CreateConversationRoutesOption
             interactionId: conversationId,
             senderType: "user",
             senderEmail: c.var.auth.user.email,
-            text,
+            text: messageText,
             attachments: storedFiles.map((file) => ({
               id: file.id,
               filename: file.filename,

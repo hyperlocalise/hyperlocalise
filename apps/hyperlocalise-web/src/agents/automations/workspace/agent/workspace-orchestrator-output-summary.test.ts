@@ -69,6 +69,39 @@ describe("buildWorkspaceOrchestratorOutputSummary", () => {
     });
   });
 
+  it("keeps a persisted web-search summary off logged step results", () => {
+    const outputSummary = buildWorkspaceOrchestratorOutputSummary(
+      {
+        webSearch: {
+          summary: "Acme Corp competitor research for Jane Doe",
+          provider: "exa",
+          toolNames: ["exa_search"],
+        },
+      },
+      {
+        use_web_search: {
+          provider: "exa",
+          toolCount: 1,
+          status: "completed",
+        },
+      },
+    );
+
+    expect(outputSummary.webSearch).toEqual({
+      summary: "Acme Corp competitor research for Jane Doe",
+      provider: "exa",
+      toolNames: ["exa_search"],
+    });
+    expect(outputSummary.orchestratorStepResults).toEqual({
+      use_web_search: {
+        provider: "exa",
+        toolCount: 1,
+        status: "completed",
+      },
+    });
+    expect(JSON.stringify(outputSummary.orchestratorStepResults)).not.toContain("Jane Doe");
+  });
+
   it("falls back to prior orchestrator step results when the stale snapshot omitted tool fields", () => {
     const outputSummary = buildWorkspaceOrchestratorOutputSummary(
       {
@@ -84,5 +117,36 @@ describe("buildWorkspaceOrchestratorOutputSummary", () => {
     );
 
     expect(outputSummary.contentfulTranslationRunId).toBe("contentful-run-1");
+  });
+
+  it("records GitHub comment notification warnings", () => {
+    const outputSummary = buildWorkspaceOrchestratorOutputSummary(
+      { orchestratorEnqueuedAt: "2026-06-24T00:00:00.000Z" },
+      {
+        notify_github_comment: {
+          posted: false,
+          skipped: false,
+          code: "github_comment_send_failed",
+          message: "GitHub comment failed.",
+        },
+      },
+      {
+        notificationWarnings: [
+          {
+            channel: "github_comment",
+            code: "github_comment_send_failed",
+            message: "GitHub comment failed.",
+          },
+        ],
+      },
+    );
+
+    expect(outputSummary.notificationWarnings).toEqual([
+      {
+        channel: "github_comment",
+        code: "github_comment_send_failed",
+        message: "GitHub comment failed.",
+      },
+    ]);
   });
 });

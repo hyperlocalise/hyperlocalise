@@ -6,14 +6,14 @@ import {
 } from "../../../../lib/flags/release-flags";
 import {
   workspaceAutomationsFlag,
-  workspaceIssuesFlag,
+  workspaceDomainsFlag,
   workspaceKnowledgeFlag,
 } from "../../../../lib/flags/workspace-flags";
 
 export const GET = createFlagsDiscoveryEndpoint(async () =>
   getProviderData({
     workspaceAutomationsFlag,
-    workspaceIssuesFlag,
+    workspaceDomainsFlag,
     workspaceKnowledgeFlag,
     releaseCatAllFilesFlag,
     releaseSandboxVcrImageFlag,

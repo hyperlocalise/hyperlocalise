@@ -252,7 +252,13 @@ export const projectFileCatQueueFilterSchema = z.enum([
   "needs_review",
   "reviewed",
   "has_issues",
+  "hidden",
+  "qa_issues",
+  "machine_translated",
+  "with_comments",
 ]);
+
+export const projectFileCatQueueSortSchema = z.enum(["file_order", "untranslated_first"]);
 
 export const projectFileCatQuerySchema = z.object({
   /** Use `"*"` to load strings across every file in scope. */
@@ -268,11 +274,30 @@ export const projectFileCatQuerySchema = z.object({
   sourcePaths: z.string().trim().max(32_768).optional(),
   search: z.string().trim().max(256).optional(),
   queueFilter: projectFileCatQueueFilterSchema.optional(),
+  queueSort: projectFileCatQueueSortSchema.optional(),
   offset: z.coerce.number().int().min(0).optional(),
   limit: z.coerce.number().int().min(1).max(100).optional(),
   phraseScanPage: z.coerce.number().int().min(1).optional(),
   phraseScanSkip: z.coerce.number().int().min(0).optional(),
+  sortBucket: z.coerce.number().int().min(0).max(2).optional(),
+  sortBucketOffset: z.coerce.number().int().min(0).optional(),
 });
+
+export const projectFileCatExportFormatSchema = z.enum(["csv", "tmx", "xlf", "xliff"]);
+
+export const projectFileCatExportQuerySchema = projectFileCatQuerySchema
+  .omit({
+    offset: true,
+    limit: true,
+    phraseScanPage: true,
+    phraseScanSkip: true,
+    sortBucket: true,
+    sortBucketOffset: true,
+  })
+  .extend({
+    format: projectFileCatExportFormatSchema,
+    sourceLocale: z.string().trim().min(1).max(32).optional(),
+  });
 
 export const projectFileCatPaginationSchema = z.object({
   offset: z.number().int().min(0),
@@ -282,6 +307,8 @@ export const projectFileCatPaginationSchema = z.object({
   hasMore: z.boolean(),
   nextPhraseScanPage: z.number().int().min(1).optional(),
   nextPhraseScanSkip: z.number().int().min(0).optional(),
+  nextSortBucket: z.number().int().min(0).max(2).optional(),
+  nextSortBucketOffset: z.number().int().min(0).optional(),
 });
 
 export const defaultProjectFileCatPageLimit = 50;
@@ -306,6 +333,23 @@ export const projectFileCatStatusBodySchema = z.object({
   status: z.enum(["needs_review", "approved", "rejected"]),
 });
 
+export const maxNativeCatHiddenStringBatch = 200;
+export const maxCatHiddenStringBatch = maxNativeCatHiddenStringBatch;
+
+export const projectFileCatHiddenStringsBodySchema = z.object({
+  sourcePath: z.string().trim().min(1).max(2048),
+  externalStringIds: z
+    .array(z.string().trim().min(1).max(128))
+    .min(1)
+    .max(maxNativeCatHiddenStringBatch),
+  isHidden: z.boolean(),
+});
+
+export const projectFileCatHiddenStringsResponseSchema = z.object({
+  updatedCount: z.number().int().min(0),
+  isHidden: z.boolean(),
+});
+
 export const projectFileCatImageRegenerateBodySchema = z.object({
   sourcePath: z.string().trim().min(1).max(2048),
   targetLocale: z.string().trim().min(1).max(32),
@@ -326,6 +370,13 @@ export const projectFileCatTreatAsImageBodySchema = z.object({
   externalStringId: z.string().trim().min(1).max(128),
   externalResourceId: z.string().trim().min(1).max(128).optional(),
   treatAsImage: z.boolean(),
+});
+
+export const projectFileCatTreatAsVideoBodySchema = z.object({
+  sourcePath: z.string().trim().min(1).max(2048),
+  targetLocale: z.string().trim().min(1).max(32),
+  externalStringId: z.string().trim().min(1).max(128),
+  treatAsVideo: z.boolean(),
 });
 
 export const maxProjectFileUploadBytes = 25 * 1024 * 1024;
@@ -598,6 +649,8 @@ export const projectFileCatContentKindSchema = z.enum([
   "text",
   "image_file",
   "image_url",
+  "video_file",
+  "video_url",
   "office_file",
 ]);
 
@@ -618,11 +671,14 @@ export const projectFileCatSegmentSchema = z.object({
   context: z.string().nullable(),
   type: z.string().nullable(),
   maxLength: z.number().int().positive().optional(),
+  /** Hidden source string. Native TMS and Crowdin-style providers keep it visible to managers. */
+  isHidden: z.boolean().optional(),
   contentKind: projectFileCatContentKindSchema.optional(),
   sourceAssetUrl: z.string().nullable().optional(),
   targetAssetUrl: z.string().nullable().optional(),
   imageVariantId: z.string().nullable().optional(),
   looksLikeImageUrl: z.boolean().optional(),
+  looksLikeVideoUrl: z.boolean().optional(),
   /** Present when the queue spans multiple files (`sourcePath=*`). */
   sourcePath: z.string().optional(),
   /** Provider file format for this segment's file (All Files mode). */
@@ -690,13 +746,20 @@ export type ProjectFilesQuery = z.infer<typeof projectFilesQuerySchema>;
 export type ProjectProviderBranchesResponse = z.infer<typeof projectProviderBranchesResponseSchema>;
 export type ProjectFileDetailQuery = z.infer<typeof projectFileDetailQuerySchema>;
 export type ProjectFileCatQuery = z.infer<typeof projectFileCatQuerySchema>;
+export type ProjectFileCatExportQuery = z.infer<typeof projectFileCatExportQuerySchema>;
 export type ProjectFileCatQueueFilter = z.infer<typeof projectFileCatQueueFilterSchema>;
+export type ProjectFileCatQueueSort = z.infer<typeof projectFileCatQueueSortSchema>;
 export type ProjectFileCatTranslationBody = z.infer<typeof projectFileCatTranslationBodySchema>;
+export type ProjectFileCatHiddenStringsBody = z.infer<typeof projectFileCatHiddenStringsBodySchema>;
+export type ProjectFileCatHiddenStringsResponse = z.infer<
+  typeof projectFileCatHiddenStringsResponseSchema
+>;
 export type ProjectFileCatImageRegenerateBody = z.infer<
   typeof projectFileCatImageRegenerateBodySchema
 >;
 export type ProjectFileCatImageStatusBody = z.infer<typeof projectFileCatImageStatusBodySchema>;
 export type ProjectFileCatTreatAsImageBody = z.infer<typeof projectFileCatTreatAsImageBodySchema>;
+export type ProjectFileCatTreatAsVideoBody = z.infer<typeof projectFileCatTreatAsVideoBodySchema>;
 export type ProjectFileCatRecommendationBody = z.infer<
   typeof projectFileCatRecommendationBodySchema
 >;

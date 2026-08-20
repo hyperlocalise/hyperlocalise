@@ -13,9 +13,12 @@
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import Link from "next/link";
 import { expect, userEvent } from "storybook/test";
-import { LinkSquare02Icon, RefreshIcon } from "@hugeicons/core-free-icons";
+import {
+  LeftToRightListBulletIcon,
+  LinkSquare02Icon,
+  RefreshIcon,
+} from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { ListIcon } from "lucide-react";
 
 import type { ProjectFileRecord } from "@/api/routes/project/project.schema";
 import { Button } from "@/components/ui/button";
@@ -171,7 +174,7 @@ function liveCrowdinHeaderActions() {
       </Button>
       {liveJobCatHref ? (
         <Button size="sm" render={<Link href={liveJobCatHref} />}>
-          <ListIcon />
+          <HugeiconsIcon icon={LeftToRightListBulletIcon} />
           View strings
         </Button>
       ) : null}

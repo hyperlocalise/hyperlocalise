@@ -1,6 +1,7 @@
 package translationfileparser
 
 import (
+	"bytes"
 	"reflect"
 	"strconv"
 	"strings"
@@ -283,5 +284,51 @@ msgstr "val3"
 
 	if !reflect.DeepEqual(got, expected) {
 		t.Errorf("got %v, want %v", got, expected)
+	}
+}
+
+func TestPOOutputMapCapacity(t *testing.T) {
+	tests := []struct {
+		name    string
+		content []byte
+		min     int
+		max     int
+	}{
+		{
+			name:    "empty input uses the minimum hint",
+			content: nil,
+			min:     poParseMapMinCapacity,
+			max:     poParseMapMinCapacity,
+		},
+		{
+			name:    "tracks msgid field count",
+			content: generateLargePO(50),
+			min:     50,
+			max:     55,
+		},
+		{
+			name: "comment-heavy one-entry file stays small",
+			content: append(
+				bytes.Repeat([]byte("# translator comment\n"), 100_000),
+				[]byte("msgid \"only\"\nmsgstr \"one\"\n")...,
+			),
+			min: poParseMapMinCapacity,
+			max: 8,
+		},
+		{
+			name:    "caps pathological msgid mentions",
+			content: bytes.Repeat([]byte("msgid "), poParseMapMaxCapacity+32),
+			min:     poParseMapMaxCapacity,
+			max:     poParseMapMaxCapacity,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got := poOutputMapCapacity(tc.content)
+			if got < tc.min || got > tc.max {
+				t.Fatalf("poOutputMapCapacity() = %d, want in [%d, %d]", got, tc.min, tc.max)
+			}
+		})
 	}
 }

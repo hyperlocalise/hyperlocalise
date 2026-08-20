@@ -68,7 +68,7 @@ buckets:
 
 Supported PHP locale files must begin with `<?php` and return a static `[...]` or `array(...)` literal. Hyperlocalise translates string leaves, flattens nested keys with dotted paths, and preserves comments, ordering, and array syntax when writing. Dynamic PHP such as variables, function calls, constants, `declare(...)`, or interpolated double-quoted strings is intentionally rejected.
 
-Supported locale file extensions include `.json`, `.jsonc`, `.yaml`, `.yml`, `.php`, `.xml`, `.resx`, `.arb`, `.xlf`, `.xlif`, `.xliff`, `.po`, `.html`, `.liquid`, `.md`, `.mdx`, `.strings`, `.stringsdict`, and `.csv`.
+Supported locale file extensions include `.json`, `.jsonc`, `.yaml`, `.yml`, `.php`, `.xml`, `.resx`, `.arb`, `.xlf`, `.xlif`, `.xliff`, `.po`, `.html`, `.liquid`, `.md`, `.mdx`, `.strings`, `.stringsdict`, `.csv`, `.srt`, and `.vtt`.
 
 YAML/YML locale files should be mapping-shaped files with string leaves. Nested mappings become dotted keys, sequences become `[index]` keys, and writeback rewrites existing string leaves while preserving key order/comments where possible. Mapping keys cannot contain `.`, `[`, or `]` because those characters are reserved for flattened paths. Non-string scalar leaves such as numbers, booleans, nulls, timestamps, anchors, and aliases are rejected to avoid silently corrupting metadata.
 
@@ -128,6 +128,22 @@ Use `.ftl` mappings for Mozilla Fluent locale files:
 ```
 
 Hyperlocalise supports Fluent messages, attributes, multiline values, and select/plural values as full translation units. Attributes use dotted keys such as `brand.title`. Fluent terms are not supported and fail during parsing.
+
+### Subtitle file mapping patterns
+
+Use `.srt` or `.vtt` mappings for SubRip and WebVTT caption files:
+
+```yaml
+buckets:
+  captions:
+    files:
+      - from: captions/{{source}}.srt
+        to: captions/{{target}}.srt
+      - from: captions/{{source}}.vtt
+        to: captions/{{target}}.vtt
+```
+
+Hyperlocalise translates cue payload text and preserves cue numbers, timestamps, WebVTT headers, and `NOTE` / `STYLE` / `REGION` blocks. Cues use sequential keys such as `srt.0001`.
 
 ### JS/TS locale module patterns
 
@@ -208,7 +224,7 @@ Supported entries are flat Java properties keys with string values. Hyperlocalis
 
 `llm.profiles.<name>` fields:
 
-- `provider`: `openai`, `azure_openai`, `anthropic`, `gemini`, `bedrock`, `lmstudio`, `groq`, `mistral`, or `ollama`
+- `provider`: `openai`, `azure_openai`, `anthropic`, `gemini`, `bedrock`, `lmstudio`, `groq`, `mistral`, `ollama`, `openrouter`, or `ai_gateway`
 - `model`: provider model id
 - `system_prompt` (optional): explicit system-message template
 - `user_prompt` (optional): explicit user-message template

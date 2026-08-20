@@ -43,6 +43,10 @@ covers warm reuse and image drift.
 
 ## Out of scope
 
-- Removing bootstrap or screenshot Playwright install paths
+- Removing bootstrap or agent screenshot Playwright install paths
 - Per-organization WorkOS gating
 - Using the image for Vercel Functions
+
+Localisation-audit crawls already use `createConfiguredVercelSandbox` and the
+image Playwright at `/tmp/hyperlocalise-browser-runtime`. They do not install
+Playwright at crawl time.

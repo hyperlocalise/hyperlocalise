@@ -13,16 +13,39 @@
 import { tool } from "ai";
 import { z } from "zod";
 
+import { flagBasename, HL_WRITE_FLAG_NAMES } from "@/lib/agent-runtime/tools/hl-write-flags";
 import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
 
+import { isSuccessfulAllowlistedExit } from "./git-exit";
 import { normalizeWorkspacePath } from "./path";
 import { DEFAULT_MAX_OUTPUT_BYTES, redact, truncate } from "./redact";
 import type { RepoToolContext } from "./types";
 
 const DISALLOWED_SUBSTRINGS = [";", "&&", "||", "|", ">", "<", "`", "$(", "${", "-exec"];
-// \b does not work before hyphen-prefixed flags; anchor after whitespace/start instead.
-const DISALLOWED_FLAGS =
-  /(^|(?<=\s))(--no-index|--in-place|-delete|-fprint|-fls|-execdir|-okdir|-ok|-i)(?=\s|$)/i;
+
+// GNU find file-writing actions plus other mutating flags. Tokenized so
+// quoted forms like `"-fprintf"` cannot bypass the deny list. `-fprint`
+// is not a prefix match for `-fprintf`/`-fprint0`; each is listed.
+const DISALLOWED_FLAG_NAMES = new Set([
+  "no-index",
+  "in-place",
+  "delete",
+  "fprint",
+  "fprint0",
+  "fprintf",
+  "printf",
+  "fls",
+  "exec",
+  "execdir",
+  "okdir",
+  "ok",
+  "i",
+  ...HL_WRITE_FLAG_NAMES,
+]);
+
+// git log/diff/show `--output`/`-o` writes a file. Keep these git-only:
+// `find -o` is OR, and `hl status --output csv` is a format, not a path.
+const DISALLOWED_GIT_OUTPUT_FLAG_NAMES = new Set(["output", "o"]);
 
 const ALLOWED_COMMAND_PATTERNS = [
   /^git\s+(status|log|diff|rev-parse|show)\b/i,
@@ -31,8 +54,48 @@ const ALLOWED_COMMAND_PATTERNS = [
   /^hl\s+(check|status|extract)\b/i,
 ];
 
-const ABSOLUTE_PATH_PATTERN = /(^|\s)\/(?!\.)(?!\s|$)/;
-const PARENT_TRAVERSAL_PATTERN = /(^|\s)\.\.(\/|\s|$)/;
+// Also match paths glued onto `--flag=` / `-o=` so `--output=/tmp/x` and
+// `--output=../../outside.txt` cannot skip the whitespace-bounded heuristics.
+const ABSOLUTE_PATH_PATTERN = /(^|[\s="'])\/(?!\.)(?!\s|$)/;
+const PARENT_TRAVERSAL_PATTERN = /(^|[\s="'])\.\.(\/|[\s"']|$)/;
+
+function unquoteFlagValue(value: string): string {
+  return value.replace(/^['"]|['"]$/g, "");
+}
+
+function attachedFlagValueEscapesWorkspace(token: string): boolean {
+  const separator = token.indexOf("=");
+  if (separator === -1) {
+    return false;
+  }
+  const value = unquoteFlagValue(token.slice(separator + 1));
+  if (!value) {
+    return false;
+  }
+  return value.startsWith("/") || value.split("/").includes("..");
+}
+
+function isDisallowedGitOutputFlag(token: string): boolean {
+  if (!token.startsWith("-")) {
+    return false;
+  }
+  const name = flagBasename(token);
+  if (DISALLOWED_GIT_OUTPUT_FLAG_NAMES.has(name)) {
+    return true;
+  }
+  // git accepts `-ofile` as `-o` with an attached filename.
+  return /^-o./i.test(token) && !token.startsWith("--");
+}
+
+function isDisallowedFlagToken(token: string, bin: string): boolean {
+  if (!token.startsWith("-")) {
+    return false;
+  }
+  if (DISALLOWED_FLAG_NAMES.has(flagBasename(token))) {
+    return true;
+  }
+  return bin === "git" && isDisallowedGitOutputFlag(token);
+}
 
 export function isAllowedBashCommand(command: string): boolean {
   const trimmed = command.trim();
@@ -44,15 +107,25 @@ export function isAllowedBashCommand(command: string): boolean {
     return false;
   }
 
-  if (DISALLOWED_FLAGS.test(trimmed)) {
-    return false;
-  }
-
   if (/\b(rm|curl|wget|chmod|chown|mv|cp|tee|dd|shred|mkfs|jq|yq|env|printenv)\b/i.test(trimmed)) {
     return false;
   }
 
   if (ABSOLUTE_PATH_PATTERN.test(trimmed) || PARENT_TRAVERSAL_PATTERN.test(trimmed)) {
+    return false;
+  }
+
+  const splitResult = splitCommand(trimmed);
+  if (isErr(splitResult)) {
+    return false;
+  }
+
+  const { bin, args } = splitResult.value;
+  const tokens = [bin, ...args];
+  if (tokens.some((token) => isDisallowedFlagToken(token, bin))) {
+    return false;
+  }
+  if (tokens.some(attachedFlagValueEscapesWorkspace)) {
     return false;
   }
 
@@ -90,7 +163,7 @@ export function createBashTool(ctx: RepoToolContext) {
 WHEN TO USE:
 - git status, git log, git diff
 - ls or find for directory discovery when glob is insufficient
-- hl check/status/extract for Hyperlocalise CLI read-only checks
+- hl check/status/extract for Hyperlocalise CLI read-only checks against i18n.yml
 
 WHEN NOT TO USE:
 - Reading files (use read)
@@ -145,7 +218,11 @@ IMPORTANT:
         const stderr = truncate(redact(result.stderr), DEFAULT_MAX_OUTPUT_BYTES);
 
         return {
-          success: result.exitCode === 0,
+          success: isSuccessfulAllowlistedExit({
+            bin,
+            args: execArgs,
+            exitCode: result.exitCode,
+          }),
           exitCode: result.exitCode,
           stdout: stdout.text,
           stderr: stderr.text,

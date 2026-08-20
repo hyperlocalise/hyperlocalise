@@ -26,8 +26,8 @@ import type { ApiAuthContext } from "@/api/auth/workos";
 import { schema } from "@/lib/database";
 import type { ToolContext } from "@/lib/agent-contracts/tool-context";
 import {
-  isLiveProviderGlossaryId,
   isLiveProviderMemoryId,
+  parseLiveProviderGlossaryId,
 } from "@/lib/providers/jobs/tms-provider-resource-id";
 import { resolveOrganizationMembershipAccessSource } from "@/lib/workos/membership-access";
 
@@ -94,7 +94,7 @@ export function toolCanAccessMemory(ctx: ToolContext, memoryId: string) {
 
 /** Single-query glossary fetch with team scoping (replaces check + select). */
 export async function toolGetAccessibleGlossary(ctx: ToolContext, glossaryId: string) {
-  if (isLiveProviderGlossaryId(glossaryId)) {
+  if (parseLiveProviderGlossaryId(glossaryId)) {
     return null;
   }
 

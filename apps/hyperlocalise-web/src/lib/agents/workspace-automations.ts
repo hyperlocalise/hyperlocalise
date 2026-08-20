@@ -10,463 +10,61 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import "server-only";
+
 import { and, asc, desc, eq, isNotNull, isNull, lte, or, sql } from "drizzle-orm";
-import { z } from "zod";
 
 import { db, schema, type DatabaseClient } from "@/lib/database";
 import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
-import { optionalProjectIdSchema } from "@/lib/projects/identity/project-id";
+import { isValidAutomationTimeZone } from "@/lib/agents/automation-time-zones";
 import { lockAhrefsConnectionForUpdate } from "@/lib/ahrefs/connections";
 import { lockSemrushConnectionForUpdate } from "@/lib/semrush/connections";
+import { crowdinAuth } from "@/lib/providers/adapters/crowdin/crowdin-auth";
+import { parseProviderProjectId } from "@/lib/providers/jobs/tms-provider-resource-id";
 
 import {
   hasWorkspaceAutomationGithubAgentTool,
   hasWorkspaceAutomationGithubWorkflow,
 } from "./workspace-automation-github-mapping";
 import { resolveNextRunAtForWorkspaceAutomation } from "./workspace-automation-schedule";
+import {
+  formatWorkspaceAutomationAuthorName,
+  hasWorkspaceAutomationAssignTranslateWithAgentTool,
+  hasWorkspaceAutomationContentfulWorkflow,
+  hasWorkspaceAutomationCreateIssueTool,
+  hasWorkspaceAutomationCreateNativeTmsJobTool,
+  hasWorkspaceAutomationCrowdinTool,
+  hasWorkspaceAutomationListIssuesTool,
+  hasWorkspaceAutomationWebSearchTool,
+  hoistLegacyWorkspaceAutomationProjectId,
+  normalizeRepositoryTarget,
+  normalizeToolConfig,
+  normalizeTriggerConfig,
+  readOptionalProjectId,
+  resolveWorkspaceAutomationModel,
+  workspaceAutomationConfigSchema,
+  type WorkspaceAutomationConfigValidationError,
+  type WorkspaceAutomationModel,
+  type WorkspaceAutomationRecord,
+  type WorkspaceAutomationRepositoryTarget,
+  type WorkspaceAutomationRunRecord,
+  type WorkspaceAutomationRunStatus,
+  type WorkspaceAutomationRunTriggerSource,
+  type WorkspaceAutomationStatus,
+  type WorkspaceAutomationToolConfig,
+  type WorkspaceAutomationTriggerConfig,
+} from "./workspace-automation-types";
 
-export const workspaceAutomationStatusSchema = z.enum(["active", "paused", "archived"]);
-export const workspaceAutomationRunStatusSchema = z.enum([
-  "queued",
-  "running",
-  "succeeded",
-  "failed",
-  "cancelled",
-  "skipped",
-]);
-export const workspaceAutomationRunTriggerSourceSchema = z.enum([
-  "manual",
-  "scheduled",
-  "github",
-  "contentful",
-  "source_upload",
-]);
-
-const branchPatternSchema = z
-  .string()
-  .trim()
-  .min(1)
-  .max(255)
-  .regex(/^[A-Za-z0-9._\-/*?]+$/, "invalid_branch_pattern");
-
-const triggerConfigSchema = z
-  .object({
-    mode: z
-      .enum(["manual", "scheduled", "github", "contentful", "source_upload"])
-      .default("manual"),
-    schedule: z
-      .object({
-        cadence: z.enum(["hourly", "daily", "weekly"]),
-        hourUtc: z.number().int().min(0).max(23).optional(),
-        dayOfWeek: z.number().int().min(0).max(6).optional(),
-        timezone: z.string().trim().min(1).max(64).default("UTC"),
-      })
-      .optional(),
-    branches: z.array(branchPatternSchema).min(1).max(32).optional(),
-  })
-  .default({ mode: "manual" });
-
-const repositoryTargetSchema = z
-  .object({
-    kind: z.enum(["none", "github"]).default("none"),
-    githubInstallationRepositoryId: z.string().uuid().optional(),
-  })
-  .default({ kind: "none" });
-
-const githubToolConfigSchema = z
-  .object({
-    enabled: z.boolean().default(false),
-    mode: z.enum(["agent", "sync"]).default("sync"),
-    pushSource: z.boolean().default(false),
-    pullTranslations: z.boolean().default(false),
-    validation: z.boolean().default(false),
-  })
-  .default({
-    enabled: false,
-    mode: "sync",
-    pushSource: false,
-    pullTranslations: false,
-    validation: false,
-  });
-
-export type WorkspaceAutomationGithubToolMode = z.infer<typeof githubToolConfigSchema>["mode"];
-
-const slackToolConfigSchema = z
-  .object({
-    enabled: z.boolean().default(false),
-    channelId: z.string().trim().min(1).max(64).optional(),
-  })
-  .default({ enabled: false });
-
-const emailToolConfigSchema = z
-  .object({
-    enabled: z.boolean().default(false),
-    recipients: z.array(z.string().email()).min(1).max(10).optional(),
-  })
-  .default({ enabled: false });
-
-const contentfulToolConfigSchema = z
-  .object({
-    enabled: z.boolean().default(false),
-    connectionId: z.string().uuid().optional(),
-    sourceLocale: z.string().trim().min(1).max(32).default("en"),
-    entryId: z.string().trim().min(1).max(256).optional(),
-    contentTypeIds: z.array(z.string().trim().min(1).max(128)).max(50).default([]),
-    targetLocales: z.array(z.string().trim().min(1).max(32)).max(20).default([]),
-    fieldMode: z.enum(["auto", "configured"]).default("auto"),
-    overwriteDraftLocales: z.boolean().default(false),
-    runQa: z.boolean().default(true),
-    writeDrafts: z.boolean().default(true),
-  })
-  .default({
-    enabled: false,
-    sourceLocale: "en",
-    contentTypeIds: [],
-    targetLocales: [],
-    fieldMode: "auto",
-    overwriteDraftLocales: false,
-    runQa: true,
-    writeDrafts: true,
-  });
-
-const createNativeTmsJobToolConfigSchema = z
-  .object({
-    enabled: z.boolean().default(false),
-    useProjectTargetLocales: z.boolean().default(true),
-    targetLocales: z.array(z.string().trim().min(1).max(32)).max(20).default([]),
-  })
-  .default({ enabled: false, useProjectTargetLocales: true, targetLocales: [] });
-
-const assignTranslateWithAgentToolConfigSchema = z
-  .object({
-    enabled: z.boolean().default(false),
-  })
-  .default({ enabled: false });
-
-const knowledgeToolConfigSchema = z
-  .object({
-    enabled: z.boolean().default(false),
-    // Lets the automation append to the shared organization Memory.md via the save_memory tool.
-    // Meaningless without `enabled`; callers must not treat this as authoritative on its own.
-    allowUpdates: z.boolean().default(false),
-  })
-  .default({ enabled: false, allowUpdates: false });
-
-const mcpToolConfigSchema = z
-  .object({
-    enabled: z.boolean().default(false),
-    connectionId: z.string().uuid().optional(),
-  })
-  .default({ enabled: false });
-
-const semrushToolConfigSchema = z
-  .object({
-    enabled: z.boolean().default(false),
-    connectionId: z.string().uuid().optional(),
-  })
-  .default({ enabled: false });
-
-const ahrefsToolConfigSchema = z
-  .object({
-    enabled: z.boolean().default(false),
-    connectionId: z.string().uuid().optional(),
-  })
-  .default({ enabled: false });
-
-function migrateLegacyTranslationToolConfig(
-  value: Record<string, unknown>,
-): Record<string, unknown> {
-  const { translation: legacyTranslation, ...rest } = value;
-  if (!legacyTranslation || typeof legacyTranslation !== "object") {
-    return rest;
-  }
-
-  const legacy = legacyTranslation as {
-    enabled?: unknown;
-    useProjectTargetLocales?: unknown;
-    targetLocales?: unknown;
-  };
-  if (!legacy.enabled) {
-    return rest;
-  }
-
-  const hasCreateNativeTmsJob =
-    rest.createNativeTmsJob && typeof rest.createNativeTmsJob === "object";
-  const hasAssignTranslateWithAgent =
-    rest.assignTranslateWithAgent && typeof rest.assignTranslateWithAgent === "object";
-
-  return {
-    ...rest,
-    ...(hasCreateNativeTmsJob
-      ? {}
-      : {
-          createNativeTmsJob: {
-            enabled: true,
-            useProjectTargetLocales: legacy.useProjectTargetLocales ?? true,
-            targetLocales: Array.isArray(legacy.targetLocales) ? legacy.targetLocales : [],
-          },
-        }),
-    ...(hasAssignTranslateWithAgent
-      ? {}
-      : {
-          assignTranslateWithAgent: {
-            enabled: true,
-          },
-        }),
-  };
-}
-
-const toolConfigObjectSchema = z
-  .object({
-    github: githubToolConfigSchema.optional(),
-    slack: slackToolConfigSchema.optional(),
-    email: emailToolConfigSchema.optional(),
-    contentful: contentfulToolConfigSchema.optional(),
-    createNativeTmsJob: createNativeTmsJobToolConfigSchema.optional(),
-    assignTranslateWithAgent: assignTranslateWithAgentToolConfigSchema.optional(),
-    knowledge: knowledgeToolConfigSchema.optional(),
-    mcp: mcpToolConfigSchema.optional(),
-    semrush: semrushToolConfigSchema.optional(),
-    ahrefs: ahrefsToolConfigSchema.optional(),
-  })
-  .default({});
-
-const toolConfigSchema = z.preprocess((value) => {
-  if (!value || typeof value !== "object" || Array.isArray(value)) {
-    return {};
-  }
-  return migrateLegacyTranslationToolConfig(value as Record<string, unknown>);
-}, toolConfigObjectSchema);
-
-export const workspaceAutomationConfigSchema = z.object({
-  projectId: optionalProjectIdSchema,
-  triggerConfig: triggerConfigSchema,
-  repositoryTarget: repositoryTargetSchema,
-  toolConfig: toolConfigSchema,
-});
-
-export type WorkspaceAutomationStatus = z.infer<typeof workspaceAutomationStatusSchema>;
-export type WorkspaceAutomationRunStatus = z.infer<typeof workspaceAutomationRunStatusSchema>;
-export type WorkspaceAutomationRunTriggerSource = z.infer<
-  typeof workspaceAutomationRunTriggerSourceSchema
->;
-export type WorkspaceAutomationTriggerConfig = z.infer<typeof triggerConfigSchema>;
-export type WorkspaceAutomationRepositoryTarget = z.infer<typeof repositoryTargetSchema>;
-export type WorkspaceAutomationSlackToolConfig = z.infer<typeof slackToolConfigSchema>;
-export type WorkspaceAutomationEmailToolConfig = z.infer<typeof emailToolConfigSchema>;
-export type WorkspaceAutomationContentfulToolConfig = z.infer<typeof contentfulToolConfigSchema>;
-export type WorkspaceAutomationCreateNativeTmsJobToolConfig = z.infer<
-  typeof createNativeTmsJobToolConfigSchema
->;
-export type WorkspaceAutomationAssignTranslateWithAgentToolConfig = z.infer<
-  typeof assignTranslateWithAgentToolConfigSchema
->;
-export type WorkspaceAutomationKnowledgeToolConfig = z.infer<typeof knowledgeToolConfigSchema>;
-export type WorkspaceAutomationMcpToolConfig = z.infer<typeof mcpToolConfigSchema>;
-export type WorkspaceAutomationSemrushToolConfig = z.infer<typeof semrushToolConfigSchema>;
-export type WorkspaceAutomationAhrefsToolConfig = z.infer<typeof ahrefsToolConfigSchema>;
-export type WorkspaceAutomationToolConfig = z.infer<typeof toolConfigObjectSchema>;
-
-export type WorkspaceAutomationConfigValidationError =
-  | {
-      code: "github_repository_target_required";
-      message: "Enabled GitHub tools require a GitHub repository target.";
-    }
-  | {
-      code: "project_required";
-      message: "Choose a Hyperlocalise project for this automation.";
-    }
-  | {
-      code: "github_trigger_required";
-      message: "Enabled GitHub tools require a scheduled or GitHub push trigger.";
-    }
-  | {
-      code: "github_agent_trigger_required";
-      message: "GitHub repo agent automations support scheduled or manual triggers only.";
-    }
-  | {
-      code: "github_push_branches_required";
-      message: "GitHub push triggers require at least one branch pattern.";
-    }
-  | {
-      code: "scheduled_workflow_required";
-      message: "Scheduled automations require at least one GitHub or Contentful workflow.";
-    }
-  | {
-      code: "contentful_connection_required";
-      message: "Enabled Contentful tools require a Contentful connection.";
-    }
-  | {
-      code: "contentful_target_locales_required";
-      message: "Enabled Contentful tools require at least one target locale.";
-    }
-  | {
-      code: "contentful_entry_id_required";
-      message: "Scheduled Contentful automations require an entry ID.";
-    }
-  | {
-      code: "slack_not_connected";
-      message: "Enable the Slack integration before using Slack notifications.";
-    }
-  | {
-      code: "slack_channel_required";
-      message: "Choose a Slack channel for automation notifications.";
-    }
-  | {
-      code: "email_not_connected";
-      message: "Enable the email agent before using email notifications.";
-    }
-  | {
-      code: "email_recipients_required";
-      message: "Add at least one email recipient for automation notifications.";
-    }
-  | {
-      code: "create_native_tms_job_target_locales_required";
-      message: "Create job requires at least one target locale.";
-    }
-  | {
-      code: "assign_translate_with_agent_requires_create_job";
-      message: "Translate with agent requires Create job to be enabled.";
-    }
-  | {
-      code: "source_upload_workflow_required";
-      message: "Source upload triggers require Create job to be enabled.";
-    }
-  | {
-      code: "mcp_connection_required";
-      message: "Enabled MCP Server tools require an MCP server connection.";
-    }
-  | {
-      code: "mcp_connection_not_found";
-      message: "The selected MCP server connection was not found. Choose another connection.";
-    }
-  | {
-      code: "mcp_not_connected";
-      message: "Enable the selected MCP server connection in Integrations before using it.";
-    }
-  | {
-      code: "semrush_connection_required";
-      message: "Enabled Semrush tools require a Semrush connection.";
-    }
-  | {
-      code: "semrush_connection_not_found";
-      message: "The selected Semrush connection was not found. Choose another connection.";
-    }
-  | {
-      code: "semrush_not_connected";
-      message: "Enable the selected Semrush connection in Integrations before using it.";
-    }
-  | {
-      code: "ahrefs_connection_required";
-      message: "Enabled Ahrefs tools require an Ahrefs connection.";
-    }
-  | {
-      code: "ahrefs_connection_not_found";
-      message: "The selected Ahrefs connection was not found. Choose another connection.";
-    }
-  | {
-      code: "ahrefs_not_connected";
-      message: "Enable the selected Ahrefs connection in Integrations before using it.";
-    };
+export * from "./workspace-automation-types";
 
 type AutomationRow = typeof schema.workspaceAutomations.$inferSelect;
 type AutomationRunRow = typeof schema.workspaceAutomationRuns.$inferSelect;
 
-export function hasWorkspaceAutomationContentfulWorkflow(
-  toolConfig: WorkspaceAutomationToolConfig,
-) {
-  return Boolean(toolConfig.contentful?.enabled);
-}
-
-export function hasWorkspaceAutomationCreateNativeTmsJobTool(
-  toolConfig: WorkspaceAutomationToolConfig,
-) {
-  return Boolean(toolConfig.createNativeTmsJob?.enabled);
-}
-
-export function hasWorkspaceAutomationAssignTranslateWithAgentTool(
-  toolConfig: WorkspaceAutomationToolConfig,
-) {
-  return Boolean(toolConfig.assignTranslateWithAgent?.enabled);
-}
-
-export function hasWorkspaceAutomationKnowledgeTool(toolConfig: WorkspaceAutomationToolConfig) {
-  return Boolean(toolConfig.knowledge?.enabled);
-}
-
-// Meaningless without hasWorkspaceAutomationKnowledgeTool — callers must check both, not just this.
-export function hasWorkspaceAutomationKnowledgeUpdatesAllowed(
-  toolConfig: WorkspaceAutomationToolConfig,
-) {
-  return Boolean(toolConfig.knowledge?.enabled && toolConfig.knowledge.allowUpdates);
-}
-
-export function hasWorkspaceAutomationMcpTool(toolConfig: WorkspaceAutomationToolConfig) {
-  return Boolean(toolConfig.mcp?.enabled);
-}
-
-export function hasWorkspaceAutomationSemrushTool(toolConfig: WorkspaceAutomationToolConfig) {
-  return Boolean(toolConfig.semrush?.enabled);
-}
-
-export function hasWorkspaceAutomationAhrefsTool(toolConfig: WorkspaceAutomationToolConfig) {
-  return Boolean(toolConfig.ahrefs?.enabled);
-}
-
-export type WorkspaceAutomationRecord = {
-  id: string;
-  organizationId: string;
-  authorUserId: string | null;
-  status: WorkspaceAutomationStatus;
-  name: string;
-  instructions: string;
-  projectId: string | null;
-  triggerConfig: WorkspaceAutomationTriggerConfig;
-  repositoryTarget: WorkspaceAutomationRepositoryTarget;
-  toolConfig: WorkspaceAutomationToolConfig;
-  configVersion: number;
-  nextRunAt: string | null;
-  createdAt: string;
-  updatedAt: string;
+type AutomationAuthor = {
+  firstName: string | null;
+  lastName: string | null;
+  email: string | null;
 };
-
-function readOptionalProjectId(value: unknown): string | null {
-  if (typeof value !== "string") {
-    return null;
-  }
-  const trimmed = value.trim();
-  return trimmed.length > 0 ? trimmed : null;
-}
-
-export function hoistLegacyWorkspaceAutomationProjectId(
-  toolConfig: Record<string, unknown> | WorkspaceAutomationToolConfig,
-): string | null {
-  const rawToolConfig = toolConfig as Record<string, unknown>;
-  const contentful =
-    rawToolConfig.contentful && typeof rawToolConfig.contentful === "object"
-      ? (rawToolConfig.contentful as { projectId?: unknown }).projectId
-      : undefined;
-  const translation =
-    rawToolConfig.translation && typeof rawToolConfig.translation === "object"
-      ? (rawToolConfig.translation as { projectId?: unknown }).projectId
-      : undefined;
-  const github =
-    rawToolConfig.github && typeof rawToolConfig.github === "object"
-      ? (rawToolConfig.github as { projectId?: unknown }).projectId
-      : undefined;
-
-  // Only hoist when every non-empty legacy tool projectId agrees. The pre-header
-  // UI let Contentful diverge from the header-owned GitHub/translation pickers;
-  // preferring one winner would silently run those tools against the wrong project.
-  const distinctProjectIds = [
-    ...new Set(
-      [contentful, translation, github]
-        .map((value) => readOptionalProjectId(value))
-        .filter((value): value is string => value !== null),
-    ),
-  ];
-  return distinctProjectIds.length === 1 ? (distinctProjectIds[0] ?? null) : null;
-}
 
 export function workspaceAutomationNeedsProject(input: {
   triggerConfig: WorkspaceAutomationTriggerConfig;
@@ -484,38 +82,13 @@ export function workspaceAutomationNeedsProject(input: {
   ) {
     return true;
   }
+  if (
+    hasWorkspaceAutomationListIssuesTool(input.toolConfig) ||
+    hasWorkspaceAutomationCreateIssueTool(input.toolConfig)
+  ) {
+    return true;
+  }
   return hasWorkspaceAutomationGithubWorkflow(input.toolConfig);
-}
-
-export type WorkspaceAutomationRunRecord = {
-  id: string;
-  automationId: string;
-  organizationId: string;
-  triggerSource: WorkspaceAutomationRunTriggerSource;
-  status: WorkspaceAutomationRunStatus;
-  idempotencyKey: string | null;
-  inputSnapshot: Record<string, unknown>;
-  outputSummary: Record<string, unknown>;
-  error: Record<string, unknown> | null;
-  githubRepositoryAutomationJobId: string | null;
-  startedAt: string | null;
-  completedAt: string | null;
-  createdAt: string;
-  updatedAt: string;
-};
-
-function normalizeTriggerConfig(value: Record<string, unknown>): WorkspaceAutomationTriggerConfig {
-  return triggerConfigSchema.parse(value);
-}
-
-function normalizeRepositoryTarget(
-  value: Record<string, unknown>,
-): WorkspaceAutomationRepositoryTarget {
-  return repositoryTargetSchema.parse(value);
-}
-
-function normalizeToolConfig(value: Record<string, unknown>): WorkspaceAutomationToolConfig {
-  return toolConfigSchema.parse(value);
 }
 
 function validateWorkspaceAutomationConfig(input: {
@@ -539,7 +112,8 @@ function validateWorkspaceAutomationConfig(input: {
   }
 
   const githubTools = input.toolConfig.github;
-  if (githubTools?.enabled) {
+  const githubCommentEnabled = Boolean(input.toolConfig.githubComment?.enabled);
+  if (githubTools?.enabled || githubCommentEnabled) {
     if (
       input.repositoryTarget.kind !== "github" ||
       !input.repositoryTarget.githubInstallationRepositoryId
@@ -549,36 +123,54 @@ function validateWorkspaceAutomationConfig(input: {
         message: "Enabled GitHub tools require a GitHub repository target.",
       });
     }
+  }
 
-    const githubMode = githubTools.mode ?? "sync";
+  if (
+    input.triggerConfig.mode === "github" &&
+    (!input.triggerConfig.branches || input.triggerConfig.branches.length === 0)
+  ) {
+    return err({
+      code: "github_push_branches_required",
+      message: "GitHub triggers require at least one branch pattern.",
+    });
+  }
 
-    if (githubMode === "agent") {
-      if (input.triggerConfig.mode === "github") {
-        return err({
-          code: "github_agent_trigger_required",
-          message: "GitHub repo agent automations support scheduled or manual triggers only.",
-        });
-      }
-    } else if (
-      input.triggerConfig.mode === "github" &&
-      (!input.triggerConfig.branches || input.triggerConfig.branches.length === 0)
-    ) {
-      return err({
-        code: "github_push_branches_required",
-        message: "GitHub push triggers require at least one branch pattern.",
-      });
-    }
+  if (
+    input.triggerConfig.mode === "github" &&
+    input.triggerConfig.events &&
+    input.triggerConfig.events.length === 0
+  ) {
+    return err({
+      code: "github_events_required",
+      message: "GitHub triggers require at least one event.",
+    });
   }
 
   if (
     input.triggerConfig.mode === "scheduled" &&
     !hasWorkspaceAutomationGithubAgentTool(input.toolConfig) &&
     !hasWorkspaceAutomationGithubWorkflow(input.toolConfig) &&
-    !hasWorkspaceAutomationContentfulWorkflow(input.toolConfig)
+    !hasWorkspaceAutomationContentfulWorkflow(input.toolConfig) &&
+    !hasWorkspaceAutomationListIssuesTool(input.toolConfig) &&
+    !hasWorkspaceAutomationCreateIssueTool(input.toolConfig) &&
+    !hasWorkspaceAutomationWebSearchTool(input.toolConfig) &&
+    !hasWorkspaceAutomationCrowdinTool(input.toolConfig)
   ) {
     return err({
       code: "scheduled_workflow_required",
-      message: "Scheduled automations require at least one GitHub or Contentful workflow.",
+      message:
+        "Scheduled automations require at least one GitHub, Contentful, Issues, Web Search, or Crowdin workflow tool.",
+    });
+  }
+
+  if (
+    input.triggerConfig.mode === "scheduled" &&
+    input.triggerConfig.schedule &&
+    !isValidAutomationTimeZone(input.triggerConfig.schedule.timezone)
+  ) {
+    return err({
+      code: "invalid_automation_timezone",
+      message: "Choose a valid timezone for the schedule.",
     });
   }
 
@@ -674,6 +266,14 @@ function validateWorkspaceAutomationConfig(input: {
     return err({
       code: "ahrefs_connection_required",
       message: "Enabled Ahrefs tools require an Ahrefs connection.",
+    });
+  }
+
+  const crowdinTools = input.toolConfig.crowdin;
+  if (crowdinTools?.enabled && !readOptionalProjectId(crowdinTools.projectId)) {
+    return err({
+      code: "crowdin_project_required",
+      message: "Enabled Crowdin tools require a Crowdin-linked project.",
     });
   }
 
@@ -871,18 +471,80 @@ export async function validateWorkspaceAutomationIntegrations(input: {
     }
   }
 
+  if (input.toolConfig.crowdin?.enabled) {
+    const projectId = readOptionalProjectId(input.toolConfig.crowdin.projectId);
+    if (!projectId) {
+      return err({
+        code: "crowdin_project_required",
+        message: "Enabled Crowdin tools require a Crowdin-linked project.",
+      });
+    }
+
+    const encodedProject = parseProviderProjectId(projectId);
+    if (encodedProject) {
+      if (encodedProject.providerKind !== "crowdin") {
+        return err({
+          code: "crowdin_project_not_linked",
+          message: "The selected project is not linked to Crowdin. Choose a Crowdin project.",
+        });
+      }
+    } else {
+      const [project] = await database
+        .select({
+          id: schema.projects.id,
+          source: schema.projects.source,
+          externalProviderKind: schema.projects.externalProviderKind,
+        })
+        .from(schema.projects)
+        .where(
+          and(
+            eq(schema.projects.organizationId, input.organizationId),
+            eq(schema.projects.id, projectId),
+          ),
+        )
+        .limit(1);
+
+      if (!project) {
+        return err({
+          code: "crowdin_project_not_found",
+          message: "The selected Crowdin project was not found. Choose another project.",
+        });
+      }
+
+      if (project.source !== "external_tms" || project.externalProviderKind !== "crowdin") {
+        return err({
+          code: "crowdin_project_not_linked",
+          message: "The selected project is not linked to Crowdin. Choose a Crowdin project.",
+        });
+      }
+    }
+
+    const credential = await crowdinAuth.loadOrganizationCredential(input.organizationId);
+    if (!credential) {
+      return err({
+        code: "crowdin_not_connected",
+        message: "Connect Crowdin in Integrations before using Crowdin review tools.",
+      });
+    }
+  }
+
   return ok(undefined);
 }
 
-function serializeAutomation(row: AutomationRow): WorkspaceAutomationRecord {
+function serializeAutomation(
+  row: AutomationRow,
+  author?: AutomationAuthor | null,
+): WorkspaceAutomationRecord {
   const rawToolConfig = (row.toolConfig ?? {}) as Record<string, unknown>;
   return {
     id: row.id,
     organizationId: row.organizationId,
     authorUserId: row.authorUserId,
+    authorName: formatWorkspaceAutomationAuthorName(author),
     status: row.status,
     name: row.name,
     instructions: row.instructions,
+    model: resolveWorkspaceAutomationModel(row.model),
     projectId:
       readOptionalProjectId(row.projectId) ??
       hoistLegacyWorkspaceAutomationProjectId(rawToolConfig),
@@ -894,6 +556,47 @@ function serializeAutomation(row: AutomationRow): WorkspaceAutomationRecord {
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   };
+}
+
+function serializeAutomationWithAuthor(row: {
+  automation: AutomationRow;
+  authorFirstName: string | null;
+  authorLastName: string | null;
+  authorEmail: string | null;
+}): WorkspaceAutomationRecord {
+  return serializeAutomation(row.automation, {
+    firstName: row.authorFirstName,
+    lastName: row.authorLastName,
+    email: row.authorEmail,
+  });
+}
+
+const automationAuthorSelect = {
+  automation: schema.workspaceAutomations,
+  authorFirstName: schema.users.firstName,
+  authorLastName: schema.users.lastName,
+  authorEmail: schema.users.email,
+};
+
+async function loadAutomationAuthor(
+  userId: string | null,
+  database: DatabaseClient = db,
+): Promise<AutomationAuthor | null> {
+  if (!userId) {
+    return null;
+  }
+
+  const [user] = await database
+    .select({
+      firstName: schema.users.firstName,
+      lastName: schema.users.lastName,
+      email: schema.users.email,
+    })
+    .from(schema.users)
+    .where(eq(schema.users.id, userId))
+    .limit(1);
+
+  return user ?? null;
 }
 
 function serializeAutomationRun(row: AutomationRunRow): WorkspaceAutomationRunRecord {
@@ -933,6 +636,7 @@ export async function createWorkspaceAutomation(input: {
   status?: WorkspaceAutomationStatus;
   name: string;
   instructions: string;
+  model?: WorkspaceAutomationModel;
   projectId?: string | null;
   triggerConfig?: WorkspaceAutomationTriggerConfig;
   repositoryTarget?: WorkspaceAutomationRepositoryTarget;
@@ -961,9 +665,11 @@ export async function createWorkspaceAutomation(input: {
     id: crypto.randomUUID(),
     organizationId: input.organizationId,
     authorUserId: input.authorUserId ?? null,
+    authorName: null,
     status: input.status ?? "active",
     name: input.name,
     instructions: input.instructions,
+    model: resolveWorkspaceAutomationModel(input.model),
     projectId,
     triggerConfig: config.triggerConfig,
     repositoryTarget: config.repositoryTarget,
@@ -1004,6 +710,7 @@ export async function createWorkspaceAutomation(input: {
         status: input.status ?? "active",
         name: input.name,
         instructions: input.instructions,
+        model: resolveWorkspaceAutomationModel(input.model),
         projectId,
         triggerConfig: config.triggerConfig,
         githubInstallationRepositoryId:
@@ -1020,7 +727,7 @@ export async function createWorkspaceAutomation(input: {
       throw new Error("failed_to_create_workspace_automation");
     }
 
-    return ok(serializeAutomation(row));
+    return ok(serializeAutomation(row, await loadAutomationAuthor(row.authorUserId, database)));
   };
 
   if (input.db) {
@@ -1038,6 +745,7 @@ export async function updateWorkspaceAutomation(input: {
   status?: WorkspaceAutomationStatus;
   name?: string;
   instructions?: string;
+  model?: WorkspaceAutomationModel;
   projectId?: string | null;
   triggerConfig?: WorkspaceAutomationTriggerConfig;
   repositoryTarget?: WorkspaceAutomationRepositoryTarget;
@@ -1095,6 +803,8 @@ export async function updateWorkspaceAutomation(input: {
     status: input.status ?? existing.status,
     name: input.name ?? existing.name,
     instructions: input.instructions ?? existing.instructions,
+    model:
+      input.model !== undefined ? resolveWorkspaceAutomationModel(input.model) : existing.model,
     projectId,
     triggerConfig: config.triggerConfig,
     repositoryTarget: config.repositoryTarget,
@@ -1151,6 +861,9 @@ export async function updateWorkspaceAutomation(input: {
         ...(input.status !== undefined ? { status: input.status } : {}),
         ...(input.name !== undefined ? { name: input.name } : {}),
         ...(input.instructions !== undefined ? { instructions: input.instructions } : {}),
+        ...(input.model !== undefined
+          ? { model: resolveWorkspaceAutomationModel(input.model) }
+          : {}),
         ...(configChanged
           ? {
               projectId,
@@ -1179,7 +892,9 @@ export async function updateWorkspaceAutomation(input: {
       .where(and(...updateConditions))
       .returning();
 
-    return ok(row ? serializeAutomation(row) : null);
+    return ok(
+      row ? serializeAutomation(row, await loadAutomationAuthor(row.authorUserId, database)) : null,
+    );
   };
 
   if (input.db) {
@@ -1219,8 +934,9 @@ export async function getWorkspaceAutomationById(input: {
   organizationId: string;
 }): Promise<WorkspaceAutomationRecord | null> {
   const [row] = await db
-    .select()
+    .select(automationAuthorSelect)
     .from(schema.workspaceAutomations)
+    .leftJoin(schema.users, eq(schema.workspaceAutomations.authorUserId, schema.users.id))
     .where(
       and(
         eq(schema.workspaceAutomations.id, input.automationId),
@@ -1229,11 +945,27 @@ export async function getWorkspaceAutomationById(input: {
     )
     .limit(1);
 
-  return row ? serializeAutomation(row) : null;
+  return row ? serializeAutomationWithAuthor(row) : null;
+}
+
+function workspaceAutomationMatchesProjectId(projectId: string) {
+  return or(
+    eq(schema.workspaceAutomations.projectId, projectId),
+    and(
+      isNull(schema.workspaceAutomations.projectId),
+      sql`(
+        ${schema.workspaceAutomations.toolConfig}->'contentful'->>'projectId' = ${projectId}
+        OR ${schema.workspaceAutomations.toolConfig}->'translation'->>'projectId' = ${projectId}
+        OR ${schema.workspaceAutomations.toolConfig}->'github'->>'projectId' = ${projectId}
+        OR ${schema.workspaceAutomations.toolConfig}->'createNativeTmsJob'->>'projectId' = ${projectId}
+      )`,
+    ),
+  );
 }
 
 export async function listWorkspaceAutomations(input: {
   organizationId: string;
+  projectId?: string;
   status?: WorkspaceAutomationStatus;
   contentfulWebhookConnectionId?: string;
   contentfulWebhookContentTypeId?: string | null;
@@ -1247,6 +979,7 @@ export async function listWorkspaceAutomations(input: {
 
   const conditions = [
     eq(schema.workspaceAutomations.organizationId, input.organizationId),
+    ...(input.projectId ? [workspaceAutomationMatchesProjectId(input.projectId)] : []),
     ...(input.status ? [eq(schema.workspaceAutomations.status, input.status)] : []),
     ...(input.contentfulWebhookConnectionId
       ? [
@@ -1278,14 +1011,15 @@ export async function listWorkspaceAutomations(input: {
   ];
 
   const rows = await db
-    .select()
+    .select(automationAuthorSelect)
     .from(schema.workspaceAutomations)
+    .leftJoin(schema.users, eq(schema.workspaceAutomations.authorUserId, schema.users.id))
     .where(and(...conditions))
     .orderBy(desc(schema.workspaceAutomations.createdAt))
     .limit(input.limit ?? 50)
     .offset(input.offset ?? 0);
 
-  return rows.map(serializeAutomation);
+  return rows.map(serializeAutomationWithAuthor);
 }
 
 export async function listSourceUploadWorkspaceAutomations(input: {
@@ -1305,43 +1039,29 @@ export async function listSourceUploadWorkspaceAutomations(input: {
           ${schema.workspaceAutomations.toolConfig}->'createNativeTmsJob'->>'enabled' = 'true'
           OR ${schema.workspaceAutomations.toolConfig}->'translation'->>'enabled' = 'true'
         )`,
-        or(
-          eq(schema.workspaceAutomations.projectId, input.projectId),
-          and(
-            isNull(schema.workspaceAutomations.projectId),
-            sql`(
-              ${schema.workspaceAutomations.toolConfig}->'createNativeTmsJob'->>'projectId' = ${input.projectId}
-              OR ${schema.workspaceAutomations.toolConfig}->'translation'->>'projectId' = ${input.projectId}
-            )`,
-          ),
-        ),
+        workspaceAutomationMatchesProjectId(input.projectId),
       ),
     )
     .orderBy(desc(schema.workspaceAutomations.createdAt))
     .limit(input.limit ?? 20);
 
-  return rows.map(serializeAutomation);
+  return rows.map((row) => serializeAutomation(row));
 }
-
-export type DueWorkspaceAutomation = {
-  automation: WorkspaceAutomationRecord;
-  repository: typeof schema.githubInstallationRepositories.$inferSelect;
-};
 
 export async function listDueWorkspaceAutomations(input: {
   now?: Date;
   limit?: number;
-}): Promise<DueWorkspaceAutomation[]> {
+  organizationId?: string;
+}): Promise<WorkspaceAutomationRecord[]> {
   const now = input.now ?? new Date();
   const limit = input.limit ?? 100;
 
   const rows = await db
     .select({
       automation: schema.workspaceAutomations,
-      repository: schema.githubInstallationRepositories,
     })
     .from(schema.workspaceAutomations)
-    .innerJoin(
+    .leftJoin(
       schema.githubInstallationRepositories,
       eq(
         schema.workspaceAutomations.githubInstallationRepositoryId,
@@ -1353,17 +1073,63 @@ export async function listDueWorkspaceAutomations(input: {
         eq(schema.workspaceAutomations.status, "active"),
         isNotNull(schema.workspaceAutomations.nextRunAt),
         lte(schema.workspaceAutomations.nextRunAt, now),
-        eq(schema.githubInstallationRepositories.enabled, true),
-        eq(schema.githubInstallationRepositories.archived, false),
+        sql`${schema.workspaceAutomations.triggerConfig}->>'mode' = 'scheduled'`,
+        or(
+          isNull(schema.workspaceAutomations.githubInstallationRepositoryId),
+          and(
+            eq(schema.githubInstallationRepositories.enabled, true),
+            eq(schema.githubInstallationRepositories.archived, false),
+          ),
+        ),
+        ...(input.organizationId
+          ? [eq(schema.workspaceAutomations.organizationId, input.organizationId)]
+          : []),
       ),
     )
     .orderBy(asc(schema.workspaceAutomations.nextRunAt), asc(schema.workspaceAutomations.id))
     .limit(limit);
 
-  return rows.map(({ automation, repository }) => ({
-    automation: serializeAutomation(automation),
-    repository,
-  }));
+  return rows.map(({ automation }) => serializeAutomation(automation));
+}
+
+export async function repairMissingScheduledWorkspaceAutomationNextRuns(input?: {
+  now?: Date;
+  limit?: number;
+}): Promise<number> {
+  const now = input?.now ?? new Date();
+  const limit = input?.limit ?? 100;
+
+  const rows = await db
+    .select()
+    .from(schema.workspaceAutomations)
+    .where(
+      and(
+        eq(schema.workspaceAutomations.status, "active"),
+        isNull(schema.workspaceAutomations.nextRunAt),
+        sql`${schema.workspaceAutomations.triggerConfig}->>'mode' = 'scheduled'`,
+      ),
+    )
+    .orderBy(asc(schema.workspaceAutomations.id))
+    .limit(limit);
+
+  let updated = 0;
+  for (const row of rows) {
+    const nextRunAt = resolveNextRunAtForWorkspaceAutomation(serializeAutomation(row), now);
+    if (!nextRunAt) {
+      continue;
+    }
+
+    await db
+      .update(schema.workspaceAutomations)
+      .set({
+        nextRunAt,
+        updatedAt: new Date(),
+      })
+      .where(eq(schema.workspaceAutomations.id, row.id));
+    updated += 1;
+  }
+
+  return updated;
 }
 
 export async function listDueContentfulWorkspaceAutomations(input: {
@@ -1393,7 +1159,7 @@ export async function listDueContentfulWorkspaceAutomations(input: {
     .limit(limit);
 
   return rows
-    .map(serializeAutomation)
+    .map((row) => serializeAutomation(row))
     .filter(
       (automation) =>
         automation.triggerConfig.mode === "scheduled" &&

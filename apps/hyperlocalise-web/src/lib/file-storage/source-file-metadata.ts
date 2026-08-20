@@ -45,6 +45,8 @@ export function sourceContentType(path: string) {
       return "image/jpeg";
     case "webp":
       return "image/webp";
+    case "mp4":
+      return "video/mp4";
     case "docx":
       return "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
     case "xlsx":

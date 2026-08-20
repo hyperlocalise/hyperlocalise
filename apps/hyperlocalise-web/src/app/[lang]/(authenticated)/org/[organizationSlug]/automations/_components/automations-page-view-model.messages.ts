@@ -40,6 +40,26 @@ export const automationsPageViewModelMessages = defineMessages({
     id: "sbr8qd8WgZ",
     description: "Trigger label for a manual automation in the list",
   },
+  triggerContentful: {
+    defaultMessage: "Contentful webhook",
+    id: "FBmmj9seNr",
+    description: "Trigger label for a Contentful webhook automation in the list",
+  },
+  triggerSourceUpload: {
+    defaultMessage: "Source upload",
+    id: "N0aSJ10JRf",
+    description: "Trigger label for a source upload automation in the list",
+  },
+  triggerWebChat: {
+    defaultMessage: "Web chat",
+    id: "J210+x7u6p",
+    description: "Trigger label for a web chat automation in the list",
+  },
+  toolKnowledgeFiles: {
+    defaultMessage: "Knowledge files",
+    id: "l0dInWPeYD",
+    description: "Tool badge when an automation uses uploaded knowledge files",
+  },
   toolGithub: {
     defaultMessage: "GitHub",
     id: "LKQXtMkDON",
@@ -55,9 +75,19 @@ export const automationsPageViewModelMessages = defineMessages({
     id: "6QqDATp4yt",
     description: "Tool badge when an automation uses email",
   },
+  toolGithubComment: {
+    defaultMessage: "PR comment",
+    id: "CvmC1QddwG",
+    description: "Tool badge when an automation posts GitHub pull request comments",
+  },
   toolMcpServer: {
     defaultMessage: "MCP Server",
     id: "RLPdxshxAq",
     description: "Tool badge when an automation uses an MCP server",
+  },
+  unknownCreator: {
+    defaultMessage: "Unknown",
+    id: "O+ldw8Aj3z",
+    description: "Fallback label when an automation has no creator name",
   },
 });

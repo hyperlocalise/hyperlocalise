@@ -21,9 +21,9 @@ import { createWorkosIdentify } from "./identify-workos-context";
 import { workosAdapter } from "./workos-adapter";
 import {
   WORKSPACE_AUTOMATIONS_FLAG,
+  WORKSPACE_DOMAINS_FLAG,
   WORKSPACE_FEATURE_UNAVAILABLE_REASON,
   WORKSPACE_GLOSSARY_SEARCH_FLAG,
-  WORKSPACE_ISSUES_FLAG,
   WORKSPACE_KNOWLEDGE_FLAG,
   WORKSPACE_VISUAL_MOCK_FLAG,
   type WorkosFlagEntities,
@@ -56,10 +56,10 @@ export const workspaceVisualMockFlag = flag<boolean, WorkosFlagEntities>({
   adapter: workosAdapter(),
 });
 
-export const workspaceIssuesFlag = flag<boolean, WorkosFlagEntities>({
-  key: WORKSPACE_ISSUES_FLAG,
+export const workspaceDomainsFlag = flag<boolean, WorkosFlagEntities>({
+  key: WORKSPACE_DOMAINS_FLAG,
   defaultValue: false,
-  description: "Workspace issues and project Issue Sheet for localization issue tracking.",
+  description: "Workspace domains for claimed sites and localisation audit reports.",
   adapter: workosAdapter(),
 });
 
@@ -76,15 +76,15 @@ export async function evaluateWorkspaceFeatureFlags(
 ): Promise<WorkspaceFeatureFlagState> {
   const identify = () => createWorkosIdentify(auth);
 
-  const [automations, knowledge, visualMock, issues, glossarySearch] = await Promise.all([
+  const [automations, knowledge, visualMock, domains, glossarySearch] = await Promise.all([
     workspaceAutomationsFlag.run({ identify }),
     workspaceKnowledgeFlag.run({ identify }),
     workspaceVisualMockFlag.run({ identify }),
-    workspaceIssuesFlag.run({ identify }),
+    workspaceDomainsFlag.run({ identify }),
     workspaceGlossarySearchFlag.run({ identify }),
   ]);
 
-  return { automations, knowledge, visualMock, issues, glossarySearch };
+  return { automations, knowledge, visualMock, domains, glossarySearch };
 }
 
 export async function resolveWorkspaceVisualMockFlag(input: {

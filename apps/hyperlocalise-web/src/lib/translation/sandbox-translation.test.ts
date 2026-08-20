@@ -12,21 +12,26 @@
  */
 import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
-const sandboxMocks = vi.hoisted(() => {
+const { envMock, sandboxMocks } = vi.hoisted(() => {
   const create = vi.fn();
   const output = vi.fn();
   const runCommand = vi.fn();
   const get = vi.fn();
 
-  return { create, get, output, runCommand };
+  return {
+    envMock: {
+      OPENAI_API_KEY: "test-openai-api-key" as string | undefined,
+      AI_GATEWAY_API_KEY: undefined as string | undefined,
+      AI_GATEWAY_BASE_URL: undefined as string | undefined,
+      FILE_STORAGE_PROVIDER: "vercel_blob",
+      FILE_STORAGE_ACCESS: "private",
+    },
+    sandboxMocks: { create, get, output, runCommand },
+  };
 });
 
 vi.mock("@/lib/env", () => ({
-  env: {
-    OPENAI_API_KEY: "test-openai-api-key",
-    FILE_STORAGE_PROVIDER: "vercel_blob",
-    FILE_STORAGE_ACCESS: "private",
-  },
+  env: envMock,
 }));
 
 vi.mock("@vercel/sandbox", () => ({
@@ -54,6 +59,7 @@ import {
   createTranslationSandbox,
   extractSandboxEntries,
   getOutputFilenamePattern,
+  getSandboxTranslationEnv,
   isSandboxDisconnectError,
   isSandboxStreamClosedError,
   isSandboxTransientNetworkError,
@@ -459,6 +465,8 @@ describe("sandbox translation temporary config", () => {
     const config = buildTempConfig("source.md", "source-de-DE.md", "en-US", "de-DE", null);
     expect(config).toContain("  file:");
     expect(config).not.toContain("  email:");
+    expect(config).toContain("provider: openai");
+    expect(config).toContain("model: gpt-5.6-luna");
     expect(config).toContain('from: "source.md"');
     expect(config).toContain('to: "source-de-DE.md"');
   });
@@ -558,6 +566,50 @@ describe("sandbox translation temporary config", () => {
     expect(config).toContain('from: "work_b_labels.json"');
     expect(config).toContain('to: "work_b_labels-{{target}}.json"');
     expect(config).toContain('- "fr-FR"');
+  });
+
+  it("writes the organization BYOK profile when a credential is provided", () => {
+    const byok = {
+      provider: "gemini" as const,
+      apiKey: "gem-org",
+      model: "gemini-3.5-flash",
+    };
+    const config = buildTempConfig(
+      "source.json",
+      "target.json",
+      "en-US",
+      "fr-FR",
+      null,
+      null,
+      byok,
+    );
+
+    expect(config).toContain("provider: gemini");
+    expect(config).toContain("model: gemini-3.5-flash");
+    expect(getSandboxTranslationEnv(byok)).toEqual({
+      GEMINI_API_KEY: "gem-org",
+    });
+  });
+
+  it("writes an ai_gateway profile and passes the Gateway key when that env var is set", () => {
+    const previousKey = envMock.AI_GATEWAY_API_KEY;
+    const previousBaseUrl = envMock.AI_GATEWAY_BASE_URL;
+    envMock.AI_GATEWAY_API_KEY = "vck_test_key";
+    envMock.AI_GATEWAY_BASE_URL = "https://ai-gateway.example.test/v1";
+    try {
+      const config = buildTempConfig("source.json", "target.json", "en-US", "fr-FR", null);
+
+      expect(config).toContain("provider: ai_gateway");
+      expect(config).toContain("model: openai/gpt-5.6-luna");
+      expect(getSandboxTranslationEnv()).toEqual({
+        OPENAI_API_KEY: "test-openai-api-key",
+        AI_GATEWAY_API_KEY: "vck_test_key",
+        AI_GATEWAY_BASE_URL: "https://ai-gateway.example.test/v1",
+      });
+    } finally {
+      envMock.AI_GATEWAY_API_KEY = previousKey;
+      envMock.AI_GATEWAY_BASE_URL = previousBaseUrl;
+    }
   });
 });
 

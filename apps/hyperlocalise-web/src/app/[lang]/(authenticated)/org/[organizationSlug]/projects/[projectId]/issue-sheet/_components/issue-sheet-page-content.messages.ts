@@ -160,6 +160,16 @@ export const issueSheetPageContentMessages = defineMessages({
     id: "8Wv1MRwzXX",
     description: "Description of the dialog to add a custom Issue Sheet column",
   },
+  columnIconLabel: {
+    defaultMessage: "Icon",
+    id: "u7sdfAXaot",
+    description: "Icon field label in the add Issue Sheet column dialog",
+  },
+  columnLabelField: {
+    defaultMessage: "Label",
+    id: "L0cbBkfUu2",
+    description: "Label field in the add Issue Sheet column dialog",
+  },
   columnLabelPlaceholder: {
     defaultMessage: "Column label, e.g. Sprint",
     id: "7zCB6p8hxw",

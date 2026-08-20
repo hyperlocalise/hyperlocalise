@@ -101,8 +101,10 @@ export class CatReviewController {
           if (
             !segment ||
             segment.contentKind === "image_file" ||
+            segment.contentKind === "video_file" ||
             segment.contentKind === "office_file" ||
-            segment.contentKind === "image_url"
+            segment.contentKind === "image_url" ||
+            segment.contentKind === "video_url"
           ) {
             return [];
           }
@@ -525,6 +527,35 @@ export class CatReviewController {
           this.skip(segmentId);
         }
       }
+    } finally {
+      this.workspace.isBulkActionPending = false;
+      this.workspace.clearChecked();
+    }
+  }
+
+  async bulkHide() {
+    await this.bulkSetHidden(true);
+  }
+
+  async bulkUnhide() {
+    await this.bulkSetHidden(false);
+  }
+
+  private async bulkSetHidden(isHidden: boolean) {
+    const segmentIds = [...this.workspace.checkedSegmentIds];
+    if (segmentIds.length === 0) {
+      return;
+    }
+
+    const handler = isHidden ? this.ports.review?.onBulkHide : this.ports.review?.onBulkUnhide;
+    if (!handler) {
+      return;
+    }
+
+    this.workspace.isBulkActionPending = true;
+    try {
+      await handler(segmentIds);
+      this.workspace.setSegmentsHidden(segmentIds, isHidden);
     } finally {
       this.workspace.isBulkActionPending = false;
       this.workspace.clearChecked();

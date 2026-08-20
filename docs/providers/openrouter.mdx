@@ -1,0 +1,54 @@
+---
+title: "OpenRouter"
+description: "Configure OpenRouter as an LLM provider for translation generation."
+---
+
+## Provider value
+
+Use `openrouter` in `llm.profiles.<name>.provider`.
+
+## Model IDs
+
+`model` is passed through to OpenRouter unchanged, for example `openai/gpt-5`,
+`anthropic/claude-opus-5`, or `google/gemini-2.5-flash-lite`. Hyperlocalise does
+not maintain its own catalogue of OpenRouter models; any model ID your
+OpenRouter account can access will work.
+
+## Example profile
+
+```json
+{
+  "llm": {
+    "profiles": {
+      "default": {
+        "provider": "openrouter",
+        "model": "google/gemini-2.5-flash-lite",
+        "prompt": "Translate from {{source}} to {{target}}:\n\n{{input}}"
+      }
+    }
+  }
+}
+```
+
+## Required environment variable
+
+<CodeGroup>
+```bash Export
+export OPENROUTER_API_KEY="your-openrouter-api-key"
+```
+
+```bash .env.local
+OPENROUTER_API_KEY="your-openrouter-api-key"
+```
+</CodeGroup>
+
+## Optional environment variable
+
+`OPENROUTER_BASE_URL` defaults to `https://openrouter.ai/api/v1`.
+
+## Attribution headers
+
+OpenRouter supports optional `HTTP-Referer` and `X-OpenRouter-Title` request
+headers (`X-Title` is accepted as an alias for the latter) to attribute usage
+to your app on OpenRouter's leaderboards. Hyperlocalise does not set these
+today; there is no per-provider custom-header configuration yet.

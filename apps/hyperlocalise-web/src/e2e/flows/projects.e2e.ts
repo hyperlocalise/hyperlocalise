@@ -27,7 +27,7 @@ describe("projects", () => {
     await page.getByRole("button", { name: "Create project" }).click();
     await page.getByRole("heading", { name: "Create project" }).waitFor({ state: "visible" });
 
-    await page.getByLabel("Name").fill(projectName);
+    await page.getByRole("textbox", { name: "Name" }).fill(projectName);
     await page.getByRole("button", { name: "Save project" }).click();
 
     await page.getByText(projectName).waitFor({ state: "visible" });

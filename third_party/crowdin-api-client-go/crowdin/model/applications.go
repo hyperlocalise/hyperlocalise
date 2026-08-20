@@ -93,6 +93,9 @@ type InstallApplicationRequest struct {
 	Permissions *ProjectPermission `json:"permissions,omitempty"`
 	// Modules with permissions to set for the application.
 	Modules []*InstallationModule `json:"modules,omitempty"`
+	// Force install application even if it is already installed.
+	// Default: false.
+	Force *bool `json:"force,omitempty"`
 }
 
 // InstallationReplaceValue represents the structure of the values to be replaced.

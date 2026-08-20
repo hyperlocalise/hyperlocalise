@@ -34,12 +34,14 @@ export function IssueAssigneeTableCell({
   issueId,
   assigneeUserId,
   assigneeLabel,
+  disabled = false,
 }: {
   organizationSlug: string;
   projectId: string;
   issueId: string;
   assigneeUserId: string | null;
   assigneeLabel: string | null;
+  disabled?: boolean;
 }) {
   const intl = useIntl();
   const queryClient = useQueryClient();
@@ -111,7 +113,7 @@ export function IssueAssigneeTableCell({
       currentLabel={assigneeLabel}
       members={membersQuery.data?.members ?? []}
       isLoading={membersQuery.isLoading}
-      disabled={updateAssignee.isPending}
+      disabled={disabled || updateAssignee.isPending}
       size="sm"
       onChange={(next) => {
         updateAssignee.mutate(next);

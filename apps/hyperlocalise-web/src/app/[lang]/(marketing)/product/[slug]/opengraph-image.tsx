@@ -42,6 +42,7 @@ export default async function Image({ params }: ProductOgImageProps) {
         id: "CYGau9cDQe",
         description: "Open Graph fallback description for unknown pages",
       }),
+      locale: lang,
     });
   }
 
@@ -55,11 +56,13 @@ export default async function Image({ params }: ProductOgImageProps) {
         id: "CYGau9cDQe",
         description: "Open Graph fallback description for unknown pages",
       }),
+      locale: lang,
     });
   }
 
   return createMarketingOgImage({
     heading: toMarketingOgHeading(metadata.title),
     description: metadata.description,
+    locale: lang,
   });
 }

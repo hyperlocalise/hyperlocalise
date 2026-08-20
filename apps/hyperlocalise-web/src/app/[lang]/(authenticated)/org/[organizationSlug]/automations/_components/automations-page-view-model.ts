@@ -21,12 +21,23 @@ import {
 import type {
   WorkspaceAutomationRecord,
   WorkspaceAutomationTriggerConfig,
-} from "@/lib/agents/workspace-automations";
+} from "@/lib/agents/workspace-automation-types";
 
 import { automationsPageViewModelMessages } from "./automations-page-view-model.messages";
 
-export function resolveVisibleAutomations(automations: WorkspaceAutomationRecord[]) {
-  return automations.filter((automation) => automation.status !== "archived");
+export function resolveVisibleAutomations(
+  automations: WorkspaceAutomationRecord[],
+  projectId?: string,
+) {
+  return automations.filter((automation) => {
+    if (automation.status === "archived") {
+      return false;
+    }
+    if (!projectId) {
+      return true;
+    }
+    return automation.projectId === projectId;
+  });
 }
 
 export function resolveAutomationPageStats(automations: WorkspaceAutomationRecord[]) {
@@ -83,6 +94,18 @@ export function formatAutomationRelativeTimestamp(
   });
 }
 
+export function resolveAutomationCreatorName(
+  intl: Pick<IntlShape, "formatMessage">,
+  automation: WorkspaceAutomationRecord,
+) {
+  const name = automation.authorName?.trim();
+  if (name) {
+    return name;
+  }
+
+  return intl.formatMessage(automationsPageViewModelMessages.unknownCreator);
+}
+
 export function resolveAutomationTriggerLabel(
   intl: IntlShape,
   triggerConfig: WorkspaceAutomationTriggerConfig,
@@ -92,6 +115,15 @@ export function resolveAutomationTriggerLabel(
   }
   if (triggerConfig.mode === "github") {
     return intl.formatMessage(automationsPageViewModelMessages.triggerGithub);
+  }
+  if (triggerConfig.mode === "contentful") {
+    return intl.formatMessage(automationsPageViewModelMessages.triggerContentful);
+  }
+  if (triggerConfig.mode === "source_upload") {
+    return intl.formatMessage(automationsPageViewModelMessages.triggerSourceUpload);
+  }
+  if (triggerConfig.mode === "web_chat") {
+    return intl.formatMessage(automationsPageViewModelMessages.triggerWebChat);
   }
   return intl.formatMessage(automationsPageViewModelMessages.triggerManual);
 }
@@ -107,8 +139,14 @@ export function resolveAutomationTools(intl: IntlShape, automation: WorkspaceAut
   if (automation.toolConfig.email?.enabled) {
     tools.push(intl.formatMessage(automationsPageViewModelMessages.toolEmail));
   }
+  if (automation.toolConfig.githubComment?.enabled) {
+    tools.push(intl.formatMessage(automationsPageViewModelMessages.toolGithubComment));
+  }
   if (automation.toolConfig.mcp?.enabled) {
     tools.push(intl.formatMessage(automationsPageViewModelMessages.toolMcpServer));
+  }
+  if (automation.toolConfig.knowledgeFiles?.enabled) {
+    tools.push(intl.formatMessage(automationsPageViewModelMessages.toolKnowledgeFiles));
   }
   return tools;
 }

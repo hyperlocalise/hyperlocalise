@@ -13,7 +13,7 @@
  * Version 2.0 or later.
  */
 import type { ComponentProps } from "react";
-import { Chat01Icon, FileSearchIcon } from "@hugeicons/core-free-icons";
+import { Chat01Icon, FileSearchIcon, Image01Icon, FileVideoIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { FormattedMessage, type MessageDescriptor, useIntl } from "react-intl";
 
@@ -71,6 +71,18 @@ export function buildChatDockSuggestions(
       label: formatMessage(chatDockMessages.suggestionFindContext),
       // Trailing space lets the user finish typing the string.
       prompt: `${formatMessage(chatDockMessages.promptFindContext)} `,
+    },
+    {
+      id: "localize-image",
+      icon: Image01Icon,
+      label: formatMessage(chatDockMessages.suggestionLocalizeImage),
+      prompt: `${formatMessage(chatDockMessages.promptLocalizeImage)} `,
+    },
+    {
+      id: "localize-video",
+      icon: FileVideoIcon,
+      label: formatMessage(chatDockMessages.suggestionLocalizeVideo),
+      prompt: `${formatMessage(chatDockMessages.promptLocalizeVideo)} `,
     },
   ];
 }

@@ -12,7 +12,8 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { AlertCircleIcon, AlertTriangleIcon } from "lucide-react";
+import { Alert02Icon, AlertCircleIcon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import { useMemo } from "react";
 import { useIntl } from "react-intl";
 
@@ -81,7 +82,7 @@ export function CatSideBySideFormatCheckIcon({
       : catSideBySidePanelMessages.formatCheckWarn,
     { count: actionableChecks.length },
   );
-  const Icon = status === "fail" ? AlertCircleIcon : AlertTriangleIcon;
+  const icon = status === "fail" ? AlertCircleIcon : Alert02Icon;
 
   return (
     <span
@@ -96,7 +97,7 @@ export function CatSideBySideFormatCheckIcon({
         className,
       )}
     >
-      <Icon className="size-3.5" aria-hidden />
+      <HugeiconsIcon icon={icon} className="size-3.5" aria-hidden />
     </span>
   );
 }

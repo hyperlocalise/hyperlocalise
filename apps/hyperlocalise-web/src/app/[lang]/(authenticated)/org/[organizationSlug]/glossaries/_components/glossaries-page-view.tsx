@@ -14,8 +14,17 @@
  */
 import { BookOpenTextIcon, Add01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
+import { useMemo, useState } from "react";
 import { FormattedMessage, useIntl } from "react-intl";
 
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import {
@@ -34,6 +43,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
 import { TypographyP } from "@/components/ui/typography";
@@ -48,10 +58,7 @@ import type { GlossaryListRow } from "./glossary-list";
 import { providerLabel } from "./glossary-list";
 import { GlossariesEmptyAction, GlossariesTable } from "./glossaries-table";
 import { glossariesPageViewMessages } from "./glossaries-page-view.messages";
-import {
-  ProjectSourceLocalePicker,
-  ProjectTargetLocalesPicker,
-} from "../../projects/_components/project-locale-picker";
+import { ProjectSourceLocalePicker } from "../../projects/_components/project-locale-picker";
 
 export const GLOSSARIES_PAGE_SIZE = 100;
 
@@ -59,7 +66,7 @@ export type GlossaryCreateForm = {
   name: string;
   description: string;
   sourceLocale: string;
-  targetLocales: string[];
+  projectIds: string[];
 };
 
 export function GlossariesPageView({
@@ -100,6 +107,7 @@ export function GlossariesPageView({
   onCreateDialogOpenChange,
   createForm,
   onCreateFormChange,
+  projects,
   createErrors,
   isCreating,
   onSubmitCreateGlossary,
@@ -141,12 +149,25 @@ export function GlossariesPageView({
   onCreateDialogOpenChange: (open: boolean) => void;
   createForm: GlossaryCreateForm;
   onCreateFormChange: (form: GlossaryCreateForm) => void;
-  createErrors: { name?: string; targetLocales?: string };
+  projects: Array<{ id: string; name: string; sourceLocale: string }>;
+  createErrors: { name?: string };
   isCreating: boolean;
   onSubmitCreateGlossary: () => void;
 }) {
   const intl = useIntl();
+  const [projectPickerOpen, setProjectPickerOpen] = useState(false);
   const liveProjectSelectionRequired = useLiveProviderGlossaries && !selectedExternalProjectId;
+  const selectableProjects = useMemo(
+    () => projects.filter((project) => project.sourceLocale === createForm.sourceLocale),
+    [createForm.sourceLocale, projects],
+  );
+  const selectedProjectNames = useMemo(
+    () =>
+      selectableProjects
+        .filter((project) => createForm.projectIds.includes(project.id))
+        .map((project) => project.name),
+    [createForm.projectIds, selectableProjects],
+  );
 
   const sourceFilterLabels = {
     all: intl.formatMessage(glossariesPageViewMessages.sourceAll),
@@ -488,21 +509,87 @@ export function GlossariesPageView({
             </Field>
             <ProjectSourceLocalePicker
               value={createForm.sourceLocale}
-              onChange={(sourceLocale) => onCreateFormChange({ ...createForm, sourceLocale })}
-              disabled={isCreating}
-            />
-            <ProjectTargetLocalesPicker
-              value={createForm.targetLocales}
-              sourceLocale={createForm.sourceLocale}
-              onChange={(targetLocales) =>
+              onChange={(sourceLocale) =>
                 onCreateFormChange({
                   ...createForm,
-                  targetLocales: targetLocales.slice(0, 1),
+                  sourceLocale,
+                  projectIds: createForm.projectIds.filter((projectId) =>
+                    projects.some(
+                      (project) =>
+                        project.id === projectId && project.sourceLocale === sourceLocale,
+                    ),
+                  ),
                 })
               }
               disabled={isCreating}
-              error={createErrors.targetLocales}
             />
+            <Field className="gap-1.5">
+              <FieldLabel>
+                <FormattedMessage {...glossariesPageViewMessages.projectLabel} />
+              </FieldLabel>
+              <Popover open={projectPickerOpen} onOpenChange={setProjectPickerOpen}>
+                <PopoverTrigger
+                  render={
+                    <Button
+                      type="button"
+                      variant="outline"
+                      disabled={isCreating}
+                      className="justify-between font-normal"
+                      aria-label={intl.formatMessage(glossariesPageViewMessages.projectLabel)}
+                    />
+                  }
+                >
+                  <span className="truncate text-left">
+                    {selectedProjectNames.length > 0
+                      ? selectedProjectNames.join(", ")
+                      : intl.formatMessage(glossariesPageViewMessages.projectPlaceholder)}
+                  </span>
+                </PopoverTrigger>
+                <PopoverContent align="start" className="w-[min(24rem,calc(100vw-3rem))] p-0">
+                  <Command>
+                    <CommandInput
+                      placeholder={intl.formatMessage(
+                        glossariesPageViewMessages.projectSearchPlaceholder,
+                      )}
+                    />
+                    <CommandList
+                      label={intl.formatMessage(glossariesPageViewMessages.projectLabel)}
+                      aria-multiselectable={true}
+                    >
+                      <CommandEmpty>
+                        {intl.formatMessage(glossariesPageViewMessages.projectSelectionEmpty)}
+                      </CommandEmpty>
+                      <CommandGroup>
+                        {selectableProjects.map((project) => {
+                          const checked = createForm.projectIds.includes(project.id);
+                          return (
+                            <CommandItem
+                              key={project.id}
+                              value={`${project.id} ${project.name}`}
+                              data-checked={checked || undefined}
+                              aria-checked={checked}
+                              onSelect={() =>
+                                onCreateFormChange({
+                                  ...createForm,
+                                  projectIds: checked
+                                    ? createForm.projectIds.filter((id) => id !== project.id)
+                                    : [...createForm.projectIds, project.id],
+                                })
+                              }
+                            >
+                              <span className="truncate">{project.name}</span>
+                            </CommandItem>
+                          );
+                        })}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
+              <TypographyP className="text-xs text-muted-foreground">
+                <FormattedMessage {...glossariesPageViewMessages.projectOptional} />
+              </TypographyP>
+            </Field>
             <Field className="gap-1.5">
               <FieldLabel>
                 <FormattedMessage {...glossariesPageViewMessages.descriptionLabel} />

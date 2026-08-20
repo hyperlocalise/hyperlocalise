@@ -19,6 +19,7 @@ import {
   hasEnabledGithubRepoAutomationWorkflow,
   validateGithubRepositoryAutomationSettings,
 } from "@/lib/agents/github/github-repository-automation-settings";
+import { isValidAutomationTimeZone } from "@/lib/agents/automation-time-zones";
 
 import { githubRepositoryAutomationViewModelMessages } from "./github-repository-automation-view-model.messages";
 
@@ -282,9 +283,7 @@ export function validateAutomationFormState(
     }
 
     const timezone = form.scheduledTimezone.trim() || "UTC";
-    try {
-      Intl.DateTimeFormat("en-US", { timeZone: timezone });
-    } catch {
+    if (!isValidAutomationTimeZone(timezone)) {
       errors.scheduledTimezone = intl.formatMessage(
         githubRepositoryAutomationViewModelMessages.invalidAutomationTimezone,
       );

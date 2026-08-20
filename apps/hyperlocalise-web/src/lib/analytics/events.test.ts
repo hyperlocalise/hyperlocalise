@@ -15,8 +15,13 @@ import { describe, expect, it } from "vite-plus/test";
 import { Analytics } from "./analytics";
 import {
   LOCALISATION_AUDIT_ANALYTICS_EVENTS,
+  PRODUCT_USAGE_ANALYTICS_EVENTS,
+  productUsageEventForAutumnEventName,
+  productUsageSourceForAutumnEventName,
+  productUsageSourceForMeterSource,
   sanitizeAnalyticsProperties,
   scoreBand,
+  tokenBand,
 } from "./events";
 
 describe("analytics sanitization", () => {
@@ -38,9 +43,11 @@ describe("analytics sanitization", () => {
   });
 
   it("maps score bands without inventing benchmarks", () => {
-    expect(scoreBand(92)).toBe("high");
-    expect(scoreBand(55)).toBe("mid");
-    expect(scoreBand(12)).toBe("low");
+    expect(scoreBand(92)).toBe("excellent");
+    expect(scoreBand(80)).toBe("good");
+    expect(scoreBand(55)).toBe("needs_improvement");
+    expect(scoreBand(30)).toBe("poor");
+    expect(scoreBand(12)).toBe("critical");
     expect(scoreBand(null)).toBe("unknown");
   });
 
@@ -56,5 +63,69 @@ describe("analytics sanitization", () => {
     });
 
     expect(calls).toEqual([[LOCALISATION_AUDIT_ANALYTICS_EVENTS.start, { outcome: "created" }]]);
+  });
+
+  it("keeps CAT source and feature properties", () => {
+    expect(
+      sanitizeAnalyticsProperties({
+        source: "native",
+        feature: "comment",
+        email: "leak@example.com",
+      }),
+    ).toEqual({
+      source: "native",
+      feature: "comment",
+    });
+  });
+
+  it("maps token bands without sending raw counts", () => {
+    expect(tokenBand(0)).toBe("none");
+    expect(tokenBand(12)).toBe("low");
+    expect(tokenBand(1000)).toBe("mid");
+    expect(tokenBand(10_000)).toBe("high");
+  });
+
+  it("maps Autumn meter names onto product usage events", () => {
+    expect(productUsageEventForAutumnEventName("translation_job.completed")).toBe(
+      PRODUCT_USAGE_ANALYTICS_EVENTS.translationJobCompleted,
+    );
+    expect(productUsageEventForAutumnEventName("agent_run.completed")).toBe(
+      PRODUCT_USAGE_ANALYTICS_EVENTS.agentRunCompleted,
+    );
+    expect(productUsageEventForAutumnEventName("ai_tokens.consumed")).toBe(
+      PRODUCT_USAGE_ANALYTICS_EVENTS.aiTokensConsumed,
+    );
+    expect(productUsageEventForAutumnEventName("unknown")).toBeNull();
+    expect(productUsageSourceForAutumnEventName("translation_job.completed")).toBe(
+      "translation_job",
+    );
+    expect(productUsageSourceForAutumnEventName("agent_run.completed")).toBe("agent_run");
+    expect(productUsageSourceForAutumnEventName("ai_tokens.consumed")).toBe("ai_tokens");
+    expect(productUsageSourceForAutumnEventName("unknown")).toBe("other");
+    expect(productUsageSourceForMeterSource("translation_job_complete")).toBe("translation_job");
+    expect(productUsageSourceForMeterSource("agent_runtime_complete")).toBe("agent_run");
+    expect(productUsageSourceForMeterSource("seat_added")).toBe("other");
+  });
+
+  it("fans out to every adapter and isolates provider failures", () => {
+    const calls: string[] = [];
+    const analytics = new Analytics([
+      (name) => {
+        calls.push(`first:${name}`);
+      },
+      () => {
+        throw new Error("provider down");
+      },
+      (name) => {
+        calls.push(`third:${name}`);
+      },
+    ]);
+
+    analytics.track(PRODUCT_USAGE_ANALYTICS_EVENTS.projectCreated, { status: "created" });
+
+    expect(calls).toEqual([
+      `first:${PRODUCT_USAGE_ANALYTICS_EVENTS.projectCreated}`,
+      `third:${PRODUCT_USAGE_ANALYTICS_EVENTS.projectCreated}`,
+    ]);
   });
 });

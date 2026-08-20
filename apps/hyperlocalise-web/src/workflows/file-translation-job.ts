@@ -16,10 +16,12 @@ import {
   sourceContainsTerm,
   validateGlossaryTermsInTranslation,
 } from "@/lib/glossary/validate-glossary-terms-in-translation";
+import { mergeTranslationPrefills } from "@/lib/projects/translations/should-retry-same-as-source-prefill";
 import {
   inferSupportedFileTranslationFileFormat,
   isImageTranslationFileFormat,
   isOfficeTranslationFileFormat,
+  isVideoTranslationFileFormat,
   isSupportedFileTranslationFileFormat,
   type SupportedTranslationFileFormat,
 } from "@/lib/translation/file-formats";
@@ -35,6 +37,7 @@ import {
   getRepositorySourcePathForStoredFileStep,
   loadProjectTranslationsAsPrefilledEntriesStep,
   localizeImageVariantForJobStep,
+  localizeVideoVariantForJobStep,
   persistFileProjectTranslationsStep,
   persistFileTranslationMemoryEntriesStep,
   reuseFileTranslationMemoryEntriesStep,
@@ -104,7 +107,14 @@ function classifyCliFailureKind(output: string): string {
   if (output.includes("escapes root")) {
     return "path_escapes_root";
   }
-  if (output.includes("OPENAI_API_KEY")) {
+  if (
+    output.includes("OPENAI_API_KEY") ||
+    output.includes("AI_GATEWAY_API_KEY") ||
+    output.includes("ANTHROPIC_API_KEY") ||
+    output.includes("GEMINI_API_KEY") ||
+    output.includes("GROQ_API_KEY") ||
+    output.includes("MISTRAL_API_KEY")
+  ) {
     return "missing_openai_api_key";
   }
   if (output.includes("planning tasks")) {
@@ -305,7 +315,7 @@ async function runTranslationStep(
   instructions: string | null,
   context: SandboxTranslationContext,
   prefilledByLocale: Record<string, Record<string, string>>,
-  options?: { force?: boolean; maxTranslations?: number },
+  options?: { force?: boolean; maxTranslations?: number; organizationId?: string },
 ) {
   "use step";
 
@@ -319,6 +329,10 @@ async function runTranslationStep(
     writeFileToSandbox,
     writeTempConfig,
   } = await import("@/lib/translation/sandbox");
+  const { loadSandboxByokCredential } = await import("@/lib/translation/sandbox-byok");
+  const byok = options?.organizationId
+    ? await loadSandboxByokCredential(options.organizationId)
+    : null;
 
   const config = buildMultiLocaleTempConfig(
     inputFile,
@@ -327,6 +341,7 @@ async function runTranslationStep(
     targetLocales,
     instructions,
     context,
+    byok,
   );
   await writeTempConfig(sandboxId, config, sandboxI18nConfigPath);
 
@@ -367,7 +382,7 @@ async function runTranslationStep(
         `hl run --config '${shellSingleQuote(sandboxI18nConfigPath)}'${localeArg}${forceFlag}${maxTranslationsFlag} --progress off${prefilledFlags}`,
       ],
       {
-        env: getSandboxTranslationEnv(),
+        env: getSandboxTranslationEnv(byok),
       },
     );
   } catch (error) {
@@ -448,7 +463,7 @@ async function assembleFileTranslationContextStep(input: {
 }) {
   "use step";
 
-  const { and, asc, eq, inArray } = await import("drizzle-orm");
+  const { and, asc, eq, inArray, sql } = await import("drizzle-orm");
   const { db, schema } = await import("@/lib/database");
 
   const [project] = await db
@@ -470,7 +485,7 @@ async function assembleFileTranslationContextStep(input: {
     .select({
       sourceTerm: schema.glossaryTerms.sourceTerm,
       targetTerm: schema.glossaryTerms.targetTerm,
-      targetLocale: schema.glossaries.targetLocale,
+      targetLocale: sql<string>`${schema.glossaries.targetLocale}`,
       description: schema.glossaryTerms.description,
       forbidden: schema.glossaryTerms.forbidden,
       caseSensitive: schema.glossaryTerms.caseSensitive,
@@ -646,6 +661,70 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
     }
   }
 
+  if (isVideoTranslationFileFormat(parsedInput.fileFormat as SupportedTranslationFileFormat)) {
+    let sourceFile: Awaited<ReturnType<typeof getStoredFileStep>>;
+    try {
+      sourceFile = await getStoredFileStep(parsedInput.sourceFileId, organizationId);
+    } catch {
+      await failTranslationJobStep({
+        jobId: claim.job.id,
+        projectId: claim.job.projectId,
+        workflowRunId: claim.job.workflowRunId,
+        code: "source_file_not_found",
+        message: `source file ${parsedInput.sourceFileId} not found`,
+      });
+      throw new Error("source file not found");
+    }
+
+    const repositorySourcePath =
+      (await getRepositorySourcePathForStoredFileStep(parsedInput.sourceFileId, organizationId)) ??
+      sourceFile.filename;
+
+    const outputFiles: Array<{ fileId: string; locale: string; filename: string }> = [];
+    try {
+      for (const targetLocale of parsedInput.targetLocales) {
+        const output = await localizeVideoVariantForJobStep({
+          organizationId,
+          projectId: claim.job.projectId,
+          sourcePath: repositorySourcePath,
+          targetLocale,
+          sourceLocale: parsedInput.sourceLocale,
+          sourceStoredFileId: parsedInput.sourceFileId,
+          sourceJobId: claim.job.id,
+        });
+        outputFiles.push(output);
+      }
+
+      await completeFileTranslationJobStep({
+        jobId: claim.job.id,
+        projectId: claim.job.projectId,
+        workflowRunId: claim.job.workflowRunId,
+        outputFiles,
+      });
+
+      return outputFiles;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "video translation failed";
+      const code = message.includes("video_duration")
+        ? message.includes("unreadable")
+          ? "video_duration_unreadable"
+          : "video_duration_unsupported"
+        : message.includes("video_edit_region_blocked")
+          ? "video_edit_region_blocked"
+          : message.includes("video_model_unavailable")
+            ? "video_model_unavailable"
+            : "video_localization_failed";
+      await failTranslationJobStep({
+        jobId: claim.job.id,
+        projectId: claim.job.projectId,
+        workflowRunId: claim.job.workflowRunId,
+        code,
+        message,
+      });
+      throw error;
+    }
+  }
+
   let sourceFile: Awaited<ReturnType<typeof getStoredFileStep>>;
   try {
     sourceFile = await getStoredFileStep(parsedInput.sourceFileId, organizationId);
@@ -760,6 +839,7 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
       }
 
       let existingPrefilled: Record<string, string> = {};
+      let retryKeys: string[] = [];
       if (repositorySourcePath) {
         const projectPrefill = await loadProjectTranslationsAsPrefilledEntriesStep({
           organizationId,
@@ -768,6 +848,7 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
           targetLocale,
         });
         existingPrefilled = projectPrefill.prefilled;
+        retryKeys = projectPrefill.retryKeys;
         if (projectPrefill.truncated) {
           console.warn("[file-translation-workflow] project translation prefill truncated", {
             jobId: claim.job.id,
@@ -785,9 +866,21 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
             prefilledEntryCount: Object.keys(existingPrefilled).length,
           });
         }
+        if (retryKeys.length > 0) {
+          console.info("[file-translation-workflow] omitted same-as-source review prefills", {
+            jobId: claim.job.id,
+            projectId: claim.job.projectId,
+            targetLocale,
+            omittedKeyCount: retryKeys.length,
+          });
+        }
       }
 
-      const merged = { ...tmPrefilled, ...existingPrefilled };
+      const merged = mergeTranslationPrefills({
+        tmPrefilled,
+        projectPrefilled: existingPrefilled,
+        retryKeys,
+      });
       if (Object.keys(merged).length > 0) {
         prefilledByLocale[targetLocale] = merged;
       }
@@ -901,7 +994,7 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
               .filter((locale) => prefilledByLocale[locale])
               .map((locale) => [locale, prefilledByLocale[locale]]),
           ),
-          { force: runForce, maxTranslations },
+          { force: runForce, maxTranslations, organizationId },
         );
 
       let translation: Awaited<ReturnType<typeof runTranslationStep>>;

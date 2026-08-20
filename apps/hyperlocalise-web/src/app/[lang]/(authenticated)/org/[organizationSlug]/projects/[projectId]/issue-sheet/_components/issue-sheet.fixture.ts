@@ -37,6 +37,8 @@ export type IssueSheetColumnFixture = {
   type: string;
   config: { options?: { id: string; label: string; color?: string }[] };
   sortOrder: number;
+  hidden: boolean;
+  icon: string | null;
 };
 
 export type IssueSheetIssueFixture = {
@@ -51,6 +53,7 @@ export type IssueSheetIssueFixture = {
   linkKind: string | null;
   linkLabel: string | null;
   linkUrl: string | null;
+  templateKey: string | null;
   assigneeUserId: string | null;
   reporter: string | null;
   assignee: string | null;
@@ -116,6 +119,8 @@ export const issueSheetColumnsFixture: IssueSheetColumnFixture[] = [
       ],
     },
     sortOrder: 0,
+    hidden: false,
+    icon: null,
   },
   {
     id: "col_owner_note",
@@ -125,6 +130,8 @@ export const issueSheetColumnsFixture: IssueSheetColumnFixture[] = [
     type: "long_text",
     config: {},
     sortOrder: 1,
+    hidden: false,
+    icon: null,
   },
   {
     id: "col_context",
@@ -134,6 +141,8 @@ export const issueSheetColumnsFixture: IssueSheetColumnFixture[] = [
     type: "enrichment",
     config: {},
     sortOrder: 30,
+    hidden: false,
+    icon: null,
   },
   {
     id: "col_acceptance",
@@ -143,6 +152,8 @@ export const issueSheetColumnsFixture: IssueSheetColumnFixture[] = [
     type: "long_text",
     config: {},
     sortOrder: 35,
+    hidden: false,
+    icon: "checklist",
   },
   {
     id: "col_sprint",
@@ -157,6 +168,8 @@ export const issueSheetColumnsFixture: IssueSheetColumnFixture[] = [
       ],
     },
     sortOrder: 40,
+    hidden: false,
+    icon: "calendar",
   },
   {
     id: "col_component",
@@ -166,6 +179,8 @@ export const issueSheetColumnsFixture: IssueSheetColumnFixture[] = [
     type: "text",
     config: {},
     sortOrder: 50,
+    hidden: false,
+    icon: "code",
   },
   {
     id: "col_reviewer",
@@ -175,6 +190,8 @@ export const issueSheetColumnsFixture: IssueSheetColumnFixture[] = [
     type: "user",
     config: {},
     sortOrder: 60,
+    hidden: false,
+    icon: "user",
   },
 ];
 
@@ -193,6 +210,7 @@ export function createIssueSheetIssue(
     linkKind: "cat_segment",
     linkLabel: null,
     linkUrl: null,
+    templateKey: "tpl_context_request",
     assigneeUserId: "user_otto",
     reporter: "Mina Chen",
     assignee: "Otto Klein",
@@ -228,6 +246,7 @@ export const issueSheetIssuesFixture: IssueSheetIssueFixture[] = [
     segmentId: "checkout.pay",
     key: "checkout.pay",
     sourceText: "Pay now",
+    templateKey: "tpl_translation_mistake",
     values: {
       priority: "P2",
       owner_note: "Shorten to fit mobile layout.",
@@ -250,6 +269,8 @@ export const issueSheetIssuesFixture: IssueSheetIssueFixture[] = [
     segmentId: "hero.title",
     key: "hero.title",
     sourceText: "Welcome back",
+    // No template — demonstrates the read-only Template row correctly staying hidden.
+    templateKey: null,
     reporter: "QA Bot",
     assignee: "Aiko Tanaka",
     assigneeUserId: "user_aiko",

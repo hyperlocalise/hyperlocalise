@@ -58,6 +58,22 @@ Body content`);
     expect(loadSharedSkill("string-translation")).toContain("localization engine");
   });
 
+  it("loads shared slack-notifications skill", () => {
+    expect(loadSharedSkill("slack-notifications")).toContain("## Slack notifications");
+  });
+
+  it("loads shared github-comment-notifications skill", () => {
+    expect(loadSharedSkill("github-comment-notifications")).toContain(
+      "## GitHub pull request comments",
+    );
+  });
+
+  it("loads shared recent-source-changes skill", () => {
+    expect(loadSharedSkill("recent-source-changes")).toContain("gitHistory");
+    expect(loadSharedSkill("recent-source-changes")).toContain("changedFiles");
+    expect(loadSharedSkill("recent-source-changes")).toContain("`git diff` exit code 1");
+  });
+
   it("maps tool filenames to runtime names", () => {
     expect(toolNameFromFilename("translate_string.ts")).toBe("translate_string");
   });

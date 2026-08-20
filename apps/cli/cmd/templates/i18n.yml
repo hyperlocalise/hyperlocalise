@@ -28,11 +28,11 @@ buckets:
 llm:
   # Profiles define provider/model and optional prompt behavior.
   # A default profile is required.
-  # Supported providers: openai, azure_openai, anthropic, gemini, bedrock, lmstudio, groq, mistral, ollama.
+  # Supported providers: openai, azure_openai, anthropic, gemini, bedrock, lmstudio, groq, mistral, ollama, openrouter, ai_gateway.
   # Available vars: {{source}}, {{target}}, {{input}}.
   profiles:
     default:
-      # Provider: openai, azure_openai, anthropic, gemini, bedrock, lmstudio, groq, mistral, or ollama.
+      # Provider: openai, azure_openai, anthropic, gemini, bedrock, lmstudio, groq, mistral, ollama, openrouter, or ai_gateway.
       provider: openai
       model: gpt-5.2
       # Optional explicit system message template.

@@ -12,7 +12,8 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { AlertCircleIcon } from "lucide-react";
+import { AlertCircleIcon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import { type ErrorInfo, type ReactNode } from "react";
 import { ErrorBoundary, type FallbackProps } from "react-error-boundary";
 import { FormattedMessage, useIntl } from "react-intl";
@@ -65,7 +66,11 @@ function ProjectFilesPanelFallback({
   return (
     <div className={cn("flex min-h-48 flex-col justify-center gap-3 p-4", className)} role="alert">
       <div className="flex items-start gap-2">
-        <AlertCircleIcon className="mt-0.5 size-4 shrink-0 text-flame-100" aria-hidden />
+        <HugeiconsIcon
+          icon={AlertCircleIcon}
+          className="mt-0.5 size-4 shrink-0 text-flame-100"
+          aria-hidden
+        />
         <div className="space-y-1">
           <TypographyP className="text-sm font-medium text-flame-100">
             {scope === "tree" ? (

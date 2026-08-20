@@ -35,4 +35,9 @@ export const issueGroupedListMessages = defineMessages({
     id: "YGfWnIp6A9",
     description: "Accessible label while the grouped issue list is loading",
   },
+  rowSelectAria: {
+    defaultMessage: "Select issue {title}",
+    id: "82drjDfpox",
+    description: "Accessible label for selecting an issue row for bulk actions",
+  },
 });

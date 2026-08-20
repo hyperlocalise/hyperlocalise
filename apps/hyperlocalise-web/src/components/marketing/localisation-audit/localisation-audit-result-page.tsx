@@ -38,6 +38,8 @@ type LocalisationAuditResultPageProps = {
     report: LocalisationAuditReport | null;
     unlocked: boolean;
     retryable?: boolean;
+    rerunnable?: boolean;
+    rerunAvailableAt?: string | null;
     errorCode: string | null;
     errorMessage?: string | null;
     completedAt?: string | null;

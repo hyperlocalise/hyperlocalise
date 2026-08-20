@@ -174,7 +174,7 @@ type FieldAddRequest struct {
 	//  - Locations
 	// For other type field config:
 	//  - Locations
-	Config FieldConfig `json:"config,omitempty"`
+	Config *FieldConfig `json:"config,omitempty"`
 }
 
 // Validate checks if the request is valid.

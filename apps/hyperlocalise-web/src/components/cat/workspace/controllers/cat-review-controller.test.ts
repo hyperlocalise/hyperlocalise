@@ -659,4 +659,77 @@ describe("CatReviewController", () => {
       expect(workspace.isBulkActionPending).toBe(false);
     });
   });
+
+  describe("bulkHide", () => {
+    it("delegates to onBulkHide and marks selected segments hidden", async () => {
+      const onBulkHide = vi.fn().mockResolvedValue(undefined);
+      const workspace = createTestWorkspace();
+      workspace.toggleSegmentChecked("seg-02", true);
+      workspace.toggleSegmentChecked("seg-03", true);
+      const { controller } = createController(workspace, {
+        review: { onBulkHide },
+      });
+
+      await controller.bulkHide();
+
+      expect(onBulkHide).toHaveBeenCalledWith(["seg-02", "seg-03"]);
+      expect(workspace.getSegmentView("seg-02")?.isHidden).toBe(true);
+      expect(workspace.getSegmentView("seg-03")?.isHidden).toBe(true);
+      expect(workspace.checkedSegmentIds.size).toBe(0);
+      expect(workspace.isBulkActionPending).toBe(false);
+    });
+
+    it("no-ops when onBulkHide is missing", async () => {
+      const { controller, workspace } = createController();
+      workspace.toggleSegmentChecked("seg-02", true);
+
+      await controller.bulkHide();
+
+      expect(workspace.getSegmentView("seg-02")?.isHidden).toBeUndefined();
+      expect(workspace.isBulkActionPending).toBe(false);
+    });
+
+    it("no-ops when no segments are checked", async () => {
+      const onBulkHide = vi.fn();
+      const { controller, workspace } = createController(undefined, {
+        review: { onBulkHide },
+      });
+
+      await controller.bulkHide();
+
+      expect(onBulkHide).not.toHaveBeenCalled();
+      expect(workspace.isBulkActionPending).toBe(false);
+    });
+  });
+
+  describe("bulkUnhide", () => {
+    it("delegates to onBulkUnhide and clears the hidden flag", async () => {
+      const onBulkUnhide = vi.fn().mockResolvedValue(undefined);
+      const workspace = createTestWorkspace({
+        segments: [
+          {
+            id: "seg-02",
+            index: 2,
+            key: "second",
+            sourceText: "Second",
+            targetText: "",
+            sourceLocale: "en-US",
+            targetLocale: "vi",
+            status: "pending",
+            isHidden: true,
+          },
+        ],
+      });
+      workspace.toggleSegmentChecked("seg-02", true);
+      const { controller } = createController(workspace, {
+        review: { onBulkUnhide },
+      });
+
+      await controller.bulkUnhide();
+
+      expect(onBulkUnhide).toHaveBeenCalledWith(["seg-02"]);
+      expect(workspace.getSegmentView("seg-02")?.isHidden).toBeUndefined();
+      expect(workspace.checkedSegmentIds.size).toBe(0);
+    });
+  });
 });

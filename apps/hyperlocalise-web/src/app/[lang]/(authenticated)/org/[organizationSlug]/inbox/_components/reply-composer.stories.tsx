@@ -36,6 +36,9 @@ const meta = {
   args: {
     disabled: false,
     isStreaming: false,
+    projects: [],
+    projectsIsLoading: false,
+    projectsIsError: false,
     repositories: repositoriesFixture,
     repositoriesIsLoading: false,
     repositoriesIsError: false,
@@ -93,5 +96,85 @@ export const NoRepositories: Story = {
 export const SingleRepository: Story = {
   args: {
     repositories: repositoriesFixture.slice(0, 1),
+  },
+};
+
+export const LoadingProjects: Story = {
+  args: {
+    projectsIsLoading: true,
+  },
+};
+
+export const ProjectsLoadError: Story = {
+  args: {
+    projectsIsError: true,
+  },
+};
+
+export const WithProjects: Story = {
+  args: {
+    projects: [
+      {
+        id: "proj_website",
+        name: "Website",
+        source: "native",
+        externalProviderKind: null,
+      },
+      {
+        id: "ext:crowdin:42",
+        name: "Crowdin App",
+        source: "external_tms",
+        externalProviderKind: "crowdin",
+      },
+    ],
+  },
+  play: async ({ canvas }) => {
+    await expect(canvas.getByText("Project")).toBeInTheDocument();
+  },
+};
+
+export const CatPreselectedProject: Story = {
+  args: {
+    initialProjectId: "proj_website",
+    projects: [
+      {
+        id: "proj_website",
+        name: "Website",
+        source: "native",
+        externalProviderKind: null,
+      },
+      {
+        id: "proj_mobile",
+        name: "Mobile",
+        source: "native",
+        externalProviderKind: null,
+      },
+    ],
+  },
+  play: async ({ canvas }) => {
+    await expect(canvas.getByText("Website")).toBeInTheDocument();
+  },
+};
+
+export const LockedProject: Story = {
+  args: {
+    lockedProjectId: "proj_website",
+    projects: [
+      {
+        id: "proj_website",
+        name: "Website",
+        source: "native",
+        externalProviderKind: null,
+      },
+      {
+        id: "proj_mobile",
+        name: "Mobile",
+        source: "native",
+        externalProviderKind: null,
+      },
+    ],
+  },
+  play: async ({ canvas }) => {
+    await expect(canvas.getByRole("button", { name: /website/i })).toBeDisabled();
   },
 };

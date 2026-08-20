@@ -12,10 +12,16 @@
  */
 "use client";
 
+import { sendGAEvent } from "@next/third-parties/google";
 import { track } from "@vercel/analytics";
 
 import { Analytics } from "./analytics";
 
-export const clientAnalytics = new Analytics((name, properties) => {
-  track(name, properties);
-});
+export const clientAnalytics = new Analytics([
+  (name, properties) => {
+    track(name, properties);
+  },
+  (name, properties) => {
+    sendGAEvent("event", name, properties ?? {});
+  },
+]);

@@ -52,14 +52,14 @@ async function loadFileGlossaryTerms(input: {
   targetLocales: string[];
   sourceText: string;
 }) {
-  const { and, asc, eq, inArray } = await import("drizzle-orm");
+  const { and, asc, eq, inArray, sql } = await import("drizzle-orm");
   const { db, schema } = await import("@/lib/database");
 
   const attachedTerms = await db
     .select({
       sourceTerm: schema.glossaryTerms.sourceTerm,
       targetTerm: schema.glossaryTerms.targetTerm,
-      targetLocale: schema.glossaries.targetLocale,
+      targetLocale: sql<string>`${schema.glossaries.targetLocale}`,
       description: schema.glossaryTerms.description,
       forbidden: schema.glossaryTerms.forbidden,
       caseSensitive: schema.glossaryTerms.caseSensitive,
@@ -264,6 +264,7 @@ async function runMultiFileTranslationInSandbox(input: {
   targetLocales: string[];
   context: SandboxTranslationContext;
   prefilledByLocale: Record<string, Record<string, string>>;
+  organizationId: string;
 }) {
   const {
     buildMultiFileMultiLocaleTempConfig,
@@ -273,6 +274,8 @@ async function runMultiFileTranslationInSandbox(input: {
     writeFileToSandbox,
     writeTempConfig,
   } = await import("@/lib/translation/sandbox");
+  const { loadSandboxByokCredential } = await import("@/lib/translation/sandbox-byok");
+  const byok = await loadSandboxByokCredential(input.organizationId);
 
   const config = buildMultiFileMultiLocaleTempConfig(
     input.files,
@@ -280,6 +283,7 @@ async function runMultiFileTranslationInSandbox(input: {
     input.targetLocales,
     null,
     input.context,
+    byok,
   );
   await writeTempConfig(input.sandboxId, config, sandboxI18nConfigPath);
 
@@ -312,7 +316,7 @@ async function runMultiFileTranslationInSandbox(input: {
       "-lc",
       `hl run --config '${shellSingleQuote(sandboxI18nConfigPath)}' ${localeFlags} --force --progress off${prefilledFlags}`,
     ],
-    { env: getSandboxTranslationEnv() },
+    { env: getSandboxTranslationEnv(byok) },
   );
 
   if (translation.exitCode !== 0) {
@@ -780,6 +784,7 @@ export async function translateProviderJobFiles(input: {
             targetLocales: localesToRun,
             context: batchContext,
             prefilledByLocale,
+            organizationId: input.organizationId,
           });
         } catch (error) {
           warnings.push(

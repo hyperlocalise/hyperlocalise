@@ -15,18 +15,20 @@ import { join } from "node:path";
 
 import { ImageResponse } from "next/og";
 
+import { DEFAULT_APP_LOCALE, normalizeAppLocale, type AppLocale } from "@/lib/app-i18n/locales";
+
+import { loadMarketingOgFonts } from "./load-marketing-og-fonts";
+
 export const marketingOgImageSize = { width: 1200, height: 630 } as const;
 export const marketingOgImageContentType = "image/png";
 
 const logoPromise = readFile(join(process.cwd(), "public/images/logo.png"));
-const domineFontPromise = readFile(
-  join(process.cwd(), "public/fonts/domine-latin-700-normal.woff"),
-);
-const interFontPromise = readFile(join(process.cwd(), "public/fonts/inter-latin-400-normal.ttf"));
 
 type CreateMarketingOgImageOptions = {
   heading: string;
   description: string;
+  /** App locale — selects heading/body faces that include the needed glyphs. */
+  locale?: string;
   size?: { width: number; height: number };
 };
 
@@ -42,16 +44,21 @@ function headingFontSize(heading: string) {
   return 56;
 }
 
+function resolveOgLocale(locale: string | undefined): AppLocale {
+  if (!locale) {
+    return DEFAULT_APP_LOCALE;
+  }
+  return normalizeAppLocale(locale) ?? DEFAULT_APP_LOCALE;
+}
+
 export async function createMarketingOgImage({
   heading,
   description,
+  locale,
   size = marketingOgImageSize,
 }: CreateMarketingOgImageOptions) {
-  const [logo, domineFont, interFont] = await Promise.all([
-    logoPromise,
-    domineFontPromise,
-    interFontPromise,
-  ]);
+  const resolvedLocale = resolveOgLocale(locale);
+  const [logo, ogFonts] = await Promise.all([logoPromise, loadMarketingOgFonts(resolvedLocale)]);
 
   const logoSrc = `data:image/png;base64,${logo.toString("base64")}`;
 
@@ -89,7 +96,7 @@ export async function createMarketingOgImage({
         <div
           style={{
             color: "#ffffff",
-            fontFamily: "Domine",
+            fontFamily: ogFonts.headingFontFamily,
             fontSize: headingFontSize(heading),
             fontWeight: 700,
             letterSpacing: "-0.03em",
@@ -101,7 +108,7 @@ export async function createMarketingOgImage({
         <div
           style={{
             color: "rgba(255, 255, 255, 0.72)",
-            fontFamily: "Inter",
+            fontFamily: ogFonts.bodyFontFamily,
             fontSize: 28,
             fontWeight: 400,
             lineHeight: 1.45,
@@ -113,10 +120,7 @@ export async function createMarketingOgImage({
     </div>,
     {
       ...size,
-      fonts: [
-        { name: "Domine", data: domineFont, weight: 700, style: "normal" },
-        { name: "Inter", data: interFont, weight: 400, style: "normal" },
-      ],
+      fonts: ogFonts.fonts,
     },
   );
 }

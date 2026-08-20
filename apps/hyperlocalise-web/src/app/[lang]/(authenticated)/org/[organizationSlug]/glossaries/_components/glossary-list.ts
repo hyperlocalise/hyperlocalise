@@ -13,6 +13,7 @@
 import type { IntlShape } from "@formatjs/intl";
 
 import type { GlossaryRecord } from "@/api/routes/glossary/glossary.schema";
+import { getLocaleLabel } from "@/lib/i18n/locales";
 import type { ExternalTmsProviderKind } from "@/lib/providers/credentials/organization-external-tms-provider-credentials";
 import { encodeProviderProjectId } from "@/lib/providers/jobs/tms-provider-resource-id";
 import type { TmsProviderLiveGlossary } from "@/lib/providers/jobs/tms-provider-live";
@@ -41,6 +42,7 @@ function resolveMessage(
 
 export type GlossaryListRow = {
   id: string;
+  detailId: string | null;
   name: string;
   description: string;
   source: "native" | "external_tms";
@@ -50,10 +52,13 @@ export type GlossaryListRow = {
   externalResourceType: ApiGlossary["externalResourceType"];
   resourceTypeLabel: string;
   sourceLocale: string;
-  targetLocale: string;
+  targetLocale: string | null;
   localePairLabel: string;
   localeCoverage: string[];
+  languages: ApiGlossary["languages"];
   localeSummary: string;
+  sourceLocaleLabel: string;
+  secondaryLocaleSummary: string;
   termCount: number | null;
   termCountLabel: string;
   syncState: string | null;
@@ -106,14 +111,33 @@ function formatTermCount(count: number | null, intl?: GlossaryListIntl) {
 function formatLocaleCoverage(
   locales: string[],
   sourceLocale: string,
-  targetLocale: string,
+  targetLocale: string | null,
   intl?: GlossaryListIntl,
 ) {
-  const coverage = locales.length > 0 ? locales : [sourceLocale, targetLocale].filter(Boolean);
+  const coverage =
+    locales.length > 0
+      ? locales
+      : [sourceLocale, targetLocale].filter((locale): locale is string => Boolean(locale));
   if (coverage.length === 0) return resolveMessage(intl, glossaryListMessages.noLocalesListed);
-  if (coverage.length <= 3) return coverage.join(", ");
-  const preview = coverage.slice(0, 3).join(", ");
+  const coverageLabels = coverage.map(getLocaleLabel);
+  if (coverageLabels.length <= 3) return coverageLabels.join(", ");
+  const preview = coverageLabels.slice(0, 3).join(", ");
   const overflowCount = coverage.length - 3;
+  if (intl) {
+    return intl.formatMessage(glossaryListMessages.localeCoverageOverflow, {
+      locales: preview,
+      count: overflowCount,
+    });
+  }
+  return `${preview} +${overflowCount}`;
+}
+
+function formatLanguages(languages: ApiGlossary["languages"], intl?: GlossaryListIntl) {
+  if (languages.length === 0) return resolveMessage(intl, glossaryListMessages.noLocalesListed);
+  const labels = languages.map(({ locale, name }) => `${name} (${locale})`);
+  if (labels.length <= 3) return labels.join(", ");
+  const preview = labels.slice(0, 3).join(", ");
+  const overflowCount = labels.length - 3;
   if (intl) {
     return intl.formatMessage(glossaryListMessages.localeCoverageOverflow, {
       locales: preview,
@@ -187,6 +211,7 @@ export function mapGlossaryToListRow(
 
   return {
     id: glossary.id,
+    detailId: glossary.id,
     name: glossary.name,
     description:
       glossary.description.trim() || resolveMessage(intl, glossaryListMessages.noDescription),
@@ -198,11 +223,24 @@ export function mapGlossaryToListRow(
     resourceTypeLabel: resourceTypeLabelFor(glossary, intl),
     sourceLocale: glossary.sourceLocale,
     targetLocale: glossary.targetLocale,
-    localePairLabel: `${glossary.sourceLocale} → ${glossary.targetLocale}`,
+    localePairLabel: glossary.targetLocale
+      ? `${glossary.sourceLocale} → ${glossary.targetLocale}`
+      : glossary.sourceLocale,
     localeCoverage: glossary.localeCoverage,
-    localeSummary: formatLocaleCoverage(
-      glossary.localeCoverage,
-      glossary.sourceLocale,
+    languages: glossary.languages,
+    localeSummary:
+      glossary.source === "native"
+        ? formatLanguages(glossary.languages, intl)
+        : formatLocaleCoverage(
+            glossary.localeCoverage,
+            glossary.sourceLocale,
+            glossary.targetLocale,
+            intl,
+          ),
+    sourceLocaleLabel: getLocaleLabel(glossary.sourceLocale),
+    secondaryLocaleSummary: formatLocaleCoverage(
+      glossary.localeCoverage.filter((locale) => locale !== glossary.sourceLocale),
+      "",
       glossary.targetLocale,
       intl,
     ),
@@ -229,6 +267,7 @@ export function mapLiveTmsProviderGlossaryToListRow(
 ): GlossaryListRow {
   return {
     id: glossary.id,
+    detailId: glossary.providerKind === "crowdin" ? glossary.id : null,
     name: glossary.name,
     description:
       glossary.description?.trim() || resolveMessage(intl, glossaryListMessages.noDescription),
@@ -242,16 +281,33 @@ export function mapLiveTmsProviderGlossaryToListRow(
     targetLocale: glossary.targetLocale,
     localePairLabel: `${glossary.sourceLocale} → ${glossary.targetLocale}`,
     localeCoverage: glossary.localeCoverage,
+    languages: [
+      {
+        locale: glossary.sourceLocale,
+        name: getLocaleLabel(glossary.sourceLocale),
+        isSource: true,
+      },
+      ...glossary.localeCoverage
+        .filter((locale) => locale !== glossary.sourceLocale)
+        .map((locale) => ({ locale, name: getLocaleLabel(locale), isSource: false })),
+    ],
     localeSummary: formatLocaleCoverage(
       glossary.localeCoverage,
       glossary.sourceLocale,
       glossary.targetLocale,
       intl,
     ),
+    sourceLocaleLabel: getLocaleLabel(glossary.sourceLocale),
+    secondaryLocaleSummary: formatLocaleCoverage(
+      glossary.localeCoverage.filter((locale) => locale !== glossary.sourceLocale),
+      "",
+      glossary.targetLocale,
+      intl,
+    ),
     termCount: glossary.termCount,
     termCountLabel: formatTermCount(glossary.termCount, intl),
     syncState: null,
-    termCapabilityLabel: resolveMessage(intl, glossaryListMessages.capabilityReadOnly),
+    termCapabilityLabel: resolveMessage(intl, glossaryListMessages.capabilityLiveApi),
     termCapabilityTone: "safe",
     externalUrl: glossary.externalUrl,
     lastSyncedAt: null,

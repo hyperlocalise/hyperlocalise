@@ -50,10 +50,75 @@ export const issueCommentMessages = defineMessages({
     id: "mWmRyMvedC",
     description: "Activity line when an issue status changes",
   },
+  issueTypeChanged: {
+    defaultMessage: "{actor} changed type from {previousIssueType} to {nextIssueType}",
+    id: "b9pqYzF7KI",
+    description: "Activity line when an issue type changes",
+  },
+  priorityChanged: {
+    defaultMessage: "{actor} changed priority from {previousPriority} to {nextPriority}",
+    id: "ByKnEF5329",
+    description: "Activity line when an issue priority changes",
+  },
+  prioritySet: {
+    defaultMessage: "{actor} set priority to {nextPriority}",
+    id: "cVNMp4yAc9",
+    description: "Activity line when an issue priority is set for the first time",
+  },
   unknownActor: {
     defaultMessage: "Someone",
     id: "hFzuwtEzyB",
     description: "Fallback actor name for issue activity when author is missing",
+  },
+  unknownIssue: {
+    defaultMessage: "another issue",
+    id: "kBB5urcgnt",
+    description: "Fallback name for a related issue when its title isn't available (cross-project)",
+  },
+  relationshipAddedRelated: {
+    defaultMessage: "{actor} related this to {relatedIssue}",
+    id: "G1T9+1x7MC",
+    description: "Activity line when a related-issue relationship is added",
+  },
+  relationshipAddedBlocks: {
+    defaultMessage: "{actor} marked this as blocking {relatedIssue}",
+    id: "jYCKNw+LDl",
+    description: "Activity line when a blocks relationship is added",
+  },
+  relationshipAddedBlockedBy: {
+    defaultMessage: "{actor} marked this as blocked by {relatedIssue}",
+    id: "yWn40N8bPb",
+    description: "Activity line when a blocked-by relationship is added",
+  },
+  relationshipAddedDuplicateOf: {
+    defaultMessage: "{actor} marked this as a duplicate of {relatedIssue}",
+    id: "KDIMmNPAxL",
+    description: "Activity line when a duplicate_of relationship is added",
+  },
+  relationshipRemovedRelated: {
+    defaultMessage: "{actor} removed the related link to {relatedIssue}",
+    id: "psXoqti6i8",
+    description: "Activity line when a related-issue relationship is removed",
+  },
+  relationshipRemovedBlocks: {
+    defaultMessage: "{actor} marked this as no longer blocking {relatedIssue}",
+    id: "gTVgkDcRK6",
+    description: "Activity line when a blocks relationship is removed",
+  },
+  relationshipRemovedBlockedBy: {
+    defaultMessage: "{actor} marked this as no longer blocked by {relatedIssue}",
+    id: "DzV7NQXkgD",
+    description: "Activity line when a blocked-by relationship is removed",
+  },
+  relationshipRemovedDuplicateOf: {
+    defaultMessage: "{actor} marked this as no longer a duplicate of {relatedIssue}",
+    id: "+Qv1Pt0/I9",
+    description: "Activity line when a duplicate_of relationship is removed",
+  },
+  relationshipRemovedDuplicate: {
+    defaultMessage: "{actor} unmarked {relatedIssue} as a duplicate of this issue",
+    id: "B9k45Fzigm",
+    description: "Activity line when the inverse duplicate relationship is removed",
   },
   loadError: {
     defaultMessage: "Could not load comments.",

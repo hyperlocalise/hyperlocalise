@@ -12,6 +12,7 @@
  */
 import { sql } from "drizzle-orm";
 import {
+  boolean,
   index,
   integer,
   jsonb,
@@ -55,6 +56,11 @@ export const projectTranslationKeys = pgTable(
     context: text("context"),
     type: text("type"),
     maxLength: integer("max_length"),
+    /**
+     * Crowdin-style hidden string. Managers still see the key in CAT;
+     * translation jobs skip it.
+     */
+    isHidden: boolean("is_hidden").notNull().default(false),
     metadata: jsonb("metadata")
       .$type<Record<string, unknown>>()
       .notNull()

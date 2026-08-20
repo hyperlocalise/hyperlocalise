@@ -25,7 +25,7 @@ import {
 
 describe("startups page content", () => {
   it("exposes program assets and customer destinations", () => {
-    expect(startupsHeroImageSrc).toBe("/images/vimal-s-GBg3jyGS-Ug-unsplash.jpg");
+    expect(startupsHeroImageSrc).toBe("/images/nasa-Q1p7bh3SHj8-unsplash.jpg");
     expect(startmateUrl).toBe("https://www.startmate.com");
     expect(startmateLogoSrc).toBe("/images/startmate-logo.svg");
     expect(slatorUrl).toBe("https://slator.com/2026-slator-language-ai-50-under-50/");

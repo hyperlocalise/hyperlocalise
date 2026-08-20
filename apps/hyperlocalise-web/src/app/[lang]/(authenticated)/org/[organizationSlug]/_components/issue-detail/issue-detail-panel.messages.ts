@@ -80,6 +80,11 @@ export const issueDetailPanelMessages = defineMessages({
     id: "Cp3xy0MA7p",
     description: "Label for issue reporter field",
   },
+  fieldTemplate: {
+    defaultMessage: "Template",
+    id: "nBWhU6jbvc",
+    description: "Label for the read-only issue template provenance field",
+  },
   fieldLocale: {
     defaultMessage: "Locale",
     id: "nLGLyaeThi",

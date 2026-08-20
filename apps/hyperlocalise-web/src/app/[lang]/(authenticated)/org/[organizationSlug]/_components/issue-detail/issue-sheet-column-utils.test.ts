@@ -17,6 +17,7 @@ import type { IssueDetailIssue } from "./issue-detail-utils";
 import {
   areCustomColumnDraftsDirty,
   buildCustomColumnDrafts,
+  isIssueSheetColumnVisible,
   isMainContentCustomColumn,
   isSidebarCustomColumn,
   issueSheetColumnValueString,
@@ -32,6 +33,8 @@ function column(overrides: Partial<IssueSheetColumn> = {}): IssueSheetColumn {
     type: "select",
     config: { options: [{ id: "s24", label: "Sprint 24" }] },
     sortOrder: 30,
+    hidden: false,
+    icon: null,
     ...overrides,
   };
 }
@@ -43,16 +46,27 @@ describe("issue-sheet-column-utils", () => {
     expect(issueSheetColumnValueString(42)).toBe("42");
   });
 
-  it("lists detail panel columns excluding system and dedicated fields", () => {
+  it("lists detail panel columns excluding system, dedicated, and hidden fields", () => {
     const columns = listDetailPanelColumns([
       column({ key: "priority", sortOrder: 10 }),
       column({ key: "owner_note", type: "long_text", sortOrder: 20 }),
       column({ key: "context", type: "enrichment", sortOrder: 40 }),
       column({ key: "sprint", sortOrder: 30 }),
+      column({ key: "hidden_field", sortOrder: 25, hidden: true }),
       column({ key: "component", layer: "system", sortOrder: 50 }),
     ]);
 
     expect(columns.map((entry) => entry.key)).toEqual(["sprint", "context"]);
+  });
+
+  it("treats a missing column as visible and a hidden column as not", () => {
+    expect(isIssueSheetColumnVisible([], "priority")).toBe(true);
+    expect(
+      isIssueSheetColumnVisible([column({ key: "priority", hidden: false })], "priority"),
+    ).toBe(true);
+    expect(isIssueSheetColumnVisible([column({ key: "priority", hidden: true })], "priority")).toBe(
+      false,
+    );
   });
 
   it("splits long text and enrichment columns into the main content area", () => {
@@ -78,6 +92,7 @@ describe("issue-sheet-column-utils", () => {
       linkKind: null,
       linkLabel: null,
       linkUrl: null,
+      templateKey: null,
       assigneeUserId: null,
       reporter: null,
       assignee: null,

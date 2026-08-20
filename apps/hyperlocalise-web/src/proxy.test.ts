@@ -52,6 +52,19 @@ describe("isUnsupportedLocalePath", () => {
     expect(isUnsupportedLocalePath("/crowdin-app/manifest.json")).toBe(false);
   });
 
+  it("allows opaque UUID roots used by BotID challenge scripts", () => {
+    expect(
+      isUnsupportedLocalePath(
+        "/149e9513-01fa-4fb0-aad4-566afd725d1b/2d206a39-8ed7-437e-a3be-862e0f06eea3/a-4-a/c.js",
+      ),
+    ).toBe(false);
+    expect(
+      isUnsupportedLocalePath(
+        "/aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee/2d206a39-8ed7-437e-a3be-862e0f06eea3/p.js",
+      ),
+    ).toBe(false);
+  });
+
   it("rejects removed fixture browser routes", () => {
     expect(isUnsupportedLocalePath("/e2e/login")).toBe(true);
   });
@@ -66,6 +79,9 @@ describe("isUnsupportedLocalePath", () => {
     expect(isUnsupportedLocalePath("/startups")).toBe(false);
     expect(isUnsupportedLocalePath("/localisation-audit")).toBe(false);
     expect(isUnsupportedLocalePath("/localisation-audit/stripe-com")).toBe(false);
+    expect(isUnsupportedLocalePath("/chat/acme/11111111-1111-4111-8111-111111111111")).toBe(false);
+    expect(isUnsupportedLocalePath("/dashboard")).toBe(false);
+    expect(isUnsupportedLocalePath("/claim-domain/stripe-com-abcdef")).toBe(false);
   });
 
   it("allows the site root", () => {
@@ -132,6 +148,18 @@ describe("proxy", () => {
     expect(authkitProxyMock).not.toHaveBeenCalled();
   });
 
+  it("redirects claim-domain paths without a locale prefix", async () => {
+    authkitProxyMock.mockReset();
+
+    const response = await proxy(createRequest("/claim-domain/tourfinder-au-kidldm"), {} as never);
+
+    expect(response?.status).toBe(307);
+    expect(response?.headers.get("location")).toBe(
+      "https://www.hyperlocalise.com/en/claim-domain/tourfinder-au-kidldm",
+    );
+    expect(authkitProxyMock).not.toHaveBeenCalled();
+  });
+
   it("redirects blog paths without a locale prefix", async () => {
     authkitProxyMock.mockReset();
 
@@ -170,6 +198,21 @@ describe("proxy", () => {
 
     expect(authkitProxyMock).toHaveBeenCalledOnce();
     expect(response?.status).toBe(200);
+  });
+
+  it("does not 404 opaque UUID challenge paths as unsupported locale paths", async () => {
+    authkitProxyMock.mockReset();
+    authkitProxyMock.mockResolvedValueOnce(NextResponse.next());
+
+    const response = await proxy(
+      createRequest(
+        "/149e9513-01fa-4fb0-aad4-566afd725d1b/2d206a39-8ed7-437e-a3be-862e0f06eea3/a-4-a/c.js",
+      ),
+      {} as never,
+    );
+
+    expect(response?.status).not.toBe(404);
+    expect(authkitProxyMock).toHaveBeenCalledOnce();
   });
 
   it("runs Crowdin App iframe pages through AuthKit before applying frame-ancestors CSP", async () => {

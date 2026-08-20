@@ -52,8 +52,8 @@ export const membersSettingsViewModelMessages = defineMessages({
   },
   roleLocalizationManagerDescription: {
     defaultMessage:
-      "Operate projects, integrations, credentials, teams, and knowledge resources; approve reviews and write-back.",
-    id: "GOx0phpLcM",
+      "Operate projects, integrations, credentials, teams, and guideline resources; approve reviews and write-back.",
+    id: "Gbi1Dt47vU",
     description: "Description of the localization manager role",
   },
   roleDeveloperDescription: {

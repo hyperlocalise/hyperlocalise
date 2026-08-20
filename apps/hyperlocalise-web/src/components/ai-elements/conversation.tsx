@@ -12,11 +12,12 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { ArrowDown01Icon, Download01Icon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/primitives/cn";
 import type { UIMessage } from "ai";
-import { ArrowDownIcon, DownloadIcon } from "lucide-react";
 import type { ComponentProps } from "react";
 import { useCallback } from "react";
 import { FormattedMessage, useIntl } from "react-intl";
@@ -117,7 +118,7 @@ export const ConversationScrollButton = ({
               variant="secondary"
               {...props}
             >
-              <ArrowDownIcon className="size-4" />
+              <HugeiconsIcon icon={ArrowDown01Icon} className="size-4" />
             </Button>
           }
         />
@@ -189,7 +190,7 @@ export const ConversationDownload = ({
             variant="outline"
             {...props}
           >
-            {children ?? <DownloadIcon className="size-4" />}
+            {children ?? <HugeiconsIcon icon={Download01Icon} className="size-4" />}
           </Button>
         }
       />

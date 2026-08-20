@@ -27,8 +27,14 @@ export const env = createEnv({
     /** Postgres connection string for Drizzle ORM. */
     DATABASE_URL: z.string().min(1),
 
-    /** OpenAI API key used for LLM-powered features. Optional when AI features are disabled. */
+    /** OpenAI API key used for CLI sandbox translation. Optional when AI Gateway or that feature is unused. */
     OPENAI_API_KEY: z.string().min(1).optional(),
+
+    /** Vercel AI Gateway API key used for CLI sandbox translation. Optional when OpenAI is configured. */
+    AI_GATEWAY_API_KEY: z.string().min(1).optional(),
+
+    /** Optional Vercel AI Gateway base URL override for CLI sandbox translation. */
+    AI_GATEWAY_BASE_URL: z.string().min(1).optional(),
 
     /** Master encryption key for provider credentials. Must be a high-entropy 32-byte base64 value. */
     PROVIDER_CREDENTIALS_MASTER_KEY: z.string().min(1),
@@ -120,6 +126,12 @@ export const env = createEnv({
 
     /** Autumn secret key for server-side usage checks and tracking. */
     AUTUMN_API_KEY: z.string().min(1).optional(),
+
+    /**
+     * GA4 Measurement Protocol API secret. Optional — without it, server-side
+     * custom events still go to Vercel Analytics but are skipped for Google.
+     */
+    GA_MEASUREMENT_PROTOCOL_API_SECRET: z.string().min(1).optional(),
 
     /** Object storage adapter for durable uploaded and generated files. */
     FILE_STORAGE_PROVIDER: z.enum(["vercel_blob"]).default("vercel_blob"),
@@ -264,6 +276,8 @@ export const env = createEnv({
     NEXT_PUBLIC_APP_ENV: process.env.NEXT_PUBLIC_APP_ENV,
     DATABASE_URL: process.env.DATABASE_URL,
     OPENAI_API_KEY: process.env.OPENAI_API_KEY ?? (isTestEnv ? "test-openai-api-key" : undefined),
+    AI_GATEWAY_API_KEY: process.env.AI_GATEWAY_API_KEY,
+    AI_GATEWAY_BASE_URL: process.env.AI_GATEWAY_BASE_URL,
     PROVIDER_CREDENTIALS_MASTER_KEY:
       process.env.PROVIDER_CREDENTIALS_MASTER_KEY ??
       (isTestEnv ? "MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=" : undefined),
@@ -311,6 +325,7 @@ export const env = createEnv({
       (isTestEnv ? "test-slack-oauth-state-secret" : undefined),
     SLACK_REDIRECT_URI: process.env.SLACK_REDIRECT_URI,
     AUTUMN_API_KEY: process.env.AUTUMN_API_KEY,
+    GA_MEASUREMENT_PROTOCOL_API_SECRET: process.env.GA_MEASUREMENT_PROTOCOL_API_SECRET,
     FILE_STORAGE_PROVIDER: process.env.FILE_STORAGE_PROVIDER,
     FILE_STORAGE_ACCESS: process.env.FILE_STORAGE_ACCESS,
     BLOB_READ_WRITE_TOKEN:

@@ -45,8 +45,10 @@ const toolCallInfo = { toolCallId: "test-tool-call", messages: [], context: {} }
 
 describe("redact", () => {
   it("redacts env var lines", () => {
-    const input = "OPENAI_API_KEY=sk-12345\nPATH=/usr/bin";
-    expect(redact(input)).toBe("OPENAI_API_KEY=***REDACTED***\nPATH=/usr/bin");
+    const input = "OPENAI_API_KEY=sk-12345\nAI_GATEWAY_API_KEY=gw-12345\nPATH=/usr/bin";
+    expect(redact(input)).toBe(
+      "OPENAI_API_KEY=***REDACTED***\nAI_GATEWAY_API_KEY=***REDACTED***\nPATH=/usr/bin",
+    );
   });
 
   it("redacts token key=value patterns", () => {
@@ -1100,7 +1102,7 @@ describe("createGitHistoryTool", () => {
       files: ["src/messages.json"],
       truncated: true,
     });
-    expect(gitCalls[0]).toContain("--max-count=3");
+    expect(gitCalls.find((args) => args[0] === "log")).toContain("--max-count=3");
   });
 
   it("reports unresolved Phrase placeholders as skipped diagnostics", async () => {
@@ -1166,6 +1168,9 @@ describe("createGitHistoryTool", () => {
     const ctx = createTestContext();
     ctx.bash.registerCommand(
       defineCommand("git", async (args) => {
+        if (args[0] === "rev-parse") {
+          return { stdout: "", stderr: "fatal: not a git repository", exitCode: 128 };
+        }
         expect(args).toEqual(["diff", "main..HEAD", "--", "lang/en.json"]);
         return { stdout: "A".repeat(200_000), stderr: "", exitCode: 0 };
       }),
@@ -1179,6 +1184,188 @@ describe("createGitHistoryTool", () => {
 
     expect(result).toMatchObject({ success: true, mode: "fileDiff", truncated: true });
     expect((result as { diff: string }).diff.length).toBeLessThan(200_000);
+  });
+
+  it("returns the patch when ranged git diff exits 1", async () => {
+    const patch =
+      'diff --git a/lang/en.json b/lang/en.json\n--- a/lang/en.json\n+++ b/lang/en.json\n@@ -1,3 +1,3 @@\n-  "save": "Save"\n+  "save": "Save changes"\n';
+    const ctx = createTestContext();
+    ctx.bash.registerCommand(
+      defineCommand("git", async (args) => {
+        if (args[0] === "rev-parse") {
+          return { stdout: "", stderr: "fatal: not a git repository", exitCode: 128 };
+        }
+        expect(args).toEqual(["diff", "abc^..abc", "--", "lang/en.json"]);
+        return { stdout: patch, stderr: "", exitCode: 1 };
+      }),
+    );
+
+    const t = createGitHistoryTool(ctx);
+    const result = await t.execute!(
+      { mode: "fileDiff", paths: ["lang/en.json"], range: "abc^..abc" },
+      toolCallInfo,
+    );
+
+    expect(result).toMatchObject({ success: true, mode: "fileDiff", diff: patch });
+  });
+
+  it("fails ranged git diff on exit 2+ and surfaces stdout when stderr is empty", async () => {
+    const ctx = createTestContext();
+    ctx.bash.registerCommand(
+      defineCommand("git", async (args) => {
+        if (args[0] === "rev-parse") {
+          return { stdout: "", stderr: "fatal: not a git repository", exitCode: 128 };
+        }
+        expect(args).toEqual(["diff", "abc^..abc", "--", "lang/en.json"]);
+        return { stdout: "usage: git diff [<options>]", stderr: "", exitCode: 129 };
+      }),
+    );
+
+    const t = createGitHistoryTool(ctx);
+    const result = await t.execute!(
+      { mode: "fileDiff", paths: ["lang/en.json"], range: "abc^..abc" },
+      toolCallInfo,
+    );
+
+    expect(result).toMatchObject({
+      success: false,
+      error: "usage: git diff [<options>]",
+    });
+  });
+
+  it("runs git from a nested clone and strips a repo-name path prefix", async () => {
+    const patch =
+      'diff --git a/src/locales/en/messages.json b/src/locales/en/messages.json\n+  "save": "Save"\n';
+    const ctx = createTestContext({
+      "/home/user/project/scribe-fe-v2/src/locales/en/messages.json": '{"save":"Save"}\n',
+    });
+    const gitCalls: string[][] = [];
+    ctx.bash.registerCommand(
+      defineCommand("ls", async () => ({ stdout: "scribe-fe-v2\n", stderr: "", exitCode: 0 })),
+    );
+    ctx.bash.registerCommand(
+      defineCommand("test", async (args) => ({
+        stdout: "",
+        stderr: "",
+        exitCode: args[0] === "-d" && args[1] === "scribe-fe-v2" ? 0 : 1,
+      })),
+    );
+    ctx.bash.registerCommand(
+      defineCommand("git", async (args) => {
+        gitCalls.push(args);
+        if (args[0] === "rev-parse") {
+          return { stdout: "", stderr: "fatal: not a git repository", exitCode: 128 };
+        }
+        if (args[0] === "-C" && args[1] === "scribe-fe-v2" && args[2] === "rev-parse") {
+          return { stdout: "true\n", stderr: "", exitCode: 0 };
+        }
+        if (args[0] === "-C" && args[1] === "scribe-fe-v2" && args[2] === "log") {
+          expect(args).toEqual(expect.arrayContaining(["--", "src/locales/en/messages.json"]));
+          expect(args).not.toContain("scribe-fe-v2/src/locales/en/messages.json");
+          return {
+            stdout:
+              "abc\t2026-07-01T00:00:00Z\tMina\tUpdate strings\nsrc/locales/en/messages.json\n",
+            stderr: "",
+            exitCode: 0,
+          };
+        }
+        if (args[0] === "-C" && args[1] === "scribe-fe-v2" && args[2] === "diff") {
+          expect(args).toEqual([
+            "-C",
+            "scribe-fe-v2",
+            "diff",
+            "abc^..abc",
+            "--",
+            "src/locales/en/messages.json",
+          ]);
+          return { stdout: patch, stderr: "", exitCode: 1 };
+        }
+        return { stdout: "", stderr: "", exitCode: 1 };
+      }),
+    );
+
+    const t = createGitHistoryTool(ctx);
+    const changed = await t.execute!(
+      {
+        mode: "changedFiles",
+        paths: ["scribe-fe-v2/src/locales/en/messages.json"],
+        since: "24 hours ago",
+      },
+      toolCallInfo,
+    );
+    expect(changed).toMatchObject({
+      success: true,
+      mode: "changedFiles",
+      files: ["scribe-fe-v2/src/locales/en/messages.json"],
+    });
+
+    const diff = await t.execute!(
+      {
+        mode: "fileDiff",
+        paths: ["scribe-fe-v2/src/locales/en/messages.json"],
+        range: "abc^..abc",
+      },
+      toolCallInfo,
+    );
+    expect(diff).toMatchObject({
+      success: true,
+      mode: "fileDiff",
+      paths: ["scribe-fe-v2/src/locales/en/messages.json"],
+      diff: patch,
+    });
+    expect(gitCalls.some((args) => args[0] === "-C" && args[1] === "scribe-fe-v2")).toBe(true);
+  });
+
+  it("does not strip a nested clone prefix from an already git-relative path", async () => {
+    const patch =
+      'diff --git a/scribe-fe-v2/locales/en.json b/scribe-fe-v2/locales/en.json\n+  "save": "Save"\n';
+    const ctx = createTestContext({
+      "/home/user/project/scribe-fe-v2/scribe-fe-v2/locales/en.json": '{"save":"Save"}\n',
+    });
+    const gitCalls: string[][] = [];
+    ctx.bash.registerCommand(
+      defineCommand("git", async (args) => {
+        gitCalls.push(args);
+        if (args[0] === "rev-parse") {
+          return { stdout: "", stderr: "fatal: not a git repository", exitCode: 128 };
+        }
+        if (args[0] === "-C" && args[1] === "scribe-fe-v2" && args[2] === "rev-parse") {
+          return { stdout: "true\n", stderr: "", exitCode: 0 };
+        }
+        if (args[0] === "-C" && args[1] === "scribe-fe-v2" && args[2] === "diff") {
+          return { stdout: patch, stderr: "", exitCode: 1 };
+        }
+        return { stdout: "", stderr: "", exitCode: 1 };
+      }),
+    );
+
+    const t = createGitHistoryTool(ctx);
+    const result = await t.execute!(
+      {
+        mode: "fileDiff",
+        paths: ["scribe-fe-v2/scribe-fe-v2/locales/en.json"],
+        range: "abc^..abc",
+      },
+      toolCallInfo,
+    );
+
+    expect(gitCalls).toContainEqual([
+      "-C",
+      "scribe-fe-v2",
+      "diff",
+      "abc^..abc",
+      "--",
+      "scribe-fe-v2/locales/en.json",
+    ]);
+    expect(gitCalls.some((args) => args.includes("--") && args.at(-1) === "locales/en.json")).toBe(
+      false,
+    );
+    expect(result).toMatchObject({
+      success: true,
+      mode: "fileDiff",
+      paths: ["scribe-fe-v2/scribe-fe-v2/locales/en.json"],
+      diff: patch,
+    });
   });
 
   it("rejects option-like git revision ranges", async () => {
@@ -1199,6 +1386,9 @@ describe("createGitHistoryTool", () => {
     const ctx = createTestContext();
     ctx.bash.registerCommand(
       defineCommand("git", async (args) => {
+        if (args[0] === "rev-parse") {
+          return { stdout: "", stderr: "fatal: not a git repository", exitCode: 128 };
+        }
         expect(args).toEqual(
           expect.arrayContaining(["--patch", "--unified=3", "-SSave", "--", "lang/en.json"]),
         );
@@ -1254,6 +1444,9 @@ describe("createGitHistoryTool", () => {
     });
     ctx.bash.registerCommand(
       defineCommand("git", async (args) => {
+        if (args[0] === "rev-parse") {
+          return { stdout: "", stderr: "fatal: not a git repository", exitCode: 128 };
+        }
         expect(args).toEqual(["blame", "--line-porcelain", "-L2,2", "--", "lang/en.json"]);
         return {
           stdout:
@@ -1311,6 +1504,81 @@ describe("createRunHyperlocaliseCliTool", () => {
     const result = await t.execute!({ subcommand: "check" }, toolCallInfo);
     expect(result).toMatchObject({ success: true, exitCode: 0 });
     expect((result as { stdout: string }).stdout).toContain("subcommand=check");
+  });
+
+  it("passes a tracked i18n.yml as --config when the agent omits config", async () => {
+    const ctx = createTestContext({
+      "/home/user/project/apps/web/i18n.yml": "locales:\n  source: en-US\n",
+    });
+    let hlArgs: string[] = [];
+    ctx.bash.registerCommand(
+      defineCommand("git", async (args) => {
+        if (args[0] === "rev-parse") {
+          return { stdout: "true\n", stderr: "", exitCode: 0 };
+        }
+        if (args[0] === "ls-files") {
+          return { stdout: "apps/web/i18n.yml\0", stderr: "", exitCode: 0 };
+        }
+        return { stdout: "", stderr: "", exitCode: 0 };
+      }),
+    );
+    ctx.bash.registerCommand(
+      defineCommand("hl", async (args) => {
+        hlArgs = args;
+        return { stdout: "", stderr: "", exitCode: 0 };
+      }),
+    );
+
+    const t = createRunHyperlocaliseCliTool(ctx);
+    await t.execute!({ subcommand: "check", boolFlags: ["quiet"] }, toolCallInfo);
+
+    expect(hlArgs).toEqual(["check", "--quiet", "--config=apps/web/i18n.yml"]);
+  });
+
+  it("does not fall back to i18n.jsonc when no i18n.yml exists", async () => {
+    const ctx = createTestContext({
+      "/home/user/project/i18n.jsonc": '{"locales":{"source":"en-US"}}',
+    });
+    let hlArgs: string[] = [];
+    ctx.bash.registerCommand(
+      defineCommand("git", async (args) => {
+        if (args[0] === "rev-parse") {
+          return { stdout: "true\n", stderr: "", exitCode: 0 };
+        }
+        if (args[0] === "ls-files") {
+          return { stdout: "i18n.jsonc\0", stderr: "", exitCode: 0 };
+        }
+        return { stdout: "", stderr: "", exitCode: 0 };
+      }),
+    );
+    ctx.bash.registerCommand(
+      defineCommand("hl", async (args) => {
+        hlArgs = args;
+        return { stdout: "", stderr: "", exitCode: 0 };
+      }),
+    );
+
+    const t = createRunHyperlocaliseCliTool(ctx);
+    await t.execute!({ subcommand: "check" }, toolCallInfo);
+
+    expect(hlArgs).toEqual(["check"]);
+    expect(hlArgs.join(" ")).not.toContain("i18n.jsonc");
+  });
+
+  it("keeps an explicit --config path", async () => {
+    const ctx = createTestContext();
+    let hlArgs: string[] = [];
+    ctx.bash.registerCommand(
+      defineCommand("hl", async (args) => {
+        hlArgs = args;
+        return { stdout: "", stderr: "", exitCode: 0 };
+      }),
+    );
+
+    const t = createRunHyperlocaliseCliTool(ctx);
+    await t.execute!({ subcommand: "check", flags: { config: "custom/i18n.yml" } }, toolCallInfo);
+
+    expect(hlArgs).toEqual(["check", "--config=custom/i18n.yml"]);
   });
 
   it.each(["phrase", "crowdin", "lokalise"] as const)(
@@ -1381,6 +1649,22 @@ describe("createRunHyperlocaliseCliTool", () => {
     expect(stdout).toContain("***REDACTED***");
     expect(stdout).not.toContain("abcdefghijklmnopqrstuvwxyz12345");
   });
+
+  it("rejects write flags without invoking hl", async () => {
+    const ctx = createTestContext();
+    let invoked = false;
+    ctx.bash.registerCommand(
+      defineCommand("hl", async () => {
+        invoked = true;
+        return { stdout: "", stderr: "", exitCode: 0 };
+      }),
+    );
+
+    const t = createRunHyperlocaliseCliTool(ctx);
+    const result = await t.execute!({ subcommand: "check", boolFlags: ["fix"] }, toolCallInfo);
+    expect(result).toMatchObject({ success: false, error: expect.stringContaining("fix") });
+    expect(invoked).toBe(false);
+  });
 });
 
 describe("buildHlArgs", () => {
@@ -1430,6 +1714,22 @@ describe("buildHlArgs", () => {
       ok: false,
       error: { code: "flag_not_allowed" },
     });
+  });
+
+  it.each(["fix", "out-file", "output-file", "json-report"])("rejects write flag %s", (flag) => {
+    expect(buildHlArgs({ subcommand: "check", boolFlags: [flag] })).toMatchObject({
+      ok: false,
+      error: { code: "flag_not_allowed", name: flag },
+    });
+    expect(buildHlArgs({ subcommand: "check", flags: { [flag]: "pwned.txt" } })).toMatchObject({
+      ok: false,
+      error: { code: "flag_not_allowed", name: flag },
+    });
+  });
+
+  it("allows fix-dry-run", () => {
+    const result = buildHlArgs({ subcommand: "check", boolFlags: ["fix-dry-run"] });
+    expect(isOk(result)).toBe(true);
   });
 
   it("rejects $ in flag value", () => {

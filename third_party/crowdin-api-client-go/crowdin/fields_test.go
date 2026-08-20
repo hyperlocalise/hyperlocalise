@@ -232,7 +232,7 @@ func TestFieldsService_Add(t *testing.T) {
 		Description: "Custom field description",
 		Type:        model.TypeSelect,
 		Entities:    []model.FieldEntity{model.EntityTask},
-		Config: model.FieldConfig{
+		Config: &model.FieldConfig{
 			Options: []model.FieldOption{
 				{
 					Value: "option1",

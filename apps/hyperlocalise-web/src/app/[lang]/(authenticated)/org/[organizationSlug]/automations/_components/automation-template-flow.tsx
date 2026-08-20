@@ -13,7 +13,8 @@
  * Version 2.0 or later.
  */
 
-import { ClockIcon, MailIcon } from "lucide-react";
+import { Clock01Icon, Comment01Icon, Mail01Icon, Search01Icon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import { siGithub } from "simple-icons";
 import Image from "next/image";
 
@@ -25,12 +26,21 @@ import {
 import { cn } from "@/lib/primitives/cn";
 import { SimpleBrandIcon } from "../../integrations/_components/simple-brand-icon";
 
-type IconBucket = "schedule" | "github" | "slack" | "email" | "contentful";
+type IconBucket =
+  | "schedule"
+  | "github"
+  | "slack"
+  | "email"
+  | "contentful"
+  | "web-search"
+  | "web-chat";
 
 function iconBucketForNode(node: WorkspaceAutomationTemplateFlowNode): IconBucket {
   switch (node.id) {
     case "github-push":
+    case "github-pull-request":
     case "github":
+    case "github-comment":
     case "push-source":
     case "pull-translations":
     case "validation":
@@ -42,6 +52,12 @@ function iconBucketForNode(node: WorkspaceAutomationTemplateFlowNode): IconBucke
     case "contentful-webhook":
     case "contentful":
       return "contentful";
+    case "web-search":
+      return "web-search";
+    case "web-chat":
+      return "web-chat";
+    case "knowledge-files":
+      return "web-chat";
     case "scheduled":
     case "manual":
     default:
@@ -58,7 +74,7 @@ function FlowIcon({ bucket }: { bucket: IconBucket }) {
         <Image src="/images/slack-logo.svg" alt="Slack" width={16} height={16} className="size-4" />
       );
     case "email":
-      return <MailIcon className="size-4" />;
+      return <HugeiconsIcon icon={Mail01Icon} className="size-4" />;
     case "contentful":
       return (
         <Image
@@ -69,8 +85,12 @@ function FlowIcon({ bucket }: { bucket: IconBucket }) {
           className="size-4"
         />
       );
+    case "web-search":
+      return <HugeiconsIcon icon={Search01Icon} className="size-4" strokeWidth={1.8} />;
+    case "web-chat":
+      return <HugeiconsIcon icon={Comment01Icon} className="size-4" strokeWidth={1.8} />;
     case "schedule":
-      return <ClockIcon className="size-4" strokeWidth={1.8} />;
+      return <HugeiconsIcon icon={Clock01Icon} className="size-4" strokeWidth={1.8} />;
   }
 }
 

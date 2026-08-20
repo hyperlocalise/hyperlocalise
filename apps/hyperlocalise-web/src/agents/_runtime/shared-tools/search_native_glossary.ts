@@ -10,7 +10,8 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { and, desc, eq, inArray, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, isNotNull, sql } from "drizzle-orm";
+import { alias } from "drizzle-orm/pg-core";
 import { z } from "zod";
 
 import { defineAgentTool } from "@/agents/_runtime/define-agent-tool";
@@ -20,6 +21,9 @@ import { sourceContainsTerm } from "@/lib/glossary/validate-glossary-terms-in-tr
 import { toolCanAccessProject, toolProjectLinkedGlossaryWhere } from "@/lib/tools/tool-access";
 
 import { buildNativeGlossaryTsQuery } from "./build-native-glossary-tsquery";
+
+const nativeSourceTerms = alias(schema.glossaryTerms, "agent_native_source_terms");
+const nativeTargetTerms = alias(schema.glossaryTerms, "agent_native_target_terms");
 
 const searchNativeGlossaryInputSchema = z.object({
   sourceText: z
@@ -110,6 +114,7 @@ export function createSearchNativeGlossaryTool(ctx: ToolContext) {
         }
       }
 
+      const linkedGlossaryWhere = await toolProjectLinkedGlossaryWhere(ctx);
       const conditions = [
         sql`${schema.glossaryTerms.searchVector} @@ to_tsquery('simple', ${tsQuery})`,
         sql`case
@@ -117,7 +122,7 @@ export function createSearchNativeGlossaryTool(ctx: ToolContext) {
             then position(${schema.glossaryTerms.sourceTerm} in ${input.sourceText}) > 0
           else position(lower(${schema.glossaryTerms.sourceTerm}) in lower(${input.sourceText})) > 0
         end`,
-        await toolProjectLinkedGlossaryWhere(ctx),
+        linkedGlossaryWhere,
         eq(schema.glossaries.source, "native"),
         eq(schema.glossaries.sourceLocale, input.sourceLocale),
         eq(schema.glossaries.targetLocale, input.targetLocale),
@@ -129,34 +134,86 @@ export function createSearchNativeGlossaryTool(ctx: ToolContext) {
         conditions.push(inArray(schema.glossaryTerms.glossaryId, glossaryIds));
       }
 
-      const terms = await ctx.db
-        .select({
-          id: schema.glossaryTerms.id,
-          sourceTerm: schema.glossaryTerms.sourceTerm,
-          targetTerm: schema.glossaryTerms.targetTerm,
-          description: schema.glossaryTerms.description,
-          forbidden: schema.glossaryTerms.forbidden,
-          caseSensitive: schema.glossaryTerms.caseSensitive,
-          glossaryId: schema.glossaryTerms.glossaryId,
-          glossaryName: schema.glossaries.name,
-          rank: sql<number>`ts_rank(${schema.glossaryTerms.searchVector}, to_tsquery('simple', ${tsQuery}))`.as(
-            "rank",
-          ),
-        })
-        .from(schema.glossaryTerms)
-        .innerJoin(schema.glossaries, eq(schema.glossaryTerms.glossaryId, schema.glossaries.id))
-        .where(and(...conditions))
-        .orderBy(desc(sql`rank`))
-        .limit(input.limit);
+      const [terms, conceptTerms] = await Promise.all([
+        ctx.db
+          .select({
+            id: schema.glossaryTerms.id,
+            sourceTerm: schema.glossaryTerms.sourceTerm,
+            targetTerm: schema.glossaryTerms.targetTerm,
+            description: schema.glossaryTerms.description,
+            forbidden: schema.glossaryTerms.forbidden,
+            caseSensitive: schema.glossaryTerms.caseSensitive,
+            glossaryId: schema.glossaryTerms.glossaryId,
+            glossaryName: schema.glossaries.name,
+            rank: sql<number>`ts_rank(${schema.glossaryTerms.searchVector}, to_tsquery('simple', ${tsQuery}))`.as(
+              "rank",
+            ),
+          })
+          .from(schema.glossaryTerms)
+          .innerJoin(schema.glossaries, eq(schema.glossaryTerms.glossaryId, schema.glossaries.id))
+          .where(and(...conditions))
+          .orderBy(desc(sql`rank`))
+          .limit(input.limit),
+        ctx.db
+          .select({
+            id: nativeTargetTerms.id,
+            sourceTerm: sql<string>`${nativeSourceTerms.term}`,
+            targetTerm: sql<string>`${nativeTargetTerms.term}`,
+            description: nativeSourceTerms.description,
+            forbidden: nativeSourceTerms.forbidden,
+            caseSensitive: nativeSourceTerms.caseSensitive,
+            glossaryId: nativeSourceTerms.glossaryId,
+            glossaryName: schema.glossaries.name,
+            rank: sql<number>`ts_rank(${nativeSourceTerms.searchVector}, to_tsquery('simple', ${tsQuery}))`.as(
+              "rank",
+            ),
+          })
+          .from(nativeSourceTerms)
+          .innerJoin(
+            nativeTargetTerms,
+            and(
+              eq(nativeSourceTerms.glossaryId, nativeTargetTerms.glossaryId),
+              eq(nativeSourceTerms.conceptId, nativeTargetTerms.conceptId),
+            ),
+          )
+          .innerJoin(schema.glossaries, eq(nativeSourceTerms.glossaryId, schema.glossaries.id))
+          .where(
+            and(
+              sql`${nativeSourceTerms.searchVector} @@ to_tsquery('simple', ${tsQuery})`,
+              sql`case
+                when coalesce(${nativeSourceTerms.caseSensitive}, false)
+                  then position(${nativeSourceTerms.term} in ${input.sourceText}) > 0
+                else position(lower(${nativeSourceTerms.term}) in lower(${input.sourceText})) > 0
+              end`,
+              linkedGlossaryWhere,
+              eq(schema.glossaries.source, "native"),
+              eq(schema.glossaries.sourceLocale, input.sourceLocale),
+              eq(nativeSourceTerms.locale, input.sourceLocale),
+              eq(nativeTargetTerms.locale, input.targetLocale),
+              eq(schema.glossaries.status, "active"),
+              isNotNull(nativeSourceTerms.conceptId),
+              isNotNull(nativeSourceTerms.term),
+              isNotNull(nativeTargetTerms.term),
+              eq(nativeSourceTerms.reviewStatus, "approved"),
+              eq(nativeTargetTerms.reviewStatus, "approved"),
+              glossaryIds ? inArray(nativeSourceTerms.glossaryId, glossaryIds) : undefined,
+            ),
+          )
+          .orderBy(desc(sql`rank`))
+          .limit(input.limit),
+      ]);
 
       // Keep the shared application-level check as a defense against database
       // and JavaScript containment semantics drifting apart.
-      const sourceMatchedTerms = terms.filter((term) =>
-        sourceContainsTerm(input.sourceText, {
-          sourceTerm: term.sourceTerm,
-          caseSensitive: term.caseSensitive ?? false,
-        }),
-      );
+      const sourceMatchedTerms = [...terms, ...conceptTerms]
+        .filter((term) =>
+          sourceContainsTerm(input.sourceText, {
+            sourceTerm: term.sourceTerm,
+            caseSensitive: term.caseSensitive ?? false,
+          }),
+        )
+        .toSorted((left, right) => right.rank - left.rank)
+        .slice(0, input.limit);
 
       return {
         success: true,

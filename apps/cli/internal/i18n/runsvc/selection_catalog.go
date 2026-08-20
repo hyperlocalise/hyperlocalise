@@ -1,10 +1,10 @@
 package runsvc
 
 import (
+	"cmp"
 	"fmt"
 	"path/filepath"
 	"slices"
-	"sort"
 )
 
 type SelectionCatalog struct {
@@ -85,11 +85,19 @@ func (s stringSet) add(value string) {
 }
 
 func (s stringSet) sortedValues() []string {
-	values := make([]string, 0, len(s))
-	for value := range s {
-		values = append(values, value)
+	if len(s) == 0 {
+		return nil
 	}
-	slices.Sort(values)
+	// BOLT OPTIMIZATION: Assign elements by index to avoid append checks, and skip slices.Sort for single-element sets.
+	values := make([]string, len(s))
+	i := 0
+	for value := range s {
+		values[i] = value
+		i++
+	}
+	if len(values) > 1 {
+		slices.Sort(values)
+	}
 	return values
 }
 
@@ -147,19 +155,21 @@ func buildSelectionCatalogFromTasks(configPath string, planned []Task) Selection
 		TotalTasks: len(planned),
 	}
 
-	groupAgg := map[string]*selectionGroupAgg{}
-	bucketAgg := map[string]*selectionBucketAgg{}
-	targetAgg := map[string]*selectionTargetLocaleAgg{}
-	fileAgg := map[string]*selectionFileAgg{}
-	taskAgg := map[selectionTaskIndexKey]*SelectionTaskIndex{}
+	// BOLT OPTIMIZATION: Pre-allocate aggregator maps with capacity hints to reduce re-allocations and rehashing.
+	groupAgg := make(map[string]*selectionGroupAgg, 8)
+	bucketAgg := make(map[string]*selectionBucketAgg, 8)
+	targetAgg := make(map[string]*selectionTargetLocaleAgg, 8)
+	fileAgg := make(map[string]*selectionFileAgg, 64)
+	taskAgg := make(map[selectionTaskIndexKey]*SelectionTaskIndex, len(planned)/64)
 
 	for _, task := range planned {
 		groupEntry := groupAgg[task.GroupName]
 		if groupEntry == nil {
+			// BOLT OPTIMIZATION: Initialize stringSets with sensible low-capacity bounds to prevent resizing of small maps.
 			groupEntry = &selectionGroupAgg{
-				buckets:       stringSet{},
-				targetLocales: stringSet{},
-				files:         stringSet{},
+				buckets:       make(stringSet, 4),
+				targetLocales: make(stringSet, 4),
+				files:         make(stringSet, 16),
 			}
 			groupAgg[task.GroupName] = groupEntry
 		}
@@ -170,10 +180,11 @@ func buildSelectionCatalogFromTasks(configPath string, planned []Task) Selection
 
 		bucketEntry := bucketAgg[task.BucketName]
 		if bucketEntry == nil {
+			// BOLT OPTIMIZATION: Initialize stringSets with sensible low-capacity bounds to prevent resizing of small maps.
 			bucketEntry = &selectionBucketAgg{
-				groups:        stringSet{},
-				targetLocales: stringSet{},
-				files:         stringSet{},
+				groups:        make(stringSet, 4),
+				targetLocales: make(stringSet, 4),
+				files:         make(stringSet, 16),
 			}
 			bucketAgg[task.BucketName] = bucketEntry
 		}
@@ -184,10 +195,11 @@ func buildSelectionCatalogFromTasks(configPath string, planned []Task) Selection
 
 		targetEntry := targetAgg[task.TargetLocale]
 		if targetEntry == nil {
+			// BOLT OPTIMIZATION: Initialize stringSets with sensible low-capacity bounds to prevent resizing of small maps.
 			targetEntry = &selectionTargetLocaleAgg{
-				groups:  stringSet{},
-				buckets: stringSet{},
-				files:   stringSet{},
+				groups:  make(stringSet, 4),
+				buckets: make(stringSet, 4),
+				files:   make(stringSet, 16),
 			}
 			targetAgg[task.TargetLocale] = targetEntry
 		}
@@ -198,12 +210,13 @@ func buildSelectionCatalogFromTasks(configPath string, planned []Task) Selection
 
 		fileEntry := fileAgg[task.SourcePath]
 		if fileEntry == nil {
+			// BOLT OPTIMIZATION: Initialize stringSets with sensible low-capacity bounds to prevent resizing of small maps.
 			fileEntry = &selectionFileAgg{
 				path:          task.SourcePath,
 				directory:     filepath.Dir(task.SourcePath),
-				groups:        stringSet{},
-				buckets:       stringSet{},
-				targetLocales: stringSet{},
+				groups:        make(stringSet, 4),
+				buckets:       make(stringSet, 4),
+				targetLocales: make(stringSet, 4),
 			}
 			fileAgg[task.SourcePath] = fileEntry
 		}
@@ -246,7 +259,10 @@ func buildSelectionCatalogFromTasks(configPath string, planned []Task) Selection
 		group.FileCount = len(group.Files)
 		catalog.Groups = append(catalog.Groups, group)
 	}
-	sort.Slice(catalog.Groups, func(i, j int) bool { return catalog.Groups[i].Name < catalog.Groups[j].Name })
+	// BOLT OPTIMIZATION: Replace reflection-based sort.Slice with type-safe slices.SortFunc.
+	slices.SortFunc(catalog.Groups, func(a, b SelectionGroup) int {
+		return cmp.Compare(a.Name, b.Name)
+	})
 
 	catalog.Buckets = make([]SelectionBucket, 0, len(bucketAgg))
 	for name, item := range bucketAgg {
@@ -262,7 +278,10 @@ func buildSelectionCatalogFromTasks(configPath string, planned []Task) Selection
 		bucket.FileCount = len(bucket.Files)
 		catalog.Buckets = append(catalog.Buckets, bucket)
 	}
-	sort.Slice(catalog.Buckets, func(i, j int) bool { return catalog.Buckets[i].Name < catalog.Buckets[j].Name })
+	// BOLT OPTIMIZATION: Replace reflection-based sort.Slice with type-safe slices.SortFunc.
+	slices.SortFunc(catalog.Buckets, func(a, b SelectionBucket) int {
+		return cmp.Compare(a.Name, b.Name)
+	})
 
 	catalog.TargetLocales = make([]SelectionTargetLocale, 0, len(targetAgg))
 	for locale, item := range targetAgg {
@@ -278,7 +297,10 @@ func buildSelectionCatalogFromTasks(configPath string, planned []Task) Selection
 		target.FileCount = len(target.Files)
 		catalog.TargetLocales = append(catalog.TargetLocales, target)
 	}
-	sort.Slice(catalog.TargetLocales, func(i, j int) bool { return catalog.TargetLocales[i].Locale < catalog.TargetLocales[j].Locale })
+	// BOLT OPTIMIZATION: Replace reflection-based sort.Slice with type-safe slices.SortFunc.
+	slices.SortFunc(catalog.TargetLocales, func(a, b SelectionTargetLocale) int {
+		return cmp.Compare(a.Locale, b.Locale)
+	})
 
 	catalog.Files = make([]SelectionFile, 0, len(fileAgg))
 	for _, item := range fileAgg {
@@ -295,25 +317,27 @@ func buildSelectionCatalogFromTasks(configPath string, planned []Task) Selection
 		file.TargetCount = len(file.TargetLocales)
 		catalog.Files = append(catalog.Files, file)
 	}
-	sort.Slice(catalog.Files, func(i, j int) bool { return catalog.Files[i].Path < catalog.Files[j].Path })
+	// BOLT OPTIMIZATION: Replace reflection-based sort.Slice with type-safe slices.SortFunc.
+	slices.SortFunc(catalog.Files, func(a, b SelectionFile) int {
+		return cmp.Compare(a.Path, b.Path)
+	})
 
 	catalog.TaskIndex = make([]SelectionTaskIndex, 0, len(taskAgg))
 	for _, item := range taskAgg {
 		catalog.TaskIndex = append(catalog.TaskIndex, *item)
 	}
-	sort.Slice(catalog.TaskIndex, func(i, j int) bool {
-		left := catalog.TaskIndex[i]
-		right := catalog.TaskIndex[j]
-		if left.Group != right.Group {
-			return left.Group < right.Group
+	// BOLT OPTIMIZATION: Replace reflection-based sort.Slice with type-safe slices.SortFunc.
+	slices.SortFunc(catalog.TaskIndex, func(a, b SelectionTaskIndex) int {
+		if a.Group != b.Group {
+			return cmp.Compare(a.Group, b.Group)
 		}
-		if left.Bucket != right.Bucket {
-			return left.Bucket < right.Bucket
+		if a.Bucket != b.Bucket {
+			return cmp.Compare(a.Bucket, b.Bucket)
 		}
-		if left.TargetLocale != right.TargetLocale {
-			return left.TargetLocale < right.TargetLocale
+		if a.TargetLocale != b.TargetLocale {
+			return cmp.Compare(a.TargetLocale, b.TargetLocale)
 		}
-		return left.SourcePath < right.SourcePath
+		return cmp.Compare(a.SourcePath, b.SourcePath)
 	})
 
 	return catalog

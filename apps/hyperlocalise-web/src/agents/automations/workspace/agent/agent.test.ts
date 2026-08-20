@@ -29,11 +29,11 @@ vi.mock("ai", async () => {
   };
 });
 
-vi.mock("@/lib/agent-runtime/loops/model", () => ({
-  getHyperlocaliseAgentModel: vi.fn(() => "mock-model"),
-}));
-
-import { WORKSPACE_ORCHESTRATOR_STEP_LIMIT } from "@/lib/agent-runtime/subagents/constants";
+import {
+  WORKFLOW_AGENT_TIMEOUT,
+  WORKSPACE_ORCHESTRATOR_STEP_LIMIT,
+  WORKSPACE_ORCHESTRATOR_TIMEOUT,
+} from "@/lib/agent-runtime/subagents/constants";
 import type {
   WorkspaceAutomationRecord,
   WorkspaceAutomationRunRecord,
@@ -50,6 +50,7 @@ function automation(): WorkspaceAutomationRecord {
     status: "active",
     name: "Test automation",
     instructions: "",
+    model: "openai/gpt-5.6-luna",
     projectId: "project-1",
     triggerConfig: { mode: "manual" },
     repositoryTarget: { kind: "none" },
@@ -107,9 +108,16 @@ describe("workspace orchestrator agent", () => {
     // WORKSPACE_ORCHESTRATOR_STEP_LIMIT (6) is a floor, not a ceiling: a 2-tool plan still gets at
     // least that many steps even though plannedToolCount + 1 (3) is smaller.
     expect(isStepCountMock).toHaveBeenCalledWith(WORKSPACE_ORCHESTRATOR_STEP_LIMIT);
+    expect(WORKSPACE_ORCHESTRATOR_TIMEOUT.stepMs).toBe(WORKFLOW_AGENT_TIMEOUT.totalMs);
+    expect(WORKFLOW_AGENT_TIMEOUT.stepMs).toBeLessThan(WORKFLOW_AGENT_TIMEOUT.totalMs);
+    expect(WORKSPACE_ORCHESTRATOR_TIMEOUT.stepMs).toBeLessThan(
+      WORKSPACE_ORCHESTRATOR_TIMEOUT.totalMs,
+    );
     expect(toolLoopAgentMock).toHaveBeenCalledWith(
       expect.objectContaining({
+        model: "openai/gpt-5.6-luna",
         activeTools: ["run_github_workflows", "notify_slack"],
+        timeout: WORKSPACE_ORCHESTRATOR_TIMEOUT,
         prepareStep: expect.any(Function),
       }),
     );
@@ -132,6 +140,27 @@ describe("workspace orchestrator agent", () => {
     expect(settings.prepareStep({ stepNumber: WORKSPACE_ORCHESTRATOR_STEP_LIMIT })).toEqual({
       toolChoice: "none",
     });
+  });
+
+  it("uses the automation's selected model", () => {
+    const session = createWorkspaceOrchestratorSession({
+      organizationId: "org-1",
+      automation: { ...automation(), model: "anthropic/claude-opus-5" },
+      run: run(),
+      plan: {
+        tools: ["run_github_workflows"],
+      },
+      repository: null,
+      composedInstructions: "Run the automation.",
+    });
+
+    createWorkspaceOrchestratorAgent(session);
+
+    expect(toolLoopAgentMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        model: "anthropic/claude-opus-5",
+      }),
+    );
   });
 
   it("never caps the step count below what a larger plan needs", () => {

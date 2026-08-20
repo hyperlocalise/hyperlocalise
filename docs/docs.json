@@ -86,7 +86,9 @@
               "providers/bedrock",
               "providers/lmstudio",
               "providers/groq",
-              "providers/ollama"
+              "providers/ollama",
+              "providers/openrouter",
+              "providers/ai-gateway"
             ]
           },
           {

@@ -14,9 +14,13 @@
  */
 import Link from "next/link";
 import { forwardRef, useImperativeHandle } from "react";
-import { Download01Icon, TranslateIcon, Upload01Icon } from "@hugeicons/core-free-icons";
+import {
+  Download01Icon,
+  LeftToRightListBulletIcon,
+  TranslateIcon,
+  Upload01Icon,
+} from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { ListIcon } from "lucide-react";
 import { FormattedMessage } from "react-intl";
 
 import type { ProjectFileRecord } from "@/api/routes/project/project.schema";
@@ -92,7 +96,7 @@ export const ProjectFileSelectionActions = forwardRef<
         disabled={!actions.canOpenCat || !actions.catHref}
         render={actions.canOpenCat && actions.catHref ? <Link href={actions.catHref} /> : undefined}
       >
-        <ListIcon />
+        <HugeiconsIcon icon={LeftToRightListBulletIcon} />
         <FormattedMessage {...messages.viewStrings} />
       </Button>
       {actions.isNativeFile ? (

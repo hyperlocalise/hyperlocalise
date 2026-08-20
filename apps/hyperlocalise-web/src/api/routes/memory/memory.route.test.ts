@@ -33,6 +33,8 @@ vi.mock("@/api/auth/workos-session", async (importOriginal) => {
 });
 
 import { createApp } from "@/api/app";
+import { PRODUCT_USAGE_ANALYTICS_EVENTS } from "@/lib/analytics/events";
+import { serverAnalytics } from "@/lib/analytics/server";
 import { db } from "@/lib/database";
 
 import { createMemoryTestFixture } from "./memory.fixture";
@@ -180,5 +182,18 @@ describe("memoryRoutes", () => {
         matchScore: 0,
       }),
     ]);
+  });
+
+  it("emits product usage analytics when creating a translation memory", async () => {
+    const identity = fixture.createWorkosIdentityWithRole("admin");
+    const trackSpy = vi.spyOn(serverAnalytics, "track").mockImplementation(() => {});
+
+    const response = await fixture.createMemoryViaApi(identity);
+    expect(response.status).toBe(201);
+    expect(trackSpy).toHaveBeenCalledWith(PRODUCT_USAGE_ANALYTICS_EVENTS.memoryCreated, {
+      status: "created",
+      source: "memory",
+    });
+    trackSpy.mockRestore();
   });
 });

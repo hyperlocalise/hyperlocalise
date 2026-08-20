@@ -13,11 +13,15 @@
 import { tool, type Tool } from "ai";
 import type { z } from "zod";
 
+export type AgentToolExecuteOptions = {
+  abortSignal?: AbortSignal;
+};
+
 type DefineAgentToolInput<INPUT, OUTPUT> = {
   description: string;
   inputSchema: z.ZodType<INPUT>;
   outputSchema?: z.ZodType<OUTPUT>;
-  execute: (input: INPUT) => Promise<OUTPUT>;
+  execute: (input: INPUT, options?: AgentToolExecuteOptions) => Promise<OUTPUT>;
 };
 
 export function defineAgentTool<INPUT, OUTPUT = unknown>(

@@ -12,6 +12,73 @@
  */
 import type { WorkspaceAutomationRecord } from "@/lib/agents/workspace-automations";
 
+function readSnapshotString(snapshot: Record<string, unknown>, key: string): string | null {
+  const value = snapshot[key];
+  return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
+export function isGithubNullOid(sha: string | null | undefined): boolean {
+  return !sha || /^0+$/.test(sha);
+}
+
+export type GithubPushInspectionRange = {
+  branch: string;
+  commitBefore: string | null;
+  commitAfter: string;
+};
+
+export function resolveGithubPushRange(input: {
+  triggerSource: string;
+  inputSnapshot: Record<string, unknown>;
+}): GithubPushInspectionRange | null {
+  if (input.triggerSource !== "github") {
+    return null;
+  }
+
+  const branch =
+    readSnapshotString(input.inputSnapshot, "headBranch") ??
+    readSnapshotString(input.inputSnapshot, "pushBranch");
+  const commitAfter = readSnapshotString(input.inputSnapshot, "commitAfter");
+  if (!branch || !commitAfter || isGithubNullOid(commitAfter)) {
+    return null;
+  }
+
+  const commitBeforeRaw = readSnapshotString(input.inputSnapshot, "commitBefore");
+  return {
+    branch,
+    commitBefore: commitBeforeRaw && !isGithubNullOid(commitBeforeRaw) ? commitBeforeRaw : null,
+    commitAfter,
+  };
+}
+
+export function formatGithubPushRangeLabel(range: GithubPushInspectionRange): string {
+  if (!range.commitBefore) {
+    return `new branch ${range.branch} at ${range.commitAfter}`;
+  }
+
+  return `${range.commitBefore}..${range.commitAfter} on ${range.branch}`;
+}
+
+export function resolveGithubWorkflowTriggerBranch(
+  inputSnapshot: Record<string, unknown>,
+): string | undefined {
+  const githubEvent = readSnapshotString(inputSnapshot, "githubEvent");
+  const baseBranch = readSnapshotString(inputSnapshot, "baseBranch");
+  const pushBranch = readSnapshotString(inputSnapshot, "pushBranch");
+  if (githubEvent === "pull_request" && baseBranch) {
+    return baseBranch;
+  }
+
+  return pushBranch ?? undefined;
+}
+
+export function resolveGithubPullRequestNumber(
+  inputSnapshot: Record<string, unknown>,
+): number | null {
+  const value = inputSnapshot.pullRequestNumber;
+  return typeof value === "number" && Number.isInteger(value) && value > 0 ? value : null;
+}
+
 export function resolveGithubRepoLookbackHours(input: {
   automation: WorkspaceAutomationRecord;
   triggerSource: string;

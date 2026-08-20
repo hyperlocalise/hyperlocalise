@@ -39,8 +39,10 @@ import { createCrowdinAppRoutes } from "./routes/crowdin-app/crowdin-app.route";
 import { createContentfulConnectionRoutes } from "./routes/contentful-connection/contentful-connection.route";
 import { createContentfulWebhookRoutes } from "./routes/contentful-webhook/contentful-webhook.route";
 import { createMcpServerConnectionRoutes } from "./routes/mcp-server-connection/mcp-server-connection.route";
+import { createLinkedDomainRoutes } from "./routes/linked-domain/linked-domain.route";
 import { createAhrefsConnectionRoutes } from "./routes/ahrefs-connection/ahrefs-connection.route";
 import { createSemrushConnectionRoutes } from "./routes/semrush-connection/semrush-connection.route";
+import { createIntercomConnectionRoutes } from "./routes/intercom-connection/intercom-connection.route";
 import { createGlossaryRoutes } from "./routes/glossary/glossary.route";
 import { createKnowledgeMemoryRoutes } from "./routes/knowledge-memory/knowledge-memory.route";
 import { createMemoryRoutes } from "./routes/memory/memory.route";
@@ -67,6 +69,7 @@ import { createSlackWebhookRoutes } from "./routes/slack-webhook/slack-webhook.r
 import { createFileRoutes } from "./routes/file/file.route";
 import { createWorkspaceFilesRoutes } from "./routes/workspace-files/workspace-files.route";
 import { createWorkspaceAutomationRoutes } from "./routes/workspace-automation/workspace-automation.route";
+import { createWebChatRoutes } from "./routes/web-chat/web-chat.route";
 import { createExternalTmsProviderCredentialRoutes } from "./routes/external-tms-provider-credential/external-tms-provider-credential.route";
 import { createTmsProviderRoutes } from "./routes/tms-provider/tms-provider.route";
 import { createTmsAgentAutomationRoutes } from "./routes/tms-agent-automation/tms-agent-automation.route";
@@ -147,6 +150,10 @@ export function createApp(options: CreateAppOptions = {}) {
       "/public/media",
       createPublicMediaRoutes({ fileStorageAdapter: options.fileStorageAdapter }),
     )
+    .route(
+      "/public/web-chat",
+      createWebChatRoutes({ fileStorageAdapter: options.fileStorageAdapter }),
+    )
     .route("/integrations/canva", createCanvaIntegrationRoutes({ ...options, jobQueue }))
     .route("/", createCanvaOAuthRoutes())
     .route("/crowdin-app", createCrowdinAppRoutes())
@@ -209,8 +216,10 @@ function createOrgScopedAppRoutes(
     .route("/provider-credential", createProviderCredentialRoutes())
     .route("/contentful-connections", createContentfulConnectionRoutes())
     .route("/mcp-server-connections", createMcpServerConnectionRoutes())
+    .route("/linked-domains", createLinkedDomainRoutes())
     .route("/semrush-connections", createSemrushConnectionRoutes())
     .route("/ahrefs-connections", createAhrefsConnectionRoutes())
+    .route("/intercom-connections", createIntercomConnectionRoutes())
     .route("/external-tms-provider-credential", createExternalTmsProviderCredentialRoutes())
     .route(
       "/tms-provider",
@@ -225,7 +234,10 @@ function createOrgScopedAppRoutes(
     .route("/teams", createTeamRoutes())
     .route("/files", createFileRoutes({ fileStorageAdapter: options.fileStorageAdapter }))
     .route("/workspace-files", createWorkspaceFilesRoutes())
-    .route("/automations", createWorkspaceAutomationRoutes())
+    .route(
+      "/automations",
+      createWorkspaceAutomationRoutes({ fileStorageAdapter: options.fileStorageAdapter }),
+    )
     .route(
       "/conversations",
       createConversationRoutes({ fileStorageAdapter: options.fileStorageAdapter }),

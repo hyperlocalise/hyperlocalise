@@ -225,6 +225,9 @@ export function CatLinkedIssuesDialog({
       sourcePath: segment.sourcePath,
       targetLocale: segment.targetLocale,
       defaultTitle: intl.formatMessage(messages.defaultTitle, { key: segment.segmentKey }),
+      // Source material the create dialog quotes below the applied template's description
+      // skeleton, not the literal description — the only place source survives for segments
+      // without a translationKeyId once a template takes over the description.
       defaultDescription: segment.sourceText,
     };
   }, [intl, segment]);
@@ -358,6 +361,9 @@ export function CatLinkedIssuesDialog({
           organizationSlug={organizationSlug}
           projectId={projectId}
           stringLink={createStringLink}
+          // CAT's fixed default, independent of the project's configured default template. Still
+          // swappable or removable in the dialog before creating.
+          initialTemplateKey="tpl_context_request"
           onCreated={async () => {
             await invalidateLinked();
           }}

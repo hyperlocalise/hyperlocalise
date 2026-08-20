@@ -44,6 +44,31 @@ describe("cat-file-view-capabilities", () => {
     expect(capabilities.defaultView).toBe("file");
   });
 
+  it("enables file view for video paths", () => {
+    const capabilities = resolveCatFileViewCapabilities({
+      sourcePath: "assets/hero.mp4",
+    });
+
+    expect(capabilities).toEqual({
+      family: "video",
+      availableViews: ["file", "comfortable", "side-by-side"],
+      defaultView: "file",
+      viewerId: "video",
+    });
+    expect(isCatFileViewAvailable(capabilities)).toBe(true);
+  });
+
+  it("enables file view for video_file content kind", () => {
+    const capabilities = resolveCatFileViewCapabilities({
+      sourcePath: "CAT_ALL_FILES",
+      contentKind: "video_file",
+    });
+
+    expect(capabilities.family).toBe("video");
+    expect(capabilities.viewerId).toBe("video");
+    expect(capabilities.defaultView).toBe("file");
+  });
+
   it("keeps segment views for text files", () => {
     const capabilities = resolveCatFileViewCapabilities({
       sourcePath: "locales/en.json",

@@ -22,6 +22,13 @@ import {
 
 const issueSheetBasePath = "/api/orgs/:organizationSlug/projects/:projectId/issue-sheet";
 
+// The nested create-issue dialog (opened via the "Create issue" button) always fetches this when
+// open — without a handler the request goes unhandled and the project-default-template
+// resolution it backs silently never runs in any of these stories.
+const emptyTemplateConfigHandler = http.get(`${issueSheetBasePath}/template-config`, () =>
+  HttpResponse.json({ templateConfig: { defaultTemplateKey: null, assigneeByTemplate: [] } }),
+);
+
 function listResponse(issues: CatLinkedIssueListItemFixture[]) {
   return HttpResponse.json({
     issues,
@@ -99,6 +106,7 @@ export const catLinkedIssuesMswHandlers = [
       { status: 201 },
     );
   }),
+  emptyTemplateConfigHandler,
 ];
 
 export const catLinkedIssuesEmptyMswHandlers = [
@@ -138,6 +146,7 @@ export const catLinkedIssuesEmptyMswHandlers = [
       { status: 201 },
     );
   }),
+  emptyTemplateConfigHandler,
 ];
 
 export const catLinkedIssuesLoadingMswHandlers = [
@@ -149,6 +158,7 @@ export const catLinkedIssuesLoadingMswHandlers = [
     await delay("infinite");
     return listResponse([]);
   }),
+  emptyTemplateConfigHandler,
 ];
 
 export const catLinkedIssuesErrorMswHandlers = [
@@ -158,4 +168,5 @@ export const catLinkedIssuesErrorMswHandlers = [
   http.get(issueSheetBasePath, () =>
     HttpResponse.json({ error: "issue_sheet_unavailable" }, { status: 500 }),
   ),
+  emptyTemplateConfigHandler,
 ];

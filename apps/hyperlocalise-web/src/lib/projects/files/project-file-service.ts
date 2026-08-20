@@ -589,13 +589,11 @@ export class ProjectFileService extends ProjectServiceBase {
       const filtered = filterProjectFiles(files, input.query);
 
       collected.push(
-        ...filtered.slice(0, remaining).map(
-          (file): WorkspaceFileRecord => ({
-            ...file,
-            projectId: project.projectId,
-            projectName: project.projectName,
-          }),
-        ),
+        ...filtered.slice(0, remaining).map((file): WorkspaceFileRecord => ({
+          ...file,
+          projectId: project.projectId,
+          projectName: project.projectName,
+        })),
       );
     }
 

@@ -14,14 +14,16 @@
  */
 import { useEffect, useRef, useState } from "react";
 import {
+  ArrowDown01Icon,
   Copy01Icon,
   Delete02Icon,
   Key01Icon,
   SaveIcon,
   Tick02Icon,
+  ViewIcon,
+  ViewOffSlashIcon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { ChevronDownIcon, EyeIcon, EyeOffIcon } from "lucide-react";
 import { FormattedMessage, useIntl, type IntlShape, type MessageDescriptor } from "react-intl";
 import { toast } from "sonner";
 
@@ -244,7 +246,11 @@ function CrowdinOAuthSetupFields({
                 : tmsProviderCredentialPanelMessages.showSecretAriaLabel,
             )}
           >
-            {showSecret ? <EyeOffIcon size={16} /> : <EyeIcon size={16} />}
+            {showSecret ? (
+              <HugeiconsIcon icon={ViewOffSlashIcon} size={16} />
+            ) : (
+              <HugeiconsIcon icon={ViewIcon} size={16} />
+            )}
           </button>
         </div>
       </Field>
@@ -522,7 +528,8 @@ export function TmsProviderCredentialPanel({
                 className="h-8 w-full justify-between px-2 text-muted-foreground hover:text-foreground"
               >
                 {intl.formatMessage(tmsProviderCredentialPanelMessages.reconnectOAuthApp)}
-                <ChevronDownIcon
+                <HugeiconsIcon
+                  icon={ArrowDown01Icon}
                   className={cn(
                     "size-3.5 shrink-0 transition-transform",
                     oauthReconnectOpen && "rotate-180",
@@ -609,7 +616,11 @@ export function TmsProviderCredentialPanel({
                   : tmsProviderCredentialPanelMessages.showSecretAriaLabel,
               )}
             >
-              {showSecret ? <EyeOffIcon size={16} /> : <EyeIcon size={16} />}
+              {showSecret ? (
+                <HugeiconsIcon icon={ViewOffSlashIcon} size={16} />
+              ) : (
+                <HugeiconsIcon icon={ViewIcon} size={16} />
+              )}
             </button>
           </div>
         </Field>
@@ -626,7 +637,8 @@ export function TmsProviderCredentialPanel({
                 className="h-8 w-full justify-between px-2 text-muted-foreground hover:text-foreground"
               >
                 {intl.formatMessage(tmsProviderCredentialPanelMessages.advancedSettings)}
-                <ChevronDownIcon
+                <HugeiconsIcon
+                  icon={ArrowDown01Icon}
                   className={cn(
                     "size-3.5 shrink-0 transition-transform",
                     advancedSettingsOpen && "rotate-180",

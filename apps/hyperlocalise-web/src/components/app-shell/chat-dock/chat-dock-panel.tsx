@@ -33,7 +33,6 @@ import { ReplyComposer } from "@/app/[lang]/(authenticated)/org/[organizationSlu
 import { Button } from "@/components/ui/button";
 import { TypographyMuted } from "@/components/ui/typography";
 import { apiClient } from "@/lib/api-client-instance";
-import { readApiResponseError } from "@/lib/api-error";
 
 import { ChatDockEmptyState } from "./chat-dock-empty-state";
 import { chatDockMessages } from "./chat-dock.messages";
@@ -171,40 +170,12 @@ export const ChatDockPanel = observer(function ChatDockPanel({
   ]);
 
   const createConversationMutation = useMutation({
-    mutationFn: async (input: {
+    mutationFn: (input: {
       text: string;
       files: File[];
       projectId?: string;
       repositoryFullName?: string;
-    }) => {
-      const formData = new FormData();
-      formData.set("text", input.text.trim() || "Please translate the attached source file.");
-      if (input.projectId) {
-        formData.set("projectId", input.projectId);
-      }
-      if (input.repositoryFullName) {
-        formData.set("repositoryFullName", input.repositoryFullName);
-      }
-      for (const file of input.files) {
-        formData.append("files", file);
-      }
-
-      const response = await fetch(
-        `/api/orgs/${encodeURIComponent(organizationSlug)}/conversations`,
-        {
-          method: "POST",
-          body: formData,
-        },
-      );
-      if (!response.ok) {
-        throw await readApiResponseError(response, "Failed to create conversation");
-      }
-
-      return response.json() as Promise<{
-        conversation: { id: string; title?: string };
-        message?: { id: string; text: string };
-      }>;
-    },
+    }) => inboxApi.createConversation(organizationSlug, input),
   });
 
   const sendMessageMutation = useMutation({
@@ -399,12 +370,14 @@ export const ChatDockPanel = observer(function ChatDockPanel({
           key={tab.id}
           disabled={isBusy}
           draft={tab.draft}
+          initialProjectId={tab.isPending ? (store.pageContext?.projectId ?? null) : null}
           isStreaming={isTabStreaming}
+          lockedProjectId={!tab.isPending ? (persistedConversation?.projectId ?? null) : null}
+          lockedProjectName={tab.isPending ? (store.pageContext?.projectName ?? null) : null}
           onDraftChange={(nextDraft) => store.setDraft(tab.id, nextDraft)}
           onSend={onSendMessage}
           organizationSlug={organizationSlug}
           placeholder={intl.formatMessage(chatDockMessages.emptyComposer)}
-          variant="compact"
         />
       </div>
     </section>

@@ -671,6 +671,50 @@ func TestHyperlocalisePullReconstructsNativeFormats(t *testing.T) {
 			},
 		},
 		{
+			name:          "srt",
+			sourceLocale:  "en",
+			targetLocale:  "fr",
+			sourcePath:    "captions/en.srt",
+			targetPath:    "captions/fr.srt",
+			fromPattern:   "captions/{{source}}.srt",
+			toPattern:     "captions/{{target}}.srt",
+			sourceContent: "1\n00:00:00,000 --> 00:00:01,000\nHello\n\n",
+			translate: func(_, value string) string {
+				return strings.ReplaceAll(value, "Hello", "Bonjour")
+			},
+			assertNative: func(t *testing.T, content string) {
+				t.Helper()
+				if !strings.Contains(content, "Bonjour") {
+					t.Fatalf("target content = %q, want translated SRT cue", content)
+				}
+				if !strings.Contains(content, "00:00:00,000 --> 00:00:01,000") {
+					t.Fatalf("target content = %q, want preserved SRT timestamp", content)
+				}
+			},
+		},
+		{
+			name:          "vtt",
+			sourceLocale:  "en",
+			targetLocale:  "fr",
+			sourcePath:    "captions/en.vtt",
+			targetPath:    "captions/fr.vtt",
+			fromPattern:   "captions/{{source}}.vtt",
+			toPattern:     "captions/{{target}}.vtt",
+			sourceContent: "WEBVTT\n\n00:00:00.000 --> 00:00:01.000\nHello\n\n",
+			translate: func(_, value string) string {
+				return strings.ReplaceAll(value, "Hello", "Bonjour")
+			},
+			assertNative: func(t *testing.T, content string) {
+				t.Helper()
+				if !strings.HasPrefix(content, "WEBVTT") {
+					t.Fatalf("target content = %q, want WEBVTT header", content)
+				}
+				if !strings.Contains(content, "Bonjour") {
+					t.Fatalf("target content = %q, want translated VTT cue", content)
+				}
+			},
+		},
+		{
 			name:          "strings",
 			sourceLocale:  "en",
 			targetLocale:  "fr",

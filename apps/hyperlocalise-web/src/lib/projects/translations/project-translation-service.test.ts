@@ -56,6 +56,7 @@ vi.mock("@/lib/database", () => ({
       context: "context",
       type: "type",
       maxLength: "maxLength",
+      isHidden: "isHidden",
       organizationId: "organizationId",
       projectId: "projectId",
       repositorySourceFileId: "repositorySourceFileId",
@@ -91,6 +92,7 @@ describe("loadProjectTranslationsAsPrefilledEntries", () => {
 
     expect(result).toEqual({
       prefilled: {},
+      retryKeys: [],
       truncated: false,
       loadedKeyCount: 0,
       maxKeyCount: 5_000,
@@ -136,12 +138,109 @@ describe("loadProjectTranslationsAsPrefilledEntries", () => {
         greeting: "Bonjour",
         farewell: "Au revoir",
       },
+      retryKeys: [],
       truncated: false,
       loadedKeyCount: 3,
       maxKeyCount: 5_000,
       translatedKeyCount: 2,
     });
     expect(selectMock).toHaveBeenCalledTimes(3);
+  });
+
+  it("omits needs-review copies of multi-word source text so translate-with-agent can retry", async () => {
+    repoLimitMock.mockResolvedValueOnce([{ id: "repo_file_1", sourcePath: "locales/en.json" }]);
+    offsetMock.mockResolvedValueOnce([
+      { id: "key_1", key: "workspace_knowledge", sourceText: "Enable workspace knowledge" },
+      { id: "key_2", key: "brand", sourceText: "Hyperlocalise" },
+      { id: "key_3", key: "view_automations", sourceText: "View automations" },
+    ]);
+
+    whereMock.mockImplementationOnce(() => ({
+      limit: repoLimitMock,
+      orderBy: orderByMock,
+    }));
+    whereMock.mockImplementationOnce(() => ({
+      limit: repoLimitMock,
+      orderBy: orderByMock,
+    }));
+    whereMock.mockImplementationOnce(
+      () =>
+        Promise.resolve([
+          {
+            id: "translation_1",
+            translationKeyId: "key_1",
+            text: "Enable workspace knowledge",
+            status: "needs_review",
+          },
+          {
+            id: "translation_2",
+            translationKeyId: "key_2",
+            text: "Hyperlocalise",
+            status: "needs_review",
+          },
+          {
+            id: "translation_3",
+            translationKeyId: "key_3",
+            text: "Xem tự động hóa",
+            status: "needs_review",
+          },
+        ]) as unknown as { limit: typeof repoLimitMock; orderBy: typeof orderByMock },
+    );
+
+    const result = await loadProjectTranslationsAsPrefilledEntries({
+      organizationId: "org_1",
+      projectId: "project_1",
+      sourcePath: "locales/en.json",
+      targetLocale: "vi",
+    });
+
+    expect(result.prefilled).toEqual({
+      brand: "Hyperlocalise",
+      view_automations: "Xem tự động hóa",
+    });
+    expect(result.retryKeys).toEqual(["workspace_knowledge"]);
+    expect(result.translatedKeyCount).toBe(2);
+    expect(result.loadedKeyCount).toBe(3);
+  });
+
+  it("keeps approved copies of multi-word source text", async () => {
+    repoLimitMock.mockResolvedValueOnce([{ id: "repo_file_1", sourcePath: "locales/en.json" }]);
+    offsetMock.mockResolvedValueOnce([
+      { id: "key_1", key: "view_automations", sourceText: "View automations" },
+    ]);
+
+    whereMock.mockImplementationOnce(() => ({
+      limit: repoLimitMock,
+      orderBy: orderByMock,
+    }));
+    whereMock.mockImplementationOnce(() => ({
+      limit: repoLimitMock,
+      orderBy: orderByMock,
+    }));
+    whereMock.mockImplementationOnce(
+      () =>
+        Promise.resolve([
+          {
+            id: "translation_1",
+            translationKeyId: "key_1",
+            text: "View automations",
+            status: "approved",
+          },
+        ]) as unknown as { limit: typeof repoLimitMock; orderBy: typeof orderByMock },
+    );
+
+    const result = await loadProjectTranslationsAsPrefilledEntries({
+      organizationId: "org_1",
+      projectId: "project_1",
+      sourcePath: "locales/en.json",
+      targetLocale: "vi",
+    });
+
+    expect(result.prefilled).toEqual({
+      view_automations: "View automations",
+    });
+    expect(result.retryKeys).toEqual([]);
+    expect(result.translatedKeyCount).toBe(1);
   });
 
   it("excludes rejected translations even when text is present", async () => {
@@ -176,9 +275,54 @@ describe("loadProjectTranslationsAsPrefilledEntries", () => {
     });
 
     expect(result.prefilled).toEqual({});
+    expect(result.retryKeys).toEqual([]);
     expect(result.truncated).toBe(false);
     expect(result.loadedKeyCount).toBe(1);
     expect(result.translatedKeyCount).toBe(0);
+  });
+
+  it("prefills hidden keys with existing translation or source and omits them from retryKeys", async () => {
+    repoLimitMock.mockResolvedValueOnce([{ id: "repo_file_1", sourcePath: "locales/en.json" }]);
+    offsetMock.mockResolvedValueOnce([
+      { id: "key_1", key: "debug.id", sourceText: "Internal id", isHidden: true },
+      { id: "key_2", key: "hidden.copy", sourceText: "Do not translate", isHidden: true },
+      { id: "key_3", key: "greeting", sourceText: "Hello", isHidden: false },
+    ]);
+
+    whereMock.mockImplementationOnce(() => ({
+      limit: repoLimitMock,
+      orderBy: orderByMock,
+    }));
+    whereMock.mockImplementationOnce(() => ({
+      limit: repoLimitMock,
+      orderBy: orderByMock,
+    }));
+    whereMock.mockImplementationOnce(
+      () =>
+        Promise.resolve([
+          {
+            id: "translation_1",
+            translationKeyId: "key_1",
+            text: "Id interne",
+            status: "approved",
+          },
+        ]) as unknown as { limit: typeof repoLimitMock; orderBy: typeof orderByMock },
+    );
+
+    const result = await loadProjectTranslationsAsPrefilledEntries({
+      organizationId: "org_1",
+      projectId: "project_1",
+      sourcePath: "locales/en.json",
+      targetLocale: "fr",
+    });
+
+    expect(result.prefilled).toEqual({
+      "debug.id": "Id interne",
+      "hidden.copy": "Do not translate",
+    });
+    expect(result.retryKeys).toEqual([]);
+    expect(result.loadedKeyCount).toBe(3);
+    expect(result.translatedKeyCount).toBe(1);
   });
 
   it("exports every source key with source fallback when includeAllSourceKeys is enabled", async () => {
@@ -217,7 +361,49 @@ describe("loadProjectTranslationsAsPrefilledEntries", () => {
       farewell: "Goodbye",
       empty: "Pending",
     });
+    expect(result.retryKeys).toEqual([]);
     expect(result.translatedKeyCount).toBe(1);
+  });
+
+  it("falls back to source text for omitted same-as-source reviews when exporting all keys", async () => {
+    repoLimitMock.mockResolvedValueOnce([{ id: "repo_file_1", sourcePath: "locales/en.json" }]);
+    offsetMock.mockResolvedValueOnce([
+      { id: "key_1", key: "workspace_knowledge", sourceText: "Enable workspace knowledge" },
+    ]);
+
+    whereMock.mockImplementationOnce(() => ({
+      limit: repoLimitMock,
+      orderBy: orderByMock,
+    }));
+    whereMock.mockImplementationOnce(() => ({
+      limit: repoLimitMock,
+      orderBy: orderByMock,
+    }));
+    whereMock.mockImplementationOnce(
+      () =>
+        Promise.resolve([
+          {
+            id: "translation_1",
+            translationKeyId: "key_1",
+            text: "Enable workspace knowledge",
+            status: "needs_review",
+          },
+        ]) as unknown as { limit: typeof repoLimitMock; orderBy: typeof orderByMock },
+    );
+
+    const result = await loadProjectTranslationsAsPrefilledEntries({
+      organizationId: "org_1",
+      projectId: "project_1",
+      sourcePath: "locales/en.json",
+      targetLocale: "vi",
+      includeAllSourceKeys: true,
+    });
+
+    expect(result.prefilled).toEqual({
+      workspace_knowledge: "Enable workspace knowledge",
+    });
+    expect(result.retryKeys).toEqual(["workspace_knowledge"]);
+    expect(result.translatedKeyCount).toBe(0);
   });
 
   it("exports source fallback entries when no target translations exist", async () => {
@@ -256,6 +442,7 @@ describe("loadProjectTranslationsAsPrefilledEntries", () => {
         greeting: "Hello",
         farewell: "Goodbye",
       },
+      retryKeys: [],
       truncated: false,
       loadedKeyCount: 2,
       maxKeyCount: 5_000,

@@ -30,4 +30,14 @@ export const inboxListMessages = defineMessages({
     id: "k9uRw1QXC6",
     description: "Preview text when a conversation in the inbox list has no messages",
   },
+  newRequestTitle: {
+    defaultMessage: "New Request",
+    id: "sHACVcApZT",
+    description: "Inbox list row title for a dedicated new localisation request chat",
+  },
+  newRequestPreview: {
+    defaultMessage: "Start a localisation request",
+    id: "Leoig5Z0u9",
+    description: "Inbox list row preview for a dedicated new localisation request chat",
+  },
 });

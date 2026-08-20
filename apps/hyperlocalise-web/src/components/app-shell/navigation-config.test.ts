@@ -17,17 +17,19 @@ import { getIntlShape } from "@/lib/app-i18n/intl";
 
 import {
   WORKSPACE_AUTOMATIONS_FLAG,
-  WORKSPACE_ISSUES_FLAG,
+  WORKSPACE_DOMAINS_FLAG,
   WORKSPACE_KNOWLEDGE_FLAG,
 } from "@/lib/flags/workos-flag-entities";
 import { RELEASE_CAT_ALL_FILES_FLAG } from "@/lib/flags/release-flag-keys";
 import { encodeProviderProjectId } from "@/lib/providers/jobs/tms-provider-resource-id";
 
 import {
+  buildAutomationsPath,
   buildGlobalNavigationGroups,
   buildOrganizationPath,
   buildProjectNavigationItems,
   buildProjectPath,
+  isInboxNewRequestPath,
   isNavigationItemActive,
   parseProjectRoute,
   stripAppLocalePrefix,
@@ -158,6 +160,23 @@ describe("path builders", () => {
     expect(buildProjectPath("acme", "proj_1", "files")).toBe("/org/acme/projects/proj_1/files");
   });
 
+  it("builds workspace and project automations paths", () => {
+    expect(buildAutomationsPath("acme")).toBe("/org/acme/automations");
+    expect(buildAutomationsPath("acme", { section: "new" })).toBe("/org/acme/automations/new");
+    expect(buildAutomationsPath("acme", { automationId: "auto_1" })).toBe(
+      "/org/acme/automations/auto_1",
+    );
+    expect(buildAutomationsPath("acme", { projectId: "proj_1" })).toBe(
+      "/org/acme/projects/proj_1/automations",
+    );
+    expect(buildAutomationsPath("acme", { projectId: "proj_1", section: "new" })).toBe(
+      "/org/acme/projects/proj_1/automations/new",
+    );
+    expect(
+      buildAutomationsPath("acme", { projectId: "ext:crowdin:1", automationId: "auto_1" }),
+    ).toBe("/org/acme/projects/ext%3Acrowdin%3A1/automations/auto_1");
+  });
+
   it("encodes reserved characters in the project id segment", () => {
     expect(buildProjectPath("acme", "ext:crowdin:1", "jobs")).toBe(
       "/org/acme/projects/ext%3Acrowdin%3A1/jobs",
@@ -172,12 +191,27 @@ describe("path builders", () => {
     expect(byLabel.get("Inbox")?.href).toBe("/org/acme/inbox");
     expect(byLabel.get("Projects")?.href).toBe("/org/acme/projects");
     expect(byLabel.get("New Request")).toMatchObject({
-      href: "#open-chat-dock",
-      action: "open-chat-dock",
+      href: "/org/acme/inbox/new",
+      exact: true,
     });
+    expect(byLabel.get("AI Engine")?.href).toBe("/org/acme/ai-engine");
     expect(byLabel.get("Automations")?.featureFlagKey).toBe(WORKSPACE_AUTOMATIONS_FLAG);
-    expect(byLabel.get("Knowledge")?.featureFlagKey).toBe(WORKSPACE_KNOWLEDGE_FLAG);
-    expect(byLabel.get("Issues")?.featureFlagKey).toBe(WORKSPACE_ISSUES_FLAG);
+    expect(byLabel.get("Guideline")?.featureFlagKey).toBe(WORKSPACE_KNOWLEDGE_FLAG);
+    expect(byLabel.get("Issues")?.featureFlagKey).toBeUndefined();
+    expect(byLabel.get("Domains")?.featureFlagKey).toBe(WORKSPACE_DOMAINS_FLAG);
+
+    expect(groups.map((group) => group.label)).toEqual([undefined, "Agents", "Workspace"]);
+    expect(groups[1]?.items.map((item) => item.label)).toEqual([
+      "New Request",
+      "Automations",
+      "AI Engine",
+    ]);
+    expect(groups[0]?.items.map((item) => item.label)).toEqual([
+      "Inbox",
+      "My Jobs",
+      "Issues",
+      "Overview",
+    ]);
   });
 
   it("builds project navigation items scoped to the project", () => {
@@ -189,10 +223,12 @@ describe("path builders", () => {
       ["Strings", "/org/acme/projects/proj_1/strings"],
       ["Jobs", "/org/acme/projects/proj_1/jobs"],
       ["Issues", "/org/acme/projects/proj_1/issue-sheet"],
+      ["Automations", "/org/acme/projects/proj_1/automations"],
       ["Settings", "/org/acme/projects/proj_1/settings"],
     ]);
-    expect(items.find((item) => item.label === "Issues")?.featureFlagKey).toBe(
-      WORKSPACE_ISSUES_FLAG,
+    expect(items.find((item) => item.label === "Issues")?.featureFlagKey).toBeUndefined();
+    expect(items.find((item) => item.label === "Automations")?.featureFlagKey).toBe(
+      WORKSPACE_AUTOMATIONS_FLAG,
     );
   });
 });
@@ -274,6 +310,13 @@ describe("buildProjectNavigationItems", () => {
     const items = buildProjectNavigationItems("acme", projectId, intl);
     expect(items.find((item) => item.label === "Strings")).toBeUndefined();
   });
+
+  it("includes an Automations item gated by the workspace automations flag", () => {
+    const items = buildProjectNavigationItems("acme", "proj_1", intl);
+    const automationsItem = items.find((item) => item.label === "Automations");
+    expect(automationsItem?.href).toBe("/org/acme/projects/proj_1/automations");
+    expect(automationsItem?.featureFlagKey).toBe(WORKSPACE_AUTOMATIONS_FLAG);
+  });
 });
 
 describe("isNavigationItemActive", () => {
@@ -288,6 +331,14 @@ describe("isNavigationItemActive", () => {
 
   it("matches nested subpaths for non-exact items", () => {
     expect(isNavigationItemActive("/org/acme/inbox/thread_1", "/org/acme/inbox")).toBe(true);
+  });
+
+  it("keeps Inbox inactive on the dedicated New Request compose route", () => {
+    expect(isNavigationItemActive("/org/acme/inbox/new", "/org/acme/inbox")).toBe(false);
+    expect(isNavigationItemActive("/en/org/acme/inbox/new", "/org/acme/inbox")).toBe(false);
+    expect(
+      isNavigationItemActive("/org/acme/inbox/new", "/org/acme/inbox/new", { exact: true }),
+    ).toBe(true);
   });
 
   it("ignores the hash fragment on the item href", () => {
@@ -310,5 +361,14 @@ describe("isNavigationItemActive", () => {
     expect(isNavigationItemActive("/org/acme/my-jobs/job_1", myWorkHref)).toBe(true);
     expect(isNavigationItemActive("/en/org/acme/my-jobs", myWorkHref)).toBe(true);
     expect(isNavigationItemActive("/org/acme/inbox", myWorkHref)).toBe(false);
+  });
+});
+
+describe("isInboxNewRequestPath", () => {
+  it("matches locale-prefixed and bare inbox compose paths", () => {
+    expect(isInboxNewRequestPath("/org/acme/inbox/new")).toBe(true);
+    expect(isInboxNewRequestPath("/en/org/acme/inbox/new")).toBe(true);
+    expect(isInboxNewRequestPath("/org/acme/inbox")).toBe(false);
+    expect(isInboxNewRequestPath("/org/acme/inbox/thread_1")).toBe(false);
   });
 });

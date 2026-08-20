@@ -79,6 +79,10 @@ export const Default: Story = {
 
     await expect(canvas.getByText("Queue")).toBeInTheDocument();
     await expect(canvas.getByText("Translation Intelligence")).toBeInTheDocument();
+    await expect(canvas.getByRole("separator", { name: "Resize queue panel" })).toBeInTheDocument();
+    await expect(
+      canvas.getByRole("separator", { name: "Resize translation intelligence panel" }),
+    ).toBeInTheDocument();
     await expect(canvas.getByText("Translation memory")).toBeInTheDocument();
     await expect(
       canvas.getByText("Dashboard card showing how many reviews still need approval."),

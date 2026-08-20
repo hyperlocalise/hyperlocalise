@@ -15,9 +15,7 @@ import { Hono } from "hono";
 import { hasCapability } from "@/api/auth/policy";
 import { workosAuthMiddleware, type AuthVariables } from "@/api/auth/workos";
 import { createZodValidator } from "@/api/errors";
-import { createWorkspaceFeatureFlagMiddleware } from "@/api/middleware/workspace-feature-flag";
 import { forbiddenResponse, notFoundResponse } from "@/api/response.schema";
-import { workspaceIssuesFlag } from "@/lib/flags/workspace-flags";
 import { issueNotificationService } from "@/lib/projects/issue-sheet/issue-notification-service";
 
 import {
@@ -37,15 +35,9 @@ const validateIssueNotificationIdParams = createZodValidator(
   "invalid_issue_notification_id",
 );
 
-const requireWorkspaceIssuesFeature = createWorkspaceFeatureFlagMiddleware(
-  workspaceIssuesFlag,
-  "Workspace issues is not enabled for this organization",
-);
-
 export function createIssueNotificationsRoutes() {
   return new Hono<{ Variables: AuthVariables }>()
     .use("*", workosAuthMiddleware)
-    .use("*", requireWorkspaceIssuesFeature)
     .get("/", validateIssueNotificationsQuery, async (c) => {
       if (!hasCapability(c.var.auth.membership.role, "projects:read")) {
         return forbiddenResponse(c, "forbidden");

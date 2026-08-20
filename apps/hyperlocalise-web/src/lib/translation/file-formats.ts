@@ -24,9 +24,12 @@ export const supportedTranslationFileFormats = [
   "stringsdict",
   "xcstrings",
   "csv",
+  "srt",
+  "vtt",
   "png",
   "jpeg",
   "webp",
+  "mp4",
   "docx",
   "xlsx",
   "xls",
@@ -49,6 +52,12 @@ export const supportedFileTranslationFileFormats = [
   "stringsdict",
   "xcstrings",
   "csv",
+  "srt",
+  "vtt",
+  "png",
+  "jpeg",
+  "webp",
+  "mp4",
 ] as const;
 
 export type SupportedFileTranslationFileFormat =
@@ -71,10 +80,13 @@ const formatsByExtension: Record<string, SupportedTranslationFileFormat> = {
   ".stringsdict": "stringsdict",
   ".xcstrings": "xcstrings",
   ".csv": "csv",
+  ".srt": "srt",
+  ".vtt": "vtt",
   ".png": "png",
   ".jpg": "jpeg",
   ".jpeg": "jpeg",
   ".webp": "webp",
+  ".mp4": "mp4",
   ".docx": "docx",
   ".xlsx": "xlsx",
   ".xls": "xls",
@@ -85,6 +97,11 @@ export const supportedImageTranslationFileFormats = ["png", "jpeg", "webp"] as c
 
 export type SupportedImageTranslationFileFormat =
   (typeof supportedImageTranslationFileFormats)[number];
+
+export const supportedVideoTranslationFileFormats = ["mp4"] as const;
+
+export type SupportedVideoTranslationFileFormat =
+  (typeof supportedVideoTranslationFileFormats)[number];
 
 export const supportedOfficeTranslationFileFormats = ["docx", "xlsx", "xls", "pptx"] as const;
 
@@ -99,6 +116,14 @@ export function isImageTranslationFileFormat(
   );
 }
 
+export function isVideoTranslationFileFormat(
+  format: SupportedTranslationFileFormat,
+): format is SupportedVideoTranslationFileFormat {
+  return supportedVideoTranslationFileFormats.includes(
+    format as SupportedVideoTranslationFileFormat,
+  );
+}
+
 export function isOfficeTranslationFileFormat(
   format: SupportedTranslationFileFormat,
 ): format is SupportedOfficeTranslationFileFormat {
@@ -107,11 +132,18 @@ export function isOfficeTranslationFileFormat(
   );
 }
 
-/** Binary whole-file formats that skip string-key extraction (images + office). */
+/** Binary whole-file formats that skip string-key extraction (images + video + office). */
 export function isBinaryTranslationFileFormat(
   format: SupportedTranslationFileFormat,
-): format is SupportedImageTranslationFileFormat | SupportedOfficeTranslationFileFormat {
-  return isImageTranslationFileFormat(format) || isOfficeTranslationFileFormat(format);
+): format is
+  | SupportedImageTranslationFileFormat
+  | SupportedVideoTranslationFileFormat
+  | SupportedOfficeTranslationFileFormat {
+  return (
+    isImageTranslationFileFormat(format) ||
+    isVideoTranslationFileFormat(format) ||
+    isOfficeTranslationFileFormat(format)
+  );
 }
 
 export function isSupportedFileTranslationFileFormat(
@@ -142,7 +174,7 @@ export function inferSupportedFileTranslationFileFormat(
   return format;
 }
 
-/** Text or image formats accepted as project source uploads (sync, chat, public API). */
+/** Text, image, video, or office formats accepted as project source uploads (sync, chat, public API). */
 export function inferSupportedSourceUploadFormat(
   filename: string,
 ): SupportedTranslationFileFormat | null {
@@ -164,6 +196,17 @@ export function inferSupportedImageTranslationFileFormat(
   return format;
 }
 
+export function inferSupportedVideoTranslationFileFormat(
+  filename: string,
+): SupportedVideoTranslationFileFormat | null {
+  const format = inferSupportedTranslationFileFormat(filename);
+  if (!format || !isVideoTranslationFileFormat(format)) {
+    return null;
+  }
+
+  return format;
+}
+
 export function inferSupportedOfficeTranslationFileFormat(
   filename: string,
 ): SupportedOfficeTranslationFileFormat | null {
@@ -177,7 +220,11 @@ export function inferSupportedOfficeTranslationFileFormat(
 
 export function inferSupportedBinaryTranslationFileFormat(
   filename: string,
-): SupportedImageTranslationFileFormat | SupportedOfficeTranslationFileFormat | null {
+):
+  | SupportedImageTranslationFileFormat
+  | SupportedVideoTranslationFileFormat
+  | SupportedOfficeTranslationFileFormat
+  | null {
   const format = inferSupportedTranslationFileFormat(filename);
   if (!format || !isBinaryTranslationFileFormat(format)) {
     return null;
@@ -187,9 +234,9 @@ export function inferSupportedBinaryTranslationFileFormat(
 }
 
 const IMAGE_URL_EXTENSION_PATTERN = /\.(png|jpe?g|webp)(?:[?#]|$)/i;
+const VIDEO_URL_EXTENSION_PATTERN = /\.mp4(?:[?#]|$)/i;
 
-/** Heuristic: http(s) URL that looks like an image asset. */
-export function looksLikeImageUrl(value: string): boolean {
+function looksLikeHttpAssetUrl(value: string, extensionPattern: RegExp): boolean {
   const trimmed = value.trim();
   if (!/^https?:\/\//i.test(trimmed)) {
     return false;
@@ -200,10 +247,20 @@ export function looksLikeImageUrl(value: string): boolean {
     if (url.protocol !== "http:" && url.protocol !== "https:") {
       return false;
     }
-    return IMAGE_URL_EXTENSION_PATTERN.test(url.pathname);
+    return extensionPattern.test(url.pathname);
   } catch {
     return false;
   }
+}
+
+/** Heuristic: http(s) URL that looks like an image asset. */
+export function looksLikeImageUrl(value: string): boolean {
+  return looksLikeHttpAssetUrl(value, IMAGE_URL_EXTENSION_PATTERN);
+}
+
+/** Heuristic: http(s) URL that looks like a direct MP4 asset. */
+export function looksLikeVideoUrl(value: string): boolean {
+  return looksLikeHttpAssetUrl(value, VIDEO_URL_EXTENSION_PATTERN);
 }
 
 /** File extensions scanned by the i18n setup wizard (without leading dot). */
@@ -211,7 +268,7 @@ export function getLocaleScanExtensions(): string[] {
   const extensions = new Set<string>();
 
   for (const [extension, format] of Object.entries(formatsByExtension)) {
-    if (isSupportedFileTranslationFileFormat(format)) {
+    if (isSupportedFileTranslationFileFormat(format) && !isBinaryTranslationFileFormat(format)) {
       extensions.add(extension.slice(1));
     }
   }

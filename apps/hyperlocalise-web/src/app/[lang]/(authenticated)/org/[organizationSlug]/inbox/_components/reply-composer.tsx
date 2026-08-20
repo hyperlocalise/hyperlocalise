@@ -39,8 +39,17 @@ import {
   Attachments,
 } from "@/components/ai-elements/attachments";
 import { apiClient } from "@/lib/api-client-instance";
+import { readApiResponseError } from "@/lib/api-error";
 
 import { RepositorySelector } from "../../_components/repository-selector";
+import { ProjectSelector } from "../../_components/project-selector";
+import {
+  buildChatProjectOptions,
+  resolveChatProjectSelection,
+  type ChatProjectOption,
+} from "../../_components/project-selector-model";
+import { useTmsLiveProjects } from "../../_hooks/use-tms-live-projects";
+import type { ApiProject } from "../../projects/_components/project-list";
 import { createInboxApi, type InboxApi, type InboxGithubRepository } from "./inbox-api";
 import { replyComposerMessages } from "./reply-composer.messages";
 
@@ -64,7 +73,10 @@ function dataUrlToFile(dataUrl: string, filename: string, mediaType?: string): F
 type ReplyComposerViewProps = {
   disabled: boolean;
   draft?: string;
+  initialProjectId?: string | null;
   isStreaming: boolean;
+  lockedProjectId?: string | null;
+  lockedProjectName?: string | null;
   onDraftChange?: (draft: string) => void;
   onSend: (
     text: string,
@@ -72,27 +84,35 @@ type ReplyComposerViewProps = {
     options?: { projectId?: string; repositoryFullName?: string },
   ) => void | Promise<void>;
   placeholder?: string;
+  projects: ChatProjectOption[];
+  projectsIsError: boolean;
+  projectsIsLoading: boolean;
   repositories: InboxGithubRepository[];
   repositoriesIsError: boolean;
   repositoriesIsLoading: boolean;
-  variant?: "default" | "compact";
 };
 
 export function ReplyComposerView({
   disabled,
   draft = "",
+  initialProjectId = null,
   isStreaming,
+  lockedProjectId = null,
+  lockedProjectName = null,
   onDraftChange,
   onSend,
   placeholder,
+  projects,
+  projectsIsError,
+  projectsIsLoading,
   repositories,
   repositoriesIsError,
   repositoriesIsLoading,
-  variant = "default",
 }: ReplyComposerViewProps) {
   const intl = useIntl();
   const [replyText, setReplyText] = useState(draft);
   const [selectedRepositoryFullName, setSelectedRepositoryFullName] = useState("");
+  const [selectedProjectId, setSelectedProjectId] = useState("");
   const promptInputController = usePromptInputController();
   // Stable across keystrokes; the controller object itself is recreated whenever
   // textInput changes, so it must not be an effect dependency.
@@ -117,8 +137,21 @@ export function ReplyComposerView({
     }
   }, [repositories, selectedRepositoryFullName]);
 
+  useEffect(() => {
+    if (selectedProjectId && !projects.some((project) => project.id === selectedProjectId)) {
+      setSelectedProjectId("");
+    }
+  }, [projects, selectedProjectId]);
+
   const resolvedRepositoryFullName =
     selectedRepositoryFullName || (repositories.length === 1 ? repositories[0]?.fullName : "");
+  const resolvedProjectId = resolveChatProjectSelection({
+    projects,
+    selectedProjectId,
+    lockedProjectId,
+    initialProjectId,
+  });
+  const projectLocked = Boolean(lockedProjectId) || projects.length === 1;
 
   const attachments = usePromptInputAttachments();
 
@@ -135,6 +168,7 @@ export function ReplyComposerView({
     );
 
     await onSend(trimmedText, fileObjects, {
+      projectId: resolvedProjectId || undefined,
       repositoryFullName: resolvedRepositoryFullName || undefined,
     });
     setReplyText("");
@@ -143,25 +177,15 @@ export function ReplyComposerView({
   };
 
   return (
-    <section
-      className={
-        variant === "compact"
-          ? "sticky bottom-0 z-20 shrink-0 border-t border-border bg-background p-3"
-          : "sticky bottom-0 z-20 shrink-0 border-t border-border bg-background/95 px-4 py-4 backdrop-blur sm:px-6"
-      }
-    >
+    <section className="sticky bottom-0 z-20 shrink-0 border-t border-border bg-background p-3">
       <div className="mx-auto w-full max-w-4xl">
         <PromptInput
           onSubmit={({ text, files }) => sendReply(text, files)}
-          className={
-            variant === "compact"
-              ? "overflow-hidden rounded-xl border border-border bg-muted/30 text-foreground shadow-sm [&_[data-slot=input-group]]:h-auto [&_[data-slot=input-group]]:rounded-xl [&_[data-slot=input-group]]:border-0 [&_[data-slot=input-group]]:bg-transparent"
-              : "overflow-hidden rounded-[1.35rem] border border-border bg-background text-foreground shadow-2xl shadow-black/10 [&_[data-slot=input-group]]:h-auto [&_[data-slot=input-group]]:rounded-[1.35rem] [&_[data-slot=input-group]]:border-0 [&_[data-slot=input-group]]:bg-transparent"
-          }
+          className="overflow-hidden rounded-xl border border-border bg-muted/30 text-foreground shadow-sm [&_[data-slot=input-group]]:h-auto [&_[data-slot=input-group]]:rounded-xl [&_[data-slot=input-group]]:border-0 [&_[data-slot=input-group]]:bg-transparent"
         >
           <PromptInputBody>
             {attachments.files.length > 0 && (
-              <div className="px-4 pt-3 sm:px-6">
+              <div className="px-3 pt-3">
                 <Attachments variant="inline">
                   {attachments.files.map((file) => (
                     <Attachment
@@ -184,11 +208,7 @@ export function ReplyComposerView({
                 setReplyText(next);
                 onDraftChange?.(next);
               }}
-              className={
-                variant === "compact"
-                  ? "min-h-12 max-h-28 px-3 py-3 text-sm leading-5"
-                  : "min-h-24 px-4 py-4 text-base leading-6 sm:px-6 sm:py-5"
-              }
+              className="min-h-12 max-h-28 px-3 py-3 text-sm leading-5"
               placeholder={
                 isStreaming
                   ? intl.formatMessage(replyComposerMessages.streamingPlaceholder)
@@ -197,14 +217,8 @@ export function ReplyComposerView({
               rows={1}
             />
           </PromptInputBody>
-          <PromptInputFooter
-            className={
-              variant === "compact"
-                ? "min-h-10 flex-wrap gap-2 border-0 bg-transparent px-2 pb-2 sm:flex-nowrap"
-                : "flex-wrap gap-3 border-t border-border bg-muted px-4 py-3 sm:px-5"
-            }
-          >
-            <PromptInputTools className="flex-wrap gap-2 text-sm text-muted-foreground">
+          <PromptInputFooter className="min-h-10 flex-wrap gap-2 border-0 bg-transparent px-2 pb-2 sm:flex-nowrap">
+            <PromptInputTools className="gap-2 text-sm text-muted-foreground">
               <PromptInputButton
                 className="inline-flex size-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-accent/20 hover:text-foreground"
                 size="icon-sm"
@@ -216,7 +230,17 @@ export function ReplyComposerView({
               </PromptInputButton>
             </PromptInputTools>
 
-            <PromptInputTools className="flex-wrap justify-end gap-2 text-sm text-muted-foreground">
+            <PromptInputTools className="min-w-0 flex-1 flex-wrap justify-end gap-2 text-sm text-muted-foreground sm:flex-nowrap">
+              <ProjectSelector
+                projects={projects}
+                projectsIsError={projectsIsError}
+                projectsIsLoading={projectsIsLoading}
+                selectedProjectId={resolvedProjectId}
+                locked={projectLocked}
+                lockedProjectName={lockedProjectName}
+                onSelectProject={setSelectedProjectId}
+                triggerStyle="prompt-input"
+              />
               <RepositorySelector
                 repositories={repositories}
                 repositoriesIsError={repositoriesIsError}
@@ -228,7 +252,7 @@ export function ReplyComposerView({
               <PromptInputSubmit
                 size="sm"
                 disabled={(!replyText.trim() && attachments.files.length === 0) || disabled}
-                className="rounded-full bg-primary text-primary-foreground hover:bg-primary/90"
+                className="shrink-0 rounded-full bg-primary text-primary-foreground hover:bg-primary/90"
                 aria-label={sendReplyLabel}
                 tooltip={{
                   content: sendReplyLabel,
@@ -248,7 +272,12 @@ export function ReplyComposerView({
 
 type ReplyComposerProps = Omit<
   ReplyComposerViewProps,
-  "repositories" | "repositoriesIsError" | "repositoriesIsLoading"
+  | "repositories"
+  | "repositoriesIsError"
+  | "repositoriesIsLoading"
+  | "projects"
+  | "projectsIsError"
+  | "projectsIsLoading"
 > & {
   organizationSlug: string;
   inboxApi?: InboxApi;
@@ -264,12 +293,35 @@ export const ReplyComposer = memo(function ReplyComposer({
     queryKey: ["github-repositories", organizationSlug],
     queryFn: () => injectedInboxApi.listGithubRepositories(organizationSlug),
   });
+  const nativeProjectsQuery = useQuery({
+    queryKey: ["chat-composer-projects", organizationSlug, "native"],
+    queryFn: async () => {
+      const response = await apiClient.api.orgs[":organizationSlug"].projects.$get({
+        param: { organizationSlug },
+      });
+      if (!response.ok) {
+        throw await readApiResponseError(response, "Failed to load projects");
+      }
+      const body = (await response.json()) as { projects: ApiProject[] };
+      return body.projects;
+    },
+  });
+  const tmsProjectsQuery = useTmsLiveProjects(organizationSlug);
+  const projects = buildChatProjectOptions({
+    nativeProjects: nativeProjectsQuery.data ?? [],
+    tmsProjects: tmsProjectsQuery.data ?? [],
+  });
+  const projectsIsLoading = nativeProjectsQuery.isLoading || tmsProjectsQuery.isLoading;
+  const projectsIsError = nativeProjectsQuery.isError;
 
   return (
     <PromptInputProvider initialInput={draft ?? ""}>
       <ReplyComposerView
         {...viewProps}
         draft={draft}
+        projects={projects}
+        projectsIsError={projectsIsError}
+        projectsIsLoading={projectsIsLoading}
         repositories={repositoriesQuery.data ?? []}
         repositoriesIsError={repositoriesQuery.isError}
         repositoriesIsLoading={repositoriesQuery.isLoading}

@@ -76,4 +76,9 @@ export const catHeaderPickersMessages = defineMessages({
     id: "dVKtjZIVrj",
     description: "Placeholder for the CAT header GitHub repository select when empty",
   },
+  githubRepositoryDialogLabel: {
+    defaultMessage: "GitHub repository",
+    id: "0Ec7pW0RQ5",
+    description: "Visible label for the GitHub repository select in the CAT source file dialog",
+  },
 });

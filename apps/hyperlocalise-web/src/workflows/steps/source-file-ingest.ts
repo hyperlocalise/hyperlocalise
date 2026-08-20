@@ -178,3 +178,16 @@ export async function ensureImageVariantsForSourceFileStep(input: {
     await import("@/lib/projects/files/image-variant-service");
   return ensureImageVariantsForSourceFile(input);
 }
+
+export async function ensureVideoVariantsForSourceFileStep(input: {
+  organizationId: string;
+  projectId: string;
+  sourcePath: string;
+  repositorySourceFileId?: string | null;
+  targetLocales: string[];
+}) {
+  "use step";
+  const { ensureVideoVariantsForSourceFile } =
+    await import("@/lib/projects/files/video-variant-service");
+  return ensureVideoVariantsForSourceFile(input);
+}

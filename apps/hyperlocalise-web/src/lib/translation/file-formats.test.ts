@@ -24,7 +24,9 @@ import {
   isImageTranslationFileFormat,
   isOfficeTranslationFileFormat,
   isSupportedSourceUploadFormat,
+  isVideoTranslationFileFormat,
   looksLikeImageUrl,
+  looksLikeVideoUrl,
 } from "./file-formats";
 
 describe("translation file formats", () => {
@@ -48,6 +50,10 @@ describe("translation file formats", () => {
     expect(inferSupportedTranslationFileFormat("Localizable.xcstrings")).toBe("xcstrings");
     expect(inferSupportedFileTranslationFileFormat("Localizable.xcstrings")).toBe("xcstrings");
     expect(inferSupportedTranslationFileFormat("copy.csv")).toBe("csv");
+    expect(inferSupportedTranslationFileFormat("captions.srt")).toBe("srt");
+    expect(inferSupportedTranslationFileFormat("captions.vtt")).toBe("vtt");
+    expect(inferSupportedFileTranslationFileFormat("captions.srt")).toBe("srt");
+    expect(inferSupportedFileTranslationFileFormat("captions.vtt")).toBe("vtt");
   });
 
   it("infers CLI-supported image formats separately", () => {
@@ -55,7 +61,7 @@ describe("translation file formats", () => {
     expect(inferSupportedTranslationFileFormat("banner.jpg")).toBe("jpeg");
     expect(inferSupportedTranslationFileFormat("banner.jpeg")).toBe("jpeg");
     expect(inferSupportedTranslationFileFormat("banner.webp")).toBe("webp");
-    expect(inferSupportedFileTranslationFileFormat("banner.png")).toBeNull();
+    expect(inferSupportedFileTranslationFileFormat("banner.png")).toBe("png");
     expect(inferSupportedSourceUploadFormat("banner.png")).toBe("png");
     expect(inferSupportedImageTranslationFileFormat("banner.jpg")).toBe("jpeg");
     expect(isSupportedSourceUploadFormat("banner.webp")).toBe(true);
@@ -63,11 +69,29 @@ describe("translation file formats", () => {
     expect(isImageTranslationFileFormat("json")).toBe(false);
   });
 
+  it("infers CLI-supported video formats separately", () => {
+    expect(inferSupportedTranslationFileFormat("clip.mp4")).toBe("mp4");
+    expect(inferSupportedFileTranslationFileFormat("clip.mp4")).toBe("mp4");
+    expect(inferSupportedSourceUploadFormat("clip.mp4")).toBe("mp4");
+    expect(isSupportedSourceUploadFormat("hero.mp4")).toBe(true);
+    expect(isVideoTranslationFileFormat("mp4")).toBe(true);
+    expect(isVideoTranslationFileFormat("png")).toBe(false);
+    expect(isBinaryTranslationFileFormat("mp4")).toBe(true);
+  });
+
   it("detects image-looking http urls", () => {
     expect(looksLikeImageUrl("https://cdn.example.com/hero.png")).toBe(true);
     expect(looksLikeImageUrl("https://cdn.example.com/hero.jpg?w=800")).toBe(true);
     expect(looksLikeImageUrl("https://cdn.example.com/doc.pdf")).toBe(false);
     expect(looksLikeImageUrl("not-a-url")).toBe(false);
+  });
+
+  it("detects direct mp4 http urls", () => {
+    expect(looksLikeVideoUrl("https://cdn.example.com/clip.mp4")).toBe(true);
+    expect(looksLikeVideoUrl("https://cdn.example.com/clip.mp4?token=1")).toBe(true);
+    expect(looksLikeVideoUrl("https://youtube.com/watch?v=abc")).toBe(false);
+    expect(looksLikeVideoUrl("https://cdn.example.com/hero.png")).toBe(false);
+    expect(looksLikeVideoUrl("not-a-url")).toBe(false);
   });
 
   it("infers office formats as binary translation sources", () => {
@@ -88,7 +112,18 @@ describe("translation file formats", () => {
   it("builds a source-upload accept list including office and images", () => {
     const accept = getSupportedSourceUploadAccept();
     expect(accept.split(",")).toEqual(
-      expect.arrayContaining([".json", ".png", ".docx", ".xlsx", ".xls", ".pptx", ".webp"]),
+      expect.arrayContaining([
+        ".json",
+        ".srt",
+        ".vtt",
+        ".png",
+        ".mp4",
+        ".docx",
+        ".xlsx",
+        ".xls",
+        ".pptx",
+        ".webp",
+      ]),
     );
   });
 
@@ -110,6 +145,8 @@ describe("translation file formats", () => {
         "arb",
         "xcstrings",
         "strings",
+        "srt",
+        "vtt",
       ]),
     );
     expect(getLocaleScanExtensions()).not.toContain("png");

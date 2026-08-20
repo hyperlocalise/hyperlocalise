@@ -17,7 +17,10 @@ import {
 import {
   hasWorkspaceAutomationAssignTranslateWithAgentTool,
   hasWorkspaceAutomationContentfulWorkflow,
+  hasWorkspaceAutomationCreateIssueTool,
   hasWorkspaceAutomationCreateNativeTmsJobTool,
+  hasWorkspaceAutomationListIssuesTool,
+  hasWorkspaceAutomationWebSearchTool,
   type WorkspaceAutomationRecord,
   type WorkspaceAutomationToolConfig,
 } from "@/lib/agents/workspace-automations";
@@ -30,10 +33,15 @@ export const WORKSPACE_ORCHESTRATOR_TOOL_NAMES = [
   "run_contentful_translation",
   "create_native_tms_job",
   "assign_translate_with_agent",
+  "list_issues",
+  "create_issue",
+  "use_crowdin",
   "use_semrush",
   "use_ahrefs",
+  "use_web_search",
   "notify_slack",
   "notify_email",
+  "notify_github_comment",
   "recall_memory",
   "save_memory",
 ] as const;
@@ -54,11 +62,19 @@ const WORKFLOW_TOOLS: WorkspaceOrchestratorToolName[] = [
   "run_contentful_translation",
   "create_native_tms_job",
   "assign_translate_with_agent",
+  "list_issues",
+  "create_issue",
+  "use_crowdin",
   "use_semrush",
   "use_ahrefs",
+  "use_web_search",
 ];
 
-const NOTIFICATION_TOOLS: WorkspaceOrchestratorToolName[] = ["notify_slack", "notify_email"];
+const NOTIFICATION_TOOLS: WorkspaceOrchestratorToolName[] = [
+  "notify_slack",
+  "notify_email",
+  "notify_github_comment",
+];
 
 // Memory tools remain in the tool-name union while the retrieval redesign is pending, but they
 // must not be added to execution plans. The orchestrator forces every planned tool, so planning
@@ -81,10 +97,18 @@ function workflowToolEnabled(
       return hasWorkspaceAutomationCreateNativeTmsJobTool(toolConfig);
     case "assign_translate_with_agent":
       return hasWorkspaceAutomationAssignTranslateWithAgentTool(toolConfig);
+    case "list_issues":
+      return hasWorkspaceAutomationListIssuesTool(toolConfig);
+    case "create_issue":
+      return hasWorkspaceAutomationCreateIssueTool(toolConfig);
+    case "use_crowdin":
+      return Boolean(toolConfig.crowdin?.enabled && toolConfig.crowdin.projectId?.trim());
     case "use_semrush":
       return Boolean(toolConfig.semrush?.enabled && toolConfig.semrush.connectionId);
     case "use_ahrefs":
       return Boolean(toolConfig.ahrefs?.enabled && toolConfig.ahrefs.connectionId);
+    case "use_web_search":
+      return hasWorkspaceAutomationWebSearchTool(toolConfig);
     default:
       return false;
   }
@@ -103,6 +127,8 @@ function notificationToolEnabled(
         toolConfig.email.recipients &&
         toolConfig.email.recipients.length > 0,
       );
+    case "notify_github_comment":
+      return Boolean(toolConfig.githubComment?.enabled);
     default:
       return false;
   }
@@ -128,8 +154,12 @@ function orderWorkflowTools(input: {
       ...enabled.filter((tool) => tool === "use_github_repository"),
       ...enabled.filter((tool) => tool === "create_native_tms_job"),
       ...enabled.filter((tool) => tool === "assign_translate_with_agent"),
+      ...enabled.filter((tool) => tool === "list_issues"),
+      ...enabled.filter((tool) => tool === "create_issue"),
+      ...enabled.filter((tool) => tool === "use_crowdin"),
       ...enabled.filter((tool) => tool === "use_semrush"),
       ...enabled.filter((tool) => tool === "use_ahrefs"),
+      ...enabled.filter((tool) => tool === "use_web_search"),
     ];
   }
 
@@ -139,8 +169,12 @@ function orderWorkflowTools(input: {
     ...enabled.filter((tool) => tool === "run_contentful_translation"),
     ...enabled.filter((tool) => tool === "create_native_tms_job"),
     ...enabled.filter((tool) => tool === "assign_translate_with_agent"),
+    ...enabled.filter((tool) => tool === "list_issues"),
+    ...enabled.filter((tool) => tool === "create_issue"),
+    ...enabled.filter((tool) => tool === "use_crowdin"),
     ...enabled.filter((tool) => tool === "use_semrush"),
     ...enabled.filter((tool) => tool === "use_ahrefs"),
+    ...enabled.filter((tool) => tool === "use_web_search"),
   ];
 }
 

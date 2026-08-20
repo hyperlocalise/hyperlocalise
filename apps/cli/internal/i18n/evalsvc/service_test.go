@@ -156,6 +156,35 @@ func TestRunAccountsForErrors(t *testing.T) {
 	}
 }
 
+// TestRunRoutesNewlyRegisteredProviderNameToTranslate proves the eval/translation
+// run path has no provider allowlist of its own: any provider name (including one
+// newly registered in the translator package, like "openrouter") flows straight
+// through to translator.Translate via req.ModelProvider. No eval-side code needs
+// to change to support a new translator provider.
+func TestRunRoutesNewlyRegisteredProviderNameToTranslate(t *testing.T) {
+	svc := newTestService()
+	var gotProvider string
+	svc.translate = func(_ context.Context, req translator.Request) (string, error) {
+		gotProvider = req.ModelProvider
+		return strings.ToUpper(req.Source), nil
+	}
+
+	_, err := svc.Run(context.Background(), Input{
+		EvalSetPath: "unused.json",
+		Profiles:    []string{"default"},
+		Providers:   []string{"openrouter"},
+		Models:      []string{"anthropic/claude-opus-5"},
+		Prompts:     []string{"prompt A"},
+		Seed:        1,
+	})
+	if err != nil {
+		t.Fatalf("run: %v", err)
+	}
+	if gotProvider != "openrouter" {
+		t.Fatalf("ModelProvider routed to translate = %q, want %q", gotProvider, "openrouter")
+	}
+}
+
 func TestRunWithProgressEmitsPlannedStartedAndCompletedEvents(t *testing.T) {
 	svc := newTestService()
 	events := make([]ProgressEvent, 0)

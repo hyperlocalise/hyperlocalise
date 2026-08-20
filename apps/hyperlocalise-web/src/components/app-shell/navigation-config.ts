@@ -17,13 +17,14 @@ import { normalizeAppLocale } from "@/lib/app-i18n/locales";
 import { RELEASE_CAT_ALL_FILES_FLAG } from "@/lib/flags/release-flag-keys";
 import {
   WORKSPACE_AUTOMATIONS_FLAG,
-  WORKSPACE_ISSUES_FLAG,
+  WORKSPACE_DOMAINS_FLAG,
   WORKSPACE_KNOWLEDGE_FLAG,
 } from "@/lib/flags/workos-flag-entities";
 import { supportsCatAllFilesProvider } from "@/lib/projects/cat-all-files";
 import { parseProviderProjectId } from "@/lib/providers/jobs/tms-provider-resource-id";
 import {
   AiBrain01Icon,
+  AiChipIcon,
   BookOpenTextIcon,
   Chat01Icon,
   ClipboardListIcon,
@@ -32,6 +33,7 @@ import {
   File01Icon,
   LanguageCircleIcon,
   FolderKanbanIcon,
+  Globe02Icon,
   InboxIcon,
   LinkSquare02Icon,
   Settings01Icon,
@@ -43,25 +45,20 @@ import type { HugeiconsIcon } from "@hugeicons/react";
 
 export type NavigationIcon = ComponentProps<typeof HugeiconsIcon>["icon"];
 
-export type NavigationItemAction = "open-chat-dock";
-
 export type NavigationItem = {
   label: string;
   href: string;
   icon: NavigationIcon;
   description?: string;
   badge?: string;
-  /** Non-route action; when set, the sidebar renders a button instead of a link. */
-  action?: NavigationItemAction;
+  /** When true, only the exact href is active (not nested paths). */
+  exact?: boolean;
   featureFlagKey?:
     | typeof WORKSPACE_AUTOMATIONS_FLAG
     | typeof WORKSPACE_KNOWLEDGE_FLAG
-    | typeof WORKSPACE_ISSUES_FLAG
+    | typeof WORKSPACE_DOMAINS_FLAG
     | typeof RELEASE_CAT_ALL_FILES_FLAG;
 };
-
-/** Sentinel href for the New Request sidebar action (never navigated). */
-export const OPEN_CHAT_DOCK_HREF = "#open-chat-dock";
 
 export type NavigationGroup = {
   label?: string;
@@ -77,6 +74,26 @@ export function buildProjectPath(organizationSlug: string, projectId: string, se
   return section ? `${base}/${section}` : base;
 }
 
+export function buildAutomationsPath(
+  organizationSlug: string,
+  options?: {
+    automationId?: string;
+    projectId?: string;
+    section?: "new";
+  },
+) {
+  const suffix = options?.section === "new" ? "new" : options?.automationId;
+  if (options?.projectId) {
+    return suffix
+      ? buildProjectPath(organizationSlug, options.projectId, `automations/${suffix}`)
+      : buildProjectPath(organizationSlug, options.projectId, "automations");
+  }
+
+  return suffix
+    ? buildOrganizationPath(organizationSlug, `automations/${suffix}`)
+    : buildOrganizationPath(organizationSlug, "automations");
+}
+
 export function buildGlobalNavigationGroups(
   organizationSlug: string,
   intl: IntlShape,
@@ -86,21 +103,6 @@ export function buildGlobalNavigationGroups(
   return [
     {
       items: [
-        {
-          label: intl.formatMessage({
-            defaultMessage: "New Request",
-            id: "VtO24sqmBM",
-            description: "Sidebar navigation item to start a new localisation request",
-          }),
-          href: OPEN_CHAT_DOCK_HREF,
-          action: "open-chat-dock",
-          icon: Chat01Icon,
-          description: intl.formatMessage({
-            defaultMessage: "Ask the localisation agent to prepare work",
-            id: "z45OPLD254",
-            description: "Sidebar description for the New Request navigation item",
-          }),
-        },
         {
           label: intl.formatMessage({
             defaultMessage: "Inbox",
@@ -127,7 +129,6 @@ export function buildGlobalNavigationGroups(
           }),
           href: org("issues"),
           icon: ClipboardListIcon,
-          featureFlagKey: WORKSPACE_ISSUES_FLAG,
         },
         {
           label: intl.formatMessage({
@@ -137,6 +138,30 @@ export function buildGlobalNavigationGroups(
           }),
           href: org("dashboard"),
           icon: DashboardSquare01Icon,
+        },
+      ],
+    },
+    {
+      label: intl.formatMessage({
+        defaultMessage: "Agents",
+        id: "/EOfWYVF9T",
+        description: "Sidebar group label for agent navigation items",
+      }),
+      items: [
+        {
+          label: intl.formatMessage({
+            defaultMessage: "New Request",
+            id: "VtO24sqmBM",
+            description: "Sidebar navigation item to start a new localisation request",
+          }),
+          href: org("inbox/new"),
+          exact: true,
+          icon: Chat01Icon,
+          description: intl.formatMessage({
+            defaultMessage: "Ask the localisation agent to prepare work",
+            id: "z45OPLD254",
+            description: "Sidebar description for the New Request navigation item",
+          }),
         },
         {
           label: intl.formatMessage({
@@ -158,6 +183,20 @@ export function buildGlobalNavigationGroups(
           }),
           featureFlagKey: WORKSPACE_AUTOMATIONS_FLAG,
         },
+        {
+          label: intl.formatMessage({
+            defaultMessage: "AI Engine",
+            id: "Q8QL+zifeT",
+            description: "Sidebar navigation item for workspace AI model providers",
+          }),
+          href: org("ai-engine"),
+          icon: AiChipIcon,
+          description: intl.formatMessage({
+            defaultMessage: "Choose the model provider agents use",
+            id: "ZnnVLUSfjR",
+            description: "Sidebar description for the AI Engine navigation item",
+          }),
+        },
       ],
     },
     {
@@ -178,16 +217,31 @@ export function buildGlobalNavigationGroups(
         },
         {
           label: intl.formatMessage({
-            defaultMessage: "Knowledge",
-            id: "HrKmOaq57x",
-            description: "Sidebar navigation item for workspace knowledge",
+            defaultMessage: "Domains",
+            id: "sHQ6RKFJ37",
+            description: "Sidebar navigation item for linked domains",
+          }),
+          href: org("domains"),
+          icon: Globe02Icon,
+          description: intl.formatMessage({
+            defaultMessage: "Claimed sites and localisation audit reports",
+            id: "B3yFCBQLDF",
+            description: "Sidebar description for the Domains navigation item",
+          }),
+          featureFlagKey: WORKSPACE_DOMAINS_FLAG,
+        },
+        {
+          label: intl.formatMessage({
+            defaultMessage: "Guideline",
+            id: "D6HJDahz6H",
+            description: "Sidebar navigation item for workspace guideline",
           }),
           href: org("knowledge"),
           icon: AiBrain01Icon,
           description: intl.formatMessage({
-            defaultMessage: "Workspace memory for agents and teams",
-            id: "ZFNYMG0eSQ",
-            description: "Sidebar description for the Knowledge navigation item",
+            defaultMessage: "Shared guidance for agents and teams",
+            id: "dEzuHMWHq4",
+            description: "Sidebar description for the Guideline navigation item",
           }),
           featureFlagKey: WORKSPACE_KNOWLEDGE_FLAG,
         },
@@ -307,7 +361,16 @@ export function buildProjectNavigationItems(
       }),
       href: project("issue-sheet"),
       icon: ClipboardListIcon,
-      featureFlagKey: WORKSPACE_ISSUES_FLAG,
+    },
+    {
+      label: intl.formatMessage({
+        defaultMessage: "Automations",
+        id: "Weqt7PXrnL",
+        description: "Project sidebar navigation item for project automations",
+      }),
+      href: project("automations"),
+      icon: Task01Icon,
+      featureFlagKey: WORKSPACE_AUTOMATIONS_FLAG,
     },
     {
       label: intl.formatMessage({
@@ -364,6 +427,16 @@ function decodePathSegment(value: string) {
   }
 }
 
+export function isInboxNewRequestPath(pathname: string | null | undefined, inboxHref?: string) {
+  const normalizedPathname = stripAppLocalePrefix(pathname ?? "");
+  if (inboxHref) {
+    const inboxNewHref = `${inboxHref.replace(/\/+$/, "")}/new`;
+    return normalizedPathname === inboxNewHref || normalizedPathname.startsWith(`${inboxNewHref}/`);
+  }
+
+  return /\/org\/[^/]+\/inbox\/new\/?$/.test(normalizedPathname);
+}
+
 export function isNavigationItemActive(
   pathname: string | null | undefined,
   href: string,
@@ -393,6 +466,11 @@ export function isNavigationItemActive(
 
   if (normalizedPathname === itemPathname) {
     return true;
+  }
+
+  // New Request lives under /inbox/new; keep the Inbox item inactive there.
+  if (itemPathname.endsWith("/inbox") && isInboxNewRequestPath(normalizedPathname, itemPathname)) {
+    return false;
   }
 
   if (itemPathname.endsWith("/projects")) {

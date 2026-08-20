@@ -10,17 +10,21 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { and, desc, eq, ilike, ne, or, type SQL } from "drizzle-orm";
 import { Hono } from "hono";
 
 import { hasCapability } from "@/api/auth/policy";
 import { createZodValidator } from "@/api/errors";
-import { createWorkspaceFeatureFlagMiddleware } from "@/api/middleware/workspace-feature-flag";
+import { buildAccessibleProjectsWhere } from "@/api/auth/team-access";
 import { forbiddenResponse, notFoundResponse } from "@/api/response.schema";
 import { workosAuthMiddleware, type AuthVariables } from "@/api/auth/workos";
-import { workspaceIssuesFlag } from "@/lib/flags/workspace-flags";
+import { db, schema } from "@/lib/database";
 import { organizationIssueService } from "@/lib/projects/issue-sheet/organization-issue-service";
 
-import { organizationIssueSheetIssueParamsSchema } from "./issues.schema";
+import {
+  organizationIssueSearchQuerySchema,
+  organizationIssueSheetIssueParamsSchema,
+} from "./issues.schema";
 
 const validateIssueParams = createZodValidator(
   "param",
@@ -28,25 +32,72 @@ const validateIssueParams = createZodValidator(
   "invalid_issue_sheet_params",
 );
 
-const requireWorkspaceIssuesFeature = createWorkspaceFeatureFlagMiddleware(
-  workspaceIssuesFlag,
-  "Workspace issues is not enabled for this organization",
+const validateIssueSearchQuery = createZodValidator(
+  "query",
+  organizationIssueSearchQuerySchema,
+  "invalid_issue_search_query",
 );
 
 export function createOrganizationIssueSheetRoutes() {
-  return new Hono<{ Variables: AuthVariables }>()
-    .use("*", workosAuthMiddleware)
-    .use("*", requireWorkspaceIssuesFeature)
-    .get("/:issueId", validateIssueParams, async (c) => {
-      if (!hasCapability(c.var.auth.membership.role, "projects:read")) {
-        return forbiddenResponse(c, "forbidden");
-      }
+  return (
+    new Hono<{ Variables: AuthVariables }>()
+      .use("*", workosAuthMiddleware)
+      // Registered before "/:issueId" — a later registration here would be
+      // swallowed as issueId="search", since Hono matches in registration order.
+      .get("/search", validateIssueSearchQuery, async (c) => {
+        if (!hasCapability(c.var.auth.membership.role, "projects:read")) {
+          return forbiddenResponse(c, "forbidden");
+        }
 
-      const { issueId } = c.req.valid("param");
-      const issue = await organizationIssueService.getById(c.var.auth, issueId);
-      if (!issue) {
-        return notFoundResponse(c, "issue_not_found", "Issue not found");
-      }
-      return c.json({ issue }, 200);
-    });
+        const query = c.req.valid("query");
+        const organizationId = c.var.auth.organization.localOrganizationId;
+        const accessibleProjectsWhere = await buildAccessibleProjectsWhere(c.var.auth);
+
+        const conditions: SQL[] = [
+          eq(schema.issueSheetIssues.organizationId, organizationId),
+          accessibleProjectsWhere,
+        ];
+        if (query.excludeIssueId) {
+          conditions.push(ne(schema.issueSheetIssues.id, query.excludeIssueId));
+        }
+        if (query.q) {
+          const pattern = `%${query.q}%`;
+          conditions.push(
+            or(
+              ilike(schema.issueSheetIssues.title, pattern),
+              ilike(schema.issueSheetIssues.externalRef, pattern),
+            )!,
+          );
+        }
+
+        const rows = await db
+          .select({
+            issueId: schema.issueSheetIssues.id,
+            projectId: schema.issueSheetIssues.projectId,
+            title: schema.issueSheetIssues.title,
+            status: schema.issueSheetIssues.status,
+          })
+          .from(schema.issueSheetIssues)
+          .innerJoin(schema.projects, eq(schema.issueSheetIssues.projectId, schema.projects.id))
+          .where(and(...conditions))
+          // Most recently touched first — this is the primary picker result set,
+          // and an empty query would otherwise surface the org's stalest issues.
+          .orderBy(desc(schema.issueSheetIssues.updatedAt))
+          .limit(query.limit);
+
+        return c.json({ issues: rows }, 200);
+      })
+      .get("/:issueId", validateIssueParams, async (c) => {
+        if (!hasCapability(c.var.auth.membership.role, "projects:read")) {
+          return forbiddenResponse(c, "forbidden");
+        }
+
+        const { issueId } = c.req.valid("param");
+        const issue = await organizationIssueService.getById(c.var.auth, issueId);
+        if (!issue) {
+          return notFoundResponse(c, "issue_not_found", "Issue not found");
+        }
+        return c.json({ issue }, 200);
+      })
+  );
 }

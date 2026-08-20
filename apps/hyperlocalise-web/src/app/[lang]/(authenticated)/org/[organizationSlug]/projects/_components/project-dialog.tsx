@@ -13,8 +13,7 @@
  * Version 2.0 or later.
  */
 import { type FormEvent, useEffect, useId, useState } from "react";
-import { ChevronDownIcon } from "lucide-react";
-import { SaveIcon } from "@hugeicons/core-free-icons";
+import { ArrowDown01Icon, SaveIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { FormattedMessage, useIntl } from "react-intl";
 
@@ -185,7 +184,8 @@ export function ProjectDialog({
                     className="h-9 w-full justify-between px-3 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground"
                   >
                     <FormattedMessage {...projectDialogMessages.settings} />
-                    <ChevronDownIcon
+                    <HugeiconsIcon
+                      icon={ArrowDown01Icon}
                       className={cn(
                         "size-4 shrink-0 transition-transform",
                         settingsOpen && "rotate-180",

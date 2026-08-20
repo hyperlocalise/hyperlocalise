@@ -12,7 +12,8 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { ImageIcon } from "lucide-react";
+import { Image01Icon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import { FormattedMessage } from "react-intl";
 
 import { ImageLightbox } from "@/components/ui/image-lightbox/image-lightbox";
@@ -40,7 +41,7 @@ export function CatImagePreview({
         )}
       >
         <div className="flex flex-col items-center gap-2 px-4 text-center">
-          <ImageIcon className="size-6 opacity-60" aria-hidden />
+          <HugeiconsIcon icon={Image01Icon} className="size-6 opacity-60" aria-hidden />
           <span>{emptyLabel ?? <FormattedMessage {...catEditorPanelMessages.imageEmpty} />}</span>
         </div>
       </div>

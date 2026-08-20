@@ -101,6 +101,17 @@ export const issueSheetCreateIssueDialogMessages = defineMessages({
     id: "JfbQQEL9oW",
     description: "More menu action to set issue type",
   },
+  setTemplate: {
+    defaultMessage: "Set template",
+    id: "lv1AQlJPi4",
+    description: "More menu action to apply an issue template",
+  },
+  sourceLabel: {
+    defaultMessage: "Source:",
+    id: "geFmDsE0aZ",
+    description:
+      "Heading above the quoted CAT segment source text appended below a template's description skeleton",
+  },
   setLocale: {
     defaultMessage: "Set locale",
     id: "MlaMWBdPiE",

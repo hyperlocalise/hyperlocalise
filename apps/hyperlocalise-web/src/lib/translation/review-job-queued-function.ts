@@ -306,6 +306,7 @@ export async function executeNativeReviewJob(input: {
   const keyConditions = [
     eq(schema.projectTranslationKeys.organizationId, project.organizationId),
     eq(schema.projectTranslationKeys.projectId, input.projectId),
+    eq(schema.projectTranslationKeys.isHidden, false),
   ];
 
   if (input.config.sourcePath) {

@@ -16,8 +16,8 @@ import { defineMessages } from "react-intl";
 
 export const createJobDialogMessages = defineMessages({
   title: {
-    defaultMessage: "Create job",
-    id: "RQv/LERmVL",
+    defaultMessage: "New job",
+    id: "yRg4x8kKbX",
     description: "Create job dialog title",
   },
   descriptionProvider: {
@@ -61,19 +61,34 @@ export const createJobDialogMessages = defineMessages({
     description: "Label for the optional job description field",
   },
   descriptionPlaceholder: {
-    defaultMessage: "Optional notes for translators",
-    id: "W87BMcVF5T",
+    defaultMessage: "Add context for translators…",
+    id: "Ml4FXbhH7X",
     description: "Placeholder for the optional job description field",
-  },
-  sourceLocale: {
-    defaultMessage: "Source locale: {locale}",
-    id: "jvDZaWTAOJ",
-    description: "Shows the project source locale in the create job dialog",
   },
   targetLocalesLabel: {
     defaultMessage: "Target locales",
     id: "zedkthWR8N",
     description: "Label for the target locales selection list",
+  },
+  allLocales: {
+    defaultMessage: "All locales",
+    id: "mFzR+186UW",
+    description: "Chip label when every target locale is selected",
+  },
+  localeCount: {
+    defaultMessage: "{count, plural, one {# locale} other {# locales}}",
+    id: "FjJpQAXPiH",
+    description: "Chip label for a partial target locale selection",
+  },
+  localesPlaceholder: {
+    defaultMessage: "Locales",
+    id: "iVnVwwFFdq",
+    description: "Chip placeholder when no target locales are selected",
+  },
+  searchLocales: {
+    defaultMessage: "Search locales…",
+    id: "AKyH88ZuDN",
+    description: "Search placeholder in the target locale picker",
   },
   selectAll: {
     defaultMessage: "Select all",
@@ -101,9 +116,34 @@ export const createJobDialogMessages = defineMessages({
     description: "Label for the files selection list",
   },
   filesSelectedCount: {
-    defaultMessage: "{count, plural, one {# file selected} other {# files selected}}",
-    id: "pckObbKjS/",
+    defaultMessage: "{count, plural, one {# file} other {# files}}",
+    id: "e/0aPM+6Iw",
     description: "Count of files selected for the new job",
+  },
+  searchFiles: {
+    defaultMessage: "Search files…",
+    id: "hZtUjyTrTe",
+    description: "Search placeholder in the files picker",
+  },
+  filesSearchEmpty: {
+    defaultMessage: "No files match this search.",
+    id: "q0vQCpRAVI",
+    description: "Empty state when the create job file tree search has no matches",
+  },
+  expandFolder: {
+    defaultMessage: "Expand {folder}",
+    id: "lwgrrpA8Lf",
+    description: "Accessible label to expand a folder in the create job file tree",
+  },
+  collapseFolder: {
+    defaultMessage: "Collapse {folder}",
+    id: "b7iFjKUEa6",
+    description: "Accessible label to collapse a folder in the create job file tree",
+  },
+  selectFolder: {
+    defaultMessage: "Select all files in {folder}",
+    id: "8HnJuAO7Ry",
+    description: "Accessible label to select every file in a folder",
   },
   noFilesAvailable: {
     defaultMessage: "No files available in this project.",
@@ -120,6 +160,21 @@ export const createJobDialogMessages = defineMessages({
     id: "2VWwjqjclF",
     description: "Label for single-assignee selection on native jobs",
   },
+  unassigned: {
+    defaultMessage: "Unassigned",
+    id: "vuk3bDm+PN",
+    description: "Chip and picker label when no assignee is selected",
+  },
+  assigneeCount: {
+    defaultMessage: "{count, plural, one {# assignee} other {# assignees}}",
+    id: "hTvi2pxcky",
+    description: "Chip label for a multi-assignee selection",
+  },
+  searchAssignees: {
+    defaultMessage: "Search people…",
+    id: "AlWYFrRq+B",
+    description: "Search placeholder in the assignee picker",
+  },
   noCrowdinMembers: {
     defaultMessage: "No Crowdin project members found.",
     id: "Qao/O64dbg",
@@ -130,10 +185,10 @@ export const createJobDialogMessages = defineMessages({
     id: "vvT35LUoRE",
     description: "Empty state when organization members cannot be listed",
   },
-  assigneeHintNative: {
-    defaultMessage: "Optional. Native jobs currently support one assignee.",
-    id: "+WPReqq8Dt",
-    description: "Hint under the native job assignee picker",
+  loading: {
+    defaultMessage: "Loading…",
+    id: "iD0GLTqlIQ",
+    description: "Loading label inside create job property pickers",
   },
   cancel: {
     defaultMessage: "Cancel",

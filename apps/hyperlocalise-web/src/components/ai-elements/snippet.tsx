@@ -12,6 +12,8 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { Copy01Icon, Tick02Icon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import {
   InputGroup,
   InputGroupAddon,
@@ -21,7 +23,6 @@ import {
 } from "@/components/ui/input-group";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/primitives/cn";
-import { CheckIcon, CopyIcon } from "lucide-react";
 import type { ComponentProps } from "react";
 import {
   createContext,
@@ -129,7 +130,7 @@ export const SnippetCopyButton = ({
     [],
   );
 
-  const Icon = isCopied ? CheckIcon : CopyIcon;
+  const Icon = isCopied ? Tick02Icon : Copy01Icon;
   const tooltipText = isCopied
     ? intl.formatMessage(snippetMessages.copied)
     : intl.formatMessage(snippetMessages.copy);
@@ -145,7 +146,7 @@ export const SnippetCopyButton = ({
             size="icon-sm"
             {...props}
           >
-            {children ?? <Icon className="size-3.5" size={14} />}
+            {children ?? <HugeiconsIcon icon={Icon} className="size-3.5" size={14} />}
           </InputGroupButton>
         }
       />

@@ -58,6 +58,8 @@ vi.mock("@/lib/database", () => ({
     projectTranslationKeys: {
       id: "id",
       key: "key",
+      isHidden: "isHidden",
+      organizationId: "organizationId",
       projectId: "projectId",
       repositorySourceFileId: "repositorySourceFileId",
     },
@@ -68,7 +70,10 @@ vi.mock("@/lib/database", () => ({
   },
 }));
 
-import { persistFileJobTranslations } from "./project-translation-service";
+import {
+  persistFileJobTranslations,
+  persistStringJobTranslations,
+} from "./project-translation-service";
 
 describe("persistFileJobTranslations", () => {
   beforeEach(() => {
@@ -113,5 +118,67 @@ describe("persistFileJobTranslations", () => {
         }),
       }),
     );
+  });
+
+  it("skips hidden source keys when persisting file job translations", async () => {
+    whereMock
+      .mockImplementationOnce(() => ({ limit: limitMock }))
+      .mockImplementationOnce(
+        () =>
+          Promise.resolve([{ id: "key_1", key: "greeting", isHidden: true }]) as unknown as {
+            limit: typeof limitMock;
+          },
+      );
+    limitMock.mockResolvedValueOnce([{ id: "repo_file_1" }]);
+
+    await persistFileJobTranslations({
+      organizationId: "org_1",
+      projectId: "project_1",
+      jobId: "job_1",
+      sourcePath: "locales/en.json",
+      sourceLocale: "en",
+      targetLocale: "fr",
+      sourceEntries: { greeting: "Hello" },
+      targetEntries: { greeting: "Bonjour" },
+    });
+
+    expect(insertMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("persistStringJobTranslations", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    limitMock.mockResolvedValue([]);
+  });
+
+  it("skips hidden source keys", async () => {
+    limitMock.mockResolvedValueOnce([{ id: "key_1", isHidden: true }]);
+
+    await persistStringJobTranslations({
+      organizationId: "org_1",
+      projectId: "project_1",
+      jobId: "job_1",
+      sourceLocale: "en",
+      translationKeyId: "key_1",
+      translations: [{ locale: "fr", text: "Bonjour" }],
+    });
+
+    expect(insertMock).not.toHaveBeenCalled();
+  });
+
+  it("persists translations for visible source keys", async () => {
+    limitMock.mockResolvedValueOnce([{ id: "key_1", isHidden: false }]);
+
+    await persistStringJobTranslations({
+      organizationId: "org_1",
+      projectId: "project_1",
+      jobId: "job_1",
+      sourceLocale: "en",
+      translationKeyId: "key_1",
+      translations: [{ locale: "fr", text: "Bonjour" }],
+    });
+
+    expect(insertMock).toHaveBeenCalled();
   });
 });

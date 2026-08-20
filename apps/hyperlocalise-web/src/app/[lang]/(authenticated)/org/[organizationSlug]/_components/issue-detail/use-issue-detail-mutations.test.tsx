@@ -39,6 +39,7 @@ const issue: IssueDetailIssue = {
   linkKind: null,
   linkLabel: null,
   linkUrl: null,
+  templateKey: null,
   assigneeUserId: null,
   reporter: null,
   assignee: null,

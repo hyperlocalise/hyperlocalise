@@ -12,7 +12,11 @@
  */
 import { describe, expect, it } from "vite-plus/test";
 
-import { buildInboxIndexItems, notificationSecondaryText } from "./inbox-list";
+import {
+  buildInboxIndexItems,
+  notificationSecondaryText,
+  resolveInboxSelection,
+} from "./inbox-list";
 import type { InboxIssueNotification } from "./inbox-notifications-api";
 import type { Conversation } from "./inbox-types";
 
@@ -58,6 +62,40 @@ describe("notificationSecondaryText", () => {
 
   it("falls back to the preview when the excerpt is empty", () => {
     expect(notificationSecondaryText("  ", "Someone mentioned you")).toBe("Someone mentioned you");
+  });
+});
+
+describe("resolveInboxSelection", () => {
+  it("prefers the dedicated compose route over existing inbox items", () => {
+    expect(
+      resolveInboxSelection({
+        composeNew: true,
+        urlConversationId: "c-1",
+        urlNotificationId: "n-1",
+        firstConversationId: "c-2",
+        firstNotificationId: "n-2",
+      }),
+    ).toEqual({ kind: "new" });
+  });
+
+  it("selects the URL conversation when not composing", () => {
+    expect(
+      resolveInboxSelection({
+        composeNew: false,
+        urlConversationId: "c-1",
+        firstConversationId: "c-2",
+      }),
+    ).toEqual({ kind: "conversation", id: "c-1" });
+  });
+
+  it("falls back to the first conversation when the inbox index has no URL selection", () => {
+    expect(
+      resolveInboxSelection({
+        composeNew: false,
+        firstConversationId: "c-2",
+        firstNotificationId: "n-2",
+      }),
+    ).toEqual({ kind: "conversation", id: "c-2" });
   });
 });
 

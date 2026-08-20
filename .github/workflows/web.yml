@@ -6,12 +6,6 @@ on:
     paths:
       - apps/hyperlocalise-web/**
       - .github/workflows/web.yml
-  push:
-    branches:
-      - main
-    paths:
-      - apps/hyperlocalise-web/**
-      - .github/workflows/web.yml
 
 permissions:
   contents: read
@@ -67,7 +61,7 @@ jobs:
 
   web-test-build:
     name: Hyperlocalise Web Test/Build
-    if: github.event_name == 'push' || github.event.pull_request.draft == false
+    if: github.event.pull_request.draft == false
     runs-on: blacksmith-4vcpu-ubuntu-2404
     services:
       postgres:

@@ -12,12 +12,12 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { ArrowDown01Icon, BrainIcon, DotIcon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon, type IconSvgElement } from "@hugeicons/react";
 import { useControllableState } from "@radix-ui/react-use-controllable-state";
 import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { cn } from "@/lib/primitives/cn";
-import type { LucideIcon } from "lucide-react";
-import { BrainIcon, ChevronDownIcon, DotIcon } from "lucide-react";
 import type { ComponentProps, ReactNode } from "react";
 import { createContext, memo, useContext, useMemo } from "react";
 import { FormattedMessage } from "react-intl";
@@ -88,11 +88,12 @@ export const ChainOfThoughtHeader = memo(
           )}
           {...props}
         >
-          <BrainIcon className="size-4" />
+          <HugeiconsIcon icon={BrainIcon} className="size-4" />
           <span className="flex-1 text-start">
             {children ?? <FormattedMessage {...chainOfThoughtMessages.header} />}
           </span>
-          <ChevronDownIcon
+          <HugeiconsIcon
+            icon={ArrowDown01Icon}
             className={cn("size-4 transition-transform", isOpen ? "rotate-180" : "rotate-0")}
           />
         </CollapsibleTrigger>
@@ -102,7 +103,7 @@ export const ChainOfThoughtHeader = memo(
 );
 
 export type ChainOfThoughtStepProps = ComponentProps<"div"> & {
-  icon?: LucideIcon;
+  icon?: IconSvgElement;
   label: ReactNode;
   description?: ReactNode;
   status?: "complete" | "active" | "pending";
@@ -134,7 +135,7 @@ export const ChainOfThoughtStep = memo(
       {...props}
     >
       <div className="relative mt-0.5">
-        <Icon className="size-4" />
+        <HugeiconsIcon icon={Icon} className="size-4" />
         <div className="absolute top-7 bottom-0 start-1/2 -mx-px w-px bg-border" />
       </div>
       <div className="flex-1 space-y-2 overflow-hidden">

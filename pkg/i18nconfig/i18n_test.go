@@ -146,6 +146,24 @@ func TestLoad(t *testing.T) {
 			}`,
 		},
 		{
+			name: "valid llm provider openrouter",
+			content: `{
+			  "locales": {"source": "en-US", "targets": ["es-ES"]},
+			  "buckets": {"ui": {"files": [{"from": "a", "to": "b"}]}},
+			  "groups": {"g": {"targets": ["es-ES"], "buckets": ["ui"]}},
+			  "llm": {"profiles": {"default": {"provider": "openrouter", "model": "x", "prompt": "p"}}}
+			}`,
+		},
+		{
+			name: "valid llm provider ai_gateway",
+			content: `{
+			  "locales": {"source": "en-US", "targets": ["es-ES"]},
+			  "buckets": {"ui": {"files": [{"from": "a", "to": "b"}]}},
+			  "groups": {"g": {"targets": ["es-ES"], "buckets": ["ui"]}},
+			  "llm": {"profiles": {"default": {"provider": "ai_gateway", "model": "x", "prompt": "p"}}}
+			}`,
+		},
+		{
 			name: "valid llm provider ollama",
 			content: `{
 			  "locales": {"source": "en-US", "targets": ["es-ES"]},
@@ -736,6 +754,12 @@ func TestLoadIgnoresHiddenJSONCPathWhenDefaultMissing(t *testing.T) {
 
 	if !strings.Contains(err.Error(), "open i18n config") {
 		t.Fatalf("unexpected error: got %q", err.Error())
+	}
+	if !strings.Contains(err.Error(), "i18n.yml") {
+		t.Fatalf("expected missing-config error to mention i18n.yml, got %q", err.Error())
+	}
+	if strings.Contains(err.Error(), "i18n.jsonc") {
+		t.Fatalf("expected missing-config error not to mention i18n.jsonc, got %q", err.Error())
 	}
 }
 

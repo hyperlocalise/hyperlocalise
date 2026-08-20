@@ -20,10 +20,16 @@ import {
 } from "./public-media";
 
 describe("public media helpers", () => {
-  it("requires publicMedia metadata and an image content type", () => {
+  it("requires publicMedia metadata and an image or mp4 content type", () => {
     expect(
       isPublicMediaStoredFile({
         contentType: "image/png",
+        metadata: publicMediaMetadata(),
+      }),
+    ).toBe(true);
+    expect(
+      isPublicMediaStoredFile({
+        contentType: "video/mp4",
         metadata: publicMediaMetadata(),
       }),
     ).toBe(true);
@@ -36,6 +42,12 @@ describe("public media helpers", () => {
     expect(
       isPublicMediaStoredFile({
         contentType: "application/json",
+        metadata: publicMediaMetadata(),
+      }),
+    ).toBe(false);
+    expect(
+      isPublicMediaStoredFile({
+        contentType: "video/webm",
         metadata: publicMediaMetadata(),
       }),
     ).toBe(false);

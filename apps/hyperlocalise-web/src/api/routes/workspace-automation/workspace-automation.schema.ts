@@ -14,15 +14,23 @@ import { z } from "zod";
 
 import {
   workspaceAutomationConfigSchema,
+  workspaceAutomationModelSchema,
   workspaceAutomationStatusSchema,
 } from "@/lib/agents/workspace-automations";
+import { optionalProjectIdSchema } from "@/lib/projects/identity/project-id";
 
 export const workspaceAutomationIdParamSchema = z.object({
   automationId: z.string().uuid(),
 });
 
+export const workspaceAutomationKnowledgeFileIdParamSchema = z.object({
+  automationId: z.string().uuid(),
+  knowledgeFileId: z.string().uuid(),
+});
+
 export const listWorkspaceAutomationsQuerySchema = z.object({
   status: workspaceAutomationStatusSchema.optional(),
+  projectId: optionalProjectIdSchema,
   limit: z.coerce.number().int().min(1).max(100).default(50),
   offset: z.coerce.number().int().min(0).default(0),
 });
@@ -32,6 +40,7 @@ export const createWorkspaceAutomationBodySchema = workspaceAutomationConfigSche
     status: workspaceAutomationStatusSchema.optional(),
     name: z.string().trim().min(1).max(120),
     instructions: z.string().trim().min(1).max(20_000),
+    model: workspaceAutomationModelSchema.optional(),
     nextRunAt: z.string().datetime().nullable().optional(),
   })
   .strict();
@@ -42,6 +51,7 @@ export const updateWorkspaceAutomationBodySchema = workspaceAutomationConfigSche
     status: workspaceAutomationStatusSchema.optional(),
     name: z.string().trim().min(1).max(120).optional(),
     instructions: z.string().trim().min(1).max(20_000).optional(),
+    model: workspaceAutomationModelSchema.optional(),
     nextRunAt: z.string().datetime().nullable().optional(),
   })
   .strict()

@@ -40,6 +40,11 @@ vi.mock("@/lib/database", () => ({
     glossaries: {
       id: "id",
       organizationId: "organization_id",
+      createdByUserId: "created_by_user_id",
+    },
+    projectGlossaries: {
+      glossaryId: "glossary_id",
+      projectId: "project_id",
     },
     memories: {
       id: "id",
@@ -108,11 +113,13 @@ function mockSelectQueue(rowSets: unknown[][]) {
     const builder = Promise.resolve(rows) as Promise<unknown[]> & {
       from: ReturnType<typeof vi.fn>;
       innerJoin: ReturnType<typeof vi.fn>;
+      leftJoin: ReturnType<typeof vi.fn>;
       where: ReturnType<typeof vi.fn>;
       limit: ReturnType<typeof vi.fn>;
     };
     builder.from = vi.fn(() => builder);
     builder.innerJoin = vi.fn(() => builder);
+    builder.leftJoin = vi.fn(() => builder);
     builder.where = vi.fn(() => builder);
     builder.limit = vi.fn(async () => rows);
     return builder;
@@ -125,12 +132,24 @@ describe("canAccessGlossary", () => {
     vi.resetModules();
   });
 
-  it("rejects live provider glossary ids before database lookup", async () => {
+  it("does not bypass database access for CrowdIn glossary ids", async () => {
+    mockSelectQueue([[{ id: "crowdin:glossary:718373" }]]);
+
     const { canAccessGlossary } = await import("./team-access");
     const result = await canAccessGlossary(createAuthContext(), "crowdin:glossary:718373");
 
-    expect(result).toBeNull();
-    expect(dbSelectMock).not.toHaveBeenCalled();
+    expect(result).toEqual({ id: "crowdin:glossary:718373" });
+    expect(dbSelectMock).toHaveBeenCalled();
+  });
+
+  it("allows a creator to access an unattached glossary", async () => {
+    mockSelectQueue([[], [{ id: "team_1" }], [{ id: "project_1" }], [{ id: "glossary_1" }]]);
+
+    const { canAccessGlossary } = await import("./team-access");
+    const result = await canAccessGlossary(createAuthContext("member"), "glossary_1");
+
+    expect(result).toEqual({ id: "glossary_1" });
+    expect(dbSelectMock).toHaveBeenCalledTimes(4);
   });
 });
 

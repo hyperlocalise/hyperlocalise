@@ -14,8 +14,12 @@ import { randomUUID } from "node:crypto";
 
 import { Sandbox, StreamError } from "@vercel/sandbox";
 
-import { hyperlocaliseAgentModelId } from "@/lib/agent-runtime/loops/model-id";
 import { env } from "@/lib/env";
+import {
+  resolveSandboxLlmProfile,
+  resolveSandboxTranslationEnv,
+  type SandboxByokCredential,
+} from "@/lib/translation/sandbox-llm";
 import { createConfiguredVercelSandbox } from "@/lib/vercel-sandbox-config";
 import {
   inferSupportedFileTranslationFileFormat,
@@ -422,6 +426,7 @@ export class HyperlocaliseCliConfigBuilder {
     targetLocale: string,
     instructions: string | null = null,
     context: SandboxTranslationContext | null = null,
+    byok?: SandboxByokCredential | null,
   ): string {
     return this.buildMultiLocale(
       inputFile,
@@ -430,6 +435,7 @@ export class HyperlocaliseCliConfigBuilder {
       [targetLocale],
       instructions,
       context,
+      byok,
     );
   }
 
@@ -440,6 +446,7 @@ export class HyperlocaliseCliConfigBuilder {
     targetLocales: string[],
     instructions: string | null = null,
     context: SandboxTranslationContext | null = null,
+    byok?: SandboxByokCredential | null,
   ): string {
     return this.buildMultiFileMultiLocale(
       [{ from: inputFile, to: outputPattern }],
@@ -447,6 +454,7 @@ export class HyperlocaliseCliConfigBuilder {
       targetLocales,
       instructions,
       context,
+      byok,
     );
   }
 
@@ -457,6 +465,7 @@ export class HyperlocaliseCliConfigBuilder {
     targetLocales: string[],
     instructions: string | null = null,
     context: SandboxTranslationContext | null = null,
+    byok?: SandboxByokCredential | null,
   ): string {
     if (files.length === 0) {
       throw new Error("buildMultiFileMultiLocale requires at least one file mapping");
@@ -470,6 +479,7 @@ export class HyperlocaliseCliConfigBuilder {
       `      - from: ${yamlString(file.from)}`,
       `        to: ${yamlString(file.to)}`,
     ]);
+    const llmProfile = resolveSandboxLlmProfile(env, byok);
 
     return [
       "locales:",
@@ -485,8 +495,8 @@ export class HyperlocaliseCliConfigBuilder {
       "llm:",
       "  profiles:",
       "    default:",
-      "      provider: openai",
-      `      model: ${hyperlocaliseAgentModelId}`,
+      `      provider: ${llmProfile.provider}`,
+      `      model: ${llmProfile.model}`,
       `      system_prompt: ${yamlString(systemPrompt)}`,
       `      user_prompt: ${yamlString(userPrompt)}`,
     ].join("\n");
@@ -679,6 +689,7 @@ export class HyperlocaliseCliRunner {
     targetLocale: string,
     instructions: string | null = null,
     context: SandboxTranslationContext | null = null,
+    byok?: SandboxByokCredential | null,
   ): string {
     return this.configBuilder.build(
       inputFile,
@@ -687,6 +698,7 @@ export class HyperlocaliseCliRunner {
       targetLocale,
       instructions,
       context,
+      byok,
     );
   }
 
@@ -697,6 +709,7 @@ export class HyperlocaliseCliRunner {
     targetLocales: string[],
     instructions: string | null = null,
     context: SandboxTranslationContext | null = null,
+    byok?: SandboxByokCredential | null,
   ): string {
     return this.configBuilder.buildMultiLocale(
       inputFile,
@@ -705,6 +718,7 @@ export class HyperlocaliseCliRunner {
       targetLocales,
       instructions,
       context,
+      byok,
     );
   }
 
@@ -714,6 +728,7 @@ export class HyperlocaliseCliRunner {
     targetLocales: string[],
     instructions: string | null = null,
     context: SandboxTranslationContext | null = null,
+    byok?: SandboxByokCredential | null,
   ): string {
     return this.configBuilder.buildMultiFileMultiLocale(
       files,
@@ -721,6 +736,7 @@ export class HyperlocaliseCliRunner {
       targetLocales,
       instructions,
       context,
+      byok,
     );
   }
 
@@ -818,12 +834,10 @@ export class HyperlocaliseCliRunner {
 const defaultLifecycle = new SandboxLifecycle();
 const defaultRunner = new HyperlocaliseCliRunner(defaultLifecycle);
 
-export function getSandboxTranslationEnv(): Record<string, string> {
-  if (!env.OPENAI_API_KEY) {
-    throw new Error("OPENAI_API_KEY is not configured");
-  }
-
-  return { OPENAI_API_KEY: env.OPENAI_API_KEY };
+export function getSandboxTranslationEnv(
+  byok?: SandboxByokCredential | null,
+): Record<string, string> {
+  return resolveSandboxTranslationEnv(env, byok);
 }
 
 export function getOutputFilename(inputFilename: string, targetLocale: string): string {
@@ -906,6 +920,7 @@ export function buildTempConfig(
   targetLocale: string,
   instructions: string | null = null,
   context: SandboxTranslationContext | null = null,
+  byok?: SandboxByokCredential | null,
 ) {
   return defaultRunner.buildConfig(
     inputFile,
@@ -914,6 +929,7 @@ export function buildTempConfig(
     targetLocale,
     instructions,
     context,
+    byok,
   );
 }
 
@@ -924,6 +940,7 @@ export function buildMultiLocaleTempConfig(
   targetLocales: string[],
   instructions: string | null = null,
   context: SandboxTranslationContext | null = null,
+  byok?: SandboxByokCredential | null,
 ) {
   return defaultRunner.buildMultiLocaleConfig(
     inputFile,
@@ -932,6 +949,7 @@ export function buildMultiLocaleTempConfig(
     targetLocales,
     instructions,
     context,
+    byok,
   );
 }
 
@@ -941,6 +959,7 @@ export function buildMultiFileMultiLocaleTempConfig(
   targetLocales: string[],
   instructions: string | null = null,
   context: SandboxTranslationContext | null = null,
+  byok?: SandboxByokCredential | null,
 ) {
   return defaultRunner.buildMultiFileMultiLocaleConfig(
     files,
@@ -948,6 +967,7 @@ export function buildMultiFileMultiLocaleTempConfig(
     targetLocales,
     instructions,
     context,
+    byok,
   );
 }
 

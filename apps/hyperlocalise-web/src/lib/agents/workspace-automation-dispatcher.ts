@@ -10,6 +10,8 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { PRODUCT_USAGE_ANALYTICS_EVENTS } from "@/lib/analytics/events";
+import { serverAnalytics } from "@/lib/analytics/server";
 import { createLogger } from "@/lib/log";
 import { composeWorkspaceAutomationInstructions } from "@/agents/automations/workspace/agent/compose-workspace-instructions";
 import {
@@ -26,7 +28,8 @@ import {
 } from "./workspace-automation-idempotency";
 import {
   hasWorkspaceAutomationGithubWorkflow,
-  workspaceAutomationMatchesPushBranch,
+  workspaceAutomationShouldDispatchOnGithubPullRequest,
+  workspaceAutomationShouldDispatchOnGithubPush,
 } from "./workspace-automation-github-mapping";
 import {
   advanceWorkspaceAutomationNextRun,
@@ -253,10 +256,18 @@ async function dispatchWorkspaceAutomationViaOrchestrator(input: {
     },
   });
 
+  const insertedRun = enqueued ? inserted : false;
+  if (insertedRun) {
+    serverAnalytics.track(PRODUCT_USAGE_ANALYTICS_EVENTS.automationRunStarted, {
+      status: "queued",
+      source: input.triggerSource,
+    });
+  }
+
   return {
     outcome: "enqueued",
     runId: run.id,
-    inserted: enqueued ? inserted : false,
+    inserted: insertedRun,
   };
 }
 
@@ -270,7 +281,10 @@ export async function dispatchManualWorkspaceAutomationRun(input: {
     return null;
   }
 
-  if (input.automation.triggerConfig.mode !== "manual") {
+  if (
+    input.automation.triggerConfig.mode !== "manual" &&
+    input.automation.triggerConfig.mode !== "scheduled"
+  ) {
     return null;
   }
 
@@ -374,9 +388,7 @@ export async function dispatchWorkspaceAutomationsForGithubPush(input: {
       automation.repositoryTarget.kind === "github" &&
       automation.repositoryTarget.githubInstallationRepositoryId ===
         input.githubInstallationRepositoryId &&
-      automation.triggerConfig.mode === "github" &&
-      workspaceAutomationMatchesPushBranch(automation, input.branch) &&
-      hasWorkspaceAutomationGithubWorkflow(automation.toolConfig),
+      workspaceAutomationShouldDispatchOnGithubPush(automation, input.branch),
   );
 
   const results: WorkspaceAutomationDispatchResult[] = [];
@@ -409,6 +421,76 @@ export async function dispatchWorkspaceAutomationsForGithubPush(input: {
           error: error instanceof Error ? error.message : String(error),
         },
         "workspace automation github push dispatch failed",
+      );
+    }
+  }
+
+  return results;
+}
+
+export async function dispatchWorkspaceAutomationsForGithubPullRequest(input: {
+  deliveryId: string;
+  organizationId: string;
+  githubInstallationRepositoryId: string;
+  action: string;
+  pullRequestNumber: number;
+  pullRequestUrl?: string;
+  baseBranch: string;
+  headBranch: string;
+  commitBefore: string;
+  commitAfter: string;
+  queue?: WorkspaceAutomationExecutionQueue;
+}): Promise<WorkspaceAutomationDispatchResult[]> {
+  const automations = (
+    await listWorkspaceAutomations({
+      organizationId: input.organizationId,
+      status: "active",
+      limit: 100,
+    })
+  ).filter(
+    (automation) =>
+      automation.repositoryTarget.kind === "github" &&
+      automation.repositoryTarget.githubInstallationRepositoryId ===
+        input.githubInstallationRepositoryId &&
+      workspaceAutomationShouldDispatchOnGithubPullRequest(automation, input.baseBranch),
+  );
+
+  const results: WorkspaceAutomationDispatchResult[] = [];
+
+  for (const automation of automations) {
+    try {
+      const result = await dispatchWorkspaceAutomationViaOrchestrator({
+        organizationId: input.organizationId,
+        automation,
+        triggerSource: "github",
+        idempotencyKey: buildWorkspaceGithubPushAutomationIdempotencyKey({
+          automationId: automation.id,
+          configVersion: automation.configVersion,
+          githubDeliveryId: input.deliveryId,
+        }),
+        inputSnapshot: {
+          githubDeliveryId: input.deliveryId,
+          githubEvent: "pull_request",
+          githubAction: input.action,
+          pullRequestNumber: input.pullRequestNumber,
+          pullRequestUrl: input.pullRequestUrl,
+          baseBranch: input.baseBranch,
+          headBranch: input.headBranch,
+          pushBranch: input.baseBranch,
+          commitBefore: input.commitBefore,
+          commitAfter: input.commitAfter,
+        },
+        queue: input.queue,
+      });
+      results.push(result);
+    } catch (error) {
+      logger.error(
+        {
+          automationId: automation.id,
+          deliveryId: input.deliveryId,
+          error: error instanceof Error ? error.message : String(error),
+        },
+        "workspace automation github pull request dispatch failed",
       );
     }
   }

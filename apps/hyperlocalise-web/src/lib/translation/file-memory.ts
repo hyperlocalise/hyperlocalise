@@ -14,6 +14,7 @@ import { and, eq, inArray, sql } from "drizzle-orm";
 import { createHash } from "node:crypto";
 
 import { db, schema } from "@/lib/database";
+import { listHiddenProjectTranslationKeysForSourcePath } from "@/lib/projects/translations/project-translation-service";
 import { normalizeTranslationMemorySourceText } from "@/lib/translation/normalizeTranslationMemorySourceText";
 
 function sourceTextHash(sourceText: string) {
@@ -148,6 +149,18 @@ export class FileTranslationMemoryStore {
       return;
     }
 
+    const hiddenKeys = new Set(
+      await listHiddenProjectTranslationKeysForSourcePath({
+        projectId: input.projectId,
+        sourcePath: input.sourcePath,
+        keys: units.map((unit) => unit.key),
+      }),
+    );
+    const persistableUnits = units.filter((unit) => !hiddenKeys.has(unit.key));
+    if (persistableUnits.length === 0) {
+      return;
+    }
+
     const attached = await db
       .select({ memoryId: schema.projectMemories.memoryId })
       .from(schema.projectMemories)
@@ -158,7 +171,7 @@ export class FileTranslationMemoryStore {
     }
 
     const valueByConflictKey = new Map<string, typeof schema.memoryEntries.$inferInsert>();
-    for (const unit of units) {
+    for (const unit of persistableUnits) {
       const normalized = normalizeTranslationMemorySourceText(unit.sourceText);
       for (const memoryId of memoryIds) {
         valueByConflictKey.set(

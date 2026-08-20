@@ -13,36 +13,58 @@
  * Version 2.0 or later.
  */
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
+import { Delete02Icon, PlayIcon, SaveIcon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { FormattedMessage, useIntl } from "react-intl";
 import { toast } from "sonner";
 
+import {
+  AlertDialog,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
+import { buildAutomationsPath } from "@/components/app-shell/navigation-config";
 import { apiClient } from "@/lib/api-client-instance";
+import { buildWorkspaceAutomationWebChatHref } from "@/lib/agents/workspace-automation-web-chat-url";
 import {
   createWorkspaceAutomationFormStateFromRecord,
   formStateToWorkspaceAutomationPayload,
   mapWorkspaceAutomationApiErrorToFieldErrors,
   validateWorkspaceAutomationFormState,
+  workspaceAutomationFormHasChanges,
+  workspaceAutomationFormSupportsOnDemandRun,
 } from "@/lib/agents/workspace-automation-view-model";
 import { WorkspacePageShell } from "../../_components/workspace-resource-shared";
 import { automationDetailPageContentMessages } from "./automation-detail-page-content.messages";
+import { WebChatUrlCopyField } from "./web-chat-url-copy-field";
 import { WorkspaceAutomationEditor } from "./workspace-automation-form";
 
 export function AutomationDetailPageContent({
   organizationSlug,
+  projectId,
   automationId,
   knowledgeAvailable = false,
   canUpdateKnowledgeMemory = false,
 }: {
   organizationSlug: string;
+  projectId?: string;
   automationId: string;
   knowledgeAvailable?: boolean;
   canUpdateKnowledgeMemory?: boolean;
 }) {
   const intl = useIntl();
+  const router = useRouter();
   const queryClient = useQueryClient();
+  const automationsBasePath = buildAutomationsPath(organizationSlug, { projectId });
 
   const automationQuery = useQuery({
     queryKey: ["workspace-automation", organizationSlug, automationId],
@@ -65,6 +87,8 @@ export function AutomationDetailPageContent({
     typeof createWorkspaceAutomationFormStateFromRecord
   > | null>(null);
   const [errors, setErrors] = useState<Record<string, string | undefined>>({});
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const writeLockRef = useRef<"save" | "delete" | null>(null);
 
   useEffect(() => {
     if (automation) {
@@ -77,32 +101,42 @@ export function AutomationDetailPageContent({
       if (!form) {
         throw new Error("missing_form");
       }
-
-      const fieldErrors = validateWorkspaceAutomationFormState(form);
-      if (Object.keys(fieldErrors).length > 0) {
-        setErrors(fieldErrors);
-        throw new Error("validation_failed");
+      if (writeLockRef.current === "delete") {
+        throw new Error("delete_in_progress");
       }
+      writeLockRef.current = "save";
 
-      const payload = formStateToWorkspaceAutomationPayload(form);
-      const response = await apiClient.api.orgs[":organizationSlug"].automations[
-        ":automationId"
-      ].$patch({
-        param: { organizationSlug, automationId },
-        json: payload,
-      });
-
-      if (!response.ok) {
-        const body = (await response.json().catch(() => null)) as {
-          error?: string;
-        } | null;
-        if (body?.error) {
-          setErrors(mapWorkspaceAutomationApiErrorToFieldErrors(body.error));
+      try {
+        const fieldErrors = validateWorkspaceAutomationFormState(form);
+        if (Object.keys(fieldErrors).length > 0) {
+          setErrors(fieldErrors);
+          throw new Error("validation_failed");
         }
-        throw new Error("Failed to update automation");
-      }
 
-      return response.json();
+        const payload = formStateToWorkspaceAutomationPayload(form);
+        const response = await apiClient.api.orgs[":organizationSlug"].automations[
+          ":automationId"
+        ].$patch({
+          param: { organizationSlug, automationId },
+          json: payload,
+        });
+
+        if (!response.ok) {
+          const body = (await response.json().catch(() => null)) as {
+            error?: string;
+          } | null;
+          if (body?.error) {
+            setErrors(mapWorkspaceAutomationApiErrorToFieldErrors(body.error));
+          }
+          throw new Error("Failed to update automation");
+        }
+
+        return response.json();
+      } finally {
+        if (writeLockRef.current === "save") {
+          writeLockRef.current = null;
+        }
+      }
     },
     onSuccess: () => {
       toast.success(intl.formatMessage(automationDetailPageContentMessages.updateSuccess));
@@ -114,7 +148,7 @@ export function AutomationDetailPageContent({
       });
     },
     onError: (error) => {
-      if (error.message === "validation_failed") {
+      if (error.message === "validation_failed" || error.message === "delete_in_progress") {
         return;
       }
       toast.error(intl.formatMessage(automationDetailPageContentMessages.updateError));
@@ -147,6 +181,43 @@ export function AutomationDetailPageContent({
     },
   });
 
+  const deleteMutation = useMutation({
+    mutationFn: async () => {
+      if (writeLockRef.current === "save") {
+        throw new Error("save_in_progress");
+      }
+      writeLockRef.current = "delete";
+      try {
+        const response = await apiClient.api.orgs[":organizationSlug"].automations[
+          ":automationId"
+        ].$delete({
+          param: { organizationSlug, automationId },
+        });
+        if (!response.ok) {
+          throw new Error("Failed to delete automation");
+        }
+      } finally {
+        if (writeLockRef.current === "delete") {
+          writeLockRef.current = null;
+        }
+      }
+    },
+    onSuccess: () => {
+      toast.success(intl.formatMessage(automationDetailPageContentMessages.deleteSuccess));
+      void queryClient.invalidateQueries({
+        queryKey: ["workspace-automations", organizationSlug],
+      });
+      setDeleteDialogOpen(false);
+      router.push(automationsBasePath);
+    },
+    onError: (error) => {
+      if (error.message === "save_in_progress") {
+        return;
+      }
+      toast.error(intl.formatMessage(automationDetailPageContentMessages.deleteError));
+    },
+  });
+
   if (automationQuery.isLoading || !form || !automation) {
     return (
       <WorkspacePageShell>
@@ -157,11 +228,21 @@ export function AutomationDetailPageContent({
     );
   }
 
+  const savedForm = createWorkspaceAutomationFormStateFromRecord(automation);
+  const hasChanges = workspaceAutomationFormHasChanges(form, savedForm);
+  const showRunButton =
+    workspaceAutomationFormSupportsOnDemandRun(form.triggerMode) &&
+    workspaceAutomationFormSupportsOnDemandRun(savedForm.triggerMode);
+  const saveInFlight = saveMutation.isPending;
+  const deleteInFlight = deleteMutation.isPending;
+  const writeInFlight = saveInFlight || deleteInFlight;
+
   return (
     <WorkspacePageShell className="max-w-5xl">
       <WorkspaceAutomationEditor
         mode="detail"
         organizationSlug={organizationSlug}
+        automationId={automationId}
         form={form}
         errors={errors}
         knowledgeAvailable={knowledgeAvailable}
@@ -172,13 +253,73 @@ export function AutomationDetailPageContent({
           <div className="flex gap-2">
             <Button
               variant="outline"
-              onClick={() => runMutation.mutate()}
-              disabled={runMutation.isPending || automation.status !== "active"}
+              onClick={() => {
+                if (writeInFlight) {
+                  return;
+                }
+                setDeleteDialogOpen(true);
+              }}
+              disabled={writeInFlight}
             >
-              <FormattedMessage {...automationDetailPageContentMessages.runNow} />
+              <HugeiconsIcon icon={Delete02Icon} strokeWidth={1.8} data-icon="inline-start" />
+              <FormattedMessage {...automationDetailPageContentMessages.deleteAutomation} />
             </Button>
-            <Button onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending}>
-              {saveMutation.isPending ? (
+            {form.triggerMode === "web_chat" ? (
+              <>
+                <div className="hidden min-w-0 max-w-xs md:block">
+                  <WebChatUrlCopyField
+                    automationId={automationId}
+                    organizationSlug={organizationSlug}
+                  />
+                </div>
+                <Button
+                  variant="outline"
+                  nativeButton={false}
+                  render={
+                    <Link
+                      href={buildWorkspaceAutomationWebChatHref({
+                        organizationSlug,
+                        automationId,
+                        locale: intl.locale,
+                      })}
+                      target="_blank"
+                      rel="noreferrer"
+                    />
+                  }
+                  disabled={automation.status !== "active"}
+                >
+                  <FormattedMessage {...automationDetailPageContentMessages.openChat} />
+                </Button>
+              </>
+            ) : showRunButton ? (
+              <Button
+                variant="outline"
+                onClick={() => runMutation.mutate()}
+                disabled={runMutation.isPending || automation.status !== "active"}
+              >
+                {runMutation.isPending ? (
+                  <Spinner data-icon="inline-start" />
+                ) : (
+                  <HugeiconsIcon icon={PlayIcon} strokeWidth={1.8} data-icon="inline-start" />
+                )}
+                <FormattedMessage {...automationDetailPageContentMessages.runNow} />
+              </Button>
+            ) : null}
+            <Button
+              onClick={() => {
+                if (deleteInFlight) {
+                  return;
+                }
+                saveMutation.mutate();
+              }}
+              disabled={writeInFlight || !hasChanges}
+            >
+              {saveInFlight ? (
+                <Spinner data-icon="inline-start" />
+              ) : (
+                <HugeiconsIcon icon={SaveIcon} strokeWidth={1.8} data-icon="inline-start" />
+              )}
+              {saveInFlight ? (
                 <FormattedMessage {...automationDetailPageContentMessages.saving} />
               ) : (
                 <FormattedMessage {...automationDetailPageContentMessages.saveChanges} />
@@ -187,6 +328,58 @@ export function AutomationDetailPageContent({
           </div>
         }
       />
+
+      <AlertDialog
+        open={deleteDialogOpen}
+        onOpenChange={(open) => {
+          if (deleteInFlight) {
+            return;
+          }
+          if (open && saveInFlight) {
+            return;
+          }
+          setDeleteDialogOpen(open);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              <FormattedMessage {...automationDetailPageContentMessages.deleteTitle} />
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {intl.formatMessage(automationDetailPageContentMessages.deleteDescription, {
+                automationName: automation.name,
+              })}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleteInFlight}>
+              <FormattedMessage {...automationDetailPageContentMessages.deleteCancel} />
+            </AlertDialogCancel>
+            <Button
+              variant="destructive"
+              disabled={writeInFlight}
+              onClick={() => {
+                if (saveInFlight) {
+                  return;
+                }
+                deleteMutation.mutate();
+              }}
+            >
+              {deleteInFlight ? (
+                <Spinner />
+              ) : (
+                <HugeiconsIcon icon={Delete02Icon} strokeWidth={1.8} />
+              )}
+              {deleteInFlight ? (
+                <FormattedMessage {...automationDetailPageContentMessages.deleting} />
+              ) : (
+                <FormattedMessage {...automationDetailPageContentMessages.deleteConfirm} />
+              )}
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <div className="pt-4">
         <Button

@@ -10,19 +10,31 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { and, asc, desc, eq, inArray, isNotNull, isNull, lt, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray, isNotNull, isNull, lt, or, sql } from "drizzle-orm";
 
-import { db, schema } from "@/lib/database";
+import { db, schema, type DatabaseClient } from "@/lib/database";
+
+import {
+  LocalisationAuditDailyQuotaExceededError,
+  localisationAuditDailyRunLimit,
+  localisationAuditRunConsumesDailyQuota,
+} from "./daily-quota";
 
 import { hashLocalisationAuditReportToken, mintLocalisationAuditReportToken } from "./email-unlock";
 import type {
+  LocalisationAuditCompanyProfile,
   LocalisationAuditLeadDeliveryStatus,
   LocalisationAuditProgressStage,
   LocalisationAuditReport,
+  LocalisationAuditRunSource,
   LocalisationAuditStatus,
   LocalisationAuditTeaser,
 } from "./types";
-import { LOCALISATION_AUDIT_EMAIL_RESEND_COOLDOWN_MS, LOCALISATION_AUDIT_STALE_MS } from "./types";
+import {
+  LOCALISATION_AUDIT_EMAIL_RESEND_COOLDOWN_MS,
+  LOCALISATION_AUDIT_RERUN_MS,
+  LOCALISATION_AUDIT_STALE_MS,
+} from "./types";
 
 export type LocalisationAuditRow = typeof schema.localisationAudits.$inferSelect;
 export type LocalisationAuditLeadRow = typeof schema.localisationAuditLeads.$inferSelect;
@@ -37,6 +49,25 @@ function now() {
   return new Date();
 }
 
+function jsonText(value: string | null | undefined): string | null {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed : null;
+}
+
+function httpUrl(value: string | null | undefined): string | null {
+  const candidate = jsonText(value);
+  if (!candidate) return null;
+  try {
+    const parsed = new URL(candidate);
+    if (parsed.protocol === "http:" || parsed.protocol === "https:") {
+      return candidate;
+    }
+  } catch {
+    return null;
+  }
+  return null;
+}
+
 function isActiveAudit(audit: LocalisationAuditRow, staleMs = LOCALISATION_AUDIT_STALE_MS) {
   if (audit.status !== "queued" && audit.status !== "running") {
     return false;
@@ -44,6 +75,22 @@ function isActiveAudit(audit: LocalisationAuditRow, staleMs = LOCALISATION_AUDIT
   const reference =
     audit.statusUpdatedAt ?? audit.lastAttemptAt ?? audit.updatedAt ?? audit.createdAt;
   return Date.now() - reference.getTime() < staleMs;
+}
+
+function localisationAuditRerunReference(audit: LocalisationAuditRow) {
+  return audit.completedAt ?? audit.statusUpdatedAt ?? audit.lastAttemptAt ?? audit.createdAt;
+}
+
+export function localisationAuditRerunAvailableAt(audit: LocalisationAuditRow): Date | null {
+  if (audit.status !== "succeeded" || audit.report == null) {
+    return null;
+  }
+  return new Date(localisationAuditRerunReference(audit).getTime() + LOCALISATION_AUDIT_RERUN_MS);
+}
+
+export function isLocalisationAuditRerunnable(audit: LocalisationAuditRow) {
+  const availableAt = localisationAuditRerunAvailableAt(audit);
+  return availableAt != null && Date.now() >= availableAt.getTime();
 }
 
 export function isLocalisationAuditRetryable(audit: LocalisationAuditRow) {
@@ -64,8 +111,11 @@ export async function findLocalisationAuditBySlug(domainSlug: string) {
   return row ?? null;
 }
 
-export async function findLocalisationAuditByDomainKey(domainKey: string) {
-  const [row] = await db
+export async function findLocalisationAuditByDomainKey(
+  domainKey: string,
+  client: DatabaseClient = db,
+) {
+  const [row] = await client
     .select()
     .from(schema.localisationAudits)
     .where(eq(schema.localisationAudits.domainKey, domainKey))
@@ -106,11 +156,13 @@ export type LocalisationAuditLeaderboardEntry = {
   domainSlug: string;
   score: number;
   completedAt: Date | null;
+  companyName: string | null;
+  logoUrl: string | null;
 };
 
 /**
  * Public leaderboard of succeeded teaser scores (highest first).
- * Only exposes domain identity + score — never emails or full reports.
+ * Only exposes domain identity, logo, and score — never emails or full reports.
  */
 export async function listLocalisationAuditLeaderboard(limit = 25) {
   const rows = await db
@@ -119,6 +171,12 @@ export async function listLocalisationAuditLeaderboard(limit = 25) {
       domainSlug: schema.localisationAudits.domainSlug,
       score: schema.localisationAudits.score,
       completedAt: schema.localisationAudits.completedAt,
+      companyName: sql<
+        string | null
+      >`nullif(${schema.localisationAudits.teaser}->'companyProfile'->>'name', '')`,
+      logoUrl: sql<
+        string | null
+      >`nullif(${schema.localisationAudits.teaser}->'companyProfile'->>'logoUrl', '')`,
     })
     .from(schema.localisationAudits)
     .where(
@@ -144,6 +202,8 @@ export async function listLocalisationAuditLeaderboard(limit = 25) {
         domainSlug: row.domainSlug,
         score: row.score,
         completedAt: row.completedAt,
+        companyName: jsonText(row.companyName),
+        logoUrl: httpUrl(row.logoUrl),
       } satisfies LocalisationAuditLeaderboardEntry,
     ];
   });
@@ -193,20 +253,55 @@ export async function getLocalisationAuditStanding(input: {
   };
 }
 
-async function createLocalisationAudit(input: {
-  domainKey: string;
-  domainSlug: string;
-  sourceUrl: string;
-  focusLocales: string[];
-}) {
+async function lockLocalisationAuditDailyQuota(client: DatabaseClient) {
+  await client.execute(
+    sql`select pg_advisory_xact_lock(hashtextextended(${"localisation_audit_daily_runs"}, 0))`,
+  );
+}
+
+async function assertLocalisationAuditDailyQuotaAvailable(
+  client: DatabaseClient,
+  runSource: LocalisationAuditRunSource,
+  lastAttemptAt?: Date | null,
+) {
+  if (!localisationAuditRunConsumesDailyQuota(lastAttemptAt)) {
+    return;
+  }
+  const cutoff = new Date(Date.now() - LOCALISATION_AUDIT_RERUN_MS);
+  const [row] = await client
+    .select({ count: sql<number>`count(*)`.mapWith(Number) })
+    .from(schema.localisationAudits)
+    .where(
+      and(
+        eq(schema.localisationAudits.runSource, runSource),
+        gte(schema.localisationAudits.lastAttemptAt, cutoff),
+      ),
+    );
+  const used = row?.count ?? 0;
+  if (used >= localisationAuditDailyRunLimit(runSource)) {
+    throw new LocalisationAuditDailyQuotaExceededError(runSource);
+  }
+}
+
+async function createLocalisationAudit(
+  input: {
+    domainKey: string;
+    domainSlug: string;
+    sourceUrl: string;
+    focusLocales: string[];
+    runSource: LocalisationAuditRunSource;
+  },
+  client: DatabaseClient = db,
+) {
   const timestamp = now();
-  const [row] = await db
+  const [row] = await client
     .insert(schema.localisationAudits)
     .values({
       domainKey: input.domainKey,
       domainSlug: input.domainSlug,
       sourceUrl: input.sourceUrl,
       focusLocales: input.focusLocales,
+      runSource: input.runSource,
       status: "queued",
       attemptNumber: 1,
       progressStage: "queued",
@@ -222,96 +317,116 @@ async function createLocalisationAudit(input: {
 
 /**
  * Atomically reuse a successful/active audit or reclaim a failed/stale one for a new attempt.
+ * New runs and 24h re-runs share a per-source daily cap; same-day failed/stale retries do not.
  */
 export async function claimOrReuseLocalisationAudit(input: {
   domainKey: string;
   domainSlug: string;
   sourceUrl: string;
   focusLocales: string[];
-  /** Internal retry budget after reclaim races. */
-  _reclaimAttempts?: number;
+  /** Defaults to visitor submissions. Pass `scheduled` for cron / internal starts. */
+  runSource?: LocalisationAuditRunSource;
 }): Promise<{ audit: LocalisationAuditRow; outcome: ClaimLocalisationAuditOutcome }> {
-  const reclaimAttempts = input._reclaimAttempts ?? 0;
-  const existing = await findLocalisationAuditByDomainKey(input.domainKey);
-  if (!existing) {
-    try {
-      const created = await createLocalisationAudit(input);
-      return { audit: created, outcome: "created" };
-    } catch {
-      const raced = await findLocalisationAuditByDomainKey(input.domainKey);
-      if (!raced) {
-        throw new Error("failed to create localisation audit");
+  const runSource = input.runSource ?? "user";
+  return db.transaction(async (tx) => {
+    await lockLocalisationAuditDailyQuota(tx);
+
+    for (let reclaimAttempts = 0; reclaimAttempts < 4; reclaimAttempts++) {
+      const existing = await findLocalisationAuditByDomainKey(input.domainKey, tx);
+      if (!existing) {
+        await assertLocalisationAuditDailyQuotaAvailable(tx, runSource);
+        const created = await createLocalisationAudit({ ...input, runSource }, tx);
+        return { audit: created, outcome: "created" as const };
       }
-      return claimOrReuseLocalisationAudit(input);
+
+      if (
+        existing.status === "succeeded" &&
+        existing.report &&
+        !isLocalisationAuditRerunnable(existing)
+      ) {
+        return { audit: existing, outcome: "reused_success" as const };
+      }
+
+      if (isActiveAudit(existing)) {
+        return { audit: existing, outcome: "reused_active" as const };
+      }
+
+      const consumesQuota = localisationAuditRunConsumesDailyQuota(existing.lastAttemptAt);
+      await assertLocalisationAuditDailyQuotaAvailable(tx, runSource, existing.lastAttemptAt);
+
+      const timestamp = now();
+      const staleCutoff = new Date(Date.now() - LOCALISATION_AUDIT_STALE_MS);
+      const dailyRerunCutoff = new Date(Date.now() - LOCALISATION_AUDIT_RERUN_MS);
+      const focusLocales =
+        input.focusLocales.length > 0 ? input.focusLocales : (existing.focusLocales ?? []);
+      // Keep any existing public/unlocked payload across reclaim. That covers both
+      // daily re-runs (status still succeeded) and later stale reclaim of a
+      // queued/running row that already preserved the prior report. Eager wipe + a
+      // later fail permanently destroys the only report row for the domain.
+      const preservePriorReport = existing.report != null;
+
+      const [claimed] = await tx
+        .update(schema.localisationAudits)
+        .set({
+          sourceUrl: input.sourceUrl,
+          focusLocales,
+          status: "queued" satisfies LocalisationAuditStatus,
+          attemptNumber: sql`${schema.localisationAudits.attemptNumber} + 1`,
+          progressStage: "queued" satisfies LocalisationAuditProgressStage,
+          statusUpdatedAt: timestamp,
+          lastAttemptAt: timestamp,
+          // Same-day retries do not take a new slot; keep the prior bucket attribution.
+          ...(consumesQuota ? { runSource } : {}),
+          workflowRunId: null,
+          score: preservePriorReport ? existing.score : null,
+          teaser: preservePriorReport ? existing.teaser : null,
+          report: preservePriorReport ? existing.report : null,
+          errorCode: null,
+          errorMessage: null,
+          startedAt: null,
+          completedAt: preservePriorReport ? existing.completedAt : null,
+        })
+        .where(
+          and(
+            eq(schema.localisationAudits.id, existing.id),
+            or(
+              eq(schema.localisationAudits.status, "failed"),
+              and(
+                eq(schema.localisationAudits.status, "succeeded"),
+                isNull(schema.localisationAudits.report),
+              ),
+              and(
+                eq(schema.localisationAudits.status, "succeeded"),
+                isNotNull(schema.localisationAudits.report),
+                lt(
+                  sql`coalesce(${schema.localisationAudits.completedAt}, ${schema.localisationAudits.statusUpdatedAt})`,
+                  dailyRerunCutoff,
+                ),
+              ),
+              eq(schema.localisationAudits.status, "blocked"),
+              and(
+                inArray(schema.localisationAudits.status, ["queued", "running"]),
+                lt(schema.localisationAudits.statusUpdatedAt, staleCutoff),
+              ),
+            ),
+          ),
+        )
+        .returning();
+
+      if (claimed) {
+        return { audit: claimed, outcome: "reclaimed" as const };
+      }
     }
-  }
 
-  if (existing.status === "succeeded" && existing.report) {
-    return { audit: existing, outcome: "reused_success" };
-  }
-
-  if (isActiveAudit(existing)) {
-    return { audit: existing, outcome: "reused_active" };
-  }
-
-  const timestamp = now();
-  const staleCutoff = new Date(Date.now() - LOCALISATION_AUDIT_STALE_MS);
-  const focusLocales =
-    input.focusLocales.length > 0 ? input.focusLocales : (existing.focusLocales ?? []);
-
-  const [claimed] = await db
-    .update(schema.localisationAudits)
-    .set({
-      sourceUrl: input.sourceUrl,
-      focusLocales,
-      status: "queued" satisfies LocalisationAuditStatus,
-      attemptNumber: sql`${schema.localisationAudits.attemptNumber} + 1`,
-      progressStage: "queued" satisfies LocalisationAuditProgressStage,
-      statusUpdatedAt: timestamp,
-      lastAttemptAt: timestamp,
-      workflowRunId: null,
-      score: null,
-      teaser: null,
-      report: null,
-      errorCode: null,
-      errorMessage: null,
-      startedAt: null,
-      completedAt: null,
-    })
-    .where(
-      and(
-        eq(schema.localisationAudits.id, existing.id),
-        or(
-          eq(schema.localisationAudits.status, "failed"),
-          and(
-            eq(schema.localisationAudits.status, "succeeded"),
-            isNull(schema.localisationAudits.report),
-          ),
-          and(
-            inArray(schema.localisationAudits.status, ["queued", "running"]),
-            lt(schema.localisationAudits.statusUpdatedAt, staleCutoff),
-          ),
-        ),
-      ),
-    )
-    .returning();
-
-  if (claimed) {
-    return { audit: claimed, outcome: "reclaimed" };
-  }
-
-  const fresh = await findLocalisationAuditByDomainKey(input.domainKey);
-  if (!fresh) {
-    throw new Error("localisation audit disappeared during claim");
-  }
-  if (fresh.status === "succeeded" && fresh.report) {
-    return { audit: fresh, outcome: "reused_success" };
-  }
-  // Succeeded-without-report (or other retryable states) must not stick as "active".
-  if (isLocalisationAuditRetryable(fresh) && reclaimAttempts < 3) {
-    return claimOrReuseLocalisationAudit({ ...input, _reclaimAttempts: reclaimAttempts + 1 });
-  }
-  return { audit: fresh, outcome: "reused_active" };
+    const fresh = await findLocalisationAuditByDomainKey(input.domainKey, tx);
+    if (!fresh) {
+      throw new Error("localisation audit disappeared during claim");
+    }
+    if (fresh.status === "succeeded" && fresh.report && !isLocalisationAuditRerunnable(fresh)) {
+      return { audit: fresh, outcome: "reused_success" as const };
+    }
+    return { audit: fresh, outcome: "reused_active" as const };
+  });
 }
 
 export async function attachLocalisationAuditWorkflowRun(input: {
@@ -376,6 +491,43 @@ export async function markLocalisationAuditRunning(input: {
   });
 }
 
+/**
+ * Write a company profile onto a preserved teaser/report without changing
+ * status. Used on re-runs so a later scoring failure still keeps logo/summary.
+ */
+export async function patchLocalisationAuditCompanyProfile(input: {
+  auditId: string;
+  attemptNumber: number;
+  companyProfile: LocalisationAuditCompanyProfile;
+}) {
+  const audit = await findLocalisationAuditById(input.auditId);
+  if (!audit || audit.attemptNumber !== input.attemptNumber) {
+    return null;
+  }
+  if (!audit.teaser && !audit.report) {
+    return null;
+  }
+
+  const [row] = await db
+    .update(schema.localisationAudits)
+    .set({
+      teaser: audit.teaser
+        ? { ...audit.teaser, companyProfile: input.companyProfile }
+        : audit.teaser,
+      report: audit.report
+        ? { ...audit.report, companyProfile: input.companyProfile }
+        : audit.report,
+    })
+    .where(
+      and(
+        eq(schema.localisationAudits.id, input.auditId),
+        eq(schema.localisationAudits.attemptNumber, input.attemptNumber),
+      ),
+    )
+    .returning();
+  return row ?? null;
+}
+
 export async function completeLocalisationAudit(input: {
   auditId: string;
   attemptNumber: number;
@@ -407,6 +559,33 @@ export async function completeLocalisationAudit(input: {
   return row ?? null;
 }
 
+export async function blockLocalisationAudit(input: {
+  auditId: string;
+  attemptNumber: number;
+  errorCode: string;
+  errorMessage: string;
+}) {
+  const timestamp = now();
+  const [row] = await db
+    .update(schema.localisationAudits)
+    .set({
+      status: "blocked" satisfies LocalisationAuditStatus,
+      progressStage: "blocked" satisfies LocalisationAuditProgressStage,
+      errorCode: input.errorCode,
+      errorMessage: input.errorMessage,
+      completedAt: timestamp,
+      statusUpdatedAt: timestamp,
+    })
+    .where(
+      and(
+        eq(schema.localisationAudits.id, input.auditId),
+        eq(schema.localisationAudits.attemptNumber, input.attemptNumber),
+      ),
+    )
+    .returning();
+  return row ?? null;
+}
+
 export async function failLocalisationAudit(input: {
   auditId: string;
   attemptNumber: number;
@@ -414,6 +593,30 @@ export async function failLocalisationAudit(input: {
   errorMessage: string;
 }) {
   const timestamp = now();
+  // A daily re-run that kept the prior report must not end as failed with a
+  // usable report stuck behind unlock/leaderboard gates. Restore the last good
+  // succeeded snapshot instead of permanently dropping the domain's only result.
+  const [restored] = await db
+    .update(schema.localisationAudits)
+    .set({
+      status: "succeeded" satisfies LocalisationAuditStatus,
+      progressStage: "completed" satisfies LocalisationAuditProgressStage,
+      errorCode: null,
+      errorMessage: null,
+      statusUpdatedAt: timestamp,
+    })
+    .where(
+      and(
+        eq(schema.localisationAudits.id, input.auditId),
+        eq(schema.localisationAudits.attemptNumber, input.attemptNumber),
+        isNotNull(schema.localisationAudits.report),
+      ),
+    )
+    .returning();
+  if (restored) {
+    return restored;
+  }
+
   const [row] = await db
     .update(schema.localisationAudits)
     .set({
@@ -428,6 +631,7 @@ export async function failLocalisationAudit(input: {
       and(
         eq(schema.localisationAudits.id, input.auditId),
         eq(schema.localisationAudits.attemptNumber, input.attemptNumber),
+        isNull(schema.localisationAudits.report),
       ),
     )
     .returning();

@@ -11,13 +11,14 @@
  * Version 2.0 or later.
  */
 "use client";
-import { useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { ClipboardListIcon, PlusSignIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { FormattedMessage, useIntl, type IntlShape } from "react-intl";
 import { toast } from "sonner";
 
+import { IssueColumnIconPicker } from "@/components/issue-column-icon/issue-column-icon-picker";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -27,6 +28,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -39,9 +41,12 @@ import { TypographyP } from "@/components/ui/typography";
 import { readApiResponseError } from "@/lib/api-error";
 
 import { buildIssueDetailHref } from "../../../../_components/issue-detail/issue-detail-utils";
+import { IssueBulkActionBar } from "../../../../_components/issue-bulk-action-bar";
 import { IssueGroupedList } from "../../../../_components/issue-grouped-list";
 import { IssueListToolbar } from "../../../../_components/issue-list-toolbar";
 import { issueListStateToApiQuery } from "../../../../_components/issue-list-url-state";
+import { useIssueBulkActions } from "../../../../_components/use-issue-bulk-actions";
+import { useIssueListSelection } from "../../../../_components/use-issue-list-selection";
 import { useIssueListUrlState } from "../../../../_components/use-issue-list-url-state";
 import { issueSheetPageContentMessages as messages } from "./issue-sheet-page-content.messages";
 import { issueSheetSharedMessages as sharedMessages } from "./issue-sheet-shared.messages";
@@ -60,6 +65,8 @@ type IssueSheetColumn = {
   type: string;
   config: { options?: { id: string; label: string; color?: string }[] };
   sortOrder: number;
+  hidden?: boolean;
+  icon?: string | null;
 };
 
 type IssueSheetIssue = {
@@ -147,9 +154,11 @@ function columnTypeLabel(intl: IntlShape, value: ColumnTypeValue) {
 export function IssueSheetPageContent({
   organizationSlug,
   projectId,
+  canEditIssues = false,
 }: {
   organizationSlug: string;
   projectId: string;
+  canEditIssues?: boolean;
 }) {
   const projectQuery = useProjectPageQuery(organizationSlug, projectId);
   const intl = useIntl();
@@ -195,6 +204,23 @@ export function IssueSheetPageContent({
     [data?.issues, projectId],
   );
 
+  const selection = useIssueListSelection(listIssues);
+  const filterKey = useMemo(() => JSON.stringify(apiQuery), [apiQuery]);
+  const filterKeyRef = useRef(filterKey);
+  useEffect(() => {
+    if (filterKeyRef.current !== filterKey) {
+      filterKeyRef.current = filterKey;
+      selection.resetSelectionForFilterChange();
+    }
+  }, [filterKey, selection.resetSelectionForFilterChange]);
+
+  const { runBulkAction, isPending: isBulkPending } = useIssueBulkActions({
+    organizationSlug,
+    onSettled: selection.applyBulkResult,
+  });
+
+  const bulkIssues = selection.selectedTargets;
+
   return (
     <ProjectPageShell>
       <div className="space-y-6">
@@ -228,6 +254,32 @@ export function IssueSheetPageContent({
           locales={projectQuery.data?.targetLocales ?? []}
         />
 
+        {canEditIssues ? (
+          <IssueBulkActionBar
+            organizationSlug={organizationSlug}
+            selectedCount={selection.selectedCount}
+            allLoadedSelected={selection.allLoadedSelected}
+            selectedProjectIds={selection.selectedProjectIds}
+            selectionLimitReached={selection.selectionLimitReached}
+            isPending={isBulkPending}
+            onSelectAllLoaded={selection.selectAllLoaded}
+            onClearSelection={selection.clearSelection}
+            onAssign={(assigneeUserId) =>
+              runBulkAction({ action: "assign", assigneeUserId, issues: bulkIssues })
+            }
+            onUnassign={() => runBulkAction({ action: "unassign", issues: bulkIssues })}
+            onSetStatus={(status) =>
+              runBulkAction({ action: "set_status", status, issues: bulkIssues })
+            }
+            onSetPriority={(priority) =>
+              runBulkAction({ action: "set_priority", priority, issues: bulkIssues })
+            }
+            onSetIssueType={(issueType) =>
+              runBulkAction({ action: "set_issue_type", issueType, issues: bulkIssues })
+            }
+          />
+        ) : null}
+
         <IssueGroupedList
           organizationSlug={organizationSlug}
           issues={listIssues}
@@ -235,6 +287,11 @@ export function IssueSheetPageContent({
           activeStatus={state.status}
           isLoading={issueSheetQuery.isLoading}
           isError={issueSheetQuery.isError}
+          selectionEnabled={canEditIssues}
+          isIssueSelected={(issue) => selection.isIssueSelected(issue)}
+          selectionDisabled={isBulkPending}
+          disableInlineEdits={canEditIssues && (selection.someSelected || isBulkPending)}
+          onIssueSelectionChange={(issue, checked) => selection.toggleIssue(issue, checked)}
           onIssueActivate={(issue) => {
             router.push(
               buildIssueDetailHref({
@@ -299,6 +356,7 @@ function CreateColumnDialog({
 }) {
   const intl = useIntl();
   const requestFailed = intl.formatMessage(messages.requestFailed);
+  const [icon, setIcon] = useState<string | null>(null);
 
   const columnTypeItems = columnTypeValues.map((value) => ({
     value,
@@ -321,6 +379,7 @@ function CreateColumnDialog({
           key: formString(formData, "key"),
           label: formString(formData, "label"),
           type,
+          icon,
           config: type === "select" ? { options } : {},
         }),
       });
@@ -329,6 +388,7 @@ function CreateColumnDialog({
     onSuccess: async () => {
       toast.success(intl.formatMessage(messages.columnAdded));
       onOpenChange(false);
+      setIcon(null);
       await onCreated();
     },
     onError: (error) =>
@@ -343,7 +403,15 @@ function CreateColumnDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog
+      open={open}
+      onOpenChange={(nextOpen) => {
+        onOpenChange(nextOpen);
+        if (!nextOpen) {
+          setIcon(null);
+        }
+      }}
+    >
       <DialogContent>
         <form onSubmit={submit} className="space-y-4">
           <DialogHeader>
@@ -354,11 +422,25 @@ function CreateColumnDialog({
               <FormattedMessage {...messages.addColumnDescription} />
             </DialogDescription>
           </DialogHeader>
-          <Input
-            name="label"
-            placeholder={intl.formatMessage(messages.columnLabelPlaceholder)}
-            required
-          />
+          <FieldGroup className="flex-row items-start gap-3">
+            <div className="flex shrink-0 flex-col items-start gap-1.5">
+              <FieldLabel>
+                <FormattedMessage {...messages.columnIconLabel} />
+              </FieldLabel>
+              <IssueColumnIconPicker value={icon} onChange={setIcon} />
+            </div>
+            <Field className="min-w-0 flex-1 gap-1.5">
+              <FieldLabel htmlFor="issue-sheet-column-label">
+                <FormattedMessage {...messages.columnLabelField} />
+              </FieldLabel>
+              <Input
+                id="issue-sheet-column-label"
+                name="label"
+                placeholder={intl.formatMessage(messages.columnLabelPlaceholder)}
+                required
+              />
+            </Field>
+          </FieldGroup>
           <Input
             name="key"
             placeholder={intl.formatMessage(messages.columnKeyPlaceholder)}

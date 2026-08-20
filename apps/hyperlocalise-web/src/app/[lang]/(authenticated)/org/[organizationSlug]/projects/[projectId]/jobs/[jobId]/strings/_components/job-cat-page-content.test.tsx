@@ -13,6 +13,7 @@
 // @vitest-environment happy-dom
 
 import { render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
 import { CatTestProviders } from "@/components/cat/shared/cat-test-utils";
@@ -316,7 +317,8 @@ describe("JobCatPageContent CAT shell", () => {
     vi.unstubAllGlobals();
   });
 
-  it("renders provider task CAT with file and repository selectors", async () => {
+  it("renders provider task CAT with file and locale selectors", async () => {
+    const user = userEvent.setup();
     loadJobCatTargetFileMock.mockResolvedValue({ status: "found", file: providerFile });
     loadJobCatProviderJobFilesMock.mockResolvedValue([providerFile]);
 
@@ -333,9 +335,8 @@ describe("JobCatPageContent CAT shell", () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByLabelText("Source file")).toBeInTheDocument();
+      expect(screen.getByLabelText("Source file")).toHaveTextContent("home.json");
       expect(screen.getByLabelText("Target locale")).toBeInTheDocument();
-      expect(screen.getByLabelText("GitHub repository")).toBeInTheDocument();
       expect(screen.getByTestId("cat-workspace")).toHaveAttribute(
         "data-source-path",
         "crowdin/home.json",
@@ -345,6 +346,10 @@ describe("JobCatPageContent CAT shell", () => {
         "untranslated",
       );
     });
+    expect(screen.queryByLabelText("GitHub repository")).not.toBeInTheDocument();
+
+    await user.click(screen.getByLabelText("Source file"));
+    expect(await screen.findByLabelText("GitHub repository")).toBeInTheDocument();
   });
 
   it("opens with needs_review queue filter when provided", async () => {
@@ -394,7 +399,7 @@ describe("JobCatPageContent CAT shell", () => {
     });
   });
 
-  it("renders native task CAT with a repository selector and passes the selection to the workspace", async () => {
+  it("renders native task CAT with a source file picker and passes the repository to the workspace", async () => {
     localStorage.setItem("job-cat-repository:acme:proj_1:en-US.json", "acme/web");
     loadJobCatTargetFileMock.mockResolvedValue({ status: "found", file: nativeFile });
 
@@ -412,11 +417,11 @@ describe("JobCatPageContent CAT shell", () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByLabelText("GitHub repository")).toBeInTheDocument();
+      expect(screen.getByLabelText("Source file")).toHaveTextContent("en-US.json");
       expect(screen.getByTestId("cat-workspace")).toHaveAttribute("data-repo", "acme/web");
       expect(screen.getByTestId("cat-workspace")).toHaveAttribute("data-source-path", "en-US.json");
     });
-    expect(screen.queryByLabelText("Source file")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("GitHub repository")).not.toBeInTheDocument();
   });
 
   it("prompts for a repository on native task CAT when multiple repos are enabled", async () => {
@@ -437,7 +442,9 @@ describe("JobCatPageContent CAT shell", () => {
 
     await waitFor(() => {
       expect(
-        screen.getByText("Select a GitHub repository to look up string context."),
+        screen.getByText(
+          "Choose a GitHub repository in the source file picker to look up string context.",
+        ),
       ).toBeInTheDocument();
     });
   });
@@ -463,10 +470,10 @@ describe("JobCatPageContent CAT shell", () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByLabelText("GitHub repository")).toBeInTheDocument();
       expect(screen.getByTestId("cat-workspace")).toHaveAttribute("data-repo", "acme/docs");
       expect(screen.getByTestId("cat-workspace")).toHaveAttribute("data-source-path", "*");
     });
     expect(screen.getByLabelText("Source file")).toHaveTextContent("All Files");
+    expect(screen.queryByLabelText("GitHub repository")).not.toBeInTheDocument();
   });
 });

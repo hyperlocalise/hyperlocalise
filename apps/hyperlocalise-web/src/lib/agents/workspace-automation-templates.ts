@@ -30,6 +30,36 @@ export type WorkspaceAutomationTemplate = {
   defaultForm: Partial<WorkspaceAutomationFormState>;
 };
 
+export type WorkspaceAutomationTemplateInstructionSection = {
+  heading: string;
+  items: string[];
+};
+
+export function formatWorkspaceAutomationTemplateInstructions(input: {
+  role: string;
+  capabilities: string[];
+  goal: string;
+  extraSections?: WorkspaceAutomationTemplateInstructionSection[];
+}): string {
+  const sections = [
+    `You are ${input.role}.`,
+    "",
+    "What you can do:",
+    "",
+    ...input.capabilities.map((item) => `- ${item}`),
+    "",
+    "Goal:",
+    "",
+    `- ${input.goal}`,
+  ];
+
+  for (const extra of input.extraSections ?? []) {
+    sections.push("", `${extra.heading}:`, "", ...extra.items.map((item) => `- ${item}`));
+  }
+
+  return sections.join("\n");
+}
+
 export const WORKSPACE_AUTOMATION_TEMPLATE_CATEGORIES: Array<{
   id: WorkspaceAutomationTemplateCategory;
   label: string;
@@ -49,16 +79,16 @@ export const WORKSPACE_AUTOMATION_TEMPLATES_BASE: WorkspaceAutomationTemplate[] 
     name: "Translate on source upload",
     description:
       "When a source file is uploaded, create a native translation job and translate it with the Hyperlocalise agent.",
-    instructions: [
-      "Create a native translation job when a source file is uploaded, then translate it with the Hyperlocalise agent.",
-      "",
-      "Workflow:",
-      "- Read the uploaded source file and version from the source-upload trigger.",
-      "- Create a native TMS translation job for the project target locales.",
-      "- Assign the job to Translate with agent so localisation starts immediately.",
-      "- Preserve keys, placeholders, ICU syntax, glossary terms, and file structure.",
-      "- Summarize the job created and locales started for translation.",
-    ].join("\n"),
+    instructions: formatWorkspaceAutomationTemplateInstructions({
+      role: "a native TMS intake agent",
+      capabilities: [
+        "Read the uploaded source file and version from the source-upload trigger",
+        "Create a native TMS translation job for the project target locales",
+        "Assign the job to Translate with agent so localisation starts immediately",
+        "Preserve keys, placeholders, ICU syntax, glossary terms, and file structure",
+      ],
+      goal: "Start translation as soon as a source file is uploaded, then summarize the job and locales that began.",
+    }),
     activatable: true,
     defaultForm: {
       name: "Translate on source upload",
@@ -74,17 +104,18 @@ export const WORKSPACE_AUTOMATION_TEMPLATES_BASE: WorkspaceAutomationTemplate[] 
     name: "Translate Contentful article",
     description:
       "Translate updated Contentful help center articles, run QA, and write localized draft fields back for review.",
-    instructions: [
-      "Translate Contentful help center article updates into the configured target locales.",
-      "",
-      "Workflow:",
-      "- Read the updated entry and metadata from Contentful.",
-      "- Detect translatable title, body, SEO, tags, CTA fields, and localized image assets.",
-      "- Localize embedded or linked images when the entry contains image content.",
-      "- Preserve placeholders, links, product terms, glossary terms, and file structure.",
-      "- Run QA checks before writeback.",
-      "- Write localized fields back as Contentful drafts for review. Do not publish.",
-    ].join("\n"),
+    instructions: formatWorkspaceAutomationTemplateInstructions({
+      role: "a Contentful localisation editor",
+      capabilities: [
+        "Read the updated entry and metadata from Contentful",
+        "Detect translatable title, body, SEO, tags, CTA fields, and localized image assets",
+        "Localize embedded or linked images when the entry contains image content",
+        "Preserve placeholders, links, product terms, glossary terms, tone, and rich text structure",
+        "Run QA checks before writeback",
+        "Write localized fields back as Contentful drafts. Do not publish",
+      ],
+      goal: "Translate help center article updates into the configured target locales and leave drafts ready for review.",
+    }),
     activatable: true,
     defaultForm: {
       name: "Translate Contentful article",
@@ -101,18 +132,20 @@ export const WORKSPACE_AUTOMATION_TEMPLATES_BASE: WorkspaceAutomationTemplate[] 
     name: "Validate localisation on push",
     description:
       "Check localisation changes on every push and notify the team when blockers are found.",
-    instructions: [
-      "You are a localisation quality automation.",
-      "",
-      "Goal: validate source string and translation changes before they reach production.",
-      "",
-      "Review strategy:",
-      "- Check changed source strings for missing context, unstable copy, and accidental key churn.",
-      "- Flag missing translations, broken ICU syntax, mismatched placeholders, and unsafe HTML.",
-      "- Treat locale coverage regressions and release-blocking translation issues as blocking findings.",
-      "- Ignore style-only code changes that do not affect localisation files or user-facing strings.",
-    ].join("\n"),
-    activatable: true,
+    instructions: formatWorkspaceAutomationTemplateInstructions({
+      role: "a localisation quality reviewer",
+      capabilities: [
+        "Inspect changed source strings and translations on protected-branch pushes",
+        "If i18n.yml exists, run Hyperlocalise validation (hl check) against the translation files it maps",
+        "Flag missing context, unstable copy, and accidental key churn",
+        "Flag missing translations, broken ICU syntax, mismatched placeholders, and unsafe HTML",
+        "Treat locale coverage regressions as blocking findings",
+        "Ignore style-only code changes that do not affect localisation files or user-facing strings",
+        "Notify the team when blockers are found",
+      ],
+      goal: "Stop localisation defects from reaching production.",
+    }),
+    activatable: false,
     defaultForm: {
       name: "Validate localisation on push",
       triggerMode: "github",
@@ -128,22 +161,30 @@ export const WORKSPACE_AUTOMATION_TEMPLATES_BASE: WorkspaceAutomationTemplate[] 
     category: "popular",
     name: "Summarize changes daily",
     description:
-      "Read a GitHub repository each day and post a concise digest of what changed to Slack.",
-    instructions: [
-      "Produce a concise, high-signal daily engineering digest for this repository.",
-      "",
-      "Goal:",
-      "- Summarize what changed in the lookback window so the team can stay aligned without reading every commit.",
-      "",
-      "What to include:",
-      "- Major merged or landed work and notable bug fixes",
-      "- Security-sensitive or infrastructure changes",
-      "- Follow-ups worth tracking (missing tests, rollout risk, incomplete migrations)",
-      "",
-      "What to ignore:",
-      "- Dependency-only bumps unless they affect runtime behavior",
-      "- Formatting-only churn with no product impact",
-    ].join("\n"),
+      "Read a GitHub repository each day and post a concise Slack digest of localisation-related changes.",
+    instructions: formatWorkspaceAutomationTemplateInstructions({
+      role: "a daily localisation briefing agent",
+      capabilities: [
+        "Read recent commits, diffs, and surrounding files from the last 24 hours",
+        "If i18n.yml exists, run Hyperlocalise validation (hl check) against the translation files it maps",
+        "Keep the digest scoped to localisation, i18n, and translation work",
+        "Cite commit SHAs and file paths for specific claims",
+        "Call out coverage gaps, ICU or placeholder risk, and incomplete translation syncs",
+        "Ignore unrelated feature, infrastructure, and formatting work unless it changes user-facing copy or locale files",
+      ],
+      goal: "Post a concise digest of localisation-related changes so the team can stay aligned without reading every commit.",
+      extraSections: [
+        {
+          heading: "Digest focus",
+          items: [
+            "New or updated source strings and message catalogs",
+            "Translation file, locale resource, and coverage changes",
+            "ICU, placeholder, glossary, and i18n config updates",
+            "Localisation-related PRs, syncs, and release risks",
+          ],
+        },
+      ],
+    }),
     activatable: true,
     defaultForm: {
       name: "Summarize changes daily",
@@ -161,20 +202,110 @@ export const WORKSPACE_AUTOMATION_TEMPLATES_BASE: WorkspaceAutomationTemplate[] 
     },
   },
   {
+    id: "review-code-daily",
+    category: "popular",
+    name: "Review code daily",
+    description:
+      "Read recent repository changes each day, review them for localisation and translation risk, and post findings to Slack.",
+    instructions: formatWorkspaceAutomationTemplateInstructions({
+      role: "a localisation-focused code reviewer for this repository",
+      capabilities: [
+        "Read recent commits, diffs, and surrounding code from the last 24 hours",
+        "If i18n.yml exists, run Hyperlocalise validation (hl check) against the translation files it maps",
+        "Extract changed translation keys and review old vs new values in locale catalogs",
+        "Judge localisation, translation, and locale-compliance risk in the changed code",
+        "Cite commit SHAs and file paths for each finding",
+        "Separate blocking localisation defects from non-blocking follow-ups",
+        "Ignore unrelated logic, security, and formatting issues unless they affect user-facing copy or locale behavior",
+      ],
+      goal: "Surface localisation and translation risks from the last day so the team can act before they ship further.",
+      extraSections: [
+        {
+          heading: "Review scope",
+          items: [
+            "Follow the Translation review shared procedure for per-key findings and P0/P1/P2 output",
+            "Also review code-adjacent localisation: hard-coded copy, i18n APIs, locale routing, fallback, and writeback",
+          ],
+        },
+        {
+          heading: "Slack delivery",
+          items: [
+            "Post Translation review report sections as the Slack message body",
+            "When P0 blockers exist, they must appear first",
+          ],
+        },
+      ],
+    }),
+    activatable: true,
+    defaultForm: {
+      name: "Review code daily",
+      triggerMode: "scheduled",
+      scheduledCadence: "daily",
+      scheduledHourUtc: 8,
+      scheduledTimezone: "UTC",
+      githubEnabled: true,
+      githubMode: "agent",
+      repositoryTargetKind: "github",
+      pushSourceEnabled: false,
+      pullTranslationsEnabled: false,
+      validationEnabled: false,
+      slackEnabled: true,
+    },
+  },
+  {
+    id: "daily-web-research",
+    category: "popular",
+    name: "Daily web research",
+    description:
+      "Search the live web each day for competitor, market, and localisation changes, then post a sourced brief to Slack.",
+    instructions: formatWorkspaceAutomationTemplateInstructions({
+      role: "a localisation research analyst",
+      capabilities: [
+        "Search the live web for current facts, competitors, markets, and industry changes",
+        "Cite titles and URLs for every claim you rely on",
+        "Separate confirmed facts from speculation",
+        "Keep the brief short enough to read in a standup",
+      ],
+      goal: "Deliver a daily, source-backed research brief the team can act on.",
+      extraSections: [
+        {
+          heading: "Research focus",
+          items: [
+            "Localisation, i18n, and TMS product or industry changes",
+            "Competitor shipping, pricing, and market-language moves",
+            "Regulatory, platform, or SEO changes that affect translated content",
+          ],
+        },
+      ],
+    }),
+    activatable: true,
+    defaultForm: {
+      name: "Daily web research",
+      triggerMode: "scheduled",
+      scheduledCadence: "daily",
+      scheduledHourUtc: 8,
+      scheduledTimezone: "UTC",
+      webSearchEnabled: true,
+      webSearchProvider: "auto",
+      slackEnabled: true,
+    },
+  },
+  {
     id: "full-localisation-sync",
     category: "popular",
     name: "Full localisation sync",
     description: "Run a daily source push, translation pull, and validation pass for the project.",
-    instructions: [
-      "Run the full localisation sync loop for this repository.",
-      "",
-      "Expected outcome:",
-      "- Push new or changed source strings to the translation system.",
-      "- Pull completed translations back into the repository.",
-      "- Validate locale coverage, placeholders, ICU syntax, and release-blocking translation issues.",
-      "- Notify the configured channel with a concise summary of completed sync work and blockers.",
-    ].join("\n"),
-    activatable: true,
+    instructions: formatWorkspaceAutomationTemplateInstructions({
+      role: "a localisation sync operator",
+      capabilities: [
+        "Push new or changed source strings to the translation system",
+        "Pull completed translations back into the repository",
+        "Validate locale coverage, placeholders, ICU syntax, and release-blocking issues",
+        "Notify the configured channel with a concise summary of completed work and blockers",
+      ],
+      goal: "Keep source strings, translations, and validation in sync every day.",
+    }),
+    activatable: false,
     defaultForm: {
       name: "Full localisation sync",
       triggerMode: "scheduled",
@@ -194,16 +325,17 @@ export const WORKSPACE_AUTOMATION_TEMPLATES_BASE: WorkspaceAutomationTemplate[] 
     name: "Push source strings",
     description:
       "Send changed source strings to the translation system whenever localisation files change.",
-    instructions: [
-      "Push changed source strings from the repository to the translation system.",
-      "",
-      "Focus on source content hygiene:",
-      "- Include new and updated user-facing strings.",
-      "- Preserve stable translation keys where possible.",
-      "- Highlight source strings that lack product context or contain hard-coded locale assumptions.",
-      "- Avoid changing translated files unless the push workflow requires it.",
-    ].join("\n"),
-    activatable: true,
+    instructions: formatWorkspaceAutomationTemplateInstructions({
+      role: "a source-string intake agent",
+      capabilities: [
+        "Push new and updated user-facing strings from the repository to the translation system",
+        "Preserve stable translation keys where possible",
+        "Highlight source strings that lack product context or contain hard-coded locale assumptions",
+        "Avoid changing translated files unless the push workflow requires it",
+      ],
+      goal: "Get new source copy into translation as soon as localisation files change.",
+    }),
+    activatable: false,
     defaultForm: {
       name: "Push source strings",
       triggerMode: "github",
@@ -217,16 +349,18 @@ export const WORKSPACE_AUTOMATION_TEMPLATES_BASE: WorkspaceAutomationTemplate[] 
     category: "translation-delivery",
     name: "Pull translations daily",
     description: "Bring completed translations back into the repository on a daily schedule.",
-    instructions: [
-      "Pull completed translations from the translation system into the repository.",
-      "",
-      "Delivery criteria:",
-      "- Keep generated translation changes scoped to locale resources.",
-      "- Preserve formatting, placeholders, ICU syntax, and file ordering conventions.",
-      "- Summarize newly completed locales and any languages still below release coverage.",
-      "- Avoid broad rewrites that make translation diffs hard to review.",
-    ].join("\n"),
-    activatable: true,
+    instructions: formatWorkspaceAutomationTemplateInstructions({
+      role: "a translation delivery agent",
+      capabilities: [
+        "Pull completed translations from the translation system into the repository",
+        "Keep generated changes scoped to locale resource files",
+        "Preserve formatting, placeholders, ICU syntax, and file ordering conventions",
+        "Summarize newly completed locales and languages still below release coverage",
+        "Avoid broad rewrites that make translation diffs hard to review",
+      ],
+      goal: "Bring finished translations back into the repository every day without noisy diffs.",
+    }),
+    activatable: false,
     defaultForm: {
       name: "Pull translations daily",
       triggerMode: "scheduled",
@@ -243,16 +377,17 @@ export const WORKSPACE_AUTOMATION_TEMPLATES_BASE: WorkspaceAutomationTemplate[] 
     name: "Release localisation check",
     description:
       "Validate release branches for localisation coverage, placeholder safety, and blocking translation gaps.",
-    instructions: [
-      "Review release-bound localisation changes for blocking issues.",
-      "",
-      "Release criteria:",
-      "- Confirm required locales meet coverage expectations.",
-      "- Flag missing translations in release-critical user journeys.",
-      "- Verify placeholders, ICU syntax, punctuation, and embedded markup remain safe.",
-      "- Notify the team with clear release blockers and non-blocking follow-ups.",
-    ].join("\n"),
-    activatable: true,
+    instructions: formatWorkspaceAutomationTemplateInstructions({
+      role: "a release localisation reviewer",
+      capabilities: [
+        "Confirm required locales meet coverage expectations",
+        "Flag missing translations in release-critical user journeys",
+        "Verify placeholders, ICU syntax, punctuation, and embedded markup remain safe",
+        "Notify the team with clear release blockers and non-blocking follow-ups",
+      ],
+      goal: "Catch localisation gaps before a release branch ships.",
+    }),
+    activatable: false,
     defaultForm: {
       name: "Release localisation check",
       triggerMode: "github",
@@ -268,16 +403,17 @@ export const WORKSPACE_AUTOMATION_TEMPLATES_BASE: WorkspaceAutomationTemplate[] 
     name: "Weekly localisation summary",
     description:
       "Post a weekly summary of localisation progress, outstanding gaps, and release risks.",
-    instructions: [
-      "Summarize localisation progress for the week.",
-      "",
-      "Include:",
-      "- Source strings changed and translations pulled.",
-      "- Locales that are complete, in progress, or blocked.",
-      "- Placeholder, ICU, or formatting issues that need attention.",
-      "- Release risks and the next recommended action for each blocker.",
-    ].join("\n"),
-    activatable: true,
+    instructions: formatWorkspaceAutomationTemplateInstructions({
+      role: "a weekly localisation reporter",
+      capabilities: [
+        "Summarize source strings changed and translations pulled during the week",
+        "Report locales that are complete, in progress, or blocked",
+        "Call out placeholder, ICU, or formatting issues that need attention",
+        "List release risks and the next recommended action for each blocker",
+      ],
+      goal: "Give stakeholders a weekly picture of localisation progress and remaining risk.",
+    }),
+    activatable: false,
     defaultForm: {
       name: "Weekly localisation summary",
       triggerMode: "scheduled",
@@ -295,16 +431,17 @@ export const WORKSPACE_AUTOMATION_TEMPLATES_BASE: WorkspaceAutomationTemplate[] 
     category: "quality",
     name: "ICU and placeholder audit",
     description: "Flag ICU syntax errors and unsafe placeholders on every push to main.",
-    instructions: [
-      "Audit localisation changes for ICU and placeholder safety.",
-      "",
-      "Focus on:",
-      "- Broken ICU plural/select syntax and invalid message format strings.",
-      "- Placeholder name mismatches between source and translated strings.",
-      "- Unsafe HTML or markup embedded in translated copy.",
-      "- Notify the team only when findings are release-blocking.",
-    ].join("\n"),
-    activatable: true,
+    instructions: formatWorkspaceAutomationTemplateInstructions({
+      role: "an ICU and placeholder auditor",
+      capabilities: [
+        "Detect broken ICU plural/select syntax and invalid message format strings",
+        "Flag placeholder name mismatches between source and translated strings",
+        "Flag unsafe HTML or markup embedded in translated copy",
+        "Notify the team only when findings are release-blocking",
+      ],
+      goal: "Keep message syntax and placeholders safe on every push to main.",
+    }),
+    activatable: false,
     defaultForm: {
       name: "ICU and placeholder audit",
       triggerMode: "github",
@@ -319,16 +456,17 @@ export const WORKSPACE_AUTOMATION_TEMPLATES_BASE: WorkspaceAutomationTemplate[] 
     category: "quality",
     name: "Missing translation gate",
     description: "Block merges when required locales drop below coverage on protected branches.",
-    instructions: [
-      "Treat missing translations in required locales as release blockers.",
-      "",
-      "Check for:",
-      "- Locale coverage regressions on user-facing keys.",
-      "- New source strings without completed translations in required languages.",
-      "- Stale or empty values in locale resource files.",
-      "- Summarize blockers with locale, file, and key context for fast fixes.",
-    ].join("\n"),
-    activatable: true,
+    instructions: formatWorkspaceAutomationTemplateInstructions({
+      role: "a missing-translation gatekeeper",
+      capabilities: [
+        "Detect locale coverage regressions on user-facing keys",
+        "Flag new source strings without completed translations in required languages",
+        "Find stale or empty values in locale resource files",
+        "Summarize blockers with locale, file, and key context for fast fixes",
+      ],
+      goal: "Block merges when required locales drop below coverage on protected branches.",
+    }),
+    activatable: false,
     defaultForm: {
       name: "Missing translation gate",
       triggerMode: "github",
@@ -343,15 +481,16 @@ export const WORKSPACE_AUTOMATION_TEMPLATES_BASE: WorkspaceAutomationTemplate[] 
     category: "quality",
     name: "Daily locale coverage check",
     description: "Run a daily validation pass and post coverage gaps to Slack.",
-    instructions: [
-      "Report daily locale coverage and translation health for the project.",
-      "",
-      "Include:",
-      "- Locales below required coverage thresholds.",
-      "- Keys added in the last day without translations.",
-      "- Non-blocking formatting issues worth fixing before release.",
-    ].join("\n"),
-    activatable: true,
+    instructions: formatWorkspaceAutomationTemplateInstructions({
+      role: "a daily locale coverage reporter",
+      capabilities: [
+        "Report locales below required coverage thresholds",
+        "List keys added in the last day without translations",
+        "Call out non-blocking formatting issues worth fixing before release",
+      ],
+      goal: "Give the team a daily view of coverage gaps before they become release blockers.",
+    }),
+    activatable: false,
     defaultForm: {
       name: "Daily locale coverage check",
       triggerMode: "scheduled",
@@ -368,15 +507,16 @@ export const WORKSPACE_AUTOMATION_TEMPLATES_BASE: WorkspaceAutomationTemplate[] 
     category: "source-content",
     name: "Push source on feature branches",
     description: "Send updated source strings when feature branches change localisation files.",
-    instructions: [
-      "Push source string changes from feature branches to the translation system.",
-      "",
-      "Prioritize:",
-      "- New user-facing copy introduced on active feature work.",
-      "- Stable keys and clear product context for translators.",
-      "- Skipping translated locale files unless the workflow requires updates.",
-    ].join("\n"),
-    activatable: true,
+    instructions: formatWorkspaceAutomationTemplateInstructions({
+      role: "a feature-branch source intake agent",
+      capabilities: [
+        "Push new user-facing copy from active feature branches to the translation system",
+        "Keep translation keys stable and include clear product context for translators",
+        "Skip translated locale files unless the workflow requires updates",
+      ],
+      goal: "Start translation on feature work before it lands on main.",
+    }),
+    activatable: false,
     defaultForm: {
       name: "Push source on feature branches",
       triggerMode: "github",
@@ -390,15 +530,17 @@ export const WORKSPACE_AUTOMATION_TEMPLATES_BASE: WorkspaceAutomationTemplate[] 
     category: "translation-delivery",
     name: "Pull translations on merge",
     description: "Pull completed translations when changes land on main.",
-    instructions: [
-      "Pull completed translations into the repository after merges to main.",
-      "",
-      "Delivery rules:",
-      "- Limit diffs to locale resource files.",
-      "- Preserve placeholders, ICU syntax, and repository formatting conventions.",
-      "- Summarize locales updated and languages still pending review.",
-    ].join("\n"),
-    activatable: true,
+    instructions: formatWorkspaceAutomationTemplateInstructions({
+      role: "a post-merge translation delivery agent",
+      capabilities: [
+        "Pull completed translations into the repository after merges to main",
+        "Limit diffs to locale resource files",
+        "Preserve placeholders, ICU syntax, and repository formatting conventions",
+        "Summarize locales updated and languages still pending review",
+      ],
+      goal: "Land finished translations on main as soon as they are ready.",
+    }),
+    activatable: false,
     defaultForm: {
       name: "Pull translations on merge",
       triggerMode: "github",
@@ -413,14 +555,16 @@ export const WORKSPACE_AUTOMATION_TEMPLATES_BASE: WorkspaceAutomationTemplate[] 
     category: "translation-delivery",
     name: "Hourly translation pull",
     description: "Keep the repository in sync with completed translations throughout the day.",
-    instructions: [
-      "Pull newly completed translations from the translation system on an hourly cadence.",
-      "",
-      "Keep updates small and reviewable:",
-      "- Prefer incremental locale file updates over large batch rewrites.",
-      "- Flag conflicts between in-flight repo edits and pulled translations.",
-    ].join("\n"),
-    activatable: true,
+    instructions: formatWorkspaceAutomationTemplateInstructions({
+      role: "an hourly translation delivery agent",
+      capabilities: [
+        "Pull newly completed translations from the translation system every hour",
+        "Prefer incremental locale file updates over large batch rewrites",
+        "Flag conflicts between in-flight repo edits and pulled translations",
+      ],
+      goal: "Keep the repository current with completed translations throughout the day.",
+    }),
+    activatable: false,
     defaultForm: {
       name: "Hourly translation pull",
       triggerMode: "scheduled",
@@ -435,15 +579,17 @@ export const WORKSPACE_AUTOMATION_TEMPLATES_BASE: WorkspaceAutomationTemplate[] 
     category: "translation-delivery",
     name: "Email release digest",
     description: "Email a weekly digest of translation delivery status to stakeholders.",
-    instructions: [
-      "Send a weekly email digest of translation delivery progress.",
-      "",
-      "Cover:",
-      "- Locales completed since the last digest.",
-      "- Languages still below release coverage.",
-      "- Pull requests or branches waiting on translations.",
-    ].join("\n"),
-    activatable: true,
+    instructions: formatWorkspaceAutomationTemplateInstructions({
+      role: "a translation delivery correspondent",
+      capabilities: [
+        "Report locales completed since the last digest",
+        "List languages still below release coverage",
+        "Call out pull requests or branches waiting on translations",
+        "Send the digest to the configured email recipients",
+      ],
+      goal: "Keep stakeholders informed of translation delivery status each week.",
+    }),
+    activatable: false,
     defaultForm: {
       name: "Email release digest",
       triggerMode: "scheduled",
@@ -461,15 +607,17 @@ export const WORKSPACE_AUTOMATION_TEMPLATES_BASE: WorkspaceAutomationTemplate[] 
     category: "release",
     name: "Pre-release validation",
     description: "Validate release branches every hour during release week.",
-    instructions: [
-      "Run pre-release localisation validation on active release branches.",
-      "",
-      "Escalate:",
-      "- Missing translations in release-critical flows.",
-      "- Placeholder or ICU regressions introduced during stabilization.",
-      "- Locale files that drift from approved source copy.",
-    ].join("\n"),
-    activatable: true,
+    instructions: formatWorkspaceAutomationTemplateInstructions({
+      role: "a pre-release localisation validator",
+      capabilities: [
+        "Validate localisation on active release branches throughout the day",
+        "Escalate missing translations in release-critical flows",
+        "Flag placeholder or ICU regressions introduced during stabilization",
+        "Detect locale files that drift from approved source copy",
+      ],
+      goal: "Catch release-blocking localisation issues while the branch is still being stabilized.",
+    }),
+    activatable: false,
     defaultForm: {
       name: "Pre-release validation",
       triggerMode: "scheduled",
@@ -484,23 +632,45 @@ export const WORKSPACE_AUTOMATION_TEMPLATES_BASE: WorkspaceAutomationTemplate[] 
     id: "notify-on-push-blockers",
     category: "popular",
     name: "Notify on push blockers",
-    description: "Validate every push and ping Slack when localisation blockers are found.",
-    instructions: [
-      "Validate localisation changes on push and notify the team about blockers.",
-      "",
-      "Notify when:",
-      "- Required locales lose coverage.",
-      "- Placeholders, ICU syntax, or unsafe markup fail validation.",
-      "- Skip notifications for clean runs unless configured otherwise.",
-    ].join("\n"),
+    description:
+      "Review pull requests opened against main for localisation and translation risk, then comment on the pull request.",
+    instructions: formatWorkspaceAutomationTemplateInstructions({
+      role: "a localisation-focused code reviewer for this repository",
+      capabilities: [
+        "Read the pull request diffs and surrounding code",
+        "If i18n.yml exists, run Hyperlocalise validation (hl check) against the translation files it maps",
+        "Judge localisation, translation, and locale-compliance risk in the changed code",
+        "Cite commit SHAs and file paths for each finding",
+        "Separate blocking localisation defects from non-blocking follow-ups",
+        "Ignore unrelated logic, security, and formatting issues unless they affect user-facing copy or locale behavior",
+        "Post findings as a sticky GitHub pull request comment and update it when the pull request changes",
+      ],
+      goal: "Surface localisation and translation risks on this pull request before it merges.",
+      extraSections: [
+        {
+          heading: "Review focus",
+          items: [
+            "Hard-coded copy, missing keys, and source strings that cannot be translated",
+            "Broken ICU, placeholders, plurals, and locale-sensitive formatting",
+            "Translation coverage, fallback, and writeback regressions",
+            "Localisation compliance: locale, RTL, legal, and market-language constraints",
+          ],
+        },
+      ],
+    }),
     activatable: true,
     defaultForm: {
       name: "Notify on push blockers",
       triggerMode: "github",
       pushBranches: ["main"],
+      githubEvents: ["pull_request"],
       githubEnabled: true,
-      validationEnabled: true,
-      slackEnabled: true,
+      githubMode: "agent",
+      repositoryTargetKind: "github",
+      pushSourceEnabled: false,
+      pullTranslationsEnabled: false,
+      validationEnabled: false,
+      githubCommentEnabled: true,
     },
   },
   {
@@ -509,14 +679,15 @@ export const WORKSPACE_AUTOMATION_TEMPLATES_BASE: WorkspaceAutomationTemplate[] 
     name: "Create localisation job brief",
     description:
       "Generate a translator-ready brief from PRs, tickets, assets, or TMS jobs with context, screenshots, glossary terms, tone, priority, and deadlines.",
-    instructions: [
-      "Create a translator-ready localisation job brief from linked work items.",
-      "",
-      "Include:",
-      "- Product context from PRs, tickets, and linked assets.",
-      "- Screenshots, glossary terms, tone guidance, priority, and deadlines.",
-      "- Open questions or risks that could block translation quality.",
-    ].join("\n"),
+    instructions: formatWorkspaceAutomationTemplateInstructions({
+      role: "a localisation job brief writer",
+      capabilities: [
+        "Gather product context from PRs, tickets, and linked assets",
+        "Collect screenshots, glossary terms, tone guidance, priority, and deadlines",
+        "List open questions or risks that could block translation quality",
+      ],
+      goal: "Produce a translator-ready brief before localisation work starts.",
+    }),
     activatable: false,
     defaultForm: {
       name: "Create localisation job brief",
@@ -531,24 +702,25 @@ export const WORKSPACE_AUTOMATION_TEMPLATES_BASE: WorkspaceAutomationTemplate[] 
     name: "Market messaging brief",
     description:
       "Build a market adaptation brief before translation when campaign or landing page copy is sent to a new market.",
-    instructions: [
-      "You are a market messaging analyst for localisation teams.",
-      "",
-      "Trigger: run when a campaign, landing page, or marketing asset is sent for localisation into a new market.",
-      "",
-      "Goal: produce a short market adaptation brief before translation starts.",
-      "",
-      "Analyse:",
-      "- The source message, brand tone, and proof points.",
-      "- Local competitors, ads, SERPs, and category language in the target market.",
-      "- What positioning, claims, objections, and tone work in that market.",
-      "",
-      "Deliverable:",
-      "- A concise brief covering recommended positioning, claims, proof, objections, tone, and translation guardrails.",
-      "- Open questions or risks that could block high-quality localisation.",
-      "",
-      "Tools: Semrush, Ahrefs, Google SERP API, Meta Ads Library, Google Ads Transparency Center, Similarweb, brand docs, TMS glossary, Slack, Notion, and Linear.",
-    ].join("\n"),
+    instructions: formatWorkspaceAutomationTemplateInstructions({
+      role: "a market messaging analyst for localisation teams",
+      capabilities: [
+        "Read the source message, brand tone, and proof points",
+        "Research local competitors, ads, SERPs, and category language in the target market",
+        "Recommend positioning, claims, objections, and tone that work in that market",
+        "Use Semrush, Ahrefs, live web search, brand docs, and the TMS glossary when connected",
+      ],
+      goal: "Produce a short market adaptation brief before translation starts.",
+      extraSections: [
+        {
+          heading: "Deliverable",
+          items: [
+            "Recommended positioning, claims, proof, objections, tone, and translation guardrails",
+            "Open questions or risks that could block high-quality localisation",
+          ],
+        },
+      ],
+    }),
     activatable: false,
     defaultForm: {
       name: "Market messaging brief",
@@ -563,25 +735,26 @@ export const WORKSPACE_AUTOMATION_TEMPLATES_BASE: WorkspaceAutomationTemplate[] 
     name: "Local search intent brief",
     description:
       "Decide whether to translate, adapt, rewrite, or split SEO pages for local organic and paid search before localisation.",
-    instructions: [
-      "You are an SEO localisation strategist.",
-      "",
-      "Trigger: run when an SEO page, landing page, blog, or campaign page is being localised for organic or paid search.",
-      "",
-      "Goal: decide whether the page should be translated, adapted, rewritten, or split for the target market.",
-      "",
-      "Analyse:",
-      "- The source page, local keywords, search volume, SERP intent, and ranking competitors.",
-      "- Existing Google Search Console and analytics performance where available.",
-      "- Gaps between source intent and what searchers expect in the target locale.",
-      "",
-      "Deliverable:",
-      "- A recommendation: translate, adapt, rewrite, or split the page.",
-      "- Priority keywords, intent notes, competitor patterns, and content changes for translators.",
-      "- Risks to ranking, paid efficiency, or conversion if the page is translated literally.",
-      "",
-      "Tools: Semrush, Ahrefs, DataForSEO, Google Search Console, GA4, Google Trends, SERP API, CMS, TMS glossary, and translation memory.",
-    ].join("\n"),
+    instructions: formatWorkspaceAutomationTemplateInstructions({
+      role: "an SEO localisation strategist",
+      capabilities: [
+        "Analyse the source page, local keywords, search volume, SERP intent, and ranking competitors",
+        "Use Search Console and analytics performance when available",
+        "Compare source intent with what searchers expect in the target locale",
+        "Use Semrush, Ahrefs, live web search, CMS content, and the TMS glossary when connected",
+      ],
+      goal: "Decide whether the page should be translated, adapted, rewritten, or split for the target market.",
+      extraSections: [
+        {
+          heading: "Deliverable",
+          items: [
+            "A recommendation: translate, adapt, rewrite, or split the page",
+            "Priority keywords, intent notes, competitor patterns, and content changes for translators",
+            "Risks to ranking, paid efficiency, or conversion if the page is translated literally",
+          ],
+        },
+      ],
+    }),
     activatable: false,
     defaultForm: {
       name: "Local search intent brief",
@@ -596,14 +769,15 @@ export const WORKSPACE_AUTOMATION_TEMPLATES_BASE: WorkspaceAutomationTemplate[] 
     name: "Add context to TMS strings",
     description:
       "Attach PRs, tickets, screenshots, Figma frames, and usage notes to new source strings before translation starts.",
-    instructions: [
-      "Enrich new TMS source strings with product and design context before translation starts.",
-      "",
-      "Attach:",
-      "- Linked PRs, tickets, screenshots, and Figma frames.",
-      "- Usage notes, glossary references, and locale-sensitive constraints.",
-      "- Flags when context is missing or likely to cause rework.",
-    ].join("\n"),
+    instructions: formatWorkspaceAutomationTemplateInstructions({
+      role: "a TMS context researcher",
+      capabilities: [
+        "Attach linked PRs, tickets, screenshots, and Figma frames to new source strings",
+        "Add usage notes, glossary references, and locale-sensitive constraints",
+        "Flag strings whose missing context is likely to cause rework",
+      ],
+      goal: "Give translators enough product and design context before they start.",
+    }),
     activatable: false,
     defaultForm: {
       name: "Add context to TMS strings",
@@ -619,14 +793,15 @@ export const WORKSPACE_AUTOMATION_TEMPLATES_BASE: WorkspaceAutomationTemplate[] 
     name: "Review TMS translations",
     description:
       "Check pending translations against glossary, placeholders, formatting, brand tone, and market-specific style rules.",
-    instructions: [
-      "Review pending TMS translations before they are approved for delivery.",
-      "",
-      "Check:",
-      "- Glossary adherence, placeholders, ICU syntax, and formatting.",
-      "- Brand tone and market-specific style rules.",
-      "- Non-blocking suggestions versus release-blocking issues.",
-    ].join("\n"),
+    instructions: formatWorkspaceAutomationTemplateInstructions({
+      role: "a TMS translation reviewer",
+      capabilities: [
+        "Check pending translations against glossary, placeholders, ICU syntax, and formatting",
+        "Judge brand tone and market-specific style rules",
+        "Separate non-blocking suggestions from release-blocking issues",
+      ],
+      goal: "Review pending TMS translations before they are approved for delivery.",
+    }),
     activatable: false,
     defaultForm: {
       name: "Review TMS translations",
@@ -645,14 +820,15 @@ export const WORKSPACE_AUTOMATION_TEMPLATES_BASE: WorkspaceAutomationTemplate[] 
     name: "Hyperlocalise campaign assets",
     description:
       "Adapt campaign copy, CTA, tone, and visual direction for each market, then route approved copy into the TMS.",
-    instructions: [
-      "Hyperlocalise campaign assets for each target market.",
-      "",
-      "Adapt:",
-      "- Campaign copy, CTAs, tone, and visual direction per locale.",
-      "- Market-specific constraints from glossary and brand guidelines.",
-      "- Route approved copy into the TMS for translation and delivery.",
-    ].join("\n"),
+    instructions: formatWorkspaceAutomationTemplateInstructions({
+      role: "a campaign localisation editor",
+      capabilities: [
+        "Adapt campaign copy, CTAs, tone, and visual direction for each market",
+        "Apply market-specific constraints from the glossary and brand guidelines",
+        "Route approved copy into the TMS for translation and delivery",
+      ],
+      goal: "Hyperlocalise campaign assets so each market gets copy that converts, not a literal translation.",
+    }),
     activatable: false,
     defaultForm: {
       name: "Hyperlocalise campaign assets",
@@ -668,14 +844,16 @@ export const WORKSPACE_AUTOMATION_TEMPLATES_BASE: WorkspaceAutomationTemplate[] 
     name: "Publish approved translations",
     description:
       "Pull reviewed translations from the TMS and deliver them into GitHub, CMS, app store metadata, or release workflows.",
-    instructions: [
-      "Publish approved translations from the TMS into downstream delivery targets.",
-      "",
-      "Deliver to:",
-      "- GitHub locale files, CMS content, app store metadata, or release workflows.",
-      "- Preserve placeholders, ICU syntax, and repository formatting conventions.",
-      "- Summarize locales published and any delivery blockers.",
-    ].join("\n"),
+    instructions: formatWorkspaceAutomationTemplateInstructions({
+      role: "a translation publishing agent",
+      capabilities: [
+        "Pull reviewed translations from the TMS",
+        "Deliver them into GitHub locale files, CMS content, app store metadata, or release workflows",
+        "Preserve placeholders, ICU syntax, and repository formatting conventions",
+        "Summarize locales published and any delivery blockers",
+      ],
+      goal: "Publish approved translations into the downstream systems that ship them.",
+    }),
     activatable: false,
     defaultForm: {
       name: "Publish approved translations",
@@ -720,16 +898,28 @@ export function getWorkspaceAutomationTemplateFlow(
   const form = template.defaultForm;
   const triggerMode = form.triggerMode ?? "manual";
 
+  const githubEvents = form.githubEvents ?? ["push"];
+  const listensToPush = githubEvents.includes("push");
+  const listensToPullRequest = githubEvents.includes("pull_request");
+  const githubTrigger: WorkspaceAutomationTemplateFlowNode =
+    listensToPush && listensToPullRequest
+      ? { id: "github-push", label: "GitHub push and pull request" }
+      : listensToPullRequest
+        ? { id: "github-pull-request", label: "GitHub pull request" }
+        : { id: "github-push", label: "GitHub push" };
+
   const trigger: WorkspaceAutomationTemplateFlowNode =
     triggerMode === "github"
-      ? { id: "github-push", label: "GitHub push" }
+      ? githubTrigger
       : triggerMode === "contentful"
         ? { id: "contentful-webhook", label: "Contentful webhook" }
         : triggerMode === "source_upload"
           ? { id: "source-upload", label: "Source upload" }
-          : triggerMode === "scheduled"
-            ? { id: "scheduled", label: scheduledTriggerLabel(form) }
-            : { id: "manual", label: "Manual" };
+          : triggerMode === "web_chat"
+            ? { id: "web-chat", label: "Web chat" }
+            : triggerMode === "scheduled"
+              ? { id: "scheduled", label: scheduledTriggerLabel(form) }
+              : { id: "manual", label: "Manual" };
 
   const tools: WorkspaceAutomationTemplateFlowNode[] = [];
 
@@ -763,8 +953,20 @@ export function getWorkspaceAutomationTemplateFlow(
     tools.push({ id: "email", label: "Email" });
   }
 
+  if (form.githubCommentEnabled) {
+    tools.push({ id: "github-comment", label: "GitHub comment" });
+  }
+
   if (form.contentfulEnabled) {
     tools.push({ id: "contentful", label: "Contentful" });
+  }
+
+  if (form.webSearchEnabled) {
+    tools.push({ id: "web-search", label: "Web Search" });
+  }
+
+  if (form.knowledgeFilesEnabled) {
+    tools.push({ id: "knowledge-files", label: "Knowledge files" });
   }
 
   return { trigger, tools };

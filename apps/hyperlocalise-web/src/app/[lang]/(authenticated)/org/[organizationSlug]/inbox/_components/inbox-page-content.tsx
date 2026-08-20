@@ -12,17 +12,21 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { useParams, useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo } from "react";
+import { useParams, usePathname, useRouter } from "next/navigation";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useMutation, useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query";
 import { observer } from "mobx-react-lite";
+import { useIntl } from "react-intl";
+import { toast } from "sonner";
 
 import { useAppShellStore } from "@/components/app-shell/store/app-shell-store-context";
 import { getChatStreamManager } from "@/components/app-shell/chat-dock/chat-stream-manager";
+import { isInboxNewRequestPath } from "@/components/app-shell/navigation-config";
 import { apiClient } from "@/lib/api-client-instance";
 
 import { createInboxApi, type InboxApi } from "./inbox-api";
-import type { InboxSelection } from "./inbox-list";
+import { conversationPanelMessages } from "./conversation-panel.messages";
+import { resolveInboxSelection, type InboxSelection } from "./inbox-list";
 import {
   createInboxNotificationsApi,
   notificationsQueryKey,
@@ -65,12 +69,15 @@ export const InboxPageContent = observer(function InboxPageContent({
   notificationsApi?: InboxNotificationsApi;
 }) {
   const router = useRouter();
+  const pathname = usePathname();
   const params = useParams();
+  const intl = useIntl();
   const queryClient = useQueryClient();
   const urlConversationId = params?.conversationId as string | undefined;
   const urlNotificationId = params?.notificationId as string | undefined;
-  const { chatDock, workspaceFeatureFlags } = useAppShellStore();
-  const issuesEnabled = workspaceFeatureFlags.issues;
+  const composeNew = isInboxNewRequestPath(pathname);
+  const [composeDraft, setComposeDraft] = useState("");
+  const { chatDock } = useAppShellStore();
   const streamManager = getChatStreamManager(organizationSlug, chatDock);
 
   const conversationsQuery = useQuery({
@@ -80,7 +87,6 @@ export const InboxPageContent = observer(function InboxPageContent({
 
   const notificationsQuery = useInfiniteQuery({
     queryKey: notificationsQueryKey(organizationSlug),
-    enabled: issuesEnabled,
     initialPageParam: 0,
     queryFn: async ({ pageParam }) => {
       const result = await injectedNotificationsApi.list(organizationSlug, {
@@ -98,7 +104,6 @@ export const InboxPageContent = observer(function InboxPageContent({
   const unreadCountQuery = useQuery({
     queryKey: notificationsUnreadCountQueryKey(organizationSlug),
     queryFn: () => injectedNotificationsApi.unreadCount(organizationSlug),
-    enabled: issuesEnabled,
     refetchInterval: 45_000,
   });
 
@@ -109,21 +114,17 @@ export const InboxPageContent = observer(function InboxPageContent({
   );
   const notificationsTotal = notificationsQuery.data?.pages[0]?.total ?? notifications.length;
 
-  const selection: InboxSelection = useMemo(() => {
-    if (urlNotificationId) {
-      return { kind: "notification", id: urlNotificationId };
-    }
-    if (urlConversationId) {
-      return { kind: "conversation", id: urlConversationId };
-    }
-    if (conversations[0]) {
-      return { kind: "conversation", id: conversations[0].id };
-    }
-    if (notifications[0]) {
-      return { kind: "notification", id: notifications[0].id };
-    }
-    return null;
-  }, [conversations, notifications, urlConversationId, urlNotificationId]);
+  const selection: InboxSelection = useMemo(
+    () =>
+      resolveInboxSelection({
+        composeNew,
+        urlConversationId,
+        urlNotificationId,
+        firstConversationId: conversations[0]?.id,
+        firstNotificationId: notifications[0]?.id,
+      }),
+    [composeNew, conversations, notifications, urlConversationId, urlNotificationId],
+  );
 
   const selectedConversationId = selection?.kind === "conversation" ? selection.id : "";
   const selectedNotificationId = selection?.kind === "notification" ? selection.id : "";
@@ -140,7 +141,6 @@ export const InboxPageContent = observer(function InboxPageContent({
     queryKey: notificationDetailQueryKey(organizationSlug, selectedNotificationId),
     queryFn: () => injectedNotificationsApi.getById(organizationSlug, selectedNotificationId),
     enabled:
-      issuesEnabled &&
       selection?.kind === "notification" &&
       !!selectedNotificationId &&
       !selectedNotificationFromList,
@@ -190,6 +190,15 @@ export const InboxPageContent = observer(function InboxPageContent({
     },
   });
 
+  const createConversationMutation = useMutation({
+    mutationFn: (input: {
+      text: string;
+      files: File[];
+      projectId?: string;
+      repositoryFullName?: string;
+    }) => injectedInboxApi.createConversation(organizationSlug, input),
+  });
+
   const markReadMutation = useMutation({
     mutationFn: (notificationId: string) =>
       injectedNotificationsApi.markRead(organizationSlug, notificationId),
@@ -222,15 +231,31 @@ export const InboxPageContent = observer(function InboxPageContent({
   });
 
   const mutateAsync = sendMessageMutation.mutateAsync;
+  const createConversationAsync = createConversationMutation.mutateAsync;
   const onSendMessage = useCallback(
     async (
       text: string,
       files: File[],
       options?: { projectId?: string; repositoryFullName?: string },
     ) => {
+      if (composeNew) {
+        try {
+          const result = await createConversationAsync({ text, files, ...options });
+          setComposeDraft("");
+          await queryClient.invalidateQueries({
+            queryKey: conversationsQueryKey(organizationSlug),
+          });
+          router.push(`/org/${organizationSlug}/inbox/${result.conversation.id}`);
+        } catch (error) {
+          toast.error(intl.formatMessage(conversationPanelMessages.createFailed));
+          throw error;
+        }
+        return;
+      }
+
       await mutateAsync({ text, files, ...options });
     },
-    [mutateAsync],
+    [composeNew, createConversationAsync, intl, mutateAsync, organizationSlug, queryClient, router],
   );
 
   const onSelectConversation = useCallback(
@@ -267,7 +292,7 @@ export const InboxPageContent = observer(function InboxPageContent({
     !notificationsQuery.isLoading &&
     conversations.length + notifications.length <= 1;
   const hasMoreNotifications =
-    issuesEnabled && notifications.length < notificationsTotal && notificationsQuery.hasNextPage;
+    notifications.length < notificationsTotal && notificationsQuery.hasNextPage;
 
   useEffect(() => {
     if (
@@ -312,9 +337,10 @@ export const InboxPageContent = observer(function InboxPageContent({
       conversationsIsError={conversationsQuery.isError}
       conversationsIsLoading={conversationsQuery.isLoading}
       currentUser={currentUser}
+      draft={composeDraft}
       hasMoreNotifications={hasMoreNotifications}
       isLoadingMoreNotifications={notificationsQuery.isFetchingNextPage}
-      isSending={sendMessageMutation.isPending}
+      isSending={sendMessageMutation.isPending || createConversationMutation.isPending}
       isSparseInbox={isSparseInbox}
       isStreaming={isStreaming}
       jobs={jobs}
@@ -322,8 +348,9 @@ export const InboxPageContent = observer(function InboxPageContent({
       messages={messages}
       messagesIsLoading={messagesQuery.isLoading}
       notifications={notifications}
-      notificationsIsError={issuesEnabled && notificationsQuery.isError}
-      notificationsIsLoading={issuesEnabled && notificationsQuery.isLoading}
+      notificationsIsError={notificationsQuery.isError}
+      notificationsIsLoading={notificationsQuery.isLoading}
+      onDraftChange={setComposeDraft}
       onLoadMoreNotifications={onLoadMoreNotifications}
       onMarkAllRead={onMarkAllRead}
       onSelectConversation={onSelectConversation}

@@ -224,9 +224,9 @@ func TestSourceStringsUploadRequestValidate(t *testing.T) {
 			err:  "storageId is required",
 		},
 		{
-			name: "missing identifiers",
-			req:  &SourceStringsUploadRequest{StorageID: 1},
-			err:  "branchId or directoryId is required",
+			name:  "valid request targeting project root",
+			req:   &SourceStringsUploadRequest{StorageID: 1},
+			valid: true,
 		},
 		{
 			name: "invalid request",
@@ -253,9 +253,19 @@ func TestSourceStringsUploadRequestValidate(t *testing.T) {
 			valid: true,
 		},
 		{
-			name: "multi-set identifiers",
+			name: "multi-set identifiers branch and directory",
 			req:  &SourceStringsUploadRequest{StorageID: 1, BranchID: 1, DirectoryID: 1},
-			err:  "only one of branchId or directoryId may be set",
+			err:  "only one of branchId, directoryId or fileId may be set",
+		},
+		{
+			name: "multi-set identifiers branch and file",
+			req:  &SourceStringsUploadRequest{StorageID: 1, BranchID: 1, FileID: 1},
+			err:  "only one of branchId, directoryId or fileId may be set",
+		},
+		{
+			name: "multi-set identifiers directory and file",
+			req:  &SourceStringsUploadRequest{StorageID: 1, DirectoryID: 1, FileID: 1},
+			err:  "only one of branchId, directoryId or fileId may be set",
 		},
 		{
 			name: "valid request with directoryId",
@@ -266,6 +276,14 @@ func TestSourceStringsUploadRequestValidate(t *testing.T) {
 					FirstLineContainsHeader: toPtr(true),
 					ImportTranslations:      toPtr(true), Scheme: map[string]int{"key": 0},
 				},
+			},
+			valid: true,
+		},
+		{
+			name: "valid request with fileId and maxLen",
+			req: &SourceStringsUploadRequest{
+				StorageID: 1, FileID: 48, Type: "xlsx", ParserVersion: 1, MaxLen: 50,
+				LabelIDs: []int{1, 2, 3}, UpdateStrings: toPtr(false), CleanupMode: toPtr(false),
 			},
 			valid: true,
 		},

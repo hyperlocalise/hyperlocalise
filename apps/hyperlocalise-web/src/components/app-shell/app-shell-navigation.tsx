@@ -40,6 +40,7 @@ import {
 
 import { appShellNavigationMessages } from "./app-shell-navigation.messages";
 import { filterNavigationItemsByWorkspaceFlags } from "@/lib/flags/workspace-flag-navigation";
+import { formatInboxUnreadBadgeLabel, inboxUnreadBadgeClassName } from "./inbox-unread-badge";
 
 import {
   buildOrganizationPath,
@@ -253,29 +254,25 @@ function NavigationGroupItems({
   projectId?: string;
 }) {
   const intl = useIntl();
-  const { chatDock, workspaceFeatureFlags } = useAppShellStore();
   const inboxHref = buildOrganizationPath(organizationSlug, "inbox");
-  const issuesEnabled = workspaceFeatureFlags.issues;
   const unreadCountQuery = useQuery({
     queryKey: notificationsUnreadCountQueryKey(organizationSlug),
     queryFn: () => inboxNotificationsApi.unreadCount(organizationSlug),
-    enabled: Boolean(organizationSlug) && issuesEnabled,
+    enabled: Boolean(organizationSlug),
     refetchInterval: 45_000,
   });
   const unreadCount = unreadCountQuery.data ?? 0;
-  const unreadBadgeLabel = unreadCount > 99 ? "99+" : unreadCount > 0 ? String(unreadCount) : null;
+  const unreadBadgeLabel = formatInboxUnreadBadgeLabel(unreadCount);
 
   return (
     <SidebarGroupContent>
       <SidebarMenu className="gap-1">
         {group.items.map((item) => {
-          const isActionItem = item.action === "open-chat-dock";
-          const isActive = isActionItem
-            ? false
-            : isNavigationItemActive(pathname, item.href, {
-                projectId,
-                organizationSlug,
-              });
+          const isActive = isNavigationItemActive(pathname, item.href, {
+            exact: item.exact,
+            projectId,
+            organizationSlug,
+          });
           const isInboxItem = item.href === inboxHref;
           const dynamicBadge = isInboxItem ? unreadBadgeLabel : null;
           const badge = dynamicBadge ?? item.badge;
@@ -289,11 +286,10 @@ function NavigationGroupItems({
           return (
             <SidebarMenuItem key={item.href}>
               <SidebarMenuButton
-                render={isActionItem ? undefined : <Link href={item.href} />}
+                render={<Link href={item.href} />}
                 isActive={isActive}
                 tooltip={tooltip}
                 className={navigationButtonClass(isActive)}
-                onClick={isActionItem ? () => chatDock.openNewTab() : undefined}
               >
                 <HugeiconsIcon icon={item.icon} strokeWidth={2} className="size-4" />
                 <span className="min-w-0 flex-1 truncate">{item.label}</span>
@@ -304,7 +300,7 @@ function NavigationGroupItems({
                 ) : null}
               </SidebarMenuButton>
               {dynamicBadge ? (
-                <SidebarMenuBadge className="pointer-events-none peer-hover/menu-button:text-sidebar-accent-foreground">
+                <SidebarMenuBadge className={inboxUnreadBadgeClassName}>
                   {dynamicBadge}
                 </SidebarMenuBadge>
               ) : null}

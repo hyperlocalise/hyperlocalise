@@ -12,10 +12,11 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { LeftToRightListBulletIcon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import { useCallback, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ListIcon } from "lucide-react";
 import { FormattedMessage, useIntl, type IntlShape } from "react-intl";
 import { toast } from "sonner";
 
@@ -252,7 +253,7 @@ export function JobSourceFilesPanel({
                 disabled={!stringsHrefForSelected}
                 render={stringsHrefForSelected ? <Link href={stringsHrefForSelected} /> : undefined}
               >
-                <ListIcon />
+                <HugeiconsIcon icon={LeftToRightListBulletIcon} />
                 <FormattedMessage {...messages.viewStrings} />
               </Button>
             </div>

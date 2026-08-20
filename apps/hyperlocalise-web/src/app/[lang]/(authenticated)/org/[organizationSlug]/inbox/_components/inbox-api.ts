@@ -30,6 +30,13 @@ export type InboxApi = {
   listMessages(organizationSlug: string, conversationId: string): Promise<ConversationMessage[]>;
   listLinkedJobs(organizationSlug: string, conversationId: string): Promise<LinkedJob[]>;
   listGithubRepositories(organizationSlug: string): Promise<InboxGithubRepository[]>;
+  createConversation(
+    organizationSlug: string,
+    input: SendConversationMessageInput,
+  ): Promise<{
+    conversation: { id: string; title?: string };
+    message?: { id: string; text: string };
+  }>;
   sendMessage(
     organizationSlug: string,
     conversationId: string,
@@ -38,6 +45,21 @@ export type InboxApi = {
 };
 
 type ApiClient = ReturnType<typeof createApiClient>;
+
+const FILE_ONLY_CONVERSATION_TEXT = "Please translate the attached source file.";
+
+function appendConversationFormData(formData: FormData, input: SendConversationMessageInput) {
+  formData.set("text", input.text.trim() || FILE_ONLY_CONVERSATION_TEXT);
+  if (input.projectId) {
+    formData.set("projectId", input.projectId);
+  }
+  if (input.repositoryFullName) {
+    formData.set("repositoryFullName", input.repositoryFullName);
+  }
+  for (const file of input.files) {
+    formData.append("files", file);
+  }
+}
 
 export function createInboxApi(client: ApiClient): InboxApi {
   const conversations = client.api.orgs[":organizationSlug"].conversations;
@@ -89,6 +111,26 @@ export function createInboxApi(client: ApiClient): InboxApi {
       }
       const body = (await response.json()) as { repositories: InboxGithubRepository[] };
       return body.repositories.filter((repository) => repository.enabled && !repository.archived);
+    },
+
+    async createConversation(organizationSlug, input) {
+      const formData = new FormData();
+      appendConversationFormData(formData, input);
+
+      const response = await fetch(
+        `/api/orgs/${encodeURIComponent(organizationSlug)}/conversations`,
+        {
+          method: "POST",
+          body: formData,
+        },
+      );
+      if (!response.ok) {
+        throw await readApiResponseError(response, "Failed to create conversation");
+      }
+      return response.json() as Promise<{
+        conversation: { id: string; title?: string };
+        message?: { id: string; text: string };
+      }>;
     },
 
     async sendMessage(organizationSlug, conversationId, input) {

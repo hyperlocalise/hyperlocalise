@@ -60,6 +60,7 @@ export function CatSideBySideVirtualList({
   onUseAiSuggestion,
   onGenerateAiRecommendation,
   onTreatAsImage,
+  onTreatAsVideo,
   onRegenerateImage,
   onUploadImage,
   hasMore = false,
@@ -99,6 +100,7 @@ export function CatSideBySideVirtualList({
   onUseAiSuggestion?: (segmentId: string) => void;
   onGenerateAiRecommendation?: (segmentId: string) => void;
   onTreatAsImage?: (segmentId: string, treatAsImage: boolean) => void;
+  onTreatAsVideo?: (segmentId: string, treatAsVideo: boolean) => void;
   onRegenerateImage?: (segmentId: string) => void;
   onUploadImage?: (segmentId: string, file: File) => void;
   hasMore?: boolean;
@@ -241,6 +243,11 @@ export function CatSideBySideVirtualList({
                 onTreatAsImage={
                   onTreatAsImage
                     ? (treatAsImage) => onTreatAsImage(segment.id, treatAsImage)
+                    : undefined
+                }
+                onTreatAsVideo={
+                  onTreatAsVideo
+                    ? (treatAsVideo) => onTreatAsVideo(segment.id, treatAsVideo)
                     : undefined
                 }
                 onRegenerateImage={

@@ -43,6 +43,7 @@ For lockfile fields, lifecycle, and reset guidance, see [Lockfile contract](/ref
 - Android XML `strings.xml` files at `**/res/values*/strings.xml`
 - `.xml` and `.resx` for generic XML locale files
 - `.properties`
+- `.srt` and `.vtt`
 
 For JSON (`.json`), `run` supports:
 
@@ -125,6 +126,27 @@ Unsupported translatable Android resource shapes such as `<string-array>` fail w
 
 
 For Java properties (`.properties`), `run` supports per-locale key/value resource bundles such as `messages_en.properties` -> `messages_[locale].properties`. It parses Java-style separators (`=`, `:`, or whitespace), escaped keys and values, `\uXXXX` unicode escapes, and line continuations. Comments beginning with `#` or `!` are preserved and adjacent comments can be used as entry context. On write, existing key order, comments, separators, and spacing are preserved; translated values are normalized to single-line escaped values. Duplicate keys, malformed unicode escapes, invalid UTF-8 input, and dangling continuations fail with clear parse errors.
+
+For SubRip and WebVTT subtitles (`.srt`, `.vtt`), `run` translates cue payload text and preserves non-translatable structure:
+
+- cue numbers, timestamps, and positioning or cue settings
+- WebVTT `WEBVTT` headers, `NOTE`, `STYLE`, and `REGION` blocks
+- HTML-like markup inside cues such as `<i>` and `<b>`
+- WebVTT cue spans such as `<c.red>`, `<v Speaker>`, and karaoke timestamps like `<00:01.000>`
+
+Cues are exposed as sequential keys such as `srt.0001` and `vtt.0001`. Timestamp lines are available as entry context. Writeback replaces cue text in place and ignores extra translation keys so cue counts stay aligned with the source file. Blank lines inside translated cue text are dropped so they cannot split cues.
+
+Example config mapping:
+
+```yaml
+buckets:
+  captions:
+    files:
+      - from: captions/{{source}}.srt
+        to: captions/{{target}}.srt
+      - from: captions/{{source}}.vtt
+        to: captions/{{target}}.vtt
+```
 
 For CSV (`.csv`), `run` supports two layouts:
 

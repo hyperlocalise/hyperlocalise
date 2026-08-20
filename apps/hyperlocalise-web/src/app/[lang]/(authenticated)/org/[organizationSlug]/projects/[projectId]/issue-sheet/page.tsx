@@ -12,10 +12,10 @@
  */
 import { Suspense } from "react";
 
+import { hasCapability } from "@/api/auth/policy";
 import { TypographyP } from "@/components/ui/typography";
 import { getIntlShape } from "@/lib/app-i18n/intl";
 import { getAppLocale } from "@/lib/app-i18n/server-locale";
-import { requireWorkspaceFeatureFlag, workspaceIssuesFlag } from "@/lib/flags/workspace-flags";
 import { requireAppAuthContext } from "@/lib/workos/app-auth";
 
 import { IssueSheetPageContent } from "./_components/issue-sheet-page-content";
@@ -27,8 +27,8 @@ export default async function IssueSheetPage({
 }) {
   const { organizationSlug, projectId } = await params;
   const auth = await requireAppAuthContext({ organizationSlug });
-  await requireWorkspaceFeatureFlag(workspaceIssuesFlag, auth);
   const intl = getIntlShape(await getAppLocale());
+  const canEditIssues = hasCapability(auth.membership.role, "write_back:translation");
 
   return (
     <Suspense
@@ -42,7 +42,11 @@ export default async function IssueSheetPage({
         </TypographyP>
       }
     >
-      <IssueSheetPageContent organizationSlug={organizationSlug} projectId={projectId} />
+      <IssueSheetPageContent
+        organizationSlug={organizationSlug}
+        projectId={projectId}
+        canEditIssues={canEditIssues}
+      />
     </Suspense>
   );
 }

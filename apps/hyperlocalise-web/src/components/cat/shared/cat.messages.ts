@@ -69,6 +69,21 @@ export const catQueuePanelMessages = defineMessages({
     id: "Kjim0yzISM",
     description: "Accessible label for CAT queue search input",
   },
+  downloadFiltered: {
+    defaultMessage: "Download",
+    id: "kUl1Jpz/6B",
+    description: "Button label to download the filtered CAT queue view",
+  },
+  downloadFilteredAria: {
+    defaultMessage: "Download filtered view",
+    id: "2B2vocYfiC",
+    description: "Accessible label for downloading the filtered CAT queue",
+  },
+  downloadFilteredFormatLabel: {
+    defaultMessage: "Format",
+    id: "D/arw4JcTP",
+    description: "Label above download format options in the CAT queue",
+  },
   emptySearchResults: {
     defaultMessage: "No segments match your search.",
     id: "ypyJIGOXrt",
@@ -119,6 +134,46 @@ export const catQueuePanelMessages = defineMessages({
     id: "75tLVTlfqV",
     description: "CAT queue filter option for skipped segments",
   },
+  filterHidden: {
+    defaultMessage: "Hidden",
+    id: "FEprezMr/U",
+    description: "CAT queue filter option for hidden source strings",
+  },
+  filterUnsaved: {
+    defaultMessage: "Unsaved translations",
+    id: "HxWBdm4nhz",
+    description: "CAT queue filter option for segments with unsaved drafts in this session",
+  },
+  filterQaIssues: {
+    defaultMessage: "QA issues",
+    id: "a8SQvqjTx9",
+    description: "CAT queue filter option for Crowdin strings with QA issues",
+  },
+  filterMachineTranslated: {
+    defaultMessage: "Machine translations",
+    id: "p/GrdJcH5A",
+    description: "CAT queue filter option for Crowdin pre-translated strings",
+  },
+  filterWithComments: {
+    defaultMessage: "With comments",
+    id: "DU3T9+E0+x",
+    description: "CAT queue filter option for Crowdin strings that have comments",
+  },
+  sortQueueAria: {
+    defaultMessage: "Sort queue",
+    id: "F9y826AvJs",
+    description: "Accessible label for the CAT queue sort menu",
+  },
+  sortFileOrder: {
+    defaultMessage: "File order",
+    id: "O3nJ0XBCbB",
+    description: "CAT queue sort option that keeps file or key order",
+  },
+  sortUntranslatedFirst: {
+    defaultMessage: "Untranslated first",
+    id: "UWZ1G1FSvB",
+    description: "CAT queue sort option that shows untranslated segments first",
+  },
   emptyFilterResults: {
     defaultMessage: "No segments match this filter.",
     id: "oY/dfpDvR7",
@@ -133,6 +188,17 @@ export const catQueuePanelMessages = defineMessages({
     defaultMessage: "Skip selected",
     id: "zCn3UqvqWI",
     description: "Bulk action to skip all selected CAT segments",
+  },
+  bulkHide: {
+    defaultMessage: "Hide selected",
+    id: "wz/8hP0meZ",
+    description: "Bulk action to hide selected native CAT source strings from translation jobs",
+  },
+  bulkUnhide: {
+    defaultMessage: "Unhide selected",
+    id: "/CNawd2WG2",
+    description:
+      "Bulk action to make selected native CAT source strings visible to translation jobs",
   },
   bulkSelectAll: {
     defaultMessage: "Select all visible",
@@ -191,6 +257,14 @@ export const catSegmentStatusMessages = defineMessages({
     defaultMessage: "Status: {status}",
     id: "ecBrADENW6",
     description: "Accessible label for segment status indicator dot in the CAT queue",
+  },
+});
+
+export const catHiddenStringMessages = defineMessages({
+  hidden: {
+    defaultMessage: "Hidden",
+    id: "/d/gbp0E4g",
+    description: "Badge shown when a TMS source string is hidden from translators",
   },
 });
 
@@ -537,6 +611,16 @@ export const catEditorPanelMessages = defineMessages({
     id: "vdOK0pRPUg",
     description: "Tooltip for the treat-as-image toggle in CAT",
   },
+  treatAsVideo: {
+    defaultMessage: "Treat as video",
+    id: "yxHGupHq+k",
+    description: "Button to treat a URL source string as a localizable video",
+  },
+  treatAsVideoTitle: {
+    defaultMessage: "Preview and localize this URL as a video",
+    id: "z0uvvDTD9z",
+    description: "Tooltip for the treat-as-video toggle in CAT",
+  },
   regenerateImage: {
     defaultMessage: "Regenerate image",
     id: "zA2ZC7UBbt",
@@ -571,6 +655,31 @@ export const catEditorPanelMessages = defineMessages({
     defaultMessage: "No image yet",
     id: "aMf9NbDyem",
     description: "Fallback empty state when a CAT image preview has no source URL",
+  },
+  regenerateVideo: {
+    defaultMessage: "Regenerate video",
+    id: "PgliwXORHi",
+    description: "Button to regenerate a localized video with the agent",
+  },
+  uploadVideo: {
+    defaultMessage: "Upload video",
+    id: "fCirHpiRXz",
+    description: "Button to upload a replacement localized video",
+  },
+  videoSourceEmpty: {
+    defaultMessage: "Source video unavailable",
+    id: "k6wO1BhuBw",
+    description: "Empty state when the CAT source video cannot be shown",
+  },
+  videoTargetEmpty: {
+    defaultMessage: "No localized video yet",
+    id: "24tcVtmHO9",
+    description: "Empty state when the CAT target video has not been created",
+  },
+  videoEmpty: {
+    defaultMessage: "No video yet",
+    id: "0Y2PNYvVoj",
+    description: "Fallback empty state when a CAT video preview has no source URL",
   },
   segmentPosition: {
     defaultMessage: "{position} / {total}",
@@ -894,6 +1003,11 @@ export const catSideBySidePanelMessages = defineMessages({
     defaultMessage: "Click to localize image",
     id: "Ga0sjgCRoD",
     description: "Placeholder when a side-by-side image row has no localized image yet",
+  },
+  clickToLocalizeVideo: {
+    defaultMessage: "Click to localize video",
+    id: "mz+/0gx1Ho",
+    description: "Placeholder when a side-by-side video row has no localized video yet",
   },
   formatCheckFail: {
     defaultMessage: "Format & QA failed ({count, plural, one {# issue} other {# issues}})",

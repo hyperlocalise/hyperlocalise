@@ -277,6 +277,18 @@ func TestRequestWithVariousErrorHandling(t *testing.T) {
 		err  string
 	}{
 		{
+			name: "400 with standard error payload",
+			path: "/path",
+			body: []byte(`{
+				"error": {
+					"message": "Some bad request error",
+					"code": 400
+				}
+			}`),
+			code: http.StatusBadRequest,
+			err:  "400 Some bad request error",
+		},
+		{
 			name: "not found error",
 			path: "/path",
 			body: []byte(`{

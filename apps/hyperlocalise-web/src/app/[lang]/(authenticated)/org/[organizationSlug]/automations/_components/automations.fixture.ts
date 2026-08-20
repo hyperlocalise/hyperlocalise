@@ -14,7 +14,7 @@ import {
   WORKSPACE_AUTOMATION_TEMPLATES_BASE,
   type WorkspaceAutomationTemplate,
 } from "@/lib/agents/workspace-automation-templates";
-import type { WorkspaceAutomationRecord } from "@/lib/agents/workspace-automations";
+import type { WorkspaceAutomationRecord } from "@/lib/agents/workspace-automation-types";
 
 /** Client-safe template data for Storybook and component tests. */
 export const automationTemplatesFixture: WorkspaceAutomationTemplate[] =
@@ -40,9 +40,11 @@ export function createAutomationSummary(
     id: "11111111-1111-4111-8111-111111111111",
     organizationId: "org_001",
     authorUserId: "user_001",
+    authorName: "Ada Lovelace",
     status: "active",
     name: "Validate localisation on push",
     instructions: "Validate source and translation changes on every push.",
+    model: "openai/gpt-5.6-luna",
     projectId: "project-1",
     triggerConfig: {
       mode: "github",
@@ -110,6 +112,7 @@ export const automationsFixture: WorkspaceAutomationRecord[] = [
       contentful: disabledContentfulToolConfig,
     },
     createdAt: "2026-06-01T08:00:00.000Z",
+    authorName: "Grace Hopper",
   }),
   createAutomationSummary({
     id: "44444444-4444-4444-8444-444444444444",
@@ -133,6 +136,7 @@ export const automationsFixture: WorkspaceAutomationRecord[] = [
       },
       contentful: disabledContentfulToolConfig,
     },
+    authorName: null,
     createdAt: "2026-05-20T14:30:00.000Z",
   }),
 ];

@@ -12,7 +12,8 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { ImageIcon, Loader2, RefreshCw, Upload } from "lucide-react";
+import { Image01Icon, Loading03Icon, RefreshIcon, Upload01Icon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import { FormattedMessage, useIntl } from "react-intl";
 
 import { Button } from "@/components/ui/button";
@@ -87,7 +88,7 @@ export function CatEditorImageSourceSection({
             onClick={() => onTreatAsImage?.(!treatAsImage)}
             title={intl.formatMessage(catEditorPanelMessages.treatAsImageTitle)}
           >
-            <ImageIcon className="size-3" aria-hidden />
+            <HugeiconsIcon icon={Image01Icon} className="size-3" aria-hidden />
             <FormattedMessage
               {...(treatAsImage
                 ? catEditorPanelMessages.treatAsText
@@ -105,9 +106,9 @@ export function CatEditorImageSourceSection({
             onClick={onRegenerate}
           >
             {isBusy ? (
-              <Loader2 className="size-3 animate-spin" aria-hidden />
+              <HugeiconsIcon icon={Loading03Icon} className="size-3 animate-spin" aria-hidden />
             ) : (
-              <RefreshCw className="size-3" aria-hidden />
+              <HugeiconsIcon icon={RefreshIcon} className="size-3" aria-hidden />
             )}
             <FormattedMessage {...catEditorPanelMessages.regenerateImage} />
           </Button>
@@ -150,7 +151,7 @@ export function CatEditorImageTargetSection({
 
       {isLoading ? (
         <div className="flex min-h-40 items-center justify-center border border-dashed border-border text-sm text-muted-foreground">
-          <Loader2 className="size-5 animate-spin" aria-hidden />
+          <HugeiconsIcon icon={Loading03Icon} className="size-5 animate-spin" aria-hidden />
         </div>
       ) : (
         <CatImagePreview
@@ -170,9 +171,9 @@ export function CatEditorImageTargetSection({
             onClick={onRegenerate}
           >
             {isBusy ? (
-              <Loader2 className="size-3 animate-spin" aria-hidden />
+              <HugeiconsIcon icon={Loading03Icon} className="size-3 animate-spin" aria-hidden />
             ) : (
-              <RefreshCw className="size-3" aria-hidden />
+              <HugeiconsIcon icon={RefreshIcon} className="size-3" aria-hidden />
             )}
             <FormattedMessage {...catEditorPanelMessages.regenerateImage} />
           </Button>
@@ -184,7 +185,7 @@ export function CatEditorImageTargetSection({
               !canEdit || isBusy ? "pointer-events-none opacity-50" : ""
             }`}
           >
-            <Upload className="size-3" aria-hidden />
+            <HugeiconsIcon icon={Upload01Icon} className="size-3" aria-hidden />
             <FormattedMessage {...catEditorPanelMessages.uploadImage} />
             <input
               type="file"

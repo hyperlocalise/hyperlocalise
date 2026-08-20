@@ -10,8 +10,9 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { CheckIcon } from "lucide-react";
 
+import { Tick02Icon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import { REQUEST_DEMO_URL } from "@/components/marketing/request-demo";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -85,7 +86,11 @@ export function PricingPlansSection({ plans, popularBadge }: PricingPlansSection
           <ul className="mb-8 flex flex-col gap-3">
             {plan.features.map((feature) => (
               <li key={feature} className="flex items-start gap-3 text-sm text-muted-foreground">
-                <CheckIcon className="mt-0.5 size-4 shrink-0 text-foreground" aria-hidden />
+                <HugeiconsIcon
+                  icon={Tick02Icon}
+                  className="mt-0.5 size-4 shrink-0 text-foreground"
+                  aria-hidden
+                />
                 <span>{feature}</span>
               </li>
             ))}

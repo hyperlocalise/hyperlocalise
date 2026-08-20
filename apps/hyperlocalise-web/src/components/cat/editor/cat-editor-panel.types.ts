@@ -78,6 +78,7 @@ export type CatEditorPanelProps = {
   segmentShareUrl?: string | null;
   providerKind?: string | null;
   onTreatAsImage?: (treatAsImage: boolean) => void;
+  onTreatAsVideo?: (treatAsVideo: boolean) => void;
   onRegenerateImage?: () => void;
   onUploadImage?: (file: File) => void;
 };

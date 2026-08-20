@@ -30,9 +30,7 @@ vi.mock("ai", async () => {
 });
 
 vi.mock("@/lib/env", () => ({
-  env: {
-    OPENAI_API_KEY: "test-openai-api-key",
-  },
+  env: {},
 }));
 
 function expectGenerateTextUsesInstructions(expectedInstructions: string) {

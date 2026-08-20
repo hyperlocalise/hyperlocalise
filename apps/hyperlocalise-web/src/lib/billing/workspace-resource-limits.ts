@@ -18,6 +18,8 @@ import { getAutumnSecretKey } from "@/lib/billing/autumn-config";
 import type { DatabaseClient, DatabaseTransaction } from "@/lib/database";
 import { db, schema } from "@/lib/database";
 import { err, ok, type Result } from "@/lib/primitives/result/results";
+import { PRODUCT_USAGE_ANALYTICS_EVENTS } from "@/lib/analytics/events";
+import { serverAnalytics } from "@/lib/analytics/server";
 
 export const workspaceResourceFeatureIds = {
   seats: autumnFeatureIds.seats,
@@ -28,6 +30,13 @@ export const workspaceResourceFeatureIds = {
 
 export type WorkspaceResourceFeatureId =
   (typeof workspaceResourceFeatureIds)[keyof typeof workspaceResourceFeatureIds];
+
+const WORKSPACE_RESOURCE_ANALYTICS_EVENTS = {
+  [workspaceResourceFeatureIds.seats]: PRODUCT_USAGE_ANALYTICS_EVENTS.seatAdded,
+  [workspaceResourceFeatureIds.projects]: PRODUCT_USAGE_ANALYTICS_EVENTS.projectCreated,
+  [workspaceResourceFeatureIds.automations]: PRODUCT_USAGE_ANALYTICS_EVENTS.automationCreated,
+  [workspaceResourceFeatureIds.integrations]: PRODUCT_USAGE_ANALYTICS_EVENTS.integrationConnected,
+} as const;
 
 export type WorkspaceResourceLimitError =
   | {
@@ -313,7 +322,13 @@ export async function withWorkspaceResourceLimit<T>(
     });
     if (!limitResult.ok) return limitResult;
 
-    return ok(await fn(tx));
+    const value = await fn(tx);
+    const eventName = WORKSPACE_RESOURCE_ANALYTICS_EVENTS[input.featureId];
+    serverAnalytics.track(eventName, {
+      status: "created",
+      source: input.featureId,
+    });
+    return ok(value);
   };
 
   if (input.db) return run(input.db);

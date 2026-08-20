@@ -51,6 +51,8 @@ export function getTmsProviderLiveErrorStatus(code: string): TmsProviderLiveErro
     case "invalid_encoded_job_id":
     case "invalid_crowdin_project_or_file_id":
     case "invalid_crowdin_project_or_string_id":
+    case "crowdin_hidden_strings_forbidden":
+    case "crowdin_translation_update_rejected":
     case "crowdin_cat_all_files_query_too_large":
     case "invalid_phrase_project_id":
     case "invalid_smartling_project_id":

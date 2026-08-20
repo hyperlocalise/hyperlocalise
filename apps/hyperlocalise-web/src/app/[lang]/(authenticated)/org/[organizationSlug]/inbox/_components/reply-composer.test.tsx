@@ -44,6 +44,9 @@ function DraftBackedComposer({
           onDraftChange?.(next);
         }}
         onSend={vi.fn()}
+        projects={[]}
+        projectsIsError={false}
+        projectsIsLoading={false}
         repositories={repositoriesFixture}
         repositoriesIsError={false}
         repositoriesIsLoading={false}
@@ -59,6 +62,40 @@ function renderComposer(ui: ReactNode) {
     </IntlProvider>,
   );
 }
+
+describe("ReplyComposerView toolbar", () => {
+  it("shows the dock toolbar with send, github, and attachments", () => {
+    renderComposer(
+      <PromptInputProvider>
+        <ReplyComposerView
+          disabled={false}
+          initialProjectId="proj_website"
+          isStreaming={false}
+          onSend={vi.fn()}
+          projects={[
+            {
+              id: "proj_website",
+              name: "Hyperlocalise Website Localisation",
+              source: "native",
+              externalProviderKind: null,
+            },
+          ]}
+          projectsIsError={false}
+          projectsIsLoading={false}
+          repositories={repositoriesFixture}
+          repositoriesIsError={false}
+          repositoriesIsLoading={false}
+        />
+      </PromptInputProvider>,
+    );
+
+    expect(screen.getByRole("button", { name: "Send reply" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Send reply" })).toHaveTextContent("Send");
+    expect(screen.getByRole("button", { name: "Add photos and files" })).toBeInTheDocument();
+    expect(screen.getByText("GitHub repo")).toBeInTheDocument();
+    expect(screen.getByText("Hyperlocalise Website Localisation")).toBeInTheDocument();
+  });
+});
 
 describe("ReplyComposerView draft sync", () => {
   it("keeps typed characters when draft is lifted to parent state", async () => {
@@ -94,6 +131,9 @@ describe("ReplyComposerView draft sync", () => {
                 setRerenderCount((count) => count + 1);
               }}
               onSend={vi.fn()}
+              projects={[]}
+              projectsIsError={false}
+              projectsIsLoading={false}
               repositories={repositoriesFixture}
               repositoriesIsError={false}
               repositoriesIsLoading={false}
@@ -122,6 +162,9 @@ describe("ReplyComposerView draft sync", () => {
           disabled={false}
           isStreaming={false}
           onSend={vi.fn()}
+          projects={[]}
+          projectsIsError={false}
+          projectsIsLoading={false}
           repositories={repositoriesFixture}
           repositoriesIsError={false}
           repositoriesIsLoading={false}
@@ -153,6 +196,9 @@ describe("ReplyComposerView draft sync", () => {
               isStreaming={false}
               onDraftChange={setDraft}
               onSend={vi.fn()}
+              projects={[]}
+              projectsIsError={false}
+              projectsIsLoading={false}
               repositories={repositoriesFixture}
               repositoriesIsError={false}
               repositoriesIsLoading={false}

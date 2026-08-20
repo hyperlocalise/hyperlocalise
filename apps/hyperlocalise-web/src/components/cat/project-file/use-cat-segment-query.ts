@@ -19,10 +19,15 @@ import { useIntl } from "react-intl";
 import type { ProjectFileCatQueueFilter } from "@/api/routes/project/project.schema";
 import type { ProjectFileCatResponse } from "@/api/routes/project/project.schema";
 
-import { isServerQueueFilter, type CatQueueFilter } from "@/components/cat/queue/cat-queue-filter";
+import {
+  isServerQueueFilter,
+  type CatQueueFilter,
+  type CatQueueSort,
+} from "@/components/cat/queue/cat-queue-filter";
 import { mergeCatQueuePages } from "@/components/cat/queue/merge-cat-queue-pages";
 
 import {
+  canReuseCatQueuePlaceholderData,
   defaultCatPageLimit,
   fetchProjectFileCatQueuePage,
   projectFileCatBaseQueryKey,
@@ -57,14 +62,19 @@ export function useCatSegmentQuery(input: {
   targetLocale: string;
   enabled?: boolean;
   initialQueueFilter?: CatQueueFilter;
+  initialQueueSort?: CatQueueSort;
+  initialSearch?: string;
   pageLimit?: number;
   sourcePaths?: string | null;
 }) {
   const intl = useIntl();
   const queryClient = useQueryClient();
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useState(() => input.initialSearch ?? "");
   const [queueFilter, setQueueFilter] = useState<CatQueueFilter>(
     () => input.initialQueueFilter ?? "all",
+  );
+  const [queueSort, setQueueSort] = useState<CatQueueSort>(
+    () => input.initialQueueSort ?? "file_order",
   );
   const limit = input.pageLimit ?? defaultCatPageLimit;
   const debouncedSearch = useDebouncedValue(search, 300);
@@ -91,6 +101,7 @@ export function useCatSegmentQuery(input: {
         targetLocale: input.targetLocale,
         search: debouncedSearch,
         queueFilter: serverQueueFilter,
+        queueSort,
         limit,
         sourcePaths: input.sourcePaths,
       }),
@@ -105,6 +116,7 @@ export function useCatSegmentQuery(input: {
       input.sourcePaths,
       limit,
       serverQueueFilter,
+      queueSort,
     ],
   );
 
@@ -117,6 +129,17 @@ export function useCatSegmentQuery(input: {
   >({
     queryKey: baseQueryKey,
     enabled: input.enabled !== false && Boolean(input.targetLocale) && Boolean(input.sourcePath),
+    placeholderData: (previousData, previousQuery) => {
+      if (
+        previousData === undefined ||
+        previousQuery === undefined ||
+        !canReuseCatQueuePlaceholderData(previousQuery.queryKey, baseQueryKey)
+      ) {
+        return undefined;
+      }
+
+      return previousData;
+    },
     initialPageParam: { offset: 0 },
     getNextPageParam: (lastPage) => {
       const pagePagination = lastPage.pagination;
@@ -128,6 +151,8 @@ export function useCatSegmentQuery(input: {
         offset: pagePagination.offset + pagePagination.returnedCount,
         phraseScanPage: pagePagination.nextPhraseScanPage,
         phraseScanSkip: pagePagination.nextPhraseScanSkip,
+        sortBucket: pagePagination.nextSortBucket,
+        sortBucketOffset: pagePagination.nextSortBucketOffset,
       };
     },
     queryFn: ({ pageParam }) =>
@@ -140,10 +165,13 @@ export function useCatSegmentQuery(input: {
         targetLocale: input.targetLocale,
         search: debouncedSearch,
         queueFilter: serverQueueFilter,
+        queueSort,
         limit,
         offset: pageParam.offset,
         phraseScanPage: pageParam.phraseScanPage,
         phraseScanSkip: pageParam.phraseScanSkip,
+        sortBucket: pageParam.sortBucket,
+        sortBucketOffset: pageParam.sortBucketOffset,
         sourcePaths: input.sourcePaths,
         intl,
       }),
@@ -186,6 +214,7 @@ export function useCatSegmentQuery(input: {
         targetLocale: input.targetLocale,
         search: debouncedSearch,
         queueFilter: serverQueueFilter,
+        queueSort,
         limit,
         offset: 0,
         sourcePaths: input.sourcePaths,
@@ -201,6 +230,7 @@ export function useCatSegmentQuery(input: {
       input.sourcePaths,
       limit,
       serverQueueFilter,
+      queueSort,
     ],
   );
 
@@ -211,6 +241,8 @@ export function useCatSegmentQuery(input: {
     setSearch,
     queueFilter,
     setQueueFilter,
+    queueSort,
+    setQueueSort,
     debouncedSearch,
     isSearchPending,
     pagination,

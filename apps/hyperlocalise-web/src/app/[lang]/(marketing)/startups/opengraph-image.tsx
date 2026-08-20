@@ -36,5 +36,6 @@ export default async function Image({ params }: StartupsOgImageProps) {
   return createMarketingOgImage({
     heading: toMarketingOgHeading(metadata.title),
     description: metadata.description,
+    locale: lang,
   });
 }

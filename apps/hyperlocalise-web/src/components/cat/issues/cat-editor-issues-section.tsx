@@ -255,6 +255,9 @@ export function CatEditorIssuesSection({
           organizationSlug={organizationSlug}
           projectId={projectId}
           stringLink={stringLink}
+          // CAT's fixed default, independent of the project's configured default template. Still
+          // swappable or removable in the dialog before creating.
+          initialTemplateKey="tpl_context_request"
           onCreated={refresh}
         />
       ) : null}

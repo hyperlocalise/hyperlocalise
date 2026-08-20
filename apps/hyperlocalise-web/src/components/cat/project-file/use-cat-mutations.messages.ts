@@ -50,4 +50,20 @@ export const useCatMutationsMessages = defineMessages({
     id: "q7Osr9MF9k",
     description: "Fallback error when toggling treat-as-image mode fails",
   },
+  failedToUpdateVideoMode: {
+    defaultMessage: "Failed to update video mode",
+    id: "VaRVOa2ruT",
+    description: "Fallback error when toggling treat-as-video mode fails",
+  },
+  failedToUpdateHiddenStrings: {
+    defaultMessage: "Failed to update hidden strings",
+    id: "1BOxhADmQk",
+    description: "Fallback error when hiding or unhiding native CAT source strings fails",
+  },
+  cannotEditHiddenStringTranslation: {
+    defaultMessage:
+      "Hidden strings can't be edited from the CAT. Unhide the string in Crowdin first.",
+    id: "sfQrLcactN",
+    description: "Error when saving a translation for a hidden string",
+  },
 });

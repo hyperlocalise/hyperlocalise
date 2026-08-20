@@ -15,10 +15,11 @@
 import { useMutation } from "@tanstack/react-query";
 import { useIntl, type IntlShape } from "react-intl";
 
-import type {
-  ProjectFileCatComment,
-  ProjectFileCatQueueFile,
-  ProjectFileCatTranslation,
+import {
+  maxNativeCatHiddenStringBatch,
+  type ProjectFileCatComment,
+  type ProjectFileCatQueueFile,
+  type ProjectFileCatTranslation,
 } from "@/api/routes/project/project.schema";
 import { readApiError } from "@/lib/api-error";
 import { apiClient } from "@/lib/api-client-instance";
@@ -63,6 +64,14 @@ function resolveCatMutationFileIdentity(
   return { sourcePath, externalResourceId, resourceType };
 }
 
+function chunkItems<T>(items: T[], size: number): T[][] {
+  const chunks: T[][] = [];
+  for (let index = 0; index < items.length; index += size) {
+    chunks.push(items.slice(index, index + size));
+  }
+  return chunks;
+}
+
 export function useCatMutations(input: {
   organizationSlug: string;
   projectId: string;
@@ -83,6 +92,15 @@ export function useCatMutations(input: {
       text: string;
       approve?: boolean;
     }) => {
+      const segment = input.catFile?.segments.find(
+        (entry) => entry.externalStringId === mutationInput.externalStringId,
+      );
+      if (segment?.isHidden) {
+        throw new Error(
+          intl.formatMessage(useCatMutationsMessages.cannotEditHiddenStringTranslation),
+        );
+      }
+
       const { sourcePath, externalResourceId } = resolveCatMutationFileIdentity(
         input,
         mutationInput.externalStringId,
@@ -438,6 +456,87 @@ export function useCatMutations(input: {
     },
   });
 
+  const treatAsVideoMutation = useMutation({
+    mutationFn: async (mutationInput: { externalStringId: string; treatAsVideo: boolean }) => {
+      const { sourcePath } = resolveCatMutationFileIdentity(
+        input,
+        mutationInput.externalStringId,
+        intl,
+      );
+
+      const response = await apiClient.api.orgs[":organizationSlug"].projects[
+        ":projectId"
+      ].files.detail.cat.segments[":externalStringId"]["treat-as-video"].$post({
+        param: {
+          organizationSlug: input.organizationSlug,
+          projectId: input.projectId,
+          externalStringId: mutationInput.externalStringId,
+        },
+        json: {
+          sourcePath,
+          targetLocale: input.targetLocale,
+          externalStringId: mutationInput.externalStringId,
+          treatAsVideo: mutationInput.treatAsVideo,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(
+          await readApiError(
+            response,
+            intl.formatMessage(useCatMutationsMessages.failedToUpdateVideoMode),
+          ),
+        );
+      }
+
+      return response.json();
+    },
+    onSuccess: async (_data, variables) => {
+      await invalidateAfterImageChange(variables.externalStringId);
+    },
+  });
+
+  const hiddenStringsMutation = useMutation({
+    mutationFn: async (mutationInput: { externalStringIds: string[]; isHidden: boolean }) => {
+      const uniqueIds = [...new Set(mutationInput.externalStringIds)];
+      const chunks = chunkItems(uniqueIds, maxNativeCatHiddenStringBatch);
+      let updatedCount = 0;
+
+      for (const externalStringIds of chunks) {
+        const response = await apiClient.api.orgs[":organizationSlug"].projects[
+          ":projectId"
+        ].files.detail.cat.strings.hidden.$post({
+          param: {
+            organizationSlug: input.organizationSlug,
+            projectId: input.projectId,
+          },
+          json: {
+            sourcePath: input.sourcePath,
+            externalStringIds,
+            isHidden: mutationInput.isHidden,
+          },
+        });
+
+        if (!response.ok) {
+          throw new Error(
+            await readApiError(
+              response,
+              intl.formatMessage(useCatMutationsMessages.failedToUpdateHiddenStrings),
+            ),
+          );
+        }
+
+        const body = (await response.json()) as { updatedCount: number; isHidden: boolean };
+        updatedCount += body.updatedCount;
+      }
+
+      return { updatedCount, isHidden: mutationInput.isHidden };
+    },
+    onSuccess: async () => {
+      await input.invalidateQueue();
+    },
+  });
+
   return {
     saveMutation,
     saveTranslation: saveMutation.mutateAsync,
@@ -451,12 +550,16 @@ export function useCatMutations(input: {
     uploadImage: uploadImageMutation.mutateAsync,
     treatAsImageMutation,
     treatAsImage: treatAsImageMutation.mutateAsync,
+    treatAsVideoMutation,
+    treatAsVideo: treatAsVideoMutation.mutateAsync,
+    setStringsHidden: hiddenStringsMutation.mutateAsync,
     isSaving: saveMutation.isPending,
     isPostingComment: commentMutation.isPending,
     isResolvingComment: resolveCommentMutation.isPending,
     isImageBusy:
       regenerateImageMutation.isPending ||
       uploadImageMutation.isPending ||
-      treatAsImageMutation.isPending,
+      treatAsImageMutation.isPending ||
+      treatAsVideoMutation.isPending,
   };
 }

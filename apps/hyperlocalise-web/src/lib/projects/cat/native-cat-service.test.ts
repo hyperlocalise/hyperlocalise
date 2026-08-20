@@ -19,6 +19,7 @@ import { NativeCatService } from "./native-cat-service";
 
 const getLatestRepositorySourceFileVersion = vi.fn();
 const getImageVariant = vi.fn();
+const getVideoVariant = vi.fn();
 
 vi.mock("@/lib/file-storage/records", () => ({
   getLatestRepositorySourceFileVersion: (...args: unknown[]) =>
@@ -31,11 +32,18 @@ vi.mock("@/lib/projects/files/image-variant-service", () => ({
     `/api/orgs/${input.organizationSlug}/projects/${input.projectId}/assets/${input.fileId}`,
 }));
 
+vi.mock("@/lib/projects/files/video-variant-service", () => ({
+  getVideoVariant: (...args: unknown[]) => getVideoVariant(...args),
+  projectVideoAssetPath: (input: { organizationSlug: string; projectId: string; fileId: string }) =>
+    `/api/orgs/${input.organizationSlug}/projects/${input.projectId}/assets/${input.fileId}`,
+}));
+
 describe("NativeCatService.getCatFile", () => {
   const getRepositorySourceFileByPath = vi.fn();
   const listKeysForFile = vi.fn();
   const countKeysForFile = vi.fn();
   const getTranslationsByKeyIds = vi.fn();
+  const setKeysHidden = vi.fn();
   let service: NativeCatService;
 
   beforeEach(() => {
@@ -44,6 +52,7 @@ describe("NativeCatService.getCatFile", () => {
     getTranslationsByKeyIds.mockResolvedValue([]);
     getLatestRepositorySourceFileVersion.mockResolvedValue(null);
     getImageVariant.mockResolvedValue(null);
+    getVideoVariant.mockResolvedValue(null);
     countKeysForFile.mockImplementation(async (input) => {
       if (input.queueFilter === "reviewed") {
         return 45;
@@ -65,6 +74,7 @@ describe("NativeCatService.getCatFile", () => {
       listKeysForFile,
       countKeysForFile,
       getTranslationsByKeyIds,
+      setKeysHidden,
     } as unknown as ProjectTranslationService;
 
     service = new NativeCatService(undefined as never, translations, {} as NativeCatCommentService);
@@ -141,6 +151,38 @@ describe("NativeCatService.getCatFile", () => {
     expect(result?.segments[0]?.maxLength).toBeUndefined();
   });
 
+  it("forwards untranslated-first sort to the key listing query", async () => {
+    listKeysForFile.mockResolvedValue([]);
+
+    await service.getCatFile({
+      organizationId: "org_1",
+      projectId: "project_1",
+      sourcePath: "locales/en.json",
+      targetLocale: "fr",
+      canEditTranslations: true,
+      organizationSlug: "acme",
+      pagination: {
+        offset: 0,
+        limit: 50,
+        paginated: true,
+        queueSort: "untranslated_first",
+      },
+    });
+
+    expect(listKeysForFile).toHaveBeenCalledWith(
+      expect.objectContaining({
+        queueSort: "untranslated_first",
+        targetLocale: "fr",
+      }),
+    );
+    expect(countKeysForFile).toHaveBeenCalledWith(
+      expect.objectContaining({
+        targetLocale: "fr",
+      }),
+    );
+    expect(countKeysForFile.mock.calls[0]?.[0]).not.toHaveProperty("queueSort");
+  });
+
   it("includes maxLength on segments when the translation key has one", async () => {
     listKeysForFile.mockResolvedValue([
       {
@@ -191,6 +233,46 @@ describe("NativeCatService.getCatFile", () => {
     expect(result?.segments[0]?.maxLength).toBeUndefined();
   });
 
+  it("maps isHidden onto CAT segments when the translation key is hidden", async () => {
+    listKeysForFile.mockResolvedValue([
+      {
+        id: "key_hidden",
+        key: "debug.id",
+        sourceText: "Internal id",
+        context: null,
+        type: "text",
+        maxLength: null,
+        metadata: {},
+        isHidden: true,
+      },
+      {
+        id: "key_visible",
+        key: "hero.title",
+        sourceText: "Welcome",
+        context: null,
+        type: "text",
+        maxLength: null,
+        metadata: {},
+        isHidden: false,
+      },
+    ]);
+
+    const result = await service.getCatFile({
+      organizationId: "org_1",
+      projectId: "project_1",
+      sourcePath: "locales/en.json",
+      targetLocale: "fr",
+      canEditTranslations: true,
+      organizationSlug: "acme",
+    });
+
+    expect(result?.segments[0]).toMatchObject({
+      externalStringId: "key_hidden",
+      isHidden: true,
+    });
+    expect(result?.segments[1]).not.toHaveProperty("isHidden");
+  });
+
   it("returns a synthetic image_file segment for png sources", async () => {
     getLatestRepositorySourceFileVersion.mockResolvedValue({
       storedFileId: "stored_source_1",
@@ -220,6 +302,39 @@ describe("NativeCatService.getCatFile", () => {
       sourceAssetUrl: "/api/orgs/acme/projects/project_1/assets/stored_source_1",
       targetAssetUrl: "/api/orgs/acme/projects/project_1/assets/stored_target_1",
       imageVariantId: "variant_1",
+    });
+  });
+
+  it("returns a synthetic video_file segment for mp4 sources", async () => {
+    getLatestRepositorySourceFileVersion.mockResolvedValue({
+      storedFileId: "stored_source_video",
+    });
+    getVideoVariant.mockResolvedValue({
+      id: "variant_video",
+      storedFileId: "stored_target_video",
+      status: "needs_review",
+    });
+
+    const result = await service.getCatFile({
+      organizationId: "org_1",
+      projectId: "project_1",
+      sourcePath: "assets/hero.mp4",
+      targetLocale: "fr",
+      canEditTranslations: true,
+      organizationSlug: "acme",
+    });
+
+    expect(listKeysForFile).not.toHaveBeenCalled();
+    expect(getImageVariant).not.toHaveBeenCalled();
+    expect(result?.segments).toHaveLength(1);
+    expect(result?.segments[0]).toMatchObject({
+      externalStringId: "file_1",
+      key: "assets/hero.mp4",
+      sourceText: "assets/hero.mp4",
+      contentKind: "video_file",
+      sourceAssetUrl: "/api/orgs/acme/projects/project_1/assets/stored_source_video",
+      targetAssetUrl: "/api/orgs/acme/projects/project_1/assets/stored_target_video",
+      imageVariantId: "variant_video",
     });
   });
 
@@ -282,5 +397,75 @@ describe("NativeCatService.getCatFile", () => {
       sourceAssetUrl: "https://cdn.example.com/banner.png",
       looksLikeImageUrl: true,
     });
+  });
+
+  it("marks video URL keys with contentKind and looksLikeVideoUrl", async () => {
+    listKeysForFile.mockResolvedValue([
+      {
+        id: "key_video",
+        key: "banner.video",
+        sourceText: "https://cdn.example.com/banner.mp4",
+        context: null,
+        type: "text",
+        maxLength: null,
+        metadata: { contentKind: "video_url" },
+      },
+    ]);
+
+    const result = await service.getCatFile({
+      organizationId: "org_1",
+      projectId: "project_1",
+      sourcePath: "locales/en.json",
+      targetLocale: "fr",
+      canEditTranslations: true,
+      organizationSlug: "acme",
+    });
+
+    expect(result?.segments[0]).toMatchObject({
+      contentKind: "video_url",
+      sourceAssetUrl: "https://cdn.example.com/banner.mp4",
+      looksLikeVideoUrl: true,
+    });
+  });
+
+  it("scopes hidden updates to the source file when sourcePath is provided", async () => {
+    setKeysHidden.mockResolvedValue({ updatedCount: 1 });
+
+    await service.setKeysHidden({
+      organizationId: "org_1",
+      projectId: "project_1",
+      translationKeyIds: ["key_1", "key_2"],
+      isHidden: true,
+      sourcePath: "locales/en.json",
+    });
+
+    expect(getRepositorySourceFileByPath).toHaveBeenCalledWith({
+      organizationId: "org_1",
+      projectId: "project_1",
+      sourcePath: "locales/en.json",
+    });
+    expect(setKeysHidden).toHaveBeenCalledWith({
+      organizationId: "org_1",
+      projectId: "project_1",
+      translationKeyIds: ["key_1", "key_2"],
+      isHidden: true,
+      repositorySourceFileId: "file_1",
+    });
+  });
+
+  it("does not update hidden state when the source file is missing", async () => {
+    getRepositorySourceFileByPath.mockResolvedValueOnce(null);
+
+    await expect(
+      service.setKeysHidden({
+        organizationId: "org_1",
+        projectId: "project_1",
+        translationKeyIds: ["key_1"],
+        isHidden: true,
+        sourcePath: "locales/missing.json",
+      }),
+    ).resolves.toEqual({ updatedCount: 0 });
+
+    expect(setKeysHidden).not.toHaveBeenCalled();
   });
 });

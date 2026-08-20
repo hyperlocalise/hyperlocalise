@@ -537,4 +537,323 @@ describe("IssueNotificationService", () => {
     ).toBe(true);
     expect(rows.some((row) => row.recipientUserId === outsiderUserId)).toBe(false);
   });
+
+  it("notifies newly added mentions when a comment is edited", async () => {
+    const { actor, assigneeUserId, organization, project } = await createProjectWithAssignee();
+    const issue = await issueSheetService.createIssue({
+      organizationId: organization.id,
+      projectId: project.id,
+      actorUserId: actor.id,
+      body: {
+        title: "Mention on edit",
+        assigneeUserId,
+      },
+    });
+
+    const auth = globalThis.__testApiAuthContext!;
+    const created = await commentService.create({
+      organizationId: organization.id,
+      projectId: project.id,
+      issueId: issue.id,
+      actorUserId: actor.id,
+      role: "admin",
+      auth,
+      body: { body: "Initial comment" },
+    });
+    expect(created.ok).toBe(true);
+    if (!created.ok) {
+      return;
+    }
+
+    await db
+      .delete(schema.issueNotifications)
+      .where(eq(schema.issueNotifications.issueId, issue.id));
+
+    const updated = await commentService.update({
+      organizationId: organization.id,
+      projectId: project.id,
+      issueId: issue.id,
+      commentId: created.value.id,
+      actorUserId: actor.id,
+      role: "admin",
+      auth,
+      body: {
+        body: "Updated with mention",
+        mentionedUserIds: [assigneeUserId],
+      },
+    });
+    expect(updated.ok).toBe(true);
+
+    const rows = await db
+      .select()
+      .from(schema.issueNotifications)
+      .where(eq(schema.issueNotifications.issueId, issue.id));
+
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({
+      recipientUserId: assigneeUserId,
+      type: "mentioned",
+    });
+  });
+
+  it("does not bump mention notification readAt when mentions are unchanged on edit", async () => {
+    const { actor, assigneeUserId, organization, project } = await createProjectWithAssignee();
+    const issue = await issueSheetService.createIssue({
+      organizationId: organization.id,
+      projectId: project.id,
+      actorUserId: actor.id,
+      body: {
+        title: "Keep mention",
+        assigneeUserId,
+      },
+    });
+
+    const auth = globalThis.__testApiAuthContext!;
+    const created = await commentService.create({
+      organizationId: organization.id,
+      projectId: project.id,
+      issueId: issue.id,
+      actorUserId: actor.id,
+      role: "admin",
+      auth,
+      body: {
+        body: "Hello assignee",
+        mentionedUserIds: [assigneeUserId],
+      },
+    });
+    expect(created.ok).toBe(true);
+    if (!created.ok) {
+      return;
+    }
+
+    const readAt = new Date("2026-01-01T00:00:00.000Z");
+    await db
+      .update(schema.issueNotifications)
+      .set({ readAt })
+      .where(
+        and(
+          eq(schema.issueNotifications.issueId, issue.id),
+          eq(schema.issueNotifications.recipientUserId, assigneeUserId),
+          eq(schema.issueNotifications.type, "mentioned"),
+        ),
+      );
+
+    const updated = await commentService.update({
+      organizationId: organization.id,
+      projectId: project.id,
+      issueId: issue.id,
+      commentId: created.value.id,
+      actorUserId: actor.id,
+      role: "admin",
+      auth,
+      body: {
+        body: "Hello assignee again",
+        mentionedUserIds: [assigneeUserId],
+      },
+    });
+    expect(updated.ok).toBe(true);
+
+    const [row] = await db
+      .select()
+      .from(schema.issueNotifications)
+      .where(
+        and(
+          eq(schema.issueNotifications.issueId, issue.id),
+          eq(schema.issueNotifications.recipientUserId, assigneeUserId),
+          eq(schema.issueNotifications.type, "mentioned"),
+        ),
+      );
+
+    expect(row?.readAt?.toISOString()).toBe(readAt.toISOString());
+  });
+
+  it("does not send comment notifications to watchers when a mention is added on edit", async () => {
+    const { actor, assigneeUserId, organization, project } = await createProjectWithAssignee();
+    const issue = await issueSheetService.createIssue({
+      organizationId: organization.id,
+      projectId: project.id,
+      actorUserId: actor.id,
+      body: {
+        title: "Watcher on edit",
+        assigneeUserId,
+      },
+    });
+
+    const auth = globalThis.__testApiAuthContext!;
+    const created = await commentService.create({
+      organizationId: organization.id,
+      projectId: project.id,
+      issueId: issue.id,
+      actorUserId: actor.id,
+      role: "admin",
+      auth,
+      body: { body: "No mention yet" },
+    });
+    expect(created.ok).toBe(true);
+    if (!created.ok) {
+      return;
+    }
+
+    const commentRowsBefore = await db
+      .select()
+      .from(schema.issueNotifications)
+      .where(
+        and(
+          eq(schema.issueNotifications.issueId, issue.id),
+          eq(schema.issueNotifications.recipientUserId, assigneeUserId),
+          eq(schema.issueNotifications.type, "comment"),
+        ),
+      );
+    expect(commentRowsBefore).toHaveLength(1);
+
+    const updated = await commentService.update({
+      organizationId: organization.id,
+      projectId: project.id,
+      issueId: issue.id,
+      commentId: created.value.id,
+      actorUserId: actor.id,
+      role: "admin",
+      auth,
+      body: {
+        body: "Now with mention",
+        mentionedUserIds: [assigneeUserId],
+      },
+    });
+    expect(updated.ok).toBe(true);
+
+    const commentRowsAfter = await db
+      .select()
+      .from(schema.issueNotifications)
+      .where(
+        and(
+          eq(schema.issueNotifications.issueId, issue.id),
+          eq(schema.issueNotifications.recipientUserId, assigneeUserId),
+          eq(schema.issueNotifications.type, "comment"),
+        ),
+      );
+    expect(commentRowsAfter).toHaveLength(1);
+
+    const mentionedRows = await db
+      .select()
+      .from(schema.issueNotifications)
+      .where(
+        and(
+          eq(schema.issueNotifications.issueId, issue.id),
+          eq(schema.issueNotifications.recipientUserId, assigneeUserId),
+          eq(schema.issueNotifications.type, "mentioned"),
+        ),
+      );
+    expect(mentionedRows).toHaveLength(1);
+  });
+
+  it("notifies only newly added mentions when a comment edit replaces mentions", async () => {
+    const { actor, assigneeUserId, organization, project, actorIdentity } =
+      await createProjectWithAssignee();
+    const issue = await issueSheetService.createIssue({
+      organizationId: organization.id,
+      projectId: project.id,
+      actorUserId: actor.id,
+      body: {
+        title: "Replace mentions on edit",
+        assigneeUserId,
+      },
+    });
+
+    const replacementIdentity = authFixture.createWorkosIdentityForOrganization(
+      actorIdentity.organization,
+      "member",
+    );
+    await authFixture.authHeadersFor(replacementIdentity);
+    const replacementUserId = await authFixture.getLocalUserId(
+      replacementIdentity.user.workosUserId,
+    );
+    const team = await ensureDefaultWorkspaceTeam(organization.id);
+    await db
+      .insert(schema.teamMemberships)
+      .values({
+        teamId: team.id,
+        userId: replacementUserId,
+        role: "member",
+      })
+      .onConflictDoNothing();
+    await authFixture.authHeadersFor(actorIdentity);
+
+    const auth = globalThis.__testApiAuthContext!;
+    const created = await commentService.create({
+      organizationId: organization.id,
+      projectId: project.id,
+      issueId: issue.id,
+      actorUserId: actor.id,
+      role: "admin",
+      auth,
+      body: {
+        body: "Mention assignee first",
+        mentionedUserIds: [assigneeUserId],
+      },
+    });
+    expect(created.ok).toBe(true);
+    if (!created.ok) {
+      return;
+    }
+
+    await db
+      .delete(schema.issueNotifications)
+      .where(eq(schema.issueNotifications.issueId, issue.id));
+
+    const updated = await commentService.update({
+      organizationId: organization.id,
+      projectId: project.id,
+      issueId: issue.id,
+      commentId: created.value.id,
+      actorUserId: actor.id,
+      role: "admin",
+      auth,
+      body: {
+        body: "Now mention replacement only",
+        mentionedUserIds: [replacementUserId],
+      },
+    });
+    expect(updated.ok).toBe(true);
+
+    const rows = await db
+      .select()
+      .from(schema.issueNotifications)
+      .where(
+        and(
+          eq(schema.issueNotifications.issueId, issue.id),
+          eq(schema.issueNotifications.type, "mentioned"),
+        ),
+      );
+
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.recipientUserId).toBe(replacementUserId);
+
+    const cleared = await commentService.update({
+      organizationId: organization.id,
+      projectId: project.id,
+      issueId: issue.id,
+      commentId: created.value.id,
+      actorUserId: actor.id,
+      role: "admin",
+      auth,
+      body: {
+        body: "No mentions left",
+        mentionedUserIds: [],
+      },
+    });
+    expect(cleared.ok).toBe(true);
+
+    const rowsAfterClear = await db
+      .select()
+      .from(schema.issueNotifications)
+      .where(
+        and(
+          eq(schema.issueNotifications.issueId, issue.id),
+          eq(schema.issueNotifications.type, "mentioned"),
+        ),
+      );
+    // Removing mentions must not emit another notification row.
+    expect(rowsAfterClear).toHaveLength(1);
+    expect(rowsAfterClear[0]?.recipientUserId).toBe(replacementUserId);
+  });
 });

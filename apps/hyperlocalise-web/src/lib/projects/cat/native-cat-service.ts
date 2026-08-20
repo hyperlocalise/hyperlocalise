@@ -36,13 +36,20 @@ import {
   IMAGE_URL_CONTENT_KIND,
   isImageUrlContentKind,
 } from "@/lib/projects/files/image-url-translation-service";
+import { getVideoVariant, projectVideoAssetPath } from "@/lib/projects/files/video-variant-service";
+import {
+  VIDEO_URL_CONTENT_KIND,
+  isVideoUrlContentKind,
+} from "@/lib/projects/files/video-url-translation-service";
 import { ProjectServiceBase } from "@/lib/projects/project-service-base";
 import { ProjectTranslationService } from "@/lib/projects/translations/project-translation-service";
 import {
   inferSupportedBinaryTranslationFileFormat,
   inferSupportedImageTranslationFileFormat,
   inferSupportedOfficeTranslationFileFormat,
+  inferSupportedVideoTranslationFileFormat,
   looksLikeImageUrl,
+  looksLikeVideoUrl,
 } from "@/lib/translation/file-formats";
 
 function filenameFromSourcePath(sourcePath: string) {
@@ -54,6 +61,10 @@ function binaryFileExternalStringId(sourceFileId: string, sourcePath: string) {
 }
 
 function imageFileExternalStringId(sourceFileId: string, sourcePath: string) {
+  return binaryFileExternalStringId(sourceFileId, sourcePath);
+}
+
+function videoFileExternalStringId(sourceFileId: string, sourcePath: string) {
   return binaryFileExternalStringId(sourceFileId, sourcePath);
 }
 
@@ -89,12 +100,20 @@ function mapTextSegment(
     type: string | null;
     maxLength: number | null;
     metadata: Record<string, unknown> | null;
+    isHidden?: boolean;
     sourcePath?: string;
   },
   options?: { includeSourcePath?: boolean },
 ): ProjectFileCatSegment {
-  const contentKind = isImageUrlContentKind(key.metadata) ? IMAGE_URL_CONTENT_KIND : undefined;
-  const looksLikeUrl = looksLikeImageUrl(key.sourceText);
+  const isVideoUrl = isVideoUrlContentKind(key.metadata);
+  const isImageUrl = isImageUrlContentKind(key.metadata);
+  const contentKind = isVideoUrl
+    ? VIDEO_URL_CONTENT_KIND
+    : isImageUrl
+      ? IMAGE_URL_CONTENT_KIND
+      : undefined;
+  const looksLikeImage = looksLikeImageUrl(key.sourceText);
+  const looksLikeVideo = looksLikeVideoUrl(key.sourceText);
 
   return {
     externalStringId: key.id,
@@ -103,11 +122,13 @@ function mapTextSegment(
     context: key.context,
     type: key.type,
     ...(key.maxLength != null && key.maxLength > 0 ? { maxLength: key.maxLength } : {}),
+    ...(key.isHidden ? { isHidden: true as const } : {}),
     ...(contentKind ? { contentKind } : {}),
-    ...(contentKind === IMAGE_URL_CONTENT_KIND ? { sourceAssetUrl: key.sourceText } : {}),
-    ...(looksLikeUrl || contentKind === IMAGE_URL_CONTENT_KIND
-      ? { looksLikeImageUrl: looksLikeUrl || contentKind === IMAGE_URL_CONTENT_KIND }
+    ...(contentKind === IMAGE_URL_CONTENT_KIND || contentKind === VIDEO_URL_CONTENT_KIND
+      ? { sourceAssetUrl: key.sourceText }
       : {}),
+    ...(looksLikeImage || isImageUrl ? { looksLikeImageUrl: looksLikeImage || isImageUrl } : {}),
+    ...(looksLikeVideo || isVideoUrl ? { looksLikeVideoUrl: looksLikeVideo || isVideoUrl } : {}),
     ...(options?.includeSourcePath && key.sourcePath ? { sourcePath: key.sourcePath } : {}),
   };
 }
@@ -157,6 +178,13 @@ export class NativeCatService extends ProjectServiceBase {
       });
     }
 
+    if (inferSupportedVideoTranslationFileFormat(input.sourcePath)) {
+      return this.buildVideoCatFileResponse({
+        input,
+        sourceFileId: sourceFile.id,
+      });
+    }
+
     if (inferSupportedOfficeTranslationFileFormat(input.sourcePath)) {
       return this.buildOfficeCatFileResponse({
         input,
@@ -169,6 +197,7 @@ export class NativeCatService extends ProjectServiceBase {
       limit: legacyNativeCatSegmentLimit,
       search: undefined,
       queueFilter: "all",
+      queueSort: "file_order",
       paginated: false,
     };
 
@@ -209,6 +238,7 @@ export class NativeCatService extends ProjectServiceBase {
         offset: paginationInput.offset,
         search: paginationInput.search,
         queueFilter: paginationInput.queueFilter,
+        queueSort: paginationInput.queueSort,
       }),
     ]);
 
@@ -286,6 +316,73 @@ export class NativeCatService extends ProjectServiceBase {
           context: null,
           type: null,
           contentKind: "image_file",
+          sourceAssetUrl,
+          targetAssetUrl,
+          imageVariantId: variant?.id ?? null,
+        },
+      ],
+    };
+  }
+
+  private async buildVideoCatFileResponse(input: {
+    input: {
+      organizationId: string;
+      projectId: string;
+      sourcePath: string;
+      targetLocale: string;
+      canEditTranslations: boolean;
+      organizationSlug: string;
+    };
+    sourceFileId: string;
+  }): Promise<ProjectFileCatQueueFile> {
+    const [latestVersion, variant] = await Promise.all([
+      getLatestRepositorySourceFileVersion({
+        organizationId: input.input.organizationId,
+        projectId: input.input.projectId,
+        sourcePath: input.input.sourcePath,
+        db: this.database,
+      }),
+      getVideoVariant({
+        organizationId: input.input.organizationId,
+        projectId: input.input.projectId,
+        sourcePath: input.input.sourcePath,
+        targetLocale: input.input.targetLocale,
+        db: this.database,
+      }),
+    ]);
+
+    const sourceStoredFileId = latestVersion?.storedFileId ?? null;
+    const targetStoredFileId = variant?.storedFileId ?? null;
+    const sourceAssetUrl = sourceStoredFileId
+      ? projectVideoAssetPath({
+          organizationSlug: input.input.organizationSlug,
+          projectId: input.input.projectId,
+          fileId: sourceStoredFileId,
+        })
+      : null;
+    const targetAssetUrl = targetStoredFileId
+      ? projectVideoAssetPath({
+          organizationSlug: input.input.organizationSlug,
+          projectId: input.input.projectId,
+          fileId: targetStoredFileId,
+        })
+      : null;
+
+    return {
+      sourcePath: input.input.sourcePath,
+      filename: filenameFromSourcePath(input.input.sourcePath),
+      provider: null,
+      targetLocale: input.input.targetLocale,
+      canEditTranslations: input.input.canEditTranslations,
+      truncated: false,
+      segments: [
+        {
+          externalStringId: videoFileExternalStringId(input.sourceFileId, input.input.sourcePath),
+          key: input.input.sourcePath,
+          sourceText: input.input.sourcePath,
+          context: null,
+          type: null,
+          contentKind: "video_file",
           sourceAssetUrl,
           targetAssetUrl,
           imageVariantId: variant?.id ?? null,
@@ -374,6 +471,7 @@ export class NativeCatService extends ProjectServiceBase {
       limit: legacyNativeCatSegmentLimit,
       search: undefined,
       queueFilter: "all",
+      queueSort: "file_order",
       paginated: true,
     };
 
@@ -399,6 +497,7 @@ export class NativeCatService extends ProjectServiceBase {
         offset,
         search: paginationInput.search,
         queueFilter: paginationInput.queueFilter,
+        queueSort: paginationInput.queueSort,
         sourcePaths: input.sourcePaths,
       }),
     ]);
@@ -453,6 +552,35 @@ export class NativeCatService extends ProjectServiceBase {
       pagination: input.pagination,
       segments: input.visibleKeys.map((key) => mapTextSegment(key)),
     };
+  }
+
+  async setKeysHidden(input: {
+    organizationId: string;
+    projectId: string;
+    translationKeyIds: string[];
+    isHidden: boolean;
+    sourcePath?: string;
+  }) {
+    let repositorySourceFileId: string | undefined;
+    if (input.sourcePath && !isCatAllFilesSourcePath(input.sourcePath)) {
+      const sourceFile = await this.translations.getRepositorySourceFileByPath({
+        organizationId: input.organizationId,
+        projectId: input.projectId,
+        sourcePath: input.sourcePath,
+      });
+      if (!sourceFile) {
+        return { updatedCount: 0 };
+      }
+      repositorySourceFileId = sourceFile.id;
+    }
+
+    return this.translations.setKeysHidden({
+      organizationId: input.organizationId,
+      projectId: input.projectId,
+      translationKeyIds: input.translationKeyIds,
+      isHidden: input.isHidden,
+      repositorySourceFileId,
+    });
   }
 
   async saveComment(input: Parameters<NativeCatCommentService["save"]>[0]) {
@@ -692,29 +820,42 @@ export class NativeCatService extends ProjectServiceBase {
         return "not_found";
       }
 
-      const contentKind = inferSupportedOfficeTranslationFileFormat(input.sourcePath)
-        ? ("office_file" as const)
-        : ("image_file" as const);
+      const isVideo = Boolean(inferSupportedVideoTranslationFileFormat(input.sourcePath));
+      const isOffice = Boolean(inferSupportedOfficeTranslationFileFormat(input.sourcePath));
+      const contentKind = isVideo
+        ? ("video_file" as const)
+        : isOffice
+          ? ("office_file" as const)
+          : ("image_file" as const);
       const expectedId = binaryFileExternalStringId(sourceFile.id, input.sourcePath);
       if (
         input.externalStringId !== expectedId &&
         input.externalStringId !== sourceFile.id &&
         input.externalStringId !== `image:${input.sourcePath}` &&
+        input.externalStringId !== `video:${input.sourcePath}` &&
         input.externalStringId !== `binary:${input.sourcePath}`
       ) {
         return "not_found";
       }
 
-      const variant = await getImageVariant({
-        organizationId: input.organizationId,
-        projectId: input.projectId,
-        sourcePath: input.sourcePath,
-        targetLocale: input.targetLocale,
-        db: this.database,
-      });
+      const variant = isVideo
+        ? await getVideoVariant({
+            organizationId: input.organizationId,
+            projectId: input.projectId,
+            sourcePath: input.sourcePath,
+            targetLocale: input.targetLocale,
+            db: this.database,
+          })
+        : await getImageVariant({
+            organizationId: input.organizationId,
+            projectId: input.projectId,
+            sourcePath: input.sourcePath,
+            targetLocale: input.targetLocale,
+            db: this.database,
+          });
 
       const targetAssetUrl = variant?.storedFileId
-        ? projectImageAssetPath({
+        ? (isVideo ? projectVideoAssetPath : projectImageAssetPath)({
             organizationSlug: input.organizationSlug,
             projectId: input.projectId,
             fileId: variant.storedFileId,
@@ -767,7 +908,11 @@ export class NativeCatService extends ProjectServiceBase {
       return null;
     }
 
-    const contentKind = isImageUrlContentKind(key.metadata) ? IMAGE_URL_CONTENT_KIND : undefined;
+    const contentKind = isVideoUrlContentKind(key.metadata)
+      ? VIDEO_URL_CONTENT_KIND
+      : isImageUrlContentKind(key.metadata)
+        ? IMAGE_URL_CONTENT_KIND
+        : undefined;
 
     return toCatTranslation({
       ...translation,
@@ -844,3 +989,7 @@ export const resolveNativeProjectCatLegacyIssueComment = (
 export const updateNativeProjectTranslationStatus = (
   input: Parameters<NativeCatService["updateTranslationStatus"]>[0],
 ) => nativeCatService.updateTranslationStatus(input);
+
+export const setNativeProjectCatStringsHidden = (
+  input: Parameters<NativeCatService["setKeysHidden"]>[0],
+) => nativeCatService.setKeysHidden(input);

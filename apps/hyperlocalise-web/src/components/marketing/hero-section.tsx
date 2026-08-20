@@ -26,7 +26,7 @@ import { TypographyH1, TypographyP } from "@/components/ui/typography";
 import { cn } from "@/lib/primitives/cn";
 
 const dashboardHref = "/dashboard";
-const HERO_IMAGE_SRC = "/images/nasa-Q1p7bh3SHj8-unsplash.jpg";
+const HERO_IMAGE_SRC = "/images/vimal-s-GBg3jyGS-Ug-unsplash.jpg";
 
 const TRUSTED_BY_LOGOS = [
   {
@@ -89,7 +89,7 @@ export function HeroSection() {
         fill
         priority
         sizes="100vw"
-        className="object-cover object-[center_35%]"
+        className="object-cover object-[center_40%]"
       />
       <div
         className="absolute inset-0 bg-gradient-to-b from-black/55 via-black/40 to-black/80"

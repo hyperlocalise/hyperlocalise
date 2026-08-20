@@ -22,7 +22,11 @@ import { CatEditorShortcutKbd } from "@/components/cat/editor/cat-editor-shortcu
 import { CatEditorSourceSection } from "@/components/cat/editor/cat-editor-source-section";
 import { CatEditorTargetSection } from "@/components/cat/editor/cat-editor-target-section";
 import { CatIntelligencePanel } from "@/components/cat/intelligence/cat-intelligence-panel";
-import { SegmentStatusBadge } from "@/components/cat/segment/cat-segment-status";
+import { CatHiddenStringBadge } from "@/components/cat/segment/cat-hidden-string-badge";
+import {
+  SegmentStatusBadge,
+  shouldShowSegmentStatusBadge,
+} from "@/components/cat/segment/cat-segment-status";
 import { catEditorPanelMessages } from "@/components/cat/shared/cat.messages";
 import type {
   CatSegmentCommentInput,
@@ -114,7 +118,10 @@ export function CatVisualEditorDetailPanel({
         <div className="min-w-0 space-y-1.5">
           <h2 className="truncate text-sm font-semibold text-foreground">{heading}</h2>
           <div className="flex flex-wrap items-center gap-1.5">
-            <SegmentStatusBadge status={segment.status} />
+            {shouldShowSegmentStatusBadge(segment.status, segment.isHidden) ? (
+              <SegmentStatusBadge status={segment.status} />
+            ) : null}
+            {segment.isHidden ? <CatHiddenStringBadge /> : null}
             {isTargetDirty ? (
               <Badge variant="outline" className="border-bud-500/40 bg-bud-500/10 text-bud-300">
                 <FormattedMessage {...catEditorPanelMessages.unsavedChanges} />

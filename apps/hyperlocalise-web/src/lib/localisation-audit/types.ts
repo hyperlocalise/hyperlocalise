@@ -11,7 +11,7 @@
  * Version 2.0 or later.
  */
 
-export type LocalisationAuditStatus = "queued" | "running" | "succeeded" | "failed";
+export type LocalisationAuditStatus = "queued" | "running" | "succeeded" | "failed" | "blocked";
 
 export type LocalisationAuditProgressStage =
   | "queued"
@@ -20,11 +20,21 @@ export type LocalisationAuditProgressStage =
   | "analyzing"
   | "scoring"
   | "completed"
-  | "failed";
+  | "failed"
+  | "blocked";
 
-export type LocalisationAuditFindingSeverity = "critical" | "warning" | "info";
+/** `warning` is a legacy stored-report value; treat it as `high`. */
+export type LocalisationAuditFindingSeverity =
+  | "critical"
+  | "high"
+  | "medium"
+  | "low"
+  | "info"
+  | "warning";
 
-export type LocalisationAuditFindingCategory = "technical" | "linguistic";
+export type LocalisationAuditDimension = "technical" | "linguistic" | "contextual" | "visual";
+
+export type LocalisationAuditFindingCategory = LocalisationAuditDimension;
 
 export type LocalisationAuditFinding = {
   id: string;
@@ -32,14 +42,30 @@ export type LocalisationAuditFinding = {
   severity: LocalisationAuditFindingSeverity;
   title: string;
   summary: string;
+  /** Page section and HTML tag, e.g. "Document head · <html lang>". */
+  where?: string;
   url?: string;
   evidence?: string;
+  /** Concrete fix for this finding; not a restatement of the summary. */
+  advice?: string;
+  confidence?: number;
+  creditId?: string;
 };
 
 export type LocalisationAuditLocaleSignal = {
   locale: string;
   source: "hreflang" | "html_lang" | "url_prefix" | "url_subdomain" | "focus";
   sampleUrl?: string;
+};
+
+export type LocalisationAuditJsonLd = {
+  type: string;
+  inLanguage: string | null;
+};
+
+export type LocalisationAuditAltText = {
+  alt: string;
+  src: string;
 };
 
 export type LocalisationAuditCrawledPage = {
@@ -50,6 +76,79 @@ export type LocalisationAuditCrawledPage = {
   title: string | null;
   textSample: string;
   hreflang: Array<{ locale: string; href: string }>;
+  canonical: string | null;
+  metaDescription: string | null;
+  ogTitle: string | null;
+  ogDescription: string | null;
+  ogImage: string | null;
+  ogLocale: string | null;
+  /** Absolute or page-relative icon hrefs from link[rel~=icon] / apple-touch-icon. */
+  iconHrefs: string[];
+  dir: string | null;
+  jsonLd: LocalisationAuditJsonLd[];
+  ariaLabels: string[];
+  altTexts: LocalisationAuditAltText[];
+  buttons: string[];
+  headings: string[];
+  fontFamilies: string[];
+  /** word-break values from inline/embedded CSS. */
+  wordBreakValues: string[];
+  /** line-break values from inline/embedded CSS. */
+  lineBreakValues: string[];
+  /** direction values from inline/embedded CSS. */
+  directionValues: string[];
+  /** Physical horizontal CSS snippets (float/margin/padding/left/right/text-align). */
+  physicalHorizontalCss: string[];
+  /** Logical horizontal CSS snippets (margin-inline, inset-inline, text-align: start/end). */
+  logicalHorizontalCss: string[];
+  /** Form label / placeholder / name / autocomplete samples for naming checks. */
+  formFieldLabels: string[];
+  anchors: Array<{ href: string; text: string }>;
+};
+
+export type LocalisationAuditSitemapSignal = {
+  robotsFound: boolean;
+  /** Absolute Sitemap: URLs declared in robots.txt (relative refs are resolved). */
+  robotsSitemapDirectives: string[];
+  /** True when robots.txt used a relative Sitemap: URL (Lighthouse expects absolute). */
+  robotsHasRelativeSitemapDirective: boolean;
+  /** Successfully fetched sitemap documents that contained <loc> entries. */
+  sitemapUrls: string[];
+  localizedUrls: string[];
+};
+
+export type LocalisationAuditCrawlBlockReason = "bot_protection";
+
+export type LocalisationAuditCrawlResult = {
+  pages: LocalisationAuditCrawledPage[];
+  sitemap: LocalisationAuditSitemapSignal;
+  blockedReason?: LocalisationAuditCrawlBlockReason;
+};
+
+export type LocalisationAuditCreditMethod = "heuristic" | "luna" | "na";
+
+export type LocalisationAuditCreditResult = {
+  id: string;
+  dimension: LocalisationAuditDimension;
+  score: number | null;
+  method: LocalisationAuditCreditMethod;
+};
+
+export type LocalisationAuditDimensionScores = {
+  technical: number | null;
+  linguistic: number | null;
+  contextual: number | null;
+  visual: number | null;
+};
+
+/** Brand identity inferred from crawl + Luna for the public report cover. */
+export type LocalisationAuditCompanyProfile = {
+  name: string | null;
+  logoUrl: string | null;
+  productSummary: string | null;
+  brandVoice: string | null;
+  industry: string | null;
+  confidence: number;
 };
 
 export type LocalisationAuditTeaser = {
@@ -58,10 +157,14 @@ export type LocalisationAuditTeaser = {
   domainSlug: string;
   detectedLocales: LocalisationAuditLocaleSignal[];
   headlineFindings: LocalisationAuditFinding[];
-  /** Total findings in the full report; used to tease locked depth on public pages. */
+  /** Total findings in the full report; used for report depth on public pages. */
   findingsCount: number;
   pagesCrawled: number;
   completedAt: string;
+  dimensionScores?: LocalisationAuditDimensionScores;
+  /** Credit scores for the public Lighthouse-style pass/fail checklist. */
+  credits?: LocalisationAuditCreditResult[];
+  companyProfile?: LocalisationAuditCompanyProfile | null;
 };
 
 export type LocalisationAuditReport = {
@@ -85,6 +188,9 @@ export type LocalisationAuditReport = {
   }>;
   pagesCrawled: number;
   completedAt: string;
+  dimensionScores?: LocalisationAuditDimensionScores;
+  credits?: LocalisationAuditCreditResult[];
+  companyProfile?: LocalisationAuditCompanyProfile | null;
 };
 
 export type LocalisationAuditEventData = {
@@ -106,5 +212,57 @@ export type LocalisationAuditLeadDeliveryStatus =
   | "verified";
 
 export const LOCALISATION_AUDIT_STALE_MS = 15 * 60 * 1000;
+export const LOCALISATION_AUDIT_RERUN_MS = 24 * 60 * 60 * 1000;
+
+/** Who started the latest quota-consuming attempt. */
+export type LocalisationAuditRunSource = "user" | "scheduled";
+
+/**
+ * Rolling 24h cap on new runs and daily re-runs, per run source.
+ * User submissions and scheduled audits each get their own bucket of this size.
+ */
+export const LOCALISATION_AUDIT_DAILY_RUN_LIMIT = 20;
 export const LOCALISATION_AUDIT_EMAIL_RESEND_COOLDOWN_MS = 60 * 1000;
 export const LOCALISATION_AUDIT_REPORT_TOKEN_TTL_MS = 24 * 60 * 60 * 1000;
+
+export const EMPTY_SITEMAP_SIGNAL: LocalisationAuditSitemapSignal = {
+  robotsFound: false,
+  robotsSitemapDirectives: [],
+  robotsHasRelativeSitemapDirective: false,
+  sitemapUrls: [],
+  localizedUrls: [],
+};
+
+export function emptyCrawledPage(
+  partial: Partial<LocalisationAuditCrawledPage> & { url: string },
+): LocalisationAuditCrawledPage {
+  return {
+    status: 200,
+    htmlLang: null,
+    title: null,
+    textSample: "",
+    hreflang: [],
+    canonical: null,
+    metaDescription: null,
+    ogTitle: null,
+    ogDescription: null,
+    ogImage: null,
+    ogLocale: null,
+    iconHrefs: [],
+    dir: null,
+    jsonLd: [],
+    ariaLabels: [],
+    altTexts: [],
+    buttons: [],
+    headings: [],
+    fontFamilies: [],
+    wordBreakValues: [],
+    lineBreakValues: [],
+    directionValues: [],
+    physicalHorizontalCss: [],
+    logicalHorizontalCss: [],
+    formFieldLabels: [],
+    anchors: [],
+    ...partial,
+  };
+}

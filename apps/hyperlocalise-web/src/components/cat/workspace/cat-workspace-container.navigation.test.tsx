@@ -199,7 +199,7 @@ describe("CatWorkspaceContainer queue navigation", () => {
     const targetEditor = (await waitForTargetEditor()) as HTMLElement;
     await user.click(targetEditor);
     await user.keyboard(" unsaved");
-    await user.click(screen.getByRole("button", { name: "Filter queue" }));
+    await user.click(await screen.findByRole("button", { name: "Filter queue" }));
     await user.click(await screen.findByRole("menuitemradio", { name: "Approved" }));
 
     expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();

@@ -134,6 +134,39 @@ describe("projectFileCatToWorkspaceState", () => {
     expect(state.segmentIntelligence?.["limited-string"]?.maxLength).toBe(24);
   });
 
+  it("maps isHidden from CAT segments into queue state", () => {
+    const state = projectFileCatToWorkspaceState(
+      catFile({
+        segments: [
+          {
+            externalStringId: "hidden-string",
+            key: "legacy.banner",
+            sourceText: "Retired banner",
+            context: null,
+            type: "text",
+            isHidden: true,
+          },
+          {
+            externalStringId: "visible-string",
+            key: "hero.cta",
+            sourceText: "Get started",
+            context: null,
+            type: "text",
+            isHidden: false,
+          },
+        ],
+      }),
+      "en-US",
+      testIntl,
+    );
+
+    expect(state.queueSegments[0]).toMatchObject({
+      id: "hidden-string",
+      isHidden: true,
+    });
+    expect(state.queueSegments[1]).not.toHaveProperty("isHidden");
+  });
+
   it("omits maxLength from workspace state when the CAT segment has a non-positive value", () => {
     const state = projectFileCatToWorkspaceState(
       catFile({

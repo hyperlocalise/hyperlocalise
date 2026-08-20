@@ -21,6 +21,8 @@ import { validator } from "hono/validator";
 
 import { workosAuthMiddleware, type ApiAuthContext, type AuthVariables } from "@/api/auth/workos";
 import { conflictResponse, badRequestResponse } from "@/api/errors";
+import { PRODUCT_USAGE_ANALYTICS_EVENTS } from "@/lib/analytics/events";
+import { serverAnalytics } from "@/lib/analytics/server";
 import { parseCsvRows } from "@/lib/csv/parse-csv-rows";
 import { db, schema } from "@/lib/database";
 import type { Memory } from "@/lib/database/types";
@@ -130,6 +132,10 @@ const memoryStore: MemoryStore = {
       })
       .returning();
 
+    serverAnalytics.track(PRODUCT_USAGE_ANALYTICS_EVENTS.memoryCreated, {
+      status: "created",
+      source: "memory",
+    });
     return memory;
   },
   async getById(auth, memoryId) {

@@ -32,6 +32,7 @@ import {
   uploadBodySchema,
   fileParamsSchema as publicFileParamsSchema,
 } from "./public-files/public-files.schema";
+import { verifySlackChannelQuerySchema } from "./agent-slack/agent-slack.schema";
 import { searchRepositoriesSchema } from "./github-installation/github-installation.schema";
 import { apiKeyIdParamsSchema } from "./api-key/api-key.schema";
 import { fileParamsSchema } from "./file/file.schema";
@@ -99,6 +100,10 @@ describe("Identifier Schema length limits", () => {
 
   it("should enforce max length on search query q in github-installation.schema", () => {
     expect(searchRepositoriesSchema.safeParse({ q: longSearch }).success).toBe(false);
+  });
+
+  it("should enforce max length on channelId in agent-slack.schema", () => {
+    expect(verifySlackChannelQuerySchema.safeParse({ channelId: longSearch }).success).toBe(false);
   });
 
   it("should enforce max length on apiKeyId", () => {

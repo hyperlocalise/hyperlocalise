@@ -22,5 +22,13 @@ initBotId({
       path: "/api/localisation-audit/*/unlock",
       method: "POST",
     },
+    {
+      path: "/api/public/web-chat/*/*/messages",
+      method: "POST",
+    },
+    {
+      path: "/api/public/web-chat/*/*/conversations/*/chat",
+      method: "POST",
+    },
   ],
 });

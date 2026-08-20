@@ -22,9 +22,11 @@ type RouteTitleKey =
   | "account"
   | "activity"
   | "agent-runs"
+  | "ai-engine"
   | "api-keys"
   | "billing"
   | "dashboard"
+  | "domains"
   | "files"
   | "glossaries"
   | "inbox"
@@ -66,9 +68,11 @@ function isRouteTitleKey(value: string): value is RouteTitleKey {
     value === "account" ||
     value === "activity" ||
     value === "agent-runs" ||
+    value === "ai-engine" ||
     value === "api-keys" ||
     value === "billing" ||
     value === "dashboard" ||
+    value === "domains" ||
     value === "files" ||
     value === "glossaries" ||
     value === "inbox" ||
@@ -153,6 +157,12 @@ function formatRouteTitle(intl: IntlShape, key: RouteTitleKey): string {
         id: "2he28Pg1K2",
         description: "App shell breadcrumb title for the agent runs page",
       });
+    case "ai-engine":
+      return intl.formatMessage({
+        defaultMessage: "AI Engine",
+        id: "lfPogGpRYm",
+        description: "App shell breadcrumb title for the AI Engine page",
+      });
     case "api-keys":
       return intl.formatMessage({
         defaultMessage: "API Keys",
@@ -170,6 +180,12 @@ function formatRouteTitle(intl: IntlShape, key: RouteTitleKey): string {
         defaultMessage: "Overview",
         id: "cQIBb8VVUr",
         description: "App shell breadcrumb title for the workspace overview page",
+      });
+    case "domains":
+      return intl.formatMessage({
+        defaultMessage: "Domains",
+        id: "GuSsVpTTay",
+        description: "App shell breadcrumb title for the domains page",
       });
     case "files":
       return intl.formatMessage({
@@ -215,9 +231,9 @@ function formatRouteTitle(intl: IntlShape, key: RouteTitleKey): string {
       });
     case "knowledge":
       return intl.formatMessage({
-        defaultMessage: "Knowledge",
-        id: "T+wQxH/IG1",
-        description: "App shell breadcrumb title for the knowledge page",
+        defaultMessage: "Guideline",
+        id: "1INOkRkMDD",
+        description: "App shell breadcrumb title for the guideline page",
       });
     case "locales":
       return intl.formatMessage({
@@ -308,6 +324,22 @@ export function getAppShellBreadcrumbs(
   const { organizationSlug, routeSegments } = orgRoute;
   const [section, subsection, projectSection] = routeSegments;
 
+  if (section === "inbox" && subsection === "new") {
+    return [
+      {
+        label: formatRouteTitle(intl, "inbox"),
+        href: buildOrgPath(organizationSlug, "inbox"),
+      },
+      {
+        label: intl.formatMessage({
+          defaultMessage: "New Request",
+          id: "dKBR5NGh7M",
+          description: "App shell breadcrumb title for the inbox New Request compose page",
+        }),
+      },
+    ];
+  }
+
   if (section === "settings") {
     if (!subsection) {
       return [{ label: formatRouteTitle(intl, "settings") }];
@@ -329,6 +361,20 @@ export function getAppShellBreadcrumbs(
 
     return [
       { label: formatRouteTitle(intl, "teams"), href: buildOrgPath(organizationSlug, "teams") },
+      { label: decodePathSegment(subsection) },
+    ];
+  }
+
+  if (section === "domains") {
+    if (!subsection) {
+      return [{ label: formatRouteTitle(intl, "domains") }];
+    }
+
+    return [
+      {
+        label: formatRouteTitle(intl, "domains"),
+        href: buildOrgPath(organizationSlug, "domains"),
+      },
       { label: decodePathSegment(subsection) },
     ];
   }

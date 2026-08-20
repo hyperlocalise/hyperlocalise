@@ -58,9 +58,10 @@ export async function localisationAuditWorkflow(event: LocalisationAuditEventDat
         progressStage: "crawling",
       });
 
-      const pages = await crawlLocalisationAuditStep({
+      const crawl = await crawlLocalisationAuditStep({
         origin: prepared.origin,
         sourceUrl: prepared.sourceUrl,
+        focusLocales: prepared.focusLocales,
       });
 
       await setLocalisationAuditProgressStep({
@@ -76,7 +77,9 @@ export async function localisationAuditWorkflow(event: LocalisationAuditEventDat
         domainSlug: prepared.domainSlug,
         sourceUrl: prepared.sourceUrl,
         focusLocales: prepared.focusLocales,
-        pages,
+        pages: crawl.pages,
+        sitemap: crawl.sitemap,
+        blockedReason: crawl.blockedReason,
       });
 
       if (!analyzedResult.ok) {

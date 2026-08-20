@@ -12,9 +12,15 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import {
+  ArrowRight01Icon,
+  MinusSignIcon,
+  PackageIcon,
+  PlusSignIcon,
+} from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/primitives/cn";
-import { ArrowRightIcon, MinusIcon, PackageIcon, PlusIcon } from "lucide-react";
 import type { HTMLAttributes } from "react";
 import { createContext, useContext, useMemo } from "react";
 import { FormattedMessage, useIntl } from "react-intl";
@@ -58,7 +64,7 @@ export const PackageInfoName = ({ className, children, ...props }: PackageInfoNa
 
   return (
     <div className={cn("flex items-center gap-2", className)} {...props}>
-      <PackageIcon className="size-4 text-muted-foreground" />
+      <HugeiconsIcon icon={PackageIcon} className="size-4 text-muted-foreground" />
       <span className="font-medium font-mono text-sm">{children ?? name}</span>
     </div>
   );
@@ -73,11 +79,11 @@ const changeTypeStyles: Record<ChangeType, string> = {
 };
 
 const changeTypeIcons: Record<ChangeType, React.ReactNode> = {
-  added: <PlusIcon className="size-3" />,
-  major: <ArrowRightIcon className="size-3" />,
-  minor: <ArrowRightIcon className="size-3" />,
-  patch: <ArrowRightIcon className="size-3" />,
-  removed: <MinusIcon className="size-3" />,
+  added: <HugeiconsIcon icon={PlusSignIcon} className="size-3" />,
+  major: <HugeiconsIcon icon={ArrowRight01Icon} className="size-3" />,
+  minor: <HugeiconsIcon icon={ArrowRight01Icon} className="size-3" />,
+  patch: <HugeiconsIcon icon={ArrowRight01Icon} className="size-3" />,
+  removed: <HugeiconsIcon icon={MinusSignIcon} className="size-3" />,
 };
 
 export type PackageInfoChangeTypeProps = HTMLAttributes<HTMLDivElement>;
@@ -126,7 +132,9 @@ export const PackageInfoVersion = ({ className, children, ...props }: PackageInf
       {children ?? (
         <>
           {currentVersion && <span>{currentVersion}</span>}
-          {currentVersion && newVersion && <ArrowRightIcon className="size-3" />}
+          {currentVersion && newVersion && (
+            <HugeiconsIcon icon={ArrowRight01Icon} className="size-3" />
+          )}
           {newVersion && <span className="font-medium text-foreground">{newVersion}</span>}
         </>
       )}

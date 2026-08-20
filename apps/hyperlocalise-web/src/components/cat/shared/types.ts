@@ -12,6 +12,14 @@
  */
 import type { CatVisualContext } from "@/lib/translation/cat-visual-context";
 
+export type CatContentKind =
+  | "text"
+  | "image_file"
+  | "image_url"
+  | "video_file"
+  | "video_url"
+  | "office_file";
+
 export type CatSegmentStatus = "pending" | "needs_review" | "reviewed" | "skipped";
 
 export type CatTmMatchKind = "exact" | "context" | "fuzzy";
@@ -58,11 +66,14 @@ export interface CatQueueSegment {
   index: number;
   key: string;
   sourceText: string;
-  contentKind?: "text" | "image_file" | "image_url" | "office_file";
+  contentKind?: CatContentKind;
   sourceAssetUrl?: string | null;
   targetAssetUrl?: string | null;
   imageVariantId?: string | null;
   looksLikeImageUrl?: boolean;
+  looksLikeVideoUrl?: boolean;
+  /** TMS hidden string — unavailable to translators, still visible to managers. */
+  isHidden?: boolean;
   /** Set when the queue spans multiple files. */
   sourcePath?: string;
   externalResourceId?: string;
@@ -94,14 +105,17 @@ export interface CatSegment {
   contextLabel?: string;
   status: CatSegmentStatus;
   hasOpenIssues?: boolean;
+  /** TMS hidden string — unavailable to translators, still visible to managers. */
+  isHidden?: boolean;
   tags?: string[];
   maxLength?: number;
   comments?: CatSegmentComment[];
-  contentKind?: "text" | "image_file" | "image_url" | "office_file";
+  contentKind?: CatContentKind;
   sourceAssetUrl?: string | null;
   targetAssetUrl?: string | null;
   imageVariantId?: string | null;
   looksLikeImageUrl?: boolean;
+  looksLikeVideoUrl?: boolean;
 }
 
 export interface CatFormatCheck {

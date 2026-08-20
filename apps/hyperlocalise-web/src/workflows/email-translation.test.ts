@@ -21,6 +21,41 @@ import {
   getSandboxTranslationEnv,
 } from "./email-translation";
 
+function withSandboxLlmEnv(
+  values: {
+    OPENAI_API_KEY?: string;
+    AI_GATEWAY_API_KEY?: string;
+    AI_GATEWAY_BASE_URL?: string;
+  },
+  run: () => void,
+) {
+  const previous = {
+    OPENAI_API_KEY: process.env.OPENAI_API_KEY,
+    AI_GATEWAY_API_KEY: process.env.AI_GATEWAY_API_KEY,
+    AI_GATEWAY_BASE_URL: process.env.AI_GATEWAY_BASE_URL,
+  };
+
+  for (const key of ["OPENAI_API_KEY", "AI_GATEWAY_API_KEY", "AI_GATEWAY_BASE_URL"] as const) {
+    if (values[key] === undefined) {
+      delete process.env[key];
+    } else {
+      process.env[key] = values[key];
+    }
+  }
+
+  try {
+    run();
+  } finally {
+    for (const key of ["OPENAI_API_KEY", "AI_GATEWAY_API_KEY", "AI_GATEWAY_BASE_URL"] as const) {
+      if (previous[key] === undefined) {
+        delete process.env[key];
+      } else {
+        process.env[key] = previous[key];
+      }
+    }
+  }
+}
+
 describe("email translation workflow filenames", () => {
   it("preserves the attachment extension for sandbox input and output files", () => {
     expect(getSandboxInputFilename("en-US.json")).toBe("en-US.json");
@@ -38,19 +73,26 @@ describe("email translation workflow filenames", () => {
   });
 
   it("passes provider credentials to the sandbox translation command", () => {
-    const previous = process.env.OPENAI_API_KEY;
-    process.env.OPENAI_API_KEY = "test-openai-api-key";
-    try {
+    withSandboxLlmEnv({ OPENAI_API_KEY: "test-openai-api-key" }, () => {
       expect(getSandboxTranslationEnv()).toEqual({
         OPENAI_API_KEY: "test-openai-api-key",
       });
-    } finally {
-      if (previous === undefined) {
-        delete process.env.OPENAI_API_KEY;
-      } else {
-        process.env.OPENAI_API_KEY = previous;
-      }
-    }
+    });
+  });
+
+  it("passes the AI Gateway key to the sandbox when that env var is set", () => {
+    withSandboxLlmEnv(
+      {
+        AI_GATEWAY_API_KEY: "vck_test_key",
+        AI_GATEWAY_BASE_URL: "https://ai-gateway.example.test/v1",
+      },
+      () => {
+        expect(getSandboxTranslationEnv()).toEqual({
+          AI_GATEWAY_API_KEY: "vck_test_key",
+          AI_GATEWAY_BASE_URL: "https://ai-gateway.example.test/v1",
+        });
+      },
+    );
   });
 });
 
@@ -69,6 +111,35 @@ describe("email translation temporary config", () => {
 
     expect(config).toContain("system_prompt:");
     expect(config).not.toContain("User style instructions:");
+  });
+
+  it("writes an ai_gateway profile when AI_GATEWAY_API_KEY is set", () => {
+    withSandboxLlmEnv({ AI_GATEWAY_API_KEY: "vck_test_key" }, () => {
+      const config = buildTempConfig("source.json", "target.json", "en", "fr", null);
+
+      expect(config).toContain("provider: ai_gateway");
+      expect(config).toContain("model: openai/gpt-5.6-luna");
+    });
+  });
+
+  it("writes the organization BYOK profile when a credential is provided", () => {
+    withSandboxLlmEnv({ AI_GATEWAY_API_KEY: "vck_test_key" }, () => {
+      const byok = {
+        provider: "anthropic" as const,
+        apiKey: "sk-ant-org",
+        model: "claude-sonnet-4-6",
+      };
+
+      expect(buildTempConfig("source.json", "target.json", "en", "fr", null, byok)).toContain(
+        "provider: anthropic",
+      );
+      expect(buildTempConfig("source.json", "target.json", "en", "fr", null, byok)).toContain(
+        "model: claude-sonnet-4-6",
+      );
+      expect(getSandboxTranslationEnv(byok)).toEqual({
+        ANTHROPIC_API_KEY: "sk-ant-org",
+      });
+    });
   });
 });
 

@@ -14,13 +14,22 @@
  */
 import type { ReactNode } from "react";
 import dynamic from "next/dynamic";
-import { ArrowLeft01Icon, ArrowRight01Icon } from "@hugeicons/core-free-icons";
+import {
+  ArrowLeft01Icon,
+  ArrowRight01Icon,
+  Loading03Icon,
+  RefreshIcon,
+  Upload01Icon,
+} from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { Loader2, RefreshCw, Upload } from "lucide-react";
 import { FormattedMessage, useIntl } from "react-intl";
 
 import { CatWorkspaceViewSwitcherConnected } from "@/components/cat/workspace/cat-workspace-view-switcher-connected";
-import { SegmentStatusBadge } from "@/components/cat/segment/cat-segment-status";
+import { CatHiddenStringBadge } from "@/components/cat/segment/cat-hidden-string-badge";
+import {
+  SegmentStatusBadge,
+  shouldShowSegmentStatusBadge,
+} from "@/components/cat/segment/cat-segment-status";
 import type { CatSegment } from "@/components/cat/shared/types";
 import type { CatFileViewerId } from "@/components/cat/workspace/cat-file-view-capabilities";
 import { Button } from "@/components/ui/button";
@@ -29,6 +38,7 @@ import { cn } from "@/lib/primitives/cn";
 
 import { catFileViewMessages } from "./cat-file-view.messages";
 import { CAT_IMAGE_FILE_UPLOAD_ACCEPT, CatImageFileViewerPane } from "./cat-image-file-viewer";
+import { CAT_VIDEO_FILE_UPLOAD_ACCEPT, CatVideoFileViewerPane } from "./cat-video-file-viewer";
 import { catOfficeUploadAccept } from "./cat-office-mime";
 import type { CatOfficeKind } from "./cat-office-convert";
 
@@ -94,13 +104,18 @@ export function CatFileViewPanel({
   const hasTarget = Boolean(segment.targetAssetUrl || segment.targetText.trim());
   const canTriggerApprove = Boolean(canApprove && hasTarget && !isApproving && !isImageBusy);
   const uploadAccept =
-    viewerId === "image" ? CAT_IMAGE_FILE_UPLOAD_ACCEPT : catOfficeUploadAccept(viewerId);
+    viewerId === "image"
+      ? CAT_IMAGE_FILE_UPLOAD_ACCEPT
+      : viewerId === "video"
+        ? CAT_VIDEO_FILE_UPLOAD_ACCEPT
+        : catOfficeUploadAccept(viewerId);
   const displayName = segment.sourcePath || filename || segment.key;
   const officeKind = isOfficeViewerId(viewerId) ? viewerId : null;
+  const isMediaViewer = viewerId === "image" || viewerId === "video";
 
-  const sourceSrc = viewerId === "image" || officeKind ? (segment.sourceAssetUrl ?? null) : null;
+  const sourceSrc = isMediaViewer || officeKind ? (segment.sourceAssetUrl ?? null) : null;
   const targetSrc =
-    viewerId === "image" || officeKind
+    isMediaViewer || officeKind
       ? (segment.targetAssetUrl ??
         (/^https?:\/\//i.test(segment.targetText) ? segment.targetText : null))
       : null;
@@ -110,7 +125,10 @@ export function CatFileViewPanel({
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3 lg:px-5">
         <div className="min-w-0 space-y-1">
           <div className="flex flex-wrap items-center gap-2">
-            <SegmentStatusBadge status={segment.status} />
+            {shouldShowSegmentStatusBadge(segment.status, segment.isHidden) ? (
+              <SegmentStatusBadge status={segment.status} />
+            ) : null}
+            {segment.isHidden ? <CatHiddenStringBadge /> : null}
             <p className="truncate font-mono text-xs text-muted-foreground">{displayName}</p>
           </div>
           <p className="text-sm text-muted-foreground">
@@ -170,9 +188,13 @@ export function CatFileViewPanel({
                     onClick={onRegenerate}
                   >
                     {isImageBusy ? (
-                      <Loader2 className="size-3 animate-spin" aria-hidden />
+                      <HugeiconsIcon
+                        icon={Loading03Icon}
+                        className="size-3 animate-spin"
+                        aria-hidden
+                      />
                     ) : (
-                      <RefreshCw className="size-3" aria-hidden />
+                      <HugeiconsIcon icon={RefreshIcon} className="size-3" aria-hidden />
                     )}
                     <FormattedMessage {...catFileViewMessages.regenerate} />
                   </Button>
@@ -184,7 +206,7 @@ export function CatFileViewPanel({
                       !canEdit || isImageBusy ? "pointer-events-none opacity-50" : "",
                     )}
                   >
-                    <Upload className="size-3" aria-hidden />
+                    <HugeiconsIcon icon={Upload01Icon} className="size-3" aria-hidden />
                     <FormattedMessage {...catFileViewMessages.uploadFile} />
                     <input
                       type="file"
@@ -206,6 +228,12 @@ export function CatFileViewPanel({
           >
             {viewerId === "image" ? (
               <CatImageFileViewerPane
+                role="target"
+                src={targetSrc}
+                isLoading={isSegmentTargetLoading}
+              />
+            ) : viewerId === "video" ? (
+              <CatVideoFileViewerPane
                 role="target"
                 src={targetSrc}
                 isLoading={isSegmentTargetLoading}
@@ -236,6 +264,8 @@ export function CatFileViewPanel({
           >
             {viewerId === "image" ? (
               <CatImageFileViewerPane role="source" src={sourceSrc} />
+            ) : viewerId === "video" ? (
+              <CatVideoFileViewerPane role="source" src={sourceSrc} />
             ) : officeKind ? (
               <CatOfficeFileViewerPane
                 kind={officeKind}

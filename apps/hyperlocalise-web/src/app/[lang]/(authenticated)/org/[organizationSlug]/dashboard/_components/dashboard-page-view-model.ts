@@ -15,7 +15,7 @@ import type { IntlShape } from "react-intl";
 import type {
   WorkspaceAutomationRecord,
   WorkspaceAutomationRunRecord,
-} from "@/lib/agents/workspace-automations";
+} from "@/lib/agents/workspace-automation-types";
 
 import type { ApiJob } from "../../jobs/_components/jobs-page-view";
 import type { ProjectListRow } from "../../projects/_components/project-list";

@@ -13,7 +13,11 @@
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { expect, fn } from "storybook/test";
 
-import { createEmptyGlossaryFormFixture, glossariesFixture } from "./glossaries.fixture";
+import {
+  createEmptyGlossaryFormFixture,
+  createGlossaryListRow,
+  glossariesFixture,
+} from "./glossaries.fixture";
 import { GlossariesPageView } from "./glossaries-page-view";
 
 const meta = {
@@ -60,6 +64,7 @@ const meta = {
     onCreateDialogOpenChange: fn(),
     createForm: createEmptyGlossaryFormFixture(),
     onCreateFormChange: fn(),
+    projects: [],
     createErrors: {},
     isCreating: false,
     onSubmitCreateGlossary: fn(),
@@ -73,8 +78,45 @@ export const Default: Story = {
   play: async ({ canvas }) => {
     await expect(canvas.getByRole("heading", { name: "Glossaries" })).toBeInTheDocument();
     await expect(canvas.getByText("Product UI")).toBeInTheDocument();
+    await expect(
+      canvas.getByText("American English (en-US), Vietnamese (vi-VN)"),
+    ).toBeInTheDocument();
     await expect(canvas.getByText("Phrase Term Base")).toBeInTheDocument();
     await expect(canvas.getByText("Crowdin Glossary")).toBeInTheDocument();
+    await expect(canvas.getByRole("link", { name: "Phrase Term Base" })).toHaveAttribute(
+      "href",
+      "/org/acme/glossaries/22222222-2222-4222-8222-222222222222",
+    );
+    await expect(canvas.getByRole("link", { name: "Open in provider" })).toHaveAttribute(
+      "href",
+      "https://phrase.com/tb/42",
+    );
+  },
+};
+
+export const LiveProviderGlossary: Story = {
+  args: {
+    glossaries: [
+      createGlossaryListRow({
+        id: "crowdin:glossary:99",
+        detailId: "crowdin:glossary:99",
+        name: "Live Crowdin Glossary",
+        source: "external_tms",
+        externalProviderKind: "crowdin",
+        externalProjectId: "crowdin-project-1",
+        externalGlossaryId: "99",
+      }),
+    ],
+    glossaryTotal: 1,
+    allowCreateGlossaries: false,
+    pageEnd: 1,
+  },
+  play: async ({ canvas }) => {
+    await expect(canvas.getByText("Live Crowdin Glossary")).toBeInTheDocument();
+    await expect(canvas.getByRole("link", { name: "Live Crowdin Glossary" })).toHaveAttribute(
+      "href",
+      "/org/acme/glossaries/crowdin:glossary:99",
+    );
   },
 };
 
@@ -145,9 +187,21 @@ export const ReadOnly: Story = {
 export const CreateDialogOpen: Story = {
   args: {
     createDialogOpen: true,
+    projects: [
+      { id: "project-native-1", name: "Product app", sourceLocale: "en-US" },
+      { id: "project-native-2", name: "Marketing site", sourceLocale: "en-US" },
+    ],
   },
-  play: async ({ canvas }) => {
+  play: async ({ canvas, userEvent }) => {
     await expect(canvas.getByRole("dialog", { name: "Create glossary" })).toBeInTheDocument();
+    await expect(
+      canvas.getByText("Assign glossary to the following projects:"),
+    ).toBeInTheDocument();
+    await userEvent.click(
+      canvas.getByRole("button", { name: "Assign glossary to the following projects:" }),
+    );
+    await expect(canvas.getByText("Product app")).toBeInTheDocument();
+    await expect(canvas.getByText("Marketing site")).toBeInTheDocument();
   },
 };
 

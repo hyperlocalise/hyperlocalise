@@ -12,7 +12,8 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { CheckIcon, RefreshCwIcon, SparklesIcon } from "lucide-react";
+import { RefreshIcon, SparklesIcon, Tick02Icon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import { FormattedMessage } from "react-intl";
 
 import { Button } from "@/components/ui/button";
@@ -51,7 +52,8 @@ export function CatEditorAiRecommendation({
     >
       <div className="mb-2.5 flex items-center justify-between gap-3">
         <p className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
-          <SparklesIcon
+          <HugeiconsIcon
+            icon={SparklesIcon}
             className={cn(
               "size-3.5 shrink-0",
               hasSuggestion ? "text-grove-300" : "text-grove-300/70",
@@ -63,7 +65,7 @@ export function CatEditorAiRecommendation({
         <div className="flex items-center gap-1.5">
           {hasSuggestion ? (
             <Button variant="ghost" size="xs" onClick={onUseAiSuggestion} disabled={isLoading}>
-              <CheckIcon className="size-3" aria-hidden />
+              <HugeiconsIcon icon={Tick02Icon} className="size-3" aria-hidden />
               <FormattedMessage {...catEditorPanelMessages.use} />
             </Button>
           ) : null}
@@ -77,7 +79,7 @@ export function CatEditorAiRecommendation({
               {isLoading ? (
                 <Spinner className="size-3" />
               ) : (
-                <RefreshCwIcon className="size-3" aria-hidden />
+                <HugeiconsIcon icon={RefreshIcon} className="size-3" aria-hidden />
               )}
               {hasSuggestion ? (
                 <FormattedMessage {...catEditorPanelMessages.regenerate} />

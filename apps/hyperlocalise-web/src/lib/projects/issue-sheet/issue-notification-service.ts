@@ -407,6 +407,46 @@ export class IssueNotificationService extends ProjectServiceBase {
     });
   }
 
+  async notifyMentions(input: {
+    organizationId: string;
+    projectId: string;
+    issueId: string;
+    actorUserId: string;
+    commentId: string;
+    commentBody: string;
+    mentionedUserIds: string[];
+    database?: DatabaseClient;
+  }): Promise<void> {
+    const database = input.database ?? this.database;
+    const issue = await this.loadIssueContext(input, database);
+    if (!issue) {
+      return;
+    }
+
+    const mentioned = [...new Set(input.mentionedUserIds)];
+    if (mentioned.length === 0) {
+      return;
+    }
+
+    const excerpt = commentExcerpt(input.commentBody);
+
+    await this.notifyRecipients({
+      organizationId: input.organizationId,
+      projectId: input.projectId,
+      issueId: input.issueId,
+      actorUserId: input.actorUserId,
+      issueTitle: issue.title,
+      recipientUserIds: mentioned,
+      type: ISSUE_NOTIFICATION_MENTIONED,
+      dedupeKeyFor: (recipientUserId) => `mentioned:${input.commentId}:${recipientUserId}`,
+      payloadExtra: {
+        commentId: input.commentId,
+        commentExcerpt: excerpt,
+      },
+      database,
+    });
+  }
+
   async notifyCommentCreated(input: {
     organizationId: string;
     projectId: string;
@@ -426,19 +466,14 @@ export class IssueNotificationService extends ProjectServiceBase {
     const excerpt = commentExcerpt(input.commentBody);
     const mentioned = [...new Set(input.mentionedUserIds)];
 
-    await this.notifyRecipients({
+    await this.notifyMentions({
       organizationId: input.organizationId,
       projectId: input.projectId,
       issueId: input.issueId,
       actorUserId: input.actorUserId,
-      issueTitle: issue.title,
-      recipientUserIds: mentioned,
-      type: ISSUE_NOTIFICATION_MENTIONED,
-      dedupeKeyFor: (recipientUserId) => `mentioned:${input.commentId}:${recipientUserId}`,
-      payloadExtra: {
-        commentId: input.commentId,
-        commentExcerpt: excerpt,
-      },
+      commentId: input.commentId,
+      commentBody: input.commentBody,
+      mentionedUserIds: mentioned,
       database,
     });
 

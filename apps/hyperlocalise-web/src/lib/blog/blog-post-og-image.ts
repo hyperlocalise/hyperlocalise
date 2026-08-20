@@ -46,6 +46,7 @@ export async function createBlogPostOgImageResponse(lang: string, slug: string) 
         description: "Open Graph fallback description for unknown pages",
       }),
     size: blogPostCoverSize,
+    locale: safeLang,
   });
 
   imageResponse.headers.set("Content-Type", marketingOgImageContentType);

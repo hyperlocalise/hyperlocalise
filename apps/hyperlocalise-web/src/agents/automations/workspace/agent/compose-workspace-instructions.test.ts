@@ -37,14 +37,62 @@ describe("composeWorkspaceAutomationInstructions", () => {
     expect(instructions).toContain("save_memory tool");
   });
 
-  it("omits both memory nudges when neither tool is in the plan", () => {
+  it("includes the Slack notifications skill when notify_slack is planned", () => {
     const instructions = composeWorkspaceAutomationInstructions({
       triggerMode: "manual",
       plan: { tools: ["notify_slack"] },
       userOverride: "Notify the team.",
     });
 
+    expect(instructions).toContain("## Slack notifications");
+    expect(instructions).toContain("Customer format first");
     expect(instructions).not.toContain("recall_memory tool");
     expect(instructions).not.toContain("save_memory tool");
+  });
+
+  it("tells the orchestrator how to call use_crowdin when it is planned", () => {
+    const instructions = composeWorkspaceAutomationInstructions({
+      triggerMode: "scheduled",
+      templateSkillId: "review-code-daily",
+      plan: { tools: ["use_github_repository", "use_crowdin", "notify_slack"] },
+      userOverride: "Review user-facing strings.",
+    });
+
+    expect(instructions).toContain("No separate Crowdin section");
+    expect(instructions).toContain("> Recommendation:");
+  });
+
+  it("omits Crowdin concordance review when use_crowdin is not planned", () => {
+    const instructions = composeWorkspaceAutomationInstructions({
+      triggerMode: "scheduled",
+      templateSkillId: "review-code-daily",
+      plan: { tools: ["use_github_repository", "notify_slack"] },
+      userOverride: "Review user-facing strings.",
+    });
+
+    expect(instructions).toContain("Translation review");
+    expect(instructions).not.toContain("search_concordance");
+  });
+
+  it("omits the Slack notifications skill when notify_slack is not planned", () => {
+    const instructions = composeWorkspaceAutomationInstructions({
+      triggerMode: "manual",
+      plan: { tools: ["recall_memory", "save_memory"] },
+      userOverride: "Notify the team.",
+    });
+
+    expect(instructions).not.toContain("## Slack notifications");
+  });
+
+  it("includes the GitHub comment skill when notify_github_comment is planned", () => {
+    const instructions = composeWorkspaceAutomationInstructions({
+      triggerMode: "github",
+      plan: { tools: ["use_github_repository", "notify_github_comment"] },
+      userOverride: "Comment on the pull request.",
+    });
+
+    expect(instructions).toContain("## GitHub pull request comments");
+    expect(instructions).toContain("sticky pull request comment");
+    expect(instructions).not.toContain("## Slack notifications");
   });
 });

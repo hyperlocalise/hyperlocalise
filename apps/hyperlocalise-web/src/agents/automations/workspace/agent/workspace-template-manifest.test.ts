@@ -18,6 +18,9 @@ import {
   getTemplateCategoryFromSkill,
   getTemplateExecutorAgent,
   mergeWorkspaceTemplateSkills,
+  composeGithubRepoInstructions,
+  listWorkspaceTemplateSkills,
+  resolveWorkspaceOrchestratorSharedSkills,
 } from "./workspace-template-manifest";
 
 describe("workspace template manifest", () => {
@@ -29,12 +32,12 @@ describe("workspace template manifest", () => {
     expect(validateTemplate).toMatchObject({
       name: "Validate localisation on push",
       category: "quality",
-      activatable: true,
+      activatable: false,
     });
     expect(validateTemplate?.description).toBe(
-      "Validate localisation on every push to protected branches. Run repository checks and optional agent review when validation is enabled.",
+      "Check localisation changes on every push and notify the team when blockers are found.",
     );
-    expect(validateTemplate?.instructions).toContain("protected branches");
+    expect(validateTemplate?.instructions).toContain("You are a localisation quality reviewer");
   });
 
   it("merges translate-on-source-upload skill onto the gallery template", () => {
@@ -54,7 +57,7 @@ describe("workspace template manifest", () => {
       },
     });
     expect(template?.description).toContain("native translation job");
-    expect(template?.instructions).toContain("Translate with agent");
+    expect(template?.instructions).toContain("You are a native TMS intake agent");
   });
 
   it("reads executor agent and category from skill frontmatter", () => {
@@ -65,7 +68,7 @@ describe("workspace template manifest", () => {
     expect(getTemplateCategoryFromSkill("translate-on-source-upload")).toBe("popular");
   });
 
-  it("keeps summarize changes daily template content from base definition", () => {
+  it("merges summarize changes daily skill onto the gallery template", () => {
     const [template] = mergeWorkspaceTemplateSkills(WORKSPACE_AUTOMATION_TEMPLATES_BASE).filter(
       (entry) => entry.id === "summarize-changes-daily",
     );
@@ -80,7 +83,105 @@ describe("workspace template manifest", () => {
         scheduledCadence: "daily",
       }),
     });
-    expect(template?.description).toContain("GitHub repository");
-    expect(template?.instructions).toContain("daily engineering digest");
+    expect(template?.description).toContain("localisation-related changes");
+    expect(template?.instructions).toContain("You are a daily localisation briefing agent");
+    expect(template?.instructions).toContain("last 24 hours");
+    expect(template?.instructions).toContain("i18n.yml");
+  });
+
+  it("merges daily code-review and web-research skills onto gallery templates", () => {
+    const merged = mergeWorkspaceTemplateSkills(WORKSPACE_AUTOMATION_TEMPLATES_BASE);
+    const review = merged.find((entry) => entry.id === "review-code-daily");
+    const research = merged.find((entry) => entry.id === "daily-web-research");
+
+    expect(review).toMatchObject({
+      name: "Review code daily",
+      category: "popular",
+      activatable: true,
+    });
+    expect(review?.description).toContain("localisation and translation risk");
+    expect(review?.instructions).toContain("You are a localisation-focused code reviewer");
+    expect(review?.instructions).toContain("Translation review");
+    expect(review?.instructions).toContain("Slack delivery");
+    expect(review?.instructions).toContain("last 24 hours");
+    expect(review?.instructions).toContain("i18n.yml");
+    expect(
+      listWorkspaceTemplateSkills().find((skill) => skill.id === "review-code-daily")?.frontmatter
+        .sharedSkills,
+    ).toBe("translation-review");
+    expect(research).toMatchObject({
+      name: "Daily web research",
+      category: "popular",
+      activatable: true,
+    });
+    expect(research?.instructions).toContain("You are a localisation research analyst");
+  });
+
+  it("merges notify-on-push-blockers skill onto the gallery template", () => {
+    const [template] = mergeWorkspaceTemplateSkills(WORKSPACE_AUTOMATION_TEMPLATES_BASE).filter(
+      (entry) => entry.id === "notify-on-push-blockers",
+    );
+
+    expect(template).toMatchObject({
+      name: "Notify on push blockers",
+      category: "popular",
+      activatable: true,
+      defaultForm: expect.objectContaining({
+        githubMode: "agent",
+        triggerMode: "github",
+        githubCommentEnabled: true,
+      }),
+    });
+    expect(template?.description).toContain("comment on the pull request");
+    expect(template?.instructions).toContain("sticky GitHub pull request comment");
+    expect(template?.instructions).toContain("Translation review");
+    expect(template?.instructions).toContain("i18n.yml");
+  });
+
+  it("keeps untested templates coming soon after skill merge", () => {
+    const activatableIds = mergeWorkspaceTemplateSkills(WORKSPACE_AUTOMATION_TEMPLATES_BASE)
+      .filter((template) => template.activatable)
+      .map((template) => template.id);
+
+    expect(activatableIds).toEqual([
+      "translate-on-source-upload",
+      "translate-contentful-article",
+      "summarize-changes-daily",
+      "review-code-daily",
+      "daily-web-research",
+      "notify-on-push-blockers",
+    ]);
+  });
+
+  it("composes github repo instructions with the recent source-change procedure", () => {
+    const instructions = composeGithubRepoInstructions({});
+
+    expect(instructions).toContain("gitHistory");
+    expect(instructions).toContain('mode: "changedFiles"');
+    expect(instructions).toContain("fileDiff");
+    expect(instructions).toContain("`git diff` exit code 1");
+    expect(instructions).toContain("last 24 hours");
+    expect(instructions).toContain("i18n.yml");
+    expect(instructions).not.toContain("Translation Review Results");
+  });
+
+  it("composes translation review for review templates", () => {
+    const instructions = composeGithubRepoInstructions({
+      templateSkillId: "review-code-daily",
+    });
+
+    expect(instructions).toContain("Translation Review Results");
+    expect(instructions).toContain("High Priority (P0)");
+    expect(instructions).toContain("Keys OK");
+    expect(instructions).toContain("> Recommendation:");
+  });
+
+  it("adds Crowdin concordance review to orchestrator skills when Crowdin is planned", () => {
+    expect(
+      resolveWorkspaceOrchestratorSharedSkills({
+        templateSkillId: "review-code-daily",
+        planTools: ["use_github_repository", "use_crowdin", "notify_slack"],
+      }),
+    ).toEqual(["slack-notifications", "translation-review", "crowdin-concordance-review"]);
   });
 });

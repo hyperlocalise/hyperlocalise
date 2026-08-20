@@ -18,15 +18,22 @@ import { afterEach, beforeAll, describe, expect, it } from "vite-plus/test";
 import { createAhrefsConnection } from "@/lib/ahrefs/connections";
 import { db, schema } from "@/lib/database";
 import { type Result } from "@/lib/primitives/result/results";
+import { encodeProviderProjectId } from "@/lib/providers/jobs/tms-provider-resource-id";
+import {
+  encryptProviderCredential,
+  unwrapProviderCredentialCrypto,
+} from "@/lib/security/provider-credential-crypto";
 import { createSemrushConnection } from "@/lib/semrush/connections";
 
 import { claimGithubRepositoryAutomationJob } from "./github/github-repository-automation-jobs";
 import {
   createWorkspaceAutomation,
   createWorkspaceAutomationRun,
+  formatWorkspaceAutomationAuthorName,
   getWorkspaceAutomationById,
   hoistLegacyWorkspaceAutomationProjectId,
   listDueContentfulWorkspaceAutomations,
+  listDueWorkspaceAutomations,
   listWorkspaceAutomations,
   listWorkspaceAutomationRuns,
   pauseWorkspaceAutomation,
@@ -67,6 +74,8 @@ async function seedWorkspaceAutomationScope() {
     id: userId,
     workosUserId: `user_${userId}`,
     email: `${userId}@example.test`,
+    firstName: "Ada",
+    lastName: "Lovelace",
   });
 
   await db.insert(schema.projects).values({
@@ -113,6 +122,28 @@ async function seedWorkspaceAutomationScope() {
     githubInstallationRepositoryId: repository.id,
   };
 }
+
+describe("workspaceAutomationConfigSchema web search", () => {
+  it("defaults the provider to auto and accepts perplexity or exa", () => {
+    expect(
+      workspaceAutomationConfigSchema.parse({
+        toolConfig: { webSearch: { enabled: true } },
+      }).toolConfig.webSearch,
+    ).toEqual({ enabled: true, provider: "auto" });
+
+    expect(
+      workspaceAutomationConfigSchema.parse({
+        toolConfig: { webSearch: { enabled: true, provider: "perplexity" } },
+      }).toolConfig.webSearch,
+    ).toEqual({ enabled: true, provider: "perplexity" });
+
+    expect(
+      workspaceAutomationConfigSchema.parse({
+        toolConfig: { webSearch: { enabled: true, provider: "exa" } },
+      }).toolConfig.webSearch,
+    ).toEqual({ enabled: true, provider: "exa" });
+  });
+});
 
 describe("workspaceAutomationConfigSchema native TMS tools", () => {
   it("migrates legacy translation toolConfig into create and assign tools", () => {
@@ -170,6 +201,33 @@ describe("hoistLegacyWorkspaceAutomationProjectId", () => {
         github: { projectId: "project-header" },
       }),
     ).toBeNull();
+  });
+});
+
+describe("formatWorkspaceAutomationAuthorName", () => {
+  it("prefers a full name, then email, then null", () => {
+    expect(
+      formatWorkspaceAutomationAuthorName({
+        firstName: "Ada",
+        lastName: "Lovelace",
+        email: "ada@example.test",
+      }),
+    ).toBe("Ada Lovelace");
+    expect(
+      formatWorkspaceAutomationAuthorName({
+        firstName: null,
+        lastName: null,
+        email: "hopper@example.test",
+      }),
+    ).toBe("hopper@example.test");
+    expect(
+      formatWorkspaceAutomationAuthorName({
+        firstName: "  ",
+        lastName: "",
+        email: "  ",
+      }),
+    ).toBeNull();
+    expect(formatWorkspaceAutomationAuthorName(null)).toBeNull();
   });
 });
 
@@ -255,8 +313,10 @@ describe("workspace automations", () => {
     expect(automation).toMatchObject({
       organizationId: scope.organizationId,
       authorUserId: scope.userId,
+      authorName: "Ada Lovelace",
       status: "active",
       name: "Refresh repository translations",
+      model: "openai/gpt-5.6-luna",
       triggerConfig: { mode: "manual" },
       repositoryTarget: { kind: "none" },
       toolConfig: {},
@@ -266,6 +326,7 @@ describe("workspace automations", () => {
 
     const [listed] = await listWorkspaceAutomations({ organizationId: scope.organizationId });
     expect(listed?.id).toBe(automation.id);
+    expect(listed?.authorName).toBe("Ada Lovelace");
   });
 
   it("rejects enabled GitHub tools without project and repository config", async () => {
@@ -319,6 +380,72 @@ describe("workspace automations", () => {
     expect(missingProject.error.code).toBe("project_required");
   });
 
+  it("creates GitHub agent automations with a push trigger and comment tool", async () => {
+    const scope = await seedWorkspaceAutomationScope();
+
+    const automation = expectOk(
+      await createWorkspaceAutomation({
+        organizationId: scope.organizationId,
+        authorUserId: scope.userId,
+        name: "Notify on push blockers",
+        instructions: "Review localisation risk on this push.",
+        triggerConfig: { mode: "github", branches: ["main"] },
+        repositoryTarget: {
+          kind: "github",
+          githubInstallationRepositoryId: scope.githubInstallationRepositoryId,
+        },
+        toolConfig: {
+          github: {
+            enabled: true,
+            mode: "agent",
+            pushSource: false,
+            pullTranslations: false,
+            validation: false,
+          },
+          githubComment: { enabled: true },
+        },
+      }),
+    );
+
+    expect(automation.triggerConfig).toEqual({ mode: "github", branches: ["main"] });
+    expect(automation.toolConfig.github).toMatchObject({ enabled: true, mode: "agent" });
+    expect(automation.toolConfig.githubComment).toEqual({ enabled: true });
+  });
+
+  it("creates GitHub agent automations with push and pull request events", async () => {
+    const scope = await seedWorkspaceAutomationScope();
+
+    const automation = expectOk(
+      await createWorkspaceAutomation({
+        organizationId: scope.organizationId,
+        authorUserId: scope.userId,
+        name: "Notify on push blockers",
+        instructions: "Review localisation risk on this pull request.",
+        triggerConfig: { mode: "github", branches: ["main"], events: ["push", "pull_request"] },
+        repositoryTarget: {
+          kind: "github",
+          githubInstallationRepositoryId: scope.githubInstallationRepositoryId,
+        },
+        toolConfig: {
+          github: {
+            enabled: true,
+            mode: "agent",
+            pushSource: false,
+            pullTranslations: false,
+            validation: false,
+          },
+          githubComment: { enabled: true },
+        },
+      }),
+    );
+
+    expect(automation.triggerConfig).toEqual({
+      mode: "github",
+      branches: ["main"],
+      events: ["push", "pull_request"],
+    });
+  });
+
   it("rejects scheduled automations without a GitHub or Contentful workflow", async () => {
     const scope = await seedWorkspaceAutomationScope();
     const triggerConfig = {
@@ -355,7 +482,29 @@ describe("workspace automations", () => {
     }
     expect(notificationOnlySchedule.error).toMatchObject({
       code: "scheduled_workflow_required",
-      message: "Scheduled automations require at least one GitHub or Contentful workflow.",
+      message:
+        "Scheduled automations require at least one GitHub, Contentful, Issues, Web Search, or Crowdin workflow tool.",
+    });
+
+    const scheduledWebSearch = expectOk(
+      await createWorkspaceAutomation({
+        organizationId: scope.organizationId,
+        authorUserId: scope.userId,
+        name: "Daily web research",
+        instructions: "Search the live web for competitor changes.",
+        triggerConfig,
+        toolConfig: {
+          webSearch: { enabled: true, provider: "auto" },
+          slack: {
+            enabled: true,
+            channelId: "C123",
+          },
+        },
+      }),
+    );
+    expect(scheduledWebSearch.toolConfig.webSearch).toEqual({
+      enabled: true,
+      provider: "auto",
     });
 
     const manualNotification = expectOk(
@@ -383,7 +532,8 @@ describe("workspace automations", () => {
     }
     expect(scheduledUpdate.error).toMatchObject({
       code: "scheduled_workflow_required",
-      message: "Scheduled automations require at least one GitHub or Contentful workflow.",
+      message:
+        "Scheduled automations require at least one GitHub, Contentful, Issues, Web Search, or Crowdin workflow tool.",
     });
   });
 
@@ -603,6 +753,32 @@ describe("workspace automations", () => {
     expect(paused?.nextRunAt).toBeNull();
   });
 
+  it("persists the selected language model without versioning config", async () => {
+    const scope = await seedWorkspaceAutomationScope();
+    const automation = expectOk(
+      await createWorkspaceAutomation({
+        organizationId: scope.organizationId,
+        authorUserId: scope.userId,
+        name: "Model selection",
+        instructions: "Use a stronger model.",
+        model: "anthropic/claude-opus-5",
+      }),
+    );
+
+    expect(automation.model).toBe("anthropic/claude-opus-5");
+
+    const updated = expectOk(
+      await updateWorkspaceAutomation({
+        automationId: automation.id,
+        organizationId: scope.organizationId,
+        model: "openai/gpt-5.6-sol",
+      }),
+    );
+
+    expect(updated?.model).toBe("openai/gpt-5.6-sol");
+    expect(updated?.configVersion).toBe(1);
+  });
+
   it("does not pause archived automations", async () => {
     const scope = await seedWorkspaceAutomationScope();
     const archived = expectOk(
@@ -661,6 +837,123 @@ describe("workspace automations", () => {
 
     expect(firstPage.map((item) => item.name)).toEqual(["Automation 3", "Automation 2"]);
     expect(secondPage.map((item) => item.name)).toEqual(["Automation 1"]);
+  });
+
+  it("lists automations for a single project including legacy tool project ids", async () => {
+    const scope = await seedWorkspaceAutomationScope();
+    const otherProjectId = `project-${crypto.randomUUID().slice(0, 8)}`;
+    await db.insert(schema.projects).values({
+      id: otherProjectId,
+      organizationId: scope.organizationId,
+      createdByUserId: scope.userId,
+      name: "Mobile",
+    });
+
+    const matching = expectOk(
+      await createWorkspaceAutomation({
+        organizationId: scope.organizationId,
+        authorUserId: scope.userId,
+        name: "Matching project automation",
+        instructions: "Run for the website project.",
+        projectId: scope.projectId,
+      }),
+    );
+    expectOk(
+      await createWorkspaceAutomation({
+        organizationId: scope.organizationId,
+        authorUserId: scope.userId,
+        name: "Other project automation",
+        instructions: "Run for the mobile project.",
+        projectId: otherProjectId,
+      }),
+    );
+    expectOk(
+      await createWorkspaceAutomation({
+        organizationId: scope.organizationId,
+        authorUserId: scope.userId,
+        name: "Unscoped automation",
+        instructions: "Run without a project.",
+      }),
+    );
+
+    const [legacy] = await db
+      .insert(schema.workspaceAutomations)
+      .values({
+        organizationId: scope.organizationId,
+        authorUserId: scope.userId,
+        status: "active",
+        name: "Legacy translation project automation",
+        instructions: "Run from a legacy tool project id.",
+        model: "openai/gpt-5.6-luna",
+        projectId: null,
+        triggerConfig: { mode: "manual" },
+        repositoryTarget: { kind: "none" },
+        toolConfig: {
+          translation: { enabled: true, projectId: scope.projectId },
+        },
+        configVersion: 1,
+      })
+      .returning();
+
+    const listed = await listWorkspaceAutomations({
+      organizationId: scope.organizationId,
+      projectId: scope.projectId,
+    });
+
+    expect(listed.map((item) => item.name).toSorted()).toEqual([
+      "Legacy translation project automation",
+      "Matching project automation",
+    ]);
+    expect(listed.some((item) => item.id === matching.id)).toBe(true);
+    expect(listed.some((item) => item.id === legacy?.id)).toBe(true);
+  });
+
+  it("falls back to email for author names and omits missing authors", async () => {
+    const scope = await seedWorkspaceAutomationScope();
+    const emailOnlyUserId = crypto.randomUUID();
+    await db.insert(schema.users).values({
+      id: emailOnlyUserId,
+      workosUserId: `user_${emailOnlyUserId}`,
+      email: `${emailOnlyUserId}@example.test`,
+    });
+
+    const namedAutomation = expectOk(
+      await createWorkspaceAutomation({
+        organizationId: scope.organizationId,
+        authorUserId: scope.userId,
+        name: "Named author automation",
+        instructions: "Created by a named user.",
+      }),
+    );
+    const emailAutomation = expectOk(
+      await createWorkspaceAutomation({
+        organizationId: scope.organizationId,
+        authorUserId: emailOnlyUserId,
+        name: "Email author automation",
+        instructions: "Created by an email-only user.",
+      }),
+    );
+    const anonymousAutomation = expectOk(
+      await createWorkspaceAutomation({
+        organizationId: scope.organizationId,
+        authorUserId: null,
+        name: "Anonymous automation",
+        instructions: "Created without an author.",
+      }),
+    );
+
+    const listed = await listWorkspaceAutomations({ organizationId: scope.organizationId });
+    const listedById = new Map(listed.map((item) => [item.id, item]));
+
+    expect(listedById.get(namedAutomation.id)?.authorName).toBe("Ada Lovelace");
+    expect(listedById.get(emailAutomation.id)?.authorName).toBe(`${emailOnlyUserId}@example.test`);
+    expect(listedById.get(anonymousAutomation.id)?.authorName).toBeNull();
+
+    const loadedEmail = await getWorkspaceAutomationById({
+      automationId: emailAutomation.id,
+      organizationId: scope.organizationId,
+    });
+    expect(loadedEmail?.authorName).toBe(`${emailOnlyUserId}@example.test`);
   });
 
   it("creates and serializes run history with optional GitHub job links", async () => {
@@ -1061,6 +1354,206 @@ describe("workspace automations", () => {
       throw new Error("expected update-path semrush validation error");
     }
     expect(updateRejected.error.code).toBe("semrush_not_connected");
+  });
+
+  it("rejects Crowdin tools without a linked project or Crowdin connection", async () => {
+    const scope = await seedWorkspaceAutomationScope();
+    const base = {
+      organizationId: scope.organizationId,
+      authorUserId: scope.userId,
+      name: "Crowdin review automation",
+      instructions: "Review strings against Crowdin.",
+      triggerConfig: { mode: "manual" as const },
+      repositoryTarget: { kind: "none" as const },
+    };
+
+    const missingProject = await createWorkspaceAutomation({
+      ...base,
+      toolConfig: {
+        crowdin: { enabled: true },
+      },
+    });
+    expect(missingProject.ok).toBe(false);
+    if (missingProject.ok) {
+      throw new Error("expected crowdin project required error");
+    }
+    expect(missingProject.error.code).toBe("crowdin_project_required");
+
+    const notLinked = await createWorkspaceAutomation({
+      ...base,
+      toolConfig: {
+        crowdin: { enabled: true, projectId: scope.projectId },
+      },
+    });
+    expect(notLinked.ok).toBe(false);
+    if (notLinked.ok) {
+      throw new Error("expected crowdin project not linked error");
+    }
+    expect(notLinked.error.code).toBe("crowdin_project_not_linked");
+
+    const encodedWithoutCredential = await createWorkspaceAutomation({
+      ...base,
+      toolConfig: {
+        crowdin: { enabled: true, projectId: "ext:crowdin:42" },
+      },
+    });
+    expect(encodedWithoutCredential.ok).toBe(false);
+    if (encodedWithoutCredential.ok) {
+      throw new Error("expected crowdin not connected error");
+    }
+    expect(encodedWithoutCredential.error.code).toBe("crowdin_not_connected");
+
+    const encrypted = unwrapProviderCredentialCrypto(encryptProviderCredential("crowdin-token"));
+    await db.insert(schema.organizationExternalTmsProviderCredentials).values({
+      organizationId: scope.organizationId,
+      providerKind: "crowdin",
+      displayName: "Crowdin",
+      authMode: "api_token",
+      encryptionAlgorithm: encrypted.algorithm,
+      ciphertext: encrypted.ciphertext,
+      iv: encrypted.iv,
+      authTag: encrypted.authTag,
+      keyVersion: encrypted.keyVersion,
+      maskedSecretSuffix: "••••ken",
+      validationStatus: "valid",
+      createdByUserId: scope.userId,
+      updatedByUserId: scope.userId,
+    });
+
+    const created = expectOk(
+      await createWorkspaceAutomation({
+        ...base,
+        toolConfig: {
+          crowdin: {
+            enabled: true,
+            projectId: encodeProviderProjectId({
+              providerKind: "crowdin",
+              externalProjectId: "42",
+            }),
+          },
+        },
+      }),
+    );
+    expect(created.toolConfig.crowdin).toEqual({
+      enabled: true,
+      projectId: "ext:crowdin:42",
+    });
+  });
+
+  it("allows scheduled automations that only enable Crowdin review", async () => {
+    const scope = await seedWorkspaceAutomationScope();
+    const encrypted = unwrapProviderCredentialCrypto(encryptProviderCredential("crowdin-token"));
+    await db.insert(schema.organizationExternalTmsProviderCredentials).values({
+      organizationId: scope.organizationId,
+      providerKind: "crowdin",
+      displayName: "Crowdin",
+      authMode: "api_token",
+      encryptionAlgorithm: encrypted.algorithm,
+      ciphertext: encrypted.ciphertext,
+      iv: encrypted.iv,
+      authTag: encrypted.authTag,
+      keyVersion: encrypted.keyVersion,
+      maskedSecretSuffix: "••••ken",
+      validationStatus: "valid",
+      createdByUserId: scope.userId,
+      updatedByUserId: scope.userId,
+    });
+
+    const created = expectOk(
+      await createWorkspaceAutomation({
+        organizationId: scope.organizationId,
+        authorUserId: scope.userId,
+        name: "Daily Crowdin review",
+        instructions: "Review strings against Crowdin.",
+        triggerConfig: {
+          mode: "scheduled",
+          schedule: {
+            cadence: "daily",
+            hourUtc: 8,
+            timezone: "UTC",
+          },
+        },
+        toolConfig: {
+          crowdin: {
+            enabled: true,
+            projectId: "ext:crowdin:42",
+          },
+        },
+      }),
+    );
+    expect(created.toolConfig.crowdin?.enabled).toBe(true);
+    expect(created.nextRunAt).not.toBeNull();
+  });
+
+  it("computes nextRunAt for GitHub agent schedules and lists due automations without a repository join", async () => {
+    const scope = await seedWorkspaceAutomationScope();
+    const dueAt = new Date("2026-06-01T01:00:00.000Z");
+
+    const githubAgent = expectOk(
+      await createWorkspaceAutomation({
+        organizationId: scope.organizationId,
+        authorUserId: scope.userId,
+        name: "Nightly GitHub agent",
+        instructions: "Review localisation changes.",
+        repositoryTarget: {
+          kind: "github",
+          githubInstallationRepositoryId: scope.githubInstallationRepositoryId,
+        },
+        triggerConfig: {
+          mode: "scheduled",
+          schedule: {
+            cadence: "daily",
+            hourUtc: 1,
+            timezone: "UTC",
+          },
+        },
+        toolConfig: {
+          github: {
+            enabled: true,
+            mode: "agent",
+            pushSource: false,
+            pullTranslations: false,
+            validation: false,
+          },
+        },
+      }),
+    );
+    expect(githubAgent.nextRunAt).not.toBeNull();
+
+    const webSearch = expectOk(
+      await createWorkspaceAutomation({
+        organizationId: scope.organizationId,
+        authorUserId: scope.userId,
+        name: "Nightly web search",
+        instructions: "Search the live web.",
+        triggerConfig: {
+          mode: "scheduled",
+          schedule: {
+            cadence: "daily",
+            hourUtc: 1,
+            timezone: "UTC",
+          },
+        },
+        toolConfig: {
+          webSearch: { enabled: true, provider: "auto" },
+        },
+        nextRunAt: dueAt,
+      }),
+    );
+
+    await db
+      .update(schema.workspaceAutomations)
+      .set({ nextRunAt: dueAt })
+      .where(eq(schema.workspaceAutomations.id, githubAgent.id));
+
+    const due = await listDueWorkspaceAutomations({
+      now: new Date("2026-06-01T01:05:00.000Z"),
+      organizationId: scope.organizationId,
+    });
+
+    expect(due.map((automation) => automation.id).sort()).toEqual(
+      [githubAgent.id, webSearch.id].sort(),
+    );
   });
 
   it("hoists legacy nested project IDs from tool config", () => {

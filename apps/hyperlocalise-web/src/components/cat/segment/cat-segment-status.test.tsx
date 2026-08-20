@@ -17,13 +17,25 @@ import { describe, expect, it } from "vite-plus/test";
 
 import { renderWithCatProviders } from "@/components/cat/shared/cat-test-utils";
 
-import { QueueStatusDot, SegmentStatusBadge } from "./cat-segment-status";
+import {
+  QueueStatusDot,
+  SegmentStatusBadge,
+  shouldShowSegmentStatusBadge,
+} from "./cat-segment-status";
 
 describe("QueueStatusDot", () => {
   it("uses yellow for segments that need review", () => {
     renderWithCatProviders(<QueueStatusDot status="needs_review" />);
 
     expect(screen.getByRole("img", { name: /Needs review/i })).toHaveClass("bg-beam-700");
+  });
+});
+
+describe("shouldShowSegmentStatusBadge", () => {
+  it("hides the Untranslated status when the string is hidden", () => {
+    expect(shouldShowSegmentStatusBadge("pending", true)).toBe(false);
+    expect(shouldShowSegmentStatusBadge("pending", false)).toBe(true);
+    expect(shouldShowSegmentStatusBadge("needs_review", true)).toBe(true);
   });
 });
 

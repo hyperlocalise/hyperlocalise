@@ -61,7 +61,7 @@ export async function setTranslationKeyTreatAsImage(input: {
   const metadata = { ...key.metadata };
   if (input.treatAsImage) {
     metadata.contentKind = IMAGE_URL_CONTENT_KIND;
-  } else {
+  } else if (metadata.contentKind === IMAGE_URL_CONTENT_KIND) {
     delete metadata.contentKind;
   }
 

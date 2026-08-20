@@ -26,7 +26,12 @@ vi.mock("@/lib/log", () => ({
   })),
 }));
 
-import { CrowdinApiClient, CrowdinApiError } from "./crowdin-api";
+import {
+  CrowdinApiClient,
+  CrowdinApiError,
+  CROWDIN_SOURCE_STRING_BATCH_PATCH_LIMIT,
+  extractCrowdinApiErrorSummary,
+} from "./crowdin-api";
 
 describe("CrowdinApiClient", () => {
   beforeEach(() => {
@@ -139,6 +144,90 @@ describe("CrowdinApiClient", () => {
     );
   });
 
+  it("supports live glossary and glossary term CRUD", async () => {
+    const requests: Array<{ method: string; url: string; body?: unknown }> = [];
+    const fetchMock = vi.fn(async (url, init) => {
+      requests.push({
+        method: String(init?.method ?? "GET"),
+        url: String(url),
+        body: init?.body ? JSON.parse(String(init.body)) : undefined,
+      });
+      const path = String(url).replace("https://api.crowdin.test/api/v2", "");
+      if (path === "/glossaries/7") {
+        return new Response(
+          JSON.stringify({
+            data: {
+              id: 7,
+              name: "Product",
+              languageId: "en",
+              languageIds: ["fr"],
+              terms: 1,
+              description: null,
+              projectIds: [],
+              defaultProjectIds: [],
+              webUrl: "https://crowdin.test/g/7",
+            },
+          }),
+          { status: 200 },
+        );
+      }
+      if (path === "/glossaries/7/terms") {
+        return new Response(
+          JSON.stringify({
+            data: {
+              id: 9,
+              glossaryId: 7,
+              languageId: "fr",
+              text: "Produit",
+              description: "",
+              partOfSpeech: "",
+              status: "DRAFT",
+              conceptId: 8,
+              note: "",
+            },
+          }),
+          { status: 200 },
+        );
+      }
+      if (path === "/glossaries/7/terms/9") {
+        return new Response(
+          JSON.stringify({
+            data: {
+              id: 9,
+              glossaryId: 7,
+              languageId: "fr",
+              text: "Article",
+              description: "",
+              partOfSpeech: "",
+              status: "DRAFT",
+              conceptId: 8,
+              note: "",
+            },
+          }),
+          { status: 200 },
+        );
+      }
+      return new Response(null, { status: 204 });
+    }) as unknown as typeof fetch;
+
+    const client = createClient(fetchMock);
+    await client.getGlossary(7);
+    await client.updateGlossary(7, [{ op: "replace", path: "/name", value: "Updated" }]);
+    await client.addGlossaryTerm(7, { languageId: "fr", text: "Produit", conceptId: 8 });
+    await client.updateGlossaryTerm(7, 9, [{ op: "replace", path: "/text", value: "Article" }]);
+    await client.deleteGlossaryTerm(7, 9);
+    await client.deleteGlossary(7);
+
+    expect(requests.map((request) => `${request.method} ${request.url}`)).toEqual([
+      "GET https://api.crowdin.test/api/v2/glossaries/7",
+      "PATCH https://api.crowdin.test/api/v2/glossaries/7",
+      "POST https://api.crowdin.test/api/v2/glossaries/7/terms",
+      "PATCH https://api.crowdin.test/api/v2/glossaries/7/terms/9",
+      "DELETE https://api.crowdin.test/api/v2/glossaries/7/terms/9",
+      "DELETE https://api.crowdin.test/api/v2/glossaries/7",
+    ]);
+  });
+
   it("lists branches for a project", async () => {
     const fetchMock = vi.fn(async () => {
       return new Response(
@@ -158,6 +247,81 @@ describe("CrowdinApiClient", () => {
     expect(branches).toHaveLength(2);
     expect(branches[0]).toMatchObject({ id: 10, name: "main", title: "Main Branch" });
     expect(branches[1]).toMatchObject({ id: 11, name: "feature/i18n", title: null });
+  });
+
+  it("supports native glossary concept CRUD", async () => {
+    const fetchMock = vi.fn(async (url, init) => {
+      const path = String(url).replace("https://api.crowdin.test/api/v2", "");
+      if (path.startsWith("/glossaries/7/concepts?")) {
+        return new Response(
+          JSON.stringify({
+            data: [
+              {
+                data: {
+                  id: 8,
+                  userId: 3,
+                  glossaryId: 7,
+                  subject: "product",
+                  definition: "A product",
+                  translatable: true,
+                  note: "",
+                  url: "",
+                  figure: "",
+                  languagesDetails: [],
+                  createdAt: "2026-08-20T00:00:00Z",
+                  updatedAt: "2026-08-20T00:00:00Z",
+                },
+              },
+            ],
+            pagination: { offset: 0, limit: 500 },
+          }),
+          { status: 200 },
+        );
+      }
+      if (
+        path === "/glossaries/7/concepts/8" &&
+        init?.method !== "GET" &&
+        init?.method !== "DELETE"
+      ) {
+        expect(init?.method).toBe("PUT");
+        expect(JSON.parse(String(init?.body))).toEqual({
+          figure: "https://example.com/figure.png",
+        });
+      }
+      if (String(init?.method ?? "GET") === "DELETE") {
+        return new Response(null, { status: 204 });
+      }
+      return new Response(
+        JSON.stringify({
+          data: {
+            id: 8,
+            userId: 3,
+            glossaryId: 7,
+            subject: "product",
+            definition: "A product",
+            translatable: true,
+            note: "",
+            url: "",
+            figure: "",
+            languagesDetails: [],
+            createdAt: "2026-08-20T00:00:00Z",
+            updatedAt: "2026-08-20T00:00:00Z",
+          },
+        }),
+        { status: 200 },
+      );
+    }) as unknown as typeof fetch;
+
+    const client = createClient(fetchMock);
+    expect((await client.listGlossaryConcepts(7))[0]?.id).toBe(8);
+    expect((await client.getGlossaryConcept(7, 8)).figure).toBe("");
+    await client.addGlossaryConcept(7, { subject: "product", figure: "" });
+    await client.updateGlossaryConcept(7, 8, {
+      figure: "https://example.com/figure.png",
+    });
+    await client.deleteGlossaryConcept(7, 8);
+
+    expect(fetchMock).toHaveBeenCalledTimes(5);
   });
 
   it("lists branches with pagination", async () => {
@@ -545,6 +709,7 @@ describe("CrowdinApiClient", () => {
                 text: "Hello",
                 type: "text",
                 context: null,
+                isHidden: false,
                 labelIds: null,
               },
             },
@@ -558,7 +723,84 @@ describe("CrowdinApiClient", () => {
     const strings = await client.listSourceStrings(1, { fileId: 101 });
 
     expect(strings).toHaveLength(1);
-    expect(strings[0]).toMatchObject({ id: 1001, identifier: "hello", fileId: 101 });
+    expect(strings[0]).toMatchObject({
+      id: 1001,
+      identifier: "hello",
+      fileId: 101,
+      isHidden: false,
+    });
+  });
+
+  it("batch-hides source strings with JSON Patch replace on isHidden", async () => {
+    const fetchMock = vi.fn(async (url, init) => {
+      expect(String(url)).toBe("https://api.crowdin.test/api/v2/projects/1/strings");
+      expect(init?.method).toBe("PATCH");
+      expect(JSON.parse(String(init?.body))).toEqual([
+        { op: "replace", path: "/1001/isHidden", value: true },
+        { op: "replace", path: "/1002/isHidden", value: true },
+      ]);
+      return new Response(
+        JSON.stringify({
+          data: [
+            {
+              data: {
+                id: 1001,
+                projectId: 1,
+                fileId: 101,
+                identifier: "hello",
+                text: "Hello",
+                type: "text",
+                context: null,
+                isHidden: true,
+                labelIds: null,
+              },
+            },
+            {
+              data: {
+                id: 1002,
+                projectId: 1,
+                fileId: 101,
+                identifier: "bye",
+                text: "Bye",
+                type: "text",
+                context: null,
+                isHidden: true,
+                labelIds: null,
+              },
+            },
+          ],
+        }),
+        { status: 200 },
+      );
+    }) as unknown as typeof fetch;
+
+    const client = createClient(fetchMock);
+    const strings = await client.batchSetSourceStringsHidden(1, [1001, 1002, 1001], true);
+
+    expect(strings).toHaveLength(2);
+    expect(strings.map((string) => string.isHidden)).toEqual([true, true]);
+  });
+
+  it("chunks source-string batch patches at the Crowdin limit", async () => {
+    const patchBodies: unknown[] = [];
+    const fetchMock = vi.fn(async (_url: string, init?: RequestInit) => {
+      if (typeof init?.body === "string") {
+        patchBodies.push(JSON.parse(init.body));
+      }
+      return new Response(JSON.stringify({ data: [] }), { status: 200 });
+    });
+
+    const client = createClient(fetchMock as unknown as typeof fetch);
+    const stringIds = Array.from(
+      { length: CROWDIN_SOURCE_STRING_BATCH_PATCH_LIMIT + 1 },
+      (_, index) => index + 1,
+    );
+
+    await client.batchSetSourceStringsHidden(1, stringIds, false);
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(patchBodies[0]).toHaveLength(CROWDIN_SOURCE_STRING_BATCH_PATCH_LIMIT);
+    expect(patchBodies[1]).toEqual([{ op: "replace", path: "/501/isHidden", value: false }]);
   });
 
   it("lists source strings by taskId", async () => {
@@ -1099,7 +1341,7 @@ describe("CrowdinApiClient", () => {
 
       if (path.endsWith("/projects/1/translations") && init?.method === "PATCH") {
         expect(JSON.parse(String(init.body))).toEqual([
-          { op: "replace", path: "/9001/text", value: "Salut" },
+          { op: "replace", path: "/9001", value: { text: "Salut" } },
         ]);
         return new Response(
           JSON.stringify({
@@ -1145,6 +1387,34 @@ describe("CrowdinApiClient", () => {
       status: 502,
     });
     expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("removes translations with DELETE", async () => {
+    const fetchMock = vi.fn(
+      async () => new Response(null, { status: 204 }),
+    ) as unknown as typeof fetch;
+    const client = createClient(fetchMock);
+
+    await client.removeTranslation(1, 9001);
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://api.crowdin.test/api/v2/projects/1/translations/9001",
+      expect.objectContaining({ method: "DELETE" }),
+    );
+  });
+
+  it("removes translation approvals with DELETE", async () => {
+    const fetchMock = vi.fn(
+      async () => new Response(null, { status: 204 }),
+    ) as unknown as typeof fetch;
+    const client = createClient(fetchMock);
+
+    await client.removeTranslationApproval(1, 7001);
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://api.crowdin.test/api/v2/projects/1/approvals/7001",
+      expect.objectContaining({ method: "DELETE" }),
+    );
   });
 
   it("fails approved translation replacements when response text does not match", async () => {
@@ -1407,5 +1677,147 @@ describe("CrowdinApiClient", () => {
       "https://api.crowdin.test/api/v2/user",
       expect.objectContaining({ method: "GET", redirect: "error" }),
     );
+  });
+
+  it("lists AI prompts from /ai/prompts on enterprise hosts", async () => {
+    const fetchMock = vi.fn(async () => {
+      return new Response(
+        JSON.stringify({
+          data: [
+            {
+              data: {
+                id: 7,
+                name: "Brand voice",
+                action: "assist",
+                isEnabled: true,
+                enabledProjectIds: [42],
+                config: { prompt: "Use sentence case." },
+              },
+            },
+          ],
+        }),
+        { status: 200 },
+      );
+    }) as unknown as typeof fetch;
+
+    const client = createClient(fetchMock);
+    const prompts = await client.listAiPrompts({ projectId: 42, action: "assist" });
+
+    expect(prompts).toEqual([
+      {
+        id: 7,
+        name: "Brand voice",
+        action: "assist",
+        isEnabled: true,
+        enabledProjectIds: [42],
+        config: { prompt: "Use sentence case." },
+      },
+    ]);
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://api.crowdin.test/api/v2/ai/prompts?projectId=42&action=assist&limit=500&offset=0",
+      expect.objectContaining({ method: "GET" }),
+    );
+  });
+
+  it("passes the client abort signal to fetches", async () => {
+    const abortSignal = new AbortController().signal;
+    const fetchMock = vi.fn(async () => {
+      return new Response(JSON.stringify({ data: [] }), { status: 200 });
+    }) as unknown as typeof fetch;
+
+    const client = new CrowdinApiClient({
+      token: "test-token",
+      baseUrl: "https://api.crowdin.test/api/v2",
+      fetchFn: fetchMock,
+      signal: abortSignal,
+    });
+    await client.listAiPrompts({ projectId: 42 });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://api.crowdin.test/api/v2/ai/prompts?projectId=42&limit=500&offset=0",
+      expect.objectContaining({ method: "GET", redirect: "error", signal: abortSignal }),
+    );
+  });
+
+  it("lists AI prompts from /users/{id}/ai/prompts on Crowdin.com", async () => {
+    const fetchMock = vi.fn(async (url) => {
+      const href = String(url);
+      if (href.endsWith("/user")) {
+        return new Response(
+          JSON.stringify({
+            data: {
+              id: 99,
+              username: "tester",
+              email: "tester@example.com",
+            },
+          }),
+          { status: 200 },
+        );
+      }
+
+      return new Response(JSON.stringify({ data: [] }), { status: 200 });
+    }) as unknown as typeof fetch;
+
+    const client = new CrowdinApiClient({
+      token: "test-token",
+      baseUrl: "https://api.crowdin.com/api/v2",
+      fetchFn: fetchMock,
+    });
+    await client.listAiPrompts({ projectId: 42 });
+
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      1,
+      "https://api.crowdin.com/api/v2/user",
+      expect.objectContaining({ method: "GET" }),
+    );
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      2,
+      "https://api.crowdin.com/api/v2/users/99/ai/prompts?projectId=42&limit=500&offset=0",
+      expect.objectContaining({ method: "GET" }),
+    );
+  });
+});
+
+describe("extractCrowdinApiErrorSummary", () => {
+  it("returns null for non-object bodies", () => {
+    expect(extractCrowdinApiErrorSummary(null)).toBeNull();
+    expect(extractCrowdinApiErrorSummary("oops")).toBeNull();
+    expect(extractCrowdinApiErrorSummary([1, 2])).toBeNull();
+  });
+
+  it("extracts top-level error code and message", () => {
+    expect(extractCrowdinApiErrorSummary({ error: { message: "Forbidden", code: 403 } })).toEqual({
+      code: 403,
+      message: "Forbidden",
+    });
+  });
+
+  it("extracts JSON Patch error entries with codes", () => {
+    expect(
+      extractCrowdinApiErrorSummary({
+        errors: [
+          {
+            index: 0,
+            errors: [
+              {
+                error: {
+                  key: "value",
+                  errors: [{ code: "validation_error", message: "Invalid request parameters" }],
+                },
+              },
+            ],
+          },
+        ],
+      }),
+    ).toEqual({
+      errors: [{ index: 0, code: "validation_error", message: "Invalid request parameters" }],
+    });
+  });
+
+  it("truncates long messages and ignores non-string codes", () => {
+    const summary = extractCrowdinApiErrorSummary({
+      error: { message: "x".repeat(500), code: null },
+    });
+    expect(summary).toEqual({ message: "x".repeat(200) });
   });
 });

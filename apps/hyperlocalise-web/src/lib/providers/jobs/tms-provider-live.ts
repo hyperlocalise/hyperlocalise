@@ -29,14 +29,20 @@ import {
   buildCatFilePagination,
   type ProjectFileCatPaginationInput,
 } from "@/lib/projects/cat/project-file-cat-pagination";
+import {
+  paginateCatQueueSortBuckets,
+  shouldPaginateCrowdinUntranslatedFirst,
+} from "@/lib/projects/cat/cat-queue-sort-buckets";
 import { legacyProviderCatSegmentLimit } from "@/api/routes/project/project.schema";
 import {
   buildCrowdinFileQueueCroql,
   CrowdinApiClient,
   CrowdinApiError,
+  extractCrowdinApiErrorSummary,
   isCrowdinCroqlWithinLimit,
   type CrowdinProject,
   type CrowdinLanguageTranslation,
+  type CrowdinQueueStatusBand,
   type CrowdinSourceString,
   type CrowdinStringComment,
 } from "@/lib/providers/adapters/crowdin/crowdin-api";
@@ -287,6 +293,7 @@ export type TmsProviderLiveCatFile = ProjectFileCatQueueFile;
 
 export type TmsProviderLiveGlossary = {
   id: string;
+  providerKind: ExternalTmsProviderKind;
   name: string;
   description: string | null;
   sourceLocale: string;
@@ -646,6 +653,9 @@ function buildLiveProviderProject(input: {
     lastSyncErrorAt: null,
     lastSyncErrorMessage: null,
     providerMetadata: {},
+    // Live provider projects aren't rows in the projects table, so there's no per-project
+    // template config to read — same empty default as an unconfigured native project.
+    issueTemplateConfig: {},
     createdAt: now,
     updatedAt: now,
   };
@@ -960,6 +970,26 @@ function crowdinSourceTextValue(text: CrowdinSourceString["text"]) {
   return text;
 }
 
+function mapCrowdinSourceStringToCatSegment(
+  sourceString: CrowdinSourceString,
+  extras: Partial<{
+    sourcePath: string;
+    format: string | null;
+    externalResourceId: string;
+    resourceType: "file" | "key";
+  }> = {},
+) {
+  return {
+    externalStringId: String(sourceString.id),
+    key: sourceString.identifier,
+    sourceText: crowdinCatSourceTextValue(sourceString.text),
+    context: sourceString.context,
+    type: sourceString.type ?? null,
+    ...(sourceString.isHidden ? { isHidden: true as const } : {}),
+    ...extras,
+  };
+}
+
 function crowdinCatSourceTextValue(text: CrowdinSourceString["text"]): string {
   if (typeof text === "string") {
     return text;
@@ -1086,6 +1116,7 @@ async function buildCrowdinLiveCatFile(input: {
       limit: legacyProviderCatSegmentLimit,
       search: undefined,
       queueFilter: "all",
+      queueSort: "file_order",
       paginated: false,
     };
 
@@ -1100,6 +1131,43 @@ async function buildCrowdinLiveCatFile(input: {
       });
       truncated = strings.length > legacyProviderCatSegmentLimit;
       visibleStrings = truncated ? strings.slice(0, legacyProviderCatSegmentLimit) : strings;
+    } else if (shouldPaginateCrowdinUntranslatedFirst(paginationInput)) {
+      const bucketPage = await paginateCatQueueSortBuckets({
+        startBucketIndex: paginationInput.sortBucket,
+        startBucketOffset: paginationInput.sortBucketOffset,
+        limit: paginationInput.limit,
+        fetchBand: async (band, offset, limit) => {
+          const croql = buildCrowdinFileQueueCroql({
+            fileId,
+            targetLocale: input.targetLocale,
+            queueFilter: paginationInput.queueFilter,
+            search: paginationInput.search,
+            statusBand: band,
+          });
+          const page = await client.listSourceStringsPage(projectId, {
+            fileId: croql ? undefined : fileId,
+            croql: croql ?? undefined,
+            offset,
+            limit,
+          });
+          return { items: page.strings, hasMore: page.hasMore };
+        },
+      });
+
+      visibleStrings = bucketPage.items;
+      const totalCount = bucketPage.hasMore
+        ? paginationInput.offset + visibleStrings.length + 1
+        : paginationInput.offset + visibleStrings.length;
+      pagination = buildCatFilePagination({
+        offset: paginationInput.offset,
+        limit: paginationInput.limit,
+        returnedCount: visibleStrings.length,
+        totalCount,
+        hasMore: bucketPage.hasMore,
+        nextSortBucket: bucketPage.nextSortBucket,
+        nextSortBucketOffset: bucketPage.nextSortBucketOffset,
+      });
+      truncated = pagination.hasMore;
     } else {
       const croql =
         paginationInput.search?.trim() ||
@@ -1142,13 +1210,9 @@ async function buildCrowdinLiveCatFile(input: {
       canEditTranslations: input.canEditTranslations,
       truncated,
       pagination,
-      segments: visibleStrings.map((sourceString) => ({
-        externalStringId: String(sourceString.id),
-        key: sourceString.identifier,
-        sourceText: crowdinCatSourceTextValue(sourceString.text),
-        context: sourceString.context,
-        type: sourceString.type ?? null,
-      })),
+      segments: visibleStrings.map((sourceString) =>
+        mapCrowdinSourceStringToCatSegment(sourceString),
+      ),
     };
   } catch (error) {
     if (error instanceof CrowdinApiError && error.status === 401) {
@@ -1246,6 +1310,20 @@ async function saveCrowdinLiveCatTranslation(input: {
     const approvedTranslationIds = new Set(approvals.map((approval) => approval.translationId));
     const existing = preferredLanguageTranslation(translations, approvedTranslationIds);
     const existingTranslationId = existing?.translationId;
+
+    if (input.text.trim().length === 0) {
+      if (existingTranslationId == null) {
+        return { text: "", externalTranslationId: null, isApproved: false };
+      }
+
+      const approval = approvals.find((item) => item.translationId === existingTranslationId);
+      if (approval) {
+        await client.removeTranslationApproval(projectId, approval.id);
+      }
+      await client.removeTranslation(projectId, existingTranslationId);
+      return { text: "", externalTranslationId: null, isApproved: false };
+    }
+
     const saved =
       existingTranslationId != null && approvedTranslationIds.has(existingTranslationId)
         ? await client.replaceApprovedTranslation(projectId, {
@@ -1273,7 +1351,82 @@ async function saveCrowdinLiveCatTranslation(input: {
       throw new TmsProviderLiveError("crowdin_auth_invalid", "Crowdin credentials are invalid.");
     }
 
+    if (error instanceof CrowdinApiError && (error.status === 400 || error.status === 403)) {
+      logger.warn(
+        {
+          providerProjectId: projectId,
+          providerStringId: stringId,
+          status: error.status,
+          providerError: extractCrowdinApiErrorSummary(error.responseBody),
+        },
+        "Crowdin rejected translation save",
+      );
+      throw new TmsProviderLiveError(
+        "crowdin_translation_update_rejected",
+        "Crowdin rejected the translation update. The string may be hidden or the connection may lack permission to edit it.",
+      );
+    }
+
     throw error;
+  }
+}
+
+function mapCrowdinHiddenStringError(error: unknown): never {
+  if (error instanceof CrowdinApiError && error.status === 401) {
+    throw new TmsProviderLiveError("crowdin_auth_invalid", "Crowdin credentials are invalid.");
+  }
+
+  if (error instanceof CrowdinApiError && (error.status === 403 || error.status === 400)) {
+    throw new TmsProviderLiveError(
+      "crowdin_hidden_strings_forbidden",
+      "Crowdin did not allow updating hidden strings. Managers can hide strings.",
+    );
+  }
+
+  throw error;
+}
+
+async function setCrowdinLiveCatStringsHidden(input: {
+  context: ActiveTmsProviderContext;
+  externalProjectId: string;
+  externalStringIds: string[];
+  isHidden: boolean;
+}): Promise<{ updatedCount: number; isHidden: boolean }> {
+  const projectId = Number(input.externalProjectId);
+  if (Number.isNaN(projectId)) {
+    throw new TmsProviderLiveError(
+      "invalid_crowdin_project_or_string_id",
+      "Crowdin project or string identifier is invalid.",
+    );
+  }
+
+  const stringIds = [
+    ...new Set(
+      input.externalStringIds
+        .map((externalStringId) => Number(externalStringId))
+        .filter((stringId) => Number.isInteger(stringId) && stringId > 0),
+    ),
+  ];
+  if (stringIds.length === 0) {
+    throw new TmsProviderLiveError(
+      "invalid_crowdin_project_or_string_id",
+      "Crowdin project or string identifier is invalid.",
+    );
+  }
+
+  const client = new CrowdinApiClient({
+    token: input.context.secretMaterial,
+    baseUrl: input.context.credential.baseUrl ?? undefined,
+  });
+
+  try {
+    const updated = await client.batchSetSourceStringsHidden(projectId, stringIds, input.isHidden);
+    return {
+      updatedCount: updated.length > 0 ? updated.length : stringIds.length,
+      isHidden: input.isHidden,
+    };
+  } catch (error) {
+    mapCrowdinHiddenStringError(error);
   }
 }
 
@@ -2304,6 +2457,7 @@ async function buildCrowdinLiveCatAllFiles(input: {
     limit: legacyProviderCatSegmentLimit,
     search: undefined,
     queueFilter: "all",
+    queueSort: "file_order",
     paginated: true,
   };
 
@@ -2337,39 +2491,116 @@ async function buildCrowdinLiveCatAllFiles(input: {
     baseUrl: input.context.credential.baseUrl ?? undefined,
   });
 
-  const croqlWithFiles = buildCrowdinFileQueueCroql({
-    fileIds,
-    targetLocale: input.targetLocale,
-    queueFilter: paginationInput.queueFilter,
-    search: paginationInput.search,
-  });
-  const croqlProjectWide = buildCrowdinFileQueueCroql({
-    targetLocale: input.targetLocale,
-    queueFilter: paginationInput.queueFilter,
-    search: paginationInput.search,
-  });
-
-  const useFileScopedCroql = croqlWithFiles != null && isCrowdinCroqlWithinLimit(croqlWithFiles);
-
-  if (!useFileScopedCroql && isNarrowedSourcePathFilter) {
-    throw new TmsProviderLiveError(
-      "crowdin_cat_all_files_query_too_large",
-      CROWDIN_CAT_ALL_FILES_QUERY_TOO_LARGE_MESSAGE,
-    );
-  }
-
-  const croql = useFileScopedCroql ? croqlWithFiles : croqlProjectWide;
-
-  if (croql && !isCrowdinCroqlWithinLimit(croql)) {
-    throw new TmsProviderLiveError(
-      "crowdin_cat_all_files_query_too_large",
-      CROWDIN_CAT_ALL_FILES_QUERY_TOO_LARGE_MESSAGE,
-    );
-  }
-
   const allowedFileIds = new Set(fileIds);
 
+  const resolveAllFilesCroql = (statusBand?: CrowdinQueueStatusBand) => {
+    const croqlWithFiles = buildCrowdinFileQueueCroql({
+      fileIds,
+      targetLocale: input.targetLocale,
+      queueFilter: paginationInput.queueFilter,
+      search: paginationInput.search,
+      statusBand,
+    });
+    const croqlProjectWide = buildCrowdinFileQueueCroql({
+      targetLocale: input.targetLocale,
+      queueFilter: paginationInput.queueFilter,
+      search: paginationInput.search,
+      statusBand,
+    });
+    const useFileScopedCroql = croqlWithFiles != null && isCrowdinCroqlWithinLimit(croqlWithFiles);
+
+    if (!useFileScopedCroql && isNarrowedSourcePathFilter) {
+      throw new TmsProviderLiveError(
+        "crowdin_cat_all_files_query_too_large",
+        CROWDIN_CAT_ALL_FILES_QUERY_TOO_LARGE_MESSAGE,
+      );
+    }
+
+    const croql = useFileScopedCroql ? croqlWithFiles : croqlProjectWide;
+    if (croql && !isCrowdinCroqlWithinLimit(croql)) {
+      throw new TmsProviderLiveError(
+        "crowdin_cat_all_files_query_too_large",
+        CROWDIN_CAT_ALL_FILES_QUERY_TOO_LARGE_MESSAGE,
+      );
+    }
+
+    return croql;
+  };
+
+  const mapAllFilesStrings = (strings: CrowdinSourceString[]) => {
+    const segments: TmsProviderLiveCatFile["segments"] = [];
+    for (const sourceString of strings) {
+      const mappedFileId = sourceString.fileId;
+      if (mappedFileId == null || !allowedFileIds.has(mappedFileId)) {
+        continue;
+      }
+
+      const file = fileById.get(mappedFileId);
+      if (!file) {
+        continue;
+      }
+
+      segments.push(
+        mapCrowdinSourceStringToCatSegment(sourceString, {
+          sourcePath: file.sourcePath,
+          ...(file.provider?.format != null ? { format: file.provider.format } : {}),
+          ...(file.provider?.externalResourceId
+            ? { externalResourceId: file.provider.externalResourceId }
+            : {}),
+          ...(file.provider?.resourceType ? { resourceType: file.provider.resourceType } : {}),
+        }),
+      );
+    }
+
+    return segments;
+  };
+
   try {
+    if (shouldPaginateCrowdinUntranslatedFirst(paginationInput)) {
+      const bucketPage = await paginateCatQueueSortBuckets({
+        startBucketIndex: paginationInput.sortBucket,
+        startBucketOffset: paginationInput.sortBucketOffset,
+        limit,
+        fetchBand: async (band, bandOffset, bandLimit) => {
+          const croql = resolveAllFilesCroql(band);
+          const page = await client.listSourceStringsPage(projectId, {
+            croql: croql ?? undefined,
+            offset: bandOffset,
+            limit: bandLimit,
+          });
+          return { items: mapAllFilesStrings(page.strings), hasMore: page.hasMore };
+        },
+      });
+
+      const totalCount = bucketPage.hasMore
+        ? offset + bucketPage.items.length + 1
+        : offset + bucketPage.items.length;
+      const pagination = paginationInput.paginated
+        ? buildCatFilePagination({
+            offset,
+            limit,
+            returnedCount: bucketPage.items.length,
+            totalCount,
+            hasMore: bucketPage.hasMore,
+            nextSortBucket: bucketPage.nextSortBucket,
+            nextSortBucketOffset: bucketPage.nextSortBucketOffset,
+          })
+        : undefined;
+
+      return {
+        sourcePath: CAT_ALL_FILES_SOURCE_PATH,
+        filename: CAT_ALL_FILES_FILENAME,
+        provider: catFiles[0]?.provider ?? null,
+        targetLocale: input.targetLocale,
+        canEditTranslations: input.canEditTranslations,
+        truncated: pagination?.hasMore ?? false,
+        pagination,
+        segments: bucketPage.items,
+      };
+    }
+
+    const croql = resolveAllFilesCroql();
+
     // Pass offset/limit straight through (Crowdin caps page size at 500).
     const page = await client.listSourceStringsPage(projectId, {
       croql: croql ?? undefined,
@@ -2377,33 +2608,7 @@ async function buildCrowdinLiveCatAllFiles(input: {
       limit,
     });
 
-    const segments: TmsProviderLiveCatFile["segments"] = [];
-    for (const sourceString of page.strings) {
-      const fileId = sourceString.fileId;
-      if (fileId == null || !allowedFileIds.has(fileId)) {
-        continue;
-      }
-
-      const file = fileById.get(fileId);
-      if (!file) {
-        continue;
-      }
-
-      segments.push({
-        externalStringId: String(sourceString.id),
-        key: sourceString.identifier,
-        sourceText: crowdinCatSourceTextValue(sourceString.text),
-        context: sourceString.context,
-        type: sourceString.type ?? null,
-        sourcePath: file.sourcePath,
-        ...(file.provider?.format != null ? { format: file.provider.format } : {}),
-        ...(file.provider?.externalResourceId
-          ? { externalResourceId: file.provider.externalResourceId }
-          : {}),
-        ...(file.provider?.resourceType ? { resourceType: file.provider.resourceType } : {}),
-      });
-    }
-
+    const segments = mapAllFilesStrings(page.strings);
     const totalCount = page.hasMore ? offset + segments.length + 1 : offset + segments.length;
 
     const pagination = paginationInput.paginated
@@ -2706,6 +2911,34 @@ export async function saveTmsProviderLiveCatTranslation(
     targetLocale: input.targetLocale,
     externalStringId: input.externalStringId,
     text: input.text,
+  });
+}
+
+export async function setTmsProviderLiveCatStringsHidden(
+  organizationId: string,
+  externalProjectId: string,
+  input: {
+    externalStringIds: string[];
+    isHidden: boolean;
+  },
+  options?: { actorUserId?: string | null },
+): Promise<{ updatedCount: number; isHidden: boolean }> {
+  const context = await loadActiveTmsProviderContext(organizationId, {
+    actorUserId: options?.actorUserId,
+  });
+
+  if (context.providerKind !== "crowdin") {
+    throw new TmsProviderLiveError(
+      "provider_cat_unsupported",
+      "Hidden strings can only be updated for Crowdin CAT.",
+    );
+  }
+
+  return setCrowdinLiveCatStringsHidden({
+    context,
+    externalProjectId,
+    externalStringIds: input.externalStringIds,
+    isHidden: input.isHidden,
   });
 }
 
@@ -3840,6 +4073,7 @@ function mapLiveGlossary(input: {
 }): TmsProviderLiveGlossary {
   return {
     id: `${input.providerKind}:glossary:${input.glossary.externalGlossaryId}`,
+    providerKind: input.providerKind,
     name: input.glossary.name,
     description: input.glossary.description ?? null,
     sourceLocale: input.glossary.sourceLocale,

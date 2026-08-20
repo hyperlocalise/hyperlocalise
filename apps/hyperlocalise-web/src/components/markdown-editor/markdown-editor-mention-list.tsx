@@ -140,8 +140,11 @@ export const MarkdownMentionList = forwardRef<MarkdownMentionListHandle, Markdow
                   {initials(item.displayName)}
                 </AvatarFallback>
               </Avatar>
-              <span className="min-w-0 flex-1 truncate font-medium leading-5">
-                {item.displayName}
+              <span className="min-w-0 flex-1 truncate">
+                <span className="block truncate font-medium leading-5">{item.displayName}</span>
+                {item.displayName.trim() !== item.email ? (
+                  <span className="block truncate text-xs text-muted-foreground">{item.email}</span>
+                ) : null}
               </span>
               {item.isAgent ? (
                 <Badge variant="secondary" className="shrink-0 text-[10px]">

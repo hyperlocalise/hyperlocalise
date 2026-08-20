@@ -244,6 +244,10 @@ export function projectFileCatToWorkspaceState(
     ...(segment.looksLikeImageUrl !== undefined
       ? { looksLikeImageUrl: segment.looksLikeImageUrl }
       : {}),
+    ...(segment.looksLikeVideoUrl !== undefined
+      ? { looksLikeVideoUrl: segment.looksLikeVideoUrl }
+      : {}),
+    ...(segment.isHidden ? { isHidden: true } : {}),
     ...(segment.sourcePath ? { sourcePath: segment.sourcePath } : {}),
     ...(segment.externalResourceId ? { externalResourceId: segment.externalResourceId } : {}),
     ...(segment.resourceType ? { resourceType: segment.resourceType } : {}),

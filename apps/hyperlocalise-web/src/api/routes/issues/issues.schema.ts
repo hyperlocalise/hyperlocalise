@@ -24,6 +24,12 @@ export const organizationIssueSheetIssueParamsSchema = z.object({
   issueId: z.string().uuid(),
 });
 
+export const organizationIssueSearchQuerySchema = z.object({
+  q: z.string().trim().max(100).default(""),
+  excludeIssueId: z.string().uuid().optional(),
+  limit: z.coerce.number().int().min(1).max(50).default(20),
+});
+
 export const organizationIssuesQuerySchema = z.object({
   view: z.enum(["my_work", "qa_triage", "source_context", "all_open"]).optional(),
   status: issueSheetIssueStatusSchema.or(z.literal("all")).optional(),

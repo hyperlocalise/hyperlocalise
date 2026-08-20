@@ -169,8 +169,8 @@ describe("generateCatAiRecommendation", () => {
   it("maps model setup failures to a result error", async () => {
     loadOrganizationTranslationModelMock.mockResolvedValue({
       ok: false,
-      code: "provider_credential_missing",
-      message: "no organization provider credential or managed translation model is configured",
+      code: "translation_project_not_found",
+      message: "translation project proj_1 was not found",
     });
 
     const result = await generateCatAiRecommendation({
@@ -187,9 +187,99 @@ describe("generateCatAiRecommendation", () => {
     expect(result).toEqual({
       ok: false,
       error: {
-        code: "provider_credential_missing",
-        message: "no organization provider credential or managed translation model is configured",
+        code: "translation_project_not_found",
+        message: "translation project proj_1 was not found",
       },
     });
+  });
+
+  it("passes an abort signal to generateText", async () => {
+    const abortSignal = new AbortController().signal;
+    loadOrganizationTranslationModelMock.mockResolvedValue({
+      ok: true,
+      project: {
+        name: "Hyperlocalise",
+        translationContext: "Use concise product UI language.",
+      },
+      model: {},
+    });
+    assembleStringTranslationContextSnapshotMock.mockResolvedValue({
+      ok: true,
+      snapshot: {
+        project: {
+          id: "proj_1",
+          name: "Hyperlocalise",
+          translationContext: "Use concise product UI language.",
+        },
+        glossaryTerms: [],
+        translationMemoryMatches: [],
+      },
+    });
+    generateTextMock.mockResolvedValue({
+      output: {
+        suggestion: "Bonjour",
+        reasoning: "Natural French greeting.",
+      },
+    });
+
+    await generateCatAiRecommendation(
+      {
+        projectId: "proj_1",
+        organizationId: "org_1",
+        sourcePath: "en-US.json",
+        filename: "en-US.json",
+        sourceLocale: "en-US",
+        targetLocale: "fr-FR",
+        key: "greeting",
+        sourceText: "Hello",
+      },
+      { signal: abortSignal },
+    );
+
+    expect(generateTextMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        abortSignal,
+      }),
+    );
+  });
+
+  it("rethrows abort errors from generateText", async () => {
+    loadOrganizationTranslationModelMock.mockResolvedValue({
+      ok: true,
+      project: {
+        name: "Hyperlocalise",
+        translationContext: "Use concise product UI language.",
+      },
+      model: {},
+    });
+    assembleStringTranslationContextSnapshotMock.mockResolvedValue({
+      ok: true,
+      snapshot: {
+        project: {
+          id: "proj_1",
+          name: "Hyperlocalise",
+          translationContext: "Use concise product UI language.",
+        },
+        glossaryTerms: [],
+        translationMemoryMatches: [],
+      },
+    });
+    generateTextMock.mockRejectedValue(Object.assign(new Error("aborted"), { name: "AbortError" }));
+
+    await expect(
+      generateCatAiRecommendation(
+        {
+          projectId: "proj_1",
+          organizationId: "org_1",
+          sourcePath: "en-US.json",
+          filename: "en-US.json",
+          sourceLocale: "en-US",
+          targetLocale: "fr-FR",
+          key: "greeting",
+          sourceText: "Hello",
+        },
+        { signal: new AbortController().signal },
+      ),
+    ).rejects.toMatchObject({ name: "AbortError" });
   });
 });

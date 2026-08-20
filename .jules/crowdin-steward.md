@@ -1,5 +1,51 @@
 # Crowdin Steward's Journal
 
+## 2026-12-31 - Add LabelIDs parity to BuildProjectFileTranslationRequest
+
+**Learning:** In Crowdin API v2, the Build Project File Translation endpoint (`POST /api/v2/projects/{projectId}/translations/builds/files/{fileId}`) accepts an optional `labelIds` array in the request body to filter builds by label identifiers. While `BuildProjectRequest` and `BuildProjectDirectoryTranslationRequest` included `labelIds`, `BuildProjectFileTranslationRequest` was missing `LabelIDs`, and its custom `MarshalJSON()` method omitted `labelIds` from serialized JSON payloads.
+
+**Action:** Added `LabelIDs []int json:"labelIds,omitempty"` to `BuildProjectFileTranslationRequest` and updated its custom `MarshalJSON()` method in `crowdin/model/translations.go`. Updated unit and contract tests in `crowdin/model/translations_test.go` and `crowdin/translations_test.go` to assert `LabelIDs` JSON marshaling and API endpoint execution.
+
+## 2026-12-30 - Add FileID/MaxLen parity and fix root upload validation in SourceStringsUploadRequest
+
+**Learning:** In Crowdin API v2, uploading source strings (`POST /api/v2/projects/{projectId}/strings/uploads`) accepts optional `fileId` and `maxLen` parameters in the request body. Furthermore, `branchId`, `directoryId`, and `fileId` are all optional (uploading without any targets the project root) but mutually exclusive. The SDK's `SourceStringsUploadRequest` previously lacked `FileID` and `MaxLen`, and its `Validate()` method incorrectly enforced that `branchId` or `directoryId` be non-zero, rejecting valid uploads targeting a `fileId` or uploading to the project root.
+
+**Action:** Added `FileID int json:"fileId,omitempty"` and `MaxLen int json:"maxLen,omitempty"` to `SourceStringsUploadRequest` in `crowdin/model/source_strings.go`. Updated `Validate()` to make target identifiers optional while enforcing mutual exclusivity (at most one of `branchId`, `directoryId`, or `fileId` set). Added comprehensive unit and contract tests in `crowdin/model/source_strings_test.go` and `crowdin/source_strings_test.go`.
+
+## 2026-12-29 - Add Force option to InstallApplicationRequest
+
+**Learning:** In Crowdin API v2, installing applications (`POST /api/v2/applications/installations`) supports an optional `force` boolean flag (`force: true`) to force re-installing an application if it is already installed. The SDK previously omitted `Force` from `InstallApplicationRequest`, preventing callers from specifying force installation behavior.
+
+**Action:** Added `Force *bool json:"force,omitempty"` to `InstallApplicationRequest` in `crowdin/model/applications.go`. Added unit test assertions for JSON serialization with `Force` set or omitted in `crowdin/applications_test.go` and `crowdin/model/applications_test.go`.
+
+## 2026-12-28 - Use pointer representation for FieldAddRequest Config field
+
+**Learning:** In Crowdin API v2, the `config` field in `POST /api/v2/fields` requests is optional. When typed as a non-pointer struct (`FieldConfig`), Go's standard `json.Marshal` serializes an uninitialized struct as `{}` even with `json:"config,omitempty"`, sending an empty object payload to Crowdin instead of omitting the parameter. Typing `Config` as `*FieldConfig` ensures proper parameter omission when `nil`.
+
+**Action:** Updated `FieldAddRequest.Config` in `crowdin/model/fields.go` to `*FieldConfig` with `json:"config,omitempty"`. Updated call sites and test assertions in `fields_test.go` and `model/fields_test.go`, including a unit test asserting JSON omission behavior when `Config` is `nil`.
+
+## 2026-12-27 - Preserve exact Crowdin-API-FileName header without query escaping
+
+**Learning:** In Crowdin API v2, uploading files to storage (`POST /api/v2/storages`) passes the filename via the `Crowdin-API-FileName` HTTP header. The Go SDK previously wrapped the filename in `url.QueryEscape`, which incorrectly modified filenames containing spaces (converting spaces to `+` signs) or other special characters, resulting in mangled filenames stored in Crowdin storage.
+
+**Action:** Updated `StorageService.Add` in `crowdin/storage.go` to pass raw `filepath.Base(file.Name())` directly to `Crowdin-API-FileName` without `url.QueryEscape`. Updated `TestStorageService_Add` in `crowdin/storage_test.go` to cover filenames with spaces.
+
+## 2026-12-26 - Add FileID and MaxLen parity for SourceStringsUpload attributes
+
+**Learning:** In Crowdin API v2, the Upload Source Strings background job response contains `fileId` and `maxLen` fields inside its `attributes` object when uploading strings for a specific file or with length restrictions. The SDK previously omitted `FileID` and `MaxLen` from `SourceStringsUpload.Attributes`, preventing callers from verifying file targeting or maximum length configurations in upload job status responses.
+
+**Action:** Added `FileID int json:"fileId,omitempty"` and `MaxLen int json:"maxLen,omitempty"` to `SourceStringsUpload.Attributes` in `model/source_strings.go`, and added `omitempty` tags to `BranchID` and `DirectoryID` attributes. Updated response fixtures and struct assertions in `TestSourceStringsService_Upload` and `TestSourceStringsService_GetUploadStatus` in `source_strings_test.go`.
+
+## 2026-12-25 - Improve error visibility and align notification role validations
+
+**Learning:**
+1) When a `400 Bad Request` returned a standard `error` payload instead of a list of `errors`, the client's `determineErrorType` incorrectly fell back to returning an un-unmarshalable Go error string rather than a pointer to an `ErrorResponse`. This caused the client to obscure the underlying Crowdin API error message with a generic `client: server returned 400 status code`.
+2) In Crowdin API v2, sending notifications to project members supports all project member roles, including `language_coordinator`, `developer`, `translator`, and `proofreader` in addition to `owner` and `manager`. Lacking these roles in client-side validations prevented valid notification requests from being sent.
+
+**Action:**
+1) Updated `determineErrorType` in `crowdin.go` and `errors_test.go` to explicitly check for the presence of a standard `"error"` key in the parsed JSON response of a `400 Bad Request` and return `&model.ErrorResponse{Response: resp}` to allow the detailed error code and message to be correctly unmarshaled and returned.
+2) Expanded `Notification.Validate()` inside `model/notifications.go` to accept all valid project-level roles (`language_coordinator`, `developer`, `translator`, `proofreader`). Added focused unit and contract test cases asserting both error unmarshaling and role validation edge cases.
+
 ## 2026-12-24 - Implement Corrections API for Crowdin Enterprise parity
 
 **Learning:** In Crowdin Enterprise API v2, proofreaders can create translation corrections. However, the Go SDK lacked model representations and endpoint methods for managing corrections (such as list, get, add, restore, and delete corrections). This gap prevented enterprise users from managing the translation correction lifecycle programmatically.

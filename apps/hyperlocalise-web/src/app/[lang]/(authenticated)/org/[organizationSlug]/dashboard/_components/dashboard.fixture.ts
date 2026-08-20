@@ -12,7 +12,7 @@
  */
 import type { IntlShape } from "react-intl";
 
-import type { WorkspaceAutomationRunRecord } from "@/lib/agents/workspace-automations";
+import type { WorkspaceAutomationRunRecord } from "@/lib/agents/workspace-automation-types";
 import { getIntlShape } from "@/lib/app-i18n/intl";
 
 import { automationsFixture } from "../../automations/_components/automations.fixture";

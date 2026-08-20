@@ -17,6 +17,7 @@ import {
   ArrowRight01Icon,
   Key01Icon,
   CreditCardIcon,
+  LinkSquare02Icon,
   Settings01Icon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
@@ -38,6 +39,7 @@ import { NotificationPreferencesSection } from "./notification-preferences-secti
 type SettingsPageProps = {
   organizationSlug: string;
   capabilities: OrganizationCapability[];
+  domainsEnabled: boolean;
 };
 
 type AccountPageProps = {
@@ -63,9 +65,14 @@ type SettingsRowConfig = {
   icon: ComponentProps<typeof HugeiconsIcon>["icon"];
   label: string;
   requiredCapability?: OrganizationCapability;
+  absoluteHref?: boolean;
+  requiresDomainsFeature?: boolean;
 };
 
-function buildSettingsRows(intl: IntlShape): readonly SettingsRowConfig[] {
+function buildSettingsRows(
+  intl: IntlShape,
+  organizationSlug: string,
+): readonly SettingsRowConfig[] {
   return [
     {
       label: intl.formatMessage({
@@ -96,6 +103,23 @@ function buildSettingsRows(intl: IntlShape): readonly SettingsRowConfig[] {
       href: "api-keys",
       icon: Key01Icon,
       requiredCapability: "api_keys:read",
+    },
+    {
+      label: intl.formatMessage({
+        defaultMessage: "Domains",
+        id: "UFpFmP3uvn",
+        description: "Settings hub row label for workspace domains",
+      }),
+      description: intl.formatMessage({
+        defaultMessage: "View verified domains and attached localisation audit reports.",
+        id: "gqCGKqkwz/",
+        description: "Settings hub row description for workspace domains",
+      }),
+      href: `/org/${organizationSlug}/domains`,
+      absoluteHref: true,
+      icon: LinkSquare02Icon,
+      requiredCapability: "projects:read",
+      requiresDomainsFeature: true,
     },
     {
       label: intl.formatMessage({
@@ -192,13 +216,23 @@ function ReadonlyField({ label, value }: { label: string; value: string }) {
   );
 }
 
-export async function SettingsPageContent({ organizationSlug, capabilities }: SettingsPageProps) {
+export async function SettingsPageContent({
+  organizationSlug,
+  capabilities,
+  domainsEnabled,
+}: SettingsPageProps) {
   const intl = getIntlShape(await getAppLocale());
   const baseHref = `/org/${organizationSlug}/settings`;
-  const settingsRows = buildSettingsRows(intl);
-  const visibleRows = settingsRows.filter(
-    (row) => !row.requiredCapability || capabilities.includes(row.requiredCapability),
-  );
+  const settingsRows = buildSettingsRows(intl, organizationSlug);
+  const visibleRows = settingsRows.filter((row) => {
+    if (row.requiredCapability && !capabilities.includes(row.requiredCapability)) {
+      return false;
+    }
+    if (row.requiresDomainsFeature && !domainsEnabled) {
+      return false;
+    }
+    return true;
+  });
   const openLabel = intl.formatMessage({
     defaultMessage: "Open",
     id: "PEy6fPw+25",
@@ -233,7 +267,7 @@ export async function SettingsPageContent({ organizationSlug, capabilities }: Se
             <SettingsRow
               key={row.href}
               description={row.description}
-              href={`${baseHref}/${row.href}`}
+              href={row.absoluteHref ? row.href : `${baseHref}/${row.href}`}
               icon={row.icon}
               isLast={index === visibleRows.length - 1}
               label={row.label}

@@ -53,7 +53,14 @@ export function IssuesPageView({
   hasMore,
   actions,
   filterBar,
+  bulkActionBar,
   activeStatus,
+  canEditIssues = false,
+  selectionEnabled = false,
+  isIssueSelected,
+  selectionDisabled = false,
+  disableInlineEdits = false,
+  onIssueSelectionChange,
   onLoadMore,
   onIssueRowClick,
 }: {
@@ -72,7 +79,14 @@ export function IssuesPageView({
   hasMore: boolean;
   actions?: ReactNode;
   filterBar: ReactNode;
+  bulkActionBar?: ReactNode;
   activeStatus?: string;
+  canEditIssues?: boolean;
+  selectionEnabled?: boolean;
+  isIssueSelected?: (issue: OrganizationIssue) => boolean;
+  selectionDisabled?: boolean;
+  disableInlineEdits?: boolean;
+  onIssueSelectionChange?: (issue: OrganizationIssue, checked: boolean) => void;
   onLoadMore: () => void;
   onIssueRowClick: (issue: OrganizationIssue) => void;
 }) {
@@ -90,6 +104,8 @@ export function IssuesPageView({
 
       {filterBar}
 
+      {canEditIssues ? bulkActionBar : null}
+
       <IssueGroupedList
         organizationSlug={organizationSlug}
         issues={issues}
@@ -101,6 +117,11 @@ export function IssuesPageView({
         isFetchingMore={isFetchingMore}
         hasMore={hasMore}
         onLoadMore={onLoadMore}
+        selectionEnabled={selectionEnabled}
+        isIssueSelected={isIssueSelected}
+        selectionDisabled={selectionDisabled}
+        disableInlineEdits={disableInlineEdits}
+        onIssueSelectionChange={onIssueSelectionChange}
         onIssueActivate={onIssueRowClick}
         loadMoreLabel={<FormattedMessage {...issuesPageViewMessages.loadMore} />}
         loadingMoreLabel={<FormattedMessage {...issuesPageViewMessages.loadingMore} />}

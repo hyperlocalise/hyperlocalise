@@ -10,13 +10,21 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import type {
-  WorkspaceAutomationGithubToolMode,
-  WorkspaceAutomationRecord,
-  WorkspaceAutomationRepositoryTarget,
-  WorkspaceAutomationToolConfig,
-  WorkspaceAutomationTriggerConfig,
-} from "./workspace-automations";
+import {
+  DEFAULT_WORKSPACE_AUTOMATION_MODEL,
+  resolveWorkspaceAutomationGithubEvents,
+  resolveWorkspaceAutomationModel,
+  type WorkspaceAutomationGithubToolMode,
+  type WorkspaceAutomationGithubTriggerEvent,
+  type WorkspaceAutomationModel,
+  type WorkspaceAutomationRecord,
+  type WorkspaceAutomationRepositoryTarget,
+  type WorkspaceAutomationToolConfig,
+  type WorkspaceAutomationTriggerConfig,
+  type WorkspaceAutomationWebSearchProvider,
+} from "./workspace-automation-types";
+import { parseSlackConversationId } from "./slack/channel-query";
+import { isValidAutomationTimeZone } from "./automation-time-zones";
 import {
   getWorkspaceAutomationTemplate,
   type WorkspaceAutomationTemplate,
@@ -27,15 +35,18 @@ export type WorkspaceAutomationTriggerMode =
   | "scheduled"
   | "github"
   | "contentful"
-  | "source_upload";
+  | "source_upload"
+  | "web_chat";
 
 export type WorkspaceAutomationFormState = {
   name: string;
   instructions: string;
+  model: WorkspaceAutomationModel;
   status: "active" | "paused";
   projectId: string;
   triggerMode: WorkspaceAutomationTriggerMode;
   pushBranches: string[];
+  githubEvents: WorkspaceAutomationGithubTriggerEvent[];
   scheduledCadence: "hourly" | "daily" | "weekly";
   scheduledHourUtc: number;
   scheduledDayOfWeek: number;
@@ -51,6 +62,7 @@ export type WorkspaceAutomationFormState = {
   slackChannelId: string;
   emailEnabled: boolean;
   emailRecipients: string[];
+  githubCommentEnabled: boolean;
   contentfulEnabled: boolean;
   contentfulConnectionId: string;
   contentfulSourceLocale: string;
@@ -65,14 +77,21 @@ export type WorkspaceAutomationFormState = {
   createNativeTmsJobUseProjectTargetLocales: boolean;
   createNativeTmsJobTargetLocales: string[];
   assignTranslateWithAgentEnabled: boolean;
+  listIssuesEnabled: boolean;
+  createIssueEnabled: boolean;
   knowledgeEnabled: boolean;
   knowledgeAllowUpdates: boolean;
+  knowledgeFilesEnabled: boolean;
   mcpEnabled: boolean;
   mcpConnectionId: string;
   semrushEnabled: boolean;
   semrushConnectionId: string;
   ahrefsEnabled: boolean;
   ahrefsConnectionId: string;
+  crowdinEnabled: boolean;
+  crowdinProjectId: string;
+  webSearchEnabled: boolean;
+  webSearchProvider: WorkspaceAutomationWebSearchProvider;
 };
 
 function workspaceAutomationFormNeedsProject(form: WorkspaceAutomationFormState): boolean {
@@ -85,6 +104,9 @@ function workspaceAutomationFormNeedsProject(form: WorkspaceAutomationFormState)
   if (form.createNativeTmsJobEnabled || form.assignTranslateWithAgentEnabled) {
     return true;
   }
+  if (form.listIssuesEnabled || form.createIssueEnabled) {
+    return true;
+  }
   return form.githubEnabled && form.githubMode === "sync";
 }
 
@@ -92,10 +114,12 @@ export type WorkspaceAutomationFieldErrors = Partial<
   Record<
     | "name"
     | "instructions"
+    | "model"
     | "projectId"
     | "githubRepository"
     | "trigger"
     | "pushBranches"
+    | "githubEvents"
     | "slackChannelId"
     | "emailRecipients"
     | "contentfulConnectionId"
@@ -105,6 +129,8 @@ export type WorkspaceAutomationFieldErrors = Partial<
     | "mcpConnectionId"
     | "semrushConnectionId"
     | "ahrefsConnectionId"
+    | "crowdinProjectId"
+    | "scheduledTimezone"
     | "form",
     string
   >
@@ -118,10 +144,12 @@ export const WORKSPACE_AUTOMATION_API_ERROR_MESSAGES: Record<string, string> = {
   translation_project_required: "Choose a Hyperlocalise project for this automation.",
   github_trigger_required: "Choose a schedule or GitHub push trigger for GitHub workflows.",
   github_agent_trigger_required:
-    "Use GitHub repo automations with a scheduled or manual trigger, not GitHub push.",
-  github_push_branches_required: "Add at least one branch pattern for GitHub push triggers.",
+    "Use GitHub repo automations with a scheduled, manual, or GitHub push trigger.",
+  github_push_branches_required: "Add at least one branch pattern for GitHub triggers.",
+  github_events_required: "Choose at least one GitHub event.",
   scheduled_workflow_required:
-    "Scheduled automations require at least one GitHub or Contentful workflow.",
+    "Scheduled automations require at least one GitHub, Contentful, Issues, Web Search, or Crowdin workflow tool.",
+  invalid_automation_timezone: "Choose a valid timezone for the schedule.",
   slack_not_connected: "Connect Slack in Integrations before enabling Slack notifications.",
   slack_channel_required: "Choose a Slack channel for notifications.",
   email_not_connected: "Enable the email agent in Integrations before using email notifications.",
@@ -145,19 +173,36 @@ export const WORKSPACE_AUTOMATION_API_ERROR_MESSAGES: Record<string, string> = {
   ahrefs_connection_not_found:
     "The selected Ahrefs connection was not found. Choose another connection.",
   ahrefs_not_connected: "Enable the selected Ahrefs connection in Integrations before using it.",
+  crowdin_project_required: "Choose a Crowdin-linked project for Crowdin review.",
+  crowdin_project_not_found: "The selected Crowdin project was not found. Choose another project.",
+  crowdin_project_not_linked:
+    "The selected project is not linked to Crowdin. Choose a Crowdin project.",
+  crowdin_not_connected: "Connect Crowdin in Integrations before using Crowdin review tools.",
   github_repository_not_enabled: "Enable this repository before configuring automation.",
   github_repository_archived: "Archived repositories cannot use automations.",
   project_not_found: "The selected project could not be found.",
 };
 
+export function selectableAutomationRepositories<
+  T extends { id: string; enabled: boolean; archived: boolean },
+>(repositories: T[], selectedId = ""): T[] {
+  return repositories.filter(
+    (repository) =>
+      (repository.enabled && !repository.archived) ||
+      (selectedId.length > 0 && repository.id === selectedId),
+  );
+}
+
 export function createDefaultWorkspaceAutomationFormState(): WorkspaceAutomationFormState {
   return {
     name: "",
     instructions: "",
+    model: DEFAULT_WORKSPACE_AUTOMATION_MODEL,
     status: "active",
     projectId: "",
     triggerMode: "manual",
     pushBranches: ["main"],
+    githubEvents: ["push"],
     scheduledCadence: "daily",
     scheduledHourUtc: 22,
     scheduledDayOfWeek: 1,
@@ -173,6 +218,7 @@ export function createDefaultWorkspaceAutomationFormState(): WorkspaceAutomation
     slackChannelId: "",
     emailEnabled: false,
     emailRecipients: [],
+    githubCommentEnabled: false,
     contentfulEnabled: false,
     contentfulConnectionId: "",
     contentfulSourceLocale: "en",
@@ -187,14 +233,21 @@ export function createDefaultWorkspaceAutomationFormState(): WorkspaceAutomation
     createNativeTmsJobUseProjectTargetLocales: true,
     createNativeTmsJobTargetLocales: [],
     assignTranslateWithAgentEnabled: false,
+    listIssuesEnabled: false,
+    createIssueEnabled: false,
     knowledgeEnabled: false,
     knowledgeAllowUpdates: false,
+    knowledgeFilesEnabled: false,
     mcpEnabled: false,
     mcpConnectionId: "",
     semrushEnabled: false,
     semrushConnectionId: "",
     ahrefsEnabled: false,
     ahrefsConnectionId: "",
+    crowdinEnabled: false,
+    crowdinProjectId: "",
+    webSearchEnabled: false,
+    webSearchProvider: "auto",
   };
 }
 
@@ -207,14 +260,20 @@ export function createWorkspaceAutomationFormStateFromRecord(
   const contentful = automation.toolConfig.contentful;
   const createNativeTmsJob = automation.toolConfig.createNativeTmsJob;
   const assignTranslateWithAgent = automation.toolConfig.assignTranslateWithAgent;
+  const listIssues = automation.toolConfig.listIssues;
+  const createIssue = automation.toolConfig.createIssue;
   const knowledge = automation.toolConfig.knowledge;
+  const knowledgeFiles = automation.toolConfig.knowledgeFiles;
   const mcp = automation.toolConfig.mcp;
   const semrush = automation.toolConfig.semrush;
   const ahrefs = automation.toolConfig.ahrefs;
+  const crowdin = automation.toolConfig.crowdin;
+  const webSearch = automation.toolConfig.webSearch;
 
   return {
     name: automation.name,
     instructions: automation.instructions,
+    model: resolveWorkspaceAutomationModel(automation.model),
     status: automation.status === "paused" ? "paused" : "active",
     projectId: automation.projectId ?? "",
     triggerMode: automation.triggerConfig.mode,
@@ -222,6 +281,9 @@ export function createWorkspaceAutomationFormStateFromRecord(
       automation.triggerConfig.mode === "github" && automation.triggerConfig.branches?.length
         ? [...automation.triggerConfig.branches]
         : ["main"],
+    githubEvents: resolveWorkspaceAutomationGithubEvents(
+      automation.triggerConfig.mode === "github" ? automation.triggerConfig.events : undefined,
+    ),
     scheduledCadence:
       automation.triggerConfig.mode === "scheduled" && automation.triggerConfig.schedule
         ? automation.triggerConfig.schedule.cadence
@@ -250,6 +312,7 @@ export function createWorkspaceAutomationFormStateFromRecord(
     slackChannelId: slack?.channelId ?? "",
     emailEnabled: Boolean(email?.enabled),
     emailRecipients: email?.recipients ? [...email.recipients] : [],
+    githubCommentEnabled: Boolean(automation.toolConfig.githubComment?.enabled),
     contentfulEnabled: Boolean(contentful?.enabled),
     contentfulConnectionId: contentful?.connectionId ?? "",
     contentfulSourceLocale: contentful?.sourceLocale ?? "en",
@@ -266,14 +329,21 @@ export function createWorkspaceAutomationFormStateFromRecord(
       ? [...createNativeTmsJob.targetLocales]
       : [],
     assignTranslateWithAgentEnabled: Boolean(assignTranslateWithAgent?.enabled),
+    listIssuesEnabled: Boolean(listIssues?.enabled),
+    createIssueEnabled: Boolean(createIssue?.enabled),
     knowledgeEnabled: Boolean(knowledge?.enabled),
     knowledgeAllowUpdates: Boolean(knowledge?.allowUpdates),
+    knowledgeFilesEnabled: Boolean(knowledgeFiles?.enabled),
     mcpEnabled: Boolean(mcp?.enabled),
     mcpConnectionId: mcp?.connectionId ?? "",
     semrushEnabled: Boolean(semrush?.enabled),
     semrushConnectionId: semrush?.connectionId ?? "",
     ahrefsEnabled: Boolean(ahrefs?.enabled),
     ahrefsConnectionId: ahrefs?.connectionId ?? "",
+    crowdinEnabled: Boolean(crowdin?.enabled),
+    crowdinProjectId: crowdin?.projectId ?? "",
+    webSearchEnabled: Boolean(webSearch?.enabled),
+    webSearchProvider: webSearch?.provider ?? "auto",
   };
 }
 
@@ -302,6 +372,7 @@ export function applyTemplateToWorkspaceAutomationFormState(
     name: template.defaultForm.name ?? template.name,
     instructions: template.defaultForm.instructions ?? template.instructions,
     pushBranches: template.defaultForm.pushBranches ?? base.pushBranches,
+    githubEvents: template.defaultForm.githubEvents ?? base.githubEvents,
     emailRecipients: template.defaultForm.emailRecipients ?? base.emailRecipients,
     contentfulContentTypeIds:
       template.defaultForm.contentfulContentTypeIds ?? base.contentfulContentTypeIds,
@@ -334,6 +405,7 @@ export function applyWorkspaceAutomationProjectSelection(
 export function formStateToWorkspaceAutomationPayload(form: WorkspaceAutomationFormState): {
   name: string;
   instructions: string;
+  model: WorkspaceAutomationModel;
   status: "active" | "paused";
   projectId?: string;
   triggerConfig: WorkspaceAutomationTriggerConfig;
@@ -355,15 +427,18 @@ export function formStateToWorkspaceAutomationPayload(form: WorkspaceAutomationF
         ? {
             mode: "github",
             branches: form.pushBranches,
+            events: resolveWorkspaceAutomationGithubEvents(form.githubEvents),
           }
         : form.triggerMode === "contentful"
           ? { mode: "contentful" }
           : form.triggerMode === "source_upload"
             ? { mode: "source_upload" }
-            : { mode: "manual" };
+            : form.triggerMode === "web_chat"
+              ? { mode: "web_chat" }
+              : { mode: "manual" };
 
   const repositoryTarget: WorkspaceAutomationRepositoryTarget =
-    form.githubEnabled && form.githubInstallationRepositoryId
+    (form.githubEnabled || form.githubCommentEnabled) && form.githubInstallationRepositoryId
       ? {
           kind: "github",
           githubInstallationRepositoryId: form.githubInstallationRepositoryId,
@@ -395,6 +470,13 @@ export function formStateToWorkspaceAutomationPayload(form: WorkspaceAutomationF
           email: {
             enabled: true,
             recipients: form.emailRecipients,
+          },
+        }
+      : {}),
+    ...(form.githubCommentEnabled
+      ? {
+          githubComment: {
+            enabled: true,
           },
         }
       : {}),
@@ -432,6 +514,20 @@ export function formStateToWorkspaceAutomationPayload(form: WorkspaceAutomationF
           },
         }
       : {}),
+    ...(form.listIssuesEnabled
+      ? {
+          listIssues: {
+            enabled: true,
+          },
+        }
+      : {}),
+    ...(form.createIssueEnabled
+      ? {
+          createIssue: {
+            enabled: true,
+          },
+        }
+      : {}),
     ...(form.knowledgeEnabled
       ? {
           knowledge: {
@@ -439,6 +535,13 @@ export function formStateToWorkspaceAutomationPayload(form: WorkspaceAutomationF
             // Defense in depth: even if the UI's dependency between the two toggles ever drifts,
             // updates can never be serialized as allowed without recall also being enabled.
             allowUpdates: form.knowledgeAllowUpdates,
+          },
+        }
+      : {}),
+    ...(form.knowledgeFilesEnabled
+      ? {
+          knowledgeFiles: {
+            enabled: true,
           },
         }
       : {}),
@@ -466,6 +569,22 @@ export function formStateToWorkspaceAutomationPayload(form: WorkspaceAutomationF
           },
         }
       : {}),
+    ...(form.crowdinEnabled
+      ? {
+          crowdin: {
+            enabled: true,
+            projectId: form.crowdinProjectId.trim() || undefined,
+          },
+        }
+      : {}),
+    ...(form.webSearchEnabled
+      ? {
+          webSearch: {
+            enabled: true,
+            provider: form.webSearchProvider,
+          },
+        }
+      : {}),
   };
 
   const projectId = form.projectId.trim() || undefined;
@@ -473,6 +592,7 @@ export function formStateToWorkspaceAutomationPayload(form: WorkspaceAutomationF
   return {
     name: form.name.trim(),
     instructions: form.instructions.trim(),
+    model: resolveWorkspaceAutomationModel(form.model),
     status: form.status,
     ...(projectId ? { projectId } : {}),
     triggerConfig,
@@ -510,17 +630,28 @@ export function validateWorkspaceAutomationFormState(
       if (form.triggerMode === "manual") {
         errors.trigger = "Choose a schedule or GitHub push trigger.";
       }
-      if (form.triggerMode === "github" && form.pushBranches.length === 0) {
-        errors.pushBranches = "Add at least one branch pattern.";
-      }
-    } else if (form.triggerMode === "github") {
-      errors.trigger =
-        "Use GitHub repo automations with a scheduled or manual trigger, not GitHub push.";
     }
+  } else if (form.githubCommentEnabled && !form.githubInstallationRepositoryId) {
+    errors.githubRepository = "Choose a GitHub repository.";
   }
 
-  if (form.slackEnabled && !form.slackChannelId.trim()) {
-    errors.slackChannelId = "Choose a Slack channel.";
+  if (form.triggerMode === "github" && form.pushBranches.length === 0) {
+    errors.pushBranches = "Add at least one branch pattern.";
+  }
+
+  if (form.triggerMode === "github" && form.githubEvents.length === 0) {
+    errors.githubEvents = "Choose at least one GitHub event.";
+  }
+
+  if (
+    form.triggerMode === "scheduled" &&
+    !isValidAutomationTimeZone(form.scheduledTimezone.trim() || "UTC")
+  ) {
+    errors.scheduledTimezone = "Choose a valid timezone.";
+  }
+
+  if (form.slackEnabled && !parseSlackConversationId(form.slackChannelId)) {
+    errors.slackChannelId = "Enter a valid Slack channel ID.";
   }
 
   if (form.emailEnabled && form.emailRecipients.length === 0) {
@@ -568,6 +699,10 @@ export function validateWorkspaceAutomationFormState(
     errors.ahrefsConnectionId = "Choose an Ahrefs connection.";
   }
 
+  if (form.crowdinEnabled && !form.crowdinProjectId.trim()) {
+    errors.crowdinProjectId = "Choose a Crowdin-linked project.";
+  }
+
   return errors;
 }
 
@@ -595,8 +730,12 @@ export function mapWorkspaceAutomationApiErrorToFieldErrors(
     case "scheduled_workflow_required":
     case "source_upload_workflow_required":
       return { trigger: message };
+    case "invalid_automation_timezone":
+      return { scheduledTimezone: message };
     case "github_push_branches_required":
       return { pushBranches: message };
+    case "github_events_required":
+      return { githubEvents: message };
     case "slack_not_connected":
     case "slack_channel_required":
       return { slackChannelId: message };
@@ -625,21 +764,49 @@ export function mapWorkspaceAutomationApiErrorToFieldErrors(
     case "ahrefs_connection_not_found":
     case "ahrefs_not_connected":
       return { ahrefsConnectionId: message };
+    case "crowdin_project_required":
+    case "crowdin_project_not_found":
+    case "crowdin_project_not_linked":
+    case "crowdin_not_connected":
+      return { crowdinProjectId: message };
     default:
       return { form: message };
   }
 }
 
+export function workspaceAutomationFormSupportsOnDemandRun(
+  triggerMode: WorkspaceAutomationTriggerMode,
+) {
+  return triggerMode === "manual" || triggerMode === "scheduled";
+}
+
+export function workspaceAutomationFormHasChanges(
+  current: WorkspaceAutomationFormState,
+  saved: WorkspaceAutomationFormState,
+) {
+  return JSON.stringify(current) !== JSON.stringify(saved);
+}
+
 export function workspaceAutomationFormCanActivate(form: WorkspaceAutomationFormState) {
+  if (form.triggerMode === "web_chat") {
+    return true;
+  }
+
   return (
     form.githubEnabled ||
     form.slackEnabled ||
     form.emailEnabled ||
+    form.githubCommentEnabled ||
     form.contentfulEnabled ||
     form.createNativeTmsJobEnabled ||
     form.assignTranslateWithAgentEnabled ||
+    form.listIssuesEnabled ||
+    form.createIssueEnabled ||
     form.mcpEnabled ||
     form.semrushEnabled ||
-    form.ahrefsEnabled
+    form.ahrefsEnabled ||
+    form.crowdinEnabled ||
+    form.webSearchEnabled ||
+    form.knowledgeFilesEnabled
   );
 }

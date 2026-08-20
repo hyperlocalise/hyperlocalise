@@ -123,6 +123,7 @@ export function IssueCommentComposer({
             users: {
               userId: string;
               displayName: string;
+              email: string;
               avatarUrl: string | null;
               isAgent?: boolean;
             }[];
@@ -141,6 +142,7 @@ export function IssueCommentComposer({
             id: `user:${entry.userId}`,
             userId: entry.userId,
             displayName: entry.displayName,
+            email: entry.email,
             avatarUrl: entry.avatarUrl,
             isAgent: entry.isAgent,
           })),

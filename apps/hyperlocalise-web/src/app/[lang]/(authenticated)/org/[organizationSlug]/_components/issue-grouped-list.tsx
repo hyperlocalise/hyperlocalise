@@ -19,6 +19,7 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import { useIntl } from "react-intl";
 
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/primitives/cn";
 
@@ -101,12 +102,22 @@ export function IssueListRow({
   showProject,
   onActivate,
   onActivateKeyDown,
+  selectionEnabled = false,
+  selected = false,
+  selectionDisabled = false,
+  disableInlineEdits = false,
+  onSelectionChange,
 }: {
   organizationSlug: string;
   issue: IssueGroupedListItem;
   showProject?: boolean;
   onActivate: (issue: IssueGroupedListItem) => void;
   onActivateKeyDown: (event: KeyboardEvent<HTMLDivElement>, issue: IssueGroupedListItem) => void;
+  selectionEnabled?: boolean;
+  selected?: boolean;
+  selectionDisabled?: boolean;
+  disableInlineEdits?: boolean;
+  onSelectionChange?: (issue: IssueGroupedListItem, checked: boolean) => void;
 }) {
   const intl = useIntl();
   const emptyValue = intl.formatMessage(messages.emptyValue);
@@ -115,54 +126,66 @@ export function IssueListRow({
   };
 
   return (
-    <div
-      role="button"
-      tabIndex={0}
-      className="flex cursor-pointer items-center gap-3 px-3 py-2 text-sm hover:bg-muted/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-      onClick={() => onActivate(issue)}
-      onKeyDown={(event) => onActivateKeyDown(event, issue)}
-    >
-      <IssuePriorityIcon priority={issue.priority} size="sm" />
-      <Link
-        href={buildIssueDetailHref({
-          organizationSlug,
-          projectId: issue.projectId,
-          issueId: issue.id,
-        })}
-        className="min-w-0 flex-1 truncate font-medium text-foreground hover:underline"
-        onClick={stopPropagation}
-        onKeyDown={stopPropagation}
+    <div className="flex items-center gap-3 px-3 py-2 text-sm hover:bg-muted/30">
+      {selectionEnabled ? (
+        <Checkbox
+          checked={selected}
+          disabled={selectionDisabled}
+          aria-label={intl.formatMessage(messages.rowSelectAria, { title: issue.title })}
+          onCheckedChange={(checked) => onSelectionChange?.(issue, checked === true)}
+          onClick={stopPropagation}
+        />
+      ) : null}
+      <div
+        role="button"
+        tabIndex={0}
+        className="flex min-w-0 flex-1 cursor-pointer items-center gap-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+        onClick={() => onActivate(issue)}
+        onKeyDown={(event) => onActivateKeyDown(event, issue)}
       >
-        {issue.title}
-      </Link>
-      {showProject && issue.projectName ? (
+        <IssuePriorityIcon priority={issue.priority} size="sm" />
         <Link
-          href={`/org/${organizationSlug}/projects/${encodeURIComponent(issue.projectId)}`}
-          className="hidden max-w-[10rem] truncate text-muted-foreground hover:text-foreground hover:underline md:inline"
+          href={buildIssueDetailHref({
+            organizationSlug,
+            projectId: issue.projectId,
+            issueId: issue.id,
+          })}
+          className="min-w-0 flex-1 truncate font-medium text-foreground hover:underline"
           onClick={stopPropagation}
           onKeyDown={stopPropagation}
         >
-          {issue.projectName}
+          {issue.title}
         </Link>
-      ) : null}
-      <span className="hidden w-16 shrink-0 truncate text-muted-foreground sm:inline">
-        {issue.targetLocale ?? emptyValue}
-      </span>
-      <div className="shrink-0" onClick={stopPropagation} onKeyDown={stopPropagation}>
-        <IssueAssigneeTableCell
-          organizationSlug={organizationSlug}
-          projectId={issue.projectId}
-          issueId={issue.id}
-          assigneeUserId={issue.assigneeUserId}
-          assigneeLabel={issue.assignee}
-        />
+        {showProject && issue.projectName ? (
+          <Link
+            href={`/org/${organizationSlug}/projects/${encodeURIComponent(issue.projectId)}`}
+            className="hidden max-w-[10rem] truncate text-muted-foreground hover:text-foreground hover:underline md:inline"
+            onClick={stopPropagation}
+            onKeyDown={stopPropagation}
+          >
+            {issue.projectName}
+          </Link>
+        ) : null}
+        <span className="hidden w-16 shrink-0 truncate text-muted-foreground sm:inline">
+          {issue.targetLocale ?? emptyValue}
+        </span>
+        <div className="shrink-0" onClick={stopPropagation} onKeyDown={stopPropagation}>
+          <IssueAssigneeTableCell
+            organizationSlug={organizationSlug}
+            projectId={issue.projectId}
+            issueId={issue.id}
+            assigneeUserId={issue.assigneeUserId}
+            assigneeLabel={issue.assignee}
+            disabled={disableInlineEdits}
+          />
+        </div>
+        <span
+          className="w-10 shrink-0 text-end text-muted-foreground tabular-nums"
+          title={formatRelativeTimestamp(issue.updatedAt)}
+        >
+          {formatCompactRelativeTimestamp(issue.updatedAt)}
+        </span>
       </div>
-      <span
-        className="w-10 shrink-0 text-end text-muted-foreground tabular-nums"
-        title={formatRelativeTimestamp(issue.updatedAt)}
-      >
-        {formatCompactRelativeTimestamp(issue.updatedAt)}
-      </span>
     </div>
   );
 }
@@ -184,6 +207,11 @@ export function IssueGroupedList<T extends IssueGroupedListItem>({
   onLoadMore,
   onIssueActivate,
   className,
+  selectionEnabled = false,
+  isIssueSelected,
+  selectionDisabled = false,
+  disableInlineEdits = false,
+  onIssueSelectionChange,
 }: {
   organizationSlug: string;
   issues: T[];
@@ -201,6 +229,11 @@ export function IssueGroupedList<T extends IssueGroupedListItem>({
   onLoadMore?: () => void;
   onIssueActivate: (issue: T) => void;
   className?: string;
+  selectionEnabled?: boolean;
+  isIssueSelected?: (issue: T) => boolean;
+  selectionDisabled?: boolean;
+  disableInlineEdits?: boolean;
+  onIssueSelectionChange?: (issue: T, checked: boolean) => void;
 }) {
   const intl = useIntl();
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
@@ -289,6 +322,13 @@ export function IssueGroupedList<T extends IssueGroupedListItem>({
                       organizationSlug={organizationSlug}
                       issue={issue}
                       showProject={showProject}
+                      selectionEnabled={selectionEnabled}
+                      selected={isIssueSelected?.(issue as T) ?? false}
+                      selectionDisabled={selectionDisabled}
+                      disableInlineEdits={disableInlineEdits}
+                      onSelectionChange={(item, checked) =>
+                        onIssueSelectionChange?.(item as T, checked)
+                      }
                       onActivate={(item) => onIssueActivate(item as T)}
                       onActivateKeyDown={(event, item) => handleKeyDown(event, item as T)}
                     />

@@ -12,9 +12,9 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { HugeiconsIcon } from "@hugeicons/react";
 import { type FormEvent, useEffect, useState } from "react";
-import { Settings01Icon } from "@hugeicons/core-free-icons";
-import { SaveIcon } from "lucide-react";
+import { SaveIcon, Settings01Icon } from "@hugeicons/core-free-icons";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { FormattedMessage, useIntl } from "react-intl";
 import { toast } from "sonner";
@@ -27,6 +27,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
 import { TypographyP } from "@/components/ui/typography";
 import { apiClient } from "@/lib/api-client-instance";
+import { isEncodedProviderProjectId } from "@/lib/providers/jobs/tms-provider-resource-id";
 import { sanitizeExternalUrl } from "@/lib/security/safe-external-url";
 import { useAppShellHeaderAction } from "@/components/app-shell/store/use-app-shell-header-action";
 
@@ -50,7 +51,9 @@ import {
   ProjectSectionTitle,
   useProjectPageQuery,
 } from "../../_components/project-page-shell";
+import { ProjectIssueTemplatesPanel } from "./project-issue-templates-panel";
 import { ProjectNativeConnectCliPanel } from "./project-native-connect-cli-panel";
+import { ProjectIssueColumnsSettings } from "./project-issue-columns-settings";
 import { projectSettingsPageContentMessages } from "./project-settings-page-content.messages";
 
 const providerLabels: Record<NonNullable<ProjectListRow["externalProviderKind"]>, string> = {
@@ -201,7 +204,11 @@ export function ProjectSettingsPageContent({
     visible: Boolean(settingsEditable),
     render: () => (
       <Button type="submit" form="project-settings-form" disabled={isSaving}>
-        {isSaving ? <Spinner /> : <SaveIcon className="size-4" strokeWidth={2} />}
+        {isSaving ? (
+          <Spinner />
+        ) : (
+          <HugeiconsIcon icon={SaveIcon} className="size-4" strokeWidth={2} />
+        )}
         {isSaving ? (
           <FormattedMessage {...projectSettingsPageContentMessages.saving} />
         ) : (
@@ -417,10 +424,22 @@ export function ProjectSettingsPageContent({
 
         <ProjectSourceDetails project={project} />
 
+        {/* Live (unsynced) external-TMS projects have no row in `projects` — id is an encoded
+            "ext:provider:externalId" string, not a real project — so there is nowhere to persist
+            a template config. Rendering the panel there would let an admin "save" a config that
+            silently never took effect. */}
+        {!isEncodedProviderProjectId(project.id) ? (
+          <ProjectIssueTemplatesPanel organizationSlug={organizationSlug} projectId={projectId} />
+        ) : null}
+
         {project.source === "native" ? (
           <ProjectNativeConnectCliPanel organizationSlug={organizationSlug} projectId={projectId} />
         ) : null}
       </form>
+
+      <div className="mt-5">
+        <ProjectIssueColumnsSettings organizationSlug={organizationSlug} projectId={projectId} />
+      </div>
     </ProjectPageShell>
   );
 }

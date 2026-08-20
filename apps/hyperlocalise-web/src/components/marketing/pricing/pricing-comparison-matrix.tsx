@@ -10,8 +10,9 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { CheckIcon, GaugeIcon, LayersIcon, ShieldCheckIcon, type LucideIcon } from "lucide-react";
 
+import { GaugeIcon, LayerIcon, Shield01Icon, Tick02Icon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon, type IconSvgElement } from "@hugeicons/react";
 import { TypographyH2, TypographyH3, TypographyP } from "@/components/ui/typography";
 import { cn } from "@/lib/primitives/cn";
 
@@ -32,9 +33,9 @@ type PricingComparisonMatrixProps = {
   notIncludedAriaLabel: string;
 };
 
-const sectionIcons: Record<string, { icon: LucideIcon; className: string }> = {
+const sectionIcons: Record<string, { icon: IconSvgElement; className: string }> = {
   workspace: {
-    icon: LayersIcon,
+    icon: LayerIcon,
     className: "bg-blue-100 text-blue-900",
   },
   usage: {
@@ -42,7 +43,7 @@ const sectionIcons: Record<string, { icon: LucideIcon; className: string }> = {
     className: "bg-amber-100 text-amber-900",
   },
   enterprise: {
-    icon: ShieldCheckIcon,
+    icon: Shield01Icon,
     className: "bg-purple-100 text-purple-900",
   },
 };
@@ -57,7 +58,13 @@ function MatrixCellValue({
   notIncludedAriaLabel: string;
 }) {
   if (cell.kind === "check") {
-    return <CheckIcon className="size-4 text-foreground" aria-label={includedAriaLabel} />;
+    return (
+      <HugeiconsIcon
+        icon={Tick02Icon}
+        className="size-4 text-foreground"
+        aria-label={includedAriaLabel}
+      />
+    );
   }
 
   if (cell.kind === "dash") {
@@ -133,7 +140,7 @@ export function PricingComparisonMatrix({
                             sectionIcon.className,
                           )}
                         >
-                          <Icon className="size-4" strokeWidth={1.75} />
+                          <HugeiconsIcon icon={Icon} className="size-4" strokeWidth={1.75} />
                         </span>
                       ) : null}
                       <TypographyH3 className="text-lg md:text-lg">{section.title}</TypographyH3>

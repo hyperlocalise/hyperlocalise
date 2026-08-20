@@ -15,11 +15,12 @@ import {
   type GithubRepositoryAutomationSettings,
 } from "@/lib/agents/github/github-repository-automation-settings";
 
-import type {
-  WorkspaceAutomationRecord,
-  WorkspaceAutomationToolConfig,
-  WorkspaceAutomationTriggerConfig,
-} from "./workspace-automations";
+import {
+  workspaceAutomationGithubEventsInclude,
+  type WorkspaceAutomationRecord,
+  type WorkspaceAutomationToolConfig,
+  type WorkspaceAutomationTriggerConfig,
+} from "./workspace-automation-types";
 
 export function resolveWorkspaceAutomationGithubMode(
   toolConfig: WorkspaceAutomationToolConfig,
@@ -56,6 +57,58 @@ export function hasWorkspaceAutomationGithubTool(
     hasWorkspaceAutomationGithubAgentTool(toolConfig) ||
     hasWorkspaceAutomationGithubWorkflow(toolConfig)
   );
+}
+
+export function hasWorkspaceAutomationGithubCommentTool(
+  toolConfig: WorkspaceAutomationToolConfig,
+): boolean {
+  return Boolean(toolConfig.githubComment?.enabled);
+}
+
+function workspaceAutomationHasGithubDispatchTools(automation: WorkspaceAutomationRecord): boolean {
+  return (
+    hasWorkspaceAutomationGithubWorkflow(automation.toolConfig) ||
+    hasWorkspaceAutomationGithubAgentTool(automation.toolConfig) ||
+    hasWorkspaceAutomationGithubCommentTool(automation.toolConfig)
+  );
+}
+
+export function workspaceAutomationShouldDispatchOnGithubPush(
+  automation: WorkspaceAutomationRecord,
+  branch: string,
+): boolean {
+  if (automation.repositoryTarget.kind !== "github") {
+    return false;
+  }
+
+  if (!workspaceAutomationGithubEventsInclude(automation.triggerConfig.events, "push")) {
+    return false;
+  }
+
+  if (!workspaceAutomationMatchesPushBranch(automation, branch)) {
+    return false;
+  }
+
+  return workspaceAutomationHasGithubDispatchTools(automation);
+}
+
+export function workspaceAutomationShouldDispatchOnGithubPullRequest(
+  automation: WorkspaceAutomationRecord,
+  baseBranch: string,
+): boolean {
+  if (automation.repositoryTarget.kind !== "github") {
+    return false;
+  }
+
+  if (!workspaceAutomationGithubEventsInclude(automation.triggerConfig.events, "pull_request")) {
+    return false;
+  }
+
+  if (!workspaceAutomationMatchesPushBranch(automation, baseBranch)) {
+    return false;
+  }
+
+  return workspaceAutomationHasGithubDispatchTools(automation);
 }
 
 export function workspaceAutomationToGithubSettings(

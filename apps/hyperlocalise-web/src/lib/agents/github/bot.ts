@@ -33,6 +33,7 @@ import type { RepositoryAgentTaskQueue } from "@/lib/workflow/types";
 import { eq } from "drizzle-orm";
 import { createRepositoryAgentTaskQueue } from "@/workflows/adapters";
 
+import { enqueueGithubPullRequestReview } from "./github-pull-request-review";
 import { getGitHubAppPrivateKey } from "./app";
 import { parseHyperlocaliseCommand } from "./commands";
 import { buildGitHubMentionContext } from "./events";
@@ -114,6 +115,53 @@ export async function handleMention(thread: Thread<Record<string, never>>, messa
   }
 
   const organizationId = await getOrganizationIdByInstallationId(githubInstallationId);
+
+  if (command.command === "review") {
+    if (githubContextResolution.status !== "resolved") {
+      await thread.post(
+        "I need a pull request context for this GitHub request. Please run the command from a PR comment or an inline PR review comment.",
+      );
+      return;
+    }
+    if (!organizationId) {
+      await thread.post(
+        "I could not resolve the Hyperlocalise workspace for this GitHub installation.",
+      );
+      return;
+    }
+
+    const headSha = githubContextResolution.context.commitSha;
+    if (!headSha) {
+      await thread.post(
+        "I could not resolve the pull request head commit for this localisation review.",
+      );
+      return;
+    }
+
+    try {
+      const result = await enqueueGithubPullRequestReview({
+        organizationId,
+        githubInstallationId,
+        repositoryFullName: mentionContext.repositoryFullName,
+        pullRequestNumber: mentionContext.pullRequestNumber,
+        headSha,
+        baseSha: null,
+        trigger: "mention",
+        commentId: mentionContext.commentId,
+      });
+      if (result.outcome === "already_queued") {
+        await thread.post("This localisation review is already queued.");
+        return;
+      }
+      await thread.post("Queued a localisation review for this pull request.");
+    } catch (error) {
+      await thread.post(
+        "I could not queue this localisation review right now. Please try again in a moment.",
+      );
+      throw error;
+    }
+    return;
+  }
 
   try {
     if (organizationId) {

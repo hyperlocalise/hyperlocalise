@@ -25,8 +25,10 @@ import type {
   LocalisationAuditLeadDeliveryStatus,
   LocalisationAuditProgressStage,
   LocalisationAuditReport,
+  LocalisationAuditRunSource,
   LocalisationAuditTeaser,
 } from "@/lib/localisation-audit/types";
+import { organizations } from "./organizations";
 
 /**
  * Public one-off localisation health checks keyed by normalized domain.
@@ -44,6 +46,11 @@ export const localisationAudits = pgTable(
     progressStage: text("progress_stage").$type<LocalisationAuditProgressStage>(),
     statusUpdatedAt: timestamp("status_updated_at", { withTimezone: true }).notNull().defaultNow(),
     lastAttemptAt: timestamp("last_attempt_at", { withTimezone: true }),
+    /**
+     * Who started the latest quota-consuming attempt. User form starts and
+     * scheduled/internal starts each have a separate daily cap.
+     */
+    runSource: text("run_source").$type<LocalisationAuditRunSource>().notNull().default("user"),
     workflowRunId: text("workflow_run_id"),
     focusLocales: jsonb("focus_locales").$type<string[]>().notNull().default([]),
     score: integer("score"),
@@ -51,6 +58,12 @@ export const localisationAudits = pgTable(
     report: jsonb("report").$type<LocalisationAuditReport>(),
     errorCode: text("error_code"),
     errorMessage: text("error_message"),
+    // Set when an org successfully claims this audit via linked_domains verification.
+    organizationId: uuid("organization_id").references(() => organizations.id, {
+      onDelete: "set null",
+    }),
+    // Mirrors linked_domains.id after claim (no FK to avoid circular schema imports).
+    linkedDomainId: uuid("linked_domain_id"),
     startedAt: timestamp("started_at", { withTimezone: true }),
     completedAt: timestamp("completed_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
@@ -66,6 +79,12 @@ export const localisationAudits = pgTable(
     index("idx_localisation_audits_completed_at").on(table.completedAt),
     index("idx_localisation_audits_status_updated_at").on(table.statusUpdatedAt),
     index("idx_localisation_audits_score").on(table.score),
+    index("idx_localisation_audits_organization_id").on(table.organizationId),
+    index("idx_localisation_audits_linked_domain_id").on(table.linkedDomainId),
+    index("idx_localisation_audits_run_source_last_attempt").on(
+      table.runSource,
+      table.lastAttemptAt,
+    ),
   ],
 );
 

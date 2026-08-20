@@ -105,6 +105,9 @@ export const WithStringLink: Story = {
       linkUrl: "https://app.test/cat",
       linkLabel: "Open in CAT",
     },
+    // Every real caller that passes a segment-linked stringLink (CAT) also passes this, so it
+    // belongs in the story too — otherwise this demos a state production never reaches.
+    initialTemplateKey: "tpl_context_request",
   },
   play: async ({ canvas, canvasElement }) => {
     const body = within(canvasElement.ownerDocument.body);

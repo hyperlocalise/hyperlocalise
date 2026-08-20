@@ -12,9 +12,13 @@
  */
 import type { GlossaryRecord } from "@/api/routes/glossary/glossary.schema";
 import type { Glossary } from "@/lib/database/types";
+import { getLocaleLabel } from "@/lib/i18n/locales";
 import { sanitizeExternalUrl } from "@/lib/security/safe-external-url";
 
-export function toGlossaryRecord(glossary: Glossary): GlossaryRecord {
+export function toGlossaryRecord(
+  glossary: Glossary,
+  languages: GlossaryRecord["languages"] = defaultGlossaryLanguages(glossary),
+): GlossaryRecord {
   return {
     id: glossary.id,
     organizationId: glossary.organizationId,
@@ -23,6 +27,7 @@ export function toGlossaryRecord(glossary: Glossary): GlossaryRecord {
     description: glossary.description,
     sourceLocale: glossary.sourceLocale,
     targetLocale: glossary.targetLocale,
+    languages,
     status: glossary.status,
     source: glossary.source,
     externalProviderKind: glossary.externalProviderKind,
@@ -40,4 +45,24 @@ export function toGlossaryRecord(glossary: Glossary): GlossaryRecord {
     createdAt: glossary.createdAt.toISOString(),
     updatedAt: glossary.updatedAt.toISOString(),
   };
+}
+
+function defaultGlossaryLanguages(glossary: Glossary): GlossaryRecord["languages"] {
+  const locales =
+    glossary.source === "native"
+      ? [glossary.sourceLocale, ...glossary.localeCoverage]
+      : glossary.localeCoverage.length > 0
+        ? glossary.localeCoverage
+        : [glossary.sourceLocale, glossary.targetLocale].filter((locale): locale is string =>
+            Boolean(locale),
+          );
+  const seen = new Set<string>();
+
+  return locales.flatMap((locale) => {
+    if (seen.has(locale)) {
+      return [];
+    }
+    seen.add(locale);
+    return [{ locale, name: getLocaleLabel(locale), isSource: locale === glossary.sourceLocale }];
+  });
 }

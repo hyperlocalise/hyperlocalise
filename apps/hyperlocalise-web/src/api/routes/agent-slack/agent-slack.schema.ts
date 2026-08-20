@@ -15,3 +15,7 @@ import { z } from "zod";
 export const updateSlackAgentBodySchema = z.object({
   enabled: z.boolean(),
 });
+
+export const verifySlackChannelQuerySchema = z.object({
+  channelId: z.string().trim().min(1).max(128),
+});

@@ -12,14 +12,15 @@
  */
 import { Hono } from "hono";
 
+import { isWriteBackTranslationAllowed } from "@/api/auth/capability-guards";
 import { hasCapability } from "@/api/auth/policy";
 import { createZodValidator } from "@/api/errors";
-import { createWorkspaceFeatureFlagMiddleware } from "@/api/middleware/workspace-feature-flag";
 import { forbiddenResponse } from "@/api/response.schema";
 import { workosAuthMiddleware, type AuthVariables } from "@/api/auth/workos";
-import { workspaceIssuesFlag } from "@/lib/flags/workspace-flags";
 import { organizationIssueService } from "@/lib/projects/issue-sheet/organization-issue-service";
+import { issueBulkUpdateService } from "@/lib/projects/issue-sheet/issue-bulk-update-service";
 
+import { issueBulkActionBodySchema } from "./issues-bulk.schema";
 import { organizationIssuesQuerySchema } from "./issues.schema";
 
 const validateOrganizationIssuesQuery = createZodValidator(
@@ -28,15 +29,15 @@ const validateOrganizationIssuesQuery = createZodValidator(
   "invalid_organization_issues_query",
 );
 
-const requireWorkspaceIssuesFeature = createWorkspaceFeatureFlagMiddleware(
-  workspaceIssuesFlag,
-  "Workspace issues is not enabled for this organization",
+const validateIssueBulkActionBody = createZodValidator(
+  "json",
+  issueBulkActionBodySchema,
+  "invalid_issue_bulk_action",
 );
 
 export function createOrganizationIssuesRoutes() {
   return new Hono<{ Variables: AuthVariables }>()
     .use("*", workosAuthMiddleware)
-    .use("*", requireWorkspaceIssuesFeature)
     .get("/", validateOrganizationIssuesQuery, async (c) => {
       if (!hasCapability(c.var.auth.membership.role, "projects:read")) {
         return forbiddenResponse(c, "forbidden");
@@ -45,5 +46,14 @@ export function createOrganizationIssuesRoutes() {
       const query = c.req.valid("query");
       const result = await organizationIssueService.list(c.var.auth, query);
       return c.json(result, 200);
+    })
+    .post("/bulk-actions", validateIssueBulkActionBody, async (c) => {
+      if (!isWriteBackTranslationAllowed(c.var.auth.membership.role)) {
+        return forbiddenResponse(c, "forbidden");
+      }
+
+      const body = c.req.valid("json");
+      const bulkAction = await issueBulkUpdateService.run(c.var.auth, body);
+      return c.json({ bulkAction }, 200);
     });
 }

@@ -25,21 +25,31 @@ import {
   prepareConversationSkillStep,
 } from "@/lib/agent-runtime/loops/hyperlocalise-agent";
 
-import { getHyperlocaliseAgentModel } from "./model";
+import {
+  getAgentProviderOptions,
+  type ResolvedAgentLanguageModel,
+} from "@/lib/providers/language-model";
+import { resolveHyperlocaliseAgentLanguageModel } from "@/lib/providers/organization-language-model";
 
 export type ConversationSkillAgentOnFinish = ToolLoopAgentSettings<never, ToolSet>["onEnd"];
 
-export function createConversationSkillAgent(
+export async function createConversationSkillAgent(
   runtime: HyperlocaliseAgentRuntimeContext,
   onEnd?: ConversationSkillAgentOnFinish,
+  languageModel?: ResolvedAgentLanguageModel,
 ) {
   const skillPlan = buildConversationSkillPlan(runtime);
   // Filtering lives in buildConversationSkillTools; activeTools mirrors what was built.
   const tools = buildConversationSkillTools(runtime, skillPlan.toolNames);
   const activeTools = Object.keys(tools);
+  const resolvedModel =
+    languageModel ??
+    (await resolveHyperlocaliseAgentLanguageModel({
+      organizationId: runtime.toolContext.organizationId,
+    }));
 
   return new ToolLoopAgent<never, ToolSet>({
-    model: getHyperlocaliseAgentModel(),
+    model: resolvedModel.model,
     instructions: buildConversationSkillInstructions({
       surface: runtime.surface,
       projectId: runtime.toolContext.projectId,
@@ -50,11 +60,7 @@ export function createConversationSkillAgent(
     }),
     tools,
     activeTools,
-    providerOptions: {
-      openai: {
-        reasoningSummary: "auto",
-      },
-    },
+    providerOptions: getAgentProviderOptions(resolvedModel.source),
     runtimeContext: runtime,
     maxOutputTokens: hyperlocaliseAgentMaxOutputTokens,
     timeout: DEFAULT_AGENT_TIMEOUT,

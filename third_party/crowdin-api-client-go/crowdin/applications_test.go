@@ -202,6 +202,14 @@ func TestApplicationsService_Install(t *testing.T) {
 			body: `{"url":"https://localhost.dev"}` + "\n",
 		},
 		{
+			name: "with force flag",
+			req: &model.InstallApplicationRequest{
+				URL:   "https://localhost.dev",
+				Force: ToPtr(true),
+			},
+			body: `{"url":"https://localhost.dev","force":true}` + "\n",
+		},
+		{
 			name: "with own permissions",
 			req: &model.InstallApplicationRequest{
 				URL: "https://localhost.dev",

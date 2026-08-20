@@ -16,7 +16,6 @@ import { z } from "zod";
 import type { RepositoryAgentGitHubContext } from "@/lib/agent-contracts/repository-task";
 
 import type { RepositoryGitHubContextResolution } from "@/lib/agents/repository-context";
-import { getHyperlocaliseAgentModel } from "./model";
 
 export const conversationClassificationSchema = z.object({
   needsRepositoryTools: z.boolean(),
@@ -38,6 +37,7 @@ type ClassifyConversationInput = {
   hasStoredRepositoryContext: boolean;
   knowledgeMemoryEnabled?: boolean;
   surface: ConversationClassifierSurface;
+  model: LanguageModel;
 };
 
 type CreateConversationClassifierOptions = {
@@ -151,7 +151,7 @@ export async function classifyConversation(
   input: ClassifyConversationInput,
 ): Promise<ConversationClassification> {
   const classify = createConversationClassifier({
-    model: getHyperlocaliseAgentModel(),
+    model: input.model,
   });
 
   try {
