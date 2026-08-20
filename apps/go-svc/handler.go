@@ -80,7 +80,7 @@ func (h *handler) validateSegment(w http.ResponseWriter, r *http.Request) {
 
 		switch _, err := h.checkSpelling(r.Context(), targetLocale, req.TargetText); {
 		case errors.Is(err, ErrSpellCheckUnavailable):
-			skippedModes = append(skippedModes, QAModeSpelling)
+			skippedModes = append(skippedModes, QA_MODE_SPELLING)
 		case err != nil:
 			writeInternalError(w, "spell check failed")
 			return
@@ -102,7 +102,7 @@ func (h *handler) validateSegment(w http.ResponseWriter, r *http.Request) {
 
 func requestsSpelling(modes []string) bool {
 	for _, mode := range modes {
-		if strings.TrimSpace(mode) == QAModeSpelling {
+		if strings.TrimSpace(mode) == QA_MODE_SPELLING {
 			return true
 		}
 	}

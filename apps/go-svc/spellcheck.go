@@ -12,7 +12,7 @@ type SpellingIssue struct {
 
 var ErrSpellCheckUnavailable = errors.New("spell checking is not available")
 
-const QAModeSpelling = "spelling"
+const QA_MODE_SPELLING = "spelling"
 
 type SpellChecker interface {
 	Check(ctx context.Context, locale string, words []string) ([]SpellingIssue, error)
