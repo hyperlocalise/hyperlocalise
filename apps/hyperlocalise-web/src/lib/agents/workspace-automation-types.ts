@@ -381,6 +381,10 @@ export type WorkspaceAutomationConfigValidationError =
       message: "Scheduled automations require at least one GitHub, Contentful, Issues, Web Search, or Crowdin workflow tool.";
     }
   | {
+      code: "invalid_automation_timezone";
+      message: "Choose a valid timezone for the schedule.";
+    }
+  | {
       code: "contentful_connection_required";
       message: "Enabled Contentful tools require a Contentful connection.";
     }

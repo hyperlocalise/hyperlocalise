@@ -54,6 +54,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { createApiClient } from "@/lib/api-client";
+import { AutomationTimeZoneSelect } from "@/components/automation/automation-time-zone-select";
 import type { GithubRepositoryAutomationSettings } from "@/lib/agents/github/github-repository-automation-settings";
 import { cn } from "@/lib/primitives/cn";
 
@@ -817,15 +818,12 @@ export function RepositoryAutomationSettingsPanel({
                     {...repositoryAutomationSettingsPanelMessages.scheduledTimezoneLabel}
                   />
                 </Label>
-                <input
+                <AutomationTimeZoneSelect
                   id="scheduled-timezone"
                   value={form.scheduledTimezone}
-                  onChange={(event) => updateForm({ scheduledTimezone: event.target.value })}
+                  onValueChange={(value) => updateForm({ scheduledTimezone: value })}
                   disabled={formDisabled}
-                  placeholder={intl.formatMessage(
-                    repositoryAutomationSettingsPanelMessages.scheduledTimezonePlaceholder,
-                  )}
-                  className="h-9 rounded-lg border border-border bg-background px-3 text-sm outline-none focus:border-primary/40 focus:ring-[3px] focus:ring-primary/20"
+                  className="w-full"
                 />
                 <FieldError message={fieldErrors.scheduledTimezone} />
               </div>

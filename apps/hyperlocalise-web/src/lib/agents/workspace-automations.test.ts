@@ -33,6 +33,7 @@ import {
   getWorkspaceAutomationById,
   hoistLegacyWorkspaceAutomationProjectId,
   listDueContentfulWorkspaceAutomations,
+  listDueWorkspaceAutomations,
   listWorkspaceAutomations,
   listWorkspaceAutomationRuns,
   pauseWorkspaceAutomation,
@@ -1412,6 +1413,78 @@ describe("workspace automations", () => {
       }),
     );
     expect(created.toolConfig.crowdin?.enabled).toBe(true);
+    expect(created.nextRunAt).not.toBeNull();
+  });
+
+  it("computes nextRunAt for GitHub agent schedules and lists due automations without a repository join", async () => {
+    const scope = await seedWorkspaceAutomationScope();
+    const dueAt = new Date("2026-06-01T01:00:00.000Z");
+
+    const githubAgent = expectOk(
+      await createWorkspaceAutomation({
+        organizationId: scope.organizationId,
+        authorUserId: scope.userId,
+        name: "Nightly GitHub agent",
+        instructions: "Review localisation changes.",
+        repositoryTarget: {
+          kind: "github",
+          githubInstallationRepositoryId: scope.githubInstallationRepositoryId,
+        },
+        triggerConfig: {
+          mode: "scheduled",
+          schedule: {
+            cadence: "daily",
+            hourUtc: 1,
+            timezone: "UTC",
+          },
+        },
+        toolConfig: {
+          github: {
+            enabled: true,
+            mode: "agent",
+            pushSource: false,
+            pullTranslations: false,
+            validation: false,
+          },
+        },
+      }),
+    );
+    expect(githubAgent.nextRunAt).not.toBeNull();
+
+    const webSearch = expectOk(
+      await createWorkspaceAutomation({
+        organizationId: scope.organizationId,
+        authorUserId: scope.userId,
+        name: "Nightly web search",
+        instructions: "Search the live web.",
+        triggerConfig: {
+          mode: "scheduled",
+          schedule: {
+            cadence: "daily",
+            hourUtc: 1,
+            timezone: "UTC",
+          },
+        },
+        toolConfig: {
+          webSearch: { enabled: true, provider: "auto" },
+        },
+        nextRunAt: dueAt,
+      }),
+    );
+
+    await db
+      .update(schema.workspaceAutomations)
+      .set({ nextRunAt: dueAt })
+      .where(eq(schema.workspaceAutomations.id, githubAgent.id));
+
+    const due = await listDueWorkspaceAutomations({
+      now: new Date("2026-06-01T01:05:00.000Z"),
+      organizationId: scope.organizationId,
+    });
+
+    expect(due.map((automation) => automation.id).sort()).toEqual(
+      [githubAgent.id, webSearch.id].sort(),
+    );
   });
 
   it("hoists legacy nested project IDs from tool config", () => {

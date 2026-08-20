@@ -96,6 +96,7 @@ import {
   isCrowdinAutomationConnected,
 } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/automations/_components/workspace-automation-crowdin";
 import { SlackChannelSelect } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/automations/_components/slack-channel-select";
+import { AutomationTimeZoneSelect } from "@/components/automation/automation-time-zone-select";
 import { workspaceAutomationFormMessages } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/automations/_components/workspace-automation-form.messages";
 import { getLocaleLabel } from "@/lib/i18n/locales";
 import {
@@ -1026,17 +1027,18 @@ function TriggerSettings({
                     </Select>
                   </>
                 ) : null}
-                <Input
+                <AutomationTimeZoneSelect
+                  size="sm"
                   aria-label={intl.formatMessage(
                     workspaceAutomationFormMessages.scheduleTimezoneAriaLabel,
                   )}
                   value={form.scheduledTimezone}
                   disabled={disabled}
-                  className="h-8 w-32 rounded-lg px-2 text-sm"
-                  onChange={(event) =>
+                  className="h-8 min-w-52"
+                  onValueChange={(value) =>
                     onChange({
                       ...form,
-                      scheduledTimezone: event.target.value,
+                      scheduledTimezone: value,
                     })
                   }
                 />

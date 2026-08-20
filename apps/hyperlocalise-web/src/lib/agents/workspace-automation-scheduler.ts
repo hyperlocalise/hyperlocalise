@@ -20,7 +20,10 @@ import {
   buildWorkspaceOrchestratorPlan,
   planHasActionableTool,
 } from "@/agents/automations/workspace/agent/plan";
-import { listDueWorkspaceAutomations } from "./workspace-automations";
+import {
+  listDueWorkspaceAutomations,
+  repairMissingScheduledWorkspaceAutomationNextRuns,
+} from "./workspace-automations";
 
 const logger = createLogger("workspace-automation-scheduler");
 
@@ -36,11 +39,15 @@ export async function runWorkspaceAutomationScheduler(input?: {
   limit?: number;
 }): Promise<WorkspaceAutomationSchedulerResult> {
   const now = input?.now ?? new Date();
+  await repairMissingScheduledWorkspaceAutomationNextRuns({
+    now,
+    limit: input?.limit,
+  });
   const dueAutomations = await listDueWorkspaceAutomations({
     now,
     limit: input?.limit,
   });
-  const githubDueAutomationIds = new Set(dueAutomations.map((entry) => entry.automation.id));
+  const githubDueAutomationIds = new Set(dueAutomations.map((automation) => automation.id));
   const contentfulResults = await dispatchDueContentfulWorkspaceAutomations({
     now,
     limit: input?.limit,
@@ -51,18 +58,16 @@ export async function runWorkspaceAutomationScheduler(input?: {
   let skipped = 0;
   let duplicates = 0;
 
-  for (const entry of dueAutomations) {
+  for (const automation of dueAutomations) {
     try {
-      const scheduledRunAt = entry.automation.nextRunAt
-        ? new Date(entry.automation.nextRunAt)
-        : null;
+      const scheduledRunAt = automation.nextRunAt ? new Date(automation.nextRunAt) : null;
       if (!scheduledRunAt) {
         logger.warn(
-          { automationId: entry.automation.id },
+          { automationId: automation.id },
           "workspace automation missing next_run_at; advancing",
         );
         await dispatchWorkspaceAutomationForScheduleAndAdvance({
-          automation: entry.automation,
+          automation,
           scheduledRunAt: now,
           completedAt: now,
         });
@@ -70,9 +75,9 @@ export async function runWorkspaceAutomationScheduler(input?: {
         continue;
       }
 
-      if (entry.automation.triggerConfig.mode !== "scheduled") {
+      if (automation.triggerConfig.mode !== "scheduled") {
         await dispatchWorkspaceAutomationForScheduleAndAdvance({
-          automation: entry.automation,
+          automation,
           scheduledRunAt,
           completedAt: now,
         });
@@ -80,10 +85,10 @@ export async function runWorkspaceAutomationScheduler(input?: {
         continue;
       }
 
-      const plan = buildWorkspaceOrchestratorPlan(entry.automation);
+      const plan = buildWorkspaceOrchestratorPlan(automation);
       if (!planHasActionableTool(plan)) {
         await dispatchWorkspaceAutomationForScheduleAndAdvance({
-          automation: entry.automation,
+          automation,
           scheduledRunAt,
           completedAt: now,
         });
@@ -92,7 +97,7 @@ export async function runWorkspaceAutomationScheduler(input?: {
       }
 
       const result = await dispatchWorkspaceAutomationForScheduleAndAdvance({
-        automation: entry.automation,
+        automation,
         scheduledRunAt,
         completedAt: now,
       });
@@ -113,7 +118,7 @@ export async function runWorkspaceAutomationScheduler(input?: {
     } catch (error) {
       logger.error(
         {
-          automationId: entry.automation.id,
+          automationId: automation.id,
           error: error instanceof Error ? error.message : String(error),
         },
         "workspace automation scheduler entry failed",

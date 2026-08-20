@@ -7,19 +7,12 @@
  * Change Date: Four years after publication of the applicable version.
  *
  * On the Change Date, in accordance with the Business Source License, use
- * of this software will be governed by the GNU General Public License
+    10| * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import {
-  computeNextScheduledRunAt,
-  resolveNextRunAtForSettings,
-} from "@/lib/agents/github/github-repository-automation-settings";
+import { computeNextScheduledRunAt } from "@/lib/agents/github/github-repository-automation-settings";
 
-import { workspaceAutomationToGithubSettings } from "./workspace-automation-github-mapping";
-import {
-  hasWorkspaceAutomationContentfulWorkflow,
-  type WorkspaceAutomationRecord,
-} from "./workspace-automation-types";
+import type { WorkspaceAutomationRecord } from "./workspace-automation-types";
 
 export function resolveNextRunAtForWorkspaceAutomation(
   automation: WorkspaceAutomationRecord,
@@ -29,25 +22,16 @@ export function resolveNextRunAtForWorkspaceAutomation(
     return null;
   }
 
-  const githubSettings = workspaceAutomationToGithubSettings(automation);
-  if (githubSettings) {
-    return resolveNextRunAtForSettings(githubSettings, from);
+  if (automation.triggerConfig.mode !== "scheduled" || !automation.triggerConfig.schedule) {
+    return null;
   }
 
-  if (
-    automation.triggerConfig.mode === "scheduled" &&
-    automation.triggerConfig.schedule &&
-    hasWorkspaceAutomationContentfulWorkflow(automation.toolConfig)
-  ) {
-    return computeNextScheduledRunAt(
-      {
-        mode: "scheduled",
-        ...automation.triggerConfig.schedule,
-        hourUtc: automation.triggerConfig.schedule.hourUtc ?? 0,
-      },
-      from,
-    );
-  }
-
-  return null;
+  return computeNextScheduledRunAt(
+    {
+      mode: "scheduled",
+      ...automation.triggerConfig.schedule,
+      hourUtc: automation.triggerConfig.schedule.hourUtc ?? 0,
+    },
+    from,
+  );
 }

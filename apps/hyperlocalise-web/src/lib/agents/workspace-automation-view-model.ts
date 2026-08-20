@@ -24,6 +24,7 @@ import {
   type WorkspaceAutomationWebSearchProvider,
 } from "./workspace-automation-types";
 import { parseSlackConversationId } from "./slack/channel-query";
+import { isValidAutomationTimeZone } from "./automation-time-zones";
 import {
   getWorkspaceAutomationTemplate,
   type WorkspaceAutomationTemplate,
@@ -127,6 +128,7 @@ export type WorkspaceAutomationFieldErrors = Partial<
     | "semrushConnectionId"
     | "ahrefsConnectionId"
     | "crowdinProjectId"
+    | "scheduledTimezone"
     | "form",
     string
   >
@@ -145,6 +147,7 @@ export const WORKSPACE_AUTOMATION_API_ERROR_MESSAGES: Record<string, string> = {
   github_events_required: "Choose at least one GitHub event.",
   scheduled_workflow_required:
     "Scheduled automations require at least one GitHub, Contentful, Issues, Web Search, or Crowdin workflow tool.",
+  invalid_automation_timezone: "Choose a valid timezone for the schedule.",
   slack_not_connected: "Connect Slack in Integrations before enabling Slack notifications.",
   slack_channel_required: "Choose a Slack channel for notifications.",
   email_not_connected: "Enable the email agent in Integrations before using email notifications.",
@@ -626,6 +629,13 @@ export function validateWorkspaceAutomationFormState(
     errors.githubEvents = "Choose at least one GitHub event.";
   }
 
+  if (
+    form.triggerMode === "scheduled" &&
+    !isValidAutomationTimeZone(form.scheduledTimezone.trim() || "UTC")
+  ) {
+    errors.scheduledTimezone = "Choose a valid timezone.";
+  }
+
   if (form.slackEnabled && !parseSlackConversationId(form.slackChannelId)) {
     errors.slackChannelId = "Enter a valid Slack channel ID.";
   }
@@ -706,6 +716,8 @@ export function mapWorkspaceAutomationApiErrorToFieldErrors(
     case "scheduled_workflow_required":
     case "source_upload_workflow_required":
       return { trigger: message };
+    case "invalid_automation_timezone":
+      return { scheduledTimezone: message };
     case "github_push_branches_required":
       return { pushBranches: message };
     case "github_events_required":
