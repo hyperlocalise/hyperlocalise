@@ -5,23 +5,27 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"strings"
 
 	"github.com/hyperlocalise/hyperlocalise/internal/i18n/segmentvalidate"
 	"github.com/hyperlocalise/hyperlocalise/internal/i18n/spellcheck"
+	"golang.org/x/text/language"
 )
 
 const maxValidateSegmentBodyBytes = 512 << 10 // 512 KiB
 
 type validateSegmentRequest struct {
-	SourceText string   `json:"sourceText"`
-	TargetText string   `json:"targetText"`
-	SourcePath string   `json:"sourcePath"`
-	MaxLength  int      `json:"maxLength"`
-	Modes      []string `json:"modes,omitempty"`
+	SourceText   string   `json:"sourceText"`
+	TargetText   string   `json:"targetText"`
+	SourcePath   string   `json:"sourcePath"`
+	MaxLength    int      `json:"maxLength"`
+	Modes        []string `json:"modes,omitempty"`
+	TargetLocale string   `json:"targetLocale,omitempty"`
 }
 
 type validateSegmentResponse struct {
-	Checks []segmentvalidate.Check `json:"checks"`
+	Checks       []segmentvalidate.Check `json:"checks"`
+	SkippedModes []string                `json:"skippedModes,omitempty"`
 }
 
 type handler struct {
@@ -64,7 +68,24 @@ func (h *handler) validateSegment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, _ = h.checkSpelling(r.Context(), "", req.TargetText)
+	spellingRequested := requestsSpelling(req.Modes)
+
+	var skippedModes []string
+	if spellingRequested {
+		targetLocale, err := validateTargetLocale(req.TargetLocale)
+		if err != nil {
+			writeBadRequest(w, err.Error())
+			return
+		}
+
+		switch _, err := h.checkSpelling(r.Context(), targetLocale, req.TargetText); {
+		case errors.Is(err, ErrSpellCheckUnavailable):
+			skippedModes = append(skippedModes, QAModeSpelling)
+		case err != nil:
+			writeInternalError(w, "spell check failed")
+			return
+		}
+	}
 
 	checks := h.validate(segmentvalidate.Request{
 		SourceText: req.SourceText,
@@ -76,7 +97,27 @@ func (h *handler) validateSegment(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	_ = json.NewEncoder(w).Encode(validateSegmentResponse{Checks: checks})
+	_ = json.NewEncoder(w).Encode(validateSegmentResponse{Checks: checks, SkippedModes: skippedModes})
+}
+
+func requestsSpelling(modes []string) bool {
+	for _, mode := range modes {
+		if strings.TrimSpace(mode) == QAModeSpelling {
+			return true
+		}
+	}
+	return false
+}
+
+func validateTargetLocale(raw string) (string, error) {
+	trimmed := strings.TrimSpace(raw)
+	if trimmed == "" {
+		return "", errors.New("targetLocale is required when requesting spelling checks")
+	}
+	if _, err := language.Parse(trimmed); err != nil {
+		return "", errors.New("targetLocale must be a valid BCP 47 language tag")
+	}
+	return trimmed, nil
 }
 
 func writeBadRequest(w http.ResponseWriter, message string) {
@@ -84,6 +125,15 @@ func writeBadRequest(w http.ResponseWriter, message string) {
 	w.WriteHeader(http.StatusBadRequest)
 	_ = json.NewEncoder(w).Encode(map[string]string{
 		"error":   "bad_request",
+		"message": message,
+	})
+}
+
+func writeInternalError(w http.ResponseWriter, message string) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusInternalServerError)
+	_ = json.NewEncoder(w).Encode(map[string]string{
+		"error":   "internal_error",
 		"message": message,
 	})
 }
