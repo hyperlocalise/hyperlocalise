@@ -199,6 +199,21 @@ describe("github repository automation settings", () => {
     expect(next.toISOString()).toBe("2026-05-31T09:00:00.000Z");
   });
 
+  it("schedules the first valid local hour when DST skips the selected time", () => {
+    const from = new Date("2026-03-08T06:30:00.000Z");
+    const next = computeNextScheduledRunAt(
+      {
+        mode: "scheduled",
+        cadence: "daily",
+        hourUtc: 2,
+        timezone: "America/New_York",
+      },
+      from,
+    );
+
+    expect(next.toISOString()).toBe("2026-03-08T07:00:00.000Z");
+  });
+
   it("schedules weekly runs at the local weekday and hour", () => {
     const from = new Date("2026-01-05T02:00:00.000Z");
     const next = computeNextScheduledRunAt(

@@ -294,7 +294,24 @@ function nextTopOfHourUtc(from: Date): Date {
   return next;
 }
 
-function zonedWallTimeToUtc(
+function isExactZonedWallHour(
+  parts: ZonedDateTimeParts,
+  year: number,
+  month: number,
+  day: number,
+  hour: number,
+) {
+  return (
+    parts.year === year &&
+    parts.month === month &&
+    parts.day === day &&
+    parts.hour === hour &&
+    parts.minute === 0 &&
+    parts.second === 0
+  );
+}
+
+function approximateZonedWallTimeToUtc(
   year: number,
   month: number,
   day: number,
@@ -317,6 +334,29 @@ function zonedWallTimeToUtc(
   };
 
   return new Date(shift(shift(desiredAsUtcMs)));
+}
+
+function zonedWallTimeToUtc(
+  year: number,
+  month: number,
+  day: number,
+  hour: number,
+  timeZone: string,
+): Date {
+  const candidate = approximateZonedWallTimeToUtc(year, month, day, hour, timeZone);
+  if (isExactZonedWallHour(getZonedDateTimeParts(candidate, timeZone), year, month, day, hour)) {
+    return candidate;
+  }
+
+  for (let nextHour = hour + 1; nextHour < 24; nextHour++) {
+    const later = approximateZonedWallTimeToUtc(year, month, day, nextHour, timeZone);
+    if (isExactZonedWallHour(getZonedDateTimeParts(later, timeZone), year, month, day, nextHour)) {
+      return later;
+    }
+  }
+
+  const nextDay = addDaysToLocalDate(year, month, day, 1);
+  return zonedWallTimeToUtc(nextDay.year, nextDay.month, nextDay.day, 0, timeZone);
 }
 
 function nextDailyRun(from: Date, hour: number, timeZone: string): Date {
