@@ -1119,6 +1119,10 @@
     "defaultMessage": "Generate locale drafts with your LLM",
     "description": "Workflow step 3 description for the help-center-localisation use case"
   },
+  "1ycXUHLHvW": {
+    "defaultMessage": "No timezones found.",
+    "description": "Empty state when timezone search has no matches"
+  },
   "1yht4L4f8q": {
     "defaultMessage": "Turn product changes, pull requests, and launch briefs into reviewed, release-ready translations. Keep localisation inside your release workflow without replacing your TMS.",
     "description": "Meta description for the product-localisation use case"
@@ -1566,6 +1570,10 @@
   "3Z+3pA/kaR": {
     "defaultMessage": "Save",
     "description": "Save Intercom connection button"
+  },
+  "3ZQsOW/pnR": {
+    "defaultMessage": "Search timezones…",
+    "description": "Placeholder for the automation timezone search input"
   },
   "3Ze8wX3xRS": {
     "defaultMessage": "This source file is not linked to the task anymore.",
