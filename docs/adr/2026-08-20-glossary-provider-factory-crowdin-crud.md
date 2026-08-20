@@ -11,14 +11,17 @@ The API needs one glossary surface that supports native glossaries and live Crow
 
 ## Decision
 
-Introduce a glossary-provider contract and factory. Route handlers will resolve a provider from the glossary source:
+Introduce a glossary-provider contract and factory. Route handlers resolve a provider through the single `getGlossaryProduct()` entry point:
 
 - Native glossaries use the existing database-backed implementation.
 - Crowdin glossaries use a live Crowdin API implementation for list, detail, concept, and term reads and mutations.
+- Unsupported external providers resolve to `null`, allowing routes to preserve the existing immutable response without selecting providers themselves.
 
 Local external glossary rows remain organization-scoped identity and credential/project linkage records. Crowdin concepts and terms are not mirrored into local tables.
 
 The API preserves Hyperlocalise response envelopes and fields. Crowdin concept groups are mapped into the existing concept model, and Crowdin identifiers are represented as stable string IDs suitable for subsequent route calls.
+
+Glossary routes do not maintain a provider-specific `glossaryStore`. Provider-aware reads and CRUD operations use the product interface directly. Native collection creation, list filtering, project attachment queries, and legacy flat-term compatibility operations remain explicit database-backed route helpers because they are not part of the provider product contract.
 
 External glossary creation is not part of this change. External glossaries continue to enter through provider discovery/import. Deleting an external glossary deletes the remote Crowdin resource first and removes its local mapping only after the remote operation succeeds.
 
@@ -40,8 +43,8 @@ Add a second route surface for Crowdin resources. This avoids changing existing 
 
 ## Consequences
 
-The route layer becomes provider-agnostic and can support additional glossary providers later. Live Crowdin operations add provider latency and availability dependence to external reads and writes. Local search and concept persistence remain available only for native glossaries unless a future provider implements a local synchronization strategy.
+The route layer becomes provider-agnostic for glossary and concept CRUD and can support additional glossary providers later. Live Crowdin operations add provider latency and availability dependence to external reads and writes. Native collection and legacy flat-term helpers remain local database concerns. Local search and concept persistence remain available only for native glossaries unless a future provider implements a local synchronization strategy.
 
 ## Validation
 
-Provider and route tests will mock Crowdin API calls, verify request payloads and identifier mapping, preserve native route behavior, and cover remote failure handling. The web app checks will run with `vp test` and `vp check --fix`.
+The glossary provider tests verify native and Crowdin factory selection. `vp check --fix` completes with zero errors and only pre-existing unrelated warnings. The focused provider test passes with 3 tests. Full route and web test execution requires local PostgreSQL and app services; in the development sandbox those services were unavailable, so database-backed route tests could not complete.
