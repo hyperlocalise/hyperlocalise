@@ -341,7 +341,7 @@ class GlossaryConcordancePipeline extends ConcordancePipeline<
           description: schema.glossaryTerms.description,
           forbidden: schema.glossaryTerms.forbidden,
           caseSensitive: schema.glossaryTerms.caseSensitive,
-          externalKey: schema.glossaryTerms.externalKey,
+          externalKey: sql<string | null>`null`,
           externalProviderKind: schema.glossaries.externalProviderKind,
           externalGlossaryId: schema.glossaries.externalGlossaryId,
           rank: sql<number>`ts_rank(${schema.glossaryTerms.searchVector}, to_tsquery('simple', ${tsQuery}))`.as(
@@ -374,7 +374,7 @@ class GlossaryConcordancePipeline extends ConcordancePipeline<
           description: concordanceSourceTerms.description,
           forbidden: concordanceSourceTerms.forbidden,
           caseSensitive: concordanceSourceTerms.caseSensitive,
-          externalKey: concordanceSourceTerms.externalKey,
+          externalKey: sql<string | null>`null`,
           externalProviderKind: schema.glossaries.externalProviderKind,
           externalGlossaryId: schema.glossaries.externalGlossaryId,
           rank: sql<number>`ts_rank(${concordanceSourceTerms.searchVector}, to_tsquery('simple', ${tsQuery}))`.as(

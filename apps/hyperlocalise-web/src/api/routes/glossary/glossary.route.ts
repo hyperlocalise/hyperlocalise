@@ -185,7 +185,7 @@ function toGlossaryTermRecord(term: GlossaryTerm, glossary: NativeGlossary): Glo
     forbidden: term.forbidden,
     caseSensitive: term.caseSensitive,
     provenance: term.provenance,
-    externalKey: term.externalKey,
+    externalKey: null,
     reviewStatus: term.reviewStatus,
   };
 }

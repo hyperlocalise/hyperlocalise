@@ -1,5 +1,5 @@
 {
-  "id": "1357bc13-d785-4864-8bff-b17fd3d80586",
+  "id": "db40e598-c501-4335-8c1a-66a7578cb3bb",
   "prevId": "bfdce6e9-5313-4b68-a360-445760b13ba1",
   "version": "7",
   "dialect": "postgresql",
@@ -4773,24 +4773,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "external_user_id": {
-          "name": "external_user_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "external_created_at": {
-          "name": "external_created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "external_updated_at": {
-          "name": "external_updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
         "status": {
           "name": "status",
           "type": "text",
@@ -4811,12 +4793,6 @@
           "primaryKey": false,
           "notNull": true,
           "default": false
-        },
-        "external_key": {
-          "name": "external_key",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
         },
         "provenance": {
           "name": "provenance",
@@ -4908,27 +4884,6 @@
           "method": "btree",
           "with": {}
         },
-        "glossary_terms_glossary_external_key": {
-          "name": "glossary_terms_glossary_external_key",
-          "columns": [
-            {
-              "expression": "glossary_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "external_key",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
         "glossary_terms_concept_locale_term_key": {
           "name": "glossary_terms_concept_locale_term_key",
           "columns": [
@@ -5004,21 +4959,6 @@
             },
             {
               "expression": "locale",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "idx_glossary_terms_external_key": {
-          "name": "idx_glossary_terms_external_key",
-          "columns": [
-            {
-              "expression": "external_key",
               "isExpression": false,
               "asc": true,
               "nulls": "last"

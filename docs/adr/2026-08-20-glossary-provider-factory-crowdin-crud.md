@@ -21,7 +21,9 @@ Local external glossary rows remain organization-scoped identity and credential/
 
 The API preserves Hyperlocalise response envelopes and fields. Crowdin concept groups are mapped into the existing concept model, and Crowdin identifiers are represented as stable string IDs suitable for subsequent route calls.
 
-Glossary routes do not maintain a provider-specific `glossaryStore`. Provider-aware reads and CRUD operations use the product interface directly. Native collection creation, list filtering, project attachment queries, and legacy flat-term compatibility operations remain explicit database-backed route helpers because they are not part of the provider product contract.
+Glossary routes do not maintain a provider-specific `glossaryStore`. Provider-aware reads and CRUD operations use the product interface directly. Native collection creation, list filtering, project attachment queries, and flat-term compatibility operations remain explicit database-backed route helpers because they are not part of the provider product contract.
+
+Live provider identifiers and provider-author metadata are response-level data only. `glossary_terms` does not persist `external_key`, `external_user_id`, `external_created_at`, or `external_updated_at`; Crowdin terms remain owned by the live provider API rather than becoming local rows.
 
 External glossary creation is not part of this change. External glossaries continue to enter through provider discovery/import. Deleting an external glossary deletes the remote Crowdin resource first and removes its local mapping only after the remote operation succeeds.
 

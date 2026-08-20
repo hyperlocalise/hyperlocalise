@@ -236,19 +236,12 @@ export const glossaryTerms = pgTable(
     url: text("url"),
     // Optional provider-native lemma.
     lemma: text("lemma"),
-    // Provider user who created or last updated the term.
-    externalUserId: text("external_user_id"),
-    // Provider timestamps retained independently from local audit timestamps.
-    externalCreatedAt: timestamp("external_created_at", { withTimezone: true }),
-    externalUpdatedAt: timestamp("external_updated_at", { withTimezone: true }),
     // Native concept term status.
     status: text("status").notNull().default("preferred"),
     // Whether source term matching should preserve case sensitivity.
     caseSensitive: boolean("case_sensitive").notNull().default(false),
     // Whether the source term is explicitly forbidden in output.
     forbidden: boolean("forbidden").notNull().default(false),
-    // Optional external identifier retained for later sync or dedupe.
-    externalKey: text("external_key"),
     // Optional source label such as manual or sync.
     provenance: glossaryTermProvenanceEnum("provenance").notNull().default("manual"),
     // Review status for agent suggestions vs human-approved terms.
@@ -279,7 +272,6 @@ export const glossaryTerms = pgTable(
       table.glossaryId,
       sql`lower(${table.sourceTerm})`,
     ),
-    uniqueIndex("glossary_terms_glossary_external_key").on(table.glossaryId, table.externalKey),
     uniqueIndex("glossary_terms_concept_locale_term_key")
       .on(table.conceptId, table.locale, table.term)
       .where(
@@ -288,7 +280,6 @@ export const glossaryTerms = pgTable(
     index("idx_glossary_terms_glossary_created_at").on(table.glossaryId, table.createdAt),
     index("idx_glossary_terms_concept_id").on(table.conceptId),
     index("idx_glossary_terms_concept_locale").on(table.conceptId, table.locale),
-    index("idx_glossary_terms_external_key").on(table.externalKey),
     index("idx_glossary_terms_search_vector").using("gin", table.searchVector),
   ],
 );

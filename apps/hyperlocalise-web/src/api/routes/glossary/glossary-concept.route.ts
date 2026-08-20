@@ -298,11 +298,8 @@ function toConceptTermRecord(term: GlossaryConceptTerm, sourceLocale: string) {
     caseSensitive: term.caseSensitive,
     forbidden: term.forbidden,
     provenance: term.provenance,
-    externalKey: term.externalKey,
+    externalKey: null,
     reviewStatus: term.reviewStatus,
-    externalUserId: term.externalUserId,
-    externalCreatedAt: term.externalCreatedAt?.toISOString() ?? null,
-    externalUpdatedAt: term.externalUpdatedAt?.toISOString() ?? null,
     createdAt: term.createdAt.toISOString(),
     updatedAt: term.updatedAt.toISOString(),
   };
