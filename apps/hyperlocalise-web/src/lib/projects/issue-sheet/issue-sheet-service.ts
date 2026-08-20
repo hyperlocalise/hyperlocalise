@@ -63,6 +63,8 @@ import {
   isIssueSheetProtectedColumnKey,
   ISSUE_SHEET_PROTECTED_COLUMN_KEYS,
 } from "./issue-sheet-column-guards";
+import { findFirstMatchingIssueRoutingRecipe } from "./issue-routing-recipe-matcher";
+import { issueRoutingRecipeService } from "./issue-routing-recipe-service";
 
 export {
   canDeleteIssueSheetColumn,
@@ -77,6 +79,7 @@ export const ISSUE_SHEET_ACTIVITY_ISSUE_TYPE_CHANGED = "issue_type_changed" as c
 export const ISSUE_SHEET_ACTIVITY_PRIORITY_CHANGED = "priority_changed" as const;
 export const ISSUE_SHEET_ACTIVITY_RELATIONSHIP_ADDED = "relationship_added" as const;
 export const ISSUE_SHEET_ACTIVITY_RELATIONSHIP_REMOVED = "relationship_removed" as const;
+export const ISSUE_SHEET_ACTIVITY_ROUTING_RECIPE_APPLIED = "routing_recipe_applied" as const;
 
 export type IssueSheetActivityUserSummary = {
   userId: string;
@@ -135,6 +138,12 @@ export type IssueSheetActivity =
       type: typeof ISSUE_SHEET_ACTIVITY_RELATIONSHIP_REMOVED;
       relationshipKind: string;
       relatedIssue: IssueSheetActivityRelatedIssueSummary;
+    })
+  | (IssueSheetActivityBase & {
+      type: typeof ISSUE_SHEET_ACTIVITY_ROUTING_RECIPE_APPLIED;
+      recipeId: string;
+      recipeName: string;
+      actionsApplied: { assigneeUserId?: string; priority?: string };
     });
 
 export type IssueSheetFeedItem =
@@ -1205,6 +1214,34 @@ export class IssueSheetService {
         continue;
       }
 
+      if (row.type === ISSUE_SHEET_ACTIVITY_ROUTING_RECIPE_APPLIED) {
+        const recipeId =
+          "recipeId" in payload && typeof payload.recipeId === "string" ? payload.recipeId : null;
+        const recipeName =
+          "recipeName" in payload && typeof payload.recipeName === "string"
+            ? payload.recipeName
+            : null;
+        const actionsApplied =
+          "actionsApplied" in payload &&
+          payload.actionsApplied &&
+          typeof payload.actionsApplied === "object"
+            ? (payload.actionsApplied as { assigneeUserId?: string; priority?: string })
+            : {};
+        if (!recipeId || !recipeName) {
+          continue;
+        }
+        activities.push({
+          id: row.id,
+          type: ISSUE_SHEET_ACTIVITY_ROUTING_RECIPE_APPLIED,
+          actor,
+          recipeId,
+          recipeName,
+          actionsApplied,
+          createdAt,
+        });
+        continue;
+      }
+
       if (row.type !== ISSUE_SHEET_ACTIVITY_ASSIGNEE_CHANGED) {
         continue;
       }
@@ -1384,14 +1421,24 @@ export class IssueSheetService {
       throw new Error("issue_sheet_issue_create_failed");
     }
 
-    if (assigneeUserId) {
+    const routingResult = await this.applyRoutingRecipesOnCreate({
+      organizationId: input.organizationId,
+      projectId: input.projectId,
+      issueId,
+      actorUserId: input.actorUserId,
+      createBody: input.body,
+      initialAssigneeUserId: assigneeUserId,
+    });
+
+    const finalAssigneeUserId = routingResult.assigneeUserId ?? assigneeUserId;
+    if (finalAssigneeUserId) {
       await issueNotificationService.safeFanOut("assigned_on_create", () =>
         issueNotificationService.notifyAssigned({
           organizationId: input.organizationId,
           projectId: input.projectId,
           issueId,
           actorUserId: input.actorUserId,
-          assigneeUserId,
+          assigneeUserId: finalAssigneeUserId,
         }),
       );
     }
@@ -1740,7 +1787,7 @@ export class IssueSheetService {
     organizationId: string;
     projectId: string;
     issueId: string;
-    actorUserId: string;
+    actorUserId: string | null;
     previousAssigneeUserId: string | null;
     nextAssigneeUserId: string | null;
     createdAt?: Date;
@@ -1827,7 +1874,7 @@ export class IssueSheetService {
     organizationId: string;
     projectId: string;
     issueId: string;
-    actorUserId: string;
+    actorUserId: string | null;
     previousPriority: string | null;
     nextPriority: string;
   }) {
@@ -1848,13 +1895,13 @@ export class IssueSheetService {
     organizationId: string;
     projectId: string;
     issueId: string;
-    actorUserId: string;
+    actorUserId: string | null;
     priority: "P0" | "P1" | "P2";
   }): Promise<{ outcome: "updated" | "unchanged" } | null> {
     await this.ensureStarterColumns({
       organizationId: input.organizationId,
       projectId: input.projectId,
-      actorUserId: input.actorUserId,
+      actorUserId: input.actorUserId ?? undefined,
     });
 
     const result = await this.database.transaction(async (tx) => {
@@ -1972,6 +2019,158 @@ export class IssueSheetService {
 
     if (!key) {
       throw new Error("translation_key_not_found");
+    }
+  }
+
+  private async insertRoutingRecipeAppliedActivity(input: {
+    organizationId: string;
+    projectId: string;
+    issueId: string;
+    recipeId: string;
+    recipeName: string;
+    actionsApplied: { assigneeUserId?: string; priority?: string };
+    database?: DatabaseClient;
+  }) {
+    const database = input.database ?? this.database;
+    await database.insert(schema.issueSheetActivities).values({
+      organizationId: input.organizationId,
+      projectId: input.projectId,
+      issueId: input.issueId,
+      actorUserId: null,
+      type: ISSUE_SHEET_ACTIVITY_ROUTING_RECIPE_APPLIED,
+      payload: {
+        recipeId: input.recipeId,
+        recipeName: input.recipeName,
+        actionsApplied: input.actionsApplied,
+      },
+    });
+  }
+
+  private async applyRoutingRecipesOnCreate(input: {
+    organizationId: string;
+    projectId: string;
+    issueId: string;
+    actorUserId: string;
+    createBody: IssueSheetCreateIssueBody;
+    initialAssigneeUserId: string | null;
+  }): Promise<{ assigneeUserId: string | null; assigneeChangedByRecipe: boolean }> {
+    try {
+      const recipes = await issueRoutingRecipeService.listRecipeRows({
+        organizationId: input.organizationId,
+        projectId: input.projectId,
+      });
+
+      const [issue] = await this.database
+        .select({
+          issueType: schema.issueSheetIssues.issueType,
+          targetLocale: schema.issueSheetIssues.targetLocale,
+        })
+        .from(schema.issueSheetIssues)
+        .where(eq(schema.issueSheetIssues.id, input.issueId))
+        .limit(1);
+
+      if (!issue) {
+        return { assigneeUserId: input.initialAssigneeUserId, assigneeChangedByRecipe: false };
+      }
+
+      const snapshot = {
+        issueType: issue.issueType,
+        targetLocale: issue.targetLocale,
+        priority: input.createBody.priority ?? null,
+      };
+
+      const matched = findFirstMatchingIssueRoutingRecipe(recipes, snapshot);
+      if (!matched) {
+        return { assigneeUserId: input.initialAssigneeUserId, assigneeChangedByRecipe: false };
+      }
+
+      const actionsApplied: { assigneeUserId?: string; priority?: string } = {};
+      let currentAssigneeUserId = input.initialAssigneeUserId;
+      let assigneeChangedByRecipe = false;
+
+      const skipAssign = Boolean(input.createBody.assigneeUserId);
+      const skipPriority = Boolean(input.createBody.priority);
+
+      if (matched.actions.assigneeUserId && !skipAssign) {
+        const assignable = await assertAssignableIssueAssignee({
+          organizationId: input.organizationId,
+          projectId: input.projectId,
+          assigneeUserId: matched.actions.assigneeUserId,
+          database: this.database,
+        });
+        if (isErr(assignable)) {
+          await issueRoutingRecipeService.logFailure({
+            organizationId: input.organizationId,
+            projectId: input.projectId,
+            issueId: input.issueId,
+            recipeId: matched.id,
+            errorCode: assignable.error.code,
+          });
+        } else if (currentAssigneeUserId !== matched.actions.assigneeUserId) {
+          await this.database
+            .update(schema.issueSheetIssues)
+            .set({ assigneeUserId: matched.actions.assigneeUserId })
+            .where(eq(schema.issueSheetIssues.id, input.issueId));
+
+          await this.insertAssigneeChangedActivity({
+            database: this.database,
+            organizationId: input.organizationId,
+            projectId: input.projectId,
+            issueId: input.issueId,
+            actorUserId: null,
+            previousAssigneeUserId: currentAssigneeUserId,
+            nextAssigneeUserId: matched.actions.assigneeUserId,
+          });
+
+          await issueSubscriptionService.subscribe({
+            organizationId: input.organizationId,
+            projectId: input.projectId,
+            issueId: input.issueId,
+            userId: matched.actions.assigneeUserId,
+          });
+
+          currentAssigneeUserId = matched.actions.assigneeUserId;
+          assigneeChangedByRecipe = true;
+          actionsApplied.assigneeUserId = matched.actions.assigneeUserId;
+        }
+      }
+
+      if (matched.actions.priority && !skipPriority) {
+        const priority = matched.actions.priority;
+        if (priority === "P0" || priority === "P1" || priority === "P2") {
+          const result = await this.setPriority({
+            organizationId: input.organizationId,
+            projectId: input.projectId,
+            issueId: input.issueId,
+            actorUserId: null,
+            priority,
+          });
+          if (result?.outcome === "updated") {
+            actionsApplied.priority = priority;
+          }
+        }
+      }
+
+      await this.insertRoutingRecipeAppliedActivity({
+        organizationId: input.organizationId,
+        projectId: input.projectId,
+        issueId: input.issueId,
+        recipeId: matched.id,
+        recipeName: matched.name,
+        actionsApplied,
+      });
+
+      return { assigneeUserId: currentAssigneeUserId, assigneeChangedByRecipe };
+    } catch (error) {
+      await issueRoutingRecipeService.logFailure({
+        organizationId: input.organizationId,
+        projectId: input.projectId,
+        issueId: input.issueId,
+        recipeId: null,
+        errorCode: "routing_execution_failed",
+        message: error instanceof Error ? error.message : undefined,
+      });
+      return { assigneeUserId: input.initialAssigneeUserId, assigneeChangedByRecipe: false };
     }
   }
 

@@ -71,6 +71,39 @@ type TemplateConfigResponse = {
   };
 };
 
+type RoutingRecipesResponse = {
+  recipes: Array<{
+    id: string;
+    name: string;
+    enabled: boolean;
+    sortOrder: number;
+    conditions: Record<string, unknown>;
+    actions: Record<string, unknown>;
+    assigneeAssignable: boolean | null;
+  }>;
+};
+
+type RoutingPreviewResponse = {
+  preview: {
+    matchedRecipe: { id: string; name: string } | null;
+    wouldAssignUserId: string | null;
+    wouldSetPriority: string | null;
+    skippedAssignBecauseSet: boolean;
+    skippedPriorityBecauseSet: boolean;
+    assigneeNotAssignable: boolean;
+  };
+};
+
+type RoutingFailuresResponse = {
+  failures: Array<{
+    id: string;
+    issueId: string;
+    recipeId: string | null;
+    errorCode: string;
+    message: string | null;
+  }>;
+};
+
 type IssueSheetListResponse = {
   issues: {
     id: string;
@@ -2206,5 +2239,224 @@ Second import issue,Done,EXT-2,P2`;
     const dedupedBody = (await deduped.json()) as IssueResponse;
     expect(dedupedBody.issue.id).toBe(createdBody.issue.id);
     expect(dedupedBody.issue.templateKey).toBe("tpl_context_request");
+  });
+
+  it("manages routing recipes, previews matches, and applies triage on issue create", async () => {
+    const { identity, project, user } = await projectFixture.createStoredProjectFixture();
+    const headers = await projectFixture.authHeadersFor(identity);
+    const organizationSlug = identity.organization.slug ?? "missing-slug";
+
+    const teammateIdentity = projectFixture.createWorkosIdentityForOrganization(
+      identity.organization,
+      "translator",
+    );
+    await projectFixture.authHeadersFor(teammateIdentity);
+    const teammateLocalId = await projectFixture.getLocalUserId(teammateIdentity.user.workosUserId);
+    await db.insert(schema.teamMemberships).values({
+      teamId: project.teamId!,
+      userId: teammateLocalId,
+      role: "member",
+    });
+
+    const outsiderIdentity = projectFixture.createWorkosIdentityForOrganization(
+      identity.organization,
+      "translator",
+    );
+    await projectFixture.authHeadersFor(outsiderIdentity);
+    const outsiderLocalId = await projectFixture.getLocalUserId(outsiderIdentity.user.workosUserId);
+
+    const initialRecipesGet = await issueSheet()["routing-recipes"].$get(
+      { param: { organizationSlug: organizationSlug, projectId: project.id } } as never,
+      { headers: headers },
+    );
+    expect(initialRecipesGet.status).toBe(200);
+    const initialRecipesBody = (await initialRecipesGet.json()) as RoutingRecipesResponse;
+    expect(initialRecipesBody.recipes).toEqual([]);
+
+    const putRecipesResponse = await issueSheet()["routing-recipes"].$put(
+      {
+        param: { organizationSlug: organizationSlug, projectId: project.id },
+        json: {
+          recipes: [
+            {
+              name: "Second match",
+              enabled: true,
+              sortOrder: 1,
+              conditions: { issueTypes: ["qa_failure"] },
+              actions: { priority: "P2" },
+            },
+            {
+              name: "First match",
+              enabled: true,
+              sortOrder: 0,
+              conditions: { issueTypes: ["qa_failure"] },
+              actions: { assigneeUserId: teammateLocalId, priority: "P1" },
+            },
+          ],
+        },
+      } as never,
+      { headers: headers },
+    );
+    expect(putRecipesResponse.status).toBe(200);
+
+    // PUT rejects unassignable recipe actions at save; create-time failures still need a stored recipe.
+    await db.insert(schema.issueSheetRoutingRecipes).values({
+      organizationId: project.organizationId,
+      projectId: project.id,
+      name: "Unassignable",
+      enabled: true,
+      sortOrder: 2,
+      conditions: { issueTypes: ["general_question"] },
+      actions: { assigneeUserId: outsiderLocalId },
+    });
+
+    const previewResponse = await issueSheet()["routing-recipes"]["preview"].$post(
+      {
+        param: { organizationSlug: organizationSlug, projectId: project.id },
+        json: {
+          issueType: "qa_failure",
+          priority: null,
+        },
+      } as never,
+      { headers: headers },
+    );
+    expect(previewResponse.status).toBe(200);
+    const previewBody = (await previewResponse.json()) as RoutingPreviewResponse;
+    expect(previewBody.preview.matchedRecipe?.name).toBe("First match");
+    expect(previewBody.preview.wouldAssignUserId).toBe(teammateLocalId);
+    expect(previewBody.preview.wouldSetPriority).toBe("P1");
+
+    const createResponse = await issueSheet().$post(
+      {
+        param: { organizationSlug: organizationSlug, projectId: project.id },
+        json: {
+          title: "Routing triage",
+          issueType: "qa_failure",
+        },
+      } as never,
+      { headers: headers },
+    );
+    expect(createResponse.status).toBe(201);
+    const created = (await createResponse.json()) as IssueResponse & {
+      issue: { assigneeUserId: string | null; values: { priority?: string } };
+    };
+    expect(created.issue.assigneeUserId).toBe(teammateLocalId);
+    expect(created.issue.values.priority).toBe("P1");
+
+    const feedResponse = await issueSheet()[":issueId"].feed.$get(
+      {
+        param: {
+          organizationSlug: organizationSlug,
+          projectId: project.id,
+          issueId: created.issue.id,
+        },
+      } as never,
+      { headers: headers },
+    );
+    expect(feedResponse.status).toBe(200);
+    const feedBody = (await feedResponse.json()) as {
+      items: Array<{ kind: string; activity?: { type: string } }>;
+    };
+    const activityTypes = feedBody.items
+      .filter((item) => item.kind === "activity")
+      .map((item) => item.activity?.type);
+    expect(activityTypes).toEqual(
+      expect.arrayContaining([
+        "issue_created",
+        "assignee_changed",
+        "priority_changed",
+        "routing_recipe_applied",
+      ]),
+    );
+
+    const skipCreateResponse = await issueSheet().$post(
+      {
+        param: { organizationSlug: organizationSlug, projectId: project.id },
+        json: {
+          title: "Skip routing fields",
+          issueType: "qa_failure",
+          assigneeUserId: user.id,
+          priority: "P0",
+        },
+      } as never,
+      { headers: headers },
+    );
+    expect(skipCreateResponse.status).toBe(201);
+    const skipped = (await skipCreateResponse.json()) as IssueResponse & {
+      issue: { assigneeUserId: string | null; values: { priority?: string } };
+    };
+    expect(skipped.issue.assigneeUserId).toBe(user.id);
+    expect(skipped.issue.values.priority).toBe("P0");
+
+    const unassignableCreate = await issueSheet().$post(
+      {
+        param: { organizationSlug: organizationSlug, projectId: project.id },
+        json: {
+          title: "Unassignable routing",
+          issueType: "general_question",
+        },
+      } as never,
+      { headers: headers },
+    );
+    expect(unassignableCreate.status).toBe(201);
+    const unassignableBody = (await unassignableCreate.json()) as IssueResponse & {
+      issue: { assigneeUserId: string | null };
+    };
+    expect(unassignableBody.issue.assigneeUserId).toBeNull();
+
+    const failuresResponse = await issueSheet()["routing-recipes"]["failures"].$get(
+      { param: { organizationSlug: organizationSlug, projectId: project.id } } as never,
+      { headers: headers },
+    );
+    expect(failuresResponse.status).toBe(200);
+    const failuresBody = (await failuresResponse.json()) as RoutingFailuresResponse;
+    expect(
+      failuresBody.failures.some((failure) => failure.errorCode === "assignee_not_assignable"),
+    ).toBe(true);
+
+    const translatorIdentity = projectFixture.createWorkosIdentityForOrganization(
+      identity.organization,
+      "translator",
+    );
+    const translatorHeaders = await projectFixture.authHeadersFor(translatorIdentity);
+    const translatorLocalId = await projectFixture.getLocalUserId(
+      translatorIdentity.user.workosUserId,
+    );
+    await db.insert(schema.teamMemberships).values({
+      teamId: project.teamId!,
+      userId: translatorLocalId,
+      role: "member",
+    });
+
+    const translatorPut = await issueSheet()["routing-recipes"].$put(
+      {
+        param: { organizationSlug: organizationSlug, projectId: project.id },
+        json: { recipes: [] },
+      } as never,
+      { headers: translatorHeaders },
+    );
+    expect(translatorPut.status).toBe(403);
+
+    const invalidAssigneePut = await issueSheet()["routing-recipes"].$put(
+      {
+        param: { organizationSlug: organizationSlug, projectId: project.id },
+        json: {
+          recipes: [
+            {
+              name: "Bad assignee",
+              enabled: true,
+              sortOrder: 0,
+              conditions: {},
+              actions: { assigneeUserId: crypto.randomUUID() },
+            },
+          ],
+        },
+      } as never,
+      { headers: headers },
+    );
+    expect(invalidAssigneePut.status).toBe(400);
+    await expect(invalidAssigneePut.json()).resolves.toMatchObject({
+      error: "assignee_not_assignable",
+    });
   });
 });

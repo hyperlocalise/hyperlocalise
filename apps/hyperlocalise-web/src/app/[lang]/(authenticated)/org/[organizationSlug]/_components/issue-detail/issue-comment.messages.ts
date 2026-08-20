@@ -70,6 +70,16 @@ export const issueCommentMessages = defineMessages({
     id: "hFzuwtEzyB",
     description: "Fallback actor name for issue activity when author is missing",
   },
+  routingRecipeApplied: {
+    defaultMessage: "Routing recipe {recipeName} applied triage rules",
+    id: "yJX381LoRp",
+    description: "Activity line when a routing recipe applies on issue create",
+  },
+  routingSystemActor: {
+    defaultMessage: "Routing",
+    id: "nTCQOIjDbV",
+    description: "Actor label for automated routing recipe activity",
+  },
   unknownIssue: {
     defaultMessage: "another issue",
     id: "kBB5urcgnt",

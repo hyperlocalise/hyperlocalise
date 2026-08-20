@@ -217,6 +217,46 @@ export type IssueSheetTemplateConfig = {
   assigneeByTemplate: { templateKey: string; userId: string; assignable: boolean }[];
 };
 
+export const issueRoutingRecipeConditionsSchema = z.object({
+  issueTypes: z.array(issueSheetIssueTypeSchema).optional(),
+  targetLocales: z.array(z.string().trim().min(1).max(32)).optional(),
+  priorities: z.array(issueSheetPrioritySchema).optional(),
+});
+
+export const issueRoutingRecipeActionsSchema = z
+  .object({
+    assigneeUserId: z.string().uuid().optional(),
+    priority: issueSheetPrioritySchema.optional(),
+  })
+  .superRefine((value, ctx) => {
+    if (!value.assigneeUserId && !value.priority) {
+      ctx.addIssue({
+        code: "custom",
+        message: "At least one routing action is required",
+      });
+    }
+  });
+
+export const issueRoutingRecipeBodySchema = z.object({
+  name: z.string().trim().min(1).max(120),
+  enabled: z.boolean(),
+  sortOrder: z.number().int().min(0).max(1000).optional(),
+  conditions: issueRoutingRecipeConditionsSchema.optional().default({}),
+  actions: issueRoutingRecipeActionsSchema,
+});
+
+export const issueSheetRoutingRecipesBodySchema = z.object({
+  recipes: z.array(issueRoutingRecipeBodySchema).max(50),
+});
+export type IssueSheetRoutingRecipesBody = z.infer<typeof issueSheetRoutingRecipesBodySchema>;
+
+export const issueRoutingRecipePreviewBodySchema = z.object({
+  issueType: issueSheetIssueTypeSchema.optional(),
+  targetLocale: z.string().trim().min(1).max(32).nullable().optional(),
+  priority: issueSheetPrioritySchema.nullable().optional(),
+  assigneeUserId: z.string().uuid().optional(),
+});
+
 export const issueSheetFeedQuerySchema = z
   .object({
     limit: z.coerce.number().int().min(1).max(100).default(100),

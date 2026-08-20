@@ -68,4 +68,10 @@ export type IssueActivity =
       // Removal can be actioned from either side, so this can also be "duplicate".
       relationshipKind: IssueRelationshipPresentedKind;
       relatedIssue: IssueActivityRelatedIssue;
+    })
+  | (IssueActivityBase & {
+      type: "routing_recipe_applied";
+      recipeId: string;
+      recipeName: string;
+      actionsApplied: { assigneeUserId?: string; priority?: string };
     });

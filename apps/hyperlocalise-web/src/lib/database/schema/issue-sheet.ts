@@ -261,6 +261,15 @@ export type IssueSheetActivityRelationshipRemovedPayload = {
   kind: string;
 };
 
+export type IssueSheetActivityRoutingRecipeAppliedPayload = {
+  recipeId: string;
+  recipeName: string;
+  actionsApplied: {
+    assigneeUserId?: string;
+    priority?: string;
+  };
+};
+
 export type IssueSheetActivityPayload =
   | IssueSheetActivityAssigneeChangedPayload
   | IssueSheetActivityIssueCreatedPayload
@@ -268,7 +277,89 @@ export type IssueSheetActivityPayload =
   | IssueSheetActivityIssueTypeChangedPayload
   | IssueSheetActivityPriorityChangedPayload
   | IssueSheetActivityRelationshipAddedPayload
-  | IssueSheetActivityRelationshipRemovedPayload;
+  | IssueSheetActivityRelationshipRemovedPayload
+  | IssueSheetActivityRoutingRecipeAppliedPayload;
+
+export type IssueRoutingRecipeConditions = {
+  issueTypes?: string[];
+  targetLocales?: string[];
+  priorities?: string[];
+};
+
+export type IssueRoutingRecipeActions = {
+  assigneeUserId?: string;
+  priority?: string;
+};
+
+/**
+ * Predefined triage rules: match new issues on type, locale, or priority and assign
+ * owners or set priority on create.
+ */
+export const issueSheetRoutingRecipes = pgTable(
+  "issue_sheet_routing_recipes",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    projectId: text("project_id")
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    enabled: boolean("enabled").notNull().default(true),
+    sortOrder: integer("sort_order").notNull().default(0),
+    conditions: jsonb("conditions")
+      .$type<IssueRoutingRecipeConditions>()
+      .notNull()
+      .default(sql`'{}'::jsonb`),
+    actions: jsonb("actions")
+      .$type<IssueRoutingRecipeActions>()
+      .notNull()
+      .default(sql`'{}'::jsonb`),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdateFn(() => new Date()),
+  },
+  (table) => [
+    index("idx_issue_sheet_routing_recipes_project_order").on(
+      table.projectId,
+      table.sortOrder,
+      table.id,
+    ),
+    index("idx_issue_sheet_routing_recipes_org_project").on(table.organizationId, table.projectId),
+  ],
+);
+
+/**
+ * Admin-visible log when routing recipe execution fails without blocking issue create.
+ */
+export const issueSheetRoutingFailures = pgTable(
+  "issue_sheet_routing_failures",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    projectId: text("project_id")
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
+    issueId: uuid("issue_id")
+      .notNull()
+      .references(() => issueSheetIssues.id, { onDelete: "cascade" }),
+    recipeId: uuid("recipe_id").references(() => issueSheetRoutingRecipes.id, {
+      onDelete: "set null",
+    }),
+    errorCode: text("error_code").notNull(),
+    message: text("message"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index("idx_issue_sheet_routing_failures_project_created").on(table.projectId, table.createdAt),
+    index("idx_issue_sheet_routing_failures_issue").on(table.issueId),
+  ],
+);
 
 /**
  * Stores non-comment issue events (assignee changes, and later status/link events)

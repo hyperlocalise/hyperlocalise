@@ -469,7 +469,11 @@ function IssueActivityRow({
   connectBelow?: boolean;
 }) {
   const intl = useIntl();
-  const actorName = activity.actor?.displayName ?? intl.formatMessage(messages.unknownActor);
+  const actorName =
+    activity.actor?.displayName ??
+    (activity.type === "routing_recipe_applied"
+      ? intl.formatMessage(messages.routingSystemActor)
+      : intl.formatMessage(messages.unknownActor));
   const actorAvatar = activity.actor?.avatarUrl ?? null;
   const actor = activityName(actorName);
 
@@ -552,6 +556,14 @@ function IssueActivityRow({
     case "relationship_removed":
       copy = relationshipRemovedCopy(intl, actor, activity);
       icon = <IssueRelationshipKindIcon kind={activity.relationshipKind} />;
+      break;
+    case "routing_recipe_applied":
+      copy = (
+        <FormattedMessage
+          {...messages.routingRecipeApplied}
+          values={{ recipeName: activityName(activity.recipeName) }}
+        />
+      );
       break;
     default:
       assertNever(activity);

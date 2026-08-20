@@ -20,6 +20,7 @@ import {
 } from "@/api/auth/capability-guards";
 import { badRequestResponse, conflictResponse, notFoundResponse } from "@/api/response.schema";
 import { IssueSheetService } from "@/lib/projects/issue-sheet/issue-sheet-service";
+import { issueRoutingRecipeService } from "@/lib/projects/issue-sheet/issue-routing-recipe-service";
 
 import { createIssueRelationshipRoutes } from "./issue-relationships.route";
 import { createIssueSheetCommentRoutes } from "./issue-sheet-comments.route";
@@ -37,6 +38,8 @@ import {
   issueSheetTemplateConfigBodySchema,
   issueSheetUpdateColumnBodySchema,
   issueSheetUpdateIssueBodySchema,
+  issueSheetRoutingRecipesBodySchema,
+  issueRoutingRecipePreviewBodySchema,
 } from "./issue-sheet.schema";
 import {
   getOwnedProject,
@@ -105,6 +108,16 @@ const validateTemplateConfigBody = createZodValidator(
   "json",
   issueSheetTemplateConfigBodySchema,
   "invalid_issue_sheet_template_config_payload",
+);
+const validateRoutingRecipesBody = createZodValidator(
+  "json",
+  issueSheetRoutingRecipesBodySchema,
+  "invalid_issue_sheet_routing_recipes_payload",
+);
+const validateRoutingRecipePreviewBody = createZodValidator(
+  "json",
+  issueRoutingRecipePreviewBodySchema,
+  "invalid_issue_sheet_routing_recipe_preview_payload",
 );
 const validateFeedQuery = createZodValidator(
   "query",
@@ -211,6 +224,89 @@ export function createIssueSheetRoutes() {
           }
           throw error;
         }
+      })
+      .get("/routing-recipes", validateIssueSheetParams, async (c) => {
+        const params = c.req.valid("param");
+        const project = await requireProject(c, params.projectId);
+        if (!project) {
+          return projectNotFoundResponse(c);
+        }
+
+        const recipes = await issueRoutingRecipeService.listRecipes({
+          organizationId: c.var.auth.organization.localOrganizationId,
+          projectId: project.id,
+        });
+        return c.json({ recipes }, 200);
+      })
+      .put("/routing-recipes", validateIssueSheetParams, validateRoutingRecipesBody, async (c) => {
+        if (!isProjectMutationAllowed(c.var.auth.membership.role)) {
+          return projectForbiddenResponse(c);
+        }
+        const params = c.req.valid("param");
+        const project = await requireProject(c, params.projectId);
+        if (!project) {
+          return projectNotFoundResponse(c);
+        }
+
+        try {
+          const recipes = await issueRoutingRecipeService.setRecipes({
+            organizationId: c.var.auth.organization.localOrganizationId,
+            projectId: project.id,
+            body: c.req.valid("json"),
+          });
+          return c.json({ recipes }, 200);
+        } catch (error) {
+          if (error instanceof Error && error.message === "assignee_not_assignable") {
+            return badRequestResponse(
+              c,
+              "assignee_not_assignable",
+              "Assignee must be an active workspace member with project access",
+            );
+          }
+          throw error;
+        }
+      })
+      .post(
+        "/routing-recipes/preview",
+        validateIssueSheetParams,
+        validateRoutingRecipePreviewBody,
+        async (c) => {
+          const params = c.req.valid("param");
+          const project = await requireProject(c, params.projectId);
+          if (!project) {
+            return projectNotFoundResponse(c);
+          }
+
+          const body = c.req.valid("json");
+          const preview = await issueRoutingRecipeService.preview({
+            organizationId: c.var.auth.organization.localOrganizationId,
+            projectId: project.id,
+            snapshot: {
+              issueType: body.issueType ?? "general_question",
+              targetLocale: body.targetLocale ?? null,
+              priority: body.priority ?? null,
+            },
+            assigneeAlreadySet: Boolean(body.assigneeUserId),
+            priorityAlreadySet: Boolean(body.priority),
+          });
+          return c.json({ preview }, 200);
+        },
+      )
+      .get("/routing-recipes/failures", validateIssueSheetParams, async (c) => {
+        if (!isProjectMutationAllowed(c.var.auth.membership.role)) {
+          return projectForbiddenResponse(c);
+        }
+        const params = c.req.valid("param");
+        const project = await requireProject(c, params.projectId);
+        if (!project) {
+          return projectNotFoundResponse(c);
+        }
+
+        const failures = await issueRoutingRecipeService.listFailures({
+          organizationId: c.var.auth.organization.localOrganizationId,
+          projectId: project.id,
+        });
+        return c.json({ failures }, 200);
       })
       .post("/columns", validateIssueSheetParams, validateCreateColumnBody, async (c) => {
         if (!isProjectMutationAllowed(c.var.auth.membership.role)) {

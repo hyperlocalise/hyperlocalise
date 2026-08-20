@@ -52,6 +52,7 @@ import {
   useProjectPageQuery,
 } from "../../_components/project-page-shell";
 import { ProjectIssueTemplatesPanel } from "./project-issue-templates-panel";
+import { ProjectIssueRoutingRecipesPanel } from "./project-issue-routing-recipes-panel";
 import { ProjectNativeConnectCliPanel } from "./project-native-connect-cli-panel";
 import { ProjectIssueColumnsSettings } from "./project-issue-columns-settings";
 import { projectSettingsPageContentMessages } from "./project-settings-page-content.messages";
@@ -429,7 +430,13 @@ export function ProjectSettingsPageContent({
             a template config. Rendering the panel there would let an admin "save" a config that
             silently never took effect. */}
         {!isEncodedProviderProjectId(project.id) ? (
-          <ProjectIssueTemplatesPanel organizationSlug={organizationSlug} projectId={projectId} />
+          <>
+            <ProjectIssueTemplatesPanel organizationSlug={organizationSlug} projectId={projectId} />
+            <ProjectIssueRoutingRecipesPanel
+              organizationSlug={organizationSlug}
+              projectId={projectId}
+            />
+          </>
         ) : null}
 
         {project.source === "native" ? (
