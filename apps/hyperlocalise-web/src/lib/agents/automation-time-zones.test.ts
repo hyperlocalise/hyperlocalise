@@ -13,6 +13,8 @@
 import { describe, expect, it } from "vite-plus/test";
 
 import {
+  automationTimeZoneSearchValue,
+  filterAutomationTimeZoneGroups,
   formatAutomationTimeZoneLabel,
   groupAutomationTimeZones,
   isValidAutomationTimeZone,
@@ -41,5 +43,28 @@ describe("automation time zones", () => {
   it("formats IANA identifiers for the timezone select", () => {
     expect(formatAutomationTimeZoneLabel("UTC")).toBe("UTC");
     expect(formatAutomationTimeZoneLabel("America/New_York")).toBe("America/New York");
+  });
+
+  it("matches timezone search against id, region, and city", () => {
+    expect(automationTimeZoneSearchValue("America/New_York")).toContain("America/New York");
+    expect(automationTimeZoneSearchValue("America/New_York")).toContain("New York");
+
+    const groups = groupAutomationTimeZones([
+      "UTC",
+      "America/New_York",
+      "America/Los_Angeles",
+      "Australia/Sydney",
+    ]);
+
+    expect(filterAutomationTimeZoneGroups(groups, "sydney").flatMap((group) => group.zones)).toEqual(
+      ["Australia/Sydney"],
+    );
+    expect(filterAutomationTimeZoneGroups(groups, "york").flatMap((group) => group.zones)).toEqual([
+      "America/New_York",
+    ]);
+    expect(filterAutomationTimeZoneGroups(groups, "america").flatMap((group) => group.zones)).toEqual(
+      ["America/Los_Angeles", "America/New_York"],
+    );
+    expect(filterAutomationTimeZoneGroups(groups, "not-a-zone")).toEqual([]);
   });
 });

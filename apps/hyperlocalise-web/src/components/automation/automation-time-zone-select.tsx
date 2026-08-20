@@ -12,23 +12,30 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
+import { FormattedMessage, useIntl } from "react-intl";
+import { UnfoldMoreIcon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 
+import { Button } from "@/components/ui/button";
 import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectLabel,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
+  filterAutomationTimeZoneGroups,
   formatAutomationTimeZoneLabel,
   groupAutomationTimeZones,
   listAutomationTimeZones,
 } from "@/lib/agents/automation-time-zones";
 import { cn } from "@/lib/primitives/cn";
+
+import { automationTimeZoneSelectMessages } from "./automation-time-zone-select.messages";
 
 export function AutomationTimeZoneSelect({
   value,
@@ -47,39 +54,81 @@ export function AutomationTimeZoneSelect({
   className?: string;
   "aria-label"?: string;
 }) {
+  const intl = useIntl();
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState("");
   const groups = useMemo(() => groupAutomationTimeZones(listAutomationTimeZones(value)), [value]);
+  const visibleGroups = useMemo(
+    () => filterAutomationTimeZoneGroups(groups, search),
+    [groups, search],
+  );
+  const selectedLabel = formatAutomationTimeZoneLabel(value);
+  const searchPlaceholder = intl.formatMessage(automationTimeZoneSelectMessages.searchPlaceholder);
 
   return (
-    <Select
-      value={value}
-      onValueChange={(next) => {
-        if (!next) {
-          return;
+    <Popover
+      open={open}
+      onOpenChange={(nextOpen) => {
+        setOpen(nextOpen);
+        if (!nextOpen) {
+          setSearch("");
         }
-        onValueChange(next);
       }}
-      disabled={disabled}
     >
-      <SelectTrigger
-        id={id}
-        size={size}
-        aria-label={ariaLabel}
-        className={cn("min-w-52", className)}
+      <PopoverTrigger
+        render={
+          <Button
+            type="button"
+            id={id}
+            variant="outline"
+            size={size}
+            disabled={disabled}
+            aria-label={ariaLabel}
+            aria-expanded={open}
+            aria-haspopup="listbox"
+            className={cn(
+              "min-w-52 justify-between gap-1.5 rounded-lg border-input bg-input/30 px-3 font-normal",
+              className,
+            )}
+          />
+        }
       >
-        <SelectValue />
-      </SelectTrigger>
-      <SelectContent className="max-h-72 min-w-72" alignItemWithTrigger={false}>
-        {groups.map((group) => (
-          <SelectGroup key={group.id}>
-            {group.id === "UTC" ? null : <SelectLabel>{group.id}</SelectLabel>}
-            {group.zones.map((zone) => (
-              <SelectItem key={zone} value={zone}>
-                {formatAutomationTimeZoneLabel(zone)}
-              </SelectItem>
+        <span className="min-w-0 truncate">{selectedLabel}</span>
+        <HugeiconsIcon icon={UnfoldMoreIcon} strokeWidth={2} data-icon="inline-end" />
+      </PopoverTrigger>
+      <PopoverContent align="start" className="min-w-72 p-0" sideOffset={4}>
+        <Command shouldFilter={false}>
+          <CommandInput
+            value={search}
+            onValueChange={setSearch}
+            placeholder={searchPlaceholder}
+            aria-label={searchPlaceholder}
+          />
+          <CommandList>
+            <CommandEmpty>
+              <FormattedMessage {...automationTimeZoneSelectMessages.empty} />
+            </CommandEmpty>
+            {visibleGroups.map((group) => (
+              <CommandGroup key={group.id} heading={group.id === "UTC" ? undefined : group.id}>
+                {group.zones.map((zone) => (
+                  <CommandItem
+                    key={zone}
+                    value={zone}
+                    data-checked={value === zone || undefined}
+                    onSelect={() => {
+                      onValueChange(zone);
+                      setOpen(false);
+                      setSearch("");
+                    }}
+                  >
+                    {formatAutomationTimeZoneLabel(zone)}
+                  </CommandItem>
+                ))}
+              </CommandGroup>
             ))}
-          </SelectGroup>
-        ))}
-      </SelectContent>
-    </Select>
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
   );
 }

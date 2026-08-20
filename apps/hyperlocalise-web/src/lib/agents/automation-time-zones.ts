@@ -119,3 +119,30 @@ export function formatAutomationTimeZoneLabel(timeZone: string) {
 
   return timeZone.replaceAll("_", " ");
 }
+
+export function automationTimeZoneSearchValue(timeZone: string) {
+  const label = formatAutomationTimeZoneLabel(timeZone);
+  const separator = timeZone.indexOf("/");
+  const region = separator === -1 ? "" : timeZone.slice(0, separator);
+  const locality =
+    separator === -1 ? timeZone : timeZone.slice(separator + 1).replaceAll("_", " ");
+
+  return [timeZone, label, region, locality].filter(Boolean).join(" ");
+}
+
+export function filterAutomationTimeZoneGroups(
+  groups: AutomationTimeZoneGroup[],
+  query: string,
+): AutomationTimeZoneGroup[] {
+  const normalized = query.trim().toLowerCase();
+  if (!normalized) {
+    return groups;
+  }
+
+  return groups.flatMap((group) => {
+    const zones = group.zones.filter((zone) =>
+      automationTimeZoneSearchValue(zone).toLowerCase().includes(normalized),
+    );
+    return zones.length > 0 ? [{ id: group.id, zones }] : [];
+  });
+}
