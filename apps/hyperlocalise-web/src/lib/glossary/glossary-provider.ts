@@ -18,7 +18,7 @@ import type { Glossary as GlossaryRecord } from "@/lib/database/types";
 import { resolveExternalTmsSecretMaterialForActor } from "@/lib/providers/shared/tms-provider-content";
 import { getActiveOrganizationExternalTmsProviderCredentialRow } from "@/lib/providers/credentials/organization-external-tms-provider-credentials";
 import { CrowdinGlossary as CrowdinGlossaryProduct } from "./crowdin-glossary";
-import { Glossary, type NativeGlossaryConcept, type NativeGlossaryTermInput } from "./glossary";
+import { Glossary, type GlossaryConceptInput, type NativeGlossaryTermInput } from "./glossary";
 import { NativeGlossary as NativeGlossaryProduct } from "./native-glossary";
 
 export type GlossaryProviderContext = {
@@ -221,7 +221,7 @@ export async function getCrowdinConcept(input: GlossaryProviderContext, conceptI
 
 export async function createCrowdinConcept(
   input: GlossaryProviderContext,
-  concept: NativeGlossaryConcept,
+  concept: GlossaryConceptInput,
 ) {
   const glossary = await getCrowdinGlossaryProduct(input);
   return glossary.createConcept(concept);
@@ -230,7 +230,7 @@ export async function createCrowdinConcept(
 export async function updateCrowdinConcept(
   input: GlossaryProviderContext,
   conceptId: string,
-  concept: NativeGlossaryConcept,
+  concept: GlossaryConceptInput,
 ) {
   const glossary = await getCrowdinGlossaryProduct(input);
   return glossary.updateConcept(conceptId, concept);

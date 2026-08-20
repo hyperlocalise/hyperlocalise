@@ -23,9 +23,8 @@ import { getGlossaryProduct } from "@/lib/glossary/glossary-provider";
 import {
   GlossaryValidationError,
   type NativeGlossary,
-  type NativeGlossaryConcept,
+  type GlossaryConcept,
 } from "@/lib/glossary/glossary";
-import type { CrowdinGlossaryConcept } from "@/lib/providers/adapters/crowdin/crowdin-provider";
 
 import {
   createGlossaryConceptBodySchema,
@@ -89,61 +88,6 @@ function glossaryValidationErrorResponse(
 ) {
   if (!(error instanceof GlossaryValidationError)) return null;
   return badRequestResponse(c, error.code, error.message);
-}
-
-function toCrowdinConceptInput(
-  glossary: NativeGlossary,
-  input: CreateGlossaryConceptBody | UpdateGlossaryConceptBody | NativeGlossaryConcept,
-): CrowdinGlossaryConcept {
-  const primaryTerm = input.primaryTerm ?? "";
-  const terms = (input.terms ?? []).map((term) => ({
-    id: "id" in term ? term.id : undefined,
-    languageId: "locale" in term ? term.locale : term.languageId,
-    text:
-      ("locale" in term ? term.locale : term.languageId) === glossary.sourceLocale && primaryTerm
-        ? primaryTerm
-        : "term" in term
-          ? term.term
-          : term.text,
-    description: term.description,
-    partOfSpeech: term.partOfSpeech,
-    status: crowdinStatus(term.status),
-    type:
-      "termType" in term ? (term.termType ?? undefined) : "type" in term ? term.type : undefined,
-    gender: term.gender ?? undefined,
-    note: "note" in term && typeof term.note === "string" ? term.note : undefined,
-    url: term.url || undefined,
-    lemma: term.lemma ?? undefined,
-  }));
-  // Keep the primary term mirrored in the configured source locale even when
-  // callers provide only regional variants such as `en-US`.
-  if (!terms.some((term) => term.languageId === glossary.sourceLocale) && primaryTerm) {
-    const sourcePartOfSpeech = terms.find((term) => term.partOfSpeech)?.partOfSpeech;
-    terms.push({
-      id: undefined,
-      languageId: glossary.sourceLocale,
-      text: primaryTerm,
-      description: undefined,
-      partOfSpeech: sourcePartOfSpeech,
-      status: "preferred",
-      note: undefined,
-      type: undefined,
-      gender: undefined,
-      url: undefined,
-      lemma: undefined,
-    });
-  }
-  return {
-    primaryTerm,
-    sourceLocale: glossary.sourceLocale,
-    subject: input.subject,
-    definition: input.definition,
-    translatable: input.translatable,
-    note: input.note,
-    url: input.url,
-    figure: input.figure,
-    terms,
-  };
 }
 
 function toCrowdinTermRecord(
@@ -443,7 +387,7 @@ export function createGlossaryConceptRoutes() {
         if (!product) return externalTmsGlossaryImmutableResponse(c);
         let created;
         try {
-          created = await product.createConcept(toCrowdinConceptInput(glossary, payload));
+          created = await product.createConcept(payload);
         } catch (error) {
           const response = glossaryValidationErrorResponse(c, error);
           if (response) return response;
@@ -530,10 +474,10 @@ export function createGlossaryConceptRoutes() {
                     lemma: term.lemma !== undefined ? (term.lemma ?? undefined) : existing?.lemma,
                   };
                 }),
-        } satisfies NativeGlossaryConcept;
+        } satisfies GlossaryConcept;
         let updated;
         try {
-          updated = await product.updateConcept(conceptId, toCrowdinConceptInput(glossary, merged));
+          updated = await product.updateConcept(conceptId, merged);
         } catch (error) {
           const response = glossaryValidationErrorResponse(c, error);
           if (response) return response;

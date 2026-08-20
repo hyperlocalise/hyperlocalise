@@ -19,19 +19,62 @@ import type {
   GlossaryTermRecord,
   GlossaryTermUpdateInput,
   GlossaryConceptImportEntry,
-  NativeGlossaryConcept,
+  GlossaryConcept,
+  GlossaryConceptInput,
   NativeGlossaryTermInput,
 } from "./glossary";
 import type { GlossaryProviderContext } from "./glossary-provider";
 import { createGlossaryTermDuplicateTracker } from "./glossary-term-dedupe";
 
-function normalizeNativeConcept(input: NativeGlossaryConcept): NativeGlossaryConcept {
+function normalizeNativeConcept(input: GlossaryConcept): GlossaryConcept {
+  const terms = input.terms.map((term) => ({
+    ...term,
+    partOfSpeech: normalizeGlossaryPartOfSpeech(term.partOfSpeech, { required: false }),
+  }));
+
+  if (!terms.some((term) => term.languageId === input.sourceLocale) && input.primaryTerm) {
+    const sourcePartOfSpeech = terms.find((term) => term.partOfSpeech)?.partOfSpeech;
+    terms.push({
+      languageId: input.sourceLocale,
+      text: input.primaryTerm,
+      partOfSpeech: sourcePartOfSpeech,
+      status: "preferred",
+    });
+  }
+
   return {
     ...input,
-    terms: input.terms.map((term) => ({
-      ...term,
-      partOfSpeech: normalizeGlossaryPartOfSpeech(term.partOfSpeech, { required: false }),
-    })),
+    terms,
+  };
+}
+
+function toNativeConceptInput(input: GlossaryConceptInput, sourceLocale: string): GlossaryConcept {
+  return {
+    primaryTerm: input.primaryTerm ?? "",
+    sourceLocale,
+    subject: input.subject,
+    definition: input.definition,
+    translatable: input.translatable,
+    note: input.note,
+    url: input.url,
+    figure: input.figure,
+    terms: (input.terms ?? []).map((term) => {
+      if ("locale" in term) {
+        return {
+          id: term.id,
+          languageId: term.locale,
+          text: term.term,
+          description: term.description,
+          partOfSpeech: term.partOfSpeech,
+          status: term.status,
+          type: term.termType ?? undefined,
+          gender: term.gender ?? undefined,
+          url: term.url || undefined,
+          lemma: term.lemma ?? undefined,
+        };
+      }
+      return { ...term };
+    }),
   };
 }
 
@@ -112,7 +155,7 @@ export class NativeGlossary extends Glossary {
 
   private toConceptRecord(
     loaded: NonNullable<Awaited<ReturnType<NativeGlossary["loadConcept"]>>>,
-  ): NativeGlossaryConcept {
+  ): GlossaryConcept {
     return {
       primaryTerm: loaded.concept.primaryTerm,
       sourceLocale: this.input.glossary.sourceLocale,
@@ -199,8 +242,10 @@ export class NativeGlossary extends Glossary {
     return loaded ? this.toConceptRecord(loaded) : null;
   }
 
-  async createConcept(input: NativeGlossaryConcept) {
-    const normalizedInput = normalizeNativeConcept(input);
+  async createConcept(input: GlossaryConceptInput) {
+    const normalizedInput = normalizeNativeConcept(
+      toNativeConceptInput(input, this.input.glossary.sourceLocale),
+    );
     const created = await db.transaction(async (tx) => {
       const [concept] = await tx
         .insert(schema.glossaryConcepts)
@@ -241,8 +286,10 @@ export class NativeGlossary extends Glossary {
     return this.getConcept(created.id);
   }
 
-  async updateConcept(conceptId: string, input: NativeGlossaryConcept) {
-    const normalizedInput = normalizeNativeConcept(input);
+  async updateConcept(conceptId: string, input: GlossaryConceptInput) {
+    const normalizedInput = normalizeNativeConcept(
+      toNativeConceptInput(input, this.input.glossary.sourceLocale),
+    );
     const updated = await db.transaction(async (tx) => {
       const loaded = await this.loadConcept(conceptId, tx);
       if (!loaded) return false;

@@ -92,7 +92,7 @@ export type NativeGlossaryTermInput = {
   lemma?: string;
 };
 
-export type NativeGlossaryConceptTerm = NativeGlossaryTermInput & {
+export type GlossaryConceptTerm = NativeGlossaryTermInput & {
   id?: number | string;
   conceptId?: number;
   userId?: number;
@@ -109,7 +109,7 @@ export type NativeGlossaryLanguageDetails = {
   updatedAt: string | null;
 };
 
-export type NativeGlossaryConcept = {
+export type GlossaryConcept = {
   conceptId?: number;
   primaryTerm: string;
   sourceLocale: string;
@@ -124,7 +124,32 @@ export type NativeGlossaryConcept = {
   languageDetails?: NativeGlossaryLanguageDetails[];
   externalCreatedAt?: string | null;
   externalUpdatedAt?: string | null;
-  terms: NativeGlossaryConceptTerm[];
+  terms: GlossaryConceptTerm[];
+};
+
+export type GlossaryConceptRequestTerm = {
+  id?: number | string;
+  locale: string;
+  term: string;
+  description?: string;
+  partOfSpeech?: string;
+  status?: string;
+  termType?: string | null;
+  gender?: string | null;
+  url?: string | null;
+  lemma?: string | null;
+};
+
+export type GlossaryConceptInput = {
+  primaryTerm?: string;
+  sourceLocale?: string;
+  subject?: string;
+  definition?: string;
+  translatable?: boolean;
+  note?: string;
+  url?: string | null;
+  figure?: string | null;
+  terms?: Array<GlossaryConceptRequestTerm | GlossaryConceptTerm>;
 };
 
 export class GlossaryValidationError extends Error {
@@ -166,17 +191,17 @@ export abstract class Glossary {
   abstract get(): Promise<NativeGlossary | null>;
   abstract update(payload: { name?: string; description?: string }): Promise<NativeGlossary | null>;
   abstract delete(): Promise<boolean>;
-  abstract listConcepts(): Promise<NativeGlossaryConcept[]>;
-  abstract getConcept(conceptId: string): Promise<NativeGlossaryConcept | null>;
-  abstract createConcept(concept: NativeGlossaryConcept): Promise<NativeGlossaryConcept | null>;
+  abstract listConcepts(): Promise<GlossaryConcept[]>;
+  abstract getConcept(conceptId: string): Promise<GlossaryConcept | null>;
+  abstract createConcept(input: GlossaryConceptInput): Promise<GlossaryConcept | null>;
   abstract updateConcept(
     conceptId: string,
-    concept: NativeGlossaryConcept,
-  ): Promise<NativeGlossaryConcept | null>;
+    input: GlossaryConceptInput,
+  ): Promise<GlossaryConcept | null>;
   abstract deleteConcept(conceptId: string): Promise<boolean>;
   abstract importConcepts(
     entries: GlossaryConceptImportEntry[],
-  ): Promise<{ concepts: NativeGlossaryConcept[]; skipped: number }>;
+  ): Promise<{ concepts: GlossaryConcept[]; skipped: number }>;
   abstract listTerms(): Promise<GlossaryTermRecord[]>;
   abstract createGlossaryTerm(input: GlossaryTermCreateInput): Promise<GlossaryTermRecord | null>;
   abstract createGlossaryTerms(
@@ -192,11 +217,11 @@ export abstract class Glossary {
   abstract createTerm(
     conceptId: string,
     term: NativeGlossaryTermInput,
-  ): Promise<NativeGlossaryConcept | NativeGlossaryConceptTerm | null>;
+  ): Promise<GlossaryConcept | GlossaryConceptTerm | null>;
   abstract updateTerm(
     conceptId: string,
     termId: string,
     term: NativeGlossaryTermInput,
-  ): Promise<NativeGlossaryConcept | NativeGlossaryConceptTerm | null>;
+  ): Promise<GlossaryConcept | GlossaryConceptTerm | null>;
   abstract deleteTerm(conceptId: string, termId: string): Promise<boolean>;
 }

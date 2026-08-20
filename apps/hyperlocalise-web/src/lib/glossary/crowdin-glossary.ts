@@ -23,23 +23,104 @@ import {
   Glossary,
   normalizeGlossaryPartOfSpeech,
   type GlossaryConceptImportEntry,
+  type GlossaryConcept,
+  type GlossaryConceptTerm,
+  type GlossaryConceptInput,
   type GlossaryTermCreateInput,
   type GlossaryTermRecord,
   type GlossaryTermUpdateInput,
   type NativeGlossary,
-  type NativeGlossaryConcept,
   type NativeGlossaryTermInput,
 } from "./glossary";
 import { parseId, resolveCrowdinContext, toCrowdinContext } from "./glossary-provider";
 import type { GlossaryProviderContext } from "./glossary-provider";
 
-function normalizeCrowdinConcept(concept: NativeGlossaryConcept): NativeGlossaryConcept {
+function crowdinStatus(status: string | undefined) {
+  switch (status) {
+    case "preferred":
+      return "preferred";
+    case "admitted":
+      return "admitted";
+    case "not_recommended":
+      return "not recommended";
+    case "obsolete":
+      return "obsolete";
+    default:
+      return "draft";
+  }
+}
+
+function toGlossaryConceptInput(
+  input: GlossaryConceptInput,
+  sourceLocale: string,
+): GlossaryConcept {
+  return {
+    primaryTerm: input.primaryTerm ?? "",
+    sourceLocale,
+    subject: input.subject,
+    definition: input.definition,
+    translatable: input.translatable,
+    note: input.note,
+    url: input.url,
+    figure: input.figure,
+    terms: (input.terms ?? []).map((term) => {
+      if ("locale" in term) {
+        return {
+          id: term.id,
+          languageId: term.locale,
+          text: term.term,
+          description: term.description,
+          partOfSpeech: term.partOfSpeech,
+          status: term.status,
+          type: term.termType ?? undefined,
+          gender: term.gender ?? undefined,
+          url: term.url || undefined,
+          lemma: term.lemma ?? undefined,
+        };
+      }
+      return { ...term };
+    }),
+  };
+}
+
+function toCrowdinConceptInput(concept: GlossaryConcept): CrowdinGlossaryConcept {
+  const terms = concept.terms.map((term) => ({
+    id: term.id,
+    languageId: term.languageId,
+    text:
+      term.languageId === concept.sourceLocale && concept.primaryTerm
+        ? concept.primaryTerm
+        : term.text,
+    description: term.description,
+    partOfSpeech: normalizeGlossaryPartOfSpeech(term.partOfSpeech),
+    status: crowdinStatus(term.status),
+    type: term.type,
+    gender: term.gender,
+    note: term.note,
+    url: term.url || undefined,
+    lemma: term.lemma,
+  }));
+
+  if (!terms.some((term) => term.languageId === concept.sourceLocale) && concept.primaryTerm) {
+    const sourcePartOfSpeech = terms.find((term) => term.partOfSpeech)?.partOfSpeech;
+    terms.push({
+      id: undefined,
+      languageId: concept.sourceLocale,
+      text: concept.primaryTerm,
+      description: undefined,
+      partOfSpeech: sourcePartOfSpeech,
+      status: "preferred",
+      type: undefined,
+      gender: undefined,
+      note: undefined,
+      url: undefined,
+      lemma: undefined,
+    });
+  }
+
   return {
     ...concept,
-    terms: concept.terms.map((term) => ({
-      ...term,
-      partOfSpeech: normalizeGlossaryPartOfSpeech(term.partOfSpeech),
-    })),
+    terms,
   };
 }
 
@@ -50,7 +131,7 @@ function normalizeCrowdinTerm(term: NativeGlossaryTermInput): NativeGlossaryTerm
   };
 }
 
-export function toNativeGlossaryConcept(concept: CrowdinGlossaryConcept): NativeGlossaryConcept {
+export function toGlossaryConcept(concept: CrowdinGlossaryConcept): GlossaryConcept {
   return {
     ...concept,
     terms: concept.terms.map((term) => ({ ...term })),
@@ -137,7 +218,7 @@ export class CrowdinGlossary extends Glossary {
       toCrowdinContext(context),
       parseId(this.input.glossary.externalGlossaryId!, "glossary_id"),
     );
-    return concepts.map(toNativeGlossaryConcept);
+    return concepts.map(toGlossaryConcept);
   }
 
   async getConcept(conceptId: string) {
@@ -147,28 +228,30 @@ export class CrowdinGlossary extends Glossary {
       parseId(this.input.glossary.externalGlossaryId!, "glossary_id"),
       parseId(conceptId, "concept_id"),
     );
-    return concept ? toNativeGlossaryConcept(concept) : null;
+    return concept ? toGlossaryConcept(concept) : null;
   }
 
-  async createConcept(concept: NativeGlossaryConcept) {
+  async createConcept(input: GlossaryConceptInput) {
     const context = await this.context();
+    const concept = toGlossaryConceptInput(input, this.input.glossary.sourceLocale);
     const created = await crowdinTmsProvider.createLiveGlossaryConcept(
       toCrowdinContext(context),
       parseId(this.input.glossary.externalGlossaryId!, "glossary_id"),
-      normalizeCrowdinConcept(concept),
+      toCrowdinConceptInput(concept),
     );
-    return created ? toNativeGlossaryConcept(created) : null;
+    return created ? toGlossaryConcept(created) : null;
   }
 
-  async updateConcept(conceptId: string, concept: NativeGlossaryConcept) {
+  async updateConcept(conceptId: string, input: GlossaryConceptInput) {
     const context = await this.context();
+    const concept = toGlossaryConceptInput(input, this.input.glossary.sourceLocale);
     const updated = await crowdinTmsProvider.updateLiveGlossaryConcept(
       toCrowdinContext(context),
       parseId(this.input.glossary.externalGlossaryId!, "glossary_id"),
       parseId(conceptId, "concept_id"),
-      normalizeCrowdinConcept(concept),
+      toCrowdinConceptInput(concept),
     );
-    return updated ? toNativeGlossaryConcept(updated) : null;
+    return updated ? toGlossaryConcept(updated) : null;
   }
 
   async deleteConcept(conceptId: string) {
@@ -185,7 +268,7 @@ export class CrowdinGlossary extends Glossary {
     for (const entry of entries) {
       grouped.set(entry.conceptKey, [...(grouped.get(entry.conceptKey) ?? []), entry]);
     }
-    const concepts: NativeGlossaryConcept[] = [];
+    const concepts: GlossaryConcept[] = [];
     let skipped = 0;
     for (const group of grouped.values()) {
       const first = group[0];
@@ -217,7 +300,7 @@ export class CrowdinGlossary extends Glossary {
   }
 
   private toLegacyTermRecord(
-    term: NativeGlossaryConcept["terms"][number],
+    term: GlossaryConceptTerm,
     conceptId: string,
     sourceTerm: string,
   ): GlossaryTermRecord {
