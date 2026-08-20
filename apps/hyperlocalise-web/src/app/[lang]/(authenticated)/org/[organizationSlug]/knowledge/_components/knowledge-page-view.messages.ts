@@ -18,12 +18,12 @@ export const knowledgePageViewMessages = defineMessages({
   workspace: {
     defaultMessage: "Workspace",
     id: "viq5/Imoma",
-    description: "Breadcrumb label above the Knowledge page",
+    description: "Breadcrumb label above the Guideline page",
   },
   title: {
-    defaultMessage: "Knowledge",
+    defaultMessage: "Guideline",
     id: "CkQ3yx9NoL",
-    description: "Page heading for the organization knowledge memory page",
+    description: "Page heading for the organization guideline page",
   },
   description: {
     defaultMessage:

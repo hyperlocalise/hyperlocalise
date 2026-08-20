@@ -316,20 +316,20 @@ export const workspaceAutomationFormMessages = defineMessages({
     description: "Submenu label grouping Issues automation tools",
   },
   memories: {
-    defaultMessage: "Use organization memory",
+    defaultMessage: "Use workspace guideline",
     id: "4QiNYfF++j",
-    description: "Menu item and tool title for workspace knowledge memories",
+    description: "Menu item and tool title for the workspace guideline",
   },
   memoriesDescription: {
-    defaultMessage: "Use organization knowledge memory as guidance for this automation.",
+    defaultMessage: "Use the workspace guideline as guidance for this automation.",
     id: "rcdU5+Pv4r",
-    description: "Description for the knowledge memories automation tool",
+    description: "Description for the workspace guideline automation tool",
   },
   memoriesUnavailableDescription: {
     defaultMessage:
-      "Enable workspace knowledge for this organization before using memories in automations.",
+      "Enable the workspace guideline for this organization before using it in automations.",
     id: "yl7Dzt+xE3",
-    description: "Description when knowledge memories cannot be used yet",
+    description: "Description when the workspace guideline cannot be used yet",
   },
   manageMemories: {
     defaultMessage: "Manage",
@@ -337,14 +337,14 @@ export const workspaceAutomationFormMessages = defineMessages({
     description: "Button to open the knowledge memories editor from an automation",
   },
   manageMemoriesTitle: {
-    defaultMessage: "Knowledge memories",
+    defaultMessage: "Guideline",
     id: "W9S7Ht69kS",
-    description: "Title for the knowledge memories management sheet",
+    description: "Title for the workspace guideline management sheet",
   },
   manageMemoriesDescription: {
-    defaultMessage: "Edit the shared organization knowledge used by this automation.",
+    defaultMessage: "Edit the shared workspace guideline used by this automation.",
     id: "WBqbSdV/u8",
-    description: "Description for the knowledge memories management sheet",
+    description: "Description for the workspace guideline management sheet",
   },
   removeMemoriesTool: {
     defaultMessage: "Remove memories tool",

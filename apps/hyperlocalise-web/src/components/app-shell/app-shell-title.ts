@@ -22,6 +22,7 @@ type RouteTitleKey =
   | "account"
   | "activity"
   | "agent-runs"
+  | "ai-engine"
   | "api-keys"
   | "billing"
   | "dashboard"
@@ -67,6 +68,7 @@ function isRouteTitleKey(value: string): value is RouteTitleKey {
     value === "account" ||
     value === "activity" ||
     value === "agent-runs" ||
+    value === "ai-engine" ||
     value === "api-keys" ||
     value === "billing" ||
     value === "dashboard" ||
@@ -155,6 +157,12 @@ function formatRouteTitle(intl: IntlShape, key: RouteTitleKey): string {
         id: "2he28Pg1K2",
         description: "App shell breadcrumb title for the agent runs page",
       });
+    case "ai-engine":
+      return intl.formatMessage({
+        defaultMessage: "AI Engine",
+        id: "nQ8vL2wR5c",
+        description: "App shell breadcrumb title for the AI Engine page",
+      });
     case "api-keys":
       return intl.formatMessage({
         defaultMessage: "API Keys",
@@ -223,9 +231,9 @@ function formatRouteTitle(intl: IntlShape, key: RouteTitleKey): string {
       });
     case "knowledge":
       return intl.formatMessage({
-        defaultMessage: "Knowledge",
+        defaultMessage: "Guideline",
         id: "T+wQxH/IG1",
-        description: "App shell breadcrumb title for the knowledge page",
+        description: "App shell breadcrumb title for the guideline page",
       });
     case "locales":
       return intl.formatMessage({

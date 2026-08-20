@@ -52,9 +52,9 @@ export const knowledgeMemoryEditorMessages = defineMessages({
     description: "Placeholder for the optional knowledge memory version note field",
   },
   overLimitError: {
-    defaultMessage: "Knowledge memory must be {limit} characters or less.",
+    defaultMessage: "Guideline must be {limit} characters or less.",
     id: "e6dWjFyp+5",
-    description: "Error when organization knowledge memory exceeds the character limit",
+    description: "Error when the organization guideline exceeds the character limit",
   },
   characterCount: {
     defaultMessage: "{count}/{limit} characters",

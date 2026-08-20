@@ -194,10 +194,24 @@ describe("path builders", () => {
       href: "/org/acme/inbox/new",
       exact: true,
     });
+    expect(byLabel.get("AI Engine")?.href).toBe("/org/acme/ai-engine");
     expect(byLabel.get("Automations")?.featureFlagKey).toBe(WORKSPACE_AUTOMATIONS_FLAG);
-    expect(byLabel.get("Knowledge")?.featureFlagKey).toBe(WORKSPACE_KNOWLEDGE_FLAG);
+    expect(byLabel.get("Guideline")?.featureFlagKey).toBe(WORKSPACE_KNOWLEDGE_FLAG);
     expect(byLabel.get("Issues")?.featureFlagKey).toBeUndefined();
     expect(byLabel.get("Domains")?.featureFlagKey).toBe(WORKSPACE_DOMAINS_FLAG);
+
+    expect(groups.map((group) => group.label)).toEqual([undefined, "Agents", "Workspace"]);
+    expect(groups[1]?.items.map((item) => item.label)).toEqual([
+      "New Request",
+      "Automations",
+      "AI Engine",
+    ]);
+    expect(groups[0]?.items.map((item) => item.label)).toEqual([
+      "Inbox",
+      "My Jobs",
+      "Issues",
+      "Overview",
+    ]);
   });
 
   it("builds project navigation items scoped to the project", () => {
