@@ -22,10 +22,12 @@ go_test(
     srcs = [
         "auth_test.go",
         "handler_test.go",
+        "spellcheck_test.go",
     ],
     embed = [":go_svc"],
     deps = [
         "//internal/i18n/segmentvalidate",
+        "//internal/i18n/spellcheck",
         "@com_github_stretchr_testify//require",
     ],
 )
