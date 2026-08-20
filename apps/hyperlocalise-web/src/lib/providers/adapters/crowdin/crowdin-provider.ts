@@ -47,7 +47,6 @@ import {
   type CrowdinTaskComment,
   type CrowdinTaskDetails,
   type CrowdinGlossaryTerm,
-  type CrowdinGlossaryConcept as CrowdinApiGlossaryConcept,
 } from "@/lib/providers/adapters/crowdin/crowdin-api";
 import { crowdinAuth } from "@/lib/providers/adapters/crowdin/crowdin-auth";
 import {
@@ -231,6 +230,15 @@ export type CrowdinGlossaryConceptTerm = CrowdinGlossaryTermInput & {
   updatedAt?: string;
 };
 
+export type CrowdinGlossaryLanguageDetails = {
+  languageId: string;
+  userId: number | null;
+  definition: string;
+  note: string;
+  createdAt: string | null;
+  updatedAt: string | null;
+};
+
 export type CrowdinGlossaryConcept = {
   conceptId?: number;
   primaryTerm: string;
@@ -243,7 +251,7 @@ export type CrowdinGlossaryConcept = {
   figure?: string | null;
   externalKey?: string;
   externalUserId?: string | null;
-  languageDetails?: CrowdinApiGlossaryConcept["languagesDetails"];
+  languageDetails?: CrowdinGlossaryLanguageDetails[];
   externalCreatedAt?: string | null;
   externalUpdatedAt?: string | null;
   terms: CrowdinGlossaryConceptTerm[];
