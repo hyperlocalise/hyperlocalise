@@ -189,6 +189,29 @@ export const ConceptDetail: Story = {
   },
 };
 
+export const ConceptCreationWithTerms: Story = {
+  args: {
+    conceptId: "new",
+  },
+  parameters: {
+    msw: { handlers: detailHandlers },
+    nextjs: {
+      navigation: {
+        pathname: `/org/acme/glossaries/${glossaryId}/concepts/new`,
+      },
+    },
+  },
+  play: async ({ canvas }) => {
+    await expect(canvas.getByRole("heading", { name: "Add concept" })).toBeInTheDocument();
+    const addTermButton = canvas.getByRole("button", { name: "Add term" });
+    await expect(addTermButton).toBeEnabled();
+    await userEvent.click(addTermButton);
+    await userEvent.click(canvas.getByRole("button", { name: /French/ }));
+    await expect(canvas.getByText("French")).toBeInTheDocument();
+    await expect(canvas.getByPlaceholderText("Term")).toBeInTheDocument();
+  },
+};
+
 export const LoadingConceptList: Story = {
   parameters: {
     msw: {

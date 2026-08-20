@@ -206,17 +206,30 @@ async function createConcept(
   sourceLocale: string,
   input: CreateGlossaryConceptBody,
 ) {
+  const { terms: additionalTerms = [], ...conceptInput } = input;
+  const submittedTermKeys = new Set<string>([
+    `${sourceLocale.toLowerCase()}\u0000${input.primaryTerm.toLowerCase()}`,
+  ]);
+
+  for (const term of additionalTerms) {
+    const termKey = `${term.locale.toLowerCase()}\u0000${term.term.toLowerCase()}`;
+    if (submittedTermKeys.has(termKey)) {
+      return null;
+    }
+    submittedTermKeys.add(termKey);
+  }
+
   return db.transaction(async (tx) => {
     const [concept] = await tx
       .insert(schema.glossaryConcepts)
       .values({
         glossaryId,
-        primaryTerm: input.primaryTerm,
-        subject: input.subject ?? "",
-        definition: input.definition ?? "",
-        translatable: input.translatable,
-        note: input.note ?? "",
-        url: input.url || null,
+        primaryTerm: conceptInput.primaryTerm,
+        subject: conceptInput.subject ?? "",
+        definition: conceptInput.definition ?? "",
+        translatable: conceptInput.translatable,
+        note: conceptInput.note ?? "",
+        url: conceptInput.url || null,
       })
       .returning();
 
@@ -225,13 +238,23 @@ async function createConcept(
       .values(
         nativeTermValues(glossaryId, concept.id, sourceLocale, {
           locale: sourceLocale,
-          term: input.primaryTerm,
+          term: conceptInput.primaryTerm,
           status: "preferred",
           caseSensitive: false,
           forbidden: false,
         }),
       )
       .returning();
+
+    if (additionalTerms.length > 0) {
+      await tx
+        .insert(schema.glossaryTerms)
+        .values(
+          additionalTerms.map((term) =>
+            nativeTermValues(glossaryId, concept.id, term.locale, term),
+          ),
+        );
+    }
 
     return { concept, term };
   });
@@ -510,7 +533,14 @@ export function createGlossaryConceptRoutes() {
         const glossary = await getOwnedGlossary(c.var.auth, glossaryId);
         if (!glossary) return glossaryNotFoundResponse(c);
         if (glossary.source !== "native") return externalTmsGlossaryImmutableResponse(c);
-        const { concept } = await createConcept(glossaryId, glossary.sourceLocale, payload);
+        const created = await createConcept(glossaryId, glossary.sourceLocale, payload);
+        if (!created)
+          return conflictResponse(
+            c,
+            "duplicate_glossary_concept_term",
+            "A term with this locale and text already exists",
+          );
+        const { concept } = created;
         serverAnalytics.track(PRODUCT_USAGE_ANALYTICS_EVENTS.glossaryTermCreated, {
           status: "created",
           source: "glossary_concept",

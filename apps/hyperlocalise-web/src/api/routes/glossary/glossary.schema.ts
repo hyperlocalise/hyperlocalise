@@ -110,6 +110,18 @@ export const importGlossaryTermsBodySchema = z.object({
 
 const glossaryConceptTermStatusSchema = z.enum(["preferred", "draft", "not_recommended"]);
 
+export const createGlossaryConceptTermBodySchema = z.object({
+  locale: localeInputSchema,
+  term: z.string().trim().min(1).max(1_000),
+  partOfSpeech: z.string().max(200).optional(),
+  gender: z.string().max(100).nullable().optional(),
+  termType: z.string().max(100).nullable().optional(),
+  status: glossaryConceptTermStatusSchema.optional().default("draft"),
+  description: z.string().max(10_000).optional(),
+  caseSensitive: z.boolean().optional().default(false),
+  forbidden: z.boolean().optional().default(false),
+});
+
 export const createGlossaryConceptBodySchema = z.object({
   primaryTerm: z.string().trim().min(1).max(1_000),
   subject: z.string().max(200).optional(),
@@ -117,6 +129,7 @@ export const createGlossaryConceptBodySchema = z.object({
   translatable: z.boolean().optional().default(true),
   note: z.string().max(10_000).optional(),
   url: z.string().url().max(2_000).optional().or(z.literal("")),
+  terms: z.array(createGlossaryConceptTermBodySchema).max(1_000).optional(),
 });
 
 export const upsertGlossaryConceptTermBodySchema = z.object({
@@ -145,18 +158,6 @@ export const updateGlossaryConceptBodySchema = z
   .refine((value) => Object.keys(value).length > 0, {
     message: "at least one field must be provided",
   });
-
-export const createGlossaryConceptTermBodySchema = z.object({
-  locale: localeInputSchema,
-  term: z.string().trim().min(1).max(1_000),
-  partOfSpeech: z.string().max(200).optional(),
-  gender: z.string().max(100).nullable().optional(),
-  termType: z.string().max(100).nullable().optional(),
-  status: glossaryConceptTermStatusSchema.optional().default("draft"),
-  description: z.string().max(10_000).optional(),
-  caseSensitive: z.boolean().optional().default(false),
-  forbidden: z.boolean().optional().default(false),
-});
 
 export const updateGlossaryConceptTermBodySchema = z
   .object({

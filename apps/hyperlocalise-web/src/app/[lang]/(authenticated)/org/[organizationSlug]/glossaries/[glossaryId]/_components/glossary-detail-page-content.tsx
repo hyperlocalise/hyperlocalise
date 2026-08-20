@@ -78,6 +78,8 @@ type TermDraft = {
   status: "preferred" | "draft" | "not_recommended";
 };
 
+type CreatingTermDraft = TermDraft & { id: string; locale: string };
+
 const emptyConceptDraft: ConceptDraft = {
   primaryTerm: "",
   subject: "",
@@ -306,6 +308,7 @@ export function GlossaryDetailPageContent({
   const [localePickerOpen, setLocalePickerOpen] = useState(false);
   const [newTermLocale, setNewTermLocale] = useState<string | null>(null);
   const [newTermDraft, setNewTermDraft] = useState<TermDraft>(emptyTermDraft);
+  const [creatingTermDrafts, setCreatingTermDrafts] = useState<CreatingTermDraft[]>([]);
   const [termDrafts, setTermDrafts] = useState<Record<string, TermDraft>>({});
   const [selectedProjectId, setSelectedProjectId] = useState("");
 
@@ -393,6 +396,7 @@ export function GlossaryDetailPageContent({
     if (conceptId === "new") {
       setConceptDraft(emptyConceptDraft);
       setTermDrafts({});
+      setCreatingTermDrafts([]);
       setNewTermLocale(null);
       setNewTermDraft(emptyTermDraft);
     }
@@ -408,6 +412,7 @@ export function GlossaryDetailPageContent({
       );
       setNewTermLocale(null);
       setNewTermDraft(emptyTermDraft);
+      setCreatingTermDrafts([]);
       setIsCreatingConcept(false);
     }
   }, [selectedConcept]);
@@ -442,7 +447,15 @@ export function GlossaryDetailPageContent({
           ":glossaryId"
         ].concepts.$post({
           param: { organizationSlug, glossaryId },
-          json: { ...draft, url: draft.url || undefined },
+          json: {
+            ...draft,
+            url: draft.url || undefined,
+            terms: creatingTermDrafts.map(({ id: _id, ...term }) => ({
+              ...term,
+              caseSensitive: false,
+              forbidden: false,
+            })),
+          },
         });
         if (!response.ok)
           throw new Error(
@@ -514,6 +527,7 @@ export function GlossaryDetailPageContent({
       }
       setNewTermLocale(null);
       setNewTermDraft(emptyTermDraft);
+      setCreatingTermDrafts([]);
       toast.success(intl.formatMessage(created ? messages.conceptAdded : messages.conceptSaved));
     },
     onError: (error) => toast.error(error.message),
@@ -654,9 +668,9 @@ export function GlossaryDetailPageContent({
     isSource: true,
   };
   const normalizedLanguageFilter = languageFilter.trim().toLowerCase();
-  const availableTermLocales = COMMON_LOCALES.filter(
-    (locale) => !selected?.terms.some((term) => term.locale === locale),
-  );
+  const availableTermLocales = isCreatingConcept
+    ? COMMON_LOCALES
+    : COMMON_LOCALES.filter((locale) => !selected?.terms.some((term) => term.locale === locale));
   const termGroups = (selected?.terms ?? [])
     .filter(
       (term) =>
@@ -691,7 +705,8 @@ export function GlossaryDetailPageContent({
     }),
   );
   const newTermIsDirty = Boolean(newTermLocale && newTermDraft.term.trim());
-  const isDirty = conceptIsDirty || termsAreDirty || newTermIsDirty;
+  const isDirty =
+    conceptIsDirty || termsAreDirty || newTermIsDirty || creatingTermDrafts.length > 0;
   if (conceptPageMode && !isCreatingConcept && conceptsQuery.isSuccess && !selected) {
     return (
       <TypographyP className="py-8 text-sm text-muted-foreground">
@@ -1043,7 +1058,7 @@ export function GlossaryDetailPageContent({
                       type="button"
                       variant="outline"
                       className="w-full sm:w-auto"
-                      disabled={!canEdit || !selected || availableTermLocales.length === 0}
+                      disabled={!canEdit || availableTermLocales.length === 0}
                       onClick={() => setLocalePickerOpen(true)}
                     >
                       <HugeiconsIcon icon={Add01Icon} strokeWidth={1.8} />
@@ -1068,8 +1083,19 @@ export function GlossaryDetailPageContent({
                             variant="outline"
                             className="justify-between"
                             onClick={() => {
-                              setNewTermLocale(locale);
-                              setNewTermDraft(emptyTermDraft);
+                              if (isCreatingConcept) {
+                                setCreatingTermDrafts((drafts) => [
+                                  ...drafts,
+                                  {
+                                    ...emptyTermDraft,
+                                    id: `new-${crypto.randomUUID()}`,
+                                    locale,
+                                  },
+                                ]);
+                              } else {
+                                setNewTermLocale(locale);
+                                setNewTermDraft(emptyTermDraft);
+                              }
                               setLocalePickerOpen(false);
                             }}
                           >
@@ -1082,6 +1108,214 @@ export function GlossaryDetailPageContent({
                   </Dialog>
                   <div className="max-h-[calc(100dvh-18rem)] overflow-y-auto pr-1">
                     <div className="grid gap-4">
+                      {isCreatingConcept && creatingTermDrafts.length > 0 ? (
+                        <div className="overflow-hidden rounded-lg border border-border">
+                          <div className="border-b border-border bg-muted/30 px-3 py-2 text-sm font-medium">
+                            <FormattedMessage {...messages.termsTitle} />
+                          </div>
+                          <div className="overflow-x-auto">
+                            <table className="min-w-[680px] w-full text-left text-xs">
+                              <thead className="text-muted-foreground">
+                                <tr>
+                                  <th className="px-3 py-2">Language</th>
+                                  <th className="px-3 py-2">
+                                    <FormattedMessage {...messages.termLabel} />
+                                  </th>
+                                  <th className="px-3 py-2">
+                                    <FormattedMessage {...messages.partOfSpeechLabel} />
+                                  </th>
+                                  <th className="px-3 py-2">
+                                    <FormattedMessage {...messages.genderLabel} />
+                                  </th>
+                                  <th className="px-3 py-2">
+                                    <FormattedMessage {...messages.typeLabel} />
+                                  </th>
+                                  <th className="px-3 py-2">
+                                    <FormattedMessage {...messages.statusLabel} />
+                                  </th>
+                                  <th className="w-10 px-3 py-2" />
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {creatingTermDrafts.map((term) => (
+                                  <tr key={term.id} className="border-t border-border">
+                                    <td className="px-3 py-2">
+                                      <span className="font-medium">
+                                        {getLocaleLabel(term.locale)}
+                                      </span>
+                                      <span className="ml-1 text-muted-foreground">
+                                        {term.locale}
+                                      </span>
+                                    </td>
+                                    <td className="px-3 py-2">
+                                      <Input
+                                        autoFocus={creatingTermDrafts.at(-1)?.id === term.id}
+                                        className="h-7"
+                                        value={term.term}
+                                        onChange={(event) =>
+                                          setCreatingTermDrafts((drafts) =>
+                                            drafts.map((draft) =>
+                                              draft.id === term.id
+                                                ? { ...draft, term: event.target.value }
+                                                : draft,
+                                            ),
+                                          )
+                                        }
+                                      />
+                                    </td>
+                                    <td className="px-3 py-2">
+                                      <Select
+                                        value={term.partOfSpeech || "__none"}
+                                        onValueChange={(value) =>
+                                          setCreatingTermDrafts((drafts) =>
+                                            drafts.map((draft) =>
+                                              draft.id === term.id
+                                                ? {
+                                                    ...draft,
+                                                    partOfSpeech:
+                                                      value === "__none" ? "" : (value ?? ""),
+                                                  }
+                                                : draft,
+                                            ),
+                                          )
+                                        }
+                                      >
+                                        <SelectTrigger className="h-7">
+                                          <SelectValue>
+                                            {term.partOfSpeech
+                                              ? readableEnumLabel(term.partOfSpeech)
+                                              : "—"}
+                                          </SelectValue>
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                          <SelectItem value="__none">—</SelectItem>
+                                          {partOfSpeechOptionsFor(term.partOfSpeech).map(
+                                            (option) => (
+                                              <SelectItem key={option} value={option}>
+                                                {readableEnumLabel(option)}
+                                              </SelectItem>
+                                            ),
+                                          )}
+                                        </SelectContent>
+                                      </Select>
+                                    </td>
+                                    <td className="px-3 py-2">
+                                      <Select
+                                        value={term.gender ?? "__none"}
+                                        onValueChange={(value) =>
+                                          setCreatingTermDrafts((drafts) =>
+                                            drafts.map((draft) =>
+                                              draft.id === term.id
+                                                ? {
+                                                    ...draft,
+                                                    gender:
+                                                      value === "__none" ? null : (value ?? null),
+                                                  }
+                                                : draft,
+                                            ),
+                                          )
+                                        }
+                                      >
+                                        <SelectTrigger className="h-7">
+                                          <SelectValue>
+                                            {term.gender ? readableEnumLabel(term.gender) : "—"}
+                                          </SelectValue>
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                          <SelectItem value="__none">—</SelectItem>
+                                          {genderOptions.map((option) => (
+                                            <SelectItem key={option} value={option}>
+                                              {readableEnumLabel(option)}
+                                            </SelectItem>
+                                          ))}
+                                        </SelectContent>
+                                      </Select>
+                                    </td>
+                                    <td className="px-3 py-2">
+                                      <Select
+                                        value={term.termType ?? "__none"}
+                                        onValueChange={(value) =>
+                                          setCreatingTermDrafts((drafts) =>
+                                            drafts.map((draft) =>
+                                              draft.id === term.id
+                                                ? {
+                                                    ...draft,
+                                                    termType:
+                                                      value === "__none" ? null : (value ?? null),
+                                                  }
+                                                : draft,
+                                            ),
+                                          )
+                                        }
+                                      >
+                                        <SelectTrigger className="h-7">
+                                          <SelectValue>
+                                            {term.termType ? readableEnumLabel(term.termType) : "—"}
+                                          </SelectValue>
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                          <SelectItem value="__none">—</SelectItem>
+                                          {termTypeOptions.map((option) => (
+                                            <SelectItem key={option} value={option}>
+                                              {readableEnumLabel(option)}
+                                            </SelectItem>
+                                          ))}
+                                        </SelectContent>
+                                      </Select>
+                                    </td>
+                                    <td className="px-3 py-2">
+                                      <Select
+                                        value={term.status}
+                                        onValueChange={(value) =>
+                                          setCreatingTermDrafts((drafts) =>
+                                            drafts.map((draft) =>
+                                              draft.id === term.id
+                                                ? {
+                                                    ...draft,
+                                                    status: (value ??
+                                                      "draft") as TermDraft["status"],
+                                                  }
+                                                : draft,
+                                            ),
+                                          )
+                                        }
+                                      >
+                                        <SelectTrigger className="h-7">
+                                          <SelectValue>
+                                            {readableEnumLabel(term.status)}
+                                          </SelectValue>
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                          {statusOptions.map((option) => (
+                                            <SelectItem key={option} value={option}>
+                                              {readableEnumLabel(option)}
+                                            </SelectItem>
+                                          ))}
+                                        </SelectContent>
+                                      </Select>
+                                    </td>
+                                    <td className="px-3 py-2">
+                                      <Button
+                                        type="button"
+                                        size="icon-xs"
+                                        variant="ghost"
+                                        aria-label={intl.formatMessage(messages.deleteTerm)}
+                                        onClick={() =>
+                                          setCreatingTermDrafts((drafts) =>
+                                            drafts.filter((draft) => draft.id !== term.id),
+                                          )
+                                        }
+                                      >
+                                        <HugeiconsIcon icon={Delete02Icon} strokeWidth={1.8} />
+                                      </Button>
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      ) : null}
                       {termGroups.map((group) => {
                         const isSource = group.locale === glossary.sourceLocale;
                         return (
