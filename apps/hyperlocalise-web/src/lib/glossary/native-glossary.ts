@@ -19,6 +19,7 @@ import {
   normalizeGlossaryPartOfSpeech,
   normalizeGlossaryTermStatus,
   normalizeGlossaryTermType,
+  selectGlossaryPrimaryTerm,
 } from "./glossary";
 import type {
   GlossaryTermCreateInput,
@@ -33,12 +34,18 @@ import type { GlossaryProviderContext } from "./glossary-provider";
 import { createGlossaryTermDuplicateTracker } from "./glossary-term-dedupe";
 
 function normalizeNativeConcept(input: GlossaryConcept): GlossaryConcept {
-  const terms = input.terms.map((term) => ({
+  let terms = input.terms.map((term) => ({
     ...term,
     partOfSpeech: normalizeGlossaryPartOfSpeech(term.partOfSpeech, { required: false }),
   }));
 
-  if (!terms.some((term) => term.languageId === input.sourceLocale) && input.primaryTerm) {
+  let primaryTerm = selectGlossaryPrimaryTerm(terms, input.sourceLocale);
+  const hasPreferredSourceTerm = terms.some(
+    (term) =>
+      term.languageId === input.sourceLocale &&
+      term.status?.trim().toLowerCase().replaceAll(" ", "_") === "preferred",
+  );
+  if (!primaryTerm && input.primaryTerm) {
     const sourcePartOfSpeech = terms.find((term) => term.partOfSpeech)?.partOfSpeech;
     terms.push({
       languageId: input.sourceLocale,
@@ -46,6 +53,21 @@ function normalizeNativeConcept(input: GlossaryConcept): GlossaryConcept {
       partOfSpeech: sourcePartOfSpeech,
       status: "preferred",
     });
+    primaryTerm = terms.at(-1);
+  }
+
+  if (primaryTerm && input.primaryTerm) {
+    terms = terms.map((term) =>
+      term === primaryTerm
+        ? {
+            ...term,
+            text: input.primaryTerm,
+            status: hasPreferredSourceTerm ? term.status : "preferred",
+          }
+        : term.languageId === input.sourceLocale && term.status === "preferred"
+          ? { ...term, status: "admitted" }
+          : term,
+    );
   }
 
   return {
@@ -164,7 +186,16 @@ export class NativeGlossary extends Glossary {
     loaded: NonNullable<Awaited<ReturnType<NativeGlossary["loadConcept"]>>>,
   ): GlossaryConcept {
     return {
-      primaryTerm: loaded.concept.primaryTerm,
+      primaryTerm:
+        selectGlossaryPrimaryTerm(
+          loaded.terms.map((term) => ({
+            id: term.id,
+            languageId: term.locale ?? "",
+            text: term.term ?? term.sourceTerm,
+            status: term.status,
+          })),
+          this.input.glossary.sourceLocale,
+        )?.text ?? loaded.concept.primaryTerm,
       sourceLocale: this.input.glossary.sourceLocale,
       subject: loaded.concept.subject,
       definition: loaded.concept.definition,

@@ -12,7 +12,6 @@
  */
 import {
   crowdinTmsProvider,
-  selectCrowdinPrimaryTerm,
   type CrowdinGlossaryConcept,
 } from "@/lib/providers/adapters/crowdin/crowdin-provider";
 import type { CrowdinGlossary as CrowdinGlossaryRecord } from "@/lib/providers/adapters/crowdin/crowdin-api";
@@ -26,6 +25,7 @@ import {
   normalizeGlossaryPartOfSpeech,
   normalizeGlossaryTermStatus,
   normalizeGlossaryTermType,
+  selectGlossaryPrimaryTerm,
   type GlossaryConceptImportEntry,
   type GlossaryConcept,
   type GlossaryConceptTerm,
@@ -89,7 +89,12 @@ function toGlossaryConceptInput(
 }
 
 export function toCrowdinConceptInput(concept: GlossaryConcept): CrowdinGlossaryConcept {
-  const primaryTerm = selectCrowdinPrimaryTerm(concept.terms, concept.sourceLocale);
+  const primaryTerm = selectGlossaryPrimaryTerm(concept.terms, concept.sourceLocale);
+  const hasPreferredSourceTerm = concept.terms.some(
+    (term) =>
+      term.languageId === concept.sourceLocale &&
+      term.status?.trim().toLowerCase().replaceAll(" ", "_") === "preferred",
+  );
   const terms = concept.terms.map((term) => ({
     id: term.id,
     languageId: term.languageId,
@@ -97,11 +102,13 @@ export function toCrowdinConceptInput(concept: GlossaryConcept): CrowdinGlossary
     description: term.description,
     partOfSpeech: normalizeGlossaryPartOfSpeech(term.partOfSpeech),
     status:
-      term !== primaryTerm &&
-      term.languageId === concept.sourceLocale &&
-      crowdinStatus(term.status) === "preferred"
-        ? "admitted"
-        : crowdinStatus(term.status),
+      term === primaryTerm && term.languageId === concept.sourceLocale && !hasPreferredSourceTerm
+        ? "preferred"
+        : term !== primaryTerm &&
+            term.languageId === concept.sourceLocale &&
+            crowdinStatus(term.status) === "preferred"
+          ? "admitted"
+          : crowdinStatus(term.status),
     type: term.type,
     gender: term.gender,
     note: term.note,

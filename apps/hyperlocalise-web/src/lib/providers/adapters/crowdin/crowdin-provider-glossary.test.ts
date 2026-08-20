@@ -46,7 +46,7 @@ describe("Crowdin live glossary concepts", () => {
 
     expect(concept.terms).toMatchObject([
       { id: 11, languageId: "en", text: "Payment", status: "admitted" },
-      { id: 10, languageId: "en", text: "Checkout updated", status: "draft" },
+      { id: 10, languageId: "en", text: "Checkout updated", status: "preferred" },
     ]);
   });
 

@@ -22,6 +22,7 @@ import { parseCsvRows } from "@/lib/csv/parse-csv-rows";
 import { getGlossaryProduct } from "@/lib/glossary/glossary-provider";
 import {
   GlossaryValidationError,
+  selectGlossaryPrimaryTerm,
   type NativeGlossary,
   type GlossaryConcept,
 } from "@/lib/glossary/glossary";
@@ -187,8 +188,7 @@ function toCrowdinConceptRecord(
   const conceptId = String(value.externalKey ?? value.id ?? value.conceptId);
   const createdAt = value.externalCreatedAt ?? new Date(0).toISOString();
   const updatedAt = value.externalUpdatedAt ?? new Date(0).toISOString();
-  const source =
-    value.terms.find((term) => term.languageId === glossary.sourceLocale) ?? value.terms[0];
+  const source = selectGlossaryPrimaryTerm(value.terms, glossary.sourceLocale) ?? value.terms[0];
   return {
     id: conceptId,
     glossaryId: glossary.id,

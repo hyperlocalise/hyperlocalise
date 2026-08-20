@@ -172,6 +172,20 @@ describe("glossaryRoutes", () => {
           translatable: true,
           terms: [
             {
+              locale: "en",
+              term: "Check-out",
+              status: "draft",
+              caseSensitive: false,
+              forbidden: false,
+            },
+            {
+              locale: "en",
+              term: "Payment",
+              status: "draft",
+              caseSensitive: false,
+              forbidden: false,
+            },
+            {
               locale: "vi-VN",
               term: "Thanh toán",
               status: "draft",
@@ -202,6 +216,7 @@ describe("glossaryRoutes", () => {
     expect(body.concept.terms).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ locale: "en", term: "Checkout", status: "preferred" }),
+        expect.objectContaining({ locale: "en", term: "Payment", status: "draft" }),
         expect.objectContaining({ locale: "vi-VN", term: "Thanh toán", status: "draft" }),
         expect.objectContaining({ locale: "en-US", term: "Check-out", status: "draft" }),
       ]),
@@ -451,7 +466,7 @@ describe("glossaryRoutes", () => {
     expect(response.status).toBe(201);
     await expect(response.json()).resolves.toMatchObject({
       concept: {
-        primaryTerm: "Checkout",
+        primaryTerm: "checkout",
         terms: [{ locale: "en", term: "checkout" }],
       },
     });

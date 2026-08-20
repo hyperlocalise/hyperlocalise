@@ -13,6 +13,7 @@
 import { createHash } from "node:crypto";
 
 import type { JobKind } from "@/lib/database/types";
+import { selectGlossaryPrimaryTerm } from "@/lib/glossary/glossary";
 import { createLogger } from "@/lib/log";
 import { mapWithConcurrency } from "@/lib/primitives/map-with-concurrency/map-with-concurrency";
 import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
@@ -256,25 +257,6 @@ export type CrowdinGlossaryConcept = {
   externalUpdatedAt?: string | null;
   terms: CrowdinGlossaryConceptTerm[];
 };
-
-function isPreferredCrowdinTerm(term: CrowdinGlossaryTermInput) {
-  return term.status?.trim().toLowerCase().replaceAll(" ", "_") === "preferred";
-}
-
-export function selectCrowdinPrimaryTerm(terms: CrowdinGlossaryTermInput[], sourceLocale: string) {
-  const sourceTerms = terms.filter((term) => term.languageId === sourceLocale);
-  return (
-    sourceTerms.find(isPreferredCrowdinTerm) ??
-    [...sourceTerms].sort((left, right) => {
-      const leftId = "id" in left && left.id != null ? Number(left.id) : Number.NaN;
-      const rightId = "id" in right && right.id != null ? Number(right.id) : Number.NaN;
-      if (Number.isFinite(leftId) && Number.isFinite(rightId)) return leftId - rightId;
-      if (Number.isFinite(leftId)) return -1;
-      if (Number.isFinite(rightId)) return 1;
-      return 0;
-    })[0]
-  );
-}
 
 type CrowdinLiveGlossaryScope = Pick<
   TmsProviderProjectScope,
@@ -709,7 +691,7 @@ export class CrowdinTmsProvider extends TmsProvider {
     const mapped: CrowdinGlossaryConcept[] = concepts.map((concept) => ({
       conceptId: concept.id,
       primaryTerm:
-        selectCrowdinPrimaryTerm(termsByConcept.get(concept.id) ?? [], sourceLocale)?.text ?? "",
+        selectGlossaryPrimaryTerm(termsByConcept.get(concept.id) ?? [], sourceLocale)?.text ?? "",
       sourceLocale,
       subject: concept.subject,
       definition: concept.definition,
@@ -729,7 +711,7 @@ export class CrowdinTmsProvider extends TmsProvider {
       if (knownIds.has(conceptId)) continue;
       mapped.push({
         conceptId,
-        primaryTerm: selectCrowdinPrimaryTerm(conceptTerms, sourceLocale)?.text ?? "",
+        primaryTerm: selectGlossaryPrimaryTerm(conceptTerms, sourceLocale)?.text ?? "",
         sourceLocale,
         subject: "",
         definition: "",

@@ -150,6 +150,33 @@ export type GlossaryConcept = {
   terms: GlossaryConceptTerm[];
 };
 
+export type GlossaryPrimaryTermCandidate = {
+  id?: number | string;
+  languageId: string;
+  text: string;
+  status?: string | null;
+};
+
+export function selectGlossaryPrimaryTerm<T extends GlossaryPrimaryTermCandidate>(
+  terms: T[],
+  sourceLocale: string,
+): T | undefined {
+  const sourceTerms = terms.filter((term) => term.languageId === sourceLocale);
+  return (
+    sourceTerms.find(
+      (term) => term.status?.trim().toLowerCase().replaceAll(" ", "_") === "preferred",
+    ) ??
+    [...sourceTerms].sort((left, right) => {
+      const leftId = left.id == null ? Number.NaN : Number(left.id);
+      const rightId = right.id == null ? Number.NaN : Number(right.id);
+      if (Number.isFinite(leftId) && Number.isFinite(rightId)) return leftId - rightId;
+      if (Number.isFinite(leftId)) return -1;
+      if (Number.isFinite(rightId)) return 1;
+      return String(left.id ?? "").localeCompare(String(right.id ?? ""));
+    })[0]
+  );
+}
+
 export type GlossaryConceptRequestTerm = {
   id?: number | string;
   locale: string;
