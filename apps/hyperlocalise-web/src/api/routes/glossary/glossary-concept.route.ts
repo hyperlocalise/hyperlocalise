@@ -10,7 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { and, asc, desc, eq, inArray, ne, sql } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { Hono } from "hono";
 import { DomUtils, parseDocument } from "htmlparser2";
 import { validator } from "hono/validator";
@@ -21,17 +21,8 @@ import { PRODUCT_USAGE_ANALYTICS_EVENTS } from "@/lib/analytics/events";
 import { serverAnalytics } from "@/lib/analytics/server";
 import { parseCsvRows } from "@/lib/csv/parse-csv-rows";
 import { db, schema } from "@/lib/database";
-import type { Glossary } from "@/lib/database/types";
-import {
-  createCrowdinConcept,
-  createCrowdinTerm,
-  deleteCrowdinConcept,
-  deleteCrowdinTerm,
-  getCrowdinConcept,
-  listCrowdinConcepts,
-  updateCrowdinConcept,
-  updateCrowdinTerm,
-} from "@/lib/glossary/glossary-provider";
+import { getGlossaryProduct } from "@/lib/glossary/glossary-provider";
+import type { NativeGlossary } from "@/lib/glossary/glossary";
 import type { CrowdinGlossaryConcept } from "@/lib/providers/adapters/crowdin/crowdin-provider";
 
 import {
@@ -47,7 +38,6 @@ import {
   type CreateGlossaryConceptTermBody,
   type UpdateGlossaryConceptBody,
   type UpdateGlossaryConceptTermBody,
-  type UpsertGlossaryConceptTermBody,
 } from "./glossary.schema";
 import {
   externalTmsGlossaryImmutableResponse,
@@ -92,7 +82,7 @@ function localStatus(status: string | null | undefined) {
 }
 
 function toCrowdinConceptInput(
-  glossary: Glossary,
+  glossary: NativeGlossary,
   input: CreateGlossaryConceptBody | UpdateGlossaryConceptBody,
 ): CrowdinGlossaryConcept {
   const primaryTerm = input.primaryTerm ?? "";
@@ -138,7 +128,7 @@ function toCrowdinConceptInput(
 }
 
 function toCrowdinTermRecord(
-  glossary: Glossary,
+  glossary: NativeGlossary,
   conceptId: string,
   term: {
     id?: number | string;
@@ -187,7 +177,7 @@ function toCrowdinTermRecord(
 }
 
 function toCrowdinConceptRecord(
-  glossary: Glossary,
+  glossary: NativeGlossary,
   value: {
     conceptId?: number;
     id?: number | string;
@@ -342,196 +332,6 @@ function toConceptRecord(
     updatedAt: concept.updatedAt.toISOString(),
     terms: terms.map((term) => toConceptTermRecord(term, sourceLocale)),
   };
-}
-
-async function loadConcept(glossaryId: string, conceptId: string) {
-  const [concept] = await db
-    .select()
-    .from(schema.glossaryConcepts)
-    .where(
-      and(
-        eq(schema.glossaryConcepts.id, conceptId),
-        eq(schema.glossaryConcepts.glossaryId, glossaryId),
-      ),
-    )
-    .limit(1);
-
-  if (!concept) {
-    return null;
-  }
-
-  const terms = await db
-    .select()
-    .from(schema.glossaryTerms)
-    .where(eq(schema.glossaryTerms.conceptId, concept.id))
-    .orderBy(asc(schema.glossaryTerms.locale), asc(schema.glossaryTerms.createdAt));
-
-  return { concept, terms };
-}
-
-async function loadConcepts(glossaryId: string) {
-  const concepts = await db
-    .select()
-    .from(schema.glossaryConcepts)
-    .where(eq(schema.glossaryConcepts.glossaryId, glossaryId))
-    .orderBy(desc(schema.glossaryConcepts.createdAt));
-
-  if (concepts.length === 0) {
-    return [];
-  }
-
-  const terms = await db
-    .select()
-    .from(schema.glossaryTerms)
-    .where(
-      inArray(
-        schema.glossaryTerms.conceptId,
-        concepts.map((concept) => concept.id),
-      ),
-    )
-    .orderBy(asc(schema.glossaryTerms.locale), asc(schema.glossaryTerms.createdAt));
-  const termsByConcept = new Map<string, GlossaryConceptTerm[]>();
-
-  for (const term of terms) {
-    if (!term.conceptId) continue;
-    const current = termsByConcept.get(term.conceptId) ?? [];
-    current.push(term);
-    termsByConcept.set(term.conceptId, current);
-  }
-
-  return concepts.map((concept) => ({ concept, terms: termsByConcept.get(concept.id) ?? [] }));
-}
-
-function nativeTermValues(
-  glossaryId: string,
-  conceptId: string,
-  locale: string,
-  input: CreateGlossaryConceptTermBody,
-) {
-  return {
-    glossaryId,
-    conceptId,
-    locale,
-    term: input.term,
-    sourceTerm: input.term,
-    targetTerm: input.term,
-    description: input.description ?? "",
-    partOfSpeech: input.partOfSpeech ?? "",
-    gender: input.gender ?? null,
-    termType: input.termType ?? null,
-    url: input.url || null,
-    lemma: input.lemma ?? null,
-    status: input.status,
-    caseSensitive: input.caseSensitive,
-    forbidden: input.forbidden,
-  };
-}
-
-async function createConcept(
-  glossaryId: string,
-  sourceLocale: string,
-  input: CreateGlossaryConceptBody,
-) {
-  const { terms: additionalTerms = [], ...conceptInput } = input;
-  const submittedTermKeys = new Set<string>([
-    `${sourceLocale.toLowerCase()}\u0000${input.primaryTerm.toLowerCase()}`,
-  ]);
-
-  for (const term of additionalTerms) {
-    const termKey = `${term.locale.toLowerCase()}\u0000${term.term.toLowerCase()}`;
-    if (submittedTermKeys.has(termKey)) {
-      return null;
-    }
-    submittedTermKeys.add(termKey);
-  }
-
-  return db.transaction(async (tx) => {
-    const [concept] = await tx
-      .insert(schema.glossaryConcepts)
-      .values({
-        glossaryId,
-        primaryTerm: conceptInput.primaryTerm,
-        subject: conceptInput.subject ?? "",
-        definition: conceptInput.definition ?? "",
-        translatable: conceptInput.translatable,
-        note: conceptInput.note ?? "",
-        figure: conceptInput.figure || null,
-        url: conceptInput.url || null,
-      })
-      .returning();
-
-    const [term] = await tx
-      .insert(schema.glossaryTerms)
-      .values(
-        nativeTermValues(glossaryId, concept.id, sourceLocale, {
-          locale: sourceLocale,
-          term: conceptInput.primaryTerm,
-          status: "preferred",
-          caseSensitive: false,
-          forbidden: false,
-        }),
-      )
-      .returning();
-
-    if (additionalTerms.length > 0) {
-      await tx
-        .insert(schema.glossaryTerms)
-        .values(
-          additionalTerms.map((term) =>
-            nativeTermValues(glossaryId, concept.id, term.locale, term),
-          ),
-        );
-    }
-
-    return { concept, term };
-  });
-}
-
-async function assertTermDuplicate(
-  conceptId: string,
-  locale: string,
-  term: string,
-  excludedTermId?: string,
-) {
-  const duplicate = await db
-    .select({ id: schema.glossaryTerms.id })
-    .from(schema.glossaryTerms)
-    .where(
-      and(
-        eq(schema.glossaryTerms.conceptId, conceptId),
-        eq(schema.glossaryTerms.locale, locale),
-        sql`lower(${schema.glossaryTerms.term}) = lower(${term})`,
-        excludedTermId ? ne(schema.glossaryTerms.id, excludedTermId) : undefined,
-      ),
-    )
-    .limit(1);
-  return duplicate.length > 0;
-}
-
-async function createConceptTerm(
-  glossaryId: string,
-  concept: GlossaryConcept,
-  sourceLocale: string,
-  input: CreateGlossaryConceptTermBody,
-) {
-  if (await assertTermDuplicate(concept.id, input.locale, input.term)) {
-    return null;
-  }
-
-  const [term] = await db
-    .insert(schema.glossaryTerms)
-    .values(nativeTermValues(glossaryId, concept.id, input.locale, input))
-    .onConflictDoNothing()
-    .returning();
-
-  if (term && input.locale === sourceLocale) {
-    await db
-      .update(schema.glossaryConcepts)
-      .set({ primaryTerm: input.term })
-      .where(eq(schema.glossaryConcepts.id, concept.id));
-  }
-
-  return term ?? null;
 }
 
 type ConceptImportEntry = {
@@ -737,24 +537,12 @@ export function createGlossaryConceptRoutes() {
       const { glossaryId } = c.req.valid("param");
       const glossary = await getOwnedGlossary(c.var.auth, glossaryId);
       if (!glossary) return glossaryNotFoundResponse(c);
-      if (glossary.source !== "native") {
-        if (glossary.externalProviderKind !== "crowdin")
-          return c.json({ concepts: [], total: 0 }, 200);
-        const concepts = await listCrowdinConcepts({ auth: c.var.auth, glossary });
-        return c.json(
-          {
-            concepts: concepts.map((concept) => toCrowdinConceptRecord(glossary, concept)),
-            total: concepts.length,
-          },
-          200,
-        );
-      }
-      const concepts = await loadConcepts(glossaryId);
+      const product = getGlossaryProduct({ auth: c.var.auth, glossary });
+      if (!product) return c.json({ concepts: [], total: 0 }, 200);
+      const concepts = await product.listConcepts();
       return c.json(
         {
-          concepts: concepts.map(({ concept, terms }) =>
-            toConceptRecord(concept, terms, glossary.sourceLocale),
-          ),
+          concepts: concepts.map((concept) => toCrowdinConceptRecord(glossary, concept)),
           total: concepts.length,
         },
         200,
@@ -770,35 +558,15 @@ export function createGlossaryConceptRoutes() {
         const payload = c.req.valid("json");
         const glossary = await getOwnedGlossary(c.var.auth, glossaryId);
         if (!glossary) return glossaryNotFoundResponse(c);
-        if (glossary.source !== "native") {
-          if (glossary.externalProviderKind !== "crowdin")
-            return externalTmsGlossaryImmutableResponse(c);
-          const created = await createCrowdinConcept(
-            { auth: c.var.auth, glossary },
-            toCrowdinConceptInput(glossary, payload),
-          );
-          return c.json(
-            { concept: created ? toCrowdinConceptRecord(glossary, created) : null },
-            201,
-          );
-        }
-        const created = await createConcept(glossaryId, glossary.sourceLocale, payload);
-        if (!created)
-          return conflictResponse(
-            c,
-            "duplicate_glossary_concept_term",
-            "A term with this locale and text already exists",
-          );
-        const { concept } = created;
+        const product = getGlossaryProduct({ auth: c.var.auth, glossary });
+        if (!product) return externalTmsGlossaryImmutableResponse(c);
+        const created = await product.createConcept(toCrowdinConceptInput(glossary, payload));
+        if (!created) return conflictResponse(c, "duplicate_glossary_concept_term");
         serverAnalytics.track(PRODUCT_USAGE_ANALYTICS_EVENTS.glossaryTermCreated, {
           status: "created",
           source: "glossary_concept",
         });
-        const loaded = await loadConcept(glossaryId, concept.id);
-        return c.json(
-          { concept: toConceptRecord(loaded!.concept, loaded!.terms, glossary.sourceLocale) },
-          201,
-        );
+        return c.json({ concept: toCrowdinConceptRecord(glossary, created) }, 201);
       },
     )
     .post(
@@ -838,19 +606,11 @@ export function createGlossaryConceptRoutes() {
       const { glossaryId, conceptId } = c.req.valid("param");
       const glossary = await getOwnedGlossary(c.var.auth, glossaryId);
       if (!glossary) return glossaryNotFoundResponse(c);
-      if (glossary.source !== "native") {
-        if (glossary.externalProviderKind !== "crowdin")
-          return nativeGlossaryConceptsOnlyResponse(c);
-        const concept = await getCrowdinConcept({ auth: c.var.auth, glossary }, conceptId);
-        if (!concept) return glossaryNotFoundResponse(c);
-        return c.json({ concept: toCrowdinConceptRecord(glossary, concept) }, 200);
-      }
-      const loaded = await loadConcept(glossaryId, conceptId);
-      if (!loaded) return glossaryNotFoundResponse(c);
-      return c.json(
-        { concept: toConceptRecord(loaded.concept, loaded.terms, glossary.sourceLocale) },
-        200,
-      );
+      const product = getGlossaryProduct({ auth: c.var.auth, glossary });
+      if (!product) return nativeGlossaryConceptsOnlyResponse(c);
+      const concept = await product.getConcept(conceptId);
+      if (!concept) return glossaryNotFoundResponse(c);
+      return c.json({ concept: toCrowdinConceptRecord(glossary, concept) }, 200);
     })
     .patch(
       "/:conceptId",
@@ -862,149 +622,14 @@ export function createGlossaryConceptRoutes() {
         const payload = c.req.valid("json") as UpdateGlossaryConceptBody;
         const glossary = await getOwnedGlossary(c.var.auth, glossaryId);
         if (!glossary) return glossaryNotFoundResponse(c);
-        if (glossary.source !== "native") {
-          if (glossary.externalProviderKind !== "crowdin")
-            return externalTmsGlossaryImmutableResponse(c);
-          const updated = await updateCrowdinConcept(
-            { auth: c.var.auth, glossary },
-            conceptId,
-            toCrowdinConceptInput(glossary, payload),
-          );
-          if (!updated) return glossaryNotFoundResponse(c);
-          return c.json({ concept: toCrowdinConceptRecord(glossary, updated) }, 200);
-        }
-        const loaded = await loadConcept(glossaryId, conceptId);
-        if (!loaded) return glossaryNotFoundResponse(c);
-        const { terms, ...conceptPayload } = payload;
-        const termInputs: UpsertGlossaryConceptTermBody[] = terms ?? [];
-        const existingTermsById = new Map(loaded.terms.map((term) => [term.id, term]));
-        const sourceTermInput = termInputs.find((term) => term.locale === glossary.sourceLocale);
-        const nextPrimaryTerm =
-          payload.primaryTerm ?? sourceTermInput?.term ?? loaded.concept.primaryTerm;
-        const submittedTermKeys = new Set<string>();
-
-        for (const termInput of termInputs) {
-          const existingTerm = termInput.id ? existingTermsById.get(termInput.id) : undefined;
-          if (termInput.id && !existingTerm) {
-            return badRequestResponse(
-              c,
-              "concept_term_not_found",
-              "One of the submitted terms does not belong to this concept",
-            );
-          }
-          if (
-            existingTerm?.locale === glossary.sourceLocale &&
-            termInput.locale !== glossary.sourceLocale
-          ) {
-            return badRequestResponse(
-              c,
-              "source_term_locale_immutable",
-              "The primary term must stay in the glossary source locale",
-            );
-          }
-
-          const nextTerm =
-            termInput.locale === glossary.sourceLocale ? nextPrimaryTerm : termInput.term;
-          const termKey = `${termInput.locale.toLowerCase()}\u0000${nextTerm.toLowerCase()}`;
-          if (submittedTermKeys.has(termKey)) {
-            return conflictResponse(
-              c,
-              "duplicate_glossary_concept_term",
-              "A term with this locale and text already exists",
-            );
-          }
-          submittedTermKeys.add(termKey);
-          if (await assertTermDuplicate(conceptId, termInput.locale, nextTerm, termInput.id)) {
-            return conflictResponse(
-              c,
-              "duplicate_glossary_concept_term",
-              "A term with this locale and text already exists",
-            );
-          }
-        }
-
-        await db.transaction(async (tx) => {
-          const shouldUpdatePrimaryTerm =
-            payload.primaryTerm !== undefined || sourceTermInput !== undefined;
-          await tx
-            .update(schema.glossaryConcepts)
-            .set({
-              ...conceptPayload,
-              ...(shouldUpdatePrimaryTerm ? { primaryTerm: nextPrimaryTerm } : {}),
-              url: conceptPayload.url === "" ? null : conceptPayload.url,
-            })
-            .where(eq(schema.glossaryConcepts.id, conceptId));
-
-          if (shouldUpdatePrimaryTerm) {
-            await tx
-              .update(schema.glossaryTerms)
-              .set({
-                term: nextPrimaryTerm,
-                sourceTerm: nextPrimaryTerm,
-                targetTerm: nextPrimaryTerm,
-              })
-              .where(
-                and(
-                  eq(schema.glossaryTerms.conceptId, conceptId),
-                  eq(schema.glossaryTerms.locale, glossary.sourceLocale),
-                ),
-              );
-          }
-
-          for (const termInput of termInputs) {
-            const existingTerm = termInput.id ? existingTermsById.get(termInput.id) : undefined;
-            const nextTerm =
-              termInput.locale === glossary.sourceLocale ? nextPrimaryTerm : termInput.term;
-            const termValues = {
-              locale: termInput.locale,
-              term: nextTerm,
-              targetTerm: nextTerm,
-              description: termInput.description ?? existingTerm?.description ?? "",
-              partOfSpeech: termInput.partOfSpeech ?? existingTerm?.partOfSpeech ?? "",
-              gender:
-                termInput.gender !== undefined ? termInput.gender : (existingTerm?.gender ?? null),
-              termType:
-                termInput.termType !== undefined
-                  ? termInput.termType
-                  : (existingTerm?.termType ?? null),
-              url:
-                termInput.url !== undefined ? termInput.url || null : (existingTerm?.url ?? null),
-              lemma:
-                termInput.lemma !== undefined ? termInput.lemma : (existingTerm?.lemma ?? null),
-              status:
-                termInput.status ??
-                existingTerm?.status ??
-                (termInput.locale === glossary.sourceLocale ? "preferred" : "draft"),
-              caseSensitive: termInput.caseSensitive ?? existingTerm?.caseSensitive ?? false,
-              forbidden: termInput.forbidden ?? existingTerm?.forbidden ?? false,
-            };
-
-            if (existingTerm) {
-              await tx
-                .update(schema.glossaryTerms)
-                .set(termValues)
-                .where(
-                  and(
-                    eq(schema.glossaryTerms.id, existingTerm.id),
-                    eq(schema.glossaryTerms.conceptId, conceptId),
-                    eq(schema.glossaryTerms.glossaryId, glossaryId),
-                  ),
-                );
-            } else {
-              await tx.insert(schema.glossaryTerms).values({
-                glossaryId,
-                conceptId,
-                sourceTerm: nextTerm,
-                ...termValues,
-              });
-            }
-          }
-        });
-        const updated = await loadConcept(glossaryId, conceptId);
-        return c.json(
-          { concept: toConceptRecord(updated!.concept, updated!.terms, glossary.sourceLocale) },
-          200,
+        const product = getGlossaryProduct({ auth: c.var.auth, glossary });
+        if (!product) return externalTmsGlossaryImmutableResponse(c);
+        const updated = await product.updateConcept(
+          conceptId,
+          toCrowdinConceptInput(glossary, payload),
         );
+        if (!updated) return glossaryNotFoundResponse(c);
+        return c.json({ concept: toCrowdinConceptRecord(glossary, updated) }, 200);
       },
     )
     .delete("/:conceptId", validator("param", validateConceptParams), async (c) => {
@@ -1012,40 +637,21 @@ export function createGlossaryConceptRoutes() {
       const { glossaryId, conceptId } = c.req.valid("param");
       const glossary = await getOwnedGlossary(c.var.auth, glossaryId);
       if (!glossary) return glossaryNotFoundResponse(c);
-      if (glossary.source !== "native") {
-        if (glossary.externalProviderKind !== "crowdin")
-          return externalTmsGlossaryImmutableResponse(c);
-        const deleted = await deleteCrowdinConcept({ auth: c.var.auth, glossary }, conceptId);
-        if (!deleted) return glossaryNotFoundResponse(c);
-        return c.body(null, 204);
-      }
-      const deleted = await db
-        .delete(schema.glossaryConcepts)
-        .where(
-          and(
-            eq(schema.glossaryConcepts.id, conceptId),
-            eq(schema.glossaryConcepts.glossaryId, glossaryId),
-          ),
-        )
-        .returning({ id: schema.glossaryConcepts.id });
-      if (deleted.length === 0) return glossaryNotFoundResponse(c);
+      const product = getGlossaryProduct({ auth: c.var.auth, glossary });
+      if (!product) return externalTmsGlossaryImmutableResponse(c);
+      const deleted = await product.deleteConcept(conceptId);
+      if (!deleted) return glossaryNotFoundResponse(c);
       return c.body(null, 204);
     })
     .get("/:conceptId/terms", validator("param", validateConceptParams), async (c) => {
       const { glossaryId, conceptId } = c.req.valid("param");
       const glossary = await getOwnedGlossary(c.var.auth, glossaryId);
       if (!glossary) return glossaryNotFoundResponse(c);
-      if (glossary.source !== "native") {
-        if (glossary.externalProviderKind !== "crowdin")
-          return nativeGlossaryConceptsOnlyResponse(c);
-        const concept = await getCrowdinConcept({ auth: c.var.auth, glossary }, conceptId);
-        if (!concept) return glossaryNotFoundResponse(c);
-        const terms = toCrowdinConceptRecord(glossary, concept).terms;
-        return c.json({ terms, total: terms.length }, 200);
-      }
-      const loaded = await loadConcept(glossaryId, conceptId);
-      if (!loaded) return glossaryNotFoundResponse(c);
-      const terms = loaded.terms.map((term) => toConceptTermRecord(term, glossary.sourceLocale));
+      const product = getGlossaryProduct({ auth: c.var.auth, glossary });
+      if (!product) return nativeGlossaryConceptsOnlyResponse(c);
+      const concept = await product.getConcept(conceptId);
+      if (!concept) return glossaryNotFoundResponse(c);
+      const terms = toCrowdinConceptRecord(glossary, concept).terms;
       return c.json({ terms, total: terms.length }, 200);
     })
     .post(
@@ -1058,37 +664,27 @@ export function createGlossaryConceptRoutes() {
         const payload = c.req.valid("json") as CreateGlossaryConceptTermBody;
         const glossary = await getOwnedGlossary(c.var.auth, glossaryId);
         if (!glossary) return glossaryNotFoundResponse(c);
-        if (glossary.source !== "native") {
-          if (glossary.externalProviderKind !== "crowdin")
-            return externalTmsGlossaryImmutableResponse(c);
-          const term = await createCrowdinTerm({ auth: c.var.auth, glossary }, conceptId, {
-            languageId: payload.locale,
-            text: payload.term,
-            description: payload.description,
-            partOfSpeech: payload.partOfSpeech,
-            status: crowdinStatus(payload.status),
-            type: payload.termType ?? undefined,
-            gender: payload.gender ?? undefined,
-            url: payload.url ?? undefined,
-            lemma: payload.lemma ?? undefined,
-          });
-          return c.json({ term: toCrowdinTermRecord(glossary, conceptId, term) }, 201);
-        }
-        const loaded = await loadConcept(glossaryId, conceptId);
-        if (!loaded) return glossaryNotFoundResponse(c);
-        const term = await createConceptTerm(
-          glossaryId,
-          loaded.concept,
-          glossary.sourceLocale,
-          payload,
-        );
+        const product = getGlossaryProduct({ auth: c.var.auth, glossary });
+        if (!product) return externalTmsGlossaryImmutableResponse(c);
+        const term = await product.createTerm(conceptId, {
+          languageId: payload.locale,
+          text: payload.term,
+          description: payload.description,
+          partOfSpeech: payload.partOfSpeech,
+          status: crowdinStatus(payload.status),
+          type: payload.termType ?? undefined,
+          gender: payload.gender ?? undefined,
+          url: payload.url ?? undefined,
+          lemma: payload.lemma ?? undefined,
+        });
+        if (term && "terms" in term) return conflictResponse(c, "glossary_term_create_failed");
         if (!term)
           return conflictResponse(
             c,
             "duplicate_glossary_concept_term",
             "A term with this locale and text already exists",
           );
-        return c.json({ term: toConceptTermRecord(term, glossary.sourceLocale) }, 201);
+        return c.json({ term: toCrowdinTermRecord(glossary, conceptId, term) }, 201);
       },
     )
     .patch(
@@ -1101,28 +697,36 @@ export function createGlossaryConceptRoutes() {
         const payload = c.req.valid("json") as UpdateGlossaryConceptTermBody;
         const glossary = await getOwnedGlossary(c.var.auth, glossaryId);
         if (!glossary) return glossaryNotFoundResponse(c);
-        if (glossary.source !== "native") {
-          if (glossary.externalProviderKind !== "crowdin")
-            return externalTmsGlossaryImmutableResponse(c);
-          const current = await getCrowdinConcept({ auth: c.var.auth, glossary }, conceptId);
-          const existing = current?.terms.find((term) => String(term.id) === termId);
-          if (!existing) return glossaryNotFoundResponse(c);
-          const term = await updateCrowdinTerm({ auth: c.var.auth, glossary }, conceptId, termId, {
-            languageId: payload.locale ?? existing.languageId,
-            text: payload.term ?? existing.text,
-            description: payload.description ?? existing.description ?? "",
-            partOfSpeech: payload.partOfSpeech ?? existing.partOfSpeech ?? "",
-            status: crowdinStatus(payload.status ?? localStatus(existing.status)),
-            type: payload.termType ?? existing.type ?? "",
-            gender: payload.gender ?? existing.gender ?? "",
-            url: payload.url ?? existing.url ?? "",
-            lemma: payload.lemma ?? existing.lemma ?? "",
-            note: existing.note ?? "",
-          });
-          if (!term) return glossaryNotFoundResponse(c);
-          return c.json({ term: toCrowdinTermRecord(glossary, conceptId, term) }, 200);
+        const product = getGlossaryProduct({ auth: c.var.auth, glossary });
+        if (!product) return externalTmsGlossaryImmutableResponse(c);
+        const current = await product.getConcept(conceptId);
+        const existing = current?.terms.find((term) => String(term.id) === termId);
+        if (!existing) return glossaryNotFoundResponse(c);
+        if (payload.locale && payload.locale !== existing.languageId) {
+          const currentIsPrimary = existing.languageId === glossary.sourceLocale;
+          if (currentIsPrimary) {
+            return badRequestResponse(
+              c,
+              "source_term_locale_immutable",
+              "The primary term must stay in the glossary source locale",
+            );
+          }
         }
-        const [existing] = await db
+        const updatedTerm = await product.updateTerm(conceptId, termId, {
+          languageId: payload.locale ?? existing.languageId,
+          text: payload.term ?? existing.text,
+          description: payload.description ?? existing.description ?? "",
+          partOfSpeech: payload.partOfSpeech ?? existing.partOfSpeech ?? "",
+          status: crowdinStatus(payload.status ?? localStatus(existing.status)),
+          type: payload.termType ?? existing.type ?? "",
+          gender: payload.gender ?? existing.gender ?? "",
+          url: payload.url ?? existing.url ?? "",
+          lemma: payload.lemma ?? existing.lemma ?? "",
+        });
+        if (updatedTerm && "terms" in updatedTerm) return glossaryNotFoundResponse(c);
+        if (!updatedTerm) return glossaryNotFoundResponse(c);
+        return c.json({ term: toCrowdinTermRecord(glossary, conceptId, updatedTerm) }, 200);
+        /*
           .select()
           .from(schema.glossaryTerms)
           .where(
@@ -1184,6 +788,7 @@ export function createGlossaryConceptRoutes() {
         });
         if (!term) return glossaryNotFoundResponse(c);
         return c.json({ term: toConceptTermRecord(term, glossary.sourceLocale) }, 200);
+        */
       },
     )
     .delete(
@@ -1194,45 +799,20 @@ export function createGlossaryConceptRoutes() {
         const { glossaryId, conceptId, termId } = c.req.valid("param");
         const glossary = await getOwnedGlossary(c.var.auth, glossaryId);
         if (!glossary) return glossaryNotFoundResponse(c);
-        if (glossary.source !== "native") {
-          if (glossary.externalProviderKind !== "crowdin")
-            return externalTmsGlossaryImmutableResponse(c);
-          const deleted = await deleteCrowdinTerm(
-            { auth: c.var.auth, glossary },
-            conceptId,
-            termId,
-          );
-          if (!deleted) return glossaryNotFoundResponse(c);
-          return c.body(null, 204);
-        }
-        const [term] = await db
-          .select({ locale: schema.glossaryTerms.locale })
-          .from(schema.glossaryTerms)
-          .where(
-            and(
-              eq(schema.glossaryTerms.id, termId),
-              eq(schema.glossaryTerms.conceptId, conceptId),
-              eq(schema.glossaryTerms.glossaryId, glossaryId),
-            ),
-          )
-          .limit(1);
+        const product = getGlossaryProduct({ auth: c.var.auth, glossary });
+        if (!product) return externalTmsGlossaryImmutableResponse(c);
+        const concept = await product.getConcept(conceptId);
+        const term = concept?.terms.find((candidate) => String(candidate.id) === termId);
         if (!term) return glossaryNotFoundResponse(c);
-        if (term.locale === glossary.sourceLocale) {
+        if (term.languageId === glossary.sourceLocale) {
           return badRequestResponse(
             c,
             "primary_term_required",
             "A concept must keep its primary source term",
           );
         }
-        await db
-          .delete(schema.glossaryTerms)
-          .where(
-            and(
-              eq(schema.glossaryTerms.id, termId),
-              eq(schema.glossaryTerms.conceptId, conceptId),
-              eq(schema.glossaryTerms.glossaryId, glossaryId),
-            ),
-          );
+        const deleted = await product.deleteTerm(conceptId, termId);
+        if (!deleted) return glossaryNotFoundResponse(c);
         return c.body(null, 204);
       },
     );

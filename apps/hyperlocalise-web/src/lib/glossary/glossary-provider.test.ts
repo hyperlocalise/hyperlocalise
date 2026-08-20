@@ -15,10 +15,10 @@ import { describe, expect, it } from "vite-plus/test";
 import {
   createGlossary,
   createGlossaryFactory,
-  CrowdinGlossary,
-  NativeGlossary,
   type GlossaryProviderContext,
 } from "./glossary-provider";
+import { CrowdinGlossary } from "./crowdin-glossary";
+import { NativeGlossary } from "./native-glossary";
 
 function context(source: "native" | "external_tms", providerKind: "crowdin" | null) {
   return {
