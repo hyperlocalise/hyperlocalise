@@ -13,19 +13,12 @@
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { expect } from "storybook/test";
 
-import {
-  LAVENDER_MESH_GRADIENT_SRC,
-  MeshStage,
-} from "@/components/marketing/hero-frame-mesh-stage";
-
 import { AutomationsMockUI } from "./automations-mock-ui";
 
 function AutomationsMockShowcase() {
   return (
     <div className="mx-auto max-w-6xl p-6">
-      <MeshStage meshSrc={LAVENDER_MESH_GRADIENT_SRC}>
-        <AutomationsMockUI />
-      </MeshStage>
+      <AutomationsMockUI />
     </div>
   );
 }

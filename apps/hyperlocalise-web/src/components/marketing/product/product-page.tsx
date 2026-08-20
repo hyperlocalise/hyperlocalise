@@ -17,11 +17,7 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import Link from "next/link";
 import { FormattedMessage } from "react-intl";
 
-import {
-  HeroFrameMeshStage,
-  LAVENDER_MESH_GRADIENT_SRC,
-  MeshStage,
-} from "@/components/marketing/hero-frame-mesh-stage";
+import { HeroFrameMeshStage } from "@/components/marketing/hero-frame-mesh-stage";
 import { MarketingFooter } from "@/components/marketing/marketing-footer";
 import { footerColumns } from "@/components/marketing/marketing-page-content";
 import { REQUEST_DEMO_URL } from "@/components/marketing/request-demo";
@@ -157,9 +153,7 @@ function ProductShowcase({ content }: ProductPageProps) {
   if (content.visualKind === "automation") {
     return (
       <div className="mx-auto max-w-6xl">
-        <MeshStage meshSrc={LAVENDER_MESH_GRADIENT_SRC} priority>
-          <AutomationsMockUI />
-        </MeshStage>
+        <AutomationsMockUI priority />
       </div>
     );
   }
