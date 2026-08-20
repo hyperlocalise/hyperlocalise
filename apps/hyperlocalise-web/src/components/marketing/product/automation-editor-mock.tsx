@@ -15,7 +15,6 @@
 import type { ReactNode } from "react";
 import { useEffect, useRef, useState } from "react";
 import { motion } from "motion/react";
-import { CheckIcon } from "lucide-react";
 import {
   GitBranchIcon,
   PlusSignIcon,
