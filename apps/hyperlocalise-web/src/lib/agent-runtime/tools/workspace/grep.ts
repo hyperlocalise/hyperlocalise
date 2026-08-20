@@ -40,6 +40,8 @@ const TEXT_FILE_INCLUDES = [
   "*.arb",
   "*.xliff",
   "*.strings",
+  "*.srt",
+  "*.vtt",
 ];
 
 type GrepToolResult =

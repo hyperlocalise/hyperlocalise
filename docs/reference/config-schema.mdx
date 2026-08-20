@@ -69,3 +69,7 @@ Use `buckets.*.files[].from` and `to` to point at `.ftl` files for Mozilla Fluen
 ## Java properties workflow note
 
 Use `buckets.*.files[].from` and `to` to point at per-locale `.properties` resource bundles, for example `messages_{{source}}.properties` -> `messages_{{target}}.properties`.
+
+## Subtitle workflow note
+
+Use `buckets.*.files[].from` and `to` to point at `.srt` or `.vtt` subtitle files, for example `captions/{{source}}.srt` -> `captions/{{target}}.srt`. Cue payload text is translated; timestamps and WebVTT metadata stay in the file structure.

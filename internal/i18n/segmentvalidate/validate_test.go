@@ -16,6 +16,8 @@ func TestKindForSourcePath(t *testing.T) {
 		{`/docs\Page.mdx`, FormatMarkdown},
 		{"C:\\docs\\en\\x.MDX", FormatMarkdown},
 		{"/srv/page.html", FormatHTML},
+		{"/srv/captions.srt", FormatHTML},
+		{"/srv/captions.vtt", FormatHTML},
 		{"/srv/sections/header.liquid", FormatLiquid},
 		{"/pkg/messages.json", FormatICUInvariant},
 		{"/pkg/strings.arb", FormatICUInvariant},

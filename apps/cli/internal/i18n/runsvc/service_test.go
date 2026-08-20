@@ -4432,6 +4432,8 @@ func TestMarshalTargetFileDispatchParity(t *testing.T) {
 		"/tmp/source.xml":         []byte(`<locale><message key="hello">Hello</message></locale>`),
 		"/tmp/source.resx":        []byte(`<root><data name="hello"><value>Hello</value></data></root>`),
 		"/tmp/source.properties":  []byte("hello=Hello\n"),
+		"/tmp/source.srt":         []byte("1\n00:00:00,000 --> 00:00:01,000\nHello\n"),
+		"/tmp/source.vtt":         []byte("WEBVTT\n\n00:00:00.000 --> 00:00:01.000\nHello\n"),
 	}
 	svc.readFile = func(path string) ([]byte, error) {
 		if b, ok := sourceTemplate[path]; ok {
@@ -4463,14 +4465,17 @@ func TestMarshalTargetFileDispatchParity(t *testing.T) {
 		{target: "/tmp/out.xml", source: "/tmp/source.xml"},
 		{target: "/tmp/out.resx", source: "/tmp/source.resx"},
 		{target: "/tmp/out.properties", source: "/tmp/source.properties"},
+		{target: "/tmp/out.srt", source: "/tmp/source.srt"},
+		{target: "/tmp/out.vtt", source: "/tmp/source.vtt"},
 	}
 
 	for _, tc := range cases {
 		values := map[string]string{"hello": "Bonjour"}
-		if strings.EqualFold(filepath.Ext(tc.target), ".liquid") {
-			entries, err := translationfileparser.LiquidParser{}.Parse(sourceTemplate[tc.source])
+		ext := strings.ToLower(filepath.Ext(tc.target))
+		if ext == ".liquid" || ext == ".srt" || ext == ".vtt" || ext == ".md" || ext == ".mdx" {
+			entries, err := svc.newParser().Parse(tc.source, sourceTemplate[tc.source])
 			if err != nil {
-				t.Fatalf("parse liquid source: %v", err)
+				t.Fatalf("parse %s source: %v", tc.target, err)
 			}
 			values = map[string]string{}
 			for key := range entries {

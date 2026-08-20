@@ -603,6 +603,34 @@ func TestMarshalSourceTemplateTargetJavaProperties(t *testing.T) {
 	}
 }
 
+func TestMarshalSourceTemplateTargetSubtitles(t *testing.T) {
+	dir := t.TempDir()
+	sourcePath := filepath.Join(dir, "source.srt")
+	targetPath := filepath.Join(dir, "target.srt")
+	source := "1\n00:00:00,000 --> 00:00:01,000\nHello\n\n"
+	target := "1\n00:00:00,000 --> 00:00:01,000\nSalut\n\n"
+	if err := os.WriteFile(sourcePath, []byte(source), 0o644); err != nil {
+		t.Fatalf("write source srt: %v", err)
+	}
+	if err := os.WriteFile(targetPath, []byte(target), 0o644); err != nil {
+		t.Fatalf("write target srt: %v", err)
+	}
+
+	svc := newTestService()
+	svc.readFile = os.ReadFile
+	content, err := svc.marshalSourceTemplateTarget(".srt", targetPath, sourcePath, "en", "fr", map[string]string{"srt.0001": "Bonjour"})
+	if err != nil {
+		t.Fatalf("marshal srt target: %v", err)
+	}
+	got := string(content)
+	if !strings.Contains(got, "00:00:00,000 --> 00:00:01,000") {
+		t.Fatalf("expected timestamps preserved, got %q", got)
+	}
+	if !strings.Contains(got, "Bonjour") || strings.Contains(got, "Hello") {
+		t.Fatalf("expected translated srt cue, got %q", got)
+	}
+}
+
 func TestMarshalTargetFileYAMLUsesTargetTemplate(t *testing.T) {
 	svc := newTestService()
 	svc.readFile = func(path string) ([]byte, error) {
