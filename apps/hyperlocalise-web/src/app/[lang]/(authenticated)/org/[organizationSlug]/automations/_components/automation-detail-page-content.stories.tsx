@@ -11,7 +11,7 @@
  * Version 2.0 or later.
  */
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
-import { expect } from "storybook/test";
+import { expect, within } from "storybook/test";
 
 import { createAutomationSummary } from "./automations.fixture";
 import { AutomationDetailPageContent } from "./automation-detail-page-content";
@@ -69,6 +69,34 @@ export const GithubTriggerHidesRun: Story = {
     ).toBeInTheDocument();
     await expect(canvas.queryByRole("button", { name: "Run now" })).not.toBeInTheDocument();
     await expect(canvas.getByRole("button", { name: "Save changes" })).toBeDisabled();
+    await expect(canvas.getByRole("button", { name: "Delete" })).toBeEnabled();
+    await expect(canvas.getByRole("combobox", { name: "Model" })).toBeInTheDocument();
+  },
+};
+
+export const DeleteConfirmsRemoval: Story = {
+  parameters: {
+    msw: {
+      handlers: createAutomationDetailMswHandlers(githubAutomation),
+    },
+    nextjs: {
+      navigation: {
+        pathname: `/org/acme/automations/${githubAutomation.id}`,
+      },
+    },
+  },
+  play: async ({ canvas, canvasElement, userEvent }) => {
+    const body = within(canvasElement.ownerDocument.body);
+    await userEvent.click(await canvas.findByRole("button", { name: "Delete" }));
+    const dialog = body.getByRole("alertdialog", { name: "Delete automation?" });
+    await expect(dialog).toBeInTheDocument();
+    await expect(
+      within(dialog).getByText(
+        "Validate localisation on push will be removed from this workspace and will no longer run.",
+      ),
+    ).toBeInTheDocument();
+    await expect(within(dialog).getByRole("button", { name: "Cancel" })).toBeEnabled();
+    await expect(within(dialog).getByRole("button", { name: "Delete" })).toBeEnabled();
   },
 };
 
@@ -134,6 +162,65 @@ export const SaveEnablesAfterFormChange: Story = {
     await userEvent.clear(nameInput);
     await userEvent.type(nameInput, "Nightly translation sync");
     await expect(canvas.getByRole("button", { name: "Save changes" })).toBeEnabled();
+    await expect(canvas.getByRole("button", { name: "Delete" })).toBeEnabled();
     await expect(canvas.getByRole("button", { name: "Run now" })).toBeInTheDocument();
+  },
+};
+
+export const SavePendingDisablesDelete: Story = {
+  args: {
+    automationId: scheduledAutomation.id,
+  },
+  parameters: {
+    msw: {
+      handlers: createAutomationDetailMswHandlers(scheduledAutomation, {
+        patchDelay: "infinite",
+      }),
+    },
+    nextjs: {
+      navigation: {
+        pathname: `/org/acme/automations/${scheduledAutomation.id}`,
+      },
+    },
+  },
+  play: async ({ canvas, userEvent }) => {
+    const nameInput = await canvas.findByDisplayValue("Weekly translation sync");
+    await userEvent.clear(nameInput);
+    await userEvent.type(nameInput, "Nightly translation sync");
+    await expect(canvas.getByRole("button", { name: "Delete" })).toBeEnabled();
+    await userEvent.click(canvas.getByRole("button", { name: "Save changes" }));
+    await expect(canvas.getByRole("button", { name: /Saving/ })).toBeDisabled();
+    await expect(canvas.getByRole("button", { name: "Delete" })).toBeDisabled();
+  },
+};
+
+export const DeletePendingDisablesSave: Story = {
+  args: {
+    automationId: scheduledAutomation.id,
+  },
+  parameters: {
+    msw: {
+      handlers: createAutomationDetailMswHandlers(scheduledAutomation, {
+        deleteDelay: "infinite",
+      }),
+    },
+    nextjs: {
+      navigation: {
+        pathname: `/org/acme/automations/${scheduledAutomation.id}`,
+      },
+    },
+  },
+  play: async ({ canvas, canvasElement, userEvent }) => {
+    const body = within(canvasElement.ownerDocument.body);
+    const nameInput = await canvas.findByDisplayValue("Weekly translation sync");
+    await userEvent.clear(nameInput);
+    await userEvent.type(nameInput, "Nightly translation sync");
+    await expect(canvas.getByRole("button", { name: "Save changes" })).toBeEnabled();
+    await userEvent.click(canvas.getByRole("button", { name: "Delete" }));
+    const dialog = body.getByRole("alertdialog", { name: "Delete automation?" });
+    await userEvent.click(within(dialog).getByRole("button", { name: "Delete" }));
+    await expect(within(dialog).getByRole("button", { name: /Deleting/ })).toBeDisabled();
+    await expect(canvas.getByRole("button", { name: "Save changes", hidden: true })).toBeDisabled();
+    await expect(canvas.getByRole("button", { name: "Delete", hidden: true })).toBeDisabled();
   },
 };

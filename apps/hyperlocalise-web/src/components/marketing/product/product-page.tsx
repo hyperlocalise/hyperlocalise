@@ -25,7 +25,11 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/primitives/cn";
 
 import type { ProductPageContent, ProductVisualKind } from "./product-page-content";
+import { AutomationsMockUI } from "./automations-mock-ui";
 import { productPageMessages, type ProductMessageKey } from "./product-page-content.messages";
+import { AutomationEditorMock } from "./automation-editor-mock";
+import { IntegrationStripSection } from "./integration-strip-section";
+import { GlobeHeroVisual } from "./globe-hero-visual";
 
 type ProductPageProps = {
   content: ProductPageContent;
@@ -44,26 +48,39 @@ function ProductEyebrow({ messageKey }: { messageKey: ProductMessageKey }) {
 }
 
 function ProductHero({ content }: ProductPageProps) {
+  const isAutomation = content.visualKind === "automation";
+
   return (
-    <div className="mx-auto flex max-w-4xl flex-col items-center gap-8 text-center">
-      <div className="flex flex-col items-center gap-5">
-        <h1 className="max-w-4xl font-heading text-[clamp(2.5rem,5vw,4.75rem)] leading-[1] font-semibold tracking-normal text-balance">
-          <ProductMessage messageKey={content.hero.headlineKey} />
-        </h1>
-        <p className="max-w-2xl text-lg leading-8 text-muted-foreground text-balance sm:text-xl">
-          <ProductMessage messageKey={content.hero.subcopyKey} />
-        </p>
+    <div className="flex flex-col gap-16">
+      <div className="mx-auto flex w-full max-w-6xl flex-col items-center gap-12 lg:flex-row lg:items-center lg:justify-between">
+        <div className="flex max-w-xl flex-col gap-8 text-center lg:text-left">
+          <div className="flex flex-col gap-8">
+            <h1 className="font-heading text-[clamp(2.5rem,5vw,4.75rem)] leading-[1] font-semibold tracking-normal text-balance">
+              <ProductMessage messageKey={content.hero.headlineKey} />
+            </h1>
+            <p className="max-w-lg text-md leading-8 text-muted-foreground text-balance sm:text-lg">
+              <ProductMessage messageKey={content.hero.subcopyKey} />
+            </p>
+          </div>
+          <div className="flex justify-center lg:justify-start">
+            <Button
+              size="lg"
+              nativeButton={false}
+              render={<a href={REQUEST_DEMO_URL} target="_blank" rel="noopener noreferrer" />}
+            >
+              <ProductMessage messageKey="ctaJoinWaitlist" />
+              <HugeiconsIcon icon={ArrowRight01Icon} data-icon="inline-end" className="size-4" />
+            </Button>
+          </div>
+        </div>
+
+        {isAutomation && <GlobeHeroVisual />}
       </div>
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-        <Button
-          size="lg"
-          nativeButton={false}
-          render={<a href={REQUEST_DEMO_URL} target="_blank" rel="noopener noreferrer" />}
-        >
-          <ProductMessage messageKey="ctaJoinWaitlist" />
-          <HugeiconsIcon icon={ArrowRight01Icon} data-icon="inline-end" className="size-4" />
-        </Button>
-      </div>
+      {isAutomation && (
+        <div className="mx-auto w-full max-w-6xl border-t border-border/60 pt-10">
+          <IntegrationStripSection />
+        </div>
+      )}
     </div>
   );
 }
@@ -216,7 +233,11 @@ function KnowledgePrimaryVisual() {
 
 function ProductVisual({ kind }: { kind: ProductVisualKind }) {
   if (kind === "automation") {
-    return <AutomationPrimaryVisual />;
+    return (
+      <>
+        <AutomationsMockUI />
+      </>
+    );
   }
 
   return <KnowledgePrimaryVisual />;
@@ -234,7 +255,7 @@ function ProductShowcase({ content }: ProductPageProps) {
           aria-hidden
           className="pointer-events-none absolute inset-x-[8%] -top-8 -bottom-10 rounded-lg bg-[radial-gradient(circle_at_top,rgba(96,116,9,0.16),transparent_58%),radial-gradient(circle_at_bottom_right,rgba(9,108,229,0.1),transparent_46%)] blur-3xl"
         />
-        <div className="relative grid min-h-[32rem] overflow-hidden rounded-lg border border-border bg-background p-2 shadow-2xl shadow-gray-alpha-100 sm:min-h-[38rem] sm:p-3 lg:min-h-[42rem]">
+        <div className="relative grid overflow-hidden rounded-lg border border-border bg-background p-2 shadow-2xl shadow-gray-alpha-100 sm:p-3">
           <ProductVisual kind={content.visualKind} />
         </div>
       </div>
@@ -323,7 +344,7 @@ export function ProductPage({ content }: ProductPageProps) {
   return (
     <div className="min-h-screen bg-background text-foreground">
       <main className="mx-auto max-w-7xl">
-        <section className="px-5 pb-16 pt-14 sm:px-8 sm:pb-20 sm:pt-20 lg:px-10 lg:pt-24">
+        <section className="px-5 py-20 sm:px-8 sm:py-24 lg:px-10 lg:py-20">
           <ProductHero content={content} />
         </section>
 
@@ -334,6 +355,12 @@ export function ProductPage({ content }: ProductPageProps) {
         <section className="border-t border-border px-5 py-20 sm:px-8 lg:px-10 lg:py-24">
           <ProductDetailsSection content={content} />
         </section>
+
+        {content.visualKind === "automation" && (
+          <section className="border-t border-border px-5 py-20 sm:px-8 lg:px-10 lg:py-24">
+            <AutomationEditorMock />
+          </section>
+        )}
 
         <section className="border-t border-border px-5 py-20 sm:px-8 lg:px-10 lg:py-24">
           <ProductCta content={content} />

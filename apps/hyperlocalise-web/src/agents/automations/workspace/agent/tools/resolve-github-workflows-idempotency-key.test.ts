@@ -33,6 +33,7 @@ function baseAutomation(): WorkspaceAutomationRecord {
     status: "active",
     name: "Contentful + GitHub automation",
     instructions: "",
+    model: "openai/gpt-5.6-luna",
     projectId: "project-1",
     triggerConfig: { mode: "contentful" },
     repositoryTarget: { kind: "github", githubInstallationRepositoryId: "repo-install-1" },

@@ -65,6 +65,7 @@ function session(
         enabled: true,
       },
     },
+    model: "openai/gpt-5.6-luna",
     configVersion: 1,
     nextRunAt: null,
     createdAt: new Date().toISOString(),

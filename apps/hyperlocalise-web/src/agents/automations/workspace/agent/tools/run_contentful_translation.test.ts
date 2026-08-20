@@ -96,6 +96,7 @@ function session(input: {
         entryId: input.toolConfigEntryId,
       },
     },
+    model: "openai/gpt-5.6-luna",
     configVersion: 1,
     nextRunAt: null,
     createdAt: new Date().toISOString(),

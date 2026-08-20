@@ -83,6 +83,7 @@ function automation(input: {
     triggerConfig: { mode: "manual" },
     repositoryTarget: { kind: "none" },
     toolConfig: input.toolConfig,
+    model: "openai/gpt-5.6-luna",
     configVersion: 1,
     nextRunAt: null,
     createdAt: "2026-01-01T00:00:00.000Z",

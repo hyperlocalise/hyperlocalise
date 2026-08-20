@@ -119,6 +119,20 @@ export const CreateEmpty: Story = {
     await expect(
       canvas.getByText("Add at least one supported tool to activate this automation."),
     ).toBeInTheDocument();
+    await expect(canvas.getByRole("combobox", { name: "Model" })).toBeInTheDocument();
+    await expect(canvas.getByRole("combobox", { name: "Model" })).toHaveTextContent("GPT-5.6 Luna");
+  },
+};
+
+export const CreateModelOptions: Story = {
+  play: async ({ canvas, canvasElement, userEvent }) => {
+    const body = within(canvasElement.ownerDocument.body);
+    await userEvent.click(canvas.getByRole("combobox", { name: "Model" }));
+    await expect(await body.findByRole("option", { name: "GPT-5.6 Luna" })).toBeInTheDocument();
+    await expect(body.getByRole("option", { name: "GPT-5.6 Terra" })).toBeInTheDocument();
+    await expect(body.getByRole("option", { name: "GPT-5.6 Sol" })).toBeInTheDocument();
+    await expect(body.getByRole("option", { name: "Claude Sonnet 5" })).toBeInTheDocument();
+    await expect(body.getByRole("option", { name: "Claude Opus 5" })).toBeInTheDocument();
   },
 };
 
@@ -134,7 +148,7 @@ export const CreateCrowdinToolConnected: Story = {
         "Search concordance, load style guidance, and recommend translations for strings under review.",
       ),
     ).toBeInTheDocument();
-    await userEvent.click(canvas.getByRole("combobox"));
+    await userEvent.click(canvas.getByRole("combobox", { name: "Marketing Crowdin" }));
     await expect(
       await body.findByRole("option", { name: "Marketing Crowdin" }),
     ).toBeInTheDocument();

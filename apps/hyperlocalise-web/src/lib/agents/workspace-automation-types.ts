@@ -15,6 +15,26 @@ import { z } from "zod";
 import { optionalProjectIdSchema } from "@/lib/projects/identity/project-id";
 
 export const workspaceAutomationStatusSchema = z.enum(["active", "paused", "archived"]);
+
+export const WORKSPACE_AUTOMATION_MODELS = [
+  "openai/gpt-5.6-luna",
+  "openai/gpt-5.6-terra",
+  "openai/gpt-5.6-sol",
+  "anthropic/claude-sonnet-5",
+  "anthropic/claude-opus-5",
+] as const;
+
+export type WorkspaceAutomationModel = (typeof WORKSPACE_AUTOMATION_MODELS)[number];
+
+export const DEFAULT_WORKSPACE_AUTOMATION_MODEL: WorkspaceAutomationModel = "openai/gpt-5.6-luna";
+
+export const workspaceAutomationModelSchema = z.enum(WORKSPACE_AUTOMATION_MODELS);
+
+export function resolveWorkspaceAutomationModel(model: unknown): WorkspaceAutomationModel {
+  const parsed = workspaceAutomationModelSchema.safeParse(model);
+  return parsed.success ? parsed.data : DEFAULT_WORKSPACE_AUTOMATION_MODEL;
+}
+
 export const workspaceAutomationRunStatusSchema = z.enum([
   "queued",
   "running",
@@ -518,6 +538,7 @@ export type WorkspaceAutomationRecord = {
   status: WorkspaceAutomationStatus;
   name: string;
   instructions: string;
+  model: WorkspaceAutomationModel;
   projectId: string | null;
   triggerConfig: WorkspaceAutomationTriggerConfig;
   repositoryTarget: WorkspaceAutomationRepositoryTarget;

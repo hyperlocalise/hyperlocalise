@@ -315,6 +315,7 @@ describe("workspace automations", () => {
       authorName: "Ada Lovelace",
       status: "active",
       name: "Refresh repository translations",
+      model: "openai/gpt-5.6-luna",
       triggerConfig: { mode: "manual" },
       repositoryTarget: { kind: "none" },
       toolConfig: {},
@@ -749,6 +750,32 @@ describe("workspace automations", () => {
     expect(paused?.status).toBe("paused");
     expect(paused?.configVersion).toBe(2);
     expect(paused?.nextRunAt).toBeNull();
+  });
+
+  it("persists the selected language model without versioning config", async () => {
+    const scope = await seedWorkspaceAutomationScope();
+    const automation = expectOk(
+      await createWorkspaceAutomation({
+        organizationId: scope.organizationId,
+        authorUserId: scope.userId,
+        name: "Model selection",
+        instructions: "Use a stronger model.",
+        model: "anthropic/claude-opus-5",
+      }),
+    );
+
+    expect(automation.model).toBe("anthropic/claude-opus-5");
+
+    const updated = expectOk(
+      await updateWorkspaceAutomation({
+        automationId: automation.id,
+        organizationId: scope.organizationId,
+        model: "openai/gpt-5.6-sol",
+      }),
+    );
+
+    expect(updated?.model).toBe("openai/gpt-5.6-sol");
+    expect(updated?.configVersion).toBe(1);
   });
 
   it("does not pause archived automations", async () => {

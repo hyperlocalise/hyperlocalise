@@ -927,6 +927,46 @@ export const workspaceAutomationFormMessages = defineMessages({
     id: "Ej5U0a0604",
     description: "Section heading for automation agent instructions",
   },
+  modelSection: {
+    defaultMessage: "Model",
+    id: "XCYkEzJaA9",
+    description: "Section heading for the automation language model selector",
+  },
+  modelLabel: {
+    defaultMessage: "Model",
+    id: "yKlYrz3iYw",
+    description: "Label for the automation language model select",
+  },
+  modelDescription: {
+    defaultMessage: "This model runs the automation and its nested agents.",
+    id: "4/w2RcdLUO",
+    description: "Helper text for the automation language model select",
+  },
+  modelGpt56Luna: {
+    defaultMessage: "GPT-5.6 Luna",
+    id: "IrSQ6vE36K",
+    description: "Label for the OpenAI GPT-5.6 Luna automation model",
+  },
+  modelGpt56Terra: {
+    defaultMessage: "GPT-5.6 Terra",
+    id: "DIWOumxoRD",
+    description: "Label for the OpenAI GPT-5.6 Terra automation model",
+  },
+  modelGpt56Sol: {
+    defaultMessage: "GPT-5.6 Sol",
+    id: "f7G04QgkqV",
+    description: "Label for the OpenAI GPT-5.6 Sol automation model",
+  },
+  modelClaudeSonnet5: {
+    defaultMessage: "Claude Sonnet 5",
+    id: "4b7EZj4onr",
+    description: "Label for the Anthropic Claude Sonnet 5 automation model",
+  },
+  modelClaudeOpus5: {
+    defaultMessage: "Claude Opus 5",
+    id: "hGgsaGVVDY",
+    description: "Label for the Anthropic Claude Opus 5 automation model",
+  },
   instructionsPlaceholder: {
     defaultMessage: "Tell the automation what to do, what to inspect, and what to ignore.",
     id: "rkQ7AmKMrt",

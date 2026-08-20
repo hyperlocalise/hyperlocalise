@@ -98,9 +98,11 @@ import {
 import { SlackChannelSelect } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/automations/_components/slack-channel-select";
 import { workspaceAutomationFormMessages } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/automations/_components/workspace-automation-form.messages";
 import { getLocaleLabel } from "@/lib/i18n/locales";
-import type {
-  WorkspaceAutomationGithubTriggerEvent,
-  WorkspaceAutomationRunRecord,
+import {
+  WORKSPACE_AUTOMATION_MODELS,
+  type WorkspaceAutomationGithubTriggerEvent,
+  type WorkspaceAutomationModel,
+  type WorkspaceAutomationRunRecord,
 } from "@/lib/agents/workspace-automation-types";
 import type { WorkspaceAutomationFormState } from "@/lib/agents/workspace-automation-view-model";
 import {
@@ -178,6 +180,14 @@ const COMING_SOON_GOOGLE_TOOLS: readonly ComingSoonAutomationTool[] = [
   { id: "ga4", name: "GA4", icon: siGoogleanalytics },
   { id: "google-trends", name: "Trends" },
 ] as const;
+
+const AUTOMATION_MODEL_MESSAGES = {
+  "openai/gpt-5.6-luna": workspaceAutomationFormMessages.modelGpt56Luna,
+  "openai/gpt-5.6-terra": workspaceAutomationFormMessages.modelGpt56Terra,
+  "openai/gpt-5.6-sol": workspaceAutomationFormMessages.modelGpt56Sol,
+  "anthropic/claude-sonnet-5": workspaceAutomationFormMessages.modelClaudeSonnet5,
+  "anthropic/claude-opus-5": workspaceAutomationFormMessages.modelClaudeOpus5,
+} as const;
 
 function AutomationToolMenuIcon({ icon }: { icon?: SimpleIcon }) {
   if (icon) {
@@ -3106,6 +3116,46 @@ export function WorkspaceAutomationEditor({
             onChange={onChange}
             repositories={repositories}
           />
+
+          <EditorSection title={intl.formatMessage(workspaceAutomationFormMessages.modelSection)}>
+            <EditorPanel>
+              <EditorRow
+                icon={<HugeiconsIcon icon={BrainCircuitIcon} className="size-4" />}
+                title={<FormattedMessage {...workspaceAutomationFormMessages.modelLabel} />}
+                description={
+                  <FormattedMessage {...workspaceAutomationFormMessages.modelDescription} />
+                }
+              >
+                <Select
+                  value={form.model}
+                  onValueChange={(value) => {
+                    if (!value) {
+                      return;
+                    }
+                    onChange({
+                      ...form,
+                      model: value as WorkspaceAutomationModel,
+                    });
+                  }}
+                  disabled={disabled}
+                >
+                  <SelectTrigger
+                    aria-label={intl.formatMessage(workspaceAutomationFormMessages.modelLabel)}
+                    className="h-8 w-full rounded-lg md:min-w-44 md:max-w-xs"
+                  >
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {WORKSPACE_AUTOMATION_MODELS.map((model) => (
+                      <SelectItem key={model} value={model}>
+                        <FormattedMessage {...AUTOMATION_MODEL_MESSAGES[model]} />
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </EditorRow>
+            </EditorPanel>
+          </EditorSection>
 
           <EditorSection
             title={intl.formatMessage(workspaceAutomationFormMessages.agentInstructionsSection)}

@@ -1,6 +1,6 @@
 {
-  "id": "5f7c624d-3ba5-4c5d-b3f9-4c3438b4d155",
-  "prevId": "cd5791b9-6fe6-49ff-bfbc-a41484ba2710",
+  "id": "37e85427-3f86-438b-be2a-c397ad38c305",
+  "prevId": "5f7c624d-3ba5-4c5d-b3f9-4c3438b4d155",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -6027,6 +6027,185 @@
         }
       },
       "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.github_auto_review_repositories": {
+      "name": "github_auto_review_repositories",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "organization_id": {
+          "name": "organization_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "github_installation_repository_id": {
+          "name": "github_installation_repository_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "github_auto_review_repositories_org_repo_key": {
+          "name": "github_auto_review_repositories_org_repo_key",
+          "columns": [
+            {
+              "expression": "organization_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "github_installation_repository_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "idx_github_auto_review_repositories_org": {
+          "name": "idx_github_auto_review_repositories_org",
+          "columns": [
+            {
+              "expression": "organization_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "idx_github_auto_review_repositories_repo": {
+          "name": "idx_github_auto_review_repositories_repo",
+          "columns": [
+            {
+              "expression": "github_installation_repository_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "github_auto_review_repositories_organization_id_organizations_id_fk": {
+          "name": "github_auto_review_repositories_organization_id_organizations_id_fk",
+          "tableFrom": "github_auto_review_repositories",
+          "tableTo": "organizations",
+          "columnsFrom": [
+            "organization_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "github_auto_review_repositories_github_installation_repository_id_github_installation_repositories_id_fk": {
+          "name": "github_auto_review_repositories_github_installation_repository_id_github_installation_repositories_id_fk",
+          "tableFrom": "github_auto_review_repositories",
+          "tableTo": "github_installation_repositories",
+          "columnsFrom": [
+            "github_installation_repository_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.github_auto_review_settings": {
+      "name": "github_auto_review_settings",
+      "schema": "",
+      "columns": {
+        "organization_id": {
+          "name": "organization_id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "enabled": {
+          "name": "enabled",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "additional_prompt": {
+          "name": "additional_prompt",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "github_auto_review_settings_organization_id_organizations_id_fk": {
+          "name": "github_auto_review_settings_organization_id_organizations_id_fk",
+          "tableFrom": "github_auto_review_settings",
+          "tableTo": "organizations",
+          "columnsFrom": [
+            "organization_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},

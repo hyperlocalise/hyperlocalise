@@ -10,7 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { http, HttpResponse } from "msw";
+import { delay, http, HttpResponse } from "msw";
 
 import type { WorkspaceAutomationRecord } from "@/lib/agents/workspace-automation-types";
 
@@ -142,13 +142,22 @@ export const automationEditorDisconnectedMswHandlers = [
   ),
 ];
 
-export function createAutomationDetailMswHandlers(automation: WorkspaceAutomationRecord) {
+export function createAutomationDetailMswHandlers(
+  automation: WorkspaceAutomationRecord,
+  options?: {
+    patchDelay?: number | "infinite";
+    deleteDelay?: number | "infinite";
+  },
+) {
   return [
     ...automationEditorMswHandlers,
     http.get("/api/orgs/:organizationSlug/automations/:automationId", () =>
       HttpResponse.json({ automation, recentRuns: [] }),
     ),
     http.patch("/api/orgs/:organizationSlug/automations/:automationId", async ({ request }) => {
+      if (options?.patchDelay !== undefined) {
+        await delay(options.patchDelay);
+      }
       const body = (await request.json()) as Record<string, unknown>;
       return HttpResponse.json({
         automation: {
@@ -172,5 +181,11 @@ export function createAutomationDetailMswHandlers(automation: WorkspaceAutomatio
         { status: 202 },
       ),
     ),
+    http.delete("/api/orgs/:organizationSlug/automations/:automationId", async () => {
+      if (options?.deleteDelay !== undefined) {
+        await delay(options.deleteDelay);
+      }
+      return new HttpResponse(null, { status: 204 });
+    }),
   ];
 }

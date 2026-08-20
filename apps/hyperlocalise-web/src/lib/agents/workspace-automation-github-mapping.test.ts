@@ -46,6 +46,7 @@ function automation(input: {
     status: "active",
     name: "GitHub automation",
     instructions: "Run GitHub workflows.",
+    model: "openai/gpt-5.6-luna",
     projectId: input.projectId ?? "project-1",
     triggerConfig: input.triggerConfig,
     repositoryTarget: {

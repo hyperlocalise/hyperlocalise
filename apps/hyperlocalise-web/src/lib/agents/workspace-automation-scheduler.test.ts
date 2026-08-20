@@ -91,6 +91,7 @@ describe("runWorkspaceAutomationScheduler", () => {
           validation: false,
         },
       },
+      model: "openai/gpt-5.6-luna",
       configVersion: 1,
       nextRunAt: scheduledRunAt.toISOString(),
       createdAt: scheduledRunAt.toISOString(),
