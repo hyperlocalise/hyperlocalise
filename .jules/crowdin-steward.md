@@ -1,5 +1,11 @@
 # Crowdin Steward's Journal
 
+## 2026-12-31 - Add FileID, LabelIDs, and CroQL parity to StringTranslationsListOptions
+
+**Learning:** In Crowdin API v2, the List String Translations endpoint (`GET /api/v2/projects/{projectId}/translations`) accepts filtering by `fileId`, `labelIds`, and `croql` in addition to `stringId` and `languageId`. Omission of these query parameters from `StringTranslationsListOptions` prevented callers from listing string translations for specific files, label filters, or CroQL query expressions.
+
+**Action:** Added `FileID int json:"fileId,omitempty"`, `LabelIDs []int json:"labelIds,omitempty"`, and `CroQL string json:"croql,omitempty"` fields to `StringTranslationsListOptions` in `third_party/crowdin-api-client-go/crowdin/model/string_translations.go` and updated its `Values()` query serialization logic. Added unit and contract tests in `string_translations_test.go` and `model/string_translations_test.go`.
+
 ## 2026-12-31 - Add LabelIDs parity to BuildProjectFileTranslationRequest
 
 **Learning:** In Crowdin API v2, the Build Project File Translation endpoint (`POST /api/v2/projects/{projectId}/translations/builds/files/{fileId}`) accepts an optional `labelIds` array in the request body to filter builds by label identifiers. While `BuildProjectRequest` and `BuildProjectDirectoryTranslationRequest` included `labelIds`, `BuildProjectFileTranslationRequest` was missing `LabelIDs`, and its custom `MarshalJSON()` method omitted `labelIds` from serialized JSON payloads.

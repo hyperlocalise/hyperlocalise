@@ -327,9 +327,11 @@ func TestStringTranslationsListOptionsValues(t *testing.T) {
 			name: "with all options",
 			opts: &StringTranslationsListOptions{
 				OrderBy: "createdAt desc,name", StringID: 1,
-				LanguageID: "en", DenormalizePlaceholders: toPtr(1),
+				LanguageID: "en", FileID: 42, LabelIDs: []int{10, 20},
+				CroQL: "croql_expr", DenormalizePlaceholders: toPtr(1),
+				ListOptions: ListOptions{Offset: 5, Limit: 15},
 			},
-			out: "denormalizePlaceholders=1&languageId=en&orderBy=createdAt+desc%2Cname&stringId=1",
+			out: "croql=croql_expr&denormalizePlaceholders=1&fileId=42&labelIds=10%2C20&languageId=en&limit=15&offset=5&orderBy=createdAt+desc%2Cname&stringId=1",
 		},
 	}
 

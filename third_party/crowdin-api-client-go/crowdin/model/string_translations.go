@@ -425,8 +425,16 @@ type StringTranslationsListOptions struct {
 	// Note: Must be used together with `languageId`.
 	StringID int `json:"stringId,omitempty"`
 	// Language Identifier.
-	// Note: Must be used together with `stringId`.
+	// Note: Must be used together with `stringId`, `fileId` or `labelIds`.
 	LanguageID string `json:"languageId,omitempty"`
+	// File Identifier.
+	// Note: Must be used together with `languageId`.
+	FileID int `json:"fileId,omitempty"`
+	// Label Identifiers.
+	// Example: labelIds=1,2,3,4,5
+	LabelIDs []int `json:"labelIds,omitempty"`
+	// Filter translations by CroQL.
+	CroQL string `json:"croql,omitempty"`
 	// Denormalize Placeholders.
 	// Enum: 0, 1. Default: 0.
 	DenormalizePlaceholders *int `json:"denormalizePlaceholders,omitempty"`
@@ -451,6 +459,15 @@ func (o *StringTranslationsListOptions) Values() (url.Values, bool) {
 	}
 	if o.LanguageID != "" {
 		v.Add("languageId", o.LanguageID)
+	}
+	if o.FileID > 0 {
+		v.Add("fileId", strconv.Itoa(o.FileID))
+	}
+	if len(o.LabelIDs) > 0 {
+		v.Add("labelIds", JoinSlice(o.LabelIDs))
+	}
+	if o.CroQL != "" {
+		v.Add("croql", o.CroQL)
 	}
 	if o.DenormalizePlaceholders != nil &&
 		(*o.DenormalizePlaceholders == 0 || *o.DenormalizePlaceholders == 1) {
