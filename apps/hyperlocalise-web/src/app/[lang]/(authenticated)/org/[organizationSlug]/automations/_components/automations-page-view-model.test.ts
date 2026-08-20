@@ -14,7 +14,10 @@ import { createIntl } from "@formatjs/intl";
 import { describe, expect, it } from "vite-plus/test";
 
 import { createAutomationSummary } from "./automations.fixture";
-import { resolveAutomationCreatorName, resolveVisibleAutomations } from "./automations-page-view-model";
+import {
+  resolveAutomationCreatorName,
+  resolveVisibleAutomations,
+} from "./automations-page-view-model";
 
 const intl = createIntl({ locale: "en", messages: {} });
 

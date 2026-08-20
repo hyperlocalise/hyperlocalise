@@ -341,7 +341,7 @@ export function buildProjectNavigationItems(
     {
       label: intl.formatMessage({
         defaultMessage: "Automations",
-        id: "kQ8mN4pR2s",
+        id: "Weqt7PXrnL",
         description: "Project sidebar navigation item for project automations",
       }),
       href: project("automations"),

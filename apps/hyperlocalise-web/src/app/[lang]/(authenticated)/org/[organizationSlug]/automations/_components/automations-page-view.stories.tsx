@@ -145,12 +145,17 @@ export const ProjectScoped: Story = {
   },
   play: async ({ canvas }) => {
     await expect(canvas.getByRole("heading", { name: "Automations" })).toBeInTheDocument();
-    await expect(canvas.queryByRole("heading", { name: "From Hyperlocalise" })).not.toBeInTheDocument();
+    await expect(
+      canvas.queryByRole("heading", { name: "From Hyperlocalise" }),
+    ).not.toBeInTheDocument();
     await expect(canvas.queryByText("Auto-review")).not.toBeInTheDocument();
     await expect(canvas.getByText("Validate localisation on push")).toBeInTheDocument();
     await expect(
       canvas.getByRole("link", { name: /Validate localisation on push/i }),
-    ).toHaveAttribute("href", "/org/acme/projects/project-1/automations/11111111-1111-4111-8111-111111111111");
+    ).toHaveAttribute(
+      "href",
+      "/org/acme/projects/project-1/automations/11111111-1111-4111-8111-111111111111",
+    );
     await expect(canvas.getByRole("link", { name: /New Automation/i })).toHaveAttribute(
       "href",
       "/org/acme/projects/project-1/automations/new",
