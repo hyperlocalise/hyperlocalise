@@ -61,7 +61,6 @@ import {
   type CreateGlossaryTermBody,
   type ImportGlossaryTermsBody,
   type ListGlossaryQuery,
-  type UpdateGlossaryBody,
 } from "./glossary.schema";
 import {
   externalTmsGlossaryImmutableResponse,
@@ -70,29 +69,12 @@ import {
   isGlossaryMutationAllowed,
   getOwnedGlossary,
   glossaryNotFoundResponse,
-  ownedGlossaryWhere,
 } from "./glossary.shared";
 
 type GlossaryListResult = {
   glossaries: NativeGlossary[];
   total: number;
   languagesByGlossaryId: Map<string, ReturnType<typeof toGlossaryRecord>["languages"]>;
-};
-
-type GlossaryStore = {
-  list(auth: ApiAuthContext, query?: ListGlossaryQuery): Promise<GlossaryListResult>;
-  create(
-    auth: ApiAuthContext,
-    payload: CreateGlossaryBody,
-    projectIds?: string[],
-  ): Promise<NativeGlossary>;
-  getById(auth: ApiAuthContext, glossaryId: string): Promise<NativeGlossary | null>;
-  update(
-    auth: ApiAuthContext,
-    glossaryId: string,
-    payload: UpdateGlossaryBody,
-  ): Promise<NativeGlossary | null>;
-  delete(auth: ApiAuthContext, glossaryId: string): Promise<boolean>;
 };
 
 type GlossaryTerm = typeof schema.glossaryTerms.$inferSelect;
@@ -123,84 +105,70 @@ type GlossaryProjectRecord = {
   targetLocales: string[];
 };
 
-const glossaryStore: GlossaryStore = {
-  async list(auth, query) {
-    const limit = query?.limit ?? 50;
-    const offset = query?.offset ?? 0;
-    const where = await buildGlossaryListWhere(auth, query);
+async function listGlossaries(
+  auth: ApiAuthContext,
+  query?: ListGlossaryQuery,
+): Promise<GlossaryListResult> {
+  const limit = query?.limit ?? 50;
+  const offset = query?.offset ?? 0;
+  const where = await buildGlossaryListWhere(auth, query);
 
-    const [glossaries, totalRow] = await Promise.all([
-      db
-        .select()
-        .from(schema.glossaries)
-        .where(where)
-        .orderBy(desc(schema.glossaries.createdAt))
-        .limit(limit)
-        .offset(offset),
-      db.select({ value: count() }).from(schema.glossaries).where(where),
-    ]);
+  const [glossaries, totalRow] = await Promise.all([
+    db
+      .select()
+      .from(schema.glossaries)
+      .where(where)
+      .orderBy(desc(schema.glossaries.createdAt))
+      .limit(limit)
+      .offset(offset),
+    db.select({ value: count() }).from(schema.glossaries).where(where),
+  ]);
 
-    return {
-      glossaries,
-      total: totalRow[0]?.value ?? 0,
-      languagesByGlossaryId: await queryNativeGlossaryLanguages(glossaries),
-    };
-  },
-  async create(auth, payload, projectIds = []) {
-    const glossary = await db.transaction(async (tx) => {
-      const [created] = await tx
-        .insert(schema.glossaries)
-        .values({
-          organizationId: auth.organization.localOrganizationId,
-          createdByUserId: auth.user.localUserId,
-          name: payload.name,
-          description: payload.description ?? "",
-          sourceLocale: payload.sourceLocale,
-          targetLocale: null,
-        })
-        .returning();
+  return {
+    glossaries,
+    total: totalRow[0]?.value ?? 0,
+    languagesByGlossaryId: await queryNativeGlossaryLanguages(glossaries),
+  };
+}
 
-      if (projectIds.length > 0) {
-        await tx.insert(schema.projectGlossaries).values(
-          projectIds.map((projectId) => ({
-            organizationId: auth.organization.localOrganizationId,
-            projectId,
-            glossaryId: created.id,
-            priority: 0,
-          })),
-        );
-      }
-
-      return created;
-    });
-
-    serverAnalytics.track(PRODUCT_USAGE_ANALYTICS_EVENTS.glossaryCreated, {
-      status: "created",
-      source: "glossary",
-    });
-    return glossary;
-  },
-  async getById(auth, glossaryId) {
-    return getOwnedGlossary(auth, glossaryId);
-  },
-  async update(auth, glossaryId, payload) {
-    const [glossary] = await db
-      .update(schema.glossaries)
-      .set(payload)
-      .where(await ownedGlossaryWhere(auth, glossaryId))
+async function createNativeGlossary(
+  auth: ApiAuthContext,
+  payload: CreateGlossaryBody,
+  projectIds: string[] = [],
+): Promise<NativeGlossary> {
+  const glossary = await db.transaction(async (tx) => {
+    const [created] = await tx
+      .insert(schema.glossaries)
+      .values({
+        organizationId: auth.organization.localOrganizationId,
+        createdByUserId: auth.user.localUserId,
+        name: payload.name,
+        description: payload.description ?? "",
+        sourceLocale: payload.sourceLocale,
+        targetLocale: null,
+      })
       .returning();
 
-    return glossary ?? null;
-  },
-  async delete(auth, glossaryId) {
-    const deletedGlossaries = await db
-      .delete(schema.glossaries)
-      .where(await ownedGlossaryWhere(auth, glossaryId))
-      .returning({ id: schema.glossaries.id });
+    if (projectIds.length > 0) {
+      await tx.insert(schema.projectGlossaries).values(
+        projectIds.map((projectId) => ({
+          organizationId: auth.organization.localOrganizationId,
+          projectId,
+          glossaryId: created.id,
+          priority: 0,
+        })),
+      );
+    }
 
-    return deletedGlossaries.length > 0;
-  },
-};
+    return created;
+  });
+
+  serverAnalytics.track(PRODUCT_USAGE_ANALYTICS_EVENTS.glossaryCreated, {
+    status: "created",
+    source: "glossary",
+  });
+  return glossary;
+}
 
 function toGlossaryTermRecord(term: GlossaryTerm, glossary: NativeGlossary): GlossaryTermRecord {
   return {
@@ -513,10 +481,7 @@ export function createGlossaryRoutes() {
     .route("/:glossaryId/concepts", createGlossaryConceptRoutes())
     .get("/", validateListGlossaryQuery, async (c) => {
       const query = c.req.valid("query");
-      const { glossaries, total, languagesByGlossaryId } = await glossaryStore.list(
-        c.var.auth,
-        query,
-      );
+      const { glossaries, total, languagesByGlossaryId } = await listGlossaries(c.var.auth, query);
       const records = await mapWithConcurrency(glossaries, 5, async (glossary) => {
         const product = getGlossaryProduct({ auth: c.var.auth, glossary });
         if (product) {
@@ -554,7 +519,7 @@ export function createGlossaryRoutes() {
           "The selected project uses a different source locale",
         );
       }
-      const glossary = await glossaryStore.create(
+      const glossary = await createNativeGlossary(
         c.var.auth,
         payload,
         projects.flatMap((project) => (project ? [project.id] : [])),
@@ -563,7 +528,7 @@ export function createGlossaryRoutes() {
     })
     .get("/:glossaryId", validateGlossaryParams, async (c) => {
       const params = c.req.valid("param");
-      const glossary = await glossaryStore.getById(c.var.auth, params.glossaryId);
+      const glossary = await getOwnedGlossary(c.var.auth, params.glossaryId);
 
       if (!glossary) {
         return glossaryNotFoundResponse(c);
@@ -589,7 +554,7 @@ export function createGlossaryRoutes() {
     })
     .get("/:glossaryId/terms", validateGlossaryParams, async (c) => {
       const params = c.req.valid("param");
-      const glossary = await glossaryStore.getById(c.var.auth, params.glossaryId);
+      const glossary = await getOwnedGlossary(c.var.auth, params.glossaryId);
 
       if (!glossary) {
         return glossaryNotFoundResponse(c);
@@ -636,7 +601,7 @@ export function createGlossaryRoutes() {
 
         const params = c.req.valid("param");
         const payload = c.req.valid("json");
-        const glossary = await glossaryStore.getById(c.var.auth, params.glossaryId);
+        const glossary = await getOwnedGlossary(c.var.auth, params.glossaryId);
 
         if (!glossary) {
           return glossaryNotFoundResponse(c);
@@ -715,7 +680,7 @@ export function createGlossaryRoutes() {
 
         const params = c.req.valid("param");
         const payload = c.req.valid("json");
-        const glossary = await glossaryStore.getById(c.var.auth, params.glossaryId);
+        const glossary = await getOwnedGlossary(c.var.auth, params.glossaryId);
 
         if (!glossary) {
           return glossaryNotFoundResponse(c);
@@ -750,7 +715,7 @@ export function createGlossaryRoutes() {
 
         const params = c.req.valid("param");
         const payload = c.req.valid("json");
-        const glossary = await glossaryStore.getById(c.var.auth, params.glossaryId);
+        const glossary = await getOwnedGlossary(c.var.auth, params.glossaryId);
 
         if (!glossary) {
           return glossaryNotFoundResponse(c);
@@ -832,7 +797,7 @@ export function createGlossaryRoutes() {
       }
 
       const params = c.req.valid("param");
-      const glossary = await glossaryStore.getById(c.var.auth, params.glossaryId);
+      const glossary = await getOwnedGlossary(c.var.auth, params.glossaryId);
 
       if (!glossary) {
         return glossaryNotFoundResponse(c);
@@ -873,7 +838,7 @@ export function createGlossaryRoutes() {
     })
     .get("/:glossaryId/projects", validateGlossaryParams, async (c) => {
       const params = c.req.valid("param");
-      const glossary = await glossaryStore.getById(c.var.auth, params.glossaryId);
+      const glossary = await getOwnedGlossary(c.var.auth, params.glossaryId);
 
       if (!glossary) {
         return glossaryNotFoundResponse(c);
@@ -893,7 +858,7 @@ export function createGlossaryRoutes() {
         const params = c.req.valid("param");
         const payload: AttachGlossaryProjectBody = c.req.valid("json");
         const [glossary, project] = await Promise.all([
-          glossaryStore.getById(c.var.auth, params.glossaryId),
+          getOwnedGlossary(c.var.auth, params.glossaryId),
           getOwnedProject(c.var.auth, payload.projectId),
         ]);
 
@@ -927,7 +892,7 @@ export function createGlossaryRoutes() {
 
       const params = c.req.valid("param");
       const [glossary, project] = await Promise.all([
-        glossaryStore.getById(c.var.auth, params.glossaryId),
+        getOwnedGlossary(c.var.auth, params.glossaryId),
         getOwnedProject(c.var.auth, params.projectId),
       ]);
 
@@ -960,7 +925,7 @@ export function createGlossaryRoutes() {
 
       const params = c.req.valid("param");
       const payload = c.req.valid("json");
-      const glossary = await glossaryStore.getById(c.var.auth, params.glossaryId);
+      const glossary = await getOwnedGlossary(c.var.auth, params.glossaryId);
 
       if (!glossary) {
         return glossaryNotFoundResponse(c);
@@ -982,7 +947,7 @@ export function createGlossaryRoutes() {
       }
 
       const params = c.req.valid("param");
-      const glossary = await glossaryStore.getById(c.var.auth, params.glossaryId);
+      const glossary = await getOwnedGlossary(c.var.auth, params.glossaryId);
 
       if (!glossary) {
         return glossaryNotFoundResponse(c);
