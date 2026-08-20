@@ -20,7 +20,11 @@ import { PRODUCT_USAGE_ANALYTICS_EVENTS } from "@/lib/analytics/events";
 import { serverAnalytics } from "@/lib/analytics/server";
 import { parseCsvRows } from "@/lib/csv/parse-csv-rows";
 import { getGlossaryProduct } from "@/lib/glossary/glossary-provider";
-import type { NativeGlossary, NativeGlossaryConcept } from "@/lib/glossary/glossary";
+import {
+  GlossaryValidationError,
+  type NativeGlossary,
+  type NativeGlossaryConcept,
+} from "@/lib/glossary/glossary";
 import type { CrowdinGlossaryConcept } from "@/lib/providers/adapters/crowdin/crowdin-provider";
 
 import {
@@ -79,6 +83,14 @@ function localStatus(status: string | null | undefined) {
   }
 }
 
+function glossaryValidationErrorResponse(
+  c: Parameters<typeof badRequestResponse>[0],
+  error: unknown,
+) {
+  if (!(error instanceof GlossaryValidationError)) return null;
+  return badRequestResponse(c, error.code, error.message);
+}
+
 function toCrowdinConceptInput(
   glossary: NativeGlossary,
   input: CreateGlossaryConceptBody | UpdateGlossaryConceptBody | NativeGlossaryConcept,
@@ -106,12 +118,13 @@ function toCrowdinConceptInput(
   // Keep the primary term mirrored in the configured source locale even when
   // callers provide only regional variants such as `en-US`.
   if (!terms.some((term) => term.languageId === glossary.sourceLocale) && primaryTerm) {
+    const sourcePartOfSpeech = terms.find((term) => term.partOfSpeech)?.partOfSpeech;
     terms.push({
       id: undefined,
       languageId: glossary.sourceLocale,
       text: primaryTerm,
       description: undefined,
-      partOfSpeech: undefined,
+      partOfSpeech: sourcePartOfSpeech,
       status: "preferred",
       note: undefined,
       type: undefined,
@@ -428,7 +441,14 @@ export function createGlossaryConceptRoutes() {
         }
         const product = getGlossaryProduct({ auth: c.var.auth, glossary });
         if (!product) return externalTmsGlossaryImmutableResponse(c);
-        const created = await product.createConcept(toCrowdinConceptInput(glossary, payload));
+        let created;
+        try {
+          created = await product.createConcept(toCrowdinConceptInput(glossary, payload));
+        } catch (error) {
+          const response = glossaryValidationErrorResponse(c, error);
+          if (response) return response;
+          throw error;
+        }
         if (!created) return conflictResponse(c, "duplicate_glossary_concept_term");
         serverAnalytics.track(PRODUCT_USAGE_ANALYTICS_EVENTS.glossaryTermCreated, {
           status: "created",
@@ -511,10 +531,14 @@ export function createGlossaryConceptRoutes() {
                   };
                 }),
         } satisfies NativeGlossaryConcept;
-        const updated = await product.updateConcept(
-          conceptId,
-          toCrowdinConceptInput(glossary, merged),
-        );
+        let updated;
+        try {
+          updated = await product.updateConcept(conceptId, toCrowdinConceptInput(glossary, merged));
+        } catch (error) {
+          const response = glossaryValidationErrorResponse(c, error);
+          if (response) return response;
+          throw error;
+        }
         if (!updated) return glossaryNotFoundResponse(c);
         return c.json({ concept: toCrowdinConceptRecord(glossary, updated) }, 200);
       },
@@ -553,17 +577,26 @@ export function createGlossaryConceptRoutes() {
         if (!glossary) return glossaryNotFoundResponse(c);
         const product = getGlossaryProduct({ auth: c.var.auth, glossary });
         if (!product) return externalTmsGlossaryImmutableResponse(c);
-        const term = await product.createTerm(conceptId, {
-          languageId: payload.locale,
-          text: payload.term,
-          description: payload.description,
-          partOfSpeech: payload.partOfSpeech,
-          status: crowdinStatus(payload.status),
-          type: payload.termType ?? undefined,
-          gender: payload.gender ?? undefined,
-          url: payload.url ?? undefined,
-          lemma: payload.lemma ?? undefined,
-        });
+        const concept = await product.getConcept(conceptId);
+        if (!concept) return glossaryNotFoundResponse(c);
+        let term;
+        try {
+          term = await product.createTerm(conceptId, {
+            languageId: payload.locale,
+            text: payload.term,
+            description: payload.description,
+            partOfSpeech: payload.partOfSpeech,
+            status: crowdinStatus(payload.status),
+            type: payload.termType ?? undefined,
+            gender: payload.gender ?? undefined,
+            url: payload.url ?? undefined,
+            lemma: payload.lemma ?? undefined,
+          });
+        } catch (error) {
+          const response = glossaryValidationErrorResponse(c, error);
+          if (response) return response;
+          throw error;
+        }
         if (term && "terms" in term) return conflictResponse(c, "glossary_term_create_failed");
         if (!term)
           return conflictResponse(
@@ -599,17 +632,25 @@ export function createGlossaryConceptRoutes() {
             );
           }
         }
-        const updatedTerm = await product.updateTerm(conceptId, termId, {
-          languageId: payload.locale ?? existing.languageId,
-          text: payload.term ?? existing.text,
-          description: payload.description ?? existing.description ?? "",
-          partOfSpeech: payload.partOfSpeech ?? existing.partOfSpeech ?? "",
-          status: crowdinStatus(payload.status ?? localStatus(existing.status)),
-          type: payload.termType ?? existing.type ?? "",
-          gender: payload.gender ?? existing.gender ?? "",
-          url: payload.url ?? existing.url ?? "",
-          lemma: payload.lemma ?? existing.lemma ?? "",
-        });
+        const nextPartOfSpeech = payload.partOfSpeech ?? existing.partOfSpeech ?? "";
+        let updatedTerm;
+        try {
+          updatedTerm = await product.updateTerm(conceptId, termId, {
+            languageId: payload.locale ?? existing.languageId,
+            text: payload.term ?? existing.text,
+            description: payload.description ?? existing.description ?? "",
+            partOfSpeech: nextPartOfSpeech,
+            status: crowdinStatus(payload.status ?? localStatus(existing.status)),
+            type: payload.termType ?? existing.type ?? "",
+            gender: payload.gender ?? existing.gender ?? "",
+            url: payload.url ?? existing.url ?? "",
+            lemma: payload.lemma ?? existing.lemma ?? "",
+          });
+        } catch (error) {
+          const response = glossaryValidationErrorResponse(c, error);
+          if (response) return response;
+          throw error;
+        }
         if (updatedTerm && "terms" in updatedTerm) return glossaryNotFoundResponse(c);
         if (!updatedTerm) return glossaryNotFoundResponse(c);
         return c.json({ term: toCrowdinTermRecord(glossary, conceptId, updatedTerm) }, 200);

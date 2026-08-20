@@ -76,6 +76,7 @@ function GlossaryRow({
   organizationSlug: string;
 }) {
   const intl = useIntl();
+  const detailId = glossary.detailId;
   const sourceDetail =
     glossary.source === "native"
       ? intl.formatMessage(glossariesTableMessages.nativeSourceDetail, {
@@ -104,12 +105,16 @@ function GlossaryRow({
             strokeWidth={1.7}
             className="size-4 shrink-0 text-muted-foreground"
           />
-          <Link
-            href={`/org/${organizationSlug}/glossaries/${glossary.id}`}
-            className="truncate text-sm font-medium text-foreground underline-offset-2 hover:underline"
-          >
-            {glossary.name}
-          </Link>
+          {detailId ? (
+            <Link
+              href={`/org/${organizationSlug}/glossaries/${detailId}`}
+              className="truncate text-sm font-medium text-foreground underline-offset-2 hover:underline"
+            >
+              {glossary.name}
+            </Link>
+          ) : (
+            <span className="truncate text-sm font-medium text-foreground">{glossary.name}</span>
+          )}
           <SourceLabel glossary={glossary} />
           <ResourceTypeBadge glossary={glossary} />
         </div>

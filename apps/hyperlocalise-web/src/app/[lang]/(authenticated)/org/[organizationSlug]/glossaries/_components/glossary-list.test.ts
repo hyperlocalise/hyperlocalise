@@ -111,6 +111,7 @@ describe("glossary-list", () => {
     const row = mapLiveTmsProviderGlossaryToListRow(
       {
         id: "crowdin:glossary:gl-99",
+        providerKind: "crowdin",
         name: "Crowdin Glossary",
         description: null,
         sourceLocale: "en",
@@ -125,5 +126,6 @@ describe("glossary-list", () => {
     );
 
     expect(row.termCapabilityLabel).toBe("Live API");
+    expect(row.detailId).toBe("crowdin:glossary:gl-99");
   });
 });

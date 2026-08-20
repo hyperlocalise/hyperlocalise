@@ -235,6 +235,11 @@ export const glossaryDetailPageContentMessages = defineMessages({
     id: "Fn04QYq5Dy",
     description: "Fallback error when a glossary concept save fails",
   },
+  partOfSpeechRequired: {
+    defaultMessage: "Select a valid part of speech for every term before saving.",
+    id: "+/N0T0rYIa",
+    description: "Validation error when a glossary term is missing a valid part of speech",
+  },
   deleteConceptFailed: {
     defaultMessage: "Unable to delete concept",
     id: "4jUxO+lMSa",

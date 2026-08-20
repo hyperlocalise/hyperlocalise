@@ -58,6 +58,7 @@ import { TypographyH1, TypographyP } from "@/components/ui/typography";
 import { readApiError } from "@/lib/api-error";
 import { apiClient } from "@/lib/api-client-instance";
 import { COMMON_LOCALES, getLocaleLabel } from "@/lib/i18n/locales";
+import { glossaryPartOfSpeechValues, type GlossaryPartOfSpeech } from "@/lib/glossary/glossary";
 
 import { glossaryDetailPageContentMessages as messages } from "./glossary-detail-page-content.messages";
 
@@ -90,19 +91,7 @@ const emptyConceptDraft: ConceptDraft = {
 };
 const genderOptions = ["masculine", "feminine", "neuter", "common"];
 const termTypeOptions = ["abbreviation", "full_form", "phrase", "proper_noun", "technical"];
-const partOfSpeechOptions = [
-  "Noun",
-  "Verb",
-  "Adjective",
-  "Adverb",
-  "Pronoun",
-  "Preposition",
-  "Conjunction",
-  "Interjection",
-  "Proper noun",
-  "Phrase",
-  "Other",
-];
+const partOfSpeechOptions = glossaryPartOfSpeechValues;
 const statusOptions = ["preferred", "draft", "not_recommended"] as const;
 const emptyTermDraft: TermDraft = {
   term: "",
@@ -126,11 +115,20 @@ function conceptDraftFromRecord(concept: GlossaryConceptRecord): ConceptDraft {
 function termDraftFromRecord(term: GlossaryConceptTermRecord): TermDraft {
   return {
     term: term.term,
-    partOfSpeech: term.partOfSpeech,
+    partOfSpeech: normalizePartOfSpeech(term.partOfSpeech),
     gender: term.gender,
     termType: term.termType,
     status: term.status,
   };
+}
+
+function normalizePartOfSpeech(value: string) {
+  const normalized = value.trim().toLowerCase();
+  return (normalized === "preposition" ? "adposition" : normalized) as GlossaryPartOfSpeech | "";
+}
+
+function isValidPartOfSpeech(value: string): value is GlossaryPartOfSpeech {
+  return partOfSpeechOptions.includes(normalizePartOfSpeech(value) as GlossaryPartOfSpeech);
 }
 
 function areTermDraftsEqual(left: TermDraft, right: TermDraft) {
@@ -160,7 +158,7 @@ function readableEnumLabel(value: string) {
 }
 
 function partOfSpeechOptionsFor(value: string) {
-  return value && !partOfSpeechOptions.includes(value)
+  return value && !partOfSpeechOptions.includes(value as GlossaryPartOfSpeech)
     ? [value, ...partOfSpeechOptions]
     : partOfSpeechOptions;
 }
@@ -329,11 +327,14 @@ export function GlossaryDetailPageContent({
   });
   const glossary = glossaryQuery.data;
   const isNative = glossary?.source === "native";
-  const canEdit = canManageGlossaries && isNative;
+  const isLiveCrowdin =
+    glossary?.source === "external_tms" && glossary.externalProviderKind === "crowdin";
+  const isConceptGlossary = isNative || isLiveCrowdin;
+  const canEdit = canManageGlossaries && isConceptGlossary;
 
   const conceptsQuery = useQuery({
     queryKey: ["glossary-concepts", organizationSlug, glossaryId],
-    enabled: Boolean(isNative),
+    enabled: Boolean(isConceptGlossary),
     queryFn: async () => {
       const response = await apiClient.api.orgs[":organizationSlug"].glossaries[
         ":glossaryId"
@@ -349,6 +350,7 @@ export function GlossaryDetailPageContent({
   });
   const attachedProjectsQuery = useQuery({
     queryKey: ["glossary-projects", organizationSlug, glossaryId],
+    enabled: Boolean(isNative),
     queryFn: async () => {
       const response = await apiClient.api.orgs[":organizationSlug"].glossaries[
         ":glossaryId"
@@ -364,6 +366,7 @@ export function GlossaryDetailPageContent({
   });
   const projectsQuery = useQuery({
     queryKey: ["translation-projects", organizationSlug],
+    enabled: Boolean(isNative),
     queryFn: async () => {
       const response = await apiClient.api.orgs[":organizationSlug"].projects.$get({
         param: { organizationSlug },
@@ -443,6 +446,18 @@ export function GlossaryDetailPageContent({
       let concept: GlossaryConceptRecord;
       let created = false;
       if (isCreatingConcept) {
+        const terms = creatingTermDrafts
+          .filter(({ term }) => term.trim())
+          .map(({ id: _id, ...term }) => ({
+            ...term,
+            term: term.term.trim(),
+            partOfSpeech: normalizePartOfSpeech(term.partOfSpeech),
+            caseSensitive: false,
+            forbidden: false,
+          }));
+        if (terms.some((term) => !isValidPartOfSpeech(term.partOfSpeech))) {
+          throw new Error(intl.formatMessage(messages.partOfSpeechRequired));
+        }
         const response = await apiClient.api.orgs[":organizationSlug"].glossaries[
           ":glossaryId"
         ].concepts.$post({
@@ -450,14 +465,10 @@ export function GlossaryDetailPageContent({
           json: {
             ...draft,
             url: draft.url || undefined,
-            terms: creatingTermDrafts
-              .filter(({ term }) => term.trim())
-              .map(({ id: _id, ...term }) => ({
-                ...term,
-                term: term.term.trim(),
-                caseSensitive: false,
-                forbidden: false,
-              })),
+            terms: terms.map((term) => ({
+              ...term,
+              partOfSpeech: term.partOfSpeech as GlossaryPartOfSpeech,
+            })),
           },
         });
         if (!response.ok)
@@ -485,7 +496,7 @@ export function GlossaryDetailPageContent({
                 id: term.id,
                 locale: term.locale,
                 term: termDraft.term,
-                partOfSpeech: termDraft.partOfSpeech,
+                partOfSpeech: normalizePartOfSpeech(termDraft.partOfSpeech),
                 gender: termDraft.gender,
                 termType: termDraft.termType,
                 status: termDraft.status,
@@ -498,7 +509,7 @@ export function GlossaryDetailPageContent({
           terms.push({
             locale: newTermLocale,
             term: newTermDraft.term,
-            partOfSpeech: newTermDraft.partOfSpeech,
+            partOfSpeech: normalizePartOfSpeech(newTermDraft.partOfSpeech),
             gender: newTermDraft.gender,
             termType: newTermDraft.termType,
             status: newTermDraft.status,
@@ -506,11 +517,21 @@ export function GlossaryDetailPageContent({
             forbidden: false,
           });
         }
+        if (terms.some((term) => !isValidPartOfSpeech(term.partOfSpeech))) {
+          throw new Error(intl.formatMessage(messages.partOfSpeechRequired));
+        }
         const response = await apiClient.api.orgs[":organizationSlug"].glossaries[
           ":glossaryId"
         ].concepts[":conceptId"].$patch({
           param: { organizationSlug, glossaryId, conceptId: selectedConceptId },
-          json: { ...draft, url: draft.url || undefined, terms },
+          json: {
+            ...draft,
+            url: draft.url || undefined,
+            terms: terms.map((term) => ({
+              ...term,
+              partOfSpeech: term.partOfSpeech as GlossaryPartOfSpeech,
+            })),
+          },
         });
         if (!response.ok)
           throw new Error(
@@ -778,7 +799,7 @@ export function GlossaryDetailPageContent({
             </TypographyP>
           </section>
 
-          {isNative ? (
+          {isConceptGlossary ? (
             <section className="grid gap-4 rounded-lg border border-border p-4">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div>
@@ -1768,7 +1789,7 @@ export function GlossaryDetailPageContent({
           )
         : null}
 
-      {!conceptPageMode ? (
+      {!conceptPageMode && !isLiveCrowdin ? (
         <section className="grid gap-4 rounded-lg border border-border p-4">
           <div>
             <TypographyP className="text-sm font-medium text-foreground">

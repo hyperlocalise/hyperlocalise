@@ -16,6 +16,7 @@ import type { ApiAuthContext } from "@/api/auth/workos";
 import { db, schema } from "@/lib/database";
 import type { Glossary as GlossaryRecord } from "@/lib/database/types";
 import { resolveExternalTmsSecretMaterialForActor } from "@/lib/providers/shared/tms-provider-content";
+import { getActiveOrganizationExternalTmsProviderCredentialRow } from "@/lib/providers/credentials/organization-external-tms-provider-credentials";
 import { CrowdinGlossary as CrowdinGlossaryProduct } from "./crowdin-glossary";
 import { Glossary, type NativeGlossaryConcept, type NativeGlossaryTermInput } from "./glossary";
 import { NativeGlossary as NativeGlossaryProduct } from "./native-glossary";
@@ -73,6 +74,7 @@ export function getGlossaryProduct(input: GlossaryProviderContext): Glossary | n
 type CrowdinContext = {
   organizationId: string;
   externalProjectId: string;
+  sourceLocale: string;
   credential: typeof schema.organizationExternalTmsProviderCredentials.$inferSelect;
   secretMaterial: string;
   actorUserId?: string | null;
@@ -96,6 +98,7 @@ export async function resolveCrowdinContext(
   }
 
   const organizationId = auth.organization.localOrganizationId;
+  const actorUserId = input.actorUserId ?? auth.user.localUserId;
   let credentialId = glossary.externalProviderCredentialId;
   if (!credentialId && glossary.externalProjectId) {
     const [project] = await db
@@ -111,6 +114,11 @@ export async function resolveCrowdinContext(
       )
       .limit(1);
     credentialId = project?.credentialId ?? null;
+  }
+  if (!credentialId) {
+    const activeCredential =
+      await getActiveOrganizationExternalTmsProviderCredentialRow(organizationId);
+    credentialId = activeCredential?.providerKind === "crowdin" ? activeCredential.id : null;
   }
 
   if (!credentialId || !glossary.externalProjectId) {
@@ -135,13 +143,14 @@ export async function resolveCrowdinContext(
   return {
     organizationId,
     externalProjectId: glossary.externalProjectId,
+    sourceLocale: glossary.sourceLocale,
     credential,
     secretMaterial: await resolveExternalTmsSecretMaterialForActor({
       credential,
       organizationId,
-      actorUserId: input.actorUserId,
+      actorUserId,
     }),
-    actorUserId: input.actorUserId,
+    actorUserId,
     signal: input.signal,
   };
 }
@@ -152,7 +161,7 @@ export function toCrowdinContext(input: CrowdinContext) {
     projectId: input.externalProjectId,
     externalProjectId: input.externalProjectId,
     credential: input.credential,
-    project: { externalProjectId: input.externalProjectId } as never,
+    sourceLocale: input.sourceLocale,
     secretMaterial: input.secretMaterial,
     signal: input.signal,
   };

@@ -21,6 +21,7 @@ import { db, schema } from "@/lib/database";
 
 import {
   Glossary,
+  normalizeGlossaryPartOfSpeech,
   type GlossaryConceptImportEntry,
   type GlossaryTermCreateInput,
   type GlossaryTermRecord,
@@ -31,6 +32,23 @@ import {
 } from "./glossary";
 import { parseId, resolveCrowdinContext, toCrowdinContext } from "./glossary-provider";
 import type { GlossaryProviderContext } from "./glossary-provider";
+
+function normalizeCrowdinConcept(concept: NativeGlossaryConcept): NativeGlossaryConcept {
+  return {
+    ...concept,
+    terms: concept.terms.map((term) => ({
+      ...term,
+      partOfSpeech: normalizeGlossaryPartOfSpeech(term.partOfSpeech),
+    })),
+  };
+}
+
+function normalizeCrowdinTerm(term: NativeGlossaryTermInput): NativeGlossaryTermInput {
+  return {
+    ...term,
+    partOfSpeech: normalizeGlossaryPartOfSpeech(term.partOfSpeech),
+  };
+}
 
 export function toNativeGlossaryConcept(concept: CrowdinGlossaryConcept): NativeGlossaryConcept {
   return {
@@ -137,7 +155,7 @@ export class CrowdinGlossary extends Glossary {
     const created = await crowdinTmsProvider.createLiveGlossaryConcept(
       toCrowdinContext(context),
       parseId(this.input.glossary.externalGlossaryId!, "glossary_id"),
-      concept,
+      normalizeCrowdinConcept(concept),
     );
     return created ? toNativeGlossaryConcept(created) : null;
   }
@@ -148,7 +166,7 @@ export class CrowdinGlossary extends Glossary {
       toCrowdinContext(context),
       parseId(this.input.glossary.externalGlossaryId!, "glossary_id"),
       parseId(conceptId, "concept_id"),
-      concept,
+      normalizeCrowdinConcept(concept),
     );
     return updated ? toNativeGlossaryConcept(updated) : null;
   }
@@ -338,7 +356,7 @@ export class CrowdinGlossary extends Glossary {
       toCrowdinContext(context),
       parseId(this.input.glossary.externalGlossaryId!, "glossary_id"),
       parseId(conceptId, "concept_id"),
-      term,
+      normalizeCrowdinTerm(term),
     );
   }
 
@@ -349,7 +367,7 @@ export class CrowdinGlossary extends Glossary {
       parseId(this.input.glossary.externalGlossaryId!, "glossary_id"),
       parseId(conceptId, "concept_id"),
       parseId(termId, "term_id"),
-      term,
+      normalizeCrowdinTerm(term),
     );
   }
 

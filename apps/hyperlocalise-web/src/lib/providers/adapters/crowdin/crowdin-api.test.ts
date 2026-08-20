@@ -278,6 +278,16 @@ describe("CrowdinApiClient", () => {
           { status: 200 },
         );
       }
+      if (
+        path === "/glossaries/7/concepts/8" &&
+        init?.method !== "GET" &&
+        init?.method !== "DELETE"
+      ) {
+        expect(init?.method).toBe("PUT");
+        expect(JSON.parse(String(init?.body))).toEqual({
+          figure: "https://example.com/figure.png",
+        });
+      }
       if (String(init?.method ?? "GET") === "DELETE") {
         return new Response(null, { status: 204 });
       }
@@ -306,9 +316,9 @@ describe("CrowdinApiClient", () => {
     expect((await client.listGlossaryConcepts(7))[0]?.id).toBe(8);
     expect((await client.getGlossaryConcept(7, 8)).figure).toBe("");
     await client.addGlossaryConcept(7, { subject: "product", figure: "" });
-    await client.updateGlossaryConcept(7, 8, [
-      { op: "replace", path: "/figure", value: "https://example.com/figure.png" },
-    ]);
+    await client.updateGlossaryConcept(7, 8, {
+      figure: "https://example.com/figure.png",
+    });
     await client.deleteGlossaryConcept(7, 8);
 
     expect(fetchMock).toHaveBeenCalledTimes(5);

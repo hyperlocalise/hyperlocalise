@@ -12,7 +12,8 @@
  */
 import { and, eq, inArray, isNull, ne, sql } from "drizzle-orm";
 
-import { db, schema } from "@/lib/database";
+import { db, schema, type DatabaseClient } from "@/lib/database";
+import { Glossary, normalizeGlossaryPartOfSpeech } from "./glossary";
 import type {
   GlossaryTermCreateInput,
   GlossaryTermRecord,
@@ -21,9 +22,25 @@ import type {
   NativeGlossaryConcept,
   NativeGlossaryTermInput,
 } from "./glossary";
-import { Glossary } from "./glossary";
 import type { GlossaryProviderContext } from "./glossary-provider";
 import { createGlossaryTermDuplicateTracker } from "./glossary-term-dedupe";
+
+function normalizeNativeConcept(input: NativeGlossaryConcept): NativeGlossaryConcept {
+  return {
+    ...input,
+    terms: input.terms.map((term) => ({
+      ...term,
+      partOfSpeech: normalizeGlossaryPartOfSpeech(term.partOfSpeech, { required: false }),
+    })),
+  };
+}
+
+function normalizeNativeTerm(input: NativeGlossaryTermInput): NativeGlossaryTermInput {
+  return {
+    ...input,
+    partOfSpeech: normalizeGlossaryPartOfSpeech(input.partOfSpeech, { required: false }),
+  };
+}
 
 export class NativeGlossary extends Glossary {
   readonly kind = "native" as const;
@@ -73,8 +90,8 @@ export class NativeGlossary extends Glossary {
     return deleted.length > 0;
   }
 
-  private async loadConcept(conceptId: string) {
-    const [concept] = await db
+  private async loadConcept(conceptId: string, database: DatabaseClient = db) {
+    const [concept] = await database
       .select()
       .from(schema.glossaryConcepts)
       .where(
@@ -86,7 +103,7 @@ export class NativeGlossary extends Glossary {
       .limit(1);
     if (!concept) return null;
 
-    const terms = await db
+    const terms = await database
       .select()
       .from(schema.glossaryTerms)
       .where(eq(schema.glossaryTerms.conceptId, concept.id));
@@ -183,24 +200,25 @@ export class NativeGlossary extends Glossary {
   }
 
   async createConcept(input: NativeGlossaryConcept) {
+    const normalizedInput = normalizeNativeConcept(input);
     const created = await db.transaction(async (tx) => {
       const [concept] = await tx
         .insert(schema.glossaryConcepts)
         .values({
           glossaryId: this.input.glossary.id,
-          primaryTerm: input.primaryTerm,
-          subject: input.subject ?? "",
-          definition: input.definition ?? "",
-          translatable: input.translatable ?? true,
-          note: input.note ?? "",
-          url: input.url || null,
-          figure: input.figure || null,
-          languageDetails: input.languageDetails ?? [],
+          primaryTerm: normalizedInput.primaryTerm,
+          subject: normalizedInput.subject ?? "",
+          definition: normalizedInput.definition ?? "",
+          translatable: normalizedInput.translatable ?? true,
+          note: normalizedInput.note ?? "",
+          url: normalizedInput.url || null,
+          figure: normalizedInput.figure || null,
+          languageDetails: normalizedInput.languageDetails ?? [],
         })
         .returning();
-      if (input.terms.length > 0) {
+      if (normalizedInput.terms.length > 0) {
         await tx.insert(schema.glossaryTerms).values(
-          input.terms.map((term) => ({
+          normalizedInput.terms.map((term) => ({
             glossaryId: this.input.glossary.id,
             conceptId: concept.id,
             locale: term.languageId,
@@ -224,53 +242,59 @@ export class NativeGlossary extends Glossary {
   }
 
   async updateConcept(conceptId: string, input: NativeGlossaryConcept) {
-    const loaded = await this.loadConcept(conceptId);
-    if (!loaded) return null;
-    await db
-      .update(schema.glossaryConcepts)
-      .set({
-        primaryTerm: input.primaryTerm,
-        subject: input.subject ?? "",
-        definition: input.definition ?? "",
-        translatable: input.translatable ?? true,
-        note: input.note ?? "",
-        url: input.url || null,
-        figure: input.figure || null,
-        languageDetails: input.languageDetails ?? [],
-      })
-      .where(eq(schema.glossaryConcepts.id, conceptId));
-    for (const term of input.terms) {
-      const existing =
-        typeof term.id === "string"
-          ? loaded.terms.find((candidate) => candidate.id === term.id)
-          : undefined;
-      const values = {
-        locale: term.languageId,
-        term: term.text,
-        sourceTerm: term.text,
-        targetTerm: term.text,
-        description: term.description ?? "",
-        partOfSpeech: term.partOfSpeech ?? "",
-        gender: term.gender ?? null,
-        termType: term.type ?? null,
-        url: term.url ?? null,
-        lemma: term.lemma ?? null,
-        status: term.status ?? "draft",
-      };
-      if (existing) {
-        await db
-          .update(schema.glossaryTerms)
-          .set(values)
-          .where(eq(schema.glossaryTerms.id, existing.id));
-      } else {
-        await db.insert(schema.glossaryTerms).values({
-          glossaryId: this.input.glossary.id,
-          conceptId,
-          ...values,
-          provenance: "manual" as const,
-        });
+    const normalizedInput = normalizeNativeConcept(input);
+    const updated = await db.transaction(async (tx) => {
+      const loaded = await this.loadConcept(conceptId, tx);
+      if (!loaded) return false;
+
+      await tx
+        .update(schema.glossaryConcepts)
+        .set({
+          primaryTerm: normalizedInput.primaryTerm,
+          subject: normalizedInput.subject ?? "",
+          definition: normalizedInput.definition ?? "",
+          translatable: normalizedInput.translatable ?? true,
+          note: normalizedInput.note ?? "",
+          url: normalizedInput.url || null,
+          figure: normalizedInput.figure || null,
+          languageDetails: normalizedInput.languageDetails ?? [],
+        })
+        .where(eq(schema.glossaryConcepts.id, conceptId));
+      for (const term of normalizedInput.terms) {
+        const existing =
+          typeof term.id === "string"
+            ? loaded.terms.find((candidate) => candidate.id === term.id)
+            : undefined;
+        const values = {
+          locale: term.languageId,
+          term: term.text,
+          sourceTerm: term.text,
+          targetTerm: term.text,
+          description: term.description ?? "",
+          partOfSpeech: term.partOfSpeech ?? "",
+          gender: term.gender ?? null,
+          termType: term.type ?? null,
+          url: term.url ?? null,
+          lemma: term.lemma ?? null,
+          status: term.status ?? "draft",
+        };
+        if (existing) {
+          await tx
+            .update(schema.glossaryTerms)
+            .set(values)
+            .where(eq(schema.glossaryTerms.id, existing.id));
+        } else {
+          await tx.insert(schema.glossaryTerms).values({
+            glossaryId: this.input.glossary.id,
+            conceptId,
+            ...values,
+            provenance: "manual" as const,
+          });
+        }
       }
-    }
+      return true;
+    });
+    if (!updated) return null;
     return this.getConcept(conceptId);
   }
 
@@ -374,7 +398,8 @@ export class NativeGlossary extends Glossary {
             sourceTerm: entry.term,
             targetTerm: entry.term,
             description: entry.definition ?? "",
-            partOfSpeech: entry.partOfSpeech ?? "",
+            partOfSpeech:
+              normalizeGlossaryPartOfSpeech(entry.partOfSpeech, { required: false }) ?? "",
             gender: entry.gender ?? null,
             termType: entry.termType ?? null,
             status:
@@ -409,6 +434,9 @@ export class NativeGlossary extends Glossary {
   }
 
   async createGlossaryTerm(input: GlossaryTermCreateInput) {
+    const normalizedPartOfSpeech = normalizeGlossaryPartOfSpeech(input.partOfSpeech, {
+      required: false,
+    });
     const duplicate = await db
       .select({ id: schema.glossaryTerms.id })
       .from(schema.glossaryTerms)
@@ -431,7 +459,7 @@ export class NativeGlossary extends Glossary {
         sourceTerm: input.sourceTerm,
         targetTerm: input.targetTerm,
         description: input.description ?? "",
-        partOfSpeech: input.partOfSpeech ?? "",
+        partOfSpeech: normalizedPartOfSpeech ?? "",
         url: input.url || null,
         lemma: input.lemma ?? null,
         caseSensitive: input.caseSensitive,
@@ -460,7 +488,7 @@ export class NativeGlossary extends Glossary {
         sourceTerm: input.sourceTerm,
         targetTerm: input.targetTerm,
         description: input.description ?? "",
-        partOfSpeech: input.partOfSpeech ?? "",
+        partOfSpeech: normalizeGlossaryPartOfSpeech(input.partOfSpeech, { required: false }) ?? "",
         url: input.url || null,
         lemma: input.lemma ?? null,
         caseSensitive: input.caseSensitive,
@@ -475,7 +503,14 @@ export class NativeGlossary extends Glossary {
   }
 
   async updateGlossaryTerm(termId: string, input: GlossaryTermUpdateInput) {
-    if (input.sourceTerm !== undefined) {
+    const normalizedInput =
+      input.partOfSpeech === undefined
+        ? input
+        : {
+            ...input,
+            partOfSpeech: normalizeGlossaryPartOfSpeech(input.partOfSpeech, { required: false }),
+          };
+    if (normalizedInput.sourceTerm !== undefined) {
       const duplicate = await db
         .select({ id: schema.glossaryTerms.id })
         .from(schema.glossaryTerms)
@@ -484,9 +519,9 @@ export class NativeGlossary extends Glossary {
             eq(schema.glossaryTerms.glossaryId, this.input.glossary.id),
             ne(schema.glossaryTerms.id, termId),
             isNull(schema.glossaryTerms.conceptId),
-            input.caseSensitive
-              ? eq(schema.glossaryTerms.sourceTerm, input.sourceTerm)
-              : sql`lower(${schema.glossaryTerms.sourceTerm}) = lower(${input.sourceTerm})`,
+            normalizedInput.caseSensitive
+              ? eq(schema.glossaryTerms.sourceTerm, normalizedInput.sourceTerm)
+              : sql`lower(${schema.glossaryTerms.sourceTerm}) = lower(${normalizedInput.sourceTerm})`,
           ),
         )
         .limit(1);
@@ -494,7 +529,7 @@ export class NativeGlossary extends Glossary {
     }
     const [term] = await db
       .update(schema.glossaryTerms)
-      .set(input)
+      .set(normalizedInput)
       .where(
         and(
           eq(schema.glossaryTerms.id, termId),
@@ -551,43 +586,51 @@ export class NativeGlossary extends Glossary {
   }
 
   async createTerm(conceptId: string, input: NativeGlossaryTermInput) {
-    const [term] = await db
-      .insert(schema.glossaryTerms)
-      .values({
-        glossaryId: this.input.glossary.id,
-        conceptId,
-        locale: input.languageId,
-        term: input.text,
-        sourceTerm: input.text,
-        targetTerm: input.text,
-        description: input.description ?? "",
-        partOfSpeech: input.partOfSpeech ?? "",
-        gender: input.gender ?? null,
-        termType: input.type ?? null,
-        url: input.url ?? null,
-        lemma: input.lemma ?? null,
-        status: input.status ?? "draft",
-        provenance: "manual" as const,
-      })
-      .returning();
+    const normalizedInput = normalizeNativeTerm(input);
+    const term = await db.transaction(async (tx) => {
+      const concept = await this.loadConcept(conceptId, tx);
+      if (!concept) return null;
+
+      const [created] = await tx
+        .insert(schema.glossaryTerms)
+        .values({
+          glossaryId: this.input.glossary.id,
+          conceptId,
+          locale: normalizedInput.languageId,
+          term: normalizedInput.text,
+          sourceTerm: normalizedInput.text,
+          targetTerm: normalizedInput.text,
+          description: normalizedInput.description ?? "",
+          partOfSpeech: normalizedInput.partOfSpeech ?? "",
+          gender: normalizedInput.gender ?? null,
+          termType: normalizedInput.type ?? null,
+          url: normalizedInput.url ?? null,
+          lemma: normalizedInput.lemma ?? null,
+          status: normalizedInput.status ?? "draft",
+          provenance: "manual" as const,
+        })
+        .returning();
+      return created ?? null;
+    });
     return term ? this.toTermRecord(term) : null;
   }
 
   async updateTerm(conceptId: string, termId: string, input: NativeGlossaryTermInput) {
+    const normalizedInput = normalizeNativeTerm(input);
     const [term] = await db
       .update(schema.glossaryTerms)
       .set({
-        locale: input.languageId,
-        term: input.text,
-        sourceTerm: input.text,
-        targetTerm: input.text,
-        description: input.description ?? "",
-        partOfSpeech: input.partOfSpeech ?? "",
-        gender: input.gender ?? null,
-        termType: input.type ?? null,
-        url: input.url ?? null,
-        lemma: input.lemma ?? null,
-        status: input.status ?? "draft",
+        locale: normalizedInput.languageId,
+        term: normalizedInput.text,
+        sourceTerm: normalizedInput.text,
+        targetTerm: normalizedInput.text,
+        description: normalizedInput.description ?? "",
+        partOfSpeech: normalizedInput.partOfSpeech ?? "",
+        gender: normalizedInput.gender ?? null,
+        termType: normalizedInput.type ?? null,
+        url: normalizedInput.url ?? null,
+        lemma: normalizedInput.lemma ?? null,
+        status: normalizedInput.status ?? "draft",
       })
       .where(
         and(

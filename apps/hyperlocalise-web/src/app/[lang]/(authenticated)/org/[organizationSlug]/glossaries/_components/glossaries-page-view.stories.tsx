@@ -13,7 +13,11 @@
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { expect, fn } from "storybook/test";
 
-import { createEmptyGlossaryFormFixture, glossariesFixture } from "./glossaries.fixture";
+import {
+  createEmptyGlossaryFormFixture,
+  createGlossaryListRow,
+  glossariesFixture,
+} from "./glossaries.fixture";
 import { GlossariesPageView } from "./glossaries-page-view";
 
 const meta = {
@@ -86,6 +90,32 @@ export const Default: Story = {
     await expect(canvas.getByRole("link", { name: "Open in provider" })).toHaveAttribute(
       "href",
       "https://phrase.com/tb/42",
+    );
+  },
+};
+
+export const LiveProviderGlossary: Story = {
+  args: {
+    glossaries: [
+      createGlossaryListRow({
+        id: "crowdin:glossary:99",
+        detailId: "crowdin:glossary:99",
+        name: "Live Crowdin Glossary",
+        source: "external_tms",
+        externalProviderKind: "crowdin",
+        externalProjectId: "crowdin-project-1",
+        externalGlossaryId: "99",
+      }),
+    ],
+    glossaryTotal: 1,
+    allowCreateGlossaries: false,
+    pageEnd: 1,
+  },
+  play: async ({ canvas }) => {
+    await expect(canvas.getByText("Live Crowdin Glossary")).toBeInTheDocument();
+    await expect(canvas.getByRole("link", { name: "Live Crowdin Glossary" })).toHaveAttribute(
+      "href",
+      "/org/acme/glossaries/crowdin:glossary:99",
     );
   },
 };

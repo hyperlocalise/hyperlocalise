@@ -21,7 +21,7 @@ import { PRODUCT_USAGE_ANALYTICS_EVENTS } from "@/lib/analytics/events";
 import { serverAnalytics } from "@/lib/analytics/server";
 import { parseCsvRows } from "@/lib/csv/parse-csv-rows";
 import { db, schema } from "@/lib/database";
-import type { NativeGlossary } from "@/lib/glossary/glossary";
+import { GlossaryValidationError, type NativeGlossary } from "@/lib/glossary/glossary";
 import { getGlossaryProduct } from "@/lib/glossary/glossary-provider";
 import { toGlossaryRecord } from "@/lib/glossary/glossary-records";
 import { listGlossaryTermsByGlossaryId } from "@/lib/glossary/query-glossary-terms";
@@ -158,7 +158,9 @@ function parseGlossaryImport(payload: ImportGlossaryTermsBody): CreateGlossaryTe
               sourceTerm,
               targetTerm,
               description,
-              partOfSpeech,
+              partOfSpeech: partOfSpeech
+                ? (partOfSpeech as CreateGlossaryTermBody["partOfSpeech"])
+                : undefined,
               caseSensitive: false,
               forbidden: false,
             },
@@ -179,7 +181,7 @@ function parseGlossaryImport(payload: ImportGlossaryTermsBody): CreateGlossaryTe
             sourceTerm,
             targetTerm,
             description: "",
-            partOfSpeech: "",
+            partOfSpeech: undefined,
             caseSensitive: false,
             forbidden: false,
           },
@@ -483,7 +485,16 @@ export function createGlossaryRoutes() {
 
         const terms = parseGlossaryImport(payload);
         const limitedTerms = terms.slice(0, 2_000);
-        const { created, skipped } = await product.createGlossaryTerms(limitedTerms);
+        let created: Awaited<ReturnType<typeof product.createGlossaryTerms>>["created"];
+        let skipped: number;
+        try {
+          ({ created, skipped } = await product.createGlossaryTerms(limitedTerms));
+        } catch (error) {
+          if (error instanceof GlossaryValidationError) {
+            return badRequestResponse(c, error.code, error.message);
+          }
+          throw error;
+        }
 
         return c.json(
           {

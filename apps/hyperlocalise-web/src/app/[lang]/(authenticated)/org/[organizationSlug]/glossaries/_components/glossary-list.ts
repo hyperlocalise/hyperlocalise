@@ -42,6 +42,7 @@ function resolveMessage(
 
 export type GlossaryListRow = {
   id: string;
+  detailId: string | null;
   name: string;
   description: string;
   source: "native" | "external_tms";
@@ -210,6 +211,7 @@ export function mapGlossaryToListRow(
 
   return {
     id: glossary.id,
+    detailId: glossary.id,
     name: glossary.name,
     description:
       glossary.description.trim() || resolveMessage(intl, glossaryListMessages.noDescription),
@@ -265,6 +267,7 @@ export function mapLiveTmsProviderGlossaryToListRow(
 ): GlossaryListRow {
   return {
     id: glossary.id,
+    detailId: glossary.providerKind === "crowdin" ? glossary.id : null,
     name: glossary.name,
     description:
       glossary.description?.trim() || resolveMessage(intl, glossaryListMessages.noDescription),

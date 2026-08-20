@@ -14,6 +14,9 @@ import { z } from "zod";
 
 import { projectIdSchema } from "@/lib/projects/identity/project-id";
 import { localeInputSchema } from "@/lib/i18n/locales";
+import { glossaryPartOfSpeechValues } from "@/lib/glossary/glossary";
+
+export const glossaryPartOfSpeechSchema = z.enum(glossaryPartOfSpeechValues);
 
 export const glossaryIdParamsSchema = z.object({
   glossaryId: z.string().trim().min(1).max(128),
@@ -76,7 +79,7 @@ export const createGlossaryTermBodySchema = z.object({
   sourceTerm: z.string().trim().min(1).max(1_000),
   targetTerm: z.string().trim().min(1).max(1_000),
   description: z.string().max(10_000).optional(),
-  partOfSpeech: z.string().max(200).optional(),
+  partOfSpeech: glossaryPartOfSpeechSchema.optional(),
   url: z.string().url().max(2_000).optional().or(z.literal("")),
   lemma: z.string().max(1_000).nullable().optional(),
   caseSensitive: z.boolean().optional().default(false),
@@ -88,7 +91,7 @@ export const updateGlossaryTermBodySchema = z
     sourceTerm: z.string().trim().min(1).max(1_000).optional(),
     targetTerm: z.string().trim().min(1).max(1_000).optional(),
     description: z.string().max(10_000).optional(),
-    partOfSpeech: z.string().max(200).optional(),
+    partOfSpeech: glossaryPartOfSpeechSchema.optional(),
     url: z.string().url().max(2_000).optional().or(z.literal("")),
     lemma: z.string().max(1_000).nullable().optional(),
     caseSensitive: z.boolean().optional(),
@@ -125,7 +128,7 @@ const glossaryConceptTermStatusSchema = z.enum([
 export const createGlossaryConceptTermBodySchema = z.object({
   locale: localeInputSchema,
   term: z.string().trim().min(1).max(1_000),
-  partOfSpeech: z.string().max(200).optional(),
+  partOfSpeech: glossaryPartOfSpeechSchema.optional(),
   gender: z.string().max(100).nullable().optional(),
   termType: z.string().max(100).nullable().optional(),
   url: z.string().url().max(2_000).nullable().optional().or(z.literal("")),
@@ -151,7 +154,7 @@ export const upsertGlossaryConceptTermBodySchema = z.object({
   id: z.string().trim().min(1).max(128).optional(),
   locale: localeInputSchema,
   term: z.string().trim().min(1).max(1_000),
-  partOfSpeech: z.string().max(200).optional(),
+  partOfSpeech: glossaryPartOfSpeechSchema.optional(),
   gender: z.string().max(100).nullable().optional(),
   termType: z.string().max(100).nullable().optional(),
   url: z.string().url().max(2_000).nullable().optional().or(z.literal("")),
@@ -181,7 +184,7 @@ export const updateGlossaryConceptTermBodySchema = z
   .object({
     locale: localeInputSchema.optional(),
     term: z.string().trim().min(1).max(1_000).optional(),
-    partOfSpeech: z.string().max(200).optional(),
+    partOfSpeech: glossaryPartOfSpeechSchema.optional(),
     gender: z.string().max(100).nullable().optional(),
     termType: z.string().max(100).nullable().optional(),
     url: z.string().url().max(2_000).nullable().optional().or(z.literal("")),

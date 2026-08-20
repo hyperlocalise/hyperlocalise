@@ -542,7 +542,6 @@ export type CrowdinGlossaryTermInput = {
   gender?: string;
   note?: string;
   url?: string;
-  lemma?: string;
   conceptId?: number;
 };
 
@@ -2201,11 +2200,11 @@ export class CrowdinApiClient {
   async updateGlossaryConcept(
     glossaryId: number,
     conceptId: number,
-    patches: CrowdinGlossaryPatch[],
+    input: CrowdinGlossaryConceptInput,
   ): Promise<CrowdinGlossaryConcept> {
-    const response = await this.patch<CrowdinGetResponse<CrowdinGlossaryConcept>>(
+    const response = await this.put<CrowdinGetResponse<CrowdinGlossaryConcept>>(
       `/glossaries/${glossaryId}/concepts/${conceptId}`,
-      patches,
+      input,
     );
     return response.data;
   }

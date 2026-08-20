@@ -260,7 +260,12 @@ export type CrowdinGlossaryConcept = {
 type CrowdinLiveGlossaryScope = Pick<
   TmsProviderProjectScope,
   "organizationId" | "credential" | "secretMaterial" | "signal"
-> & { projectId: string; externalProjectId: string; project: TmsProviderProjectScope["project"] };
+> & {
+  projectId: string;
+  externalProjectId: string;
+  sourceLocale: string;
+  fetchFn?: typeof fetch;
+};
 
 type CrowdinGlossarySearchError =
   | { code: "crowdin_not_configured"; message: string }
@@ -670,7 +675,7 @@ export class CrowdinTmsProvider extends TmsProvider {
 
   async listLiveGlossaryConcepts(scope: CrowdinLiveGlossaryScope, glossaryId: number) {
     const client = this.createClient(scope);
-    const sourceLocale = scope.project.sourceLocale ?? "en";
+    const sourceLocale = scope.sourceLocale;
     const [concepts, terms] = await Promise.all([
       client.listGlossaryConcepts(glossaryId),
       client.listGlossaryTerms(glossaryId),
@@ -767,7 +772,6 @@ export class CrowdinTmsProvider extends TmsProvider {
       gender: source.gender,
       note: source.note ?? input.note,
       url: source.url,
-      lemma: source.lemma,
       conceptId: remoteConcept.id,
     });
     const conceptId = remoteConcept.id || createdSource.conceptId || createdSource.id;
@@ -782,7 +786,6 @@ export class CrowdinTmsProvider extends TmsProvider {
         gender: term.gender,
         note: term.note,
         url: term.url,
-        lemma: term.lemma,
         conceptId,
       });
     }
@@ -798,20 +801,35 @@ export class CrowdinTmsProvider extends TmsProvider {
     const client = this.createClient(scope);
     const existing = await this.getLiveGlossaryConcept(scope, glossaryId, conceptId);
     if (!existing) return null;
-    await client.updateGlossaryConcept(glossaryId, conceptId, [
-      { op: "replace", path: "/subject", value: input.subject ?? "" },
-      { op: "replace", path: "/definition", value: input.definition ?? "" },
-      { op: "replace", path: "/translatable", value: input.translatable ?? true },
-      { op: "replace", path: "/note", value: input.note ?? "" },
-      { op: "replace", path: "/url", value: input.url ?? "" },
-      { op: "replace", path: "/figure", value: input.figure ?? "" },
-    ]);
+    await client.updateGlossaryConcept(glossaryId, conceptId, {
+      subject: input.subject ?? "",
+      definition: input.definition ?? "",
+      translatable: input.translatable ?? true,
+      note: input.note ?? "",
+      url: input.url ?? "",
+      figure: input.figure ?? "",
+    });
     const existingById = new Map(existing.terms.map((term) => [String(term.id), term]));
     for (const term of input.terms) {
       const existingTerm = term.id ? existingById.get(String(term.id)) : undefined;
       if (existingTerm && typeof existingTerm.id === "number") {
+        if (term.languageId !== existingTerm.languageId) {
+          await client.addGlossaryTerm(glossaryId, {
+            languageId: term.languageId,
+            text: term.text,
+            description: term.description,
+            partOfSpeech: term.partOfSpeech,
+            status: term.status,
+            type: term.type,
+            gender: term.gender,
+            note: term.note,
+            url: term.url,
+            conceptId,
+          });
+          await client.deleteGlossaryTerm(glossaryId, existingTerm.id);
+          continue;
+        }
         await client.updateGlossaryTerm(glossaryId, existingTerm.id, [
-          { op: "replace", path: "/languageId", value: term.languageId },
           { op: "replace", path: "/text", value: term.text },
           { op: "replace", path: "/description", value: term.description ?? "" },
           { op: "replace", path: "/partOfSpeech", value: term.partOfSpeech ?? "" },
@@ -820,7 +838,6 @@ export class CrowdinTmsProvider extends TmsProvider {
           { op: "replace", path: "/gender", value: term.gender ?? "" },
           { op: "replace", path: "/note", value: term.note ?? "" },
           { op: "replace", path: "/url", value: term.url ?? "" },
-          { op: "replace", path: "/lemma", value: term.lemma ?? "" },
         ]);
       } else {
         await client.addGlossaryTerm(glossaryId, {
@@ -833,7 +850,6 @@ export class CrowdinTmsProvider extends TmsProvider {
           gender: term.gender,
           note: term.note,
           url: term.url,
-          lemma: term.lemma,
           conceptId,
         });
       }
@@ -860,7 +876,18 @@ export class CrowdinTmsProvider extends TmsProvider {
     input: CrowdinGlossaryTermInput,
   ) {
     const client = this.createClient(scope);
-    return client.addGlossaryTerm(glossaryId, { ...input, conceptId });
+    return client.addGlossaryTerm(glossaryId, {
+      languageId: input.languageId,
+      text: input.text,
+      description: input.description,
+      partOfSpeech: input.partOfSpeech,
+      status: input.status,
+      type: input.type,
+      gender: input.gender,
+      note: input.note,
+      url: input.url,
+      conceptId,
+    });
   }
 
   async updateLiveGlossaryTerm(
@@ -872,10 +899,25 @@ export class CrowdinTmsProvider extends TmsProvider {
   ) {
     const client = this.createClient(scope);
     const existing = await this.getLiveGlossaryConcept(scope, glossaryId, conceptId);
-    if (!existing || !existing.terms.some((term) => String(term.id) === String(termId)))
-      return null;
+    const existingTerm = existing?.terms.find((term) => String(term.id) === String(termId));
+    if (!existingTerm) return null;
+    if (input.languageId !== existingTerm.languageId) {
+      const replacement = await client.addGlossaryTerm(glossaryId, {
+        languageId: input.languageId,
+        text: input.text,
+        description: input.description,
+        partOfSpeech: input.partOfSpeech,
+        status: input.status,
+        type: input.type,
+        gender: input.gender,
+        note: input.note,
+        url: input.url,
+        conceptId,
+      });
+      await client.deleteGlossaryTerm(glossaryId, termId);
+      return replacement;
+    }
     return client.updateGlossaryTerm(glossaryId, termId, [
-      { op: "replace", path: "/languageId", value: input.languageId },
       { op: "replace", path: "/text", value: input.text },
       { op: "replace", path: "/description", value: input.description ?? "" },
       { op: "replace", path: "/partOfSpeech", value: input.partOfSpeech ?? "" },
@@ -884,7 +926,6 @@ export class CrowdinTmsProvider extends TmsProvider {
       { op: "replace", path: "/gender", value: input.gender ?? "" },
       { op: "replace", path: "/note", value: input.note ?? "" },
       { op: "replace", path: "/url", value: input.url ?? "" },
-      { op: "replace", path: "/lemma", value: input.lemma ?? "" },
     ]);
   }
 

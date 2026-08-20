@@ -14,6 +14,25 @@ import type { Glossary as NativeGlossaryRecord } from "@/lib/database/types";
 
 export type NativeGlossary = NativeGlossaryRecord;
 
+export const glossaryPartOfSpeechValues = [
+  "adjective",
+  "adposition",
+  "adverb",
+  "auxiliary",
+  "coordinating conjunction",
+  "determiner",
+  "interjection",
+  "noun",
+  "numeral",
+  "particle",
+  "pronoun",
+  "subordinating conjunction",
+  "verb",
+  "other",
+] as const;
+
+export type GlossaryPartOfSpeech = (typeof glossaryPartOfSpeechValues)[number];
+
 export type GlossaryTermRecord = {
   id: string;
   glossaryId: string;
@@ -107,6 +126,40 @@ export type NativeGlossaryConcept = {
   externalUpdatedAt?: string | null;
   terms: NativeGlossaryConceptTerm[];
 };
+
+export class GlossaryValidationError extends Error {
+  constructor(
+    readonly code: "invalid_part_of_speech",
+    message: string,
+  ) {
+    super(message);
+    this.name = "GlossaryValidationError";
+  }
+}
+
+export function normalizeGlossaryPartOfSpeech(
+  value: string | null | undefined,
+  options: { required?: boolean } = {},
+): GlossaryPartOfSpeech | undefined {
+  const required = options.required ?? true;
+  const normalized = value?.trim().toLowerCase() ?? "";
+  if (!normalized) {
+    if (!required) return undefined;
+    throw new GlossaryValidationError(
+      "invalid_part_of_speech",
+      "Every glossary term must have a valid part of speech",
+    );
+  }
+
+  const aliased = normalized === "preposition" ? "adposition" : normalized;
+  if (!(glossaryPartOfSpeechValues as readonly string[]).includes(aliased)) {
+    throw new GlossaryValidationError(
+      "invalid_part_of_speech",
+      "Every glossary term must have a valid part of speech",
+    );
+  }
+  return aliased as GlossaryPartOfSpeech;
+}
 
 export abstract class Glossary {
   abstract readonly kind: "native" | "crowdin";

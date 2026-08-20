@@ -293,6 +293,7 @@ export type TmsProviderLiveCatFile = ProjectFileCatQueueFile;
 
 export type TmsProviderLiveGlossary = {
   id: string;
+  providerKind: ExternalTmsProviderKind;
   name: string;
   description: string | null;
   sourceLocale: string;
@@ -4072,6 +4073,7 @@ function mapLiveGlossary(input: {
 }): TmsProviderLiveGlossary {
   return {
     id: `${input.providerKind}:glossary:${input.glossary.externalGlossaryId}`,
+    providerKind: input.providerKind,
     name: input.glossary.name,
     description: input.glossary.description ?? null,
     sourceLocale: input.glossary.sourceLocale,
