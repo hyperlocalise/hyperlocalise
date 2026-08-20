@@ -12,7 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { ArrowRight01Icon, CheckmarkCircle02Icon } from "@hugeicons/core-free-icons";
+import { ArrowRight01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import Link from "next/link";
 import { FormattedMessage } from "react-intl";
@@ -85,92 +85,6 @@ function ProductHero({ content }: ProductPageProps) {
           <IntegrationStripSection />
         </div>
       )}
-    </div>
-  );
-}
-
-function AutomationPrimaryVisual() {
-  const sources: ProductMessageKey[] = [
-    "visualAutomationSourceGitHub",
-    "visualAutomationSourceSlack",
-    "visualAutomationSourceCms",
-  ];
-  const destinations: ProductMessageKey[] = [
-    "visualAutomationDestReviewer",
-    "visualAutomationDestTms",
-    "visualAutomationDestRelease",
-  ];
-  const tasks: ProductMessageKey[] = [
-    "visualAutomationTaskDetectChangedStrings",
-    "visualAutomationTaskAttachProductContext",
-    "visualAutomationTaskCreateReviewerTasks",
-  ];
-
-  return (
-    <div className="relative h-full overflow-hidden rounded-lg border border-border bg-card p-4 shadow-2xl shadow-gray-alpha-100">
-      <div className="mb-4 flex items-center justify-between border-b border-border pb-3">
-        <div>
-          <div className="text-sm font-semibold">
-            <ProductMessage messageKey="visualAutomationLaunchRequest" />
-          </div>
-          <div className="text-xs text-muted-foreground">
-            <ProductMessage messageKey="visualAutomationLocalesWaiting" />
-          </div>
-        </div>
-        <div className="rounded-full bg-success/15 px-3 py-1 text-xs font-medium text-success-foreground dark:text-success">
-          <ProductMessage messageKey="visualAutomationStatusRunning" />
-        </div>
-      </div>
-      <div className="grid h-[calc(100%-4.5rem)] min-h-[24rem] gap-3 md:grid-cols-[0.8fr_1.15fr_0.8fr]">
-        <div className="flex flex-col gap-2">
-          {sources.map((sourceKey) => (
-            <div key={sourceKey} className="rounded-md border border-border bg-background p-3">
-              <div className="text-xs text-muted-foreground">
-                <ProductMessage messageKey="visualAutomationSignalLabel" />
-              </div>
-              <div className="text-sm font-semibold">
-                <ProductMessage messageKey={sourceKey} />
-              </div>
-            </div>
-          ))}
-        </div>
-        <div className="rounded-lg border border-primary/25 bg-primary/8 p-4">
-          <div className="mb-4 flex items-center justify-between">
-            <div>
-              <div className="text-sm font-semibold">
-                <ProductMessage messageKey="visualAutomationHyperlocaliseAgent" />
-              </div>
-              <div className="text-xs text-muted-foreground">
-                <ProductMessage messageKey="visualAutomationScopeContextRoute" />
-              </div>
-            </div>
-            <div className="size-2 rounded-full bg-primary" />
-          </div>
-          <div className="space-y-2">
-            {tasks.map((taskKey) => (
-              <div
-                key={taskKey}
-                className="flex items-center gap-2 rounded-md bg-background/80 px-3 py-2 text-xs"
-              >
-                <HugeiconsIcon icon={CheckmarkCircle02Icon} className="size-3.5 text-primary" />
-                <ProductMessage messageKey={taskKey} />
-              </div>
-            ))}
-          </div>
-        </div>
-        <div className="flex flex-col gap-2">
-          {destinations.map((destinationKey) => (
-            <div key={destinationKey} className="rounded-md border border-border bg-background p-3">
-              <div className="text-xs text-muted-foreground">
-                <ProductMessage messageKey="visualAutomationRouteLabel" />
-              </div>
-              <div className="text-sm font-semibold">
-                <ProductMessage messageKey={destinationKey} />
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
     </div>
   );
 }

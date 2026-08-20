@@ -13,7 +13,10 @@
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { expect } from "storybook/test";
 
-import { LAVENDER_MESH_GRADIENT_SRC, MeshStage } from "@/components/marketing/hero-frame-mesh-stage";
+import {
+  LAVENDER_MESH_GRADIENT_SRC,
+  MeshStage,
+} from "@/components/marketing/hero-frame-mesh-stage";
 
 import { AutomationsMockUI } from "./automations-mock-ui";
 

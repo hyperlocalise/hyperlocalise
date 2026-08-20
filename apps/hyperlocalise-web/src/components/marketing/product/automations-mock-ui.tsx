@@ -218,9 +218,7 @@ export function AutomationsMockUI() {
       id: "auto-review",
       title: intl.formatMessage(automationsMockMessages.useCaseAutoReviewTitle),
       description: intl.formatMessage(automationsMockMessages.useCaseAutoReviewDescription),
-      triggerIcon: (
-        <HugeiconsIcon icon={GitPullRequestIcon} strokeWidth={1.8} className="size-3" />
-      ),
+      triggerIcon: <HugeiconsIcon icon={GitPullRequestIcon} strokeWidth={1.8} className="size-3" />,
       triggerLabel: intl.formatMessage(automationsMockMessages.triggerGithubPullRequest),
       tools: [
         intl.formatMessage(automationsMockMessages.toolGitHub),

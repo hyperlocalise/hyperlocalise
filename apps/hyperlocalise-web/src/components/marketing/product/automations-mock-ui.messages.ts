@@ -20,7 +20,7 @@ export const automationsMockMessages = defineMessages({
   },
   headline: {
     defaultMessage: "Review localisation before it merges",
-    id: "zuBGly8hc0",
+    id: "fIjUMyYSYz",
     description: "Automations mock UI section heading",
   },
   botLabel: {
@@ -36,22 +36,22 @@ export const automationsMockMessages = defineMessages({
 
   useCaseAutoReviewTitle: {
     defaultMessage: "Auto-review",
-    id: "aUt0Rv1wT1",
+    id: "9kDc2CzQHo",
     description: "Automations mock UI Auto-review use case title",
   },
   useCaseAutoReviewDescription: {
     defaultMessage: "Review pull requests and post one sticky comment",
-    id: "k2mQ8nR4vL",
+    id: "b4zb6//QSL",
     description: "Automations mock UI Auto-review use case description",
   },
   useCaseAutoTranslationTitle: {
     defaultMessage: "Auto Translation",
-    id: "JoyCXV9ci7",
+    id: "c83abCYnIc",
     description: "Automations mock UI auto translation use case title",
   },
   useCaseAutoTranslationDescription: {
     defaultMessage: "Detect string changes and translate automatically",
-    id: "HV+orx8sr6",
+    id: "xLIQFiGFVJ",
     description: "Automations mock UI auto translation use case description",
   },
   useCaseLocalisationAuditTitle: {
@@ -72,7 +72,7 @@ export const automationsMockMessages = defineMessages({
   },
   triggerGithubPullRequest: {
     defaultMessage: "GitHub pull request opened",
-    id: "pR0p3n3dHq",
+    id: "/6wXYQGzwZ",
     description: "Automations mock UI trigger label for a GitHub pull request opening",
   },
   triggerGithubRelease: {
@@ -103,7 +103,7 @@ export const automationsMockMessages = defineMessages({
   },
   toolMentionReview: {
     defaultMessage: "@hyperlocalise review",
-    id: "m3nT10nRv1",
+    id: "mNhu5W2AEy",
     description: "Automations mock UI tool label for the mention review command",
   },
   toolSlack: {
@@ -140,22 +140,22 @@ export const automationsMockMessages = defineMessages({
 
   stepAutoReview1: {
     defaultMessage: "Pull request opened on checkout-fr",
-    id: "aR3vStp001",
+    id: "3ewdsyHYyw",
     description: "Automations mock UI Auto-review step 1",
   },
   stepAutoReview2: {
     defaultMessage: "Reading localisation diff...",
-    id: "aR3vStp002",
+    id: "31b9kvfP1i",
     description: "Automations mock UI Auto-review step 2",
   },
   stepAutoReview3: {
     defaultMessage: "Checked missing translations and placeholders",
-    id: "aR3vStp003",
+    id: "YBk75aHrs3",
     description: "Automations mock UI Auto-review step 3",
   },
   stepAutoReview4: {
     defaultMessage: "Posted sticky review comment",
-    id: "aR3vStp004",
+    id: "aGgOWl6hrF",
     description: "Automations mock UI Auto-review step 4",
   },
 
