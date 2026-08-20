@@ -14,7 +14,8 @@
  */
 import { useEffect, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
-import { ClockIcon, GitBranchIcon, SparklesIcon, UploadIcon } from "lucide-react";
+import { Clock01Icon, GitBranchIcon, SparklesIcon, Upload01Icon, CheckmarkCircle02Icon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import { FormattedMessage, useIntl } from "react-intl";
 
 import { Button } from "@/components/ui/button";
@@ -217,7 +218,7 @@ export function AutomationsMockUI() {
       id: "auto-translation",
       title: intl.formatMessage(automationsMockMessages.useCaseAutoTranslationTitle),
       description: intl.formatMessage(automationsMockMessages.useCaseAutoTranslationDescription),
-      triggerIcon: <UploadIcon className="size-3" />,
+      triggerIcon: <HugeiconsIcon icon={Upload01Icon} strokeWidth={1.8} className="size-3" />,
       triggerLabel: intl.formatMessage(automationsMockMessages.triggerSourceUpload),
       tools: [
         intl.formatMessage(automationsMockMessages.toolCreateJob),
@@ -235,7 +236,7 @@ export function AutomationsMockUI() {
       id: "review-with-agent",
       title: intl.formatMessage(automationsMockMessages.useCaseReviewWithAgentTitle),
       description: intl.formatMessage(automationsMockMessages.useCaseReviewWithAgentDescription),
-      triggerIcon: <GitBranchIcon className="size-3" />,
+      triggerIcon: <HugeiconsIcon icon={GitBranchIcon} strokeWidth={1.8} className="size-3" />,
       triggerLabel: intl.formatMessage(automationsMockMessages.triggerGithubMain),
       tools: [
         intl.formatMessage(automationsMockMessages.toolGitHub),
@@ -253,7 +254,7 @@ export function AutomationsMockUI() {
       id: "localisation-audit",
       title: intl.formatMessage(automationsMockMessages.useCaseLocalisationAuditTitle),
       description: intl.formatMessage(automationsMockMessages.useCaseLocalisationAuditDescription),
-      triggerIcon: <ClockIcon className="size-3" />,
+      triggerIcon: <HugeiconsIcon icon={Clock01Icon} strokeWidth={1.8} className="size-3" />,
       triggerLabel: intl.formatMessage(automationsMockMessages.triggerGithubRelease),
       tools: [
         intl.formatMessage(automationsMockMessages.toolGitHub),
