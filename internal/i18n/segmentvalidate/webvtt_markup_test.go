@@ -4,9 +4,9 @@ import "testing"
 
 func TestWebVTTCueMarkupParity(t *testing.T) {
 	tests := []struct {
-		name        string
-		source      string
-		translated  string
+		name         string
+		source       string
+		translated   string
 		wantMismatch bool
 	}{
 		{
