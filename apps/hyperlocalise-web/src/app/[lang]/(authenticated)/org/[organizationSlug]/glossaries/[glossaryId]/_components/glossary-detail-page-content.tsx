@@ -53,6 +53,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
 import { TypographyH1, TypographyP } from "@/components/ui/typography";
 import { readApiError } from "@/lib/api-error";
@@ -1775,11 +1776,13 @@ export function GlossaryDetailPageContent({
                     </Button>
                     <Button
                       type="button"
+                      aria-busy={saveConcept.isPending}
                       disabled={
                         !conceptDraft.primaryTerm.trim() || !isDirty || saveConcept.isPending
                       }
                       onClick={() => saveConcept.mutate(conceptDraft)}
                     >
+                      {saveConcept.isPending ? <Spinner className="size-4" /> : null}
                       <FormattedMessage {...messages.save} />
                     </Button>
                   </div>
