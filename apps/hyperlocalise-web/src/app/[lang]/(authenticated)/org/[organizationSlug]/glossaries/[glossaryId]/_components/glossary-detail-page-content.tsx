@@ -450,11 +450,14 @@ export function GlossaryDetailPageContent({
           json: {
             ...draft,
             url: draft.url || undefined,
-            terms: creatingTermDrafts.map(({ id: _id, ...term }) => ({
-              ...term,
-              caseSensitive: false,
-              forbidden: false,
-            })),
+            terms: creatingTermDrafts
+              .filter(({ term }) => term.trim())
+              .map(({ id: _id, ...term }) => ({
+                ...term,
+                term: term.term.trim(),
+                caseSensitive: false,
+                forbidden: false,
+              })),
           },
         });
         if (!response.ok)
@@ -1151,6 +1154,7 @@ export function GlossaryDetailPageContent({
                                       <Input
                                         autoFocus={creatingTermDrafts.at(-1)?.id === term.id}
                                         className="h-7"
+                                        placeholder={intl.formatMessage(messages.termLabel)}
                                         value={term.term}
                                         onChange={(event) =>
                                           setCreatingTermDrafts((drafts) =>
