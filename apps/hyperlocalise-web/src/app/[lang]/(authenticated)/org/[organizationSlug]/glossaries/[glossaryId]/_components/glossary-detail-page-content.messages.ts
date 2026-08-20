@@ -15,6 +15,31 @@
 import { defineMessages } from "react-intl";
 
 export const glossaryDetailPageContentMessages = defineMessages({
+  editName: {
+    defaultMessage: "Edit glossary name",
+    id: "8Pm5sD+4i4",
+    description: "Accessible label for editing the glossary name",
+  },
+  saveName: {
+    defaultMessage: "Save glossary name",
+    id: "oHlz44sQOv",
+    description: "Accessible label for saving the glossary name",
+  },
+  cancelNameEdit: {
+    defaultMessage: "Cancel glossary name edit",
+    id: "fxdG0zsb5y",
+    description: "Accessible label for canceling the glossary name edit",
+  },
+  glossaryNameUpdated: {
+    defaultMessage: "Glossary name updated",
+    id: "wOWEjY5VIH",
+    description: "Toast after the glossary name is updated successfully",
+  },
+  updateGlossaryNameFailed: {
+    defaultMessage: "Unable to update glossary name",
+    id: "nIdUueH9Jz",
+    description: "Fallback error when updating the glossary name fails",
+  },
   loadGlossaryFailed: {
     defaultMessage: "Unable to load glossary",
     id: "zdN3ToHnj1",
@@ -204,6 +229,16 @@ export const glossaryDetailPageContentMessages = defineMessages({
     defaultMessage: "This glossary is used only by the projects listed here.",
     id: "LMGo1sN8VQ",
     description: "Section description for projects assigned to a glossary",
+  },
+  linkedProjectTitle: {
+    defaultMessage: "Linked project",
+    id: "kngndgvdvd",
+    description: "Section title for the project linked to a provider glossary",
+  },
+  linkedProjectDescription: {
+    defaultMessage: "This project is linked to the glossary in Crowdin.",
+    id: "wdTIdTeD/X",
+    description: "Section description for a provider-linked project",
   },
   selectProjectPlaceholder: {
     defaultMessage: "Select project",

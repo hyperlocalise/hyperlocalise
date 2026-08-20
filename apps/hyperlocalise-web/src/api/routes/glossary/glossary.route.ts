@@ -192,11 +192,39 @@ function parseGlossaryImport(payload: ImportGlossaryTermsBody): CreateGlossaryTe
 
 async function listGlossaryProjects(
   auth: ApiAuthContext,
-  glossaryId: string,
+  glossary: Awaited<ReturnType<typeof getOwnedGlossary>>,
 ): Promise<GlossaryProjectRecord[]> {
-  const accessibleProjectsWhere = await buildAccessibleProjectsWhere(auth);
+  if (!glossary) return [];
 
-  return db
+  const accessibleProjectsWhere = await buildAccessibleProjectsWhere(auth);
+  if (
+    glossary.source === "external_tms" &&
+    glossary.externalProviderKind === "crowdin" &&
+    glossary.externalProjectId
+  ) {
+    const [providerProject] = await db
+      .select({
+        projectId: schema.projects.id,
+        projectName: schema.projects.name,
+        sourceLocale: schema.projects.sourceLocale,
+        targetLocales: schema.projects.targetLocales,
+      })
+      .from(schema.projects)
+      .where(
+        and(
+          eq(schema.projects.organizationId, auth.organization.localOrganizationId),
+          eq(schema.projects.source, "external_tms"),
+          eq(schema.projects.externalProviderKind, "crowdin"),
+          eq(schema.projects.externalProjectId, glossary.externalProjectId),
+          accessibleProjectsWhere,
+        ),
+      )
+      .limit(1);
+
+    return providerProject ? [{ ...providerProject, priority: 0 }] : [];
+  }
+
+  const attachedProjects = await db
     .select({
       projectId: schema.projects.id,
       projectName: schema.projects.name,
@@ -209,11 +237,13 @@ async function listGlossaryProjects(
     .where(
       and(
         eq(schema.projectGlossaries.organizationId, auth.organization.localOrganizationId),
-        eq(schema.projectGlossaries.glossaryId, glossaryId),
+        eq(schema.projectGlossaries.glossaryId, glossary.id),
         accessibleProjectsWhere,
       ),
     )
     .orderBy(schema.projectGlossaries.priority, schema.projects.name);
+
+  return attachedProjects;
 }
 
 const validateGlossaryParams = validator("param", (value, c) => {
@@ -564,7 +594,7 @@ export function createGlossaryRoutes() {
         return glossaryNotFoundResponse(c);
       }
 
-      return c.json({ projects: await listGlossaryProjects(c.var.auth, params.glossaryId) }, 200);
+      return c.json({ projects: await listGlossaryProjects(c.var.auth, glossary) }, 200);
     })
     .post(
       "/:glossaryId/projects",
@@ -593,7 +623,7 @@ export function createGlossaryRoutes() {
         if (!product) return externalTmsGlossaryImmutableResponse(c);
         await product.attachProject(project.id, payload.priority);
 
-        return c.json({ projects: await listGlossaryProjects(c.var.auth, params.glossaryId) }, 200);
+        return c.json({ projects: await listGlossaryProjects(c.var.auth, glossary) }, 200);
       },
     )
     .delete("/:glossaryId/projects/:projectId", validateGlossaryProjectParams, async (c) => {

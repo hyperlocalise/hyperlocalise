@@ -31,10 +31,19 @@ export function createGlossaryDetailMswHandlers({
   projects?: Array<{ id: string; name: string; sourceLocale: string }>;
   conceptsLoading?: boolean;
 }) {
+  let currentGlossary = glossary;
+
   return [
     http.get("/api/orgs/:organizationSlug/glossaries/:glossaryId", () =>
-      HttpResponse.json({ glossary }),
+      HttpResponse.json({ glossary: currentGlossary }),
     ),
+    http.patch("/api/orgs/:organizationSlug/glossaries/:glossaryId", async ({ request }) => {
+      const body = (await request.json()) as { name?: string };
+      currentGlossary = { ...currentGlossary, name: body.name ?? currentGlossary.name };
+      return HttpResponse.json({
+        glossary: currentGlossary,
+      });
+    }),
     http.get("/api/orgs/:organizationSlug/glossaries/:glossaryId/concepts", async () => {
       if (conceptsLoading) await delay("infinite");
       return HttpResponse.json({ concepts, total: concepts.length });
