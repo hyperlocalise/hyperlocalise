@@ -561,18 +561,9 @@ export function createGlossaryRoutes() {
           return projectNotFoundResponse(c);
         }
 
-        await db
-          .insert(schema.projectGlossaries)
-          .values({
-            organizationId: c.var.auth.organization.localOrganizationId,
-            projectId: project.id,
-            glossaryId: glossary.id,
-            priority: payload.priority,
-          })
-          .onConflictDoUpdate({
-            target: [schema.projectGlossaries.projectId, schema.projectGlossaries.glossaryId],
-            set: { priority: payload.priority },
-          });
+        const product = getGlossaryProduct({ auth: c.var.auth, glossary });
+        if (!product) return externalTmsGlossaryImmutableResponse(c);
+        await product.attachProject(project.id, payload.priority);
 
         return c.json({ projects: await listGlossaryProjects(c.var.auth, params.glossaryId) }, 200);
       },
@@ -595,18 +586,9 @@ export function createGlossaryRoutes() {
         return projectNotFoundResponse(c);
       }
 
-      await db
-        .delete(schema.projectGlossaries)
-        .where(
-          and(
-            eq(
-              schema.projectGlossaries.organizationId,
-              c.var.auth.organization.localOrganizationId,
-            ),
-            eq(schema.projectGlossaries.projectId, project.id),
-            eq(schema.projectGlossaries.glossaryId, glossary.id),
-          ),
-        );
+      const product = getGlossaryProduct({ auth: c.var.auth, glossary });
+      if (!product) return externalTmsGlossaryImmutableResponse(c);
+      await product.detachProject(project.id);
 
       return c.body(null, 204);
     })

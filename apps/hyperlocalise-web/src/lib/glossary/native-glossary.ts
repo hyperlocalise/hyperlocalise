@@ -520,6 +520,36 @@ export class NativeGlossary extends Glossary {
     return deleted.length > 0;
   }
 
+  async attachProject(projectId: string, priority: number) {
+    await db
+      .insert(schema.projectGlossaries)
+      .values({
+        organizationId: this.input.auth.organization.localOrganizationId,
+        projectId,
+        glossaryId: this.input.glossary.id,
+        priority,
+      })
+      .onConflictDoUpdate({
+        target: [schema.projectGlossaries.projectId, schema.projectGlossaries.glossaryId],
+        set: { priority },
+      });
+  }
+
+  async detachProject(projectId: string) {
+    await db
+      .delete(schema.projectGlossaries)
+      .where(
+        and(
+          eq(
+            schema.projectGlossaries.organizationId,
+            this.input.auth.organization.localOrganizationId,
+          ),
+          eq(schema.projectGlossaries.projectId, projectId),
+          eq(schema.projectGlossaries.glossaryId, this.input.glossary.id),
+        ),
+      );
+  }
+
   async createTerm(conceptId: string, input: NativeGlossaryTermInput) {
     const [term] = await db
       .insert(schema.glossaryTerms)

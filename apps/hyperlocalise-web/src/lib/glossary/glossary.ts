@@ -134,6 +134,8 @@ export abstract class Glossary {
     input: GlossaryTermUpdateInput,
   ): Promise<GlossaryTermRecord | { error: "duplicate" } | null>;
   abstract deleteGlossaryTerm(termId: string): Promise<boolean>;
+  abstract attachProject(projectId: string, priority: number): Promise<void>;
+  abstract detachProject(projectId: string): Promise<void>;
   abstract createTerm(
     conceptId: string,
     term: NativeGlossaryTermInput,
