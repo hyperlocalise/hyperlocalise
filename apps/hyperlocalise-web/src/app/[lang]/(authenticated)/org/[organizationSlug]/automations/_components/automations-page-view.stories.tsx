@@ -43,6 +43,7 @@ const meta = {
         },
       ],
     },
+    onSaveAutoReview: async () => {},
   },
 } satisfies Meta<typeof AutomationsPageView>;
 
@@ -55,6 +56,7 @@ export const Default: Story = {
     await expect(canvas.getByRole("heading", { name: "From Hyperlocalise" })).toBeInTheDocument();
     await expect(canvas.getByText("Auto-review")).toBeInTheDocument();
     await expect(canvas.getByText("acme/app")).toBeInTheDocument();
+    await expect(canvas.getByRole("button", { name: "Save" })).toBeInTheDocument();
     await expect(canvas.getByText("Validate localisation on push")).toBeInTheDocument();
     await expect(canvas.getByText("Weekly translation sync")).toBeInTheDocument();
     await expect(canvas.getByText("Ada Lovelace")).toBeInTheDocument();
