@@ -32,6 +32,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
+import { buildAutomationsPath } from "@/components/app-shell/navigation-config";
 import { apiClient } from "@/lib/api-client-instance";
 import {
   createWorkspaceAutomationFormStateFromRecord,
@@ -47,11 +48,13 @@ import { WorkspaceAutomationEditor } from "./workspace-automation-form";
 
 export function AutomationDetailPageContent({
   organizationSlug,
+  projectId,
   automationId,
   knowledgeAvailable = false,
   canUpdateKnowledgeMemory = false,
 }: {
   organizationSlug: string;
+  projectId?: string;
   automationId: string;
   knowledgeAvailable?: boolean;
   canUpdateKnowledgeMemory?: boolean;
@@ -59,6 +62,7 @@ export function AutomationDetailPageContent({
   const intl = useIntl();
   const router = useRouter();
   const queryClient = useQueryClient();
+  const automationsBasePath = buildAutomationsPath(organizationSlug, { projectId });
 
   const automationQuery = useQuery({
     queryKey: ["workspace-automation", organizationSlug, automationId],
@@ -202,7 +206,7 @@ export function AutomationDetailPageContent({
         queryKey: ["workspace-automations", organizationSlug],
       });
       setDeleteDialogOpen(false);
-      router.push(`/org/${organizationSlug}/automations`);
+      router.push(automationsBasePath);
     },
     onError: (error) => {
       if (error.message === "save_in_progress") {

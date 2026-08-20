@@ -948,8 +948,24 @@ export async function getWorkspaceAutomationById(input: {
   return row ? serializeAutomationWithAuthor(row) : null;
 }
 
+function workspaceAutomationMatchesProjectId(projectId: string) {
+  return or(
+    eq(schema.workspaceAutomations.projectId, projectId),
+    and(
+      isNull(schema.workspaceAutomations.projectId),
+      sql`(
+        ${schema.workspaceAutomations.toolConfig}->'contentful'->>'projectId' = ${projectId}
+        OR ${schema.workspaceAutomations.toolConfig}->'translation'->>'projectId' = ${projectId}
+        OR ${schema.workspaceAutomations.toolConfig}->'github'->>'projectId' = ${projectId}
+        OR ${schema.workspaceAutomations.toolConfig}->'createNativeTmsJob'->>'projectId' = ${projectId}
+      )`,
+    ),
+  );
+}
+
 export async function listWorkspaceAutomations(input: {
   organizationId: string;
+  projectId?: string;
   status?: WorkspaceAutomationStatus;
   contentfulWebhookConnectionId?: string;
   contentfulWebhookContentTypeId?: string | null;
@@ -963,6 +979,7 @@ export async function listWorkspaceAutomations(input: {
 
   const conditions = [
     eq(schema.workspaceAutomations.organizationId, input.organizationId),
+    ...(input.projectId ? [workspaceAutomationMatchesProjectId(input.projectId)] : []),
     ...(input.status ? [eq(schema.workspaceAutomations.status, input.status)] : []),
     ...(input.contentfulWebhookConnectionId
       ? [
@@ -1022,16 +1039,7 @@ export async function listSourceUploadWorkspaceAutomations(input: {
           ${schema.workspaceAutomations.toolConfig}->'createNativeTmsJob'->>'enabled' = 'true'
           OR ${schema.workspaceAutomations.toolConfig}->'translation'->>'enabled' = 'true'
         )`,
-        or(
-          eq(schema.workspaceAutomations.projectId, input.projectId),
-          and(
-            isNull(schema.workspaceAutomations.projectId),
-            sql`(
-              ${schema.workspaceAutomations.toolConfig}->'createNativeTmsJob'->>'projectId' = ${input.projectId}
-              OR ${schema.workspaceAutomations.toolConfig}->'translation'->>'projectId' = ${input.projectId}
-            )`,
-          ),
-        ),
+        workspaceAutomationMatchesProjectId(input.projectId),
       ),
     )
     .orderBy(desc(schema.workspaceAutomations.createdAt))

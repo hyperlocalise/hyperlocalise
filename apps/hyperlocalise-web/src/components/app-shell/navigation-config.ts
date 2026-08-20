@@ -73,6 +73,26 @@ export function buildProjectPath(organizationSlug: string, projectId: string, se
   return section ? `${base}/${section}` : base;
 }
 
+export function buildAutomationsPath(
+  organizationSlug: string,
+  options?: {
+    automationId?: string;
+    projectId?: string;
+    section?: "new";
+  },
+) {
+  const suffix = options?.section === "new" ? "new" : options?.automationId;
+  if (options?.projectId) {
+    return suffix
+      ? buildProjectPath(organizationSlug, options.projectId, `automations/${suffix}`)
+      : buildProjectPath(organizationSlug, options.projectId, "automations");
+  }
+
+  return suffix
+    ? buildOrganizationPath(organizationSlug, `automations/${suffix}`)
+    : buildOrganizationPath(organizationSlug, "automations");
+}
+
 export function buildGlobalNavigationGroups(
   organizationSlug: string,
   intl: IntlShape,
@@ -317,6 +337,16 @@ export function buildProjectNavigationItems(
       }),
       href: project("issue-sheet"),
       icon: ClipboardListIcon,
+    },
+    {
+      label: intl.formatMessage({
+        defaultMessage: "Automations",
+        id: "kQ8mN4pR2s",
+        description: "Project sidebar navigation item for project automations",
+      }),
+      href: project("automations"),
+      icon: Task01Icon,
+      featureFlagKey: WORKSPACE_AUTOMATIONS_FLAG,
     },
     {
       label: intl.formatMessage({

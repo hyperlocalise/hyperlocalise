@@ -14,7 +14,7 @@ import { createIntl } from "@formatjs/intl";
 import { describe, expect, it } from "vite-plus/test";
 
 import { createAutomationSummary } from "./automations.fixture";
-import { resolveAutomationCreatorName } from "./automations-page-view-model";
+import { resolveAutomationCreatorName, resolveVisibleAutomations } from "./automations-page-view-model";
 
 const intl = createIntl({ locale: "en", messages: {} });
 
@@ -29,5 +29,26 @@ describe("resolveAutomationCreatorName", () => {
     expect(resolveAutomationCreatorName(intl, createAutomationSummary({ authorName: null }))).toBe(
       "Unknown",
     );
+  });
+});
+
+describe("resolveVisibleAutomations", () => {
+  it("hides archived automations", () => {
+    const visible = createAutomationSummary({ id: "visible", status: "active" });
+    const archived = createAutomationSummary({ id: "archived", status: "archived" });
+
+    expect(resolveVisibleAutomations([visible, archived]).map((item) => item.id)).toEqual([
+      "visible",
+    ]);
+  });
+
+  it("keeps automations for the selected project", () => {
+    const matching = createAutomationSummary({ id: "matching", projectId: "project-1" });
+    const other = createAutomationSummary({ id: "other", projectId: "project-2" });
+    const unscoped = createAutomationSummary({ id: "unscoped", projectId: null });
+
+    expect(
+      resolveVisibleAutomations([matching, other, unscoped], "project-1").map((item) => item.id),
+    ).toEqual(["matching"]);
   });
 });
