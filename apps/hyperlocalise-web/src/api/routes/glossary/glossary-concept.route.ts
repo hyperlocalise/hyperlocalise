@@ -60,28 +60,35 @@ import {
 } from "./glossary.shared";
 
 function crowdinStatus(status: string | undefined) {
-  return status === "preferred"
-    ? "preferred"
-    : status === "admitted"
-      ? "admitted"
-      : status === "not_recommended"
-        ? "not recommended"
-        : status === "obsolete"
-          ? "obsolete"
-          : "draft";
+  switch (status) {
+    case "preferred":
+      return "preferred";
+    case "admitted":
+      return "admitted";
+    case "not_recommended":
+      return "not recommended";
+    case "obsolete":
+      return "obsolete";
+    default:
+      return "draft";
+  }
 }
 
 function localStatus(status: string | null | undefined) {
   const normalized = status?.toLowerCase();
-  return normalized === "preferred"
-    ? "preferred"
-    : normalized === "admitted"
-      ? "admitted"
-      : normalized === "not recommended" || normalized === "not_recommended"
-        ? "not_recommended"
-        : normalized === "obsolete"
-          ? "obsolete"
-          : "draft";
+  switch (normalized) {
+    case "preferred":
+      return "preferred";
+    case "admitted":
+      return "admitted";
+    case "not recommended":
+    case "not_recommended":
+      return "not_recommended";
+    case "obsolete":
+      return "obsolete";
+    default:
+      return "draft";
+  }
 }
 
 function toCrowdinConceptInput(
