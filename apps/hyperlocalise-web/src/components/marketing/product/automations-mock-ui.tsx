@@ -14,7 +14,13 @@
  */
 import { useEffect, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
-import { Clock01Icon, GitBranchIcon, SparklesIcon, Upload01Icon, CheckmarkCircle02Icon } from "@hugeicons/core-free-icons";
+import {
+  Clock01Icon,
+  GitBranchIcon,
+  SparklesIcon,
+  Upload01Icon,
+  CheckmarkCircle02Icon,
+} from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { FormattedMessage, useIntl } from "react-intl";
 

@@ -16,7 +16,12 @@ import type { ReactNode } from "react";
 import { useEffect, useRef, useState } from "react";
 import { motion } from "motion/react";
 import { CheckIcon } from "lucide-react";
-import { GitBranchIcon, PlusSignIcon, SecurityCheckIcon, Tick01Icon } from "@hugeicons/core-free-icons";
+import {
+  GitBranchIcon,
+  PlusSignIcon,
+  SecurityCheckIcon,
+  Tick01Icon,
+} from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { FormattedMessage, useIntl } from "react-intl";
 import Image from "next/image";
@@ -231,7 +236,11 @@ function VerticalStepper({
                     !isDone && !isActive && "border-border bg-transparent text-muted-foreground",
                   )}
                 >
-                  {isDone ? <HugeiconsIcon icon={Tick01Icon} strokeWidth={2} className="size-3" /> : i + 1}
+                  {isDone ? (
+                    <HugeiconsIcon icon={Tick01Icon} strokeWidth={2} className="size-3" />
+                  ) : (
+                    i + 1
+                  )}
                 </button>
                 {i < steps.length - 1 && (
                   <div
