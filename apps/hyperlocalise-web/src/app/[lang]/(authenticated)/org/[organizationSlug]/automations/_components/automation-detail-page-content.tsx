@@ -14,7 +14,7 @@
  */
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Delete02Icon, PlayIcon, SaveIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -82,6 +82,7 @@ export function AutomationDetailPageContent({
   > | null>(null);
   const [errors, setErrors] = useState<Record<string, string | undefined>>({});
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const writeLockRef = useRef<"save" | "delete" | null>(null);
 
   useEffect(() => {
     if (automation) {
@@ -94,32 +95,42 @@ export function AutomationDetailPageContent({
       if (!form) {
         throw new Error("missing_form");
       }
-
-      const fieldErrors = validateWorkspaceAutomationFormState(form);
-      if (Object.keys(fieldErrors).length > 0) {
-        setErrors(fieldErrors);
-        throw new Error("validation_failed");
+      if (writeLockRef.current === "delete") {
+        throw new Error("delete_in_progress");
       }
+      writeLockRef.current = "save";
 
-      const payload = formStateToWorkspaceAutomationPayload(form);
-      const response = await apiClient.api.orgs[":organizationSlug"].automations[
-        ":automationId"
-      ].$patch({
-        param: { organizationSlug, automationId },
-        json: payload,
-      });
-
-      if (!response.ok) {
-        const body = (await response.json().catch(() => null)) as {
-          error?: string;
-        } | null;
-        if (body?.error) {
-          setErrors(mapWorkspaceAutomationApiErrorToFieldErrors(body.error));
+      try {
+        const fieldErrors = validateWorkspaceAutomationFormState(form);
+        if (Object.keys(fieldErrors).length > 0) {
+          setErrors(fieldErrors);
+          throw new Error("validation_failed");
         }
-        throw new Error("Failed to update automation");
-      }
 
-      return response.json();
+        const payload = formStateToWorkspaceAutomationPayload(form);
+        const response = await apiClient.api.orgs[":organizationSlug"].automations[
+          ":automationId"
+        ].$patch({
+          param: { organizationSlug, automationId },
+          json: payload,
+        });
+
+        if (!response.ok) {
+          const body = (await response.json().catch(() => null)) as {
+            error?: string;
+          } | null;
+          if (body?.error) {
+            setErrors(mapWorkspaceAutomationApiErrorToFieldErrors(body.error));
+          }
+          throw new Error("Failed to update automation");
+        }
+
+        return response.json();
+      } finally {
+        if (writeLockRef.current === "save") {
+          writeLockRef.current = null;
+        }
+      }
     },
     onSuccess: () => {
       toast.success(intl.formatMessage(automationDetailPageContentMessages.updateSuccess));
@@ -131,7 +142,7 @@ export function AutomationDetailPageContent({
       });
     },
     onError: (error) => {
-      if (error.message === "validation_failed") {
+      if (error.message === "validation_failed" || error.message === "delete_in_progress") {
         return;
       }
       toast.error(intl.formatMessage(automationDetailPageContentMessages.updateError));
@@ -166,13 +177,23 @@ export function AutomationDetailPageContent({
 
   const deleteMutation = useMutation({
     mutationFn: async () => {
-      const response = await apiClient.api.orgs[":organizationSlug"].automations[
-        ":automationId"
-      ].$delete({
-        param: { organizationSlug, automationId },
-      });
-      if (!response.ok) {
-        throw new Error("Failed to delete automation");
+      if (writeLockRef.current === "save") {
+        throw new Error("save_in_progress");
+      }
+      writeLockRef.current = "delete";
+      try {
+        const response = await apiClient.api.orgs[":organizationSlug"].automations[
+          ":automationId"
+        ].$delete({
+          param: { organizationSlug, automationId },
+        });
+        if (!response.ok) {
+          throw new Error("Failed to delete automation");
+        }
+      } finally {
+        if (writeLockRef.current === "delete") {
+          writeLockRef.current = null;
+        }
       }
     },
     onSuccess: () => {
@@ -183,7 +204,10 @@ export function AutomationDetailPageContent({
       setDeleteDialogOpen(false);
       router.push(`/org/${organizationSlug}/automations`);
     },
-    onError: () => {
+    onError: (error) => {
+      if (error.message === "save_in_progress") {
+        return;
+      }
       toast.error(intl.formatMessage(automationDetailPageContentMessages.deleteError));
     },
   });
@@ -203,6 +227,9 @@ export function AutomationDetailPageContent({
   const showRunButton =
     workspaceAutomationFormSupportsOnDemandRun(form.triggerMode) &&
     workspaceAutomationFormSupportsOnDemandRun(savedForm.triggerMode);
+  const saveInFlight = saveMutation.isPending;
+  const deleteInFlight = deleteMutation.isPending;
+  const writeInFlight = saveInFlight || deleteInFlight;
 
   return (
     <WorkspacePageShell className="max-w-5xl">
@@ -219,8 +246,13 @@ export function AutomationDetailPageContent({
           <div className="flex gap-2">
             <Button
               variant="outline"
-              onClick={() => setDeleteDialogOpen(true)}
-              disabled={deleteMutation.isPending}
+              onClick={() => {
+                if (writeInFlight) {
+                  return;
+                }
+                setDeleteDialogOpen(true);
+              }}
+              disabled={writeInFlight}
             >
               <HugeiconsIcon icon={Delete02Icon} strokeWidth={1.8} data-icon="inline-start" />
               <FormattedMessage {...automationDetailPageContentMessages.deleteAutomation} />
@@ -240,15 +272,20 @@ export function AutomationDetailPageContent({
               </Button>
             ) : null}
             <Button
-              onClick={() => saveMutation.mutate()}
-              disabled={saveMutation.isPending || !hasChanges}
+              onClick={() => {
+                if (deleteInFlight) {
+                  return;
+                }
+                saveMutation.mutate();
+              }}
+              disabled={writeInFlight || !hasChanges}
             >
-              {saveMutation.isPending ? (
+              {saveInFlight ? (
                 <Spinner data-icon="inline-start" />
               ) : (
                 <HugeiconsIcon icon={SaveIcon} strokeWidth={1.8} data-icon="inline-start" />
               )}
-              {saveMutation.isPending ? (
+              {saveInFlight ? (
                 <FormattedMessage {...automationDetailPageContentMessages.saving} />
               ) : (
                 <FormattedMessage {...automationDetailPageContentMessages.saveChanges} />
@@ -258,7 +295,18 @@ export function AutomationDetailPageContent({
         }
       />
 
-      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+      <AlertDialog
+        open={deleteDialogOpen}
+        onOpenChange={(open) => {
+          if (deleteInFlight) {
+            return;
+          }
+          if (open && saveInFlight) {
+            return;
+          }
+          setDeleteDialogOpen(open);
+        }}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>
@@ -271,20 +319,25 @@ export function AutomationDetailPageContent({
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={deleteMutation.isPending}>
+            <AlertDialogCancel disabled={deleteInFlight}>
               <FormattedMessage {...automationDetailPageContentMessages.deleteCancel} />
             </AlertDialogCancel>
             <Button
               variant="destructive"
-              disabled={deleteMutation.isPending}
-              onClick={() => deleteMutation.mutate()}
+              disabled={writeInFlight}
+              onClick={() => {
+                if (saveInFlight) {
+                  return;
+                }
+                deleteMutation.mutate();
+              }}
             >
-              {deleteMutation.isPending ? (
+              {deleteInFlight ? (
                 <Spinner />
               ) : (
                 <HugeiconsIcon icon={Delete02Icon} strokeWidth={1.8} />
               )}
-              {deleteMutation.isPending ? (
+              {deleteInFlight ? (
                 <FormattedMessage {...automationDetailPageContentMessages.deleting} />
               ) : (
                 <FormattedMessage {...automationDetailPageContentMessages.deleteConfirm} />

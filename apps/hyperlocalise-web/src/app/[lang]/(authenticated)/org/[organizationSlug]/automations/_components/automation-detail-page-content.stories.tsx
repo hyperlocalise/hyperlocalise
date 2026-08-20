@@ -162,6 +162,65 @@ export const SaveEnablesAfterFormChange: Story = {
     await userEvent.clear(nameInput);
     await userEvent.type(nameInput, "Nightly translation sync");
     await expect(canvas.getByRole("button", { name: "Save changes" })).toBeEnabled();
+    await expect(canvas.getByRole("button", { name: "Delete" })).toBeEnabled();
     await expect(canvas.getByRole("button", { name: "Run now" })).toBeInTheDocument();
+  },
+};
+
+export const SavePendingDisablesDelete: Story = {
+  args: {
+    automationId: scheduledAutomation.id,
+  },
+  parameters: {
+    msw: {
+      handlers: createAutomationDetailMswHandlers(scheduledAutomation, {
+        patchDelay: "infinite",
+      }),
+    },
+    nextjs: {
+      navigation: {
+        pathname: `/org/acme/automations/${scheduledAutomation.id}`,
+      },
+    },
+  },
+  play: async ({ canvas, userEvent }) => {
+    const nameInput = await canvas.findByDisplayValue("Weekly translation sync");
+    await userEvent.clear(nameInput);
+    await userEvent.type(nameInput, "Nightly translation sync");
+    await expect(canvas.getByRole("button", { name: "Delete" })).toBeEnabled();
+    await userEvent.click(canvas.getByRole("button", { name: "Save changes" }));
+    await expect(canvas.getByRole("button", { name: /Saving/ })).toBeDisabled();
+    await expect(canvas.getByRole("button", { name: "Delete" })).toBeDisabled();
+  },
+};
+
+export const DeletePendingDisablesSave: Story = {
+  args: {
+    automationId: scheduledAutomation.id,
+  },
+  parameters: {
+    msw: {
+      handlers: createAutomationDetailMswHandlers(scheduledAutomation, {
+        deleteDelay: "infinite",
+      }),
+    },
+    nextjs: {
+      navigation: {
+        pathname: `/org/acme/automations/${scheduledAutomation.id}`,
+      },
+    },
+  },
+  play: async ({ canvas, canvasElement, userEvent }) => {
+    const body = within(canvasElement.ownerDocument.body);
+    const nameInput = await canvas.findByDisplayValue("Weekly translation sync");
+    await userEvent.clear(nameInput);
+    await userEvent.type(nameInput, "Nightly translation sync");
+    await expect(canvas.getByRole("button", { name: "Save changes" })).toBeEnabled();
+    await userEvent.click(canvas.getByRole("button", { name: "Delete" }));
+    const dialog = body.getByRole("alertdialog", { name: "Delete automation?" });
+    await userEvent.click(within(dialog).getByRole("button", { name: "Delete" }));
+    await expect(within(dialog).getByRole("button", { name: /Deleting/ })).toBeDisabled();
+    await expect(canvas.getByRole("button", { name: "Save changes", hidden: true })).toBeDisabled();
+    await expect(canvas.getByRole("button", { name: "Delete", hidden: true })).toBeDisabled();
   },
 };
