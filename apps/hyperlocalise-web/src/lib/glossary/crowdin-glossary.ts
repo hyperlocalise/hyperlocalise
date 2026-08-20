@@ -12,6 +12,7 @@
  */
 import {
   crowdinTmsProvider,
+  selectCrowdinPrimaryTerm,
   type CrowdinGlossaryConcept,
 } from "@/lib/providers/adapters/crowdin/crowdin-provider";
 import type { CrowdinGlossary as CrowdinGlossaryRecord } from "@/lib/providers/adapters/crowdin/crowdin-api";
@@ -87,17 +88,20 @@ function toGlossaryConceptInput(
   };
 }
 
-function toCrowdinConceptInput(concept: GlossaryConcept): CrowdinGlossaryConcept {
+export function toCrowdinConceptInput(concept: GlossaryConcept): CrowdinGlossaryConcept {
+  const primaryTerm = selectCrowdinPrimaryTerm(concept.terms, concept.sourceLocale);
   const terms = concept.terms.map((term) => ({
     id: term.id,
     languageId: term.languageId,
-    text:
-      term.languageId === concept.sourceLocale && concept.primaryTerm
-        ? concept.primaryTerm
-        : term.text,
+    text: term === primaryTerm && concept.primaryTerm ? concept.primaryTerm : term.text,
     description: term.description,
     partOfSpeech: normalizeGlossaryPartOfSpeech(term.partOfSpeech),
-    status: crowdinStatus(term.status),
+    status:
+      term !== primaryTerm &&
+      term.languageId === concept.sourceLocale &&
+      crowdinStatus(term.status) === "preferred"
+        ? "admitted"
+        : crowdinStatus(term.status),
     type: term.type,
     gender: term.gender,
     note: term.note,

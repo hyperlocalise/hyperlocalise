@@ -383,10 +383,6 @@ export function createGlossaryConceptRoutes() {
         const payload = c.req.valid("json");
         const glossary = await getOwnedGlossary(c.var.auth, glossaryId);
         if (!glossary) return glossaryNotFoundResponse(c);
-        const sourceTerm = payload.terms?.find((term) => term.locale === glossary.sourceLocale);
-        if (sourceTerm && sourceTerm.term.toLowerCase() === payload.primaryTerm.toLowerCase()) {
-          return conflictResponse(c, "duplicate_glossary_concept_term");
-        }
         const product = getGlossaryProduct({ auth: c.var.auth, glossary });
         if (!product) return externalTmsGlossaryImmutableResponse(c);
         let created;

@@ -418,7 +418,7 @@ describe("glossaryRoutes", () => {
     expect(storedTerm?.term).toBe("Thanh toán");
   });
 
-  it("rejects duplicate terms when creating a concept", async () => {
+  it("allows the primary source term when creating a concept", async () => {
     const identity = fixture.createWorkosIdentityWithRole("admin");
     const headers = await fixture.authHeadersFor(identity);
     const organizationSlug = identity.organization.slug ?? "missing-slug";
@@ -448,9 +448,12 @@ describe("glossaryRoutes", () => {
       { headers },
     );
 
-    expect(response.status).toBe(409);
+    expect(response.status).toBe(201);
     await expect(response.json()).resolves.toMatchObject({
-      error: "duplicate_glossary_concept_term",
+      concept: {
+        primaryTerm: "Checkout",
+        terms: [{ locale: "en", term: "checkout" }],
+      },
     });
   });
 

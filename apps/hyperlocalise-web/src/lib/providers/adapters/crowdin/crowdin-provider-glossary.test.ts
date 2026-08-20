@@ -13,8 +13,43 @@
 import { describe, expect, it, vi } from "vite-plus/test";
 
 import { crowdinTmsProvider } from "./crowdin-provider";
+import { toCrowdinConceptInput } from "@/lib/glossary/crowdin-glossary";
 
 describe("Crowdin live glossary concepts", () => {
+  it("preserves source-locale synonyms and updates only the canonical term", () => {
+    const concept = toCrowdinConceptInput({
+      primaryTerm: "Checkout updated",
+      sourceLocale: "en",
+      terms: [
+        { id: 10, languageId: "en", text: "Checkout", status: "preferred", partOfSpeech: "noun" },
+        { id: 11, languageId: "en", text: "Payment", status: "preferred", partOfSpeech: "noun" },
+        { id: 12, languageId: "de", text: "Bezahlen", status: "draft", partOfSpeech: "noun" },
+      ],
+    });
+
+    expect(concept.terms).toMatchObject([
+      { id: 10, languageId: "en", text: "Checkout updated", status: "preferred" },
+      { id: 11, languageId: "en", text: "Payment", status: "admitted" },
+      { id: 12, languageId: "de", text: "Bezahlen", status: "draft" },
+    ]);
+  });
+
+  it("uses the lowest source term ID when no preferred term exists", () => {
+    const concept = toCrowdinConceptInput({
+      primaryTerm: "Checkout updated",
+      sourceLocale: "en",
+      terms: [
+        { id: 11, languageId: "en", text: "Payment", status: "admitted", partOfSpeech: "noun" },
+        { id: 10, languageId: "en", text: "Checkout", status: "draft", partOfSpeech: "noun" },
+      ],
+    });
+
+    expect(concept.terms).toMatchObject([
+      { id: 11, languageId: "en", text: "Payment", status: "admitted" },
+      { id: 10, languageId: "en", text: "Checkout updated", status: "draft" },
+    ]);
+  });
+
   it("uses the glossary source locale to select the primary term", async () => {
     const fetchMock = vi.fn(async (url) => {
       const path = String(url).replace("https://api.crowdin.test/api/v2", "");
