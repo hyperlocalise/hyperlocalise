@@ -30,6 +30,7 @@ import { productPageMessages, type ProductMessageKey } from "./product-page-cont
 import { AutomationEditorMock } from "./automation-editor-mock";
 import { IntegrationStripSection } from "./integration-strip-section";
 import { GlobeHeroVisual } from "./globe-hero-visual";
+import { KnowledgeMockUI } from "./knowledge-mock-ui";
 
 type ProductPageProps = {
   content: ProductPageContent;
@@ -233,14 +234,14 @@ function KnowledgePrimaryVisual() {
 
 function ProductVisual({ kind }: { kind: ProductVisualKind }) {
   if (kind === "automation") {
-    return (
-      <>
-        <AutomationsMockUI />
-      </>
-    );
+    return <AutomationsMockUI />
   }
 
-  return <KnowledgePrimaryVisual />;
+  if (kind === "knowledge") {
+    return <KnowledgeMockUI />;
+  }
+
+  return;
 }
 
 function ProductShowcase({ content }: ProductPageProps) {
