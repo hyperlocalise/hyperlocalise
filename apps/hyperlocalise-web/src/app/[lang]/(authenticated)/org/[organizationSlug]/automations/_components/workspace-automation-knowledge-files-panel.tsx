@@ -23,11 +23,11 @@ import { Button } from "@/components/ui/button";
 import { createApiClient } from "@/lib/api-client";
 import { isApiResponseErrorCode, readApiResponseError } from "@/lib/api-error";
 import {
+  WORKSPACE_AUTOMATION_KNOWLEDGE_ACCEPT_EXTENSIONS,
   WORKSPACE_AUTOMATION_KNOWLEDGE_MAX_BYTES,
   WORKSPACE_AUTOMATION_KNOWLEDGE_MAX_FILES,
   type WorkspaceAutomationKnowledgeFileSummary,
-} from "@/lib/agents/workspace-automation-knowledge-files";
-import { WORKSPACE_AUTOMATION_KNOWLEDGE_ACCEPT_EXTENSIONS } from "@/lib/agents/workspace-automation-knowledge-text";
+} from "@/lib/agents/workspace-automation-knowledge-constants";
 
 import { workspaceAutomationFormMessages } from "./workspace-automation-form.messages";
 

@@ -12,19 +12,9 @@
  */
 import { describe, expect, it } from "vite-plus/test";
 
-import {
-  extractWorkspaceAutomationKnowledgeText,
-  isSupportedWorkspaceAutomationKnowledgeFilename,
-} from "./workspace-automation-knowledge-text";
+import { extractWorkspaceAutomationKnowledgeText } from "./workspace-automation-knowledge-text";
 
 describe("workspace automation knowledge text", () => {
-  it("accepts document filenames used for agent knowledge", () => {
-    expect(isSupportedWorkspaceAutomationKnowledgeFilename("policy.pdf")).toBe(true);
-    expect(isSupportedWorkspaceAutomationKnowledgeFilename("notes.MD")).toBe(true);
-    expect(isSupportedWorkspaceAutomationKnowledgeFilename("guide.docx")).toBe(true);
-    expect(isSupportedWorkspaceAutomationKnowledgeFilename("photo.png")).toBe(false);
-  });
-
   it("extracts and truncates plain text files", async () => {
     const extracted = await extractWorkspaceAutomationKnowledgeText({
       filename: "faq.md",

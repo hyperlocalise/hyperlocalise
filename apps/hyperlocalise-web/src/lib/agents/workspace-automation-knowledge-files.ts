@@ -10,6 +10,8 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import "server-only";
+
 import { and, desc, eq } from "drizzle-orm";
 
 import { db, schema, type DatabaseClient } from "@/lib/database";
@@ -19,33 +21,21 @@ import { createStoredFile } from "@/lib/file-storage/records";
 import { err, ok, type Result } from "@/lib/primitives/result/results";
 
 import {
-  extractWorkspaceAutomationKnowledgeText,
   isSupportedWorkspaceAutomationKnowledgeFilename,
-} from "./workspace-automation-knowledge-text";
+  WORKSPACE_AUTOMATION_KNOWLEDGE_MAX_BYTES,
+  WORKSPACE_AUTOMATION_KNOWLEDGE_MAX_FILES,
+  type WorkspaceAutomationKnowledgeFileRecord,
+  type WorkspaceAutomationKnowledgeFileSummary,
+} from "./workspace-automation-knowledge-constants";
+import { extractWorkspaceAutomationKnowledgeText } from "./workspace-automation-knowledge-text";
 
-export const WORKSPACE_AUTOMATION_KNOWLEDGE_MAX_FILES = 20;
-export const WORKSPACE_AUTOMATION_KNOWLEDGE_MAX_BYTES = 25 * 1024 * 1024;
-
-export type WorkspaceAutomationKnowledgeFileRecord = {
-  id: string;
-  organizationId: string;
-  automationId: string;
-  storedFileId: string;
-  filename: string;
-  contentType: string;
-  byteSize: number;
-  extractedText: string;
-  createdByUserId: string | null;
-  createdAt: string;
-  updatedAt: string;
-};
-
-export type WorkspaceAutomationKnowledgeFileSummary = Omit<
-  WorkspaceAutomationKnowledgeFileRecord,
-  "extractedText"
-> & {
-  extractedCharacterCount: number;
-};
+export {
+  isSupportedWorkspaceAutomationKnowledgeFilename,
+  WORKSPACE_AUTOMATION_KNOWLEDGE_MAX_BYTES,
+  WORKSPACE_AUTOMATION_KNOWLEDGE_MAX_FILES,
+  type WorkspaceAutomationKnowledgeFileRecord,
+  type WorkspaceAutomationKnowledgeFileSummary,
+} from "./workspace-automation-knowledge-constants";
 
 type KnowledgeFileRow = typeof schema.workspaceAutomationKnowledgeFiles.$inferSelect;
 
