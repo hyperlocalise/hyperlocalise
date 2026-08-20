@@ -94,7 +94,7 @@ export const githubAutoReviewCardMessages = defineMessages({
   },
   configure: {
     defaultMessage: "Configure",
-    id: 'zlI6VpVvWz',
+    id: "zlI6VpVvWz",
     description: "Button that opens Auto-review configuration",
   },
 });
