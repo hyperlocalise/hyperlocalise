@@ -495,6 +495,22 @@ export interface CrowdinGlossaryTerm {
   note: string;
 }
 
+export type CrowdinGlossaryPatch = {
+  op: "replace" | "add" | "remove";
+  path: string;
+  value?: unknown;
+};
+
+export type CrowdinGlossaryTermInput = {
+  languageId: string;
+  text: string;
+  description?: string;
+  partOfSpeech?: string;
+  status?: string;
+  note?: string;
+  conceptId?: number;
+};
+
 export interface CrowdinTranslationMemory {
   id: number;
   name: string;
@@ -2109,6 +2125,55 @@ export class CrowdinApiClient {
 
   async listGlossaryTerms(glossaryId: number): Promise<CrowdinGlossaryTerm[]> {
     return this.listPaginated<CrowdinGlossaryTerm>(`/glossaries/${glossaryId}/terms`);
+  }
+
+  async getGlossary(glossaryId: number): Promise<CrowdinGlossary> {
+    const response = await this.get<CrowdinGetResponse<CrowdinGlossary>>(
+      `/glossaries/${glossaryId}`,
+    );
+    return response.data;
+  }
+
+  async updateGlossary(
+    glossaryId: number,
+    patches: CrowdinGlossaryPatch[],
+  ): Promise<CrowdinGlossary> {
+    const response = await this.patch<CrowdinGetResponse<CrowdinGlossary>>(
+      `/glossaries/${glossaryId}`,
+      patches,
+    );
+    return response.data;
+  }
+
+  async deleteGlossary(glossaryId: number): Promise<void> {
+    await this.delete(`/glossaries/${glossaryId}`);
+  }
+
+  async addGlossaryTerm(
+    glossaryId: number,
+    input: CrowdinGlossaryTermInput,
+  ): Promise<CrowdinGlossaryTerm> {
+    const response = await this.post<CrowdinGetResponse<CrowdinGlossaryTerm>>(
+      `/glossaries/${glossaryId}/terms`,
+      input,
+    );
+    return response.data;
+  }
+
+  async updateGlossaryTerm(
+    glossaryId: number,
+    termId: number,
+    patches: CrowdinGlossaryPatch[],
+  ): Promise<CrowdinGlossaryTerm> {
+    const response = await this.patch<CrowdinGetResponse<CrowdinGlossaryTerm>>(
+      `/glossaries/${glossaryId}/terms/${termId}`,
+      patches,
+    );
+    return response.data;
+  }
+
+  async deleteGlossaryTerm(glossaryId: number, termId: number): Promise<void> {
+    await this.delete(`/glossaries/${glossaryId}/terms/${termId}`);
   }
 
   async listTranslationMemories(): Promise<CrowdinTranslationMemory[]> {

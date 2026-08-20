@@ -23,6 +23,15 @@ import { parseCsvRows } from "@/lib/csv/parse-csv-rows";
 import { db, schema } from "@/lib/database";
 import type { Glossary } from "@/lib/database/types";
 import { createGlossaryTermDuplicateTracker } from "@/lib/glossary/glossary-term-dedupe";
+import {
+  createCrowdinConcept,
+  deleteCrowdinGlossary,
+  deleteCrowdinTerm,
+  getCrowdinGlossary,
+  listCrowdinConcepts,
+  updateCrowdinGlossary,
+  updateCrowdinTerm,
+} from "@/lib/glossary/glossary-provider";
 import { toGlossaryRecord } from "@/lib/glossary/glossary-records";
 import { listGlossaryTermsByGlossaryId } from "@/lib/glossary/query-glossary-terms";
 import {
@@ -209,6 +218,57 @@ function toGlossaryTermRecord(term: GlossaryTerm, glossary: Glossary): GlossaryT
     externalKey: term.externalKey,
     reviewStatus: term.reviewStatus,
   };
+}
+
+function toLiveGlossary(
+  glossary: Glossary,
+  remote: {
+    name: string;
+    description: string | null;
+    languageId: string;
+    languageIds: string[];
+    terms: number;
+    webUrl: string;
+  },
+) {
+  return {
+    ...glossary,
+    name: remote.name,
+    description: remote.description ?? "",
+    sourceLocale: remote.languageId,
+    targetLocale: remote.languageIds.find((locale) => locale !== remote.languageId) ?? null,
+    localeCoverage: [...new Set([remote.languageId, ...remote.languageIds])],
+    termCount: remote.terms,
+    externalUrl: remote.webUrl,
+  };
+}
+
+function toLiveTermRecord(
+  glossary: Glossary,
+  term: {
+    id: number;
+    languageId: string;
+    text: string;
+    description?: string | null;
+    partOfSpeech?: string | null;
+  },
+  sourceTerm = "",
+) {
+  return {
+    id: String(term.id),
+    glossaryId: glossary.id,
+    glossaryName: glossary.name,
+    sourceTerm,
+    targetTerm: term.text,
+    targetLocale: term.languageId,
+    description: term.description ?? "",
+    partOfSpeech: term.partOfSpeech ?? "",
+    forbidden: false,
+    caseSensitive: false,
+    provenance: "sync",
+    externalKey: String(term.id),
+    reviewStatus: "draft",
+  } satisfies GlossaryTermRecord;
 }
 
 function parseGlossaryImport(payload: ImportGlossaryTermsBody): CreateGlossaryTermBody[] {
@@ -474,11 +534,16 @@ export function createGlossaryRoutes() {
         c.var.auth,
         query,
       );
+      const records = await mapWithConcurrency(glossaries, 5, async (glossary) => {
+        if (glossary.source === "external_tms" && glossary.externalProviderKind === "crowdin") {
+          const remote = await getCrowdinGlossary({ auth: c.var.auth, glossary });
+          return toGlossaryRecord(toLiveGlossary(glossary, remote));
+        }
+        return toGlossaryRecord(glossary, languagesByGlossaryId.get(glossary.id));
+      });
       return c.json(
         {
-          glossaries: glossaries.map((glossary) =>
-            toGlossaryRecord(glossary, languagesByGlossaryId.get(glossary.id)),
-          ),
+          glossaries: records,
           total,
         },
         200,
@@ -520,6 +585,11 @@ export function createGlossaryRoutes() {
         return glossaryNotFoundResponse(c);
       }
 
+      if (glossary.source === "external_tms" && glossary.externalProviderKind === "crowdin") {
+        const remote = await getCrowdinGlossary({ auth: c.var.auth, glossary });
+        return c.json({ glossary: toGlossaryRecord(toLiveGlossary(glossary, remote)) }, 200);
+      }
+
       return c.json(
         {
           glossary: toGlossaryRecord(
@@ -538,6 +608,28 @@ export function createGlossaryRoutes() {
 
       if (!glossary) {
         return glossaryNotFoundResponse(c);
+      }
+
+      if (glossary.source === "external_tms" && glossary.externalProviderKind === "crowdin") {
+        const concepts = await listCrowdinConcepts({ auth: c.var.auth, glossary });
+        const glossaryTerms = concepts.flatMap(({ conceptId, terms }) =>
+          terms.map((term) => ({
+            id: String(term.id),
+            glossaryId: glossary.id,
+            glossaryName: glossary.name,
+            sourceTerm: term.languageId === glossary.sourceLocale ? term.text : "",
+            targetTerm: term.languageId === glossary.sourceLocale ? "" : term.text,
+            targetLocale: term.languageId === glossary.sourceLocale ? null : term.languageId,
+            description: term.description ?? "",
+            partOfSpeech: term.partOfSpeech ?? "",
+            forbidden: false,
+            caseSensitive: false,
+            provenance: "sync",
+            externalKey: `${conceptId}:${term.id}`,
+            reviewStatus: "draft",
+          })),
+        );
+        return c.json({ glossaryTerms, total: glossaryTerms.length }, 200);
       }
 
       const glossaryTerms = await listGlossaryTermsByGlossaryId({
@@ -564,7 +656,54 @@ export function createGlossaryRoutes() {
           return glossaryNotFoundResponse(c);
         }
         if (glossary.source === "external_tms") {
-          return externalTmsGlossaryImmutableResponse(c);
+          if (glossary.externalProviderKind !== "crowdin")
+            return externalTmsGlossaryImmutableResponse(c);
+          const created = await createCrowdinConcept(
+            { auth: c.var.auth, glossary },
+            {
+              primaryTerm: payload.sourceTerm,
+              sourceLocale: glossary.sourceLocale,
+              terms: [
+                {
+                  languageId: glossary.sourceLocale,
+                  text: payload.sourceTerm,
+                  status: "PREFERRED",
+                },
+                {
+                  languageId: glossary.targetLocale ?? "",
+                  text: payload.targetTerm,
+                  status: "DRAFT",
+                },
+              ].filter((term) => term.languageId),
+            },
+          );
+          const target = created?.terms.find((term) => term.languageId !== glossary.sourceLocale);
+          if (!target)
+            return conflictResponse(
+              c,
+              "glossary_term_create_failed",
+              "Crowdin did not create the glossary term",
+            );
+          return c.json(
+            {
+              glossaryTerm: {
+                id: String(target.id),
+                glossaryId: glossary.id,
+                glossaryName: glossary.name,
+                sourceTerm: payload.sourceTerm,
+                targetTerm: target.text,
+                targetLocale: target.languageId,
+                description: target.description ?? "",
+                partOfSpeech: target.partOfSpeech ?? "",
+                forbidden: false,
+                caseSensitive: false,
+                provenance: "sync",
+                externalKey: `${created?.conceptId ?? ""}:${target.id}`,
+                reviewStatus: "draft",
+              },
+            },
+            201,
+          );
         }
 
         const term = await createGlossaryTerm(glossary, payload);
@@ -631,7 +770,29 @@ export function createGlossaryRoutes() {
           return glossaryNotFoundResponse(c);
         }
         if (glossary.source === "external_tms") {
-          return externalTmsGlossaryImmutableResponse(c);
+          if (glossary.externalProviderKind !== "crowdin")
+            return externalTmsGlossaryImmutableResponse(c);
+          const concepts = await listCrowdinConcepts({ auth: c.var.auth, glossary });
+          const match = concepts.find(({ terms }) =>
+            terms.some((term) => String(term.id) === params.termId),
+          );
+          const existing = match?.terms.find((term) => String(term.id) === params.termId);
+          if (!match || !existing) return glossaryNotFoundResponse(c);
+          const updated = await updateCrowdinTerm(
+            { auth: c.var.auth, glossary },
+            String(match.conceptId),
+            params.termId,
+            {
+              languageId: existing.languageId,
+              text: payload.targetTerm ?? existing.text,
+              description: payload.description ?? existing.description ?? "",
+              partOfSpeech: payload.partOfSpeech ?? existing.partOfSpeech ?? "",
+              status: existing.status ?? "DRAFT",
+              note: existing.note ?? "",
+            },
+          );
+          if (!updated) return glossaryNotFoundResponse(c);
+          return c.json({ glossaryTerm: toLiveTermRecord(glossary, updated) }, 200);
         }
 
         if (payload.sourceTerm !== undefined) {
@@ -691,7 +852,20 @@ export function createGlossaryRoutes() {
         return glossaryNotFoundResponse(c);
       }
       if (glossary.source === "external_tms") {
-        return externalTmsGlossaryImmutableResponse(c);
+        if (glossary.externalProviderKind !== "crowdin")
+          return externalTmsGlossaryImmutableResponse(c);
+        const concepts = await listCrowdinConcepts({ auth: c.var.auth, glossary });
+        const match = concepts.find(({ terms }) =>
+          terms.some((term) => String(term.id) === params.termId),
+        );
+        if (!match) return glossaryNotFoundResponse(c);
+        const deleted = await deleteCrowdinTerm(
+          { auth: c.var.auth, glossary },
+          String(match.conceptId),
+          params.termId,
+        );
+        if (!deleted) return glossaryNotFoundResponse(c);
+        return c.body(null, 204);
       }
 
       const deleted = await db
@@ -807,7 +981,14 @@ export function createGlossaryRoutes() {
       }
 
       if (glossary.source === "external_tms") {
-        return externalTmsGlossaryImmutableResponse(c);
+        if (glossary.externalProviderKind !== "crowdin")
+          return externalTmsGlossaryImmutableResponse(c);
+        const remote = await getCrowdinGlossary({ auth: c.var.auth, glossary });
+        const updated = await updateCrowdinGlossary({ auth: c.var.auth, glossary }, payload);
+        return c.json(
+          { glossary: toGlossaryRecord(toLiveGlossary(glossary, updated ?? remote)) },
+          200,
+        );
       }
 
       const updated = await glossaryStore.update(c.var.auth, params.glossaryId, payload);
@@ -831,7 +1012,12 @@ export function createGlossaryRoutes() {
       }
 
       if (glossary.source === "external_tms") {
-        return externalTmsGlossaryImmutableResponse(c);
+        if (glossary.externalProviderKind !== "crowdin")
+          return externalTmsGlossaryImmutableResponse(c);
+        await deleteCrowdinGlossary({ auth: c.var.auth, glossary });
+        const deleted = await glossaryStore.delete(c.var.auth, params.glossaryId);
+        if (!deleted) return glossaryNotFoundResponse(c);
+        return c.body(null, 204);
       }
 
       const deleted = await glossaryStore.delete(c.var.auth, params.glossaryId);

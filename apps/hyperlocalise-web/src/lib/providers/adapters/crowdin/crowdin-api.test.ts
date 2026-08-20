@@ -144,6 +144,90 @@ describe("CrowdinApiClient", () => {
     );
   });
 
+  it("supports live glossary and glossary term CRUD", async () => {
+    const requests: Array<{ method: string; url: string; body?: unknown }> = [];
+    const fetchMock = vi.fn(async (url, init) => {
+      requests.push({
+        method: String(init?.method ?? "GET"),
+        url: String(url),
+        body: init?.body ? JSON.parse(String(init.body)) : undefined,
+      });
+      const path = String(url).replace("https://api.crowdin.test/api/v2", "");
+      if (path === "/glossaries/7") {
+        return new Response(
+          JSON.stringify({
+            data: {
+              id: 7,
+              name: "Product",
+              languageId: "en",
+              languageIds: ["fr"],
+              terms: 1,
+              description: null,
+              projectIds: [],
+              defaultProjectIds: [],
+              webUrl: "https://crowdin.test/g/7",
+            },
+          }),
+          { status: 200 },
+        );
+      }
+      if (path === "/glossaries/7/terms") {
+        return new Response(
+          JSON.stringify({
+            data: {
+              id: 9,
+              glossaryId: 7,
+              languageId: "fr",
+              text: "Produit",
+              description: "",
+              partOfSpeech: "",
+              status: "DRAFT",
+              conceptId: 8,
+              note: "",
+            },
+          }),
+          { status: 200 },
+        );
+      }
+      if (path === "/glossaries/7/terms/9") {
+        return new Response(
+          JSON.stringify({
+            data: {
+              id: 9,
+              glossaryId: 7,
+              languageId: "fr",
+              text: "Article",
+              description: "",
+              partOfSpeech: "",
+              status: "DRAFT",
+              conceptId: 8,
+              note: "",
+            },
+          }),
+          { status: 200 },
+        );
+      }
+      return new Response(null, { status: 204 });
+    }) as unknown as typeof fetch;
+
+    const client = createClient(fetchMock);
+    await client.getGlossary(7);
+    await client.updateGlossary(7, [{ op: "replace", path: "/name", value: "Updated" }]);
+    await client.addGlossaryTerm(7, { languageId: "fr", text: "Produit", conceptId: 8 });
+    await client.updateGlossaryTerm(7, 9, [{ op: "replace", path: "/text", value: "Article" }]);
+    await client.deleteGlossaryTerm(7, 9);
+    await client.deleteGlossary(7);
+
+    expect(requests.map((request) => `${request.method} ${request.url}`)).toEqual([
+      "GET https://api.crowdin.test/api/v2/glossaries/7",
+      "PATCH https://api.crowdin.test/api/v2/glossaries/7",
+      "POST https://api.crowdin.test/api/v2/glossaries/7/terms",
+      "PATCH https://api.crowdin.test/api/v2/glossaries/7/terms/9",
+      "DELETE https://api.crowdin.test/api/v2/glossaries/7/terms/9",
+      "DELETE https://api.crowdin.test/api/v2/glossaries/7",
+    ]);
+  });
+
   it("lists branches for a project", async () => {
     const fetchMock = vi.fn(async () => {
       return new Response(
