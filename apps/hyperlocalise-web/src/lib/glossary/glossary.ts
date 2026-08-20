@@ -14,6 +14,52 @@ import type { Glossary as NativeGlossaryRecord } from "@/lib/database/types";
 
 export type NativeGlossary = NativeGlossaryRecord;
 
+export type GlossaryTermRecord = {
+  id: string;
+  glossaryId: string;
+  glossaryName: string;
+  sourceTerm: string;
+  targetTerm: string;
+  targetLocale: string | null;
+  description: string;
+  partOfSpeech: string;
+  url?: string | null;
+  lemma?: string | null;
+  forbidden: boolean;
+  caseSensitive: boolean;
+  provenance: string;
+  externalKey: string | null;
+  reviewStatus: string;
+};
+
+export type GlossaryTermCreateInput = {
+  sourceTerm: string;
+  targetTerm: string;
+  description?: string;
+  partOfSpeech?: string;
+  url?: string;
+  lemma?: string | null;
+  caseSensitive: boolean;
+  forbidden: boolean;
+};
+
+export type GlossaryTermUpdateInput = Partial<GlossaryTermCreateInput>;
+
+export type GlossaryConceptImportEntry = {
+  conceptKey: string;
+  locale: string;
+  term: string;
+  subject?: string;
+  definition?: string;
+  translatable?: boolean;
+  note?: string;
+  url?: string;
+  partOfSpeech?: string;
+  gender?: string | null;
+  termType?: string | null;
+  status?: "preferred" | "draft" | "not_recommended";
+};
+
 export type NativeGlossaryTermInput = {
   languageId: string;
   text: string;
@@ -75,6 +121,19 @@ export abstract class Glossary {
     concept: NativeGlossaryConcept,
   ): Promise<NativeGlossaryConcept | null>;
   abstract deleteConcept(conceptId: string): Promise<boolean>;
+  abstract importConcepts(
+    entries: GlossaryConceptImportEntry[],
+  ): Promise<{ concepts: NativeGlossaryConcept[]; skipped: number }>;
+  abstract listTerms(): Promise<GlossaryTermRecord[]>;
+  abstract createGlossaryTerm(input: GlossaryTermCreateInput): Promise<GlossaryTermRecord | null>;
+  abstract createGlossaryTerms(
+    inputs: GlossaryTermCreateInput[],
+  ): Promise<{ created: GlossaryTermRecord[]; skipped: number }>;
+  abstract updateGlossaryTerm(
+    termId: string,
+    input: GlossaryTermUpdateInput,
+  ): Promise<GlossaryTermRecord | { error: "duplicate" } | null>;
+  abstract deleteGlossaryTerm(termId: string): Promise<boolean>;
   abstract createTerm(
     conceptId: string,
     term: NativeGlossaryTermInput,

@@ -21,6 +21,10 @@ import { db, schema } from "@/lib/database";
 
 import {
   Glossary,
+  type GlossaryConceptImportEntry,
+  type GlossaryTermCreateInput,
+  type GlossaryTermRecord,
+  type GlossaryTermUpdateInput,
   type NativeGlossary,
   type NativeGlossaryConcept,
   type NativeGlossaryTermInput,
@@ -156,6 +160,146 @@ export class CrowdinGlossary extends Glossary {
       parseId(this.input.glossary.externalGlossaryId!, "glossary_id"),
       parseId(conceptId, "concept_id"),
     );
+  }
+
+  async importConcepts(entries: GlossaryConceptImportEntry[]) {
+    const grouped = new Map<string, GlossaryConceptImportEntry[]>();
+    for (const entry of entries) {
+      grouped.set(entry.conceptKey, [...(grouped.get(entry.conceptKey) ?? []), entry]);
+    }
+    const concepts: NativeGlossaryConcept[] = [];
+    let skipped = 0;
+    for (const group of grouped.values()) {
+      const first = group[0];
+      if (!first) continue;
+      const created = await this.createConcept({
+        primaryTerm:
+          group.find((entry) => entry.locale === this.input.glossary.sourceLocale)?.term ??
+          first.term,
+        sourceLocale: this.input.glossary.sourceLocale,
+        subject: first.subject,
+        definition: first.definition,
+        translatable: first.translatable,
+        note: first.note,
+        url: first.url,
+        terms: group.map((entry) => ({
+          languageId: entry.locale,
+          text: entry.term,
+          description: entry.definition,
+          partOfSpeech: entry.partOfSpeech,
+          gender: entry.gender ?? undefined,
+          type: entry.termType ?? undefined,
+          status: entry.status ?? "draft",
+        })),
+      });
+      if (created) concepts.push(created);
+      else skipped += group.length;
+    }
+    return { concepts, skipped };
+  }
+
+  private toLegacyTermRecord(
+    term: NativeGlossaryConcept["terms"][number],
+    conceptId: string,
+    sourceTerm: string,
+  ): GlossaryTermRecord {
+    return {
+      id: String(term.id),
+      glossaryId: this.input.glossary.id,
+      glossaryName: this.input.glossary.name,
+      sourceTerm,
+      targetTerm: term.text,
+      targetLocale: term.languageId,
+      description: term.description ?? "",
+      partOfSpeech: term.partOfSpeech ?? "",
+      url: term.url ?? null,
+      lemma: term.lemma ?? null,
+      forbidden: false,
+      caseSensitive: false,
+      provenance: "sync",
+      externalKey: `${conceptId}:${term.id}`,
+      reviewStatus: "draft",
+    };
+  }
+
+  async listTerms() {
+    const concepts = await this.listConcepts();
+    return concepts.flatMap(({ conceptId, terms }) => {
+      const sourceTerm =
+        terms.find((term) => term.languageId === this.input.glossary.sourceLocale)?.text ?? "";
+      return terms.map((term) =>
+        this.toLegacyTermRecord(
+          term,
+          String(conceptId),
+          term.languageId === this.input.glossary.sourceLocale ? "" : sourceTerm,
+        ),
+      );
+    });
+  }
+
+  async createGlossaryTerm(input: GlossaryTermCreateInput) {
+    const created = await this.createConcept({
+      primaryTerm: input.sourceTerm,
+      sourceLocale: this.input.glossary.sourceLocale,
+      terms: [
+        {
+          languageId: this.input.glossary.sourceLocale,
+          text: input.sourceTerm,
+          status: "preferred",
+        },
+        {
+          languageId: this.input.glossary.targetLocale ?? "",
+          text: input.targetTerm,
+          status: "draft",
+          description: input.description,
+          partOfSpeech: input.partOfSpeech,
+          url: input.url,
+          lemma: input.lemma ?? undefined,
+        },
+      ].filter((term) => term.languageId),
+    });
+    const target = created?.terms.find(
+      (term) => term.languageId !== this.input.glossary.sourceLocale,
+    );
+    return target
+      ? this.toLegacyTermRecord(target, String(created?.conceptId), input.sourceTerm)
+      : null;
+  }
+
+  async createGlossaryTerms(inputs: GlossaryTermCreateInput[]) {
+    const created: GlossaryTermRecord[] = [];
+    for (const input of inputs) {
+      const term = await this.createGlossaryTerm(input);
+      if (term) created.push(term);
+    }
+    return { created, skipped: inputs.length - created.length };
+  }
+
+  async updateGlossaryTerm(termId: string, input: GlossaryTermUpdateInput) {
+    const concepts = await this.listConcepts();
+    const match = concepts.find(({ terms }) => terms.some((term) => String(term.id) === termId));
+    const existing = match?.terms.find((term) => String(term.id) === termId);
+    if (!match || !existing) return null;
+    const sourceTerm =
+      match.terms.find((term) => term.languageId === this.input.glossary.sourceLocale)?.text ?? "";
+    const updated = await this.updateTerm(String(match.conceptId), termId, {
+      languageId: existing.languageId,
+      text: input.targetTerm ?? existing.text,
+      description: input.description ?? existing.description ?? "",
+      partOfSpeech: input.partOfSpeech ?? existing.partOfSpeech ?? "",
+      status: existing.status ?? "draft",
+      note: existing.note ?? "",
+    });
+    return updated && "languageId" in updated
+      ? this.toLegacyTermRecord(updated, String(match.conceptId), sourceTerm)
+      : null;
+  }
+
+  async deleteGlossaryTerm(termId: string) {
+    const concepts = await this.listConcepts();
+    const match = concepts.find(({ terms }) => terms.some((term) => String(term.id) === termId));
+    if (!match) return false;
+    return this.deleteTerm(String(match.conceptId), termId);
   }
 
   async createTerm(conceptId: string, term: NativeGlossaryTermInput) {

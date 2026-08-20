@@ -10,7 +10,6 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { and, eq, sql } from "drizzle-orm";
 import { Hono } from "hono";
 import { DomUtils, parseDocument } from "htmlparser2";
 import { validator } from "hono/validator";
@@ -20,7 +19,6 @@ import { workosAuthMiddleware, type AuthVariables } from "@/api/auth/workos";
 import { PRODUCT_USAGE_ANALYTICS_EVENTS } from "@/lib/analytics/events";
 import { serverAnalytics } from "@/lib/analytics/server";
 import { parseCsvRows } from "@/lib/csv/parse-csv-rows";
-import { db, schema } from "@/lib/database";
 import { getGlossaryProduct } from "@/lib/glossary/glossary-provider";
 import type { NativeGlossary } from "@/lib/glossary/glossary";
 import type { CrowdinGlossaryConcept } from "@/lib/providers/adapters/crowdin/crowdin-provider";
@@ -99,7 +97,9 @@ function toCrowdinConceptInput(
     url: term.url || undefined,
     lemma: term.lemma ?? undefined,
   }));
-  if (terms.length === 0 && primaryTerm) {
+  // Keep the primary term mirrored in the configured source locale even when
+  // callers provide only regional variants such as `en-US`.
+  if (!terms.some((term) => term.languageId === glossary.sourceLocale) && primaryTerm) {
     terms.push({
       id: undefined,
       languageId: glossary.sourceLocale,
@@ -250,9 +250,6 @@ function toCrowdinConceptRecord(
   };
 }
 
-type GlossaryConcept = typeof schema.glossaryConcepts.$inferSelect;
-type GlossaryConceptTerm = typeof schema.glossaryTerms.$inferSelect;
-
 function validateConceptParams(value: unknown, c: Parameters<typeof glossaryNotFoundResponse>[0]) {
   const parsed = glossaryConceptIdParamsSchema.safeParse(value);
   return parsed.success ? parsed.data : glossaryNotFoundResponse(c);
@@ -278,57 +275,6 @@ function validateJson<T>(
 ) {
   const parsed = schemaToUse.safeParse(value);
   return parsed.success ? parsed.data : invalidGlossaryPayloadResponse(c);
-}
-
-function toConceptTermRecord(term: GlossaryConceptTerm, sourceLocale: string) {
-  return {
-    id: term.id,
-    glossaryId: term.glossaryId,
-    conceptId: term.conceptId!,
-    locale: term.locale!,
-    term: term.term!,
-    isPrimary: term.locale === sourceLocale,
-    description: term.description,
-    partOfSpeech: term.partOfSpeech,
-    gender: term.gender,
-    termType: term.termType,
-    url: term.url,
-    lemma: term.lemma,
-    status: term.status as "preferred" | "admitted" | "draft" | "not_recommended" | "obsolete",
-    caseSensitive: term.caseSensitive,
-    forbidden: term.forbidden,
-    provenance: term.provenance,
-    externalKey: null,
-    reviewStatus: term.reviewStatus,
-    createdAt: term.createdAt.toISOString(),
-    updatedAt: term.updatedAt.toISOString(),
-  };
-}
-
-function toConceptRecord(
-  concept: GlossaryConcept,
-  terms: GlossaryConceptTerm[],
-  sourceLocale: string,
-) {
-  return {
-    id: concept.id,
-    glossaryId: concept.glossaryId,
-    primaryTerm: concept.primaryTerm,
-    subject: concept.subject,
-    definition: concept.definition,
-    translatable: concept.translatable,
-    note: concept.note,
-    url: concept.url,
-    figure: concept.figure,
-    externalKey: concept.externalKey,
-    externalUserId: concept.externalUserId,
-    languageDetails: concept.languageDetails,
-    externalCreatedAt: concept.externalCreatedAt?.toISOString() ?? null,
-    externalUpdatedAt: concept.externalUpdatedAt?.toISOString() ?? null,
-    createdAt: concept.createdAt.toISOString(),
-    updatedAt: concept.updatedAt.toISOString(),
-    terms: terms.map((term) => toConceptTermRecord(term, sourceLocale)),
-  };
 }
 
 type ConceptImportEntry = {
@@ -442,91 +388,6 @@ function parseConceptImport(content: string, format: "csv" | "tbx"): ConceptImpo
   );
 }
 
-async function importConcepts(
-  glossaryId: string,
-  sourceLocale: string,
-  entries: ConceptImportEntry[],
-) {
-  return db.transaction(async (tx) => {
-    const importedConcepts: GlossaryConcept[] = [];
-    let skipped = 0;
-    const grouped = new Map<string, ConceptImportEntry[]>();
-    for (const entry of entries) {
-      const current = grouped.get(entry.conceptKey) ?? [];
-      current.push(entry);
-      grouped.set(entry.conceptKey, current);
-    }
-
-    for (const group of grouped.values()) {
-      const first = group[0];
-      if (!first) continue;
-      const [existing] = await tx
-        .select()
-        .from(schema.glossaryConcepts)
-        .where(
-          and(
-            eq(schema.glossaryConcepts.glossaryId, glossaryId),
-            eq(schema.glossaryConcepts.primaryTerm, first.term),
-          ),
-        )
-        .limit(1);
-      const concept =
-        existing ??
-        (
-          await tx
-            .insert(schema.glossaryConcepts)
-            .values({
-              glossaryId,
-              primaryTerm: group.find((entry) => entry.locale === sourceLocale)?.term ?? first.term,
-              subject: first.subject ?? "",
-              definition: first.definition ?? "",
-              translatable: first.translatable ?? true,
-              note: first.note ?? "",
-              url: first.url || null,
-            })
-            .returning()
-        )[0];
-      if (!concept) continue;
-      if (!existing) importedConcepts.push(concept);
-
-      for (const entry of group) {
-        const duplicate = await tx
-          .select({ id: schema.glossaryTerms.id })
-          .from(schema.glossaryTerms)
-          .where(
-            and(
-              eq(schema.glossaryTerms.conceptId, concept.id),
-              eq(schema.glossaryTerms.locale, entry.locale),
-              sql`lower(${schema.glossaryTerms.term}) = lower(${entry.term})`,
-            ),
-          )
-          .limit(1);
-        if (duplicate.length > 0) {
-          skipped += 1;
-          continue;
-        }
-        await tx.insert(schema.glossaryTerms).values({
-          glossaryId,
-          conceptId: concept.id,
-          locale: entry.locale,
-          term: entry.term,
-          sourceTerm: entry.term,
-          targetTerm: entry.term,
-          description: entry.definition ?? "",
-          partOfSpeech: entry.partOfSpeech ?? "",
-          gender: entry.gender ?? null,
-          termType: entry.termType ?? null,
-          status: entry.status ?? (entry.locale === sourceLocale ? "preferred" : "draft"),
-          caseSensitive: false,
-          forbidden: false,
-        });
-      }
-    }
-
-    return { importedConcepts, skipped };
-  });
-}
-
 export function createGlossaryConceptRoutes() {
   return new Hono<{ Variables: AuthVariables }>()
     .use("*", workosAuthMiddleware)
@@ -555,6 +416,10 @@ export function createGlossaryConceptRoutes() {
         const payload = c.req.valid("json");
         const glossary = await getOwnedGlossary(c.var.auth, glossaryId);
         if (!glossary) return glossaryNotFoundResponse(c);
+        const sourceTerm = payload.terms?.find((term) => term.locale === glossary.sourceLocale);
+        if (sourceTerm && sourceTerm.term.toLowerCase() === payload.primaryTerm.toLowerCase()) {
+          return conflictResponse(c, "duplicate_glossary_concept_term");
+        }
         const product = getGlossaryProduct({ auth: c.var.auth, glossary });
         if (!product) return externalTmsGlossaryImmutableResponse(c);
         const created = await product.createConcept(toCrowdinConceptInput(glossary, payload));
@@ -576,23 +441,14 @@ export function createGlossaryConceptRoutes() {
         const payload = c.req.valid("json");
         const glossary = await getOwnedGlossary(c.var.auth, glossaryId);
         if (!glossary) return glossaryNotFoundResponse(c);
-        if (glossary.source !== "native") {
-          if (glossary.externalProviderKind !== "crowdin")
-            return externalTmsGlossaryImmutableResponse(c);
-          return c.json({ concepts: [], imported: 0, skipped: 0 }, 201);
-        }
+        const product = getGlossaryProduct({ auth: c.var.auth, glossary });
+        if (!product) return externalTmsGlossaryImmutableResponse(c);
         const entries = parseConceptImport(payload.content, payload.format).slice(0, 10_000);
-        const { importedConcepts, skipped } = await importConcepts(
-          glossaryId,
-          glossary.sourceLocale,
-          entries,
-        );
+        const { concepts: importedConcepts, skipped } = await product.importConcepts(entries);
         return c.json(
           {
-            concepts: importedConcepts.map((concept) =>
-              toConceptRecord(concept, [], glossary.sourceLocale),
-            ),
-            imported: entries.length - skipped,
+            concepts: importedConcepts.map((concept) => toCrowdinConceptRecord(glossary, concept)),
+            imported: importedConcepts.length,
             skipped,
           },
           201,
@@ -723,69 +579,6 @@ export function createGlossaryConceptRoutes() {
         if (updatedTerm && "terms" in updatedTerm) return glossaryNotFoundResponse(c);
         if (!updatedTerm) return glossaryNotFoundResponse(c);
         return c.json({ term: toCrowdinTermRecord(glossary, conceptId, updatedTerm) }, 200);
-        /*
-          .select()
-          .from(schema.glossaryTerms)
-          .where(
-            and(
-              eq(schema.glossaryTerms.id, termId),
-              eq(schema.glossaryTerms.conceptId, conceptId),
-              eq(schema.glossaryTerms.glossaryId, glossaryId),
-            ),
-          )
-          .limit(1);
-        if (!existing || !existing.locale || !existing.term) return glossaryNotFoundResponse(c);
-        if (
-          payload.locale &&
-          payload.locale !== existing.locale &&
-          existing.locale === glossary.sourceLocale
-        ) {
-          return badRequestResponse(
-            c,
-            "source_term_locale_immutable",
-            "The primary term must stay in the glossary source locale",
-          );
-        }
-        const nextLocale = payload.locale ?? existing.locale;
-        const nextTerm = payload.term ?? existing.term;
-        if (await assertTermDuplicate(conceptId, nextLocale, nextTerm, termId)) {
-          return conflictResponse(
-            c,
-            "duplicate_glossary_concept_term",
-            "A term with this locale and text already exists",
-          );
-        }
-        const setValues = {
-          ...payload,
-          sourceTerm: nextTerm,
-          targetTerm: nextTerm,
-        };
-        const term = await db.transaction(async (tx) => {
-          const [updatedTerm] = await tx
-            .update(schema.glossaryTerms)
-            .set(setValues)
-            .where(
-              and(
-                eq(schema.glossaryTerms.id, termId),
-                eq(schema.glossaryTerms.conceptId, conceptId),
-                eq(schema.glossaryTerms.glossaryId, glossaryId),
-              ),
-            )
-            .returning();
-          if (!updatedTerm) return undefined;
-
-          if (nextLocale === glossary.sourceLocale) {
-            await tx
-              .update(schema.glossaryConcepts)
-              .set({ primaryTerm: nextTerm })
-              .where(eq(schema.glossaryConcepts.id, conceptId));
-          }
-
-          return updatedTerm;
-        });
-        if (!term) return glossaryNotFoundResponse(c);
-        return c.json({ term: toConceptTermRecord(term, glossary.sourceLocale) }, 200);
-        */
       },
     )
     .delete(
