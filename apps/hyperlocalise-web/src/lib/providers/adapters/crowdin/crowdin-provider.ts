@@ -612,7 +612,7 @@ export class CrowdinTmsProvider extends TmsProvider {
             terms: termRows
               .filter((term) => term.targetLocale === targetLocale)
               .map((term) => ({
-                externalKey: null,
+                externalKey: term.externalKey,
                 sourceTerm: term.sourceTerm,
                 targetTerm: term.targetTerm,
                 description: term.description,
