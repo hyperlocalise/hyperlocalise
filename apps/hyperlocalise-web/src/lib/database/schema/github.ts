@@ -385,3 +385,45 @@ export const githubI18nSetupRuns = pgTable(
     index("idx_github_i18n_setup_runs_created_at").on(table.createdAt),
   ],
 );
+
+/**
+ * Stores first-party GitHub Auto-review settings for a workspace: enablement and the
+ * additional prompt shared by Auto-review and `@hyperlocalise review`.
+ */
+export const githubAutoReviewSettings = pgTable("github_auto_review_settings", {
+  organizationId: uuid("organization_id")
+    .primaryKey()
+    .references(() => organizations.id, { onDelete: "cascade" }),
+  enabled: boolean("enabled").notNull().default(false),
+  additionalPrompt: text("additional_prompt").notNull().default(""),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .notNull()
+    .defaultNow()
+    .$onUpdateFn(() => new Date()),
+});
+
+/**
+ * Selected GitHub repositories for first-party Auto-review. Mentions still run without a row.
+ */
+export const githubAutoReviewRepositories = pgTable(
+  "github_auto_review_repositories",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    githubInstallationRepositoryId: uuid("github_installation_repository_id")
+      .notNull()
+      .references(() => githubInstallationRepositories.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("github_auto_review_repositories_org_repo_key").on(
+      table.organizationId,
+      table.githubInstallationRepositoryId,
+    ),
+    index("idx_github_auto_review_repositories_org").on(table.organizationId),
+    index("idx_github_auto_review_repositories_repo").on(table.githubInstallationRepositoryId),
+  ],
+);

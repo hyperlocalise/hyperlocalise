@@ -42,6 +42,10 @@ import {
   type WorkspaceAutomationRepositoryTarget,
   type WorkspaceAutomationToolConfig,
 } from "@/lib/agents/workspace-automations";
+import {
+  getGithubAutoReviewSettings,
+  upsertGithubAutoReviewSettings,
+} from "@/lib/agents/github/github-auto-review-settings";
 import { db, schema } from "@/lib/database";
 import { isErr } from "@/lib/primitives/result/results";
 
@@ -53,6 +57,7 @@ import {
   updateWorkspaceAutomationBodySchema,
   workspaceAutomationIdParamSchema,
 } from "./workspace-automation.schema";
+import { updateGithubAutoReviewSettingsBodySchema } from "./github-auto-review.schema";
 
 const validateListQuery = validator("query", (value, c) => {
   const parsed = listWorkspaceAutomationsQuerySchema.safeParse(value);
@@ -121,6 +126,19 @@ const validateRunBody = validator("json", (value, c) => {
       c,
       "invalid_workspace_automation_run_payload",
       "Automation run payload is invalid.",
+      parsed.error.flatten(),
+    );
+  }
+  return parsed.data;
+});
+
+const validateGithubAutoReviewBody = validator("json", (value, c) => {
+  const parsed = updateGithubAutoReviewSettingsBodySchema.safeParse(value);
+  if (!parsed.success) {
+    return badRequestResponse(
+      c,
+      "invalid_github_auto_review_payload",
+      "Auto-review settings are invalid.",
       parsed.error.flatten(),
     );
   }
@@ -301,6 +319,41 @@ export function createWorkspaceAutomationRoutes() {
         return forbiddenResponse(c);
       }
       return next();
+    })
+    .get("/github-auto-review", async (c) => {
+      const autoReview = await getGithubAutoReviewSettings(
+        c.var.auth.organization.localOrganizationId,
+      );
+      return c.json({ autoReview }, 200);
+    })
+    .put("/github-auto-review", validateGithubAutoReviewBody, async (c) => {
+      const payload = c.req.valid("json");
+      const result = await upsertGithubAutoReviewSettings({
+        organizationId: c.var.auth.organization.localOrganizationId,
+        enabled: payload.enabled,
+        additionalPrompt: payload.additionalPrompt,
+        githubInstallationRepositoryIds: payload.githubInstallationRepositoryIds,
+      });
+      if (isErr(result)) {
+        switch (result.error.code) {
+          case "github_repository_not_found":
+            return notFoundResponse(c, result.error.code);
+          case "github_repository_not_enabled":
+            return badRequestResponse(
+              c,
+              result.error.code,
+              "Enable this repository before selecting it for Auto-review.",
+            );
+          case "github_repository_archived":
+            return badRequestResponse(
+              c,
+              result.error.code,
+              "Cannot select an archived repository for Auto-review.",
+            );
+        }
+      }
+
+      return c.json({ autoReview: result.value }, 200);
     })
     .get("/", validateListQuery, async (c) => {
       const query = c.req.valid("query");

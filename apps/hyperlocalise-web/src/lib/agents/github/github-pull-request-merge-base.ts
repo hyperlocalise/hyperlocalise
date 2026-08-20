@@ -60,3 +60,44 @@ export async function resolveGithubPullRequestMergeBaseSha(input: {
     return null;
   }
 }
+
+export async function resolveGithubPullRequestReviewBaseSha(input: {
+  githubInstallationId: string;
+  repositoryFullName: string;
+  pullRequestNumber: number;
+  headSha: string;
+}): Promise<string | null> {
+  const repository = parseGithubRepositoryFullName(input.repositoryFullName);
+  if (!repository) {
+    return null;
+  }
+
+  try {
+    const octokit = await getInstallationOctokit(input.githubInstallationId);
+    const { data } = await octokit.rest.pulls.get({
+      owner: repository.owner,
+      repo: repository.repo,
+      pull_number: input.pullRequestNumber,
+    });
+    const baseRef = data.base.ref?.trim() ?? "";
+    const mergeBaseSha = baseRef
+      ? await resolveGithubPullRequestMergeBaseSha({
+          githubInstallationId: input.githubInstallationId,
+          repositoryFullName: input.repositoryFullName,
+          base: baseRef,
+          head: input.headSha,
+        })
+      : null;
+    const baseTipSha = data.base.sha?.trim() ?? "";
+    return mergeBaseSha ?? (baseTipSha.length > 0 ? baseTipSha : null);
+  } catch (error) {
+    logger.warn(
+      {
+        githubInstallationId: input.githubInstallationId,
+        error: error instanceof Error ? error.message : String(error),
+      },
+      "failed to resolve pull request review base",
+    );
+    return null;
+  }
+}

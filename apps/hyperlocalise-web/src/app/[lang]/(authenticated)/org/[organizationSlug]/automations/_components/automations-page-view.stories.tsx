@@ -30,6 +30,19 @@ const meta = {
     templates: automationTemplatesFixture,
     isLoading: false,
     now: fixedNow,
+    autoReview: {
+      enabled: true,
+      additionalPrompt: "Focus on ICU message syntax.",
+      githubInstallationRepositoryIds: ["repo-1"],
+      repositories: [
+        {
+          id: "repo-1",
+          fullName: "acme/app",
+          enabled: true,
+          archived: false,
+        },
+      ],
+    },
   },
 } satisfies Meta<typeof AutomationsPageView>;
 
@@ -39,6 +52,9 @@ type Story = StoryObj<typeof meta>;
 export const Default: Story = {
   play: async ({ canvas }) => {
     await expect(canvas.getByRole("heading", { name: "Automations" })).toBeInTheDocument();
+    await expect(canvas.getByRole("heading", { name: "From Hyperlocalise" })).toBeInTheDocument();
+    await expect(canvas.getByText("Auto-review")).toBeInTheDocument();
+    await expect(canvas.getByText("acme/app")).toBeInTheDocument();
     await expect(canvas.getByText("Validate localisation on push")).toBeInTheDocument();
     await expect(canvas.getByText("Weekly translation sync")).toBeInTheDocument();
     await expect(canvas.getByText("Ada Lovelace")).toBeInTheDocument();
