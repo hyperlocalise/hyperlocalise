@@ -136,6 +136,9 @@ export const Default: Story = {
 
     await expect(canvas.getByText("Source string")).toBeInTheDocument();
     await expect(canvas.getByText("Translation")).toBeInTheDocument();
+    await expect(
+      canvas.getByRole("separator", { name: "Resize translation intelligence panel" }),
+    ).toBeInTheDocument();
     await expect(canvas.getByText("dashboard.reviews.pending.card")).toBeInTheDocument();
     await expect(canvas.getByRole("textbox", { name: "Target translation" })).toBeInTheDocument();
     await expect(canvas.getByRole("button", { name: /Copy source/i })).toBeInTheDocument();
