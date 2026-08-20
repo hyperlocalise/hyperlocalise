@@ -16,6 +16,23 @@ import { eq } from "drizzle-orm";
 import { testClient } from "hono/testing";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 
+const { resolveApiAuthContextFromSessionMock } = vi.hoisted(() => ({
+  resolveApiAuthContextFromSessionMock: vi.fn(
+    (options) =>
+      globalThis.__resolveTestApiAuthContextFromSession?.(options) ??
+      globalThis.__testApiAuthContext ??
+      null,
+  ),
+}));
+
+vi.mock("@/api/auth/workos-session", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/api/auth/workos-session")>();
+  return {
+    ...actual,
+    resolveApiAuthContextFromSession: resolveApiAuthContextFromSessionMock,
+  };
+});
+
 import { createApp } from "@/api/app";
 import { createAuthTestFixture } from "@/api/test-auth.fixture";
 import { db, schema } from "@/lib/database";
