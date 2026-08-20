@@ -202,7 +202,11 @@ export function AutomationsPageView({
     <WorkspacePageShell>
       <PageHeader
         icon={SparklesIcon}
-        label={intl.formatMessage(automationsPageViewMessages.pageLabel)}
+        label={intl.formatMessage(
+          projectId
+            ? automationsPageViewMessages.pageLabelProject
+            : automationsPageViewMessages.pageLabel,
+        )}
         title={intl.formatMessage(automationsPageViewMessages.pageTitle)}
         description={intl.formatMessage(automationsPageViewMessages.pageDescription)}
         actions={renderActionLink({

@@ -145,6 +145,7 @@ export const ProjectScoped: Story = {
   },
   play: async ({ canvas }) => {
     await expect(canvas.getByRole("heading", { name: "Automations" })).toBeInTheDocument();
+    await expect(canvas.getByText("Project")).toBeInTheDocument();
     await expect(
       canvas.queryByRole("heading", { name: "From Hyperlocalise" }),
     ).not.toBeInTheDocument();
