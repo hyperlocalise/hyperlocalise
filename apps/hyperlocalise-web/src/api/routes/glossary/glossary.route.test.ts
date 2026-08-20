@@ -208,6 +208,64 @@ describe("glossaryRoutes", () => {
     );
   });
 
+  it("preserves omitted concept fields during a sparse patch", async () => {
+    const identity = fixture.createWorkosIdentityWithRole("admin");
+    const headers = await fixture.authHeadersFor(identity);
+    const organizationSlug = identity.organization.slug ?? "missing-slug";
+    const glossaryResponse = await fixture.createGlossaryViaApi(identity, undefined, headers);
+    const glossaryId = ((await glossaryResponse.json()) as { glossary: { id: string } }).glossary
+      .id;
+
+    const createResponse = await client.api.orgs[":organizationSlug"].glossaries[
+      ":glossaryId"
+    ].concepts.$post(
+      {
+        param: { organizationSlug, glossaryId },
+        json: {
+          primaryTerm: "Checkout",
+          subject: "Commerce",
+          definition: "A payment step",
+          note: "Keep this note",
+          translatable: true,
+          terms: [
+            {
+              locale: "vi",
+              term: "Thanh toán",
+              status: "draft",
+              caseSensitive: false,
+              forbidden: false,
+            },
+          ],
+        },
+      },
+      { headers },
+    );
+    const conceptId = ((await createResponse.json()) as { concept: { id: string } }).concept.id;
+
+    const patchResponse = await client.api.orgs[":organizationSlug"].glossaries[
+      ":glossaryId"
+    ].concepts[":conceptId"].$patch(
+      {
+        param: { organizationSlug, glossaryId, conceptId },
+        json: { definition: "An updated payment step" },
+      },
+      { headers },
+    );
+
+    expect(patchResponse.status).toBe(200);
+    await expect(patchResponse.json()).resolves.toMatchObject({
+      concept: {
+        primaryTerm: "Checkout",
+        subject: "Commerce",
+        definition: "An updated payment step",
+        note: "Keep this note",
+        terms: expect.arrayContaining([
+          expect.objectContaining({ locale: "en", term: "Checkout" }),
+        ]),
+      },
+    });
+  });
+
   it("rejects duplicate terms when creating a concept", async () => {
     const identity = fixture.createWorkosIdentityWithRole("admin");
     const headers = await fixture.authHeadersFor(identity);

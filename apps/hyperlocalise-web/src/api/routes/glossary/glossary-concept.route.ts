@@ -20,7 +20,7 @@ import { PRODUCT_USAGE_ANALYTICS_EVENTS } from "@/lib/analytics/events";
 import { serverAnalytics } from "@/lib/analytics/server";
 import { parseCsvRows } from "@/lib/csv/parse-csv-rows";
 import { getGlossaryProduct } from "@/lib/glossary/glossary-provider";
-import type { NativeGlossary } from "@/lib/glossary/glossary";
+import type { NativeGlossary, NativeGlossaryConcept } from "@/lib/glossary/glossary";
 import type { CrowdinGlossaryConcept } from "@/lib/providers/adapters/crowdin/crowdin-provider";
 
 import {
@@ -81,17 +81,23 @@ function localStatus(status: string | null | undefined) {
 
 function toCrowdinConceptInput(
   glossary: NativeGlossary,
-  input: CreateGlossaryConceptBody | UpdateGlossaryConceptBody,
+  input: CreateGlossaryConceptBody | UpdateGlossaryConceptBody | NativeGlossaryConcept,
 ): CrowdinGlossaryConcept {
   const primaryTerm = input.primaryTerm ?? "";
   const terms = (input.terms ?? []).map((term) => ({
     id: "id" in term ? term.id : undefined,
-    languageId: term.locale,
-    text: term.locale === glossary.sourceLocale && primaryTerm ? primaryTerm : term.term,
+    languageId: "locale" in term ? term.locale : term.languageId,
+    text:
+      ("locale" in term ? term.locale : term.languageId) === glossary.sourceLocale && primaryTerm
+        ? primaryTerm
+        : "term" in term
+          ? term.term
+          : term.text,
     description: term.description,
     partOfSpeech: term.partOfSpeech,
     status: crowdinStatus(term.status),
-    type: "termType" in term ? (term.termType ?? undefined) : undefined,
+    type:
+      "termType" in term ? (term.termType ?? undefined) : "type" in term ? term.type : undefined,
     gender: term.gender ?? undefined,
     note: "note" in term && typeof term.note === "string" ? term.note : undefined,
     url: term.url || undefined,
@@ -477,9 +483,37 @@ export function createGlossaryConceptRoutes() {
         if (!glossary) return glossaryNotFoundResponse(c);
         const product = getGlossaryProduct({ auth: c.var.auth, glossary });
         if (!product) return externalTmsGlossaryImmutableResponse(c);
+        const current = await product.getConcept(conceptId);
+        if (!current) return glossaryNotFoundResponse(c);
+        const merged = {
+          ...current,
+          ...payload,
+          terms:
+            payload.terms === undefined
+              ? current.terms
+              : payload.terms.map((term) => {
+                  const existing = term.id
+                    ? current.terms.find((candidate) => String(candidate.id) === term.id)
+                    : undefined;
+                  return {
+                    id: term.id ?? existing?.id,
+                    languageId: term.locale,
+                    text: term.term,
+                    description: term.description ?? existing?.description,
+                    partOfSpeech: term.partOfSpeech ?? existing?.partOfSpeech,
+                    status: term.status ?? existing?.status,
+                    type: term.termType ?? existing?.type,
+                    gender:
+                      term.gender !== undefined ? (term.gender ?? undefined) : existing?.gender,
+                    note: existing?.note,
+                    url: term.url !== undefined ? (term.url ?? undefined) : existing?.url,
+                    lemma: term.lemma !== undefined ? (term.lemma ?? undefined) : existing?.lemma,
+                  };
+                }),
+        } satisfies NativeGlossaryConcept;
         const updated = await product.updateConcept(
           conceptId,
-          toCrowdinConceptInput(glossary, payload),
+          toCrowdinConceptInput(glossary, merged),
         );
         if (!updated) return glossaryNotFoundResponse(c);
         return c.json({ concept: toCrowdinConceptRecord(glossary, updated) }, 200);

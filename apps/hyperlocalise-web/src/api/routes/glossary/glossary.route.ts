@@ -25,7 +25,10 @@ import type { NativeGlossary } from "@/lib/glossary/glossary";
 import { getGlossaryProduct } from "@/lib/glossary/glossary-provider";
 import { toGlossaryRecord } from "@/lib/glossary/glossary-records";
 import { listGlossaryTermsByGlossaryId } from "@/lib/glossary/query-glossary-terms";
-import { queryNativeGlossaryLanguages } from "@/lib/glossary/query-glossary-languages";
+import {
+  queryNativeGlossaryLanguages,
+  queryNativeGlossaryLanguagesForGlossary,
+} from "@/lib/glossary/query-glossary-languages";
 import { mapWithConcurrency } from "@/lib/primitives/map-with-concurrency/map-with-concurrency";
 
 import {
@@ -322,7 +325,10 @@ export function createGlossaryRoutes() {
         const product = getGlossaryProduct({ auth: c.var.auth, glossary });
         if (product) {
           const remote = await product.get();
-          return toGlossaryRecord(remote ?? glossary);
+          const languages = languagesByGlossaryId.get(glossary.id);
+          return languages
+            ? toGlossaryRecord(remote ?? glossary, languages)
+            : toGlossaryRecord(remote ?? glossary);
         }
         return toGlossaryRecord(glossary, languagesByGlossaryId.get(glossary.id));
       });
@@ -373,7 +379,18 @@ export function createGlossaryRoutes() {
       const product = getGlossaryProduct({ auth: c.var.auth, glossary });
       if (product) {
         const remote = await product.get();
-        return c.json({ glossary: toGlossaryRecord(remote ?? glossary) }, 200);
+        const languages =
+          glossary.source === "native"
+            ? await queryNativeGlossaryLanguagesForGlossary(glossary)
+            : undefined;
+        return c.json(
+          {
+            glossary: languages
+              ? toGlossaryRecord(remote ?? glossary, languages)
+              : toGlossaryRecord(remote ?? glossary),
+          },
+          200,
+        );
       }
 
       return c.json({ glossary: toGlossaryRecord(glossary) }, 200);
