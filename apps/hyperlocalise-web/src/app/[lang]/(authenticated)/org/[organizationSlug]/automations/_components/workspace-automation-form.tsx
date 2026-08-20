@@ -930,9 +930,9 @@ function AddTriggerMenu({
               <HugeiconsIcon icon={Comment01Icon} strokeWidth={1.8} className="size-4" />
               <FormattedMessage {...workspaceAutomationFormMessages.webChat} />
               {form.triggerMode === "web_chat" ? (
-                <DropdownMenuShortcut>
+                <DropdownMenuHint>
                   <FormattedMessage {...workspaceAutomationFormMessages.addedShortcut} />
-                </DropdownMenuShortcut>
+                </DropdownMenuHint>
               ) : null}
             </DropdownMenuItem>
           </DropdownMenuGroup>
@@ -1291,9 +1291,9 @@ function AddToolMenu({
               <HugeiconsIcon icon={FolderLibraryIcon} strokeWidth={1.8} className="size-4" />
               <FormattedMessage {...workspaceAutomationFormMessages.knowledgeFiles} />
               {form.knowledgeFilesEnabled ? (
-                <DropdownMenuShortcut>
+                <DropdownMenuHint>
                   <FormattedMessage {...workspaceAutomationFormMessages.addedShortcut} />
-                </DropdownMenuShortcut>
+                </DropdownMenuHint>
               ) : null}
             </DropdownMenuItem>
           </DropdownMenuGroup>
