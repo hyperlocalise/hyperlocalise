@@ -96,6 +96,42 @@ describe("githubWebhookRoutes", () => {
     await expect(response.json()).resolves.toEqual({ ok: true });
   });
 
+  it("handles draft pull request opened without ignoring the event", async () => {
+    const installation = await createStoredGithubInstallation(true);
+    let called = false;
+    const app = createGithubWebhookRoutes({
+      githubWebhookHandler: async () => {
+        called = true;
+        return Response.json({ ok: true });
+      },
+    });
+
+    const response = await app.request("http://localhost/", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-github-event": "pull_request",
+        "x-github-delivery": "delivery-pr-draft-open-1",
+      },
+      body: JSON.stringify({
+        action: "opened",
+        installation: { id: Number(installation.githubInstallationId) },
+        repository: { id: Number(installation.githubRepositoryId) },
+        pull_request: {
+          number: 7,
+          html_url: "https://github.com/hyperlocalise/hyperlocalise/pull/7",
+          draft: true,
+          base: { ref: "main", sha: "aaa111" },
+          head: { ref: "feature/draft", sha: "bbb222" },
+        },
+      }),
+    });
+
+    expect(response.status).toBe(200);
+    expect(called).toBe(false);
+    await expect(response.json()).resolves.toEqual({ ok: true, ignored: false });
+  });
+
   it("handles pull request opened without delegating to the bot handler", async () => {
     const installation = await createStoredGithubInstallation(true);
     let called = false;

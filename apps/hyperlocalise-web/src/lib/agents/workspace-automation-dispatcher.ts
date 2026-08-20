@@ -455,6 +455,16 @@ export async function dispatchWorkspaceAutomationsForGithubPullRequest(input: {
       workspaceAutomationShouldDispatchOnGithubPullRequest(automation, input.baseBranch),
   );
 
+  logger.info(
+    {
+      deliveryId: input.deliveryId,
+      githubInstallationRepositoryId: input.githubInstallationRepositoryId,
+      action: input.action,
+      runnableAutomationCount: automations.length,
+    },
+    "workspace automation github pull request automations resolved",
+  );
+
   const results: WorkspaceAutomationDispatchResult[] = [];
 
   for (const automation of automations) {

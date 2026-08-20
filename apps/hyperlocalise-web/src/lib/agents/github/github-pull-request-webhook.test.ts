@@ -53,8 +53,13 @@ describe("shouldDispatchGithubPullRequestAction", () => {
     expect(shouldDispatchGithubPullRequestAction("ready_for_review", { draft: true })).toBe(true);
   });
 
-  it("ignores drafts, merged PRs, and unrelated actions", () => {
-    expect(shouldDispatchGithubPullRequestAction("opened", { draft: true })).toBe(false);
+  it("dispatches draft pull requests so opened and updated drafts still run", () => {
+    expect(shouldDispatchGithubPullRequestAction("opened", { draft: true })).toBe(true);
+    expect(shouldDispatchGithubPullRequestAction("synchronize", { draft: true })).toBe(true);
+    expect(shouldDispatchGithubPullRequestAction("reopened", { draft: true })).toBe(true);
+  });
+
+  it("ignores merged PRs and unrelated actions", () => {
     expect(shouldDispatchGithubPullRequestAction("opened", { merged: true })).toBe(false);
     expect(shouldDispatchGithubPullRequestAction("closed", { draft: false })).toBe(false);
     expect(shouldDispatchGithubPullRequestAction("edited", { draft: false })).toBe(false);
@@ -141,7 +146,7 @@ describe("handleGithubPullRequestWebhook", () => {
     );
   });
 
-  it("ignores draft pull requests without failing the webhook", async () => {
+  it("dispatches draft pull requests opened against main", async () => {
     await expect(
       handleGithubPullRequestWebhook({
         deliveryId: "delivery-pr-draft",
@@ -154,15 +159,52 @@ describe("handleGithubPullRequestWebhook", () => {
           action: "opened",
           pull_request: {
             number: 7,
+            html_url: "https://github.com/acme/app/pull/7",
             draft: true,
             base: { ref: "main", sha: "aaa111" },
             head: { ref: "feature/draft", sha: "bbb222" },
           },
         },
       }),
-    ).resolves.toEqual({ ignored: true });
+    ).resolves.toEqual({ ignored: false });
 
-    expect(dispatchWorkspaceAutomationsForGithubPullRequestMock).not.toHaveBeenCalled();
+    expect(dispatchWorkspaceAutomationsForGithubPullRequestMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: "opened",
+        pullRequestNumber: 7,
+        baseBranch: "main",
+        headBranch: "feature/draft",
+      }),
+    );
+  });
+
+  it("strips refs/heads prefixes from pull request branch names", async () => {
+    await expect(
+      handleGithubPullRequestWebhook({
+        deliveryId: "delivery-pr-refs",
+        organizationId: "org_123",
+        githubInstallationId: "123",
+        githubInstallationRepositoryId: "installation-repo-123",
+        githubRepositoryId: "repo-123",
+        repositoryFullName: "acme/app",
+        payload: {
+          action: "opened",
+          pull_request: {
+            number: 11,
+            draft: false,
+            base: { ref: "refs/heads/main", sha: "aaa111" },
+            head: { ref: "refs/heads/feature/x", sha: "bbb222" },
+          },
+        },
+      }),
+    ).resolves.toEqual({ ignored: false });
+
+    expect(dispatchWorkspaceAutomationsForGithubPullRequestMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        baseBranch: "main",
+        headBranch: "feature/x",
+      }),
+    );
   });
 
   it("does not fail the webhook when workspace automation dispatch fails", async () => {

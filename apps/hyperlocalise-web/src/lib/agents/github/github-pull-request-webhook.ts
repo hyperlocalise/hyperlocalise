@@ -44,7 +44,12 @@ export type HandleGithubPullRequestWebhookResult = {
 };
 
 function readBranchName(value: string | undefined): string | null {
-  const branch = value?.trim() ?? "";
+  const raw = value?.trim() ?? "";
+  if (raw.length === 0) {
+    return null;
+  }
+
+  const branch = raw.startsWith("refs/heads/") ? raw.slice("refs/heads/".length).trim() : raw;
   return branch.length > 0 ? branch : null;
 }
 
@@ -57,10 +62,6 @@ export function shouldDispatchGithubPullRequestAction(
   }
 
   if (pullRequest?.merged) {
-    return false;
-  }
-
-  if (pullRequest?.draft && action !== "ready_for_review") {
     return false;
   }
 
@@ -77,6 +78,8 @@ export async function handleGithubPullRequestWebhook(
         deliveryId: input.deliveryId,
         repositoryId: input.githubRepositoryId,
         action: input.payload.action,
+        draft: Boolean(pullRequest?.draft),
+        merged: Boolean(pullRequest?.merged),
       },
       "ignoring pull request event",
     );
