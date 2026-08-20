@@ -63,11 +63,7 @@ export function createCanvaJwtMiddleware(options: { required?: boolean } = {}) {
 
     if (!appId) {
       if (required) {
-        return unauthorizedResponse(
-          c,
-          "canva_user_token_invalid",
-          "Canva user token is invalid.",
-        );
+        return unauthorizedResponse(c, "canva_user_token_invalid", "Canva user token is invalid.");
       }
       await next();
       return;
