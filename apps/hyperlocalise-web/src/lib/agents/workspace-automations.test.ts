@@ -839,6 +839,75 @@ describe("workspace automations", () => {
     expect(secondPage.map((item) => item.name)).toEqual(["Automation 1"]);
   });
 
+  it("lists automations for a single project including legacy tool project ids", async () => {
+    const scope = await seedWorkspaceAutomationScope();
+    const otherProjectId = `project-${crypto.randomUUID().slice(0, 8)}`;
+    await db.insert(schema.projects).values({
+      id: otherProjectId,
+      organizationId: scope.organizationId,
+      createdByUserId: scope.userId,
+      name: "Mobile",
+    });
+
+    const matching = expectOk(
+      await createWorkspaceAutomation({
+        organizationId: scope.organizationId,
+        authorUserId: scope.userId,
+        name: "Matching project automation",
+        instructions: "Run for the website project.",
+        projectId: scope.projectId,
+      }),
+    );
+    expectOk(
+      await createWorkspaceAutomation({
+        organizationId: scope.organizationId,
+        authorUserId: scope.userId,
+        name: "Other project automation",
+        instructions: "Run for the mobile project.",
+        projectId: otherProjectId,
+      }),
+    );
+    expectOk(
+      await createWorkspaceAutomation({
+        organizationId: scope.organizationId,
+        authorUserId: scope.userId,
+        name: "Unscoped automation",
+        instructions: "Run without a project.",
+      }),
+    );
+
+    const [legacy] = await db
+      .insert(schema.workspaceAutomations)
+      .values({
+        organizationId: scope.organizationId,
+        authorUserId: scope.userId,
+        status: "active",
+        name: "Legacy translation project automation",
+        instructions: "Run from a legacy tool project id.",
+        model: "openai/gpt-5.6-luna",
+        projectId: null,
+        triggerConfig: { mode: "manual" },
+        repositoryTarget: { kind: "none" },
+        toolConfig: {
+          translation: { enabled: true, projectId: scope.projectId },
+        },
+        configVersion: 1,
+      })
+      .returning();
+
+    const listed = await listWorkspaceAutomations({
+      organizationId: scope.organizationId,
+      projectId: scope.projectId,
+    });
+
+    expect(listed.map((item) => item.name).toSorted()).toEqual([
+      "Legacy translation project automation",
+      "Matching project automation",
+    ]);
+    expect(listed.some((item) => item.id === matching.id)).toBe(true);
+    expect(listed.some((item) => item.id === legacy?.id)).toBe(true);
+  });
+
   it("falls back to email for author names and omits missing authors", async () => {
     const scope = await seedWorkspaceAutomationScope();
     const emailOnlyUserId = crypto.randomUUID();

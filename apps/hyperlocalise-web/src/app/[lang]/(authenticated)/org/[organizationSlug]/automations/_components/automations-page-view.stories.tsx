@@ -137,3 +137,29 @@ export const ActivatableTemplate: Story = {
     await expect(canvas.getAllByRole("button", { name: "Add" })).not.toHaveLength(0);
   },
 };
+
+export const ProjectScoped: Story = {
+  args: {
+    projectId: "project-1",
+    automations: automationsFixture.filter((automation) => automation.projectId === "project-1"),
+  },
+  play: async ({ canvas }) => {
+    await expect(canvas.getByRole("heading", { name: "Automations" })).toBeInTheDocument();
+    await expect(canvas.getByText("Project")).toBeInTheDocument();
+    await expect(
+      canvas.queryByRole("heading", { name: "From Hyperlocalise" }),
+    ).not.toBeInTheDocument();
+    await expect(canvas.queryByText("Auto-review")).not.toBeInTheDocument();
+    await expect(canvas.getByText("Validate localisation on push")).toBeInTheDocument();
+    await expect(
+      canvas.getByRole("link", { name: /Validate localisation on push/i }),
+    ).toHaveAttribute(
+      "href",
+      "/org/acme/projects/project-1/automations/11111111-1111-4111-8111-111111111111",
+    );
+    await expect(canvas.getByRole("link", { name: /New Automation/i })).toHaveAttribute(
+      "href",
+      "/org/acme/projects/project-1/automations/new",
+    );
+  },
+};

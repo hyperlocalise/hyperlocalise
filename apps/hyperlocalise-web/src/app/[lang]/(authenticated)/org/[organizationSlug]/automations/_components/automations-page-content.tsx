@@ -28,8 +28,8 @@ import { githubAutoReviewCardMessages } from "./github-auto-review-card.messages
 
 const automationsApi = createAutomationsApi(apiClient);
 
-function automationsQueryKey(organizationSlug: string) {
-  return ["workspace-automations", organizationSlug] as const;
+function automationsQueryKey(organizationSlug: string, projectId?: string) {
+  return ["workspace-automations", organizationSlug, projectId ?? "all"] as const;
 }
 
 function githubAutoReviewQueryKey(organizationSlug: string) {
@@ -66,21 +66,24 @@ function renderProductionActionLink({
 
 export function AutomationsPageContent({
   organizationSlug,
+  projectId,
   templates,
   automationsApi: injectedAutomationsApi = automationsApi,
 }: {
   organizationSlug: string;
+  projectId?: string;
   templates: WorkspaceAutomationTemplate[];
   automationsApi?: typeof automationsApi;
 }) {
   const intl = useIntl();
   const queryClient = useQueryClient();
   const automationsQuery = useQuery({
-    queryKey: automationsQueryKey(organizationSlug),
-    queryFn: () => injectedAutomationsApi.listAutomations(organizationSlug),
+    queryKey: automationsQueryKey(organizationSlug, projectId),
+    queryFn: () => injectedAutomationsApi.listAutomations(organizationSlug, { projectId }),
   });
   const autoReviewQuery = useQuery({
     queryKey: githubAutoReviewQueryKey(organizationSlug),
+    enabled: !projectId,
     queryFn: () => injectedAutomationsApi.getGithubAutoReviewSettings(organizationSlug),
   });
   const saveAutoReview = useMutation({
@@ -103,6 +106,7 @@ export function AutomationsPageContent({
   return (
     <AutomationsPageView
       organizationSlug={organizationSlug}
+      projectId={projectId}
       automations={automationsQuery.data ?? []}
       templates={templates}
       isLoading={automationsQuery.isLoading}
