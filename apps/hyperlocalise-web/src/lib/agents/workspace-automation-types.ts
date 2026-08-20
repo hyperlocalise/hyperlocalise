@@ -49,6 +49,7 @@ export const workspaceAutomationRunTriggerSourceSchema = z.enum([
   "github",
   "contentful",
   "source_upload",
+  "web_chat",
 ]);
 
 const branchPatternSchema = z
@@ -86,7 +87,7 @@ export function workspaceAutomationGithubEventsInclude(
 export const triggerConfigSchema = z
   .object({
     mode: z
-      .enum(["manual", "scheduled", "github", "contentful", "source_upload"])
+      .enum(["manual", "scheduled", "github", "contentful", "source_upload", "web_chat"])
       .default("manual"),
     schedule: z
       .object({
@@ -205,6 +206,12 @@ const knowledgeToolConfigSchema = z
   })
   .default({ enabled: false, allowUpdates: false });
 
+const knowledgeFilesToolConfigSchema = z
+  .object({
+    enabled: z.boolean().default(false),
+  })
+  .default({ enabled: false });
+
 const mcpToolConfigSchema = z
   .object({
     enabled: z.boolean().default(false),
@@ -297,6 +304,7 @@ const toolConfigObjectSchema = z
     listIssues: listIssuesToolConfigSchema.optional(),
     createIssue: createIssueToolConfigSchema.optional(),
     knowledge: knowledgeToolConfigSchema.optional(),
+    knowledgeFiles: knowledgeFilesToolConfigSchema.optional(),
     mcp: mcpToolConfigSchema.optional(),
     semrush: semrushToolConfigSchema.optional(),
     ahrefs: ahrefsToolConfigSchema.optional(),
@@ -341,6 +349,9 @@ export type WorkspaceAutomationAssignTranslateWithAgentToolConfig = z.infer<
 export type WorkspaceAutomationListIssuesToolConfig = z.infer<typeof listIssuesToolConfigSchema>;
 export type WorkspaceAutomationCreateIssueToolConfig = z.infer<typeof createIssueToolConfigSchema>;
 export type WorkspaceAutomationKnowledgeToolConfig = z.infer<typeof knowledgeToolConfigSchema>;
+export type WorkspaceAutomationKnowledgeFilesToolConfig = z.infer<
+  typeof knowledgeFilesToolConfigSchema
+>;
 export type WorkspaceAutomationMcpToolConfig = z.infer<typeof mcpToolConfigSchema>;
 export type WorkspaceAutomationSemrushToolConfig = z.infer<typeof semrushToolConfigSchema>;
 export type WorkspaceAutomationAhrefsToolConfig = z.infer<typeof ahrefsToolConfigSchema>;
@@ -379,6 +390,10 @@ export type WorkspaceAutomationConfigValidationError =
   | {
       code: "scheduled_workflow_required";
       message: "Scheduled automations require at least one GitHub, Contentful, Issues, Web Search, or Crowdin workflow tool.";
+    }
+  | {
+      code: "invalid_automation_timezone";
+      message: "Choose a valid timezone for the schedule.";
     }
   | {
       code: "contentful_connection_required";
@@ -508,6 +523,12 @@ export function hasWorkspaceAutomationKnowledgeUpdatesAllowed(
   toolConfig: WorkspaceAutomationToolConfig,
 ) {
   return Boolean(toolConfig.knowledge?.enabled && toolConfig.knowledge.allowUpdates);
+}
+
+export function hasWorkspaceAutomationKnowledgeFilesTool(
+  toolConfig: WorkspaceAutomationToolConfig,
+) {
+  return Boolean(toolConfig.knowledgeFiles?.enabled);
 }
 
 export function hasWorkspaceAutomationMcpTool(toolConfig: WorkspaceAutomationToolConfig) {

@@ -169,7 +169,7 @@ describe("github repository automation settings", () => {
     ).toBe("2026-05-30T11:00:00.000Z");
   });
 
-  it("schedules daily runs at hourUtc in UTC", () => {
+  it("schedules daily runs at the selected hour in the timezone", () => {
     const from = new Date("2026-05-30T14:00:00.000Z");
     const next = computeNextScheduledRunAt(
       {
@@ -181,10 +181,40 @@ describe("github repository automation settings", () => {
       from,
     );
 
+    expect(next.toISOString()).toBe("2026-05-31T13:00:00.000Z");
+  });
+
+  it("schedules daily UTC runs at hourUtc", () => {
+    const from = new Date("2026-05-30T14:00:00.000Z");
+    const next = computeNextScheduledRunAt(
+      {
+        mode: "scheduled",
+        cadence: "daily",
+        hourUtc: 9,
+        timezone: "UTC",
+      },
+      from,
+    );
+
     expect(next.toISOString()).toBe("2026-05-31T09:00:00.000Z");
   });
 
-  it("schedules weekly runs in the future when local weekday is behind UTC", () => {
+  it("schedules the first valid local hour when DST skips the selected time", () => {
+    const from = new Date("2026-03-08T06:30:00.000Z");
+    const next = computeNextScheduledRunAt(
+      {
+        mode: "scheduled",
+        cadence: "daily",
+        hourUtc: 2,
+        timezone: "America/New_York",
+      },
+      from,
+    );
+
+    expect(next.toISOString()).toBe("2026-03-08T07:00:00.000Z");
+  });
+
+  it("schedules weekly runs at the local weekday and hour", () => {
     const from = new Date("2026-01-05T02:00:00.000Z");
     const next = computeNextScheduledRunAt(
       {
@@ -198,6 +228,6 @@ describe("github repository automation settings", () => {
     );
 
     expect(next.getTime()).toBeGreaterThan(from.getTime());
-    expect(next.toISOString()).toBe("2026-01-12T01:00:00.000Z");
+    expect(next.toISOString()).toBe("2026-01-05T06:00:00.000Z");
   });
 });

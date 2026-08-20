@@ -33,6 +33,7 @@ import { resolveCatFileViewCapabilities } from "./cat-file-view-capabilities";
 import { CatPanelErrorBoundary } from "./cat-panel-error-boundary";
 import { useCatWorkspace } from "./cat-workspace-context";
 import { catWorkspaceViewMessages } from "./cat-workspace.messages";
+import { CatComfortableResizableLayout } from "./cat-workspace-resizable-layout";
 import { resolveSegmentIntelligenceForDisplay } from "./store/cat-workspace-store-utils";
 
 const COMPACT_WORKSPACE_QUERY = "(max-width: 1023px)";
@@ -701,19 +702,11 @@ export const CatWorkspaceView = observer(function CatWorkspaceView({
       ) : isSideBySideDesktop ? (
         renderSideBySidePanel()
       ) : (
-        <div className="grid h-full min-h-0 min-w-0 flex-1 grid-cols-[minmax(0,20rem)_minmax(0,1fr)_minmax(0,22rem)] overflow-hidden">
-          <div className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden">
-            {renderQueuePanel()}
-          </div>
-
-          <div className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden">
-            {renderEditorPanel()}
-          </div>
-
-          <div className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden">
-            {renderIntelligencePanel()}
-          </div>
-        </div>
+        <CatComfortableResizableLayout
+          queue={renderQueuePanel()}
+          editor={renderEditorPanel()}
+          intelligence={renderIntelligencePanel()}
+        />
       )}
     </div>
   );

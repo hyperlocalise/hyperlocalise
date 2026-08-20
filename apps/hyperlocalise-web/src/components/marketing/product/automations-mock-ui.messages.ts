@@ -19,8 +19,8 @@ export const automationsMockMessages = defineMessages({
     description: "Automations mock UI eyebrow label",
   },
   headline: {
-    defaultMessage: "Localise faster and efficiently",
-    id: "zuBGly8hc0",
+    defaultMessage: "Review localisation before it merges",
+    id: "fIjUMyYSYz",
     description: "Automations mock UI section heading",
   },
   botLabel: {
@@ -34,25 +34,25 @@ export const automationsMockMessages = defineMessages({
     description: "Automations mock UI call-to-action button",
   },
 
+  useCaseAutoReviewTitle: {
+    defaultMessage: "Auto-review",
+    id: "9kDc2CzQHo",
+    description: "Automations mock UI Auto-review use case title",
+  },
+  useCaseAutoReviewDescription: {
+    defaultMessage: "Review pull requests and post one sticky comment",
+    id: "b4zb6//QSL",
+    description: "Automations mock UI Auto-review use case description",
+  },
   useCaseAutoTranslationTitle: {
     defaultMessage: "Auto Translation",
-    id: "JoyCXV9ci7",
-    description: "Automations mock UI use case 1 title",
+    id: "c83abCYnIc",
+    description: "Automations mock UI auto translation use case title",
   },
   useCaseAutoTranslationDescription: {
     defaultMessage: "Detect string changes and translate automatically",
-    id: "HV+orx8sr6",
-    description: "Automations mock UI use case 1 description",
-  },
-  useCaseReviewWithAgentTitle: {
-    defaultMessage: "Review with Agent",
-    id: "juC/UYo14l",
-    description: "Automations mock UI use case 2 title",
-  },
-  useCaseReviewWithAgentDescription: {
-    defaultMessage: "Review translations for quality before release",
-    id: "5gOsIVBri/",
-    description: "Automations mock UI use case 2 description",
+    id: "xLIQFiGFVJ",
+    description: "Automations mock UI auto translation use case description",
   },
   useCaseLocalisationAuditTitle: {
     defaultMessage: "Localisation Audit",
@@ -70,10 +70,10 @@ export const automationsMockMessages = defineMessages({
     id: "SZbykgpUeM",
     description: "Automations mock UI trigger label for source upload",
   },
-  triggerGithubMain: {
-    defaultMessage: "GitHub push · main",
-    id: "eyBOSuClwi",
-    description: "Automations mock UI trigger label for GitHub push to main",
+  triggerGithubPullRequest: {
+    defaultMessage: "GitHub pull request opened",
+    id: "/6wXYQGzwZ",
+    description: "Automations mock UI trigger label for a GitHub pull request opening",
   },
   triggerGithubRelease: {
     defaultMessage: "GitHub push · release/*",
@@ -100,6 +100,11 @@ export const automationsMockMessages = defineMessages({
     defaultMessage: "Validation",
     id: "qfZTKSfQgm",
     description: "Automations mock UI tool label",
+  },
+  toolMentionReview: {
+    defaultMessage: "@hyperlocalise review",
+    id: "mNhu5W2AEy",
+    description: "Automations mock UI tool label for the mention review command",
   },
   toolSlack: {
     defaultMessage: "Slack",
@@ -133,25 +138,25 @@ export const automationsMockMessages = defineMessages({
     description: "Automations mock UI auto translation step 5",
   },
 
-  step2Review1: {
-    defaultMessage: "Scanning changed source strings...",
-    id: "smcq1fCig2",
-    description: "Automations mock UI review with agent step 1",
+  stepAutoReview1: {
+    defaultMessage: "Pull request opened on checkout-fr",
+    id: "3ewdsyHYyw",
+    description: "Automations mock UI Auto-review step 1",
   },
-  step2Review2: {
-    defaultMessage: "Checked for missing context & key churn",
-    id: "WXiWMxn46f",
-    description: "Automations mock UI review with agent step 2",
+  stepAutoReview2: {
+    defaultMessage: "Reading localisation diff...",
+    id: "31b9kvfP1i",
+    description: "Automations mock UI Auto-review step 2",
   },
-  step2Review3: {
-    defaultMessage: "Validated ICU syntax & placeholders",
-    id: "NJcIVnfImQ",
-    description: "Automations mock UI review with agent step 3",
+  stepAutoReview3: {
+    defaultMessage: "Checked missing translations and placeholders",
+    id: "YBk75aHrs3",
+    description: "Automations mock UI Auto-review step 3",
   },
-  step2Review4: {
-    defaultMessage: "2 blocking issues found · notifying Slack",
-    id: "OckWNLNmqY",
-    description: "Automations mock UI review with agent step 4 — warning state",
+  stepAutoReview4: {
+    defaultMessage: "Posted sticky review comment",
+    id: "aGgOWl6hrF",
+    description: "Automations mock UI Auto-review step 4",
   },
 
   step3Audit1: {

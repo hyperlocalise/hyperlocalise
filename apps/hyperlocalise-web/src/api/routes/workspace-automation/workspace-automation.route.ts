@@ -16,11 +16,13 @@ import { validator } from "hono/validator";
 
 import { isWorkspaceOperatorRole } from "@/api/auth/roles";
 import { workosAuthMiddleware, type AuthVariables } from "@/api/auth/workos";
+import { createRequestBodyLimitMiddleware } from "@/api/middleware/request-body-limit";
 import {
   badRequestResponse,
   conflictResponse,
   forbiddenResponse,
   notFoundResponse,
+  payloadTooLargeResponse,
   serviceUnavailableResponse,
 } from "@/api/response.schema";
 import {
@@ -42,7 +44,20 @@ import {
   type WorkspaceAutomationRepositoryTarget,
   type WorkspaceAutomationToolConfig,
 } from "@/lib/agents/workspace-automations";
+import {
+  createWorkspaceAutomationKnowledgeFile,
+  deleteWorkspaceAutomationKnowledgeFile,
+  listWorkspaceAutomationKnowledgeFiles,
+  WORKSPACE_AUTOMATION_KNOWLEDGE_MAX_BYTES,
+  type CreateWorkspaceAutomationKnowledgeFileError,
+} from "@/lib/agents/workspace-automation-knowledge-files";
+import {
+  getGithubAutoReviewSettings,
+  upsertGithubAutoReviewSettings,
+} from "@/lib/agents/github/github-auto-review-settings";
 import { db, schema } from "@/lib/database";
+import type { FileStorageAdapter } from "@/lib/file-storage";
+import { getFileStorageAdapter } from "@/lib/file-storage";
 import { isErr } from "@/lib/primitives/result/results";
 
 import {
@@ -52,7 +67,9 @@ import {
   listWorkspaceAutomationsQuerySchema,
   updateWorkspaceAutomationBodySchema,
   workspaceAutomationIdParamSchema,
+  workspaceAutomationKnowledgeFileIdParamSchema,
 } from "./workspace-automation.schema";
+import { updateGithubAutoReviewSettingsBodySchema } from "./github-auto-review.schema";
 
 const validateListQuery = validator("query", (value, c) => {
   const parsed = listWorkspaceAutomationsQuerySchema.safeParse(value);
@@ -122,6 +139,54 @@ const validateRunsQuery = validator("query", (value, c) => {
   return parsed.data;
 });
 
+const validateKnowledgeFileParams = validator("param", (value, c) => {
+  const parsed = workspaceAutomationKnowledgeFileIdParamSchema.safeParse(value);
+  if (!parsed.success) {
+    return badRequestResponse(c, "invalid_workspace_automation_knowledge_file_id");
+  }
+  return parsed.data;
+});
+
+const knowledgeFileUploadBodyLimit = createRequestBodyLimitMiddleware({
+  maxSize: WORKSPACE_AUTOMATION_KNOWLEDGE_MAX_BYTES + 1024 * 1024,
+  onError: (c) => payloadTooLargeResponse(c, "knowledge_file_too_large"),
+});
+
+function asUploadedFile(value: unknown) {
+  if (value instanceof File && value.size >= 0) {
+    return value;
+  }
+  if (Array.isArray(value)) {
+    const [first] = value.filter((item): item is File => item instanceof File);
+    return first ?? null;
+  }
+  return null;
+}
+
+function mapKnowledgeFileError(
+  c: Parameters<typeof badRequestResponse>[0],
+  error: CreateWorkspaceAutomationKnowledgeFileError,
+) {
+  switch (error.code) {
+    case "unsupported_knowledge_file":
+      return badRequestResponse(
+        c,
+        error.code,
+        "Upload a PDF, Word, markdown, CSV, JSON, or text file.",
+      );
+    case "empty_knowledge_file":
+      return badRequestResponse(c, error.code, "The knowledge file is empty.");
+    case "knowledge_file_too_large":
+      return payloadTooLargeResponse(c, error.code, "Knowledge files must be 25 MB or smaller.");
+    case "knowledge_file_limit_reached":
+      return conflictResponse(
+        c,
+        error.code,
+        "This automation already has the maximum number of knowledge files.",
+      );
+  }
+}
+
 const validateRunBody = validator("json", (value, c) => {
   const parsed = createWorkspaceAutomationRunBodySchema.safeParse(value);
   if (!parsed.success) {
@@ -129,6 +194,19 @@ const validateRunBody = validator("json", (value, c) => {
       c,
       "invalid_workspace_automation_run_payload",
       "Automation run payload is invalid.",
+      parsed.error.flatten(),
+    );
+  }
+  return parsed.data;
+});
+
+const validateGithubAutoReviewBody = validator("json", (value, c) => {
+  const parsed = updateGithubAutoReviewSettingsBodySchema.safeParse(value);
+  if (!parsed.success) {
+    return badRequestResponse(
+      c,
+      "invalid_github_auto_review_payload",
+      "Auto-review settings are invalid.",
       parsed.error.flatten(),
     );
   }
@@ -301,7 +379,11 @@ function mapWorkspaceResourceLimitError(
   );
 }
 
-export function createWorkspaceAutomationRoutes() {
+export function createWorkspaceAutomationRoutes(
+  options: {
+    fileStorageAdapter?: FileStorageAdapter;
+  } = {},
+) {
   return new Hono<{ Variables: AuthVariables }>()
     .use("*", workosAuthMiddleware)
     .use("*", async (c, next) => {
@@ -309,6 +391,41 @@ export function createWorkspaceAutomationRoutes() {
         return forbiddenResponse(c);
       }
       return next();
+    })
+    .get("/github-auto-review", async (c) => {
+      const autoReview = await getGithubAutoReviewSettings(
+        c.var.auth.organization.localOrganizationId,
+      );
+      return c.json({ autoReview }, 200);
+    })
+    .put("/github-auto-review", validateGithubAutoReviewBody, async (c) => {
+      const payload = c.req.valid("json");
+      const result = await upsertGithubAutoReviewSettings({
+        organizationId: c.var.auth.organization.localOrganizationId,
+        enabled: payload.enabled,
+        additionalPrompt: payload.additionalPrompt,
+        githubInstallationRepositoryIds: payload.githubInstallationRepositoryIds,
+      });
+      if (isErr(result)) {
+        switch (result.error.code) {
+          case "github_repository_not_found":
+            return notFoundResponse(c, result.error.code);
+          case "github_repository_not_enabled":
+            return badRequestResponse(
+              c,
+              result.error.code,
+              "Enable this repository before selecting it for Auto-review.",
+            );
+          case "github_repository_archived":
+            return badRequestResponse(
+              c,
+              result.error.code,
+              "Cannot select an archived repository for Auto-review.",
+            );
+        }
+      }
+
+      return c.json({ autoReview: result.value }, 200);
     })
     .get("/", validateListQuery, async (c) => {
       const query = c.req.valid("query");
@@ -396,6 +513,95 @@ export function createWorkspaceAutomationRoutes() {
 
       return c.json({ automation, recentRuns }, 200);
     })
+    .get("/:automationId/knowledge-files", validateAutomationParams, async (c) => {
+      const params = c.req.valid("param");
+      const organizationId = c.var.auth.organization.localOrganizationId;
+      const automation = await getWorkspaceAutomationById({
+        automationId: params.automationId,
+        organizationId,
+      });
+
+      if (!automation) {
+        return notFoundResponse(c, "workspace_automation_not_found");
+      }
+
+      const knowledgeFiles = await listWorkspaceAutomationKnowledgeFiles({
+        organizationId,
+        automationId: automation.id,
+      });
+
+      return c.json({ knowledgeFiles }, 200);
+    })
+    .post(
+      "/:automationId/knowledge-files",
+      validateAutomationParams,
+      knowledgeFileUploadBodyLimit,
+      async (c) => {
+        const params = c.req.valid("param");
+        const organizationId = c.var.auth.organization.localOrganizationId;
+        const automation = await getWorkspaceAutomationById({
+          automationId: params.automationId,
+          organizationId,
+        });
+
+        if (!automation) {
+          return notFoundResponse(c, "workspace_automation_not_found");
+        }
+
+        const body = await c.req.parseBody({ all: true });
+        const file = asUploadedFile(body.file);
+        if (!file) {
+          return badRequestResponse(c, "file_required", "A knowledge file is required.");
+        }
+
+        const adapter = options.fileStorageAdapter ?? getFileStorageAdapter();
+        const result = await createWorkspaceAutomationKnowledgeFile({
+          organizationId,
+          automationId: automation.id,
+          createdByUserId: c.var.auth.user.localUserId,
+          filename: file.name,
+          contentType: file.type || "application/octet-stream",
+          content: Buffer.from(await file.arrayBuffer()),
+          adapter,
+        });
+
+        if (isErr(result)) {
+          return mapKnowledgeFileError(c, result.error);
+        }
+
+        return c.json({ knowledgeFile: result.value }, 201);
+      },
+    )
+    .delete(
+      "/:automationId/knowledge-files/:knowledgeFileId",
+      validateKnowledgeFileParams,
+      async (c) => {
+        const params = c.req.valid("param");
+        const organizationId = c.var.auth.organization.localOrganizationId;
+        const automation = await getWorkspaceAutomationById({
+          automationId: params.automationId,
+          organizationId,
+        });
+
+        if (!automation) {
+          return notFoundResponse(c, "workspace_automation_not_found");
+        }
+
+        const adapter = options.fileStorageAdapter ?? getFileStorageAdapter();
+        const deleted = await deleteWorkspaceAutomationKnowledgeFile({
+          organizationId,
+          automationId: automation.id,
+          knowledgeFileId: params.knowledgeFileId,
+          adapter,
+        });
+
+        if (!deleted) {
+          return notFoundResponse(c, "workspace_automation_knowledge_file_not_found");
+        }
+
+        return c.body(null, 204);
+      },
+    )
     .patch("/:automationId", validateAutomationParams, validateUpdateBody, async (c) => {
       const params = c.req.valid("param");
       const payload = c.req.valid("json");

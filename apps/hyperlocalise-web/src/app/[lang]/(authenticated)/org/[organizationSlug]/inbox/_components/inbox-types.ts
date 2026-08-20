@@ -22,7 +22,7 @@ import { inboxTypesMessages } from "./inbox-types.messages";
 export type Conversation = {
   id: string;
   title: string;
-  source: "chat_ui" | "email_agent" | "github_agent" | "slack_agent";
+  source: "chat_ui" | "email_agent" | "github_agent" | "slack_agent" | "web_chat";
   status: "active" | "archived";
   projectId: string | null;
   lastMessageAt: string;
@@ -112,6 +112,8 @@ export function getSourceLabel(source: Conversation["source"], intl: IntlShape) 
       return intl.formatMessage(inboxTypesMessages.sourceGitHub);
     case "slack_agent":
       return intl.formatMessage(inboxTypesMessages.sourceSlack);
+    case "web_chat":
+      return intl.formatMessage(inboxTypesMessages.sourceWebChat);
     default:
       return assertNever(source);
   }

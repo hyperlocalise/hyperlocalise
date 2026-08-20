@@ -67,6 +67,7 @@ func TestValidateSegmentSuccess(t *testing.T) {
 				},
 			}
 		},
+		spellChecker: NoopSpellChecker{},
 	}
 
 	mux := http.NewServeMux()

@@ -60,6 +60,10 @@ describe("CatWorkspaceContainer UI", () => {
 
     expect(screen.getByText("Queue")).toBeInTheDocument();
     expect(screen.getByText("Translation Intelligence")).toBeInTheDocument();
+    expect(screen.getByRole("separator", { name: "Resize queue panel" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("separator", { name: "Resize translation intelligence panel" }),
+    ).toBeInTheDocument();
     await waitFor(() =>
       expect(screen.getByRole("button", { name: /Approve/i })).toBeInTheDocument(),
     );
@@ -195,6 +199,9 @@ describe("CatWorkspaceContainer UI", () => {
 
       await user.click(screen.getByRole("tab", { name: "Queue" }));
       expect(screen.getByRole("tab", { name: "Queue" })).toHaveAttribute("data-active");
+      expect(
+        screen.queryByRole("separator", { name: "Resize queue panel" }),
+      ).not.toBeInTheDocument();
     } finally {
       window.matchMedia = originalMatchMedia;
     }

@@ -220,14 +220,14 @@ export const repositoryAutomationSettingsPanelMessages = defineMessages({
     description: "Scheduled cadence option for weekly runs",
   },
   scheduledHourLabel: {
-    defaultMessage: "Hour (UTC)",
-    id: "BrsVyR4Efb",
+    defaultMessage: "Hour",
+    id: "LcZxj/pk5J",
     description: "Label for scheduled automation hour select",
   },
   scheduledHourOption: {
-    defaultMessage: "{hour}:00 UTC",
-    id: "6xU6c/eKvO",
-    description: "Option label for a scheduled automation hour in UTC",
+    defaultMessage: "{hour}:00",
+    id: "ayQm+lJH/B",
+    description: "Option label for a scheduled automation hour",
   },
   scheduledDayLabel: {
     defaultMessage: "Day of week",

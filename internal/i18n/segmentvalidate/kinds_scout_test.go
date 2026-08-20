@@ -23,6 +23,12 @@ func TestKindForSourcePathExtended(t *testing.T) {
 		// Extended HTML extensions
 		{"file.htm", FormatHTML},
 
+		// Subtitle markup uses HTML-like tags
+		{"file.srt", FormatHTML},
+		{"file.vtt", FormatWebVTT},
+		{"file.SRT", FormatHTML},
+		{"file.VTT", FormatWebVTT},
+
 		// Case sensitivity check for extended
 		{"file.MARKDOWN", FormatMarkdown},
 		{"file.HTM", FormatHTML},

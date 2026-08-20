@@ -135,5 +135,30 @@ export async function handleGithubPullRequestWebhook(
     );
   }
 
+  if (input.repositoryFullName) {
+    try {
+      const { enqueueGithubPullRequestReview } = await import("./github-pull-request-review");
+      await enqueueGithubPullRequestReview({
+        organizationId: input.organizationId,
+        githubInstallationId: input.githubInstallationId,
+        githubInstallationRepositoryId: input.githubInstallationRepositoryId,
+        repositoryFullName: input.repositoryFullName,
+        pullRequestNumber,
+        headSha: commitAfter,
+        baseSha: commitBefore || null,
+        trigger: "auto_review",
+      });
+    } catch (error) {
+      logger.error(
+        {
+          deliveryId: input.deliveryId,
+          repositoryId: input.githubRepositoryId,
+          error: error instanceof Error ? error.message : String(error),
+        },
+        "github auto-review enqueue failed",
+      );
+    }
+  }
+
   return { ignored: false };
 }

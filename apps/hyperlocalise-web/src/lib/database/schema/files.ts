@@ -32,7 +32,7 @@ import {
 import { organizations, users } from "./organizations";
 import { organizationExternalTmsProviderCredentials } from "./providers";
 import { projects } from "./projects";
-import { interactions } from "./agents";
+import { interactions, workspaceAutomations } from "./agents";
 import { jobs } from "./jobs";
 import { organizationApiKeys } from "./integrations";
 
@@ -296,6 +296,46 @@ export const externalTmsFileVersions = pgTable(
       table.organizationId,
       table.projectId,
       table.sourcePath,
+    ),
+  ],
+);
+
+/**
+ * Stores creator-uploaded knowledge files (PDF, markdown, and similar) scoped to a
+ * workspace automation so the web-chat agent can recall their extracted text.
+ */
+export const workspaceAutomationKnowledgeFiles = pgTable(
+  "workspace_automation_knowledge_files",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    automationId: uuid("automation_id")
+      .notNull()
+      .references(() => workspaceAutomations.id, { onDelete: "cascade" }),
+    storedFileId: text("stored_file_id")
+      .notNull()
+      .references(() => storedFiles.id, { onDelete: "cascade" }),
+    filename: text("filename").notNull(),
+    contentType: text("content_type").notNull(),
+    byteSize: integer("byte_size").notNull(),
+    extractedText: text("extracted_text").notNull().default(""),
+    createdByUserId: uuid("created_by_user_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdateFn(() => new Date()),
+  },
+  (table) => [
+    uniqueIndex("workspace_automation_knowledge_files_stored_file_key").on(table.storedFileId),
+    index("idx_workspace_automation_knowledge_files_automation").on(
+      table.organizationId,
+      table.automationId,
+      table.createdAt,
     ),
   ],
 );

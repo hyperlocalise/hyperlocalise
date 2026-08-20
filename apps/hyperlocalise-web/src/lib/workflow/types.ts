@@ -86,6 +86,21 @@ export type RepositoryAgentTaskQueue = JobQueue<
   import("@/lib/agents/repository-agent-task").RepositoryAgentTask
 >;
 
+export type GithubPullRequestReviewTrigger = "auto_review" | "mention";
+
+export type GithubPullRequestReviewTask = {
+  organizationId: string;
+  githubInstallationId: string;
+  repositoryFullName: string;
+  pullRequestNumber: number;
+  headSha: string;
+  baseSha: string | null;
+  additionalPrompt: string;
+  trigger: GithubPullRequestReviewTrigger;
+};
+
+export type GithubPullRequestReviewQueue = JobQueue<GithubPullRequestReviewTask>;
+
 export type ProviderAgentTranslationEventData = {
   agentRunId: string;
   organizationId: string;

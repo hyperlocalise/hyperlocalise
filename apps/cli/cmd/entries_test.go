@@ -108,6 +108,32 @@ func TestEntriesCommandUsesLocaleForCSV(t *testing.T) {
 	}
 }
 
+func TestEntriesCommandParsesSubtitleCues(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "en.srt")
+	content := []byte("1\n00:00:00,000 --> 00:00:01,000\nHello\n\n")
+	if err := os.WriteFile(path, content, 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	root := newRootCmd("test")
+	out := bytes.NewBuffer(nil)
+	root.SetOut(out)
+	root.SetErr(out)
+	root.SetArgs([]string{"entries", path})
+	if err := root.Execute(); err != nil {
+		t.Fatalf("execute entries: %v", err)
+	}
+
+	var payload map[string]string
+	if err := json.Unmarshal(out.Bytes(), &payload); err != nil {
+		t.Fatalf("decode output: %v", err)
+	}
+	if payload["srt.0001"] != "Hello" {
+		t.Fatalf("expected srt cue payload, got %+v", payload)
+	}
+}
+
 func TestEntriesCommandAlignsMarkdownTargetToSourceKeys(t *testing.T) {
 	dir := t.TempDir()
 	sourcePath := filepath.Join(dir, "guide.md")

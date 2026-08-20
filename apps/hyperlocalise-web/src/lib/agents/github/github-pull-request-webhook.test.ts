@@ -14,11 +14,13 @@ import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
 const {
   dispatchWorkspaceAutomationsForGithubPullRequestMock,
+  enqueueGithubPullRequestReviewMock,
   loggerErrorMock,
   loggerInfoMock,
   resolveGithubPullRequestMergeBaseShaMock,
 } = vi.hoisted(() => ({
   dispatchWorkspaceAutomationsForGithubPullRequestMock: vi.fn(),
+  enqueueGithubPullRequestReviewMock: vi.fn(),
   loggerErrorMock: vi.fn(),
   loggerInfoMock: vi.fn(),
   resolveGithubPullRequestMergeBaseShaMock: vi.fn(),
@@ -38,6 +40,10 @@ vi.mock("../workspace-automation-dispatcher", () => ({
 
 vi.mock("./github-pull-request-merge-base", () => ({
   resolveGithubPullRequestMergeBaseSha: resolveGithubPullRequestMergeBaseShaMock,
+}));
+
+vi.mock("./github-pull-request-review", () => ({
+  enqueueGithubPullRequestReview: enqueueGithubPullRequestReviewMock,
 }));
 
 import {
@@ -65,6 +71,10 @@ describe("handleGithubPullRequestWebhook", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     dispatchWorkspaceAutomationsForGithubPullRequestMock.mockResolvedValue([]);
+    enqueueGithubPullRequestReviewMock.mockResolvedValue({
+      outcome: "skipped",
+      reason: "auto_review_not_enabled",
+    });
     resolveGithubPullRequestMergeBaseShaMock.mockResolvedValue("merge111");
   });
 
@@ -107,6 +117,16 @@ describe("handleGithubPullRequestWebhook", () => {
       headBranch: "feature/review",
       commitBefore: "merge111",
       commitAfter: "bbb222",
+    });
+    expect(enqueueGithubPullRequestReviewMock).toHaveBeenCalledWith({
+      organizationId: "org_123",
+      githubInstallationId: "123",
+      githubInstallationRepositoryId: "installation-repo-123",
+      repositoryFullName: "acme/app",
+      pullRequestNumber: 42,
+      headSha: "bbb222",
+      baseSha: "merge111",
+      trigger: "auto_review",
     });
   });
 
@@ -198,5 +218,6 @@ describe("handleGithubPullRequestWebhook", () => {
       },
       "workspace automations github pull request dispatch failed",
     );
+    expect(enqueueGithubPullRequestReviewMock).toHaveBeenCalled();
   });
 });

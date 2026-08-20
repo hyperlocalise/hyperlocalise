@@ -22,6 +22,11 @@ export const workspaceAutomationIdParamSchema = z.object({
   automationId: z.string().uuid(),
 });
 
+export const workspaceAutomationKnowledgeFileIdParamSchema = z.object({
+  automationId: z.string().uuid(),
+  knowledgeFileId: z.string().uuid(),
+});
+
 export const listWorkspaceAutomationsQuerySchema = z.object({
   status: workspaceAutomationStatusSchema.optional(),
   limit: z.coerce.number().int().min(1).max(100).default(50),

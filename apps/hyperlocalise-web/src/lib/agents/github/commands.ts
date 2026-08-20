@@ -14,6 +14,10 @@ export type HyperlocaliseUnsupportedFixCommand = {
   command: "unsupported_fix";
 };
 
+export type HyperlocaliseReviewCommand = {
+  command: "review";
+};
+
 export type HyperlocaliseRepositoryCommand = {
   command: "repository";
   instructions: string;
@@ -21,6 +25,7 @@ export type HyperlocaliseRepositoryCommand = {
 
 export type HyperlocaliseCommand =
   | HyperlocaliseRepositoryCommand
+  | HyperlocaliseReviewCommand
   | HyperlocaliseUnsupportedFixCommand;
 
 export function parseHyperlocaliseCommand(text: string): HyperlocaliseCommand | null {
@@ -34,8 +39,13 @@ export function parseHyperlocaliseCommand(text: string): HyperlocaliseCommand | 
     .split(/\s+/)
     .filter(Boolean);
 
-  if (parts[0]?.toLowerCase() === "fix") {
+  const verb = parts[0]?.toLowerCase();
+  if (verb === "fix") {
     return { command: "unsupported_fix" };
+  }
+
+  if (verb === "review") {
+    return { command: "review" };
   }
 
   if (parts.length === 0) {

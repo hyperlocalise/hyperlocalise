@@ -1,11 +1,13 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"net/http"
 
 	"github.com/hyperlocalise/hyperlocalise/internal/i18n/segmentvalidate"
+	"github.com/hyperlocalise/hyperlocalise/internal/i18n/spellcheck"
 )
 
 const maxValidateSegmentBodyBytes = 512 << 10 // 512 KiB
@@ -23,13 +25,19 @@ type validateSegmentResponse struct {
 }
 
 type handler struct {
-	validate func(segmentvalidate.Request) []segmentvalidate.Check
+	validate     func(segmentvalidate.Request) []segmentvalidate.Check
+	spellChecker SpellChecker
 }
 
 func newHandler() *handler {
 	return &handler{
-		validate: segmentvalidate.ValidateSegment,
+		validate:     segmentvalidate.ValidateSegment,
+		spellChecker: NoopSpellChecker{},
 	}
+}
+
+func (h *handler) checkSpelling(ctx context.Context, locale, text string) ([]SpellingIssue, error) {
+	return h.spellChecker.Check(ctx, locale, spellcheck.Tokenize(text))
 }
 
 func (h *handler) health(w http.ResponseWriter, _ *http.Request) {
@@ -55,6 +63,8 @@ func (h *handler) validateSegment(w http.ResponseWriter, r *http.Request) {
 		writeBadRequest(w, "invalid JSON body")
 		return
 	}
+
+	_, _ = h.checkSpelling(r.Context(), "", req.TargetText)
 
 	checks := h.validate(segmentvalidate.Request{
 		SourceText: req.SourceText,

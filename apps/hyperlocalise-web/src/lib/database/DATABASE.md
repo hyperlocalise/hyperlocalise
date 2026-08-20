@@ -187,6 +187,21 @@ erDiagram
         timestamptz updated_at
     }
 
+    GITHUB_AUTO_REVIEW_SETTINGS {
+        uuid organization_id PK FK
+        boolean enabled
+        text additional_prompt
+        timestamptz created_at
+        timestamptz updated_at
+    }
+
+    GITHUB_AUTO_REVIEW_REPOSITORIES {
+        uuid id PK
+        uuid organization_id FK
+        uuid github_installation_repository_id FK
+        timestamptz created_at
+    }
+
     CONNECTORS {
         uuid id PK
         uuid organization_id FK
@@ -316,6 +331,9 @@ erDiagram
 
     ORGANIZATIONS ||--|| GITHUB_INSTALLATIONS : installs
     GITHUB_INSTALLATIONS ||--o{ GITHUB_INSTALLATION_REPOSITORIES : contains
+    ORGANIZATIONS ||--|| GITHUB_AUTO_REVIEW_SETTINGS : configures
+    ORGANIZATIONS ||--o{ GITHUB_AUTO_REVIEW_REPOSITORIES : selects
+    GITHUB_INSTALLATION_REPOSITORIES ||--o{ GITHUB_AUTO_REVIEW_REPOSITORIES : included_in
 
     ORGANIZATIONS ||--o{ CONNECTORS : has
 

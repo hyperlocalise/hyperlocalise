@@ -6,11 +6,13 @@ go_binary(
         "auth.go",
         "handler.go",
         "main.go",
+        "spellcheck.go",
     ],
     importpath = "github.com/hyperlocalise/hyperlocalise/apps/go-svc",
     visibility = ["//visibility:public"],
     deps = [
         "//internal/i18n/segmentvalidate",
+        "//internal/i18n/spellcheck",
         "@com_github_workos_workos_go_v9//:workos-go",
     ],
 )
@@ -20,10 +22,12 @@ go_test(
     srcs = [
         "auth_test.go",
         "handler_test.go",
+        "spellcheck_test.go",
     ],
     embed = [":go_svc"],
     deps = [
         "//internal/i18n/segmentvalidate",
+        "//internal/i18n/spellcheck",
         "@com_github_stretchr_testify//require",
     ],
 )

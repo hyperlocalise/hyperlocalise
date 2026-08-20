@@ -33,6 +33,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { apiClient } from "@/lib/api-client-instance";
+import { buildWorkspaceAutomationWebChatHref } from "@/lib/agents/workspace-automation-web-chat-url";
 import {
   createWorkspaceAutomationFormStateFromRecord,
   formStateToWorkspaceAutomationPayload,
@@ -43,6 +44,7 @@ import {
 } from "@/lib/agents/workspace-automation-view-model";
 import { WorkspacePageShell } from "../../_components/workspace-resource-shared";
 import { automationDetailPageContentMessages } from "./automation-detail-page-content.messages";
+import { WebChatUrlCopyField } from "./web-chat-url-copy-field";
 import { WorkspaceAutomationEditor } from "./workspace-automation-form";
 
 export function AutomationDetailPageContent({
@@ -236,6 +238,7 @@ export function AutomationDetailPageContent({
       <WorkspaceAutomationEditor
         mode="detail"
         organizationSlug={organizationSlug}
+        automationId={automationId}
         form={form}
         errors={errors}
         knowledgeAvailable={knowledgeAvailable}
@@ -257,7 +260,34 @@ export function AutomationDetailPageContent({
               <HugeiconsIcon icon={Delete02Icon} strokeWidth={1.8} data-icon="inline-start" />
               <FormattedMessage {...automationDetailPageContentMessages.deleteAutomation} />
             </Button>
-            {showRunButton ? (
+            {form.triggerMode === "web_chat" ? (
+              <>
+                <div className="hidden min-w-0 max-w-xs md:block">
+                  <WebChatUrlCopyField
+                    automationId={automationId}
+                    organizationSlug={organizationSlug}
+                  />
+                </div>
+                <Button
+                  variant="outline"
+                  nativeButton={false}
+                  render={
+                    <Link
+                      href={buildWorkspaceAutomationWebChatHref({
+                        organizationSlug,
+                        automationId,
+                        locale: intl.locale,
+                      })}
+                      target="_blank"
+                      rel="noreferrer"
+                    />
+                  }
+                  disabled={automation.status !== "active"}
+                >
+                  <FormattedMessage {...automationDetailPageContentMessages.openChat} />
+                </Button>
+              </>
+            ) : showRunButton ? (
               <Button
                 variant="outline"
                 onClick={() => runMutation.mutate()}
