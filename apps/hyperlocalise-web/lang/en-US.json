@@ -179,6 +179,10 @@
     "defaultMessage": "—",
     "description": "Placeholder when a usage feature has no reset date"
   },
+  "+cqoUEt5BX": {
+    "defaultMessage": "This glossary is managed by its provider and is read-only here.",
+    "description": "Read-only explanation for provider-backed glossary detail"
+  },
   "+dpFZFxVSO": {
     "defaultMessage": "No owner note",
     "description": "Empty state when an issue has no owner note"
@@ -743,10 +747,6 @@
     "defaultMessage": "Workspace",
     "description": "Fallback project name when a job has no project"
   },
-  "0bosLZsKFI": {
-    "defaultMessage": "Coordinate localization reviews from Slack mentions, DMs, and subscribed threads.",
-    "description": "Slack integration description before OAuth connection"
-  },
   "0cJX5jLe/m": {
     "defaultMessage": "Loading domains…",
     "description": "Loading state for the domains list"
@@ -870,6 +870,10 @@
   "1/YUf106Rt": {
     "defaultMessage": "Members",
     "description": "Sidebar navigation item for workspace members"
+  },
+  "1/qid1Sj8f": {
+    "defaultMessage": "Connect a Slack workspace to let Hyperlocalise respond when tagged in channels or messaged in DMs.",
+    "description": "Slack integration description before OAuth connection"
   },
   "10wFUk/dew": {
     "defaultMessage": "Manage cancellation for this workspace subscription.",
@@ -1170,6 +1174,10 @@
   "24tcVtmHO9": {
     "defaultMessage": "No localized video yet",
     "description": "Empty state when the CAT target video has not been created"
+  },
+  "26SC3nQ3ca": {
+    "defaultMessage": "URL",
+    "description": "Label for concept reference URL"
   },
   "26uyfoaW4I": {
     "defaultMessage": "French, German",
@@ -1923,6 +1931,10 @@
     "defaultMessage": "Glossary",
     "description": "Resource type badge for a glossary resource"
   },
+  "4jUxO+lMSa": {
+    "defaultMessage": "Unable to delete concept",
+    "description": "Fallback error when a glossary concept deletion fails"
+  },
   "4jWhf0M3TR": {
     "defaultMessage": "Choose a source file from the project files list to open it in the CAT workspace.",
     "description": "Empty state when the CAT page is opened without a source file"
@@ -1958,6 +1970,10 @@
   "4rjsoyM0nm": {
     "defaultMessage": "User",
     "description": "Issue column type label for user"
+  },
+  "4rrJOrJKWB": {
+    "defaultMessage": "Term",
+    "description": "Label for a locale-specific term"
   },
   "4tP9x2ODN4": {
     "defaultMessage": "Connect your Anthropic account",
@@ -2011,6 +2027,10 @@
     "defaultMessage": "{actor} assigned you to {issueTitle}",
     "description": "Inbox notification preview for issue assignment"
   },
+  "52PUHNXgoK": {
+    "defaultMessage": "Filter languages...",
+    "description": "Filter input for concept editor language groups"
+  },
   "54uRAqIrYn": {
     "defaultMessage": "Context-aware from GitHub and product briefs",
     "description": "Differentiator point 4 for the product-localisation use case"
@@ -2034,6 +2054,10 @@
   "5AkeE7XWLR": {
     "defaultMessage": "Branch",
     "description": "Table header for default branch names"
+  },
+  "5Bc+gFzN2N": {
+    "defaultMessage": "Subject",
+    "description": "Label for concept subject metadata"
   },
   "5CjwrQGWSz": {
     "defaultMessage": "System",
@@ -2219,6 +2243,10 @@
     "defaultMessage": "Locales are managed by the connected TMS provider.",
     "description": "Description when project locales are provider-managed"
   },
+  "5tlPxcqfUt": {
+    "defaultMessage": "Coordinate localization reviews from Slack mentions and DMs.",
+    "description": "Slack integration description before OAuth connection"
+  },
   "5wR0b8PqT0": {
     "defaultMessage": "Segment not found.",
     "description": "Error when adding a missing segment to the issue sheet"
@@ -2335,6 +2363,10 @@
     "defaultMessage": "Editor panel failed to load",
     "description": "Error boundary title when the CAT editor panel crashes"
   },
+  "6PTSot2cji": {
+    "defaultMessage": "Group terms by meaning, then add locale-specific terms inside each concept.",
+    "description": "Description for the native glossary concept table"
+  },
   "6QF9Hq+l1/": {
     "defaultMessage": "Provider glossaries and term bases appear here after sync. Connect or resync a TMS provider from Integrations if you expected to see one.",
     "description": "Empty state description when a TMS provider is connected but no glossaries exist"
@@ -2362,6 +2394,10 @@
   "6Su/xhxJZL": {
     "defaultMessage": "Slack",
     "description": "Inbox conversation source label for the Slack agent"
+  },
+  "6V7dDBU2jk": {
+    "defaultMessage": "Concept saved",
+    "description": "Toast after a concept is saved"
   },
   "6V8CrxumwV": {
     "defaultMessage": "{count, plural, one {Explored {subject}, # search} other {Explored {subject}, # searches}}",
@@ -2562,6 +2598,10 @@
   "75DautUGXW": {
     "defaultMessage": "Semrush",
     "description": "Name shown for the Semrush integrations row"
+  },
+  "75hJUfKEfF": {
+    "defaultMessage": "Choose the language for the new term.",
+    "description": "Description for the locale picker used when adding a concept term"
   },
   "75tLVTlfqV": {
     "defaultMessage": "Skipped",
@@ -3387,6 +3427,10 @@
     "defaultMessage": "Italic",
     "description": "Bubble menu button to toggle italic text"
   },
+  "9lmMAv+1UD": {
+    "defaultMessage": "Close",
+    "description": "Close action in the concept editor"
+  },
   "9mvp5zoex8": {
     "defaultMessage": "Report on throughput, coverage, and quality",
     "description": "Capability 6 title for the localisation-operations use case"
@@ -3763,6 +3807,10 @@
     "defaultMessage": "Close the loop",
     "description": "Proof point 3 title for the agents automation product page"
   },
+  "BERSauR8KR": {
+    "defaultMessage": "Translatable",
+    "description": "Label for the concept translatable toggle"
+  },
   "BFQt98qExR": {
     "defaultMessage": "{days}d",
     "description": "Relative age of an automation created one or more days ago"
@@ -4011,6 +4059,10 @@
     "defaultMessage": "Connect Crowdin in Hyperlocalise",
     "description": "Title when no Hyperlocalise org maps to this Crowdin org"
   },
+  "C3/uLnFZyi": {
+    "defaultMessage": "Add concept",
+    "description": "Button to add a glossary concept"
+  },
   "C31IoV3z9k": {
     "defaultMessage": "Load more",
     "description": "Button to load more projects in the list"
@@ -4042,6 +4094,10 @@
   "C8gkhCv/cQ": {
     "defaultMessage": "Workspace people",
     "description": "Accessible name for the workspace teams and members navigation"
+  },
+  "C8o8YEkGLA": {
+    "defaultMessage": "Concept added",
+    "description": "Toast after a concept is created"
   },
   "C8r3kP1Ub3": {
     "defaultMessage": "Pull briefs, glossaries, and UI constraints",
@@ -4519,13 +4575,13 @@
     "defaultMessage": "Send terminal run summaries to specific recipients.",
     "description": "Description for email notifications when email is enabled"
   },
+  "Ddq6ZN19JX": {
+    "defaultMessage": "Optional. You can attach projects from the glossary detail page later.",
+    "description": "Help text explaining that glossary project attachment can happen later"
+  },
   "DeCrAOQFGT": {
     "defaultMessage": "List issues",
     "description": "Menu item and tool title for listing Issue Sheet issues"
-  },
-  "DeMAC4mdid": {
-    "defaultMessage": "Connect a Slack workspace to let Hyperlocalise respond to mentions, DMs, and subscribed threads.",
-    "description": "Slack integration description before OAuth connection"
   },
   "DeRSeFizML": {
     "defaultMessage": "Unable to load Contentful metadata",
@@ -4662,6 +4718,10 @@
   "EC/XnP73At": {
     "defaultMessage": "Hyperlocalise fits into the developer workflow your team already runs — with GitHub Actions and TMS sync built in.",
     "description": "Workflow section description for the github-release-localisation use case"
+  },
+  "ECdzHS9iJQ": {
+    "defaultMessage": "Term deleted",
+    "description": "Toast after a concept term is deleted"
   },
   "ECh2wuwOCJ": {
     "defaultMessage": "Markdown content",
@@ -5111,6 +5171,10 @@
     "defaultMessage": "Failed to import translations",
     "description": "Fallback error when importing translations fails"
   },
+  "Fn04QYq5Dy": {
+    "defaultMessage": "Unable to save concept",
+    "description": "Fallback error when a glossary concept save fails"
+  },
   "Fqhf+2LVu/": {
     "defaultMessage": "No projects assigned yet.",
     "description": "Empty state when no projects are assigned to a translation memory"
@@ -5378,6 +5442,10 @@
   "GvcjcKm7Sc": {
     "defaultMessage": "Due {due}",
     "description": "Relative due date under job task details"
+  },
+  "GwJAxTSF4k": {
+    "defaultMessage": "SOURCE",
+    "description": "Badge identifying the glossary source locale"
   },
   "GwX/prLtJh": {
     "defaultMessage": "Connect Semrush with an API key in Integrations before using this tool.",
@@ -5779,6 +5847,10 @@
     "defaultMessage": "Give every reviewer the context, checks, and approval controls they need before translated copy reaches production.",
     "description": "Bottom CTA description for the next-gen CAT tool product page"
   },
+  "IdceAsRVCE": {
+    "defaultMessage": "Delete this term?",
+    "description": "Confirmation prompt before deleting a term"
+  },
   "If/xnDCxst": {
     "defaultMessage": "Configure",
     "description": "Footer label on BYOK model provider cards"
@@ -5854,6 +5926,10 @@
   "ItrnRpF69X": {
     "defaultMessage": "Failed to load projects",
     "description": "Fallback error when native projects fail to load"
+  },
+  "Iv8yvtAAwu": {
+    "defaultMessage": "Concept deleted",
+    "description": "Toast after a concept is deleted"
   },
   "Iv9Zw2Kz/I": {
     "defaultMessage": "Add comment",
@@ -7499,6 +7575,10 @@
     "defaultMessage": "Phrase",
     "description": "Phrase TMS integration name on the integrations page"
   },
+  "PO+O1tp1vE": {
+    "defaultMessage": "Note",
+    "description": "Label for concept notes"
+  },
   "PRbdh+Ryiw": {
     "defaultMessage": "No repositories are available to this GitHub App installation.",
     "description": "Empty state when the GitHub App installation exposes no repositories"
@@ -8659,6 +8739,10 @@
     "defaultMessage": "No branches added",
     "description": "Empty state when no branch patterns are configured"
   },
+  "TmON06MWzq": {
+    "defaultMessage": "Term saved",
+    "description": "Toast after a concept term is saved"
+  },
   "TmvQ63+NJ8": {
     "defaultMessage": "Acme localisation",
     "description": "Placeholder example for the workspace name input on onboarding"
@@ -9055,6 +9139,10 @@
     "defaultMessage": "Website",
     "description": "Label for the website URL field on the localisation audit form"
   },
+  "VIdL/n+uK8": {
+    "defaultMessage": "Concept {id}",
+    "description": "Concept identifier in the editor header"
+  },
   "VK45xdmq69": {
     "defaultMessage": "Syncing",
     "description": "Sync filter option for translation memories currently syncing"
@@ -9270,6 +9358,10 @@
   "W5v3/4xBNa": {
     "defaultMessage": "No target locales are available for this file.",
     "description": "Empty state when a project file has no target locales for CAT"
+  },
+  "W8CHLNCqjs": {
+    "defaultMessage": "Draft",
+    "description": "Draft native glossary term status"
   },
   "W9S7Ht69kS": {
     "defaultMessage": "Knowledge memories",
@@ -9811,6 +9903,10 @@
     "defaultMessage": "Contentful entry ID",
     "description": "Placeholder for the Contentful entry ID input"
   },
+  "YDRK9UoH9i": {
+    "defaultMessage": "Primary term",
+    "description": "Label for the concept primary term"
+  },
   "YDpITGOpDT": {
     "defaultMessage": "Unassigned",
     "description": "Assignee picker option to clear the assignee"
@@ -9895,6 +9991,10 @@
     "defaultMessage": "External job ID",
     "description": "Detail row label for the provider job identifier"
   },
+  "YXXKbKuK0y": {
+    "defaultMessage": "Gender",
+    "description": "Label for term gender metadata"
+  },
   "YZ2plskMsH": {
     "defaultMessage": "Assign the created job to Translate with agent and start localisation.",
     "description": "Description for the Translate with agent automation tool"
@@ -9942,6 +10042,10 @@
   "YhCxIj8rLK": {
     "defaultMessage": "Localisation audit for {domain} | Hyperlocalise",
     "description": "Meta title for a public localisation audit result page"
+  },
+  "YhT90BZluB": {
+    "defaultMessage": "Delete concept",
+    "description": "Destructive action to delete a glossary concept"
   },
   "YhwlgG0Ruv": {
     "defaultMessage": "My work",
@@ -10139,6 +10243,10 @@
     "defaultMessage": "#{name}",
     "description": "Slack channel option label for a public channel"
   },
+  "ZIg96oUMGy": {
+    "defaultMessage": "Unable to load concepts",
+    "description": "Fallback error when glossary concepts fail to load"
+  },
   "ZK/+GGmA14": {
     "defaultMessage": "Close",
     "description": "Accessible label and tooltip for closing an artifact panel"
@@ -10210,6 +10318,10 @@
   "ZeIIMmL97I": {
     "defaultMessage": "Approved translations go back to the TMS, repo, or release flow instead of getting stranded in chat.",
     "description": "Proof point 3 body for the agents automation product page"
+  },
+  "ZeIi5DDF02": {
+    "defaultMessage": "Type",
+    "description": "Label for term type metadata"
   },
   "ZeUNHM/VrO": {
     "defaultMessage": "Could not send your message. Try again.",
@@ -10823,6 +10935,10 @@
     "defaultMessage": "Context and terminology for this string.",
     "description": "Supporting copy below the CAT translation intelligence panel heading"
   },
+  "c+Mjo4w0Tb": {
+    "defaultMessage": "Delete this concept and all of its terms?",
+    "description": "Confirmation prompt before deleting a concept"
+  },
   "c0YVbiffzK": {
     "defaultMessage": "No target locale is available for this task file.",
     "description": "Empty state when a native job CAT file has no target locale"
@@ -10866,6 +10982,10 @@
   "cE0bfQDgYq": {
     "defaultMessage": "Sync",
     "description": "Section heading for native sync status on project overview"
+  },
+  "cE93z6iT3O": {
+    "defaultMessage": "Last modified",
+    "description": "Last modified timestamp column in the concept table"
   },
   "cHNG0eH0rr": {
     "defaultMessage": "No localisation audit is attached to this domain yet.",
@@ -11010,6 +11130,10 @@
   "clr4hixI6B": {
     "defaultMessage": "/mo.",
     "description": "Monthly price suffix on pricing cards"
+  },
+  "cnWyuPT5ua": {
+    "defaultMessage": "Assign glossary to the following projects:",
+    "description": "Label for the project multi-select on glossary creation"
   },
   "cndt0P/SRd": {
     "defaultMessage": "{percent}% approved",
@@ -12555,6 +12679,10 @@
     "defaultMessage": "Mark job as failed?",
     "description": "Title of the mark-as-failed confirmation dialog"
   },
+  "hz4nxyNP9X": {
+    "defaultMessage": "Definition",
+    "description": "Label for the concept definition"
+  },
   "hz8O9/ilG1": {
     "defaultMessage": "Use the model you prefer",
     "description": "AI feature capability title: bring your own LLM"
@@ -12763,6 +12891,10 @@
     "defaultMessage": "GitHub Action",
     "description": "Marketing footer resource link label"
   },
+  "ihy++kxglc": {
+    "defaultMessage": "Choose a language",
+    "description": "Title for the locale picker used when adding a concept term"
+  },
   "ilPzVb1cY6": {
     "defaultMessage": "Image",
     "description": "Fallback label and alt text for an image attachment without a filename"
@@ -12790,6 +12922,10 @@
   "ip7nkjj/z8": {
     "defaultMessage": "Hyperlocalise connects campaign context, brand rules, and review decisions into one workflow. Your TMS stays the system of record; Hyperlocalise makes sure the right context reaches every locale.",
     "description": "Differentiator section description for the marketing-localisation use case"
+  },
+  "ipOUZTrMNl": {
+    "defaultMessage": "Created",
+    "description": "Created timestamp column in the concept table"
   },
   "ipVFcJ8AtN": {
     "defaultMessage": "Create a project first, then import issues into its Issue Sheet.",
@@ -12943,6 +13079,10 @@
     "defaultMessage": "QA failure",
     "description": "Issue type filter option for a QA failure"
   },
+  "jI9SFqJ4/5": {
+    "defaultMessage": "Concepts",
+    "description": "Section title for the native glossary concept table"
+  },
   "jKWiD5tx0t": {
     "defaultMessage": "Pricing",
     "description": "Segment context label for pricing strings in the CAT mock"
@@ -12994,6 +13134,10 @@
   "jSY7h//Jq9": {
     "defaultMessage": "Compare against approved baselines",
     "description": "Workflow step 3 description for the localisation-quality-monitoring use case"
+  },
+  "jTZSup9Rup": {
+    "defaultMessage": "Search projects",
+    "description": "Search placeholder for the project multi-select"
   },
   "jW4nG0Rt7y": {
     "defaultMessage": "Failed to upload {sourcePath}",
@@ -13130,6 +13274,10 @@
   "k+z441n7pT": {
     "defaultMessage": "CI check",
     "description": "Workflow step 5 label for the github-release-localisation use case"
+  },
+  "k/ObF2e19m": {
+    "defaultMessage": "Save",
+    "description": "Save action in the concept editor"
   },
   "k/fYpNgsXA": {
     "defaultMessage": "Hyperlocalise for Startups | Up to 80% off Growth",
@@ -14026,6 +14174,10 @@
   "nA1Lv0wxJn": {
     "defaultMessage": "Monitor locale coverage across all content types",
     "description": "Capability 1 title for the localisation-quality-monitoring use case"
+  },
+  "nAOm8YPSCd": {
+    "defaultMessage": "Preferred",
+    "description": "Preferred native glossary term status"
   },
   "nBWhU6jbvc": {
     "defaultMessage": "Template",
@@ -15131,6 +15283,10 @@
     "defaultMessage": "Hyperlocalise is not here to replace your TMS. It adds a workflow layer that connects engineering change signals, LLM-assisted drafting, human review, and release confidence.",
     "description": "Differentiator section description for the product-localisation use case"
   },
+  "rZcCh1J3Qx": {
+    "defaultMessage": "Back to glossary",
+    "description": "Back link from a concept detail page to its glossary"
+  },
   "rZuJRFmTxw": {
     "defaultMessage": "{count} left",
     "description": "Count of strings still needing translation or review in the visual editor"
@@ -15270,6 +15426,10 @@
   "s7935wKE28": {
     "defaultMessage": "Remove Semrush tool",
     "description": "Accessible label to remove the Semrush tool"
+  },
+  "s7FQK+830n": {
+    "defaultMessage": "Concept details",
+    "description": "Expandable section for additional concept metadata"
   },
   "s7KJsLFXt/": {
     "defaultMessage": "Request failed",
@@ -15622,6 +15782,10 @@
   "tVauVn/Okc": {
     "defaultMessage": "English (United Kingdom)",
     "description": "Display name for BCP-47 locale en-GB"
+  },
+  "tWfjSsUysY": {
+    "defaultMessage": "Not recommended",
+    "description": "Not recommended native glossary term status"
   },
   "tWlOc1XMhX": {
     "defaultMessage": "No description",
@@ -16431,6 +16595,10 @@
     "defaultMessage": "Synced Canva board \"Spring campaign / EN\" — 48 text layers ready for intake.",
     "description": "Earlier agent message in the Slack channel (shown muted)"
   },
+  "wMxGDB1lvE": {
+    "defaultMessage": "Status",
+    "description": "Label for term status metadata"
+  },
   "wNfaNj8oeP": {
     "defaultMessage": "See what each plan includes before you choose a path.",
     "description": "Supporting copy above the pricing comparison matrix"
@@ -16458,6 +16626,10 @@
   "wUNlUdJpD/": {
     "defaultMessage": "Welcome to Hyperlocalise",
     "description": "Empty state title for a new chat dock conversation"
+  },
+  "wUXhMGSGlH": {
+    "defaultMessage": "No projects use this source locale.",
+    "description": "Empty state for the project multi-select"
   },
   "wUnHS3QtO/": {
     "defaultMessage": "Hyperlocalise logo",
@@ -16622,6 +16794,10 @@
   "x/Kqcar7eA": {
     "defaultMessage": "Access token",
     "description": "Label for Intercom access token field"
+  },
+  "x34JY9BvGw": {
+    "defaultMessage": "No concepts yet.",
+    "description": "Empty state for a glossary with no native concepts"
   },
   "x3OopfTeHB": {
     "defaultMessage": "Cancel",
@@ -17166,6 +17342,10 @@
   "ysf+RB1d04": {
     "defaultMessage": "{kind} task",
     "description": "Metric label identifying a native Hyperlocalise job kind"
+  },
+  "yt3gzzy/zO": {
+    "defaultMessage": "Select projects",
+    "description": "Placeholder for the project multi-select"
   },
   "yv/YEtTrPC": {
     "defaultMessage": "{memoryName} · {sourceText} → {targetText} ({matchScore}%)",
