@@ -50,12 +50,12 @@ func (p JSONCParser) ParseWithContext(content []byte) (map[string]string, map[st
 
 func parseJSONCKeyComments(content []byte) map[string]string {
 	// BOLT OPTIMIZATION: Avoid bytes.Split(content, []byte("\n")) to reduce allocations for large files.
-	// Pre-allocate map and slices to avoid dynamic rehashing and re-allocations.
-	numKeys := bytes.Count(content, []byte{':'})
+	// Grow the comment map lazily. A ':' count is not a key count: string values
+	// and comments can contain many colons and would force a huge empty allocation.
 	stack := make([]string, 0, 16)
 	stackPrefix := ""
 	pendingComments := make([]string, 0, 8)
-	contexts := make(map[string]string, numKeys)
+	contexts := make(map[string]string)
 	inBlockComment := false
 
 	s := content
