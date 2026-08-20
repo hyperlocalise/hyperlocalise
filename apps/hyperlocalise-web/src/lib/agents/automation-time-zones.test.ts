@@ -56,15 +56,15 @@ describe("automation time zones", () => {
       "Australia/Sydney",
     ]);
 
-    expect(filterAutomationTimeZoneGroups(groups, "sydney").flatMap((group) => group.zones)).toEqual(
-      ["Australia/Sydney"],
-    );
+    expect(
+      filterAutomationTimeZoneGroups(groups, "sydney").flatMap((group) => group.zones),
+    ).toEqual(["Australia/Sydney"]);
     expect(filterAutomationTimeZoneGroups(groups, "york").flatMap((group) => group.zones)).toEqual([
       "America/New_York",
     ]);
-    expect(filterAutomationTimeZoneGroups(groups, "america").flatMap((group) => group.zones)).toEqual(
-      ["America/Los_Angeles", "America/New_York"],
-    );
+    expect(
+      filterAutomationTimeZoneGroups(groups, "america").flatMap((group) => group.zones),
+    ).toEqual(["America/Los_Angeles", "America/New_York"]);
     expect(filterAutomationTimeZoneGroups(groups, "not-a-zone")).toEqual([]);
   });
 });

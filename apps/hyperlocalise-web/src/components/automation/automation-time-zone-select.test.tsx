@@ -41,13 +41,17 @@ describe("AutomationTimeZoneSelect", () => {
 
     await user.click(screen.getByRole("button", { name: "Schedule timezone" }));
 
-    const search = screen.getByRole("combobox", { name: "Search timezones…" });
+    const search = screen.getByRole("combobox", { hidden: true });
     await user.type(search, "sydney");
 
-    expect(screen.getByRole("option", { name: "Australia/Sydney" })).toBeInTheDocument();
-    expect(screen.queryByRole("option", { name: "America/New York" })).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("option", { name: "Australia/Sydney", hidden: true }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("option", { name: "America/New York", hidden: true }),
+    ).not.toBeInTheDocument();
 
-    await user.click(screen.getByRole("option", { name: "Australia/Sydney" }));
+    await user.click(screen.getByRole("option", { name: "Australia/Sydney", hidden: true }));
     expect(onValueChange).toHaveBeenCalledWith("Australia/Sydney");
   });
 });

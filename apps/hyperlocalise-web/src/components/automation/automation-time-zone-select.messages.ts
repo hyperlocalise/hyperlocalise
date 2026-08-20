@@ -17,12 +17,12 @@ import { defineMessages } from "react-intl";
 export const automationTimeZoneSelectMessages = defineMessages({
   searchPlaceholder: {
     defaultMessage: "Search timezones…",
-    id: "tzSelSearch1",
+    id: "3ZQsOW/pnR",
     description: "Placeholder for the automation timezone search input",
   },
   empty: {
     defaultMessage: "No timezones found.",
-    id: "tzSelEmpty01",
+    id: "1ycXUHLHvW",
     description: "Empty state when timezone search has no matches",
   },
 });

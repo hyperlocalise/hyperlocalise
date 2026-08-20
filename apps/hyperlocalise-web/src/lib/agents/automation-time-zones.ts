@@ -124,8 +124,7 @@ export function automationTimeZoneSearchValue(timeZone: string) {
   const label = formatAutomationTimeZoneLabel(timeZone);
   const separator = timeZone.indexOf("/");
   const region = separator === -1 ? "" : timeZone.slice(0, separator);
-  const locality =
-    separator === -1 ? timeZone : timeZone.slice(separator + 1).replaceAll("_", " ");
+  const locality = separator === -1 ? timeZone : timeZone.slice(separator + 1).replaceAll("_", " ");
 
   return [timeZone, label, region, locality].filter(Boolean).join(" ");
 }
