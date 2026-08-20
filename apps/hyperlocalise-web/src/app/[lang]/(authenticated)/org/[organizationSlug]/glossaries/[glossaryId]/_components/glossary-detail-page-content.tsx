@@ -75,7 +75,7 @@ type TermDraft = {
   partOfSpeech: string;
   gender: string | null;
   termType: string | null;
-  status: "preferred" | "draft" | "not_recommended";
+  status: "preferred" | "admitted" | "draft" | "not_recommended" | "obsolete";
 };
 
 type CreatingTermDraft = TermDraft & { id: string; locale: string };

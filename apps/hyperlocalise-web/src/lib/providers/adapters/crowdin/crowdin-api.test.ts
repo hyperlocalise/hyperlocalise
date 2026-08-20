@@ -249,6 +249,71 @@ describe("CrowdinApiClient", () => {
     expect(branches[1]).toMatchObject({ id: 11, name: "feature/i18n", title: null });
   });
 
+  it("supports native glossary concept CRUD", async () => {
+    const fetchMock = vi.fn(async (url, init) => {
+      const path = String(url).replace("https://api.crowdin.test/api/v2", "");
+      if (path.startsWith("/glossaries/7/concepts?")) {
+        return new Response(
+          JSON.stringify({
+            data: [
+              {
+                data: {
+                  id: 8,
+                  userId: 3,
+                  glossaryId: 7,
+                  subject: "product",
+                  definition: "A product",
+                  translatable: true,
+                  note: "",
+                  url: "",
+                  figure: "",
+                  languagesDetails: [],
+                  createdAt: "2026-08-20T00:00:00Z",
+                  updatedAt: "2026-08-20T00:00:00Z",
+                },
+              },
+            ],
+            pagination: { offset: 0, limit: 500 },
+          }),
+          { status: 200 },
+        );
+      }
+      if (String(init?.method ?? "GET") === "DELETE") {
+        return new Response(null, { status: 204 });
+      }
+      return new Response(
+        JSON.stringify({
+          data: {
+            id: 8,
+            userId: 3,
+            glossaryId: 7,
+            subject: "product",
+            definition: "A product",
+            translatable: true,
+            note: "",
+            url: "",
+            figure: "",
+            languagesDetails: [],
+            createdAt: "2026-08-20T00:00:00Z",
+            updatedAt: "2026-08-20T00:00:00Z",
+          },
+        }),
+        { status: 200 },
+      );
+    }) as unknown as typeof fetch;
+
+    const client = createClient(fetchMock);
+    expect((await client.listGlossaryConcepts(7))[0]?.id).toBe(8);
+    expect((await client.getGlossaryConcept(7, 8)).figure).toBe("");
+    await client.addGlossaryConcept(7, { subject: "product", figure: "" });
+    await client.updateGlossaryConcept(7, 8, [
+      { op: "replace", path: "/figure", value: "https://example.com/figure.png" },
+    ]);
+    await client.deleteGlossaryConcept(7, 8);
+
+    expect(fetchMock).toHaveBeenCalledTimes(5);
+  });
+
   it("lists branches with pagination", async () => {
     const fetchMock = vi.fn(async (url) => {
       if (String(url).includes("offset=0")) {

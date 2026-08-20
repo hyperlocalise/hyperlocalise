@@ -108,6 +108,8 @@ type GlossaryTermRecord = {
   targetLocale: string | null;
   description: string;
   partOfSpeech: string;
+  url?: string | null;
+  lemma?: string | null;
   forbidden: boolean;
   caseSensitive: boolean;
   provenance: string;
@@ -212,6 +214,8 @@ function toGlossaryTermRecord(term: GlossaryTerm, glossary: Glossary): GlossaryT
     targetLocale: glossary.targetLocale,
     description: term.description,
     partOfSpeech: term.partOfSpeech,
+    url: term.url,
+    lemma: term.lemma,
     forbidden: term.forbidden,
     caseSensitive: term.caseSensitive,
     provenance: term.provenance,
@@ -342,6 +346,8 @@ async function createGlossaryTerm(
       targetTerm: payload.targetTerm,
       description: payload.description ?? "",
       partOfSpeech: payload.partOfSpeech ?? "",
+      url: payload.url || null,
+      lemma: payload.lemma ?? null,
       caseSensitive: payload.caseSensitive,
       forbidden: payload.forbidden,
     })
@@ -386,6 +392,8 @@ async function createGlossaryTerms(
       targetTerm: payload.targetTerm,
       description: payload.description ?? "",
       partOfSpeech: payload.partOfSpeech ?? "",
+      url: payload.url || null,
+      lemma: payload.lemma ?? null,
       caseSensitive: payload.caseSensitive,
       forbidden: payload.forbidden,
     });

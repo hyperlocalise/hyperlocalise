@@ -32,6 +32,7 @@ import {
   updateCrowdinConcept,
   updateCrowdinTerm,
 } from "@/lib/glossary/glossary-provider";
+import type { CrowdinGlossaryConcept } from "@/lib/providers/adapters/crowdin/crowdin-provider";
 
 import {
   createGlossaryConceptBodySchema,
@@ -60,24 +61,33 @@ import {
 
 function crowdinStatus(status: string | undefined) {
   return status === "preferred"
-    ? "PREFERRED"
-    : status === "not_recommended"
-      ? "NOT_RECOMMENDED"
-      : "DRAFT";
+    ? "preferred"
+    : status === "admitted"
+      ? "admitted"
+      : status === "not_recommended"
+        ? "not recommended"
+        : status === "obsolete"
+          ? "obsolete"
+          : "draft";
 }
 
 function localStatus(status: string | null | undefined) {
-  return status === "PREFERRED"
+  const normalized = status?.toLowerCase();
+  return normalized === "preferred"
     ? "preferred"
-    : status === "NOT_RECOMMENDED"
-      ? "not_recommended"
-      : "draft";
+    : normalized === "admitted"
+      ? "admitted"
+      : normalized === "not recommended" || normalized === "not_recommended"
+        ? "not_recommended"
+        : normalized === "obsolete"
+          ? "obsolete"
+          : "draft";
 }
 
 function toCrowdinConceptInput(
   glossary: Glossary,
   input: CreateGlossaryConceptBody | UpdateGlossaryConceptBody,
-) {
+): CrowdinGlossaryConcept {
   const primaryTerm = input.primaryTerm ?? "";
   const terms = (input.terms ?? []).map((term) => ({
     id: "id" in term ? term.id : undefined,
@@ -86,7 +96,11 @@ function toCrowdinConceptInput(
     description: term.description,
     partOfSpeech: term.partOfSpeech,
     status: crowdinStatus(term.status),
+    type: "termType" in term ? (term.termType ?? undefined) : undefined,
+    gender: term.gender ?? undefined,
     note: "note" in term && typeof term.note === "string" ? term.note : undefined,
+    url: term.url || undefined,
+    lemma: term.lemma ?? undefined,
   }));
   if (terms.length === 0 && primaryTerm) {
     terms.push({
@@ -95,8 +109,12 @@ function toCrowdinConceptInput(
       text: primaryTerm,
       description: undefined,
       partOfSpeech: undefined,
-      status: "PREFERRED",
+      status: "preferred",
       note: undefined,
+      type: undefined,
+      gender: undefined,
+      url: undefined,
+      lemma: undefined,
     });
   }
   return {
@@ -107,6 +125,7 @@ function toCrowdinConceptInput(
     translatable: input.translatable,
     note: input.note,
     url: input.url,
+    figure: input.figure,
     terms,
   };
 }
@@ -115,15 +134,24 @@ function toCrowdinTermRecord(
   glossary: Glossary,
   conceptId: string,
   term: {
-    id: number;
+    id?: number | string;
     languageId: string;
     text: string;
     description?: string | null;
     partOfSpeech?: string | null;
     status?: string | null;
     note?: string | null;
+    type?: string | null;
+    gender?: string | null;
+    url?: string | null;
+    lemma?: string | null;
+    userId?: number | null;
+    createdAt?: string | null;
+    updatedAt?: string | null;
   },
 ) {
+  const createdAt = term.createdAt ?? new Date(0).toISOString();
+  const updatedAt = term.updatedAt ?? new Date(0).toISOString();
   return {
     id: String(term.id),
     glossaryId: glossary.id,
@@ -133,48 +161,95 @@ function toCrowdinTermRecord(
     isPrimary: term.languageId === glossary.sourceLocale,
     description: term.description ?? "",
     partOfSpeech: term.partOfSpeech ?? "",
-    gender: null,
-    termType: null,
+    gender: term.gender ?? null,
+    termType: term.type ?? null,
+    url: term.url ?? null,
+    lemma: term.lemma ?? null,
     status: localStatus(term.status),
     caseSensitive: false,
     forbidden: false,
     provenance: "sync",
     externalKey: String(term.id),
     reviewStatus: "draft",
-    createdAt: new Date(0).toISOString(),
-    updatedAt: new Date(0).toISOString(),
+    externalUserId: term.userId == null ? null : String(term.userId),
+    externalCreatedAt: createdAt,
+    externalUpdatedAt: updatedAt,
+    createdAt,
+    updatedAt,
   };
 }
 
 function toCrowdinConceptRecord(
   glossary: Glossary,
   value: {
-    conceptId: number;
+    conceptId?: number;
+    id?: number | string;
+    subject?: string | null;
+    definition?: string | null;
+    translatable?: boolean | null;
+    note?: string | null;
+    url?: string | null;
+    figure?: string | null;
+    externalKey?: string;
+    externalUserId?: string | null;
+    languageDetails?: Array<{
+      languageId: string;
+      userId?: number | null;
+      definition?: string | null;
+      note?: string | null;
+      createdAt?: string | null;
+      updatedAt?: string | null;
+    }>;
+    externalCreatedAt?: string | null;
+    externalUpdatedAt?: string | null;
     terms: Array<{
-      id: number;
+      id?: number | string;
       languageId: string;
       text: string;
       description?: string | null;
       partOfSpeech?: string | null;
       status?: string | null;
       note?: string | null;
+      type?: string | null;
+      gender?: string | null;
+      url?: string | null;
+      lemma?: string | null;
+      userId?: number | null;
+      createdAt?: string | null;
+      updatedAt?: string | null;
     }>;
   },
 ) {
+  const conceptId = String(value.externalKey ?? value.id ?? value.conceptId);
+  const createdAt = value.externalCreatedAt ?? new Date(0).toISOString();
+  const updatedAt = value.externalUpdatedAt ?? new Date(0).toISOString();
   const source =
     value.terms.find((term) => term.languageId === glossary.sourceLocale) ?? value.terms[0];
   return {
-    id: String(value.conceptId),
+    id: conceptId,
     glossaryId: glossary.id,
     primaryTerm: source?.text ?? "",
-    subject: source?.partOfSpeech ?? "",
-    definition: source?.description ?? "",
-    translatable: true,
-    note: source?.note ?? "",
-    url: null,
-    createdAt: new Date(0).toISOString(),
-    updatedAt: new Date(0).toISOString(),
-    terms: value.terms.map((term) => toCrowdinTermRecord(glossary, String(value.conceptId), term)),
+    subject: value.subject ?? source?.partOfSpeech ?? "",
+    definition: value.definition ?? source?.description ?? "",
+    translatable: value.translatable ?? true,
+    note: value.note ?? source?.note ?? "",
+    url: value.url ?? null,
+    figure: value.figure ?? null,
+    externalKey: conceptId,
+    externalUserId: value.externalUserId ?? null,
+    languageDetails: (value.languageDetails ?? []).map((detail) => ({
+      languageId: detail.languageId,
+      userId: detail.userId ?? null,
+      definition: detail.definition ?? "",
+      note: detail.note ?? "",
+      createdAt: detail.createdAt ?? null,
+      updatedAt: detail.updatedAt ?? null,
+    })),
+    externalCreatedAt: createdAt,
+    externalUpdatedAt: updatedAt,
+    createdAt,
+    updatedAt,
+    terms: value.terms.map((term) => toCrowdinTermRecord(glossary, conceptId, term)),
   };
 }
 
@@ -220,12 +295,17 @@ function toConceptTermRecord(term: GlossaryConceptTerm, sourceLocale: string) {
     partOfSpeech: term.partOfSpeech,
     gender: term.gender,
     termType: term.termType,
-    status: term.status as "preferred" | "draft" | "not_recommended",
+    url: term.url,
+    lemma: term.lemma,
+    status: term.status as "preferred" | "admitted" | "draft" | "not_recommended" | "obsolete",
     caseSensitive: term.caseSensitive,
     forbidden: term.forbidden,
     provenance: term.provenance,
     externalKey: term.externalKey,
     reviewStatus: term.reviewStatus,
+    externalUserId: term.externalUserId,
+    externalCreatedAt: term.externalCreatedAt?.toISOString() ?? null,
+    externalUpdatedAt: term.externalUpdatedAt?.toISOString() ?? null,
     createdAt: term.createdAt.toISOString(),
     updatedAt: term.updatedAt.toISOString(),
   };
@@ -245,6 +325,12 @@ function toConceptRecord(
     translatable: concept.translatable,
     note: concept.note,
     url: concept.url,
+    figure: concept.figure,
+    externalKey: concept.externalKey,
+    externalUserId: concept.externalUserId,
+    languageDetails: concept.languageDetails,
+    externalCreatedAt: concept.externalCreatedAt?.toISOString() ?? null,
+    externalUpdatedAt: concept.externalUpdatedAt?.toISOString() ?? null,
     createdAt: concept.createdAt.toISOString(),
     updatedAt: concept.updatedAt.toISOString(),
     terms: terms.map((term) => toConceptTermRecord(term, sourceLocale)),
@@ -326,6 +412,8 @@ function nativeTermValues(
     partOfSpeech: input.partOfSpeech ?? "",
     gender: input.gender ?? null,
     termType: input.termType ?? null,
+    url: input.url || null,
+    lemma: input.lemma ?? null,
     status: input.status,
     caseSensitive: input.caseSensitive,
     forbidden: input.forbidden,
@@ -360,6 +448,7 @@ async function createConcept(
         definition: conceptInput.definition ?? "",
         translatable: conceptInput.translatable,
         note: conceptInput.note ?? "",
+        figure: conceptInput.figure || null,
         url: conceptInput.url || null,
       })
       .returning();
@@ -871,6 +960,10 @@ export function createGlossaryConceptRoutes() {
                 termInput.termType !== undefined
                   ? termInput.termType
                   : (existingTerm?.termType ?? null),
+              url:
+                termInput.url !== undefined ? termInput.url || null : (existingTerm?.url ?? null),
+              lemma:
+                termInput.lemma !== undefined ? termInput.lemma : (existingTerm?.lemma ?? null),
               status:
                 termInput.status ??
                 existingTerm?.status ??
@@ -967,6 +1060,10 @@ export function createGlossaryConceptRoutes() {
             description: payload.description,
             partOfSpeech: payload.partOfSpeech,
             status: crowdinStatus(payload.status),
+            type: payload.termType ?? undefined,
+            gender: payload.gender ?? undefined,
+            url: payload.url ?? undefined,
+            lemma: payload.lemma ?? undefined,
           });
           return c.json({ term: toCrowdinTermRecord(glossary, conceptId, term) }, 201);
         }
@@ -1009,6 +1106,10 @@ export function createGlossaryConceptRoutes() {
             description: payload.description ?? existing.description ?? "",
             partOfSpeech: payload.partOfSpeech ?? existing.partOfSpeech ?? "",
             status: crowdinStatus(payload.status ?? localStatus(existing.status)),
+            type: payload.termType ?? existing.type ?? "",
+            gender: payload.gender ?? existing.gender ?? "",
+            url: payload.url ?? existing.url ?? "",
+            lemma: payload.lemma ?? existing.lemma ?? "",
             note: existing.note ?? "",
           });
           if (!term) return glossaryNotFoundResponse(c);
