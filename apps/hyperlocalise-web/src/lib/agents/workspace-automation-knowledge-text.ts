@@ -10,23 +10,21 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import "server-only";
+
 import mammoth from "mammoth";
 
-export const WORKSPACE_AUTOMATION_KNOWLEDGE_MAX_EXTRACTED_CHARS = 100_000;
+import { WORKSPACE_AUTOMATION_KNOWLEDGE_MAX_EXTRACTED_CHARS } from "./workspace-automation-knowledge-constants";
+
+export {
+  isSupportedWorkspaceAutomationKnowledgeFilename,
+  WORKSPACE_AUTOMATION_KNOWLEDGE_ACCEPT_EXTENSIONS,
+  WORKSPACE_AUTOMATION_KNOWLEDGE_MAX_EXTRACTED_CHARS,
+} from "./workspace-automation-knowledge-constants";
 
 const TEXT_EXTENSIONS = new Set([".txt", ".md", ".markdown", ".csv", ".json"]);
 const DOCX_EXTENSIONS = new Set([".docx"]);
 const PDF_EXTENSIONS = new Set([".pdf"]);
-
-export const WORKSPACE_AUTOMATION_KNOWLEDGE_ACCEPT_EXTENSIONS = [
-  ".pdf",
-  ".txt",
-  ".md",
-  ".markdown",
-  ".csv",
-  ".json",
-  ".docx",
-] as const;
 
 export type KnowledgeTextExtractResult = {
   text: string;
@@ -40,15 +38,6 @@ function filenameExtension(filename: string) {
     return "";
   }
   return filename.slice(index).toLowerCase();
-}
-
-export function isSupportedWorkspaceAutomationKnowledgeFilename(filename: string) {
-  const extension = filenameExtension(filename);
-  return (
-    TEXT_EXTENSIONS.has(extension) ||
-    DOCX_EXTENSIONS.has(extension) ||
-    PDF_EXTENSIONS.has(extension)
-  );
 }
 
 function truncateExtractedText(text: string): { text: string; truncated: boolean } {
