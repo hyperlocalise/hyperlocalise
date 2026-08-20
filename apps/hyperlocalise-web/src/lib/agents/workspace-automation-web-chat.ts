@@ -10,10 +10,16 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import "server-only";
+
 import { and, desc, eq } from "drizzle-orm";
 
 import { db, schema } from "@/lib/database";
 
+import {
+  WEB_CHAT_HISTORY_LIMIT,
+  buildWebChatSourceThreadId,
+} from "./workspace-automation-web-chat-constants";
 import {
   buildWorkspaceAutomationWebChatHref,
   buildWorkspaceAutomationWebChatPath,
@@ -25,36 +31,22 @@ import {
 } from "./workspace-automations";
 
 export {
+  buildWebChatSourceThreadId,
+  isWebChatImageContentType,
+  WEB_CHAT_HISTORY_LIMIT,
+  WEB_CHAT_IMAGE_CONTENT_TYPES,
+  WEB_CHAT_IMAGE_UPLOAD_MULTIPART_OVERHEAD_BYTES,
+  WEB_CHAT_MAX_IMAGE_BYTES,
+  WEB_CHAT_MAX_IMAGE_FILES,
+  WEB_CHAT_MAX_IMAGE_REQUEST_BYTES,
+  WEB_CHAT_VISITOR_COOKIE_NAME,
+} from "./workspace-automation-web-chat-constants";
+
+export {
   buildWorkspaceAutomationWebChatHref,
   buildWorkspaceAutomationWebChatPath,
   buildWorkspaceAutomationWebChatUrl,
 };
-
-export const WEB_CHAT_VISITOR_COOKIE_NAME = "hl_web_chat_visitor";
-export const WEB_CHAT_HISTORY_LIMIT = 40;
-export const WEB_CHAT_MAX_IMAGE_FILES = 4;
-export const WEB_CHAT_MAX_IMAGE_BYTES = 10 * 1024 * 1024;
-/** Multipart framing + text-field headroom beyond the per-file byte cap. */
-export const WEB_CHAT_IMAGE_UPLOAD_MULTIPART_OVERHEAD_BYTES = 64 * 1024;
-/** Request body limit must cover every attached image plus multipart framing. */
-export const WEB_CHAT_MAX_IMAGE_REQUEST_BYTES =
-  WEB_CHAT_MAX_IMAGE_FILES * WEB_CHAT_MAX_IMAGE_BYTES +
-  WEB_CHAT_IMAGE_UPLOAD_MULTIPART_OVERHEAD_BYTES;
-export const WEB_CHAT_IMAGE_CONTENT_TYPES = new Set([
-  "image/png",
-  "image/jpeg",
-  "image/jpg",
-  "image/webp",
-  "image/gif",
-]);
-
-export function buildWebChatSourceThreadId(input: { automationId: string; visitorId: string }) {
-  return `web-chat:${input.automationId}:${input.visitorId}`;
-}
-
-export function isWebChatImageContentType(contentType: string) {
-  return WEB_CHAT_IMAGE_CONTENT_TYPES.has(contentType.toLowerCase());
-}
 
 export async function findOrganizationBySlug(slug: string) {
   const [organization] = await db

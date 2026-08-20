@@ -26,7 +26,7 @@ import { isApiResponseErrorCode, readApiResponseError } from "@/lib/api-error";
 import {
   WEB_CHAT_IMAGE_CONTENT_TYPES,
   WEB_CHAT_MAX_IMAGE_FILES,
-} from "@/lib/agents/workspace-automation-web-chat";
+} from "@/lib/agents/workspace-automation-web-chat-constants";
 import { cn } from "@/lib/primitives/cn";
 
 import { webChatPageMessages } from "./web-chat-page.messages";
