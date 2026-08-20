@@ -35,6 +35,8 @@ import {
   type NativeGlossary,
   type NativeGlossaryTermInput,
 } from "./glossary";
+import { parseLiveProviderGlossaryId } from "@/lib/providers/jobs/tms-provider-resource-id";
+
 import { parseId, resolveCrowdinContext, toCrowdinContext } from "./glossary-provider";
 import type { GlossaryProviderContext } from "./glossary-provider";
 
@@ -205,19 +207,30 @@ export class CrowdinGlossary extends Glossary {
 
   async delete() {
     const context = await this.context();
+    const externalGlossaryId = this.input.glossary.externalGlossaryId!;
     await crowdinTmsProvider.deleteLiveGlossary(
       toCrowdinContext(context),
-      parseId(this.input.glossary.externalGlossaryId!, "glossary_id"),
+      parseId(externalGlossaryId, "glossary_id"),
     );
+
+    // Prefer matching the Crowdin glossary id so live ephemeral rows
+    // (`crowdin:glossary:{n}`) still clean up any mirrored local mapping.
     const deleted = await db
       .delete(schema.glossaries)
       .where(
         and(
-          eq(schema.glossaries.id, this.input.glossary.id),
           eq(schema.glossaries.organizationId, this.input.auth.organization.localOrganizationId),
+          eq(schema.glossaries.externalProviderKind, "crowdin"),
+          eq(schema.glossaries.externalGlossaryId, externalGlossaryId),
         ),
       )
       .returning({ id: schema.glossaries.id });
+
+    // Live Crowdin glossaries may have no local mapping. Remote delete is success.
+    if (parseLiveProviderGlossaryId(this.input.glossary.id)?.providerKind === "crowdin") {
+      return true;
+    }
+
     return deleted.length > 0;
   }
 
