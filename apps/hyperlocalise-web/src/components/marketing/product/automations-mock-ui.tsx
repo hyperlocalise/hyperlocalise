@@ -12,7 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { Clock01Icon, GitPullRequestIcon, Upload01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
@@ -32,6 +32,8 @@ type Step = {
   label: string;
   status: StepStatus;
 };
+
+export const AUTOMATIONS_MOCK_AUTO_REVIEW_ID = "auto-review";
 
 type UseCase = {
   id: string;
@@ -139,10 +141,12 @@ function UseCaseSelector({
   useCases,
   active,
   onSelect,
+  cta,
 }: {
   useCases: UseCase[];
   active: string;
   onSelect: (id: string) => void;
+  cta: ReactNode;
 }) {
   return (
     <div className="flex h-full flex-col justify-between px-6 py-5">
@@ -194,28 +198,26 @@ function UseCaseSelector({
         </div>
       </div>
 
-      <div className="mt-4 flex items-center">
-        <Button
-          variant="outline"
-          size="lg"
-          nativeButton={false}
-          render={<a href={REQUEST_DEMO_URL} target="_blank" rel="noopener noreferrer" />}
-          className="cursor-pointer rounded-sm"
-        >
-          <FormattedMessage {...automationsMockMessages.requestDemo} />
-        </Button>
-      </div>
+      <div className="mt-4 flex items-center">{cta}</div>
     </div>
   );
 }
 
-export function AutomationsMockUI({ priority = false }: { priority?: boolean }) {
+export function AutomationsMockUI({
+  priority = false,
+  pauseAutoplay = false,
+  renderCta,
+}: {
+  priority?: boolean;
+  pauseAutoplay?: boolean;
+  renderCta?: (useCaseId: string) => ReactNode;
+}) {
   const intl = useIntl();
   const shouldReduceMotion = useReducedMotion();
 
   const useCases: UseCase[] = [
     {
-      id: "auto-review",
+      id: AUTOMATIONS_MOCK_AUTO_REVIEW_ID,
       title: intl.formatMessage(automationsMockMessages.useCaseAutoReviewTitle),
       description: intl.formatMessage(automationsMockMessages.useCaseAutoReviewDescription),
       triggerIcon: <HugeiconsIcon icon={GitPullRequestIcon} strokeWidth={1.8} className="size-3" />,
@@ -294,7 +296,7 @@ export function AutomationsMockUI({ priority = false }: { priority?: boolean }) 
   });
 
   useEffect(() => {
-    if (isPaused || shouldReduceMotion) return;
+    if (isPaused || pauseAutoplay || shouldReduceMotion) return;
 
     const totalSteps = activeUseCase.steps.length;
 
@@ -313,6 +315,7 @@ export function AutomationsMockUI({ priority = false }: { priority?: boolean }) 
     visibleStepCount,
     activeIndex,
     isPaused,
+    pauseAutoplay,
     activeUseCase.steps.length,
     useCases.length,
     shouldReduceMotion,
@@ -360,7 +363,26 @@ export function AutomationsMockUI({ priority = false }: { priority?: boolean }) 
           </div>
         </div>
         <div className="relative bg-background">
-          <UseCaseSelector useCases={useCases} active={activeUseCase.id} onSelect={handleSelect} />
+          <UseCaseSelector
+            useCases={useCases}
+            active={activeUseCase.id}
+            onSelect={handleSelect}
+            cta={
+              renderCta ? (
+                renderCta(activeUseCase.id)
+              ) : (
+                <Button
+                  variant="outline"
+                  size="lg"
+                  nativeButton={false}
+                  render={<a href={REQUEST_DEMO_URL} target="_blank" rel="noopener noreferrer" />}
+                  className="cursor-pointer rounded-sm"
+                >
+                  <FormattedMessage {...automationsMockMessages.requestDemo} />
+                </Button>
+              )
+            }
+          />
         </div>
       </div>
     </div>
