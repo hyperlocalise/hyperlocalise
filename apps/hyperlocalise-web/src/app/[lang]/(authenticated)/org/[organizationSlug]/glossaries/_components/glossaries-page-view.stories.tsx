@@ -79,6 +79,14 @@ export const Default: Story = {
     ).toBeInTheDocument();
     await expect(canvas.getByText("Phrase Term Base")).toBeInTheDocument();
     await expect(canvas.getByText("Crowdin Glossary")).toBeInTheDocument();
+    await expect(canvas.getByRole("link", { name: "Phrase Term Base" })).toHaveAttribute(
+      "href",
+      "/org/acme/glossaries/22222222-2222-4222-8222-222222222222",
+    );
+    await expect(canvas.getByRole("link", { name: "Open in provider" })).toHaveAttribute(
+      "href",
+      "https://phrase.com/tb/42",
+    );
   },
 };
 

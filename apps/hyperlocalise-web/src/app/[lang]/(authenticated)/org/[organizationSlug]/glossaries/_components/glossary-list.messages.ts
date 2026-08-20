@@ -76,10 +76,11 @@ export const glossaryListMessages = defineMessages({
     id: "cKwH9F0Z5s",
     description: "Term capability badge when provider capabilities are unknown",
   },
-  capabilityReadOnly: {
-    defaultMessage: "Read-only",
-    id: "uf1YHYgy0L",
-    description: "Capability badge for live provider glossaries that cannot be edited",
+  capabilityLiveApi: {
+    defaultMessage: "Live API",
+    id: "FgAIhNIP18",
+    description:
+      "Term capability badge for glossaries loaded and changed through a live provider API",
   },
   unavailableTimestamp: {
     defaultMessage: "—",

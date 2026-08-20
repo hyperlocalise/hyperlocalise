@@ -24,7 +24,6 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { TypographyP } from "@/components/ui/typography";
 
-import { isLiveProviderGlossaryId } from "@/lib/providers/jobs/tms-provider-resource-id";
 import { ProviderKindBadge } from "../../_components/workspace-files-shared";
 import { toneClass } from "../../_components/workspace-resource-shared";
 import type { GlossaryListRow } from "./glossary-list";
@@ -105,16 +104,12 @@ function GlossaryRow({
             strokeWidth={1.7}
             className="size-4 shrink-0 text-muted-foreground"
           />
-          {isLiveProviderGlossaryId(glossary.id) ? (
-            <span className="truncate text-sm font-medium text-foreground">{glossary.name}</span>
-          ) : (
-            <Link
-              href={`/org/${organizationSlug}/glossaries/${glossary.id}`}
-              className="truncate text-sm font-medium text-foreground underline-offset-2 hover:underline"
-            >
-              {glossary.name}
-            </Link>
-          )}
+          <Link
+            href={`/org/${organizationSlug}/glossaries/${glossary.id}`}
+            className="truncate text-sm font-medium text-foreground underline-offset-2 hover:underline"
+          >
+            {glossary.name}
+          </Link>
           <SourceLabel glossary={glossary} />
           <ResourceTypeBadge glossary={glossary} />
         </div>
@@ -147,7 +142,7 @@ function GlossaryRow({
             <a
               href={glossary.externalUrl}
               target="_blank"
-              rel="noreferrer"
+              rel="noreferrer noopener"
               className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
             >
               <FormattedMessage {...glossariesTableMessages.openInProvider} />
@@ -156,7 +151,15 @@ function GlossaryRow({
           ) : null}
         </div>
       </div>
-      <TypographyP className="text-sm text-muted-foreground">{glossary.localeSummary}</TypographyP>
+      <TypographyP className="flex flex-wrap items-center gap-1 text-sm text-muted-foreground">
+        <span className="text-emerald-700">{glossary.sourceLocaleLabel}</span>
+        {glossary.secondaryLocaleSummary ? (
+          <>
+            <span aria-hidden="true">·</span>
+            <span>{glossary.secondaryLocaleSummary}</span>
+          </>
+        ) : null}
+      </TypographyP>
       <TypographyP className="text-sm text-muted-foreground">
         <FormattedMessage
           {...glossariesTableMessages.termCount}

@@ -15,6 +15,7 @@ import { describe, expect, it } from "vite-plus/test";
 import {
   buildProjectIdByExternalKey,
   externalProjectLookupKey,
+  mapLiveTmsProviderGlossaryToListRow,
   mapGlossaryToListRow,
 } from "./glossary-list";
 
@@ -94,11 +95,35 @@ describe("glossary-list", () => {
     expect(native.resourceTypeLabel).toBe("Workspace glossary");
     expect(native.termCapabilityLabel).toBe("Preferred · Forbidden");
     expect(native.localeSummary).toBe("English (en), German (de)");
+    expect(native.sourceLocaleLabel).toBe("English");
+    expect(native.secondaryLocaleSummary).toBe("German");
     expect(native.termCountLabel).toBe("120");
     expect(provider.resourceTypeLabel).toBe("Term base");
-    expect(provider.localeSummary).toBe("en, fr, de +1");
+    expect(provider.localeSummary).toBe("English, French, German +1");
+    expect(provider.sourceLocaleLabel).toBe("English");
+    expect(provider.secondaryLocaleSummary).toBe("French, German, Spanish");
     expect(provider.termCountLabel).toBe("4.2k");
     expect(provider.projectLinkId).toBe("project-1");
     expect(externalProjectLookupKey("phrase", "phrase-project-9")).toBe("phrase:phrase-project-9");
+  });
+
+  it("labels live provider glossaries as live API", () => {
+    const row = mapLiveTmsProviderGlossaryToListRow(
+      {
+        id: "crowdin:glossary:gl-99",
+        name: "Crowdin Glossary",
+        description: null,
+        sourceLocale: "en",
+        targetLocale: "de",
+        localeCoverage: ["en", "de"],
+        termCount: 85,
+        externalUrl: "https://crowdin.com/project/acme/glossary/gl-99",
+        externalProjectId: "crowdin-project-1",
+        projectName: "Acme",
+      },
+      "crowdin",
+    );
+
+    expect(row.termCapabilityLabel).toBe("Live API");
   });
 });
