@@ -315,13 +315,12 @@ describe("CrowdinApiClient", () => {
     const client = createClient(fetchMock);
     expect((await client.listGlossaryConcepts(7))[0]?.id).toBe(8);
     expect((await client.getGlossaryConcept(7, 8)).figure).toBe("");
-    await client.addGlossaryConcept(7, { subject: "product", figure: "" });
     await client.updateGlossaryConcept(7, 8, {
       figure: "https://example.com/figure.png",
     });
     await client.deleteGlossaryConcept(7, 8);
 
-    expect(fetchMock).toHaveBeenCalledTimes(5);
+    expect(fetchMock).toHaveBeenCalledTimes(4);
   });
 
   it("lists branches with pagination", async () => {

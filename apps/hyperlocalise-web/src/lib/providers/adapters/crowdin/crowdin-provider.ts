@@ -953,19 +953,6 @@ export class CrowdinTmsProvider extends TmsProvider {
     input: CrowdinGlossaryConcept,
   ) {
     const client = this.createClient(scope);
-    const remoteConcept = await client.addGlossaryConcept(glossaryId, {
-      subject: input.subject,
-      definition: input.definition,
-      translatable: input.translatable,
-      note: input.note,
-      url: input.url ?? undefined,
-      figure: input.figure ?? undefined,
-      languagesDetails: input.languageDetails?.map((detail) => ({
-        languageId: toCrowdinGlossaryLanguageId(detail.languageId),
-        definition: detail.definition,
-        note: detail.note,
-      })),
-    });
     const sourceLanguageId = toCrowdinGlossaryLanguageId(input.sourceLocale);
     const source = input.terms.find(
       (term) => toCrowdinGlossaryLanguageId(term.languageId) === sourceLanguageId,
@@ -983,9 +970,24 @@ export class CrowdinTmsProvider extends TmsProvider {
       gender: source.gender,
       note: source.note ?? input.note,
       url: source.url,
-      conceptId: remoteConcept.id,
     });
-    const conceptId = remoteConcept.id || createdSource.conceptId || createdSource.id;
+
+    // Crowdin creates a concept implicitly when the first term omits
+    // conceptId. Concept metadata must be written after that term exists.
+    const conceptId = createdSource.conceptId;
+    await client.updateGlossaryConcept(glossaryId, conceptId, {
+      subject: input.subject,
+      definition: input.definition,
+      translatable: input.translatable,
+      note: input.note,
+      url: input.url ?? undefined,
+      figure: input.figure ?? undefined,
+      languagesDetails: input.languageDetails?.map((detail) => ({
+        languageId: toCrowdinGlossaryLanguageId(detail.languageId),
+        definition: detail.definition,
+        note: detail.note,
+      })),
+    });
     for (const term of input.terms.filter((item) => item !== source)) {
       await client.addGlossaryTerm(glossaryId, {
         languageId: toCrowdinGlossaryLanguageId(term.languageId),

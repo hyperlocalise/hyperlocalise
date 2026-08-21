@@ -262,9 +262,13 @@ describe("Crowdin live glossary concepts", () => {
 
   it("selects the Crowdin source term when sourceLocale is a BCP-47 locale", async () => {
     const termBodies: Array<Record<string, unknown>> = [];
+    const conceptUpdateBodies: Array<Record<string, unknown>> = [];
+    const requests: string[] = [];
     const fetchMock = vi.fn(async (url, init) => {
       const path = String(url).replace("https://api.crowdin.test/api/v2", "");
-      if (path === "/glossaries/7/concepts" && init?.method === "POST") {
+      requests.push(`${init?.method ?? "GET"} ${path}`);
+      if (path === "/glossaries/7/concepts/8" && init?.method === "PUT") {
+        conceptUpdateBodies.push(JSON.parse(String(init.body)) as Record<string, unknown>);
         return new Response(
           JSON.stringify({
             data: {
@@ -374,10 +378,73 @@ describe("Crowdin live glossary concepts", () => {
     );
 
     expect(termBodies).toEqual([
-      expect.objectContaining({ languageId: "en", text: "Checkout", conceptId: 8 }),
+      expect.objectContaining({ languageId: "en", text: "Checkout" }),
       expect.objectContaining({ languageId: "vi", text: "Thanh toán", conceptId: 8 }),
     ]);
+    expect(termBodies[0]).not.toHaveProperty("conceptId");
+    expect(conceptUpdateBodies).toEqual([{}]);
     expect(termBodies).toHaveLength(2);
+    expect(requests).toEqual([
+      "POST /glossaries/7/terms",
+      "PUT /glossaries/7/concepts/8",
+      "POST /glossaries/7/terms",
+      "GET /glossaries/7/concepts?limit=500&offset=0",
+      "GET /glossaries/7/terms?limit=500&offset=0",
+    ]);
+  });
+
+  it("preserves the created concept when metadata update fails", async () => {
+    const termBodies: Array<Record<string, unknown>> = [];
+    const fetchMock = vi.fn(async (url, init) => {
+      const path = String(url).replace("https://api.crowdin.test/api/v2", "");
+      if (path === "/glossaries/7/terms" && init?.method === "POST") {
+        const body = JSON.parse(String(init.body)) as Record<string, unknown>;
+        termBodies.push(body);
+        return new Response(
+          JSON.stringify({
+            data: {
+              id: 21,
+              glossaryId: 7,
+              languageId: body.languageId,
+              text: body.text,
+              conceptId: 8,
+            },
+          }),
+          { status: 201 },
+        );
+      }
+
+      if (path === "/glossaries/7/concepts/8" && init?.method === "PUT") {
+        return new Response(JSON.stringify({ error: { code: 400, message: "invalid metadata" } }), {
+          status: 400,
+        });
+      }
+
+      throw new Error(`Unexpected Crowdin request: ${path}`);
+    }) as unknown as typeof fetch;
+
+    await expect(
+      crowdinTmsProvider.createLiveGlossaryConcept(
+        {
+          organizationId: "organization-1",
+          credential: { baseUrl: "https://api.crowdin.test/api/v2" } as never,
+          secretMaterial: "test-token",
+          projectId: "project-42",
+          externalProjectId: "42",
+          sourceLocale: "en-US",
+          fetchFn: fetchMock,
+        },
+        7,
+        {
+          primaryTerm: "Checkout",
+          sourceLocale: "en-US",
+          terms: [{ languageId: "en", text: "Checkout", status: "preferred" }],
+        },
+      ),
+    ).rejects.toMatchObject({ status: 400 });
+
+    expect(termBodies).toEqual([expect.objectContaining({ languageId: "en", text: "Checkout" })]);
+    expect(termBodies[0]).not.toHaveProperty("conceptId");
   });
 
   it("treats native locales and Crowdin IDs as the same language on term update", async () => {

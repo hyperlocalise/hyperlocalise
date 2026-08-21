@@ -2234,17 +2234,6 @@ export class CrowdinApiClient {
     return response.data;
   }
 
-  async addGlossaryConcept(
-    glossaryId: number,
-    input: CrowdinGlossaryConceptInput,
-  ): Promise<CrowdinGlossaryConcept> {
-    const response = await this.post<CrowdinGetResponse<CrowdinGlossaryConcept>>(
-      `/glossaries/${glossaryId}/concepts`,
-      input,
-    );
-    return response.data;
-  }
-
   async updateGlossaryConcept(
     glossaryId: number,
     conceptId: number,
