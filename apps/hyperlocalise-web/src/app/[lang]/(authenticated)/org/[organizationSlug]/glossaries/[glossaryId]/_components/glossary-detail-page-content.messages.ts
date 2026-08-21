@@ -185,15 +185,35 @@ export const glossaryDetailPageContentMessages = defineMessages({
     id: "CCHRUS19n3",
     description: "Empty search result in the part of speech picker",
   },
-  partOfSpeechNotSpecified: {
-    defaultMessage: "Not specified",
-    id: "bR1JlDPT+J",
-    description: "Empty value in the part of speech picker",
+  termTypeFullFormDescription: {
+    defaultMessage: "Complete form of a term",
+    id: 'F+qlLuaEi6',
+    description: "Description for the full form term type",
   },
-  partOfSpeechViewAllCategories: {
-    defaultMessage: "View all categories",
-    id: "NSKwDatzIu",
-    description: "Action to reveal all part of speech categories",
+  termTypeAcronymDescription: {
+    defaultMessage: "Initials pronounced as a word",
+    id: 'OMHukdK6Wt',
+    description: "Description for the acronym term type",
+  },
+  termTypeAbbreviationDescription: {
+    defaultMessage: "Shortened written form",
+    id: 'r7qqla56RV',
+    description: "Description for the abbreviation term type",
+  },
+  termTypeShortFormDescription: {
+    defaultMessage: "Informal shortened name",
+    id: '04/aNgNk5U',
+    description: "Description for the short form term type",
+  },
+  termTypePhraseDescription: {
+    defaultMessage: "Multi-word expression",
+    id: 'kDMX9jypDk',
+    description: "Description for the phrase term type",
+  },
+  termTypeVariantDescription: {
+    defaultMessage: "Alternative form",
+    id: '3s0Ll5QBJY',
+    description: "Description for the variant term type",
   },
   descriptionLabel: {
     defaultMessage: "Description",

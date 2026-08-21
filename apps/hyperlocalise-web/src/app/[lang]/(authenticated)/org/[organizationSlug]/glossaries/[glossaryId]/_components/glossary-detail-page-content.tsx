@@ -26,7 +26,7 @@ import {
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { FormattedMessage, useIntl } from "react-intl";
+import { FormattedMessage, useIntl, type MessageDescriptor } from "react-intl";
 import { toast } from "sonner";
 
 import type {
@@ -47,7 +47,6 @@ import {
   CommandInput,
   CommandItem,
   CommandList,
-  CommandSeparator,
 } from "@/components/ui/command";
 import {
   AlertDialog,
@@ -91,6 +90,7 @@ import {
   glossaryTermTypeValues,
   selectGlossaryPrimaryTerm,
   type GlossaryPartOfSpeech,
+  type GlossaryTermType,
   type GlossaryTermStatus,
 } from "@/lib/glossary/glossary";
 
@@ -227,29 +227,39 @@ const partOfSpeechMarks: Record<string, string> = {
   other: "Other",
 };
 
-const commonPartOfSpeechOptions = [
-  "noun",
-  "verb",
-  "adjective",
-  "adverb",
-  "pronoun",
-  "proper noun",
-] as const;
-
 function partOfSpeechMark(value: string) {
   return partOfSpeechMarks[value.trim().toLowerCase()] ?? "Other";
 }
 
-function PartOfSpeechMark({ value }: { value: string }) {
+const genderMarks: Record<string, string> = {
+  masculine: "M",
+  feminine: "F",
+  neuter: "N",
+  other: "O",
+};
+
+function TermMark({ mark }: { mark: string }) {
   return (
     <Badge
       variant="outline"
-      className="h-6 min-w-7 justify-center rounded-md border-border/70 bg-muted/35 px-1.5 py-0 text-xs font-medium leading-5 text-foreground"
+      className="h-5 min-w-7 justify-center rounded-md border-border/70 bg-muted/35 px-1 py-0 text-[11px] font-medium leading-4 text-foreground"
       aria-hidden="true"
     >
-      {partOfSpeechMark(value)}
+      {mark}
     </Badge>
   );
+}
+
+function PartOfSpeechMark({ value }: { value: string }) {
+  return <TermMark mark={partOfSpeechMark(value)} />;
+}
+
+function genderMark(value: string) {
+  return genderMarks[value.trim().toLowerCase()] ?? "O";
+}
+
+function GenderMark({ value }: { value: string }) {
+  return <TermMark mark={genderMark(value)} />;
 }
 
 function PartOfSpeechDisplay({ value }: { value: string | null | undefined }) {
@@ -257,14 +267,14 @@ function PartOfSpeechDisplay({ value }: { value: string | null | undefined }) {
   if (!value) {
     return (
       <span className="truncate text-muted-foreground">
-        {intl.formatMessage(messages.partOfSpeechNotSpecified)}
+        —
       </span>
     );
   }
 
   return (
     <span className="flex min-w-0 items-center gap-2">
-      <span className="flex w-14 shrink-0 items-center">
+      <span className="flex w-10 shrink-0 items-center">
         <PartOfSpeechMark value={value} />
       </span>
       <span className="truncate">{readableEnumLabel(value)}</span>
@@ -286,22 +296,13 @@ function PartOfSpeechPicker({
   const intl = useIntl();
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
-  const [showAllCategories, setShowAllCategories] = useState(false);
 
   const options = useMemo(() => partOfSpeechOptionsFor(value), [value]);
-  const visibleOptions = useMemo(() => {
-    const common = commonPartOfSpeechOptions.filter((option) => options.includes(option));
-    const selected = value && !common.some((option) => option === value) ? [value] : [];
-
-    if (showAllCategories || search.trim()) return options;
-    return [...common, ...selected];
-  }, [options, search, showAllCategories, value]);
 
   const handleOpenChange = (nextOpen: boolean) => {
     setOpen(nextOpen);
     if (!nextOpen) {
       setSearch("");
-      setShowAllCategories(false);
     }
   };
 
@@ -321,17 +322,23 @@ function PartOfSpeechPicker({
             aria-label={`${intl.formatMessage(messages.partOfSpeechLabel)}: ${
               value
                 ? readableEnumLabel(value)
-                : intl.formatMessage(messages.partOfSpeechNotSpecified)
+                : "—"
             }`}
             className={cn(
               termPropertyTriggerClassName,
-              "w-full max-w-[280px] justify-start gap-2 text-left",
+              "w-[80px] max-w-[80px] shrink-0 justify-start gap-2 text-left",
               className,
             )}
           />
         }
       >
-        <PartOfSpeechDisplay value={value} />
+        {value ? (
+          <PartOfSpeechMark value={value} />
+        ) : (
+          <span className="truncate text-muted-foreground">
+            —
+          </span>
+        )}
         <HugeiconsIcon
           icon={ArrowDown01Icon}
           strokeWidth={2}
@@ -353,15 +360,7 @@ function PartOfSpeechPicker({
           <CommandList className="max-h-64" label={intl.formatMessage(messages.partOfSpeechLabel)}>
             <CommandEmpty>{intl.formatMessage(messages.partOfSpeechNoMatches)}</CommandEmpty>
             <CommandGroup>
-              <CommandItem
-                value={`__none__ ${intl.formatMessage(messages.partOfSpeechNotSpecified)}`}
-                data-checked={value === "" || undefined}
-                aria-label={intl.formatMessage(messages.partOfSpeechNotSpecified)}
-                onSelect={() => selectValue("")}
-              >
-                {intl.formatMessage(messages.partOfSpeechNotSpecified)}
-              </CommandItem>
-              {visibleOptions.map((option) => (
+              {options.map((option) => (
                 <CommandItem
                   key={option}
                   value={`${option} ${readableEnumLabel(option)} ${partOfSpeechMark(option)}`}
@@ -373,20 +372,6 @@ function PartOfSpeechPicker({
                 </CommandItem>
               ))}
             </CommandGroup>
-            {!showAllCategories && !search.trim() ? (
-              <>
-                <CommandSeparator />
-                <CommandGroup>
-                  <CommandItem
-                    value="__view_all_categories__"
-                    onSelect={() => setShowAllCategories(true)}
-                    className="justify-center text-muted-foreground"
-                  >
-                    {intl.formatMessage(messages.partOfSpeechViewAllCategories)}
-                  </CommandItem>
-                </CommandGroup>
-              </>
-            ) : null}
           </CommandList>
         </Command>
       </PopoverContent>
@@ -394,19 +379,224 @@ function PartOfSpeechPicker({
   );
 }
 
-function TermPropertyBadge({ value }: { value: string | null | undefined }) {
-  if (!value) return <span className="text-muted-foreground">—</span>;
+function GenderDisplay({ value }: { value: string | null | undefined }) {
+  const intl = useIntl();
+  if (!value) {
+    return (
+      <span className="truncate text-muted-foreground">
+        —
+      </span>
+    );
+  }
 
-  const label = readableEnumLabel(value);
   return (
-    <Badge
-      variant="outline"
-      className="h-6 min-w-8 justify-center border-border/70 bg-muted/35 px-2 py-0 text-xs font-semibold leading-5 text-foreground"
-      title={label}
-      aria-label={label}
-    >
-      {label}
-    </Badge>
+    <span className="flex min-w-0 items-center gap-2">
+      <span className="flex w-10 shrink-0 items-center">
+        <GenderMark value={value} />
+      </span>
+      <span className="truncate">{readableEnumLabel(value)}</span>
+    </span>
+  );
+}
+
+function GenderPicker({
+  value,
+  onValueChange,
+  disabled = false,
+}: {
+  value: string;
+  onValueChange: (value: string | null) => void;
+  disabled?: boolean;
+}) {
+  const intl = useIntl();
+  const [open, setOpen] = useState(false);
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger
+        render={
+          <Button
+            type="button"
+            variant="ghost"
+            disabled={disabled}
+            aria-label={`${intl.formatMessage(messages.genderLabel)}: ${
+              value
+                ? readableEnumLabel(value)
+                : "—"
+            }`}
+            className={cn(termPropertyTriggerClassName, "justify-start gap-2 text-left")}
+          />
+        }
+      >
+        {value ? (
+          <GenderMark value={value} />
+        ) : (
+          <span className="truncate text-muted-foreground">
+            —
+          </span>
+        )}
+        <HugeiconsIcon
+          icon={ArrowDown01Icon}
+          strokeWidth={2}
+          className="size-4 shrink-0 text-muted-foreground"
+          aria-hidden="true"
+        />
+      </PopoverTrigger>
+      <PopoverContent
+        align="start"
+        sideOffset={4}
+        className="w-[280px] max-w-[calc(100vw-2rem)] p-0"
+      >
+        <Command>
+          <CommandList className="max-h-64" label={intl.formatMessage(messages.genderLabel)}>
+            <CommandEmpty>{intl.formatMessage(messages.partOfSpeechNoMatches)}</CommandEmpty>
+            <CommandGroup>
+              {genderOptions.map((option) => (
+                <CommandItem
+                  key={option}
+                  value={`${option} ${readableEnumLabel(option)} ${genderMark(option)}`}
+                  data-checked={value === option || undefined}
+                  aria-label={readableEnumLabel(option)}
+                  onSelect={() => {
+                    onValueChange(option);
+                    setOpen(false);
+                  }}
+                >
+                  <GenderDisplay value={option} />
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+const termTypeMarks: Record<GlossaryTermType, string> = {
+  "full form": "FF",
+  acronym: "AC",
+  abbreviation: "AB",
+  "short form": "SF",
+  phrase: "PH",
+  variant: "VAR",
+};
+
+const termTypeDescriptionMessages: Record<GlossaryTermType, MessageDescriptor> = {
+  "full form": messages.termTypeFullFormDescription,
+  acronym: messages.termTypeAcronymDescription,
+  abbreviation: messages.termTypeAbbreviationDescription,
+  "short form": messages.termTypeShortFormDescription,
+  phrase: messages.termTypePhraseDescription,
+  variant: messages.termTypeVariantDescription,
+};
+
+function termTypeMark(value: string) {
+  return termTypeMarks[value.trim().toLowerCase() as GlossaryTermType] ?? "VAR";
+}
+
+function TermTypeDisplay({ value }: { value: string | null | undefined }) {
+  const intl = useIntl();
+  if (!value) {
+    return (
+      <span className="truncate text-muted-foreground">
+        —
+      </span>
+    );
+  }
+
+  return (
+    <span className="flex min-w-0 items-center gap-2">
+      <span className="flex w-10 shrink-0 items-center">
+        <TermMark mark={termTypeMark(value)} />
+      </span>
+      <span className="truncate">{readableEnumLabel(value)}</span>
+    </span>
+  );
+}
+
+function TermTypePicker({
+  value,
+  onValueChange,
+  disabled = false,
+}: {
+  value: string;
+  onValueChange: (value: string | null) => void;
+  disabled?: boolean;
+}) {
+  const intl = useIntl();
+  const [open, setOpen] = useState(false);
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger
+        render={
+          <Button
+            type="button"
+            variant="ghost"
+            disabled={disabled}
+            aria-label={`${intl.formatMessage(messages.typeLabel)}: ${
+              value
+                ? readableEnumLabel(value)
+                : "—"
+            }`}
+            className={cn(termPropertyTriggerClassName, "justify-start gap-2 text-left")}
+          />
+        }
+      >
+        {value ? (
+          <TermMark mark={termTypeMark(value)} />
+        ) : (
+          <span className="truncate text-muted-foreground">
+            —
+          </span>
+        )}
+        <HugeiconsIcon
+          icon={ArrowDown01Icon}
+          strokeWidth={2}
+          className="size-4 shrink-0 text-muted-foreground"
+          aria-hidden="true"
+        />
+      </PopoverTrigger>
+      <PopoverContent
+        align="start"
+        sideOffset={4}
+        className="w-[280px] max-w-[calc(100vw-2rem)] p-0"
+      >
+        <Command>
+          <CommandList className="max-h-64" label={intl.formatMessage(messages.typeLabel)}>
+            <CommandEmpty>{intl.formatMessage(messages.partOfSpeechNoMatches)}</CommandEmpty>
+            <CommandGroup>
+              {termTypeOptions.map((option) => (
+                <CommandItem
+                  key={option}
+                  value={`${option} ${readableEnumLabel(option)} ${termTypeMark(option)}`}
+                  data-checked={value === option || undefined}
+                  aria-label={readableEnumLabel(option)}
+                  onSelect={() => {
+                    onValueChange(option);
+                    setOpen(false);
+                  }}
+                  className="items-start py-2.5"
+                >
+                  <span className="flex min-w-0 items-start gap-2">
+                    <span className="flex w-10 shrink-0 pt-0.5">
+                      <TermMark mark={termTypeMark(option)} />
+                    </span>
+                    <span className="min-w-0">
+                      <span className="block truncate">{readableEnumLabel(option)}</span>
+                      <span className="block truncate text-xs text-muted-foreground">
+                        {intl.formatMessage(termTypeDescriptionMessages[option])}
+                      </span>
+                    </span>
+                  </span>
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
   );
 }
 
@@ -427,7 +617,7 @@ function formatDate(value: string) {
 }
 
 const termPropertyTriggerClassName =
-  "h-8 border-transparent bg-transparent px-2.5 text-sm font-normal shadow-none hover:bg-muted/60 focus-visible:bg-muted/60";
+  "h-8 w-[100px] shrink-0 border-transparent bg-transparent px-2.5 text-sm font-normal shadow-none hover:bg-muted/60 focus-visible:bg-muted/60";
 
 function statusClass(status: TermDraft["status"]) {
   if (status === "preferred") {
@@ -450,7 +640,7 @@ function statusBadgeClass(status: TermDraft["status"]) {
 }
 
 function statusPickerTriggerClass() {
-  return "h-8 max-w-full justify-end rounded-md border-transparent bg-transparent px-1.5 shadow-none hover:bg-muted/60 focus-visible:border-ring";
+  return "h-8 w-[140px] shrink-0 justify-end rounded-md border-transparent bg-transparent px-1.5 shadow-none hover:bg-muted/60 focus-visible:border-ring";
 }
 
 function statusPickerItemClass(_status: TermDraft["status"]) {
@@ -1656,7 +1846,7 @@ export function GlossaryDetailPageContent({
                                         <td className="px-3 py-2">
                                           <Textarea
                                             autoFocus={creatingTermDrafts.at(-1)?.id === term.id}
-                                            className="w-64 max-w-full min-h-8 resize-y px-2 py-1.5 text-sm leading-5"
+                                            className="w-48 max-w-full min-h-8 resize-y px-2 py-1.5 text-sm leading-5"
                                             placeholder={intl.formatMessage(messages.termLabel)}
                                             value={term.term}
                                             onChange={(event) =>
@@ -1685,78 +1875,32 @@ export function GlossaryDetailPageContent({
                                           />
                                         </td>
                                         <td className="px-3 py-2">
-                                          <Select
-                                            value={term.gender ?? "__none"}
+                                          <GenderPicker
+                                            value={term.gender ?? ""}
                                             onValueChange={(value) =>
                                               setCreatingTermDrafts((drafts) =>
                                                 drafts.map((draft) =>
                                                   draft.id === term.id
-                                                    ? {
-                                                        ...draft,
-                                                        gender:
-                                                          value === "__none"
-                                                            ? null
-                                                            : (value ?? null),
-                                                      }
+                                                    ? { ...draft, gender: value }
                                                     : draft,
                                                 ),
                                               )
                                             }
-                                          >
-                                            <SelectTrigger
-                                              showIcon={false}
-                                              className={termPropertyTriggerClassName}
-                                            >
-                                              <SelectValue>
-                                                {term.gender ? readableEnumLabel(term.gender) : "—"}
-                                              </SelectValue>
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                              <SelectItem value="__none">—</SelectItem>
-                                              {genderOptions.map((option) => (
-                                                <SelectItem key={option} value={option}>
-                                                  {readableEnumLabel(option)}
-                                                </SelectItem>
-                                              ))}
-                                            </SelectContent>
-                                          </Select>
+                                          />
                                         </td>
                                         <td className="px-3 py-2">
-                                          <Select
-                                            value={term.termType ?? "__none"}
+                                          <TermTypePicker
+                                            value={term.termType ?? ""}
                                             onValueChange={(value) =>
                                               setCreatingTermDrafts((drafts) =>
                                                 drafts.map((draft) =>
                                                   draft.id === term.id
-                                                    ? {
-                                                        ...draft,
-                                                        termType:
-                                                          value === "__none"
-                                                            ? null
-                                                            : (value ?? null),
-                                                      }
+                                                    ? { ...draft, termType: value }
                                                     : draft,
                                                 ),
                                               )
                                             }
-                                          >
-                                            <SelectTrigger
-                                              showIcon={false}
-                                              className={termPropertyTriggerClassName}
-                                            >
-                                              <SelectValue>
-                                                <TermPropertyBadge value={term.termType} />
-                                              </SelectValue>
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                              <SelectItem value="__none">—</SelectItem>
-                                              {termTypeOptions.map((option) => (
-                                                <SelectItem key={option} value={option}>
-                                                  {readableEnumLabel(option)}
-                                                </SelectItem>
-                                              ))}
-                                            </SelectContent>
-                                          </Select>
+                                          />
                                         </td>
                                         <td className="px-3 py-2">
                                           <Select
@@ -2033,15 +2177,9 @@ export function GlossaryDetailPageContent({
                                         <tr className="border-t border-border">
                                           <td className="px-3 py-2">
                                             <div className="flex items-center gap-2">
-                                              {isTermDirty ? (
-                                                <span
-                                                  className="size-2 rounded-full bg-emerald-500"
-                                                  aria-hidden="true"
-                                                />
-                                              ) : null}
                                               {canEdit ? (
                                                 <Textarea
-                                                  className="w-64 max-w-full min-h-8 resize-y px-2 py-1.5 text-sm leading-5"
+                                                  className="w-48 max-w-full min-h-8 resize-y px-2 py-1.5 text-sm leading-5"
                                                   value={draft.term}
                                                   onChange={(event) =>
                                                     updateTermDraft(term.id, {
@@ -2070,70 +2208,26 @@ export function GlossaryDetailPageContent({
                                           </td>
                                           <td className="px-3 py-2">
                                             {canEdit ? (
-                                              <Select
-                                                value={draft.gender ?? "__none"}
+                                              <GenderPicker
+                                                value={draft.gender ?? ""}
                                                 onValueChange={(value) =>
-                                                  updateTermDraft(term.id, {
-                                                    gender:
-                                                      value === "__none" ? null : (value ?? null),
-                                                  })
+                                                  updateTermDraft(term.id, { gender: value })
                                                 }
-                                              >
-                                                <SelectTrigger
-                                                  showIcon={false}
-                                                  className={termPropertyTriggerClassName}
-                                                >
-                                                  <SelectValue>
-                                                    {draft.gender
-                                                      ? readableEnumLabel(draft.gender)
-                                                      : "—"}
-                                                  </SelectValue>
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                  <SelectItem value="__none">—</SelectItem>
-                                                  {genderOptions.map((option) => (
-                                                    <SelectItem key={option} value={option}>
-                                                      {readableEnumLabel(option)}
-                                                    </SelectItem>
-                                                  ))}
-                                                </SelectContent>
-                                              </Select>
-                                            ) : term.gender ? (
-                                              readableEnumLabel(term.gender)
+                                              />
                                             ) : (
-                                              "—"
+                                              <GenderDisplay value={term.gender} />
                                             )}
                                           </td>
                                           <td className="px-3 py-2">
                                             {canEdit ? (
-                                              <Select
-                                                value={draft.termType ?? "__none"}
+                                              <TermTypePicker
+                                                value={draft.termType ?? ""}
                                                 onValueChange={(value) =>
-                                                  updateTermDraft(term.id, {
-                                                    termType:
-                                                      value === "__none" ? null : (value ?? null),
-                                                  })
+                                                  updateTermDraft(term.id, { termType: value })
                                                 }
-                                              >
-                                                <SelectTrigger
-                                                  showIcon={false}
-                                                  className={termPropertyTriggerClassName}
-                                                >
-                                                  <SelectValue>
-                                                    <TermPropertyBadge value={draft.termType} />
-                                                  </SelectValue>
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                  <SelectItem value="__none">—</SelectItem>
-                                                  {termTypeOptions.map((option) => (
-                                                    <SelectItem key={option} value={option}>
-                                                      {readableEnumLabel(option)}
-                                                    </SelectItem>
-                                                  ))}
-                                                </SelectContent>
-                                              </Select>
+                                              />
                                             ) : (
-                                              <TermPropertyBadge value={term.termType} />
+                                              <TermTypeDisplay value={term.termType} />
                                             )}
                                           </td>
                                           <td className="px-3 py-2">
@@ -2179,31 +2273,40 @@ export function GlossaryDetailPageContent({
                                             )}
                                           </td>
                                           <td className="px-3 py-2 text-right">
-                                            <Button
-                                              type="button"
-                                              size="icon-xs"
-                                              variant="outline"
-                                              aria-expanded={isExpanded}
-                                              aria-label={intl.formatMessage(
-                                                isExpanded
-                                                  ? messages.collapseTerm
-                                                  : messages.expandTerm,
-                                              )}
-                                              onClick={() =>
-                                                setExpandedTermIds((current) => {
-                                                  const next = new Set(current);
-                                                  if (next.has(term.id)) next.delete(term.id);
-                                                  else next.add(term.id);
-                                                  return next;
-                                                })
-                                              }
-                                            >
-                                              <HugeiconsIcon
-                                                icon={ArrowDown01Icon}
-                                                strokeWidth={1.8}
-                                                className={isExpanded ? "" : "-rotate-90"}
+                                            <div className="flex items-center justify-end gap-2">
+                                              <span
+                                                className={cn(
+                                                  "size-2 shrink-0 rounded-full",
+                                                  isTermDirty ? "bg-emerald-500" : "bg-transparent",
+                                                )}
+                                                aria-hidden="true"
                                               />
-                                            </Button>
+                                              <Button
+                                                type="button"
+                                                size="icon-xs"
+                                                variant="outline"
+                                                aria-expanded={isExpanded}
+                                                aria-label={intl.formatMessage(
+                                                  isExpanded
+                                                    ? messages.collapseTerm
+                                                    : messages.expandTerm,
+                                                )}
+                                                onClick={() =>
+                                                  setExpandedTermIds((current) => {
+                                                    const next = new Set(current);
+                                                    if (next.has(term.id)) next.delete(term.id);
+                                                    else next.add(term.id);
+                                                    return next;
+                                                  })
+                                                }
+                                              >
+                                                <HugeiconsIcon
+                                                  icon={ArrowDown01Icon}
+                                                  strokeWidth={1.8}
+                                                  className={isExpanded ? "" : "-rotate-90"}
+                                                />
+                                              </Button>
+                                            </div>
                                           </td>
                                         </tr>
                                         {isExpanded ? (
@@ -2321,15 +2424,9 @@ export function GlossaryDetailPageContent({
                                       <tr className="border-t border-emerald-500/30 bg-emerald-500/5">
                                         <td className="px-3 py-2">
                                           <div className="flex items-center gap-2">
-                                            {newTermIsDirty ? (
-                                              <span
-                                                className="size-2 rounded-full bg-emerald-500"
-                                                aria-hidden="true"
-                                              />
-                                            ) : null}
                                             <Textarea
                                               autoFocus
-                                              className="w-64 max-w-full min-h-8 resize-y px-2 py-1.5 text-sm leading-5"
+                                              className="w-48 max-w-full min-h-8 resize-y px-2 py-1.5 text-sm leading-5"
                                               placeholder={intl.formatMessage(messages.termLabel)}
                                               value={newTermDraft.term}
                                               onChange={(event) =>
@@ -2353,63 +2450,26 @@ export function GlossaryDetailPageContent({
                                           />
                                         </td>
                                         <td className="px-3 py-2">
-                                          <Select
-                                            value={newTermDraft.gender ?? "__none"}
+                                          <GenderPicker
+                                            value={newTermDraft.gender ?? ""}
                                             onValueChange={(value) =>
                                               setNewTermDraft({
                                                 ...newTermDraft,
-                                                gender: value === "__none" ? null : (value ?? null),
+                                                gender: value,
                                               })
                                             }
-                                          >
-                                            <SelectTrigger
-                                              showIcon={false}
-                                              className={termPropertyTriggerClassName}
-                                            >
-                                              <SelectValue>
-                                                {newTermDraft.gender
-                                                  ? readableEnumLabel(newTermDraft.gender)
-                                                  : "—"}
-                                              </SelectValue>
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                              <SelectItem value="__none">—</SelectItem>
-                                              {genderOptions.map((option) => (
-                                                <SelectItem key={option} value={option}>
-                                                  {readableEnumLabel(option)}
-                                                </SelectItem>
-                                              ))}
-                                            </SelectContent>
-                                          </Select>
+                                          />
                                         </td>
                                         <td className="px-3 py-2">
-                                          <Select
-                                            value={newTermDraft.termType ?? "__none"}
+                                          <TermTypePicker
+                                            value={newTermDraft.termType ?? ""}
                                             onValueChange={(value) =>
                                               setNewTermDraft({
                                                 ...newTermDraft,
-                                                termType:
-                                                  value === "__none" ? null : (value ?? null),
+                                                termType: value,
                                               })
                                             }
-                                          >
-                                            <SelectTrigger
-                                              showIcon={false}
-                                              className={termPropertyTriggerClassName}
-                                            >
-                                              <SelectValue>
-                                                <TermPropertyBadge value={newTermDraft.termType} />
-                                              </SelectValue>
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                              <SelectItem value="__none">—</SelectItem>
-                                              {termTypeOptions.map((option) => (
-                                                <SelectItem key={option} value={option}>
-                                                  {readableEnumLabel(option)}
-                                                </SelectItem>
-                                              ))}
-                                            </SelectContent>
-                                          </Select>
+                                          />
                                         </td>
                                         <td className="px-3 py-2">
                                           <Select
@@ -2443,18 +2503,32 @@ export function GlossaryDetailPageContent({
                                           </Select>
                                         </td>
                                         <td className="px-3 py-2">
-                                          <Button
-                                            type="button"
-                                            size="icon-xs"
-                                            variant="ghost"
-                                            aria-label={intl.formatMessage(messages.cancelEdit)}
-                                            onClick={() => {
-                                              setNewTermLocale(null);
-                                              setNewTermDraft(emptyTermDraft);
-                                            }}
-                                          >
-                                            <HugeiconsIcon icon={Delete02Icon} strokeWidth={1.8} />
-                                          </Button>
+                                          <div className="flex items-center justify-end gap-2">
+                                            <span
+                                              className={cn(
+                                                "size-2 shrink-0 rounded-full",
+                                                newTermIsDirty
+                                                  ? "bg-emerald-500"
+                                                  : "bg-transparent",
+                                              )}
+                                              aria-hidden="true"
+                                            />
+                                            <Button
+                                              type="button"
+                                              size="icon-xs"
+                                              variant="ghost"
+                                              aria-label={intl.formatMessage(messages.cancelEdit)}
+                                              onClick={() => {
+                                                setNewTermLocale(null);
+                                                setNewTermDraft(emptyTermDraft);
+                                              }}
+                                            >
+                                              <HugeiconsIcon
+                                                icon={Delete02Icon}
+                                                strokeWidth={1.8}
+                                              />
+                                            </Button>
+                                          </div>
                                         </td>
                                       </tr>
                                       <tr className="border-t border-emerald-500/30 bg-emerald-500/5">
