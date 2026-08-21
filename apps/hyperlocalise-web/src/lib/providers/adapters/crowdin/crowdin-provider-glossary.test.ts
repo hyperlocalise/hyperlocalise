@@ -639,7 +639,9 @@ describe("Crowdin live glossary concepts", () => {
       }
 
       if (path.startsWith("/glossaries?")) {
-        const offset = Number(new URL(`https://api.crowdin.test${path}`).searchParams.get("offset"));
+        const offset = Number(
+          new URL(`https://api.crowdin.test${path}`).searchParams.get("offset"),
+        );
         const glossaries =
           offset === 0
             ? [
@@ -719,7 +721,7 @@ describe("Crowdin live glossary concepts", () => {
     expect(glossary).toMatchObject({
       externalGlossaryId: "31",
       name: "Page two glossary",
-      sourceLocale: "en-US",
+      sourceLocale: "en",
       externalProjectIds: ["42"],
     });
     expect(fetchMock).toHaveBeenCalledTimes(1);
