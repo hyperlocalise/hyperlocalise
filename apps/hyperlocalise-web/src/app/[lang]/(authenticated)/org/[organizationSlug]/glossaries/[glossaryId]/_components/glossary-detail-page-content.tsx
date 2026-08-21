@@ -19,14 +19,9 @@ import {
   Add01Icon,
   ArrowDown01Icon,
   ArrowLeft01Icon,
-  AlertCircleIcon,
   BookOpenTextIcon,
-  CancelCircleIcon,
-  CheckmarkCircle02Icon,
-  Clock01Icon,
   Delete02Icon,
   FilterIcon,
-  InformationCircleIcon,
   Link01Icon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
@@ -199,6 +194,45 @@ function readableEnumLabel(value: string) {
   return label ? `${label.charAt(0).toUpperCase()}${label.slice(1)}` : label;
 }
 
+const partOfSpeechShortLabels: Record<GlossaryPartOfSpeech, string> = {
+  adjective: "adj",
+  adposition: "adp",
+  adverb: "adv",
+  auxiliary: "aux",
+  "coordinating conjunction": "cc",
+  determiner: "det",
+  interjection: "intj",
+  noun: "n",
+  numeral: "num",
+  particle: "part",
+  pronoun: "pron",
+  "proper noun": "propn",
+  "subordinating conjunction": "sc",
+  verb: "v",
+  other: "other",
+};
+
+function partOfSpeechShortLabel(value: string) {
+  const normalized = normalizePartOfSpeech(value) ?? value;
+  return partOfSpeechShortLabels[normalized as GlossaryPartOfSpeech] ?? normalized;
+}
+
+function PartOfSpeechBadge({ value }: { value: string | null | undefined }) {
+  if (!value) return <span className="text-muted-foreground">—</span>;
+
+  const label = readableEnumLabel(value);
+  return (
+    <Badge
+      variant="outline"
+      className="h-6 min-w-8 justify-center border-border/70 bg-muted/35 px-2 py-0 text-xs font-semibold leading-5 text-foreground"
+      title={label}
+      aria-label={label}
+    >
+      {partOfSpeechShortLabel(value)}
+    </Badge>
+  );
+}
+
 function partOfSpeechOptionsFor(value: string) {
   return value && !partOfSpeechOptions.includes(value as GlossaryPartOfSpeech)
     ? [value, ...partOfSpeechOptions]
@@ -234,23 +268,83 @@ function statusClass(status: TermDraft["status"]) {
   return "!border-slate-500/30 !bg-slate-500/10 !text-slate-700 dark:!text-slate-300";
 }
 
-function statusIcon(status: TermDraft["status"]) {
-  if (status === "preferred") return CheckmarkCircle02Icon;
-  if (status === "admitted") return InformationCircleIcon;
-  if (status === "draft") return Clock01Icon;
-  if (status === "not_recommended") return AlertCircleIcon;
-  return CancelCircleIcon;
+function statusBadgeClass(status: TermDraft["status"]) {
+  return cn(statusClass(status), "px-1.5 py-0 text-[11px] leading-5");
+}
+
+function statusPickerTriggerClass() {
+  return "h-8 max-w-full justify-end rounded-md border-transparent bg-transparent px-1.5 shadow-none hover:bg-muted/60 focus-visible:border-ring";
+}
+
+function statusPickerItemClass(_status: TermDraft["status"]) {
+  return "rounded-lg px-2 py-1.5 hover:bg-muted! focus:bg-muted! focus:text-foreground! data-highlighted:bg-muted! data-highlighted:text-foreground!";
+}
+
+const statusPickerContentClassName = "min-w-44 p-1.5";
+
+function TermStatusIcon({
+  status,
+  className,
+}: {
+  status: TermDraft["status"];
+  className?: string;
+}) {
+  const iconClassName = cn("size-4 shrink-0", className);
+
+  if (status === "preferred") {
+    return (
+      <svg viewBox="0 0 16 16" fill="none" className={iconClassName} aria-hidden="true">
+        <circle cx="8" cy="8" r="7" className="fill-emerald-500" />
+        <path
+          d="m5 8.2 2 2 4-4"
+          stroke="white"
+          strokeWidth="1.75"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </svg>
+    );
+  }
+
+  if (status === "admitted") {
+    return (
+      <svg viewBox="0 0 16 16" fill="none" className={iconClassName} aria-hidden="true">
+        <circle cx="8" cy="8" r="6" className="stroke-sky-500" strokeWidth="1.75" />
+        <circle cx="8" cy="8" r="2.25" className="fill-sky-500" />
+      </svg>
+    );
+  }
+
+  if (status === "draft") {
+    return (
+      <svg viewBox="0 0 16 16" fill="none" className={iconClassName} aria-hidden="true">
+        <circle cx="8" cy="8" r="6" className="stroke-amber-500" strokeWidth="1.75" />
+        <path d="M8 2a6 6 0 0 1 0 12Z" className="fill-amber-500" />
+      </svg>
+    );
+  }
+
+  if (status === "not_recommended") {
+    return (
+      <svg viewBox="0 0 16 16" fill="none" className={iconClassName} aria-hidden="true">
+        <circle cx="8" cy="8" r="6" className="stroke-rose-500" strokeWidth="1.75" />
+        <path d="M5.5 8h5" className="stroke-rose-500" strokeWidth="1.75" strokeLinecap="round" />
+      </svg>
+    );
+  }
+
+  return (
+    <svg viewBox="0 0 16 16" fill="none" className={iconClassName} aria-hidden="true">
+      <circle cx="8" cy="8" r="7" className="fill-slate-500" />
+      <path d="m5.5 5.5 5 5m0-5-5 5" stroke="white" strokeWidth="1.75" strokeLinecap="round" />
+    </svg>
+  );
 }
 
 function StatusLabel({ status, className }: { status: TermDraft["status"]; className?: string }) {
   return (
     <span className={cn("inline-flex items-center gap-1.5", className)}>
-      <HugeiconsIcon
-        icon={statusIcon(status)}
-        strokeWidth={1.8}
-        className="size-3.5"
-        aria-hidden="true"
-      />
+      <TermStatusIcon status={status} />
       <span>{readableEnumLabel(status)}</span>
     </span>
   );
@@ -1113,7 +1207,10 @@ export function GlossaryDetailPageContent({
                             <div className="flex flex-wrap items-center gap-2 font-medium">
                               {primary?.text ?? concept.primaryTerm}
                               {primary ? (
-                                <Badge variant="outline" className={statusClass(primary.status)}>
+                                <Badge
+                                  variant="outline"
+                                  className={statusBadgeClass(primary.status)}
+                                >
                                   <StatusLabel status={primary.status} />
                                 </Badge>
                               ) : null}
@@ -1418,9 +1515,7 @@ export function GlossaryDetailPageContent({
                                               className={termPropertyTriggerClassName}
                                             >
                                               <SelectValue>
-                                                {term.partOfSpeech
-                                                  ? readableEnumLabel(term.partOfSpeech)
-                                                  : "—"}
+                                                <PartOfSpeechBadge value={term.partOfSpeech} />
                                               </SelectValue>
                                             </SelectTrigger>
                                             <SelectContent>
@@ -1530,21 +1625,18 @@ export function GlossaryDetailPageContent({
                                           >
                                             <SelectTrigger
                                               showIcon={false}
-                                              className={cn(
-                                                termPropertyTriggerClassName,
-                                                statusClass(term.status),
-                                              )}
+                                              className={statusPickerTriggerClass()}
                                             >
                                               <SelectValue>
                                                 <StatusLabel status={term.status} />
                                               </SelectValue>
                                             </SelectTrigger>
-                                            <SelectContent>
+                                            <SelectContent className={statusPickerContentClassName}>
                                               {statusOptions.map((option) => (
                                                 <SelectItem
                                                   key={option}
                                                   value={option}
-                                                  className={statusClass(option)}
+                                                  className={statusPickerItemClass(option)}
                                                 >
                                                   <StatusLabel status={option} />
                                                 </SelectItem>
@@ -1826,9 +1918,7 @@ export function GlossaryDetailPageContent({
                                                   className={termPropertyTriggerClassName}
                                                 >
                                                   <SelectValue>
-                                                    {draft.partOfSpeech
-                                                      ? readableEnumLabel(draft.partOfSpeech)
-                                                      : "—"}
+                                                    <PartOfSpeechBadge value={draft.partOfSpeech} />
                                                   </SelectValue>
                                                 </SelectTrigger>
                                                 <SelectContent>
@@ -1842,10 +1932,8 @@ export function GlossaryDetailPageContent({
                                                   )}
                                                 </SelectContent>
                                               </Select>
-                                            ) : term.partOfSpeech ? (
-                                              readableEnumLabel(term.partOfSpeech)
                                             ) : (
-                                              "—"
+                                              <PartOfSpeechBadge value={term.partOfSpeech} />
                                             )}
                                           </td>
                                           <td className="px-3 py-2">
@@ -1933,16 +2021,22 @@ export function GlossaryDetailPageContent({
                                               >
                                                 <SelectTrigger
                                                   showIcon={false}
-                                                  className={termPropertyTriggerClassName}
+                                                  className={statusPickerTriggerClass()}
                                                 >
                                                   <SelectValue>
-                                                    {readableEnumLabel(draft.status)}
+                                                    <StatusLabel status={draft.status} />
                                                   </SelectValue>
                                                 </SelectTrigger>
-                                                <SelectContent>
+                                                <SelectContent
+                                                  className={statusPickerContentClassName}
+                                                >
                                                   {statusOptions.map((option) => (
-                                                    <SelectItem key={option} value={option}>
-                                                      {readableEnumLabel(option)}
+                                                    <SelectItem
+                                                      key={option}
+                                                      value={option}
+                                                      className={statusPickerItemClass(option)}
+                                                    >
+                                                      <StatusLabel status={option} />
                                                     </SelectItem>
                                                   ))}
                                                 </SelectContent>
@@ -1950,7 +2044,7 @@ export function GlossaryDetailPageContent({
                                             ) : (
                                               <Badge
                                                 variant="outline"
-                                                className={statusClass(term.status)}
+                                                className={statusBadgeClass(term.status)}
                                               >
                                                 <StatusLabel status={term.status} />
                                               </Badge>
@@ -2135,9 +2229,9 @@ export function GlossaryDetailPageContent({
                                               className={termPropertyTriggerClassName}
                                             >
                                               <SelectValue>
-                                                {newTermDraft.partOfSpeech
-                                                  ? readableEnumLabel(newTermDraft.partOfSpeech)
-                                                  : "—"}
+                                                <PartOfSpeechBadge
+                                                  value={newTermDraft.partOfSpeech}
+                                                />
                                               </SelectValue>
                                             </SelectTrigger>
                                             <SelectContent>
@@ -2225,21 +2319,18 @@ export function GlossaryDetailPageContent({
                                           >
                                             <SelectTrigger
                                               showIcon={false}
-                                              className={cn(
-                                                termPropertyTriggerClassName,
-                                                statusClass(newTermDraft.status),
-                                              )}
+                                              className={statusPickerTriggerClass()}
                                             >
                                               <SelectValue>
                                                 <StatusLabel status={newTermDraft.status} />
                                               </SelectValue>
                                             </SelectTrigger>
-                                            <SelectContent>
+                                            <SelectContent className={statusPickerContentClassName}>
                                               {statusOptions.map((option) => (
                                                 <SelectItem
                                                   key={option}
                                                   value={option}
-                                                  className={statusClass(option)}
+                                                  className={statusPickerItemClass(option)}
                                                 >
                                                   <StatusLabel status={option} />
                                                 </SelectItem>
