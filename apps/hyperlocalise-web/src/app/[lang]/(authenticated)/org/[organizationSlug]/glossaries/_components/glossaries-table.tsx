@@ -22,6 +22,7 @@ import { FormattedMessage, useIntl } from "react-intl";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import { Skeleton } from "@/components/ui/skeleton";
 import { TypographyP } from "@/components/ui/typography";
 
 import { ProviderKindBadge } from "../../_components/workspace-files-shared";
@@ -72,6 +73,32 @@ function TermCapabilityBadge({ glossary }: { glossary: GlossaryListRow }) {
     <Badge variant="outline" className={toneClass(glossary.termCapabilityTone)}>
       {glossary.termCapabilityLabel}
     </Badge>
+  );
+}
+
+function GlossaryRowSkeleton() {
+  return (
+    <div className="grid gap-3 px-5 py-4 md:grid-cols-[1.35fr_0.95fr_0.75fr_1fr] md:items-center">
+      <div className="min-w-0 space-y-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <Skeleton className="size-4 rounded-md" />
+          <Skeleton className="h-4 w-36" />
+          <Skeleton className="h-5 w-20 rounded-full" />
+          <Skeleton className="h-5 w-16 rounded-full" />
+        </div>
+        <Skeleton className="h-3 w-48 max-w-full" />
+        <div className="flex items-center gap-2">
+          <Skeleton className="h-3 w-24" />
+          <Skeleton className="h-3 w-16" />
+        </div>
+      </div>
+      <div className="flex items-center gap-1">
+        <Skeleton className="h-4 w-16" />
+        <Skeleton className="h-4 w-20" />
+      </div>
+      <Skeleton className="h-4 w-20" />
+      <Skeleton className="h-6 w-24 rounded-full" />
+    </div>
   );
 }
 
@@ -222,15 +249,19 @@ export function GlossariesTable({
 
       {glossariesQuery.isLoading ? (
         <div
-          className="space-y-3 rounded-lg border border-border px-5 py-8"
+          className="overflow-hidden rounded-lg border border-border"
           aria-busy="true"
           aria-label={intl.formatMessage(glossariesTableMessages.loading)}
         >
-          <TypographyP className="text-sm text-muted-foreground">
+          <TypographyP className="border-b border-border px-5 py-3 text-sm text-muted-foreground">
             <FormattedMessage {...glossariesTableMessages.loading} />
           </TypographyP>
-          <div className="h-2 w-2/3 animate-pulse rounded-full bg-skeleton" />
-          <div className="h-2 w-1/3 animate-pulse rounded-full bg-skeleton" />
+          {Array.from({ length: 3 }).map((_, index) => (
+            <div key={index}>
+              <GlossaryRowSkeleton />
+              {index < 2 ? <Separator className="bg-skeleton" /> : null}
+            </div>
+          ))}
         </div>
       ) : null}
 

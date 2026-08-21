@@ -19,9 +19,14 @@ import {
   Add01Icon,
   ArrowDown01Icon,
   ArrowLeft01Icon,
+  AlertCircleIcon,
   BookOpenTextIcon,
+  CancelCircleIcon,
+  CheckmarkCircle02Icon,
+  Clock01Icon,
   Delete02Icon,
   FilterIcon,
+  InformationCircleIcon,
   Link01Icon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
@@ -214,9 +219,56 @@ const termPropertyTriggerClassName =
   "h-7 border-transparent bg-transparent px-2 text-xs font-normal shadow-none hover:bg-muted/60 focus-visible:bg-muted/60";
 
 function statusClass(status: TermDraft["status"]) {
-  if (status === "preferred") return "border-emerald-500/30 text-emerald-700";
-  if (status === "not_recommended") return "border-destructive/30 text-destructive";
-  return "border-amber-500/30 text-amber-700";
+  if (status === "preferred") {
+    return "!border-emerald-500/30 !bg-emerald-500/10 !text-emerald-700 dark:!text-emerald-300";
+  }
+  if (status === "admitted") {
+    return "!border-sky-500/30 !bg-sky-500/10 !text-sky-700 dark:!text-sky-300";
+  }
+  if (status === "draft") {
+    return "!border-amber-500/30 !bg-amber-500/10 !text-amber-700 dark:!text-amber-300";
+  }
+  if (status === "not_recommended") {
+    return "!border-rose-500/30 !bg-rose-500/10 !text-rose-700 dark:!text-rose-300";
+  }
+  return "!border-slate-500/30 !bg-slate-500/10 !text-slate-700 dark:!text-slate-300";
+}
+
+function statusIcon(status: TermDraft["status"]) {
+  if (status === "preferred") return CheckmarkCircle02Icon;
+  if (status === "admitted") return InformationCircleIcon;
+  if (status === "draft") return Clock01Icon;
+  if (status === "not_recommended") return AlertCircleIcon;
+  return CancelCircleIcon;
+}
+
+function StatusLabel({ status, className }: { status: TermDraft["status"]; className?: string }) {
+  return (
+    <span className={cn("inline-flex items-center gap-1.5", className)}>
+      <HugeiconsIcon
+        icon={statusIcon(status)}
+        strokeWidth={1.8}
+        className="size-3.5"
+        aria-hidden="true"
+      />
+      <span>{readableEnumLabel(status)}</span>
+    </span>
+  );
+}
+
+function TermStatusSkeleton({ compact = false }: { compact?: boolean }) {
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center gap-1.5 rounded-md border border-border/70 bg-muted/40 px-2",
+        compact ? "h-5" : "h-7 w-full",
+      )}
+      aria-hidden="true"
+    >
+      <Skeleton className={cn("rounded-full", compact ? "size-2.5" : "size-3")} />
+      <Skeleton className={cn("h-2.5", compact ? "w-14" : "w-20")} />
+    </span>
+  );
 }
 
 function ConceptListSkeleton() {
@@ -253,7 +305,10 @@ function ConceptListSkeleton() {
               className="grid min-w-[760px] grid-cols-[2.5rem_1.4fr_2fr_1fr_1fr_1fr] gap-4 border-b border-border px-3 py-4 last:border-b-0"
             >
               <Skeleton className="size-4 rounded-md" />
-              <Skeleton className="h-4 w-36 max-w-full" />
+              <div className="flex items-center gap-2">
+                <Skeleton className="h-4 w-36 max-w-full" />
+                <TermStatusSkeleton compact />
+              </div>
               <Skeleton className="h-4 w-full max-w-xs" />
               <Skeleton className="h-4 w-24 max-w-full" />
               <Skeleton className="h-4 w-28 max-w-full" />
@@ -304,7 +359,7 @@ function ConceptDetailSkeleton() {
                       <Skeleton className="h-7 w-full" />
                       <Skeleton className="h-7 w-full" />
                       <Skeleton className="h-7 w-full" />
-                      <Skeleton className="h-7 w-full" />
+                      <TermStatusSkeleton />
                     </div>
                   ))}
                 </div>
@@ -1059,7 +1114,7 @@ export function GlossaryDetailPageContent({
                               {primary?.text ?? concept.primaryTerm}
                               {primary ? (
                                 <Badge variant="outline" className={statusClass(primary.status)}>
-                                  {primary.status}
+                                  <StatusLabel status={primary.status} />
                                 </Badge>
                               ) : null}
                             </div>
@@ -1475,16 +1530,23 @@ export function GlossaryDetailPageContent({
                                           >
                                             <SelectTrigger
                                               showIcon={false}
-                                              className={termPropertyTriggerClassName}
+                                              className={cn(
+                                                termPropertyTriggerClassName,
+                                                statusClass(term.status),
+                                              )}
                                             >
                                               <SelectValue>
-                                                {readableEnumLabel(term.status)}
+                                                <StatusLabel status={term.status} />
                                               </SelectValue>
                                             </SelectTrigger>
                                             <SelectContent>
                                               {statusOptions.map((option) => (
-                                                <SelectItem key={option} value={option}>
-                                                  {readableEnumLabel(option)}
+                                                <SelectItem
+                                                  key={option}
+                                                  value={option}
+                                                  className={statusClass(option)}
+                                                >
+                                                  <StatusLabel status={option} />
                                                 </SelectItem>
                                               ))}
                                             </SelectContent>
@@ -1890,7 +1952,7 @@ export function GlossaryDetailPageContent({
                                                 variant="outline"
                                                 className={statusClass(term.status)}
                                               >
-                                                {readableEnumLabel(term.status)}
+                                                <StatusLabel status={term.status} />
                                               </Badge>
                                             )}
                                           </td>
@@ -2163,16 +2225,23 @@ export function GlossaryDetailPageContent({
                                           >
                                             <SelectTrigger
                                               showIcon={false}
-                                              className={termPropertyTriggerClassName}
+                                              className={cn(
+                                                termPropertyTriggerClassName,
+                                                statusClass(newTermDraft.status),
+                                              )}
                                             >
                                               <SelectValue>
-                                                {readableEnumLabel(newTermDraft.status)}
+                                                <StatusLabel status={newTermDraft.status} />
                                               </SelectValue>
                                             </SelectTrigger>
                                             <SelectContent>
                                               {statusOptions.map((option) => (
-                                                <SelectItem key={option} value={option}>
-                                                  {readableEnumLabel(option)}
+                                                <SelectItem
+                                                  key={option}
+                                                  value={option}
+                                                  className={statusClass(option)}
+                                                >
+                                                  <StatusLabel status={option} />
                                                 </SelectItem>
                                               ))}
                                             </SelectContent>
