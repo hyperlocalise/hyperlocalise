@@ -148,6 +148,10 @@ export const ConceptList: Story = {
     ).toBeInTheDocument();
     const nameInput = canvas.getByRole("textbox", { name: "Edit glossary name" });
     await userEvent.clear(nameInput);
+    await userEvent.type(nameInput, "Canceled terminology");
+    await userEvent.keyboard("{Escape}");
+    await expect(nameInput).toHaveValue("Product terminology");
+    await userEvent.clear(nameInput);
     await userEvent.type(nameInput, "Updated terminology");
     await userEvent.keyboard("{Enter}");
     await expect(

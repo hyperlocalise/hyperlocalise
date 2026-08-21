@@ -12,7 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { Fragment, useEffect, useMemo, useState, type ReactNode } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -79,6 +79,7 @@ import {
   glossaryPartOfSpeechValues,
   glossaryTermStatusValues,
   glossaryTermTypeValues,
+  selectGlossaryPrimaryTerm,
   type GlossaryPartOfSpeech,
   type GlossaryTermStatus,
 } from "@/lib/glossary/glossary";
@@ -356,6 +357,7 @@ export function GlossaryDetailPageContent({
   const [termToDeleteId, setTermToDeleteId] = useState<string | null>(null);
   const [selectedProjectId, setSelectedProjectId] = useState("");
   const [nameDraft, setNameDraft] = useState("");
+  const skipNameBlurSave = useRef(false);
 
   const glossaryQuery = useQuery({
     queryKey: ["glossary", organizationSlug, glossaryId],
@@ -892,29 +894,39 @@ export function GlossaryDetailPageContent({
               ))}
             </div>
             {canEdit ? (
-              <Textarea
-                value={nameDraft}
-                onChange={(event) => setNameDraft(event.currentTarget.value)}
-                onBlur={() => void saveGlossaryName()}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter" && !event.shiftKey) {
-                    event.preventDefault();
-                    event.currentTarget.blur();
-                  }
-                  if (event.key === "Escape") {
-                    event.preventDefault();
-                    setNameDraft(glossary.name);
-                    event.currentTarget.blur();
-                  }
-                }}
-                disabled={updateGlossaryName.isPending}
-                aria-label={intl.formatMessage(messages.editName)}
-                rows={1}
-                className={cn(
-                  "font-heading min-h-14 shrink-0 resize-none overflow-hidden rounded-none border-transparent bg-transparent px-0 py-1 text-3xl font-semibold text-balance text-foreground shadow-none md:text-5xl lg:text-6xl",
-                  "focus-visible:border-transparent focus-visible:ring-0",
-                )}
-              />
+              <>
+                <TypographyH1 className="sr-only">{glossary.name}</TypographyH1>
+                <Textarea
+                  value={nameDraft}
+                  onChange={(event) => setNameDraft(event.currentTarget.value)}
+                  onBlur={() => {
+                    if (skipNameBlurSave.current) {
+                      skipNameBlurSave.current = false;
+                      return;
+                    }
+                    void saveGlossaryName();
+                  }}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" && !event.shiftKey) {
+                      event.preventDefault();
+                      event.currentTarget.blur();
+                    }
+                    if (event.key === "Escape") {
+                      event.preventDefault();
+                      skipNameBlurSave.current = true;
+                      setNameDraft(glossary.name);
+                      event.currentTarget.blur();
+                    }
+                  }}
+                  disabled={updateGlossaryName.isPending}
+                  aria-label={intl.formatMessage(messages.editName)}
+                  rows={1}
+                  className={cn(
+                    "font-heading min-h-14 shrink-0 resize-none overflow-hidden rounded-none border-transparent bg-transparent px-0 py-1 text-3xl font-semibold text-balance text-foreground shadow-none md:text-5xl lg:text-6xl",
+                    "focus-visible:border-transparent focus-visible:ring-0",
+                  )}
+                />
+              </>
             ) : (
               <TypographyH1 className="font-sans text-3xl font-semibold text-balance md:text-5xl lg:text-6xl">
                 {glossary.name}
@@ -1013,8 +1025,14 @@ export function GlossaryDetailPageContent({
                   </thead>
                   <tbody>
                     {filteredConcepts.map((concept) => {
-                      const primary = concept.terms.find(
-                        (term) => term.locale === glossary.sourceLocale,
+                      const primary = selectGlossaryPrimaryTerm(
+                        concept.terms.map((term) => ({
+                          id: term.id,
+                          languageId: term.locale,
+                          text: term.term,
+                          status: term.status,
+                        })),
+                        glossary.sourceLocale,
                       );
                       return (
                         <tr
@@ -1038,7 +1056,7 @@ export function GlossaryDetailPageContent({
                           </td>
                           <td className="px-3 py-3">
                             <div className="flex flex-wrap items-center gap-2 font-medium">
-                              {primary?.term ?? concept.primaryTerm}
+                              {primary?.text ?? concept.primaryTerm}
                               {primary ? (
                                 <Badge variant="outline" className={statusClass(primary.status)}>
                                   {primary.status}
