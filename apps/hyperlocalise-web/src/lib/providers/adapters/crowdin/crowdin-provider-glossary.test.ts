@@ -16,6 +16,45 @@ import { crowdinTmsProvider } from "./crowdin-provider";
 import { toCrowdinConceptInput } from "@/lib/glossary/crowdin-glossary";
 
 describe("Crowdin live glossary concepts", () => {
+  it("maps native locales before creating a glossary term", async () => {
+    let requestBody: Record<string, unknown> | undefined;
+    const fetchMock = vi.fn(async (_url, init) => {
+      requestBody = JSON.parse(String(init?.body)) as Record<string, unknown>;
+      return new Response(
+        JSON.stringify({
+          data: {
+            id: 23,
+            glossaryId: 7,
+            languageId: "vi",
+            text: "Thanh toán",
+            conceptId: 8,
+          },
+        }),
+        { status: 201 },
+      );
+    }) as unknown as typeof fetch;
+
+    await crowdinTmsProvider.createLiveGlossaryTerm(
+      {
+        organizationId: "organization-1",
+        credential: { baseUrl: "https://api.crowdin.test/api/v2" } as never,
+        secretMaterial: "test-token",
+        projectId: "project-42",
+        externalProjectId: "42",
+        sourceLocale: "en-US",
+        fetchFn: fetchMock,
+      },
+      7,
+      8,
+      {
+        languageId: "vi-VN",
+        text: "Thanh toán",
+      },
+    );
+
+    expect(requestBody).toMatchObject({ languageId: "vi", conceptId: 8 });
+  });
+
   it("preserves source-locale synonyms and updates only the canonical term", () => {
     const concept = toCrowdinConceptInput({
       primaryTerm: "Checkout updated",
