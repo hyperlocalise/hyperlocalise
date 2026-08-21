@@ -36,6 +36,7 @@ import {
 import { legacyProviderCatSegmentLimit } from "@/api/routes/project/project.schema";
 import {
   buildCrowdinFileQueueCroql,
+  CROWDIN_GLOSSARY_LIST_LIMIT,
   CrowdinApiClient,
   CrowdinApiError,
   extractCrowdinApiErrorSummary,
@@ -104,6 +105,7 @@ import { extractProviderFileIds } from "@/lib/providers/jobs/job-provider-source
 import {
   encodeProviderJobId,
   encodeProviderProjectId,
+  parseLiveProviderGlossaryId,
   parseProviderJobId,
   parseProviderProjectId,
   type EncodedProviderProjectId,
@@ -4093,12 +4095,114 @@ export type TmsProviderLiveGlossariesPage = {
   hasMore: boolean;
 };
 
+function mapCrowdinLiveGlossaryPageItem(input: {
+  glossary: {
+    externalGlossaryId: string;
+    name: string;
+    description: string | null;
+    sourceLocale: string;
+    targetLocale: string;
+    localeCoverage: string[];
+    termCount: number | null;
+    externalUrl: string | null;
+    externalProjectIds: string[];
+  };
+  projectById: Map<string, { name: string }>;
+  externalProjectId?: string;
+}): TmsProviderLiveGlossary | null {
+  const linkedProjectIds = input.glossary.externalProjectIds.filter((projectId) =>
+    input.projectById.has(projectId),
+  );
+  if (input.externalProjectId && !linkedProjectIds.includes(input.externalProjectId)) {
+    return null;
+  }
+
+  const externalProjectId =
+    input.externalProjectId ?? linkedProjectIds[0] ?? input.glossary.externalProjectIds[0] ?? "";
+  const project = input.projectById.get(externalProjectId);
+
+  return mapLiveGlossary({
+    glossary: {
+      externalGlossaryId: input.glossary.externalGlossaryId,
+      name: input.glossary.name,
+      description: input.glossary.description ?? undefined,
+      sourceLocale: input.glossary.sourceLocale,
+      targetLocale: input.glossary.targetLocale,
+      localeCoverage: input.glossary.localeCoverage,
+      termCount: input.glossary.termCount,
+      externalUrl: input.glossary.externalUrl,
+    },
+    externalProjectId,
+    projectName: project?.name ?? null,
+    providerKind: "crowdin",
+  });
+}
+
 export async function listTmsProviderLiveGlossaries(
   organizationId: string,
   options?: { externalProjectId?: string; actorUserId?: string | null },
 ): Promise<TmsProviderLiveGlossary[]> {
-  const page = await listTmsProviderLiveGlossariesPage(organizationId, options);
-  return page.glossaries;
+  const glossaries: TmsProviderLiveGlossary[] = [];
+  let offset = 0;
+
+  while (true) {
+    const page = await listTmsProviderLiveGlossariesPage(organizationId, {
+      ...options,
+      limit: CROWDIN_GLOSSARY_LIST_LIMIT,
+      offset,
+    });
+    glossaries.push(...page.glossaries);
+    if (!page.hasMore || page.limit <= 0) {
+      return dedupeGlossaries(glossaries);
+    }
+    offset += page.limit;
+  }
+}
+
+export async function getTmsProviderLiveGlossary(
+  organizationId: string,
+  glossaryId: string,
+  options?: { actorUserId?: string | null },
+): Promise<TmsProviderLiveGlossary | null> {
+  const liveId = parseLiveProviderGlossaryId(glossaryId);
+  if (liveId?.providerKind !== "crowdin") {
+    return null;
+  }
+
+  const externalGlossaryId = Number(liveId.externalGlossaryId);
+  if (!Number.isFinite(externalGlossaryId) || externalGlossaryId <= 0) {
+    return null;
+  }
+
+  const context = await loadActiveTmsProviderContext(organizationId, {
+    actorUserId: options?.actorUserId,
+  });
+  if (context.providerKind !== "crowdin") {
+    return null;
+  }
+
+  const projects = await fetchLiveProjectsCached(context, options);
+  const projectById = new Map(projects.map((project) => [project.externalProjectId, project]));
+
+  try {
+    const glossary = await crowdinTmsProvider.fetchLiveGlossaryMetadata(
+      {
+        organizationId: context.organizationId,
+        credential: context.credential,
+        secretMaterial: context.secretMaterial,
+      },
+      externalGlossaryId,
+    );
+    return mapCrowdinLiveGlossaryPageItem({
+      glossary,
+      projectById,
+    });
+  } catch (error) {
+    if (error instanceof CrowdinApiError && error.status === 404) {
+      return null;
+    }
+    rethrowProviderFetcherError(error);
+  }
 }
 
 export async function listTmsProviderLiveGlossariesPage(
@@ -4135,37 +4239,16 @@ export async function listTmsProviderLiveGlossariesPage(
       offset: options?.offset,
       orderBy: options?.orderBy,
       filter: options?.filter,
+      projectId: options?.externalProjectId,
     });
 
     const glossaries = crowdinPage.glossaries.flatMap((glossary) => {
-      const linkedProjectIds = glossary.externalProjectIds.filter((projectId) =>
-        projectById.has(projectId),
-      );
-      if (options?.externalProjectId && !linkedProjectIds.includes(options.externalProjectId)) {
-        return [];
-      }
-
-      const externalProjectId =
-        options?.externalProjectId ?? linkedProjectIds[0] ?? glossary.externalProjectIds[0] ?? "";
-      const project = projectById.get(externalProjectId);
-
-      return [
-        mapLiveGlossary({
-          glossary: {
-            externalGlossaryId: glossary.externalGlossaryId,
-            name: glossary.name,
-            description: glossary.description ?? undefined,
-            sourceLocale: glossary.sourceLocale,
-            targetLocale: glossary.targetLocale,
-            localeCoverage: glossary.localeCoverage,
-            termCount: glossary.termCount,
-            externalUrl: glossary.externalUrl,
-          },
-          externalProjectId,
-          projectName: project?.name ?? null,
-          providerKind: context.providerKind,
-        }),
-      ];
+      const mapped = mapCrowdinLiveGlossaryPageItem({
+        glossary,
+        projectById,
+        externalProjectId: options?.externalProjectId,
+      });
+      return mapped ? [mapped] : [];
     });
 
     return {

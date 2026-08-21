@@ -611,4 +611,119 @@ describe("Crowdin live glossary concepts", () => {
       ],
     ]);
   });
+
+  it("filters Crowdin glossaries by project before paginating", async () => {
+    const glossaryPayload = (
+      id: number,
+      projectIds: number[],
+      defaultProjectIds: number[] = [],
+    ) => ({
+      data: {
+        id,
+        name: `Glossary ${id}`,
+        description: null,
+        languageId: "en",
+        languageIds: ["en", "fr"],
+        terms: 4,
+        projectIds,
+        defaultProjectIds,
+        webUrl: `https://crowdin.test/glossary/${id}`,
+      },
+    });
+
+    const fetchMock = vi.fn(async (url) => {
+      const path = String(url).replace("https://api.crowdin.test/api/v2", "");
+
+      if (path === "/user") {
+        return new Response(JSON.stringify({ data: { id: 99 } }), { status: 200 });
+      }
+
+      if (path.startsWith("/glossaries?")) {
+        const offset = Number(
+          new URL(`https://api.crowdin.test${path}`).searchParams.get("offset"),
+        );
+        const glossaries =
+          offset === 0
+            ? [
+                glossaryPayload(2, [42]),
+                ...Array.from({ length: 24 }, (_, index) => glossaryPayload(100 + index, [99])),
+              ]
+            : [glossaryPayload(3, [], [42]), glossaryPayload(4, [42])];
+
+        return new Response(JSON.stringify({ data: glossaries }), { status: 200 });
+      }
+
+      throw new Error(`Unexpected Crowdin request: ${path}`);
+    }) as unknown as typeof fetch;
+
+    const firstPage = await crowdinTmsProvider.fetchGlossariesPage({
+      organizationId: "organization-1",
+      credential: { baseUrl: "https://api.crowdin.test/api/v2" } as never,
+      secretMaterial: "test-token",
+      fetchFn: fetchMock,
+      projectId: "42",
+      limit: 2,
+      offset: 0,
+    });
+
+    expect(firstPage.glossaries.map((glossary) => glossary.externalGlossaryId)).toEqual(["2", "3"]);
+    expect(firstPage).toMatchObject({ offset: 0, limit: 2, hasMore: true });
+
+    const secondPage = await crowdinTmsProvider.fetchGlossariesPage({
+      organizationId: "organization-1",
+      credential: { baseUrl: "https://api.crowdin.test/api/v2" } as never,
+      secretMaterial: "test-token",
+      fetchFn: fetchMock,
+      projectId: "42",
+      limit: 2,
+      offset: 2,
+    });
+
+    expect(secondPage.glossaries.map((glossary) => glossary.externalGlossaryId)).toEqual(["4"]);
+    expect(secondPage).toMatchObject({ offset: 2, limit: 2, hasMore: false });
+  });
+
+  it("loads a live Crowdin glossary by id without listing the account", async () => {
+    const fetchMock = vi.fn(async (url) => {
+      const path = String(url).replace("https://api.crowdin.test/api/v2", "");
+      if (path === "/glossaries/31") {
+        return new Response(
+          JSON.stringify({
+            data: {
+              id: 31,
+              name: "Page two glossary",
+              description: "Beyond the first page",
+              languageId: "en",
+              languageIds: ["en", "vi"],
+              terms: 8,
+              projectIds: [42],
+              defaultProjectIds: [],
+              webUrl: "https://crowdin.test/glossary/31",
+            },
+          }),
+          { status: 200 },
+        );
+      }
+
+      throw new Error(`Unexpected Crowdin request: ${path}`);
+    }) as unknown as typeof fetch;
+
+    const glossary = await crowdinTmsProvider.fetchLiveGlossaryMetadata(
+      {
+        organizationId: "organization-1",
+        credential: { baseUrl: "https://api.crowdin.test/api/v2" } as never,
+        secretMaterial: "test-token",
+        fetchFn: fetchMock,
+      },
+      31,
+    );
+
+    expect(glossary).toMatchObject({
+      externalGlossaryId: "31",
+      name: "Page two glossary",
+      sourceLocale: "en",
+      externalProjectIds: ["42"],
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
 });

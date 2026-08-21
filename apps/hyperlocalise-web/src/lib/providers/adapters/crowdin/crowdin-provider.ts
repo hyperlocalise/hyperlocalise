@@ -32,6 +32,7 @@ import {
   providerSourcePath,
 } from "@/lib/providers/adapters/source-file-upload-shared";
 import {
+  CROWDIN_GLOSSARY_LIST_LIMIT,
   CrowdinApiClient,
   CrowdinApiError,
   escapeCrowdinCroqlString,
@@ -699,6 +700,30 @@ export class CrowdinTmsProvider extends TmsProvider {
     return results.flat();
   }
 
+  private mapCrowdinGlossaryPageItem(glossary: CrowdinGlossary) {
+    const sourceLocale = toNativeGlossaryLocale(glossary.languageId, ["en"]);
+    const preferredLocales = [sourceLocale, ...glossary.languageIds];
+    const localeCoverage = this.uniqueLocales([
+      sourceLocale,
+      ...glossary.languageIds.map((languageId) =>
+        toNativeGlossaryLocale(languageId, preferredLocales),
+      ),
+    ]);
+    const targetLocale = localeCoverage.find((locale) => locale !== sourceLocale) ?? sourceLocale;
+
+    return {
+      externalGlossaryId: String(glossary.id),
+      name: glossary.name,
+      description: glossary.description ?? null,
+      sourceLocale,
+      targetLocale,
+      localeCoverage,
+      termCount: glossary.terms,
+      externalUrl: glossary.webUrl ?? null,
+      externalProjectIds: [...glossary.projectIds, ...glossary.defaultProjectIds].map(String),
+    };
+  }
+
   /** Lists the account's glossaries using Crowdin's native pagination and filtering. */
   async fetchGlossariesPage(
     scope: Pick<
@@ -710,45 +735,85 @@ export class CrowdinTmsProvider extends TmsProvider {
       offset?: number;
       orderBy?: string;
       filter?: string;
+      projectId?: string;
     },
   ): Promise<CrowdinLiveGlossaryPage> {
     const client = this.createClient(scope);
     const authenticatedUser = await client.getAuthenticatedUser();
-    const page = await client.listGlossariesPage({
-      limit: scope.limit,
-      offset: scope.offset,
-      orderBy: scope.orderBy,
-      filter: scope.filter,
-      userId: authenticatedUser.id,
-    });
+    const requestedLimit = scope.limit ?? CROWDIN_GLOSSARY_LIST_LIMIT;
+    const requestedOffset = scope.offset ?? 0;
+    const fetchRawPage = (limit: number, offset: number) =>
+      client.listGlossariesPage({
+        limit,
+        offset,
+        orderBy: scope.orderBy,
+        filter: scope.filter,
+        userId: authenticatedUser.id,
+      });
+
+    if (!scope.projectId) {
+      const page = await fetchRawPage(requestedLimit, requestedOffset);
+      return {
+        ...page,
+        glossaries: page.glossaries.map((glossary) => this.mapCrowdinGlossaryPageItem(glossary)),
+      };
+    }
+
+    const matching: CrowdinGlossary[] = [];
+    let crowdinOffset = 0;
+    let skipped = 0;
+    let hasMoreMatches = false;
+
+    while (true) {
+      const page = await fetchRawPage(CROWDIN_GLOSSARY_LIST_LIMIT, crowdinOffset);
+      for (const glossary of page.glossaries) {
+        const linkedProjectIds = [...glossary.projectIds, ...glossary.defaultProjectIds].map(
+          String,
+        );
+        if (!linkedProjectIds.includes(scope.projectId)) {
+          continue;
+        }
+
+        if (skipped < requestedOffset) {
+          skipped += 1;
+          continue;
+        }
+
+        if (matching.length < requestedLimit) {
+          matching.push(glossary);
+          continue;
+        }
+
+        hasMoreMatches = true;
+        break;
+      }
+
+      if (hasMoreMatches || !page.hasMore) {
+        break;
+      }
+
+      crowdinOffset += page.limit;
+    }
 
     return {
-      ...page,
-      glossaries: page.glossaries.map((glossary: CrowdinGlossary) => {
-        const sourceLocale = toNativeGlossaryLocale(glossary.languageId, ["en"]);
-        const preferredLocales = [sourceLocale, ...glossary.languageIds];
-        const localeCoverage = this.uniqueLocales([
-          sourceLocale,
-          ...glossary.languageIds.map((languageId) =>
-            toNativeGlossaryLocale(languageId, preferredLocales),
-          ),
-        ]);
-        const targetLocale =
-          localeCoverage.find((locale) => locale !== sourceLocale) ?? sourceLocale;
-
-        return {
-          externalGlossaryId: String(glossary.id),
-          name: glossary.name,
-          description: glossary.description ?? null,
-          sourceLocale,
-          targetLocale,
-          localeCoverage,
-          termCount: glossary.terms,
-          externalUrl: glossary.webUrl ?? null,
-          externalProjectIds: [...glossary.projectIds, ...glossary.defaultProjectIds].map(String),
-        };
-      }),
+      glossaries: matching.map((glossary) => this.mapCrowdinGlossaryPageItem(glossary)),
+      offset: requestedOffset,
+      limit: requestedLimit,
+      hasMore: hasMoreMatches,
     };
+  }
+
+  async fetchLiveGlossaryMetadata(
+    scope: Pick<
+      CrowdinLiveGlossaryScope,
+      "organizationId" | "credential" | "secretMaterial" | "signal"
+    > & {
+      fetchFn?: typeof fetch;
+    },
+    glossaryId: number,
+  ) {
+    const glossary = await this.createClient(scope).getGlossary(glossaryId);
+    return this.mapCrowdinGlossaryPageItem(glossary);
   }
 
   async fetchLiveGlossary(scope: CrowdinLiveGlossaryScope, glossaryId: number) {
