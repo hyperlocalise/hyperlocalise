@@ -4095,7 +4095,8 @@ export type TmsProviderLiveGlossariesPage = {
   hasMore: boolean;
 };
 
-function mapCrowdinLiveGlossaryPageItem(input: {
+/** Maps a Crowdin glossary list/detail payload onto a live glossary row for the org UI. */
+export function mapCrowdinLiveGlossaryPageItem(input: {
   glossary: {
     externalGlossaryId: string;
     name: string;

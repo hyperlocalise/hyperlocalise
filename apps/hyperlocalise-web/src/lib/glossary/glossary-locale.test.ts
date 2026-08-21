@@ -81,4 +81,81 @@ describe("shared glossary locale contract", () => {
       expect(term).not.toHaveProperty("languageId");
     }
   });
+
+  it("maps Crowdin status aliases and defaults unknown statuses to draft", () => {
+    const crowdin = toCrowdinConceptInput({
+      primaryTerm: "Checkout",
+      sourceLocale: "en-US",
+      terms: [
+        {
+          id: 1,
+          locale: "en-US",
+          text: "Checkout",
+          status: "preferred",
+          partOfSpeech: "noun",
+        },
+        {
+          id: 2,
+          locale: "fr-CA",
+          text: "Paiement",
+          status: "not_recommended",
+          partOfSpeech: "noun",
+        },
+        {
+          id: 3,
+          locale: "vi-VN",
+          text: "Thanh toán",
+          status: "obsolete",
+          partOfSpeech: "noun",
+        },
+        {
+          id: 4,
+          locale: "de-DE",
+          text: "Kasse",
+          status: "mystery",
+          partOfSpeech: "noun",
+        },
+      ],
+    });
+
+    expect(crowdin.terms).toMatchObject([
+      { id: 1, status: "preferred" },
+      { id: 2, status: "not recommended" },
+      { id: 3, status: "obsolete" },
+      { id: 4, status: "draft" },
+    ]);
+  });
+
+  it("synthesizes a preferred source term when only target locales exist", () => {
+    const crowdin = toCrowdinConceptInput({
+      primaryTerm: "Checkout",
+      sourceLocale: "en-US",
+      terms: [
+        {
+          id: 11,
+          locale: "fr-CA",
+          text: "Paiement",
+          status: "draft",
+          partOfSpeech: "noun",
+        },
+      ],
+    });
+
+    expect(crowdin.terms).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          languageId: "en",
+          text: "Checkout",
+          status: "preferred",
+          partOfSpeech: "noun",
+        }),
+        expect.objectContaining({
+          id: 11,
+          languageId: "fr-CA",
+          text: "Paiement",
+          status: "draft",
+        }),
+      ]),
+    );
+  });
 });
