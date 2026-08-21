@@ -41,6 +41,15 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+  CommandSeparator,
+} from "@/components/ui/command";
+import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -70,6 +79,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
 import { TypographyH1, TypographyP } from "@/components/ui/typography";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { readApiError } from "@/lib/api-error";
 import { apiClient } from "@/lib/api-client-instance";
 import { COMMON_LOCALES, getLocaleLabel } from "@/lib/i18n/locales";
@@ -194,7 +204,197 @@ function readableEnumLabel(value: string) {
   return label ? `${label.charAt(0).toUpperCase()}${label.slice(1)}` : label;
 }
 
-function PartOfSpeechBadge({ value }: { value: string | null | undefined }) {
+const partOfSpeechMarks: Record<string, string> = {
+  noun: "N",
+  "proper noun": "PN",
+  verb: "V",
+  auxiliary: "Aux",
+  adjective: "Adj",
+  adverb: "Adv",
+  pronoun: "Pro",
+  adposition: "Adp",
+  preposition: "Prep",
+  conjunction: "Conj",
+  "coordinating conjunction": "CConj",
+  "subordinating conjunction": "SConj",
+  determiner: "Det",
+  interjection: "Int",
+  numeral: "Num",
+  particle: "Part",
+  article: "Art",
+  abbreviation: "Abbr",
+  phrase: "Phr",
+  other: "Other",
+};
+
+const commonPartOfSpeechOptions = [
+  "noun",
+  "verb",
+  "adjective",
+  "adverb",
+  "pronoun",
+  "proper noun",
+] as const;
+
+function partOfSpeechMark(value: string) {
+  return partOfSpeechMarks[value.trim().toLowerCase()] ?? "Other";
+}
+
+function PartOfSpeechMark({ value }: { value: string }) {
+  return (
+    <Badge
+      variant="outline"
+      className="h-6 min-w-7 justify-center rounded-md border-border/70 bg-muted/35 px-1.5 py-0 text-xs font-medium leading-5 text-foreground"
+      aria-hidden="true"
+    >
+      {partOfSpeechMark(value)}
+    </Badge>
+  );
+}
+
+function PartOfSpeechDisplay({ value }: { value: string | null | undefined }) {
+  const intl = useIntl();
+  if (!value) {
+    return (
+      <span className="truncate text-muted-foreground">
+        {intl.formatMessage(messages.partOfSpeechNotSpecified)}
+      </span>
+    );
+  }
+
+  return (
+    <span className="flex min-w-0 items-center gap-2">
+      <span className="flex w-14 shrink-0 items-center">
+        <PartOfSpeechMark value={value} />
+      </span>
+      <span className="truncate">{readableEnumLabel(value)}</span>
+    </span>
+  );
+}
+
+function PartOfSpeechPicker({
+  value,
+  onValueChange,
+  disabled = false,
+  className,
+}: {
+  value: string;
+  onValueChange: (value: string) => void;
+  disabled?: boolean;
+  className?: string;
+}) {
+  const intl = useIntl();
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const [showAllCategories, setShowAllCategories] = useState(false);
+
+  const options = useMemo(() => partOfSpeechOptionsFor(value), [value]);
+  const visibleOptions = useMemo(() => {
+    const common = commonPartOfSpeechOptions.filter((option) => options.includes(option));
+    const selected = value && !common.some((option) => option === value) ? [value] : [];
+
+    if (showAllCategories || search.trim()) return options;
+    return [...common, ...selected];
+  }, [options, search, showAllCategories, value]);
+
+  const handleOpenChange = (nextOpen: boolean) => {
+    setOpen(nextOpen);
+    if (!nextOpen) {
+      setSearch("");
+      setShowAllCategories(false);
+    }
+  };
+
+  const selectValue = (nextValue: string) => {
+    onValueChange(nextValue);
+    handleOpenChange(false);
+  };
+
+  return (
+    <Popover open={open} onOpenChange={handleOpenChange}>
+      <PopoverTrigger
+        render={
+          <Button
+            type="button"
+            variant="ghost"
+            disabled={disabled}
+            aria-label={`${intl.formatMessage(messages.partOfSpeechLabel)}: ${
+              value
+                ? readableEnumLabel(value)
+                : intl.formatMessage(messages.partOfSpeechNotSpecified)
+            }`}
+            className={cn(
+              termPropertyTriggerClassName,
+              "w-full max-w-[280px] justify-start gap-2 text-left",
+              className,
+            )}
+          />
+        }
+      >
+        <PartOfSpeechDisplay value={value} />
+        <HugeiconsIcon
+          icon={ArrowDown01Icon}
+          strokeWidth={2}
+          className="size-4 shrink-0 text-muted-foreground"
+          aria-hidden="true"
+        />
+      </PopoverTrigger>
+      <PopoverContent
+        align="start"
+        sideOffset={4}
+        className="w-[280px] max-w-[calc(100vw-2rem)] p-0"
+      >
+        <Command>
+          <CommandInput
+            placeholder={intl.formatMessage(messages.partOfSpeechSearchPlaceholder)}
+            value={search}
+            onValueChange={setSearch}
+          />
+          <CommandList className="max-h-64" label={intl.formatMessage(messages.partOfSpeechLabel)}>
+            <CommandEmpty>{intl.formatMessage(messages.partOfSpeechNoMatches)}</CommandEmpty>
+            <CommandGroup>
+              <CommandItem
+                value={`__none__ ${intl.formatMessage(messages.partOfSpeechNotSpecified)}`}
+                data-checked={value === "" || undefined}
+                aria-label={intl.formatMessage(messages.partOfSpeechNotSpecified)}
+                onSelect={() => selectValue("")}
+              >
+                {intl.formatMessage(messages.partOfSpeechNotSpecified)}
+              </CommandItem>
+              {visibleOptions.map((option) => (
+                <CommandItem
+                  key={option}
+                  value={`${option} ${readableEnumLabel(option)} ${partOfSpeechMark(option)}`}
+                  data-checked={value === option || undefined}
+                  aria-label={readableEnumLabel(option)}
+                  onSelect={() => selectValue(option)}
+                >
+                  <PartOfSpeechDisplay value={option} />
+                </CommandItem>
+              ))}
+            </CommandGroup>
+            {!showAllCategories && !search.trim() ? (
+              <>
+                <CommandSeparator />
+                <CommandGroup>
+                  <CommandItem
+                    value="__view_all_categories__"
+                    onSelect={() => setShowAllCategories(true)}
+                    className="justify-center text-muted-foreground"
+                  >
+                    {intl.formatMessage(messages.partOfSpeechViewAllCategories)}
+                  </CommandItem>
+                </CommandGroup>
+              </>
+            ) : null}
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+function TermPropertyBadge({ value }: { value: string | null | undefined }) {
   if (!value) return <span className="text-muted-foreground">—</span>;
 
   const label = readableEnumLabel(value);
@@ -1454,9 +1654,9 @@ export function GlossaryDetailPageContent({
                                           </span>
                                         </td>
                                         <td className="px-3 py-2">
-                                          <Input
+                                          <Textarea
                                             autoFocus={creatingTermDrafts.at(-1)?.id === term.id}
-                                            className="h-7"
+                                            className="w-64 max-w-full min-h-8 resize-y px-2 py-1.5 text-sm leading-5"
                                             placeholder={intl.formatMessage(messages.termLabel)}
                                             value={term.term}
                                             onChange={(event) =>
@@ -1471,41 +1671,18 @@ export function GlossaryDetailPageContent({
                                           />
                                         </td>
                                         <td className="px-3 py-2">
-                                          <Select
-                                            value={term.partOfSpeech || "__none"}
+                                          <PartOfSpeechPicker
+                                            value={term.partOfSpeech}
                                             onValueChange={(value) =>
                                               setCreatingTermDrafts((drafts) =>
                                                 drafts.map((draft) =>
                                                   draft.id === term.id
-                                                    ? {
-                                                        ...draft,
-                                                        partOfSpeech:
-                                                          value === "__none" ? "" : (value ?? ""),
-                                                      }
+                                                    ? { ...draft, partOfSpeech: value }
                                                     : draft,
                                                 ),
                                               )
                                             }
-                                          >
-                                            <SelectTrigger
-                                              showIcon={false}
-                                              className={termPropertyTriggerClassName}
-                                            >
-                                              <SelectValue>
-                                                <PartOfSpeechBadge value={term.partOfSpeech} />
-                                              </SelectValue>
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                              <SelectItem value="__none">—</SelectItem>
-                                              {partOfSpeechOptionsFor(term.partOfSpeech).map(
-                                                (option) => (
-                                                  <SelectItem key={option} value={option}>
-                                                    {readableEnumLabel(option)}
-                                                  </SelectItem>
-                                                ),
-                                              )}
-                                            </SelectContent>
-                                          </Select>
+                                          />
                                         </td>
                                         <td className="px-3 py-2">
                                           <Select
@@ -1568,9 +1745,7 @@ export function GlossaryDetailPageContent({
                                               className={termPropertyTriggerClassName}
                                             >
                                               <SelectValue>
-                                                {term.termType
-                                                  ? readableEnumLabel(term.termType)
-                                                  : "—"}
+                                                <TermPropertyBadge value={term.termType} />
                                               </SelectValue>
                                             </SelectTrigger>
                                             <SelectContent>
@@ -1865,8 +2040,8 @@ export function GlossaryDetailPageContent({
                                                 />
                                               ) : null}
                                               {canEdit ? (
-                                                <Input
-                                                  className="h-7"
+                                                <Textarea
+                                                  className="w-64 max-w-full min-h-8 resize-y px-2 py-1.5 text-sm leading-5"
                                                   value={draft.term}
                                                   onChange={(event) =>
                                                     updateTermDraft(term.id, {
@@ -1881,36 +2056,16 @@ export function GlossaryDetailPageContent({
                                           </td>
                                           <td className="px-3 py-2">
                                             {canEdit ? (
-                                              <Select
-                                                value={draft.partOfSpeech || "__none"}
+                                              <PartOfSpeechPicker
+                                                value={draft.partOfSpeech}
                                                 onValueChange={(value) =>
                                                   updateTermDraft(term.id, {
-                                                    partOfSpeech:
-                                                      value === "__none" ? "" : (value ?? ""),
+                                                    partOfSpeech: value,
                                                   })
                                                 }
-                                              >
-                                                <SelectTrigger
-                                                  showIcon={false}
-                                                  className={termPropertyTriggerClassName}
-                                                >
-                                                  <SelectValue>
-                                                    <PartOfSpeechBadge value={draft.partOfSpeech} />
-                                                  </SelectValue>
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                  <SelectItem value="__none">—</SelectItem>
-                                                  {partOfSpeechOptionsFor(draft.partOfSpeech).map(
-                                                    (option) => (
-                                                      <SelectItem key={option} value={option}>
-                                                        {readableEnumLabel(option)}
-                                                      </SelectItem>
-                                                    ),
-                                                  )}
-                                                </SelectContent>
-                                              </Select>
+                                              />
                                             ) : (
-                                              <PartOfSpeechBadge value={term.partOfSpeech} />
+                                              <PartOfSpeechDisplay value={term.partOfSpeech} />
                                             )}
                                           </td>
                                           <td className="px-3 py-2">
@@ -1965,9 +2120,7 @@ export function GlossaryDetailPageContent({
                                                   className={termPropertyTriggerClassName}
                                                 >
                                                   <SelectValue>
-                                                    {draft.termType
-                                                      ? readableEnumLabel(draft.termType)
-                                                      : "—"}
+                                                    <TermPropertyBadge value={draft.termType} />
                                                   </SelectValue>
                                                 </SelectTrigger>
                                                 <SelectContent>
@@ -1979,10 +2132,8 @@ export function GlossaryDetailPageContent({
                                                   ))}
                                                 </SelectContent>
                                               </Select>
-                                            ) : term.termType ? (
-                                              readableEnumLabel(term.termType)
                                             ) : (
-                                              "—"
+                                              <TermPropertyBadge value={term.termType} />
                                             )}
                                           </td>
                                           <td className="px-3 py-2">
@@ -2176,9 +2327,9 @@ export function GlossaryDetailPageContent({
                                                 aria-hidden="true"
                                               />
                                             ) : null}
-                                            <Input
+                                            <Textarea
                                               autoFocus
-                                              className="h-7"
+                                              className="w-64 max-w-full min-h-8 resize-y px-2 py-1.5 text-sm leading-5"
                                               placeholder={intl.formatMessage(messages.termLabel)}
                                               value={newTermDraft.term}
                                               onChange={(event) =>
@@ -2191,37 +2342,15 @@ export function GlossaryDetailPageContent({
                                           </div>
                                         </td>
                                         <td className="px-3 py-2">
-                                          <Select
-                                            value={newTermDraft.partOfSpeech || "__none"}
+                                          <PartOfSpeechPicker
+                                            value={newTermDraft.partOfSpeech}
                                             onValueChange={(value) =>
                                               setNewTermDraft({
                                                 ...newTermDraft,
-                                                partOfSpeech:
-                                                  value === "__none" ? "" : (value ?? ""),
+                                                partOfSpeech: value,
                                               })
                                             }
-                                          >
-                                            <SelectTrigger
-                                              showIcon={false}
-                                              className={termPropertyTriggerClassName}
-                                            >
-                                              <SelectValue>
-                                                <PartOfSpeechBadge
-                                                  value={newTermDraft.partOfSpeech}
-                                                />
-                                              </SelectValue>
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                              <SelectItem value="__none">—</SelectItem>
-                                              {partOfSpeechOptionsFor(
-                                                newTermDraft.partOfSpeech,
-                                              ).map((option) => (
-                                                <SelectItem key={option} value={option}>
-                                                  {readableEnumLabel(option)}
-                                                </SelectItem>
-                                              ))}
-                                            </SelectContent>
-                                          </Select>
+                                          />
                                         </td>
                                         <td className="px-3 py-2">
                                           <Select
@@ -2269,9 +2398,7 @@ export function GlossaryDetailPageContent({
                                               className={termPropertyTriggerClassName}
                                             >
                                               <SelectValue>
-                                                {newTermDraft.termType
-                                                  ? readableEnumLabel(newTermDraft.termType)
-                                                  : "—"}
+                                                <TermPropertyBadge value={newTermDraft.termType} />
                                               </SelectValue>
                                             </SelectTrigger>
                                             <SelectContent>

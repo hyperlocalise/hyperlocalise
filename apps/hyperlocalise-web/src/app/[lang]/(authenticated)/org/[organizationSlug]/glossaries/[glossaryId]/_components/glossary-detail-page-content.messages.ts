@@ -175,6 +175,26 @@ export const glossaryDetailPageContentMessages = defineMessages({
     id: "r1aEK84u1V",
     description: "Label for the part of speech field on a glossary term form",
   },
+  partOfSpeechSearchPlaceholder: {
+    defaultMessage: "Search part of speech...",
+    id: "wsUFAfa8Hd",
+    description: "Search placeholder for the part of speech picker",
+  },
+  partOfSpeechNoMatches: {
+    defaultMessage: "No categories found.",
+    id: "CCHRUS19n3",
+    description: "Empty search result in the part of speech picker",
+  },
+  partOfSpeechNotSpecified: {
+    defaultMessage: "Not specified",
+    id: "bR1JlDPT+J",
+    description: "Empty value in the part of speech picker",
+  },
+  partOfSpeechViewAllCategories: {
+    defaultMessage: "View all categories",
+    id: "NSKwDatzIu",
+    description: "Action to reveal all part of speech categories",
+  },
   descriptionLabel: {
     defaultMessage: "Description",
     id: "zXcAMcp/DE",
