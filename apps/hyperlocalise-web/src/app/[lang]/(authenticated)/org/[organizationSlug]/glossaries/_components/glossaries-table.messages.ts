@@ -85,10 +85,35 @@ export const glossariesTableMessages = defineMessages({
     id: "eBDA87G8la",
     description: "Link to open a glossary in the external TMS provider",
   },
+  moreActions: {
+    defaultMessage: "More glossary actions",
+    id: "QqxMH3unP2",
+    description: "Accessible label for additional glossary row actions",
+  },
   termCount: {
     defaultMessage: "{countLabel} terms",
     id: "KMxAKNLBFq",
     description: "Term count shown for a glossary row",
+  },
+  languagesLabel: {
+    defaultMessage: "Languages",
+    id: "uHYoEcEwFx",
+    description: "Metadata label for glossary language coverage",
+  },
+  termsLabel: {
+    defaultMessage: "Terms",
+    id: "iJ52PdWghi",
+    description: "Metadata label for glossary term count",
+  },
+  updatedLabel: {
+    defaultMessage: "Updated",
+    id: "ohFSHTwja2",
+    description: "Metadata label for glossary update time",
+  },
+  integrationLabel: {
+    defaultMessage: "Integration",
+    id: "4qHimvs9Xc",
+    description: "Metadata label for glossary integration status",
   },
   connectProvider: {
     defaultMessage: "Connect a provider",

@@ -17,6 +17,7 @@ import {
   externalProjectLookupKey,
   mapLiveTmsProviderGlossaryToListRow,
   mapGlossaryToListRow,
+  providerLogoSource,
 } from "./glossary-list";
 
 describe("glossary-list", () => {
@@ -98,12 +99,15 @@ describe("glossary-list", () => {
     expect(native.sourceLocaleLabel).toBe("English");
     expect(native.secondaryLocaleSummary).toBe("German");
     expect(native.termCountLabel).toBe("120");
+    expect(native.isLiveApi).toBe(false);
+    expect(native.providerLogoSrc).toBe("/images/logo.png");
     expect(provider.resourceTypeLabel).toBe("Term base");
     expect(provider.localeSummary).toBe("English, French, German +1");
     expect(provider.sourceLocaleLabel).toBe("English");
     expect(provider.secondaryLocaleSummary).toBe("French, German, Spanish");
     expect(provider.termCountLabel).toBe("4.2k");
     expect(provider.projectLinkId).toBe("project-1");
+    expect(provider.providerLogoSrc).toBe("/images/tms/phrase.png");
     expect(externalProjectLookupKey("phrase", "phrase-project-9")).toBe("phrase:phrase-project-9");
   });
 
@@ -126,6 +130,12 @@ describe("glossary-list", () => {
     );
 
     expect(row.termCapabilityLabel).toBe("Live API");
+    expect(row.isLiveApi).toBe(true);
+    expect(row.providerLogoSrc).toBe("/images/tms/crowdin.png");
     expect(row.detailId).toBe("crowdin:glossary:gl-99");
+  });
+
+  it("falls back when an external provider has no known logo", () => {
+    expect(providerLogoSource("unknown-provider")).toBeNull();
   });
 });

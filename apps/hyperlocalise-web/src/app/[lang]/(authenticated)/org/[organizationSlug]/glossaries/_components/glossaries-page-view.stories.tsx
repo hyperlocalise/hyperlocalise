@@ -43,17 +43,6 @@ const meta = {
     onSelectedExternalProjectIdChange: fn(),
     searchQuery: "",
     onSearchQueryChange: fn(),
-    sourceFilter: "all",
-    onSourceFilterChange: fn(),
-    providerFilter: "all",
-    onProviderFilterChange: fn(),
-    resourceTypeFilter: "all",
-    onResourceTypeFilterChange: fn(),
-    syncFilter: "all",
-    onSyncFilterChange: fn(),
-    providerKinds: ["phrase", "crowdin"],
-    hasExternalGlossaries: true,
-    hasResourceTypes: true,
     hasActiveFilters: false,
     activeFilterCount: 0,
     onClearFilters: fn(),
@@ -113,6 +102,10 @@ export const LiveProviderGlossary: Story = {
         externalProviderKind: "crowdin",
         externalProjectId: "crowdin-project-1",
         externalGlossaryId: "99",
+        externalUrl: "https://crowdin.com/project/crowdin-project-1",
+        projectLinkId: "crowdin-project-link-1",
+        isLiveApi: true,
+        providerLogoSrc: "/images/tms/crowdin.png",
       }),
     ],
     glossaryTotal: 1,
@@ -127,10 +120,16 @@ export const LiveProviderGlossary: Story = {
   },
   play: async ({ canvas }) => {
     await expect(canvas.getByText("Live Crowdin Glossary")).toBeInTheDocument();
+    await expect(canvas.getByText("Live API")).toBeInTheDocument();
     await expect(canvas.getByRole("link", { name: "Live Crowdin Glossary" })).toHaveAttribute(
       "href",
       "/org/acme/glossaries/crowdin:glossary:99",
     );
+    await expect(canvas.getByRole("link", { name: "Open in provider" })).toHaveAttribute(
+      "href",
+      "https://crowdin.com/project/crowdin-project-1",
+    );
+    await expect(canvas.getByRole("button", { name: "More glossary actions" })).toBeInTheDocument();
   },
 };
 
@@ -145,9 +144,6 @@ export const Loading: Story = {
     externalQuery: { isLoading: true, isError: false, isSuccess: false, error: null },
     pageStart: 0,
     pageEnd: 0,
-    providerKinds: [],
-    hasExternalGlossaries: false,
-    hasResourceTypes: false,
   },
   play: async ({ canvas }) => {
     await expect(canvas.getByText("Loading glossaries...")).toBeInTheDocument();
@@ -165,9 +161,6 @@ export const Empty: Story = {
     externalQuery: { isLoading: false, isError: false, isSuccess: true, error: null },
     pageStart: 0,
     pageEnd: 0,
-    providerKinds: [],
-    hasExternalGlossaries: false,
-    hasResourceTypes: false,
   },
   play: async ({ canvas }) => {
     await expect(canvas.getByText("No glossaries yet")).toBeInTheDocument();
@@ -192,9 +185,6 @@ export const NoProviderConnected: Story = {
     hasConnectedProvider: false,
     pageStart: 0,
     pageEnd: 0,
-    providerKinds: [],
-    hasExternalGlossaries: false,
-    hasResourceTypes: false,
   },
   play: async ({ canvas }) => {
     await expect(canvas.getByText("Connect a TMS provider")).toBeInTheDocument();
@@ -248,9 +238,6 @@ export const LoadError: Story = {
     externalQuery: { isLoading: false, isError: false, isSuccess: true, error: null },
     pageStart: 0,
     pageEnd: 0,
-    providerKinds: [],
-    hasExternalGlossaries: false,
-    hasResourceTypes: false,
   },
   play: async ({ canvas }) => {
     await expect(canvas.getByText("Glossaries failed to load.")).toBeInTheDocument();
@@ -271,9 +258,6 @@ export const LiveAllProjects: Story = {
     allowCreateGlossaries: false,
     pageStart: 0,
     pageEnd: 0,
-    providerKinds: [],
-    hasExternalGlossaries: false,
-    hasResourceTypes: false,
   },
   play: async ({ canvas }) => {
     await expect(canvas.getByText("Native glossaries")).toBeInTheDocument();
@@ -281,7 +265,7 @@ export const LiveAllProjects: Story = {
   },
 };
 
-export const NoFilterMatches: Story = {
+export const NoSearchMatches: Story = {
   args: {
     nativeGlossaries: [],
     externalGlossaries: [],
@@ -292,14 +276,11 @@ export const NoFilterMatches: Story = {
     externalQuery: { isLoading: false, isError: false, isSuccess: true, error: null },
     hasActiveFilters: true,
     activeFilterCount: 1,
-    sourceFilter: "native",
+    searchQuery: "missing glossary",
     pageStart: 0,
     pageEnd: 0,
-    providerKinds: [],
-    hasExternalGlossaries: false,
-    hasResourceTypes: false,
   },
   play: async ({ canvas }) => {
-    await expect(canvas.getByText("No glossaries match your filters.")).toBeInTheDocument();
+    await expect(canvas.getByText("No glossaries match your search.")).toBeInTheDocument();
   },
 };

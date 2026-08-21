@@ -265,11 +265,7 @@ function GenderMark({ value }: { value: string }) {
 function PartOfSpeechDisplay({ value }: { value: string | null | undefined }) {
   const intl = useIntl();
   if (!value) {
-    return (
-      <span className="truncate text-muted-foreground">
-        —
-      </span>
-    );
+    return <span className="truncate text-muted-foreground">—</span>;
   }
 
   return (
@@ -320,9 +316,7 @@ function PartOfSpeechPicker({
             variant="ghost"
             disabled={disabled}
             aria-label={`${intl.formatMessage(messages.partOfSpeechLabel)}: ${
-              value
-                ? readableEnumLabel(value)
-                : "—"
+              value ? readableEnumLabel(value) : "—"
             }`}
             className={cn(
               termPropertyTriggerClassName,
@@ -335,9 +329,7 @@ function PartOfSpeechPicker({
         {value ? (
           <PartOfSpeechMark value={value} />
         ) : (
-          <span className="truncate text-muted-foreground">
-            —
-          </span>
+          <span className="truncate text-muted-foreground">—</span>
         )}
         <HugeiconsIcon
           icon={ArrowDown01Icon}
@@ -382,11 +374,7 @@ function PartOfSpeechPicker({
 function GenderDisplay({ value }: { value: string | null | undefined }) {
   const intl = useIntl();
   if (!value) {
-    return (
-      <span className="truncate text-muted-foreground">
-        —
-      </span>
-    );
+    return <span className="truncate text-muted-foreground">—</span>;
   }
 
   return (
@@ -420,9 +408,7 @@ function GenderPicker({
             variant="ghost"
             disabled={disabled}
             aria-label={`${intl.formatMessage(messages.genderLabel)}: ${
-              value
-                ? readableEnumLabel(value)
-                : "—"
+              value ? readableEnumLabel(value) : "—"
             }`}
             className={cn(termPropertyTriggerClassName, "justify-start gap-2 text-left")}
           />
@@ -431,9 +417,7 @@ function GenderPicker({
         {value ? (
           <GenderMark value={value} />
         ) : (
-          <span className="truncate text-muted-foreground">
-            —
-          </span>
+          <span className="truncate text-muted-foreground">—</span>
         )}
         <HugeiconsIcon
           icon={ArrowDown01Icon}
@@ -498,11 +482,7 @@ function termTypeMark(value: string) {
 function TermTypeDisplay({ value }: { value: string | null | undefined }) {
   const intl = useIntl();
   if (!value) {
-    return (
-      <span className="truncate text-muted-foreground">
-        —
-      </span>
-    );
+    return <span className="truncate text-muted-foreground">—</span>;
   }
 
   return (
@@ -536,9 +516,7 @@ function TermTypePicker({
             variant="ghost"
             disabled={disabled}
             aria-label={`${intl.formatMessage(messages.typeLabel)}: ${
-              value
-                ? readableEnumLabel(value)
-                : "—"
+              value ? readableEnumLabel(value) : "—"
             }`}
             className={cn(termPropertyTriggerClassName, "justify-start gap-2 text-left")}
           />
@@ -547,9 +525,7 @@ function TermTypePicker({
         {value ? (
           <TermMark mark={termTypeMark(value)} />
         ) : (
-          <span className="truncate text-muted-foreground">
-            —
-          </span>
+          <span className="truncate text-muted-foreground">—</span>
         )}
         <HugeiconsIcon
           icon={ArrowDown01Icon}

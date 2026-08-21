@@ -14,7 +14,6 @@
  */
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useSearchParams } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useIntl } from "react-intl";
 import { toast } from "sonner";
@@ -25,17 +24,9 @@ import { apiClient } from "@/lib/api-client-instance";
 import { useActiveTmsProvider } from "../../_hooks/use-active-tms-provider";
 
 import {
-  effectiveWorkspaceSyncFilter,
-  GLOSSARY_SYNC_FILTERS,
-  PROJECT_SOURCE_FILTERS,
-  readWorkspaceFilterParam,
-  TMS_PROVIDER_KINDS,
-} from "../../_components/workspace-filter-params";
-import {
   buildProjectIdByExternalKey,
   mapGlossaryToListRow,
   mapLiveTmsProviderGlossaryToListRow,
-  providerLabel,
   type ApiGlossary,
   type GlossaryListRow,
 } from "./glossary-list";
@@ -49,10 +40,6 @@ import { glossariesPageContentMessages } from "./glossaries-page-content.message
 
 type GlossaryListFilters = {
   searchQuery: string;
-  sourceFilter: string;
-  providerFilter: string;
-  resourceTypeFilter: string;
-  syncFilter: string;
 };
 
 type WorkspaceGlossariesResult = {
@@ -87,15 +74,16 @@ const glossariesQueryKey = (
   filters: GlossaryListFilters,
 ) => ["glossaries", organizationSlug, page, filters];
 
-function buildGlossaryListQuery(page: number, filters: GlossaryListFilters) {
+function buildGlossaryListQuery(
+  page: number,
+  filters: GlossaryListFilters,
+  source?: "native" | "external_tms",
+) {
   const query: {
     limit: string;
     offset: string;
     search?: string;
     source?: "native" | "external_tms";
-    provider?: "crowdin" | "smartling" | "phrase" | "lokalise";
-    resourceType?: "glossary" | "term_base";
-    sync?: "synced" | "stale" | "syncing" | "error";
   } = {
     limit: String(GLOSSARIES_PAGE_SIZE),
     offset: String((page - 1) * GLOSSARIES_PAGE_SIZE),
@@ -105,40 +93,9 @@ function buildGlossaryListQuery(page: number, filters: GlossaryListFilters) {
   if (search) {
     query.search = search;
   }
-  if (filters.sourceFilter === "native" || filters.sourceFilter === "external_tms") {
-    query.source = filters.sourceFilter;
-  }
-  if (
-    filters.providerFilter === "crowdin" ||
-    filters.providerFilter === "smartling" ||
-    filters.providerFilter === "phrase" ||
-    filters.providerFilter === "lokalise"
-  ) {
-    query.provider = filters.providerFilter;
-  }
-  if (filters.resourceTypeFilter === "glossary" || filters.resourceTypeFilter === "term_base") {
-    query.resourceType = filters.resourceTypeFilter;
-  }
-  if (
-    filters.syncFilter === "synced" ||
-    filters.syncFilter === "stale" ||
-    filters.syncFilter === "syncing" ||
-    filters.syncFilter === "error"
-  ) {
-    query.sync = filters.syncFilter;
-  }
+  if (source) query.source = source;
 
   return query;
-}
-
-function nativeGlossaryFilters(filters: GlossaryListFilters): GlossaryListFilters {
-  return {
-    ...filters,
-    sourceFilter: "native",
-    providerFilter: "all",
-    resourceTypeFilter: "all",
-    syncFilter: "all",
-  };
 }
 
 async function fetchWorkspaceGlossaries(
@@ -146,10 +103,11 @@ async function fetchWorkspaceGlossaries(
   intl: ReturnType<typeof useIntl>,
   page: number,
   filters: GlossaryListFilters,
+  source?: "native" | "external_tms",
 ): Promise<WorkspaceGlossariesResult> {
   const response = await apiClient.api.orgs[":organizationSlug"].glossaries.$get({
     param: { organizationSlug },
-    query: buildGlossaryListQuery(page, filters),
+    query: buildGlossaryListQuery(page, filters, source),
   });
 
   if (!response.ok) {
@@ -181,69 +139,23 @@ function createEmptyGlossaryForm(): GlossaryCreateForm {
   };
 }
 
-function useGlossaryFilters(
-  searchParams: URLSearchParams,
-  options?: { ignoreSyncFilter?: boolean },
-) {
+function useGlossaryFilters() {
   const [searchQuery, setSearchQuery] = useState("");
-  const [sourceFilter, setSourceFilter] = useState(() =>
-    readWorkspaceFilterParam(searchParams, "source", PROJECT_SOURCE_FILTERS),
-  );
-  const [providerFilter, setProviderFilter] = useState(() =>
-    readWorkspaceFilterParam(searchParams, "provider", TMS_PROVIDER_KINDS),
-  );
-  const [resourceTypeFilter, setResourceTypeFilter] = useState(() =>
-    readWorkspaceFilterParam(searchParams, "resourceType", ["glossary", "term_base"]),
-  );
-  const [syncFilter, setSyncFilter] = useState(() =>
-    readWorkspaceFilterParam(searchParams, "sync", GLOSSARY_SYNC_FILTERS),
-  );
-  const effectiveSyncFilter = effectiveWorkspaceSyncFilter(
-    syncFilter,
-    Boolean(options?.ignoreSyncFilter),
-  );
 
-  const filters = useMemo(
-    () => ({
-      searchQuery,
-      sourceFilter,
-      providerFilter,
-      resourceTypeFilter,
-      syncFilter: effectiveSyncFilter,
-    }),
-    [searchQuery, sourceFilter, providerFilter, resourceTypeFilter, effectiveSyncFilter],
-  );
+  const filters = useMemo(() => ({ searchQuery }), [searchQuery]);
 
-  const activeFilterCount = [
-    searchQuery.trim() ? "search" : null,
-    sourceFilter,
-    providerFilter,
-    resourceTypeFilter,
-    effectiveSyncFilter,
-  ].filter((value) => value && value !== "all").length;
+  const activeFilterCount = searchQuery.trim() ? 1 : 0;
 
   const hasActiveFilters = activeFilterCount > 0;
 
   function clearFilters() {
     setSearchQuery("");
-    setSourceFilter("all");
-    setProviderFilter("all");
-    setResourceTypeFilter("all");
-    setSyncFilter("all");
   }
 
   return {
     filters,
     searchQuery,
     setSearchQuery,
-    sourceFilter,
-    setSourceFilter,
-    providerFilter,
-    setProviderFilter,
-    resourceTypeFilter,
-    setResourceTypeFilter,
-    syncFilter: effectiveSyncFilter,
-    setSyncFilter,
     activeFilterCount,
     hasActiveFilters,
     clearFilters,
@@ -259,7 +171,6 @@ export function GlossariesPageContent({
 }) {
   const intl = useIntl();
   const router = useRouter();
-  const searchParams = useSearchParams();
   const queryClient = useQueryClient();
   const [page, setPage] = useState(1);
   const [crowdinPage, setCrowdinPage] = useState(1);
@@ -276,20 +187,10 @@ export function GlossariesPageContent({
     filters,
     searchQuery,
     setSearchQuery,
-    sourceFilter,
-    setSourceFilter,
-    providerFilter,
-    setProviderFilter,
-    resourceTypeFilter,
-    setResourceTypeFilter,
-    syncFilter,
-    setSyncFilter,
     activeFilterCount,
     hasActiveFilters,
     clearFilters,
-  } = useGlossaryFilters(searchParams, {
-    ignoreSyncFilter: useLiveProviderGlossaries,
-  });
+  } = useGlossaryFilters();
 
   const projectsQuery = useQuery({
     queryKey: projectsQueryKey(organizationSlug),
@@ -375,15 +276,6 @@ export function GlossariesPageContent({
             const haystack = [row.name, row.description, row.id].join(" ").toLowerCase();
             if (!haystack.includes(normalizedSearch)) return false;
           }
-          if (filters.sourceFilter !== "all" && row.source !== filters.sourceFilter) {
-            return false;
-          }
-          if (
-            filters.providerFilter !== "all" &&
-            row.externalProviderKind !== filters.providerFilter
-          ) {
-            return false;
-          }
           return true;
         });
 
@@ -400,10 +292,9 @@ export function GlossariesPageContent({
   });
 
   const nativeGlossariesQuery = useQuery<WorkspaceGlossariesResult>({
-    queryKey: ["native-glossaries", organizationSlug, page, nativeGlossaryFilters(filters)],
+    queryKey: ["native-glossaries", organizationSlug, page, filters],
     enabled: useLiveCrowdinGlossaries,
-    queryFn: () =>
-      fetchWorkspaceGlossaries(organizationSlug, intl, page, nativeGlossaryFilters(filters)),
+    queryFn: () => fetchWorkspaceGlossaries(organizationSlug, intl, page, filters, "native"),
   });
 
   const liveCrowdinGlossariesQuery = useQuery<LiveGlossariesResult>({
@@ -414,9 +305,6 @@ export function GlossariesPageContent({
       crowdinOrderBy,
       selectedExternalProjectId,
       filters.searchQuery,
-      filters.sourceFilter,
-      filters.providerFilter,
-      filters.resourceTypeFilter,
     ],
     enabled: useLiveCrowdinGlossaries,
     queryFn: async () => {
@@ -448,25 +336,10 @@ export function GlossariesPageContent({
       const rows = body.glossaries.map((glossary) =>
         mapLiveTmsProviderGlossaryToListRow(glossary, "crowdin", intl),
       );
-      const filtered = rows.filter((row) => {
-        if (filters.sourceFilter !== "all" && row.source !== filters.sourceFilter) {
-          return false;
-        }
-        if (
-          filters.providerFilter !== "all" &&
-          row.externalProviderKind !== filters.providerFilter
-        ) {
-          return false;
-        }
-        if (filters.resourceTypeFilter !== "all" && row.externalResourceType !== "glossary") {
-          return false;
-        }
-        return true;
-      });
 
       return {
-        liveRows: filtered,
-        total: filtered.length,
+        liveRows: rows,
+        total: rows.length,
         hasMore: body.pagination?.hasMore ?? rows.length === CROWDIN_GLOSSARIES_PAGE_SIZE,
       };
     },
@@ -529,14 +402,6 @@ export function GlossariesPageContent({
 
   const nativeGlossaries = useMemo(() => {
     if (useLiveCrowdinGlossaries) {
-      if (
-        filters.sourceFilter === "external_tms" ||
-        filters.providerFilter !== "all" ||
-        filters.resourceTypeFilter !== "all"
-      ) {
-        return [];
-      }
-
       return (nativeGlossariesQuery.data?.glossaries ?? []).map((glossary) =>
         mapGlossaryToListRow(glossary, projectIdByExternalKey, intl),
       );
@@ -544,9 +409,6 @@ export function GlossariesPageContent({
 
     return persistedRows.filter((glossary) => glossary.source === "native");
   }, [
-    filters.providerFilter,
-    filters.resourceTypeFilter,
-    filters.sourceFilter,
     intl,
     nativeGlossariesQuery.data?.glossaries,
     persistedRows,
@@ -571,12 +433,7 @@ export function GlossariesPageContent({
   );
 
   const nativeTotal = useLiveCrowdinGlossaries
-    ? nativeGlossaries.length > 0 ||
-      (filters.sourceFilter === "all" &&
-        filters.providerFilter === "all" &&
-        filters.resourceTypeFilter === "all")
-      ? (nativeGlossariesQuery.data?.total ?? 0)
-      : 0
+    ? (nativeGlossariesQuery.data?.total ?? 0)
     : nativeGlossaries.length;
   const externalTotal = useLiveCrowdinGlossaries
     ? (liveCrowdinGlossariesQuery.data?.total ?? 0)
@@ -593,19 +450,6 @@ export function GlossariesPageContent({
   const paginationTotal = useLiveCrowdinGlossaries ? nativeTotal : glossaryTotal;
   const pageStart = paginationTotal === 0 ? 0 : (page - 1) * GLOSSARIES_PAGE_SIZE + 1;
   const pageEnd = Math.min(page * GLOSSARIES_PAGE_SIZE, paginationTotal);
-
-  const providerKinds = useMemo(() => {
-    const kinds = new Set<string>();
-    for (const glossary of externalGlossaries) {
-      if (glossary.externalProviderKind) {
-        kinds.add(glossary.externalProviderKind);
-      }
-    }
-    if (useLiveCrowdinGlossaries) kinds.add("crowdin");
-    return [...kinds].sort((a, b) => providerLabel(a).localeCompare(providerLabel(b)));
-  }, [externalGlossaries, useLiveCrowdinGlossaries]);
-
-  const hasResourceTypes = externalGlossaries.some((glossary) => glossary.externalResourceType);
 
   useEffect(() => {
     setPage(1);
@@ -627,7 +471,6 @@ export function GlossariesPageContent({
     }
   }, [glossariesQuery, nativeGlossariesQuery, page, totalPages, useLiveCrowdinGlossaries]);
 
-  const hasExternalGlossaries = externalGlossaries.length > 0 || useLiveCrowdinGlossaries;
   const connectedCredentials = (credentialsQuery.data ?? []).filter(
     (credential) => credential.validationStatus === "connected",
   );
@@ -680,17 +523,6 @@ export function GlossariesPageContent({
       onSelectedExternalProjectIdChange={setSelectedExternalProjectId}
       searchQuery={searchQuery}
       onSearchQueryChange={setSearchQuery}
-      sourceFilter={sourceFilter}
-      onSourceFilterChange={setSourceFilter}
-      providerFilter={providerFilter}
-      onProviderFilterChange={setProviderFilter}
-      resourceTypeFilter={resourceTypeFilter}
-      onResourceTypeFilterChange={setResourceTypeFilter}
-      syncFilter={syncFilter}
-      onSyncFilterChange={setSyncFilter}
-      providerKinds={providerKinds}
-      hasExternalGlossaries={hasExternalGlossaries}
-      hasResourceTypes={hasResourceTypes}
       hasActiveFilters={hasActiveFilters}
       activeFilterCount={activeFilterCount}
       onClearFilters={clearFilters}

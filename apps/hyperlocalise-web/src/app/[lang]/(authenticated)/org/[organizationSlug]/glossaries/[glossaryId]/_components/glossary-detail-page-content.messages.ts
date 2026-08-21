@@ -187,32 +187,32 @@ export const glossaryDetailPageContentMessages = defineMessages({
   },
   termTypeFullFormDescription: {
     defaultMessage: "Complete form of a term",
-    id: 'F+qlLuaEi6',
+    id: "F+qlLuaEi6",
     description: "Description for the full form term type",
   },
   termTypeAcronymDescription: {
     defaultMessage: "Initials pronounced as a word",
-    id: 'OMHukdK6Wt',
+    id: "OMHukdK6Wt",
     description: "Description for the acronym term type",
   },
   termTypeAbbreviationDescription: {
     defaultMessage: "Shortened written form",
-    id: 'r7qqla56RV',
+    id: "r7qqla56RV",
     description: "Description for the abbreviation term type",
   },
   termTypeShortFormDescription: {
     defaultMessage: "Informal shortened name",
-    id: '04/aNgNk5U',
+    id: "04/aNgNk5U",
     description: "Description for the short form term type",
   },
   termTypePhraseDescription: {
     defaultMessage: "Multi-word expression",
-    id: 'kDMX9jypDk',
+    id: "kDMX9jypDk",
     description: "Description for the phrase term type",
   },
   termTypeVariantDescription: {
     defaultMessage: "Alternative form",
-    id: '3s0Ll5QBJY',
+    id: "3s0Ll5QBJY",
     description: "Description for the variant term type",
   },
   descriptionLabel: {

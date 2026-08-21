@@ -46,7 +46,9 @@ export type GlossaryListRow = {
   name: string;
   description: string;
   source: "native" | "external_tms";
+  isLiveApi: boolean;
   externalProviderKind: ApiGlossary["externalProviderKind"];
+  providerLogoSrc: string | null;
   externalProjectId: string | null;
   externalGlossaryId: string | null;
   externalResourceType: ApiGlossary["externalResourceType"];
@@ -79,10 +81,22 @@ const PROVIDER_LABELS: Record<string, string> = {
   lokalise: "Lokalise",
 };
 
+const PROVIDER_LOGO_SOURCES: Record<string, string> = {
+  native: "/images/logo.png",
+  crowdin: "/images/tms/crowdin.png",
+  smartling: "/images/tms/smartling.png",
+  phrase: "/images/tms/phrase.png",
+  lokalise: "/images/tms/lokalise.webp",
+};
+
 const RELATIVE_TIME_FORMATTER = new Intl.RelativeTimeFormat(undefined, { numeric: "auto" });
 
 export function providerLabel(kind: string) {
   return PROVIDER_LABELS[kind] ?? kind;
+}
+
+export function providerLogoSource(kind: string | null | undefined) {
+  return kind ? (PROVIDER_LOGO_SOURCES[kind] ?? null) : null;
 }
 
 export function formatRelativeTimestamp(value: string | null) {
@@ -216,7 +230,11 @@ export function mapGlossaryToListRow(
     description:
       glossary.description.trim() || resolveMessage(intl, glossaryListMessages.noDescription),
     source: glossary.source,
+    isLiveApi: false,
     externalProviderKind: glossary.externalProviderKind,
+    providerLogoSrc: providerLogoSource(
+      glossary.source === "native" ? "native" : glossary.externalProviderKind,
+    ),
     externalProjectId: glossary.externalProjectId,
     externalGlossaryId: glossary.externalGlossaryId,
     externalResourceType: glossary.externalResourceType,
@@ -272,7 +290,9 @@ export function mapLiveTmsProviderGlossaryToListRow(
     description:
       glossary.description?.trim() || resolveMessage(intl, glossaryListMessages.noDescription),
     source: "external_tms",
+    isLiveApi: true,
     externalProviderKind: providerKind,
+    providerLogoSrc: providerLogoSource(providerKind),
     externalProjectId: glossary.externalProjectId,
     externalGlossaryId: glossary.id.split(":").at(-1) ?? glossary.id,
     externalResourceType: "glossary",
