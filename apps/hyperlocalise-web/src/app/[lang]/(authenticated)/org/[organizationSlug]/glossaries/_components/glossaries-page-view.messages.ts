@@ -108,6 +108,17 @@ export const glossariesPageViewMessages = defineMessages({
     id: "ModLI3ew1I",
     description: "Empty state title when the workspace has no glossaries",
   },
+  workspaceEmptyTitle: {
+    defaultMessage: "Build your terminology library",
+    id: "y4hQxxj/zM",
+    description: "Primary empty state title for a workspace with no glossaries",
+  },
+  workspaceEmptyDescription: {
+    defaultMessage:
+      "Create a workspace glossary for approved terms, or connect a provider to bring in an existing term base.",
+    id: "BQ8dKEbgn2",
+    description: "Primary empty state guidance for a workspace with no glossaries",
+  },
   emptyTitleConnectProvider: {
     defaultMessage: "Connect a TMS provider",
     id: "kYuCdnk20K",
@@ -130,6 +141,27 @@ export const glossariesPageViewMessages = defineMessages({
       "Connect Crowdin, Phrase, Smartling, or Lokalise from Integrations to sync glossaries into this workspace.",
     id: "/N1d6Fnf0y",
     description: "Empty state description when no TMS provider is connected",
+  },
+  crowdinEmptyTitle: {
+    defaultMessage: "No Crowdin glossaries found",
+    id: "xZi8vylThF",
+    description: "Empty state title for live Crowdin glossaries",
+  },
+  crowdinEmptyDescription: {
+    defaultMessage:
+      "Choose another project or check Crowdin for glossaries available to this workspace.",
+    id: "T2BImrk8yG",
+    description: "Empty state description for live Crowdin glossaries",
+  },
+  connectProvider: {
+    defaultMessage: "Connect a provider",
+    id: "LqB7EIRaRe",
+    description: "Secondary empty-state action to connect a TMS provider",
+  },
+  openIntegrations: {
+    defaultMessage: "Open integrations",
+    id: "BiKIjgXcMN",
+    description: "Secondary empty-state action to open provider integrations",
   },
   paginationSummary: {
     defaultMessage: "Showing {pageStart}–{pageEnd} of {glossaryTotal} glossaries",

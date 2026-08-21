@@ -114,7 +114,7 @@ export const LiveProviderGlossary: Story = {
     nativeQuery: { isLoading: false, isError: false, isSuccess: true, error: null },
     externalQuery: { isLoading: false, isError: false, isSuccess: true, error: null },
     allowCreateGlossaries: false,
-    useLiveProviderGlossaries: false,
+    useLiveProviderGlossaries: true,
     useLiveCrowdinGlossaries: true,
     pageEnd: 1,
   },
@@ -129,6 +129,8 @@ export const LiveProviderGlossary: Story = {
       "href",
       "https://crowdin.com/project/crowdin-project-1",
     );
+    await expect(canvas.getByText("TMS project")).toBeInTheDocument();
+    await expect(canvas.getByText("Sort")).toBeInTheDocument();
     await expect(canvas.getByRole("button", { name: "More glossary actions" })).toBeInTheDocument();
   },
 };
@@ -163,12 +165,15 @@ export const Empty: Story = {
     pageEnd: 0,
   },
   play: async ({ canvas }) => {
-    await expect(canvas.getByText("No glossaries yet")).toBeInTheDocument();
+    await expect(canvas.getByText("Build your terminology library")).toBeInTheDocument();
     await expect(
       canvas.getByText(
-        "Create a workspace glossary, import terms, then assign it to the projects that should use it.",
+        "Create a workspace glossary for approved terms, or connect a provider to bring in an existing term base.",
       ),
     ).toBeInTheDocument();
+    await expect(canvas.getByRole("button", { name: "Create glossary" })).toBeInTheDocument();
+    await expect(canvas.getByRole("link", { name: "Open integrations" })).toBeInTheDocument();
+    await expect(canvas.getByRole("heading", { name: "Glossaries" })).toBeInTheDocument();
   },
 };
 

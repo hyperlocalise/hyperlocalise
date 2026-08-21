@@ -368,6 +368,7 @@ export function GlossariesTable({
   glossariesQuery,
   organizationSlug,
   title,
+  headerActions,
   count,
   emptyTitle,
   emptyDescription,
@@ -377,6 +378,7 @@ export function GlossariesTable({
   glossariesQuery: GlossariesTableQuery;
   organizationSlug: string;
   title?: string;
+  headerActions?: ReactNode;
   count?: number;
   emptyTitle: string;
   emptyDescription: string;
@@ -390,11 +392,14 @@ export function GlossariesTable({
       className="min-w-0"
     >
       {title ? (
-        <div className="mb-3 flex items-baseline justify-between gap-3">
-          <h2 className="text-sm font-semibold tracking-[-0.01em] text-foreground">{title}</h2>
-          {count !== undefined ? (
-            <span className="text-xs tabular-nums text-muted-foreground">{count}</span>
-          ) : null}
+        <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+          <div className="flex items-baseline gap-2">
+            <h2 className="text-sm font-semibold tracking-[-0.01em] text-foreground">{title}</h2>
+            {count !== undefined ? (
+              <span className="text-xs tabular-nums text-muted-foreground">{count}</span>
+            ) : null}
+          </div>
+          {headerActions}
         </div>
       ) : null}
 

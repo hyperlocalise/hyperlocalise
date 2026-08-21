@@ -14,6 +14,7 @@
  */
 import { BookOpenTextIcon, Add01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
+import Link from "next/link";
 import { useMemo, useState } from "react";
 import { FormattedMessage, useIntl } from "react-intl";
 
@@ -43,6 +44,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
+import {
+  Empty,
+  EmptyContent,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/components/ui/empty";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
@@ -71,6 +80,56 @@ export type GlossaryCreateForm = {
   sourceLocale: string;
   projectIds: string[];
 };
+
+function GlossariesWorkspaceEmptyState({
+  organizationSlug,
+  allowCreateGlossaries,
+  hasConnectedProvider,
+  onCreateGlossary,
+}: {
+  organizationSlug: string;
+  allowCreateGlossaries: boolean;
+  hasConnectedProvider: boolean;
+  onCreateGlossary: () => void;
+}) {
+  return (
+    <Empty className="items-start gap-6 border border-border bg-muted/40 px-6 py-10 text-left sm:px-10">
+      <EmptyHeader className="items-start gap-3 text-left">
+        <EmptyMedia
+          variant="icon"
+          className="size-11 rounded-xl border border-border bg-background text-subtle-foreground [&_svg:not([class*='size-'])]:size-5"
+        >
+          <HugeiconsIcon icon={BookOpenTextIcon} strokeWidth={1.7} aria-hidden="true" />
+        </EmptyMedia>
+        <EmptyTitle className="text-xl font-medium text-foreground text-balance">
+          <FormattedMessage {...glossariesPageViewMessages.workspaceEmptyTitle} />
+        </EmptyTitle>
+        <EmptyDescription className="max-w-2xl text-sm leading-6 text-muted-foreground text-pretty">
+          <FormattedMessage {...glossariesPageViewMessages.workspaceEmptyDescription} />
+        </EmptyDescription>
+      </EmptyHeader>
+      <EmptyContent className="items-start gap-3 text-left sm:flex-row sm:items-center">
+        {allowCreateGlossaries ? (
+          <Button type="button" onClick={onCreateGlossary}>
+            <HugeiconsIcon icon={Add01Icon} strokeWidth={1.8} />
+            <FormattedMessage {...glossariesPageViewMessages.createGlossary} />
+          </Button>
+        ) : null}
+        <Button
+          nativeButton={false}
+          render={<Link href={`/org/${organizationSlug}/integrations`} />}
+          variant={allowCreateGlossaries ? "outline" : "default"}
+        >
+          <FormattedMessage
+            {...(hasConnectedProvider
+              ? glossariesPageViewMessages.openIntegrations
+              : glossariesPageViewMessages.connectProvider)}
+          />
+        </Button>
+      </EmptyContent>
+    </Empty>
+  );
+}
 
 export function GlossariesPageView({
   organizationSlug,
@@ -172,10 +231,18 @@ export function GlossariesPageView({
     ? intl.formatMessage(glossariesPageViewMessages.emptyDescriptionCreate)
     : intl.formatMessage(glossariesPageViewMessages.nativeEmptyDescription);
   const externalEmptyTitle = hasConnectedProvider
-    ? intl.formatMessage(glossariesPageViewMessages.externalEmptyTitle)
+    ? intl.formatMessage(
+        useLiveCrowdinGlossaries
+          ? glossariesPageViewMessages.crowdinEmptyTitle
+          : glossariesPageViewMessages.externalEmptyTitle,
+      )
     : intl.formatMessage(glossariesPageViewMessages.emptyTitleConnectProvider);
   const externalEmptyDescription = hasConnectedProvider
-    ? intl.formatMessage(glossariesPageViewMessages.emptyDescriptionWithProvider)
+    ? intl.formatMessage(
+        useLiveCrowdinGlossaries
+          ? glossariesPageViewMessages.crowdinEmptyDescription
+          : glossariesPageViewMessages.emptyDescriptionWithProvider,
+      )
     : intl.formatMessage(glossariesPageViewMessages.emptyDescriptionWithoutProvider);
   const nativeSectionTitle = intl.formatMessage(glossariesPageViewMessages.nativeSectionTitle);
   const externalSectionTitle = useLiveCrowdinGlossaries
@@ -189,6 +256,61 @@ export function GlossariesPageView({
       : undefined;
   const hasAnyResults = nativeTotal > 0 || externalTotal > 0;
   const queriesHaveNoResults = nativeQuery.isSuccess && externalQuery.isSuccess && !hasAnyResults;
+  const showWorkspaceEmptyState =
+    queriesHaveNoResults && !hasActiveFilters && !useLiveProviderGlossaries;
+  const liveProviderControls = useLiveProviderGlossaries ? (
+    <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row sm:items-end">
+      <TmsLiveProjectPicker
+        organizationSlug={organizationSlug}
+        value={selectedExternalProjectId}
+        onValueChange={onSelectedExternalProjectIdChange}
+        allowAll={useLiveCrowdinGlossaries}
+      />
+      {useLiveCrowdinGlossaries ? (
+        <WorkspaceFilterField
+          label={intl.formatMessage(glossariesPageViewMessages.sortLabel)}
+          className="w-full sm:w-44"
+        >
+          <Select
+            value={crowdinOrderBy}
+            onValueChange={(value) => {
+              if (value) onCrowdinOrderByChange(value);
+            }}
+          >
+            <SelectTrigger className={workspaceFilterTriggerClassName}>
+              <SelectValue>
+                {crowdinOrderBy === "name asc"
+                  ? intl.formatMessage(glossariesPageViewMessages.sortNameAsc)
+                  : crowdinOrderBy === "name desc"
+                    ? intl.formatMessage(glossariesPageViewMessages.sortNameDesc)
+                    : intl.formatMessage(glossariesPageViewMessages.sortNewest)}
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem
+                value="createdAt desc,name"
+                label={intl.formatMessage(glossariesPageViewMessages.sortNewest)}
+              >
+                <FormattedMessage {...glossariesPageViewMessages.sortNewest} />
+              </SelectItem>
+              <SelectItem
+                value="name asc"
+                label={intl.formatMessage(glossariesPageViewMessages.sortNameAsc)}
+              >
+                <FormattedMessage {...glossariesPageViewMessages.sortNameAsc} />
+              </SelectItem>
+              <SelectItem
+                value="name desc"
+                label={intl.formatMessage(glossariesPageViewMessages.sortNameDesc)}
+              >
+                <FormattedMessage {...glossariesPageViewMessages.sortNameDesc} />
+              </SelectItem>
+            </SelectContent>
+          </Select>
+        </WorkspaceFilterField>
+      ) : null}
+    </div>
+  ) : null;
   return (
     <main className="mx-auto flex w-full max-w-6xl flex-col gap-6">
       <PageHeader
@@ -198,7 +320,7 @@ export function GlossariesPageView({
         description={intl.formatMessage(glossariesPageViewMessages.pageDescription)}
         statusLabel={glossaryCountLabel}
         actions={
-          allowCreateGlossaries ? (
+          allowCreateGlossaries && !showWorkspaceEmptyState ? (
             <Button
               type="button"
               onClick={() => onCreateDialogOpenChange(true)}
@@ -210,60 +332,6 @@ export function GlossariesPageView({
           ) : null
         }
       />
-
-      {useLiveProviderGlossaries ? (
-        <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end sm:gap-2">
-          <TmsLiveProjectPicker
-            organizationSlug={organizationSlug}
-            value={selectedExternalProjectId}
-            onValueChange={onSelectedExternalProjectIdChange}
-            allowAll={useLiveCrowdinGlossaries}
-          />
-          {useLiveCrowdinGlossaries ? (
-            <WorkspaceFilterField
-              label={intl.formatMessage(glossariesPageViewMessages.sortLabel)}
-              className="w-full sm:w-44"
-            >
-              <Select
-                value={crowdinOrderBy}
-                onValueChange={(value) => {
-                  if (value) onCrowdinOrderByChange(value);
-                }}
-              >
-                <SelectTrigger className={workspaceFilterTriggerClassName}>
-                  <SelectValue>
-                    {crowdinOrderBy === "name asc"
-                      ? intl.formatMessage(glossariesPageViewMessages.sortNameAsc)
-                      : crowdinOrderBy === "name desc"
-                        ? intl.formatMessage(glossariesPageViewMessages.sortNameDesc)
-                        : intl.formatMessage(glossariesPageViewMessages.sortNewest)}
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem
-                    value="createdAt desc,name"
-                    label={intl.formatMessage(glossariesPageViewMessages.sortNewest)}
-                  >
-                    <FormattedMessage {...glossariesPageViewMessages.sortNewest} />
-                  </SelectItem>
-                  <SelectItem
-                    value="name asc"
-                    label={intl.formatMessage(glossariesPageViewMessages.sortNameAsc)}
-                  >
-                    <FormattedMessage {...glossariesPageViewMessages.sortNameAsc} />
-                  </SelectItem>
-                  <SelectItem
-                    value="name desc"
-                    label={intl.formatMessage(glossariesPageViewMessages.sortNameDesc)}
-                  >
-                    <FormattedMessage {...glossariesPageViewMessages.sortNameDesc} />
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-            </WorkspaceFilterField>
-          ) : null}
-        </div>
-      ) : null}
 
       {hasAnyResults || hasActiveFilters || nativeQuery.isLoading || externalQuery.isLoading ? (
         <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end sm:gap-2">
@@ -305,56 +373,69 @@ export function GlossariesPageView({
         </div>
       ) : null}
 
-      <div className="grid gap-8">
-        <GlossariesTable
-          glossaries={nativeGlossaries}
-          glossariesQuery={nativeQuery}
+      {showWorkspaceEmptyState ? (
+        <GlossariesWorkspaceEmptyState
           organizationSlug={organizationSlug}
-          title={nativeSectionTitle}
-          count={nativeTotal}
-          emptyTitle={nativeEmptyTitle}
-          emptyDescription={nativeEmptyDescription}
-          emptyAction={
-            allowCreateGlossaries ? (
-              <Button type="button" size="sm" onClick={() => onCreateDialogOpenChange(true)}>
-                <FormattedMessage {...glossariesPageViewMessages.createGlossary} />
-              </Button>
-            ) : undefined
-          }
+          allowCreateGlossaries={allowCreateGlossaries}
+          hasConnectedProvider={hasConnectedProvider}
+          onCreateGlossary={() => onCreateDialogOpenChange(true)}
         />
-        {liveProjectSelectionRequired ? (
-          <section aria-label={externalSectionTitle} className="min-w-0">
-            <div className="mb-3 flex items-baseline justify-between gap-3">
-              <h2 className="text-sm font-semibold tracking-[-0.01em] text-foreground">
-                {externalSectionTitle}
-              </h2>
-            </div>
-            <div className="space-y-3 rounded-lg border border-border px-5 py-8">
-              <TypographyP className="text-sm font-medium text-foreground">
-                <FormattedMessage {...glossariesPageViewMessages.chooseTmsProjectTitle} />
-              </TypographyP>
-              <TypographyP className="max-w-xl text-sm leading-6 text-muted-foreground">
-                <FormattedMessage {...glossariesPageViewMessages.chooseTmsProjectDescription} />
-              </TypographyP>
-            </div>
-          </section>
-        ) : (
+      ) : null}
+
+      {!showWorkspaceEmptyState ? (
+        <div className="grid gap-8">
           <GlossariesTable
-            glossaries={externalGlossaries}
-            glossariesQuery={externalQuery}
+            glossaries={nativeGlossaries}
+            glossariesQuery={nativeQuery}
             organizationSlug={organizationSlug}
-            title={externalSectionTitle}
-            count={externalTotal}
-            emptyTitle={externalEmptyTitle}
-            emptyDescription={externalEmptyDescription}
+            title={nativeSectionTitle}
+            count={nativeTotal}
+            emptyTitle={nativeEmptyTitle}
+            emptyDescription={nativeEmptyDescription}
             emptyAction={
-              !hasConnectedProvider ? (
-                <GlossariesEmptyAction organizationSlug={organizationSlug} />
+              allowCreateGlossaries ? (
+                <Button type="button" size="sm" onClick={() => onCreateDialogOpenChange(true)}>
+                  <FormattedMessage {...glossariesPageViewMessages.createGlossary} />
+                </Button>
               ) : undefined
             }
           />
-        )}
-      </div>
+          {liveProjectSelectionRequired ? (
+            <section aria-label={externalSectionTitle} className="min-w-0">
+              <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+                <h2 className="text-sm font-semibold tracking-[-0.01em] text-foreground">
+                  {externalSectionTitle}
+                </h2>
+                {liveProviderControls}
+              </div>
+              <div className="space-y-3 rounded-lg border border-border px-5 py-8">
+                <TypographyP className="text-sm font-medium text-foreground">
+                  <FormattedMessage {...glossariesPageViewMessages.chooseTmsProjectTitle} />
+                </TypographyP>
+                <TypographyP className="max-w-xl text-sm leading-6 text-muted-foreground">
+                  <FormattedMessage {...glossariesPageViewMessages.chooseTmsProjectDescription} />
+                </TypographyP>
+              </div>
+            </section>
+          ) : (
+            <GlossariesTable
+              glossaries={externalGlossaries}
+              glossariesQuery={externalQuery}
+              organizationSlug={organizationSlug}
+              title={externalSectionTitle}
+              headerActions={liveProviderControls}
+              count={externalTotal}
+              emptyTitle={externalEmptyTitle}
+              emptyDescription={externalEmptyDescription}
+              emptyAction={
+                !hasConnectedProvider ? (
+                  <GlossariesEmptyAction organizationSlug={organizationSlug} />
+                ) : undefined
+              }
+            />
+          )}
+        </div>
+      ) : null}
 
       {useLiveCrowdinGlossaries && nativeQuery.isSuccess && nativeTotal > GLOSSARIES_PAGE_SIZE ? (
         <div className="flex flex-wrap items-center justify-between gap-2">
