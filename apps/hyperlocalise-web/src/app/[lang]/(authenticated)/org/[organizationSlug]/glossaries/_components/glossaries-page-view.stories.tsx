@@ -28,15 +28,17 @@ const meta = {
   },
   args: {
     organizationSlug: "acme",
-    glossaries: glossariesFixture,
+    nativeGlossaries: glossariesFixture.filter((glossary) => glossary.source === "native"),
+    externalGlossaries: glossariesFixture.filter((glossary) => glossary.source === "external_tms"),
     glossaryTotal: glossariesFixture.length,
-    isLoading: false,
-    isError: false,
-    isSuccess: true,
-    error: null,
+    nativeTotal: 1,
+    externalTotal: 2,
+    nativeQuery: { isLoading: false, isError: false, isSuccess: true, error: null },
+    externalQuery: { isLoading: false, isError: false, isSuccess: true, error: null },
     allowCreateGlossaries: true,
     hasConnectedProvider: true,
     useLiveProviderGlossaries: false,
+    useLiveCrowdinGlossaries: false,
     selectedExternalProjectId: "",
     onSelectedExternalProjectIdChange: fn(),
     searchQuery: "",
@@ -60,6 +62,11 @@ const meta = {
     pageStart: 1,
     pageEnd: glossariesFixture.length,
     onPageChange: fn(),
+    crowdinPage: 1,
+    crowdinHasMore: false,
+    onCrowdinPageChange: fn(),
+    crowdinOrderBy: "createdAt desc,name",
+    onCrowdinOrderByChange: fn(),
     createDialogOpen: false,
     onCreateDialogOpenChange: fn(),
     createForm: createEmptyGlossaryFormFixture(),
@@ -96,7 +103,8 @@ export const Default: Story = {
 
 export const LiveProviderGlossary: Story = {
   args: {
-    glossaries: [
+    nativeGlossaries: [],
+    externalGlossaries: [
       createGlossaryListRow({
         id: "crowdin:glossary:99",
         detailId: "crowdin:glossary:99",
@@ -108,7 +116,13 @@ export const LiveProviderGlossary: Story = {
       }),
     ],
     glossaryTotal: 1,
+    nativeTotal: 0,
+    externalTotal: 1,
+    nativeQuery: { isLoading: false, isError: false, isSuccess: true, error: null },
+    externalQuery: { isLoading: false, isError: false, isSuccess: true, error: null },
     allowCreateGlossaries: false,
+    useLiveProviderGlossaries: false,
+    useLiveCrowdinGlossaries: true,
     pageEnd: 1,
   },
   play: async ({ canvas }) => {
@@ -122,10 +136,13 @@ export const LiveProviderGlossary: Story = {
 
 export const Loading: Story = {
   args: {
-    glossaries: [],
+    nativeGlossaries: [],
+    externalGlossaries: [],
     glossaryTotal: 0,
-    isLoading: true,
-    isSuccess: false,
+    nativeTotal: 0,
+    externalTotal: 0,
+    nativeQuery: { isLoading: true, isError: false, isSuccess: false, error: null },
+    externalQuery: { isLoading: true, isError: false, isSuccess: false, error: null },
     pageStart: 0,
     pageEnd: 0,
     providerKinds: [],
@@ -139,8 +156,13 @@ export const Loading: Story = {
 
 export const Empty: Story = {
   args: {
-    glossaries: [],
+    nativeGlossaries: [],
+    externalGlossaries: [],
     glossaryTotal: 0,
+    nativeTotal: 0,
+    externalTotal: 0,
+    nativeQuery: { isLoading: false, isError: false, isSuccess: true, error: null },
+    externalQuery: { isLoading: false, isError: false, isSuccess: true, error: null },
     pageStart: 0,
     pageEnd: 0,
     providerKinds: [],
@@ -159,8 +181,13 @@ export const Empty: Story = {
 
 export const NoProviderConnected: Story = {
   args: {
-    glossaries: [],
+    nativeGlossaries: [],
+    externalGlossaries: [],
     glossaryTotal: 0,
+    nativeTotal: 0,
+    externalTotal: 0,
+    nativeQuery: { isLoading: false, isError: false, isSuccess: true, error: null },
+    externalQuery: { isLoading: false, isError: false, isSuccess: true, error: null },
     allowCreateGlossaries: false,
     hasConnectedProvider: false,
     pageStart: 0,
@@ -207,11 +234,18 @@ export const CreateDialogOpen: Story = {
 
 export const LoadError: Story = {
   args: {
-    glossaries: [],
+    nativeGlossaries: [],
+    externalGlossaries: [],
     glossaryTotal: 0,
-    isError: true,
-    isSuccess: false,
-    error: new Error("The glossaries API returned a 500."),
+    nativeTotal: 0,
+    externalTotal: 0,
+    nativeQuery: {
+      isLoading: false,
+      isError: true,
+      isSuccess: false,
+      error: new Error("The native glossaries API returned a 500."),
+    },
+    externalQuery: { isLoading: false, isError: false, isSuccess: true, error: null },
     pageStart: 0,
     pageEnd: 0,
     providerKinds: [],
@@ -223,11 +257,17 @@ export const LoadError: Story = {
   },
 };
 
-export const LiveProjectSelectionRequired: Story = {
+export const LiveAllProjects: Story = {
   args: {
-    glossaries: [],
+    nativeGlossaries: [],
+    externalGlossaries: [],
     glossaryTotal: 0,
-    useLiveProviderGlossaries: true,
+    nativeTotal: 0,
+    externalTotal: 0,
+    nativeQuery: { isLoading: false, isError: false, isSuccess: true, error: null },
+    externalQuery: { isLoading: false, isError: false, isSuccess: true, error: null },
+    useLiveProviderGlossaries: false,
+    useLiveCrowdinGlossaries: true,
     allowCreateGlossaries: false,
     pageStart: 0,
     pageEnd: 0,
@@ -236,14 +276,20 @@ export const LiveProjectSelectionRequired: Story = {
     hasResourceTypes: false,
   },
   play: async ({ canvas }) => {
-    await expect(canvas.getByText("Choose a TMS project")).toBeInTheDocument();
+    await expect(canvas.getByText("Native glossaries")).toBeInTheDocument();
+    await expect(canvas.getByText("Crowdin glossaries")).toBeInTheDocument();
   },
 };
 
 export const NoFilterMatches: Story = {
   args: {
-    glossaries: [],
+    nativeGlossaries: [],
+    externalGlossaries: [],
     glossaryTotal: 0,
+    nativeTotal: 0,
+    externalTotal: 0,
+    nativeQuery: { isLoading: false, isError: false, isSuccess: true, error: null },
+    externalQuery: { isLoading: false, isError: false, isSuccess: true, error: null },
     hasActiveFilters: true,
     activeFilterCount: 1,
     sourceFilter: "native",

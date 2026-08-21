@@ -180,6 +180,8 @@ export const CROWDIN_SOURCE_STRING_BATCH_PATCH_LIMIT = 500;
 export const CROWDIN_LIVE_TASK_LIST_LIMIT = 50;
 export const CROWDIN_LIVE_TASK_LIST_ORDER_BY = "createdAt desc";
 export const CROWDIN_PROJECT_LIST_ORDER_BY = "lastActivity desc";
+export const CROWDIN_GLOSSARY_LIST_LIMIT = 25;
+export const CROWDIN_GLOSSARY_LIST_ORDER_BY = "createdAt desc,name";
 export const CROWDIN_SYNC_TASK_PAGE_LIMIT = 500;
 
 export type ListCrowdinTasksOptions = {
@@ -187,6 +189,14 @@ export type ListCrowdinTasksOptions = {
   offset?: number;
   orderBy?: string;
   fetchAll?: boolean;
+};
+
+export type ListCrowdinGlossariesOptions = {
+  limit?: number;
+  offset?: number;
+  orderBy?: string;
+  filter?: string;
+  userId?: number;
 };
 
 function defaultCrowdinFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
@@ -722,6 +732,13 @@ export type CrowdinSourceStringsPage = {
   limit: number;
   hasMore: boolean;
   totalCount: number;
+};
+
+export type CrowdinGlossariesPage = {
+  glossaries: CrowdinGlossary[];
+  offset: number;
+  limit: number;
+  hasMore: boolean;
 };
 
 interface CrowdinGetResponse<T> {
@@ -2135,6 +2152,37 @@ export class CrowdinApiClient {
 
   async listGlossaries(): Promise<CrowdinGlossary[]> {
     return this.listPaginated<CrowdinGlossary>("/glossaries");
+  }
+
+  async listGlossariesPage(
+    options: ListCrowdinGlossariesOptions = {},
+  ): Promise<CrowdinGlossariesPage> {
+    const limit = options.limit ?? CROWDIN_GLOSSARY_LIST_LIMIT;
+    const offset = options.offset ?? 0;
+    const params = new URLSearchParams({
+      limit: String(limit),
+      offset: String(offset),
+      orderBy: options.orderBy ?? CROWDIN_GLOSSARY_LIST_ORDER_BY,
+    });
+
+    if (options.userId !== undefined) {
+      params.set("userId", String(options.userId));
+    }
+    if (options.filter?.trim()) {
+      params.set("filter", options.filter.trim());
+    }
+
+    const response = await this.get<CrowdinListResponse<CrowdinGlossary>>(
+      `/glossaries?${params.toString()}`,
+    );
+    const glossaries = response.data.map((item) => item.data);
+
+    return {
+      glossaries,
+      offset,
+      limit,
+      hasMore: glossaries.length === limit,
+    };
   }
 
   /**

@@ -141,6 +141,36 @@ export const glossariesPageViewMessages = defineMessages({
     id: "HwI92QKVOs",
     description: "Empty filter state for glossaries, with a clear-filters action",
   },
+  nativeSectionTitle: {
+    defaultMessage: "Native glossaries",
+    id: "tR49yNVFBv",
+    description: "Heading for workspace-native glossaries",
+  },
+  externalSectionTitle: {
+    defaultMessage: "Provider glossaries",
+    id: "iTLkbt2liA",
+    description: "Heading for persisted provider glossaries",
+  },
+  crowdinSectionTitle: {
+    defaultMessage: "Crowdin glossaries",
+    id: "CckeviPE6F",
+    description: "Heading for live Crowdin glossaries",
+  },
+  nativeEmptyTitle: {
+    defaultMessage: "No native glossaries",
+    id: "EN/XL+26FR",
+    description: "Empty state title for the native glossary section when creation is unavailable",
+  },
+  nativeEmptyDescription: {
+    defaultMessage: "Native glossaries created in this workspace will appear here.",
+    id: "cH3TG4pXPd",
+    description: "Empty state description for native glossaries",
+  },
+  externalEmptyTitle: {
+    defaultMessage: "No provider glossaries",
+    id: "ZiWVuGHeQL",
+    description: "Empty state title for a connected provider with no glossaries",
+  },
   chooseTmsProjectTitle: {
     defaultMessage: "Choose a TMS project",
     id: "VTNiq0wxG3",
@@ -199,6 +229,31 @@ export const glossariesPageViewMessages = defineMessages({
     defaultMessage: "Next",
     id: "pUTlRV1r0u",
     description: "Button to go to the next page of glossaries",
+  },
+  sortLabel: {
+    defaultMessage: "Sort",
+    id: "9DtnBnymqw",
+    description: "Label for the Crowdin glossary ordering control",
+  },
+  sortNewest: {
+    defaultMessage: "Newest first",
+    id: "Xo2+rtWc3U",
+    description: "Crowdin glossary ordering option for newest glossaries",
+  },
+  sortNameAsc: {
+    defaultMessage: "Name A–Z",
+    id: "lNH8JueKxa",
+    description: "Crowdin glossary ordering option for ascending names",
+  },
+  sortNameDesc: {
+    defaultMessage: "Name Z–A",
+    id: "BBn+JiQbC1",
+    description: "Crowdin glossary ordering option for descending names",
+  },
+  crowdinPaginationSummary: {
+    defaultMessage: "Crowdin page {page}",
+    id: "8mLorWvZHa",
+    description: "Pagination summary for the live Crowdin glossary list",
   },
   createDialogTitle: {
     defaultMessage: "Create glossary",

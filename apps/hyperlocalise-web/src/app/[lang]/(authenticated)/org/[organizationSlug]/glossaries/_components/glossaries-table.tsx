@@ -30,6 +30,13 @@ import type { GlossaryListRow } from "./glossary-list";
 import { providerLabel } from "./glossary-list";
 import { glossariesTableMessages } from "./glossaries-table.messages";
 
+export type GlossariesTableQuery = Pick<
+  UseQueryResult<unknown, Error>,
+  "isLoading" | "isError" | "isSuccess" | "error"
+> & {
+  refetch?: () => void;
+};
+
 function SourceLabel({ glossary }: { glossary: GlossaryListRow }) {
   if (glossary.source === "native") {
     return (
@@ -182,16 +189,17 @@ export function GlossariesTable({
   glossaries,
   glossariesQuery,
   organizationSlug,
+  title,
+  count,
   emptyTitle,
   emptyDescription,
   emptyAction,
 }: {
   glossaries: GlossaryListRow[];
-  glossariesQuery: Pick<
-    UseQueryResult<unknown, Error>,
-    "isLoading" | "isError" | "isSuccess" | "error"
-  >;
+  glossariesQuery: GlossariesTableQuery;
   organizationSlug: string;
+  title?: string;
+  count?: number;
   emptyTitle: string;
   emptyDescription: string;
   emptyAction?: ReactNode;
@@ -200,13 +208,30 @@ export function GlossariesTable({
 
   return (
     <section
-      aria-label={intl.formatMessage(glossariesTableMessages.sectionLabel)}
+      aria-label={title ?? intl.formatMessage(glossariesTableMessages.sectionLabel)}
       className="min-w-0"
     >
+      {title ? (
+        <div className="mb-3 flex items-baseline justify-between gap-3">
+          <h2 className="text-sm font-semibold tracking-[-0.01em] text-foreground">{title}</h2>
+          {count !== undefined ? (
+            <span className="text-xs tabular-nums text-muted-foreground">{count}</span>
+          ) : null}
+        </div>
+      ) : null}
+
       {glossariesQuery.isLoading ? (
-        <TypographyP className="py-8 text-sm text-muted-foreground">
-          <FormattedMessage {...glossariesTableMessages.loading} />
-        </TypographyP>
+        <div
+          className="space-y-3 rounded-lg border border-border px-5 py-8"
+          aria-busy="true"
+          aria-label={intl.formatMessage(glossariesTableMessages.loading)}
+        >
+          <TypographyP className="text-sm text-muted-foreground">
+            <FormattedMessage {...glossariesTableMessages.loading} />
+          </TypographyP>
+          <div className="h-2 w-2/3 animate-pulse rounded-full bg-skeleton" />
+          <div className="h-2 w-1/3 animate-pulse rounded-full bg-skeleton" />
+        </div>
       ) : null}
 
       {glossariesQuery.isError ? (
@@ -219,6 +244,17 @@ export function GlossariesTable({
               ? glossariesQuery.error.message
               : intl.formatMessage(glossariesTableMessages.loadFailedFallback)}
           </TypographyP>
+          {glossariesQuery.refetch ? (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="mt-4"
+              onClick={glossariesQuery.refetch}
+            >
+              <FormattedMessage {...glossariesTableMessages.retry} />
+            </Button>
+          ) : null}
         </div>
       ) : null}
 

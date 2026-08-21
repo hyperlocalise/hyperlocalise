@@ -35,6 +35,11 @@ export const glossariesTableMessages = defineMessages({
     id: "VyUTnEU0ZM",
     description: "Fallback error when glossaries fail to load without a message",
   },
+  retry: {
+    defaultMessage: "Retry",
+    id: "IOmySBLwfP",
+    description: "Button to retry loading one glossary source",
+  },
   sourceWorkspace: {
     defaultMessage: "Workspace",
     id: "XXixo4/l3k",

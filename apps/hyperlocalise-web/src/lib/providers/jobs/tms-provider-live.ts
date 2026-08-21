@@ -4068,7 +4068,7 @@ function dedupeGlossaries(items: TmsProviderLiveGlossary[]) {
 function mapLiveGlossary(input: {
   glossary: ExternalTmsGlossaryMetadata;
   externalProjectId: string;
-  projectName: string;
+  projectName: string | null;
   providerKind: ExternalTmsProviderKind;
 }): TmsProviderLiveGlossary {
   return {
@@ -4086,10 +4086,32 @@ function mapLiveGlossary(input: {
   };
 }
 
+export type TmsProviderLiveGlossariesPage = {
+  glossaries: TmsProviderLiveGlossary[];
+  offset: number;
+  limit: number;
+  hasMore: boolean;
+};
+
 export async function listTmsProviderLiveGlossaries(
   organizationId: string,
   options?: { externalProjectId?: string; actorUserId?: string | null },
 ): Promise<TmsProviderLiveGlossary[]> {
+  const page = await listTmsProviderLiveGlossariesPage(organizationId, options);
+  return page.glossaries;
+}
+
+export async function listTmsProviderLiveGlossariesPage(
+  organizationId: string,
+  options?: {
+    externalProjectId?: string;
+    actorUserId?: string | null;
+    limit?: number;
+    offset?: number;
+    orderBy?: string;
+    filter?: string;
+  },
+): Promise<TmsProviderLiveGlossariesPage> {
   const context = await loadActiveTmsProviderContext(organizationId, {
     actorUserId: options?.actorUserId,
   });
@@ -4102,6 +4124,58 @@ export async function listTmsProviderLiveGlossaries(
   }
 
   const projects = await fetchLiveProjectsCached(context, options);
+
+  if (context.providerKind === "crowdin") {
+    const projectById = new Map(projects.map((project) => [project.externalProjectId, project]));
+    const crowdinPage = await crowdinTmsProvider.fetchGlossariesPage({
+      organizationId: context.organizationId,
+      credential: context.credential,
+      secretMaterial: context.secretMaterial,
+      limit: options?.limit,
+      offset: options?.offset,
+      orderBy: options?.orderBy,
+      filter: options?.filter,
+    });
+
+    const glossaries = crowdinPage.glossaries.flatMap((glossary) => {
+      const linkedProjectIds = glossary.externalProjectIds.filter((projectId) =>
+        projectById.has(projectId),
+      );
+      if (options?.externalProjectId && !linkedProjectIds.includes(options.externalProjectId)) {
+        return [];
+      }
+
+      const externalProjectId =
+        options?.externalProjectId ?? linkedProjectIds[0] ?? glossary.externalProjectIds[0] ?? "";
+      const project = projectById.get(externalProjectId);
+
+      return [
+        mapLiveGlossary({
+          glossary: {
+            externalGlossaryId: glossary.externalGlossaryId,
+            name: glossary.name,
+            description: glossary.description ?? undefined,
+            sourceLocale: glossary.sourceLocale,
+            targetLocale: glossary.targetLocale,
+            localeCoverage: glossary.localeCoverage,
+            termCount: glossary.termCount,
+            externalUrl: glossary.externalUrl,
+          },
+          externalProjectId,
+          projectName: project?.name ?? null,
+          providerKind: context.providerKind,
+        }),
+      ];
+    });
+
+    return {
+      glossaries,
+      offset: crowdinPage.offset,
+      limit: crowdinPage.limit,
+      hasMore: crowdinPage.hasMore,
+    };
+  }
+
   const scopedProjects = options?.externalProjectId
     ? projects.filter((project) => project.externalProjectId === options.externalProjectId)
     : projects.filter((project) => project.isActive !== false);
@@ -4153,7 +4227,13 @@ export async function listTmsProviderLiveGlossaries(
     },
   );
 
-  return dedupeGlossaries(glossariesByProject.flat());
+  const glossaries = dedupeGlossaries(glossariesByProject.flat());
+  return {
+    glossaries,
+    offset: 0,
+    limit: glossaries.length,
+    hasMore: false,
+  };
 }
 
 function mapLiveTranslationMemory(input: {

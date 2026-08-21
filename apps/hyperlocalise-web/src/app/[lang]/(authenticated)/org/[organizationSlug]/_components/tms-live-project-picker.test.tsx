@@ -55,4 +55,24 @@ describe("TmsLiveProjectPicker", () => {
     expect(screen.getByText("Marketing website")).toBeInTheDocument();
     expect(screen.queryByText("902807")).not.toBeInTheDocument();
   });
+
+  it("uses all projects as the empty selection when enabled", () => {
+    useTmsLiveProjectsMock.mockReturnValue({
+      data: [],
+      isLoading: false,
+    });
+
+    render(
+      <IntlProvider locale="en" messages={{}}>
+        <TmsLiveProjectPicker
+          organizationSlug="acme"
+          value=""
+          allowAll
+          onValueChange={() => undefined}
+        />
+      </IntlProvider>,
+    );
+
+    expect(screen.getByText("All projects")).toBeInTheDocument();
+  });
 });
