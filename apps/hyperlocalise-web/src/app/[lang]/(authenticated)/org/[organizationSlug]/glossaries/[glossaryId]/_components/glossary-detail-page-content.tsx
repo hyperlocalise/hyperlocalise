@@ -194,29 +194,6 @@ function readableEnumLabel(value: string) {
   return label ? `${label.charAt(0).toUpperCase()}${label.slice(1)}` : label;
 }
 
-const partOfSpeechShortLabels: Record<GlossaryPartOfSpeech, string> = {
-  adjective: "adj",
-  adposition: "adp",
-  adverb: "adv",
-  auxiliary: "aux",
-  "coordinating conjunction": "cc",
-  determiner: "det",
-  interjection: "intj",
-  noun: "n",
-  numeral: "num",
-  particle: "part",
-  pronoun: "pron",
-  "proper noun": "propn",
-  "subordinating conjunction": "sc",
-  verb: "v",
-  other: "other",
-};
-
-function partOfSpeechShortLabel(value: string) {
-  const normalized = normalizePartOfSpeech(value) ?? value;
-  return partOfSpeechShortLabels[normalized as GlossaryPartOfSpeech] ?? normalized;
-}
-
 function PartOfSpeechBadge({ value }: { value: string | null | undefined }) {
   if (!value) return <span className="text-muted-foreground">—</span>;
 
@@ -228,7 +205,7 @@ function PartOfSpeechBadge({ value }: { value: string | null | undefined }) {
       title={label}
       aria-label={label}
     >
-      {partOfSpeechShortLabel(value)}
+      {label}
     </Badge>
   );
 }
@@ -250,7 +227,7 @@ function formatDate(value: string) {
 }
 
 const termPropertyTriggerClassName =
-  "h-7 border-transparent bg-transparent px-2 text-xs font-normal shadow-none hover:bg-muted/60 focus-visible:bg-muted/60";
+  "h-8 border-transparent bg-transparent px-2.5 text-sm font-normal shadow-none hover:bg-muted/60 focus-visible:bg-muted/60";
 
 function statusClass(status: TermDraft["status"]) {
   if (status === "preferred") {
