@@ -466,8 +466,8 @@ describe("glossaryRoutes", () => {
     expect(response.status).toBe(201);
     await expect(response.json()).resolves.toMatchObject({
       concept: {
-        primaryTerm: "checkout",
-        terms: [{ locale: "en", term: "checkout" }],
+        primaryTerm: "Checkout",
+        terms: [{ locale: "en", term: "Checkout" }],
       },
     });
   });
