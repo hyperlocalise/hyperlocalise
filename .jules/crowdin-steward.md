@@ -1,5 +1,11 @@
 # Crowdin Steward's Journal
 
+## 2026-12-31 - Add TargetLanguageID parity to StringCommentsListOptions
+
+**Learning:** In Crowdin API v2, the List String Comments endpoint (`GET /api/v2/projects/{projectId}/comments`) accepts an optional `targetLanguageId` query parameter to filter comments and issues for a specific target language. The SDK's `StringCommentsListOptions` previously lacked `TargetLanguageID`, preventing callers from filtering comments by target language.
+
+**Action:** Added `TargetLanguageID string json:"targetLanguageId,omitempty"` to `StringCommentsListOptions` in `third_party/crowdin-api-client-go/crowdin/model/string_comments.go` and updated its `Values()` query serialization method to encode `targetLanguageId`. Added unit test assertions in `model/string_comments_test.go` and `string_comments_test.go`.
+
 ## 2026-12-31 - Add FileID, LabelIDs, and CroQL parity to StringTranslationsListOptions
 
 **Learning:** In Crowdin API v2, the List String Translations endpoint (`GET /api/v2/projects/{projectId}/translations`) accepts filtering by `fileId`, `labelIds`, and `croql` in addition to `stringId` and `languageId`. Omission of these query parameters from `StringTranslationsListOptions` prevented callers from listing string translations for specific files, label filters, or CroQL query expressions.
