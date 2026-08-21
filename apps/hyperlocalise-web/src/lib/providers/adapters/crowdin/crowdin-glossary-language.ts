@@ -4117,8 +4117,8 @@ export const CROWDIN_GLOSSARY_LANGUAGES = [
   },
 ] as const satisfies readonly CrowdinGlossaryLanguage[];
 
-const crowdinById = new Map<string, CrowdinGlossaryLanguage>(
-  CROWDIN_GLOSSARY_LANGUAGES.map((language) => [language.id, language]),
+const crowdinByNormalizedId = new Map<string, CrowdinGlossaryLanguage>(
+  CROWDIN_GLOSSARY_LANGUAGES.map((language) => [language.id.toLowerCase(), language]),
 );
 const crowdinByLocale = new Map<string, CrowdinGlossaryLanguage>();
 for (const language of CROWDIN_GLOSSARY_LANGUAGES) {
@@ -4138,7 +4138,7 @@ export function toCrowdinGlossaryLanguageId(locale: string): string {
   const byLocale = crowdinByLocale.get(normalized.toLowerCase());
   if (byLocale) return byLocale.id;
 
-  const byId = crowdinById.get(normalized);
+  const byId = crowdinByNormalizedId.get(normalized.toLowerCase());
   if (byId) return byId.id;
 
   const base = baseLanguage(normalized);
@@ -4156,15 +4156,15 @@ export function toNativeGlossaryLocale(
   languageId: string,
   preferredLocales: readonly string[] = [],
 ) {
-  const normalizedId = languageId.trim();
+  const normalizedId = languageId.trim().toLowerCase();
   const preferred = preferredLocales.find((locale) => {
     try {
-      return toCrowdinGlossaryLanguageId(locale) === normalizedId;
+      return toCrowdinGlossaryLanguageId(locale).toLowerCase() === normalizedId;
     } catch {
       return false;
     }
   });
   if (preferred) return preferred;
 
-  return crowdinById.get(normalizedId)?.locale ?? languageId;
+  return crowdinByNormalizedId.get(normalizedId)?.locale ?? languageId;
 }

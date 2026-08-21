@@ -75,6 +75,7 @@ type CrowdinContext = {
   organizationId: string;
   externalProjectId: string;
   sourceLocale: string;
+  targetLocales: string[];
   credential: typeof schema.organizationExternalTmsProviderCredentials.$inferSelect;
   secretMaterial: string;
   actorUserId?: string | null;
@@ -144,6 +145,9 @@ export async function resolveCrowdinContext(
     organizationId,
     externalProjectId: glossary.externalProjectId,
     sourceLocale: glossary.sourceLocale,
+    targetLocales: [glossary.targetLocale, ...glossary.localeCoverage].filter(
+      (locale): locale is string => Boolean(locale),
+    ),
     credential,
     secretMaterial: await resolveExternalTmsSecretMaterialForActor({
       credential,
@@ -162,6 +166,7 @@ export function toCrowdinContext(input: CrowdinContext) {
     externalProjectId: input.externalProjectId,
     credential: input.credential,
     sourceLocale: input.sourceLocale,
+    targetLocales: input.targetLocales,
     secretMaterial: input.secretMaterial,
     signal: input.signal,
   };

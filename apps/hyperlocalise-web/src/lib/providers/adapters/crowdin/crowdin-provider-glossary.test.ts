@@ -60,9 +60,9 @@ describe("Crowdin live glossary concepts", () => {
       primaryTerm: "Checkout updated",
       sourceLocale: "en",
       terms: [
-        { id: 10, languageId: "en", text: "Checkout", status: "preferred", partOfSpeech: "noun" },
-        { id: 11, languageId: "en", text: "Payment", status: "preferred", partOfSpeech: "noun" },
-        { id: 12, languageId: "de", text: "Bezahlen", status: "draft", partOfSpeech: "noun" },
+        { id: 10, locale: "en", text: "Checkout", status: "preferred", partOfSpeech: "noun" },
+        { id: 11, locale: "en", text: "Payment", status: "preferred", partOfSpeech: "noun" },
+        { id: 12, locale: "de", text: "Bezahlen", status: "draft", partOfSpeech: "noun" },
       ],
     });
 
@@ -78,8 +78,8 @@ describe("Crowdin live glossary concepts", () => {
       primaryTerm: "Checkout updated",
       sourceLocale: "en",
       terms: [
-        { id: 11, languageId: "en", text: "Payment", status: "admitted", partOfSpeech: "noun" },
-        { id: 10, languageId: "en", text: "Checkout", status: "draft", partOfSpeech: "noun" },
+        { id: 11, locale: "en", text: "Payment", status: "admitted", partOfSpeech: "noun" },
+        { id: 10, locale: "en", text: "Checkout", status: "draft", partOfSpeech: "noun" },
       ],
     });
 
@@ -170,6 +170,234 @@ describe("Crowdin live glossary concepts", () => {
       primaryTerm: "Produkt",
       sourceLocale: "de",
     });
+  });
+
+  it("selects the Crowdin source term when sourceLocale is a BCP-47 locale", async () => {
+    const termBodies: Array<Record<string, unknown>> = [];
+    const fetchMock = vi.fn(async (url, init) => {
+      const path = String(url).replace("https://api.crowdin.test/api/v2", "");
+      if (path === "/glossaries/7/concepts" && init?.method === "POST") {
+        return new Response(
+          JSON.stringify({
+            data: {
+              id: 8,
+              userId: 3,
+              glossaryId: 7,
+              subject: "product",
+              definition: "",
+              translatable: true,
+              note: "",
+              url: "",
+              figure: "",
+              languagesDetails: [],
+              createdAt: "2026-08-20T00:00:00Z",
+              updatedAt: "2026-08-20T00:00:00Z",
+            },
+          }),
+          { status: 201 },
+        );
+      }
+
+      if (path === "/glossaries/7/terms" && init?.method === "POST") {
+        const body = JSON.parse(String(init.body)) as Record<string, unknown>;
+        termBodies.push(body);
+        return new Response(
+          JSON.stringify({
+            data: {
+              id: termBodies.length + 20,
+              glossaryId: 7,
+              languageId: body.languageId,
+              text: body.text,
+              conceptId: 8,
+            },
+          }),
+          { status: 201 },
+        );
+      }
+
+      if (path.startsWith("/glossaries/7/concepts?")) {
+        return new Response(
+          JSON.stringify({
+            data: [
+              {
+                data: {
+                  id: 8,
+                  userId: 3,
+                  glossaryId: 7,
+                  subject: "product",
+                  definition: "",
+                  translatable: true,
+                  note: "",
+                  url: "",
+                  figure: "",
+                  languagesDetails: [],
+                  createdAt: "2026-08-20T00:00:00Z",
+                  updatedAt: "2026-08-20T00:00:00Z",
+                },
+              },
+            ],
+            pagination: { offset: 0, limit: 500 },
+          }),
+          { status: 200 },
+        );
+      }
+
+      if (path.startsWith("/glossaries/7/terms?")) {
+        return new Response(
+          JSON.stringify({
+            data: termBodies.map((body, index) => ({
+              data: {
+                id: index + 21,
+                userId: 3,
+                glossaryId: 7,
+                languageId: body.languageId,
+                text: body.text,
+                conceptId: 8,
+              },
+            })),
+            pagination: { offset: 0, limit: 500 },
+          }),
+          { status: 200 },
+        );
+      }
+
+      return new Response(JSON.stringify({ data: [] }), { status: 200 });
+    }) as unknown as typeof fetch;
+
+    await crowdinTmsProvider.createLiveGlossaryConcept(
+      {
+        organizationId: "organization-1",
+        credential: { baseUrl: "https://api.crowdin.test/api/v2" } as never,
+        secretMaterial: "test-token",
+        projectId: "project-42",
+        externalProjectId: "42",
+        sourceLocale: "en-US",
+        fetchFn: fetchMock,
+      },
+      7,
+      {
+        primaryTerm: "Checkout",
+        sourceLocale: "en-US",
+        terms: [
+          { languageId: "en", text: "Checkout", status: "preferred" },
+          { languageId: "vi", text: "Thanh toán", status: "draft" },
+        ],
+      },
+    );
+
+    expect(termBodies).toEqual([
+      expect.objectContaining({ languageId: "en", text: "Checkout", conceptId: 8 }),
+      expect.objectContaining({ languageId: "vi", text: "Thanh toán", conceptId: 8 }),
+    ]);
+    expect(termBodies).toHaveLength(2);
+  });
+
+  it("treats native locales and Crowdin IDs as the same language on term update", async () => {
+    const patchBodies: unknown[] = [];
+    let termCreateCount = 0;
+    const fetchMock = vi.fn(async (url, init) => {
+      const path = String(url).replace("https://api.crowdin.test/api/v2", "");
+      if (path.startsWith("/glossaries/7/concepts?")) {
+        return new Response(
+          JSON.stringify({
+            data: [
+              {
+                data: {
+                  id: 8,
+                  userId: 3,
+                  glossaryId: 7,
+                  subject: "product",
+                  definition: "A product",
+                  translatable: true,
+                  note: "",
+                  url: "",
+                  figure: "",
+                  languagesDetails: [],
+                  createdAt: "2026-08-20T00:00:00Z",
+                  updatedAt: "2026-08-20T00:00:00Z",
+                },
+              },
+            ],
+            pagination: { offset: 0, limit: 500 },
+          }),
+          { status: 200 },
+        );
+      }
+
+      if (path.startsWith("/glossaries/7/terms?")) {
+        return new Response(
+          JSON.stringify({
+            data: [
+              {
+                data: {
+                  id: 9,
+                  userId: 3,
+                  glossaryId: 7,
+                  languageId: "vi",
+                  text: "Thanh toán",
+                  description: "",
+                  partOfSpeech: "noun",
+                  status: "preferred",
+                  type: "",
+                  gender: "",
+                  note: "",
+                  url: "",
+                  conceptId: 8,
+                },
+              },
+            ],
+            pagination: { offset: 0, limit: 500 },
+          }),
+          { status: 200 },
+        );
+      }
+
+      if (path === "/glossaries/7/terms" && init?.method === "POST") {
+        termCreateCount += 1;
+        return new Response(JSON.stringify({ data: { id: 99, conceptId: 8 } }), { status: 201 });
+      }
+
+      if (path === "/glossaries/7/terms/9" && init?.method === "PATCH") {
+        patchBodies.push(JSON.parse(String(init.body)));
+        return new Response(
+          JSON.stringify({
+            data: {
+              id: 9,
+              glossaryId: 7,
+              languageId: "vi",
+              text: "Thanh toán cập nhật",
+              conceptId: 8,
+            },
+          }),
+          { status: 200 },
+        );
+      }
+
+      return new Response(JSON.stringify({ data: [] }), { status: 200 });
+    }) as unknown as typeof fetch;
+
+    await crowdinTmsProvider.updateLiveGlossaryTerm(
+      {
+        organizationId: "organization-1",
+        credential: { baseUrl: "https://api.crowdin.test/api/v2" } as never,
+        secretMaterial: "test-token",
+        projectId: "project-42",
+        externalProjectId: "42",
+        sourceLocale: "en-US",
+        fetchFn: fetchMock,
+      },
+      7,
+      8,
+      9,
+      {
+        languageId: "vi-VN",
+        text: "Thanh toán cập nhật",
+        status: "preferred",
+      },
+    );
+
+    expect(patchBodies).toHaveLength(1);
+    expect(termCreateCount).toBe(0);
   });
 
   it("uses only Crowdin-supported term patch fields", async () => {

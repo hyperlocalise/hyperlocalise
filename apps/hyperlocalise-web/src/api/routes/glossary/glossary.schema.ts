@@ -299,7 +299,7 @@ export const glossaryConceptRecordSchema = z.object({
   languageDetails: z
     .array(
       z.object({
-        languageId: z.string(),
+        locale: z.string(),
         userId: z.number().int().nullable(),
         definition: z.string(),
         note: z.string(),

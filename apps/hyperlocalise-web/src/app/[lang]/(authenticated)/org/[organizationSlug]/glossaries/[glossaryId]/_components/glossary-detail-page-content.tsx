@@ -1028,9 +1028,9 @@ export function GlossaryDetailPageContent({
                       const primary = selectGlossaryPrimaryTerm(
                         concept.terms.map((term) => ({
                           id: term.id,
-                          languageId: term.locale,
+                          locale: term.locale,
                           text: term.term,
-                          status: term.status,
+                          status: term.status as TermDraft["status"],
                         })),
                         glossary.sourceLocale,
                       );

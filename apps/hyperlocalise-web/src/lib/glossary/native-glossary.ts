@@ -42,13 +42,13 @@ function normalizeNativeConcept(input: GlossaryConcept): GlossaryConcept {
   let primaryTerm = selectGlossaryPrimaryTerm(terms, input.sourceLocale);
   const hasPreferredSourceTerm = terms.some(
     (term) =>
-      term.languageId === input.sourceLocale &&
+      term.locale === input.sourceLocale &&
       term.status?.trim().toLowerCase().replaceAll(" ", "_") === "preferred",
   );
   if (!primaryTerm && input.primaryTerm) {
     const sourcePartOfSpeech = terms.find((term) => term.partOfSpeech)?.partOfSpeech;
     terms.push({
-      languageId: input.sourceLocale,
+      locale: input.sourceLocale,
       text: input.primaryTerm,
       partOfSpeech: sourcePartOfSpeech,
       status: "preferred",
@@ -64,7 +64,7 @@ function normalizeNativeConcept(input: GlossaryConcept): GlossaryConcept {
             text: input.primaryTerm,
             status: hasPreferredSourceTerm ? term.status : "preferred",
           }
-        : term.languageId === input.sourceLocale && term.status === "preferred"
+        : term.locale === input.sourceLocale && term.status === "preferred"
           ? { ...term, status: "admitted" }
           : term,
     );
@@ -87,10 +87,10 @@ function toNativeConceptInput(input: GlossaryConceptInput, sourceLocale: string)
     url: input.url,
     figure: input.figure,
     terms: (input.terms ?? []).map((term) => {
-      if ("locale" in term) {
+      if ("term" in term) {
         return {
           id: term.id,
-          languageId: term.locale,
+          locale: term.locale,
           text: term.term,
           description: term.description,
           note: term.note,
@@ -190,7 +190,7 @@ export class NativeGlossary extends Glossary {
         selectGlossaryPrimaryTerm(
           loaded.terms.map((term) => ({
             id: term.id,
-            languageId: term.locale ?? "",
+            locale: term.locale ?? "",
             text: term.term ?? term.sourceTerm,
             status: term.status,
           })),
@@ -207,10 +207,17 @@ export class NativeGlossary extends Glossary {
       externalUserId: null,
       externalCreatedAt: loaded.concept.createdAt.toISOString(),
       externalUpdatedAt: loaded.concept.updatedAt.toISOString(),
-      languageDetails: loaded.concept.languageDetails,
+      languageDetails: loaded.concept.languageDetails?.map((detail) => ({
+        locale: detail.locale,
+        userId: detail.userId,
+        definition: detail.definition,
+        note: detail.note,
+        createdAt: detail.createdAt,
+        updatedAt: detail.updatedAt,
+      })),
       terms: loaded.terms.map((term) => ({
         id: term.id,
-        languageId: term.locale ?? "",
+        locale: term.locale ?? "",
         text: term.term ?? term.sourceTerm,
         description: term.description,
         partOfSpeech: term.partOfSpeech,
@@ -229,7 +236,7 @@ export class NativeGlossary extends Glossary {
   private toTermRecord(term: typeof schema.glossaryTerms.$inferSelect) {
     return {
       id: term.id,
-      languageId: term.locale ?? "",
+      locale: term.locale ?? "",
       text: term.term ?? term.sourceTerm,
       description: term.description,
       partOfSpeech: term.partOfSpeech,
@@ -304,7 +311,7 @@ export class NativeGlossary extends Glossary {
           normalizedInput.terms.map((term) => ({
             glossaryId: this.input.glossary.id,
             conceptId: concept.id,
-            locale: term.languageId,
+            locale: term.locale,
             term: term.text,
             sourceTerm: term.text,
             targetTerm: term.text,
@@ -352,7 +359,7 @@ export class NativeGlossary extends Glossary {
             ? loaded.terms.find((candidate) => candidate.id === term.id)
             : undefined;
         const values = {
-          locale: term.languageId,
+          locale: term.locale,
           term: term.text,
           sourceTerm: term.text,
           targetTerm: term.text,
@@ -683,7 +690,7 @@ export class NativeGlossary extends Glossary {
         .values({
           glossaryId: this.input.glossary.id,
           conceptId,
-          locale: normalizedInput.languageId,
+          locale: normalizedInput.locale,
           term: normalizedInput.text,
           sourceTerm: normalizedInput.text,
           targetTerm: normalizedInput.text,
@@ -708,7 +715,7 @@ export class NativeGlossary extends Glossary {
     const [term] = await db
       .update(schema.glossaryTerms)
       .set({
-        locale: normalizedInput.languageId,
+        locale: normalizedInput.locale,
         term: normalizedInput.text,
         sourceTerm: normalizedInput.text,
         targetTerm: normalizedInput.text,

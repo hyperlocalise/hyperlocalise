@@ -13,6 +13,7 @@
 import {
   crowdinTmsProvider,
   type CrowdinGlossaryConcept,
+  type CrowdinGlossaryTermInput,
 } from "@/lib/providers/adapters/crowdin/crowdin-provider";
 import type { CrowdinGlossary as CrowdinGlossaryRecord } from "@/lib/providers/adapters/crowdin/crowdin-api";
 import { and, eq } from "drizzle-orm";
@@ -37,6 +38,10 @@ import {
   type NativeGlossaryTermInput,
 } from "./glossary";
 import { parseLiveProviderGlossaryId } from "@/lib/providers/jobs/tms-provider-resource-id";
+import {
+  toCrowdinGlossaryLanguageId,
+  toNativeGlossaryLocale,
+} from "@/lib/providers/adapters/crowdin/crowdin-glossary-language";
 
 import { parseId, resolveCrowdinContext, toCrowdinContext } from "./glossary-provider";
 import type { GlossaryProviderContext } from "./glossary-provider";
@@ -70,10 +75,10 @@ function toGlossaryConceptInput(
     url: input.url,
     figure: input.figure,
     terms: (input.terms ?? []).map((term) => {
-      if ("locale" in term) {
+      if ("term" in term) {
         return {
           id: term.id,
-          languageId: term.locale,
+          locale: term.locale,
           text: term.term,
           description: term.description,
           note: term.note,
@@ -94,20 +99,20 @@ export function toCrowdinConceptInput(concept: GlossaryConcept): CrowdinGlossary
   const primaryTerm = selectGlossaryPrimaryTerm(concept.terms, concept.sourceLocale);
   const hasPreferredSourceTerm = concept.terms.some(
     (term) =>
-      term.languageId === concept.sourceLocale &&
+      term.locale === concept.sourceLocale &&
       term.status?.trim().toLowerCase().replaceAll(" ", "_") === "preferred",
   );
   const terms = concept.terms.map((term) => ({
     id: term.id,
-    languageId: term.languageId,
+    languageId: toCrowdinGlossaryLanguageId(term.locale),
     text: term === primaryTerm && concept.primaryTerm ? concept.primaryTerm : term.text,
     description: term.description,
     partOfSpeech: normalizeGlossaryPartOfSpeech(term.partOfSpeech),
     status:
-      term === primaryTerm && term.languageId === concept.sourceLocale && !hasPreferredSourceTerm
+      term === primaryTerm && term.locale === concept.sourceLocale && !hasPreferredSourceTerm
         ? "preferred"
         : term !== primaryTerm &&
-            term.languageId === concept.sourceLocale &&
+            term.locale === concept.sourceLocale &&
             crowdinStatus(term.status) === "preferred"
           ? "admitted"
           : crowdinStatus(term.status),
@@ -118,11 +123,11 @@ export function toCrowdinConceptInput(concept: GlossaryConcept): CrowdinGlossary
     lemma: term.lemma,
   }));
 
-  if (!terms.some((term) => term.languageId === concept.sourceLocale) && concept.primaryTerm) {
+  if (!concept.terms.some((term) => term.locale === concept.sourceLocale) && concept.primaryTerm) {
     const sourcePartOfSpeech = terms.find((term) => term.partOfSpeech)?.partOfSpeech;
     terms.push({
       id: undefined,
-      languageId: concept.sourceLocale,
+      languageId: toCrowdinGlossaryLanguageId(concept.sourceLocale),
       text: concept.primaryTerm,
       description: undefined,
       partOfSpeech: sourcePartOfSpeech,
@@ -136,23 +141,101 @@ export function toCrowdinConceptInput(concept: GlossaryConcept): CrowdinGlossary
   }
 
   return {
-    ...concept,
+    conceptId: concept.conceptId,
+    primaryTerm: concept.primaryTerm,
+    sourceLocale: concept.sourceLocale,
+    subject: concept.subject,
+    definition: concept.definition,
+    translatable: concept.translatable,
+    note: concept.note,
+    url: concept.url,
+    figure: concept.figure,
+    externalKey: concept.externalKey,
+    externalUserId: concept.externalUserId,
+    languageDetails: concept.languageDetails?.map((detail) => ({
+      languageId: toCrowdinGlossaryLanguageId(detail.locale),
+      userId: detail.userId,
+      definition: detail.definition,
+      note: detail.note,
+      createdAt: detail.createdAt,
+      updatedAt: detail.updatedAt,
+    })),
+    externalCreatedAt: concept.externalCreatedAt,
+    externalUpdatedAt: concept.externalUpdatedAt,
     terms,
   };
 }
 
-function normalizeCrowdinTerm(term: NativeGlossaryTermInput): NativeGlossaryTermInput {
+function normalizeCrowdinTerm(term: NativeGlossaryTermInput): CrowdinGlossaryTermInput {
   return {
-    ...term,
+    languageId: toCrowdinGlossaryLanguageId(term.locale),
+    text: term.text,
+    description: term.description,
+    status: term.status,
+    type: term.type,
+    gender: term.gender,
+    note: term.note,
+    url: term.url,
+    lemma: term.lemma,
     partOfSpeech: normalizeGlossaryPartOfSpeech(term.partOfSpeech),
   };
 }
 
-export function toGlossaryConcept(concept: CrowdinGlossaryConcept): GlossaryConcept {
+function toGlossaryTerm(
+  term: CrowdinGlossaryTermInput & { id?: number | string; conceptId?: number },
+  preferredLocales: readonly string[],
+): GlossaryConceptTerm {
   return {
-    ...concept,
+    id: term.id,
+    conceptId: term.conceptId,
+    locale: toNativeGlossaryLocale(term.languageId, preferredLocales),
+    text: term.text,
+    description: term.description,
+    partOfSpeech: term.partOfSpeech,
+    status: normalizeGlossaryTermStatus(term.status),
+    type: normalizeGlossaryTermType(term.type),
+    gender: normalizeGlossaryGender(term.gender),
+    note: term.note,
+    url: term.url,
+    lemma: term.lemma,
+  };
+}
+
+export function toGlossaryConcept(
+  concept: CrowdinGlossaryConcept,
+  preferredLocales: readonly string[] = [],
+): GlossaryConcept {
+  return {
+    conceptId: concept.conceptId,
+    primaryTerm: concept.primaryTerm,
+    sourceLocale: concept.sourceLocale,
+    subject: concept.subject,
+    definition: concept.definition,
+    translatable: concept.translatable,
+    note: concept.note,
+    url: concept.url,
+    figure: concept.figure,
+    externalKey: concept.externalKey,
+    externalUserId: concept.externalUserId,
+    languageDetails: concept.languageDetails?.map((detail) => ({
+      locale: toNativeGlossaryLocale(detail.languageId, preferredLocales),
+      userId: detail.userId,
+      definition: detail.definition,
+      note: detail.note,
+      createdAt: detail.createdAt,
+      updatedAt: detail.updatedAt,
+    })),
+    externalCreatedAt: concept.externalCreatedAt,
+    externalUpdatedAt: concept.externalUpdatedAt,
     terms: concept.terms.map((term) => ({
-      ...term,
+      id: term.id,
+      locale: toNativeGlossaryLocale(term.languageId, preferredLocales),
+      text: term.text,
+      description: term.description,
+      partOfSpeech: term.partOfSpeech,
+      note: term.note,
+      url: term.url,
+      lemma: term.lemma,
       status: normalizeGlossaryTermStatus(term.status),
       type: normalizeGlossaryTermType(term.type),
       gender: normalizeGlossaryGender(term.gender),
@@ -164,13 +247,22 @@ function toNativeGlossary(
   glossary: CrowdinGlossaryRecord,
   nativeGlossary: NativeGlossary,
 ): NativeGlossary {
+  const preferredLocales = [
+    nativeGlossary.sourceLocale,
+    nativeGlossary.targetLocale,
+    ...nativeGlossary.localeCoverage,
+  ].filter((locale): locale is string => Boolean(locale));
+  const sourceLocale = toNativeGlossaryLocale(glossary.languageId, preferredLocales);
+  const localeCoverage = glossary.languageIds.map((languageId) =>
+    toNativeGlossaryLocale(languageId, preferredLocales),
+  );
   return {
     ...nativeGlossary,
     name: glossary.name,
     description: glossary.description ?? "",
-    sourceLocale: glossary.languageId,
-    targetLocale: glossary.languageIds.find((locale) => locale !== glossary.languageId) ?? null,
-    localeCoverage: glossary.languageIds,
+    sourceLocale,
+    targetLocale: localeCoverage.find((locale) => locale !== sourceLocale) ?? null,
+    localeCoverage,
     termCount: glossary.terms,
     externalGlossaryId: String(glossary.id),
     externalUrl: glossary.webUrl,
@@ -186,6 +278,14 @@ export class CrowdinGlossary extends Glossary {
 
   private async context() {
     return resolveCrowdinContext(this.input);
+  }
+
+  private preferredLocales() {
+    return [
+      this.input.glossary.sourceLocale,
+      this.input.glossary.targetLocale,
+      ...this.input.glossary.localeCoverage,
+    ].filter((locale): locale is string => Boolean(locale));
   }
 
   async validate() {
@@ -251,7 +351,7 @@ export class CrowdinGlossary extends Glossary {
       toCrowdinContext(context),
       parseId(this.input.glossary.externalGlossaryId!, "glossary_id"),
     );
-    return concepts.map(toGlossaryConcept);
+    return concepts.map((concept) => toGlossaryConcept(concept, this.preferredLocales()));
   }
 
   async getConcept(conceptId: string) {
@@ -261,7 +361,7 @@ export class CrowdinGlossary extends Glossary {
       parseId(this.input.glossary.externalGlossaryId!, "glossary_id"),
       parseId(conceptId, "concept_id"),
     );
-    return concept ? toGlossaryConcept(concept) : null;
+    return concept ? toGlossaryConcept(concept, this.preferredLocales()) : null;
   }
 
   async createConcept(input: GlossaryConceptInput) {
@@ -272,7 +372,7 @@ export class CrowdinGlossary extends Glossary {
       parseId(this.input.glossary.externalGlossaryId!, "glossary_id"),
       toCrowdinConceptInput(concept),
     );
-    return created ? toGlossaryConcept(created) : null;
+    return created ? toGlossaryConcept(created, this.preferredLocales()) : null;
   }
 
   async updateConcept(conceptId: string, input: GlossaryConceptInput) {
@@ -284,7 +384,7 @@ export class CrowdinGlossary extends Glossary {
       parseId(conceptId, "concept_id"),
       toCrowdinConceptInput(concept),
     );
-    return updated ? toGlossaryConcept(updated) : null;
+    return updated ? toGlossaryConcept(updated, this.preferredLocales()) : null;
   }
 
   async deleteConcept(conceptId: string) {
@@ -317,7 +417,7 @@ export class CrowdinGlossary extends Glossary {
         note: first.note,
         url: first.url,
         terms: group.map((entry) => ({
-          languageId: entry.locale,
+          locale: entry.locale,
           text: entry.term,
           description: entry.definition,
           partOfSpeech: entry.partOfSpeech,
@@ -343,7 +443,7 @@ export class CrowdinGlossary extends Glossary {
       glossaryName: this.input.glossary.name,
       sourceTerm,
       targetTerm: term.text,
-      targetLocale: term.languageId,
+      targetLocale: term.locale,
       description: term.description ?? "",
       partOfSpeech: term.partOfSpeech ?? "",
       url: term.url ?? null,
@@ -360,12 +460,12 @@ export class CrowdinGlossary extends Glossary {
     const concepts = await this.listConcepts();
     return concepts.flatMap(({ conceptId, terms }) => {
       const sourceTerm =
-        terms.find((term) => term.languageId === this.input.glossary.sourceLocale)?.text ?? "";
+        terms.find((term) => term.locale === this.input.glossary.sourceLocale)?.text ?? "";
       return terms.map((term) =>
         this.toLegacyTermRecord(
           term,
           String(conceptId),
-          term.languageId === this.input.glossary.sourceLocale ? "" : sourceTerm,
+          term.locale === this.input.glossary.sourceLocale ? "" : sourceTerm,
         ),
       );
     });
@@ -377,12 +477,12 @@ export class CrowdinGlossary extends Glossary {
       sourceLocale: this.input.glossary.sourceLocale,
       terms: [
         {
-          languageId: this.input.glossary.sourceLocale,
+          locale: this.input.glossary.sourceLocale,
           text: input.sourceTerm,
           status: "preferred",
         },
         {
-          languageId: this.input.glossary.targetLocale ?? "",
+          locale: this.input.glossary.targetLocale ?? "",
           text: input.targetTerm,
           status: "draft",
           description: input.description,
@@ -390,11 +490,9 @@ export class CrowdinGlossary extends Glossary {
           url: input.url,
           lemma: input.lemma ?? undefined,
         },
-      ].filter((term) => term.languageId),
+      ].filter((term) => term.locale),
     });
-    const target = created?.terms.find(
-      (term) => term.languageId !== this.input.glossary.sourceLocale,
-    );
+    const target = created?.terms.find((term) => term.locale !== this.input.glossary.sourceLocale);
     return target
       ? this.toLegacyTermRecord(target, String(created?.conceptId), input.sourceTerm)
       : null;
@@ -415,16 +513,16 @@ export class CrowdinGlossary extends Glossary {
     const existing = match?.terms.find((term) => String(term.id) === termId);
     if (!match || !existing) return null;
     const sourceTerm =
-      match.terms.find((term) => term.languageId === this.input.glossary.sourceLocale)?.text ?? "";
+      match.terms.find((term) => term.locale === this.input.glossary.sourceLocale)?.text ?? "";
     const updated = await this.updateTerm(String(match.conceptId), termId, {
-      languageId: existing.languageId,
+      locale: existing.locale,
       text: input.targetTerm ?? existing.text,
       description: input.description ?? existing.description ?? "",
       partOfSpeech: input.partOfSpeech ?? existing.partOfSpeech ?? "",
       status: existing.status ?? "draft",
       note: existing.note ?? "",
     });
-    return updated && "languageId" in updated
+    return updated && "locale" in updated
       ? this.toLegacyTermRecord(updated, String(match.conceptId), sourceTerm)
       : null;
   }
@@ -468,23 +566,25 @@ export class CrowdinGlossary extends Glossary {
 
   async createTerm(conceptId: string, term: NativeGlossaryTermInput) {
     const context = await this.context();
-    return crowdinTmsProvider.createLiveGlossaryTerm(
+    const created = await crowdinTmsProvider.createLiveGlossaryTerm(
       toCrowdinContext(context),
       parseId(this.input.glossary.externalGlossaryId!, "glossary_id"),
       parseId(conceptId, "concept_id"),
       normalizeCrowdinTerm(term),
     );
+    return created ? toGlossaryTerm(created, this.preferredLocales()) : null;
   }
 
   async updateTerm(conceptId: string, termId: string, term: NativeGlossaryTermInput) {
     const context = await this.context();
-    return crowdinTmsProvider.updateLiveGlossaryTerm(
+    const updated = await crowdinTmsProvider.updateLiveGlossaryTerm(
       toCrowdinContext(context),
       parseId(this.input.glossary.externalGlossaryId!, "glossary_id"),
       parseId(conceptId, "concept_id"),
       parseId(termId, "term_id"),
       normalizeCrowdinTerm(term),
     );
+    return updated ? toGlossaryTerm(updated, this.preferredLocales()) : null;
   }
 
   async deleteTerm(conceptId: string, termId: string) {

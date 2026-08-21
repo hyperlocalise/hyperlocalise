@@ -269,6 +269,7 @@ type CrowdinLiveGlossaryScope = Pick<
   projectId: string;
   externalProjectId: string;
   sourceLocale: string;
+  targetLocales?: string[];
   fetchFn?: typeof fetch;
 };
 
@@ -682,11 +683,12 @@ export class CrowdinTmsProvider extends TmsProvider {
 
   async fetchLiveGlossary(scope: CrowdinLiveGlossaryScope, glossaryId: number) {
     const glossary = await this.createClient(scope).getGlossary(glossaryId);
+    const preferredLocales = [scope.sourceLocale, ...(scope.targetLocales ?? [])];
     return {
       ...glossary,
-      languageId: toNativeGlossaryLocale(glossary.languageId, [scope.sourceLocale]),
+      languageId: toNativeGlossaryLocale(glossary.languageId, preferredLocales),
       languageIds: glossary.languageIds.map((languageId) =>
-        toNativeGlossaryLocale(languageId, [scope.sourceLocale]),
+        toNativeGlossaryLocale(languageId, preferredLocales),
       ),
     };
   }
@@ -696,7 +698,15 @@ export class CrowdinTmsProvider extends TmsProvider {
     glossaryId: number,
     patches: Array<{ op: "replace" | "add" | "remove"; path: string; value?: unknown }>,
   ) {
-    return this.createClient(scope).updateGlossary(glossaryId, patches);
+    const glossary = await this.createClient(scope).updateGlossary(glossaryId, patches);
+    const preferredLocales = [scope.sourceLocale, ...(scope.targetLocales ?? [])];
+    return {
+      ...glossary,
+      languageId: toNativeGlossaryLocale(glossary.languageId, preferredLocales),
+      languageIds: glossary.languageIds.map((languageId) =>
+        toNativeGlossaryLocale(languageId, preferredLocales),
+      ),
+    };
   }
 
   async deleteLiveGlossary(scope: CrowdinLiveGlossaryScope, glossaryId: number) {
@@ -711,11 +721,7 @@ export class CrowdinTmsProvider extends TmsProvider {
       client.listGlossaryTerms(glossaryId),
     ]);
     const termsByConcept = new Map<number, CrowdinGlossaryTerm[]>();
-    const nativeTerms = terms.map((term) => ({
-      ...term,
-      languageId: toNativeGlossaryLocale(term.languageId, [sourceLocale]),
-    }));
-    for (const term of nativeTerms) {
+    for (const term of terms) {
       const conceptId = term.conceptId || term.id;
       const current = termsByConcept.get(conceptId) ?? [];
       current.push(term);
@@ -724,7 +730,16 @@ export class CrowdinTmsProvider extends TmsProvider {
     const mapped: CrowdinGlossaryConcept[] = concepts.map((concept) => ({
       conceptId: concept.id,
       primaryTerm:
-        selectGlossaryPrimaryTerm(termsByConcept.get(concept.id) ?? [], sourceLocale)?.text ?? "",
+        selectGlossaryPrimaryTerm(
+          (termsByConcept.get(concept.id) ?? []).map((term) => ({
+            ...term,
+            locale: toNativeGlossaryLocale(term.languageId, [
+              sourceLocale,
+              ...(scope.targetLocales ?? []),
+            ]),
+          })),
+          sourceLocale,
+        )?.text ?? "",
       sourceLocale,
       subject: concept.subject,
       definition: concept.definition,
@@ -736,7 +751,6 @@ export class CrowdinTmsProvider extends TmsProvider {
       externalUserId: String(concept.userId),
       languageDetails: concept.languagesDetails.map((detail) => ({
         ...detail,
-        languageId: toNativeGlossaryLocale(detail.languageId, [sourceLocale]),
       })),
       externalCreatedAt: concept.createdAt,
       externalUpdatedAt: concept.updatedAt,
@@ -747,7 +761,17 @@ export class CrowdinTmsProvider extends TmsProvider {
       if (knownIds.has(conceptId)) continue;
       mapped.push({
         conceptId,
-        primaryTerm: selectGlossaryPrimaryTerm(conceptTerms, sourceLocale)?.text ?? "",
+        primaryTerm:
+          selectGlossaryPrimaryTerm(
+            conceptTerms.map((term) => ({
+              ...term,
+              locale: toNativeGlossaryLocale(term.languageId, [
+                sourceLocale,
+                ...(scope.targetLocales ?? []),
+              ]),
+            })),
+            sourceLocale,
+          )?.text ?? "",
         sourceLocale,
         subject: "",
         definition: "",
@@ -794,8 +818,11 @@ export class CrowdinTmsProvider extends TmsProvider {
         note: detail.note,
       })),
     });
-    const source = input.terms.find((term) => term.languageId === input.sourceLocale) ?? {
-      languageId: input.sourceLocale,
+    const sourceLanguageId = toCrowdinGlossaryLanguageId(input.sourceLocale);
+    const source = input.terms.find(
+      (term) => toCrowdinGlossaryLanguageId(term.languageId) === sourceLanguageId,
+    ) ?? {
+      languageId: sourceLanguageId,
       text: input.primaryTerm,
     };
     const createdSource = await client.addGlossaryTerm(glossaryId, {
@@ -849,7 +876,10 @@ export class CrowdinTmsProvider extends TmsProvider {
     for (const term of input.terms) {
       const existingTerm = term.id ? existingById.get(String(term.id)) : undefined;
       if (existingTerm && typeof existingTerm.id === "number") {
-        if (term.languageId !== existingTerm.languageId) {
+        if (
+          toCrowdinGlossaryLanguageId(term.languageId) !==
+          toCrowdinGlossaryLanguageId(existingTerm.languageId)
+        ) {
           await client.addGlossaryTerm(glossaryId, {
             languageId: toCrowdinGlossaryLanguageId(term.languageId),
             text: term.text,
@@ -937,7 +967,10 @@ export class CrowdinTmsProvider extends TmsProvider {
     const existing = await this.getLiveGlossaryConcept(scope, glossaryId, conceptId);
     const existingTerm = existing?.terms.find((term) => String(term.id) === String(termId));
     if (!existingTerm) return null;
-    if (input.languageId !== existingTerm.languageId) {
+    if (
+      toCrowdinGlossaryLanguageId(input.languageId) !==
+      toCrowdinGlossaryLanguageId(existingTerm.languageId)
+    ) {
       const replacement = await client.addGlossaryTerm(glossaryId, {
         languageId: toCrowdinGlossaryLanguageId(input.languageId),
         text: input.text,
@@ -1636,11 +1669,13 @@ export class CrowdinTmsProvider extends TmsProvider {
     }
 
     const client = this.createClient(input);
+    const sourceLanguageId = toCrowdinGlossaryLanguageId(input.sourceLocale);
+    const targetLanguageId = toCrowdinGlossaryLanguageId(input.targetLocale);
     let results: Awaited<ReturnType<CrowdinApiClient["glossaryConcordanceSearch"]>>;
     try {
       results = await client.glossaryConcordanceSearch(projectId, {
-        sourceLanguageId: input.sourceLocale,
-        targetLanguageId: input.targetLocale,
+        sourceLanguageId,
+        targetLanguageId,
         expressions: [input.sourceText],
       });
     } catch (error) {
@@ -1661,15 +1696,15 @@ export class CrowdinTmsProvider extends TmsProvider {
         continue;
       }
 
-      const sourceTerm = this.pickTermText(result.sourceTerms, input.sourceLocale);
-      const targetTerm = this.pickTermText(result.targetTerms, input.targetLocale);
+      const sourceTerm = this.pickTermText(result.sourceTerms, sourceLanguageId);
+      const targetTerm = this.pickTermText(result.targetTerms, targetLanguageId);
       if (!sourceTerm || !targetTerm) {
         continue;
       }
 
       const status =
-        this.pickTermStatus(result.targetTerms, input.targetLocale) ??
-        this.pickTermStatus(result.sourceTerms, input.sourceLocale);
+        this.pickTermStatus(result.targetTerms, targetLanguageId) ??
+        this.pickTermStatus(result.sourceTerms, sourceLanguageId);
       const providerTermId = result.sourceTerms[0]?.id ?? result.targetTerms[0]?.id;
       const externalTermId =
         providerTermId != null
@@ -1704,11 +1739,13 @@ export class CrowdinTmsProvider extends TmsProvider {
     }
 
     const client = this.createClient(input);
+    const sourceLanguageId = toCrowdinGlossaryLanguageId(input.sourceLocale);
+    const targetLanguageId = toCrowdinGlossaryLanguageId(input.targetLocale);
     let results: Awaited<ReturnType<CrowdinApiClient["concordanceSearch"]>>;
     try {
       results = await client.concordanceSearch(projectId, {
-        sourceLanguageId: input.sourceLocale,
-        targetLanguageId: input.targetLocale,
+        sourceLanguageId,
+        targetLanguageId,
         expressions: [input.sourceText],
         minRelevant: 50,
         autoSubstitution: false,
@@ -2183,27 +2220,29 @@ export class CrowdinTmsProvider extends TmsProvider {
       crowdinProjectId = null;
     }
 
+    const sourceLanguageId = toCrowdinGlossaryLanguageId(input.sourceLocale);
+    const targetLanguageId = toCrowdinGlossaryLanguageId(input.targetLocale);
     try {
       const results = crowdinProjectId
         ? await client.glossaryConcordanceSearch(crowdinProjectId, {
-            sourceLanguageId: input.sourceLocale,
-            targetLanguageId: input.targetLocale,
+            sourceLanguageId,
+            targetLanguageId,
             expressions,
           })
         : await client.organizationGlossaryConcordanceSearch({
-            sourceLanguageId: input.sourceLocale,
-            targetLanguageId: input.targetLocale,
+            sourceLanguageId,
+            targetLanguageId,
             expressions,
           });
 
       const matches: CrowdinAgentGlossaryMatch[] = [];
       resultsLoop: for (const result of results) {
         const sourceTerms = result.sourceTerms
-          .filter((term) => term.languageId === input.sourceLocale)
+          .filter((term) => term.languageId === sourceLanguageId)
           .map((term) => ({ ...term, text: term.text.trim() }))
           .filter((term) => term.text);
         const targetTerms = result.targetTerms
-          .filter((term) => term.languageId === input.targetLocale)
+          .filter((term) => term.languageId === targetLanguageId)
           .map((term) => ({ ...term, text: term.text.trim() }))
           .filter((term) => term.text);
         if (sourceTerms.length === 0 || targetTerms.length === 0) {
@@ -2294,16 +2333,18 @@ export class CrowdinTmsProvider extends TmsProvider {
       });
     }
 
+    const sourceLanguageId = toCrowdinGlossaryLanguageId(input.sourceLocale);
+    const targetLanguageId = toCrowdinGlossaryLanguageId(input.targetLocale);
     try {
       const [glossaryResults, translationMemoryResults] = await Promise.all([
         client.glossaryConcordanceSearch(crowdinProjectId, {
-          sourceLanguageId: input.sourceLocale,
-          targetLanguageId: input.targetLocale,
+          sourceLanguageId,
+          targetLanguageId,
           expressions,
         }),
         client.concordanceSearch(crowdinProjectId, {
-          sourceLanguageId: input.sourceLocale,
-          targetLanguageId: input.targetLocale,
+          sourceLanguageId,
+          targetLanguageId,
           expressions,
           minRelevant: 50,
           autoSubstitution: false,
@@ -2313,11 +2354,11 @@ export class CrowdinTmsProvider extends TmsProvider {
       const glossaryMatches: CrowdinAgentGlossaryMatch[] = [];
       resultsLoop: for (const result of glossaryResults) {
         const sourceTerms = result.sourceTerms
-          .filter((term) => term.languageId === input.sourceLocale)
+          .filter((term) => term.languageId === sourceLanguageId)
           .map((term) => ({ ...term, text: term.text.trim() }))
           .filter((term) => term.text);
         const targetTerms = result.targetTerms
-          .filter((term) => term.languageId === input.targetLocale)
+          .filter((term) => term.languageId === targetLanguageId)
           .map((term) => ({ ...term, text: term.text.trim() }))
           .filter((term) => term.text);
         if (sourceTerms.length === 0 || targetTerms.length === 0) {
@@ -2487,17 +2528,19 @@ export class CrowdinTmsProvider extends TmsProvider {
 
     let glossaryResults: Awaited<ReturnType<CrowdinApiClient["glossaryConcordanceSearch"]>>;
     let translationMemoryResults: Awaited<ReturnType<CrowdinApiClient["concordanceSearch"]>>;
+    const sourceLanguageId = toCrowdinGlossaryLanguageId(input.sourceLocale);
+    const targetLanguageId = toCrowdinGlossaryLanguageId(input.targetLocale);
 
     try {
       [glossaryResults, translationMemoryResults] = await Promise.all([
         input.client.glossaryConcordanceSearch(projectId, {
-          sourceLanguageId: input.sourceLocale,
-          targetLanguageId: input.targetLocale,
+          sourceLanguageId,
+          targetLanguageId,
           expressions: [input.sourceText],
         }),
         input.client.concordanceSearch(projectId, {
-          sourceLanguageId: input.sourceLocale,
-          targetLanguageId: input.targetLocale,
+          sourceLanguageId,
+          targetLanguageId,
           expressions: [input.sourceText],
           minRelevant: 50,
           autoSubstitution: false,
@@ -2510,16 +2553,16 @@ export class CrowdinTmsProvider extends TmsProvider {
     const glossaryTerms: NormalizedGlossaryMatch[] = [];
 
     for (const [index, result] of glossaryResults.entries()) {
-      const sourceTerm = this.pickTermText(result.sourceTerms, input.sourceLocale);
-      const targetTerm = this.pickTermText(result.targetTerms, input.targetLocale);
+      const sourceTerm = this.pickTermText(result.sourceTerms, sourceLanguageId);
+      const targetTerm = this.pickTermText(result.targetTerms, targetLanguageId);
       if (!sourceTerm || !targetTerm) {
         continue;
       }
 
       const externalGlossaryId = String(result.glossary.id);
       const status =
-        this.pickTermStatus(result.targetTerms, input.targetLocale) ??
-        this.pickTermStatus(result.sourceTerms, input.sourceLocale);
+        this.pickTermStatus(result.targetTerms, targetLanguageId) ??
+        this.pickTermStatus(result.sourceTerms, sourceLanguageId);
       const providerTermId = result.sourceTerms[0]?.id ?? result.targetTerms[0]?.id;
       const externalTermId =
         providerTermId != null

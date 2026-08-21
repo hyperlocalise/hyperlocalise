@@ -92,6 +92,41 @@ describe("crowdinTmsProvider.searchGlossaryForAgent", () => {
     expect(String(fetchMock.mock.calls[0]?.[0])).not.toContain("/projects/");
   });
 
+  it("converts BCP-47 locales before concordance search and term filtering", async () => {
+    loadOrganizationCredentialMock.mockResolvedValue(baseCredential);
+    fetchMock.mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          data: [{ data: concordanceHit("Talk to Heidi", "Nói chuyện với Heidi") }],
+        }),
+        { status: 200 },
+      ),
+    );
+
+    const result = await crowdinTmsProvider.searchGlossaryForAgent({
+      organizationId: "org-1",
+      actorUserId: "user-1",
+      sourceLocale: "en-US",
+      targetLocale: "vi-VN",
+      expressions: ["Talk to Heidi"],
+    });
+
+    expect(isOk(result)).toBe(true);
+    if (!isOk(result)) {
+      return;
+    }
+
+    const requestBody = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body)) as {
+      sourceLanguageId: string;
+      targetLanguageId: string;
+    };
+    expect(requestBody).toMatchObject({
+      sourceLanguageId: "en",
+      targetLanguageId: "vi",
+    });
+    expect(result.value.matches[0]?.targetTerm).toBe("Nói chuyện với Heidi");
+  });
+
   it("preserves every same-locale target term and its status", async () => {
     loadOrganizationCredentialMock.mockResolvedValue(baseCredential);
     fetchMock.mockResolvedValue(

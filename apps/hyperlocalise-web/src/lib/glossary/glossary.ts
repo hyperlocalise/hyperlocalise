@@ -103,7 +103,7 @@ export type GlossaryConceptImportEntry = {
 };
 
 export type NativeGlossaryTermInput = {
-  languageId: string;
+  locale: string;
   text: string;
   description?: string;
   partOfSpeech?: string;
@@ -124,7 +124,7 @@ export type GlossaryConceptTerm = NativeGlossaryTermInput & {
 };
 
 export type NativeGlossaryLanguageDetails = {
-  languageId: string;
+  locale: string;
   userId: number | null;
   definition: string;
   note: string;
@@ -152,7 +152,7 @@ export type GlossaryConcept = {
 
 export type GlossaryPrimaryTermCandidate = {
   id?: number | string;
-  languageId: string;
+  locale: string;
   text: string;
   status?: string | null;
 };
@@ -161,7 +161,7 @@ export function selectGlossaryPrimaryTerm<T extends GlossaryPrimaryTermCandidate
   terms: T[],
   sourceLocale: string,
 ): T | undefined {
-  const sourceTerms = terms.filter((term) => term.languageId === sourceLocale);
+  const sourceTerms = terms.filter((term) => term.locale === sourceLocale);
   return (
     sourceTerms.find(
       (term) => term.status?.trim().toLowerCase().replaceAll(" ", "_") === "preferred",

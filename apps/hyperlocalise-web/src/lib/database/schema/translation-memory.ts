@@ -39,7 +39,7 @@ import { organizationExternalTmsProviderCredentials } from "./providers";
 import { projects } from "./projects";
 
 export type GlossaryConceptLanguageDetails = {
-  languageId: string;
+  locale: string;
   userId: number | null;
   definition: string;
   note: string;
