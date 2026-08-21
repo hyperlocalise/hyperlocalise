@@ -31,6 +31,7 @@ import {
   type GlossaryConcept,
   type GlossaryConceptTerm,
   type GlossaryConceptInput,
+  type GlossaryProjectRecord,
   type GlossaryTermCreateInput,
   type GlossaryTermRecord,
   type GlossaryTermUpdateInput,
@@ -45,6 +46,7 @@ import {
 
 import { parseId, resolveCrowdinContext, toCrowdinContext } from "./glossary-provider";
 import type { GlossaryProviderContext } from "./glossary-provider";
+import { sanitizeExternalUrl } from "@/lib/security/safe-external-url";
 
 function crowdinStatus(status: string | undefined) {
   switch (status) {
@@ -299,6 +301,23 @@ export class CrowdinGlossary extends Glossary {
       parseId(this.input.glossary.externalGlossaryId!, "glossary_id"),
     );
     return toNativeGlossary(glossary, this.input.glossary);
+  }
+
+  async listProjects(): Promise<GlossaryProjectRecord[]> {
+    const context = await this.context();
+    const projects = await crowdinTmsProvider.listLiveGlossaryProjects(
+      toCrowdinContext(context),
+      parseId(this.input.glossary.externalGlossaryId!, "glossary_id"),
+    );
+
+    return projects.map((project) => ({
+      projectId: String(project.id),
+      projectName: project.name,
+      priority: 0,
+      sourceLocale: project.sourceLanguageId,
+      targetLocales: project.targetLanguageIds,
+      externalUrl: sanitizeExternalUrl(project.webUrl),
+    }));
   }
 
   async update(payload: { name?: string; description?: string }) {

@@ -2381,12 +2381,23 @@ export function GlossaryDetailPageContent({
                 key={project.projectId}
                 className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border px-3 py-2"
               >
-                <Link
-                  href={`/org/${organizationSlug}/projects/${project.projectId}`}
-                  className="text-sm font-medium text-foreground hover:underline"
-                >
-                  {project.projectName}
-                </Link>
+                {project.externalUrl ? (
+                  <a
+                    href={project.externalUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-sm font-medium text-foreground hover:underline"
+                  >
+                    {project.projectName}
+                  </a>
+                ) : (
+                  <Link
+                    href={`/org/${organizationSlug}/projects/${project.projectId}`}
+                    className="text-sm font-medium text-foreground hover:underline"
+                  >
+                    {project.projectName}
+                  </Link>
+                )}
                 {canEdit && isNative ? (
                   <Button
                     type="button"

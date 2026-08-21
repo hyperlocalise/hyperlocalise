@@ -10,11 +10,10 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { and, count, desc, eq } from "drizzle-orm";
+import { count, desc } from "drizzle-orm";
 import { Hono } from "hono";
 import { validator } from "hono/validator";
 
-import { buildAccessibleProjectsWhere } from "@/api/auth/team-access";
 import { workosAuthMiddleware, type ApiAuthContext, type AuthVariables } from "@/api/auth/workos";
 import { badRequestResponse, conflictResponse } from "@/api/errors";
 import { PRODUCT_USAGE_ANALYTICS_EVENTS } from "@/lib/analytics/events";
@@ -68,14 +67,6 @@ type GlossaryListResult = {
   glossaries: NativeGlossary[];
   total: number;
   languagesByGlossaryId: Map<string, ReturnType<typeof toGlossaryRecord>["languages"]>;
-};
-
-type GlossaryProjectRecord = {
-  projectId: string;
-  projectName: string;
-  priority: number;
-  sourceLocale: string | null;
-  targetLocales: string[];
 };
 
 async function listGlossaries(
@@ -188,62 +179,6 @@ function parseGlossaryImport(payload: ImportGlossaryTermsBody): CreateGlossaryTe
         ]
       : [];
   });
-}
-
-async function listGlossaryProjects(
-  auth: ApiAuthContext,
-  glossary: Awaited<ReturnType<typeof getOwnedGlossary>>,
-): Promise<GlossaryProjectRecord[]> {
-  if (!glossary) return [];
-
-  const accessibleProjectsWhere = await buildAccessibleProjectsWhere(auth);
-  if (
-    glossary.source === "external_tms" &&
-    glossary.externalProviderKind === "crowdin" &&
-    glossary.externalProjectId
-  ) {
-    const [providerProject] = await db
-      .select({
-        projectId: schema.projects.id,
-        projectName: schema.projects.name,
-        sourceLocale: schema.projects.sourceLocale,
-        targetLocales: schema.projects.targetLocales,
-      })
-      .from(schema.projects)
-      .where(
-        and(
-          eq(schema.projects.organizationId, auth.organization.localOrganizationId),
-          eq(schema.projects.source, "external_tms"),
-          eq(schema.projects.externalProviderKind, "crowdin"),
-          eq(schema.projects.externalProjectId, glossary.externalProjectId),
-          accessibleProjectsWhere,
-        ),
-      )
-      .limit(1);
-
-    return providerProject ? [{ ...providerProject, priority: 0 }] : [];
-  }
-
-  const attachedProjects = await db
-    .select({
-      projectId: schema.projects.id,
-      projectName: schema.projects.name,
-      priority: schema.projectGlossaries.priority,
-      sourceLocale: schema.projects.sourceLocale,
-      targetLocales: schema.projects.targetLocales,
-    })
-    .from(schema.projectGlossaries)
-    .innerJoin(schema.projects, eq(schema.projectGlossaries.projectId, schema.projects.id))
-    .where(
-      and(
-        eq(schema.projectGlossaries.organizationId, auth.organization.localOrganizationId),
-        eq(schema.projectGlossaries.glossaryId, glossary.id),
-        accessibleProjectsWhere,
-      ),
-    )
-    .orderBy(schema.projectGlossaries.priority, schema.projects.name);
-
-  return attachedProjects;
 }
 
 const validateGlossaryParams = validator("param", (value, c) => {
@@ -594,7 +529,8 @@ export function createGlossaryRoutes() {
         return glossaryNotFoundResponse(c);
       }
 
-      return c.json({ projects: await listGlossaryProjects(c.var.auth, glossary) }, 200);
+      const product = getGlossaryProduct({ auth: c.var.auth, glossary });
+      return c.json({ projects: product ? await product.listProjects() : [] }, 200);
     })
     .post(
       "/:glossaryId/projects",
@@ -623,7 +559,7 @@ export function createGlossaryRoutes() {
         if (!product) return externalTmsGlossaryImmutableResponse(c);
         await product.attachProject(project.id, payload.priority);
 
-        return c.json({ projects: await listGlossaryProjects(c.var.auth, glossary) }, 200);
+        return c.json({ projects: await product.listProjects() }, 200);
       },
     )
     .delete("/:glossaryId/projects/:projectId", validateGlossaryProjectParams, async (c) => {

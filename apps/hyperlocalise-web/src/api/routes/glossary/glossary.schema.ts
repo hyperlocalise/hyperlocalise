@@ -321,6 +321,7 @@ export const glossaryProjectRecordSchema = z.object({
   priority: z.number().int(),
   sourceLocale: z.string().nullable(),
   targetLocales: z.array(z.string()),
+  externalUrl: z.string().url().nullable(),
 });
 
 export const glossaryResponseSchema = z.object({

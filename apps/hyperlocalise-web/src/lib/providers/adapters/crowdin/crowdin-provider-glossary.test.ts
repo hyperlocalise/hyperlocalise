@@ -16,6 +16,94 @@ import { crowdinTmsProvider } from "./crowdin-provider";
 import { toCrowdinConceptInput } from "@/lib/glossary/crowdin-glossary";
 
 describe("Crowdin live glossary concepts", () => {
+  it("lists projects associated with a glossary from the live Crowdin API", async () => {
+    const fetchMock = vi.fn(async (url) => {
+      const path = String(url).replace("https://api.crowdin.test/api/v2", "");
+
+      if (path === "/glossaries/7") {
+        return new Response(
+          JSON.stringify({
+            data: {
+              id: 7,
+              name: "Product glossary",
+              description: null,
+              languageId: "en",
+              languageIds: ["en", "fr"],
+              terms: 12,
+              projectIds: [43, 42],
+              defaultProjectIds: [42, 44],
+              webUrl: "https://crowdin.test/glossary/7",
+            },
+          }),
+          { status: 200 },
+        );
+      }
+
+      if (path.startsWith("/projects?")) {
+        return new Response(
+          JSON.stringify({
+            data: [
+              {
+                data: {
+                  id: 44,
+                  name: "Zeta project",
+                  identifier: "zeta",
+                  sourceLanguageId: "en",
+                  targetLanguageIds: ["de"],
+                  webUrl: "https://crowdin.test/project/zeta",
+                  isSuspended: false,
+                },
+              },
+              {
+                data: {
+                  id: 42,
+                  name: "Alpha project",
+                  identifier: "alpha",
+                  sourceLanguageId: "en",
+                  targetLanguageIds: ["fr"],
+                  webUrl: "https://crowdin.test/project/alpha",
+                  isSuspended: false,
+                },
+              },
+              {
+                data: {
+                  id: 99,
+                  name: "Unrelated project",
+                  identifier: "unrelated",
+                  sourceLanguageId: "en",
+                  targetLanguageIds: ["es"],
+                  webUrl: "https://crowdin.test/project/unrelated",
+                  isSuspended: false,
+                },
+              },
+            ],
+            pagination: { offset: 0, limit: 500 },
+          }),
+          { status: 200 },
+        );
+      }
+
+      throw new Error(`Unexpected Crowdin request: ${path}`);
+    }) as unknown as typeof fetch;
+
+    const projects = await crowdinTmsProvider.listLiveGlossaryProjects(
+      {
+        organizationId: "organization-1",
+        credential: { baseUrl: "https://api.crowdin.test/api/v2" } as never,
+        secretMaterial: "test-token",
+        projectId: "42",
+        externalProjectId: "42",
+        sourceLocale: "en",
+        fetchFn: fetchMock,
+      },
+      7,
+    );
+
+    expect(projects.map((project) => project.id)).toEqual([42, 44]);
+    expect(projects.map((project) => project.name)).toEqual(["Alpha project", "Zeta project"]);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
   it("maps native locales before creating a glossary term", async () => {
     let requestBody: Record<string, unknown> | undefined;
     const fetchMock = vi.fn(async (_url, init) => {

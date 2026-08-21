@@ -74,6 +74,15 @@ export type GlossaryTermRecord = {
   reviewStatus: string;
 };
 
+export type GlossaryProjectRecord = {
+  projectId: string;
+  projectName: string;
+  priority: number;
+  sourceLocale: string | null;
+  targetLocales: string[];
+  externalUrl: string | null;
+};
+
 export type GlossaryTermCreateInput = {
   sourceTerm: string;
   targetTerm: string;
@@ -265,6 +274,7 @@ export function normalizeGlossaryTermStatus(value: string | null | undefined): G
 export abstract class Glossary {
   abstract readonly kind: "native" | "crowdin";
   abstract get(): Promise<NativeGlossary | null>;
+  abstract listProjects(): Promise<GlossaryProjectRecord[]>;
   abstract update(payload: { name?: string; description?: string }): Promise<NativeGlossary | null>;
   abstract delete(): Promise<boolean>;
   abstract listConcepts(): Promise<GlossaryConcept[]>;

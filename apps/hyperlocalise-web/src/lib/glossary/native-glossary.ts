@@ -12,6 +12,7 @@
  */
 import { and, eq, inArray, isNull, ne, sql } from "drizzle-orm";
 
+import { buildAccessibleProjectsWhere } from "@/api/auth/team-access";
 import { db, schema, type DatabaseClient } from "@/lib/database";
 import {
   Glossary,
@@ -29,6 +30,7 @@ import type {
   GlossaryConcept,
   GlossaryConceptInput,
   NativeGlossaryTermInput,
+  GlossaryProjectRecord,
 } from "./glossary";
 import type { GlossaryProviderContext } from "./glossary-provider";
 import { createGlossaryTermDuplicateTracker } from "./glossary-term-dedupe";
@@ -133,6 +135,33 @@ export class NativeGlossary extends Glossary {
       )
       .limit(1);
     return glossary ?? null;
+  }
+
+  async listProjects(): Promise<GlossaryProjectRecord[]> {
+    const accessibleProjectsWhere = await buildAccessibleProjectsWhere(this.input.auth);
+    const attachedProjects = await db
+      .select({
+        projectId: schema.projects.id,
+        projectName: schema.projects.name,
+        priority: schema.projectGlossaries.priority,
+        sourceLocale: schema.projects.sourceLocale,
+        targetLocales: schema.projects.targetLocales,
+      })
+      .from(schema.projectGlossaries)
+      .innerJoin(schema.projects, eq(schema.projectGlossaries.projectId, schema.projects.id))
+      .where(
+        and(
+          eq(
+            schema.projectGlossaries.organizationId,
+            this.input.auth.organization.localOrganizationId,
+          ),
+          eq(schema.projectGlossaries.glossaryId, this.input.glossary.id),
+          accessibleProjectsWhere,
+        ),
+      )
+      .orderBy(schema.projectGlossaries.priority, schema.projects.name);
+
+    return attachedProjects.map((project) => ({ ...project, externalUrl: null }));
   }
 
   async update(payload: { name?: string; description?: string }) {

@@ -693,6 +693,19 @@ export class CrowdinTmsProvider extends TmsProvider {
     };
   }
 
+  async listLiveGlossaryProjects(scope: CrowdinLiveGlossaryScope, glossaryId: number) {
+    const client = this.createClient(scope);
+    const glossary = await client.getGlossary(glossaryId);
+    const associatedProjectIds = new Set([...glossary.projectIds, ...glossary.defaultProjectIds]);
+
+    if (associatedProjectIds.size === 0) return [];
+
+    const projects = await client.listProjects();
+    return projects
+      .filter((project) => associatedProjectIds.has(project.id))
+      .sort((left, right) => left.name.localeCompare(right.name));
+  }
+
   async updateLiveGlossary(
     scope: CrowdinLiveGlossaryScope,
     glossaryId: number,
