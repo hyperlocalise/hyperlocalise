@@ -612,6 +612,51 @@ describe("Crowdin live glossary concepts", () => {
     ]);
   });
 
+  it("lists account glossaries without filtering by Crowdin userId", async () => {
+    let requestedUrl = "";
+    const fetchMock = vi.fn(async (url) => {
+      requestedUrl = String(url);
+      const path = requestedUrl.replace("https://api.crowdin.test/api/v2", "");
+      if (path.startsWith("/glossaries?")) {
+        return new Response(
+          JSON.stringify({
+            data: [
+              {
+                data: {
+                  id: 2,
+                  name: "Shared glossary",
+                  description: null,
+                  languageId: "en",
+                  languageIds: ["en", "fr"],
+                  terms: 4,
+                  projectIds: [42],
+                  defaultProjectIds: [],
+                  webUrl: "https://crowdin.test/glossary/2",
+                },
+              },
+            ],
+          }),
+          { status: 200 },
+        );
+      }
+
+      throw new Error(`Unexpected Crowdin request: ${path}`);
+    }) as unknown as typeof fetch;
+
+    await crowdinTmsProvider.fetchGlossariesPage({
+      organizationId: "organization-1",
+      credential: { baseUrl: "https://api.crowdin.test/api/v2" } as never,
+      secretMaterial: "test-token",
+      fetchFn: fetchMock,
+      limit: 25,
+      offset: 0,
+    });
+
+    const query = new URL(requestedUrl).searchParams;
+    expect(query.has("userId")).toBe(false);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
   it("filters Crowdin glossaries by project before paginating", async () => {
     const glossaryPayload = (
       id: number,
@@ -633,10 +678,6 @@ describe("Crowdin live glossary concepts", () => {
 
     const fetchMock = vi.fn(async (url) => {
       const path = String(url).replace("https://api.crowdin.test/api/v2", "");
-
-      if (path === "/user") {
-        return new Response(JSON.stringify({ data: { id: 99 } }), { status: 200 });
-      }
 
       if (path.startsWith("/glossaries?")) {
         const offset = Number(

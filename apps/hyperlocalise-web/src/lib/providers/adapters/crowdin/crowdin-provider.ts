@@ -739,16 +739,17 @@ export class CrowdinTmsProvider extends TmsProvider {
     },
   ): Promise<CrowdinLiveGlossaryPage> {
     const client = this.createClient(scope);
-    const authenticatedUser = await client.getAuthenticatedUser();
     const requestedLimit = scope.limit ?? CROWDIN_GLOSSARY_LIST_LIMIT;
     const requestedOffset = scope.offset ?? 0;
+    // Do not pass Crowdin's `userId` filter. That parameter lists only glossaries
+    // owned by one Crowdin user and silently hides teammates' glossaries that
+    // `listGlossaries()` / project sync still see on the same credential.
     const fetchRawPage = (limit: number, offset: number) =>
       client.listGlossariesPage({
         limit,
         offset,
         orderBy: scope.orderBy,
         filter: scope.filter,
-        userId: authenticatedUser.id,
       });
 
     if (!scope.projectId) {
