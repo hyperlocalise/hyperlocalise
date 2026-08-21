@@ -7,6 +7,10 @@
     "defaultMessage": "Copied",
     "description": "Copy button label after the API key was copied"
   },
+  "+/N0T0rYIa": {
+    "defaultMessage": "Select a valid part of speech for every term before saving.",
+    "description": "Validation error when a glossary term is missing a valid part of speech"
+  },
   "+0cpswe8Tj": {
     "defaultMessage": "Settings",
     "description": "Tab label for automation settings"
@@ -314,6 +318,10 @@
   "/2DsRIRpZu": {
     "defaultMessage": "GitHub push and pull request · {repository} · {branches}",
     "description": "Header summary for a GitHub trigger that runs on push and pull request"
+  },
+  "/2Rg3XAZX2": {
+    "defaultMessage": "Open term URL",
+    "description": "Accessible label for opening a term reference URL"
   },
   "/2wzw7IAoz": {
     "defaultMessage": "Unable to open Hyperlocalise",
@@ -3103,6 +3111,10 @@
     "defaultMessage": "Forbidden glossary term",
     "description": "CAT format check label when a forbidden glossary term appears in the target"
   },
+  "8Pm5sD+4i4": {
+    "defaultMessage": "Edit glossary name",
+    "description": "Accessible label for editing the glossary name"
+  },
   "8QNV5JFMzw": {
     "defaultMessage": "Manage workspace access, invitations, and localization roles.",
     "description": "Workspace members page description"
@@ -5287,6 +5299,10 @@
     "defaultMessage": "AI credit usage resets each billing cycle. Seats, projects, automations, and integrations are workspace limits.",
     "description": "Plan usage card description on billing settings"
   },
+  "FgAIhNIP18": {
+    "defaultMessage": "Live API",
+    "description": "Term capability badge for glossaries loaded and changed through a live provider API"
+  },
   "FgWgulEUlJ": {
     "defaultMessage": "Team created",
     "description": "Toast after a team is created successfully"
@@ -5743,6 +5759,10 @@
     "defaultMessage": "Notify me",
     "description": "Submit button for the notify-me form on a running localisation audit"
   },
+  "HKQdop1A9u": {
+    "defaultMessage": "Internal note visible only to editors",
+    "description": "Placeholder for a term-level editor note"
+  },
   "HKYPjt1anz": {
     "defaultMessage": "Route to reviewers in your TMS workflow",
     "description": "Workflow step 4 description for the product-localisation use case"
@@ -5862,6 +5882,10 @@
   "Hvpl2DhEOB": {
     "defaultMessage": "Edit",
     "description": "Link to edit translation guidance in project settings"
+  },
+  "Hw68LI4OZD": {
+    "defaultMessage": "Collapse term details",
+    "description": "Accessible label for collapsing a glossary term row"
   },
   "HwI92QKVOs": {
     "defaultMessage": "No glossaries match your filters. <clear>Clear filters</clear>",
@@ -8254,6 +8278,10 @@
   "QmJs3YzCjV": {
     "defaultMessage": "What does \"up to 80% off\" mean?",
     "description": "Startups FAQ question about the discount amount"
+  },
+  "QmSbWirtRR": {
+    "defaultMessage": "https://example.com",
+    "description": "Placeholder for a term reference URL"
   },
   "Qmtq3rDIqg": {
     "defaultMessage": "Blog",
@@ -12467,6 +12495,10 @@
     "defaultMessage": "All changes saved",
     "description": "Status shown when global guidance matches the saved version"
   },
+  "fxdG0zsb5y": {
+    "defaultMessage": "Cancel glossary name edit",
+    "description": "Accessible label for canceling the glossary name edit"
+  },
   "fyM/dYzEbh": {
     "defaultMessage": "Jobs",
     "description": "Submenu label grouping native TMS job automation tools"
@@ -13078,6 +13110,10 @@
   "hjMbjSqPe8": {
     "defaultMessage": "Try again",
     "description": "Button to retry rendering the chat dock panel"
+  },
+  "hnEkxD1cWI": {
+    "defaultMessage": "Delete this term?",
+    "description": "Title of the term deletion confirmation dialog"
   },
   "hoUlxWeu2t": {
     "defaultMessage": "Create a workspace memory, import entries, then assign it to the projects that should use it.",
@@ -13751,6 +13787,10 @@
     "defaultMessage": "Settings unavailable",
     "description": "Slack agent panel title when settings failed to load"
   },
+  "k15HfZEC8T": {
+    "defaultMessage": "Expand term details",
+    "description": "Accessible label for expanding a glossary term row"
+  },
   "k2PKKnD3GN": {
     "defaultMessage": "Push",
     "description": "Toggle label for GitHub push trigger events"
@@ -14002,6 +14042,10 @@
   "knOsYUbezF": {
     "defaultMessage": "Output",
     "description": "Label for output token usage in the context hover card"
+  },
+  "kngndgvdvd": {
+    "defaultMessage": "Linked project",
+    "description": "Section title for the project linked to a provider glossary"
   },
   "knhexLkbYQ": {
     "defaultMessage": "research",
@@ -14723,6 +14767,10 @@
     "defaultMessage": "Delete",
     "description": "Delete Ahrefs connection button"
   },
+  "nIdUueH9Jz": {
+    "defaultMessage": "Unable to update glossary name",
+    "description": "Fallback error when updating the glossary name fails"
+  },
   "nJUCs4vSKi": {
     "defaultMessage": "Saving...",
     "description": "Button label while repository automation settings are saving"
@@ -14958,6 +15006,10 @@
   "oFlc5dBfFx": {
     "defaultMessage": "Got it, Maya — I pulled the Canva board and scoped launch intake:",
     "description": "Agent intro line before the structured intake summary"
+  },
+  "oHlz44sQOv": {
+    "defaultMessage": "Save glossary name",
+    "description": "Accessible label for saving the glossary name"
   },
   "oHxxsDmsrY": {
     "defaultMessage": "Deselect",
@@ -16327,6 +16379,10 @@
     "defaultMessage": "Reconnect with a different OAuth app",
     "description": "Collapsible trigger to replace OAuth app credentials"
   },
+  "tQnEG79lWB": {
+    "defaultMessage": "This term will be removed from the concept and cannot be restored.",
+    "description": "Description of the term deletion confirmation dialog"
+  },
   "tR/DKqfN1a": {
     "defaultMessage": "See the risk",
     "description": "Proof point 2 title for the next-gen CAT tool product page"
@@ -16682,10 +16738,6 @@
   "udWuegdP+q": {
     "defaultMessage": "GitHub did not return installation_id on the Setup URL callback. Confirm the GitHub App Setup URL points to this app and try connecting again.",
     "description": "GitHub connect error when callback params are missing"
-  },
-  "uf1YHYgy0L": {
-    "defaultMessage": "Read-only",
-    "description": "Capability badge for live provider glossaries that cannot be edited"
   },
   "ufFJx4vPTD": {
     "defaultMessage": "Reading",
@@ -17211,6 +17263,10 @@
     "defaultMessage": "See what each plan includes before you choose a path.",
     "description": "Supporting copy above the pricing comparison matrix"
   },
+  "wOWEjY5VIH": {
+    "defaultMessage": "Glossary name updated",
+    "description": "Toast after the glossary name is updated successfully"
+  },
   "wQOKFwmzrC": {
     "defaultMessage": "Locales",
     "description": "Label for locale route on project overview signals"
@@ -17274,6 +17330,10 @@
   "wcn78AsmsL": {
     "defaultMessage": "Glossary notes, format warnings, and comments surface before approval, not after release.",
     "description": "Proof point 2 body for the next-gen CAT tool product page"
+  },
+  "wdTIdTeD/X": {
+    "defaultMessage": "This project is linked to the glossary in Crowdin.",
+    "description": "Section description for a provider-linked project"
   },
   "wdhrNg8UHz": {
     "defaultMessage": "Open job",
@@ -17935,6 +17995,10 @@
     "defaultMessage": "Use OpenAI, Claude, Gemini, or another provider without locking your stack to one model vendor.",
     "description": "Capability 2 description for the product-localisation use case"
   },
+  "ykDxLMM1xO": {
+    "defaultMessage": "Definition, context, or example sentence",
+    "description": "Placeholder for term-level glossary description"
+  },
   "ykK86HWH4K": {
     "defaultMessage": "Connected",
     "description": "Badge when an integration is connected"
@@ -18266,6 +18330,10 @@
   "zl55Vhhf0L": {
     "defaultMessage": "Workspace members",
     "description": "Accessible label for the workspace members list section"
+  },
+  "zlI6VpVvWz": {
+    "defaultMessage": "Configure",
+    "description": "Button that opens Auto-review configuration"
   },
   "zlTXMaTZ76": {
     "defaultMessage": "Linked issues",
