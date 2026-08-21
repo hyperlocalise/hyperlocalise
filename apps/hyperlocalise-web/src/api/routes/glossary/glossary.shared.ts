@@ -24,7 +24,7 @@ import type { ApiAuthContext } from "@/api/auth/workos";
 import { hasCapability } from "@/api/auth/policy";
 import { db, schema } from "@/lib/database";
 import type { Glossary as GlossaryRecord } from "@/lib/database/types";
-import { listTmsProviderLiveGlossaries } from "@/lib/providers/jobs/tms-provider-live";
+import { getTmsProviderLiveGlossary } from "@/lib/providers/jobs/tms-provider-live";
 import { parseLiveProviderGlossaryId } from "@/lib/providers/jobs/tms-provider-resource-id";
 
 export function invalidGlossaryPayloadResponse(c: { json: JsonContext["json"] }) {
@@ -74,11 +74,13 @@ export async function ownedGlossaryWhere(auth: ApiAuthContext, glossaryId: strin
 export async function getOwnedGlossary(auth: ApiAuthContext, glossaryId: string) {
   const liveId = parseLiveProviderGlossaryId(glossaryId);
   if (liveId?.providerKind === "crowdin") {
-    const liveGlossary = (
-      await listTmsProviderLiveGlossaries(auth.organization.localOrganizationId, {
+    const liveGlossary = await getTmsProviderLiveGlossary(
+      auth.organization.localOrganizationId,
+      glossaryId,
+      {
         actorUserId: auth.user.localUserId,
-      })
-    ).find((candidate) => candidate.id === glossaryId);
+      },
+    );
     if (!liveGlossary) return null;
 
     const now = new Date();

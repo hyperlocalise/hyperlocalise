@@ -55,9 +55,9 @@ describe("Crowdin glossary language mapping", () => {
     expect(toNativeGlossaryLocale("fr")).toBe("fr-FR");
   });
 
-  it("rejects unsupported locales", () => {
-    expect(() => toCrowdinGlossaryLanguageId("xx-XX")).toThrow(
-      "unsupported_crowdin_language:xx-XX",
-    );
+  it("passes through Crowdin custom language IDs and unknown locales", () => {
+    expect(toCrowdinGlossaryLanguageId("xx-XX")).toBe("xx-XX");
+    expect(toCrowdinGlossaryLanguageId("brand-voice")).toBe("brand-voice");
+    expect(toNativeGlossaryLocale("brand-voice", ["en-US", "brand-voice"])).toBe("brand-voice");
   });
 });

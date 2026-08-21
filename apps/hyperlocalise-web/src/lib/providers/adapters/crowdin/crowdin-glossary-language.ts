@@ -4149,7 +4149,9 @@ export function toCrowdinGlossaryLanguageId(locale: string): string {
   if (genericMatch) return genericMatch.id;
   if (baseMatches.length === 1) return baseMatches[0].id;
 
-  throw new Error(`unsupported_crowdin_language:${locale}`);
+  // Custom Crowdin language IDs are absent from the built-in catalog.
+  // Pass them through so glossary mutations and concordance keep working.
+  return normalized;
 }
 
 export function toNativeGlossaryLocale(
@@ -4157,13 +4159,9 @@ export function toNativeGlossaryLocale(
   preferredLocales: readonly string[] = [],
 ) {
   const normalizedId = languageId.trim().toLowerCase();
-  const preferred = preferredLocales.find((locale) => {
-    try {
-      return toCrowdinGlossaryLanguageId(locale).toLowerCase() === normalizedId;
-    } catch {
-      return false;
-    }
-  });
+  const preferred = preferredLocales.find(
+    (locale) => toCrowdinGlossaryLanguageId(locale).toLowerCase() === normalizedId,
+  );
   if (preferred) return preferred;
 
   return crowdinByNormalizedId.get(normalizedId)?.locale ?? languageId;
