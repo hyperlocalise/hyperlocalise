@@ -1,5 +1,11 @@
 # Crowdin Steward's Journal
 
+## 2026-12-31 - Allow optional IndividualRates in report schemas and settings templates
+
+**Learning:** In Crowdin API v2, `individualRates` is an optional array of custom rates per language or user in report generation schemas and report settings templates. The SDK previously enforced `r.IndividualRates != nil` in `GroupTransactionCostsPostEditingSchema` and `len(r.Config.IndividualRates) > 0` in `ReportSettingsTemplateAddRequest.Validate()`, causing client-side validation to reject valid requests when no custom individual rates were specified.
+
+**Action:** Updated `GroupTransactionCostsPostEditingSchema.ValidateGroupSchema()` and `ReportSettingsTemplateAddRequest.Validate()` in `third_party/crowdin-api-client-go/crowdin/model/reports.go` to omit mandatory checks for `IndividualRates`. Updated unit and contract tests in `crowdin/model/reports_test.go` and `crowdin/reports_test.go` to assert successful validation when `IndividualRates` is omitted.
+
 ## 2026-12-31 - Add TargetLanguageID parity to StringCommentsListOptions
 
 **Learning:** In Crowdin API v2, the List String Comments endpoint (`GET /api/v2/projects/{projectId}/comments`) accepts an optional `targetLanguageId` query parameter to filter comments and issues for a specific target language. The SDK's `StringCommentsListOptions` previously lacked `TargetLanguageID`, preventing callers from filtering comments by target language.
