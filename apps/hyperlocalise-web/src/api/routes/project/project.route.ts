@@ -67,6 +67,7 @@ import { listOrganizationProjects } from "@/lib/projects/organization/organizati
 import {
   getNativeProjectCatFile,
   getNativeProjectCatSegmentComments,
+  fileBackedCatSegmentIds,
   getNativeProjectCatSegmentTarget,
   resolveNativeProjectCatLegacyIssueComment,
   saveNativeProjectCatComment,
@@ -84,7 +85,7 @@ import {
 } from "@/lib/projects/cat/external-cat-string-overlay-service";
 import {
   attachCatSegmentLocks,
-  isCatSegmentLocked,
+  listLockedCatSegmentIds,
   setCatSegmentLocks,
 } from "@/lib/projects/cat/cat-segment-lock-service";
 import { resolveProjectFileCatPagination } from "@/lib/projects/cat/project-file-cat-pagination";
@@ -871,19 +872,27 @@ async function catSegmentLockedResponse(
     projectId: string;
     targetLocale: string;
     externalStringId?: string | null;
+    externalStringIds?: string[];
   },
 ) {
-  if (!input.externalStringId) {
+  const externalStringIds = [
+    ...new Set(
+      [...(input.externalStringIds ?? []), input.externalStringId ?? ""]
+        .map((id) => id.trim())
+        .filter((id) => id.length > 0),
+    ),
+  ];
+  if (externalStringIds.length === 0) {
     return null;
   }
 
-  const locked = await isCatSegmentLocked({
+  const lockedIds = await listLockedCatSegmentIds({
     organizationId: input.organizationId,
     projectId: input.projectId,
     targetLocale: input.targetLocale,
-    externalStringId: input.externalStringId,
+    externalStringIds,
   });
-  if (!locked) {
+  if (lockedIds.size === 0) {
     return null;
   }
 
@@ -1789,7 +1798,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
           actorUserId: c.var.auth.user.localUserId,
         });
 
-        return c.json(result, 200);
+        return c.json({ catSegmentLock: result }, 200);
       },
     )
     .post(
@@ -2412,6 +2421,21 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
         const organizationId = c.var.auth.organization.localOrganizationId;
         const organizationSlug =
           c.var.auth.organization.slug ?? c.var.auth.organization.localOrganizationId;
+
+        const sourceFile = await getRepositorySourceFileByPath({
+          organizationId,
+          projectId: params.projectId,
+          sourcePath: body.sourcePath,
+        });
+        const lockedImageStatusResponse = await catSegmentLockedResponse(c, {
+          organizationId,
+          projectId: params.projectId,
+          targetLocale: body.targetLocale,
+          externalStringIds: fileBackedCatSegmentIds(sourceFile?.id, body.sourcePath),
+        });
+        if (lockedImageStatusResponse) {
+          return lockedImageStatusResponse;
+        }
 
         if (inferSupportedVideoTranslationFileFormat(body.sourcePath)) {
           const result = await updateVideoVariantStatus({

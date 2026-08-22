@@ -56,6 +56,17 @@ function filenameFromSourcePath(sourcePath: string) {
   return sourcePath.split("/").at(-1) ?? sourcePath;
 }
 
+export function fileBackedCatSegmentIds(sourceFileId: string | null | undefined, sourcePath: string) {
+  const ids = new Set<string>();
+  if (sourceFileId) {
+    ids.add(sourceFileId);
+  }
+  ids.add(`binary:${sourcePath}`);
+  ids.add(`image:${sourcePath}`);
+  ids.add(`video:${sourcePath}`);
+  return [...ids];
+}
+
 function binaryFileExternalStringId(sourceFileId: string, sourcePath: string) {
   return sourceFileId || `binary:${sourcePath}`;
 }
@@ -827,14 +838,8 @@ export class NativeCatService extends ProjectServiceBase {
         : isOffice
           ? ("office_file" as const)
           : ("image_file" as const);
-      const expectedId = binaryFileExternalStringId(sourceFile.id, input.sourcePath);
-      if (
-        input.externalStringId !== expectedId &&
-        input.externalStringId !== sourceFile.id &&
-        input.externalStringId !== `image:${input.sourcePath}` &&
-        input.externalStringId !== `video:${input.sourcePath}` &&
-        input.externalStringId !== `binary:${input.sourcePath}`
-      ) {
+      const expectedIds = new Set(fileBackedCatSegmentIds(sourceFile.id, input.sourcePath));
+      if (!expectedIds.has(input.externalStringId)) {
         return "not_found";
       }
 

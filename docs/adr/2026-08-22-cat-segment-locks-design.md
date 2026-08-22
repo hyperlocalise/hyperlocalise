@@ -15,7 +15,7 @@ Store lock as an explicit per-segment flag in `project_cat_segment_locks`.
 3. The CAT editor can lock or unlock the current segment and show a Locked badge.
 4. The queue can lock or unlock the selection so users can filter Approved or Hidden, then lock those rows.
 5. Locked segments are read-only in CAT. Save, approve, copy, clear, TM/AI apply, and image regenerate/upload are disabled.
-6. Translation writes return `409 translation_locked`. Lock state is local only; do not call Crowdin, Phrase, or Lokalise.
+6. Translation writes and file-backed image/video/office status updates return `409 translation_locked`. Lock state is local only; do not call Crowdin, Phrase, or Lokalise.
 
 ## Alternatives considered
 

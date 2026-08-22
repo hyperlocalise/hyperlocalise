@@ -12,6 +12,7 @@
  */
 import { z } from "zod";
 
+import { successEnvelopeSchema } from "@/api/response.schema";
 import { optionalProjectIdSchema, projectIdSchema } from "@/lib/projects/identity/project-id";
 import {
   localeInputSchema,
@@ -358,10 +359,15 @@ export const projectFileCatLockedStringsBodySchema = z.object({
   isLocked: z.boolean(),
 });
 
-export const projectFileCatLockedStringsResponseSchema = z.object({
+export const projectFileCatLockedStringsResultSchema = z.object({
   updatedCount: z.number().int().min(0),
   isLocked: z.boolean(),
 });
+
+export const projectFileCatLockedStringsResponseSchema = successEnvelopeSchema(
+  "catSegmentLock",
+  projectFileCatLockedStringsResultSchema,
+);
 
 export const projectFileCatImageRegenerateBodySchema = z.object({
   sourcePath: z.string().trim().min(1).max(2048),

@@ -175,6 +175,26 @@ describe("useCatMutations", () => {
     expect(invalidateQueue).not.toHaveBeenCalled();
   });
 
+  it("still saves hidden segments that are not locked", async () => {
+    const translation = createCatTranslation({ isApproved: false });
+    catTranslationsPostMock.mockResolvedValue(jsonResponse({ translation }));
+
+    const { result } = renderCatMutations({
+      ...createCatFileResponse().catFile,
+      segments: [createCatSegment({ isHidden: true })],
+    });
+
+    await act(async () => {
+      await result.current.saveTranslation({
+        externalStringId: "segment-1",
+        text: "Bonjour",
+      });
+    });
+
+    expect(catTranslationsPostMock).toHaveBeenCalled();
+    expect(onTranslationSaved).toHaveBeenCalledWith("segment-1", "Bonjour", false);
+  });
+
   it("blocks saving translations for locked segments", async () => {
     const { result } = renderCatMutations({
       ...createCatFileResponse().catFile,
@@ -310,7 +330,9 @@ describe("useCatMutations", () => {
   });
 
   it("locks strings and invalidates the queue on success", async () => {
-    catStringsLockedPostMock.mockResolvedValue(jsonResponse({ updatedCount: 2, isLocked: true }));
+    catStringsLockedPostMock.mockResolvedValue(
+      jsonResponse({ catSegmentLock: { updatedCount: 2, isLocked: true } }),
+    );
 
     const { result } = renderCatMutations();
 

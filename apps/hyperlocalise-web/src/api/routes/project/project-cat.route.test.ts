@@ -24,6 +24,7 @@ import { PRODUCT_USAGE_ANALYTICS_EVENTS } from "@/lib/analytics/events";
 import { serverAnalytics } from "@/lib/analytics/server";
 import { db, schema } from "@/lib/database";
 import { ensureRepositorySourceFile } from "@/lib/file-storage/records";
+import { ensureImageVariantsForSourceFile } from "@/lib/projects/files/image-variant-service";
 import { upsertProjectTranslationKeysFromEntries } from "@/lib/projects/translations/project-translation-service";
 import { TmsProviderLiveError } from "@/lib/providers/jobs/tms-provider-live";
 
@@ -2357,7 +2358,9 @@ describe("project file CAT routes", () => {
     );
 
     expect(lockResponse.status).toBe(200);
-    expect(await lockResponse.json()).toEqual({ updatedCount: 2, isLocked: true });
+    expect(await lockResponse.json()).toEqual({
+      catSegmentLock: { updatedCount: 2, isLocked: true },
+    });
 
     const lockedQueue = await client.api.orgs[":organizationSlug"].projects[
       ":projectId"
@@ -2414,7 +2417,9 @@ describe("project file CAT routes", () => {
       { headers },
     );
     expect(unlockResponse.status).toBe(200);
-    expect(await unlockResponse.json()).toEqual({ updatedCount: 1, isLocked: false });
+    expect(await unlockResponse.json()).toEqual({
+      catSegmentLock: { updatedCount: 1, isLocked: false },
+    });
 
     const remainingQueue = await client.api.orgs[":organizationSlug"].projects[
       ":projectId"
@@ -2505,7 +2510,9 @@ describe("project file CAT routes", () => {
     );
 
     expect(lockResponse.status).toBe(200);
-    expect(await lockResponse.json()).toEqual({ updatedCount: 1, isLocked: true });
+    expect(await lockResponse.json()).toEqual({
+      catSegmentLock: { updatedCount: 1, isLocked: true },
+    });
     expect(setTmsProviderLiveCatStringsHiddenMock).not.toHaveBeenCalled();
 
     const queueResponse = await client.api.orgs[":organizationSlug"].projects[
@@ -2568,5 +2575,102 @@ describe("project file CAT routes", () => {
     );
 
     expect(response.status).toBe(403);
+  });
+
+  it("rejects file-backed image status updates when the segment is locked", async () => {
+    const { identity, project, organization } = await projectFixture.createStoredProjectFixture();
+    const headers = await projectFixture.authHeadersFor(identity);
+    const sourcePath = "assets/hero.png";
+    const sourceFile = await ensureRepositorySourceFile({
+      organizationId: organization.id,
+      projectId: project.id,
+      sourcePath,
+    });
+
+    await ensureImageVariantsForSourceFile({
+      organizationId: organization.id,
+      projectId: project.id,
+      sourcePath,
+      repositorySourceFileId: sourceFile.id,
+      targetLocales: ["fr-FR"],
+    });
+
+    const lockResponse = await client.api.orgs[":organizationSlug"].projects[
+      ":projectId"
+    ].files.detail.cat.strings.locked.$post(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          projectId: project.id,
+        },
+        json: {
+          sourcePath,
+          targetLocale: "fr-FR",
+          externalStringIds: [sourceFile.id],
+          isLocked: true,
+        },
+      },
+      { headers },
+    );
+    expect(lockResponse.status).toBe(200);
+
+    const lockedStatusResponse = await client.api.orgs[":organizationSlug"].projects[
+      ":projectId"
+    ].files.detail.cat.images.status.$patch(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          projectId: project.id,
+        },
+        json: {
+          sourcePath,
+          targetLocale: "fr-FR",
+          status: "approved",
+        },
+      },
+      { headers },
+    );
+    expect(lockedStatusResponse.status).toBe(409);
+    expect(await lockedStatusResponse.json()).toMatchObject({ error: "translation_locked" });
+
+    const unlockResponse = await client.api.orgs[":organizationSlug"].projects[
+      ":projectId"
+    ].files.detail.cat.strings.locked.$post(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          projectId: project.id,
+        },
+        json: {
+          sourcePath,
+          targetLocale: "fr-FR",
+          externalStringIds: [sourceFile.id],
+          isLocked: false,
+        },
+      },
+      { headers },
+    );
+    expect(unlockResponse.status).toBe(200);
+
+    const statusResponse = await client.api.orgs[":organizationSlug"].projects[
+      ":projectId"
+    ].files.detail.cat.images.status.$patch(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          projectId: project.id,
+        },
+        json: {
+          sourcePath,
+          targetLocale: "fr-FR",
+          status: "approved",
+        },
+      },
+      { headers },
+    );
+    expect(statusResponse.status).toBe(200);
+    expect(await statusResponse.json()).toMatchObject({
+      imageVariant: { status: "approved" },
+    });
   });
 });

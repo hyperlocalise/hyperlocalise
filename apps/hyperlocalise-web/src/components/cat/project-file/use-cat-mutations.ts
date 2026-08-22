@@ -96,6 +96,7 @@ export function useCatMutations(input: {
       const segment = input.catFile?.segments.find(
         (entry) => entry.externalStringId === mutationInput.externalStringId,
       );
+      // Hidden is informational (hidden-string ADRs). Only an explicit lock blocks saves.
       if (segment?.isLocked) {
         throw new Error(
           intl.formatMessage(useCatMutationsMessages.cannotEditLockedStringTranslation),
@@ -569,8 +570,10 @@ export function useCatMutations(input: {
           );
         }
 
-        const body = (await response.json()) as { updatedCount: number; isLocked: boolean };
-        updatedCount += body.updatedCount;
+        const body = (await response.json()) as {
+          catSegmentLock: { updatedCount: number; isLocked: boolean };
+        };
+        updatedCount += body.catSegmentLock.updatedCount;
       }
 
       return { updatedCount, isLocked: mutationInput.isLocked };
