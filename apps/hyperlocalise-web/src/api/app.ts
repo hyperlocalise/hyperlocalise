@@ -33,8 +33,8 @@ import { createApiKeyRoutes } from "./routes/api-key/api-key.route";
 import { authRoutes } from "./routes/auth/auth.route";
 import { createNativeAuthRoutes } from "./routes/auth/native-auth.route";
 import { createConversationRoutes } from "./routes/conversation/conversation.route";
-import { createCanvaConnectionRoutes } from "./routes/canva-connection/canva-connection.route";
 import { createCanvaIntegrationRoutes } from "./routes/canva-integration/canva-integration.route";
+import { createCanvaOAuthRoutes } from "./routes/canva-oauth/canva-oauth.route";
 import { createCrowdinAppRoutes } from "./routes/crowdin-app/crowdin-app.route";
 import { createContentfulConnectionRoutes } from "./routes/contentful-connection/contentful-connection.route";
 import { createContentfulWebhookRoutes } from "./routes/contentful-webhook/contentful-webhook.route";
@@ -155,6 +155,7 @@ export function createApp(options: CreateAppOptions = {}) {
       createWebChatRoutes({ fileStorageAdapter: options.fileStorageAdapter }),
     )
     .route("/integrations/canva", createCanvaIntegrationRoutes({ ...options, jobQueue }))
+    .route("/", createCanvaOAuthRoutes())
     .route("/crowdin-app", createCrowdinAppRoutes())
     .route("/webhooks", createWebhookRoutes(options));
 }
@@ -219,7 +220,6 @@ function createOrgScopedAppRoutes(
     .route("/semrush-connections", createSemrushConnectionRoutes())
     .route("/ahrefs-connections", createAhrefsConnectionRoutes())
     .route("/intercom-connections", createIntercomConnectionRoutes())
-    .route("/canva-connections", createCanvaConnectionRoutes())
     .route("/external-tms-provider-credential", createExternalTmsProviderCredentialRoutes())
     .route(
       "/tms-provider",

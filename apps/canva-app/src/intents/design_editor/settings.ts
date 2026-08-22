@@ -12,15 +12,16 @@
  */
 import type { AppSettings } from "./types";
 
-const SETTINGS_STORAGE_KEY = "hyperlocalise:canva-app:settings:v3";
+const SETTINGS_STORAGE_KEY = "hyperlocalise:canva-app:settings:v4";
 
 const defaultSettings: AppSettings = {
-  connectionToken: "",
+  organizationId: "",
   projectId: "",
   sourceLocale: "en",
   targetLocales: "es,fr,de",
   preserveFormatting: true,
   selectedPageIndices: [],
+  rememberBrandOrgBinding: true,
 };
 
 export function loadSettings(): AppSettings {
@@ -36,7 +37,7 @@ export function loadSettings(): AppSettings {
 
     const parsed = JSON.parse(raw) as Partial<AppSettings>;
     return {
-      connectionToken: parsed.connectionToken ?? defaultSettings.connectionToken,
+      organizationId: parsed.organizationId ?? defaultSettings.organizationId,
       projectId: parsed.projectId ?? defaultSettings.projectId,
       sourceLocale: parsed.sourceLocale ?? defaultSettings.sourceLocale,
       targetLocales: parsed.targetLocales ?? defaultSettings.targetLocales,
@@ -44,6 +45,8 @@ export function loadSettings(): AppSettings {
       selectedPageIndices: Array.isArray(parsed.selectedPageIndices)
         ? parsed.selectedPageIndices.filter((index) => Number.isInteger(index))
         : defaultSettings.selectedPageIndices,
+      rememberBrandOrgBinding:
+        parsed.rememberBrandOrgBinding ?? defaultSettings.rememberBrandOrgBinding,
     };
   } catch {
     return defaultSettings;
@@ -53,15 +56,16 @@ export function loadSettings(): AppSettings {
 function loadLegacySettings(): AppSettings {
   try {
     const raw =
+      window.localStorage.getItem("hyperlocalise:canva-app:settings:v3") ??
       window.localStorage.getItem("hyperlocalise:canva-app:settings:v2") ??
       window.localStorage.getItem("hyperlocalise:canva-app:settings:v1");
     if (!raw) {
       return defaultSettings;
     }
 
-    const parsed = JSON.parse(raw) as Partial<AppSettings>;
+    const parsed = JSON.parse(raw) as Partial<AppSettings & { connectionToken?: string }>;
     return {
-      connectionToken: parsed.connectionToken ?? defaultSettings.connectionToken,
+      organizationId: parsed.organizationId ?? defaultSettings.organizationId,
       projectId: parsed.projectId ?? defaultSettings.projectId,
       sourceLocale: parsed.sourceLocale ?? defaultSettings.sourceLocale,
       targetLocales: parsed.targetLocales ?? defaultSettings.targetLocales,
@@ -69,6 +73,8 @@ function loadLegacySettings(): AppSettings {
       selectedPageIndices: Array.isArray(parsed.selectedPageIndices)
         ? parsed.selectedPageIndices.filter((index) => Number.isInteger(index))
         : defaultSettings.selectedPageIndices,
+      rememberBrandOrgBinding:
+        parsed.rememberBrandOrgBinding ?? defaultSettings.rememberBrandOrgBinding,
     };
   } catch {
     return defaultSettings;

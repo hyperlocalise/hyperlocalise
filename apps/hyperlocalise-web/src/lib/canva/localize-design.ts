@@ -14,10 +14,10 @@ import { createHash, randomUUID } from "node:crypto";
 
 import { and, eq } from "drizzle-orm";
 
-import {
-  resolveApiKeyTeamAccessContext,
-  getAccessibleProjectForApiKey,
-} from "@/api/auth/api-key-access";
+import { isJobCreateAllowed } from "@/api/auth/capability-guards";
+import { buildApiAuthContextForCanvaUser } from "@/api/auth/canva-oauth-access";
+import type { CanvaOAuthSessionAuth } from "@/api/auth/canva-oauth";
+import { ownedProjectWhere } from "@/api/auth/team-access";
 import { db, schema } from "@/lib/database";
 import {
   formatUsageControlError,
@@ -125,27 +125,6 @@ async function loadTranslationsByLocale(input: {
   return translationsByLocale;
 }
 
-function readCanvaConnectionIdFromJobInput(inputPayload: unknown): string | null {
-  if (!inputPayload || typeof inputPayload !== "object") {
-    return null;
-  }
-
-  const fileInput = (inputPayload as Record<string, unknown>).fileInput;
-  if (!fileInput || typeof fileInput !== "object") {
-    return null;
-  }
-
-  const metadata = (fileInput as Record<string, unknown>).metadata;
-  if (!metadata || typeof metadata !== "object") {
-    return null;
-  }
-
-  const canvaConnectionId = (metadata as Record<string, unknown>).canvaConnectionId;
-  return typeof canvaConnectionId === "string" && canvaConnectionId.length > 0
-    ? canvaConnectionId
-    : null;
-}
-
 function isCanvaIntegrationJob(inputPayload: unknown) {
   if (!inputPayload || typeof inputPayload !== "object") {
     return false;
@@ -164,26 +143,20 @@ function isCanvaIntegrationJob(inputPayload: unknown) {
   return (metadata as Record<string, unknown>).integration === "canva-app";
 }
 
-function assertCanvaConnectionJobAccess(input: {
+function assertCanvaUserJobAccess(input: {
   job: {
     projectId: string | null;
-    apiKeyId: string | null;
+    createdByUserId: string | null;
     inputPayload: unknown;
   };
-  canvaConnectionId: string;
+  userId: string;
   projectId: string;
-  apiKeyId: string;
 }) {
-  if (input.job.projectId !== input.projectId || input.job.apiKeyId !== input.apiKeyId) {
+  if (input.job.projectId !== input.projectId || input.job.createdByUserId !== input.userId) {
     throw new Error("translation_job_not_found");
   }
 
   if (!isCanvaIntegrationJob(input.job.inputPayload)) {
-    throw new Error("translation_job_not_found");
-  }
-
-  const storedConnectionId = readCanvaConnectionIdFromJobInput(input.job.inputPayload);
-  if (storedConnectionId && storedConnectionId !== input.canvaConnectionId) {
     throw new Error("translation_job_not_found");
   }
 }
@@ -194,7 +167,7 @@ async function getTranslationJobSnapshot(input: { jobId: string; organizationId:
       id: schema.jobs.id,
       status: schema.jobs.status,
       projectId: schema.jobs.projectId,
-      apiKeyId: schema.jobs.apiKeyId,
+      createdByUserId: schema.jobs.createdByUserId,
       inputPayload: schema.jobs.inputPayload,
       lastError: schema.jobs.lastError,
       type: schema.translationJobDetails.type,
@@ -216,51 +189,47 @@ async function getTranslationJobSnapshot(input: { jobId: string; organizationId:
 }
 
 export async function startCanvaLocalization(input: {
+  session: CanvaOAuthSessionAuth;
   organizationId: string;
-  apiKeyId: string;
-  canvaConnectionId: string;
   projectId: string;
   sourceLocale: string;
   targetLocales: string[];
   designId: string;
   segments: CanvaDesignSegment[];
+  canvaBrandId?: string;
   jobQueue?: JobQueue<TranslationJobEventData>;
   fileStorageAdapter?: FileStorageAdapter;
 }): Promise<StartCanvaLocalizationResult> {
-  const [apiKey] = await db
+  const auth = await buildApiAuthContextForCanvaUser({
+    session: input.session,
+    organizationId: input.organizationId,
+  });
+
+  if (!auth || !isJobCreateAllowed(auth.membership.role)) {
+    throw new Error("canva_project_not_found");
+  }
+
+  const [project] = await db
     .select({
-      id: schema.organizationApiKeys.id,
-      organizationId: schema.organizationApiKeys.organizationId,
-      createdByUserId: schema.organizationApiKeys.createdByUserId,
+      id: schema.projects.id,
+      source: schema.projects.source,
+      sourceLocale: schema.projects.sourceLocale,
+      targetLocales: schema.projects.targetLocales,
     })
-    .from(schema.organizationApiKeys)
-    .where(
-      and(
-        eq(schema.organizationApiKeys.id, input.apiKeyId),
-        eq(schema.organizationApiKeys.organizationId, input.organizationId),
-      ),
-    )
+    .from(schema.projects)
+    .where(await ownedProjectWhere(auth, input.projectId))
     .limit(1);
 
-  if (!apiKey) {
-    throw new Error("canva_api_key_not_found");
-  }
-
-  const teamAccess = await resolveApiKeyTeamAccessContext({
-    organizationId: apiKey.organizationId,
-    createdByUserId: apiKey.createdByUserId,
-  });
-  if (!teamAccess) {
-    throw new Error("canva_api_key_unauthorized");
-  }
-
-  const project = await getAccessibleProjectForApiKey(teamAccess, input.projectId);
   if (!project) {
     throw new Error("canva_project_not_found");
   }
 
+  // Prefer the project's configured source locale so a stale Canva-app default
+  // (e.g. "en") cannot fail localization for en-US / other project locales.
+  const sourceLocale = project.sourceLocale?.trim() || input.sourceLocale;
+
   const localeValidation = validateJobLocalesAgainstProject(project, {
-    sourceLocale: input.sourceLocale,
+    sourceLocale,
     targetLocales: input.targetLocales,
   });
   if (isErr(localeValidation)) {
@@ -296,6 +265,7 @@ export async function startCanvaLocalization(input: {
         filename: `${input.designId}.json`,
         contentType: "application/json",
         content: Buffer.from(fileBody, "utf8"),
+        createdByUserId: input.session.user.localUserId,
         metadata: {
           sourcePath,
           sourceHash,
@@ -311,7 +281,7 @@ export async function startCanvaLocalization(input: {
         storedFile: uploadedFile,
         sourcePath,
         sourceHash,
-        uploadedByApiKeyId: input.apiKeyId,
+        uploadedByUserId: input.session.user.localUserId,
         uploadSurface: "canva_integration",
         db: tx,
       });
@@ -320,6 +290,7 @@ export async function startCanvaLocalization(input: {
         id: jobId,
         organizationId: input.organizationId,
         projectId: project.id,
+        createdByUserId: input.session.user.localUserId,
         kind: "translation",
         status: "queued",
         inputPayload: {
@@ -328,15 +299,15 @@ export async function startCanvaLocalization(input: {
           fileInput: {
             sourceFileId: uploadedFile.id,
             fileFormat: "json",
-            sourceLocale: input.sourceLocale,
+            sourceLocale,
             targetLocales: input.targetLocales,
             metadata: {
               integration: "canva-app",
-              canvaConnectionId: input.canvaConnectionId,
+              canvaSessionId: input.session.sessionId,
+              canvaBrandId: input.canvaBrandId ?? null,
             },
           },
         },
-        apiKeyId: input.apiKeyId,
       });
 
       await tx.insert(schema.translationJobDetails).values({
@@ -404,16 +375,14 @@ export async function startCanvaLocalization(input: {
 export async function getCanvaLocalizationStatus(input: {
   jobId: string;
   organizationId: string;
-  canvaConnectionId: string;
+  userId: string;
   projectId: string;
-  apiKeyId: string;
 }): Promise<CanvaLocalizationStatus> {
   const job = await getTranslationJobSnapshot(input);
-  assertCanvaConnectionJobAccess({
+  assertCanvaUserJobAccess({
     job,
-    canvaConnectionId: input.canvaConnectionId,
+    userId: input.userId,
     projectId: input.projectId,
-    apiKeyId: input.apiKeyId,
   });
 
   if (job.status === "succeeded") {

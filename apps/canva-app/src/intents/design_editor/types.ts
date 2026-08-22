@@ -31,14 +31,18 @@ export type ExtractedDesignContent = {
   preserveFormatting: boolean;
 };
 
-export type LocalizeRequest = {
-  connectionToken: string;
-  sourceLocale: string;
+export type CanvaOrganizationSummary = {
+  id: string;
+  name: string;
+  slug: string | null;
+  role: string;
+};
+
+export type CanvaProjectSummary = {
+  id: string;
+  name: string;
+  sourceLocale: string | null;
   targetLocales: string[];
-  designToken: string;
-  segments: DesignSegment[];
-  projectId?: string;
-  preserveFormatting: boolean;
 };
 
 export type LocalizeResponse = {
@@ -56,10 +60,11 @@ export type WorkflowStep =
   | "done";
 
 export type AppSettings = {
-  connectionToken: string;
+  organizationId: string;
   projectId: string;
   sourceLocale: string;
   targetLocales: string;
   preserveFormatting: boolean;
   selectedPageIndices: number[];
+  rememberBrandOrgBinding: boolean;
 };

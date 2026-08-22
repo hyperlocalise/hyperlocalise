@@ -63,6 +63,7 @@ import {
   useContentfulConnections,
   useSaveContentfulConnection,
 } from "./contentful-connection-panel";
+import { CanvaIntegrationInstructions } from "./canva-integration-instructions";
 import { McpServerConnectionPanel } from "./mcp-server-connection-panel";
 import { AhrefsConnectionPanel } from "./ahrefs-connection-panel";
 import { SemrushConnectionPanel } from "./semrush-connection-panel";
@@ -1228,6 +1229,8 @@ export function IntegrationsPageContent({
         organizationSlug={organizationSlug}
         userCanManage={userCanManageAgents}
       />
+
+      {canManageProviderIntegrations ? <CanvaIntegrationInstructions /> : null}
 
       {canManageProviderIntegrations ? (
         <AlertDialog

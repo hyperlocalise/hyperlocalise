@@ -246,7 +246,7 @@ export function canonicalAuthorizationCode(code: string): string | null {
 
 export async function markAuthorizationCodeUsed(
   code: string,
-  payload: AuthorizationCodePayload,
+  payload: { expiresAt: number },
 ): Promise<boolean> {
   const canonicalCode = canonicalAuthorizationCode(code);
   if (!canonicalCode) {

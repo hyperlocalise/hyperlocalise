@@ -214,6 +214,28 @@ export const env = createEnv({
     /** Canva app origin used for local development CORS. */
     CANVA_APP_ORIGIN: z.string().url().optional(),
 
+    /** OAuth client id issued to the Canva app for Hyperlocalise sign-in. */
+    CANVA_OAUTH_CLIENT_ID: z.string().min(1).optional(),
+
+    /** OAuth client secret for the Canva app provider. */
+    CANVA_OAUTH_CLIENT_SECRET: z.string().min(1).optional(),
+
+    /**
+     * Secret for HMAC-signing Canva OAuth authorization codes and cookies.
+     * Must not reuse CANVA_OAUTH_CLIENT_SECRET — a client-secret leak must not
+     * let an attacker forge codes or consent cookies.
+     */
+    CANVA_OAUTH_SIGNING_SECRET: z.string().min(1).optional(),
+
+    /** Comma-separated redirect URIs allowed for Canva OAuth callbacks. */
+    CANVA_OAUTH_REDIRECT_URIS: z.string().min(1).optional(),
+
+    /** Canva OAuth access token lifetime in minutes. */
+    CANVA_OAUTH_ACCESS_TOKEN_LIFETIME_MINUTES: z.coerce.number().int().positive().default(60),
+
+    /** Canva OAuth refresh token lifetime in days. */
+    CANVA_OAUTH_REFRESH_TOKEN_LIFETIME_DAYS: z.coerce.number().int().positive().default(90),
+
     /** Crowdin App OAuth client id used for Crowdin Apps JWT audience checks. */
     CROWDIN_APP_CLIENT_ID: z.string().min(1).optional(),
 
@@ -330,6 +352,22 @@ export const env = createEnv({
     CANVA_APP_ID: process.env.CANVA_APP_ID ?? (isTestEnv ? "test-canva-app-id" : undefined),
     CANVA_CORS_ORIGINS: process.env.CANVA_CORS_ORIGINS,
     CANVA_APP_ORIGIN: process.env.CANVA_APP_ORIGIN,
+    CANVA_OAUTH_CLIENT_ID:
+      process.env.CANVA_OAUTH_CLIENT_ID ?? (isTestEnv ? "test-canva-oauth-client" : undefined),
+    CANVA_OAUTH_CLIENT_SECRET:
+      process.env.CANVA_OAUTH_CLIENT_SECRET ??
+      (isTestEnv ? "test-canva-oauth-client-secret" : undefined),
+    CANVA_OAUTH_SIGNING_SECRET:
+      process.env.CANVA_OAUTH_SIGNING_SECRET ??
+      (isTestEnv ? "MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=" : undefined),
+    CANVA_OAUTH_REDIRECT_URIS:
+      process.env.CANVA_OAUTH_REDIRECT_URIS ??
+      (isTestEnv ? "https://www.canva.com/apps/oauth/authorized" : undefined),
+    CANVA_OAUTH_ACCESS_TOKEN_LIFETIME_MINUTES:
+      process.env.CANVA_OAUTH_ACCESS_TOKEN_LIFETIME_MINUTES ??
+      (isTestEnv || isCI ? "60" : undefined),
+    CANVA_OAUTH_REFRESH_TOKEN_LIFETIME_DAYS:
+      process.env.CANVA_OAUTH_REFRESH_TOKEN_LIFETIME_DAYS ?? (isTestEnv || isCI ? "90" : undefined),
     CROWDIN_APP_CLIENT_ID:
       process.env.CROWDIN_APP_CLIENT_ID ?? (isTestEnv ? "test-crowdin-app-client-id" : undefined),
     CROWDIN_APP_CLIENT_SECRET:

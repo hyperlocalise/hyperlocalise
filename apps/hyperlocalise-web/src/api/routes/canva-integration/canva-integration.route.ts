@@ -14,23 +14,36 @@ import { Hono } from "hono";
 import { validator } from "hono/validator";
 
 import {
-  canvaConnectionAuthMiddleware,
-  type CanvaConnectionVariables,
-} from "@/api/auth/canva-connection";
+  canvaOAuthAuthMiddleware,
+  type CanvaIntegrationVariables,
+} from "@/api/auth/canva-integration-auth";
 import { canvaCorsMiddleware } from "@/api/auth/canva-cors";
 import { createCanvaJwtMiddleware } from "@/api/auth/canva-jwt";
-import { badRequestResponse, forbiddenResponse } from "@/api/response.schema";
-import { bindCanvaConnectionBrand, touchCanvaConnectionUsage } from "@/lib/canva/connections";
+import {
+  badRequestResponse,
+  forbiddenResponse,
+  notFoundResponse,
+  unauthorizedResponse,
+} from "@/api/response.schema";
 import { resolveCanvaDesignId } from "@/lib/canva/auth";
 import { getCanvaLocalizationStatus, startCanvaLocalization } from "@/lib/canva/localize-design";
+import {
+  getCanvaBrandOrgBinding,
+  listCanvaUserOrganizations,
+  listCanvaUserProjects,
+  touchCanvaOAuthBrand,
+  upsertCanvaBrandOrgBinding,
+} from "@/lib/canva/user-resources";
 import type { FileStorageAdapter } from "@/lib/file-storage";
 import type { JobQueue, TranslationJobEventData } from "@/lib/workflow/types";
 import { env } from "@/lib/env";
 
 import {
+  canvaOrganizationIdQuerySchema,
+  canvaProjectsQuerySchema,
   localizeCanvaDesignBodySchema,
   localizeCanvaJobIdParamSchema,
-} from "../canva-connection/canva-connection.schema";
+} from "./canva-integration.schema";
 
 const validateLocalizeBody = validator("json", (value, c) => {
   const parsed = localizeCanvaDesignBodySchema.safeParse(value);
@@ -58,6 +71,22 @@ const validateLocalizeJobIdParams = validator("param", (value, c) => {
   return parsed.data;
 });
 
+const validateOrganizationQuery = validator("query", (value, c) => {
+  const parsed = canvaOrganizationIdQuerySchema.safeParse(value);
+  if (!parsed.success) {
+    return badRequestResponse(c, "invalid_canva_organization_id", "Organization id is invalid.");
+  }
+  return parsed.data;
+});
+
+const validateProjectsQuery = validator("query", (value, c) => {
+  const parsed = canvaProjectsQuerySchema.safeParse(value);
+  if (!parsed.success) {
+    return badRequestResponse(c, "invalid_canva_organization_id", "Organization id is invalid.");
+  }
+  return parsed.data;
+});
+
 type CreateCanvaIntegrationRoutesOptions = {
   jobQueue?: JobQueue<TranslationJobEventData>;
   fileStorageAdapter?: FileStorageAdapter;
@@ -75,104 +104,157 @@ function localizeErrorResponse(c: Parameters<typeof badRequestResponse>[0], erro
 }
 
 export function createCanvaIntegrationRoutes(options: CreateCanvaIntegrationRoutesOptions = {}) {
-  return new Hono<{ Variables: CanvaConnectionVariables }>()
+  return new Hono<{ Variables: CanvaIntegrationVariables }>()
     .use("*", canvaCorsMiddleware)
-    .get("/health", async (c) => {
+    .get("/health", createCanvaJwtMiddleware(), async (c) => {
       return c.json(
         {
           ok: true,
           canvaConfigured: Boolean(env.CANVA_APP_ID),
+          oauthConfigured: Boolean(
+            env.CANVA_OAUTH_CLIENT_ID &&
+            env.CANVA_OAUTH_CLIENT_SECRET &&
+            env.CANVA_OAUTH_SIGNING_SECRET,
+          ),
+          authenticated: Boolean(c.var.canvaUser),
         },
         200,
       );
     })
+    .get("/me", canvaOAuthAuthMiddleware, async (c) => {
+      const session = c.var.canvaOAuth!;
+      const organizations = await listCanvaUserOrganizations(session.user.localUserId);
+      const brandBinding = session.canvaBrandId
+        ? await getCanvaBrandOrgBinding(session.canvaBrandId)
+        : null;
+
+      return c.json(
+        {
+          user: {
+            id: session.user.localUserId,
+            email: session.user.email,
+          },
+          organizations,
+          brandBinding: brandBinding
+            ? {
+                organizationId: brandBinding.organizationId,
+                organizationName: brandBinding.organizationName,
+                organizationSlug: brandBinding.organizationSlug,
+              }
+            : null,
+        },
+        200,
+      );
+    })
+    .get("/projects", canvaOAuthAuthMiddleware, validateProjectsQuery, async (c) => {
+      const { organizationId } = c.req.valid("query");
+      const session = c.var.canvaOAuth!;
+
+      const projects = await listCanvaUserProjects({
+        session,
+        organizationId,
+      });
+
+      if (!projects) {
+        return notFoundResponse(c, "canva_organization_not_found", "Workspace was not found.");
+      }
+
+      return c.json({ projects }, 200);
+    })
     .post(
       "/localize",
-      canvaConnectionAuthMiddleware,
-      createCanvaJwtMiddleware(),
+      canvaOAuthAuthMiddleware,
+      createCanvaJwtMiddleware({ required: true }),
       validateLocalizeBody,
       async (c) => {
         const payload = c.req.valid("json");
-        const connection = c.var.canvaConnection;
+        const session = c.var.canvaOAuth!;
         const canvaUser = c.var.canvaUser;
-
-        let touchedUsage = false;
-        if (canvaUser) {
-          if (connection.canvaBrandId && connection.canvaBrandId !== canvaUser.brandId) {
-            return forbiddenResponse(
-              c,
-              "canva_brand_mismatch",
-              "This connection is linked to a different Canva brand.",
-            );
-          }
-
-          if (!connection.canvaBrandId) {
-            try {
-              await bindCanvaConnectionBrand({
-                connectionId: connection.id,
-                organizationId: connection.organizationId,
-                canvaBrandId: canvaUser.brandId,
-              });
-              touchedUsage = true;
-            } catch (error) {
-              if (error instanceof Error && error.message === "canva_brand_already_bound") {
-                return forbiddenResponse(
-                  c,
-                  error.message,
-                  "This Canva brand is already linked to another connection.",
-                );
-              }
-              throw error;
-            }
-          }
+        if (!canvaUser) {
+          return unauthorizedResponse(
+            c,
+            "canva_user_token_required",
+            "Canva user token is required.",
+          );
         }
 
-        if (!touchedUsage) {
-          await touchCanvaConnectionUsage(connection.id);
+        if (session.canvaBrandId && session.canvaBrandId !== canvaUser.brandId) {
+          return forbiddenResponse(
+            c,
+            "canva_brand_mismatch",
+            "This Hyperlocalise session is linked to a different Canva team.",
+          );
         }
 
+        if (!session.canvaBrandId) {
+          await touchCanvaOAuthBrand({
+            sessionId: session.sessionId,
+            canvaBrandId: canvaUser.brandId,
+          });
+        }
+
+        let result;
         try {
           const designId = await resolveCanvaDesignId(payload.designToken, env.CANVA_APP_ID);
-          const result = await startCanvaLocalization({
-            organizationId: connection.organizationId,
-            apiKeyId: connection.apiKeyId,
-            canvaConnectionId: connection.id,
-            projectId: connection.projectId,
-            sourceLocale: payload.sourceLocale ?? connection.sourceLocale,
-            targetLocales: payload.targetLocales ?? connection.targetLocales,
+          result = await startCanvaLocalization({
+            session,
+            organizationId: payload.organizationId,
+            projectId: payload.projectId,
+            sourceLocale: payload.sourceLocale,
+            targetLocales: payload.targetLocales,
             designId,
             segments: payload.segments,
+            canvaBrandId: canvaUser.brandId,
             jobQueue: options.jobQueue,
             fileStorageAdapter: options.fileStorageAdapter,
           });
-
-          return c.json(
-            {
-              ...result,
-              mode: "hyperlocalise" as const,
-            },
-            202,
-          );
         } catch (error) {
           return localizeErrorResponse(c, error);
         }
+
+        // Binding is best-effort and must not suppress a successful jobId.
+        if (payload.rememberBrandOrgBinding) {
+          try {
+            await upsertCanvaBrandOrgBinding({
+              canvaBrandId: canvaUser.brandId,
+              organizationId: payload.organizationId,
+              userId: session.user.localUserId,
+            });
+          } catch {
+            // Ignore binding failures after the job has already been queued.
+          }
+        }
+
+        return c.json(
+          {
+            ...result,
+            mode: "hyperlocalise" as const,
+          },
+          202,
+        );
       },
     )
     .get(
       "/localize/:jobId",
-      canvaConnectionAuthMiddleware,
+      canvaOAuthAuthMiddleware,
       validateLocalizeJobIdParams,
+      validateOrganizationQuery,
       async (c) => {
         const { jobId } = c.req.valid("param");
-        const connection = c.var.canvaConnection;
+        const { organizationId } = c.req.valid("query");
+        const projectId = c.req.query("projectId");
+        const session = c.var.canvaOAuth!;
+
+        if (!projectId) {
+          return badRequestResponse(c, "invalid_canva_project_id", "Project id is required.");
+        }
 
         try {
           const status = await getCanvaLocalizationStatus({
             jobId,
-            organizationId: connection.organizationId,
-            canvaConnectionId: connection.id,
-            projectId: connection.projectId,
-            apiKeyId: connection.apiKeyId,
+            organizationId,
+            userId: session.user.localUserId,
+            projectId,
           });
 
           return c.json(
