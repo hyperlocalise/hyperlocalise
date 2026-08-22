@@ -13,7 +13,7 @@
 import { createHash } from "node:crypto";
 
 import type { JobKind } from "@/lib/database/types";
-import { selectGlossaryPrimaryTerm } from "@/lib/glossary/glossary";
+import { GlossaryValidationError, selectGlossaryPrimaryTerm } from "@/lib/glossary/glossary";
 import { createLogger } from "@/lib/log";
 import { mapWithConcurrency } from "@/lib/primitives/map-with-concurrency/map-with-concurrency";
 import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
@@ -1079,6 +1079,16 @@ export class CrowdinTmsProvider extends TmsProvider {
     const client = this.createClient(scope);
     const existing = await this.getLiveGlossaryConcept(scope, glossaryId, conceptId);
     if (!existing) return null;
+    const existingById = new Map(existing.terms.map((term) => [String(term.id), term]));
+    const hasUnknownTermId = input.terms.some(
+      (term) => term.id !== undefined && !existingById.has(String(term.id)),
+    );
+    if (hasUnknownTermId) {
+      throw new GlossaryValidationError(
+        "stale_glossary_term_id",
+        "The glossary update contains a term that is no longer part of this concept",
+      );
+    }
     await client.updateGlossaryConcept(glossaryId, conceptId, {
       subject: input.subject ?? "",
       definition: input.definition ?? "",
@@ -1087,12 +1097,11 @@ export class CrowdinTmsProvider extends TmsProvider {
       url: input.url ?? "",
       figure: input.figure ?? "",
     });
-    const existingById = new Map(existing.terms.map((term) => [String(term.id), term]));
     // Term ids that must not be deleted in the orphan pass (kept, updated, or already replaced).
     const retainedIds = new Set<string>();
 
     for (const term of input.terms) {
-      const existingTerm = term.id ? existingById.get(String(term.id)) : undefined;
+      const existingTerm = term.id !== undefined ? existingById.get(String(term.id)) : undefined;
       if (existingTerm && typeof existingTerm.id === "number") {
         retainedIds.add(String(existingTerm.id));
         if (

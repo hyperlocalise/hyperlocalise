@@ -1049,6 +1049,99 @@ describe("Crowdin live glossary concepts", () => {
     );
   });
 
+  it("rejects stale term ids before mutating the concept", async () => {
+    const requests: string[] = [];
+    const fetchMock = vi.fn(async (url, init) => {
+      const path = String(url).replace("https://api.crowdin.test/api/v2", "");
+      const method = init?.method ?? "GET";
+      requests.push(`${method} ${path}`);
+
+      if (path.startsWith("/glossaries/7/concepts?")) {
+        return new Response(
+          JSON.stringify({
+            data: [
+              {
+                data: {
+                  id: 8,
+                  userId: 3,
+                  glossaryId: 7,
+                  subject: "Commerce",
+                  definition: "A payment step",
+                  translatable: true,
+                  note: "",
+                  url: "",
+                  figure: "",
+                  languagesDetails: [],
+                  createdAt: "2026-08-20T00:00:00Z",
+                  updatedAt: "2026-08-20T00:00:00Z",
+                },
+              },
+            ],
+            pagination: { offset: 0, limit: 500 },
+          }),
+          { status: 200 },
+        );
+      }
+
+      if (path.startsWith("/glossaries/7/terms?")) {
+        return new Response(
+          JSON.stringify({
+            data: [
+              {
+                data: {
+                  id: 21,
+                  userId: 3,
+                  glossaryId: 7,
+                  languageId: "en",
+                  text: "Checkout",
+                  description: "",
+                  partOfSpeech: "noun",
+                  status: "preferred",
+                  type: "",
+                  gender: "",
+                  note: "",
+                  url: "",
+                  conceptId: 8,
+                  lemma: "",
+                },
+              },
+            ],
+            pagination: { offset: 0, limit: 500 },
+          }),
+          { status: 200 },
+        );
+      }
+
+      throw new Error(`Unexpected Crowdin request: ${method} ${path}`);
+    }) as unknown as typeof fetch;
+
+    await expect(
+      crowdinTmsProvider.updateLiveGlossaryConcept(
+        {
+          organizationId: "organization-1",
+          credential: { baseUrl: "https://api.crowdin.test/api/v2" } as never,
+          secretMaterial: "test-token",
+          projectId: "project-42",
+          externalProjectId: "42",
+          sourceLocale: "en-US",
+          fetchFn: fetchMock,
+        },
+        7,
+        8,
+        {
+          primaryTerm: "Checkout",
+          sourceLocale: "en-US",
+          terms: [{ id: 999, languageId: "en", text: "Stale checkout" }],
+        },
+      ),
+    ).rejects.toMatchObject({
+      name: "GlossaryValidationError",
+      code: "stale_glossary_term_id",
+    });
+
+    expect(requests.every((request) => request.startsWith("GET "))).toBe(true);
+  });
+
   it("lists account glossaries without filtering by Crowdin userId", async () => {
     let requestedUrl = "";
     const fetchMock = vi.fn(async (url) => {
