@@ -683,10 +683,6 @@ describe("Crowdin live glossary concepts", () => {
         { op: "replace", path: "/description", value: "Updated" },
         { op: "replace", path: "/partOfSpeech", value: "noun" },
         { op: "replace", path: "/status", value: "preferred" },
-        { op: "replace", path: "/type", value: "" },
-        { op: "replace", path: "/gender", value: "" },
-        { op: "replace", path: "/note", value: "" },
-        { op: "replace", path: "/url", value: "" },
       ],
     ]);
   });

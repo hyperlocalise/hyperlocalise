@@ -84,7 +84,7 @@ function ResourceTypeBadge({ glossary }: { glossary: GlossaryListRow }) {
   );
 }
 
-function LiveApiBadge({ glossary }: { glossary: GlossaryListRow }) {
+function LiveApiBadge() {
   return (
     <Badge
       variant="outline"
@@ -379,7 +379,7 @@ function GlossaryRow({
                 values={{ count: glossary.projectCount }}
               />
             )}
-            {glossary.isLiveApi ? <LiveApiBadge glossary={glossary} /> : null}
+            {glossary.isLiveApi ? <LiveApiBadge /> : null}
             {!glossary.isLiveApi && glossary.syncState ? (
               <SyncStateBadge syncState={glossary.syncState} />
             ) : null}
