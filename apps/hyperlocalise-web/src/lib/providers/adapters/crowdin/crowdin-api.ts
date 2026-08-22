@@ -485,6 +485,7 @@ export interface CrowdinGlossary {
   id: number;
   name: string;
   description: string | null;
+  createdAt?: string | null;
   languageId: string;
   languageIds: string[];
   terms: number;

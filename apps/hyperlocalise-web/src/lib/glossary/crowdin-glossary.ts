@@ -109,7 +109,7 @@ export function toCrowdinConceptInput(concept: GlossaryConcept): CrowdinGlossary
     languageId: toCrowdinGlossaryLanguageId(term.locale),
     text: term === primaryTerm && concept.primaryTerm ? concept.primaryTerm : term.text,
     description: term.description,
-    partOfSpeech: normalizeGlossaryPartOfSpeech(term.partOfSpeech),
+    partOfSpeech: normalizeGlossaryPartOfSpeech(term.partOfSpeech, { required: false }),
     status:
       term === primaryTerm && term.locale === concept.sourceLocale && !hasPreferredSourceTerm
         ? "preferred"
@@ -179,7 +179,7 @@ function normalizeCrowdinTerm(term: NativeGlossaryTermInput): CrowdinGlossaryTer
     note: term.note,
     url: term.url,
     lemma: term.lemma,
-    partOfSpeech: normalizeGlossaryPartOfSpeech(term.partOfSpeech),
+    partOfSpeech: normalizeGlossaryPartOfSpeech(term.partOfSpeech, { required: false }),
   };
 }
 

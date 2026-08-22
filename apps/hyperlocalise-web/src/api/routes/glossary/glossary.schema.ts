@@ -229,6 +229,7 @@ export const glossaryRecordSchema = z.object({
     }),
   ),
   termCount: z.number().int().nullable(),
+  projectCount: z.number().int().optional(),
   syncState: z.string().nullable(),
   termCapabilities: z.record(z.string(), z.unknown()),
   externalUrl: z.string().nullable(),

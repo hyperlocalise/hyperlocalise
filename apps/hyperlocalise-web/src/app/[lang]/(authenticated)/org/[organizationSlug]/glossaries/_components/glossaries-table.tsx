@@ -84,14 +84,6 @@ function ResourceTypeBadge({ glossary }: { glossary: GlossaryListRow }) {
   );
 }
 
-function TermCapabilityBadge({ glossary }: { glossary: GlossaryListRow }) {
-  return (
-    <Badge variant="outline" className={toneClass(glossary.termCapabilityTone)}>
-      {glossary.termCapabilityLabel}
-    </Badge>
-  );
-}
-
 function LiveApiBadge({ glossary }: { glossary: GlossaryListRow }) {
   return (
     <Badge
@@ -99,7 +91,7 @@ function LiveApiBadge({ glossary }: { glossary: GlossaryListRow }) {
       className="border-grove-700/25 bg-grove-100 text-grove-900 dark:border-grove-500/30 dark:bg-grove-100 dark:text-grove-900"
     >
       <HugeiconsIcon icon={Link01Icon} strokeWidth={1.8} className="size-3.5" aria-hidden="true" />
-      {glossary.termCapabilityLabel}
+      <FormattedMessage {...glossariesTableMessages.liveApi} />
     </Badge>
   );
 }
@@ -271,6 +263,7 @@ function GlossaryRow({
   organizationSlug: string;
 }) {
   const intl = useIntl();
+  const isCrowdinLiveApi = glossary.isLiveApi && glossary.externalProviderKind === "crowdin";
   const detailId = glossary.detailId;
   const sourceDetail =
     glossary.source === "native"
@@ -283,9 +276,14 @@ function GlossaryRow({
             ? providerLabel(glossary.externalProviderKind)
             : intl.formatMessage(glossariesTableMessages.providerFallback),
           glossary.externalProjectId
-            ? intl.formatMessage(glossariesTableMessages.projectId, {
-                projectId: glossary.externalProjectId,
-              })
+            ? glossary.externalProjectName
+              ? intl.formatMessage(glossariesTableMessages.projectDetail, {
+                  projectName: glossary.externalProjectName,
+                  projectId: glossary.externalProjectId,
+                })
+              : intl.formatMessage(glossariesTableMessages.projectId, {
+                  projectId: glossary.externalProjectId,
+                })
             : null,
         ]
           .filter(Boolean)
@@ -343,18 +341,48 @@ function GlossaryRow({
             values={{ countLabel: glossary.termCountLabel }}
           />
         </GlossaryInfoCell>
-        <GlossaryInfoCell label={intl.formatMessage(glossariesTableMessages.updatedLabel)}>
+        <GlossaryInfoCell
+          label={intl.formatMessage(
+            isCrowdinLiveApi
+              ? glossariesTableMessages.createdLabel
+              : glossariesTableMessages.updatedLabel,
+          )}
+        >
           <span className="text-muted-foreground">
-            {glossary.lastSyncedAt ?? glossary.updatedAt}
+            {isCrowdinLiveApi ? glossary.createdAt : (glossary.lastSyncedAt ?? glossary.updatedAt)}
           </span>
         </GlossaryInfoCell>
-        <GlossaryInfoCell label={intl.formatMessage(glossariesTableMessages.integrationLabel)}>
-          <div className="flex flex-wrap gap-1.5">
+        <GlossaryInfoCell
+          label={intl.formatMessage(
+            isCrowdinLiveApi
+              ? glossariesTableMessages.integrationLabel
+              : glossary.isLiveApi
+                ? glossariesTableMessages.providerProjectLabel
+                : glossariesTableMessages.usageLabel,
+          )}
+        >
+          <div className="flex flex-wrap items-center gap-1.5">
+            {isCrowdinLiveApi ? null : glossary.isLiveApi ? (
+              <span className="truncate text-muted-foreground">
+                {glossary.externalProjectName ??
+                  (glossary.externalProjectId
+                    ? intl.formatMessage(glossariesTableMessages.projectId, {
+                        projectId: glossary.externalProjectId,
+                      })
+                    : intl.formatMessage(glossariesTableMessages.providerFallback))}
+              </span>
+            ) : glossary.projectCount === null ? (
+              <span className="text-muted-foreground">—</span>
+            ) : (
+              <FormattedMessage
+                {...glossariesTableMessages.usedInProjects}
+                values={{ count: glossary.projectCount }}
+              />
+            )}
             {glossary.isLiveApi ? <LiveApiBadge glossary={glossary} /> : null}
             {!glossary.isLiveApi && glossary.syncState ? (
               <SyncStateBadge syncState={glossary.syncState} />
             ) : null}
-            {!glossary.isLiveApi ? <TermCapabilityBadge glossary={glossary} /> : null}
           </div>
         </GlossaryInfoCell>
         <GlossaryRowActions glossary={glossary} organizationSlug={organizationSlug} />
@@ -369,6 +397,7 @@ export function GlossariesTable({
   organizationSlug,
   title,
   headerActions,
+  headerActionsBelowTitle = false,
   count,
   emptyTitle,
   emptyDescription,
@@ -379,6 +408,7 @@ export function GlossariesTable({
   organizationSlug: string;
   title?: string;
   headerActions?: ReactNode;
+  headerActionsBelowTitle?: boolean;
   count?: number;
   emptyTitle: string;
   emptyDescription: string;
@@ -392,14 +422,19 @@ export function GlossariesTable({
       className="min-w-0"
     >
       {title ? (
-        <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+        <div
+          className={cn(
+            "mb-3 flex flex-col gap-3",
+            headerActionsBelowTitle ? "items-start" : "sm:flex-row sm:items-end sm:justify-between",
+          )}
+        >
           <div className="flex items-baseline gap-2">
             <h2 className="text-sm font-semibold tracking-[-0.01em] text-foreground">{title}</h2>
             {count !== undefined ? (
               <span className="text-xs tabular-nums text-muted-foreground">{count}</span>
             ) : null}
           </div>
-          {headerActions}
+          {headerActionsBelowTitle ? <div className="w-full">{headerActions}</div> : headerActions}
         </div>
       ) : null}
 

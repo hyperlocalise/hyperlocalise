@@ -18,7 +18,11 @@ import { sanitizeExternalUrl } from "@/lib/security/safe-external-url";
 export function toGlossaryRecord(
   glossary: Glossary,
   languages: GlossaryRecord["languages"] = defaultGlossaryLanguages(glossary),
+  termCount: number | null = glossary.termCount,
+  projectCount = 0,
 ): GlossaryRecord {
+  const resolvedLanguages = languages.length > 0 ? languages : defaultGlossaryLanguages(glossary);
+
   return {
     id: glossary.id,
     organizationId: glossary.organizationId,
@@ -27,7 +31,7 @@ export function toGlossaryRecord(
     description: glossary.description,
     sourceLocale: glossary.sourceLocale,
     targetLocale: glossary.targetLocale,
-    languages,
+    languages: resolvedLanguages,
     status: glossary.status,
     source: glossary.source,
     externalProviderKind: glossary.externalProviderKind,
@@ -35,7 +39,8 @@ export function toGlossaryRecord(
     externalResourceType: glossary.externalResourceType,
     externalGlossaryId: glossary.externalGlossaryId,
     localeCoverage: glossary.localeCoverage,
-    termCount: glossary.termCount,
+    termCount,
+    projectCount,
     syncState: glossary.syncState,
     termCapabilities: glossary.termCapabilities,
     externalUrl: sanitizeExternalUrl(glossary.externalUrl),

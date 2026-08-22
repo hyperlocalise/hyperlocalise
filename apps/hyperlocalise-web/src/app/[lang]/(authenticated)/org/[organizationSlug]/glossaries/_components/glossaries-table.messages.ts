@@ -65,6 +65,11 @@ export const glossariesTableMessages = defineMessages({
     id: "unWMnZBm3r",
     description: "External project id shown in a glossary row source detail",
   },
+  projectDetail: {
+    defaultMessage: "{projectName} · Project {projectId}",
+    id: "v5J8nR2qLm",
+    description: "External project name and id shown in a glossary row source detail",
+  },
   viewLinkedProject: {
     defaultMessage: "View linked project",
     id: "n0lpKxJnLj",
@@ -110,10 +115,35 @@ export const glossariesTableMessages = defineMessages({
     id: "ohFSHTwja2",
     description: "Metadata label for glossary update time",
   },
+  createdLabel: {
+    defaultMessage: "Created",
+    id: "m4R7pK2sVx",
+    description: "Metadata label for a live provider glossary creation time",
+  },
+  usageLabel: {
+    defaultMessage: "Usage",
+    id: "sA9Q2pY8cL",
+    description: "Metadata label for glossary workspace usage",
+  },
+  providerProjectLabel: {
+    defaultMessage: "Provider project",
+    id: "q6T4wN8rLs",
+    description: "Metadata label for a glossary's live provider project",
+  },
   integrationLabel: {
     defaultMessage: "Integration",
     id: "4qHimvs9Xc",
-    description: "Metadata label for glossary integration status",
+    description: "Metadata label for a live Crowdin glossary integration",
+  },
+  usedInProjects: {
+    defaultMessage: "{count, plural, =0 {Not used yet} one {# project} other {# projects}}",
+    id: "h9B6mP2sQe",
+    description: "Workspace project usage count for a glossary",
+  },
+  liveApi: {
+    defaultMessage: "Live API",
+    id: "j3Q7kL5vNd",
+    description: "Badge for a glossary backed by a live provider API",
   },
   connectProvider: {
     defaultMessage: "Connect a provider",

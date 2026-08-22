@@ -402,11 +402,11 @@ export function GlossariesPageView({
           />
           {liveProjectSelectionRequired ? (
             <section aria-label={externalSectionTitle} className="min-w-0">
-              <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+              <div className="mb-3 flex flex-col items-start gap-3">
                 <h2 className="text-sm font-semibold tracking-[-0.01em] text-foreground">
                   {externalSectionTitle}
                 </h2>
-                {liveProviderControls}
+                <div className="w-full">{liveProviderControls}</div>
               </div>
               <div className="space-y-3 rounded-lg border border-border px-5 py-8">
                 <TypographyP className="text-sm font-medium text-foreground">
@@ -424,6 +424,7 @@ export function GlossariesPageView({
               organizationSlug={organizationSlug}
               title={externalSectionTitle}
               headerActions={liveProviderControls}
+              headerActionsBelowTitle
               count={externalTotal}
               emptyTitle={externalEmptyTitle}
               emptyDescription={externalEmptyDescription}

@@ -23,6 +23,14 @@ import { db, schema } from "@/lib/database";
 import { GlossaryValidationError, type NativeGlossary } from "@/lib/glossary/glossary";
 import { getGlossaryProduct } from "@/lib/glossary/glossary-provider";
 import { toGlossaryRecord } from "@/lib/glossary/glossary-records";
+import {
+  queryGlossaryProjectCount,
+  queryGlossaryProjectCounts,
+} from "@/lib/glossary/query-glossary-project-counts";
+import {
+  queryNativeGlossaryTermCountForGlossary,
+  queryNativeGlossaryTermCounts,
+} from "@/lib/glossary/query-glossary-term-counts";
 import { listGlossaryTermsByGlossaryId } from "@/lib/glossary/query-glossary-terms";
 import {
   queryNativeGlossaryLanguages,
@@ -67,6 +75,8 @@ type GlossaryListResult = {
   glossaries: NativeGlossary[];
   total: number;
   languagesByGlossaryId: Map<string, ReturnType<typeof toGlossaryRecord>["languages"]>;
+  termCountsByGlossaryId: Map<string, number>;
+  projectCountsByGlossaryId: Map<string, number>;
 };
 
 async function listGlossaries(
@@ -88,10 +98,19 @@ async function listGlossaries(
     db.select({ value: count() }).from(schema.glossaries).where(where),
   ]);
 
+  const [languagesByGlossaryId, termCountsByGlossaryId, projectCountsByGlossaryId] =
+    await Promise.all([
+      queryNativeGlossaryLanguages(glossaries),
+      queryNativeGlossaryTermCounts(glossaries),
+      queryGlossaryProjectCounts(glossaries),
+    ]);
+
   return {
     glossaries,
     total: totalRow[0]?.value ?? 0,
-    languagesByGlossaryId: await queryNativeGlossaryLanguages(glossaries),
+    languagesByGlossaryId,
+    termCountsByGlossaryId,
+    projectCountsByGlossaryId,
   };
 }
 
@@ -287,17 +306,31 @@ export function createGlossaryRoutes() {
     .route("/:glossaryId/concepts", createGlossaryConceptRoutes())
     .get("/", validateListGlossaryQuery, async (c) => {
       const query = c.req.valid("query");
-      const { glossaries, total, languagesByGlossaryId } = await listGlossaries(c.var.auth, query);
+      const {
+        glossaries,
+        total,
+        languagesByGlossaryId,
+        termCountsByGlossaryId,
+        projectCountsByGlossaryId,
+      } = await listGlossaries(c.var.auth, query);
       const records = await mapWithConcurrency(glossaries, 5, async (glossary) => {
         const product = getGlossaryProduct({ auth: c.var.auth, glossary });
+        const termCount =
+          glossary.source === "native" ? (termCountsByGlossaryId.get(glossary.id) ?? 0) : undefined;
+        const projectCount = projectCountsByGlossaryId.get(glossary.id) ?? 0;
         if (product) {
           const remote = await product.get();
           const languages = languagesByGlossaryId.get(glossary.id);
           return languages
-            ? toGlossaryRecord(remote ?? glossary, languages)
-            : toGlossaryRecord(remote ?? glossary);
+            ? toGlossaryRecord(remote ?? glossary, languages, termCount, projectCount)
+            : toGlossaryRecord(remote ?? glossary, undefined, termCount, projectCount);
         }
-        return toGlossaryRecord(glossary, languagesByGlossaryId.get(glossary.id));
+        return toGlossaryRecord(
+          glossary,
+          languagesByGlossaryId.get(glossary.id),
+          termCount,
+          projectCount,
+        );
       });
       return c.json(
         {
@@ -333,7 +366,7 @@ export function createGlossaryRoutes() {
         payload,
         projects.flatMap((project) => (project ? [project.id] : [])),
       );
-      return c.json({ glossary: toGlossaryRecord(glossary) }, 201);
+      return c.json({ glossary: toGlossaryRecord(glossary, undefined, 0, 0) }, 201);
     })
     .get("/:glossaryId", validateGlossaryParams, async (c) => {
       const params = c.req.valid("param");
@@ -344,6 +377,11 @@ export function createGlossaryRoutes() {
       }
 
       const product = getGlossaryProduct({ auth: c.var.auth, glossary });
+      const termCount =
+        glossary.source === "native"
+          ? await queryNativeGlossaryTermCountForGlossary(glossary)
+          : undefined;
+      const projectCount = await queryGlossaryProjectCount(glossary);
       if (product) {
         const remote = await product.get();
         const languages =
@@ -353,14 +391,17 @@ export function createGlossaryRoutes() {
         return c.json(
           {
             glossary: languages
-              ? toGlossaryRecord(remote ?? glossary, languages)
-              : toGlossaryRecord(remote ?? glossary),
+              ? toGlossaryRecord(remote ?? glossary, languages, termCount, projectCount)
+              : toGlossaryRecord(remote ?? glossary, undefined, termCount, projectCount),
           },
           200,
         );
       }
 
-      return c.json({ glossary: toGlossaryRecord(glossary) }, 200);
+      return c.json(
+        { glossary: toGlossaryRecord(glossary, undefined, termCount, projectCount) },
+        200,
+      );
     })
     .get("/:glossaryId/terms", validateGlossaryParams, async (c) => {
       const params = c.req.valid("param");
@@ -607,7 +648,15 @@ export function createGlossaryRoutes() {
         return glossaryNotFoundResponse(c);
       }
 
-      return c.json({ glossary: toGlossaryRecord(updated) }, 200);
+      const termCount =
+        updated.source === "native"
+          ? await queryNativeGlossaryTermCountForGlossary(updated)
+          : undefined;
+      const projectCount = await queryGlossaryProjectCount(updated);
+      return c.json(
+        { glossary: toGlossaryRecord(updated, undefined, termCount, projectCount) },
+        200,
+      );
     })
     .delete("/:glossaryId", validateGlossaryParams, async (c) => {
       if (!isGlossaryMutationAllowed(c.var.auth.membership.role)) {

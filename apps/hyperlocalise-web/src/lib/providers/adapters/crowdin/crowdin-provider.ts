@@ -42,6 +42,7 @@ import {
   type CrowdinDirectory,
   type CrowdinFile,
   type CrowdinGlossary,
+  type CrowdinGlossaryPatch,
   type CrowdinProject,
   type CrowdinShortUser,
   type CrowdinSourceString,
@@ -237,6 +238,56 @@ export type CrowdinGlossaryConceptTerm = CrowdinGlossaryTermInput & {
   updatedAt?: string;
 };
 
+function omitBlankCrowdinTermValue(value: string | null | undefined) {
+  return typeof value !== "string" || value.trim() === "" ? undefined : value;
+}
+
+type CrowdinGlossaryTermRequest = CrowdinGlossaryTermInput & {
+  conceptId?: number;
+};
+
+function toCrowdinGlossaryTermRequest(
+  term: CrowdinGlossaryTermInput,
+  conceptId?: number,
+): CrowdinGlossaryTermRequest {
+  return {
+    languageId: toCrowdinGlossaryLanguageId(term.languageId),
+    text: term.text,
+    description: omitBlankCrowdinTermValue(term.description),
+    partOfSpeech: omitBlankCrowdinTermValue(term.partOfSpeech),
+    status: omitBlankCrowdinTermValue(term.status),
+    type: omitBlankCrowdinTermValue(term.type),
+    gender: omitBlankCrowdinTermValue(term.gender),
+    note: omitBlankCrowdinTermValue(term.note),
+    url: omitBlankCrowdinTermValue(term.url),
+    lemma: omitBlankCrowdinTermValue(term.lemma),
+    conceptId,
+  };
+}
+
+function toCrowdinGlossaryTermUpdatePatches(
+  term: CrowdinGlossaryTermInput,
+): CrowdinGlossaryPatch[] {
+  const normalizedTerm = toCrowdinGlossaryTermRequest(term);
+  const patches: CrowdinGlossaryPatch[] = [
+    { op: "replace", path: "/text", value: normalizedTerm.text },
+  ];
+
+  for (const [path, value] of [
+    ["/description", normalizedTerm.description],
+    ["/partOfSpeech", normalizedTerm.partOfSpeech],
+    ["/status", normalizedTerm.status],
+    ["/type", normalizedTerm.type],
+    ["/gender", normalizedTerm.gender],
+    ["/note", normalizedTerm.note],
+    ["/url", normalizedTerm.url],
+  ] as const) {
+    if (value !== undefined) patches.push({ op: "replace", path, value });
+  }
+
+  return patches;
+}
+
 export type CrowdinGlossaryLanguageDetails = {
   languageId: string;
   userId: number | null;
@@ -286,6 +337,7 @@ export type CrowdinLiveGlossaryPage = {
     termCount: number;
     externalUrl: string | null;
     externalProjectIds: string[];
+    createdAt: string | null;
   }>;
   offset: number;
   limit: number;
@@ -721,6 +773,7 @@ export class CrowdinTmsProvider extends TmsProvider {
       termCount: glossary.terms,
       externalUrl: glossary.webUrl ?? null,
       externalProjectIds: [...glossary.projectIds, ...glossary.defaultProjectIds].map(String),
+      createdAt: glossary.createdAt ?? null,
     };
   }
 
@@ -961,17 +1014,13 @@ export class CrowdinTmsProvider extends TmsProvider {
       languageId: sourceLanguageId,
       text: input.primaryTerm,
     };
-    const createdSource = await client.addGlossaryTerm(glossaryId, {
-      languageId: toCrowdinGlossaryLanguageId(source.languageId),
-      text: source.text,
-      description: source.description ?? input.definition,
-      partOfSpeech: source.partOfSpeech ?? input.subject,
-      status: source.status ?? "preferred",
-      type: source.type,
-      gender: source.gender,
-      note: source.note ?? input.note,
-      url: source.url,
-    });
+    const createdSource = await client.addGlossaryTerm(
+      glossaryId,
+      toCrowdinGlossaryTermRequest({
+        ...source,
+        status: omitBlankCrowdinTermValue(source.status) ?? "preferred",
+      }),
+    );
 
     // Crowdin creates a concept implicitly when the first term omits
     // conceptId. Concept metadata must be written after that term exists.
@@ -990,18 +1039,7 @@ export class CrowdinTmsProvider extends TmsProvider {
       })),
     });
     for (const term of input.terms.filter((item) => item !== source)) {
-      await client.addGlossaryTerm(glossaryId, {
-        languageId: toCrowdinGlossaryLanguageId(term.languageId),
-        text: term.text,
-        description: term.description,
-        partOfSpeech: term.partOfSpeech,
-        status: term.status,
-        type: term.type,
-        gender: term.gender,
-        note: term.note,
-        url: term.url,
-        conceptId,
-      });
+      await client.addGlossaryTerm(glossaryId, toCrowdinGlossaryTermRequest(term, conceptId));
     }
     return this.getLiveGlossaryConcept(scope, glossaryId, conceptId);
   }
@@ -1031,44 +1069,17 @@ export class CrowdinTmsProvider extends TmsProvider {
           toCrowdinGlossaryLanguageId(term.languageId) !==
           toCrowdinGlossaryLanguageId(existingTerm.languageId)
         ) {
-          await client.addGlossaryTerm(glossaryId, {
-            languageId: toCrowdinGlossaryLanguageId(term.languageId),
-            text: term.text,
-            description: term.description,
-            partOfSpeech: term.partOfSpeech,
-            status: term.status,
-            type: term.type,
-            gender: term.gender,
-            note: term.note,
-            url: term.url,
-            conceptId,
-          });
+          await client.addGlossaryTerm(glossaryId, toCrowdinGlossaryTermRequest(term, conceptId));
           await client.deleteGlossaryTerm(glossaryId, existingTerm.id);
           continue;
         }
-        await client.updateGlossaryTerm(glossaryId, existingTerm.id, [
-          { op: "replace", path: "/text", value: term.text },
-          { op: "replace", path: "/description", value: term.description ?? "" },
-          { op: "replace", path: "/partOfSpeech", value: term.partOfSpeech ?? "" },
-          { op: "replace", path: "/status", value: term.status ?? "draft" },
-          { op: "replace", path: "/type", value: term.type ?? "" },
-          { op: "replace", path: "/gender", value: term.gender ?? "" },
-          { op: "replace", path: "/note", value: term.note ?? "" },
-          { op: "replace", path: "/url", value: term.url ?? "" },
-        ]);
+        await client.updateGlossaryTerm(
+          glossaryId,
+          existingTerm.id,
+          toCrowdinGlossaryTermUpdatePatches(term),
+        );
       } else {
-        await client.addGlossaryTerm(glossaryId, {
-          languageId: toCrowdinGlossaryLanguageId(term.languageId),
-          text: term.text,
-          description: term.description,
-          partOfSpeech: term.partOfSpeech,
-          status: term.status,
-          type: term.type,
-          gender: term.gender,
-          note: term.note,
-          url: term.url,
-          conceptId,
-        });
+        await client.addGlossaryTerm(glossaryId, toCrowdinGlossaryTermRequest(term, conceptId));
       }
     }
     return this.getLiveGlossaryConcept(scope, glossaryId, conceptId);
@@ -1093,18 +1104,7 @@ export class CrowdinTmsProvider extends TmsProvider {
     input: CrowdinGlossaryTermInput,
   ) {
     const client = this.createClient(scope);
-    return client.addGlossaryTerm(glossaryId, {
-      languageId: toCrowdinGlossaryLanguageId(input.languageId),
-      text: input.text,
-      description: input.description,
-      partOfSpeech: input.partOfSpeech,
-      status: input.status,
-      type: input.type,
-      gender: input.gender,
-      note: input.note,
-      url: input.url,
-      conceptId,
-    });
+    return client.addGlossaryTerm(glossaryId, toCrowdinGlossaryTermRequest(input, conceptId));
   }
 
   async updateLiveGlossaryTerm(
@@ -1122,31 +1122,14 @@ export class CrowdinTmsProvider extends TmsProvider {
       toCrowdinGlossaryLanguageId(input.languageId) !==
       toCrowdinGlossaryLanguageId(existingTerm.languageId)
     ) {
-      const replacement = await client.addGlossaryTerm(glossaryId, {
-        languageId: toCrowdinGlossaryLanguageId(input.languageId),
-        text: input.text,
-        description: input.description,
-        partOfSpeech: input.partOfSpeech,
-        status: input.status,
-        type: input.type,
-        gender: input.gender,
-        note: input.note,
-        url: input.url,
-        conceptId,
-      });
+      const replacement = await client.addGlossaryTerm(
+        glossaryId,
+        toCrowdinGlossaryTermRequest(input, conceptId),
+      );
       await client.deleteGlossaryTerm(glossaryId, termId);
       return replacement;
     }
-    return client.updateGlossaryTerm(glossaryId, termId, [
-      { op: "replace", path: "/text", value: input.text },
-      { op: "replace", path: "/description", value: input.description ?? "" },
-      { op: "replace", path: "/partOfSpeech", value: input.partOfSpeech ?? "" },
-      { op: "replace", path: "/status", value: input.status ?? "draft" },
-      { op: "replace", path: "/type", value: input.type ?? "" },
-      { op: "replace", path: "/gender", value: input.gender ?? "" },
-      { op: "replace", path: "/note", value: input.note ?? "" },
-      { op: "replace", path: "/url", value: input.url ?? "" },
-    ]);
+    return client.updateGlossaryTerm(glossaryId, termId, toCrowdinGlossaryTermUpdatePatches(input));
   }
 
   async deleteLiveGlossaryTerm(
