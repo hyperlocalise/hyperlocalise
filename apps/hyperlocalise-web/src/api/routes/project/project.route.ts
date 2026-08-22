@@ -1829,26 +1829,43 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
           return projectNotFoundResponse(c);
         }
 
+        const organizationSlug =
+          c.var.auth.organization.slug ?? c.var.auth.organization.localOrganizationId;
+        const organizationId = c.var.auth.organization.localOrganizationId;
+
+        // File-backed segments may be locked under sourceFile.id or binary:/image:/video:
+        // aliases. Expand aliases before the write so omitting or aliasing externalStringId
+        // cannot bypass a lock (status already uses fileBackedCatSegmentIds).
+        const fileBackedSourceFile = inferSupportedBinaryTranslationFileFormat(body.sourcePath)
+          ? await getRepositorySourceFileByPath({
+              organizationId,
+              projectId: params.projectId,
+              sourcePath: body.sourcePath,
+            })
+          : null;
+        const isFileBackedAsset = Boolean(
+          inferSupportedBinaryTranslationFileFormat(body.sourcePath),
+        );
         const lockedImageResponse = await catSegmentLockedResponse(c, {
-          organizationId: c.var.auth.organization.localOrganizationId,
+          organizationId,
           projectId: params.projectId,
           targetLocale: body.targetLocale,
           externalStringId: body.externalStringId,
+          ...(isFileBackedAsset
+            ? {
+                externalStringIds: fileBackedCatSegmentIds(
+                  fileBackedSourceFile?.id,
+                  body.sourcePath,
+                ),
+              }
+            : {}),
         });
         if (lockedImageResponse) {
           return lockedImageResponse;
         }
 
-        const organizationSlug =
-          c.var.auth.organization.slug ?? c.var.auth.organization.localOrganizationId;
-        const organizationId = c.var.auth.organization.localOrganizationId;
-
         if (inferSupportedVideoTranslationFileFormat(body.sourcePath)) {
-          const sourceFile = await getRepositorySourceFileByPath({
-            organizationId,
-            projectId: params.projectId,
-            sourcePath: body.sourcePath,
-          });
+          const sourceFile = fileBackedSourceFile;
           if (!sourceFile) {
             return badRequestResponse(
               c,
@@ -1906,11 +1923,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
         }
 
         if (inferSupportedImageTranslationFileFormat(body.sourcePath)) {
-          const sourceFile = await getRepositorySourceFileByPath({
-            organizationId,
-            projectId: params.projectId,
-            sourcePath: body.sourcePath,
-          });
+          const sourceFile = fileBackedSourceFile;
           if (!sourceFile) {
             return badRequestResponse(
               c,
@@ -2072,19 +2085,37 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
           return invalidProjectPayloadResponse(c);
         }
 
+        const organizationSlug =
+          c.var.auth.organization.slug ?? c.var.auth.organization.localOrganizationId;
+        const organizationId = c.var.auth.organization.localOrganizationId;
+        const isFileBackedUpload =
+          target.kind !== "provider" &&
+          Boolean(inferSupportedBinaryTranslationFileFormat(sourcePath));
+        const fileBackedUploadSourceFile = isFileBackedUpload
+          ? await getRepositorySourceFileByPath({
+              organizationId,
+              projectId: params.projectId,
+              sourcePath,
+            })
+          : null;
         const lockedUploadResponse = await catSegmentLockedResponse(c, {
-          organizationId: c.var.auth.organization.localOrganizationId,
+          organizationId,
           projectId: params.projectId,
           targetLocale,
           externalStringId,
+          ...(isFileBackedUpload
+            ? {
+                externalStringIds: fileBackedCatSegmentIds(
+                  fileBackedUploadSourceFile?.id,
+                  sourcePath,
+                ),
+              }
+            : {}),
         });
         if (lockedUploadResponse) {
           return lockedUploadResponse;
         }
 
-        const organizationSlug =
-          c.var.auth.organization.slug ?? c.var.auth.organization.localOrganizationId;
-        const organizationId = c.var.auth.organization.localOrganizationId;
         const content = Buffer.from(await file.arrayBuffer());
         const contentType = file.type || sourceContentType(file.name || sourcePath);
 
@@ -2211,11 +2242,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
         }
 
         if (inferSupportedVideoTranslationFileFormat(sourcePath)) {
-          const sourceFile = await getRepositorySourceFileByPath({
-            organizationId,
-            projectId: params.projectId,
-            sourcePath,
-          });
+          const sourceFile = fileBackedUploadSourceFile;
           if (!sourceFile) {
             return badRequestResponse(
               c,
@@ -2263,11 +2290,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
         }
 
         if (inferSupportedBinaryTranslationFileFormat(sourcePath)) {
-          const sourceFile = await getRepositorySourceFileByPath({
-            organizationId,
-            projectId: params.projectId,
-            sourcePath,
-          });
+          const sourceFile = fileBackedUploadSourceFile;
           if (!sourceFile) {
             return badRequestResponse(
               c,
