@@ -13,7 +13,7 @@
 import { createHash } from "node:crypto";
 
 import type { JobKind } from "@/lib/database/types";
-import { selectGlossaryPrimaryTerm } from "@/lib/glossary/glossary";
+import { GlossaryValidationError, selectGlossaryPrimaryTerm } from "@/lib/glossary/glossary";
 import { createLogger } from "@/lib/log";
 import { mapWithConcurrency } from "@/lib/primitives/map-with-concurrency/map-with-concurrency";
 import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
@@ -265,24 +265,50 @@ function toCrowdinGlossaryTermRequest(
   };
 }
 
+/** Comparable term fields for live glossary sync. Ignores `lemma`. */
+function crowdinGlossaryTermsEqual(
+  left: CrowdinGlossaryTermInput,
+  right: CrowdinGlossaryTermInput,
+): boolean {
+  const a = toCrowdinGlossaryTermRequest(left);
+  const b = toCrowdinGlossaryTermRequest(right);
+  return (
+    a.languageId === b.languageId &&
+    a.text === b.text &&
+    a.description === b.description &&
+    a.partOfSpeech === b.partOfSpeech &&
+    a.status === b.status &&
+    a.type === b.type &&
+    a.gender === b.gender &&
+    a.note === b.note &&
+    a.url === b.url
+  );
+}
+
 function toCrowdinGlossaryTermUpdatePatches(
   term: CrowdinGlossaryTermInput,
+  existing: CrowdinGlossaryTermInput,
 ): CrowdinGlossaryPatch[] {
-  const normalizedTerm = toCrowdinGlossaryTermRequest(term);
-  const patches: CrowdinGlossaryPatch[] = [
-    { op: "replace", path: "/text", value: normalizedTerm.text },
-  ];
+  const next = toCrowdinGlossaryTermRequest(term);
+  const prev = toCrowdinGlossaryTermRequest(existing);
+  const patches: CrowdinGlossaryPatch[] = [];
 
-  for (const [path, value] of [
-    ["/description", normalizedTerm.description],
-    ["/partOfSpeech", normalizedTerm.partOfSpeech],
-    ["/status", normalizedTerm.status],
-    ["/type", normalizedTerm.type],
-    ["/gender", normalizedTerm.gender],
-    ["/note", normalizedTerm.note],
-    ["/url", normalizedTerm.url],
+  if (next.text !== prev.text) {
+    patches.push({ op: "replace", path: "/text", value: next.text });
+  }
+
+  for (const [path, key] of [
+    ["/description", "description"],
+    ["/partOfSpeech", "partOfSpeech"],
+    ["/status", "status"],
+    ["/type", "type"],
+    ["/gender", "gender"],
+    ["/note", "note"],
+    ["/url", "url"],
   ] as const) {
-    if (value !== undefined) patches.push({ op: "replace", path, value });
+    if (next[key] !== prev[key]) {
+      patches.push({ op: "replace", path, value: next[key] ?? "" });
+    }
   }
 
   return patches;
@@ -1053,6 +1079,16 @@ export class CrowdinTmsProvider extends TmsProvider {
     const client = this.createClient(scope);
     const existing = await this.getLiveGlossaryConcept(scope, glossaryId, conceptId);
     if (!existing) return null;
+    const existingById = new Map(existing.terms.map((term) => [String(term.id), term]));
+    const hasUnknownTermId = input.terms.some(
+      (term) => term.id !== undefined && !existingById.has(String(term.id)),
+    );
+    if (hasUnknownTermId) {
+      throw new GlossaryValidationError(
+        "stale_glossary_term_id",
+        "The glossary update contains a term that is no longer part of this concept",
+      );
+    }
     await client.updateGlossaryConcept(glossaryId, conceptId, {
       subject: input.subject ?? "",
       definition: input.definition ?? "",
@@ -1061,10 +1097,13 @@ export class CrowdinTmsProvider extends TmsProvider {
       url: input.url ?? "",
       figure: input.figure ?? "",
     });
-    const existingById = new Map(existing.terms.map((term) => [String(term.id), term]));
+    // Term ids that must not be deleted in the orphan pass (kept, updated, or already replaced).
+    const retainedIds = new Set<string>();
+
     for (const term of input.terms) {
-      const existingTerm = term.id ? existingById.get(String(term.id)) : undefined;
+      const existingTerm = term.id !== undefined ? existingById.get(String(term.id)) : undefined;
       if (existingTerm && typeof existingTerm.id === "number") {
+        retainedIds.add(String(existingTerm.id));
         if (
           toCrowdinGlossaryLanguageId(term.languageId) !==
           toCrowdinGlossaryLanguageId(existingTerm.languageId)
@@ -1073,15 +1112,21 @@ export class CrowdinTmsProvider extends TmsProvider {
           await client.deleteGlossaryTerm(glossaryId, existingTerm.id);
           continue;
         }
-        await client.updateGlossaryTerm(
-          glossaryId,
-          existingTerm.id,
-          toCrowdinGlossaryTermUpdatePatches(term),
-        );
+        if (crowdinGlossaryTermsEqual(existingTerm, term)) continue;
+        const patches = toCrowdinGlossaryTermUpdatePatches(term, existingTerm);
+        if (patches.length === 0) continue;
+        await client.updateGlossaryTerm(glossaryId, existingTerm.id, patches);
       } else {
         await client.addGlossaryTerm(glossaryId, toCrowdinGlossaryTermRequest(term, conceptId));
       }
     }
+
+    for (const existingTerm of existing.terms) {
+      if (typeof existingTerm.id !== "number") continue;
+      if (retainedIds.has(String(existingTerm.id))) continue;
+      await client.deleteGlossaryTerm(glossaryId, existingTerm.id);
+    }
+
     return this.getLiveGlossaryConcept(scope, glossaryId, conceptId);
   }
 
@@ -1129,7 +1174,10 @@ export class CrowdinTmsProvider extends TmsProvider {
       await client.deleteGlossaryTerm(glossaryId, termId);
       return replacement;
     }
-    return client.updateGlossaryTerm(glossaryId, termId, toCrowdinGlossaryTermUpdatePatches(input));
+    if (crowdinGlossaryTermsEqual(existingTerm, input)) return existingTerm;
+    const patches = toCrowdinGlossaryTermUpdatePatches(input, existingTerm);
+    if (patches.length === 0) return existingTerm;
+    return client.updateGlossaryTerm(glossaryId, termId, patches);
   }
 
   async deleteLiveGlossaryTerm(

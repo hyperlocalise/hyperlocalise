@@ -681,10 +681,465 @@ describe("Crowdin live glossary concepts", () => {
       [
         { op: "replace", path: "/text", value: "Erzeugnis" },
         { op: "replace", path: "/description", value: "Updated" },
-        { op: "replace", path: "/partOfSpeech", value: "noun" },
-        { op: "replace", path: "/status", value: "preferred" },
       ],
     ]);
+  });
+
+  it("diffs concept terms on update: skips unchanged, patches changed, adds, and deletes", async () => {
+    const requests: string[] = [];
+    const patchBodies: unknown[] = [];
+    const createBodies: Array<Record<string, unknown>> = [];
+    let termsState = [
+      {
+        id: 21,
+        languageId: "en",
+        text: "Checkout",
+        description: "",
+        partOfSpeech: "noun",
+        status: "preferred",
+        type: "",
+        gender: "",
+        note: "",
+        url: "",
+        conceptId: 8,
+      },
+      {
+        id: 22,
+        languageId: "vi",
+        text: "Thanh toán",
+        description: "",
+        partOfSpeech: "",
+        status: "draft",
+        type: "",
+        gender: "",
+        note: "",
+        url: "",
+        conceptId: 8,
+      },
+      {
+        id: 23,
+        languageId: "fr",
+        text: "Paiement",
+        description: "",
+        partOfSpeech: "",
+        status: "draft",
+        type: "",
+        gender: "",
+        note: "",
+        url: "",
+        conceptId: 8,
+      },
+    ];
+
+    const fetchMock = vi.fn(async (url, init) => {
+      const path = String(url).replace("https://api.crowdin.test/api/v2", "");
+      const method = init?.method ?? "GET";
+      requests.push(`${method} ${path}`);
+
+      if (path === "/glossaries/7/concepts/8" && method === "PUT") {
+        return new Response(
+          JSON.stringify({
+            data: {
+              id: 8,
+              userId: 3,
+              glossaryId: 7,
+              subject: "Commerce",
+              definition: "A payment step",
+              translatable: true,
+              note: "",
+              url: "",
+              figure: "",
+              languagesDetails: [],
+              createdAt: "2026-08-20T00:00:00Z",
+              updatedAt: "2026-08-20T00:00:00Z",
+            },
+          }),
+          { status: 200 },
+        );
+      }
+
+      if (path.startsWith("/glossaries/7/concepts?")) {
+        return new Response(
+          JSON.stringify({
+            data: [
+              {
+                data: {
+                  id: 8,
+                  userId: 3,
+                  glossaryId: 7,
+                  subject: "Commerce",
+                  definition: "A payment step",
+                  translatable: true,
+                  note: "",
+                  url: "",
+                  figure: "",
+                  languagesDetails: [],
+                  createdAt: "2026-08-20T00:00:00Z",
+                  updatedAt: "2026-08-20T00:00:00Z",
+                },
+              },
+            ],
+            pagination: { offset: 0, limit: 500 },
+          }),
+          { status: 200 },
+        );
+      }
+
+      if (path.startsWith("/glossaries/7/terms?")) {
+        return new Response(
+          JSON.stringify({
+            data: termsState.map((term) => ({
+              data: {
+                userId: 3,
+                glossaryId: 7,
+                ...term,
+              },
+            })),
+            pagination: { offset: 0, limit: 500 },
+          }),
+          { status: 200 },
+        );
+      }
+
+      if (path === "/glossaries/7/terms" && method === "POST") {
+        const body = JSON.parse(String(init.body)) as Record<string, unknown>;
+        createBodies.push(body);
+        const created = {
+          id: 30 + createBodies.length,
+          languageId: String(body.languageId),
+          text: String(body.text),
+          description: "",
+          partOfSpeech: "",
+          status: typeof body.status === "string" ? body.status : "",
+          type: "",
+          gender: "",
+          note: "",
+          url: "",
+          conceptId: 8,
+        };
+        termsState = [...termsState, created];
+        return new Response(JSON.stringify({ data: { userId: 3, glossaryId: 7, ...created } }), {
+          status: 201,
+        });
+      }
+
+      if (path === "/glossaries/7/terms/21" && method === "PATCH") {
+        patchBodies.push(JSON.parse(String(init.body)));
+        termsState = termsState.map((term) =>
+          term.id === 21 ? { ...term, text: "Checkout flow" } : term,
+        );
+        return new Response(
+          JSON.stringify({
+            data: { userId: 3, glossaryId: 7, ...termsState.find((term) => term.id === 21) },
+          }),
+          { status: 200 },
+        );
+      }
+
+      if (path === "/glossaries/7/terms/22" && method === "PATCH") {
+        throw new Error("unchanged Vietnamese term must not be patched");
+      }
+
+      if (path === "/glossaries/7/terms/23" && method === "DELETE") {
+        termsState = termsState.filter((term) => term.id !== 23);
+        return new Response(null, { status: 204 });
+      }
+
+      throw new Error(`Unexpected Crowdin request: ${method} ${path}`);
+    }) as unknown as typeof fetch;
+
+    await crowdinTmsProvider.updateLiveGlossaryConcept(
+      {
+        organizationId: "organization-1",
+        credential: { baseUrl: "https://api.crowdin.test/api/v2" } as never,
+        secretMaterial: "test-token",
+        projectId: "project-42",
+        externalProjectId: "42",
+        sourceLocale: "en-US",
+        fetchFn: fetchMock,
+      },
+      7,
+      8,
+      {
+        primaryTerm: "Checkout flow",
+        sourceLocale: "en-US",
+        subject: "Commerce",
+        definition: "A payment step",
+        terms: [
+          {
+            id: 21,
+            languageId: "en",
+            text: "Checkout flow",
+            partOfSpeech: "noun",
+            status: "preferred",
+            lemma: "ignored-lemma-change",
+          },
+          {
+            id: 22,
+            languageId: "vi",
+            text: "Thanh toán",
+            status: "draft",
+          },
+          {
+            languageId: "de",
+            text: "Kasse",
+            status: "draft",
+          },
+        ],
+      },
+    );
+
+    expect(patchBodies).toEqual([[{ op: "replace", path: "/text", value: "Checkout flow" }]]);
+    expect(createBodies).toEqual([
+      expect.objectContaining({ languageId: "de", text: "Kasse", conceptId: 8 }),
+    ]);
+    expect(requests.filter((request) => request.startsWith("PATCH "))).toEqual([
+      "PATCH /glossaries/7/terms/21",
+    ]);
+    expect(requests.filter((request) => request.startsWith("POST "))).toEqual([
+      "POST /glossaries/7/terms",
+    ]);
+    expect(requests.filter((request) => request.startsWith("DELETE "))).toEqual([
+      "DELETE /glossaries/7/terms/23",
+    ]);
+  });
+
+  it("replaces a term when language changes during concept update", async () => {
+    const requests: string[] = [];
+    let termsState = [
+      {
+        id: 21,
+        languageId: "en",
+        text: "Checkout",
+        description: "",
+        partOfSpeech: "",
+        status: "preferred",
+        type: "",
+        gender: "",
+        note: "",
+        url: "",
+        conceptId: 8,
+      },
+    ];
+
+    const fetchMock = vi.fn(async (url, init) => {
+      const path = String(url).replace("https://api.crowdin.test/api/v2", "");
+      const method = init?.method ?? "GET";
+      requests.push(`${method} ${path}`);
+
+      if (path === "/glossaries/7/concepts/8" && method === "PUT") {
+        return new Response(
+          JSON.stringify({
+            data: {
+              id: 8,
+              userId: 3,
+              glossaryId: 7,
+              subject: "",
+              definition: "",
+              translatable: true,
+              note: "",
+              url: "",
+              figure: "",
+              languagesDetails: [],
+              createdAt: "2026-08-20T00:00:00Z",
+              updatedAt: "2026-08-20T00:00:00Z",
+            },
+          }),
+          { status: 200 },
+        );
+      }
+
+      if (path.startsWith("/glossaries/7/concepts?")) {
+        return new Response(
+          JSON.stringify({
+            data: [
+              {
+                data: {
+                  id: 8,
+                  userId: 3,
+                  glossaryId: 7,
+                  subject: "",
+                  definition: "",
+                  translatable: true,
+                  note: "",
+                  url: "",
+                  figure: "",
+                  languagesDetails: [],
+                  createdAt: "2026-08-20T00:00:00Z",
+                  updatedAt: "2026-08-20T00:00:00Z",
+                },
+              },
+            ],
+            pagination: { offset: 0, limit: 500 },
+          }),
+          { status: 200 },
+        );
+      }
+
+      if (path.startsWith("/glossaries/7/terms?")) {
+        return new Response(
+          JSON.stringify({
+            data: termsState.map((term) => ({
+              data: { userId: 3, glossaryId: 7, ...term },
+            })),
+            pagination: { offset: 0, limit: 500 },
+          }),
+          { status: 200 },
+        );
+      }
+
+      if (path === "/glossaries/7/terms" && method === "POST") {
+        const body = JSON.parse(String(init.body)) as Record<string, unknown>;
+        const created = {
+          id: 40,
+          languageId: String(body.languageId),
+          text: String(body.text),
+          description: "",
+          partOfSpeech: "",
+          status: typeof body.status === "string" ? body.status : "",
+          type: "",
+          gender: "",
+          note: "",
+          url: "",
+          conceptId: 8,
+        };
+        termsState = [...termsState, created];
+        return new Response(JSON.stringify({ data: { userId: 3, glossaryId: 7, ...created } }), {
+          status: 201,
+        });
+      }
+
+      if (path === "/glossaries/7/terms/21" && method === "DELETE") {
+        termsState = termsState.filter((term) => term.id !== 21);
+        return new Response(null, { status: 204 });
+      }
+
+      if (path === "/glossaries/7/terms/21" && method === "PATCH") {
+        throw new Error("language change must not patch the old term");
+      }
+
+      throw new Error(`Unexpected Crowdin request: ${method} ${path}`);
+    }) as unknown as typeof fetch;
+
+    await crowdinTmsProvider.updateLiveGlossaryConcept(
+      {
+        organizationId: "organization-1",
+        credential: { baseUrl: "https://api.crowdin.test/api/v2" } as never,
+        secretMaterial: "test-token",
+        projectId: "project-42",
+        externalProjectId: "42",
+        sourceLocale: "en-US",
+        fetchFn: fetchMock,
+      },
+      7,
+      8,
+      {
+        primaryTerm: "Kasse",
+        sourceLocale: "en-US",
+        terms: [{ id: 21, languageId: "de", text: "Kasse", status: "preferred" }],
+      },
+    );
+
+    expect(requests.filter((request) => request === "POST /glossaries/7/terms")).toHaveLength(1);
+    expect(requests.filter((request) => request === "DELETE /glossaries/7/terms/21")).toHaveLength(
+      1,
+    );
+    expect(requests.some((request) => request.startsWith("PATCH /glossaries/7/terms/"))).toBe(
+      false,
+    );
+  });
+
+  it("rejects stale term ids before mutating the concept", async () => {
+    const requests: string[] = [];
+    const fetchMock = vi.fn(async (url, init) => {
+      const path = String(url).replace("https://api.crowdin.test/api/v2", "");
+      const method = init?.method ?? "GET";
+      requests.push(`${method} ${path}`);
+
+      if (path.startsWith("/glossaries/7/concepts?")) {
+        return new Response(
+          JSON.stringify({
+            data: [
+              {
+                data: {
+                  id: 8,
+                  userId: 3,
+                  glossaryId: 7,
+                  subject: "Commerce",
+                  definition: "A payment step",
+                  translatable: true,
+                  note: "",
+                  url: "",
+                  figure: "",
+                  languagesDetails: [],
+                  createdAt: "2026-08-20T00:00:00Z",
+                  updatedAt: "2026-08-20T00:00:00Z",
+                },
+              },
+            ],
+            pagination: { offset: 0, limit: 500 },
+          }),
+          { status: 200 },
+        );
+      }
+
+      if (path.startsWith("/glossaries/7/terms?")) {
+        return new Response(
+          JSON.stringify({
+            data: [
+              {
+                data: {
+                  id: 21,
+                  userId: 3,
+                  glossaryId: 7,
+                  languageId: "en",
+                  text: "Checkout",
+                  description: "",
+                  partOfSpeech: "noun",
+                  status: "preferred",
+                  type: "",
+                  gender: "",
+                  note: "",
+                  url: "",
+                  conceptId: 8,
+                  lemma: "",
+                },
+              },
+            ],
+            pagination: { offset: 0, limit: 500 },
+          }),
+          { status: 200 },
+        );
+      }
+
+      throw new Error(`Unexpected Crowdin request: ${method} ${path}`);
+    }) as unknown as typeof fetch;
+
+    await expect(
+      crowdinTmsProvider.updateLiveGlossaryConcept(
+        {
+          organizationId: "organization-1",
+          credential: { baseUrl: "https://api.crowdin.test/api/v2" } as never,
+          secretMaterial: "test-token",
+          projectId: "project-42",
+          externalProjectId: "42",
+          sourceLocale: "en-US",
+          fetchFn: fetchMock,
+        },
+        7,
+        8,
+        {
+          primaryTerm: "Checkout",
+          sourceLocale: "en-US",
+          terms: [{ id: 999, languageId: "en", text: "Stale checkout" }],
+        },
+      ),
+    ).rejects.toMatchObject({
+      name: "GlossaryValidationError",
+      code: "stale_glossary_term_id",
+    });
+
+    expect(requests.every((request) => request.startsWith("GET "))).toBe(true);
   });
 
   it("lists account glossaries without filtering by Crowdin userId", async () => {

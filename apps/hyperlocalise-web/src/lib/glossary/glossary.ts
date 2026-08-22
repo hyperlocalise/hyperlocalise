@@ -214,7 +214,7 @@ export type GlossaryConceptInput = {
 
 export class GlossaryValidationError extends Error {
   constructor(
-    readonly code: "invalid_part_of_speech",
+    readonly code: "invalid_part_of_speech" | "stale_glossary_term_id",
     message: string,
   ) {
     super(message);
