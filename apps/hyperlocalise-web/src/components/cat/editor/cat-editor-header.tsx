@@ -26,7 +26,10 @@ import {
   shouldShowSegmentStatusBadge,
 } from "@/components/cat/segment/cat-segment-status";
 import { CatShareSegmentButton } from "@/components/cat/segment/cat-share-segment-button";
-import { catEditorPanelMessages, catLockedStringMessages } from "@/components/cat/shared/cat.messages";
+import {
+  catEditorPanelMessages,
+  catLockedStringMessages,
+} from "@/components/cat/shared/cat.messages";
 import type { CatSegment } from "@/components/cat/shared/types";
 
 import { getCatShortcutLabel } from "./cat-keyboard-shortcuts";
@@ -87,7 +90,9 @@ export function CatEditorHeader({
         {canEditTranslations && onToggleLocked ? (
           <Button variant="outline" size="xs" onClick={onToggleLocked}>
             <FormattedMessage
-              {...(segment.isLocked ? catLockedStringMessages.unlock : catLockedStringMessages.lock)}
+              {...(segment.isLocked
+                ? catLockedStringMessages.unlock
+                : catLockedStringMessages.lock)}
             />
           </Button>
         ) : null}

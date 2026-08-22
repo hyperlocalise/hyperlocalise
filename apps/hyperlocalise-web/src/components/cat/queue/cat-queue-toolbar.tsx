@@ -133,7 +133,7 @@ export function CatQueueToolbar({
   const intl = useIntl();
   const hasBulkActions = Boolean(
     onSelectionModeChange &&
-      (onBulkApprove || onBulkSkip || onBulkHide || onBulkUnhide || onBulkLock || onBulkUnlock),
+    (onBulkApprove || onBulkSkip || onBulkHide || onBulkUnhide || onBulkLock || onBulkUnlock),
   );
   const hasActiveFilter = queueFilter !== "all";
   const hasActiveSort = queueSort !== "file_order";

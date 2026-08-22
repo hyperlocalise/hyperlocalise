@@ -354,10 +354,7 @@ export const projectFileCatHiddenStringsResponseSchema = z.object({
 export const projectFileCatLockedStringsBodySchema = z.object({
   sourcePath: z.string().trim().min(1).max(2048),
   targetLocale: z.string().trim().min(1).max(32),
-  externalStringIds: z
-    .array(z.string().trim().min(1).max(128))
-    .min(1)
-    .max(maxCatLockedStringBatch),
+  externalStringIds: z.array(z.string().trim().min(1).max(128)).min(1).max(maxCatLockedStringBatch),
   isLocked: z.boolean(),
 });
 

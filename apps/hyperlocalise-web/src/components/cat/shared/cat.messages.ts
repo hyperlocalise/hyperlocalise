@@ -202,12 +202,12 @@ export const catQueuePanelMessages = defineMessages({
   },
   bulkLock: {
     defaultMessage: "Lock selected",
-    id: "catQueueBulkLock",
+    id: "HazwWhJHjo",
     description: "Bulk action to lock selected CAT segments against accidental edits",
   },
   bulkUnlock: {
     defaultMessage: "Unlock selected",
-    id: "catQueueBulkUnlock",
+    id: "RdS22zCv6k",
     description: "Bulk action to unlock selected CAT segments so they can be edited",
   },
   bulkSelectAll: {
@@ -281,22 +281,22 @@ export const catHiddenStringMessages = defineMessages({
 export const catLockedStringMessages = defineMessages({
   locked: {
     defaultMessage: "Locked",
-    id: "catLockedBadge",
+    id: "jZwDGjK7RL",
     description: "Badge shown when a CAT segment is locked against edits",
   },
   lock: {
     defaultMessage: "Lock",
-    id: "catLockAction",
+    id: "fQ1jKCCGwH",
     description: "Button to lock the current CAT segment against edits",
   },
   unlock: {
     defaultMessage: "Unlock",
-    id: "catUnlockAction",
+    id: "uG9evF+2Fa",
     description: "Button to unlock the current CAT segment so it can be edited",
   },
   lockedBanner: {
     defaultMessage: "This string is locked. Unlock it to edit.",
-    id: "catLockedBanner",
+    id: "BLCf0utxhq",
     description: "Banner shown in the CAT editor when the current string is locked",
   },
 });

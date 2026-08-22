@@ -887,11 +887,7 @@ async function catSegmentLockedResponse(
     return null;
   }
 
-  return conflictResponse(
-    c,
-    "translation_locked",
-    "This string is locked. Unlock it to edit.",
-  );
+  return conflictResponse(c, "translation_locked", "This string is locked. Unlock it to edit.");
 }
 
 export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {

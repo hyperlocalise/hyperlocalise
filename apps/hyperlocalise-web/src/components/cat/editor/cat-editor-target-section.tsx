@@ -21,7 +21,10 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 
 import { analyzeCatMessageFormat } from "@/components/cat/message-format/cat-message-format";
-import { catEditorPanelMessages, catLockedStringMessages } from "@/components/cat/shared/cat.messages";
+import {
+  catEditorPanelMessages,
+  catLockedStringMessages,
+} from "@/components/cat/shared/cat.messages";
 import type { CatSegment } from "@/components/cat/shared/types";
 
 import { CatIcuStructureSummary, CatTargetEditor } from "./cat-target-editor";
