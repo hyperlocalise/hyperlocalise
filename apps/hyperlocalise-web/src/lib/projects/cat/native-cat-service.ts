@@ -56,7 +56,10 @@ function filenameFromSourcePath(sourcePath: string) {
   return sourcePath.split("/").at(-1) ?? sourcePath;
 }
 
-export function fileBackedCatSegmentIds(sourceFileId: string | null | undefined, sourcePath: string) {
+export function fileBackedCatSegmentIds(
+  sourceFileId: string | null | undefined,
+  sourcePath: string,
+) {
   const ids = new Set<string>();
   if (sourceFileId) {
     ids.add(sourceFileId);
