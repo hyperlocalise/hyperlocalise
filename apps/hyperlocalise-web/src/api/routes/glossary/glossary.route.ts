@@ -361,12 +361,9 @@ export function createGlossaryRoutes() {
           "The selected project uses a different source locale",
         );
       }
-      const glossary = await createNativeGlossary(
-        c.var.auth,
-        payload,
-        projects.flatMap((project) => (project ? [project.id] : [])),
-      );
-      return c.json({ glossary: toGlossaryRecord(glossary, undefined, 0, 0) }, 201);
+      const projectIds = projects.flatMap((project) => (project ? [project.id] : []));
+      const glossary = await createNativeGlossary(c.var.auth, payload, projectIds);
+      return c.json({ glossary: toGlossaryRecord(glossary, undefined, 0, projectIds.length) }, 201);
     })
     .get("/:glossaryId", validateGlossaryParams, async (c) => {
       const params = c.req.valid("param");

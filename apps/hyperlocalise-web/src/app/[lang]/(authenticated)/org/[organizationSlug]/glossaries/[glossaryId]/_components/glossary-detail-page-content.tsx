@@ -81,7 +81,7 @@ import { TypographyH1, TypographyP } from "@/components/ui/typography";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { readApiError } from "@/lib/api-error";
 import { apiClient } from "@/lib/api-client-instance";
-import { COMMON_LOCALES, getLocaleLabel } from "@/lib/i18n/locales";
+import { getLocaleLabel } from "@/lib/i18n/locales";
 import { cn } from "@/lib/primitives/cn";
 import {
   glossaryGenderValues,
@@ -94,6 +94,7 @@ import {
   type GlossaryTermStatus,
 } from "@/lib/glossary/glossary";
 
+import { availableConceptTermLocales } from "./available-concept-term-locales";
 import { glossaryDetailPageContentMessages as messages } from "./glossary-detail-page-content.messages";
 
 type ConceptDraft = {
@@ -1287,12 +1288,7 @@ export function GlossaryDetailPageContent({
     filteredConcepts.length > 0 &&
     filteredConcepts.every((concept) => selectedConceptIds.has(concept.id));
   const normalizedLanguageFilter = languageFilter.trim().toLowerCase();
-  const creatingTermLocales = new Set(creatingTermDrafts.map((term) => term.locale));
-  const availableTermLocales = isCreatingConcept
-    ? COMMON_LOCALES.filter(
-        (locale) => locale !== sourceLanguage.locale && !creatingTermLocales.has(locale),
-      )
-    : COMMON_LOCALES.filter((locale) => !selected?.terms.some((term) => term.locale === locale));
+  const availableTermLocales = availableConceptTermLocales();
   const termGroups = (selected?.terms ?? [])
     .filter(
       (term) =>
@@ -1827,6 +1823,30 @@ export function GlossaryDetailPageContent({
                                       </Badge>
                                     ) : null}
                                   </span>
+                                  {canEdit ? (
+                                    <Button
+                                      type="button"
+                                      size="xs"
+                                      variant="ghost"
+                                      onClick={() => {
+                                        const id = `new-${crypto.randomUUID()}`;
+                                        setCreatingTermDrafts((drafts) => [
+                                          ...drafts,
+                                          {
+                                            ...emptyTermDraft,
+                                            id,
+                                            locale: group.locale,
+                                          },
+                                        ]);
+                                        setExpandedCreatingTermIds((current) =>
+                                          new Set(current).add(id),
+                                        );
+                                      }}
+                                    >
+                                      <HugeiconsIcon icon={Add01Icon} strokeWidth={1.8} />
+                                      <FormattedMessage {...messages.addTerm} />
+                                    </Button>
+                                  ) : null}
                                 </div>
                                 <div className="overflow-x-auto">
                                   <table className="min-w-[680px] w-full text-left text-xs">
