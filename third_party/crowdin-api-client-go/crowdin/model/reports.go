@@ -793,9 +793,6 @@ func (r *GroupTransactionCostsPostEditingSchema) ValidateGroupSchema() error {
 	if r.BaseRates == nil {
 		return errors.New("baseRates is required")
 	}
-	if r.IndividualRates == nil {
-		return errors.New("individualRates is required")
-	}
 	if r.NetRateSchemes == nil {
 		return errors.New("netRateSchemes is required")
 	}
@@ -938,7 +935,7 @@ func (r *ReportSettingsTemplateAddRequest) Validate() error {
 	if r.Config == nil {
 		return errors.New("config is required")
 	}
-	if r.Config.BaseRates == nil || len(r.Config.IndividualRates) == 0 || r.Config.NetRateSchemes == nil {
+	if r.Config.BaseRates == nil || r.Config.NetRateSchemes == nil {
 		return errors.New("config fields are required")
 	}
 

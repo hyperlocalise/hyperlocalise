@@ -219,25 +219,27 @@ func TestGroupReportGenerateRequestValidate(t *testing.T) {
 			err: "baseRates is required",
 		},
 		{
-			name: "required schema.individualRates",
+			name: "required schema.netRateSchemes",
 			req: &GroupReportGenerateRequest{
 				Name: ReportGroupTranslationCostsPostEditing,
 				Schema: &GroupTransactionCostsPostEditingSchema{
 					BaseRates: &ReportBaseRates{},
 				},
 			},
-			err: "individualRates is required",
+			err: "netRateSchemes is required",
 		},
 		{
-			name: "required schema.netRateSchemes",
+			name: "valid request without individualRates (GroupTransactionCostsPostEditingSchema)",
 			req: &GroupReportGenerateRequest{
 				Name: ReportGroupTranslationCostsPostEditing,
 				Schema: &GroupTransactionCostsPostEditingSchema{
-					BaseRates:       &ReportBaseRates{},
-					IndividualRates: []*ReportIndividualRates{},
+					BaseRates: &ReportBaseRates{FullTranslation: 0.1, Proofread: 0.2},
+					NetRateSchemes: &ReportNetRateSchemes{
+						TMMatch: []ReportNetRateSchemeMatch{{MatchType: "perfect", Price: 0.1}},
+					},
 				},
 			},
-			err: "netRateSchemes is required",
+			valid: true,
 		},
 		{
 			name: "valid request (GroupTransactionCostsPostEditingSchema)",
@@ -392,6 +394,19 @@ func TestReportSettingsTemplateAddRequestValidate(t *testing.T) {
 						TMMatch:         []ReportNetRateSchemeMatch{{MatchType: "perfect", Price: 0.1}},
 						MTMatch:         []ReportNetRateSchemeMatch{{MatchType: "perfect", Price: 0.2}},
 						SuggestionMatch: []ReportNetRateSchemeMatch{{MatchType: "perfect", Price: 0.3}},
+					},
+				},
+			},
+			valid: true,
+		},
+		{
+			name: "valid request without individualRates",
+			req: &ReportSettingsTemplateAddRequest{
+				Name: "Default template", Currency: "USD", Unit: ReportUnitWords,
+				Config: &ReportSettingsTemplateConfig{
+					BaseRates: &ReportBaseRates{FullTranslation: 0.1, Proofread: 0.2},
+					NetRateSchemes: &ReportNetRateSchemes{
+						TMMatch: []ReportNetRateSchemeMatch{{MatchType: "perfect", Price: 0.1}},
 					},
 				},
 			},
