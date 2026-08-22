@@ -2673,4 +2673,136 @@ describe("project file CAT routes", () => {
       imageVariant: { status: "approved" },
     });
   });
+
+  it("rejects file-backed image regenerate when locked under sourceFile.id even if externalStringId is omitted", async () => {
+    const { identity, project, organization } = await projectFixture.createStoredProjectFixture();
+    const headers = await projectFixture.authHeadersFor(identity);
+    const sourcePath = "assets/hero-locked.png";
+    const sourceFile = await ensureRepositorySourceFile({
+      organizationId: organization.id,
+      projectId: project.id,
+      sourcePath,
+    });
+
+    await ensureImageVariantsForSourceFile({
+      organizationId: organization.id,
+      projectId: project.id,
+      sourcePath,
+      repositorySourceFileId: sourceFile.id,
+      targetLocales: ["fr-FR"],
+    });
+
+    const lockResponse = await client.api.orgs[":organizationSlug"].projects[
+      ":projectId"
+    ].files.detail.cat.strings.locked.$post(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          projectId: project.id,
+        },
+        json: {
+          sourcePath,
+          targetLocale: "fr-FR",
+          externalStringIds: [sourceFile.id],
+          isLocked: true,
+        },
+      },
+      { headers },
+    );
+    expect(lockResponse.status).toBe(200);
+
+    const omittedIdResponse = await client.api.orgs[":organizationSlug"].projects[
+      ":projectId"
+    ].files.detail.cat.images.regenerate.$post(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          projectId: project.id,
+        },
+        json: {
+          sourcePath,
+          targetLocale: "fr-FR",
+        },
+      },
+      { headers },
+    );
+    expect(omittedIdResponse.status).toBe(409);
+    expect(await omittedIdResponse.json()).toMatchObject({ error: "translation_locked" });
+
+    const aliasIdResponse = await client.api.orgs[":organizationSlug"].projects[
+      ":projectId"
+    ].files.detail.cat.images.regenerate.$post(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          projectId: project.id,
+        },
+        json: {
+          sourcePath,
+          targetLocale: "fr-FR",
+          externalStringId: `binary:${sourcePath}`,
+        },
+      },
+      { headers },
+    );
+    expect(aliasIdResponse.status).toBe(409);
+    expect(await aliasIdResponse.json()).toMatchObject({ error: "translation_locked" });
+  });
+
+  it("rejects file-backed image upload when locked under sourceFile.id even if externalStringId is omitted", async () => {
+    const { identity, project, organization } = await projectFixture.createStoredProjectFixture();
+    const headers = await projectFixture.authHeadersFor(identity);
+    const sourcePath = "assets/hero-upload-locked.png";
+    const sourceFile = await ensureRepositorySourceFile({
+      organizationId: organization.id,
+      projectId: project.id,
+      sourcePath,
+    });
+
+    await ensureImageVariantsForSourceFile({
+      organizationId: organization.id,
+      projectId: project.id,
+      sourcePath,
+      repositorySourceFileId: sourceFile.id,
+      targetLocales: ["fr-FR"],
+    });
+
+    const lockResponse = await client.api.orgs[":organizationSlug"].projects[
+      ":projectId"
+    ].files.detail.cat.strings.locked.$post(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          projectId: project.id,
+        },
+        json: {
+          sourcePath,
+          targetLocale: "fr-FR",
+          externalStringIds: [sourceFile.id],
+          isLocked: true,
+        },
+      },
+      { headers },
+    );
+    expect(lockResponse.status).toBe(200);
+
+    const formData = new FormData();
+    formData.set("sourcePath", sourcePath);
+    formData.set("targetLocale", "fr-FR");
+    formData.set(
+      "file",
+      new File([Uint8Array.from([137, 80, 78, 71])], "hero-fr.png", { type: "image/png" }),
+    );
+
+    const response = await app.request(
+      `/api/orgs/${encodeURIComponent(identity.organization.slug ?? "missing-slug")}/projects/${encodeURIComponent(project.id)}/files/detail/cat/images/upload`,
+      {
+        method: "POST",
+        headers,
+        body: formData,
+      },
+    );
+    expect(response.status).toBe(409);
+    expect(await response.json()).toMatchObject({ error: "translation_locked" });
+  });
 });
