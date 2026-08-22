@@ -203,3 +203,7 @@
 ## 2026-11-23 - [CLI UI Progress Renderer Priority & Truncation Boundaries]
 **Learning:** In CLI Bubble Tea progress renderers (`progressui`), file status prioritization ranks `processing` (priority 0) ahead of `failed` (priority 1) and `done` (priority 2), maintaining recency order within the same state. Furthermore, finishing tasks for unstarted target paths must safely handle zero `processing` counts without integer underflow, and file status lists exceeding `maxVisible` must correctly compute and display the `... N more files` suffix line.
 **Action:** When testing CLI terminal rendering or state-machine UI models, verify both priority sorting boundaries and zero/underflow safety on event handlers alongside list truncation text rendering.
+
+## 2026-11-24 - [Storage Adapter Registry Normalization and Error Wrapping]
+**Learning:** The storage adapter registry (`storageregistry`) normalizes adapter names by converting to lowercase and stripping whitespace. When testing adapter registration and instantiation, lookups with mixed casing or leading/trailing whitespace (e.g. `"  CROWDIN-V2  "`) resolve to the same normalized key. Additionally, factory errors inside `New` are wrapped using Go `%w`, which preserves `errors.Is` error unwrapping while appending contextual adapter error prefixes.
+**Action:** When testing adapter registries or plugin factories, verify name normalization across registration, lookup, and list output, and assert both sentinel error unwrapping (`errors.Is`) and contextual message formatting.
