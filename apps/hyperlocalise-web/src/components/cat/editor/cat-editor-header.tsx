@@ -20,12 +20,13 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
 import { CatHiddenStringBadge } from "@/components/cat/segment/cat-hidden-string-badge";
+import { CatLockedStringBadge } from "@/components/cat/segment/cat-locked-string-badge";
 import {
   SegmentStatusBadge,
   shouldShowSegmentStatusBadge,
 } from "@/components/cat/segment/cat-segment-status";
 import { CatShareSegmentButton } from "@/components/cat/segment/cat-share-segment-button";
-import { catEditorPanelMessages } from "@/components/cat/shared/cat.messages";
+import { catEditorPanelMessages, catLockedStringMessages } from "@/components/cat/shared/cat.messages";
 import type { CatSegment } from "@/components/cat/shared/types";
 
 import { getCatShortcutLabel } from "./cat-keyboard-shortcuts";
@@ -41,6 +42,8 @@ export function CatEditorHeader({
   isMac,
   onPrevious,
   onNext,
+  canEditTranslations = false,
+  onToggleLocked,
 }: {
   segment: CatSegment;
   segmentPosition: number;
@@ -52,6 +55,8 @@ export function CatEditorHeader({
   isMac: boolean;
   onPrevious: () => void;
   onNext: () => void;
+  canEditTranslations?: boolean;
+  onToggleLocked?: () => void;
 }) {
   const intl = useIntl();
 
@@ -71,6 +76,7 @@ export function CatEditorHeader({
           <SegmentStatusBadge status={segment.status} />
         ) : null}
         {segment.isHidden ? <CatHiddenStringBadge /> : null}
+        {segment.isLocked ? <CatLockedStringBadge /> : null}
         {isTargetDirty ? (
           <Badge variant="outline" className="border-bud-500/40 bg-bud-500/10 text-bud-300">
             <FormattedMessage {...catEditorPanelMessages.unsavedChanges} />
@@ -78,6 +84,13 @@ export function CatEditorHeader({
         ) : null}
       </div>
       <div className="flex items-center gap-1">
+        {canEditTranslations && onToggleLocked ? (
+          <Button variant="outline" size="xs" onClick={onToggleLocked}>
+            <FormattedMessage
+              {...(segment.isLocked ? catLockedStringMessages.unlock : catLockedStringMessages.lock)}
+            />
+          </Button>
+        ) : null}
         {segmentShareUrl ? <CatShareSegmentButton segmentShareUrl={segmentShareUrl} /> : null}
         <Button
           variant="ghost"

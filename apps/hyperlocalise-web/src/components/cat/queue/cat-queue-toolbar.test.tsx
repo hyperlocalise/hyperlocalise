@@ -114,6 +114,32 @@ describe("CatQueueToolbar", () => {
     );
   });
 
+  it("offers Lock and Unlock when those bulk handlers are provided", async () => {
+    const user = userEvent.setup();
+    const onBulkLock = vi.fn();
+    const onBulkUnlock = vi.fn();
+
+    renderWithCatProviders(
+      <CatQueueToolbar
+        selectionMode
+        onSelectionModeChange={vi.fn()}
+        onBulkLock={onBulkLock}
+        onBulkUnlock={onBulkUnlock}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Queue actions" }));
+
+    expect(screen.getByRole("menuitem", { name: "Lock selected" })).toHaveAttribute(
+      "aria-disabled",
+      "true",
+    );
+    expect(screen.getByRole("menuitem", { name: "Unlock selected" })).toHaveAttribute(
+      "aria-disabled",
+      "true",
+    );
+  });
+
   it("disables select-all and bulk mutate while the queue is still loading placeholder data", async () => {
     const user = userEvent.setup();
     const onSelectAllVisible = vi.fn();

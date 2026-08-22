@@ -74,6 +74,8 @@ export interface CatQueueSegment {
   looksLikeVideoUrl?: boolean;
   /** TMS hidden string — unavailable to translators, still visible to managers. */
   isHidden?: boolean;
+  /** Explicit CAT lock. Editors can set and show this independently of approved/hidden. */
+  isLocked?: boolean;
   /** Set when the queue spans multiple files. */
   sourcePath?: string;
   externalResourceId?: string;
@@ -107,6 +109,8 @@ export interface CatSegment {
   hasOpenIssues?: boolean;
   /** TMS hidden string — unavailable to translators, still visible to managers. */
   isHidden?: boolean;
+  /** Explicit CAT lock. Editors can set and show this independently of approved/hidden. */
+  isLocked?: boolean;
   tags?: string[];
   maxLength?: number;
   comments?: CatSegmentComment[];

@@ -167,6 +167,39 @@ describe("projectFileCatToWorkspaceState", () => {
     expect(state.queueSegments[1]).not.toHaveProperty("isHidden");
   });
 
+  it("maps isLocked from CAT segments into queue state", () => {
+    const state = projectFileCatToWorkspaceState(
+      catFile({
+        segments: [
+          {
+            externalStringId: "locked-string",
+            key: "checkout.title",
+            sourceText: "Checkout",
+            context: null,
+            type: "text",
+            isLocked: true,
+          },
+          {
+            externalStringId: "unlocked-string",
+            key: "hero.cta",
+            sourceText: "Get started",
+            context: null,
+            type: "text",
+            isLocked: false,
+          },
+        ],
+      }),
+      "en-US",
+      testIntl,
+    );
+
+    expect(state.queueSegments[0]).toMatchObject({
+      id: "locked-string",
+      isLocked: true,
+    });
+    expect(state.queueSegments[1]).not.toHaveProperty("isLocked");
+  });
+
   it("omits maxLength from workspace state when the CAT segment has a non-positive value", () => {
     const state = projectFileCatToWorkspaceState(
       catFile({

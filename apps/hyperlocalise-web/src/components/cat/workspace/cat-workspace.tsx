@@ -436,8 +436,8 @@ export const CatWorkspaceView = observer(function CatWorkspaceView({
           segment={editorSegment}
           viewerId={capabilities.viewerId}
           filename={shell.fileContext.filename}
-          canEdit={canApprove}
-          canApprove={canApprove}
+          canEdit={canApprove && !editorSegment.isLocked}
+          canApprove={canApprove && !editorSegment.isLocked}
           isApproving={isApproving}
           isImageBusy={isImageBusy}
           isSegmentTargetLoading={isSegmentTargetLoading}
@@ -556,6 +556,11 @@ export const CatWorkspaceView = observer(function CatWorkspaceView({
               ? (file) => void editing.onUploadImage?.(editorSegment.id, file)
               : undefined
           }
+          onToggleLocked={
+            review.onSetLocked
+              ? () => void review.onSetLocked?.([editorSegment.id], !editorSegment.isLocked)
+              : undefined
+          }
           aiRecommendationError={aiRecommendationError}
           onPrevious={navigation.onPreviousSegment}
           onNext={navigation.onNextSegment}
@@ -611,7 +616,9 @@ export const CatWorkspaceView = observer(function CatWorkspaceView({
           isVisualContextLoading={isVisualContextLoading}
           showAgentContext={showAgentContext}
           showVisualContext={showVisualContext}
-          canEditTranslations={shell.fileContext.canEditTranslations !== false}
+          canEditTranslations={
+            shell.fileContext.canEditTranslations !== false && !editorSegment.isLocked
+          }
           canLookupFreshContext={canLookupContext}
           onRefreshContext={() => review.onAskQuestion(editorSegment.id, { forceRefresh: true })}
           onUseTmMatch={(match) => editing.onUseTmMatch(editorSegment.id, match)}

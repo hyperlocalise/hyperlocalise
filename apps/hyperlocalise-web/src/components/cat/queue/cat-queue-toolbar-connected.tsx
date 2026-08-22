@@ -36,6 +36,8 @@ export const CatQueueToolbarConnected = observer(function CatQueueToolbarConnect
   onBulkSkip,
   onBulkHide,
   onBulkUnhide,
+  onBulkLock,
+  onBulkUnlock,
   onDownloadFilteredView,
   isDownloadingFilteredView = false,
 }: {
@@ -53,6 +55,8 @@ export const CatQueueToolbarConnected = observer(function CatQueueToolbarConnect
   onBulkSkip?: () => void;
   onBulkHide?: () => void;
   onBulkUnhide?: () => void;
+  onBulkLock?: () => void;
+  onBulkUnlock?: () => void;
   onDownloadFilteredView?: (format: "csv" | "tmx" | "xlf" | "xliff") => void;
   isDownloadingFilteredView?: boolean;
 }) {
@@ -114,6 +118,8 @@ export const CatQueueToolbarConnected = observer(function CatQueueToolbarConnect
       onBulkSkip={onBulkSkip}
       onBulkHide={onBulkHide}
       onBulkUnhide={onBulkUnhide}
+      onBulkLock={onBulkLock}
+      onBulkUnlock={onBulkUnlock}
       isBulkActionPending={store.isBulkActionPending}
       onDownloadFilteredView={onDownloadFilteredView}
       isDownloadingFilteredView={isDownloadingFilteredView}

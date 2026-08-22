@@ -105,6 +105,7 @@ export function CatEditorPanel({
   onTreatAsVideo,
   onRegenerateImage,
   onUploadImage,
+  onToggleLocked,
 }: CatEditorPanelProps) {
   const intl = useIntl();
   const isMac = useIsMac();
@@ -127,7 +128,7 @@ export function CatEditorPanel({
       : segment.targetText.trim().length > 0;
 
     return {
-      canTriggerApprove: canApprove && hasTargetText && !isActionBlocked,
+      canTriggerApprove: canApprove && hasTargetText && !isActionBlocked && !segment.isLocked,
       canTriggerFindContext:
         canLookupContext &&
         !isApproving &&
@@ -136,7 +137,7 @@ export function CatEditorPanel({
         !isAiSuggestionLoading &&
         !isFormatChecksLoading &&
         !isImageBusy,
-      canEditTarget: canEditTranslations && !isEditorBusy && !isImageBusy,
+      canEditTarget: canEditTranslations && !isEditorBusy && !isImageBusy && !segment.isLocked,
     };
   }, [
     canApprove,
@@ -178,6 +179,8 @@ export function CatEditorPanel({
         isMac={isMac}
         onPrevious={onPrevious}
         onNext={onNext}
+        canEditTranslations={canEditTranslations}
+        onToggleLocked={onToggleLocked}
       />
 
       <div className="min-h-0 flex-1 overflow-y-auto">

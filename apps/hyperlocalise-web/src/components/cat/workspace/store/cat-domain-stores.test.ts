@@ -109,6 +109,17 @@ describe("CatQueueStore", () => {
     expect(queue.segments.find((segment) => segment.id === "seg-02")?.isHidden).toBeUndefined();
   });
 
+  it("toggles locked metadata on queue segments", () => {
+    const queue = new CatQueueStore();
+    queue.replace([...queueSegments]);
+
+    queue.setLocked(["seg-02"], true);
+    expect(queue.segments.find((segment) => segment.id === "seg-02")?.isLocked).toBe(true);
+
+    queue.setLocked(["seg-02"], false);
+    expect(queue.segments.find((segment) => segment.id === "seg-02")?.isLocked).toBeUndefined();
+  });
+
   it("falls back to the first visible segment when the selected segment disappears", () => {
     const queue = new CatQueueStore();
     queue.replace([...queueSegments]);

@@ -335,6 +335,7 @@ export const projectFileCatStatusBodySchema = z.object({
 
 export const maxNativeCatHiddenStringBatch = 200;
 export const maxCatHiddenStringBatch = maxNativeCatHiddenStringBatch;
+export const maxCatLockedStringBatch = maxNativeCatHiddenStringBatch;
 
 export const projectFileCatHiddenStringsBodySchema = z.object({
   sourcePath: z.string().trim().min(1).max(2048),
@@ -348,6 +349,21 @@ export const projectFileCatHiddenStringsBodySchema = z.object({
 export const projectFileCatHiddenStringsResponseSchema = z.object({
   updatedCount: z.number().int().min(0),
   isHidden: z.boolean(),
+});
+
+export const projectFileCatLockedStringsBodySchema = z.object({
+  sourcePath: z.string().trim().min(1).max(2048),
+  targetLocale: z.string().trim().min(1).max(32),
+  externalStringIds: z
+    .array(z.string().trim().min(1).max(128))
+    .min(1)
+    .max(maxCatLockedStringBatch),
+  isLocked: z.boolean(),
+});
+
+export const projectFileCatLockedStringsResponseSchema = z.object({
+  updatedCount: z.number().int().min(0),
+  isLocked: z.boolean(),
 });
 
 export const projectFileCatImageRegenerateBodySchema = z.object({
@@ -673,6 +689,8 @@ export const projectFileCatSegmentSchema = z.object({
   maxLength: z.number().int().positive().optional(),
   /** Hidden source string. Native TMS and Crowdin-style providers keep it visible to managers. */
   isHidden: z.boolean().optional(),
+  /** Explicit CAT lock. Not derived from approved or hidden. */
+  isLocked: z.boolean().optional(),
   contentKind: projectFileCatContentKindSchema.optional(),
   sourceAssetUrl: z.string().nullable().optional(),
   targetAssetUrl: z.string().nullable().optional(),
@@ -753,6 +771,10 @@ export type ProjectFileCatTranslationBody = z.infer<typeof projectFileCatTransla
 export type ProjectFileCatHiddenStringsBody = z.infer<typeof projectFileCatHiddenStringsBodySchema>;
 export type ProjectFileCatHiddenStringsResponse = z.infer<
   typeof projectFileCatHiddenStringsResponseSchema
+>;
+export type ProjectFileCatLockedStringsBody = z.infer<typeof projectFileCatLockedStringsBodySchema>;
+export type ProjectFileCatLockedStringsResponse = z.infer<
+  typeof projectFileCatLockedStringsResponseSchema
 >;
 export type ProjectFileCatImageRegenerateBody = z.infer<
   typeof projectFileCatImageRegenerateBodySchema

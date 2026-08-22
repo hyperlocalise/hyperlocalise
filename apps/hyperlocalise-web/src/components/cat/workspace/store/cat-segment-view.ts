@@ -93,6 +93,7 @@ export function toQueueSegment(
     | "looksLikeImageUrl"
     | "looksLikeVideoUrl"
     | "isHidden"
+    | "isLocked"
   >,
 ): CatQueueSegment {
   return {
@@ -112,5 +113,6 @@ export function toQueueSegment(
       ? { looksLikeVideoUrl: segment.looksLikeVideoUrl }
       : {}),
     ...(segment.isHidden ? { isHidden: true } : {}),
+    ...(segment.isLocked ? { isLocked: true } : {}),
   };
 }

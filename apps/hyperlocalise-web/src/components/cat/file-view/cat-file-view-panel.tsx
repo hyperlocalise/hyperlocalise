@@ -26,6 +26,7 @@ import { FormattedMessage, useIntl } from "react-intl";
 
 import { CatWorkspaceViewSwitcherConnected } from "@/components/cat/workspace/cat-workspace-view-switcher-connected";
 import { CatHiddenStringBadge } from "@/components/cat/segment/cat-hidden-string-badge";
+import { CatLockedStringBadge } from "@/components/cat/segment/cat-locked-string-badge";
 import {
   SegmentStatusBadge,
   shouldShowSegmentStatusBadge,
@@ -129,6 +130,7 @@ export function CatFileViewPanel({
               <SegmentStatusBadge status={segment.status} />
             ) : null}
             {segment.isHidden ? <CatHiddenStringBadge /> : null}
+            {segment.isLocked ? <CatLockedStringBadge /> : null}
             <p className="truncate font-mono text-xs text-muted-foreground">{displayName}</p>
           </div>
           <p className="text-sm text-muted-foreground">

@@ -72,6 +72,9 @@ export interface CatWorkspaceReview {
   onBulkSkip?: (segmentIds: string[]) => void | Promise<void>;
   onBulkHide?: (segmentIds: string[]) => void | Promise<void>;
   onBulkUnhide?: (segmentIds: string[]) => void | Promise<void>;
+  onSetLocked?: (segmentIds: string[], isLocked: boolean) => void | Promise<void>;
+  onBulkLock?: (segmentIds: string[]) => void | Promise<void>;
+  onBulkUnlock?: (segmentIds: string[]) => void | Promise<void>;
 }
 
 export interface CatWorkspaceServices {
