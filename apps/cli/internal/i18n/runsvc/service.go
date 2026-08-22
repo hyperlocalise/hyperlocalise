@@ -1,6 +1,7 @@
 package runsvc
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha512"
 	"encoding/hex"
@@ -13,6 +14,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unsafe"
 
 	"github.com/hyperlocalise/hyperlocalise/apps/cli/internal/i18n/lockfile"
 	"github.com/hyperlocalise/hyperlocalise/apps/cli/internal/i18n/pathresolver"
@@ -952,6 +954,13 @@ func sortedEntryKeys(entries map[string]string) []string {
 }
 
 func renderPrompt(prompt, sourceLocale, targetLocale, sourceText string) string {
+	// BOLT OPTIMIZATION: Early returns for empty prompts or prompts without token delimiters.
+	if prompt == "" {
+		return ""
+	}
+	if !strings.Contains(prompt, "{") {
+		return prompt
+	}
 	rendered := strings.ReplaceAll(prompt, tokenSource, sourceLocale)
 	rendered = strings.ReplaceAll(rendered, tokenTarget, targetLocale)
 	rendered = strings.ReplaceAll(rendered, tokenInput, sourceText)
@@ -994,7 +1003,8 @@ func taskIdentity(targetPath, entryKey string) string {
 }
 
 func hashSourceText(source string) string {
-	sum := sha512.Sum512([]byte(source))
+	// BOLT OPTIMIZATION: Use unsafe string slice to avoid []byte(source) heap allocations.
+	sum := sha512.Sum512(unsafe.Slice(unsafe.StringData(source), len(source)))
 	// Bolt: Use hex.EncodeToString instead of fmt.Sprintf("%x") to avoid reflection/formatting overhead
 	return hex.EncodeToString(sum[:])
 }
@@ -1002,7 +1012,8 @@ func hashSourceText(source string) string {
 // lockStoredFingerprint is a compact SHA-512 prefix (32 hex chars) stored in the lockfile.
 // hashSourceText remains full-length for exact-cache keys and other non-lock uses.
 func lockStoredFingerprint(preimage string) string {
-	sum := sha512.Sum512([]byte(preimage))
+	// BOLT OPTIMIZATION: Use unsafe string slice to avoid []byte(preimage) heap allocations.
+	sum := sha512.Sum512(unsafe.Slice(unsafe.StringData(preimage), len(preimage)))
 	// Bolt: Use hex.EncodeToString instead of fmt.Sprintf("%x") to avoid reflection/formatting overhead
 	return hex.EncodeToString(sum[:16])
 }
@@ -1047,6 +1058,12 @@ func parserModeForSource(path string, content []byte) string {
 }
 
 func isStrictFormatJSON(content []byte) bool {
+	// BOLT OPTIMIZATION: Pre-screen for "defaultMessage" string before parsing JSON payload.
+	// FormatJS JSON keys require defaultMessage; skipping unmarshal for non-FormatJS JSON saves
+	// hundreds of map/interface allocations per file parse.
+	if !bytes.Contains(content, []byte("defaultMessage")) {
+		return false
+	}
 	var payload map[string]any
 	if err := json.Unmarshal(content, &payload); err != nil {
 		return false
