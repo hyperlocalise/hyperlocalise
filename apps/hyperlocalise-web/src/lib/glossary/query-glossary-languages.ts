@@ -34,7 +34,6 @@ export async function queryNativeGlossaryLanguages(glossaries: Glossary[]) {
           schema.glossaryTerms.glossaryId,
           nativeGlossaries.map((glossary) => glossary.id),
         ),
-        isNotNull(schema.glossaryTerms.conceptId),
         isNotNull(schema.glossaryTerms.locale),
       ),
     );

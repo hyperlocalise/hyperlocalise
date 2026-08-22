@@ -2674,6 +2674,163 @@ describe("project file CAT routes", () => {
     });
   });
 
+  it("returns project_not_found when locking segments on an unknown native project", async () => {
+    const { identity } = await projectFixture.createStoredProjectFixture();
+    const headers = await projectFixture.authHeadersFor(identity);
+
+    const response = await client.api.orgs[":organizationSlug"].projects[
+      ":projectId"
+    ].files.detail.cat.strings.locked.$post(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          projectId: randomUUID(),
+        },
+        json: {
+          sourcePath: "locales/en.json",
+          targetLocale: "fr-FR",
+          externalStringIds: ["key-1"],
+          isLocked: true,
+        },
+      },
+      { headers },
+    );
+
+    expect(response.status).toBe(404);
+    expect(await response.json()).toMatchObject({ error: "project_not_found" });
+  });
+
+  it("rejects native translation status updates when the segment is locked", async () => {
+    const { identity, project, organization } = await projectFixture.createStoredProjectFixture();
+    const headers = await projectFixture.authHeadersFor(identity);
+    const sourcePath = "locales/en.json";
+    const sourceFile = await ensureRepositorySourceFile({
+      organizationId: organization.id,
+      projectId: project.id,
+      sourcePath,
+    });
+
+    const { imported } = await upsertProjectTranslationKeysFromEntries({
+      organizationId: organization.id,
+      projectId: project.id,
+      repositorySourceFileId: sourceFile.id,
+      entries: [{ key: "greeting", text: "Hello", context: null }],
+    });
+    expect(imported).toBe(1);
+
+    const [translationKey] = await db
+      .select({ id: schema.projectTranslationKeys.id })
+      .from(schema.projectTranslationKeys)
+      .where(eq(schema.projectTranslationKeys.repositorySourceFileId, sourceFile.id))
+      .limit(1);
+    expect(translationKey).toBeDefined();
+
+    await db.insert(schema.projectTranslations).values({
+      organizationId: organization.id,
+      projectId: project.id,
+      translationKeyId: translationKey!.id,
+      targetLocale: "fr-FR",
+      text: "Bonjour",
+      status: "draft",
+    });
+
+    const lockResponse = await client.api.orgs[":organizationSlug"].projects[
+      ":projectId"
+    ].files.detail.cat.strings.locked.$post(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          projectId: project.id,
+        },
+        json: {
+          sourcePath,
+          targetLocale: "fr-FR",
+          externalStringIds: [translationKey!.id],
+          isLocked: true,
+        },
+      },
+      { headers },
+    );
+    expect(lockResponse.status).toBe(200);
+
+    const statusResponse = await client.api.orgs[":organizationSlug"].projects[
+      ":projectId"
+    ].files.detail.cat.translations.status.$post(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          projectId: project.id,
+        },
+        json: {
+          sourcePath,
+          targetLocale: "fr-FR",
+          externalStringId: translationKey!.id,
+          status: "approved",
+        },
+      },
+      { headers },
+    );
+    expect(statusResponse.status).toBe(409);
+    expect(await statusResponse.json()).toMatchObject({ error: "translation_locked" });
+  });
+
+  it("rejects image status updates when locked via the image: alias id", async () => {
+    const { identity, project, organization } = await projectFixture.createStoredProjectFixture();
+    const headers = await projectFixture.authHeadersFor(identity);
+    const sourcePath = "assets/banner.png";
+    const sourceFile = await ensureRepositorySourceFile({
+      organizationId: organization.id,
+      projectId: project.id,
+      sourcePath,
+    });
+
+    await ensureImageVariantsForSourceFile({
+      organizationId: organization.id,
+      projectId: project.id,
+      sourcePath,
+      repositorySourceFileId: sourceFile.id,
+      targetLocales: ["fr-FR"],
+    });
+
+    const lockResponse = await client.api.orgs[":organizationSlug"].projects[
+      ":projectId"
+    ].files.detail.cat.strings.locked.$post(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          projectId: project.id,
+        },
+        json: {
+          sourcePath,
+          targetLocale: "fr-FR",
+          externalStringIds: [`image:${sourcePath}`],
+          isLocked: true,
+        },
+      },
+      { headers },
+    );
+    expect(lockResponse.status).toBe(200);
+
+    const lockedStatusResponse = await client.api.orgs[":organizationSlug"].projects[
+      ":projectId"
+    ].files.detail.cat.images.status.$patch(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          projectId: project.id,
+        },
+        json: {
+          sourcePath,
+          targetLocale: "fr-FR",
+          status: "approved",
+        },
+      },
+      { headers },
+    );
+    expect(lockedStatusResponse.status).toBe(409);
+    expect(await lockedStatusResponse.json()).toMatchObject({ error: "translation_locked" });
+  });
+
   it("rejects file-backed image regenerate when locked under sourceFile.id even if externalStringId is omitted", async () => {
     const { identity, project, organization } = await projectFixture.createStoredProjectFixture();
     const headers = await projectFixture.authHeadersFor(identity);

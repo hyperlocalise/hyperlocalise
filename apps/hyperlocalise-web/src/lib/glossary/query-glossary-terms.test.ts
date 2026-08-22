@@ -23,6 +23,7 @@ vi.hoisted(() => {
 
 import { db, schema } from "@/lib/database";
 
+import { queryNativeGlossaryTermCounts } from "./query-glossary-term-counts";
 import { listGlossaryTermsForProject } from "./query-glossary-terms";
 
 const createdOrganizationIds = new Set<string>();
@@ -232,5 +233,52 @@ describe("listGlossaryTermsForProject", () => {
       targetTerm: "paiement",
       targetLocale: "fr",
     });
+  });
+});
+
+describe("queryNativeGlossaryTermCounts", () => {
+  it("counts native glossary terms and returns zero for empty glossaries", async () => {
+    const organization = await createOrganization();
+    const [emptyGlossary, populatedGlossary] = await db
+      .insert(schema.glossaries)
+      .values([
+        {
+          organizationId: organization.id,
+          name: "Empty glossary",
+          description: "",
+          sourceLocale: "en",
+        },
+        {
+          organizationId: organization.id,
+          name: "Populated glossary",
+          description: "",
+          sourceLocale: "en",
+        },
+      ])
+      .returning();
+
+    await db.insert(schema.glossaryTerms).values([
+      {
+        glossaryId: populatedGlossary.id,
+        sourceTerm: "checkout",
+        targetTerm: "caisse",
+        description: "",
+        provenance: "manual",
+        reviewStatus: "approved",
+      },
+      {
+        glossaryId: populatedGlossary.id,
+        sourceTerm: "payment",
+        targetTerm: "paiement",
+        description: "",
+        provenance: "manual",
+        reviewStatus: "approved",
+      },
+    ]);
+
+    const counts = await queryNativeGlossaryTermCounts([emptyGlossary, populatedGlossary]);
+
+    expect(counts.get(emptyGlossary.id)).toBe(0);
+    expect(counts.get(populatedGlossary.id)).toBe(2);
   });
 });

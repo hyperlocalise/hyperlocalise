@@ -132,4 +132,98 @@ describe("CAT segment lock service", () => {
       .delete(schema.projectCatSegmentLocks)
       .where(eq(schema.projectCatSegmentLocks.organizationId, organization.id));
   });
+
+  it("ignores blank ids, dedupes, and is idempotent on re-lock and unlock-miss", async () => {
+    const { organization, user, project } = await projectFixture.createStoredProjectFixture();
+
+    expect(
+      await setCatSegmentLocks({
+        organizationId: organization.id,
+        projectId: project.id,
+        targetLocale: "fr-FR",
+        externalStringIds: ["", "  ", "\t"],
+        isLocked: true,
+        actorUserId: user.id,
+      }),
+    ).toEqual({ updatedCount: 0, isLocked: true });
+
+    const first = await setCatSegmentLocks({
+      organizationId: organization.id,
+      projectId: project.id,
+      targetLocale: "fr-FR",
+      externalStringIds: [" key-a ", "key-a", "key-b"],
+      isLocked: true,
+      actorUserId: user.id,
+    });
+    expect(first).toEqual({ updatedCount: 2, isLocked: true });
+
+    const relock = await setCatSegmentLocks({
+      organizationId: organization.id,
+      projectId: project.id,
+      targetLocale: "fr-FR",
+      externalStringIds: ["key-a"],
+      isLocked: true,
+      actorUserId: user.id,
+    });
+    expect(relock).toEqual({ updatedCount: 1, isLocked: true });
+    expect(
+      await isCatSegmentLocked({
+        organizationId: organization.id,
+        projectId: project.id,
+        targetLocale: "fr-FR",
+        externalStringId: "key-a",
+      }),
+    ).toBe(true);
+
+    expect(
+      await setCatSegmentLocks({
+        organizationId: organization.id,
+        projectId: project.id,
+        targetLocale: "fr-FR",
+        externalStringIds: ["never-locked"],
+        isLocked: false,
+        actorUserId: user.id,
+      }),
+    ).toEqual({ updatedCount: 0, isLocked: false });
+
+    await db
+      .delete(schema.projectCatSegmentLocks)
+      .where(eq(schema.projectCatSegmentLocks.organizationId, organization.id));
+  });
+
+  it("does not leak locks across projects sharing the same external string id", async () => {
+    const { organization, user } = await projectFixture.createStoredProjectFixture();
+    const projectA = "project_a";
+    const projectB = "project_b";
+
+    await setCatSegmentLocks({
+      organizationId: organization.id,
+      projectId: projectA,
+      targetLocale: "fr-FR",
+      externalStringIds: ["shared-key"],
+      isLocked: true,
+      actorUserId: user.id,
+    });
+
+    expect(
+      await isCatSegmentLocked({
+        organizationId: organization.id,
+        projectId: projectA,
+        targetLocale: "fr-FR",
+        externalStringId: "shared-key",
+      }),
+    ).toBe(true);
+    expect(
+      await isCatSegmentLocked({
+        organizationId: organization.id,
+        projectId: projectB,
+        targetLocale: "fr-FR",
+        externalStringId: "shared-key",
+      }),
+    ).toBe(false);
+
+    await db
+      .delete(schema.projectCatSegmentLocks)
+      .where(eq(schema.projectCatSegmentLocks.organizationId, organization.id));
+  });
 });

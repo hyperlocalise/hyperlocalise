@@ -141,6 +141,10 @@ const emptyTermDraft: TermDraft = {
   url: "",
 };
 
+function createCreatingTermDraft(locale: string, id: string): CreatingTermDraft {
+  return { ...emptyTermDraft, id, locale };
+}
+
 function conceptDraftFromRecord(concept: GlossaryConceptRecord): ConceptDraft {
   return {
     primaryTerm: concept.primaryTerm,
@@ -169,10 +173,6 @@ function normalizePartOfSpeech(value: string) {
   const normalized = value.trim().toLowerCase();
   if (!normalized) return undefined;
   return (normalized === "preposition" ? "adposition" : normalized) as GlossaryPartOfSpeech;
-}
-
-function isValidPartOfSpeech(value: string | undefined): value is GlossaryPartOfSpeech {
-  return value !== undefined && partOfSpeechOptions.includes(value as GlossaryPartOfSpeech);
 }
 
 function areTermDraftsEqual(left: TermDraft, right: TermDraft) {
@@ -263,7 +263,6 @@ function GenderMark({ value }: { value: string }) {
 }
 
 function PartOfSpeechDisplay({ value }: { value: string | null | undefined }) {
-  const intl = useIntl();
   if (!value) {
     return <span className="truncate text-muted-foreground">—</span>;
   }
@@ -372,7 +371,6 @@ function PartOfSpeechPicker({
 }
 
 function GenderDisplay({ value }: { value: string | null | undefined }) {
-  const intl = useIntl();
   if (!value) {
     return <span className="truncate text-muted-foreground">—</span>;
   }
@@ -480,7 +478,6 @@ function termTypeMark(value: string) {
 }
 
 function TermTypeDisplay({ value }: { value: string | null | undefined }) {
-  const intl = useIntl();
   if (!value) {
     return <span className="truncate text-muted-foreground">—</span>;
   }
@@ -767,7 +764,7 @@ function ConceptDetailSkeleton() {
           <Skeleton className="h-8 w-64 max-w-full" />
           <Skeleton className="h-4 w-40" />
         </div>
-        <div className="grid min-h-[36rem] gap-5 lg:grid-cols-[minmax(15rem,0.75fr)_minmax(0,1.5fr)]">
+        <div className="grid min-h-[36rem] gap-5 lg:grid-cols-[minmax(13rem,0.6fr)_minmax(0,1.8fr)]">
           <div className="grid content-start gap-4 border-b border-border pb-5 lg:border-r lg:border-b-0 lg:pr-5 lg:pb-0">
             <Skeleton className="h-4 w-24" />
             <Skeleton className="h-9 w-full" />
@@ -872,6 +869,11 @@ export function GlossaryDetailPageContent({
     glossary?.source === "external_tms" && glossary.externalProviderKind === "crowdin";
   const isConceptGlossary = isNative || isLiveCrowdin;
   const canEdit = canManageGlossaries && isConceptGlossary;
+  const sourceLanguage = glossary?.languages.find((language) => language.isSource) ?? {
+    locale: glossary?.sourceLocale ?? "",
+    name: getLocaleLabel(glossary?.sourceLocale ?? ""),
+    isSource: true,
+  };
 
   useEffect(() => {
     if (glossary) setNameDraft(glossary.name);
@@ -944,13 +946,17 @@ export function GlossaryDetailPageContent({
     if (conceptId === "new") {
       setConceptDraft(emptyConceptDraft);
       setTermDrafts({});
-      setCreatingTermDrafts([]);
+      setCreatingTermDrafts(
+        sourceLanguage.locale
+          ? [createCreatingTermDraft(sourceLanguage.locale, `new-source-${sourceLanguage.locale}`)]
+          : [],
+      );
       setNewTermLocale(null);
       setNewTermDraft(emptyTermDraft);
       setExpandedTermIds(new Set());
       setExpandedCreatingTermIds(new Set());
     }
-  }, [conceptId]);
+  }, [conceptId, sourceLanguage.locale]);
 
   useEffect(() => {
     if (selectedConcept) {
@@ -968,6 +974,11 @@ export function GlossaryDetailPageContent({
       setIsCreatingConcept(false);
     }
   }, [selectedConcept]);
+
+  const sourceTermDraft = isCreatingConcept
+    ? creatingTermDrafts.find((term) => term.locale === sourceLanguage.locale)
+    : undefined;
+  const sourceTermText = sourceTermDraft?.term ?? "";
 
   const goBack = () => {
     if (conceptPageMode) router.push(glossaryHref);
@@ -995,6 +1006,8 @@ export function GlossaryDetailPageContent({
       let concept: GlossaryConceptRecord;
       let created = false;
       if (isCreatingConcept) {
+        const primaryTerm = sourceTermText.trim();
+        if (!primaryTerm) throw new Error(intl.formatMessage(messages.saveConceptFailed));
         const terms: NonNullable<CreateGlossaryConceptBody["terms"]> = creatingTermDrafts
           .filter(({ term }) => term.trim())
           .map(({ id: _id, ...term }) => ({
@@ -1010,15 +1023,13 @@ export function GlossaryDetailPageContent({
             caseSensitive: false,
             forbidden: false,
           }));
-        if (terms.some((term) => !isValidPartOfSpeech(term.partOfSpeech))) {
-          throw new Error(intl.formatMessage(messages.partOfSpeechRequired));
-        }
         const response = await apiClient.api.orgs[":organizationSlug"].glossaries[
           ":glossaryId"
         ].concepts.$post({
           param: { organizationSlug, glossaryId },
           json: {
             ...draft,
+            primaryTerm,
             url: draft.url || undefined,
             terms: terms.map((term) => ({
               ...term,
@@ -1067,9 +1078,6 @@ export function GlossaryDetailPageContent({
             caseSensitive: false,
             forbidden: false,
           });
-        }
-        if (terms.some((term) => !isValidPartOfSpeech(term.partOfSpeech))) {
-          throw new Error(intl.formatMessage(messages.partOfSpeechRequired));
         }
         const response = await apiClient.api.orgs[":organizationSlug"].glossaries[
           ":glossaryId"
@@ -1278,14 +1286,12 @@ export function GlossaryDetailPageContent({
   const allSelected =
     filteredConcepts.length > 0 &&
     filteredConcepts.every((concept) => selectedConceptIds.has(concept.id));
-  const sourceLanguage = glossary.languages.find((language) => language.isSource) ?? {
-    locale: glossary.sourceLocale,
-    name: getLocaleLabel(glossary.sourceLocale),
-    isSource: true,
-  };
   const normalizedLanguageFilter = languageFilter.trim().toLowerCase();
+  const creatingTermLocales = new Set(creatingTermDrafts.map((term) => term.locale));
   const availableTermLocales = isCreatingConcept
-    ? COMMON_LOCALES
+    ? COMMON_LOCALES.filter(
+        (locale) => locale !== sourceLanguage.locale && !creatingTermLocales.has(locale),
+      )
     : COMMON_LOCALES.filter((locale) => !selected?.terms.some((term) => term.locale === locale));
   const termGroups = (selected?.terms ?? [])
     .filter(
@@ -1309,8 +1315,21 @@ export function GlossaryDetailPageContent({
   ) {
     termGroups.push({ locale: newTermLocale, terms: [] });
   }
+  const creatingTermGroups = creatingTermDrafts
+    .filter(
+      (term) =>
+        !normalizedLanguageFilter ||
+        getLocaleLabel(term.locale).toLowerCase().includes(normalizedLanguageFilter) ||
+        term.locale.toLowerCase().includes(normalizedLanguageFilter),
+    )
+    .reduce<Array<{ locale: string; terms: CreatingTermDraft[] }>>((groups, term) => {
+      const group = groups.find((item) => item.locale === term.locale);
+      if (group) group.terms.push(term);
+      else groups.push({ locale: term.locale, terms: [term] });
+      return groups;
+    }, []);
   const conceptIsDirty = isCreatingConcept
-    ? Boolean(conceptDraft.primaryTerm.trim())
+    ? Boolean(sourceTermText.trim())
     : selectedConcept
       ? !areConceptDraftsEqual(conceptDraft, conceptDraftFromRecord(selectedConcept))
       : false;
@@ -1626,18 +1645,24 @@ export function GlossaryDetailPageContent({
                   </DialogDescription>
                 </DialogHeader>
               )}
-              <div className="grid min-h-0 gap-5 lg:grid-cols-[minmax(15rem,0.75fr)_minmax(0,1.5fr)]">
+              <div className="grid min-h-0 gap-5 lg:grid-cols-[minmax(13rem,0.6fr)_minmax(0,1.8fr)]">
                 <div className="flex min-w-0 flex-col gap-4 border-b border-border pb-5 lg:border-r lg:border-b-0 lg:pr-5 lg:pb-0">
                   <Field className="gap-1.5">
                     <FieldLabel>
                       <FormattedMessage {...messages.primaryTermLabel} />
                     </FieldLabel>
                     <Input
-                      value={conceptDraft.primaryTerm}
-                      onChange={(event) =>
-                        setConceptDraft((draft) => ({ ...draft, primaryTerm: event.target.value }))
-                      }
-                      disabled={!canEdit}
+                      value={isCreatingConcept ? sourceTermText : conceptDraft.primaryTerm}
+                      onChange={(event) => {
+                        if (!isCreatingConcept) {
+                          setConceptDraft((draft) => ({
+                            ...draft,
+                            primaryTerm: event.target.value,
+                          }));
+                        }
+                      }}
+                      disabled={!canEdit || isCreatingConcept}
+                      readOnly={isCreatingConcept}
                     />
                   </Field>
                   <Field className="gap-1.5">
@@ -1777,308 +1802,342 @@ export function GlossaryDetailPageContent({
                   </Dialog>
                   <div className="max-h-[calc(100dvh-18rem)] overflow-y-auto pr-1">
                     <div className="grid gap-4">
-                      {isCreatingConcept && creatingTermDrafts.length > 0 ? (
-                        <div className="overflow-hidden rounded-lg border border-border">
-                          <div className="border-b border-border bg-muted/30 px-3 py-2 text-sm font-medium">
-                            <FormattedMessage {...messages.termsTitle} />
-                          </div>
-                          <div className="overflow-x-auto">
-                            <table className="min-w-[680px] w-full text-left text-xs">
-                              <thead className="text-muted-foreground">
-                                <tr>
-                                  <th className="px-3 py-2">Language</th>
-                                  <th className="px-3 py-2">
-                                    <FormattedMessage {...messages.termLabel} />
-                                  </th>
-                                  <th className="px-3 py-2">
-                                    <FormattedMessage {...messages.partOfSpeechLabel} />
-                                  </th>
-                                  <th className="px-3 py-2">
-                                    <FormattedMessage {...messages.genderLabel} />
-                                  </th>
-                                  <th className="px-3 py-2">
-                                    <FormattedMessage {...messages.typeLabel} />
-                                  </th>
-                                  <th className="px-3 py-2">
-                                    <FormattedMessage {...messages.statusLabel} />
-                                  </th>
-                                  <th className="w-10 px-3 py-2" />
-                                </tr>
-                              </thead>
-                              <tbody>
-                                {creatingTermDrafts.map((term) => {
-                                  const isExpanded = expandedCreatingTermIds.has(term.id);
-                                  return (
-                                    <Fragment key={term.id}>
-                                      <tr className="border-t border-border">
-                                        <td className="px-3 py-2">
-                                          <span className="font-medium">
-                                            {getLocaleLabel(term.locale)}
-                                          </span>
-                                          <span className="ml-1 text-muted-foreground">
-                                            {term.locale}
-                                          </span>
-                                        </td>
-                                        <td className="px-3 py-2">
-                                          <Textarea
-                                            autoFocus={creatingTermDrafts.at(-1)?.id === term.id}
-                                            className="w-48 max-w-full min-h-8 resize-y px-2 py-1.5 text-sm leading-5"
-                                            placeholder={intl.formatMessage(messages.termLabel)}
-                                            value={term.term}
-                                            onChange={(event) =>
-                                              setCreatingTermDrafts((drafts) =>
-                                                drafts.map((draft) =>
-                                                  draft.id === term.id
-                                                    ? { ...draft, term: event.target.value }
-                                                    : draft,
-                                                ),
-                                              )
-                                            }
-                                          />
-                                        </td>
-                                        <td className="px-3 py-2">
-                                          <PartOfSpeechPicker
-                                            value={term.partOfSpeech}
-                                            onValueChange={(value) =>
-                                              setCreatingTermDrafts((drafts) =>
-                                                drafts.map((draft) =>
-                                                  draft.id === term.id
-                                                    ? { ...draft, partOfSpeech: value }
-                                                    : draft,
-                                                ),
-                                              )
-                                            }
-                                          />
-                                        </td>
-                                        <td className="px-3 py-2">
-                                          <GenderPicker
-                                            value={term.gender ?? ""}
-                                            onValueChange={(value) =>
-                                              setCreatingTermDrafts((drafts) =>
-                                                drafts.map((draft) =>
-                                                  draft.id === term.id
-                                                    ? { ...draft, gender: value }
-                                                    : draft,
-                                                ),
-                                              )
-                                            }
-                                          />
-                                        </td>
-                                        <td className="px-3 py-2">
-                                          <TermTypePicker
-                                            value={term.termType ?? ""}
-                                            onValueChange={(value) =>
-                                              setCreatingTermDrafts((drafts) =>
-                                                drafts.map((draft) =>
-                                                  draft.id === term.id
-                                                    ? { ...draft, termType: value }
-                                                    : draft,
-                                                ),
-                                              )
-                                            }
-                                          />
-                                        </td>
-                                        <td className="px-3 py-2">
-                                          <Select
-                                            value={term.status}
-                                            onValueChange={(value) =>
-                                              setCreatingTermDrafts((drafts) =>
-                                                drafts.map((draft) =>
-                                                  draft.id === term.id
-                                                    ? {
-                                                        ...draft,
-                                                        status: (value ??
-                                                          "draft") as TermDraft["status"],
-                                                      }
-                                                    : draft,
-                                                ),
-                                              )
-                                            }
-                                          >
-                                            <SelectTrigger
-                                              showIcon={false}
-                                              className={statusPickerTriggerClass()}
-                                            >
-                                              <SelectValue>
-                                                <StatusLabel status={term.status} />
-                                              </SelectValue>
-                                            </SelectTrigger>
-                                            <SelectContent className={statusPickerContentClassName}>
-                                              {statusOptions.map((option) => (
-                                                <SelectItem
-                                                  key={option}
-                                                  value={option}
-                                                  className={statusPickerItemClass(option)}
-                                                >
-                                                  <StatusLabel status={option} />
-                                                </SelectItem>
-                                              ))}
-                                            </SelectContent>
-                                          </Select>
-                                        </td>
-                                        <td className="px-3 py-2 text-right">
-                                          <Button
-                                            type="button"
-                                            size="icon-xs"
-                                            variant="outline"
-                                            aria-expanded={isExpanded}
-                                            aria-label={intl.formatMessage(
-                                              isExpanded
-                                                ? messages.collapseTerm
-                                                : messages.expandTerm,
-                                            )}
-                                            onClick={() =>
-                                              setExpandedCreatingTermIds((current) => {
-                                                const next = new Set(current);
-                                                if (next.has(term.id)) next.delete(term.id);
-                                                else next.add(term.id);
-                                                return next;
-                                              })
-                                            }
-                                          >
-                                            <HugeiconsIcon
-                                              icon={ArrowDown01Icon}
-                                              strokeWidth={1.8}
-                                              className={isExpanded ? "" : "-rotate-90"}
-                                            />
-                                          </Button>
-                                        </td>
+                      {isCreatingConcept && creatingTermGroups.length > 0
+                        ? creatingTermGroups.map((group) => {
+                            const isSource = group.locale === sourceLanguage.locale;
+                            return (
+                              <div
+                                key={group.locale}
+                                className="overflow-hidden rounded-lg border border-border"
+                              >
+                                <div
+                                  className={`flex items-center justify-between gap-2 border-b border-border px-3 py-2 text-sm font-medium ${isSource ? "bg-emerald-500/5" : "bg-amber-500/5"}`}
+                                >
+                                  <span>
+                                    {getLocaleLabel(group.locale)}{" "}
+                                    <span className="text-xs text-muted-foreground">
+                                      {group.locale}
+                                    </span>
+                                    {isSource ? (
+                                      <Badge
+                                        variant="outline"
+                                        className="ml-2 border-emerald-500/30 text-emerald-700"
+                                      >
+                                        <FormattedMessage {...messages.sourceBadge} />
+                                      </Badge>
+                                    ) : null}
+                                  </span>
+                                </div>
+                                <div className="overflow-x-auto">
+                                  <table className="min-w-[680px] w-full text-left text-xs">
+                                    <thead className="text-muted-foreground">
+                                      <tr>
+                                        <th className="px-3 py-2">
+                                          <FormattedMessage {...messages.termLabel} />
+                                        </th>
+                                        <th className="px-3 py-2">
+                                          <FormattedMessage {...messages.partOfSpeechLabel} />
+                                        </th>
+                                        <th className="px-3 py-2">
+                                          <FormattedMessage {...messages.genderLabel} />
+                                        </th>
+                                        <th className="px-3 py-2">
+                                          <FormattedMessage {...messages.typeLabel} />
+                                        </th>
+                                        <th className="px-3 py-2">
+                                          <FormattedMessage {...messages.statusLabel} />
+                                        </th>
+                                        <th className="w-10 px-3 py-2" />
                                       </tr>
-                                      {isExpanded ? (
-                                        <tr className="border-t border-border bg-muted/10">
-                                          <td colSpan={7} className="px-3 py-4">
-                                            <div className="grid gap-4">
-                                              <div className="grid gap-4 sm:grid-cols-[minmax(0,2fr)_minmax(14rem,1fr)]">
-                                                <Field className="gap-1.5">
-                                                  <FieldLabel>
-                                                    <FormattedMessage
-                                                      {...messages.descriptionLabel}
-                                                    />
-                                                  </FieldLabel>
-                                                  <Textarea
-                                                    rows={3}
-                                                    placeholder={intl.formatMessage(
-                                                      messages.termDescriptionPlaceholder,
-                                                    )}
-                                                    value={term.description}
-                                                    onChange={(event) =>
-                                                      setCreatingTermDrafts((drafts) =>
-                                                        drafts.map((draft) =>
-                                                          draft.id === term.id
-                                                            ? {
-                                                                ...draft,
-                                                                description: event.target.value,
-                                                              }
-                                                            : draft,
-                                                        ),
-                                                      )
-                                                    }
-                                                  />
-                                                </Field>
-                                                <Field className="gap-1.5">
-                                                  <FieldLabel>
-                                                    <FormattedMessage {...messages.urlLabel} />
-                                                  </FieldLabel>
-                                                  <div className="flex gap-2">
-                                                    <Input
-                                                      placeholder={intl.formatMessage(
-                                                        messages.termUrlPlaceholder,
-                                                      )}
-                                                      value={term.url}
-                                                      onChange={(event) =>
-                                                        setCreatingTermDrafts((drafts) =>
-                                                          drafts.map((draft) =>
-                                                            draft.id === term.id
-                                                              ? {
-                                                                  ...draft,
-                                                                  url: event.target.value,
-                                                                }
-                                                              : draft,
-                                                          ),
-                                                        )
-                                                      }
-                                                    />
-                                                    <Button
-                                                      type="button"
-                                                      size="icon"
-                                                      variant="secondary"
-                                                      aria-label={intl.formatMessage(
-                                                        messages.openTermUrl,
-                                                      )}
-                                                      disabled={!term.url}
-                                                      onClick={() =>
-                                                        window.open(
-                                                          term.url,
-                                                          "_blank",
-                                                          "noopener,noreferrer",
-                                                        )
-                                                      }
-                                                    >
-                                                      <HugeiconsIcon
-                                                        icon={Link01Icon}
-                                                        strokeWidth={1.8}
-                                                      />
-                                                    </Button>
-                                                  </div>
-                                                </Field>
-                                              </div>
-                                              <Field className="gap-1.5">
-                                                <FieldLabel>
-                                                  <FormattedMessage {...messages.noteLabel} />
-                                                </FieldLabel>
+                                    </thead>
+                                    <tbody>
+                                      {group.terms.map((term) => {
+                                        const isExpanded = expandedCreatingTermIds.has(term.id);
+                                        const isSourceTerm = term.locale === sourceLanguage.locale;
+                                        return (
+                                          <Fragment key={term.id}>
+                                            <tr className="border-t border-border">
+                                              <td className="px-3 py-2">
                                                 <Textarea
-                                                  rows={2}
+                                                  autoFocus={
+                                                    creatingTermDrafts.at(-1)?.id === term.id
+                                                  }
+                                                  className="w-48 max-w-full min-h-8 resize-y px-2 py-1.5 text-sm leading-5"
                                                   placeholder={intl.formatMessage(
-                                                    messages.termNotePlaceholder,
+                                                    messages.termLabel,
                                                   )}
-                                                  value={term.note}
+                                                  value={term.term}
+                                                  required={isSourceTerm}
                                                   onChange={(event) =>
                                                     setCreatingTermDrafts((drafts) =>
                                                       drafts.map((draft) =>
                                                         draft.id === term.id
-                                                          ? { ...draft, note: event.target.value }
+                                                          ? { ...draft, term: event.target.value }
                                                           : draft,
                                                       ),
                                                     )
                                                   }
                                                 />
-                                              </Field>
-                                              <div className="flex justify-end border-t border-border pt-3">
+                                              </td>
+                                              <td className="px-3 py-2">
+                                                <PartOfSpeechPicker
+                                                  value={term.partOfSpeech}
+                                                  onValueChange={(value) =>
+                                                    setCreatingTermDrafts((drafts) =>
+                                                      drafts.map((draft) =>
+                                                        draft.id === term.id
+                                                          ? { ...draft, partOfSpeech: value }
+                                                          : draft,
+                                                      ),
+                                                    )
+                                                  }
+                                                />
+                                              </td>
+                                              <td className="px-3 py-2">
+                                                <GenderPicker
+                                                  value={term.gender ?? ""}
+                                                  onValueChange={(value) =>
+                                                    setCreatingTermDrafts((drafts) =>
+                                                      drafts.map((draft) =>
+                                                        draft.id === term.id
+                                                          ? { ...draft, gender: value }
+                                                          : draft,
+                                                      ),
+                                                    )
+                                                  }
+                                                />
+                                              </td>
+                                              <td className="px-3 py-2">
+                                                <TermTypePicker
+                                                  value={term.termType ?? ""}
+                                                  onValueChange={(value) =>
+                                                    setCreatingTermDrafts((drafts) =>
+                                                      drafts.map((draft) =>
+                                                        draft.id === term.id
+                                                          ? { ...draft, termType: value }
+                                                          : draft,
+                                                      ),
+                                                    )
+                                                  }
+                                                />
+                                              </td>
+                                              <td className="px-3 py-2">
+                                                <Select
+                                                  value={term.status}
+                                                  onValueChange={(value) =>
+                                                    setCreatingTermDrafts((drafts) =>
+                                                      drafts.map((draft) =>
+                                                        draft.id === term.id
+                                                          ? {
+                                                              ...draft,
+                                                              status: (value ??
+                                                                "draft") as TermDraft["status"],
+                                                            }
+                                                          : draft,
+                                                      ),
+                                                    )
+                                                  }
+                                                >
+                                                  <SelectTrigger
+                                                    showIcon={false}
+                                                    className={statusPickerTriggerClass()}
+                                                  >
+                                                    <SelectValue>
+                                                      <StatusLabel status={term.status} />
+                                                    </SelectValue>
+                                                  </SelectTrigger>
+                                                  <SelectContent
+                                                    className={statusPickerContentClassName}
+                                                  >
+                                                    {statusOptions.map((option) => (
+                                                      <SelectItem
+                                                        key={option}
+                                                        value={option}
+                                                        className={statusPickerItemClass(option)}
+                                                      >
+                                                        <StatusLabel status={option} />
+                                                      </SelectItem>
+                                                    ))}
+                                                  </SelectContent>
+                                                </Select>
+                                              </td>
+                                              <td className="px-3 py-2 text-right">
                                                 <Button
                                                   type="button"
-                                                  variant="destructive"
-                                                  onClick={() => {
-                                                    setCreatingTermDrafts((drafts) =>
-                                                      drafts.filter(
-                                                        (draft) => draft.id !== term.id,
-                                                      ),
-                                                    );
+                                                  size="icon-xs"
+                                                  variant="outline"
+                                                  aria-expanded={isExpanded}
+                                                  aria-label={intl.formatMessage(
+                                                    isExpanded
+                                                      ? messages.collapseTerm
+                                                      : messages.expandTerm,
+                                                  )}
+                                                  onClick={() =>
                                                     setExpandedCreatingTermIds((current) => {
                                                       const next = new Set(current);
-                                                      next.delete(term.id);
+                                                      if (next.has(term.id)) next.delete(term.id);
+                                                      else next.add(term.id);
                                                       return next;
-                                                    });
-                                                  }}
+                                                    })
+                                                  }
                                                 >
                                                   <HugeiconsIcon
-                                                    icon={Delete02Icon}
+                                                    icon={ArrowDown01Icon}
                                                     strokeWidth={1.8}
+                                                    className={isExpanded ? "" : "-rotate-90"}
                                                   />
-                                                  <FormattedMessage {...messages.deleteTerm} />
                                                 </Button>
-                                              </div>
-                                            </div>
-                                          </td>
-                                        </tr>
-                                      ) : null}
-                                    </Fragment>
-                                  );
-                                })}
-                              </tbody>
-                            </table>
-                          </div>
-                        </div>
-                      ) : null}
+                                              </td>
+                                            </tr>
+                                            {isExpanded ? (
+                                              <tr className="border-t border-border bg-muted/10">
+                                                <td colSpan={6} className="px-3 py-4">
+                                                  <div className="grid gap-4">
+                                                    <div className="grid gap-4 sm:grid-cols-[minmax(0,2fr)_minmax(14rem,1fr)]">
+                                                      <Field className="gap-1.5">
+                                                        <FieldLabel>
+                                                          <FormattedMessage
+                                                            {...messages.descriptionLabel}
+                                                          />
+                                                        </FieldLabel>
+                                                        <Textarea
+                                                          rows={3}
+                                                          placeholder={intl.formatMessage(
+                                                            messages.termDescriptionPlaceholder,
+                                                          )}
+                                                          value={term.description}
+                                                          onChange={(event) =>
+                                                            setCreatingTermDrafts((drafts) =>
+                                                              drafts.map((draft) =>
+                                                                draft.id === term.id
+                                                                  ? {
+                                                                      ...draft,
+                                                                      description:
+                                                                        event.target.value,
+                                                                    }
+                                                                  : draft,
+                                                              ),
+                                                            )
+                                                          }
+                                                        />
+                                                      </Field>
+                                                      <Field className="gap-1.5">
+                                                        <FieldLabel>
+                                                          <FormattedMessage
+                                                            {...messages.urlLabel}
+                                                          />
+                                                        </FieldLabel>
+                                                        <div className="flex gap-2">
+                                                          <Input
+                                                            placeholder={intl.formatMessage(
+                                                              messages.termUrlPlaceholder,
+                                                            )}
+                                                            value={term.url}
+                                                            onChange={(event) =>
+                                                              setCreatingTermDrafts((drafts) =>
+                                                                drafts.map((draft) =>
+                                                                  draft.id === term.id
+                                                                    ? {
+                                                                        ...draft,
+                                                                        url: event.target.value,
+                                                                      }
+                                                                    : draft,
+                                                                ),
+                                                              )
+                                                            }
+                                                          />
+                                                          <Button
+                                                            type="button"
+                                                            size="icon"
+                                                            variant="secondary"
+                                                            aria-label={intl.formatMessage(
+                                                              messages.openTermUrl,
+                                                            )}
+                                                            disabled={!term.url}
+                                                            onClick={() =>
+                                                              window.open(
+                                                                term.url,
+                                                                "_blank",
+                                                                "noopener,noreferrer",
+                                                              )
+                                                            }
+                                                          >
+                                                            <HugeiconsIcon
+                                                              icon={Link01Icon}
+                                                              strokeWidth={1.8}
+                                                            />
+                                                          </Button>
+                                                        </div>
+                                                      </Field>
+                                                    </div>
+                                                    <Field className="gap-1.5">
+                                                      <FieldLabel>
+                                                        <FormattedMessage {...messages.noteLabel} />
+                                                      </FieldLabel>
+                                                      <Textarea
+                                                        rows={2}
+                                                        placeholder={intl.formatMessage(
+                                                          messages.termNotePlaceholder,
+                                                        )}
+                                                        value={term.note}
+                                                        onChange={(event) =>
+                                                          setCreatingTermDrafts((drafts) =>
+                                                            drafts.map((draft) =>
+                                                              draft.id === term.id
+                                                                ? {
+                                                                    ...draft,
+                                                                    note: event.target.value,
+                                                                  }
+                                                                : draft,
+                                                            ),
+                                                          )
+                                                        }
+                                                      />
+                                                    </Field>
+                                                    {!isSourceTerm ? (
+                                                      <div className="flex justify-end border-t border-border pt-3">
+                                                        <Button
+                                                          type="button"
+                                                          variant="destructive"
+                                                          onClick={() => {
+                                                            setCreatingTermDrafts((drafts) =>
+                                                              drafts.filter(
+                                                                (draft) => draft.id !== term.id,
+                                                              ),
+                                                            );
+                                                            setExpandedCreatingTermIds(
+                                                              (current) => {
+                                                                const next = new Set(current);
+                                                                next.delete(term.id);
+                                                                return next;
+                                                              },
+                                                            );
+                                                          }}
+                                                        >
+                                                          <HugeiconsIcon
+                                                            icon={Delete02Icon}
+                                                            strokeWidth={1.8}
+                                                          />
+                                                          <FormattedMessage
+                                                            {...messages.deleteTerm}
+                                                          />
+                                                        </Button>
+                                                      </div>
+                                                    ) : null}
+                                                  </div>
+                                                </td>
+                                              </tr>
+                                            ) : null}
+                                          </Fragment>
+                                        );
+                                      })}
+                                    </tbody>
+                                  </table>
+                                </div>
+                              </div>
+                            );
+                          })
+                        : null}
                       {termGroups.map((group) => {
                         const isSource = group.locale === glossary.sourceLocale;
                         return (
@@ -2626,7 +2685,9 @@ export function GlossaryDetailPageContent({
                       type="button"
                       aria-busy={saveConcept.isPending}
                       disabled={
-                        !conceptDraft.primaryTerm.trim() || !isDirty || saveConcept.isPending
+                        (isCreatingConcept && !sourceTermText.trim()) ||
+                        !isDirty ||
+                        saveConcept.isPending
                       }
                       onClick={() => saveConcept.mutate(conceptDraft)}
                     >

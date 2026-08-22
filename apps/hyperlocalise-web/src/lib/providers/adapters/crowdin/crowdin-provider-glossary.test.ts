@@ -370,6 +370,9 @@ describe("Crowdin live glossary concepts", () => {
       {
         primaryTerm: "Checkout",
         sourceLocale: "en-US",
+        subject: "Commerce",
+        definition: "A payment step",
+        note: "Concept-level note",
         terms: [
           { languageId: "en", text: "Checkout", status: "preferred" },
           { languageId: "vi", text: "Thanh toán", status: "draft" },
@@ -382,7 +385,16 @@ describe("Crowdin live glossary concepts", () => {
       expect.objectContaining({ languageId: "vi", text: "Thanh toán", conceptId: 8 }),
     ]);
     expect(termBodies[0]).not.toHaveProperty("conceptId");
-    expect(conceptUpdateBodies).toEqual([{}]);
+    expect(termBodies[0]).not.toHaveProperty("partOfSpeech");
+    expect(termBodies[0]).not.toHaveProperty("description");
+    expect(termBodies[0]).not.toHaveProperty("note");
+    expect(conceptUpdateBodies).toEqual([
+      {
+        subject: "Commerce",
+        definition: "A payment step",
+        note: "Concept-level note",
+      },
+    ]);
     expect(termBodies).toHaveLength(2);
     expect(requests).toEqual([
       "POST /glossaries/7/terms",
@@ -671,10 +683,6 @@ describe("Crowdin live glossary concepts", () => {
         { op: "replace", path: "/description", value: "Updated" },
         { op: "replace", path: "/partOfSpeech", value: "noun" },
         { op: "replace", path: "/status", value: "preferred" },
-        { op: "replace", path: "/type", value: "" },
-        { op: "replace", path: "/gender", value: "" },
-        { op: "replace", path: "/note", value: "" },
-        { op: "replace", path: "/url", value: "" },
       ],
     ]);
   });

@@ -305,6 +305,7 @@ export type TmsProviderLiveGlossary = {
   externalUrl: string | null;
   externalProjectId: string;
   projectName: string | null;
+  createdAt: string | null;
 };
 
 export type TmsProviderLiveTranslationMemory = {
@@ -4085,6 +4086,7 @@ function mapLiveGlossary(input: {
     externalUrl: input.glossary.externalUrl ?? null,
     externalProjectId: input.externalProjectId,
     projectName: input.projectName,
+    createdAt: input.glossary.createdAt ?? null,
   };
 }
 
@@ -4107,6 +4109,7 @@ export function mapCrowdinLiveGlossaryPageItem(input: {
     termCount: number | null;
     externalUrl: string | null;
     externalProjectIds: string[];
+    createdAt?: string | null;
   };
   projectById: Map<string, { name: string }>;
   externalProjectId?: string;
@@ -4132,6 +4135,7 @@ export function mapCrowdinLiveGlossaryPageItem(input: {
       localeCoverage: input.glossary.localeCoverage,
       termCount: input.glossary.termCount,
       externalUrl: input.glossary.externalUrl,
+      createdAt: input.glossary.createdAt ?? null,
     },
     externalProjectId,
     projectName: project?.name ?? null,
