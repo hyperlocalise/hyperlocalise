@@ -494,6 +494,9 @@
   "01u9U8ASiI": {
     "defaultMessage": "Tạo công việc"
   },
+  "04/aNgNk5U": {
+    "defaultMessage": "Tên viết tắt không chính thức"
+  },
   "04BDy8jZlJ": {
     "defaultMessage": "Đọc các sự cố trong Bảng sự cố cho dự án đã chọn trong quá trình tự động hóa này."
   },
@@ -1454,6 +1457,9 @@
   "3rvYG+2rma": {
     "defaultMessage": "Không tìm thấy trang"
   },
+  "3s0Ll5QBJY": {
+    "defaultMessage": "Dạng thay thế"
+  },
   "3sSVTCWzgg": {
     "defaultMessage": "Các ngôn ngữ cần xem xét (không bắt buộc)"
   },
@@ -1690,6 +1696,9 @@
   },
   "4p38Fe84Cb": {
     "defaultMessage": "Launch product localisation with context-aware translation and review"
+  },
+  "4qHimvs9Xc": {
+    "defaultMessage": "Tích hợp"
   },
   "4rKdbq38y5": {
     "defaultMessage": "Bản dịch vượt quá {maxLength} ký tự được khuyến nghị."
@@ -2645,6 +2654,9 @@
   "8m5dZp1wss": {
     "defaultMessage": "Một nền tảng vận hành kết nối toàn bộ hệ thống của bạn — không phải một silo khác"
   },
+  "8mLorWvZHa": {
+    "defaultMessage": "Trang Crowdin {page}"
+  },
   "8n5eYbhjGv": {
     "defaultMessage": "Tiếng Trung (Đài Loan)"
   },
@@ -2765,6 +2777,9 @@
   "9D2YjR59lt": {
     "defaultMessage": "Keys"
   },
+  "9DtnBnymqw": {
+    "defaultMessage": "Sắp xếp"
+  },
   "9EV17CGa2+": {
     "defaultMessage": "Hyperlocalise | Nền tảng bản địa hóa tác nhân tốt nhất"
   },
@@ -2779,6 +2794,9 @@
   },
   "9HHMm55Kbr": {
     "defaultMessage": "Phân tích chất lượng"
+  },
+  "9HdSrp2HI/": {
+    "defaultMessage": "Không có bảng thuật ngữ nào khớp với tìm kiếm của bạn. <clear>Xóa tìm kiếm</clear>"
   },
   "9I//qXyS2N": {
     "defaultMessage": "Sao chép"
@@ -3200,6 +3218,9 @@
   "BBge+5Sj1e": {
     "defaultMessage": "$0"
   },
+  "BBn+JiQbC1": {
+    "defaultMessage": "Tên Z–A"
+  },
   "BBrh+7z4Oj": {
     "defaultMessage": "Không thể tải các miền được liên kết."
   },
@@ -3233,6 +3254,9 @@
   "BJVuvQezV6": {
     "defaultMessage": "Không thể gán dự án"
   },
+  "BLCf0utxhq": {
+    "defaultMessage": "Chuỗi này đã bị khóa. Mở khóa để chỉnh sửa."
+  },
   "BMoL51WOJW": {
     "defaultMessage": "Trạng thái nhà cung cấp: {status}"
   },
@@ -3253,6 +3277,9 @@
   },
   "BQ2Um1RaCK": {
     "defaultMessage": "Please provide the English source text to translate."
+  },
+  "BQ8dKEbgn2": {
+    "defaultMessage": "Tạo bảng thuật ngữ cho không gian làm việc với các thuật ngữ đã được phê duyệt hoặc kết nối với một nhà cung cấp để nhập kho thuật ngữ hiện có."
   },
   "BQRFXv8ABR": {
     "defaultMessage": "Hiển thị các đợt kiểm tra đã đạt"
@@ -3328,6 +3355,9 @@
   },
   "BhWHI3Tdnm": {
     "defaultMessage": "Phổ biến"
+  },
+  "BiKIjgXcMN": {
+    "defaultMessage": "Mở các tích hợp"
   },
   "BjVwBrTuYP": {
     "defaultMessage": "{sourceLocale} → {targetLocale}"
@@ -3458,6 +3488,9 @@
   "CBECdPWm0s": {
     "defaultMessage": "Đang thử lại…"
   },
+  "CCHRUS19n3": {
+    "defaultMessage": "Không tìm thấy danh mục nào."
+  },
   "CDHpNJeAfK": {
     "defaultMessage": "Đã cập nhật đầy đủ"
   },
@@ -3544,6 +3577,9 @@
   },
   "CYGau9cDQe": {
     "defaultMessage": "Nền tảng bản địa hóa tác vụ tự động tốt nhất"
+  },
+  "CckeviPE6F": {
+    "defaultMessage": "Bảng thuật ngữ Crowdin"
   },
   "CdzuFVCOvh": {
     "defaultMessage": "Không thể tải các dự án"
@@ -4007,6 +4043,9 @@
   "EMwUmCsnLL": {
     "defaultMessage": "Tạo"
   },
+  "EN/XL+26FR": {
+    "defaultMessage": "Không có bảng thuật ngữ gốc"
+  },
   "ENDjImu9Gr": {
     "defaultMessage": "Công vi��c mới nhất"
   },
@@ -4129,6 +4168,9 @@
   },
   "F+fcXXTQxm": {
     "defaultMessage": "Kho lưu trữ"
+  },
+  "F+qlLuaEi6": {
+    "defaultMessage": "Dạng đầy đủ của một thuật ngữ"
   },
   "F/3zp/X191": {
     "defaultMessage": "Kết nối Slack"
@@ -4724,6 +4766,9 @@
   "HaSFPe1Hc9": {
     "defaultMessage": "Tất cả mức độ nghiêm trọng"
   },
+  "HazwWhJHjo": {
+    "defaultMessage": "Khóa các mục đã chọn"
+  },
   "HbZmRDMHs3": {
     "defaultMessage": "Đang mở không gian làm việc…"
   },
@@ -4882,6 +4927,9 @@
   },
   "IMr6sfD/7/": {
     "defaultMessage": "Files"
+  },
+  "IOmySBLwfP": {
+    "defaultMessage": "Thử lại"
   },
   "IQHhkgmw8g": {
     "defaultMessage": "{count} việc đang mở"
@@ -5594,6 +5642,9 @@
   "Lps9d8jAkf": {
     "defaultMessage": "Bật {count}"
   },
+  "LqB7EIRaRe": {
+    "defaultMessage": "Kết nối nhà cung cấp"
+  },
   "LqefsWsyri": {
     "defaultMessage": "Mở đội ngũ"
   },
@@ -6151,6 +6202,9 @@
   },
   "OLljhH3V9D": {
     "defaultMessage": "Theo dõi các công việc Hyperlocalise và công việc TMS trực tiếp trên toàn bộ workspace."
+  },
+  "OMHukdK6Wt": {
+    "defaultMessage": "Các chữ cái đầu được phát âm như một từ"
   },
   "OMX/+8Bbcv": {
     "defaultMessage": "Tiếng Indonesia (Indonesia)"
@@ -6737,6 +6791,9 @@
   "Qpt4IfmhcE": {
     "defaultMessage": "Cột CSV"
   },
+  "QqxMH3unP2": {
+    "defaultMessage": "Thêm thao tác bảng thuật ngữ"
+  },
   "Qr6HIhIqfm": {
     "defaultMessage": "Chỉ đồng bộ hóa"
   },
@@ -6883,6 +6940,9 @@
   },
   "RcUcWXknuU": {
     "defaultMessage": "Chưa bao giờ"
+  },
+  "RdS22zCv6k": {
+    "defaultMessage": "Mở khóa các mục đã chọn"
   },
   "RdktJbaSwg": {
     "defaultMessage": "{count, plural, one {Nhập # vấn đề} other {Nhập # vấn đề}}"
@@ -7202,6 +7262,9 @@
   "T0J/dVp/Dp": {
     "defaultMessage": "Actions"
   },
+  "T2BImrk8yG": {
+    "defaultMessage": "Chọn một dự án khác hoặc kiểm tra Crowdin để xem các bảng thuật ngữ hiện có cho không gian làm việc này."
+  },
   "T2Xmxy54ip": {
     "defaultMessage": "Cấu hình tự động hóa bản dịch cho {repositoryFullName}. Việc này tách biệt với việc làm mới siêu dữ liệu kho lưu trữ từ GitHub."
   },
@@ -7321,6 +7384,9 @@
   },
   "TWWOWkYG7q": {
     "defaultMessage": "Bước {current} trên tổng số {total}"
+  },
+  "TXSZ3cXaZk": {
+    "defaultMessage": "Tất cả dự án"
   },
   "TYuiCQUYlI": {
     "defaultMessage": "Chọn một mô hình được hỗ trợ cho nhà cung cấp đã chọn."
@@ -8282,6 +8348,9 @@
   "XnPJMbtciR": {
     "defaultMessage": "{count, plural, one {# công việc được liên kết} other {# công việc được liên kết}}"
   },
+  "Xo2+rtWc3U": {
+    "defaultMessage": "Mới nhất trước"
+  },
   "XpdC3tQD4o": {
     "defaultMessage": "Other"
   },
@@ -8610,7 +8679,7 @@
     "defaultMessage": "Có thể truy cập các dự án và công việc được giao cho nhóm này."
   },
   "Z99fVSK2K8": {
-    "defaultMessage": "Slator Language AI 50 Under 50"
+    "defaultMessage": "50 nhân vật AI ngôn ngữ của Slator dưới 50 tuổi"
   },
   "Z9kckxHp8S": {
     "defaultMessage": "Unavailable"
@@ -8728,6 +8797,9 @@
   },
   "Zh1+GZ3Hje": {
     "defaultMessage": "Thêm tệp"
+  },
+  "ZiWVuGHeQL": {
+    "defaultMessage": "Không có bảng thuật ngữ của nhà cung cấp"
   },
   "ZkAl1q2it8": {
     "defaultMessage": "Xử lý như hình ảnh"
@@ -9281,6 +9353,9 @@
   "cGZAPE84bW": {
     "defaultMessage": "Organization memory"
   },
+  "cH3TG4pXPd": {
+    "defaultMessage": "Các bảng thuật ngữ gốc được tạo trong không gian làm việc này sẽ xuất hiện ở đây."
+  },
   "cHNG0eH0rr": {
     "defaultMessage": "Hiện chưa có bản kiểm tra bản địa hóa nào được đính kèm với tên miền này."
   },
@@ -9511,6 +9586,9 @@
   },
   "dKJQatRMzx": {
     "defaultMessage": "Theo dõi mức độ cập nhật và các khoảng trống về độ phủ ngôn ngữ"
+  },
+  "dKnvI39kVF": {
+    "defaultMessage": "Không thể cập nhật các chuỗi đã khóa"
   },
   "dLflEs1D1h": {
     "defaultMessage": "Người xem xét"
@@ -10048,6 +10126,9 @@
   },
   "fPUMESAd94": {
     "defaultMessage": "For data processing agreement requests, contact: {email}"
+  },
+  "fQ1jKCCGwH": {
+    "defaultMessage": "Khóa"
   },
   "fT5jl51yo3": {
     "defaultMessage": "{percent}%"
@@ -10751,6 +10832,9 @@
   "iIHDh1dH3y": {
     "defaultMessage": "Xóa công cụ Tạo issue"
   },
+  "iJ52PdWghi": {
+    "defaultMessage": "Thuật ngữ"
+  },
   "iL0uh6nGuj": {
     "defaultMessage": "Mẫu nhánh"
   },
@@ -10801,6 +10885,9 @@
   },
   "iRIRASFRNC": {
     "defaultMessage": "Dự án không giới hạn"
+  },
+  "iTLkbt2liA": {
+    "defaultMessage": "Bảng thuật ngữ của nhà cung cấp"
   },
   "iUA2MassCX": {
     "defaultMessage": "Chọn một cuộc trò chuyện để xem chi tiết"
@@ -11096,6 +11183,9 @@
   "jZ//cDcZ51": {
     "defaultMessage": "Tin nhắn cuộc trò chuyện sẽ xuất hiện tại đây."
   },
+  "jZwDGjK7RL": {
+    "defaultMessage": "Đã khóa"
+  },
   "jal4p9crNk": {
     "defaultMessage": "Mở trong Scira"
   },
@@ -11297,6 +11387,9 @@
   "kC3PfwuLdP": {
     "defaultMessage": "Search"
   },
+  "kDMX9jypDk": {
+    "defaultMessage": "Cụm từ gồm nhiều từ"
+  },
   "kDfywMCo7J": {
     "defaultMessage": "Nhà cung cấp LLM đã bị ngắt kết nối"
   },
@@ -11365,6 +11458,9 @@
   },
   "kWeceyqgt+": {
     "defaultMessage": "Không phụ thuộc LLM"
+  },
+  "kWfjLcxlRC": {
+    "defaultMessage": "Không thể chỉnh sửa chuỗi bị khóa từ CAT. Trước tiên, hãy mở khóa chuỗi."
   },
   "kXIRvT5GuG": {
     "defaultMessage": "Ký ức"
@@ -11590,6 +11686,9 @@
   },
   "lN7mrKGBHB": {
     "defaultMessage": "Không khớp thuật ngữ trong bảng thuật ngữ"
+  },
+  "lNH8JueKxa": {
+    "defaultMessage": "Tên A–Z"
   },
   "lO+u6H8vSf": {
     "defaultMessage": "Đã lưu cài đặt tự động hóa"
@@ -12314,6 +12413,9 @@
   "oh6mSziyuU": {
     "defaultMessage": "Kết nối Crowdin với không gian làm việc Hyperlocalise của bạn, sau đó mở lại tab này từ Crowdin."
   },
+  "ohFSHTwja2": {
+    "defaultMessage": "Đã cập nhật"
+  },
   "oiy7DSDLQj": {
     "defaultMessage": "Đang tiến hành đánh giá tác nhân. Kết quả sẽ được cập nhật khi quá trình hoàn tất."
   },
@@ -12872,6 +12974,9 @@
   "r7/0syRDA9": {
     "defaultMessage": "bắt buộc"
   },
+  "r7qqla56RV": {
+    "defaultMessage": "Dạng viết rút gọn"
+  },
   "r8GjXoDLd7": {
     "defaultMessage": "Xóa thông báo Slack"
   },
@@ -13382,6 +13487,9 @@
   "tR/DKqfN1a": {
     "defaultMessage": "Xem rủi ro"
   },
+  "tR49yNVFBv": {
+    "defaultMessage": "Bảng thuật ngữ gốc"
+  },
   "tSnciLV1cq": {
     "defaultMessage": "Ngắt kết nối TMS hiện tại để chuyển nhà cung cấp."
   },
@@ -13550,6 +13658,9 @@
   "uF3cBjB2oQ": {
     "defaultMessage": "Đang lưu…"
   },
+  "uG9evF+2Fa": {
+    "defaultMessage": "Mở khóa"
+  },
   "uGTkmY72ps": {
     "defaultMessage": "Dịch {key} sang {targetLocale}."
   },
@@ -13558,6 +13669,9 @@
   },
   "uHYVTMAjs/": {
     "defaultMessage": "Tệp nguồn công việc"
+  },
+  "uHYoEcEwFx": {
+    "defaultMessage": "Ngôn ngữ"
   },
   "uHbVM9Pw9Y": {
     "defaultMessage": "Đã cập nhật người được giao"
@@ -13813,6 +13927,9 @@
   },
   "vGQC+xjlop": {
     "defaultMessage": "Cách chúng tôi chấm điểm các cuộc kiểm tra bản địa hóa"
+  },
+  "vGmSBVyRPS": {
+    "defaultMessage": "Xóa tìm kiếm"
   },
   "vGwY2igpU6": {
     "defaultMessage": "Title"
@@ -14210,6 +14327,9 @@
   "wsTBhVto6A": {
     "defaultMessage": "ID bên ngoài"
   },
+  "wsUFAfa8Hd": {
+    "defaultMessage": "Tìm kiếm từ loại..."
+  },
   "wtUAi5KCmb": {
     "defaultMessage": "Quay lại danh sách nhóm"
   },
@@ -14405,6 +14525,9 @@
   "xZLc+H/X20": {
     "defaultMessage": "Đã tạo bộ nhớ dịch"
   },
+  "xZi8vylThF": {
+    "defaultMessage": "Không tìm thấy bảng thuật ngữ Crowdin"
+  },
   "xa11NKAkvz": {
     "defaultMessage": "Discard"
   },
@@ -14521,6 +14644,9 @@
   },
   "y4bTNRxrtq": {
     "defaultMessage": "Hủy công việc này?"
+  },
+  "y4hQxxj/zM": {
+    "defaultMessage": "Xây dựng thư viện thuật ngữ của bạn"
   },
   "y5nRcvmxtw": {
     "defaultMessage": "Hủy khi kết thúc kỳ thanh toán"
