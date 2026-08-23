@@ -20,7 +20,7 @@ UPDATE "projects" AS p
 SET "issue_number_seq" = coalesce((
 	SELECT max(i."number") FROM "issue_sheet_issues" AS i WHERE i.project_id = p.id
 ), 0);--> statement-breakpoint
-CREATE UNIQUE INDEX "projects_identifier_key" ON "projects" USING btree ("identifier");--> statement-breakpoint
+CREATE UNIQUE INDEX "projects_organization_id_identifier_key" ON "projects" USING btree ("organization_id","identifier");--> statement-breakpoint
 CREATE INDEX "idx_issue_sheet_issues_org_project_number" ON "issue_sheet_issues" USING btree ("organization_id","project_id","number");--> statement-breakpoint
 CREATE UNIQUE INDEX "issue_sheet_issues_project_number_key" ON "issue_sheet_issues" USING btree ("project_id","number");--> statement-breakpoint
 CREATE UNIQUE INDEX "issue_sheet_issues_project_identifier_key" ON "issue_sheet_issues" USING btree ("project_id","identifier");--> statement-breakpoint

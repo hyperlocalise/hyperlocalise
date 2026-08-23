@@ -1,5 +1,5 @@
 {
-  "id": "05568dea-c0e9-4080-8779-288ec5489f92",
+  "id": "4c9e4eb6-f355-4100-8b15-bc29f83ea526",
   "prevId": "3f748c42-2bff-4758-bb5d-dce7f98f69cd",
   "version": "7",
   "dialect": "postgresql",
@@ -3981,9 +3981,15 @@
           "method": "btree",
           "with": {}
         },
-        "projects_identifier_key": {
-          "name": "projects_identifier_key",
+        "projects_organization_id_identifier_key": {
+          "name": "projects_organization_id_identifier_key",
           "columns": [
+            {
+              "expression": "organization_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
             {
               "expression": "identifier",
               "isExpression": false,
