@@ -26,6 +26,7 @@ import {
   notFoundResponse,
   serviceUnavailableResponse,
 } from "@/api/errors";
+import { createProjectKnowledgeMemoryRoutes } from "@/api/routes/knowledge-memory/project-knowledge-memory.route";
 import { translationsNotFoundResponse } from "@/api/routes/public-translations/public-translations.shared";
 import {
   withWorkspaceResourceLimit,
@@ -954,6 +955,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
     })
     .route("/:projectId/jobs", createJobRoutes({ jobQueue }))
     .route("/:projectId/issue-sheet", createIssueSheetRoutes())
+    .route("/:projectId/knowledge-memory", createProjectKnowledgeMemoryRoutes())
     .route(
       "/:projectId/assets",
       createProjectAssetRoutes({ fileStorageAdapter: options.fileStorageAdapter }),

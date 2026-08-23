@@ -12,14 +12,23 @@
  */
 import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
-const { commitKnowledgeMemoryMock, getKnowledgeMemoryMock } = vi.hoisted(() => ({
+const {
+  commitKnowledgeMemoryMock,
+  getKnowledgeMemoryMock,
+  commitProjectKnowledgeMemoryMock,
+  getProjectKnowledgeMemoryMock,
+} = vi.hoisted(() => ({
   commitKnowledgeMemoryMock: vi.fn(),
   getKnowledgeMemoryMock: vi.fn(),
+  commitProjectKnowledgeMemoryMock: vi.fn(),
+  getProjectKnowledgeMemoryMock: vi.fn(),
 }));
 
 vi.mock("@/lib/knowledge-memory/knowledge-memory", () => ({
   commitKnowledgeMemoryForOrganization: commitKnowledgeMemoryMock,
   getKnowledgeMemoryForOrganization: getKnowledgeMemoryMock,
+  commitKnowledgeMemoryForProject: commitProjectKnowledgeMemoryMock,
+  getKnowledgeMemoryForProject: getProjectKnowledgeMemoryMock,
 }));
 
 import type { ToolContext } from "@/lib/agent-contracts/tool-context";
@@ -67,6 +76,7 @@ describe("Knowledge Memory agent tools", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     getKnowledgeMemoryMock.mockResolvedValue(currentMemory);
+    getProjectKnowledgeMemoryMock.mockResolvedValue(currentMemory);
     commitKnowledgeMemoryMock.mockResolvedValue(
       ok({
         changed: true,
@@ -85,8 +95,69 @@ describe("Knowledge Memory agent tools", () => {
   it("returns the complete organization document and revision metadata", async () => {
     const result = await executeTool(createGetKnowledgeMemoryTool(createToolContext()), {});
 
-    expect(result).toEqual({ success: true, knowledgeMemory: currentMemory });
+    expect(result).toEqual({
+      success: true,
+      scope: "organization",
+      knowledgeMemory: currentMemory,
+    });
     expect(getKnowledgeMemoryMock).toHaveBeenCalledWith("organization_1");
+  });
+
+  it("reads and updates project Memory.md when a project is in context", async () => {
+    getProjectKnowledgeMemoryMock.mockResolvedValue(currentMemory);
+    commitProjectKnowledgeMemoryMock.mockResolvedValue(
+      ok({
+        changed: true,
+        knowledgeMemory: {
+          ...currentMemory,
+          revisionId: "22222222-2222-4222-8222-222222222222",
+          version: 5,
+          content: "# Memory.md\n\n## Voice\nBe concise.\n\n## Legal\nPreserve legal text.",
+          summary: "Tighten project voice",
+          updatedByUserId: "user_1",
+        },
+      }),
+    );
+
+    const toolContext = createToolContext({ projectId: "project_1" });
+    const read = await executeTool(createGetKnowledgeMemoryTool(toolContext), {
+      scope: "project",
+    });
+    expect(read).toEqual({
+      success: true,
+      scope: "project",
+      knowledgeMemory: currentMemory,
+    });
+    expect(getProjectKnowledgeMemoryMock).toHaveBeenCalledWith("project_1");
+
+    const updated = await executeTool(createUpdateKnowledgeMemoryTool(toolContext), {
+      scope: "project",
+      expectedRevisionId: currentMemory.revisionId,
+      summary: "Tighten project voice",
+      edits: [{ operation: "replace", matchText: "Be clear.", replacementText: "Be concise." }],
+    });
+    expect(updated).toMatchObject({ success: true, scope: "project", changed: true, version: 5 });
+    expect(commitProjectKnowledgeMemoryMock).toHaveBeenCalledWith({
+      projectId: "project_1",
+      updatedByUserId: "user_1",
+      expectedRevisionId: currentMemory.revisionId,
+      content: "# Memory.md\n\n## Voice\nBe concise.\n\n## Legal\nPreserve legal text.",
+      summary: "Tighten project voice",
+    });
+  });
+
+  it("does not treat organization Memory.md as project Memory.md", async () => {
+    const result = await executeTool(
+      createGetKnowledgeMemoryTool(createToolContext({ projectId: null })),
+      { scope: "project" },
+    );
+
+    expect(result).toMatchObject({
+      success: false,
+      code: "knowledge_memory_project_unavailable",
+    });
+    expect(getProjectKnowledgeMemoryMock).not.toHaveBeenCalled();
+    expect(getKnowledgeMemoryMock).not.toHaveBeenCalled();
   });
 
   it("creates the first version from an empty organization document", async () => {

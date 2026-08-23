@@ -28,6 +28,8 @@ describe("getAppShellTitle", () => {
     ["/org/acme/projects/proj_1", "proj_1"],
     ["/org/acme/projects/proj_1/files", "Files"],
     ["/org/acme/projects/proj_1/jobs", "Jobs"],
+    ["/org/acme/projects/proj_1/automations", "Automations"],
+    ["/org/acme/projects/proj_1/knowledge", "Guideline"],
     ["/org/acme/projects/proj_1/issue-sheet", "Issues"],
     ["/org/acme/projects/proj_1/agent-runs", "Agent Runs"],
     ["/org/acme/projects/proj_1/activity", "Activity"],

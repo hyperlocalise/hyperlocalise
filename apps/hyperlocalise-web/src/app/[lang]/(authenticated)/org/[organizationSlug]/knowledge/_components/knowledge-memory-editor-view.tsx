@@ -47,8 +47,11 @@ function formatUpdatedAt(value: string | null, notSavedYet: string) {
   }).format(new Date(value));
 }
 
+export type KnowledgeMemoryScope = "organization" | "project";
+
 export type KnowledgeMemoryEditorViewProps = {
   organizationSlug: string;
+  scope?: KnowledgeMemoryScope;
   content: string;
   onContentChange: (value: string) => void;
   summary: string;
@@ -68,6 +71,7 @@ export type KnowledgeMemoryEditorViewProps = {
 
 export function KnowledgeMemoryEditorView({
   organizationSlug,
+  scope = "organization",
   content,
   onContentChange,
   summary,
@@ -96,7 +100,11 @@ export function KnowledgeMemoryEditorView({
       <section className="flex min-h-[34rem] flex-col">
         <div className="flex flex-wrap items-center justify-between gap-3 py-3">
           <h2 className="text-sm font-medium tracking-tight text-foreground">
-            <FormattedMessage {...knowledgeMemoryEditorMessages.title} />
+            <FormattedMessage
+              {...(scope === "project"
+                ? knowledgeMemoryEditorMessages.projectTitle
+                : knowledgeMemoryEditorMessages.title)}
+            />
           </h2>
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
             <span>
@@ -133,7 +141,11 @@ export function KnowledgeMemoryEditorView({
               disabled={!canUpdateKnowledgeMemory}
               chrome="minimal"
               imageUpload={{ organizationSlug }}
-              ariaLabel={intl.formatMessage(knowledgeMemoryEditorMessages.memoryAriaLabel)}
+              ariaLabel={intl.formatMessage(
+                scope === "project"
+                  ? knowledgeMemoryEditorMessages.projectMemoryAriaLabel
+                  : knowledgeMemoryEditorMessages.memoryAriaLabel,
+              )}
               placeholder={intl.formatMessage(knowledgeMemoryEditorMessages.memoryPlaceholder)}
               className={cn(
                 "px-1 py-6",

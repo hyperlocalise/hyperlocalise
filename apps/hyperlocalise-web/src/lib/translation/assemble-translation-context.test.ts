@@ -162,4 +162,39 @@ describe("assembleStringTranslationContextSnapshot", () => {
       expect(result.snapshot.knowledgeMemory).toBeUndefined();
     }
   });
+
+  it("combines project and workspace guidelines when both are saved", async () => {
+    const { organization, user, project } = await fixture.createStoredProjectFixture();
+    await db.insert(schema.knowledgeMemories).values({
+      organizationId: organization.id,
+      updatedByUserId: user.id,
+      content: "Workspace voice is calm.",
+    });
+    await db.insert(schema.projectKnowledgeMemories).values({
+      projectId: project.id,
+      updatedByUserId: user.id,
+      content: "Checkout buttons stay short.",
+    });
+
+    const result = await assembleStringTranslationContextSnapshot(
+      project.id,
+      {
+        sourceLocale: "en-US",
+        targetLocales: ["fr-FR"],
+        sourceText: "Checkout",
+        context: "",
+        metadata: {},
+      },
+      undefined,
+      { knowledgeMemoryEnabled: true },
+    );
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.snapshot.knowledgeMemory).toContain("## Project guideline");
+      expect(result.snapshot.knowledgeMemory).toContain("Checkout buttons stay short.");
+      expect(result.snapshot.knowledgeMemory).toContain("## Workspace guideline");
+      expect(result.snapshot.knowledgeMemory).toContain("Workspace voice is calm.");
+    }
+  });
 });

@@ -18,8 +18,8 @@ import { toast } from "sonner";
 
 import type { KnowledgeMemoryRecord } from "@/api/routes/knowledge-memory/knowledge-memory.schema";
 import { readApiError } from "@/lib/api-error";
-import { apiClient } from "@/lib/api-client-instance";
 
+import { getKnowledgeMemory, knowledgeMemoryQueryKey, putKnowledgeMemory } from "./knowledge-memory-api";
 import {
   getKnowledgeMemoryEditorState,
   parseKnowledgeMemoryPreconditionFailure,
@@ -30,14 +30,16 @@ import {
   KnowledgeMemoryHistoryDialog,
   type KnowledgeMemoryConflict,
 } from "./knowledge-memory-history-dialog";
-import { knowledgeMemoryQueryKey, type LoadedKnowledgeMemory } from "./knowledge-memory-query";
+import type { LoadedKnowledgeMemory } from "./knowledge-memory-query";
 
 export function KnowledgeMemoryEditor({
   organizationSlug,
+  projectId,
   canUpdateKnowledgeMemory,
   initialDraftContent,
 }: {
   organizationSlug: string;
+  projectId?: string;
   canUpdateKnowledgeMemory: boolean;
   /** Applied once after the saved memory loads, when the draft differs. */
   initialDraftContent?: string;
@@ -55,11 +57,9 @@ export function KnowledgeMemoryEditor({
   const appliedInitialDraft = useRef(false);
 
   const knowledgeMemoryQuery = useQuery({
-    queryKey: knowledgeMemoryQueryKey(organizationSlug),
+    queryKey: knowledgeMemoryQueryKey(organizationSlug, projectId),
     queryFn: async () => {
-      const response = await apiClient.api.orgs[":organizationSlug"]["knowledge-memory"].$get({
-        param: { organizationSlug },
-      });
+      const response = await getKnowledgeMemory({ organizationSlug, projectId });
 
       if (!response.ok) {
         throw new Error(await readApiError(response, "Unable to load knowledge memory"));
@@ -109,22 +109,23 @@ export function KnowledgeMemoryEditor({
       setSavedEtag(etag);
       setSummary("");
       setConflict(null);
-      queryClient.setQueryData<LoadedKnowledgeMemory>(knowledgeMemoryQueryKey(organizationSlug), {
-        knowledgeMemory,
-        etag,
-      });
+      queryClient.setQueryData<LoadedKnowledgeMemory>(
+        knowledgeMemoryQueryKey(organizationSlug, projectId),
+        {
+          knowledgeMemory,
+          etag,
+        },
+      );
     },
-    [organizationSlug, queryClient],
+    [organizationSlug, projectId, queryClient],
   );
 
   const saveKnowledgeMemory = useMutation({
     mutationFn: async (input: { content: string; summary?: string; expectedEtag: string }) => {
-      const response = await apiClient.api.orgs[":organizationSlug"]["knowledge-memory"].$put(
-        {
-          param: { organizationSlug },
-          json: { content: input.content, summary: input.summary },
-        },
-        { headers: { "If-Match": input.expectedEtag } },
+      const response = await putKnowledgeMemory(
+        { organizationSlug, projectId },
+        { content: input.content, summary: input.summary },
+        { "If-Match": input.expectedEtag },
       );
 
       if (response.status === 412) {
@@ -183,6 +184,7 @@ export function KnowledgeMemoryEditor({
     <>
       <KnowledgeMemoryEditorView
         organizationSlug={organizationSlug}
+        scope={projectId ? "project" : "organization"}
         content={content}
         onContentChange={(value) => {
           setContent(value);
@@ -211,6 +213,7 @@ export function KnowledgeMemoryEditor({
 
       <KnowledgeMemoryHistoryDialog
         organizationSlug={organizationSlug}
+        projectId={projectId}
         open={historyOpen}
         onOpenChange={setHistoryOpen}
         canUpdateKnowledgeMemory={canUpdateKnowledgeMemory}

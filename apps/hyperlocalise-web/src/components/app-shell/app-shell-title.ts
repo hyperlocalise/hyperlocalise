@@ -24,6 +24,7 @@ type RouteTitleKey =
   | "agent-runs"
   | "ai-engine"
   | "api-keys"
+  | "automations"
   | "billing"
   | "dashboard"
   | "domains"
@@ -50,10 +51,12 @@ type RouteTitleKey =
 const PROJECT_SECTION_KEYS = {
   activity: true,
   "agent-runs": true,
+  automations: true,
   context: true,
   files: true,
   "issue-sheet": true,
   jobs: true,
+  knowledge: true,
   locales: true,
   qa: true,
   reviews: true,
@@ -70,6 +73,7 @@ function isRouteTitleKey(value: string): value is RouteTitleKey {
     value === "agent-runs" ||
     value === "ai-engine" ||
     value === "api-keys" ||
+    value === "automations" ||
     value === "billing" ||
     value === "dashboard" ||
     value === "domains" ||
@@ -80,6 +84,7 @@ function isRouteTitleKey(value: string): value is RouteTitleKey {
     value === "issues" ||
     value === "issue-sheet" ||
     value === "jobs" ||
+    value === "automations" ||
     value === "knowledge" ||
     value === "locales" ||
     value === "members" ||
@@ -228,6 +233,12 @@ function formatRouteTitle(intl: IntlShape, key: RouteTitleKey): string {
         defaultMessage: "Jobs",
         id: "WzPTL0QId6",
         description: "App shell breadcrumb title for the jobs page",
+      });
+    case "automations":
+      return intl.formatMessage({
+        defaultMessage: "Automations",
+        id: "rN6wQ1pH4D",
+        description: "App shell breadcrumb title for the automations page",
       });
     case "knowledge":
       return intl.formatMessage({
