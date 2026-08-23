@@ -23,6 +23,10 @@ import { createUseGithubRepositoryTool } from "./use_github_repository";
 const mocks = vi.hoisted(() => ({
   selectLimit: vi.fn(),
   createGithubRepositoryAutomationSandbox: vi.fn(),
+  stopGithubRepositoryAutomationSandbox: vi.fn(),
+  toolLoopGenerate: vi.fn(),
+  withAgentRuntimeUsageMetering: vi.fn(),
+  composeGithubRepoInstructions: vi.fn(() => "instructions"),
 }));
 
 vi.mock("@/lib/database", () => ({
@@ -49,7 +53,8 @@ vi.mock("@/lib/database", () => ({
 vi.mock("@/lib/agents/github/github-repository-automation-sandbox", () => ({
   createGithubRepositoryAutomationSandbox: (...args: unknown[]) =>
     mocks.createGithubRepositoryAutomationSandbox(...args),
-  stopGithubRepositoryAutomationSandbox: vi.fn().mockResolvedValue(undefined),
+  stopGithubRepositoryAutomationSandbox: (...args: unknown[]) =>
+    mocks.stopGithubRepositoryAutomationSandbox(...args),
 }));
 
 vi.mock("ai", async (importOriginal) => {
@@ -57,7 +62,7 @@ vi.mock("ai", async (importOriginal) => {
   return {
     ...actual,
     ToolLoopAgent: class {
-      generate = vi.fn();
+      generate = mocks.toolLoopGenerate;
     },
     isStepCount: vi.fn(() => () => false),
   };
@@ -74,7 +79,8 @@ vi.mock("@/lib/agent-runtime/tools/manifest", () => ({
 
 vi.mock("@/lib/billing/agent-runtime-usage", () => ({
   extractGenerateResultTokenUsage: vi.fn(),
-  withAgentRuntimeUsageMetering: vi.fn(),
+  withAgentRuntimeUsageMetering: (...args: unknown[]) =>
+    mocks.withAgentRuntimeUsageMetering(...args),
 }));
 
 vi.mock("@/lib/tools/types", () => ({
@@ -82,7 +88,8 @@ vi.mock("@/lib/tools/types", () => ({
 }));
 
 vi.mock("@/agents/automations/workspace/agent/workspace-template-manifest", () => ({
-  composeGithubRepoInstructions: vi.fn(() => "instructions"),
+  composeGithubRepoInstructions: (...args: unknown[]) =>
+    mocks.composeGithubRepoInstructions(...args),
 }));
 
 vi.mock("@/lib/agents/workspace-automation-types", () => ({
@@ -92,6 +99,8 @@ vi.mock("@/lib/agents/workspace-automation-types", () => ({
 function session(
   overrides: {
     repository?: WorkspaceOrchestratorSession["repository"];
+    triggerSource?: WorkspaceAutomationRunRecord["triggerSource"];
+    inputSnapshot?: WorkspaceAutomationRunRecord["inputSnapshot"];
   } = {},
 ): WorkspaceOrchestratorSession {
   const automation = {
@@ -119,9 +128,9 @@ function session(
     id: "run-1",
     automationId: automation.id,
     organizationId: automation.organizationId,
-    triggerSource: "scheduled",
+    triggerSource: overrides.triggerSource ?? "scheduled",
     status: "running",
-    inputSnapshot: {},
+    inputSnapshot: overrides.inputSnapshot ?? {},
     outputSummary: {},
     error: null,
     githubRepositoryAutomationJobId: null,
@@ -154,9 +163,23 @@ function session(
 
 const toolOptions = { toolCallId: "call-1", messages: [], context: {} };
 
+const repositoryRow = {
+  fullName: "acme/app",
+  defaultBranch: "main",
+  githubInstallationId: "42",
+};
+
 describe("createUseGithubRepositoryTool", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.selectLimit.mockResolvedValue([repositoryRow]);
+    mocks.createGithubRepositoryAutomationSandbox.mockResolvedValue("sbx-1");
+    mocks.stopGithubRepositoryAutomationSandbox.mockResolvedValue(undefined);
+    mocks.toolLoopGenerate.mockResolvedValue({ text: "Digest ready" });
+    mocks.withAgentRuntimeUsageMetering.mockImplementation(
+      async (input: { run: () => Promise<unknown> }) => input.run(),
+    );
+    mocks.composeGithubRepoInstructions.mockReturnValue("instructions");
   });
 
   it("rejects when the session has no repository target", async () => {
@@ -176,5 +199,88 @@ describe("createUseGithubRepositoryTool", () => {
     ).rejects.toThrow("github_repository_not_found");
 
     expect(mocks.createGithubRepositoryAutomationSandbox).not.toHaveBeenCalled();
+  });
+
+  it("runs a scheduled lookback review and stops the sandbox", async () => {
+    const current = session();
+
+    const payload = await createUseGithubRepositoryTool(current).execute!({}, toolOptions);
+
+    expect(mocks.createGithubRepositoryAutomationSandbox).toHaveBeenCalledWith({
+      installationId: "42",
+      repositoryFullName: "acme/app",
+      revision: "main",
+      cloneDepth: 50,
+    });
+    expect(mocks.composeGithubRepoInstructions).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userOverride: "Review localisation impact",
+        dynamicSections: expect.arrayContaining([
+          "Repository: acme/app.",
+          "Branch: main.",
+          "Lookback window: 24 hours.",
+          "Sandbox id: sbx-1.",
+        ]),
+      }),
+    );
+    expect(payload).toEqual({
+      digest: "Digest ready",
+      repositoryFullName: "acme/app",
+      branch: "main",
+      lookbackHours: 24,
+    });
+    expect(current.terminalStatus).toBe("succeeded");
+    expect(current.stepResults.use_github_repository).toEqual(payload);
+    expect(mocks.stopGithubRepositoryAutomationSandbox).toHaveBeenCalledWith("sbx-1");
+  });
+
+  it("uses the GitHub push commit range for sandbox revision and payload", async () => {
+    const current = session({
+      triggerSource: "github",
+      inputSnapshot: {
+        pushBranch: "release",
+        commitBefore: "aaa111",
+        commitAfter: "bbb222",
+      },
+    });
+
+    const payload = await createUseGithubRepositoryTool(current).execute!({}, toolOptions);
+
+    expect(mocks.createGithubRepositoryAutomationSandbox).toHaveBeenCalledWith({
+      installationId: "42",
+      repositoryFullName: "acme/app",
+      revision: "bbb222",
+      cloneDepth: 50,
+    });
+    expect(mocks.composeGithubRepoInstructions).toHaveBeenCalledWith(
+      expect.objectContaining({
+        dynamicSections: expect.arrayContaining([
+          "Branch: release.",
+          "Inspect this push: aaa111..bbb222 on release.",
+        ]),
+      }),
+    );
+    expect(payload).toEqual({
+      digest: "Digest ready",
+      repositoryFullName: "acme/app",
+      branch: "release",
+      lookbackHours: null,
+      commitBefore: "aaa111",
+      commitAfter: "bbb222",
+    });
+    expect(current.terminalStatus).toBe("succeeded");
+  });
+
+  it("marks the session failed and still stops the sandbox when the agent throws", async () => {
+    mocks.toolLoopGenerate.mockRejectedValue(new Error("agent_timeout"));
+    const current = session();
+
+    await expect(createUseGithubRepositoryTool(current).execute!({}, toolOptions)).rejects.toThrow(
+      "agent_timeout",
+    );
+
+    expect(current.terminalStatus).toBe("failed");
+    expect(current.terminalError).toBe("agent_timeout");
+    expect(mocks.stopGithubRepositoryAutomationSandbox).toHaveBeenCalledWith("sbx-1");
   });
 });

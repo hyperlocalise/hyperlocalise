@@ -37,6 +37,8 @@ import { createApp } from "@/api/app";
 import { PRODUCT_USAGE_ANALYTICS_EVENTS } from "@/lib/analytics/events";
 import { serverAnalytics } from "@/lib/analytics/server";
 import { db, schema } from "@/lib/database";
+import { GlossaryValidationError } from "@/lib/glossary/glossary";
+import { NativeGlossary } from "@/lib/glossary/native-glossary";
 
 import { createTeamTestFixture } from "../team/team.fixture";
 import type { TeamResponse } from "../team/team.schema";
@@ -682,5 +684,48 @@ describe("glossaryRoutes", () => {
       source: "glossary",
     });
     trackSpy.mockRestore();
+  });
+
+  it("returns Crowdin validation details when concept create fails validation", async () => {
+    const identity = fixture.createWorkosIdentityWithRole("admin");
+    const headers = await fixture.authHeadersFor(identity);
+    const organizationSlug = identity.organization.slug ?? "missing-slug";
+    const glossaryResponse = await fixture.createGlossaryViaApi(identity, undefined, headers);
+    const glossaryId = ((await glossaryResponse.json()) as { glossary: { id: string } }).glossary
+      .id;
+
+    const createConceptSpy = vi.spyOn(NativeGlossary.prototype, "createConcept").mockRejectedValue(
+      new GlossaryValidationError("crowdin_validation_failed", "Term text is too short", {
+        provider: "crowdin",
+        errors: [{ key: "term", errors: ["too short"] }],
+      }),
+    );
+
+    try {
+      const response = await client.api.orgs[":organizationSlug"].glossaries[
+        ":glossaryId"
+      ].concepts.$post(
+        {
+          param: { organizationSlug, glossaryId },
+          json: {
+            primaryTerm: "x",
+            translatable: true,
+          },
+        },
+        { headers },
+      );
+
+      expect(response.status).toBe(400);
+      await expect(response.json()).resolves.toMatchObject({
+        error: "crowdin_validation_failed",
+        message: "Term text is too short",
+        details: {
+          provider: "crowdin",
+          errors: [{ key: "term", errors: ["too short"] }],
+        },
+      });
+    } finally {
+      createConceptSpy.mockRestore();
+    }
   });
 });

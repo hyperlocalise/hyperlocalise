@@ -21,6 +21,7 @@ function glossary(
     description?: string | null;
     termCount?: number | null;
     externalUrl?: string | null;
+    createdAt?: string | null;
   } = {},
 ) {
   return {
@@ -34,13 +35,17 @@ function glossary(
     externalUrl:
       overrides.externalUrl === undefined ? "https://crowdin.example/g/42" : overrides.externalUrl,
     externalProjectIds: overrides.externalProjectIds ?? ["100", "200"],
+    createdAt: overrides.createdAt === undefined ? null : overrides.createdAt,
   };
 }
 
 describe("mapCrowdinLiveGlossaryPageItem", () => {
   it("prefers a linked project that exists in the org project map", () => {
     const mapped = mapCrowdinLiveGlossaryPageItem({
-      glossary: glossary({ externalProjectIds: ["999", "200", "100"] }),
+      glossary: glossary({
+        externalProjectIds: ["999", "200", "100"],
+        createdAt: "2026-02-15T08:30:00.000Z",
+      }),
       projectById: new Map([
         ["100", { name: "Website" }],
         ["200", { name: "Mobile" }],
@@ -55,6 +60,7 @@ describe("mapCrowdinLiveGlossaryPageItem", () => {
       externalProjectId: "200",
       projectName: "Mobile",
       termCount: 12,
+      createdAt: "2026-02-15T08:30:00.000Z",
     });
   });
 
