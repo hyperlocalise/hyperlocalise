@@ -666,6 +666,13 @@
       "when": 1787493650317,
       "tag": "0094_glossy_fantastic_four",
       "breakpoints": true
+    },
+    {
+      "idx": 95,
+      "version": "7",
+      "when": 1787520694054,
+      "tag": "0095_sad_microchip",
+      "breakpoints": true
     }
   ]
 }

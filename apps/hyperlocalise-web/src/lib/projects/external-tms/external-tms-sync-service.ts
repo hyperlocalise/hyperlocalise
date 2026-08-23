@@ -99,6 +99,7 @@ export class ExternalTmsSyncService extends ProjectServiceBase {
         );
     } else {
       await insertWithAllocatedProjectIdentifier({
+        organizationId: input.organizationId,
         name: input.liveProject.name,
         database: this.database,
         insert: (identifier, attemptDb) =>

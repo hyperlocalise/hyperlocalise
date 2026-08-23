@@ -335,6 +335,7 @@ const projectStore: ProjectStore = {
     }
 
     const [project] = await insertWithAllocatedProjectIdentifier({
+      organizationId: auth.organization.localOrganizationId,
       name: payload.name,
       database,
       insert: (identifier, attemptDb) =>
@@ -403,6 +404,7 @@ const projectStore: ProjectStore = {
 
       if (parsedIdentifier.data !== existing.identifier) {
         const taken = await isProjectIdentifierTaken({
+          organizationId: existing.organizationId,
           identifier: parsedIdentifier.data,
           excludeProjectId: projectId,
         });
@@ -410,7 +412,7 @@ const projectStore: ProjectStore = {
         if (taken) {
           return err({
             code: "identifier_taken",
-            message: "Project identifier is already in use",
+            message: "Project identifier is already in use in this organization",
           });
         }
 

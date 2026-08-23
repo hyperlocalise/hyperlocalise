@@ -22,7 +22,7 @@ export function testProjectIdentifier(name: string, taken: ReadonlySet<string> =
   return uniquifyProjectIdentifier(deriveProjectIdentifierCandidate(name), taken);
 }
 
-/** Globally unique short identifier for test inserts (avoids unique collisions). */
+/** Unique short identifier for test inserts (avoids unique collisions). */
 export function uniqueTestProjectIdentifier(seed?: string) {
   const suffix = (seed ?? randomUUID()).replace(/-/g, "").slice(0, 8).toUpperCase();
   return `T${suffix}`.slice(0, 10);

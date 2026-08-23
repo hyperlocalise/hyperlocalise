@@ -94,7 +94,7 @@ export function deriveProjectIdentifierCandidate(name: string): string {
 }
 
 /**
- * Pick an unused identifier globally. Appends 2, 3, … when needed.
+ * Pick an unused identifier from the taken set. Appends 2, 3, … when needed.
  */
 export function uniquifyProjectIdentifier(candidate: string, taken: ReadonlySet<string>): string {
   const normalized = projectIssueIdentifierSchema.parse(candidate);

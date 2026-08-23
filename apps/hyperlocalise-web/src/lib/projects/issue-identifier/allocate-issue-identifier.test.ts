@@ -59,7 +59,7 @@ describe("allocate-issue-identifier", () => {
     expect(allocated.projectIdentifier).toBe(project.identifier);
   });
 
-  it("treats historical issue identifier prefixes as taken", async () => {
+  it("treats historical issue identifier prefixes as taken in the same organization", async () => {
     const { organization, user, project } = await fixture.createStoredProjectFixture();
     const historicalPrefix = uniqueTestProjectIdentifier();
     const renamedPrefix = uniqueTestProjectIdentifier();
@@ -77,12 +77,13 @@ describe("allocate-issue-identifier", () => {
       title: "Keeps old prefix",
     });
 
-    const taken = await listTakenProjectIdentifiers();
+    const taken = await listTakenProjectIdentifiers(organization.id);
     expect(taken.has(historicalPrefix)).toBe(true);
     expect(taken.has(renamedPrefix)).toBe(true);
 
     expect(
       await isProjectIdentifierTaken({
+        organizationId: organization.id,
         identifier: historicalPrefix,
         excludeProjectId: project.id,
       }),
@@ -107,22 +108,52 @@ describe("allocate-issue-identifier", () => {
 
     expect(
       await isProjectIdentifierTaken({
+        organizationId: organization.id,
         identifier: historicalPrefix,
         excludeProjectId: otherProject.id,
       }),
     ).toBe(true);
 
     const allocated = await allocateUniqueProjectIdentifier({
+      organizationId: organization.id,
       name: "Should Avoid Historical",
       preferred: historicalPrefix,
     });
     expect(allocated).not.toBe(historicalPrefix);
   });
 
-  it("probes the next suffix when the derived prefix is already inserted", async () => {
+  it("allows the same identifier in a different organization", async () => {
+    const owner = await fixture.createStoredProjectFixture();
+    const other = await fixture.createStoredProjectFixture();
+    const sharedPrefix = uniqueTestProjectIdentifier();
+
+    await db
+      .update(schema.projects)
+      .set({ identifier: sharedPrefix })
+      .where(eq(schema.projects.id, owner.project.id));
+
+    expect(
+      await isProjectIdentifierTaken({
+        organizationId: other.organization.id,
+        identifier: sharedPrefix,
+      }),
+    ).toBe(false);
+
+    const allocated = await allocateUniqueProjectIdentifier({
+      organizationId: other.organization.id,
+      name: "Shared Prefix",
+      preferred: sharedPrefix,
+    });
+    expect(allocated).toBe(sharedPrefix);
+  });
+
+  it("probes the next suffix when the derived prefix is already used in the same organization", async () => {
     const { organization, user } = await fixture.createStoredProjectFixture();
     const team = await ensureDefaultWorkspaceTeam(organization.id);
-    const first = await allocateUniqueProjectIdentifier({ name: "Website Lab" });
+    const first = await allocateUniqueProjectIdentifier({
+      organizationId: organization.id,
+      name: "Website Lab",
+    });
 
     await db.insert(schema.projects).values({
       id: `project_${randomUUID()}`,
@@ -137,19 +168,24 @@ describe("allocate-issue-identifier", () => {
       targetLocales: ["fr-FR"],
     });
 
-    const second = await allocateUniqueProjectIdentifier({ name: "Website Lab" });
+    const second = await allocateUniqueProjectIdentifier({
+      organizationId: organization.id,
+      name: "Website Lab",
+    });
     expect(second).not.toBe(first);
   });
 
-  it("retries insert when two creates race on projects_identifier_key", async () => {
+  it("retries insert when two creates race on projects_organization_id_identifier_key", async () => {
+    const { organization } = await fixture.createStoredProjectFixture();
     let attempts = 0;
     const identifier = await insertWithAllocatedProjectIdentifier({
+      organizationId: organization.id,
       name: "Retry Lab",
       insert: async (nextIdentifier) => {
         attempts += 1;
         if (attempts === 1) {
           throw Object.assign(new Error("duplicate key"), {
-            constraint: "projects_identifier_key",
+            constraint: "projects_organization_id_identifier_key",
           });
         }
         return nextIdentifier;
@@ -163,7 +199,7 @@ describe("allocate-issue-identifier", () => {
   it("retries a unique identifier conflict without aborting the caller transaction", async () => {
     const { organization, user } = await fixture.createStoredProjectFixture();
     const team = await ensureDefaultWorkspaceTeam(organization.id);
-    const taken = uniqueTestProjectIdentifier("race");
+    const taken = uniqueTestProjectIdentifier();
 
     await db.insert(schema.projects).values({
       id: `project_${randomUUID()}`,
@@ -181,6 +217,7 @@ describe("allocate-issue-identifier", () => {
     await db.transaction(async (tx) => {
       let attempts = 0;
       const created = await insertWithAllocatedProjectIdentifier({
+        organizationId: organization.id,
         name: "Race Lab",
         preferred: taken,
         database: tx,

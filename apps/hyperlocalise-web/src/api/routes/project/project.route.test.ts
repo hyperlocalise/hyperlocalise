@@ -14,6 +14,7 @@ import "dotenv/config";
 
 import { randomUUID } from "node:crypto";
 
+import { eq } from "drizzle-orm";
 import { testClient } from "hono/testing";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 
@@ -22,6 +23,7 @@ import { db, schema } from "@/lib/database";
 import { upsertOrganizationExternalTmsProviderCredential } from "@/lib/providers/credentials/organization-external-tms-provider-credentials";
 import { encodeProviderProjectId } from "@/lib/providers/jobs/tms-provider-resource-id";
 import { uniqueTestProjectIdentifier } from "@/lib/projects/issue-identifier/test-project-identifier";
+import { ensureDefaultWorkspaceTeam } from "@/lib/teams/default-workspace-team";
 
 import { createProjectTestFixture } from "./project.fixture";
 import type {
@@ -449,5 +451,75 @@ describe("project file provider routes", () => {
       externalProjectId,
       { limit: 25, branch: "release/ios", actorUserId: userId },
     );
+  });
+});
+
+describe("project identifier uniqueness", () => {
+  it("rejects an identifier already used by another project in the same organization", async () => {
+    const owner = await projectFixture.createStoredProjectFixture();
+    const team = await ensureDefaultWorkspaceTeam(owner.organization.id);
+    const sharedPrefix = uniqueTestProjectIdentifier();
+
+    await db
+      .update(schema.projects)
+      .set({ identifier: sharedPrefix })
+      .where(eq(schema.projects.id, owner.project.id));
+
+    const [otherProject] = await db
+      .insert(schema.projects)
+      .values({
+        id: `project_${randomUUID()}`,
+        identifier: uniqueTestProjectIdentifier(),
+        organizationId: owner.organization.id,
+        teamId: team.id,
+        createdByUserId: owner.user.id,
+        name: "Other Docs",
+        description: "",
+        translationContext: "",
+        sourceLocale: "en-US",
+        targetLocales: ["fr-FR"],
+      })
+      .returning();
+
+    const response = await client.api.orgs[":organizationSlug"].projects[":projectId"].$patch(
+      {
+        param: {
+          organizationSlug: owner.identity.organization.slug ?? "missing-slug",
+          projectId: otherProject.id,
+        },
+        json: { identifier: sharedPrefix },
+      },
+      { headers: await projectFixture.authHeadersFor(owner.identity) },
+    );
+
+    expect(response.status).toBe(409);
+    const body = (await response.json()) as { error: string };
+    expect(body.error).toBe("identifier_taken");
+  });
+
+  it("allows the same identifier in a different organization", async () => {
+    const owner = await projectFixture.createStoredProjectFixture();
+    const other = await projectFixture.createStoredProjectFixture();
+    const sharedPrefix = uniqueTestProjectIdentifier();
+
+    await db
+      .update(schema.projects)
+      .set({ identifier: sharedPrefix })
+      .where(eq(schema.projects.id, owner.project.id));
+
+    const response = await client.api.orgs[":organizationSlug"].projects[":projectId"].$patch(
+      {
+        param: {
+          organizationSlug: other.identity.organization.slug ?? "missing-slug",
+          projectId: other.project.id,
+        },
+        json: { identifier: sharedPrefix },
+      },
+      { headers: await projectFixture.authHeadersFor(other.identity) },
+    );
+
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as ProjectResponse;
+    expect(body.project.identifier).toBe(sharedPrefix);
   });
 });

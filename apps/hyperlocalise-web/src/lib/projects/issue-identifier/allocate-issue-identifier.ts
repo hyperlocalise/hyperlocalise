@@ -37,22 +37,29 @@ function uniqueConstraintName(error: unknown): string | null {
 }
 
 export function isProjectIdentifierUniqueViolation(error: unknown): boolean {
-  return uniqueConstraintName(error) === "projects_identifier_key";
+  return uniqueConstraintName(error) === "projects_organization_id_identifier_key";
 }
 
 /**
- * Collect project prefixes that must not be reused: current project.identifier values
- * plus prefixes still present on historical issue identifiers (PREFIX-N).
- * Issue prefixes are distinct split_part values so this does not load every issue row.
+ * Collect project prefixes that must not be reused in one organization:
+ * current project.identifier values plus prefixes still present on
+ * historical issue identifiers (PREFIX-N).
  */
-export async function listTakenProjectIdentifiers(database: DatabaseClient = db) {
+export async function listTakenProjectIdentifiers(
+  organizationId: string,
+  database: DatabaseClient = db,
+) {
   const [projectRows, issuePrefixRows] = await Promise.all([
-    database.select({ identifier: schema.projects.identifier }).from(schema.projects),
+    database
+      .select({ identifier: schema.projects.identifier })
+      .from(schema.projects)
+      .where(eq(schema.projects.organizationId, organizationId)),
     database
       .select({
         prefix: sql<string>`split_part(${schema.issueSheetIssues.identifier}, '-', 1)`.as("prefix"),
       })
       .from(schema.issueSheetIssues)
+      .where(eq(schema.issueSheetIssues.organizationId, organizationId))
       .groupBy(sql`split_part(${schema.issueSheetIssues.identifier}, '-', 1)`),
   ]);
 
@@ -66,6 +73,7 @@ export async function listTakenProjectIdentifiers(database: DatabaseClient = db)
 }
 
 export async function isProjectIdentifierTaken(input: {
+  organizationId: string;
   identifier: string;
   excludeProjectId?: string;
   database?: DatabaseClient;
@@ -73,7 +81,10 @@ export async function isProjectIdentifierTaken(input: {
   const database = input.database ?? db;
   const identifier = projectIssueIdentifierSchema.parse(input.identifier);
 
-  const projectConditions = [eq(schema.projects.identifier, identifier)];
+  const projectConditions = [
+    eq(schema.projects.organizationId, input.organizationId),
+    eq(schema.projects.identifier, identifier),
+  ];
   if (input.excludeProjectId) {
     projectConditions.push(ne(schema.projects.id, input.excludeProjectId));
   }
@@ -89,7 +100,10 @@ export async function isProjectIdentifierTaken(input: {
   }
 
   // PREFIX is validated [A-Z0-9] only, so it is safe to embed in a LIKE prefix.
-  const issueConditions = [sql`${schema.issueSheetIssues.identifier} like ${`${identifier}-%`}`];
+  const issueConditions = [
+    eq(schema.issueSheetIssues.organizationId, input.organizationId),
+    sql`${schema.issueSheetIssues.identifier} like ${`${identifier}-%`}`,
+  ];
   if (input.excludeProjectId) {
     issueConditions.push(ne(schema.issueSheetIssues.projectId, input.excludeProjectId));
   }
@@ -104,6 +118,7 @@ export async function isProjectIdentifierTaken(input: {
 }
 
 export async function allocateUniqueProjectIdentifier(input: {
+  organizationId: string;
   name: string;
   preferred?: string;
   excludeProjectId?: string;
@@ -118,6 +133,7 @@ export async function allocateUniqueProjectIdentifier(input: {
   for (let attempt = 0; attempt < 10_000; attempt += 1) {
     const next = uniquifyProjectIdentifier(candidate, taken);
     const takenAlready = await isProjectIdentifierTaken({
+      organizationId: input.organizationId,
       identifier: next,
       excludeProjectId: input.excludeProjectId,
       database,
@@ -133,12 +149,12 @@ export async function allocateUniqueProjectIdentifier(input: {
 
 /**
  * Allocate a prefix, run `insert`, and retry when two creates race on
- * `projects_identifier_key`. Each attempt runs in a nested transaction so a
- * unique violation only rolls back that attempt (Drizzle savepoint when the
- * caller already has a transaction). Retrying on the aborted outer
- * transaction would raise "current transaction is aborted".
+ * `projects_organization_id_identifier_key`. Each attempt runs in a nested
+ * transaction so a unique violation only rolls back that attempt (Drizzle
+ * savepoint when the caller already has a transaction).
  */
 export async function insertWithAllocatedProjectIdentifier<T>(input: {
+  organizationId: string;
   name: string;
   preferred?: string;
   excludeProjectId?: string;
@@ -152,6 +168,7 @@ export async function insertWithAllocatedProjectIdentifier<T>(input: {
     try {
       return await database.transaction(async (attemptDb) => {
         const identifier = await allocateUniqueProjectIdentifier({
+          organizationId: input.organizationId,
           name: input.name,
           preferred: input.preferred,
           excludeProjectId: input.excludeProjectId,
