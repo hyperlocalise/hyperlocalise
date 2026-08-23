@@ -20,6 +20,7 @@ import { db, schema } from "@/lib/database";
 import {
   allocateNextIssueIdentifier,
   allocateUniqueProjectIdentifier,
+  insertWithAllocatedProjectIdentifier,
   isProjectIdentifierTaken,
   listTakenProjectIdentifiers,
 } from "@/lib/projects/issue-identifier/allocate-issue-identifier";
@@ -116,5 +117,46 @@ describe("allocate-issue-identifier", () => {
       preferred: historicalPrefix,
     });
     expect(allocated).not.toBe(historicalPrefix);
+  });
+
+  it("probes the next suffix when the derived prefix is already inserted", async () => {
+    const { organization, user } = await fixture.createStoredProjectFixture();
+    const team = await ensureDefaultWorkspaceTeam(organization.id);
+    const first = await allocateUniqueProjectIdentifier({ name: "Website Lab" });
+
+    await db.insert(schema.projects).values({
+      id: `project_${randomUUID()}`,
+      identifier: first,
+      organizationId: organization.id,
+      teamId: team.id,
+      createdByUserId: user.id,
+      name: "Website Lab",
+      description: "",
+      translationContext: "",
+      sourceLocale: "en-US",
+      targetLocales: ["fr-FR"],
+    });
+
+    const second = await allocateUniqueProjectIdentifier({ name: "Website Lab" });
+    expect(second).not.toBe(first);
+  });
+
+  it("retries insert when two creates race on projects_identifier_key", async () => {
+    let attempts = 0;
+    const identifier = await insertWithAllocatedProjectIdentifier({
+      name: "Retry Lab",
+      insert: async (nextIdentifier) => {
+        attempts += 1;
+        if (attempts === 1) {
+          throw Object.assign(new Error("duplicate key"), {
+            constraint: "projects_identifier_key",
+          });
+        }
+        return nextIdentifier;
+      },
+    });
+
+    expect(attempts).toBe(2);
+    expect(identifier).toMatch(/^[A-Z][A-Z0-9]{0,9}$/);
   });
 });

@@ -42,7 +42,7 @@ import { serverAnalytics } from "@/lib/analytics/server";
 import { isReleaseCatAllFilesEnabled } from "@/lib/flags/release-flags";
 import { createLogger } from "@/lib/log";
 import {
-  allocateUniqueProjectIdentifier,
+  insertWithAllocatedProjectIdentifier,
   isProjectIdentifierTaken,
 } from "@/lib/projects/issue-identifier/allocate-issue-identifier";
 import { projectIssueIdentifierSchema } from "@/lib/projects/issue-identifier/project-issue-identifier";
@@ -334,27 +334,27 @@ const projectStore: ProjectStore = {
       throw new Error("invalid_project_team");
     }
 
-    const identifier = await allocateUniqueProjectIdentifier({
+    const [project] = await insertWithAllocatedProjectIdentifier({
       name: payload.name,
       database,
+      insert: (identifier) =>
+        database
+          .insert(schema.projects)
+          .values({
+            id: `project_${randomUUID()}`,
+            organizationId: auth.organization.localOrganizationId,
+            teamId,
+            createdByUserId: auth.user.localUserId,
+            name: payload.name,
+            identifier,
+            description: payload.description ?? "",
+            translationContext: payload.translationContext ?? "",
+            source: "native",
+            sourceLocale: payload.sourceLocale,
+            targetLocales: payload.targetLocales,
+          })
+          .returning(),
     });
-
-    const [project] = await database
-      .insert(schema.projects)
-      .values({
-        id: `project_${randomUUID()}`,
-        organizationId: auth.organization.localOrganizationId,
-        teamId,
-        createdByUserId: auth.user.localUserId,
-        name: payload.name,
-        identifier,
-        description: payload.description ?? "",
-        translationContext: payload.translationContext ?? "",
-        source: "native",
-        sourceLocale: payload.sourceLocale,
-        targetLocales: payload.targetLocales,
-      })
-      .returning();
 
     // Creators without teams:write only see projects on teams they belong to.
     // Mirror team-create behavior so the new project is immediately listable.

@@ -147,5 +147,18 @@ describe("IssueSheetService.listFeed", () => {
     });
     expect(secondPage.items.map((item) => item.kind)).toEqual(["comment_thread", "activity"]);
     expect(secondPage.nextCursor).toBeNull();
+
+    const feedByIdentifier = await issueSheetService.listFeed({
+      organizationId: organization.id,
+      projectId: project.id,
+      issueId: issue.identifier,
+      actorUserId: user.id,
+      role: "admin",
+      limit: 10,
+    });
+    expect(feedByIdentifier.total).toBe(feed.total);
+    expect(feedByIdentifier.items.map((item) => item.kind)).toEqual(
+      feed.items.map((item) => item.kind),
+    );
   });
 });

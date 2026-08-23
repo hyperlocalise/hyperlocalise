@@ -16,29 +16,50 @@ import { db, schema, type DatabaseClient } from "@/lib/database";
 
 import {
   deriveProjectIdentifierCandidate,
-  extractProjectIdentifierPrefix,
   formatIssueId,
   projectIssueIdentifierSchema,
   uniquifyProjectIdentifier,
 } from "./project-issue-identifier";
 
+const PROJECT_IDENTIFIER_INSERT_ATTEMPTS = 8;
+
+function uniqueConstraintName(error: unknown): string | null {
+  const seen = new Set<unknown>();
+  let current: unknown = error;
+  while (current && typeof current === "object" && !seen.has(current)) {
+    seen.add(current);
+    if ("constraint" in current && typeof current.constraint === "string") {
+      return current.constraint;
+    }
+    current = "cause" in current ? current.cause : undefined;
+  }
+  return null;
+}
+
+export function isProjectIdentifierUniqueViolation(error: unknown): boolean {
+  return uniqueConstraintName(error) === "projects_identifier_key";
+}
+
 /**
  * Collect project prefixes that must not be reused: current project.identifier values
  * plus prefixes still present on historical issue identifiers (PREFIX-N).
+ * Issue prefixes are distinct split_part values so this does not load every issue row.
  */
 export async function listTakenProjectIdentifiers(database: DatabaseClient = db) {
-  const [projectRows, issueRows] = await Promise.all([
+  const [projectRows, issuePrefixRows] = await Promise.all([
     database.select({ identifier: schema.projects.identifier }).from(schema.projects),
     database
-      .select({ identifier: schema.issueSheetIssues.identifier })
-      .from(schema.issueSheetIssues),
+      .select({
+        prefix: sql<string>`split_part(${schema.issueSheetIssues.identifier}, '-', 1)`.as("prefix"),
+      })
+      .from(schema.issueSheetIssues)
+      .groupBy(sql`split_part(${schema.issueSheetIssues.identifier}, '-', 1)`),
   ]);
 
   const taken = new Set(projectRows.map((row) => row.identifier));
-  for (const row of issueRows) {
-    const prefix = extractProjectIdentifierPrefix(row.identifier);
-    if (prefix) {
-      taken.add(prefix);
+  for (const row of issuePrefixRows) {
+    if (row.prefix) {
+      taken.add(row.prefix);
     }
   }
   return taken;
@@ -67,9 +88,8 @@ export async function isProjectIdentifierTaken(input: {
     return true;
   }
 
-  // PREFIX is validated [A-Z0-9] only, so it is safe to embed in a Postgres regex.
-  const issuePrefixPattern = `^${identifier}-[1-9][0-9]*$`;
-  const issueConditions = [sql`${schema.issueSheetIssues.identifier} ~ ${issuePrefixPattern}`];
+  // PREFIX is validated [A-Z0-9] only, so it is safe to embed in a LIKE prefix.
+  const issueConditions = [sql`${schema.issueSheetIssues.identifier} like ${`${identifier}-%`}`];
   if (input.excludeProjectId) {
     issueConditions.push(ne(schema.issueSheetIssues.projectId, input.excludeProjectId));
   }
@@ -86,14 +106,63 @@ export async function isProjectIdentifierTaken(input: {
 export async function allocateUniqueProjectIdentifier(input: {
   name: string;
   preferred?: string;
+  excludeProjectId?: string;
   database?: DatabaseClient;
 }) {
   const database = input.database ?? db;
-  const taken = await listTakenProjectIdentifiers(database);
   const candidate = input.preferred
     ? projectIssueIdentifierSchema.parse(input.preferred)
     : deriveProjectIdentifierCandidate(input.name);
-  return uniquifyProjectIdentifier(candidate, taken);
+  const taken = new Set<string>();
+
+  for (let attempt = 0; attempt < 10_000; attempt += 1) {
+    const next = uniquifyProjectIdentifier(candidate, taken);
+    const takenAlready = await isProjectIdentifierTaken({
+      identifier: next,
+      excludeProjectId: input.excludeProjectId,
+      database,
+    });
+    if (!takenAlready) {
+      return next;
+    }
+    taken.add(next);
+  }
+
+  throw new Error("project_issue_identifier_exhausted");
+}
+
+/**
+ * Allocate a prefix, run `insert`, and retry when two creates race on
+ * `projects_identifier_key`. Other unique violations propagate.
+ */
+export async function insertWithAllocatedProjectIdentifier<T>(input: {
+  name: string;
+  preferred?: string;
+  excludeProjectId?: string;
+  database?: DatabaseClient;
+  insert: (identifier: string) => Promise<T>;
+}): Promise<T> {
+  const database = input.database ?? db;
+  let lastError: unknown;
+
+  for (let attempt = 0; attempt < PROJECT_IDENTIFIER_INSERT_ATTEMPTS; attempt += 1) {
+    const identifier = await allocateUniqueProjectIdentifier({
+      name: input.name,
+      preferred: input.preferred,
+      excludeProjectId: input.excludeProjectId,
+      database,
+    });
+    try {
+      return await input.insert(identifier);
+    } catch (error) {
+      if (!isProjectIdentifierUniqueViolation(error)) {
+        throw error;
+      }
+      lastError = error;
+    }
+  }
+
+  throw lastError instanceof Error ? lastError : new Error("project_issue_identifier_exhausted");
 }
 
 /**

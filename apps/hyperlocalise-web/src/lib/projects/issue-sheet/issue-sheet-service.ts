@@ -860,7 +860,7 @@ export class IssueSheetService {
             from ${schema.issueSheetActivities}
             where ${schema.issueSheetActivities.organizationId} = ${input.organizationId}
               and ${schema.issueSheetActivities.projectId} = ${input.projectId}
-              and ${schema.issueSheetActivities.issueId} = ${input.issueId}
+              and ${schema.issueSheetActivities.issueId} = ${issue.id}
           )
           +
           (
@@ -868,7 +868,7 @@ export class IssueSheetService {
             from ${schema.issueSheetComments}
             where ${schema.issueSheetComments.organizationId} = ${input.organizationId}
               and ${schema.issueSheetComments.projectId} = ${input.projectId}
-              and ${schema.issueSheetComments.issueId} = ${input.issueId}
+              and ${schema.issueSheetComments.issueId} = ${issue.id}
               and ${schema.issueSheetComments.depth} = 0
           )
         ) as total
@@ -889,7 +889,7 @@ export class IssueSheetService {
           from ${schema.issueSheetActivities}
           where ${schema.issueSheetActivities.organizationId} = ${input.organizationId}
             and ${schema.issueSheetActivities.projectId} = ${input.projectId}
-            and ${schema.issueSheetActivities.issueId} = ${input.issueId}
+            and ${schema.issueSheetActivities.issueId} = ${issue.id}
           union all
           select
             ${schema.issueSheetComments.id} as id,
@@ -900,7 +900,7 @@ export class IssueSheetService {
           from ${schema.issueSheetComments}
           where ${schema.issueSheetComments.organizationId} = ${input.organizationId}
             and ${schema.issueSheetComments.projectId} = ${input.projectId}
-            and ${schema.issueSheetComments.issueId} = ${input.issueId}
+            and ${schema.issueSheetComments.issueId} = ${issue.id}
             and ${schema.issueSheetComments.depth} = 0
         ) as feed
         where true
@@ -963,7 +963,7 @@ export class IssueSheetService {
               and(
                 eq(schema.issueSheetComments.organizationId, input.organizationId),
                 eq(schema.issueSheetComments.projectId, input.projectId),
-                eq(schema.issueSheetComments.issueId, input.issueId),
+                eq(schema.issueSheetComments.issueId, issue.id),
                 sql`${schema.issueSheetComments.depth} > 0`,
                 or(
                   ...roots.map(
@@ -1928,7 +1928,7 @@ export class IssueSheetService {
         .from(schema.issueSheetRowValues)
         .where(
           and(
-            eq(schema.issueSheetRowValues.issueId, input.issueId),
+            eq(schema.issueSheetRowValues.issueId, current.id),
             eq(schema.issueSheetRowValues.columnId, column.id),
           ),
         )
@@ -1949,7 +1949,7 @@ export class IssueSheetService {
         .values({
           organizationId: input.organizationId,
           projectId: input.projectId,
-          issueId: input.issueId,
+          issueId: current.id,
           columnId: column.id,
           value,
           computedAt: null,
@@ -1966,7 +1966,7 @@ export class IssueSheetService {
         database: tx,
         organizationId: input.organizationId,
         projectId: input.projectId,
-        issueId: input.issueId,
+        issueId: current.id,
         actorUserId: input.actorUserId,
         previousPriority,
         nextPriority: input.priority,
