@@ -174,6 +174,7 @@ export function ProjectSettingsPageContent({
         json: toProjectPayload(nextValues, {
           mode: "edit",
           includeLocales: project.source === "native",
+          includeMetadata: project.source === "native",
         }),
       });
 

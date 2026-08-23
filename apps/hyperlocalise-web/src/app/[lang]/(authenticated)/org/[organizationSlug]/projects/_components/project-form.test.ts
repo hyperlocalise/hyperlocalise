@@ -121,4 +121,22 @@ describe("project form helpers", () => {
       translationContext: "",
     });
   });
+
+  it("sends only the identifier when metadata is provider-managed", () => {
+    expect(
+      toProjectPayload(
+        {
+          name: "Stale provider name",
+          identifier: "ext",
+          description: "Stale description",
+          translationContext: "Stale context",
+          sourceLocale: "en-US",
+          targetLocales: ["fr-FR"],
+        },
+        { mode: "edit", includeLocales: false, includeMetadata: false },
+      ),
+    ).toEqual({
+      identifier: "EXT",
+    });
+  });
 });

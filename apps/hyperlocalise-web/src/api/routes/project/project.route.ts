@@ -393,6 +393,12 @@ const projectStore: ProjectStore = {
       identifier?: string;
     } = { ...updates };
 
+    if (existing.source === "external_tms") {
+      delete updateValues.name;
+      delete updateValues.description;
+      delete updateValues.translationContext;
+    }
+
     if (identifier !== undefined) {
       const parsedIdentifier = projectIssueIdentifierSchema.safeParse(identifier);
       if (!parsedIdentifier.success) {
@@ -460,6 +466,10 @@ const projectStore: ProjectStore = {
       if (normalized.targetLocales !== undefined) {
         updateValues.targetLocales = normalized.targetLocales;
       }
+    }
+
+    if (Object.keys(updateValues).length === 0) {
+      return ok(existing);
     }
 
     const [project] = await db

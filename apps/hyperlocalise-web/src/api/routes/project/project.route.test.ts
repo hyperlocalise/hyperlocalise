@@ -522,4 +522,44 @@ describe("project identifier uniqueness", () => {
     const body = (await response.json()) as ProjectResponse;
     expect(body.project.identifier).toBe(sharedPrefix);
   });
+
+  it("ignores stale metadata when renaming an external project identifier", async () => {
+    const owner = await projectFixture.createStoredProjectFixture();
+    const nextIdentifier = uniqueTestProjectIdentifier();
+
+    await db
+      .update(schema.projects)
+      .set({
+        source: "external_tms",
+        name: "Provider Name",
+        description: "Provider description",
+        translationContext: "Provider context",
+      })
+      .where(eq(schema.projects.id, owner.project.id));
+
+    const response = await client.api.orgs[":organizationSlug"].projects[":projectId"].$patch(
+      {
+        param: {
+          organizationSlug: owner.identity.organization.slug ?? "missing-slug",
+          projectId: owner.project.id,
+        },
+        json: {
+          identifier: nextIdentifier,
+          name: "Stale form name",
+          description: "Stale description",
+          translationContext: "Stale context",
+        },
+      },
+      { headers: await projectFixture.authHeadersFor(owner.identity) },
+    );
+
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as ProjectResponse;
+    expect(body.project).toMatchObject({
+      identifier: nextIdentifier,
+      name: "Provider Name",
+      description: "Provider description",
+      translationContext: "Provider context",
+    });
+  });
 });

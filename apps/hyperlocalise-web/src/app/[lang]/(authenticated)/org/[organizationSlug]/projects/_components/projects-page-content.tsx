@@ -193,6 +193,7 @@ export function ProjectsPageContent({ organizationSlug }: { organizationSlug: st
         json: toProjectPayload(values, {
           mode: "edit",
           includeLocales: editingProject?.source === "native",
+          includeMetadata: editingProject?.source === "native",
         }),
       });
 

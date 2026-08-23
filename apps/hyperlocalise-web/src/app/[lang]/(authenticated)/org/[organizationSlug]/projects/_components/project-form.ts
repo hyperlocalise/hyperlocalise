@@ -141,7 +141,7 @@ export type ProjectCreatePayload = ProjectMetadataPayload & {
   targetLocales: string[];
 };
 
-export type ProjectUpdatePayload = ProjectMetadataPayload & {
+export type ProjectUpdatePayload = Partial<ProjectMetadataPayload> & {
   identifier?: string;
   sourceLocale?: string;
   targetLocales?: string[];
@@ -177,19 +177,20 @@ export function toProjectPayload(
 ): ProjectCreatePayload;
 export function toProjectPayload(
   values: ProjectFormValues,
-  options: { mode: "edit"; includeLocales?: boolean },
+  options: { mode: "edit"; includeLocales?: boolean; includeMetadata?: boolean },
 ): ProjectUpdatePayload;
 export function toProjectPayload(
   values: ProjectFormValues,
-  options: { mode: "create" | "edit"; includeLocales?: boolean },
+  options: { mode: "create" | "edit"; includeLocales?: boolean; includeMetadata?: boolean },
 ): ProjectCreatePayload | ProjectUpdatePayload {
   const payload = buildMetadataPayload(values);
   const includeLocales = options.includeLocales ?? options.mode === "create";
+  const includeMetadata = options.includeMetadata ?? true;
   const identifier = values.identifier.trim().toUpperCase();
 
   if (options.mode === "edit") {
     const editPayload: ProjectUpdatePayload = {
-      ...payload,
+      ...(includeMetadata ? payload : {}),
       ...(identifier ? { identifier } : {}),
     };
     if (!includeLocales) {
