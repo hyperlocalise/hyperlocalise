@@ -1,0 +1,64 @@
+name: Web Agent Evals
+
+# Non-blocking eval lane: real model calls through the AI Gateway.
+# Runs nightly, on manual dispatch, and on PRs labeled 'run-evals'.
+on:
+  schedule:
+    - cron: "17 15 * * *" # nightly ~01:17 AEST
+  workflow_dispatch:
+    inputs:
+      eval_model:
+        description: "Gateway model id to evaluate (default: production model)"
+        required: false
+        type: string
+  pull_request:
+    types: [labeled]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: web-evals-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CI: "true"
+  NODE_OPTIONS: --max-old-space-size=8192
+
+jobs:
+  web-evals:
+    name: Hyperlocalise Agent Evals
+    if: github.event_name != 'pull_request' || github.event.label.name == 'run-evals'
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: apps/hyperlocalise-web
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Setup Vite+
+        uses: voidzero-dev/setup-vp@250f29ce396baf5e8f24498e17c0dfdebabc26eb # v1
+        with:
+          cache: true
+
+      - name: Install hyperlocalise-web dependencies
+        run: vp install --frozen-lockfile
+
+      - name: Run agent evals
+        env:
+          AI_GATEWAY_API_KEY: ${{ secrets.EVAL_AI_GATEWAY_API_KEY }}
+          EVAL_MODEL: ${{ inputs.eval_model }}
+          # Placeholder env so app modules that read config at import time load.
+          DATABASE_URL: postgres://hyperlocalise:hyperlocalise@127.0.0.1:5432/hyperlocalise?sslmode=disable
+        run: vp run test:eval
+
+      - name: Upload eval reports
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: eval-reports-${{ github.run_id }}
+          path: apps/hyperlocalise-web/artifacts/evals/
+          if-no-files-found: warn

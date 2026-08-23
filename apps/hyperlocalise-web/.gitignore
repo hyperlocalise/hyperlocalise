@@ -36,6 +36,11 @@ yarn-error.log*
 .env*
 !.env.e2e.example
 # Local e2e overrides (copy from .env.e2e.example); never commit.
+!.env.eval.example
+# Local eval credentials (copy from .env.eval.example); never commit.
+
+# agent eval reports (vp run test:eval)
+/artifacts/
 
 # vercel
 .vercel
