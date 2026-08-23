@@ -198,10 +198,10 @@ export function ProjectSettingsPageContent({
   });
 
   const isSaving = updateProject.isPending;
-  const settingsEditable = project?.source === "native";
+  const metadataEditable = project?.source === "native";
   useAppShellHeaderAction({
     id: "project-settings-save",
-    visible: Boolean(settingsEditable),
+    visible: true,
     render: () => (
       <Button type="submit" form="project-settings-form" disabled={isSaving}>
         {isSaving ? (
@@ -224,6 +224,7 @@ export function ProjectSettingsPageContent({
 
     const nextErrors = validateProjectForm(values, {
       requireLocales: projectFormRequiresLocales("edit", project.source),
+      requireIdentifier: true,
     });
     setErrors(nextErrors);
 
@@ -262,9 +263,9 @@ export function ProjectSettingsPageContent({
         icon={Settings01Icon}
         section="Settings"
         description={
-          settingsEditable
+          metadataEditable
             ? "Edit project metadata, translation guidance, locales, and source connection details."
-            : "View provider-managed project metadata, locales, and source connection details."
+            : "View provider-managed project metadata, locales, and source connection details. You can still edit the issue identifier."
         }
       />
 
@@ -279,7 +280,7 @@ export function ProjectSettingsPageContent({
                 <FormattedMessage {...projectSettingsPageContentMessages.generalDescription} />
               </TypographyP>
             </div>
-            {!settingsEditable ? (
+            {!metadataEditable ? (
               <Badge variant="outline">
                 <FormattedMessage {...projectSettingsPageContentMessages.readOnly} />
               </Badge>
@@ -292,7 +293,7 @@ export function ProjectSettingsPageContent({
             <Input
               id="project-name"
               value={values.name}
-              disabled={isSaving || !settingsEditable}
+              disabled={isSaving || !metadataEditable}
               onChange={(event) =>
                 setValues((current) =>
                   current ? { ...current, name: event.target.value } : current,
@@ -303,13 +304,34 @@ export function ProjectSettingsPageContent({
             <FieldError errors={errors.name ? [{ message: errors.name }] : undefined} />
           </Field>
           <Field className="gap-1.5">
+            <FieldLabel htmlFor="project-identifier">
+              <FormattedMessage {...projectSettingsPageContentMessages.identifierLabel} />
+            </FieldLabel>
+            <Input
+              id="project-identifier"
+              value={values.identifier}
+              disabled={isSaving}
+              className="font-mono uppercase"
+              onChange={(event) =>
+                setValues((current) =>
+                  current ? { ...current, identifier: event.target.value.toUpperCase() } : current,
+                )
+              }
+              aria-invalid={Boolean(errors.identifier)}
+            />
+            <FieldDescription>
+              <FormattedMessage {...projectSettingsPageContentMessages.identifierHelp} />
+            </FieldDescription>
+            <FieldError errors={errors.identifier ? [{ message: errors.identifier }] : undefined} />
+          </Field>
+          <Field className="gap-1.5">
             <FieldLabel htmlFor="project-description">
               <FormattedMessage {...projectSettingsPageContentMessages.descriptionLabel} />
             </FieldLabel>
             <Textarea
               id="project-description"
               value={values.description}
-              disabled={isSaving || !settingsEditable}
+              disabled={isSaving || !metadataEditable}
               onChange={(event) =>
                 setValues((current) =>
                   current ? { ...current, description: event.target.value } : current,
@@ -327,7 +349,7 @@ export function ProjectSettingsPageContent({
           </Field>
         </section>
 
-        {settingsEditable ? (
+        {metadataEditable ? (
           <section className="grid gap-4 rounded-lg border border-border bg-muted p-4">
             <div>
               <ProjectSectionTitle>

@@ -73,8 +73,8 @@ describe("issue-list-url-state", () => {
       buildIssueDetailHref({
         organizationSlug: "acme",
         projectId: "project_website",
-        issueId: "11111111-1111-4111-8111-111111111111",
+        issueId: "WEB-1",
       }),
-    ).toBe("/org/acme/projects/project_website/issue-sheet/11111111-1111-4111-8111-111111111111");
+    ).toBe("/org/acme/projects/project_website/issue-sheet/WEB-1");
   });
 });

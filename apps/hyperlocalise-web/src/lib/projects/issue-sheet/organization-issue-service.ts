@@ -33,6 +33,8 @@ const assigneeUsers = alias(schema.users, "org_issue_assignee_users");
 
 export type OrganizationIssueListItem = {
   id: string;
+  identifier: string;
+  number: number;
   projectId: string;
   projectName: string;
   title: string;
@@ -108,7 +110,7 @@ export class OrganizationIssueService {
       .where(
         and(
           eq(schema.issueSheetIssues.organizationId, organizationId),
-          eq(schema.issueSheetIssues.id, issueId),
+          eq(schema.issueSheetIssues.identifier, issueId),
           accessibleProjectsWhere,
           issueProjectJoin,
         ),
@@ -123,7 +125,7 @@ export class OrganizationIssueService {
     const issue = await this.issueSheetService.getIssue({
       organizationId,
       projectId: row.projectId,
-      issueId: row.id,
+      issueId,
       actorUserId: auth.user.localUserId,
     });
     if (!issue) {
@@ -150,6 +152,7 @@ export class OrganizationIssueService {
       query,
       searchTargets: search
         ? [
+            ilike(schema.issueSheetIssues.identifier, search),
             ilike(schema.issueSheetIssues.title, search),
             ilike(schema.issueSheetIssues.description, search),
             ilike(schema.issueSheetIssues.sourcePath, search),
@@ -169,6 +172,8 @@ export class OrganizationIssueService {
     let listQuery = this.database
       .select({
         id: schema.issueSheetIssues.id,
+        identifier: schema.issueSheetIssues.identifier,
+        number: schema.issueSheetIssues.number,
         projectId: schema.issueSheetIssues.projectId,
         projectName: schema.projects.name,
         title: schema.issueSheetIssues.title,
@@ -233,6 +238,8 @@ export class OrganizationIssueService {
     return {
       issues: rows.map((row) => ({
         id: row.id,
+        identifier: row.identifier,
+        number: row.number,
         projectId: row.projectId,
         projectName: row.projectName,
         title: row.title,

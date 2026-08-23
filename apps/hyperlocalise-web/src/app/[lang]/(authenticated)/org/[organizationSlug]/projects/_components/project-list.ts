@@ -32,6 +32,7 @@ function resolveMessage(
 export type ApiProject = {
   id: string;
   name: string;
+  identifier?: string;
   description?: string | null;
   translationContext?: string | null;
   createdAt?: string | Date | null;
@@ -54,6 +55,7 @@ export type ApiProject = {
 export type ProjectListRow = {
   id: string;
   name: string;
+  identifier: string;
   key: string;
   description: string;
   descriptionValue: string;
@@ -115,6 +117,10 @@ function formatTimestampOrNull(value: string | Date | null | undefined): string 
 }
 
 function createProjectKey(project: ApiProject) {
+  if (project.identifier) {
+    return project.identifier;
+  }
+
   const nameKey = project.name
     .split(/\s+/)
     .filter(Boolean)
@@ -169,6 +175,7 @@ export function mapProjectToListRow(project: ApiProject, intl?: ProjectListIntl)
   return {
     id: project.id,
     name: project.name,
+    identifier: project.identifier ?? createProjectKey(project),
     key: createProjectKey(project),
     description: descriptionValue || resolveMessage(intl, projectListMessages.noDescription),
     descriptionValue,

@@ -642,6 +642,9 @@ function buildLiveProviderProject(input: {
     createdByUserId: null,
     updatedByUserId: null,
     name: input.name,
+    // Ephemeral live-provider rows are not persisted; placeholders satisfy the select type.
+    identifier: "LIVE",
+    issueNumberSeq: 0,
     description: "",
     translationContext: "",
     source: "external_tms",

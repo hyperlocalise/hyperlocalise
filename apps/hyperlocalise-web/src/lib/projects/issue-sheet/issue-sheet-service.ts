@@ -28,8 +28,16 @@ import { serverAnalytics } from "@/lib/analytics/server";
 import { db, schema, type DatabaseClient } from "@/lib/database";
 import type { IssueSheetColumnConfig } from "@/lib/database/schema/issue-sheet";
 import type { OrganizationMembershipRole } from "@/lib/database/types";
+import { allocateNextIssueIdentifier } from "@/lib/projects/issue-identifier/allocate-issue-identifier";
 
 import { isErr } from "@/lib/primitives/result/results";
+
+function issueIdOrIdentifierMatch(issueId: string) {
+  return or(
+    eq(schema.issueSheetIssues.identifier, issueId),
+    eq(schema.issueSheetIssues.id, issueId),
+  )!;
+}
 
 import {
   assertAssignableIssueAssignee,
@@ -258,6 +266,8 @@ function mapColumnRow(row: {
 
 export type IssueSheetIssue = {
   id: string;
+  identifier: string;
+  number: number;
   title: string;
   description: string;
   issueType: string;
@@ -342,6 +352,8 @@ const assigneeUsers = alias(schema.users, "assignee_users");
 
 type IssueRow = {
   id: string;
+  identifier: string;
+  number: number;
   title: string;
   description: string;
   issueType: string;
@@ -390,6 +402,8 @@ function mapIssueRow(
 ): IssueSheetIssue {
   return {
     id: row.id,
+    identifier: row.identifier,
+    number: row.number,
     title: row.title,
     description: row.description,
     issueType: row.issueType,
@@ -819,7 +833,7 @@ export class IssueSheetService {
         and(
           eq(schema.issueSheetIssues.organizationId, input.organizationId),
           eq(schema.issueSheetIssues.projectId, input.projectId),
-          eq(schema.issueSheetIssues.id, input.issueId),
+          eq(schema.issueSheetIssues.identifier, input.issueId),
         ),
       )
       .limit(1);
@@ -1277,10 +1291,17 @@ export class IssueSheetService {
       }
     }
 
-    const issueId = await this.database.transaction(async (tx) => {
+    const createdIssue = await this.database.transaction(async (tx) => {
+      const allocated = await allocateNextIssueIdentifier({
+        projectId: input.projectId,
+        database: tx,
+      });
+
       const [issue] = await tx
         .insert(schema.issueSheetIssues)
         .values({
+          identifier: allocated.identifier,
+          number: allocated.number,
           organizationId: input.organizationId,
           projectId: input.projectId,
           title: input.body.title,
@@ -1306,7 +1327,10 @@ export class IssueSheetService {
               : null,
         })
         .onConflictDoNothing()
-        .returning({ id: schema.issueSheetIssues.id });
+        .returning({
+          id: schema.issueSheetIssues.id,
+          identifier: schema.issueSheetIssues.identifier,
+        });
 
       if (!issue) {
         return null;
@@ -1373,10 +1397,10 @@ export class IssueSheetService {
         }
       }
 
-      return issue.id;
+      return issue;
     });
 
-    if (!issueId) {
+    if (!createdIssue) {
       const conflicted = await this.findExistingLinkedIssue(input);
       if (conflicted) {
         return conflicted;
@@ -1389,7 +1413,7 @@ export class IssueSheetService {
         issueNotificationService.notifyAssigned({
           organizationId: input.organizationId,
           projectId: input.projectId,
-          issueId,
+          issueId: createdIssue.id,
           actorUserId: input.actorUserId,
           assigneeUserId,
         }),
@@ -1399,7 +1423,7 @@ export class IssueSheetService {
     const created = await this.getIssueById({
       organizationId: input.organizationId,
       projectId: input.projectId,
-      issueId,
+      issueId: createdIssue.identifier,
       actorUserId: input.actorUserId,
     });
     if (!created) {
@@ -1465,7 +1489,7 @@ export class IssueSheetService {
           and(
             eq(schema.issueSheetIssues.organizationId, input.organizationId),
             eq(schema.issueSheetIssues.projectId, input.projectId),
-            eq(schema.issueSheetIssues.id, input.issueId),
+            issueIdOrIdentifierMatch(input.issueId),
           ),
         )
         .limit(1)
@@ -1514,7 +1538,7 @@ export class IssueSheetService {
           and(
             eq(schema.issueSheetIssues.organizationId, input.organizationId),
             eq(schema.issueSheetIssues.projectId, input.projectId),
-            eq(schema.issueSheetIssues.id, input.issueId),
+            issueIdOrIdentifierMatch(input.issueId),
           ),
         );
 
@@ -1523,7 +1547,7 @@ export class IssueSheetService {
           database: tx,
           organizationId: input.organizationId,
           projectId: input.projectId,
-          issueId: input.issueId,
+          issueId: current.id,
           actorUserId: input.actorUserId,
           previousStatus: current.status,
           nextStatus: nextStatusValue,
@@ -1535,7 +1559,7 @@ export class IssueSheetService {
           database: tx,
           organizationId: input.organizationId,
           projectId: input.projectId,
-          issueId: input.issueId,
+          issueId: current.id,
           actorUserId: input.actorUserId,
           previousIssueType: current.issueType,
           nextIssueType: nextIssueTypeValue,
@@ -1547,7 +1571,7 @@ export class IssueSheetService {
           database: tx,
           organizationId: input.organizationId,
           projectId: input.projectId,
-          issueId: input.issueId,
+          issueId: current.id,
           actorUserId: input.actorUserId,
           previousAssigneeUserId: current.assigneeUserId,
           nextAssigneeUserId,
@@ -1555,6 +1579,7 @@ export class IssueSheetService {
       }
 
       return {
+        issueId: current.id,
         statusChanging,
         issueTypeChanging,
         previousStatus: current.status,
@@ -1573,7 +1598,7 @@ export class IssueSheetService {
       await issueSubscriptionService.subscribe({
         organizationId: input.organizationId,
         projectId: input.projectId,
-        issueId: input.issueId,
+        issueId: found.issueId,
         userId: found.nextAssigneeUserId,
       });
     }
@@ -1583,7 +1608,7 @@ export class IssueSheetService {
         issueNotificationService.notifyStatusChanged({
           organizationId: input.organizationId,
           projectId: input.projectId,
-          issueId: input.issueId,
+          issueId: found.issueId,
           actorUserId: input.actorUserId,
           previousStatus: found.previousStatus,
           nextStatus: found.nextStatus,
@@ -1596,7 +1621,7 @@ export class IssueSheetService {
         issueNotificationService.notifyAssigneeChanged({
           organizationId: input.organizationId,
           projectId: input.projectId,
-          issueId: input.issueId,
+          issueId: found.issueId,
           actorUserId: input.actorUserId,
           previousAssigneeUserId: found.previousAssigneeUserId,
           nextAssigneeUserId: found.nextAssigneeUserId,
@@ -1654,7 +1679,7 @@ export class IssueSheetService {
         and(
           eq(schema.issueSheetIssues.organizationId, input.organizationId),
           eq(schema.issueSheetIssues.projectId, input.projectId),
-          eq(schema.issueSheetIssues.id, input.issueId),
+          issueIdOrIdentifierMatch(input.issueId),
         ),
       )
       .limit(1);
@@ -1690,7 +1715,7 @@ export class IssueSheetService {
       .values({
         organizationId: input.organizationId,
         projectId: input.projectId,
-        issueId: input.issueId,
+        issueId: issue.id,
         columnId: column.id,
         value,
         computedAt: column.type === "enrichment" ? new Date() : null,
@@ -1867,7 +1892,7 @@ export class IssueSheetService {
           and(
             eq(schema.issueSheetIssues.organizationId, input.organizationId),
             eq(schema.issueSheetIssues.projectId, input.projectId),
-            eq(schema.issueSheetIssues.id, input.issueId),
+            issueIdOrIdentifierMatch(input.issueId),
           ),
         )
         .limit(1)
@@ -2036,7 +2061,10 @@ export class IssueSheetService {
     conditions: SQL[],
   ) {
     const [existing] = await this.database
-      .select({ id: schema.issueSheetIssues.id })
+      .select({
+        id: schema.issueSheetIssues.id,
+        identifier: schema.issueSheetIssues.identifier,
+      })
       .from(schema.issueSheetIssues)
       .where(and(...conditions))
       .orderBy(desc(schema.issueSheetIssues.createdAt))
@@ -2049,7 +2077,7 @@ export class IssueSheetService {
     return this.getIssueById({
       organizationId: input.organizationId,
       projectId: input.projectId,
-      issueId: existing.id,
+      issueId: existing.identifier,
       actorUserId: input.actorUserId,
     });
   }
@@ -2077,14 +2105,14 @@ export class IssueSheetService {
     await issueSubscriptionService.subscribe({
       organizationId: input.organizationId,
       projectId: input.projectId,
-      issueId: input.issueId,
+      issueId: issue.id,
       userId: input.actorUserId,
     });
 
     return issueSubscriptionService.getSubscription({
       organizationId: input.organizationId,
       projectId: input.projectId,
-      issueId: input.issueId,
+      issueId: issue.id,
       userId: input.actorUserId,
     });
   }
@@ -2103,7 +2131,7 @@ export class IssueSheetService {
     await issueSubscriptionService.unsubscribe({
       organizationId: input.organizationId,
       projectId: input.projectId,
-      issueId: input.issueId,
+      issueId: issue.id,
       userId: input.actorUserId,
     });
 
@@ -2121,7 +2149,10 @@ export class IssueSheetService {
       return null;
     }
 
-    return issueSubscriptionService.listSubscribers(input);
+    return issueSubscriptionService.listSubscribers({
+      ...input,
+      issueId: issue.id,
+    });
   }
 
   private async getIssueById(input: {
@@ -2135,7 +2166,7 @@ export class IssueSheetService {
       [
         eq(schema.issueSheetIssues.organizationId, input.organizationId),
         eq(schema.issueSheetIssues.projectId, input.projectId),
-        eq(schema.issueSheetIssues.id, input.issueId),
+        eq(schema.issueSheetIssues.identifier, input.issueId),
       ],
       {
         limit: 1,
@@ -2191,6 +2222,8 @@ export class IssueSheetService {
     let listQuery = this.database
       .select({
         id: schema.issueSheetIssues.id,
+        identifier: schema.issueSheetIssues.identifier,
+        number: schema.issueSheetIssues.number,
         title: schema.issueSheetIssues.title,
         description: schema.issueSheetIssues.description,
         issueType: schema.issueSheetIssues.issueType,
@@ -2257,7 +2290,7 @@ export class IssueSheetService {
       }),
     ];
     if ("issueId" in input && input.issueId) {
-      conditions.push(eq(schema.issueSheetIssues.id, input.issueId));
+      conditions.push(eq(schema.issueSheetIssues.identifier, input.issueId));
     }
 
     return conditions;

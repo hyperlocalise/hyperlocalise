@@ -17,6 +17,7 @@ import { afterEach, describe, expect, it } from "vite-plus/test";
 import { createProjectTestFixture } from "@/api/routes/project/project.fixture";
 import { db, schema } from "@/lib/database";
 import { ensureDefaultWorkspaceTeam } from "@/lib/teams/default-workspace-team";
+import { uniqueTestProjectIdentifier } from "@/lib/projects/issue-identifier/test-project-identifier";
 
 import { resolveGithubRepositoryAutomationProjectId } from "./github-repository-automation-project";
 
@@ -28,6 +29,7 @@ async function createProjectInOrganization(organizationId: string, name: string)
     .insert(schema.projects)
     .values({
       id: `project_${randomUUID()}`,
+      identifier: uniqueTestProjectIdentifier(),
       organizationId,
       teamId: team.id,
       createdByUserId: null,

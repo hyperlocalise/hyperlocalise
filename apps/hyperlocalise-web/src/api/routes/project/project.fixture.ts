@@ -16,6 +16,7 @@ import type { AppType } from "@/api/app";
 import type { WorkosAuthIdentity } from "@/api/auth/workos";
 import { createAuthTestFixture } from "@/api/test-auth.fixture";
 import { db, schema } from "@/lib/database";
+import { uniqueTestProjectIdentifier } from "@/lib/projects/issue-identifier/test-project-identifier";
 import { ensureDefaultWorkspaceTeam } from "@/lib/teams/default-workspace-team";
 import { testClient } from "hono/testing";
 
@@ -62,6 +63,7 @@ export function createProjectTestFixture(client?: Client) {
       .insert(schema.projects)
       .values({
         id: `project_${randomUUID()}`,
+        identifier: uniqueTestProjectIdentifier(),
         organizationId: organization.id,
         teamId: team.id,
         createdByUserId: user.id,

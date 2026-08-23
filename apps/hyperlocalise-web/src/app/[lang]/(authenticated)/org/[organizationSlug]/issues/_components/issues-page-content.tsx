@@ -178,7 +178,7 @@ export function IssuesPageContent({
       buildIssueDetailHref({
         organizationSlug,
         projectId: issue.projectId,
-        issueId: issue.id,
+        issueId: issue.identifier,
       }),
     );
   };
