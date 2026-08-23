@@ -453,10 +453,74 @@ describe("Crowdin live glossary concepts", () => {
           terms: [{ languageId: "en", text: "Checkout", status: "preferred" }],
         },
       ),
-    ).rejects.toMatchObject({ status: 400 });
+    ).rejects.toMatchObject({
+      name: "GlossaryValidationError",
+      code: "crowdin_validation_failed",
+      message: "invalid metadata",
+    });
 
     expect(termBodies).toEqual([expect.objectContaining({ languageId: "en", text: "Checkout" })]);
     expect(termBodies[0]).not.toHaveProperty("conceptId");
+  });
+
+  it("surfaces Crowdin glossary validation errors", async () => {
+    const fetchMock = vi.fn(async () => {
+      return new Response(
+        JSON.stringify({
+          errors: [
+            {
+              error: {
+                key: "text",
+                errors: [
+                  {
+                    code: "notUnique",
+                    message:
+                      "Invalid text or part of speech or type given. Text and part of speech and type must be unique",
+                  },
+                ],
+              },
+            },
+          ],
+        }),
+        { status: 400 },
+      );
+    }) as unknown as typeof fetch;
+
+    await expect(
+      crowdinTmsProvider.createLiveGlossaryTerm(
+        {
+          organizationId: "organization-1",
+          credential: { baseUrl: "https://api.crowdin.test/api/v2" } as never,
+          secretMaterial: "test-token",
+          projectId: "project-42",
+          externalProjectId: "42",
+          sourceLocale: "en-US",
+          fetchFn: fetchMock,
+        },
+        7,
+        8,
+        {
+          languageId: "en",
+          text: "Checkout",
+          status: "preferred",
+        },
+      ),
+    ).rejects.toMatchObject({
+      name: "GlossaryValidationError",
+      code: "crowdin_validation_failed",
+      message:
+        "Invalid text or part of speech or type given. Text and part of speech and type must be unique",
+      details: {
+        provider: "crowdin",
+        errors: [
+          {
+            code: "notUnique",
+            message:
+              "Invalid text or part of speech or type given. Text and part of speech and type must be unique",
+          },
+        ],
+      },
+    });
   });
 
   it("treats native locales and Crowdin IDs as the same language on term update", async () => {

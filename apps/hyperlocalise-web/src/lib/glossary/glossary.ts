@@ -215,8 +215,12 @@ export type GlossaryConceptInput = {
 
 export class GlossaryValidationError extends Error {
   constructor(
-    readonly code: "invalid_part_of_speech" | "stale_glossary_term_id",
+    readonly code:
+      | "invalid_part_of_speech"
+      | "stale_glossary_term_id"
+      | "crowdin_validation_failed",
     message: string,
+    readonly details?: unknown,
   ) {
     super(message);
     this.name = "GlossaryValidationError";

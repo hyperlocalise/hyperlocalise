@@ -36,6 +36,7 @@ import {
   CrowdinApiClient,
   CrowdinApiError,
   escapeCrowdinCroqlString,
+  extractCrowdinApiErrorSummary,
   type CrowdinAiPrompt,
   type CrowdinBranch,
   type CrowdinCreateTaskRequest,
@@ -120,6 +121,30 @@ export {
 
 const implemented = { state: "implemented" } as const satisfies TmsProviderFeature;
 const logger = createLogger("crowdin-provider");
+
+function toCrowdinGlossaryValidationError(error: unknown): GlossaryValidationError | null {
+  if (!(error instanceof CrowdinApiError) || error.status !== 400) return null;
+
+  const summary = extractCrowdinApiErrorSummary(error.responseBody);
+  const message = summary?.errors?.find((entry) => entry.message)?.message ?? summary?.message;
+  if (!message) return null;
+
+  return new GlossaryValidationError("crowdin_validation_failed", message, {
+    provider: "crowdin",
+    ...(summary?.code !== undefined ? { code: summary.code } : {}),
+    ...(summary?.errors ? { errors: summary.errors } : {}),
+  });
+}
+
+async function withCrowdinGlossaryValidation<T>(operation: () => Promise<T>): Promise<T> {
+  try {
+    return await operation();
+  } catch (error) {
+    const validationError = toCrowdinGlossaryValidationError(error);
+    if (validationError) throw validationError;
+    throw error;
+  }
+}
 
 function isAbortError(error: unknown): boolean {
   return error instanceof Error && error.name === "AbortError";
@@ -1032,42 +1057,44 @@ export class CrowdinTmsProvider extends TmsProvider {
     glossaryId: number,
     input: CrowdinGlossaryConcept,
   ) {
-    const client = this.createClient(scope);
-    const sourceLanguageId = toCrowdinGlossaryLanguageId(input.sourceLocale);
-    const source = input.terms.find(
-      (term) => toCrowdinGlossaryLanguageId(term.languageId) === sourceLanguageId,
-    ) ?? {
-      languageId: sourceLanguageId,
-      text: input.primaryTerm,
-    };
-    const createdSource = await client.addGlossaryTerm(
-      glossaryId,
-      toCrowdinGlossaryTermRequest({
-        ...source,
-        status: omitBlankCrowdinTermValue(source.status) ?? "preferred",
-      }),
-    );
+    return withCrowdinGlossaryValidation(async () => {
+      const client = this.createClient(scope);
+      const sourceLanguageId = toCrowdinGlossaryLanguageId(input.sourceLocale);
+      const source = input.terms.find(
+        (term) => toCrowdinGlossaryLanguageId(term.languageId) === sourceLanguageId,
+      ) ?? {
+        languageId: sourceLanguageId,
+        text: input.primaryTerm,
+      };
+      const createdSource = await client.addGlossaryTerm(
+        glossaryId,
+        toCrowdinGlossaryTermRequest({
+          ...source,
+          status: omitBlankCrowdinTermValue(source.status) ?? "preferred",
+        }),
+      );
 
-    // Crowdin creates a concept implicitly when the first term omits
-    // conceptId. Concept metadata must be written after that term exists.
-    const conceptId = createdSource.conceptId;
-    await client.updateGlossaryConcept(glossaryId, conceptId, {
-      subject: input.subject,
-      definition: input.definition,
-      translatable: input.translatable,
-      note: input.note,
-      url: input.url ?? undefined,
-      figure: input.figure ?? undefined,
-      languagesDetails: input.languageDetails?.map((detail) => ({
-        languageId: toCrowdinGlossaryLanguageId(detail.languageId),
-        definition: detail.definition,
-        note: detail.note,
-      })),
+      // Crowdin creates a concept implicitly when the first term omits
+      // conceptId. Concept metadata must be written after that term exists.
+      const conceptId = createdSource.conceptId;
+      await client.updateGlossaryConcept(glossaryId, conceptId, {
+        subject: input.subject,
+        definition: input.definition,
+        translatable: input.translatable,
+        note: input.note,
+        url: input.url ?? undefined,
+        figure: input.figure ?? undefined,
+        languagesDetails: input.languageDetails?.map((detail) => ({
+          languageId: toCrowdinGlossaryLanguageId(detail.languageId),
+          definition: detail.definition,
+          note: detail.note,
+        })),
+      });
+      for (const term of input.terms.filter((item) => item !== source)) {
+        await client.addGlossaryTerm(glossaryId, toCrowdinGlossaryTermRequest(term, conceptId));
+      }
+      return this.getLiveGlossaryConcept(scope, glossaryId, conceptId);
     });
-    for (const term of input.terms.filter((item) => item !== source)) {
-      await client.addGlossaryTerm(glossaryId, toCrowdinGlossaryTermRequest(term, conceptId));
-    }
-    return this.getLiveGlossaryConcept(scope, glossaryId, conceptId);
   }
 
   async updateLiveGlossaryConcept(
@@ -1076,58 +1103,60 @@ export class CrowdinTmsProvider extends TmsProvider {
     conceptId: number,
     input: CrowdinGlossaryConcept,
   ) {
-    const client = this.createClient(scope);
-    const existing = await this.getLiveGlossaryConcept(scope, glossaryId, conceptId);
-    if (!existing) return null;
-    const existingById = new Map(existing.terms.map((term) => [String(term.id), term]));
-    const hasUnknownTermId = input.terms.some(
-      (term) => term.id !== undefined && !existingById.has(String(term.id)),
-    );
-    if (hasUnknownTermId) {
-      throw new GlossaryValidationError(
-        "stale_glossary_term_id",
-        "The glossary update contains a term that is no longer part of this concept",
+    return withCrowdinGlossaryValidation(async () => {
+      const client = this.createClient(scope);
+      const existing = await this.getLiveGlossaryConcept(scope, glossaryId, conceptId);
+      if (!existing) return null;
+      const existingById = new Map(existing.terms.map((term) => [String(term.id), term]));
+      const hasUnknownTermId = input.terms.some(
+        (term) => term.id !== undefined && !existingById.has(String(term.id)),
       );
-    }
-    await client.updateGlossaryConcept(glossaryId, conceptId, {
-      subject: input.subject ?? "",
-      definition: input.definition ?? "",
-      translatable: input.translatable ?? true,
-      note: input.note ?? "",
-      url: input.url ?? "",
-      figure: input.figure ?? "",
-    });
-    // Term ids that must not be deleted in the orphan pass (kept, updated, or already replaced).
-    const retainedIds = new Set<string>();
-
-    for (const term of input.terms) {
-      const existingTerm = term.id !== undefined ? existingById.get(String(term.id)) : undefined;
-      if (existingTerm && typeof existingTerm.id === "number") {
-        retainedIds.add(String(existingTerm.id));
-        if (
-          toCrowdinGlossaryLanguageId(term.languageId) !==
-          toCrowdinGlossaryLanguageId(existingTerm.languageId)
-        ) {
-          await client.addGlossaryTerm(glossaryId, toCrowdinGlossaryTermRequest(term, conceptId));
-          await client.deleteGlossaryTerm(glossaryId, existingTerm.id);
-          continue;
-        }
-        if (crowdinGlossaryTermsEqual(existingTerm, term)) continue;
-        const patches = toCrowdinGlossaryTermUpdatePatches(term, existingTerm);
-        if (patches.length === 0) continue;
-        await client.updateGlossaryTerm(glossaryId, existingTerm.id, patches);
-      } else {
-        await client.addGlossaryTerm(glossaryId, toCrowdinGlossaryTermRequest(term, conceptId));
+      if (hasUnknownTermId) {
+        throw new GlossaryValidationError(
+          "stale_glossary_term_id",
+          "The glossary update contains a term that is no longer part of this concept",
+        );
       }
-    }
+      await client.updateGlossaryConcept(glossaryId, conceptId, {
+        subject: input.subject ?? "",
+        definition: input.definition ?? "",
+        translatable: input.translatable ?? true,
+        note: input.note ?? "",
+        url: input.url ?? "",
+        figure: input.figure ?? "",
+      });
+      // Term ids that must not be deleted in the orphan pass (kept, updated, or already replaced).
+      const retainedIds = new Set<string>();
 
-    for (const existingTerm of existing.terms) {
-      if (typeof existingTerm.id !== "number") continue;
-      if (retainedIds.has(String(existingTerm.id))) continue;
-      await client.deleteGlossaryTerm(glossaryId, existingTerm.id);
-    }
+      for (const term of input.terms) {
+        const existingTerm = term.id !== undefined ? existingById.get(String(term.id)) : undefined;
+        if (existingTerm && typeof existingTerm.id === "number") {
+          retainedIds.add(String(existingTerm.id));
+          if (
+            toCrowdinGlossaryLanguageId(term.languageId) !==
+            toCrowdinGlossaryLanguageId(existingTerm.languageId)
+          ) {
+            await client.addGlossaryTerm(glossaryId, toCrowdinGlossaryTermRequest(term, conceptId));
+            await client.deleteGlossaryTerm(glossaryId, existingTerm.id);
+            continue;
+          }
+          if (crowdinGlossaryTermsEqual(existingTerm, term)) continue;
+          const patches = toCrowdinGlossaryTermUpdatePatches(term, existingTerm);
+          if (patches.length === 0) continue;
+          await client.updateGlossaryTerm(glossaryId, existingTerm.id, patches);
+        } else {
+          await client.addGlossaryTerm(glossaryId, toCrowdinGlossaryTermRequest(term, conceptId));
+        }
+      }
 
-    return this.getLiveGlossaryConcept(scope, glossaryId, conceptId);
+      for (const existingTerm of existing.terms) {
+        if (typeof existingTerm.id !== "number") continue;
+        if (retainedIds.has(String(existingTerm.id))) continue;
+        await client.deleteGlossaryTerm(glossaryId, existingTerm.id);
+      }
+
+      return this.getLiveGlossaryConcept(scope, glossaryId, conceptId);
+    });
   }
 
   async deleteLiveGlossaryConcept(
@@ -1148,8 +1177,10 @@ export class CrowdinTmsProvider extends TmsProvider {
     conceptId: number,
     input: CrowdinGlossaryTermInput,
   ) {
-    const client = this.createClient(scope);
-    return client.addGlossaryTerm(glossaryId, toCrowdinGlossaryTermRequest(input, conceptId));
+    return withCrowdinGlossaryValidation(async () => {
+      const client = this.createClient(scope);
+      return client.addGlossaryTerm(glossaryId, toCrowdinGlossaryTermRequest(input, conceptId));
+    });
   }
 
   async updateLiveGlossaryTerm(
@@ -1159,25 +1190,27 @@ export class CrowdinTmsProvider extends TmsProvider {
     termId: number,
     input: CrowdinGlossaryTermInput,
   ) {
-    const client = this.createClient(scope);
-    const existing = await this.getLiveGlossaryConcept(scope, glossaryId, conceptId);
-    const existingTerm = existing?.terms.find((term) => String(term.id) === String(termId));
-    if (!existingTerm) return null;
-    if (
-      toCrowdinGlossaryLanguageId(input.languageId) !==
-      toCrowdinGlossaryLanguageId(existingTerm.languageId)
-    ) {
-      const replacement = await client.addGlossaryTerm(
-        glossaryId,
-        toCrowdinGlossaryTermRequest(input, conceptId),
-      );
-      await client.deleteGlossaryTerm(glossaryId, termId);
-      return replacement;
-    }
-    if (crowdinGlossaryTermsEqual(existingTerm, input)) return existingTerm;
-    const patches = toCrowdinGlossaryTermUpdatePatches(input, existingTerm);
-    if (patches.length === 0) return existingTerm;
-    return client.updateGlossaryTerm(glossaryId, termId, patches);
+    return withCrowdinGlossaryValidation(async () => {
+      const client = this.createClient(scope);
+      const existing = await this.getLiveGlossaryConcept(scope, glossaryId, conceptId);
+      const existingTerm = existing?.terms.find((term) => String(term.id) === String(termId));
+      if (!existingTerm) return null;
+      if (
+        toCrowdinGlossaryLanguageId(input.languageId) !==
+        toCrowdinGlossaryLanguageId(existingTerm.languageId)
+      ) {
+        const replacement = await client.addGlossaryTerm(
+          glossaryId,
+          toCrowdinGlossaryTermRequest(input, conceptId),
+        );
+        await client.deleteGlossaryTerm(glossaryId, termId);
+        return replacement;
+      }
+      if (crowdinGlossaryTermsEqual(existingTerm, input)) return existingTerm;
+      const patches = toCrowdinGlossaryTermUpdatePatches(input, existingTerm);
+      if (patches.length === 0) return existingTerm;
+      return client.updateGlossaryTerm(glossaryId, termId, patches);
+    });
   }
 
   async deleteLiveGlossaryTerm(

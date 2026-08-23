@@ -1838,6 +1838,23 @@ describe("extractCrowdinApiErrorSummary", () => {
     });
   });
 
+  it("extracts direct nested validation errors", () => {
+    expect(
+      extractCrowdinApiErrorSummary({
+        errors: [
+          {
+            error: {
+              key: "text",
+              errors: [{ code: "notUnique", message: "The term must be unique" }],
+            },
+          },
+        ],
+      }),
+    ).toEqual({
+      errors: [{ code: "notUnique", message: "The term must be unique" }],
+    });
+  });
+
   it("truncates long messages and ignores non-string codes", () => {
     const summary = extractCrowdinApiErrorSummary({
       error: { message: "x".repeat(500), code: null },

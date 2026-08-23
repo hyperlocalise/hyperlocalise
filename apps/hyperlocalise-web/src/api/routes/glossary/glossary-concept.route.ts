@@ -91,7 +91,7 @@ function glossaryValidationErrorResponse(
   error: unknown,
 ) {
   if (!(error instanceof GlossaryValidationError)) return null;
-  return badRequestResponse(c, error.code, error.message);
+  return badRequestResponse(c, error.code, error.message, error.details);
 }
 
 function toCrowdinTermRecord(

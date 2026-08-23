@@ -779,17 +779,16 @@ function readCrowdinErrorSummaryEntry(entry: unknown): {
   }
 
   const nestedErrors = entry.errors;
-  if (Array.isArray(nestedErrors)) {
-    const firstNested = nestedErrors.find(isRecord);
-    const error = firstNested?.error;
-    if (isRecord(error) && Array.isArray(error.errors)) {
-      const firstDetail = error.errors.find(isRecord);
-      if (firstDetail && typeof firstDetail.code === "string") {
-        summary.code = firstDetail.code;
-      }
-      if (firstDetail && typeof firstDetail.message === "string") {
-        summary.message = firstDetail.message.slice(0, MAX_CROWDIN_ERROR_SUMMARY_MESSAGE_LENGTH);
-      }
+  const nestedError = Array.isArray(nestedErrors)
+    ? nestedErrors.find(isRecord)?.error
+    : entry.error;
+  if (isRecord(nestedError) && Array.isArray(nestedError.errors)) {
+    const firstDetail = nestedError.errors.find(isRecord);
+    if (firstDetail && typeof firstDetail.code === "string") {
+      summary.code = firstDetail.code;
+    }
+    if (firstDetail && typeof firstDetail.message === "string") {
+      summary.message = firstDetail.message.slice(0, MAX_CROWDIN_ERROR_SUMMARY_MESSAGE_LENGTH);
     }
   }
 
@@ -798,7 +797,7 @@ function readCrowdinErrorSummaryEntry(entry: unknown): {
 
 /**
  * Extracts a small, provider-generated error summary from a Crowdin error
- * response body for logging. Never includes request or translation content.
+ * response body. Never includes request or translation content.
  */
 export function extractCrowdinApiErrorSummary(responseBody: unknown): {
   code?: string | number;
