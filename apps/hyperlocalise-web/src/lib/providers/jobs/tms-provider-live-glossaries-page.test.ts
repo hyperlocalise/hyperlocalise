@@ -227,7 +227,7 @@ describe("getTmsProviderLiveGlossary", () => {
       targetLocale: "fr",
       localeCoverage: ["en", "fr"],
       termCount: 3,
-      externalUrl: null,
+      externalUrl: "https://crowdin.example/g/42",
       externalProjectIds: ["100"],
       createdAt: "2026-04-01T00:00:00.000Z",
     });

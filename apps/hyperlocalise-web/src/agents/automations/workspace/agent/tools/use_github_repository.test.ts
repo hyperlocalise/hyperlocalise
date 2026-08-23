@@ -26,7 +26,7 @@ const mocks = vi.hoisted(() => ({
   stopGithubRepositoryAutomationSandbox: vi.fn(),
   toolLoopGenerate: vi.fn(),
   withAgentRuntimeUsageMetering: vi.fn(),
-  composeGithubRepoInstructions: vi.fn(() => "instructions"),
+  composeGithubRepoInstructions: vi.fn((..._args: unknown[]) => "instructions"),
 }));
 
 vi.mock("@/lib/database", () => ({
