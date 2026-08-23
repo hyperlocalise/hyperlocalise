@@ -40,8 +40,13 @@ describe("issueIdSchema", () => {
     expect(issueIdSchema.parse("APP2-42")).toBe("APP2-42");
   });
 
-  it("rejects uuid and zero-padded numbers", () => {
-    expect(() => issueIdSchema.parse("2f4d8d7b-7c42-4fd8-bc9f-0a9f4c3f5d21")).toThrow();
+  it("accepts legacy UUID primary keys", () => {
+    expect(issueIdSchema.parse("2f4d8d7b-7c42-4fd8-bc9f-0a9f4c3f5d21")).toBe(
+      "2f4d8d7b-7c42-4fd8-bc9f-0a9f4c3f5d21",
+    );
+  });
+
+  it("rejects zero-padded numbers and lowercase prefixes", () => {
     expect(() => issueIdSchema.parse("HL-0")).toThrow();
     expect(() => issueIdSchema.parse("hl-1")).toThrow();
   });

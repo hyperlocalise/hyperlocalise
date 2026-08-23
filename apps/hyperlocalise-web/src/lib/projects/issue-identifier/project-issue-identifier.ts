@@ -28,11 +28,18 @@ export const projectIssueIdentifierSchema = z
       .regex(/^[A-Z][A-Z0-9]{0,9}$/, "identifier must be 1–10 uppercase letters or digits"),
   );
 
-/** Issue id: PREFIX-N where N is a positive integer. */
+const ISSUE_ID_PATTERN = /^[A-Z][A-Z0-9]{0,9}-[1-9][0-9]*$/;
+const ISSUE_UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+/** Issue id: PREFIX-N, or a legacy UUID primary key for existing bookmarks. */
 export const issueIdSchema = z
   .string()
   .trim()
-  .regex(/^[A-Z][A-Z0-9]{0,9}-[1-9][0-9]*$/, "issue id must look like PREFIX-123");
+  .refine(
+    (value) => ISSUE_ID_PATTERN.test(value) || ISSUE_UUID_PATTERN.test(value),
+    "issue id must look like PREFIX-123",
+  );
 
 const ISSUE_IDENTIFIER_PREFIX_PATTERN = /^([A-Z][A-Z0-9]{0,9})-[1-9][0-9]*$/;
 
