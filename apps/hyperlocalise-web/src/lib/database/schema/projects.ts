@@ -123,7 +123,10 @@ export const projects = pgTable(
   },
   (table) => [
     uniqueIndex("projects_id_organization_id_key").on(table.id, table.organizationId),
-    uniqueIndex("projects_organization_id_identifier_key").on(table.organizationId, table.identifier),
+    uniqueIndex("projects_organization_id_identifier_key").on(
+      table.organizationId,
+      table.identifier,
+    ),
     uniqueIndex("projects_org_provider_external_project_key").on(
       table.organizationId,
       table.externalProviderKind,

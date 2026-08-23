@@ -84,7 +84,7 @@ export const projectSettingsPageContentMessages = defineMessages({
   identifierHelp: {
     defaultMessage:
       "Used as the prefix for new issue IDs (e.g. HL-12). Must be unique among projects in this workspace. Existing issue IDs are kept.",
-    id: "RG4eM+/kKt",
+    id: "o/5bDmAGTd",
     description: "Help text under the project issue identifier field",
   },
   descriptionLabel: {
