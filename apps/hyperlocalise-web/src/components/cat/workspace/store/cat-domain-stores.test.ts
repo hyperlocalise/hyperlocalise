@@ -26,6 +26,19 @@ const queueSegments = [
 ] as const;
 
 describe("CatQueueStore", () => {
+  it("constructs without throwing when storage is unavailable", () => {
+    vi.stubGlobal("localStorage", undefined);
+    vi.stubGlobal("window", {});
+
+    try {
+      const queue = new CatQueueStore();
+      expect(queue.selectionMode).toBe(false);
+      expect(() => queue.setSelectionMode(true)).not.toThrow();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
   it("sorts segments by index", () => {
     const queue = new CatQueueStore();
     queue.replace([

@@ -10,6 +10,11 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import {
+  readBrowserLocalStorageItem,
+  writeBrowserLocalStorageItem,
+} from "@/lib/primitives/browser-local-storage/browser-local-storage";
+
 export type IssueDetailSidebarScope = "issue-detail" | "inbox";
 
 const STORAGE_KEYS: Record<IssueDetailSidebarScope, string> = {
@@ -46,27 +51,11 @@ function parseStoredSidebarState(value: string | null): IssueDetailSidebarState 
 }
 
 function readStoredSidebarState(scope: IssueDetailSidebarScope): IssueDetailSidebarState {
-  if (typeof window === "undefined") {
-    return {};
-  }
-
-  try {
-    return parseStoredSidebarState(window.localStorage.getItem(STORAGE_KEYS[scope])) ?? {};
-  } catch {
-    return {};
-  }
+  return parseStoredSidebarState(readBrowserLocalStorageItem(STORAGE_KEYS[scope])) ?? {};
 }
 
 function writeStoredSidebarState(scope: IssueDetailSidebarScope, state: IssueDetailSidebarState) {
-  if (typeof window === "undefined") {
-    return;
-  }
-
-  try {
-    window.localStorage.setItem(STORAGE_KEYS[scope], JSON.stringify(state));
-  } catch {
-    // Ignore storage failures in private browsing or restricted environments.
-  }
+  writeBrowserLocalStorageItem(STORAGE_KEYS[scope], JSON.stringify(state));
 }
 
 function notifyIssueDetailSidebarStateListeners() {

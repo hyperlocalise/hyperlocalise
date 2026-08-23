@@ -97,4 +97,10 @@ describe("chat-dock-persistence", () => {
     clearChatDockState("acme", storage);
     expect(storage.getItem(chatDockStorageKey("acme"))).toBeNull();
   });
+
+  it("returns empty state when browser storage is unavailable", () => {
+    expect(readChatDockState("acme")).toEqual(createEmptyChatDockState("acme"));
+    expect(() => writeChatDockState(createEmptyChatDockState("acme"))).not.toThrow();
+    expect(() => clearChatDockState("acme")).not.toThrow();
+  });
 });

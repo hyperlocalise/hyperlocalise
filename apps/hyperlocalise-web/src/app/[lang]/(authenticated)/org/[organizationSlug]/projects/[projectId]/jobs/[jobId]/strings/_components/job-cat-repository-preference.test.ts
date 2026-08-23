@@ -53,4 +53,14 @@ describe("job-cat-repository-preference", () => {
     writeCatFileRepositoryPreference(storageKey, "acme/web");
     expect(readCatFileRepositoryPreference(storageKey)).toBe("acme/web");
   });
+
+  it("skips persistence when storage is unavailable", () => {
+    vi.stubGlobal("localStorage", undefined);
+    vi.stubGlobal("window", {});
+
+    const storageKey = catFileRepositoryPreferenceKey("acme", "project-1", "en-US.json");
+    expect(readCatFileRepositoryPreference(storageKey)).toBeNull();
+    expect(() => writeCatFileRepositoryPreference(storageKey, "acme/web")).not.toThrow();
+    expect(readCatFileRepositoryPreference(storageKey)).toBeNull();
+  });
 });
