@@ -16,6 +16,7 @@ import { buildAccessibleProjectsWhere } from "@/api/auth/team-access";
 import type { ApiAuthContext } from "@/api/auth/workos";
 import { db, schema, type DatabaseClient, type DatabaseTransaction } from "@/lib/database";
 import type { IssueSheetRelationshipKind } from "@/lib/database/schema/issue-sheet";
+import { isLegacyIssueUuid } from "@/lib/projects/issue-identifier/project-issue-identifier";
 import { err, ok, type Result } from "@/lib/primitives/result/results";
 import { ProjectServiceBase } from "@/lib/projects/project-service-base";
 
@@ -137,7 +138,9 @@ export class IssueRelationshipService extends ProjectServiceBase {
       .from(schema.issueSheetIssues)
       .where(
         and(
-          eq(schema.issueSheetIssues.id, input.issueId),
+          isLegacyIssueUuid(input.issueId)
+            ? eq(schema.issueSheetIssues.id, input.issueId)
+            : eq(schema.issueSheetIssues.identifier, input.issueId),
           eq(schema.issueSheetIssues.organizationId, input.organizationId),
           eq(schema.issueSheetIssues.projectId, input.projectId),
         ),

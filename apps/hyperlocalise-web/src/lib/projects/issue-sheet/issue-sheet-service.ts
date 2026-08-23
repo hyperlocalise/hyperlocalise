@@ -29,14 +29,14 @@ import { db, schema, type DatabaseClient } from "@/lib/database";
 import type { IssueSheetColumnConfig } from "@/lib/database/schema/issue-sheet";
 import type { OrganizationMembershipRole } from "@/lib/database/types";
 import { allocateNextIssueIdentifier } from "@/lib/projects/issue-identifier/allocate-issue-identifier";
+import { isLegacyIssueUuid } from "@/lib/projects/issue-identifier/project-issue-identifier";
 
 import { isErr } from "@/lib/primitives/result/results";
 
 function issueIdOrIdentifierMatch(issueId: string) {
-  return or(
-    eq(schema.issueSheetIssues.identifier, issueId),
-    eq(schema.issueSheetIssues.id, issueId),
-  )!;
+  return isLegacyIssueUuid(issueId)
+    ? eq(schema.issueSheetIssues.id, issueId)
+    : eq(schema.issueSheetIssues.identifier, issueId);
 }
 
 import {
@@ -833,7 +833,7 @@ export class IssueSheetService {
         and(
           eq(schema.issueSheetIssues.organizationId, input.organizationId),
           eq(schema.issueSheetIssues.projectId, input.projectId),
-          eq(schema.issueSheetIssues.identifier, input.issueId),
+          issueIdOrIdentifierMatch(input.issueId),
         ),
       )
       .limit(1);
@@ -2166,7 +2166,7 @@ export class IssueSheetService {
       [
         eq(schema.issueSheetIssues.organizationId, input.organizationId),
         eq(schema.issueSheetIssues.projectId, input.projectId),
-        eq(schema.issueSheetIssues.identifier, input.issueId),
+        issueIdOrIdentifierMatch(input.issueId),
       ],
       {
         limit: 1,
@@ -2290,7 +2290,7 @@ export class IssueSheetService {
       }),
     ];
     if ("issueId" in input && input.issueId) {
-      conditions.push(eq(schema.issueSheetIssues.identifier, input.issueId));
+      conditions.push(issueIdOrIdentifierMatch(input.issueId));
     }
 
     return conditions;

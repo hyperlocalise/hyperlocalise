@@ -16,6 +16,7 @@ import { isOrganizationAdminRole } from "@/api/auth/policy";
 import { buildAccessibleProjectsWhere } from "@/api/auth/team-access";
 import type { ApiAuthContext } from "@/api/auth/workos";
 import { db, schema } from "@/lib/database";
+import { isLegacyIssueUuid } from "@/lib/projects/issue-identifier/project-issue-identifier";
 import type { OrganizationMembershipRole } from "@/lib/database/types";
 import { ProjectServiceBase } from "@/lib/projects/project-service-base";
 
@@ -190,7 +191,9 @@ export class IssueSheetCommentService extends ProjectServiceBase {
       .from(schema.issueSheetIssues)
       .where(
         and(
-          eq(schema.issueSheetIssues.id, input.issueId),
+          isLegacyIssueUuid(input.issueId)
+            ? eq(schema.issueSheetIssues.id, input.issueId)
+            : eq(schema.issueSheetIssues.identifier, input.issueId),
           eq(schema.issueSheetIssues.organizationId, input.organizationId),
           eq(schema.issueSheetIssues.projectId, input.projectId),
         ),

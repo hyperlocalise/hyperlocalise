@@ -17,6 +17,7 @@ import type { OrganizationIssuesQuery } from "@/api/routes/issues/issues.schema"
 import { buildAccessibleProjectsWhere } from "@/api/auth/team-access";
 import type { ApiAuthContext } from "@/api/auth/workos";
 import { db, schema } from "@/lib/database";
+import { isLegacyIssueUuid } from "@/lib/projects/issue-identifier/project-issue-identifier";
 
 import {
   buildIssueListFilterConditions,
@@ -110,7 +111,9 @@ export class OrganizationIssueService {
       .where(
         and(
           eq(schema.issueSheetIssues.organizationId, organizationId),
-          eq(schema.issueSheetIssues.identifier, issueId),
+          isLegacyIssueUuid(issueId)
+            ? eq(schema.issueSheetIssues.id, issueId)
+            : eq(schema.issueSheetIssues.identifier, issueId),
           accessibleProjectsWhere,
           issueProjectJoin,
         ),

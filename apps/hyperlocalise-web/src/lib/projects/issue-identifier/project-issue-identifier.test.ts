@@ -16,6 +16,7 @@ import {
   deriveProjectIdentifierCandidate,
   extractProjectIdentifierPrefix,
   formatIssueId,
+  isLegacyIssueUuid,
   issueIdSchema,
   projectIssueIdentifierSchema,
   uniquifyProjectIdentifier,
@@ -38,6 +39,11 @@ describe("issueIdSchema", () => {
   it("accepts PREFIX-N", () => {
     expect(issueIdSchema.parse("HL-1")).toBe("HL-1");
     expect(issueIdSchema.parse("APP2-42")).toBe("APP2-42");
+  });
+
+  it("detects legacy UUID issue ids", () => {
+    expect(isLegacyIssueUuid("2f4d8d7b-7c42-4fd8-bc9f-0a9f4c3f5d21")).toBe(true);
+    expect(isLegacyIssueUuid("HL-1")).toBe(false);
   });
 
   it("accepts legacy UUID primary keys", () => {
