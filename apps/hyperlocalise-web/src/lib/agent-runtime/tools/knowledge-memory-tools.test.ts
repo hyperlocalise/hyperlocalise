@@ -306,6 +306,7 @@ describe("Knowledge Memory agent tools", () => {
 
       expect(result).toEqual({
         success: true,
+        scope: "organization",
         changed: true,
         revisionId: "22222222-2222-4222-8222-222222222222",
         version: 5,
