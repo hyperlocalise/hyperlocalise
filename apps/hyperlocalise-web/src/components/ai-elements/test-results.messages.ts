@@ -44,9 +44,4 @@ export const testResultsMessages = defineMessages({
     id: "fT5jl51yo3",
     description: "Percentage of tests passed in the test results summary",
   },
-  durationMs: {
-    defaultMessage: "{duration}ms",
-    id: "F7cCgYXVec",
-    description: "Test duration shown in milliseconds",
-  },
 });

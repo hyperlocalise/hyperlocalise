@@ -83,14 +83,18 @@ export function formatAutomationRelativeTimestamp(
   const diffMs = now - date.getTime();
   const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
   if (diffHours < 24) {
-    return intl.formatMessage(automationsPageViewModelMessages.relativeHours, {
-      hours: Math.max(diffHours, 1),
+    return intl.formatNumber(Math.max(diffHours, 1), {
+      style: "unit",
+      unit: "hour",
+      unitDisplay: "narrow",
     });
   }
 
   const diffDays = Math.floor(diffHours / 24);
-  return intl.formatMessage(automationsPageViewModelMessages.relativeDays, {
-    days: diffDays,
+  return intl.formatNumber(diffDays, {
+    style: "unit",
+    unit: "day",
+    unitDisplay: "narrow",
   });
 }
 
