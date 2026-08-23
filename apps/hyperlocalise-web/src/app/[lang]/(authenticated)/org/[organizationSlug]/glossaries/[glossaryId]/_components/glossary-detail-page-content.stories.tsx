@@ -176,7 +176,16 @@ export const ConceptDetail: Story = {
     },
   },
   play: async ({ canvas, canvasElement }) => {
-    await expect(canvas.getAllByDisplayValue("Agency").length).toBeGreaterThan(1);
+    const primaryTermInput = canvas.getByRole("textbox", { name: "Primary term" });
+    await expect(primaryTermInput).toHaveValue("Agency");
+    await expect(primaryTermInput).toHaveAttribute("readonly");
+    const sourceTermInput = canvas
+      .getAllByDisplayValue("Agency")
+      .find((element) => element !== primaryTermInput);
+    if (!sourceTermInput) throw new Error("Source term input not found");
+    await userEvent.clear(sourceTermInput);
+    await userEvent.type(sourceTermInput, "Agency updated");
+    await expect(primaryTermInput).toHaveValue("Agency updated");
     await expect(await canvas.findByDisplayValue("Đại lý")).toBeInTheDocument();
     await expect(canvas.getByText("vi-VN")).toBeInTheDocument();
     await expect(canvas.getByText("SOURCE")).toBeInTheDocument();
@@ -219,6 +228,10 @@ export const ConceptCreationWithTerms: Story = {
   },
   play: async ({ canvas }) => {
     await expect(canvas.getByRole("heading", { name: "Add concept" })).toBeInTheDocument();
+    const primaryTermInput = canvas.getByRole("textbox", { name: "Primary term" });
+    const sourceTermInput = canvas.getAllByPlaceholderText("Term")[0]!;
+    await userEvent.type(sourceTermInput, "Checkout");
+    await expect(primaryTermInput).toHaveValue("Checkout");
     const addTermButton = canvas.getByRole("button", { name: "Add term" });
     await expect(addTermButton).toBeEnabled();
     await userEvent.click(addTermButton);

@@ -95,6 +95,7 @@ import {
 } from "@/lib/glossary/glossary";
 
 import { availableConceptTermLocales } from "./available-concept-term-locales";
+import { selectConceptDetailSourceTermText } from "./concept-detail-source-term";
 import { glossaryDetailPageContentMessages as messages } from "./glossary-detail-page-content.messages";
 
 type ConceptDraft = {
@@ -191,7 +192,6 @@ function areTermDraftsEqual(left: TermDraft, right: TermDraft) {
 
 function areConceptDraftsEqual(left: ConceptDraft, right: ConceptDraft) {
   return (
-    left.primaryTerm === right.primaryTerm &&
     left.subject === right.subject &&
     left.definition === right.definition &&
     left.translatable === right.translatable &&
@@ -976,10 +976,32 @@ export function GlossaryDetailPageContent({
     }
   }, [selectedConcept]);
 
-  const sourceTermDraft = isCreatingConcept
-    ? creatingTermDrafts.find((term) => term.locale === sourceLanguage.locale)
-    : undefined;
-  const sourceTermText = sourceTermDraft?.term ?? "";
+  const conceptTermCandidates = isCreatingConcept
+    ? creatingTermDrafts
+    : [
+        ...(selectedConcept?.terms ?? []).map((term) => {
+          const draft = termDrafts[term.id] ?? termDraftFromRecord(term);
+          return {
+            id: term.id,
+            locale: term.locale,
+            term: draft.term,
+            status: draft.status,
+          };
+        }),
+        ...(newTermLocale
+          ? [
+              {
+                locale: newTermLocale,
+                term: newTermDraft.term,
+                status: newTermDraft.status,
+              },
+            ]
+          : []),
+      ];
+  const sourceTermText = selectConceptDetailSourceTermText(
+    conceptTermCandidates,
+    sourceLanguage.locale,
+  );
 
   const goBack = () => {
     if (conceptPageMode) router.push(glossaryHref);
@@ -1006,9 +1028,9 @@ export function GlossaryDetailPageContent({
     mutationFn: async (draft: ConceptDraft) => {
       let concept: GlossaryConceptRecord;
       let created = false;
+      const primaryTerm = sourceTermText.trim();
+      if (!primaryTerm) throw new Error(intl.formatMessage(messages.saveConceptFailed));
       if (isCreatingConcept) {
-        const primaryTerm = sourceTermText.trim();
-        if (!primaryTerm) throw new Error(intl.formatMessage(messages.saveConceptFailed));
         const terms: NonNullable<CreateGlossaryConceptBody["terms"]> = creatingTermDrafts
           .filter(({ term }) => term.trim())
           .map(({ id: _id, ...term }) => ({
@@ -1086,6 +1108,7 @@ export function GlossaryDetailPageContent({
           param: { organizationSlug, glossaryId, conceptId: selectedConceptId },
           json: {
             ...draft,
+            primaryTerm,
             url: draft.url || undefined,
             terms: terms.map((term) => ({
               ...term,
@@ -1617,7 +1640,7 @@ export function GlossaryDetailPageContent({
                     {isCreatingConcept ? (
                       <FormattedMessage {...messages.addConcept} />
                     ) : (
-                      (selected?.primaryTerm ?? selectedConceptId)
+                      sourceTermText || selectedConceptId
                     )}
                   </TypographyH1>
                   <TypographyP className="text-sm text-muted-foreground">
@@ -1647,19 +1670,7 @@ export function GlossaryDetailPageContent({
                     <FieldLabel>
                       <FormattedMessage {...messages.primaryTermLabel} />
                     </FieldLabel>
-                    <Input
-                      value={isCreatingConcept ? sourceTermText : conceptDraft.primaryTerm}
-                      onChange={(event) => {
-                        if (!isCreatingConcept) {
-                          setConceptDraft((draft) => ({
-                            ...draft,
-                            primaryTerm: event.target.value,
-                          }));
-                        }
-                      }}
-                      disabled={!canEdit || isCreatingConcept}
-                      readOnly={isCreatingConcept}
-                    />
+                    <Input value={sourceTermText} disabled={!canEdit} readOnly />
                   </Field>
                   <Field className="gap-1.5">
                     <FieldLabel>
@@ -2704,11 +2715,7 @@ export function GlossaryDetailPageContent({
                     <Button
                       type="button"
                       aria-busy={saveConcept.isPending}
-                      disabled={
-                        (isCreatingConcept && !sourceTermText.trim()) ||
-                        !isDirty ||
-                        saveConcept.isPending
-                      }
+                      disabled={!sourceTermText.trim() || !isDirty || saveConcept.isPending}
                       onClick={() => saveConcept.mutate(conceptDraft)}
                     >
                       {saveConcept.isPending ? <Spinner className="size-4" /> : null}
