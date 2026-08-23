@@ -266,6 +266,13 @@ func TestTasksService_List(t *testing.T) {
 			},
 			want: "?workflowStepId=10",
 		},
+		{
+			name: "with type",
+			options: &model.TasksListOptions{
+				Type: []model.TaskType{model.TaskTypeTranslate, model.TaskTypeProofread},
+			},
+			want: "?type=0%2C1",
+		},
 	}
 
 	client, mux, teardown := setupClient()

@@ -1,5 +1,11 @@
 # Crowdin Steward's Journal
 
+## 2026-12-31 - Add Type query filter parity to TasksListOptions
+
+**Learning:** In Crowdin API v2, the List Tasks endpoint (`GET /api/v2/projects/{projectId}/tasks`) accepts filtering tasks by `type` (0 - translate, 1 - proofread, 2 - translate by vendor, 3 - proofread by vendor) in addition to `status`, `assigneeId`, `creatorId`, `workflowStepId`, `labelIds`, and `excludeLabelIds`. The SDK's `TasksListOptions` previously lacked `Type`, preventing callers from filtering tasks by task type.
+
+**Action:** Added `Type []TaskType json:"type,omitempty"` to `TasksListOptions` in `third_party/crowdin-api-client-go/crowdin/model/tasks.go` and updated its `Values()` method to encode `type` query parameter using `JoinSlice(o.Type)`. Added test assertions in `model/tasks_test.go` and `tasks_test.go`.
+
 ## 2026-12-31 - Allow optional IndividualRates in report schemas and settings templates
 
 **Learning:** In Crowdin API v2, `individualRates` is an optional array of custom rates per language or user in report generation schemas and report settings templates. The SDK previously enforced `r.IndividualRates != nil` in `GroupTransactionCostsPostEditingSchema` and `len(r.Config.IndividualRates) > 0` in `ReportSettingsTemplateAddRequest.Validate()`, causing client-side validation to reject valid requests when no custom individual rates were specified.
