@@ -19,7 +19,11 @@ import { toast } from "sonner";
 import type { KnowledgeMemoryRecord } from "@/api/routes/knowledge-memory/knowledge-memory.schema";
 import { readApiError } from "@/lib/api-error";
 
-import { getKnowledgeMemory, knowledgeMemoryQueryKey, putKnowledgeMemory } from "./knowledge-memory-api";
+import {
+  getKnowledgeMemory,
+  knowledgeMemoryQueryKey,
+  putKnowledgeMemory,
+} from "./knowledge-memory-api";
 import {
   getKnowledgeMemoryEditorState,
   parseKnowledgeMemoryPreconditionFailure,

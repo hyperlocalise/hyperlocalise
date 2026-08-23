@@ -233,7 +233,8 @@ export async function commitKnowledgeMemoryForProject(input: {
     expectedRevisionId: input.expectedRevisionId,
     forceNewRevision: input.forceNewRevision,
     emptyRecord: emptyKnowledgeMemory,
-    readCurrent: (tx: DatabaseTransaction) => getCurrentProjectKnowledgeMemoryRow(tx, input.projectId),
+    readCurrent: (tx: DatabaseTransaction) =>
+      getCurrentProjectKnowledgeMemoryRow(tx, input.projectId),
     insertHead: async (
       tx: DatabaseTransaction,
       values,

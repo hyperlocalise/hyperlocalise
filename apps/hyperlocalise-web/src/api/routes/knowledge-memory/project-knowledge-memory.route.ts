@@ -18,13 +18,11 @@ import { workosAuthMiddleware, type AuthVariables } from "@/api/auth/workos";
 import {
   apiErrorResponse,
   badRequestResponse,
-  createZodValidator,
   forbiddenResponse,
   notFoundResponse,
   validationErrorResponse,
 } from "@/api/errors";
 import { getOwnedProject, projectNotFoundResponse } from "@/api/routes/project/project.shared";
-import { projectIdParamsSchema } from "@/api/routes/project/project.schema";
 import { workspaceKnowledgeFlag } from "@/lib/flags/workspace-flags";
 import {
   commitKnowledgeMemoryForProject,
@@ -85,15 +83,8 @@ const validateKnowledgeMemoryRevisionListQuery = validator("query", (value, c) =
   return parsed.data;
 });
 
-const validateProjectParams = createZodValidator(
-  "param",
-  projectIdParamsSchema,
-  "invalid_project_params",
-  "Project is invalid",
-);
-
 const validateKnowledgeMemoryRevisionParams = validator("param", (value, c) => {
-  const parsed = projectIdParamsSchema.merge(knowledgeMemoryRevisionParamsSchema).safeParse(value);
+  const parsed = knowledgeMemoryRevisionParamsSchema.safeParse(value);
   if (!parsed.success) {
     return validationErrorResponse(
       c,
@@ -193,12 +184,13 @@ function knowledgeMemoryPreconditionFailedResponse(
   );
 }
 
-async function requireAccessibleProject(c: KnowledgeMemoryContext, projectId: string) {
-  const project = await getOwnedProject(c.var.auth, projectId);
-  if (!project) {
+async function requireAccessibleProject(c: KnowledgeMemoryContext) {
+  const projectId = c.req.param("projectId");
+  if (!projectId) {
     return null;
   }
-  return project;
+
+  return getOwnedProject(c.var.auth, projectId);
 }
 
 export function createProjectKnowledgeMemoryRoutes() {
@@ -216,9 +208,8 @@ export function createProjectKnowledgeMemoryRoutes() {
 
       await next();
     })
-    .get("/", validateProjectParams, async (c) => {
-      const { projectId } = c.req.valid("param");
-      const project = await requireAccessibleProject(c, projectId);
+    .get("/", async (c) => {
+      const project = await requireAccessibleProject(c);
       if (!project) {
         return projectNotFoundResponse(c);
       }
@@ -228,9 +219,8 @@ export function createProjectKnowledgeMemoryRoutes() {
 
       return c.json({ knowledgeMemory }, 200);
     })
-    .post("/preview", validateProjectParams, validatePreviewKnowledgeMemoryBody, async (c) => {
-      const { projectId } = c.req.valid("param");
-      const project = await requireAccessibleProject(c, projectId);
+    .post("/preview", validatePreviewKnowledgeMemoryBody, async (c) => {
+      const project = await requireAccessibleProject(c);
       if (!project) {
         return projectNotFoundResponse(c);
       }
@@ -252,9 +242,8 @@ export function createProjectKnowledgeMemoryRoutes() {
 
       return c.json({ memoryPreview }, 200);
     })
-    .get("/revisions", validateProjectParams, validateKnowledgeMemoryRevisionListQuery, async (c) => {
-      const { projectId } = c.req.valid("param");
-      const project = await requireAccessibleProject(c, projectId);
+    .get("/revisions", validateKnowledgeMemoryRevisionListQuery, async (c) => {
+      const project = await requireAccessibleProject(c);
       if (!project) {
         return projectNotFoundResponse(c);
       }
@@ -269,8 +258,8 @@ export function createProjectKnowledgeMemoryRoutes() {
       return c.json(result, 200);
     })
     .get("/revisions/:revisionId", validateKnowledgeMemoryRevisionParams, async (c) => {
-      const { projectId, revisionId } = c.req.valid("param");
-      const project = await requireAccessibleProject(c, projectId);
+      const { revisionId } = c.req.valid("param");
+      const project = await requireAccessibleProject(c);
       if (!project) {
         return projectNotFoundResponse(c);
       }
@@ -304,8 +293,8 @@ export function createProjectKnowledgeMemoryRoutes() {
         return precondition;
       }
 
-      const { projectId, revisionId } = c.req.valid("param");
-      const project = await requireAccessibleProject(c, projectId);
+      const { revisionId } = c.req.valid("param");
+      const project = await requireAccessibleProject(c);
       if (!project) {
         return projectNotFoundResponse(c);
       }
@@ -331,7 +320,7 @@ export function createProjectKnowledgeMemoryRoutes() {
       setKnowledgeMemoryEtag(c, result.value.knowledgeMemory);
       return c.json({ knowledgeMemory: result.value.knowledgeMemory }, 200);
     })
-    .put("/", validateProjectParams, validateUpdateKnowledgeMemoryBody, async (c) => {
+    .put("/", validateUpdateKnowledgeMemoryBody, async (c) => {
       if (!canUpdateKnowledgeMemory(c.var.auth.membership.role)) {
         return forbiddenResponse(
           c,
@@ -345,8 +334,7 @@ export function createProjectKnowledgeMemoryRoutes() {
         return precondition;
       }
 
-      const { projectId } = c.req.valid("param");
-      const project = await requireAccessibleProject(c, projectId);
+      const project = await requireAccessibleProject(c);
       if (!project) {
         return projectNotFoundResponse(c);
       }

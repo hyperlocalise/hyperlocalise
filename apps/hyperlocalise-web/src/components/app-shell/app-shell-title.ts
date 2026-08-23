@@ -237,7 +237,7 @@ function formatRouteTitle(intl: IntlShape, key: RouteTitleKey): string {
     case "automations":
       return intl.formatMessage({
         defaultMessage: "Automations",
-        id: "rN6wQ1pH4D",
+        id: "I5EnnRppoI",
         description: "App shell breadcrumb title for the automations page",
       });
     case "knowledge":

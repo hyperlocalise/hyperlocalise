@@ -375,14 +375,14 @@ export function buildProjectNavigationItems(
     {
       label: intl.formatMessage({
         defaultMessage: "Guideline",
-        id: "pQ9mL2wE7R",
+        id: "6dq9jGfioL",
         description: "Project sidebar navigation item for project guideline",
       }),
       href: project("knowledge"),
       icon: AiBrain01Icon,
       description: intl.formatMessage({
         defaultMessage: "Project-specific guidance for agents and teams",
-        id: "cK4nT8sB1V",
+        id: "tMOiEvbyBd",
         description: "Sidebar description for the project Guideline navigation item",
       }),
       featureFlagKey: WORKSPACE_KNOWLEDGE_FLAG,
