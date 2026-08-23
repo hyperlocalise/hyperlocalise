@@ -24,6 +24,7 @@ import {
 } from "@/api/errors";
 import { getOwnedProject, projectNotFoundResponse } from "@/api/routes/project/project.shared";
 import { workspaceKnowledgeFlag } from "@/lib/flags/workspace-flags";
+import { ensureOrganizationProjectRecord } from "@/lib/projects/organization/organization-project-service";
 import {
   commitKnowledgeMemoryForProject,
   getKnowledgeMemoryForProject,
@@ -193,6 +194,24 @@ async function requireAccessibleProject(c: KnowledgeMemoryContext) {
   return getOwnedProject(c.var.auth, projectId);
 }
 
+async function requireWritableProject(c: KnowledgeMemoryContext) {
+  const accessible = await requireAccessibleProject(c);
+  if (!accessible) {
+    return null;
+  }
+
+  const ensured = await ensureOrganizationProjectRecord({
+    organizationId: c.var.auth.organization.localOrganizationId,
+    projectId: accessible.id,
+    userId: c.var.auth.user.localUserId,
+  });
+  if (isErr(ensured)) {
+    return null;
+  }
+
+  return { id: ensured.value };
+}
+
 export function createProjectKnowledgeMemoryRoutes() {
   return new Hono<{ Variables: AuthVariables }>()
     .use("*", workosAuthMiddleware)
@@ -294,7 +313,7 @@ export function createProjectKnowledgeMemoryRoutes() {
       }
 
       const { revisionId } = c.req.valid("param");
-      const project = await requireAccessibleProject(c);
+      const project = await requireWritableProject(c);
       if (!project) {
         return projectNotFoundResponse(c);
       }
@@ -334,7 +353,7 @@ export function createProjectKnowledgeMemoryRoutes() {
         return precondition;
       }
 
-      const project = await requireAccessibleProject(c);
+      const project = await requireWritableProject(c);
       if (!project) {
         return projectNotFoundResponse(c);
       }

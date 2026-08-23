@@ -17,11 +17,13 @@ const {
   getKnowledgeMemoryMock,
   commitProjectKnowledgeMemoryMock,
   getProjectKnowledgeMemoryMock,
+  ensureOrganizationProjectRecordMock,
 } = vi.hoisted(() => ({
   commitKnowledgeMemoryMock: vi.fn(),
   getKnowledgeMemoryMock: vi.fn(),
   commitProjectKnowledgeMemoryMock: vi.fn(),
   getProjectKnowledgeMemoryMock: vi.fn(),
+  ensureOrganizationProjectRecordMock: vi.fn(),
 }));
 
 vi.mock("@/lib/knowledge-memory/knowledge-memory", () => ({
@@ -29,6 +31,11 @@ vi.mock("@/lib/knowledge-memory/knowledge-memory", () => ({
   getKnowledgeMemoryForOrganization: getKnowledgeMemoryMock,
   commitKnowledgeMemoryForProject: commitProjectKnowledgeMemoryMock,
   getKnowledgeMemoryForProject: getProjectKnowledgeMemoryMock,
+}));
+
+vi.mock("@/lib/projects/organization/organization-project-service", () => ({
+  ensureOrganizationProjectRecord: (...args: unknown[]) =>
+    ensureOrganizationProjectRecordMock(...args),
 }));
 
 import type { ToolContext } from "@/lib/agent-contracts/tool-context";
@@ -90,6 +97,9 @@ describe("Knowledge Memory agent tools", () => {
         },
       }),
     );
+    ensureOrganizationProjectRecordMock.mockImplementation(async (input: { projectId: string }) =>
+      ok(input.projectId),
+    );
   });
 
   it("returns the complete organization document and revision metadata", async () => {
@@ -137,6 +147,11 @@ describe("Knowledge Memory agent tools", () => {
       edits: [{ operation: "replace", matchText: "Be clear.", replacementText: "Be concise." }],
     });
     expect(updated).toMatchObject({ success: true, scope: "project", changed: true, version: 5 });
+    expect(ensureOrganizationProjectRecordMock).toHaveBeenCalledWith({
+      organizationId: "organization_1",
+      projectId: "project_1",
+      userId: "user_1",
+    });
     expect(commitProjectKnowledgeMemoryMock).toHaveBeenCalledWith({
       projectId: "project_1",
       updatedByUserId: "user_1",
@@ -144,6 +159,33 @@ describe("Knowledge Memory agent tools", () => {
       content: "# Memory.md\n\n## Voice\nBe concise.\n\n## Legal\nPreserve legal text.",
       summary: "Tighten project voice",
     });
+  });
+
+  it("does not write project Memory.md when the live project cannot be materialized", async () => {
+    ensureOrganizationProjectRecordMock.mockResolvedValueOnce(
+      err({
+        code: "project_not_found",
+        reason: "external_project_unavailable",
+        organizationId: "organization_1",
+        projectId: "ext:crowdin:42",
+      }),
+    );
+
+    const result = await executeTool(
+      createUpdateKnowledgeMemoryTool(createToolContext({ projectId: "ext:crowdin:42" })),
+      {
+        scope: "project",
+        expectedRevisionId: currentMemory.revisionId,
+        summary: "Add live project guidance",
+        edits: [{ operation: "append", insertText: "Keep checkout short." }],
+      },
+    );
+
+    expect(result).toMatchObject({
+      success: false,
+      code: "knowledge_memory_project_unavailable",
+    });
+    expect(commitProjectKnowledgeMemoryMock).not.toHaveBeenCalled();
   });
 
   it("does not treat organization Memory.md as project Memory.md", async () => {

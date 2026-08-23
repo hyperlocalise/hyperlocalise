@@ -32,6 +32,7 @@ import {
   getKnowledgeMemoryForProject,
 } from "@/lib/knowledge-memory/knowledge-memory";
 import { isErr } from "@/lib/primitives/result/results";
+import { ensureOrganizationProjectRecord } from "@/lib/projects/organization/organization-project-service";
 
 const nonEmptyMemoryTextSchema = z.string().min(1).max(KNOWLEDGE_MEMORY_CONTENT_MAX_LENGTH);
 
@@ -258,22 +259,44 @@ export function createUpdateKnowledgeMemoryTool(ctx: ToolContext) {
         return editErrorResult(edited.error);
       }
 
-      const committed =
-        resolvedScope === "project" && ctx.projectId
-          ? await commitKnowledgeMemoryForProject({
-              projectId: ctx.projectId,
-              updatedByUserId: ctx.localUserId,
-              expectedRevisionId,
-              content: edited.value,
-              summary,
-            })
-          : await commitKnowledgeMemoryForOrganization({
-              organizationId: ctx.organizationId,
-              updatedByUserId: ctx.localUserId,
-              expectedRevisionId,
-              content: edited.value,
-              summary,
-            });
+      if (resolvedScope === "project" && ctx.projectId) {
+        const ensured = await ensureOrganizationProjectRecord({
+          organizationId: ctx.organizationId,
+          projectId: ctx.projectId,
+          userId: ctx.localUserId,
+        });
+        if (isErr(ensured)) {
+          return projectUnavailableResult();
+        }
+
+        const committed = await commitKnowledgeMemoryForProject({
+          projectId: ensured.value,
+          updatedByUserId: ctx.localUserId,
+          expectedRevisionId,
+          content: edited.value,
+          summary,
+        });
+        if (isErr(committed)) {
+          return conflictResult(committed.error.current);
+        }
+
+        return {
+          success: true as const,
+          scope: resolvedScope,
+          changed: committed.value.changed,
+          revisionId: committed.value.knowledgeMemory.revisionId,
+          version: committed.value.knowledgeMemory.version,
+          summary: committed.value.knowledgeMemory.summary,
+        };
+      }
+
+      const committed = await commitKnowledgeMemoryForOrganization({
+        organizationId: ctx.organizationId,
+        updatedByUserId: ctx.localUserId,
+        expectedRevisionId,
+        content: edited.value,
+        summary,
+      });
       if (isErr(committed)) {
         return conflictResult(committed.error.current);
       }

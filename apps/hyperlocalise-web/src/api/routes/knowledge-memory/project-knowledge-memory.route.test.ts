@@ -15,7 +15,11 @@ import "dotenv/config";
 import { testClient } from "hono/testing";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
-const { resolveApiAuthContextFromSessionMock, workspaceKnowledgeFlagRunMock } = vi.hoisted(() => ({
+const {
+  resolveApiAuthContextFromSessionMock,
+  workspaceKnowledgeFlagRunMock,
+  getTmsProviderLiveProjectMock,
+} = vi.hoisted(() => ({
   resolveApiAuthContextFromSessionMock: vi.fn(
     (options) =>
       globalThis.__resolveTestApiAuthContextFromSession?.(options) ??
@@ -23,6 +27,7 @@ const { resolveApiAuthContextFromSessionMock, workspaceKnowledgeFlagRunMock } = 
       null,
   ),
   workspaceKnowledgeFlagRunMock: vi.fn(async () => true),
+  getTmsProviderLiveProjectMock: vi.fn(),
 }));
 
 vi.mock("@/api/auth/workos-session", async (importOriginal) => {
@@ -41,10 +46,25 @@ vi.mock("@/lib/flags/workspace-flags", async (importOriginal) => {
   };
 });
 
+vi.mock("@/lib/providers/jobs/tms-provider-live", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/providers/jobs/tms-provider-live")>();
+  return {
+    ...actual,
+    getTmsProviderLiveProject: (...args: unknown[]) => getTmsProviderLiveProjectMock(...args),
+  };
+});
+
+import { eq } from "drizzle-orm";
+
 import { createApp } from "@/api/app";
 import { createProjectTestFixture } from "@/api/routes/project/project.fixture";
 import type { KnowledgeMemoryRecord } from "@/api/routes/knowledge-memory/knowledge-memory.schema";
-import { db } from "@/lib/database";
+import { db, schema } from "@/lib/database";
+import { encodeProviderProjectId } from "@/lib/providers/jobs/tms-provider-resource-id";
+import {
+  encryptProviderCredential,
+  unwrapProviderCredentialCrypto,
+} from "@/lib/security/provider-credential-crypto";
 
 const client = testClient(createApp());
 const fixture = createProjectTestFixture();
@@ -72,6 +92,7 @@ beforeAll(async () => {
 
 beforeEach(() => {
   workspaceKnowledgeFlagRunMock.mockResolvedValue(true);
+  getTmsProviderLiveProjectMock.mockReset();
 });
 
 afterEach(async () => {
@@ -226,5 +247,128 @@ describe("projectKnowledgeMemoryRoutes", () => {
     await expect(staleResponse.json()).resolves.toMatchObject({
       error: "knowledge_memory_precondition_failed",
     });
+  });
+
+  it("materializes a live TMS project before saving guideline", async () => {
+    const { identity, organization, user } = await fixture.createLocalWorkosIdentity();
+    const headers = await fixture.authHeadersFor(identity);
+    const organizationSlug = identity.organization.slug ?? "missing-slug";
+    const externalProjectId = "902807";
+    const projectId = encodeProviderProjectId({
+      providerKind: "crowdin",
+      externalProjectId,
+    });
+    const encrypted = unwrapProviderCredentialCrypto(encryptProviderCredential("crowdin-token"));
+
+    await db.insert(schema.organizationExternalTmsProviderCredentials).values({
+      organizationId: organization.id,
+      providerKind: "crowdin",
+      displayName: "Crowdin",
+      authMode: "api_token",
+      encryptionAlgorithm: encrypted.algorithm,
+      ciphertext: encrypted.ciphertext,
+      iv: encrypted.iv,
+      authTag: encrypted.authTag,
+      keyVersion: encrypted.keyVersion,
+      maskedSecretSuffix: "••••ken",
+      validationStatus: "valid",
+      createdByUserId: user.id,
+      updatedByUserId: user.id,
+    });
+
+    getTmsProviderLiveProjectMock.mockResolvedValue({
+      id: projectId,
+      name: "Help Center",
+      sourceLocale: "en-US",
+      targetLocales: ["fr-FR"],
+      externalProjectUrl: "https://crowdin.com/project/help-center",
+      isActive: true,
+      source: "external_tms",
+      externalProviderKind: "crowdin",
+      externalProjectId,
+      description: null,
+      translationContext: null,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
+
+    const getResponse = await projectKnowledgeMemory().$get(
+      { param: { organizationSlug, projectId } },
+      { headers },
+    );
+    expect(getResponse.status).toBe(200);
+
+    const putResponse = await projectKnowledgeMemory().$put(
+      {
+        param: { organizationSlug, projectId },
+        json: { content: "Keep Crowdin checkout labels short.", summary: "Add checkout guidance" },
+      },
+      { headers: { ...headers, "If-Match": '"0"' } },
+    );
+    expect(putResponse.status).toBe(200);
+    expect(knowledgeMemoryFromResponseBody(await putResponse.json())).toMatchObject({
+      version: 1,
+      content: "Keep Crowdin checkout labels short.",
+    });
+
+    const [materialized] = await db
+      .select({ id: schema.projects.id, source: schema.projects.source })
+      .from(schema.projects)
+      .where(eq(schema.projects.id, projectId))
+      .limit(1);
+    expect(materialized).toMatchObject({ id: projectId, source: "external_tms" });
+
+    const [memory] = await db
+      .select({ content: schema.projectKnowledgeMemories.content })
+      .from(schema.projectKnowledgeMemories)
+      .where(eq(schema.projectKnowledgeMemories.projectId, projectId))
+      .limit(1);
+    expect(memory?.content).toBe("Keep Crowdin checkout labels short.");
+  });
+
+  it("does not insert a guideline when a live TMS project cannot be materialized", async () => {
+    const { identity } = await fixture.createLocalWorkosIdentity();
+    const headers = await fixture.authHeadersFor(identity);
+    const organizationSlug = identity.organization.slug ?? "missing-slug";
+    const projectId = encodeProviderProjectId({
+      providerKind: "crowdin",
+      externalProjectId: "902807",
+    });
+
+    getTmsProviderLiveProjectMock.mockResolvedValue({
+      id: projectId,
+      name: "Help Center",
+      sourceLocale: "en-US",
+      targetLocales: ["fr-FR"],
+      externalProjectUrl: "https://crowdin.com/project/help-center",
+      isActive: true,
+      source: "external_tms",
+      externalProviderKind: "crowdin",
+      externalProjectId: "902807",
+      description: null,
+      translationContext: null,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
+
+    const putResponse = await projectKnowledgeMemory().$put(
+      {
+        param: { organizationSlug, projectId },
+        json: { content: "Do not persist this guidance.", summary: "Blocked live project" },
+      },
+      { headers: { ...headers, "If-Match": '"0"' } },
+    );
+
+    expect(putResponse.status).toBe(404);
+    await expect(putResponse.json()).resolves.toMatchObject({
+      error: "project_not_found",
+    });
+
+    const [memory] = await db
+      .select({ projectId: schema.projectKnowledgeMemories.projectId })
+      .from(schema.projectKnowledgeMemories)
+      .where(eq(schema.projectKnowledgeMemories.projectId, projectId))
+      .limit(1);
+    expect(memory).toBeUndefined();
   });
 });
