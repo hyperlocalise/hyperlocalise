@@ -80,13 +80,22 @@ function fileViewArgs(initialState: CatWorkspaceState): Story["args"] {
   };
 }
 
+function viewModeButtons(canvas: ReturnType<typeof within>) {
+  return canvas.getAllByRole("button", { name: "CAT view mode" });
+}
+
 async function expectFileViewChrome(canvas: ReturnType<typeof within>, filename: string) {
-  await expect(canvas.getByRole("button", { name: "CAT view mode" })).toBeInTheDocument();
+  await expect(viewModeButtons(canvas).length).toBeGreaterThan(0);
   await expect(canvas.getByText(filename)).toBeInTheDocument();
   await expect(canvas.getByRole("heading", { name: /Translated \(vi\)/i })).toBeInTheDocument();
   await expect(canvas.getByRole("heading", { name: /Source \(en-US\)/i })).toBeInTheDocument();
   await expect(canvas.getByRole("button", { name: /Regenerate/i })).toBeInTheDocument();
   await expect(canvas.getByText("Upload translated file")).toBeInTheDocument();
+}
+
+async function switchToComfortable(canvas: ReturnType<typeof within>) {
+  await userEvent.click(viewModeButtons(canvas)[0]);
+  await userEvent.click(canvas.getByRole("menuitemradio", { name: /Comfortable/i }));
 }
 
 export const ImageFile: Story = {
@@ -128,8 +137,7 @@ export const ImageFileComfortable: Story = {
     const canvas = within(canvasElement);
 
     await expectFileViewChrome(canvas, "marketing/hero.png");
-    await userEvent.click(canvas.getByRole("button", { name: "CAT view mode" }));
-    await userEvent.click(canvas.getByRole("menuitemradio", { name: /Comfortable/i }));
+    await switchToComfortable(canvas);
 
     await waitFor(() => expect(canvas.getByText("Queue")).toBeInTheDocument());
     await expect(canvas.getByAltText("Source image")).toHaveAttribute(
@@ -181,8 +189,7 @@ export const VideoFileComfortable: Story = {
     const canvas = within(canvasElement);
 
     await expectFileViewChrome(canvas, "onboarding/walkthrough.mp4");
-    await userEvent.click(canvas.getByRole("button", { name: "CAT view mode" }));
-    await userEvent.click(canvas.getByRole("menuitemradio", { name: /Comfortable/i }));
+    await switchToComfortable(canvas);
 
     await waitFor(() => expect(canvas.getByText("Queue")).toBeInTheDocument());
     const videos = canvasElement.querySelectorAll("video");
