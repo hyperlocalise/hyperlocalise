@@ -133,27 +133,32 @@ export async function allocateUniqueProjectIdentifier(input: {
 
 /**
  * Allocate a prefix, run `insert`, and retry when two creates race on
- * `projects_identifier_key`. Other unique violations propagate.
+ * `projects_identifier_key`. Each attempt runs in a nested transaction so a
+ * unique violation only rolls back that attempt (Drizzle savepoint when the
+ * caller already has a transaction). Retrying on the aborted outer
+ * transaction would raise "current transaction is aborted".
  */
 export async function insertWithAllocatedProjectIdentifier<T>(input: {
   name: string;
   preferred?: string;
   excludeProjectId?: string;
   database?: DatabaseClient;
-  insert: (identifier: string) => Promise<T>;
+  insert: (identifier: string, database: DatabaseClient) => Promise<T>;
 }): Promise<T> {
   const database = input.database ?? db;
   let lastError: unknown;
 
   for (let attempt = 0; attempt < PROJECT_IDENTIFIER_INSERT_ATTEMPTS; attempt += 1) {
-    const identifier = await allocateUniqueProjectIdentifier({
-      name: input.name,
-      preferred: input.preferred,
-      excludeProjectId: input.excludeProjectId,
-      database,
-    });
     try {
-      return await input.insert(identifier);
+      return await database.transaction(async (attemptDb) => {
+        const identifier = await allocateUniqueProjectIdentifier({
+          name: input.name,
+          preferred: input.preferred,
+          excludeProjectId: input.excludeProjectId,
+          database: attemptDb,
+        });
+        return await input.insert(identifier, attemptDb);
+      });
     } catch (error) {
       if (!isProjectIdentifierUniqueViolation(error)) {
         throw error;

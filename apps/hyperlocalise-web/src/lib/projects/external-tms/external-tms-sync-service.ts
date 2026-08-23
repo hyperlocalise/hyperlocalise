@@ -101,8 +101,8 @@ export class ExternalTmsSyncService extends ProjectServiceBase {
       await insertWithAllocatedProjectIdentifier({
         name: input.liveProject.name,
         database: this.database,
-        insert: (identifier) =>
-          this.database
+        insert: (identifier, attemptDb) =>
+          attemptDb
             .insert(schema.projects)
             .values({
               id: projectId,

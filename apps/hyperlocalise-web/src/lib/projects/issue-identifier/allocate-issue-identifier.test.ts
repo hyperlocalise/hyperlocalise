@@ -61,8 +61,8 @@ describe("allocate-issue-identifier", () => {
 
   it("treats historical issue identifier prefixes as taken", async () => {
     const { organization, user, project } = await fixture.createStoredProjectFixture();
-    const historicalPrefix = uniqueTestProjectIdentifier("hist");
-    const renamedPrefix = uniqueTestProjectIdentifier("renamed");
+    const historicalPrefix = uniqueTestProjectIdentifier();
+    const renamedPrefix = uniqueTestProjectIdentifier();
 
     await db
       .update(schema.projects)
@@ -93,7 +93,7 @@ describe("allocate-issue-identifier", () => {
       .insert(schema.projects)
       .values({
         id: `project_${randomUUID()}`,
-        identifier: uniqueTestProjectIdentifier("other"),
+        identifier: uniqueTestProjectIdentifier(),
         organizationId: organization.id,
         teamId: team.id,
         createdByUserId: user.id,
@@ -158,5 +158,63 @@ describe("allocate-issue-identifier", () => {
 
     expect(attempts).toBe(2);
     expect(identifier).toMatch(/^[A-Z][A-Z0-9]{0,9}$/);
+  });
+
+  it("retries a unique identifier conflict without aborting the caller transaction", async () => {
+    const { organization, user } = await fixture.createStoredProjectFixture();
+    const team = await ensureDefaultWorkspaceTeam(organization.id);
+    const taken = uniqueTestProjectIdentifier("race");
+
+    await db.insert(schema.projects).values({
+      id: `project_${randomUUID()}`,
+      identifier: taken,
+      organizationId: organization.id,
+      teamId: team.id,
+      createdByUserId: user.id,
+      name: "Taken prefix",
+      description: "",
+      translationContext: "",
+      sourceLocale: "en-US",
+      targetLocales: ["fr-FR"],
+    });
+
+    await db.transaction(async (tx) => {
+      let attempts = 0;
+      const created = await insertWithAllocatedProjectIdentifier({
+        name: "Race Lab",
+        preferred: taken,
+        database: tx,
+        insert: async (identifier, attemptDb) => {
+          attempts += 1;
+          const [row] = await attemptDb
+            .insert(schema.projects)
+            .values({
+              id: `project_${randomUUID()}`,
+              identifier: attempts === 1 ? taken : identifier,
+              organizationId: organization.id,
+              teamId: team.id,
+              createdByUserId: user.id,
+              name: "Race Lab",
+              description: "",
+              translationContext: "",
+              sourceLocale: "en-US",
+              targetLocales: ["fr-FR"],
+            })
+            .returning({ identifier: schema.projects.identifier });
+          return row;
+        },
+      });
+
+      expect(attempts).toBe(2);
+      expect(created?.identifier).toBeTruthy();
+      expect(created?.identifier).not.toBe(taken);
+
+      const stillOpen = await tx
+        .select({ identifier: schema.projects.identifier })
+        .from(schema.projects)
+        .where(eq(schema.projects.identifier, created!.identifier))
+        .limit(1);
+      expect(stillOpen).toEqual([{ identifier: created!.identifier }]);
+    });
   });
 });

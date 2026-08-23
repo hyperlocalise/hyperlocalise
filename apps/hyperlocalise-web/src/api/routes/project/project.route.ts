@@ -337,8 +337,8 @@ const projectStore: ProjectStore = {
     const [project] = await insertWithAllocatedProjectIdentifier({
       name: payload.name,
       database,
-      insert: (identifier) =>
-        database
+      insert: (identifier, attemptDb) =>
+        attemptDb
           .insert(schema.projects)
           .values({
             id: `project_${randomUUID()}`,
