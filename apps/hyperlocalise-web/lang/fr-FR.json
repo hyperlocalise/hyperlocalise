@@ -2084,6 +2084,9 @@
   "6d57osIkxk": {
     "defaultMessage": "S/O"
   },
+  "6dq9jGfioL": {
+    "defaultMessage": "Directive"
+  },
   "6euABf86mn": {
     "defaultMessage": "Aucune langue cible n’est disponible pour ce fichier de tâche."
   },
@@ -2395,6 +2398,9 @@
   },
   "7qHTh1/iSP": {
     "defaultMessage": "Échec de la création de la tâche de traduction"
+  },
+  "7qbqYtxGI/": {
+    "defaultMessage": "Projet"
   },
   "7qpCwZIaq2": {
     "defaultMessage": "Traduction cible"
@@ -3170,6 +3176,9 @@
   "ArlyHj1L4U": {
     "defaultMessage": "Importer des problèmes"
   },
+  "At4au+ak+k": {
+    "defaultMessage": "Guides du projet"
+  },
   "AuCHneqNSE": {
     "defaultMessage": "Enregistrez cette automatisation pour obtenir une URL de chat publique."
   },
@@ -3253,6 +3262,9 @@
   },
   "BJVuvQezV6": {
     "defaultMessage": "Impossible d’attribuer le projet"
+  },
+  "BK7MTjV8FM": {
+    "defaultMessage": "Intégration"
   },
   "BLCf0utxhq": {
     "defaultMessage": "Cette chaîne est verrouillée. Déverrouillez-la pour la modifier."
@@ -3859,6 +3871,9 @@
   },
   "Db5EVZd7B1": {
     "defaultMessage": "Les problèmes liés n’ont pas pu être chargés."
+  },
+  "DbP96xw9zS": {
+    "defaultMessage": "API en direct"
   },
   "Dcqju+Z+Wb": {
     "defaultMessage": "Aucune conversation pour le moment."
@@ -4658,6 +4673,9 @@
   "H0k47esZhc": {
     "defaultMessage": "La syntaxe du message n’a pas pu être analysée."
   },
+  "H1Mne7VTqn": {
+    "defaultMessage": "Donnez aux workflows de ce projet le contexte linguistique, commercial et produit dont ils ont besoin."
+  },
   "H2MT8I4Gbc": {
     "defaultMessage": "Brouillon de traduction"
   },
@@ -4867,6 +4885,9 @@
   },
   "I3W7KYKnta": {
     "defaultMessage": "Échec de la génération de la recommandation par l’IA"
+  },
+  "I5EnnRppoI": {
+    "defaultMessage": "Automatisations"
   },
   "I6/kYi4M/3": {
     "defaultMessage": "Chargement de l’espace de travail…"
@@ -6280,6 +6301,9 @@
   },
   "OmGkdjrtzD": {
     "defaultMessage": "Billing"
+  },
+  "OmVf26hhof": {
+    "defaultMessage": "Projet du fournisseur"
   },
   "Omhk26keD1": {
     "defaultMessage": "Dépôt"
@@ -8675,6 +8699,9 @@
   "Z8vLB9dxFv": {
     "defaultMessage": "Source"
   },
+  "Z9+wravZbz": {
+    "defaultMessage": "Directives du projet"
+  },
   "Z91mmC1MhD": {
     "defaultMessage": "Peut accéder aux projets et au travail attribués à cette équipe."
   },
@@ -10042,6 +10069,9 @@
   },
   "f3IEqEzc4J": {
     "defaultMessage": "L’image doit faire 10 Mo ou moins."
+  },
+  "f4hLje7+7r": {
+    "defaultMessage": "{projectName} · Projet {projectId}"
   },
   "f5viDmb9eZ": {
     "defaultMessage": "Modifications non enregistrées"
@@ -12380,6 +12410,9 @@
   "oV922EjrKR": {
     "defaultMessage": "Responsable par défaut par modèle"
   },
+  "oVK9Szp59h": {
+    "defaultMessage": "Utilisation"
+  },
   "oX8prUs9FO": {
     "defaultMessage": "Current posture"
   },
@@ -12941,6 +12974,9 @@
   "qtTx0ZhgLU": {
     "defaultMessage": "polonais (Pologne)"
   },
+  "qwBzCi54cg": {
+    "defaultMessage": "{count, plural, =0 {Pas encore utilisé} one {# projet} other {# projets}}"
+  },
   "qxBrl7Yxqo": {
     "defaultMessage": "Lundi"
   },
@@ -13468,6 +13504,9 @@
   },
   "tLThxyOpTE": {
     "defaultMessage": "Nous n’avons pas pu charger cette page"
+  },
+  "tMOiEvbyBd": {
+    "defaultMessage": "Directives spécifiques au projet pour les agents et les équipes"
   },
   "tMPM8tkhJg": {
     "defaultMessage": "Compte"
@@ -14203,6 +14242,9 @@
   },
   "wIrSruFXTp": {
     "defaultMessage": "Impossible de charger cette conversation."
+  },
+  "wJduDnIsm8": {
+    "defaultMessage": "Créé"
   },
   "wLz+lanHT9": {
     "defaultMessage": "Tableau Canva synchronisé « Campagne de printemps / EN » — 48 calques de texte prêts à être intégrés."

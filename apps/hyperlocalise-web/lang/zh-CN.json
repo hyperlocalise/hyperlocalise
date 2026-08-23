@@ -2084,6 +2084,9 @@
   "6d57osIkxk": {
     "defaultMessage": "N/A"
   },
+  "6dq9jGfioL": {
+    "defaultMessage": "指南"
+  },
   "6euABf86mn": {
     "defaultMessage": "此任务文件没有可用的目标区域设置。"
   },
@@ -2395,6 +2398,9 @@
   },
   "7qHTh1/iSP": {
     "defaultMessage": "创建翻译任务失败"
+  },
+  "7qbqYtxGI/": {
+    "defaultMessage": "项目"
   },
   "7qpCwZIaq2": {
     "defaultMessage": "目标翻译"
@@ -3170,6 +3176,9 @@
   "ArlyHj1L4U": {
     "defaultMessage": "导入问题"
   },
+  "At4au+ak+k": {
+    "defaultMessage": "项目指导"
+  },
   "AuCHneqNSE": {
     "defaultMessage": "保存此自动化后即可获取公开聊天 URL。"
   },
@@ -3253,6 +3262,9 @@
   },
   "BJVuvQezV6": {
     "defaultMessage": "无法分配项目"
+  },
+  "BK7MTjV8FM": {
+    "defaultMessage": "集成"
   },
   "BLCf0utxhq": {
     "defaultMessage": "此字符串已锁定。解锁后即可编辑。"
@@ -3859,6 +3871,9 @@
   },
   "Db5EVZd7B1": {
     "defaultMessage": "无法加载关联的问题。"
+  },
+  "DbP96xw9zS": {
+    "defaultMessage": "实时 API"
   },
   "Dcqju+Z+Wb": {
     "defaultMessage": "还没有对话。"
@@ -4658,6 +4673,9 @@
   "H0k47esZhc": {
     "defaultMessage": "消息语法无法解析。"
   },
+  "H1Mne7VTqn": {
+    "defaultMessage": "为该项目的工作流程提供所需的语言、市场和产品背景。"
+  },
   "H2MT8I4Gbc": {
     "defaultMessage": "翻译草稿"
   },
@@ -4867,6 +4885,9 @@
   },
   "I3W7KYKnta": {
     "defaultMessage": "生成 AI 推荐失败"
+  },
+  "I5EnnRppoI": {
+    "defaultMessage": "自动化"
   },
   "I6/kYi4M/3": {
     "defaultMessage": "正在加载工作区…"
@@ -6280,6 +6301,9 @@
   },
   "OmGkdjrtzD": {
     "defaultMessage": "Billing"
+  },
+  "OmVf26hhof": {
+    "defaultMessage": "提供商项目"
   },
   "Omhk26keD1": {
     "defaultMessage": "Repository"
@@ -8675,6 +8699,9 @@
   "Z8vLB9dxFv": {
     "defaultMessage": "源文件"
   },
+  "Z9+wravZbz": {
+    "defaultMessage": "项目指南"
+  },
   "Z91mmC1MhD": {
     "defaultMessage": "可以访问分配给此团队的项目和工作。"
   },
@@ -9696,7 +9723,7 @@
     "defaultMessage": "Cancel"
   },
   "dm/0dsDRmT": {
-    "defaultMessage": "Open AI"
+    "defaultMessage": "OpenAI"
   },
   "dmWGvUNewd": {
     "defaultMessage": "在启用工作流时，请选择推送或定时触发器。"
@@ -10042,6 +10069,9 @@
   },
   "f3IEqEzc4J": {
     "defaultMessage": "图片大小必须不超过 10 MB。"
+  },
+  "f4hLje7+7r": {
+    "defaultMessage": "{projectName} · 项目 {projectId}"
   },
   "f5viDmb9eZ": {
     "defaultMessage": "未保存的更改"
@@ -12380,6 +12410,9 @@
   "oV922EjrKR": {
     "defaultMessage": "按模板设置默认负责人"
   },
+  "oVK9Szp59h": {
+    "defaultMessage": "使用量"
+  },
   "oX8prUs9FO": {
     "defaultMessage": "Current posture"
   },
@@ -12941,6 +12974,9 @@
   "qtTx0ZhgLU": {
     "defaultMessage": "波兰语（波兰）"
   },
+  "qwBzCi54cg": {
+    "defaultMessage": "{count, plural, =0 {尚未使用} one {# 个项目} other {# 个项目}}"
+  },
   "qxBrl7Yxqo": {
     "defaultMessage": "星期一"
   },
@@ -13468,6 +13504,9 @@
   },
   "tLThxyOpTE": {
     "defaultMessage": "无法加载此页面"
+  },
+  "tMOiEvbyBd": {
+    "defaultMessage": "面向代理商和团队的项目专属指南"
   },
   "tMPM8tkhJg": {
     "defaultMessage": "Account"
@@ -14203,6 +14242,9 @@
   },
   "wIrSruFXTp": {
     "defaultMessage": "无法加载此对话。"
+  },
+  "wJduDnIsm8": {
+    "defaultMessage": "已创建"
   },
   "wLz+lanHT9": {
     "defaultMessage": "已同步的 Canva 画板“Spring campaign / EN”——48 个文本图层已准备好接收。"

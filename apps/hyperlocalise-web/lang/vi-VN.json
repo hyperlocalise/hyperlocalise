@@ -2084,6 +2084,9 @@
   "6d57osIkxk": {
     "defaultMessage": "Không áp dụng"
   },
+  "6dq9jGfioL": {
+    "defaultMessage": "Hướng dẫn"
+  },
   "6euABf86mn": {
     "defaultMessage": "Không có ngôn ngữ đích cho tệp tác vụ này."
   },
@@ -2395,6 +2398,9 @@
   },
   "7qHTh1/iSP": {
     "defaultMessage": "Không thể tạo tác vụ dịch"
+  },
+  "7qbqYtxGI/": {
+    "defaultMessage": "Dự án"
   },
   "7qpCwZIaq2": {
     "defaultMessage": "Bản dịch đích"
@@ -3170,6 +3176,9 @@
   "ArlyHj1L4U": {
     "defaultMessage": "Nhập vấn đề"
   },
+  "At4au+ak+k": {
+    "defaultMessage": "Hướng dẫn dự án"
+  },
   "AuCHneqNSE": {
     "defaultMessage": "Lưu tính năng tự động hóa này để nhận URL trò chuyện công khai."
   },
@@ -3253,6 +3262,9 @@
   },
   "BJVuvQezV6": {
     "defaultMessage": "Không thể gán dự án"
+  },
+  "BK7MTjV8FM": {
+    "defaultMessage": "Tích hợp"
   },
   "BLCf0utxhq": {
     "defaultMessage": "Chuỗi này đã bị khóa. Mở khóa để chỉnh sửa."
@@ -3859,6 +3871,9 @@
   },
   "Db5EVZd7B1": {
     "defaultMessage": "Không thể tải các vấn đề được liên kết."
+  },
+  "DbP96xw9zS": {
+    "defaultMessage": "API trực tiếp"
   },
   "Dcqju+Z+Wb": {
     "defaultMessage": "Chưa có cuộc trò chuyện nào."
@@ -4658,6 +4673,9 @@
   "H0k47esZhc": {
     "defaultMessage": "Không thể phân tích cú pháp cú pháp thông điệp."
   },
+  "H1Mne7VTqn": {
+    "defaultMessage": "Cung cấp cho các quy trình công việc của dự án này ngôn ngữ, thị trường và ngữ cảnh sản phẩm mà chúng cần."
+  },
   "H2MT8I4Gbc": {
     "defaultMessage": "Bản nháp bản dịch"
   },
@@ -4867,6 +4885,9 @@
   },
   "I3W7KYKnta": {
     "defaultMessage": "Không thể tạo đề xuất AI"
+  },
+  "I5EnnRppoI": {
+    "defaultMessage": "Tự động hóa"
   },
   "I6/kYi4M/3": {
     "defaultMessage": "Đang tải không gian làm việc…"
@@ -5316,7 +5337,7 @@
     "defaultMessage": "Trò chuyện trên web"
   },
   "KCbGbSyAbS": {
-    "defaultMessage": "GitHub push"
+    "defaultMessage": "Đẩy lên GitHub"
   },
   "KCoITTErMU": {
     "defaultMessage": "Được xây dựng cho các đội ngũ bản địa hóa. Sắp ra mắt."
@@ -6280,6 +6301,9 @@
   },
   "OmGkdjrtzD": {
     "defaultMessage": "Billing"
+  },
+  "OmVf26hhof": {
+    "defaultMessage": "Dự án nhà cung cấp"
   },
   "Omhk26keD1": {
     "defaultMessage": "Repository"
@@ -8675,6 +8699,9 @@
   "Z8vLB9dxFv": {
     "defaultMessage": "Nguồn"
   },
+  "Z9+wravZbz": {
+    "defaultMessage": "Hướng dẫn dự án"
+  },
   "Z91mmC1MhD": {
     "defaultMessage": "Có thể truy cập các dự án và công việc được giao cho nhóm này."
   },
@@ -10042,6 +10069,9 @@
   },
   "f3IEqEzc4J": {
     "defaultMessage": "Hình ảnh phải có kích thước từ 10 MB trở xuống."
+  },
+  "f4hLje7+7r": {
+    "defaultMessage": "{projectName} · Dự án {projectId}"
   },
   "f5viDmb9eZ": {
     "defaultMessage": "Thay đổi chưa lưu"
@@ -12380,6 +12410,9 @@
   "oV922EjrKR": {
     "defaultMessage": "Người được giao mặc định theo mẫu"
   },
+  "oVK9Szp59h": {
+    "defaultMessage": "Mức sử dụng"
+  },
   "oX8prUs9FO": {
     "defaultMessage": "Current posture"
   },
@@ -12941,6 +12974,9 @@
   "qtTx0ZhgLU": {
     "defaultMessage": "Tiếng Ba Lan (Ba Lan)"
   },
+  "qwBzCi54cg": {
+    "defaultMessage": "{count, plural, =0 {Chưa được sử dụng} one {# dự án} other {# dự án}}"
+  },
   "qxBrl7Yxqo": {
     "defaultMessage": "Thứ Hai"
   },
@@ -13468,6 +13504,9 @@
   },
   "tLThxyOpTE": {
     "defaultMessage": "Chúng tôi không thể tải trang này"
+  },
+  "tMOiEvbyBd": {
+    "defaultMessage": "Hướng dẫn dành riêng cho dự án đối với các tác nhân và nhóm"
   },
   "tMPM8tkhJg": {
     "defaultMessage": "Account"
@@ -14203,6 +14242,9 @@
   },
   "wIrSruFXTp": {
     "defaultMessage": "Không thể tải cuộc trò chuyện này."
+  },
+  "wJduDnIsm8": {
+    "defaultMessage": "Đã tạo"
   },
   "wLz+lanHT9": {
     "defaultMessage": "Đã đồng bộ bảng Canva \"Spring campaign / EN\" — 48 lớp văn bản sẵn sàng để tiếp nhận."

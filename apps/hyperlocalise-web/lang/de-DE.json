@@ -2084,6 +2084,9 @@
   "6d57osIkxk": {
     "defaultMessage": "N/A"
   },
+  "6dq9jGfioL": {
+    "defaultMessage": "Richtlinie"
+  },
   "6euABf86mn": {
     "defaultMessage": "Für diese Aufgabendatei ist kein Ziellocale verfügbar."
   },
@@ -2395,6 +2398,9 @@
   },
   "7qHTh1/iSP": {
     "defaultMessage": "Fehler beim Erstellen des Übersetzungsauftrags"
+  },
+  "7qbqYtxGI/": {
+    "defaultMessage": "Projekt"
   },
   "7qpCwZIaq2": {
     "defaultMessage": "Zielübersetzung"
@@ -3170,6 +3176,9 @@
   "ArlyHj1L4U": {
     "defaultMessage": "Issues importieren"
   },
+  "At4au+ak+k": {
+    "defaultMessage": "Projektrichtlinien"
+  },
   "AuCHneqNSE": {
     "defaultMessage": "Speichere diese Automatisierung, um eine öffentliche Chat-URL zu erhalten."
   },
@@ -3253,6 +3262,9 @@
   },
   "BJVuvQezV6": {
     "defaultMessage": "Projekt konnte nicht zugewiesen werden"
+  },
+  "BK7MTjV8FM": {
+    "defaultMessage": "Integration"
   },
   "BLCf0utxhq": {
     "defaultMessage": "Diese Zeichenfolge ist gesperrt. Entsperren Sie sie, um sie zu bearbeiten."
@@ -3859,6 +3871,9 @@
   },
   "Db5EVZd7B1": {
     "defaultMessage": "Verknüpfte Issues konnten nicht geladen werden."
+  },
+  "DbP96xw9zS": {
+    "defaultMessage": "Live-API"
   },
   "Dcqju+Z+Wb": {
     "defaultMessage": "Noch keine Unterhaltungen."
@@ -4658,6 +4673,9 @@
   "H0k47esZhc": {
     "defaultMessage": "Die Nachrichtensyntax konnte nicht analysiert werden."
   },
+  "H1Mne7VTqn": {
+    "defaultMessage": "Gib den Workflows dieses Projekts den nötigen sprachlichen, marktbezogenen und produktspezifischen Kontext."
+  },
   "H2MT8I4Gbc": {
     "defaultMessage": "Übersetzungsentwurf"
   },
@@ -4867,6 +4885,9 @@
   },
   "I3W7KYKnta": {
     "defaultMessage": "KI-Empfehlung konnte nicht generiert werden"
+  },
+  "I5EnnRppoI": {
+    "defaultMessage": "Automatisierungen"
   },
   "I6/kYi4M/3": {
     "defaultMessage": "Arbeitsbereich wird geladen …"
@@ -6280,6 +6301,9 @@
   },
   "OmGkdjrtzD": {
     "defaultMessage": "Abrechnung"
+  },
+  "OmVf26hhof": {
+    "defaultMessage": "Anbieterprojekt"
   },
   "Omhk26keD1": {
     "defaultMessage": "Repository"
@@ -8675,6 +8699,9 @@
   "Z8vLB9dxFv": {
     "defaultMessage": "Quelle"
   },
+  "Z9+wravZbz": {
+    "defaultMessage": "Projektrichtlinien"
+  },
   "Z91mmC1MhD": {
     "defaultMessage": "Kann auf Projekte und dieser Gruppe zugewiesene Arbeit zugreifen."
   },
@@ -10042,6 +10069,9 @@
   },
   "f3IEqEzc4J": {
     "defaultMessage": "Das Bild darf höchstens 10 MB groß sein."
+  },
+  "f4hLje7+7r": {
+    "defaultMessage": "{projectName} · Projekt {projectId}"
   },
   "f5viDmb9eZ": {
     "defaultMessage": "Nicht gespeicherte Änderungen"
@@ -12380,6 +12410,9 @@
   "oV922EjrKR": {
     "defaultMessage": "Standardbearbeiter nach Vorlage"
   },
+  "oVK9Szp59h": {
+    "defaultMessage": "Verwendung"
+  },
   "oX8prUs9FO": {
     "defaultMessage": "Aktueller Status"
   },
@@ -12941,6 +12974,9 @@
   "qtTx0ZhgLU": {
     "defaultMessage": "Polnisch (Polen)"
   },
+  "qwBzCi54cg": {
+    "defaultMessage": "{count, plural, =0 {Noch nicht verwendet} one {# Projekt} other {# Projekte}}"
+  },
   "qxBrl7Yxqo": {
     "defaultMessage": "Montag"
   },
@@ -13468,6 +13504,9 @@
   },
   "tLThxyOpTE": {
     "defaultMessage": "Wir konnten diese Seite nicht laden"
+  },
+  "tMOiEvbyBd": {
+    "defaultMessage": "Projektspezifische Hinweise für Agenten und Teams"
   },
   "tMPM8tkhJg": {
     "defaultMessage": "Konto"
@@ -14203,6 +14242,9 @@
   },
   "wIrSruFXTp": {
     "defaultMessage": "Diese Unterhaltung konnte nicht geladen werden."
+  },
+  "wJduDnIsm8": {
+    "defaultMessage": "Erstellt"
   },
   "wLz+lanHT9": {
     "defaultMessage": "Synchronisiertes Canva-Board „Spring campaign / EN“ — 48 Textebenen bereit für die Erfassung."

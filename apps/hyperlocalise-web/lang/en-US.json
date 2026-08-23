@@ -479,10 +479,6 @@
     "defaultMessage": "Resolved",
     "description": "Summary chip label for resolved provider review threads"
   },
-  "/avsY2MZtR": {
-    "defaultMessage": "Preferred",
-    "description": "Term capability badge part when preferred terms are supported"
-  },
   "/bDXY5b2qg": {
     "defaultMessage": "Invitation revoked",
     "description": "Success toast after revoking a pending invitation"
@@ -2075,10 +2071,6 @@
     "defaultMessage": "Saving...",
     "description": "Save button label while the automation update request is pending"
   },
-  "4qHimvs9Xc": {
-    "defaultMessage": "Integration",
-    "description": "Metadata label for glossary integration status"
-  },
   "4rKdbq38y5": {
     "defaultMessage": "Translation exceeds the recommended {maxLength} characters.",
     "description": "Format check message when translation exceeds length limits"
@@ -2547,6 +2539,10 @@
     "defaultMessage": "N/A",
     "description": "Status badge for a not-applicable localisation audit criterion"
   },
+  "6dq9jGfioL": {
+    "defaultMessage": "Guideline",
+    "description": "Project sidebar navigation item for project guideline"
+  },
   "6euABf86mn": {
     "defaultMessage": "No target locale is available for this task file.",
     "description": "Error when opening CAT without a target locale for a task file"
@@ -2926,6 +2922,10 @@
   "7qHTh1/iSP": {
     "defaultMessage": "Failed to create translation job",
     "description": "Fallback error when a native translation job fails to create"
+  },
+  "7qbqYtxGI/": {
+    "defaultMessage": "Project",
+    "description": "Breadcrumb label above the project Guideline page"
   },
   "7qpCwZIaq2": {
     "defaultMessage": "Target translation",
@@ -3891,6 +3891,10 @@
     "defaultMessage": "Import issues",
     "description": "Title of the workspace issues CSV import project picker dialog"
   },
+  "At4au+ak+k": {
+    "defaultMessage": "Project guidance",
+    "description": "Heading for the project guidance editor"
+  },
   "AuCHneqNSE": {
     "defaultMessage": "Save this automation to get a public chat URL.",
     "description": "Hint shown before a web chat automation has been saved"
@@ -4002,6 +4006,10 @@
   "BJVuvQezV6": {
     "defaultMessage": "Unable to assign project",
     "description": "Fallback error when assigning a project to a translation memory fails"
+  },
+  "BK7MTjV8FM": {
+    "defaultMessage": "Integration",
+    "description": "Metadata label for a live Crowdin glossary integration"
   },
   "BLCf0utxhq": {
     "defaultMessage": "This string is locked. Unlock it to edit.",
@@ -4763,6 +4771,10 @@
     "defaultMessage": "Linked issues could not be loaded.",
     "description": "Error when fetching issues linked to a string fails"
   },
+  "DbP96xw9zS": {
+    "defaultMessage": "Live API",
+    "description": "Badge for a glossary backed by a live provider API"
+  },
   "Dcqju+Z+Wb": {
     "defaultMessage": "No conversations yet.",
     "description": "Empty state when the organization has no inbox conversations"
@@ -5343,10 +5355,6 @@
     "defaultMessage": "AI credit usage resets each billing cycle. Seats, projects, automations, and integrations are workspace limits.",
     "description": "Plan usage card description on billing settings"
   },
-  "FgAIhNIP18": {
-    "defaultMessage": "Live API",
-    "description": "Term capability badge for glossaries loaded and changed through a live provider API"
-  },
   "FgWgulEUlJ": {
     "defaultMessage": "Team created",
     "description": "Toast after a team is created successfully"
@@ -5731,6 +5739,10 @@
     "defaultMessage": "Message syntax could not be parsed.",
     "description": "Fallback error when ICU message syntax parsing fails"
   },
+  "H1Mne7VTqn": {
+    "defaultMessage": "Give this project's workflows the language, market, and product context they need.",
+    "description": "Page description for project guidance"
+  },
   "H2MT8I4Gbc": {
     "defaultMessage": "Translation draft",
     "description": "Workflow step 3 label for the github-release-localisation use case"
@@ -5790,10 +5802,6 @@
   "HHzUD/7JQL": {
     "defaultMessage": "Select page",
     "description": "Checkbox label to select all proposals on the current page"
-  },
-  "HJHu415ivO": {
-    "defaultMessage": "No preferred",
-    "description": "Term capability badge part when preferred terms are not supported"
   },
   "HJp07FJaQu": {
     "defaultMessage": "Failed to load file details",
@@ -5978,6 +5986,10 @@
   "I3W7KYKnta": {
     "defaultMessage": "Failed to generate AI recommendation",
     "description": "Fallback error when AI translation recommendation generation fails"
+  },
+  "I5EnnRppoI": {
+    "defaultMessage": "Automations",
+    "description": "App shell breadcrumb title for the automations page"
   },
   "I6/kYi4M/3": {
     "defaultMessage": "Loading workspace…",
@@ -7735,6 +7747,10 @@
     "defaultMessage": "Billing",
     "description": "Settings hub row label for billing"
   },
+  "OmVf26hhof": {
+    "defaultMessage": "Provider project",
+    "description": "Metadata label for a glossary's live provider project"
+  },
   "Omhk26keD1": {
     "defaultMessage": "Repository",
     "description": "Label for the GitHub repository select"
@@ -7942,10 +7958,6 @@
   "PSqr8lzpHo": {
     "defaultMessage": "Turkish (Türkiye)",
     "description": "Display name for BCP-47 locale tr-TR"
-  },
-  "PT4ucYt9VV": {
-    "defaultMessage": "Forbidden",
-    "description": "Term capability badge part when forbidden terms are supported"
   },
   "PVXHS+qpRe": {
     "defaultMessage": "Founders",
@@ -10275,10 +10287,6 @@
     "defaultMessage": "sync pull docs",
     "description": "Link to sync pull documentation from the native project settings panel"
   },
-  "Xx/womTY6W": {
-    "defaultMessage": "No forbidden",
-    "description": "Term capability badge part when forbidden terms are not supported"
-  },
   "XzH5GON6Rv": {
     "defaultMessage": "No teams yet",
     "description": "Empty state title when the workspace has no teams"
@@ -10650,6 +10658,10 @@
   "Z8vLB9dxFv": {
     "defaultMessage": "Source",
     "description": "Fallback label for a source document attachment without a title"
+  },
+  "Z9+wravZbz": {
+    "defaultMessage": "Project guidance",
+    "description": "Accessible label for the project guidance TipTap editor"
   },
   "Z91mmC1MhD": {
     "defaultMessage": "Can access projects and work assigned to this team.",
@@ -11486,10 +11498,6 @@
   "cKb/sPVSsm": {
     "defaultMessage": "No stack frames",
     "description": "Empty state when a stack trace has no frames to display"
-  },
-  "cKwH9F0Z5s": {
-    "defaultMessage": "Capabilities unknown",
-    "description": "Term capability badge when provider capabilities are unknown"
   },
   "cMuLE7Fon0": {
     "defaultMessage": "Needs review",
@@ -12330,6 +12338,10 @@
   "f3IEqEzc4J": {
     "defaultMessage": "Image must be 10 MB or smaller.",
     "description": "Toast when an uploaded image exceeds the size limit"
+  },
+  "f4hLje7+7r": {
+    "defaultMessage": "{projectName} · Project {projectId}",
+    "description": "External project name and id shown in a glossary row source detail"
   },
   "f5viDmb9eZ": {
     "defaultMessage": "Unsaved changes",
@@ -15143,6 +15155,10 @@
     "defaultMessage": "Default assignee by template",
     "description": "Label for the per-template default assignee list"
   },
+  "oVK9Szp59h": {
+    "defaultMessage": "Usage",
+    "description": "Metadata label for glossary workspace usage"
+  },
   "oY/dfpDvR7": {
     "defaultMessage": "No segments match this filter.",
     "description": "Empty state when CAT queue status filter returns no segments"
@@ -15811,6 +15827,10 @@
     "defaultMessage": "Polish (Poland)",
     "description": "Display name for BCP-47 locale pl-PL"
   },
+  "qwBzCi54cg": {
+    "defaultMessage": "{count, plural, =0 {Not used yet} one {# project} other {# projects}}",
+    "description": "Workspace project usage count for a glossary"
+  },
   "qxBrl7Yxqo": {
     "defaultMessage": "Monday",
     "description": "Weekday option for scheduled automation"
@@ -16450,6 +16470,10 @@
   "tLThxyOpTE": {
     "defaultMessage": "We couldn't load this page",
     "description": "Heading shown when an application route fails unexpectedly"
+  },
+  "tMOiEvbyBd": {
+    "defaultMessage": "Project-specific guidance for agents and teams",
+    "description": "Sidebar description for the project Guideline navigation item"
   },
   "tMPM8tkhJg": {
     "defaultMessage": "Account",
@@ -17342,6 +17366,10 @@
   "wIrSruFXTp": {
     "defaultMessage": "Unable to load this conversation.",
     "description": "Error when the public web chat conversation fails to load"
+  },
+  "wJduDnIsm8": {
+    "defaultMessage": "Created",
+    "description": "Metadata label for a live provider glossary creation time"
   },
   "wLz+lanHT9": {
     "defaultMessage": "Synced Canva board \"Spring campaign / EN\" — 48 text layers ready for intake.",
