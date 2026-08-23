@@ -42,8 +42,8 @@ export const onboardingWizardMessages = defineMessages({
     description: "Placeholder example for the workspace name input on onboarding",
   },
   workspaceUrlPreview: {
-    defaultMessage: "<label>Workspace URL </label><path>/org/{slug}</path>",
-    id: "9ByCGUY81m",
+    defaultMessage: "<label>Workspace URL</label> <path>/org/{slug}</path>",
+    id: "d4bDN80spw",
     description: "Preview of the workspace URL path derived from the workspace name",
   },
   createWorkspace: {

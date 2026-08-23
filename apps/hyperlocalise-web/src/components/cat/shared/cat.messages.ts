@@ -90,8 +90,8 @@ export const catQueuePanelMessages = defineMessages({
     description: "Empty state when CAT queue search returns no segments",
   },
   paginationSummary: {
-    defaultMessage: "{count} loaded{more}",
-    id: "f/b31Mw+9f",
+    defaultMessage: "{count, plural, one {# loaded} other {# loaded}}{more}",
+    id: "s+9kMIBKb0",
     description: "Infinite-scroll summary for loaded CAT queue segments",
   },
   loadMore: {

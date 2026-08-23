@@ -355,7 +355,12 @@ export const TestDuration = ({ className, children, ...props }: TestDurationProp
 
   return (
     <span className={cn("ms-auto text-muted-foreground text-xs", className)} {...props}>
-      {children ?? intl.formatMessage(testResultsMessages.durationMs, { duration })}
+      {children ??
+        intl.formatNumber(duration, {
+          style: "unit",
+          unit: "millisecond",
+          unitDisplay: "narrow",
+        })}
     </span>
   );
 };
