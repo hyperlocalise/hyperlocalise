@@ -44,7 +44,7 @@ overrides:
   "nanoid@^3.0.0": "3.3.18"
   "nanoid@^5.0.0": "5.1.16"
   "brace-expansion@^2.0.0": "2.1.4"
-  "brace-expansion@^5.0.0": "5.0.7"
+  "brace-expansion@^5.0.0": "5.0.9"
   mermaid: "11.16.1"
   # TipTap 3.28 pulls prosemirror-model ^1.25.9 while nested PM packages
   # still resolve 1.25.8; dual copies break editor Fragment identity.
