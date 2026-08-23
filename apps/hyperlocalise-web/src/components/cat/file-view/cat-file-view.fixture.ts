@@ -15,6 +15,7 @@ import {
   createCatWorkspaceState,
 } from "@/components/cat/shared/cat.fixture";
 import type {
+  CatFileContext,
   CatSegment,
   CatSegmentIntelligence,
   CatWorkspaceState,
@@ -105,11 +106,23 @@ export function createCatVideoFileSegment(overrides: Partial<CatSegment> = {}): 
   };
 }
 
+function createMediaFileContext(sourcePath: string, filename: string): CatFileContext {
+  return {
+    sourcePath,
+    filename,
+    sourceLocale: SOURCE_LOCALE,
+    targetLocale: TARGET_LOCALE,
+    providerKind: null,
+    canEditTranslations: true,
+    canAddComments: true,
+  };
+}
+
 function createMediaWorkspaceState(
   segments: CatSegment[],
   selectedSegmentId: string,
   intelligence: CatSegmentIntelligence,
-  fileContext: { sourcePath: string; filename: string },
+  fileContext: CatFileContext,
 ): CatWorkspaceState {
   return createCatWorkspaceState({
     segments,
@@ -134,10 +147,7 @@ export function createCatImageFileWorkspaceState(
     [segment],
     segment.id,
     catImageFileIntelligenceFixture,
-    {
-      sourcePath: segment.sourcePath ?? "marketing/hero.png",
-      filename: "hero.png",
-    },
+    createMediaFileContext(segment.sourcePath ?? "marketing/hero.png", "hero.png"),
   );
 }
 
@@ -149,10 +159,7 @@ export function createCatVideoFileWorkspaceState(
     [segment],
     segment.id,
     catVideoFileIntelligenceFixture,
-    {
-      sourcePath: segment.sourcePath ?? "onboarding/walkthrough.mp4",
-      filename: "walkthrough.mp4",
-    },
+    createMediaFileContext(segment.sourcePath ?? "onboarding/walkthrough.mp4", "walkthrough.mp4"),
   );
 }
 
@@ -172,10 +179,7 @@ export function createCatImageAndVideoWorkspaceState(): CatWorkspaceState {
       [imageSegment.id]: catImageFileIntelligenceFixture,
       [videoSegment.id]: catVideoFileIntelligenceFixture,
     },
-    fileContext: {
-      sourcePath: "All Files",
-      filename: "All Files",
-    },
+    fileContext: createMediaFileContext("All Files", "All Files"),
     breadcrumbs: ["Project", "HL-Test", "Files", "All Files"],
   });
 }

@@ -140,9 +140,9 @@ export const ImageFileComfortable: Story = {
       "src",
       CAT_STORY_IMAGE_TARGET_URL,
     );
-    await expect(canvas.getAllByRole("button", { name: /Regenerate image/i }).length).toBeGreaterThan(
-      0,
-    );
+    await expect(
+      canvas.getAllByRole("button", { name: /Regenerate image/i }).length,
+    ).toBeGreaterThan(0);
     await expect(canvas.getByText("Upload image")).toBeInTheDocument();
   },
 };
@@ -189,9 +189,9 @@ export const VideoFileComfortable: Story = {
     await expect(videos).toHaveLength(2);
     await expect(videos[0]).toHaveAttribute("src", CAT_STORY_VIDEO_SOURCE_URL);
     await expect(videos[1]).toHaveAttribute("src", CAT_STORY_VIDEO_TARGET_URL);
-    await expect(canvas.getAllByRole("button", { name: /Regenerate video/i }).length).toBeGreaterThan(
-      0,
-    );
+    await expect(
+      canvas.getAllByRole("button", { name: /Regenerate video/i }).length,
+    ).toBeGreaterThan(0);
     await expect(canvas.getByText("Upload video")).toBeInTheDocument();
   },
 };
