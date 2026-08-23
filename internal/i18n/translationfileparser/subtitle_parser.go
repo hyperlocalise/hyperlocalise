@@ -5,6 +5,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"unicode"
 	"unicode/utf8"
 )
 
@@ -379,11 +380,22 @@ func isAllDecimalDigits(s string) bool {
 	if s == "" {
 		return false
 	}
-	// BOLT OPTIMIZATION: ASCII byte loop to bypass utf8.DecodeRuneInString and unicode.IsDigit.
+	// ASCII digits stay on a byte loop. Non-ASCII bytes fall back to
+	// unicode.IsDigit so Arabic-Indic and other Nd cue counters still match.
 	for i := 0; i < len(s); i++ {
-		if s[i] < '0' || s[i] > '9' {
+		c := s[i]
+		if c >= '0' && c <= '9' {
+			continue
+		}
+		if c < utf8.RuneSelf {
 			return false
 		}
+		for _, r := range s[i:] {
+			if !unicode.IsDigit(r) {
+				return false
+			}
+		}
+		return true
 	}
 	return true
 }
