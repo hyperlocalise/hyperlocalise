@@ -207,3 +207,7 @@
 ## 2026-11-24 - [Storage Adapter Registry Normalization and Error Wrapping]
 **Learning:** The storage adapter registry (`storageregistry`) normalizes adapter names by converting to lowercase and stripping whitespace. When testing adapter registration and instantiation, lookups with mixed casing or leading/trailing whitespace (e.g. `"  CROWDIN-V2  "`) resolve to the same normalized key. Additionally, factory errors inside `New` are wrapped using Go `%w`, which preserves `errors.Is` error unwrapping while appending contextual adapter error prefixes.
 **Action:** When testing adapter registries or plugin factories, verify name normalization across registration, lookup, and list output, and assert both sentinel error unwrapping (`errors.Is`) and contextual message formatting.
+
+## 2026-11-25 - [JSONStore Deterministic Bucket Pattern Resolution]
+**Learning:** `JSONStore` bucket pattern resolution (`resolveLocalePattern`) sorts bucket map names alphabetically (`sort.Strings`) before selecting the first valid file pattern (`To`). This ensures deterministic file path pattern resolution across Go runtime executions where map iteration order is randomized.
+**Action:** When unit testing storage adapters or multi-bucket configuration resolution, supply multiple bucket entries out of alphabetical order to verify deterministic key sorting.
