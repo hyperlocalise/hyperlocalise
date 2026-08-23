@@ -36,6 +36,7 @@ import { catEditorIssuesSectionMessages as messages } from "./cat-editor-issues-
 
 type IssueSheetListIssue = {
   id: string;
+  identifier: string;
   title: string;
   status: string;
   targetLocale: string | null;
@@ -162,6 +163,7 @@ export function CatEditorIssuesSection({
     () =>
       (issuesQuery.data?.issues ?? []).map((issue) => ({
         id: issue.id,
+        identifier: issue.identifier,
         projectId,
         title: issue.title,
         status: issue.status,

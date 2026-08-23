@@ -79,6 +79,7 @@ describe("issue-sheet-column-utils", () => {
   it("detects unsaved custom column drafts", () => {
     const issue = {
       id: "issue_1",
+      identifier: "WEB-1",
       title: "Issue",
       description: "",
       issueType: "general_question",

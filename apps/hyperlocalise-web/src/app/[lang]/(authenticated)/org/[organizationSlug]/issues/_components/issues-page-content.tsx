@@ -137,6 +137,7 @@ export function IssuesPageContent({
     () =>
       issues.map((issue) => ({
         id: issue.id,
+        identifier: issue.identifier,
         projectId: issue.projectId,
         projectName: issue.projectName,
         title: issue.title,
