@@ -10,7 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { and, eq, inArray, isNull, ne, sql } from "drizzle-orm";
+import { and, count, eq, inArray, isNull, ne, sql } from "drizzle-orm";
 
 import { buildAccessibleProjectsWhere } from "@/api/auth/team-access";
 import { db, schema, type DatabaseClient } from "@/lib/database";
@@ -121,6 +121,19 @@ export class NativeGlossary extends Glossary {
 
   constructor(private readonly input: GlossaryProviderContext) {
     super();
+  }
+
+  get id() {
+    return this.input.glossary.id;
+  }
+
+  async queryProjectCount() {
+    const [row] = await db
+      .select({ projectCount: count() })
+      .from(schema.projectGlossaries)
+      .where(eq(schema.projectGlossaries.glossaryId, this.input.glossary.id));
+
+    return Number(row?.projectCount ?? 0);
   }
 
   async get() {

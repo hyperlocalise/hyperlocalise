@@ -17,6 +17,7 @@ import type { Glossary as GlossaryRecord } from "@/lib/database/types";
 
 const mocks = vi.hoisted(() => ({
   deleteLiveGlossary: vi.fn(),
+  listLiveGlossaryProjects: vi.fn(),
   resolveCrowdinContext: vi.fn(),
   deleteWhere: vi.fn(),
   deleteReturning: vi.fn(),
@@ -25,6 +26,7 @@ const mocks = vi.hoisted(() => ({
 vi.mock("@/lib/providers/adapters/crowdin/crowdin-provider", () => ({
   crowdinTmsProvider: {
     deleteLiveGlossary: (...args: unknown[]) => mocks.deleteLiveGlossary(...args),
+    listLiveGlossaryProjects: (...args: unknown[]) => mocks.listLiveGlossaryProjects(...args),
   },
 }));
 
@@ -108,7 +110,22 @@ describe("CrowdinGlossary.delete", () => {
       secretMaterial: "secret",
     });
     mocks.deleteLiveGlossary.mockResolvedValue(undefined);
+    mocks.listLiveGlossaryProjects.mockResolvedValue([]);
     mocks.deleteReturning.mockResolvedValue([]);
+  });
+
+  it("counts projects from the live Crowdin API", async () => {
+    mocks.listLiveGlossaryProjects.mockResolvedValue([{ id: 1 }, { id: 2 }]);
+    const glossary = new CrowdinGlossary({
+      auth: authContext(),
+      glossary: liveGlossary(),
+    });
+
+    await expect(glossary.queryProjectCount()).resolves.toBe(2);
+    expect(mocks.listLiveGlossaryProjects).toHaveBeenCalledWith(
+      expect.objectContaining({ externalProjectId: "902807" }),
+      42,
+    );
   });
 
   it("returns true for live Crowdin ids even when no local mapping row exists", async () => {

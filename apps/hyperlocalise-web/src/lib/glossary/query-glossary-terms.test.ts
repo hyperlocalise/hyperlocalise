@@ -23,6 +23,8 @@ vi.hoisted(() => {
 
 import { db, schema } from "@/lib/database";
 
+import { Glossary } from "./glossary";
+import { NativeGlossary } from "./native-glossary";
 import { queryNativeGlossaryTermCounts } from "./query-glossary-term-counts";
 import { listGlossaryTermsForProject } from "./query-glossary-terms";
 
@@ -280,5 +282,39 @@ describe("queryNativeGlossaryTermCounts", () => {
 
     expect(counts.get(emptyGlossary.id)).toBe(0);
     expect(counts.get(populatedGlossary.id)).toBe(2);
+  });
+});
+
+describe("Glossary project counts", () => {
+  it("counts native glossary projects with Drizzle", async () => {
+    const organization = await createOrganization();
+    const project = await createProject(organization.id);
+    const [glossary] = await db
+      .insert(schema.glossaries)
+      .values({
+        organizationId: organization.id,
+        name: "Attached glossary",
+        description: "",
+        sourceLocale: "en",
+        targetLocale: "fr",
+        status: "active",
+      })
+      .returning();
+
+    await db.insert(schema.projectGlossaries).values({
+      organizationId: organization.id,
+      projectId: project.id,
+      glossaryId: glossary.id,
+    });
+
+    const product = new NativeGlossary({
+      auth: { organization: { localOrganizationId: organization.id } } as never,
+      glossary,
+    });
+
+    await expect(product.queryProjectCount()).resolves.toBe(1);
+    await expect(Glossary.queryProjectCounts([product])).resolves.toEqual(
+      new Map([[glossary.id, 1]]),
+    );
   });
 });

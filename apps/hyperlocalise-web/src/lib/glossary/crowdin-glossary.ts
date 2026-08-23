@@ -278,6 +278,14 @@ export class CrowdinGlossary extends Glossary {
     super();
   }
 
+  get id() {
+    return this.input.glossary.id;
+  }
+
+  async queryProjectCount() {
+    return (await this.listProjects()).length;
+  }
+
   private async context() {
     return resolveCrowdinContext(this.input);
   }

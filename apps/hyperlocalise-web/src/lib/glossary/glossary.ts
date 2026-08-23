@@ -11,6 +11,7 @@
  * Version 2.0 or later.
  */
 import type { Glossary as NativeGlossaryRecord } from "@/lib/database/types";
+import { mapWithConcurrency } from "@/lib/primitives/map-with-concurrency/map-with-concurrency";
 
 export type NativeGlossary = NativeGlossaryRecord;
 
@@ -273,6 +274,28 @@ export function normalizeGlossaryTermStatus(value: string | null | undefined): G
 
 export abstract class Glossary {
   abstract readonly kind: "native" | "crowdin";
+  abstract readonly id: string;
+  abstract queryProjectCount(): Promise<number>;
+
+  static async queryProjectCounts(glossaries: Glossary[]) {
+    const projectCountsByGlossaryId = new Map<string, number>();
+
+    for (const glossary of glossaries) {
+      projectCountsByGlossaryId.set(glossary.id, 0);
+    }
+
+    const counts = await mapWithConcurrency(glossaries, 5, async (glossary) => ({
+      glossaryId: glossary.id,
+      projectCount: await glossary.queryProjectCount(),
+    }));
+
+    for (const count of counts) {
+      projectCountsByGlossaryId.set(count.glossaryId, count.projectCount);
+    }
+
+    return projectCountsByGlossaryId;
+  }
+
   abstract get(): Promise<NativeGlossary | null>;
   abstract listProjects(): Promise<GlossaryProjectRecord[]>;
   abstract update(payload: { name?: string; description?: string }): Promise<NativeGlossary | null>;
