@@ -234,6 +234,15 @@ func TestTMConcordanceSearchRequestValidate(t *testing.T) {
 			},
 			valid: true,
 		},
+		{
+			name: "valid request with tmIds",
+			req: &TMConcordanceSearchRequest{
+				SourceLanguageID: "en", TargetLanguageID: "de",
+				AutoSubstitution: toPtr(true), MinRelevant: 60, Expressions: []string{"expression"},
+				TMIDs: []int{4, 5},
+			},
+			valid: true,
+		},
 	}
 
 	for _, tt := range tests {

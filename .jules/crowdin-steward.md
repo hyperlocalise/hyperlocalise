@@ -347,3 +347,9 @@
 **Learning:** In Crowdin API v2, `parentId` is an optional field when listing groups. Specifically, querying root-level groups requires setting `parentId=0`. However, the Go SDK typed `ParentID` as an `int` and had a condition `o.ParentID > 0` before appending it to query parameters, making root group filtering impossible.
 
 **Action:** Changed `ParentID` type to `*int` in `GroupsListOptions` and updated `Values()` serialization logic to append the parameter as long as `ParentID != nil`. Updated unit tests in both `model/groups_test.go` and `groups_test.go` to explicitly verify `parentId=0` query parameter construction.
+
+## 2026-08-24 - Improve TM Concordance Search Request parity for tmIds
+
+**Learning:** Crowdin API v2 supports filtering Concordance Search across specific Translation Memories by passing `tmIds` in `TMConcordanceSearchRequest`, but `tmIds` was missing from the Go SDK model.
+
+**Action:** Added `TMIDs []int json:"tmIds,omitempty"` to `TMConcordanceSearchRequest` in `crowdin/model/translation_memory.go`. Updated validation and contract tests in `crowdin/model/translation_memory_test.go` and `crowdin/translation_memory_test.go`.
