@@ -103,8 +103,8 @@ func TestInferHyperlocaliseFileFormat_Scout(t *testing.T) {
 
 func TestContentTypeForPath_Scout(t *testing.T) {
 	tests := []struct {
-		name string
-		path string
+		name  string
+		path  string
 		check func(t *testing.T, got string)
 	}{
 		{
