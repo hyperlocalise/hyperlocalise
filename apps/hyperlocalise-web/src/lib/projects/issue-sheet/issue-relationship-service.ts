@@ -165,6 +165,7 @@ export class IssueRelationshipService extends ProjectServiceBase {
       actorUserId: input.actorUserId,
       type: input.type,
       payload: { relatedIssueId: input.relatedIssueId, kind: input.relationshipKind },
+      createdAt: sql`clock_timestamp()`,
     });
   }
 

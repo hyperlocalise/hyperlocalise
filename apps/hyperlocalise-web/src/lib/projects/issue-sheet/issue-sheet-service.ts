@@ -1312,15 +1312,12 @@ export class IssueSheetService {
         return null;
       }
 
-      const activityCreatedAt = new Date();
-
       await this.insertIssueCreatedActivity({
         database: tx,
         organizationId: input.organizationId,
         projectId: input.projectId,
         issueId: issue.id,
         actorUserId: input.actorUserId,
-        createdAt: activityCreatedAt,
       });
 
       if (assigneeUserId) {
@@ -1332,7 +1329,6 @@ export class IssueSheetService {
           actorUserId: input.actorUserId,
           previousAssigneeUserId: null,
           nextAssigneeUserId: assigneeUserId,
-          createdAt: new Date(activityCreatedAt.getTime() + 1),
         });
       }
 
@@ -1743,7 +1739,6 @@ export class IssueSheetService {
     actorUserId: string;
     previousAssigneeUserId: string | null;
     nextAssigneeUserId: string | null;
-    createdAt?: Date;
   }) {
     await input.database.insert(schema.issueSheetActivities).values({
       organizationId: input.organizationId,
@@ -1755,7 +1750,7 @@ export class IssueSheetService {
         previousAssigneeUserId: input.previousAssigneeUserId,
         nextAssigneeUserId: input.nextAssigneeUserId,
       },
-      ...(input.createdAt ? { createdAt: input.createdAt } : {}),
+      createdAt: sql`clock_timestamp()`,
     });
   }
 
@@ -1765,7 +1760,6 @@ export class IssueSheetService {
     projectId: string;
     issueId: string;
     actorUserId: string;
-    createdAt?: Date;
   }) {
     await input.database.insert(schema.issueSheetActivities).values({
       organizationId: input.organizationId,
@@ -1774,7 +1768,7 @@ export class IssueSheetService {
       actorUserId: input.actorUserId,
       type: ISSUE_SHEET_ACTIVITY_ISSUE_CREATED,
       payload: {},
-      ...(input.createdAt ? { createdAt: input.createdAt } : {}),
+      createdAt: sql`clock_timestamp()`,
     });
   }
 
@@ -1797,6 +1791,7 @@ export class IssueSheetService {
         previousStatus: input.previousStatus,
         nextStatus: input.nextStatus,
       },
+      createdAt: sql`clock_timestamp()`,
     });
   }
 
@@ -1819,6 +1814,7 @@ export class IssueSheetService {
         previousIssueType: input.previousIssueType,
         nextIssueType: input.nextIssueType,
       },
+      createdAt: sql`clock_timestamp()`,
     });
   }
 
@@ -1841,6 +1837,7 @@ export class IssueSheetService {
         previousPriority: input.previousPriority,
         nextPriority: input.nextPriority,
       },
+      createdAt: sql`clock_timestamp()`,
     });
   }
 

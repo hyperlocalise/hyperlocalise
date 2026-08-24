@@ -124,6 +124,22 @@ describe("IssueSheetService.listFeed", () => {
       kind: "activity",
       activity: { type: "status_changed", previousStatus: "open", nextStatus: "resolved" },
     });
+    const creation = feed.items[0];
+    const commentThread = feed.items[1];
+    const statusChange = feed.items[2];
+    if (
+      creation?.kind !== "activity" ||
+      commentThread?.kind !== "comment_thread" ||
+      statusChange?.kind !== "activity"
+    ) {
+      throw new Error("expected activity, comment thread, and activity feed ordering");
+    }
+    expect(new Date(creation.activity.createdAt).getTime()).toBeLessThan(
+      new Date(commentThread.root.createdAt).getTime(),
+    );
+    expect(new Date(commentThread.root.createdAt).getTime()).toBeLessThan(
+      new Date(statusChange.activity.createdAt).getTime(),
+    );
 
     const firstPage = await issueSheetService.listFeed({
       organizationId: organization.id,
