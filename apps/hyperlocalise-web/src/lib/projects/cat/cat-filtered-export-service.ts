@@ -170,9 +170,8 @@ export async function collectCatFilteredExportRows(input: {
     const loadGroupOccurrences =
       input.loadGroupOccurrences ??
       (async (groupInput) => {
-        const { getNativeProjectCatGroupOccurrences } = await import(
-          "@/lib/projects/cat/native-cat-service"
-        );
+        const { getNativeProjectCatGroupOccurrences } =
+          await import("@/lib/projects/cat/native-cat-service");
         return getNativeProjectCatGroupOccurrences(groupInput);
       });
 
