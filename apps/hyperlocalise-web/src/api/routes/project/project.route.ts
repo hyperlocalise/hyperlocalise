@@ -177,6 +177,7 @@ import {
   projectIdParamsSchema,
   projectFileCatCommentIdParamsSchema,
   updateProjectBodySchema,
+  updateProjectCatBehaviorBodySchema,
   type CreateProjectBody,
   type ProjectFileCatQuery,
   type UpdateProjectBody,
@@ -194,9 +195,14 @@ import { parseProviderProjectId } from "@/lib/providers/jobs/tms-provider-resour
 
 import {
   isAiActionAllowed,
+  isProjectCatBehaviorMutationAllowed,
   isReviewApproveAllowed,
   isWriteBackTranslationAllowed,
 } from "@/api/auth/capability-guards";
+import {
+  previewIdenticalStringGrouping,
+  updateProjectCatGroupingPolicy,
+} from "@/lib/projects/cat/project-cat-behavior-service";
 import {
   buildAccessibleProjectsWhere,
   projectForbiddenResponse,
@@ -803,6 +809,16 @@ const validateCreateProjectBody = validator("json", (value, c) => {
 
 const validateUpdateProjectBody = validator("json", (value, c) => {
   const parsed = updateProjectBodySchema.safeParse(value);
+
+  if (!parsed.success) {
+    return invalidProjectPayloadResponse(c);
+  }
+
+  return parsed.data;
+});
+
+const validateUpdateProjectCatBehaviorBody = validator("json", (value, c) => {
+  const parsed = updateProjectCatBehaviorBodySchema.safeParse(value);
 
   if (!parsed.success) {
     return invalidProjectPayloadResponse(c);
@@ -3319,6 +3335,70 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
       const openJobCount = await countOpenJobs(c.var.auth, project.id);
       return c.json({ openJobCount }, 200);
     })
+    .get("/:projectId/cat-behavior", validateProjectParams, async (c) => {
+      const params = c.req.valid("param");
+      const project = await getOwnedProjectRecord(c.var.auth, params.projectId);
+      if (!project) return projectNotFoundResponse(c);
+
+      return c.json(
+        {
+          catBehavior: {
+            automaticallyGroupIdenticalStrings: project.automaticallyGroupIdenticalStrings,
+            groupingRevision: project.catGroupingRevision,
+            canManage: isProjectCatBehaviorMutationAllowed(c.var.auth.membership.role),
+          },
+        },
+        200,
+      );
+    })
+    .get("/:projectId/cat-behavior/preview", validateProjectParams, async (c) => {
+      if (!isProjectCatBehaviorMutationAllowed(c.var.auth.membership.role)) {
+        return projectForbiddenResponse(c);
+      }
+
+      const params = c.req.valid("param");
+      const project = await getOwnedProjectRecord(c.var.auth, params.projectId);
+      if (!project) return projectNotFoundResponse(c);
+
+      const preview = await previewIdenticalStringGrouping(
+        c.var.auth.organization.localOrganizationId,
+        project.id,
+      );
+      return c.json({ preview }, 200);
+    })
+    .patch(
+      "/:projectId/cat-behavior",
+      validateProjectParams,
+      validateUpdateProjectCatBehaviorBody,
+      async (c) => {
+        if (!isProjectCatBehaviorMutationAllowed(c.var.auth.membership.role)) {
+          return projectForbiddenResponse(c);
+        }
+
+        const params = c.req.valid("param");
+        const project = await getOwnedProjectRecord(c.var.auth, params.projectId);
+        if (!project) return projectNotFoundResponse(c);
+
+        const payload = c.req.valid("json");
+        const catBehavior = await updateProjectCatGroupingPolicy({
+          organizationId: c.var.auth.organization.localOrganizationId,
+          projectId: project.id,
+          automaticallyGroupIdenticalStrings: payload.automaticallyGroupIdenticalStrings,
+          actorUserId: c.var.auth.user.localUserId,
+        });
+        if (!catBehavior) return projectNotFoundResponse(c);
+
+        return c.json(
+          {
+            catBehavior: {
+              ...catBehavior,
+              canManage: true,
+            },
+          },
+          200,
+        );
+      },
+    )
     .get("/:projectId", validateProjectParams, async (c) => {
       const rawPathProjectId = c.req.param("projectId");
       const params = c.req.valid("param");

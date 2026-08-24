@@ -82,6 +82,133 @@ afterEach(async () => {
   await projectFixture.cleanup();
 });
 
+describe("project CAT behavior routes", () => {
+  it("defaults projects to opt-out and previews exact duplicate source strings", async () => {
+    const { identity, organization, project } = await projectFixture.createStoredProjectFixture();
+    const headers = await projectFixture.authHeadersFor(identity);
+    await db.insert(schema.projectTranslationKeys).values([
+      {
+        organizationId: organization.id,
+        projectId: project.id,
+        key: "a",
+        sourceText: "Save",
+        normalizedSourceText: "save",
+      },
+      {
+        organizationId: organization.id,
+        projectId: project.id,
+        key: "b",
+        sourceText: "Save",
+        normalizedSourceText: "save",
+      },
+      {
+        organizationId: organization.id,
+        projectId: project.id,
+        key: "c",
+        sourceText: "SAVE",
+        normalizedSourceText: "save",
+      },
+    ]);
+
+    const current = await client.api.orgs[":organizationSlug"].projects[":projectId"][
+      "cat-behavior"
+    ].$get(
+      { param: { organizationSlug: identity.organization.slug!, projectId: project.id } },
+      { headers },
+    );
+    expect(current.status).toBe(200);
+    await expect(current.json()).resolves.toMatchObject({
+      catBehavior: {
+        automaticallyGroupIdenticalStrings: false,
+        groupingRevision: 0,
+        canManage: true,
+      },
+    });
+
+    const preview = await client.api.orgs[":organizationSlug"].projects[":projectId"][
+      "cat-behavior"
+    ].preview.$get(
+      { param: { organizationSlug: identity.organization.slug!, projectId: project.id } },
+      { headers },
+    );
+    expect(preview.status).toBe(200);
+    await expect(preview.json()).resolves.toEqual({
+      preview: { affectedOccurrences: 2, groups: 1 },
+    });
+  });
+
+  it("lets managers change only policy state and increments the grouping revision", async () => {
+    const { identity, project } = await projectFixture.createStoredProjectFixture();
+    const headers = await projectFixture.authHeadersFor(identity);
+    const response = await client.api.orgs[":organizationSlug"].projects[":projectId"][
+      "cat-behavior"
+    ].$patch(
+      {
+        param: { organizationSlug: identity.organization.slug!, projectId: project.id },
+        json: { automaticallyGroupIdenticalStrings: true },
+      },
+      { headers },
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({
+      catBehavior: { automaticallyGroupIdenticalStrings: true, groupingRevision: 1 },
+    });
+    const [stored] = await db
+      .select()
+      .from(schema.projects)
+      .where(eq(schema.projects.id, project.id));
+    expect(stored).toMatchObject({
+      name: project.name,
+      automaticallyGroupIdenticalStrings: true,
+      catGroupingRevision: 1,
+    });
+  });
+
+  it("forbids translators from previewing or changing CAT policy", async () => {
+    const manager = projectFixture.createWorkosIdentityWithRole("admin");
+    await projectFixture.authHeadersFor(manager);
+    const organizationId = globalThis.__testApiAuthContext!.organization.localOrganizationId;
+    const team = await ensureDefaultWorkspaceTeam(organizationId);
+    const [project] = await db
+      .insert(schema.projects)
+      .values({
+        id: `project_${randomUUID()}`,
+        identifier: uniqueTestProjectIdentifier(),
+        organizationId,
+        teamId: team.id,
+        name: "Restricted",
+        sourceLocale: "en",
+        targetLocales: ["fr"],
+      })
+      .returning();
+    const translator = projectFixture.createWorkosIdentityForOrganization(
+      manager.organization,
+      "translator",
+    );
+    const translatorHeaders = await projectFixture.authHeadersFor(translator);
+
+    const preview = await client.api.orgs[":organizationSlug"].projects[":projectId"][
+      "cat-behavior"
+    ].preview.$get(
+      { param: { organizationSlug: translator.organization.slug!, projectId: project.id } },
+      { headers: translatorHeaders },
+    );
+    const update = await client.api.orgs[":organizationSlug"].projects[":projectId"][
+      "cat-behavior"
+    ].$patch(
+      {
+        param: { organizationSlug: translator.organization.slug!, projectId: project.id },
+        json: { automaticallyGroupIdenticalStrings: true },
+      },
+      { headers: translatorHeaders },
+    );
+
+    expect(preview.status).toBe(403);
+    expect(update.status).toBe(403);
+  });
+});
+
 describe("project detail route", () => {
   it("returns a materialized external TMS project when the live provider lookup misses", async () => {
     const admin = projectFixture.createWorkosIdentityWithRole("admin");

@@ -662,6 +662,8 @@ function buildLiveProviderProject(input: {
     // Live provider projects aren't rows in the projects table, so there's no per-project
     // template config to read — same empty default as an unconfigured native project.
     issueTemplateConfig: {},
+    automaticallyGroupIdenticalStrings: false,
+    catGroupingRevision: 0,
     createdAt: now,
     updatedAt: now,
   };

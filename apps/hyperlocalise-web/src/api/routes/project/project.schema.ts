@@ -25,6 +25,21 @@ export const projectIdParamsSchema = z.object({
   projectId: projectIdSchema,
 });
 
+export const updateProjectCatBehaviorBodySchema = z.object({
+  automaticallyGroupIdenticalStrings: z.boolean(),
+});
+
+export const projectCatBehaviorSchema = z.object({
+  automaticallyGroupIdenticalStrings: z.boolean(),
+  groupingRevision: z.number().int().nonnegative(),
+  canManage: z.boolean(),
+});
+
+export const projectCatBehaviorPreviewSchema = z.object({
+  affectedOccurrences: z.number().int().nonnegative(),
+  groups: z.number().int().nonnegative(),
+});
+
 export const projectFileCatCommentIdParamsSchema = projectIdParamsSchema.extend({
   commentId: z.string().trim().min(1).max(128),
 });

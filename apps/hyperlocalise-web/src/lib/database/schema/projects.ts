@@ -113,6 +113,12 @@ export const projects = pgTable(
       .$type<ProjectIssueTemplateConfig>()
       .notNull()
       .default(sql`'{}'::jsonb`),
+    // Explicit opt-in for CAT grouping. HL-619 consumes this policy without rewriting string data.
+    automaticallyGroupIdenticalStrings: boolean("automatically_group_identical_strings")
+      .notNull()
+      .default(false),
+    // Changes whenever grouping policy changes so open CAT workspaces can defer a safe refresh.
+    catGroupingRevision: integer("cat_grouping_revision").notNull().default(0),
     // When the project record was first created.
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     // When project metadata was last changed.

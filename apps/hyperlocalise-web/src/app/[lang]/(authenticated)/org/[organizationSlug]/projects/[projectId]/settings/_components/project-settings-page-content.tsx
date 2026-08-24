@@ -54,6 +54,7 @@ import {
 import { ProjectIssueTemplatesPanel } from "./project-issue-templates-panel";
 import { ProjectNativeConnectCliPanel } from "./project-native-connect-cli-panel";
 import { ProjectIssueColumnsSettings } from "./project-issue-columns-settings";
+import { ProjectCatBehaviorSettings } from "./project-cat-behavior-settings";
 import { projectSettingsPageContentMessages } from "./project-settings-page-content.messages";
 
 const providerLabels: Record<NonNullable<ProjectListRow["externalProviderKind"]>, string> = {
@@ -146,9 +147,11 @@ function ProjectSourceDetails({ project }: { project: ProjectListRow }) {
 export function ProjectSettingsPageContent({
   organizationSlug,
   projectId,
+  canManageCatBehavior,
 }: {
   organizationSlug: string;
   projectId: string;
+  canManageCatBehavior: boolean;
 }) {
   const queryClient = useQueryClient();
   const projectQuery = useProjectPageQuery(organizationSlug, projectId);
@@ -459,6 +462,14 @@ export function ProjectSettingsPageContent({
           <ProjectNativeConnectCliPanel organizationSlug={organizationSlug} projectId={projectId} />
         ) : null}
       </form>
+
+      <div className="mt-5">
+        <ProjectCatBehaviorSettings
+          organizationSlug={organizationSlug}
+          projectId={projectId}
+          canManage={canManageCatBehavior}
+        />
+      </div>
 
       <div className="mt-5">
         <ProjectIssueColumnsSettings organizationSlug={organizationSlug} projectId={projectId} />
