@@ -15,9 +15,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test"
 const {
   getActiveOrganizationExternalTmsProviderCredentialRowMock,
   resolveExternalTmsSecretMaterialMock,
+  getCrowdinUserConnectionMock,
+  resolveCrowdinUserConnectionSecretMaterialMock,
 } = vi.hoisted(() => ({
   getActiveOrganizationExternalTmsProviderCredentialRowMock: vi.fn(),
   resolveExternalTmsSecretMaterialMock: vi.fn(),
+  getCrowdinUserConnectionMock: vi.fn(),
+  resolveCrowdinUserConnectionSecretMaterialMock: vi.fn(),
 }));
 
 vi.mock(
@@ -36,6 +40,14 @@ vi.mock(
     };
   },
 );
+
+vi.mock("@/lib/providers/adapters/crowdin/crowdin-auth", () => ({
+  crowdinAuth: {
+    getUserConnection: (...args: unknown[]) => getCrowdinUserConnectionMock(...args),
+    resolveUserConnectionSecretMaterial: (...args: unknown[]) =>
+      resolveCrowdinUserConnectionSecretMaterialMock(...args),
+  },
+}));
 
 vi.mock("@/lib/providers/adapters/crowdin/crowdin-api", async (importOriginal) => {
   const actual =
@@ -73,6 +85,13 @@ const crowdinCredential = {
   updatedAt: new Date("2026-01-01T00:00:00.000Z"),
 };
 
+const crowdinOAuthCredential = {
+  ...crowdinCredential,
+  id: "credential-crowdin-oauth",
+  authMode: "oauth",
+  maskedSecretSuffix: "auth",
+};
+
 function stubCrowdinProjects(
   projects: Array<{
     id: number;
@@ -103,6 +122,8 @@ describe("listTmsProviderLiveGlossariesPage", () => {
   beforeEach(() => {
     getActiveOrganizationExternalTmsProviderCredentialRowMock.mockResolvedValue(crowdinCredential);
     resolveExternalTmsSecretMaterialMock.mockResolvedValue("crowdin-token");
+    getCrowdinUserConnectionMock.mockReset();
+    resolveCrowdinUserConnectionSecretMaterialMock.mockReset();
   });
 
   afterEach(() => {
@@ -184,6 +205,68 @@ describe("listTmsProviderLiveGlossariesPage", () => {
     await expect(promise).rejects.toMatchObject({
       code: "no_active_tms_provider",
     });
+  });
+
+  it("resolves Crowdin OAuth secrets through the actor user connection", async () => {
+    getActiveOrganizationExternalTmsProviderCredentialRowMock.mockResolvedValue(
+      crowdinOAuthCredential,
+    );
+    getCrowdinUserConnectionMock.mockResolvedValue({
+      id: "crowdin-user-conn-1",
+      organizationId: "org-glossary-oauth",
+      userId: "user-oauth-1",
+    });
+    resolveCrowdinUserConnectionSecretMaterialMock.mockResolvedValue("crowdin-oauth-token");
+    stubCrowdinProjects([{ id: 100, name: "Website" }]);
+    const fetchGlossariesPage = vi
+      .spyOn(crowdinTmsProvider, "fetchGlossariesPage")
+      .mockResolvedValue({
+        glossaries: [],
+        offset: 0,
+        limit: 25,
+        hasMore: false,
+      });
+
+    await listTmsProviderLiveGlossariesPage("org-glossary-oauth", {
+      actorUserId: "user-oauth-1",
+      limit: 25,
+      offset: 0,
+    });
+
+    expect(getCrowdinUserConnectionMock).toHaveBeenCalledWith({
+      organizationId: "org-glossary-oauth",
+      userId: "user-oauth-1",
+    });
+    expect(resolveCrowdinUserConnectionSecretMaterialMock).toHaveBeenCalledWith({
+      connection: expect.objectContaining({ id: "crowdin-user-conn-1" }),
+      authMode: "oauth",
+    });
+    expect(resolveExternalTmsSecretMaterialMock).not.toHaveBeenCalled();
+    expect(fetchGlossariesPage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        secretMaterial: "crowdin-oauth-token",
+      }),
+    );
+  });
+
+  it("fails when Crowdin OAuth has an actor but no user connection", async () => {
+    getActiveOrganizationExternalTmsProviderCredentialRowMock.mockResolvedValue(
+      crowdinOAuthCredential,
+    );
+    getCrowdinUserConnectionMock.mockResolvedValue(null);
+
+    const promise = listTmsProviderLiveGlossariesPage("org-glossary-oauth-missing", {
+      actorUserId: "user-oauth-missing",
+    });
+
+    await expect(promise).rejects.toBeInstanceOf(TmsProviderLiveError);
+    await expect(promise).rejects.toMatchObject({
+      code: "crowdin_user_connection_required",
+      message: "Connect your Crowdin account before using Crowdin.",
+    });
+
+    expect(resolveExternalTmsSecretMaterialMock).not.toHaveBeenCalled();
+    expect(resolveCrowdinUserConnectionSecretMaterialMock).not.toHaveBeenCalled();
   });
 });
 

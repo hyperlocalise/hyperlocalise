@@ -165,6 +165,75 @@ describe("project CAT behavior routes", () => {
     });
   });
 
+  it("previews zero impact when no duplicate source strings exist", async () => {
+    const { identity, organization, project } = await projectFixture.createStoredProjectFixture();
+    const headers = await projectFixture.authHeadersFor(identity);
+    await db.insert(schema.projectTranslationKeys).values([
+      {
+        organizationId: organization.id,
+        projectId: project.id,
+        key: "unique-a",
+        sourceText: "Hello",
+        normalizedSourceText: "hello",
+      },
+      {
+        organizationId: organization.id,
+        projectId: project.id,
+        key: "unique-b",
+        sourceText: "World",
+        normalizedSourceText: "world",
+      },
+    ]);
+
+    const preview = await client.api.orgs[":organizationSlug"].projects[":projectId"][
+      "cat-behavior"
+    ].preview.$get(
+      { param: { organizationSlug: identity.organization.slug!, projectId: project.id } },
+      { headers },
+    );
+
+    expect(preview.status).toBe(200);
+    await expect(preview.json()).resolves.toEqual({
+      preview: { affectedOccurrences: 0, groups: 0 },
+    });
+  });
+
+  it("does not bump the grouping revision when the policy value is unchanged", async () => {
+    const { identity, project } = await projectFixture.createStoredProjectFixture();
+    const headers = await projectFixture.authHeadersFor(identity);
+
+    const enable = await client.api.orgs[":organizationSlug"].projects[":projectId"][
+      "cat-behavior"
+    ].$patch(
+      {
+        param: { organizationSlug: identity.organization.slug!, projectId: project.id },
+        json: { automaticallyGroupIdenticalStrings: true },
+      },
+      { headers },
+    );
+    expect(enable.status).toBe(200);
+
+    const noop = await client.api.orgs[":organizationSlug"].projects[":projectId"][
+      "cat-behavior"
+    ].$patch(
+      {
+        param: { organizationSlug: identity.organization.slug!, projectId: project.id },
+        json: { automaticallyGroupIdenticalStrings: true },
+      },
+      { headers },
+    );
+
+    expect(noop.status).toBe(200);
+    await expect(noop.json()).resolves.toMatchObject({
+      catBehavior: { automaticallyGroupIdenticalStrings: true, groupingRevision: 1 },
+    });
+    const [stored] = await db
+      .select()
+      .from(schema.projects)
+      .where(eq(schema.projects.id, project.id));
+    expect(stored?.catGroupingRevision).toBe(1);
+  });
+
   it("forbids translators from previewing or changing CAT policy", async () => {
     const manager = projectFixture.createWorkosIdentityWithRole("admin");
     await projectFixture.authHeadersFor(manager);
