@@ -842,6 +842,7 @@ export function GlossaryDetailPageContent({
   const [newTermDraft, setNewTermDraft] = useState<TermDraft>(emptyTermDraft);
   const [creatingTermDrafts, setCreatingTermDrafts] = useState<CreatingTermDraft[]>([]);
   const [termDrafts, setTermDrafts] = useState<Record<string, TermDraft>>({});
+  const [deletedTermIds, setDeletedTermIds] = useState<Set<string>>(new Set());
   const [expandedTermIds, setExpandedTermIds] = useState<Set<string>>(new Set());
   const [expandedCreatingTermIds, setExpandedCreatingTermIds] = useState<Set<string>>(new Set());
   const [termToDeleteId, setTermToDeleteId] = useState<string | null>(null);
@@ -947,6 +948,7 @@ export function GlossaryDetailPageContent({
     if (conceptId === "new") {
       setConceptDraft(emptyConceptDraft);
       setTermDrafts({});
+      setDeletedTermIds(new Set());
       setCreatingTermDrafts(
         sourceLanguage.locale
           ? [createCreatingTermDraft(sourceLanguage.locale, `new-source-${sourceLanguage.locale}`)]
@@ -967,6 +969,7 @@ export function GlossaryDetailPageContent({
           selectedConcept.terms.map((term) => [term.id, termDraftFromRecord(term)]),
         ),
       );
+      setDeletedTermIds(new Set());
       setNewTermLocale(null);
       setNewTermDraft(emptyTermDraft);
       setCreatingTermDrafts([]);
@@ -979,15 +982,17 @@ export function GlossaryDetailPageContent({
   const conceptTermCandidates = isCreatingConcept
     ? creatingTermDrafts
     : [
-        ...(selectedConcept?.terms ?? []).map((term) => {
-          const draft = termDrafts[term.id] ?? termDraftFromRecord(term);
-          return {
-            id: term.id,
-            locale: term.locale,
-            term: draft.term,
-            status: draft.status,
-          };
-        }),
+        ...(selectedConcept?.terms ?? [])
+          .filter((term) => !deletedTermIds.has(term.id))
+          .map((term) => {
+            const draft = termDrafts[term.id] ?? termDraftFromRecord(term);
+            return {
+              id: term.id,
+              locale: term.locale,
+              term: draft.term,
+              status: draft.status,
+            };
+          }),
         ...(newTermLocale
           ? [
               {
@@ -1013,6 +1018,20 @@ export function GlossaryDetailPageContent({
       const draft = current[termId];
       return draft ? { ...current, [termId]: { ...draft, ...patch } } : current;
     });
+  };
+
+  const markTermForDeletion = (termId: string) => {
+    setDeletedTermIds((current) => {
+      const next = new Set(current);
+      next.add(termId);
+      return next;
+    });
+    setExpandedTermIds((current) => {
+      const next = new Set(current);
+      next.delete(termId);
+      return next;
+    });
+    setTermToDeleteId(null);
   };
 
   const invalidateConcepts = () =>
@@ -1069,23 +1088,25 @@ export function GlossaryDetailPageContent({
       } else {
         if (!selectedConceptId) throw new Error(intl.formatMessage(messages.saveConceptFailed));
         const terms: UpsertGlossaryConceptTermBody[] = selectedConcept
-          ? selectedConcept.terms.map((term) => {
-              const termDraft = termDrafts[term.id] ?? termDraftFromRecord(term);
-              return {
-                id: term.id,
-                locale: term.locale,
-                term: termDraft.term,
-                partOfSpeech: normalizePartOfSpeech(termDraft.partOfSpeech),
-                gender: termDraft.gender as UpsertGlossaryConceptTermBody["gender"],
-                termType: termDraft.termType as UpsertGlossaryConceptTermBody["termType"],
-                status: termDraft.status,
-                description: termDraft.description,
-                note: termDraft.note,
-                url: termDraft.url,
-                caseSensitive: term.caseSensitive,
-                forbidden: term.forbidden,
-              };
-            })
+          ? selectedConcept.terms
+              .filter((term) => !deletedTermIds.has(term.id))
+              .map((term) => {
+                const termDraft = termDrafts[term.id] ?? termDraftFromRecord(term);
+                return {
+                  id: term.id,
+                  locale: term.locale,
+                  term: termDraft.term,
+                  partOfSpeech: normalizePartOfSpeech(termDraft.partOfSpeech),
+                  gender: termDraft.gender as UpsertGlossaryConceptTermBody["gender"],
+                  termType: termDraft.termType as UpsertGlossaryConceptTermBody["termType"],
+                  status: termDraft.status,
+                  description: termDraft.description,
+                  note: termDraft.note,
+                  url: termDraft.url,
+                  caseSensitive: term.caseSensitive,
+                  forbidden: term.forbidden,
+                };
+              })
           : [];
         if (newTermLocale && newTermDraft.term.trim()) {
           terms.push({
@@ -1157,26 +1178,6 @@ export function GlossaryDetailPageContent({
       if (conceptPageMode) router.push(glossaryHref);
       else setSelectedConceptId(null);
       toast.success(intl.formatMessage(messages.conceptDeleted));
-    },
-    onError: (error) => toast.error(error.message),
-  });
-  const deleteTerm = useMutation({
-    mutationFn: async (termId: string) => {
-      if (!selectedConceptId) return;
-      const response = await apiClient.api.orgs[":organizationSlug"].glossaries[
-        ":glossaryId"
-      ].concepts[":conceptId"].terms[":termId"].$delete({
-        param: { organizationSlug, glossaryId, conceptId: selectedConceptId, termId },
-      });
-      if (!response.ok)
-        throw new Error(
-          await readApiError(response, intl.formatMessage(messages.deleteTermFailed)),
-        );
-    },
-    onSuccess: async () => {
-      await invalidateConcepts();
-      setTermToDeleteId(null);
-      toast.success(intl.formatMessage(messages.termDeletedFromConcept));
     },
     onError: (error) => toast.error(error.message),
   });
@@ -1313,6 +1314,7 @@ export function GlossaryDetailPageContent({
   const normalizedLanguageFilter = languageFilter.trim().toLowerCase();
   const availableTermLocales = availableConceptTermLocales();
   const termGroups = (selected?.terms ?? [])
+    .filter((term) => !deletedTermIds.has(term.id))
     .filter(
       (term) =>
         !normalizedLanguageFilter ||
@@ -1352,12 +1354,14 @@ export function GlossaryDetailPageContent({
     : selectedConcept
       ? !areConceptDraftsEqual(conceptDraft, conceptDraftFromRecord(selectedConcept))
       : false;
-  const termsAreDirty = Boolean(
-    selectedConcept?.terms.some((term) => {
-      const draft = termDrafts[term.id];
-      return draft && !areTermDraftsEqual(draft, termDraftFromRecord(term));
-    }),
-  );
+  const termsAreDirty =
+    deletedTermIds.size > 0 ||
+    Boolean(
+      selectedConcept?.terms.some((term) => {
+        const draft = termDrafts[term.id];
+        return draft && !areTermDraftsEqual(draft, termDraftFromRecord(term));
+      }),
+    );
   const newTermIsDirty = Boolean(newTermLocale && newTermDraft.term.trim());
   const isDirty =
     conceptIsDirty || termsAreDirty || newTermIsDirty || creatingTermDrafts.length > 0;
@@ -2842,9 +2846,8 @@ export function GlossaryDetailPageContent({
             </AlertDialogCancel>
             <AlertDialogAction
               variant="destructive"
-              disabled={deleteTerm.isPending}
               onClick={() => {
-                if (termToDeleteId) deleteTerm.mutate(termToDeleteId);
+                if (termToDeleteId) markTermForDeletion(termToDeleteId);
               }}
             >
               <FormattedMessage {...messages.deleteTerm} />

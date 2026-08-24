@@ -11,7 +11,7 @@
  * Version 2.0 or later.
  */
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
-import { expect, userEvent, waitFor } from "storybook/test";
+import { expect, fn, userEvent, waitFor, within } from "storybook/test";
 
 import type { GlossaryConceptRecord, GlossaryRecord } from "@/api/routes/glossary/glossary.schema";
 
@@ -110,6 +110,8 @@ const conceptFixture: GlossaryConceptRecord = {
 };
 
 const conceptsFixture = [conceptFixture];
+const onConceptUpdate = fn();
+const onTermDelete = fn();
 
 const meta = {
   title: "App/Glossaries/Detail",
@@ -130,6 +132,8 @@ type Story = StoryObj<typeof meta>;
 const detailHandlers = createGlossaryDetailMswHandlers({
   glossary: glossaryFixture,
   concepts: conceptsFixture,
+  onConceptUpdate,
+  onTermDelete,
 });
 
 export const ConceptList: Story = {
@@ -209,6 +213,23 @@ export const ConceptDetail: Story = {
     await expect(canvas.getByRole("button", { name: "Save" })).toBeEnabled();
     await waitFor(() => {
       void expect(termRow?.querySelector(".bg-emerald-500")).toBeTruthy();
+    });
+
+    const expandTermButton = termRow?.querySelector<HTMLButtonElement>(
+      'button[aria-label="Expand term details"]',
+    );
+    if (!expandTermButton) throw new Error("Term details button not found");
+    await userEvent.click(expandTermButton);
+    await userEvent.click(canvas.getByRole("button", { name: "Delete term" }));
+    const deleteDialog = canvas.getByRole("dialog", { name: "Delete this term?" });
+    await userEvent.click(within(deleteDialog).getByRole("button", { name: "Delete term" }));
+    await expect(canvas.queryByDisplayValue("Đại lý updated")).not.toBeInTheDocument();
+    await expect(onTermDelete).not.toHaveBeenCalled();
+    await expect(canvas.getByRole("button", { name: "Save" })).toBeEnabled();
+    await expect(onConceptUpdate).not.toHaveBeenCalled();
+    await userEvent.click(canvas.getByRole("button", { name: "Save" }));
+    await waitFor(() => {
+      void expect(onConceptUpdate).toHaveBeenCalledWith(["term-en-1"]);
     });
   },
 };

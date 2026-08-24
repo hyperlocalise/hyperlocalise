@@ -60,11 +60,6 @@ export const glossaryDetailPageContentMessages = defineMessages({
     id: "iCizofrwwK",
     description: "Fallback error when saving a glossary term fails",
   },
-  deleteTermFailed: {
-    defaultMessage: "Unable to delete term",
-    id: "gN0y8UhzTR",
-    description: "Fallback error when deleting a glossary term fails",
-  },
   importTermsFailed: {
     defaultMessage: "Unable to import terms",
     id: "ujii3FwBE5",
@@ -486,8 +481,8 @@ export const glossaryDetailPageContentMessages = defineMessages({
     description: "Title of the term deletion confirmation dialog",
   },
   confirmDeleteTermDescription: {
-    defaultMessage: "This term will be removed from the concept and cannot be restored.",
-    id: "tQnEG79lWB",
+    defaultMessage: "This term will be removed from the concept when you save.",
+    id: "WhmV5YamvS",
     description: "Description of the term deletion confirmation dialog",
   },
   noConcepts: {
@@ -524,10 +519,5 @@ export const glossaryDetailPageContentMessages = defineMessages({
     defaultMessage: "Term saved",
     id: "TmON06MWzq",
     description: "Toast after a concept term is saved",
-  },
-  termDeletedFromConcept: {
-    defaultMessage: "Term deleted",
-    id: "ECdzHS9iJQ",
-    description: "Toast after a concept term is deleted",
   },
 });
