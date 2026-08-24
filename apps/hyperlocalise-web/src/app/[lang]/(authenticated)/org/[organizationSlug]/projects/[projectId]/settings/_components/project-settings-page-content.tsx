@@ -463,13 +463,16 @@ export function ProjectSettingsPageContent({
         ) : null}
       </form>
 
-      <div className="mt-5">
-        <ProjectCatBehaviorSettings
-          organizationSlug={organizationSlug}
-          projectId={projectId}
-          canManage={canManageCatBehavior}
-        />
-      </div>
+      {/* Live provider projects have no persisted project row for CAT policy. */}
+      {!isEncodedProviderProjectId(project.id) ? (
+        <div className="mt-5">
+          <ProjectCatBehaviorSettings
+            organizationSlug={organizationSlug}
+            projectId={projectId}
+            canManage={canManageCatBehavior}
+          />
+        </div>
+      ) : null}
 
       <div className="mt-5">
         <ProjectIssueColumnsSettings organizationSlug={organizationSlug} projectId={projectId} />
