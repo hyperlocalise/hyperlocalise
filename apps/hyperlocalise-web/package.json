@@ -36,7 +36,7 @@
     "@formatjs/intl-localematcher": "^0.8.10",
     "@hookform/resolvers": "5.9.1",
     "@hugeicons/core-free-icons": "4.3.0",
-    "@hugeicons/react": "1.1.9",
+    "@hugeicons/react": "1.1.10",
     "@inno76/univer-import-export": "^0.2.3",
     "@modelcontextprotocol/sdk": "1.30.0",
     "@next/third-parties": "^16.3.0",
