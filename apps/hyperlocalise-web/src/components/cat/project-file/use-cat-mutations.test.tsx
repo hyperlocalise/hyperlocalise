@@ -15,6 +15,7 @@
 import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 import { act, renderHook, waitFor } from "@testing-library/react";
 
+import type { ProjectFileCatQueueFile } from "@/api/routes/project/project.schema";
 import {
   catApiTestContext,
   createCatComment,
@@ -33,6 +34,7 @@ const {
   catCommentResolvePatchMock,
   catStringsHiddenPostMock,
   catStringsLockedPostMock,
+  catGroupOccurrencesGetMock,
   invalidateSegmentTargetMock,
   syncSegmentTargetAfterSaveMock,
   invalidateSegmentCommentsMock,
@@ -42,6 +44,7 @@ const {
   catCommentResolvePatchMock: vi.fn(),
   catStringsHiddenPostMock: vi.fn(),
   catStringsLockedPostMock: vi.fn(),
+  catGroupOccurrencesGetMock: vi.fn(),
   invalidateSegmentTargetMock: vi.fn(),
   syncSegmentTargetAfterSaveMock: vi.fn(),
   invalidateSegmentCommentsMock: vi.fn(),
@@ -76,6 +79,13 @@ vi.mock("@/lib/api-client-instance", () => ({
                         },
                       },
                     },
+                    groups: {
+                      ":groupId": {
+                        occurrences: {
+                          $get: (...args: unknown[]) => catGroupOccurrencesGetMock(...args),
+                        },
+                      },
+                    },
                   },
                 },
               },
@@ -103,7 +113,7 @@ const onTranslationSaved = vi.fn();
 
 syncSegmentTargetAfterSaveMock.mockResolvedValue(undefined);
 
-function renderCatMutations(catFile = createCatFileResponse().catFile) {
+function renderCatMutations(catFile: ProjectFileCatQueueFile = createCatFileResponse().catFile) {
   return renderHook(
     () =>
       useCatMutations({
@@ -156,6 +166,91 @@ describe("useCatMutations", () => {
       }),
       translation,
     );
+  });
+
+  it("saves grouped rows to occurrence translation keys instead of the group id", async () => {
+    const translation = createCatTranslation({ isApproved: true });
+    const groupId = "g".repeat(64);
+    const sourceTextHash = "h".repeat(64);
+    catGroupOccurrencesGetMock.mockResolvedValue(
+      jsonResponse({
+        groupOccurrences: {
+          groupId,
+          occurrences: [
+            {
+              translationKeyId: "key-a",
+              key: "actions.save",
+              sourcePath: "locales/en.json",
+              context: null,
+              comments: [],
+              isLocked: false,
+              target: null,
+              reviewState: null,
+            },
+            {
+              translationKeyId: "key-b",
+              key: "common.save",
+              sourcePath: "shared/en.json",
+              context: null,
+              comments: [],
+              isLocked: false,
+              target: null,
+              reviewState: null,
+            },
+          ],
+        },
+      }),
+    );
+    catTranslationsPostMock.mockResolvedValue(jsonResponse({ translation }));
+
+    const { result } = renderCatMutations({
+      ...createCatFileResponse().catFile,
+      provider: null,
+      segments: [
+        {
+          kind: "group",
+          externalStringId: groupId,
+          groupId,
+          sourceTextHash,
+          translationKeyId: null,
+          projectOccurrenceCount: 2,
+          fileOccurrenceCount: 2,
+          key: "save",
+          sourceText: "Save",
+          context: null,
+          type: null,
+        },
+      ],
+    });
+
+    await act(async () => {
+      await result.current.saveTranslation({
+        externalStringId: groupId,
+        text: "Enregistrer",
+        approve: true,
+      });
+    });
+
+    expect(catTranslationsPostMock).toHaveBeenCalledTimes(2);
+    expect(catTranslationsPostMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        json: expect.objectContaining({
+          externalStringId: "key-a",
+          sourcePath: "locales/en.json",
+          text: "Enregistrer",
+        }),
+      }),
+    );
+    expect(catTranslationsPostMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        json: expect.objectContaining({
+          externalStringId: "key-b",
+          sourcePath: "shared/en.json",
+          text: "Enregistrer",
+        }),
+      }),
+    );
+    expect(onTranslationSaved).toHaveBeenCalledWith(groupId, "Enregistrer", true);
   });
 
   it("surfaces API errors when saving translations fails", async () => {

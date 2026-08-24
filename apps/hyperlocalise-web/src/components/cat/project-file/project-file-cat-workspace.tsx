@@ -479,10 +479,12 @@ export function ProjectFileCatWorkspace({
         ? segmentIds.filter((segmentId) => {
             const segment = catFile.segments.find((item) => item.externalStringId === segmentId);
             return (
+              segment?.kind === "group" ||
               resolveCatLinkedIssueTranslationKeyId({
                 isNativeProject: true,
                 segmentId,
                 contentKind: segment?.contentKind,
+                kind: segment?.kind,
               }) != null
             );
           })
@@ -530,6 +532,7 @@ export function ProjectFileCatWorkspace({
         isNativeProject,
         segmentId,
         contentKind: segment.contentKind,
+        kind: segment.kind,
       });
       setLinkedIssuesSegment({
         segmentId,

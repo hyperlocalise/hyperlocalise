@@ -30,6 +30,11 @@ export const projectFileCatApiMessages = defineMessages({
     id: "4MUAkFDjce",
     description: "Fallback error when loading a CAT segment target translation fails",
   },
+  failedToLoadGroupOccurrences: {
+    defaultMessage: "Failed to load grouped string occurrences",
+    id: "n3Q8kR2wLm",
+    description: "Fallback error when loading native CAT group occurrences fails",
+  },
   failedToExportQueue: {
     defaultMessage: "Failed to download filtered view",
     id: "0tcV3U/r5g",

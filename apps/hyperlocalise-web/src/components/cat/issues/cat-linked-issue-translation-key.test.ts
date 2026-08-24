@@ -72,6 +72,17 @@ describe("resolveCatLinkedIssueTranslationKeyId", () => {
     ).toBeNull();
   });
 
+  it("returns null for synthetic exact-source groups", () => {
+    expect(
+      resolveCatLinkedIssueTranslationKeyId({
+        isNativeProject: true,
+        segmentId: "a".repeat(64),
+        contentKind: "text",
+        kind: "group",
+      }),
+    ).toBeNull();
+  });
+
   it("returns null when the segment id is empty", () => {
     expect(
       resolveCatLinkedIssueTranslationKeyId({

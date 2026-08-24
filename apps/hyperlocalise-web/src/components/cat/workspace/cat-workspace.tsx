@@ -247,11 +247,16 @@ export const CatWorkspaceView = observer(function CatWorkspaceView({
   const isNativeProject = shell.fileContext.providerKind === null;
   const showNativeIssues = nativeIssuesEnabled && isNativeProject;
   const issueTargetLocale = showNativeIssues ? shell.fileContext.targetLocale : null;
+  const editorQueueRow = queueSegments.find((segment) => segment.id === editorSegment.id);
+  const intelligenceQueueRow = intelligenceSegment
+    ? queueSegments.find((segment) => segment.id === intelligenceSegment.id)
+    : undefined;
   const editorTranslationKeyId = showNativeIssues
     ? resolveCatLinkedIssueTranslationKeyId({
         isNativeProject: true,
         segmentId: editorSegment.id,
         contentKind: editorSegment.contentKind,
+        kind: editorQueueRow?.kind,
       })
     : null;
   const editorIssueStringLink =
@@ -270,6 +275,7 @@ export const CatWorkspaceView = observer(function CatWorkspaceView({
           isNativeProject: true,
           segmentId: intelligenceSegment.id,
           contentKind: intelligenceSegment.contentKind,
+          kind: intelligenceQueueRow?.kind,
         })
       : null;
   const intelligenceIssueStringLink =

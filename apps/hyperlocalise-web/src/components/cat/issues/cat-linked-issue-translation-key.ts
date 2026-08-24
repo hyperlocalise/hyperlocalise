@@ -33,8 +33,13 @@ export function resolveCatLinkedIssueTranslationKeyId(input: {
   isNativeProject: boolean;
   segmentId: string;
   contentKind: CatSegment["contentKind"];
+  kind?: "segment" | "group";
 }): string | null {
   if (!input.isNativeProject) {
+    return null;
+  }
+
+  if (input.kind === "group") {
     return null;
   }
 

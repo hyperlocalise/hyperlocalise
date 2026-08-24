@@ -18,11 +18,18 @@ import { observer } from "mobx-react-lite";
 import type { ProjectFileCatQueueFile } from "@/api/routes/project/project.schema";
 
 import { resolveCatFileIdentity } from "@/components/cat/project-file/project-file-cat-mapper";
+import {
+  flattenGroupOccurrenceComments,
+  representativeTargetFromOccurrences,
+  useCatGroupOccurrences,
+  useCatGroupOccurrencesList,
+} from "@/components/cat/project-file/use-cat-group-occurrences";
 import { useCatSegmentComments } from "@/components/cat/project-file/use-cat-segment-comments";
 import {
   useCatSegmentTarget,
   useCatSegmentTargets,
 } from "@/components/cat/project-file/use-cat-segment-target";
+import { isCatQueueGroup } from "@/lib/projects/cat/cat-queue-row";
 
 import { useCatWorkspace } from "./cat-workspace-context";
 
@@ -48,6 +55,7 @@ function useCatSegmentLazySync(input: {
   const queueSegment = segmentId
     ? input.catFile?.segments.find((segment) => segment.externalStringId === segmentId)
     : null;
+  const queueGroup = queueSegment && isCatQueueGroup(queueSegment) ? queueSegment : null;
 
   const { externalResourceId: resolvedExternalResourceId, resourceType: resolvedResourceType } =
     resolveCatFileIdentity({
@@ -57,6 +65,8 @@ function useCatSegmentLazySync(input: {
     });
 
   const resolvedSourcePath = queueSegment?.sourcePath?.trim() || input.sourcePath;
+  const segmentSyncEnabled =
+    input.enabled && Boolean(input.catFile && segmentId) && queueGroup == null;
 
   const segmentTargetQuery = useCatSegmentTarget({
     organizationSlug: input.organizationSlug,
@@ -66,7 +76,7 @@ function useCatSegmentLazySync(input: {
     resourceType: resolvedResourceType,
     targetLocale: input.targetLocale,
     externalStringId: segmentId,
-    enabled: input.enabled && Boolean(input.catFile && segmentId),
+    enabled: segmentSyncEnabled,
   });
 
   const segmentCommentsQuery = useCatSegmentComments({
@@ -77,33 +87,62 @@ function useCatSegmentLazySync(input: {
     resourceType: resolvedResourceType,
     targetLocale: input.targetLocale,
     externalStringId: segmentId,
-    enabled: input.enabled && input.syncComments && Boolean(input.catFile && segmentId),
+    enabled: segmentSyncEnabled && input.syncComments,
+  });
+
+  const groupOccurrencesQuery = useCatGroupOccurrences({
+    organizationSlug: input.organizationSlug,
+    projectId: input.projectId,
+    targetLocale: input.targetLocale,
+    groupId: queueGroup?.groupId ?? null,
+    sourceTextHash: queueGroup?.sourceTextHash ?? null,
+    enabled: input.enabled && Boolean(input.catFile && queueGroup),
   });
 
   useEffect(() => {
-    if (!segmentId || segmentTargetQuery.data === undefined) {
+    if (!segmentId || queueGroup) {
+      return;
+    }
+    if (segmentTargetQuery.data === undefined) {
       return;
     }
 
     store.applySegmentTarget(segmentId, segmentTargetQuery.data);
-  }, [segmentId, segmentTargetQuery.data, store]);
+  }, [queueGroup, segmentId, segmentTargetQuery.data, store]);
 
   useEffect(() => {
-    if (!segmentId || !segmentCommentsQuery.data || !input.syncComments) {
+    if (!segmentId || !queueGroup || groupOccurrencesQuery.data === undefined) {
+      return;
+    }
+
+    store.applySegmentTarget(segmentId, representativeTargetFromOccurrences(groupOccurrencesQuery.data));
+    if (input.syncComments) {
+      store.applySegmentComments(segmentId, flattenGroupOccurrenceComments(groupOccurrencesQuery.data));
+    }
+  }, [groupOccurrencesQuery.data, input.syncComments, queueGroup, segmentId, store]);
+
+  useEffect(() => {
+    if (!segmentId || !segmentCommentsQuery.data || !input.syncComments || queueGroup) {
       return;
     }
 
     store.applySegmentComments(segmentId, segmentCommentsQuery.data);
-  }, [input.syncComments, segmentCommentsQuery.data, segmentId, store]);
+  }, [input.syncComments, queueGroup, segmentCommentsQuery.data, segmentId, store]);
 
   useEffect(() => {
     if (!input.syncCommentsLoading || !segmentId) {
       return;
     }
 
-    store.setCommentsLoading(segmentCommentsQuery.isFetching && !segmentCommentsQuery.data);
+    const isFetching = queueGroup
+      ? groupOccurrencesQuery.isFetching && !groupOccurrencesQuery.data
+      : segmentCommentsQuery.isFetching && !segmentCommentsQuery.data;
+    store.setCommentsLoading(isFetching);
   }, [
+    groupOccurrencesQuery.data,
+    groupOccurrencesQuery.isFetching,
     input.syncCommentsLoading,
+    queueGroup,
     segmentCommentsQuery.data,
     segmentCommentsQuery.isFetching,
     segmentId,
@@ -115,28 +154,37 @@ function useCatSegmentLazySync(input: {
       return;
     }
 
+    const query = queueGroup ? groupOccurrencesQuery : segmentTargetQuery;
     const isLoading =
-      segmentTargetQuery.isFetching &&
-      segmentTargetQuery.data === undefined &&
+      query.isFetching &&
+      query.data === undefined &&
       !(segmentId && store.drafts.get(segmentId)?.targetText.trim());
 
     store.setSegmentTargetLoading(isLoading);
   }, [
+    groupOccurrencesQuery.data,
+    groupOccurrencesQuery.isFetching,
     input.syncTargetLoading,
+    queueGroup,
     segmentId,
     segmentTargetQuery.data,
     segmentTargetQuery.isFetching,
     store,
   ]);
 
+  const isTargetFetching = queueGroup
+    ? groupOccurrencesQuery.isFetching && groupOccurrencesQuery.data === undefined
+    : segmentTargetQuery.isFetching && segmentTargetQuery.data === undefined;
+
   return {
     segmentId,
     isTargetLoading:
       Boolean(segmentId) &&
-      segmentTargetQuery.isFetching &&
-      segmentTargetQuery.data === undefined &&
+      isTargetFetching &&
       !(segmentId && store.drafts.get(segmentId)?.targetText.trim()),
-    isCommentsFetching: segmentCommentsQuery.isFetching,
+    isCommentsFetching: queueGroup
+      ? groupOccurrencesQuery.isFetching
+      : segmentCommentsQuery.isFetching,
     comments: segmentId ? store.segmentComments.get(segmentId) : undefined,
   };
 }
@@ -176,16 +224,21 @@ function useCatLoadedQueueTargetsSync(input: {
 
   const targetSegments = useMemo(
     () =>
-      segmentIds.map((externalStringId) => {
+      segmentIds.flatMap((externalStringId) => {
         const queueSegment = input.catFile?.segments.find(
           (segment) => segment.externalStringId === externalStringId,
         );
-        return {
-          externalStringId,
-          sourcePath: queueSegment?.sourcePath?.trim() || input.sourcePath,
-          externalResourceId: queueSegment?.externalResourceId ?? resolvedExternalResourceId,
-          resourceType: queueSegment?.resourceType ?? resolvedResourceType,
-        };
+        if (queueSegment && isCatQueueGroup(queueSegment)) {
+          return [];
+        }
+        return [
+          {
+            externalStringId,
+            sourcePath: queueSegment?.sourcePath?.trim() || input.sourcePath,
+            externalResourceId: queueSegment?.externalResourceId ?? resolvedExternalResourceId,
+            resourceType: queueSegment?.resourceType ?? resolvedResourceType,
+          },
+        ];
       }),
     [
       input.catFile?.segments,
@@ -194,6 +247,18 @@ function useCatLoadedQueueTargetsSync(input: {
       resolvedResourceType,
       segmentIds,
     ],
+  );
+  const visibleGroups = useMemo(
+    () =>
+      segmentIds.flatMap((externalStringId) => {
+        const queueSegment = input.catFile?.segments.find(
+          (segment) => segment.externalStringId === externalStringId,
+        );
+        return queueSegment && isCatQueueGroup(queueSegment)
+          ? [{ groupId: queueSegment.groupId, sourceTextHash: queueSegment.sourceTextHash }]
+          : [];
+      }),
+    [input.catFile?.segments, segmentIds],
   );
 
   const targetQueries = useCatSegmentTargets({
@@ -206,28 +271,52 @@ function useCatLoadedQueueTargetsSync(input: {
     segments: targetSegments,
     enabled: targetsEnabled,
   });
+  const groupQueries = useCatGroupOccurrencesList({
+    organizationSlug: input.organizationSlug,
+    projectId: input.projectId,
+    targetLocale: input.targetLocale,
+    groups: visibleGroups,
+    enabled: targetsEnabled,
+  });
 
   // useQueries() returns a new array every render. Depend on result fingerprints
   // instead so applying targets / loading ids does not form a MobX update loop.
   const targetQueriesRef = useRef(targetQueries);
   targetQueriesRef.current = targetQueries;
+  const groupQueriesRef = useRef(groupQueries);
+  groupQueriesRef.current = groupQueries;
   const targetDataSyncKey = targetQueries
     .map((query) => `${query.dataUpdatedAt}:${query.status}`)
     .join("|");
-  const targetLoadingSyncKey = targetQueries
-    .map((query) => `${query.isFetching}:${query.data === undefined}`)
+  const groupDataSyncKey = groupQueries
+    .map((query) => `${query.dataUpdatedAt}:${query.status}`)
     .join("|");
+  const targetLoadingSyncKey = [
+    ...targetQueries.map((query) => `${query.isFetching}:${query.data === undefined}`),
+    ...groupQueries.map((query) => `${query.isFetching}:${query.data === undefined}`),
+  ].join("|");
 
   useEffect(() => {
     targetQueriesRef.current.forEach((query, index) => {
-      const segmentId = segmentIds[index];
+      const segmentId = targetSegments[index]?.externalStringId;
       if (!segmentId || query.data === undefined) {
         return;
       }
 
       store.applySegmentTarget(segmentId, query.data);
     });
-  }, [segmentIds, store, targetDataSyncKey]);
+  }, [store, targetDataSyncKey, targetSegments]);
+
+  useEffect(() => {
+    groupQueriesRef.current.forEach((query, index) => {
+      const group = visibleGroups[index];
+      if (!group || query.data === undefined) {
+        return;
+      }
+
+      store.applySegmentTarget(group.groupId, representativeTargetFromOccurrences(query.data));
+    });
+  }, [groupDataSyncKey, store, visibleGroups]);
 
   useEffect(() => {
     if (!targetsEnabled) {
@@ -238,13 +327,21 @@ function useCatLoadedQueueTargetsSync(input: {
     // Track fetch-in-flight only. Draft text is filtered in `loadingSegmentIds`
     // so typing during a fetch clears the skeleton without needing this effect
     // to re-run on draft changes.
-    const loadingIds = segmentIds.filter((_segmentId, index) => {
-      const query = targetQueriesRef.current[index];
-      return Boolean(query?.isFetching && query.data === undefined);
-    });
+    const loadingSegmentIds = targetSegments
+      .filter((_segment, index) => {
+        const query = targetQueriesRef.current[index];
+        return Boolean(query?.isFetching && query.data === undefined);
+      })
+      .map((segment) => segment.externalStringId);
+    const loadingGroupIds = visibleGroups
+      .filter((_group, index) => {
+        const query = groupQueriesRef.current[index];
+        return Boolean(query?.isFetching && query.data === undefined);
+      })
+      .map((group) => group.groupId);
 
-    store.setQueueTargetLoadingSegmentIds(loadingIds);
-  }, [segmentIds, store, targetLoadingSyncKey, targetsEnabled]);
+    store.setQueueTargetLoadingSegmentIds([...loadingSegmentIds, ...loadingGroupIds]);
+  }, [store, targetLoadingSyncKey, targetSegments, targetsEnabled, visibleGroups]);
 }
 
 export const CatWorkspaceLazySegmentSync = observer(function CatWorkspaceLazySegmentSync({

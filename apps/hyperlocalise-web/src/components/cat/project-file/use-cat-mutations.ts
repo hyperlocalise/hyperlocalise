@@ -19,22 +19,43 @@ import {
   maxCatLockedStringBatch,
   maxNativeCatHiddenStringBatch,
   type ProjectFileCatComment,
+  type ProjectFileCatGroup,
   type ProjectFileCatQueueFile,
   type ProjectFileCatTranslation,
 } from "@/api/routes/project/project.schema";
 import { readApiError } from "@/lib/api-error";
 import { apiClient } from "@/lib/api-client-instance";
+import { isCatQueueGroup } from "@/lib/projects/cat/cat-queue-row";
 
 import type { CatIssueType } from "@/components/cat/shared/types";
 
 import { requireProviderExternalResourceId } from "./project-file-cat-mapper";
 import { isCatAllFilesSourcePath } from "@/lib/projects/cat-all-files";
+import {
+  fetchProjectFileCatGroupOccurrences,
+  useInvalidateCatGroupOccurrences,
+} from "./use-cat-group-occurrences";
 import { useInvalidateCatSegmentComments } from "./use-cat-segment-comments";
 import {
   useInvalidateCatSegmentTarget,
   useSyncCatSegmentTargetAfterSave,
 } from "./use-cat-segment-target";
 import { useCatMutationsMessages } from "./use-cat-mutations.messages";
+
+type CatMutationTarget = {
+  externalStringId: string;
+  sourcePath: string;
+  externalResourceId?: string;
+  resourceType?: "file" | "key";
+  isLocked?: boolean;
+};
+
+function findCatQueueRow(
+  catFile: ProjectFileCatQueueFile | null | undefined,
+  externalStringId: string,
+) {
+  return catFile?.segments.find((entry) => entry.externalStringId === externalStringId);
+}
 
 function resolveCatMutationFileIdentity(
   input: {
@@ -44,9 +65,7 @@ function resolveCatMutationFileIdentity(
   externalStringId: string,
   intl: IntlShape,
 ) {
-  const segment = input.catFile?.segments.find(
-    (entry) => entry.externalStringId === externalStringId,
-  );
+  const segment = findCatQueueRow(input.catFile, externalStringId);
   const sourcePath =
     segment?.sourcePath?.trim() ||
     (isCatAllFilesSourcePath(input.sourcePath) ? "" : input.sourcePath);
@@ -63,6 +82,50 @@ function resolveCatMutationFileIdentity(
   const resourceType = segment?.resourceType ?? input.catFile?.provider?.resourceType;
 
   return { sourcePath, externalResourceId, resourceType };
+}
+
+async function resolveCatMutationTargets(
+  input: {
+    organizationSlug: string;
+    projectId: string;
+    sourcePath: string;
+    targetLocale: string;
+    catFile: ProjectFileCatQueueFile | null | undefined;
+  },
+  externalStringId: string,
+  intl: IntlShape,
+): Promise<{ queueGroup: ProjectFileCatGroup | null; targets: CatMutationTarget[] }> {
+  const segment = findCatQueueRow(input.catFile, externalStringId);
+  if (segment && isCatQueueGroup(segment)) {
+    const occurrences = await fetchProjectFileCatGroupOccurrences({
+      organizationSlug: input.organizationSlug,
+      projectId: input.projectId,
+      targetLocale: input.targetLocale,
+      groupId: segment.groupId,
+      sourceTextHash: segment.sourceTextHash,
+      intl,
+    });
+    return {
+      queueGroup: segment,
+      targets: occurrences.map((occurrence) => ({
+        externalStringId: occurrence.translationKeyId,
+        sourcePath: occurrence.sourcePath,
+        isLocked: occurrence.isLocked,
+      })),
+    };
+  }
+
+  const identity = resolveCatMutationFileIdentity(input, externalStringId, intl);
+  return {
+    queueGroup: null,
+    targets: [
+      {
+        externalStringId,
+        ...identity,
+        isLocked: segment?.isLocked,
+      },
+    ],
+  };
 }
 
 function chunkItems<T>(items: T[], size: number): T[][] {
@@ -86,6 +149,7 @@ export function useCatMutations(input: {
   const invalidateSegmentTarget = useInvalidateCatSegmentTarget();
   const syncSegmentTargetAfterSave = useSyncCatSegmentTargetAfterSave();
   const invalidateSegmentComments = useInvalidateCatSegmentComments();
+  const invalidateGroupOccurrences = useInvalidateCatGroupOccurrences();
 
   const saveMutation = useMutation({
     mutationFn: async (mutationInput: {
@@ -93,50 +157,47 @@ export function useCatMutations(input: {
       text: string;
       approve?: boolean;
     }) => {
-      const segment = input.catFile?.segments.find(
-        (entry) => entry.externalStringId === mutationInput.externalStringId,
-      );
-      // Hidden is informational (hidden-string ADRs). Only an explicit lock blocks saves.
-      if (segment?.isLocked) {
+      const { targets } = await resolveCatMutationTargets(input, mutationInput.externalStringId, intl);
+      const writableTargets = targets.filter((target) => !target.isLocked);
+      if (writableTargets.length === 0) {
         throw new Error(
           intl.formatMessage(useCatMutationsMessages.cannotEditLockedStringTranslation),
         );
       }
 
-      const { sourcePath, externalResourceId } = resolveCatMutationFileIdentity(
-        input,
-        mutationInput.externalStringId,
-        intl,
-      );
+      let translation: ProjectFileCatTranslation | null = null;
+      for (const target of writableTargets) {
+        const response = await apiClient.api.orgs[":organizationSlug"].projects[
+          ":projectId"
+        ].files.detail.cat.translations.$post({
+          param: {
+            organizationSlug: input.organizationSlug,
+            projectId: input.projectId,
+          },
+          json: {
+            sourcePath: target.sourcePath,
+            targetLocale: input.targetLocale,
+            externalStringId: target.externalStringId,
+            externalResourceId: target.externalResourceId,
+            text: mutationInput.text,
+            approve: mutationInput.approve,
+          },
+        });
 
-      const response = await apiClient.api.orgs[":organizationSlug"].projects[
-        ":projectId"
-      ].files.detail.cat.translations.$post({
-        param: {
-          organizationSlug: input.organizationSlug,
-          projectId: input.projectId,
-        },
-        json: {
-          sourcePath,
-          targetLocale: input.targetLocale,
-          externalStringId: mutationInput.externalStringId,
-          externalResourceId,
-          text: mutationInput.text,
-          approve: mutationInput.approve,
-        },
-      });
+        if (!response.ok) {
+          throw new Error(
+            await readApiError(
+              response,
+              intl.formatMessage(useCatMutationsMessages.failedToSaveTranslation),
+            ),
+          );
+        }
 
-      if (!response.ok) {
-        throw new Error(
-          await readApiError(
-            response,
-            intl.formatMessage(useCatMutationsMessages.failedToSaveTranslation),
-          ),
-        );
+        const body = (await response.json()) as { translation: ProjectFileCatTranslation };
+        translation = body.translation;
       }
 
-      const body = (await response.json()) as { translation: ProjectFileCatTranslation };
-      return body.translation;
+      return translation!;
     },
     onSuccess: async (translation, variables) => {
       input.onTranslationSaved?.(
@@ -144,25 +205,52 @@ export function useCatMutations(input: {
         variables.text,
         translation.isApproved,
       );
-      const { sourcePath, externalResourceId, resourceType } = resolveCatMutationFileIdentity(
+      const { queueGroup, targets } = await resolveCatMutationTargets(
         input,
         variables.externalStringId,
         intl,
       );
 
-      const segmentTargetInput = {
-        organizationSlug: input.organizationSlug,
-        projectId: input.projectId,
-        sourcePath,
-        externalResourceId,
-        resourceType,
-        targetLocale: input.targetLocale,
-        externalStringId: variables.externalStringId,
-      };
-
       await Promise.all([
         input.invalidateQueue(),
-        syncSegmentTargetAfterSave(segmentTargetInput, translation),
+        ...(queueGroup
+          ? [
+              invalidateGroupOccurrences({
+                organizationSlug: input.organizationSlug,
+                projectId: input.projectId,
+                targetLocale: input.targetLocale,
+                groupId: queueGroup.groupId,
+                sourceTextHash: queueGroup.sourceTextHash,
+              }),
+              ...targets.map((target) =>
+                syncSegmentTargetAfterSave(
+                  {
+                    organizationSlug: input.organizationSlug,
+                    projectId: input.projectId,
+                    sourcePath: target.sourcePath,
+                    externalResourceId: target.externalResourceId,
+                    resourceType: target.resourceType,
+                    targetLocale: input.targetLocale,
+                    externalStringId: target.externalStringId,
+                  },
+                  translation,
+                ),
+              ),
+            ]
+          : [
+              syncSegmentTargetAfterSave(
+                {
+                  organizationSlug: input.organizationSlug,
+                  projectId: input.projectId,
+                  sourcePath: targets[0]!.sourcePath,
+                  externalResourceId: targets[0]!.externalResourceId,
+                  resourceType: targets[0]!.resourceType,
+                  targetLocale: input.targetLocale,
+                  externalStringId: variables.externalStringId,
+                },
+                translation,
+              ),
+            ]),
       ]);
     },
   });
@@ -174,44 +262,48 @@ export function useCatMutations(input: {
       type?: "comment" | "issue";
       issueType?: CatIssueType;
     }) => {
-      const { sourcePath, externalResourceId } = resolveCatMutationFileIdentity(
-        input,
-        mutationInput.externalStringId,
-        intl,
-      );
-
-      const response = await apiClient.api.orgs[":organizationSlug"].projects[
-        ":projectId"
-      ].files.detail.cat.comments.$post({
-        param: {
-          organizationSlug: input.organizationSlug,
-          projectId: input.projectId,
-        },
-        json: {
-          sourcePath,
-          targetLocale: input.targetLocale,
-          externalStringId: mutationInput.externalStringId,
-          externalResourceId,
-          text: mutationInput.text,
-          type: mutationInput.type,
-          issueType: mutationInput.issueType,
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error(
-          await readApiError(
-            response,
-            intl.formatMessage(useCatMutationsMessages.failedToPostComment),
-          ),
-        );
+      const { targets } = await resolveCatMutationTargets(input, mutationInput.externalStringId, intl);
+      if (targets.length === 0) {
+        throw new Error(intl.formatMessage(useCatMutationsMessages.missingSegmentSourceFile));
       }
 
-      const body = (await response.json()) as { comment: ProjectFileCatComment };
-      return body.comment;
+      let comment: ProjectFileCatComment | null = null;
+      for (const target of targets) {
+        const response = await apiClient.api.orgs[":organizationSlug"].projects[
+          ":projectId"
+        ].files.detail.cat.comments.$post({
+          param: {
+            organizationSlug: input.organizationSlug,
+            projectId: input.projectId,
+          },
+          json: {
+            sourcePath: target.sourcePath,
+            targetLocale: input.targetLocale,
+            externalStringId: target.externalStringId,
+            externalResourceId: target.externalResourceId,
+            text: mutationInput.text,
+            type: mutationInput.type,
+            issueType: mutationInput.issueType,
+          },
+        });
+
+        if (!response.ok) {
+          throw new Error(
+            await readApiError(
+              response,
+              intl.formatMessage(useCatMutationsMessages.failedToPostComment),
+            ),
+          );
+        }
+
+        const body = (await response.json()) as { comment: ProjectFileCatComment };
+        comment = body.comment;
+      }
+
+      return comment!;
     },
     onSuccess: async (_data, variables) => {
-      const { sourcePath, externalResourceId, resourceType } = resolveCatMutationFileIdentity(
+      const { queueGroup, targets } = await resolveCatMutationTargets(
         input,
         variables.externalStringId,
         intl,
@@ -219,24 +311,37 @@ export function useCatMutations(input: {
 
       await Promise.all([
         input.invalidateQueue(),
-        invalidateSegmentTarget({
-          organizationSlug: input.organizationSlug,
-          projectId: input.projectId,
-          sourcePath,
-          externalResourceId,
-          resourceType,
-          targetLocale: input.targetLocale,
-          externalStringId: variables.externalStringId,
-        }),
-        invalidateSegmentComments({
-          organizationSlug: input.organizationSlug,
-          projectId: input.projectId,
-          sourcePath,
-          externalResourceId,
-          resourceType,
-          targetLocale: input.targetLocale,
-          externalStringId: variables.externalStringId,
-        }),
+        ...(queueGroup
+          ? [
+              invalidateGroupOccurrences({
+                organizationSlug: input.organizationSlug,
+                projectId: input.projectId,
+                targetLocale: input.targetLocale,
+                groupId: queueGroup.groupId,
+                sourceTextHash: queueGroup.sourceTextHash,
+              }),
+            ]
+          : []),
+        ...targets.flatMap((target) => [
+          invalidateSegmentTarget({
+            organizationSlug: input.organizationSlug,
+            projectId: input.projectId,
+            sourcePath: target.sourcePath,
+            externalResourceId: target.externalResourceId,
+            resourceType: target.resourceType,
+            targetLocale: input.targetLocale,
+            externalStringId: target.externalStringId,
+          }),
+          invalidateSegmentComments({
+            organizationSlug: input.organizationSlug,
+            projectId: input.projectId,
+            sourcePath: target.sourcePath,
+            externalResourceId: target.externalResourceId,
+            resourceType: target.resourceType,
+            targetLocale: input.targetLocale,
+            externalStringId: target.externalStringId,
+          }),
+        ]),
       ]);
     },
   });
@@ -500,7 +605,18 @@ export function useCatMutations(input: {
 
   const hiddenStringsMutation = useMutation({
     mutationFn: async (mutationInput: { externalStringIds: string[]; isHidden: boolean }) => {
-      const uniqueIds = [...new Set(mutationInput.externalStringIds)];
+      const uniqueIds = [
+        ...new Set(
+          (
+            await Promise.all(
+              mutationInput.externalStringIds.map(async (externalStringId) => {
+                const { targets } = await resolveCatMutationTargets(input, externalStringId, intl);
+                return targets.map((target) => target.externalStringId);
+              }),
+            )
+          ).flat(),
+        ),
+      ];
       const chunks = chunkItems(uniqueIds, maxNativeCatHiddenStringBatch);
       let updatedCount = 0;
 
@@ -541,7 +657,18 @@ export function useCatMutations(input: {
 
   const lockedStringsMutation = useMutation({
     mutationFn: async (mutationInput: { externalStringIds: string[]; isLocked: boolean }) => {
-      const uniqueIds = [...new Set(mutationInput.externalStringIds)];
+      const uniqueIds = [
+        ...new Set(
+          (
+            await Promise.all(
+              mutationInput.externalStringIds.map(async (externalStringId) => {
+                const { targets } = await resolveCatMutationTargets(input, externalStringId, intl);
+                return targets.map((target) => target.externalStringId);
+              }),
+            )
+          ).flat(),
+        ),
+      ];
       const chunks = chunkItems(uniqueIds, maxCatLockedStringBatch);
       let updatedCount = 0;
 

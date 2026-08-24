@@ -14,8 +14,10 @@ import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
 import type { ApiAuthContext } from "@/api/auth/workos";
 import type {
+  ProjectFileCatGroup,
   ProjectFileCatQuery,
   ProjectFileCatQueueFile,
+  ProjectFileCatQueueSegment,
   ProjectFileCatSegment,
 } from "@/api/routes/project/project.schema";
 
@@ -73,7 +75,7 @@ function segment(
 }
 
 function queuePage(input: {
-  segments: ProjectFileCatSegment[];
+  segments: ProjectFileCatQueueSegment[];
   hasMore: boolean;
   offset?: number;
   returnedCount?: number;
@@ -398,6 +400,108 @@ describe("collectCatFilteredExportRows", () => {
         resourceType: undefined,
       },
     );
+  });
+
+  it("expands native groups to occurrence rows instead of using the group id", async () => {
+    const group: ProjectFileCatGroup = {
+      kind: "group",
+      externalStringId: "g".repeat(64),
+      groupId: "g".repeat(64),
+      sourceTextHash: "h".repeat(64),
+      translationKeyId: null,
+      projectOccurrenceCount: 2,
+      fileOccurrenceCount: 2,
+      key: "save",
+      sourceText: "Save",
+      context: null,
+      type: null,
+    };
+    const loadCatQueue = vi.fn<CatQueueLoader>().mockResolvedValue({
+      kind: "ok",
+      catQueue: queuePage({
+        segments: [
+          segment({ externalStringId: "k1", key: "hello", sourceText: "Hello" }),
+          group,
+        ],
+        hasMore: false,
+      }),
+    });
+    const loadGroupOccurrences = vi.fn().mockResolvedValue([
+      {
+        translationKeyId: "key-a",
+        key: "actions.save",
+        sourcePath: "locales/en.json",
+        context: null,
+        comments: [],
+        isLocked: false,
+        target: { text: "Enregistrer", externalTranslationId: "t1", isApproved: true },
+        reviewState: "approved",
+      },
+      {
+        translationKeyId: "key-b",
+        key: "common.save",
+        sourcePath: "shared/en.json",
+        context: null,
+        comments: [],
+        isLocked: false,
+        target: { text: "Sauvegarder", externalTranslationId: "t2", isApproved: false },
+        reviewState: "draft",
+      },
+    ]);
+    getProjectTranslationsByKeyIdsMock.mockResolvedValue([{ translationKeyId: "k1", text: "Xin chào" }]);
+
+    const result = await collectCatFilteredExportRows({
+      auth,
+      projectId: "project_1",
+      query: baseQuery,
+      sourceLocale: "en",
+      loadCatQueue,
+      loadGroupOccurrences,
+    });
+
+    expect(result).toEqual({
+      kind: "ok",
+      truncated: false,
+      rows: [
+        {
+          key: "hello",
+          sourceText: "Hello",
+          targetText: "Xin chào",
+          sourceLocale: "en",
+          targetLocale: "vi",
+          sourcePath: "locales/en.json",
+        },
+        {
+          key: "actions.save",
+          sourceText: "Save",
+          targetText: "Enregistrer",
+          sourceLocale: "en",
+          targetLocale: "vi",
+          sourcePath: "locales/en.json",
+        },
+        {
+          key: "common.save",
+          sourceText: "Save",
+          targetText: "Sauvegarder",
+          sourceLocale: "en",
+          targetLocale: "vi",
+          sourcePath: "shared/en.json",
+        },
+      ],
+    });
+    expect(getProjectTranslationsByKeyIdsMock).toHaveBeenCalledWith({
+      organizationId: "org_1",
+      projectId: "project_1",
+      translationKeyIds: ["k1"],
+      targetLocale: "vi",
+    });
+    expect(loadGroupOccurrences).toHaveBeenCalledWith({
+      organizationId: "org_1",
+      projectId: "project_1",
+      targetLocale: "vi",
+      groupId: "g".repeat(64),
+      sourceTextHash: "h".repeat(64),
+    });
   });
 });
 
