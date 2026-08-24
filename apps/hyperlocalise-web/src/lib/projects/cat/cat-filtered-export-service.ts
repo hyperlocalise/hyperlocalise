@@ -21,7 +21,6 @@ import type { ProjectResourceTarget } from "@/api/routes/project/project.shared"
 import { maxProjectFileCatPageLimit } from "@/api/routes/project/project.schema";
 import { mapWithConcurrency } from "@/lib/primitives/map-with-concurrency/map-with-concurrency";
 import { isCatQueueGroup, isCatQueueSegmentRow } from "@/lib/projects/cat/cat-queue-row";
-import { getNativeProjectCatGroupOccurrences } from "@/lib/projects/cat/native-cat-service";
 import { getProjectTranslationsByKeyIds } from "@/lib/projects/translations/project-translation-service";
 import { getTmsProviderLiveCatSegmentTarget } from "@/lib/providers/jobs/tms-provider-live";
 
@@ -169,7 +168,13 @@ export async function collectCatFilteredExportRows(input: {
           segments: singletonSegments,
         });
     const loadGroupOccurrences =
-      input.loadGroupOccurrences ?? getNativeProjectCatGroupOccurrences;
+      input.loadGroupOccurrences ??
+      (async (groupInput) => {
+        const { getNativeProjectCatGroupOccurrences } = await import(
+          "@/lib/projects/cat/native-cat-service"
+        );
+        return getNativeProjectCatGroupOccurrences(groupInput);
+      });
 
     for (const segment of catQueue.segments) {
       if (isCatQueueGroup(segment)) {

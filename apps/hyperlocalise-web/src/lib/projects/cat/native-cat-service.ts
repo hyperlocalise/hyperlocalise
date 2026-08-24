@@ -16,7 +16,6 @@ import type {
   ProjectFileCatComment,
   ProjectFileCatQueueFile,
   ProjectFileCatQueueSegment,
-  ProjectFileCatSegment,
   ProjectFileCatTranslation,
 } from "@/api/routes/project/project.schema";
 import { legacyNativeCatSegmentLimit } from "@/api/routes/project/project.schema";
@@ -388,7 +387,7 @@ export class NativeCatService extends ProjectServiceBase {
             sourcePath: row.sourcePath,
             kind: row.kind,
             groupId: row.kind === "group" ? row.groupId : undefined,
-            sourceTextHash: row.sourceTextHash,
+            sourceTextHash: row.kind === "group" ? row.sourceTextHash : undefined,
             projectOccurrenceCount: row.projectOccurrenceCount,
             fileOccurrenceCount: row.fileOccurrenceCount,
           },

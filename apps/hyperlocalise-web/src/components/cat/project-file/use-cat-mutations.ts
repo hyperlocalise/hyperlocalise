@@ -157,7 +157,11 @@ export function useCatMutations(input: {
       text: string;
       approve?: boolean;
     }) => {
-      const { targets } = await resolveCatMutationTargets(input, mutationInput.externalStringId, intl);
+      const { targets } = await resolveCatMutationTargets(
+        input,
+        mutationInput.externalStringId,
+        intl,
+      );
       const writableTargets = targets.filter((target) => !target.isLocked);
       if (writableTargets.length === 0) {
         throw new Error(
@@ -262,7 +266,11 @@ export function useCatMutations(input: {
       type?: "comment" | "issue";
       issueType?: CatIssueType;
     }) => {
-      const { targets } = await resolveCatMutationTargets(input, mutationInput.externalStringId, intl);
+      const { targets } = await resolveCatMutationTargets(
+        input,
+        mutationInput.externalStringId,
+        intl,
+      );
       if (targets.length === 0) {
         throw new Error(intl.formatMessage(useCatMutationsMessages.missingSegmentSourceFile));
       }

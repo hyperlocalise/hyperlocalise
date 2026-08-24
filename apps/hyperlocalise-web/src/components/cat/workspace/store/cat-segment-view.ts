@@ -85,6 +85,7 @@ export function toQueueSegment(
     | "index"
     | "key"
     | "sourceText"
+    | "kind"
     | "sourcePath"
     | "contentKind"
     | "sourceAssetUrl"
@@ -101,6 +102,7 @@ export function toQueueSegment(
     index: segment.index,
     key: segment.key,
     sourceText: segment.sourceText,
+    ...(segment.kind ? { kind: segment.kind } : {}),
     ...(segment.sourcePath ? { sourcePath: segment.sourcePath } : {}),
     ...(segment.contentKind ? { contentKind: segment.contentKind } : {}),
     ...(segment.sourceAssetUrl !== undefined ? { sourceAssetUrl: segment.sourceAssetUrl } : {}),

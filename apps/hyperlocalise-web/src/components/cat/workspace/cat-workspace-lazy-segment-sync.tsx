@@ -115,9 +115,15 @@ function useCatSegmentLazySync(input: {
       return;
     }
 
-    store.applySegmentTarget(segmentId, representativeTargetFromOccurrences(groupOccurrencesQuery.data));
+    store.applySegmentTarget(
+      segmentId,
+      representativeTargetFromOccurrences(groupOccurrencesQuery.data),
+    );
     if (input.syncComments) {
-      store.applySegmentComments(segmentId, flattenGroupOccurrenceComments(groupOccurrencesQuery.data));
+      store.applySegmentComments(
+        segmentId,
+        flattenGroupOccurrenceComments(groupOccurrencesQuery.data),
+      );
     }
   }, [groupOccurrencesQuery.data, input.syncComments, queueGroup, segmentId, store]);
 

@@ -120,7 +120,7 @@ describe("resolveNativeCatLogicalRows", () => {
       { database: { execute } as unknown as DatabaseClient },
     );
 
-    expect(String(execute.mock.calls[0]?.[0])).toContain(
+    expect(JSON.stringify(execute.mock.calls[0]?.[0])).toContain(
       "coalesce(target_status = 'approved', false)",
     );
   });

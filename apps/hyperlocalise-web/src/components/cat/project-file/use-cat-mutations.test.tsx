@@ -172,7 +172,7 @@ describe("useCatMutations", () => {
     const translation = createCatTranslation({ isApproved: true });
     const groupId = "g".repeat(64);
     const sourceTextHash = "h".repeat(64);
-    catGroupOccurrencesGetMock.mockResolvedValue(
+    catGroupOccurrencesGetMock.mockImplementation(() =>
       jsonResponse({
         groupOccurrences: {
           groupId,
@@ -201,7 +201,7 @@ describe("useCatMutations", () => {
         },
       }),
     );
-    catTranslationsPostMock.mockResolvedValue(jsonResponse({ translation }));
+    catTranslationsPostMock.mockImplementation(() => jsonResponse({ translation }));
 
     const { result } = renderCatMutations({
       ...createCatFileResponse().catFile,

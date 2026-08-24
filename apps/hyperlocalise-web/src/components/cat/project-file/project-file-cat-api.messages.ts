@@ -32,7 +32,7 @@ export const projectFileCatApiMessages = defineMessages({
   },
   failedToLoadGroupOccurrences: {
     defaultMessage: "Failed to load grouped string occurrences",
-    id: "n3Q8kR2wLm",
+    id: "c/cACn/ksv",
     description: "Fallback error when loading native CAT group occurrences fails",
   },
   failedToExportQueue: {

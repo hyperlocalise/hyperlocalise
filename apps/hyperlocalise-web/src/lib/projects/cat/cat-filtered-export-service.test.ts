@@ -419,10 +419,7 @@ describe("collectCatFilteredExportRows", () => {
     const loadCatQueue = vi.fn<CatQueueLoader>().mockResolvedValue({
       kind: "ok",
       catQueue: queuePage({
-        segments: [
-          segment({ externalStringId: "k1", key: "hello", sourceText: "Hello" }),
-          group,
-        ],
+        segments: [segment({ externalStringId: "k1", key: "hello", sourceText: "Hello" }), group],
         hasMore: false,
       }),
     });
@@ -448,7 +445,9 @@ describe("collectCatFilteredExportRows", () => {
         reviewState: "draft",
       },
     ]);
-    getProjectTranslationsByKeyIdsMock.mockResolvedValue([{ translationKeyId: "k1", text: "Xin chào" }]);
+    getProjectTranslationsByKeyIdsMock.mockResolvedValue([
+      { translationKeyId: "k1", text: "Xin chào" },
+    ]);
 
     const result = await collectCatFilteredExportRows({
       auth,
