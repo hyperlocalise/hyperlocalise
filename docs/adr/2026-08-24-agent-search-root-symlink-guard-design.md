@@ -13,7 +13,7 @@ Add one shared search executor for the `rg`, `grep`, and `find` calls used by `g
 1. Check each component of the search root with a non-following symbolic-link test.
 2. Execute the requested search command only when every component passes.
 
-Keeping the check and command in one shell invocation prevents the path from changing between validation and search. Command names and arguments remain separate positional parameters; user input never becomes shell source.
+Keeping the check and command in one shell invocation avoids returning to application code between validation and search. The read-only workspace policy prevents repository changes while the command runs. Command names and arguments remain separate positional parameters; user input never becomes shell source.
 
 For a path containing glob metacharacters, validate the literal directory prefix before the first globbed segment. Ripgrep searches from the workspace root in this case, and `--no-follow` prevents traversal through matching descendant links.
 
