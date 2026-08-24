@@ -6212,6 +6212,9 @@
   "OEETeENwOg": {
     "defaultMessage": "Anyone"
   },
+  "OGfnfxue9S": {
+    "defaultMessage": "Tìm kiếm ID, tiêu đề, mô tả hoặc đường dẫn nguồn"
+  },
   "OHKDUsYT8n": {
     "defaultMessage": "Giữ quyết định"
   },
@@ -8156,6 +8159,9 @@
   "Wq2O6lVhWX": {
     "defaultMessage": "Dịch bằng tác nhân"
   },
+  "WqXZ03MFeR": {
+    "defaultMessage": "Mã định danh"
+  },
   "Wqln3Fs89r": {
     "defaultMessage": "Đang tải thông tin gói dịch vụ và mức sử dụng cho không gian làm việc này."
   },
@@ -9547,6 +9553,9 @@
   },
   "d32z52fN10": {
     "defaultMessage": "({locale})"
+  },
+  "d4bDN80spw": {
+    "defaultMessage": "<label>URL không gian làm việc</label> <path>/org/{slug}</path>"
   },
   "d4ixdVNgC5": {
     "defaultMessage": "Đang tạo..."
@@ -12332,6 +12341,9 @@
   "o+jUj26F3Y": {
     "defaultMessage": "Hoạt động trên toàn bộ CMS, TMS và quy trình làm việc của sản phẩm"
   },
+  "o/5bDmAGTd": {
+    "defaultMessage": "Được sử dụng làm tiền tố cho các mã sự cố mới (ví dụ: HL-12). Phải là duy nhất trong số các dự án trong không gian làm việc này. Các mã sự cố hiện có được giữ nguyên."
+  },
   "o0BB3/QSVT": {
     "defaultMessage": "Xây dựng công khai — bản địa hóa, các tác nhân AI, và những bài học trên hành trình."
   },
@@ -13211,6 +13223,9 @@
   "rzRd9sk8q6": {
     "defaultMessage": "Đã tạo dự án"
   },
+  "s+9kMIBKb0": {
+    "defaultMessage": "{count, plural, one {# đã tải} other {# đã tải}}{more}"
+  },
   "s+CVKzdR4F": {
     "defaultMessage": "Sidebar"
   },
@@ -13360,6 +13375,9 @@
   },
   "secVzHMFB2": {
     "defaultMessage": "Reset"
+  },
+  "seugisaDUz": {
+    "defaultMessage": "Đã sao chép ID sự cố"
   },
   "sfQrLcactN": {
     "defaultMessage": "Không thể chỉnh sửa các chuỗi ẩn từ CAT. Trước tiên, hãy bỏ ẩn chuỗi trong Crowdin."
@@ -14101,6 +14119,9 @@
   },
   "vjzEvY5tL/": {
     "defaultMessage": "Bối cảnh kho lưu trữ: {key} là một phần của giao diện người dùng sản phẩm và cần giữ nguyên giọng điệu, các phần giữ chỗ cũng như các ràng buộc về bố cục."
+  },
+  "vkuQguUble": {
+    "defaultMessage": "Sử dụng 1–10 chữ cái hoặc chữ số, bắt đầu bằng một chữ cái (ví dụ: HL)."
   },
   "vlONVU+qS/": {
     "defaultMessage": "Starting…"

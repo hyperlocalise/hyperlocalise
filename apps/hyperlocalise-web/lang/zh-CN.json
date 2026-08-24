@@ -6212,6 +6212,9 @@
   "OEETeENwOg": {
     "defaultMessage": "Anyone"
   },
+  "OGfnfxue9S": {
+    "defaultMessage": "搜索 ID、标题、描述或源路径"
+  },
   "OHKDUsYT8n": {
     "defaultMessage": "保留决定"
   },
@@ -8156,6 +8159,9 @@
   "Wq2O6lVhWX": {
     "defaultMessage": "使用代理翻译"
   },
+  "WqXZ03MFeR": {
+    "defaultMessage": "标识符"
+  },
   "Wqln3Fs89r": {
     "defaultMessage": "正在获取此工作区的套餐和使用情况详情。"
   },
@@ -9547,6 +9553,9 @@
   },
   "d32z52fN10": {
     "defaultMessage": "({locale})"
+  },
+  "d4bDN80spw": {
+    "defaultMessage": "<label>工作区 URL</label> <path>/org/{slug}</path>"
   },
   "d4ixdVNgC5": {
     "defaultMessage": "Creating..."
@@ -12332,6 +12341,9 @@
   "o+jUj26F3Y": {
     "defaultMessage": "适用于 CMS、TMS 和产品工作流程"
   },
+  "o/5bDmAGTd": {
+    "defaultMessage": "用作新问题 ID 的前缀（例如 HL-12）。在此工作区的项目中必须唯一。现有问题 ID 将予以保留。"
+  },
   "o0BB3/QSVT": {
     "defaultMessage": "在开放中构建——本地化、AI 代理，以及一路上的经验教训。"
   },
@@ -13211,6 +13223,9 @@
   "rzRd9sk8q6": {
     "defaultMessage": "项目已创建"
   },
+  "s+9kMIBKb0": {
+    "defaultMessage": "{count, plural, one {已加载 # 个} other {已加载 # 个}}{more}"
+  },
   "s+CVKzdR4F": {
     "defaultMessage": "Sidebar"
   },
@@ -13360,6 +13375,9 @@
   },
   "secVzHMFB2": {
     "defaultMessage": "Reset"
+  },
+  "seugisaDUz": {
+    "defaultMessage": "问题 ID 已复制"
   },
   "sfQrLcactN": {
     "defaultMessage": "隐藏字符串无法在 CAT 中编辑。请先在 Crowdin 中取消隐藏该字符串。"
@@ -14101,6 +14119,9 @@
   },
   "vjzEvY5tL/": {
     "defaultMessage": "仓库上下文：{key} 是产品 UI 的一部分，应保持语气、占位符和布局限制不变。"
+  },
+  "vkuQguUble": {
+    "defaultMessage": "使用 1–10 个字母或数字，且必须以字母开头（例如 HL）。"
   },
   "vlONVU+qS/": {
     "defaultMessage": "Starting…"

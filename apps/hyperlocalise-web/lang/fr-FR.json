@@ -6212,6 +6212,9 @@
   "OEETeENwOg": {
     "defaultMessage": "Anyone"
   },
+  "OGfnfxue9S": {
+    "defaultMessage": "Rechercher un ID, un titre, une description ou un chemin source"
+  },
   "OHKDUsYT8n": {
     "defaultMessage": "Conserver la décision"
   },
@@ -8156,6 +8159,9 @@
   "Wq2O6lVhWX": {
     "defaultMessage": "Traduire avec l’agent"
   },
+  "WqXZ03MFeR": {
+    "defaultMessage": "Identifiant"
+  },
   "Wqln3Fs89r": {
     "defaultMessage": "Récupération des détails du forfait et de l’utilisation de cet espace de travail."
   },
@@ -9547,6 +9553,9 @@
   },
   "d32z52fN10": {
     "defaultMessage": "({locale})"
+  },
+  "d4bDN80spw": {
+    "defaultMessage": "<label>URL de l’espace de travail</label> <path>/org/{slug}</path>"
   },
   "d4ixdVNgC5": {
     "defaultMessage": "Création en cours..."
@@ -12332,6 +12341,9 @@
   "o+jUj26F3Y": {
     "defaultMessage": "Fonctionne avec les flux de travail CMS, TMS et produit"
   },
+  "o/5bDmAGTd": {
+    "defaultMessage": "Utilisé comme préfixe pour les nouveaux identifiants de problème (p. ex. HL-12). Doit être unique parmi les projets de cet espace de travail. Les identifiants de problème existants sont conservés."
+  },
   "o0BB3/QSVT": {
     "defaultMessage": "Construire en public — localisation, agents d’IA et leçons tirées de la route."
   },
@@ -13211,6 +13223,9 @@
   "rzRd9sk8q6": {
     "defaultMessage": "Projet créé"
   },
+  "s+9kMIBKb0": {
+    "defaultMessage": "{count, plural, one {# chargé} other {# chargés}}{more}"
+  },
   "s+CVKzdR4F": {
     "defaultMessage": "Sidebar"
   },
@@ -13360,6 +13375,9 @@
   },
   "secVzHMFB2": {
     "defaultMessage": "Reset"
+  },
+  "seugisaDUz": {
+    "defaultMessage": "ID du problème copié"
   },
   "sfQrLcactN": {
     "defaultMessage": "Les chaînes masquées ne peuvent pas être modifiées depuis l’outil de TAO. Affichez d’abord la chaîne dans Crowdin."
@@ -14101,6 +14119,9 @@
   },
   "vjzEvY5tL/": {
     "defaultMessage": "Contexte du dépôt : {key} fait partie de l’interface utilisateur du produit et doit conserver le ton, les espaces réservés et les contraintes de mise en page."
+  },
+  "vkuQguUble": {
+    "defaultMessage": "Utilisez de 1 à 10 lettres ou chiffres, en commençant par une lettre (par ex. HL)."
   },
   "vlONVU+qS/": {
     "defaultMessage": "Starting…"

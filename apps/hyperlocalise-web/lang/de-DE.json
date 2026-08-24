@@ -6212,6 +6212,9 @@
   "OEETeENwOg": {
     "defaultMessage": "Jeder"
   },
+  "OGfnfxue9S": {
+    "defaultMessage": "ID, Titel, Beschreibung oder Quellpfad durchsuchen"
+  },
   "OHKDUsYT8n": {
     "defaultMessage": "Behalten Sie die Entscheidung"
   },
@@ -8156,6 +8159,9 @@
   "Wq2O6lVhWX": {
     "defaultMessage": "Mit Agent übersetzen"
   },
+  "WqXZ03MFeR": {
+    "defaultMessage": "Bezeichner"
+  },
   "Wqln3Fs89r": {
     "defaultMessage": "Tarif- und Nutzungsdetails für diesen Arbeitsbereich werden abgerufen."
   },
@@ -9547,6 +9553,9 @@
   },
   "d32z52fN10": {
     "defaultMessage": "({locale})"
+  },
+  "d4bDN80spw": {
+    "defaultMessage": "<label>Arbeitsbereich-URL</label> <path>/org/{slug}</path>"
   },
   "d4ixdVNgC5": {
     "defaultMessage": "Creating..."
@@ -12332,6 +12341,9 @@
   "o+jUj26F3Y": {
     "defaultMessage": "Funktioniert über CMS-, TMS- und Produkt-Workflows hinweg"
   },
+  "o/5bDmAGTd": {
+    "defaultMessage": "Wird als Präfix für neue Issue-IDs verwendet (z. B. HL-12). Muss in diesem Arbeitsbereich über alle Projekte hinweg eindeutig sein. Bestehende Issue-IDs bleiben erhalten."
+  },
   "o0BB3/QSVT": {
     "defaultMessage": "Im offenen Aufbau — Lokalisierung, KI-Agenten und Lektionen aus der Praxis."
   },
@@ -13211,6 +13223,9 @@
   "rzRd9sk8q6": {
     "defaultMessage": "Projekt erstellt"
   },
+  "s+9kMIBKb0": {
+    "defaultMessage": "{count, plural, one {# geladen} other {# geladen}}{more}"
+  },
   "s+CVKzdR4F": {
     "defaultMessage": "Seitenleiste"
   },
@@ -13360,6 +13375,9 @@
   },
   "secVzHMFB2": {
     "defaultMessage": "Zurücksetzen"
+  },
+  "seugisaDUz": {
+    "defaultMessage": "Fehler-ID kopiert"
   },
   "sfQrLcactN": {
     "defaultMessage": "Ausgeblendete Zeichenfolgen können nicht im CAT bearbeitet werden. Blenden Sie die Zeichenfolge zuerst in Crowdin ein."
@@ -14101,6 +14119,9 @@
   },
   "vjzEvY5tL/": {
     "defaultMessage": "Repository-Kontext: {key} ist Teil der Produktoberfläche und sollte Tonalität, Platzhalter und Layoutbeschränkungen beibehalten."
+  },
+  "vkuQguUble": {
+    "defaultMessage": "Verwenden Sie 1–10 Buchstaben oder Zahlen, beginnend mit einem Buchstaben (z. B. HL)."
   },
   "vlONVU+qS/": {
     "defaultMessage": "Wird gestartet …"
