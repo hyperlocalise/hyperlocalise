@@ -879,6 +879,10 @@ export type ProjectFileCatTranslation = z.infer<typeof projectFileCatTranslation
 export type ProjectFileCatSegment = z.infer<typeof projectFileCatSegmentSchema>;
 export type ProjectFileCatGroup = z.infer<typeof projectFileCatGroupSchema>;
 export type ProjectFileCatQueueSegment = ProjectFileCatSegment | ProjectFileCatGroup;
+export type ProjectFileCatGroupOccurrence = z.infer<typeof projectFileCatGroupOccurrenceSchema>;
+export type ProjectFileCatGroupOccurrencesResponse = z.infer<
+  typeof projectFileCatGroupOccurrencesResponseSchema
+>;
 export type ProjectFileCatSegmentParams = z.infer<typeof projectFileCatSegmentParamsSchema>;
 export type ProjectFileCatSegmentQuery = z.infer<typeof projectFileCatSegmentQuerySchema>;
 export type ProjectFileCatSegmentCommentsResponse = z.infer<

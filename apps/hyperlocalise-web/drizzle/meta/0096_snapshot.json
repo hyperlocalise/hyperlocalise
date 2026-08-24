@@ -14778,7 +14778,7 @@
           "primaryKey": false,
           "notNull": false,
           "generated": {
-            "as": "encode(sha256(convert_to(source_text, 'UTF8')), 'hex')",
+            "as": "encode(sha256(source_text::bytea), 'hex')",
             "type": "stored"
           }
         },

@@ -25,12 +25,8 @@ export type NativeCatGroupingExceptionResolver = (input: {
   targetLocale: string;
 }) => Promise<readonly string[]> | readonly string[];
 
-export type NativeCatLogicalRow = {
-  kind: "segment" | "group";
+type NativeCatLogicalRowBase = {
   externalStringId: string;
-  translationKeyId: string | null;
-  groupId?: string;
-  sourceTextHash?: string;
   key: string;
   sourceText: string;
   context: string | null;
@@ -42,6 +38,18 @@ export type NativeCatLogicalRow = {
   projectOccurrenceCount: number;
   fileOccurrenceCount: number;
 };
+
+export type NativeCatLogicalRow =
+  | (NativeCatLogicalRowBase & {
+      kind: "segment";
+      translationKeyId: string;
+    })
+  | (NativeCatLogicalRowBase & {
+      kind: "group";
+      translationKeyId: null;
+      groupId: string;
+      sourceTextHash: string;
+    });
 
 type GroupedRow = {
   representativeId: string;
@@ -74,6 +82,21 @@ export function nativeCatGroupId(input: {
     .digest("hex");
 }
 
+function executedRows<T>(result: unknown): T[] {
+  if (Array.isArray(result)) {
+    return result as T[];
+  }
+  if (
+    result &&
+    typeof result === "object" &&
+    "rows" in result &&
+    Array.isArray((result as { rows: unknown }).rows)
+  ) {
+    return (result as { rows: T[] }).rows;
+  }
+  return [];
+}
+
 function escapeLike(value: string) {
   return value.replace(/\\/g, "\\\\").replace(/%/g, "\\%").replace(/_/g, "\\_");
 }
@@ -83,9 +106,12 @@ function groupFilter(filter: ProjectFileCatQueueFilter): SQL {
     case "untranslated":
       return sql`bool_or(coalesce(trim(target_text), '') = '')`;
     case "reviewed":
-      return sql`bool_and(target_status = 'approved')`;
+      return sql`bool_and(coalesce(target_status = 'approved', false))`;
     case "needs_review":
-      return sql`bool_or(coalesce(trim(target_text), '') != '' and target_status != 'approved')`;
+      return sql`bool_or(
+        coalesce(trim(target_text), '') != ''
+        and coalesce(target_status, 'draft') != 'approved'
+      )`;
     case "has_issues":
       return sql`bool_or(has_issues)`;
     case "hidden":
@@ -156,7 +182,7 @@ export async function resolveNativeCatLogicalRows(
       ? sql`untranslated_rank, representative_source_path, representative_key, representative_id`
       : sql`representative_source_path, representative_key, representative_id`;
 
-  const rows = await database.execute<GroupedRow>(sql`
+  const queryResult = await database.execute<GroupedRow>(sql`
     with scoped as (
       select
         k.id,
@@ -249,6 +275,7 @@ export async function resolveNativeCatLogicalRows(
     limit ${input.limit}
     offset ${input.offset}
   `);
+  const rows = executedRows<GroupedRow>(queryResult);
 
   const logicalRows: NativeCatLogicalRow[] = rows.map((row) => {
     const projectOccurrenceCount = Number(row.projectOccurrenceCount);

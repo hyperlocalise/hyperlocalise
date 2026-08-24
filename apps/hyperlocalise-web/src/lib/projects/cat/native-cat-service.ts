@@ -110,7 +110,7 @@ function toCatTranslation(row: {
   };
 }
 
-function mapTextSegment(
+function mapTextSegmentSharedFields(
   key: {
     id: string;
     key: string;
@@ -121,15 +121,9 @@ function mapTextSegment(
     metadata: Record<string, unknown> | null;
     isHidden?: boolean;
     sourcePath?: string;
-    kind?: "segment" | "group";
-    translationKeyId?: string | null;
-    groupId?: string;
-    sourceTextHash?: string;
-    projectOccurrenceCount?: number;
-    fileOccurrenceCount?: number;
   },
   options?: { includeSourcePath?: boolean },
-): ProjectFileCatQueueSegment {
+) {
   const isVideoUrl = isVideoUrlContentKind(key.metadata);
   const isImageUrl = isImageUrlContentKind(key.metadata);
   const contentKind = isVideoUrl
@@ -141,7 +135,6 @@ function mapTextSegment(
   const looksLikeVideo = looksLikeVideoUrl(key.sourceText);
 
   return {
-    ...(key.kind ? { kind: key.kind } : {}),
     externalStringId: key.id,
     key: key.key,
     sourceText: key.sourceText,
@@ -156,15 +149,44 @@ function mapTextSegment(
     ...(looksLikeImage || isImageUrl ? { looksLikeImageUrl: looksLikeImage || isImageUrl } : {}),
     ...(looksLikeVideo || isVideoUrl ? { looksLikeVideoUrl: looksLikeVideo || isVideoUrl } : {}),
     ...(options?.includeSourcePath && key.sourcePath ? { sourcePath: key.sourcePath } : {}),
-    ...(key.kind === "group"
-      ? {
-          groupId: key.groupId!,
-          sourceTextHash: key.sourceTextHash!,
-          translationKeyId: null,
-          projectOccurrenceCount: key.projectOccurrenceCount!,
-          fileOccurrenceCount: key.fileOccurrenceCount!,
-        }
-      : {}),
+  };
+}
+
+function mapTextSegment(
+  key: {
+    id: string;
+    key: string;
+    sourceText: string;
+    context: string | null;
+    type: string | null;
+    maxLength: number | null;
+    metadata: Record<string, unknown> | null;
+    isHidden?: boolean;
+    sourcePath?: string;
+    kind?: "segment" | "group";
+    groupId?: string;
+    sourceTextHash?: string;
+    projectOccurrenceCount?: number;
+    fileOccurrenceCount?: number;
+  },
+  options?: { includeSourcePath?: boolean },
+): ProjectFileCatQueueSegment {
+  const shared = mapTextSegmentSharedFields(key, options);
+  if (key.kind === "group") {
+    return {
+      ...shared,
+      kind: "group",
+      groupId: key.groupId!,
+      sourceTextHash: key.sourceTextHash!,
+      translationKeyId: null,
+      projectOccurrenceCount: key.projectOccurrenceCount!,
+      fileOccurrenceCount: key.fileOccurrenceCount!,
+    };
+  }
+
+  return {
+    ...shared,
+    ...(key.kind ? { kind: "segment" as const } : {}),
   };
 }
 
@@ -365,8 +387,7 @@ export class NativeCatService extends ProjectServiceBase {
             isHidden: row.isHidden,
             sourcePath: row.sourcePath,
             kind: row.kind,
-            translationKeyId: row.translationKeyId,
-            groupId: row.groupId,
+            groupId: row.kind === "group" ? row.groupId : undefined,
             sourceTextHash: row.sourceTextHash,
             projectOccurrenceCount: row.projectOccurrenceCount,
             fileOccurrenceCount: row.fileOccurrenceCount,

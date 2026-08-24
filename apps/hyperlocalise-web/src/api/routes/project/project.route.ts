@@ -1206,7 +1206,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
       async (c) => {
         const params = c.req.valid("param");
         const query = c.req.valid("query");
-        const project = await getOwnedProject(c.var.auth, params.projectId);
+        const project = await getOwnedProjectRecord(c.var.auth, params.projectId);
         if (!project) return projectNotFoundResponse(c);
         if (!project.automaticallyGroupIdenticalStrings) {
           return notFoundResponse(c, "cat_group_not_found");

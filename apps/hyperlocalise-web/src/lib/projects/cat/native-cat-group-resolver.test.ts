@@ -112,4 +112,16 @@ describe("resolveNativeCatLogicalRows", () => {
       targetLocale: "fr-FR",
     });
   });
+
+  it("treats missing occurrence statuses as unreviewed", async () => {
+    const execute = vi.fn().mockResolvedValue([]);
+    await resolveNativeCatLogicalRows(
+      { ...input(), queueFilter: "reviewed" },
+      { database: { execute } as unknown as DatabaseClient },
+    );
+
+    expect(String(execute.mock.calls[0]?.[0])).toContain(
+      "coalesce(target_status = 'approved', false)",
+    );
+  });
 });
