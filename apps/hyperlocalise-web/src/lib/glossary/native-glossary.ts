@@ -395,6 +395,10 @@ export class NativeGlossary extends Glossary {
           languageDetails: normalizedInput.languageDetails ?? [],
         })
         .where(eq(schema.glossaryConcepts.id, conceptId));
+      // Match Crowdin concept PATCH reconcile: terms present in the payload are
+      // upserted; existing concept terms omitted from the payload are deleted.
+      // The glossary UI defers term deletion until Save by omitting those ids.
+      const retainedIds = new Set<string>();
       for (const term of normalizedInput.terms) {
         const existing =
           typeof term.id === "string"
@@ -415,6 +419,7 @@ export class NativeGlossary extends Glossary {
           status: term.status ?? "draft",
         };
         if (existing) {
+          retainedIds.add(existing.id);
           await tx
             .update(schema.glossaryTerms)
             .set(values)
@@ -427,6 +432,21 @@ export class NativeGlossary extends Glossary {
             provenance: "manual" as const,
           });
         }
+      }
+
+      const orphanIds = loaded.terms
+        .map((term) => term.id)
+        .filter((termId) => !retainedIds.has(termId));
+      if (orphanIds.length > 0) {
+        await tx
+          .delete(schema.glossaryTerms)
+          .where(
+            and(
+              eq(schema.glossaryTerms.glossaryId, this.input.glossary.id),
+              eq(schema.glossaryTerms.conceptId, conceptId),
+              inArray(schema.glossaryTerms.id, orphanIds),
+            ),
+          );
       }
       return true;
     });

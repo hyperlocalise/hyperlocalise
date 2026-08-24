@@ -474,6 +474,87 @@ describe("glossaryRoutes", () => {
     });
   });
 
+  it("deletes native concept terms omitted from a concept PATCH payload", async () => {
+    const identity = fixture.createWorkosIdentityWithRole("admin");
+    const headers = await fixture.authHeadersFor(identity);
+    const organizationSlug = identity.organization.slug ?? "missing-slug";
+    const glossaryResponse = await fixture.createGlossaryViaApi(identity, undefined, headers);
+    const glossaryId = ((await glossaryResponse.json()) as { glossary: { id: string } }).glossary
+      .id;
+
+    const createResponse = await client.api.orgs[":organizationSlug"].glossaries[
+      ":glossaryId"
+    ].concepts.$post(
+      {
+        param: { organizationSlug, glossaryId },
+        json: {
+          primaryTerm: "Checkout",
+          translatable: true,
+          terms: [
+            {
+              locale: "en",
+              term: "Checkout",
+              status: "preferred",
+              caseSensitive: false,
+              forbidden: false,
+            },
+            {
+              locale: "vi",
+              term: "Thanh toán",
+              status: "draft",
+              caseSensitive: false,
+              forbidden: false,
+            },
+          ],
+        },
+      },
+      { headers },
+    );
+    expect(createResponse.status).toBe(201);
+    const created = (await createResponse.json()) as {
+      concept: {
+        id: string;
+        terms: Array<{ id: string; locale: string; term: string }>;
+      };
+    };
+    const sourceTerm = created.concept.terms.find((term) => term.locale === "en");
+    const vietnameseTerm = created.concept.terms.find((term) => term.locale === "vi");
+    expect(sourceTerm).toBeDefined();
+    expect(vietnameseTerm).toBeDefined();
+
+    const patchResponse = await client.api.orgs[":organizationSlug"].glossaries[
+      ":glossaryId"
+    ].concepts[":conceptId"].$patch(
+      {
+        param: { organizationSlug, glossaryId, conceptId: created.concept.id },
+        json: {
+          primaryTerm: "Checkout",
+          terms: [
+            {
+              id: sourceTerm!.id,
+              locale: "en",
+              term: "Checkout",
+              status: "preferred",
+            },
+          ],
+        },
+      },
+      { headers },
+    );
+
+    expect(patchResponse.status).toBe(200);
+    const patched = (await patchResponse.json()) as {
+      concept: { terms: Array<{ id: string; locale: string }> };
+    };
+    expect(patched.concept.terms.map((term) => term.id)).toEqual([sourceTerm!.id]);
+
+    const remaining = await db
+      .select({ id: schema.glossaryTerms.id, locale: schema.glossaryTerms.locale })
+      .from(schema.glossaryTerms)
+      .where(eq(schema.glossaryTerms.conceptId, created.concept.id));
+    expect(remaining).toEqual([{ id: sourceTerm!.id, locale: "en" }]);
+  });
+
   it("rejects term mutations for externally managed glossaries", async () => {
     const { identity, organization, user, glossary } = await fixture.createStoredGlossaryFixture();
     const headers = await fixture.authHeadersFor(identity);
