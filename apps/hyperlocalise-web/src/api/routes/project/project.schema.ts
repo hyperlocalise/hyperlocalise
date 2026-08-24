@@ -324,6 +324,8 @@ export const projectFileCatPaginationSchema = z.object({
   limit: z.number().int().min(1),
   returnedCount: z.number().int().min(0),
   totalCount: z.number().int().min(0),
+  /** Underlying source keys represented by the filtered logical rows. */
+  totalSourceOccurrences: z.number().int().min(0).optional(),
   hasMore: z.boolean(),
   nextPhraseScanPage: z.number().int().min(1).optional(),
   nextPhraseScanSkip: z.number().int().min(0).optional(),
@@ -703,6 +705,7 @@ export const projectFileCatTranslationSchema = z.object({
 });
 
 export const projectFileCatSegmentSchema = z.object({
+  kind: z.literal("segment").optional(),
   externalStringId: z.string(),
   key: z.string(),
   sourceText: z.string(),
@@ -727,6 +730,15 @@ export const projectFileCatSegmentSchema = z.object({
   resourceType: z.enum(["file", "key"]).optional(),
 });
 
+export const projectFileCatGroupSchema = projectFileCatSegmentSchema.extend({
+  kind: z.literal("group"),
+  groupId: z.string(),
+  sourceTextHash: z.string().length(64),
+  translationKeyId: z.null(),
+  projectOccurrenceCount: z.number().int().min(2),
+  fileOccurrenceCount: z.number().int().min(1),
+});
+
 export const projectFileCatSegmentParamsSchema = z.object({
   organizationSlug: z.string().trim().min(1).max(128),
   projectId: z.string().trim().min(1).max(128),
@@ -739,6 +751,33 @@ export const projectFileCatSegmentQuerySchema = z.object({
   externalResourceId: z.string().trim().min(1).max(128).optional(),
   resourceType: z.enum(["file", "key"]).optional(),
   repositoryFullName: z.string().trim().min(1).max(256).optional(),
+});
+
+export const projectFileCatGroupParamsSchema = projectIdParamsSchema.extend({
+  groupId: z.string().length(64),
+});
+
+export const projectFileCatGroupOccurrencesQuerySchema = z.object({
+  targetLocale: z.string().trim().min(1).max(32),
+  sourceTextHash: z.string().length(64),
+});
+
+export const projectFileCatGroupOccurrenceSchema = z.object({
+  translationKeyId: z.string(),
+  key: z.string(),
+  sourcePath: z.string(),
+  context: z.string().nullable(),
+  comments: z.array(projectFileCatCommentSchema),
+  isLocked: z.boolean(),
+  target: projectFileCatTranslationSchema.nullable(),
+  reviewState: z.enum(["draft", "needs_review", "approved", "rejected"]).nullable(),
+});
+
+export const projectFileCatGroupOccurrencesResponseSchema = z.object({
+  groupOccurrences: z.object({
+    groupId: z.string(),
+    occurrences: z.array(projectFileCatGroupOccurrenceSchema),
+  }),
 });
 
 export const projectFileCatSegmentCommentsResponseSchema = z.object({
@@ -763,7 +802,7 @@ export const projectFileCatResponseSchema = z.object({
 });
 
 export const projectFileCatQueueFileSchema = projectFileCatResponseSchema.shape.catFile.extend({
-  segments: z.array(projectFileCatSegmentSchema),
+  segments: z.array(z.union([projectFileCatSegmentSchema, projectFileCatGroupSchema])),
 });
 
 export const projectFileCatQueueResponseSchema = z.object({
@@ -838,7 +877,8 @@ export type ProjectFileCatCommentResolveResponse = z.infer<
 >;
 export type ProjectFileCatTranslation = z.infer<typeof projectFileCatTranslationSchema>;
 export type ProjectFileCatSegment = z.infer<typeof projectFileCatSegmentSchema>;
-export type ProjectFileCatQueueSegment = ProjectFileCatSegment;
+export type ProjectFileCatGroup = z.infer<typeof projectFileCatGroupSchema>;
+export type ProjectFileCatQueueSegment = ProjectFileCatSegment | ProjectFileCatGroup;
 export type ProjectFileCatSegmentParams = z.infer<typeof projectFileCatSegmentParamsSchema>;
 export type ProjectFileCatSegmentQuery = z.infer<typeof projectFileCatSegmentQuerySchema>;
 export type ProjectFileCatSegmentCommentsResponse = z.infer<

@@ -1,0 +1,2 @@
+ALTER TABLE "project_translation_keys" ADD COLUMN "source_text_hash" text GENERATED ALWAYS AS (encode(sha256(convert_to(source_text, 'UTF8')), 'hex')) STORED;--> statement-breakpoint
+CREATE INDEX "idx_project_translation_keys_project_source_hash" ON "project_translation_keys" USING btree ("organization_id","project_id","source_text_hash");

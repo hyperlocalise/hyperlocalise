@@ -72,6 +72,7 @@ import {
 import { listOrganizationProjects } from "@/lib/projects/organization/organization-project-service";
 import {
   getNativeProjectCatFile,
+  getNativeProjectCatGroupOccurrences,
   getNativeProjectCatSegmentComments,
   fileBackedCatSegmentIds,
   getNativeProjectCatSegmentTarget,
@@ -153,6 +154,8 @@ import {
   maxProjectFileUploadBytes,
   projectFileCatSegmentParamsSchema,
   projectFileCatSegmentQuerySchema,
+  projectFileCatGroupParamsSchema,
+  projectFileCatGroupOccurrencesQuerySchema,
   projectFileCatQuerySchema,
   projectFileCatExportQuerySchema,
   projectFileCatConcordanceBodySchema,
@@ -558,6 +561,18 @@ const validateProjectFileCatSegmentQuery = validator("query", (value, c) => {
     return invalidProjectPayloadResponse(c);
   }
 
+  return parsed.data;
+});
+
+const validateProjectFileCatGroupParams = validator("param", (value, c) => {
+  const parsed = projectFileCatGroupParamsSchema.safeParse(value);
+  if (!parsed.success) return invalidProjectPayloadResponse(c);
+  return parsed.data;
+});
+
+const validateProjectFileCatGroupOccurrencesQuery = validator("query", (value, c) => {
+  const parsed = projectFileCatGroupOccurrencesQuerySchema.safeParse(value);
+  if (!parsed.success) return invalidProjectPayloadResponse(c);
   return parsed.data;
 });
 
@@ -1182,6 +1197,33 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
         }
 
         return c.json({ catFile: result.catQueue }, 200);
+      },
+    )
+    .get(
+      "/:projectId/files/detail/cat/groups/:groupId/occurrences",
+      validateProjectFileCatGroupParams,
+      validateProjectFileCatGroupOccurrencesQuery,
+      async (c) => {
+        const params = c.req.valid("param");
+        const query = c.req.valid("query");
+        const project = await getOwnedProject(c.var.auth, params.projectId);
+        if (!project) return projectNotFoundResponse(c);
+        if (!project.automaticallyGroupIdenticalStrings) {
+          return notFoundResponse(c, "cat_group_not_found");
+        }
+
+        const occurrences = await getNativeProjectCatGroupOccurrences({
+          organizationId: c.var.auth.organization.localOrganizationId,
+          projectId: params.projectId,
+          targetLocale: query.targetLocale,
+          groupId: params.groupId,
+          sourceTextHash: query.sourceTextHash,
+        });
+        if (!occurrences) return notFoundResponse(c, "cat_group_not_found");
+
+        return c.json({
+          groupOccurrences: { groupId: params.groupId, occurrences },
+        });
       },
     )
     .get(

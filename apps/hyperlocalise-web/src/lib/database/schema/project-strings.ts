@@ -52,6 +52,9 @@ export const projectTranslationKeys = pgTable(
     ),
     key: text("key").notNull(),
     sourceText: text("source_text").notNull(),
+    sourceTextHash: text("source_text_hash").generatedAlwaysAs(
+      sql`encode(sha256(convert_to(source_text, 'UTF8')), 'hex')`,
+    ),
     normalizedSourceText: text("normalized_source_text").notNull(),
     context: text("context"),
     type: text("type"),
@@ -82,6 +85,11 @@ export const projectTranslationKeys = pgTable(
       table.key,
     ),
     index("idx_project_translation_keys_org_project").on(table.organizationId, table.projectId),
+    index("idx_project_translation_keys_project_source_hash").on(
+      table.organizationId,
+      table.projectId,
+      table.sourceTextHash,
+    ),
     index("idx_project_translation_keys_file").on(table.repositorySourceFileId),
   ],
 );

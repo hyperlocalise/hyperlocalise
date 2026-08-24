@@ -191,6 +191,20 @@ export class ProjectTranslationService extends ProjectServiceBase {
     super(database, "projects.translations");
   }
 
+  async isIdenticalStringGroupingEnabled(input: { organizationId: string; projectId: string }) {
+    const [project] = await this.database
+      .select({ enabled: schema.projects.automaticallyGroupIdenticalStrings })
+      .from(schema.projects)
+      .where(
+        and(
+          eq(schema.projects.organizationId, input.organizationId),
+          eq(schema.projects.id, input.projectId),
+        ),
+      )
+      .limit(1);
+    return project?.enabled ?? false;
+  }
+
   async getRepositorySourceFileByPath(input: {
     organizationId: string;
     projectId: string;
