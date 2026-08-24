@@ -89,10 +89,15 @@ func (d phpArrayDocument) render(values map[string]string) []byte {
 	return b.Bytes()
 }
 
+const (
+	phpSingleQuoteStopChars = "\\'"
+	phpDoubleQuoteStopChars = "\\\"$"
+	phpDoubleQuoteSpecial   = "\\\n\r\t\v\x1b\f\"$"
+)
+
 func parsePHPArrayDocument(content []byte) (phpArrayDocument, error) {
-	// BOLT OPTIMIZATION: Hint capacity for entries and seen map based on content size.
-	// Increased density hint from /64 to /32.
-	capacity := len(content) / 32
+	// BOLT OPTIMIZATION: Use bytes.Count for exact capacity hint based on key-value delimiters.
+	capacity := bytes.Count(content, []byte("=>"))
 	if capacity < 4 {
 		capacity = 4
 	}
@@ -249,9 +254,9 @@ func (s *phpArrayScanner) parseStringLiteral() (phpStringToken, error) {
 	start := s.pos
 	i := start + 1
 
-	stopChars := "\\" + string(quote)
+	stopChars := phpSingleQuoteStopChars
 	if quote == '"' {
-		stopChars += "$"
+		stopChars = phpDoubleQuoteStopChars
 	}
 
 	// BOLT OPTIMIZATION: Fast-path for simple strings without escapes or interpolation.
@@ -502,15 +507,25 @@ var (
 
 func writePHPStringLiteral(b *bytes.Buffer, value string, quote byte) {
 	b.WriteByte(quote)
-	var err error
-	if quote == '"' {
-		_, err = phpDoubleQuoteReplacer.WriteString(b, value)
+	// BOLT OPTIMIZATION: Fast-path for strings without characters needing escapes.
+	if quote == '\'' {
+		if !strings.ContainsAny(value, phpSingleQuoteStopChars) {
+			b.WriteString(value)
+			b.WriteByte(quote)
+			return
+		}
+		if _, err := phpSingleQuoteReplacer.WriteString(b, value); err != nil {
+			panic(err)
+		}
 	} else {
-		_, err = phpSingleQuoteReplacer.WriteString(b, value)
-	}
-	if err != nil {
-		// bytes.Buffer.Write never fails; Replacer only surfaces writer errors.
-		panic(err)
+		if !strings.ContainsAny(value, phpDoubleQuoteSpecial) {
+			b.WriteString(value)
+			b.WriteByte(quote)
+			return
+		}
+		if _, err := phpDoubleQuoteReplacer.WriteString(b, value); err != nil {
+			panic(err)
+		}
 	}
 	b.WriteByte(quote)
 }
