@@ -1,6 +1,7 @@
 package model
 
 import (
+	"encoding/json"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -52,6 +53,47 @@ func TestBundleAddRequestValidate(t *testing.T) {
 			} else {
 				assert.EqualError(t, err, tt.err)
 			}
+		})
+	}
+}
+
+func TestBundleAddRequestMarshalJSON(t *testing.T) {
+	tests := []struct {
+		name     string
+		req      *BundleAddRequest
+		expected string
+	}{
+		{
+			name: "omitted optional boolean pointers",
+			req: &BundleAddRequest{
+				Name:           "Resx bundle",
+				Format:         "crowdin-resx",
+				SourcePatterns: []string{"/master"},
+				ExportPattern:  "translations",
+			},
+			expected: `{"name":"Resx bundle","format":"crowdin-resx","sourcePatterns":["/master"],"ignorePatterns":null,"exportPattern":"translations"}`,
+		},
+		{
+			name: "specified optional boolean pointers",
+			req: &BundleAddRequest{
+				Name:                         "Resx bundle",
+				Format:                       "crowdin-resx",
+				SourcePatterns:               []string{"/master"},
+				ExportPattern:                "translations",
+				IsMultilingual:               toPtr(true),
+				IncludeProjectSourceLanguage: toPtr(false),
+				LabelIDs:                     []int{1, 2},
+				ExcludeLabelIDs:              []int{3},
+			},
+			expected: `{"name":"Resx bundle","format":"crowdin-resx","sourcePatterns":["/master"],"ignorePatterns":null,"exportPattern":"translations","isMultilingual":true,"includeProjectSourceLanguage":false,"labelIds":[1,2],"excludeLabelIds":[3]}`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			b, err := json.Marshal(tt.req)
+			assert.NoError(t, err)
+			assert.JSONEq(t, tt.expected, string(b))
 		})
 	}
 }

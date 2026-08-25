@@ -1,5 +1,11 @@
 # Crowdin Steward's Journal
 
+## 2026-12-31 - Add omitempty struct tags to BundleAddRequest optional boolean pointers
+
+**Learning:** In Crowdin API v2, `isMultilingual` and `includeProjectSourceLanguage` are optional boolean parameters when creating a bundle (`POST /api/v2/projects/{projectId}/bundles`). Unset pointer fields without `omitempty` in Go standard `json.Marshal` serialize as `null` rather than being omitted from the request payload, which can trigger API validation errors.
+
+**Action:** Added `json:"isMultilingual,omitempty"` and `json:"includeProjectSourceLanguage,omitempty"` to `BundleAddRequest` in `third_party/crowdin-api-client-go/crowdin/model/bundles.go`. Added unit test assertions in `third_party/crowdin-api-client-go/crowdin/model/bundles_test.go`.
+
 ## 2026-12-31 - Add Type query filter parity to TasksListOptions
 
 **Learning:** In Crowdin API v2, the List Tasks endpoint (`GET /api/v2/projects/{projectId}/tasks`) accepts filtering tasks by `type` (0 - translate, 1 - proofread, 2 - translate by vendor, 3 - proofread by vendor) in addition to `status`, `assigneeId`, `creatorId`, `workflowStepId`, `labelIds`, and `excludeLabelIds`. The SDK's `TasksListOptions` previously lacked `Type`, preventing callers from filtering tasks by task type.
