@@ -152,6 +152,44 @@ func (s *Strategy) ParseWithContext(path string, content []byte) (map[string]str
 	return s.parseWithContext(path, content)
 }
 
+// ParseIngestEntries resolves a parser from the file path extension and returns entries
+// enriched with optional import metadata such as max-length limits.
+func (s *Strategy) ParseIngestEntries(path string, content []byte, locale string) (map[string]IngestEntry, error) {
+	ext := strings.ToLower(filepath.Ext(strings.TrimSpace(path)))
+	if ext == "" {
+		return nil, fmt.Errorf("translation file parser: file %q has no extension", path)
+	}
+
+	switch ext {
+	case ".strings":
+		parser, ok := s.parsersByExt[ext].(AppleStringsParser)
+		if !ok {
+			return nil, fmt.Errorf("translation file parser: unsupported file extension %q", ext)
+		}
+		entries, err := parser.ParseIngestEntries(content)
+		if err != nil {
+			return nil, fmt.Errorf("translation file parser: parse %q: %w", path, err)
+		}
+		return entries, nil
+	case ".xcstrings":
+		parser, ok := s.parsersByExt[ext].(XCStringsParser)
+		if !ok {
+			return nil, fmt.Errorf("translation file parser: unsupported file extension %q", ext)
+		}
+		entries, err := parser.ParseIngestEntries(content, locale)
+		if err != nil {
+			return nil, fmt.Errorf("translation file parser: parse %q: %w", path, err)
+		}
+		return entries, nil
+	}
+
+	values, err := s.ParseWithLocale(path, content, locale)
+	if err != nil {
+		return nil, err
+	}
+	return IngestEntriesFromStringMap(values), nil
+}
+
 func (s *Strategy) parseWithContext(path string, content []byte) (map[string]string, map[string]string, error) {
 	ext := strings.ToLower(filepath.Ext(strings.TrimSpace(path)))
 	if ext == "" {

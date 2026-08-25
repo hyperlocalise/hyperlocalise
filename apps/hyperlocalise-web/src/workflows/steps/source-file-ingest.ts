@@ -11,6 +11,7 @@
  * Version 2.0 or later.
  */
 import type { ProjectSourceStringEntry } from "@/api/routes/project/project.schema";
+import type { HlEntriesPayload } from "@/lib/projects/files/hl-entries";
 
 export async function claimSourceFileIngestStep(input: {
   sourceFileVersionId: string;
@@ -78,7 +79,7 @@ export async function extractSourceIngestEntriesStep(sandboxId: string, filePath
 }
 
 export async function parseHlEntriesStep(
-  extractedEntries: Record<string, string>,
+  extractedEntries: HlEntriesPayload,
 ): Promise<ProjectSourceStringEntry[]> {
   "use step";
   const { entriesFromHlOutput } = await import("@/lib/projects/files/source-file-ingest");

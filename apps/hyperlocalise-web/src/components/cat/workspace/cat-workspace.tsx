@@ -89,6 +89,7 @@ export const CatWorkspaceView = observer(function CatWorkspaceView({
   isCommentsLoading = false,
   isSegmentTargetLoading = false,
   isImageBusy = false,
+  isMaxLengthSaving = false,
   queuePagination = null,
   hasMoreQueue = false,
   onLoadMoreQueue,
@@ -417,6 +418,13 @@ export const CatWorkspaceView = observer(function CatWorkspaceView({
                 }
               : undefined
           }
+          showMaxLengthEditor={isNativeProject}
+          isMaxLengthSaving={isMaxLengthSaving}
+          onSetMaxLength={
+            editing.onSetMaxLength
+              ? (maxLength) => editing.onSetMaxLength!(intelligenceSegmentId, maxLength)
+              : undefined
+          }
           primaryActionLabel={shell.primaryActionLabel}
           segmentShareUrl={segmentShareUrl}
         />
@@ -616,12 +624,19 @@ export const CatWorkspaceView = observer(function CatWorkspaceView({
           isVisualContextLoading={isVisualContextLoading}
           showAgentContext={showAgentContext}
           showVisualContext={showVisualContext}
+          showMaxLengthEditor={isNativeProject}
+          isMaxLengthSaving={isMaxLengthSaving}
           canEditTranslations={
             shell.fileContext.canEditTranslations !== false && !editorSegment.isLocked
           }
           canLookupFreshContext={canLookupContext}
           onRefreshContext={() => review.onAskQuestion(editorSegment.id, { forceRefresh: true })}
           onUseTmMatch={(match) => editing.onUseTmMatch(editorSegment.id, match)}
+          onSetMaxLength={
+            editing.onSetMaxLength
+              ? (maxLength) => editing.onSetMaxLength!(editorSegment.id, maxLength)
+              : undefined
+          }
         />
       </CatPanelErrorBoundary>
     );

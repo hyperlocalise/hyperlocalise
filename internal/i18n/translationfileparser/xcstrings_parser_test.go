@@ -115,6 +115,79 @@ func TestXCStringsParserParsesSourceStringsVariantsAndContext(t *testing.T) {
 	}
 }
 
+func TestXCStringsParserExtractsMaxLengthFromEntryMetadata(t *testing.T) {
+	content := []byte(`{
+  "sourceLanguage": "en",
+  "strings": {
+    "cta": {
+      "maxLength": 24,
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Continue"
+          }
+        }
+      }
+    },
+    "title": {
+      "comment": "Screen title. Max length: 18",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Welcome"
+          }
+        }
+      }
+    },
+    "item_count": {
+      "characterLimit": 30,
+      "comment": "Cart item count",
+      "localizations": {
+        "en": {
+          "variations": {
+            "plural": {
+              "one": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld item"
+                }
+              },
+              "other": {
+                "stringUnit": {
+                  "state": "translated",
+                  "value": "%lld items"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "version": "1.0"
+}`)
+
+	entries, err := (XCStringsParser{}).ParseIngestEntries(content, "")
+	if err != nil {
+		t.Fatalf("parse xcstrings ingest entries: %v", err)
+	}
+
+	if entries["cta"].MaxLength != 24 {
+		t.Fatalf("expected cta max length 24, got %+v", entries["cta"])
+	}
+	if entries["title"].MaxLength != 18 {
+		t.Fatalf("expected title max length 18, got %+v", entries["title"])
+	}
+	if entries["item_count::plural.one"].MaxLength != 30 {
+		t.Fatalf("expected plural.one max length 30, got %+v", entries["item_count::plural.one"])
+	}
+	if entries["item_count::plural.other"].MaxLength != 30 {
+		t.Fatalf("expected plural.other max length 30, got %+v", entries["item_count::plural.other"])
+	}
+}
+
 func TestParseXCStringsLocaleReadsRequestedTargetLocale(t *testing.T) {
 	content := []byte(`{
   "sourceLanguage": "en",

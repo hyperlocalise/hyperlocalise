@@ -52,6 +52,32 @@ func TestAppleStringsParserParsesMultilineAndUnicode(t *testing.T) {
 	}
 }
 
+func TestAppleStringsParserExtractsMaxLengthFromLeadingComments(t *testing.T) {
+	content := []byte(`/* Max length: 24 */
+"cta" = "Continue";
+
+// Character limit = 12
+"title" = "Welcome";
+
+"plain" = "No limit";
+`)
+
+	entries, err := (AppleStringsParser{}).ParseIngestEntries(content)
+	if err != nil {
+		t.Fatalf("parse strings ingest entries: %v", err)
+	}
+
+	if entries["cta"].MaxLength != 24 {
+		t.Fatalf("expected cta max length 24, got %+v", entries["cta"])
+	}
+	if entries["title"].MaxLength != 12 {
+		t.Fatalf("expected title max length 12, got %+v", entries["title"])
+	}
+	if entries["plain"].MaxLength != 0 {
+		t.Fatalf("expected plain entry without max length, got %+v", entries["plain"])
+	}
+}
+
 func TestMarshalAppleStringsPreservesTemplateFormatting(t *testing.T) {
 	template := []byte(`/* App title */
 "title"   =   "Welcome";

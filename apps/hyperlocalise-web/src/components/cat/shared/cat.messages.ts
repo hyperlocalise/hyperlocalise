@@ -485,6 +485,41 @@ export const catIntelligencePanelMessages = defineMessages({
     id: "bzdmXkD3a+",
     description: "Supporting copy below the CAT translation intelligence panel heading",
   },
+  maxLengthTitle: {
+    defaultMessage: "Character limit",
+    id: "RS4pbTA1Mq",
+    description: "Section heading for the native segment max length constraint",
+  },
+  maxLengthDescription: {
+    defaultMessage: "Set the maximum number of characters allowed in the translation.",
+    id: "+tsNE73Ud/",
+    description: "Helper text for the native segment max length editor",
+  },
+  maxLengthPlaceholder: {
+    defaultMessage: "No limit",
+    id: "hZ7gIyvYMF",
+    description: "Placeholder when a native segment has no max length set",
+  },
+  maxLengthSave: {
+    defaultMessage: "Save",
+    id: "+qqz/QE1GR",
+    description: "Button label to save a native segment max length",
+  },
+  maxLengthClear: {
+    defaultMessage: "Clear",
+    id: "DbdjwrPI01",
+    description: "Button label to clear a native segment max length",
+  },
+  maxLengthInvalid: {
+    defaultMessage: "Enter a positive whole number.",
+    id: "lTD082Dlt5",
+    description: "Validation error when the max length input is not a positive integer",
+  },
+  maxLengthCurrent: {
+    defaultMessage: "Limit: {maxLength} characters",
+    id: "k5etBkEqlB",
+    description: "Read-only summary of the current native segment max length",
+  },
   fileContextTitle: {
     defaultMessage: "Context attached in the file",
     id: "HZtAltEBuQ",

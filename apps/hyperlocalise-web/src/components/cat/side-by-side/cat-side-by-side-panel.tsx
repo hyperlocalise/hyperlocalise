@@ -103,6 +103,9 @@ export const CatSideBySidePanel = observer(function CatSideBySidePanel({
   issueTargetLocale = null,
   issueStringLink = null,
   onNativeOpenIssueCountChange,
+  showMaxLengthEditor = false,
+  isMaxLengthSaving = false,
+  onSetMaxLength,
   primaryActionLabel,
   segmentShareUrl = null,
   className,
@@ -177,6 +180,9 @@ export const CatSideBySidePanel = observer(function CatSideBySidePanel({
     linkLabel?: string;
   } | null;
   onNativeOpenIssueCountChange?: (openIssueCount: number) => void;
+  showMaxLengthEditor?: boolean;
+  isMaxLengthSaving?: boolean;
+  onSetMaxLength?: (maxLength: number | null) => void | Promise<void>;
   primaryActionLabel?: string;
   segmentShareUrl?: string | null;
   className?: string;
@@ -355,6 +361,9 @@ export const CatSideBySidePanel = observer(function CatSideBySidePanel({
               ? () => onAddToIssueSheet(intelligenceSegmentId)
               : undefined
           }
+          showMaxLengthEditor={showMaxLengthEditor}
+          isMaxLengthSaving={isMaxLengthSaving}
+          onSetMaxLength={onSetMaxLength}
           organizationSlug={organizationSlug}
           projectId={projectId}
           nativeIssuesEnabled={nativeIssuesEnabled}

@@ -72,6 +72,9 @@ export function CatSideBySideIntelligencePanel({
   issueTargetLocale = null,
   issueStringLink = null,
   onNativeOpenIssueCountChange,
+  showMaxLengthEditor = false,
+  isMaxLengthSaving = false,
+  onSetMaxLength,
   placement = "bottom",
   className,
 }: {
@@ -108,6 +111,9 @@ export function CatSideBySideIntelligencePanel({
   issueTargetLocale?: string | null;
   issueStringLink?: IssueSheetCreateStringLink | null;
   onNativeOpenIssueCountChange?: (openIssueCount: number) => void;
+  showMaxLengthEditor?: boolean;
+  isMaxLengthSaving?: boolean;
+  onSetMaxLength?: (maxLength: number | null) => void | Promise<void>;
   placement?: "bottom" | "right";
   className?: string;
 }) {
@@ -161,10 +167,13 @@ export function CatSideBySideIntelligencePanel({
       isVisualContextLoading={isVisualContextLoading}
       showAgentContext={showAgentContext}
       showVisualContext={showVisualContext}
+      showMaxLengthEditor={showMaxLengthEditor}
+      isMaxLengthSaving={isMaxLengthSaving}
       canEditTranslations={canEditTranslations}
       canLookupFreshContext={canLookupFreshContext}
       onRefreshContext={onRefreshContext}
       onUseTmMatch={onUseTmMatch}
+      onSetMaxLength={onSetMaxLength}
     />
   );
   const commentsPanel = (

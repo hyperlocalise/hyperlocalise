@@ -28,6 +28,11 @@ import {
 } from "@/lib/translation/file-formats";
 import { translationPromptPolicy } from "@/lib/translation/generation";
 import type { SandboxTranslationContext } from "@/lib/translation/domain";
+import {
+  hlEntriesPayloadToStringMap,
+  parseHlEntriesJson,
+  type HlEntriesPayload,
+} from "@/lib/projects/files/hl-entries";
 
 export const sandboxTimeoutMs = 10 * 60 * 1000;
 export const crowdinSandboxConfigPath = "/tmp/crowdin.yml";
@@ -39,8 +44,10 @@ export const sandboxFileBucketName = "file";
 export type { SandboxTranslationContext };
 
 export type ExtractSandboxEntriesResult =
-  | { ok: true; entries: Record<string, string> }
+  | { ok: true; entries: HlEntriesPayload }
   | { ok: false; exitCode: number; output: string };
+
+export { hlEntriesPayloadToStringMap };
 
 function shellQuote(value: string): string {
   return `'${value.replaceAll("'", "'\\''")}'`;
@@ -812,7 +819,7 @@ export class HyperlocaliseCliRunner {
         const content = await this.lifecycle.readFile(sandboxId, outputPath);
         return {
           ok: true,
-          entries: JSON.parse(content.toString("utf8")) as Record<string, string>,
+          entries: parseHlEntriesJson(JSON.parse(content.toString("utf8"))),
         };
       } catch (error) {
         return {
