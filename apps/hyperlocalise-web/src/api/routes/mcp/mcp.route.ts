@@ -485,9 +485,7 @@ const validateRegisterBody = validator("json", (value, c) => {
   return parsed.data;
 });
 
-export function createMcpRoutes(
-  options: { apiBasePath?: string } = {},
-): Hono<{ Variables: McpAuthVariables }> {
+export function createMcpRoutes(options: { apiBasePath?: string } = {}) {
   const apiBasePath = options.apiBasePath ?? "/api";
 
   return new Hono<{ Variables: McpAuthVariables }>()
