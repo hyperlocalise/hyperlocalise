@@ -461,6 +461,9 @@
   "/vxavoK/xz": {
     "defaultMessage": "LinkedIn"
   },
+  "/xJskut0lc": {
+    "defaultMessage": "Les lignes regroupées seront développées après l’enregistrement ou l’abandon des brouillons CAT. Les traductions, les approbations, les commentaires et les exceptions de séparation enregistrées resteront inchangés."
+  },
   "/y+q4g0L8i": {
     "defaultMessage": "Ajoutez la terminologie, les analyses du marché, les exigences de conformité, les conseils de lancement et les éléments à éviter…"
   },
@@ -1903,6 +1906,9 @@
   },
   "5gOsIVBri/": {
     "defaultMessage": "Relisez les traductions pour en vérifier la qualité avant leur publication."
+  },
+  "5h52MoVR2a": {
+    "defaultMessage": "Seuls les chefs de projet peuvent modifier ce paramètre."
   },
   "5jQwn2vYQM": {
     "defaultMessage": "Aucune colonne personnalisée pour le moment."
@@ -3964,6 +3970,9 @@
   },
   "E+xT1YvnbH": {
     "defaultMessage": "Demander une démo"
+  },
+  "E/lJPiTTAo": {
+    "defaultMessage": "Annuler"
   },
   "E/rfTTHsFg": {
     "defaultMessage": "A des avertissements"
@@ -6728,6 +6737,9 @@
   "Qbn+bjzsz0": {
     "defaultMessage": "Glossaires"
   },
+  "QdeL6ZDB5C": {
+    "defaultMessage": "Regrouper les chaînes identiques ?"
+  },
   "QdvsoHtp53": {
     "defaultMessage": "Synchronisation"
   },
@@ -8063,6 +8075,9 @@
   "WUFTI428rT": {
     "defaultMessage": "Manual"
   },
+  "WUMSOeitWn": {
+    "defaultMessage": "Activer le regroupement"
+  },
   "WUV28A6Pf2": {
     "defaultMessage": "Saving…"
   },
@@ -8116,6 +8131,9 @@
   },
   "WhMZXjHjRn": {
     "defaultMessage": "Pending"
+  },
+  "WhmV5YamvS": {
+    "defaultMessage": "Ce terme sera supprimé du concept lorsque vous l'enregistrerez."
   },
   "Wi6a5o/Mm+": {
     "defaultMessage": "Orchestration avec intervention humaine"
@@ -8230,6 +8248,9 @@
   },
   "X9s4kh3gLN": {
     "defaultMessage": "Rapport d’audit de localisation"
+  },
+  "XAJ64thIXq": {
+    "defaultMessage": "Afficher les doublons exacts du texte source dans un groupe partagé lors de l’actualisation de l’espace de travail CAT."
   },
   "XAPcmSCzyq": {
     "defaultMessage": "Human review workflows"
@@ -8768,6 +8789,9 @@
   "ZNrsvoazsU": {
     "defaultMessage": "Hyperlocalise a créé automatiquement le webhook Contentful. Enregistrez le secret ci-dessous si vous devez le réenregistrer manuellement."
   },
+  "ZQECIF/mni": {
+    "defaultMessage": "Arrêter de regrouper les chaînes identiques ?"
+  },
   "ZQbvwhJWXn": {
     "defaultMessage": "Activer d’abord"
   },
@@ -9178,6 +9202,9 @@
   },
   "b6FmkNJjkD": {
     "defaultMessage": "Supprimer la tâche"
+  },
+  "b6mn1qkBp4": {
+    "defaultMessage": "Regrouper automatiquement les chaînes identiques"
   },
   "b7cQsDBNuy": {
     "defaultMessage": "Format"
@@ -11207,6 +11234,9 @@
   "jUpgPN4uQt": {
     "defaultMessage": "Work in progress"
   },
+  "jVfYLLHPHu": {
+    "defaultMessage": "Désactiver le regroupement"
+  },
   "jW4nG0Rt7y": {
     "defaultMessage": "Échec du téléversement de {sourcePath}"
   },
@@ -11732,6 +11762,9 @@
   "lO+u6H8vSf": {
     "defaultMessage": "Paramètres d’automatisation enregistrés"
   },
+  "lODK5YiNr1": {
+    "defaultMessage": "Impossible de charger le comportement du CAT"
+  },
   "lOhCmO7eKl": {
     "defaultMessage": "Terme cible"
   },
@@ -11791,6 +11824,9 @@
   },
   "ljEJGwxPd/": {
     "defaultMessage": "Déconnecter"
+  },
+  "llWEpZcDRe": {
+    "defaultMessage": "Impossible de mettre à jour le comportement du CAT"
   },
   "lmLPnsMyhs": {
     "defaultMessage": "Accéder au tableau de bord"
@@ -11872,6 +11908,9 @@
   },
   "m8UlToMOXC": {
     "defaultMessage": "Recherche de fichiers"
+  },
+  "mABAdUPLF4": {
+    "defaultMessage": "Contrôlez la manière dont les chaînes source sont organisées dans l’espace de travail CAT."
   },
   "mAyP67aqS8": {
     "defaultMessage": "Clear"
@@ -12575,6 +12614,9 @@
   "p9ro5GVVLh": {
     "defaultMessage": "Settings"
   },
+  "pAXX9L54+r": {
+    "defaultMessage": "Traduction et comportement de CAT"
+  },
   "pCwlsos9AL": {
     "defaultMessage": "Choisissez un jour de la semaine pour les plannings hebdomadaires."
   },
@@ -13123,6 +13165,9 @@
   },
   "rWXo8jdqPU": {
     "defaultMessage": "Updated"
+  },
+  "rWZYfLEPfd": {
+    "defaultMessage": "Cela regroupera environ {occurrences, number} occurrences en {groups, number} groupes. Les traductions existantes ne seront pas modifiées."
   },
   "rWc6Iosb8n": {
     "defaultMessage": "Aucun problème ne correspond à cette vue."
@@ -14113,6 +14158,9 @@
   },
   "viq5/Imoma": {
     "defaultMessage": "Espace de travail"
+  },
+  "vjPfgNgxUm": {
+    "defaultMessage": "Comportement du CAT mis à jour"
   },
   "vjXHRG767Q": {
     "defaultMessage": "{createdCount} tâches sur {totalCount} ont été créées, puis une erreur est survenue : {errorMessage}"

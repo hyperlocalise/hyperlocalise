@@ -461,6 +461,9 @@
   "/vxavoK/xz": {
     "defaultMessage": "LinkedIn"
   },
+  "/xJskut0lc": {
+    "defaultMessage": "Các hàng được nhóm sẽ được mở rộng sau khi bản nháp CAT được lưu hoặc loại bỏ. Bản dịch, phê duyệt, bình luận và các ngoại lệ phân tách đã lưu sẽ không thay đổi."
+  },
   "/y+q4g0L8i": {
     "defaultMessage": "Bổ sung thuật ngữ, thông tin chuyên sâu về thị trường, các yêu cầu tuân thủ, hướng dẫn ra mắt và những điều cần tránh…"
   },
@@ -1903,6 +1906,9 @@
   },
   "5gOsIVBri/": {
     "defaultMessage": "Rà soát bản dịch để đảm bảo chất lượng trước khi phát hành"
+  },
+  "5h52MoVR2a": {
+    "defaultMessage": "Chỉ người quản lý dự án mới có thể thay đổi cài đặt này."
   },
   "5jQwn2vYQM": {
     "defaultMessage": "Chưa có cột tùy chỉnh nào."
@@ -3964,6 +3970,9 @@
   },
   "E+xT1YvnbH": {
     "defaultMessage": "Yêu cầu bản demo"
+  },
+  "E/lJPiTTAo": {
+    "defaultMessage": "Hủy"
   },
   "E/rfTTHsFg": {
     "defaultMessage": "Có cảnh báo"
@@ -6728,6 +6737,9 @@
   "Qbn+bjzsz0": {
     "defaultMessage": "Bảng thuật ngữ"
   },
+  "QdeL6ZDB5C": {
+    "defaultMessage": "Nhóm các chuỗi giống hệt nhau?"
+  },
   "QdvsoHtp53": {
     "defaultMessage": "sync"
   },
@@ -8063,6 +8075,9 @@
   "WUFTI428rT": {
     "defaultMessage": "Manual"
   },
+  "WUMSOeitWn": {
+    "defaultMessage": "Bật tính năng nhóm"
+  },
   "WUV28A6Pf2": {
     "defaultMessage": "Saving…"
   },
@@ -8116,6 +8131,9 @@
   },
   "WhMZXjHjRn": {
     "defaultMessage": "Pending"
+  },
+  "WhmV5YamvS": {
+    "defaultMessage": "Thuật ngữ này sẽ bị xóa khỏi khái niệm khi bạn lưu."
   },
   "Wi6a5o/Mm+": {
     "defaultMessage": "Điều phối có sự tham gia của con người"
@@ -8230,6 +8248,9 @@
   },
   "X9s4kh3gLN": {
     "defaultMessage": "Báo cáo kiểm tra bản địa hóa"
+  },
+  "XAJ64thIXq": {
+    "defaultMessage": "Hiển thị các văn bản nguồn trùng khớp hoàn toàn dưới dạng một nhóm dùng chung khi không gian làm việc CAT làm mới."
   },
   "XAPcmSCzyq": {
     "defaultMessage": "Human review workflows"
@@ -8768,6 +8789,9 @@
   "ZNrsvoazsU": {
     "defaultMessage": "Hyperlocalise đã tự động tạo webhook Contentful. Hãy lưu bí mật bên dưới nếu bạn cần đăng ký lại thủ công."
   },
+  "ZQECIF/mni": {
+    "defaultMessage": "Dừng nhóm các chuỗi giống hệt nhau?"
+  },
   "ZQbvwhJWXn": {
     "defaultMessage": "Bật trước"
   },
@@ -9178,6 +9202,9 @@
   },
   "b6FmkNJjkD": {
     "defaultMessage": "Xóa tác vụ"
+  },
+  "b6mn1qkBp4": {
+    "defaultMessage": "Tự động nhóm các chuỗi giống hệt nhau"
   },
   "b7cQsDBNuy": {
     "defaultMessage": "Format"
@@ -11207,6 +11234,9 @@
   "jUpgPN4uQt": {
     "defaultMessage": "Work in progress"
   },
+  "jVfYLLHPHu": {
+    "defaultMessage": "Tắt tính năng nhóm"
+  },
   "jW4nG0Rt7y": {
     "defaultMessage": "Không thể tải lên {sourcePath}"
   },
@@ -11732,6 +11762,9 @@
   "lO+u6H8vSf": {
     "defaultMessage": "Đã lưu cài đặt tự động hóa"
   },
+  "lODK5YiNr1": {
+    "defaultMessage": "Không thể tải hành vi CAT"
+  },
   "lOhCmO7eKl": {
     "defaultMessage": "Thuật ngữ đích"
   },
@@ -11791,6 +11824,9 @@
   },
   "ljEJGwxPd/": {
     "defaultMessage": "Ngắt kết nối"
+  },
+  "llWEpZcDRe": {
+    "defaultMessage": "Không thể cập nhật hành vi CAT"
   },
   "lmLPnsMyhs": {
     "defaultMessage": "Đi đến bảng điều khiển"
@@ -11872,6 +11908,9 @@
   },
   "m8UlToMOXC": {
     "defaultMessage": "Đang tìm tệp"
+  },
+  "mABAdUPLF4": {
+    "defaultMessage": "Kiểm soát cách các chuỗi nguồn được sắp xếp trong không gian làm việc CAT."
   },
   "mAyP67aqS8": {
     "defaultMessage": "Clear"
@@ -12575,6 +12614,9 @@
   "p9ro5GVVLh": {
     "defaultMessage": "Settings"
   },
+  "pAXX9L54+r": {
+    "defaultMessage": "Hành vi dịch thuật & CAT"
+  },
   "pCwlsos9AL": {
     "defaultMessage": "Chọn một ngày trong tuần cho lịch hàng tuần."
   },
@@ -13123,6 +13165,9 @@
   },
   "rWXo8jdqPU": {
     "defaultMessage": "Updated"
+  },
+  "rWZYfLEPfd": {
+    "defaultMessage": "Thao tác này sẽ nhóm khoảng {occurrences, number} lần xuất hiện thành {groups, number} nhóm. Các bản dịch hiện có sẽ không bị thay đổi."
   },
   "rWc6Iosb8n": {
     "defaultMessage": "Không có sự cố nào khớp với chế độ xem này."
@@ -14113,6 +14158,9 @@
   },
   "viq5/Imoma": {
     "defaultMessage": "Không gian làm việc"
+  },
+  "vjPfgNgxUm": {
+    "defaultMessage": "Hành vi CAT đã được cập nhật"
   },
   "vjXHRG767Q": {
     "defaultMessage": "Đã tạo {createdCount} trên tổng số {totalCount} tác vụ, sau đó xảy ra lỗi: {errorMessage}"
