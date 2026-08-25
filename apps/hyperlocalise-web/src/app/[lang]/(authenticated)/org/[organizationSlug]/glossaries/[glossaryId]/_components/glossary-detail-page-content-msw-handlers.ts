@@ -24,21 +24,72 @@ export function createGlossaryDetailMswHandlers({
   attachedProjects = [],
   projects = [],
   conceptsLoading = false,
+  onConceptUpdate,
+  onTermDelete,
 }: {
   glossary: GlossaryRecord;
   concepts: GlossaryConceptRecord[];
   attachedProjects?: GlossaryProjectRecord[];
   projects?: Array<{ id: string; name: string; sourceLocale: string }>;
   conceptsLoading?: boolean;
+  onConceptUpdate?: (termIds: string[]) => void;
+  onTermDelete?: (termId: string) => void;
 }) {
+  let currentGlossary = glossary;
+  let currentConcepts = concepts;
+
   return [
     http.get("/api/orgs/:organizationSlug/glossaries/:glossaryId", () =>
-      HttpResponse.json({ glossary }),
+      HttpResponse.json({ glossary: currentGlossary }),
     ),
+    http.patch("/api/orgs/:organizationSlug/glossaries/:glossaryId", async ({ request }) => {
+      const body = (await request.json()) as { name?: string };
+      currentGlossary = { ...currentGlossary, name: body.name ?? currentGlossary.name };
+      return HttpResponse.json({
+        glossary: currentGlossary,
+      });
+    }),
     http.get("/api/orgs/:organizationSlug/glossaries/:glossaryId/concepts", async () => {
       if (conceptsLoading) await delay("infinite");
-      return HttpResponse.json({ concepts, total: concepts.length });
+      return HttpResponse.json({
+        concepts: currentConcepts,
+        total: currentConcepts.length,
+      });
     }),
+    http.patch(
+      "/api/orgs/:organizationSlug/glossaries/:glossaryId/concepts/:conceptId",
+      async ({ params, request }) => {
+        const body = (await request.json()) as {
+          primaryTerm?: string;
+          terms?: Array<{ id?: string }>;
+        };
+        const conceptId = String(params.conceptId);
+        const currentConcept = currentConcepts.find((concept) => concept.id === conceptId);
+        if (!currentConcept) return HttpResponse.json({ error: "not_found" }, { status: 404 });
+
+        const termIds = new Set((body.terms ?? []).flatMap((term) => (term.id ? [term.id] : [])));
+        currentConcepts = currentConcepts.map((concept) =>
+          concept.id === conceptId
+            ? {
+                ...concept,
+                primaryTerm: body.primaryTerm ?? concept.primaryTerm,
+                terms: concept.terms.filter((term) => termIds.has(term.id)),
+              }
+            : concept,
+        );
+        onConceptUpdate?.(body.terms?.flatMap((term) => (term.id ? [term.id] : [])) ?? []);
+        return HttpResponse.json({
+          concept: currentConcepts.find((concept) => concept.id === conceptId),
+        });
+      },
+    ),
+    http.delete(
+      "/api/orgs/:organizationSlug/glossaries/:glossaryId/concepts/:conceptId/terms/:termId",
+      ({ params }) => {
+        onTermDelete?.(String(params.termId));
+        return new HttpResponse(null, { status: 204 });
+      },
+    ),
     http.get("/api/orgs/:organizationSlug/glossaries/:glossaryId/projects", () =>
       HttpResponse.json({ projects: attachedProjects }),
     ),

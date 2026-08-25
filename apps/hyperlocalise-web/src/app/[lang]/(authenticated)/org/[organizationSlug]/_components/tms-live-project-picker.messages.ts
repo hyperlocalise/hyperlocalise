@@ -30,4 +30,9 @@ export const tmsLiveProjectPickerMessages = defineMessages({
     id: "RtU7kH2epq",
     description: "Placeholder prompting the user to choose a TMS project",
   },
+  allProjects: {
+    defaultMessage: "All projects",
+    id: "TXSZ3cXaZk",
+    description: "Placeholder for browsing live TMS resources across all projects",
+  },
 });

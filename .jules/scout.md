@@ -199,3 +199,15 @@
 ## 2026-11-22 - [Spellcheck Markup Stripping and Word Tokenization Boundaries]
 **Learning:** In localized spellchecking, `stripMarkup` and `scanWords` must handle HTML attributes containing angle brackets (e.g. `<a title="A > B">`), Markdown code spans with variable backtick fence lengths (where inner backticks only close if the fence length matches), ICU plural/select literals, and mid-word HTML entities (`Fran&ccedil;ais`, `don&rsquo;t`). Additionally, bare URLs trimmed of trailing sentence punctuation and UUIDs must be skipped without fragmenting into individual hex words.
 **Action:** Always include complex mixed-markup test cases (combining HTML, Markdown links, ICU branches, entities, printf specifiers, and bare URLs) when verifying spellcheck tokenization to protect user-visible word extraction.
+
+## 2026-11-23 - [CLI UI Progress Renderer Priority & Truncation Boundaries]
+**Learning:** In CLI Bubble Tea progress renderers (`progressui`), file status prioritization ranks `processing` (priority 0) ahead of `failed` (priority 1) and `done` (priority 2), maintaining recency order within the same state. Furthermore, finishing tasks for unstarted target paths must safely handle zero `processing` counts without integer underflow, and file status lists exceeding `maxVisible` must correctly compute and display the `... N more files` suffix line.
+**Action:** When testing CLI terminal rendering or state-machine UI models, verify both priority sorting boundaries and zero/underflow safety on event handlers alongside list truncation text rendering.
+
+## 2026-11-24 - [Storage Adapter Registry Normalization and Error Wrapping]
+**Learning:** The storage adapter registry (`storageregistry`) normalizes adapter names by converting to lowercase and stripping whitespace. When testing adapter registration and instantiation, lookups with mixed casing or leading/trailing whitespace (e.g. `"  CROWDIN-V2  "`) resolve to the same normalized key. Additionally, factory errors inside `New` are wrapped using Go `%w`, which preserves `errors.Is` error unwrapping while appending contextual adapter error prefixes.
+**Action:** When testing adapter registries or plugin factories, verify name normalization across registration, lookup, and list output, and assert both sentinel error unwrapping (`errors.Is`) and contextual message formatting.
+
+## 2026-11-25 - [JSONStore Deterministic Bucket Pattern Resolution]
+**Learning:** `JSONStore` bucket pattern resolution (`resolveLocalePattern`) sorts bucket map names alphabetically (`sort.Strings`) before selecting the first valid file pattern (`To`). This ensures deterministic file path pattern resolution across Go runtime executions where map iteration order is randomized.
+**Action:** When unit testing storage adapters or multi-bucket configuration resolution, supply multiple bucket entries out of alphabetical order to verify deterministic key sorting.

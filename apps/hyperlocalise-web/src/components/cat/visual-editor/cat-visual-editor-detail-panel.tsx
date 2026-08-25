@@ -23,6 +23,7 @@ import { CatEditorSourceSection } from "@/components/cat/editor/cat-editor-sourc
 import { CatEditorTargetSection } from "@/components/cat/editor/cat-editor-target-section";
 import { CatIntelligencePanel } from "@/components/cat/intelligence/cat-intelligence-panel";
 import { CatHiddenStringBadge } from "@/components/cat/segment/cat-hidden-string-badge";
+import { CatLockedStringBadge } from "@/components/cat/segment/cat-locked-string-badge";
 import {
   SegmentStatusBadge,
   shouldShowSegmentStatusBadge,
@@ -108,7 +109,8 @@ export function CatVisualEditorDetailPanel({
   const heading =
     segment.contextLabel?.trim() ||
     intl.formatMessage(catVisualEditorMessages.selectedStringHeading);
-  const canApprove = canEditTranslations && segment.targetText.trim().length > 0;
+  const canApprove =
+    canEditTranslations && !segment.isLocked && segment.targetText.trim().length > 0;
 
   return (
     <aside
@@ -122,6 +124,7 @@ export function CatVisualEditorDetailPanel({
               <SegmentStatusBadge status={segment.status} />
             ) : null}
             {segment.isHidden ? <CatHiddenStringBadge /> : null}
+            {segment.isLocked ? <CatLockedStringBadge /> : null}
             {isTargetDirty ? (
               <Badge variant="outline" className="border-bud-500/40 bg-bud-500/10 text-bud-300">
                 <FormattedMessage {...catEditorPanelMessages.unsavedChanges} />
@@ -176,7 +179,7 @@ export function CatVisualEditorDetailPanel({
 
           <CatEditorTargetSection
             segment={segment}
-            canEditTarget={canEditTranslations}
+            canEditTarget={canEditTranslations && !segment.isLocked}
             onTargetChange={onTargetChange}
             onCopySource={onCopySource}
             onClearTarget={onClearTarget}

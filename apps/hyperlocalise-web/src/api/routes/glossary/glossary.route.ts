@@ -10,20 +10,23 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { and, count, desc, eq } from "drizzle-orm";
+import { count, desc } from "drizzle-orm";
 import { Hono } from "hono";
 import { validator } from "hono/validator";
 
-import { buildAccessibleProjectsWhere } from "@/api/auth/team-access";
 import { workosAuthMiddleware, type ApiAuthContext, type AuthVariables } from "@/api/auth/workos";
 import { badRequestResponse, conflictResponse } from "@/api/errors";
 import { PRODUCT_USAGE_ANALYTICS_EVENTS } from "@/lib/analytics/events";
 import { serverAnalytics } from "@/lib/analytics/server";
 import { parseCsvRows } from "@/lib/csv/parse-csv-rows";
 import { db, schema } from "@/lib/database";
-import { GlossaryValidationError, type NativeGlossary } from "@/lib/glossary/glossary";
+import { Glossary, GlossaryValidationError, type NativeGlossary } from "@/lib/glossary/glossary";
 import { getGlossaryProduct } from "@/lib/glossary/glossary-provider";
 import { toGlossaryRecord } from "@/lib/glossary/glossary-records";
+import {
+  queryNativeGlossaryTermCountForGlossary,
+  queryNativeGlossaryTermCounts,
+} from "@/lib/glossary/query-glossary-term-counts";
 import { listGlossaryTermsByGlossaryId } from "@/lib/glossary/query-glossary-terms";
 import {
   queryNativeGlossaryLanguages,
@@ -68,14 +71,9 @@ type GlossaryListResult = {
   glossaries: NativeGlossary[];
   total: number;
   languagesByGlossaryId: Map<string, ReturnType<typeof toGlossaryRecord>["languages"]>;
-};
-
-type GlossaryProjectRecord = {
-  projectId: string;
-  projectName: string;
-  priority: number;
-  sourceLocale: string | null;
-  targetLocales: string[];
+  termCountsByGlossaryId: Map<string, number>;
+  projectCountsByGlossaryId: Map<string, number>;
+  productsByGlossaryId: Map<string, Glossary>;
 };
 
 async function listGlossaries(
@@ -97,10 +95,28 @@ async function listGlossaries(
     db.select({ value: count() }).from(schema.glossaries).where(where),
   ]);
 
+  const productsByGlossaryId = new Map<string, Glossary>();
+  for (const glossary of glossaries) {
+    const product = getGlossaryProduct({ auth, glossary });
+    if (product) {
+      productsByGlossaryId.set(glossary.id, product);
+    }
+  }
+
+  const [languagesByGlossaryId, termCountsByGlossaryId, projectCountsByGlossaryId] =
+    await Promise.all([
+      queryNativeGlossaryLanguages(glossaries),
+      queryNativeGlossaryTermCounts(glossaries),
+      Glossary.queryProjectCounts([...productsByGlossaryId.values()]),
+    ]);
+
   return {
     glossaries,
     total: totalRow[0]?.value ?? 0,
-    languagesByGlossaryId: await queryNativeGlossaryLanguages(glossaries),
+    languagesByGlossaryId,
+    termCountsByGlossaryId,
+    projectCountsByGlossaryId,
+    productsByGlossaryId,
   };
 }
 
@@ -188,32 +204,6 @@ function parseGlossaryImport(payload: ImportGlossaryTermsBody): CreateGlossaryTe
         ]
       : [];
   });
-}
-
-async function listGlossaryProjects(
-  auth: ApiAuthContext,
-  glossaryId: string,
-): Promise<GlossaryProjectRecord[]> {
-  const accessibleProjectsWhere = await buildAccessibleProjectsWhere(auth);
-
-  return db
-    .select({
-      projectId: schema.projects.id,
-      projectName: schema.projects.name,
-      priority: schema.projectGlossaries.priority,
-      sourceLocale: schema.projects.sourceLocale,
-      targetLocales: schema.projects.targetLocales,
-    })
-    .from(schema.projectGlossaries)
-    .innerJoin(schema.projects, eq(schema.projectGlossaries.projectId, schema.projects.id))
-    .where(
-      and(
-        eq(schema.projectGlossaries.organizationId, auth.organization.localOrganizationId),
-        eq(schema.projectGlossaries.glossaryId, glossaryId),
-        accessibleProjectsWhere,
-      ),
-    )
-    .orderBy(schema.projectGlossaries.priority, schema.projects.name);
 }
 
 const validateGlossaryParams = validator("param", (value, c) => {
@@ -322,17 +312,32 @@ export function createGlossaryRoutes() {
     .route("/:glossaryId/concepts", createGlossaryConceptRoutes())
     .get("/", validateListGlossaryQuery, async (c) => {
       const query = c.req.valid("query");
-      const { glossaries, total, languagesByGlossaryId } = await listGlossaries(c.var.auth, query);
+      const {
+        glossaries,
+        total,
+        languagesByGlossaryId,
+        termCountsByGlossaryId,
+        projectCountsByGlossaryId,
+        productsByGlossaryId,
+      } = await listGlossaries(c.var.auth, query);
       const records = await mapWithConcurrency(glossaries, 5, async (glossary) => {
-        const product = getGlossaryProduct({ auth: c.var.auth, glossary });
+        const product = productsByGlossaryId.get(glossary.id);
+        const termCount =
+          glossary.source === "native" ? (termCountsByGlossaryId.get(glossary.id) ?? 0) : undefined;
+        const projectCount = projectCountsByGlossaryId.get(glossary.id) ?? 0;
         if (product) {
           const remote = await product.get();
           const languages = languagesByGlossaryId.get(glossary.id);
           return languages
-            ? toGlossaryRecord(remote ?? glossary, languages)
-            : toGlossaryRecord(remote ?? glossary);
+            ? toGlossaryRecord(remote ?? glossary, languages, termCount, projectCount)
+            : toGlossaryRecord(remote ?? glossary, undefined, termCount, projectCount);
         }
-        return toGlossaryRecord(glossary, languagesByGlossaryId.get(glossary.id));
+        return toGlossaryRecord(
+          glossary,
+          languagesByGlossaryId.get(glossary.id),
+          termCount,
+          projectCount,
+        );
       });
       return c.json(
         {
@@ -363,12 +368,9 @@ export function createGlossaryRoutes() {
           "The selected project uses a different source locale",
         );
       }
-      const glossary = await createNativeGlossary(
-        c.var.auth,
-        payload,
-        projects.flatMap((project) => (project ? [project.id] : [])),
-      );
-      return c.json({ glossary: toGlossaryRecord(glossary) }, 201);
+      const projectIds = projects.flatMap((project) => (project ? [project.id] : []));
+      const glossary = await createNativeGlossary(c.var.auth, payload, projectIds);
+      return c.json({ glossary: toGlossaryRecord(glossary, undefined, 0, projectIds.length) }, 201);
     })
     .get("/:glossaryId", validateGlossaryParams, async (c) => {
       const params = c.req.valid("param");
@@ -379,6 +381,11 @@ export function createGlossaryRoutes() {
       }
 
       const product = getGlossaryProduct({ auth: c.var.auth, glossary });
+      const termCount =
+        glossary.source === "native"
+          ? await queryNativeGlossaryTermCountForGlossary(glossary)
+          : undefined;
+      const projectCount = product ? await product.queryProjectCount() : 0;
       if (product) {
         const remote = await product.get();
         const languages =
@@ -388,14 +395,17 @@ export function createGlossaryRoutes() {
         return c.json(
           {
             glossary: languages
-              ? toGlossaryRecord(remote ?? glossary, languages)
-              : toGlossaryRecord(remote ?? glossary),
+              ? toGlossaryRecord(remote ?? glossary, languages, termCount, projectCount)
+              : toGlossaryRecord(remote ?? glossary, undefined, termCount, projectCount),
           },
           200,
         );
       }
 
-      return c.json({ glossary: toGlossaryRecord(glossary) }, 200);
+      return c.json(
+        { glossary: toGlossaryRecord(glossary, undefined, termCount, projectCount) },
+        200,
+      );
     })
     .get("/:glossaryId/terms", validateGlossaryParams, async (c) => {
       const params = c.req.valid("param");
@@ -564,7 +574,8 @@ export function createGlossaryRoutes() {
         return glossaryNotFoundResponse(c);
       }
 
-      return c.json({ projects: await listGlossaryProjects(c.var.auth, params.glossaryId) }, 200);
+      const product = getGlossaryProduct({ auth: c.var.auth, glossary });
+      return c.json({ projects: product ? await product.listProjects() : [] }, 200);
     })
     .post(
       "/:glossaryId/projects",
@@ -593,7 +604,7 @@ export function createGlossaryRoutes() {
         if (!product) return externalTmsGlossaryImmutableResponse(c);
         await product.attachProject(project.id, payload.priority);
 
-        return c.json({ projects: await listGlossaryProjects(c.var.auth, params.glossaryId) }, 200);
+        return c.json({ projects: await product.listProjects() }, 200);
       },
     )
     .delete("/:glossaryId/projects/:projectId", validateGlossaryProjectParams, async (c) => {
@@ -641,7 +652,15 @@ export function createGlossaryRoutes() {
         return glossaryNotFoundResponse(c);
       }
 
-      return c.json({ glossary: toGlossaryRecord(updated) }, 200);
+      const termCount =
+        updated.source === "native"
+          ? await queryNativeGlossaryTermCountForGlossary(updated)
+          : undefined;
+      const projectCount = await product.queryProjectCount();
+      return c.json(
+        { glossary: toGlossaryRecord(updated, undefined, termCount, projectCount) },
+        200,
+      );
     })
     .delete("/:glossaryId", validateGlossaryParams, async (c) => {
       if (!isGlossaryMutationAllowed(c.var.auth.membership.role)) {

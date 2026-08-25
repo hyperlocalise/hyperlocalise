@@ -15,16 +15,6 @@
 import { defineMessages } from "react-intl";
 
 export const automationsPageViewModelMessages = defineMessages({
-  relativeHours: {
-    defaultMessage: "{hours}h",
-    id: "F/BtD1KZKq",
-    description: "Relative age of an automation created less than a day ago",
-  },
-  relativeDays: {
-    defaultMessage: "{days}d",
-    id: "BFQt98qExR",
-    description: "Relative age of an automation created one or more days ago",
-  },
   triggerScheduled: {
     defaultMessage: "Scheduled",
     id: "MXyOWGXSz8",

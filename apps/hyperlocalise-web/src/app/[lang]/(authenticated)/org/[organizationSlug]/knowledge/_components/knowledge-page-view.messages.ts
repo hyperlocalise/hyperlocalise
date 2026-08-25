@@ -31,4 +31,15 @@ export const knowledgePageViewMessages = defineMessages({
     id: "cjcq8PbWiq",
     description: "Page description for global guidance",
   },
+  project: {
+    defaultMessage: "Project",
+    id: "7qbqYtxGI/",
+    description: "Breadcrumb label above the project Guideline page",
+  },
+  projectDescription: {
+    defaultMessage:
+      "Give this project's workflows the language, market, and product context they need.",
+    id: "H1Mne7VTqn",
+    description: "Page description for project guidance",
+  },
 });

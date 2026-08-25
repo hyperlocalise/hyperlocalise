@@ -52,6 +52,24 @@ export const Empty: Story = {
   },
 };
 
+export const ProjectGuideline: Story = {
+  args: {
+    mode: "editor",
+    scope: "project",
+    editor: createKnowledgeEditorViewFixture({
+      scope: "project",
+      hasChanges: true,
+      canSave: true,
+    }),
+  },
+  play: async ({ canvas }) => {
+    await expect(canvas.getByText("Project")).toBeInTheDocument();
+    await expect(canvas.getByRole("heading", { name: "Guideline" })).toBeInTheDocument();
+    await expect(canvas.getByRole("heading", { name: "Project guidance" })).toBeInTheDocument();
+    await expect(canvas.getByRole("button", { name: "Save changes" })).toBeInTheDocument();
+  },
+};
+
 export const WithMemory: Story = {
   args: {
     mode: "editor",

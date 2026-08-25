@@ -11,24 +11,17 @@
  * Version 2.0 or later.
  */
 
+import {
+  readBrowserLocalStorageItem,
+  writeBrowserLocalStorageItem,
+} from "@/lib/primitives/browser-local-storage/browser-local-storage";
+
 const STORAGE_KEY = "cat-queue:selection-mode:v1";
 
 export function readCatQueueSelectionModePreference() {
-  if (typeof window === "undefined") {
-    return false;
-  }
-
-  try {
-    return localStorage.getItem(STORAGE_KEY) === "true";
-  } catch {
-    return false;
-  }
+  return readBrowserLocalStorageItem(STORAGE_KEY) === "true";
 }
 
 export function writeCatQueueSelectionModePreference(value: boolean) {
-  try {
-    localStorage.setItem(STORAGE_KEY, String(value));
-  } catch {
-    // Ignore storage failures in private browsing or restricted contexts.
-  }
+  writeBrowserLocalStorageItem(STORAGE_KEY, String(value));
 }

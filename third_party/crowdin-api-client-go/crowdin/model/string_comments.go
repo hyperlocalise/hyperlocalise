@@ -66,6 +66,8 @@ type StringCommentsListOptions struct {
 	OrderBy string `json:"orderBy,omitempty"`
 	// String Identifier.
 	StringID int `json:"stringId,omitempty"`
+	// Target Language Identifier.
+	TargetLanguageID string `json:"targetLanguageId,omitempty"`
 	// Defines string comment type.
 	// Enum: comment, issue.
 	// Note: `type=comment` can't be used with `issueType` or `issueStatus`
@@ -96,6 +98,9 @@ func (o *StringCommentsListOptions) Values() (url.Values, bool) {
 	}
 	if o.StringID != 0 {
 		v.Set("stringId", strconv.Itoa(o.StringID))
+	}
+	if o.TargetLanguageID != "" {
+		v.Set("targetLanguageId", o.TargetLanguageID)
 	}
 	if o.Type != "" {
 		v.Set("type", o.Type)

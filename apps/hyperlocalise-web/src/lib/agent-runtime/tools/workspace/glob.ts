@@ -15,6 +15,7 @@ import { z } from "zod";
 
 import { normalizeWorkspacePath, toShellRelativePath } from "./path";
 import { DEFAULT_GLOB_LIMIT } from "./redact";
+import { execWorkspaceSearch } from "./search-root";
 import type { RepoToolContext } from "./types";
 
 const globInputSchema = z.object({
@@ -63,7 +64,15 @@ USAGE:
 - Results limited by limit (default ${DEFAULT_GLOB_LIMIT})`,
     inputSchema: globInputSchema,
     execute: async ({ pattern, path: basePathInput, limit = DEFAULT_GLOB_LIMIT }) => {
-      const basePath = normalizeWorkspacePath(basePathInput ?? ".") ?? ".";
+      const basePath = normalizeWorkspacePath(basePathInput ?? ".");
+      if (!basePath) {
+        return {
+          success: false as const,
+          error: "Search path must stay within the workspace.",
+          pattern,
+          files: [],
+        };
+      }
 
       const rgResult = await listWithRipgrep(ctx, {
         pattern,
@@ -101,6 +110,7 @@ async function listWithRipgrep(
 ) {
   const args = [
     "--files",
+    "--no-follow",
     "--glob",
     input.pattern,
     "--glob",
@@ -109,7 +119,20 @@ async function listWithRipgrep(
     "!.git/**",
     toShellRelativePath(input.basePath),
   ];
-  const result = await ctx.bash.exec("rg", { args });
+  const execution = await execWorkspaceSearch(ctx, {
+    command: "rg",
+    args,
+    searchRoot: input.basePath,
+  });
+  if (!execution.success) {
+    return {
+      success: false as const,
+      error: execution.error,
+      pattern: input.pattern,
+      files: [],
+    };
+  }
+  const { result } = execution;
   if (result.exitCode >= 2) {
     return null;
   }
@@ -168,7 +191,20 @@ async function listWithFind(
     namePattern,
   );
 
-  const result = await ctx.bash.exec("find", { args: findArgs });
+  const execution = await execWorkspaceSearch(ctx, {
+    command: "find",
+    args: findArgs,
+    searchRoot: searchDir,
+  });
+  if (!execution.success) {
+    return {
+      success: false as const,
+      error: execution.error,
+      pattern: input.pattern,
+      files: [],
+    };
+  }
+  const { result } = execution;
   if (result.exitCode !== 0 && !result.stdout.trim()) {
     return null;
   }

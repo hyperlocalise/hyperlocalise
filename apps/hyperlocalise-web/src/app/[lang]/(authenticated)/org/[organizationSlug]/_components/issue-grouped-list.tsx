@@ -37,6 +37,7 @@ import { formatCompactRelativeTimestamp, formatRelativeTimestamp } from "./works
 
 export type IssueGroupedListItem = {
   id: string;
+  identifier: string;
   projectId: string;
   title: string;
   status: string;
@@ -148,12 +149,15 @@ export function IssueListRow({
           href={buildIssueDetailHref({
             organizationSlug,
             projectId: issue.projectId,
-            issueId: issue.id,
+            issueId: issue.identifier,
           })}
           className="min-w-0 flex-1 truncate font-medium text-foreground hover:underline"
           onClick={stopPropagation}
           onKeyDown={stopPropagation}
         >
+          <span className="mr-2 font-mono text-xs text-muted-foreground tabular-nums">
+            {issue.identifier}
+          </span>
           {issue.title}
         </Link>
         {showProject && issue.projectName ? (
@@ -173,7 +177,7 @@ export function IssueListRow({
           <IssueAssigneeTableCell
             organizationSlug={organizationSlug}
             projectId={issue.projectId}
-            issueId={issue.id}
+            issueId={issue.identifier}
             assigneeUserId={issue.assigneeUserId}
             assigneeLabel={issue.assignee}
             disabled={disableInlineEdits}

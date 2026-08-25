@@ -92,4 +92,9 @@ export const githubAutoReviewCardMessages = defineMessages({
     id: "BObFUJ/lEj",
     description: "Error title when Auto-review settings fail to load",
   },
+  configure: {
+    defaultMessage: "Configure",
+    id: "zlI6VpVvWz",
+    description: "Button that opens Auto-review configuration",
+  },
 });

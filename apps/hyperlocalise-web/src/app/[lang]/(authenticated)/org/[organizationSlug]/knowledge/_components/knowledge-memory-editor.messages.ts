@@ -20,6 +20,11 @@ export const knowledgeMemoryEditorMessages = defineMessages({
     id: "6F6O0hv6yy",
     description: "Heading for the global guidance editor",
   },
+  projectTitle: {
+    defaultMessage: "Project guidance",
+    id: "At4au+ak+k",
+    description: "Heading for the project guidance editor",
+  },
   lastUpdated: {
     defaultMessage: "Saved {timestamp}",
     id: "OVYNR7qNg7",
@@ -40,6 +45,11 @@ export const knowledgeMemoryEditorMessages = defineMessages({
     defaultMessage: "Global guidance",
     id: "DR05xC0qfm",
     description: "Accessible label for the global guidance TipTap editor",
+  },
+  projectMemoryAriaLabel: {
+    defaultMessage: "Project guidance",
+    id: "Z9+wravZbz",
+    description: "Accessible label for the project guidance TipTap editor",
   },
   versionNoteLabel: {
     defaultMessage: "Version note (optional)",

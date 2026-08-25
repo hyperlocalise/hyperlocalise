@@ -16,6 +16,7 @@ import { isOrganizationAdminRole } from "@/api/auth/policy";
 import { buildAccessibleProjectsWhere } from "@/api/auth/team-access";
 import type { ApiAuthContext } from "@/api/auth/workos";
 import { db, schema } from "@/lib/database";
+import { isLegacyIssueUuid } from "@/lib/projects/issue-identifier/project-issue-identifier";
 import type { OrganizationMembershipRole } from "@/lib/database/types";
 import { ProjectServiceBase } from "@/lib/projects/project-service-base";
 
@@ -190,7 +191,9 @@ export class IssueSheetCommentService extends ProjectServiceBase {
       .from(schema.issueSheetIssues)
       .where(
         and(
-          eq(schema.issueSheetIssues.id, input.issueId),
+          isLegacyIssueUuid(input.issueId)
+            ? eq(schema.issueSheetIssues.id, input.issueId)
+            : eq(schema.issueSheetIssues.identifier, input.issueId),
           eq(schema.issueSheetIssues.organizationId, input.organizationId),
           eq(schema.issueSheetIssues.projectId, input.projectId),
         ),
@@ -258,6 +261,7 @@ export class IssueSheetCommentService extends ProjectServiceBase {
     if (!issue) {
       return { ok: false, error: { code: "issue_not_found" } };
     }
+    const issueId = issue.id;
 
     const mentionedUserIds = [...new Set(input.body.mentionedUserIds ?? [])];
     const mentionedIssueIds = [...new Set(input.body.mentionedIssueIds ?? [])];
@@ -284,7 +288,7 @@ export class IssueSheetCommentService extends ProjectServiceBase {
         .where(
           and(
             eq(schema.issueSheetComments.id, input.body.parentId),
-            eq(schema.issueSheetComments.issueId, input.issueId),
+            eq(schema.issueSheetComments.issueId, issueId),
             eq(schema.issueSheetComments.organizationId, input.organizationId),
             eq(schema.issueSheetComments.projectId, input.projectId),
           ),
@@ -304,7 +308,7 @@ export class IssueSheetCommentService extends ProjectServiceBase {
         .values({
           organizationId: input.organizationId,
           projectId: input.projectId,
-          issueId: input.issueId,
+          issueId,
           parentId: input.body.parentId ?? null,
           path: "pending",
           depth,
@@ -341,14 +345,14 @@ export class IssueSheetCommentService extends ProjectServiceBase {
       await issueSubscriptionService.subscribe({
         organizationId: input.organizationId,
         projectId: input.projectId,
-        issueId: input.issueId,
+        issueId,
         userId: input.actorUserId,
         database: tx,
       });
       await issueSubscriptionService.subscribeMany({
         organizationId: input.organizationId,
         projectId: input.projectId,
-        issueId: input.issueId,
+        issueId,
         userIds: mentionedUserIds,
         requireProjectAccess: true,
         database: tx,
@@ -365,7 +369,7 @@ export class IssueSheetCommentService extends ProjectServiceBase {
       {
         organizationId: input.organizationId,
         projectId: input.projectId,
-        issueId: input.issueId,
+        issueId,
         commentId: comment.id,
         depth: comment.depth,
       },
@@ -376,7 +380,7 @@ export class IssueSheetCommentService extends ProjectServiceBase {
       issueNotificationService.notifyCommentCreated({
         organizationId: input.organizationId,
         projectId: input.projectId,
-        issueId: input.issueId,
+        issueId,
         actorUserId: input.actorUserId,
         commentId: comment.id,
         commentBody: input.body.body,
@@ -402,6 +406,12 @@ export class IssueSheetCommentService extends ProjectServiceBase {
   }): Promise<
     { ok: true; value: IssueSheetComment } | { ok: false; error: IssueSheetCommentServiceError }
   > {
+    const issue = await this.findIssue(input);
+    if (!issue) {
+      return { ok: false, error: { code: "issue_not_found" } };
+    }
+    const issueId = issue.id;
+
     const [existing] = await this.database
       .select({
         id: schema.issueSheetComments.id,
@@ -412,7 +422,7 @@ export class IssueSheetCommentService extends ProjectServiceBase {
       .where(
         and(
           eq(schema.issueSheetComments.id, input.commentId),
-          eq(schema.issueSheetComments.issueId, input.issueId),
+          eq(schema.issueSheetComments.issueId, issueId),
           eq(schema.issueSheetComments.organizationId, input.organizationId),
           eq(schema.issueSheetComments.projectId, input.projectId),
         ),
@@ -468,7 +478,7 @@ export class IssueSheetCommentService extends ProjectServiceBase {
     await issueSubscriptionService.subscribeMany({
       organizationId: input.organizationId,
       projectId: input.projectId,
-      issueId: input.issueId,
+      issueId,
       userIds: mentionedUserIds,
       requireProjectAccess: true,
     });
@@ -482,7 +492,7 @@ export class IssueSheetCommentService extends ProjectServiceBase {
       issueNotificationService.notifyMentions({
         organizationId: input.organizationId,
         projectId: input.projectId,
-        issueId: input.issueId,
+        issueId,
         actorUserId: input.actorUserId,
         commentId: existing.id,
         commentBody: input.body.body,
@@ -504,6 +514,12 @@ export class IssueSheetCommentService extends ProjectServiceBase {
     actorUserId: string;
     role: OrganizationMembershipRole;
   }): Promise<{ ok: true } | { ok: false; error: IssueSheetCommentServiceError }> {
+    const issue = await this.findIssue(input);
+    if (!issue) {
+      return { ok: false, error: { code: "issue_not_found" } };
+    }
+    const issueId = issue.id;
+
     const [existing] = await this.database
       .select({
         id: schema.issueSheetComments.id,
@@ -513,7 +529,7 @@ export class IssueSheetCommentService extends ProjectServiceBase {
       .where(
         and(
           eq(schema.issueSheetComments.id, input.commentId),
-          eq(schema.issueSheetComments.issueId, input.issueId),
+          eq(schema.issueSheetComments.issueId, issueId),
           eq(schema.issueSheetComments.organizationId, input.organizationId),
           eq(schema.issueSheetComments.projectId, input.projectId),
         ),
@@ -542,7 +558,7 @@ export class IssueSheetCommentService extends ProjectServiceBase {
       {
         organizationId: input.organizationId,
         projectId: input.projectId,
-        issueId: input.issueId,
+        issueId,
         commentId: input.commentId,
       },
       "deleted issue sheet comment",

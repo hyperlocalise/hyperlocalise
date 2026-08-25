@@ -10,11 +10,22 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import type { Metadata } from "next";
+
+import { JsonLd } from "@/components/seo/json-ld";
+import { organizationJsonLd } from "@/components/seo/organization-json-ld";
+import { INDEXABLE_ROBOTS } from "@/lib/seo/robots-metadata";
+
 import Navbar from "./_components/navbar";
+
+export const metadata: Metadata = {
+  robots: INDEXABLE_ROBOTS,
+};
 
 export default function MarketingLayout({ children }: { children: React.ReactNode }) {
   return (
     <>
+      <JsonLd data={organizationJsonLd} />
       <Navbar />
       <main>{children}</main>
     </>

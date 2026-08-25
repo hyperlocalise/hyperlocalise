@@ -224,11 +224,15 @@ describe("path builders", () => {
       ["Jobs", "/org/acme/projects/proj_1/jobs"],
       ["Issues", "/org/acme/projects/proj_1/issue-sheet"],
       ["Automations", "/org/acme/projects/proj_1/automations"],
+      ["Guideline", "/org/acme/projects/proj_1/knowledge"],
       ["Settings", "/org/acme/projects/proj_1/settings"],
     ]);
     expect(items.find((item) => item.label === "Issues")?.featureFlagKey).toBeUndefined();
     expect(items.find((item) => item.label === "Automations")?.featureFlagKey).toBe(
       WORKSPACE_AUTOMATIONS_FLAG,
+    );
+    expect(items.find((item) => item.label === "Guideline")?.featureFlagKey).toBe(
+      WORKSPACE_KNOWLEDGE_FLAG,
     );
   });
 });

@@ -345,7 +345,8 @@ describe("conversation skill registry", () => {
     expect(conversationSkill).toContain("Organization Memory.md");
     expect(knowledgeMemorySkill).toContain("current user explicitly asks");
     expect(knowledgeMemorySkill).toContain("Never update from inferred habits");
-    expect(knowledgeMemorySkill).toContain("no project-level Memory.md");
+    expect(knowledgeMemorySkill).toContain('scope: "project"');
+    expect(knowledgeMemorySkill).toContain("Project Memory.md is project-specific guidance");
     expect(knowledgeMemorySkill).toContain("creates at most one revision");
     expect(knowledgeMemorySkill).toContain("generic AI updates section");
     expect(knowledgeMemorySkill).toContain("Do not ask for confirmation or create a proposal");

@@ -639,7 +639,18 @@ export const IssueDetailPanel = forwardRef<
     >
       <div className="flex min-h-0 min-w-0 flex-col gap-3 overflow-y-auto px-6 py-5">
         <IssueDuplicateBanner organizationSlug={organizationSlug} relationships={relationships} />
-
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            className="font-mono text-xs text-muted-foreground tabular-nums hover:text-foreground"
+            onClick={() => {
+              void navigator.clipboard.writeText(issue.identifier);
+              toast.success(intl.formatMessage(messages.copiedIssueId));
+            }}
+          >
+            {issue.identifier}
+          </button>
+        </div>
         <Textarea
           value={titleDraft}
           onChange={(event) => setTitleDraft(event.currentTarget.value)}

@@ -12,10 +12,12 @@
  */
 import { z } from "zod";
 
+import { issueIdSchema } from "@/lib/projects/issue-identifier/project-issue-identifier";
+
 import { projectIdParamsSchema } from "./project.schema";
 
 export const issueSheetCommentParamsSchema = projectIdParamsSchema.extend({
-  issueId: z.uuid(),
+  issueId: issueIdSchema,
 });
 
 export const issueSheetCommentIdParamsSchema = issueSheetCommentParamsSchema.extend({

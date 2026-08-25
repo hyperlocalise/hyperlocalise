@@ -798,6 +798,59 @@ func TestReportsService_AddSettingsTemplate(t *testing.T) {
 		_, _, err = client.Reports.AddSettingsTemplate(context.Background(), 0, req)
 		require.NoError(t, err)
 	})
+
+	t.Run("omitted individualRates", func(t *testing.T) {
+		const path = "/api/v2/projects/2/reports/settings-templates"
+		mux.HandleFunc(path, func(w http.ResponseWriter, r *http.Request) {
+			testMethod(t, r, "POST")
+			testURL(t, r, path)
+			testJSONBody(t, r, `{
+				"name":"No Individual Rates Template",
+				"currency":"USD",
+				"unit":"words",
+				"config":{
+					"baseRates":{
+						"fullTranslation":0.1,
+						"proofread":0.12
+					},
+					"netRateSchemes":{
+						"tmMatch":[
+							{
+								"matchType":"perfect",
+								"price":0.1
+							}
+						]
+					}
+				}
+			}`)
+
+			fmt.Fprint(w, `{
+				"data": {
+					"id": 2,
+					"name": "No Individual Rates Template"
+				}
+			}`)
+		})
+
+		reqNoIndiv := &model.ReportSettingsTemplateAddRequest{
+			Name:     "No Individual Rates Template",
+			Currency: "USD",
+			Unit:     model.ReportUnitWords,
+			Config: &model.ReportSettingsTemplateConfig{
+				BaseRates: &model.ReportBaseRates{
+					FullTranslation: 0.1,
+					Proofread:       0.12,
+				},
+				NetRateSchemes: &model.ReportNetRateSchemes{
+					TMMatch: []model.ReportNetRateSchemeMatch{{MatchType: "perfect", Price: 0.1}},
+				},
+			},
+		}
+		template, resp, err := client.Reports.AddSettingsTemplate(context.Background(), 2, reqNoIndiv)
+		require.NoError(t, err)
+		assert.NotNil(t, resp)
+		assert.Equal(t, &model.ReportSettingsTemplate{ID: 2, Name: "No Individual Rates Template"}, template)
+	})
 }
 
 func TestReportsService_EditSettingsTemplate(t *testing.T) {

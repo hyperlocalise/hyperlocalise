@@ -10,6 +10,8 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { getBrowserLocalStorage } from "@/lib/primitives/browser-local-storage/browser-local-storage";
+
 const CHAT_DOCK_STORAGE_VERSION = 1;
 export const CHAT_DOCK_MAX_CONCURRENT_STREAMS = 3;
 
@@ -48,14 +50,6 @@ export type ChatDockStorage = Pick<Storage, "getItem" | "setItem" | "removeItem"
 
 export function chatDockStorageKey(organizationSlug: string) {
   return `chat-dock:v${CHAT_DOCK_STORAGE_VERSION}:${organizationSlug}`;
-}
-
-function getBrowserStorage(): ChatDockStorage | undefined {
-  try {
-    return typeof window === "undefined" ? undefined : window.localStorage;
-  } catch {
-    return undefined;
-  }
 }
 
 function isPersistedStreamSnapshot(value: unknown): value is PersistedChatDockStreamSnapshot {
@@ -108,7 +102,7 @@ export function createEmptyChatDockState(organizationSlug: string): PersistedCha
 
 export function readChatDockState(
   organizationSlug: string,
-  storage: ChatDockStorage | undefined = getBrowserStorage(),
+  storage: ChatDockStorage | undefined = getBrowserLocalStorage(),
 ): PersistedChatDockState {
   if (!storage || !organizationSlug) {
     return createEmptyChatDockState(organizationSlug);
@@ -150,7 +144,7 @@ export function readChatDockState(
 
 export function writeChatDockState(
   state: PersistedChatDockState,
-  storage: ChatDockStorage | undefined = getBrowserStorage(),
+  storage: ChatDockStorage | undefined = getBrowserLocalStorage(),
 ) {
   if (!storage || !state.organizationSlug) {
     return;
@@ -165,7 +159,7 @@ export function writeChatDockState(
 
 export function clearChatDockState(
   organizationSlug: string,
-  storage: ChatDockStorage | undefined = getBrowserStorage(),
+  storage: ChatDockStorage | undefined = getBrowserLocalStorage(),
 ) {
   if (!storage || !organizationSlug) {
     return;

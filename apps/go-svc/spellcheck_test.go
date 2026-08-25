@@ -57,6 +57,6 @@ func TestCheckSpellingNoopWhenUnconfigured(t *testing.T) {
 
 	issues, err := h.checkSpelling(context.Background(), "", "Hello there")
 
-	require.NoError(t, err)
+	require.ErrorIs(t, err, ErrSpellCheckUnavailable)
 	require.Nil(t, issues)
 }

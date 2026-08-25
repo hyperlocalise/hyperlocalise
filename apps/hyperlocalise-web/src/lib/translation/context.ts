@@ -17,7 +17,11 @@ import { db, schema } from "@/lib/database";
 import type { ExternalTmsProviderKind } from "@/lib/providers/contracts/external-tms-provider-kind";
 import type { GlossaryMatchResolution } from "@/lib/providers/contracts/glossary-matcher";
 import type { TranslationMemoryMatchResolution } from "@/lib/providers/contracts/translation-memory-matcher";
-import { getKnowledgeMemoryForOrganization } from "@/lib/knowledge-memory/knowledge-memory";
+import { composeScopedKnowledgeMemory } from "@/lib/knowledge-memory/knowledge-memory-compose";
+import {
+  getKnowledgeMemoryForOrganization,
+  getKnowledgeMemoryForProject,
+} from "@/lib/knowledge-memory/knowledge-memory";
 import { selectKnowledgeMemoryContext } from "@/lib/knowledge-memory/knowledge-memory-selection";
 import {
   TranslationContext,
@@ -88,9 +92,11 @@ export class TranslationContextBuilder {
 
     const knowledgeMemoryPromise =
       options?.knowledgeMemoryEnabled === true
-        ? getKnowledgeMemoryForOrganization(project.organizationId).then((memory) =>
-            selectKnowledgeMemoryContext({
-              content: memory.content,
+        ? Promise.all([
+            getKnowledgeMemoryForProject(project.id),
+            getKnowledgeMemoryForOrganization(project.organizationId),
+          ]).then(([projectMemory, organizationMemory]) => {
+            const selectionInput = {
               sourceLocale: jobInput.sourceLocale,
               targetLocales: jobInput.targetLocales,
               sourceText: jobInput.sourceText,
@@ -98,8 +104,19 @@ export class TranslationContextBuilder {
               metadata: jobInput.metadata,
               projectName: project.name,
               projectTranslationContext: project.translationContext,
-            }).compactText.trim(),
-          )
+            };
+
+            return composeScopedKnowledgeMemory({
+              projectGuideline: selectKnowledgeMemoryContext({
+                ...selectionInput,
+                content: projectMemory.content,
+              }).compactText,
+              workspaceGuideline: selectKnowledgeMemoryContext({
+                ...selectionInput,
+                content: organizationMemory.content,
+              }).compactText,
+            });
+          })
         : Promise.resolve("");
 
     if (options?.skipConcordance) {

@@ -161,4 +161,10 @@ describe("jobs-view-helpers", () => {
       });
     }
   });
+
+  it("defaults to kanban and skips writes when storage is unavailable", () => {
+    expect(readJobsViewMode()).toBe("kanban");
+    expect(() => writeJobsViewMode("row")).not.toThrow();
+    expect(readJobsViewMode()).toBe("kanban");
+  });
 });

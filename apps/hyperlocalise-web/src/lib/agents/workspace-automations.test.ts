@@ -18,6 +18,7 @@ import { afterEach, beforeAll, describe, expect, it } from "vite-plus/test";
 import { createAhrefsConnection } from "@/lib/ahrefs/connections";
 import { db, schema } from "@/lib/database";
 import { type Result } from "@/lib/primitives/result/results";
+import { uniqueTestProjectIdentifier } from "@/lib/projects/issue-identifier/test-project-identifier";
 import { encodeProviderProjectId } from "@/lib/providers/jobs/tms-provider-resource-id";
 import {
   encryptProviderCredential,
@@ -80,6 +81,7 @@ async function seedWorkspaceAutomationScope() {
 
   await db.insert(schema.projects).values({
     id: projectId,
+    identifier: uniqueTestProjectIdentifier(),
     organizationId,
     createdByUserId: userId,
     name: "Website",

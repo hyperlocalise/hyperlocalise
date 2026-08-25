@@ -64,7 +64,7 @@ afterEach(async () => {
   await projectFixture.cleanup();
 });
 
-type IssueResponse = { issue: { id: string; title: string } };
+type IssueResponse = { issue: { id: string; identifier: string; title: string } };
 
 async function createIssue(
   headers: Record<string, string>,
@@ -83,6 +83,23 @@ async function createIssue(
   expect(response.status).toBe(201);
   const body = (await response.json()) as IssueResponse;
   return body.issue.id;
+}
+
+async function createIssueRecord(
+  headers: Record<string, string>,
+  organizationSlug: string,
+  projectId: string,
+  title: string,
+) {
+  const response = await issueSheet().$post(
+    {
+      param: { organizationSlug, projectId },
+      json: { title, issueType: "general_question" },
+    } as never,
+    { headers },
+  );
+  expect(response.status).toBe(201);
+  return ((await response.json()) as IssueResponse).issue;
 }
 
 type RelationshipResponse = {
@@ -170,6 +187,42 @@ describe("issue relationships", () => {
         relatedIssue: { issueId: b, title: "Issue B" },
       },
     });
+  });
+
+  it("lists relationships and feed when the URL uses a PREFIX-N identifier", async () => {
+    const { identity, project } = await projectFixture.createStoredProjectFixture();
+    const headers = await projectFixture.authHeadersFor(identity);
+    const organizationSlug = identity.organization.slug ?? "missing-slug";
+
+    const a = await createIssueRecord(headers, organizationSlug, project.id, "Issue A");
+    const b = await createIssueRecord(headers, organizationSlug, project.id, "Issue B");
+
+    const createResponse = await issueSheet()[":issueId"].relationships.$post(
+      {
+        param: { organizationSlug, projectId: project.id, issueId: a.identifier },
+        json: { relatedIssueId: b.id, kind: "related" },
+      } as never,
+      { headers },
+    );
+    expect(createResponse.status).toBe(201);
+
+    const listResponse = await issueSheet()[":issueId"].relationships.$get(
+      { param: { organizationSlug, projectId: project.id, issueId: a.identifier } } as never,
+      { headers },
+    );
+    expect(listResponse.status).toBe(200);
+    const listJson = (await listResponse.json()) as RelationshipListResponse;
+    expect(listJson.relationships).toMatchObject([
+      { presentedKind: "related", otherIssue: { issueId: b.id } },
+    ]);
+
+    const feedResponse = await issueSheet()[":issueId"].feed.$get(
+      { param: { organizationSlug, projectId: project.id, issueId: a.identifier } } as never,
+      { headers },
+    );
+    expect(feedResponse.status).toBe(200);
+    const feedJson = (await feedResponse.json()) as FeedResponse;
+    expect(feedJson.items.some((item) => item.kind === "activity")).toBe(true);
   });
 
   it("stores blocked_by as an inverted blocks edge, readable correctly from both sides", async () => {

@@ -541,6 +541,23 @@ export class CatReviewController {
     await this.bulkSetHidden(false);
   }
 
+  async setLocked(segmentIds: string[], isLocked: boolean) {
+    if (segmentIds.length === 0 || !this.ports.review?.onSetLocked) {
+      return;
+    }
+
+    await this.ports.review.onSetLocked(segmentIds, isLocked);
+    this.workspace.setSegmentsLocked(segmentIds, isLocked);
+  }
+
+  async bulkLock() {
+    await this.bulkSetLocked(true);
+  }
+
+  async bulkUnlock() {
+    await this.bulkSetLocked(false);
+  }
+
   private async bulkSetHidden(isHidden: boolean) {
     const segmentIds = [...this.workspace.checkedSegmentIds];
     if (segmentIds.length === 0) {
@@ -556,6 +573,27 @@ export class CatReviewController {
     try {
       await handler(segmentIds);
       this.workspace.setSegmentsHidden(segmentIds, isHidden);
+    } finally {
+      this.workspace.isBulkActionPending = false;
+      this.workspace.clearChecked();
+    }
+  }
+
+  private async bulkSetLocked(isLocked: boolean) {
+    const segmentIds = [...this.workspace.checkedSegmentIds];
+    if (segmentIds.length === 0) {
+      return;
+    }
+
+    const handler = isLocked ? this.ports.review?.onBulkLock : this.ports.review?.onBulkUnlock;
+    if (!handler) {
+      return;
+    }
+
+    this.workspace.isBulkActionPending = true;
+    try {
+      await handler(segmentIds);
+      this.workspace.setSegmentsLocked(segmentIds, isLocked);
     } finally {
       this.workspace.isBulkActionPending = false;
       this.workspace.clearChecked();

@@ -24,6 +24,7 @@ export const ISSUES_PAGE_SIZE = 50;
 
 export type OrganizationIssue = {
   id: string;
+  identifier: string;
   projectId: string;
   projectName: string;
   title: string;

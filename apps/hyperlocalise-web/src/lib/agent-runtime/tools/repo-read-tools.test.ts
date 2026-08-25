@@ -43,6 +43,17 @@ function createTestContext(files: Record<string, string> = {}): { bash: Bash } {
 
 const toolCallInfo = { toolCallId: "test-tool-call", messages: [], context: {} };
 
+function unwrapSearchCommand(command: string, args: string[]) {
+  if (command !== "bash" || args[0] !== "-c") {
+    return { command, args };
+  }
+
+  return {
+    command: args[4] ?? "",
+    args: args.slice(5),
+  };
+}
+
 describe("redact", () => {
   it("redacts env var lines", () => {
     const input = "OPENAI_API_KEY=sk-12345\nAI_GATEWAY_API_KEY=gw-12345\nPATH=/usr/bin";
@@ -185,7 +196,7 @@ describe("createGrepTool", () => {
     const t = createGrepTool({
       bash: {
         exec: async (command, options) => {
-          calls.push({ command, args: options?.args ?? [] });
+          calls.push(unwrapSearchCommand(command, options?.args ?? []));
           return {
             stdout: "src/app.tsx:2:10:  return <h1>Dashboard</h1>;\n",
             stderr: "",
@@ -228,9 +239,10 @@ describe("createGrepTool", () => {
     const calls: string[] = [];
     const t = createGrepTool({
       bash: {
-        exec: async (command) => {
-          calls.push(command);
-          if (command === "rg") {
+        exec: async (command, options) => {
+          const searchCommand = unwrapSearchCommand(command, options?.args ?? []).command;
+          calls.push(searchCommand);
+          if (searchCommand === "rg") {
             return { stdout: "", stderr: "rg: command not found", exitCode: 127, env: {} };
           }
           return {
@@ -256,7 +268,7 @@ describe("createGrepTool", () => {
     const t = createGrepTool({
       bash: {
         exec: async (command, options) => {
-          calls.push({ command, args: options?.args ?? [] });
+          calls.push(unwrapSearchCommand(command, options?.args ?? []));
           return {
             stdout: "src/user/routes/page.tsx:2:10:  return <h1>Dashboard</h1>;\n",
             stderr: "",
@@ -290,6 +302,25 @@ describe("createGrepTool", () => {
         content: "  return <h1>Dashboard</h1>;",
       },
     ]);
+  });
+
+  it("treats flag-like ripgrep patterns as patterns", async () => {
+    const calls: Array<{ command: string; args: string[] }> = [];
+    const t = createGrepTool({
+      bash: {
+        exec: async (command, options) => {
+          calls.push(unwrapSearchCommand(command, options?.args ?? []));
+          return { stdout: "", stderr: "", exitCode: 1, env: {} };
+        },
+        readFile: async () => "",
+      },
+    });
+
+    const result = await t.execute!({ pattern: "--follow" }, toolCallInfo);
+
+    expect(result).toMatchObject({ success: true, matches: [] });
+    expect(calls).toHaveLength(1);
+    expect(calls[0]?.args.slice(-3)).toEqual(["--", "--follow", "."]);
   });
 
   it("finds matches", async () => {
@@ -424,8 +455,8 @@ describe("createGrepTool", () => {
   it("parses single-file grep output without a filename prefix", async () => {
     const t = createGrepTool({
       bash: {
-        exec: async (command) =>
-          command === "rg"
+        exec: async (command, options) =>
+          unwrapSearchCommand(command, options?.args ?? []).command === "rg"
             ? {
                 stdout: "",
                 stderr: "rg: command not found",
@@ -453,15 +484,16 @@ describe("createGrepTool", () => {
   it("keeps colons in single-file grep matches", async () => {
     const t = createGrepTool({
       bash: {
-        exec: async (command) =>
-          command === "rg"
+        exec: async (command, options) => {
+          const searchCommand = unwrapSearchCommand(command, options?.args ?? []).command;
+          return searchCommand === "rg"
             ? {
                 stdout: "",
                 stderr: "rg: command not found",
                 exitCode: 127,
                 env: {},
               }
-            : command === "find"
+            : searchCommand === "find"
               ? {
                   stdout: "src/app/api/[[...route]]/route.ts\n",
                   stderr: "",
@@ -473,7 +505,8 @@ describe("createGrepTool", () => {
                   stderr: "",
                   exitCode: 0,
                   env: {},
-                },
+                };
+        },
         readFile: async () => "",
       },
     });
@@ -496,8 +529,8 @@ describe("createGrepTool", () => {
   it("ignores unparsable grep output when at least one match line parses", async () => {
     const t = createGrepTool({
       bash: {
-        exec: async (command) =>
-          command === "rg"
+        exec: async (command, options) =>
+          unwrapSearchCommand(command, options?.args ?? []).command === "rg"
             ? {
                 stdout: "",
                 stderr: "rg: command not found",
@@ -525,8 +558,8 @@ describe("createGrepTool", () => {
   it("does not report zero matches when grep output is unparsable", async () => {
     const t = createGrepTool({
       bash: {
-        exec: async (command) =>
-          command === "rg"
+        exec: async (command, options) =>
+          unwrapSearchCommand(command, options?.args ?? []).command === "rg"
             ? {
                 stdout: "",
                 stderr: "rg: command not found",
@@ -561,6 +594,20 @@ describe("createGrepTool", () => {
     expect(result).toMatchObject({ success: true, matches: [] });
   });
 
+  it("rejects search paths outside the workspace", async () => {
+    const ctx = createTestContext({ "/home/user/project/a.go": "package main\n" });
+    const result = await createGrepTool(ctx).execute!(
+      { pattern: "package", path: "../outside" },
+      toolCallInfo,
+    );
+
+    expect(result).toMatchObject({
+      success: false,
+      error: "Search path must stay within the workspace.",
+      matches: [],
+    });
+  });
+
   it("truncates at max results", async () => {
     const ctx = createTestContext({
       "/home/user/project/a.go": "func a() {}\n",
@@ -582,6 +629,70 @@ describe("createGrepTool", () => {
     expect(matches).toHaveLength(1);
     expect(matches[0].content).toBe("api_token: ***REDACTED***");
     expect(matches[0].content).not.toContain("abcdefghijklmnopqrstuvwxyz12345");
+  });
+
+  it("rejects an outside-workspace symlink search root before ripgrep runs", async () => {
+    const fs = new InMemoryFs({
+      "/home/user/project/README.md": "safe",
+      "/tmp/external/secret.md": "outside-search-secret",
+    });
+    await fs.symlink("/tmp/external", "/home/user/project/leak");
+    const invokedCommands: string[] = [];
+    const bash = new Bash({ fs, cwd: "/home/user/project" });
+    bash.registerCommand(
+      defineCommand("rg", async () => {
+        invokedCommands.push("rg");
+        return {
+          stdout: "leak/secret.md:1:1:outside-search-secret\n",
+          stderr: "",
+          exitCode: 0,
+        };
+      }),
+    );
+
+    const result = await createGrepTool({ bash }).execute!(
+      { pattern: "outside-search-secret", path: "leak" },
+      toolCallInfo,
+    );
+
+    expect(result).toMatchObject({
+      success: false,
+      error: "Search path must not contain symbolic links.",
+      matches: [],
+    });
+    expect(invokedCommands).toEqual([]);
+  });
+
+  it("rejects a symlinked search-root parent even when its target stays in the workspace", async () => {
+    const fs = new InMemoryFs({
+      "/home/user/project/actual/nested/secret.md": "inside-search-secret",
+      "/home/user/project/routes/.keep": "",
+    });
+    await fs.symlink("../actual", "/home/user/project/routes/link");
+    const invokedCommands: string[] = [];
+    const bash = new Bash({ fs, cwd: "/home/user/project" });
+    bash.registerCommand(
+      defineCommand("rg", async () => {
+        invokedCommands.push("rg");
+        return {
+          stdout: "routes/link/nested/secret.md:1:1:inside-search-secret\n",
+          stderr: "",
+          exitCode: 0,
+        };
+      }),
+    );
+
+    const result = await createGrepTool({ bash }).execute!(
+      { pattern: "inside-search-secret", path: "routes/link/nested" },
+      toolCallInfo,
+    );
+
+    expect(result).toMatchObject({
+      success: false,
+      error: "Search path must not contain symbolic links.",
+      matches: [],
+    });
+    expect(invokedCommands).toEqual([]);
   });
 });
 

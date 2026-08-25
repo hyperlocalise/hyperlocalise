@@ -229,6 +229,7 @@ export const glossaryRecordSchema = z.object({
     }),
   ),
   termCount: z.number().int().nullable(),
+  projectCount: z.number().int().optional(),
   syncState: z.string().nullable(),
   termCapabilities: z.record(z.string(), z.unknown()),
   externalUrl: z.string().nullable(),
@@ -299,7 +300,7 @@ export const glossaryConceptRecordSchema = z.object({
   languageDetails: z
     .array(
       z.object({
-        languageId: z.string(),
+        locale: z.string(),
         userId: z.number().int().nullable(),
         definition: z.string(),
         note: z.string(),
@@ -321,6 +322,7 @@ export const glossaryProjectRecordSchema = z.object({
   priority: z.number().int(),
   sourceLocale: z.string().nullable(),
   targetLocales: z.array(z.string()),
+  externalUrl: z.string().url().nullable(),
 });
 
 export const glossaryResponseSchema = z.object({

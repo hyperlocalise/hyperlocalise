@@ -10,8 +10,9 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { and, eq, inArray, isNull, ne, sql } from "drizzle-orm";
+import { and, count, eq, inArray, isNull, ne, sql } from "drizzle-orm";
 
+import { buildAccessibleProjectsWhere } from "@/api/auth/team-access";
 import { db, schema, type DatabaseClient } from "@/lib/database";
 import {
   Glossary,
@@ -19,6 +20,7 @@ import {
   normalizeGlossaryPartOfSpeech,
   normalizeGlossaryTermStatus,
   normalizeGlossaryTermType,
+  selectGlossaryPrimaryTerm,
 } from "./glossary";
 import type {
   GlossaryTermCreateInput,
@@ -28,24 +30,46 @@ import type {
   GlossaryConcept,
   GlossaryConceptInput,
   NativeGlossaryTermInput,
+  GlossaryProjectRecord,
 } from "./glossary";
 import type { GlossaryProviderContext } from "./glossary-provider";
 import { createGlossaryTermDuplicateTracker } from "./glossary-term-dedupe";
 
 function normalizeNativeConcept(input: GlossaryConcept): GlossaryConcept {
-  const terms = input.terms.map((term) => ({
+  let terms = input.terms.map((term) => ({
     ...term,
     partOfSpeech: normalizeGlossaryPartOfSpeech(term.partOfSpeech, { required: false }),
   }));
 
-  if (!terms.some((term) => term.languageId === input.sourceLocale) && input.primaryTerm) {
+  let primaryTerm = selectGlossaryPrimaryTerm(terms, input.sourceLocale);
+  const hasPreferredSourceTerm = terms.some(
+    (term) =>
+      term.locale === input.sourceLocale &&
+      term.status?.trim().toLowerCase().replaceAll(" ", "_") === "preferred",
+  );
+  if (!primaryTerm && input.primaryTerm) {
     const sourcePartOfSpeech = terms.find((term) => term.partOfSpeech)?.partOfSpeech;
     terms.push({
-      languageId: input.sourceLocale,
+      locale: input.sourceLocale,
       text: input.primaryTerm,
       partOfSpeech: sourcePartOfSpeech,
       status: "preferred",
     });
+    primaryTerm = terms.at(-1);
+  }
+
+  if (primaryTerm && input.primaryTerm) {
+    terms = terms.map((term) =>
+      term === primaryTerm
+        ? {
+            ...term,
+            text: input.primaryTerm,
+            status: hasPreferredSourceTerm ? term.status : "preferred",
+          }
+        : term.locale === input.sourceLocale && term.status === "preferred"
+          ? { ...term, status: "admitted" }
+          : term,
+    );
   }
 
   return {
@@ -65,10 +89,10 @@ function toNativeConceptInput(input: GlossaryConceptInput, sourceLocale: string)
     url: input.url,
     figure: input.figure,
     terms: (input.terms ?? []).map((term) => {
-      if ("locale" in term) {
+      if ("term" in term) {
         return {
           id: term.id,
-          languageId: term.locale,
+          locale: term.locale,
           text: term.term,
           description: term.description,
           note: term.note,
@@ -99,6 +123,19 @@ export class NativeGlossary extends Glossary {
     super();
   }
 
+  get id() {
+    return this.input.glossary.id;
+  }
+
+  async queryProjectCount() {
+    const [row] = await db
+      .select({ projectCount: count() })
+      .from(schema.projectGlossaries)
+      .where(eq(schema.projectGlossaries.glossaryId, this.input.glossary.id));
+
+    return Number(row?.projectCount ?? 0);
+  }
+
   async get() {
     const [glossary] = await db
       .select()
@@ -111,6 +148,33 @@ export class NativeGlossary extends Glossary {
       )
       .limit(1);
     return glossary ?? null;
+  }
+
+  async listProjects(): Promise<GlossaryProjectRecord[]> {
+    const accessibleProjectsWhere = await buildAccessibleProjectsWhere(this.input.auth);
+    const attachedProjects = await db
+      .select({
+        projectId: schema.projects.id,
+        projectName: schema.projects.name,
+        priority: schema.projectGlossaries.priority,
+        sourceLocale: schema.projects.sourceLocale,
+        targetLocales: schema.projects.targetLocales,
+      })
+      .from(schema.projectGlossaries)
+      .innerJoin(schema.projects, eq(schema.projectGlossaries.projectId, schema.projects.id))
+      .where(
+        and(
+          eq(
+            schema.projectGlossaries.organizationId,
+            this.input.auth.organization.localOrganizationId,
+          ),
+          eq(schema.projectGlossaries.glossaryId, this.input.glossary.id),
+          accessibleProjectsWhere,
+        ),
+      )
+      .orderBy(schema.projectGlossaries.priority, schema.projects.name);
+
+    return attachedProjects.map((project) => ({ ...project, externalUrl: null }));
   }
 
   async update(payload: { name?: string; description?: string }) {
@@ -164,7 +228,16 @@ export class NativeGlossary extends Glossary {
     loaded: NonNullable<Awaited<ReturnType<NativeGlossary["loadConcept"]>>>,
   ): GlossaryConcept {
     return {
-      primaryTerm: loaded.concept.primaryTerm,
+      primaryTerm:
+        selectGlossaryPrimaryTerm(
+          loaded.terms.map((term) => ({
+            id: term.id,
+            locale: term.locale ?? "",
+            text: term.term ?? term.sourceTerm,
+            status: term.status,
+          })),
+          this.input.glossary.sourceLocale,
+        )?.text ?? loaded.concept.primaryTerm,
       sourceLocale: this.input.glossary.sourceLocale,
       subject: loaded.concept.subject,
       definition: loaded.concept.definition,
@@ -176,10 +249,17 @@ export class NativeGlossary extends Glossary {
       externalUserId: null,
       externalCreatedAt: loaded.concept.createdAt.toISOString(),
       externalUpdatedAt: loaded.concept.updatedAt.toISOString(),
-      languageDetails: loaded.concept.languageDetails,
+      languageDetails: loaded.concept.languageDetails?.map((detail) => ({
+        locale: detail.locale,
+        userId: detail.userId,
+        definition: detail.definition,
+        note: detail.note,
+        createdAt: detail.createdAt,
+        updatedAt: detail.updatedAt,
+      })),
       terms: loaded.terms.map((term) => ({
         id: term.id,
-        languageId: term.locale ?? "",
+        locale: term.locale ?? "",
         text: term.term ?? term.sourceTerm,
         description: term.description,
         partOfSpeech: term.partOfSpeech,
@@ -198,7 +278,7 @@ export class NativeGlossary extends Glossary {
   private toTermRecord(term: typeof schema.glossaryTerms.$inferSelect) {
     return {
       id: term.id,
-      languageId: term.locale ?? "",
+      locale: term.locale ?? "",
       text: term.term ?? term.sourceTerm,
       description: term.description,
       partOfSpeech: term.partOfSpeech,
@@ -273,7 +353,7 @@ export class NativeGlossary extends Glossary {
           normalizedInput.terms.map((term) => ({
             glossaryId: this.input.glossary.id,
             conceptId: concept.id,
-            locale: term.languageId,
+            locale: term.locale,
             term: term.text,
             sourceTerm: term.text,
             targetTerm: term.text,
@@ -315,13 +395,17 @@ export class NativeGlossary extends Glossary {
           languageDetails: normalizedInput.languageDetails ?? [],
         })
         .where(eq(schema.glossaryConcepts.id, conceptId));
+      // Match Crowdin concept PATCH reconcile: terms present in the payload are
+      // upserted; existing concept terms omitted from the payload are deleted.
+      // The glossary UI defers term deletion until Save by omitting those ids.
+      const retainedIds = new Set<string>();
       for (const term of normalizedInput.terms) {
         const existing =
           typeof term.id === "string"
             ? loaded.terms.find((candidate) => candidate.id === term.id)
             : undefined;
         const values = {
-          locale: term.languageId,
+          locale: term.locale,
           term: term.text,
           sourceTerm: term.text,
           targetTerm: term.text,
@@ -335,6 +419,7 @@ export class NativeGlossary extends Glossary {
           status: term.status ?? "draft",
         };
         if (existing) {
+          retainedIds.add(existing.id);
           await tx
             .update(schema.glossaryTerms)
             .set(values)
@@ -347,6 +432,21 @@ export class NativeGlossary extends Glossary {
             provenance: "manual" as const,
           });
         }
+      }
+
+      const orphanIds = loaded.terms
+        .map((term) => term.id)
+        .filter((termId) => !retainedIds.has(termId));
+      if (orphanIds.length > 0) {
+        await tx
+          .delete(schema.glossaryTerms)
+          .where(
+            and(
+              eq(schema.glossaryTerms.glossaryId, this.input.glossary.id),
+              eq(schema.glossaryTerms.conceptId, conceptId),
+              inArray(schema.glossaryTerms.id, orphanIds),
+            ),
+          );
       }
       return true;
     });
@@ -652,7 +752,7 @@ export class NativeGlossary extends Glossary {
         .values({
           glossaryId: this.input.glossary.id,
           conceptId,
-          locale: normalizedInput.languageId,
+          locale: normalizedInput.locale,
           term: normalizedInput.text,
           sourceTerm: normalizedInput.text,
           targetTerm: normalizedInput.text,
@@ -677,7 +777,7 @@ export class NativeGlossary extends Glossary {
     const [term] = await db
       .update(schema.glossaryTerms)
       .set({
-        locale: normalizedInput.languageId,
+        locale: normalizedInput.locale,
         term: normalizedInput.text,
         sourceTerm: normalizedInput.text,
         targetTerm: normalizedInput.text,

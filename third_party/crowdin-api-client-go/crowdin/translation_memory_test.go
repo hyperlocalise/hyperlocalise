@@ -585,7 +585,7 @@ func TestTranslationMemoryService_ConcordanceSearch(t *testing.T) {
 	mux.HandleFunc(path, func(w http.ResponseWriter, r *http.Request) {
 		testMethod(t, r, http.MethodPost)
 		testURL(t, r, path)
-		testBody(t, r, `{"sourceLanguageId":"en","targetLanguageId":"de","autoSubstitution":true,"minRelevant":60,"expressions":["Welcome!","Save as...","View","About..."]}`+"\n")
+		testBody(t, r, `{"sourceLanguageId":"en","targetLanguageId":"de","autoSubstitution":true,"minRelevant":60,"expressions":["Welcome!","Save as...","View","About..."],"tmIds":[4]}`+"\n")
 
 		fmt.Fprint(w, `{
 			"data": [
@@ -622,6 +622,7 @@ func TestTranslationMemoryService_ConcordanceSearch(t *testing.T) {
 			"View",
 			"About...",
 		},
+		TMIDs: []int{4},
 	}
 	tmList, resp, err := client.TranslationMemory.ConcordanceSearch(context.Background(), 1, req)
 	require.NoError(t, err)

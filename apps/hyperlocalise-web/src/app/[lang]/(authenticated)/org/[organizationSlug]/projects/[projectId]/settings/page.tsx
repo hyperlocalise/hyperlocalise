@@ -15,6 +15,8 @@ import { Suspense } from "react";
 import { TypographyP } from "@/components/ui/typography";
 import { getIntlShape } from "@/lib/app-i18n/intl";
 import { getAppLocale } from "@/lib/app-i18n/server-locale";
+import { isWorkspaceOperatorRole } from "@/api/auth/policy";
+import { requireAppAuthContext } from "@/lib/workos/app-auth";
 
 import { ProjectSettingsPageContent } from "./_components/project-settings-page-content";
 
@@ -24,6 +26,7 @@ export default async function ProjectSettingsPage({
   params: Promise<{ organizationSlug: string; projectId: string }>;
 }) {
   const { organizationSlug, projectId } = await params;
+  const auth = await requireAppAuthContext({ organizationSlug });
   const intl = getIntlShape(await getAppLocale());
 
   return (
@@ -38,7 +41,11 @@ export default async function ProjectSettingsPage({
         </TypographyP>
       }
     >
-      <ProjectSettingsPageContent organizationSlug={organizationSlug} projectId={projectId} />
+      <ProjectSettingsPageContent
+        organizationSlug={organizationSlug}
+        projectId={projectId}
+        canManageCatBehavior={isWorkspaceOperatorRole(auth.membership.role)}
+      />
     </Suspense>
   );
 }

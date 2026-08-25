@@ -20,6 +20,7 @@ import { cn } from "@/lib/primitives/cn";
 
 import { formatInternalMarkupForDisplay } from "@/components/cat/message-format/cat-internal-markup";
 import { CatHiddenStringBadge } from "@/components/cat/segment/cat-hidden-string-badge";
+import { CatLockedStringBadge } from "@/components/cat/segment/cat-locked-string-badge";
 import { CatSegmentKeyMeta } from "@/components/cat/segment/cat-segment-key-meta";
 import { catQueuePanelMessages } from "@/components/cat/shared/cat.messages";
 import type { CatSegment } from "@/components/cat/shared/types";
@@ -160,8 +161,15 @@ export function CatQueueVirtualList({
                       sourcePath={segment.sourcePath}
                       keyClassName="text-xs"
                       trailing={
-                        segment.isHidden ? (
-                          <CatHiddenStringBadge className="h-5 shrink-0 px-1.5 text-[0.625rem]" />
+                        segment.isHidden || segment.isLocked ? (
+                          <span className="flex shrink-0 items-center gap-1">
+                            {segment.isHidden ? (
+                              <CatHiddenStringBadge className="h-5 px-1.5 text-[0.625rem]" />
+                            ) : null}
+                            {segment.isLocked ? (
+                              <CatLockedStringBadge className="h-5 px-1.5 text-[0.625rem]" />
+                            ) : null}
+                          </span>
                         ) : null
                       }
                     />

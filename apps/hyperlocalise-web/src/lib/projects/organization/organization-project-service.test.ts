@@ -23,6 +23,7 @@ import {
 import { encodeProviderProjectId } from "@/lib/providers/jobs/tms-provider-resource-id";
 
 import { isErr, isOk } from "@/lib/primitives/result/results";
+import { uniqueTestProjectIdentifier } from "@/lib/projects/issue-identifier/test-project-identifier";
 
 import {
   ensureOrganizationProjectRecord,
@@ -111,6 +112,7 @@ describe("ensureOrganizationProjectRecord", () => {
 
     await db.insert(schema.projects).values({
       id: nativeProjectId,
+      identifier: uniqueTestProjectIdentifier(),
       organizationId: scope.organizationId,
       createdByUserId: scope.userId,
       name: "Website",
@@ -206,6 +208,7 @@ describe("ensureOrganizationProjectRecord", () => {
 
     await db.insert(schema.projects).values({
       id: firstOrg.projectId,
+      identifier: uniqueTestProjectIdentifier(),
       organizationId: firstOrg.organizationId,
       createdByUserId: firstOrg.userId,
       name: "Org A Project",

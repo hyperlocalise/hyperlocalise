@@ -16,6 +16,7 @@ import { buildAccessibleProjectsWhere } from "@/api/auth/team-access";
 import type { ApiAuthContext } from "@/api/auth/workos";
 import { db, schema, type DatabaseClient, type DatabaseTransaction } from "@/lib/database";
 import type { IssueSheetRelationshipKind } from "@/lib/database/schema/issue-sheet";
+import { isLegacyIssueUuid } from "@/lib/projects/issue-identifier/project-issue-identifier";
 import { err, ok, type Result } from "@/lib/primitives/result/results";
 import { ProjectServiceBase } from "@/lib/projects/project-service-base";
 
@@ -137,7 +138,9 @@ export class IssueRelationshipService extends ProjectServiceBase {
       .from(schema.issueSheetIssues)
       .where(
         and(
-          eq(schema.issueSheetIssues.id, input.issueId),
+          isLegacyIssueUuid(input.issueId)
+            ? eq(schema.issueSheetIssues.id, input.issueId)
+            : eq(schema.issueSheetIssues.identifier, input.issueId),
           eq(schema.issueSheetIssues.organizationId, input.organizationId),
           eq(schema.issueSheetIssues.projectId, input.projectId),
         ),
@@ -165,6 +168,7 @@ export class IssueRelationshipService extends ProjectServiceBase {
       actorUserId: input.actorUserId,
       type: input.type,
       payload: { relatedIssueId: input.relatedIssueId, kind: input.relationshipKind },
+      createdAt: sql`clock_timestamp()`,
     });
   }
 
@@ -206,7 +210,7 @@ export class IssueRelationshipService extends ProjectServiceBase {
       .where(
         and(
           eq(schema.issueSheetRelationships.organizationId, input.organizationId),
-          eq(schema.issueSheetRelationships.issueId, input.issueId),
+          eq(schema.issueSheetRelationships.issueId, issue.id),
           accessibleProjectsWhere,
         ),
       );
@@ -222,7 +226,7 @@ export class IssueRelationshipService extends ProjectServiceBase {
       .where(
         and(
           eq(schema.issueSheetRelationships.organizationId, input.organizationId),
-          eq(schema.issueSheetRelationships.relatedIssueId, input.issueId),
+          eq(schema.issueSheetRelationships.relatedIssueId, issue.id),
           accessibleProjectsWhere,
         ),
       );
@@ -262,7 +266,7 @@ export class IssueRelationshipService extends ProjectServiceBase {
       return err({ code: "issue_not_found" });
     }
 
-    if (input.relatedIssueId === input.issueId) {
+    if (input.relatedIssueId === issue.id || input.relatedIssueId === input.issueId) {
       return err({ code: "relationship_target_is_self" });
     }
 
@@ -294,12 +298,11 @@ export class IssueRelationshipService extends ProjectServiceBase {
     // "blocked_by" is stored as its inverted "blocks" edge — see the module doc.
     const storedKind: IssueSheetRelationshipKind =
       input.kind === "blocked_by" ? "blocks" : input.kind;
-    const storedIssueId = input.kind === "blocked_by" ? input.relatedIssueId : input.issueId;
-    const storedRelatedIssueId = input.kind === "blocked_by" ? input.issueId : input.relatedIssueId;
+    const storedIssueId = input.kind === "blocked_by" ? target.id : issue.id;
+    const storedRelatedIssueId = input.kind === "blocked_by" ? issue.id : target.id;
     // The row's projectId mirrors the project of its own (stored) issueId column,
     // matching every sibling issue-sheet table's convention.
-    const relationshipProjectId =
-      storedIssueId === input.issueId ? input.projectId : target.projectId;
+    const relationshipProjectId = storedIssueId === issue.id ? input.projectId : target.projectId;
 
     try {
       // The symmetric/cycle checks below and the insert must run as one
@@ -398,9 +401,9 @@ export class IssueRelationshipService extends ProjectServiceBase {
           type: ISSUE_SHEET_ACTIVITY_RELATIONSHIP_ADDED,
           organizationId: input.organizationId,
           projectId: input.projectId,
-          issueId: input.issueId,
+          issueId: issue.id,
           actorUserId: input.actorUserId,
-          relatedIssueId: input.relatedIssueId,
+          relatedIssueId: target.id,
           relationshipKind: input.kind,
         });
 
@@ -463,8 +466,8 @@ export class IssueRelationshipService extends ProjectServiceBase {
           eq(schema.issueSheetRelationships.organizationId, input.organizationId),
           eq(schema.issueSheetRelationships.id, input.relationshipId),
           or(
-            eq(schema.issueSheetRelationships.issueId, input.issueId),
-            eq(schema.issueSheetRelationships.relatedIssueId, input.issueId),
+            eq(schema.issueSheetRelationships.issueId, issue.id),
+            eq(schema.issueSheetRelationships.relatedIssueId, issue.id),
           ),
         ),
       )
@@ -475,7 +478,7 @@ export class IssueRelationshipService extends ProjectServiceBase {
     }
 
     const direction: "outgoing" | "incoming" =
-      existing.issueId === input.issueId ? "outgoing" : "incoming";
+      existing.issueId === issue.id ? "outgoing" : "incoming";
     const otherIssueId = direction === "outgoing" ? existing.relatedIssueId : existing.issueId;
     const presentedKind = presentRelationshipKind(
       existing.kind as IssueSheetRelationshipKind,
@@ -492,7 +495,7 @@ export class IssueRelationshipService extends ProjectServiceBase {
         type: ISSUE_SHEET_ACTIVITY_RELATIONSHIP_REMOVED,
         organizationId: input.organizationId,
         projectId: input.projectId,
-        issueId: input.issueId,
+        issueId: issue.id,
         actorUserId: input.actorUserId,
         relatedIssueId: otherIssueId,
         relationshipKind: presentedKind,

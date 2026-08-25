@@ -11,7 +11,7 @@
  * Version 2.0 or later.
  */
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
-import { expect, userEvent, waitFor } from "storybook/test";
+import { expect, fn, userEvent, waitFor, within } from "storybook/test";
 
 import type { GlossaryConceptRecord, GlossaryRecord } from "@/api/routes/glossary/glossary.schema";
 
@@ -110,6 +110,8 @@ const conceptFixture: GlossaryConceptRecord = {
 };
 
 const conceptsFixture = [conceptFixture];
+const onConceptUpdate = fn();
+const onTermDelete = fn();
 
 const meta = {
   title: "App/Glossaries/Detail",
@@ -130,12 +132,15 @@ type Story = StoryObj<typeof meta>;
 const detailHandlers = createGlossaryDetailMswHandlers({
   glossary: glossaryFixture,
   concepts: conceptsFixture,
+  onConceptUpdate,
+  onTermDelete,
 });
 
 export const ConceptList: Story = {
   parameters: {
     msw: { handlers: detailHandlers },
     nextjs: {
+      appDirectory: true,
       navigation: {
         pathname: `/org/acme/glossaries/${glossaryId}`,
       },
@@ -144,6 +149,17 @@ export const ConceptList: Story = {
   play: async ({ canvas }) => {
     await expect(
       await canvas.findByRole("heading", { name: "Product terminology" }),
+    ).toBeInTheDocument();
+    const nameInput = canvas.getByRole("textbox", { name: "Edit glossary name" });
+    await userEvent.clear(nameInput);
+    await userEvent.type(nameInput, "Canceled terminology");
+    await userEvent.keyboard("{Escape}");
+    await expect(nameInput).toHaveValue("Product terminology");
+    await userEvent.clear(nameInput);
+    await userEvent.type(nameInput, "Updated terminology");
+    await userEvent.keyboard("{Enter}");
+    await expect(
+      await canvas.findByRole("heading", { name: "Updated terminology" }),
     ).toBeInTheDocument();
     await expect(await canvas.findByText("Agency")).toBeInTheDocument();
     await expect(canvas.getByRole("button", { name: "Add concept" })).toBeInTheDocument();
@@ -157,13 +173,23 @@ export const ConceptDetail: Story = {
   parameters: {
     msw: { handlers: detailHandlers },
     nextjs: {
+      appDirectory: true,
       navigation: {
         pathname: `/org/acme/glossaries/${glossaryId}/concepts/${conceptId}`,
       },
     },
   },
   play: async ({ canvas, canvasElement }) => {
-    await expect(canvas.getAllByDisplayValue("Agency").length).toBeGreaterThan(1);
+    const primaryTermInput = canvas.getByRole("textbox", { name: "Primary term" });
+    await expect(primaryTermInput).toHaveValue("Agency");
+    await expect(primaryTermInput).toHaveAttribute("readonly");
+    const sourceTermInput = canvas
+      .getAllByDisplayValue("Agency")
+      .find((element) => element !== primaryTermInput);
+    if (!sourceTermInput) throw new Error("Source term input not found");
+    await userEvent.clear(sourceTermInput);
+    await userEvent.type(sourceTermInput, "Agency updated");
+    await expect(primaryTermInput).toHaveValue("Agency updated");
     await expect(await canvas.findByDisplayValue("Đại lý")).toBeInTheDocument();
     await expect(canvas.getByText("vi-VN")).toBeInTheDocument();
     await expect(canvas.getByText("SOURCE")).toBeInTheDocument();
@@ -188,6 +214,23 @@ export const ConceptDetail: Story = {
     await waitFor(() => {
       void expect(termRow?.querySelector(".bg-emerald-500")).toBeTruthy();
     });
+
+    const expandTermButton = termRow?.querySelector<HTMLButtonElement>(
+      'button[aria-label="Expand term details"]',
+    );
+    if (!expandTermButton) throw new Error("Term details button not found");
+    await userEvent.click(expandTermButton);
+    await userEvent.click(canvas.getByRole("button", { name: "Delete term" }));
+    const deleteDialog = canvas.getByRole("dialog", { name: "Delete this term?" });
+    await userEvent.click(within(deleteDialog).getByRole("button", { name: "Delete term" }));
+    await expect(canvas.queryByDisplayValue("Đại lý updated")).not.toBeInTheDocument();
+    await expect(onTermDelete).not.toHaveBeenCalled();
+    await expect(canvas.getByRole("button", { name: "Save" })).toBeEnabled();
+    await expect(onConceptUpdate).not.toHaveBeenCalled();
+    await userEvent.click(canvas.getByRole("button", { name: "Save" }));
+    await waitFor(() => {
+      void expect(onConceptUpdate).toHaveBeenCalledWith(["term-en-1"]);
+    });
   },
 };
 
@@ -198,6 +241,7 @@ export const ConceptCreationWithTerms: Story = {
   parameters: {
     msw: { handlers: detailHandlers },
     nextjs: {
+      appDirectory: true,
       navigation: {
         pathname: `/org/acme/glossaries/${glossaryId}/concepts/new`,
       },
@@ -205,6 +249,10 @@ export const ConceptCreationWithTerms: Story = {
   },
   play: async ({ canvas }) => {
     await expect(canvas.getByRole("heading", { name: "Add concept" })).toBeInTheDocument();
+    const primaryTermInput = canvas.getByRole("textbox", { name: "Primary term" });
+    const sourceTermInput = canvas.getAllByPlaceholderText("Term")[0]!;
+    await userEvent.type(sourceTermInput, "Checkout");
+    await expect(primaryTermInput).toHaveValue("Checkout");
     const addTermButton = canvas.getByRole("button", { name: "Add term" });
     await expect(addTermButton).toBeEnabled();
     await userEvent.click(addTermButton);
@@ -224,6 +272,7 @@ export const LoadingConceptList: Story = {
       }),
     },
     nextjs: {
+      appDirectory: true,
       navigation: {
         pathname: `/org/acme/glossaries/${glossaryId}`,
       },
@@ -252,6 +301,7 @@ export const LoadingConceptDetail: Story = {
       }),
     },
     nextjs: {
+      appDirectory: true,
       navigation: {
         pathname: `/org/acme/glossaries/${glossaryId}/concepts/${conceptId}`,
       },

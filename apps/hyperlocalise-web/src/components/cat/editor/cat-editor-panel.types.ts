@@ -81,4 +81,5 @@ export type CatEditorPanelProps = {
   onTreatAsVideo?: (treatAsVideo: boolean) => void;
   onRegenerateImage?: () => void;
   onUploadImage?: (file: File) => void;
+  onToggleLocked?: () => void;
 };

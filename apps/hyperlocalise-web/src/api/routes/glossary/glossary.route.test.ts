@@ -37,6 +37,8 @@ import { createApp } from "@/api/app";
 import { PRODUCT_USAGE_ANALYTICS_EVENTS } from "@/lib/analytics/events";
 import { serverAnalytics } from "@/lib/analytics/server";
 import { db, schema } from "@/lib/database";
+import { GlossaryValidationError } from "@/lib/glossary/glossary";
+import { NativeGlossary } from "@/lib/glossary/native-glossary";
 
 import { createTeamTestFixture } from "../team/team.fixture";
 import type { TeamResponse } from "../team/team.schema";
@@ -172,6 +174,20 @@ describe("glossaryRoutes", () => {
           translatable: true,
           terms: [
             {
+              locale: "en",
+              term: "Check-out",
+              status: "draft",
+              caseSensitive: false,
+              forbidden: false,
+            },
+            {
+              locale: "en",
+              term: "Payment",
+              status: "draft",
+              caseSensitive: false,
+              forbidden: false,
+            },
+            {
               locale: "vi-VN",
               term: "Thanh toán",
               status: "draft",
@@ -202,6 +218,7 @@ describe("glossaryRoutes", () => {
     expect(body.concept.terms).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ locale: "en", term: "Checkout", status: "preferred" }),
+        expect.objectContaining({ locale: "en", term: "Payment", status: "draft" }),
         expect.objectContaining({ locale: "vi-VN", term: "Thanh toán", status: "draft" }),
         expect.objectContaining({ locale: "en-US", term: "Check-out", status: "draft" }),
       ]),
@@ -418,7 +435,7 @@ describe("glossaryRoutes", () => {
     expect(storedTerm?.term).toBe("Thanh toán");
   });
 
-  it("rejects duplicate terms when creating a concept", async () => {
+  it("allows the primary source term when creating a concept", async () => {
     const identity = fixture.createWorkosIdentityWithRole("admin");
     const headers = await fixture.authHeadersFor(identity);
     const organizationSlug = identity.organization.slug ?? "missing-slug";
@@ -448,10 +465,94 @@ describe("glossaryRoutes", () => {
       { headers },
     );
 
-    expect(response.status).toBe(409);
+    expect(response.status).toBe(201);
     await expect(response.json()).resolves.toMatchObject({
-      error: "duplicate_glossary_concept_term",
+      concept: {
+        primaryTerm: "Checkout",
+        terms: [{ locale: "en", term: "Checkout" }],
+      },
     });
+  });
+
+  it("deletes native concept terms omitted from a concept PATCH payload", async () => {
+    const identity = fixture.createWorkosIdentityWithRole("admin");
+    const headers = await fixture.authHeadersFor(identity);
+    const organizationSlug = identity.organization.slug ?? "missing-slug";
+    const glossaryResponse = await fixture.createGlossaryViaApi(identity, undefined, headers);
+    const glossaryId = ((await glossaryResponse.json()) as { glossary: { id: string } }).glossary
+      .id;
+
+    const createResponse = await client.api.orgs[":organizationSlug"].glossaries[
+      ":glossaryId"
+    ].concepts.$post(
+      {
+        param: { organizationSlug, glossaryId },
+        json: {
+          primaryTerm: "Checkout",
+          translatable: true,
+          terms: [
+            {
+              locale: "en",
+              term: "Checkout",
+              status: "preferred",
+              caseSensitive: false,
+              forbidden: false,
+            },
+            {
+              locale: "vi",
+              term: "Thanh toán",
+              status: "draft",
+              caseSensitive: false,
+              forbidden: false,
+            },
+          ],
+        },
+      },
+      { headers },
+    );
+    expect(createResponse.status).toBe(201);
+    const created = (await createResponse.json()) as {
+      concept: {
+        id: string;
+        terms: Array<{ id: string; locale: string; term: string }>;
+      };
+    };
+    const sourceTerm = created.concept.terms.find((term) => term.locale === "en");
+    const vietnameseTerm = created.concept.terms.find((term) => term.locale === "vi");
+    expect(sourceTerm).toBeDefined();
+    expect(vietnameseTerm).toBeDefined();
+
+    const patchResponse = await client.api.orgs[":organizationSlug"].glossaries[
+      ":glossaryId"
+    ].concepts[":conceptId"].$patch(
+      {
+        param: { organizationSlug, glossaryId, conceptId: created.concept.id },
+        json: {
+          primaryTerm: "Checkout",
+          terms: [
+            {
+              id: sourceTerm!.id,
+              locale: "en",
+              term: "Checkout",
+              status: "preferred",
+            },
+          ],
+        },
+      },
+      { headers },
+    );
+
+    expect(patchResponse.status).toBe(200);
+    const patched = (await patchResponse.json()) as {
+      concept: { terms: Array<{ id: string; locale: string }> };
+    };
+    expect(patched.concept.terms.map((term) => term.id)).toEqual([sourceTerm!.id]);
+
+    const remaining = await db
+      .select({ id: schema.glossaryTerms.id, locale: schema.glossaryTerms.locale })
+      .from(schema.glossaryTerms)
+      .where(eq(schema.glossaryTerms.conceptId, created.concept.id));
+    expect(remaining).toEqual([{ id: sourceTerm!.id, locale: "en" }]);
   });
 
   it("rejects term mutations for externally managed glossaries", async () => {
@@ -589,6 +690,44 @@ describe("glossaryRoutes", () => {
     );
   });
 
+  it("returns the attached project count when creating a glossary", async () => {
+    const identity = fixture.createWorkosIdentityWithRole("admin");
+    const headers = await fixture.authHeadersFor(identity);
+    const organizationSlug = identity.organization.slug ?? "missing-slug";
+
+    const projectResponse = await client.api.orgs[":organizationSlug"].projects.$post(
+      {
+        param: { organizationSlug },
+        json: {
+          name: "Attached Project",
+          sourceLocale: "en",
+          targetLocales: ["es-ES"],
+        },
+      },
+      { headers },
+    );
+    expect(projectResponse.status).toBe(201);
+    const project = ((await projectResponse.json()) as ProjectResponse).project;
+
+    const createResponse = await client.api.orgs[":organizationSlug"].glossaries.$post(
+      {
+        param: { organizationSlug },
+        json: {
+          name: "Linked Glossary",
+          description: "Created with a project",
+          sourceLocale: "en",
+          projectIds: [project.id],
+        },
+      },
+      { headers },
+    );
+
+    expect(createResponse.status).toBe(201);
+    await expect(createResponse.json()).resolves.toMatchObject({
+      glossary: { projectCount: 1 },
+    });
+  });
+
   it("emits product usage analytics when creating a glossary and a term", async () => {
     const identity = fixture.createWorkosIdentityWithRole("admin");
     const headers = await fixture.authHeadersFor(identity);
@@ -626,5 +765,48 @@ describe("glossaryRoutes", () => {
       source: "glossary",
     });
     trackSpy.mockRestore();
+  });
+
+  it("returns Crowdin validation details when concept create fails validation", async () => {
+    const identity = fixture.createWorkosIdentityWithRole("admin");
+    const headers = await fixture.authHeadersFor(identity);
+    const organizationSlug = identity.organization.slug ?? "missing-slug";
+    const glossaryResponse = await fixture.createGlossaryViaApi(identity, undefined, headers);
+    const glossaryId = ((await glossaryResponse.json()) as { glossary: { id: string } }).glossary
+      .id;
+
+    const createConceptSpy = vi.spyOn(NativeGlossary.prototype, "createConcept").mockRejectedValue(
+      new GlossaryValidationError("crowdin_validation_failed", "Term text is too short", {
+        provider: "crowdin",
+        errors: [{ key: "term", errors: ["too short"] }],
+      }),
+    );
+
+    try {
+      const response = await client.api.orgs[":organizationSlug"].glossaries[
+        ":glossaryId"
+      ].concepts.$post(
+        {
+          param: { organizationSlug, glossaryId },
+          json: {
+            primaryTerm: "x",
+            translatable: true,
+          },
+        },
+        { headers },
+      );
+
+      expect(response.status).toBe(400);
+      await expect(response.json()).resolves.toMatchObject({
+        error: "crowdin_validation_failed",
+        message: "Term text is too short",
+        details: {
+          provider: "crowdin",
+          errors: [{ key: "term", errors: ["too short"] }],
+        },
+      });
+    } finally {
+      createConceptSpy.mockRestore();
+    }
   });
 });

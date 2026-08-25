@@ -17,10 +17,7 @@ import { getLocaleLabel } from "@/lib/i18n/locales";
 import type { ExternalTmsProviderKind } from "@/lib/providers/credentials/organization-external-tms-provider-credentials";
 import { encodeProviderProjectId } from "@/lib/providers/jobs/tms-provider-resource-id";
 import type { TmsProviderLiveGlossary } from "@/lib/providers/jobs/tms-provider-live";
-import {
-  parseTermCapabilitySupport,
-  type TermCapabilitySupport,
-} from "@/lib/glossary/term-capabilities";
+import { toNativeGlossaryLocale } from "@/lib/providers/adapters/crowdin/crowdin-glossary-language";
 
 import { glossaryListMessages } from "./glossary-list.messages";
 
@@ -46,8 +43,11 @@ export type GlossaryListRow = {
   name: string;
   description: string;
   source: "native" | "external_tms";
+  isLiveApi: boolean;
   externalProviderKind: ApiGlossary["externalProviderKind"];
+  providerLogoSrc: string | null;
   externalProjectId: string | null;
+  externalProjectName: string | null;
   externalGlossaryId: string | null;
   externalResourceType: ApiGlossary["externalResourceType"];
   resourceTypeLabel: string;
@@ -61,9 +61,9 @@ export type GlossaryListRow = {
   secondaryLocaleSummary: string;
   termCount: number | null;
   termCountLabel: string;
+  projectCount: number | null;
+  createdAt: string;
   syncState: string | null;
-  termCapabilityLabel: string;
-  termCapabilityTone: "watch" | "safe";
   externalUrl: string | null;
   lastSyncedAt: string | null;
   lastSyncErrorAt: string | null;
@@ -79,10 +79,22 @@ const PROVIDER_LABELS: Record<string, string> = {
   lokalise: "Lokalise",
 };
 
+const PROVIDER_LOGO_SOURCES: Record<string, string> = {
+  native: "/images/logo.png",
+  crowdin: "/images/tms/crowdin.png",
+  smartling: "/images/tms/smartling.png",
+  phrase: "/images/tms/phrase.png",
+  lokalise: "/images/tms/lokalise.webp",
+};
+
 const RELATIVE_TIME_FORMATTER = new Intl.RelativeTimeFormat(undefined, { numeric: "auto" });
 
 export function providerLabel(kind: string) {
   return PROVIDER_LABELS[kind] ?? kind;
+}
+
+export function providerLogoSource(kind: string | null | undefined) {
+  return kind ? (PROVIDER_LOGO_SOURCES[kind] ?? null) : null;
 }
 
 export function formatRelativeTimestamp(value: string | null) {
@@ -159,34 +171,6 @@ function resourceTypeLabelFor(glossary: ApiGlossary, intl?: GlossaryListIntl) {
   return resolveMessage(intl, glossaryListMessages.resourceTypeGlossary);
 }
 
-function termCapabilityToneFor(support: TermCapabilitySupport): "watch" | "safe" {
-  if (support.preferred === null && support.forbidden === null) return "watch";
-  if (support.preferred === false || support.forbidden === false) return "watch";
-  return "safe";
-}
-
-function formatTermCapabilityLabel(support: TermCapabilitySupport, intl?: GlossaryListIntl) {
-  const parts: string[] = [];
-
-  if (support.preferred === true) {
-    parts.push(resolveMessage(intl, glossaryListMessages.capabilityPreferred));
-  } else if (support.preferred === false) {
-    parts.push(resolveMessage(intl, glossaryListMessages.capabilityNoPreferred));
-  }
-
-  if (support.forbidden === true) {
-    parts.push(resolveMessage(intl, glossaryListMessages.capabilityForbidden));
-  } else if (support.forbidden === false) {
-    parts.push(resolveMessage(intl, glossaryListMessages.capabilityNoForbidden));
-  }
-
-  if (parts.length === 0) {
-    return resolveMessage(intl, glossaryListMessages.capabilityUnknown);
-  }
-
-  return parts.join(" · ");
-}
-
 export function externalProjectLookupKey(
   providerKind: string | null | undefined,
   externalProjectId: string | null | undefined,
@@ -200,15 +184,27 @@ export function mapGlossaryToListRow(
   projectIdByExternalKey: ReadonlyMap<string, string>,
   intl?: GlossaryListIntl,
 ): GlossaryListRow {
+  const resolvedLanguages =
+    glossary.source === "native" && glossary.languages.length === 0
+      ? [
+          {
+            locale: glossary.sourceLocale,
+            name: getLocaleLabel(glossary.sourceLocale),
+            isSource: true,
+          },
+        ]
+      : glossary.languages;
+  const localeCoverage =
+    glossary.source === "native"
+      ? [...new Set(resolvedLanguages.map(({ locale }) => locale))]
+      : glossary.localeCoverage;
+  const secondaryLocaleCoverage = localeCoverage.filter(
+    (locale) => locale !== glossary.sourceLocale,
+  );
   const lookupKey = externalProjectLookupKey(
     glossary.externalProviderKind,
     glossary.externalProjectId,
   );
-  const termCapabilitySupport = parseTermCapabilitySupport(
-    glossary.termCapabilities,
-    glossary.source,
-  );
-
   return {
     id: glossary.id,
     detailId: glossary.id,
@@ -216,8 +212,13 @@ export function mapGlossaryToListRow(
     description:
       glossary.description.trim() || resolveMessage(intl, glossaryListMessages.noDescription),
     source: glossary.source,
+    isLiveApi: false,
     externalProviderKind: glossary.externalProviderKind,
+    providerLogoSrc: providerLogoSource(
+      glossary.source === "native" ? "native" : glossary.externalProviderKind,
+    ),
     externalProjectId: glossary.externalProjectId,
+    externalProjectName: null,
     externalGlossaryId: glossary.externalGlossaryId,
     externalResourceType: glossary.externalResourceType,
     resourceTypeLabel: resourceTypeLabelFor(glossary, intl),
@@ -226,11 +227,11 @@ export function mapGlossaryToListRow(
     localePairLabel: glossary.targetLocale
       ? `${glossary.sourceLocale} → ${glossary.targetLocale}`
       : glossary.sourceLocale,
-    localeCoverage: glossary.localeCoverage,
-    languages: glossary.languages,
+    localeCoverage,
+    languages: resolvedLanguages,
     localeSummary:
       glossary.source === "native"
-        ? formatLanguages(glossary.languages, intl)
+        ? formatLanguages(resolvedLanguages, intl)
         : formatLocaleCoverage(
             glossary.localeCoverage,
             glossary.sourceLocale,
@@ -238,17 +239,17 @@ export function mapGlossaryToListRow(
             intl,
           ),
     sourceLocaleLabel: getLocaleLabel(glossary.sourceLocale),
-    secondaryLocaleSummary: formatLocaleCoverage(
-      glossary.localeCoverage.filter((locale) => locale !== glossary.sourceLocale),
-      "",
-      glossary.targetLocale,
-      intl,
-    ),
+    secondaryLocaleSummary:
+      secondaryLocaleCoverage.length > 0
+        ? formatLocaleCoverage(secondaryLocaleCoverage, "", glossary.targetLocale, intl)
+        : "",
     termCount: glossary.termCount,
     termCountLabel: formatTermCount(glossary.termCount, intl),
+    projectCount: glossary.projectCount ?? 0,
+    createdAt:
+      formatRelativeTimestamp(glossary.createdAt) ??
+      resolveMessage(intl, glossaryListMessages.unavailableTimestamp),
     syncState: glossary.syncState,
-    termCapabilityLabel: formatTermCapabilityLabel(termCapabilitySupport, intl),
-    termCapabilityTone: termCapabilityToneFor(termCapabilitySupport),
     externalUrl: glossary.externalUrl,
     lastSyncedAt: formatRelativeTimestamp(glossary.lastSyncedAt),
     lastSyncErrorAt: formatRelativeTimestamp(glossary.lastSyncErrorAt),
@@ -265,6 +266,22 @@ export function mapLiveTmsProviderGlossaryToListRow(
   providerKind: ExternalTmsProviderKind,
   intl?: GlossaryListIntl,
 ): GlossaryListRow {
+  const isCrowdin = providerKind === "crowdin";
+  const sourceLocale = isCrowdin
+    ? toNativeGlossaryLocale(glossary.sourceLocale)
+    : glossary.sourceLocale;
+  const targetLocale = isCrowdin
+    ? toNativeGlossaryLocale(glossary.targetLocale)
+    : glossary.targetLocale;
+  const localeCoverage = isCrowdin
+    ? [
+        ...new Set([
+          sourceLocale,
+          ...glossary.localeCoverage.map((locale) => toNativeGlossaryLocale(locale)),
+        ]),
+      ]
+    : glossary.localeCoverage;
+
   return {
     id: glossary.id,
     detailId: glossary.providerKind === "crowdin" ? glossary.id : null,
@@ -272,43 +289,43 @@ export function mapLiveTmsProviderGlossaryToListRow(
     description:
       glossary.description?.trim() || resolveMessage(intl, glossaryListMessages.noDescription),
     source: "external_tms",
+    isLiveApi: true,
     externalProviderKind: providerKind,
+    providerLogoSrc: providerLogoSource(providerKind),
     externalProjectId: glossary.externalProjectId,
+    externalProjectName: glossary.projectName?.trim() || null,
     externalGlossaryId: glossary.id.split(":").at(-1) ?? glossary.id,
     externalResourceType: "glossary",
     resourceTypeLabel: resolveMessage(intl, glossaryListMessages.resourceTypeGlossary),
-    sourceLocale: glossary.sourceLocale,
-    targetLocale: glossary.targetLocale,
-    localePairLabel: `${glossary.sourceLocale} → ${glossary.targetLocale}`,
-    localeCoverage: glossary.localeCoverage,
+    sourceLocale,
+    targetLocale,
+    localePairLabel: `${sourceLocale} → ${targetLocale}`,
+    localeCoverage,
     languages: [
       {
-        locale: glossary.sourceLocale,
-        name: getLocaleLabel(glossary.sourceLocale),
+        locale: sourceLocale,
+        name: getLocaleLabel(sourceLocale),
         isSource: true,
       },
-      ...glossary.localeCoverage
-        .filter((locale) => locale !== glossary.sourceLocale)
+      ...localeCoverage
+        .filter((locale) => locale !== sourceLocale)
         .map((locale) => ({ locale, name: getLocaleLabel(locale), isSource: false })),
     ],
-    localeSummary: formatLocaleCoverage(
-      glossary.localeCoverage,
-      glossary.sourceLocale,
-      glossary.targetLocale,
-      intl,
-    ),
-    sourceLocaleLabel: getLocaleLabel(glossary.sourceLocale),
+    localeSummary: formatLocaleCoverage(localeCoverage, sourceLocale, targetLocale, intl),
+    sourceLocaleLabel: getLocaleLabel(sourceLocale),
     secondaryLocaleSummary: formatLocaleCoverage(
-      glossary.localeCoverage.filter((locale) => locale !== glossary.sourceLocale),
+      localeCoverage.filter((locale) => locale !== sourceLocale),
       "",
-      glossary.targetLocale,
+      targetLocale,
       intl,
     ),
     termCount: glossary.termCount,
     termCountLabel: formatTermCount(glossary.termCount, intl),
+    projectCount: null,
+    createdAt:
+      formatRelativeTimestamp(glossary.createdAt) ??
+      resolveMessage(intl, glossaryListMessages.unavailableTimestamp),
     syncState: null,
-    termCapabilityLabel: resolveMessage(intl, glossaryListMessages.capabilityLiveApi),
-    termCapabilityTone: "safe",
     externalUrl: glossary.externalUrl,
     lastSyncedAt: null,
     lastSyncErrorAt: null,

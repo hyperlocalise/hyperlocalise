@@ -10,7 +10,11 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { hasCapability, type OrganizationCapability } from "@/api/auth/policy";
+import {
+  hasCapability,
+  isWorkspaceOperatorRole,
+  type OrganizationCapability,
+} from "@/api/auth/policy";
 import type { OrganizationMembershipRole } from "@/lib/database/types";
 import { assertNever } from "@/lib/primitives/assert-never/assert-never";
 import {
@@ -36,6 +40,11 @@ export function isProjectWriteAllowed(role: OrganizationMembershipRole): boolean
 /** Project metadata mutations (update, delete, sync settings). */
 export function isProjectMutationAllowed(role: OrganizationMembershipRole): boolean {
   return isProjectWriteAllowed(role);
+}
+
+/** Project CAT policy is restricted to admins and localization managers. */
+export function isProjectCatBehaviorMutationAllowed(role: OrganizationMembershipRole): boolean {
+  return isWorkspaceOperatorRole(role);
 }
 
 export function isJobCreateAllowed(role: OrganizationMembershipRole): boolean {

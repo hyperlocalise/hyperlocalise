@@ -159,13 +159,13 @@ export function formatRelativeTime(value: string | Date | null, intl: IntlShape)
 
   if (diffMin < 1) return intl.formatMessage(inboxTypesMessages.relativeNow);
   if (diffMin < 60) {
-    return intl.formatMessage(inboxTypesMessages.relativeMinutes, { count: diffMin });
+    return intl.formatNumber(diffMin, { style: "unit", unit: "minute", unitDisplay: "narrow" });
   }
   if (diffHour < 24) {
-    return intl.formatMessage(inboxTypesMessages.relativeHours, { count: diffHour });
+    return intl.formatNumber(diffHour, { style: "unit", unit: "hour", unitDisplay: "narrow" });
   }
   if (diffDay < 7) {
-    return intl.formatMessage(inboxTypesMessages.relativeDays, { count: diffDay });
+    return intl.formatNumber(diffDay, { style: "unit", unit: "day", unitDisplay: "narrow" });
   }
   return DATE_FORMATTER.format(date);
 }

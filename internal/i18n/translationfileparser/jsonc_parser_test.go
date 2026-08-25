@@ -1,6 +1,9 @@
 package translationfileparser
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestJSONCParserParseWithContextIgnoresDoubleSlashInsideStringValues(t *testing.T) {
 	messages, contextByKey, err := (JSONCParser{}).ParseWithContext([]byte(`{
@@ -99,6 +102,39 @@ func TestJSONCParserParseWithContextDoesNotLeakTrailingNestedCommentsToSiblingKe
 	}
 	if _, ok := contextByKey["next_key"]; ok {
 		t.Fatalf("did not expect leaked context for next_key: %q", contextByKey["next_key"])
+	}
+}
+
+func TestJSONCParserParseWithContextDoesNotSizeContextMapFromColonsInValues(t *testing.T) {
+	colonHeavyValue := strings.Repeat(":", 10000)
+	content := []byte(`{
+  "clock": "` + colonHeavyValue + `"
+}`)
+
+	messages, contextByKey, err := (JSONCParser{}).ParseWithContext(content)
+	if err != nil {
+		t.Fatalf("parse with context: %v", err)
+	}
+	if messages["clock"] != colonHeavyValue {
+		t.Fatalf("unexpected clock message length: %d", len(messages["clock"]))
+	}
+	if contextByKey != nil {
+		t.Fatalf("did not expect context map for uncommented colon-heavy value: %v", contextByKey)
+	}
+
+	commented := []byte(`{
+  // timestamp format
+  "clock": "` + colonHeavyValue + `"
+}`)
+	messages, contextByKey, err = (JSONCParser{}).ParseWithContext(commented)
+	if err != nil {
+		t.Fatalf("parse commented colon-heavy value: %v", err)
+	}
+	if messages["clock"] != colonHeavyValue {
+		t.Fatalf("unexpected commented clock message length: %d", len(messages["clock"]))
+	}
+	if contextByKey["clock"] != "timestamp format" {
+		t.Fatalf("unexpected clock context: %q", contextByKey["clock"])
 	}
 }
 

@@ -315,13 +315,12 @@ describe("CrowdinApiClient", () => {
     const client = createClient(fetchMock);
     expect((await client.listGlossaryConcepts(7))[0]?.id).toBe(8);
     expect((await client.getGlossaryConcept(7, 8)).figure).toBe("");
-    await client.addGlossaryConcept(7, { subject: "product", figure: "" });
     await client.updateGlossaryConcept(7, 8, {
       figure: "https://example.com/figure.png",
     });
     await client.deleteGlossaryConcept(7, 8);
 
-    expect(fetchMock).toHaveBeenCalledTimes(5);
+    expect(fetchMock).toHaveBeenCalledTimes(4);
   });
 
   it("lists branches with pagination", async () => {
@@ -1516,6 +1515,31 @@ describe("CrowdinApiClient", () => {
     expect(memories[0]?.segmentsCount).toBe(100);
   });
 
+  it("passes glossary pagination, ordering, user, and filter parameters", async () => {
+    let requestedUrl = "";
+    const fetchMock = vi.fn(async (url) => {
+      requestedUrl = String(url);
+      return new Response(JSON.stringify({ data: [] }), { status: 200 });
+    }) as unknown as typeof fetch;
+
+    const client = createClient(fetchMock);
+    const page = await client.listGlossariesPage({
+      limit: 25,
+      offset: 50,
+      orderBy: "createdAt desc,name",
+      userId: 9920,
+      filter: "string",
+    });
+
+    const query = new URL(requestedUrl).searchParams;
+    expect(query.get("limit")).toBe("25");
+    expect(query.get("offset")).toBe("50");
+    expect(query.get("orderBy")).toBe("createdAt desc,name");
+    expect(query.get("userId")).toBe("9920");
+    expect(query.get("filter")).toBe("string");
+    expect(page).toMatchObject({ offset: 50, limit: 25, hasMore: false, glossaries: [] });
+  });
+
   it("lists project language progress", async () => {
     const fetchMock = vi.fn(async () => {
       return new Response(
@@ -1811,6 +1835,23 @@ describe("extractCrowdinApiErrorSummary", () => {
       }),
     ).toEqual({
       errors: [{ index: 0, code: "validation_error", message: "Invalid request parameters" }],
+    });
+  });
+
+  it("extracts direct nested validation errors", () => {
+    expect(
+      extractCrowdinApiErrorSummary({
+        errors: [
+          {
+            error: {
+              key: "text",
+              errors: [{ code: "notUnique", message: "The term must be unique" }],
+            },
+          },
+        ],
+      }),
+    ).toEqual({
+      errors: [{ code: "notUnique", message: "The term must be unique" }],
     });
   });
 

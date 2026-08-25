@@ -50,7 +50,7 @@ import {
   updateTmsProviderLiveJobFields,
   getTmsProviderLiveProject,
   listTmsProviderLiveFilesForProject,
-  listTmsProviderLiveGlossaries,
+  listTmsProviderLiveGlossariesPage,
   listTmsProviderLiveJobs,
   listTmsProviderLiveJobsForProject,
   listTmsProviderLiveProjectMembers,
@@ -70,6 +70,14 @@ const mineQuerySchema = z.object({
 
 const externalProjectIdQuerySchema = z.object({
   externalProjectId: z.string().min(1).optional(),
+});
+
+const liveGlossaryQuerySchema = z.object({
+  externalProjectId: z.string().min(1).optional(),
+  limit: z.coerce.number().int().min(1).max(100).optional().default(25),
+  offset: z.coerce.number().int().min(0).optional().default(0),
+  orderBy: z.string().trim().min(1).max(100).optional().default("createdAt desc,name"),
+  filter: z.string().trim().max(200).optional(),
 });
 
 const projectFilesQuerySchema = z.object({
@@ -137,6 +145,15 @@ const validateMineQuery = validator("query", (value, c) => {
 
 const validateExternalProjectIdQuery = validator("query", (value, c) => {
   const parsed = externalProjectIdQuerySchema.safeParse(value);
+  if (!parsed.success) {
+    return c.json({ error: "invalid_query" }, 400);
+  }
+
+  return parsed.data;
+});
+
+const validateLiveGlossaryQuery = validator("query", (value, c) => {
+  const parsed = liveGlossaryQuerySchema.safeParse(value);
   if (!parsed.success) {
     return c.json({ error: "invalid_query" }, 400);
   }
@@ -723,7 +740,7 @@ export function createTmsProviderRoutes(options: CreateTmsProviderRoutesOptions 
 
       return c.json({ agentRun: serializeAgentRun(agentRun) }, 201);
     })
-    .get("/glossaries", validateExternalProjectIdQuery, async (c) => {
+    .get("/glossaries", validateLiveGlossaryQuery, async (c) => {
       if (!hasCapability(c.var.auth.membership.role, "glossaries:read")) {
         return c.json({ error: "forbidden" }, 403);
       }
@@ -731,14 +748,28 @@ export function createTmsProviderRoutes(options: CreateTmsProviderRoutesOptions 
       const query = c.req.valid("query");
 
       try {
-        const glossaries = await listTmsProviderLiveGlossaries(
+        const glossaryPage = await listTmsProviderLiveGlossariesPage(
           c.var.auth.organization.localOrganizationId,
           {
             externalProjectId: query.externalProjectId,
             actorUserId: c.var.auth.user.localUserId,
+            limit: query.limit,
+            offset: query.offset,
+            orderBy: query.orderBy,
+            filter: query.filter,
           },
         );
-        return c.json({ glossaries }, 200);
+        return c.json(
+          {
+            glossaries: glossaryPage.glossaries,
+            pagination: {
+              offset: glossaryPage.offset,
+              limit: glossaryPage.limit,
+              hasMore: glossaryPage.hasMore,
+            },
+          },
+          200,
+        );
       } catch (error) {
         return tmsProviderLiveErrorResponse(c, error);
       }

@@ -54,6 +54,7 @@ import {
 import { ProjectIssueTemplatesPanel } from "./project-issue-templates-panel";
 import { ProjectNativeConnectCliPanel } from "./project-native-connect-cli-panel";
 import { ProjectIssueColumnsSettings } from "./project-issue-columns-settings";
+import { ProjectCatBehaviorSettings } from "./project-cat-behavior-settings";
 import { projectSettingsPageContentMessages } from "./project-settings-page-content.messages";
 
 const providerLabels: Record<NonNullable<ProjectListRow["externalProviderKind"]>, string> = {
@@ -146,9 +147,11 @@ function ProjectSourceDetails({ project }: { project: ProjectListRow }) {
 export function ProjectSettingsPageContent({
   organizationSlug,
   projectId,
+  canManageCatBehavior,
 }: {
   organizationSlug: string;
   projectId: string;
+  canManageCatBehavior: boolean;
 }) {
   const queryClient = useQueryClient();
   const projectQuery = useProjectPageQuery(organizationSlug, projectId);
@@ -174,6 +177,7 @@ export function ProjectSettingsPageContent({
         json: toProjectPayload(nextValues, {
           mode: "edit",
           includeLocales: project.source === "native",
+          includeMetadata: project.source === "native",
         }),
       });
 
@@ -198,10 +202,10 @@ export function ProjectSettingsPageContent({
   });
 
   const isSaving = updateProject.isPending;
-  const settingsEditable = project?.source === "native";
+  const metadataEditable = project?.source === "native";
   useAppShellHeaderAction({
     id: "project-settings-save",
-    visible: Boolean(settingsEditable),
+    visible: true,
     render: () => (
       <Button type="submit" form="project-settings-form" disabled={isSaving}>
         {isSaving ? (
@@ -224,6 +228,7 @@ export function ProjectSettingsPageContent({
 
     const nextErrors = validateProjectForm(values, {
       requireLocales: projectFormRequiresLocales("edit", project.source),
+      requireIdentifier: true,
     });
     setErrors(nextErrors);
 
@@ -262,9 +267,9 @@ export function ProjectSettingsPageContent({
         icon={Settings01Icon}
         section="Settings"
         description={
-          settingsEditable
+          metadataEditable
             ? "Edit project metadata, translation guidance, locales, and source connection details."
-            : "View provider-managed project metadata, locales, and source connection details."
+            : "View provider-managed project metadata, locales, and source connection details. You can still edit the issue identifier."
         }
       />
 
@@ -279,7 +284,7 @@ export function ProjectSettingsPageContent({
                 <FormattedMessage {...projectSettingsPageContentMessages.generalDescription} />
               </TypographyP>
             </div>
-            {!settingsEditable ? (
+            {!metadataEditable ? (
               <Badge variant="outline">
                 <FormattedMessage {...projectSettingsPageContentMessages.readOnly} />
               </Badge>
@@ -292,7 +297,7 @@ export function ProjectSettingsPageContent({
             <Input
               id="project-name"
               value={values.name}
-              disabled={isSaving || !settingsEditable}
+              disabled={isSaving || !metadataEditable}
               onChange={(event) =>
                 setValues((current) =>
                   current ? { ...current, name: event.target.value } : current,
@@ -303,13 +308,34 @@ export function ProjectSettingsPageContent({
             <FieldError errors={errors.name ? [{ message: errors.name }] : undefined} />
           </Field>
           <Field className="gap-1.5">
+            <FieldLabel htmlFor="project-identifier">
+              <FormattedMessage {...projectSettingsPageContentMessages.identifierLabel} />
+            </FieldLabel>
+            <Input
+              id="project-identifier"
+              value={values.identifier}
+              disabled={isSaving}
+              className="font-mono uppercase"
+              onChange={(event) =>
+                setValues((current) =>
+                  current ? { ...current, identifier: event.target.value.toUpperCase() } : current,
+                )
+              }
+              aria-invalid={Boolean(errors.identifier)}
+            />
+            <FieldDescription>
+              <FormattedMessage {...projectSettingsPageContentMessages.identifierHelp} />
+            </FieldDescription>
+            <FieldError errors={errors.identifier ? [{ message: errors.identifier }] : undefined} />
+          </Field>
+          <Field className="gap-1.5">
             <FieldLabel htmlFor="project-description">
               <FormattedMessage {...projectSettingsPageContentMessages.descriptionLabel} />
             </FieldLabel>
             <Textarea
               id="project-description"
               value={values.description}
-              disabled={isSaving || !settingsEditable}
+              disabled={isSaving || !metadataEditable}
               onChange={(event) =>
                 setValues((current) =>
                   current ? { ...current, description: event.target.value } : current,
@@ -327,7 +353,7 @@ export function ProjectSettingsPageContent({
           </Field>
         </section>
 
-        {settingsEditable ? (
+        {metadataEditable ? (
           <section className="grid gap-4 rounded-lg border border-border bg-muted p-4">
             <div>
               <ProjectSectionTitle>
@@ -436,6 +462,17 @@ export function ProjectSettingsPageContent({
           <ProjectNativeConnectCliPanel organizationSlug={organizationSlug} projectId={projectId} />
         ) : null}
       </form>
+
+      {/* Live provider projects have no persisted project row for CAT policy. */}
+      {!isEncodedProviderProjectId(project.id) ? (
+        <div className="mt-5">
+          <ProjectCatBehaviorSettings
+            organizationSlug={organizationSlug}
+            projectId={projectId}
+            canManage={canManageCatBehavior}
+          />
+        </div>
+      ) : null}
 
       <div className="mt-5">
         <ProjectIssueColumnsSettings organizationSlug={organizationSlug} projectId={projectId} />

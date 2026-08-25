@@ -92,6 +92,8 @@ export function CatQueueToolbar({
   onBulkSkip,
   onBulkHide,
   onBulkUnhide,
+  onBulkLock,
+  onBulkUnlock,
   isBulkActionPending = false,
   isQueueLoading = false,
   onDownloadFilteredView,
@@ -116,6 +118,8 @@ export function CatQueueToolbar({
   onBulkSkip?: () => void;
   onBulkHide?: () => void;
   onBulkUnhide?: () => void;
+  onBulkLock?: () => void;
+  onBulkUnlock?: () => void;
   isBulkActionPending?: boolean;
   /**
    * When the queue query is showing placeholder data, or the store has not
@@ -128,7 +132,8 @@ export function CatQueueToolbar({
 }) {
   const intl = useIntl();
   const hasBulkActions = Boolean(
-    onSelectionModeChange && (onBulkApprove || onBulkSkip || onBulkHide || onBulkUnhide),
+    onSelectionModeChange &&
+    (onBulkApprove || onBulkSkip || onBulkHide || onBulkUnhide || onBulkLock || onBulkUnlock),
   );
   const hasActiveFilter = queueFilter !== "all";
   const hasActiveSort = queueSort !== "file_order";
@@ -374,6 +379,22 @@ export function CatQueueToolbar({
                     disabled={!bulkTargetsReady || selectedCount === 0}
                   >
                     <FormattedMessage {...catQueuePanelMessages.bulkUnhide} />
+                  </DropdownMenuItem>
+                ) : null}
+                {onBulkLock ? (
+                  <DropdownMenuItem
+                    onClick={onBulkLock}
+                    disabled={!bulkTargetsReady || selectedCount === 0}
+                  >
+                    <FormattedMessage {...catQueuePanelMessages.bulkLock} />
+                  </DropdownMenuItem>
+                ) : null}
+                {onBulkUnlock ? (
+                  <DropdownMenuItem
+                    onClick={onBulkUnlock}
+                    disabled={!bulkTargetsReady || selectedCount === 0}
+                  >
+                    <FormattedMessage {...catQueuePanelMessages.bulkUnlock} />
                   </DropdownMenuItem>
                 ) : null}
               </DropdownMenuGroup>

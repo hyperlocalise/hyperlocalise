@@ -253,3 +253,62 @@ func TestSubtitleCueStructureEqualComparesTimingsNotCounts(t *testing.T) {
 		t.Fatal("invalid target should not match")
 	}
 }
+
+func TestIsAllDecimalDigitsAcceptsUnicodeNd(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name string
+		in   string
+		want bool
+	}{
+		{name: "empty", in: "", want: false},
+		{name: "asciiDigits", in: "12345", want: true},
+		{name: "asciiLetter", in: "12a", want: false},
+		{name: "arabicIndic", in: "١٢٣", want: true},
+		{name: "mixedAsciiAndArabicIndic", in: "1٢3", want: true},
+		{name: "fullwidthDigits", in: "１２３", want: true},
+		{name: "arabicIndicWithLetter", in: "١a", want: false},
+		{name: "customIdentifier", in: "intro_cue", want: false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			if got := isAllDecimalDigits(tc.in); got != tc.want {
+				t.Fatalf("isAllDecimalDigits(%q) = %v, want %v", tc.in, got, tc.want)
+			}
+		})
+	}
+}
+
+func TestSubtitleCueTreatsUnicodeDecimalIdentifiersAsCounters(t *testing.T) {
+	source := []byte("١\n00:00:00,000 --> 00:00:01,000\nHello\n\n٢\n00:00:01,000 --> 00:00:02,000\nWorld\n")
+	renumbered := []byte("٣\n00:00:00,000 --> 00:00:01,000\nSalut\n\n٤\n00:00:01,000 --> 00:00:02,000\nMonde\n")
+	named := []byte("مقدمة\n00:00:00,000 --> 00:00:01,000\nHello\n\nخاتمة\n00:00:01,000 --> 00:00:02,000\nWorld\n")
+
+	_, ctx, err := (SubtitleParser{Kind: SubtitleSRT}).ParseWithContext(source)
+	if err != nil {
+		t.Fatalf("parse srt: %v", err)
+	}
+	if ctx["srt.0001"] != "00:00:00,000 --> 00:00:01,000" {
+		t.Fatalf("unicode decimal identifier should not prefix context: %q", ctx["srt.0001"])
+	}
+	if ctx["srt.0002"] != "00:00:01,000 --> 00:00:02,000" {
+		t.Fatalf("unicode decimal identifier should not prefix context: %q", ctx["srt.0002"])
+	}
+
+	if !SubtitleCueStructureEqual(source, renumbered, SubtitleSRT) {
+		t.Fatal("renumbered unicode decimal counters should still match by timing")
+	}
+	if SubtitleCueStructureEqual(source, named, SubtitleSRT) {
+		t.Fatal("non-digit unicode identifiers should participate in structural equality")
+	}
+
+	_, namedCtx, err := (SubtitleParser{Kind: SubtitleSRT}).ParseWithContext(named)
+	if err != nil {
+		t.Fatalf("parse named srt: %v", err)
+	}
+	if namedCtx["srt.0001"] != "مقدمة · 00:00:00,000 --> 00:00:01,000" {
+		t.Fatalf("non-digit unicode identifier should prefix context: %q", namedCtx["srt.0001"])
+	}
+}

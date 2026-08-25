@@ -124,6 +124,22 @@ describe("IssueSheetService.listFeed", () => {
       kind: "activity",
       activity: { type: "status_changed", previousStatus: "open", nextStatus: "resolved" },
     });
+    const creation = feed.items[0];
+    const commentThread = feed.items[1];
+    const statusChange = feed.items[2];
+    if (
+      creation?.kind !== "activity" ||
+      commentThread?.kind !== "comment_thread" ||
+      statusChange?.kind !== "activity"
+    ) {
+      throw new Error("expected activity, comment thread, and activity feed ordering");
+    }
+    expect(new Date(creation.activity.createdAt).getTime()).toBeLessThan(
+      new Date(commentThread.root.createdAt).getTime(),
+    );
+    expect(new Date(commentThread.root.createdAt).getTime()).toBeLessThan(
+      new Date(statusChange.activity.createdAt).getTime(),
+    );
 
     const firstPage = await issueSheetService.listFeed({
       organizationId: organization.id,
@@ -147,5 +163,18 @@ describe("IssueSheetService.listFeed", () => {
     });
     expect(secondPage.items.map((item) => item.kind)).toEqual(["comment_thread", "activity"]);
     expect(secondPage.nextCursor).toBeNull();
+
+    const feedByIdentifier = await issueSheetService.listFeed({
+      organizationId: organization.id,
+      projectId: project.id,
+      issueId: issue.identifier,
+      actorUserId: user.id,
+      role: "admin",
+      limit: 10,
+    });
+    expect(feedByIdentifier.total).toBe(feed.total);
+    expect(feedByIdentifier.items.map((item) => item.kind)).toEqual(
+      feed.items.map((item) => item.kind),
+    );
   });
 });

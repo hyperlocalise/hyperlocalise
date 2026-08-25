@@ -24,6 +24,7 @@ import {
   type ExternalTmsJobTaskMetadata,
 } from "@/lib/providers/jobs/tms-provider-types";
 import { ProjectServiceBase } from "@/lib/projects/project-service-base";
+import { insertWithAllocatedProjectIdentifier } from "@/lib/projects/issue-identifier/allocate-issue-identifier";
 
 function normalizeDate(value: Date | string | null | undefined) {
   if (!value) return null;
@@ -63,30 +64,21 @@ export class ExternalTmsSyncService extends ProjectServiceBase {
       externalProjectId: input.liveProject.externalProjectId,
     });
 
-    await this.database
-      .insert(schema.projects)
-      .values({
-        id: projectId,
-        organizationId: input.organizationId,
-        teamId: null,
-        createdByUserId: input.userId ?? null,
-        updatedByUserId: input.userId ?? null,
-        name: input.liveProject.name,
-        description: input.liveProject.description ?? "",
-        translationContext: input.liveProject.translationContext ?? "",
-        source: "external_tms",
-        externalProviderKind: input.liveProject.externalProviderKind,
-        externalProviderCredentialId: input.providerCredentialId,
-        externalProjectId: input.liveProject.externalProjectId,
-        sourceLocale: input.liveProject.sourceLocale,
-        targetLocales: input.liveProject.targetLocales,
-        externalProjectUrl: input.liveProject.externalProjectUrl,
-        isActive: input.liveProject.isActive,
-        lastSyncedAt: new Date(),
-      })
-      .onConflictDoUpdate({
-        target: [schema.projects.id, schema.projects.organizationId],
-        set: {
+    const [existing] = await this.database
+      .select({ id: schema.projects.id })
+      .from(schema.projects)
+      .where(
+        and(
+          eq(schema.projects.id, projectId),
+          eq(schema.projects.organizationId, input.organizationId),
+        ),
+      )
+      .limit(1);
+
+    if (existing) {
+      await this.database
+        .update(schema.projects)
+        .set({
           name: input.liveProject.name,
           description: input.liveProject.description ?? "",
           translationContext: input.liveProject.translationContext ?? "",
@@ -98,8 +90,59 @@ export class ExternalTmsSyncService extends ProjectServiceBase {
           updatedByUserId: input.userId ?? null,
           lastSyncedAt: new Date(),
           updatedAt: new Date(),
-        },
+        })
+        .where(
+          and(
+            eq(schema.projects.id, projectId),
+            eq(schema.projects.organizationId, input.organizationId),
+          ),
+        );
+    } else {
+      await insertWithAllocatedProjectIdentifier({
+        organizationId: input.organizationId,
+        name: input.liveProject.name,
+        database: this.database,
+        insert: (identifier, attemptDb) =>
+          attemptDb
+            .insert(schema.projects)
+            .values({
+              id: projectId,
+              organizationId: input.organizationId,
+              teamId: null,
+              createdByUserId: input.userId ?? null,
+              updatedByUserId: input.userId ?? null,
+              name: input.liveProject.name,
+              identifier,
+              description: input.liveProject.description ?? "",
+              translationContext: input.liveProject.translationContext ?? "",
+              source: "external_tms",
+              externalProviderKind: input.liveProject.externalProviderKind,
+              externalProviderCredentialId: input.providerCredentialId,
+              externalProjectId: input.liveProject.externalProjectId,
+              sourceLocale: input.liveProject.sourceLocale,
+              targetLocales: input.liveProject.targetLocales,
+              externalProjectUrl: input.liveProject.externalProjectUrl,
+              isActive: input.liveProject.isActive,
+              lastSyncedAt: new Date(),
+            })
+            .onConflictDoUpdate({
+              target: schema.projects.id,
+              set: {
+                name: input.liveProject.name,
+                description: input.liveProject.description ?? "",
+                translationContext: input.liveProject.translationContext ?? "",
+                sourceLocale: input.liveProject.sourceLocale,
+                targetLocales: input.liveProject.targetLocales,
+                externalProjectUrl: input.liveProject.externalProjectUrl,
+                isActive: input.liveProject.isActive,
+                externalProviderCredentialId: input.providerCredentialId,
+                updatedByUserId: input.userId ?? null,
+                lastSyncedAt: new Date(),
+                updatedAt: new Date(),
+              },
+            }),
       });
+    }
 
     this.log.info(
       {

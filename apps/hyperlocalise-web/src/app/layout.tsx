@@ -26,6 +26,7 @@ import { SITE_URL } from "@/lib/seo/site-url";
 import { GoogleAnalytics } from "@next/third-parties/google";
 import { GA_MEASUREMENT_ID } from "@/lib/analytics/google-analytics";
 import { cn } from "@/lib/primitives/cn";
+import { PRIVATE_ROBOTS } from "@/lib/seo/robots-metadata";
 import "./globals.css";
 
 const inter = Inter({
@@ -73,6 +74,7 @@ export const metadata: Metadata = {
   title: "Hyperlocalise | The Best Agentic Localisation Platform",
   description:
     "Hyperlocalise is an AI workforce that helps teams launch globally in days — with market nuance, translation, and first-class human review.",
+  robots: PRIVATE_ROBOTS,
 };
 
 async function getInitialAuth(): Promise<

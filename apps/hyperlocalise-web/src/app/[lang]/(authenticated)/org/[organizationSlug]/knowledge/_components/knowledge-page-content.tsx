@@ -16,19 +16,21 @@ import { useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 
 import { readApiError } from "@/lib/api-error";
-import { apiClient } from "@/lib/api-client-instance";
 
+import { getKnowledgeMemory, knowledgeMemoryQueryKey } from "./knowledge-memory-api";
 import { KnowledgeMemoryEditor } from "./knowledge-memory-editor";
-import { knowledgeMemoryQueryKey, type LoadedKnowledgeMemory } from "./knowledge-memory-query";
+import type { LoadedKnowledgeMemory } from "./knowledge-memory-query";
 import { KnowledgePageHeader, type KnowledgePageMode } from "./knowledge-page-view";
 import { KnowledgePageSkeleton } from "./knowledge-page-skeleton";
 import { KnowledgeUploadSection } from "./knowledge-upload-section";
 
 export function KnowledgePageContent({
   organizationSlug,
+  projectId,
   canUpdateKnowledgeMemory,
 }: {
   organizationSlug: string;
+  projectId?: string;
   canUpdateKnowledgeMemory: boolean;
 }) {
   const [viewMode, setViewMode] = useState<KnowledgePageMode | null>(null);
@@ -37,11 +39,9 @@ export function KnowledgePageContent({
   const isAddingSources = useRef(false);
 
   const knowledgeMemoryQuery = useQuery({
-    queryKey: knowledgeMemoryQueryKey(organizationSlug),
+    queryKey: knowledgeMemoryQueryKey(organizationSlug, projectId),
     queryFn: async () => {
-      const response = await apiClient.api.orgs[":organizationSlug"]["knowledge-memory"].$get({
-        param: { organizationSlug },
-      });
+      const response = await getKnowledgeMemory({ organizationSlug, projectId });
 
       if (!response.ok) {
         throw new Error(await readApiError(response, "Unable to load knowledge memory"));
@@ -85,6 +85,7 @@ export function KnowledgePageContent({
   return (
     <div className="mx-auto flex w-full max-w-4xl flex-col gap-8">
       <KnowledgePageHeader
+        scope={projectId ? "project" : "organization"}
         onAddSources={
           resolvedMode === "editor"
             ? () => {
@@ -106,6 +107,7 @@ export function KnowledgePageContent({
           <KnowledgeMemoryEditor
             key={editorMountKey}
             organizationSlug={organizationSlug}
+            projectId={projectId}
             canUpdateKnowledgeMemory={canUpdateKnowledgeMemory}
             initialDraftContent={draftSeed}
           />

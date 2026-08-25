@@ -15,6 +15,31 @@
 import { defineMessages } from "react-intl";
 
 export const glossaryDetailPageContentMessages = defineMessages({
+  editName: {
+    defaultMessage: "Edit glossary name",
+    id: "8Pm5sD+4i4",
+    description: "Accessible label for editing the glossary name",
+  },
+  saveName: {
+    defaultMessage: "Save glossary name",
+    id: "oHlz44sQOv",
+    description: "Accessible label for saving the glossary name",
+  },
+  cancelNameEdit: {
+    defaultMessage: "Cancel glossary name edit",
+    id: "fxdG0zsb5y",
+    description: "Accessible label for canceling the glossary name edit",
+  },
+  glossaryNameUpdated: {
+    defaultMessage: "Glossary name updated",
+    id: "wOWEjY5VIH",
+    description: "Toast after the glossary name is updated successfully",
+  },
+  updateGlossaryNameFailed: {
+    defaultMessage: "Unable to update glossary name",
+    id: "nIdUueH9Jz",
+    description: "Fallback error when updating the glossary name fails",
+  },
   loadGlossaryFailed: {
     defaultMessage: "Unable to load glossary",
     id: "zdN3ToHnj1",
@@ -34,11 +59,6 @@ export const glossaryDetailPageContentMessages = defineMessages({
     defaultMessage: "Unable to save term",
     id: "iCizofrwwK",
     description: "Fallback error when saving a glossary term fails",
-  },
-  deleteTermFailed: {
-    defaultMessage: "Unable to delete term",
-    id: "gN0y8UhzTR",
-    description: "Fallback error when deleting a glossary term fails",
   },
   importTermsFailed: {
     defaultMessage: "Unable to import terms",
@@ -150,6 +170,46 @@ export const glossaryDetailPageContentMessages = defineMessages({
     id: "r1aEK84u1V",
     description: "Label for the part of speech field on a glossary term form",
   },
+  partOfSpeechSearchPlaceholder: {
+    defaultMessage: "Search part of speech...",
+    id: "wsUFAfa8Hd",
+    description: "Search placeholder for the part of speech picker",
+  },
+  partOfSpeechNoMatches: {
+    defaultMessage: "No categories found.",
+    id: "CCHRUS19n3",
+    description: "Empty search result in the part of speech picker",
+  },
+  termTypeFullFormDescription: {
+    defaultMessage: "Complete form of a term",
+    id: "F+qlLuaEi6",
+    description: "Description for the full form term type",
+  },
+  termTypeAcronymDescription: {
+    defaultMessage: "Initials pronounced as a word",
+    id: "OMHukdK6Wt",
+    description: "Description for the acronym term type",
+  },
+  termTypeAbbreviationDescription: {
+    defaultMessage: "Shortened written form",
+    id: "r7qqla56RV",
+    description: "Description for the abbreviation term type",
+  },
+  termTypeShortFormDescription: {
+    defaultMessage: "Informal shortened name",
+    id: "04/aNgNk5U",
+    description: "Description for the short form term type",
+  },
+  termTypePhraseDescription: {
+    defaultMessage: "Multi-word expression",
+    id: "kDMX9jypDk",
+    description: "Description for the phrase term type",
+  },
+  termTypeVariantDescription: {
+    defaultMessage: "Alternative form",
+    id: "3s0Ll5QBJY",
+    description: "Description for the variant term type",
+  },
   descriptionLabel: {
     defaultMessage: "Description",
     id: "zXcAMcp/DE",
@@ -204,6 +264,16 @@ export const glossaryDetailPageContentMessages = defineMessages({
     defaultMessage: "This glossary is used only by the projects listed here.",
     id: "LMGo1sN8VQ",
     description: "Section description for projects assigned to a glossary",
+  },
+  linkedProjectTitle: {
+    defaultMessage: "Linked project",
+    id: "kngndgvdvd",
+    description: "Section title for the project linked to a provider glossary",
+  },
+  linkedProjectDescription: {
+    defaultMessage: "This project is linked to the glossary in Crowdin.",
+    id: "wdTIdTeD/X",
+    description: "Section description for a provider-linked project",
   },
   selectProjectPlaceholder: {
     defaultMessage: "Select project",
@@ -411,8 +481,8 @@ export const glossaryDetailPageContentMessages = defineMessages({
     description: "Title of the term deletion confirmation dialog",
   },
   confirmDeleteTermDescription: {
-    defaultMessage: "This term will be removed from the concept and cannot be restored.",
-    id: "tQnEG79lWB",
+    defaultMessage: "This term will be removed from the concept when you save.",
+    id: "WhmV5YamvS",
     description: "Description of the term deletion confirmation dialog",
   },
   noConcepts: {
@@ -449,10 +519,5 @@ export const glossaryDetailPageContentMessages = defineMessages({
     defaultMessage: "Term saved",
     id: "TmON06MWzq",
     description: "Toast after a concept term is saved",
-  },
-  termDeletedFromConcept: {
-    defaultMessage: "Term deleted",
-    id: "ECdzHS9iJQ",
-    description: "Toast after a concept term is deleted",
   },
 });

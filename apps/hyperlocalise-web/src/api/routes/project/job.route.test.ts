@@ -24,6 +24,7 @@ import { upsertExternalTmsJobRecords } from "@/lib/projects/external-tms/externa
 import * as tmsProviderAssigneeCandidates from "@/lib/providers/jobs/tms-provider-assignee-candidates";
 import { encodeProviderProjectId } from "@/lib/providers/jobs/tms-provider-resource-id";
 import { ensureDefaultWorkspaceTeam } from "@/lib/teams/default-workspace-team";
+import { uniqueTestProjectIdentifier } from "@/lib/projects/issue-identifier/test-project-identifier";
 import type { TranslationJobEventData } from "@/lib/workflow/types";
 
 import { createProjectTestFixture } from "./project.fixture";
@@ -194,6 +195,7 @@ describe("workspace job list", () => {
 
     await db.insert(schema.projects).values({
       id: providerProjectId,
+      identifier: uniqueTestProjectIdentifier(),
       organizationId,
       teamId: defaultTeam.id,
       name: "Provider project",

@@ -212,6 +212,16 @@ describe("KnowledgeMemory history UI", () => {
       oldFile: { name: "Global guidance", contents: "Before", lang: "markdown" },
       newFile: { name: "Global guidance", contents: "After", lang: "markdown" },
     });
+    expect(
+      createKnowledgeMemoryDiffFiles({
+        previousContent: "Before",
+        selectedContent: "After",
+        documentName: "Project guidance",
+      }),
+    ).toEqual({
+      oldFile: { name: "Project guidance", contents: "Before", lang: "markdown" },
+      newFile: { name: "Project guidance", contents: "After", lang: "markdown" },
+    });
   });
 
   it("preserves the draft and exposes both conflict resolutions", () => {

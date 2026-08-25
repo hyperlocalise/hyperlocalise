@@ -26,6 +26,19 @@ const queueSegments = [
 ] as const;
 
 describe("CatQueueStore", () => {
+  it("constructs without throwing when storage is unavailable", () => {
+    vi.stubGlobal("localStorage", undefined);
+    vi.stubGlobal("window", {});
+
+    try {
+      const queue = new CatQueueStore();
+      expect(queue.selectionMode).toBe(false);
+      expect(() => queue.setSelectionMode(true)).not.toThrow();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
   it("sorts segments by index", () => {
     const queue = new CatQueueStore();
     queue.replace([
@@ -107,6 +120,17 @@ describe("CatQueueStore", () => {
 
     queue.setHidden(["seg-02"], false);
     expect(queue.segments.find((segment) => segment.id === "seg-02")?.isHidden).toBeUndefined();
+  });
+
+  it("toggles locked metadata on queue segments", () => {
+    const queue = new CatQueueStore();
+    queue.replace([...queueSegments]);
+
+    queue.setLocked(["seg-02"], true);
+    expect(queue.segments.find((segment) => segment.id === "seg-02")?.isLocked).toBe(true);
+
+    queue.setLocked(["seg-02"], false);
+    expect(queue.segments.find((segment) => segment.id === "seg-02")?.isLocked).toBeUndefined();
   });
 
   it("falls back to the first visible segment when the selected segment disappears", () => {

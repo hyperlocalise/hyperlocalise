@@ -65,19 +65,4 @@ export const inboxTypesMessages = defineMessages({
     id: "N6O6G8ZqRN",
     description: "Relative timestamp when an inbox event happened less than a minute ago",
   },
-  relativeMinutes: {
-    defaultMessage: "{count}m",
-    id: "QHWzXoDsKo",
-    description: "Abbreviated relative timestamp in minutes for inbox list and headers",
-  },
-  relativeHours: {
-    defaultMessage: "{count}h",
-    id: "bpLn5dtiqI",
-    description: "Abbreviated relative timestamp in hours for inbox list and headers",
-  },
-  relativeDays: {
-    defaultMessage: "{count}d",
-    id: "gD6NdIE0OY",
-    description: "Abbreviated relative timestamp in days for inbox list and headers",
-  },
 });

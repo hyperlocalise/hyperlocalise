@@ -22,6 +22,7 @@ import { parseCsvRows } from "@/lib/csv/parse-csv-rows";
 import { getGlossaryProduct } from "@/lib/glossary/glossary-provider";
 import {
   GlossaryValidationError,
+  selectGlossaryPrimaryTerm,
   type NativeGlossary,
   type GlossaryConcept,
 } from "@/lib/glossary/glossary";
@@ -90,7 +91,7 @@ function glossaryValidationErrorResponse(
   error: unknown,
 ) {
   if (!(error instanceof GlossaryValidationError)) return null;
-  return badRequestResponse(c, error.code, error.message);
+  return badRequestResponse(c, error.code, error.message, error.details);
 }
 
 function toCrowdinTermRecord(
@@ -98,7 +99,7 @@ function toCrowdinTermRecord(
   conceptId: string,
   term: {
     id?: number | string;
-    languageId: string;
+    locale: string;
     text: string;
     description?: string | null;
     partOfSpeech?: string | null;
@@ -119,9 +120,9 @@ function toCrowdinTermRecord(
     id: String(term.id),
     glossaryId: glossary.id,
     conceptId,
-    locale: term.languageId,
+    locale: term.locale,
     term: term.text,
-    isPrimary: term.languageId === glossary.sourceLocale,
+    isPrimary: term.locale === glossary.sourceLocale,
     description: term.description ?? "",
     note: term.note ?? "",
     partOfSpeech: term.partOfSpeech ?? "",
@@ -157,7 +158,7 @@ function toCrowdinConceptRecord(
     externalKey?: string;
     externalUserId?: string | null;
     languageDetails?: Array<{
-      languageId: string;
+      locale: string;
       userId?: number | null;
       definition?: string | null;
       note?: string | null;
@@ -168,7 +169,7 @@ function toCrowdinConceptRecord(
     externalUpdatedAt?: string | null;
     terms: Array<{
       id?: number | string;
-      languageId: string;
+      locale: string;
       text: string;
       description?: string | null;
       partOfSpeech?: string | null;
@@ -187,8 +188,7 @@ function toCrowdinConceptRecord(
   const conceptId = String(value.externalKey ?? value.id ?? value.conceptId);
   const createdAt = value.externalCreatedAt ?? new Date(0).toISOString();
   const updatedAt = value.externalUpdatedAt ?? new Date(0).toISOString();
-  const source =
-    value.terms.find((term) => term.languageId === glossary.sourceLocale) ?? value.terms[0];
+  const source = selectGlossaryPrimaryTerm(value.terms, glossary.sourceLocale) ?? value.terms[0];
   return {
     id: conceptId,
     glossaryId: glossary.id,
@@ -202,7 +202,7 @@ function toCrowdinConceptRecord(
     externalKey: conceptId,
     externalUserId: value.externalUserId ?? null,
     languageDetails: (value.languageDetails ?? []).map((detail) => ({
-      languageId: detail.languageId,
+      locale: detail.locale,
       userId: detail.userId ?? null,
       definition: detail.definition ?? "",
       note: detail.note ?? "",
@@ -383,10 +383,6 @@ export function createGlossaryConceptRoutes() {
         const payload = c.req.valid("json");
         const glossary = await getOwnedGlossary(c.var.auth, glossaryId);
         if (!glossary) return glossaryNotFoundResponse(c);
-        const sourceTerm = payload.terms?.find((term) => term.locale === glossary.sourceLocale);
-        if (sourceTerm && sourceTerm.term.toLowerCase() === payload.primaryTerm.toLowerCase()) {
-          return conflictResponse(c, "duplicate_glossary_concept_term");
-        }
         const product = getGlossaryProduct({ auth: c.var.auth, glossary });
         if (!product) return externalTmsGlossaryImmutableResponse(c);
         let created;
@@ -465,7 +461,7 @@ export function createGlossaryConceptRoutes() {
                     : undefined;
                   return {
                     id: term.id ?? existing?.id,
-                    languageId: term.locale,
+                    locale: term.locale,
                     text: term.term,
                     description: term.description ?? existing?.description,
                     note: term.note ?? existing?.note,
@@ -530,7 +526,7 @@ export function createGlossaryConceptRoutes() {
         let term;
         try {
           term = await product.createTerm(conceptId, {
-            languageId: payload.locale,
+            locale: payload.locale,
             text: payload.term,
             description: payload.description,
             note: payload.note,
@@ -571,8 +567,8 @@ export function createGlossaryConceptRoutes() {
         const current = await product.getConcept(conceptId);
         const existing = current?.terms.find((term) => String(term.id) === termId);
         if (!existing) return glossaryNotFoundResponse(c);
-        if (payload.locale && payload.locale !== existing.languageId) {
-          const currentIsPrimary = existing.languageId === glossary.sourceLocale;
+        if (payload.locale && payload.locale !== existing.locale) {
+          const currentIsPrimary = existing.locale === glossary.sourceLocale;
           if (currentIsPrimary) {
             return badRequestResponse(
               c,
@@ -585,7 +581,7 @@ export function createGlossaryConceptRoutes() {
         let updatedTerm;
         try {
           updatedTerm = await product.updateTerm(conceptId, termId, {
-            languageId: payload.locale ?? existing.languageId,
+            locale: payload.locale ?? existing.locale,
             text: payload.term ?? existing.text,
             description: payload.description ?? existing.description ?? "",
             note: payload.note ?? existing.note ?? "",
@@ -619,7 +615,7 @@ export function createGlossaryConceptRoutes() {
         const concept = await product.getConcept(conceptId);
         const term = concept?.terms.find((candidate) => String(candidate.id) === termId);
         if (!term) return glossaryNotFoundResponse(c);
-        if (term.languageId === glossary.sourceLocale) {
+        if (term.locale === glossary.sourceLocale) {
           return badRequestResponse(
             c,
             "primary_term_required",

@@ -18,13 +18,24 @@ import type { RepoToolContext } from "./types";
 
 const toolCallInfo = { toolCallId: "test-tool-call", messages: [], context: {} };
 
+function unwrapSearchCommand(command: string, args: string[]) {
+  if (command !== "bash" || args[0] !== "-c") {
+    return { command, args };
+  }
+
+  return {
+    command: args[4] ?? "",
+    args: args.slice(5),
+  };
+}
+
 describe("createGlobTool", () => {
   it("lists files via ripgrep", async () => {
     const calls: Array<{ command: string; args: string[] }> = [];
     const tool = createGlobTool({
       bash: {
         exec: async (command, options) => {
-          calls.push({ command, args: options?.args ?? [] });
+          calls.push(unwrapSearchCommand(command, options?.args ?? []));
           return {
             stdout: "locales/en.json\nlocales/fr.json\n",
             stderr: "",
@@ -41,7 +52,7 @@ describe("createGlobTool", () => {
     expect(calls).toEqual([
       {
         command: "rg",
-        args: expect.arrayContaining(["--files", "--glob", "locales/*.json"]),
+        args: expect.arrayContaining(["--files", "--no-follow", "--glob", "locales/*.json"]),
       },
     ]);
     expect(result).toMatchObject({ success: true, count: 2 });
@@ -75,5 +86,76 @@ describe("createGlobTool", () => {
     const result = await tool.execute!({ pattern: "locales/*.json" }, toolCallInfo);
     expect(result).toMatchObject({ success: true, count: 2 });
     expect((result as { files: Array<{ path: string }> }).files[0].path).toContain("en.json");
+  });
+
+  it("rejects search paths outside the workspace", async () => {
+    const tool = createGlobTool({
+      bash: new Bash({ fs: new InMemoryFs(), cwd: "/home/user/project" }),
+    });
+    const result = await tool.execute!({ pattern: "**/*.json", path: "../outside" }, toolCallInfo);
+
+    expect(result).toMatchObject({
+      success: false,
+      error: "Search path must stay within the workspace.",
+      files: [],
+    });
+  });
+
+  it("rejects an outside-workspace symlink search root before ripgrep runs", async () => {
+    const fs = new InMemoryFs({
+      "/home/user/project/README.md": "safe",
+      "/tmp/external/secret.json": "{}",
+    });
+    await fs.symlink("/tmp/external", "/home/user/project/leak");
+    const invokedCommands: string[] = [];
+    const bash = new Bash({ fs, cwd: "/home/user/project" });
+    bash.registerCommand(
+      defineCommand("rg", async () => {
+        invokedCommands.push("rg");
+        return { stdout: "leak/secret.json\n", stderr: "", exitCode: 0 };
+      }),
+    );
+
+    const result = await createGlobTool({ bash }).execute!(
+      { pattern: "**/*.json", path: "leak" },
+      toolCallInfo,
+    );
+
+    expect(result).toMatchObject({
+      success: false,
+      error: "Search path must not contain symbolic links.",
+      files: [],
+    });
+    expect(JSON.stringify(result)).not.toContain("secret.json");
+    expect(invokedCommands).toEqual([]);
+  });
+
+  it("rejects a symlinked search-root parent even when its target stays in the workspace", async () => {
+    const fs = new InMemoryFs({
+      "/home/user/project/actual/nested/secret.json": "{}",
+      "/home/user/project/routes/.keep": "",
+    });
+    await fs.symlink("../actual", "/home/user/project/routes/link");
+    const invokedCommands: string[] = [];
+    const bash = new Bash({ fs, cwd: "/home/user/project" });
+    bash.registerCommand(
+      defineCommand("rg", async () => {
+        invokedCommands.push("rg");
+        return { stdout: "routes/link/nested/secret.json\n", stderr: "", exitCode: 0 };
+      }),
+    );
+
+    const result = await createGlobTool({ bash }).execute!(
+      { pattern: "**/*.json", path: "routes/link/nested" },
+      toolCallInfo,
+    );
+
+    expect(result).toMatchObject({
+      success: false,
+      error: "Search path must not contain symbolic links.",
+      files: [],
+    });
+    expect(JSON.stringify(result)).not.toContain("secret.json");
+    expect(invokedCommands).toEqual([]);
   });
 });

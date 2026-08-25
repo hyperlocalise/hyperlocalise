@@ -180,6 +180,8 @@ export const CROWDIN_SOURCE_STRING_BATCH_PATCH_LIMIT = 500;
 export const CROWDIN_LIVE_TASK_LIST_LIMIT = 50;
 export const CROWDIN_LIVE_TASK_LIST_ORDER_BY = "createdAt desc";
 export const CROWDIN_PROJECT_LIST_ORDER_BY = "lastActivity desc";
+export const CROWDIN_GLOSSARY_LIST_LIMIT = 25;
+export const CROWDIN_GLOSSARY_LIST_ORDER_BY = "createdAt desc,name";
 export const CROWDIN_SYNC_TASK_PAGE_LIMIT = 500;
 
 export type ListCrowdinTasksOptions = {
@@ -187,6 +189,14 @@ export type ListCrowdinTasksOptions = {
   offset?: number;
   orderBy?: string;
   fetchAll?: boolean;
+};
+
+export type ListCrowdinGlossariesOptions = {
+  limit?: number;
+  offset?: number;
+  orderBy?: string;
+  filter?: string;
+  userId?: number;
 };
 
 function defaultCrowdinFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
@@ -475,6 +485,7 @@ export interface CrowdinGlossary {
   id: number;
   name: string;
   description: string | null;
+  createdAt?: string | null;
   languageId: string;
   languageIds: string[];
   terms: number;
@@ -724,6 +735,13 @@ export type CrowdinSourceStringsPage = {
   totalCount: number;
 };
 
+export type CrowdinGlossariesPage = {
+  glossaries: CrowdinGlossary[];
+  offset: number;
+  limit: number;
+  hasMore: boolean;
+};
+
 interface CrowdinGetResponse<T> {
   data: T;
 }
@@ -761,17 +779,16 @@ function readCrowdinErrorSummaryEntry(entry: unknown): {
   }
 
   const nestedErrors = entry.errors;
-  if (Array.isArray(nestedErrors)) {
-    const firstNested = nestedErrors.find(isRecord);
-    const error = firstNested?.error;
-    if (isRecord(error) && Array.isArray(error.errors)) {
-      const firstDetail = error.errors.find(isRecord);
-      if (firstDetail && typeof firstDetail.code === "string") {
-        summary.code = firstDetail.code;
-      }
-      if (firstDetail && typeof firstDetail.message === "string") {
-        summary.message = firstDetail.message.slice(0, MAX_CROWDIN_ERROR_SUMMARY_MESSAGE_LENGTH);
-      }
+  const nestedError = Array.isArray(nestedErrors)
+    ? nestedErrors.find(isRecord)?.error
+    : entry.error;
+  if (isRecord(nestedError) && Array.isArray(nestedError.errors)) {
+    const firstDetail = nestedError.errors.find(isRecord);
+    if (firstDetail && typeof firstDetail.code === "string") {
+      summary.code = firstDetail.code;
+    }
+    if (firstDetail && typeof firstDetail.message === "string") {
+      summary.message = firstDetail.message.slice(0, MAX_CROWDIN_ERROR_SUMMARY_MESSAGE_LENGTH);
     }
   }
 
@@ -780,7 +797,7 @@ function readCrowdinErrorSummaryEntry(entry: unknown): {
 
 /**
  * Extracts a small, provider-generated error summary from a Crowdin error
- * response body for logging. Never includes request or translation content.
+ * response body. Never includes request or translation content.
  */
 export function extractCrowdinApiErrorSummary(responseBody: unknown): {
   code?: string | number;
@@ -2137,6 +2154,37 @@ export class CrowdinApiClient {
     return this.listPaginated<CrowdinGlossary>("/glossaries");
   }
 
+  async listGlossariesPage(
+    options: ListCrowdinGlossariesOptions = {},
+  ): Promise<CrowdinGlossariesPage> {
+    const limit = options.limit ?? CROWDIN_GLOSSARY_LIST_LIMIT;
+    const offset = options.offset ?? 0;
+    const params = new URLSearchParams({
+      limit: String(limit),
+      offset: String(offset),
+      orderBy: options.orderBy ?? CROWDIN_GLOSSARY_LIST_ORDER_BY,
+    });
+
+    if (options.userId !== undefined) {
+      params.set("userId", String(options.userId));
+    }
+    if (options.filter?.trim()) {
+      params.set("filter", options.filter.trim());
+    }
+
+    const response = await this.get<CrowdinListResponse<CrowdinGlossary>>(
+      `/glossaries?${params.toString()}`,
+    );
+    const glossaries = response.data.map((item) => item.data);
+
+    return {
+      glossaries,
+      offset,
+      limit,
+      hasMore: glossaries.length === limit,
+    };
+  }
+
   /**
    * List Crowdin AI prompts. Enterprise uses `/ai/prompts`; Crowdin.com uses
    * `/users/{userId}/ai/prompts`.
@@ -2182,17 +2230,6 @@ export class CrowdinApiClient {
   async getGlossaryConcept(glossaryId: number, conceptId: number): Promise<CrowdinGlossaryConcept> {
     const response = await this.get<CrowdinGetResponse<CrowdinGlossaryConcept>>(
       `/glossaries/${glossaryId}/concepts/${conceptId}`,
-    );
-    return response.data;
-  }
-
-  async addGlossaryConcept(
-    glossaryId: number,
-    input: CrowdinGlossaryConceptInput,
-  ): Promise<CrowdinGlossaryConcept> {
-    const response = await this.post<CrowdinGetResponse<CrowdinGlossaryConcept>>(
-      `/glossaries/${glossaryId}/concepts`,
-      input,
     );
     return response.data;
   }

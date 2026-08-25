@@ -10,6 +10,11 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import {
+  readBrowserLocalStorageItem,
+  writeBrowserLocalStorageItem,
+} from "@/lib/primitives/browser-local-storage/browser-local-storage";
+
 export type CatWorkspaceViewMode = "comfortable" | "side-by-side" | "file";
 
 export const CAT_WORKSPACE_VIEW_MODE_STORAGE_KEY = "cat-workspace-view-mode:v1";
@@ -27,32 +32,16 @@ export function isCatWorkspaceViewMode(
 }
 
 export function readCatWorkspaceViewMode(): CatWorkspaceViewMode {
-  if (typeof window === "undefined") {
-    return "comfortable";
-  }
-
-  try {
-    const stored = window.localStorage.getItem(CAT_WORKSPACE_VIEW_MODE_STORAGE_KEY);
-    if (isCatWorkspaceViewMode(stored)) {
-      return stored;
-    }
-  } catch {
-    return "comfortable";
+  const stored = readBrowserLocalStorageItem(CAT_WORKSPACE_VIEW_MODE_STORAGE_KEY);
+  if (isCatWorkspaceViewMode(stored)) {
+    return stored;
   }
 
   return "comfortable";
 }
 
 export function writeCatWorkspaceViewMode(mode: CatWorkspaceViewMode) {
-  if (typeof window === "undefined") {
-    return;
-  }
-
-  try {
-    window.localStorage.setItem(CAT_WORKSPACE_VIEW_MODE_STORAGE_KEY, mode);
-  } catch {
-    // Ignore storage failures in private browsing or restricted environments.
-  }
+  writeBrowserLocalStorageItem(CAT_WORKSPACE_VIEW_MODE_STORAGE_KEY, mode);
 }
 
 export function catPageLimitForViewMode(mode: CatWorkspaceViewMode) {

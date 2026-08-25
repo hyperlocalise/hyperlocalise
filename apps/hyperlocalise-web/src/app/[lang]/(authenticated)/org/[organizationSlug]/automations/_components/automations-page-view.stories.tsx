@@ -11,7 +11,7 @@
  * Version 2.0 or later.
  */
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
-import { expect } from "storybook/test";
+import { expect, within } from "storybook/test";
 
 import { automationTemplatesFixture, automationsFixture } from "./automations.fixture";
 import { AutomationsPageView } from "./automations-page-view";
@@ -51,18 +51,27 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 export const Default: Story = {
-  play: async ({ canvas }) => {
+  play: async ({ canvas, canvasElement, userEvent }) => {
     await expect(canvas.getByRole("heading", { name: "Automations" })).toBeInTheDocument();
     await expect(canvas.getByRole("heading", { name: "From Hyperlocalise" })).toBeInTheDocument();
-    await expect(canvas.getByText("Auto-review")).toBeInTheDocument();
-    await expect(canvas.getByText("acme/app")).toBeInTheDocument();
-    await expect(canvas.getByRole("button", { name: "Save" })).toBeInTheDocument();
+    await expect(
+      canvas.getByRole("heading", { name: "Review localisation before it merges" }),
+    ).toBeInTheDocument();
+    await expect(canvas.getByRole("button", { name: /Auto-review/ })).toBeInTheDocument();
+    await expect(canvas.getByRole("button", { name: "Configure" })).toBeInTheDocument();
+    await expect(canvas.queryByRole("button", { name: "Save" })).not.toBeInTheDocument();
     await expect(canvas.getByText("Validate localisation on push")).toBeInTheDocument();
     await expect(canvas.getByText("Weekly translation sync")).toBeInTheDocument();
     await expect(canvas.getByText("Ada Lovelace")).toBeInTheDocument();
     await expect(canvas.getByText("Grace Hopper")).toBeInTheDocument();
     await expect(canvas.getByText("Unknown")).toBeInTheDocument();
     await expect(canvas.getByText("Translate Contentful article")).toBeInTheDocument();
+
+    await userEvent.click(canvas.getByRole("button", { name: "Configure" }));
+    const body = within(canvasElement.ownerDocument.body);
+    await expect(await body.findByRole("button", { name: "Save" })).toBeInTheDocument();
+    await expect(body.getByText("acme/app")).toBeInTheDocument();
+    await expect(body.getByLabelText("Enable Auto-review")).toBeInTheDocument();
   },
 };
 

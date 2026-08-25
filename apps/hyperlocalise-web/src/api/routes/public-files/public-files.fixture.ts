@@ -20,6 +20,7 @@ import {
   encryptProviderCredential,
   unwrapProviderCredentialCrypto,
 } from "@/lib/security/provider-credential-crypto";
+import { uniqueTestProjectIdentifier } from "@/lib/projects/issue-identifier/test-project-identifier";
 
 import { createMemoryFileStorageAdapter } from "../file/file.fixture";
 
@@ -69,6 +70,7 @@ export async function createPublicApiFixture() {
     .insert(schema.projects)
     .values({
       id: `project_${suffix}`,
+      identifier: uniqueTestProjectIdentifier(),
       organizationId: organization.id,
       createdByUserId: user.id,
       name: "Marketing Site",

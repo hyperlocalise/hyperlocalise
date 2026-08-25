@@ -1184,6 +1184,10 @@ export class CatWorkspaceOrchestrator {
     this.queue.setHidden(segmentIds, isHidden);
   }
 
+  setSegmentsLocked(segmentIds: string[], isLocked: boolean) {
+    this.queue.setLocked(segmentIds, isLocked);
+  }
+
   pruneCheckedToVisible(visibleIds: ReadonlySet<string>) {
     const next = new Set([...this.checkedSegmentIds].filter((id) => visibleIds.has(id)));
     if (next.size !== this.checkedSegmentIds.size) {

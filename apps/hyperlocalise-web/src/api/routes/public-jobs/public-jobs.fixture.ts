@@ -15,6 +15,7 @@ import { createHash, randomUUID } from "node:crypto";
 import { eq } from "drizzle-orm";
 
 import { db, schema } from "@/lib/database";
+import { uniqueTestProjectIdentifier } from "@/lib/projects/issue-identifier/test-project-identifier";
 
 const createdWorkosOrganizationIds = new Set<string>();
 const createdWorkosUserIds = new Set<string>();
@@ -60,6 +61,7 @@ export async function createPublicApiFixture() {
     .insert(schema.projects)
     .values({
       id: `project_${suffix}`,
+      identifier: uniqueTestProjectIdentifier(),
       organizationId: organization.id,
       createdByUserId: user.id,
       name: "Marketing Site",

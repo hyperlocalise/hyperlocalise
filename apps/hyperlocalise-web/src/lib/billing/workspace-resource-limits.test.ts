@@ -21,6 +21,7 @@ import { PRODUCT_USAGE_ANALYTICS_EVENTS } from "@/lib/analytics/events";
 import { serverAnalytics } from "@/lib/analytics/server";
 import { db, schema } from "@/lib/database";
 import { isErr } from "@/lib/primitives/result/results";
+import { uniqueTestProjectIdentifier } from "@/lib/projects/issue-identifier/test-project-identifier";
 import {
   ensureWorkspaceResourceLimitAvailable,
   getWorkspaceResourceUsage,
@@ -66,6 +67,7 @@ describe("workspace resource limits", () => {
 
     await db.insert(schema.projects).values({
       id: `project_${randomUUID()}`,
+      identifier: uniqueTestProjectIdentifier(),
       organizationId: organization.id,
       createdByUserId: user.id,
       name: "Existing project",
@@ -129,6 +131,7 @@ describe("workspace resource limits", () => {
               .insert(schema.projects)
               .values({
                 id: `project_${randomUUID()}`,
+                identifier: uniqueTestProjectIdentifier(),
                 organizationId: organization.id,
                 createdByUserId: user.id,
                 name: "Concurrent project",

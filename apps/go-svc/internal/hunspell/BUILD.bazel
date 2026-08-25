@@ -1,0 +1,23 @@
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+# This package is not depended on by any Bazel target built in CI
+# (//:cli, //apps/cli/cmd:cmd_test). It requires the Hunspell C library to
+# be installed and discoverable by the linker; see the package doc comment
+# in hunspell.go for local setup instructions.
+go_library(
+    name = "hunspell",
+    srcs = ["hunspell.go"],
+    cgo = True,
+    clinkopts = ["-lhunspell"],
+    gotags = ["cgo_hunspell"],
+    importpath = "github.com/hyperlocalise/hyperlocalise/apps/go-svc/internal/hunspell",
+    visibility = ["//visibility:public"],
+)
+
+go_test(
+    name = "hunspell_test",
+    srcs = ["hunspell_test.go"],
+    data = glob(["testdata/**"]),
+    embed = [":hunspell"],
+    gotags = ["cgo_hunspell"],
+)

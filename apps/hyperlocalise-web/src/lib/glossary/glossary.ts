@@ -11,6 +11,7 @@
  * Version 2.0 or later.
  */
 import type { Glossary as NativeGlossaryRecord } from "@/lib/database/types";
+import { mapWithConcurrency } from "@/lib/primitives/map-with-concurrency/map-with-concurrency";
 
 export type NativeGlossary = NativeGlossaryRecord;
 
@@ -74,6 +75,15 @@ export type GlossaryTermRecord = {
   reviewStatus: string;
 };
 
+export type GlossaryProjectRecord = {
+  projectId: string;
+  projectName: string;
+  priority: number;
+  sourceLocale: string | null;
+  targetLocales: string[];
+  externalUrl: string | null;
+};
+
 export type GlossaryTermCreateInput = {
   sourceTerm: string;
   targetTerm: string;
@@ -103,7 +113,7 @@ export type GlossaryConceptImportEntry = {
 };
 
 export type NativeGlossaryTermInput = {
-  languageId: string;
+  locale: string;
   text: string;
   description?: string;
   partOfSpeech?: string;
@@ -124,7 +134,7 @@ export type GlossaryConceptTerm = NativeGlossaryTermInput & {
 };
 
 export type NativeGlossaryLanguageDetails = {
-  languageId: string;
+  locale: string;
   userId: number | null;
   definition: string;
   note: string;
@@ -149,6 +159,33 @@ export type GlossaryConcept = {
   externalUpdatedAt?: string | null;
   terms: GlossaryConceptTerm[];
 };
+
+export type GlossaryPrimaryTermCandidate = {
+  id?: number | string;
+  locale: string;
+  text: string;
+  status?: string | null;
+};
+
+export function selectGlossaryPrimaryTerm<T extends GlossaryPrimaryTermCandidate>(
+  terms: T[],
+  sourceLocale: string,
+): T | undefined {
+  const sourceTerms = terms.filter((term) => term.locale === sourceLocale);
+  return (
+    sourceTerms.find(
+      (term) => term.status?.trim().toLowerCase().replaceAll(" ", "_") === "preferred",
+    ) ??
+    [...sourceTerms].sort((left, right) => {
+      const leftId = left.id == null ? Number.NaN : Number(left.id);
+      const rightId = right.id == null ? Number.NaN : Number(right.id);
+      if (Number.isFinite(leftId) && Number.isFinite(rightId)) return leftId - rightId;
+      if (Number.isFinite(leftId)) return -1;
+      if (Number.isFinite(rightId)) return 1;
+      return String(left.id ?? "").localeCompare(String(right.id ?? ""));
+    })[0]
+  );
+}
 
 export type GlossaryConceptRequestTerm = {
   id?: number | string;
@@ -178,8 +215,12 @@ export type GlossaryConceptInput = {
 
 export class GlossaryValidationError extends Error {
   constructor(
-    readonly code: "invalid_part_of_speech",
+    readonly code:
+      | "invalid_part_of_speech"
+      | "stale_glossary_term_id"
+      | "crowdin_validation_failed",
     message: string,
+    readonly details?: unknown,
   ) {
     super(message);
     this.name = "GlossaryValidationError";
@@ -237,7 +278,30 @@ export function normalizeGlossaryTermStatus(value: string | null | undefined): G
 
 export abstract class Glossary {
   abstract readonly kind: "native" | "crowdin";
+  abstract readonly id: string;
+  abstract queryProjectCount(): Promise<number>;
+
+  static async queryProjectCounts(glossaries: Glossary[]) {
+    const projectCountsByGlossaryId = new Map<string, number>();
+
+    for (const glossary of glossaries) {
+      projectCountsByGlossaryId.set(glossary.id, 0);
+    }
+
+    const counts = await mapWithConcurrency(glossaries, 5, async (glossary) => ({
+      glossaryId: glossary.id,
+      projectCount: await glossary.queryProjectCount(),
+    }));
+
+    for (const count of counts) {
+      projectCountsByGlossaryId.set(count.glossaryId, count.projectCount);
+    }
+
+    return projectCountsByGlossaryId;
+  }
+
   abstract get(): Promise<NativeGlossary | null>;
+  abstract listProjects(): Promise<GlossaryProjectRecord[]>;
   abstract update(payload: { name?: string; description?: string }): Promise<NativeGlossary | null>;
   abstract delete(): Promise<boolean>;
   abstract listConcepts(): Promise<GlossaryConcept[]>;
