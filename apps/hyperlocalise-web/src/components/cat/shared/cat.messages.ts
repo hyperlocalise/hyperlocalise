@@ -525,6 +525,26 @@ export const catIntelligencePanelMessages = defineMessages({
     id: "ee60kiAN7Z",
     description: "Section heading for glossary term guidance in the intelligence panel",
   },
+  glossaryGuidanceDescription: {
+    defaultMessage: "Matched concepts from the project glossary.",
+    id: "h6wm+58u19",
+    description: "Description for the glossary guidance dialog",
+  },
+  glossaryGuidanceClose: {
+    defaultMessage: "Close glossary guidance",
+    id: "pQttDyq4Mr",
+    description: "Accessible label for closing the glossary guidance panel",
+  },
+  glossaryGuidanceEmptyTitle: {
+    defaultMessage: "No glossary matches",
+    id: "fdAK5CKbNL",
+    description: "Empty state title for the glossary guidance panel",
+  },
+  glossaryGuidanceEmptyDescription: {
+    defaultMessage: "No project glossary concepts match this string.",
+    id: "4DQSOq1CB0",
+    description: "Empty state description for the glossary guidance panel",
+  },
   translationMemory: {
     defaultMessage: "Translation memory",
     id: "okYWXGLSBl",
@@ -579,6 +599,46 @@ export const catIntelligencePanelMessages = defineMessages({
     defaultMessage: "Copy failed",
     id: "Ya0t4KyDVG",
     description: "Button label when copying a glossary target term fails",
+  },
+  glossaryConceptExpand: {
+    defaultMessage: "Show glossary concept details",
+    id: "mK6wLZvKdg",
+    description: "Accessible label for expanding glossary concept details",
+  },
+  glossaryConceptCollapse: {
+    defaultMessage: "Hide glossary concept details",
+    id: "5//srj2rVM",
+    description: "Accessible label for collapsing glossary concept details",
+  },
+  glossaryPreferred: {
+    defaultMessage: "Preferred",
+    id: "h1gQeaJchd",
+    description: "Status badge for a preferred glossary term",
+  },
+  glossaryNotRecommended: {
+    defaultMessage: "Not recommended",
+    id: "Q/u6jDht8H",
+    description: "Status badge for a discouraged glossary term",
+  },
+  glossaryAdmitted: {
+    defaultMessage: "Admitted",
+    id: "T03AFW0QvU",
+    description: "Status badge for an admitted glossary term",
+  },
+  glossaryDraft: {
+    defaultMessage: "Draft",
+    id: "8bfW3Jqg2b",
+    description: "Status badge for a draft glossary term",
+  },
+  glossaryObsolete: {
+    defaultMessage: "Obsolete",
+    id: "+pwP0Po+Io",
+    description: "Status badge for an obsolete glossary term",
+  },
+  projectGlossary: {
+    defaultMessage: "Project Glossary",
+    id: "SLnLYAC4Ib",
+    description: "Link to the source glossary for a CAT concept",
   },
   lowMatchConfirmTitle: {
     defaultMessage: "Apply low-quality TM match?",

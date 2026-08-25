@@ -30,7 +30,7 @@ export function normalizeProviderGlossaryTermFlags(input: ProviderGlossaryTermSt
     return { forbidden: false };
   }
 
-  const status = input.status?.trim().toLowerCase();
+  const status = input.status?.trim().toLowerCase().replaceAll("_", " ");
   if (!status) {
     return { forbidden: false };
   }

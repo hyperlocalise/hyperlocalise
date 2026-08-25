@@ -708,15 +708,26 @@ export interface CrowdinGlossaryConcordanceTerm {
   text: string;
   description?: string | null;
   status?: string | null;
+  partOfSpeech?: string | null;
+  type?: string | null;
+  gender?: string | null;
+  conceptId?: number | null;
 }
 
 export interface CrowdinGlossaryConcordanceSearchResult {
   glossary: {
     id: number;
     name: string;
+    webUrl?: string | null;
   };
   sourceTerms: CrowdinGlossaryConcordanceTerm[];
   targetTerms: CrowdinGlossaryConcordanceTerm[];
+  concept?: {
+    id: number;
+    subject?: string | null;
+    definition?: string | null;
+    url?: string | null;
+  } | null;
 }
 
 interface CrowdinListResponse<T> {

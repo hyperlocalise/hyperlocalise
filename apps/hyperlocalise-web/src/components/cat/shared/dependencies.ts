@@ -13,6 +13,7 @@
 import type { CatVisualContext } from "@/lib/translation/cat-visual-context";
 import type {
   CatFormatCheck,
+  CatGlossaryConcept,
   CatGlossaryTerm,
   CatSegment,
   CatSegmentCommentInput,
@@ -31,6 +32,7 @@ export interface CatAiRecommendationResult {
 
 export interface CatSegmentConcordanceResult {
   glossaryTerms: CatGlossaryTerm[];
+  glossaryConcepts?: CatGlossaryConcept[];
   translationMemoryMatches: CatTranslationMemoryMatch[];
 }
 

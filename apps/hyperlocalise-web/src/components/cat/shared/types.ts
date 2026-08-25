@@ -139,6 +139,30 @@ export interface CatGlossaryTerm {
   forbidden: boolean;
 }
 
+export interface CatGlossaryConceptTerm {
+  id: string;
+  locale: string;
+  text: string;
+  status?: string | null;
+  forbidden?: boolean;
+  preferred?: boolean;
+  termType?: string | null;
+  partOfSpeech?: string | null;
+  gender?: string | null;
+}
+
+export interface CatGlossaryConcept {
+  id: string;
+  glossaryId: string;
+  glossaryName: string;
+  glossaryUrl?: string | null;
+  primaryTerm: string;
+  subject?: string | null;
+  definition?: string | null;
+  sourceTerms: CatGlossaryConceptTerm[];
+  targetTerms: CatGlossaryConceptTerm[];
+}
+
 export interface CatTranslationMemoryMatch {
   id: string;
   sourceText: string;
@@ -162,6 +186,7 @@ export interface CatSegmentIntelligence {
   reviewerPreference?: string;
   constraints?: string;
   glossaryTerms: CatGlossaryTerm[];
+  glossaryConcepts?: CatGlossaryConcept[];
   translationMemoryMatches?: CatTranslationMemoryMatch[];
   aiSuggestion?: string;
   aiReasoning?: string;

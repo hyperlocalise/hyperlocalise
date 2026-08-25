@@ -12,15 +12,8 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { useState, type ReactNode } from "react";
-import {
-  AlertCircleIcon,
-  BulbIcon,
-  CheckmarkCircle02Icon,
-  Copy01Icon,
-  RefreshIcon,
-  Tick02Icon,
-} from "@hugeicons/core-free-icons";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { BookOpenTextIcon, BulbIcon, Cancel01Icon, RefreshIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { FormattedMessage, useIntl } from "react-intl";
 
@@ -42,24 +35,24 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/primitives/cn";
 
-import { glossaryTermStatusClass } from "@/components/cat/segment/cat-tone";
-
 import {
   catEditorPanelMessages,
   catIntelligencePanelMessages,
 } from "@/components/cat/shared/cat.messages";
 import type {
-  CatGlossaryTerm,
+  CatGlossaryConcept,
   CatSegmentIntelligence,
   CatTmMatchKind,
   CatTranslationMemoryMatch,
 } from "@/components/cat/shared/types";
 
-import { containsGlossaryTerm } from "./cat-glossary-checks";
+import { CatGlossaryConceptCard } from "./cat-glossary-concept-card";
+import {
+  CAT_GLOSSARY_GUIDANCE_OPEN_EVENT,
+  setCatGlossaryGuidanceStatus,
+} from "./cat-glossary-guidance-event";
 import { requiresLowMatchConfirmation } from "./tm-match-quality";
 import { CatVisualContextPanel } from "./cat-visual-context-panel";
-
-const RIGHT_ARROW = "→";
 
 function PanelSection({
   title,
@@ -110,82 +103,31 @@ function AgentContextSkeleton() {
   );
 }
 
-function GlossaryTermRow({ term, targetText }: { term: CatGlossaryTerm; targetText: string }) {
-  const intl = useIntl();
-  const [copyState, setCopyState] = useState<"idle" | "copied" | "error">("idle");
-  const forbiddenInTarget = term.forbidden && containsGlossaryTerm(targetText, term.source);
-  const copyValue = term.target.trim();
-
-  async function handleCopy() {
-    if (!copyValue) {
-      return;
-    }
-
-    if (typeof window === "undefined" || !navigator?.clipboard?.writeText) {
-      setCopyState("error");
-      window.setTimeout(() => setCopyState("idle"), 2000);
-      return;
-    }
-
-    try {
-      await navigator.clipboard.writeText(copyValue);
-      setCopyState("copied");
-      window.setTimeout(() => setCopyState("idle"), 2000);
-    } catch {
-      setCopyState("error");
-      window.setTimeout(() => setCopyState("idle"), 2000);
-    }
-  }
-
-  return (
-    <li className="px-3 py-2.5">
-      <div className="flex items-center gap-3">
-        <div className="flex min-w-0 flex-1 items-center gap-2">
-          <span className="min-w-0 truncate text-sm text-foreground">{term.source}</span>
-          <span className="shrink-0 text-xs text-muted-foreground">{RIGHT_ARROW}</span>
-          <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">
-            {term.target}
-          </span>
-        </div>
-        {forbiddenInTarget ? (
-          <HugeiconsIcon
-            icon={AlertCircleIcon}
-            className={cn("size-4 shrink-0", glossaryTermStatusClass(term, forbiddenInTarget))}
-            aria-label={intl.formatMessage(catIntelligencePanelMessages.forbiddenInTargetAria)}
-          />
-        ) : term.approved ? (
-          <HugeiconsIcon
-            icon={CheckmarkCircle02Icon}
-            className={cn("size-4 shrink-0", glossaryTermStatusClass(term, forbiddenInTarget))}
-            aria-label={intl.formatMessage(catIntelligencePanelMessages.approvedAria)}
-          />
-        ) : null}
-        {copyValue ? (
-          <Button
-            type="button"
-            variant="ghost"
-            size="xs"
-            className="shrink-0"
-            onClick={() => void handleCopy()}
-          >
-            {copyState === "copied" ? (
-              <>
-                <HugeiconsIcon icon={Tick02Icon} className="size-3" aria-hidden />
-                <FormattedMessage {...catIntelligencePanelMessages.glossaryTermCopied} />
-              </>
-            ) : copyState === "error" ? (
-              <FormattedMessage {...catIntelligencePanelMessages.glossaryTermCopyFailed} />
-            ) : (
-              <>
-                <HugeiconsIcon icon={Copy01Icon} className="size-3" aria-hidden />
-                <FormattedMessage {...catIntelligencePanelMessages.copyGlossaryTerm} />
-              </>
-            )}
-          </Button>
-        ) : null}
-      </div>
-    </li>
-  );
+function legacyGlossaryConcepts(intelligence: CatSegmentIntelligence): CatGlossaryConcept[] {
+  return intelligence.glossaryTerms.map((term) => ({
+    id: `legacy:${term.id}`,
+    glossaryId: "legacy",
+    glossaryName: "Project Glossary",
+    primaryTerm: term.source,
+    sourceTerms: [
+      {
+        id: `${term.id}:source`,
+        locale: "source",
+        text: term.source,
+        preferred: term.approved,
+        forbidden: term.forbidden,
+      },
+    ],
+    targetTerms: [
+      {
+        id: `${term.id}:target`,
+        locale: "target",
+        text: term.target,
+        preferred: term.approved,
+        forbidden: term.forbidden,
+      },
+    ],
+  }));
 }
 
 function tmMatchBadgeTone(matchKind: CatTmMatchKind | undefined) {
@@ -262,7 +204,6 @@ function TranslationMemoryRow({
 
 export function CatIntelligencePanel({
   intelligence,
-  targetText = "",
   isLookingUpContext = false,
   isConcordanceLoading = false,
   isVisualContextLoading = false,
@@ -287,6 +228,66 @@ export function CatIntelligencePanel({
 }) {
   const intl = useIntl();
   const [pendingLowMatch, setPendingLowMatch] = useState<CatTranslationMemoryMatch | null>(null);
+  const [isGlossaryPanelOpen, setIsGlossaryPanelOpen] = useState(false);
+  const glossaryConcepts = useMemo(
+    () => intelligence.glossaryConcepts ?? legacyGlossaryConcepts(intelligence),
+    [intelligence],
+  );
+  const glossaryConceptKey = glossaryConcepts.map((concept) => concept.id).join("\u0000");
+  const glossaryGuidanceStatus = useMemo(() => {
+    const terms = glossaryConcepts.flatMap((concept) => [
+      ...concept.sourceTerms,
+      ...concept.targetTerms,
+    ]);
+
+    return {
+      preferredCount: terms.filter((term) => {
+        const normalized = term.status?.trim().toLowerCase().replaceAll(" ", "_");
+        return !term.forbidden && (term.preferred || normalized === "preferred");
+      }).length,
+      notRecommendedCount: terms.filter((term) => {
+        const normalized = term.status?.trim().toLowerCase().replaceAll(" ", "_");
+        return term.forbidden || normalized === "forbidden" || normalized === "not_recommended";
+      }).length,
+    };
+  }, [glossaryConcepts]);
+  const [expandedGlossaryConceptIds, setExpandedGlossaryConceptIds] = useState<Set<string>>(
+    () => new Set(glossaryConcepts[0] ? [glossaryConcepts[0].id] : []),
+  );
+
+  useEffect(() => {
+    setExpandedGlossaryConceptIds(new Set(glossaryConcepts[0] ? [glossaryConcepts[0].id] : []));
+  }, [glossaryConceptKey, glossaryConcepts]);
+
+  useEffect(() => {
+    setCatGlossaryGuidanceStatus(
+      isConcordanceLoading ? { preferredCount: 0, notRecommendedCount: 0 } : glossaryGuidanceStatus,
+    );
+
+    return () => {
+      setCatGlossaryGuidanceStatus({ preferredCount: 0, notRecommendedCount: 0 });
+    };
+  }, [glossaryConceptKey, glossaryGuidanceStatus, isConcordanceLoading]);
+
+  useEffect(() => {
+    function handleOpenGlossaryGuidance() {
+      setIsGlossaryPanelOpen(true);
+    }
+
+    window.addEventListener(CAT_GLOSSARY_GUIDANCE_OPEN_EVENT, handleOpenGlossaryGuidance);
+    return () => {
+      window.removeEventListener(CAT_GLOSSARY_GUIDANCE_OPEN_EVENT, handleOpenGlossaryGuidance);
+    };
+  }, []);
+
+  function toggleGlossaryConcept(conceptId: string) {
+    setExpandedGlossaryConceptIds((current) => {
+      const next = new Set(current);
+      if (next.has(conceptId)) next.delete(conceptId);
+      else next.add(conceptId);
+      return next;
+    });
+  }
   const hasFileContext = Boolean(intelligence.productMeaning?.trim());
   const agentBadges = [
     intelligence.locationBreadcrumb,
@@ -433,28 +434,11 @@ export function CatIntelligencePanel({
           {isConcordanceLoading ? (
             <>
               <PanelSection
-                title={intl.formatMessage(catIntelligencePanelMessages.glossaryGuidance)}
-              >
-                <ConcordanceSkeleton />
-              </PanelSection>
-              <PanelSection
                 title={intl.formatMessage(catIntelligencePanelMessages.translationMemory)}
               >
                 <ConcordanceSkeleton />
               </PanelSection>
             </>
-          ) : null}
-
-          {!isConcordanceLoading && intelligence.glossaryTerms.length > 0 ? (
-            <PanelSection title={intl.formatMessage(catIntelligencePanelMessages.glossaryGuidance)}>
-              <div className="overflow-hidden rounded-2xl bg-muted">
-                <ul className="divide-y divide-border">
-                  {intelligence.glossaryTerms.map((term) => (
-                    <GlossaryTermRow key={term.id} term={term} targetText={targetText} />
-                  ))}
-                </ul>
-              </div>
-            </PanelSection>
           ) : null}
 
           {!isConcordanceLoading &&
@@ -478,6 +462,68 @@ export function CatIntelligencePanel({
           ) : null}
         </div>
       </ScrollArea>
+
+      {isGlossaryPanelOpen ? (
+        <section
+          className="fixed inset-x-2 bottom-[calc(var(--app-shell-plan-footer-height)+0.5rem)] z-50 flex h-[min(44rem,calc(100svh-var(--app-shell-plan-footer-height)-1rem))] flex-col overflow-hidden rounded-xl border border-border bg-background shadow-2xl shadow-black/15 sm:inset-x-auto sm:right-3 sm:w-[38rem]"
+          aria-label={intl.formatMessage(catIntelligencePanelMessages.glossaryGuidance)}
+        >
+          <header className="flex h-12 shrink-0 items-center gap-2 border-b border-border px-3">
+            <div className="min-w-0 flex-1">
+              <h2 className="truncate text-base font-medium text-foreground">
+                <FormattedMessage {...catIntelligencePanelMessages.glossaryGuidance} />
+              </h2>
+            </div>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-xs"
+              aria-label={intl.formatMessage(catIntelligencePanelMessages.glossaryGuidanceClose)}
+              onClick={() => setIsGlossaryPanelOpen(false)}
+            >
+              <HugeiconsIcon icon={Cancel01Icon} strokeWidth={2} className="size-3.5" />
+            </Button>
+          </header>
+
+          <ScrollArea className="min-h-0 flex-1">
+            <div className="space-y-3 p-4">
+              <p className="text-sm text-muted-foreground">
+                <FormattedMessage {...catIntelligencePanelMessages.glossaryGuidanceDescription} />
+              </p>
+              {isConcordanceLoading ? (
+                <ConcordanceSkeleton />
+              ) : glossaryConcepts.length === 0 ? (
+                <div className="flex min-h-56 flex-col items-center justify-center rounded-xl bg-muted/30 px-6 text-center">
+                  <HugeiconsIcon
+                    icon={BookOpenTextIcon}
+                    className="size-7 text-muted-foreground"
+                    aria-hidden="true"
+                  />
+                  <p className="mt-3 text-base font-medium text-foreground">
+                    <FormattedMessage
+                      {...catIntelligencePanelMessages.glossaryGuidanceEmptyTitle}
+                    />
+                  </p>
+                  <p className="mt-1 max-w-sm text-sm text-muted-foreground">
+                    <FormattedMessage
+                      {...catIntelligencePanelMessages.glossaryGuidanceEmptyDescription}
+                    />
+                  </p>
+                </div>
+              ) : (
+                glossaryConcepts.map((concept) => (
+                  <CatGlossaryConceptCard
+                    key={concept.id}
+                    concept={concept}
+                    expanded={expandedGlossaryConceptIds.has(concept.id)}
+                    onToggle={() => toggleGlossaryConcept(concept.id)}
+                  />
+                ))
+              )}
+            </div>
+          </ScrollArea>
+        </section>
+      ) : null}
 
       <AlertDialog
         open={pendingLowMatch !== null}
