@@ -19,8 +19,9 @@ import (
 
 var ErrClosed = errors.New("hunspell: dictionary is closed")
 
-// Dictionary wraps a loaded Hunspell dictionary.
-// It is not safe for concurrent use.
+const maxSuggestions = 5
+
+// Dictionary wraps a loaded Hunspell dictionary, it's not safe for concurrent use.
 type Dictionary struct {
 	handle *C.Hunhandle
 	closed bool
@@ -60,8 +61,37 @@ func (d *Dictionary) Spell(word string) (bool, error) {
 	return C.Hunspell_spell(d.handle, cWord) != 0, nil
 }
 
-// Close releases the native Hunspell handle owned by the Dictionary.
-// Close is idempotent.
+// Suggest returns up to five spelling suggestions for word.
+func (d *Dictionary) Suggest(word string) ([]string, error) {
+	if d.closed {
+		return nil, ErrClosed
+	}
+
+	cWord := C.CString(word)
+	defer C.free(unsafe.Pointer(cWord))
+
+	var cList **C.char
+	n := int(C.Hunspell_suggest(d.handle, &cList, cWord))
+	if n <= 0 {
+		return nil, nil
+	}
+	defer C.Hunspell_free_list(d.handle, &cList, C.int(n))
+
+	limit := n
+	if limit > maxSuggestions {
+		limit = maxSuggestions
+	}
+
+	raw := (*[1 << 28]*C.char)(unsafe.Pointer(cList))[:n:n]
+	suggestions := make([]string, limit)
+	for i := 0; i < limit; i++ {
+		suggestions[i] = C.GoString(raw[i])
+	}
+
+	return suggestions, nil
+}
+
+// Close releases the Hunspell handle. It is idempotent.
 func (d *Dictionary) Close() error {
 	if d.closed {
 		return nil
