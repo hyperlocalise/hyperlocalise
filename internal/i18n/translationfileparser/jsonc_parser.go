@@ -249,11 +249,21 @@ func decodeJSONKey(raw string) (string, error) {
 	return decoded, nil
 }
 
+// cleanJSONCCommentText strips comment markers (//, /*, */) and whitespace.
+// BOLT OPTIMIZATION: Replaced bytes.TrimPrefix/Suffix calls with direct byte checks
+// and slicing to eliminate slice allocations during comment cleaning.
 func cleanJSONCCommentText(comment []byte) string {
 	comment = bytes.TrimSpace(comment)
-	comment = bytes.TrimPrefix(comment, []byte("//"))
-	comment = bytes.TrimPrefix(comment, []byte("/*"))
-	comment = bytes.TrimSuffix(comment, []byte("*/"))
+	if len(comment) >= 2 {
+		if comment[0] == '/' && (comment[1] == '/' || comment[1] == '*') {
+			comment = comment[2:]
+		}
+	}
+	if len(comment) >= 2 {
+		if comment[len(comment)-2] == '*' && comment[len(comment)-1] == '/' {
+			comment = comment[:len(comment)-2]
+		}
+	}
 	comment = bytes.TrimSpace(comment)
 	return string(comment)
 }
