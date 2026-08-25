@@ -83,6 +83,36 @@ describe("normalizeProviderGlossaryMatch", () => {
       externalResourceId: "42",
       termStatus: { forbidden: false, preferred: true },
     });
+    expect(match.concept).toBeUndefined();
+  });
+
+  it("passes through concept payloads for CAT guidance", () => {
+    const concept = {
+      id: "concept-1",
+      primaryTerm: "Save",
+      definition: "Persist changes",
+      glossaryUrl: "https://crowdin.com/glossary/42",
+      sourceTerms: [{ id: "s1", locale: "en", text: "Save", preferred: true, forbidden: false }],
+      targetTerms: [
+        { id: "t1", locale: "fr", text: "Enregistrer", preferred: true, forbidden: false },
+      ],
+    };
+
+    const match = normalizeProviderGlossaryMatch({
+      sourceTerm: "Save",
+      targetTerm: "Enregistrer",
+      sourceLocale: "en",
+      targetLocale: "fr",
+      providerKind: "crowdin",
+      resourceId: "glossary-1",
+      externalResourceId: "42",
+      externalTermId: "99",
+      glossaryName: "Product glossary",
+      status: { status: "preferred" },
+      concept,
+    });
+
+    expect(match.concept).toEqual(concept);
   });
 });
 
@@ -107,6 +137,36 @@ describe("normalizeSyncedDatabaseGlossaryMatch", () => {
 
     expect(match.matchSource).toBe("synced_database");
     expect(match.termStatus).toEqual({ forbidden: true, preferred: false });
+  });
+
+  it("passes through concept payloads for CAT guidance", () => {
+    const concept = {
+      id: "concept-2",
+      primaryTerm: "Cancel",
+      definition: "Abort the action",
+      sourceTerms: [{ id: "s1", locale: "en", text: "Cancel", preferred: false, forbidden: true }],
+      targetTerms: [{ id: "t1", locale: "fr", text: "Annuler", preferred: false, forbidden: true }],
+    };
+
+    const match = normalizeSyncedDatabaseGlossaryMatch({
+      id: "term-1",
+      glossaryId: "glossary-1",
+      glossaryName: "Synced glossary",
+      sourceTerm: "Cancel",
+      targetTerm: "Annuler",
+      sourceLocale: "en",
+      targetLocale: "fr",
+      description: null,
+      forbidden: true,
+      caseSensitive: false,
+      rank: 1,
+      providerKind: "crowdin",
+      externalResourceId: "glossary-ext-1",
+      externalTermId: "term-ext-1",
+      concept,
+    });
+
+    expect(match.concept).toEqual(concept);
   });
 });
 
