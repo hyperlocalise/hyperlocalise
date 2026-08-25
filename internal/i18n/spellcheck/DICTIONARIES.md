@@ -1,4 +1,4 @@
-# HL-596: Hunspell dictionary manifest
+# Hunspell dictionary manifest
 
 This is the reproducible source-of-truth mapping between the initial
 spell-check locale set and the exact Hunspell dictionary files backing each
