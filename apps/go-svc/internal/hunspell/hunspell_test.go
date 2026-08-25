@@ -16,6 +16,12 @@ var (
 
 	malformedAff = filepath.Join("testdata", "malformed", "test.aff")
 	malformedDic = filepath.Join("testdata", "malformed", "test.dic")
+
+	nonUTF8Aff = filepath.Join("testdata", "non_utf8", "test.aff")
+	nonUTF8Dic = filepath.Join("testdata", "non_utf8", "test.dic")
+
+	noSetAff = filepath.Join("testdata", "no_set", "test.aff")
+	noSetDic = filepath.Join("testdata", "no_set", "test.dic")
 )
 
 func TestNew(t *testing.T) {
@@ -54,16 +60,24 @@ func TestNew(t *testing.T) {
 	})
 }
 
-// TestNewToleratesMalformedDictionaryData documents an empirically-verified
-// limitation: New cannot detect malformed-but-readable dictionary data.
-// testdata/malformed/test.dic has a non-numeric word-count header, which
-// violates Hunspell's own .dic format. Against the installed Hunspell C
-// library, this (and every other malformed variant tried during
-// development: negative/overflowing/mismatched counts, binary garbage in
-// either file, an empty file, an unsupported SET encoding, and unparseable
-// affix directives) logs a warning to stderr but still returns a non-NULL
-// handle from Hunspell_create, backed by zero usable entries, rather than
-// failing construction. See the New doc comment.
+func TestNewRejectsNonUTF8Dictionaries(t *testing.T) {
+	t.Run("declared non-UTF-8 encoding", func(t *testing.T) {
+		_, err := New(nonUTF8Aff, nonUTF8Dic)
+		if !errors.Is(err, errAffixEncodingNotUTF8) {
+			t.Fatalf("New() error = %v, want error wrapping errAffixEncodingNotUTF8", err)
+		}
+	})
+
+	t.Run("missing SET declaration", func(t *testing.T) {
+		_, err := New(noSetAff, noSetDic)
+		if !errors.Is(err, errAffixEncodingUndeclared) {
+			t.Fatalf("New() error = %v, want error wrapping errAffixEncodingUndeclared", err)
+		}
+	})
+}
+
+// Hunspell_create empirically tolerates malformed-but-readable dictionaries,
+// returning a non-NULL handle with no usable entries rather than failing.
 func TestNewToleratesMalformedDictionaryData(t *testing.T) {
 	d, err := New(malformedAff, malformedDic)
 	if err != nil {
