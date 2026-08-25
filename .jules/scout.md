@@ -211,3 +211,7 @@
 ## 2026-11-25 - [JSONStore Deterministic Bucket Pattern Resolution]
 **Learning:** `JSONStore` bucket pattern resolution (`resolveLocalePattern`) sorts bucket map names alphabetically (`sort.Strings`) before selecting the first valid file pattern (`To`). This ensures deterministic file path pattern resolution across Go runtime executions where map iteration order is randomized.
 **Action:** When unit testing storage adapters or multi-bucket configuration resolution, supply multiple bucket entries out of alphabetical order to verify deterministic key sorting.
+
+## 2026-11-26 - [Apple XCStrings Parser Error Boundaries and Key Escaping]
+**Learning:** `XCStringsParser` and `MarshalXCStrings` enforce catalog structural constraints (such as root `strings` object requirement and JSON stream single-value limits). Additionally, base key escaping uses base64 URL encoding prefixed with `%xcs:` when keys contain `::` or start with `%xcs:`, ensuring that keys starting literally with `%xcs:` in source catalogs are safely encoded to prevent collision with unescaping routines.
+**Action:** When unit testing Apple `.xcstrings` catalog parsers, test malformed JSON stream decoding, `targetLocale` validation in marshalling, and assert base64 URL key encoding for keys containing reserved `::` delimiters or `%xcs:` prefixes.
