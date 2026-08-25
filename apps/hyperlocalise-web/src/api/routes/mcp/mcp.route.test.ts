@@ -16,11 +16,13 @@ import { createHash } from "node:crypto";
 
 import { eq } from "drizzle-orm";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
+import { OAuthProtectedResourceMetadataSchema } from "@modelcontextprotocol/sdk/shared/auth.js";
 
 import {
   createAuthorizationCode,
   createMcpAuthorizationRequest,
   createMcpConsentGrant,
+  generateMcpToken,
   hashMcpToken,
   MCP_AUTH_REQUEST_COOKIE,
   MCP_CONSENT_COOKIE,
@@ -129,9 +131,85 @@ describe("mcpRoutes", () => {
 
     expect(response.status).toBe(401);
     expect(response.headers.get("www-authenticate")).toBe(
-      'Bearer resource_metadata="http://localhost/.well-known/oauth-authorization-server"',
+      'Bearer resource_metadata="http://localhost/.well-known/oauth-protected-resource", scope="mcp"',
     );
   });
+
+  it("returns the protected-resource challenge for invalid bearer tokens", async () => {
+    const response = await app.request("http://localhost/api/mcp/sse", {
+      headers: {
+        authorization: "Bearer invalid-token",
+      },
+    });
+
+    expect(response.status).toBe(401);
+    expect(response.headers.get("www-authenticate")).toBe(
+      'Bearer resource_metadata="http://localhost/.well-known/oauth-protected-resource", scope="mcp"',
+    );
+  });
+
+  it("returns OAuth protected resource metadata", async () => {
+    const response = await app.request("http://localhost/api/.well-known/oauth-protected-resource");
+
+    expect(response.status).toBe(200);
+
+    const metadata = OAuthProtectedResourceMetadataSchema.parse(await response.json());
+
+    expect(metadata).toMatchObject({
+      resource: "http://localhost/api/mcp/sse",
+      authorization_servers: ["http://localhost"],
+      scopes_supported: ["mcp"],
+    });
+  });
+
+  it.each([
+    {
+      state: "expired",
+      expiresAt: new Date(0),
+      revokedAt: null,
+    },
+    {
+      state: "revoked",
+      expiresAt: new Date(Date.now() + 60_000),
+      revokedAt: new Date(),
+    },
+  ])(
+    "returns the protected-resource challenge for $state tokens",
+    async ({ expiresAt, revokedAt }) => {
+      const identity = fixture.createWorkosIdentity();
+      await fixture.authHeadersFor(identity);
+
+      const auth = globalThis.__testApiAuthContext;
+      if (!auth) {
+        throw new Error("expected test auth context");
+      }
+
+      const accessToken = generateMcpToken();
+      const refreshToken = generateMcpToken();
+
+      await db.insert(schema.mcpSessions).values({
+        userId: auth.user.localUserId,
+        organizationId: auth.organization.localOrganizationId,
+        scope: "mcp",
+        accessTokenHash: hashMcpToken(accessToken),
+        refreshTokenHash: hashMcpToken(refreshToken),
+        expiresAt,
+        refreshExpiresAt: new Date(Date.now() + 60_000),
+        revokedAt,
+      });
+
+      const response = await app.request("http://localhost/api/mcp/sse", {
+        headers: {
+          authorization: `Bearer ${accessToken}`,
+        },
+      });
+
+      expect(response.status).toBe(401);
+      expect(response.headers.get("www-authenticate")).toBe(
+        'Bearer resource_metadata="http://localhost/.well-known/oauth-protected-resource", scope="mcp"',
+      );
+    },
+  );
 
   it("rejects unsupported token request bodies as invalid requests", async () => {
     const response = await app.request("http://localhost/api/mcp/token", {

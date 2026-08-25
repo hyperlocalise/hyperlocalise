@@ -172,6 +172,9 @@ describe("mcpBearerAuthMiddleware", () => {
     });
 
     expect(response.status).toBe(401);
+    expect(response.headers.get("www-authenticate")).toBe(
+      'Bearer resource_metadata="http://localhost/.well-known/oauth-protected-resource", scope="mcp"',
+    );
 
     const remainingSessions = await db
       .select({ id: schema.mcpSessions.id })
@@ -222,6 +225,9 @@ describe("mcpBearerAuthMiddleware", () => {
     });
 
     expect(response.status).toBe(401);
+    expect(response.headers.get("www-authenticate")).toBe(
+      'Bearer resource_metadata="http://localhost/.well-known/oauth-protected-resource", scope="mcp"',
+    );
 
     const remainingSessions = await db
       .select({ id: schema.mcpSessions.id })

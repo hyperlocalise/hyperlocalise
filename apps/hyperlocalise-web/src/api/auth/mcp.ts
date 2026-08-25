@@ -404,15 +404,21 @@ export const mcpBearerAuthMiddleware = createMiddleware<{ Variables: McpAuthVari
       return c.json({ error: "mcp_auth_disabled" }, 503);
     }
 
+    const unauthorizedResponse = () => {
+      const resourceMetadataUrl = new URL("/.well-known/oauth-protected-resource", c.req.url);
+
+      return c.json({ error: "unauthorized" }, 401, {
+        "WWW-Authenticate": `Bearer resource_metadata="${resourceMetadataUrl.toString()}", scope="mcp"`,
+      });
+    };
+
     const authorization = c.req.header("authorization");
     const token = authorization?.startsWith("Bearer ")
       ? authorization.slice("Bearer ".length)
       : null;
 
     if (!token) {
-      return c.json({ error: "unauthorized" }, 401, {
-        "WWW-Authenticate": `Bearer resource_metadata="${new URL("/.well-known/oauth-authorization-server", c.req.url).origin}/.well-known/oauth-authorization-server"`,
-      });
+      return unauthorizedResponse();
     }
 
     const [session] = await db
@@ -443,13 +449,13 @@ export const mcpBearerAuthMiddleware = createMiddleware<{ Variables: McpAuthVari
       .limit(1);
 
     if (!session) {
-      return c.json({ error: "unauthorized" }, 401);
+      return unauthorizedResponse();
     }
 
     const authResult = await resolveAuthoritativeMcpSessionAuth(session);
 
     if (authResult.status === "unauthorized") {
-      return c.json({ error: "unauthorized" }, 401);
+      return unauthorizedResponse();
     }
 
     if (authResult.status === "workspace_archived") {
