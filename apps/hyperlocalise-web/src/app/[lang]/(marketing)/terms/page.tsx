@@ -34,14 +34,18 @@ export async function generateMetadata({ params }: TermsPageProps): Promise<Meta
   });
 }
 
-export default function TermsPage() {
+export default async function TermsPage({ params }: TermsPageProps) {
+  const { lang } = await params;
+  const locale = normalizeAppLocale(lang) ?? DEFAULT_APP_LOCALE;
+
   return (
     <LegalPage
+      locale={locale}
       eyebrow="Legal"
       title="Terms of service"
       description="Cloud Service Agreement terms for Hyperlocalise Pty Ltd, adapted from Common Paper CSA Version 2.1."
     >
-      <CloudServiceAgreement />
+      <CloudServiceAgreement locale={locale} />
     </LegalPage>
   );
 }

@@ -55,6 +55,9 @@ import { FormattedMessage, useIntl } from "react-intl";
 import LocaleToggle from "@/components/locale-toggle/locale-toggle";
 import ThemeToggle from "@/components/theme-toggle/theme-toggle";
 import { themeToggleMessages } from "@/components/theme-toggle/theme-toggle.messages";
+import type { AppLocale } from "@/lib/app-i18n/locales";
+import { rewriteAppLocalePath } from "@/lib/app-i18n/rewrite-app-locale-path";
+import { useAppLocale } from "@/lib/app-i18n/use-app-locale";
 
 import {
   NavbarDesktopAuthActions,
@@ -136,6 +139,10 @@ const megaMenuLinkClassName =
 const megaMenuHeadingClassName =
   "px-3 pb-2 text-[11px] font-medium tracking-[0.16em] text-muted-foreground uppercase";
 
+function getNavLinkHref(link: NavLink, locale: AppLocale) {
+  return link.href.startsWith("/") ? rewriteAppLocalePath(link.href, locale) : link.href;
+}
+
 function NavLinkLabel({ link }: { link: NavLink }) {
   if (link.kind === "product") {
     return <FormattedMessage {...productPageMessages[link.labelKey]} />;
@@ -168,7 +175,7 @@ function ExternalLinkIcon() {
   );
 }
 
-function MegaMenuLink({ link }: { link: NavLink }) {
+function MegaMenuLink({ link, locale }: { link: NavLink; locale: AppLocale }) {
   const intl = useIntl();
 
   if (link.external) {
@@ -189,13 +196,21 @@ function MegaMenuLink({ link }: { link: NavLink }) {
   }
 
   return (
-    <NavigationMenuLink href={link.href} className={megaMenuLinkClassName}>
+    <NavigationMenuLink href={getNavLinkHref(link, locale)} className={megaMenuLinkClassName}>
       <NavLinkLabel link={link} />
     </NavigationMenuLink>
   );
 }
 
-function MegaMenuColumn({ headingKey, links }: { headingKey: NavbarMessageKey; links: NavLink[] }) {
+function MegaMenuColumn({
+  headingKey,
+  links,
+  locale,
+}: {
+  headingKey: NavbarMessageKey;
+  links: NavLink[];
+  locale: AppLocale;
+}) {
   return (
     <div className="min-w-[11.5rem]">
       <div className={megaMenuHeadingClassName}>
@@ -204,7 +219,7 @@ function MegaMenuColumn({ headingKey, links }: { headingKey: NavbarMessageKey; l
       <ul className="grid gap-0.5">
         {links.map((link) => (
           <li key={`${link.kind}-${link.href}`}>
-            <MegaMenuLink link={link} />
+            <MegaMenuLink link={link} locale={locale} />
           </li>
         ))}
       </ul>
@@ -212,11 +227,11 @@ function MegaMenuColumn({ headingKey, links }: { headingKey: NavbarMessageKey; l
   );
 }
 
-function Logo({ onHero = false }: { onHero?: boolean }) {
+function Logo({ locale, onHero = false }: { locale: AppLocale; onHero?: boolean }) {
   const intl = useIntl();
 
   return (
-    <Link href="/" className="flex items-center gap-2.5">
+    <Link href={rewriteAppLocalePath("/", locale)} className="flex items-center gap-2.5">
       <Image
         src="/images/logo.png"
         className="size-8"
@@ -269,9 +284,11 @@ function useHomeHeroNavTone() {
 function MobileNavSection({
   headingKey,
   links,
+  locale,
 }: {
   headingKey: NavbarMessageKey;
   links: NavLink[];
+  locale: AppLocale;
 }) {
   const intl = useIntl();
 
@@ -310,7 +327,7 @@ function MobileNavSection({
         return (
           <SheetClose
             key={`${link.kind}-${link.href}`}
-            render={<a href={link.href} />}
+            render={<a href={getNavLinkHref(link, locale)} />}
             className={mobileNavLinkClassName}
           >
             {content}
@@ -321,7 +338,7 @@ function MobileNavSection({
   );
 }
 
-function MobileNavigation({ auth }: { auth: NavbarAuthState }) {
+function MobileNavigation({ auth, locale }: { auth: NavbarAuthState; locale: AppLocale }) {
   const intl = useIntl();
 
   return (
@@ -368,7 +385,7 @@ function MobileNavigation({ auth }: { auth: NavbarAuthState }) {
             <FormattedMessage {...navbarMessages.navigationHeading} />
           </div>
           <div className="pr-10">
-            <Logo />
+            <Logo locale={locale} />
           </div>
         </SheetHeader>
         <div className="flex flex-1 flex-col overflow-y-auto px-3 py-2">
@@ -376,16 +393,31 @@ function MobileNavigation({ auth }: { auth: NavbarAuthState }) {
             aria-label={intl.formatMessage(navbarMessages.mobileNavAriaLabel)}
             className="flex flex-col gap-2 pb-4"
           >
-            <MobileNavSection headingKey="navPlatformHeading" links={productLinks} />
-            <MobileNavSection headingKey="navUseCasesHeading" links={useCaseLinks} />
-            <MobileNavSection headingKey="navResourcesHeading" links={resourceLinks} />
-            <MobileNavSection headingKey="navLegalHeading" links={legalLinks} />
+            <MobileNavSection
+              headingKey="navPlatformHeading"
+              links={productLinks}
+              locale={locale}
+            />
+            <MobileNavSection
+              headingKey="navUseCasesHeading"
+              links={useCaseLinks}
+              locale={locale}
+            />
+            <MobileNavSection
+              headingKey="navResourcesHeading"
+              links={resourceLinks}
+              locale={locale}
+            />
+            <MobileNavSection headingKey="navLegalHeading" links={legalLinks} locale={locale} />
             <div className="space-y-1.5">
-              <SheetClose render={<a href={pricingLink.href} />} className={mobileNavLinkClassName}>
+              <SheetClose
+                render={<a href={rewriteAppLocalePath(pricingLink.href, locale)} />}
+                className={mobileNavLinkClassName}
+              >
                 <NavLinkLabel link={pricingLink} />
               </SheetClose>
               <SheetClose
-                render={<a href={companyPageLink.href} />}
+                render={<a href={rewriteAppLocalePath(companyPageLink.href, locale)} />}
                 className={mobileNavLinkClassName}
               >
                 <NavLinkLabel link={companyPageLink} />
@@ -400,14 +432,14 @@ function MobileNavigation({ auth }: { auth: NavbarAuthState }) {
             </span>
             <ThemeToggle />
           </div>
-          <NavbarMobileAuthFooter auth={auth} />
+          <NavbarMobileAuthFooter auth={auth} locale={locale} />
         </SheetFooter>
       </SheetContent>
     </Sheet>
   );
 }
 
-function DesktopNavigation() {
+function DesktopNavigation({ locale }: { locale: AppLocale }) {
   return (
     <NavigationMenu className="mx-auto hidden max-w-none md:flex">
       <NavigationMenuList className="gap-1">
@@ -417,8 +449,16 @@ function DesktopNavigation() {
           </NavigationMenuTrigger>
           <NavigationMenuContent>
             <div className="grid w-max grid-cols-2 gap-6 p-3 pe-4">
-              <MegaMenuColumn headingKey="navPlatformHeading" links={productLinks} />
-              <MegaMenuColumn headingKey="navUseCasesHeading" links={useCaseLinks} />
+              <MegaMenuColumn
+                headingKey="navPlatformHeading"
+                links={productLinks}
+                locale={locale}
+              />
+              <MegaMenuColumn
+                headingKey="navUseCasesHeading"
+                links={useCaseLinks}
+                locale={locale}
+              />
             </div>
           </NavigationMenuContent>
         </NavigationMenuItem>
@@ -428,14 +468,18 @@ function DesktopNavigation() {
           </NavigationMenuTrigger>
           <NavigationMenuContent>
             <div className="grid w-max grid-cols-2 gap-6 p-3 pe-4">
-              <MegaMenuColumn headingKey="navResourcesHeading" links={resourceLinks} />
-              <MegaMenuColumn headingKey="navLegalHeading" links={legalLinks} />
+              <MegaMenuColumn
+                headingKey="navResourcesHeading"
+                links={resourceLinks}
+                locale={locale}
+              />
+              <MegaMenuColumn headingKey="navLegalHeading" links={legalLinks} locale={locale} />
             </div>
           </NavigationMenuContent>
         </NavigationMenuItem>
         <NavigationMenuItem>
           <NavigationMenuLink
-            href={pricingLink.href}
+            href={rewriteAppLocalePath(pricingLink.href, locale)}
             className={cn(
               navigationMenuTriggerStyle(),
               "px-3 py-2 font-medium text-muted-foreground hover:text-foreground",
@@ -446,7 +490,7 @@ function DesktopNavigation() {
         </NavigationMenuItem>
         <NavigationMenuItem>
           <NavigationMenuLink
-            href={companyPageLink.href}
+            href={rewriteAppLocalePath(companyPageLink.href, locale)}
             className={cn(
               navigationMenuTriggerStyle(),
               "px-3 py-2 font-medium text-muted-foreground hover:text-foreground",
@@ -462,6 +506,7 @@ function DesktopNavigation() {
 
 export function NavbarView({ auth }: { auth: NavbarAuthState }) {
   const onHero = useHomeHeroNavTone();
+  const locale = useAppLocale();
 
   return (
     <header
@@ -474,7 +519,7 @@ export function NavbarView({ auth }: { auth: NavbarAuthState }) {
     >
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-3 px-4 sm:px-6">
         <div className="flex min-w-0 items-center gap-3 lg:gap-8">
-          <Logo onHero={onHero} />
+          <Logo locale={locale} onHero={onHero} />
           <div
             className={cn(
               onHero &&
@@ -484,7 +529,7 @@ export function NavbarView({ auth }: { auth: NavbarAuthState }) {
                 ].join(" "),
             )}
           >
-            <DesktopNavigation />
+            <DesktopNavigation locale={locale} />
           </div>
         </div>
 
@@ -495,7 +540,7 @@ export function NavbarView({ auth }: { auth: NavbarAuthState }) {
               "[&_button]:text-white [&_button[data-variant=ghost]]:hover:bg-white/10 [&_button[data-variant=ghost]]:hover:text-white [&_a]:text-white",
           )}
         >
-          <NavbarDesktopAuthActions auth={auth} />
+          <NavbarDesktopAuthActions auth={auth} locale={locale} />
           <LocaleToggle />
           <ThemeToggle />
         </div>
@@ -506,8 +551,8 @@ export function NavbarView({ auth }: { auth: NavbarAuthState }) {
             onHero && "[&_button]:border-white/30 [&_button]:text-white",
           )}
         >
-          <NavbarMobileAuthCta auth={auth} />
-          <MobileNavigation auth={auth} />
+          <NavbarMobileAuthCta auth={auth} locale={locale} />
+          <MobileNavigation auth={auth} locale={locale} />
           <LocaleToggle />
         </div>
       </div>

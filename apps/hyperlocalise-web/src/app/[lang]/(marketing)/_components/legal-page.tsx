@@ -18,6 +18,7 @@ import type { AppLocale } from "@/lib/app-i18n/locales";
 import { getLocalizedAlternates } from "@/lib/seo/localized-alternates";
 
 type LegalPageProps = {
+  locale: AppLocale;
   eyebrow: string;
   title: string;
   description: string;
@@ -42,7 +43,7 @@ export function createLegalMetadata({
   };
 }
 
-export function LegalPage({ eyebrow, title, description, children }: LegalPageProps) {
+export function LegalPage({ locale, eyebrow, title, description, children }: LegalPageProps) {
   return (
     <div className="min-h-screen bg-background text-foreground">
       <div className="relative isolate overflow-hidden">
@@ -50,7 +51,7 @@ export function LegalPage({ eyebrow, title, description, children }: LegalPagePr
         <div className="mx-auto flex w-full max-w-4xl flex-col px-6 py-14 sm:px-8 lg:px-12 lg:py-18">
           <div className="flex flex-col gap-6">
             <Link
-              href="/"
+              href={`/${locale}`}
               className="w-fit text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground transition-colors hover:text-foreground"
             >
               Back to home

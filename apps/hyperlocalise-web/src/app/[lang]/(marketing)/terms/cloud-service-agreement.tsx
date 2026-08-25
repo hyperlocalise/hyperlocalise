@@ -13,6 +13,8 @@
 import Link from "next/link";
 
 import { TypographyP } from "@/components/ui/typography";
+import type { AppLocale } from "@/lib/app-i18n/locales";
+import { rewriteAppLocalePath } from "@/lib/app-i18n/rewrite-app-locale-path";
 import { SUPPORT_EMAIL } from "@/lib/support-contact";
 
 import { LegalList, LegalSection } from "../_components/legal-page";
@@ -26,7 +28,7 @@ const COMMON_PAPER_LICENSE_URL = "https://creativecommons.org/licenses/by/4.0/";
  * Version 2.1 for Hyperlocalise Pty Ltd clickwrap / self-serve use.
  * Attribution: Common Paper CSA v2.1, CC BY 4.0.
  */
-export function CloudServiceAgreement() {
+export function CloudServiceAgreement({ locale }: { locale: AppLocale }) {
   return (
     <>
       <TypographyP>
@@ -257,7 +259,10 @@ export function CloudServiceAgreement() {
         <TypographyP>
           <strong>3.1 Personal Data.</strong> Provider’s handling of personal information is
           described in the{" "}
-          <Link href={PRIVACY_HREF} className="underline underline-offset-4 hover:text-foreground">
+          <Link
+            href={rewriteAppLocalePath(PRIVACY_HREF, locale)}
+            className="underline underline-offset-4 hover:text-foreground"
+          >
             Privacy Policy
           </Link>
           . Before submitting Personal Data governed by GDPR (or UK GDPR) to the Product, Customer

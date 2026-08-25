@@ -20,6 +20,8 @@ import { REQUEST_DEMO_URL } from "@/components/marketing/request-demo";
 import { Button } from "@/components/ui/button";
 import { TypographyH1, TypographyH2, TypographyP } from "@/components/ui/typography";
 import { cn } from "@/lib/primitives/cn";
+import type { AppLocale } from "@/lib/app-i18n/locales";
+import { rewriteAppLocalePath } from "@/lib/app-i18n/rewrite-app-locale-path";
 
 import {
   getStartupsFaqItems,
@@ -43,7 +45,7 @@ const benefitMeshById = {
 } as const;
 
 type StartupsPageProps = {
-  locale: string;
+  locale: AppLocale;
 };
 
 export function StartupsPage({ locale }: StartupsPageProps) {
@@ -88,7 +90,7 @@ export function StartupsPage({ locale }: StartupsPageProps) {
               variant="outline"
               className="border-white/40 bg-transparent text-white hover:bg-white/10 hover:text-white"
               nativeButton={false}
-              render={<Link href="/pricing" />}
+              render={<Link href={rewriteAppLocalePath("/pricing", locale)} />}
             >
               {copy.seePricingCta}
             </Button>
