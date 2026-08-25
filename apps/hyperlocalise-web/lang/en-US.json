@@ -4939,10 +4939,6 @@
     "defaultMessage": "Hyperlocalise fits into the developer workflow your team already runs — with GitHub Actions and TMS sync built in.",
     "description": "Workflow section description for the github-release-localisation use case"
   },
-  "ECdzHS9iJQ": {
-    "defaultMessage": "Term deleted",
-    "description": "Toast after a concept term is deleted"
-  },
   "ECh2wuwOCJ": {
     "defaultMessage": "Markdown content",
     "description": "Default accessible label for read-only rendered markdown content"
@@ -9935,6 +9931,10 @@
     "defaultMessage": "Pending",
     "description": "Membership status label when an invitation has not been accepted"
   },
+  "WhmV5YamvS": {
+    "defaultMessage": "This term will be removed from the concept when you save.",
+    "description": "Description of the term deletion confirmation dialog"
+  },
   "Wi6a5o/Mm+": {
     "defaultMessage": "Human-in-the-loop orchestration",
     "description": "Differentiator point 3 for the localisation-operations use case"
@@ -12746,10 +12746,6 @@
   "gLjdVIWCoD": {
     "defaultMessage": "Deleting...",
     "description": "Delete button label while a project is being deleted"
-  },
-  "gN0y8UhzTR": {
-    "defaultMessage": "Unable to delete term",
-    "description": "Fallback error when deleting a glossary term fails"
   },
   "gNb7LVmFTm": {
     "defaultMessage": "Check hreflang, RTL support, terminology and compliance",
@@ -16530,10 +16526,6 @@
   "tQNKmwbVHc": {
     "defaultMessage": "Reconnect with a different OAuth app",
     "description": "Collapsible trigger to replace OAuth app credentials"
-  },
-  "tQnEG79lWB": {
-    "defaultMessage": "This term will be removed from the concept and cannot be restored.",
-    "description": "Description of the term deletion confirmation dialog"
   },
   "tR/DKqfN1a": {
     "defaultMessage": "See the risk",
