@@ -28,6 +28,17 @@ type Dictionary struct {
 }
 
 // New loads an affix and dictionary file.
+//
+// New reliably returns an error for a missing or unopenable affPath or
+// dicPath. It does not reliably detect malformed-but-readable dictionary
+// data: empirically, the installed Hunspell C library tolerates a wide
+// range of invalid .aff/.dic content (bad or missing word-count headers,
+// binary garbage, empty files, unsupported SET encodings, unparseable
+// affix directives) by logging a warning to stderr and constructing a
+// handle with zero or partial entries, rather than returning NULL from
+// Hunspell_create. Callers that need to detect malformed dictionary
+// content must do so themselves (for example, by checking whether known
+// words round-trip through Spell).
 func New(affPath, dicPath string) (*Dictionary, error) {
 	if _, err := os.Stat(affPath); err != nil {
 		return nil, fmt.Errorf("hunspell: affix file: %w", err)

@@ -13,6 +13,9 @@ import (
 var (
 	validAff = filepath.Join("testdata", "valid", "test.aff")
 	validDic = filepath.Join("testdata", "valid", "test.dic")
+
+	malformedAff = filepath.Join("testdata", "malformed", "test.aff")
+	malformedDic = filepath.Join("testdata", "malformed", "test.dic")
 )
 
 func TestNew(t *testing.T) {
@@ -49,6 +52,36 @@ func TestNew(t *testing.T) {
 			t.Errorf("New() error = %v, want wrapped os.ErrNotExist", err)
 		}
 	})
+}
+
+// TestNewToleratesMalformedDictionaryData documents an empirically-verified
+// limitation: New cannot detect malformed-but-readable dictionary data.
+// testdata/malformed/test.dic has a non-numeric word-count header, which
+// violates Hunspell's own .dic format. Against the installed Hunspell C
+// library, this (and every other malformed variant tried during
+// development: negative/overflowing/mismatched counts, binary garbage in
+// either file, an empty file, an unsupported SET encoding, and unparseable
+// affix directives) logs a warning to stderr but still returns a non-NULL
+// handle from Hunspell_create, backed by zero usable entries, rather than
+// failing construction. See the New doc comment.
+func TestNewToleratesMalformedDictionaryData(t *testing.T) {
+	d, err := New(malformedAff, malformedDic)
+	if err != nil {
+		t.Fatalf("New() error = %v, want nil (Hunspell tolerates this input instead of failing construction)", err)
+	}
+	t.Cleanup(func() {
+		if err := d.Close(); err != nil {
+			t.Errorf("Close() error = %v, want nil", err)
+		}
+	})
+
+	got, err := d.Spell("hello")
+	if err != nil {
+		t.Fatalf("Spell() error = %v, want nil", err)
+	}
+	if got {
+		t.Errorf(`Spell("hello") = true, want false: a dictionary loaded from malformed data should have no usable entries`)
+	}
 }
 
 func TestDictionarySpell(t *testing.T) {
