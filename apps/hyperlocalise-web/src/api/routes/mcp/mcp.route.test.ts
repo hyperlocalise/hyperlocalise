@@ -28,6 +28,7 @@ import {
   MCP_CONSENT_COOKIE,
   parseMcpAuthorizationRequest,
 } from "@/api/auth/mcp";
+import { createMcpTestApp } from "@/api/routes/mcp/mcp.fixture";
 import { createApp } from "@/api/app";
 import { db, schema } from "@/lib/database";
 import { env } from "@/lib/env";
@@ -51,7 +52,8 @@ vi.mock("@/api/auth/workos-session", async (importOriginal) => {
   };
 });
 
-const app = createApp();
+const app = createMcpTestApp();
+const apiApp = createApp();
 const fixture = createProjectTestFixture();
 const originalMcpAuthEnabled = env.MCP_AUTH_ENABLED;
 
@@ -68,7 +70,7 @@ async function exchangeCode(input: { code: string; verifier: string }) {
     code_verifier: input.verifier,
   });
 
-  return app.request("http://localhost/api/mcp/token", {
+  return app.request("http://localhost/mcp/token", {
     method: "POST",
     headers: {
       "content-type": "application/x-www-form-urlencoded",
@@ -84,7 +86,7 @@ async function refreshToken(refreshToken: string) {
     client_id: "test-client",
   });
 
-  return app.request("http://localhost/api/mcp/token", {
+  return app.request("http://localhost/mcp/token", {
     method: "POST",
     headers: {
       "content-type": "application/x-www-form-urlencoded",
@@ -113,21 +115,19 @@ describe("mcpRoutes", () => {
   });
 
   it("returns OAuth authorization server metadata", async () => {
-    const response = await app.request(
-      "http://localhost/api/.well-known/oauth-authorization-server",
-    );
+    const response = await app.request("http://localhost/.well-known/oauth-authorization-server");
 
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toMatchObject({
       issuer: "http://localhost",
-      authorization_endpoint: "http://localhost/api/mcp/authorize",
-      token_endpoint: "http://localhost/api/mcp/token",
+      authorization_endpoint: "http://localhost/mcp/authorize",
+      token_endpoint: "http://localhost/mcp/token",
       code_challenge_methods_supported: ["S256"],
     });
   });
 
   it("returns an absolute OAuth metadata URI on bearer challenges", async () => {
-    const response = await app.request("http://localhost/api/mcp/sse");
+    const response = await app.request("http://localhost/mcp/sse");
 
     expect(response.status).toBe(401);
     expect(response.headers.get("www-authenticate")).toBe(
@@ -136,7 +136,7 @@ describe("mcpRoutes", () => {
   });
 
   it("returns the protected-resource challenge for invalid bearer tokens", async () => {
-    const response = await app.request("http://localhost/api/mcp/sse", {
+    const response = await app.request("http://localhost/mcp/sse", {
       headers: {
         authorization: "Bearer invalid-token",
       },
@@ -149,14 +149,14 @@ describe("mcpRoutes", () => {
   });
 
   it("returns OAuth protected resource metadata", async () => {
-    const response = await app.request("http://localhost/api/.well-known/oauth-protected-resource");
+    const response = await app.request("http://localhost/.well-known/oauth-protected-resource");
 
     expect(response.status).toBe(200);
 
     const metadata = OAuthProtectedResourceMetadataSchema.parse(await response.json());
 
     expect(metadata).toMatchObject({
-      resource: "http://localhost/api/mcp/sse",
+      resource: "http://localhost/mcp/sse",
       authorization_servers: ["http://localhost"],
       scopes_supported: ["mcp"],
     });
@@ -198,7 +198,7 @@ describe("mcpRoutes", () => {
         revokedAt,
       });
 
-      const response = await app.request("http://localhost/api/mcp/sse", {
+      const response = await app.request("http://localhost/mcp/sse", {
         headers: {
           authorization: `Bearer ${accessToken}`,
         },
@@ -212,7 +212,7 @@ describe("mcpRoutes", () => {
   );
 
   it("rejects unsupported token request bodies as invalid requests", async () => {
-    const response = await app.request("http://localhost/api/mcp/token", {
+    const response = await app.request("http://localhost/mcp/token", {
       method: "POST",
       headers: {
         "content-type": "text/plain",
@@ -225,7 +225,7 @@ describe("mcpRoutes", () => {
   });
 
   it("rejects malformed JSON token request bodies as invalid requests", async () => {
-    const response = await app.request("http://localhost/api/mcp/token", {
+    const response = await app.request("http://localhost/mcp/token", {
       method: "POST",
       headers: {
         "content-type": "application/json",
@@ -240,7 +240,7 @@ describe("mcpRoutes", () => {
   it("disables MCP OAuth endpoints when MCP auth is disabled", async () => {
     setMcpAuthEnabled(false);
 
-    const authorizeUrl = new URL("http://localhost/api/mcp/authorize");
+    const authorizeUrl = new URL("http://localhost/mcp/authorize");
     authorizeUrl.searchParams.set("response_type", "code");
     authorizeUrl.searchParams.set("client_id", "test-client");
     authorizeUrl.searchParams.set("redirect_uri", "http://localhost:8787/callback");
@@ -248,7 +248,7 @@ describe("mcpRoutes", () => {
     authorizeUrl.searchParams.set("code_challenge_method", "S256");
 
     const responses = await Promise.all([
-      app.request("http://localhost/api/mcp/register", {
+      app.request("http://localhost/mcp/register", {
         method: "POST",
         headers: {
           "content-type": "application/json",
@@ -258,7 +258,7 @@ describe("mcpRoutes", () => {
         }),
       }),
       app.request(authorizeUrl),
-      app.request("http://localhost/api/mcp/token", {
+      app.request("http://localhost/mcp/token", {
         method: "POST",
         headers: {
           "content-type": "application/x-www-form-urlencoded",
@@ -277,7 +277,7 @@ describe("mcpRoutes", () => {
   });
 
   it("persists dynamic client registrations for redirect URI validation", async () => {
-    const response = await app.request("http://localhost/api/mcp/register", {
+    const response = await app.request("http://localhost/mcp/register", {
       method: "POST",
       headers: {
         "content-type": "application/json",
@@ -308,7 +308,7 @@ describe("mcpRoutes", () => {
   });
 
   it("rejects authorize requests with unregistered redirect URIs", async () => {
-    const registerResponse = await app.request("http://localhost/api/mcp/register", {
+    const registerResponse = await app.request("http://localhost/mcp/register", {
       method: "POST",
       headers: {
         "content-type": "application/json",
@@ -318,7 +318,7 @@ describe("mcpRoutes", () => {
       }),
     });
     const { client_id: clientId } = await registerResponse.json();
-    const authorizeUrl = new URL("http://localhost/api/mcp/authorize");
+    const authorizeUrl = new URL("http://localhost/mcp/authorize");
     authorizeUrl.searchParams.set("response_type", "code");
     authorizeUrl.searchParams.set("client_id", clientId);
     authorizeUrl.searchParams.set("redirect_uri", "https://attacker.example/callback");
@@ -329,6 +329,12 @@ describe("mcpRoutes", () => {
 
     expect(response.status).toBe(400);
     await expect(response.json()).resolves.toEqual({ error: "invalid_client" });
+  });
+
+  it("does not expose MCP through the API alias", async () => {
+    const response = await apiApp.request("http://localhost/api/mcp/sse");
+
+    expect(response.status).toBe(404);
   });
 
   it("exchanges a PKCE-bound authorization code for persisted MCP tokens", async () => {
@@ -428,7 +434,7 @@ describe("mcpRoutes", () => {
       scope: "mcp",
     });
 
-    const callbackUrl = new URL("http://localhost/api/mcp/callback");
+    const callbackUrl = new URL("http://localhost/mcp/callback");
     callbackUrl.searchParams.set("response_type", "code");
     callbackUrl.searchParams.set("client_id", "test-client");
     callbackUrl.searchParams.set("redirect_uri", "http://localhost:8787/callback");
@@ -445,7 +451,7 @@ describe("mcpRoutes", () => {
 
     expect(response.status).toBe(302);
     const location = response.headers.get("location");
-    expect(location).toContain("/api/mcp/consent");
+    expect(location).toContain("/mcp/consent");
     expect(location).not.toContain("code=");
   });
 
@@ -486,7 +492,7 @@ describe("mcpRoutes", () => {
       organizationId: auth.organization.localOrganizationId,
     });
 
-    const callbackUrl = new URL("http://localhost/api/mcp/callback");
+    const callbackUrl = new URL("http://localhost/mcp/callback");
     callbackUrl.searchParams.set("response_type", "code");
     callbackUrl.searchParams.set("client_id", "test-client");
     callbackUrl.searchParams.set("redirect_uri", "http://localhost:8787/callback");

@@ -32,7 +32,6 @@ import { createCrowdinAppRoutes } from "./routes/crowdin-app/crowdin-app.route";
 import { createContentfulWebhookRoutes } from "./routes/contentful-webhook/contentful-webhook.route";
 import { createGithubWebhookRoutes } from "./routes/github-webhook/github-webhook.route";
 import { healthRoutes } from "./routes/health";
-import { createMcpRoutes } from "./routes/mcp/mcp.route";
 import { createPublicMediaRoutes } from "./routes/public-media/public-media.route";
 import { createResendWebhookRoutes } from "./routes/resend-webhook/resend-webhook.route";
 import { createSlackWebhookRoutes } from "./routes/slack-webhook/slack-webhook.route";
@@ -126,7 +125,6 @@ export type AppType = typeof app;
 
 function createInternalRoutes() {
   return new Hono()
-    .route("/", createMcpRoutes())
     .route("/health", healthRoutes)
     .route(
       "/cron/github-repository-automation-dispatch",
