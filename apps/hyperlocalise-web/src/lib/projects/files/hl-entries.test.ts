@@ -40,8 +40,8 @@ describe("entriesFromHlOutput", () => {
   it("maps enriched hl entries output with maxLength metadata", () => {
     expect(
       entriesFromHlOutput({
-        "cta": { text: "Continue", maxLength: 24 },
-        "plain": "No limit",
+        cta: { text: "Continue", maxLength: 24 },
+        plain: "No limit",
       }),
     ).toEqual([
       {
