@@ -192,9 +192,10 @@ func TestDataset_Validate_ContextAndReferencePrecedence(t *testing.T) {
 
 	var frCase, deCase Case
 	for _, c := range ds.Cases {
-		if c.TargetLocale == "fr-FR" {
+		switch c.TargetLocale {
+		case "fr-FR":
 			frCase = c
-		} else if c.TargetLocale == "de-DE" {
+		case "de-DE":
 			deCase = c
 		}
 	}
