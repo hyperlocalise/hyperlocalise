@@ -449,11 +449,24 @@ func trimRightSpaceTab(s string) string {
 }
 
 func isBlankSubtitleLine(s string) bool {
+	// ASCII whitespace stays on a byte loop. Non-ASCII bytes fall back to
+	// unicode.IsSpace so form feed, NBSP, and other TrimSpace separators
+	// still split cues instead of being absorbed as payload text.
 	for i := 0; i < len(s); i++ {
 		c := s[i]
-		if c != ' ' && c != '\t' && c != '\r' && c != '\n' {
+		switch c {
+		case ' ', '\t', '\n', '\r', '\v', '\f':
+			continue
+		}
+		if c < utf8.RuneSelf {
 			return false
 		}
+		for _, r := range s[i:] {
+			if !unicode.IsSpace(r) {
+				return false
+			}
+		}
+		return true
 	}
 	return true
 }

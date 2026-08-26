@@ -254,6 +254,106 @@ func TestSubtitleCueStructureEqualComparesTimingsNotCounts(t *testing.T) {
 	}
 }
 
+func TestIsBlankSubtitleLineMatchesTrimSpace(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name string
+		in   string
+		want bool
+	}{
+		{name: "empty", in: "", want: true},
+		{name: "spaces", in: "   ", want: true},
+		{name: "tabs", in: "\t\t", want: true},
+		{name: "crlf", in: "\r\n", want: true},
+		{name: "verticalTab", in: "\v", want: true},
+		{name: "formFeed", in: "\f", want: true},
+		{name: "mixedAsciiWhitespace", in: " \t\v\f\r\n", want: true},
+		{name: "nbsp", in: "\u00a0", want: true},
+		{name: "nextLine", in: "\u0085", want: true},
+		{name: "emSpace", in: "\u2003", want: true},
+		{name: "ideographicSpace", in: "\u3000", want: true},
+		{name: "nbspSurroundedByAscii", in: " \u00a0\t", want: true},
+		{name: "text", in: "Hello", want: false},
+		{name: "textWithLeadingSpace", in: " Hello", want: false},
+		{name: "nbspThenText", in: "\u00a0Hello", want: false},
+		{name: "formFeedThenText", in: "\fHello", want: false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			if got := isBlankSubtitleLine(tc.in); got != tc.want {
+				t.Fatalf("isBlankSubtitleLine(%q) = %v, want %v", tc.in, got, tc.want)
+			}
+			if got := strings.TrimSpace(tc.in) == ""; got != tc.want {
+				t.Fatalf("strings.TrimSpace(%q) == \"\" = %v, want %v", tc.in, got, tc.want)
+			}
+		})
+	}
+}
+
+func TestSubtitleParserSplitsCuesOnUnicodeWhitespaceSeparators(t *testing.T) {
+	t.Parallel()
+
+	separators := []struct {
+		name string
+		sep  string
+	}{
+		{name: "formFeed", sep: "\f"},
+		{name: "verticalTab", sep: "\v"},
+		{name: "nbsp", sep: "\u00a0"},
+		{name: "nextLine", sep: "\u0085"},
+		{name: "ideographicSpace", sep: "\u3000"},
+	}
+
+	for _, tc := range separators {
+		t.Run("srt/"+tc.name, func(t *testing.T) {
+			t.Parallel()
+			content := []byte("1\n00:00:00,000 --> 00:00:01,000\nHello\n" + tc.sep + "\n2\n00:00:01,000 --> 00:00:02,000\nWorld\n")
+			values, err := (SubtitleParser{Kind: SubtitleSRT}).Parse(content)
+			if err != nil {
+				t.Fatalf("parse srt: %v", err)
+			}
+			want := map[string]string{
+				"srt.0001": "Hello",
+				"srt.0002": "World",
+			}
+			if !reflect.DeepEqual(values, want) {
+				t.Fatalf("parsed values mismatch\n got: %#v\nwant: %#v", values, want)
+			}
+		})
+		t.Run("vtt/"+tc.name, func(t *testing.T) {
+			t.Parallel()
+			content := []byte("WEBVTT\n\n00:00:00.000 --> 00:00:01.000\nHello\n" + tc.sep + "\n00:00:01.000 --> 00:00:02.000\nWorld\n")
+			values, err := (SubtitleParser{Kind: SubtitleVTT}).Parse(content)
+			if err != nil {
+				t.Fatalf("parse vtt: %v", err)
+			}
+			want := map[string]string{
+				"vtt.0001": "Hello",
+				"vtt.0002": "World",
+			}
+			if !reflect.DeepEqual(values, want) {
+				t.Fatalf("parsed values mismatch\n got: %#v\nwant: %#v", values, want)
+			}
+		})
+	}
+}
+
+func TestMarshalSubtitlesDropsUnicodeWhitespaceCueLines(t *testing.T) {
+	t.Parallel()
+
+	out, err := MarshalSubtitles([]byte("1\n00:00:00,000 --> 00:00:01,000\nHello\n\n"), map[string]string{
+		"srt.0001": "Bonjour\n\u00a0\nle monde\n\f\n",
+	}, SubtitleSRT)
+	if err != nil {
+		t.Fatalf("marshal srt: %v", err)
+	}
+	if string(out) != "1\n00:00:00,000 --> 00:00:01,000\nBonjour\nle monde\n\n" {
+		t.Fatalf("unexpected marshal output: %q", string(out))
+	}
+}
+
 func TestIsAllDecimalDigitsAcceptsUnicodeNd(t *testing.T) {
 	t.Parallel()
 
