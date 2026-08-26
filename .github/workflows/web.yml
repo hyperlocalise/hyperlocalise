@@ -113,6 +113,15 @@ jobs:
       - name: Migrate hyperlocalise-web database
         run: vp run db:migrate
 
+      - name: Cache Vitest
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+        with:
+          path: apps/hyperlocalise-web/.cache/vitest
+          key: ${{ runner.os }}-vitest-${{ hashFiles('apps/hyperlocalise-web/pnpm-lock.yaml', 'apps/hyperlocalise-web/vite.config.ts') }}-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-vitest-${{ hashFiles('apps/hyperlocalise-web/pnpm-lock.yaml', 'apps/hyperlocalise-web/vite.config.ts') }}-
+            ${{ runner.os }}-vitest-
+
       - name: Test hyperlocalise-web
         run: vp test
 

@@ -59,9 +59,14 @@ export default defineConfig({
   },
   test: {
     environment: "node",
+    silent: "passed-only",
     setupFiles: ["./src/test/setup-dom.ts"],
     include: ["src/**/*.test.{ts,tsx}"],
     exclude: ["src/e2e/**"],
+    experimental: {
+      fsModuleCache: true,
+      fsModuleCachePath: ".cache/vitest",
+    },
     server: {
       deps: {
         inline: ["@workos-inc/authkit-nextjs"],
