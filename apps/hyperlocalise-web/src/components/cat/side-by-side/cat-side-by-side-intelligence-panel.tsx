@@ -169,11 +169,11 @@ export function CatSideBySideIntelligencePanel({
       showVisualContext={showVisualContext}
       showMaxLengthEditor={showMaxLengthEditor}
       isMaxLengthSaving={isMaxLengthSaving}
-      canEditTranslations={canEditTranslations}
+      canEditTranslations={canEditTranslations && !segment.isLocked}
       canLookupFreshContext={canLookupFreshContext}
       onRefreshContext={onRefreshContext}
       onUseTmMatch={onUseTmMatch}
-      onSetMaxLength={onSetMaxLength}
+      onSetMaxLength={segment.isLocked ? undefined : onSetMaxLength}
     />
   );
   const commentsPanel = (

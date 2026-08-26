@@ -511,9 +511,14 @@ export const catIntelligencePanelMessages = defineMessages({
     description: "Button label to clear a native segment max length",
   },
   maxLengthInvalid: {
-    defaultMessage: "Enter a positive whole number.",
-    id: "lTD082Dlt5",
+    defaultMessage: "Enter a whole number from 1 to 100,000.",
+    id: "AWCVIFfr/k",
     description: "Validation error when the max length input is not a positive integer",
+  },
+  maxLengthSaveFailed: {
+    defaultMessage: "Could not save the character limit. Try again.",
+    id: "mvgKs5lzcT",
+    description: "Error shown when saving a native segment max length fails",
   },
   maxLengthCurrent: {
     defaultMessage: "Limit: {maxLength} characters",

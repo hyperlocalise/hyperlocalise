@@ -53,18 +53,19 @@ export async function translationFileImportWorkflow(event: TranslationFileImport
     await prepareSourceIngestSandboxStep(sandboxId);
     await writeSourceIngestFileStep(sandboxId, inputFilename, content);
 
-    const entries = await extractTranslationImportEntriesStep({
+    const extractedEntries = await extractTranslationImportEntriesStep({
       sandboxId,
       filePath: inputFilename,
       targetLocale: event.targetLocale,
     });
+    const { hlEntriesPayloadToStringMap } = await import("@/lib/projects/files/hl-entries");
 
     const result = await importTranslationsFromEntriesStep({
       organizationId: event.organizationId,
       projectId: event.projectId,
       sourcePath: event.sourcePath,
       targetLocale: event.targetLocale,
-      entries,
+      entries: hlEntriesPayloadToStringMap(extractedEntries),
       actorUserId: event.actorUserId ?? null,
     });
 

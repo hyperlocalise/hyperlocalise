@@ -17,6 +17,7 @@ import {
   validateGlossaryTermsInTranslation,
 } from "@/lib/glossary/validate-glossary-terms-in-translation";
 import { mergeTranslationPrefills } from "@/lib/projects/translations/should-retry-same-as-source-prefill";
+import { hlEntriesPayloadToStringMap } from "@/lib/projects/files/hl-entries";
 import {
   inferSupportedFileTranslationFileFormat,
   isImageTranslationFileFormat,
@@ -419,7 +420,7 @@ async function extractEntriesStep(
       `failed to extract entries: exitCode=${result.exitCode} kind=${classifyCliFailureKind(result.output)}`,
     );
   }
-  return result.entries;
+  return hlEntriesPayloadToStringMap(result.entries);
 }
 async function readOutputStep(sandboxId: string, outputFile: string, _attempt: 1 | 2) {
   "use step";

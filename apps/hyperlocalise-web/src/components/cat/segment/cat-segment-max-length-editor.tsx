@@ -12,7 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { FormattedMessage, useIntl } from "react-intl";
 
 import { Button } from "@/components/ui/button";
@@ -21,14 +21,20 @@ import { Spinner } from "@/components/ui/spinner";
 
 import { catIntelligencePanelMessages } from "@/components/cat/shared/cat.messages";
 
-function parseMaxLengthDraft(value: string): number | null {
+const MAX_SEGMENT_LENGTH = 100_000;
+
+export function parseMaxLengthDraft(value: string): number | null {
   const trimmed = value.trim();
   if (trimmed.length === 0) {
     return null;
   }
 
-  const parsed = Number.parseInt(trimmed, 10);
-  if (!Number.isFinite(parsed) || parsed <= 0) {
+  if (!/^\d+$/.test(trimmed)) {
+    return null;
+  }
+
+  const parsed = Number(trimmed);
+  if (!Number.isSafeInteger(parsed) || parsed < 1 || parsed > MAX_SEGMENT_LENGTH) {
     return null;
   }
 
@@ -47,6 +53,7 @@ export function CatSegmentMaxLengthEditor({
   onSave: (maxLength: number | null) => void | Promise<void>;
 }) {
   const intl = useIntl();
+  const inputRef = useRef<HTMLInputElement>(null);
   const [draft, setDraft] = useState(maxLength != null ? String(maxLength) : "");
   const [error, setError] = useState<string | null>(null);
 
@@ -55,21 +62,57 @@ export function CatSegmentMaxLengthEditor({
     setError(null);
   }, [maxLength]);
 
-  async function handleSave() {
+  function validateDraft(): number | null | undefined {
     const trimmed = draft.trim();
-    if (trimmed.length > 0 && parseMaxLengthDraft(trimmed) == null) {
+    if (trimmed.length === 0) {
+      return null;
+    }
+
+    const input = inputRef.current;
+    if (input && !input.checkValidity()) {
       setError(intl.formatMessage(catIntelligencePanelMessages.maxLengthInvalid));
+      return undefined;
+    }
+
+    const parsed = parseMaxLengthDraft(trimmed);
+    if (parsed == null) {
+      setError(intl.formatMessage(catIntelligencePanelMessages.maxLengthInvalid));
+      return undefined;
+    }
+
+    return parsed;
+  }
+
+  async function handleSave() {
+    const parsed = validateDraft();
+    if (parsed === undefined) {
       return;
     }
 
     setError(null);
-    await onSave(parseMaxLengthDraft(trimmed));
+    try {
+      await onSave(parsed);
+    } catch (saveError) {
+      setError(
+        saveError instanceof Error
+          ? saveError.message
+          : intl.formatMessage(catIntelligencePanelMessages.maxLengthSaveFailed),
+      );
+    }
   }
 
   async function handleClear() {
     setDraft("");
     setError(null);
-    await onSave(null);
+    try {
+      await onSave(null);
+    } catch (saveError) {
+      setError(
+        saveError instanceof Error
+          ? saveError.message
+          : intl.formatMessage(catIntelligencePanelMessages.maxLengthSaveFailed),
+      );
+    }
   }
 
   const parsedDraft = parseMaxLengthDraft(draft);
@@ -97,9 +140,10 @@ export function CatSegmentMaxLengthEditor({
       </p>
       <div className="flex flex-wrap items-center gap-2">
         <Input
+          ref={inputRef}
           type="number"
           min={1}
-          max={100_000}
+          max={MAX_SEGMENT_LENGTH}
           inputMode="numeric"
           value={draft}
           placeholder={intl.formatMessage(catIntelligencePanelMessages.maxLengthPlaceholder)}

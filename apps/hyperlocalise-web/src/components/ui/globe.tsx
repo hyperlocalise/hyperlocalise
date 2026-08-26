@@ -123,6 +123,9 @@ export function Globe({ className }: { className?: string }) {
     canvas.addEventListener("pointerup", onPointerUp);
     canvas.addEventListener("pointerout", onPointerUp);
     canvas.addEventListener("pointermove", onPointerMove);
+    canvas.addEventListener("touchstart", onTouchStart, { passive: true });
+    canvas.addEventListener("touchend", onTouchEnd, { passive: true });
+    canvas.addEventListener("touchmove", onTouchMove, { passive: true });
 
     return () => {
       cancelAnimationFrame(animationFrame);
@@ -131,6 +134,9 @@ export function Globe({ className }: { className?: string }) {
       canvas.removeEventListener("pointerup", onPointerUp);
       canvas.removeEventListener("pointerout", onPointerUp);
       canvas.removeEventListener("pointermove", onPointerMove);
+      canvas.removeEventListener("touchstart", onTouchStart);
+      canvas.removeEventListener("touchend", onTouchEnd);
+      canvas.removeEventListener("touchmove", onTouchMove);
     };
   }, [isDark]);
 
