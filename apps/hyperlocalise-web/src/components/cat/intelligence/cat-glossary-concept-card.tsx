@@ -39,7 +39,7 @@ type CatGlossaryTermStatus = "preferred" | "admitted" | "draft" | "not_recommend
 
 function normalizedTermStatus(term: CatGlossaryConceptTerm): CatGlossaryTermStatus {
   const normalized = term.status?.trim().toLowerCase().replaceAll(" ", "_");
-  if (term.forbidden || normalized === "forbidden" || normalized === "not_recommended") {
+  if (normalized === "forbidden" || normalized === "not_recommended") {
     return "not_recommended";
   }
   if (term.preferred || normalized === "preferred") {

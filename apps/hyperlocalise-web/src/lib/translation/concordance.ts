@@ -10,11 +10,11 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { and, desc, eq, inArray, isNotNull, sql } from "drizzle-orm";
-import { alias } from "drizzle-orm/pg-core";
+import { and, desc, eq, inArray, or, sql } from "drizzle-orm";
 
 import { db, schema } from "@/lib/database";
 import { createLogger } from "@/lib/log";
+import { loadNativeConceptConcordanceMatches } from "@/lib/glossary/concordance-native-concept";
 import { sourceContainsTerm } from "@/lib/glossary/validate-glossary-terms-in-translation";
 import {
   decryptProviderCredential,
@@ -43,8 +43,6 @@ const glossaryLogger = createLogger("glossary-matches");
 const memoryLogger = createLogger("translation-memory-matches");
 
 const maxContextSearchTerms = 50;
-const concordanceSourceTerms = alias(schema.glossaryTerms, "concordance_source_terms");
-const concordanceTargetTerms = alias(schema.glossaryTerms, "concordance_target_terms");
 
 function buildGlossaryTsQuery(input: string): string | null {
   const tsQuery = input
@@ -210,6 +208,18 @@ type AttachedGlossaryRecord = {
   termCapabilities: Record<string, unknown>;
 };
 
+/** Native projects use only native glossaries; external projects may use any attached glossary. */
+export function shouldIncludeAttachedGlossary(
+  projectSource: (typeof schema.projectSourceEnum.enumValues)[number],
+  glossarySource: AttachedGlossaryRecord["source"],
+): boolean {
+  if (projectSource === "native") {
+    return glossarySource === "native";
+  }
+
+  return true;
+}
+
 function supportsLiveGlossarySearch(glossary: AttachedGlossaryRecord): boolean {
   if (glossary.source !== "external_tms" || !glossary.externalProviderKind) {
     return false;
@@ -312,143 +322,90 @@ class GlossaryConcordancePipeline extends ConcordancePipeline<
       })
       .from(schema.projectGlossaries)
       .innerJoin(schema.glossaries, eq(schema.projectGlossaries.glossaryId, schema.glossaries.id))
+      .innerJoin(schema.projects, eq(schema.projectGlossaries.projectId, schema.projects.id))
       .where(
         and(
           eq(schema.projectGlossaries.projectId, projectId),
           eq(schema.glossaries.status, "active"),
+          or(eq(schema.projects.source, "external_tms"), eq(schema.glossaries.source, "native")),
         ),
       );
   }
 
   protected async loadSynced(query: ConcordanceQuery, attached: AttachedGlossaryRecord[]) {
-    const glossaryIds = attached.map((glossary) => glossary.id);
     const tsQuery = buildGlossaryTsQuery(query.sourceText);
     if (!tsQuery) {
       return [];
     }
 
     const limit = query.limit ?? 20;
-    const [dbMatches, conceptDbMatches] = await Promise.all([
-      db
-        .select({
-          id: schema.glossaryTerms.id,
-          glossaryId: schema.glossaryTerms.glossaryId,
-          glossaryName: schema.glossaries.name,
-          sourceTerm: schema.glossaryTerms.sourceTerm,
-          targetTerm: schema.glossaryTerms.targetTerm,
-          sourceLocale: schema.glossaries.sourceLocale,
-          targetLocale: sql<string>`${schema.glossaries.targetLocale}`,
-          description: schema.glossaryTerms.description,
-          forbidden: schema.glossaryTerms.forbidden,
-          caseSensitive: schema.glossaryTerms.caseSensitive,
-          externalKey: sql<string | null>`null`,
-          externalProviderKind: schema.glossaries.externalProviderKind,
-          externalGlossaryId: schema.glossaries.externalGlossaryId,
-          externalGlossaryUrl: schema.glossaries.externalUrl,
-          conceptId: sql<string | null>`null`,
-          conceptPrimaryTerm: sql<string | null>`null`,
-          conceptSubject: sql<string | null>`null`,
-          conceptDefinition: sql<string | null>`null`,
-          conceptUrl: sql<string | null>`null`,
-          sourceTermId: sql<string | null>`null`,
-          targetTermId: sql<string | null>`null`,
-          sourcePartOfSpeech: sql<string | null>`null`,
-          targetPartOfSpeech: sql<string | null>`null`,
-          sourceTermType: sql<string | null>`null`,
-          targetTermType: sql<string | null>`null`,
-          sourceGender: sql<string | null>`null`,
-          targetGender: sql<string | null>`null`,
-          sourceStatus: sql<string | null>`null`,
-          targetStatus: sql<string | null>`null`,
-          targetForbidden: sql<boolean | null>`null`,
-          rank: sql<number>`ts_rank(${schema.glossaryTerms.searchVector}, to_tsquery('simple', ${tsQuery}))`.as(
-            "rank",
-          ),
-        })
-        .from(schema.glossaryTerms)
-        .innerJoin(schema.glossaries, eq(schema.glossaryTerms.glossaryId, schema.glossaries.id))
-        .where(
-          and(
-            inArray(schema.glossaryTerms.glossaryId, glossaryIds),
-            eq(schema.glossaries.sourceLocale, query.sourceLocale),
-            inArray(schema.glossaries.targetLocale, query.targetLocales),
-            eq(schema.glossaries.status, "active"),
-            eq(schema.glossaryTerms.reviewStatus, "approved"),
-            sql`${schema.glossaryTerms.searchVector} @@ to_tsquery('simple', ${tsQuery})`,
-          ),
-        )
-        .orderBy(desc(sql`rank`))
-        .limit(limit),
-      db
-        .select({
-          id: concordanceTargetTerms.id,
-          glossaryId: concordanceSourceTerms.glossaryId,
-          glossaryName: schema.glossaries.name,
-          sourceTerm: sql<string>`${concordanceSourceTerms.term}`,
-          targetTerm: sql<string>`${concordanceTargetTerms.term}`,
-          sourceLocale: sql<string>`${concordanceSourceTerms.locale}`,
-          targetLocale: sql<string>`${concordanceTargetTerms.locale}`,
-          description: concordanceSourceTerms.description,
-          forbidden: concordanceSourceTerms.forbidden,
-          caseSensitive: concordanceSourceTerms.caseSensitive,
-          externalKey: sql<string | null>`null`,
-          externalProviderKind: schema.glossaries.externalProviderKind,
-          externalGlossaryId: schema.glossaries.externalGlossaryId,
-          externalGlossaryUrl: schema.glossaries.externalUrl,
-          conceptId: concordanceSourceTerms.conceptId,
-          conceptPrimaryTerm: schema.glossaryConcepts.primaryTerm,
-          conceptSubject: schema.glossaryConcepts.subject,
-          conceptDefinition: schema.glossaryConcepts.definition,
-          conceptUrl: schema.glossaryConcepts.url,
-          sourceTermId: concordanceSourceTerms.id,
-          targetTermId: concordanceTargetTerms.id,
-          sourcePartOfSpeech: concordanceSourceTerms.partOfSpeech,
-          targetPartOfSpeech: concordanceTargetTerms.partOfSpeech,
-          sourceTermType: concordanceSourceTerms.termType,
-          targetTermType: concordanceTargetTerms.termType,
-          sourceGender: concordanceSourceTerms.gender,
-          targetGender: concordanceTargetTerms.gender,
-          sourceStatus: concordanceSourceTerms.status,
-          targetStatus: concordanceTargetTerms.status,
-          targetForbidden: concordanceTargetTerms.forbidden,
-          rank: sql<number>`ts_rank(${concordanceSourceTerms.searchVector}, to_tsquery('simple', ${tsQuery}))`.as(
-            "rank",
-          ),
-        })
-        .from(concordanceSourceTerms)
-        .innerJoin(
-          concordanceTargetTerms,
-          and(
-            eq(concordanceSourceTerms.glossaryId, concordanceTargetTerms.glossaryId),
-            eq(concordanceSourceTerms.conceptId, concordanceTargetTerms.conceptId),
-          ),
-        )
-        .innerJoin(schema.glossaries, eq(concordanceSourceTerms.glossaryId, schema.glossaries.id))
-        .leftJoin(
-          schema.glossaryConcepts,
-          eq(concordanceSourceTerms.conceptId, schema.glossaryConcepts.id),
-        )
-        .where(
-          and(
-            inArray(concordanceSourceTerms.glossaryId, glossaryIds),
-            eq(schema.glossaries.source, "native"),
-            eq(schema.glossaries.sourceLocale, query.sourceLocale),
-            eq(schema.glossaries.status, "active"),
-            eq(concordanceSourceTerms.locale, query.sourceLocale),
-            inArray(concordanceTargetTerms.locale, query.targetLocales),
-            isNotNull(concordanceSourceTerms.conceptId),
-            isNotNull(concordanceSourceTerms.term),
-            isNotNull(concordanceTargetTerms.term),
-            eq(concordanceSourceTerms.reviewStatus, "approved"),
-            eq(concordanceTargetTerms.reviewStatus, "approved"),
-            sql`${concordanceSourceTerms.searchVector} @@ to_tsquery('simple', ${tsQuery})`,
-          ),
-        )
-        .orderBy(desc(sql`rank`))
-        .limit(limit),
+    const nativeGlossaryIds = attached
+      .filter((glossary) => glossary.source === "native")
+      .map((glossary) => glossary.id);
+    const externalGlossaryIds = attached
+      .filter((glossary) => glossary.source === "external_tms")
+      .map((glossary) => glossary.id);
+
+    const [externalMatches, nativeMatches] = await Promise.all([
+      externalGlossaryIds.length > 0
+        ? this.loadFlatExternalSyncedMatches(query, externalGlossaryIds, tsQuery, limit)
+        : Promise.resolve([]),
+      nativeGlossaryIds.length > 0
+        ? loadNativeConceptConcordanceMatches({
+            glossaryIds: nativeGlossaryIds,
+            sourceLocale: query.sourceLocale,
+            targetLocales: query.targetLocales,
+            sourceText: query.sourceText,
+            tsQuery,
+            limit,
+          })
+        : Promise.resolve([]),
     ]);
 
-    return [...dbMatches, ...conceptDbMatches]
+    return [...externalMatches, ...nativeMatches];
+  }
+
+  private async loadFlatExternalSyncedMatches(
+    query: ConcordanceQuery,
+    glossaryIds: string[],
+    tsQuery: string,
+    limit: number,
+  ) {
+    const dbMatches = await db
+      .select({
+        id: schema.glossaryTerms.id,
+        glossaryId: schema.glossaryTerms.glossaryId,
+        glossaryName: schema.glossaries.name,
+        sourceTerm: schema.glossaryTerms.sourceTerm,
+        targetTerm: schema.glossaryTerms.targetTerm,
+        sourceLocale: schema.glossaries.sourceLocale,
+        targetLocale: sql<string>`${schema.glossaries.targetLocale}`,
+        description: schema.glossaryTerms.description,
+        forbidden: schema.glossaryTerms.forbidden,
+        caseSensitive: schema.glossaryTerms.caseSensitive,
+        externalProviderKind: schema.glossaries.externalProviderKind,
+        externalGlossaryId: schema.glossaries.externalGlossaryId,
+        rank: sql<number>`ts_rank(${schema.glossaryTerms.searchVector}, to_tsquery('simple', ${tsQuery}))`.as(
+          "rank",
+        ),
+      })
+      .from(schema.glossaryTerms)
+      .innerJoin(schema.glossaries, eq(schema.glossaryTerms.glossaryId, schema.glossaries.id))
+      .where(
+        and(
+          inArray(schema.glossaryTerms.glossaryId, glossaryIds),
+          eq(schema.glossaries.source, "external_tms"),
+          eq(schema.glossaries.sourceLocale, query.sourceLocale),
+          inArray(schema.glossaries.targetLocale, query.targetLocales),
+          eq(schema.glossaries.status, "active"),
+          eq(schema.glossaryTerms.reviewStatus, "approved"),
+          sql`${schema.glossaryTerms.searchVector} @@ to_tsquery('simple', ${tsQuery})`,
+        ),
+      )
+      .orderBy(desc(sql`rank`))
+      .limit(limit);
+
+    return dbMatches
       .filter((entry) =>
         sourceContainsTerm(query.sourceText, {
           sourceTerm: entry.sourceTerm,
@@ -470,42 +427,7 @@ class GlossaryConcordancePipeline extends ConcordancePipeline<
           rank: Number(entry.rank) || 1,
           providerKind: entry.externalProviderKind,
           externalResourceId: entry.externalGlossaryId,
-          externalTermId: entry.externalKey,
-          concept: entry.conceptId
-            ? {
-                id: entry.conceptId,
-                primaryTerm: entry.conceptPrimaryTerm ?? entry.sourceTerm,
-                subject: entry.conceptSubject,
-                definition: entry.conceptDefinition,
-                glossaryUrl: entry.externalGlossaryUrl ?? entry.conceptUrl,
-                sourceTerms: [
-                  {
-                    id: entry.sourceTermId ?? `${entry.id}:source`,
-                    locale: entry.sourceLocale,
-                    text: entry.sourceTerm,
-                    status: entry.sourceStatus,
-                    forbidden: entry.forbidden,
-                    preferred: !entry.forbidden,
-                    partOfSpeech: entry.sourcePartOfSpeech,
-                    termType: entry.sourceTermType,
-                    gender: entry.sourceGender,
-                  },
-                ],
-                targetTerms: [
-                  {
-                    id: entry.targetTermId ?? `${entry.id}:target`,
-                    locale: entry.targetLocale,
-                    text: entry.targetTerm,
-                    status: entry.targetStatus,
-                    forbidden: entry.targetForbidden ?? false,
-                    preferred: !(entry.targetForbidden ?? false),
-                    partOfSpeech: entry.targetPartOfSpeech,
-                    termType: entry.targetTermType,
-                    gender: entry.targetGender,
-                  },
-                ],
-              }
-            : undefined,
+          externalTermId: null,
         }),
       );
   }

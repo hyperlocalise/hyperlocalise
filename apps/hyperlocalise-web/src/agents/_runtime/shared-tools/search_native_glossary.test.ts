@@ -20,13 +20,13 @@ const {
   toolCanAccessProjectMock,
   toolProjectLinkedGlossaryWhereMock,
   buildNativeGlossaryTsQueryMock,
-  sourceContainsTermMock,
+  loadNativeConceptConcordanceMatchesMock,
   dbSelectMock,
 } = vi.hoisted(() => ({
   toolCanAccessProjectMock: vi.fn(),
   toolProjectLinkedGlossaryWhereMock: vi.fn(),
   buildNativeGlossaryTsQueryMock: vi.fn(),
-  sourceContainsTermMock: vi.fn(),
+  loadNativeConceptConcordanceMatchesMock: vi.fn(),
   dbSelectMock: vi.fn(),
 }));
 
@@ -40,8 +40,9 @@ vi.mock("./build-native-glossary-tsquery", () => ({
   buildNativeGlossaryTsQuery: (...args: unknown[]) => buildNativeGlossaryTsQueryMock(...args),
 }));
 
-vi.mock("@/lib/glossary/validate-glossary-terms-in-translation", () => ({
-  sourceContainsTerm: (...args: unknown[]) => sourceContainsTermMock(...args),
+vi.mock("@/lib/glossary/concordance-native-concept", () => ({
+  loadNativeConceptConcordanceMatches: (...args: unknown[]) =>
+    loadNativeConceptConcordanceMatchesMock(...args),
 }));
 
 vi.mock("@/lib/database", () => ({
@@ -55,23 +56,7 @@ vi.mock("@/lib/database", () => ({
       id: "glossaries.id",
       source: "glossaries.source",
       sourceLocale: "glossaries.source_locale",
-      targetLocale: "glossaries.target_locale",
       status: "glossaries.status",
-      name: "glossaries.name",
-    },
-    glossaryTerms: {
-      id: "glossary_terms.id",
-      term: "glossary_terms.term",
-      sourceTerm: "glossary_terms.source_term",
-      targetTerm: "glossary_terms.target_term",
-      description: "glossary_terms.description",
-      forbidden: "glossary_terms.forbidden",
-      caseSensitive: "glossary_terms.case_sensitive",
-      glossaryId: "glossary_terms.glossary_id",
-      conceptId: "glossary_terms.concept_id",
-      locale: "glossary_terms.locale",
-      searchVector: "glossary_terms.search_vector",
-      reviewStatus: "glossary_terms.review_status",
     },
   },
   db: {},
@@ -82,14 +67,10 @@ function createSelectBuilder(rows: unknown[]) {
     from: ReturnType<typeof vi.fn>;
     innerJoin: ReturnType<typeof vi.fn>;
     where: ReturnType<typeof vi.fn>;
-    orderBy: ReturnType<typeof vi.fn>;
-    limit: ReturnType<typeof vi.fn>;
   };
   builder.from = vi.fn(() => builder);
   builder.innerJoin = vi.fn(() => builder);
-  builder.where = vi.fn(() => builder);
-  builder.orderBy = vi.fn(() => builder);
-  builder.limit = vi.fn(async () => rows);
+  builder.where = vi.fn(async () => rows);
   return builder;
 }
 
@@ -115,13 +96,13 @@ describe("createSearchNativeGlossaryTool", () => {
     toolCanAccessProjectMock.mockReset();
     toolProjectLinkedGlossaryWhereMock.mockReset();
     buildNativeGlossaryTsQueryMock.mockReset();
-    sourceContainsTermMock.mockReset();
+    loadNativeConceptConcordanceMatchesMock.mockReset();
     dbSelectMock.mockReset();
 
     toolCanAccessProjectMock.mockResolvedValue({ id: "project-1" });
     toolProjectLinkedGlossaryWhereMock.mockResolvedValue("linked-glossary-where");
     buildNativeGlossaryTsQueryMock.mockReturnValue("login:*");
-    sourceContainsTermMock.mockReturnValue(true);
+    loadNativeConceptConcordanceMatchesMock.mockResolvedValue([]);
   });
 
   it("fails closed when glossary search is disabled", async () => {
@@ -144,7 +125,7 @@ describe("createSearchNativeGlossaryTool", () => {
       error: "Glossary search is not enabled for this workspace.",
     });
     expect(buildNativeGlossaryTsQueryMock).not.toHaveBeenCalled();
-    expect(dbSelectMock).not.toHaveBeenCalled();
+    expect(loadNativeConceptConcordanceMatchesMock).not.toHaveBeenCalled();
   });
 
   it("rejects project-scoped search when the caller cannot access the project", async () => {
@@ -167,7 +148,7 @@ describe("createSearchNativeGlossaryTool", () => {
       success: false,
       error: "Project not found or not accessible.",
     });
-    expect(dbSelectMock).not.toHaveBeenCalled();
+    expect(loadNativeConceptConcordanceMatchesMock).not.toHaveBeenCalled();
   });
 
   it("returns empty terms when the source text yields no tsquery", async () => {
@@ -185,7 +166,7 @@ describe("createSearchNativeGlossaryTool", () => {
         {} as never,
       ),
     ).resolves.toEqual({ success: true, terms: [] });
-    expect(dbSelectMock).not.toHaveBeenCalled();
+    expect(loadNativeConceptConcordanceMatchesMock).not.toHaveBeenCalled();
   });
 
   it("returns empty terms when the project has no attached native glossaries", async () => {
@@ -203,47 +184,33 @@ describe("createSearchNativeGlossaryTool", () => {
         {} as never,
       ),
     ).resolves.toEqual({ success: true, terms: [] });
-    expect(toolCanAccessProjectMock).toHaveBeenCalledWith(
-      expect.objectContaining({ organizationId: "org-1" }),
-      "project-1",
-    );
-    expect(dbSelectMock).toHaveBeenCalledTimes(1);
+    expect(loadNativeConceptConcordanceMatchesMock).not.toHaveBeenCalled();
   });
 
-  it("post-filters SQL hits that fail sourceContainsTerm", async () => {
-    dbSelectMock
-      .mockImplementationOnce(() => createSelectBuilder([{ glossaryId: "glossary-1" }]))
-      .mockImplementationOnce(() =>
-        createSelectBuilder([
-          {
-            id: "term-keep",
-            sourceTerm: "Login",
-            targetTerm: "Connexion",
-            description: null,
-            forbidden: false,
-            caseSensitive: false,
-            glossaryId: "glossary-1",
-            glossaryName: "Product",
-            rank: 0.9,
-          },
-          {
-            id: "term-drop",
-            sourceTerm: "Log",
-            targetTerm: "Journal",
-            description: null,
-            forbidden: false,
-            caseSensitive: false,
-            glossaryId: "glossary-1",
-            glossaryName: "Product",
-            rank: 0.4,
-          },
-        ]),
-      )
-      .mockImplementationOnce(() => createSelectBuilder([]));
-
-    sourceContainsTermMock.mockImplementation((_source: string, term: { sourceTerm: string }) => {
-      return term.sourceTerm === "Login";
-    });
+  it("searches native concept glossaries and maps status-derived forbidden flags", async () => {
+    dbSelectMock.mockImplementationOnce(() => createSelectBuilder([{ glossaryId: "glossary-1" }]));
+    loadNativeConceptConcordanceMatchesMock.mockResolvedValue([
+      {
+        id: "term-keep:fr",
+        glossaryId: "glossary-1",
+        glossaryName: "Product",
+        sourceTerm: "Login",
+        targetTerm: "Connexion",
+        description: "Sign in",
+        termStatus: { preferred: true, forbidden: false },
+        rank: 0.9,
+      },
+      {
+        id: "term-drop:fr",
+        glossaryId: "glossary-1",
+        glossaryName: "Product",
+        sourceTerm: "Logout",
+        targetTerm: "Deconnexion",
+        description: null,
+        termStatus: { preferred: false, forbidden: true },
+        rank: 0.4,
+      },
+    ]);
 
     const tool = createSearchNativeGlossaryTool(createToolContext({ projectId: "project-1" }));
 
@@ -261,16 +228,35 @@ describe("createSearchNativeGlossaryTool", () => {
       success: true,
       terms: [
         {
-          id: "term-keep",
+          id: "term-keep:fr",
           sourceTerm: "Login",
           targetTerm: "Connexion",
-          description: null,
+          description: "Sign in",
           forbidden: false,
           glossaryId: "glossary-1",
           glossaryName: "Product",
           rank: 0.9,
         },
+        {
+          id: "term-drop:fr",
+          sourceTerm: "Logout",
+          targetTerm: "Deconnexion",
+          description: null,
+          forbidden: true,
+          glossaryId: "glossary-1",
+          glossaryName: "Product",
+          rank: 0.4,
+        },
       ],
     });
+
+    expect(loadNativeConceptConcordanceMatchesMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        glossaryIds: ["glossary-1"],
+        sourceLocale: "en",
+        targetLocales: ["fr"],
+        sourceText: "Login button",
+      }),
+    );
   });
 });
