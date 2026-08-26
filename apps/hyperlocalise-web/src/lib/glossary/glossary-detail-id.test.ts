@@ -78,6 +78,18 @@ describe("buildGlossaryConceptDetailUrl", () => {
       }),
     ).toBe(`/org/acme/glossaries/${nativeId}/concepts/concept-1`);
   });
+
+  it("percent-encodes concept ids that contain reserved path characters", () => {
+    expect(
+      buildGlossaryConceptDetailUrl({
+        organizationSlug: "acme",
+        glossaryId: "crowdin:glossary:7",
+        conceptId: "a/b c?d#e",
+        providerKind: "crowdin",
+        externalResourceId: "7",
+      }),
+    ).toBe("/org/acme/glossaries/crowdin:glossary:7/concepts/a%2Fb%20c%3Fd%23e");
+  });
 });
 
 describe("buildCrowdinGlossaryConcordanceUrl", () => {

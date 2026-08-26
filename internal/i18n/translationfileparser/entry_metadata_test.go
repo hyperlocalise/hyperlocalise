@@ -15,6 +15,8 @@ func TestParseMaxLengthFromComment(t *testing.T) {
 		{name: "character limit", comment: "Character limit = 12", want: 12, ok: true},
 		{name: "embedded in sentence", comment: "Button label. Max length: 18 chars.", want: 18, ok: true},
 		{name: "zero rejected", comment: "max length: 0", ok: false},
+		{name: "over max rejected", comment: "max length: 100001", ok: false},
+		{name: "at max accepted", comment: "hl:max-length=100000", want: 100_000, ok: true},
 		{name: "missing", comment: "Shown on the welcome screen", ok: false},
 	}
 
