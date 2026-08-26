@@ -233,7 +233,7 @@ const projectFilesFilterProviderKindSchema = z
 
 export const projectFilesQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(1_000).optional().default(500),
-  offset: z.coerce.number().int().min(0).optional().default(0),
+  offset: z.coerce.number().int().min(0).optional(),
   search: z.string().trim().max(256).optional(),
   origin: projectFilesFilterOriginSchema.optional(),
   resourceType: projectFilesFilterResourceTypeSchema.optional(),

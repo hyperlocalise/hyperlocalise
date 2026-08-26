@@ -228,7 +228,7 @@ describe("AutomationDetailPageContent write locking", () => {
       param: { organizationSlug: "acme", projectId: sourceUploadAutomation.projectId },
       query: {
         limit: String(AUTOMATION_SOURCE_FILES_PAGE_SIZE),
-        offset: "0",
+        offset: 0,
         origin: "repository",
       },
     });
@@ -284,7 +284,7 @@ describe("AutomationDetailPageContent write locking", () => {
         param: { organizationSlug: "acme", projectId: sourceUploadAutomation.projectId },
         query: {
           limit: String(AUTOMATION_SOURCE_FILES_PAGE_SIZE),
-          offset: "0",
+          offset: 0,
           origin: "repository",
           search: "z-late-file",
         },
@@ -319,7 +319,7 @@ describe("AutomationDetailPageContent write locking", () => {
       status: 200,
       json: async () => ({ automation: sourceUploadAutomation, recentRuns: [] }),
     });
-    apiMocks.listProjectFiles.mockImplementation((input: { query?: { offset?: string } }) => {
+    apiMocks.listProjectFiles.mockImplementation((input: { query?: { offset?: number } }) => {
       const offset = Number(input.query?.offset ?? "0");
       return Promise.resolve({
         ok: true,
@@ -341,7 +341,7 @@ describe("AutomationDetailPageContent write locking", () => {
         param: { organizationSlug: "acme", projectId: sourceUploadAutomation.projectId },
         query: {
           limit: String(AUTOMATION_SOURCE_FILES_PAGE_SIZE),
-          offset: String(AUTOMATION_SOURCE_FILES_PAGE_SIZE),
+          offset: AUTOMATION_SOURCE_FILES_PAGE_SIZE,
           origin: "repository",
         },
       }),

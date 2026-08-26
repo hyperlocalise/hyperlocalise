@@ -73,7 +73,7 @@ function useDebouncedValue<T>(value: T, delayMs: number) {
   return debouncedValue;
 }
 
-function uniqueSourceFilesByPath<T extends { sourcePath: string }>(files: T[]) {
+function uniqueSourceFilesByPath(files: ReadonlyArray<{ sourcePath: string }>) {
   return Array.from(new Map(files.map((file) => [file.sourcePath, file])).values());
 }
 
@@ -146,7 +146,7 @@ export function AutomationDetailPageContent({
         param: { organizationSlug, projectId },
         query: {
           limit: String(AUTOMATION_SOURCE_FILES_PAGE_SIZE),
-          offset: String(pageParam),
+          offset: pageParam,
           origin: "repository",
           ...(debouncedSourceFileSearch ? { search: debouncedSourceFileSearch } : {}),
         },
@@ -155,9 +155,12 @@ export function AutomationDetailPageContent({
         throw await readApiResponseError(response, "Failed to load source files");
       }
       const body = await response.json();
-      return uniqueSourceFilesByPath(body.files).toSorted((left, right) =>
-        left.sourcePath.localeCompare(right.sourcePath),
-      );
+      if (!("files" in body)) {
+        throw new Error("Failed to load source files");
+      }
+      return uniqueSourceFilesByPath(
+        body.files.map((file) => ({ sourcePath: file.sourcePath })),
+      ).toSorted((left, right) => left.sourcePath.localeCompare(right.sourcePath));
     },
     getNextPageParam: (lastPage, pages) => {
       if (lastPage.length < AUTOMATION_SOURCE_FILES_PAGE_SIZE) {
