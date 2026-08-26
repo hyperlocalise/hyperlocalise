@@ -1,7 +1,5 @@
 package translationfileparser
 
-import "encoding/json"
-
 // EntriesCommandOutputValue is the JSON shape emitted by `hl entries` for one key.
 // Keys without metadata stay plain strings for backward compatibility.
 type EntriesCommandOutputValue any
@@ -24,32 +22,4 @@ func EncodeEntriesCommandOutput(entries map[string]IngestEntry) map[string]Entri
 		out[key] = entry.Text
 	}
 	return out
-}
-
-func decodeEntriesCommandOutput(raw map[string]json.RawMessage) (map[string]IngestEntry, error) {
-	if len(raw) == 0 {
-		return map[string]IngestEntry{}, nil
-	}
-
-	out := make(map[string]IngestEntry, len(raw))
-	for key, value := range raw {
-		var text string
-		if err := json.Unmarshal(value, &text); err == nil {
-			out[key] = IngestEntry{Text: text}
-			continue
-		}
-
-		var enriched struct {
-			Text      string `json:"text"`
-			MaxLength int    `json:"maxLength"`
-		}
-		if err := json.Unmarshal(value, &enriched); err != nil {
-			return nil, err
-		}
-		out[key] = IngestEntry{
-			Text:      enriched.Text,
-			MaxLength: enriched.MaxLength,
-		}
-	}
-	return out, nil
 }

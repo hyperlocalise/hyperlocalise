@@ -328,11 +328,6 @@ func skipStringsLeadingComments(text string, start int) (int, int, string, error
 	return i, lines, strings.Join(comments, "\n"), nil
 }
 
-func skipStringsTrivia(text string, start int) (int, int, error) {
-	next, lines, _, err := skipStringsLeadingComments(text, start)
-	return next, lines, err
-}
-
 func skipStringsWhitespace(text string, start int) (int, int) {
 	lines := 0
 	i := start
