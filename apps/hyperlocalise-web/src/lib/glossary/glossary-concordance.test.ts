@@ -129,12 +129,19 @@ describe("searchGlossaryConcordance", () => {
     const matches = await searchGlossaryConcordance({
       organizationId: "org-1",
       glossaryIds: ["native-good", "native-bad"],
+      actorUserId: "user-1",
       sourceLocale: "en",
       targetLocales: ["fr"],
       sourceText: "Save",
     });
 
     expect(matches).toEqual([nativeMatch("native-good")]);
+    expect(mocks.createGlossary).toHaveBeenCalledWith(
+      expect.objectContaining({
+        actorUserId: "user-1",
+        glossary: expect.objectContaining({ id: "native-good" }),
+      }),
+    );
   });
 
   it("batches attached Crowdin glossaries into one concordance search", async () => {
@@ -145,6 +152,8 @@ describe("searchGlossaryConcordance", () => {
           name: "Product terms",
           source: "external_tms",
           externalProviderKind: "crowdin",
+          externalProviderCredentialId: "cred-1",
+          externalProjectId: "902807",
           externalGlossaryId: "718785",
           status: "active",
           termCapabilities: {},
@@ -157,6 +166,8 @@ describe("searchGlossaryConcordance", () => {
           name: "UI terms",
           source: "external_tms",
           externalProviderKind: "crowdin",
+          externalProviderCredentialId: "cred-1",
+          externalProjectId: "902807",
           externalGlossaryId: "900001",
           status: "active",
           termCapabilities: {},
@@ -172,6 +183,7 @@ describe("searchGlossaryConcordance", () => {
     const matches = await searchGlossaryConcordance({
       organizationId: "org-1",
       projectId: "ext:crowdin:902807",
+      actorUserId: "user-1",
       sourceLocale: "en",
       targetLocales: ["fr"],
       sourceText: "Save",
@@ -181,6 +193,9 @@ describe("searchGlossaryConcordance", () => {
     expect(mocks.searchAttachedCrowdinGlossaryConcordance).toHaveBeenCalledTimes(1);
     expect(mocks.searchAttachedCrowdinGlossaryConcordance).toHaveBeenCalledWith(
       expect.objectContaining({
+        providerContext: expect.objectContaining({
+          actorUserId: "user-1",
+        }),
         attachedGlossaries: [
           expect.objectContaining({ id: "crowdin:glossary:718785" }),
           expect.objectContaining({ id: "crowdin:glossary:900001" }),
@@ -188,5 +203,115 @@ describe("searchGlossaryConcordance", () => {
       }),
     );
     expect(matches).toHaveLength(2);
+  });
+
+  it("partitions Crowdin concordance searches by credential and project", async () => {
+    mocks.selectAttachedGlossaries.mockResolvedValue([
+      {
+        glossary: {
+          id: "crowdin:glossary:718785",
+          name: "Product terms",
+          source: "external_tms",
+          externalProviderKind: "crowdin",
+          externalProviderCredentialId: "cred-1",
+          externalProjectId: "902807",
+          externalGlossaryId: "718785",
+          status: "active",
+          termCapabilities: {},
+        },
+        projectSource: "external_tms",
+      },
+      {
+        glossary: {
+          id: "crowdin:glossary:900001",
+          name: "UI terms",
+          source: "external_tms",
+          externalProviderKind: "crowdin",
+          externalProviderCredentialId: "cred-2",
+          externalProjectId: "111111",
+          externalGlossaryId: "900001",
+          status: "active",
+          termCapabilities: {},
+        },
+        projectSource: "external_tms",
+      },
+    ]);
+    mocks.searchAttachedCrowdinGlossaryConcordance.mockImplementation(
+      async (input: { attachedGlossaries: Array<{ id: string }> }) =>
+        input.attachedGlossaries.map((glossary) => nativeMatch(glossary.id)),
+    );
+
+    const matches = await searchGlossaryConcordance({
+      organizationId: "org-1",
+      projectId: "ext:crowdin:902807",
+      actorUserId: "user-1",
+      sourceLocale: "en",
+      targetLocales: ["fr"],
+      sourceText: "Save",
+    });
+
+    expect(mocks.searchAttachedCrowdinGlossaryConcordance).toHaveBeenCalledTimes(2);
+    const batchedIds = mocks.searchAttachedCrowdinGlossaryConcordance.mock.calls.map((call) => {
+      const input = call[0] as { attachedGlossaries: Array<{ id: string }> };
+      return input.attachedGlossaries.map((glossary) => glossary.id);
+    });
+    expect(batchedIds).toEqual(
+      expect.arrayContaining([["crowdin:glossary:718785"], ["crowdin:glossary:900001"]]),
+    );
+    expect(matches.map((match) => match.glossaryId)).toEqual(
+      expect.arrayContaining(["crowdin:glossary:718785", "crowdin:glossary:900001"]),
+    );
+  });
+
+  it("keeps Crowdin matches from healthy provider groups when another group fails", async () => {
+    mocks.selectAttachedGlossaries.mockResolvedValue([
+      {
+        glossary: {
+          id: "crowdin:glossary:718785",
+          name: "Product terms",
+          source: "external_tms",
+          externalProviderKind: "crowdin",
+          externalProviderCredentialId: "cred-1",
+          externalProjectId: "902807",
+          externalGlossaryId: "718785",
+          status: "active",
+          termCapabilities: {},
+        },
+        projectSource: "external_tms",
+      },
+      {
+        glossary: {
+          id: "crowdin:glossary:900001",
+          name: "UI terms",
+          source: "external_tms",
+          externalProviderKind: "crowdin",
+          externalProviderCredentialId: "cred-2",
+          externalProjectId: "111111",
+          externalGlossaryId: "900001",
+          status: "active",
+          termCapabilities: {},
+        },
+        projectSource: "external_tms",
+      },
+    ]);
+    mocks.searchAttachedCrowdinGlossaryConcordance.mockImplementation(
+      async (input: { attachedGlossaries: Array<{ id: string; externalProjectId?: string }> }) => {
+        if (input.attachedGlossaries[0]?.externalProjectId === "111111") {
+          throw new Error("crowdin_user_connection_required");
+        }
+        return input.attachedGlossaries.map((glossary) => nativeMatch(glossary.id));
+      },
+    );
+
+    const matches = await searchGlossaryConcordance({
+      organizationId: "org-1",
+      projectId: "ext:crowdin:902807",
+      actorUserId: "user-1",
+      sourceLocale: "en",
+      targetLocales: ["fr"],
+      sourceText: "Save",
+    });
+
+    expect(matches).toEqual([nativeMatch("crowdin:glossary:718785")]);
   });
 });

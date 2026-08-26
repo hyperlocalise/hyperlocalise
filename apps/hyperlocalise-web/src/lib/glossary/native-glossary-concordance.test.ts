@@ -16,7 +16,10 @@ import {
   glossaryTermFlagsFromStatus,
   normalizedGlossaryTermStatusFromStatus,
 } from "@/lib/providers/contracts/glossary-term-status";
-import { pickPreferredTermForLocale } from "@/lib/glossary/native-glossary";
+import {
+  pickPreferredTermForLocale,
+  filterConcordanceTargetTerms,
+} from "@/lib/glossary/native-glossary";
 import type { NormalizedGlossaryConceptTerm } from "@/lib/providers/contracts/glossary-match";
 
 describe("glossaryTermFlagsFromStatus", () => {
@@ -58,6 +61,27 @@ describe("pickPreferredTermForLocale", () => {
         "fr",
       )?.text,
     ).toBe("admitted term");
+  });
+});
+
+describe("filterConcordanceTargetTerms", () => {
+  const terms: NormalizedGlossaryConceptTerm[] = [
+    { id: "en", locale: "en", text: "Save" },
+    { id: "fr", locale: "fr", text: "Enregistrer" },
+    { id: "de", locale: "de", text: "Speichern" },
+    { id: "ja", locale: "ja", text: "保存" },
+  ];
+
+  it("keeps only terms in the requested target locales", () => {
+    expect(filterConcordanceTargetTerms(terms, ["fr"]).map((term) => term.locale)).toEqual(["fr"]);
+    expect(filterConcordanceTargetTerms(terms, ["fr", "ja"]).map((term) => term.locale)).toEqual([
+      "fr",
+      "ja",
+    ]);
+  });
+
+  it("returns no target terms when the query requests none", () => {
+    expect(filterConcordanceTargetTerms(terms, [])).toEqual([]);
   });
 });
 

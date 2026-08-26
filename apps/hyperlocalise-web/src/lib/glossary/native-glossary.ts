@@ -102,10 +102,23 @@ function toNativeConcordanceConceptTerm(row: GlossaryTermRow): NormalizedGlossar
   };
 }
 
+export function filterConcordanceTargetTerms<T extends { locale: string }>(
+  terms: T[],
+  targetLocales: string[],
+): T[] {
+  if (targetLocales.length === 0) {
+    return [];
+  }
+
+  const allowedLocales = new Set(targetLocales);
+  return terms.filter((term) => allowedLocales.has(term.locale));
+}
+
 function buildNormalizedConcept(input: {
   concept: GlossaryConceptRow;
   terms: GlossaryTermRow[];
   sourceLocale: string;
+  targetLocales: string[];
   glossaryUrl: string | null;
 }): NormalizedGlossaryConcept {
   const conceptTerms = input.terms.map(toNativeConcordanceConceptTerm);
@@ -116,7 +129,7 @@ function buildNormalizedConcept(input: {
     definition: input.concept.definition,
     glossaryUrl: input.glossaryUrl ?? input.concept.url,
     sourceTerms: conceptTerms.filter((term) => term.locale === input.sourceLocale),
-    targetTerms: conceptTerms.filter((term) => term.locale !== input.sourceLocale),
+    targetTerms: filterConcordanceTargetTerms(conceptTerms, input.targetLocales),
   };
 }
 
@@ -994,6 +1007,7 @@ export class NativeGlossary extends Glossary {
           and(
             inArray(schema.glossaryTerms.conceptId, conceptIds),
             eq(schema.glossaryTerms.reviewStatus, "approved"),
+            inArray(schema.glossaryTerms.locale, [sourceLocale, ...query.targetLocales]),
           ),
         ),
     ]);
@@ -1024,6 +1038,7 @@ export class NativeGlossary extends Glossary {
         concept,
         terms: conceptTerms,
         sourceLocale,
+        targetLocales: query.targetLocales,
         glossaryUrl: hit.externalGlossaryUrl,
       });
 

@@ -416,6 +416,7 @@ export class CatConcordanceService {
         projectId: input.projectId,
         organizationId: input.organizationId,
         providerKind: input.providerKind ?? undefined,
+        actorUserId: input.actorUserId,
         sourceLocale: input.sourceLocale,
         targetLocales: [input.targetLocale],
         sourceText: input.sourceText,

@@ -71,6 +71,7 @@ export class TranslationContextBuilder {
     options?: {
       organizationId?: string;
       providerKind?: ExternalTmsProviderKind;
+      actorUserId?: string | null;
       externalJobUid?: string | null;
       translationMemoryMatchResolution?: TranslationMemoryMatchResolution;
       glossaryMatchResolution?: GlossaryMatchResolution;
@@ -146,6 +147,7 @@ export class TranslationContextBuilder {
           projectId,
           organizationId: options?.organizationId,
           providerKind,
+          actorUserId: options?.actorUserId,
           sourceLocale: jobInput.sourceLocale,
           targetLocales: jobInput.targetLocales,
           sourceText: jobInput.sourceText,

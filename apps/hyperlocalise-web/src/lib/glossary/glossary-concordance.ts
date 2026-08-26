@@ -18,6 +18,7 @@ import type { Glossary as GlossaryRecord } from "@/lib/database/types";
 import { createLogger } from "@/lib/log";
 import { searchAttachedCrowdinGlossaryConcordance } from "@/lib/glossary/crowdin-glossary";
 import { createGlossary } from "@/lib/glossary/glossary-provider";
+import { mapWithConcurrency } from "@/lib/primitives/map-with-concurrency/map-with-concurrency";
 import {
   buildGlossaryTsQuery,
   type GlossaryConcordanceContext,
@@ -29,6 +30,8 @@ import {
 } from "@/lib/providers/contracts/glossary-match";
 
 const glossaryLogger = createLogger("glossary-concordance");
+const NATIVE_GLOSSARY_CONCORDANCE_CONCURRENCY = 5;
+const CROWDIN_GLOSSARY_CONCORDANCE_BATCH_CONCURRENCY = 5;
 
 export { buildGlossaryTsQuery };
 
@@ -63,6 +66,26 @@ function isNativeAttachedGlossary(glossary: AttachedGlossaryRecord): boolean {
 
 function isCrowdinAttachedGlossary(glossary: AttachedGlossaryRecord): boolean {
   return glossary.source === "external_tms" && glossary.externalProviderKind === "crowdin";
+}
+
+function crowdinConcordanceBatchKey(glossary: AttachedGlossaryRecord): string {
+  return `${glossary.externalProviderCredentialId ?? ""}:${glossary.externalProjectId ?? ""}`;
+}
+
+function partitionCrowdinGlossaries(
+  glossaries: AttachedGlossaryRecord[],
+): AttachedGlossaryRecord[][] {
+  const groups = new Map<string, AttachedGlossaryRecord[]>();
+  for (const glossary of glossaries) {
+    const key = crowdinConcordanceBatchKey(glossary);
+    const group = groups.get(key);
+    if (group) {
+      group.push(glossary);
+      continue;
+    }
+    groups.set(key, [glossary]);
+  }
+  return [...groups.values()];
 }
 
 function supportsConcordanceSearch(glossary: AttachedGlossaryRecord): boolean {
@@ -224,10 +247,13 @@ export async function searchGlossaryConcordance(
 
   const nativeGlossaries = searchable.filter(isNativeAttachedGlossary);
   const crowdinGlossaries = searchable.filter(isCrowdinAttachedGlossary);
+  const crowdinGroups = partitionCrowdinGlossaries(crowdinGlossaries);
 
-  const [nativeMatchGroups, crowdinMatches] = await Promise.all([
-    Promise.all(
-      nativeGlossaries.map(async (glossary) => {
+  const [nativeMatchGroups, crowdinMatchGroups] = await Promise.all([
+    mapWithConcurrency(
+      nativeGlossaries,
+      NATIVE_GLOSSARY_CONCORDANCE_CONCURRENCY,
+      async (glossary) => {
         try {
           const adapter = createGlossary(
             createConcordanceProviderContext({
@@ -244,30 +270,41 @@ export async function searchGlossaryConcordance(
           );
           return [];
         }
-      }),
+      },
     ),
-    crowdinGlossaries.length > 0
-      ? searchAttachedCrowdinGlossaryConcordance({
-          providerContext: createConcordanceProviderContext({
-            organizationId,
-            actorUserId: input.actorUserId,
-            glossary: crowdinGlossaries[0]!,
-          }),
-          attachedGlossaries: crowdinGlossaries,
-          query,
-        }).catch((error) => {
+    mapWithConcurrency(
+      crowdinGroups,
+      CROWDIN_GLOSSARY_CONCORDANCE_BATCH_CONCURRENCY,
+      async (group) => {
+        const representative = group[0];
+        if (!representative) {
+          return [];
+        }
+
+        try {
+          return await searchAttachedCrowdinGlossaryConcordance({
+            providerContext: createConcordanceProviderContext({
+              organizationId,
+              actorUserId: input.actorUserId,
+              glossary: representative,
+            }),
+            attachedGlossaries: group,
+            query,
+          });
+        } catch (error) {
           glossaryLogger.error(
             {
               err: error,
-              glossaryIds: crowdinGlossaries.map((glossary) => glossary.id),
+              glossaryIds: group.map((glossary) => glossary.id),
               projectId: input.projectId ?? null,
             },
             "Crowdin glossary concordance search failed for attached glossaries",
           );
           return [];
-        })
-      : Promise.resolve([]),
+        }
+      },
+    ),
   ]);
 
-  return mergeGlossaryMatches([...nativeMatchGroups.flat(), ...crowdinMatches], limit);
+  return mergeGlossaryMatches([...nativeMatchGroups.flat(), ...crowdinMatchGroups.flat()], limit);
 }
