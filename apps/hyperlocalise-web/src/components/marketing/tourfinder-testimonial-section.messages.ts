@@ -17,27 +17,27 @@ import { defineMessages } from "react-intl";
 export const tourfinderTestimonialSectionMessages = defineMessages({
   eyebrow: {
     defaultMessage: "Case Study",
-    id: "WAOAGxwy+L",
+    id: "6JQLX0bSZ4",
     description: "Eyebrow label above the Tourfinder case study section",
   },
   industryLabel: {
     defaultMessage: "Industry",
-    id: "TfCsIndLbl01",
+    id: "pt0tAxl2FT",
     description: "Label for the Tourfinder case study industry metadata field",
   },
   industryValue: {
     defaultMessage: "Tourism",
-    id: "TfCsIndVal01",
+    id: "En0QEC1++B",
     description: "Tourfinder case study industry value",
   },
   locationLabel: {
     defaultMessage: "Location",
-    id: "TfCsLocLbl01",
+    id: "0LbxmzSNhE",
     description: "Label for the Tourfinder case study location metadata field",
   },
   locationValue: {
     defaultMessage: "Sydney, Australia",
-    id: "TfCsLocVal01",
+    id: "pWQfZXsgvn",
     description: "Tourfinder case study location value",
   },
   headline: {
@@ -48,13 +48,12 @@ export const tourfinderTestimonialSectionMessages = defineMessages({
   quote: {
     defaultMessage:
       "We experienced a <bold>21x increase in traffic</bold> and <bold>5x AI Assistant-originated sessions</bold> since introducing additional multilingual powered by Hyperlocalise.",
-    id: "ZK/6pkQPQt",
-    description:
-      "Tourfinder customer quote; bold wraps the outcome metrics",
+    id: "5EhEUiPeEZ",
+    description: "Tourfinder customer quote; bold wraps the outcome metrics",
   },
   authorName: {
     defaultMessage: "Vi Nguyen",
-    id: "TfCsAuthNm01",
+    id: "j1pOSgEa8H",
     description: "Name of the Tourfinder customer quoted in the case study",
   },
   visitSite: {

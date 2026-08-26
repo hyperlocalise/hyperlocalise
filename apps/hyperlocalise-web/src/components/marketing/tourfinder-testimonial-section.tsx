@@ -21,9 +21,7 @@ import { TypographyH2, TypographyP } from "@/components/ui/typography";
 import { tourfinderTestimonialSectionMessages } from "./tourfinder-testimonial-section.messages";
 
 const quoteRichTextValues = {
-  bold: (chunks: ReactNode) => (
-    <strong className="font-semibold text-foreground">{chunks}</strong>
-  ),
+  bold: (chunks: ReactNode) => <strong className="font-semibold text-foreground">{chunks}</strong>,
 };
 
 export function TourfinderTestimonialSection() {

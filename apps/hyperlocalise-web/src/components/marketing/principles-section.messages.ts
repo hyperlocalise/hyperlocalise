@@ -18,7 +18,7 @@ export const principlesSectionMessages = defineMessages({
   headline: {
     defaultMessage:
       "Multilingual content operations, unified. <muted>From GTM brief to market release — generate more multilingual content without adding headcount.</muted>",
-    id: "0Ne4Lpi9ew",
+    id: "3DgHaZOLH3",
     description:
       "Marketing homepage principles section headline; muted wraps the supporting sentence",
   },
