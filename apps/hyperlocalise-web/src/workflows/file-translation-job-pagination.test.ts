@@ -12,7 +12,42 @@
  */
 import { describe, expect, it } from "vite-plus/test";
 
-import { parseDeferredByLimit } from "./file-translation-pagination";
+import {
+  FILE_TRANSLATION_MAX_SANDBOX_TIMEOUT_MS,
+  FILE_TRANSLATION_MAX_TRANSLATIONS_PER_SESSION,
+  calculateFileTranslationSandboxTimeoutMs,
+  countPendingFileTranslations,
+  parseDeferredByLimit,
+} from "./file-translation-pagination";
+
+describe("file translation pagination", () => {
+  it("checkpoints after 100 translations", () => {
+    expect(FILE_TRANSLATION_MAX_TRANSLATIONS_PER_SESSION).toBe(100);
+  });
+
+  it("keeps the ten-minute minimum for small workloads", () => {
+    expect(calculateFileTranslationSandboxTimeoutMs(10)).toBe(10 * 60 * 1_000);
+  });
+
+  it("counts untranslated key-locale pairs after merged prefills", () => {
+    expect(
+      countPendingFileTranslations({ one: "One", two: "Two", three: "Three" }, ["fr", "de"], {
+        fr: { one: "Un" },
+        de: { one: "Eins", two: "Zwei" },
+      }),
+    ).toBe(3);
+  });
+
+  it("budgets three seconds per pending key-locale translation plus overhead", () => {
+    expect(calculateFileTranslationSandboxTimeoutMs(800)).toBe(42 * 60 * 1_000);
+  });
+
+  it("caps the timeout at the sandbox platform maximum", () => {
+    expect(calculateFileTranslationSandboxTimeoutMs(1_000_000)).toBe(
+      FILE_TRANSLATION_MAX_SANDBOX_TIMEOUT_MS,
+    );
+  });
+});
 
 describe("parseDeferredByLimit", () => {
   it("reads deferred_by_limit from hl run stdout", () => {

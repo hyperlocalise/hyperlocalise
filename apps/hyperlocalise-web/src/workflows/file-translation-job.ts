@@ -47,6 +47,8 @@ import {
 import {
   FILE_TRANSLATION_MAX_PAGES,
   FILE_TRANSLATION_MAX_TRANSLATIONS_PER_SESSION,
+  calculateFileTranslationSandboxTimeoutMs,
+  countPendingFileTranslations,
   parseDeferredByLimit,
 } from "./file-translation-pagination";
 
@@ -263,6 +265,10 @@ function userFacingFailureReason(
     return "the translation finished, but the output file couldn't be read back. This is usually temporary.";
   }
 
+  if (message.includes("sandbox_timeout")) {
+    return "the translation took too long to finish. Progress was saved, so try the job again to continue.";
+  }
+
   return "the translation failed before it could finish. This is usually temporary.";
 }
 
@@ -270,6 +276,12 @@ async function createSandboxStep() {
   "use step";
   const { createTranslationSandbox } = await import("@/lib/translation/sandbox");
   return createTranslationSandbox();
+}
+
+async function updateSandboxTimeoutStep(sandboxId: string, timeoutMs: number) {
+  "use step";
+  const { updateTranslationSandboxTimeout } = await import("@/lib/translation/sandbox");
+  return updateTranslationSandboxTimeout(sandboxId, timeoutMs);
 }
 
 async function prepareSandboxStep(sandboxId: string) {
@@ -288,6 +300,7 @@ async function recreateSandboxWithSourceStep(input: {
   previousSandboxId: string | null;
   filename: string;
   content: Buffer;
+  timeoutMs: number;
 }) {
   "use step";
   const { createTranslationSandbox, prepareSandbox, stopTranslationSandbox, writeFileToSandbox } =
@@ -301,7 +314,7 @@ async function recreateSandboxWithSourceStep(input: {
     }
   }
 
-  const { sandboxId } = await createTranslationSandbox();
+  const { sandboxId } = await createTranslationSandbox(input.timeoutMs);
   await prepareSandbox(sandboxId);
   await writeFileToSandbox(sandboxId, input.filename, input.content);
   return { sandboxId };
@@ -327,6 +340,7 @@ async function runTranslationStep(
     recoverTranslationSandboxSession,
     runSandboxCommand,
     sandboxI18nConfigPath,
+    sandboxTranslationCommandTimeoutMs,
     writeFileToSandbox,
     writeTempConfig,
   } = await import("@/lib/translation/sandbox");
@@ -384,6 +398,7 @@ async function runTranslationStep(
       ],
       {
         env: getSandboxTranslationEnv(byok),
+        timeoutMs: sandboxTranslationCommandTimeoutMs,
       },
     );
   } catch (error) {
@@ -402,6 +417,7 @@ async function runTranslationStep(
     throw error;
   }
 }
+runTranslationStep.maxRetries = 0;
 
 async function extractEntriesStep(
   sandboxId: string,
@@ -790,6 +806,7 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
 
     const outputFiles: Array<{ fileId: string; locale: string; filename: string }> = [];
     let sourceEntries: Record<string, string> | null = null;
+    let translationSandboxTimeoutMs = calculateFileTranslationSandboxTimeoutMs(0);
 
     try {
       sourceEntries = await extractEntriesStep(sandboxId, inputFilename);
@@ -885,6 +902,26 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
       if (Object.keys(merged).length > 0) {
         prefilledByLocale[targetLocale] = merged;
       }
+    }
+
+    if (sourceEntries) {
+      const pendingTranslationCount = countPendingFileTranslations(
+        sourceEntries,
+        parsedInput.targetLocales,
+        prefilledByLocale,
+      );
+      translationSandboxTimeoutMs =
+        calculateFileTranslationSandboxTimeoutMs(pendingTranslationCount);
+      await updateSandboxTimeoutStep(sandboxId, translationSandboxTimeoutMs);
+      console.info("[file-translation-workflow] sandbox timeout updated", {
+        jobId: claim.job.id,
+        projectId: claim.job.projectId,
+        sourceEntryCount: Object.keys(sourceEntries).length,
+        targetLocaleCount: parsedInput.targetLocales.length,
+        pendingTranslationCount,
+        translationSandboxTimeoutMs,
+        sandboxId,
+      });
     }
 
     const prefilledLocaleCount = Object.keys(prefilledByLocale).length;
@@ -1037,6 +1074,7 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
             previousSandboxId: sandboxId,
             filename: inputFilename,
             content: sourceContent,
+            timeoutMs: translationSandboxTimeoutMs,
           });
           sandboxId = recreated.sandboxId;
           // Fresh sandbox has no lockfile — force is irrelevant; keep caller's intent.

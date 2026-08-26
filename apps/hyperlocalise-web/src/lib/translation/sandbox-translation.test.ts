@@ -17,6 +17,7 @@ const { envMock, sandboxMocks } = vi.hoisted(() => {
   const output = vi.fn();
   const runCommand = vi.fn();
   const get = vi.fn();
+  const update = vi.fn();
 
   return {
     envMock: {
@@ -26,7 +27,7 @@ const { envMock, sandboxMocks } = vi.hoisted(() => {
       FILE_STORAGE_PROVIDER: "vercel_blob",
       FILE_STORAGE_ACCESS: "private",
     },
-    sandboxMocks: { create, get, output, runCommand },
+    sandboxMocks: { create, get, output, runCommand, update },
   };
 });
 
@@ -67,6 +68,7 @@ import {
   runSandboxCommand,
   sandboxFileBucketName,
   sandboxI18nConfigPath,
+  updateTranslationSandboxTimeout,
   userFacingFailureReason,
 } from "@/lib/translation/sandbox";
 import { StreamError } from "@vercel/sandbox";
@@ -105,6 +107,16 @@ describe("sandbox command runner", () => {
       args: ["-c", expect.stringContaining("install_hyperlocalise_from_github_release")],
       sudo: true,
     });
+  });
+
+  it("updates the running sandbox timeout", async () => {
+    sandboxMocks.get.mockResolvedValueOnce({ update: sandboxMocks.update });
+    sandboxMocks.update.mockResolvedValueOnce(undefined);
+
+    await updateTranslationSandboxTimeout("sandbox_123", 1_320_000);
+
+    expect(sandboxMocks.get).toHaveBeenCalledWith({ name: "sandbox_123" });
+    expect(sandboxMocks.update).toHaveBeenCalledWith({ timeout: 1_320_000 });
   });
 
   it("captures combined output by default", async () => {
@@ -211,6 +223,34 @@ describe("sandbox command runner", () => {
     });
     expect(wait).toHaveBeenCalledTimes(1);
     expect(sandboxMocks.output).toHaveBeenCalledWith("both");
+  });
+
+  it("kills and classifies commands that exceed their deadline", async () => {
+    const wait = vi.fn().mockResolvedValue({
+      exitCode: 137,
+      output: sandboxMocks.output,
+    });
+    sandboxMocks.runCommand.mockResolvedValueOnce({
+      cmdId: "cmd_timeout",
+      wait,
+    });
+    sandboxMocks.get.mockResolvedValueOnce({
+      runCommand: sandboxMocks.runCommand,
+    });
+
+    await expect(
+      runSandboxCommand("sandbox_123", "bash", ["-lc", "hl run"], { timeoutMs: 270_000 }),
+    ).rejects.toThrow("sandbox_timeout: bash exceeded 270000ms");
+
+    expect(sandboxMocks.runCommand).toHaveBeenCalledWith({
+      cmd: "bash",
+      args: ["-lc", "hl run"],
+      env: undefined,
+      detached: true,
+      signal: expect.any(AbortSignal),
+      timeoutMs: 270_000,
+    });
+    expect(wait).toHaveBeenCalledWith({ signal: expect.any(AbortSignal) });
   });
 
   it("retries wait when the wait connection drops with TypeError terminated", async () => {
@@ -627,6 +667,12 @@ describe("crowdin sandbox file config", () => {
 });
 
 describe("sandbox translation failure reasons", () => {
+  it("maps command deadlines to a resumable timeout message", () => {
+    expect(userFacingFailureReason(new Error("sandbox_timeout: bash exceeded 270000ms"))).toBe(
+      "the translation took too long to finish. Progress was saved, so try the job again to continue.",
+    );
+  });
+
   it("preserves glossary validation diagnostics for persisted job failures", () => {
     const diagnostics = {
       targetLocale: "fr-FR",

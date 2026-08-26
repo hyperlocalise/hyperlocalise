@@ -6,7 +6,7 @@ File translation sandboxes currently have a fixed ten-minute lifetime. Large job
 
 ## Design
 
-Use one sandbox for each file translation job. Create it with the existing ten-minute minimum so source upload and entry extraction can run. After extracting the source entries, calculate the translation workload as the source key count multiplied by the target locale count.
+Use one sandbox for each file translation job. Create it with the existing ten-minute minimum so source upload and entry extraction can run. After extracting the source entries and loading project and translation-memory prefills, calculate the remaining translation workload. For each target locale, count source keys that are absent from the merged prefill set, then sum those locale-specific counts. This is equivalent to subtracting completed translations while also accounting for translation-memory matches, hidden-key prefills, and non-repository uploads.
 
 Budget three seconds for each key-locale translation and add a fixed setup and cleanup allowance. Increase the running sandbox's total timeout to the larger of the existing ten-minute minimum or the calculated budget plus the allowance.
 

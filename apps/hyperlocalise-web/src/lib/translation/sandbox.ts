@@ -12,7 +12,7 @@
  */
 import { randomUUID } from "node:crypto";
 
-import { Sandbox, StreamError } from "@vercel/sandbox";
+import { Sandbox, StreamError, type Command } from "@vercel/sandbox";
 
 import { env } from "@/lib/env";
 import {
@@ -35,6 +35,7 @@ import {
 } from "@/lib/projects/files/hl-entries";
 
 export const sandboxTimeoutMs = 10 * 60 * 1000;
+export const sandboxTranslationCommandTimeoutMs = 4 * 60 * 1000 + 30 * 1000;
 export const crowdinSandboxConfigPath = "/tmp/crowdin.yml";
 /** Colocated with sandbox source/output files so CLI pathguard root matches.
  *  Reserved name so a user source named i18n.yml is not overwritten. */
@@ -42,6 +43,15 @@ export const sandboxI18nConfigPath = ".hl-sandbox-i18n.yml";
 export const sandboxFileBucketName = "file";
 
 export type { SandboxTranslationContext };
+
+export class SandboxCommandTimeoutError extends Error {
+  readonly code = "sandbox_timeout";
+
+  constructor(command: string, timeoutMs: number) {
+    super(`sandbox_timeout: ${command} exceeded ${timeoutMs}ms`);
+    this.name = "SandboxCommandTimeoutError";
+  }
+}
 
 export type ExtractSandboxEntriesResult =
   | { ok: true; entries: HlEntriesPayload }
@@ -209,14 +219,23 @@ export class SandboxErrorMapper {
       return "the translation environment disconnected mid-run. This is usually temporary — try again.";
     }
 
+    if (message.includes("sandbox_timeout")) {
+      return "the translation took too long to finish. Progress was saved, so try the job again to continue.";
+    }
+
     return "the translation failed before it could finish. This is usually temporary.";
   }
 }
 
 export class SandboxLifecycle {
-  async create(): Promise<{ sandboxId: string }> {
-    const sandbox = await createConfiguredVercelSandbox({ timeout: sandboxTimeoutMs });
+  async create(timeoutMs = sandboxTimeoutMs): Promise<{ sandboxId: string }> {
+    const sandbox = await createConfiguredVercelSandbox({ timeout: timeoutMs });
     return { sandboxId: sandbox.name };
+  }
+
+  async updateTimeout(sandboxId: string, timeoutMs: number): Promise<void> {
+    const sandbox = await Sandbox.get({ name: sandboxId });
+    await sandbox.update({ timeout: timeoutMs });
   }
 
   async stop(sandboxId: string): Promise<void> {
@@ -276,9 +295,32 @@ export class SandboxLifecycle {
     sandboxId: string,
     command: string,
     args: string[],
-    options?: { env?: Record<string, string>; output?: "stdout" | "stderr" | "both" },
+    options?: {
+      env?: Record<string, string>;
+      output?: "stdout" | "stderr" | "both";
+      timeoutMs?: number;
+    },
   ): Promise<{ exitCode: number; output: string }> {
     const outputMode = options?.output ?? "both";
+    const timeoutController = new AbortController();
+    const timeout = options?.timeoutMs
+      ? setTimeout(() => timeoutController.abort(), options.timeoutMs)
+      : null;
+
+    const throwTimeout = () => {
+      throw new SandboxCommandTimeoutError(command, options?.timeoutMs ?? 0);
+    };
+
+    const throwIfTimedOut = () => {
+      if (timeoutController.signal.aborted) {
+        throwTimeout();
+      }
+    };
+
+    const waitForCommand = (sandboxCommand: Command) =>
+      options?.timeoutMs
+        ? sandboxCommand.wait({ signal: timeoutController.signal })
+        : sandboxCommand.wait();
 
     const startDetachedCommand = async () => {
       const sandbox = await Sandbox.get({ name: sandboxId });
@@ -289,6 +331,9 @@ export class SandboxLifecycle {
         args,
         env: options?.env,
         detached: true,
+        ...(options?.timeoutMs
+          ? { signal: timeoutController.signal, timeoutMs: options.timeoutMs }
+          : {}),
       });
     };
 
@@ -296,8 +341,9 @@ export class SandboxLifecycle {
       started: Awaited<ReturnType<typeof startDetachedCommand>>,
     ) => {
       try {
-        return await started.wait();
+        return await waitForCommand(started);
       } catch (error) {
+        throwIfTimedOut();
         if (!isSandboxDisconnectError(error)) {
           throw error;
         }
@@ -317,8 +363,10 @@ export class SandboxLifecycle {
           // files from a just-finished run.
           try {
             const sandbox = await Sandbox.get({ name: sandboxId });
-            const command = await sandbox.getCommand(started.cmdId);
-            return await command.wait();
+            const command = options?.timeoutMs
+              ? await sandbox.getCommand(started.cmdId, { signal: timeoutController.signal })
+              : await sandbox.getCommand(started.cmdId);
+            return await waitForCommand(command);
           } catch (reconnectError) {
             console.warn("[sandbox] reconnect wait failed; recovering session", {
               sandboxId,
@@ -338,45 +386,57 @@ export class SandboxLifecycle {
           }
 
           const sandbox = await Sandbox.get({ name: sandboxId });
-          const command = await sandbox.getCommand(started.cmdId);
-          return command.wait();
+          const command = options?.timeoutMs
+            ? await sandbox.getCommand(started.cmdId, { signal: timeoutController.signal })
+            : await sandbox.getCommand(started.cmdId);
+          return waitForCommand(command);
         }
 
-        return started.wait();
+        return waitForCommand(started);
       }
     };
 
-    let started;
     try {
-      started = await startDetachedCommand();
-    } catch (error) {
-      if (!isSandboxDisconnectError(error)) {
-        throw error;
-      }
-
-      console.warn("[sandbox] disconnect during sandbox IO; recovering session", {
-        sandboxId,
-        streamClosed: isSandboxStreamClosedError(error),
-        transientNetwork: isSandboxTransientNetworkError(error),
-        error: error instanceof Error ? error.message : "unknown",
-      });
+      let started;
       try {
-        await this.recoverSession(sandboxId);
-      } catch (recoverError) {
-        console.warn("[sandbox] session recovery failed", {
-          sandboxId,
-          error: recoverError instanceof Error ? recoverError.message : "unknown",
-        });
-        throw error;
-      }
-      started = await startDetachedCommand();
-    }
+        started = await startDetachedCommand();
+      } catch (error) {
+        throwIfTimedOut();
+        if (!isSandboxDisconnectError(error)) {
+          throw error;
+        }
 
-    const finished = await waitForDetachedCommand(started);
-    return {
-      exitCode: finished.exitCode,
-      output: await finished.output(outputMode),
-    };
+        console.warn("[sandbox] disconnect during sandbox IO; recovering session", {
+          sandboxId,
+          streamClosed: isSandboxStreamClosedError(error),
+          transientNetwork: isSandboxTransientNetworkError(error),
+          error: error instanceof Error ? error.message : "unknown",
+        });
+        try {
+          await this.recoverSession(sandboxId);
+        } catch (recoverError) {
+          console.warn("[sandbox] session recovery failed", {
+            sandboxId,
+            error: recoverError instanceof Error ? recoverError.message : "unknown",
+          });
+          throw error;
+        }
+        started = await startDetachedCommand();
+      }
+
+      const finished = await waitForDetachedCommand(started);
+      if (options?.timeoutMs && finished.exitCode === 137) {
+        throwTimeout();
+      }
+      return {
+        exitCode: finished.exitCode,
+        output: await finished.output(outputMode),
+      };
+    } finally {
+      if (timeout) {
+        clearTimeout(timeout);
+      }
+    }
   }
 
   async writeFiles(
@@ -880,8 +940,12 @@ export function getSandboxOutputFilename(attachmentFilename: string, targetLocal
   return getOutputFilename(sanitizeFilename(attachmentFilename), targetLocale);
 }
 
-export async function createTranslationSandbox() {
-  return defaultLifecycle.create();
+export async function createTranslationSandbox(timeoutMs?: number) {
+  return defaultLifecycle.create(timeoutMs);
+}
+
+export async function updateTranslationSandboxTimeout(sandboxId: string, timeoutMs: number) {
+  return defaultLifecycle.updateTimeout(sandboxId, timeoutMs);
 }
 
 export async function stopTranslationSandbox(sandboxId: string) {
@@ -896,7 +960,11 @@ export async function runSandboxCommand(
   sandboxId: string,
   command: string,
   args: string[],
-  options?: { env?: Record<string, string>; output?: "stdout" | "stderr" | "both" },
+  options?: {
+    env?: Record<string, string>;
+    output?: "stdout" | "stderr" | "both";
+    timeoutMs?: number;
+  },
 ) {
   return defaultLifecycle.runCommand(sandboxId, command, args, options);
 }
