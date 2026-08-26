@@ -15,15 +15,34 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vite-plus/test";
 
-import { PROJECT_AVATAR_KEY_MAX_LENGTH, ProjectAvatar } from "./project-avatar";
+import {
+  PROJECT_AVATAR_KEY_MAX_LENGTH,
+  ProjectAvatar,
+  projectAvatarLabelFromName,
+} from "./project-avatar";
+
+describe("projectAvatarLabelFromName", () => {
+  it("uses word initials for multi-word names", () => {
+    expect(projectAvatarLabelFromName("Website Launch")).toBe("WL");
+    expect(projectAvatarLabelFromName("Hyper Local App")).toBe("HLA");
+  });
+
+  it("uses leading letters for single-word names", () => {
+    expect(projectAvatarLabelFromName("Tourmatic")).toBe("TOU");
+  });
+
+  it("falls back when the name is empty", () => {
+    expect(projectAvatarLabelFromName("")).toBe("PRJ");
+    expect(projectAvatarLabelFromName("   ")).toBe("PRJ");
+  });
+});
 
 describe("ProjectAvatar", () => {
-  it("truncates long project keys to three characters in the fallback", () => {
+  it("derives the fallback from the project name instead of the identifier", () => {
     render(
       <ProjectAvatar
         project={{
           name: "Tourmatic",
-          key: "P1FF26E5FA",
           logoUrl: null,
           externalProviderKind: null,
           source: "native",
@@ -31,18 +50,17 @@ describe("ProjectAvatar", () => {
       />,
     );
 
-    expect(screen.getByText("P1F")).toBeInTheDocument();
-    expect(screen.queryByText("P1FF26E5FA")).not.toBeInTheDocument();
-    expect(screen.getByTitle("P1FF26E5FA")).toBeInTheDocument();
+    expect(screen.getByText("TOU")).toBeInTheDocument();
+    expect(screen.queryByText("P1F")).not.toBeInTheDocument();
+    expect(screen.getByTitle("Tourmatic")).toBeInTheDocument();
     expect(PROJECT_AVATAR_KEY_MAX_LENGTH).toBe(3);
   });
 
-  it("keeps short keys unchanged", () => {
+  it("keeps short name labels unchanged", () => {
     render(
       <ProjectAvatar
         project={{
           name: "Docs",
-          key: "HL",
           logoUrl: null,
           externalProviderKind: null,
           source: "native",
@@ -50,6 +68,6 @@ describe("ProjectAvatar", () => {
       />,
     );
 
-    expect(screen.getByText("HL")).toBeInTheDocument();
+    expect(screen.getByText("DOC")).toBeInTheDocument();
   });
 });
