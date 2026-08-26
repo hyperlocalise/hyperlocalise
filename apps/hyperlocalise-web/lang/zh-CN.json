@@ -461,6 +461,9 @@
   "/vxavoK/xz": {
     "defaultMessage": "LinkedIn"
   },
+  "/xJskut0lc": {
+    "defaultMessage": "分组行将在 CAT 草稿保存或放弃后展开。翻译、批准、评论和已保存的分隔例外设置将保持不变。"
+  },
   "/y+q4g0L8i": {
     "defaultMessage": "添加术语、市场洞察、合规要求、发布指南以及需要避免的事项……"
   },
@@ -1903,6 +1906,9 @@
   },
   "5gOsIVBri/": {
     "defaultMessage": "在发布前审查翻译质量"
+  },
+  "5h52MoVR2a": {
+    "defaultMessage": "只有项目经理可以更改此设置。"
   },
   "5jQwn2vYQM": {
     "defaultMessage": "还没有自定义列。"
@@ -3964,6 +3970,9 @@
   },
   "E+xT1YvnbH": {
     "defaultMessage": "请求演示"
+  },
+  "E/lJPiTTAo": {
+    "defaultMessage": "取消"
   },
   "E/rfTTHsFg": {
     "defaultMessage": "有警告"
@@ -6728,6 +6737,9 @@
   "Qbn+bjzsz0": {
     "defaultMessage": "Glossaries"
   },
+  "QdeL6ZDB5C": {
+    "defaultMessage": "对相同字符串进行分组？"
+  },
   "QdvsoHtp53": {
     "defaultMessage": "sync"
   },
@@ -8063,6 +8075,9 @@
   "WUFTI428rT": {
     "defaultMessage": "Manual"
   },
+  "WUMSOeitWn": {
+    "defaultMessage": "启用分组"
+  },
   "WUV28A6Pf2": {
     "defaultMessage": "Saving…"
   },
@@ -8116,6 +8131,9 @@
   },
   "WhMZXjHjRn": {
     "defaultMessage": "Pending"
+  },
+  "WhmV5YamvS": {
+    "defaultMessage": "保存时，此术语将从概念中移除。"
   },
   "Wi6a5o/Mm+": {
     "defaultMessage": "人机协同编排"
@@ -8230,6 +8248,9 @@
   },
   "X9s4kh3gLN": {
     "defaultMessage": "本地化审核报告"
+  },
+  "XAJ64thIXq": {
+    "defaultMessage": "CAT 工作区刷新时，将源文本完全相同的重复项显示为一个共享组。"
   },
   "XAPcmSCzyq": {
     "defaultMessage": "Human review workflows"
@@ -8768,6 +8789,9 @@
   "ZNrsvoazsU": {
     "defaultMessage": "Hyperlocalise 已自动创建了 Contentful webhook。如需手动重新注册，请保存下面的密钥。"
   },
+  "ZQECIF/mni": {
+    "defaultMessage": "停止对相同字符串进行分组吗？"
+  },
   "ZQbvwhJWXn": {
     "defaultMessage": "请先启用"
   },
@@ -9178,6 +9202,9 @@
   },
   "b6FmkNJjkD": {
     "defaultMessage": "删除任务"
+  },
+  "b6mn1qkBp4": {
+    "defaultMessage": "自动将相同字符串分组"
   },
   "b7cQsDBNuy": {
     "defaultMessage": "Format"
@@ -11207,6 +11234,9 @@
   "jUpgPN4uQt": {
     "defaultMessage": "Work in progress"
   },
+  "jVfYLLHPHu": {
+    "defaultMessage": "禁用分组"
+  },
   "jW4nG0Rt7y": {
     "defaultMessage": "上传 {sourcePath} 失败"
   },
@@ -11732,6 +11762,9 @@
   "lO+u6H8vSf": {
     "defaultMessage": "自动化设置已保存"
   },
+  "lODK5YiNr1": {
+    "defaultMessage": "无法加载 CAT 行为"
+  },
   "lOhCmO7eKl": {
     "defaultMessage": "目标术语"
   },
@@ -11791,6 +11824,9 @@
   },
   "ljEJGwxPd/": {
     "defaultMessage": "断开连接"
+  },
+  "llWEpZcDRe": {
+    "defaultMessage": "无法更新 CAT 行为"
   },
   "lmLPnsMyhs": {
     "defaultMessage": "前往仪表板"
@@ -11873,6 +11909,9 @@
   "m8UlToMOXC": {
     "defaultMessage": "正在查找文件"
   },
+  "mABAdUPLF4": {
+    "defaultMessage": "控制源字符串在 CAT 工作区中的组织方式。"
+  },
   "mAyP67aqS8": {
     "defaultMessage": "Clear"
   },
@@ -11943,7 +11982,7 @@
     "defaultMessage": "项目加载失败"
   },
   "mNhu5W2AEy": {
-    "defaultMessage": "@hyperlocalise review"
+    "defaultMessage": "@hyperlocalise 审核"
   },
   "mObQkKgd8s": {
     "defaultMessage": "加载 Intercom 连接失败。"
@@ -12575,6 +12614,9 @@
   "p9ro5GVVLh": {
     "defaultMessage": "Settings"
   },
+  "pAXX9L54+r": {
+    "defaultMessage": "翻译与 CAT 行为"
+  },
   "pCwlsos9AL": {
     "defaultMessage": "为每周计划选择一个星期几。"
   },
@@ -13123,6 +13165,9 @@
   },
   "rWXo8jdqPU": {
     "defaultMessage": "Updated"
+  },
+  "rWZYfLEPfd": {
+    "defaultMessage": "这将把预计的 {occurrences, number} 个匹配项分组为 {groups, number} 个组。现有翻译不会更改。"
   },
   "rWc6Iosb8n": {
     "defaultMessage": "没有符合此视图的问题。"
@@ -14113,6 +14158,9 @@
   },
   "viq5/Imoma": {
     "defaultMessage": "工作区"
+  },
+  "vjPfgNgxUm": {
+    "defaultMessage": "CAT 行为已更新"
   },
   "vjXHRG767Q": {
     "defaultMessage": "已创建 {createdCount}/{totalCount} 个任务，随后失败：{errorMessage}"

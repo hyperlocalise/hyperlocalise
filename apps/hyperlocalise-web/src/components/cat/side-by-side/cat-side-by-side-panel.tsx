@@ -96,6 +96,9 @@ export const CatSideBySidePanel = observer(function CatSideBySidePanel({
   onUseTmMatch,
   onAddComment,
   onResolveComment,
+  showMaxLengthEditor = false,
+  isMaxLengthSaving = false,
+  onSetMaxLength,
   primaryActionLabel,
   segmentShareUrl = null,
   className,
@@ -154,6 +157,9 @@ export const CatSideBySidePanel = observer(function CatSideBySidePanel({
   onUseTmMatch?: (segmentId: string, match: CatTranslationMemoryMatch) => void;
   onAddComment?: (segmentId: string, input: CatSegmentCommentInput) => void | Promise<void>;
   onResolveComment?: (segmentId: string, commentId: string) => void | Promise<void>;
+  showMaxLengthEditor?: boolean;
+  isMaxLengthSaving?: boolean;
+  onSetMaxLength?: (maxLength: number | null) => void | Promise<void>;
   primaryActionLabel?: string;
   segmentShareUrl?: string | null;
   className?: string;
@@ -332,6 +338,9 @@ export const CatSideBySidePanel = observer(function CatSideBySidePanel({
               ? () => onAddToIssueSheet(intelligenceSegmentId)
               : undefined
           }
+          showMaxLengthEditor={showMaxLengthEditor}
+          isMaxLengthSaving={isMaxLengthSaving}
+          onSetMaxLength={onSetMaxLength}
           placement="right"
           className="h-full"
         />

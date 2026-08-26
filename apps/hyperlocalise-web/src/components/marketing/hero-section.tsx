@@ -24,6 +24,8 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TypographyH1, TypographyP } from "@/components/ui/typography";
 import { cn } from "@/lib/primitives/cn";
+import { rewriteAppLocalePath } from "@/lib/app-i18n/rewrite-app-locale-path";
+import { useAppLocale } from "@/lib/app-i18n/use-app-locale";
 
 const dashboardHref = "/dashboard";
 const HERO_IMAGE_SRC = "/images/vimal-s-GBg3jyGS-Ug-unsplash.jpg";
@@ -63,6 +65,7 @@ export function HeroSection() {
   const { user, loading } = useAuth();
   const isAuthenticated = Boolean(user);
   const intl = useIntl();
+  const locale = useAppLocale();
 
   const headlineTransition = shouldReduceMotion
     ? { duration: 0 }
@@ -152,7 +155,7 @@ export function HeroSection() {
                   size="lg"
                   className="bg-white text-neutral-950 hover:bg-white/90"
                   nativeButton={false}
-                  render={<Link href={dashboardHref} />}
+                  render={<Link href={rewriteAppLocalePath(dashboardHref, locale)} />}
                 >
                   <FormattedMessage {...heroSectionMessages.goToDashboard} />
                 </Button>

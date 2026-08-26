@@ -119,6 +119,7 @@
 - Ignores line comments (`// ...`) and block comments (`/* ... */`).
 - Decodes escaped sequences (`\n`, `\r`, `\t`, `\"`, `\\`) and unicode escapes (`\u`, `\Uhhhh`, surrogate pairs).
 - Supports multiline quoted value content.
+- Extracts optional max-length limits from leading entry comments using `hl:max-length=`, `max.length:`, `max length:`, or `character limit:` conventions.
 - `MarshalAppleStrings(template, values)` preserves template layout/comments/spacing and replaces only value literals.
 
 ### Apple Stringsdict (`.stringsdict`)
@@ -159,6 +160,7 @@
 - Falls back to the catalog key for simple source-only entries without a source localization.
 - Flattens variation and substitution leaves using stable `::` paths.
   - Examples: `item_count::plural.one`, `search_label::device.mac`, `count_label::substitution.total::plural.other`.
+- Extracts optional max-length limits from entry-level `maxLength` / `characterLimit` JSON fields or from the entry `comment` using the same comment conventions as `.strings`.
 - Preserves comments, extraction state, string-unit state, substitutions metadata, and unrelated JSON fields on marshal.
 - `MarshalXCStrings(template, sourceTemplate, values, sourceLocale, targetLocale)` writes translated values under `localizations[targetLocale]` and emits deterministic, pretty-printed JSON.
 - Original whitespace and object ordering are normalized during writeback.

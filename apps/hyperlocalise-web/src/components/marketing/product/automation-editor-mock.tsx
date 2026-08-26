@@ -106,13 +106,11 @@ function Pill({ children }: { children: ReactNode }) {
 
 function MockEditorPreview({
   highlight,
-  isDone,
+  isDone: _isDone,
 }: {
   highlight: Step["highlightSection"];
   isDone: boolean;
 }) {
-  const intl = useIntl();
-
   return (
     <div className="flex flex-col">
       <div

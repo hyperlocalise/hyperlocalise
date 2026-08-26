@@ -583,6 +583,45 @@ export function useCatMutations(input: {
     },
   });
 
+  const maxLengthMutation = useMutation({
+    mutationFn: async (mutationInput: { externalStringId: string; maxLength: number | null }) => {
+      const { sourcePath } = resolveCatMutationFileIdentity(
+        input,
+        mutationInput.externalStringId,
+        intl,
+      );
+
+      const response = await apiClient.api.orgs[":organizationSlug"].projects[
+        ":projectId"
+      ].files.detail.cat.segments[":externalStringId"]["max-length"].$post({
+        param: {
+          organizationSlug: input.organizationSlug,
+          projectId: input.projectId,
+          externalStringId: mutationInput.externalStringId,
+        },
+        json: {
+          sourcePath,
+          externalStringId: mutationInput.externalStringId,
+          maxLength: mutationInput.maxLength,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(
+          await readApiError(
+            response,
+            intl.formatMessage(useCatMutationsMessages.failedToUpdateMaxLength),
+          ),
+        );
+      }
+
+      return response.json();
+    },
+    onSuccess: async () => {
+      await input.invalidateQueue();
+    },
+  });
+
   return {
     saveMutation,
     saveTranslation: saveMutation.mutateAsync,
@@ -600,6 +639,8 @@ export function useCatMutations(input: {
     treatAsVideo: treatAsVideoMutation.mutateAsync,
     setStringsHidden: hiddenStringsMutation.mutateAsync,
     setStringsLocked: lockedStringsMutation.mutateAsync,
+    setMaxLength: maxLengthMutation.mutateAsync,
+    isSavingMaxLength: maxLengthMutation.isPending,
     isSaving: saveMutation.isPending,
     isPostingComment: commentMutation.isPending,
     isResolvingComment: resolveCommentMutation.isPending,

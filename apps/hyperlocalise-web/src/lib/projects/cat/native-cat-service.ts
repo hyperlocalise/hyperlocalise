@@ -597,6 +597,35 @@ export class NativeCatService extends ProjectServiceBase {
     });
   }
 
+  async setKeyMaxLength(input: {
+    organizationId: string;
+    projectId: string;
+    translationKeyId: string;
+    maxLength: number | null;
+    sourcePath?: string;
+  }) {
+    let repositorySourceFileId: string | undefined;
+    if (input.sourcePath && !isCatAllFilesSourcePath(input.sourcePath)) {
+      const sourceFile = await this.translations.getRepositorySourceFileByPath({
+        organizationId: input.organizationId,
+        projectId: input.projectId,
+        sourcePath: input.sourcePath,
+      });
+      if (!sourceFile) {
+        return { updated: false, maxLength: null };
+      }
+      repositorySourceFileId = sourceFile.id;
+    }
+
+    return this.translations.setKeyMaxLength({
+      organizationId: input.organizationId,
+      projectId: input.projectId,
+      translationKeyId: input.translationKeyId,
+      maxLength: input.maxLength,
+      repositorySourceFileId,
+    });
+  }
+
   async saveComment(input: Parameters<NativeCatCommentService["save"]>[0]) {
     return this.comments.save(input);
   }
@@ -1001,3 +1030,7 @@ export const updateNativeProjectTranslationStatus = (
 export const setNativeProjectCatStringsHidden = (
   input: Parameters<NativeCatService["setKeysHidden"]>[0],
 ) => nativeCatService.setKeysHidden(input);
+
+export const setNativeProjectCatKeyMaxLength = (
+  input: Parameters<NativeCatService["setKeyMaxLength"]>[0],
+) => nativeCatService.setKeyMaxLength(input);

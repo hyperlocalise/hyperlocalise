@@ -33,9 +33,13 @@ export async function generateMetadata({ params }: PrivacyPageProps): Promise<Me
   });
 }
 
-export default function PrivacyPage() {
+export default async function PrivacyPage({ params }: PrivacyPageProps) {
+  const { lang } = await params;
+  const locale = normalizeAppLocale(lang) ?? DEFAULT_APP_LOCALE;
+
   return (
     <LegalPage
+      locale={locale}
       eyebrow="Legal"
       title="Privacy policy"
       description="How Hyperlocalise handles account, usage, and provider-related data."

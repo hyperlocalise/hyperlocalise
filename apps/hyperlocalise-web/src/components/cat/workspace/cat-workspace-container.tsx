@@ -83,6 +83,7 @@ export interface CatWorkspaceContainerProps {
   isQueueFetchingPage?: boolean;
   isQueueLoading?: boolean;
   isImageBusy?: boolean;
+  isMaxLengthSaving?: boolean;
   queuePagination?: CatWorkspaceViewProps["queuePagination"];
   hasMoreQueue?: boolean;
   onLoadMoreQueue?: () => void;
@@ -119,6 +120,7 @@ const CatWorkspaceContainerObserver = observer(function CatWorkspaceContainerObs
   isQueueFetchingPage,
   isQueueLoading,
   isImageBusy,
+  isMaxLengthSaving,
   queuePagination,
   hasMoreQueue,
   onLoadMoreQueue,
@@ -296,6 +298,7 @@ const CatWorkspaceContainerObserver = observer(function CatWorkspaceContainerObs
           isCommentsLoading={store.isCommentsLoading}
           isSegmentTargetLoading={store.isSegmentTargetLoading}
           isImageBusy={isImageBusy}
+          isMaxLengthSaving={isMaxLengthSaving}
           queuePagination={queuePagination}
           hasMoreQueue={hasMoreQueue}
           onLoadMoreQueue={onLoadMoreQueue}

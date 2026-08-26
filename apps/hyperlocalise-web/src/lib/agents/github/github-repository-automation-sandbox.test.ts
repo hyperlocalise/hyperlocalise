@@ -33,6 +33,7 @@ vi.mock("@/lib/agent-runtime/workspaces/vercel-sandbox-runtime", () => ({
 
 import {
   checkoutCommitInSandbox,
+  prepareGithubRepositoryAutomationSandboxForPush,
   resolveDefaultBranchHeadSha,
 } from "./github-repository-automation-sandbox";
 
@@ -110,5 +111,71 @@ describe("checkoutCommitInSandbox", () => {
     await expect(checkoutCommitInSandbox("sandbox-1", "abc123")).rejects.toThrow(
       "git checkout failed for commit abc123",
     );
+  });
+});
+
+describe("prepareGithubRepositoryAutomationSandboxForPush", () => {
+  beforeEach(() => {
+    getInstallationOctokitMock.mockReset();
+    runSandboxCommandMock.mockReset();
+  });
+
+  it("configures git identity, credentials, and origin remote for push", async () => {
+    getInstallationOctokitMock.mockResolvedValue({
+      auth: vi.fn().mockResolvedValue({ token: "ghs_test_token" }),
+    });
+    runSandboxCommandMock.mockResolvedValue({ exitCode: 0, output: "" });
+
+    await prepareGithubRepositoryAutomationSandboxForPush({
+      sandboxId: "sandbox-1",
+      installationId: "42",
+      repositoryFullName: "acme/app",
+    });
+
+    expect(runSandboxCommandMock).toHaveBeenCalledTimes(5);
+    expect(runSandboxCommandMock.mock.calls).toEqual([
+      ["sandbox-1", "git", ["config", "user.name", "hyperlocalise[bot]"], undefined],
+      [
+        "sandbox-1",
+        "git",
+        ["config", "user.email", "hyperlocalise[bot]@users.noreply.github.com"],
+        undefined,
+      ],
+      ["sandbox-1", "git", ["config", "credential.helper", "store"], undefined],
+      [
+        "sandbox-1",
+        "bash",
+        [
+          "-lc",
+          `printf '%s\\n' "https://x-access-token:$GITHUB_TOKEN@github.com" > ~/.git-credentials`,
+        ],
+        { env: { GITHUB_TOKEN: "ghs_test_token" } },
+      ],
+      [
+        "sandbox-1",
+        "git",
+        ["remote", "set-url", "origin", "https://github.com/acme/app.git"],
+        undefined,
+      ],
+    ]);
+  });
+
+  it("throws when a setup command fails", async () => {
+    getInstallationOctokitMock.mockResolvedValue({
+      auth: vi.fn().mockResolvedValue({ token: "ghs_test_token" }),
+    });
+    runSandboxCommandMock
+      .mockResolvedValueOnce({ exitCode: 0, output: "" })
+      .mockResolvedValueOnce({ exitCode: 1, output: "permission denied" });
+
+    await expect(
+      prepareGithubRepositoryAutomationSandboxForPush({
+        sandboxId: "sandbox-1",
+        installationId: "42",
+        repositoryFullName: "acme/app",
+      }),
+    ).rejects.toThrow("sandbox git setup failed: permission denied");
+
+    expect(runSandboxCommandMock).toHaveBeenCalledTimes(2);
   });
 });

@@ -49,10 +49,10 @@ type BundleAddRequest struct {
 	ExportPattern string `json:"exportPattern"`
 	// Export translations in multilingual file.
 	// Default: false.
-	IsMultilingual *bool `json:"isMultilingual"`
+	IsMultilingual *bool `json:"isMultilingual,omitempty"`
 	// Add project source language to bundle.
 	// Default: false.
-	IncludeProjectSourceLanguage *bool `json:"includeProjectSourceLanguage"`
+	IncludeProjectSourceLanguage *bool `json:"includeProjectSourceLanguage,omitempty"`
 	// Label Identifiers.
 	LabelIDs []int `json:"labelIds,omitempty"`
 	// Exclude Label Identifiers.

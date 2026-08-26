@@ -39,7 +39,7 @@
     "chalk": "6.0.0",
     "cli-table3": "0.6.5",
     "css-loader": "7.1.4",
-    "cssnano": "8.0.7",
+    "cssnano": "8.0.8",
     "dotenv": "17.4.2",
     "esbuild-register": "3.6.0",
     "jsdom": "^30.0.0",

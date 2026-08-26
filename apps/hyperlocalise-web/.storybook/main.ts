@@ -33,10 +33,13 @@ const config: StorybookConfig = {
         },
       ];
     } else {
-      viteConfig.resolve.alias = {
-        ...(existingAlias && !Array.isArray(existingAlias) ? existingAlias : {}),
-        "@workos-inc/authkit-nextjs/components": authkitComponentsMock,
-      };
+      viteConfig.resolve.alias = Object.assign(
+        {},
+        existingAlias && !Array.isArray(existingAlias) ? existingAlias : {},
+        {
+          "@workos-inc/authkit-nextjs/components": authkitComponentsMock,
+        },
+      );
     }
 
     return viteConfig;

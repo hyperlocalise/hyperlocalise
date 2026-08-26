@@ -19,6 +19,7 @@ import { FormattedMessage, useIntl } from "react-intl";
 
 import { formatInternalMarkupForDisplay } from "@/components/cat/message-format/cat-internal-markup";
 import { MarkdownContent } from "@/components/markdown-editor/markdown-editor";
+import { CatSegmentMaxLengthEditor } from "@/components/cat/segment/cat-segment-max-length-editor";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -209,10 +210,13 @@ export function CatIntelligencePanel({
   isVisualContextLoading = false,
   showAgentContext = false,
   showVisualContext = false,
+  showMaxLengthEditor = false,
+  isMaxLengthSaving = false,
   canEditTranslations = true,
   canLookupFreshContext = true,
   onRefreshContext,
   onUseTmMatch,
+  onSetMaxLength,
 }: {
   intelligence: CatSegmentIntelligence;
   targetText?: string;
@@ -221,10 +225,13 @@ export function CatIntelligencePanel({
   isVisualContextLoading?: boolean;
   showAgentContext?: boolean;
   showVisualContext?: boolean;
+  showMaxLengthEditor?: boolean;
+  isMaxLengthSaving?: boolean;
   canEditTranslations?: boolean;
   canLookupFreshContext?: boolean;
   onRefreshContext?: () => void;
   onUseTmMatch?: (match: CatTranslationMemoryMatch) => void;
+  onSetMaxLength?: (maxLength: number | null) => void | Promise<void>;
 }) {
   const intl = useIntl();
   const [pendingLowMatch, setPendingLowMatch] = useState<CatTranslationMemoryMatch | null>(null);
@@ -341,6 +348,19 @@ export function CatIntelligencePanel({
             isLoading={isVisualContextLoading}
             showPanel={showVisualContext}
           />
+
+          {showMaxLengthEditor ? (
+            <PanelSection title={intl.formatMessage(catIntelligencePanelMessages.maxLengthTitle)}>
+              <div className={intelligenceMutedPanelClassName}>
+                <CatSegmentMaxLengthEditor
+                  maxLength={intelligence.maxLength}
+                  canEdit={canEditTranslations && Boolean(onSetMaxLength)}
+                  isSaving={isMaxLengthSaving}
+                  onSave={onSetMaxLength ?? (async () => undefined)}
+                />
+              </div>
+            </PanelSection>
+          ) : null}
 
           <PanelSection title={intl.formatMessage(catIntelligencePanelMessages.fileContextTitle)}>
             <div className={intelligenceMutedPanelClassName}>

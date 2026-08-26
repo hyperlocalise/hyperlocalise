@@ -63,6 +63,9 @@ export function CatSideBySideIntelligencePanel({
   onAddComment,
   onOpenIssueSheet,
   onResolveComment,
+  showMaxLengthEditor = false,
+  isMaxLengthSaving = false,
+  onSetMaxLength,
   placement = "bottom",
   className,
 }: {
@@ -92,6 +95,9 @@ export function CatSideBySideIntelligencePanel({
   onAddComment?: (input: CatSegmentCommentInput) => void | Promise<void>;
   onOpenIssueSheet?: () => void;
   onResolveComment?: (commentId: string) => void | Promise<void>;
+  showMaxLengthEditor?: boolean;
+  isMaxLengthSaving?: boolean;
+  onSetMaxLength?: (maxLength: number | null) => void | Promise<void>;
   placement?: "bottom" | "right";
   className?: string;
 }) {
@@ -145,10 +151,13 @@ export function CatSideBySideIntelligencePanel({
       isVisualContextLoading={isVisualContextLoading}
       showAgentContext={showAgentContext}
       showVisualContext={showVisualContext}
-      canEditTranslations={canEditTranslations}
+      showMaxLengthEditor={showMaxLengthEditor}
+      isMaxLengthSaving={isMaxLengthSaving}
+      canEditTranslations={canEditTranslations && !segment.isLocked}
       canLookupFreshContext={canLookupFreshContext}
       onRefreshContext={onRefreshContext}
       onUseTmMatch={onUseTmMatch}
+      onSetMaxLength={segment.isLocked ? undefined : onSetMaxLength}
     />
   );
   const commentsPanel = (

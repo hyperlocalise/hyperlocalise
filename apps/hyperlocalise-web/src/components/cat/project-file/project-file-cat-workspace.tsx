@@ -297,6 +297,8 @@ export function ProjectFileCatWorkspace({
     treatAsVideo,
     setStringsHidden,
     setStringsLocked,
+    setMaxLength,
+    isSavingMaxLength,
     isImageBusy,
   } = useCatMutations({
     organizationSlug,
@@ -517,6 +519,22 @@ export function ProjectFileCatWorkspace({
       });
     },
     [catFile?.canEditTranslations, intl, setStringsLocked],
+  );
+
+  const handleSetMaxLength = useCallback(
+    async (segmentId: string, maxLength: number | null) => {
+      if (!catFile?.canEditTranslations || !isNativeProject) {
+        throw new Error(
+          intl.formatMessage(projectFileCatWorkspaceMessages.cannotWriteTranslations),
+        );
+      }
+
+      await setMaxLength({
+        externalStringId: segmentId,
+        maxLength,
+      });
+    },
+    [catFile?.canEditTranslations, intl, isNativeProject, setMaxLength],
   );
 
   const handleAddToIssueSheet = useCallback(
@@ -830,6 +848,7 @@ export function ProjectFileCatWorkspace({
                 onRegenerateImage: async (segmentId: string) => {
                   await regenerateImage({ externalStringId: segmentId });
                 },
+                onSetMaxLength: handleSetMaxLength,
               }
             : {}),
           onUploadImage: async (segmentId, file) => {
@@ -877,6 +896,7 @@ export function ProjectFileCatWorkspace({
         isQueueFetchingPage={isFetchingNextPage}
         isQueueLoading={isQueueLoading}
         isImageBusy={isImageBusy}
+        isMaxLengthSaving={isSavingMaxLength}
         queuePagination={pagination}
         onLoadMoreQueue={loadNextPage}
         hasMoreQueue={pagination?.hasMore ?? false}

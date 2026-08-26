@@ -62,7 +62,7 @@ func newEntriesCmd() *cobra.Command {
 	return cmd
 }
 
-func readEntriesCommandOutput(path string, content []byte, sourcePath, locale string) (map[string]string, error) {
+func readEntriesCommandOutput(path string, content []byte, sourcePath, locale string) (map[string]translationfileparser.EntriesCommandOutputValue, error) {
 	if sourcePath != "" {
 		ext := strings.ToLower(filepath.Ext(path))
 		if ext == ".md" || ext == ".mdx" {
@@ -74,13 +74,17 @@ func readEntriesCommandOutput(path string, content []byte, sourcePath, locale st
 			if err != nil {
 				return nil, fmt.Errorf("read entries source %q: %w", sourcePath, err)
 			}
-			return translationfileparser.AlignMarkdownTargetToSource(sourceContent, content, ext == ".mdx"), nil
+			aligned := translationfileparser.AlignMarkdownTargetToSource(sourceContent, content, ext == ".mdx")
+			return translationfileparser.EncodeEntriesCommandOutput(
+				translationfileparser.IngestEntriesFromStringMap(aligned),
+			), nil
 		}
 	}
 
 	strategy := translationfileparser.NewDefaultStrategy()
-	if locale != "" {
-		return strategy.ParseWithLocale(path, content, locale)
+	entries, err := strategy.ParseIngestEntries(path, content, locale)
+	if err != nil {
+		return nil, err
 	}
-	return strategy.Parse(path, content)
+	return translationfileparser.EncodeEntriesCommandOutput(entries), nil
 }

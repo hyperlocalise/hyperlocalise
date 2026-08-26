@@ -81,7 +81,7 @@ export const footerColumns: MarketingFooterColumn[] = [
       { labelKey: "footerStartups", href: "/startups" },
       { labelKey: "footerCompany", href: "/company" },
       { labelKey: "footerLocalisationAudit", href: "/localisation-audit" },
-      { label: "Blog", href: "/en/blog" },
+      { label: "Blog", href: "/blog" },
       { labelKey: "footerGitHubAction", href: githubActionUrl },
       { labelKey: "footerContact", href: contactUrl },
       { labelKey: "footerStatus", href: statusUrl },
@@ -90,8 +90,8 @@ export const footerColumns: MarketingFooterColumn[] = [
   {
     title: "Legal",
     links: [
-      { label: "Terms", href: "/en/terms" },
-      { label: "Privacy", href: "/en/privacy" },
+      { label: "Terms", href: "/terms" },
+      { label: "Privacy", href: "/privacy" },
       { label: "Trust Center", href: trustCenterUrl },
     ],
     nested: {

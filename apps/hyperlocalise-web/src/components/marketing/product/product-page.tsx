@@ -23,6 +23,8 @@ import { footerColumns } from "@/components/marketing/marketing-page-content";
 import { REQUEST_DEMO_URL } from "@/components/marketing/request-demo";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/primitives/cn";
+import { rewriteAppLocalePath } from "@/lib/app-i18n/rewrite-app-locale-path";
+import { useAppLocale } from "@/lib/app-i18n/use-app-locale";
 
 import type { ProductPageContent } from "./product-page-content";
 import { AutomationsMockUI } from "./automations-mock-ui";
@@ -174,6 +176,8 @@ function ProductShowcase({ content }: ProductPageProps) {
 }
 
 function ProductDetailsSection({ content }: ProductPageProps) {
+  const locale = useAppLocale();
+
   return (
     <div className="grid gap-12 lg:grid-cols-[0.82fr_1.18fr] lg:items-start">
       <div className="max-w-xl lg:sticky lg:top-24">
@@ -215,7 +219,7 @@ function ProductDetailsSection({ content }: ProductPageProps) {
                 size="sm"
                 className="rounded-full"
                 nativeButton={false}
-                render={<Link href={link.href} />}
+                render={<Link href={rewriteAppLocalePath(link.href, locale)} />}
               >
                 <ProductMessage messageKey={link.labelKey} />
                 <HugeiconsIcon

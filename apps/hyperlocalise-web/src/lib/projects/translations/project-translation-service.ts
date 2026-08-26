@@ -227,6 +227,8 @@ export class ProjectTranslationService extends ProjectServiceBase {
         sourceText: entry.text,
         context: entry.context?.trim() || null,
         type: entry.type?.trim() || null,
+        maxLength:
+          entry.maxLength != null && entry.maxLength > 0 ? Math.trunc(entry.maxLength) : null,
         normalizedSourceText: normalizeTranslationMemorySourceText(entry.text),
       }))
       .filter((entry) => entry.key.length > 0 && entry.sourceText.trim().length > 0)
@@ -273,6 +275,7 @@ export class ProjectTranslationService extends ProjectServiceBase {
           normalizedSourceText: entry.normalizedSourceText,
           context: entry.context,
           type: entry.type,
+          maxLength: entry.maxLength,
           sourceFileVersionId: input.sourceFileVersionId ?? null,
         })),
       )
@@ -287,6 +290,7 @@ export class ProjectTranslationService extends ProjectServiceBase {
           normalizedSourceText: sql`excluded.normalized_source_text`,
           context: sql`excluded.context`,
           type: sql`excluded.type`,
+          maxLength: sql`coalesce(excluded.max_length, ${schema.projectTranslationKeys.maxLength})`,
           sourceFileVersionId: sql`excluded.source_file_version_id`,
           updatedAt: sql`now()`,
         },
@@ -305,6 +309,40 @@ export class ProjectTranslationService extends ProjectServiceBase {
     );
 
     return { imported, updated };
+  }
+
+  async setKeyMaxLength(input: {
+    organizationId: string;
+    projectId: string;
+    translationKeyId: string;
+    maxLength: number | null;
+    repositorySourceFileId?: string;
+  }): Promise<{ updated: boolean; maxLength: number | null }> {
+    const normalizedMaxLength =
+      input.maxLength != null && input.maxLength > 0 ? Math.trunc(input.maxLength) : null;
+
+    const updated = await this.database
+      .update(schema.projectTranslationKeys)
+      .set({
+        maxLength: normalizedMaxLength,
+        updatedAt: new Date(),
+      })
+      .where(
+        and(
+          eq(schema.projectTranslationKeys.organizationId, input.organizationId),
+          eq(schema.projectTranslationKeys.projectId, input.projectId),
+          eq(schema.projectTranslationKeys.id, input.translationKeyId),
+          input.repositorySourceFileId
+            ? eq(schema.projectTranslationKeys.repositorySourceFileId, input.repositorySourceFileId)
+            : undefined,
+        ),
+      )
+      .returning({ maxLength: schema.projectTranslationKeys.maxLength });
+
+    return {
+      updated: updated.length > 0,
+      maxLength: updated[0]?.maxLength ?? null,
+    };
   }
 
   async setKeysHidden(input: {
@@ -1185,6 +1223,10 @@ export const upsertProjectTranslationKeysFromEntries = (
 export const setProjectTranslationKeysHidden = (
   input: Parameters<ProjectTranslationService["setKeysHidden"]>[0],
 ) => projectTranslationService.setKeysHidden(input);
+
+export const setProjectTranslationKeyMaxLength = (
+  input: Parameters<ProjectTranslationService["setKeyMaxLength"]>[0],
+) => projectTranslationService.setKeyMaxLength(input);
 
 export const isProjectTranslationKeyHidden = (
   input: Parameters<ProjectTranslationService["isKeyHidden"]>[0],

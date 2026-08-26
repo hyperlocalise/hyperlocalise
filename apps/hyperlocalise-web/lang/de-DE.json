@@ -461,6 +461,9 @@
   "/vxavoK/xz": {
     "defaultMessage": "LinkedIn"
   },
+  "/xJskut0lc": {
+    "defaultMessage": "Gruppierte Zeilen werden erweitert, nachdem CAT-Entwürfe gespeichert oder verworfen wurden. Übersetzungen, Freigaben, Kommentare und gespeicherte Ausnahmen für die Aufhebung der Gruppierung bleiben unverändert."
+  },
   "/y+q4g0L8i": {
     "defaultMessage": "Füge Terminologie, Marktkenntnisse, Compliance-Anforderungen, Hinweise zur Markteinführung und Dinge hinzu, die es zu vermeiden gilt …"
   },
@@ -1903,6 +1906,9 @@
   },
   "5gOsIVBri/": {
     "defaultMessage": "Überprüfen Sie die Übersetzungen vor der Veröffentlichung auf ihre Qualität."
+  },
+  "5h52MoVR2a": {
+    "defaultMessage": "Nur Projektmanager können diese Einstellung ändern."
   },
   "5jQwn2vYQM": {
     "defaultMessage": "Noch keine benutzerdefinierten Spalten."
@@ -3964,6 +3970,9 @@
   },
   "E+xT1YvnbH": {
     "defaultMessage": "Demo anfordern"
+  },
+  "E/lJPiTTAo": {
+    "defaultMessage": "Abbrechen"
   },
   "E/rfTTHsFg": {
     "defaultMessage": "Enthält Warnungen"
@@ -6728,6 +6737,9 @@
   "Qbn+bjzsz0": {
     "defaultMessage": "Glossare"
   },
+  "QdeL6ZDB5C": {
+    "defaultMessage": "Identische Zeichenfolgen gruppieren?"
+  },
   "QdvsoHtp53": {
     "defaultMessage": "Synchronisierung"
   },
@@ -8063,6 +8075,9 @@
   "WUFTI428rT": {
     "defaultMessage": "Manuell"
   },
+  "WUMSOeitWn": {
+    "defaultMessage": "Gruppierung aktivieren"
+  },
   "WUV28A6Pf2": {
     "defaultMessage": "Saving…"
   },
@@ -8116,6 +8131,9 @@
   },
   "WhMZXjHjRn": {
     "defaultMessage": "Ausstehend"
+  },
+  "WhmV5YamvS": {
+    "defaultMessage": "Dieser Begriff wird beim Speichern aus dem Konzept entfernt."
   },
   "Wi6a5o/Mm+": {
     "defaultMessage": "Orchestrierung mit menschlicher Beteiligung"
@@ -8230,6 +8248,9 @@
   },
   "X9s4kh3gLN": {
     "defaultMessage": "Lokalisierungsprüfbericht"
+  },
+  "XAJ64thIXq": {
+    "defaultMessage": "Zeige beim Aktualisieren des CAT-Arbeitsbereichs exakt identische Quelltexte als gemeinsame Gruppe an."
   },
   "XAPcmSCzyq": {
     "defaultMessage": "Workflows für menschliche Überprüfungen"
@@ -8667,7 +8688,7 @@
     "defaultMessage": "Eigenschaften"
   },
   "Yzekc4ZTpO": {
-    "defaultMessage": "© {year} Hyperlocalise Pty Ltd - ACN 698 557 667"
+    "defaultMessage": "© {year} Hyperlocalise Pty Ltd – ACN 698 557 667"
   },
   "YzvAxP4rX/": {
     "defaultMessage": "Übersetze die Arbeit an der Übersetzung über Agenten, Prüfer und Systeme hinweg"
@@ -8767,6 +8788,9 @@
   },
   "ZNrsvoazsU": {
     "defaultMessage": "Hyperlocalise hat den Contentful-Webhook automatisch erstellt. Speichern Sie das untenstehende Geheimnis, falls Sie sich manuell erneut registrieren müssen."
+  },
+  "ZQECIF/mni": {
+    "defaultMessage": "Gruppierung identischer Zeichenfolgen beenden?"
   },
   "ZQbvwhJWXn": {
     "defaultMessage": "Zuerst aktivieren"
@@ -9178,6 +9202,9 @@
   },
   "b6FmkNJjkD": {
     "defaultMessage": "Aufgabe löschen"
+  },
+  "b6mn1qkBp4": {
+    "defaultMessage": "Identische Zeichenfolgen automatisch gruppieren"
   },
   "b7cQsDBNuy": {
     "defaultMessage": "Format"
@@ -9732,7 +9759,7 @@
     "defaultMessage": "Abbrechen"
   },
   "dm/0dsDRmT": {
-    "defaultMessage": "Open AI"
+    "defaultMessage": "OpenAI"
   },
   "dmWGvUNewd": {
     "defaultMessage": "Wählen Sie Push- oder geplante Trigger, wenn Workflows aktiviert sind."
@@ -11207,6 +11234,9 @@
   "jUpgPN4uQt": {
     "defaultMessage": "In Bearbeitung"
   },
+  "jVfYLLHPHu": {
+    "defaultMessage": "Gruppierung deaktivieren"
+  },
   "jW4nG0Rt7y": {
     "defaultMessage": "Fehler beim Hochladen von {sourcePath}"
   },
@@ -11732,6 +11762,9 @@
   "lO+u6H8vSf": {
     "defaultMessage": "Automatisierungseinstellungen gespeichert"
   },
+  "lODK5YiNr1": {
+    "defaultMessage": "CAT-Verhalten konnte nicht geladen werden"
+  },
   "lOhCmO7eKl": {
     "defaultMessage": "Zielbegriff"
   },
@@ -11791,6 +11824,9 @@
   },
   "ljEJGwxPd/": {
     "defaultMessage": "Trennen"
+  },
+  "llWEpZcDRe": {
+    "defaultMessage": "CAT-Verhalten konnte nicht aktualisiert werden"
   },
   "lmLPnsMyhs": {
     "defaultMessage": "Zum Dashboard gehen"
@@ -11872,6 +11908,9 @@
   },
   "m8UlToMOXC": {
     "defaultMessage": "Dateien werden gesucht"
+  },
+  "mABAdUPLF4": {
+    "defaultMessage": "Steuern Sie, wie Quellzeichenfolgen im CAT-Arbeitsbereich organisiert werden."
   },
   "mAyP67aqS8": {
     "defaultMessage": "Clear"
@@ -12575,6 +12614,9 @@
   "p9ro5GVVLh": {
     "defaultMessage": "Einstellungen"
   },
+  "pAXX9L54+r": {
+    "defaultMessage": "Übersetzungs- und CAT-Verhalten"
+  },
   "pCwlsos9AL": {
     "defaultMessage": "Wähle einen Wochentag für wöchentliche Zeitpläne."
   },
@@ -13123,6 +13165,9 @@
   },
   "rWXo8jdqPU": {
     "defaultMessage": "Aktualisiert"
+  },
+  "rWZYfLEPfd": {
+    "defaultMessage": "Dadurch werden schätzungsweise {occurrences, number} Vorkommen in {groups, number} Gruppen zusammengefasst. Bestehende Übersetzungen werden nicht geändert."
   },
   "rWc6Iosb8n": {
     "defaultMessage": "Keine Issues entsprechen dieser Ansicht."
@@ -14113,6 +14158,9 @@
   },
   "viq5/Imoma": {
     "defaultMessage": "Arbeitsbereich"
+  },
+  "vjPfgNgxUm": {
+    "defaultMessage": "CAT-Verhalten aktualisiert"
   },
   "vjXHRG767Q": {
     "defaultMessage": "{createdCount} von {totalCount} Jobs erstellt, dann fehlgeschlagen: {errorMessage}"
