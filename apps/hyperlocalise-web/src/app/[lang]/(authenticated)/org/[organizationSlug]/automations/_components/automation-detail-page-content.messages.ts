@@ -98,12 +98,12 @@ export const automationDetailPageContentMessages = defineMessages({
   },
   loadMoreSourceFiles: {
     defaultMessage: "Load more files",
-    id: "k3nR8wQp2A",
+    id: "LJ6zecrDM9",
     description: "Button to load the next page of source files in the automation picker",
   },
   loadingMoreSourceFiles: {
     defaultMessage: "Loading more files…",
-    id: "m7pL2xVt9C",
+    id: "3M7qaHfyxJ",
     description: "Loading label while the next page of source files is fetched",
   },
   cancelSourceFileSelection: {
