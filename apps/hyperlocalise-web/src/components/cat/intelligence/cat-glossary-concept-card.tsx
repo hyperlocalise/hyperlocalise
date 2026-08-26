@@ -30,29 +30,18 @@ import { cn } from "@/lib/primitives/cn";
 import { catIntelligencePanelMessages } from "@/components/cat/shared/cat.messages";
 import type { CatGlossaryConcept, CatGlossaryConceptTerm } from "@/components/cat/shared/types";
 
+import {
+  normalizedCatGlossaryTermStatus,
+  type CatGlossaryTermStatus,
+} from "./cat-glossary-term-status";
+
 function readableLabel(value: string | null | undefined) {
   if (!value) return null;
   return value.replaceAll("_", " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
-type CatGlossaryTermStatus = "preferred" | "admitted" | "draft" | "not_recommended" | "obsolete";
-
-function normalizedTermStatus(term: CatGlossaryConceptTerm): CatGlossaryTermStatus {
-  const normalized = term.status?.trim().toLowerCase().replaceAll(" ", "_");
-  if (normalized === "forbidden" || normalized === "not_recommended") {
-    return "not_recommended";
-  }
-  if (term.preferred || normalized === "preferred") {
-    return "preferred";
-  }
-  if (normalized === "admitted" || normalized === "draft" || normalized === "obsolete") {
-    return normalized;
-  }
-  return "draft";
-}
-
 function termStatus(term: CatGlossaryConceptTerm, intl: ReturnType<typeof useIntl>) {
-  const status = normalizedTermStatus(term);
+  const status = normalizedCatGlossaryTermStatus(term);
   const labels = {
     preferred: catIntelligencePanelMessages.glossaryPreferred,
     admitted: catIntelligencePanelMessages.glossaryAdmitted,

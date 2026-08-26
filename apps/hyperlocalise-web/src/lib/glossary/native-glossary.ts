@@ -988,7 +988,12 @@ export class NativeGlossary extends Glossary {
       db
         .select()
         .from(schema.glossaryTerms)
-        .where(inArray(schema.glossaryTerms.conceptId, conceptIds)),
+        .where(
+          and(
+            inArray(schema.glossaryTerms.conceptId, conceptIds),
+            eq(schema.glossaryTerms.reviewStatus, "approved"),
+          ),
+        ),
     ]);
 
     const conceptById = new Map(concepts.map((concept) => [concept.id, concept]));
@@ -1043,6 +1048,7 @@ export class NativeGlossary extends Glossary {
             targetLocale,
             description: concept.definition || null,
             forbidden: sourceStatus.forbidden || targetStatus.forbidden,
+            preferred: targetStatus.preferred,
             caseSensitive: hit.caseSensitive ?? false,
             rank: hit.rank || 1,
             providerKind: null,

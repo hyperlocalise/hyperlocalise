@@ -139,6 +139,28 @@ describe("normalizeSyncedDatabaseGlossaryMatch", () => {
     expect(match.termStatus).toEqual({ forbidden: true, preferred: false });
   });
 
+  it("preserves explicit preferred flags for admitted targets", () => {
+    const match = normalizeSyncedDatabaseGlossaryMatch({
+      id: "term-2",
+      glossaryId: "glossary-1",
+      glossaryName: "Synced glossary",
+      sourceTerm: "Save",
+      targetTerm: "Enregistrer",
+      sourceLocale: "en",
+      targetLocale: "fr",
+      description: null,
+      forbidden: false,
+      preferred: false,
+      caseSensitive: false,
+      rank: 1,
+      providerKind: null,
+      externalResourceId: null,
+      externalTermId: null,
+    });
+
+    expect(match.termStatus).toEqual({ forbidden: false, preferred: false });
+  });
+
   it("passes through concept payloads for CAT guidance", () => {
     const concept = {
       id: "concept-2",

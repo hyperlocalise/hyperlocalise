@@ -162,6 +162,7 @@ export function normalizeSyncedDatabaseGlossaryMatch(input: {
   targetLocale: string;
   description: string | null;
   forbidden: boolean;
+  preferred?: boolean;
   caseSensitive: boolean;
   rank: number;
   providerKind: ExternalTmsProviderKind | null;
@@ -187,7 +188,7 @@ export function normalizeSyncedDatabaseGlossaryMatch(input: {
     externalTermId: input.externalTermId,
     termStatus: {
       forbidden: input.forbidden,
-      preferred: !input.forbidden,
+      preferred: input.preferred ?? !input.forbidden,
     },
     ...(input.concept ? { concept: input.concept } : {}),
   };
