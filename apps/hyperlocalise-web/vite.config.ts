@@ -90,7 +90,6 @@ export default defineConfig({
         client: {
           enabled: true,
           include: [
-            "@testing-library/dom",
             "@testing-library/jest-dom",
             "@testing-library/react",
             "react",
