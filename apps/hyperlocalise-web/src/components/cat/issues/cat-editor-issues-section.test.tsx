@@ -18,6 +18,12 @@ import { IntlProvider } from "react-intl";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
 import { patchIssueSheetListCacheForAssignee } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/_components/issue-detail/patch-organization-issue-list-caches";
+import {
+  EMPTY_CAT_ISSUE_GUIDANCE_STATUS,
+  getCatIssueGuidanceStatus,
+  requestCatIssueGuidance,
+  setCatIssueGuidanceStatus,
+} from "./cat-issue-guidance-event";
 
 import { CatEditorIssuesSection } from "./cat-editor-issues-section";
 
@@ -50,6 +56,7 @@ function renderSection(
     <QueryClientProvider client={queryClient}>
       <IntlProvider locale="en" messages={{}}>
         <CatEditorIssuesSection
+          open
           organizationSlug={ORGANIZATION_SLUG}
           projectId={PROJECT_ID}
           translationKeyId={TRANSLATION_KEY_ID}
@@ -101,6 +108,7 @@ describe("CatEditorIssuesSection", () => {
   afterEach(() => {
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
+    setCatIssueGuidanceStatus(EMPTY_CAT_ISSUE_GUIDANCE_STATUS);
   });
 
   it("scopes the request to the translation key and the active target locale", async () => {
@@ -115,20 +123,24 @@ describe("CatEditorIssuesSection", () => {
   });
 
   it("refetches when the edited locale changes", async () => {
-    const { rerender, queryClient } = renderSection();
+    const onOpenIssueCountChange = vi.fn();
+    const { rerender, queryClient } = renderSection({ onOpenIssueCountChange });
 
     await waitFor(() => expect(listRequestUrls()).toHaveLength(1));
+    await waitFor(() => expect(onOpenIssueCountChange).toHaveBeenLastCalledWith(1));
 
     rerender(
       <QueryClientProvider client={queryClient}>
         <IntlProvider locale="en" messages={{}}>
           <CatEditorIssuesSection
+            open
             organizationSlug={ORGANIZATION_SLUG}
             projectId={PROJECT_ID}
             translationKeyId={TRANSLATION_KEY_ID}
             targetLocale="ja-JP"
             stringLink={null}
             canCreate={false}
+            onOpenIssueCountChange={onOpenIssueCountChange}
           />
         </IntlProvider>
       </QueryClientProvider>,
@@ -138,13 +150,47 @@ describe("CatEditorIssuesSection", () => {
     expect(new URL(listRequestUrls()[1]!, "https://app.test").searchParams.get("locale")).toBe(
       "ja-JP",
     );
+    await waitFor(() => expect(onOpenIssueCountChange).toHaveBeenLastCalledWith(1));
+    expect(getCatIssueGuidanceStatus()).toEqual({ available: true, openIssueCount: 1 });
   });
 
   it("reports the open issue count for the segment", async () => {
     const onOpenIssueCountChange = vi.fn();
     renderSection({ onOpenIssueCountChange });
 
-    await waitFor(() => expect(onOpenIssueCountChange).toHaveBeenCalledWith(1));
+    await waitFor(() => expect(onOpenIssueCountChange).toHaveBeenLastCalledWith(1));
+    expect(getCatIssueGuidanceStatus()).toEqual({ available: true, openIssueCount: 1 });
+  });
+
+  it("publishes footer guidance while the panel is closed", async () => {
+    renderSection({ open: false });
+
+    await waitFor(() =>
+      expect(getCatIssueGuidanceStatus()).toEqual({ available: true, openIssueCount: 1 }),
+    );
+    expect(screen.queryByRole("heading", { name: "Issues" })).toBeNull();
+  });
+
+  it("clears footer guidance on unmount", async () => {
+    const { unmount } = renderSection();
+
+    await waitFor(() =>
+      expect(getCatIssueGuidanceStatus()).toEqual({ available: true, openIssueCount: 1 }),
+    );
+
+    unmount();
+    expect(getCatIssueGuidanceStatus()).toEqual(EMPTY_CAT_ISSUE_GUIDANCE_STATUS);
+  });
+
+  it("opens from the app-shell guidance event", () => {
+    const onOpenChange = vi.fn();
+    renderSection({ open: false, onOpenChange });
+
+    act(() => {
+      requestCatIssueGuidance();
+    });
+
+    expect(onOpenChange).toHaveBeenCalledWith(true);
   });
 
   it("stops after one request when the segment fits on a single page", async () => {
@@ -167,7 +213,7 @@ describe("CatEditorIssuesSection", () => {
     const onOpenIssueCountChange = vi.fn();
     renderSection({ onOpenIssueCountChange });
 
-    await waitFor(() => expect(onOpenIssueCountChange).toHaveBeenCalledWith(120));
+    await waitFor(() => expect(onOpenIssueCountChange).toHaveBeenLastCalledWith(120));
     expect(listRequestUrls()).toHaveLength(2);
     expect(new URL(listRequestUrls()[1]!, "https://app.test").searchParams.get("offset")).toBe(
       "100",

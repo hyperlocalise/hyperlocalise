@@ -86,7 +86,7 @@ export function AppShellClient({
   const intl = useIntl();
   const pathname = usePathname();
   const organizationSlug = activeOrganization.slug ?? "";
-  const showGlossaryGuidance = pathname.includes("/strings") || pathname.includes("/files/cat");
+  const isCatWorkspaceRoute = pathname.includes("/strings") || pathname.includes("/files/cat");
   const tmsUserConnectQuery = useTmsUserConnectCta(organizationSlug, {
     enabled: Boolean(organizationSlug),
     initialData: tmsUserConnectCta,
@@ -184,7 +184,8 @@ export function AppShellClient({
         <AppShellFooter
           organizationSlug={organizationSlug}
           showPlan={showBillingLink && autumnConfigured}
-          showGlossaryGuidance={showGlossaryGuidance}
+          showGlossaryGuidance={isCatWorkspaceRoute}
+          showIssueGuidance={isCatWorkspaceRoute}
           currentUser={
             organizationSlug
               ? {

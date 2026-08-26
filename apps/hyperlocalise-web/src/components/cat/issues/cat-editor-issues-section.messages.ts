@@ -50,4 +50,9 @@ export const catEditorIssuesSectionMessages = defineMessages({
     id: "JprxqupePC",
     description: "Generic fallback when a CAT Issues API request fails",
   },
+  close: {
+    defaultMessage: "Close issues",
+    id: "sHe4qCdT7b",
+    description: "Accessible label for closing the CAT Issues panel",
+  },
 });

@@ -23,6 +23,7 @@ import { CatEditorPanel } from "@/components/cat/editor/cat-editor-panel";
 import { CatFileViewPanel } from "@/components/cat/file-view/cat-file-view-panel";
 import { CatIntelligencePanel } from "@/components/cat/intelligence/cat-intelligence-panel";
 import { resolveCatLinkedIssueTranslationKeyId } from "@/components/cat/issues/cat-linked-issue-translation-key";
+import { CatEditorIssuesSection } from "@/components/cat/issues/cat-editor-issues-section";
 import { CatQueuePanel } from "@/components/cat/queue/cat-queue-panel";
 import { CatSegmentKeyMeta } from "@/components/cat/segment/cat-segment-key-meta";
 import { CatSideBySidePanel } from "@/components/cat/side-by-side/cat-side-by-side-panel";
@@ -119,6 +120,7 @@ export const CatWorkspaceView = observer(function CatWorkspaceView({
   const isSideBySideDesktop = viewMode === "side-by-side" && !isCompact;
   const isFileView = viewMode === "file";
   const selectedSegmentIdForIntelligence = intelligenceSegmentId;
+  const [isIssuePanelOpen, setIsIssuePanelOpen] = useState(false);
   const isIntelligencePanelVisible = Boolean(
     selectedSegmentIdForIntelligence &&
     (!isCompact || activePanel === "ai") &&
@@ -282,6 +284,11 @@ export const CatWorkspaceView = observer(function CatWorkspaceView({
           defaultTitle: intelligenceSegment.sourceText,
         }
       : null;
+  const issueSegment = isSideBySideDesktop ? intelligenceSegment : editorSegment;
+  const issueTranslationKeyId = isSideBySideDesktop
+    ? intelligenceTranslationKeyId
+    : editorTranslationKeyId;
+  const issueStringLink = isSideBySideDesktop ? intelligenceIssueStringLink : editorIssueStringLink;
 
   function renderSideBySidePanel() {
     if (!selectedSegment) {
@@ -404,19 +411,6 @@ export const CatWorkspaceView = observer(function CatWorkspaceView({
               ? (segmentId, commentId) => review.onResolveComment?.(segmentId, commentId)
               : undefined
           }
-          organizationSlug={organizationSlug}
-          projectId={projectId}
-          nativeIssuesEnabled={showNativeIssues}
-          translationKeyId={intelligenceTranslationKeyId}
-          issueTargetLocale={issueTargetLocale}
-          issueStringLink={intelligenceIssueStringLink}
-          onNativeOpenIssueCountChange={
-            intelligenceSegment
-              ? (openIssueCount) => {
-                  store.applySegmentOpenIssueCount(intelligenceSegment.id, openIssueCount);
-                }
-              : undefined
-          }
           primaryActionLabel={shell.primaryActionLabel}
           segmentShareUrl={segmentShareUrl}
         />
@@ -522,15 +516,6 @@ export const CatWorkspaceView = observer(function CatWorkspaceView({
               ? (commentId) => review.onResolveComment?.(editorSegment.id, commentId)
               : undefined
           }
-          organizationSlug={organizationSlug}
-          projectId={projectId}
-          nativeIssuesEnabled={showNativeIssues}
-          translationKeyId={editorTranslationKeyId}
-          issueTargetLocale={issueTargetLocale}
-          issueStringLink={editorIssueStringLink}
-          onNativeOpenIssueCountChange={(openIssueCount) => {
-            store.applySegmentOpenIssueCount(editorSegment.id, openIssueCount);
-          }}
           primaryActionLabel={shell.primaryActionLabel}
           onAskQuestion={() => review.onAskQuestion(editorSegment.id)}
           onGenerateAiRecommendation={
@@ -715,6 +700,21 @@ export const CatWorkspaceView = observer(function CatWorkspaceView({
           intelligence={renderIntelligencePanel()}
         />
       )}
+      {showNativeIssues && organizationSlug && projectId && issueSegment ? (
+        <CatEditorIssuesSection
+          organizationSlug={organizationSlug}
+          projectId={projectId}
+          translationKeyId={issueTranslationKeyId}
+          targetLocale={issueTargetLocale}
+          stringLink={issueStringLink}
+          canCreate={canAddComment}
+          open={isIssuePanelOpen}
+          onOpenChange={setIsIssuePanelOpen}
+          onOpenIssueCountChange={(openIssueCount) => {
+            store.applySegmentOpenIssueCount(issueSegment.id, openIssueCount);
+          }}
+        />
+      ) : null}
     </div>
   );
 });

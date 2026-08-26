@@ -1,0 +1,148 @@
+/*
+ * Copyright (c) 2026 Hyperlocalise Pty Ltd
+ *
+ * Use of this software is governed by the Business Source License 1.1
+ * included in this application's LICENSE file.
+ *
+ * Change Date: Four years after publication of the applicable version.
+ *
+ * On the Change Date, in accordance with the Business Source License, use
+ * of this software will be governed by the GNU General Public License
+ * Version 2.0 or later.
+ */
+import { useEffect, type ReactNode } from "react";
+import type { Meta, StoryObj } from "@storybook/nextjs-vite";
+import { expect, fn, userEvent } from "storybook/test";
+
+import { AppShellStoreProvider } from "@/components/app-shell/store/app-shell-store-context";
+import {
+  CAT_ISSUE_GUIDANCE_OPEN_EVENT,
+  EMPTY_CAT_ISSUE_GUIDANCE_STATUS,
+  setCatIssueGuidanceStatus,
+} from "@/components/cat/issues/cat-issue-guidance-event";
+import { CAT_GLOSSARY_GUIDANCE_OPEN_EVENT } from "@/components/cat/intelligence/cat-glossary-guidance-event";
+
+import type { InboxCurrentUser } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/inbox/_components/inbox-types";
+import { AppShellFooter } from "./app-shell-footer";
+
+const currentUser: InboxCurrentUser = {
+  avatarUrl: null,
+  email: "storybook@example.com",
+  name: "Storybook User",
+};
+
+function FooterStoryFrame({ children }: { children: ReactNode }) {
+  return (
+    <AppShellStoreProvider defaultNavigationGroups={[]}>
+      <div className="min-h-screen bg-muted/20 text-foreground">
+        <div className="mx-auto max-w-5xl px-6 py-10">
+          <p className="text-sm text-muted-foreground">
+            App shell content placeholder so the fixed footer is shown in context.
+          </p>
+        </div>
+        {children}
+      </div>
+    </AppShellStoreProvider>
+  );
+}
+
+function GuidanceStatusFrame({ children }: { children: ReactNode }) {
+  setCatIssueGuidanceStatus({ available: true, openIssueCount: 2 });
+
+  useEffect(() => {
+    return () => setCatIssueGuidanceStatus(EMPTY_CAT_ISSUE_GUIDANCE_STATUS);
+  }, []);
+
+  return children;
+}
+
+const meta = {
+  title: "App Shell/Footer",
+  component: AppShellFooter,
+  parameters: {
+    layout: "fullscreen",
+    nextjs: {
+      appDirectory: true,
+      navigation: {
+        pathname: "/org/acme/dashboard",
+      },
+    },
+  },
+  decorators: [
+    (Story) => (
+      <FooterStoryFrame>
+        <Story />
+      </FooterStoryFrame>
+    ),
+  ],
+  args: {
+    organizationSlug: "acme",
+    showPlan: false,
+    showGlossaryGuidance: false,
+    showIssueGuidance: false,
+  },
+} satisfies Meta<typeof AppShellFooter>;
+
+export default meta;
+type Story = StoryObj<typeof meta>;
+
+export const SupportOnly: Story = {
+  play: async ({ canvas }) => {
+    await expect(canvas.getByRole("link", { name: "Email support" })).toBeInTheDocument();
+    await expect(canvas.queryByRole("button", { name: "New request" })).not.toBeInTheDocument();
+    await expect(canvas.queryByText("Issues")).not.toBeInTheDocument();
+  },
+};
+
+export const GuidanceAvailable: Story = {
+  args: {
+    showGlossaryGuidance: true,
+    showIssueGuidance: true,
+  },
+  decorators: [
+    (Story) => (
+      <GuidanceStatusFrame>
+        <Story />
+      </GuidanceStatusFrame>
+    ),
+  ],
+  play: async ({ canvas }) => {
+    const glossaryGuidanceOpened = fn();
+    const issueGuidanceOpened = fn();
+    window.addEventListener(CAT_GLOSSARY_GUIDANCE_OPEN_EVENT, glossaryGuidanceOpened);
+    window.addEventListener(CAT_ISSUE_GUIDANCE_OPEN_EVENT, issueGuidanceOpened);
+
+    await expect(
+      canvas.getByRole("button", { name: "Open glossary guidance" }),
+    ).toBeInTheDocument();
+    await expect(canvas.getByRole("button", { name: "Open issues, 2 open" })).toBeInTheDocument();
+    await expect(canvas.getByText("2")).toBeInTheDocument();
+
+    try {
+      await userEvent.click(canvas.getByRole("button", { name: "Open glossary guidance" }));
+      await expect(glossaryGuidanceOpened).toHaveBeenCalledTimes(1);
+
+      await userEvent.click(canvas.getByRole("button", { name: "Open issues, 2 open" }));
+      await expect(issueGuidanceOpened).toHaveBeenCalledTimes(1);
+    } finally {
+      window.removeEventListener(CAT_GLOSSARY_GUIDANCE_OPEN_EVENT, glossaryGuidanceOpened);
+      window.removeEventListener(CAT_ISSUE_GUIDANCE_OPEN_EVENT, issueGuidanceOpened);
+    }
+  },
+};
+
+export const ChatEnabled: Story = {
+  args: {
+    currentUser,
+  },
+  play: async ({ canvas }) => {
+    const newRequest = canvas.getByRole("button", { name: "New request" });
+    await expect(newRequest).toBeInTheDocument();
+
+    await userEvent.click(newRequest);
+
+    await expect(canvas.getByRole("tablist", { name: "Chat conversations" })).toBeInTheDocument();
+    await expect(canvas.getByRole("tab", { name: /New chat/i })).toBeInTheDocument();
+    await expect(canvas.getByRole("link", { name: "Email support" })).toBeInTheDocument();
+  },
+};
