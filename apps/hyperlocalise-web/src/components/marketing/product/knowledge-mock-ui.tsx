@@ -99,7 +99,7 @@ function MemoryItemRow({ item }: { item: MemoryItem }) {
       <HugeiconsIcon
         icon={CheckmarkCircle02Icon}
         strokeWidth={1.8}
-        className="mt-0.5 size-4 shrink-0 text-primary/60"
+        className="mt-0.5 size-4 shrink-0 text-primary/80"
       />
       <div className="min-w-0">
         <p className="truncate text-sm font-medium text-foreground">
@@ -194,7 +194,6 @@ function MemoryPanel({
         );
       })}
 
-      {/* Mask — covers area above header so rising cards are hidden before reaching it */}
       <motion.div
         className="absolute inset-x-0 top-0 z-30 bg-transparent"
         animate={{ height: 16 + headerY }}

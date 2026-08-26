@@ -12,7 +12,6 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { useEffect, useRef } from "react";
 import { motion, useReducedMotion, type Variants } from "motion/react";
 import {
   ArrowRight01Icon,
@@ -28,6 +27,7 @@ import { Button } from "@/components/ui/button";
 import { REQUEST_DEMO_URL } from "@/components/marketing/request-demo";
 
 import { productPageMessages, type ProductMessageKey } from "./product-page-content.messages";
+import { knowledgeMockMessages } from "./knowledge-mock-ui.messages";
 import { KnowledgeWaveGlobe } from "./knowledge-wave-globe";
 
 const EASE = [0.22, 1, 0.36, 1] as const;
@@ -83,8 +83,8 @@ function HeroSignal({
   description,
 }: {
   icon: typeof BrainCircuitIcon;
-  title: string;
-  description: string;
+  title: React.ReactNode;
+  description: React.ReactNode;
 }) {
   return (
     <motion.div
@@ -142,18 +142,18 @@ export function KnowledgeHero({
             <div className="grid gap-2 sm:grid-cols-3">
               <HeroSignal
                 icon={Database01Icon}
-                title="Capture"
-                description="Turn scattered knowledge into memory."
+                title={<FormattedMessage {...knowledgeMockMessages.captureTitle} />}
+                description={<FormattedMessage {...knowledgeMockMessages.captureDesc} />}
               />
               <HeroSignal
                 icon={LanguageCircleIcon}
-                title="Understand"
-                description="Preserve context across languages."
+                title={<FormattedMessage {...knowledgeMockMessages.understandTitle} />}
+                description={<FormattedMessage {...knowledgeMockMessages.understandDesc} />}
               />
               <HeroSignal
                 icon={SparklesIcon}
-                title="Recall"
-                description="Bring the right context back when needed."
+                title={<FormattedMessage {...knowledgeMockMessages.recallTitle} />}
+                description={<FormattedMessage {...knowledgeMockMessages.recallDesc} />}
               />
             </div>
           </Reveal>

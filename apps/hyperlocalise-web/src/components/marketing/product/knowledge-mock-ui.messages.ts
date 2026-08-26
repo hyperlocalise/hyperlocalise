@@ -143,6 +143,37 @@ export const knowledgeMockMessages = defineMessages({
     id: "q3itCsc+YC",
     description: "Knowledge mock UI stage 4 description",
   },
+
+  captureTitle: {
+    defaultMessage: "Capture",
+    id: "bddYLH4n/y",
+    description: "Knowledge hero signal card title",
+  },
+  captureDesc: {
+    defaultMessage: "Turn scattered knowledge into memory.",
+    id: "FmBlA1hHCL",
+    description: "Knowledge hero signal card description",
+  },
+  understandTitle: {
+    defaultMessage: "Understand",
+    id: "sV2dSDjwcL",
+    description: "Knowledge hero signal card title",
+  },
+  understandDesc: {
+    defaultMessage: "Preserve context across languages.",
+    id: "ucZAGfu6Bg",
+    description: "Knowledge hero signal card description",
+  },
+  recallTitle: {
+    defaultMessage: "Recall",
+    id: "/WSX2GW1p1",
+    description: "Knowledge hero signal card title",
+  },
+  recallDesc: {
+    defaultMessage: "Bring the right context back when needed.",
+    id: "/8fHPQltQc",
+    description: "Knowledge hero signal card description",
+  },
 });
 
 export type KnowledgeMockMessageKey = keyof typeof knowledgeMockMessages;

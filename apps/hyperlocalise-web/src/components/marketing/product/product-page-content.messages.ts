@@ -388,8 +388,8 @@ export const productPageMessages = defineMessages({
   },
   selfEvolvingKnowledgeHeroSubcopy: {
     defaultMessage:
-      "Teams lose time explaining the same product terms, tone rules, and market preferences on every launch. Hyperlocalise turns those decisions into reusable context.",
-    id: "XvDMBQHSkA",
+      "Stop explaining the same rules twice. Hyperlocalise turns every review into reusable context",
+    id: "WabecnK7ou",
     description: "Hero subcopy for the self-evolving knowledge product page",
   },
   selfEvolvingKnowledgeDetailsHeadline: {
