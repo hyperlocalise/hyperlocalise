@@ -411,12 +411,6 @@ func subtitleNewline(template string) string {
 	return "\n"
 }
 
-func encodeSubtitleCueText(value, newline string) string {
-	var b strings.Builder
-	writeEncodedSubtitleCueText(&b, value, newline)
-	return b.String()
-}
-
 // writeEncodedSubtitleCueText streams lines from value directly into b,
 // eliminating intermediate []string slice allocations and redundant string replacements.
 func writeEncodedSubtitleCueText(b *strings.Builder, value, newline string) {
