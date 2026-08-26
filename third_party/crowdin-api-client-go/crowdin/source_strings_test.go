@@ -166,6 +166,8 @@ func TestSourceStringsService_ListQueryParams(t *testing.T) {
 		{"empty query", nil, ""},
 		{"DenormalizePlaceholders=1", &model.SourceStringsListOptions{DenormalizePlaceholders: ToPtr(1)}, "denormalizePlaceholders=1"},
 		{"DenormalizePlaceholders=0", &model.SourceStringsListOptions{DenormalizePlaceholders: ToPtr(0)}, "denormalizePlaceholders=0"},
+		{"IsHidden=1", &model.SourceStringsListOptions{IsHidden: ToPtr(1)}, "isHidden=1"},
+		{"IsHidden=0", &model.SourceStringsListOptions{IsHidden: ToPtr(0)}, "isHidden=0"},
 		{"LabelIDs", &model.SourceStringsListOptions{LabelIDs: []int{1, 2, 3, 4, 5}}, "labelIds=1%2C2%2C3%2C4%2C5"},
 		{"FileID", &model.SourceStringsListOptions{FileID: 1}, "fileId=1"},
 		{"BranchID", &model.SourceStringsListOptions{BranchID: 2}, "branchId=2"},

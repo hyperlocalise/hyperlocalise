@@ -31,6 +31,16 @@ func TestSourceStringsListOptionsValues(t *testing.T) {
 			out:  "isIcu=1",
 		},
 		{
+			name: "with IsHidden = 0",
+			opts: &SourceStringsListOptions{IsHidden: toPtr(0)},
+			out:  "isHidden=0",
+		},
+		{
+			name: "with IsHidden = 1",
+			opts: &SourceStringsListOptions{IsHidden: toPtr(1)},
+			out:  "isHidden=1",
+		},
+		{
 			name: "with ExcludeLabelIDs",
 			opts: &SourceStringsListOptions{ExcludeLabelIDs: []int{4, 5}},
 			out:  "excludeLabelIds=4%2C5",
@@ -45,9 +55,9 @@ func TestSourceStringsListOptionsValues(t *testing.T) {
 			opts: &SourceStringsListOptions{
 				DenormalizePlaceholders: toPtr(1), LabelIDs: []int{1, 2, 3}, ExcludeLabelIDs: []int{4, 5},
 				FileID: 1, BranchID: 1, DirectoryID: 1, TaskID: 2, CroQL: "croql", Filter: "text", Scope: "identifier",
-				IsIcu: toPtr(0), OrderBy: "id",
+				IsIcu: toPtr(0), IsHidden: toPtr(1), OrderBy: "id",
 			},
-			out: "branchId=1&croql=croql&denormalizePlaceholders=1&directoryId=1&excludeLabelIds=4%2C5&fileId=1&filter=text&isIcu=0&labelIds=1%2C2%2C3&orderBy=id&scope=identifier&taskId=2",
+			out: "branchId=1&croql=croql&denormalizePlaceholders=1&directoryId=1&excludeLabelIds=4%2C5&fileId=1&filter=text&isHidden=1&isIcu=0&labelIds=1%2C2%2C3&orderBy=id&scope=identifier&taskId=2",
 		},
 	}
 

@@ -85,6 +85,8 @@ type SourceStringsListOptions struct {
 	CroQL string `json:"croql,omitempty"`
 	// Filter strings by isIcu. Enum: 0, 1.
 	IsIcu *int `json:"isIcu,omitempty"`
+	// Filter strings by isHidden. Enum: 0, 1.
+	IsHidden *int `json:"isHidden,omitempty"`
 	// Filter strings by `identifier`, `text` or `context`.
 	Filter string `json:"filter,omitempty"`
 	// Specify field to be the target of filtering. It can be one scope or
@@ -116,6 +118,9 @@ func (o *SourceStringsListOptions) Values() (url.Values, bool) {
 	}
 	if o.IsIcu != nil && (*o.IsIcu == 0 || *o.IsIcu == 1) {
 		v.Add("isIcu", strconv.Itoa(*o.IsIcu))
+	}
+	if o.IsHidden != nil && (*o.IsHidden == 0 || *o.IsHidden == 1) {
+		v.Add("isHidden", strconv.Itoa(*o.IsHidden))
 	}
 	if len(o.LabelIDs) > 0 {
 		v.Add("labelIds", JoinSlice(o.LabelIDs))
