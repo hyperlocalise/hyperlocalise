@@ -107,29 +107,34 @@ vi.mock("@/lib/translation/sandbox-byok", () => ({
   loadSandboxByokCredentialForJob: vi.fn(async () => null),
 }));
 
-vi.mock("@/lib/translation/sandbox", () => ({
-  createTranslationSandbox: (...args: unknown[]) => createTranslationSandboxMock(...args),
-  prepareSandbox: (...args: unknown[]) => prepareSandboxMock(...args),
-  stopTranslationSandbox: (...args: unknown[]) => stopTranslationSandboxMock(...args),
-  downloadAttachment: (...args: unknown[]) => downloadAttachmentMock(...args),
-  downloadCrowdinSourceInSandbox: (...args: unknown[]) =>
-    downloadCrowdinSourceInSandboxMock(...args),
-  downloadCrowdinTranslationsInSandbox: (...args: unknown[]) =>
-    downloadCrowdinTranslationsInSandboxMock(...args),
-  extractSandboxEntries: (...args: unknown[]) => extractSandboxEntriesMock(...args),
-  readTranslatedFile: (...args: unknown[]) => readTranslatedFileMock(...args),
-  buildMultiFileMultiLocaleTempConfig: (...args: unknown[]) =>
-    buildMultiFileMultiLocaleTempConfigMock(...args),
-  buildCrowdinMultiFileSandboxConfig: (...args: unknown[]) =>
-    buildCrowdinMultiFileSandboxConfigMock(...args),
-  writeTempConfig: (...args: unknown[]) => writeTempConfigMock(...args),
-  writeFileToSandbox: (...args: unknown[]) => writeFileToSandboxMock(...args),
-  runSandboxCommand: (...args: unknown[]) => runSandboxCommandMock(...args),
-  getSandboxTranslationEnv: (...args: unknown[]) => getSandboxTranslationEnvMock(...args),
-  getOutputFilename: (...args: unknown[]) => getOutputFilenameMock(...args),
-  getOutputFilenamePattern: (...args: unknown[]) => getOutputFilenamePatternMock(...args),
-  sandboxI18nConfigPath: ".hl-sandbox-i18n.yml",
-}));
+vi.mock("@/lib/translation/sandbox", async () => {
+  const { hlEntriesPayloadToStringMap } = await import("@/lib/projects/files/hl-entries");
+
+  return {
+    createTranslationSandbox: (...args: unknown[]) => createTranslationSandboxMock(...args),
+    prepareSandbox: (...args: unknown[]) => prepareSandboxMock(...args),
+    stopTranslationSandbox: (...args: unknown[]) => stopTranslationSandboxMock(...args),
+    downloadAttachment: (...args: unknown[]) => downloadAttachmentMock(...args),
+    downloadCrowdinSourceInSandbox: (...args: unknown[]) =>
+      downloadCrowdinSourceInSandboxMock(...args),
+    downloadCrowdinTranslationsInSandbox: (...args: unknown[]) =>
+      downloadCrowdinTranslationsInSandboxMock(...args),
+    extractSandboxEntries: (...args: unknown[]) => extractSandboxEntriesMock(...args),
+    readTranslatedFile: (...args: unknown[]) => readTranslatedFileMock(...args),
+    buildMultiFileMultiLocaleTempConfig: (...args: unknown[]) =>
+      buildMultiFileMultiLocaleTempConfigMock(...args),
+    buildCrowdinMultiFileSandboxConfig: (...args: unknown[]) =>
+      buildCrowdinMultiFileSandboxConfigMock(...args),
+    writeTempConfig: (...args: unknown[]) => writeTempConfigMock(...args),
+    writeFileToSandbox: (...args: unknown[]) => writeFileToSandboxMock(...args),
+    runSandboxCommand: (...args: unknown[]) => runSandboxCommandMock(...args),
+    getSandboxTranslationEnv: (...args: unknown[]) => getSandboxTranslationEnvMock(...args),
+    getOutputFilename: (...args: unknown[]) => getOutputFilenameMock(...args),
+    getOutputFilenamePattern: (...args: unknown[]) => getOutputFilenamePatternMock(...args),
+    hlEntriesPayloadToStringMap,
+    sandboxI18nConfigPath: ".hl-sandbox-i18n.yml",
+  };
+});
 
 import {
   isProviderFileFullyTranslated,
