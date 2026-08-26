@@ -1,6 +1,7 @@
 package translationfileparser
 
 import (
+	"bytes"
 	"strings"
 	"testing"
 )
@@ -292,5 +293,63 @@ func TestPHPArrayParserKeepsInvalidHexEscapeLiteral(t *testing.T) {
 	}
 	if got["not_hex"] != `\xG` {
 		t.Fatalf("not_hex = %q, want literal \\xG", got["not_hex"])
+	}
+}
+
+func TestPHPArrayEntryCapacityHint(t *testing.T) {
+	tests := []struct {
+		name    string
+		content []byte
+		min     int
+		max     int
+	}{
+		{
+			name:    "empty input uses the minimum hint",
+			content: nil,
+			min:     phpArrayEntryMinCapacity,
+			max:     phpArrayEntryMinCapacity,
+		},
+		{
+			name: "tracks delimiter count for normal locale files",
+			content: []byte(`<?php return [
+				'a' => 'one',
+				'b' => 'two',
+				'c' => 'three',
+				'd' => 'four',
+			];`),
+			min: 4,
+			max: 4,
+		},
+		{
+			name: "caps delimiter-heavy string literals",
+			content: func() []byte {
+				content := append([]byte(`<?php return ['key' => '`), bytes.Repeat([]byte("=>"), 10_000)...)
+				return append(content, []byte("'];")...)
+			}(),
+			min: phpArrayEntryMinCapacity,
+			max: (len(`<?php return ['key' => '`) + 20_000 + len("'];")) / 32,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got := phpArrayEntryCapacityHint(tc.content)
+			if got < tc.min || got > tc.max {
+				t.Fatalf("capacity hint = %d, want between %d and %d", got, tc.min, tc.max)
+			}
+		})
+	}
+}
+
+func TestPHPArrayParserParsesDelimiterHeavyStringValues(t *testing.T) {
+	value := strings.Repeat("=>", 5_000)
+	content := []byte(`<?php return ['message' => '` + value + `'];`)
+
+	got, err := (PHPArrayParser{}).Parse(content)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	if got["message"] != value {
+		t.Fatalf("message length = %d, want %d", len(got["message"]), len(value))
 	}
 }

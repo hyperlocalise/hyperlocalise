@@ -90,17 +90,32 @@ func (d phpArrayDocument) render(values map[string]string) []byte {
 }
 
 const (
-	phpSingleQuoteStopChars = "\\'"
-	phpDoubleQuoteStopChars = "\\\"$"
-	phpDoubleQuoteSpecial   = "\\\n\r\t\v\x1b\f\"$"
+	phpSingleQuoteStopChars  = "\\'"
+	phpDoubleQuoteStopChars  = "\\\"$"
+	phpDoubleQuoteSpecial    = "\\\n\r\t\v\x1b\f\"$"
+	phpArrayEntryMinCapacity = 4
 )
 
-func parsePHPArrayDocument(content []byte) (phpArrayDocument, error) {
-	// BOLT OPTIMIZATION: Use bytes.Count for exact capacity hint based on key-value delimiters.
-	capacity := bytes.Count(content, []byte("=>"))
-	if capacity < 4 {
-		capacity = 4
+func phpArrayEntryCapacityHint(content []byte) int {
+	// Delimiter count is often tighter for real locale files, but it also counts
+	// => inside string literals and comments. Cap against a size-based hint so a
+	// single large value cannot drive eager slice/map allocation toward len/2.
+	delimiterCount := bytes.Count(content, []byte("=>"))
+	sizeHint := len(content) / 32
+	if sizeHint < phpArrayEntryMinCapacity {
+		sizeHint = phpArrayEntryMinCapacity
 	}
+	if delimiterCount < phpArrayEntryMinCapacity {
+		return phpArrayEntryMinCapacity
+	}
+	if delimiterCount < sizeHint {
+		return delimiterCount
+	}
+	return sizeHint
+}
+
+func parsePHPArrayDocument(content []byte) (phpArrayDocument, error) {
+	capacity := phpArrayEntryCapacityHint(content)
 
 	scanner := &phpArrayScanner{
 		text:    string(content),
