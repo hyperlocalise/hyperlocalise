@@ -159,6 +159,46 @@ describe("searchCrowdinCatConcordance", () => {
       primaryTerm: "dashboard",
       glossaryUrl: null,
     });
+    expect(result.glossaryTerms[0]?.externalConceptId).toBeUndefined();
+  });
+
+  it("uses term conceptId when Crowdin omits concept metadata", async () => {
+    const client = {
+      glossaryConcordanceSearch: vi.fn().mockResolvedValue([
+        {
+          glossary: { id: 9, name: "Product terms" },
+          concept: null,
+          sourceTerms: [
+            { id: 21, conceptId: 55, languageId: "en", text: "dashboard", status: "preferred" },
+          ],
+          targetTerms: [
+            {
+              id: 22,
+              conceptId: 55,
+              languageId: "fr",
+              text: "tableau de bord",
+              status: "preferred",
+            },
+          ],
+        },
+      ]),
+      concordanceSearch: vi.fn().mockResolvedValue([]),
+    } as unknown as CrowdinApiClient;
+
+    const result = await crowdinTmsProvider.searchCatConcordance({
+      client,
+      externalProjectId: "42",
+      sourceLocale: "en",
+      targetLocale: "fr",
+      sourceText: "dashboard",
+    });
+
+    expect(result.glossaryTerms[0]?.concept).toMatchObject({
+      id: "55",
+      primaryTerm: "dashboard",
+      glossaryUrl: null,
+    });
+    expect(result.glossaryTerms[0]?.externalConceptId).toBe("55");
   });
 
   it("does not expose Crowdin glossary webUrl on concept matches", async () => {

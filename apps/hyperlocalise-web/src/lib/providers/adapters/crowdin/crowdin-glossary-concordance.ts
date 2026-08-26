@@ -54,6 +54,20 @@ export function pickCrowdinConcordanceTermStatus(
   return match?.status ?? null;
 }
 
+export function resolveCrowdinConcordanceExternalConceptId(
+  result: CrowdinGlossaryConcordanceSearchResult,
+): string | null {
+  if (result.concept) {
+    return String(result.concept.id);
+  }
+
+  const termConceptId =
+    result.sourceTerms.find((term) => term.conceptId != null)?.conceptId ??
+    result.targetTerms.find((term) => term.conceptId != null)?.conceptId;
+
+  return termConceptId != null ? String(termConceptId) : null;
+}
+
 export function toCrowdinConcordanceConceptTerm(
   term: CrowdinGlossaryConcordanceTerm,
   preferredLocales: string[],
@@ -100,9 +114,11 @@ export function mapCrowdinGlossaryConcordanceSearchResult(input: {
       ? String(providerTermId)
       : stableCrowdinConcordanceTermId(stableTermIdGlossaryKey, sourceTerm, input.targetLocale);
 
+  const externalConceptId = resolveCrowdinConcordanceExternalConceptId(input.result);
+
   const preferredLocales = [input.sourceLocale, input.targetLocale];
   const concept: NormalizedGlossaryConcept = {
-    id: input.result.concept ? String(input.result.concept.id) : externalTermId,
+    id: externalConceptId ?? externalTermId,
     primaryTerm: sourceTerm,
     subject: input.result.concept?.subject,
     definition: input.result.concept?.definition,
@@ -124,7 +140,7 @@ export function mapCrowdinGlossaryConcordanceSearchResult(input: {
     resourceId: input.resourceId,
     externalResourceId: externalGlossaryId,
     externalTermId,
-    externalConceptId: input.result.concept ? String(input.result.concept.id) : null,
+    externalConceptId,
     glossaryName: input.glossaryName,
     rank: 1 - input.index * 0.01,
     status: { status },
