@@ -19,14 +19,12 @@ import { createSearchNativeGlossaryTool } from "./search_native_glossary";
 const {
   toolCanAccessProjectMock,
   toolProjectLinkedGlossaryWhereMock,
-  buildNativeGlossaryTsQueryMock,
-  loadNativeConceptConcordanceMatchesMock,
+  searchGlossaryConcordanceMock,
   dbSelectMock,
 } = vi.hoisted(() => ({
   toolCanAccessProjectMock: vi.fn(),
   toolProjectLinkedGlossaryWhereMock: vi.fn(),
-  buildNativeGlossaryTsQueryMock: vi.fn(),
-  loadNativeConceptConcordanceMatchesMock: vi.fn(),
+  searchGlossaryConcordanceMock: vi.fn(),
   dbSelectMock: vi.fn(),
 }));
 
@@ -36,13 +34,8 @@ vi.mock("@/lib/tools/tool-access", () => ({
     toolProjectLinkedGlossaryWhereMock(...args),
 }));
 
-vi.mock("./build-native-glossary-tsquery", () => ({
-  buildNativeGlossaryTsQuery: (...args: unknown[]) => buildNativeGlossaryTsQueryMock(...args),
-}));
-
-vi.mock("@/lib/glossary/concordance-native-concept", () => ({
-  loadNativeConceptConcordanceMatches: (...args: unknown[]) =>
-    loadNativeConceptConcordanceMatchesMock(...args),
+vi.mock("@/lib/glossary/glossary-concordance", () => ({
+  searchGlossaryConcordance: (...args: unknown[]) => searchGlossaryConcordanceMock(...args),
 }));
 
 vi.mock("@/lib/database", () => ({
@@ -95,14 +88,12 @@ describe("createSearchNativeGlossaryTool", () => {
   beforeEach(() => {
     toolCanAccessProjectMock.mockReset();
     toolProjectLinkedGlossaryWhereMock.mockReset();
-    buildNativeGlossaryTsQueryMock.mockReset();
-    loadNativeConceptConcordanceMatchesMock.mockReset();
+    searchGlossaryConcordanceMock.mockReset();
     dbSelectMock.mockReset();
 
     toolCanAccessProjectMock.mockResolvedValue({ id: "project-1" });
     toolProjectLinkedGlossaryWhereMock.mockResolvedValue("linked-glossary-where");
-    buildNativeGlossaryTsQueryMock.mockReturnValue("login:*");
-    loadNativeConceptConcordanceMatchesMock.mockResolvedValue([]);
+    searchGlossaryConcordanceMock.mockResolvedValue([]);
   });
 
   it("fails closed when glossary search is disabled", async () => {
@@ -124,8 +115,7 @@ describe("createSearchNativeGlossaryTool", () => {
       success: false,
       error: "Glossary search is not enabled for this workspace.",
     });
-    expect(buildNativeGlossaryTsQueryMock).not.toHaveBeenCalled();
-    expect(loadNativeConceptConcordanceMatchesMock).not.toHaveBeenCalled();
+    expect(searchGlossaryConcordanceMock).not.toHaveBeenCalled();
   });
 
   it("rejects project-scoped search when the caller cannot access the project", async () => {
@@ -148,12 +138,13 @@ describe("createSearchNativeGlossaryTool", () => {
       success: false,
       error: "Project not found or not accessible.",
     });
-    expect(loadNativeConceptConcordanceMatchesMock).not.toHaveBeenCalled();
+    expect(searchGlossaryConcordanceMock).not.toHaveBeenCalled();
   });
 
-  it("returns empty terms when the source text yields no tsquery", async () => {
-    buildNativeGlossaryTsQueryMock.mockReturnValue("");
-    const tool = createSearchNativeGlossaryTool(createToolContext());
+  it("returns empty terms when concordance finds no matches", async () => {
+    dbSelectMock.mockImplementationOnce(() => createSelectBuilder([{ glossaryId: "glossary-1" }]));
+    searchGlossaryConcordanceMock.mockResolvedValue([]);
+    const tool = createSearchNativeGlossaryTool(createToolContext({ projectId: "project-1" }));
 
     await expect(
       tool.execute?.(
@@ -166,7 +157,6 @@ describe("createSearchNativeGlossaryTool", () => {
         {} as never,
       ),
     ).resolves.toEqual({ success: true, terms: [] });
-    expect(loadNativeConceptConcordanceMatchesMock).not.toHaveBeenCalled();
   });
 
   it("returns empty terms when the project has no attached native glossaries", async () => {
@@ -184,12 +174,12 @@ describe("createSearchNativeGlossaryTool", () => {
         {} as never,
       ),
     ).resolves.toEqual({ success: true, terms: [] });
-    expect(loadNativeConceptConcordanceMatchesMock).not.toHaveBeenCalled();
+    expect(searchGlossaryConcordanceMock).not.toHaveBeenCalled();
   });
 
   it("searches native concept glossaries and maps status-derived forbidden flags", async () => {
     dbSelectMock.mockImplementationOnce(() => createSelectBuilder([{ glossaryId: "glossary-1" }]));
-    loadNativeConceptConcordanceMatchesMock.mockResolvedValue([
+    searchGlossaryConcordanceMock.mockResolvedValue([
       {
         id: "term-keep:fr",
         glossaryId: "glossary-1",
@@ -250,9 +240,10 @@ describe("createSearchNativeGlossaryTool", () => {
       ],
     });
 
-    expect(loadNativeConceptConcordanceMatchesMock).toHaveBeenCalledWith(
+    expect(searchGlossaryConcordanceMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        glossaryIds: ["glossary-1"],
+        organizationId: "org-1",
+        projectId: "project-1",
         sourceLocale: "en",
         targetLocales: ["fr"],
         sourceText: "Login button",

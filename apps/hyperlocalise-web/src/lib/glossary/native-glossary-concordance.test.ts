@@ -16,11 +16,7 @@ import {
   glossaryTermFlagsFromStatus,
   normalizedGlossaryTermStatusFromStatus,
 } from "@/lib/providers/contracts/glossary-term-status";
-import {
-  hydrateNativeConceptConcordanceMatches,
-  pickPreferredTermForLocale,
-} from "@/lib/glossary/concordance-native-concept";
-import type { NativeConceptSourceHit } from "@/lib/glossary/concordance-native-concept";
+import { pickPreferredTermForLocale } from "@/lib/glossary/native-glossary";
 import type { NormalizedGlossaryConceptTerm } from "@/lib/providers/contracts/glossary-match";
 
 describe("glossaryTermFlagsFromStatus", () => {
@@ -65,36 +61,46 @@ describe("pickPreferredTermForLocale", () => {
   });
 });
 
-describe("hydrateNativeConceptConcordanceMatches", () => {
-  it("returns empty matches when no source hits survive filtering", async () => {
-    await expect(
-      hydrateNativeConceptConcordanceMatches({
-        sourceHits: [],
+describe("NativeGlossary.searchConcordance", () => {
+  it("returns empty matches when source text produces no tsquery", async () => {
+    const { NativeGlossary } = await import("@/lib/glossary/native-glossary");
+    const glossary = new NativeGlossary({
+      auth: {
+        user: { workosUserId: "", localUserId: "", email: "" },
+        organizations: [],
+        organization: {
+          workosOrganizationId: "",
+          localOrganizationId: "org-1",
+          name: "",
+          membership: { role: "admin", accessSource: "workos_authoritative" },
+        },
+        activeOrganization: {
+          workosOrganizationId: "",
+          localOrganizationId: "org-1",
+          name: "",
+          membership: { role: "admin", accessSource: "workos_authoritative" },
+        },
+        membership: { role: "admin", accessSource: "workos_authoritative" },
+        activeTeam: null,
+        capabilities: [],
+      },
+      glossary: {
+        id: "glossary-1",
+        source: "native",
         sourceLocale: "en",
-        targetLocales: ["fr"],
-        sourceText: "workspace",
-        limit: 10,
-      }),
+      } as never,
+    });
+
+    await expect(
+      glossary.searchConcordance(
+        {
+          sourceLocale: "en",
+          targetLocales: ["fr"],
+          sourceText: "   ",
+          limit: 10,
+        },
+        { organizationId: "org-1", projectId: "project-1" },
+      ),
     ).resolves.toEqual([]);
-  });
-});
-
-describe("NativeConceptSourceHit", () => {
-  it("type-checks representative hit shape", () => {
-    const hit: NativeConceptSourceHit = {
-      conceptId: "concept-1",
-      glossaryId: "glossary-1",
-      glossaryName: "Product",
-      matchedSourceTermId: "term-1",
-      matchedSourceTerm: "workspace",
-      caseSensitive: false,
-      sourceStatus: "preferred",
-      rank: 0.9,
-      externalProviderKind: null,
-      externalGlossaryId: null,
-      externalGlossaryUrl: null,
-    };
-
-    expect(hit.matchedSourceTerm).toBe("workspace");
   });
 });

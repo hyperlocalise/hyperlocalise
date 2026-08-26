@@ -15,10 +15,17 @@ import {
   type CrowdinGlossaryConcept,
   type CrowdinGlossaryTermInput,
 } from "@/lib/providers/adapters/crowdin/crowdin-provider";
-import type { CrowdinGlossary as CrowdinGlossaryRecord } from "@/lib/providers/adapters/crowdin/crowdin-api";
+import type {
+  CrowdinGlossary as CrowdinGlossaryRecord,
+  CrowdinGlossaryConcordanceSearchResult,
+} from "@/lib/providers/adapters/crowdin/crowdin-api";
+import { CrowdinApiClient } from "@/lib/providers/adapters/crowdin/crowdin-api";
+import { mapCrowdinGlossaryConcordanceSearchResult } from "@/lib/providers/adapters/crowdin/crowdin-glossary-concordance";
 import { and, eq } from "drizzle-orm";
 
 import { db, schema } from "@/lib/database";
+import type { NormalizedGlossaryMatch } from "@/lib/providers/contracts/glossary-match";
+import { sanitizeExternalUrl } from "@/lib/security/safe-external-url";
 
 import {
   Glossary,
@@ -27,6 +34,8 @@ import {
   normalizeGlossaryTermStatus,
   normalizeGlossaryTermType,
   selectGlossaryPrimaryTerm,
+  type GlossaryConcordanceContext,
+  type GlossaryConcordanceQuery,
   type GlossaryConceptImportEntry,
   type GlossaryConcept,
   type GlossaryConceptTerm,
@@ -46,7 +55,11 @@ import {
 
 import { parseId, resolveCrowdinContext, toCrowdinContext } from "./glossary-provider";
 import type { GlossaryProviderContext } from "./glossary-provider";
-import { sanitizeExternalUrl } from "@/lib/security/safe-external-url";
+
+function supportsCrowdinConcordanceSearch(glossary: GlossaryProviderContext["glossary"]): boolean {
+  const termCapabilities = glossary.termCapabilities as Record<string, unknown>;
+  return !(termCapabilities.referenceOnly === true || termCapabilities.search === false);
+}
 
 function crowdinStatus(status: string | undefined) {
   switch (status) {
@@ -622,5 +635,70 @@ export class CrowdinGlossary extends Glossary {
       parseId(conceptId, "concept_id"),
       parseId(termId, "term_id"),
     );
+  }
+
+  async searchConcordance(
+    query: GlossaryConcordanceQuery,
+    _ctx: GlossaryConcordanceContext,
+  ): Promise<NormalizedGlossaryMatch[]> {
+    if (!supportsCrowdinConcordanceSearch(this.input.glossary)) {
+      return [];
+    }
+
+    const externalGlossaryId = this.input.glossary.externalGlossaryId;
+    if (!externalGlossaryId) {
+      return [];
+    }
+
+    const crowdinGlossaryId = parseId(externalGlossaryId, "glossary_id");
+    const context = await this.context();
+    const client = new CrowdinApiClient({
+      token: context.secretMaterial,
+      baseUrl: context.credential.baseUrl ?? undefined,
+      signal: context.signal,
+    });
+    const projectId = Number(context.externalProjectId);
+    if (Number.isNaN(projectId)) {
+      return [];
+    }
+
+    const limit = query.limit ?? 20;
+    const sourceLanguageId = toCrowdinGlossaryLanguageId(query.sourceLocale);
+    const matches: NormalizedGlossaryMatch[] = [];
+
+    for (const targetLocale of query.targetLocales) {
+      const targetLanguageId = toCrowdinGlossaryLanguageId(targetLocale);
+      let results: CrowdinGlossaryConcordanceSearchResult[];
+      try {
+        results = await client.glossaryConcordanceSearch(projectId, {
+          sourceLanguageId,
+          targetLanguageId,
+          expressions: [query.sourceText],
+        });
+      } catch {
+        continue;
+      }
+
+      for (const [index, result] of results.entries()) {
+        if (result.glossary.id !== crowdinGlossaryId) {
+          continue;
+        }
+
+        const match = mapCrowdinGlossaryConcordanceSearchResult({
+          result,
+          index,
+          resourceId: this.input.glossary.id,
+          glossaryName: this.input.glossary.name,
+          sourceLocale: query.sourceLocale,
+          targetLocale,
+          stableTermIdGlossaryKey: this.input.glossary.id,
+        });
+        if (match) {
+          matches.push(match);
+        }
+      }
+    }
+
+    return matches.toSorted((left, right) => right.rank - left.rank).slice(0, limit);
   }
 }

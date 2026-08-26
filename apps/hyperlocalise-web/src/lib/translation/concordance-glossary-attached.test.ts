@@ -12,16 +12,29 @@
  */
 import { describe, expect, it } from "vite-plus/test";
 
-import { shouldIncludeAttachedGlossary } from "@/lib/translation/concordance";
+import { shouldIncludeAttachedGlossary } from "@/lib/glossary/glossary-concordance";
 
 describe("shouldIncludeAttachedGlossary", () => {
   it("includes only native glossaries for native projects", () => {
-    expect(shouldIncludeAttachedGlossary("native", "native")).toBe(true);
-    expect(shouldIncludeAttachedGlossary("native", "external_tms")).toBe(false);
+    expect(shouldIncludeAttachedGlossary("native", { source: "native" } as never)).toBe(true);
+    expect(shouldIncludeAttachedGlossary("native", { source: "external_tms" } as never)).toBe(
+      false,
+    );
   });
 
-  it("includes native and external glossaries for external projects", () => {
-    expect(shouldIncludeAttachedGlossary("external_tms", "native")).toBe(true);
-    expect(shouldIncludeAttachedGlossary("external_tms", "external_tms")).toBe(true);
+  it("includes native and crowdin glossaries for external projects", () => {
+    expect(shouldIncludeAttachedGlossary("external_tms", { source: "native" } as never)).toBe(true);
+    expect(
+      shouldIncludeAttachedGlossary("external_tms", {
+        source: "external_tms",
+        externalProviderKind: "crowdin",
+      } as never),
+    ).toBe(true);
+    expect(
+      shouldIncludeAttachedGlossary("external_tms", {
+        source: "external_tms",
+        externalProviderKind: "lokalise",
+      } as never),
+    ).toBe(false);
   });
 });

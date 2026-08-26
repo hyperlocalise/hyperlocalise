@@ -11,7 +11,36 @@
  * Version 2.0 or later.
  */
 import type { Glossary as NativeGlossaryRecord } from "@/lib/database/types";
+import type { NormalizedGlossaryMatch } from "@/lib/providers/contracts/glossary-match";
 import { mapWithConcurrency } from "@/lib/primitives/map-with-concurrency/map-with-concurrency";
+
+export type GlossaryConcordanceQuery = {
+  sourceLocale: string;
+  targetLocales: string[];
+  sourceText: string;
+  limit?: number;
+};
+
+export type GlossaryConcordanceContext = {
+  organizationId: string;
+  projectId: string;
+  actorUserId?: string | null;
+};
+
+const maxConcordanceSearchTerms = 50;
+
+export function buildGlossaryTsQuery(input: string): string | null {
+  const tsQuery = input
+    .replace(/[&|!():*<>'"-]/g, " ")
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, maxConcordanceSearchTerms)
+    .map((word) => `${word}:*`)
+    .join(" & ");
+
+  return tsQuery.length > 0 ? tsQuery : null;
+}
 
 export type NativeGlossary = NativeGlossaryRecord;
 
@@ -337,4 +366,8 @@ export abstract class Glossary {
     term: NativeGlossaryTermInput,
   ): Promise<GlossaryConcept | GlossaryConceptTerm | null>;
   abstract deleteTerm(conceptId: string, termId: string): Promise<boolean>;
+  abstract searchConcordance(
+    query: GlossaryConcordanceQuery,
+    ctx: GlossaryConcordanceContext,
+  ): Promise<NormalizedGlossaryMatch[]>;
 }

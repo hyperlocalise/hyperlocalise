@@ -16,10 +16,8 @@ import { z } from "zod";
 import { defineAgentTool } from "@/agents/_runtime/define-agent-tool";
 import type { ToolContext } from "@/lib/agent-contracts/tool-context";
 import { schema } from "@/lib/database";
-import { loadNativeConceptConcordanceMatches } from "@/lib/glossary/concordance-native-concept";
+import { searchGlossaryConcordance } from "@/lib/glossary/glossary-concordance";
 import { toolCanAccessProject, toolProjectLinkedGlossaryWhere } from "@/lib/tools/tool-access";
-
-import { buildNativeGlossaryTsQuery } from "./build-native-glossary-tsquery";
 
 const searchNativeGlossaryInputSchema = z.object({
   sourceText: z
@@ -118,11 +116,6 @@ export function createSearchNativeGlossaryTool(ctx: ToolContext) {
       }
 
       const projectId = input.projectId ?? ctx.projectId ?? undefined;
-      const tsQuery = buildNativeGlossaryTsQuery(input.sourceText);
-      if (!tsQuery) {
-        return { success: true, terms: [] };
-      }
-
       const glossaryIdsResult = await resolveNativeGlossaryIds(ctx, {
         projectId,
         sourceLocale: input.sourceLocale,
@@ -138,12 +131,13 @@ export function createSearchNativeGlossaryTool(ctx: ToolContext) {
         return { success: true, terms: [] };
       }
 
-      const matches = await loadNativeConceptConcordanceMatches({
-        glossaryIds: glossaryIdsResult,
+      const matches = await searchGlossaryConcordance({
+        organizationId: ctx.organizationId,
+        projectId,
+        glossaryIds: projectId ? undefined : glossaryIdsResult,
         sourceLocale: input.sourceLocale,
         targetLocales: [input.targetLocale],
         sourceText: input.sourceText,
-        tsQuery,
         limit: input.limit,
       });
 

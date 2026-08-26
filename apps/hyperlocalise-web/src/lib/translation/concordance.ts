@@ -10,12 +10,14 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { and, desc, eq, inArray, or, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, sql } from "drizzle-orm";
 
 import { db, schema } from "@/lib/database";
 import { createLogger } from "@/lib/log";
-import { loadNativeConceptConcordanceMatches } from "@/lib/glossary/concordance-native-concept";
-import { sourceContainsTerm } from "@/lib/glossary/validate-glossary-terms-in-translation";
+import {
+  searchGlossaryConcordance,
+  shouldIncludeAttachedGlossary,
+} from "@/lib/glossary/glossary-concordance";
 import {
   decryptProviderCredential,
   unwrapProviderCredentialCrypto,
@@ -24,11 +26,8 @@ import type { ExternalTmsProviderKind } from "@/lib/providers/contracts/external
 import type { GlossaryMatchResolution } from "@/lib/providers/contracts/glossary-matcher";
 import type { TranslationMemoryMatchResolution } from "@/lib/providers/contracts/translation-memory-matcher";
 import {
-  mergeGlossaryMatches,
-  normalizeSyncedDatabaseGlossaryMatch,
   toAgentRunGlossaryMatchUsage,
   type AgentRunGlossaryMatchUsage,
-  type NormalizedGlossaryMatch,
 } from "@/lib/providers/contracts/glossary-match";
 import {
   mergeTranslationMemoryMatches,
@@ -39,25 +38,13 @@ import {
 } from "@/lib/providers/contracts/translation-memory-match";
 import { normalizeTranslationMemorySourceText } from "@/lib/translation/normalizeTranslationMemorySourceText";
 
-const glossaryLogger = createLogger("glossary-matches");
 const memoryLogger = createLogger("translation-memory-matches");
 
-const maxContextSearchTerms = 50;
-
-function buildGlossaryTsQuery(input: string): string | null {
-  const tsQuery = input
-    .replace(/[&|!():*<>'"-]/g, " ")
-    .trim()
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, maxContextSearchTerms)
-    .map((word) => `${word}:*`)
-    .join(" & ");
-
-  return tsQuery.length > 0 ? tsQuery : null;
-}
+export { shouldIncludeAttachedGlossary };
+export { buildGlossaryTsQuery } from "@/lib/glossary/glossary";
 
 function buildTranslationMemoryTsQuery(input: string): string {
+  const maxContextSearchTerms = 50;
   return input
     .replace(/[&|!():*<>'"-]/g, " ")
     .trim()
@@ -67,6 +54,8 @@ function buildTranslationMemoryTsQuery(input: string): string {
     .map((word) => `${word}:*`)
     .join(" & ");
 }
+
+export { buildTranslationMemoryTsQuery };
 
 type ConcordanceQuery = {
   projectId: string;
@@ -159,7 +148,7 @@ abstract class ConcordancePipeline<TAttached, TMatch> {
     organizationId: string,
     providerKind: ExternalTmsProviderKind,
   ): void {
-    glossaryLogger.error(
+    memoryLogger.error(
       { err: error, projectId: input.projectId, organizationId, providerKind },
       "Live concordance search failed; returning synced matches only",
     );
@@ -194,45 +183,6 @@ abstract class ConcordancePipeline<TAttached, TMatch> {
 
     return project?.externalProviderKind ?? undefined;
   }
-}
-
-type AttachedGlossaryRecord = {
-  id: string;
-  name: string;
-  source: (typeof schema.projectSourceEnum.enumValues)[number];
-  externalProviderKind: ExternalTmsProviderKind | null;
-  externalGlossaryId: string | null;
-  externalProviderCredentialId: string | null;
-  externalProjectId: string | null;
-  targetLocale: string;
-  termCapabilities: Record<string, unknown>;
-};
-
-/** Native projects use only native glossaries; external projects may use any attached glossary. */
-export function shouldIncludeAttachedGlossary(
-  projectSource: (typeof schema.projectSourceEnum.enumValues)[number],
-  glossarySource: AttachedGlossaryRecord["source"],
-): boolean {
-  if (projectSource === "native") {
-    return glossarySource === "native";
-  }
-
-  return true;
-}
-
-function supportsLiveGlossarySearch(glossary: AttachedGlossaryRecord): boolean {
-  if (glossary.source !== "external_tms" || !glossary.externalProviderKind) {
-    return false;
-  }
-
-  if (
-    glossary.termCapabilities.referenceOnly === true ||
-    glossary.termCapabilities.search === false
-  ) {
-    return false;
-  }
-
-  return true;
 }
 
 async function loadExternalTmsProject(input: {
@@ -281,276 +231,6 @@ async function loadProviderCredential(input: {
     .limit(1);
 
   return credential ?? null;
-}
-
-class GlossaryConcordancePipeline extends ConcordancePipeline<
-  AttachedGlossaryRecord,
-  NormalizedGlossaryMatch
-> {
-  protected defaultLimit() {
-    return 20;
-  }
-
-  protected getResolution(input: ConcordanceQuery) {
-    return (input as GlossaryConcordanceQuery).glossaryMatchResolution;
-  }
-
-  protected logLiveSearchFailure(
-    error: unknown,
-    input: ConcordanceQuery,
-    organizationId: string,
-    providerKind: ExternalTmsProviderKind,
-  ) {
-    glossaryLogger.error(
-      { err: error, projectId: input.projectId, organizationId, providerKind },
-      "Live glossary search failed; returning synced matches only",
-    );
-  }
-
-  protected async loadAttached(projectId: string) {
-    return db
-      .select({
-        id: schema.glossaries.id,
-        name: schema.glossaries.name,
-        source: schema.glossaries.source,
-        externalProviderKind: schema.glossaries.externalProviderKind,
-        externalGlossaryId: schema.glossaries.externalGlossaryId,
-        externalProviderCredentialId: schema.glossaries.externalProviderCredentialId,
-        externalProjectId: schema.glossaries.externalProjectId,
-        targetLocale: sql<string>`${schema.glossaries.targetLocale}`,
-        termCapabilities: schema.glossaries.termCapabilities,
-      })
-      .from(schema.projectGlossaries)
-      .innerJoin(schema.glossaries, eq(schema.projectGlossaries.glossaryId, schema.glossaries.id))
-      .innerJoin(schema.projects, eq(schema.projectGlossaries.projectId, schema.projects.id))
-      .where(
-        and(
-          eq(schema.projectGlossaries.projectId, projectId),
-          eq(schema.glossaries.status, "active"),
-          or(eq(schema.projects.source, "external_tms"), eq(schema.glossaries.source, "native")),
-        ),
-      );
-  }
-
-  protected async loadSynced(query: ConcordanceQuery, attached: AttachedGlossaryRecord[]) {
-    const tsQuery = buildGlossaryTsQuery(query.sourceText);
-    if (!tsQuery) {
-      return [];
-    }
-
-    const limit = query.limit ?? 20;
-    const nativeGlossaryIds = attached
-      .filter((glossary) => glossary.source === "native")
-      .map((glossary) => glossary.id);
-    const externalGlossaryIds = attached
-      .filter((glossary) => glossary.source === "external_tms")
-      .map((glossary) => glossary.id);
-
-    const [externalMatches, nativeMatches] = await Promise.all([
-      externalGlossaryIds.length > 0
-        ? this.loadFlatExternalSyncedMatches(query, externalGlossaryIds, tsQuery, limit)
-        : Promise.resolve([]),
-      nativeGlossaryIds.length > 0
-        ? loadNativeConceptConcordanceMatches({
-            glossaryIds: nativeGlossaryIds,
-            sourceLocale: query.sourceLocale,
-            targetLocales: query.targetLocales,
-            sourceText: query.sourceText,
-            tsQuery,
-            limit,
-          })
-        : Promise.resolve([]),
-    ]);
-
-    return [...externalMatches, ...nativeMatches];
-  }
-
-  private async loadFlatExternalSyncedMatches(
-    query: ConcordanceQuery,
-    glossaryIds: string[],
-    tsQuery: string,
-    limit: number,
-  ) {
-    const dbMatches = await db
-      .select({
-        id: schema.glossaryTerms.id,
-        glossaryId: schema.glossaryTerms.glossaryId,
-        glossaryName: schema.glossaries.name,
-        sourceTerm: schema.glossaryTerms.sourceTerm,
-        targetTerm: schema.glossaryTerms.targetTerm,
-        sourceLocale: schema.glossaries.sourceLocale,
-        targetLocale: sql<string>`${schema.glossaries.targetLocale}`,
-        description: schema.glossaryTerms.description,
-        forbidden: schema.glossaryTerms.forbidden,
-        caseSensitive: schema.glossaryTerms.caseSensitive,
-        externalProviderKind: schema.glossaries.externalProviderKind,
-        externalGlossaryId: schema.glossaries.externalGlossaryId,
-        rank: sql<number>`ts_rank(${schema.glossaryTerms.searchVector}, to_tsquery('simple', ${tsQuery}))`.as(
-          "rank",
-        ),
-      })
-      .from(schema.glossaryTerms)
-      .innerJoin(schema.glossaries, eq(schema.glossaryTerms.glossaryId, schema.glossaries.id))
-      .where(
-        and(
-          inArray(schema.glossaryTerms.glossaryId, glossaryIds),
-          eq(schema.glossaries.source, "external_tms"),
-          eq(schema.glossaries.sourceLocale, query.sourceLocale),
-          inArray(schema.glossaries.targetLocale, query.targetLocales),
-          eq(schema.glossaries.status, "active"),
-          eq(schema.glossaryTerms.reviewStatus, "approved"),
-          sql`${schema.glossaryTerms.searchVector} @@ to_tsquery('simple', ${tsQuery})`,
-        ),
-      )
-      .orderBy(desc(sql`rank`))
-      .limit(limit);
-
-    return dbMatches
-      .filter((entry) =>
-        sourceContainsTerm(query.sourceText, {
-          sourceTerm: entry.sourceTerm,
-          caseSensitive: entry.caseSensitive ?? false,
-        }),
-      )
-      .map((entry) =>
-        normalizeSyncedDatabaseGlossaryMatch({
-          id: entry.id,
-          glossaryId: entry.glossaryId,
-          glossaryName: entry.glossaryName,
-          sourceTerm: entry.sourceTerm,
-          targetTerm: entry.targetTerm,
-          sourceLocale: entry.sourceLocale,
-          targetLocale: entry.targetLocale,
-          description: entry.description,
-          forbidden: entry.forbidden,
-          caseSensitive: entry.caseSensitive,
-          rank: Number(entry.rank) || 1,
-          providerKind: entry.externalProviderKind,
-          externalResourceId: entry.externalGlossaryId,
-          externalTermId: null,
-        }),
-      );
-  }
-
-  protected coverageKey(glossary: AttachedGlossaryRecord, targetLocale: string) {
-    return `${glossary.id}:${targetLocale}`;
-  }
-
-  protected matchCoverageKey(match: NormalizedGlossaryMatch) {
-    return `${match.glossaryId}:${match.targetLocale}`;
-  }
-
-  protected filterLiveSearchable(
-    attached: AttachedGlossaryRecord[],
-    query: ConcordanceQuery,
-    syncedCoveredKeys: Set<string>,
-    resolution: unknown,
-  ) {
-    if (resolution === undefined) {
-      return [];
-    }
-
-    return attached.filter(
-      (glossary) =>
-        supportsLiveGlossarySearch(glossary) &&
-        query.targetLocales.some(
-          (locale) => !syncedCoveredKeys.has(this.coverageKey(glossary, locale)!),
-        ),
-    );
-  }
-
-  protected async searchLive(input: {
-    projectId: string;
-    sourceLocale: string;
-    targetLocales: string[];
-    sourceText: string;
-    limit?: number;
-    attached: AttachedGlossaryRecord[];
-    syncedCoveredKeys: Set<string>;
-    organizationId: string;
-    providerKind: ExternalTmsProviderKind;
-    resolution: unknown;
-  }) {
-    const resolution = input.resolution as GlossaryMatchResolution;
-    const matcher = resolution.getProviderGlossaryMatcher(input.providerKind);
-    if (!matcher) {
-      return [];
-    }
-
-    const project = await loadExternalTmsProject({
-      organizationId: input.organizationId,
-      projectId: input.projectId,
-      providerKind: input.providerKind,
-    });
-
-    const credentialId =
-      project?.externalProviderCredentialId ?? input.attached[0]?.externalProviderCredentialId;
-    const externalProjectId = project?.externalProjectId ?? input.attached[0]?.externalProjectId;
-
-    if (!credentialId || !externalProjectId) {
-      return [];
-    }
-
-    const credential = await loadProviderCredential({
-      organizationId: input.organizationId,
-      providerKind: input.providerKind,
-      credentialId,
-    });
-    if (!credential) {
-      return [];
-    }
-
-    const secretMaterial = unwrapProviderCredentialCrypto(
-      decryptProviderCredential({
-        algorithm: credential.encryptionAlgorithm,
-        keyVersion: credential.keyVersion,
-        ciphertext: credential.ciphertext,
-        iv: credential.iv,
-        authTag: credential.authTag,
-      }),
-    );
-
-    const searchableGlossaries = input.attached.filter(supportsLiveGlossarySearch);
-    const limit = input.limit ?? 20;
-    const liveMatches: NormalizedGlossaryMatch[] = [];
-
-    for (const targetLocale of input.targetLocales) {
-      const glossariesNeedingLive = searchableGlossaries.filter(
-        (glossary) => !input.syncedCoveredKeys.has(`${glossary.id}:${targetLocale}`),
-      );
-      if (glossariesNeedingLive.length === 0) {
-        continue;
-      }
-
-      const matches = await matcher({
-        organizationId: input.organizationId,
-        projectId: input.projectId,
-        providerKind: input.providerKind,
-        externalProjectId,
-        credential,
-        secretMaterial,
-        glossaries: glossariesNeedingLive.map((glossary) => ({
-          id: glossary.id,
-          name: glossary.name,
-          externalGlossaryId: glossary.externalGlossaryId,
-          targetLocale: glossary.targetLocale,
-          termCapabilities: glossary.termCapabilities,
-        })),
-        sourceLocale: input.sourceLocale,
-        targetLocale,
-        sourceText: input.sourceText,
-        limit,
-      });
-
-      liveMatches.push(...matches.filter((match) => match.targetLocale === targetLocale));
-    }
-
-    return liveMatches;
-  }
-
-  protected merge(matches: NormalizedGlossaryMatch[], limit: number) {
-    return mergeGlossaryMatches(matches, limit);
-  }
 }
 
 type AttachedMemoryRecord = {
@@ -841,10 +521,8 @@ type MemoryConcordanceQuery = ConcordanceQuery & {
 };
 
 export class GlossaryConcordanceService {
-  private readonly pipeline = new GlossaryConcordancePipeline();
-
   searchForContext(input: GlossaryConcordanceQuery) {
-    return this.pipeline.search(input);
+    return searchGlossaryConcordance(input);
   }
 
   async collectUsageForUnits(input: {
@@ -965,5 +643,3 @@ export async function collectTranslationMemoryUsageForUnits(
 ) {
   return new TranslationMemoryConcordanceService().collectUsageForUnits(input);
 }
-
-export { buildGlossaryTsQuery, buildTranslationMemoryTsQuery };
