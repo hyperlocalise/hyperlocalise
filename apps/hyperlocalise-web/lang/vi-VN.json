@@ -182,8 +182,14 @@
   "+ngHznLyUe": {
     "defaultMessage": "Tiếng Hungary (Hungary)"
   },
+  "+pwP0Po+Io": {
+    "defaultMessage": "Lỗi thời"
+  },
   "+pyXMBZm58": {
     "defaultMessage": "Một số đoạn trên trang này có chỉnh sửa chưa được lưu. Bạn có muốn chuyển trang mà không lưu không?"
+  },
+  "+qqz/QE1GR": {
+    "defaultMessage": "Lưu"
   },
   "+rMSGgCA8X": {
     "defaultMessage": "Dự án TMS"
@@ -196,6 +202,9 @@
   },
   "+t9Xh+JbAF": {
     "defaultMessage": "{passed}/{total} bài kiểm tra đã đạt"
+  },
+  "+tsNE73Ud/": {
+    "defaultMessage": "Đặt số lượng ký tự tối đa được phép trong bản dịch."
   },
   "+ufsbqnrz9": {
     "defaultMessage": "Hoạt động của tác nhân"
@@ -1562,6 +1571,9 @@
   "4B3q4D8+NF": {
     "defaultMessage": "Đang tải tệp…"
   },
+  "4DQSOq1CB0": {
+    "defaultMessage": "Vui lòng cung cấp văn bản cần dịch."
+  },
   "4DV7znCLLI": {
     "defaultMessage": "{displayName} đã được lưu. Kết nối tài khoản Lokalise của bạn để tiếp tục."
   },
@@ -1741,6 +1753,9 @@
   },
   "5+ZicYt+Yo": {
     "defaultMessage": "Kết quả kiểm tra tình trạng bản địa hóa cho {domain}."
+  },
+  "5//srj2rVM": {
+    "defaultMessage": "Ẩn chi tiết khái niệm trong bảng thuật ngữ"
   },
   "5/QxgxarO+": {
     "defaultMessage": "Phân phối tài sản"
@@ -2621,6 +2636,9 @@
   "8bdvniqgMi": {
     "defaultMessage": "Locale ops observability"
   },
+  "8bfW3Jqg2b": {
+    "defaultMessage": "Bản nháp"
+  },
   "8bpns6mW0p": {
     "defaultMessage": "Phương thức xác thực"
   },
@@ -3118,6 +3136,9 @@
   },
   "AVpvSFVkzQ": {
     "defaultMessage": "(no memory selected)"
+  },
+  "AWCVIFfr/k": {
+    "defaultMessage": "Nhập một số nguyên từ 1 đến 100.000."
   },
   "AWZymO5ooC": {
     "defaultMessage": "Ngừng đuổi theo công việc bản địa hóa trên khắp các công cụ | Hyperlocalise"
@@ -3881,6 +3902,9 @@
   "DbP96xw9zS": {
     "defaultMessage": "API trực tiếp"
   },
+  "DbdjwrPI01": {
+    "defaultMessage": "Xóa"
+  },
   "Dcqju+Z+Wb": {
     "defaultMessage": "Chưa có cuộc trò chuyện nào."
   },
@@ -4144,6 +4168,9 @@
   },
   "EkIRMNMq59": {
     "defaultMessage": "Cạnh nhau"
+  },
+  "ElyQMTBOLz": {
+    "defaultMessage": "Không thể cập nhật giới hạn ký tự"
   },
   "EnR+0v6FUm": {
     "defaultMessage": "Tìm kiếm theo tên hoặc dán ID kênh"
@@ -6608,6 +6635,9 @@
   "Q/9NNd2AHJ": {
     "defaultMessage": "Copy"
   },
+  "Q/u6jDht8H": {
+    "defaultMessage": "Không nên dùng"
+  },
   "Q0EogeA8A+": {
     "defaultMessage": "Đường dẫn nguồn"
   },
@@ -6932,6 +6962,9 @@
   "RQv/LERmVL": {
     "defaultMessage": "Tạo công việc"
   },
+  "RS4pbTA1Mq": {
+    "defaultMessage": "Giới hạn ký tự"
+  },
   "RSCu8OSDph": {
     "defaultMessage": "Chưa có mô tả-singaw"
   },
@@ -7142,6 +7175,9 @@
   "SLg8IXCI6V": {
     "defaultMessage": "Các nhóm nhỏ không thể xây dựng một quy trình mới cho từng quốc gia. Bạn cần một cách để mở rộng quy mô ra mắt thị trường mà không khiến đội ngũ sản phẩm bị quá tải."
   },
+  "SLnLYAC4Ib": {
+    "defaultMessage": "Bảng thuật ngữ của dự án"
+  },
   "SNl5ipNJ6A": {
     "defaultMessage": "Không giới hạn"
   },
@@ -7297,6 +7333,9 @@
   },
   "T/GS9h3ryY": {
     "defaultMessage": "Các hoạt động bản địa hóa trải rộng trên quá nhiều hệ thống rời rạc"
+  },
+  "T03AFW0QvU": {
+    "defaultMessage": "Đã chấp nhận"
   },
   "T0J/dVp/Dp": {
     "defaultMessage": "Actions"
@@ -8039,6 +8078,9 @@
   "WGmc876gab": {
     "defaultMessage": "Sử dụng hướng dẫn của không gian làm việc để định hướng cho quá trình tự động hóa này."
   },
+  "WHrTXX3A2/": {
+    "defaultMessage": "Mở hướng dẫn bảng thuật ngữ"
+  },
   "WIwcX3Fw30": {
     "defaultMessage": "Bản dịch hiện tại"
   },
@@ -8710,6 +8752,9 @@
   },
   "Z4Eqaj5jk5": {
     "defaultMessage": "Xem gói của không gian làm việc, mức sử dụng tín dụng AI, giới hạn không gian làm việc và thông tin thanh toán gói đăng ký của bạn."
+  },
+  "Z4KBzMvHKO": {
+    "defaultMessage": "Hướng dẫn thuật ngữ, có sẵn các kết quả khớp khái niệm"
   },
   "Z6XcD4K+oU": {
     "defaultMessage": "sync"
@@ -10238,6 +10283,9 @@
   "fd5kFNowDQ": {
     "defaultMessage": "No details yet"
   },
+  "fdAK5CKbNL": {
+    "defaultMessage": "Không có kết quả khớp nào trong bảng thuật ngữ"
+  },
   "fdNYFpldO1": {
     "defaultMessage": "Tất cả trạng thái"
   },
@@ -10598,6 +10646,9 @@
   "h1E2anIfFR": {
     "defaultMessage": "Giám sát nội dung trực tiếp để phát hiện lỗi thuật ngữ, thiếu cập nhật và các khoảng trống theo ngôn ngữ sau khi phát hành."
   },
+  "h1gQeaJchd": {
+    "defaultMessage": "Ưu tiên"
+  },
   "h1hScUfLYO": {
     "defaultMessage": "Không có dự án"
   },
@@ -10618,6 +10669,9 @@
   },
   "h5YfBD98F1": {
     "defaultMessage": "Nhập các vấn đề từ CSV"
+  },
+  "h6wm+58u19": {
+    "defaultMessage": "Các khái niệm phù hợp từ bảng thuật ngữ của dự án."
   },
   "h8EKkv2BNt": {
     "defaultMessage": "Lưu thay đổi"
@@ -10729,6 +10783,9 @@
   },
   "hZ+ve9l5zX": {
     "defaultMessage": "Chọn tệp bản dịch để nhập."
+  },
+  "hZ7gIyvYMF": {
+    "defaultMessage": "Không giới hạn"
   },
   "hZtUjyTrTe": {
     "defaultMessage": "Tìm kiếm tệp…"
@@ -11405,6 +11462,9 @@
   "k5atS7Ij0F": {
     "defaultMessage": "Thường hoàn tất trong 1–3 phút."
   },
+  "k5etBkEqlB": {
+    "defaultMessage": "Giới hạn: {maxLength} ký tự"
+  },
   "k6wO1BhuBw": {
     "defaultMessage": "Video nguồn không khả dụng"
   },
@@ -11960,6 +12020,9 @@
   "mHk95Qw98g": {
     "defaultMessage": "Đang cập nhật chuỗi để sử dụng danh từ tiếng Pháp có dấu chính xác."
   },
+  "mK6wLZvKdg": {
+    "defaultMessage": "Hiển thị chi tiết khái niệm trong bảng thuật ngữ"
+  },
   "mKEoYdlq74": {
     "defaultMessage": "Các nhà phát triển gộp các thay đổi chuỗi hằng ngày. Chất lượng bản địa hóa phụ thuộc vào việc có ai đó nhớ kiểm tra trước khi phát hành."
   },
@@ -12109,6 +12172,9 @@
   },
   "muwnlAh1Hy": {
     "defaultMessage": "Nhập một múi giờ IANA hợp lệ như UTC hoặc America/New_York."
+  },
+  "mvgKs5lzcT": {
+    "defaultMessage": "Không thể lưu giới hạn ký tự. Vui lòng thử lại."
   },
   "mwCo4y1n7b": {
     "defaultMessage": "Learn more"
@@ -12667,6 +12733,9 @@
   },
   "pOCBt3fv7m": {
     "defaultMessage": "Chương trình dành cho các khách hàng mới của Hyperlocalise đang ở giai đoạn đầu — thường có dưới 50 nhân viên hoặc chưa gọi vốn Series B — và đang cân nhắc gói Growth. Nếu không chắc chắn, hãy đăng ký nhận bản demo và chúng tôi sẽ xác nhận mức độ phù hợp."
+  },
+  "pQttDyq4Mr": {
+    "defaultMessage": "Đóng hướng dẫn bảng thuật ngữ"
   },
   "pSCJIupsz5": {
     "defaultMessage": "Send"
@@ -13944,7 +14013,7 @@
     "defaultMessage": "Xóa {filename}"
   },
   "uycq9iF49K": {
-    "defaultMessage": "GitHub push"
+    "defaultMessage": "Đẩy GitHub"
   },
   "uyibAnXll7": {
     "defaultMessage": "Bật Issues của workspace trước khi sử dụng các công cụ Issue Sheet trong các quy trình tự động."
@@ -14266,6 +14335,9 @@
   },
   "w79MA47tly": {
     "defaultMessage": "Đã thay đổi 3 chuỗi, sửa trực tiếp 1 lỗi đánh máy tiếng Pháp từ chuỗi thảo luận PR"
+  },
+  "w7J+PHlma7": {
+    "defaultMessage": "Hướng dẫn thuật ngữ"
   },
   "w7U8I+r5dS": {
     "defaultMessage": "Yêu cầu bản demo"

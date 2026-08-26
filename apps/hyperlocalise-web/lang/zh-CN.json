@@ -182,8 +182,14 @@
   "+ngHznLyUe": {
     "defaultMessage": "匈牙利语（匈牙利）"
   },
+  "+pwP0Po+Io": {
+    "defaultMessage": "已废弃"
+  },
   "+pyXMBZm58": {
     "defaultMessage": "此页面上的一些片段有未保存的编辑。是否在不保存的情况下更改页面？"
+  },
+  "+qqz/QE1GR": {
+    "defaultMessage": "保存"
   },
   "+rMSGgCA8X": {
     "defaultMessage": "TMS 项目"
@@ -196,6 +202,9 @@
   },
   "+t9Xh+JbAF": {
     "defaultMessage": "{passed}/{total} 个测试通过"
+  },
+  "+tsNE73Ud/": {
+    "defaultMessage": "设置翻译中允许的最大字符数。"
   },
   "+ufsbqnrz9": {
     "defaultMessage": "智能体活动"
@@ -1562,6 +1571,9 @@
   "4B3q4D8+NF": {
     "defaultMessage": "正在加载文件…"
   },
+  "4DQSOq1CB0": {
+    "defaultMessage": "没有项目术语表概念与此字符串匹配。"
+  },
   "4DV7znCLLI": {
     "defaultMessage": "{displayName} 已保存。连接你的 Lokalise 账户以继续。"
   },
@@ -1741,6 +1753,9 @@
   },
   "5+ZicYt+Yo": {
     "defaultMessage": "{domain} 的本地化健康检查结果。"
+  },
+  "5//srj2rVM": {
+    "defaultMessage": "隐藏术语表概念详情"
   },
   "5/QxgxarO+": {
     "defaultMessage": "资源交付"
@@ -2621,6 +2636,9 @@
   "8bdvniqgMi": {
     "defaultMessage": "Locale ops observability"
   },
+  "8bfW3Jqg2b": {
+    "defaultMessage": "草稿"
+  },
   "8bpns6mW0p": {
     "defaultMessage": "身份验证方法"
   },
@@ -3118,6 +3136,9 @@
   },
   "AVpvSFVkzQ": {
     "defaultMessage": "(no memory selected)"
+  },
+  "AWCVIFfr/k": {
+    "defaultMessage": "请输入 1 到 100,000 之间的整数。"
   },
   "AWZymO5ooC": {
     "defaultMessage": "停止在各个工具之间追着做本地化工作 | Hyperlocalise"
@@ -3881,6 +3902,9 @@
   "DbP96xw9zS": {
     "defaultMessage": "实时 API"
   },
+  "DbdjwrPI01": {
+    "defaultMessage": "清除"
+  },
   "Dcqju+Z+Wb": {
     "defaultMessage": "还没有对话。"
   },
@@ -4144,6 +4168,9 @@
   },
   "EkIRMNMq59": {
     "defaultMessage": "并排"
+  },
+  "ElyQMTBOLz": {
+    "defaultMessage": "更新字符限制失败"
   },
   "EnR+0v6FUm": {
     "defaultMessage": "按名称搜索或粘贴频道 ID"
@@ -6608,6 +6635,9 @@
   "Q/9NNd2AHJ": {
     "defaultMessage": "Copy"
   },
+  "Q/u6jDht8H": {
+    "defaultMessage": "不推荐"
+  },
   "Q0EogeA8A+": {
     "defaultMessage": "源路径"
   },
@@ -6932,6 +6962,9 @@
   "RQv/LERmVL": {
     "defaultMessage": "创建任务"
   },
+  "RS4pbTA1Mq": {
+    "defaultMessage": "字符限制"
+  },
   "RSCu8OSDph": {
     "defaultMessage": "暂无描述"
   },
@@ -7142,6 +7175,9 @@
   "SLg8IXCI6V": {
     "defaultMessage": "小团队无法为每个国家都采用一套新流程。你需要一种能够扩展市场发布、同时又不会让产品团队疲于应付的方法。"
   },
+  "SLnLYAC4Ib": {
+    "defaultMessage": "项目术语表"
+  },
   "SNl5ipNJ6A": {
     "defaultMessage": "无限制"
   },
@@ -7297,6 +7333,9 @@
   },
   "T/GS9h3ryY": {
     "defaultMessage": "本地化操作涉及太多彼此割裂的系统"
+  },
+  "T03AFW0QvU": {
+    "defaultMessage": "已录取"
   },
   "T0J/dVp/Dp": {
     "defaultMessage": "Actions"
@@ -8039,6 +8078,9 @@
   "WGmc876gab": {
     "defaultMessage": "使用工作区指南作为此自动化的指导。"
   },
+  "WHrTXX3A2/": {
+    "defaultMessage": "打开术语表指南"
+  },
   "WIwcX3Fw30": {
     "defaultMessage": "当前翻译"
   },
@@ -8710,6 +8752,9 @@
   },
   "Z4Eqaj5jk5": {
     "defaultMessage": "查看您的工作区套餐、AI 积分使用情况、工作区限制和订阅账单。"
+  },
+  "Z4KBzMvHKO": {
+    "defaultMessage": "术语表指南，有可用的概念匹配项"
   },
   "Z6XcD4K+oU": {
     "defaultMessage": "sync"
@@ -10238,6 +10283,9 @@
   "fd5kFNowDQ": {
     "defaultMessage": "No details yet"
   },
+  "fdAK5CKbNL": {
+    "defaultMessage": "没有匹配的术语表条目"
+  },
   "fdNYFpldO1": {
     "defaultMessage": "所有状态"
   },
@@ -10598,6 +10646,9 @@
   "h1E2anIfFR": {
     "defaultMessage": "监控上线后的实时内容，检查术语错误、更新缺失和区域语言空缺。"
   },
+  "h1gQeaJchd": {
+    "defaultMessage": "首选"
+  },
   "h1hScUfLYO": {
     "defaultMessage": "没有项目"
   },
@@ -10618,6 +10669,9 @@
   },
   "h5YfBD98F1": {
     "defaultMessage": "从 CSV 导入问题"
+  },
+  "h6wm+58u19": {
+    "defaultMessage": "与项目术语表匹配的概念。"
   },
   "h8EKkv2BNt": {
     "defaultMessage": "保存更改"
@@ -10729,6 +10783,9 @@
   },
   "hZ+ve9l5zX": {
     "defaultMessage": "请选择要导入的翻译文件。"
+  },
+  "hZ7gIyvYMF": {
+    "defaultMessage": "没有限制"
   },
   "hZtUjyTrTe": {
     "defaultMessage": "搜索文件…"
@@ -11405,6 +11462,9 @@
   "k5atS7Ij0F": {
     "defaultMessage": "通常需要 1–3 分钟完成。"
   },
+  "k5etBkEqlB": {
+    "defaultMessage": "限制：{maxLength} 个字符"
+  },
   "k6wO1BhuBw": {
     "defaultMessage": "源视频不可用"
   },
@@ -11960,6 +12020,9 @@
   "mHk95Qw98g": {
     "defaultMessage": "正在更新字符串，以使用正确的带重音符号的法语名词。"
   },
+  "mK6wLZvKdg": {
+    "defaultMessage": "显示术语表概念详情"
+  },
   "mKEoYdlq74": {
     "defaultMessage": "开发人员每天合并字符串更改。本地化质量取决于是否有人记得在发布前检查。"
   },
@@ -12109,6 +12172,9 @@
   },
   "muwnlAh1Hy": {
     "defaultMessage": "请输入有效的 IANA 时区，例如 UTC 或 America/New_York。"
+  },
+  "mvgKs5lzcT": {
+    "defaultMessage": "无法保存字符限制。请重试。"
   },
   "mwCo4y1n7b": {
     "defaultMessage": "Learn more"
@@ -12667,6 +12733,9 @@
   },
   "pOCBt3fv7m": {
     "defaultMessage": "该计划面向 Hyperlocalise 的新客户，适合处于早期阶段的企业——通常员工人数少于 50 人或尚未完成 B 轮融资——并有意选择 Growth 计划。如果您不确定是否符合条件，请申请演示，我们会确认是否适合。"
+  },
+  "pQttDyq4Mr": {
+    "defaultMessage": "关闭术语表指南"
   },
   "pSCJIupsz5": {
     "defaultMessage": "Send"
@@ -13338,7 +13407,7 @@
     "defaultMessage": "负责人"
   },
   "sFAU+pXxlM": {
-    "defaultMessage": "{count} {label}"
+    "defaultMessage": "{count} 个{label}"
   },
   "sGkYArMEbA": {
     "defaultMessage": "Teams"
@@ -14266,6 +14335,9 @@
   },
   "w79MA47tly": {
     "defaultMessage": "3 个字符串已更改，1 个法语拼写错误已直接在 PR 讨论串中更正"
+  },
+  "w7J+PHlma7": {
+    "defaultMessage": "术语表指南"
   },
   "w7U8I+r5dS": {
     "defaultMessage": "申请演示"

@@ -235,6 +235,14 @@
     "defaultMessage": "Hungarian (Hungary)",
     "description": "Display name for BCP-47 locale hu-HU"
   },
+  "+pwP0Po+Io": {
+    "defaultMessage": "Obsolete",
+    "description": "Status badge for an obsolete glossary term"
+  },
+  "+qqz/QE1GR": {
+    "defaultMessage": "Save",
+    "description": "Button label to save a native segment max length"
+  },
   "+rMSGgCA8X": {
     "defaultMessage": "TMS project",
     "description": "Label for the live TMS project picker field"
@@ -250,6 +258,10 @@
   "+t9Xh+JbAF": {
     "defaultMessage": "{passed}/{total} tests passed",
     "description": "Progress summary showing passed tests out of total"
+  },
+  "+tsNE73Ud/": {
+    "defaultMessage": "Set the maximum number of characters allowed in the translation.",
+    "description": "Helper text for the native segment max length editor"
   },
   "+ufsbqnrz9": {
     "defaultMessage": "Agent Activity",
@@ -1907,6 +1919,10 @@
     "defaultMessage": "Loading file…",
     "description": "Loading state while project file details are fetched"
   },
+  "4DQSOq1CB0": {
+    "defaultMessage": "No project glossary concepts match this string.",
+    "description": "Empty state description for the glossary guidance panel"
+  },
   "4DV7znCLLI": {
     "defaultMessage": "{displayName} saved. Connect your Lokalise account to continue.",
     "description": "Toast after saving Lokalise OAuth app when user OAuth is still required"
@@ -2122,6 +2138,10 @@
   "5+ZicYt+Yo": {
     "defaultMessage": "Localisation health check results for {domain}.",
     "description": "Meta description for an in-progress localisation audit result page"
+  },
+  "5//srj2rVM": {
+    "defaultMessage": "Hide glossary concept details",
+    "description": "Accessible label for collapsing glossary concept details"
   },
   "5/QxgxarO+": {
     "defaultMessage": "Asset delivery",
@@ -3195,6 +3215,10 @@
     "defaultMessage": "Review & approval",
     "description": "Workflow step 4 label for the localisation-operations use case"
   },
+  "8bfW3Jqg2b": {
+    "defaultMessage": "Draft",
+    "description": "Status badge for a draft glossary term"
+  },
   "8bpns6mW0p": {
     "defaultMessage": "Authentication method",
     "description": "Label for the Crowdin authentication method selector"
@@ -3818,6 +3842,10 @@
   "AUcojcp0lZ": {
     "defaultMessage": "Service-level agreement",
     "description": "Enterprise plan feature: SLA"
+  },
+  "AWCVIFfr/k": {
+    "defaultMessage": "Enter a whole number from 1 to 100,000.",
+    "description": "Validation error when the max length input is not a positive integer"
   },
   "AWZymO5ooC": {
     "defaultMessage": "Stop Chasing Localisation Work Across Tools | Hyperlocalise",
@@ -4775,6 +4803,10 @@
     "defaultMessage": "Live API",
     "description": "Badge for a glossary backed by a live provider API"
   },
+  "DbdjwrPI01": {
+    "defaultMessage": "Clear",
+    "description": "Button label to clear a native segment max length"
+  },
   "Dcqju+Z+Wb": {
     "defaultMessage": "No conversations yet.",
     "description": "Empty state when the organization has no inbox conversations"
@@ -5082,6 +5114,10 @@
   "EkIRMNMq59": {
     "defaultMessage": "Side by side",
     "description": "CAT workspace view mode with source and translation columns"
+  },
+  "ElyQMTBOLz": {
+    "defaultMessage": "Failed to update character limit",
+    "description": "Fallback error when updating a native segment max length fails"
   },
   "EnR+0v6FUm": {
     "defaultMessage": "Search by name or paste a channel ID",
@@ -8099,6 +8135,10 @@
     "defaultMessage": "Copy",
     "description": "Button to copy the native project ID"
   },
+  "Q/u6jDht8H": {
+    "defaultMessage": "Not recommended",
+    "description": "Status badge for a discouraged glossary term"
+  },
   "Q0EogeA8A+": {
     "defaultMessage": "Source path",
     "description": "System field mapping label for source path"
@@ -8475,6 +8515,10 @@
     "defaultMessage": "Loading Issue Sheet...",
     "description": "Suspense fallback while Issue Sheet content loads"
   },
+  "RS4pbTA1Mq": {
+    "defaultMessage": "Character limit",
+    "description": "Section heading for the native segment max length constraint"
+  },
   "RSCu8OSDph": {
     "defaultMessage": "No description yet",
     "description": "Fallback text when a project card has no description"
@@ -8735,6 +8779,10 @@
     "defaultMessage": "Small teams cannot afford a new process for every country. You need a way to scale market launches without drowning the product team.",
     "description": "Story beat body: scale without burying the product team"
   },
+  "SLnLYAC4Ib": {
+    "defaultMessage": "Project Glossary",
+    "description": "Link to the source glossary for a CAT concept"
+  },
   "SNl5ipNJ6A": {
     "defaultMessage": "Unlimited",
     "description": "Matrix cell value for unlimited plan limits"
@@ -8926,6 +8974,10 @@
   "T/GS9h3ryY": {
     "defaultMessage": "Localisation operations span too many disconnected systems",
     "description": "Problem section title for the localisation-operations use case"
+  },
+  "T03AFW0QvU": {
+    "defaultMessage": "Admitted",
+    "description": "Status badge for an admitted glossary term"
   },
   "T0J/dVp/Dp": {
     "defaultMessage": "Actions",
@@ -9823,6 +9875,10 @@
     "defaultMessage": "Use the workspace guideline as guidance for this automation.",
     "description": "Description for the workspace guideline automation tool"
   },
+  "WHrTXX3A2/": {
+    "defaultMessage": "Open glossary guidance",
+    "description": "Accessible label for the glossary guidance button in the app shell footer"
+  },
   "WIwcX3Fw30": {
     "defaultMessage": "Current translation",
     "description": "Description skeleton heading for the translation mistake issue template"
@@ -10646,6 +10702,10 @@
   "Z4Eqaj5jk5": {
     "defaultMessage": "View your workspace plan, AI credit usage, workspace limits, and subscription billing.",
     "description": "Billing settings page description"
+  },
+  "Z4KBzMvHKO": {
+    "defaultMessage": "Glossary guidance, concept matches available",
+    "description": "Accessible label for the glossary guidance button when concept matches are available"
   },
   "Z6XcD4K+oU": {
     "defaultMessage": "sync",
@@ -12503,6 +12563,10 @@
     "defaultMessage": "Unknown",
     "description": "Fallback citation trigger label when no source URL is available"
   },
+  "fdAK5CKbNL": {
+    "defaultMessage": "No glossary matches",
+    "description": "Empty state title for the glossary guidance panel"
+  },
   "fdNYFpldO1": {
     "defaultMessage": "All status",
     "description": "Jobs status filter option to show all statuses"
@@ -12927,6 +12991,10 @@
     "defaultMessage": "User agent",
     "description": "Label for the localisation audit crawler user agent"
   },
+  "gyT9rFJB1u": {
+    "defaultMessage": "Open issues",
+    "description": "Accessible label for the Issues button in the app shell footer"
+  },
   "gyVhBvCqLP": {
     "defaultMessage": "Add sources",
     "description": "Button to return from global guidance to the source upload screen"
@@ -12959,6 +13027,10 @@
     "defaultMessage": "Monitor live content for terminology breaks, missing updates, and locale gaps after release.",
     "description": "Capability 6 description for the localisation-quality-monitoring use case"
   },
+  "h1gQeaJchd": {
+    "defaultMessage": "Preferred",
+    "description": "Status badge for a preferred glossary term"
+  },
   "h1hScUfLYO": {
     "defaultMessage": "No projects",
     "description": "Project selector label when the workspace has no selectable projects"
@@ -12986,6 +13058,10 @@
   "h5YfBD98F1": {
     "defaultMessage": "Import issues from CSV",
     "description": "Title of the Issue Sheet CSV import dialog"
+  },
+  "h6wm+58u19": {
+    "defaultMessage": "Matched concepts from the project glossary.",
+    "description": "Description for the glossary guidance dialog"
   },
   "h8EKkv2BNt": {
     "defaultMessage": "Save changes",
@@ -13123,6 +13199,10 @@
     "defaultMessage": "Choose a translation file to import.",
     "description": "Validation error when importing without a selected file"
   },
+  "hZ7gIyvYMF": {
+    "defaultMessage": "No limit",
+    "description": "Placeholder when a native segment has no max length set"
+  },
   "hZtUjyTrTe": {
     "defaultMessage": "Search files…",
     "description": "Search placeholder in the files picker"
@@ -13190,6 +13270,10 @@
   "hjMbjSqPe8": {
     "defaultMessage": "Try again",
     "description": "Button to retry rendering the chat dock panel"
+  },
+  "hjub6GRZr4": {
+    "defaultMessage": "Issues",
+    "description": "Label for the Issues button in the app shell footer"
   },
   "hnEkxD1cWI": {
     "defaultMessage": "Delete this term?",
@@ -13911,6 +13995,10 @@
     "defaultMessage": "Usually finishes in 1–3 minutes.",
     "description": "Expected duration note while a localisation audit is running"
   },
+  "k5etBkEqlB": {
+    "defaultMessage": "Limit: {maxLength} characters",
+    "description": "Read-only summary of the current native segment max length"
+  },
   "k6wO1BhuBw": {
     "defaultMessage": "Source video unavailable",
     "description": "Empty state when the CAT source video cannot be shown"
@@ -14579,6 +14667,10 @@
     "defaultMessage": "Updating the string to use the correct accented French noun.",
     "description": "Body shown while the agent is applying a fix in the PR thread"
   },
+  "mK6wLZvKdg": {
+    "defaultMessage": "Show glossary concept details",
+    "description": "Accessible label for expanding glossary concept details"
+  },
   "mKEoYdlq74": {
     "defaultMessage": "Developers merge string changes daily. Localisation quality depends on someone remembering to check before ship.",
     "description": "Problem section description for the github-release-localisation use case"
@@ -14766,6 +14858,10 @@
   "muwnlAh1Hy": {
     "defaultMessage": "Enter a valid IANA timezone such as UTC or America/New_York.",
     "description": "API error when scheduled automation timezone is invalid"
+  },
+  "mvgKs5lzcT": {
+    "defaultMessage": "Could not save the character limit. Try again.",
+    "description": "Error shown when saving a native segment max length fails"
   },
   "mwlaVsXCWL": {
     "defaultMessage": "This file can’t be opened in the CAT workspace.",
@@ -15438,6 +15534,10 @@
   "pOCBt3fv7m": {
     "defaultMessage": "The program is designed for new Hyperlocalise customers that are early-stage — typically under 50 employees or pre-Series B — and looking at the Growth plan. If you are unsure, apply for a demo and we will confirm fit.",
     "description": "Startups FAQ answer about eligibility"
+  },
+  "pQttDyq4Mr": {
+    "defaultMessage": "Close glossary guidance",
+    "description": "Accessible label for closing the glossary guidance panel"
   },
   "pSCJIupsz5": {
     "defaultMessage": "Send",
@@ -16199,6 +16299,10 @@
     "defaultMessage": "Request failed",
     "description": "Fallback error when the create issue API request fails"
   },
+  "s7TZoJvKum": {
+    "defaultMessage": "Open issues, {count} open",
+    "description": "Accessible label for the Issues button when open issues are available"
+  },
   "s8Aqn1fSU6": {
     "defaultMessage": "Live projects fetched from {providerName}.",
     "description": "Dashboard panel description for live TMS projects"
@@ -16238,6 +16342,10 @@
   "sHQ6RKFJ37": {
     "defaultMessage": "Domains",
     "description": "Sidebar navigation item for linked domains"
+  },
+  "sHe4qCdT7b": {
+    "defaultMessage": "Close issues",
+    "description": "Accessible label for closing the CAT Issues panel"
   },
   "sHrPdefvvp": {
     "defaultMessage": "Search microphones...",
@@ -17354,6 +17462,10 @@
   "w79MA47tly": {
     "defaultMessage": "3 strings changed, 1 French typo corrected directly from the PR thread",
     "description": "PR summary shown after the agent fix in the review PR illustration"
+  },
+  "w7J+PHlma7": {
+    "defaultMessage": "Glossary guidance",
+    "description": "Label for the glossary guidance button in the app shell footer"
   },
   "w7U8I+r5dS": {
     "defaultMessage": "Request a Demo",

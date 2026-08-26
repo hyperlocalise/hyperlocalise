@@ -182,8 +182,14 @@
   "+ngHznLyUe": {
     "defaultMessage": "Ungarisch (Ungarn)"
   },
+  "+pwP0Po+Io": {
+    "defaultMessage": "Veraltet"
+  },
   "+pyXMBZm58": {
     "defaultMessage": "Einige Segmente auf dieser Seite haben ungespeicherte Änderungen. Seite ohne Speichern wechseln?"
+  },
+  "+qqz/QE1GR": {
+    "defaultMessage": "Speichern"
   },
   "+rMSGgCA8X": {
     "defaultMessage": "TMS-Projekt"
@@ -196,6 +202,9 @@
   },
   "+t9Xh+JbAF": {
     "defaultMessage": "{passed}/{total} Tests bestanden"
+  },
+  "+tsNE73Ud/": {
+    "defaultMessage": "Legen Sie die maximal zulässige Anzahl an Zeichen in der Übersetzung fest."
   },
   "+ufsbqnrz9": {
     "defaultMessage": "Agentenaktivität"
@@ -1562,6 +1571,9 @@
   "4B3q4D8+NF": {
     "defaultMessage": "Datei wird geladen…"
   },
+  "4DQSOq1CB0": {
+    "defaultMessage": "Bitte geben Sie den zu übersetzenden Text an."
+  },
   "4DV7znCLLI": {
     "defaultMessage": "{displayName} gespeichert. Verbinden Sie Ihr Lokalise-Konto, um fortzufahren."
   },
@@ -1741,6 +1753,9 @@
   },
   "5+ZicYt+Yo": {
     "defaultMessage": "Ergebnisse der Lokalisierungsprüfung für {domain}."
+  },
+  "5//srj2rVM": {
+    "defaultMessage": "Glossarbegriffsdetails ausblenden"
   },
   "5/QxgxarO+": {
     "defaultMessage": "Asset-Auslieferung"
@@ -2621,6 +2636,9 @@
   "8bdvniqgMi": {
     "defaultMessage": "Beobachtbarkeit der Locale-Operationen"
   },
+  "8bfW3Jqg2b": {
+    "defaultMessage": "Entwurf"
+  },
   "8bpns6mW0p": {
     "defaultMessage": "Authentifizierungsmethode"
   },
@@ -3118,6 +3136,9 @@
   },
   "AVpvSFVkzQ": {
     "defaultMessage": "(kein Speicher ausgewählt)"
+  },
+  "AWCVIFfr/k": {
+    "defaultMessage": "Geben Sie eine ganze Zahl zwischen 1 und 100.000 ein."
   },
   "AWZymO5ooC": {
     "defaultMessage": "Schluss mit dem Hinterherjagen von Lokalisierungsarbeit über verschiedene Tools hinweg | Hyperlocalise"
@@ -3881,6 +3902,9 @@
   "DbP96xw9zS": {
     "defaultMessage": "Live-API"
   },
+  "DbdjwrPI01": {
+    "defaultMessage": "Löschen"
+  },
   "Dcqju+Z+Wb": {
     "defaultMessage": "Noch keine Unterhaltungen."
   },
@@ -4144,6 +4168,9 @@
   },
   "EkIRMNMq59": {
     "defaultMessage": "Nebeneinander"
+  },
+  "ElyQMTBOLz": {
+    "defaultMessage": "Das Zeichenlimit konnte nicht aktualisiert werden"
   },
   "EnR+0v6FUm": {
     "defaultMessage": "Nach Namen suchen oder eine Kanal-ID einfügen"
@@ -6608,6 +6635,9 @@
   "Q/9NNd2AHJ": {
     "defaultMessage": "Kopieren"
   },
+  "Q/u6jDht8H": {
+    "defaultMessage": "Nicht empfohlen"
+  },
   "Q0EogeA8A+": {
     "defaultMessage": "Quellpfad"
   },
@@ -6932,6 +6962,9 @@
   "RQv/LERmVL": {
     "defaultMessage": "Job erstellen"
   },
+  "RS4pbTA1Mq": {
+    "defaultMessage": "Zeichenlimit"
+  },
   "RSCu8OSDph": {
     "defaultMessage": "Noch keine Beschreibung-cmpr"
   },
@@ -7142,6 +7175,9 @@
   "SLg8IXCI6V": {
     "defaultMessage": "Kleine Teams können sich nicht für jedes Land einen neuen Prozess leisten. Sie brauchen eine Möglichkeit, Markteinführungen zu skalieren, ohne das Produktteam zu überlasten."
   },
+  "SLnLYAC4Ib": {
+    "defaultMessage": "Projektglossar"
+  },
   "SNl5ipNJ6A": {
     "defaultMessage": "Unbegrenzt"
   },
@@ -7297,6 +7333,9 @@
   },
   "T/GS9h3ryY": {
     "defaultMessage": "Lokalisierungsprozesse erstrecken sich über zu viele voneinander getrennte Systeme"
+  },
+  "T03AFW0QvU": {
+    "defaultMessage": "Zugelassen"
   },
   "T0J/dVp/Dp": {
     "defaultMessage": "Aktionen"
@@ -8039,6 +8078,9 @@
   "WGmc876gab": {
     "defaultMessage": "Verwenden Sie die Workspace-Richtlinie als Leitfaden für diese Automatisierung."
   },
+  "WHrTXX3A2/": {
+    "defaultMessage": "Glossarhilfe öffnen"
+  },
   "WIwcX3Fw30": {
     "defaultMessage": "Aktuelle Übersetzung"
   },
@@ -8710,6 +8752,9 @@
   },
   "Z4Eqaj5jk5": {
     "defaultMessage": "Sehen Sie sich Ihren Workspace-Tarif, die Nutzung von KI-Credits, Workspace-Limits und die Abonnementabrechnung an."
+  },
+  "Z4KBzMvHKO": {
+    "defaultMessage": "Glossarhinweise, Konzeptübereinstimmungen verfügbar"
   },
   "Z6XcD4K+oU": {
     "defaultMessage": "Synchronisieren"
@@ -10238,6 +10283,9 @@
   "fd5kFNowDQ": {
     "defaultMessage": "Noch keine Details."
   },
+  "fdAK5CKbNL": {
+    "defaultMessage": "Keine passenden Glossarbegriffe"
+  },
   "fdNYFpldO1": {
     "defaultMessage": "Alle Status񎟀"
   },
@@ -10598,6 +10646,9 @@
   "h1E2anIfFR": {
     "defaultMessage": "Überwachen Sie Live-Inhalte nach der Veröffentlichung auf Terminologiebrüche, fehlende Aktualisierungen und Gebietsschemalücken."
   },
+  "h1gQeaJchd": {
+    "defaultMessage": "Bevorzugt"
+  },
   "h1hScUfLYO": {
     "defaultMessage": "Keine Projekte"
   },
@@ -10618,6 +10669,9 @@
   },
   "h5YfBD98F1": {
     "defaultMessage": "Probleme aus CSV importieren"
+  },
+  "h6wm+58u19": {
+    "defaultMessage": "Übereinstimmende Konzepte aus dem Projektglossar."
   },
   "h8EKkv2BNt": {
     "defaultMessage": "Änderungen speichern"
@@ -10729,6 +10783,9 @@
   },
   "hZ+ve9l5zX": {
     "defaultMessage": "Wählen Sie eine zu importierende Übersetzungsdatei aus."
+  },
+  "hZ7gIyvYMF": {
+    "defaultMessage": "Keine Begrenzung"
   },
   "hZtUjyTrTe": {
     "defaultMessage": "Dateien durchsuchen…"
@@ -11405,6 +11462,9 @@
   "k5atS7Ij0F": {
     "defaultMessage": "Normalerweise in 1–3 Minuten abgeschlossen."
   },
+  "k5etBkEqlB": {
+    "defaultMessage": "Limit: {maxLength} Zeichen"
+  },
   "k6wO1BhuBw": {
     "defaultMessage": "Quellvideo nicht verfügbar"
   },
@@ -11960,6 +12020,9 @@
   "mHk95Qw98g": {
     "defaultMessage": "Aktualisierung des Strings, damit das korrekt akzentuierte französische Substantiv verwendet wird."
   },
+  "mK6wLZvKdg": {
+    "defaultMessage": "Glossarbegriffsdetails anzeigen"
+  },
   "mKEoYdlq74": {
     "defaultMessage": "Entwickler führen täglich Zeichenfolgenänderungen zusammen. Die Lokalisierungsqualität hängt davon ab, dass sich jemand daran erinnert, vor dem Release zu prüfen."
   },
@@ -12109,6 +12172,9 @@
   },
   "muwnlAh1Hy": {
     "defaultMessage": "Geben Sie eine gültige IANA-Zeitzone wie UTC oder America/New_York ein."
+  },
+  "mvgKs5lzcT": {
+    "defaultMessage": "Das Zeichenlimit konnte nicht gespeichert werden. Versuchen Sie es erneut."
   },
   "mwCo4y1n7b": {
     "defaultMessage": "Learn more"
@@ -12667,6 +12733,9 @@
   },
   "pOCBt3fv7m": {
     "defaultMessage": "Das Programm richtet sich an neue Hyperlocalise-Kunden in der Frühphase – typischerweise mit weniger als 50 Mitarbeitenden oder vor der Series-B-Finanzierungsrunde –, die den Growth-Tarif in Betracht ziehen. Wenn Sie unsicher sind, beantragen Sie eine Demo, und wir bestätigen, ob das Programm für Sie geeignet ist."
+  },
+  "pQttDyq4Mr": {
+    "defaultMessage": "Glossarhinweise schließen"
   },
   "pSCJIupsz5": {
     "defaultMessage": "Senden"
@@ -14266,6 +14335,9 @@
   },
   "w79MA47tly": {
     "defaultMessage": "3 Strings geändert, 1 französischer Tippfehler direkt aus dem PR-Thread korrigiert"
+  },
+  "w7J+PHlma7": {
+    "defaultMessage": "Glossarhinweise"
   },
   "w7U8I+r5dS": {
     "defaultMessage": "Demo anfordern"
