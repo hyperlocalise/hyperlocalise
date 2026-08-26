@@ -12,12 +12,19 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import type { ReactNode } from "react";
 import Image from "next/image";
 import { FormattedMessage, useIntl } from "react-intl";
 
 import { TypographyH2, TypographyP } from "@/components/ui/typography";
 
 import { tourfinderTestimonialSectionMessages } from "./tourfinder-testimonial-section.messages";
+
+const quoteRichTextValues = {
+  bold: (chunks: ReactNode) => (
+    <strong className="font-semibold text-foreground">{chunks}</strong>
+  ),
+};
 
 export function TourfinderTestimonialSection() {
   const intl = useIntl();
@@ -31,16 +38,45 @@ export function TourfinderTestimonialSection() {
               <FormattedMessage {...tourfinderTestimonialSectionMessages.eyebrow} />
             </p>
 
+            <dl className="mt-5 flex flex-wrap gap-x-10 gap-y-4 sm:mt-6">
+              <div>
+                <dt className="text-[0.72rem] font-medium tracking-[0.12em] text-muted-foreground uppercase">
+                  <FormattedMessage {...tourfinderTestimonialSectionMessages.industryLabel} />
+                </dt>
+                <dd className="mt-1 text-[0.95rem] font-medium text-foreground">
+                  <FormattedMessage {...tourfinderTestimonialSectionMessages.industryValue} />
+                </dd>
+              </div>
+              <div>
+                <dt className="text-[0.72rem] font-medium tracking-[0.12em] text-muted-foreground uppercase">
+                  <FormattedMessage {...tourfinderTestimonialSectionMessages.locationLabel} />
+                </dt>
+                <dd className="mt-1 text-[0.95rem] font-medium text-foreground">
+                  <FormattedMessage {...tourfinderTestimonialSectionMessages.locationValue} />
+                </dd>
+              </div>
+            </dl>
+
             <TypographyH2
               id="tourfinder-testimonial-heading"
-              className="mt-5 pb-0 text-left text-[2.25rem] leading-[1.04] font-semibold tracking-[-0.045em] text-foreground normal-case sm:mt-6 sm:text-5xl md:text-[3.5rem] md:leading-[1.02]"
+              className="mt-8 pb-0 text-left text-[2.25rem] leading-[1.04] font-semibold tracking-[-0.045em] text-foreground normal-case sm:mt-10 sm:text-5xl md:text-[3.5rem] md:leading-[1.02]"
             >
               <FormattedMessage {...tourfinderTestimonialSectionMessages.headline} />
             </TypographyH2>
 
-            <TypographyP className="mt-6 max-w-2xl pb-0 text-pretty text-[1.15rem] leading-relaxed text-muted-foreground sm:mt-8 sm:text-[1.35rem] sm:leading-[1.4]">
-              <FormattedMessage {...tourfinderTestimonialSectionMessages.result} />
-            </TypographyP>
+            <blockquote className="mt-6 max-w-2xl border-l-2 border-border pl-6 sm:mt-8">
+              <TypographyP className="pb-0 text-pretty text-[1.15rem] leading-relaxed text-muted-foreground sm:text-[1.35rem] sm:leading-[1.4]">
+                <FormattedMessage
+                  {...tourfinderTestimonialSectionMessages.quote}
+                  values={quoteRichTextValues}
+                />
+              </TypographyP>
+              <footer className="mt-4 text-[0.95rem] font-medium text-foreground">
+                <cite className="not-italic">
+                  <FormattedMessage {...tourfinderTestimonialSectionMessages.authorName} />
+                </cite>
+              </footer>
+            </blockquote>
 
             <a
               href="https://tourfinder.vn"
