@@ -669,7 +669,7 @@ describe("crowdin sandbox file config", () => {
 describe("sandbox translation failure reasons", () => {
   it("maps command deadlines to a resumable timeout message", () => {
     expect(userFacingFailureReason(new Error("sandbox_timeout: bash exceeded 270000ms"))).toBe(
-      "the translation took too long to finish. Progress was saved, so try the job again to continue.",
+      "the translation took too long to finish. Try the job again.",
     );
   });
 

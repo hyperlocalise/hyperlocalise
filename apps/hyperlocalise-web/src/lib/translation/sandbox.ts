@@ -220,7 +220,7 @@ export class SandboxErrorMapper {
     }
 
     if (message.includes("sandbox_timeout")) {
-      return "the translation took too long to finish. Progress was saved, so try the job again to continue.";
+      return "the translation took too long to finish. Try the job again.";
     }
 
     return "the translation failed before it could finish. This is usually temporary.";

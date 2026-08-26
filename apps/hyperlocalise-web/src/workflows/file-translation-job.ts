@@ -45,8 +45,8 @@ import {
   storeOutputFileStep,
 } from "./steps/translation-job";
 import {
-  FILE_TRANSLATION_MAX_PAGES,
   FILE_TRANSLATION_MAX_TRANSLATIONS_PER_SESSION,
+  calculateFileTranslationMaxPages,
   calculateFileTranslationSandboxTimeoutMs,
   countPendingFileTranslations,
   parseDeferredByLimit,
@@ -266,7 +266,7 @@ function userFacingFailureReason(
   }
 
   if (message.includes("sandbox_timeout")) {
-    return "the translation took too long to finish. Progress was saved, so try the job again to continue.";
+    return "the translation took too long to finish. Try the job again.";
   }
 
   return "the translation failed before it could finish. This is usually temporary.";
@@ -807,6 +807,7 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
     const outputFiles: Array<{ fileId: string; locale: string; filename: string }> = [];
     let sourceEntries: Record<string, string> | null = null;
     let translationSandboxTimeoutMs = calculateFileTranslationSandboxTimeoutMs(0);
+    let translationMaxPages = calculateFileTranslationMaxPages(0);
 
     try {
       sourceEntries = await extractEntriesStep(sandboxId, inputFilename);
@@ -912,6 +913,7 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
       );
       translationSandboxTimeoutMs =
         calculateFileTranslationSandboxTimeoutMs(pendingTranslationCount);
+      translationMaxPages = calculateFileTranslationMaxPages(pendingTranslationCount);
       await updateSandboxTimeoutStep(sandboxId, translationSandboxTimeoutMs);
       console.info("[file-translation-workflow] sandbox timeout updated", {
         jobId: claim.job.id,
@@ -919,6 +921,7 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
         sourceEntryCount: Object.keys(sourceEntries).length,
         targetLocaleCount: parsedInput.targetLocales.length,
         pendingTranslationCount,
+        translationMaxPages,
         translationSandboxTimeoutMs,
         sandboxId,
       });
@@ -1148,7 +1151,7 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
     let localesNeedingWork = [...parsedInput.targetLocales];
     let batchFailed = false;
 
-    while (page < FILE_TRANSLATION_MAX_PAGES) {
+    while (page < translationMaxPages) {
       // Page 0 may use --force for a clean slate. Later pages omit it so the
       // lockfile skips completed tasks and advances through deferred work.
       const batchResult = await runHlForLocales(parsedInput.targetLocales, 1, {
@@ -1206,7 +1209,7 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
 
     if (!batchFailed && deferredByLimit > 0) {
       throw new Error(
-        `translation pagination exceeded ${FILE_TRANSLATION_MAX_PAGES} pages with deferred_by_limit=${deferredByLimit}`,
+        `translation pagination exceeded ${translationMaxPages} pages with deferred_by_limit=${deferredByLimit}`,
       );
     }
 
@@ -1216,7 +1219,7 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
       const stillMissing: string[] = [];
       for (const targetLocale of localesNeedingWork) {
         let localeFailed = false;
-        for (let localePage = 0; localePage < FILE_TRANSLATION_MAX_PAGES; localePage += 1) {
+        for (let localePage = 0; localePage < translationMaxPages; localePage += 1) {
           const localeResult = await runHlForLocales([targetLocale], 1, {
             force: localePage === 0,
             maxTranslations: FILE_TRANSLATION_MAX_TRANSLATIONS_PER_SESSION,
@@ -1255,7 +1258,7 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
           if (localeResult.deferredByLimit <= 0) {
             break;
           }
-          if (localePage === FILE_TRANSLATION_MAX_PAGES - 1) {
+          if (localePage === translationMaxPages - 1) {
             stillMissing.push(targetLocale);
             runFailures.push({
               locale: targetLocale,
@@ -1329,7 +1332,7 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
         ].join("\n");
 
         let retryFailed = false;
-        for (let retryPage = 0; retryPage < FILE_TRANSLATION_MAX_PAGES; retryPage += 1) {
+        for (let retryPage = 0; retryPage < translationMaxPages; retryPage += 1) {
           const retryResult = await runHlForLocales([targetLocale], 2, {
             retryFeedback: feedback,
             // Page 0 forces a clean rewrite; later pages omit --force so the
@@ -1357,7 +1360,7 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
           if (retryResult.deferredByLimit <= 0) {
             break;
           }
-          if (retryPage === FILE_TRANSLATION_MAX_PAGES - 1) {
+          if (retryPage === translationMaxPages - 1) {
             translatedByLocale.delete(targetLocale);
             stillFailing.push({ targetLocale, failures });
             retryFailed = true;

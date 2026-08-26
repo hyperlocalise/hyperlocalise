@@ -11,7 +11,7 @@
  * Version 2.0 or later.
  */
 export const FILE_TRANSLATION_MAX_TRANSLATIONS_PER_SESSION = 100;
-export const FILE_TRANSLATION_MAX_PAGES = 500;
+export const FILE_TRANSLATION_MIN_PAGES = 5_000;
 export const FILE_TRANSLATION_TIME_PER_KEY_LOCALE_MS = 3_000;
 export const FILE_TRANSLATION_SANDBOX_OVERHEAD_MS = 2 * 60 * 1_000;
 export const FILE_TRANSLATION_MIN_SANDBOX_TIMEOUT_MS = 10 * 60 * 1_000;
@@ -39,6 +39,14 @@ export function calculateFileTranslationSandboxTimeoutMs(translationCount: numbe
   return Math.min(
     FILE_TRANSLATION_MAX_SANDBOX_TIMEOUT_MS,
     Math.max(FILE_TRANSLATION_MIN_SANDBOX_TIMEOUT_MS, workloadTimeoutMs),
+  );
+}
+
+export function calculateFileTranslationMaxPages(pendingTranslationCount: number): number {
+  const normalizedPendingCount = Math.max(0, Math.floor(pendingTranslationCount));
+  return Math.max(
+    FILE_TRANSLATION_MIN_PAGES,
+    Math.ceil(normalizedPendingCount / FILE_TRANSLATION_MAX_TRANSLATIONS_PER_SESSION),
   );
 }
 
