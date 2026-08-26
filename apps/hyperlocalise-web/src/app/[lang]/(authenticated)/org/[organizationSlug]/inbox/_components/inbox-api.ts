@@ -48,17 +48,26 @@ type ApiClient = ReturnType<typeof createApiClient>;
 
 const FILE_ONLY_CONVERSATION_TEXT = "Please translate the attached source file.";
 
-function appendConversationFormData(formData: FormData, input: SendConversationMessageInput) {
-  formData.set("text", input.text.trim() || FILE_ONLY_CONVERSATION_TEXT);
-  if (input.projectId) {
-    formData.set("projectId", input.projectId);
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function isConversationMessages(value: unknown): value is ConversationMessage[] {
+  return Array.isArray(value);
+}
+
+function isLinkedJobs(value: unknown): value is LinkedJob[] {
+  return Array.isArray(value);
+}
+
+function isCreatedConversation(value: unknown): value is {
+  conversation: { id: string; title?: string };
+  message?: { id: string; text: string };
+} {
+  if (!isRecord(value) || !isRecord(value.conversation)) {
+    return false;
   }
-  if (input.repositoryFullName) {
-    formData.set("repositoryFullName", input.repositoryFullName);
-  }
-  for (const file of input.files) {
-    formData.append("files", file);
-  }
+  return typeof value.conversation.id === "string";
 }
 
 export function createInboxApi(client: ApiClient): InboxApi {
@@ -70,32 +79,38 @@ export function createInboxApi(client: ApiClient): InboxApi {
         param: { organizationSlug },
         query: { limit: String(limit) },
       });
-      if (!response.ok) {
+      if (response.status !== 200) {
         throw await readApiResponseError(response, "Failed to load conversations");
       }
-      const body = (await response.json()) as { conversations: Conversation[] };
+      const body = await response.json();
       return body.conversations;
     },
 
     async listMessages(organizationSlug, conversationId) {
       const response = await conversations[":conversationId"].messages.$get({
         param: { organizationSlug, conversationId },
-      });
-      if (!response.ok) {
+      } as never);
+      if (response.status !== 200) {
         throw await readApiResponseError(response, "Failed to load messages");
       }
-      const body = (await response.json()) as { messages: ConversationMessage[] };
+      const body = await response.json();
+      if (!isRecord(body) || !isConversationMessages(body.messages)) {
+        throw new Error("Failed to load messages");
+      }
       return body.messages;
     },
 
     async listLinkedJobs(organizationSlug, conversationId) {
       const response = await conversations[":conversationId"].jobs.$get({
         param: { organizationSlug, conversationId },
-      });
-      if (!response.ok) {
+      } as never);
+      if (response.status !== 200) {
         throw await readApiResponseError(response, "Failed to load jobs");
       }
-      const body = (await response.json()) as { jobs: LinkedJob[] };
+      const body = await response.json();
+      if (!isRecord(body) || !isLinkedJobs(body.jobs)) {
+        throw new Error("Failed to load jobs");
+      }
       return body.jobs;
     },
 
@@ -106,55 +121,45 @@ export function createInboxApi(client: ApiClient): InboxApi {
         param: { organizationSlug },
         query: {},
       });
-      if (!response.ok) {
+      if (response.status !== 200) {
         throw await readApiResponseError(response, "Failed to load GitHub repositories");
       }
-      const body = (await response.json()) as { repositories: InboxGithubRepository[] };
+      const body = await response.json();
       return body.repositories.filter((repository) => repository.enabled && !repository.archived);
     },
 
     async createConversation(organizationSlug, input) {
-      const formData = new FormData();
-      appendConversationFormData(formData, input);
-
-      const response = await fetch(
-        `/api/orgs/${encodeURIComponent(organizationSlug)}/conversations`,
-        {
-          method: "POST",
-          body: formData,
+      const response = await conversations.$post({
+        param: { organizationSlug },
+        form: {
+          text: input.text.trim() || FILE_ONLY_CONVERSATION_TEXT,
+          ...(input.projectId ? { projectId: input.projectId } : {}),
+          ...(input.repositoryFullName ? { repositoryFullName: input.repositoryFullName } : {}),
+          ...(input.files.length > 0 ? { files: input.files } : {}),
         },
-      );
-      if (!response.ok) {
+      } as never);
+      if (response.status !== 201) {
         throw await readApiResponseError(response, "Failed to create conversation");
       }
-      return response.json() as Promise<{
-        conversation: { id: string; title?: string };
-        message?: { id: string; text: string };
-      }>;
+      const body = await response.json();
+      if (!isCreatedConversation(body)) {
+        throw new Error("Failed to create conversation");
+      }
+      return body;
     },
 
     async sendMessage(organizationSlug, conversationId, input) {
-      const formData = new FormData();
-      formData.append("text", input.text);
-      if (input.projectId) {
-        formData.append("projectId", input.projectId);
-      }
-      if (input.repositoryFullName) {
-        formData.append("repositoryFullName", input.repositoryFullName);
-      }
-      for (const file of input.files) {
-        formData.append("files", file);
-      }
-
-      const response = await fetch(
-        `/api/orgs/${encodeURIComponent(organizationSlug)}/conversations/${encodeURIComponent(conversationId)}/messages`,
-        {
-          method: "POST",
-          body: formData,
+      const response = await conversations[":conversationId"].messages.$post({
+        param: { organizationSlug, conversationId },
+        form: {
+          text: input.text,
+          ...(input.projectId ? { projectId: input.projectId } : {}),
+          ...(input.repositoryFullName ? { repositoryFullName: input.repositoryFullName } : {}),
+          ...(input.files.length > 0 ? { files: input.files } : {}),
         },
-      );
+      } as never);
 
-      if (!response.ok) {
+      if (response.status !== 201) {
         throw await readApiResponseError(response, "Failed to send message");
       }
     },

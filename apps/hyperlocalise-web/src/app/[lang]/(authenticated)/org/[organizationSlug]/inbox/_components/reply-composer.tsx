@@ -49,7 +49,6 @@ import {
   type ChatProjectOption,
 } from "../../_components/project-selector-model";
 import { useTmsLiveProjects } from "../../_hooks/use-tms-live-projects";
-import type { ApiProject } from "../../projects/_components/project-list";
 import { createInboxApi, type InboxApi, type InboxGithubRepository } from "./inbox-api";
 import { replyComposerMessages } from "./reply-composer.messages";
 
@@ -299,10 +298,10 @@ export const ReplyComposer = memo(function ReplyComposer({
       const response = await apiClient.api.orgs[":organizationSlug"].projects.$get({
         param: { organizationSlug },
       });
-      if (!response.ok) {
+      if (response.status !== 200) {
         throw await readApiResponseError(response, "Failed to load projects");
       }
-      const body = (await response.json()) as { projects: ApiProject[] };
+      const body = await response.json();
       return body.projects;
     },
   });

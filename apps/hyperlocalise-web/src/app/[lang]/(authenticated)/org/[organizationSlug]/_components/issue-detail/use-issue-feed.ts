@@ -14,9 +14,9 @@
  */
 import { useInfiniteQuery } from "@tanstack/react-query";
 
+import { apiClient } from "@/lib/api-client-instance";
 import { readApiResponseError } from "@/lib/api-error";
 
-import { issueSheetApiPath } from "./issue-detail-utils";
 import type { IssueComment } from "./use-issue-comments";
 import type { IssueActivity } from "./use-issue-activities";
 
@@ -56,19 +56,19 @@ export function useIssueFeedQuery({
     enabled: Boolean(organizationSlug && projectId && issueId && enabled),
     initialPageParam: null as string | null,
     queryFn: async ({ pageParam }) => {
-      const params = new URLSearchParams({
-        limit: String(ISSUE_FEED_PAGE_SIZE),
-      });
-      if (pageParam) {
-        params.set("cursor", pageParam);
-      }
-      const response = await fetch(
-        `${issueSheetApiPath(organizationSlug, projectId)}/${encodeURIComponent(issueId)}/feed?${params.toString()}`,
-      );
-      if (!response.ok) {
+      const response = await apiClient.api.orgs[":organizationSlug"].projects[":projectId"][
+        "issue-sheet"
+      ][":issueId"].feed.$get({
+        param: { organizationSlug, projectId, issueId },
+        query: {
+          limit: String(ISSUE_FEED_PAGE_SIZE),
+          ...(pageParam ? { cursor: pageParam } : {}),
+        },
+      } as never);
+      if (response.status !== 200) {
         throw await readApiResponseError(response, "Failed to load issue feed");
       }
-      return (await response.json()) as IssueFeedPage;
+      return response.json();
     },
     getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
   });

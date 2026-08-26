@@ -19,21 +19,12 @@ import { useQuery } from "@tanstack/react-query";
 import { FormattedMessage } from "react-intl";
 
 import { Button } from "@/components/ui/button";
+import { apiClient } from "@/lib/api-client-instance";
 import { readApiResponseError } from "@/lib/api-error";
 
 import { IssueSheetCreateIssueDialog } from "../../projects/[projectId]/issue-sheet/_components/issue-sheet-create-issue-dialog";
 import { issuesActionsMessages } from "./issues-actions.messages";
 import { IssuesProjectImportDialog } from "./issues-project-import-dialog";
-
-type ProjectOption = {
-  id: string;
-  name: string;
-  targetLocales?: string[];
-};
-
-function organizationProjectsPath(organizationSlug: string) {
-  return `/api/orgs/${encodeURIComponent(organizationSlug)}/projects`;
-}
 
 export function IssuesActions({
   organizationSlug,
@@ -48,11 +39,13 @@ export function IssuesActions({
   const projectsQuery = useQuery({
     queryKey: ["projects", organizationSlug],
     queryFn: async () => {
-      const response = await fetch(organizationProjectsPath(organizationSlug));
-      if (!response.ok) {
+      const response = await apiClient.api.orgs[":organizationSlug"].projects.$get({
+        param: { organizationSlug },
+      });
+      if (response.status !== 200) {
         throw await readApiResponseError(response, "Failed to load projects");
       }
-      const body = (await response.json()) as { projects: ProjectOption[] };
+      const body = await response.json();
       return body.projects.map((project) => ({
         id: project.id,
         name: project.name,

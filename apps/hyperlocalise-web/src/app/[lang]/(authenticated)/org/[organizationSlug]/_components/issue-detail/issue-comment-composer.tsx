@@ -27,6 +27,7 @@ import {
 import { markdownEditorMessages } from "@/components/markdown-editor/markdown-editor.messages";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import { apiClient } from "@/lib/api-client-instance";
 import { cn } from "@/lib/primitives/cn";
 
 import { issueCommentMessages as messages } from "./issue-comment.messages";
@@ -106,36 +107,14 @@ export function IssueCommentComposer({
       usersSectionLabel: intl.formatMessage(markdownEditorMessages.mentionUsersSection),
       issuesSectionLabel: intl.formatMessage(markdownEditorMessages.mentionIssuesSection),
       search: async (query) => {
-        const params = new URLSearchParams({
-          q: query,
-          projectId,
-          issueId,
-          limit: "5",
-        });
-        const response = await fetch(
-          `/api/orgs/${encodeURIComponent(organizationSlug)}/mentions?${params.toString()}`,
-        );
-        if (!response.ok) {
+        const response = await apiClient.api.orgs[":organizationSlug"].mentions.$get({
+          param: { organizationSlug },
+          query: { q: query, projectId, issueId, limit: "5" },
+        } as never);
+        if (response.status !== 200) {
           return { users: [], issues: [] };
         }
-        const body = (await response.json()) as {
-          mentionSuggestions: {
-            users: {
-              userId: string;
-              displayName: string;
-              email: string;
-              avatarUrl: string | null;
-              isAgent?: boolean;
-            }[];
-            issues: {
-              issueId: string;
-              projectId: string;
-              displayKey: string;
-              title: string;
-              status: string;
-            }[];
-          };
-        };
+        const body = await response.json();
         return {
           users: body.mentionSuggestions.users.map((entry) => ({
             kind: "user" as const,
@@ -144,7 +123,7 @@ export function IssueCommentComposer({
             displayName: entry.displayName,
             email: entry.email,
             avatarUrl: entry.avatarUrl,
-            isAgent: entry.isAgent,
+            isAgent: false,
           })),
           issues: body.mentionSuggestions.issues.map((issue) => ({
             kind: "issue" as const,

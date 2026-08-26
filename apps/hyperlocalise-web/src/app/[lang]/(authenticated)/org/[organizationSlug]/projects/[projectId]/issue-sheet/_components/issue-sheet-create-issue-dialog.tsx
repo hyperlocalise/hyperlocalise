@@ -68,6 +68,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
+import { apiClient } from "@/lib/api-client-instance";
 import { readApiResponseError } from "@/lib/api-error";
 import { cn } from "@/lib/primitives/cn";
 
@@ -110,18 +111,6 @@ const NO_TEMPLATE_VALUE = "__no_template__";
 const propertyTriggerClassName =
   "h-7 gap-1.5 rounded-md border-0 bg-transparent px-1.5 text-xs font-normal text-muted-foreground shadow-none hover:bg-muted/60 hover:text-foreground";
 
-function issueSheetPath(organizationSlug: string, projectId: string) {
-  return `/api/orgs/${encodeURIComponent(organizationSlug)}/projects/${encodeURIComponent(projectId)}/issue-sheet`;
-}
-
-async function readJsonOrThrow<T>(response: Response, fallbackMessage: string): Promise<T> {
-  if (!response.ok) {
-    const error = await readApiResponseError(response, fallbackMessage);
-    throw new Error(error.message || fallbackMessage);
-  }
-  return (await response.json()) as T;
-}
-
 function isCreateCompactCustomColumn(column: IssueSheetColumn) {
   return (
     !column.hidden &&
@@ -139,6 +128,25 @@ function buildValuesPayload(drafts: Record<string, string>) {
     }
   }
   return Object.keys(values).length > 0 ? values : undefined;
+}
+
+function columnSelectOptions(config: { options?: unknown }) {
+  if (!Array.isArray(config.options)) {
+    return [];
+  }
+  return config.options.flatMap((option) => {
+    if (
+      !option ||
+      typeof option !== "object" ||
+      !("id" in option) ||
+      !("label" in option) ||
+      typeof option.id !== "string" ||
+      typeof option.label !== "string"
+    ) {
+      return [];
+    }
+    return [{ id: option.id, label: option.label }];
+  });
 }
 
 function stopMenuKeyboardPropagation(event: KeyboardEvent<HTMLDivElement>) {
@@ -616,49 +624,52 @@ export function IssueSheetCreateIssueDialog({
       // prompts, not to "clean up" a manually-typed description — a user who writes their own
       // `## Follow-up` heading with nothing under it yet is not asking for it to be deleted.
       const submittedDescription = templateKey ? stripEmptySections(description) : description;
-      const response = await fetch(issueSheetPath(organizationSlug, resolvedProjectId), {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(
-          stringLink
-            ? {
-                title: trimmedTitle,
-                description: submittedDescription,
-                issueType,
-                status,
-                targetLocale: stringLink.targetLocale,
-                sourcePath: stringLink.sourcePath,
-                segmentId: stringLink.segmentId,
-                translationKeyId: stringLink.translationKeyId,
-                linkKind: "cat_segment",
-                linkLabel: linkLabel.trim() || stringLink.linkLabel || undefined,
-                linkUrl: linkUrl.trim() || stringLink.linkUrl || undefined,
-                priority,
-                ...(assigneeUserId ? { assigneeUserId } : {}),
-                ...(values ? { values } : {}),
-                ...(templateKey ? { templateKey } : {}),
-              }
-            : {
-                title: trimmedTitle,
-                description: submittedDescription,
-                issueType,
-                status,
-                targetLocale: targetLocale.trim() || undefined,
-                sourcePath: sourcePath.trim() || undefined,
-                linkKind: linkUrl.trim() ? "url" : "manual",
-                linkLabel: linkLabel.trim() || undefined,
-                linkUrl: linkUrl.trim() || undefined,
-                priority,
-                ...(assigneeUserId ? { assigneeUserId } : {}),
-                ...(values ? { values } : {}),
-                ...(templateKey ? { templateKey } : {}),
-              },
-        ),
-      });
-      return readJsonOrThrow<{ issue: { id: string } }>(
-        response,
-        intl.formatMessage(messages.requestFailed),
-      );
+      const json = stringLink
+        ? {
+            title: trimmedTitle,
+            description: submittedDescription,
+            issueType,
+            status,
+            targetLocale: stringLink.targetLocale,
+            sourcePath: stringLink.sourcePath,
+            segmentId: stringLink.segmentId,
+            translationKeyId: stringLink.translationKeyId,
+            linkKind: "cat_segment" as const,
+            linkLabel: linkLabel.trim() || stringLink.linkLabel || undefined,
+            linkUrl: linkUrl.trim() || stringLink.linkUrl || undefined,
+            priority,
+            ...(assigneeUserId ? { assigneeUserId } : {}),
+            ...(values ? { values } : {}),
+            ...(templateKey ? { templateKey } : {}),
+          }
+        : {
+            title: trimmedTitle,
+            description: submittedDescription,
+            issueType,
+            status,
+            targetLocale: targetLocale.trim() || undefined,
+            sourcePath: sourcePath.trim() || undefined,
+            linkKind: linkUrl.trim() ? ("url" as const) : ("manual" as const),
+            linkLabel: linkLabel.trim() || undefined,
+            linkUrl: linkUrl.trim() || undefined,
+            priority,
+            ...(assigneeUserId ? { assigneeUserId } : {}),
+            ...(values ? { values } : {}),
+            ...(templateKey ? { templateKey } : {}),
+          };
+      const response = await apiClient.api.orgs[":organizationSlug"].projects[":projectId"][
+        "issue-sheet"
+      ].$post({
+        param: { organizationSlug, projectId: resolvedProjectId },
+        json,
+      } as never);
+      if (response.status !== 201) {
+        throw new Error(
+          (await readApiResponseError(response, intl.formatMessage(messages.requestFailed)))
+            .message || intl.formatMessage(messages.requestFailed),
+        );
+      }
+      return response.json();
     },
     onSuccess: async () => {
       toast.success(intl.formatMessage(messages.issueAdded));
@@ -1025,7 +1036,7 @@ export function IssueSheetCreateIssueDialog({
                           });
 
                           if (column.type === "select") {
-                            const options = column.config.options ?? [];
+                            const options = columnSelectOptions(column.config);
                             return (
                               <DropdownMenuSub key={column.id}>
                                 <DropdownMenuSubTrigger>

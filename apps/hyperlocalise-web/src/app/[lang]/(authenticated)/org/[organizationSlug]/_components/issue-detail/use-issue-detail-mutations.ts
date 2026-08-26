@@ -17,24 +17,17 @@ import { useRef } from "react";
 import { useIntl } from "react-intl";
 import { toast } from "sonner";
 
+import { apiClient } from "@/lib/api-client-instance";
 import { readApiResponseError } from "@/lib/api-error";
 
 import { issueDetailPanelMessages as messages } from "./issue-detail-panel.messages";
-import { issueSheetApiPath, type IssueDetailIssue } from "./issue-detail-utils";
+import { type IssueDetailIssue, isIssueDetailIssue } from "./issue-detail-utils";
 import {
   patchIssueSheetListCacheForAssignee,
   patchOrganizationIssueListCaches,
 } from "./patch-organization-issue-list-caches";
 import { issueDetailQueryKey } from "./use-issue-detail-query";
 import { issueFeedQueryKey } from "./use-issue-feed";
-
-async function readJsonOrThrow<T>(response: Response, fallbackMessage: string): Promise<T> {
-  if (!response.ok) {
-    const error = await readApiResponseError(response, fallbackMessage);
-    throw new Error(error.message || fallbackMessage);
-  }
-  return (await response.json()) as T;
-}
 
 function isAbortError(error: unknown) {
   return error instanceof DOMException
@@ -132,33 +125,41 @@ export function useIssueDetailMutations({
   };
 
   const updateIssue = useMutation({
-    mutationFn: async (body: Record<string, unknown>) => {
+    mutationFn: async (patch: Record<string, unknown>) => {
       const controller = new AbortController();
       trackAbortController(updateAbortControllersRef.current, controller);
       try {
-        const response = await fetch(
-          `${issueSheetApiPath(organizationSlug, projectId)}/${issueId}`,
+        const response = await apiClient.api.orgs[":organizationSlug"].projects[":projectId"][
+          "issue-sheet"
+        ][":issueId"].$patch(
           {
-            method: "PATCH",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(body),
-            signal: controller.signal,
-          },
+            param: { organizationSlug, projectId, issueId },
+            json: patch,
+          } as never,
+          { init: { signal: controller.signal } },
         );
-        return readJsonOrThrow<{ issue: IssueDetailIssue }>(response, requestFailed);
+        if (response.status !== 200) {
+          const error = await readApiResponseError(response, requestFailed);
+          throw new Error(error.message || requestFailed);
+        }
+        const payload = await response.json();
+        if (!isIssueDetailIssue(payload.issue)) {
+          throw new Error(requestFailed);
+        }
+        return { issue: payload.issue };
       } finally {
         releaseAbortController(updateAbortControllersRef.current, controller);
       }
     },
-    onSuccess: async (result, body) => {
+    onSuccess: async (result, patch) => {
       queryClient.setQueryData(
         issueDetailQueryKey(organizationSlug, projectId, issueId),
-        (current: IssueDetailIssue | undefined) => mergeIssuePatch(current, body, result.issue),
+        (current: IssueDetailIssue | undefined) => mergeIssuePatch(current, patch, result.issue),
       );
-      if (Object.hasOwn(body, "assigneeUserId")) {
+      if (Object.hasOwn(patch, "assigneeUserId")) {
         patchListCachesForAssignee(result.issue);
       }
-      await invalidate(body);
+      await invalidate(patch);
     },
     onError: (error) => {
       if (isAbortError(error)) {
@@ -173,16 +174,20 @@ export function useIssueDetailMutations({
       const controller = new AbortController();
       trackAbortController(setValueAbortControllersRef.current, controller);
       try {
-        const response = await fetch(
-          `${issueSheetApiPath(organizationSlug, projectId)}/${issueId}/values`,
+        const response = await apiClient.api.orgs[":organizationSlug"].projects[":projectId"][
+          "issue-sheet"
+        ][":issueId"].values.$patch(
           {
-            method: "PATCH",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ columnKey, value }),
-            signal: controller.signal,
-          },
+            param: { organizationSlug, projectId, issueId },
+            json: { columnKey, value },
+          } as never,
+          { init: { signal: controller.signal } },
         );
-        return readJsonOrThrow<{ value: unknown }>(response, requestFailed);
+        if (response.status !== 200) {
+          const error = await readApiResponseError(response, requestFailed);
+          throw new Error(error.message || requestFailed);
+        }
+        return response.json();
       } finally {
         releaseAbortController(setValueAbortControllersRef.current, controller);
       }

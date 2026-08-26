@@ -14,9 +14,8 @@
  */
 import { useQuery } from "@tanstack/react-query";
 
+import { apiClient } from "@/lib/api-client-instance";
 import { readApiResponseError } from "@/lib/api-error";
-
-import { issueSheetApiPath } from "./issue-detail-utils";
 
 export type IssueSheetTemplateAssigneeBinding = {
   templateKey: string;
@@ -49,13 +48,15 @@ export function useIssueSheetTemplateConfigQuery({
     queryKey: issueSheetTemplateConfigQueryKey(organizationSlug, projectId ?? ""),
     enabled: Boolean(organizationSlug && projectId && enabled),
     queryFn: async () => {
-      const response = await fetch(
-        `${issueSheetApiPath(organizationSlug, projectId!)}/template-config`,
-      );
-      if (!response.ok) {
+      const response = await apiClient.api.orgs[":organizationSlug"].projects[":projectId"][
+        "issue-sheet"
+      ]["template-config"].$get({
+        param: { organizationSlug, projectId: projectId! },
+      } as never);
+      if (response.status !== 200) {
         throw await readApiResponseError(response, "Failed to load issue template config");
       }
-      const body = (await response.json()) as { templateConfig: IssueSheetTemplateConfig };
+      const body = await response.json();
       return body.templateConfig;
     },
   });

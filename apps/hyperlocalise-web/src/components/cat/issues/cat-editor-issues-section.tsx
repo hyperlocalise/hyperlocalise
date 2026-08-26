@@ -30,6 +30,7 @@ import {
 } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/projects/[projectId]/issue-sheet/_components/issue-sheet-create-issue-dialog";
 import { Button } from "@/components/ui/button";
 import { isOpenIssueStatus } from "@/components/cat/queue/cat-queue-filter";
+import { apiClient } from "@/lib/api-client-instance";
 import { readApiResponseError } from "@/lib/api-error";
 
 import {
@@ -51,30 +52,12 @@ type IssueSheetListIssue = {
   values?: Record<string, unknown>;
 };
 
-type IssueSheetListResponse = {
-  issues: IssueSheetListIssue[];
-  /** Row count for the requested filters, independent of paging. */
-  total?: number;
-};
-
 /** Maximum accepted by the issue sheet list endpoint. */
 const SEGMENT_ISSUE_PAGE_SIZE = 100;
 /** Bounds the paging loop; one string in one locale never gets close to this. */
 const SEGMENT_ISSUE_MAX_PAGES = 5;
 const ISSUE_PANEL_FRAME_CLASSNAME =
   "fixed inset-x-2 bottom-[calc(var(--app-shell-plan-footer-height)+0.5rem)] z-50 flex h-[min(44rem,calc(100svh-var(--app-shell-plan-footer-height)-1rem))] flex-col overflow-hidden rounded-xl border border-border bg-background shadow-2xl shadow-black/15 sm:inset-x-auto sm:right-3 sm:w-[38rem]";
-
-function issueSheetPath(organizationSlug: string, projectId: string) {
-  return `/api/orgs/${encodeURIComponent(organizationSlug)}/projects/${encodeURIComponent(projectId)}/issue-sheet`;
-}
-
-async function readJsonOrThrow<T>(response: Response, fallbackMessage: string): Promise<T> {
-  if (!response.ok) {
-    const error = await readApiResponseError(response, fallbackMessage);
-    throw new Error(error.message || fallbackMessage);
-  }
-  return (await response.json()) as T;
-}
 
 function cellString(value: unknown) {
   if (value == null) {
@@ -175,12 +158,21 @@ export function CatEditorIssuesSection({
       const issues: IssueSheetListIssue[] = [];
 
       for (let page = 0; page < SEGMENT_ISSUE_MAX_PAGES; page += 1) {
-        const params = new URLSearchParams(apiQuery);
-        params.set("offset", String(page * SEGMENT_ISSUE_PAGE_SIZE));
-        const response = await fetch(
-          `${issueSheetPath(organizationSlug, projectId)}?${params.toString()}`,
-        );
-        const body = await readJsonOrThrow<IssueSheetListResponse>(response, requestFailed);
+        const response = await apiClient.api.orgs[":organizationSlug"].projects[":projectId"][
+          "issue-sheet"
+        ].$get({
+          param: { organizationSlug, projectId },
+          query: {
+            ...apiQuery,
+            offset: String(page * SEGMENT_ISSUE_PAGE_SIZE),
+          },
+        } as never);
+        if (response.status !== 200) {
+          throw new Error(
+            (await readApiResponseError(response, requestFailed)).message || requestFailed,
+          );
+        }
+        const body = await response.json();
         issues.push(...body.issues);
 
         const total = body.total ?? issues.length;
@@ -189,7 +181,7 @@ export function CatEditorIssuesSection({
         }
       }
 
-      return { issues } satisfies IssueSheetListResponse;
+      return { issues };
     },
   });
 

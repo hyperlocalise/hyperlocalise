@@ -10,8 +10,9 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { readApiResponseError } from "@/lib/api-error";
 import type { IssueNotificationType } from "@/lib/database/schema/issue-sheet";
+import type { createApiClient } from "@/lib/api-client";
+import { readApiResponseError } from "@/lib/api-error";
 
 export type InboxIssueNotification = {
   id: string;
@@ -53,72 +54,68 @@ export type InboxNotificationsApi = {
   getById(organizationSlug: string, notificationId: string): Promise<InboxIssueNotification>;
 };
 
-function notificationsBase(organizationSlug: string) {
-  return `/api/orgs/${encodeURIComponent(organizationSlug)}/notifications`;
-}
+type ApiClient = ReturnType<typeof createApiClient>;
 
-export function createInboxNotificationsApi(): InboxNotificationsApi {
+export function createInboxNotificationsApi(client: ApiClient): InboxNotificationsApi {
+  const notifications = client.api.orgs[":organizationSlug"].notifications;
+
   return {
     async list(organizationSlug, options = {}) {
-      const query = new URLSearchParams({
-        limit: String(options.limit ?? 50),
-        offset: String(options.offset ?? 0),
-      });
-      if (options.unreadOnly) {
-        query.set("unreadOnly", "true");
-      }
-      const response = await fetch(`${notificationsBase(organizationSlug)}?${query.toString()}`);
-      if (!response.ok) {
+      const response = await notifications.$get({
+        param: { organizationSlug },
+        query: {
+          limit: String(options.limit ?? 50),
+          offset: String(options.offset ?? 0),
+          ...(options.unreadOnly ? { unreadOnly: "true" } : {}),
+        },
+      } as never);
+      if (response.status !== 200) {
         throw await readApiResponseError(response, "Failed to load notifications");
       }
-      return (await response.json()) as {
-        notifications: InboxIssueNotification[];
-        total: number;
-      };
+      return response.json();
     },
 
     async unreadCount(organizationSlug) {
-      const response = await fetch(`${notificationsBase(organizationSlug)}/unread-count`);
-      if (!response.ok) {
+      const response = await notifications["unread-count"].$get({
+        param: { organizationSlug },
+      });
+      if (response.status !== 200) {
         throw await readApiResponseError(response, "Failed to load unread notification count");
       }
-      const body = (await response.json()) as { unreadCount: number };
+      const body = await response.json();
       return body.unreadCount;
     },
 
     async markRead(organizationSlug, notificationId) {
-      const response = await fetch(
-        `${notificationsBase(organizationSlug)}/${encodeURIComponent(notificationId)}/read`,
-        { method: "POST" },
-      );
-      if (!response.ok) {
+      const response = await notifications[":notificationId"].read.$post({
+        param: { organizationSlug, notificationId },
+      } as never);
+      if (response.status !== 200) {
         throw await readApiResponseError(response, "Failed to mark notification as read");
       }
-      const body = (await response.json()) as {
-        notification: { id: string; readAt: string | null };
-      };
+      const body = await response.json();
       return body.notification;
     },
 
     async markAllRead(organizationSlug) {
-      const response = await fetch(`${notificationsBase(organizationSlug)}/read-all`, {
-        method: "POST",
+      const response = await notifications["read-all"].$post({
+        param: { organizationSlug },
       });
-      if (!response.ok) {
+      if (response.status !== 200) {
         throw await readApiResponseError(response, "Failed to mark all notifications as read");
       }
-      const body = (await response.json()) as { markedCount: number };
+      const body = await response.json();
       return body.markedCount;
     },
 
     async getById(organizationSlug, notificationId) {
-      const response = await fetch(
-        `${notificationsBase(organizationSlug)}/${encodeURIComponent(notificationId)}`,
-      );
-      if (!response.ok) {
+      const response = await notifications[":notificationId"].$get({
+        param: { organizationSlug, notificationId },
+      } as never);
+      if (response.status !== 200) {
         throw await readApiResponseError(response, "Failed to load notification");
       }
-      const body = (await response.json()) as { notification: InboxIssueNotification };
+      const body = await response.json();
       return body.notification;
     },
   };

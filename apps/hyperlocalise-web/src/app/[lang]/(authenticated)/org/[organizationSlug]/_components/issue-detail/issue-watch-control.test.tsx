@@ -23,8 +23,6 @@ import { IssueWatchControl } from "./issue-watch-control";
 const organizationSlug = "acme";
 const projectId = "project_website";
 const issueId = "issue_001";
-const subscribersPath = `/api/orgs/${organizationSlug}/projects/${projectId}/issue-sheet/${issueId}/subscriptions`;
-const subscriptionPath = `/api/orgs/${organizationSlug}/projects/${projectId}/issue-sheet/${issueId}/subscription`;
 
 const subscribersFixture = [
   {
@@ -52,13 +50,13 @@ function resolveFetchUrl(input: RequestInfo | URL): string {
 function mockFetch() {
   return vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
     const url = resolveFetchUrl(input);
-    if (url === subscribersPath) {
+    if (url.includes("/subscriptions")) {
       return new Response(JSON.stringify({ subscribers: subscribersFixture }), { status: 200 });
     }
-    if (url === subscriptionPath && init?.method === "DELETE") {
+    if (url.includes("/subscription") && init?.method === "DELETE") {
       return new Response(null, { status: 204 });
     }
-    if (url === subscriptionPath && init?.method === "POST") {
+    if (url.includes("/subscription") && init?.method === "POST") {
       return new Response(
         JSON.stringify({
           subscription: {
@@ -134,7 +132,10 @@ describe("IssueWatchControl", () => {
     await user.click(await screen.findByRole("button", { name: "Unsubscribe" }));
 
     await waitFor(() => {
-      expect(fetchMock).toHaveBeenCalledWith(subscriptionPath, { method: "DELETE" });
+      expect(fetchMock).toHaveBeenCalledWith(
+        expect.stringContaining(`/subscription`),
+        expect.objectContaining({ method: "DELETE" }),
+      );
     });
   });
 
@@ -146,7 +147,10 @@ describe("IssueWatchControl", () => {
     await user.click(await screen.findByRole("button", { name: "Subscribe" }));
 
     await waitFor(() => {
-      expect(fetchMock).toHaveBeenCalledWith(subscriptionPath, { method: "POST" });
+      expect(fetchMock).toHaveBeenCalledWith(
+        expect.stringContaining(`/subscription`),
+        expect.objectContaining({ method: "POST" }),
+      );
     });
   });
 });

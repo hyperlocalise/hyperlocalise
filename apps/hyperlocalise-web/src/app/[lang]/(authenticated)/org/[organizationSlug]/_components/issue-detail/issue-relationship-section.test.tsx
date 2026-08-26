@@ -24,8 +24,6 @@ import type { IssueRelationship } from "./use-issue-relationships-query";
 const organizationSlug = "acme";
 const projectId = "project_website";
 const issueId = "issue_001";
-const relationshipsPath = `/api/orgs/${organizationSlug}/projects/${projectId}/issue-sheet/${issueId}/relationships`;
-const searchPathPrefix = `/api/orgs/${organizationSlug}/issue-sheet/search`;
 
 function resolveFetchUrl(input: RequestInfo | URL): string {
   if (typeof input === "string") {
@@ -115,7 +113,7 @@ describe("IssueRelationshipSection", () => {
     const user = userEvent.setup();
     const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
       const url = resolveFetchUrl(input);
-      if (url === `${relationshipsPath}/rel_blocks` && init?.method === "DELETE") {
+      if (url.includes("/relationships/rel_blocks") && init?.method === "DELETE") {
         return new Response(null, { status: 204 });
       }
       throw new Error(`Unexpected fetch: ${url} ${init?.method ?? "GET"}`);
@@ -125,9 +123,10 @@ describe("IssueRelationshipSection", () => {
     await user.click(screen.getAllByRole("button", { name: "Remove relationship" })[0]!);
 
     await waitFor(() => {
-      expect(fetchMock).toHaveBeenCalledWith(`${relationshipsPath}/rel_blocks`, {
-        method: "DELETE",
-      });
+      expect(fetchMock).toHaveBeenCalledWith(
+        expect.stringContaining("/relationships/rel_blocks"),
+        expect.objectContaining({ method: "DELETE" }),
+      );
     });
   });
 
@@ -135,7 +134,7 @@ describe("IssueRelationshipSection", () => {
     const user = userEvent.setup();
     vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
       const url = resolveFetchUrl(input);
-      if (url.startsWith(searchPathPrefix)) {
+      if (url.includes("/issue-sheet/search")) {
         return new Response(
           JSON.stringify({
             issues: [{ issueId: "issue_target", projectId, title: "Target issue", status: "open" }],
@@ -143,7 +142,7 @@ describe("IssueRelationshipSection", () => {
           { status: 200 },
         );
       }
-      if (url === relationshipsPath && init?.method === "POST") {
+      if (url.includes("/relationships") && init?.method === "POST") {
         return new Response(JSON.stringify({ relationship: { id: "rel_new" } }), { status: 201 });
       }
       throw new Error(`Unexpected fetch: ${url} ${init?.method ?? "GET"}`);
@@ -157,7 +156,7 @@ describe("IssueRelationshipSection", () => {
 
     await waitFor(() => {
       expect(globalThis.fetch).toHaveBeenCalledWith(
-        relationshipsPath,
+        expect.stringContaining("/relationships"),
         expect.objectContaining({
           method: "POST",
           body: JSON.stringify({ relatedIssueId: "issue_target", kind: "related" }),

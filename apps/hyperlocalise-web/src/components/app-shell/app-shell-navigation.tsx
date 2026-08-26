@@ -52,7 +52,7 @@ import {
 } from "./navigation-config";
 import { useAppShellStore } from "./store/app-shell-store-context";
 
-const inboxNotificationsApi = createInboxNotificationsApi();
+const inboxNotificationsApi = createInboxNotificationsApi(apiClient);
 
 type AppShellNavigationProps = {
   organizationSlug: string;
@@ -177,10 +177,10 @@ function ProjectNavigation({
       const response = await apiClient.api.orgs[":organizationSlug"].projects[":projectId"].$get({
         param: { organizationSlug, projectId },
       });
-      if (!response.ok) {
+      if (response.status !== 200) {
         throw new Error(`Failed to load project (${response.status})`);
       }
-      const body = (await response.json()) as { project: { id: string; name: string } };
+      const body = await response.json();
       return body.project;
     },
   });

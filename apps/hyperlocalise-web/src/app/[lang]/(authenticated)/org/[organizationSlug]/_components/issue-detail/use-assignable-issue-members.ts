@@ -50,7 +50,7 @@ export function useAssignableIssueMembersQuery({
       ]["assignable-members"].$get({
         param: { organizationSlug, projectId: projectId! },
       } as never);
-      if (!response.ok) {
+      if (response.status !== 200) {
         throw await readApiResponseError(response, "Failed to load assignable members");
       }
       return response.json();

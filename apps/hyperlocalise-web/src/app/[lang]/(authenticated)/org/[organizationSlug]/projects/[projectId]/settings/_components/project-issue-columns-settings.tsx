@@ -57,6 +57,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { IssueColumnIcon } from "@/components/issue-column-icon/issue-column-icon";
 import { IssueColumnIconPicker } from "@/components/issue-column-icon/issue-column-icon-picker";
 import { TypographyP } from "@/components/ui/typography";
+import { apiClient } from "@/lib/api-client-instance";
 import { readApiResponseError } from "@/lib/api-error";
 import {
   canDeleteIssueSheetColumn,
@@ -83,21 +84,14 @@ import { projectIssueColumnsSettingsMessages as messages } from "./project-issue
 
 const COLUMN_TYPE_VALUES = ["text", "long_text", "select", "user"] as const;
 
-function issueSheetColumnsPath(organizationSlug: string, projectId: string) {
-  return `/api/orgs/${organizationSlug}/projects/${projectId}/issue-sheet/columns`;
-}
-
 function formString(formData: FormData, key: string, fallback = "") {
   const value = formData.get(key);
   return typeof value === "string" ? value : fallback;
 }
 
-async function readJsonOrThrow<T>(response: Response, fallback: string): Promise<T> {
-  if (!response.ok) {
-    const error = await readApiResponseError(response, fallback);
-    throw new Error(error.message || fallback);
-  }
-  return (await response.json()) as T;
+async function throwApiError(response: Response, fallback: string): Promise<never> {
+  const error = await readApiResponseError(response, fallback);
+  throw new Error(error.message || fallback);
 }
 
 function columnTypeLabel(intl: ReturnType<typeof useIntl>, type: string) {
@@ -162,18 +156,17 @@ export function ProjectIssueColumnsSettings({
         config?: { options?: { id: string; label: string; color?: string }[] };
       };
     }) => {
-      const response = await fetch(
-        `${issueSheetColumnsPath(organizationSlug, projectId)}/${input.columnId}`,
-        {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(input.body),
-        },
-      );
-      return readJsonOrThrow<{ column: IssueSheetColumn }>(
-        response,
-        intl.formatMessage(messages.toastError),
-      );
+      const toastError = intl.formatMessage(messages.toastError);
+      const response = await apiClient.api.orgs[":organizationSlug"].projects[":projectId"][
+        "issue-sheet"
+      ].columns[":columnId"].$patch({
+        param: { organizationSlug, projectId, columnId: input.columnId },
+        json: input.body,
+      } as never);
+      if (response.status !== 200) {
+        await throwApiError(response, toastError);
+      }
+      return response.json();
     },
     onSuccess: async (_data, variables) => {
       await invalidateColumns();
@@ -194,15 +187,17 @@ export function ProjectIssueColumnsSettings({
 
   const reorderColumns = useMutation({
     mutationFn: async (columnIds: string[]) => {
-      const response = await fetch(`${issueSheetColumnsPath(organizationSlug, projectId)}/order`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ columnIds }),
-      });
-      return readJsonOrThrow<{ columns: IssueSheetColumn[] }>(
-        response,
-        intl.formatMessage(messages.toastError),
-      );
+      const toastError = intl.formatMessage(messages.toastError);
+      const response = await apiClient.api.orgs[":organizationSlug"].projects[":projectId"][
+        "issue-sheet"
+      ].columns.order.$put({
+        param: { organizationSlug, projectId },
+        json: { columnIds },
+      } as never);
+      if (response.status !== 200) {
+        await throwApiError(response, toastError);
+      }
+      return response.json();
     },
     onSuccess: async () => {
       await invalidateColumns();
@@ -215,13 +210,14 @@ export function ProjectIssueColumnsSettings({
 
   const removeColumn = useMutation({
     mutationFn: async (columnId: string) => {
-      const response = await fetch(
-        `${issueSheetColumnsPath(organizationSlug, projectId)}/${columnId}`,
-        { method: "DELETE" },
-      );
-      if (!response.ok && response.status !== 204) {
-        const error = await readApiResponseError(response, intl.formatMessage(messages.toastError));
-        throw new Error(error.message || intl.formatMessage(messages.toastError));
+      const toastError = intl.formatMessage(messages.toastError);
+      const response = await apiClient.api.orgs[":organizationSlug"].projects[":projectId"][
+        "issue-sheet"
+      ].columns[":columnId"].$delete({
+        param: { organizationSlug, projectId, columnId },
+      } as never);
+      if (response.status !== 204) {
+        await throwApiError(response, toastError);
       }
     },
     onSuccess: async () => {
@@ -238,10 +234,12 @@ export function ProjectIssueColumnsSettings({
     mutationFn: async (formData: FormData) => {
       const type = formString(formData, "type", "text");
       const rawOptions = formString(formData, "options");
-      const response = await fetch(issueSheetColumnsPath(organizationSlug, projectId), {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+      const toastError = intl.formatMessage(messages.toastError);
+      const response = await apiClient.api.orgs[":organizationSlug"].projects[":projectId"][
+        "issue-sheet"
+      ].columns.$post({
+        param: { organizationSlug, projectId },
+        json: {
           key: formString(formData, "key").trim(),
           label: formString(formData, "label").trim(),
           type,
@@ -250,12 +248,12 @@ export function ProjectIssueColumnsSettings({
             type === "select"
               ? { options: selectOptionsFromLabels(parseOptionLabelsCsv(rawOptions)) }
               : {},
-        }),
-      });
-      return readJsonOrThrow<{ column: IssueSheetColumn }>(
-        response,
-        intl.formatMessage(messages.toastError),
-      );
+        },
+      } as never);
+      if (response.status !== 201) {
+        await throwApiError(response, toastError);
+      }
+      return response.json();
     },
     onSuccess: async () => {
       await invalidateColumns();

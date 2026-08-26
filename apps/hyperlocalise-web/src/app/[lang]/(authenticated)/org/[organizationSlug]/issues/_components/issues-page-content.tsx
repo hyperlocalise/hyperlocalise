@@ -16,6 +16,7 @@ import { useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-quer
 import { useRouter } from "next/navigation";
 
 import { readApiResponseError } from "@/lib/api-error";
+import { apiClient } from "@/lib/api-client-instance";
 
 import { buildIssueDetailHref } from "../../_components/issue-detail/issue-detail-utils";
 import { IssueBulkActionBar } from "../../_components/issue-bulk-action-bar";
@@ -29,24 +30,6 @@ import { ISSUES_PAGE_SIZE, IssuesPageView, type OrganizationIssue } from "./issu
 
 const issuesQueryKey = (organizationSlug: string, query: Record<string, string>) =>
   ["organization-issues", organizationSlug, query] as const;
-
-function organizationIssuesPath(organizationSlug: string) {
-  return `/api/orgs/${encodeURIComponent(organizationSlug)}/issues`;
-}
-
-type OrganizationIssuesResponse = {
-  issues: OrganizationIssue[];
-  total: number;
-  summary: {
-    total: number;
-    open: number;
-    inProgress: number;
-    resolved: number;
-    wontFix: number;
-  };
-};
-
-type ProjectOption = { id: string; name: string; targetLocales?: string[] };
 
 export function IssuesPageContent({
   organizationSlug,
@@ -69,11 +52,13 @@ export function IssuesPageContent({
   const projectsQuery = useQuery({
     queryKey: ["organization-issues-projects", organizationSlug],
     queryFn: async () => {
-      const response = await fetch(`/api/orgs/${encodeURIComponent(organizationSlug)}/projects`);
-      if (!response.ok) {
+      const response = await apiClient.api.orgs[":organizationSlug"].projects.$get({
+        param: { organizationSlug },
+      });
+      if (response.status !== 200) {
         throw await readApiResponseError(response, "Failed to load projects");
       }
-      const body = (await response.json()) as { projects: ProjectOption[] };
+      const body = await response.json();
       return body.projects.map((project) => ({
         id: project.id,
         name: project.name,
@@ -86,23 +71,21 @@ export function IssuesPageContent({
     queryKey: issuesQueryKey(organizationSlug, apiQuery),
     initialPageParam: 0,
     queryFn: async ({ pageParam }) => {
-      const params = new URLSearchParams(
-        issueListStateToApiQuery(state, {
-          includeProject: true,
-          limit: ISSUES_PAGE_SIZE,
-          offset: pageParam,
-        }),
-      );
+      const query = issueListStateToApiQuery(state, {
+        includeProject: true,
+        limit: ISSUES_PAGE_SIZE,
+        offset: pageParam,
+      });
+      const response = await apiClient.api.orgs[":organizationSlug"].issues.$get({
+        param: { organizationSlug },
+        query,
+      } as never);
 
-      const response = await fetch(
-        `${organizationIssuesPath(organizationSlug)}?${params.toString()}`,
-      );
-
-      if (!response.ok) {
+      if (response.status !== 200) {
         throw await readApiResponseError(response, "Failed to load issues");
       }
 
-      return (await response.json()) as OrganizationIssuesResponse;
+      return response.json();
     },
     getNextPageParam: (lastPage, pages) => {
       const loaded = pages.reduce((sum, page) => sum + page.issues.length, 0);

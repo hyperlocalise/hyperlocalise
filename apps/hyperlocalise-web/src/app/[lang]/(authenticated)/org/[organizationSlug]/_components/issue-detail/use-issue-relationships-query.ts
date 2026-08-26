@@ -14,9 +14,8 @@
  */
 import { useQuery } from "@tanstack/react-query";
 
+import { apiClient } from "@/lib/api-client-instance";
 import { readApiResponseError } from "@/lib/api-error";
-
-import { issueSheetApiPath } from "./issue-detail-utils";
 
 export type IssueRelationshipPresentedKind =
   | "related"
@@ -55,13 +54,15 @@ export function useIssueRelationshipsQuery({
     queryKey: issueRelationshipsQueryKey(organizationSlug, projectId ?? "", issueId ?? ""),
     enabled: Boolean(projectId && issueId),
     queryFn: async () => {
-      const response = await fetch(
-        `${issueSheetApiPath(organizationSlug, projectId!)}/${issueId}/relationships`,
-      );
-      if (!response.ok) {
+      const response = await apiClient.api.orgs[":organizationSlug"].projects[":projectId"][
+        "issue-sheet"
+      ][":issueId"].relationships.$get({
+        param: { organizationSlug, projectId: projectId!, issueId: issueId! },
+      } as never);
+      if (response.status !== 200) {
         throw await readApiResponseError(response, "Failed to load relationships");
       }
-      const body = (await response.json()) as { relationships: IssueRelationship[] };
+      const body = await response.json();
       return body.relationships;
     },
   });
