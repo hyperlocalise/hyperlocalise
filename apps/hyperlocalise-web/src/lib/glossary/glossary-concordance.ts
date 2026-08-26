@@ -16,6 +16,7 @@ import type { ApiAuthContext } from "@/api/auth/workos";
 import { db, schema } from "@/lib/database";
 import type { Glossary as GlossaryRecord } from "@/lib/database/types";
 import { createLogger } from "@/lib/log";
+import { searchAttachedCrowdinGlossaryConcordance } from "@/lib/glossary/crowdin-glossary";
 import { createGlossary } from "@/lib/glossary/glossary-provider";
 import {
   buildGlossaryTsQuery,
@@ -53,6 +54,14 @@ export function shouldIncludeAttachedGlossary(
     return true;
   }
 
+  return glossary.source === "external_tms" && glossary.externalProviderKind === "crowdin";
+}
+
+function isNativeAttachedGlossary(glossary: AttachedGlossaryRecord): boolean {
+  return glossary.source === "native";
+}
+
+function isCrowdinAttachedGlossary(glossary: AttachedGlossaryRecord): boolean {
   return glossary.source === "external_tms" && glossary.externalProviderKind === "crowdin";
 }
 
@@ -213,26 +222,52 @@ export async function searchGlossaryConcordance(
     limit,
   };
 
-  const matchGroups = await Promise.all(
-    searchable.map(async (glossary) => {
-      try {
-        const adapter = createGlossary(
-          createConcordanceProviderContext({
+  const nativeGlossaries = searchable.filter(isNativeAttachedGlossary);
+  const crowdinGlossaries = searchable.filter(isCrowdinAttachedGlossary);
+
+  const [nativeMatchGroups, crowdinMatches] = await Promise.all([
+    Promise.all(
+      nativeGlossaries.map(async (glossary) => {
+        try {
+          const adapter = createGlossary(
+            createConcordanceProviderContext({
+              organizationId,
+              actorUserId: input.actorUserId,
+              glossary,
+            }),
+          );
+          return await adapter.searchConcordance(query, concordanceCtx);
+        } catch (error) {
+          glossaryLogger.error(
+            { err: error, glossaryId: glossary.id, projectId: input.projectId ?? null },
+            "Glossary concordance search failed for attached glossary",
+          );
+          return [];
+        }
+      }),
+    ),
+    crowdinGlossaries.length > 0
+      ? searchAttachedCrowdinGlossaryConcordance({
+          providerContext: createConcordanceProviderContext({
             organizationId,
             actorUserId: input.actorUserId,
-            glossary,
+            glossary: crowdinGlossaries[0]!,
           }),
-        );
-        return adapter.searchConcordance(query, concordanceCtx);
-      } catch (error) {
-        glossaryLogger.error(
-          { err: error, glossaryId: glossary.id, projectId: input.projectId ?? null },
-          "Glossary concordance search failed for attached glossary",
-        );
-        return [];
-      }
-    }),
-  );
+          attachedGlossaries: crowdinGlossaries,
+          query,
+        }).catch((error) => {
+          glossaryLogger.error(
+            {
+              err: error,
+              glossaryIds: crowdinGlossaries.map((glossary) => glossary.id),
+              projectId: input.projectId ?? null,
+            },
+            "Crowdin glossary concordance search failed for attached glossaries",
+          );
+          return [];
+        })
+      : Promise.resolve([]),
+  ]);
 
-  return mergeGlossaryMatches(matchGroups.flat(), limit);
+  return mergeGlossaryMatches([...nativeMatchGroups.flat(), ...crowdinMatches], limit);
 }

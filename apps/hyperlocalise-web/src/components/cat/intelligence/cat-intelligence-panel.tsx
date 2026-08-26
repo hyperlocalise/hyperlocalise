@@ -210,6 +210,8 @@ export function CatIntelligencePanel({
   const [pendingLowMatch, setPendingLowMatch] = useState<CatTranslationMemoryMatch | null>(null);
   const [isGlossaryPanelOpen, setIsGlossaryPanelOpen] = useState(false);
   const glossaryConcepts = useMemo(
+    // Concept-only guidance. Legacy flat glossaryTerms (no glossaryConcepts) are intentionally
+    // not synthesized here; concordance must return concept payloads for the panel to populate.
     () => intelligence.glossaryConcepts ?? [],
     [intelligence.glossaryConcepts],
   );

@@ -168,7 +168,7 @@ export const ReadOnly: Story = {
   },
 };
 
-export const LegacyFallback: Story = {
+export const ConceptOnlyEmpty: Story = {
   args: {
     intelligence: {
       ...catIntelligenceFixture,
@@ -176,8 +176,11 @@ export const LegacyFallback: Story = {
     },
   },
   play: async ({ canvas }) => {
-    await expect(canvas.getByText("Dashboard", { exact: true })).toBeInTheDocument();
-    await expect(canvas.getByText("Bảng điều khiển", { exact: true })).toBeInTheDocument();
+    requestCatGlossaryGuidance();
+    await expect(canvas.getByRole("region", { name: "Glossary guidance" })).toBeInTheDocument();
+    await expect(canvas.getByText("No glossary matches")).toBeInTheDocument();
+    await expect(canvas.queryByText("Dashboard", { exact: true })).not.toBeInTheDocument();
+    await expect(canvas.queryByText("Bảng điều khiển", { exact: true })).not.toBeInTheDocument();
   },
 };
 
