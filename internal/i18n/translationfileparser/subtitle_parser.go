@@ -187,7 +187,7 @@ func (d subtitleDocument) render(values map[string]string) []byte {
 		}
 		b.WriteString(d.template[cursor:entry.textStart])
 		if translated, ok := values[entry.key]; ok {
-			b.WriteString(encodeSubtitleCueText(translated, d.newline))
+			writeEncodedSubtitleCueText(&b, translated, d.newline)
 		} else {
 			b.WriteString(d.template[entry.textStart:entry.textEnd])
 		}
@@ -227,6 +227,10 @@ func parseSubtitleCue(block []subtitleLine, kind SubtitleKind, cueNumber int) (s
 		sourceValue = textLines[0].text
 	} else {
 		var payload strings.Builder
+		totalLen := textLines[len(textLines)-1].end - textLines[0].start
+		if totalLen > 0 {
+			payload.Grow(totalLen)
+		}
 		for i, line := range textLines {
 			if i > 0 {
 				payload.WriteByte('\n')
@@ -284,7 +288,7 @@ func scanSubtitleLines(text string) []subtitleLine {
 
 func skipBlankSubtitleLines(lines []subtitleLine, start int) int {
 	i := start
-	for i < len(lines) && strings.TrimSpace(lines[i].text) == "" {
+	for i < len(lines) && isBlankSubtitleLine(lines[i].text) {
 		i++
 	}
 	return i
@@ -292,7 +296,7 @@ func skipBlankSubtitleLines(lines []subtitleLine, start int) int {
 
 func nextSubtitleBlockEnd(lines []subtitleLine, start int) int {
 	i := start
-	for i < len(lines) && strings.TrimSpace(lines[i].text) != "" {
+	for i < len(lines) && !isBlankSubtitleLine(lines[i].text) {
 		i++
 	}
 	return i
@@ -408,14 +412,54 @@ func subtitleNewline(template string) string {
 }
 
 func encodeSubtitleCueText(value, newline string) string {
-	lines := strings.Split(strings.ReplaceAll(value, "\r\n", "\n"), "\n")
-	kept := make([]string, 0, len(lines))
-	for _, line := range lines {
-		trimmed := strings.TrimRight(line, " \t")
-		if strings.TrimSpace(trimmed) == "" {
-			continue
+	var b strings.Builder
+	writeEncodedSubtitleCueText(&b, value, newline)
+	return b.String()
+}
+
+// writeEncodedSubtitleCueText streams lines from value directly into b,
+// eliminating intermediate []string slice allocations and redundant string replacements.
+func writeEncodedSubtitleCueText(b *strings.Builder, value, newline string) {
+	hasWritten := false
+	for start := 0; start < len(value); {
+		next := strings.IndexByte(value[start:], '\n')
+		lineEnd := len(value)
+		after := len(value)
+		if next >= 0 {
+			lineEnd = start + next
+			after = lineEnd + 1
 		}
-		kept = append(kept, trimmed)
+		end := lineEnd
+		if end > start && value[end-1] == '\r' {
+			end--
+		}
+		line := value[start:end]
+		trimmed := trimRightSpaceTab(line)
+		if !isBlankSubtitleLine(trimmed) {
+			if hasWritten {
+				b.WriteString(newline)
+			}
+			b.WriteString(trimmed)
+			hasWritten = true
+		}
+		start = after
 	}
-	return strings.Join(kept, newline)
+}
+
+func trimRightSpaceTab(s string) string {
+	end := len(s)
+	for end > 0 && (s[end-1] == ' ' || s[end-1] == '\t') {
+		end--
+	}
+	return s[:end]
+}
+
+func isBlankSubtitleLine(s string) bool {
+	for i := 0; i < len(s); i++ {
+		c := s[i]
+		if c != ' ' && c != '\t' && c != '\r' && c != '\n' {
+			return false
+		}
+	}
+	return true
 }
