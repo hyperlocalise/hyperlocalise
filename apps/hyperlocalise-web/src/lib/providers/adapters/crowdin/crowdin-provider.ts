@@ -749,7 +749,7 @@ export class CrowdinTmsProvider extends TmsProvider {
             targetLocale,
             localeCoverage: this.uniqueLocales([sourceLocale, ...languageIds]),
             termCount: glossary.terms,
-            externalUrl: glossary.webUrl,
+            externalUrl: null,
             metadata: {
               crowdinGlossaryId: glossary.id,
               crowdinProjectId,
@@ -787,7 +787,7 @@ export class CrowdinTmsProvider extends TmsProvider {
                 ),
               ]),
               termCount: glossary.terms,
-              externalUrl: glossary.webUrl,
+              externalUrl: null,
               syncErrorMessage:
                 error instanceof Error ? error.message : "glossary_term_fetch_failed",
               metadata: {
@@ -823,7 +823,7 @@ export class CrowdinTmsProvider extends TmsProvider {
       targetLocale,
       localeCoverage,
       termCount: glossary.terms,
-      externalUrl: glossary.webUrl ?? null,
+      externalUrl: null,
       externalProjectIds: [...glossary.projectIds, ...glossary.defaultProjectIds].map(String),
       createdAt: glossary.createdAt ?? null,
     };

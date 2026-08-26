@@ -102,7 +102,7 @@ export const LiveProviderGlossary: Story = {
         externalProviderKind: "crowdin",
         externalProjectId: "crowdin-project-1",
         externalGlossaryId: "99",
-        externalUrl: "https://crowdin.com/project/crowdin-project-1",
+        externalUrl: null,
         projectLinkId: "crowdin-project-link-1",
         isLiveApi: true,
         providerLogoSrc: "/images/tms/crowdin.png",
@@ -125,10 +125,7 @@ export const LiveProviderGlossary: Story = {
       "href",
       "/org/acme/glossaries/crowdin:glossary:99",
     );
-    await expect(canvas.getByRole("link", { name: "Open in provider" })).toHaveAttribute(
-      "href",
-      "https://crowdin.com/project/crowdin-project-1",
-    );
+    await expect(canvas.queryByRole("link", { name: "Open in provider" })).not.toBeInTheDocument();
     await expect(canvas.getByText("TMS project")).toBeInTheDocument();
     await expect(canvas.getByText("Sort")).toBeInTheDocument();
     await expect(canvas.getByRole("button", { name: "More glossary actions" })).toBeInTheDocument();

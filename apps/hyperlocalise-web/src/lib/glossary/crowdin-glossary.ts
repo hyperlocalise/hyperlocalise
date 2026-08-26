@@ -282,7 +282,7 @@ function toNativeGlossary(
     localeCoverage,
     termCount: glossary.terms,
     externalGlossaryId: String(glossary.id),
-    externalUrl: glossary.webUrl,
+    externalUrl: null,
   };
 }
 

@@ -127,7 +127,7 @@ function buildNormalizedConcept(input: {
     primaryTerm: input.concept.primaryTerm,
     subject: input.concept.subject,
     definition: input.concept.definition,
-    glossaryUrl: input.glossaryUrl ?? input.concept.url,
+    glossaryUrl: input.glossaryUrl ?? null,
     sourceTerms: conceptTerms.filter((term) => term.locale === input.sourceLocale),
     targetTerms: filterConcordanceTargetTerms(conceptTerms, input.targetLocales),
   };
@@ -1044,7 +1044,7 @@ export class NativeGlossary extends Glossary {
         terms: conceptTerms,
         sourceLocale,
         targetLocales: query.targetLocales,
-        glossaryUrl: hit.externalGlossaryUrl,
+        glossaryUrl: null,
       });
 
       for (const targetLocale of query.targetLocales) {

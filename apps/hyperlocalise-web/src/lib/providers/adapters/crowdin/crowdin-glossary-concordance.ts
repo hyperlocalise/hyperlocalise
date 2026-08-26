@@ -27,7 +27,6 @@ import {
   type NormalizedGlossaryMatch,
 } from "@/lib/providers/contracts/glossary-match";
 import { normalizedGlossaryTermStatusFromStatus } from "@/lib/providers/contracts/glossary-term-status";
-import { sanitizeExternalUrl } from "@/lib/security/safe-external-url";
 
 export function stableCrowdinConcordanceTermId(
   glossaryId: string,
@@ -91,9 +90,6 @@ export function mapCrowdinGlossaryConcordanceSearchResult(input: {
   }
 
   const externalGlossaryId = String(input.result.glossary.id);
-  const glossaryUrl =
-    sanitizeExternalUrl(input.result.glossary.webUrl) ??
-    `https://crowdin.com/glossary/${encodeURIComponent(externalGlossaryId)}`;
   const status =
     pickCrowdinConcordanceTermStatus(input.result.targetTerms, targetLanguageId) ??
     pickCrowdinConcordanceTermStatus(input.result.sourceTerms, sourceLanguageId);
@@ -110,7 +106,7 @@ export function mapCrowdinGlossaryConcordanceSearchResult(input: {
     primaryTerm: sourceTerm,
     subject: input.result.concept?.subject,
     definition: input.result.concept?.definition,
-    glossaryUrl,
+    glossaryUrl: null,
     sourceTerms: input.result.sourceTerms.map((term) =>
       toCrowdinConcordanceConceptTerm(term, preferredLocales),
     ),
@@ -128,6 +124,7 @@ export function mapCrowdinGlossaryConcordanceSearchResult(input: {
     resourceId: input.resourceId,
     externalResourceId: externalGlossaryId,
     externalTermId,
+    externalConceptId: input.result.concept ? String(input.result.concept.id) : null,
     glossaryName: input.glossaryName,
     rank: 1 - input.index * 0.01,
     status: { status },

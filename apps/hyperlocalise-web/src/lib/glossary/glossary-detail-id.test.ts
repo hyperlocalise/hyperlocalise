@@ -12,9 +12,73 @@
  */
 import { describe, expect, it } from "vite-plus/test";
 
-import { resolveGlossaryDetailId } from "./glossary-detail-id";
+import {
+  buildCrowdinGlossaryConcordanceUrl,
+  buildGlossaryConceptDetailUrl,
+  buildGlossaryDetailUrl,
+  resolveGlossaryDetailId,
+} from "./glossary-detail-id";
 
-import { buildCrowdinGlossaryConcordanceUrl } from "./glossary-detail-id";
+describe("buildGlossaryDetailUrl", () => {
+  it("builds in-app glossary detail urls for live Crowdin glossary ids", () => {
+    expect(
+      buildGlossaryDetailUrl({
+        organizationSlug: "test-glossary",
+        glossaryId: "crowdin:glossary:718785",
+        providerKind: "crowdin",
+        externalResourceId: "718785",
+      }),
+    ).toBe("/org/test-glossary/glossaries/crowdin:glossary:718785");
+  });
+
+  it("maps numeric Crowdin glossary ids to live detail urls", () => {
+    expect(
+      buildGlossaryDetailUrl({
+        organizationSlug: "test-glossary",
+        glossaryId: "718785",
+        providerKind: "crowdin",
+        externalResourceId: "718785",
+      }),
+    ).toBe("/org/test-glossary/glossaries/crowdin:glossary:718785");
+  });
+
+  it("builds in-app glossary detail urls for native glossaries", () => {
+    const nativeId = "22222222-2222-4222-8222-222222222222";
+    expect(
+      buildGlossaryDetailUrl({
+        organizationSlug: "acme",
+        glossaryId: nativeId,
+        providerKind: null,
+      }),
+    ).toBe(`/org/acme/glossaries/${nativeId}`);
+  });
+});
+
+describe("buildGlossaryConceptDetailUrl", () => {
+  it("builds in-app concept detail urls for Crowdin glossaries", () => {
+    expect(
+      buildGlossaryConceptDetailUrl({
+        organizationSlug: "test-glossary",
+        glossaryId: "7",
+        conceptId: "42",
+        providerKind: "crowdin",
+        externalResourceId: "7",
+      }),
+    ).toBe("/org/test-glossary/glossaries/crowdin:glossary:7/concepts/42");
+  });
+
+  it("builds in-app concept detail urls for native glossaries", () => {
+    const nativeId = "22222222-2222-4222-8222-222222222222";
+    expect(
+      buildGlossaryConceptDetailUrl({
+        organizationSlug: "acme",
+        glossaryId: nativeId,
+        conceptId: "concept-1",
+        providerKind: null,
+      }),
+    ).toBe(`/org/acme/glossaries/${nativeId}/concepts/concept-1`);
+  });
+});
 
 describe("buildCrowdinGlossaryConcordanceUrl", () => {
   it("builds in-app glossary detail urls for live Crowdin glossary ids", () => {

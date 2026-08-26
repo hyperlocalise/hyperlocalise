@@ -113,7 +113,7 @@ describe("searchCrowdinCatConcordance", () => {
     expect(result.glossaryTerms[0]?.concept).toMatchObject({
       id: "1",
       primaryTerm: "workspace",
-      glossaryUrl: "https://crowdin.com/glossary/7",
+      glossaryUrl: null,
       sourceTerms: [
         expect.objectContaining({
           id: "11",
@@ -157,11 +157,11 @@ describe("searchCrowdinCatConcordance", () => {
     expect(result.glossaryTerms[0]?.concept).toMatchObject({
       id: "21",
       primaryTerm: "dashboard",
-      glossaryUrl: "https://crowdin.com/glossary/9",
+      glossaryUrl: null,
     });
   });
 
-  it("uses Crowdin glossary webUrl when it is a safe https URL", async () => {
+  it("does not expose Crowdin glossary webUrl on concept matches", async () => {
     const client = {
       glossaryConcordanceSearch: vi.fn().mockResolvedValue([
         {
@@ -200,7 +200,8 @@ describe("searchCrowdinCatConcordance", () => {
       id: "3",
       subject: "UI",
       definition: "Product workspace",
-      glossaryUrl: "https://acme.crowdin.com/u/projects/1/glossary/7",
+      glossaryUrl: null,
     });
+    expect(result.glossaryTerms[0]?.externalConceptId).toBe("3");
   });
 });

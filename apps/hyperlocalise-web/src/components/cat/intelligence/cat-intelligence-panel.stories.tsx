@@ -26,9 +26,10 @@ const conceptIntelligence: CatSegmentIntelligence = {
   glossaryConcepts: [
     {
       id: "concept-reseller",
-      glossaryId: "glossary-project",
+      glossaryId: "glossary-partner",
       glossaryName: "Partner Program",
-      glossaryUrl: "https://example.com/project-glossary",
+      glossaryUrl: "/org/acme/glossaries/glossary-partner",
+      conceptUrl: "/org/acme/glossaries/glossary-partner/concepts/concept-reseller",
       primaryTerm: "Reseller",
       definition: "A company or individual authorized to resell our product.",
       sourceTerms: [
@@ -68,8 +69,10 @@ const conceptIntelligence: CatSegmentIntelligence = {
     },
     {
       id: "concept-review",
-      glossaryId: "glossary-project",
-      glossaryName: "Partner Program",
+      glossaryId: "glossary-product",
+      glossaryName: "Product UI",
+      glossaryUrl: "/org/acme/glossaries/glossary-product",
+      conceptUrl: "/org/acme/glossaries/glossary-product/concepts/concept-review",
       primaryTerm: "Review",
       sourceTerms: [{ id: "review-en", locale: "en", text: "Review", preferred: true }],
       targetTerms: [{ id: "review-vi", locale: "vi", text: "Đánh giá", preferred: true }],
@@ -115,12 +118,22 @@ export const Results: Story = {
     await expect(canvas.getByRole("region", { name: "Glossary guidance" })).toBeInTheDocument();
     await expect(canvas.getByText("Reseller")).toBeInTheDocument();
     await expect(canvas.getByText("Partner Program")).toBeInTheDocument();
+    await expect(canvas.getByText("Product UI")).toBeInTheDocument();
     await expect(
       canvas.getByText("A company or individual authorized to resell our product."),
     ).toBeInTheDocument();
     await expect(canvas.getByText("Đại lý")).toBeInTheDocument();
     await expect(canvas.getByText("Nhà bán lại")).toBeInTheDocument();
-    await expect(canvas.getAllByText("Project Glossary")).toHaveLength(2);
+    await expect(canvas.getAllByRole("link", { name: "Open glossary" })).toHaveLength(2);
+    await expect(canvas.getAllByRole("link", { name: "Open concept" })).toHaveLength(2);
+    await expect(canvas.getByRole("link", { name: "Open glossary" })).toHaveAttribute(
+      "href",
+      "/org/acme/glossaries/glossary-partner",
+    );
+    await expect(canvas.getByRole("link", { name: "Open concept" })).toHaveAttribute(
+      "href",
+      "/org/acme/glossaries/glossary-partner/concepts/concept-reseller",
+    );
     await expect(canvas.getByText("Translation memory")).toBeInTheDocument();
     await expect(canvas.getByText("Dashboard card", { exact: true })).toBeInTheDocument();
     await expect(canvas.getAllByRole("button", { name: "Use" })).toHaveLength(3);

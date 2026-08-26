@@ -43,7 +43,10 @@ import {
   defaultGlossaryMatchResolution,
   defaultTranslationMemoryMatchResolution,
 } from "@/lib/providers/capabilities/match-resolution";
-import { buildCrowdinGlossaryConcordanceUrl } from "@/lib/glossary/glossary-detail-id";
+import {
+  buildGlossaryConceptDetailUrl,
+  buildGlossaryDetailUrl,
+} from "@/lib/glossary/glossary-detail-id";
 import { normalizedGlossaryTermStatusFromStatus } from "@/lib/providers/contracts/glossary-term-status";
 import {
   GlossaryConcordanceService,
@@ -98,33 +101,57 @@ function toCatGlossaryConceptTerm(term: NormalizedGlossaryConceptTerm): CatGloss
   return { ...term };
 }
 
-function resolveCatGlossaryUrl(
+function resolveCatGlossaryNavigationUrls(
   match: NormalizedGlossaryMatch,
-  conceptGlossaryUrl: string | null | undefined,
   organizationSlug?: string,
-): string | null | undefined {
-  if (match.providerKind === "crowdin" && organizationSlug) {
-    return buildCrowdinGlossaryConcordanceUrl({
-      organizationSlug,
-      glossaryId: match.glossaryId,
-      externalResourceId: match.externalResourceId,
-    });
+): { glossaryUrl?: string; conceptUrl?: string } {
+  if (!organizationSlug) {
+    return {};
   }
 
-  return conceptGlossaryUrl ?? undefined;
+  const usesInAppGlossaryNavigation =
+    match.providerKind === "crowdin" || match.providerKind === null;
+  if (!usesInAppGlossaryNavigation) {
+    return {
+      glossaryUrl: match.concept?.glossaryUrl ?? undefined,
+    };
+  }
+
+  const glossaryUrl = buildGlossaryDetailUrl({
+    organizationSlug,
+    glossaryId: match.glossaryId,
+    providerKind: match.providerKind,
+    externalResourceId: match.externalResourceId,
+  });
+
+  const conceptId = match.providerKind === "crowdin" ? match.externalConceptId : match.concept?.id;
+  const conceptUrl =
+    conceptId != null
+      ? buildGlossaryConceptDetailUrl({
+          organizationSlug,
+          glossaryId: match.glossaryId,
+          conceptId,
+          providerKind: match.providerKind,
+          externalResourceId: match.externalResourceId,
+        })
+      : undefined;
+
+  return { glossaryUrl, conceptUrl };
 }
 
 function toCatGlossaryConcept(
   match: NormalizedGlossaryMatch,
   organizationSlug?: string,
 ): CatGlossaryConcept {
+  const navigationUrls = resolveCatGlossaryNavigationUrls(match, organizationSlug);
   const concept = match.concept;
   if (concept) {
     return {
       id: `${match.glossaryId}:${concept.id}`,
       glossaryId: match.glossaryId,
       glossaryName: match.glossaryName,
-      glossaryUrl: resolveCatGlossaryUrl(match, concept.glossaryUrl, organizationSlug),
+      glossaryUrl: navigationUrls.glossaryUrl,
+      conceptUrl: navigationUrls.conceptUrl,
       primaryTerm: concept.primaryTerm || match.sourceTerm,
       subject: concept.subject,
       definition: concept.definition ?? match.description,
@@ -137,7 +164,8 @@ function toCatGlossaryConcept(
     id: `${match.glossaryId}:${match.sourceLocale}:${match.sourceTerm}`,
     glossaryId: match.glossaryId,
     glossaryName: match.glossaryName,
-    glossaryUrl: resolveCatGlossaryUrl(match, null, organizationSlug),
+    glossaryUrl: navigationUrls.glossaryUrl,
+    conceptUrl: navigationUrls.conceptUrl,
     primaryTerm: match.sourceTerm,
     definition: match.description,
     sourceTerms: [
@@ -175,6 +203,7 @@ function toCatGlossaryConcepts(
     }
 
     existing.glossaryUrl ??= next.glossaryUrl;
+    existing.conceptUrl ??= next.conceptUrl;
     const sourceIds = new Set(existing.sourceTerms.map((term) => term.id));
     const targetIds = new Set(existing.targetTerms.map((term) => term.id));
     existing.sourceTerms.push(...next.sourceTerms.filter((term) => !sourceIds.has(term.id)));

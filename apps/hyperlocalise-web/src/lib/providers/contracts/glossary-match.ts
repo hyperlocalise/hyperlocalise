@@ -62,6 +62,7 @@ export type NormalizedGlossaryMatch = {
   resourceId: string;
   externalResourceId: string | null;
   externalTermId: string | null;
+  externalConceptId?: string | null;
   termStatus: NormalizedGlossaryTermStatus;
   concept?: NormalizedGlossaryConcept;
 };
@@ -108,6 +109,7 @@ export type ProviderGlossaryMatchInput = {
   resourceId: string;
   externalResourceId?: string | null;
   externalTermId?: string | null;
+  externalConceptId?: string | null;
   glossaryName: string;
   rank?: number;
   status?: ProviderGlossaryTermStatusInput;
@@ -133,6 +135,7 @@ export function normalizeProviderGlossaryMatch(
 ): NormalizedGlossaryMatch {
   const externalResourceId = input.externalResourceId ?? null;
   const externalTermId = input.externalTermId ?? null;
+  const externalConceptId = input.externalConceptId ?? null;
   const rank = input.rank ?? 1;
   const termStatus = normalizeGlossaryTermStatus(input.status ?? {});
 
@@ -152,6 +155,7 @@ export function normalizeProviderGlossaryMatch(
     resourceId: input.resourceId,
     externalResourceId,
     externalTermId,
+    ...(externalConceptId ? { externalConceptId } : {}),
     termStatus,
     ...(input.concept ? { concept: input.concept } : {}),
   };

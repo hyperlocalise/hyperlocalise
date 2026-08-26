@@ -680,6 +680,16 @@ export const catIntelligencePanelMessages = defineMessages({
     id: "SLnLYAC4Ib",
     description: "Link to the source glossary for a CAT concept",
   },
+  openGlossary: {
+    defaultMessage: "Open glossary",
+    id: "oa7ed0lrAe",
+    description: "Link to the in-app glossary detail page from glossary guidance",
+  },
+  openConcept: {
+    defaultMessage: "Open concept",
+    id: "6Lm9EGksM9",
+    description: "Link to the in-app glossary concept detail page from glossary guidance",
+  },
   lowMatchConfirmTitle: {
     defaultMessage: "Apply low-quality TM match?",
     id: "nojhrDNSfO",

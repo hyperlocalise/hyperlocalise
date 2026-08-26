@@ -135,6 +135,41 @@ describe("glossary-list", () => {
     expect(row.externalProjectName).toBe("Acme");
     expect(row.providerLogoSrc).toBe("/images/tms/crowdin.png");
     expect(row.detailId).toBe("crowdin:glossary:gl-99");
+    expect(row.externalUrl).toBeNull();
+  });
+
+  it("clears Crowdin glossary external URLs from synced glossary rows", () => {
+    const row = mapGlossaryToListRow(
+      {
+        id: "glossary-crowdin",
+        organizationId: "org-1",
+        createdByUserId: null,
+        name: "Crowdin Glossary",
+        description: "",
+        sourceLocale: "en",
+        targetLocale: "de",
+        status: "active",
+        source: "external_tms",
+        externalProviderKind: "crowdin",
+        externalProjectId: "crowdin-project-1",
+        externalResourceType: "glossary",
+        externalGlossaryId: "gl-99",
+        localeCoverage: ["en", "de"],
+        languages: [],
+        termCount: 85,
+        syncState: "synced",
+        termCapabilities: {},
+        externalUrl: "https://crowdin.com/glossary/gl-99",
+        lastSyncedAt: null,
+        lastSyncErrorAt: null,
+        lastSyncErrorMessage: null,
+        createdAt: "2026-05-01T00:00:00.000Z",
+        updatedAt: "2026-05-01T00:00:00.000Z",
+      },
+      new Map(),
+    );
+
+    expect(row.externalUrl).toBeNull();
   });
 
   it("falls back when an external provider has no known logo", () => {

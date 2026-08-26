@@ -31,15 +31,40 @@ export function resolveGlossaryDetailId(input: {
   return input.glossaryId;
 }
 
+export function buildGlossaryDetailUrl(input: {
+  organizationSlug: string;
+  glossaryId: string;
+  providerKind?: ExternalTmsProviderKind | null;
+  externalResourceId?: string | null;
+}): string {
+  const detailId = resolveGlossaryDetailId({
+    glossaryId: input.glossaryId,
+    providerKind: input.providerKind,
+    externalResourceId: input.externalResourceId,
+  });
+  return `/org/${input.organizationSlug}/glossaries/${detailId}`;
+}
+
+export function buildGlossaryConceptDetailUrl(input: {
+  organizationSlug: string;
+  glossaryId: string;
+  conceptId: string;
+  providerKind?: ExternalTmsProviderKind | null;
+  externalResourceId?: string | null;
+}): string {
+  return `${buildGlossaryDetailUrl(input)}/concepts/${encodeURIComponent(input.conceptId)}`;
+}
+
+/** @deprecated Use {@link buildGlossaryDetailUrl} with providerKind crowdin. */
 export function buildCrowdinGlossaryConcordanceUrl(input: {
   organizationSlug: string;
   glossaryId: string;
   externalResourceId?: string | null;
 }): string {
-  const detailId = resolveGlossaryDetailId({
+  return buildGlossaryDetailUrl({
+    organizationSlug: input.organizationSlug,
     glossaryId: input.glossaryId,
     providerKind: "crowdin",
     externalResourceId: input.externalResourceId,
   });
-  return `/org/${input.organizationSlug}/glossaries/${detailId}`;
 }

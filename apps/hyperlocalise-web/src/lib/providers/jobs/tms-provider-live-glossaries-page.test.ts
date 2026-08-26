@@ -148,7 +148,7 @@ describe("listTmsProviderLiveGlossariesPage", () => {
             targetLocale: "fr",
             localeCoverage: ["en", "fr"],
             termCount: 12,
-            externalUrl: "https://crowdin.example/g/42",
+            externalUrl: null,
             externalProjectIds: ["200", "100"],
             createdAt: "2026-03-01T12:00:00.000Z",
           },
@@ -310,7 +310,7 @@ describe("getTmsProviderLiveGlossary", () => {
       targetLocale: "fr",
       localeCoverage: ["en", "fr"],
       termCount: 3,
-      externalUrl: "https://crowdin.example/g/42",
+      externalUrl: null,
       externalProjectIds: ["100"],
       createdAt: "2026-04-01T00:00:00.000Z",
     });
