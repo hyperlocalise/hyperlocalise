@@ -254,10 +254,11 @@ func decodeJSONKey(raw string) (string, error) {
 // and slicing to eliminate slice allocations during comment cleaning.
 func cleanJSONCCommentText(comment []byte) string {
 	comment = bytes.TrimSpace(comment)
-	if len(comment) >= 2 {
-		if comment[0] == '/' && (comment[1] == '/' || comment[1] == '*') {
-			comment = comment[2:]
-		}
+	if len(comment) >= 2 && comment[0] == '/' && comment[1] == '/' {
+		comment = comment[2:]
+	}
+	if len(comment) >= 2 && comment[0] == '/' && comment[1] == '*' {
+		comment = comment[2:]
 	}
 	if len(comment) >= 2 {
 		if comment[len(comment)-2] == '*' && comment[len(comment)-1] == '/' {
