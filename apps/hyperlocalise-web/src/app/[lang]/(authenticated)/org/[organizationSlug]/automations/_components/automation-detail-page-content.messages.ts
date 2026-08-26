@@ -96,6 +96,16 @@ export const automationDetailPageContentMessages = defineMessages({
     id: "VapVL5JCf1",
     description: "Empty state in the source-file selection dialog",
   },
+  loadMoreSourceFiles: {
+    defaultMessage: "Load more files",
+    id: "k3nR8wQp2A",
+    description: "Button to load the next page of source files in the automation picker",
+  },
+  loadingMoreSourceFiles: {
+    defaultMessage: "Loading more files…",
+    id: "m7pL2xVt9C",
+    description: "Loading label while the next page of source files is fetched",
+  },
   cancelSourceFileSelection: {
     defaultMessage: "Cancel",
     id: "VYElnDXHUS",

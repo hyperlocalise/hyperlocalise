@@ -17,7 +17,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Delete02Icon, PlayIcon, SaveIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { FormattedMessage, useIntl } from "react-intl";
 import { toast } from "sonner";
 
@@ -58,6 +58,24 @@ import { WorkspacePageShell } from "../../_components/workspace-resource-shared"
 import { automationDetailPageContentMessages } from "./automation-detail-page-content.messages";
 import { WebChatUrlCopyField } from "./web-chat-url-copy-field";
 import { WorkspaceAutomationEditor } from "./workspace-automation-form";
+
+export const AUTOMATION_SOURCE_FILES_PAGE_SIZE = 50;
+const SOURCE_FILE_SEARCH_DEBOUNCE_MS = 300;
+
+function useDebouncedValue<T>(value: T, delayMs: number) {
+  const [debouncedValue, setDebouncedValue] = useState(value);
+
+  useEffect(() => {
+    const timeout = window.setTimeout(() => setDebouncedValue(value), delayMs);
+    return () => window.clearTimeout(timeout);
+  }, [delayMs, value]);
+
+  return debouncedValue;
+}
+
+function uniqueSourceFilesByPath<T extends { sourcePath: string }>(files: T[]) {
+  return Array.from(new Map(files.map((file) => [file.sourcePath, file])).values());
+}
 
 export function AutomationDetailPageContent({
   organizationSlug,
@@ -103,11 +121,21 @@ export function AutomationDetailPageContent({
   const [selectedSourcePaths, setSelectedSourcePaths] = useState<string[]>([]);
   const [sourceFileSearch, setSourceFileSearch] = useState("");
   const writeLockRef = useRef<"save" | "delete" | null>(null);
+  const debouncedSourceFileSearch = useDebouncedValue(
+    sourceFileSearch.trim(),
+    SOURCE_FILE_SEARCH_DEBOUNCE_MS,
+  );
 
-  const sourceFilesQuery = useQuery({
-    queryKey: ["automation-source-files", organizationSlug, automation?.projectId],
+  const sourceFilesQuery = useInfiniteQuery({
+    queryKey: [
+      "automation-source-files",
+      organizationSlug,
+      automation?.projectId,
+      debouncedSourceFileSearch,
+    ],
     enabled: sourceFileDialogOpen && Boolean(automation?.projectId),
-    queryFn: async () => {
+    initialPageParam: 0,
+    queryFn: async ({ pageParam }) => {
       const projectId = automation?.projectId;
       if (!projectId) {
         return [];
@@ -116,27 +144,33 @@ export function AutomationDetailPageContent({
         ":projectId"
       ].files.$get({
         param: { organizationSlug, projectId },
-        query: { limit: "1000" },
+        query: {
+          limit: String(AUTOMATION_SOURCE_FILES_PAGE_SIZE),
+          offset: String(pageParam),
+          origin: "repository",
+          ...(debouncedSourceFileSearch ? { search: debouncedSourceFileSearch } : {}),
+        },
       });
       if (response.status !== 200) {
         throw await readApiResponseError(response, "Failed to load source files");
       }
       const body = await response.json();
-      return Array.from(
-        new Map(body.files.map((file) => [file.sourcePath, file])).values(),
-      ).toSorted((left, right) => left.sourcePath.localeCompare(right.sourcePath));
+      return uniqueSourceFilesByPath(body.files).toSorted((left, right) =>
+        left.sourcePath.localeCompare(right.sourcePath),
+      );
+    },
+    getNextPageParam: (lastPage, pages) => {
+      if (lastPage.length < AUTOMATION_SOURCE_FILES_PAGE_SIZE) {
+        return undefined;
+      }
+      return pages.reduce((sum, page) => sum + page.length, 0);
     },
   });
 
-  const visibleSourceFiles = useMemo(() => {
-    const search = sourceFileSearch.trim().toLocaleLowerCase();
-    if (!search) {
-      return sourceFilesQuery.data ?? [];
-    }
-    return (sourceFilesQuery.data ?? []).filter((file) =>
-      file.sourcePath.toLocaleLowerCase().includes(search),
-    );
-  }, [sourceFileSearch, sourceFilesQuery.data]);
+  const visibleSourceFiles = useMemo(
+    () => uniqueSourceFilesByPath(sourceFilesQuery.data?.pages.flat() ?? []),
+    [sourceFilesQuery.data?.pages],
+  );
 
   useEffect(() => {
     if (automation) {
@@ -490,6 +524,33 @@ export function AutomationDetailPageContent({
                     </label>
                   );
                 })}
+                {sourceFilesQuery.hasNextPage ? (
+                  <div className="p-2">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="w-full"
+                      disabled={sourceFilesQuery.isFetchingNextPage}
+                      onClick={() => {
+                        void sourceFilesQuery.fetchNextPage();
+                      }}
+                    >
+                      {sourceFilesQuery.isFetchingNextPage ? (
+                        <>
+                          <Spinner data-icon="inline-start" />
+                          <FormattedMessage
+                            {...automationDetailPageContentMessages.loadingMoreSourceFiles}
+                          />
+                        </>
+                      ) : (
+                        <FormattedMessage
+                          {...automationDetailPageContentMessages.loadMoreSourceFiles}
+                        />
+                      )}
+                    </Button>
+                  </div>
+                ) : null}
               </div>
             )}
           </div>

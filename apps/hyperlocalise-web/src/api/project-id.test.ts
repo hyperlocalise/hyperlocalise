@@ -53,6 +53,7 @@ describe("project id schemas", () => {
 
     expect(projectIdParamsSchema.parse({ projectId: encoded }).projectId).toBe(decoded);
     expect(projectFilesQuerySchema.parse({ projectId: encoded }).projectId).toBe(decoded);
+    expect(projectFilesQuerySchema.parse({ offset: "75" }).offset).toBe(75);
     expect(
       uploadBodySchema.parse({ projectId: encoded, sourcePath: "src/en.json" }).projectId,
     ).toBe(decoded);

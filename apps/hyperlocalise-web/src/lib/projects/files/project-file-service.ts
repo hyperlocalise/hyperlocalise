@@ -219,29 +219,36 @@ export class ProjectFileService extends ProjectServiceBase {
     query: ProjectFilesQuery;
     resourceTypes?: ExternalTmsFileKeyMetadata["resourceType"][];
   }) {
-    const fetchLimit = input.query.limit;
+    const offset = input.query.offset ?? 0;
+    const limit = input.query.limit;
+    const pageRepositoryDirectly = input.query.origin === "repository";
+    const fetchLimit = pageRepositoryDirectly ? limit : offset + limit;
     const mergedFiles = await this.listForProject({
       organizationId: input.organizationId,
       projectId: input.projectId,
       providerFetchLimit: fetchLimit,
       repositoryFetchLimit: fetchLimit,
+      repositoryFetchOffset: pageRepositoryDirectly ? offset : undefined,
       providerFilters: input.query,
       resourceTypes: input.resourceTypes,
     });
 
-    const filtered = filterProjectFiles(mergedFiles, input.query).slice(0, input.query.limit);
+    const filtered = filterProjectFiles(mergedFiles, input.query);
+    const paged = pageRepositoryDirectly
+      ? filtered.slice(0, limit)
+      : filtered.slice(offset, offset + limit);
 
     this.log.debug(
       {
         organizationId: input.organizationId,
         projectId: input.projectId,
         mergedCount: mergedFiles.length,
-        returnedCount: filtered.length,
+        returnedCount: paged.length,
       },
       "listed filtered project files",
     );
 
-    return filtered;
+    return paged;
   }
 
   async listForProject(input: {
@@ -249,6 +256,7 @@ export class ProjectFileService extends ProjectServiceBase {
     projectId: string;
     providerFetchLimit?: number;
     repositoryFetchLimit?: number;
+    repositoryFetchOffset?: number;
     providerFilters?: ProjectFileFilterQuery;
     resourceTypes?: ExternalTmsFileKeyMetadata["resourceType"][];
   }) {
@@ -317,10 +325,14 @@ export class ProjectFileService extends ProjectServiceBase {
       .where(eq(versionsSubquery.rowNumber, 1))
       .orderBy(versionsSubquery.sourcePath);
 
+    const versionsQuery =
+      input.repositoryFetchOffset && input.repositoryFetchOffset > 0
+        ? versionsBaseQuery.offset(input.repositoryFetchOffset)
+        : versionsBaseQuery;
     const versions = shouldLoadRepositoryFiles
       ? input.repositoryFetchLimit != null
-        ? await versionsBaseQuery.limit(input.repositoryFetchLimit)
-        : await versionsBaseQuery
+        ? await versionsQuery.limit(input.repositoryFetchLimit)
+        : await versionsQuery
       : [];
 
     const versionIds = versions.map((v) => v.versionId);

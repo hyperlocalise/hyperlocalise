@@ -21,7 +21,10 @@ import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 
 import type { WorkspaceAutomationFormState } from "@/lib/agents/workspace-automation-view-model";
 
-import { AutomationDetailPageContent } from "./automation-detail-page-content";
+import {
+  AUTOMATION_SOURCE_FILES_PAGE_SIZE,
+  AutomationDetailPageContent,
+} from "./automation-detail-page-content";
 import { createAutomationSummary } from "./automations.fixture";
 
 const apiMocks = vi.hoisted(() => ({
@@ -223,11 +226,128 @@ describe("AutomationDetailPageContent write locking", () => {
     await vi.waitFor(() => expect(apiMocks.runSourceFiles).toHaveBeenCalledOnce());
     expect(apiMocks.listProjectFiles).toHaveBeenCalledWith({
       param: { organizationSlug: "acme", projectId: sourceUploadAutomation.projectId },
-      query: { limit: "1000" },
+      query: {
+        limit: String(AUTOMATION_SOURCE_FILES_PAGE_SIZE),
+        offset: "0",
+        origin: "repository",
+      },
     });
     expect(apiMocks.runSourceFiles).toHaveBeenCalledWith({
       param: { organizationSlug: "acme", automationId: sourceUploadAutomation.id },
       json: { sourcePaths: ["locales/en.json", "messages.po"] },
     });
+  });
+
+  it("searches source files on the server instead of the first loaded page", async () => {
+    const user = userEvent.setup();
+    const sourceUploadAutomation = createAutomationSummary({
+      triggerConfig: { mode: "source_upload" },
+      repositoryTarget: { kind: "none" },
+      toolConfig: {
+        createNativeTmsJob: {
+          enabled: true,
+          useProjectTargetLocales: true,
+          targetLocales: [],
+        },
+      },
+    });
+    apiMocks.getAutomation.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ automation: sourceUploadAutomation, recentRuns: [] }),
+    });
+    apiMocks.listProjectFiles.mockImplementation((input: { query?: { search?: string } }) => {
+      const search = input.query?.search;
+      return Promise.resolve({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          files: search
+            ? [{ sourcePath: "locales/z-late-file.json" }]
+            : [{ sourcePath: "locales/en.json" }],
+        }),
+      });
+    });
+
+    renderPage(sourceUploadAutomation);
+
+    await user.click(await screen.findByRole("button", { name: "Run now" }));
+    const dialog = await screen.findByRole("dialog", { name: "Select source files" });
+    await within(dialog).findByRole("checkbox", { name: "locales/en.json" });
+    await user.type(
+      within(dialog).getByRole("textbox", { name: "Search source files" }),
+      "z-late-file",
+    );
+
+    await vi.waitFor(() =>
+      expect(apiMocks.listProjectFiles).toHaveBeenCalledWith({
+        param: { organizationSlug: "acme", projectId: sourceUploadAutomation.projectId },
+        query: {
+          limit: String(AUTOMATION_SOURCE_FILES_PAGE_SIZE),
+          offset: "0",
+          origin: "repository",
+          search: "z-late-file",
+        },
+      }),
+    );
+    expect(
+      await within(dialog).findByRole("checkbox", { name: "locales/z-late-file.json" }),
+    ).toBeInTheDocument();
+    expect(
+      within(dialog).queryByRole("checkbox", { name: "locales/en.json" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("loads later source-file pages with an offset instead of a one-time cap", async () => {
+    const user = userEvent.setup();
+    const sourceUploadAutomation = createAutomationSummary({
+      triggerConfig: { mode: "source_upload" },
+      repositoryTarget: { kind: "none" },
+      toolConfig: {
+        createNativeTmsJob: {
+          enabled: true,
+          useProjectTargetLocales: true,
+          targetLocales: [],
+        },
+      },
+    });
+    const firstPage = Array.from({ length: AUTOMATION_SOURCE_FILES_PAGE_SIZE }, (_, index) => ({
+      sourcePath: `locales/file-${String(index).padStart(3, "0")}.json`,
+    }));
+    apiMocks.getAutomation.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ automation: sourceUploadAutomation, recentRuns: [] }),
+    });
+    apiMocks.listProjectFiles.mockImplementation((input: { query?: { offset?: string } }) => {
+      const offset = Number(input.query?.offset ?? "0");
+      return Promise.resolve({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          files: offset === 0 ? firstPage : [{ sourcePath: "locales/z-late-file.json" }],
+        }),
+      });
+    });
+
+    renderPage(sourceUploadAutomation);
+
+    await user.click(await screen.findByRole("button", { name: "Run now" }));
+    const dialog = await screen.findByRole("dialog", { name: "Select source files" });
+    await user.click(await within(dialog).findByRole("button", { name: "Load more files" }));
+
+    await vi.waitFor(() =>
+      expect(apiMocks.listProjectFiles).toHaveBeenCalledWith({
+        param: { organizationSlug: "acme", projectId: sourceUploadAutomation.projectId },
+        query: {
+          limit: String(AUTOMATION_SOURCE_FILES_PAGE_SIZE),
+          offset: String(AUTOMATION_SOURCE_FILES_PAGE_SIZE),
+          origin: "repository",
+        },
+      }),
+    );
+    expect(
+      await within(dialog).findByRole("checkbox", { name: "locales/z-late-file.json" }),
+    ).toBeInTheDocument();
   });
 });
