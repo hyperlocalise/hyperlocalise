@@ -215,3 +215,7 @@
 ## 2026-11-26 - [Apple XCStrings Parser Error Boundaries and Key Escaping]
 **Learning:** `XCStringsParser` and `MarshalXCStrings` enforce catalog structural constraints (such as root `strings` object requirement and JSON stream single-value limits). Additionally, base key escaping uses base64 URL encoding prefixed with `%xcs:` when keys contain `::` or start with `%xcs:`, ensuring that keys starting literally with `%xcs:` in source catalogs are safely encoded to prevent collision with unescaping routines.
 **Action:** When unit testing Apple `.xcstrings` catalog parsers, test malformed JSON stream decoding, `targetLocale` validation in marshalling, and assert base64 URL key encoding for keys containing reserved `::` delimiters or `%xcs:` prefixes.
+
+## 2026-11-27 - [Evalset Assertion Normalization and Locale Fallback Hierarchy]
+**Learning:** `evalset` assertion type normalization converts dashes to underscores and strips `judge.` prefixes (e.g., `judge.translation_quality`, `llm-rubric`, `g_eval`), mapping them into canonical assertion kinds. Furthermore, case expansion prioritizes `LocaleTarget` level context and reference attributes over `Vars` level defaults, providing locale-specific overrides when specified while preserving dataset-wide defaults for unconfigured locales.
+**Action:** When writing unit tests for evaluation set parsers, verify both hyphen/prefix assertion type normalization and locale-level vs suite-level variable inheritance precedence.
