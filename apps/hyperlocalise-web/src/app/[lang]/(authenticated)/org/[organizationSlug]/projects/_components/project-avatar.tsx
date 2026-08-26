@@ -18,6 +18,9 @@ import { TmsProviderBrandMark } from "@/lib/providers/shared/tms-provider-brand-
 
 import type { ProjectListRow } from "./project-list";
 
+/** Max chars shown in the avatar fallback so long identifiers do not overflow. */
+export const PROJECT_AVATAR_KEY_MAX_LENGTH = 3;
+
 export function ProjectAvatar({
   project,
   className,
@@ -28,15 +31,16 @@ export function ProjectAvatar({
   compact?: boolean;
 }) {
   const sizeClass = compact ? "size-9 rounded-lg" : "size-10 rounded-lg";
+  const avatarKey = project.key.slice(0, PROJECT_AVATAR_KEY_MAX_LENGTH);
 
   return (
     <span className={cn("relative shrink-0", className)}>
-      <Avatar className={cn(sizeClass, "after:rounded-lg")}>
+      <Avatar className={cn(sizeClass, "after:rounded-lg")} title={project.key}>
         {project.logoUrl ? (
           <AvatarImage src={project.logoUrl} alt="" className="rounded-lg object-cover" />
         ) : null}
-        <AvatarFallback className="rounded-lg bg-background text-xs font-medium text-foreground">
-          {project.key}
+        <AvatarFallback className="overflow-hidden rounded-lg bg-background text-xs font-medium text-foreground">
+          {avatarKey}
         </AvatarFallback>
       </Avatar>
       {project.source === "external_tms" && project.externalProviderKind ? (
