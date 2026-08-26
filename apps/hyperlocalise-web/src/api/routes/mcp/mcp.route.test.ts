@@ -658,4 +658,33 @@ describe("mcpRoutes", () => {
     expect(response.status).toBe(200);
     expect(await response.text()).toContain("Example MCP Client");
   });
+
+  it("rejects authorization requests whose signed cookie would exceed browser limits", async () => {
+    const clientId = `https://client.example/${"a".repeat(2_000)}`;
+    const redirectUri = `https://client.example/callback?state=${"b".repeat(1_900)}`;
+
+    resolveMcpClientMetadataMock.mockResolvedValue({
+      ok: true,
+      value: {
+        clientId,
+        clientName: "Example MCP Client",
+        redirectUris: [redirectUri],
+      },
+    });
+
+    const authorizeUrl = new URL("http://localhost/mcp/authorize");
+    authorizeUrl.searchParams.set("response_type", "code");
+    authorizeUrl.searchParams.set("client_id", clientId);
+    authorizeUrl.searchParams.set("redirect_uri", redirectUri);
+    authorizeUrl.searchParams.set("code_challenge", pkceChallenge("a".repeat(64)));
+    authorizeUrl.searchParams.set("code_challenge_method", "S256");
+
+    const response = await app.request(authorizeUrl);
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({
+      error: "invalid_request",
+    });
+    expect(response.headers.get("set-cookie")).toBeNull();
+  });
 });

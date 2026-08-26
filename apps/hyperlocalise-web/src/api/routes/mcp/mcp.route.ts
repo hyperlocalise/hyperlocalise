@@ -143,8 +143,16 @@ function secureCookieOptions(maxAgeSeconds: number) {
   };
 }
 
-function storeMcpAuthRequestCookie(c: Parameters<typeof setCookie>[0], token: string) {
+const MAX_MCP_AUTH_REQUEST_COOKIE_VALUE_LENGTH = 3_500;
+
+function storeMcpAuthRequestCookie(c: Parameters<typeof setCookie>[0], token: string): boolean {
+  if (token.length > MAX_MCP_AUTH_REQUEST_COOKIE_VALUE_LENGTH) {
+    return false;
+  }
+
   setCookie(c, MCP_AUTH_REQUEST_COOKIE, token, secureCookieOptions(15 * 60));
+
+  return true;
 }
 
 function storeMcpConsentCookie(c: Parameters<typeof setCookie>[0], token: string) {
@@ -589,7 +597,9 @@ export function createMcpRoutes(options: { apiBasePath?: string } = {}) {
         organizationSlug: query.organizationSlug,
       });
 
-      storeMcpAuthRequestCookie(c, authRequest);
+      if (!storeMcpAuthRequestCookie(c, authRequest)) {
+        return c.json({ error: "invalid_request" }, 400);
+      }
 
       const callbackUrl = buildCallbackUrl(apiBasePath, endpointOrigin(c), query);
       const signInUrl = new URL("/auth/sign-in", endpointOrigin(c));

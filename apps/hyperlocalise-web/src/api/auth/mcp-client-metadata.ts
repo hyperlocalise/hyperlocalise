@@ -17,7 +17,7 @@ import { readBoundedResponseBody, withPublicHttpFetch } from "@/lib/security/pub
 
 const mcpClientMetadataDocumentSchema = z.object({
   client_id: z.url().max(2048),
-  client_name: z.string().trim().min(1).max(128),
+  client_name: z.string().trim().min(1).max(128).optional(),
   client_uri: z.url().max(2048).optional(),
   logo_uri: z.url().max(2048).optional(),
   redirect_uris: z.array(z.url().max(2048)).min(1).max(10),
@@ -28,7 +28,7 @@ const mcpClientMetadataDocumentSchema = z.object({
 
 export type ResolvedMcpClientMetadata = {
   clientId: string;
-  clientName: string;
+  clientName?: string;
   redirectUris: string[];
 };
 

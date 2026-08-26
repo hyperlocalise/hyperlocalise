@@ -243,13 +243,6 @@ describe("resolveMcpClientMetadata", () => {
 
   it.each([
     [
-      "missing client_name",
-      {
-        client_id: "https://client.example/oauth/metadata.json",
-        redirect_uris: ["http://localhost:3000/callback"],
-      },
-    ],
-    [
       "empty redirect_uris",
       {
         client_id: "https://client.example/oauth/metadata.json",
@@ -305,6 +298,33 @@ describe("resolveMcpClientMetadata", () => {
       ok: false,
       error: {
         code: "metadata_fetch_failed",
+      },
+    });
+  });
+
+  it("accepts metadata without a client name", async () => {
+    const clientId = "https://client.example/oauth/metadata.json";
+    const redirectUri = "http://localhost:3000/callback";
+
+    const result = await resolveMcpClientMetadata(
+      {
+        clientId,
+        redirectUri,
+      },
+      {
+        fetchDocument: vi.fn().mockResolvedValue({
+          client_id: clientId,
+          redirect_uris: [redirectUri],
+        }),
+      },
+    );
+
+    expect(result).toEqual({
+      ok: true,
+      value: {
+        clientId,
+        clientName: undefined,
+        redirectUris: [redirectUri],
       },
     });
   });
