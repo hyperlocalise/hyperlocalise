@@ -341,9 +341,26 @@ class GlossaryConcordancePipeline extends ConcordancePipeline<
           description: schema.glossaryTerms.description,
           forbidden: schema.glossaryTerms.forbidden,
           caseSensitive: schema.glossaryTerms.caseSensitive,
-          externalKey: schema.glossaryTerms.externalKey,
+          externalKey: sql<string | null>`null`,
           externalProviderKind: schema.glossaries.externalProviderKind,
           externalGlossaryId: schema.glossaries.externalGlossaryId,
+          externalGlossaryUrl: schema.glossaries.externalUrl,
+          conceptId: sql<string | null>`null`,
+          conceptPrimaryTerm: sql<string | null>`null`,
+          conceptSubject: sql<string | null>`null`,
+          conceptDefinition: sql<string | null>`null`,
+          conceptUrl: sql<string | null>`null`,
+          sourceTermId: sql<string | null>`null`,
+          targetTermId: sql<string | null>`null`,
+          sourcePartOfSpeech: sql<string | null>`null`,
+          targetPartOfSpeech: sql<string | null>`null`,
+          sourceTermType: sql<string | null>`null`,
+          targetTermType: sql<string | null>`null`,
+          sourceGender: sql<string | null>`null`,
+          targetGender: sql<string | null>`null`,
+          sourceStatus: sql<string | null>`null`,
+          targetStatus: sql<string | null>`null`,
+          targetForbidden: sql<boolean | null>`null`,
           rank: sql<number>`ts_rank(${schema.glossaryTerms.searchVector}, to_tsquery('simple', ${tsQuery}))`.as(
             "rank",
           ),
@@ -374,9 +391,26 @@ class GlossaryConcordancePipeline extends ConcordancePipeline<
           description: concordanceSourceTerms.description,
           forbidden: concordanceSourceTerms.forbidden,
           caseSensitive: concordanceSourceTerms.caseSensitive,
-          externalKey: concordanceSourceTerms.externalKey,
+          externalKey: sql<string | null>`null`,
           externalProviderKind: schema.glossaries.externalProviderKind,
           externalGlossaryId: schema.glossaries.externalGlossaryId,
+          externalGlossaryUrl: schema.glossaries.externalUrl,
+          conceptId: concordanceSourceTerms.conceptId,
+          conceptPrimaryTerm: schema.glossaryConcepts.primaryTerm,
+          conceptSubject: schema.glossaryConcepts.subject,
+          conceptDefinition: schema.glossaryConcepts.definition,
+          conceptUrl: schema.glossaryConcepts.url,
+          sourceTermId: concordanceSourceTerms.id,
+          targetTermId: concordanceTargetTerms.id,
+          sourcePartOfSpeech: concordanceSourceTerms.partOfSpeech,
+          targetPartOfSpeech: concordanceTargetTerms.partOfSpeech,
+          sourceTermType: concordanceSourceTerms.termType,
+          targetTermType: concordanceTargetTerms.termType,
+          sourceGender: concordanceSourceTerms.gender,
+          targetGender: concordanceTargetTerms.gender,
+          sourceStatus: concordanceSourceTerms.status,
+          targetStatus: concordanceTargetTerms.status,
+          targetForbidden: concordanceTargetTerms.forbidden,
           rank: sql<number>`ts_rank(${concordanceSourceTerms.searchVector}, to_tsquery('simple', ${tsQuery}))`.as(
             "rank",
           ),
@@ -390,6 +424,10 @@ class GlossaryConcordancePipeline extends ConcordancePipeline<
           ),
         )
         .innerJoin(schema.glossaries, eq(concordanceSourceTerms.glossaryId, schema.glossaries.id))
+        .leftJoin(
+          schema.glossaryConcepts,
+          eq(concordanceSourceTerms.conceptId, schema.glossaryConcepts.id),
+        )
         .where(
           and(
             inArray(concordanceSourceTerms.glossaryId, glossaryIds),
@@ -433,6 +471,41 @@ class GlossaryConcordancePipeline extends ConcordancePipeline<
           providerKind: entry.externalProviderKind,
           externalResourceId: entry.externalGlossaryId,
           externalTermId: entry.externalKey,
+          concept: entry.conceptId
+            ? {
+                id: entry.conceptId,
+                primaryTerm: entry.conceptPrimaryTerm ?? entry.sourceTerm,
+                subject: entry.conceptSubject,
+                definition: entry.conceptDefinition,
+                glossaryUrl: entry.externalGlossaryUrl ?? entry.conceptUrl,
+                sourceTerms: [
+                  {
+                    id: entry.sourceTermId ?? `${entry.id}:source`,
+                    locale: entry.sourceLocale,
+                    text: entry.sourceTerm,
+                    status: entry.sourceStatus,
+                    forbidden: entry.forbidden,
+                    preferred: !entry.forbidden,
+                    partOfSpeech: entry.sourcePartOfSpeech,
+                    termType: entry.sourceTermType,
+                    gender: entry.sourceGender,
+                  },
+                ],
+                targetTerms: [
+                  {
+                    id: entry.targetTermId ?? `${entry.id}:target`,
+                    locale: entry.targetLocale,
+                    text: entry.targetTerm,
+                    status: entry.targetStatus,
+                    forbidden: entry.targetForbidden ?? false,
+                    preferred: !(entry.targetForbidden ?? false),
+                    partOfSpeech: entry.targetPartOfSpeech,
+                    termType: entry.targetTermType,
+                    gender: entry.targetGender,
+                  },
+                ],
+              }
+            : undefined,
         }),
       );
   }

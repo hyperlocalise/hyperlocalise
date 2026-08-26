@@ -231,6 +231,7 @@ type TMConcordanceSearchRequest struct {
 	AutoSubstitution *bool    `json:"autoSubstitution"`
 	MinRelevant      int      `json:"minRelevant"`
 	Expressions      []string `json:"expressions"`
+	TMIDs            []int    `json:"tmIds,omitempty"`
 }
 
 // Validate checks if the TMConcordanceSearchRequest is valid.

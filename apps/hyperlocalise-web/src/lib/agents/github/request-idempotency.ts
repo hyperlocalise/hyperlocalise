@@ -83,6 +83,25 @@ export function buildGitHubRepositoryRequestInput(input: {
   };
 }
 
+export function buildGitHubPullRequestReviewRequestInput(input: {
+  requestKind: "review" | "auto_review";
+  installationId: number | string;
+  repositoryFullName: string;
+  pullRequestNumber: number;
+  commentId: number | null;
+  headSha: string;
+}): GitHubAgentRequestInput {
+  return {
+    requestKind: input.requestKind,
+    githubInstallationId: String(input.installationId),
+    repositoryFullName: input.repositoryFullName,
+    pullRequestNumber: input.pullRequestNumber,
+    commentId: String(input.commentId ?? 0),
+    scopeType: "pull_request_review",
+    scopeKey: input.headSha,
+  };
+}
+
 export async function claimGitHubAgentRequest(
   values: GitHubAgentRequestInput,
 ): Promise<GitHubAgentRequestClaim> {

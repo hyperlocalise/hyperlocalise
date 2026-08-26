@@ -52,6 +52,8 @@ import type {
   LocalisationAuditTeaser,
 } from "@/lib/localisation-audit/types";
 import { cn } from "@/lib/primitives/cn";
+import { DEFAULT_APP_LOCALE, normalizeAppLocale } from "@/lib/app-i18n/locales";
+import { rewriteAppLocalePath } from "@/lib/app-i18n/rewrite-app-locale-path";
 
 import {
   getLocalisationAuditGuideHref,
@@ -629,6 +631,8 @@ export function LocalisationAuditResult({
   variant = "public",
 }: LocalisationAuditResultProps) {
   const copy = getLocalisationAuditResultCopy(locale);
+  const appLocale = normalizeAppLocale(locale) ?? DEFAULT_APP_LOCALE;
+  const claimDomainHref = rewriteAppLocalePath(`/claim-domain/${domainSlug}`, appLocale);
   const { user, loading: authLoading, featureFlags } = useAuth();
   const showSignInCtas = isLocalisationAuditSignInCtaEnabled({
     loading: authLoading,
@@ -853,7 +857,7 @@ export function LocalisationAuditResult({
         {error ? <p className="mt-4 text-sm text-red-200">{error}</p> : null}
         <Button
           nativeButton={false}
-          render={<Link href={`/${locale}/localisation-audit`} />}
+          render={<Link href={rewriteAppLocalePath("/localisation-audit", appLocale)} />}
           className="mt-8 bg-white text-black hover:bg-white/90"
         >
           {copy.startNewAudit}
@@ -1181,10 +1185,7 @@ export function LocalisationAuditResult({
                 <Button
                   nativeButton={false}
                   render={
-                    <Link
-                      href={`/claim-domain/${domainSlug}`}
-                      onClick={() => trackCta("open_claimed_domain")}
-                    />
+                    <Link href={claimDomainHref} onClick={() => trackCta("open_claimed_domain")} />
                   }
                 >
                   {copy.openInWorkspace}
@@ -1194,7 +1195,7 @@ export function LocalisationAuditResult({
                   nativeButton={false}
                   render={
                     <Link
-                      href={`/auth/sign-in?returnTo=${encodeURIComponent(`/claim-domain/${domainSlug}`)}`}
+                      href={`/auth/sign-in?returnTo=${encodeURIComponent(claimDomainHref)}`}
                       onClick={() => trackCta("claim_domain")}
                     />
                   }

@@ -22,6 +22,7 @@ import { app } from "@/api/app";
 import { db, schema } from "@/lib/database";
 import { addInteractionMessage, createInteraction } from "@/lib/conversations/interactions";
 import { ensureDefaultWorkspaceTeam } from "@/lib/teams/default-workspace-team";
+import { uniqueTestProjectIdentifier } from "@/lib/projects/issue-identifier/test-project-identifier";
 
 import { createProjectTestFixture } from "./project.fixture";
 import { createTeamTestFixture } from "../team/team.fixture";
@@ -202,6 +203,7 @@ describe("team-scoped project access", () => {
     await db.insert(schema.projects).values([
       {
         id: alphaProjectId,
+        identifier: uniqueTestProjectIdentifier(),
         organizationId: (
           await db
             .select({ id: schema.organizations.id })
@@ -214,6 +216,7 @@ describe("team-scoped project access", () => {
       },
       {
         id: betaProjectId,
+        identifier: uniqueTestProjectIdentifier(),
         organizationId: (
           await db
             .select({ id: schema.organizations.id })
@@ -308,6 +311,7 @@ describe("team-scoped project access", () => {
     const legacyProjectId = `project_${randomUUID()}`;
     await db.insert(schema.projects).values({
       id: legacyProjectId,
+      identifier: uniqueTestProjectIdentifier(),
       organizationId: organization.id,
       name: "Legacy Project",
     });

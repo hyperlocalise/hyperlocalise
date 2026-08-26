@@ -137,6 +137,7 @@ export function IssuesPageContent({
     () =>
       issues.map((issue) => ({
         id: issue.id,
+        identifier: issue.identifier,
         projectId: issue.projectId,
         projectName: issue.projectName,
         title: issue.title,
@@ -178,7 +179,7 @@ export function IssuesPageContent({
       buildIssueDetailHref({
         organizationSlug,
         projectId: issue.projectId,
-        issueId: issue.id,
+        issueId: issue.identifier,
       }),
     );
   };

@@ -20,6 +20,7 @@ import { app } from "@/api/app";
 import { PRODUCT_USAGE_ANALYTICS_EVENTS } from "@/lib/analytics/events";
 import { serverAnalytics } from "@/lib/analytics/server";
 import { db, schema } from "@/lib/database";
+import { uniqueTestProjectIdentifier } from "@/lib/projects/issue-identifier/test-project-identifier";
 
 import { createProjectTestFixture } from "./project.fixture";
 
@@ -50,6 +51,7 @@ function issueSheet() {
 type IssueResponse = {
   issue: {
     id: string;
+    identifier: string;
     title: string;
     issueType: string;
     status: string;
@@ -164,7 +166,7 @@ describe("Issue Sheet routes", () => {
     const viewWithStatusBody = (await viewWithStatusResponse.json()) as IssueSheetListResponse;
     expect(viewWithStatusBody.issues).toHaveLength(0);
 
-    const issueId = createdBody.issue.id;
+    const issueId = createdBody.issue.identifier;
 
     const getIssueResponse = await issueSheet()[":issueId"].$get(
       {
@@ -174,7 +176,7 @@ describe("Issue Sheet routes", () => {
     );
     expect(getIssueResponse.status).toBe(200);
     const getIssueBody = (await getIssueResponse.json()) as IssueResponse;
-    expect(getIssueBody.issue.id).toBe(issueId);
+    expect(getIssueBody.issue.identifier).toBe(issueId);
     expect(getIssueBody.issue.title).toBe("Source string needs context");
 
     const missingIssueResponse = await issueSheet()[":issueId"].$get(
@@ -182,7 +184,7 @@ describe("Issue Sheet routes", () => {
         param: {
           organizationSlug: organizationSlug,
           projectId: project.id,
-          issueId: "00000000-0000-4000-8000-000000000000",
+          issueId: "ZZZ-99999",
         },
       } as never,
       { headers: headers },
@@ -830,7 +832,7 @@ describe("Issue Sheet routes", () => {
         param: {
           organizationSlug: organizationSlug,
           projectId: project.id,
-          issueId: firstBody.issue.id,
+          issueId: firstBody.issue.identifier,
         },
         json: { status: "resolved" },
       } as never,
@@ -1095,6 +1097,7 @@ Second import issue,Done,EXT-2,P2`;
       .insert(schema.projects)
       .values({
         id: `project_${crypto.randomUUID()}`,
+        identifier: uniqueTestProjectIdentifier(),
         organizationId: organization.id,
         teamId: project.teamId,
         createdByUserId: user.id,
@@ -1124,7 +1127,7 @@ Second import issue,Done,EXT-2,P2`;
         param: {
           organizationSlug: organizationSlug,
           projectId: otherProject.id,
-          issueId: created.issue.id,
+          issueId: created.issue.identifier,
         },
       } as never,
       { headers: headers },
@@ -1139,7 +1142,7 @@ Second import issue,Done,EXT-2,P2`;
         param: {
           organizationSlug: organizationSlug,
           projectId: project.id,
-          issueId: "00000000-0000-4000-8000-000000000000",
+          issueId: "ZZZ-99999",
         },
       } as never,
       { headers: headers },
@@ -1172,7 +1175,7 @@ Second import issue,Done,EXT-2,P2`;
         param: {
           organizationSlug: ownerSlug,
           projectId: owner.project.id,
-          issueId: created.issue.id,
+          issueId: created.issue.identifier,
         },
       } as never,
       { headers: outsiderHeaders },

@@ -32,7 +32,7 @@ export const WORKOS_LOCALIZATION_ROLE_DEFINITIONS: WorkosLocalizationRoleDefinit
     slug: "localization_manager",
     name: "Localization manager",
     description:
-      "Operate projects, integrations, credentials, teams, and knowledge resources; approve reviews and write-back.",
+      "Operate projects, integrations, credentials, teams, and guideline resources; approve reviews and write-back.",
   },
   {
     slug: "developer",

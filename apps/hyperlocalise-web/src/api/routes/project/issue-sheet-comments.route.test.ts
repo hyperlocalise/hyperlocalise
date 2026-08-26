@@ -101,8 +101,8 @@ async function createIssue(organizationSlug: string, projectId: string, headers:
     },
   );
   expect(response.status).toBe(201);
-  const body = (await response.json()) as { issue: { id: string } };
-  return body.issue.id;
+  const body = (await response.json()) as { issue: { id: string; identifier: string } };
+  return body.issue;
 }
 
 describe("Issue sheet comment routes", () => {
@@ -110,7 +110,8 @@ describe("Issue sheet comment routes", () => {
     const { identity, project } = await projectFixture.createStoredProjectFixture();
     const headers = await projectFixture.authHeadersFor(identity);
     const organizationSlug = identity.organization.slug ?? "missing-slug";
-    const issueId = await createIssue(organizationSlug, project.id, headers);
+    const issue = await createIssue(organizationSlug, project.id, headers);
+    const issueId = issue.id;
 
     const createResponse = await requestJson(commentsUrl(organizationSlug, project.id, issueId), {
       method: "POST",
@@ -204,7 +205,8 @@ describe("Issue sheet comment routes", () => {
     const { identity, project } = await projectFixture.createStoredProjectFixture();
     const authorHeaders = await projectFixture.authHeadersFor(identity);
     const organizationSlug = identity.organization.slug ?? "missing-slug";
-    const issueId = await createIssue(organizationSlug, project.id, authorHeaders);
+    const issue = await createIssue(organizationSlug, project.id, authorHeaders);
+    const issueId = issue.id;
 
     const createResponse = await requestJson(commentsUrl(organizationSlug, project.id, issueId), {
       method: "POST",
@@ -259,7 +261,8 @@ describe("Issue sheet comment routes", () => {
       role: "member",
     });
     const organizationSlug = adminIdentity.organization.slug ?? "missing-slug";
-    const issueId = await createIssue(organizationSlug, project.id, adminHeaders);
+    const issue = await createIssue(organizationSlug, project.id, adminHeaders);
+    const issueId = issue.id;
 
     const createResponse = await requestJson(commentsUrl(organizationSlug, project.id, issueId), {
       method: "POST",
@@ -295,7 +298,8 @@ describe("Issue sheet comment routes", () => {
     const { identity, project } = await projectFixture.createStoredProjectFixture();
     const headers = await projectFixture.authHeadersFor(identity);
     const organizationSlug = identity.organization.slug ?? "missing-slug";
-    const issueId = await createIssue(organizationSlug, project.id, headers);
+    const issue = await createIssue(organizationSlug, project.id, headers);
+    const issueId = issue.id;
 
     const createResponse = await requestJson(commentsUrl(organizationSlug, project.id, issueId), {
       method: "POST",
@@ -317,7 +321,8 @@ describe("Issue sheet comment routes", () => {
     const { identity, project } = await projectFixture.createStoredProjectFixture();
     const headers = await projectFixture.authHeadersFor(identity);
     const organizationSlug = identity.organization.slug ?? "missing-slug";
-    const issueId = await createIssue(organizationSlug, project.id, headers);
+    const issue = await createIssue(organizationSlug, project.id, headers);
+    const issueId = issue.id;
 
     const outsider = projectFixture.createWorkosIdentityWithRole("admin");
     const outsiderHeaders = await projectFixture.authHeadersFor(outsider);
@@ -326,5 +331,45 @@ describe("Issue sheet comment routes", () => {
       headers: outsiderHeaders,
     });
     expect(response.status).toBe(404);
+  });
+
+  it("creates, updates, and deletes comments when the URL uses a PREFIX-N identifier", async () => {
+    const { identity, project } = await projectFixture.createStoredProjectFixture();
+    const headers = await projectFixture.authHeadersFor(identity);
+    const organizationSlug = identity.organization.slug ?? "missing-slug";
+    const issue = await createIssue(organizationSlug, project.id, headers);
+
+    const createResponse = await requestJson(
+      commentsUrl(organizationSlug, project.id, issue.identifier),
+      {
+        method: "POST",
+        headers,
+        body: { body: "Root via identifier" },
+      },
+    );
+    expect(createResponse.status).toBe(201);
+    const created = (await createResponse.json()) as CommentResponse;
+    expect(created.issueComment.body).toBe("Root via identifier");
+
+    const patchResponse = await requestJson(
+      commentsUrl(organizationSlug, project.id, issue.identifier, `/${created.issueComment.id}`),
+      {
+        method: "PATCH",
+        headers,
+        body: { body: "Edited via identifier" },
+      },
+    );
+    expect(patchResponse.status).toBe(200);
+    const patched = (await patchResponse.json()) as CommentResponse;
+    expect(patched.issueComment.body).toBe("Edited via identifier");
+
+    const deleteResponse = await requestJson(
+      commentsUrl(organizationSlug, project.id, issue.identifier, `/${created.issueComment.id}`),
+      {
+        method: "DELETE",
+        headers,
+      },
+    );
+    expect(deleteResponse.status).toBe(204);
   });
 });

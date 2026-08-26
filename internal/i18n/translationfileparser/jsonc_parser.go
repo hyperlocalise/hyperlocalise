@@ -31,7 +31,7 @@ func (p JSONCParser) ParseWithContext(content []byte) (map[string]string, map[st
 		return values, contextByKey, nil
 	}
 	if contextByKey == nil {
-		contextByKey = map[string]string{}
+		contextByKey = make(map[string]string, len(commentContext))
 	}
 	for key, comment := range commentContext {
 		if strings.TrimSpace(contextByKey[key]) != "" {
@@ -50,10 +50,12 @@ func (p JSONCParser) ParseWithContext(content []byte) (map[string]string, map[st
 
 func parseJSONCKeyComments(content []byte) map[string]string {
 	// BOLT OPTIMIZATION: Avoid bytes.Split(content, []byte("\n")) to reduce allocations for large files.
-	stack := []string{}
+	// Grow the comment map lazily. A ':' count is not a key count: string values
+	// and comments can contain many colons and would force a huge empty allocation.
+	stack := make([]string, 0, 16)
 	stackPrefix := ""
-	pendingComments := []string{}
-	contexts := map[string]string{}
+	pendingComments := make([]string, 0, 8)
+	contexts := make(map[string]string)
 	inBlockComment := false
 
 	s := content
@@ -122,9 +124,11 @@ func parseJSONCKeyComments(content []byte) map[string]string {
 		}
 
 		inlineComment := ""
-		if idx := indexJSONCLineComment(line); idx >= 0 {
-			inlineComment = cleanJSONCCommentText(line[idx:])
-			line = bytes.TrimSpace(line[:idx])
+		if bytes.IndexByte(line, '/') >= 0 {
+			if idx := indexJSONCLineComment(line); idx >= 0 {
+				inlineComment = cleanJSONCCommentText(line[idx:])
+				line = bytes.TrimSpace(line[:idx])
+			}
 		}
 
 		for len(line) > 0 && line[0] == '}' {

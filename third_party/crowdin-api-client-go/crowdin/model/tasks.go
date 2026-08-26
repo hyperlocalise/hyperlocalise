@@ -109,6 +109,10 @@ type TasksListOptions struct {
 	// or a list of status values.
 	// Enum: todo, in_progress, done, closed.
 	Status []TaskStatus `json:"status,omitempty"`
+	// List tasks with specified types. It can be one type
+	// or a list of type values.
+	// Enum: 0 - translate, 1 - proofread, 2 - translate by vendor, 3 - proofread by vendor.
+	Type []TaskType `json:"type,omitempty"`
 	// List tasks for specified assignee.
 	AssigneeID int `json:"assigneeId,omitempty"`
 	// List tasks for specified creator.
@@ -137,6 +141,9 @@ func (o *TasksListOptions) Values() (url.Values, bool) {
 	}
 	if len(o.Status) > 0 {
 		v.Add("status", JoinSlice(o.Status))
+	}
+	if len(o.Type) > 0 {
+		v.Add("type", JoinSlice(o.Type))
 	}
 	if o.AssigneeID > 0 {
 		v.Add("assigneeId", strconv.Itoa(o.AssigneeID))

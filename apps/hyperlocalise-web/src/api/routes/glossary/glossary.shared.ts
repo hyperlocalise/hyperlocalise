@@ -23,6 +23,9 @@ import { canAccessGlossary } from "@/api/auth/team-access";
 import type { ApiAuthContext } from "@/api/auth/workos";
 import { hasCapability } from "@/api/auth/policy";
 import { db, schema } from "@/lib/database";
+import type { Glossary as GlossaryRecord } from "@/lib/database/types";
+import { getTmsProviderLiveGlossary } from "@/lib/providers/jobs/tms-provider-live";
+import { parseLiveProviderGlossaryId } from "@/lib/providers/jobs/tms-provider-resource-id";
 
 export function invalidGlossaryPayloadResponse(c: { json: JsonContext["json"] }) {
   return validationErrorResponse(c, "invalid_glossary_payload", "Invalid glossary payload");
@@ -69,6 +72,48 @@ export async function ownedGlossaryWhere(auth: ApiAuthContext, glossaryId: strin
 }
 
 export async function getOwnedGlossary(auth: ApiAuthContext, glossaryId: string) {
+  const liveId = parseLiveProviderGlossaryId(glossaryId);
+  if (liveId?.providerKind === "crowdin") {
+    const liveGlossary = await getTmsProviderLiveGlossary(
+      auth.organization.localOrganizationId,
+      glossaryId,
+      {
+        actorUserId: auth.user.localUserId,
+      },
+    );
+    if (!liveGlossary) return null;
+
+    const now = new Date();
+    const ephemeralGlossary: GlossaryRecord = {
+      id: glossaryId,
+      organizationId: auth.organization.localOrganizationId,
+      createdByUserId: null,
+      name: liveGlossary.name,
+      description: liveGlossary.description ?? "",
+      sourceLocale: liveGlossary.sourceLocale,
+      targetLocale: liveGlossary.targetLocale || null,
+      status: "active",
+      source: "external_tms",
+      externalProviderKind: "crowdin",
+      externalProviderCredentialId: null,
+      externalProjectId: liveGlossary.externalProjectId,
+      externalResourceType: "glossary",
+      externalGlossaryId: liveId.externalGlossaryId,
+      localeCoverage: liveGlossary.localeCoverage,
+      termCount: liveGlossary.termCount,
+      syncState: null,
+      termCapabilities: {},
+      externalUrl: liveGlossary.externalUrl,
+      lastSyncedAt: null,
+      lastSyncErrorAt: null,
+      lastSyncErrorMessage: null,
+      providerMetadata: {},
+      createdAt: now,
+      updatedAt: now,
+    };
+    return ephemeralGlossary;
+  }
+
   const [glossary] = await db
     .select()
     .from(schema.glossaries)

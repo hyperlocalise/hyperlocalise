@@ -23,10 +23,11 @@
 - `.xml` via `AndroidXMLResourcesParser` for Android `**/res/values*/strings.xml` files
 - `.xml` / `.resx` via `GenericXMLParser` (non-Android generic XML locale files)
 - `.properties` via `JavaPropertiesParser` (Java resource bundles)
+- `.srt` / `.vtt` via `SubtitleParser` (SubRip and WebVTT subtitle cues)
 
 ## Strategy API
 
-- `NewDefaultStrategy()` returns a strategy pre-registered with JSON, JSONC, YAML/YML, JS/TS locale module, XLIFF, PO, Apple strings/catalog, Markdown/MDX, CSV, Liquid, HTML, ARB, PHP array, Fluent, Android XML strings, generic XML/RESX, and Java properties parsers.
+- `NewDefaultStrategy()` returns a strategy pre-registered with JSON, JSONC, YAML/YML, JS/TS locale module, XLIFF, PO, Apple strings/catalog, Markdown/MDX, CSV, Liquid, HTML, ARB, PHP array, Fluent, Android XML strings, generic XML/RESX, Java properties, and SubRip/WebVTT subtitle parsers.
 - `Register(ext, parser)` allows adding/replacing parser implementations by extension.
 - `Parse(path, content)` resolves parser by extension and returns `map[string]string`.
 
@@ -199,6 +200,17 @@
 - `MarshalJavaProperties(template, values)` preserves key order, comments, separators, and spacing while replacing value literals. New keys are appended in sorted order.
 - Writeback normalizes translated values to single-line escaped values.
 - Duplicate keys, malformed unicode escapes, invalid UTF-8 input, and dangling continuations return explicit parse errors.
+
+### Subtitles (`.srt`, `.vtt`)
+
+- Parses SubRip (`.srt`) and WebVTT (`.vtt`) cues into sequential keys such as `srt.0001` and `vtt.0001`.
+- Cue numbers, timestamps, positioning, and WebVTT cue settings stay in the file structure and are not translated.
+- Cue payload text is the translation unit. Multiline cues become a single value joined with `\n`.
+- `ParseWithContext` returns the timestamp line as entry context, including a non-numeric WebVTT cue identifier when present.
+- WebVTT `WEBVTT` headers, `NOTE`, `STYLE`, and `REGION` blocks are preserved verbatim.
+- WebVTT cue timestamps accept an hours field with two or more digits (for example `100:00:00.000`).
+- `MarshalSubtitles(template, values, kind)` replaces cue text in place. Extra translation keys are ignored so cue counts stay aligned with the template. Blank lines inside translated cue text are dropped so they cannot split cues.
+- `SubtitleCueStructureEqual` compares cue identifiers and timings so writeback can reject stale targets that happen to have the same cue count.
 
 ## Minimal usage
 

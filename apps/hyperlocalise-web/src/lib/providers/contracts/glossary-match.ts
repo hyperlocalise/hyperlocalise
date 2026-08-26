@@ -23,6 +23,28 @@ export type NormalizedGlossaryTermStatus = {
   preferred: boolean;
 };
 
+export type NormalizedGlossaryConceptTerm = {
+  id: string;
+  locale: string;
+  text: string;
+  status?: string | null;
+  forbidden?: boolean;
+  preferred?: boolean;
+  termType?: string | null;
+  partOfSpeech?: string | null;
+  gender?: string | null;
+};
+
+export type NormalizedGlossaryConcept = {
+  id: string;
+  primaryTerm: string;
+  subject?: string | null;
+  definition?: string | null;
+  glossaryUrl?: string | null;
+  sourceTerms: NormalizedGlossaryConceptTerm[];
+  targetTerms: NormalizedGlossaryConceptTerm[];
+};
+
 export type NormalizedGlossaryMatch = {
   id: string;
   glossaryId: string;
@@ -40,6 +62,7 @@ export type NormalizedGlossaryMatch = {
   externalResourceId: string | null;
   externalTermId: string | null;
   termStatus: NormalizedGlossaryTermStatus;
+  concept?: NormalizedGlossaryConcept;
 };
 
 export type ContextGlossaryMatch = {
@@ -87,6 +110,7 @@ export type ProviderGlossaryMatchInput = {
   glossaryName: string;
   rank?: number;
   status?: ProviderGlossaryTermStatusInput;
+  concept?: NormalizedGlossaryConcept;
 };
 
 export function normalizeGlossaryTermStatus(
@@ -124,6 +148,7 @@ export function normalizeProviderGlossaryMatch(
     externalResourceId,
     externalTermId,
     termStatus,
+    ...(input.concept ? { concept: input.concept } : {}),
   };
 }
 
@@ -142,6 +167,7 @@ export function normalizeSyncedDatabaseGlossaryMatch(input: {
   providerKind: ExternalTmsProviderKind | null;
   externalResourceId: string | null;
   externalTermId: string | null;
+  concept?: NormalizedGlossaryConcept;
 }): NormalizedGlossaryMatch {
   return {
     id: input.id,
@@ -163,6 +189,7 @@ export function normalizeSyncedDatabaseGlossaryMatch(input: {
       forbidden: input.forbidden,
       preferred: !input.forbidden,
     },
+    ...(input.concept ? { concept: input.concept } : {}),
   };
 }
 

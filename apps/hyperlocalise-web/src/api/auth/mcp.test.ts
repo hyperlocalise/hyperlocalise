@@ -22,11 +22,11 @@ import {
   markAuthorizationCodeUsed,
   parseAuthorizationCode,
 } from "@/api/auth/mcp";
-import { createApp } from "@/api/app";
+import { createMcpTestApp } from "@/api/routes/mcp/mcp.fixture";
 import { createProjectTestFixture } from "@/api/routes/project/project.fixture";
 import { db, schema } from "@/lib/database";
 
-const app = createApp();
+const app = createMcpTestApp();
 const fixture = createProjectTestFixture();
 
 function pkceChallenge(verifier: string) {
@@ -42,7 +42,7 @@ async function exchangeCode(input: { code: string; verifier: string }) {
     code_verifier: input.verifier,
   });
 
-  return app.request("http://localhost/api/mcp/token", {
+  return app.request("http://localhost/mcp/token", {
     method: "POST",
     headers: {
       "content-type": "application/x-www-form-urlencoded",
@@ -114,7 +114,7 @@ describe("mcpBearerAuthMiddleware", () => {
       .set({ lifecycleStatus: "archived", archivedAt: new Date() })
       .where(eq(schema.organizations.id, auth.organization.localOrganizationId));
 
-    const response = await app.request("http://localhost/api/mcp/sse", {
+    const response = await app.request("http://localhost/mcp/sse", {
       headers: {
         authorization: `Bearer ${accessToken}`,
       },
@@ -165,13 +165,16 @@ describe("mcpBearerAuthMiddleware", () => {
         ),
       );
 
-    const response = await app.request("http://localhost/api/mcp/sse", {
+    const response = await app.request("http://localhost/mcp/sse", {
       headers: {
         authorization: `Bearer ${accessToken}`,
       },
     });
 
     expect(response.status).toBe(401);
+    expect(response.headers.get("www-authenticate")).toBe(
+      'Bearer resource_metadata="http://localhost/.well-known/oauth-protected-resource", scope="mcp"',
+    );
 
     const remainingSessions = await db
       .select({ id: schema.mcpSessions.id })
@@ -215,13 +218,16 @@ describe("mcpBearerAuthMiddleware", () => {
         ),
       );
 
-    const response = await app.request("http://localhost/api/mcp/sse", {
+    const response = await app.request("http://localhost/mcp/sse", {
       headers: {
         authorization: `Bearer ${accessToken}`,
       },
     });
 
     expect(response.status).toBe(401);
+    expect(response.headers.get("www-authenticate")).toBe(
+      'Bearer resource_metadata="http://localhost/.well-known/oauth-protected-resource", scope="mcp"',
+    );
 
     const remainingSessions = await db
       .select({ id: schema.mcpSessions.id })

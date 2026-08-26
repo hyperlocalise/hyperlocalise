@@ -13,7 +13,11 @@
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { expect, fn } from "storybook/test";
 
-import { createEmptyGlossaryFormFixture, glossariesFixture } from "./glossaries.fixture";
+import {
+  createEmptyGlossaryFormFixture,
+  createGlossaryListRow,
+  glossariesFixture,
+} from "./glossaries.fixture";
 import { GlossariesPageView } from "./glossaries-page-view";
 
 const meta = {
@@ -24,30 +28,21 @@ const meta = {
   },
   args: {
     organizationSlug: "acme",
-    glossaries: glossariesFixture,
+    nativeGlossaries: glossariesFixture.filter((glossary) => glossary.source === "native"),
+    externalGlossaries: glossariesFixture.filter((glossary) => glossary.source === "external_tms"),
     glossaryTotal: glossariesFixture.length,
-    isLoading: false,
-    isError: false,
-    isSuccess: true,
-    error: null,
+    nativeTotal: 1,
+    externalTotal: 2,
+    nativeQuery: { isLoading: false, isError: false, isSuccess: true, error: null },
+    externalQuery: { isLoading: false, isError: false, isSuccess: true, error: null },
     allowCreateGlossaries: true,
     hasConnectedProvider: true,
     useLiveProviderGlossaries: false,
+    useLiveCrowdinGlossaries: false,
     selectedExternalProjectId: "",
     onSelectedExternalProjectIdChange: fn(),
     searchQuery: "",
     onSearchQueryChange: fn(),
-    sourceFilter: "all",
-    onSourceFilterChange: fn(),
-    providerFilter: "all",
-    onProviderFilterChange: fn(),
-    resourceTypeFilter: "all",
-    onResourceTypeFilterChange: fn(),
-    syncFilter: "all",
-    onSyncFilterChange: fn(),
-    providerKinds: ["phrase", "crowdin"],
-    hasExternalGlossaries: true,
-    hasResourceTypes: true,
     hasActiveFilters: false,
     activeFilterCount: 0,
     onClearFilters: fn(),
@@ -56,6 +51,11 @@ const meta = {
     pageStart: 1,
     pageEnd: glossariesFixture.length,
     onPageChange: fn(),
+    crowdinPage: 1,
+    crowdinHasMore: false,
+    onCrowdinPageChange: fn(),
+    crowdinOrderBy: "createdAt desc,name",
+    onCrowdinOrderByChange: fn(),
     createDialogOpen: false,
     onCreateDialogOpenChange: fn(),
     createForm: createEmptyGlossaryFormFixture(),
@@ -79,20 +79,73 @@ export const Default: Story = {
     ).toBeInTheDocument();
     await expect(canvas.getByText("Phrase Term Base")).toBeInTheDocument();
     await expect(canvas.getByText("Crowdin Glossary")).toBeInTheDocument();
+    await expect(canvas.getByRole("link", { name: "Phrase Term Base" })).toHaveAttribute(
+      "href",
+      "/org/acme/glossaries/22222222-2222-4222-8222-222222222222",
+    );
+    await expect(canvas.getByRole("link", { name: "Open in provider" })).toHaveAttribute(
+      "href",
+      "https://phrase.com/tb/42",
+    );
+  },
+};
+
+export const LiveProviderGlossary: Story = {
+  args: {
+    nativeGlossaries: [],
+    externalGlossaries: [
+      createGlossaryListRow({
+        id: "crowdin:glossary:99",
+        detailId: "crowdin:glossary:99",
+        name: "Live Crowdin Glossary",
+        source: "external_tms",
+        externalProviderKind: "crowdin",
+        externalProjectId: "crowdin-project-1",
+        externalGlossaryId: "99",
+        externalUrl: "https://crowdin.com/project/crowdin-project-1",
+        projectLinkId: "crowdin-project-link-1",
+        isLiveApi: true,
+        providerLogoSrc: "/images/tms/crowdin.png",
+      }),
+    ],
+    glossaryTotal: 1,
+    nativeTotal: 0,
+    externalTotal: 1,
+    nativeQuery: { isLoading: false, isError: false, isSuccess: true, error: null },
+    externalQuery: { isLoading: false, isError: false, isSuccess: true, error: null },
+    allowCreateGlossaries: false,
+    useLiveProviderGlossaries: true,
+    useLiveCrowdinGlossaries: true,
+    pageEnd: 1,
+  },
+  play: async ({ canvas }) => {
+    await expect(canvas.getByText("Live Crowdin Glossary")).toBeInTheDocument();
+    await expect(canvas.getByText("Live API")).toBeInTheDocument();
+    await expect(canvas.getByRole("link", { name: "Live Crowdin Glossary" })).toHaveAttribute(
+      "href",
+      "/org/acme/glossaries/crowdin:glossary:99",
+    );
+    await expect(canvas.getByRole("link", { name: "Open in provider" })).toHaveAttribute(
+      "href",
+      "https://crowdin.com/project/crowdin-project-1",
+    );
+    await expect(canvas.getByText("TMS project")).toBeInTheDocument();
+    await expect(canvas.getByText("Sort")).toBeInTheDocument();
+    await expect(canvas.getByRole("button", { name: "More glossary actions" })).toBeInTheDocument();
   },
 };
 
 export const Loading: Story = {
   args: {
-    glossaries: [],
+    nativeGlossaries: [],
+    externalGlossaries: [],
     glossaryTotal: 0,
-    isLoading: true,
-    isSuccess: false,
+    nativeTotal: 0,
+    externalTotal: 0,
+    nativeQuery: { isLoading: true, isError: false, isSuccess: false, error: null },
+    externalQuery: { isLoading: true, isError: false, isSuccess: false, error: null },
     pageStart: 0,
     pageEnd: 0,
-    providerKinds: [],
-    hasExternalGlossaries: false,
-    hasResourceTypes: false,
   },
   play: async ({ canvas }) => {
     await expect(canvas.getByText("Loading glossaries...")).toBeInTheDocument();
@@ -101,35 +154,42 @@ export const Loading: Story = {
 
 export const Empty: Story = {
   args: {
-    glossaries: [],
+    nativeGlossaries: [],
+    externalGlossaries: [],
     glossaryTotal: 0,
+    nativeTotal: 0,
+    externalTotal: 0,
+    nativeQuery: { isLoading: false, isError: false, isSuccess: true, error: null },
+    externalQuery: { isLoading: false, isError: false, isSuccess: true, error: null },
     pageStart: 0,
     pageEnd: 0,
-    providerKinds: [],
-    hasExternalGlossaries: false,
-    hasResourceTypes: false,
   },
   play: async ({ canvas }) => {
-    await expect(canvas.getByText("No glossaries yet")).toBeInTheDocument();
+    await expect(canvas.getByText("Build your terminology library")).toBeInTheDocument();
     await expect(
       canvas.getByText(
-        "Create a workspace glossary, import terms, then assign it to the projects that should use it.",
+        "Create a workspace glossary for approved terms, or connect a provider to bring in an existing term base.",
       ),
     ).toBeInTheDocument();
+    await expect(canvas.getByRole("button", { name: "Create glossary" })).toBeInTheDocument();
+    await expect(canvas.getByRole("link", { name: "Open integrations" })).toBeInTheDocument();
+    await expect(canvas.getByRole("heading", { name: "Glossaries" })).toBeInTheDocument();
   },
 };
 
 export const NoProviderConnected: Story = {
   args: {
-    glossaries: [],
+    nativeGlossaries: [],
+    externalGlossaries: [],
     glossaryTotal: 0,
+    nativeTotal: 0,
+    externalTotal: 0,
+    nativeQuery: { isLoading: false, isError: false, isSuccess: true, error: null },
+    externalQuery: { isLoading: false, isError: false, isSuccess: true, error: null },
     allowCreateGlossaries: false,
     hasConnectedProvider: false,
     pageStart: 0,
     pageEnd: 0,
-    providerKinds: [],
-    hasExternalGlossaries: false,
-    hasResourceTypes: false,
   },
   play: async ({ canvas }) => {
     await expect(canvas.getByText("Connect a TMS provider")).toBeInTheDocument();
@@ -169,53 +229,63 @@ export const CreateDialogOpen: Story = {
 
 export const LoadError: Story = {
   args: {
-    glossaries: [],
+    nativeGlossaries: [],
+    externalGlossaries: [],
     glossaryTotal: 0,
-    isError: true,
-    isSuccess: false,
-    error: new Error("The glossaries API returned a 500."),
+    nativeTotal: 0,
+    externalTotal: 0,
+    nativeQuery: {
+      isLoading: false,
+      isError: true,
+      isSuccess: false,
+      error: new Error("The native glossaries API returned a 500."),
+    },
+    externalQuery: { isLoading: false, isError: false, isSuccess: true, error: null },
     pageStart: 0,
     pageEnd: 0,
-    providerKinds: [],
-    hasExternalGlossaries: false,
-    hasResourceTypes: false,
   },
   play: async ({ canvas }) => {
     await expect(canvas.getByText("Glossaries failed to load.")).toBeInTheDocument();
   },
 };
 
-export const LiveProjectSelectionRequired: Story = {
+export const LiveAllProjects: Story = {
   args: {
-    glossaries: [],
+    nativeGlossaries: [],
+    externalGlossaries: [],
     glossaryTotal: 0,
-    useLiveProviderGlossaries: true,
+    nativeTotal: 0,
+    externalTotal: 0,
+    nativeQuery: { isLoading: false, isError: false, isSuccess: true, error: null },
+    externalQuery: { isLoading: false, isError: false, isSuccess: true, error: null },
+    useLiveProviderGlossaries: false,
+    useLiveCrowdinGlossaries: true,
     allowCreateGlossaries: false,
     pageStart: 0,
     pageEnd: 0,
-    providerKinds: [],
-    hasExternalGlossaries: false,
-    hasResourceTypes: false,
   },
   play: async ({ canvas }) => {
-    await expect(canvas.getByText("Choose a TMS project")).toBeInTheDocument();
+    await expect(canvas.getByText("Native glossaries")).toBeInTheDocument();
+    await expect(canvas.getByText("Crowdin glossaries")).toBeInTheDocument();
   },
 };
 
-export const NoFilterMatches: Story = {
+export const NoSearchMatches: Story = {
   args: {
-    glossaries: [],
+    nativeGlossaries: [],
+    externalGlossaries: [],
     glossaryTotal: 0,
+    nativeTotal: 0,
+    externalTotal: 0,
+    nativeQuery: { isLoading: false, isError: false, isSuccess: true, error: null },
+    externalQuery: { isLoading: false, isError: false, isSuccess: true, error: null },
     hasActiveFilters: true,
     activeFilterCount: 1,
-    sourceFilter: "native",
+    searchQuery: "missing glossary",
     pageStart: 0,
     pageEnd: 0,
-    providerKinds: [],
-    hasExternalGlossaries: false,
-    hasResourceTypes: false,
   },
   play: async ({ canvas }) => {
-    await expect(canvas.getByText("No glossaries match your filters.")).toBeInTheDocument();
+    await expect(canvas.getByText("No glossaries match your search.")).toBeInTheDocument();
   },
 };

@@ -16,6 +16,7 @@ import { and, asc, desc, eq, isNotNull, isNull, lte, or, sql } from "drizzle-orm
 
 import { db, schema, type DatabaseClient } from "@/lib/database";
 import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
+import { isValidAutomationTimeZone } from "@/lib/agents/automation-time-zones";
 import { lockAhrefsConnectionForUpdate } from "@/lib/ahrefs/connections";
 import { lockSemrushConnectionForUpdate } from "@/lib/semrush/connections";
 import { crowdinAuth } from "@/lib/providers/adapters/crowdin/crowdin-auth";
@@ -159,6 +160,17 @@ function validateWorkspaceAutomationConfig(input: {
       code: "scheduled_workflow_required",
       message:
         "Scheduled automations require at least one GitHub, Contentful, Issues, Web Search, or Crowdin workflow tool.",
+    });
+  }
+
+  if (
+    input.triggerConfig.mode === "scheduled" &&
+    input.triggerConfig.schedule &&
+    !isValidAutomationTimeZone(input.triggerConfig.schedule.timezone)
+  ) {
+    return err({
+      code: "invalid_automation_timezone",
+      message: "Choose a valid timezone for the schedule.",
     });
   }
 
@@ -936,8 +948,24 @@ export async function getWorkspaceAutomationById(input: {
   return row ? serializeAutomationWithAuthor(row) : null;
 }
 
+function workspaceAutomationMatchesProjectId(projectId: string) {
+  return or(
+    eq(schema.workspaceAutomations.projectId, projectId),
+    and(
+      isNull(schema.workspaceAutomations.projectId),
+      sql`(
+        ${schema.workspaceAutomations.toolConfig}->'contentful'->>'projectId' = ${projectId}
+        OR ${schema.workspaceAutomations.toolConfig}->'translation'->>'projectId' = ${projectId}
+        OR ${schema.workspaceAutomations.toolConfig}->'github'->>'projectId' = ${projectId}
+        OR ${schema.workspaceAutomations.toolConfig}->'createNativeTmsJob'->>'projectId' = ${projectId}
+      )`,
+    ),
+  );
+}
+
 export async function listWorkspaceAutomations(input: {
   organizationId: string;
+  projectId?: string;
   status?: WorkspaceAutomationStatus;
   contentfulWebhookConnectionId?: string;
   contentfulWebhookContentTypeId?: string | null;
@@ -951,6 +979,7 @@ export async function listWorkspaceAutomations(input: {
 
   const conditions = [
     eq(schema.workspaceAutomations.organizationId, input.organizationId),
+    ...(input.projectId ? [workspaceAutomationMatchesProjectId(input.projectId)] : []),
     ...(input.status ? [eq(schema.workspaceAutomations.status, input.status)] : []),
     ...(input.contentfulWebhookConnectionId
       ? [
@@ -1010,16 +1039,7 @@ export async function listSourceUploadWorkspaceAutomations(input: {
           ${schema.workspaceAutomations.toolConfig}->'createNativeTmsJob'->>'enabled' = 'true'
           OR ${schema.workspaceAutomations.toolConfig}->'translation'->>'enabled' = 'true'
         )`,
-        or(
-          eq(schema.workspaceAutomations.projectId, input.projectId),
-          and(
-            isNull(schema.workspaceAutomations.projectId),
-            sql`(
-              ${schema.workspaceAutomations.toolConfig}->'createNativeTmsJob'->>'projectId' = ${input.projectId}
-              OR ${schema.workspaceAutomations.toolConfig}->'translation'->>'projectId' = ${input.projectId}
-            )`,
-          ),
-        ),
+        workspaceAutomationMatchesProjectId(input.projectId),
       ),
     )
     .orderBy(desc(schema.workspaceAutomations.createdAt))
@@ -1028,25 +1048,20 @@ export async function listSourceUploadWorkspaceAutomations(input: {
   return rows.map((row) => serializeAutomation(row));
 }
 
-export type DueWorkspaceAutomation = {
-  automation: WorkspaceAutomationRecord;
-  repository: typeof schema.githubInstallationRepositories.$inferSelect;
-};
-
 export async function listDueWorkspaceAutomations(input: {
   now?: Date;
   limit?: number;
-}): Promise<DueWorkspaceAutomation[]> {
+  organizationId?: string;
+}): Promise<WorkspaceAutomationRecord[]> {
   const now = input.now ?? new Date();
   const limit = input.limit ?? 100;
 
   const rows = await db
     .select({
       automation: schema.workspaceAutomations,
-      repository: schema.githubInstallationRepositories,
     })
     .from(schema.workspaceAutomations)
-    .innerJoin(
+    .leftJoin(
       schema.githubInstallationRepositories,
       eq(
         schema.workspaceAutomations.githubInstallationRepositoryId,
@@ -1058,17 +1073,63 @@ export async function listDueWorkspaceAutomations(input: {
         eq(schema.workspaceAutomations.status, "active"),
         isNotNull(schema.workspaceAutomations.nextRunAt),
         lte(schema.workspaceAutomations.nextRunAt, now),
-        eq(schema.githubInstallationRepositories.enabled, true),
-        eq(schema.githubInstallationRepositories.archived, false),
+        sql`${schema.workspaceAutomations.triggerConfig}->>'mode' = 'scheduled'`,
+        or(
+          isNull(schema.workspaceAutomations.githubInstallationRepositoryId),
+          and(
+            eq(schema.githubInstallationRepositories.enabled, true),
+            eq(schema.githubInstallationRepositories.archived, false),
+          ),
+        ),
+        ...(input.organizationId
+          ? [eq(schema.workspaceAutomations.organizationId, input.organizationId)]
+          : []),
       ),
     )
     .orderBy(asc(schema.workspaceAutomations.nextRunAt), asc(schema.workspaceAutomations.id))
     .limit(limit);
 
-  return rows.map(({ automation, repository }) => ({
-    automation: serializeAutomation(automation),
-    repository,
-  }));
+  return rows.map(({ automation }) => serializeAutomation(automation));
+}
+
+export async function repairMissingScheduledWorkspaceAutomationNextRuns(input?: {
+  now?: Date;
+  limit?: number;
+}): Promise<number> {
+  const now = input?.now ?? new Date();
+  const limit = input?.limit ?? 100;
+
+  const rows = await db
+    .select()
+    .from(schema.workspaceAutomations)
+    .where(
+      and(
+        eq(schema.workspaceAutomations.status, "active"),
+        isNull(schema.workspaceAutomations.nextRunAt),
+        sql`${schema.workspaceAutomations.triggerConfig}->>'mode' = 'scheduled'`,
+      ),
+    )
+    .orderBy(asc(schema.workspaceAutomations.id))
+    .limit(limit);
+
+  let updated = 0;
+  for (const row of rows) {
+    const nextRunAt = resolveNextRunAtForWorkspaceAutomation(serializeAutomation(row), now);
+    if (!nextRunAt) {
+      continue;
+    }
+
+    await db
+      .update(schema.workspaceAutomations)
+      .set({
+        nextRunAt,
+        updatedAt: new Date(),
+      })
+      .where(eq(schema.workspaceAutomations.id, row.id));
+    updated += 1;
+  }
+
+  return updated;
 }
 
 export async function listDueContentfulWorkspaceAutomations(input: {

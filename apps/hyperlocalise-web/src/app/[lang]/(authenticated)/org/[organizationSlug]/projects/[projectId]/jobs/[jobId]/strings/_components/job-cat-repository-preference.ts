@@ -10,6 +10,11 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import {
+  readBrowserLocalStorageItem,
+  writeBrowserLocalStorageItem,
+} from "@/lib/primitives/browser-local-storage/browser-local-storage";
+
 const STORAGE_PREFIX = "job-cat-repository";
 
 export function catFileRepositoryPreferenceKey(
@@ -21,26 +26,10 @@ export function catFileRepositoryPreferenceKey(
 }
 
 export function readCatFileRepositoryPreference(storageKey: string): string | null {
-  try {
-    if (typeof localStorage === "undefined") {
-      return null;
-    }
-
-    const value = localStorage.getItem(storageKey);
-    return value?.trim() ? value.trim() : null;
-  } catch {
-    return null;
-  }
+  const value = readBrowserLocalStorageItem(storageKey)?.trim();
+  return value ? value : null;
 }
 
 export function writeCatFileRepositoryPreference(storageKey: string, repositoryFullName: string) {
-  try {
-    if (typeof localStorage === "undefined") {
-      return;
-    }
-
-    localStorage.setItem(storageKey, repositoryFullName);
-  } catch {
-    // Storage may be unavailable in private browsing or when quota is exceeded.
-  }
+  writeBrowserLocalStorageItem(storageKey, repositoryFullName);
 }

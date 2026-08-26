@@ -76,6 +76,17 @@ export const projectSettingsPageContentMessages = defineMessages({
     id: "6Lz1ZPrrNj",
     description: "Label for the project name field",
   },
+  identifierLabel: {
+    defaultMessage: "Identifier",
+    id: "WqXZ03MFeR",
+    description: "Label for the project issue ID prefix field",
+  },
+  identifierHelp: {
+    defaultMessage:
+      "Used as the prefix for new issue IDs (e.g. HL-12). Must be unique among projects in this workspace. Existing issue IDs are kept.",
+    id: "o/5bDmAGTd",
+    description: "Help text under the project issue identifier field",
+  },
   descriptionLabel: {
     defaultMessage: "Description",
     id: "Vd2zLJN2br",

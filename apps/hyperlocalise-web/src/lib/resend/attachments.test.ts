@@ -50,6 +50,8 @@ describe("inferAttachmentContentType", () => {
     );
     expect(inferAttachmentContentType("rails.en.yml")).toBe("text/yaml; charset=utf-8");
     expect(inferAttachmentContentType("messages.yaml")).toBe("text/yaml; charset=utf-8");
+    expect(inferAttachmentContentType("captions.srt")).toBe("application/x-subrip; charset=utf-8");
+    expect(inferAttachmentContentType("captions.vtt")).toBe("text/vtt; charset=utf-8");
   });
 
   it("falls back to octet-stream for unknown or extensionless files", () => {

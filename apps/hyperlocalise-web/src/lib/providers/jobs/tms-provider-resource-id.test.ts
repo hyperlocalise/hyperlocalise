@@ -15,6 +15,7 @@ import { describe, expect, it } from "vite-plus/test";
 import {
   encodeProviderJobId,
   encodeProviderProjectId,
+  isLiveProviderGlossaryId,
   isLiveProviderResourceId,
   parseLiveProviderGlossaryId,
   parseLiveProviderMemoryId,
@@ -159,7 +160,9 @@ describe("tms-provider-resource-id", () => {
       externalGlossaryId: "term-base-1",
     });
     expect(isLiveProviderResourceId("crowdin:tm:718373")).toBe(true);
-    expect(isLiveProviderResourceId("crowdin:glossary:42")).toBe(true);
+    expect(isLiveProviderGlossaryId("crowdin:glossary:42")).toBe(false);
+    expect(isLiveProviderGlossaryId("smartling:glossary:term-base-1")).toBe(true);
+    expect(isLiveProviderResourceId("crowdin:glossary:42")).toBe(false);
     expect(isLiveProviderResourceId("ext:crowdin:42")).toBe(false);
     expect(parseLiveProviderMemoryId("unknown:tm:1")).toBeNull();
     expect(parseLiveProviderMemoryId("crowdin:tm:")).toBeNull();

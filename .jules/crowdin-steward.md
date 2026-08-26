@@ -1,5 +1,35 @@
 # Crowdin Steward's Journal
 
+## 2026-12-31 - Add omitempty struct tags to BundleAddRequest optional boolean pointers
+
+**Learning:** In Crowdin API v2, `isMultilingual` and `includeProjectSourceLanguage` are optional boolean parameters when creating a bundle (`POST /api/v2/projects/{projectId}/bundles`). Unset pointer fields without `omitempty` in Go standard `json.Marshal` serialize as `null` rather than being omitted from the request payload, which can trigger API validation errors.
+
+**Action:** Added `json:"isMultilingual,omitempty"` and `json:"includeProjectSourceLanguage,omitempty"` to `BundleAddRequest` in `third_party/crowdin-api-client-go/crowdin/model/bundles.go`. Added unit test assertions in `third_party/crowdin-api-client-go/crowdin/model/bundles_test.go`.
+
+## 2026-12-31 - Add Type query filter parity to TasksListOptions
+
+**Learning:** In Crowdin API v2, the List Tasks endpoint (`GET /api/v2/projects/{projectId}/tasks`) accepts filtering tasks by `type` (0 - translate, 1 - proofread, 2 - translate by vendor, 3 - proofread by vendor) in addition to `status`, `assigneeId`, `creatorId`, `workflowStepId`, `labelIds`, and `excludeLabelIds`. The SDK's `TasksListOptions` previously lacked `Type`, preventing callers from filtering tasks by task type.
+
+**Action:** Added `Type []TaskType json:"type,omitempty"` to `TasksListOptions` in `third_party/crowdin-api-client-go/crowdin/model/tasks.go` and updated its `Values()` method to encode `type` query parameter using `JoinSlice(o.Type)`. Added test assertions in `model/tasks_test.go` and `tasks_test.go`.
+
+## 2026-12-31 - Allow optional IndividualRates in report schemas and settings templates
+
+**Learning:** In Crowdin API v2, `individualRates` is an optional array of custom rates per language or user in report generation schemas and report settings templates. The SDK previously enforced `r.IndividualRates != nil` in `GroupTransactionCostsPostEditingSchema` and `len(r.Config.IndividualRates) > 0` in `ReportSettingsTemplateAddRequest.Validate()`, causing client-side validation to reject valid requests when no custom individual rates were specified.
+
+**Action:** Updated `GroupTransactionCostsPostEditingSchema.ValidateGroupSchema()` and `ReportSettingsTemplateAddRequest.Validate()` in `third_party/crowdin-api-client-go/crowdin/model/reports.go` to omit mandatory checks for `IndividualRates`. Updated unit and contract tests in `crowdin/model/reports_test.go` and `crowdin/reports_test.go` to assert successful validation when `IndividualRates` is omitted.
+
+## 2026-12-31 - Add TargetLanguageID parity to StringCommentsListOptions
+
+**Learning:** In Crowdin API v2, the List String Comments endpoint (`GET /api/v2/projects/{projectId}/comments`) accepts an optional `targetLanguageId` query parameter to filter comments and issues for a specific target language. The SDK's `StringCommentsListOptions` previously lacked `TargetLanguageID`, preventing callers from filtering comments by target language.
+
+**Action:** Added `TargetLanguageID string json:"targetLanguageId,omitempty"` to `StringCommentsListOptions` in `third_party/crowdin-api-client-go/crowdin/model/string_comments.go` and updated its `Values()` query serialization method to encode `targetLanguageId`. Added unit test assertions in `model/string_comments_test.go` and `string_comments_test.go`.
+
+## 2026-12-31 - Add FileID, LabelIDs, and CroQL parity to StringTranslationsListOptions
+
+**Learning:** In Crowdin API v2, the List String Translations endpoint (`GET /api/v2/projects/{projectId}/translations`) accepts filtering by `fileId`, `labelIds`, and `croql` in addition to `stringId` and `languageId`. Omission of these query parameters from `StringTranslationsListOptions` prevented callers from listing string translations for specific files, label filters, or CroQL query expressions.
+
+**Action:** Added `FileID int json:"fileId,omitempty"`, `LabelIDs []int json:"labelIds,omitempty"`, and `CroQL string json:"croql,omitempty"` fields to `StringTranslationsListOptions` in `third_party/crowdin-api-client-go/crowdin/model/string_translations.go` and updated its `Values()` query serialization logic. Added unit and contract tests in `string_translations_test.go` and `model/string_translations_test.go`.
+
 ## 2026-12-31 - Add LabelIDs parity to BuildProjectFileTranslationRequest
 
 **Learning:** In Crowdin API v2, the Build Project File Translation endpoint (`POST /api/v2/projects/{projectId}/translations/builds/files/{fileId}`) accepts an optional `labelIds` array in the request body to filter builds by label identifiers. While `BuildProjectRequest` and `BuildProjectDirectoryTranslationRequest` included `labelIds`, `BuildProjectFileTranslationRequest` was missing `LabelIDs`, and its custom `MarshalJSON()` method omitted `labelIds` from serialized JSON payloads.
@@ -323,3 +353,9 @@
 **Learning:** In Crowdin API v2, `parentId` is an optional field when listing groups. Specifically, querying root-level groups requires setting `parentId=0`. However, the Go SDK typed `ParentID` as an `int` and had a condition `o.ParentID > 0` before appending it to query parameters, making root group filtering impossible.
 
 **Action:** Changed `ParentID` type to `*int` in `GroupsListOptions` and updated `Values()` serialization logic to append the parameter as long as `ParentID != nil`. Updated unit tests in both `model/groups_test.go` and `groups_test.go` to explicitly verify `parentId=0` query parameter construction.
+
+## 2026-08-24 - Improve TM Concordance Search Request parity for tmIds
+
+**Learning:** Crowdin API v2 supports filtering Concordance Search across specific Translation Memories by passing `tmIds` in `TMConcordanceSearchRequest`, but `tmIds` was missing from the Go SDK model.
+
+**Action:** Added `TMIDs []int json:"tmIds,omitempty"` to `TMConcordanceSearchRequest` in `crowdin/model/translation_memory.go`. Updated validation and contract tests in `crowdin/model/translation_memory_test.go` and `crowdin/translation_memory_test.go`.

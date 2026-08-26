@@ -16,7 +16,7 @@ import { createHash } from "node:crypto";
 
 import { eq } from "drizzle-orm";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
-
+import { createMcpTestApp } from "@/api/routes/mcp/mcp.fixture";
 import { createAuthorizationCode } from "@/api/auth/mcp";
 import { createApp } from "@/api/app";
 import { db, schema } from "@/lib/database";
@@ -44,8 +44,9 @@ vi.mock("@/api/auth/workos-session", async (importOriginal) => {
   };
 });
 
-const app = createApp();
-const client = testClient(app);
+const apiApp = createApp();
+const mcpApp = createMcpTestApp();
+const client = testClient(apiApp);
 const projectFixture = createProjectTestFixture(client);
 const teamFixture = createTeamTestFixture(client);
 
@@ -69,7 +70,7 @@ async function mcpAccessTokenForMember(
     organizationId: memberAuth.organization.localOrganizationId,
   });
 
-  const response = await app.request("http://localhost/api/mcp/token", {
+  const response = await mcpApp.request("http://localhost/mcp/token", {
     method: "POST",
     headers: {
       "content-type": "application/x-www-form-urlencoded",
@@ -89,7 +90,7 @@ async function mcpAccessTokenForMember(
 }
 
 async function callMcpTool(accessToken: string, name: string, args: Record<string, unknown> = {}) {
-  const response = await app.request("http://localhost/api/mcp/message", {
+  const response = await mcpApp.request("http://localhost/mcp/message", {
     method: "POST",
     headers: {
       authorization: `Bearer ${accessToken}`,

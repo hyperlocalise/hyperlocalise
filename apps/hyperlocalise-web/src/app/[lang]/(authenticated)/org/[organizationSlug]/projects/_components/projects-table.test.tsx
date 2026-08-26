@@ -36,6 +36,7 @@ function createProject(overrides: Partial<ProjectListRow> = {}): ProjectListRow 
     id: "project_native",
     name: "Hyperlocalise Web",
     key: "HW",
+    identifier: "HW",
     description: "No description",
     descriptionValue: "",
     translationContext: "No translation context",

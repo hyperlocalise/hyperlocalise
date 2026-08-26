@@ -144,6 +144,90 @@ describe("CrowdinApiClient", () => {
     );
   });
 
+  it("supports live glossary and glossary term CRUD", async () => {
+    const requests: Array<{ method: string; url: string; body?: unknown }> = [];
+    const fetchMock = vi.fn(async (url, init) => {
+      requests.push({
+        method: String(init?.method ?? "GET"),
+        url: String(url),
+        body: init?.body ? JSON.parse(String(init.body)) : undefined,
+      });
+      const path = String(url).replace("https://api.crowdin.test/api/v2", "");
+      if (path === "/glossaries/7") {
+        return new Response(
+          JSON.stringify({
+            data: {
+              id: 7,
+              name: "Product",
+              languageId: "en",
+              languageIds: ["fr"],
+              terms: 1,
+              description: null,
+              projectIds: [],
+              defaultProjectIds: [],
+              webUrl: "https://crowdin.test/g/7",
+            },
+          }),
+          { status: 200 },
+        );
+      }
+      if (path === "/glossaries/7/terms") {
+        return new Response(
+          JSON.stringify({
+            data: {
+              id: 9,
+              glossaryId: 7,
+              languageId: "fr",
+              text: "Produit",
+              description: "",
+              partOfSpeech: "",
+              status: "DRAFT",
+              conceptId: 8,
+              note: "",
+            },
+          }),
+          { status: 200 },
+        );
+      }
+      if (path === "/glossaries/7/terms/9") {
+        return new Response(
+          JSON.stringify({
+            data: {
+              id: 9,
+              glossaryId: 7,
+              languageId: "fr",
+              text: "Article",
+              description: "",
+              partOfSpeech: "",
+              status: "DRAFT",
+              conceptId: 8,
+              note: "",
+            },
+          }),
+          { status: 200 },
+        );
+      }
+      return new Response(null, { status: 204 });
+    }) as unknown as typeof fetch;
+
+    const client = createClient(fetchMock);
+    await client.getGlossary(7);
+    await client.updateGlossary(7, [{ op: "replace", path: "/name", value: "Updated" }]);
+    await client.addGlossaryTerm(7, { languageId: "fr", text: "Produit", conceptId: 8 });
+    await client.updateGlossaryTerm(7, 9, [{ op: "replace", path: "/text", value: "Article" }]);
+    await client.deleteGlossaryTerm(7, 9);
+    await client.deleteGlossary(7);
+
+    expect(requests.map((request) => `${request.method} ${request.url}`)).toEqual([
+      "GET https://api.crowdin.test/api/v2/glossaries/7",
+      "PATCH https://api.crowdin.test/api/v2/glossaries/7",
+      "POST https://api.crowdin.test/api/v2/glossaries/7/terms",
+      "PATCH https://api.crowdin.test/api/v2/glossaries/7/terms/9",
+      "DELETE https://api.crowdin.test/api/v2/glossaries/7/terms/9",
+      "DELETE https://api.crowdin.test/api/v2/glossaries/7",
+    ]);
+  });
+
   it("lists branches for a project", async () => {
     const fetchMock = vi.fn(async () => {
       return new Response(
@@ -163,6 +247,80 @@ describe("CrowdinApiClient", () => {
     expect(branches).toHaveLength(2);
     expect(branches[0]).toMatchObject({ id: 10, name: "main", title: "Main Branch" });
     expect(branches[1]).toMatchObject({ id: 11, name: "feature/i18n", title: null });
+  });
+
+  it("supports native glossary concept CRUD", async () => {
+    const fetchMock = vi.fn(async (url, init) => {
+      const path = String(url).replace("https://api.crowdin.test/api/v2", "");
+      if (path.startsWith("/glossaries/7/concepts?")) {
+        return new Response(
+          JSON.stringify({
+            data: [
+              {
+                data: {
+                  id: 8,
+                  userId: 3,
+                  glossaryId: 7,
+                  subject: "product",
+                  definition: "A product",
+                  translatable: true,
+                  note: "",
+                  url: "",
+                  figure: "",
+                  languagesDetails: [],
+                  createdAt: "2026-08-20T00:00:00Z",
+                  updatedAt: "2026-08-20T00:00:00Z",
+                },
+              },
+            ],
+            pagination: { offset: 0, limit: 500 },
+          }),
+          { status: 200 },
+        );
+      }
+      if (
+        path === "/glossaries/7/concepts/8" &&
+        init?.method !== "GET" &&
+        init?.method !== "DELETE"
+      ) {
+        expect(init?.method).toBe("PUT");
+        expect(JSON.parse(String(init?.body))).toEqual({
+          figure: "https://example.com/figure.png",
+        });
+      }
+      if (String(init?.method ?? "GET") === "DELETE") {
+        return new Response(null, { status: 204 });
+      }
+      return new Response(
+        JSON.stringify({
+          data: {
+            id: 8,
+            userId: 3,
+            glossaryId: 7,
+            subject: "product",
+            definition: "A product",
+            translatable: true,
+            note: "",
+            url: "",
+            figure: "",
+            languagesDetails: [],
+            createdAt: "2026-08-20T00:00:00Z",
+            updatedAt: "2026-08-20T00:00:00Z",
+          },
+        }),
+        { status: 200 },
+      );
+    }) as unknown as typeof fetch;
+
+    const client = createClient(fetchMock);
+    expect((await client.listGlossaryConcepts(7))[0]?.id).toBe(8);
+    expect((await client.getGlossaryConcept(7, 8)).figure).toBe("");
+    await client.updateGlossaryConcept(7, 8, {
+      figure: "https://example.com/figure.png",
+    });
+    await client.deleteGlossaryConcept(7, 8);
+
+    expect(fetchMock).toHaveBeenCalledTimes(4);
   });
 
   it("lists branches with pagination", async () => {
@@ -1357,6 +1515,31 @@ describe("CrowdinApiClient", () => {
     expect(memories[0]?.segmentsCount).toBe(100);
   });
 
+  it("passes glossary pagination, ordering, user, and filter parameters", async () => {
+    let requestedUrl = "";
+    const fetchMock = vi.fn(async (url) => {
+      requestedUrl = String(url);
+      return new Response(JSON.stringify({ data: [] }), { status: 200 });
+    }) as unknown as typeof fetch;
+
+    const client = createClient(fetchMock);
+    const page = await client.listGlossariesPage({
+      limit: 25,
+      offset: 50,
+      orderBy: "createdAt desc,name",
+      userId: 9920,
+      filter: "string",
+    });
+
+    const query = new URL(requestedUrl).searchParams;
+    expect(query.get("limit")).toBe("25");
+    expect(query.get("offset")).toBe("50");
+    expect(query.get("orderBy")).toBe("createdAt desc,name");
+    expect(query.get("userId")).toBe("9920");
+    expect(query.get("filter")).toBe("string");
+    expect(page).toMatchObject({ offset: 50, limit: 25, hasMore: false, glossaries: [] });
+  });
+
   it("lists project language progress", async () => {
     const fetchMock = vi.fn(async () => {
       return new Response(
@@ -1652,6 +1835,23 @@ describe("extractCrowdinApiErrorSummary", () => {
       }),
     ).toEqual({
       errors: [{ index: 0, code: "validation_error", message: "Invalid request parameters" }],
+    });
+  });
+
+  it("extracts direct nested validation errors", () => {
+    expect(
+      extractCrowdinApiErrorSummary({
+        errors: [
+          {
+            error: {
+              key: "text",
+              errors: [{ code: "notUnique", message: "The term must be unique" }],
+            },
+          },
+        ],
+      }),
+    ).toEqual({
+      errors: [{ code: "notUnique", message: "The term must be unique" }],
     });
   });
 

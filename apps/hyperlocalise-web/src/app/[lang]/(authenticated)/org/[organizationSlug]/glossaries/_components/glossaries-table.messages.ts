@@ -35,6 +35,11 @@ export const glossariesTableMessages = defineMessages({
     id: "VyUTnEU0ZM",
     description: "Fallback error when glossaries fail to load without a message",
   },
+  retry: {
+    defaultMessage: "Retry",
+    id: "IOmySBLwfP",
+    description: "Button to retry loading one glossary source",
+  },
   sourceWorkspace: {
     defaultMessage: "Workspace",
     id: "XXixo4/l3k",
@@ -60,6 +65,11 @@ export const glossariesTableMessages = defineMessages({
     id: "unWMnZBm3r",
     description: "External project id shown in a glossary row source detail",
   },
+  projectDetail: {
+    defaultMessage: "{projectName} · Project {projectId}",
+    id: "f4hLje7+7r",
+    description: "External project name and id shown in a glossary row source detail",
+  },
   viewLinkedProject: {
     defaultMessage: "View linked project",
     id: "n0lpKxJnLj",
@@ -80,10 +90,60 @@ export const glossariesTableMessages = defineMessages({
     id: "eBDA87G8la",
     description: "Link to open a glossary in the external TMS provider",
   },
+  moreActions: {
+    defaultMessage: "More glossary actions",
+    id: "QqxMH3unP2",
+    description: "Accessible label for additional glossary row actions",
+  },
   termCount: {
     defaultMessage: "{countLabel} terms",
     id: "KMxAKNLBFq",
     description: "Term count shown for a glossary row",
+  },
+  languagesLabel: {
+    defaultMessage: "Languages",
+    id: "uHYoEcEwFx",
+    description: "Metadata label for glossary language coverage",
+  },
+  termsLabel: {
+    defaultMessage: "Terms",
+    id: "iJ52PdWghi",
+    description: "Metadata label for glossary term count",
+  },
+  updatedLabel: {
+    defaultMessage: "Updated",
+    id: "ohFSHTwja2",
+    description: "Metadata label for glossary update time",
+  },
+  createdLabel: {
+    defaultMessage: "Created",
+    id: "wJduDnIsm8",
+    description: "Metadata label for a live provider glossary creation time",
+  },
+  usageLabel: {
+    defaultMessage: "Usage",
+    id: "oVK9Szp59h",
+    description: "Metadata label for glossary workspace usage",
+  },
+  providerProjectLabel: {
+    defaultMessage: "Provider project",
+    id: "OmVf26hhof",
+    description: "Metadata label for a glossary's live provider project",
+  },
+  integrationLabel: {
+    defaultMessage: "Integration",
+    id: "BK7MTjV8FM",
+    description: "Metadata label for a live Crowdin glossary integration",
+  },
+  usedInProjects: {
+    defaultMessage: "{count, plural, =0 {Not used yet} one {# project} other {# projects}}",
+    id: "qwBzCi54cg",
+    description: "Workspace project usage count for a glossary",
+  },
+  liveApi: {
+    defaultMessage: "Live API",
+    id: "DbP96xw9zS",
+    description: "Badge for a glossary backed by a live provider API",
   },
   connectProvider: {
     defaultMessage: "Connect a provider",

@@ -74,6 +74,8 @@ export interface CatQueueSegment {
   looksLikeVideoUrl?: boolean;
   /** TMS hidden string — unavailable to translators, still visible to managers. */
   isHidden?: boolean;
+  /** Explicit CAT lock. Editors can set and show this independently of approved/hidden. */
+  isLocked?: boolean;
   /** Set when the queue spans multiple files. */
   sourcePath?: string;
   externalResourceId?: string;
@@ -107,6 +109,8 @@ export interface CatSegment {
   hasOpenIssues?: boolean;
   /** TMS hidden string — unavailable to translators, still visible to managers. */
   isHidden?: boolean;
+  /** Explicit CAT lock. Editors can set and show this independently of approved/hidden. */
+  isLocked?: boolean;
   tags?: string[];
   maxLength?: number;
   comments?: CatSegmentComment[];
@@ -135,6 +139,30 @@ export interface CatGlossaryTerm {
   forbidden: boolean;
 }
 
+export interface CatGlossaryConceptTerm {
+  id: string;
+  locale: string;
+  text: string;
+  status?: string | null;
+  forbidden?: boolean;
+  preferred?: boolean;
+  termType?: string | null;
+  partOfSpeech?: string | null;
+  gender?: string | null;
+}
+
+export interface CatGlossaryConcept {
+  id: string;
+  glossaryId: string;
+  glossaryName: string;
+  glossaryUrl?: string | null;
+  primaryTerm: string;
+  subject?: string | null;
+  definition?: string | null;
+  sourceTerms: CatGlossaryConceptTerm[];
+  targetTerms: CatGlossaryConceptTerm[];
+}
+
 export interface CatTranslationMemoryMatch {
   id: string;
   sourceText: string;
@@ -158,6 +186,7 @@ export interface CatSegmentIntelligence {
   reviewerPreference?: string;
   constraints?: string;
   glossaryTerms: CatGlossaryTerm[];
+  glossaryConcepts?: CatGlossaryConcept[];
   translationMemoryMatches?: CatTranslationMemoryMatch[];
   aiSuggestion?: string;
   aiReasoning?: string;

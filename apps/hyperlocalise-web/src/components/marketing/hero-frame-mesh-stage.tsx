@@ -15,11 +15,29 @@
 import type { ReactNode } from "react";
 
 import { motion, useReducedMotion } from "motion/react";
+import dynamic from "next/dynamic";
 import Image from "next/image";
 
 import { cn } from "@/lib/primitives/cn";
 
-import { HeroFrame } from "./hero-frame";
+export function HeroFrameLoadingShell() {
+  return (
+    <div
+      aria-hidden
+      className="overflow-hidden rounded-2xl border border-border bg-background shadow-2xl"
+    >
+      <div className="flex h-[min(42rem,78svh)] min-h-136 flex-col bg-muted/20" />
+    </div>
+  );
+}
+
+const ClientOnlyHeroFrame = dynamic(
+  () => import("./hero-frame").then((module) => module.HeroFrame),
+  {
+    loading: HeroFrameLoadingShell,
+    ssr: false,
+  },
+);
 
 export const SEAFOAM_MESH_GRADIENT_SRC = "/images/mesh/mesh-gradient-1784864145512.jpg";
 export const LAVENDER_MESH_GRADIENT_SRC = "/images/mesh/mesh-gradient-1784864042890.jpg";
@@ -91,7 +109,7 @@ type HeroFrameMeshStageProps = {
 export function HeroFrameMeshStage({ className, priority = false }: HeroFrameMeshStageProps) {
   return (
     <MeshStage layout="breakout" className={className} priority={priority}>
-      <HeroFrame layout="contained" className="shadow-[0_24px_64px_rgba(0,0,0,0.28)]" />
+      <ClientOnlyHeroFrame layout="contained" className="shadow-[0_24px_64px_rgba(0,0,0,0.28)]" />
     </MeshStage>
   );
 }

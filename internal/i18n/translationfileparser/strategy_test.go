@@ -393,6 +393,30 @@ escaped\ key: Ligne un\nLigne deux
 	}
 }
 
+func TestStrategyParsesSRT(t *testing.T) {
+	s := NewDefaultStrategy()
+
+	got, err := s.Parse("en.srt", []byte("1\n00:00:00,000 --> 00:00:01,000\nHello\n"))
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	if got["srt.0001"] != "Hello" {
+		t.Fatalf("unexpected srt translation: %#v", got)
+	}
+}
+
+func TestStrategyParsesVTT(t *testing.T) {
+	s := NewDefaultStrategy()
+
+	got, err := s.Parse("en.vtt", []byte("WEBVTT\n\n00:00:00.000 --> 00:00:01.000\nHello\n"))
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	if got["vtt.0001"] != "Hello" {
+		t.Fatalf("unexpected vtt translation: %#v", got)
+	}
+}
+
 func TestStrategyRegistersLiquidParser(t *testing.T) {
 	s := NewDefaultStrategy()
 

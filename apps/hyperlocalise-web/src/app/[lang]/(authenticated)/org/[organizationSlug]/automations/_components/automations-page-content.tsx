@@ -13,7 +13,9 @@
  * Version 2.0 or later.
  */
 import Link from "next/link";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useIntl } from "react-intl";
+import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { apiClient } from "@/lib/api-client-instance";
@@ -22,11 +24,16 @@ import type { WorkspaceAutomationTemplate } from "@/lib/agents/workspace-automat
 
 import { createAutomationsApi } from "./automations-api";
 import { AutomationsPageView } from "./automations-page-view";
+import { githubAutoReviewCardMessages } from "./github-auto-review-card.messages";
 
 const automationsApi = createAutomationsApi(apiClient);
 
-function automationsQueryKey(organizationSlug: string) {
-  return ["workspace-automations", organizationSlug] as const;
+function automationsQueryKey(organizationSlug: string, projectId?: string) {
+  return ["workspace-automations", organizationSlug, projectId ?? "all"] as const;
+}
+
+function githubAutoReviewQueryKey(organizationSlug: string) {
+  return ["github-auto-review", organizationSlug] as const;
 }
 
 function renderProductionAutomationLink({
@@ -59,25 +66,58 @@ function renderProductionActionLink({
 
 export function AutomationsPageContent({
   organizationSlug,
+  projectId,
   templates,
   automationsApi: injectedAutomationsApi = automationsApi,
 }: {
   organizationSlug: string;
+  projectId?: string;
   templates: WorkspaceAutomationTemplate[];
   automationsApi?: typeof automationsApi;
 }) {
+  const intl = useIntl();
+  const queryClient = useQueryClient();
   const automationsQuery = useQuery({
-    queryKey: automationsQueryKey(organizationSlug),
-    queryFn: () => injectedAutomationsApi.listAutomations(organizationSlug),
+    queryKey: automationsQueryKey(organizationSlug, projectId),
+    queryFn: () => injectedAutomationsApi.listAutomations(organizationSlug, { projectId }),
+  });
+  const autoReviewQuery = useQuery({
+    queryKey: githubAutoReviewQueryKey(organizationSlug),
+    enabled: !projectId,
+    queryFn: () => injectedAutomationsApi.getGithubAutoReviewSettings(organizationSlug),
+  });
+  const saveAutoReview = useMutation({
+    mutationFn: (
+      input: Parameters<typeof injectedAutomationsApi.updateGithubAutoReviewSettings>[1],
+    ) => injectedAutomationsApi.updateGithubAutoReviewSettings(organizationSlug, input),
+    onSuccess: (autoReview) => {
+      queryClient.setQueryData(githubAutoReviewQueryKey(organizationSlug), autoReview);
+      toast.success(intl.formatMessage(githubAutoReviewCardMessages.saveSuccess));
+    },
+    onError: (error) => {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : intl.formatMessage(githubAutoReviewCardMessages.saveError),
+      );
+    },
   });
 
   return (
     <AutomationsPageView
       organizationSlug={organizationSlug}
+      projectId={projectId}
       automations={automationsQuery.data ?? []}
       templates={templates}
       isLoading={automationsQuery.isLoading}
       error={automationsQuery.error}
+      autoReview={autoReviewQuery.data}
+      autoReviewLoading={autoReviewQuery.isLoading}
+      autoReviewError={autoReviewQuery.error}
+      autoReviewSaving={saveAutoReview.isPending}
+      onSaveAutoReview={async (input) => {
+        await saveAutoReview.mutateAsync(input);
+      }}
       renderAutomationLink={renderProductionAutomationLink}
       renderActionLink={renderProductionActionLink}
     />

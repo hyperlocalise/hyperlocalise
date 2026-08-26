@@ -18,6 +18,7 @@ import { afterEach, beforeAll, describe, expect, it } from "vite-plus/test";
 import { createAhrefsConnection } from "@/lib/ahrefs/connections";
 import { db, schema } from "@/lib/database";
 import { type Result } from "@/lib/primitives/result/results";
+import { uniqueTestProjectIdentifier } from "@/lib/projects/issue-identifier/test-project-identifier";
 import { encodeProviderProjectId } from "@/lib/providers/jobs/tms-provider-resource-id";
 import {
   encryptProviderCredential,
@@ -33,6 +34,7 @@ import {
   getWorkspaceAutomationById,
   hoistLegacyWorkspaceAutomationProjectId,
   listDueContentfulWorkspaceAutomations,
+  listDueWorkspaceAutomations,
   listWorkspaceAutomations,
   listWorkspaceAutomationRuns,
   pauseWorkspaceAutomation,
@@ -79,6 +81,7 @@ async function seedWorkspaceAutomationScope() {
 
   await db.insert(schema.projects).values({
     id: projectId,
+    identifier: uniqueTestProjectIdentifier(),
     organizationId,
     createdByUserId: userId,
     name: "Website",
@@ -838,6 +841,75 @@ describe("workspace automations", () => {
     expect(secondPage.map((item) => item.name)).toEqual(["Automation 1"]);
   });
 
+  it("lists automations for a single project including legacy tool project ids", async () => {
+    const scope = await seedWorkspaceAutomationScope();
+    const otherProjectId = `project-${crypto.randomUUID().slice(0, 8)}`;
+    await db.insert(schema.projects).values({
+      id: otherProjectId,
+      organizationId: scope.organizationId,
+      createdByUserId: scope.userId,
+      name: "Mobile",
+    });
+
+    const matching = expectOk(
+      await createWorkspaceAutomation({
+        organizationId: scope.organizationId,
+        authorUserId: scope.userId,
+        name: "Matching project automation",
+        instructions: "Run for the website project.",
+        projectId: scope.projectId,
+      }),
+    );
+    expectOk(
+      await createWorkspaceAutomation({
+        organizationId: scope.organizationId,
+        authorUserId: scope.userId,
+        name: "Other project automation",
+        instructions: "Run for the mobile project.",
+        projectId: otherProjectId,
+      }),
+    );
+    expectOk(
+      await createWorkspaceAutomation({
+        organizationId: scope.organizationId,
+        authorUserId: scope.userId,
+        name: "Unscoped automation",
+        instructions: "Run without a project.",
+      }),
+    );
+
+    const [legacy] = await db
+      .insert(schema.workspaceAutomations)
+      .values({
+        organizationId: scope.organizationId,
+        authorUserId: scope.userId,
+        status: "active",
+        name: "Legacy translation project automation",
+        instructions: "Run from a legacy tool project id.",
+        model: "openai/gpt-5.6-luna",
+        projectId: null,
+        triggerConfig: { mode: "manual" },
+        repositoryTarget: { kind: "none" },
+        toolConfig: {
+          translation: { enabled: true, projectId: scope.projectId },
+        },
+        configVersion: 1,
+      })
+      .returning();
+
+    const listed = await listWorkspaceAutomations({
+      organizationId: scope.organizationId,
+      projectId: scope.projectId,
+    });
+
+    expect(listed.map((item) => item.name).toSorted()).toEqual([
+      "Legacy translation project automation",
+      "Matching project automation",
+    ]);
+    expect(listed.some((item) => item.id === matching.id)).toBe(true);
+    expect(listed.some((item) => item.id === legacy?.id)).toBe(true);
+  });
+
   it("falls back to email for author names and omits missing authors", async () => {
     const scope = await seedWorkspaceAutomationScope();
     const emailOnlyUserId = crypto.randomUUID();
@@ -1412,6 +1484,78 @@ describe("workspace automations", () => {
       }),
     );
     expect(created.toolConfig.crowdin?.enabled).toBe(true);
+    expect(created.nextRunAt).not.toBeNull();
+  });
+
+  it("computes nextRunAt for GitHub agent schedules and lists due automations without a repository join", async () => {
+    const scope = await seedWorkspaceAutomationScope();
+    const dueAt = new Date("2026-06-01T01:00:00.000Z");
+
+    const githubAgent = expectOk(
+      await createWorkspaceAutomation({
+        organizationId: scope.organizationId,
+        authorUserId: scope.userId,
+        name: "Nightly GitHub agent",
+        instructions: "Review localisation changes.",
+        repositoryTarget: {
+          kind: "github",
+          githubInstallationRepositoryId: scope.githubInstallationRepositoryId,
+        },
+        triggerConfig: {
+          mode: "scheduled",
+          schedule: {
+            cadence: "daily",
+            hourUtc: 1,
+            timezone: "UTC",
+          },
+        },
+        toolConfig: {
+          github: {
+            enabled: true,
+            mode: "agent",
+            pushSource: false,
+            pullTranslations: false,
+            validation: false,
+          },
+        },
+      }),
+    );
+    expect(githubAgent.nextRunAt).not.toBeNull();
+
+    const webSearch = expectOk(
+      await createWorkspaceAutomation({
+        organizationId: scope.organizationId,
+        authorUserId: scope.userId,
+        name: "Nightly web search",
+        instructions: "Search the live web.",
+        triggerConfig: {
+          mode: "scheduled",
+          schedule: {
+            cadence: "daily",
+            hourUtc: 1,
+            timezone: "UTC",
+          },
+        },
+        toolConfig: {
+          webSearch: { enabled: true, provider: "auto" },
+        },
+        nextRunAt: dueAt,
+      }),
+    );
+
+    await db
+      .update(schema.workspaceAutomations)
+      .set({ nextRunAt: dueAt })
+      .where(eq(schema.workspaceAutomations.id, githubAgent.id));
+
+    const due = await listDueWorkspaceAutomations({
+      now: new Date("2026-06-01T01:05:00.000Z"),
+      organizationId: scope.organizationId,
+    });
+
+    expect(due.map((automation) => automation.id).sort()).toEqual(
+      [githubAgent.id, webSearch.id].sort(),
+    );
   });
 
   it("hoists legacy nested project IDs from tool config", () => {

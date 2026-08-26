@@ -316,20 +316,20 @@ export const workspaceAutomationFormMessages = defineMessages({
     description: "Submenu label grouping Issues automation tools",
   },
   memories: {
-    defaultMessage: "Use organization memory",
-    id: "4QiNYfF++j",
-    description: "Menu item and tool title for workspace knowledge memories",
+    defaultMessage: "Use workspace guideline",
+    id: "cTokIumPvG",
+    description: "Menu item and tool title for the workspace guideline",
   },
   memoriesDescription: {
-    defaultMessage: "Use organization knowledge memory as guidance for this automation.",
-    id: "rcdU5+Pv4r",
-    description: "Description for the knowledge memories automation tool",
+    defaultMessage: "Use the workspace guideline as guidance for this automation.",
+    id: "WGmc876gab",
+    description: "Description for the workspace guideline automation tool",
   },
   memoriesUnavailableDescription: {
     defaultMessage:
-      "Enable workspace knowledge for this organization before using memories in automations.",
-    id: "yl7Dzt+xE3",
-    description: "Description when knowledge memories cannot be used yet",
+      "Enable the workspace guideline for this organization before using it in automations.",
+    id: "cK7XskRaCj",
+    description: "Description when the workspace guideline cannot be used yet",
   },
   manageMemories: {
     defaultMessage: "Manage",
@@ -337,14 +337,14 @@ export const workspaceAutomationFormMessages = defineMessages({
     description: "Button to open the knowledge memories editor from an automation",
   },
   manageMemoriesTitle: {
-    defaultMessage: "Knowledge memories",
-    id: "W9S7Ht69kS",
-    description: "Title for the knowledge memories management sheet",
+    defaultMessage: "Guideline",
+    id: "SiOUPw8jfE",
+    description: "Title for the workspace guideline management sheet",
   },
   manageMemoriesDescription: {
-    defaultMessage: "Edit the shared organization knowledge used by this automation.",
-    id: "WBqbSdV/u8",
-    description: "Description for the knowledge memories management sheet",
+    defaultMessage: "Edit the shared workspace guideline used by this automation.",
+    id: "rLqAlt6azb",
+    description: "Description for the workspace guideline management sheet",
   },
   removeMemoriesTool: {
     defaultMessage: "Remove memories tool",
@@ -971,5 +971,137 @@ export const workspaceAutomationFormMessages = defineMessages({
     defaultMessage: "Tell the automation what to do, what to inspect, and what to ignore.",
     id: "rkQ7AmKMrt",
     description: "Placeholder for the automation instructions textarea",
+  },
+  webChat: {
+    defaultMessage: "Web chat",
+    id: "+lT5g7sqtS",
+    description: "Menu item and label for the public web chat trigger",
+  },
+  webChatSummary: {
+    defaultMessage: "Web chat",
+    id: "mg4r+1o1Aq",
+    description: "Header summary for a web chat trigger",
+  },
+  webChatDescription: {
+    defaultMessage:
+      "Anyone with the link can chat with this agent. Traffic is protected with BotID. Visitors can attach images.",
+    id: "cUhuuxlusZ",
+    description: "Description of the public web chat trigger",
+  },
+  webChatUrlPending: {
+    defaultMessage: "Save this automation to get a public chat URL.",
+    id: "AuCHneqNSE",
+    description: "Hint shown before a web chat automation has been saved",
+  },
+  chatUrl: {
+    defaultMessage: "Public chat URL",
+    id: "T+paKHNF/O",
+    description: "Accessible label for the read-only public web chat URL field",
+  },
+  copyChatUrl: {
+    defaultMessage: "Copy chat URL",
+    id: "iMohNHospZ",
+    description: "Button to copy the public web chat URL",
+  },
+  chatUrlCopied: {
+    defaultMessage: "Chat URL copied",
+    id: "lERlTBAMnZ",
+    description: "Toast after copying the public web chat URL",
+  },
+  openChat: {
+    defaultMessage: "Open chat",
+    id: "44pqWnLnX7",
+    description: "Button to open the public web chat page",
+  },
+  knowledgeFiles: {
+    defaultMessage: "Knowledge files",
+    id: "Wpmwsbk8TA",
+    description: "Menu item and tool title for per-agent knowledge file uploads",
+  },
+  knowledgeFilesDescription: {
+    defaultMessage:
+      "Upload PDFs and documents this agent can search during web chat. Files stay scoped to this automation.",
+    id: "Xbk8pNArLF",
+    description: "Description of the knowledge files automation tool",
+  },
+  removeKnowledgeFilesTool: {
+    defaultMessage: "Remove knowledge files",
+    id: "HxAfB/1E4w",
+    description: "Accessible label to remove the knowledge files tool",
+  },
+  knowledgeFilesSaveFirst: {
+    defaultMessage: "Save this automation to upload knowledge files.",
+    id: "DTZnyqDXIb",
+    description: "Hint shown before knowledge files can be uploaded",
+  },
+  knowledgeFilesCount: {
+    defaultMessage: "{count, number} of {max, number} files",
+    id: "+4aC40FyTC",
+    description: "Count of uploaded knowledge files versus the maximum",
+  },
+  uploadKnowledgeFile: {
+    defaultMessage: "Upload file",
+    id: "UN02t1d3TY",
+    description: "Button to upload a knowledge file for an automation",
+  },
+  knowledgeFilesEmpty: {
+    defaultMessage: "No files yet. PDF, Word, markdown, CSV, JSON, and text are supported.",
+    id: "KkhTTpy6pl",
+    description: "Empty state for automation knowledge files",
+  },
+  knowledgeFilesLoadError: {
+    defaultMessage: "Unable to load knowledge files.",
+    id: "7kmubPDYMq",
+    description: "Error when knowledge files fail to load",
+  },
+  knowledgeFileUploaded: {
+    defaultMessage: "Knowledge file uploaded",
+    id: "khGfvJ6kFZ",
+    description: "Toast after a knowledge file is uploaded",
+  },
+  knowledgeFileUploadError: {
+    defaultMessage: "Unable to upload that file right now.",
+    id: "u8VX6gbiee",
+    description: "Toast when knowledge file upload fails",
+  },
+  knowledgeFileTooLarge: {
+    defaultMessage: "Knowledge files must be 25 MB or smaller.",
+    id: "Hl4y/YDhod",
+    description: "Toast when a knowledge file exceeds the size limit",
+  },
+  knowledgeFileUnsupported: {
+    defaultMessage: "Upload a PDF, Word, markdown, CSV, JSON, or text file.",
+    id: "PCzjD32TSl",
+    description: "Toast when a knowledge file type is not supported",
+  },
+  knowledgeFileLimitReached: {
+    defaultMessage: "This automation already has the maximum number of knowledge files.",
+    id: "M0cRkUTb0F",
+    description: "Toast when the knowledge file count limit is reached",
+  },
+  knowledgeFileDeleteError: {
+    defaultMessage: "Unable to remove that file right now.",
+    id: "IiCBKnKoOo",
+    description: "Toast when deleting a knowledge file fails",
+  },
+  removeKnowledgeFile: {
+    defaultMessage: "Remove {filename}",
+    id: "E+sPOppKGh",
+    description: "Accessible label to delete one knowledge file",
+  },
+  knowledgeFileExtracted: {
+    defaultMessage: "{count, number} characters extracted",
+    id: "24Fv+29H+S",
+    description: "Extracted text size for a knowledge file",
+  },
+  knowledgeFileNoText: {
+    defaultMessage: "No searchable text extracted",
+    id: "WeepzsmrE/",
+    description: "Shown when a knowledge file has no extracted text",
+  },
+  triggerSourceWebChat: {
+    defaultMessage: "Web chat",
+    id: "xF7D3G1OBo",
+    description: "Run history trigger source for web chat",
   },
 });

@@ -71,6 +71,7 @@ type IssueSheetColumn = {
 
 type IssueSheetIssue = {
   id: string;
+  identifier: string;
   title: string;
   description: string;
   issueType: string;
@@ -192,6 +193,7 @@ export function IssueSheetPageContent({
     () =>
       (data?.issues ?? []).map((issue) => ({
         id: issue.id,
+        identifier: issue.identifier,
         projectId,
         title: issue.title,
         status: issue.status,
@@ -297,7 +299,7 @@ export function IssueSheetPageContent({
               buildIssueDetailHref({
                 organizationSlug,
                 projectId,
-                issueId: issue.id,
+                issueId: issue.identifier,
               }),
             );
           }}

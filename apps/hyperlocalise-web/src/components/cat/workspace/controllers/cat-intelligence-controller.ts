@@ -84,6 +84,7 @@ export class CatIntelligenceController {
         this.workspace.segmentIntelligence[segmentId] ?? this.workspace.intelligence;
       return {
         glossaryTerms: intelligence.glossaryTerms ?? [],
+        glossaryConcepts: intelligence.glossaryConcepts,
         translationMemoryMatches: intelligence.translationMemoryMatches ?? [],
       };
     }

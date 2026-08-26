@@ -12,6 +12,7 @@
  */
 import { z } from "zod";
 
+import { issueIdSchema } from "@/lib/projects/issue-identifier/project-issue-identifier";
 import { ISSUE_SHEET_COLUMN_ICON_IDS } from "@/lib/projects/issue-sheet/issue-sheet-column-icons";
 import { issueSheetImportContentExceedsByteLimit } from "@/lib/projects/issue-sheet/issue-sheet-csv-import";
 
@@ -66,7 +67,7 @@ export const issueSheetColumnIconIdSchema = z.enum(ISSUE_SHEET_COLUMN_ICON_IDS);
 
 export const issueSheetParamsSchema = projectIdParamsSchema;
 export const issueSheetIssueParamsSchema = projectIdParamsSchema.extend({
-  issueId: z.string().uuid(),
+  issueId: issueIdSchema,
 });
 export const issueSheetColumnParamsSchema = projectIdParamsSchema.extend({
   columnId: z.string().uuid(),

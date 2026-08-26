@@ -176,3 +176,125 @@ export async function commitKnowledgeMemoryForOrganization(input: {
 
   return ok({ knowledgeMemory: result.value.record, changed: result.value.changed });
 }
+
+async function getCurrentProjectKnowledgeMemoryRow(
+  database: DatabaseClient,
+  projectId: string,
+): Promise<CurrentKnowledgeMemoryRow | undefined> {
+  const [row] = await database
+    .select({
+      revisionId: schema.projectKnowledgeMemories.revisionId,
+      version: schema.projectKnowledgeMemories.version,
+      content: schema.projectKnowledgeMemories.content,
+      summary: schema.projectKnowledgeMemories.summary,
+      updatedAt: schema.projectKnowledgeMemories.updatedAt,
+      updatedByUserId: schema.projectKnowledgeMemories.updatedByUserId,
+    })
+    .from(schema.projectKnowledgeMemories)
+    .where(eq(schema.projectKnowledgeMemories.projectId, projectId))
+    .limit(1);
+
+  return row;
+}
+
+function projectKnowledgeMemoryHeadColumns() {
+  return {
+    revisionId: schema.projectKnowledgeMemories.revisionId,
+    version: schema.projectKnowledgeMemories.version,
+    content: schema.projectKnowledgeMemories.content,
+    summary: schema.projectKnowledgeMemories.summary,
+    updatedAt: schema.projectKnowledgeMemories.updatedAt,
+    updatedByUserId: schema.projectKnowledgeMemories.updatedByUserId,
+  };
+}
+
+export async function getKnowledgeMemoryForProject(
+  projectId: string,
+): Promise<KnowledgeMemoryRecord> {
+  return toKnowledgeMemoryRecord(await getCurrentProjectKnowledgeMemoryRow(db, projectId));
+}
+
+export async function commitKnowledgeMemoryForProject(input: {
+  projectId: string;
+  content: string;
+  summary?: string;
+  updatedByUserId: string | null;
+  expectedRevisionId: string | null;
+  forceNewRevision?: boolean;
+}): Promise<Result<KnowledgeMemoryCommitResult, KnowledgeMemoryCommitError>> {
+  const result = await commitVersionedDocument({
+    db,
+    content: input.content,
+    normalizeContent: normalizeKnowledgeMemoryContent,
+    summary: input.summary,
+    initialSummaryFallback: "Initial version",
+    updatedSummaryFallback: "Updated memory",
+    updatedByUserId: input.updatedByUserId,
+    expectedRevisionId: input.expectedRevisionId,
+    forceNewRevision: input.forceNewRevision,
+    emptyRecord: emptyKnowledgeMemory,
+    readCurrent: (tx: DatabaseTransaction) =>
+      getCurrentProjectKnowledgeMemoryRow(tx, input.projectId),
+    insertHead: async (
+      tx: DatabaseTransaction,
+      values,
+    ): Promise<VersionedDocumentCurrentRow | undefined> => {
+      const [inserted] = await tx
+        .insert(schema.projectKnowledgeMemories)
+        .values({
+          projectId: input.projectId,
+          revisionId: values.revisionId,
+          version: values.version,
+          content: values.content,
+          summary: values.summary,
+          updatedByUserId: values.updatedByUserId,
+          createdAt: values.now,
+          updatedAt: values.now,
+        })
+        .onConflictDoNothing({ target: schema.projectKnowledgeMemories.projectId })
+        .returning(projectKnowledgeMemoryHeadColumns());
+      return inserted;
+    },
+    updateHead: async (
+      tx: DatabaseTransaction,
+      expectedRevisionId,
+      values,
+    ): Promise<VersionedDocumentCurrentRow | undefined> => {
+      const [updated] = await tx
+        .update(schema.projectKnowledgeMemories)
+        .set({
+          revisionId: values.revisionId,
+          version: values.version,
+          content: values.content,
+          summary: values.summary,
+          updatedByUserId: values.updatedByUserId,
+          updatedAt: values.now,
+        })
+        .where(
+          and(
+            eq(schema.projectKnowledgeMemories.projectId, input.projectId),
+            eq(schema.projectKnowledgeMemories.revisionId, expectedRevisionId),
+          ),
+        )
+        .returning(projectKnowledgeMemoryHeadColumns());
+      return updated;
+    },
+    archivePrevious: async (tx: DatabaseTransaction, previous) => {
+      await tx.insert(schema.projectKnowledgeMemoryRevisions).values({
+        id: previous.revisionId,
+        projectId: input.projectId,
+        version: previous.version,
+        content: previous.content,
+        summary: previous.summary,
+        createdByUserId: previous.updatedByUserId,
+        createdAt: previous.updatedAt,
+      });
+    },
+  });
+
+  if (isErr(result)) {
+    return err(result.error);
+  }
+
+  return ok({ knowledgeMemory: result.value.record, changed: result.value.changed });
+}

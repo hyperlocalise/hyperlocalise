@@ -17,13 +17,20 @@ import {
   workspaceAutomationModelSchema,
   workspaceAutomationStatusSchema,
 } from "@/lib/agents/workspace-automations";
+import { optionalProjectIdSchema } from "@/lib/projects/identity/project-id";
 
 export const workspaceAutomationIdParamSchema = z.object({
   automationId: z.string().uuid(),
 });
 
+export const workspaceAutomationKnowledgeFileIdParamSchema = z.object({
+  automationId: z.string().uuid(),
+  knowledgeFileId: z.string().uuid(),
+});
+
 export const listWorkspaceAutomationsQuerySchema = z.object({
   status: workspaceAutomationStatusSchema.optional(),
+  projectId: optionalProjectIdSchema,
   limit: z.coerce.number().int().min(1).max(100).default(50),
   offset: z.coerce.number().int().min(0).default(0),
 });

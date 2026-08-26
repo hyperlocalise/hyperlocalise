@@ -51,7 +51,7 @@ export function buildSaveMemorySummary(automationName: string, runId: string): s
 /**
  * Appends to the organization's shared Memory.md. Append-only by design (MVP): the agent cannot
  * edit, replace, or delete existing content, only add to it. Gated on both `knowledge.enabled`
- * ("Use organization memory") and `knowledge.allowUpdates` ("Allow memory updates") — the second
+ * ("Use workspace guideline") and `knowledge.allowUpdates` ("Allow memory updates") — the second
  * is meaningless without the first, enforced by hasWorkspaceAutomationKnowledgeUpdatesAllowed.
  * This goes through the same commit path (and the same optimistic concurrency) as a human editing
  * Memory.md by hand, so every append is a normal, restorable revision.

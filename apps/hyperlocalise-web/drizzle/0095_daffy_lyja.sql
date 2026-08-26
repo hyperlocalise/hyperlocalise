@@ -1,0 +1,2 @@
+ALTER TABLE "projects" ADD COLUMN "automatically_group_identical_strings" boolean DEFAULT false NOT NULL;--> statement-breakpoint
+ALTER TABLE "projects" ADD COLUMN "cat_grouping_revision" integer DEFAULT 0 NOT NULL;

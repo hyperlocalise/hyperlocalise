@@ -10,7 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { describe, expect, it, vi } from "vite-plus/test";
+import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 
 import {
   readIssueDetailSidebarOpen,
@@ -30,6 +30,10 @@ function createStorageMock() {
 }
 
 describe("issue-detail-sidebar-state", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
   it("returns the fallback when no value is stored for an issue", () => {
     const { getItem, setItem } = createStorageMock();
     vi.stubGlobal("window", {
@@ -84,5 +88,14 @@ describe("issue-detail-sidebar-state", () => {
 
     expect(listener).toHaveBeenCalledTimes(1);
     unsubscribe();
+  });
+
+  it("returns fallbacks and skips writes when storage is unavailable", () => {
+    vi.stubGlobal("localStorage", undefined);
+    vi.stubGlobal("window", {});
+
+    expect(readIssueDetailSidebarOpen("issue-detail", "issue_1", true)).toBe(true);
+    expect(() => writeIssueDetailSidebarOpen("issue-detail", "issue_1", false)).not.toThrow();
+    expect(readIssueDetailSidebarOpen("issue-detail", "issue_1", true)).toBe(true);
   });
 });

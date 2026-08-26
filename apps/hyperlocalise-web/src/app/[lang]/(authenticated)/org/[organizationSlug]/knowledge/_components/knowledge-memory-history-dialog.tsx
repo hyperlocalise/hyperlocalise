@@ -47,17 +47,17 @@ import {
 } from "@/components/ui/dialog";
 import { Spinner } from "@/components/ui/spinner";
 import { readApiError } from "@/lib/api-error";
-import { apiClient } from "@/lib/api-client-instance";
 import { cn } from "@/lib/primitives/cn";
 
+import {
+  getKnowledgeMemoryRevision,
+  knowledgeMemoryRevisionQueryKey,
+  listKnowledgeMemoryRevisions,
+  restoreKnowledgeMemoryRevision,
+} from "./knowledge-memory-api";
 import { parseKnowledgeMemoryPreconditionFailure } from "./knowledge-memory-editor-state";
 
 const revisionPageSize = 20;
-
-const knowledgeMemoryRevisionQueryKey = (organizationSlug: string) => [
-  "knowledge-memory-revisions",
-  organizationSlug,
-];
 
 export type KnowledgeMemoryConflict = {
   draftContent: string;
@@ -69,15 +69,17 @@ export type KnowledgeMemoryConflict = {
 export function createKnowledgeMemoryDiffFiles(input: {
   previousContent: string;
   selectedContent: string;
+  documentName?: string;
 }): { oldFile: FileContents; newFile: FileContents } {
+  const name = input.documentName ?? "Global guidance";
   return {
     oldFile: {
-      name: "Global guidance",
+      name,
       contents: input.previousContent,
       lang: "markdown",
     },
     newFile: {
-      name: "Global guidance",
+      name,
       contents: input.selectedContent,
       lang: "markdown",
     },
@@ -94,12 +96,14 @@ function formatRevisionTimestamp(value: string) {
 function KnowledgeMemoryDiff({
   previousContent,
   selectedContent,
+  documentName,
 }: {
   previousContent: string;
   selectedContent: string;
+  documentName?: string;
 }) {
   const { resolvedTheme } = useTheme();
-  const files = createKnowledgeMemoryDiffFiles({ previousContent, selectedContent });
+  const files = createKnowledgeMemoryDiffFiles({ previousContent, selectedContent, documentName });
   const themeType = resolvedTheme === "light" ? "light" : "dark";
 
   return (
@@ -123,11 +127,13 @@ export function KnowledgeMemoryConflictView({
   isCommitting,
   onCommit,
   onReload,
+  documentName,
 }: {
   conflict: KnowledgeMemoryConflict;
   isCommitting: boolean;
   onCommit: () => void;
   onReload: () => void;
+  documentName?: string;
 }) {
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -142,6 +148,7 @@ export function KnowledgeMemoryConflictView({
         <KnowledgeMemoryDiff
           previousContent={conflict.latestKnowledgeMemory.content}
           selectedContent={conflict.draftContent}
+          documentName={documentName}
         />
       </div>
       <DialogFooter className="border-t border-border px-6 py-4">
@@ -158,6 +165,7 @@ export function KnowledgeMemoryConflictView({
 
 export function KnowledgeMemoryHistoryDialog({
   organizationSlug,
+  projectId,
   open,
   onOpenChange,
   canUpdateKnowledgeMemory,
@@ -172,6 +180,7 @@ export function KnowledgeMemoryHistoryDialog({
   onRestored,
 }: {
   organizationSlug: string;
+  projectId?: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   canUpdateKnowledgeMemory: boolean;
@@ -194,19 +203,17 @@ export function KnowledgeMemoryHistoryDialog({
   const [restoreRevision, setRestoreRevision] = useState<KnowledgeMemoryRevision | null>(null);
 
   const revisionsQuery = useInfiniteQuery({
-    queryKey: knowledgeMemoryRevisionQueryKey(organizationSlug),
+    queryKey: knowledgeMemoryRevisionQueryKey(organizationSlug, projectId),
     initialPageParam: 0,
     enabled: open && conflict === null,
     queryFn: async ({ pageParam }) => {
-      const response = await apiClient.api.orgs[":organizationSlug"][
-        "knowledge-memory"
-      ].revisions.$get({
-        param: { organizationSlug },
-        query: {
+      const response = await listKnowledgeMemoryRevisions(
+        { organizationSlug, projectId },
+        {
           limit: String(revisionPageSize),
           ...(pageParam > 0 ? { cursor: pageParam } : {}),
         },
-      });
+      );
 
       if (!response.ok) {
         throw new Error(await readApiError(response, "Unable to load Knowledge Memory history"));
@@ -227,18 +234,21 @@ export function KnowledgeMemoryHistoryDialog({
       : (revisions[0]?.revisionId ?? null);
 
   const revisionQuery = useQuery({
-    queryKey: [...knowledgeMemoryRevisionQueryKey(organizationSlug), "detail", effectiveRevisionId],
+    queryKey: [
+      ...knowledgeMemoryRevisionQueryKey(organizationSlug, projectId),
+      "detail",
+      effectiveRevisionId,
+    ],
     enabled: open && conflict === null && effectiveRevisionId !== null,
     queryFn: async () => {
       if (!effectiveRevisionId) {
         throw new Error("Knowledge Memory revision is required");
       }
 
-      const response = await apiClient.api.orgs[":organizationSlug"]["knowledge-memory"].revisions[
-        ":revisionId"
-      ].$get({
-        param: { organizationSlug, revisionId: effectiveRevisionId },
-      });
+      const response = await getKnowledgeMemoryRevision(
+        { organizationSlug, projectId },
+        effectiveRevisionId,
+      );
 
       if (!response.ok) {
         throw new Error(await readApiError(response, "Unable to load Knowledge Memory revision"));
@@ -250,13 +260,10 @@ export function KnowledgeMemoryHistoryDialog({
 
   const restoreMutation = useMutation({
     mutationFn: async (revision: KnowledgeMemoryRevision) => {
-      const response = await apiClient.api.orgs[":organizationSlug"]["knowledge-memory"].revisions[
-        ":revisionId"
-      ].restore.$post(
-        {
-          param: { organizationSlug, revisionId: revision.revisionId },
-        },
-        { headers: { "If-Match": currentEtag } },
+      const response = await restoreKnowledgeMemoryRevision(
+        { organizationSlug, projectId },
+        revision.revisionId,
+        { "If-Match": currentEtag },
       );
 
       if (response.status === 412) {
@@ -296,7 +303,7 @@ export function KnowledgeMemoryHistoryDialog({
       onRestored(result.knowledgeMemory, result.etag);
       setSelectedRevisionId(result.knowledgeMemory.revisionId);
       await queryClient.invalidateQueries({
-        queryKey: knowledgeMemoryRevisionQueryKey(organizationSlug),
+        queryKey: knowledgeMemoryRevisionQueryKey(organizationSlug, projectId),
       });
       toast.success(`Restored as version ${result.knowledgeMemory.version}`);
     },
@@ -307,6 +314,7 @@ export function KnowledgeMemoryHistoryDialog({
 
   const selectedDetail = revisionQuery.data?.knowledgeMemoryRevision;
   const previousDetail = revisionQuery.data?.previousKnowledgeMemoryRevision;
+  const documentName = projectId ? "Project guidance" : "Global guidance";
 
   return (
     <>
@@ -315,7 +323,7 @@ export function KnowledgeMemoryHistoryDialog({
           <DialogHeader className="border-b border-border px-6 py-5 pe-14">
             <DialogTitle className="flex items-center gap-2">
               <HugeiconsIcon icon={HistoryIcon} className="size-4" />
-              Global guidance history
+              {projectId ? "Project guidance history" : "Global guidance history"}
             </DialogTitle>
             <DialogDescription>
               Review saved versions, compare changes, or restore earlier guidance.
@@ -328,6 +336,7 @@ export function KnowledgeMemoryHistoryDialog({
               isCommitting={isCommittingConflict}
               onCommit={onCommitConflict}
               onReload={onReloadLatest}
+              documentName={documentName}
             />
           ) : (
             <div className="grid min-h-0 flex-1 grid-rows-[minmax(10rem,auto)_1fr] md:grid-cols-[16rem_1fr] md:grid-rows-1">
@@ -424,6 +433,7 @@ export function KnowledgeMemoryHistoryDialog({
                       <KnowledgeMemoryDiff
                         previousContent={previousDetail?.content ?? ""}
                         selectedContent={selectedDetail.content}
+                        documentName={documentName}
                       />
                     </div>
                   </>

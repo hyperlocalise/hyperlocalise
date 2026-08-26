@@ -12,7 +12,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { ArrowRight01Icon, CheckmarkCircle02Icon } from "@hugeicons/core-free-icons";
+import { ArrowRight01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import Link from "next/link";
 import { FormattedMessage } from "react-intl";
@@ -26,16 +26,16 @@ import { MarketingFooter } from "@/components/marketing/marketing-footer";
 import { footerColumns } from "@/components/marketing/marketing-page-content";
 import { REQUEST_DEMO_URL } from "@/components/marketing/request-demo";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/primitives/cn";
+import { rewriteAppLocalePath } from "@/lib/app-i18n/rewrite-app-locale-path";
+import { useAppLocale } from "@/lib/app-i18n/use-app-locale";
 
-import type { ProductPageContent, ProductVisualKind } from "./product-page-content";
+import type { ProductPageContent } from "./product-page-content";
 import { AutomationsMockUI } from "./automations-mock-ui";
 import { productPageMessages, type ProductMessageKey } from "./product-page-content.messages";
 import { AutomationEditorMock } from "./automation-editor-mock";
 import { IntegrationStripSection } from "./integration-strip-section";
 import { GlobeHeroVisual } from "./globe-hero-visual";
 import { KnowledgeMockUI } from "./knowledge-mock-ui";
-import { KnowledgeHeroBg } from "./KnowledgeHeroBg";
 
 type ProductPageProps = {
   content: ProductPageContent;
@@ -120,39 +120,42 @@ function ProductHero({ content }: ProductPageProps) {
   );
 }
 
-function ProductVisual({ kind }: { kind: ProductVisualKind }) {
-  if (kind === "automation") {
-    return <AutomationsMockUI />;
-  }
-
-  if (kind === "knowledge") {
-    return <KnowledgeMockUI />;
-  }
-
-  return null;
-}
-
 function ProductShowcase({ content }: ProductPageProps) {
   if (content.visualKind === "cat") {
     return <HeroFrameMeshStage priority />;
   }
 
-  return (
-    <div className="mx-auto max-w-6xl space-y-10">
-      <div className="relative">
-        <div
-          aria-hidden
-          className="pointer-events-none absolute inset-x-[8%] -top-8 -bottom-10 rounded-lg bg-[radial-gradient(circle_at_top,rgba(96,116,9,0.16),transparent_58%),radial-gradient(circle_at_bottom_right,rgba(9,108,229,0.1),transparent_46%)] blur-3xl"
-        />
-        <div className="relative grid overflow-hidden rounded-lg border border-border bg-background p-2 shadow-2xl shadow-gray-alpha-100 sm:p-3">
-          <ProductVisual kind={content.visualKind} />
+  if (content.visualKind === "automation") {
+    return (
+      <div className="mx-auto max-w-6xl">
+        <AutomationsMockUI priority />
+      </div>
+    );
+  }
+
+  if (content.visualKind === "knowledge") {
+    return (
+      <div className="mx-auto max-w-6xl space-y-10">
+        <div className="relative">
+          <div
+            aria-hidden
+            className="pointer-events-none absolute inset-x-[8%] -top-8 -bottom-10 rounded-lg bg-[radial-gradient(circle_at_top,rgba(96,116,9,0.16),transparent_58%),radial-gradient(circle_at_bottom_right,rgba(9,108,229,0.1),transparent_46%)] blur-3xl"
+          />
+          <div className="relative grid overflow-hidden rounded-lg border border-border bg-background p-2 shadow-2xl shadow-gray-alpha-100 sm:p-3">
+            <KnowledgeMockUI />
+          </div>
         </div>
       </div>
-    </div>
-  );
+    );
+  }
+
+  return null;
+
 }
 
 function ProductDetailsSection({ content }: ProductPageProps) {
+  const locale = useAppLocale();
+
   return (
     <div className="grid gap-12 lg:grid-cols-[0.82fr_1.18fr] lg:items-start">
       <div className="max-w-xl lg:sticky lg:top-24">
@@ -194,7 +197,7 @@ function ProductDetailsSection({ content }: ProductPageProps) {
                 size="sm"
                 className="rounded-full"
                 nativeButton={false}
-                render={<Link href={link.href} />}
+                render={<Link href={rewriteAppLocalePath(link.href, locale)} />}
               >
                 <ProductMessage messageKey={link.labelKey} />
                 <HugeiconsIcon

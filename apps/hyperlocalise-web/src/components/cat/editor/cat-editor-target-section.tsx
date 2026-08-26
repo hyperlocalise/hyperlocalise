@@ -21,7 +21,10 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 
 import { analyzeCatMessageFormat } from "@/components/cat/message-format/cat-message-format";
-import { catEditorPanelMessages } from "@/components/cat/shared/cat.messages";
+import {
+  catEditorPanelMessages,
+  catLockedStringMessages,
+} from "@/components/cat/shared/cat.messages";
 import type { CatSegment } from "@/components/cat/shared/types";
 
 import { CatIcuStructureSummary, CatTargetEditor } from "./cat-target-editor";
@@ -55,6 +58,11 @@ export function CatEditorTargetSection({
             values={{ locale: segment.targetLocale }}
           />
         </h3>
+        {segment.isLocked ? (
+          <p className="w-full text-xs text-muted-foreground">
+            <FormattedMessage {...catLockedStringMessages.lockedBanner} />
+          </p>
+        ) : null}
         {canEditTarget ? (
           <div className="flex flex-wrap items-center gap-1">
             <Button variant="ghost" size="xs" onClick={onCopySource} disabled={isLoading}>

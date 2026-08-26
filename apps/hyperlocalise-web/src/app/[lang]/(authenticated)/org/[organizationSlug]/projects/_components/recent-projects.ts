@@ -10,6 +10,8 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import { getBrowserLocalStorage } from "@/lib/primitives/browser-local-storage/browser-local-storage";
+
 const RECENT_PROJECTS_STORAGE_VERSION = 1;
 const RECENT_PROJECTS_LIMIT = 20;
 
@@ -22,14 +24,6 @@ type RecentProjectsStorage = Pick<Storage, "getItem" | "setItem">;
 
 function recentProjectsStorageKey(organizationSlug: string) {
   return `hyperlocalise:recent-projects:v${RECENT_PROJECTS_STORAGE_VERSION}:${organizationSlug}`;
-}
-
-function getBrowserStorage() {
-  try {
-    return typeof window === "undefined" ? undefined : window.localStorage;
-  } catch {
-    return undefined;
-  }
 }
 
 function isRecentProjectVisit(value: unknown): value is RecentProjectVisit {
@@ -48,7 +42,7 @@ function isRecentProjectVisit(value: unknown): value is RecentProjectVisit {
 
 export function readRecentProjectVisits(
   organizationSlug: string,
-  storage: RecentProjectsStorage | undefined = getBrowserStorage(),
+  storage: RecentProjectsStorage | undefined = getBrowserLocalStorage(),
 ): RecentProjectVisit[] {
   if (!storage) {
     return [];
@@ -82,7 +76,7 @@ export function recordRecentProjectVisit(
     visitedAt?: number;
   },
 ) {
-  const storage = options?.storage ?? getBrowserStorage();
+  const storage = options?.storage ?? getBrowserLocalStorage();
   if (!storage || !projectId) {
     return;
   }

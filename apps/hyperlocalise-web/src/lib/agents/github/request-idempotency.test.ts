@@ -18,6 +18,7 @@ import { afterEach, beforeAll, describe, expect, it } from "vite-plus/test";
 import { db, schema } from "@/lib/database";
 
 import {
+  buildGitHubPullRequestReviewRequestInput,
   buildGitHubRepositoryRequestInput,
   claimGitHubAgentRequest,
   GITHUB_AGENT_REQUEST_ENQUEUED_TTL_MS,
@@ -47,6 +48,27 @@ describe("GitHub agent request idempotency", () => {
 
   afterEach(async () => {
     await db.delete(schema.githubAgentRequests);
+  });
+
+  it("scopes pull request reviews to the head SHA", () => {
+    expect(
+      buildGitHubPullRequestReviewRequestInput({
+        requestKind: "auto_review",
+        installationId: "54321",
+        repositoryFullName: "acme/app",
+        pullRequestNumber: 42,
+        commentId: null,
+        headSha: "bbb222",
+      }),
+    ).toEqual({
+      requestKind: "auto_review",
+      githubInstallationId: "54321",
+      repositoryFullName: "acme/app",
+      pullRequestNumber: 42,
+      commentId: "0",
+      scopeType: "pull_request_review",
+      scopeKey: "bbb222",
+    });
   });
 
   it("returns the existing claim for the same kind, installation, PR, comment, and scope", async () => {

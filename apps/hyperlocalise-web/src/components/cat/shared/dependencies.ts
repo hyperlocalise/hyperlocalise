@@ -13,6 +13,7 @@
 import type { CatVisualContext } from "@/lib/translation/cat-visual-context";
 import type {
   CatFormatCheck,
+  CatGlossaryConcept,
   CatGlossaryTerm,
   CatSegment,
   CatSegmentCommentInput,
@@ -31,6 +32,7 @@ export interface CatAiRecommendationResult {
 
 export interface CatSegmentConcordanceResult {
   glossaryTerms: CatGlossaryTerm[];
+  glossaryConcepts?: CatGlossaryConcept[];
   translationMemoryMatches: CatTranslationMemoryMatch[];
 }
 
@@ -72,6 +74,9 @@ export interface CatWorkspaceReview {
   onBulkSkip?: (segmentIds: string[]) => void | Promise<void>;
   onBulkHide?: (segmentIds: string[]) => void | Promise<void>;
   onBulkUnhide?: (segmentIds: string[]) => void | Promise<void>;
+  onSetLocked?: (segmentIds: string[], isLocked: boolean) => void | Promise<void>;
+  onBulkLock?: (segmentIds: string[]) => void | Promise<void>;
+  onBulkUnlock?: (segmentIds: string[]) => void | Promise<void>;
 }
 
 export interface CatWorkspaceServices {

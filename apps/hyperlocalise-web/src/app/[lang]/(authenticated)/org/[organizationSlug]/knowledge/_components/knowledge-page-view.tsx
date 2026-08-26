@@ -22,6 +22,7 @@ import { TypographyH1, TypographyP } from "@/components/ui/typography";
 import {
   KnowledgeMemoryEditorView,
   type KnowledgeMemoryEditorViewProps,
+  type KnowledgeMemoryScope,
 } from "./knowledge-memory-editor-view";
 import { knowledgeMemoryEditorMessages } from "./knowledge-memory-editor.messages";
 import { KnowledgePageSkeleton } from "./knowledge-page-skeleton";
@@ -32,18 +33,29 @@ export type KnowledgePageMode = "loading" | "upload" | "editor";
 
 export type KnowledgePageViewProps = {
   mode: KnowledgePageMode;
+  scope?: KnowledgeMemoryScope;
   onStartMarkdownText: () => void;
   onAddSources?: () => void;
   onFilesSelected?: (files: File[]) => void;
   editor?: KnowledgeMemoryEditorViewProps;
 };
 
-export function KnowledgePageHeader({ onAddSources }: { onAddSources?: () => void }) {
+export function KnowledgePageHeader({
+  onAddSources,
+  scope = "organization",
+}: {
+  onAddSources?: () => void;
+  scope?: KnowledgeMemoryScope;
+}) {
   return (
     <header className="flex flex-col gap-4">
       <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
         <span>
-          <FormattedMessage {...knowledgePageViewMessages.workspace} />
+          <FormattedMessage
+            {...(scope === "project"
+              ? knowledgePageViewMessages.project
+              : knowledgePageViewMessages.workspace)}
+          />
         </span>
         <span aria-hidden>/</span>
         <span className="text-foreground">
@@ -56,7 +68,11 @@ export function KnowledgePageHeader({ onAddSources }: { onAddSources?: () => voi
             <FormattedMessage {...knowledgePageViewMessages.title} />
           </TypographyH1>
           <TypographyP className="max-w-2xl text-sm leading-6 text-muted-foreground">
-            <FormattedMessage {...knowledgePageViewMessages.description} />
+            <FormattedMessage
+              {...(scope === "project"
+                ? knowledgePageViewMessages.projectDescription
+                : knowledgePageViewMessages.description)}
+            />
           </TypographyP>
         </div>
         {onAddSources ? (
@@ -72,6 +88,7 @@ export function KnowledgePageHeader({ onAddSources }: { onAddSources?: () => voi
 
 export function KnowledgePageView({
   mode,
+  scope = "organization",
   onStartMarkdownText,
   onAddSources,
   onFilesSelected,
@@ -79,7 +96,10 @@ export function KnowledgePageView({
 }: KnowledgePageViewProps) {
   return (
     <div className="mx-auto flex w-full max-w-4xl flex-col gap-8">
-      <KnowledgePageHeader onAddSources={mode === "editor" ? onAddSources : undefined} />
+      <KnowledgePageHeader
+        scope={scope}
+        onAddSources={mode === "editor" ? onAddSources : undefined}
+      />
 
       {mode === "loading" ? <KnowledgePageSkeleton /> : null}
 

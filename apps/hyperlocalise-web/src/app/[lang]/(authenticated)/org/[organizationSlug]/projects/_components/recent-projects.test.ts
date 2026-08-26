@@ -88,4 +88,10 @@ describe("recent-projects", () => {
       }),
     ).toEqual([{ id: "project_a", name: "Alpha" }]);
   });
+
+  it("skips persistence when browser storage is unavailable", () => {
+    expect(readRecentProjectVisits("acme")).toEqual([]);
+    expect(() => recordRecentProjectVisit("acme", "project_a")).not.toThrow();
+    expect(readRecentProjectVisits("acme")).toEqual([]);
+  });
 });

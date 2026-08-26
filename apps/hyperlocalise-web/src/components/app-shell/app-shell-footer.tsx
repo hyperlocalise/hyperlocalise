@@ -12,7 +12,13 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { CustomerSupportIcon } from "@hugeicons/core-free-icons";
+import { useSyncExternalStore } from "react";
+import {
+  BookOpenTextIcon,
+  CheckmarkCircle02Icon,
+  CustomerSupportIcon,
+  MinusSignCircleIcon,
+} from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { FormattedMessage, useIntl } from "react-intl";
 
@@ -24,6 +30,12 @@ import {
 } from "@/components/app-shell/chat-dock/chat-dock";
 import { ChatDockErrorBoundary } from "@/components/app-shell/chat-dock/chat-dock-error-boundary";
 import { PlanUsageFooterControl } from "@/components/billing/plan-usage-summary";
+import {
+  getCatGlossaryGuidanceServerSnapshot,
+  getCatGlossaryGuidanceStatus,
+  requestCatGlossaryGuidance,
+  subscribeCatGlossaryGuidance,
+} from "@/components/cat/intelligence/cat-glossary-guidance-event";
 import { Button } from "@/components/ui/button";
 import { SUPPORT_EMAIL } from "@/lib/support-contact";
 
@@ -32,14 +44,21 @@ import { appShellFooterMessages } from "./app-shell-footer.messages";
 export function AppShellFooter({
   organizationSlug,
   showPlan,
+  showGlossaryGuidance = false,
   currentUser,
 }: {
   organizationSlug: string;
   showPlan: boolean;
+  showGlossaryGuidance?: boolean;
   currentUser?: InboxCurrentUser;
 }) {
   const intl = useIntl();
   const showChatDock = Boolean(organizationSlug && currentUser);
+  const glossaryGuidanceStatus = useSyncExternalStore(
+    subscribeCatGlossaryGuidance,
+    getCatGlossaryGuidanceStatus,
+    getCatGlossaryGuidanceServerSnapshot,
+  );
 
   return (
     <footer className="fixed inset-x-0 bottom-0 z-40 flex flex-col border-t border-border bg-background">
@@ -54,6 +73,48 @@ export function AppShellFooter({
         <div className="flex h-10 w-full items-center gap-2">
           {showPlan ? <PlanUsageFooterControl organizationSlug={organizationSlug} /> : null}
           <div className="ms-auto flex min-w-0 items-center gap-2">
+            {showGlossaryGuidance ? (
+              <Button
+                type="button"
+                variant="ghost"
+                size="xs"
+                className="gap-1.5 px-2"
+                onClick={requestCatGlossaryGuidance}
+                aria-label={intl.formatMessage(
+                  glossaryGuidanceStatus.preferredCount > 0 ||
+                    glossaryGuidanceStatus.notRecommendedCount > 0
+                    ? appShellFooterMessages.glossaryGuidanceAvailableAriaLabel
+                    : appShellFooterMessages.glossaryGuidanceAriaLabel,
+                )}
+              >
+                <HugeiconsIcon icon={BookOpenTextIcon} strokeWidth={2} className="size-3.5" />
+                <FormattedMessage {...appShellFooterMessages.glossaryGuidanceLabel} />
+                {glossaryGuidanceStatus.preferredCount > 0 ? (
+                  <span className="inline-flex items-center gap-0.5 text-xs font-medium text-emerald-500">
+                    <HugeiconsIcon
+                      icon={CheckmarkCircle02Icon}
+                      strokeWidth={2}
+                      className="size-4"
+                      aria-hidden="true"
+                    />
+                    <span className="tabular-nums">{glossaryGuidanceStatus.preferredCount}</span>
+                  </span>
+                ) : null}
+                {glossaryGuidanceStatus.notRecommendedCount > 0 ? (
+                  <span className="inline-flex items-center gap-0.5 text-xs font-medium text-rose-500">
+                    <HugeiconsIcon
+                      icon={MinusSignCircleIcon}
+                      strokeWidth={2}
+                      className="size-4"
+                      aria-hidden="true"
+                    />
+                    <span className="tabular-nums">
+                      {glossaryGuidanceStatus.notRecommendedCount}
+                    </span>
+                  </span>
+                ) : null}
+              </Button>
+            ) : null}
             {showChatDock ? <ChatDockFooterControls organizationSlug={organizationSlug} /> : null}
             <Button
               variant="ghost"

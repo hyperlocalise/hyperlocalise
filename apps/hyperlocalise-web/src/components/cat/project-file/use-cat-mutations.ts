@@ -16,6 +16,7 @@ import { useMutation } from "@tanstack/react-query";
 import { useIntl, type IntlShape } from "react-intl";
 
 import {
+  maxCatLockedStringBatch,
   maxNativeCatHiddenStringBatch,
   type ProjectFileCatComment,
   type ProjectFileCatQueueFile,
@@ -95,9 +96,10 @@ export function useCatMutations(input: {
       const segment = input.catFile?.segments.find(
         (entry) => entry.externalStringId === mutationInput.externalStringId,
       );
-      if (segment?.isHidden) {
+      // Hidden is informational (hidden-string ADRs). Only an explicit lock blocks saves.
+      if (segment?.isLocked) {
         throw new Error(
-          intl.formatMessage(useCatMutationsMessages.cannotEditHiddenStringTranslation),
+          intl.formatMessage(useCatMutationsMessages.cannotEditLockedStringTranslation),
         );
       }
 
@@ -537,6 +539,50 @@ export function useCatMutations(input: {
     },
   });
 
+  const lockedStringsMutation = useMutation({
+    mutationFn: async (mutationInput: { externalStringIds: string[]; isLocked: boolean }) => {
+      const uniqueIds = [...new Set(mutationInput.externalStringIds)];
+      const chunks = chunkItems(uniqueIds, maxCatLockedStringBatch);
+      let updatedCount = 0;
+
+      for (const externalStringIds of chunks) {
+        const response = await apiClient.api.orgs[":organizationSlug"].projects[
+          ":projectId"
+        ].files.detail.cat.strings.locked.$post({
+          param: {
+            organizationSlug: input.organizationSlug,
+            projectId: input.projectId,
+          },
+          json: {
+            sourcePath: input.sourcePath,
+            targetLocale: input.targetLocale,
+            externalStringIds,
+            isLocked: mutationInput.isLocked,
+          },
+        });
+
+        if (!response.ok) {
+          throw new Error(
+            await readApiError(
+              response,
+              intl.formatMessage(useCatMutationsMessages.failedToUpdateLockedStrings),
+            ),
+          );
+        }
+
+        const body = (await response.json()) as {
+          catSegmentLock: { updatedCount: number; isLocked: boolean };
+        };
+        updatedCount += body.catSegmentLock.updatedCount;
+      }
+
+      return { updatedCount, isLocked: mutationInput.isLocked };
+    },
+    onSuccess: async () => {
+      await input.invalidateQueue();
+    },
+  });
+
   return {
     saveMutation,
     saveTranslation: saveMutation.mutateAsync,
@@ -553,6 +599,7 @@ export function useCatMutations(input: {
     treatAsVideoMutation,
     treatAsVideo: treatAsVideoMutation.mutateAsync,
     setStringsHidden: hiddenStringsMutation.mutateAsync,
+    setStringsLocked: lockedStringsMutation.mutateAsync,
     isSaving: saveMutation.isPending,
     isPostingComment: commentMutation.isPending,
     isResolvingComment: resolveCommentMutation.isPending,

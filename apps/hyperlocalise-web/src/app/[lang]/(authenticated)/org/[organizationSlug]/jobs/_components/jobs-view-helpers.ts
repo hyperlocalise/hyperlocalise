@@ -10,6 +10,10 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
+import {
+  readBrowserLocalStorageItem,
+  writeBrowserLocalStorageItem,
+} from "@/lib/primitives/browser-local-storage/browser-local-storage";
 import { buildJobCatHref, canOpenJobCat, type JobCatTarget } from "@/lib/projects/job-cat-routing";
 import { resolveJobProjectId } from "@/lib/providers/jobs/tms-provider-resource-id";
 
@@ -35,32 +39,16 @@ export function isKanbanStatus(status: string): status is KanbanStatus {
 export { buildJobCatHref, canOpenJobCat, type JobCatTarget };
 
 export function readJobsViewMode(): JobsViewMode {
-  if (typeof window === "undefined") {
-    return "kanban";
-  }
-
-  try {
-    const stored = window.localStorage.getItem(JOBS_VIEW_MODE_STORAGE_KEY);
-    if (stored === "row" || stored === "kanban") {
-      return stored;
-    }
-  } catch {
-    return "kanban";
+  const stored = readBrowserLocalStorageItem(JOBS_VIEW_MODE_STORAGE_KEY);
+  if (stored === "row" || stored === "kanban") {
+    return stored;
   }
 
   return "kanban";
 }
 
 export function writeJobsViewMode(mode: JobsViewMode) {
-  if (typeof window === "undefined") {
-    return;
-  }
-
-  try {
-    window.localStorage.setItem(JOBS_VIEW_MODE_STORAGE_KEY, mode);
-  } catch {
-    // Ignore storage failures in private browsing or restricted environments.
-  }
+  writeBrowserLocalStorageItem(JOBS_VIEW_MODE_STORAGE_KEY, mode);
 }
 
 export function buildJobDetailHref(

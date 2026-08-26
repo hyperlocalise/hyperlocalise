@@ -25,4 +25,15 @@ export const catWorkspaceViewMessages = defineMessages({
     id: "0x11s5ha3b",
     description: "Current segment index when more queue pages may exist and total count is unknown",
   },
+  resizeQueuePanel: {
+    defaultMessage: "Resize queue panel",
+    id: "e/sLamxaMH",
+    description: "Accessible name for the horizontal handle that resizes the CAT queue panel",
+  },
+  resizeIntelligencePanel: {
+    defaultMessage: "Resize translation intelligence panel",
+    id: "ml60MI46D3",
+    description:
+      "Accessible name for the horizontal handle that resizes the CAT translation intelligence panel",
+  },
 });

@@ -13,6 +13,7 @@
 import { sql } from "drizzle-orm";
 import {
   boolean,
+  check,
   foreignKey,
   index,
   integer,
@@ -46,6 +47,18 @@ export const issueSheetIssues = pgTable(
     projectId: text("project_id")
       .notNull()
       .references(() => projects.id, { onDelete: "cascade" }),
+    // Per-project serial used to build identifier at create time.
+    // Default is only for schema migrations on existing rows; app code always sets the next serial.
+    number: integer("number")
+      .notNull()
+      .default(sql`(floor(random() * 2147483646) + 1)::integer`),
+    // Human-readable display ID (e.g. HL-123). Immutable after create.
+    // Default is only for schema migrations on existing rows; app code always sets PREFIX-N.
+    identifier: text("identifier")
+      .notNull()
+      .default(
+        sql`'I' || upper(substr(replace(gen_random_uuid()::text, '-', ''), 1, 8)) || '-' || ((floor(random() * 2147483646) + 1)::integer)::text`,
+      ),
     title: text("title").notNull(),
     description: text("description").notNull().default(""),
     issueType: text("issue_type").notNull().default("general_question"),
@@ -97,9 +110,17 @@ export const issueSheetIssues = pgTable(
     index("idx_issue_sheet_issues_project_locale").on(table.projectId, table.targetLocale),
     index("idx_issue_sheet_issues_linked_comment").on(table.linkedCommentId),
     index("idx_issue_sheet_issues_translation_key").on(table.translationKeyId),
+    index("idx_issue_sheet_issues_org_project_number").on(
+      table.organizationId,
+      table.projectId,
+      table.number,
+    ),
+    uniqueIndex("issue_sheet_issues_project_number_key").on(table.projectId, table.number),
+    uniqueIndex("issue_sheet_issues_project_identifier_key").on(table.projectId, table.identifier),
     uniqueIndex("issue_sheet_issues_project_external_ref_key")
       .on(table.projectId, table.externalRef)
       .where(sql`${table.externalRef} IS NOT NULL`),
+    check("issue_sheet_issues_number_check", sql`${table.number} >= 1`),
   ],
 );
 

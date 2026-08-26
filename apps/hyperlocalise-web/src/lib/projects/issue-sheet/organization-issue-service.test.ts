@@ -18,6 +18,7 @@ import { afterEach, beforeAll, describe, expect, it } from "vite-plus/test";
 
 import { createAuthTestFixture } from "@/api/test-auth.fixture";
 import { db, schema } from "@/lib/database";
+import { uniqueTestProjectIdentifier } from "@/lib/projects/issue-identifier/test-project-identifier";
 import { IssueSheetService } from "@/lib/projects/issue-sheet/issue-sheet-service";
 import { OrganizationIssueService } from "@/lib/projects/issue-sheet/organization-issue-service";
 import { ensureDefaultWorkspaceTeam } from "@/lib/teams/default-workspace-team";
@@ -41,6 +42,7 @@ async function createProjectForIdentity() {
     .insert(schema.projects)
     .values({
       id: `project_${randomUUID()}`,
+      identifier: uniqueTestProjectIdentifier(),
       organizationId: organization.id,
       teamId: team.id,
       createdByUserId: user.id,
@@ -71,12 +73,14 @@ describe("OrganizationIssueService.getById", () => {
       },
     });
 
-    const issue = await organizationIssueService.getById(auth, created.id);
+    const issue = await organizationIssueService.getById(auth, created.identifier);
     expect(issue).toMatchObject({
       id: created.id,
+      identifier: created.identifier,
       title: "Service issue",
       projectId: project.id,
     });
+    expect(issue?.identifier).toMatch(/^[A-Z][A-Z0-9]{0,9}-[1-9][0-9]*$/);
     expect(issue?.projectName).toBe("Service Test Project");
   });
 
@@ -85,10 +89,7 @@ describe("OrganizationIssueService.getById", () => {
     await authFixture.authHeadersFor(identity);
     const auth = globalThis.__testApiAuthContext!;
 
-    const issue = await organizationIssueService.getById(
-      auth,
-      "00000000-0000-4000-8000-000000000000",
-    );
+    const issue = await organizationIssueService.getById(auth, "ZZZ-99999");
     expect(issue).toBeNull();
   });
 
@@ -111,10 +112,10 @@ describe("OrganizationIssueService.getById", () => {
     await authFixture.authHeadersFor(outsider.identity);
     const outsiderAuth = globalThis.__testApiAuthContext!;
 
-    expect(await organizationIssueService.getById(ownerAuth, created.id)).toMatchObject({
+    expect(await organizationIssueService.getById(ownerAuth, created.identifier)).toMatchObject({
       id: created.id,
     });
-    expect(await organizationIssueService.getById(outsiderAuth, created.id)).toBeNull();
+    expect(await organizationIssueService.getById(outsiderAuth, created.identifier)).toBeNull();
   });
 });
 
@@ -127,6 +128,7 @@ describe("IssueSheetService.getIssue", () => {
       .insert(schema.projects)
       .values({
         id: `project_${randomUUID()}`,
+        identifier: uniqueTestProjectIdentifier(),
         organizationId: organization.id,
         teamId: project.teamId,
         createdByUserId: user.id,
@@ -151,7 +153,7 @@ describe("IssueSheetService.getIssue", () => {
     const sameProject = await issueSheetService.getIssue({
       organizationId: organization.id,
       projectId: project.id,
-      issueId: created.id,
+      issueId: created.identifier,
       actorUserId: user.id,
     });
     expect(sameProject?.id).toBe(created.id);
@@ -159,7 +161,7 @@ describe("IssueSheetService.getIssue", () => {
     const otherProjectIssue = await issueSheetService.getIssue({
       organizationId: organization.id,
       projectId: otherProject.id,
-      issueId: created.id,
+      issueId: created.identifier,
       actorUserId: user.id,
     });
     expect(otherProjectIssue).toBeNull();

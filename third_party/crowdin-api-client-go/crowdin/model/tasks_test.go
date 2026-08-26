@@ -24,10 +24,11 @@ func TestTasksListOptionsValues(t *testing.T) {
 			name: "all options",
 			opts: &TasksListOptions{
 				OrderBy: "createdAt desc,name", Status: []TaskStatus{TaskStatusTodo, TaskStatusDone},
+				Type:       []TaskType{TaskTypeTranslate, TaskTypeProofread},
 				AssigneeID: 1, CreatorID: 2, ListOptions: ListOptions{Limit: 10, Offset: 5},
 				LabelIDs: []int{1, 2}, ExcludeLabelIDs: []int{3, 4},
 			},
-			out: "assigneeId=1&creatorId=2&excludeLabelIds=3%2C4&labelIds=1%2C2&limit=10&offset=5&orderBy=createdAt+desc%2Cname&status=todo%2Cdone",
+			out: "assigneeId=1&creatorId=2&excludeLabelIds=3%2C4&labelIds=1%2C2&limit=10&offset=5&orderBy=createdAt+desc%2Cname&status=todo%2Cdone&type=0%2C1",
 		},
 	}
 

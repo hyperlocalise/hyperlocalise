@@ -240,6 +240,17 @@ export function getMcpAuthorizationServerMetadata(origin: string, apiBasePath = 
   };
 }
 
+export function getMcpProtectedResourceMetadata(origin: string, apiBasePath = "/api") {
+  const mcpBasePath = getMcpBasePath(apiBasePath);
+
+  return {
+    resource: `${origin}${mcpBasePath}/sse`,
+    authorization_servers: [origin],
+    scopes_supported: ["mcp"],
+    bearer_methods_supported: ["header"],
+  };
+}
+
 async function readTokenRequestBody(request: Request) {
   const contentType = request.headers.get("content-type") ?? "";
 
@@ -480,6 +491,9 @@ export function createMcpRoutes(options: { apiBasePath?: string } = {}) {
   return new Hono<{ Variables: McpAuthVariables }>()
     .get("/.well-known/oauth-authorization-server", (c) =>
       c.json(getMcpAuthorizationServerMetadata(endpointOrigin(c), apiBasePath), 200),
+    )
+    .get("/.well-known/oauth-protected-resource", (c) =>
+      c.json(getMcpProtectedResourceMetadata(endpointOrigin(c), apiBasePath), 200),
     )
     .use("/mcp/*", mcpAuthEnabledMiddleware)
     .post(

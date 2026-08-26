@@ -74,15 +74,16 @@ func TestStringCommentsService_List(t *testing.T) {
 		{
 			name: "with options 1",
 			opts: &model.StringCommentsListOptions{
-				OrderBy:  "createdAt desc,text",
-				StringID: 1,
-				Type:     "comment",
+				OrderBy:          "createdAt desc,text",
+				StringID:         1,
+				TargetLanguageID: "es",
+				Type:             "comment",
 				ListOptions: model.ListOptions{
 					Limit:  10,
 					Offset: 10,
 				},
 			},
-			expect: "?limit=10&offset=10&orderBy=createdAt+desc%2Ctext&stringId=1&type=comment",
+			expect: "?limit=10&offset=10&orderBy=createdAt+desc%2Ctext&stringId=1&targetLanguageId=es&type=comment",
 		},
 		{
 			name: "with options 2",

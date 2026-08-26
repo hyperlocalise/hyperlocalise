@@ -33,7 +33,7 @@ export function composeWorkspaceAutomationInstructions(input: {
     `Trigger mode: ${input.triggerMode}.`,
     `Execution plan: ${input.plan.tools.map((tool) => `\`${tool}\``).join(" → ") || "none"}.`,
     hasRecallMemory
-      ? "You have a recall_memory tool for organization guidance. Call it when relevant to this automation's task."
+      ? "You have a recall_memory tool for workspace and project guidance. Call it when relevant to this automation's task."
       : null,
     hasSaveMemory
       ? "You have a save_memory tool. Use it only when this automation's own instructions say to remember something."

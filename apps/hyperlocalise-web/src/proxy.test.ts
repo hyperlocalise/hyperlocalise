@@ -79,6 +79,7 @@ describe("isUnsupportedLocalePath", () => {
     expect(isUnsupportedLocalePath("/startups")).toBe(false);
     expect(isUnsupportedLocalePath("/localisation-audit")).toBe(false);
     expect(isUnsupportedLocalePath("/localisation-audit/stripe-com")).toBe(false);
+    expect(isUnsupportedLocalePath("/chat/acme/11111111-1111-4111-8111-111111111111")).toBe(false);
     expect(isUnsupportedLocalePath("/dashboard")).toBe(false);
     expect(isUnsupportedLocalePath("/claim-domain/stripe-com-abcdef")).toBe(false);
   });

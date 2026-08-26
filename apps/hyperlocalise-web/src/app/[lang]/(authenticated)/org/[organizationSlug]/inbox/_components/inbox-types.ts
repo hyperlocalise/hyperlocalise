@@ -22,7 +22,7 @@ import { inboxTypesMessages } from "./inbox-types.messages";
 export type Conversation = {
   id: string;
   title: string;
-  source: "chat_ui" | "email_agent" | "github_agent" | "slack_agent";
+  source: "chat_ui" | "email_agent" | "github_agent" | "slack_agent" | "web_chat";
   status: "active" | "archived";
   projectId: string | null;
   lastMessageAt: string;
@@ -112,6 +112,8 @@ export function getSourceLabel(source: Conversation["source"], intl: IntlShape) 
       return intl.formatMessage(inboxTypesMessages.sourceGitHub);
     case "slack_agent":
       return intl.formatMessage(inboxTypesMessages.sourceSlack);
+    case "web_chat":
+      return intl.formatMessage(inboxTypesMessages.sourceWebChat);
     default:
       return assertNever(source);
   }
@@ -157,13 +159,13 @@ export function formatRelativeTime(value: string | Date | null, intl: IntlShape)
 
   if (diffMin < 1) return intl.formatMessage(inboxTypesMessages.relativeNow);
   if (diffMin < 60) {
-    return intl.formatMessage(inboxTypesMessages.relativeMinutes, { count: diffMin });
+    return intl.formatNumber(diffMin, { style: "unit", unit: "minute", unitDisplay: "narrow" });
   }
   if (diffHour < 24) {
-    return intl.formatMessage(inboxTypesMessages.relativeHours, { count: diffHour });
+    return intl.formatNumber(diffHour, { style: "unit", unit: "hour", unitDisplay: "narrow" });
   }
   if (diffDay < 7) {
-    return intl.formatMessage(inboxTypesMessages.relativeDays, { count: diffDay });
+    return intl.formatNumber(diffDay, { style: "unit", unit: "day", unitDisplay: "narrow" });
   }
   return DATE_FORMATTER.format(date);
 }

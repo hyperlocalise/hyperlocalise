@@ -24,6 +24,7 @@ import { RELEASE_CAT_ALL_FILES_FLAG } from "@/lib/flags/release-flag-keys";
 import { encodeProviderProjectId } from "@/lib/providers/jobs/tms-provider-resource-id";
 
 import {
+  buildAutomationsPath,
   buildGlobalNavigationGroups,
   buildOrganizationPath,
   buildProjectNavigationItems,
@@ -159,6 +160,23 @@ describe("path builders", () => {
     expect(buildProjectPath("acme", "proj_1", "files")).toBe("/org/acme/projects/proj_1/files");
   });
 
+  it("builds workspace and project automations paths", () => {
+    expect(buildAutomationsPath("acme")).toBe("/org/acme/automations");
+    expect(buildAutomationsPath("acme", { section: "new" })).toBe("/org/acme/automations/new");
+    expect(buildAutomationsPath("acme", { automationId: "auto_1" })).toBe(
+      "/org/acme/automations/auto_1",
+    );
+    expect(buildAutomationsPath("acme", { projectId: "proj_1" })).toBe(
+      "/org/acme/projects/proj_1/automations",
+    );
+    expect(buildAutomationsPath("acme", { projectId: "proj_1", section: "new" })).toBe(
+      "/org/acme/projects/proj_1/automations/new",
+    );
+    expect(
+      buildAutomationsPath("acme", { projectId: "ext:crowdin:1", automationId: "auto_1" }),
+    ).toBe("/org/acme/projects/ext%3Acrowdin%3A1/automations/auto_1");
+  });
+
   it("encodes reserved characters in the project id segment", () => {
     expect(buildProjectPath("acme", "ext:crowdin:1", "jobs")).toBe(
       "/org/acme/projects/ext%3Acrowdin%3A1/jobs",
@@ -176,10 +194,24 @@ describe("path builders", () => {
       href: "/org/acme/inbox/new",
       exact: true,
     });
+    expect(byLabel.get("AI Engine")?.href).toBe("/org/acme/ai-engine");
     expect(byLabel.get("Automations")?.featureFlagKey).toBe(WORKSPACE_AUTOMATIONS_FLAG);
-    expect(byLabel.get("Knowledge")?.featureFlagKey).toBe(WORKSPACE_KNOWLEDGE_FLAG);
+    expect(byLabel.get("Guideline")?.featureFlagKey).toBe(WORKSPACE_KNOWLEDGE_FLAG);
     expect(byLabel.get("Issues")?.featureFlagKey).toBeUndefined();
     expect(byLabel.get("Domains")?.featureFlagKey).toBe(WORKSPACE_DOMAINS_FLAG);
+
+    expect(groups.map((group) => group.label)).toEqual([undefined, "Agents", "Workspace"]);
+    expect(groups[1]?.items.map((item) => item.label)).toEqual([
+      "New Request",
+      "Automations",
+      "AI Engine",
+    ]);
+    expect(groups[0]?.items.map((item) => item.label)).toEqual([
+      "Inbox",
+      "My Jobs",
+      "Issues",
+      "Overview",
+    ]);
   });
 
   it("builds project navigation items scoped to the project", () => {
@@ -191,9 +223,17 @@ describe("path builders", () => {
       ["Strings", "/org/acme/projects/proj_1/strings"],
       ["Jobs", "/org/acme/projects/proj_1/jobs"],
       ["Issues", "/org/acme/projects/proj_1/issue-sheet"],
+      ["Automations", "/org/acme/projects/proj_1/automations"],
+      ["Guideline", "/org/acme/projects/proj_1/knowledge"],
       ["Settings", "/org/acme/projects/proj_1/settings"],
     ]);
     expect(items.find((item) => item.label === "Issues")?.featureFlagKey).toBeUndefined();
+    expect(items.find((item) => item.label === "Automations")?.featureFlagKey).toBe(
+      WORKSPACE_AUTOMATIONS_FLAG,
+    );
+    expect(items.find((item) => item.label === "Guideline")?.featureFlagKey).toBe(
+      WORKSPACE_KNOWLEDGE_FLAG,
+    );
   });
 });
 
@@ -273,6 +313,13 @@ describe("buildProjectNavigationItems", () => {
     });
     const items = buildProjectNavigationItems("acme", projectId, intl);
     expect(items.find((item) => item.label === "Strings")).toBeUndefined();
+  });
+
+  it("includes an Automations item gated by the workspace automations flag", () => {
+    const items = buildProjectNavigationItems("acme", "proj_1", intl);
+    const automationsItem = items.find((item) => item.label === "Automations");
+    expect(automationsItem?.href).toBe("/org/acme/projects/proj_1/automations");
+    expect(automationsItem?.featureFlagKey).toBe(WORKSPACE_AUTOMATIONS_FLAG);
   });
 });
 

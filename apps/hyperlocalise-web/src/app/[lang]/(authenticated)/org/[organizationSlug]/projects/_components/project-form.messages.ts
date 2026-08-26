@@ -50,6 +50,11 @@ export const projectFormMessages = defineMessages({
     id: "X9X74tk3Lj",
     description: "Validation error when no valid target locales are selected",
   },
+  invalidIdentifier: {
+    defaultMessage: "Use 1–10 letters or numbers, starting with a letter (e.g. HL).",
+    id: "vkuQguUble",
+    description: "Validation error when the project issue identifier is invalid",
+  },
   noLocalesConfigured: {
     defaultMessage: "No locales configured",
     id: "Up5yLUnVpF",

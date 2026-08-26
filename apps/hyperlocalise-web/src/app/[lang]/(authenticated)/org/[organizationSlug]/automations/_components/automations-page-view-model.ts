@@ -25,8 +25,19 @@ import type {
 
 import { automationsPageViewModelMessages } from "./automations-page-view-model.messages";
 
-export function resolveVisibleAutomations(automations: WorkspaceAutomationRecord[]) {
-  return automations.filter((automation) => automation.status !== "archived");
+export function resolveVisibleAutomations(
+  automations: WorkspaceAutomationRecord[],
+  projectId?: string,
+) {
+  return automations.filter((automation) => {
+    if (automation.status === "archived") {
+      return false;
+    }
+    if (!projectId) {
+      return true;
+    }
+    return automation.projectId === projectId;
+  });
 }
 
 export function resolveAutomationPageStats(automations: WorkspaceAutomationRecord[]) {
@@ -72,14 +83,18 @@ export function formatAutomationRelativeTimestamp(
   const diffMs = now - date.getTime();
   const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
   if (diffHours < 24) {
-    return intl.formatMessage(automationsPageViewModelMessages.relativeHours, {
-      hours: Math.max(diffHours, 1),
+    return intl.formatNumber(Math.max(diffHours, 1), {
+      style: "unit",
+      unit: "hour",
+      unitDisplay: "narrow",
     });
   }
 
   const diffDays = Math.floor(diffHours / 24);
-  return intl.formatMessage(automationsPageViewModelMessages.relativeDays, {
-    days: diffDays,
+  return intl.formatNumber(diffDays, {
+    style: "unit",
+    unit: "day",
+    unitDisplay: "narrow",
   });
 }
 
@@ -105,6 +120,15 @@ export function resolveAutomationTriggerLabel(
   if (triggerConfig.mode === "github") {
     return intl.formatMessage(automationsPageViewModelMessages.triggerGithub);
   }
+  if (triggerConfig.mode === "contentful") {
+    return intl.formatMessage(automationsPageViewModelMessages.triggerContentful);
+  }
+  if (triggerConfig.mode === "source_upload") {
+    return intl.formatMessage(automationsPageViewModelMessages.triggerSourceUpload);
+  }
+  if (triggerConfig.mode === "web_chat") {
+    return intl.formatMessage(automationsPageViewModelMessages.triggerWebChat);
+  }
   return intl.formatMessage(automationsPageViewModelMessages.triggerManual);
 }
 
@@ -124,6 +148,9 @@ export function resolveAutomationTools(intl: IntlShape, automation: WorkspaceAut
   }
   if (automation.toolConfig.mcp?.enabled) {
     tools.push(intl.formatMessage(automationsPageViewModelMessages.toolMcpServer));
+  }
+  if (automation.toolConfig.knowledgeFiles?.enabled) {
+    tools.push(intl.formatMessage(automationsPageViewModelMessages.toolKnowledgeFiles));
   }
   return tools;
 }

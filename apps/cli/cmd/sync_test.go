@@ -76,6 +76,21 @@ func TestHyperlocaliseSyncRecognizesFluentFiles(t *testing.T) {
 	}
 }
 
+func TestHyperlocaliseSyncRecognizesSubtitleFiles(t *testing.T) {
+	if got := inferHyperlocaliseFileFormat("captions/en.srt"); got != "srt" {
+		t.Fatalf("inferHyperlocaliseFileFormat(.srt) = %q, want srt", got)
+	}
+	if got := inferHyperlocaliseFileFormat("captions/en.vtt"); got != "vtt" {
+		t.Fatalf("inferHyperlocaliseFileFormat(.vtt) = %q, want vtt", got)
+	}
+	if got := contentTypeForPath("captions/en.srt"); got == "application/octet-stream" {
+		t.Fatalf("contentTypeForPath(.srt) = %q, want a text subtitle type", got)
+	}
+	if got := contentTypeForPath("captions/en.vtt"); got == "application/octet-stream" {
+		t.Fatalf("contentTypeForPath(.vtt) = %q, want a text subtitle type", got)
+	}
+}
+
 func TestHyperlocaliseSyncRecognizesImageFiles(t *testing.T) {
 	cases := []struct {
 		path   string

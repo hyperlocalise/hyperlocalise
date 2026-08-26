@@ -17,11 +17,13 @@ const getKnowledgeMemoryForOrganizationMock = vi.hoisted(() => {
   process.env.PROVIDER_CREDENTIALS_MASTER_KEY ??= "MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=";
   return vi.fn();
 });
+const getKnowledgeMemoryForProjectMock = vi.hoisted(() => vi.fn());
 const selectKnowledgeMemoryContextMock = vi.hoisted(() => vi.fn());
 const resolveWorkspaceKnowledgeFlagMock = vi.hoisted(() => vi.fn());
 
 vi.mock("@/lib/knowledge-memory/knowledge-memory", () => ({
   getKnowledgeMemoryForOrganization: getKnowledgeMemoryForOrganizationMock,
+  getKnowledgeMemoryForProject: getKnowledgeMemoryForProjectMock,
 }));
 
 vi.mock("@/lib/knowledge-memory/knowledge-memory-selection", () => ({
@@ -102,6 +104,7 @@ const toolCallContext = { toolCallId: "call-1", messages: [], context: {} };
 describe("createRecallMemoryTool", () => {
   beforeEach(() => {
     getKnowledgeMemoryForOrganizationMock.mockReset();
+    getKnowledgeMemoryForProjectMock.mockReset();
     selectKnowledgeMemoryContextMock.mockReset();
     resolveWorkspaceKnowledgeFlagMock.mockReset();
     resolveWorkspaceKnowledgeFlagMock.mockResolvedValue(true);
@@ -249,5 +252,52 @@ describe("createRecallMemoryTool", () => {
     expect(result).toEqual({ found: true, content: "A confidential-sounding internal rule." });
     expect(testSession.stepResults.recall_memory).toEqual({ found: true });
     expect(JSON.stringify(testSession.stepResults.recall_memory)).not.toContain("confidential");
+  });
+
+  it("combines project and workspace guidance when the automation has a project", async () => {
+    getKnowledgeMemoryForOrganizationMock.mockResolvedValue({
+      revisionId: "rev-org",
+      version: 1,
+      content: "Workspace voice is calm.",
+      summary: "s",
+      updatedAt: "2026-01-01T00:00:00.000Z",
+      updatedByUserId: "user-1",
+    });
+    getKnowledgeMemoryForProjectMock.mockResolvedValue({
+      revisionId: "rev-project",
+      version: 1,
+      content: "Checkout buttons stay short.",
+      summary: "s",
+      updatedAt: "2026-01-01T00:00:00.000Z",
+      updatedByUserId: "user-1",
+    });
+    selectKnowledgeMemoryContextMock.mockImplementation(({ content }: { content: string }) => ({
+      compactText: content,
+      segments: [],
+      metrics: {
+        selectedMemoryCount: 1,
+        selectedMemoryChars: content.length,
+        wholeMemoryChars: content.length,
+        reductionPercent: 0,
+        matchedHeadingPaths: [],
+        fallbackMode: "selective",
+      },
+    }));
+
+    const testSession = session({ knowledge: { enabled: true, allowUpdates: false } });
+    testSession.automation.projectId = "project-1";
+    const tool = createRecallMemoryTool(testSession);
+    const result = await tool.execute!({ query: "checkout tone" }, toolCallContext);
+
+    expect(getKnowledgeMemoryForProjectMock).toHaveBeenCalledWith("project-1");
+    expect(result).toEqual({
+      found: true,
+      content: [
+        "## Project guideline",
+        "Checkout buttons stay short.",
+        "## Workspace guideline",
+        "Workspace voice is calm.",
+      ].join("\n\n"),
+    });
   });
 });

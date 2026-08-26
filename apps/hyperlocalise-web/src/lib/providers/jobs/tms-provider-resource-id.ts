@@ -112,7 +112,8 @@ export function isLiveProviderMemoryId(value: string | null | undefined) {
 }
 
 export function isLiveProviderGlossaryId(value: string | null | undefined) {
-  return parseLiveProviderGlossaryId(value) !== null;
+  const parsed = parseLiveProviderGlossaryId(value);
+  return parsed !== null && parsed.providerKind !== "crowdin";
 }
 
 export function isLiveProviderResourceId(value: string | null | undefined) {

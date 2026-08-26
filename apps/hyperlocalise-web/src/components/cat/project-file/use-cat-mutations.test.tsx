@@ -32,6 +32,7 @@ const {
   catCommentsPostMock,
   catCommentResolvePatchMock,
   catStringsHiddenPostMock,
+  catStringsLockedPostMock,
   invalidateSegmentTargetMock,
   syncSegmentTargetAfterSaveMock,
   invalidateSegmentCommentsMock,
@@ -40,6 +41,7 @@ const {
   catCommentsPostMock: vi.fn(),
   catCommentResolvePatchMock: vi.fn(),
   catStringsHiddenPostMock: vi.fn(),
+  catStringsLockedPostMock: vi.fn(),
   invalidateSegmentTargetMock: vi.fn(),
   syncSegmentTargetAfterSaveMock: vi.fn(),
   invalidateSegmentCommentsMock: vi.fn(),
@@ -61,6 +63,9 @@ vi.mock("@/lib/api-client-instance", () => ({
                     strings: {
                       hidden: {
                         $post: (...args: unknown[]) => catStringsHiddenPostMock(...args),
+                      },
+                      locked: {
+                        $post: (...args: unknown[]) => catStringsLockedPostMock(...args),
                       },
                     },
                     comments: {
@@ -170,10 +175,30 @@ describe("useCatMutations", () => {
     expect(invalidateQueue).not.toHaveBeenCalled();
   });
 
-  it("blocks saving translations for hidden segments", async () => {
+  it("still saves hidden segments that are not locked", async () => {
+    const translation = createCatTranslation({ isApproved: false });
+    catTranslationsPostMock.mockResolvedValue(jsonResponse({ translation }));
+
     const { result } = renderCatMutations({
       ...createCatFileResponse().catFile,
       segments: [createCatSegment({ isHidden: true })],
+    });
+
+    await act(async () => {
+      await result.current.saveTranslation({
+        externalStringId: "segment-1",
+        text: "Bonjour",
+      });
+    });
+
+    expect(catTranslationsPostMock).toHaveBeenCalled();
+    expect(onTranslationSaved).toHaveBeenCalledWith("segment-1", "Bonjour", false);
+  });
+
+  it("blocks saving translations for locked segments", async () => {
+    const { result } = renderCatMutations({
+      ...createCatFileResponse().catFile,
+      segments: [createCatSegment({ isLocked: true })],
     });
 
     await expect(
@@ -181,7 +206,7 @@ describe("useCatMutations", () => {
         externalStringId: "segment-1",
         text: "Bonjour",
       }),
-    ).rejects.toThrow("Hidden strings can't be edited from the CAT.");
+    ).rejects.toThrow("Locked strings can't be edited from the CAT.");
     expect(catTranslationsPostMock).not.toHaveBeenCalled();
     expect(onTranslationSaved).not.toHaveBeenCalled();
   });
@@ -298,6 +323,34 @@ describe("useCatMutations", () => {
           sourcePath: catApiTestContext.sourcePath,
           externalStringIds: ["segment-1", "segment-2"],
           isHidden: true,
+        }),
+      }),
+    );
+    expect(invalidateQueue).toHaveBeenCalled();
+  });
+
+  it("locks strings and invalidates the queue on success", async () => {
+    catStringsLockedPostMock.mockResolvedValue(
+      jsonResponse({ catSegmentLock: { updatedCount: 2, isLocked: true } }),
+    );
+
+    const { result } = renderCatMutations();
+
+    await act(async () => {
+      const saved = await result.current.setStringsLocked({
+        externalStringIds: ["segment-1", "segment-2"],
+        isLocked: true,
+      });
+      expect(saved).toEqual({ updatedCount: 2, isLocked: true });
+    });
+
+    expect(catStringsLockedPostMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        json: expect.objectContaining({
+          sourcePath: catApiTestContext.sourcePath,
+          targetLocale: catApiTestContext.targetLocale,
+          externalStringIds: ["segment-1", "segment-2"],
+          isLocked: true,
         }),
       }),
     );

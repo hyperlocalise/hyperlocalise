@@ -132,12 +132,14 @@ describe("canAccessGlossary", () => {
     vi.resetModules();
   });
 
-  it("rejects live provider glossary ids before database lookup", async () => {
+  it("does not bypass database access for CrowdIn glossary ids", async () => {
+    mockSelectQueue([[{ id: "crowdin:glossary:718373" }]]);
+
     const { canAccessGlossary } = await import("./team-access");
     const result = await canAccessGlossary(createAuthContext(), "crowdin:glossary:718373");
 
-    expect(result).toBeNull();
-    expect(dbSelectMock).not.toHaveBeenCalled();
+    expect(result).toEqual({ id: "crowdin:glossary:718373" });
+    expect(dbSelectMock).toHaveBeenCalled();
   });
 
   it("allows a creator to access an unattached glossary", async () => {

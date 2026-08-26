@@ -648,18 +648,27 @@ describe("Organization issue-sheet GET", () => {
       },
     });
     expect(createResponse.status).toBe(201);
-    const created = (await createResponse.json()) as { issue: { id: string; title: string } };
+    const created = (await createResponse.json()) as {
+      issue: { id: string; identifier: string; title: string };
+    };
 
     const response = await requestJson(
-      organizationIssueSheetUrl(organizationSlug, created.issue.id),
+      organizationIssueSheetUrl(organizationSlug, created.issue.identifier),
       { headers },
     );
     expect(response.status).toBe(200);
     const body = (await response.json()) as {
-      issue: { id: string; title: string; projectId: string; projectName: string };
+      issue: {
+        id: string;
+        identifier: string;
+        title: string;
+        projectId: string;
+        projectName: string;
+      };
     };
     expect(body.issue).toMatchObject({
       id: created.issue.id,
+      identifier: created.issue.identifier,
       title: "Resolvable issue",
       projectId: project.id,
     });
@@ -671,10 +680,9 @@ describe("Organization issue-sheet GET", () => {
     const headers = await projectFixture.authHeadersFor(identity);
     const organizationSlug = identity.organization.slug ?? "missing-slug";
 
-    const response = await requestJson(
-      organizationIssueSheetUrl(organizationSlug, "00000000-0000-4000-8000-000000000000"),
-      { headers },
-    );
+    const response = await requestJson(organizationIssueSheetUrl(organizationSlug, "ZZZ-99999"), {
+      headers,
+    });
     expect(response.status).toBe(404);
     await expect(response.json()).resolves.toMatchObject({ error: "issue_not_found" });
   });
@@ -695,11 +703,14 @@ describe("Organization issue-sheet GET", () => {
       },
     });
     expect(createResponse.status).toBe(201);
-    const created = (await createResponse.json()) as { issue: { id: string } };
+    const created = (await createResponse.json()) as { issue: { id: string; identifier: string } };
 
-    const response = await requestJson(organizationIssueSheetUrl(ownerSlug, created.issue.id), {
-      headers: outsiderHeaders,
-    });
+    const response = await requestJson(
+      organizationIssueSheetUrl(ownerSlug, created.issue.identifier),
+      {
+        headers: outsiderHeaders,
+      },
+    );
     expect(response.status).toBe(404);
   });
 });

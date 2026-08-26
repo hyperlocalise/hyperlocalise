@@ -15,7 +15,7 @@ import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 import type { ProjectTranslationService } from "@/lib/projects/translations/project-translation-service";
 
 import { NativeCatCommentService } from "./native-cat-comment-service";
-import { NativeCatService } from "./native-cat-service";
+import { fileBackedCatSegmentIds, NativeCatService } from "./native-cat-service";
 
 const getLatestRepositorySourceFileVersion = vi.fn();
 const getImageVariant = vi.fn();
@@ -37,6 +37,25 @@ vi.mock("@/lib/projects/files/video-variant-service", () => ({
   projectVideoAssetPath: (input: { organizationSlug: string; projectId: string; fileId: string }) =>
     `/api/orgs/${input.organizationSlug}/projects/${input.projectId}/assets/${input.fileId}`,
 }));
+
+describe("fileBackedCatSegmentIds", () => {
+  it("includes the source file id and legacy path aliases", () => {
+    expect(fileBackedCatSegmentIds("file_1", "assets/hero.png")).toEqual([
+      "file_1",
+      "binary:assets/hero.png",
+      "image:assets/hero.png",
+      "video:assets/hero.png",
+    ]);
+  });
+
+  it("omits a missing source file id", () => {
+    expect(fileBackedCatSegmentIds(null, "assets/hero.png")).toEqual([
+      "binary:assets/hero.png",
+      "image:assets/hero.png",
+      "video:assets/hero.png",
+    ]);
+  });
+});
 
 describe("NativeCatService.getCatFile", () => {
   const getRepositorySourceFileByPath = vi.fn();

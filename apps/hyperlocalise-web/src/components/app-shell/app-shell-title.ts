@@ -22,7 +22,9 @@ type RouteTitleKey =
   | "account"
   | "activity"
   | "agent-runs"
+  | "ai-engine"
   | "api-keys"
+  | "automations"
   | "billing"
   | "dashboard"
   | "domains"
@@ -49,10 +51,12 @@ type RouteTitleKey =
 const PROJECT_SECTION_KEYS = {
   activity: true,
   "agent-runs": true,
+  automations: true,
   context: true,
   files: true,
   "issue-sheet": true,
   jobs: true,
+  knowledge: true,
   locales: true,
   qa: true,
   reviews: true,
@@ -67,7 +71,9 @@ function isRouteTitleKey(value: string): value is RouteTitleKey {
     value === "account" ||
     value === "activity" ||
     value === "agent-runs" ||
+    value === "ai-engine" ||
     value === "api-keys" ||
+    value === "automations" ||
     value === "billing" ||
     value === "dashboard" ||
     value === "domains" ||
@@ -78,6 +84,7 @@ function isRouteTitleKey(value: string): value is RouteTitleKey {
     value === "issues" ||
     value === "issue-sheet" ||
     value === "jobs" ||
+    value === "automations" ||
     value === "knowledge" ||
     value === "locales" ||
     value === "members" ||
@@ -155,6 +162,12 @@ function formatRouteTitle(intl: IntlShape, key: RouteTitleKey): string {
         id: "2he28Pg1K2",
         description: "App shell breadcrumb title for the agent runs page",
       });
+    case "ai-engine":
+      return intl.formatMessage({
+        defaultMessage: "AI Engine",
+        id: "lfPogGpRYm",
+        description: "App shell breadcrumb title for the AI Engine page",
+      });
     case "api-keys":
       return intl.formatMessage({
         defaultMessage: "API Keys",
@@ -221,11 +234,17 @@ function formatRouteTitle(intl: IntlShape, key: RouteTitleKey): string {
         id: "WzPTL0QId6",
         description: "App shell breadcrumb title for the jobs page",
       });
+    case "automations":
+      return intl.formatMessage({
+        defaultMessage: "Automations",
+        id: "I5EnnRppoI",
+        description: "App shell breadcrumb title for the automations page",
+      });
     case "knowledge":
       return intl.formatMessage({
-        defaultMessage: "Knowledge",
-        id: "T+wQxH/IG1",
-        description: "App shell breadcrumb title for the knowledge page",
+        defaultMessage: "Guideline",
+        id: "1INOkRkMDD",
+        description: "App shell breadcrumb title for the guideline page",
       });
     case "locales":
       return intl.formatMessage({

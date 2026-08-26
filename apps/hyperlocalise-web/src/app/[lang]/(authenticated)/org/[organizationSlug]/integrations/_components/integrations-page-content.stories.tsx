@@ -17,7 +17,6 @@ import {
   integrationsConnectedMswHandlers,
   integrationsDisconnectedMswHandlers,
   integrationsLoadingMswHandlers,
-  integrationsManagedProviderMswHandlers,
 } from "./integrations-msw-handlers";
 import { integrationsOrganizationSlug } from "./integrations.fixture";
 import { IntegrationsPageContent } from "./integrations-page-content";
@@ -57,13 +56,13 @@ export const Default: Story = {
     await expect(canvas.getByText("Translation Management System")).toBeInTheDocument();
     await expect(canvas.getByText("Content Management System")).toBeInTheDocument();
     await expect(canvas.getByText("Collaboration")).toBeInTheDocument();
-    await expect(canvas.getByText("Model provider")).toBeInTheDocument();
+    await expect(canvas.queryByText("Model provider")).not.toBeInTheDocument();
     await expect(canvas.getByText("GitHub")).toBeInTheDocument();
     await expect(canvas.getByText("Crowdin")).toBeInTheDocument();
     await expect(canvas.getByText("Contentful")).toBeInTheDocument();
     await expect(canvas.getByText("Slack")).toBeInTheDocument();
     await expect(canvas.getByText("Email")).toBeInTheDocument();
-    await expect(canvas.getByText("Open AI")).toBeInTheDocument();
+    await expect(canvas.queryByText("Open AI")).not.toBeInTheDocument();
   },
 };
 
@@ -75,21 +74,8 @@ export const Disconnected: Story = {
   },
   play: async ({ canvas }) => {
     await expect(canvas.getByRole("heading", { name: "Integrations" })).toBeInTheDocument();
-    await expect(canvas.getByText("Hyperlocalise GO")).toBeInTheDocument();
+    await expect(canvas.queryByText("Hyperlocalise GO")).not.toBeInTheDocument();
     await expect(canvas.getAllByRole("button", { name: "Connect" }).length).toBeGreaterThan(0);
-  },
-};
-
-export const ManagedProviderOnly: Story = {
-  parameters: {
-    msw: {
-      handlers: integrationsManagedProviderMswHandlers,
-    },
-  },
-  play: async ({ canvas }) => {
-    await expect(canvas.getByText("Hyperlocalise GO")).toBeInTheDocument();
-    await expect(canvas.getByText("Managed by Hyperlocalise")).toBeInTheDocument();
-    await expect(canvas.getByText("Configure")).toBeInTheDocument();
   },
 };
 

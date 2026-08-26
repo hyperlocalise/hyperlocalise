@@ -79,6 +79,24 @@ describe("toQueueSegment", () => {
       isHidden: true,
     });
   });
+
+  it("preserves locked segment state", () => {
+    expect(
+      toQueueSegment({
+        id: "seg-01",
+        index: 1,
+        key: "hero.title",
+        sourceText: "Hello",
+        isLocked: true,
+      }),
+    ).toEqual({
+      id: "seg-01",
+      index: 1,
+      key: "hero.title",
+      sourceText: "Hello",
+      isLocked: true,
+    });
+  });
 });
 
 describe("composeSegmentView", () => {

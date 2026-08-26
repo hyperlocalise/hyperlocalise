@@ -112,6 +112,23 @@ export class CatQueueStore {
     }
   }
 
+  setLocked(segmentIds: string[], isLocked: boolean) {
+    for (const segmentId of segmentIds) {
+      const existing = this.segmentMeta.get(segmentId);
+      if (!existing) {
+        continue;
+      }
+
+      if (isLocked) {
+        this.segmentMeta.set(segmentId, { ...existing, isLocked: true });
+        continue;
+      }
+
+      const { isLocked: _ignored, ...rest } = existing;
+      this.segmentMeta.set(segmentId, rest);
+    }
+  }
+
   reconcileVisibleIds(visibleIds: ReadonlySet<string>) {
     this.checkedSegmentIds = new Set(
       [...this.checkedSegmentIds].filter((segmentId) => visibleIds.has(segmentId)),

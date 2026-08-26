@@ -13,12 +13,14 @@
 import type { IntlShape } from "@formatjs/intl";
 
 import { canonicalizeLocale, normalizeProjectLocales } from "@/lib/i18n/locales";
+import { projectIssueIdentifierSchema } from "@/lib/projects/issue-identifier/project-issue-identifier";
 
 import { projectFormMessages } from "./project-form.messages";
 import type { ProjectListRow } from "./project-list";
 
 export type ProjectFormValues = {
   name: string;
+  identifier: string;
   description: string;
   translationContext: string;
   sourceLocale: string;
@@ -50,6 +52,7 @@ function resolveMessage(
 export function createEmptyProjectForm(): ProjectFormValues {
   return {
     name: "",
+    identifier: "",
     description: "",
     translationContext: "",
     sourceLocale: defaultNativeProjectSourceLocale,
@@ -60,6 +63,7 @@ export function createEmptyProjectForm(): ProjectFormValues {
 export function createProjectFormFromRow(project: ProjectListRow): ProjectFormValues {
   return {
     name: project.name,
+    identifier: project.identifier,
     description: project.descriptionValue,
     translationContext: project.translationContextValue,
     sourceLocale: project.sourceLocale ?? defaultNativeProjectSourceLocale,
@@ -72,11 +76,12 @@ export function createProjectFormFromRow(project: ProjectListRow): ProjectFormVa
 
 export function validateProjectForm(
   values: ProjectFormValues,
-  options?: { requireLocales?: boolean; intl?: ProjectFormIntl },
+  options?: { requireLocales?: boolean; requireIdentifier?: boolean; intl?: ProjectFormIntl },
 ): ProjectFormErrors {
   const errors: ProjectFormErrors = {};
   const name = values.name.trim();
   const requireLocales = options?.requireLocales ?? true;
+  const requireIdentifier = options?.requireIdentifier ?? false;
   const intl = options?.intl;
 
   if (!name) {
@@ -91,6 +96,14 @@ export function validateProjectForm(
 
   if (values.translationContext.trim().length > 20_000) {
     errors.translationContext = resolveMessage(intl, projectFormMessages.translationContextTooLong);
+  }
+
+  const identifier = values.identifier.trim();
+  if (requireIdentifier || identifier) {
+    const parsed = projectIssueIdentifierSchema.safeParse(identifier);
+    if (!parsed.success) {
+      errors.identifier = resolveMessage(intl, projectFormMessages.invalidIdentifier);
+    }
   }
 
   if (requireLocales) {
@@ -128,7 +141,8 @@ export type ProjectCreatePayload = ProjectMetadataPayload & {
   targetLocales: string[];
 };
 
-export type ProjectUpdatePayload = ProjectMetadataPayload & {
+export type ProjectUpdatePayload = Partial<ProjectMetadataPayload> & {
+  identifier?: string;
   sourceLocale?: string;
   targetLocales?: string[];
 };
@@ -163,14 +177,30 @@ export function toProjectPayload(
 ): ProjectCreatePayload;
 export function toProjectPayload(
   values: ProjectFormValues,
-  options: { mode: "edit"; includeLocales?: boolean },
+  options: { mode: "edit"; includeLocales?: boolean; includeMetadata?: boolean },
 ): ProjectUpdatePayload;
 export function toProjectPayload(
   values: ProjectFormValues,
-  options: { mode: "create" | "edit"; includeLocales?: boolean },
+  options: { mode: "create" | "edit"; includeLocales?: boolean; includeMetadata?: boolean },
 ): ProjectCreatePayload | ProjectUpdatePayload {
   const payload = buildMetadataPayload(values);
   const includeLocales = options.includeLocales ?? options.mode === "create";
+  const includeMetadata = options.includeMetadata ?? true;
+  const identifier = values.identifier.trim().toUpperCase();
+
+  if (options.mode === "edit") {
+    const editPayload: ProjectUpdatePayload = {
+      ...(includeMetadata ? payload : {}),
+      ...(identifier ? { identifier } : {}),
+    };
+    if (!includeLocales) {
+      return editPayload;
+    }
+    return {
+      ...editPayload,
+      ...buildLocalePayload(values),
+    };
+  }
 
   if (!includeLocales) {
     return payload;

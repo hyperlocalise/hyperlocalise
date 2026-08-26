@@ -38,8 +38,8 @@ type Story = StoryObj<typeof meta>;
 
 export const Empty: Story = {
   play: async ({ canvas, args }) => {
-    await expect(canvas.getByRole("heading", { name: "Knowledge" })).toBeInTheDocument();
-    await expect(canvas.getByRole("heading", { name: "Upload knowledge" })).toBeInTheDocument();
+    await expect(canvas.getByRole("heading", { name: "Guideline" })).toBeInTheDocument();
+    await expect(canvas.getByRole("heading", { name: "Upload guideline" })).toBeInTheDocument();
     await expect(canvas.getByRole("button", { name: "Add Google Drive" })).toBeInTheDocument();
     await expect(canvas.getByRole("button", { name: "Markdown/Text" })).toBeInTheDocument();
     await expect(
@@ -52,6 +52,24 @@ export const Empty: Story = {
   },
 };
 
+export const ProjectGuideline: Story = {
+  args: {
+    mode: "editor",
+    scope: "project",
+    editor: createKnowledgeEditorViewFixture({
+      scope: "project",
+      hasChanges: true,
+      canSave: true,
+    }),
+  },
+  play: async ({ canvas }) => {
+    await expect(canvas.getByText("Project")).toBeInTheDocument();
+    await expect(canvas.getByRole("heading", { name: "Guideline" })).toBeInTheDocument();
+    await expect(canvas.getByRole("heading", { name: "Project guidance" })).toBeInTheDocument();
+    await expect(canvas.getByRole("button", { name: "Save changes" })).toBeInTheDocument();
+  },
+};
+
 export const WithMemory: Story = {
   args: {
     mode: "editor",
@@ -61,7 +79,7 @@ export const WithMemory: Story = {
     }),
   },
   play: async ({ canvas }) => {
-    await expect(canvas.getByRole("heading", { name: "Knowledge" })).toBeInTheDocument();
+    await expect(canvas.getByRole("heading", { name: "Guideline" })).toBeInTheDocument();
     await expect(canvas.getByRole("heading", { name: "Global guidance" })).toBeInTheDocument();
     await expect(canvas.getByRole("button", { name: "Add sources" })).toBeInTheDocument();
     await expect(canvas.getByRole("button", { name: "History" })).toBeInTheDocument();
@@ -124,10 +142,10 @@ export const Loading: Story = {
     mode: "loading",
   },
   play: async ({ canvas }) => {
-    await expect(canvas.getByRole("heading", { name: "Knowledge" })).toBeInTheDocument();
+    await expect(canvas.getByRole("heading", { name: "Guideline" })).toBeInTheDocument();
     await expect(canvas.getByRole("status")).toBeInTheDocument();
     await expect(
-      canvas.queryByRole("heading", { name: "Upload knowledge" }),
+      canvas.queryByRole("heading", { name: "Upload guideline" }),
     ).not.toBeInTheDocument();
     await expect(
       canvas.queryByRole("heading", { name: "Global guidance" }),

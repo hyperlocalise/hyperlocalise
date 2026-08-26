@@ -31,7 +31,7 @@ function Spinner({ className, ...props }: SpinnerProps) {
       strokeWidth={2}
       role="status"
       aria-label={intl.formatMessage(spinnerMessages.loading)}
-      className={cn("size-4 animate-spin", className)}
+      className={cn("size-4 motion-safe:animate-spin", className)}
       {...props}
     />
   );

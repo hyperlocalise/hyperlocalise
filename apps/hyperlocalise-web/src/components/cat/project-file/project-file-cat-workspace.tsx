@@ -296,6 +296,7 @@ export function ProjectFileCatWorkspace({
     treatAsImage,
     treatAsVideo,
     setStringsHidden,
+    setStringsLocked,
     isImageBusy,
   } = useCatMutations({
     organizationSlug,
@@ -496,6 +497,26 @@ export function ProjectFileCatWorkspace({
       });
     },
     [catFile?.canEditTranslations, catFile?.segments, intl, isNativeProject, setStringsHidden],
+  );
+
+  const handleSetStringsLocked = useCallback(
+    async (segmentIds: string[], isLocked: boolean) => {
+      if (!catFile?.canEditTranslations) {
+        throw new Error(
+          intl.formatMessage(projectFileCatWorkspaceMessages.cannotWriteTranslations),
+        );
+      }
+
+      if (segmentIds.length === 0) {
+        return;
+      }
+
+      await setStringsLocked({
+        externalStringIds: segmentIds,
+        isLocked,
+      });
+    },
+    [catFile?.canEditTranslations, intl, setStringsLocked],
   );
 
   const handleAddToIssueSheet = useCallback(
@@ -838,6 +859,9 @@ export function ProjectFileCatWorkspace({
                 onBulkUnhide: (segmentIds: string[]) => handleSetStringsHidden(segmentIds, false),
               }
             : {}),
+          onSetLocked: handleSetStringsLocked,
+          onBulkLock: (segmentIds: string[]) => handleSetStringsLocked(segmentIds, true),
+          onBulkUnlock: (segmentIds: string[]) => handleSetStringsLocked(segmentIds, false),
         }}
         initialSegmentKeyOrId={initialSegmentKey}
         buildSegmentShareUrl={buildSegmentShareUrl}

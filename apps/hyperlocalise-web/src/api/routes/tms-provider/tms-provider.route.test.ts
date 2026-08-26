@@ -33,6 +33,7 @@ import {
   encryptProviderCredential,
   unwrapProviderCredentialCrypto,
 } from "@/lib/security/provider-credential-crypto";
+import { uniqueTestProjectIdentifier } from "@/lib/projects/issue-identifier/test-project-identifier";
 import { createProviderCredentialTestFixture } from "../provider-credential/provider-credential.fixture";
 
 const {
@@ -807,6 +808,7 @@ describe("tmsProviderRoutes", () => {
     const projectId = "ext:crowdin:902807";
     await db.insert(schema.projects).values({
       id: projectId,
+      identifier: uniqueTestProjectIdentifier(),
       organizationId,
       teamId: null,
       createdByUserId: userId,

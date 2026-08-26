@@ -89,6 +89,7 @@ const AUTOMATION_TRIGGER_SOURCE_MESSAGES = {
   github: dashboardPageViewMessages.triggerGithub,
   contentful: dashboardPageViewMessages.triggerContentful,
   source_upload: dashboardPageViewMessages.triggerSourceUpload,
+  web_chat: dashboardPageViewMessages.triggerWebChat,
 } as const;
 
 export type DashboardLinkRenderer = (props: {

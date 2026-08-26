@@ -29,6 +29,7 @@ import {
   mapWorkspaceAutomationApiErrorToFieldErrors,
   selectableAutomationRepositories,
   validateWorkspaceAutomationFormState,
+  workspaceAutomationFormCanActivate,
   workspaceAutomationFormHasChanges,
   workspaceAutomationFormSupportsOnDemandRun,
 } from "./workspace-automation-view-model";
@@ -624,6 +625,36 @@ describe("workspace automation view model", () => {
     });
   });
 
+  it("activates web chat with instructions only and maps knowledge files", () => {
+    const form = {
+      ...createDefaultWorkspaceAutomationFormState(),
+      name: "Support chat",
+      instructions: "Answer visitors about our product.",
+      triggerMode: "web_chat" as const,
+      knowledgeFilesEnabled: true,
+    };
+
+    expect(workspaceAutomationFormCanActivate(form)).toBe(true);
+    expect(validateWorkspaceAutomationFormState(form)).toEqual({});
+    expect(formStateToWorkspaceAutomationPayload(form)).toMatchObject({
+      triggerConfig: { mode: "web_chat" },
+      toolConfig: {
+        knowledgeFiles: { enabled: true },
+      },
+    });
+  });
+
+  it("hydrates web chat and knowledge files from a saved automation", () => {
+    const form = createWorkspaceAutomationFormStateFromRecord({
+      ...createAutomationSummary(),
+      triggerConfig: { mode: "web_chat" },
+      toolConfig: { knowledgeFiles: { enabled: true } },
+    });
+
+    expect(form.triggerMode).toBe("web_chat");
+    expect(form.knowledgeFilesEnabled).toBe(true);
+  });
+
   it("offers only enabled repositories, keeping a selected disabled repository visible", () => {
     const repositories = [
       { id: "enabled", fullName: "acme/web", enabled: true, archived: false },
@@ -645,6 +676,7 @@ describe("workspace automation view model", () => {
     expect(workspaceAutomationFormSupportsOnDemandRun("github")).toBe(false);
     expect(workspaceAutomationFormSupportsOnDemandRun("contentful")).toBe(false);
     expect(workspaceAutomationFormSupportsOnDemandRun("source_upload")).toBe(false);
+    expect(workspaceAutomationFormSupportsOnDemandRun("web_chat")).toBe(false);
   });
 
   it("detects unsaved automation form changes", () => {

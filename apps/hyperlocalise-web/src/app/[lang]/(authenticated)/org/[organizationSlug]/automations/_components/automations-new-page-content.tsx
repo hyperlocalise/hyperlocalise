@@ -20,6 +20,7 @@ import { FormattedMessage, useIntl } from "react-intl";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import { buildAutomationsPath } from "@/components/app-shell/navigation-config";
 import { apiClient } from "@/lib/api-client-instance";
 import {
   createDefaultWorkspaceAutomationFormState,
@@ -34,11 +35,13 @@ import { WorkspaceAutomationEditor } from "./workspace-automation-form";
 
 export function AutomationsNewPageContent({
   organizationSlug,
+  projectId,
   initialForm = createDefaultWorkspaceAutomationFormState(),
   knowledgeAvailable = false,
   canUpdateKnowledgeMemory = false,
 }: {
   organizationSlug: string;
+  projectId?: string;
   initialForm?: WorkspaceAutomationFormState;
   knowledgeAvailable?: boolean;
   canUpdateKnowledgeMemory?: boolean;
@@ -47,6 +50,7 @@ export function AutomationsNewPageContent({
   const router = useRouter();
   const [form, setForm] = useState(initialForm);
   const [errors, setErrors] = useState<Record<string, string | undefined>>({});
+  const automationsBasePath = buildAutomationsPath(organizationSlug, { projectId });
 
   const createMutation = useMutation({
     mutationFn: async () => {
@@ -79,7 +83,7 @@ export function AutomationsNewPageContent({
     },
     onSuccess: (body) => {
       toast.success(intl.formatMessage(automationsNewPageContentMessages.createSuccess));
-      router.push(`/org/${organizationSlug}/automations/${body.automation.id}`);
+      router.push(`${automationsBasePath}/${body.automation.id}`);
     },
     onError: (error) => {
       if (error.message === "validation_failed") {
@@ -104,7 +108,7 @@ export function AutomationsNewPageContent({
             <Button
               variant="outline"
               nativeButton={false}
-              render={<Link href={`/org/${organizationSlug}/automations`} />}
+              render={<Link href={automationsBasePath} />}
             >
               <FormattedMessage {...automationsNewPageContentMessages.cancel} />
             </Button>

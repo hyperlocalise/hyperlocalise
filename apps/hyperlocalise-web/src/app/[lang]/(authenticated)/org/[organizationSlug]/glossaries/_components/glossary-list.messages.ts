@@ -51,36 +51,6 @@ export const glossaryListMessages = defineMessages({
     id: "QR/HxiItgI",
     description: "Resource type badge for a term base resource",
   },
-  capabilityPreferred: {
-    defaultMessage: "Preferred",
-    id: "/avsY2MZtR",
-    description: "Term capability badge part when preferred terms are supported",
-  },
-  capabilityNoPreferred: {
-    defaultMessage: "No preferred",
-    id: "HJHu415ivO",
-    description: "Term capability badge part when preferred terms are not supported",
-  },
-  capabilityForbidden: {
-    defaultMessage: "Forbidden",
-    id: "PT4ucYt9VV",
-    description: "Term capability badge part when forbidden terms are supported",
-  },
-  capabilityNoForbidden: {
-    defaultMessage: "No forbidden",
-    id: "Xx/womTY6W",
-    description: "Term capability badge part when forbidden terms are not supported",
-  },
-  capabilityUnknown: {
-    defaultMessage: "Capabilities unknown",
-    id: "cKwH9F0Z5s",
-    description: "Term capability badge when provider capabilities are unknown",
-  },
-  capabilityReadOnly: {
-    defaultMessage: "Read-only",
-    id: "uf1YHYgy0L",
-    description: "Capability badge for live provider glossaries that cannot be edited",
-  },
   unavailableTimestamp: {
     defaultMessage: "—",
     id: "kxi2ohyZnf",

@@ -110,3 +110,87 @@ export async function runRepositoryLocalisationAgentForCommit(input: {
 
   return result.text.trim() || "Completed automated localization review.";
 }
+
+export async function runGithubPullRequestReviewAgent(input: {
+  organizationId: string;
+  sandboxId: string;
+  workflowRunId?: string | null;
+  pullRequestNumber: number;
+  headSha: string;
+  baseSha: string | null;
+  changedPaths: string[];
+  diffExcerpt: string;
+  additionalPrompt: string;
+}): Promise<string> {
+  const toolContext: ToolContext = {
+    conversationId: `github-pr-review:${input.pullRequestNumber}:${input.headSha}`,
+    agentSession: { todos: [] },
+    workflowRunId: input.workflowRunId ?? undefined,
+    organizationId: input.organizationId,
+    localUserId: "github_auto_review",
+    membershipRole: "member",
+    projectId: null,
+    db,
+    workMode: "read_only",
+    repositorySource: "github",
+    actor: {
+      sourceUserId: "github_auto_review",
+      displayName: "GitHub Auto-review",
+      role: "member",
+    },
+    sandboxId: input.sandboxId,
+    githubContext: null,
+  };
+
+  ensureAgentSession(toolContext);
+  const tools = filterToolSetByNames(buildTools(toolContext), [
+    ...repositoryWorkspaceToolNames,
+  ]) as ToolSet;
+
+  const agent = new ToolLoopAgent({
+    model: getHyperlocaliseAgentModel(),
+    tools,
+    stopWhen: [(step) => step.steps.length >= agentStepLimit],
+    timeout: WORKFLOW_AGENT_TIMEOUT,
+    instructions: composeInstructions({
+      automationId: "github-repository",
+      sharedSkills: ["recent-source-changes", "translation-review"],
+      skills: ["github-repo-agent"],
+      dynamicSections: [
+        "This is a read-only localisation review for a GitHub pull request.",
+        "Do not modify files, commit, push, or create external effects.",
+        "Follow the Translation review procedure for per-key P0/P1/P2 output.",
+        `Sandbox id: ${input.sandboxId}. Use repository tools to inspect files when needed.`,
+      ],
+      userOverride: input.additionalPrompt,
+    }),
+    runtimeContext: { sandboxId: input.sandboxId },
+  });
+
+  const base = input.baseSha ?? "unknown";
+  const prompt = [
+    `Review pull request #${input.pullRequestNumber} (${base}...${input.headSha}) for localization quality.`,
+    `Changed paths: ${input.changedPaths.join(", ") || "(none)"}`,
+    "Unified diff excerpt:",
+    input.diffExcerpt.slice(0, 12_000),
+    "Return Markdown using the Translation review report sections from your instructions.",
+  ].join("\n\n");
+
+  const result = await withAgentRuntimeUsageMetering({
+    organizationId: input.organizationId,
+    operationKey: `github-pr-review:${input.organizationId}:${input.pullRequestNumber}:${input.headSha}:agent_runs`,
+    source: "github_pull_request_review",
+    dimensions: {
+      surface: "automation",
+      agent_surface: "github_pull_request_review",
+      commit_sha: input.headSha,
+    },
+    extractTokenUsage: extractGenerateResultTokenUsage,
+    run: () =>
+      agent.generate({
+        messages: [{ role: "user", content: prompt }] as ModelMessage[],
+      }),
+  });
+
+  return result.text.trim() || "Completed localisation review.";
+}

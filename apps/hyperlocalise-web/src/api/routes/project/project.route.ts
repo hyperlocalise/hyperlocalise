@@ -26,6 +26,7 @@ import {
   notFoundResponse,
   serviceUnavailableResponse,
 } from "@/api/errors";
+import { createProjectKnowledgeMemoryRoutes } from "@/api/routes/knowledge-memory/project-knowledge-memory.route";
 import { translationsNotFoundResponse } from "@/api/routes/public-translations/public-translations.shared";
 import {
   withWorkspaceResourceLimit,
@@ -40,6 +41,11 @@ import { PRODUCT_USAGE_ANALYTICS_EVENTS } from "@/lib/analytics/events";
 import { serverAnalytics } from "@/lib/analytics/server";
 import { isReleaseCatAllFilesEnabled } from "@/lib/flags/release-flags";
 import { createLogger } from "@/lib/log";
+import {
+  insertWithAllocatedProjectIdentifier,
+  isProjectIdentifierTaken,
+} from "@/lib/projects/issue-identifier/allocate-issue-identifier";
+import { projectIssueIdentifierSchema } from "@/lib/projects/issue-identifier/project-issue-identifier";
 import {
   createRepositorySourceFileVersion,
   createStoredFile,
@@ -67,6 +73,7 @@ import { listOrganizationProjects } from "@/lib/projects/organization/organizati
 import {
   getNativeProjectCatFile,
   getNativeProjectCatSegmentComments,
+  fileBackedCatSegmentIds,
   getNativeProjectCatSegmentTarget,
   resolveNativeProjectCatLegacyIssueComment,
   saveNativeProjectCatComment,
@@ -82,6 +89,11 @@ import {
   storeExternalCatImageUpload,
   cleanupFailedExternalCatImageUpload,
 } from "@/lib/projects/cat/external-cat-string-overlay-service";
+import {
+  attachCatSegmentLocks,
+  listLockedCatSegmentIds,
+  setCatSegmentLocks,
+} from "@/lib/projects/cat/cat-segment-lock-service";
 import { resolveProjectFileCatPagination } from "@/lib/projects/cat/project-file-cat-pagination";
 import {
   buildCatFilteredExportPayload,
@@ -147,6 +159,7 @@ import {
   projectFileCatCommentBodySchema,
   projectFileCatCommentResolveBodySchema,
   projectFileCatHiddenStringsBodySchema,
+  projectFileCatLockedStringsBodySchema,
   projectFileCatImageRegenerateBodySchema,
   projectFileCatImageStatusBodySchema,
   projectFileCatRecommendationBodySchema,
@@ -164,6 +177,7 @@ import {
   projectIdParamsSchema,
   projectFileCatCommentIdParamsSchema,
   updateProjectBodySchema,
+  updateProjectCatBehaviorBodySchema,
   type CreateProjectBody,
   type ProjectFileCatQuery,
   type UpdateProjectBody,
@@ -181,9 +195,14 @@ import { parseProviderProjectId } from "@/lib/providers/jobs/tms-provider-resour
 
 import {
   isAiActionAllowed,
+  isProjectCatBehaviorMutationAllowed,
   isReviewApproveAllowed,
   isWriteBackTranslationAllowed,
 } from "@/api/auth/capability-guards";
+import {
+  previewIdenticalStringGrouping,
+  updateProjectCatGroupingPolicy,
+} from "@/lib/projects/cat/project-cat-behavior-service";
 import {
   buildAccessibleProjectsWhere,
   projectForbiddenResponse,
@@ -222,6 +241,8 @@ import {
 type ProjectUpdateErrorCode =
   | "invalid_project_team"
   | "external_project_locales_readonly"
+  | "identifier_taken"
+  | "invalid_identifier"
   | ProjectLocalePatchError;
 
 type ProjectUpdateError = {
@@ -232,7 +253,10 @@ type ProjectUpdateError = {
 type ProjectUpdateResult = Result<Project | null, ProjectUpdateError>;
 
 const projectLocalePatchErrorMessages: Record<
-  Exclude<ProjectUpdateErrorCode, "invalid_project_team">,
+  Exclude<
+    ProjectUpdateErrorCode,
+    "invalid_project_team" | "identifier_taken" | "invalid_identifier"
+  >,
   string
 > = {
   external_project_locales_readonly: "External TMS project locales are read-only",
@@ -316,21 +340,28 @@ const projectStore: ProjectStore = {
       throw new Error("invalid_project_team");
     }
 
-    const [project] = await database
-      .insert(schema.projects)
-      .values({
-        id: `project_${randomUUID()}`,
-        organizationId: auth.organization.localOrganizationId,
-        teamId,
-        createdByUserId: auth.user.localUserId,
-        name: payload.name,
-        description: payload.description ?? "",
-        translationContext: payload.translationContext ?? "",
-        source: "native",
-        sourceLocale: payload.sourceLocale,
-        targetLocales: payload.targetLocales,
-      })
-      .returning();
+    const [project] = await insertWithAllocatedProjectIdentifier({
+      organizationId: auth.organization.localOrganizationId,
+      name: payload.name,
+      database,
+      insert: (identifier, attemptDb) =>
+        attemptDb
+          .insert(schema.projects)
+          .values({
+            id: `project_${randomUUID()}`,
+            organizationId: auth.organization.localOrganizationId,
+            teamId,
+            createdByUserId: auth.user.localUserId,
+            name: payload.name,
+            identifier,
+            description: payload.description ?? "",
+            translationContext: payload.translationContext ?? "",
+            source: "native",
+            sourceLocale: payload.sourceLocale,
+            targetLocales: payload.targetLocales,
+          })
+          .returning(),
+    });
 
     // Creators without teams:write only see projects on teams they belong to.
     // Mirror team-create behavior so the new project is immediately listable.
@@ -360,12 +391,46 @@ const projectStore: ProjectStore = {
       return ok(null);
     }
 
-    const { teamId, sourceLocale, targetLocales, ...updates } = payload;
+    const { teamId, sourceLocale, targetLocales, identifier, ...updates } = payload;
     const updateValues: typeof updates & {
       teamId?: string;
       sourceLocale?: string;
       targetLocales?: string[];
+      identifier?: string;
     } = { ...updates };
+
+    if (existing.source === "external_tms") {
+      delete updateValues.name;
+      delete updateValues.description;
+      delete updateValues.translationContext;
+    }
+
+    if (identifier !== undefined) {
+      const parsedIdentifier = projectIssueIdentifierSchema.safeParse(identifier);
+      if (!parsedIdentifier.success) {
+        return err({
+          code: "invalid_identifier",
+          message: "Invalid project identifier",
+        });
+      }
+
+      if (parsedIdentifier.data !== existing.identifier) {
+        const taken = await isProjectIdentifierTaken({
+          organizationId: existing.organizationId,
+          identifier: parsedIdentifier.data,
+          excludeProjectId: projectId,
+        });
+
+        if (taken) {
+          return err({
+            code: "identifier_taken",
+            message: "Project identifier is already in use in this organization",
+          });
+        }
+
+        updateValues.identifier = parsedIdentifier.data;
+      }
+    }
 
     if (teamId !== undefined) {
       const resolvedTeamId = await resolveProjectTeamId(auth, teamId);
@@ -407,6 +472,10 @@ const projectStore: ProjectStore = {
       if (normalized.targetLocales !== undefined) {
         updateValues.targetLocales = normalized.targetLocales;
       }
+    }
+
+    if (Object.keys(updateValues).length === 0) {
+      return ok(existing);
     }
 
     const [project] = await db
@@ -592,6 +661,16 @@ const validateProjectFileCatHiddenStringsBody = validator("json", (value, c) => 
   return parsed.data;
 });
 
+const validateProjectFileCatLockedStringsBody = validator("json", (value, c) => {
+  const parsed = projectFileCatLockedStringsBodySchema.safeParse(value);
+
+  if (!parsed.success) {
+    return invalidProjectPayloadResponse(c);
+  }
+
+  return parsed.data;
+});
+
 const validateProjectFileCatImageRegenerateBody = validator("json", (value, c) => {
   const parsed = projectFileCatImageRegenerateBodySchema.safeParse(value);
 
@@ -738,6 +817,16 @@ const validateUpdateProjectBody = validator("json", (value, c) => {
   return parsed.data;
 });
 
+const validateUpdateProjectCatBehaviorBody = validator("json", (value, c) => {
+  const parsed = updateProjectCatBehaviorBodySchema.safeParse(value);
+
+  if (!parsed.success) {
+    return invalidProjectPayloadResponse(c);
+  }
+
+  return parsed.data;
+});
+
 type CreateProjectRoutesOptions = {
   jobQueue?: JobQueue<TranslationJobEventData>;
   fileStorageAdapter?: FileStorageAdapter;
@@ -788,7 +877,14 @@ export async function loadProjectFileCatQueue(
       return { kind: "source_file_not_found" as const };
     }
 
-    return { kind: "ok" as const, catQueue };
+    return {
+      kind: "ok" as const,
+      catQueue: await attachCatSegmentLocks({
+        organizationId: auth.organization.localOrganizationId,
+        projectId,
+        catQueue,
+      }),
+    };
   }
 
   try {
@@ -828,10 +924,51 @@ export async function loadProjectFileCatQueue(
       catFile: catQueue,
     });
 
-    return { kind: "ok" as const, catQueue: enrichedCatQueue };
+    return {
+      kind: "ok" as const,
+      catQueue: await attachCatSegmentLocks({
+        organizationId: auth.organization.localOrganizationId,
+        projectId,
+        catQueue: enrichedCatQueue,
+      }),
+    };
   } catch (error) {
     return { kind: "provider_error" as const, error };
   }
+}
+
+async function catSegmentLockedResponse(
+  c: Parameters<typeof conflictResponse>[0],
+  input: {
+    organizationId: string;
+    projectId: string;
+    targetLocale: string;
+    externalStringId?: string | null;
+    externalStringIds?: string[];
+  },
+) {
+  const externalStringIds = [
+    ...new Set(
+      [...(input.externalStringIds ?? []), input.externalStringId ?? ""]
+        .map((id) => id.trim())
+        .filter((id) => id.length > 0),
+    ),
+  ];
+  if (externalStringIds.length === 0) {
+    return null;
+  }
+
+  const lockedIds = await listLockedCatSegmentIds({
+    organizationId: input.organizationId,
+    projectId: input.projectId,
+    targetLocale: input.targetLocale,
+    externalStringIds,
+  });
+  if (lockedIds.size === 0) {
+    return null;
+  }
+
+  return conflictResponse(c, "translation_locked", "This string is locked. Unlock it to edit.");
 }
 
 export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
@@ -889,6 +1026,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
     })
     .route("/:projectId/jobs", createJobRoutes({ jobQueue }))
     .route("/:projectId/issue-sheet", createIssueSheetRoutes())
+    .route("/:projectId/knowledge-memory", createProjectKnowledgeMemoryRoutes())
     .route(
       "/:projectId/assets",
       createProjectAssetRoutes({ fileStorageAdapter: options.fileStorageAdapter }),
@@ -1188,6 +1326,16 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
         const target = await resolveProjectResourceTarget(c.var.auth, params.projectId);
         if (target.kind === "provider_unavailable") {
           return providerProjectUnavailableResponse(c, target);
+        }
+
+        const lockedResponse = await catSegmentLockedResponse(c, {
+          organizationId: c.var.auth.organization.localOrganizationId,
+          projectId: params.projectId,
+          targetLocale: body.targetLocale,
+          externalStringId: body.externalStringId,
+        });
+        if (lockedResponse) {
+          return lockedResponse;
         }
 
         if (target.kind !== "provider") {
@@ -1588,6 +1736,16 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
           return projectNotFoundResponse(c);
         }
 
+        const lockedStatusResponse = await catSegmentLockedResponse(c, {
+          organizationId: c.var.auth.organization.localOrganizationId,
+          projectId: params.projectId,
+          targetLocale: body.targetLocale,
+          externalStringId: body.externalStringId,
+        });
+        if (lockedStatusResponse) {
+          return lockedStatusResponse;
+        }
+
         const translation = await updateNativeProjectTranslationStatus({
           organizationId: c.var.auth.organization.localOrganizationId,
           projectId: params.projectId,
@@ -1682,6 +1840,41 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
       },
     )
     .post(
+      "/:projectId/files/detail/cat/strings/locked",
+      validateProjectParams,
+      validateProjectFileCatLockedStringsBody,
+      async (c) => {
+        if (!isWriteBackTranslationAllowed(c.var.auth.membership.role)) {
+          return projectForbiddenResponse(c);
+        }
+
+        const params = c.req.valid("param");
+        const body = c.req.valid("json");
+        const target = await resolveProjectResourceTarget(c.var.auth, params.projectId);
+        if (target.kind === "provider_unavailable") {
+          return providerProjectUnavailableResponse(c, target);
+        }
+
+        if (target.kind !== "provider") {
+          const project = await getOwnedProject(c.var.auth, params.projectId);
+          if (!project) {
+            return projectNotFoundResponse(c);
+          }
+        }
+
+        const result = await setCatSegmentLocks({
+          organizationId: c.var.auth.organization.localOrganizationId,
+          projectId: params.projectId,
+          targetLocale: body.targetLocale,
+          externalStringIds: body.externalStringIds,
+          isLocked: body.isLocked,
+          actorUserId: c.var.auth.user.localUserId,
+        });
+
+        return c.json({ catSegmentLock: result }, 200);
+      },
+    )
+    .post(
       "/:projectId/files/detail/cat/images/regenerate",
       validateProjectParams,
       validateProjectFileCatImageRegenerateBody,
@@ -1713,12 +1906,39 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
           c.var.auth.organization.slug ?? c.var.auth.organization.localOrganizationId;
         const organizationId = c.var.auth.organization.localOrganizationId;
 
+        // File-backed segments may be locked under sourceFile.id or binary:/image:/video:
+        // aliases. Expand aliases before the write so omitting or aliasing externalStringId
+        // cannot bypass a lock (status already uses fileBackedCatSegmentIds).
+        const fileBackedSourceFile = inferSupportedBinaryTranslationFileFormat(body.sourcePath)
+          ? await getRepositorySourceFileByPath({
+              organizationId,
+              projectId: params.projectId,
+              sourcePath: body.sourcePath,
+            })
+          : null;
+        const isFileBackedAsset = Boolean(
+          inferSupportedBinaryTranslationFileFormat(body.sourcePath),
+        );
+        const lockedImageResponse = await catSegmentLockedResponse(c, {
+          organizationId,
+          projectId: params.projectId,
+          targetLocale: body.targetLocale,
+          externalStringId: body.externalStringId,
+          ...(isFileBackedAsset
+            ? {
+                externalStringIds: fileBackedCatSegmentIds(
+                  fileBackedSourceFile?.id,
+                  body.sourcePath,
+                ),
+              }
+            : {}),
+        });
+        if (lockedImageResponse) {
+          return lockedImageResponse;
+        }
+
         if (inferSupportedVideoTranslationFileFormat(body.sourcePath)) {
-          const sourceFile = await getRepositorySourceFileByPath({
-            organizationId,
-            projectId: params.projectId,
-            sourcePath: body.sourcePath,
-          });
+          const sourceFile = fileBackedSourceFile;
           if (!sourceFile) {
             return badRequestResponse(
               c,
@@ -1776,11 +1996,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
         }
 
         if (inferSupportedImageTranslationFileFormat(body.sourcePath)) {
-          const sourceFile = await getRepositorySourceFileByPath({
-            organizationId,
-            projectId: params.projectId,
-            sourcePath: body.sourcePath,
-          });
+          const sourceFile = fileBackedSourceFile;
           if (!sourceFile) {
             return badRequestResponse(
               c,
@@ -1945,6 +2161,34 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
         const organizationSlug =
           c.var.auth.organization.slug ?? c.var.auth.organization.localOrganizationId;
         const organizationId = c.var.auth.organization.localOrganizationId;
+        const isFileBackedUpload =
+          target.kind !== "provider" &&
+          Boolean(inferSupportedBinaryTranslationFileFormat(sourcePath));
+        const fileBackedUploadSourceFile = isFileBackedUpload
+          ? await getRepositorySourceFileByPath({
+              organizationId,
+              projectId: params.projectId,
+              sourcePath,
+            })
+          : null;
+        const lockedUploadResponse = await catSegmentLockedResponse(c, {
+          organizationId,
+          projectId: params.projectId,
+          targetLocale,
+          externalStringId,
+          ...(isFileBackedUpload
+            ? {
+                externalStringIds: fileBackedCatSegmentIds(
+                  fileBackedUploadSourceFile?.id,
+                  sourcePath,
+                ),
+              }
+            : {}),
+        });
+        if (lockedUploadResponse) {
+          return lockedUploadResponse;
+        }
+
         const content = Buffer.from(await file.arrayBuffer());
         const contentType = file.type || sourceContentType(file.name || sourcePath);
 
@@ -2071,11 +2315,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
         }
 
         if (inferSupportedVideoTranslationFileFormat(sourcePath)) {
-          const sourceFile = await getRepositorySourceFileByPath({
-            organizationId,
-            projectId: params.projectId,
-            sourcePath,
-          });
+          const sourceFile = fileBackedUploadSourceFile;
           if (!sourceFile) {
             return badRequestResponse(
               c,
@@ -2123,11 +2363,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
         }
 
         if (inferSupportedBinaryTranslationFileFormat(sourcePath)) {
-          const sourceFile = await getRepositorySourceFileByPath({
-            organizationId,
-            projectId: params.projectId,
-            sourcePath,
-          });
+          const sourceFile = fileBackedUploadSourceFile;
           if (!sourceFile) {
             return badRequestResponse(
               c,
@@ -2281,6 +2517,21 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
         const organizationId = c.var.auth.organization.localOrganizationId;
         const organizationSlug =
           c.var.auth.organization.slug ?? c.var.auth.organization.localOrganizationId;
+
+        const sourceFile = await getRepositorySourceFileByPath({
+          organizationId,
+          projectId: params.projectId,
+          sourcePath: body.sourcePath,
+        });
+        const lockedImageStatusResponse = await catSegmentLockedResponse(c, {
+          organizationId,
+          projectId: params.projectId,
+          targetLocale: body.targetLocale,
+          externalStringIds: fileBackedCatSegmentIds(sourceFile?.id, body.sourcePath),
+        });
+        if (lockedImageStatusResponse) {
+          return lockedImageStatusResponse;
+        }
 
         if (inferSupportedVideoTranslationFileFormat(body.sourcePath)) {
           const result = await updateVideoVariantStatus({
@@ -3084,6 +3335,70 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
       const openJobCount = await countOpenJobs(c.var.auth, project.id);
       return c.json({ openJobCount }, 200);
     })
+    .get("/:projectId/cat-behavior", validateProjectParams, async (c) => {
+      const params = c.req.valid("param");
+      const project = await getOwnedProjectRecord(c.var.auth, params.projectId);
+      if (!project) return projectNotFoundResponse(c);
+
+      return c.json(
+        {
+          catBehavior: {
+            automaticallyGroupIdenticalStrings: project.automaticallyGroupIdenticalStrings,
+            groupingRevision: project.catGroupingRevision,
+            canManage: isProjectCatBehaviorMutationAllowed(c.var.auth.membership.role),
+          },
+        },
+        200,
+      );
+    })
+    .get("/:projectId/cat-behavior/preview", validateProjectParams, async (c) => {
+      if (!isProjectCatBehaviorMutationAllowed(c.var.auth.membership.role)) {
+        return projectForbiddenResponse(c);
+      }
+
+      const params = c.req.valid("param");
+      const project = await getOwnedProjectRecord(c.var.auth, params.projectId);
+      if (!project) return projectNotFoundResponse(c);
+
+      const preview = await previewIdenticalStringGrouping(
+        c.var.auth.organization.localOrganizationId,
+        project.id,
+      );
+      return c.json({ preview }, 200);
+    })
+    .patch(
+      "/:projectId/cat-behavior",
+      validateProjectParams,
+      validateUpdateProjectCatBehaviorBody,
+      async (c) => {
+        if (!isProjectCatBehaviorMutationAllowed(c.var.auth.membership.role)) {
+          return projectForbiddenResponse(c);
+        }
+
+        const params = c.req.valid("param");
+        const project = await getOwnedProjectRecord(c.var.auth, params.projectId);
+        if (!project) return projectNotFoundResponse(c);
+
+        const payload = c.req.valid("json");
+        const catBehavior = await updateProjectCatGroupingPolicy({
+          organizationId: c.var.auth.organization.localOrganizationId,
+          projectId: project.id,
+          automaticallyGroupIdenticalStrings: payload.automaticallyGroupIdenticalStrings,
+          actorUserId: c.var.auth.user.localUserId,
+        });
+        if (!catBehavior) return projectNotFoundResponse(c);
+
+        return c.json(
+          {
+            catBehavior: {
+              ...catBehavior,
+              canManage: true,
+            },
+          },
+          200,
+        );
+      },
+    )
     .get("/:projectId", validateProjectParams, async (c) => {
       const rawPathProjectId = c.req.param("projectId");
       const params = c.req.valid("param");
@@ -3256,6 +3571,10 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
       if (isErr(updateResult)) {
         if (updateResult.error.code === "invalid_project_team") {
           return invalidProjectPayloadResponse(c);
+        }
+
+        if (updateResult.error.code === "identifier_taken") {
+          return conflictResponse(c, "identifier_taken", updateResult.error.message);
         }
 
         return badRequestResponse(c, updateResult.error.code, updateResult.error.message);

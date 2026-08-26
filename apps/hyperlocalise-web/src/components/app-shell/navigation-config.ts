@@ -24,6 +24,7 @@ import { supportsCatAllFilesProvider } from "@/lib/projects/cat-all-files";
 import { parseProviderProjectId } from "@/lib/providers/jobs/tms-provider-resource-id";
 import {
   AiBrain01Icon,
+  AiChipIcon,
   BookOpenTextIcon,
   Chat01Icon,
   ClipboardListIcon,
@@ -73,6 +74,26 @@ export function buildProjectPath(organizationSlug: string, projectId: string, se
   return section ? `${base}/${section}` : base;
 }
 
+export function buildAutomationsPath(
+  organizationSlug: string,
+  options?: {
+    automationId?: string;
+    projectId?: string;
+    section?: "new";
+  },
+) {
+  const suffix = options?.section === "new" ? "new" : options?.automationId;
+  if (options?.projectId) {
+    return suffix
+      ? buildProjectPath(organizationSlug, options.projectId, `automations/${suffix}`)
+      : buildProjectPath(organizationSlug, options.projectId, "automations");
+  }
+
+  return suffix
+    ? buildOrganizationPath(organizationSlug, `automations/${suffix}`)
+    : buildOrganizationPath(organizationSlug, "automations");
+}
+
 export function buildGlobalNavigationGroups(
   organizationSlug: string,
   intl: IntlShape,
@@ -82,21 +103,6 @@ export function buildGlobalNavigationGroups(
   return [
     {
       items: [
-        {
-          label: intl.formatMessage({
-            defaultMessage: "New Request",
-            id: "VtO24sqmBM",
-            description: "Sidebar navigation item to start a new localisation request",
-          }),
-          href: org("inbox/new"),
-          exact: true,
-          icon: Chat01Icon,
-          description: intl.formatMessage({
-            defaultMessage: "Ask the localisation agent to prepare work",
-            id: "z45OPLD254",
-            description: "Sidebar description for the New Request navigation item",
-          }),
-        },
         {
           label: intl.formatMessage({
             defaultMessage: "Inbox",
@@ -133,6 +139,30 @@ export function buildGlobalNavigationGroups(
           href: org("dashboard"),
           icon: DashboardSquare01Icon,
         },
+      ],
+    },
+    {
+      label: intl.formatMessage({
+        defaultMessage: "Agents",
+        id: "/EOfWYVF9T",
+        description: "Sidebar group label for agent navigation items",
+      }),
+      items: [
+        {
+          label: intl.formatMessage({
+            defaultMessage: "New Request",
+            id: "VtO24sqmBM",
+            description: "Sidebar navigation item to start a new localisation request",
+          }),
+          href: org("inbox/new"),
+          exact: true,
+          icon: Chat01Icon,
+          description: intl.formatMessage({
+            defaultMessage: "Ask the localisation agent to prepare work",
+            id: "z45OPLD254",
+            description: "Sidebar description for the New Request navigation item",
+          }),
+        },
         {
           label: intl.formatMessage({
             defaultMessage: "Automations",
@@ -152,6 +182,20 @@ export function buildGlobalNavigationGroups(
             description: "Badge shown next to the Automations navigation item",
           }),
           featureFlagKey: WORKSPACE_AUTOMATIONS_FLAG,
+        },
+        {
+          label: intl.formatMessage({
+            defaultMessage: "AI Engine",
+            id: "Q8QL+zifeT",
+            description: "Sidebar navigation item for workspace AI model providers",
+          }),
+          href: org("ai-engine"),
+          icon: AiChipIcon,
+          description: intl.formatMessage({
+            defaultMessage: "Choose the model provider agents use",
+            id: "ZnnVLUSfjR",
+            description: "Sidebar description for the AI Engine navigation item",
+          }),
         },
       ],
     },
@@ -188,16 +232,16 @@ export function buildGlobalNavigationGroups(
         },
         {
           label: intl.formatMessage({
-            defaultMessage: "Knowledge",
-            id: "HrKmOaq57x",
-            description: "Sidebar navigation item for workspace knowledge",
+            defaultMessage: "Guideline",
+            id: "D6HJDahz6H",
+            description: "Sidebar navigation item for workspace guideline",
           }),
           href: org("knowledge"),
           icon: AiBrain01Icon,
           description: intl.formatMessage({
-            defaultMessage: "Workspace memory for agents and teams",
-            id: "ZFNYMG0eSQ",
-            description: "Sidebar description for the Knowledge navigation item",
+            defaultMessage: "Shared guidance for agents and teams",
+            id: "dEzuHMWHq4",
+            description: "Sidebar description for the Guideline navigation item",
           }),
           featureFlagKey: WORKSPACE_KNOWLEDGE_FLAG,
         },
@@ -317,6 +361,31 @@ export function buildProjectNavigationItems(
       }),
       href: project("issue-sheet"),
       icon: ClipboardListIcon,
+    },
+    {
+      label: intl.formatMessage({
+        defaultMessage: "Automations",
+        id: "Weqt7PXrnL",
+        description: "Project sidebar navigation item for project automations",
+      }),
+      href: project("automations"),
+      icon: Task01Icon,
+      featureFlagKey: WORKSPACE_AUTOMATIONS_FLAG,
+    },
+    {
+      label: intl.formatMessage({
+        defaultMessage: "Guideline",
+        id: "6dq9jGfioL",
+        description: "Project sidebar navigation item for project guideline",
+      }),
+      href: project("knowledge"),
+      icon: AiBrain01Icon,
+      description: intl.formatMessage({
+        defaultMessage: "Project-specific guidance for agents and teams",
+        id: "tMOiEvbyBd",
+        description: "Sidebar description for the project Guideline navigation item",
+      }),
+      featureFlagKey: WORKSPACE_KNOWLEDGE_FLAG,
     },
     {
       label: intl.formatMessage({

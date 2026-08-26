@@ -817,11 +817,14 @@ func TestStringTranslationsService_ListStringTranslations(t *testing.T) {
 			opts: &model.StringTranslationsListOptions{
 				StringID:                2345,
 				LanguageID:              "uk",
+				FileID:                  12,
+				LabelIDs:                []int{1, 2},
+				CroQL:                   "croql_test",
 				OrderBy:                 "createdAt desc,id",
 				DenormalizePlaceholders: ToPtr(1),
 				ListOptions:             model.ListOptions{Offset: 10, Limit: 25},
 			},
-			expect: "?denormalizePlaceholders=1&languageId=uk&limit=25&offset=10&orderBy=createdAt+desc%2Cid&stringId=2345",
+			expect: "?croql=croql_test&denormalizePlaceholders=1&fileId=12&labelIds=1%2C2&languageId=uk&limit=25&offset=10&orderBy=createdAt+desc%2Cid&stringId=2345",
 		},
 	}
 

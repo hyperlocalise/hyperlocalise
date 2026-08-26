@@ -211,7 +211,7 @@ export const workspaceAutomationStatusEnum = pgEnum("workspace_automation_status
  */
 export const workspaceAutomationRunTriggerSourceEnum = pgEnum(
   "workspace_automation_run_trigger_source",
-  ["manual", "scheduled", "github", "contentful", "source_upload"],
+  ["manual", "scheduled", "github", "contentful", "source_upload", "web_chat"],
 );
 /**
  * Tracks persisted workspace automation run execution from queueing through active work and terminal outcomes.
@@ -240,6 +240,7 @@ export const interactionSourceEnum = pgEnum("interaction_source", [
   "email_agent",
   "github_agent",
   "slack_agent",
+  "web_chat",
 ]);
 /**
  * Tracks whether an inbox item is still active for operators or has been archived from the active work queue.
@@ -276,6 +277,7 @@ export const storedFileSourceKindEnum = pgEnum("stored_file_source_kind", [
   "repository_file",
   "tms_file",
   "editor_upload",
+  "automation_knowledge",
 ]);
 /**
  * Identifies billable or metered product features so usage events can be mapped to subscription entitlements and external billing systems.

@@ -14,6 +14,7 @@
  */
 import type { CSSProperties, ReactNode } from "react";
 import Image from "next/image";
+import { usePathname } from "next/navigation";
 import { FormattedMessage, useIntl } from "react-intl";
 
 import {
@@ -83,7 +84,9 @@ export function AppShellClient({
   user,
 }: AppShellClientProps) {
   const intl = useIntl();
+  const pathname = usePathname();
   const organizationSlug = activeOrganization.slug ?? "";
+  const showGlossaryGuidance = pathname.includes("/strings") || pathname.includes("/files/cat");
   const tmsUserConnectQuery = useTmsUserConnectCta(organizationSlug, {
     enabled: Boolean(organizationSlug),
     initialData: tmsUserConnectCta,
@@ -181,6 +184,7 @@ export function AppShellClient({
         <AppShellFooter
           organizationSlug={organizationSlug}
           showPlan={showBillingLink && autumnConfigured}
+          showGlossaryGuidance={showGlossaryGuidance}
           currentUser={
             organizationSlug
               ? {

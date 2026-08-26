@@ -81,3 +81,33 @@ describe("resolveGithubPullRequestMergeBaseSha", () => {
     ).resolves.toBeNull();
   });
 });
+
+describe("resolveGithubPullRequestReviewBaseSha", () => {
+  beforeEach(() => {
+    getInstallationOctokitMock.mockReset();
+  });
+
+  it("falls back to the pull request base tip when compare has no merge base", async () => {
+    const compareCommits = vi.fn().mockResolvedValue({ data: {} });
+    const get = vi.fn().mockResolvedValue({
+      data: { base: { ref: "main", sha: "aaa111" } },
+    });
+    getInstallationOctokitMock.mockResolvedValue({
+      rest: {
+        pulls: { get },
+        repos: { compareCommits },
+      },
+    });
+
+    const { resolveGithubPullRequestReviewBaseSha } =
+      await import("./github-pull-request-merge-base");
+    await expect(
+      resolveGithubPullRequestReviewBaseSha({
+        githubInstallationId: "123",
+        repositoryFullName: "acme/app",
+        pullRequestNumber: 42,
+        headSha: "bbb222",
+      }),
+    ).resolves.toBe("aaa111");
+  });
+});

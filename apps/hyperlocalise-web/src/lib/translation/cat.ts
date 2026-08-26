@@ -10,7 +10,12 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import type { CatGlossaryTerm, CatTranslationMemoryMatch } from "@/components/cat/shared/types";
+import type {
+  CatGlossaryConcept,
+  CatGlossaryConceptTerm,
+  CatGlossaryTerm,
+  CatTranslationMemoryMatch,
+} from "@/components/cat/shared/types";
 import { inferTmMatchKind } from "@/components/cat/intelligence/tm-match-quality";
 import { crowdinTmsProvider } from "@/lib/providers/adapters/crowdin/crowdin-provider";
 import { CrowdinApiClient } from "@/lib/providers/adapters/crowdin/crowdin-api";
@@ -29,7 +34,10 @@ import { TmsProviderLiveError } from "@/lib/providers/jobs/tms-provider-live-err
 import { tryLoadActiveTmsProviderContext } from "@/lib/providers/jobs/tms-provider-live";
 import { resolveExternalTmsSecretMaterialForActor } from "@/lib/providers/shared/tms-provider-content";
 import type { ExternalTmsProviderKind } from "@/lib/providers/contracts/external-tms-provider-kind";
-import type { NormalizedGlossaryMatch } from "@/lib/providers/contracts/glossary-match";
+import type {
+  NormalizedGlossaryConceptTerm,
+  NormalizedGlossaryMatch,
+} from "@/lib/providers/contracts/glossary-match";
 import type { NormalizedTranslationMemoryMatch } from "@/lib/providers/contracts/translation-memory-match";
 import {
   defaultGlossaryMatchResolution,
@@ -61,6 +69,7 @@ export { pixelRectToPercentMarkers } from "@/lib/translation/cat-visual-context"
 
 export type CatSegmentConcordance = {
   glossaryTerms: CatGlossaryTerm[];
+  glossaryConcepts?: CatGlossaryConcept[];
   translationMemoryMatches: CatTranslationMemoryMatch[];
 };
 
@@ -72,6 +81,71 @@ function toCatGlossaryTerm(match: NormalizedGlossaryMatch): CatGlossaryTerm {
     approved: match.termStatus.preferred,
     forbidden: match.termStatus.forbidden,
   };
+}
+
+function toCatGlossaryConceptTerm(term: NormalizedGlossaryConceptTerm): CatGlossaryConceptTerm {
+  return { ...term };
+}
+
+function toCatGlossaryConcept(match: NormalizedGlossaryMatch): CatGlossaryConcept {
+  const concept = match.concept;
+  if (concept) {
+    return {
+      id: `${match.glossaryId}:${concept.id}`,
+      glossaryId: match.glossaryId,
+      glossaryName: match.glossaryName,
+      glossaryUrl: concept.glossaryUrl,
+      primaryTerm: concept.primaryTerm || match.sourceTerm,
+      subject: concept.subject,
+      definition: concept.definition ?? match.description,
+      sourceTerms: concept.sourceTerms.map(toCatGlossaryConceptTerm),
+      targetTerms: concept.targetTerms.map(toCatGlossaryConceptTerm),
+    };
+  }
+
+  return {
+    id: `${match.glossaryId}:${match.sourceLocale}:${match.sourceTerm}`,
+    glossaryId: match.glossaryId,
+    glossaryName: match.glossaryName,
+    primaryTerm: match.sourceTerm,
+    definition: match.description,
+    sourceTerms: [
+      {
+        id: `${match.id}:source`,
+        locale: match.sourceLocale,
+        text: match.sourceTerm,
+        preferred: match.termStatus.preferred,
+        forbidden: match.termStatus.forbidden,
+      },
+    ],
+    targetTerms: [
+      {
+        id: `${match.id}:target`,
+        locale: match.targetLocale,
+        text: match.targetTerm,
+        preferred: match.termStatus.preferred,
+        forbidden: match.termStatus.forbidden,
+      },
+    ],
+  };
+}
+
+function toCatGlossaryConcepts(matches: NormalizedGlossaryMatch[]): CatGlossaryConcept[] {
+  const concepts = new Map<string, CatGlossaryConcept>();
+  for (const match of matches) {
+    const next = toCatGlossaryConcept(match);
+    const existing = concepts.get(next.id);
+    if (!existing) {
+      concepts.set(next.id, next);
+      continue;
+    }
+
+    const sourceIds = new Set(existing.sourceTerms.map((term) => term.id));
+    const targetIds = new Set(existing.targetTerms.map((term) => term.id));
+    existing.sourceTerms.push(...next.sourceTerms.filter((term) => !sourceIds.has(term.id)));
+    existing.targetTerms.push(...next.targetTerms.filter((term) => !targetIds.has(term.id)));
+  }
+  return [...concepts.values()];
 }
 
 function toCatTranslationMemoryMatch(
@@ -289,6 +363,7 @@ export class CatConcordanceService {
         if (liveMatches) {
           return {
             glossaryTerms: liveMatches.glossaryTerms.map(toCatGlossaryTerm),
+            glossaryConcepts: toCatGlossaryConcepts(liveMatches.glossaryTerms),
             translationMemoryMatches: liveMatches.translationMemoryMatches.map((match) =>
               toCatTranslationMemoryMatch(match, input.sourceText),
             ),
@@ -320,6 +395,7 @@ export class CatConcordanceService {
 
     return {
       glossaryTerms: glossaryMatches.map(toCatGlossaryTerm),
+      glossaryConcepts: toCatGlossaryConcepts(glossaryMatches),
       translationMemoryMatches: translationMemoryMatches.map((match) =>
         toCatTranslationMemoryMatch(match, input.sourceText),
       ),

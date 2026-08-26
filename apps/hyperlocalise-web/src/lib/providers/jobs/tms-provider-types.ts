@@ -226,6 +226,7 @@ export type ExternalTmsGlossaryMetadata = {
   externalResourceType?: ExternalTmsTerminologyResourceType;
   localeCoverage?: string[];
   termCount?: number | null;
+  createdAt?: string | null;
   externalUrl?: string | null;
   termCapabilities?: Record<string, unknown>;
   metadata?: Record<string, unknown>;

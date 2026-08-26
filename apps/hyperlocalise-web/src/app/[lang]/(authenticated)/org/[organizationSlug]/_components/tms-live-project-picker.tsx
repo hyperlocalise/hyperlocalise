@@ -31,11 +31,13 @@ export function TmsLiveProjectPicker({
   value,
   onValueChange,
   disabled = false,
+  allowAll = false,
 }: {
   organizationSlug: string;
   value: string;
   onValueChange: (externalProjectId: string) => void;
   disabled?: boolean;
+  allowAll?: boolean;
 }) {
   const intl = useIntl();
   const tmsProjectsQuery = useTmsLiveProjects(organizationSlug);
@@ -55,7 +57,9 @@ export function TmsLiveProjectPicker({
       <Select
         value={value || null}
         items={projectItems}
-        onValueChange={(nextValue) => onValueChange(nextValue ?? "")}
+        onValueChange={(nextValue) =>
+          onValueChange(nextValue === "__all__" || !nextValue ? "" : nextValue)
+        }
         disabled={disabled || tmsProjectsQuery.isLoading}
       >
         <SelectTrigger className={workspaceFilterTriggerClassName}>
@@ -63,11 +67,16 @@ export function TmsLiveProjectPicker({
             placeholder={
               tmsProjectsQuery.isLoading
                 ? intl.formatMessage(messages.loadingProjects)
-                : intl.formatMessage(messages.selectProject)
+                : intl.formatMessage(allowAll ? messages.allProjects : messages.selectProject)
             }
           />
         </SelectTrigger>
         <SelectContent>
+          {allowAll ? (
+            <SelectItem value="__all__" label={intl.formatMessage(messages.allProjects)}>
+              {intl.formatMessage(messages.allProjects)}
+            </SelectItem>
+          ) : null}
           {projects.map((project) => (
             <SelectItem
               key={project.externalProjectId!}

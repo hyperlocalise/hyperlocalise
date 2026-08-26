@@ -180,6 +180,8 @@ export const CROWDIN_SOURCE_STRING_BATCH_PATCH_LIMIT = 500;
 export const CROWDIN_LIVE_TASK_LIST_LIMIT = 50;
 export const CROWDIN_LIVE_TASK_LIST_ORDER_BY = "createdAt desc";
 export const CROWDIN_PROJECT_LIST_ORDER_BY = "lastActivity desc";
+export const CROWDIN_GLOSSARY_LIST_LIMIT = 25;
+export const CROWDIN_GLOSSARY_LIST_ORDER_BY = "createdAt desc,name";
 export const CROWDIN_SYNC_TASK_PAGE_LIMIT = 500;
 
 export type ListCrowdinTasksOptions = {
@@ -187,6 +189,14 @@ export type ListCrowdinTasksOptions = {
   offset?: number;
   orderBy?: string;
   fetchAll?: boolean;
+};
+
+export type ListCrowdinGlossariesOptions = {
+  limit?: number;
+  offset?: number;
+  orderBy?: string;
+  filter?: string;
+  userId?: number;
 };
 
 function defaultCrowdinFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
@@ -475,6 +485,7 @@ export interface CrowdinGlossary {
   id: number;
   name: string;
   description: string | null;
+  createdAt?: string | null;
   languageId: string;
   languageIds: string[];
   terms: number;
@@ -485,15 +496,79 @@ export interface CrowdinGlossary {
 
 export interface CrowdinGlossaryTerm {
   id: number;
+  userId: number;
   glossaryId: number;
   languageId: string;
   text: string;
   description: string;
   partOfSpeech: string;
   status: string;
-  conceptId: number;
+  type: string;
+  gender: string;
   note: string;
+  url: string;
+  conceptId: number;
+  lemma: string;
+  createdAt: string;
+  updatedAt: string;
 }
+
+export interface CrowdinGlossaryConceptLanguageDetails {
+  languageId: string;
+  userId: number;
+  definition: string;
+  note: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CrowdinGlossaryConcept {
+  id: number;
+  userId: number;
+  glossaryId: number;
+  subject: string;
+  definition: string;
+  translatable: boolean;
+  note: string;
+  url: string;
+  figure: string;
+  languagesDetails: CrowdinGlossaryConceptLanguageDetails[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type CrowdinGlossaryPatch = {
+  op: "replace" | "add" | "remove";
+  path: string;
+  value?: unknown;
+};
+
+export type CrowdinGlossaryTermInput = {
+  languageId: string;
+  text: string;
+  description?: string;
+  partOfSpeech?: string;
+  status?: string;
+  type?: string;
+  gender?: string;
+  note?: string;
+  url?: string;
+  conceptId?: number;
+};
+
+export type CrowdinGlossaryConceptInput = {
+  subject?: string;
+  definition?: string;
+  translatable?: boolean;
+  note?: string;
+  url?: string;
+  figure?: string;
+  languagesDetails?: Array<{
+    languageId: string;
+    definition?: string;
+    note?: string;
+  }>;
+};
 
 export interface CrowdinTranslationMemory {
   id: number;
@@ -633,15 +708,26 @@ export interface CrowdinGlossaryConcordanceTerm {
   text: string;
   description?: string | null;
   status?: string | null;
+  partOfSpeech?: string | null;
+  type?: string | null;
+  gender?: string | null;
+  conceptId?: number | null;
 }
 
 export interface CrowdinGlossaryConcordanceSearchResult {
   glossary: {
     id: number;
     name: string;
+    webUrl?: string | null;
   };
   sourceTerms: CrowdinGlossaryConcordanceTerm[];
   targetTerms: CrowdinGlossaryConcordanceTerm[];
+  concept?: {
+    id: number;
+    subject?: string | null;
+    definition?: string | null;
+    url?: string | null;
+  } | null;
 }
 
 interface CrowdinListResponse<T> {
@@ -658,6 +744,13 @@ export type CrowdinSourceStringsPage = {
   limit: number;
   hasMore: boolean;
   totalCount: number;
+};
+
+export type CrowdinGlossariesPage = {
+  glossaries: CrowdinGlossary[];
+  offset: number;
+  limit: number;
+  hasMore: boolean;
 };
 
 interface CrowdinGetResponse<T> {
@@ -697,17 +790,16 @@ function readCrowdinErrorSummaryEntry(entry: unknown): {
   }
 
   const nestedErrors = entry.errors;
-  if (Array.isArray(nestedErrors)) {
-    const firstNested = nestedErrors.find(isRecord);
-    const error = firstNested?.error;
-    if (isRecord(error) && Array.isArray(error.errors)) {
-      const firstDetail = error.errors.find(isRecord);
-      if (firstDetail && typeof firstDetail.code === "string") {
-        summary.code = firstDetail.code;
-      }
-      if (firstDetail && typeof firstDetail.message === "string") {
-        summary.message = firstDetail.message.slice(0, MAX_CROWDIN_ERROR_SUMMARY_MESSAGE_LENGTH);
-      }
+  const nestedError = Array.isArray(nestedErrors)
+    ? nestedErrors.find(isRecord)?.error
+    : entry.error;
+  if (isRecord(nestedError) && Array.isArray(nestedError.errors)) {
+    const firstDetail = nestedError.errors.find(isRecord);
+    if (firstDetail && typeof firstDetail.code === "string") {
+      summary.code = firstDetail.code;
+    }
+    if (firstDetail && typeof firstDetail.message === "string") {
+      summary.message = firstDetail.message.slice(0, MAX_CROWDIN_ERROR_SUMMARY_MESSAGE_LENGTH);
     }
   }
 
@@ -716,7 +808,7 @@ function readCrowdinErrorSummaryEntry(entry: unknown): {
 
 /**
  * Extracts a small, provider-generated error summary from a Crowdin error
- * response body for logging. Never includes request or translation content.
+ * response body. Never includes request or translation content.
  */
 export function extractCrowdinApiErrorSummary(responseBody: unknown): {
   code?: string | number;
@@ -2073,6 +2165,37 @@ export class CrowdinApiClient {
     return this.listPaginated<CrowdinGlossary>("/glossaries");
   }
 
+  async listGlossariesPage(
+    options: ListCrowdinGlossariesOptions = {},
+  ): Promise<CrowdinGlossariesPage> {
+    const limit = options.limit ?? CROWDIN_GLOSSARY_LIST_LIMIT;
+    const offset = options.offset ?? 0;
+    const params = new URLSearchParams({
+      limit: String(limit),
+      offset: String(offset),
+      orderBy: options.orderBy ?? CROWDIN_GLOSSARY_LIST_ORDER_BY,
+    });
+
+    if (options.userId !== undefined) {
+      params.set("userId", String(options.userId));
+    }
+    if (options.filter?.trim()) {
+      params.set("filter", options.filter.trim());
+    }
+
+    const response = await this.get<CrowdinListResponse<CrowdinGlossary>>(
+      `/glossaries?${params.toString()}`,
+    );
+    const glossaries = response.data.map((item) => item.data);
+
+    return {
+      glossaries,
+      offset,
+      limit,
+      hasMore: glossaries.length === limit,
+    };
+  }
+
   /**
    * List Crowdin AI prompts. Enterprise uses `/ai/prompts`; Crowdin.com uses
    * `/users/{userId}/ai/prompts`.
@@ -2109,6 +2232,82 @@ export class CrowdinApiClient {
 
   async listGlossaryTerms(glossaryId: number): Promise<CrowdinGlossaryTerm[]> {
     return this.listPaginated<CrowdinGlossaryTerm>(`/glossaries/${glossaryId}/terms`);
+  }
+
+  async listGlossaryConcepts(glossaryId: number): Promise<CrowdinGlossaryConcept[]> {
+    return this.listPaginated<CrowdinGlossaryConcept>(`/glossaries/${glossaryId}/concepts`);
+  }
+
+  async getGlossaryConcept(glossaryId: number, conceptId: number): Promise<CrowdinGlossaryConcept> {
+    const response = await this.get<CrowdinGetResponse<CrowdinGlossaryConcept>>(
+      `/glossaries/${glossaryId}/concepts/${conceptId}`,
+    );
+    return response.data;
+  }
+
+  async updateGlossaryConcept(
+    glossaryId: number,
+    conceptId: number,
+    input: CrowdinGlossaryConceptInput,
+  ): Promise<CrowdinGlossaryConcept> {
+    const response = await this.put<CrowdinGetResponse<CrowdinGlossaryConcept>>(
+      `/glossaries/${glossaryId}/concepts/${conceptId}`,
+      input,
+    );
+    return response.data;
+  }
+
+  async deleteGlossaryConcept(glossaryId: number, conceptId: number): Promise<void> {
+    await this.delete(`/glossaries/${glossaryId}/concepts/${conceptId}`);
+  }
+
+  async getGlossary(glossaryId: number): Promise<CrowdinGlossary> {
+    const response = await this.get<CrowdinGetResponse<CrowdinGlossary>>(
+      `/glossaries/${glossaryId}`,
+    );
+    return response.data;
+  }
+
+  async updateGlossary(
+    glossaryId: number,
+    patches: CrowdinGlossaryPatch[],
+  ): Promise<CrowdinGlossary> {
+    const response = await this.patch<CrowdinGetResponse<CrowdinGlossary>>(
+      `/glossaries/${glossaryId}`,
+      patches,
+    );
+    return response.data;
+  }
+
+  async deleteGlossary(glossaryId: number): Promise<void> {
+    await this.delete(`/glossaries/${glossaryId}`);
+  }
+
+  async addGlossaryTerm(
+    glossaryId: number,
+    input: CrowdinGlossaryTermInput,
+  ): Promise<CrowdinGlossaryTerm> {
+    const response = await this.post<CrowdinGetResponse<CrowdinGlossaryTerm>>(
+      `/glossaries/${glossaryId}/terms`,
+      input,
+    );
+    return response.data;
+  }
+
+  async updateGlossaryTerm(
+    glossaryId: number,
+    termId: number,
+    patches: CrowdinGlossaryPatch[],
+  ): Promise<CrowdinGlossaryTerm> {
+    const response = await this.patch<CrowdinGetResponse<CrowdinGlossaryTerm>>(
+      `/glossaries/${glossaryId}/terms/${termId}`,
+      patches,
+    );
+    return response.data;
+  }
+
+  async deleteGlossaryTerm(glossaryId: number, termId: number): Promise<void> {
+    await this.delete(`/glossaries/${glossaryId}/terms/${termId}`);
   }
 
   async listTranslationMemories(): Promise<CrowdinTranslationMemory[]> {

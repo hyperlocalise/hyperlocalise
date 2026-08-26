@@ -66,4 +66,14 @@ export const useCatMutationsMessages = defineMessages({
     id: "sfQrLcactN",
     description: "Error when saving a translation for a hidden string",
   },
+  cannotEditLockedStringTranslation: {
+    defaultMessage: "Locked strings can't be edited from the CAT. Unlock the string first.",
+    id: "kWfjLcxlRC",
+    description: "Error when saving a translation for a locked CAT segment",
+  },
+  failedToUpdateLockedStrings: {
+    defaultMessage: "Failed to update locked strings",
+    id: "dKnvI39kVF",
+    description: "Fallback error when locking or unlocking CAT segments fails",
+  },
 });

@@ -32,7 +32,9 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
+import { buildAutomationsPath } from "@/components/app-shell/navigation-config";
 import { apiClient } from "@/lib/api-client-instance";
+import { buildWorkspaceAutomationWebChatHref } from "@/lib/agents/workspace-automation-web-chat-url";
 import {
   createWorkspaceAutomationFormStateFromRecord,
   formStateToWorkspaceAutomationPayload,
@@ -43,15 +45,18 @@ import {
 } from "@/lib/agents/workspace-automation-view-model";
 import { WorkspacePageShell } from "../../_components/workspace-resource-shared";
 import { automationDetailPageContentMessages } from "./automation-detail-page-content.messages";
+import { WebChatUrlCopyField } from "./web-chat-url-copy-field";
 import { WorkspaceAutomationEditor } from "./workspace-automation-form";
 
 export function AutomationDetailPageContent({
   organizationSlug,
+  projectId,
   automationId,
   knowledgeAvailable = false,
   canUpdateKnowledgeMemory = false,
 }: {
   organizationSlug: string;
+  projectId?: string;
   automationId: string;
   knowledgeAvailable?: boolean;
   canUpdateKnowledgeMemory?: boolean;
@@ -59,6 +64,7 @@ export function AutomationDetailPageContent({
   const intl = useIntl();
   const router = useRouter();
   const queryClient = useQueryClient();
+  const automationsBasePath = buildAutomationsPath(organizationSlug, { projectId });
 
   const automationQuery = useQuery({
     queryKey: ["workspace-automation", organizationSlug, automationId],
@@ -202,7 +208,7 @@ export function AutomationDetailPageContent({
         queryKey: ["workspace-automations", organizationSlug],
       });
       setDeleteDialogOpen(false);
-      router.push(`/org/${organizationSlug}/automations`);
+      router.push(automationsBasePath);
     },
     onError: (error) => {
       if (error.message === "save_in_progress") {
@@ -236,6 +242,7 @@ export function AutomationDetailPageContent({
       <WorkspaceAutomationEditor
         mode="detail"
         organizationSlug={organizationSlug}
+        automationId={automationId}
         form={form}
         errors={errors}
         knowledgeAvailable={knowledgeAvailable}
@@ -257,7 +264,34 @@ export function AutomationDetailPageContent({
               <HugeiconsIcon icon={Delete02Icon} strokeWidth={1.8} data-icon="inline-start" />
               <FormattedMessage {...automationDetailPageContentMessages.deleteAutomation} />
             </Button>
-            {showRunButton ? (
+            {form.triggerMode === "web_chat" ? (
+              <>
+                <div className="hidden min-w-0 max-w-xs md:block">
+                  <WebChatUrlCopyField
+                    automationId={automationId}
+                    organizationSlug={organizationSlug}
+                  />
+                </div>
+                <Button
+                  variant="outline"
+                  nativeButton={false}
+                  render={
+                    <Link
+                      href={buildWorkspaceAutomationWebChatHref({
+                        organizationSlug,
+                        automationId,
+                        locale: intl.locale,
+                      })}
+                      target="_blank"
+                      rel="noreferrer"
+                    />
+                  }
+                  disabled={automation.status !== "active"}
+                >
+                  <FormattedMessage {...automationDetailPageContentMessages.openChat} />
+                </Button>
+              </>
+            ) : showRunButton ? (
               <Button
                 variant="outline"
                 onClick={() => runMutation.mutate()}

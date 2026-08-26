@@ -27,6 +27,9 @@ import { productPageMessages } from "./product/product-page-content.messages";
 import type { ProductMessageKey } from "./product/product-page-content.messages";
 import { useCasePageMessages } from "./use-case/use-case-page-content.messages";
 import type { UseCaseMessageKey } from "./use-case/use-case-page-content.messages";
+import type { AppLocale } from "@/lib/app-i18n/locales";
+import { rewriteAppLocalePath } from "@/lib/app-i18n/rewrite-app-locale-path";
+import { useAppLocale } from "@/lib/app-i18n/use-app-locale";
 
 const FOOTER_IMAGE_SRC = "/images/nasa-yZygONrUBe8-unsplash.jpg";
 
@@ -63,9 +66,11 @@ function FooterLinkLabel({
 function FooterLinkList({
   links,
   isExternalHref,
+  locale,
 }: {
   links: MarketingFooterLink[];
   isExternalHref: (href: string) => boolean;
+  locale: AppLocale;
 }) {
   return (
     <ul className="mt-4 space-y-3 text-sm text-muted-foreground">
@@ -91,7 +96,7 @@ function FooterLinkList({
             </a>
           ) : (
             <Link
-              href={link.href}
+              href={rewriteAppLocalePath(link.href, locale)}
               className="inline-flex rounded-sm transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
             >
               <FooterLinkLabel
@@ -110,6 +115,7 @@ function FooterLinkList({
 
 export function MarketingFooter({ columns }: MarketingFooterProps) {
   const intl = useIntl();
+  const locale = useAppLocale();
   const year = new Date().getFullYear();
   const isExternalHref = (href: string) =>
     href.startsWith("http://") || href.startsWith("https://") || href.startsWith("mailto:");
@@ -140,11 +146,19 @@ export function MarketingFooter({ columns }: MarketingFooterProps) {
                   column.title
                 )}
               </div>
-              <FooterLinkList links={column.links} isExternalHref={isExternalHref} />
+              <FooterLinkList
+                links={column.links}
+                isExternalHref={isExternalHref}
+                locale={locale}
+              />
               {column.nested ? (
                 <div className="mt-10">
                   <div className="text-sm font-medium text-foreground">{column.nested.title}</div>
-                  <FooterLinkList links={column.nested.links} isExternalHref={isExternalHref} />
+                  <FooterLinkList
+                    links={column.nested.links}
+                    isExternalHref={isExternalHref}
+                    locale={locale}
+                  />
                 </div>
               ) : null}
             </div>

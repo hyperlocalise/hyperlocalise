@@ -60,7 +60,7 @@ export async function listNativeGlossaryTermPairs(
       forbidden: nativeSourceTerms.forbidden,
       caseSensitive: nativeSourceTerms.caseSensitive,
       provenance: nativeSourceTerms.provenance,
-      externalKey: nativeSourceTerms.externalKey,
+      externalKey: sql<string | null>`null`,
       reviewStatus: nativeSourceTerms.reviewStatus,
     })
     .from(nativeSourceTerms)
@@ -107,7 +107,7 @@ export async function listGlossaryTermsByGlossaryId(input: {
       forbidden: schema.glossaryTerms.forbidden,
       caseSensitive: schema.glossaryTerms.caseSensitive,
       provenance: schema.glossaryTerms.provenance,
-      externalKey: schema.glossaryTerms.externalKey,
+      externalKey: sql<string | null>`null`,
       reviewStatus: schema.glossaryTerms.reviewStatus,
     })
     .from(schema.glossaryTerms)
@@ -159,7 +159,7 @@ export async function listGlossaryTermsForProject(input: {
         forbidden: schema.glossaryTerms.forbidden,
         caseSensitive: schema.glossaryTerms.caseSensitive,
         provenance: schema.glossaryTerms.provenance,
-        externalKey: schema.glossaryTerms.externalKey,
+        externalKey: sql<string | null>`null`,
         reviewStatus: schema.glossaryTerms.reviewStatus,
       })
       .from(schema.glossaryTerms)

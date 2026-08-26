@@ -16,6 +16,7 @@ import { z } from "zod";
 import { parseGrepLine } from "./parse-grep-line";
 import { normalizeWorkspacePath, toShellRelativePath } from "./path";
 import { MAX_GREP_LINE_CHARS, MAX_GREP_MATCHES, MAX_GREP_MATCHES_PER_FILE, redact } from "./redact";
+import { execWorkspaceSearch } from "./search-root";
 import type { RepoToolContext } from "./types";
 
 const TEXT_FILE_INCLUDES = [
@@ -40,6 +41,8 @@ const TEXT_FILE_INCLUDES = [
   "*.arb",
   "*.xliff",
   "*.strings",
+  "*.srt",
+  "*.vtt",
 ];
 
 type GrepToolResult =
@@ -112,7 +115,16 @@ IMPORTANT:
       regex = false,
       maxResults,
     }) => {
-      const searchPath = normalizeWorkspacePath(searchPathInput ?? ".") ?? ".";
+      const searchPath = normalizeWorkspacePath(searchPathInput ?? ".");
+      if (!searchPath) {
+        return {
+          success: false as const,
+          error: "Search path must stay within the workspace.",
+          pattern,
+          matches: [],
+          filesWithMatches: 0 as const,
+        };
+      }
       const limit = maxResults ?? MAX_GREP_MATCHES;
       const includePattern = include ?? glob;
       const includes = includePattern ? [includePattern] : TEXT_FILE_INCLUDES;
@@ -216,9 +228,27 @@ async function grepWithRipgrep({
   }
   args.push("--glob", "!node_modules/**", "--glob", "!.git/**");
 
-  args.push(pattern, hasPathGlobMetacharacter(searchPath) ? "." : toShellRelativePath(searchPath));
+  args.push(
+    "--",
+    pattern,
+    hasPathGlobMetacharacter(searchPath) ? "." : toShellRelativePath(searchPath),
+  );
 
-  const result = await ctx.bash.exec("rg", { args });
+  const execution = await execWorkspaceSearch(ctx, {
+    command: "rg",
+    args,
+    searchRoot: searchPath,
+  });
+  if (!execution.success) {
+    return {
+      success: false,
+      error: execution.error,
+      pattern,
+      matches: [],
+      filesWithMatches: 0,
+    };
+  }
+  const { result } = execution;
 
   if (result.exitCode >= 2) {
     return null;
@@ -330,7 +360,21 @@ async function grepExactDiscoveredFiles({
   regex: boolean;
   limit: number;
 }): Promise<GrepToolResult> {
-  const listResult = await ctx.bash.exec("find", { args: findArgs(searchPath, includes) });
+  const listExecution = await execWorkspaceSearch(ctx, {
+    command: "find",
+    args: findArgs(searchPath, includes),
+    searchRoot: searchPath,
+  });
+  if (!listExecution.success) {
+    return {
+      success: false,
+      error: listExecution.error,
+      pattern,
+      matches: [],
+      filesWithMatches: 0,
+    };
+  }
+  const listResult = listExecution.result;
   if (listResult.exitCode !== 0 && !listResult.stdout.trim()) {
     return {
       success: false,
@@ -365,9 +409,23 @@ async function grepExactDiscoveredFiles({
     if (!caseSensitive) {
       args.push("-i");
     }
-    args.push(regex ? "-E" : "-F", pattern, file);
+    args.push(regex ? "-E" : "-F", "--", pattern, file);
 
-    const result = await ctx.bash.exec("grep", { args });
+    const execution = await execWorkspaceSearch(ctx, {
+      command: "grep",
+      args,
+      searchRoot: file,
+    });
+    if (!execution.success) {
+      return {
+        success: false,
+        error: execution.error,
+        pattern,
+        matches: [],
+        filesWithMatches: 0,
+      };
+    }
+    const { result } = execution;
     if (result.exitCode >= 2) {
       return {
         success: false,
@@ -471,9 +529,23 @@ async function grepWithPosixGrep({
     args.push(`--include=${include}`);
   }
 
-  args.push(pattern, searchPath === "." ? "." : searchPath);
+  args.push("--", pattern, searchPath === "." ? "." : searchPath);
 
-  const result = await ctx.bash.exec("grep", { args });
+  const execution = await execWorkspaceSearch(ctx, {
+    command: "grep",
+    args,
+    searchRoot: searchPath,
+  });
+  if (!execution.success) {
+    return {
+      success: false,
+      error: execution.error,
+      pattern,
+      matches: [],
+      filesWithMatches: 0,
+    };
+  }
+  const { result } = execution;
 
   if (result.exitCode >= 2) {
     return {

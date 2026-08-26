@@ -248,6 +248,7 @@ export function projectFileCatToWorkspaceState(
       ? { looksLikeVideoUrl: segment.looksLikeVideoUrl }
       : {}),
     ...(segment.isHidden ? { isHidden: true } : {}),
+    ...(segment.isLocked ? { isLocked: true } : {}),
     ...(segment.sourcePath ? { sourcePath: segment.sourcePath } : {}),
     ...(segment.externalResourceId ? { externalResourceId: segment.externalResourceId } : {}),
     ...(segment.resourceType ? { resourceType: segment.resourceType } : {}),

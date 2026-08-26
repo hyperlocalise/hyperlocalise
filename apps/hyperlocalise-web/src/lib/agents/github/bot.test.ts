@@ -18,6 +18,7 @@ const {
   buildGitHubRepositoryRequestInputMock,
   claimGitHubAgentRequestMock,
   createInteractionMock,
+  enqueueGithubPullRequestReviewMock,
   findInteractionBySourceThreadIdMock,
   markGitHubAgentRequestEnqueuedMock,
   createRepositoryAgentTaskQueueMock,
@@ -44,6 +45,7 @@ const {
     createRepositoryAgentTaskQueueMock: vi.fn(() => ({
       enqueue: repositoryQueueEnqueueMock,
     })),
+    enqueueGithubPullRequestReviewMock: vi.fn(),
     findInteractionBySourceThreadIdMock: vi.fn(),
     markGitHubAgentRequestEnqueuedMock: vi.fn(),
     getInstallationOctokitMock: vi.fn(async () => ({
@@ -98,6 +100,10 @@ vi.mock("@/lib/agents/github/request-idempotency", () => ({
 
 vi.mock("@/workflows/adapters", () => ({
   createRepositoryAgentTaskQueue: createRepositoryAgentTaskQueueMock,
+}));
+
+vi.mock("./github-pull-request-review", () => ({
+  enqueueGithubPullRequestReview: enqueueGithubPullRequestReviewMock,
 }));
 
 vi.mock("@/lib/agents/github/app", () => ({
@@ -227,6 +233,45 @@ describe("GitHub command routing", () => {
     expect(posts).toEqual([
       "The `@hyperlocalise fix` command is not available right now. Use `@hyperlocalise` with instructions to run a read-only repository workflow instead.",
     ]);
+  });
+
+  it("queues a localisation review for @hyperlocalise review and ignores extra text", async () => {
+    const { addReactionMock, posts, thread } = createThread();
+    enqueueGithubPullRequestReviewMock.mockResolvedValue({
+      outcome: "enqueued",
+      requestId: "review_123",
+      workflowRunIds: ["review_run_123"],
+    });
+
+    await handleMention(thread, createMessage({ text: "@hyperlocalise review focus on ICU" }));
+
+    expect(enqueueGithubPullRequestReviewMock).toHaveBeenCalledWith({
+      organizationId: "org_123",
+      githubInstallationId: "54321",
+      repositoryFullName: "owner/repo",
+      pullRequestNumber: 42,
+      headSha: "head-sha",
+      baseSha: null,
+      trigger: "mention",
+      commentId: 123,
+    });
+    expect(createRepositoryAgentTaskQueueMock).not.toHaveBeenCalled();
+    expect(repositoryQueueEnqueueMock).not.toHaveBeenCalled();
+    expect(addReactionMock).not.toHaveBeenCalled();
+    expect(posts).toEqual(["Queued a localisation review for this pull request."]);
+  });
+
+  it("reports an already queued localisation review", async () => {
+    const { posts, thread } = createThread();
+    enqueueGithubPullRequestReviewMock.mockResolvedValue({
+      outcome: "already_queued",
+      requestId: "review_123",
+    });
+
+    await handleMention(thread, createMessage({ text: "@hyperlocalise review" }));
+
+    expect(repositoryQueueEnqueueMock).not.toHaveBeenCalled();
+    expect(posts).toEqual(["This localisation review is already queued."]);
   });
 
   it("uses a command-neutral message when GitHub App installation is missing", async () => {

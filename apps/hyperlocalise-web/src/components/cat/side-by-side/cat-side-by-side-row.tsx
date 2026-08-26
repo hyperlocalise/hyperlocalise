@@ -49,6 +49,7 @@ import {
 } from "@/components/cat/editor/cat-target-editor";
 import { analyzeCatMessageFormat } from "@/components/cat/message-format/cat-message-format";
 import { CatHiddenStringBadge } from "@/components/cat/segment/cat-hidden-string-badge";
+import { CatLockedStringBadge } from "@/components/cat/segment/cat-locked-string-badge";
 import {
   SegmentStatusBadge,
   shouldShowSegmentStatusBadge,
@@ -180,11 +181,13 @@ export function CatSideBySideRow({
     isImageBusy;
   // Show Approve whenever the focused row has a target to approve — including clean
   // "Needs review" drafts (AI/job-written) that the reviewer has not edited yet.
-  const canTriggerApprove = Boolean(onApprove) && canEdit && hasApprovingTarget && !isActionBlocked;
-  const showReviewActions = isFocused && canEdit && Boolean(onApprove) && hasApprovingTarget;
+  const canTriggerApprove =
+    Boolean(onApprove) && canEdit && hasApprovingTarget && !isActionBlocked && !segment.isLocked;
+  const showReviewActions =
+    isFocused && canEdit && !segment.isLocked && Boolean(onApprove) && hasApprovingTarget;
   const showIssueSheetAction =
     isFocused && canEdit && !isAssetSegment && Boolean(onAddToIssueSheet);
-  const canEditTarget = canEdit && !isImageBusy;
+  const canEditTarget = canEdit && !isImageBusy && !segment.isLocked;
   const showCopyClearActions = canEditTarget && !isAssetSegment;
   const showTreatAsImageAction = Boolean(
     canEditTarget &&
@@ -233,6 +236,7 @@ export function CatSideBySideRow({
         <SegmentStatusBadge status={segment.status} />
       )}
       {segment.isHidden ? <CatHiddenStringBadge /> : null}
+      {segment.isLocked ? <CatLockedStringBadge /> : null}
       {segmentTags.length > 0 ? <CatSegmentTags tags={segmentTags} /> : null}
     </div>
   );

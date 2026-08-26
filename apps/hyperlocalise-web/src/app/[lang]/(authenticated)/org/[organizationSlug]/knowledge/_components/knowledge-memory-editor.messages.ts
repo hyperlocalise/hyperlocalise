@@ -20,6 +20,11 @@ export const knowledgeMemoryEditorMessages = defineMessages({
     id: "6F6O0hv6yy",
     description: "Heading for the global guidance editor",
   },
+  projectTitle: {
+    defaultMessage: "Project guidance",
+    id: "At4au+ak+k",
+    description: "Heading for the project guidance editor",
+  },
   lastUpdated: {
     defaultMessage: "Saved {timestamp}",
     id: "OVYNR7qNg7",
@@ -41,6 +46,11 @@ export const knowledgeMemoryEditorMessages = defineMessages({
     id: "DR05xC0qfm",
     description: "Accessible label for the global guidance TipTap editor",
   },
+  projectMemoryAriaLabel: {
+    defaultMessage: "Project guidance",
+    id: "Z9+wravZbz",
+    description: "Accessible label for the project guidance TipTap editor",
+  },
   versionNoteLabel: {
     defaultMessage: "Version note (optional)",
     id: "DHd5WNIV7o",
@@ -52,9 +62,9 @@ export const knowledgeMemoryEditorMessages = defineMessages({
     description: "Placeholder for the optional knowledge memory version note field",
   },
   overLimitError: {
-    defaultMessage: "Knowledge memory must be {limit} characters or less.",
-    id: "e6dWjFyp+5",
-    description: "Error when organization knowledge memory exceeds the character limit",
+    defaultMessage: "Guideline must be {limit} characters or less.",
+    id: "z5B/SjTaZR",
+    description: "Error when the organization guideline exceeds the character limit",
   },
   characterCount: {
     defaultMessage: "{count}/{limit} characters",

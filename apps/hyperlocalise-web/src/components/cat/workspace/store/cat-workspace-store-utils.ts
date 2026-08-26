@@ -116,9 +116,11 @@ export function mergeSegmentIntelligenceOnHydrate(input: {
 
   const hasCurrentConcordance =
     (currentConcordance?.glossaryTerms.length ?? 0) > 0 ||
+    (currentConcordance?.glossaryConcepts?.length ?? 0) > 0 ||
     (currentConcordance?.translationMemoryMatches?.length ?? 0) > 0;
   const hasNextConcordance =
     (nextConcordance?.glossaryTerms.length ?? 0) > 0 ||
+    (nextConcordance?.glossaryConcepts?.length ?? 0) > 0 ||
     (nextConcordance?.translationMemoryMatches?.length ?? 0) > 0;
 
   if (hasCurrentConcordance && !hasNextConcordance) {
@@ -126,6 +128,7 @@ export function mergeSegmentIntelligenceOnHydrate(input: {
       ...(merged ?? nextInitialState.intelligence),
       ...currentConcordance,
       glossaryTerms: currentConcordance?.glossaryTerms ?? [],
+      glossaryConcepts: currentConcordance?.glossaryConcepts,
       translationMemoryMatches: currentConcordance?.translationMemoryMatches,
     };
   }

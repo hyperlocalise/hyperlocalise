@@ -38,6 +38,15 @@ import { organizations, users } from "./organizations";
 import { organizationExternalTmsProviderCredentials } from "./providers";
 import { projects } from "./projects";
 
+export type GlossaryConceptLanguageDetails = {
+  locale: string;
+  userId: number | null;
+  definition: string;
+  note: string;
+  createdAt: string | null;
+  updatedAt: string | null;
+};
+
 /**
  * Stores reusable terminology libraries for an organization. A glossary can be native or provider-backed and captures locale coverage, provider sync metadata, and lifecycle state.
  */
@@ -151,6 +160,10 @@ export const glossaryConcepts = pgTable(
     glossaryId: uuid("glossary_id")
       .notNull()
       .references(() => glossaries.id, { onDelete: "cascade" }),
+    // Stable concept identifier from the external provider.
+    externalKey: text("external_key"),
+    // Provider user who created or last updated the concept.
+    externalUserId: text("external_user_id"),
     // Primary source-language term mirrored by the source-locale term row.
     primaryTerm: text("primary_term").notNull(),
     // Optional domain or subject classification.
@@ -163,6 +176,16 @@ export const glossaryConcepts = pgTable(
     note: text("note").notNull().default(""),
     // Optional reference URL.
     url: text("url"),
+    // Optional provider-native visual or figure reference.
+    figure: text("figure"),
+    // Per-language concept definitions and notes from the provider.
+    languageDetails: jsonb("language_details")
+      .$type<GlossaryConceptLanguageDetails[]>()
+      .notNull()
+      .default(sql`'[]'::jsonb`),
+    // Provider timestamps retained independently from local audit timestamps.
+    externalCreatedAt: timestamp("external_created_at", { withTimezone: true }),
+    externalUpdatedAt: timestamp("external_updated_at", { withTimezone: true }),
     // When the concept was first created.
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     // When the concept last changed.
@@ -172,6 +195,7 @@ export const glossaryConcepts = pgTable(
       .$onUpdateFn(() => new Date()),
   },
   (table) => [
+    uniqueIndex("glossary_concepts_glossary_external_key").on(table.glossaryId, table.externalKey),
     index("idx_glossary_concepts_glossary_created_at").on(table.glossaryId, table.createdAt),
   ],
 );
@@ -202,20 +226,24 @@ export const glossaryTerms = pgTable(
     targetTerm: text("target_term").notNull(),
     // Optional human-readable explanation for reviewers and prompts.
     description: text("description").notNull().default(""),
+    // Optional term-specific usage note from the glossary provider.
+    note: text("note").notNull().default(""),
     // Optional grammatical hint for the term.
     partOfSpeech: text("part_of_speech").notNull().default(""),
     // Optional grammatical gender for native concept terms.
     gender: text("gender"),
     // Optional curated term type for native concept terms.
     termType: text("term_type"),
+    // Optional provider-native term URL.
+    url: text("url"),
+    // Optional provider-native lemma.
+    lemma: text("lemma"),
     // Native concept term status.
     status: text("status").notNull().default("preferred"),
     // Whether source term matching should preserve case sensitivity.
     caseSensitive: boolean("case_sensitive").notNull().default(false),
     // Whether the source term is explicitly forbidden in output.
     forbidden: boolean("forbidden").notNull().default(false),
-    // Optional external identifier retained for later sync or dedupe.
-    externalKey: text("external_key"),
     // Optional source label such as manual or sync.
     provenance: glossaryTermProvenanceEnum("provenance").notNull().default("manual"),
     // Review status for agent suggestions vs human-approved terms.
@@ -246,7 +274,6 @@ export const glossaryTerms = pgTable(
       table.glossaryId,
       sql`lower(${table.sourceTerm})`,
     ),
-    uniqueIndex("glossary_terms_glossary_external_key").on(table.glossaryId, table.externalKey),
     uniqueIndex("glossary_terms_concept_locale_term_key")
       .on(table.conceptId, table.locale, table.term)
       .where(
@@ -255,7 +282,6 @@ export const glossaryTerms = pgTable(
     index("idx_glossary_terms_glossary_created_at").on(table.glossaryId, table.createdAt),
     index("idx_glossary_terms_concept_id").on(table.conceptId),
     index("idx_glossary_terms_concept_locale").on(table.conceptId, table.locale),
-    index("idx_glossary_terms_external_key").on(table.externalKey),
     index("idx_glossary_terms_search_vector").using("gin", table.searchVector),
   ],
 );

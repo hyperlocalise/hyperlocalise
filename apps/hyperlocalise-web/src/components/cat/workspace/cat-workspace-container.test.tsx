@@ -18,6 +18,10 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vite-plus/test";
 
 import {
+  createCatImageFileWorkspaceState,
+  createCatVideoFileWorkspaceState,
+} from "@/components/cat/file-view/cat-file-view.fixture";
+import {
   catSegmentsFixture,
   createCatWorkspaceState,
   mockValidateFormat,
@@ -60,6 +64,10 @@ describe("CatWorkspaceContainer UI", () => {
 
     expect(screen.getByText("Queue")).toBeInTheDocument();
     expect(screen.getByText("Translation Intelligence")).toBeInTheDocument();
+    expect(screen.getByRole("separator", { name: "Resize queue panel" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("separator", { name: "Resize translation intelligence panel" }),
+    ).toBeInTheDocument();
     await waitFor(() =>
       expect(screen.getByRole("button", { name: /Approve/i })).toBeInTheDocument(),
     );
@@ -195,8 +203,56 @@ describe("CatWorkspaceContainer UI", () => {
 
       await user.click(screen.getByRole("tab", { name: "Queue" }));
       expect(screen.getByRole("tab", { name: "Queue" })).toHaveAttribute("data-active");
+      expect(
+        screen.queryByRole("separator", { name: "Resize queue panel" }),
+      ).not.toBeInTheDocument();
     } finally {
       window.matchMedia = originalMatchMedia;
     }
+  });
+
+  it("renders File view for an image file segment", async () => {
+    renderCatWorkspace(
+      <CatWorkspaceContainer
+        initialState={createCatImageFileWorkspaceState()}
+        initialViewMode="file"
+        editing={{
+          onRegenerateImage: vi.fn(),
+          onUploadImage: vi.fn(),
+        }}
+      />,
+    );
+
+    await waitFor(() =>
+      expect(screen.getByRole("heading", { name: /Translated \(vi\)/i })).toBeInTheDocument(),
+    );
+    expect(screen.getByRole("heading", { name: /Source \(en-US\)/i })).toBeInTheDocument();
+    expect(screen.getByText("marketing/hero.png")).toBeInTheDocument();
+    expect(screen.getByAltText("Translated image")).toBeInTheDocument();
+    expect(screen.getByAltText("Source image")).toBeInTheDocument();
+    expect(screen.getByText("Upload translated file")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^Approve$/i })).toBeEnabled();
+  });
+
+  it("renders File view for a video file segment", async () => {
+    renderCatWorkspace(
+      <CatWorkspaceContainer
+        initialState={createCatVideoFileWorkspaceState()}
+        initialViewMode="file"
+        editing={{
+          onRegenerateImage: vi.fn(),
+          onUploadImage: vi.fn(),
+        }}
+      />,
+    );
+
+    await waitFor(() =>
+      expect(screen.getByRole("heading", { name: /Translated \(vi\)/i })).toBeInTheDocument(),
+    );
+    expect(screen.getByRole("heading", { name: /Source \(en-US\)/i })).toBeInTheDocument();
+    expect(screen.getByText("onboarding/walkthrough.mp4")).toBeInTheDocument();
+    expect(document.querySelectorAll("video")).toHaveLength(2);
+    expect(screen.getByText("Upload translated file")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^Approve$/i })).toBeEnabled();
   });
 });

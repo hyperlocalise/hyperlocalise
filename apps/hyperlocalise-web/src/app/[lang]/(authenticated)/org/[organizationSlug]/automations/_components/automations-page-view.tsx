@@ -18,6 +18,7 @@ import { Add01Icon, SparklesIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { FormattedMessage, useIntl } from "react-intl";
 
+import { buildAutomationsPath } from "@/components/app-shell/navigation-config";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -32,6 +33,7 @@ import type { WorkspaceAutomationRecord } from "@/lib/agents/workspace-automatio
 
 import { PageHeader, WorkspacePageShell } from "../../_components/workspace-resource-shared";
 import { AutomationTemplateFlow } from "./automation-template-flow";
+import type { GithubAutoReviewSettingsDto, GithubAutoReviewSettingsWrite } from "./automations-api";
 import { automationsPageViewMessages } from "./automations-page-view.messages";
 import {
   formatAutomationRelativeTimestamp,
@@ -43,6 +45,7 @@ import {
   resolveTemplateCategoryTabs,
   resolveVisibleAutomations,
 } from "./automations-page-view-model";
+import { GithubAutoReviewCard } from "./github-auto-review-card";
 
 const TEMPLATE_FILTER_TABS_CLASS =
   "h-auto flex-none rounded-full border-transparent px-3 py-1.5 text-muted-foreground shadow-none after:hidden hover:text-foreground data-active:bg-accent data-active:text-foreground dark:data-active:border-transparent dark:data-active:bg-accent";
@@ -146,28 +149,44 @@ function AutomationToolsSummary({ automation }: { automation: WorkspaceAutomatio
 
 export function AutomationsPageView({
   organizationSlug,
+  projectId,
   automations,
   templates,
   isLoading,
   error,
   now,
+  autoReview,
+  autoReviewLoading = false,
+  autoReviewError,
+  autoReviewSaving = false,
+  onSaveAutoReview,
   renderAutomationLink = defaultRenderAutomationLink,
   renderActionLink = defaultRenderActionLink,
 }: {
   organizationSlug: string;
+  projectId?: string;
   automations: WorkspaceAutomationRecord[];
   templates: WorkspaceAutomationTemplate[];
   isLoading: boolean;
   error?: unknown;
   now?: number;
+  autoReview?: GithubAutoReviewSettingsDto | null;
+  autoReviewLoading?: boolean;
+  autoReviewError?: unknown;
+  autoReviewSaving?: boolean;
+  onSaveAutoReview?: (input: GithubAutoReviewSettingsWrite) => Promise<void>;
   renderAutomationLink?: AutomationsLinkRenderer;
   renderActionLink?: AutomationsActionLinkRenderer;
 }) {
   const intl = useIntl();
   const [templateCategoryFilter, setTemplateCategoryFilter] =
     useState<WorkspaceAutomationTemplateCategory>("popular");
+  const automationsBasePath = buildAutomationsPath(organizationSlug, { projectId });
 
-  const visibleAutomations = useMemo(() => resolveVisibleAutomations(automations), [automations]);
+  const visibleAutomations = useMemo(
+    () => resolveVisibleAutomations(automations, projectId),
+    [automations, projectId],
+  );
   const stats = useMemo(() => resolveAutomationPageStats(visibleAutomations), [visibleAutomations]);
   const sortedTemplates = useMemo(() => resolveSortedAutomationTemplates(templates), [templates]);
   const templateCategoryTabs = useMemo(
@@ -183,11 +202,15 @@ export function AutomationsPageView({
     <WorkspacePageShell>
       <PageHeader
         icon={SparklesIcon}
-        label={intl.formatMessage(automationsPageViewMessages.pageLabel)}
+        label={intl.formatMessage(
+          projectId
+            ? automationsPageViewMessages.pageLabelProject
+            : automationsPageViewMessages.pageLabel,
+        )}
         title={intl.formatMessage(automationsPageViewMessages.pageTitle)}
         description={intl.formatMessage(automationsPageViewMessages.pageDescription)}
         actions={renderActionLink({
-          href: `/org/${organizationSlug}/automations/new`,
+          href: `${automationsBasePath}/new`,
           kind: "header",
           children: (
             <>
@@ -224,6 +247,17 @@ export function AutomationsPageView({
           </CardHeader>
         </Card>
       </section>
+
+      {projectId ? null : (
+        <GithubAutoReviewCard
+          organizationSlug={organizationSlug}
+          settings={autoReview}
+          isLoading={autoReviewLoading}
+          error={autoReviewError}
+          isSaving={autoReviewSaving}
+          onSave={onSaveAutoReview}
+        />
+      )}
 
       <section className="flex flex-col gap-4">
         <div className="overflow-x-auto rounded-xl border border-border">
@@ -267,7 +301,7 @@ export function AutomationsPageView({
             visibleAutomations.map((automation) => (
               <Fragment key={automation.id}>
                 {renderAutomationLink({
-                  href: `/org/${organizationSlug}/automations/${automation.id}`,
+                  href: `${automationsBasePath}/${automation.id}`,
                   className: `${AUTOMATION_LIST_GRID_CLASS} border-b border-border px-4 py-4 transition-colors last:border-b-0 hover:bg-muted`,
                   children: (
                     <>
@@ -343,7 +377,7 @@ export function AutomationsPageView({
                 <div className="mt-auto flex items-center gap-2">
                   {template.activatable ? (
                     renderActionLink({
-                      href: `/org/${organizationSlug}/automations/new?template=${template.id}`,
+                      href: `${automationsBasePath}/new?template=${template.id}`,
                       kind: "template",
                       children: <FormattedMessage {...automationsPageViewMessages.addTemplate} />,
                     })

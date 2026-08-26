@@ -15,16 +15,6 @@
 import { defineMessages } from "react-intl";
 
 export const automationsPageViewModelMessages = defineMessages({
-  relativeHours: {
-    defaultMessage: "{hours}h",
-    id: "F/BtD1KZKq",
-    description: "Relative age of an automation created less than a day ago",
-  },
-  relativeDays: {
-    defaultMessage: "{days}d",
-    id: "BFQt98qExR",
-    description: "Relative age of an automation created one or more days ago",
-  },
   triggerScheduled: {
     defaultMessage: "Scheduled",
     id: "MXyOWGXSz8",
@@ -39,6 +29,26 @@ export const automationsPageViewModelMessages = defineMessages({
     defaultMessage: "Manual",
     id: "sbr8qd8WgZ",
     description: "Trigger label for a manual automation in the list",
+  },
+  triggerContentful: {
+    defaultMessage: "Contentful webhook",
+    id: "FBmmj9seNr",
+    description: "Trigger label for a Contentful webhook automation in the list",
+  },
+  triggerSourceUpload: {
+    defaultMessage: "Source upload",
+    id: "N0aSJ10JRf",
+    description: "Trigger label for a source upload automation in the list",
+  },
+  triggerWebChat: {
+    defaultMessage: "Web chat",
+    id: "J210+x7u6p",
+    description: "Trigger label for a web chat automation in the list",
+  },
+  toolKnowledgeFiles: {
+    defaultMessage: "Knowledge files",
+    id: "l0dInWPeYD",
+    description: "Tool badge when an automation uses uploaded knowledge files",
   },
   toolGithub: {
     defaultMessage: "GitHub",

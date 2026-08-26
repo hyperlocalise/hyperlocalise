@@ -12,19 +12,19 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
-import { Clock01Icon, GitBranchIcon, Upload01Icon } from "@hugeicons/core-free-icons";
+import { Clock01Icon, GitPullRequestIcon, Upload01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
+import Image from "next/image";
 import { FormattedMessage, useIntl } from "react-intl";
 
+import { LAVENDER_MESH_GRADIENT_SRC } from "@/components/marketing/hero-frame-mesh-stage";
+import { REQUEST_DEMO_URL } from "@/components/marketing/request-demo";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/primitives/cn";
-import { REQUEST_DEMO_URL } from "@/components/marketing/request-demo";
 
 import { automationsMockMessages } from "./automations-mock-ui.messages";
-
-import Image from "next/image";
 
 type StepStatus = "pending" | "running" | "done" | "warning";
 
@@ -32,6 +32,8 @@ type Step = {
   label: string;
   status: StepStatus;
 };
+
+export const AUTOMATIONS_MOCK_AUTO_REVIEW_ID = "auto-review";
 
 type UseCase = {
   id: string;
@@ -139,10 +141,12 @@ function UseCaseSelector({
   useCases,
   active,
   onSelect,
+  cta,
 }: {
   useCases: UseCase[];
   active: string;
   onSelect: (id: string) => void;
+  cta: ReactNode;
 }) {
   return (
     <div className="flex h-full flex-col justify-between px-6 py-5">
@@ -194,26 +198,41 @@ function UseCaseSelector({
         </div>
       </div>
 
-      <div className="mt-4 flex items-center">
-        <Button
-          variant="outline"
-          size="lg"
-          nativeButton={false}
-          render={<a href={REQUEST_DEMO_URL} target="_blank" rel="noopener noreferrer" />}
-          className="cursor-pointer rounded-sm"
-        >
-          <FormattedMessage {...automationsMockMessages.requestDemo} />
-        </Button>
-      </div>
+      <div className="mt-4 flex items-center">{cta}</div>
     </div>
   );
 }
 
-export function AutomationsMockUI() {
+export function AutomationsMockUI({
+  priority = false,
+  pauseAutoplay = false,
+  renderCta,
+}: {
+  priority?: boolean;
+  pauseAutoplay?: boolean;
+  renderCta?: (useCaseId: string) => ReactNode;
+}) {
   const intl = useIntl();
   const shouldReduceMotion = useReducedMotion();
 
   const useCases: UseCase[] = [
+    {
+      id: AUTOMATIONS_MOCK_AUTO_REVIEW_ID,
+      title: intl.formatMessage(automationsMockMessages.useCaseAutoReviewTitle),
+      description: intl.formatMessage(automationsMockMessages.useCaseAutoReviewDescription),
+      triggerIcon: <HugeiconsIcon icon={GitPullRequestIcon} strokeWidth={1.8} className="size-3" />,
+      triggerLabel: intl.formatMessage(automationsMockMessages.triggerGithubPullRequest),
+      tools: [
+        intl.formatMessage(automationsMockMessages.toolGitHub),
+        intl.formatMessage(automationsMockMessages.toolMentionReview),
+      ],
+      steps: [
+        { label: intl.formatMessage(automationsMockMessages.stepAutoReview1) },
+        { label: intl.formatMessage(automationsMockMessages.stepAutoReview2) },
+        { label: intl.formatMessage(automationsMockMessages.stepAutoReview3) },
+        { label: intl.formatMessage(automationsMockMessages.stepAutoReview4) },
+      ],
+    },
     {
       id: "auto-translation",
       title: intl.formatMessage(automationsMockMessages.useCaseAutoTranslationTitle),
@@ -230,24 +249,6 @@ export function AutomationsMockUI() {
         { label: intl.formatMessage(automationsMockMessages.step1Auto3) },
         { label: intl.formatMessage(automationsMockMessages.step1Auto4) },
         { label: intl.formatMessage(automationsMockMessages.step1Auto5) },
-      ],
-    },
-    {
-      id: "review-with-agent",
-      title: intl.formatMessage(automationsMockMessages.useCaseReviewWithAgentTitle),
-      description: intl.formatMessage(automationsMockMessages.useCaseReviewWithAgentDescription),
-      triggerIcon: <HugeiconsIcon icon={GitBranchIcon} strokeWidth={1.8} className="size-3" />,
-      triggerLabel: intl.formatMessage(automationsMockMessages.triggerGithubMain),
-      tools: [
-        intl.formatMessage(automationsMockMessages.toolGitHub),
-        intl.formatMessage(automationsMockMessages.toolValidation),
-        intl.formatMessage(automationsMockMessages.toolSlack),
-      ],
-      steps: [
-        { label: intl.formatMessage(automationsMockMessages.step2Review1) },
-        { label: intl.formatMessage(automationsMockMessages.step2Review2) },
-        { label: intl.formatMessage(automationsMockMessages.step2Review3) },
-        { label: intl.formatMessage(automationsMockMessages.step2Review4) },
       ],
     },
     {
@@ -272,10 +273,7 @@ export function AutomationsMockUI() {
     },
   ];
 
-  const warningSteps = new Set([
-    intl.formatMessage(automationsMockMessages.step2Review4),
-    intl.formatMessage(automationsMockMessages.step3Audit3),
-  ]);
+  const warningSteps = new Set([intl.formatMessage(automationsMockMessages.step3Audit3)]);
 
   const [activeIndex, setActiveIndex] = useState(0);
   const [visibleStepCount, setVisibleStepCount] = useState(1);
@@ -298,7 +296,7 @@ export function AutomationsMockUI() {
   });
 
   useEffect(() => {
-    if (isPaused || shouldReduceMotion) return;
+    if (isPaused || pauseAutoplay || shouldReduceMotion) return;
 
     const totalSteps = activeUseCase.steps.length;
 
@@ -317,6 +315,7 @@ export function AutomationsMockUI() {
     visibleStepCount,
     activeIndex,
     isPaused,
+    pauseAutoplay,
     activeUseCase.steps.length,
     useCases.length,
     shouldReduceMotion,
@@ -332,23 +331,59 @@ export function AutomationsMockUI() {
   }
 
   return (
-    <div className="overflow-hidden rounded-xl border border-border bg-card shadow-2xl shadow-gray-alpha-100">
+    <div className="overflow-hidden rounded-xl border border-border bg-background shadow-2xl shadow-gray-alpha-100">
       <div className="grid min-h-[22rem] md:grid-cols-[1fr_1.4fr]">
-        <div className="border-b border-border/60 md:border-b-0 md:border-r">
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={activeUseCase.id}
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.25 }}
-              className="h-full"
-            >
-              <TerminalPanel useCase={activeUseCase} visibleSteps={visibleSteps} />
-            </motion.div>
-          </AnimatePresence>
+        <div className="relative min-h-[20rem] overflow-hidden border-b border-border md:min-h-0 md:border-b-0">
+          <Image
+            src={LAVENDER_MESH_GRADIENT_SRC}
+            alt=""
+            aria-hidden
+            fill
+            priority={priority}
+            sizes="(min-width: 768px) 28rem, 100vw"
+            className="pointer-events-none object-cover object-center"
+          />
+          <div
+            aria-hidden
+            className="pointer-events-none absolute inset-y-0 right-0 w-16 bg-gradient-to-r from-transparent to-background md:w-24"
+          />
+          <div className="relative flex h-full items-center p-5 sm:p-7 lg:p-8">
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={activeUseCase.id}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.25 }}
+                className="flex w-full flex-col overflow-hidden rounded-xl border border-border/80 bg-background/90 shadow-lg backdrop-blur-sm"
+              >
+                <TerminalPanel useCase={activeUseCase} visibleSteps={visibleSteps} />
+              </motion.div>
+            </AnimatePresence>
+          </div>
         </div>
-        <UseCaseSelector useCases={useCases} active={activeUseCase.id} onSelect={handleSelect} />
+        <div className="relative bg-background">
+          <UseCaseSelector
+            useCases={useCases}
+            active={activeUseCase.id}
+            onSelect={handleSelect}
+            cta={
+              renderCta ? (
+                renderCta(activeUseCase.id)
+              ) : (
+                <Button
+                  variant="outline"
+                  size="lg"
+                  nativeButton={false}
+                  render={<a href={REQUEST_DEMO_URL} target="_blank" rel="noopener noreferrer" />}
+                  className="cursor-pointer rounded-sm"
+                >
+                  <FormattedMessage {...automationsMockMessages.requestDemo} />
+                </Button>
+              )
+            }
+          />
+        </div>
       </div>
     </div>
   );

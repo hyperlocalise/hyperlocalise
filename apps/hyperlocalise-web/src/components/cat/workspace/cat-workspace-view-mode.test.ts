@@ -10,7 +10,7 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { describe, expect, it, vi } from "vite-plus/test";
+import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 
 import {
   CAT_WORKSPACE_VIEW_MODE_STORAGE_KEY,
@@ -21,6 +21,10 @@ import {
 } from "./cat-workspace-view-mode";
 
 describe("cat-workspace-view-mode", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
   it("defaults to comfortable when storage is empty", () => {
     const getItem = vi.fn().mockReturnValue(null);
     vi.stubGlobal("window", {
@@ -57,6 +61,15 @@ describe("cat-workspace-view-mode", () => {
     writeCatWorkspaceViewMode("side-by-side");
 
     expect(setItem).toHaveBeenCalledWith(CAT_WORKSPACE_VIEW_MODE_STORAGE_KEY, "side-by-side");
+  });
+
+  it("defaults to comfortable and skips writes when storage is unavailable", () => {
+    vi.stubGlobal("localStorage", undefined);
+    vi.stubGlobal("window", {});
+
+    expect(readCatWorkspaceViewMode()).toBe("comfortable");
+    expect(() => writeCatWorkspaceViewMode("file")).not.toThrow();
+    expect(readCatWorkspaceViewMode()).toBe("comfortable");
   });
 
   it("maps view mode to page limits", () => {

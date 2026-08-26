@@ -303,6 +303,15 @@ export function useCatWorkspaceRuntime({
         await reviewController.runReview(segmentId, { includeAi: true });
       },
       onSkip: reviewController.skip.bind(reviewController),
+      ...(reviewOverrides?.onAddToIssueSheet
+        ? { onAddToIssueSheet: reviewOverrides.onAddToIssueSheet }
+        : {}),
+      ...(reviewOverrides?.onSetLocked
+        ? {
+            onSetLocked: (segmentIds: string[], isLocked: boolean) =>
+              reviewController.setLocked(segmentIds, isLocked),
+          }
+        : {}),
     };
 
     return {
@@ -334,6 +343,8 @@ export function useCatWorkspaceRuntime({
     queueFilter,
     runQaChecks,
     reviewController,
+    reviewOverrides?.onAddToIssueSheet,
+    reviewOverrides?.onSetLocked,
     store,
     usesServerQueueFilter,
     validateFormat,
@@ -356,6 +367,12 @@ export function useCatWorkspaceRuntime({
   const handleBulkSkip = useCallback(() => reviewController.bulkSkip(), [reviewController]);
   const handleBulkHide = useCallback(() => reviewController.bulkHide(), [reviewController]);
   const handleBulkUnhide = useCallback(() => reviewController.bulkUnhide(), [reviewController]);
+  const handleBulkLock = useCallback(() => reviewController.bulkLock(), [reviewController]);
+  const handleBulkUnlock = useCallback(() => reviewController.bulkUnlock(), [reviewController]);
+  const handleSetLocked = useCallback(
+    (segmentIds: string[], isLocked: boolean) => reviewController.setLocked(segmentIds, isLocked),
+    [reviewController],
+  );
 
   const resolvedBuildSegmentShareUrl = useMemo(() => {
     if (buildSegmentShareUrl) {
@@ -386,6 +403,9 @@ export function useCatWorkspaceRuntime({
     handleBulkSkip,
     handleBulkHide,
     handleBulkUnhide,
+    handleBulkLock,
+    handleBulkUnlock,
+    handleSetLocked,
     resolvedBuildSegmentShareUrl,
     canLookupContext,
     canLoadVisualContext,

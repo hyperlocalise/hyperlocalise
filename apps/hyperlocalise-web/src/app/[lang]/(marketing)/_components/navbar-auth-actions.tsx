@@ -19,6 +19,8 @@ import Link from "next/link";
 import { FormattedMessage } from "react-intl";
 
 import { REQUEST_DEMO_URL } from "@/components/marketing/request-demo";
+import type { AppLocale } from "@/lib/app-i18n/locales";
+import { rewriteAppLocalePath } from "@/lib/app-i18n/rewrite-app-locale-path";
 
 import { navbarMessages } from "./navbar.messages";
 
@@ -30,7 +32,13 @@ export type NavbarAuthState = {
   isAuthenticated: boolean;
 };
 
-export function NavbarDesktopAuthActions({ auth }: { auth: NavbarAuthState }) {
+export function NavbarDesktopAuthActions({
+  auth,
+  locale,
+}: {
+  auth: NavbarAuthState;
+  locale: AppLocale;
+}) {
   if (auth.loading) {
     return (
       <div className="flex items-center gap-2" aria-hidden="true">
@@ -42,7 +50,10 @@ export function NavbarDesktopAuthActions({ auth }: { auth: NavbarAuthState }) {
 
   if (auth.isAuthenticated) {
     return (
-      <Button nativeButton={false} render={<Link href={dashboardHref} />}>
+      <Button
+        nativeButton={false}
+        render={<Link href={rewriteAppLocalePath(dashboardHref, locale)} />}
+      >
         <FormattedMessage {...navbarMessages.dashboard} />
       </Button>
     );
@@ -67,14 +78,24 @@ export function NavbarDesktopAuthActions({ auth }: { auth: NavbarAuthState }) {
   );
 }
 
-export function NavbarMobileAuthCta({ auth }: { auth: NavbarAuthState }) {
+export function NavbarMobileAuthCta({
+  auth,
+  locale,
+}: {
+  auth: NavbarAuthState;
+  locale: AppLocale;
+}) {
   if (auth.loading) {
     return <Skeleton className="h-9 w-24 rounded-md" aria-hidden="true" />;
   }
 
   if (auth.isAuthenticated) {
     return (
-      <Button className="px-3.5" nativeButton={false} render={<Link href={dashboardHref} />}>
+      <Button
+        className="px-3.5"
+        nativeButton={false}
+        render={<Link href={rewriteAppLocalePath(dashboardHref, locale)} />}
+      >
         <FormattedMessage {...navbarMessages.dashboard} />
       </Button>
     );
@@ -91,7 +112,13 @@ export function NavbarMobileAuthCta({ auth }: { auth: NavbarAuthState }) {
   );
 }
 
-export function NavbarMobileAuthFooter({ auth }: { auth: NavbarAuthState }) {
+export function NavbarMobileAuthFooter({
+  auth,
+  locale,
+}: {
+  auth: NavbarAuthState;
+  locale: AppLocale;
+}) {
   if (auth.loading) {
     return (
       <div className="flex w-full flex-col gap-2" aria-hidden="true">
@@ -103,7 +130,10 @@ export function NavbarMobileAuthFooter({ auth }: { auth: NavbarAuthState }) {
 
   if (auth.isAuthenticated) {
     return (
-      <SheetClose render={<Link href={dashboardHref} />} className="w-full">
+      <SheetClose
+        render={<Link href={rewriteAppLocalePath(dashboardHref, locale)} />}
+        className="w-full"
+      >
         <Button size="lg" className="w-full" nativeButton={false} render={<span />}>
           <FormattedMessage {...navbarMessages.dashboard} />
         </Button>

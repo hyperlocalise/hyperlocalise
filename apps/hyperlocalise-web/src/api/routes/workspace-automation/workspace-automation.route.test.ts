@@ -50,6 +50,7 @@ import { createAuthTestFixture } from "@/api/test-auth.fixture";
 import { PRODUCT_USAGE_ANALYTICS_EVENTS } from "@/lib/analytics/events";
 import { serverAnalytics } from "@/lib/analytics/server";
 import { db, schema } from "@/lib/database";
+import { uniqueTestProjectIdentifier } from "@/lib/projects/issue-identifier/test-project-identifier";
 
 const client = testClient(createApp());
 const fixture = createAuthTestFixture();
@@ -81,6 +82,7 @@ async function seedProject(input: { organizationId: string; userId?: string }) {
   const projectId = `project-${crypto.randomUUID()}`;
   await db.insert(schema.projects).values({
     id: projectId,
+    identifier: uniqueTestProjectIdentifier(),
     organizationId: input.organizationId,
     createdByUserId: input.userId ?? null,
     name: "Website",
@@ -360,6 +362,64 @@ describe("workspace automation routes", () => {
     await expect(runsResponse.json()).resolves.toMatchObject({
       error: "invalid_query_params",
     });
+  });
+
+  it("lists automations filtered by projectId", async () => {
+    const identity = fixture.createWorkosIdentityWithRole("admin");
+    const headers = await fixture.authHeadersFor(identity);
+    const organizationId = await getOrganizationId(identity.organization.workosOrganizationId);
+    const organizationSlug = identity.organization.slug ?? "missing-slug";
+    const projectId = await seedProject({ organizationId });
+    const otherProjectId = await seedProject({ organizationId });
+
+    const matchingResponse = await client.api.orgs[":organizationSlug"].automations.$post(
+      {
+        param: { organizationSlug },
+        json: {
+          name: "Website automation",
+          instructions: "Run for the website project.",
+          projectId,
+          triggerConfig: { mode: "manual" },
+          repositoryTarget: { kind: "none" },
+          toolConfig: {},
+        },
+      },
+      { headers },
+    );
+    expect(matchingResponse.status).toBe(201);
+    const matchingBody = (await matchingResponse.json()) as { automation: { id: string } };
+
+    const otherResponse = await client.api.orgs[":organizationSlug"].automations.$post(
+      {
+        param: { organizationSlug },
+        json: {
+          name: "Mobile automation",
+          instructions: "Run for the mobile project.",
+          projectId: otherProjectId,
+          triggerConfig: { mode: "manual" },
+          repositoryTarget: { kind: "none" },
+          toolConfig: {},
+        },
+      },
+      { headers },
+    );
+    expect(otherResponse.status).toBe(201);
+
+    const listedResponse = await client.api.orgs[":organizationSlug"].automations.$get(
+      {
+        param: { organizationSlug },
+        query: { projectId, limit: "50", offset: "0" },
+      },
+      { headers },
+    );
+    expect(listedResponse.status).toBe(200);
+    const listedBody = (await listedResponse.json()) as {
+      automations: Array<{ id: string; name: string }>;
+    };
+    expect(listedBody.automations.map((automation) => automation.id)).toEqual([
+      matchingBody.automation.id,
+    ]);
+    expect(listedBody.automations[0]?.name).toBe("Website automation");
   });
 
   it("returns stable errors for invalid tool and trigger configuration", async () => {

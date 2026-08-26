@@ -12,10 +12,9 @@
  */
 import type { KnowledgeMemoryRecord } from "@/api/routes/knowledge-memory/knowledge-memory.schema";
 
-export const knowledgeMemoryQueryKey = (organizationSlug: string) => [
-  "knowledge-memory",
-  organizationSlug,
-];
+import { knowledgeMemoryQueryKey } from "./knowledge-memory-api";
+
+export { knowledgeMemoryQueryKey };
 
 export type LoadedKnowledgeMemory = {
   knowledgeMemory: KnowledgeMemoryRecord;

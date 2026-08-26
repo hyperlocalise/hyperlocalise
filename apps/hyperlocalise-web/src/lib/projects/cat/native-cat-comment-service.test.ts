@@ -22,6 +22,7 @@ import {
   projectTranslationService,
   upsertProjectTranslationKeysFromEntries,
 } from "@/lib/projects/translations/project-translation-service";
+import { uniqueTestProjectIdentifier } from "@/lib/projects/issue-identifier/test-project-identifier";
 import { ensureDefaultWorkspaceTeam } from "@/lib/teams/default-workspace-team";
 
 import { NativeCatCommentService } from "./native-cat-comment-service";
@@ -44,6 +45,7 @@ async function createProjectWithTranslationKey(input: { organizationId: string; 
     .insert(schema.projects)
     .values({
       id: `project_${randomUUID()}`,
+      identifier: uniqueTestProjectIdentifier(),
       organizationId: input.organizationId,
       teamId: team.id,
       createdByUserId: input.userId,

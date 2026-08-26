@@ -732,4 +732,52 @@ describe("CatReviewController", () => {
       expect(workspace.checkedSegmentIds.size).toBe(0);
     });
   });
+
+  describe("bulkLock", () => {
+    it("delegates to onBulkLock and marks selected segments locked", async () => {
+      const onBulkLock = vi.fn().mockResolvedValue(undefined);
+      const workspace = createTestWorkspace();
+      workspace.toggleSegmentChecked("seg-02", true);
+      workspace.toggleSegmentChecked("seg-03", true);
+      const { controller } = createController(workspace, {
+        review: { onBulkLock },
+      });
+
+      await controller.bulkLock();
+
+      expect(onBulkLock).toHaveBeenCalledWith(["seg-02", "seg-03"]);
+      expect(workspace.getSegmentView("seg-02")?.isLocked).toBe(true);
+      expect(workspace.getSegmentView("seg-03")?.isLocked).toBe(true);
+      expect(workspace.checkedSegmentIds.size).toBe(0);
+      expect(workspace.isBulkActionPending).toBe(false);
+    });
+
+    it("no-ops when onBulkLock is missing", async () => {
+      const { controller, workspace } = createController();
+      workspace.toggleSegmentChecked("seg-02", true);
+
+      await controller.bulkLock();
+
+      expect(workspace.getSegmentView("seg-02")?.isLocked).toBeUndefined();
+      expect(workspace.isBulkActionPending).toBe(false);
+    });
+  });
+
+  describe("setLocked", () => {
+    it("delegates to onSetLocked and updates the current segment", async () => {
+      const onSetLocked = vi.fn().mockResolvedValue(undefined);
+      const { controller, workspace } = createController(undefined, {
+        review: { onSetLocked },
+      });
+
+      await controller.setLocked(["seg-02"], true);
+
+      expect(onSetLocked).toHaveBeenCalledWith(["seg-02"], true);
+      expect(workspace.getSegmentView("seg-02")?.isLocked).toBe(true);
+
+      await controller.setLocked(["seg-02"], false);
+
+      expect(workspace.getSegmentView("seg-02")?.isLocked).toBeUndefined();
+    });
+  });
 });

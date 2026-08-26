@@ -17,18 +17,29 @@ import { defineMessages } from "react-intl";
 export const knowledgePageViewMessages = defineMessages({
   workspace: {
     defaultMessage: "Workspace",
-    id: "viq5/Imoma",
-    description: "Breadcrumb label above the Knowledge page",
+    id: "1QeX69p2Dj",
+    description: "Breadcrumb label above the Guideline page",
   },
   title: {
-    defaultMessage: "Knowledge",
-    id: "CkQ3yx9NoL",
-    description: "Page heading for the organization knowledge memory page",
+    defaultMessage: "Guideline",
+    id: "iOunGMNIui",
+    description: "Page heading for the organization guideline page",
   },
   description: {
     defaultMessage:
       "Give every workflow the language, market, compliance, and go-to-market context it needs.",
     id: "cjcq8PbWiq",
     description: "Page description for global guidance",
+  },
+  project: {
+    defaultMessage: "Project",
+    id: "7qbqYtxGI/",
+    description: "Breadcrumb label above the project Guideline page",
+  },
+  projectDescription: {
+    defaultMessage:
+      "Give this project's workflows the language, market, and product context they need.",
+    id: "H1Mne7VTqn",
+    description: "Page description for project guidance",
   },
 });

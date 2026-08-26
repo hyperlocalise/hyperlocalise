@@ -15,7 +15,11 @@ import { z } from "zod";
 import { defineAgentTool } from "@/agents/_runtime/define-agent-tool";
 import { hasWorkspaceAutomationKnowledgeTool } from "@/lib/agents/workspace-automations";
 import { resolveWorkspaceKnowledgeFlag } from "@/lib/flags/workspace-flags";
-import { getKnowledgeMemoryForOrganization } from "@/lib/knowledge-memory/knowledge-memory";
+import { composeScopedKnowledgeMemory } from "@/lib/knowledge-memory/knowledge-memory-compose";
+import {
+  getKnowledgeMemoryForOrganization,
+  getKnowledgeMemoryForProject,
+} from "@/lib/knowledge-memory/knowledge-memory";
 import { selectKnowledgeMemoryContext } from "@/lib/knowledge-memory/knowledge-memory-selection";
 
 import type { WorkspaceOrchestratorSession } from "../context";
@@ -38,7 +42,7 @@ import type { WorkspaceOrchestratorSession } from "../context";
 export function createRecallMemoryTool(session: WorkspaceOrchestratorSession) {
   return defineAgentTool({
     description:
-      "Look up guidance from the organization's shared Memory.md relevant to a specific question. Returns nothing found if Memory is empty or has no relevant content.",
+      "Look up guidance from workspace and project Memory.md relevant to a specific question. Returns nothing found if Memory is empty or has no relevant content.",
     inputSchema: z.object({
       query: z.string().trim().min(1),
     }),
@@ -55,19 +59,28 @@ export function createRecallMemoryTool(session: WorkspaceOrchestratorSession) {
         return { found: false, content: null };
       }
 
-      const memory = await getKnowledgeMemoryForOrganization(session.organizationId);
-      if (!memory.content.trim()) {
-        session.stepResults.recall_memory = { found: false };
-        return { found: false, content: null };
-      }
+      const projectId = session.automation.projectId?.trim() || null;
+      const [organizationMemory, projectMemory] = await Promise.all([
+        getKnowledgeMemoryForOrganization(session.organizationId),
+        projectId ? getKnowledgeMemoryForProject(projectId) : Promise.resolve(null),
+      ]);
 
-      const selected = selectKnowledgeMemoryContext({
-        content: memory.content,
-        sourceText: query,
-        context: session.automation.name,
+      const selectedGuideline = (content: string) => {
+        if (!content.trim()) {
+          return "";
+        }
+
+        return selectKnowledgeMemoryContext({
+          content,
+          sourceText: query,
+          context: session.automation.name,
+        }).compactText;
+      };
+
+      const compactText = composeScopedKnowledgeMemory({
+        projectGuideline: projectMemory ? selectedGuideline(projectMemory.content) : "",
+        workspaceGuideline: selectedGuideline(organizationMemory.content),
       });
-
-      const compactText = selected.compactText.trim();
       const found = compactText.length > 0;
 
       // Record only whether something was found, never the recalled text itself — matches the

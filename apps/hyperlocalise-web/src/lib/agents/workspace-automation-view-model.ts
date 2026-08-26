@@ -24,6 +24,7 @@ import {
   type WorkspaceAutomationWebSearchProvider,
 } from "./workspace-automation-types";
 import { parseSlackConversationId } from "./slack/channel-query";
+import { isValidAutomationTimeZone } from "./automation-time-zones";
 import {
   getWorkspaceAutomationTemplate,
   type WorkspaceAutomationTemplate,
@@ -34,7 +35,8 @@ export type WorkspaceAutomationTriggerMode =
   | "scheduled"
   | "github"
   | "contentful"
-  | "source_upload";
+  | "source_upload"
+  | "web_chat";
 
 export type WorkspaceAutomationFormState = {
   name: string;
@@ -79,6 +81,7 @@ export type WorkspaceAutomationFormState = {
   createIssueEnabled: boolean;
   knowledgeEnabled: boolean;
   knowledgeAllowUpdates: boolean;
+  knowledgeFilesEnabled: boolean;
   mcpEnabled: boolean;
   mcpConnectionId: string;
   semrushEnabled: boolean;
@@ -127,6 +130,7 @@ export type WorkspaceAutomationFieldErrors = Partial<
     | "semrushConnectionId"
     | "ahrefsConnectionId"
     | "crowdinProjectId"
+    | "scheduledTimezone"
     | "form",
     string
   >
@@ -145,6 +149,7 @@ export const WORKSPACE_AUTOMATION_API_ERROR_MESSAGES: Record<string, string> = {
   github_events_required: "Choose at least one GitHub event.",
   scheduled_workflow_required:
     "Scheduled automations require at least one GitHub, Contentful, Issues, Web Search, or Crowdin workflow tool.",
+  invalid_automation_timezone: "Choose a valid timezone for the schedule.",
   slack_not_connected: "Connect Slack in Integrations before enabling Slack notifications.",
   slack_channel_required: "Choose a Slack channel for notifications.",
   email_not_connected: "Enable the email agent in Integrations before using email notifications.",
@@ -232,6 +237,7 @@ export function createDefaultWorkspaceAutomationFormState(): WorkspaceAutomation
     createIssueEnabled: false,
     knowledgeEnabled: false,
     knowledgeAllowUpdates: false,
+    knowledgeFilesEnabled: false,
     mcpEnabled: false,
     mcpConnectionId: "",
     semrushEnabled: false,
@@ -257,6 +263,7 @@ export function createWorkspaceAutomationFormStateFromRecord(
   const listIssues = automation.toolConfig.listIssues;
   const createIssue = automation.toolConfig.createIssue;
   const knowledge = automation.toolConfig.knowledge;
+  const knowledgeFiles = automation.toolConfig.knowledgeFiles;
   const mcp = automation.toolConfig.mcp;
   const semrush = automation.toolConfig.semrush;
   const ahrefs = automation.toolConfig.ahrefs;
@@ -326,6 +333,7 @@ export function createWorkspaceAutomationFormStateFromRecord(
     createIssueEnabled: Boolean(createIssue?.enabled),
     knowledgeEnabled: Boolean(knowledge?.enabled),
     knowledgeAllowUpdates: Boolean(knowledge?.allowUpdates),
+    knowledgeFilesEnabled: Boolean(knowledgeFiles?.enabled),
     mcpEnabled: Boolean(mcp?.enabled),
     mcpConnectionId: mcp?.connectionId ?? "",
     semrushEnabled: Boolean(semrush?.enabled),
@@ -425,7 +433,9 @@ export function formStateToWorkspaceAutomationPayload(form: WorkspaceAutomationF
           ? { mode: "contentful" }
           : form.triggerMode === "source_upload"
             ? { mode: "source_upload" }
-            : { mode: "manual" };
+            : form.triggerMode === "web_chat"
+              ? { mode: "web_chat" }
+              : { mode: "manual" };
 
   const repositoryTarget: WorkspaceAutomationRepositoryTarget =
     (form.githubEnabled || form.githubCommentEnabled) && form.githubInstallationRepositoryId
@@ -528,6 +538,13 @@ export function formStateToWorkspaceAutomationPayload(form: WorkspaceAutomationF
           },
         }
       : {}),
+    ...(form.knowledgeFilesEnabled
+      ? {
+          knowledgeFiles: {
+            enabled: true,
+          },
+        }
+      : {}),
     ...(form.mcpEnabled
       ? {
           mcp: {
@@ -626,6 +643,13 @@ export function validateWorkspaceAutomationFormState(
     errors.githubEvents = "Choose at least one GitHub event.";
   }
 
+  if (
+    form.triggerMode === "scheduled" &&
+    !isValidAutomationTimeZone(form.scheduledTimezone.trim() || "UTC")
+  ) {
+    errors.scheduledTimezone = "Choose a valid timezone.";
+  }
+
   if (form.slackEnabled && !parseSlackConversationId(form.slackChannelId)) {
     errors.slackChannelId = "Enter a valid Slack channel ID.";
   }
@@ -706,6 +730,8 @@ export function mapWorkspaceAutomationApiErrorToFieldErrors(
     case "scheduled_workflow_required":
     case "source_upload_workflow_required":
       return { trigger: message };
+    case "invalid_automation_timezone":
+      return { scheduledTimezone: message };
     case "github_push_branches_required":
       return { pushBranches: message };
     case "github_events_required":
@@ -762,6 +788,10 @@ export function workspaceAutomationFormHasChanges(
 }
 
 export function workspaceAutomationFormCanActivate(form: WorkspaceAutomationFormState) {
+  if (form.triggerMode === "web_chat") {
+    return true;
+  }
+
   return (
     form.githubEnabled ||
     form.slackEnabled ||
@@ -776,6 +806,7 @@ export function workspaceAutomationFormCanActivate(form: WorkspaceAutomationForm
     form.semrushEnabled ||
     form.ahrefsEnabled ||
     form.crowdinEnabled ||
-    form.webSearchEnabled
+    form.webSearchEnabled ||
+    form.knowledgeFilesEnabled
   );
 }

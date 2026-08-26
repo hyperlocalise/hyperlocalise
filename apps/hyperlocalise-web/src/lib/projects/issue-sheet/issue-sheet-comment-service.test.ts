@@ -527,4 +527,60 @@ describe("IssueSheetCommentService", () => {
       .where(eq(schema.issueSheetComments.issueId, issue.id));
     expect(remaining).toHaveLength(0);
   });
+
+  it("creates, updates, and deletes comments when the issue is addressed by PREFIX-N", async () => {
+    const { identity, project, user } = await createProjectForIdentity();
+    await authFixture.authHeadersFor(identity);
+    const organizationId = actorAuth().organization.localOrganizationId;
+    const auth = actorAuth();
+
+    const issue = await issueSheetService.createIssue({
+      organizationId,
+      projectId: project.id,
+      actorUserId: user.id,
+      body: { title: "Human id comments", issueType: "general_question" },
+    });
+
+    const created = await commentService.create({
+      organizationId,
+      projectId: project.id,
+      issueId: issue.identifier,
+      actorUserId: user.id,
+      role: "admin",
+      auth,
+      body: { body: "Root via identifier" },
+    });
+    expect(created.ok).toBe(true);
+    if (!created.ok) {
+      return;
+    }
+    expect(created.value.issueId).toBe(issue.id);
+
+    const updated = await commentService.update({
+      organizationId,
+      projectId: project.id,
+      issueId: issue.identifier,
+      commentId: created.value.id,
+      actorUserId: user.id,
+      role: "admin",
+      auth,
+      body: { body: "Edited via identifier" },
+    });
+    expect(updated.ok).toBe(true);
+    if (!updated.ok) {
+      return;
+    }
+    expect(updated.value.body).toBe("Edited via identifier");
+    expect(updated.value.issueId).toBe(issue.id);
+
+    const deleted = await commentService.delete({
+      organizationId,
+      projectId: project.id,
+      issueId: issue.identifier,
+      commentId: created.value.id,
+      actorUserId: user.id,
+      role: "admin",
+    });
+    expect(deleted).toEqual({ ok: true });
+  });
 });

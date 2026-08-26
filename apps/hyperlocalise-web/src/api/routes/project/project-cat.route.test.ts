@@ -24,6 +24,7 @@ import { PRODUCT_USAGE_ANALYTICS_EVENTS } from "@/lib/analytics/events";
 import { serverAnalytics } from "@/lib/analytics/server";
 import { db, schema } from "@/lib/database";
 import { ensureRepositorySourceFile } from "@/lib/file-storage/records";
+import { ensureImageVariantsForSourceFile } from "@/lib/projects/files/image-variant-service";
 import { upsertProjectTranslationKeysFromEntries } from "@/lib/projects/translations/project-translation-service";
 import { TmsProviderLiveError } from "@/lib/providers/jobs/tms-provider-live";
 
@@ -2303,5 +2304,662 @@ describe("project file CAT routes", () => {
     expect(response.status).toBe(400);
     expect(await response.json()).toMatchObject({ error: "provider_cat_unsupported" });
     expect(setTmsProviderLiveCatStringsHiddenMock).not.toHaveBeenCalled();
+  });
+
+  it("locks and unlocks native CAT segments and shows isLocked on the queue", async () => {
+    const { identity, project, organization } = await projectFixture.createStoredProjectFixture();
+    const headers = await projectFixture.authHeadersFor(identity);
+    const sourcePath = "locales/en.json";
+    const sourceFile = await ensureRepositorySourceFile({
+      organizationId: organization.id,
+      projectId: project.id,
+      sourcePath,
+    });
+
+    const { imported } = await upsertProjectTranslationKeysFromEntries({
+      organizationId: organization.id,
+      projectId: project.id,
+      repositorySourceFileId: sourceFile.id,
+      entries: [
+        { key: "greeting", text: "Hello", context: null },
+        { key: "farewell", text: "Goodbye", context: null },
+      ],
+    });
+    expect(imported).toBe(2);
+
+    const keys = await db
+      .select({
+        id: schema.projectTranslationKeys.id,
+        key: schema.projectTranslationKeys.key,
+      })
+      .from(schema.projectTranslationKeys)
+      .where(eq(schema.projectTranslationKeys.repositorySourceFileId, sourceFile.id));
+    const greeting = keys.find((row) => row.key === "greeting");
+    const farewell = keys.find((row) => row.key === "farewell");
+    expect(greeting).toBeDefined();
+    expect(farewell).toBeDefined();
+
+    const lockResponse = await client.api.orgs[":organizationSlug"].projects[
+      ":projectId"
+    ].files.detail.cat.strings.locked.$post(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          projectId: project.id,
+        },
+        json: {
+          sourcePath,
+          targetLocale: "fr-FR",
+          externalStringIds: [greeting!.id, farewell!.id],
+          isLocked: true,
+        },
+      },
+      { headers },
+    );
+
+    expect(lockResponse.status).toBe(200);
+    expect(await lockResponse.json()).toEqual({
+      catSegmentLock: { updatedCount: 2, isLocked: true },
+    });
+
+    const lockedQueue = await client.api.orgs[":organizationSlug"].projects[
+      ":projectId"
+    ].files.detail.cat.queue.$get(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          projectId: project.id,
+        },
+        query: { sourcePath, targetLocale: "fr-FR" },
+      },
+      { headers },
+    );
+
+    expect(lockedQueue.status).toBe(200);
+    const lockedBody = (await lockedQueue.json()) as ProjectFileCatQueueResponse;
+    expect(lockedBody.catQueue.segments.every((segment) => segment.isLocked === true)).toBe(true);
+
+    const saveResponse = await client.api.orgs[":organizationSlug"].projects[
+      ":projectId"
+    ].files.detail.cat.translations.$post(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          projectId: project.id,
+        },
+        json: {
+          sourcePath,
+          targetLocale: "fr-FR",
+          externalStringId: greeting!.id,
+          text: "Bonjour",
+        },
+      },
+      { headers },
+    );
+    expect(saveResponse.status).toBe(409);
+    expect(await saveResponse.json()).toMatchObject({ error: "translation_locked" });
+
+    const unlockResponse = await client.api.orgs[":organizationSlug"].projects[
+      ":projectId"
+    ].files.detail.cat.strings.locked.$post(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          projectId: project.id,
+        },
+        json: {
+          sourcePath,
+          targetLocale: "fr-FR",
+          externalStringIds: [greeting!.id],
+          isLocked: false,
+        },
+      },
+      { headers },
+    );
+    expect(unlockResponse.status).toBe(200);
+    expect(await unlockResponse.json()).toEqual({
+      catSegmentLock: { updatedCount: 1, isLocked: false },
+    });
+
+    const remainingQueue = await client.api.orgs[":organizationSlug"].projects[
+      ":projectId"
+    ].files.detail.cat.queue.$get(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          projectId: project.id,
+        },
+        query: { sourcePath, targetLocale: "fr-FR" },
+      },
+      { headers },
+    );
+    const remainingBody = (await remainingQueue.json()) as ProjectFileCatQueueResponse;
+    const greetingSegment = remainingBody.catQueue.segments.find(
+      (segment) => segment.externalStringId === greeting!.id,
+    );
+    const farewellSegment = remainingBody.catQueue.segments.find(
+      (segment) => segment.externalStringId === farewell!.id,
+    );
+    expect(greetingSegment?.isLocked).toBeUndefined();
+    expect(farewellSegment?.isLocked).toBe(true);
+  });
+
+  it("locks Crowdin CAT segments without calling the provider hide API", async () => {
+    const translator = projectFixture.createWorkosIdentityWithRole("translator");
+    getTmsProviderConnectionMock.mockResolvedValue({
+      providerKind: "crowdin",
+      displayName: "Crowdin",
+      validationStatus: "valid",
+      validationMessage: null,
+    });
+    getTmsProviderLiveCatFileMock.mockResolvedValue({
+      sourcePath: "crowdin/home.json",
+      filename: "home.json",
+      provider: {
+        kind: "crowdin",
+        resourceType: "file",
+        externalProjectId: "42",
+        externalResourceId: "101",
+        externalUrl: null,
+        syncState: "synced",
+        sourceLocale: "en",
+        targetLocales: ["fr"],
+        localeReadiness: {},
+        revision: "1",
+        format: "json",
+        lastSyncedAt: null,
+      },
+      targetLocale: "fr",
+      canEditTranslations: true,
+      truncated: false,
+      pagination: {
+        offset: 0,
+        limit: 50,
+        returnedCount: 1,
+        totalCount: 1,
+        hasMore: false,
+      },
+      segments: [
+        {
+          externalStringId: "1001",
+          key: "home.title",
+          sourceText: "Home",
+          context: null,
+          type: null,
+        },
+      ],
+      targetsByExternalStringId: {},
+    });
+
+    const lockResponse = await client.api.orgs[":organizationSlug"].projects[
+      ":projectId"
+    ].files.detail.cat.strings.locked.$post(
+      {
+        param: {
+          organizationSlug: translator.organization.slug ?? "missing-slug",
+          projectId: "ext:crowdin:42",
+        },
+        json: {
+          sourcePath: "crowdin/home.json",
+          targetLocale: "fr",
+          externalStringIds: ["1001"],
+          isLocked: true,
+        },
+      },
+      { headers: await projectFixture.authHeadersFor(translator) },
+    );
+
+    expect(lockResponse.status).toBe(200);
+    expect(await lockResponse.json()).toEqual({
+      catSegmentLock: { updatedCount: 1, isLocked: true },
+    });
+    expect(setTmsProviderLiveCatStringsHiddenMock).not.toHaveBeenCalled();
+
+    const queueResponse = await client.api.orgs[":organizationSlug"].projects[
+      ":projectId"
+    ].files.detail.cat.queue.$get(
+      {
+        param: {
+          organizationSlug: translator.organization.slug ?? "missing-slug",
+          projectId: "ext:crowdin:42",
+        },
+        query: { sourcePath: "crowdin/home.json", targetLocale: "fr" },
+      },
+      { headers: await projectFixture.authHeadersFor(translator) },
+    );
+    expect(queueResponse.status).toBe(200);
+    const queueBody = (await queueResponse.json()) as ProjectFileCatQueueResponse;
+    expect(queueBody.catQueue.segments[0]?.isLocked).toBe(true);
+
+    const saveResponse = await client.api.orgs[":organizationSlug"].projects[
+      ":projectId"
+    ].files.detail.cat.translations.$post(
+      {
+        param: {
+          organizationSlug: translator.organization.slug ?? "missing-slug",
+          projectId: "ext:crowdin:42",
+        },
+        json: {
+          sourcePath: "crowdin/home.json",
+          targetLocale: "fr",
+          externalStringId: "1001",
+          text: "Accueil",
+        },
+      },
+      { headers: await projectFixture.authHeadersFor(translator) },
+    );
+    expect(saveResponse.status).toBe(409);
+    expect(await saveResponse.json()).toMatchObject({ error: "translation_locked" });
+    expect(saveTmsProviderLiveCatTranslationMock).not.toHaveBeenCalled();
+  });
+
+  it("denies CAT lock updates without write-back permission", async () => {
+    const member = projectFixture.createWorkosIdentityWithRole("member");
+
+    const response = await client.api.orgs[":organizationSlug"].projects[
+      ":projectId"
+    ].files.detail.cat.strings.locked.$post(
+      {
+        param: {
+          organizationSlug: member.organization.slug ?? "missing-slug",
+          projectId: "ext:crowdin:42",
+        },
+        json: {
+          sourcePath: "crowdin/home.json",
+          targetLocale: "fr",
+          externalStringIds: ["1001"],
+          isLocked: true,
+        },
+      },
+      { headers: await projectFixture.authHeadersFor(member) },
+    );
+
+    expect(response.status).toBe(403);
+  });
+
+  it("rejects file-backed image status updates when the segment is locked", async () => {
+    const { identity, project, organization } = await projectFixture.createStoredProjectFixture();
+    const headers = await projectFixture.authHeadersFor(identity);
+    const sourcePath = "assets/hero.png";
+    const sourceFile = await ensureRepositorySourceFile({
+      organizationId: organization.id,
+      projectId: project.id,
+      sourcePath,
+    });
+
+    await ensureImageVariantsForSourceFile({
+      organizationId: organization.id,
+      projectId: project.id,
+      sourcePath,
+      repositorySourceFileId: sourceFile.id,
+      targetLocales: ["fr-FR"],
+    });
+
+    const lockResponse = await client.api.orgs[":organizationSlug"].projects[
+      ":projectId"
+    ].files.detail.cat.strings.locked.$post(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          projectId: project.id,
+        },
+        json: {
+          sourcePath,
+          targetLocale: "fr-FR",
+          externalStringIds: [sourceFile.id],
+          isLocked: true,
+        },
+      },
+      { headers },
+    );
+    expect(lockResponse.status).toBe(200);
+
+    const lockedStatusResponse = await client.api.orgs[":organizationSlug"].projects[
+      ":projectId"
+    ].files.detail.cat.images.status.$patch(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          projectId: project.id,
+        },
+        json: {
+          sourcePath,
+          targetLocale: "fr-FR",
+          status: "approved",
+        },
+      },
+      { headers },
+    );
+    expect(lockedStatusResponse.status).toBe(409);
+    expect(await lockedStatusResponse.json()).toMatchObject({ error: "translation_locked" });
+
+    const unlockResponse = await client.api.orgs[":organizationSlug"].projects[
+      ":projectId"
+    ].files.detail.cat.strings.locked.$post(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          projectId: project.id,
+        },
+        json: {
+          sourcePath,
+          targetLocale: "fr-FR",
+          externalStringIds: [sourceFile.id],
+          isLocked: false,
+        },
+      },
+      { headers },
+    );
+    expect(unlockResponse.status).toBe(200);
+
+    const statusResponse = await client.api.orgs[":organizationSlug"].projects[
+      ":projectId"
+    ].files.detail.cat.images.status.$patch(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          projectId: project.id,
+        },
+        json: {
+          sourcePath,
+          targetLocale: "fr-FR",
+          status: "approved",
+        },
+      },
+      { headers },
+    );
+    expect(statusResponse.status).toBe(200);
+    expect(await statusResponse.json()).toMatchObject({
+      imageVariant: { status: "approved" },
+    });
+  });
+
+  it("returns project_not_found when locking segments on an unknown native project", async () => {
+    const { identity } = await projectFixture.createStoredProjectFixture();
+    const headers = await projectFixture.authHeadersFor(identity);
+
+    const response = await client.api.orgs[":organizationSlug"].projects[
+      ":projectId"
+    ].files.detail.cat.strings.locked.$post(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          projectId: randomUUID(),
+        },
+        json: {
+          sourcePath: "locales/en.json",
+          targetLocale: "fr-FR",
+          externalStringIds: ["key-1"],
+          isLocked: true,
+        },
+      },
+      { headers },
+    );
+
+    expect(response.status).toBe(404);
+    expect(await response.json()).toMatchObject({ error: "project_not_found" });
+  });
+
+  it("rejects native translation status updates when the segment is locked", async () => {
+    const { identity, project, organization } = await projectFixture.createStoredProjectFixture();
+    const headers = await projectFixture.authHeadersFor(identity);
+    const sourcePath = "locales/en.json";
+    const sourceFile = await ensureRepositorySourceFile({
+      organizationId: organization.id,
+      projectId: project.id,
+      sourcePath,
+    });
+
+    const { imported } = await upsertProjectTranslationKeysFromEntries({
+      organizationId: organization.id,
+      projectId: project.id,
+      repositorySourceFileId: sourceFile.id,
+      entries: [{ key: "greeting", text: "Hello", context: null }],
+    });
+    expect(imported).toBe(1);
+
+    const [translationKey] = await db
+      .select({ id: schema.projectTranslationKeys.id })
+      .from(schema.projectTranslationKeys)
+      .where(eq(schema.projectTranslationKeys.repositorySourceFileId, sourceFile.id))
+      .limit(1);
+    expect(translationKey).toBeDefined();
+
+    await db.insert(schema.projectTranslations).values({
+      organizationId: organization.id,
+      projectId: project.id,
+      translationKeyId: translationKey!.id,
+      targetLocale: "fr-FR",
+      text: "Bonjour",
+      status: "draft",
+    });
+
+    const lockResponse = await client.api.orgs[":organizationSlug"].projects[
+      ":projectId"
+    ].files.detail.cat.strings.locked.$post(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          projectId: project.id,
+        },
+        json: {
+          sourcePath,
+          targetLocale: "fr-FR",
+          externalStringIds: [translationKey!.id],
+          isLocked: true,
+        },
+      },
+      { headers },
+    );
+    expect(lockResponse.status).toBe(200);
+
+    const statusResponse = await client.api.orgs[":organizationSlug"].projects[
+      ":projectId"
+    ].files.detail.cat.translations.status.$post(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          projectId: project.id,
+        },
+        json: {
+          sourcePath,
+          targetLocale: "fr-FR",
+          externalStringId: translationKey!.id,
+          status: "approved",
+        },
+      },
+      { headers },
+    );
+    expect(statusResponse.status).toBe(409);
+    expect(await statusResponse.json()).toMatchObject({ error: "translation_locked" });
+  });
+
+  it("rejects image status updates when locked via the image: alias id", async () => {
+    const { identity, project, organization } = await projectFixture.createStoredProjectFixture();
+    const headers = await projectFixture.authHeadersFor(identity);
+    const sourcePath = "assets/banner.png";
+    const sourceFile = await ensureRepositorySourceFile({
+      organizationId: organization.id,
+      projectId: project.id,
+      sourcePath,
+    });
+
+    await ensureImageVariantsForSourceFile({
+      organizationId: organization.id,
+      projectId: project.id,
+      sourcePath,
+      repositorySourceFileId: sourceFile.id,
+      targetLocales: ["fr-FR"],
+    });
+
+    const lockResponse = await client.api.orgs[":organizationSlug"].projects[
+      ":projectId"
+    ].files.detail.cat.strings.locked.$post(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          projectId: project.id,
+        },
+        json: {
+          sourcePath,
+          targetLocale: "fr-FR",
+          externalStringIds: [`image:${sourcePath}`],
+          isLocked: true,
+        },
+      },
+      { headers },
+    );
+    expect(lockResponse.status).toBe(200);
+
+    const lockedStatusResponse = await client.api.orgs[":organizationSlug"].projects[
+      ":projectId"
+    ].files.detail.cat.images.status.$patch(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          projectId: project.id,
+        },
+        json: {
+          sourcePath,
+          targetLocale: "fr-FR",
+          status: "approved",
+        },
+      },
+      { headers },
+    );
+    expect(lockedStatusResponse.status).toBe(409);
+    expect(await lockedStatusResponse.json()).toMatchObject({ error: "translation_locked" });
+  });
+
+  it("rejects file-backed image regenerate when locked under sourceFile.id even if externalStringId is omitted", async () => {
+    const { identity, project, organization } = await projectFixture.createStoredProjectFixture();
+    const headers = await projectFixture.authHeadersFor(identity);
+    const sourcePath = "assets/hero-locked.png";
+    const sourceFile = await ensureRepositorySourceFile({
+      organizationId: organization.id,
+      projectId: project.id,
+      sourcePath,
+    });
+
+    await ensureImageVariantsForSourceFile({
+      organizationId: organization.id,
+      projectId: project.id,
+      sourcePath,
+      repositorySourceFileId: sourceFile.id,
+      targetLocales: ["fr-FR"],
+    });
+
+    const lockResponse = await client.api.orgs[":organizationSlug"].projects[
+      ":projectId"
+    ].files.detail.cat.strings.locked.$post(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          projectId: project.id,
+        },
+        json: {
+          sourcePath,
+          targetLocale: "fr-FR",
+          externalStringIds: [sourceFile.id],
+          isLocked: true,
+        },
+      },
+      { headers },
+    );
+    expect(lockResponse.status).toBe(200);
+
+    const omittedIdResponse = await client.api.orgs[":organizationSlug"].projects[
+      ":projectId"
+    ].files.detail.cat.images.regenerate.$post(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          projectId: project.id,
+        },
+        json: {
+          sourcePath,
+          targetLocale: "fr-FR",
+        },
+      },
+      { headers },
+    );
+    expect(omittedIdResponse.status).toBe(409);
+    expect(await omittedIdResponse.json()).toMatchObject({ error: "translation_locked" });
+
+    const aliasIdResponse = await client.api.orgs[":organizationSlug"].projects[
+      ":projectId"
+    ].files.detail.cat.images.regenerate.$post(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          projectId: project.id,
+        },
+        json: {
+          sourcePath,
+          targetLocale: "fr-FR",
+          externalStringId: `binary:${sourcePath}`,
+        },
+      },
+      { headers },
+    );
+    expect(aliasIdResponse.status).toBe(409);
+    expect(await aliasIdResponse.json()).toMatchObject({ error: "translation_locked" });
+  });
+
+  it("rejects file-backed image upload when locked under sourceFile.id even if externalStringId is omitted", async () => {
+    const { identity, project, organization } = await projectFixture.createStoredProjectFixture();
+    const headers = await projectFixture.authHeadersFor(identity);
+    const sourcePath = "assets/hero-upload-locked.png";
+    const sourceFile = await ensureRepositorySourceFile({
+      organizationId: organization.id,
+      projectId: project.id,
+      sourcePath,
+    });
+
+    await ensureImageVariantsForSourceFile({
+      organizationId: organization.id,
+      projectId: project.id,
+      sourcePath,
+      repositorySourceFileId: sourceFile.id,
+      targetLocales: ["fr-FR"],
+    });
+
+    const lockResponse = await client.api.orgs[":organizationSlug"].projects[
+      ":projectId"
+    ].files.detail.cat.strings.locked.$post(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          projectId: project.id,
+        },
+        json: {
+          sourcePath,
+          targetLocale: "fr-FR",
+          externalStringIds: [sourceFile.id],
+          isLocked: true,
+        },
+      },
+      { headers },
+    );
+    expect(lockResponse.status).toBe(200);
+
+    const formData = new FormData();
+    formData.set("sourcePath", sourcePath);
+    formData.set("targetLocale", "fr-FR");
+    formData.set(
+      "file",
+      new File([Uint8Array.from([137, 80, 78, 71])], "hero-fr.png", { type: "image/png" }),
+    );
+
+    const response = await app.request(
+      `/api/orgs/${encodeURIComponent(identity.organization.slug ?? "missing-slug")}/projects/${encodeURIComponent(project.id)}/files/detail/cat/images/upload`,
+      {
+        method: "POST",
+        headers,
+        body: formData,
+      },
+    );
+    expect(response.status).toBe(409);
+    expect(await response.json()).toMatchObject({ error: "translation_locked" });
   });
 });

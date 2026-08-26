@@ -119,7 +119,9 @@ jobs:
       - name: Cache Next.js build
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
-          path: apps/hyperlocalise-web/.next/cache
+          path: |
+            apps/hyperlocalise-web/.next/cache
+            !apps/hyperlocalise-web/.next/cache/.tsbuildinfo
           key: ${{ runner.os }}-nextjs-${{ hashFiles('apps/hyperlocalise-web/pnpm-lock.yaml', 'apps/hyperlocalise-web/package.json') }}-${{ hashFiles('apps/hyperlocalise-web/src/**/*.ts', 'apps/hyperlocalise-web/src/**/*.tsx', 'apps/hyperlocalise-web/src/**/*.js', 'apps/hyperlocalise-web/src/**/*.jsx', 'apps/hyperlocalise-web/next.config.*', 'apps/hyperlocalise-web/postcss.config.*') }}
           restore-keys: |
             ${{ runner.os }}-nextjs-${{ hashFiles('apps/hyperlocalise-web/pnpm-lock.yaml', 'apps/hyperlocalise-web/package.json') }}-

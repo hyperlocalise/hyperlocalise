@@ -229,6 +229,26 @@ const CatWorkspaceContainerObserver = observer(function CatWorkspaceContainerObs
               }
             : undefined
         }
+        onBulkLock={
+          review?.onBulkLock || review?.onSetLocked
+            ? () => {
+                if (isQueueBulkBlocked) {
+                  return;
+                }
+                void controller.handleBulkLock();
+              }
+            : undefined
+        }
+        onBulkUnlock={
+          review?.onBulkUnlock || review?.onSetLocked
+            ? () => {
+                if (isQueueBulkBlocked) {
+                  return;
+                }
+                void controller.handleBulkUnlock();
+              }
+            : undefined
+        }
         onDownloadFilteredView={onDownloadFilteredView}
         isDownloadingFilteredView={isDownloadingFilteredView}
       />

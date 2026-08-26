@@ -14,6 +14,17 @@ import { z } from "zod";
 
 import { projectIdSchema } from "@/lib/projects/identity/project-id";
 import { localeInputSchema } from "@/lib/i18n/locales";
+import {
+  glossaryGenderValues,
+  glossaryPartOfSpeechValues,
+  glossaryTermStatusValues,
+  glossaryTermTypeValues,
+} from "@/lib/glossary/glossary";
+
+export const glossaryPartOfSpeechSchema = z.enum(glossaryPartOfSpeechValues);
+export const glossaryGenderSchema = z.enum(glossaryGenderValues);
+export const glossaryTermTypeSchema = z.enum(glossaryTermTypeValues);
+export const glossaryTermStatusSchema = z.enum(glossaryTermStatusValues);
 
 export const glossaryIdParamsSchema = z.object({
   glossaryId: z.string().trim().min(1).max(128),
@@ -76,7 +87,9 @@ export const createGlossaryTermBodySchema = z.object({
   sourceTerm: z.string().trim().min(1).max(1_000),
   targetTerm: z.string().trim().min(1).max(1_000),
   description: z.string().max(10_000).optional(),
-  partOfSpeech: z.string().max(200).optional(),
+  partOfSpeech: glossaryPartOfSpeechSchema.optional(),
+  url: z.string().url().max(2_000).optional().or(z.literal("")),
+  lemma: z.string().max(1_000).nullable().optional(),
   caseSensitive: z.boolean().optional().default(false),
   forbidden: z.boolean().optional().default(false),
 });
@@ -86,7 +99,9 @@ export const updateGlossaryTermBodySchema = z
     sourceTerm: z.string().trim().min(1).max(1_000).optional(),
     targetTerm: z.string().trim().min(1).max(1_000).optional(),
     description: z.string().max(10_000).optional(),
-    partOfSpeech: z.string().max(200).optional(),
+    partOfSpeech: glossaryPartOfSpeechSchema.optional(),
+    url: z.string().url().max(2_000).optional().or(z.literal("")),
+    lemma: z.string().max(1_000).nullable().optional(),
     caseSensitive: z.boolean().optional(),
     forbidden: z.boolean().optional(),
   })
@@ -96,6 +111,8 @@ export const updateGlossaryTermBodySchema = z
       value.targetTerm !== undefined ||
       value.description !== undefined ||
       value.partOfSpeech !== undefined ||
+      value.url !== undefined ||
+      value.lemma !== undefined ||
       value.caseSensitive !== undefined ||
       value.forbidden !== undefined,
     {
@@ -108,7 +125,20 @@ export const importGlossaryTermsBodySchema = z.object({
   content: z.string().min(1).max(5_000_000),
 });
 
-const glossaryConceptTermStatusSchema = z.enum(["preferred", "draft", "not_recommended"]);
+export const createGlossaryConceptTermBodySchema = z.object({
+  locale: localeInputSchema,
+  term: z.string().trim().min(1).max(1_000),
+  partOfSpeech: glossaryPartOfSpeechSchema.optional(),
+  note: z.string().max(10_000).optional(),
+  gender: glossaryGenderSchema.nullable().optional(),
+  termType: glossaryTermTypeSchema.nullable().optional(),
+  url: z.string().url().max(2_000).nullable().optional().or(z.literal("")),
+  lemma: z.string().max(1_000).nullable().optional(),
+  status: glossaryTermStatusSchema.optional().default("draft"),
+  description: z.string().max(10_000).optional(),
+  caseSensitive: z.boolean().optional().default(false),
+  forbidden: z.boolean().optional().default(false),
+});
 
 export const createGlossaryConceptBodySchema = z.object({
   primaryTerm: z.string().trim().min(1).max(1_000),
@@ -116,17 +146,22 @@ export const createGlossaryConceptBodySchema = z.object({
   definition: z.string().max(10_000).optional(),
   translatable: z.boolean().optional().default(true),
   note: z.string().max(10_000).optional(),
+  figure: z.string().url().max(2_000).optional().or(z.literal("")),
   url: z.string().url().max(2_000).optional().or(z.literal("")),
+  terms: z.array(createGlossaryConceptTermBodySchema).max(1_000).optional(),
 });
 
 export const upsertGlossaryConceptTermBodySchema = z.object({
   id: z.string().trim().min(1).max(128).optional(),
   locale: localeInputSchema,
   term: z.string().trim().min(1).max(1_000),
-  partOfSpeech: z.string().max(200).optional(),
-  gender: z.string().max(100).nullable().optional(),
-  termType: z.string().max(100).nullable().optional(),
-  status: glossaryConceptTermStatusSchema.optional(),
+  partOfSpeech: glossaryPartOfSpeechSchema.optional(),
+  note: z.string().max(10_000).optional(),
+  gender: glossaryGenderSchema.nullable().optional(),
+  termType: glossaryTermTypeSchema.nullable().optional(),
+  url: z.string().url().max(2_000).nullable().optional().or(z.literal("")),
+  lemma: z.string().max(1_000).nullable().optional(),
+  status: glossaryTermStatusSchema.optional(),
   description: z.string().max(10_000).optional(),
   caseSensitive: z.boolean().optional(),
   forbidden: z.boolean().optional(),
@@ -139,6 +174,7 @@ export const updateGlossaryConceptBodySchema = z
     definition: z.string().max(10_000).optional(),
     translatable: z.boolean().optional(),
     note: z.string().max(10_000).optional(),
+    figure: z.string().url().max(2_000).optional().or(z.literal("")),
     url: z.string().url().max(2_000).optional().or(z.literal("")),
     terms: z.array(upsertGlossaryConceptTermBodySchema).max(1_000).optional(),
   })
@@ -146,26 +182,17 @@ export const updateGlossaryConceptBodySchema = z
     message: "at least one field must be provided",
   });
 
-export const createGlossaryConceptTermBodySchema = z.object({
-  locale: localeInputSchema,
-  term: z.string().trim().min(1).max(1_000),
-  partOfSpeech: z.string().max(200).optional(),
-  gender: z.string().max(100).nullable().optional(),
-  termType: z.string().max(100).nullable().optional(),
-  status: glossaryConceptTermStatusSchema.optional().default("draft"),
-  description: z.string().max(10_000).optional(),
-  caseSensitive: z.boolean().optional().default(false),
-  forbidden: z.boolean().optional().default(false),
-});
-
 export const updateGlossaryConceptTermBodySchema = z
   .object({
     locale: localeInputSchema.optional(),
     term: z.string().trim().min(1).max(1_000).optional(),
-    partOfSpeech: z.string().max(200).optional(),
-    gender: z.string().max(100).nullable().optional(),
-    termType: z.string().max(100).nullable().optional(),
-    status: glossaryConceptTermStatusSchema.optional(),
+    partOfSpeech: glossaryPartOfSpeechSchema.optional(),
+    note: z.string().max(10_000).optional(),
+    gender: glossaryGenderSchema.nullable().optional(),
+    termType: glossaryTermTypeSchema.nullable().optional(),
+    url: z.string().url().max(2_000).nullable().optional().or(z.literal("")),
+    lemma: z.string().max(1_000).nullable().optional(),
+    status: glossaryTermStatusSchema.optional(),
     description: z.string().max(10_000).optional(),
     caseSensitive: z.boolean().optional(),
     forbidden: z.boolean().optional(),
@@ -202,6 +229,7 @@ export const glossaryRecordSchema = z.object({
     }),
   ),
   termCount: z.number().int().nullable(),
+  projectCount: z.number().int().optional(),
   syncState: z.string().nullable(),
   termCapabilities: z.record(z.string(), z.unknown()),
   externalUrl: z.string().nullable(),
@@ -221,6 +249,8 @@ export const glossaryTermRecordSchema = z.object({
   targetLocale: z.string().nullable(),
   description: z.string(),
   partOfSpeech: z.string().optional(),
+  url: z.string().nullable().optional(),
+  lemma: z.string().nullable().optional(),
   forbidden: z.boolean(),
   caseSensitive: z.boolean(),
   provenance: z.string(),
@@ -236,15 +266,21 @@ export const glossaryConceptTermRecordSchema = z.object({
   term: z.string(),
   isPrimary: z.boolean(),
   description: z.string(),
+  note: z.string(),
   partOfSpeech: z.string(),
-  gender: z.string().nullable(),
-  termType: z.string().nullable(),
-  status: glossaryConceptTermStatusSchema,
+  gender: glossaryGenderSchema.nullable(),
+  termType: glossaryTermTypeSchema.nullable(),
+  url: z.string().nullable().optional(),
+  lemma: z.string().nullable().optional(),
+  status: glossaryTermStatusSchema,
   caseSensitive: z.boolean(),
   forbidden: z.boolean(),
   provenance: z.string(),
   externalKey: z.string().nullable(),
   reviewStatus: z.string(),
+  externalUserId: z.string().nullable().optional(),
+  externalCreatedAt: z.string().datetime().nullable().optional(),
+  externalUpdatedAt: z.string().datetime().nullable().optional(),
   createdAt: z.string().datetime(),
   updatedAt: z.string().datetime(),
 });
@@ -258,6 +294,23 @@ export const glossaryConceptRecordSchema = z.object({
   translatable: z.boolean(),
   note: z.string(),
   url: z.string().nullable(),
+  figure: z.string().nullable().optional(),
+  externalKey: z.string().nullable().optional(),
+  externalUserId: z.string().nullable().optional(),
+  languageDetails: z
+    .array(
+      z.object({
+        locale: z.string(),
+        userId: z.number().int().nullable(),
+        definition: z.string(),
+        note: z.string(),
+        createdAt: z.string().datetime().nullable(),
+        updatedAt: z.string().datetime().nullable(),
+      }),
+    )
+    .optional(),
+  externalCreatedAt: z.string().datetime().nullable().optional(),
+  externalUpdatedAt: z.string().datetime().nullable().optional(),
   createdAt: z.string().datetime(),
   updatedAt: z.string().datetime(),
   terms: z.array(glossaryConceptTermRecordSchema),
@@ -269,6 +322,7 @@ export const glossaryProjectRecordSchema = z.object({
   priority: z.number().int(),
   sourceLocale: z.string().nullable(),
   targetLocales: z.array(z.string()),
+  externalUrl: z.string().url().nullable(),
 });
 
 export const glossaryResponseSchema = z.object({

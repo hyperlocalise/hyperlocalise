@@ -12,28 +12,18 @@
  * of this software will be governed by the GNU General Public License
  * Version 2.0 or later.
  */
-import { useEffect, useId, useMemo, useState, type ReactNode } from "react";
+import { useId, useMemo, useState, type ReactNode } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import {
-  Alert02Icon,
-  ArrowDown01Icon,
-  Delete02Icon,
-  Key01Icon,
-  SaveIcon,
-  ViewIcon,
-  ViewOffSlashIcon,
-} from "@hugeicons/core-free-icons";
+import { Alert02Icon, ArrowDown01Icon, Delete02Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import type { SimpleIcon } from "simple-icons";
-import { siAnthropic, siContentful, siCrowdin, siGooglegemini } from "simple-icons";
+import { siContentful, siCrowdin } from "simple-icons";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { FormattedMessage, useIntl, type IntlShape } from "react-intl";
 import { toast } from "sonner";
 
-import type { LlmProvider } from "@/lib/database/types";
 import { hasCapability } from "@/api/auth/policy";
-import { defaultModelByProvider, llmProviderCatalog } from "@/lib/providers/shared/catalog";
 
 import type { OrganizationMembershipRole } from "@/lib/database/types";
 import { createApiClient } from "@/lib/api-client";
@@ -58,23 +48,6 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { Field, FieldLabel } from "@/components/ui/field";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { TypographyH1 } from "@/components/ui/typography";
@@ -97,7 +70,6 @@ import { IntercomConnectionPanel } from "./intercom-connection-panel";
 import { integrationRowMessages } from "./integration-row.messages";
 import { integrationsPageContentMessages } from "./integrations-page-content.messages";
 import { IntegrationCategoryLabel, integrationConnectButtonClassName } from "./integration-row";
-import { ModelProviderCard, type ModelProviderCardConfig } from "./model-provider-card";
 import { SimpleBrandIcon } from "./simple-brand-icon";
 import { TmsProviderCredentialPanel } from "./tms-provider-credential-panel";
 import { getTmsUserOAuthErrorCopy } from "@/lib/providers/credentials/tms-user-oauth-error-copy";
@@ -119,39 +91,6 @@ function canManageIntegrations(role: OrganizationMembershipRole) {
 function canManageAgents(role: OrganizationMembershipRole) {
   return hasCapability(role, "provider_credentials:write");
 }
-
-type ProviderCredentialSummary = {
-  provider: LlmProvider;
-  defaultModel: string;
-  maskedApiKeySuffix: string;
-  lastValidatedAt: string;
-};
-
-type ManagedProviderId = "hyperlocalise-go";
-type ProviderOptionId = LlmProvider | ManagedProviderId;
-
-const hyperlocaliseGoProviderId = "hyperlocalise-go" as const satisfies ManagedProviderId;
-
-const byokProviderMeta = [
-  {
-    id: "openai",
-    logo: "/images/openai-old-logo.webp",
-  },
-  {
-    id: "anthropic",
-    logo: "/images/claude.png",
-    icon: siAnthropic,
-  },
-  {
-    id: "gemini",
-    logo: "/images/gemini.webp",
-    icon: siGooglegemini,
-  },
-] as const satisfies readonly {
-  id: LlmProvider;
-  logo: string;
-  icon?: SimpleIcon;
-}[];
 
 type TmsIntegrationConfig =
   | {
@@ -198,87 +137,6 @@ const tmsIntegrationMeta = [
 const contentfulIntegrationMeta = {
   icon: siContentful,
 } as const;
-
-function useProviderCredential(organizationSlug: string) {
-  return useQuery({
-    queryKey: ["provider-credential", organizationSlug],
-    queryFn: async () => {
-      const res = await api.api.orgs[":organizationSlug"]["provider-credential"].$get({
-        param: { organizationSlug },
-      });
-      if (!res.ok) {
-        throw new Error("Failed to fetch provider credential");
-      }
-
-      const data = await res.json();
-      return data.providerCredential as ProviderCredentialSummary | null;
-    },
-  });
-}
-
-function useSaveProviderCredential(organizationSlug: string, intl: IntlShape) {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async (payload: {
-      provider: LlmProvider;
-      defaultModel: string;
-      apiKey: string;
-    }) => {
-      const res = await api.api.orgs[":organizationSlug"]["provider-credential"].$put({
-        param: { organizationSlug },
-        json: payload,
-      });
-      if (!res.ok) {
-        const error = await res.json().catch(() => ({ error: "provider_validation_failed" }));
-        throw new Error(
-          "message" in error && typeof error.message === "string"
-            ? error.message
-            : "Unable to validate provider credential",
-        );
-      }
-
-      const data = await res.json();
-      return data.providerCredential as ProviderCredentialSummary;
-    },
-    onSuccess: async (_, payload) => {
-      await queryClient.invalidateQueries({ queryKey: ["provider-credential", organizationSlug] });
-      toast.success(
-        intl.formatMessage(integrationsPageContentMessages.providerSavedToast, {
-          providerLabel: llmProviderCatalog[payload.provider].label,
-        }),
-      );
-    },
-    onError: (error) => {
-      toast.error(error.message);
-    },
-  });
-}
-
-function useDeleteProviderCredential(organizationSlug: string, intl: IntlShape) {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async () => {
-      const res = await api.api.orgs[":organizationSlug"]["provider-credential"].$delete({
-        param: { organizationSlug },
-      });
-      if (!res.ok) {
-        const error = await res.json().catch(() => ({ error: "delete_failed" }));
-        throw new Error("error" in error ? String(error.error) : "Unable to disconnect provider");
-      }
-    },
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["provider-credential", organizationSlug] });
-      toast.success(
-        intl.formatMessage(integrationsPageContentMessages.llmProviderDisconnectedToast),
-      );
-    },
-    onError: (error) => {
-      toast.error(error.message);
-    },
-  });
-}
 
 function useExternalTmsCredentials(organizationSlug: string) {
   return useQuery({
@@ -911,18 +769,7 @@ export function IntegrationsPageContent({
 }: IntegrationsPageContentProps) {
   const intl = useIntl();
   const integrationError = getTmsUserOAuthErrorCopy(errorCode ?? null);
-  const { data: credential, isLoading } = useProviderCredential(organizationSlug);
-  const saveCredential = useSaveProviderCredential(organizationSlug, intl);
-  const deleteCredential = useDeleteProviderCredential(organizationSlug, intl);
-  const [selectedProvider, setSelectedProvider] = useState<ProviderOptionId | null>(null);
-  const [selectedModel, setSelectedModel] = useState(defaultModelByProvider.openai);
-  const [apiKey, setApiKey] = useState("");
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [showApiKey, setShowApiKey] = useState(false);
   const [expandedContentful, setExpandedContentful] = useState(false);
-
-  const modelFieldId = useId();
-  const apiKeyFieldId = useId();
 
   const { data: externalTmsCredentialState, isLoading: isLoadingExternalTms } =
     useExternalTmsCredentials(organizationSlug);
@@ -971,50 +818,6 @@ export function IntegrationsPageContent({
   const tmsCrowdinAuthModeFieldId = useId();
   const userIsAdmin = canManageIntegrations(membershipRole);
   const userCanManageAgents = canManageAgents(membershipRole);
-
-  const hyperlocaliseGoProvider = useMemo(
-    () => ({
-      id: hyperlocaliseGoProviderId,
-      label: intl.formatMessage(integrationsPageContentMessages.hyperlocaliseGoLabel),
-      description: intl.formatMessage(integrationsPageContentMessages.hyperlocaliseGoDescription),
-      logo: "/images/logo.png",
-    }),
-    [intl],
-  );
-
-  const byokProviders = useMemo(
-    () =>
-      byokProviderMeta.map((provider) => {
-        const copyById = {
-          openai: {
-            label: integrationsPageContentMessages.openAiLabel,
-            description: integrationsPageContentMessages.openAiDescription,
-          },
-          anthropic: {
-            label: integrationsPageContentMessages.anthropicLabel,
-            description: integrationsPageContentMessages.anthropicDescription,
-          },
-          gemini: {
-            label: integrationsPageContentMessages.geminiLabel,
-            description: integrationsPageContentMessages.geminiDescription,
-          },
-        } as const;
-
-        const copy = copyById[provider.id];
-
-        return {
-          ...provider,
-          label: intl.formatMessage(copy.label),
-          description: intl.formatMessage(copy.description),
-        };
-      }),
-    [intl],
-  );
-
-  const modelProviderCards = useMemo<readonly ModelProviderCardConfig[]>(
-    () => [hyperlocaliseGoProvider, ...byokProviders],
-    [byokProviders, hyperlocaliseGoProvider],
-  );
 
   const tmsIntegrations = useMemo<readonly TmsIntegrationConfig[]>(
     () =>
@@ -1074,34 +877,6 @@ export function IntegrationsPageContent({
     integrationsPageContentMessages.contentfulHelpCenterDefaultName,
   );
 
-  useEffect(() => {
-    if (!credential || selectedProvider !== credential.provider) {
-      return;
-    }
-
-    setSelectedModel(credential.defaultModel);
-  }, [credential, selectedProvider]);
-
-  useEffect(() => {
-    if (!selectedProvider || selectedProvider === hyperlocaliseGoProviderId) {
-      return;
-    }
-
-    if (
-      !(llmProviderCatalog[selectedProvider].models as readonly string[]).includes(selectedModel)
-    ) {
-      setSelectedModel(defaultModelByProvider[selectedProvider]);
-    }
-  }, [selectedModel, selectedProvider]);
-
-  const selectedByokProvider =
-    selectedProvider && selectedProvider !== hyperlocaliseGoProviderId ? selectedProvider : null;
-  const selectedProviderConfig = selectedByokProvider
-    ? llmProviderCatalog[selectedByokProvider]
-    : null;
-  const selectedProviderLabel =
-    byokProviders.find((provider) => provider.id === selectedByokProvider)?.label ??
-    selectedProviderConfig?.label;
   const disconnectingTmsProviderName = disconnectingTmsProvider
     ? tmsIntegrations.find((integration) => integration.providerKind === disconnectingTmsProvider)
         ?.name
@@ -1455,250 +1230,63 @@ export function IntegrationsPageContent({
       />
 
       {canManageProviderIntegrations ? (
-        <>
-          <section className="flex flex-col gap-3">
-            <IntegrationCategoryLabel>
-              <FormattedMessage {...integrationsPageContentMessages.modelProviderCategory} />
-            </IntegrationCategoryLabel>
-
-            {isLoading ? (
-              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                {modelProviderCards.map((provider) => (
-                  <Skeleton key={provider.id} className="min-h-44 rounded-lg" />
-                ))}
-              </div>
-            ) : (
-              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                {modelProviderCards.map((provider) => {
-                  const isManaged = provider.id === hyperlocaliseGoProviderId;
-                  const isByok = !isManaged;
-                  const isConfigured = isByok && credential?.provider === provider.id;
-                  const isActive = isManaged ? !credential : isConfigured;
-
-                  return (
-                    <ModelProviderCard
-                      key={provider.id}
-                      provider={provider}
-                      isActive={isActive}
-                      isManaged={isManaged}
-                      footerLabel={
-                        isManaged
-                          ? isActive
-                            ? undefined
-                            : intl.formatMessage(
-                                integrationsPageContentMessages.switchToManagedFooter,
-                              )
-                          : intl.formatMessage(integrationsPageContentMessages.configureFooter)
-                      }
-                      disabled={
-                        isManaged && isActive ? true : isManaged && deleteCredential.isPending
-                      }
-                      onSelect={() => {
-                        if (isManaged) {
-                          if (credential) {
-                            deleteCredential.mutate();
-                          }
-                          return;
-                        }
-
-                        const byokProvider = provider.id as LlmProvider;
-
-                        setSelectedProvider(byokProvider);
-                        setSelectedModel(
-                          isConfigured && credential
-                            ? credential.defaultModel
-                            : defaultModelByProvider[byokProvider],
-                        );
-                        setApiKey("");
-                        setDialogOpen(true);
-                      }}
-                    />
-                  );
+        <AlertDialog
+          open={disconnectingTmsProvider !== null}
+          onOpenChange={(open) => {
+            if (!deleteExternalTms.isPending) {
+              setDisconnectingTmsProvider(open ? disconnectingTmsProvider : null);
+            }
+          }}
+        >
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>
+                {intl.formatMessage(integrationsPageContentMessages.disconnectTmsDialogTitle, {
+                  providerName:
+                    disconnectingTmsProviderName ??
+                    intl.formatMessage(
+                      integrationsPageContentMessages.disconnectTmsDialogTitleFallback,
+                    ),
                 })}
-              </div>
-            )}
-          </section>
+              </AlertDialogTitle>
+              <AlertDialogDescription>
+                {intl.formatMessage(integrationsPageContentMessages.disconnectTmsDialogDescription)}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={deleteExternalTms.isPending}>
+                {intl.formatMessage(integrationsPageContentMessages.cancel)}
+              </AlertDialogCancel>
+              <Button
+                type="button"
+                variant="destructive"
+                disabled={!disconnectingTmsProvider || deleteExternalTms.isPending}
+                onClick={() => {
+                  if (!disconnectingTmsProvider) {
+                    return;
+                  }
 
-          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>
-                  {intl.formatMessage(integrationsPageContentMessages.configureDialogTitle, {
-                    providerLabel: selectedProviderLabel ?? "",
-                  })}
-                </DialogTitle>
-                <DialogDescription>
-                  {intl.formatMessage(integrationsPageContentMessages.configureDialogDescription)}
-                </DialogDescription>
-              </DialogHeader>
-
-              {selectedByokProvider && selectedProviderConfig ? (
-                <form
-                  className="flex flex-col gap-5"
-                  onSubmit={(event) => {
-                    event.preventDefault();
-                    saveCredential.mutate(
-                      {
-                        provider: selectedByokProvider,
-                        defaultModel: selectedModel,
-                        apiKey,
-                      },
-                      {
-                        onSuccess: () => {
-                          setApiKey("");
-                          setShowApiKey(false);
-                          setDialogOpen(false);
-                        },
-                      },
-                    );
-                  }}
-                >
-                  <Field className="gap-2">
-                    <FieldLabel htmlFor={modelFieldId}>
-                      {intl.formatMessage(integrationsPageContentMessages.defaultModelLabel)}
-                    </FieldLabel>
-                    <Select
-                      value={selectedModel}
-                      onValueChange={(value) => setSelectedModel(value ?? "")}
-                    >
-                      <SelectTrigger id={modelFieldId} className="h-9 w-full">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {selectedProviderConfig.models.map((model) => (
-                          <SelectItem key={model} value={model}>
-                            {model}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </Field>
-
-                  <Field className="gap-2">
-                    <FieldLabel htmlFor={apiKeyFieldId}>
-                      {intl.formatMessage(integrationsPageContentMessages.apiKeyLabel)}
-                    </FieldLabel>
-                    <div className="relative">
-                      <HugeiconsIcon
-                        icon={Key01Icon}
-                        strokeWidth={1.8}
-                        className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
-                      />
-                      <Input
-                        id={apiKeyFieldId}
-                        type={showApiKey ? "text" : "password"}
-                        autoComplete="off"
-                        value={apiKey}
-                        onChange={(event) => setApiKey(event.target.value)}
-                        placeholder={intl.formatMessage(
-                          integrationsPageContentMessages.apiKeyPlaceholder,
-                          { providerLabel: selectedProviderLabel ?? "" },
-                        )}
-                        className="ps-9 pe-9"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowApiKey(!showApiKey)}
-                        className="absolute top-1/2 right-3 -translate-y-1/2 text-muted-foreground transition-colors hover:text-foreground"
-                        aria-label={intl.formatMessage(
-                          showApiKey
-                            ? integrationsPageContentMessages.hideApiKeyAriaLabel
-                            : integrationsPageContentMessages.showApiKeyAriaLabel,
-                        )}
-                      >
-                        {showApiKey ? (
-                          <HugeiconsIcon icon={ViewOffSlashIcon} size={16} />
-                        ) : (
-                          <HugeiconsIcon icon={ViewIcon} size={16} />
-                        )}
-                      </button>
-                    </div>
-                  </Field>
-
-                  <DialogFooter>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => deleteCredential.mutate()}
-                      disabled={!credential || deleteCredential.isPending}
-                    >
-                      <HugeiconsIcon icon={Delete02Icon} strokeWidth={1.8} />
-                      {deleteCredential.isPending
-                        ? intl.formatMessage(integrationsPageContentMessages.disconnecting)
-                        : intl.formatMessage(integrationsPageContentMessages.disconnect)}
-                    </Button>
-                    <Button type="submit" disabled={!apiKey.trim() || saveCredential.isPending}>
-                      <HugeiconsIcon icon={SaveIcon} strokeWidth={1.8} />
-                      {saveCredential.isPending
-                        ? intl.formatMessage(integrationsPageContentMessages.validating)
-                        : intl.formatMessage(integrationsPageContentMessages.saveProvider)}
-                    </Button>
-                  </DialogFooter>
-                </form>
-              ) : null}
-            </DialogContent>
-          </Dialog>
-
-          <AlertDialog
-            open={disconnectingTmsProvider !== null}
-            onOpenChange={(open) => {
-              if (!deleteExternalTms.isPending) {
-                setDisconnectingTmsProvider(open ? disconnectingTmsProvider : null);
-              }
-            }}
-          >
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>
-                  {intl.formatMessage(integrationsPageContentMessages.disconnectTmsDialogTitle, {
-                    providerName:
-                      disconnectingTmsProviderName ??
-                      intl.formatMessage(
-                        integrationsPageContentMessages.disconnectTmsDialogTitleFallback,
-                      ),
-                  })}
-                </AlertDialogTitle>
-                <AlertDialogDescription>
-                  {intl.formatMessage(
-                    integrationsPageContentMessages.disconnectTmsDialogDescription,
-                  )}
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel disabled={deleteExternalTms.isPending}>
-                  {intl.formatMessage(integrationsPageContentMessages.cancel)}
-                </AlertDialogCancel>
-                <Button
-                  type="button"
-                  variant="destructive"
-                  disabled={!disconnectingTmsProvider || deleteExternalTms.isPending}
-                  onClick={() => {
-                    if (!disconnectingTmsProvider) {
-                      return;
-                    }
-
-                    deleteExternalTms.mutate(disconnectingTmsProvider, {
-                      onSuccess: () => {
-                        setDisconnectingTmsProvider(null);
-                        setExpandedTmsProvider(null);
-                        setTmsDisplayName("");
-                        setTmsSecret("");
-                        setTmsBaseUrl("");
-                        setTmsCrowdinAuthMode(OAUTH_AUTH_MODE);
-                        setShowTmsSecret(false);
-                      },
-                    });
-                  }}
-                >
-                  <HugeiconsIcon icon={Delete02Icon} strokeWidth={1.8} />
-                  {deleteExternalTms.isPending
-                    ? intl.formatMessage(integrationsPageContentMessages.disconnecting)
-                    : intl.formatMessage(integrationsPageContentMessages.disconnect)}
-                </Button>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-        </>
+                  deleteExternalTms.mutate(disconnectingTmsProvider, {
+                    onSuccess: () => {
+                      setDisconnectingTmsProvider(null);
+                      setExpandedTmsProvider(null);
+                      setTmsDisplayName("");
+                      setTmsSecret("");
+                      setTmsBaseUrl("");
+                      setTmsCrowdinAuthMode(OAUTH_AUTH_MODE);
+                      setShowTmsSecret(false);
+                    },
+                  });
+                }}
+              >
+                <HugeiconsIcon icon={Delete02Icon} strokeWidth={1.8} />
+                {deleteExternalTms.isPending
+                  ? intl.formatMessage(integrationsPageContentMessages.disconnecting)
+                  : intl.formatMessage(integrationsPageContentMessages.disconnect)}
+              </Button>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       ) : null}
     </main>
   );
