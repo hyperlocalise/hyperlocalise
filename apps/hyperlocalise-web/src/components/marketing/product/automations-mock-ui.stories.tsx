@@ -44,7 +44,7 @@ export const Default: Story = {
       canvas.getByText("Review pull requests on GitHub and post one sticky comment"),
     ).toBeInTheDocument();
     await expect(canvas.getByText("Use Hyperlocalise Agent")).toBeInTheDocument();
-    await expect(canvas.getByText("GitHub pull request opened")).toBeInTheDocument();
+    await expect(canvas.getByText("GTM brief approved · Q2 launch")).toBeInTheDocument();
     await expect(
       canvas.getByRole("heading", { name: "Automate GTM, review, and research workflows" }),
     ).toBeInTheDocument();

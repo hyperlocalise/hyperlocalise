@@ -53,7 +53,7 @@ export const Automations: Story = {
     ).toBeInTheDocument();
     await expect(canvas.getByRole("link", { name: "Request a demo" })).toBeInTheDocument();
     await expect(canvas.getByRole("link", { name: "Contact us" })).toBeInTheDocument();
-    await expect(canvas.getByText("GitHub pull request opened")).toBeInTheDocument();
+    await expect(canvas.getByText("GTM brief approved · Q2 launch")).toBeInTheDocument();
   },
 };
 

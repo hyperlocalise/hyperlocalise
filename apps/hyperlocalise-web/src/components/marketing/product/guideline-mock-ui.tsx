@@ -32,6 +32,9 @@ import { MarketingMockUseCaseSelector } from "./marketing-mock-use-case-selector
 const RULE_CYCLE_MS = 2200;
 const MARKET_CYCLE_MS = 2600;
 const SCENE_HOLD_MS = 3200;
+const STYLE_RULE_COUNT = 3;
+const MARKET_COUNT = 3;
+const COMPLIANCE_ITEM_COUNT = 3;
 
 type SceneId = "style-guides" | "market-knowledge" | "compliance";
 
@@ -401,20 +404,17 @@ export function GuidelineMockUI({
       return;
     }
 
-    if (activeScene === "style-guides") {
-      const timer = setTimeout(() => setActiveRuleIndex((value) => (value + 1) % 3), RULE_CYCLE_MS);
+    if (activeScene === "style-guides" && activeRuleIndex < STYLE_RULE_COUNT - 1) {
+      const timer = setTimeout(() => setActiveRuleIndex((value) => value + 1), RULE_CYCLE_MS);
       return () => clearTimeout(timer);
     }
 
-    if (activeScene === "market-knowledge") {
-      const timer = setTimeout(
-        () => setActiveMarketIndex((value) => (value + 1) % 3),
-        MARKET_CYCLE_MS,
-      );
+    if (activeScene === "market-knowledge" && activeMarketIndex < MARKET_COUNT - 1) {
+      const timer = setTimeout(() => setActiveMarketIndex((value) => value + 1), MARKET_CYCLE_MS);
       return () => clearTimeout(timer);
     }
 
-    if (activeScene === "compliance" && checkedCount < 3) {
+    if (activeScene === "compliance" && checkedCount < COMPLIANCE_ITEM_COUNT) {
       const timer = setTimeout(() => setCheckedCount((value) => value + 1), RULE_CYCLE_MS);
       return () => clearTimeout(timer);
     }
