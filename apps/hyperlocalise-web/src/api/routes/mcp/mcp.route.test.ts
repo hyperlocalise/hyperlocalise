@@ -52,10 +52,31 @@ vi.mock("@/api/auth/workos-session", async (importOriginal) => {
   };
 });
 
+const { resolveMcpClientMetadataMock } = vi.hoisted(() => ({
+  resolveMcpClientMetadataMock: vi.fn(),
+}));
+
+vi.mock("@/api/auth/mcp-client-metadata", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/api/auth/mcp-client-metadata")>();
+
+  return {
+    ...actual,
+    resolveMcpClientMetadata: resolveMcpClientMetadataMock,
+  };
+});
+
 const app = createMcpTestApp();
 const apiApp = createApp();
 const fixture = createProjectTestFixture();
 const originalMcpAuthEnabled = env.MCP_AUTH_ENABLED;
+const originalMcpAllowDynamicRegistration = env.MCP_ALLOW_DYNAMIC_REGISTRATION;
+
+function setMcpAllowDynamicRegistration(value: boolean) {
+  Object.defineProperty(env, "MCP_ALLOW_DYNAMIC_REGISTRATION", {
+    configurable: true,
+    value,
+  });
+}
 
 function pkceChallenge(verifier: string) {
   return createHash("sha256").update(verifier).digest("base64url");
@@ -108,7 +129,9 @@ describe("mcpRoutes", () => {
   });
 
   afterEach(async () => {
+    resolveMcpClientMetadataMock.mockReset();
     setMcpAuthEnabled(originalMcpAuthEnabled);
+    setMcpAllowDynamicRegistration(originalMcpAllowDynamicRegistration);
     await fixture.cleanup();
     await db.delete(schema.usedAuthorizationCodes);
     await db.delete(schema.mcpOAuthClients);
@@ -123,6 +146,26 @@ describe("mcpRoutes", () => {
       authorization_endpoint: "http://localhost/mcp/authorize",
       token_endpoint: "http://localhost/mcp/token",
       code_challenge_methods_supported: ["S256"],
+      client_id_metadata_document_supported: true,
+    });
+  });
+
+  it("does not advertise dynamic registration when disabled", async () => {
+    setMcpAllowDynamicRegistration(false);
+
+    const response = await app.request("http://localhost/.well-known/oauth-authorization-server");
+    const metadata = await response.json();
+
+    expect(metadata).not.toHaveProperty("registration_endpoint");
+  });
+
+  it("advertises dynamic registration when enabled", async () => {
+    setMcpAllowDynamicRegistration(true);
+
+    const response = await app.request("http://localhost/.well-known/oauth-authorization-server");
+
+    await expect(response.json()).resolves.toMatchObject({
+      registration_endpoint: "http://localhost/mcp/register",
     });
   });
 
@@ -541,5 +584,78 @@ describe("mcpRoutes", () => {
 
     expect(refreshResponse.status).toBe(200);
     await expect(refreshResponse.json()).resolves.toMatchObject({ scope });
+  });
+  it("accepts a client identified by a Client ID Metadata Document", async () => {
+    const clientId = "https://client.example/oauth/metadata.json";
+    const redirectUri = "http://localhost:3000/callback";
+
+    resolveMcpClientMetadataMock.mockResolvedValue({
+      ok: true,
+      value: {
+        clientId,
+        clientName: "Example MCP Client",
+        redirectUris: [redirectUri],
+      },
+    });
+
+    const authorizeUrl = new URL("http://localhost/mcp/authorize");
+    authorizeUrl.searchParams.set("response_type", "code");
+    authorizeUrl.searchParams.set("client_id", clientId);
+    authorizeUrl.searchParams.set("redirect_uri", redirectUri);
+    authorizeUrl.searchParams.set("code_challenge", pkceChallenge("a".repeat(64)));
+    authorizeUrl.searchParams.set("code_challenge_method", "S256");
+
+    const response = await app.request(authorizeUrl);
+
+    expect(resolveMcpClientMetadataMock).toHaveBeenCalledWith({
+      clientId,
+      redirectUri,
+    });
+    expect(response.status).toBe(302);
+    expect(response.headers.get("location")).toContain("/auth/sign-in");
+  });
+
+  it("shows the CIMD client name on the consent page", async () => {
+    const identity = fixture.createWorkosIdentity();
+    const headers = await fixture.authHeadersFor(identity);
+
+    const clientId = "https://client.example/oauth/metadata.json";
+    const redirectUri = "http://localhost:3000/callback";
+    const challenge = pkceChallenge("a".repeat(64));
+
+    resolveMcpClientMetadataMock.mockResolvedValue({
+      ok: true,
+      value: {
+        clientId,
+        clientName: "Example MCP Client",
+        redirectUris: [redirectUri],
+      },
+    });
+
+    const authRequest = createMcpAuthorizationRequest({
+      clientId,
+      clientName: "Example MCP Client",
+      redirectUri,
+      codeChallenge: challenge,
+      codeChallengeMethod: "S256",
+      scope: "mcp",
+    });
+
+    const consentUrl = new URL("http://localhost/mcp/consent");
+    consentUrl.searchParams.set("response_type", "code");
+    consentUrl.searchParams.set("client_id", clientId);
+    consentUrl.searchParams.set("redirect_uri", redirectUri);
+    consentUrl.searchParams.set("code_challenge", challenge);
+    consentUrl.searchParams.set("code_challenge_method", "S256");
+
+    const response = await app.request(consentUrl, {
+      headers: {
+        ...headers,
+        cookie: `${MCP_AUTH_REQUEST_COOKIE}=${authRequest}`,
+      },
+    });
+
+    expect(response.status).toBe(200);
+    expect(await response.text()).toContain("Example MCP Client");
   });
 });

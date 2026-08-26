@@ -132,6 +132,7 @@ export function createAuthorizationCode(
 
 export type McpAuthorizationRequestPayload = {
   clientId: string;
+  clientName?: string;
   redirectUri: string;
   codeChallenge: string;
   codeChallengeMethod: "S256";
