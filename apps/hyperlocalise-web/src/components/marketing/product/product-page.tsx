@@ -17,11 +17,7 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import Link from "next/link";
 import { FormattedMessage } from "react-intl";
 
-import {
-  HeroFrameMeshStage,
-  LAVENDER_MESH_GRADIENT_SRC,
-  MeshStage,
-} from "@/components/marketing/hero-frame-mesh-stage";
+import { HeroFrameMeshStage } from "@/components/marketing/hero-frame-mesh-stage";
 import { MarketingFooter } from "@/components/marketing/marketing-footer";
 import { footerColumns } from "@/components/marketing/marketing-page-content";
 import { REQUEST_DEMO_URL } from "@/components/marketing/request-demo";
@@ -36,6 +32,7 @@ import { AutomationEditorMock } from "./automation-editor-mock";
 import { IntegrationStripSection } from "./integration-strip-section";
 import { GlobeHeroVisual } from "./globe-hero-visual";
 import { KnowledgeMockUI } from "./knowledge-mock-ui";
+import { KnowledgeHero } from "./knowledge-hero";
 
 type ProductPageProps = {
   content: ProductPageContent;
@@ -57,26 +54,31 @@ function ProductHero({ content }: ProductPageProps) {
   const isAutomation = content.visualKind === "automation";
   const isKnowledge = content.visualKind === "knowledge";
 
+  // if (isKnowledge) {
+  //   return (
+  //     <div className="mx-auto flex w-full max-w-6xl flex-col items-center gap-8 text-center">
+  //       <div className="flex flex-col gap-4">
+  //         <h1 className="font-heading text-[clamp(2.5rem,5vw,4.75rem)] leading-[1] font-semibold tracking-normal text-balance">
+  //           <ProductMessage messageKey={content.hero.headlineKey} />
+  //         </h1>
+  //         <p className="max-auto text-md leading-8 text-muted-foreground text-balance sm:text-lg">
+  //           <ProductMessage messageKey={content.hero.subcopyKey} />
+  //         </p>
+  //       </div>
+  //       <Button
+  //         size="lg"
+  //         nativeButton={false}
+  //         render={<a href={REQUEST_DEMO_URL} target="_blank" rel="noopener noreferrer" />}
+  //       >
+  //         <ProductMessage messageKey="ctaJoinWaitlist" />
+  //         <HugeiconsIcon icon={ArrowRight01Icon} data-icon="inline-end" className="size-4" />
+  //       </Button>
+  //     </div>
+  //   );
+  // }
   if (isKnowledge) {
     return (
-      <div className="mx-auto flex w-full max-w-6xl flex-col items-center gap-8 text-center">
-        <div className="flex flex-col gap-4">
-          <h1 className="font-heading text-[clamp(2.5rem,5vw,4.75rem)] leading-[1] font-semibold tracking-normal text-balance">
-            <ProductMessage messageKey={content.hero.headlineKey} />
-          </h1>
-          <p className="max-auto text-md leading-8 text-muted-foreground text-balance sm:text-lg">
-            <ProductMessage messageKey={content.hero.subcopyKey} />
-          </p>
-        </div>
-        <Button
-          size="lg"
-          nativeButton={false}
-          render={<a href={REQUEST_DEMO_URL} target="_blank" rel="noopener noreferrer" />}
-        >
-          <ProductMessage messageKey="ctaJoinWaitlist" />
-          <HugeiconsIcon icon={ArrowRight01Icon} data-icon="inline-end" className="size-4" />
-        </Button>
-      </div>
+      <KnowledgeHero headlineKey={content.hero.headlineKey} subcopyKey={content.hero.subcopyKey} />
     );
   }
 
