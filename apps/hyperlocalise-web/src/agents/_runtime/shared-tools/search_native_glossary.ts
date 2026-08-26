@@ -134,7 +134,7 @@ export function createSearchNativeGlossaryTool(ctx: ToolContext) {
       const matches = await searchGlossaryConcordance({
         organizationId: ctx.organizationId,
         projectId,
-        glossaryIds: projectId ? undefined : glossaryIdsResult,
+        glossaryIds: glossaryIdsResult,
         sourceLocale: input.sourceLocale,
         targetLocales: [input.targetLocale],
         sourceText: input.sourceText,

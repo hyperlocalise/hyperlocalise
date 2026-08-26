@@ -244,6 +244,7 @@ describe("createSearchNativeGlossaryTool", () => {
       expect.objectContaining({
         organizationId: "org-1",
         projectId: "project-1",
+        glossaryIds: ["glossary-1"],
         sourceLocale: "en",
         targetLocales: ["fr"],
         sourceText: "Login button",

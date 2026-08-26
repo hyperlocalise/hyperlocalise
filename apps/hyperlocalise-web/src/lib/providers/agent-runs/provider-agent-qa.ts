@@ -393,6 +393,7 @@ export async function completeProviderAgentQaRun(input: {
         sourceText: unit.sourceText,
       })),
       glossaryMatchResolution: defaultGlossaryMatchResolution,
+      actorUserId: input.actorUserId,
     }),
   ]);
   const report = await buildProviderJobQaReport(

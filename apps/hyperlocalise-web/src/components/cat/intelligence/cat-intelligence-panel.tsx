@@ -46,8 +46,7 @@ import type {
   CatTranslationMemoryMatch,
 } from "@/components/cat/shared/types";
 
-import { glossaryTermFlagsFromStatus } from "@/lib/providers/contracts/glossary-term-status";
-
+import { normalizedCatGlossaryTermStatus } from "./cat-glossary-term-status";
 import { CatGlossaryConceptCard } from "./cat-glossary-concept-card";
 import {
   CAT_GLOSSARY_GUIDANCE_OPEN_EVENT,
@@ -222,10 +221,10 @@ export function CatIntelligencePanel({
     ]);
 
     return {
-      preferredCount: terms.filter((term) => glossaryTermFlagsFromStatus(term.status).preferred)
+      preferredCount: terms.filter((term) => normalizedCatGlossaryTermStatus(term) === "preferred")
         .length,
       notRecommendedCount: terms.filter(
-        (term) => glossaryTermFlagsFromStatus(term.status).notRecommended,
+        (term) => normalizedCatGlossaryTermStatus(term) === "not_recommended",
       ).length,
     };
   }, [glossaryConcepts]);

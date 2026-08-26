@@ -513,6 +513,7 @@ class TranslationMemoryConcordancePipeline extends ConcordancePipeline<
 
 type GlossaryConcordanceQuery = ConcordanceQuery & {
   glossaryMatchResolution?: GlossaryMatchResolution;
+  actorUserId?: string | null;
 };
 
 type MemoryConcordanceQuery = ConcordanceQuery & {
@@ -534,6 +535,7 @@ export class GlossaryConcordanceService {
     units: Array<{ externalStringId: string; key: string; sourceText: string }>;
     maxUnits?: number;
     glossaryMatchResolution?: GlossaryMatchResolution;
+    actorUserId?: string | null;
   }) {
     const sample = input.units
       .filter((unit) => unit.sourceText.trim().length > 0)
@@ -554,6 +556,7 @@ export class GlossaryConcordanceService {
         targetLocales: input.targetLocales,
         sourceText: unit.sourceText,
         glossaryMatchResolution: input.glossaryMatchResolution,
+        actorUserId: input.actorUserId,
       });
 
       if (matches.length === 0) {

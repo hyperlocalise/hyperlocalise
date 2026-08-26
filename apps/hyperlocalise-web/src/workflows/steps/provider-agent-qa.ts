@@ -55,6 +55,7 @@ export async function completeProviderAgentQaStep(input: {
     externalJobId: run?.externalJobId ?? "",
     syncProviderReview: readInputSnapshotAction(run?.inputSnapshot ?? {}) === "review_with_agent",
     hyperlocaliseJobId: run?.hyperlocaliseJobId ?? null,
+    actorUserId: run?.actorUserId ?? null,
   });
 }
 

@@ -936,6 +936,8 @@ export class NativeGlossary extends Glossary {
           eq(schema.glossaries.sourceLocale, sourceLocale),
           eq(schema.glossaries.status, "active"),
           eq(concordanceSourceTerms.locale, sourceLocale),
+          // Concordance is concept-backed only. Legacy flat rows (conceptId = null) from
+          // createGlossaryTerms are intentionally excluded; migrate terms to concepts for search.
           isNotNull(concordanceSourceTerms.conceptId),
           isNotNull(concordanceSourceTerms.term),
           eq(concordanceSourceTerms.reviewStatus, "approved"),

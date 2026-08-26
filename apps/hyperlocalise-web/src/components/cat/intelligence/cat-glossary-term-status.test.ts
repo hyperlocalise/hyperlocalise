@@ -26,6 +26,17 @@ describe("normalizedCatGlossaryTermStatus", () => {
     ).toBe("not_recommended");
   });
 
+  it("maps explicit preferred flags for status-less flat terms", () => {
+    expect(
+      normalizedCatGlossaryTermStatus({
+        id: "term-3",
+        locale: "fr",
+        text: "Save",
+        preferred: true,
+      }),
+    ).toBe("preferred");
+  });
+
   it("prefers status text when present", () => {
     expect(
       normalizedCatGlossaryTermStatus({
