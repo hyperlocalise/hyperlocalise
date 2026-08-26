@@ -76,18 +76,26 @@ export function createProjectFormFromRow(project: ProjectListRow): ProjectFormVa
 
 export function validateProjectForm(
   values: ProjectFormValues,
-  options?: { requireLocales?: boolean; requireIdentifier?: boolean; intl?: ProjectFormIntl },
+  options?: {
+    requireLocales?: boolean;
+    requireIdentifier?: boolean;
+    requireMetadata?: boolean;
+    intl?: ProjectFormIntl;
+  },
 ): ProjectFormErrors {
   const errors: ProjectFormErrors = {};
   const name = values.name.trim();
   const requireLocales = options?.requireLocales ?? true;
   const requireIdentifier = options?.requireIdentifier ?? false;
+  const requireMetadata = options?.requireMetadata ?? true;
   const intl = options?.intl;
 
-  if (!name) {
-    errors.name = resolveMessage(intl, projectFormMessages.nameRequired);
-  } else if (name.length > 200) {
-    errors.name = resolveMessage(intl, projectFormMessages.nameTooLong);
+  if (requireMetadata) {
+    if (!name) {
+      errors.name = resolveMessage(intl, projectFormMessages.nameRequired);
+    } else if (name.length > 200) {
+      errors.name = resolveMessage(intl, projectFormMessages.nameTooLong);
+    }
   }
 
   if (values.description.trim().length > 10_000) {

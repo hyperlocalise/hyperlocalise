@@ -388,9 +388,22 @@ const projectStore: ProjectStore = {
     return project ?? null;
   },
   async update(auth, projectId, payload): Promise<ProjectUpdateResult> {
-    const existing = await this.getById(auth, projectId);
+    let existing = await this.getById(auth, projectId);
     if (!existing) {
-      return ok(null);
+      const ensured = await ensureOrganizationProjectRecord({
+        organizationId: auth.organization.localOrganizationId,
+        projectId,
+        userId: auth.user.localUserId,
+      });
+
+      if (isErr(ensured)) {
+        return ok(null);
+      }
+
+      existing = await this.getById(auth, ensured.value);
+      if (!existing) {
+        return ok(null);
+      }
     }
 
     const { teamId, sourceLocale, targetLocales, identifier, ...updates } = payload;

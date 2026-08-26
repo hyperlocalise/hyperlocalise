@@ -207,7 +207,18 @@ export function ProjectSettingsPageContent({
     id: "project-settings-save",
     visible: true,
     render: () => (
-      <Button type="submit" form="project-settings-form" disabled={isSaving}>
+      <Button
+        type="submit"
+        form="project-settings-form"
+        disabled={isSaving}
+        onClick={(e) => {
+          const form = document.getElementById("project-settings-form") as HTMLFormElement | null;
+          if (form) {
+            e.preventDefault();
+            form.requestSubmit();
+          }
+        }}
+      >
         {isSaving ? (
           <Spinner />
         ) : (
@@ -229,6 +240,7 @@ export function ProjectSettingsPageContent({
     const nextErrors = validateProjectForm(values, {
       requireLocales: projectFormRequiresLocales("edit", project.source),
       requireIdentifier: true,
+      requireMetadata: project.source === "native",
     });
     setErrors(nextErrors);
 

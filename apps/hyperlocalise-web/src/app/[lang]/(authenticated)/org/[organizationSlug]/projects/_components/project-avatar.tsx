@@ -35,7 +35,7 @@ export function ProjectAvatar({
         {project.logoUrl ? (
           <AvatarImage src={project.logoUrl} alt="" className="rounded-lg object-cover" />
         ) : null}
-        <AvatarFallback className="rounded-lg bg-background text-xs font-medium text-foreground">
+        <AvatarFallback className="truncate rounded-lg bg-background px-0.5 text-center text-xs font-medium text-foreground select-none overflow-hidden">
           {project.key}
         </AvatarFallback>
       </Avatar>
