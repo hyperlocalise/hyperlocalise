@@ -26,7 +26,7 @@ import {
   type NormalizedGlossaryConceptTerm,
   type NormalizedGlossaryMatch,
 } from "@/lib/providers/contracts/glossary-match";
-import { normalizeProviderGlossaryTermFlags } from "@/lib/providers/contracts/glossary-term-status";
+import { normalizedGlossaryTermStatusFromStatus } from "@/lib/providers/contracts/glossary-term-status";
 import { sanitizeExternalUrl } from "@/lib/security/safe-external-url";
 
 export function stableCrowdinConcordanceTermId(
@@ -59,14 +59,14 @@ export function toCrowdinConcordanceConceptTerm(
   term: CrowdinGlossaryConcordanceTerm,
   preferredLocales: string[],
 ): NormalizedGlossaryConceptTerm {
-  const forbidden = normalizeProviderGlossaryTermFlags({ status: term.status }).forbidden;
+  const termStatus = normalizedGlossaryTermStatusFromStatus(term.status);
   return {
     id: String(term.id),
     locale: toNativeGlossaryLocale(term.languageId, preferredLocales),
     text: term.text,
     status: term.status,
-    forbidden,
-    preferred: !forbidden,
+    forbidden: termStatus.forbidden,
+    preferred: termStatus.preferred,
     termType: term.type,
     partOfSpeech: term.partOfSpeech,
     gender: term.gender,

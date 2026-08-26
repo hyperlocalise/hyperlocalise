@@ -43,6 +43,8 @@ import {
   defaultGlossaryMatchResolution,
   defaultTranslationMemoryMatchResolution,
 } from "@/lib/providers/capabilities/match-resolution";
+import { buildCrowdinGlossaryConcordanceUrl } from "@/lib/glossary/glossary-detail-id";
+import { normalizedGlossaryTermStatusFromStatus } from "@/lib/providers/contracts/glossary-term-status";
 import {
   GlossaryConcordanceService,
   TranslationMemoryConcordanceService,
@@ -84,17 +86,45 @@ function toCatGlossaryTerm(match: NormalizedGlossaryMatch): CatGlossaryTerm {
 }
 
 function toCatGlossaryConceptTerm(term: NormalizedGlossaryConceptTerm): CatGlossaryConceptTerm {
+  if (term.status?.trim()) {
+    const flags = normalizedGlossaryTermStatusFromStatus(term.status);
+    return {
+      ...term,
+      preferred: flags.preferred,
+      forbidden: flags.forbidden,
+    };
+  }
+
   return { ...term };
 }
 
-function toCatGlossaryConcept(match: NormalizedGlossaryMatch): CatGlossaryConcept {
+function resolveCatGlossaryUrl(
+  match: NormalizedGlossaryMatch,
+  conceptGlossaryUrl: string | null | undefined,
+  organizationSlug?: string,
+): string | null | undefined {
+  if (match.providerKind === "crowdin" && organizationSlug) {
+    return buildCrowdinGlossaryConcordanceUrl({
+      organizationSlug,
+      glossaryId: match.glossaryId,
+      externalResourceId: match.externalResourceId,
+    });
+  }
+
+  return conceptGlossaryUrl ?? undefined;
+}
+
+function toCatGlossaryConcept(
+  match: NormalizedGlossaryMatch,
+  organizationSlug?: string,
+): CatGlossaryConcept {
   const concept = match.concept;
   if (concept) {
     return {
       id: `${match.glossaryId}:${concept.id}`,
       glossaryId: match.glossaryId,
       glossaryName: match.glossaryName,
-      glossaryUrl: concept.glossaryUrl,
+      glossaryUrl: resolveCatGlossaryUrl(match, concept.glossaryUrl, organizationSlug),
       primaryTerm: concept.primaryTerm || match.sourceTerm,
       subject: concept.subject,
       definition: concept.definition ?? match.description,
@@ -107,6 +137,7 @@ function toCatGlossaryConcept(match: NormalizedGlossaryMatch): CatGlossaryConcep
     id: `${match.glossaryId}:${match.sourceLocale}:${match.sourceTerm}`,
     glossaryId: match.glossaryId,
     glossaryName: match.glossaryName,
+    glossaryUrl: resolveCatGlossaryUrl(match, null, organizationSlug),
     primaryTerm: match.sourceTerm,
     definition: match.description,
     sourceTerms: [
@@ -130,16 +161,20 @@ function toCatGlossaryConcept(match: NormalizedGlossaryMatch): CatGlossaryConcep
   };
 }
 
-function toCatGlossaryConcepts(matches: NormalizedGlossaryMatch[]): CatGlossaryConcept[] {
+function toCatGlossaryConcepts(
+  matches: NormalizedGlossaryMatch[],
+  organizationSlug?: string,
+): CatGlossaryConcept[] {
   const concepts = new Map<string, CatGlossaryConcept>();
   for (const match of matches) {
-    const next = toCatGlossaryConcept(match);
+    const next = toCatGlossaryConcept(match, organizationSlug);
     const existing = concepts.get(next.id);
     if (!existing) {
       concepts.set(next.id, next);
       continue;
     }
 
+    existing.glossaryUrl ??= next.glossaryUrl;
     const sourceIds = new Set(existing.sourceTerms.map((term) => term.id));
     const targetIds = new Set(existing.targetTerms.map((term) => term.id));
     existing.sourceTerms.push(...next.sourceTerms.filter((term) => !sourceIds.has(term.id)));
@@ -341,6 +376,7 @@ export class CatConcordanceService {
 
   async loadSegmentConcordance(input: {
     organizationId: string;
+    organizationSlug?: string;
     projectId: string;
     providerKind?: ExternalTmsProviderKind | null;
     actorUserId?: string | null;
@@ -363,7 +399,10 @@ export class CatConcordanceService {
         if (liveMatches) {
           return {
             glossaryTerms: liveMatches.glossaryTerms.map(toCatGlossaryTerm),
-            glossaryConcepts: toCatGlossaryConcepts(liveMatches.glossaryTerms),
+            glossaryConcepts: toCatGlossaryConcepts(
+              liveMatches.glossaryTerms,
+              input.organizationSlug,
+            ),
             translationMemoryMatches: liveMatches.translationMemoryMatches.map((match) =>
               toCatTranslationMemoryMatch(match, input.sourceText),
             ),
@@ -395,7 +434,7 @@ export class CatConcordanceService {
 
     return {
       glossaryTerms: glossaryMatches.map(toCatGlossaryTerm),
-      glossaryConcepts: toCatGlossaryConcepts(glossaryMatches),
+      glossaryConcepts: toCatGlossaryConcepts(glossaryMatches, input.organizationSlug),
       translationMemoryMatches: translationMemoryMatches.map((match) =>
         toCatTranslationMemoryMatch(match, input.sourceText),
       ),

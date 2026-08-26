@@ -1604,6 +1604,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
         try {
           const concordance = await loadCatSegmentConcordance({
             organizationId: c.var.auth.organization.localOrganizationId,
+            organizationSlug: c.var.auth.organization.slug ?? undefined,
             projectId: params.projectId,
             providerKind: target.kind === "provider" ? target.providerKind : null,
             actorUserId: c.var.auth.user.localUserId,

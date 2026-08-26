@@ -23,14 +23,24 @@ export function normalizedCatGlossaryTermStatus(
   term: CatGlossaryConceptTerm,
 ): CatGlossaryTermStatus {
   const normalized = term.status?.trim().toLowerCase().replaceAll(" ", "_");
-  if (term.forbidden || normalized === "forbidden" || normalized === "not_recommended") {
+
+  if (normalized) {
+    if (term.forbidden || normalized === "forbidden" || normalized === "not_recommended") {
+      return "not_recommended";
+    }
+    if (normalized === "preferred") {
+      return "preferred";
+    }
+    if (normalized === "admitted" || normalized === "draft" || normalized === "obsolete") {
+      return normalized;
+    }
+  }
+
+  if (term.forbidden) {
     return "not_recommended";
   }
-  if (term.preferred || normalized === "preferred") {
+  if (term.preferred) {
     return "preferred";
-  }
-  if (normalized === "admitted" || normalized === "draft" || normalized === "obsolete") {
-    return normalized;
   }
   return "draft";
 }

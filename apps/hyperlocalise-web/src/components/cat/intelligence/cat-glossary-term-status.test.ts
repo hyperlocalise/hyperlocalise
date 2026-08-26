@@ -47,4 +47,16 @@ describe("normalizedCatGlossaryTermStatus", () => {
       }),
     ).toBe("admitted");
   });
+
+  it("does not infer preferred from legacy flags when status is admitted", () => {
+    expect(
+      normalizedCatGlossaryTermStatus({
+        id: "term-4",
+        locale: "fr",
+        text: "Enregistrer",
+        status: "admitted",
+        preferred: true,
+      }),
+    ).toBe("admitted");
+  });
 });

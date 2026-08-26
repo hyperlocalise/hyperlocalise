@@ -40,6 +40,21 @@ describe("normalizeGlossaryTermStatus", () => {
     });
   });
 
+  it("does not infer preferred from non-forbidden statuses", () => {
+    expect(normalizeGlossaryTermStatus({ status: "admitted" })).toEqual({
+      forbidden: false,
+      preferred: false,
+    });
+    expect(normalizeGlossaryTermStatus({ status: "draft" })).toEqual({
+      forbidden: false,
+      preferred: false,
+    });
+    expect(normalizeGlossaryTermStatus({})).toEqual({
+      forbidden: false,
+      preferred: false,
+    });
+  });
+
   it("honors explicit forbidden flags over status text", () => {
     expect(
       normalizeGlossaryTermStatus({
@@ -52,7 +67,7 @@ describe("normalizeGlossaryTermStatus", () => {
         status: "forbidden",
         forbidden: false,
       }),
-    ).toEqual({ forbidden: false, preferred: true });
+    ).toEqual({ forbidden: false, preferred: false });
   });
 });
 
@@ -257,7 +272,7 @@ describe("context and agent run projections", () => {
 
     expect(toAgentRunGlossaryMatchUsage(normalized)).toMatchObject({
       matchSource: "synced_database",
-      preferred: true,
+      preferred: false,
       forbidden: false,
       glossaryName: "Synced glossary",
     });

@@ -21,6 +21,7 @@ import {
   Tick02Icon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
+import Link from "next/link";
 import { FormattedMessage, useIntl } from "react-intl";
 
 import { Badge } from "@/components/ui/badge";
@@ -220,6 +221,8 @@ export function CatGlossaryConceptCard({
   const contentId = `glossary-concept-${concept.id.replaceAll(/[^a-zA-Z0-9_-]/g, "-")}`;
   const sourceTerms = concept.sourceTerms.length > 0 ? concept.sourceTerms : concept.targetTerms;
   const targetTerms = concept.targetTerms.length > 0 ? concept.targetTerms : concept.sourceTerms;
+  const glossaryUrl = concept.glossaryUrl;
+  const isInternalGlossaryUrl = glossaryUrl?.startsWith("/org/") ?? false;
 
   return (
     <article className="overflow-hidden rounded-xl bg-muted/40">
@@ -288,16 +291,25 @@ export function CatGlossaryConceptCard({
       </div>
 
       <div className="px-3 pb-2 pt-1">
-        {concept.glossaryUrl ? (
-          <a
-            href={concept.glossaryUrl}
-            target="_blank"
-            rel="noreferrer"
-            className="inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
-          >
-            <FormattedMessage {...catIntelligencePanelMessages.projectGlossary} />
-            <HugeiconsIcon icon={ExternalLinkIcon} className="size-3.5" aria-hidden />
-          </a>
+        {glossaryUrl ? (
+          isInternalGlossaryUrl ? (
+            <Link
+              href={glossaryUrl}
+              className="inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
+            >
+              <FormattedMessage {...catIntelligencePanelMessages.projectGlossary} />
+            </Link>
+          ) : (
+            <a
+              href={glossaryUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
+            >
+              <FormattedMessage {...catIntelligencePanelMessages.projectGlossary} />
+              <HugeiconsIcon icon={ExternalLinkIcon} className="size-3.5" aria-hidden />
+            </a>
+          )
         ) : (
           <span className="text-sm text-muted-foreground">
             <FormattedMessage {...catIntelligencePanelMessages.projectGlossary} />
