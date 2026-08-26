@@ -31,6 +31,13 @@ import { REQUEST_DEMO_URL } from "@/components/marketing/request-demo";
 
 import { knowledgeMockMessages } from "./knowledge-mock-ui.messages";
 
+import Image from "next/image";
+import {
+  HeroFrameMeshStage,
+  LAVENDER_MESH_GRADIENT_SRC,
+  MeshStage,
+} from "@/components/marketing/hero-frame-mesh-stage";
+
 const STEP_PAUSE_MS = 1400;
 const DROP_MS = 260;
 const EAT_HOLD_MS = 150;
@@ -281,7 +288,7 @@ function StagePanel({ activeStageIndex }: { activeStageIndex: number }) {
                       "flex size-5 shrink-0 items-center justify-center rounded-full border text-[10px] font-semibold transition-all duration-300",
                       isActive
                         ? "border-primary/40 bg-primary/10 text-primary"
-                        : "border-border/60 bg-muted/30 text-muted-foreground",
+                        : "border-border/60 bg-muted/30 text-muted-foreground dark:border-foreground/30 dark:bg-background/40 dark:text-foreground/60",
                     )}
                   >
                     {stage.number}
@@ -292,7 +299,7 @@ function StagePanel({ activeStageIndex }: { activeStageIndex: number }) {
                   <p
                     className={cn(
                       "text-xs font-semibold leading-snug transition-colors duration-300",
-                      isActive ? "text-foreground" : "text-muted-foreground",
+                      isActive ? "text-foreground" : "text-muted-foreground dark:text-foreground/70",
                     )}
                   >
                     <FormattedMessage {...knowledgeMockMessages[stage.titleKey]} />
@@ -300,7 +307,7 @@ function StagePanel({ activeStageIndex }: { activeStageIndex: number }) {
                   <p
                     className={cn(
                       "mt-0.5 text-xs leading-relaxed transition-colors duration-300",
-                      isActive ? "text-muted-foreground" : "text-muted-foreground/40",
+                      isActive ? "text-muted-foreground" : "text-muted-foreground/40 dark:text-foreground/50",
                     )}
                   >
                     <FormattedMessage {...knowledgeMockMessages[stage.descKey]} />
@@ -313,7 +320,6 @@ function StagePanel({ activeStageIndex }: { activeStageIndex: number }) {
       </div>
       <div className="mt-4 flex items-center">
         <Button
-          variant="outline"
           size="lg"
           nativeButton={false}
           render={<a href={REQUEST_DEMO_URL} target="_blank" rel="noopener noreferrer" />}
@@ -433,7 +439,18 @@ export function KnowledgeMockUI() {
             />
           )}
         </div>
-        <StagePanel activeStageIndex={activeStageIndex} />
+        <div className="relative overflow-hidden">
+          <Image
+            src={LAVENDER_MESH_GRADIENT_SRC}
+            alt=""
+            aria-hidden
+            fill
+            className="object-cover object-center opacity-40 dark:opacity-30"
+          />
+          <div className="relative">
+            <StagePanel activeStageIndex={activeStageIndex} />
+          </div>
+        </div>
       </div>
     </div>
   );
