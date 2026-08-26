@@ -32,11 +32,7 @@ import { REQUEST_DEMO_URL } from "@/components/marketing/request-demo";
 import { knowledgeMockMessages } from "./knowledge-mock-ui.messages";
 
 import Image from "next/image";
-import {
-  HeroFrameMeshStage,
-  LAVENDER_MESH_GRADIENT_SRC,
-  MeshStage,
-} from "@/components/marketing/hero-frame-mesh-stage";
+import { LAVENDER_MESH_GRADIENT_SRC } from "@/components/marketing/hero-frame-mesh-stage";
 
 const STEP_PAUSE_MS = 1400;
 const DROP_MS = 260;
@@ -94,7 +90,6 @@ const ALL_ITEMS: MemoryItem[] = [
     tagKey: "tagTranslations",
     timestampKey: "tsJustNow",
     tagIcon: <HugeiconsIcon icon={LanguageCircleIcon} strokeWidth={1.8} className="size-3" />,
-    isNewest: true,
   },
 ];
 
@@ -187,8 +182,8 @@ function MemoryPanel({
                   className={cn(
                     "overflow-hidden rounded-xl border px-4 shadow-sm",
                     item.isNewest
-                      ? "border-primary/35 bg-primary/6"
-                      : "border-border bg-background",
+                      ? "border-primary/35 bg-primary/8 backdrop-blur-sm"
+                      : "border-border/60 bg-background/60 backdrop-blur-sm",
                   )}
                 >
                   <MemoryItemRow item={item} />
@@ -201,7 +196,7 @@ function MemoryPanel({
 
       {/* Mask — covers area above header so rising cards are hidden before reaching it */}
       <motion.div
-        className="absolute inset-x-0 top-0 z-30 bg-card"
+        className="absolute inset-x-0 top-0 z-30 bg-transparent"
         animate={{ height: 16 + headerY }}
         transition={{ duration: DROP_MS / 1000, ease: "easeInOut" }}
       />
@@ -299,7 +294,9 @@ function StagePanel({ activeStageIndex }: { activeStageIndex: number }) {
                   <p
                     className={cn(
                       "text-xs font-semibold leading-snug transition-colors duration-300",
-                      isActive ? "text-foreground" : "text-muted-foreground dark:text-foreground/70",
+                      isActive
+                        ? "text-foreground"
+                        : "text-muted-foreground dark:text-foreground/70",
                     )}
                   >
                     <FormattedMessage {...knowledgeMockMessages[stage.titleKey]} />
@@ -307,7 +304,9 @@ function StagePanel({ activeStageIndex }: { activeStageIndex: number }) {
                   <p
                     className={cn(
                       "mt-0.5 text-xs leading-relaxed transition-colors duration-300",
-                      isActive ? "text-muted-foreground" : "text-muted-foreground/40 dark:text-foreground/50",
+                      isActive
+                        ? "text-muted-foreground"
+                        : "text-muted-foreground/40 dark:text-foreground/50",
                     )}
                   >
                     <FormattedMessage {...knowledgeMockMessages[stage.descKey]} />
@@ -423,33 +422,33 @@ export function KnowledgeMockUI() {
   return (
     <div className="overflow-hidden rounded-xl border border-border bg-card shadow-2xl shadow-gray-alpha-100">
       <div className="grid min-h-[22rem] md:grid-cols-[1.4fr_1fr]">
-        <div className="relative border-b border-border/60 md:border-b-0 md:border-r">
-          <MeasureClone items={ALL_ITEMS} measureRef={measureRef} />
-          {panelHeight > 0 && (
-            <MemoryPanel
-              key={loopKey}
-              items={ALL_ITEMS}
-              eatenUpTo={eatenUpTo}
-              headerY={headerY}
-              showUpdated={showUpdated}
-              cardTops={cardTops}
-              panelHeight={panelHeight}
-              headerCardHeight={headerCardHeight}
-              risingIndex={risingIndex}
-            />
-          )}
-        </div>
-        <div className="relative overflow-hidden">
+        <div className="relative overflow-hidden border-b border-border/60 md:border-b-0 md:border-r">
           <Image
             src={LAVENDER_MESH_GRADIENT_SRC}
             alt=""
             aria-hidden
             fill
-            className="object-cover object-center opacity-40 dark:opacity-30"
+            className="pointer-events-none object-cover object-center"
           />
-          <div className="relative">
-            <StagePanel activeStageIndex={activeStageIndex} />
+          <div className="relative z-10 m-2 sm:m-10 md:m-20">
+            <MeasureClone items={ALL_ITEMS} measureRef={measureRef} />
+            {panelHeight > 0 && (
+              <MemoryPanel
+                key={loopKey}
+                items={ALL_ITEMS}
+                eatenUpTo={eatenUpTo}
+                headerY={headerY}
+                showUpdated={showUpdated}
+                cardTops={cardTops}
+                panelHeight={panelHeight}
+                headerCardHeight={headerCardHeight}
+                risingIndex={risingIndex}
+              />
+            )}
           </div>
+        </div>
+        <div className="relative overflow-hidden">
+          <StagePanel activeStageIndex={activeStageIndex} />
         </div>
       </div>
     </div>

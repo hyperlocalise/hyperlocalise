@@ -59,30 +59,24 @@ function ProductHero({ content }: ProductPageProps) {
 
   if (isKnowledge) {
     return (
-      <MeshStage
-        layout="breakout"
-        meshSrc={LAVENDER_MESH_GRADIENT_SRC}
-        contentClassName="flex min-h-[28rem] flex-col items-center justify-center py-20 text-center"
-      >
-        <div className="flex max-w-2xl flex-col items-center gap-8">
-          <div className="flex flex-col gap-4">
-            <h1 className="font-heading text-[clamp(2.5rem,5vw,4.75rem)] leading-[1] font-semibold tracking-normal text-balance">
-              <ProductMessage messageKey={content.hero.headlineKey} />
-            </h1>
-            <p className="max-w-lg text-md leading-8 text-muted-foreground text-balance sm:text-lg">
-              <ProductMessage messageKey={content.hero.subcopyKey} />
-            </p>
-          </div>
-          <Button
-            size="lg"
-            nativeButton={false}
-            render={<a href={REQUEST_DEMO_URL} target="_blank" rel="noopener noreferrer" />}
-          >
-            <ProductMessage messageKey="ctaJoinWaitlist" />
-            <HugeiconsIcon icon={ArrowRight01Icon} data-icon="inline-end" className="size-4" />
-          </Button>
+      <div className="mx-auto flex w-full max-w-6xl flex-col items-center gap-8 text-center">
+        <div className="flex flex-col gap-4">
+          <h1 className="font-heading text-[clamp(2.5rem,5vw,4.75rem)] leading-[1] font-semibold tracking-normal text-balance">
+            <ProductMessage messageKey={content.hero.headlineKey} />
+          </h1>
+          <p className="max-auto text-md leading-8 text-muted-foreground text-balance sm:text-lg">
+            <ProductMessage messageKey={content.hero.subcopyKey} />
+          </p>
         </div>
-      </MeshStage>
+        <Button
+          size="lg"
+          nativeButton={false}
+          render={<a href={REQUEST_DEMO_URL} target="_blank" rel="noopener noreferrer" />}
+        >
+          <ProductMessage messageKey="ctaJoinWaitlist" />
+          <HugeiconsIcon icon={ArrowRight01Icon} data-icon="inline-end" className="size-4" />
+        </Button>
+      </div>
     );
   }
 
@@ -150,7 +144,6 @@ function ProductShowcase({ content }: ProductPageProps) {
   }
 
   return null;
-
 }
 
 function ProductDetailsSection({ content }: ProductPageProps) {
