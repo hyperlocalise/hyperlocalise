@@ -218,7 +218,6 @@ export function KnowledgeWaveGlobe() {
       className="pointer-events-none absolute inset-0 overflow-hidden"
     >
       <canvas ref={canvasRef} className="pointer-events-none absolute inset-0 h-full w-full" />
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_60%_55%_at_center,transparent_50%,var(--background)_85%)]" />
     </div>
   );
 }

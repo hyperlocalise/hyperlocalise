@@ -89,7 +89,7 @@ function HeroSignal({
   return (
     <motion.div
       variants={itemVariants}
-      className="flex items-center gap-3 rounded-lg border border-border/70 bg-background/75 px-3 py-2 backdrop-blur-md"
+      className="flex items-center gap-3 rounded-lg border border-primary/30 bg-background/75 px-3 py-2 backdrop-blur-md"
     >
       <span className="flex size-7 shrink-0 items-center justify-center rounded-full border border-primary/20 bg-primary/8 text-primary">
         <HugeiconsIcon icon={icon} strokeWidth={1.8} className="size-3.5" />
@@ -161,7 +161,7 @@ export function KnowledgeHero({
 
         <div
           aria-hidden
-          className="pointer-events-none absolute left-1/2 top-1/2 -z-10 size-[34rem] -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary/5 blur-3xl"
+          className="pointer-events-none absolute left-1/2 top-1/2 -z-10 size-[34rem] -translate-x-1/2 -translate-y-1/2 rounded-full bg-transparent"
         />
       </div>
     </section>
