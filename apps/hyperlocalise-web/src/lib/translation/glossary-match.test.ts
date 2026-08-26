@@ -55,6 +55,13 @@ describe("normalizeGlossaryTermStatus", () => {
     });
   });
 
+  it("infers preferred from an explicit non-forbidden provider flag without a status", () => {
+    expect(normalizeGlossaryTermStatus({ forbidden: false })).toEqual({
+      forbidden: false,
+      preferred: true,
+    });
+  });
+
   it("honors explicit forbidden flags over status text", () => {
     expect(
       normalizeGlossaryTermStatus({

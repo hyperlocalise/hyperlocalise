@@ -118,7 +118,10 @@ export function normalizeGlossaryTermStatus(
   input: ProviderGlossaryTermStatusInput,
 ): NormalizedGlossaryTermStatus {
   const { forbidden } = normalizeProviderGlossaryTermFlags(input);
-  const preferred = normalizedGlossaryTermStatusFromStatus(input.status).preferred;
+  const status = input.status?.trim();
+  const preferred = status
+    ? normalizedGlossaryTermStatusFromStatus(status).preferred
+    : input.forbidden === false;
   return {
     forbidden,
     preferred: forbidden ? false : preferred,

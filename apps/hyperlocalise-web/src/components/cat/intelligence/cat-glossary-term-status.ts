@@ -25,7 +25,7 @@ export function normalizedCatGlossaryTermStatus(
   const normalized = term.status?.trim().toLowerCase().replaceAll(" ", "_");
 
   if (normalized) {
-    if (term.forbidden || normalized === "forbidden" || normalized === "not_recommended") {
+    if (normalized === "forbidden" || normalized === "not_recommended") {
       return "not_recommended";
     }
     if (normalized === "preferred") {
@@ -33,6 +33,10 @@ export function normalizedCatGlossaryTermStatus(
     }
     if (normalized === "admitted" || normalized === "draft" || normalized === "obsolete") {
       return normalized;
+    }
+
+    if (term.forbidden) {
+      return "not_recommended";
     }
   }
 

@@ -59,4 +59,16 @@ describe("normalizedCatGlossaryTermStatus", () => {
       }),
     ).toBe("admitted");
   });
+
+  it("preserves an explicit obsolete status over a derived forbidden flag", () => {
+    expect(
+      normalizedCatGlossaryTermStatus({
+        id: "term-5",
+        locale: "fr",
+        text: "Archiver",
+        status: "obsolete",
+        forbidden: true,
+      }),
+    ).toBe("obsolete");
+  });
 });
