@@ -109,6 +109,27 @@ export function buildWorkspaceSourceUploadAutomationIdempotencyKey(input: {
   ].join(":");
 }
 
+export function buildWorkspaceSourceUploadManualRunIdempotencyKey(input: {
+  automationId: string;
+  configVersion: number;
+  projectId: string;
+  sourcePath: string;
+  sourceFileVersionId: string;
+  runNonce: string;
+}): string {
+  return [
+    "workspace-automation:source-upload:manual",
+    JSON.stringify([
+      input.automationId,
+      input.configVersion,
+      input.projectId,
+      input.sourcePath,
+      input.sourceFileVersionId,
+      input.runNonce,
+    ]),
+  ].join(":");
+}
+
 export function buildWorkspaceContentfulScheduledAutomationIdempotencyKey(input: {
   automationId: string;
   configVersion: number;

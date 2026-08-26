@@ -34,6 +34,8 @@ export const jobStatusEnum = pgEnum("job_status", [
   "waiting_for_review",
   "cancelled",
 ]);
+/** Distinguishes jobs owned by a workspace member from jobs assigned to the translation agent. */
+export const jobAssigneeTypeEnum = pgEnum("job_assignee_type", ["user", "agent"]);
 /**
  * Distinguishes string-based translation jobs from file-based translation jobs so job details can point at the right source inputs and outputs.
  */

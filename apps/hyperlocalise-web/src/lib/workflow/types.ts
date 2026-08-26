@@ -146,6 +146,7 @@ export type SourceFileIngestEventData = {
   projectId: string;
   storedFileId: string;
   sourcePath: string;
+  targetAutomationId?: string;
 };
 
 export type SourceFileIngestQueue = JobQueue<SourceFileIngestEventData>;

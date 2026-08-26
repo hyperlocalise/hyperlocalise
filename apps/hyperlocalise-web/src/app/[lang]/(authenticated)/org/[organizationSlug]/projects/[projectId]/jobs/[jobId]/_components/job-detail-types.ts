@@ -18,6 +18,7 @@ export type JobDetailRecord = {
   projectName: string | null;
   createdByUserId: string | null;
   ownerUserId: string | null;
+  assigneeType?: "user" | "agent" | null;
   kind: "translation" | "research" | "review" | "proofread" | "sync" | "asset_management";
   type: "string" | "file" | null;
   status: "queued" | "running" | "succeeded" | "failed" | "waiting_for_review" | "cancelled";

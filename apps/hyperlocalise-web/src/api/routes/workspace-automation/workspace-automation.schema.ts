@@ -66,6 +66,16 @@ export const createWorkspaceAutomationRunBodySchema = z
   })
   .strict();
 
+export const workspaceAutomationSourceFileRunBodySchema = z
+  .object({
+    sourcePaths: z.array(z.string().trim().min(1).max(2048)).min(1).max(100),
+  })
+  .strict()
+  .refine((value) => new Set(value.sourcePaths).size === value.sourcePaths.length, {
+    message: "Source paths must be unique",
+    path: ["sourcePaths"],
+  });
+
 export const listWorkspaceAutomationRunsQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(100).default(25),
   offset: z.coerce.number().int().min(0).default(0),

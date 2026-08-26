@@ -14,7 +14,7 @@
  */
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Delete02Icon, PlayIcon, SaveIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -31,9 +31,20 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
 import { buildAutomationsPath } from "@/components/app-shell/navigation-config";
 import { apiClient } from "@/lib/api-client-instance";
+import { readApiResponseError } from "@/lib/api-error";
 import { buildWorkspaceAutomationWebChatHref } from "@/lib/agents/workspace-automation-web-chat-url";
 import {
   createWorkspaceAutomationFormStateFromRecord,
@@ -74,7 +85,7 @@ export function AutomationDetailPageContent({
       ].$get({
         param: { organizationSlug, automationId },
       });
-      if (!response.ok) {
+      if (response.status !== 200) {
         throw new Error("Failed to load automation");
       }
       return response.json();
@@ -88,7 +99,44 @@ export function AutomationDetailPageContent({
   > | null>(null);
   const [errors, setErrors] = useState<Record<string, string | undefined>>({});
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [sourceFileDialogOpen, setSourceFileDialogOpen] = useState(false);
+  const [selectedSourcePaths, setSelectedSourcePaths] = useState<string[]>([]);
+  const [sourceFileSearch, setSourceFileSearch] = useState("");
   const writeLockRef = useRef<"save" | "delete" | null>(null);
+
+  const sourceFilesQuery = useQuery({
+    queryKey: ["automation-source-files", organizationSlug, automation?.projectId],
+    enabled: sourceFileDialogOpen && Boolean(automation?.projectId),
+    queryFn: async () => {
+      const projectId = automation?.projectId;
+      if (!projectId) {
+        return [];
+      }
+      const response = await apiClient.api.orgs[":organizationSlug"].projects[
+        ":projectId"
+      ].files.$get({
+        param: { organizationSlug, projectId },
+        query: { limit: "1000" },
+      });
+      if (response.status !== 200) {
+        throw await readApiResponseError(response, "Failed to load source files");
+      }
+      const body = await response.json();
+      return Array.from(
+        new Map(body.files.map((file) => [file.sourcePath, file])).values(),
+      ).toSorted((left, right) => left.sourcePath.localeCompare(right.sourcePath));
+    },
+  });
+
+  const visibleSourceFiles = useMemo(() => {
+    const search = sourceFileSearch.trim().toLocaleLowerCase();
+    if (!search) {
+      return sourceFilesQuery.data ?? [];
+    }
+    return (sourceFilesQuery.data ?? []).filter((file) =>
+      file.sourcePath.toLocaleLowerCase().includes(search),
+    );
+  }, [sourceFileSearch, sourceFilesQuery.data]);
 
   useEffect(() => {
     if (automation) {
@@ -121,11 +169,9 @@ export function AutomationDetailPageContent({
           json: payload,
         });
 
-        if (!response.ok) {
-          const body = (await response.json().catch(() => null)) as {
-            error?: string;
-          } | null;
-          if (body?.error) {
+        if (response.status !== 200) {
+          const body = await response.json();
+          if ("error" in body && typeof body.error === "string") {
             setErrors(mapWorkspaceAutomationApiErrorToFieldErrors(body.error));
           }
           throw new Error("Failed to update automation");
@@ -181,6 +227,38 @@ export function AutomationDetailPageContent({
     },
   });
 
+  const sourceFileRunMutation = useMutation({
+    mutationFn: async (sourcePaths: string[]) => {
+      const response = await apiClient.api.orgs[":organizationSlug"].automations[":automationId"][
+        "source-files"
+      ].$post({
+        param: { organizationSlug, automationId },
+        json: { sourcePaths },
+      });
+      if (response.status !== 202) {
+        throw await readApiResponseError(response, "Failed to run automation for source files");
+      }
+      return response.json();
+    },
+    onSuccess: ({ selectedCount, queuedCount }) => {
+      toast.success(
+        intl.formatMessage(automationDetailPageContentMessages.sourceFilesQueued, {
+          count: selectedCount,
+          queued: queuedCount,
+        }),
+      );
+      setSourceFileDialogOpen(false);
+      setSelectedSourcePaths([]);
+      setSourceFileSearch("");
+      void queryClient.invalidateQueries({
+        queryKey: ["workspace-automation", organizationSlug, automationId],
+      });
+    },
+    onError: () => {
+      toast.error(intl.formatMessage(automationDetailPageContentMessages.sourceFilesRunError));
+    },
+  });
+
   const deleteMutation = useMutation({
     mutationFn: async () => {
       if (writeLockRef.current === "save") {
@@ -233,6 +311,8 @@ export function AutomationDetailPageContent({
   const showRunButton =
     workspaceAutomationFormSupportsOnDemandRun(form.triggerMode) &&
     workspaceAutomationFormSupportsOnDemandRun(savedForm.triggerMode);
+  const showSourceFileRunButton =
+    form.triggerMode === "source_upload" && savedForm.triggerMode === "source_upload";
   const saveInFlight = saveMutation.isPending;
   const deleteInFlight = deleteMutation.isPending;
   const writeInFlight = saveInFlight || deleteInFlight;
@@ -291,13 +371,23 @@ export function AutomationDetailPageContent({
                   <FormattedMessage {...automationDetailPageContentMessages.openChat} />
                 </Button>
               </>
-            ) : showRunButton ? (
+            ) : showRunButton || showSourceFileRunButton ? (
               <Button
                 variant="outline"
-                onClick={() => runMutation.mutate()}
-                disabled={runMutation.isPending || automation.status !== "active"}
+                onClick={() => {
+                  if (showSourceFileRunButton) {
+                    setSourceFileDialogOpen(true);
+                    return;
+                  }
+                  runMutation.mutate();
+                }}
+                disabled={
+                  runMutation.isPending ||
+                  sourceFileRunMutation.isPending ||
+                  automation.status !== "active"
+                }
               >
-                {runMutation.isPending ? (
+                {runMutation.isPending || sourceFileRunMutation.isPending ? (
                   <Spinner data-icon="inline-start" />
                 ) : (
                   <HugeiconsIcon icon={PlayIcon} strokeWidth={1.8} data-icon="inline-start" />
@@ -328,6 +418,108 @@ export function AutomationDetailPageContent({
           </div>
         }
       />
+
+      <Dialog
+        open={sourceFileDialogOpen}
+        onOpenChange={(open) => {
+          if (sourceFileRunMutation.isPending) {
+            return;
+          }
+          setSourceFileDialogOpen(open);
+          if (!open) {
+            setSelectedSourcePaths([]);
+            setSourceFileSearch("");
+          }
+        }}
+      >
+        <DialogContent className="flex max-h-[80vh] flex-col sm:max-w-xl">
+          <DialogHeader>
+            <DialogTitle>
+              <FormattedMessage {...automationDetailPageContentMessages.selectSourceFilesTitle} />
+            </DialogTitle>
+            <DialogDescription>
+              <FormattedMessage
+                {...automationDetailPageContentMessages.selectSourceFilesDescription}
+              />
+            </DialogDescription>
+          </DialogHeader>
+          <Input
+            value={sourceFileSearch}
+            onChange={(event) => setSourceFileSearch(event.target.value)}
+            placeholder={intl.formatMessage(
+              automationDetailPageContentMessages.searchSourceFilesPlaceholder,
+            )}
+            aria-label={intl.formatMessage(
+              automationDetailPageContentMessages.searchSourceFilesLabel,
+            )}
+          />
+          <div className="min-h-0 flex-1 overflow-y-auto rounded-lg border border-border">
+            {sourceFilesQuery.isLoading ? (
+              <div className="flex items-center justify-center gap-2 p-8 text-muted-foreground">
+                <Spinner />
+                <FormattedMessage {...automationDetailPageContentMessages.loadingSourceFiles} />
+              </div>
+            ) : sourceFilesQuery.isError ? (
+              <p className="p-6 text-center text-sm text-destructive">
+                <FormattedMessage {...automationDetailPageContentMessages.loadSourceFilesError} />
+              </p>
+            ) : visibleSourceFiles.length === 0 ? (
+              <p className="p-6 text-center text-sm text-muted-foreground">
+                <FormattedMessage {...automationDetailPageContentMessages.noSourceFiles} />
+              </p>
+            ) : (
+              <div className="divide-y divide-border">
+                {visibleSourceFiles.map((file) => {
+                  const checked = selectedSourcePaths.includes(file.sourcePath);
+                  return (
+                    <label
+                      key={file.sourcePath}
+                      className="flex cursor-pointer items-center gap-3 px-4 py-3 hover:bg-muted/50"
+                    >
+                      <Checkbox
+                        checked={checked}
+                        onCheckedChange={(nextChecked) => {
+                          setSelectedSourcePaths((current) =>
+                            nextChecked
+                              ? [...current, file.sourcePath]
+                              : current.filter((sourcePath) => sourcePath !== file.sourcePath),
+                          );
+                        }}
+                      />
+                      <span className="min-w-0 truncate font-mono text-xs">{file.sourcePath}</span>
+                    </label>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setSourceFileDialogOpen(false)}
+              disabled={sourceFileRunMutation.isPending}
+            >
+              <FormattedMessage
+                {...automationDetailPageContentMessages.cancelSourceFileSelection}
+              />
+            </Button>
+            <Button
+              onClick={() => sourceFileRunMutation.mutate(selectedSourcePaths)}
+              disabled={selectedSourcePaths.length === 0 || sourceFileRunMutation.isPending}
+            >
+              {sourceFileRunMutation.isPending ? (
+                <Spinner data-icon="inline-start" />
+              ) : (
+                <HugeiconsIcon icon={PlayIcon} strokeWidth={1.8} data-icon="inline-start" />
+              )}
+              <FormattedMessage
+                {...automationDetailPageContentMessages.runSelectedSourceFiles}
+                values={{ count: selectedSourcePaths.length }}
+              />
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <AlertDialog
         open={deleteDialogOpen}

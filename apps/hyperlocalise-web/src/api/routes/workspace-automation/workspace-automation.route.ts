@@ -32,7 +32,10 @@ import {
   workspaceResourceLimitMessage,
   type WorkspaceResourceLimitError,
 } from "@/lib/billing/workspace-resource-limits";
-import { dispatchManualWorkspaceAutomationRun } from "@/lib/agents/workspace-automation-dispatcher";
+import {
+  dispatchManualWorkspaceAutomationRun,
+  dispatchWorkspaceAutomationForSourceUpload,
+} from "@/lib/agents/workspace-automation-dispatcher";
 import {
   createWorkspaceAutomation,
   getWorkspaceAutomationById,
@@ -58,6 +61,7 @@ import {
 import { db, schema } from "@/lib/database";
 import type { FileStorageAdapter } from "@/lib/file-storage";
 import { getFileStorageAdapter } from "@/lib/file-storage";
+import { getLatestRepositorySourceFileVersion } from "@/lib/file-storage/records";
 import { isErr } from "@/lib/primitives/result/results";
 
 import {
@@ -68,6 +72,7 @@ import {
   updateWorkspaceAutomationBodySchema,
   workspaceAutomationIdParamSchema,
   workspaceAutomationKnowledgeFileIdParamSchema,
+  workspaceAutomationSourceFileRunBodySchema,
 } from "./workspace-automation.schema";
 import { updateGithubAutoReviewSettingsBodySchema } from "./github-auto-review.schema";
 
@@ -143,6 +148,19 @@ const validateKnowledgeFileParams = validator("param", (value, c) => {
   const parsed = workspaceAutomationKnowledgeFileIdParamSchema.safeParse(value);
   if (!parsed.success) {
     return badRequestResponse(c, "invalid_workspace_automation_knowledge_file_id");
+  }
+  return parsed.data;
+});
+
+const validateSourceFileRunBody = validator("json", (value, c) => {
+  const parsed = workspaceAutomationSourceFileRunBodySchema.safeParse(value);
+  if (!parsed.success) {
+    return badRequestResponse(
+      c,
+      "invalid_source_file_selection",
+      "Select at least one existing source file.",
+      parsed.error.flatten(),
+    );
   }
   return parsed.data;
 });
@@ -720,6 +738,111 @@ export function createWorkspaceAutomationRoutes(
 
       return c.json({ automationRuns }, 200);
     })
+    .post(
+      "/:automationId/source-files",
+      validateAutomationParams,
+      validateSourceFileRunBody,
+      async (c) => {
+        const params = c.req.valid("param");
+        const payload = c.req.valid("json");
+        const organizationId = c.var.auth.organization.localOrganizationId;
+        const automation = await getWorkspaceAutomationById({
+          automationId: params.automationId,
+          organizationId,
+        });
+
+        if (!automation) {
+          return notFoundResponse(c, "workspace_automation_not_found");
+        }
+        if (automation.status !== "active") {
+          return badRequestResponse(
+            c,
+            "workspace_automation_inactive",
+            "Only active automations can be run.",
+          );
+        }
+        if (automation.triggerConfig.mode !== "source_upload") {
+          return badRequestResponse(
+            c,
+            "source_upload_run_not_supported",
+            "Select files only for source-upload automations.",
+          );
+        }
+        if (!automation.projectId) {
+          return badRequestResponse(
+            c,
+            "workspace_automation_project_required",
+            "Choose a project before running this automation.",
+          );
+        }
+
+        const [project] = await db
+          .select()
+          .from(schema.projects)
+          .where(
+            and(
+              eq(schema.projects.id, automation.projectId),
+              eq(schema.projects.organizationId, organizationId),
+            ),
+          )
+          .limit(1);
+        if (!project) {
+          return notFoundResponse(c, "project_not_found");
+        }
+        if (project.source === "external_tms") {
+          return badRequestResponse(
+            c,
+            "source_upload_project_not_supported",
+            "Manual file runs require a native Hyperlocalise project.",
+          );
+        }
+
+        const versions = await Promise.all(
+          payload.sourcePaths.map((sourcePath) =>
+            getLatestRepositorySourceFileVersion({
+              organizationId,
+              projectId: project.id,
+              sourcePath,
+            }),
+          ),
+        );
+        const missingSourcePaths = payload.sourcePaths.filter((_, index) => !versions[index]);
+        if (missingSourcePaths.length > 0) {
+          return badRequestResponse(
+            c,
+            "source_files_not_found",
+            "One or more selected source files no longer exist.",
+            { sourcePaths: missingSourcePaths },
+          );
+        }
+
+        const results = await Promise.all(
+          versions.map(async (version, index) => {
+            if (!version) {
+              return null;
+            }
+            return dispatchWorkspaceAutomationForSourceUpload({
+              automationId: automation.id,
+              organizationId,
+              projectId: project.id,
+              sourceFileId: version.repositorySourceFileId,
+              sourceFileVersionId: version.id,
+              sourcePath: payload.sourcePaths[index] ?? version.sourcePath,
+              sourceHash: version.sourceHash,
+              forceNewRun: true,
+            });
+          }),
+        );
+
+        return c.json(
+          {
+            selectedCount: payload.sourcePaths.length,
+            queuedCount: results.filter((result) => result?.outcome === "enqueued").length,
+          },
+          202,
+        );
+      },
+    )
     .post("/:automationId/runs", validateAutomationParams, validateRunBody, async (c) => {
       const params = c.req.valid("param");
       const payload = c.req.valid("json");

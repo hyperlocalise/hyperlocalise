@@ -12,7 +12,10 @@
  */
 import { describe, expect, it } from "vite-plus/test";
 
-import { buildWorkspaceSourceUploadAutomationIdempotencyKey } from "./workspace-automation-idempotency";
+import {
+  buildWorkspaceSourceUploadAutomationIdempotencyKey,
+  buildWorkspaceSourceUploadManualRunIdempotencyKey,
+} from "./workspace-automation-idempotency";
 
 const baseInput = {
   automationId: "automation-1",
@@ -76,5 +79,21 @@ describe("buildWorkspaceSourceUploadAutomationIdempotencyKey", () => {
 
     expect(first).toBe("workspace-automation:source-upload:automation-1:3:version-1");
     expect(nextVersion).not.toBe(first);
+  });
+});
+
+describe("buildWorkspaceSourceUploadManualRunIdempotencyKey", () => {
+  it("includes a run nonce so each operator selection is unique", () => {
+    const first = buildWorkspaceSourceUploadManualRunIdempotencyKey({
+      ...baseInput,
+      runNonce: "nonce-1",
+    });
+    const second = buildWorkspaceSourceUploadManualRunIdempotencyKey({
+      ...baseInput,
+      runNonce: "nonce-2",
+    });
+
+    expect(second).not.toBe(first);
+    expect(first).not.toBe(buildWorkspaceSourceUploadAutomationIdempotencyKey(baseInput));
   });
 });

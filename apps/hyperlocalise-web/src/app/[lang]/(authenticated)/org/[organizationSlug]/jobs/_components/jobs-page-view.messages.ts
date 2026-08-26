@@ -140,6 +140,11 @@ export const jobsPageViewMessages = defineMessages({
     id: "HxcjgjcAgw",
     description: "Label above the jobs status filter",
   },
+  assigneeAgent: {
+    defaultMessage: "Agent",
+    id: "lwqBR9v/eP",
+    description: "Assignee label for a native job assigned to Agent",
+  },
   filterView: {
     defaultMessage: "View",
     id: "PATshCyE6V",

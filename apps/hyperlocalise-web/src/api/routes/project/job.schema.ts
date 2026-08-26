@@ -118,6 +118,7 @@ export const jobRecordSchema = z
     projectId: z.string().nullable(),
     createdByUserId: z.string().nullable(),
     ownerUserId: z.string().nullable(),
+    assigneeType: z.enum(schema.jobAssigneeTypeEnum.enumValues).nullable().optional(),
     kind: z.enum(schema.jobKindEnum.enumValues),
     type: z.enum(schema.translationJobTypeEnum.enumValues).nullable(),
     status: z.enum(schema.jobStatusEnum.enumValues),

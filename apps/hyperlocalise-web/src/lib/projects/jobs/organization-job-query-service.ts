@@ -36,6 +36,7 @@ const jobWithProjectSelect = {
   projectId: schema.jobs.projectId,
   createdByUserId: schema.jobs.createdByUserId,
   ownerUserId: schema.jobs.ownerUserId,
+  assigneeType: schema.jobs.assigneeType,
   kind: schema.jobs.kind,
   type: schema.translationJobDetails.type,
   status: schema.jobs.status,

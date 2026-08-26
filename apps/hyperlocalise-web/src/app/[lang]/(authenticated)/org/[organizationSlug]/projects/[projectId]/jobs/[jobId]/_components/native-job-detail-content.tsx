@@ -242,6 +242,7 @@ export function NativeJobDetailContent({
           projectId={projectId}
           jobId={jobId}
           ownerUserId={job.ownerUserId}
+          assigneeType={job.assigneeType}
           queryKey={jobQueryKey}
           disabled={
             retryJob.isPending ||

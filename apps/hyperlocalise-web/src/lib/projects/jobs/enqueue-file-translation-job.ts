@@ -258,6 +258,7 @@ export async function createFileTranslationJob(
           createdByUserId: input.createdByUserId ?? null,
           apiKeyId: input.apiKeyId ?? null,
           ownerUserId: input.ownerUserId ?? null,
+          assigneeType: input.ownerUserId ? "user" : null,
           kind: "translation",
           status: "queued",
           inputPayload,
@@ -366,6 +367,15 @@ export async function enqueueExistingFileTranslationJob(
       message: `Job status "${job.status}" cannot be assigned to the translation agent.`,
     };
   }
+
+  await db
+    .update(schema.jobs)
+    .set({
+      assigneeType: "agent",
+      ownerUserId: null,
+      updatedAt: new Date(),
+    })
+    .where(and(eq(schema.jobs.id, job.id), eq(schema.jobs.organizationId, input.organizationId)));
 
   const enqueued = await enqueueFileTranslationJobEvent({
     organizationId: input.organizationId,

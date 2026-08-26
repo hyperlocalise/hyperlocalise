@@ -12,7 +12,10 @@
  */
 import { and, desc, eq, inArray, or } from "drizzle-orm";
 
-import { dispatchWorkspaceAutomationsForSourceUpload } from "@/lib/agents/workspace-automation-dispatcher";
+import {
+  dispatchWorkspaceAutomationForSourceUpload,
+  dispatchWorkspaceAutomationsForSourceUpload,
+} from "@/lib/agents/workspace-automation-dispatcher";
 import { db, schema } from "@/lib/database";
 import { createLogger } from "@/lib/log";
 import type { SourceFileIngestEventData, SourceFileIngestQueue } from "@/lib/workflow/types";
@@ -140,7 +143,21 @@ export async function dispatchSourceUploadAutomations(input: {
   sourceFileVersionId: string;
   sourcePath: string;
   sourceHash?: string | null;
+  targetAutomationId?: string;
 }) {
+  if (input.targetAutomationId) {
+    await dispatchWorkspaceAutomationForSourceUpload({
+      organizationId: input.organizationId,
+      automationId: input.targetAutomationId,
+      projectId: input.projectId,
+      sourceFileId: input.sourceFileId,
+      sourceFileVersionId: input.sourceFileVersionId,
+      sourcePath: input.sourcePath,
+      sourceHash: input.sourceHash,
+    });
+    return;
+  }
+
   await dispatchWorkspaceAutomationsForSourceUpload({
     organizationId: input.organizationId,
     projectId: input.projectId,
@@ -189,6 +206,7 @@ export async function enqueueSourceFileIngestAfterUpload(
       sourceFileVersionId: input.sourceFileVersionId,
       sourcePath: input.sourcePath,
       sourceHash: input.sourceHash,
+      targetAutomationId: input.targetAutomationId,
     }).catch((error) => {
       logger.warn(
         {
@@ -212,6 +230,7 @@ export async function enqueueSourceFileIngestAfterUpload(
     projectId: input.projectId,
     storedFileId: input.storedFileId,
     sourcePath: input.sourcePath,
+    targetAutomationId: input.targetAutomationId,
   });
 
   logger.info(

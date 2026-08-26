@@ -37,6 +37,7 @@ import {
   dispatchContentfulWorkspaceAutomationForManual,
   dispatchContentfulWorkspaceAutomationForSchedule,
   dispatchManualWorkspaceAutomationRun,
+  dispatchWorkspaceAutomationForSourceUpload,
   dispatchWorkspaceAutomationForSchedule,
   dispatchWorkspaceAutomationsForContentfulWebhook,
   dispatchWorkspaceAutomationsForGithubPullRequest,
@@ -1193,6 +1194,68 @@ describe("workspace automation dispatcher", () => {
     });
   });
 
+  it("starts a new source-upload run for an operator selection even after success", async () => {
+    const scope = await seedDispatchScope();
+    const automation = await seedSourceUploadAutomation({
+      organizationId: scope.organizationId,
+      userId: scope.userId,
+      projectId: scope.projectId,
+      name: "Rerun selected uploads",
+    });
+    const enqueued: Array<{ workspaceAutomationRunId: string; organizationId: string }> = [];
+    const queue = {
+      async enqueue(event: { workspaceAutomationRunId: string; organizationId: string }) {
+        enqueued.push(event);
+        return { ids: [`workflow-${enqueued.length}`] };
+      },
+    };
+    const baseUpload = {
+      organizationId: scope.organizationId,
+      automationId: automation.id,
+      projectId: scope.projectId,
+      sourceFileId: "file-1",
+      sourceFileVersionId: "version-1",
+      sourcePath: "locales/en.json",
+      sourceHash: "operator-rerun-hash",
+      queue,
+    };
+
+    const first = await dispatchWorkspaceAutomationForSourceUpload(baseUpload);
+    if (!first) {
+      throw new Error("expected the first dispatch to enqueue a run");
+    }
+    await updateWorkspaceAutomationRun({
+      runId: first.runId,
+      organizationId: scope.organizationId,
+      status: "succeeded",
+      completedAt: new Date(),
+    });
+
+    const rerun = await dispatchWorkspaceAutomationForSourceUpload({
+      ...baseUpload,
+      forceNewRun: true,
+    });
+    if (!rerun) {
+      throw new Error("expected the operator selection to enqueue a new run");
+    }
+
+    expect(first.inserted).toBe(true);
+    expect(rerun).toMatchObject({ outcome: "enqueued", inserted: true });
+    expect(rerun.runId).not.toBe(first.runId);
+    expect(enqueued).toHaveLength(2);
+
+    const runs = await listWorkspaceAutomationRuns({
+      automationId: automation.id,
+      organizationId: scope.organizationId,
+    });
+    expect(runs).toHaveLength(2);
+    expect(
+      runs.some((run) =>
+        run.idempotencyKey?.startsWith("workspace-automation:source-upload:manual:"),
+      ),
+    ).toBe(true);
+  });
+
   it("deduplicates identical source content across upload versions", async () => {
     const scope = await seedDispatchScope();
     const automation = expectOk(
@@ -1266,6 +1329,52 @@ describe("workspace automation dispatcher", () => {
       organizationId: scope.organizationId,
     });
     expect(runs).toHaveLength(2);
+  });
+
+  it("dispatches only the explicitly targeted source-upload automation", async () => {
+    const scope = await seedDispatchScope();
+    const targeted = await seedSourceUploadAutomation({
+      organizationId: scope.organizationId,
+      userId: scope.userId,
+      projectId: scope.projectId,
+      name: "Targeted upload automation",
+    });
+    const untargeted = await seedSourceUploadAutomation({
+      organizationId: scope.organizationId,
+      userId: scope.userId,
+      projectId: scope.projectId,
+      name: "Untargeted upload automation",
+    });
+    const queue = {
+      async enqueue() {
+        return { ids: ["workflow-targeted"] };
+      },
+    };
+
+    const result = await dispatchWorkspaceAutomationForSourceUpload({
+      organizationId: scope.organizationId,
+      automationId: targeted.id,
+      projectId: scope.projectId,
+      sourceFileId: "file-targeted",
+      sourceFileVersionId: "version-targeted",
+      sourcePath: "locales/en.json",
+      sourceHash: "targeted-hash",
+      queue,
+    });
+
+    expect(result).toMatchObject({ outcome: "enqueued", inserted: true });
+    await expect(
+      listWorkspaceAutomationRuns({
+        automationId: targeted.id,
+        organizationId: scope.organizationId,
+      }),
+    ).resolves.toHaveLength(1);
+    await expect(
+      listWorkspaceAutomationRuns({
+        automationId: untargeted.id,
+        organizationId: scope.organizationId,
+      }),
+    ).resolves.toHaveLength(0);
   });
 
   it("deduplicates concurrent identical source content dispatches", async () => {

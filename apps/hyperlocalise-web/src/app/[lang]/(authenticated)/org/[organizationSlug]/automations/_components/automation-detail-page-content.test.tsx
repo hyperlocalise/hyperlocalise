@@ -28,6 +28,8 @@ const apiMocks = vi.hoisted(() => ({
   getAutomation: vi.fn(),
   patchAutomation: vi.fn(),
   deleteAutomation: vi.fn(),
+  listProjectFiles: vi.fn(),
+  runSourceFiles: vi.fn(),
 }));
 
 vi.mock("next/navigation", () => ({
@@ -48,6 +50,16 @@ vi.mock("@/lib/api-client-instance", () => ({
               $get: (...args: unknown[]) => apiMocks.getAutomation(...args),
               $patch: (...args: unknown[]) => apiMocks.patchAutomation(...args),
               $delete: (...args: unknown[]) => apiMocks.deleteAutomation(...args),
+              "source-files": {
+                $post: (...args: unknown[]) => apiMocks.runSourceFiles(...args),
+              },
+            },
+          },
+          projects: {
+            ":projectId": {
+              files: {
+                $get: (...args: unknown[]) => apiMocks.listProjectFiles(...args),
+              },
             },
           },
         },
@@ -77,7 +89,7 @@ vi.mock("./workspace-automation-form", () => ({
 
 const automation = createAutomationSummary();
 
-function renderPage() {
+function renderPage(automationRecord = automation) {
   const queryClient = new QueryClient({
     defaultOptions: {
       queries: { retry: false },
@@ -87,7 +99,7 @@ function renderPage() {
   return render(
     <IntlProvider locale="en" messages={{}}>
       <QueryClientProvider client={queryClient}>
-        <AutomationDetailPageContent organizationSlug="acme" automationId={automation.id} />
+        <AutomationDetailPageContent organizationSlug="acme" automationId={automationRecord.id} />
       </QueryClientProvider>
     </IntlProvider>,
   );
@@ -102,12 +114,15 @@ describe("AutomationDetailPageContent write locking", () => {
     apiMocks.getAutomation.mockReset();
     apiMocks.patchAutomation.mockReset();
     apiMocks.deleteAutomation.mockReset();
+    apiMocks.listProjectFiles.mockReset();
+    apiMocks.runSourceFiles.mockReset();
   });
 
   it("disables delete while a save request is in flight", async () => {
     const user = userEvent.setup();
     apiMocks.getAutomation.mockResolvedValue({
       ok: true,
+      status: 200,
       json: async () => ({ automation, recentRuns: [] }),
     });
     apiMocks.patchAutomation.mockImplementation(() => pendingResponse());
@@ -126,6 +141,7 @@ describe("AutomationDetailPageContent write locking", () => {
     const user = userEvent.setup();
     apiMocks.getAutomation.mockResolvedValue({
       ok: true,
+      status: 200,
       json: async () => ({ automation, recentRuns: [] }),
     });
     apiMocks.deleteAutomation.mockImplementation(() => pendingResponse());
@@ -147,6 +163,7 @@ describe("AutomationDetailPageContent write locking", () => {
     const user = userEvent.setup();
     apiMocks.getAutomation.mockResolvedValue({
       ok: true,
+      status: 200,
       json: async () => ({ automation, recentRuns: [] }),
     });
     apiMocks.patchAutomation.mockImplementation(() => pendingResponse());
@@ -162,5 +179,55 @@ describe("AutomationDetailPageContent write locking", () => {
       screen.queryByRole("alertdialog", { name: "Delete automation?" }),
     ).not.toBeInTheDocument();
     expect(apiMocks.deleteAutomation).not.toHaveBeenCalled();
+  });
+
+  it("runs a source-upload automation for selected existing project files", async () => {
+    const user = userEvent.setup();
+    const sourceUploadAutomation = createAutomationSummary({
+      triggerConfig: { mode: "source_upload" },
+      repositoryTarget: { kind: "none" },
+      toolConfig: {
+        createNativeTmsJob: {
+          enabled: true,
+          useProjectTargetLocales: true,
+          targetLocales: [],
+        },
+      },
+    });
+    apiMocks.getAutomation.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ automation: sourceUploadAutomation, recentRuns: [] }),
+    });
+    apiMocks.listProjectFiles.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        files: [{ sourcePath: "locales/en.json" }, { sourcePath: "messages.po" }],
+      }),
+    });
+    apiMocks.runSourceFiles.mockResolvedValue({
+      ok: true,
+      status: 202,
+      json: async () => ({ selectedCount: 2, queuedCount: 2 }),
+    });
+
+    renderPage(sourceUploadAutomation);
+
+    await user.click(await screen.findByRole("button", { name: "Run now" }));
+    const dialog = await screen.findByRole("dialog", { name: "Select source files" });
+    await user.click(await within(dialog).findByRole("checkbox", { name: "locales/en.json" }));
+    await user.click(within(dialog).getByRole("checkbox", { name: "messages.po" }));
+    await user.click(within(dialog).getByRole("button", { name: "Run 2 files" }));
+
+    await vi.waitFor(() => expect(apiMocks.runSourceFiles).toHaveBeenCalledOnce());
+    expect(apiMocks.listProjectFiles).toHaveBeenCalledWith({
+      param: { organizationSlug: "acme", projectId: sourceUploadAutomation.projectId },
+      query: { limit: "1000" },
+    });
+    expect(apiMocks.runSourceFiles).toHaveBeenCalledWith({
+      param: { organizationSlug: "acme", automationId: sourceUploadAutomation.id },
+      json: { sourcePaths: ["locales/en.json", "messages.po"] },
+    });
   });
 });

@@ -25,6 +25,7 @@ import {
   buildWorkspaceManualAutomationIdempotencyKey,
   buildWorkspaceScheduledAutomationIdempotencyKey,
   buildWorkspaceSourceUploadAutomationIdempotencyKey,
+  buildWorkspaceSourceUploadManualRunIdempotencyKey,
 } from "./workspace-automation-idempotency";
 import {
   hasWorkspaceAutomationGithubWorkflow,
@@ -35,6 +36,7 @@ import {
   advanceWorkspaceAutomationNextRun,
   createWorkspaceAutomationRun,
   enqueueWorkspaceAutomationRunOnce,
+  getWorkspaceAutomationById,
   getWorkspaceAutomationRunByIdempotencyKey,
   hasWorkspaceAutomationContentfulWorkflow,
   hasWorkspaceAutomationCreateNativeTmsJobTool,
@@ -672,15 +674,83 @@ export async function dispatchDueContentfulWorkspaceAutomations(input?: {
   return results;
 }
 
-export async function dispatchWorkspaceAutomationsForSourceUpload(input: {
+type WorkspaceAutomationSourceUploadInput = {
   organizationId: string;
   projectId: string;
   sourceFileId: string;
   sourceFileVersionId: string;
   sourcePath: string;
   sourceHash?: string | null;
+  forceNewRun?: boolean;
   queue?: WorkspaceAutomationExecutionQueue;
-}): Promise<WorkspaceAutomationDispatchResult[]> {
+};
+
+async function dispatchSourceUploadToAutomation(input: {
+  automation: WorkspaceAutomationRecord;
+  sourceUpload: WorkspaceAutomationSourceUploadInput;
+}): Promise<WorkspaceAutomationDispatchResult | null> {
+  const { automation, sourceUpload } = input;
+  if (
+    automation.status !== "active" ||
+    automation.triggerConfig.mode !== "source_upload" ||
+    automation.projectId !== sourceUpload.projectId ||
+    !hasWorkspaceAutomationCreateNativeTmsJobTool(automation.toolConfig)
+  ) {
+    return null;
+  }
+
+  const idempotencyKey = sourceUpload.forceNewRun
+    ? buildWorkspaceSourceUploadManualRunIdempotencyKey({
+        automationId: automation.id,
+        configVersion: automation.configVersion,
+        projectId: sourceUpload.projectId,
+        sourcePath: sourceUpload.sourcePath,
+        sourceFileVersionId: sourceUpload.sourceFileVersionId,
+        runNonce: crypto.randomUUID(),
+      })
+    : buildWorkspaceSourceUploadAutomationIdempotencyKey({
+        automationId: automation.id,
+        configVersion: automation.configVersion,
+        projectId: sourceUpload.projectId,
+        sourcePath: sourceUpload.sourcePath,
+        sourceHash: sourceUpload.sourceHash,
+        sourceFileVersionId: sourceUpload.sourceFileVersionId,
+      });
+
+  return dispatchWorkspaceAutomationViaOrchestrator({
+    organizationId: sourceUpload.organizationId,
+    automation,
+    triggerSource: "source_upload",
+    idempotencyKey,
+    inputSnapshot: {
+      projectId: sourceUpload.projectId,
+      sourceFileId: sourceUpload.sourceFileId,
+      sourceFileVersionId: sourceUpload.sourceFileVersionId,
+      sourcePath: sourceUpload.sourcePath,
+      sourceHash: sourceUpload.sourceHash ?? undefined,
+    },
+    retryFailedRuns: !sourceUpload.forceNewRun,
+    queue: sourceUpload.queue,
+  });
+}
+
+export async function dispatchWorkspaceAutomationForSourceUpload(
+  input: WorkspaceAutomationSourceUploadInput & { automationId: string },
+): Promise<WorkspaceAutomationDispatchResult | null> {
+  const automation = await getWorkspaceAutomationById({
+    organizationId: input.organizationId,
+    automationId: input.automationId,
+  });
+  if (!automation) {
+    return null;
+  }
+
+  return dispatchSourceUploadToAutomation({ automation, sourceUpload: input });
+}
+
+export async function dispatchWorkspaceAutomationsForSourceUpload(
+  input: WorkspaceAutomationSourceUploadInput,
+): Promise<WorkspaceAutomationDispatchResult[]> {
   const automations = await listSourceUploadWorkspaceAutomations({
     organizationId: input.organizationId,
     projectId: input.projectId,
@@ -699,34 +769,14 @@ export async function dispatchWorkspaceAutomationsForSourceUpload(input: {
   const results: WorkspaceAutomationDispatchResult[] = [];
 
   for (const automation of automations) {
-    if (!hasWorkspaceAutomationCreateNativeTmsJobTool(automation.toolConfig)) {
-      continue;
-    }
-
     try {
-      const result = await dispatchWorkspaceAutomationViaOrchestrator({
-        organizationId: input.organizationId,
+      const result = await dispatchSourceUploadToAutomation({
         automation,
-        triggerSource: "source_upload",
-        idempotencyKey: buildWorkspaceSourceUploadAutomationIdempotencyKey({
-          automationId: automation.id,
-          configVersion: automation.configVersion,
-          projectId: input.projectId,
-          sourcePath: input.sourcePath,
-          sourceHash: input.sourceHash,
-          sourceFileVersionId: input.sourceFileVersionId,
-        }),
-        inputSnapshot: {
-          projectId: input.projectId,
-          sourceFileId: input.sourceFileId,
-          sourceFileVersionId: input.sourceFileVersionId,
-          sourcePath: input.sourcePath,
-          sourceHash: input.sourceHash ?? undefined,
-        },
-        retryFailedRuns: true,
-        queue: input.queue,
+        sourceUpload: input,
       });
-      results.push(result);
+      if (result) {
+        results.push(result);
+      }
     } catch (error) {
       logger.error(
         {
