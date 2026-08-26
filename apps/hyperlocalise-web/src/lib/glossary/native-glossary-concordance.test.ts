@@ -16,11 +16,18 @@ import {
   glossaryTermFlagsFromStatus,
   normalizedGlossaryTermStatusFromStatus,
 } from "@/lib/providers/contracts/glossary-term-status";
+import { buildGlossaryTsQuery } from "@/lib/glossary/glossary";
 import {
   pickPreferredTermForLocale,
   filterConcordanceTargetTerms,
 } from "@/lib/glossary/native-glossary";
 import type { NormalizedGlossaryConceptTerm } from "@/lib/providers/contracts/glossary-match";
+
+describe("buildGlossaryTsQuery", () => {
+  it("matches any source-text token when finding glossary candidates", () => {
+    expect(buildGlossaryTsQuery("Login button")).toBe("Login:* | button:*");
+  });
+});
 
 describe("glossaryTermFlagsFromStatus", () => {
   it("derives preferred and not-recommended from status only", () => {

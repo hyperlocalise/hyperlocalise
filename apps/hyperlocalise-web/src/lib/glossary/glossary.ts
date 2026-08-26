@@ -37,7 +37,7 @@ export function buildGlossaryTsQuery(input: string): string | null {
     .filter(Boolean)
     .slice(0, maxConcordanceSearchTerms)
     .map((word) => `${word}:*`)
-    .join(" & ");
+    .join(" | ");
 
   return tsQuery.length > 0 ? tsQuery : null;
 }

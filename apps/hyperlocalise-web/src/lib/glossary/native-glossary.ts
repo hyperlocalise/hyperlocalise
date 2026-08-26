@@ -955,6 +955,11 @@ export class NativeGlossary extends Glossary {
           isNotNull(concordanceSourceTerms.term),
           eq(concordanceSourceTerms.reviewStatus, "approved"),
           sql`${concordanceSourceTerms.searchVector} @@ to_tsquery('simple', ${tsQuery})`,
+          sql`case
+            when coalesce(${concordanceSourceTerms.caseSensitive}, false)
+              then position(${concordanceSourceTerms.term} in ${query.sourceText}) > 0
+            else position(lower(${concordanceSourceTerms.term}) in lower(${query.sourceText})) > 0
+          end`,
         ),
       )
       .orderBy(desc(sql`rank`))
