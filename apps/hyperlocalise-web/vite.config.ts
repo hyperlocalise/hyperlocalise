@@ -34,7 +34,10 @@ const translatedIgnorePatterns = translatedLocales.flatMap((locale) => [
   `lang/${locale}.json`,
 ]);
 
+const isCi = process.env.CI === "true";
+
 export default defineConfig({
+  cacheDir: ".cache/vite",
   fmt: {
     ignorePatterns: ["drizzle/**", "pnpm-*.yaml", ...translatedIgnorePatterns],
   },
@@ -60,12 +63,54 @@ export default defineConfig({
   test: {
     environment: "node",
     silent: "passed-only",
+    pool: "threads",
+    reporters: isCi ? ["dot", "github-actions"] : ["default"],
     setupFiles: ["./src/test/setup-dom.ts"],
     include: ["src/**/*.test.{ts,tsx}"],
     exclude: ["src/e2e/**"],
     experimental: {
       fsModuleCache: true,
       fsModuleCachePath: ".cache/vitest",
+    },
+    deps: {
+      optimizer: {
+        ssr: {
+          enabled: true,
+          include: [
+            "drizzle-orm",
+            "drizzle-orm/node-postgres",
+            "hono",
+            "pg",
+            "react",
+            "react-dom",
+            "react-intl",
+            "zod",
+          ],
+        },
+        client: {
+          enabled: true,
+          include: [
+            "@testing-library/dom",
+            "@testing-library/jest-dom",
+            "@testing-library/react",
+            "react",
+            "react-dom",
+            "react-intl",
+          ],
+        },
+      },
+    },
+    environmentOptions: {
+      happyDOM: {
+        settings: {
+          disableCSSFileLoading: true,
+          disableJavaScriptFileLoading: true,
+          navigation: {
+            disableChildFrameNavigation: true,
+            disableChildPageNavigation: true,
+          },
+        },
+      },
     },
     server: {
       deps: {
