@@ -60,8 +60,8 @@ export async function generateMetadata({ params }: HomePageProps): Promise<Metad
   const intl = getIntlShape(locale);
 
   const title = intl.formatMessage({
-    defaultMessage: "Hyperlocalise | The Best Agentic Localisation Platform",
-    id: "9EV17CGa2+",
+    defaultMessage: "Hyperlocalise | Infrastructure for multilingual content operations",
+    id: "fYpd91LP4S",
     description: "Page title for the marketing homepage",
   });
   const description = intl.formatMessage({
@@ -71,8 +71,8 @@ export async function generateMetadata({ params }: HomePageProps): Promise<Metad
     description: "Meta description for the marketing homepage",
   });
   const openGraphDescription = intl.formatMessage({
-    defaultMessage: "The best agentic localisation platform to launch globally in days.",
-    id: "cdezPwXx10",
+    defaultMessage: "Infrastructure for multilingual content operations.",
+    id: "qJ16Joucwo",
     description:
       "Open Graph meta description for the marketing homepage (shorter than the main description)",
   });

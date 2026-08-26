@@ -11,7 +11,11 @@
  * Version 2.0 or later.
  */
 import { hasCapability } from "@/api/auth/policy";
-import { requireWorkspaceFeatureFlag, workspaceKnowledgeFlag } from "@/lib/flags/workspace-flags";
+import { FeatureTeaserPage } from "@/components/feature-teaser/feature-teaser-page";
+import {
+  getWorkspaceFeatureFlagEnabled,
+  workspaceKnowledgeFlag,
+} from "@/lib/flags/workspace-flags";
 import { requireAppAuthContext } from "@/lib/workos/app-auth";
 
 import { KnowledgePageContent } from "./_components/knowledge-page-content";
@@ -23,7 +27,11 @@ export default async function KnowledgePage({
 }) {
   const { organizationSlug } = await params;
   const auth = await requireAppAuthContext({ organizationSlug });
-  await requireWorkspaceFeatureFlag(workspaceKnowledgeFlag, auth);
+  const knowledgeEnabled = await getWorkspaceFeatureFlagEnabled(workspaceKnowledgeFlag, auth);
+
+  if (!knowledgeEnabled) {
+    return <FeatureTeaserPage feature="guideline" scope="workspace" />;
+  }
 
   return (
     <KnowledgePageContent

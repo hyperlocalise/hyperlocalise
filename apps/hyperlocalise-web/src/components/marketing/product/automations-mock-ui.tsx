@@ -14,7 +14,7 @@
  */
 import { useEffect, useState, type ReactNode } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
-import { Clock01Icon, GitPullRequestIcon, Upload01Icon } from "@hugeicons/core-free-icons";
+import { Clock01Icon, GitPullRequestIcon, Rocket01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import Image from "next/image";
 import { FormattedMessage, useIntl } from "react-intl";
@@ -25,6 +25,12 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/primitives/cn";
 
 import { automationsMockMessages } from "./automations-mock-ui.messages";
+import {
+  MarketingMockShell,
+  type MarketingMockMeshPosition,
+  type MarketingMockVariant,
+} from "./marketing-mock-shell";
+import { MarketingMockUseCaseSelector } from "./marketing-mock-use-case-selector";
 
 type StepStatus = "pending" | "running" | "done" | "warning";
 
@@ -149,57 +155,14 @@ function UseCaseSelector({
   cta: ReactNode;
 }) {
   return (
-    <div className="flex h-full flex-col justify-between px-6 py-5">
-      <div>
-        <p className="mb-2 text-xs font-semibold tracking-[0.18em] text-primary uppercase">
-          <FormattedMessage {...automationsMockMessages.eyebrow} />
-        </p>
-        <h3 className="mb-6 font-heading text-xl font-semibold leading-snug tracking-normal text-foreground sm:text-2xl">
-          <FormattedMessage {...automationsMockMessages.headline} />
-        </h3>
-        <div className="flex flex-col gap-2">
-          {useCases.map((uc) => (
-            <button
-              key={uc.id}
-              onClick={() => onSelect(uc.id)}
-              className={cn(
-                "flex cursor-pointer items-start gap-3 rounded-sm border px-4 py-3.5 text-left transition-all duration-200",
-                uc.id === active
-                  ? "border-primary/30 bg-primary/6"
-                  : "border-transparent hover:border-border/60 hover:bg-muted/30",
-              )}
-            >
-              <div
-                className={cn(
-                  "mt-1 w-0.5 self-stretch rounded-full transition-all duration-200",
-                  uc.id === active ? "bg-primary" : "bg-transparent",
-                )}
-              />
-              <div className="min-w-0">
-                <p
-                  className={cn(
-                    "text-sm font-semibold leading-snug transition-colors",
-                    uc.id === active ? "text-foreground" : "text-muted-foreground",
-                  )}
-                >
-                  {uc.title}
-                </p>
-                <p
-                  className={cn(
-                    "mt-0.5 text-xs leading-relaxed transition-colors",
-                    uc.id === active ? "text-muted-foreground" : "text-muted-foreground/50",
-                  )}
-                >
-                  {uc.description}
-                </p>
-              </div>
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <div className="mt-4 flex items-center">{cta}</div>
-    </div>
+    <MarketingMockUseCaseSelector
+      eyebrow={automationsMockMessages.eyebrow}
+      headline={automationsMockMessages.headline}
+      useCases={useCases}
+      activeId={active}
+      onSelect={onSelect}
+      cta={cta}
+    />
   );
 }
 
@@ -207,15 +170,39 @@ export function AutomationsMockUI({
   priority = false,
   pauseAutoplay = false,
   renderCta,
+  variant = "full",
+  aside,
+  meshPosition = "left",
 }: {
   priority?: boolean;
   pauseAutoplay?: boolean;
   renderCta?: (useCaseId: string) => ReactNode;
+  variant?: MarketingMockVariant;
+  aside?: ReactNode;
+  meshPosition?: MarketingMockMeshPosition;
 }) {
   const intl = useIntl();
   const shouldReduceMotion = useReducedMotion();
 
   const useCases: UseCase[] = [
+    {
+      id: "gtm-publishing",
+      title: intl.formatMessage(automationsMockMessages.useCaseGtmPublishingTitle),
+      description: intl.formatMessage(automationsMockMessages.useCaseGtmPublishingDescription),
+      triggerIcon: <HugeiconsIcon icon={Rocket01Icon} strokeWidth={1.8} className="size-3" />,
+      triggerLabel: intl.formatMessage(automationsMockMessages.triggerGtmBriefApproved),
+      tools: [
+        intl.formatMessage(automationsMockMessages.toolCms),
+        intl.formatMessage(automationsMockMessages.toolTranslate),
+        intl.formatMessage(automationsMockMessages.toolSlack),
+      ],
+      steps: [
+        { label: intl.formatMessage(automationsMockMessages.stepGtm1) },
+        { label: intl.formatMessage(automationsMockMessages.stepGtm2) },
+        { label: intl.formatMessage(automationsMockMessages.stepGtm3) },
+        { label: intl.formatMessage(automationsMockMessages.stepGtm4) },
+      ],
+    },
     {
       id: AUTOMATIONS_MOCK_AUTO_REVIEW_ID,
       title: intl.formatMessage(automationsMockMessages.useCaseAutoReviewTitle),
@@ -234,46 +221,26 @@ export function AutomationsMockUI({
       ],
     },
     {
-      id: "auto-translation",
-      title: intl.formatMessage(automationsMockMessages.useCaseAutoTranslationTitle),
-      description: intl.formatMessage(automationsMockMessages.useCaseAutoTranslationDescription),
-      triggerIcon: <HugeiconsIcon icon={Upload01Icon} strokeWidth={1.8} className="size-3" />,
-      triggerLabel: intl.formatMessage(automationsMockMessages.triggerSourceUpload),
-      tools: [
-        intl.formatMessage(automationsMockMessages.toolCreateJob),
-        intl.formatMessage(automationsMockMessages.toolTranslateWithAgent),
-      ],
-      steps: [
-        { label: intl.formatMessage(automationsMockMessages.step1Auto1) },
-        { label: intl.formatMessage(automationsMockMessages.step1Auto2) },
-        { label: intl.formatMessage(automationsMockMessages.step1Auto3) },
-        { label: intl.formatMessage(automationsMockMessages.step1Auto4) },
-        { label: intl.formatMessage(automationsMockMessages.step1Auto5) },
-      ],
-    },
-    {
-      id: "localisation-audit",
-      title: intl.formatMessage(automationsMockMessages.useCaseLocalisationAuditTitle),
-      description: intl.formatMessage(automationsMockMessages.useCaseLocalisationAuditDescription),
+      id: "keyword-research",
+      title: intl.formatMessage(automationsMockMessages.useCaseKeywordResearchTitle),
+      description: intl.formatMessage(automationsMockMessages.useCaseKeywordResearchDescription),
       triggerIcon: <HugeiconsIcon icon={Clock01Icon} strokeWidth={1.8} className="size-3" />,
-      triggerLabel: intl.formatMessage(automationsMockMessages.triggerGithubRelease),
+      triggerLabel: intl.formatMessage(automationsMockMessages.triggerKeywordResearchSchedule),
       tools: [
-        intl.formatMessage(automationsMockMessages.toolGitHub),
-        intl.formatMessage(automationsMockMessages.toolValidation),
+        intl.formatMessage(automationsMockMessages.toolSearch),
+        intl.formatMessage(automationsMockMessages.toolExport),
         intl.formatMessage(automationsMockMessages.toolSlack),
       ],
       steps: [
-        { label: intl.formatMessage(automationsMockMessages.step3Audit1) },
-        { label: intl.formatMessage(automationsMockMessages.step3Audit2) },
-        { label: intl.formatMessage(automationsMockMessages.step3Audit3) },
-        { label: intl.formatMessage(automationsMockMessages.step3Audit4) },
-        { label: intl.formatMessage(automationsMockMessages.step3Audit5) },
-        { label: intl.formatMessage(automationsMockMessages.step3Audit6) },
+        { label: intl.formatMessage(automationsMockMessages.stepKeyword1) },
+        { label: intl.formatMessage(automationsMockMessages.stepKeyword2) },
+        { label: intl.formatMessage(automationsMockMessages.stepKeyword3) },
+        { label: intl.formatMessage(automationsMockMessages.stepKeyword4) },
       ],
     },
   ];
 
-  const warningSteps = new Set([intl.formatMessage(automationsMockMessages.step3Audit3)]);
+  const highlightSteps = new Set([intl.formatMessage(automationsMockMessages.stepKeyword3)]);
 
   const [activeIndex, setActiveIndex] = useState(0);
   const [visibleStepCount, setVisibleStepCount] = useState(1);
@@ -283,13 +250,13 @@ export function AutomationsMockUI({
 
   const visibleSteps: Step[] = activeUseCase.steps.slice(0, visibleStepCount).map((step, i) => {
     const isLast = i === visibleStepCount - 1;
-    const isWarning = warningSteps.has(step.label);
+    const isHighlight = highlightSteps.has(step.label);
     return {
       ...step,
       status:
         isLast && visibleStepCount < activeUseCase.steps.length
           ? "running"
-          : isWarning
+          : isHighlight
             ? "warning"
             : "done",
     } satisfies Step;
@@ -331,38 +298,23 @@ export function AutomationsMockUI({
   }
 
   return (
-    <div className="overflow-hidden rounded-xl border border-border bg-background shadow-2xl shadow-gray-alpha-100">
-      <div className="grid min-h-[22rem] md:grid-cols-[1fr_1.4fr]">
-        <div className="relative min-h-[20rem] overflow-hidden border-b border-border md:min-h-0 md:border-b-0">
-          <Image
-            src={LAVENDER_MESH_GRADIENT_SRC}
-            alt=""
-            aria-hidden
-            fill
-            priority={priority}
-            sizes="(min-width: 768px) 28rem, 100vw"
-            className="pointer-events-none object-cover object-center"
-          />
-          <div
-            aria-hidden
-            className="pointer-events-none absolute inset-y-0 right-0 w-16 bg-gradient-to-r from-transparent to-background md:w-24"
-          />
-          <div className="relative flex h-full items-center p-5 sm:p-7 lg:p-8">
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={activeUseCase.id}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.25 }}
-                className="flex w-full flex-col overflow-hidden rounded-xl border border-border/80 bg-background/90 shadow-lg backdrop-blur-sm"
-              >
-                <TerminalPanel useCase={activeUseCase} visibleSteps={visibleSteps} />
-              </motion.div>
-            </AnimatePresence>
-          </div>
-        </div>
-        <div className="relative bg-background">
+    <MarketingMockShell
+      visual={
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={activeUseCase.id}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.25 }}
+            className="flex w-full flex-col overflow-hidden rounded-xl border border-border/80 bg-background/90 shadow-lg backdrop-blur-sm"
+          >
+            <TerminalPanel useCase={activeUseCase} visibleSteps={visibleSteps} />
+          </motion.div>
+        </AnimatePresence>
+      }
+      sidebar={
+        variant === "full" ? (
           <UseCaseSelector
             useCases={useCases}
             active={activeUseCase.id}
@@ -383,8 +335,13 @@ export function AutomationsMockUI({
               )
             }
           />
-        </div>
-      </div>
-    </div>
+        ) : undefined
+      }
+      aside={aside}
+      meshSrc={LAVENDER_MESH_GRADIENT_SRC}
+      priority={priority}
+      variant={variant}
+      meshPosition={meshPosition}
+    />
   );
 }

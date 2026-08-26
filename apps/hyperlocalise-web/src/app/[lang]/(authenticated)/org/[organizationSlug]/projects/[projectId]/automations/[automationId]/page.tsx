@@ -13,9 +13,10 @@
 import { Suspense } from "react";
 
 import { hasCapability } from "@/api/auth/policy";
+import { FeatureTeaserPage } from "@/components/feature-teaser/feature-teaser-page";
 import {
   evaluateWorkspaceFeatureFlags,
-  requireWorkspaceFeatureFlag,
+  getWorkspaceFeatureFlagEnabled,
   workspaceAutomationsFlag,
 } from "@/lib/flags/workspace-flags";
 import { requireAppAuthContext } from "@/lib/workos/app-auth";
@@ -29,7 +30,12 @@ export default async function ProjectAutomationDetailPage({
 }) {
   const { organizationSlug, projectId, automationId } = await params;
   const auth = await requireAppAuthContext({ organizationSlug });
-  await requireWorkspaceFeatureFlag(workspaceAutomationsFlag, auth);
+  const automationsEnabled = await getWorkspaceFeatureFlagEnabled(workspaceAutomationsFlag, auth);
+
+  if (!automationsEnabled) {
+    return <FeatureTeaserPage feature="automations" scope="project" />;
+  }
+
   const flags = await evaluateWorkspaceFeatureFlags(auth);
 
   return (

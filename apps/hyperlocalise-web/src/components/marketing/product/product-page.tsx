@@ -22,12 +22,12 @@ import { MarketingFooter } from "@/components/marketing/marketing-footer";
 import { footerColumns } from "@/components/marketing/marketing-page-content";
 import { REQUEST_DEMO_URL } from "@/components/marketing/request-demo";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/primitives/cn";
 import { rewriteAppLocalePath } from "@/lib/app-i18n/rewrite-app-locale-path";
 import { useAppLocale } from "@/lib/app-i18n/use-app-locale";
 
 import type { ProductPageContent } from "./product-page-content";
 import { AutomationsMockUI } from "./automations-mock-ui";
+import { GuidelineMockUI } from "./guideline-mock-ui";
 import { productPageMessages, type ProductMessageKey } from "./product-page-content.messages";
 import { AutomationEditorMock } from "./automation-editor-mock";
 import { IntegrationStripSection } from "./integration-strip-section";
@@ -87,66 +87,6 @@ function ProductHero({ content }: ProductPageProps) {
   );
 }
 
-function KnowledgePrimaryVisual() {
-  const nodes: ProductMessageKey[] = [
-    "visualKnowledgeNodeProductDocs",
-    "visualKnowledgeNodeGlossary",
-    "visualKnowledgeNodeTranslations",
-    "visualKnowledgeNodeReviewers",
-    "visualKnowledgeNodeMarkets",
-    "visualKnowledgeNodeAgents",
-  ];
-
-  return (
-    <div className="h-full rounded-lg border border-border bg-card p-5 shadow-2xl shadow-gray-alpha-100">
-      <div className="mb-6 flex items-center justify-between border-b border-border pb-4">
-        <div>
-          <div className="text-sm font-semibold">
-            <ProductMessage messageKey="visualKnowledgeMemoryLayerTitle" />
-          </div>
-          <div className="text-xs text-muted-foreground">
-            <ProductMessage messageKey="visualKnowledgeSignalsCaptured" />
-          </div>
-        </div>
-        <div className="rounded-full bg-secondary/25 px-3 py-1 text-xs font-medium">
-          <ProductMessage messageKey="visualKnowledgeStatusLearning" />
-        </div>
-      </div>
-      <div className="grid min-h-[20rem] gap-3 sm:grid-cols-3">
-        {nodes.map((nodeKey, index) => (
-          <div
-            key={nodeKey}
-            className={cn(
-              "rounded-lg border p-4",
-              index === 2 ? "border-primary/35 bg-primary/10" : "border-border bg-background",
-            )}
-          >
-            <div className="mb-8 size-2 rounded-full bg-primary" />
-            <div className="text-sm font-semibold">
-              <ProductMessage messageKey={nodeKey} />
-            </div>
-            <div className="mt-1 text-xs text-muted-foreground">
-              {index === 2 ? (
-                <ProductMessage messageKey="visualKnowledgeApprovedSourceOfTruth" />
-              ) : (
-                <ProductMessage messageKey="visualKnowledgeContextSignal" />
-              )}
-            </div>
-          </div>
-        ))}
-      </div>
-      <div className="mt-4 rounded-lg border border-border bg-muted/25 p-4">
-        <div className="text-xs font-semibold text-muted-foreground uppercase">
-          <ProductMessage messageKey="visualKnowledgeLatestDecision" />
-        </div>
-        <div className="mt-2 text-sm">
-          <ProductMessage messageKey="visualKnowledgeLatestDecisionBody" />
-        </div>
-      </div>
-    </div>
-  );
-}
-
 function ProductShowcase({ content }: ProductPageProps) {
   if (content.visualKind === "cat") {
     return <HeroFrameMeshStage priority />;
@@ -161,16 +101,8 @@ function ProductShowcase({ content }: ProductPageProps) {
   }
 
   return (
-    <div className="mx-auto max-w-6xl space-y-10">
-      <div className="relative">
-        <div
-          aria-hidden
-          className="pointer-events-none absolute inset-x-[8%] -top-8 -bottom-10 rounded-lg bg-[radial-gradient(circle_at_top,rgba(96,116,9,0.16),transparent_58%),radial-gradient(circle_at_bottom_right,rgba(9,108,229,0.1),transparent_46%)] blur-3xl"
-        />
-        <div className="relative grid overflow-hidden rounded-lg border border-border bg-background p-2 shadow-2xl shadow-gray-alpha-100 sm:p-3">
-          <KnowledgePrimaryVisual />
-        </div>
-      </div>
+    <div className="mx-auto max-w-6xl">
+      <GuidelineMockUI priority />
     </div>
   );
 }

@@ -19,13 +19,13 @@ export const automationsMockMessages = defineMessages({
     description: "Automations mock UI eyebrow label",
   },
   headline: {
-    defaultMessage: "Review localisation before it merges",
-    id: "fIjUMyYSYz",
+    defaultMessage: "Automate GTM, review, and research workflows",
+    id: "EaT7nmsjT2",
     description: "Automations mock UI section heading",
   },
   botLabel: {
-    defaultMessage: "Hyperlocalise · Bot",
-    id: "eHZIquSdN0",
+    defaultMessage: "Use Hyperlocalise Agent",
+    id: "6CovsOk2Kn",
     description: "Automations mock UI terminal title bar label",
   },
   requestDemo: {
@@ -34,61 +34,66 @@ export const automationsMockMessages = defineMessages({
     description: "Automations mock UI call-to-action button",
   },
 
+  useCaseGtmPublishingTitle: {
+    defaultMessage: "GTM content publishing",
+    id: "22+D8zh5+I",
+    description: "Automations mock UI GTM content publishing use case title",
+  },
+  useCaseGtmPublishingDescription: {
+    defaultMessage: "Publish localized campaigns and landing pages across markets",
+    id: "LCZuQN14MY",
+    description: "Automations mock UI GTM content publishing use case description",
+  },
   useCaseAutoReviewTitle: {
-    defaultMessage: "Auto-review",
-    id: "9kDc2CzQHo",
-    description: "Automations mock UI Auto-review use case title",
+    defaultMessage: "Localisation review",
+    id: "cRykdemD86",
+    description: "Automations mock UI localisation review use case title",
   },
   useCaseAutoReviewDescription: {
-    defaultMessage: "Review pull requests and post one sticky comment",
-    id: "b4zb6//QSL",
-    description: "Automations mock UI Auto-review use case description",
+    defaultMessage: "Review pull requests on GitHub and post one sticky comment",
+    id: "BzZ7RfYZdI",
+    description: "Automations mock UI localisation review use case description",
   },
-  useCaseAutoTranslationTitle: {
-    defaultMessage: "Auto Translation",
-    id: "c83abCYnIc",
-    description: "Automations mock UI auto translation use case title",
+  useCaseKeywordResearchTitle: {
+    defaultMessage: "Multilingual keyword research",
+    id: "Wy1vE+UJqV",
+    description: "Automations mock UI multilingual keyword research use case title",
   },
-  useCaseAutoTranslationDescription: {
-    defaultMessage: "Detect string changes and translate automatically",
-    id: "xLIQFiGFVJ",
-    description: "Automations mock UI auto translation use case description",
-  },
-  useCaseLocalisationAuditTitle: {
-    defaultMessage: "Localisation Audit",
-    id: "to5Onmz+Xc",
-    description: "Automations mock UI use case 3 title",
-  },
-  useCaseLocalisationAuditDescription: {
-    defaultMessage: "Check hreflang, RTL support, terminology and compliance",
-    id: "gNb7LVmFTm",
-    description: "Automations mock UI use case 3 description",
+  useCaseKeywordResearchDescription: {
+    defaultMessage: "Compare search demand and content gaps across locales",
+    id: "MszSNYsOAF",
+    description: "Automations mock UI multilingual keyword research use case description",
   },
 
-  triggerSourceUpload: {
-    defaultMessage: "Source upload",
-    id: "SZbykgpUeM",
-    description: "Automations mock UI trigger label for source upload",
+  triggerGtmBriefApproved: {
+    defaultMessage: "GTM brief approved · Q2 launch",
+    id: "fq5dqebQ+i",
+    description: "Automations mock UI trigger label for GTM content publishing",
   },
   triggerGithubPullRequest: {
     defaultMessage: "GitHub pull request opened",
     id: "/6wXYQGzwZ",
     description: "Automations mock UI trigger label for a GitHub pull request opening",
   },
-  triggerGithubRelease: {
-    defaultMessage: "GitHub push · release/*",
-    id: "QgJDE+xhbx",
-    description: "Automations mock UI trigger label for GitHub push to release",
+  triggerKeywordResearchSchedule: {
+    defaultMessage: "Scheduled run · 1st of month",
+    id: "gh3szaohtI",
+    description: "Automations mock UI trigger label for keyword research schedule",
   },
 
-  toolCreateJob: {
-    defaultMessage: "Create job",
-    id: "01u9U8ASiI",
+  toolCms: {
+    defaultMessage: "CMS",
+    id: "Zxvw5o8hCN",
     description: "Automations mock UI tool label",
   },
-  toolTranslateWithAgent: {
-    defaultMessage: "Translate with agent",
-    id: "qMPafsI8mp",
+  toolSlack: {
+    defaultMessage: "Slack",
+    id: "SWV7AxBTg5",
+    description: "Automations mock UI tool label",
+  },
+  toolTranslate: {
+    defaultMessage: "Translate",
+    id: "JZdvnbrCrK",
     description: "Automations mock UI tool label",
   },
   toolGitHub: {
@@ -96,98 +101,83 @@ export const automationsMockMessages = defineMessages({
     id: "lsxAaZycti",
     description: "Automations mock UI tool label",
   },
-  toolValidation: {
-    defaultMessage: "Validation",
-    id: "qfZTKSfQgm",
-    description: "Automations mock UI tool label",
-  },
   toolMentionReview: {
     defaultMessage: "@hyperlocalise review",
     id: "mNhu5W2AEy",
     description: "Automations mock UI tool label for the mention review command",
   },
-  toolSlack: {
-    defaultMessage: "Slack",
-    id: "SWV7AxBTg5",
+  toolSearch: {
+    defaultMessage: "Search",
+    id: "Bzgz2WD+0h",
+    description: "Automations mock UI tool label",
+  },
+  toolExport: {
+    defaultMessage: "Export brief",
+    id: "9he5ArvC5a",
     description: "Automations mock UI tool label",
   },
 
-  step1Auto1: {
-    defaultMessage: "Reading uploaded source file...",
-    id: "Tpf2GEAF9w",
-    description: "Automations mock UI auto translation step 1",
+  stepGtm1: {
+    defaultMessage: "Brief received · 4 markets, 12 assets",
+    id: "O5AUx21Cqs",
+    description: "Automations mock UI GTM publishing step 1",
   },
-  step1Auto2: {
-    defaultMessage: "Source file detected · 24 strings",
-    id: "o1YK/dYPDZ",
-    description: "Automations mock UI auto translation step 2",
+  stepGtm2: {
+    defaultMessage: "Generating localized landing page drafts...",
+    id: "vRzaf+T+4c",
+    description: "Automations mock UI GTM publishing step 2",
   },
-  step1Auto3: {
-    defaultMessage: "Creating translation job for FR, DE, JA...",
-    id: "6Z1HHKVZs9",
-    description: "Automations mock UI auto translation step 3",
+  stepGtm3: {
+    defaultMessage: "FR and DE routed for review",
+    id: "CjBhJGtOu7",
+    description: "Automations mock UI GTM publishing step 3",
   },
-  step1Auto4: {
-    defaultMessage: "Translation job created",
-    id: "wsDlv0gzm0",
-    description: "Automations mock UI auto translation step 4",
-  },
-  step1Auto5: {
-    defaultMessage: "Agent assigned · translating now",
-    id: "T+F7HlwHlj",
-    description: "Automations mock UI auto translation step 5",
+  stepGtm4: {
+    defaultMessage: "Published to staging · notified #gtm",
+    id: "Rkonjwj/NH",
+    description: "Automations mock UI GTM publishing step 4",
   },
 
   stepAutoReview1: {
     defaultMessage: "Pull request opened on checkout-fr",
-    id: "3ewdsyHYyw",
-    description: "Automations mock UI Auto-review step 1",
+    id: "ILNKwHSRC9",
+    description: "Automations mock UI localisation review step 1",
   },
   stepAutoReview2: {
     defaultMessage: "Reading localisation diff...",
-    id: "31b9kvfP1i",
-    description: "Automations mock UI Auto-review step 2",
+    id: "q2LrsHfEDQ",
+    description: "Automations mock UI localisation review step 2",
   },
   stepAutoReview3: {
     defaultMessage: "Checked missing translations and placeholders",
-    id: "YBk75aHrs3",
-    description: "Automations mock UI Auto-review step 3",
+    id: "a9xpifQQ4Q",
+    description: "Automations mock UI localisation review step 3",
   },
   stepAutoReview4: {
     defaultMessage: "Posted sticky review comment",
-    id: "aGgOWl6hrF",
-    description: "Automations mock UI Auto-review step 4",
+    id: "gmpcqBlz7J",
+    description: "Automations mock UI localisation review step 4",
   },
 
-  step3Audit1: {
-    defaultMessage: "Checking locale coverage expectations...",
-    id: "y8Gkw54qZc",
-    description: "Automations mock UI localisation audit step 1",
+  stepKeyword1: {
+    defaultMessage: "Pulling search volume for core product terms",
+    id: "Ve+0mAQW0d",
+    description: "Automations mock UI keyword research step 1",
   },
-  step3Audit2: {
-    defaultMessage: "FR 100% · DE 98% · JA 87% coverage",
-    id: "/u4S4pwmIn",
-    description: "Automations mock UI localisation audit step 2",
+  stepKeyword2: {
+    defaultMessage: "EN · FR · DE · JA demand compared",
+    id: "OSUbc/2Yxx",
+    description: "Automations mock UI keyword research step 2",
   },
-  step3Audit3: {
-    defaultMessage: "Arabic (ar) RTL layout not detected",
-    id: "/CA59wrwPr",
-    description: "Automations mock UI localisation audit step 3 — warning state",
+  stepKeyword3: {
+    defaultMessage: "12 high-intent gaps found in DE",
+    id: "dpJb4JeW+k",
+    description: "Automations mock UI keyword research step 3 — highlight",
   },
-  step3Audit4: {
-    defaultMessage: "Verifying ICU syntax & placeholders...",
-    id: "JaqIVrRaDX",
-    description: "Automations mock UI localisation audit step 4",
-  },
-  step3Audit5: {
-    defaultMessage: "No placeholder regressions found",
-    id: "N3wHJrm6Ss",
-    description: "Automations mock UI localisation audit step 5",
-  },
-  step3Audit6: {
-    defaultMessage: "Audit report sent to Slack",
-    id: "GoCK8c5u+Q",
-    description: "Automations mock UI localisation audit step 6",
+  stepKeyword4: {
+    defaultMessage: "Keyword brief exported to content team",
+    id: "WM/mPEZR5D",
+    description: "Automations mock UI keyword research step 4",
   },
 });
 

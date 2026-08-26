@@ -58,6 +58,8 @@ export type NavigationItem = {
     | typeof WORKSPACE_KNOWLEDGE_FLAG
     | typeof WORKSPACE_DOMAINS_FLAG
     | typeof RELEASE_CAT_ALL_FILES_FLAG;
+  /** When true, the feature flag is off and the nav item links to a teaser page. */
+  preview?: boolean;
 };
 
 export type NavigationGroup = {

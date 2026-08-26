@@ -19,7 +19,10 @@ import {
   WORKSPACE_AUTOMATIONS_FLAG,
   WORKSPACE_KNOWLEDGE_FLAG,
 } from "@/lib/flags/workos-flag-entities";
-import { filterNavigationByWorkspaceFlags } from "@/lib/flags/workspace-flag-navigation";
+import {
+  filterNavigationByWorkspaceFlags,
+  annotateNavigationByWorkspaceFlags,
+} from "@/lib/flags/workspace-flag-navigation";
 import { getIntlShape } from "@/lib/app-i18n/intl";
 
 const isEnabled = vi.fn();
@@ -149,6 +152,50 @@ describe("workosAdapter", () => {
 });
 
 const intl = getIntlShape("en") as IntlShape;
+
+describe("annotateNavigationByWorkspaceFlags", () => {
+  it("marks Automations, Guideline, and Domains as preview when workspace flags are disabled", () => {
+    const groups = buildGlobalNavigationGroups("acme", intl);
+    const annotated = annotateNavigationByWorkspaceFlags(groups, {
+      automations: false,
+      knowledge: false,
+      visualMock: false,
+      domains: false,
+      glossarySearch: false,
+    });
+
+    const automationsItem = annotated
+      .flatMap((group) => group.items)
+      .find((item) => item.label === "Automations");
+    const guidelineItem = annotated
+      .flatMap((group) => group.items)
+      .find((item) => item.label === "Guideline");
+    const domainsItem = annotated
+      .flatMap((group) => group.items)
+      .find((item) => item.label === "Domains");
+
+    expect(automationsItem?.preview).toBe(true);
+    expect(guidelineItem?.preview).toBe(true);
+    expect(domainsItem?.preview).toBe(true);
+  });
+
+  it("clears preview badges when workspace flags are enabled", () => {
+    const groups = buildGlobalNavigationGroups("acme", intl);
+    const annotated = annotateNavigationByWorkspaceFlags(groups, {
+      automations: true,
+      knowledge: true,
+      visualMock: true,
+      domains: true,
+      glossarySearch: true,
+    });
+
+    const flaggedItems = annotated
+      .flatMap((group) => group.items)
+      .filter((item) => item.featureFlagKey);
+
+    expect(flaggedItems.every((item) => item.preview !== true)).toBe(true);
+  });
+});
 
 describe("filterNavigationByWorkspaceFlags", () => {
   it("removes Automations, Guideline, and Domains when workspace flags are disabled", () => {

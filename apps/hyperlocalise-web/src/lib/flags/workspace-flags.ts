@@ -31,6 +31,8 @@ import {
 } from "./workos-flag-entities";
 
 export {
+  annotateNavigationByWorkspaceFlags,
+  annotateNavigationItemsWithWorkspaceFlags,
   filterNavigationByWorkspaceFlags,
   filterNavigationItemsByWorkspaceFlags,
 } from "./workspace-flag-navigation";
@@ -170,6 +172,17 @@ export async function resolveWorkspaceKnowledgeFlag(input: {
         identify: () => ({ organization: { id: organization.workosOrganizationId } }),
       })) === true
     );
+  } catch {
+    return false;
+  }
+}
+
+export async function getWorkspaceFeatureFlagEnabled(
+  workspaceFlag: Flag<boolean, WorkosFlagEntities>,
+  auth: Pick<AppAuthContext, "activeOrganization" | "user">,
+): Promise<boolean> {
+  try {
+    return (await workspaceFlag.run({ identify: () => createWorkosIdentify(auth) })) === true;
   } catch {
     return false;
   }

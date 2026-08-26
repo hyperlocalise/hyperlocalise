@@ -36,14 +36,30 @@ type Story = StoryObj<typeof meta>;
 
 export const Default: Story = {
   play: async ({ canvas }) => {
-    await expect(canvas.getByRole("button", { name: /Auto-review/ })).toBeInTheDocument();
     await expect(
-      canvas.getByText("Review pull requests and post one sticky comment"),
+      canvas.getByRole("button", { name: /GTM content publishing/ }),
     ).toBeInTheDocument();
+    await expect(canvas.getByRole("button", { name: /Localisation review/ })).toBeInTheDocument();
+    await expect(
+      canvas.getByText("Review pull requests on GitHub and post one sticky comment"),
+    ).toBeInTheDocument();
+    await expect(canvas.getByText("Use Hyperlocalise Agent")).toBeInTheDocument();
     await expect(canvas.getByText("GitHub pull request opened")).toBeInTheDocument();
-    await expect(canvas.getByText("@hyperlocalise review")).toBeInTheDocument();
     await expect(
-      canvas.getByRole("heading", { name: "Review localisation before it merges" }),
+      canvas.getByRole("heading", { name: "Automate GTM, review, and research workflows" }),
     ).toBeInTheDocument();
+  },
+};
+
+export const Embedded: Story = {
+  render: () => (
+    <div className="mx-auto max-w-6xl p-6">
+      <AutomationsMockUI variant="embedded" />
+    </div>
+  ),
+  play: async ({ canvas }) => {
+    await expect(canvas.getByText("Use Hyperlocalise Agent")).toBeInTheDocument();
+    await expect(canvas.getByText("GTM brief approved · Q2 launch")).toBeInTheDocument();
+    await expect(canvas.queryByRole("link", { name: "Request a Demo" })).not.toBeInTheDocument();
   },
 };
