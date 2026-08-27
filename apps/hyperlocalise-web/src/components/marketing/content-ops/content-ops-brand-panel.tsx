@@ -20,13 +20,11 @@ import { FormattedMessage, useIntl } from "react-intl";
 
 import { Tool, ToolHeader } from "@/components/ai-elements/tool";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/primitives/cn";
 
 import { contentOpsMockStageMessages } from "./content-ops-mock-stage.messages";
 
 const TOOL_RESOLVE_MS = 520;
 const STEP_MS = 720;
-const EASE_OUT = [0.19, 1, 0.22, 1] as const;
 
 type PlaybackPhase = "idle" | "playing" | "done";
 
@@ -130,16 +128,17 @@ export function ContentOpsBrandPanel({
 
         <div className="space-y-4 p-4">
           <div className="flex flex-wrap gap-2">
-            {[contentOpsMockStageMessages.brandRuleTone, contentOpsMockStageMessages.brandRuleCta].map(
-              (rule) => (
-                <span
-                  key={rule.id}
-                  className="rounded-full border border-primary/40 bg-primary/10 px-3 py-1 text-[11px] font-medium text-foreground"
-                >
-                  <FormattedMessage {...rule} />
-                </span>
-              ),
-            )}
+            {[
+              contentOpsMockStageMessages.brandRuleTone,
+              contentOpsMockStageMessages.brandRuleCta,
+            ].map((rule) => (
+              <span
+                key={rule.id}
+                className="rounded-full border border-primary/40 bg-primary/10 px-3 py-1 text-[11px] font-medium text-foreground"
+              >
+                <FormattedMessage {...rule} />
+              </span>
+            ))}
           </div>
 
           <div className="rounded-xl border border-border/60 bg-muted/20 p-4">

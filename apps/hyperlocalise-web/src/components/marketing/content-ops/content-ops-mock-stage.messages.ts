@@ -17,369 +17,364 @@ import { defineMessages } from "react-intl";
 export const contentOpsMockStageMessages = defineMessages({
   activityLive: {
     defaultMessage: "Live",
-    id: "CoPsLive01",
+    id: "B4VkdPz+2q",
     description: "Live indicator label on the content ops activity feed",
   },
 
   tabTriage: {
     defaultMessage: "Triage open questions",
-    id: "CoPsTab01",
+    id: "Eb4afW9TDL",
     description: "Content ops mock tab label for issues triage",
   },
   tabCampaign: {
     defaultMessage: "Localize campaign copy",
-    id: "CoPsTab02",
+    id: "756ODq6uhK",
     description: "Content ops mock tab label for campaign localisation",
   },
   tabSeoBlog: {
     defaultMessage: "Publish localised SEO blogs",
-    id: "CoPsTab03",
+    id: "Zga+q71c0X",
     description: "Content ops mock tab label for SEO blog publishing",
   },
   tabBrand: {
     defaultMessage: "Keep brand consistent",
-    id: "CoPsTab04",
+    id: "ccqv17M0Ia",
     description: "Content ops mock tab label for brand governance",
   },
   tabBriefToPublish: {
     defaultMessage: "Automate brief to publish",
-    id: "CoPsTab05",
+    id: "h/nQhr+VQ1",
     description: "Content ops mock tab label for brief-to-publish workflow",
   },
 
   botLabel: {
     defaultMessage: "Use Hyperlocalise Agent",
-    id: "CoPsBot01",
+    id: "bH9+5GUIgE",
     description: "Agent terminal title in content ops mock",
   },
 
   triggerGtmBrief: {
     defaultMessage: "GTM brief approved · Q2 launch",
-    id: "CoPsTrg01",
+    id: "MNCmDu8OgB",
     description: "GTM trigger label in content ops campaign mock",
   },
   triggerSeoSchedule: {
     defaultMessage: "Scheduled run · 1st of month",
-    id: "CoPsTrg02",
+    id: "Tl0CYs/kQf",
     description: "SEO schedule trigger label in content ops mock",
   },
 
   toolCms: {
     defaultMessage: "CMS",
-    id: "CoPsTl001",
+    id: "Zrmv5cA+Lc",
     description: "CMS tool chip in content ops terminal mock",
   },
   toolTranslate: {
     defaultMessage: "Translate",
-    id: "CoPsTl002",
+    id: "mWl7zKHq+b",
     description: "Translate tool chip in content ops terminal mock",
   },
   toolSlack: {
     defaultMessage: "Slack",
-    id: "CoPsTl003",
+    id: "AIFi7wN5lY",
     description: "Slack tool chip in content ops terminal mock",
   },
   toolSearch: {
     defaultMessage: "Search",
-    id: "CoPsTl004",
+    id: "QgqbdcDGCR",
     description: "Search tool chip in content ops terminal mock",
   },
   toolAhrefs: {
     defaultMessage: "Ahrefs",
-    id: "CoPsTl005",
+    id: "eQIxzTUwry",
     description: "Ahrefs tool chip in content ops terminal mock",
   },
 
   stepGtm1: {
     defaultMessage: "Brief received · 4 markets, 12 assets",
-    id: "CoPsGt001",
+    id: "mlbMDyLQpv",
     description: "Campaign mock step 1",
   },
   stepGtm2: {
     defaultMessage: "Generating localized landing page drafts...",
-    id: "CoPsGt002",
+    id: "EVH8TUWi0h",
     description: "Campaign mock step 2",
   },
   stepGtm3: {
     defaultMessage: "FR and DE routed for review",
-    id: "CoPsGt003",
+    id: "6JT4j+EKwy",
     description: "Campaign mock step 3",
   },
   stepGtm4: {
     defaultMessage: "Published to staging · notified #gtm",
-    id: "CoPsGt004",
+    id: "ZV8a5iOSNX",
     description: "Campaign mock step 4",
   },
 
   stepSeo1: {
     defaultMessage: "Pulling search volume for core product terms",
-    id: "CoPsSe001",
+    id: "nlurA4/IRm",
     description: "SEO blog mock step 1",
   },
   stepSeo2: {
     defaultMessage: "EN · FR · DE · JA demand compared",
-    id: "CoPsSe002",
+    id: "a0ooXAWwaq",
     description: "SEO blog mock step 2",
   },
   stepSeo3: {
     defaultMessage: "12 high-intent gaps found in DE",
-    id: "CoPsSe003",
+    id: "tIIkL73dX1",
     description: "SEO blog mock step 3",
   },
   stepSeo4: {
     defaultMessage: "Localised SEO draft · meta + H1 adapted",
-    id: "CoPsSe004",
+    id: "Wnrfau6YGS",
     description: "SEO blog mock step 4",
   },
   stepSeo5: {
     defaultMessage: "QA passed · draft written to CMS · #content notified",
-    id: "CoPsSe005",
+    id: "ieOgNf/WnJ",
     description: "SEO blog mock step 5",
   },
 
   issuesTitle: {
     defaultMessage: "Issues · acme workspace",
-    id: "CoPsIs001",
+    id: "rugkgwDED8",
     description: "Issues panel title in content ops mock",
   },
   issuesSummary: {
     defaultMessage: "{open} open · {inProgress} in progress · {resolved} resolved",
-    id: "CoPsIs002",
+    id: "MMFb5MTldp",
     description: "Issues summary line in content ops mock",
   },
   issueWeb2Title: {
     defaultMessage: "Translation mistake in checkout",
-    id: "CoPsIs003",
+    id: "LE5VKYLxU+",
     description: "Issue row title in content ops mock",
   },
   issueWeb2Detail: {
     defaultMessage: "Payment button label too long · checkout.json",
-    id: "CoPsIs004",
+    id: "Mk8D3Ht2wh",
     description: "Issue row detail in content ops mock",
   },
   issueMob1Title: {
     defaultMessage: "Glossary violation in onboarding",
-    id: "CoPsIs005",
+    id: "qjpFG9aLeM",
     description: "Issue row title in content ops mock",
   },
   issueMob1Detail: {
     defaultMessage: "Product name should stay untranslated",
-    id: "CoPsIs006",
+    id: "pHD22l59Uc",
     description: "Issue row detail in content ops mock",
   },
   issueWeb3Title: {
     defaultMessage: "QA failure on hero headline",
-    id: "CoPsIs007",
+    id: "2a9969NmAV",
     description: "Issue row title in content ops mock",
   },
   issueWeb3Detail: {
     defaultMessage: "Length check failed for German headline",
-    id: "CoPsIs008",
+    id: "PvTDEYL5Rz",
     description: "Issue row detail in content ops mock",
   },
   statusOpen: {
     defaultMessage: "Open",
-    id: "CoPsSt001",
+    id: "BA/hJPgmbP",
     description: "Issue status open",
   },
   statusInProgress: {
     defaultMessage: "In progress",
-    id: "CoPsSt002",
+    id: "MXGPxAzEmG",
     description: "Issue status in progress",
   },
   statusResolved: {
     defaultMessage: "Resolved",
-    id: "CoPsSt003",
+    id: "e+WPqvuP5X",
     description: "Issue status resolved",
   },
   openInCat: {
     defaultMessage: "Open in CAT",
-    id: "CoPsCat01",
+    id: "dpL071W81r",
     description: "Link label to open issue in CAT editor",
   },
 
   brandStyleTitle: {
     defaultMessage: "Brand voice · Style guide",
-    id: "CoPsBr001",
+    id: "wr3AKpuOi3",
     description: "Brand style guide panel title",
   },
   brandStyleSubtitle: {
     defaultMessage: "Applied while reviewing DE checkout CTA",
-    id: "CoPsBr002",
+    id: "zL0L4Vvw8O",
     description: "Brand style guide panel subtitle",
   },
   brandRuleTone: {
     defaultMessage: "Tone: friendly, direct",
-    id: "CoPsBr003",
+    id: "6ZNG5E8172",
     description: "Brand style rule chip",
   },
   brandRuleCta: {
     defaultMessage: "CTA: short verb",
-    id: "CoPsBr004",
+    id: "4yshvtwLy5",
     description: "Brand style rule chip",
   },
   brandBeforeLabel: {
     defaultMessage: "Before",
-    id: "CoPsBr005",
+    id: "IuT/Zm3PzS",
     description: "Before copy label in brand mock",
   },
   brandAfterLabel: {
     defaultMessage: "After",
-    id: "CoPsBr006",
+    id: "oiaT335RnA",
     description: "After copy label in brand mock",
   },
   brandBeforeCopy: {
     defaultMessage: "Nutzen Sie unsere innovative Plattform",
-    id: "CoPsBr007",
+    id: "44BRBm86tt",
     description: "Before copy sample in brand mock",
   },
   brandAfterCopy: {
     defaultMessage: "Jetzt starten",
-    id: "CoPsBr008",
+    id: "EwGaDUWfx3",
     description: "After copy sample in brand mock",
   },
   brandAppliedBadge: {
     defaultMessage: "Applied",
-    id: "CoPsBr009",
+    id: "mq4AvDs4i5",
     description: "Applied badge on brand style correction",
   },
   brandChatTitle: {
     defaultMessage: "Brand review chat",
-    id: "CoPsBr010",
+    id: "US+0MJLvUO",
     description: "Brand chat dock title",
   },
   brandChatPrompt: {
     defaultMessage:
-      "Does this German CTA follow our brand guidelines? \"Nutzen Sie unsere innovative Plattform\"",
-    id: "CoPsBr011",
+      'Does this German CTA follow our brand guidelines? "Nutzen Sie unsere innovative Plattform"',
+    id: "DYjZeqplYa",
     description: "User prompt in brand chat mock",
   },
   brandToolName: {
     defaultMessage: "recall_knowledge_files",
-    id: "CoPsBr012",
+    id: "U9t/eIwVYM",
     description: "Tool name shown in brand chat mock",
   },
   brandToolDetail: {
     defaultMessage: "brand-voice-style-guide.pdf",
-    id: "CoPsBr013",
+    id: "/4z8WJXCPb",
     description: "Tool detail in brand chat mock",
   },
   brandVerdictLabel: {
     defaultMessage: "Verdict",
-    id: "CoPsBr014",
+    id: "wi8LFLVfQY",
     description: "Verdict section in brand chat answer",
   },
   brandVerdictBody: {
     defaultMessage: "Off-brand — too formal and jargon-heavy for DE checkout.",
-    id: "CoPsBr015",
+    id: "I/IBBrTtGZ",
     description: "Verdict body in brand chat answer",
   },
   brandGuidelineLabel: {
     defaultMessage: "Guideline",
-    id: "CoPsBr016",
+    id: "d3ASNb05IP",
     description: "Guideline section in brand chat answer",
   },
   brandGuidelineBody: {
     defaultMessage: "Tone: friendly, direct · CTA: short verb, max 24 characters.",
-    id: "CoPsBr017",
+    id: "MVrchtGazs",
     description: "Guideline body in brand chat answer",
   },
   brandSuggestLabel: {
     defaultMessage: "Suggested copy",
-    id: "CoPsBr018",
+    id: "DsRoK8kvzv",
     description: "Suggested copy section in brand chat answer",
   },
   brandSuggestBody: {
     defaultMessage: "Jetzt starten",
-    id: "CoPsBr019",
+    id: "jn5bLV1i0/",
     description: "Suggested copy body in brand chat answer",
   },
   brandSend: {
     defaultMessage: "Send",
-    id: "CoPsBr020",
+    id: "N0qPsNFkOT",
     description: "Send button in brand chat mock",
   },
   brandReplay: {
     defaultMessage: "Replay",
-    id: "CoPsBr021",
+    id: "aRwWx+LFBU",
     description: "Replay button in brand chat mock",
   },
 
   flowTitle: {
     defaultMessage: "Brief to publish · workflow",
-    id: "CoPsFl001",
+    id: "+TDSJ1bdrZ",
     description: "Flow panel title",
   },
   flowTemplateCampaign: {
     defaultMessage: "Campaign",
-    id: "CoPsFl002",
+    id: "+ek/FknpQJ",
     description: "Flow template pill for campaign",
   },
   flowTemplateSeo: {
     defaultMessage: "SEO blog",
-    id: "CoPsFl003",
+    id: "1WYC40KrqC",
     description: "Flow template pill for SEO blog",
   },
   flowTemplateBrief: {
     defaultMessage: "Brief to publish",
-    id: "CoPsFl004",
+    id: "Unt4qWzIK1",
     description: "Flow template pill for brief to publish",
   },
   flowNodeBrief: {
     defaultMessage: "GTM brief",
-    id: "CoPsFn001",
+    id: "0h6ygVHD06",
     description: "Flow node label",
   },
   flowNodeLocalise: {
     defaultMessage: "Localise",
-    id: "CoPsFn002",
+    id: "F3gTJhCvdi",
     description: "Flow node label",
   },
   flowNodeBrandQa: {
     defaultMessage: "Brand QA",
-    id: "CoPsFn003",
+    id: "qDJ1AfMuj+",
     description: "Flow node label",
   },
   flowNodeReview: {
     defaultMessage: "Review",
-    id: "CoPsFn004",
+    id: "vZn7h5Bl2j",
     description: "Flow node label",
   },
   flowNodeCms: {
     defaultMessage: "CMS publish",
-    id: "CoPsFn005",
+    id: "2JUwOE/z9B",
     description: "Flow node label",
   },
   flowNodeSchedule: {
     defaultMessage: "Scheduled run",
-    id: "CoPsFn006",
+    id: "cvuRKz2hMS",
     description: "Flow node label",
   },
   flowNodeKeywords: {
     defaultMessage: "Keyword research",
-    id: "CoPsFn007",
+    id: "3wOLsPOjf5",
     description: "Flow node label",
   },
   flowNodeDraft: {
     defaultMessage: "CMS draft",
-    id: "CoPsFn008",
+    id: "DN35BCM/UE",
     description: "Flow node label",
   },
   flowNodeSlack: {
     defaultMessage: "Slack notify",
-    id: "CoPsFn009",
+    id: "RicTjBrN9L",
     description: "Flow node label",
   },
   flowNodeStaging: {
     defaultMessage: "Staging",
-    id: "CoPsFn010",
+    id: "U499tVTudb",
     description: "Flow node label",
   },
 });
 
-export type ContentOpsMockTabId =
-  | "triage"
-  | "campaign"
-  | "seo-blog"
-  | "brand"
-  | "brief-to-publish";
+export type ContentOpsMockTabId = "triage" | "campaign" | "seo-blog" | "brand" | "brief-to-publish";

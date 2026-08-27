@@ -13,13 +13,7 @@
  * Version 2.0 or later.
  */
 import { useEffect, useMemo, useState } from "react";
-import {
-  Handle,
-  Position,
-  type Edge,
-  type Node,
-  type NodeProps,
-} from "@xyflow/react";
+import { Handle, Position, type Edge, type Node, type NodeProps } from "@xyflow/react";
 import { FormattedMessage, useIntl } from "react-intl";
 
 import { Canvas } from "@/components/ai-elements/canvas";
@@ -43,9 +37,17 @@ function WorkflowNode({ data }: NodeProps<Node<FlowNodeData>>) {
         data.active && "border-primary/50 bg-primary/5 ring-2 ring-primary/25",
       )}
     >
-      <Handle className="!size-1.5 !border-border !bg-muted-foreground" position={Position.Left} type="target" />
+      <Handle
+        className="!size-1.5 !border-border !bg-muted-foreground"
+        position={Position.Left}
+        type="target"
+      />
       <span className="text-foreground">{data.label}</span>
-      <Handle className="!size-1.5 !border-border !bg-muted-foreground" position={Position.Right} type="source" />
+      <Handle
+        className="!size-1.5 !border-border !bg-muted-foreground"
+        position={Position.Right}
+        type="source"
+      />
     </div>
   );
 }
@@ -144,12 +146,14 @@ export function ContentOpsFlowPanel({
     return () => clearInterval(timer);
   }, [labels.length, pauseAutoplay]);
 
-  const templates: { id: FlowTemplateId; label: typeof contentOpsMockStageMessages.flowTemplateBrief }[] =
-    [
-      { id: "brief", label: contentOpsMockStageMessages.flowTemplateBrief },
-      { id: "campaign", label: contentOpsMockStageMessages.flowTemplateCampaign },
-      { id: "seo", label: contentOpsMockStageMessages.flowTemplateSeo },
-    ];
+  const templates: {
+    id: FlowTemplateId;
+    label: typeof contentOpsMockStageMessages.flowTemplateBrief;
+  }[] = [
+    { id: "brief", label: contentOpsMockStageMessages.flowTemplateBrief },
+    { id: "campaign", label: contentOpsMockStageMessages.flowTemplateCampaign },
+    { id: "seo", label: contentOpsMockStageMessages.flowTemplateSeo },
+  ];
 
   return (
     <div className="flex w-full flex-col overflow-hidden rounded-xl border border-border/80 bg-background/90 shadow-lg backdrop-blur-sm">

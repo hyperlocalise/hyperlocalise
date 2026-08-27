@@ -17,13 +17,13 @@ import { defineMessages } from "react-intl";
 export const principlesSectionMessages = defineMessages({
   headline: {
     defaultMessage: "Run multilingual content ops from one place.",
-    id: "3DgHaZOLH3",
+    id: "fwsHBkkvhD",
     description: "Marketing homepage principles section headline",
   },
   subline: {
     defaultMessage:
       "Triage questions, localize campaigns, publish SEO blogs in every market, keep brand consistent, and automate brief to publish.",
-    id: "CoPsPrSub1",
+    id: "jPibzSMcAB",
     description: "Marketing homepage principles section supporting copy",
   },
 });

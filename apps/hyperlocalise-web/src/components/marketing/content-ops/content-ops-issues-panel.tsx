@@ -28,11 +28,7 @@ type IssueRow = {
   highlighted?: boolean;
 };
 
-export function ContentOpsIssuesPanel({
-  highlightedIndex = 1,
-}: {
-  highlightedIndex?: number;
-}) {
+export function ContentOpsIssuesPanel({ highlightedIndex = 1 }: { highlightedIndex?: number }) {
   const intl = useIntl();
 
   const rows: IssueRow[] = [

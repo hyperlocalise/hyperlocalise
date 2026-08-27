@@ -30,7 +30,10 @@ import {
   type ContentOpsActivityItem,
   type ContentOpsMockTabId,
 } from "./content-ops-activity-feed";
-import { ContentOpsAgentTerminal, type ContentOpsTerminalScene } from "./content-ops-agent-terminal";
+import {
+  ContentOpsAgentTerminal,
+  type ContentOpsTerminalScene,
+} from "./content-ops-agent-terminal";
 import { ContentOpsBrandPanel } from "./content-ops-brand-panel";
 import { ContentOpsFlowPanel } from "./content-ops-flow-panel";
 import { ContentOpsIssuesPanel } from "./content-ops-issues-panel";
@@ -66,10 +69,7 @@ const TABS: TabConfig[] = [
   { id: "brief-to-publish", labelKey: "tabBriefToPublish" },
 ];
 
-function useActivityItems(
-  tabId: ContentOpsMockTabId,
-  stepIndex: number,
-): ContentOpsActivityItem[] {
+function useActivityItems(tabId: ContentOpsMockTabId, stepIndex: number): ContentOpsActivityItem[] {
   const intl = useIntl();
 
   return useMemo(() => {
@@ -98,17 +98,41 @@ function useActivityItems(
         { time: "8m", source: "Review", message: "FR and DE queued" },
       ],
       [
-        { time: "now", source: "Agent", message: intl.formatMessage(contentOpsMockStageMessages.stepGtm2) },
-        { time: "4m", source: "Brief", message: intl.formatMessage(contentOpsMockStageMessages.stepGtm1) },
-        { time: "8m", source: "Review", message: intl.formatMessage(contentOpsMockStageMessages.stepGtm3) },
+        {
+          time: "now",
+          source: "Agent",
+          message: intl.formatMessage(contentOpsMockStageMessages.stepGtm2),
+        },
+        {
+          time: "4m",
+          source: "Brief",
+          message: intl.formatMessage(contentOpsMockStageMessages.stepGtm1),
+        },
+        {
+          time: "8m",
+          source: "Review",
+          message: intl.formatMessage(contentOpsMockStageMessages.stepGtm3),
+        },
       ],
       [
-        { time: "now", source: "Review", message: intl.formatMessage(contentOpsMockStageMessages.stepGtm3) },
-        { time: "4m", source: "Staging", message: intl.formatMessage(contentOpsMockStageMessages.stepGtm4) },
+        {
+          time: "now",
+          source: "Review",
+          message: intl.formatMessage(contentOpsMockStageMessages.stepGtm3),
+        },
+        {
+          time: "4m",
+          source: "Staging",
+          message: intl.formatMessage(contentOpsMockStageMessages.stepGtm4),
+        },
         { time: "8m", source: "Slack", message: "Notified #gtm" },
       ],
       [
-        { time: "now", source: "Staging", message: intl.formatMessage(contentOpsMockStageMessages.stepGtm4) },
+        {
+          time: "now",
+          source: "Staging",
+          message: intl.formatMessage(contentOpsMockStageMessages.stepGtm4),
+        },
         { time: "6m", source: "CMS", message: "12 assets published to staging" },
         { time: "10m", source: "Brief", message: "Q2 launch brief complete" },
       ],
@@ -123,16 +147,32 @@ function useActivityItems(
       ],
       [
         { time: "now", source: "Gaps", message: seoStep3 },
-        { time: "4m", source: "Draft", message: intl.formatMessage(contentOpsMockStageMessages.stepSeo4) },
+        {
+          time: "4m",
+          source: "Draft",
+          message: intl.formatMessage(contentOpsMockStageMessages.stepSeo4),
+        },
         { time: "8m", source: "QA", message: "Meta + H1 adapted for DE intent" },
       ],
       [
-        { time: "now", source: "Draft", message: intl.formatMessage(contentOpsMockStageMessages.stepSeo4) },
-        { time: "4m", source: "CMS", message: intl.formatMessage(contentOpsMockStageMessages.stepSeo5) },
+        {
+          time: "now",
+          source: "Draft",
+          message: intl.formatMessage(contentOpsMockStageMessages.stepSeo4),
+        },
+        {
+          time: "4m",
+          source: "CMS",
+          message: intl.formatMessage(contentOpsMockStageMessages.stepSeo5),
+        },
         { time: "8m", source: "Slack", message: "Notified #content" },
       ],
       [
-        { time: "now", source: "CMS", message: intl.formatMessage(contentOpsMockStageMessages.stepSeo5) },
+        {
+          time: "now",
+          source: "CMS",
+          message: intl.formatMessage(contentOpsMockStageMessages.stepSeo5),
+        },
         { time: "6m", source: "Research", message: "Monthly SEO run complete" },
         { time: "10m", source: "Gaps", message: seoStep3 },
       ],
@@ -202,7 +242,13 @@ function useActivityItems(
   }, [intl, stepIndex, tabId]);
 }
 
-export function ContentOpsMockStage({ className, priority = false }: { className?: string; priority?: boolean }) {
+export function ContentOpsMockStage({
+  className,
+  priority = false,
+}: {
+  className?: string;
+  priority?: boolean;
+}) {
   const intl = useIntl();
   const shouldReduceMotion = useReducedMotion() ?? false;
   const [activeTab, setActiveTab] = useState<ContentOpsMockTabId>("triage");

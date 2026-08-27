@@ -88,8 +88,9 @@ export function ContentOpsAgentTerminal({
     }
   }, [pauseAutoplay, scene.steps.length, shouldReduceMotion, visibleStepCount]);
 
-  const visibleSteps: ContentOpsTerminalStep[] = scene.steps.slice(0, visibleStepCount).map(
-    (label, index) => {
+  const visibleSteps: ContentOpsTerminalStep[] = scene.steps
+    .slice(0, visibleStepCount)
+    .map((label, index) => {
       const isLast = index === visibleStepCount - 1;
       const isHighlight = scene.highlightSteps?.has(label) ?? false;
       return {
@@ -101,8 +102,7 @@ export function ContentOpsAgentTerminal({
               ? "warning"
               : "done",
       };
-    },
-  );
+    });
 
   const progress = visibleSteps.length / scene.steps.length;
 
